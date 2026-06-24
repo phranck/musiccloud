@@ -2,6 +2,7 @@ import {
   DESIGN_TOKENS_DEFAULTS,
   type DesignTokens,
   ENDPOINTS,
+  type JamendoAudioFormat,
   type Locale,
   type NavId,
   type NavItem,
@@ -120,6 +121,41 @@ export async function fetchSharePreview(
   }
 }
 
+/** Stream a CC track's audio from the backend `ccAudio` proxy. Returns the raw
+ *  upstream Response (status + headers + body stream) so the Astro handler can
+ *  relay it same-origin, passing the visitor's `Range` header through for seeks.
+ *  An optional `format` selects the Jamendo delivery format; omitted lets the
+ *  backend apply its default. No timeout — audio streams are long-lived. */
+export async function fetchCcAudio(
+  jamendoId: string,
+  range: string | null,
+  clientIp?: string,
+  format?: JamendoAudioFormat,
+): Promise<Response> {
+  const headers: Record<string, string> = {
+    ...(INTERNAL_API_KEY ? { "X-API-Key": INTERNAL_API_KEY } : {}),
+    ...(range ? { Range: range } : {}),
+    ...(clientIp ? { "X-Forwarded-For": clientIp } : {}),
+  };
+  return fetch(backendUrl(ENDPOINTS.v1.ccAudio(jamendoId, format)), { headers });
+}
+
+/** Fetch a CC track's audio from the backend `ccDownload` proxy as a named
+ *  attachment. Returns the raw upstream Response so the Astro handler can relay
+ *  the body + `Content-Disposition` / `Content-Type` headers same-origin. An
+ *  optional `format` selects the Jamendo delivery format. */
+export async function fetchCcDownload(
+  jamendoId: string,
+  clientIp?: string,
+  format?: JamendoAudioFormat,
+): Promise<Response> {
+  const headers: Record<string, string> = {
+    ...(INTERNAL_API_KEY ? { "X-API-Key": INTERNAL_API_KEY } : {}),
+    ...(clientIp ? { "X-Forwarded-For": clientIp } : {}),
+  };
+  return fetch(backendUrl(ENDPOINTS.v1.ccDownload(jamendoId, format)), { headers });
+}
+
 /** Fetch share page data (track or album) by shortId from the backend. */
 export async function fetchShareData(
   shortId: string,
@@ -130,7 +166,13 @@ export async function fetchShareData(
     const res = await fetchWithTimeout(
       backendUrl(ENDPOINTS.v1.share(shortId)),
       { headers: internalHeaders(shareRequestExtra(clientIp, requestHeaders)), cache: "no-store" },
-      5000,
+      // CC shares are mirrored live from Jamendo (several throttled API calls per
+      // open), so their SSR routinely takes a few seconds — well past a 5s budget
+      // under any Jamendo latency. The caller turns a null into a /404 redirect,
+      // so a too-tight timeout shows a spurious "not found" for a valid CC track.
+      // Commercial shares resolve from the DB in ~20ms, so the wider budget never
+      // bites them.
+      20000,
     );
     if (!res.ok) return null;
     return res.json() as Promise<SharePageResponse>;
@@ -160,6 +202,43 @@ export async function resolveTrack(
 }
 
 /**
+ * Forward a Creative Commons resolve request to the backend CC resolve endpoint.
+ *
+ * Exact clone of {@link resolveTrack} but targets `ENDPOINTS.v1.ccResolve`
+ * (`/api/v1/cc/resolve`). Separated so the CC and commercial resolve paths
+ * are independently typeable and do not accidentally cross-call each other
+ * when the mode-aware hook switches endpoints.
+ *
+ * @param body - Resolve payload: either a free-text `query` or a
+ *   `selectedCandidate` short-ID picked from a disambiguation list.
+ * @param clientIp - The real visitor IP forwarded as `X-Forwarded-For` so
+ *   the backend rate-limiter buckets per user rather than per frontend pod.
+ *   Pass `Astro.clientAddress` from the proxy handler.
+ * @param origin - The `Origin` header from the incoming browser request,
+ *   forwarded for CORS audit on the backend side.
+ * @returns The raw `Response` from the backend. The caller (Astro proxy) is
+ *   responsible for streaming the body and propagating status / headers.
+ */
+export async function resolveCcTrack(
+  body: { query?: string; selectedCandidate?: string },
+  clientIp?: string,
+  origin?: string,
+): Promise<Response> {
+  const extra: Record<string, string> = {};
+  if (clientIp) extra["X-Forwarded-For"] = clientIp;
+  if (origin) extra.Origin = origin;
+  return fetchWithTimeout(
+    backendUrl(ENDPOINTS.v1.ccResolve),
+    {
+      method: "POST",
+      headers: internalHeaders(Object.keys(extra).length > 0 ? extra : undefined),
+      body: JSON.stringify(body),
+    },
+    15000,
+  );
+}
+
+/**
  * Fetch a procedurally generated genre artwork from the backend. Returns
  * the raw `Response` so the Astro proxy can stream the JPEG body straight
  * through to the browser with the upstream headers intact (Content-Type,
@@ -173,10 +252,36 @@ export async function fetchGenreArtwork(genreKey: string): Promise<Response> {
   return fetchWithTimeout(backendUrl(ENDPOINTS.v1.genreArtwork(genreKey)), { headers: internalHeaders() }, 60000);
 }
 
+/**
+ * Fetch a procedurally generated Creative-Commons genre artwork from the
+ * backend. Clone of {@link fetchGenreArtwork} targeting the CC route
+ * (`ENDPOINTS.v1.ccGenreArtwork`), whose cover is Jamendo-sourced so the CC
+ * path never touches Last.fm. Returns the raw `Response` so the Astro proxy can
+ * stream the JPEG body straight through with the upstream headers intact
+ * (Content-Type, Cache-Control). The timeout is generous for the same reason as
+ * the commercial route: a cache purge fans out many parallel tile requests and
+ * Jimp-based rendering is CPU-bound, so a single tile can legitimately wait past
+ * 15 s for its turn on the event loop.
+ */
+export async function fetchCcGenreArtwork(genreKey: string): Promise<Response> {
+  return fetchWithTimeout(backendUrl(ENDPOINTS.v1.ccGenreArtwork(genreKey)), { headers: internalHeaders() }, 60000);
+}
+
 /** Fetch a random short ID from the backend for the landing page example teaser. */
 export async function fetchRandomExample(): Promise<{ shortId: string } | null> {
   try {
     const res = await fetchWithTimeout(backendUrl(ENDPOINTS.v1.randomExample), { headers: internalHeaders() }, 3000);
+    if (!res.ok) return null;
+    return res.json() as Promise<{ shortId: string }>;
+  } catch {
+    return null;
+  }
+}
+
+/** Fetch a random CC track short ID for the landing page example teaser in CC mode. */
+export async function fetchCcRandomExample(): Promise<{ shortId: string } | null> {
+  try {
+    const res = await fetchWithTimeout(backendUrl(ENDPOINTS.v1.ccRandomExample), { headers: internalHeaders() }, 3000);
     if (!res.ok) return null;
     return res.json() as Promise<{ shortId: string }>;
   } catch {
@@ -277,5 +382,32 @@ export async function fetchArtistInfo(
     `${backendUrl(ENDPOINTS.v1.artistInfo)}?${params.toString()}`,
     { headers: internalHeaders(forwardedForExtra(clientIp)) },
     10000,
+  );
+}
+
+/** Forward a CC artist-column request to the backend `ccArtistInfo` endpoint
+ *  (Jamendo top + similar tracks + profile). The CC share page loads this async
+ *  after the core card renders, so the budget covers the ~4 throttled calls. */
+export async function fetchCcArtistInfo(
+  jamendoArtistId: string,
+  artistName: string,
+  clientIp?: string,
+): Promise<Response> {
+  const params = new URLSearchParams({ jamendoArtistId, artistName });
+  return fetchWithTimeout(
+    `${backendUrl(ENDPOINTS.v1.ccArtistInfo)}?${params.toString()}`,
+    { headers: internalHeaders(forwardedForExtra(clientIp)) },
+    20000,
+  );
+}
+
+/** Forward a CC Bandcamp-presence request to the backend `ccBandcamp` endpoint.
+ *  Loaded async by the CC share page after the core card renders; the budget
+ *  covers the backend's (cached, timeout-bounded) fuzzy-search scrape. */
+export async function fetchCcBandcamp(jamendoId: string, clientIp?: string): Promise<Response> {
+  return fetchWithTimeout(
+    backendUrl(ENDPOINTS.v1.ccBandcamp(jamendoId)),
+    { headers: internalHeaders(forwardedForExtra(clientIp)) },
+    12000,
   );
 }

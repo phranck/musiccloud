@@ -1,9 +1,10 @@
 import { type NavItem, NavTarget } from "@musiccloud/shared";
 import { ListIcon } from "@phosphor-icons/react";
-import { type MouseEvent, useEffect, useId, useRef, useState } from "react";
+import { type MouseEvent, useCallback, useId, useRef, useState } from "react";
 
 import { raisedControlRadius, recessedSurfaceRadius } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
+import { useDismissableLayer } from "@/components/ui/useDismissableLayer";
 import { useT } from "@/i18n/localeContext";
 import { navHref, navLabel } from "@/lib/nav";
 
@@ -41,24 +42,10 @@ export function HeaderNavMenu({ navItems, onNavClick }: HeaderNavMenuProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const menuId = useId();
+  const close = useCallback(() => setOpen(false), []);
 
-  // While open, dismiss on an outside pointer press or Escape. Listeners are
-  // scoped to the open state and removed when it closes or the menu unmounts.
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: PointerEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
+  // While open, dismiss on an outside pointer press or Escape.
+  useDismissableLayer(open, close, containerRef);
 
   return (
     <div ref={containerRef} className="relative">
@@ -79,28 +66,35 @@ export function HeaderNavMenu({ navItems, onNavClick }: HeaderNavMenuProps) {
       </RecessedCard>
 
       {open && (
-        <nav
-          id={menuId}
-          aria-label={t("nav.menu")}
-          style={RAISED_RADIUS_STYLE}
-          className="recessed-gradient-border mc-glass-nav-track absolute left-0 top-full mt-2 flex min-w-[10rem] flex-col gap-0.5 overflow-hidden p-1"
-        >
-          {navItems.map((item) => (
-            <a
-              key={item.id}
-              href={navHref(item)}
-              target={item.target === NavTarget.Blank ? NavTarget.Blank : undefined}
-              rel={item.target === NavTarget.Blank ? "noopener noreferrer" : undefined}
-              onClick={(event) => {
-                onNavClick(event, item);
-                setOpen(false);
-              }}
-              className="mc-glass-nav-indicator mc-nav-item mc-txt-nav-normal rounded-lg px-3 py-2 transition-colors duration-150"
-            >
-              {navLabel(item)}
-            </a>
-          ))}
-        </nav>
+        // Positioning wrapper carries `absolute` on its own: the inner panel uses
+        // `recessed-gradient-border`, whose `position: relative` (glass.css) would
+        // otherwise beat the Tailwind `absolute` utility — leaving the panel in
+        // flow, which widened the trigger track to the menu's width. The wrapper
+        // keeps the panel out of flow so the hamburger button keeps its size.
+        <div className="absolute left-0 top-full z-50 mt-2">
+          <nav
+            id={menuId}
+            aria-label={t("nav.menu")}
+            style={RAISED_RADIUS_STYLE}
+            className="recessed-gradient-border mc-glass-nav-track flex min-w-[10rem] origin-top animate-menu-drop-in flex-col gap-0.5 overflow-hidden p-1"
+          >
+            {navItems.map((item) => (
+              <a
+                key={item.id}
+                href={navHref(item)}
+                target={item.target === NavTarget.Blank ? NavTarget.Blank : undefined}
+                rel={item.target === NavTarget.Blank ? "noopener noreferrer" : undefined}
+                onClick={(event) => {
+                  onNavClick(event, item);
+                  setOpen(false);
+                }}
+                className="mc-glass-nav-indicator mc-nav-item mc-txt-nav-normal rounded-lg px-3 py-2 transition-colors duration-150"
+              >
+                {navLabel(item)}
+              </a>
+            ))}
+          </nav>
+        </div>
       )}
     </div>
   );

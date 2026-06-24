@@ -631,5 +631,6 @@ export function rowToNormalizedAlbum(row: AlbumRow): NormalizedAlbum {
     label: row.label ?? undefined,
     upc: row.upc ?? undefined,
     webUrl: row.source_url ?? "",
+    topTrackPreviewUrl: row.preview_url ?? undefined,
   };
 }

@@ -78,12 +78,17 @@ export default async function genreArtworkRoutes(app: FastifyInstance) {
       // No cover? We still generate an artwork using the fallback color
       // so the grid never shows a broken tile. Only refuse if the key is
       // genuinely nonsense (handled above).
-      const { jpeg } = await ensureArtwork(genreKey, coverUrl, toDisplayName(genreKey));
-      return reply
-        .code(200)
-        .header("Content-Type", "image/jpeg")
-        .header("Cache-Control", "public, max-age=31536000, immutable")
-        .send(jpeg);
+      const { jpeg, isFallback } = await ensureArtwork(genreKey, coverUrl, toDisplayName(genreKey));
+      return (
+        reply
+          .code(200)
+          .header("Content-Type", "image/jpeg")
+          // A transient fallback (cover fetch failed) must NOT be cached
+          // immutably or it freezes in the browser; serve it `no-store` so the
+          // next view re-requests and retries the cover.
+          .header("Cache-Control", isFallback ? "no-store" : "public, max-age=31536000, immutable")
+          .send(jpeg)
+      );
     },
   );
 }

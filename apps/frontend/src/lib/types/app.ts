@@ -3,6 +3,9 @@ import type {
   ApiGenreArtistCandidate,
   ApiGenreTile,
   ApiGenreTrackCandidate,
+  ArtistInfoResponse,
+  CcMusicInfo,
+  CcTrackStats,
   UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
 import type { DisambiguationCandidate } from "./disambiguation";
@@ -56,11 +59,50 @@ export const InputState = {
 
 export type InputState = (typeof InputState)[keyof typeof InputState];
 
+/**
+ * The two resolve modes the user can choose between.
+ *
+ * - `Commercial` routes queries through the standard commercial resolve endpoint
+ *   (`/api/resolve`) and surfaces streaming-platform links.
+ * - `Cc` routes queries through the Creative Commons resolve endpoint
+ *   (`/api/cc/resolve`) and surfaces Jamendo tracks with license/attribution
+ *   metadata instead of platform links.
+ *
+ * Values are intentionally lower-case strings to match the `data-resolve-mode`
+ * HTML attribute and the persisted `mc:resolveMode` localStorage key verbatim,
+ * eliminating any mapping layer.
+ */
+export const ResolveMode = {
+  Commercial: "commercial",
+  Cc: "cc",
+} as const;
+
+export type ResolveMode = (typeof ResolveMode)[keyof typeof ResolveMode];
+
 export const ActiveResultKind = {
   Song: "song",
   Album: "album",
   Artist: "artist",
+  CcSong: "cc-song",
+  CcAlbum: "cc-album",
+  CcArtist: "cc-artist",
 } as const;
+
+/**
+ * Discriminant namespace for CC resolve responses.
+ *
+ * Members match the `type` field emitted by the CC resolve endpoint
+ * (`"cc-track"` / `"cc-album"` / `"cc-artist"`). Using this namespace instead of
+ * inline string literals keeps the domain-literals Doctor rule green and ensures
+ * all comparisons point to a single source of truth.
+ */
+export const CcResultType = {
+  CcTrack: "cc-track",
+  CcAlbum: "cc-album",
+  CcArtist: "cc-artist",
+} as const;
+
+export type CcResultType = (typeof CcResultType)[keyof typeof CcResultType];
 
 export const AppStateType = {
   Idle: "idle",
@@ -73,6 +115,7 @@ export const AppStateType = {
   GenreBrowse: "genre-browse",
   GenreSearch: "genre-search",
   GenreSearchLoading: "genre-search_loading",
+  CcResult: "cc-result",
 } as const;
 
 export interface SongResult {
@@ -113,7 +156,109 @@ export interface ArtistResult {
   shareUrl: string;
 }
 
-export type ActiveResult = SongResult | AlbumResult | ArtistResult;
+/**
+ * A resolved Creative Commons track from the Jamendo catalogue.
+ *
+ * Intentionally has no `platforms` field — CC tracks are accessed directly
+ * via Jamendo (stream, download, artist page) rather than through a
+ * multi-platform link grid. The `shareUrl` is the musiccloud short URL for
+ * this result; `jamendoUrl` is the canonical Jamendo page for the track.
+ *
+ * All optional fields may be absent when Jamendo's API does not return them
+ * for a given track.
+ */
+export interface CcTrackResult {
+  /** Discriminant: always `ActiveResultKind.CcSong`. */
+  kind: typeof ActiveResultKind.CcSong;
+  /** Jamendo numeric track ID (as string). */
+  jamendoId: string;
+  /** Jamendo numeric artist ID — drives the async CC artist-column fetch. */
+  jamendoArtistId: string;
+  /** Track title as returned by Jamendo. */
+  title: string;
+  /** Primary artist name. */
+  artist: string;
+  /** Album title, if available. */
+  album?: string;
+  /** ISO 8601 release date string (`YYYY-MM-DD`), if available. */
+  releaseDate?: string;
+  /** Track duration in milliseconds, if available. */
+  durationMs?: number;
+  /** URL of the track's cover art (always present — falls back to a placeholder). */
+  artworkUrl: string;
+  /** Direct MP3 stream URL for the full track (Jamendo's `audio` field). */
+  streamUrl: string;
+  /** Canonical URL of the CC licence deed (e.g. `https://creativecommons.org/licenses/by/4.0/`), if available. */
+  licenseCcurl?: string;
+  /** Direct download URL for the track MP3, if `downloadAllowed` is true. */
+  downloadUrl?: string;
+  /** Whether Jamendo permits direct download of this track. */
+  downloadAllowed: boolean;
+  /** URL of the waveform image provided by Jamendo, if available. */
+  waveform?: string;
+  /** Canonical Jamendo page for the track, used for the "Open on Jamendo" link. */
+  jamendoUrl?: string;
+  /** musiccloud short URL for this result (e.g. `https://musi.cc/abc123`). */
+  shareUrl: string;
+  /** `include=musicinfo` classification (genres, instruments, mood, vocal, …), when Jamendo returned it. */
+  musicInfo?: CcMusicInfo;
+  /** `include=stats` engagement counters (listens, downloads, rating, …), when Jamendo returned them. */
+  stats?: CcTrackStats;
+  /** True when the track is also licensable commercially via Jamendo Pro. */
+  proLicensing?: boolean;
+  /** Jamendo Pro licensing page for the track, shown when `proLicensing` is true. */
+  proUrl?: string;
+  /**
+   * Right-column data for the shared artist column. Optional and **unset for a CC
+   * track** — the track card renders immediately and loads this column async via
+   * the track's `jamendoArtistId` (`/api/cc/artist-info`). Album/artist still seed
+   * it server-side.
+   */
+  artistInfo?: ArtistInfoResponse;
+}
+
+/**
+ * A resolved Creative Commons album from Jamendo: the album header plus its
+ * artist-column data. `shareUrl` is the musiccloud short URL; `jamendoUrl` is
+ * the canonical Jamendo album page.
+ */
+export interface CcAlbumResult {
+  kind: typeof ActiveResultKind.CcAlbum;
+  jamendoId: string;
+  title: string;
+  artist: string;
+  releaseDate?: string;
+  artworkUrl: string;
+  jamendoUrl?: string;
+  shareUrl: string;
+  /** Right-column data (the album's tracks + similar tracks) for the shared artist column. */
+  artistInfo: ArtistInfoResponse;
+}
+
+/**
+ * A resolved Creative Commons artist from Jamendo: the artist header plus its
+ * artist-column data. `shareUrl` is the musiccloud short URL; `jamendoUrl` is
+ * the canonical Jamendo artist page.
+ */
+export interface CcArtistResult {
+  kind: typeof ActiveResultKind.CcArtist;
+  jamendoId: string;
+  name: string;
+  imageUrl: string;
+  jamendoUrl?: string;
+  shareUrl: string;
+  /** Right-column data (the artist's top tracks + similar tracks) for the shared artist column. */
+  artistInfo: ArtistInfoResponse;
+}
+
+/**
+ * Any resolved Creative Commons entity held on the CC result state (`ccActive`).
+ * Kept separate from {@link ActiveResult}: CC entities never flow through the
+ * commercial `active` path or its platform-link config builders.
+ */
+export type CcResult = CcTrackResult | CcAlbumResult | CcArtistResult;
+
+export type ActiveResult = SongResult | AlbumResult | ArtistResult | CcTrackResult;
 
 export type AppState =
   | { type: typeof AppStateType.Idle }
@@ -125,7 +270,8 @@ export type AppState =
   | { type: typeof AppStateType.DisambiguationLoading; candidates: DisambiguationCandidate[]; selectedId: string }
   | { type: typeof AppStateType.GenreBrowse; genres: ApiGenreTile[] }
   | { type: typeof AppStateType.GenreSearch; payload: GenreSearchPayload }
-  | { type: typeof AppStateType.GenreSearchLoading; payload: GenreSearchPayload; selectedId: string };
+  | { type: typeof AppStateType.GenreSearchLoading; payload: GenreSearchPayload; selectedId: string }
+  | { type: typeof AppStateType.CcResult; ccActive: CcResult };
 
 export interface ReducerState {
   screen: AppState;
@@ -143,4 +289,5 @@ export type AppAction =
   | { type: "NAV_BACK" }
   | { type: "ERROR"; error: ResolveUiError }
   | { type: "CLEAR_START" }
-  | { type: "CLEAR" };
+  | { type: "CLEAR" }
+  | { type: "RESOLVE_CC_SUCCESS"; ccActive: CcResult };

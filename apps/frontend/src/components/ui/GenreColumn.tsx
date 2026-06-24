@@ -1,6 +1,6 @@
 import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
+import { GroupedCornerList } from "@/components/cards/GroupedCornerList";
 import { RecessedCard } from "@/components/cards/RecessedCard";
-import { useGroupedCorners } from "@/components/cards/useGroupedCorners";
 import { cn } from "@/lib/utils";
 
 /**
@@ -15,13 +15,6 @@ import { cn } from "@/lib/utils";
  * last row's bottom corners promote to meet the well's rounded bottom.
  */
 export function GenreColumn({ label, children }: { label: string; children: React.ReactNode }) {
-  const listRef = useGroupedCorners<HTMLDivElement>({
-    itemSelector: ":scope > * > button",
-    frameSelector: ".mc-row-art",
-    frameInset: 4,
-    promoteTop: false,
-  });
-
   return (
     <RecessedCard className={cn("flex flex-col min-h-0", recessedControlInsetClassName)}>
       <RecessedCard.Header className="mb-0 pt-1 pb-2">
@@ -33,9 +26,14 @@ export function GenreColumn({ label, children }: { label: string; children: Reac
         scrollable
         className="rounded-b-[max(4px,calc(var(--mc-recessed-radius-base)-var(--mc-recessed-padding)))]"
       >
-        <div ref={listRef} className="flex flex-col gap-[var(--mc-gap-list,0.125rem)]">
+        <GroupedCornerList
+          itemSelector=":scope > * > button"
+          frameSelector=".mc-row-art"
+          frameInset={4}
+          promoteTop={false}
+        >
           {children}
-        </div>
+        </GroupedCornerList>
       </RecessedCard.Body>
     </RecessedCard>
   );

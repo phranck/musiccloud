@@ -836,6 +836,81 @@ export interface TrackRepository {
   close(): Promise<void>;
 }
 
+// ─── Creative-Commons Repository Types ────────────────────────────────────────
+
+/** Data needed to persist a resolved CC track (artist + optional album inline). */
+export interface PersistCcTrackData {
+  jamendoId: string;
+  title: string;
+  artistName: string;
+  jamendoArtistId: string;
+  artistImageUrl?: string;
+  artistWebsite?: string;
+  artistShareUrl?: string;
+  albumName?: string;
+  jamendoAlbumId?: string;
+  albumArtworkUrl?: string;
+  albumReleaseDate?: string;
+  albumZipUrl?: string;
+  albumShareUrl?: string;
+  artworkUrl?: string;
+  durationMs?: number;
+  releaseDate?: string;
+  licenseCcurl?: string;
+  streamUrl: string;
+  downloadUrl?: string;
+  downloadAllowed: boolean;
+  waveform?: string;
+  shareUrl?: string;
+}
+
+/**
+ * Data needed to persist a resolved CC album. The artist is upserted minimally
+ * (id + name) to satisfy the `cc_albums.cc_artist_id` FK; a later artist resolve
+ * enriches it (image/website/share) via the same `jamendo_id` upsert key.
+ */
+export interface PersistCcAlbumData {
+  jamendoId: string;
+  name: string;
+  jamendoArtistId: string;
+  artistName: string;
+  artworkUrl?: string;
+  releaseDate?: string;
+  zipUrl?: string;
+  shareUrl?: string;
+}
+
+/** Data needed to persist a resolved CC artist. */
+export interface PersistCcArtistData {
+  jamendoId: string;
+  name: string;
+  imageUrl?: string;
+  website?: string;
+  shareUrl?: string;
+}
+
+/**
+ * Result of resolving a public CC short id to its entity. The share-page loader
+ * only needs the entity kind and its Jamendo id — it refetches the full entity
+ * (and the live right-column artist info) from Jamendo, exactly like the live
+ * resolve, so the share page and the live view render from identical data.
+ */
+export interface CcShortIdLookup {
+  kind: "cc-track" | "cc-album" | "cc-artist";
+  jamendoId: string;
+}
+
+/** CC persistence + lookups, kept separate from the commercial TrackRepository. */
+export interface CcRepository {
+  persistCcTrack(data: PersistCcTrackData): Promise<{ ccTrackId: string; shortId: string }>;
+  persistCcAlbum(data: PersistCcAlbumData): Promise<{ ccAlbumId: string; shortId: string }>;
+  persistCcArtist(data: PersistCcArtistData): Promise<{ ccArtistId: string; shortId: string }>;
+  /** Resolves a public CC short id (track, album or artist) to its kind + Jamendo id. */
+  findCcShortId(shortId: string): Promise<CcShortIdLookup | null>;
+  /** Returns a random existing CC track short id, or `null` when none exist. */
+  getRandomCcShortId(): Promise<string | null>;
+}
+
 /** Payload accepted by `insertAppTelemetryEvent`. Shape matches the
  * /api/v1/telemetry/app-error request body one-to-one. */
 export interface AppTelemetryEventInput {

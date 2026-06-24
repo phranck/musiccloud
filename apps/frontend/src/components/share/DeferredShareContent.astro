@@ -16,12 +16,14 @@
 import { fetchPublicContentPage, fetchRandomExample, fetchShareData } from "@/api/client";
 import { LandingPage } from "@/components/landing/LandingPage";
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
-import { MarkdownHtml, SegmentedPageFullscreen } from "@/components/layout/PageOverlayContent";
+import { SegmentedPageFullscreen } from "@/components/layout/SegmentedPageFullscreen";
+import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
 import { RecessedCard } from "@/components/cards/RecessedCard";
+import { CcSharePageShell } from "@/components/share/CcSharePageShell";
 import { SharePageShell } from "@/components/share/SharePageShell";
 import { getRequestLocale } from "@/i18n/locales";
 import { loadTranslations, makeT } from "@/i18n/server";
-import { buildShareViewFromSharePageResponse } from "@/lib/share/share-view";
+import { buildCcSharePageProps, buildShareViewFromSharePageResponse, isCcSharePageResponse } from "@/lib/share/share-view";
 
 interface Props {
   shortId: string;
@@ -47,10 +49,17 @@ const notFound = !contentPage && !data;
 const overlayMode = !!contentPage && contentPage.displayMode !== "fullscreen";
 const exampleShortId = overlayMode ? ((await fetchRandomExample())?.shortId ?? null) : null;
 
-const shareView = data ? buildShareViewFromSharePageResponse(data, shortId, t) : null;
+// CC entities render through their own shell (the commercial share-view builder
+// handles only track/album/artist); split the two here.
+const ccPageProps = data && isCcSharePageResponse(data) ? buildCcSharePageProps(data, t) : null;
+const shareView = data && !isCcSharePageResponse(data) ? buildShareViewFromSharePageResponse(data, shortId, t) : null;
 const shareConfig = shareView?.config ?? null;
-const pageTitle = notFound ? null : contentPage ? `${contentPage.title} - musiccloud` : (shareView?.pageTitle ?? null);
-const artworkUrl = contentPage ? null : shareView?.artworkUrl;
+const pageTitle = notFound
+  ? null
+  : contentPage
+    ? `${contentPage.title} - musiccloud`
+    : (ccPageProps?.pageTitle ?? shareView?.pageTitle ?? null);
+const artworkUrl = contentPage ? null : (ccPageProps?.artworkUrl ?? shareView?.artworkUrl);
 ---
 
 {notFound && <script is:inline>window.location.replace("/404");</script>}
@@ -110,6 +119,17 @@ const artworkUrl = contentPage ? null : shareView?.artworkUrl;
     </main>
     <PageOverlayIsland client:load initialPage={contentPage} initialLocale={locale} />
   </Fragment>
+)}
+
+{!notFound && !contentPage && ccPageProps && (
+  <CcSharePageShell
+    client:load
+    config={ccPageProps.config}
+    artistName={ccPageProps.artistName}
+    artistInfo={ccPageProps.artistInfo}
+    labels={ccPageProps.labels}
+    initialLocale={locale}
+  />
 )}
 
 {!notFound && !contentPage && shareView && shareConfig && (

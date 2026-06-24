@@ -302,6 +302,20 @@
       "when": 1780770590804,
       "tag": "0042_worthless_sue_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1781996043314,
+      "tag": "0043_pink_omega_red",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1782066956908,
+      "tag": "0044_lively_bullseye",
+      "breakpoints": true
     }
   ]
 }

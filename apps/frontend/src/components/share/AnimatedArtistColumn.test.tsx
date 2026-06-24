@@ -2,8 +2,11 @@ import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { render } from "@testing-library/react";
 import gsap from "gsap";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ArtistInfoStatus } from "@/components/artist/ArtistCardParts";
-import type { ArtistPanelTrackResolveHandler } from "@/components/artist/PopularTracksSection";
+import type {
+  ArtistCardLabels,
+  ArtistInfoStatus,
+  ArtistPanelTrackResolveHandler,
+} from "@/components/artist/artistPanelTypes";
 import { AnimatedArtistColumn } from "@/components/share/AnimatedArtistColumn";
 import { LocaleProvider } from "@/i18n/context";
 
@@ -31,17 +34,37 @@ import { LocaleProvider } from "@/i18n/context";
  * `swap.test.ts`).
  */
 
-/** Settled-empty payload: every section empty, so three cards unmount (`return null`). */
-const EMPTY_ARTIST_DATA: ArtistInfoResponse = {
+/**
+ * Settled payload with exactly one visible card: a profile is present (so the
+ * profile card renders) while every list section is empty (so the other three
+ * cards self-hide). The reflow tests need a persistent card as the flip's
+ * "before" anchor — with zero cards there is nothing to flip from.
+ */
+const SETTLED_PROFILE_ONLY_DATA: ArtistInfoResponse = {
   artistName: "Test Artist",
   topTracks: [],
-  profile: null,
+  profile: {
+    imageUrl: null,
+    genres: [],
+    popularity: null,
+    followers: null,
+    bioSummary: "Test bio.",
+    scrobbles: null,
+    similarArtists: [],
+  },
   events: [],
   similarArtistTracks: [],
 };
 
 const noop = () => {};
 const noopResolve: ArtistPanelTrackResolveHandler = async () => {};
+const TEST_LABELS: ArtistCardLabels = {
+  profile: "Artist Info",
+  popularTracks: "Popular Tracks",
+  events: "Upcoming Events",
+  similar: "Similar Artists",
+  profileProvidedBy: "Artist data provided by Spotify, Deezer & Last.fm",
+};
 
 /** Builds the column element wrapped in the locale provider its cards require. */
 function columnElement(artistData: ArtistInfoResponse | null, artistLoadStatus: ArtistInfoStatus, isLoading: boolean) {
@@ -52,6 +75,7 @@ function columnElement(artistData: ArtistInfoResponse | null, artistLoadStatus: 
         artistLoadStatus={artistLoadStatus}
         isLoading={isLoading}
         onArtistResolveStart={noop}
+        labels={TEST_LABELS}
         onTrackResolve={noopResolve}
         userRegion=""
         widthPx={512}
@@ -83,9 +107,9 @@ describe("AnimatedArtistColumn flip wiring", () => {
   });
 
   it("runs a flip on the column's cards when the artist-info load reflows", () => {
-    // Settled-empty first (one card), then a fresh load: the three previously
-    // unmounted cards re-enter, and the entrance flip animates them.
-    const { container, rerender } = render(columnElement(EMPTY_ARTIST_DATA, "empty", false));
+    // Settled with one visible card (profile), then a fresh load: the three
+    // previously hidden cards re-enter, and the entrance flip animates them.
+    const { container, rerender } = render(columnElement(SETTLED_PROFILE_ONLY_DATA, "ready", false));
     const column = container.firstElementChild as HTMLElement;
 
     rerender(columnElement(null, "loading", true));
@@ -95,7 +119,7 @@ describe("AnimatedArtistColumn flip wiring", () => {
 
   it("skips the reflow flip entirely when the user prefers reduced motion", () => {
     stubMatchMedia(true);
-    const { container, rerender } = render(columnElement(EMPTY_ARTIST_DATA, "empty", false));
+    const { container, rerender } = render(columnElement(SETTLED_PROFILE_ONLY_DATA, "ready", false));
     const column = container.firstElementChild as HTMLElement;
 
     rerender(columnElement(null, "loading", true));

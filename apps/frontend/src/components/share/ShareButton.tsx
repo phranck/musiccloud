@@ -90,7 +90,7 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
             aria-label={t("share.copyLink")}
             className={cn(
               "flex h-full min-h-0 w-full items-center justify-center gap-2 py-0",
-              "font-bold text-[15px] tracking-[-0.01em] text-text-primary",
+              "text-sm font-medium text-text-primary",
               state === ShareButtonState.Idle && "text-white",
               state === ShareButtonState.Copied && "text-success",
               state === ShareButtonState.Error && "text-error",
@@ -104,13 +104,13 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
             )}
             {state === ShareButtonState.Copied && (
               <>
-                <CheckIcon size={16} weight="duotone" />
+                <CheckIcon size={20} weight="duotone" />
                 {t("share.copied")}
               </>
             )}
             {state === ShareButtonState.Error && (
               <>
-                <WarningIcon size={16} weight="duotone" />
+                <WarningIcon size={20} weight="duotone" />
                 {t("share.copyError")}
               </>
             )}

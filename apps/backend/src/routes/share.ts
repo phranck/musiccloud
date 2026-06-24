@@ -47,6 +47,7 @@ import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter, isInternalRequest } from "../lib/infra/rate-limiter.js";
 import { resolveAppleMusicStorefrontFromHeaders } from "../lib/platform/apple-music-storefront.js";
 import { toCachedApiLinks } from "../lib/server/api-links.js";
+import { loadCcByShortId } from "../lib/server/cc-share-page.js";
 import { loadAlbumByShortId, loadArtistByShortId, loadByShortId } from "../lib/server/share-page.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 
@@ -116,10 +117,11 @@ export default async function shareRoutes(app: FastifyInstance) {
       // serial waterfall (track → album → artist) that cost up to three
       // round-trips for artist-type IDs. Cost: up to two extra queries
       // that return null fast — cheap on indexed shortId lookups.
-      const [trackData, albumData, artistData] = await Promise.all([
+      const [trackData, albumData, artistData, ccData] = await Promise.all([
         loadByShortId(shortId, origin, appleMusicStorefront),
         loadAlbumByShortId(shortId, origin, appleMusicStorefront),
         loadArtistByShortId(shortId, origin, appleMusicStorefront),
+        loadCcByShortId(shortId, origin),
       ]);
 
       if (trackData) {
@@ -202,9 +204,16 @@ export default async function shareRoutes(app: FastifyInstance) {
         return reply.send(response);
       }
 
+      // CC entities carry no cross-service links; the loader already shapes the
+      // full cc-* SharePageResponse, so it is sent verbatim.
+      if (ccData) {
+        reply.header("Cache-Control", "private, max-age=3600");
+        return reply.send(ccData);
+      }
+
       return reply.status(404).send({
         error: "TRACK_NOT_FOUND",
-        message: "No track, album, or artist found for this short ID.",
+        message: "No track, album, artist, or CC entity found for this short ID.",
       });
     },
   );

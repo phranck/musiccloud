@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
-import { initialOverlayState } from "@/context/OverlayContext";
+import { initialOverlayState } from "@/context/overlayState";
 
 const originalMatchMedia = window.matchMedia;
 

@@ -6,4 +6,4 @@ export const sectionCardTitleClassName =
 
 export const sectionCardFooterClassName = "px-[var(--mc-card-chrome-x)] pb-3";
 
-export const sectionCardFooterTextClassName = "text-xs text-text-muted text-center";
+export const sectionCardFooterTextClassName = "mc-txt-info-normal text-center";

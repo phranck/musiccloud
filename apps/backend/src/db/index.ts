@@ -2,7 +2,7 @@ import { log } from "../lib/infra/logger";
 import { PostgresAdapter } from "./adapters/postgres.js";
 import type { AdminRepository } from "./admin-repository.js";
 import { loadDatabaseConfig } from "./config.js";
-import type { TrackRepository } from "./repository.js";
+import type { CcRepository, TrackRepository } from "./repository.js";
 
 let repositoryInstance: PostgresAdapter | null = null;
 const _cleanupInterval: ReturnType<typeof setInterval> | null = null;
@@ -15,6 +15,12 @@ export async function getRepository(): Promise<TrackRepository> {
 
 /** Returns the singleton AdminRepository instance, creating it on first call. */
 export async function getAdminRepository(): Promise<AdminRepository> {
+  await ensureInstance();
+  return repositoryInstance!;
+}
+
+/** Returns the singleton CcRepository instance, creating it on first call. */
+export async function getCcRepository(): Promise<CcRepository> {
   await ensureInstance();
   return repositoryInstance!;
 }
@@ -43,4 +49,12 @@ export async function closeRepository(): Promise<void> {
 
 // Re-export types for consumers
 export type { AdminRepository, AdminUser } from "./admin-repository.js";
-export type { CachedTrackResult, PersistTrackData, SharePageDbResult, TrackRepository } from "./repository.js";
+export type {
+  CachedTrackResult,
+  CcRepository,
+  CcShortIdLookup,
+  PersistCcTrackData,
+  PersistTrackData,
+  SharePageDbResult,
+  TrackRepository,
+} from "./repository.js";

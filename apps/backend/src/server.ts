@@ -29,6 +29,13 @@ import adminSseRoutes from "./routes/admin-sse.js";
 import adminUserRoutes from "./routes/admin-users.js";
 import artistInfoRoutes from "./routes/artist-info.js";
 import authRoutes from "./routes/auth.js";
+import ccArtistInfoRoutes from "./routes/cc-artist-info.js";
+import ccAudioRoutes from "./routes/cc-audio.js";
+import ccBandcampRoutes from "./routes/cc-bandcamp.js";
+import ccDownloadRoutes from "./routes/cc-download.js";
+import ccGenreArtworkRoutes from "./routes/cc-genre-artwork.js";
+import ccRandomExampleRoutes from "./routes/cc-random-example.js";
+import ccResolveRoutes from "./routes/cc-resolve.js";
 import genreArtworkRoutes from "./routes/genre-artwork.js";
 import linkRoutes from "./routes/link.js";
 import publicContentNavRoutes from "./routes/public-content-nav.js";
@@ -414,12 +421,27 @@ async function buildApp() {
   await app.register(shareRoutes);
   await app.register(sharePreviewRoutes);
 
+  // CC audio proxy (public, no auth - the audio player streams CC tracks through it)
+  await app.register(ccAudioRoutes);
+  // CC download proxy (public, no auth - re-serves the audio as a named attachment)
+  await app.register(ccDownloadRoutes);
+
   // Artist info endpoint (public, no auth - fetched by React island)
   await app.register(artistInfoRoutes);
+  // CC artist column (public, no auth - the CC share page loads it async)
+  await app.register(ccArtistInfoRoutes);
+  // CC Bandcamp presence (public, no auth - the CC share page loads it async)
+  await app.register(ccBandcampRoutes);
   await app.register(randomExampleRoutes);
+  await app.register(ccRandomExampleRoutes);
 
   // Genre artwork endpoint (public, no auth - referenced from browse grid tiles)
   await app.register(genreArtworkRoutes);
+
+  // CC genre artwork endpoint (public, no auth - referenced from CC browse grid
+  // tiles). Same per-IP rate-limit exemption as the commercial route above: it
+  // never calls `apiRateLimiter`, only the global 300/min ceiling applies.
+  await app.register(ccGenreArtworkRoutes);
 
   // Site settings (public read for SSR)
   await app.register(siteSettingsPublicRoutes);
@@ -441,6 +463,7 @@ async function buildApp() {
     protectedApp.addHook("preHandler", protectedApp.authenticatePublic);
 
     await protectedApp.register(resolveRoutes);
+    await protectedApp.register(ccResolveRoutes);
     await protectedApp.register(linkRoutes);
   });
 

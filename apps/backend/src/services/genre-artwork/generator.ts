@@ -20,7 +20,10 @@ import type opentype from "opentype.js";
 
 const SIZE = 512;
 const JPEG_QUALITY = 82;
-const COVER_SIZE = 320;
+// Lower-right cover thumbnail size (pre-rotation), shared by ALL genre tiles
+// (commercial + CC). Larger than the tile's flat area so the rotated cover
+// overhangs and is partially clipped at the corner.
+const COVER_SIZE = 400;
 const COVER_CORNER_RADIUS = 24;
 const COVER_ROTATION_DEG = -18;
 const COVER_CENTER_X = 380;
@@ -368,6 +371,17 @@ function hexToRgb(hex: string): [number, number, number] {
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
 }
 
+/**
+ * Composes a Spotify-style genre tile: a flat fill in the cover's average
+ * colour, the genre name baked into the upper-left, and a rotated cover
+ * thumbnail (sized {@link COVER_SIZE}) tucked into the lower-right (partially
+ * clipped). Deterministic for a given input.
+ *
+ * @param displayName - Human genre label, e.g. `"Hip Hop"`.
+ * @param coverBuffer - Representative cover, or `null` for a name-only tile.
+ * @param tileColorHex - Flat-fill colour (the cover's average).
+ * @returns A 512×512 JPEG buffer.
+ */
 export async function generateArtwork(
   displayName: string,
   coverBuffer: Buffer | null,

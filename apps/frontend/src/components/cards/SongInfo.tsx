@@ -1,6 +1,7 @@
 import { useGSAP } from "@gsap/react";
 import { buildMetaLine } from "@musiccloud/shared";
-import { memo, type Ref, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
+import { ArtworkImage } from "@/components/cards/ArtworkImage";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { TftScreen } from "@/components/ui/TftScreen";
 import {
@@ -208,35 +209,3 @@ export const SongInfo = memo(function SongInfo({
     </div>
   );
 });
-
-/**
- * Cover image with the shared artwork fallback. The optional `ref` exposes
- * the `<img>` element so the cover-swap timeline can slide it (the buffers
- * remount per swap generation, so the refs always point at fresh nodes).
- */
-function ArtworkImage({
-  url,
-  alt,
-  className,
-  ref,
-}: {
-  url: string;
-  alt: string;
-  className?: string;
-  ref?: Ref<HTMLImageElement>;
-}) {
-  const src = url || "/og/musiccloud.jpg";
-  return (
-    <img
-      ref={ref}
-      src={src}
-      alt={alt}
-      className={`size-full object-cover ${className ?? ""}`}
-      width={480}
-      height={480}
-      onError={(e) => {
-        e.currentTarget.src = "/og/musiccloud.jpg";
-      }}
-    />
-  );
-}

@@ -1,6 +1,79 @@
-import { buildMetaLine, type SharePageResponse, type UnifiedResolveSuccessResponse } from "@musiccloud/shared";
+import {
+  type ApiAlbum,
+  type ApiArtistCredit,
+  type ArtistInfoResponse,
+  buildMetaLine,
+  type CcAlbumSharePageResponse,
+  type CcArtistSharePageResponse,
+  type CcTrackSharePageResponse,
+  type SharePageResponse,
+  type UnifiedResolveSuccessResponse,
+} from "@musiccloud/shared";
 import { apiLinksToPlatformLinks } from "@/lib/platform/api-links";
+import { buildShareConfigFromActive, ccResponseToResult, ccResultToShareProps } from "@/lib/resolve/parsers";
+import { pathFromShortUrl } from "@/lib/share/short-url";
+import { type ActiveResult, ActiveResultKind } from "@/lib/types/app";
 import type { ShareContentConfiguration } from "@/lib/types/media-card";
+
+/** A CC variant of {@link SharePageResponse} (track / album / artist). */
+type CcSharePageResponse = CcTrackSharePageResponse | CcAlbumSharePageResponse | CcArtistSharePageResponse;
+
+/** Narrows a {@link SharePageResponse} to its CC variants (which render through a dedicated path). */
+export function isCcSharePageResponse(data: SharePageResponse): data is CcSharePageResponse {
+  return data.type === "cc-track" || data.type === "cc-album" || data.type === "cc-artist";
+}
+
+/**
+ * The server-built inputs the {@link CcSharePageShell} renders. Mirrors the CC
+ * live view: the left media card (`config`, which for a track carries its
+ * `ccInfoContent` license block), the right artist column (`artistInfo`), the CC
+ * section-title overrides (`labels`), plus the page title and artwork for the
+ * document head.
+ */
+export interface CcSharePageProps {
+  config: ShareContentConfiguration;
+  artistName: string;
+  /** Pre-built artist column — set for cc-album/cc-artist, **unset for cc-track**
+   *  (which loads it async via `config.ccJamendoArtistId`). */
+  artistInfo?: ArtistInfoResponse;
+  /** Artist-column title overrides as i18n keys (see {@link CC_ARTIST_LABEL_KEYS}). */
+  labels: { similar: string; profileProvidedBy: string };
+  pageTitle: string;
+  artworkUrl?: string | null;
+}
+
+/**
+ * The artist-column title overrides for CC entities, given as i18n KEYS (not
+ * translated text) so {@link ShareLayout} can translate them reactively and the
+ * titles re-localize on a language switch. CC shows "Similar Tracks" (not
+ * "Similar Artists") and credits Jamendo as the data source.
+ */
+export const CC_ARTIST_LABEL_KEYS: { similar: string; profileProvidedBy: string } = {
+  similar: "artist.similarTracks",
+  profileProvidedBy: "artist.profileProvidedByJamendo",
+};
+
+/**
+ * Builds the {@link CcSharePageProps} for a CC share-page response, reusing the
+ * CC live-view parsers ({@link ccResponseToResult} → {@link ccResultToShareProps}).
+ * Runs server-side in the share-page routes so the client shell only renders.
+ *
+ * @param data - A CC share-page response.
+ * @param t - Translation function for labels + announcements.
+ * @returns The render inputs for the CC share page.
+ */
+export function buildCcSharePageProps(data: CcSharePageResponse, t: TFunc): CcSharePageProps {
+  const result = ccResponseToResult(data);
+  const { config, artistName } = ccResultToShareProps(result, t);
+  return {
+    config,
+    artistName,
+    artistInfo: result.artistInfo,
+    labels: CC_ARTIST_LABEL_KEYS,
+    pageTitle: data.og.title,
+    artworkUrl: config.artworkUrl,
+  };
+}
 
 type TFunc = (key: string, vars?: Record<string, string>) => string;
 
@@ -21,13 +94,19 @@ export interface ShareViewModel {
   isArtist: boolean;
 }
 
+/**
+ * Extracts the leading short-id segment from a musiccloud short URL.
+ *
+ * Derives the path through {@link pathFromShortUrl} (which centralizes the
+ * SSR/browser origin convention), strips leading slashes, and returns the first
+ * path segment. Returns `undefined` when the URL has no usable segment.
+ *
+ * @param shortUrl - The short URL to read the id from.
+ * @returns The short id (e.g. `abc123`), or `undefined` when none is present.
+ */
 function shortIdFromShortUrl(shortUrl: string): string | undefined {
-  try {
-    const shortId = new URL(shortUrl, "https://musiccloud.io").pathname.replace(/^\/+/, "").split("/")[0];
-    return shortId || undefined;
-  } catch {
-    return undefined;
-  }
+  const shortId = pathFromShortUrl(shortUrl).replace(/^\/+/, "").split("/")[0];
+  return shortId || undefined;
 }
 
 function resolvePlatformsLabelKey(isArtist: boolean, isAlbum: boolean): string {
@@ -36,7 +115,7 @@ function resolvePlatformsLabelKey(isArtist: boolean, isAlbum: boolean): string {
   return "results.listenOn";
 }
 
-function buildAlbumMetaLine(album: NonNullable<SharePageResponse["album"]>, t: TFunc): string | undefined {
+function buildAlbumMetaLine(album: ApiAlbum, t: TFunc): string | undefined {
   const year = album.releaseDate?.slice(0, 4);
   return (
     [album.totalTracks ? t("results.albumTracks", { count: String(album.totalTracks) }) : null, year]
@@ -47,7 +126,7 @@ function buildAlbumMetaLine(album: NonNullable<SharePageResponse["album"]>, t: T
 
 function buildArtistInfoContext(
   shortId: string | undefined,
-  credits: NonNullable<SharePageResponse["track"]>["artistCredits"],
+  credits: ApiArtistCredit[] | undefined,
 ): ShareArtistInfoContext {
   const mainArtistCredit = credits?.find((credit) => credit.role === "main") ?? credits?.[0];
   return { shortId, artistEntityId: mainArtistCredit?.artistEntityId };
@@ -58,6 +137,12 @@ export function buildShareViewFromSharePageResponse(
   routeShortId: string,
   t: TFunc,
 ): ShareViewModel {
+  // CC share pages render through a dedicated path (added in a later slice); this
+  // builder handles only the commercial track/album/artist response. The guard
+  // also narrows `data` to CommercialSharePageResponse for the rest of the body.
+  if (data.type === "cc-track" || data.type === "cc-album" || data.type === "cc-artist") {
+    throw new Error(`buildShareViewFromSharePageResponse received a CC response (${data.type})`);
+  }
   const isAlbum = data.type === "album";
   const isArtist = data.type === "artist";
   const track = data.track ?? null;
@@ -122,4 +207,48 @@ export function buildShareViewFromResolvedResponse(data: UnifiedResolveSuccessRe
     shortUrl: data.shortUrl,
   };
   return buildShareViewFromSharePageResponse(shareData, shortIdFromShortUrl(data.shortUrl) ?? "", t);
+}
+
+/**
+ * The commercial share-result selection the landing page renders for the active
+ * resolved entity.
+ *
+ * @property activeShareView - The full {@link ShareViewModel} when a `resolved`
+ *   response is present (the richest source), otherwise `null`. The caller reads
+ *   `artistInfoContext` from it.
+ * @property activeShareConfig - The media-card configuration for the result, or
+ *   `null` when neither a resolved response nor an `active` result exists.
+ * @property activeArtistName - The artist name driving the shared artist column.
+ */
+export interface ActiveShareSelection {
+  activeShareView: ShareViewModel | null;
+  activeShareConfig: ShareContentConfiguration | null;
+  activeArtistName: string;
+}
+
+/**
+ * Derives the commercial share-result selection from the two app-state sources.
+ *
+ * A fully resolved response is the richest source: it yields the share view
+ * model directly. When only the lighter `active` result is on state, the config
+ * and artist name fall back to it — applying the model rule that an artist's
+ * "artist name" is its own `name`, while a song/album uses its `artist` field.
+ * Centralizing that branch here keeps the discriminant rule out of the page.
+ *
+ * @param resolved - The resolved success response, or `null`.
+ * @param active - The lighter active result, or `null`.
+ * @param t - Translation function (forwarded to the config builders).
+ * @returns The {@link ActiveShareSelection} for the landing page.
+ */
+export function buildActiveShareSelection(
+  resolved: UnifiedResolveSuccessResponse | null,
+  active: ActiveResult | null,
+  t: TFunc,
+): ActiveShareSelection {
+  const activeShareView = resolved ? buildShareViewFromResolvedResponse(resolved, t) : null;
+  const activeShareConfig = activeShareView?.config ?? (active ? buildShareConfigFromActive(active, t) : null);
+  const activeArtistName =
+    activeShareView?.artistName ??
+    (active ? (active.kind === ActiveResultKind.Artist ? active.name : active.artist) : "");
+  return { activeShareView, activeShareConfig, activeArtistName };
 }

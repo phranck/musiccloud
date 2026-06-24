@@ -4,6 +4,7 @@ import type { MouseEvent } from "react";
 import { DayNightSwitcher } from "@/components/navigation/DayNightSwitcher";
 import { HeaderNavMenu } from "@/components/navigation/HeaderNavMenu";
 import { LanguageSwitcher } from "@/components/navigation/LanguageSwitcher";
+import { ResolveModeIndicator } from "@/components/navigation/ResolveModeIndicator";
 import { isOverlayActive, OVERLAY_OPEN_EVENT } from "@/context/useOverlay";
 import { sendNavInteractionSignal } from "@/lib/analytics/navSignals";
 
@@ -56,11 +57,10 @@ export function PageHeader({ navItems = EMPTY_NAV_ITEMS }: PageHeaderProps) {
   // visible delay.
   return (
     <>
-      {navItems.length > 0 && (
-        <div className="absolute top-3 left-3 z-50 flex max-w-[calc(100vw-1.5rem)] animate-slide-down-in items-center sm:fixed sm:top-4 sm:left-4">
-          <HeaderNavMenu navItems={navItems} onNavClick={handleNavClick} />
-        </div>
-      )}
+      <div className="absolute top-3 left-3 z-50 flex max-w-[calc(100vw-1.5rem)] animate-slide-down-in items-center gap-2 sm:fixed sm:top-4 sm:left-4 sm:gap-3">
+        {navItems.length > 0 && <HeaderNavMenu navItems={navItems} onNavClick={handleNavClick} />}
+        <ResolveModeIndicator />
+      </div>
       <div className="absolute top-3 right-3 z-50 flex max-w-[calc(100vw-1.5rem)] animate-slide-down-in items-start gap-2 sm:fixed sm:top-4 sm:right-4 sm:gap-3">
         <DayNightSwitcher />
         <LanguageSwitcher />

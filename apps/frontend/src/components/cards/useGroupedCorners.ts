@@ -20,7 +20,13 @@ const FULL = "var(--neu-radius)";
 const INNER = "min(5px, var(--neu-radius))";
 
 /** Computes which of an item's corners are outer, then writes the radii inline. */
-function applyGroupedCorners(items: HTMLElement[], frameSelector?: string, frameInset = 0, promoteTop = true): void {
+function applyGroupedCorners(
+  items: HTMLElement[],
+  frameSelector?: string,
+  frameInset = 0,
+  promoteTop = true,
+  fillFrame = false,
+): void {
   if (items.length === 0) return;
 
   // Group items by their rounded viewport top → one entry per visual row.
@@ -69,10 +75,23 @@ function applyGroupedCorners(items: HTMLElement[], frameSelector?: string, frame
     // var, which would resolve against the frame.
     const buttonStyle = getComputedStyle(item);
     const concentric = (corner: string) => `max(0px, calc(${corner} - ${frameInset}px))`;
-    frame.style.borderTopLeftRadius = tl ? concentric(buttonStyle.borderTopLeftRadius) : INNER;
-    frame.style.borderBottomLeftRadius = bl ? concentric(buttonStyle.borderBottomLeftRadius) : INNER;
-    frame.style.borderTopRightRadius = INNER;
-    frame.style.borderBottomRightRadius = INNER;
+    if (fillFrame) {
+      // A frame that FILLS the item (e.g. a grid tile's square cover): all four of
+      // its corners follow the item's — promoted at the group's outer corners,
+      // interior elsewhere — concentric (minus the inset).
+      frame.style.borderTopLeftRadius = tl ? concentric(buttonStyle.borderTopLeftRadius) : INNER;
+      frame.style.borderTopRightRadius = tr ? concentric(buttonStyle.borderTopRightRadius) : INNER;
+      frame.style.borderBottomLeftRadius = bl ? concentric(buttonStyle.borderBottomLeftRadius) : INNER;
+      frame.style.borderBottomRightRadius = br ? concentric(buttonStyle.borderBottomRightRadius) : INNER;
+    } else {
+      // A left-hugging frame (e.g. the track artwork): its left corners follow the
+      // button's left corners but concentric (minus the inset); right (interior)
+      // corners stay small.
+      frame.style.borderTopLeftRadius = tl ? concentric(buttonStyle.borderTopLeftRadius) : INNER;
+      frame.style.borderBottomLeftRadius = bl ? concentric(buttonStyle.borderBottomLeftRadius) : INNER;
+      frame.style.borderTopRightRadius = INNER;
+      frame.style.borderBottomRightRadius = INNER;
+    }
   }
 }
 
@@ -89,12 +108,21 @@ function applyGroupedCorners(items: HTMLElement[], frameSelector?: string, frame
  * @param options.promoteTop Whether the top corners may be promoted. Pass `false`
  *   when a header sits above the rows in the same well (e.g. genre columns), so
  *   the rows never round their top corners below the header. Defaults to `true`.
+ * @param options.fillFrame Set when the per-item frame FILLS the item (a grid
+ *   tile's square cover) rather than left-hugging it (a list row's artwork): all
+ *   four frame corners then follow the item's instead of only the left pair.
  * @returns A ref object for the container element.
  */
 export function useGroupedCorners<T extends HTMLElement = HTMLDivElement>(
-  options: { itemSelector?: string; frameSelector?: string; frameInset?: number; promoteTop?: boolean } = {},
+  options: {
+    itemSelector?: string;
+    frameSelector?: string;
+    frameInset?: number;
+    promoteTop?: boolean;
+    fillFrame?: boolean;
+  } = {},
 ): RefObject<T | null> {
-  const { itemSelector = ":scope > *", frameSelector, frameInset = 0, promoteTop = true } = options;
+  const { itemSelector = ":scope > *", frameSelector, frameInset = 0, promoteTop = true, fillFrame = false } = options;
   const ref = useRef<T>(null);
 
   useEffect(() => {
@@ -107,6 +135,7 @@ export function useGroupedCorners<T extends HTMLElement = HTMLDivElement>(
         frameSelector,
         frameInset,
         promoteTop,
+        fillFrame,
       );
     };
     apply();
@@ -121,7 +150,7 @@ export function useGroupedCorners<T extends HTMLElement = HTMLDivElement>(
       resizeObserver.disconnect();
       mutationObserver.disconnect();
     };
-  }, [itemSelector, frameSelector, frameInset, promoteTop]);
+  }, [itemSelector, frameSelector, frameInset, promoteTop, fillFrame]);
 
   return ref;
 }

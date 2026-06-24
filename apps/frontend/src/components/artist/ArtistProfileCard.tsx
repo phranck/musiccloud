@@ -1,6 +1,6 @@
 import type { ArtistInfoResponse } from "@musiccloud/shared";
-import { ProfileSkeleton } from "@/components/artist/ArtistCardParts";
 import { ArtistProfileSection } from "@/components/artist/ArtistProfileSection";
+import { ProfileSkeleton } from "@/components/artist/ProfileSkeleton";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SmoothSwap } from "@/components/ui/SmoothSwap";
 import { useT } from "@/i18n/localeContext";
@@ -20,7 +20,7 @@ export function ArtistProfileCard({ profile, showInitialSkeleton }: ArtistProfil
 
   return (
     <RecessedCard className="p-[var(--mc-pad-artist,0.375rem)] min-h-[108px]">
-      <RecessedCard.Body>
+      <RecessedCard.Body className="max-h-[22rem] overflow-y-auto">
         {showInitialSkeleton ? (
           <ProfileSkeleton />
         ) : profile ? (

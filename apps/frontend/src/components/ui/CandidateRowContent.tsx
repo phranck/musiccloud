@@ -1,5 +1,5 @@
-import { MusicNoteIcon, UserIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
+import { CoverImage } from "@/components/ui/CoverImage";
 import { SlideArtwork } from "@/components/ui/SlideArtwork";
 import { SlideArtworkKind } from "@/components/ui/SlideArtworkTypes";
 import { cn } from "@/lib/utils";
@@ -74,7 +74,6 @@ export function CandidateRowContent({
     "overflow-hidden shadow-md flex-shrink-0 bg-surface",
   );
   const imgDim = compact ? 56 : 64;
-  const FallbackIcon = artworkKind === "round" ? UserIcon : MusicNoteIcon;
   const iconSize = compact ? 20 : 24;
   const slideKind = artworkKind === "round" ? SlideArtworkKind.Round : SlideArtworkKind.Square;
 
@@ -95,23 +94,7 @@ export function CandidateRowContent({
           />
         ) : (
           <div className={artworkClasses}>
-            {artworkUrl ? (
-              <img
-                src={artworkUrl}
-                alt=""
-                className="w-full h-full object-cover"
-                width={imgDim}
-                height={imgDim}
-                loading="lazy"
-                onError={(e) => {
-                  e.currentTarget.src = "/og/default.jpg";
-                }}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-surface-elevated">
-                <FallbackIcon size={iconSize} weight="duotone" className="text-text-muted" />
-              </div>
-            )}
+            <CoverImage artworkUrl={artworkUrl} kind={artworkKind} imgDim={imgDim} iconSize={iconSize} />
           </div>
         ))}
 

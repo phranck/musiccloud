@@ -1,12 +1,17 @@
 import { useGSAP } from "@gsap/react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ROW_CHROME } from "@/components/artist/artistPanelRowChrome";
 import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
+import { GroupedCornerList } from "@/components/cards/GroupedCornerList";
 import { RecessedCard } from "@/components/cards/RecessedCard";
-import { useGroupedCorners } from "@/components/cards/useGroupedCorners";
+import { CancelButton } from "@/components/ui/CancelButton";
 import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { FadeInOnMount } from "@/components/ui/FadeInOnMount";
+import { PagedListFooter } from "@/components/ui/PagedListFooter";
+import { PanelHeadline } from "@/components/ui/PanelHeadline";
+import { usePagedList } from "@/hooks/usePagedList";
 import { useT } from "@/i18n/localeContext";
 import { animateSlideUp, killEntranceTweens } from "@/lib/motion/entrances";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
@@ -41,37 +46,22 @@ export function DisambiguationPanel({
   const t = useT();
 
   const [animatingId, setAnimatingId] = useState<string | null>(null);
-  const [pageIndex, setPageIndex] = useState(0);
 
-  const pageCount = Math.max(1, Math.ceil(candidates.length / CANDIDATES_PER_PAGE));
-  const safePageIndex = Math.min(pageIndex, pageCount - 1);
-  const visibleCandidates = candidates.slice(
-    safePageIndex * CANDIDATES_PER_PAGE,
-    safePageIndex * CANDIDATES_PER_PAGE + CANDIDATES_PER_PAGE,
-  );
-  const canGoPrevious = safePageIndex > 0;
-  const canGoNext = safePageIndex < pageCount - 1;
+  // Reset to the first page when a new candidate set arrives (new search), not
+  // when the user merely pages within the same set.
+  const candidatesKey = candidates.map((candidate) => candidate.id).join("|");
+  const {
+    page: visibleCandidates,
+    pageIndex: safePageIndex,
+    pageCount,
+    canGoPrevious,
+    canGoNext,
+    goPrevious,
+    goNext,
+  } = usePagedList(candidates, { pageSize: CANDIDATES_PER_PAGE, resetKey: candidatesKey });
 
-  const listRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
   const resolveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Grouped-corner radii for the candidate rows (AGENTS.md): rows default to the
-  // ≤5px inner radius; the first row's top corners and the last row's bottom
-  // corners promote to the full control radius, and the artwork frame follows.
-  // The list has no header in its well, so `promoteTop` stays true. Merged onto
-  // the same node as `listRef` (which the FLIP choreography measures).
-  const groupedListRef = useGroupedCorners<HTMLDivElement>({
-    itemSelector: ":scope > * > button",
-    frameSelector: ".mc-row-art",
-    frameInset: 4,
-  });
-  const setListEl = useCallback(
-    (el: HTMLDivElement | null) => {
-      listRef.current = el;
-      groupedListRef.current = el;
-    },
-    [groupedListRef],
-  );
 
   const clearResolveTimer = useCallback(() => {
     if (resolveTimer.current === null) return;
@@ -206,25 +196,32 @@ export function DisambiguationPanel({
         <EmbossedCard.Header className="text-center mb-4">
           {isAnimating || isLoadingSelected ? (
             <FadeInOnMount>
-              <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">
-                {t("disambiguation.resolving.title")}
-              </h2>
-              <p className="text-sm text-text-secondary mt-1">{t("disambiguation.resolving.subtitle")}</p>
+              <PanelHeadline
+                title={t("disambiguation.resolving.title")}
+                subtitle={t("disambiguation.resolving.subtitle")}
+              />
             </FadeInOnMount>
           ) : (
-            <>
-              <h2 className="text-lg font-semibold tracking-[-0.02em] text-text-primary">
-                {t("disambiguation.title")}
-              </h2>
-              <p className="text-sm text-text-secondary mt-1">{t("disambiguation.subtitle")}</p>
-            </>
+            <PanelHeadline title={t("disambiguation.title")} subtitle={t("disambiguation.subtitle")} />
           )}
         </EmbossedCard.Header>
 
         <EmbossedCard.Body>
           <RecessedCard className={recessedControlInsetClassName}>
             <RecessedCard.Body>
-              <div ref={setListEl} className="flex flex-col gap-[var(--mc-gap-list,0.125rem)]">
+              {/* Grouped-corner radii for the candidate rows (AGENTS.md): rows
+                  default to the ≤5px inner radius; the first row's top corners
+                  and the last row's bottom corners promote to the full control
+                  radius, and the artwork frame follows. The list has no header
+                  in its well, so `promoteTop` stays at its default true. The
+                  FLIP `listRef` is merged onto the same node the grouped-corners
+                  hook owns, so the choreography measures the grouped list. */}
+              <GroupedCornerList
+                ref={listRef}
+                itemSelector=":scope > * > button"
+                frameSelector=".mc-row-art"
+                frameInset={4}
+              >
                 {visibleCandidates.map((candidate) => {
                   const isThisSelected =
                     (isAnimating && animatingId === candidate.id) || (isLoadingSelected && selectedId === candidate.id);
@@ -237,8 +234,8 @@ export function DisambiguationPanel({
                         onClick={() => handleClick(candidate)}
                         disabled={isAnimating || loading}
                         className={cn(
-                          "w-full flex items-center text-left",
-                          "gap-[var(--mc-gap-rowitem,0.75rem)] py-[var(--mc-pad-track,0.25rem)] pl-[var(--mc-pad-track,0.25rem)] pr-[var(--mc-pad-tracktime,0.5rem)]",
+                          ROW_CHROME,
+                          "text-left",
                           isThisSelected && "ring-1 ring-accent/20",
                           (isAnimating || loading) && "cursor-default",
                         )}
@@ -260,7 +257,7 @@ export function DisambiguationPanel({
                     </div>
                   );
                 })}
-              </div>
+              </GroupedCornerList>
             </RecessedCard.Body>
           </RecessedCard>
         </EmbossedCard.Body>
@@ -268,39 +265,14 @@ export function DisambiguationPanel({
         <EmbossedCard.Footer>
           {!isAnimating && !loading && (
             <div className="mt-4 flex flex-col gap-3">
-              {pageCount > 1 && (
-                <div className="grid grid-cols-2 gap-2">
-                  <EmbossedButton
-                    as="button"
-                    type="button"
-                    onClick={() => setPageIndex((current) => Math.max(0, current - 1))}
-                    disabled={!canGoPrevious}
-                    className="flex min-h-10 items-center justify-center px-3 py-0 text-sm font-medium text-text-primary"
-                  >
-                    {t("disambiguation.previous")}
-                  </EmbossedButton>
-                  <EmbossedButton
-                    as="button"
-                    type="button"
-                    onClick={() => setPageIndex((current) => Math.min(pageCount - 1, current + 1))}
-                    disabled={!canGoNext}
-                    className="flex min-h-10 items-center justify-center px-3 py-0 text-sm font-medium text-text-primary"
-                  >
-                    {t("disambiguation.next")}
-                  </EmbossedButton>
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={onCancel}
-                className={cn(
-                  "text-sm text-text-muted hover:text-text-secondary",
-                  "transition-colors duration-150",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:rounded",
-                )}
-              >
-                {t("disambiguation.cancel")}
-              </button>
+              <PagedListFooter
+                pageCount={pageCount}
+                canGoPrevious={canGoPrevious}
+                canGoNext={canGoNext}
+                onPrevious={goPrevious}
+                onNext={goNext}
+              />
+              <CancelButton onClick={onCancel}>{t("disambiguation.cancel")}</CancelButton>
             </div>
           )}
 

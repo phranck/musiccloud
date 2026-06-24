@@ -1,58 +1,62 @@
-import { useGSAP } from "@gsap/react";
 import type { NavItem } from "@musiccloud/shared";
 import {
   lazy,
   type MouseEvent,
-  type RefObject,
   Suspense,
   useCallback,
   useEffect,
   useEffectEvent,
+  useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
+import { ActiveShareResult } from "@/components/landing/ActiveShareResult";
+import { CcShareResult } from "@/components/landing/CcShareResult";
 import { HeroInput } from "@/components/landing/HeroInput";
+import { LandingLogoBlock } from "@/components/landing/LandingLogoBlock";
 import { LandingPageErrorAlert } from "@/components/landing/LandingPageErrorAlert";
+import { LiveExampleTeaser } from "@/components/landing/LiveExampleTeaser";
+import { ResolveModeSwitcher } from "@/components/landing/ResolveModeSwitcher";
+import { ShareResultPlaceholder } from "@/components/landing/ShareResultPlaceholder";
 import { AppFooter } from "@/components/layout/AppFooter";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
-import { FadeInOnMount } from "@/components/ui/FadeInOnMount";
-import { LogoView } from "@/components/ui/LogoView";
 import { DialogProvider } from "@/context/DialogContext";
 import { useAppState } from "@/hooks/useAppState";
 import { useDeferredResultReveal } from "@/hooks/useDeferredResultReveal";
+import { useGenreSearchParam } from "@/hooks/useGenreSearchParam";
 import { useHeroFieldFlip } from "@/hooks/useHeroFieldFlip";
 import { useSearchFieldReturn } from "@/hooks/useSearchFieldReturn";
 import { useToast } from "@/hooks/useToast";
 import { LocaleProvider } from "@/i18n/context";
 import { useT } from "@/i18n/localeContext";
 import type { Locale } from "@/i18n/locales";
-import { CardSignal, genreSignal, sendMusicSignal } from "@/lib/analytics/umami";
-import { animateFadeIn, animateSlideOutDown } from "@/lib/motion/entrances";
+import { genreSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import {
   loadDisambiguationPanel,
   loadGenreBrowseGrid,
   loadGenreSearchResults,
-  loadShareLayout,
   loadToast,
   preloadResolveResultRuntime,
 } from "@/lib/preload/resultRuntime";
-import { buildShareConfigFromActive } from "@/lib/resolve/parsers";
-import { buildShareViewFromResolvedResponse, type ShareArtistInfoContext } from "@/lib/share/share-view";
-import { ActiveResultKind, AppStateType, InputState } from "@/lib/types/app";
-import type { ShareContentConfiguration } from "@/lib/types/media-card";
+import { buildGenreQuery, GENRE_BROWSE_QUERY } from "@/lib/resolve/genre-query";
+import { getResolveMode, subscribeResolveMode } from "@/lib/resolve/resolveMode";
+import { buildActiveShareSelection } from "@/lib/share/share-view";
+import { AppStateType, type CcResult, InputState, ResolveMode } from "@/lib/types/app";
 
 // Lazy-loaded panels — only pulled into the bundle when the user needs them.
 // Fallback is `null` because each is only rendered behind a visibility flag anyway.
 const DisambiguationPanel = lazy(loadDisambiguationPanel);
 const GenreBrowseGrid = lazy(loadGenreBrowseGrid);
 const GenreSearchResults = lazy(loadGenreSearchResults);
-const ShareLayout = lazy(loadShareLayout);
 const Toast = lazy(loadToast);
 
 const EMPTY_NAV_ITEMS: NavItem[] = [];
 
 interface LandingPageProps {
   exampleShortId?: string | null;
+  /** CC track short id for the live-example link in Creative-Commons mode. */
+  ccExampleShortId?: string | null;
   footerNav?: NavItem[];
   /** Server-resolved locale, so SSR and client hydration agree (no mismatch). */
   initialLocale?: Locale;
@@ -64,154 +68,6 @@ interface LandingPageProps {
   showFooter?: boolean;
 }
 
-interface ActiveShareResultProps {
-  activeArtistName: string;
-  activeShareConfig: ShareContentConfiguration;
-  artistInfoContext?: ShareArtistInfoContext;
-  backLabel?: string;
-  canGoBack: boolean;
-  handleBack: () => void;
-  /**
-   * Fires once when the clearing slide-out has finished (or immediately on
-   * the reduced-motion path) and hands over to the search-field return
-   * staging — see `useSearchFieldReturn`.
-   */
-  onClearSlideOutComplete: () => void;
-  handleShareLogoClick: (event: MouseEvent<HTMLAnchorElement>) => void;
-  isClearing: boolean;
-  resultsPanelRef: RefObject<HTMLDivElement | null>;
-}
-
-function ActiveShareResult({
-  activeArtistName,
-  activeShareConfig,
-  artistInfoContext,
-  backLabel,
-  canGoBack,
-  handleBack,
-  onClearSlideOutComplete,
-  handleShareLogoClick,
-  isClearing,
-  resultsPanelRef,
-}: ActiveShareResultProps) {
-  // Clearing slide-out (GSAP port of the removed `animate-slide-out-down`
-  // class). The clear choreography continues from the timeline's
-  // `onComplete` — the `animationend` event this replaced does not exist for
-  // JS tweens (break class 719a656). Unmounting mid-flight (e.g. Escape
-  // while clearing) reverts the useGSAP context, killing the tween and
-  // suppressing the handover — the same outcome the CSS animation had when
-  // its element left the DOM before `animationend`.
-  useGSAP(
-    () => {
-      if (!isClearing) return;
-      const panel = resultsPanelRef.current;
-      if (!panel) return;
-      const tween = animateSlideOutDown(panel, { onComplete: onClearSlideOutComplete });
-      // Reduced motion: no tween exists — the clear flow must not depend on
-      // an animation playing, so hand over synchronously (pre-paint).
-      if (!tween) onClearSlideOutComplete();
-    },
-    { dependencies: [isClearing] },
-  );
-
-  return (
-    <div
-      ref={resultsPanelRef}
-      tabIndex={-1}
-      className={`outline-none w-full ${isClearing ? "pointer-events-none" : ""}`}
-    >
-      <div className="mb-4 text-center sm:mb-6">
-        <a href="/" aria-label="Go to musiccloud home" className="inline-block" onClick={handleShareLogoClick}>
-          <LogoView className="w-56 sm:w-64 h-auto" />
-        </a>
-      </div>
-      <FadeInOnMount>
-        <Suspense fallback={<ShareResultPlaceholder />}>
-          <ShareLayout
-            config={activeShareConfig}
-            artistName={activeArtistName}
-            artistInfoContext={artistInfoContext}
-            onBack={canGoBack ? handleBack : undefined}
-            backLabel={canGoBack ? backLabel : undefined}
-          />
-        </Suspense>
-      </FadeInOnMount>
-    </div>
-  );
-}
-
-function LiveExampleTeaser({
-  exampleShortId,
-  label,
-  teaser,
-  visible,
-}: {
-  exampleShortId: string;
-  label: string;
-  teaser: string;
-  visible: boolean;
-}) {
-  return (
-    <p
-      className={`mt-4 min-h-5 text-sm text-text-secondary text-center transition-opacity duration-200 ${
-        visible ? "opacity-100" : "opacity-0 pointer-events-none"
-      }`}
-      aria-hidden={!visible}
-    >
-      {teaser}{" "}
-      <a href={`/${exampleShortId}`} onClick={() => sendMusicSignal(CardSignal.LiveExample)} className="mc-skylink">
-        {label}
-      </a>
-    </p>
-  );
-}
-
-function LandingLogoBlock({ isReturning, showCompact }: { isReturning: boolean; showCompact: boolean }) {
-  const logoRef = useRef<HTMLDivElement>(null);
-
-  // While the search-field return flip travels, the large logo fades back in
-  // (GSAP port of the removed conditional `animate-fade-in` class). Keyed on
-  // both flags: compact-cancel flows flip them in the same commit.
-  useGSAP(
-    () => {
-      if (!isReturning || showCompact) return;
-      const el = logoRef.current;
-      if (!el) return;
-      animateFadeIn(el);
-    },
-    { dependencies: [isReturning, showCompact] },
-  );
-
-  if (showCompact) {
-    return (
-      <div className="mb-6">
-        <LogoView className="w-56 h-auto" />
-      </div>
-    );
-  }
-
-  return (
-    <div ref={logoRef} className="flex justify-center mb-10">
-      <LogoView className="w-80 sm:w-96 md:w-[28rem] h-auto" />
-    </div>
-  );
-}
-
-function ShareResultPlaceholder() {
-  return (
-    <div
-      className="mx-auto w-full max-w-[512px] min-[1080px]:max-w-[1048px] opacity-0 pointer-events-none"
-      aria-hidden="true"
-    >
-      <div className="hidden min-[1080px]:grid grid-cols-[512px_512px] gap-6">
-        <div className="h-[560px]" />
-        <div className="h-[560px]" />
-      </div>
-      <div className="min-[1080px]:hidden h-[520px]" />
-    </div>
-  );
-}
-
 function selectGenreTile(
   name: string,
   genres: import("@musiccloud/shared").ApiGenreTile[],
@@ -219,13 +75,27 @@ function selectGenreTile(
   handleSubmit: (query: string) => Promise<void>,
 ): void {
   sendMusicSignal(genreSignal(name, genres.find((g) => g.name === name)?.displayName));
-  const query = `genre: ${name}`;
+  const query = buildGenreQuery(name);
   setInputValue(query);
   void handleSubmit(query);
 }
 
-function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, showFooter = true }: LandingPageProps) {
+function LandingPageInner({
+  exampleShortId = null,
+  ccExampleShortId = null,
+  footerNav = EMPTY_NAV_ITEMS,
+  showFooter = true,
+}: LandingPageProps) {
   const t = useT();
+
+  // Resolve mode (commercial | cc) from the shared persistent store. SSR and the
+  // pre-init client snapshot both fall back to the commercial default so first
+  // paint and hydration agree; the stored mode reconciles right after hydration.
+  const mode = useSyncExternalStore(subscribeResolveMode, getResolveMode, () => ResolveMode.Commercial);
+
+  // The live-example link points at a CC track in CC mode, else a commercial
+  // track; falls back to the commercial example when no CC example exists yet.
+  const activeExampleShortId = mode === ResolveMode.Cc && ccExampleShortId ? ccExampleShortId : exampleShortId;
 
   const resultsPanelRef = useRef<HTMLDivElement>(null);
   const disambiguationRef = useRef<HTMLDivElement>(null);
@@ -253,7 +123,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
     handleSelectGenreResult,
     handleBack,
     handleClear,
-  } = useAppState();
+  } = useAppState(mode);
 
   const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
@@ -262,6 +132,12 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
     useSearchFieldReturn(searchFieldRef, { showCompact, onClear: handleClear, onResetInput: resetInputValue });
   useHeroFieldFlip(searchFieldRef, { showCompact, isReturning });
   const toast = useToast();
+  // A genre link from a page without its own search flow lands here with
+  // `?genre=<name>`; this runs that search on mount.
+  useGenreSearchParam(handleSubmit, setInputValue);
+
+  // Memoized so a stable element identity reaches HeroInput's `leadingControl`.
+  const heroLeadingControl = useMemo(() => (showCompact ? undefined : <ResolveModeSwitcher />), [showCompact]);
 
   const baseInputState: InputState =
     isDisambiguating || isClearing || isGenreBrowsing || isGenreSearching
@@ -282,11 +158,12 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
     if (state.type === AppStateType.GenreSearch || state.type === AppStateType.GenreSearchLoading) {
       setInputValue(state.payload.query);
     } else if (state.type === AppStateType.GenreBrowse) {
-      setInputValue("genre:?");
+      setInputValue(GENRE_BROWSE_QUERY);
     }
   }, [state]);
 
-  const focusActive = state.type === AppStateType.Result ? state.active : null;
+  const focusActive =
+    state.type === AppStateType.Result ? state.active : state.type === AppStateType.CcResult ? state.ccActive : null;
   const focusCandidates = state.type === AppStateType.Disambiguation ? state.candidates : null;
   const focusGenreResults = state.type === AppStateType.GenreSearch ? state.payload : null;
   const genreSearchRef = useRef<HTMLDivElement>(null);
@@ -322,7 +199,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
   const handleEscapeKey = useEffectEvent((e: KeyboardEvent) => {
     if (e.key !== "Escape" || !showCompact) return;
     e.preventDefault();
-    if (active) {
+    if (active || isCcResultView) {
       beginShareExit();
       return;
     }
@@ -349,12 +226,15 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
     return () => window.cancelAnimationFrame(frame);
   }, [state.type]);
 
-  const activeShareView = resolved ? buildShareViewFromResolvedResponse(resolved, t) : null;
-  const activeShareConfig = activeShareView?.config ?? (active ? buildShareConfigFromActive(active, t) : null);
-  const activeArtistName =
-    activeShareView?.artistName ??
-    (active ? (active.kind === ActiveResultKind.Artist ? active.name : active.artist) : "");
+  const { activeShareView, activeShareConfig, activeArtistName } = buildActiveShareSelection(resolved, active, t);
   const isSharePageView = !!(activeShareConfig && active && !discExitPending);
+
+  // Creative-Commons result: a self-contained state branch (no `active`,
+  // no `resolved`) carrying just the CC track. Rendered through its own
+  // single-column view, sharing the result-page framing (top-aligned, logo
+  // home link) with the commercial share view.
+  const ccActive: CcResult | null = state.type === AppStateType.CcResult ? state.ccActive : null;
+  const isCcResultView = ccActive !== null;
 
   return (
     <>
@@ -363,13 +243,22 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
       <div className="flex-1 flex flex-col items-center px-4 transition-colors duration-700 relative">
         <div
           className={`flex-1 flex flex-col items-center w-full ${
-            isSharePageView ? "justify-start pt-20 sm:pt-12 md:pt-14 pb-12" : "justify-center"
+            isSharePageView || isCcResultView ? "justify-start pt-20 sm:pt-12 md:pt-14 pb-12" : "justify-center"
           }`}
         >
           {/* During return-flip staging the (invisible, pre-paint) idle branch
               must render so the field's compact position is measurable — see
               the staging layout effect. */}
-          {activeShareConfig && active && !isFieldReturnStaging && !discExitPending ? (
+          {ccActive ? (
+            <CcShareResult
+              ccActive={ccActive}
+              handleShareLogoClick={handleShareLogoClick}
+              resultsPanelRef={resultsPanelRef}
+              canGoBack={canGoBack}
+              handleBack={handleBack}
+              t={t}
+            />
+          ) : activeShareConfig && active && !isFieldReturnStaging && !discExitPending ? (
             <ActiveShareResult
               activeArtistName={activeArtistName}
               activeShareConfig={activeShareConfig}
@@ -386,7 +275,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
             <>
               <LandingLogoBlock isReturning={isReturning} showCompact={showCompact} />
 
-              <div ref={searchFieldRef} className="w-full flex flex-col items-center">
+              <div ref={searchFieldRef} data-resolve-mode={mode} className="w-full flex items-center justify-center">
                 <HeroInput
                   value={inputValue}
                   onChange={setInputValue}
@@ -400,24 +289,27 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
                   onBlur={() => setIsFocused(false)}
                   state={discExitPending ? InputState.Loading : inputState}
                   compact={showCompact}
+                  leadingControl={heroLeadingControl}
                   requestDiscExit={discExitPending}
                   onLoadingExitComplete={handleLoadingExitComplete}
                 />
               </div>
 
-              {exampleShortId && (
-                <LiveExampleTeaser
-                  exampleShortId={exampleShortId}
-                  label={t("landing.exampleLink")}
-                  teaser={t("landing.exampleTeaser")}
-                  visible={
-                    state.type !== AppStateType.Loading &&
-                    !discExitPending &&
-                    !candidates &&
-                    !genreBrowseGenres &&
-                    !genreSearchPayload
-                  }
-                />
+              {!showCompact && activeExampleShortId && (
+                <div className="mt-4 flex justify-center" data-resolve-mode={mode}>
+                  <LiveExampleTeaser
+                    exampleShortId={activeExampleShortId}
+                    label={t("landing.exampleLink")}
+                    teaser={t("landing.exampleTeaser")}
+                    visible={
+                      state.type !== AppStateType.Loading &&
+                      !discExitPending &&
+                      !candidates &&
+                      !genreBrowseGenres &&
+                      !genreSearchPayload
+                    }
+                  />
+                </div>
               )}
 
               {candidates && candidates.length > 0 && (
@@ -485,6 +377,7 @@ function LandingPageInner({ exampleShortId = null, footerNav = EMPTY_NAV_ITEMS, 
 
 export function LandingPage({
   exampleShortId = null,
+  ccExampleShortId = null,
   footerNav = EMPTY_NAV_ITEMS,
   initialLocale,
   showFooter = true,
@@ -493,7 +386,12 @@ export function LandingPage({
     <ErrorBoundary>
       <LocaleProvider initialLocale={initialLocale}>
         <DialogProvider>
-          <LandingPageInner exampleShortId={exampleShortId} footerNav={footerNav} showFooter={showFooter} />
+          <LandingPageInner
+            exampleShortId={exampleShortId}
+            ccExampleShortId={ccExampleShortId}
+            footerNav={footerNav}
+            showFooter={showFooter}
+          />
         </DialogProvider>
       </LocaleProvider>
     </ErrorBoundary>

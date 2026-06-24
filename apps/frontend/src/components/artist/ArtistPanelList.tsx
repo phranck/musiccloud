@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useGroupedCorners } from "@/components/cards/useGroupedCorners";
+import { GroupedCornerList } from "@/components/cards/GroupedCornerList";
 
 /** Props for {@link ArtistPanelList}. */
 interface ArtistPanelListProps {
@@ -16,16 +16,15 @@ interface ArtistPanelListProps {
 }
 
 /**
- * The list container shared by all three artist-panel sections. Stacks its rows
- * with the `--mc-gap-list` gap and promotes the outer corners of the group via
- * {@link useGroupedCorners} so the rows read as one rounded block inscribed in
- * the surrounding recessed well.
+ * The list container shared by all three artist-panel sections. A thin
+ * default-options alias over {@link GroupedCornerList}: it forwards only the
+ * artwork-frame options (the three artist consumers pass nothing else) and keeps
+ * the hook's default `itemSelector`/`promoteTop`.
  */
 export function ArtistPanelList({ children, frameSelector, frameInset }: ArtistPanelListProps) {
-  const listRef = useGroupedCorners<HTMLDivElement>({ frameSelector, frameInset });
   return (
-    <div ref={listRef} className="flex flex-col gap-[var(--mc-gap-list,0.125rem)]">
+    <GroupedCornerList frameSelector={frameSelector} frameInset={frameInset}>
       {children}
-    </div>
+    </GroupedCornerList>
   );
 }

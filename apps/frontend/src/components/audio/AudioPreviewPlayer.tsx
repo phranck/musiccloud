@@ -17,6 +17,7 @@ import { Player } from "@/components/playback/Player";
 import { useT } from "@/i18n/localeContext";
 import { PreviewSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { setupMotion } from "@/lib/motion/setup";
+import { type MediaKindType, MediaKindValue } from "@/lib/types/media-card";
 
 interface AudioPreviewPlayerProps {
   /** Immediately-playable preview URL. Optional when `refreshShortId` is set. */
@@ -25,6 +26,9 @@ interface AudioPreviewPlayerProps {
    *  `/api/share-preview/:shortId` proxy. When set without `previewUrl`, the
    *  player mounts in a loading state and fetches on mount. */
   refreshShortId?: string;
+  /** Whether the source is a short preview clip (default) or a full track
+   *  (CC / Jamendo). Switches the player's wording from "preview" to "song". */
+  mediaKind?: MediaKindType;
   trackTitle: string;
   onStatusChange?: (status: AudioPreviewStatusType) => void;
 }
@@ -415,6 +419,7 @@ function fadeBandValue(band: number): number {
 function useAudioPreviewController({
   previewUrl,
   refreshShortId,
+  mediaKind,
   trackTitle,
   onStatusChange,
 }: AudioPreviewPlayerProps) {
@@ -1162,19 +1167,26 @@ function useAudioPreviewController({
       ? state.duration
       : 30;
 
+  const isSong = mediaKind === MediaKindValue.Song;
+  const unavailableText = isSong ? t("audio.songUnavailable") : t("audio.previewUnavailable");
+
   const timeText = isLoading
     ? t("audio.previewLoading")
     : isUnavailable
-      ? t("audio.previewUnavailable")
+      ? unavailableText
       : formatTime(state.phase === PlayerPhase.Idle ? duration : currentTime);
 
   const ariaLabel = isLoading
     ? t("audio.previewLoading")
     : isUnavailable
-      ? t("audio.previewUnavailable")
+      ? unavailableText
       : isPlaying
-        ? "Pause preview"
-        : "Play preview";
+        ? isSong
+          ? "Pause song"
+          : "Pause preview"
+        : isSong
+          ? "Play song"
+          : "Play preview";
 
   return {
     ariaLabel,
@@ -1182,9 +1194,10 @@ function useAudioPreviewController({
     isLoading,
     isPlaying,
     isUnavailable,
+    mediaLabel: isSong ? "Song" : "Preview",
     progressRatio,
     timeText,
-    title: isLoading ? t("audio.previewLoading") : isUnavailable ? t("audio.previewUnavailable") : undefined,
+    title: isLoading ? t("audio.previewLoading") : isUnavailable ? unavailableText : undefined,
     togglePlay,
     trackTitle,
   };
@@ -1194,7 +1207,7 @@ export function AudioPreviewPlayer(props: AudioPreviewPlayerProps) {
   const player = useAudioPreviewController(props);
 
   return (
-    <section aria-label={`Preview: ${player.trackTitle}`}>
+    <section aria-label={`${player.mediaLabel}: ${player.trackTitle}`}>
       <Player
         isPlaying={player.isPlaying}
         isDisabled={player.isDisabled}

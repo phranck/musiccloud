@@ -35,6 +35,7 @@
  * registry matching the URL exactly so a code reader can grep both ways.
  */
 
+import type { JamendoAudioFormat } from "./audio-format.js";
 import type { Locale } from "./locales.js";
 
 // -----------------------------------------------------------------------------
@@ -46,6 +47,7 @@ export const ENDPOINTS = {
   v1: {
     /** Resolve a music URL or text query. POST for full-feature, GET for read-only. */
     resolve: "/api/v1/resolve",
+    ccResolve: "/api/v1/cc/resolve",
     /** GET `/api/v1/share/:shortId`: fetch a previously-resolved share. */
     share: (shortId: string) => `/api/v1/share/${shortId}`,
     /** GET `/api/v1/share/:shortId/preview`: refresh + return fresh preview URL.
@@ -56,10 +58,39 @@ export const ENDPOINTS = {
     artistInfo: "/api/v1/artist-info",
     /** GET `/api/v1/random-example`: pick a random short URL (track or album). */
     randomExample: "/api/v1/random-example",
+    /** GET `/api/v1/cc/random-example`: pick a random CC track short URL, for the
+     *  landing page's live-example link in Creative-Commons mode. */
+    ccRandomExample: "/api/v1/cc/random-example",
     /** GET `/api/v1/link/:id`: link metadata by id. */
     link: (id: string) => `/api/v1/link/${id}`,
     /** GET `/api/v1/genre-artwork/:genreKey`: procedurally generated genre cover. */
     genreArtwork: (genreKey: string) => `/api/v1/genre-artwork/${encodeURIComponent(genreKey)}`,
+    /** GET `/api/v1/cc/genre-artwork/:genreKey`: procedurally generated CC genre cover,
+     *  sourced from a Jamendo album cover. Mirrors {@link genreArtwork} but stays
+     *  100% Jamendo so the Creative-Commons path never touches Last.fm. */
+    ccGenreArtwork: (genreKey: string) => `/api/v1/cc/genre-artwork/${encodeURIComponent(genreKey)}`,
+    /** GET `/api/v1/cc/audio/:jamendoId`: CORS-safe proxy of the full Jamendo
+     *  stream (Range-forwarded). Lets the player load + analyse CC audio that
+     *  Jamendo serves without the Range CORS preflight headers Web Audio needs.
+     *  Optional `?format=` selects the delivery format (default {@link DEFAULT_STREAM_FORMAT}). */
+    ccAudio: (jamendoId: string, format?: JamendoAudioFormat) =>
+      `/api/v1/cc/audio/${encodeURIComponent(jamendoId)}${format ? `?format=${format}` : ""}`,
+    /** GET `/api/v1/cc/download/:jamendoId`: same-origin download proxy. Re-serves
+     *  the Jamendo audio as an attachment with a proper `Content-Disposition`
+     *  filename (`Artist_Album_NN_Title.ext`), so the browser saves a correctly
+     *  named audio file instead of the cross-origin Jamendo download page (which a
+     *  bare `<a download>` cannot rename and saves as `.html`).
+     *  Optional `?format=` selects the delivery format (default {@link DEFAULT_STREAM_FORMAT}). */
+    ccDownload: (jamendoId: string, format?: JamendoAudioFormat) =>
+      `/api/v1/cc/download/${encodeURIComponent(jamendoId)}${format ? `?format=${format}` : ""}`,
+    /** GET `/api/v1/cc/artist-info?jamendoArtistId&artistName`: the CC artist
+     *  column (Jamendo top + similar tracks + profile), loaded async by the share
+     *  page so the core card renders immediately. */
+    ccArtistInfo: "/api/v1/cc/artist-info",
+    /** GET `/api/v1/cc/bandcamp/:jamendoId`: whether the CC track is also on
+     *  Bandcamp (fuzzy search + confidence). Async + cached (incl. negative
+     *  hits); the share page loads it after the core card renders. */
+    ccBandcamp: (jamendoId: string) => `/api/v1/cc/bandcamp/${encodeURIComponent(jamendoId)}`,
     siteSettings: {
       /** GET: public site settings exposed to the frontend (currently: tracking flag). */
       tracking: "/api/v1/site-settings/tracking",
@@ -104,6 +135,8 @@ export const ENDPOINTS = {
   frontend: {
     /** POST: React components call this; Astro forwards to `ENDPOINTS.v1.resolve`. */
     resolve: "/api/resolve",
+    /** POST: React components call this in CC mode; Astro forwards to `ENDPOINTS.v1.ccResolve`. */
+    ccResolve: "/api/cc/resolve",
     /** GET: forwarded to `ENDPOINTS.v1.randomExample`. */
     randomExample: "/api/random-example",
     /** GET: forwarded to `ENDPOINTS.v1.artistInfo`. */
@@ -113,6 +146,24 @@ export const ENDPOINTS = {
     sharePreview: (shortId: string) => `/api/share-preview/${encodeURIComponent(shortId)}`,
     /** GET: forwarded to `ENDPOINTS.v1.genreArtwork`. */
     genreArtwork: (genreKey: string) => `/api/genre-artwork/${encodeURIComponent(genreKey)}`,
+    /** GET: forwarded to `ENDPOINTS.v1.ccGenreArtwork`. CC genre tile cover (Jamendo-sourced). */
+    ccGenreArtwork: (genreKey: string) => `/api/cc/genre-artwork/${encodeURIComponent(genreKey)}`,
+    /** GET: forwarded to `ENDPOINTS.v1.ccAudio`. The audio player loads CC tracks
+     *  through this same-origin proxy so no cross-origin Range request is made.
+     *  Optional `?format=` selects the delivery format (default {@link DEFAULT_STREAM_FORMAT}). */
+    ccAudio: (jamendoId: string, format?: JamendoAudioFormat) =>
+      `/api/cc/audio/${encodeURIComponent(jamendoId)}${format ? `?format=${format}` : ""}`,
+    /** GET: forwarded to `ENDPOINTS.v1.ccDownload`. The CC download button points
+     *  here so the browser downloads a correctly named, same-origin audio file.
+     *  Optional `?format=` selects the delivery format (default {@link DEFAULT_STREAM_FORMAT}). */
+    ccDownload: (jamendoId: string, format?: JamendoAudioFormat) =>
+      `/api/cc/download/${encodeURIComponent(jamendoId)}${format ? `?format=${format}` : ""}`,
+    /** GET: forwarded to `ENDPOINTS.v1.ccArtistInfo`. The CC share page loads the
+     *  artist column through this async, after the core card has rendered. */
+    ccArtistInfo: "/api/cc/artist-info",
+    /** GET: forwarded to `ENDPOINTS.v1.ccBandcamp`. The CC share page loads the
+     *  Bandcamp presence through this async, after the core card has rendered. */
+    ccBandcamp: (jamendoId: string) => `/api/cc/bandcamp/${encodeURIComponent(jamendoId)}`,
     /** GET: handled entirely by Astro (`pages/api/redirect.ts`): takes `?url=`,
      * calls `ENDPOINTS.v1.resolve`, then 302s to the resolved share page. */
     redirect: "/api/redirect",
@@ -280,6 +331,15 @@ export const ROUTE_TEMPLATES = {
     sharePreview: "/api/v1/share/:shortId/preview",
     link: "/api/v1/link/:id",
     genreArtwork: "/api/v1/genre-artwork/:genreKey",
+    /** Route template for ENDPOINTS.v1.ccGenreArtwork (CC genre tile cover, Jamendo-sourced). */
+    ccGenreArtwork: "/api/v1/cc/genre-artwork/:genreKey",
+    /** Route template for ENDPOINTS.v1.ccAudio (CORS-safe Jamendo stream proxy).
+     *  The `format` is an optional `?format=` query (validated against JamendoAudioFormat), not a path segment. */
+    ccAudio: "/api/v1/cc/audio/:jamendoId",
+    /** Route template for ENDPOINTS.v1.ccDownload (same-origin download proxy). */
+    ccDownload: "/api/v1/cc/download/:jamendoId",
+    /** Route template for ENDPOINTS.v1.ccBandcamp (Bandcamp presence lookup). */
+    ccBandcamp: "/api/v1/cc/bandcamp/:jamendoId",
     nav: "/api/v1/nav/:navId",
     contentDetail: "/api/v1/content/:slug",
   },

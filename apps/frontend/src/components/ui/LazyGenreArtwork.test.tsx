@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_COVER_FALLBACK_URL } from "@/components/ui/coverFallback";
 import { LazyGenreArtwork } from "@/components/ui/LazyGenreArtwork";
 
 /**
@@ -14,8 +15,8 @@ import { LazyGenreArtwork } from "@/components/ui/LazyGenreArtwork";
  * artless tracks (`lib/server/og.ts`), so the asset must live in `public/`.
  */
 
-/** Mirror of the component's default `fallbackUrl` prop (and the backend's OG fallback path). */
-const DEFAULT_FALLBACK_PATH = "/og/default.jpg";
+/** The component's default `fallbackUrl` prop (and the backend's OG fallback path). */
+const DEFAULT_FALLBACK_PATH = DEFAULT_COVER_FALLBACK_URL;
 
 /** Repo path of the frontend's static assets directory. */
 const PUBLIC_DIR = resolve(__dirname, "../../../public");

@@ -10,15 +10,29 @@ import {
 import { type Dispatch, useCallback, useReducer } from "react";
 import { useT } from "@/i18n/localeContext";
 import { CardSignal, GenreSignal, ResolveSignal, SearchSignal, sendMusicSignal } from "@/lib/analytics/umami";
+import { parseJamendoUrl } from "@/lib/resolve/jamendoUrl";
 import {
   appReducer,
+  type CcResolveData,
+  ccResolveDataToResult,
   formatResolveErrorMessage,
   parseResolveError,
   parseResolveResponse,
   parseUnifiedResolveResponse,
   ResolveApiError,
 } from "@/lib/resolve/parsers";
-import type { ActiveResult, AppState, GenreSearchPayload, ReducerState, ResolveUiError } from "@/lib/types/app";
+import { setResolveMode } from "@/lib/resolve/resolveMode";
+import {
+  type ActiveResult,
+  type AppAction,
+  type AppState,
+  AppStateType,
+  CcResultType,
+  type GenreSearchPayload,
+  type ReducerState,
+  ResolveMode,
+  type ResolveUiError,
+} from "@/lib/types/app";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
 
 interface UseAppStateResult {
@@ -48,8 +62,15 @@ interface UseAppStateResult {
 /**
  * Manages the full app state machine for the landing page:
  * loading, results, disambiguation, error, and clearing states.
+ *
+ * @param mode - The active resolve mode. Defaults to `ResolveMode.Commercial`
+ *   so existing callers without the argument compile without change (Task 6
+ *   will pass the real persisted mode from the resolve-mode store).
+ *   - `ResolveMode.Commercial` — submits to `/api/resolve` (commercial endpoint).
+ *   - `ResolveMode.Cc` — submits to `/api/cc/resolve` (Creative Commons endpoint)
+ *     and handles `cc-track` responses via `RESOLVE_CC_SUCCESS`.
  */
-export function useAppState(): UseAppStateResult {
+export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppStateResult {
   const t = useT();
   const initialState: ReducerState = { screen: { type: "idle" }, stack: [] };
   const [{ screen, stack }, dispatch] = useReducer(appReducer, initialState);
@@ -76,92 +97,119 @@ export function useAppState(): UseAppStateResult {
   const showCompact = !!(
     (screen.type === "loading" && screen.compact) ||
     active ||
+    screen.type === AppStateType.CcResult ||
     candidates ||
     genreBrowseGenres ||
     genreSearchPayload
   );
 
-  const handleSubmit = useCallback(async (url: string) => {
-    sendMusicSignal(SearchSignal.Submitted);
-    dispatch({ type: "SUBMIT" });
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
-      const response = await fetch(ENDPOINTS.frontend.resolve, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: url }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
-        throw new ResolveApiError(errorData);
-      }
-      const data = (await response.json()) as
-        | UnifiedResolveSuccessResponse
-        | ResolveDisambiguationResponse
-        | ResolveGenreBrowseResponse
-        | ResolveGenreSearchResponse;
-      if ("status" in data && data.status === "disambiguation") {
-        sendMusicSignal(ResolveSignal.Completed);
-        dispatch({ type: "DISAMBIGUATION", candidates: data.candidates });
-        return;
-      }
-      if ("status" in data && data.status === "genre-browse") {
-        const browseData = data as ResolveGenreBrowseResponse;
-        sendMusicSignal(GenreSignal.Overview);
-        dispatch({ type: "GENRE_BROWSE", genres: browseData.genres });
-        return;
-      }
-      if ("status" in data && data.status === "genre-search") {
-        sendMusicSignal(ResolveSignal.Completed);
-        dispatch({
-          type: "GENRE_SEARCH",
-          payload: {
-            query: url,
-            queryDetails: data.query,
-            results: data.results,
-            warnings: data.warnings,
-          },
+  const handleSubmit = useCallback(
+    async (url: string) => {
+      sendMusicSignal(SearchSignal.Submitted);
+      dispatch({ type: "SUBMIT" });
+      // A pasted Jamendo track/album URL resolves the exact entity through the CC
+      // path: translate it to the resolve candidate the backend understands and
+      // switch the mode store to CC so the mode indicator + persistence follow.
+      const jamendoCandidate = parseJamendoUrl(url);
+      if (jamendoCandidate) setResolveMode(ResolveMode.Cc);
+      try {
+        const useCc = jamendoCandidate !== null || mode === ResolveMode.Cc;
+        const endpoint = useCc ? ENDPOINTS.frontend.ccResolve : ENDPOINTS.frontend.resolve;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(jamendoCandidate ? { selectedCandidate: jamendoCandidate } : { query: url }),
+          signal: controller.signal,
         });
-        return;
+        clearTimeout(timeout);
+        if (!response.ok) {
+          const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
+          throw new ResolveApiError(errorData);
+        }
+        const data = (await response.json()) as
+          | UnifiedResolveSuccessResponse
+          | ResolveDisambiguationResponse
+          | ResolveGenreBrowseResponse
+          | ResolveGenreSearchResponse
+          | CcResolveData;
+        if ("status" in data && data.status === "disambiguation") {
+          sendMusicSignal(ResolveSignal.Completed);
+          dispatch({ type: "DISAMBIGUATION", candidates: data.candidates });
+          return;
+        }
+        if ("status" in data && data.status === "genre-browse") {
+          const browseData = data as ResolveGenreBrowseResponse;
+          sendMusicSignal(GenreSignal.Overview);
+          dispatch({ type: "GENRE_BROWSE", genres: browseData.genres });
+          return;
+        }
+        if ("status" in data && data.status === "genre-search") {
+          sendMusicSignal(ResolveSignal.Completed);
+          dispatch({
+            type: "GENRE_SEARCH",
+            payload: {
+              query: url,
+              queryDetails: data.query,
+              results: data.results,
+              warnings: data.warnings,
+            },
+          });
+          return;
+        }
+        if ("type" in data && isCcResolveData(data)) {
+          sendMusicSignal(ResolveSignal.Completed);
+          dispatchCcResult(dispatch, data);
+          return;
+        }
+        const resolved = data as UnifiedResolveSuccessResponse;
+        sendMusicSignal(ResolveSignal.Completed);
+        dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(resolved), resolved });
+      } catch (err) {
+        sendResolveFailedSignal(err);
+        dispatchResolveError(dispatch, err);
       }
-      const resolved = data as UnifiedResolveSuccessResponse;
-      sendMusicSignal(ResolveSignal.Completed);
-      dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(resolved), resolved });
-    } catch (err) {
-      sendResolveFailedSignal(err);
-      dispatchResolveError(dispatch, err);
-    }
-  }, []);
+    },
+    [mode],
+  );
 
-  const handleSelectCandidate = useCallback(async (candidate: DisambiguationCandidate) => {
-    sendMusicSignal(CardSignal.DisambiguationCandidate);
-    dispatch({ type: "SELECT_CANDIDATE", selectedId: candidate.id });
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
-      const response = await fetch(ENDPOINTS.frontend.resolve, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ selectedCandidate: candidate.id }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
-        throw new ResolveApiError(errorData);
+  const handleSelectCandidate = useCallback(
+    async (candidate: DisambiguationCandidate) => {
+      sendMusicSignal(CardSignal.DisambiguationCandidate);
+      dispatch({ type: "SELECT_CANDIDATE", selectedId: candidate.id });
+      try {
+        const endpoint = mode === ResolveMode.Cc ? ENDPOINTS.frontend.ccResolve : ENDPOINTS.frontend.resolve;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ selectedCandidate: candidate.id }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (!response.ok) {
+          const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
+          throw new ResolveApiError(errorData);
+        }
+        if (mode === ResolveMode.Cc) {
+          const data = (await response.json()) as CcResolveData;
+          sendMusicSignal(ResolveSignal.Completed);
+          dispatchCcResult(dispatch, data);
+        } else {
+          const data = (await response.json()) as ResolveSuccessResponse;
+          const resolved: UnifiedResolveSuccessResponse = { ...data, type: "track" };
+          sendMusicSignal(ResolveSignal.Completed);
+          dispatch({ type: "RESOLVE_SUCCESS", active: parseResolveResponse(data), resolved });
+        }
+      } catch (err) {
+        sendResolveFailedSignal(err);
+        dispatchResolveError(dispatch, err);
       }
-      const data = (await response.json()) as ResolveSuccessResponse;
-      const resolved: UnifiedResolveSuccessResponse = { ...data, type: "track" };
-      sendMusicSignal(ResolveSignal.Completed);
-      dispatch({ type: "RESOLVE_SUCCESS", active: parseResolveResponse(data), resolved });
-    } catch (err) {
-      sendResolveFailedSignal(err);
-      dispatchResolveError(dispatch, err);
-    }
-  }, []);
+    },
+    [mode],
+  );
 
   /**
    * Click on a row in the genre-search results panel.
@@ -173,30 +221,45 @@ export function useAppState(): UseAppStateResult {
    * with the item's Deezer `webUrl`), so Flow 2 on the backend does the
    * cross-service resolution.
    */
-  const handleSelectGenreResult = useCallback(async (webUrl: string, id: string) => {
-    dispatch({ type: "SELECT_GENRE_RESULT", selectedId: id });
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
-      const response = await fetch(ENDPOINTS.frontend.resolve, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: webUrl }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
-        throw new ResolveApiError(errorData);
+  const handleSelectGenreResult = useCallback(
+    async (webUrl: string, id: string) => {
+      dispatch({ type: "SELECT_GENRE_RESULT", selectedId: id });
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        // CC genre results resolve through the CC endpoint: the candidate carries
+        // `id = "jamendo:<id>"`, fed straight back as `selectedCandidate`, so the
+        // result stays 100% Jamendo. Commercial results resolve the picked Deezer URL.
+        const response = await fetch(
+          mode === ResolveMode.Cc ? ENDPOINTS.frontend.ccResolve : ENDPOINTS.frontend.resolve,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(mode === ResolveMode.Cc ? { selectedCandidate: id } : { query: webUrl }),
+            signal: controller.signal,
+          },
+        );
+        clearTimeout(timeout);
+        if (!response.ok) {
+          const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
+          throw new ResolveApiError(errorData);
+        }
+        if (mode === ResolveMode.Cc) {
+          const data = (await response.json()) as CcResolveData;
+          sendMusicSignal(ResolveSignal.Completed);
+          dispatchCcResult(dispatch, data);
+        } else {
+          const data = (await response.json()) as UnifiedResolveSuccessResponse;
+          sendMusicSignal(ResolveSignal.Completed);
+          dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(data), resolved: data });
+        }
+      } catch (err) {
+        sendResolveFailedSignal(err);
+        dispatchResolveError(dispatch, err);
       }
-      const data = (await response.json()) as UnifiedResolveSuccessResponse;
-      sendMusicSignal(ResolveSignal.Completed);
-      dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(data), resolved: data });
-    } catch (err) {
-      sendResolveFailedSignal(err);
-      dispatchResolveError(dispatch, err);
-    }
-  }, []);
+    },
+    [mode],
+  );
 
   const handleClear = useCallback(() => {
     dispatch({ type: "CLEAR_START" });
@@ -233,6 +296,25 @@ export function useAppState(): UseAppStateResult {
 
 function dispatchResolveError(dispatch: Dispatch<{ type: "ERROR"; error: ResolveUiError }>, err: unknown): void {
   dispatch({ type: "ERROR", error: parseResolveError(err) });
+}
+
+/**
+ * Type guard: true when a resolve payload is one of the three CC success shapes.
+ * Lets the commercial submit path tell a CC result apart from a unified
+ * (`track`/`album`/`artist`) commercial result by its `cc-*` discriminant.
+ */
+function isCcResolveData(data: { type?: string }): data is CcResolveData {
+  return (
+    data.type === CcResultType.CcTrack || data.type === CcResultType.CcAlbum || data.type === CcResultType.CcArtist
+  );
+}
+
+/**
+ * Dispatches `RESOLVE_CC_SUCCESS` for a CC resolve payload, mapping it to a
+ * {@link CcResult} via {@link ccResolveDataToResult} (the single type-to-parser home).
+ */
+function dispatchCcResult(dispatch: Dispatch<AppAction>, data: CcResolveData): void {
+  dispatch({ type: "RESOLVE_CC_SUCCESS", ccActive: ccResolveDataToResult(data) });
 }
 
 function sendResolveFailedSignal(err: unknown): void {

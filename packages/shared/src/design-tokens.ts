@@ -43,6 +43,10 @@ export const GlassControl = {
   NavTrack: "navTrack",
   /** Header-controls raised indicator: the hamburger icon, the active switcher cell, and the hovered nav item. */
   NavIndicator: "navIndicator",
+  /** CC-mode segmented-control recessed track (neutral, identical to segTrack). */
+  CcSegTrack: "ccSegTrack",
+  /** CC-mode segmented-control raised indicator: green tint (analogous to segIndicator's blue). */
+  CcSegIndicator: "ccSegIndicator",
 } as const;
 /** Union of the glass control wire keys (`"card" | "cardOverlay" | …`). */
 export type GlassControlKey = (typeof GlassControl)[keyof typeof GlassControl];
@@ -318,6 +322,10 @@ export interface DesignTokens {
   backdrop: { backdrop: DayNight<BackdropFields> };
   /** Sky-anchored link tokens (single group, wrapper key kept 1:1 to export). */
   skylink: { skylink: DayNight<SkyLinkFields> };
+  /** Card-/glass-context link tokens (reuse {@link SkyLinkFields}); a separate
+   *  group from `skylink` so a link inside a card can be tuned independently of
+   *  links sitting on the sky. */
+  cardlink: { cardlink: DayNight<SkyLinkFields> };
 }
 
 // ─── Canonical defaults (1:1 from the prototype) ───────────────────────────────
@@ -650,6 +658,64 @@ export const GLASS_DEFAULTS: Record<GlassControlKey, DayNight<GlassFields>> = {
       shadow: 0.0,
     },
   },
+  // CC-mode hero segmented-control tokens — independent of the commercial
+  // segTrack/segIndicator so CC green can be tuned without affecting the default.
+  // ccSegTrack mirrors segTrack (neutral recessed well); ccSegIndicator mirrors
+  // navIndicator shape but with a green tint (#30d158 = system --color-success)
+  // in place of the blue. Day/night pair present; exact tone is fine-tuned in
+  // the browser (Task 8).
+  ccSegTrack: {
+    day: {
+      tintTop: "#00364a",
+      tintBottom: "#00364a",
+      opacity: 0.32,
+      blur: 0,
+      saturate: 0.0,
+      brightness: 0.0,
+      edgeLight: 0,
+      edgeShadow: 0,
+      rim: 0.0,
+      shadow: 0.0,
+    },
+    night: {
+      tintTop: "#000000",
+      tintBottom: "#000000",
+      opacity: 0.28,
+      blur: 0,
+      saturate: 0.0,
+      brightness: 0.0,
+      edgeLight: 0,
+      edgeShadow: 0,
+      rim: 0.0,
+      shadow: 0.0,
+    },
+  },
+  ccSegIndicator: {
+    day: {
+      tintTop: "#30d158",
+      tintBottom: "#30d158",
+      opacity: 0.35,
+      blur: 0,
+      saturate: 0.0,
+      brightness: 0.0,
+      edgeLight: 0,
+      edgeShadow: 0,
+      rim: 0.0,
+      shadow: 0.0,
+    },
+    night: {
+      tintTop: "#30d158",
+      tintBottom: "#30d158",
+      opacity: 0.2,
+      blur: 2,
+      saturate: 0.0,
+      brightness: 0.42,
+      edgeLight: 0,
+      edgeShadow: 0,
+      rim: 0.08,
+      shadow: 0.0,
+    },
+  },
 };
 
 /** The six emphasis colour/opacity fields of a {@link TextSurfaceFields} (font excluded). */
@@ -811,6 +877,16 @@ export const SKYLINK_DEFAULTS: DayNight<SkyLinkFields> = {
   night: { color: "#caf0fe", decoColor: "#28a8d8", thickness: 1.5, offset: 2.5 },
 };
 
+/**
+ * Canonical card-link defaults. Mirror {@link SKYLINK_DEFAULTS} 1:1 — the
+ * card link adopts the sky-link colours as its starting point and lives in its
+ * own token group so it can later diverge without touching sky links.
+ */
+export const CARDLINK_DEFAULTS: DayNight<SkyLinkFields> = {
+  day: { color: "#06324a", decoColor: "#28a8d8", thickness: 1.5, offset: 2.5 },
+  night: { color: "#caf0fe", decoColor: "#28a8d8", thickness: 1.5, offset: 2.5 },
+};
+
 /** The fully-assembled canonical default token set. */
 export const DESIGN_TOKENS_DEFAULTS: DesignTokens = {
   shader: SHADER_DEFAULTS,
@@ -823,6 +899,7 @@ export const DESIGN_TOKENS_DEFAULTS: DesignTokens = {
   cover: { cover: COVER_DEFAULTS },
   backdrop: { backdrop: BACKDROP_DEFAULTS },
   skylink: { skylink: SKYLINK_DEFAULTS },
+  cardlink: { cardlink: CARDLINK_DEFAULTS },
 };
 
 // ─── Field-spec tables (drive validation, mirror the prototype field defs) ─────
@@ -905,6 +982,9 @@ const SKYLINK_FIELD_SPECS: Record<keyof SkyLinkFields, FieldSpec> = {
   thickness: { kind: "number", min: 0, max: 4 },
   offset: { kind: "number", min: 0, max: 8 },
 };
+
+/** Card-link fields share the sky-link validation contract. */
+const CARDLINK_FIELD_SPECS = SKYLINK_FIELD_SPECS;
 
 // ─── Validation primitives ─────────────────────────────────────────────────────
 
@@ -1150,6 +1230,14 @@ export function parseDesignTokens(raw: unknown): { tokens: DesignTokens; errors:
     errors,
   ) as unknown as DayNight<SkyLinkFields>;
 
+  const cardlink = sanitizeDayNight(
+    (obj.cardlink as { cardlink?: unknown } | undefined)?.cardlink,
+    CARDLINK_DEFAULTS as unknown as DayNight<Record<string, unknown>>,
+    CARDLINK_FIELD_SPECS,
+    "cardlink.cardlink",
+    errors,
+  ) as unknown as DayNight<SkyLinkFields>;
+
   return {
     tokens: {
       shader,
@@ -1162,6 +1250,7 @@ export function parseDesignTokens(raw: unknown): { tokens: DesignTokens; errors:
       cover: { cover },
       backdrop: { backdrop },
       skylink: { skylink },
+      cardlink: { cardlink },
     },
     errors,
   };

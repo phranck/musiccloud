@@ -1,11 +1,12 @@
 import { XCircleIcon } from "@phosphor-icons/react";
-import { useCallback, useEffect, useRef } from "react";
+import { type ReactNode, useCallback, useEffect, useRef } from "react";
 import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { HeroSubmitSlot } from "@/components/landing/HeroSubmitSlot";
 import { useT } from "@/i18n/localeContext";
 import { isMusicUrl } from "@/lib/platform/url";
+import { parseJamendoUrl } from "@/lib/resolve/jamendoUrl";
 import { InputState } from "@/lib/types/app";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,12 @@ interface HeroInputProps {
   state: InputState;
   compact?: boolean;
   songName?: string;
+  /**
+   * Optional control rendered as a fixed leading element inside the field, before
+   * the input. The landing page passes the resolve-mode switch here so the active
+   * search mode lives inside the field itself.
+   */
+  leadingControl?: ReactNode;
   /**
    * When true, the parent is holding the result reveal and asks the spinning
    * disc to slide out to the right. {@link HeroInputProps.onLoadingExitComplete}
@@ -44,6 +51,7 @@ export function HeroInput({
   state,
   compact = false,
   songName,
+  leadingControl,
   requestDiscExit = false,
   onLoadingExitComplete,
 }: HeroInputProps) {
@@ -81,7 +89,10 @@ export function HeroInput({
       if (!pastedText) return;
 
       setTimeout(() => {
-        if (isMusicUrl(pastedText)) {
+        // Commercial streaming links resolve via `isMusicUrl`; a Jamendo track/album
+        // link is recognized through the same parser the submit path uses, so pasting
+        // one auto-resolves it just like the other services.
+        if (isMusicUrl(pastedText) || parseJamendoUrl(pastedText) !== null) {
           autoSubmitTimer.current = setTimeout(() => {
             onSubmit(pastedText);
           }, 300);
@@ -143,6 +154,7 @@ export function HeroInput({
           overflows the rounded shape. */}
       <EmbossedCard radius="9999px" className="overflow-visible">
         <RecessedCard className={cn(recessedControlInsetClassName, "hero-field", "flex items-center")}>
+          {leadingControl && <div className="flex-shrink-0 flex items-center pl-1.5">{leadingControl}</div>}
           <input
             ref={inputRef}
             type="text"
@@ -159,13 +171,15 @@ export function HeroInput({
               // Fill the field and shrink for the trailing button (`flex-auto w-full
               // min-w-0`). `appearance-none` strips the browser's native text-field
               // chrome so the input is a plain transparent box on the recessed glass.
-              "mc-hero-input appearance-none flex-auto w-full min-w-0 bg-transparent border-0 pl-6 pr-2 text-lg font-medium text-text-primary tracking-[-0.01em]",
+              "mc-hero-input appearance-none flex-auto w-full min-w-0 bg-transparent border-0 pr-2 text-lg font-medium text-text-primary tracking-[-0.01em]",
+              // Leading control sits left of the input; without it the text keeps its own inset.
+              leadingControl ? "pl-2" : "pl-6",
               "placeholder:tracking-normal outline-none",
               "h-[40px] md:h-[48px]",
               state === InputState.Loading && "opacity-50",
             )}
             style={{ touchAction: "manipulation" }}
-            aria-label="Search for music by link or name"
+            aria-label={t("a11y.searchInput")}
             autoComplete="off"
           />
 
@@ -178,7 +192,7 @@ export function HeroInput({
                 "text-text-muted hover:text-text-primary",
                 "transition-colors duration-150",
               )}
-              aria-label="Clear search"
+              aria-label={t("a11y.clearSearch")}
             >
               <XCircleIcon size={24} weight="duotone" />
             </button>

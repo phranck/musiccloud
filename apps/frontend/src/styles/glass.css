@@ -212,6 +212,46 @@
   --navIndicator-night-rm: 0.08;
   --navIndicator-night-sh: 0;
 
+  /* ccSegTrack / ccSegIndicator (CC-mode hero segmented control). Neutral track
+     mirrors segTrack; green indicator uses #30d158 (system --color-success).
+     Compiled-in fallback; SSR designTokensCss overrides with saved tokens. */
+  --ccSegTrack-day-tt: rgba(0, 54, 74, 0.32);
+  --ccSegTrack-day-tb: rgba(0, 54, 74, 0.32);
+  --ccSegTrack-day-bl: 0px;
+  --ccSegTrack-day-sa: 0;
+  --ccSegTrack-day-br: 0;
+  --ccSegTrack-day-el: 0;
+  --ccSegTrack-day-es: 0;
+  --ccSegTrack-day-rm: 0;
+  --ccSegTrack-day-sh: 0;
+  --ccSegTrack-night-tt: rgba(0, 0, 0, 0.28);
+  --ccSegTrack-night-tb: rgba(0, 0, 0, 0.28);
+  --ccSegTrack-night-bl: 0px;
+  --ccSegTrack-night-sa: 0;
+  --ccSegTrack-night-br: 0;
+  --ccSegTrack-night-el: 0;
+  --ccSegTrack-night-es: 0;
+  --ccSegTrack-night-rm: 0;
+  --ccSegTrack-night-sh: 0;
+  --ccSegIndicator-day-tt: rgba(48, 209, 88, 0.35);
+  --ccSegIndicator-day-tb: rgba(48, 209, 88, 0.35);
+  --ccSegIndicator-day-bl: 0px;
+  --ccSegIndicator-day-sa: 0;
+  --ccSegIndicator-day-br: 0;
+  --ccSegIndicator-day-el: 0;
+  --ccSegIndicator-day-es: 0;
+  --ccSegIndicator-day-rm: 0;
+  --ccSegIndicator-day-sh: 0;
+  --ccSegIndicator-night-tt: rgba(48, 209, 88, 0.2);
+  --ccSegIndicator-night-tb: rgba(48, 209, 88, 0.2);
+  --ccSegIndicator-night-bl: 2px;
+  --ccSegIndicator-night-sa: 0;
+  --ccSegIndicator-night-br: 0.42;
+  --ccSegIndicator-night-el: 0;
+  --ccSegIndicator-night-es: 0;
+  --ccSegIndicator-night-rm: 0.08;
+  --ccSegIndicator-night-sh: 0;
+
   /* Per-surface text — embossed seeds (SSR designTokensCss overrides per saved tokens,
      and emits the other surfaces' vars too). The embossed surface is the global default
      via the transitional `--color-text-*` mapping below; the recessed / button /
@@ -402,7 +442,9 @@
     var(--text-embossedTitle-normal-night)
   );
 }
-.mc-txt-info {
+/* Info / help text surface (card "provided by" credit lines). Own font + the
+   `normal` emphasis level, reading the dedicated `--text-infoText-*` vars. */
+.mc-txt-info-normal {
   font-family: var(--text-infoText-font);
   font-size: calc(
     var(--text-infoText-size-day) * var(--g-dayness) + var(--text-infoText-size-night) * (1 - var(--g-dayness))
@@ -410,7 +452,7 @@
   font-weight: calc(
     var(--text-infoText-weight-day) * var(--g-dayness) + var(--text-infoText-weight-night) * (1 - var(--g-dayness))
   );
-  color: color-mix(in srgb, var(--text-infoText-dimmed-day) calc(var(--g-dayness) * 100%), var(--text-infoText-dimmed-night));
+  color: color-mix(in srgb, var(--text-infoText-normal-day) calc(var(--g-dayness) * 100%), var(--text-infoText-normal-night));
 }
 
 /* Sky-anchored footer text — colour/opacity/stroke/size cross-faded day↔night. */
@@ -450,6 +492,18 @@ a.mc-skylink {
   /* No transition: like every other glass surface, the colours follow
      `--g-dayness` live (per frame), so the link cross-fades in lockstep with the
      sky instead of snapping at the end of the day/night blend. */
+}
+
+/* Card-/glass-context link — same recipe as `a.mc-skylink`, but driven by the
+   separate `--cardlink-*` tokens so a link inside a card (e.g. the CC artist
+   name) can be tuned independently of links on the sky. Starts from the same
+   day/night colours. */
+a.mc-cardlink {
+  color: color-mix(in srgb, var(--cardlink-day-color, #06324a) calc(var(--g-dayness) * 100%), var(--cardlink-night-color, #caf0fe));
+  text-decoration-line: underline;
+  text-decoration-color: color-mix(in srgb, var(--cardlink-day-deco, #28a8d8) calc(var(--g-dayness) * 100%), var(--cardlink-night-deco, #28a8d8));
+  text-decoration-thickness: var(--cardlink-thickness, 1.5px);
+  text-underline-offset: var(--cardlink-offset, 2.5px);
 }
 
 /* Static sky backdrop behind the WebGL canvas: the shader's vertical day↔night
@@ -572,6 +626,47 @@ a.mc-skylink {
   --_sh: calc(var(--navIndicator-day-sh) * var(--g-dayness) + var(--navIndicator-night-sh) * (1 - var(--g-dayness)));
 }
 
+/* CC-mode hero segmented control — dedicated track + indicator pair, independent
+   of the commercial seg-track/seg-indicator. Same resolver recipe as nav; reading
+   the `--ccSegTrack-*` / `--ccSegIndicator-*` vars. */
+.mc-glass-cc-seg-track {
+  --_tt: color-mix(in srgb, var(--ccSegTrack-day-tt) calc(var(--g-dayness) * 100%), var(--ccSegTrack-night-tt));
+  --_tb: color-mix(in srgb, var(--ccSegTrack-day-tb) calc(var(--g-dayness) * 100%), var(--ccSegTrack-night-tb));
+  --_bl: calc(var(--ccSegTrack-day-bl) * var(--g-dayness) + var(--ccSegTrack-night-bl) * (1 - var(--g-dayness)));
+  --_sa: calc(var(--ccSegTrack-day-sa) * var(--g-dayness) + var(--ccSegTrack-night-sa) * (1 - var(--g-dayness)));
+  --_br: calc(var(--ccSegTrack-day-br) * var(--g-dayness) + var(--ccSegTrack-night-br) * (1 - var(--g-dayness)));
+  --_el: calc(var(--ccSegTrack-day-el) * var(--g-dayness) + var(--ccSegTrack-night-el) * (1 - var(--g-dayness)));
+  --_es: calc(var(--ccSegTrack-day-es) * var(--g-dayness) + var(--ccSegTrack-night-es) * (1 - var(--g-dayness)));
+  --_rm: calc(var(--ccSegTrack-day-rm) * var(--g-dayness) + var(--ccSegTrack-night-rm) * (1 - var(--g-dayness)));
+  --_sh: calc(var(--ccSegTrack-day-sh) * var(--g-dayness) + var(--ccSegTrack-night-sh) * (1 - var(--g-dayness)));
+}
+
+.mc-glass-cc-seg-indicator {
+  --_tt: color-mix(in srgb, var(--ccSegIndicator-day-tt) calc(var(--g-dayness) * 100%), var(--ccSegIndicator-night-tt));
+  --_tb: color-mix(in srgb, var(--ccSegIndicator-day-tb) calc(var(--g-dayness) * 100%), var(--ccSegIndicator-night-tb));
+  --_bl: calc(var(--ccSegIndicator-day-bl) * var(--g-dayness) + var(--ccSegIndicator-night-bl) * (1 - var(--g-dayness)));
+  --_sa: calc(var(--ccSegIndicator-day-sa) * var(--g-dayness) + var(--ccSegIndicator-night-sa) * (1 - var(--g-dayness)));
+  --_br: calc(var(--ccSegIndicator-day-br) * var(--g-dayness) + var(--ccSegIndicator-night-br) * (1 - var(--g-dayness)));
+  --_el: calc(var(--ccSegIndicator-day-el) * var(--g-dayness) + var(--ccSegIndicator-night-el) * (1 - var(--g-dayness)));
+  --_es: calc(var(--ccSegIndicator-day-es) * var(--g-dayness) + var(--ccSegIndicator-night-es) * (1 - var(--g-dayness)));
+  --_rm: calc(var(--ccSegIndicator-day-rm) * var(--g-dayness) + var(--ccSegIndicator-night-rm) * (1 - var(--g-dayness)));
+  --_sh: calc(var(--ccSegIndicator-day-sh) * var(--g-dayness) + var(--ccSegIndicator-night-sh) * (1 - var(--g-dayness)));
+}
+
+/* Resolve-mode (C/CC) switch: fill the ACTIVE segment with the mode accent
+   (blue Streaming / green CC via the [data-resolve-mode] scope) by overriding
+   only the shared recipe's tint vars — a strong, day+night-legible mode anchor
+   that keeps the embossed chamfer (the other recipe vars stay from the
+   `mc-glass-seg-indicator` applied alongside this class). The active icon flips
+   to the accent contrast colour so it reads on the coloured fill. */
+.mc-mode-seg-indicator {
+  --_tt: var(--color-accent);
+  --_tb: var(--color-accent);
+}
+.mc-mode-switch .mc-txt-button-bright {
+  color: var(--color-accent-contrast);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    3. Shared surface recipe — tint gradient + 4-layer raised chamfer box-shadow.
    ═════════════════════════════════════════════════════════════════════════ */
@@ -601,7 +696,8 @@ a.mc-skylink {
    bottom-right (the opposite corners from the raised recipe above). */
 .recessed-gradient-border,
 .mc-glass-seg-track,
-.mc-glass-nav-track {
+.mc-glass-nav-track,
+.mc-glass-cc-seg-track {
   box-shadow:
     0 12px 40px rgba(0, 0, 0, var(--_sh)),
     inset 0 0 0 1px rgba(255, 255, 255, var(--_rm)),
@@ -609,15 +705,37 @@ a.mc-skylink {
     inset -1px -1px 1.5px rgba(255, 255, 255, var(--_el));
 }
 
-/* Header-nav dropdown row — flat on the recessed panel, lifting into the switcher's
-   raised "active segment" look on hover/focus. `.mc-glass-nav-indicator` (set on the
-   same element) seeds the indicator tint + rim vars; the surface only paints on
-   interaction, so a resting row shows just its text on the panel. */
+/* Hamburger dropdown links — flat on the recessed panel, painting a subtle fill +
+   rim and brightening the label on hover/focus. `.mc-glass-nav-indicator` (on the
+   same element) seeds the tint + rim vars; a resting row shows just its text. */
 .mc-nav-item:hover,
 .mc-nav-item:focus-visible {
   background: linear-gradient(to bottom, var(--_tt), var(--_tb));
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, var(--_rm));
   color: color-mix(in srgb, var(--text-nav-bright-day) calc(var(--g-dayness) * 100%), var(--text-nav-bright-night));
+}
+
+/* Inactive switcher cells (Day/Night, Language) carry the active segment's full
+   raised recipe + radius but stay flat at rest: this strips the chamfer + tint
+   until the pointer arrives, so hovering one previews the exact raised "active
+   segment" shape. The `:not()` chain outweighs `.embossed-gradient-border`, so the
+   reset wins at rest and the recipe re-appears on hover; the label brightens too. */
+.mc-seg-cell-preview:not(:hover):not(:focus-visible) {
+  background: none;
+  box-shadow: none;
+}
+.mc-seg-cell-preview:hover,
+.mc-seg-cell-preview:focus-visible {
+  color: color-mix(in srgb, var(--text-nav-bright-day) calc(var(--g-dayness) * 100%), var(--text-nav-bright-night));
+}
+
+/* Hamburger-nav dropdown links read a touch heavier than the thin nav default.
+   Two classes outweigh the single `.mc-txt-nav-normal`, so the weight lifts here
+   without `!important` and without retuning the nav token (which the switcher
+   labels share). The icon-only switcher cells carry the same combo but no text,
+   so they are visually unaffected. */
+.mc-txt-nav-normal.mc-nav-item {
+  font-weight: 500;
 }
 
 /* Frost — OUTER CARDS ONLY (see noFrost rule in the header). Neutral at all
@@ -716,4 +834,18 @@ a.mc-skylink {
       )
     );
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   5. CC-mode accent scope — overrides --color-accent and companions for any
+   subtree marked data-resolve-mode="cc". Applied by LandingPage on the hero
+   container, so HeroSubmitSlot (uses var(--color-accent)) and the hero-field
+   focus ring (.hero-field:focus-within { outline-color: var(--color-accent) })
+   automatically inherit the green. Exact tone fine-tuned in browser (Task 8).
+   ═════════════════════════════════════════════════════════════════════════ */
+[data-resolve-mode="cc"] {
+  --color-accent: #30d158;
+  --color-accent-rgb: 48 209 88;
+  --color-accent-hover: #4de271;
+  --color-accent-glow: rgba(48, 209, 88, 0.25);
 }

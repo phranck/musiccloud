@@ -1,12 +1,20 @@
 import { useGSAP } from "@gsap/react";
 import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { useRef } from "react";
-import type { ArtistInfoStatus } from "@/components/artist/ArtistCardParts";
 import { ArtistProfileDesktopCard } from "@/components/artist/ArtistProfileDesktopCard";
+import { ArtistTrackListCard } from "@/components/artist/ArtistTrackListCard";
+import type {
+  ArtistCardLabels,
+  ArtistInfoStatus,
+  ArtistPanelTrackResolveHandler,
+} from "@/components/artist/artistPanelTypes";
+import { buildSimilarSwapKey, buildTracksSwapKey } from "@/components/artist/artistSwapKeys";
+import { toPopularTrackItems, toSimilarTrackItems } from "@/components/artist/artistTrackItems";
+import { ArtistTrackViewKey } from "@/components/artist/artistTrackViewKeys";
 import { EventsCard } from "@/components/artist/EventsCard";
-import { PopularTracksCard } from "@/components/artist/PopularTracksCard";
-import type { ArtistPanelTrackResolveHandler } from "@/components/artist/PopularTracksSection";
-import { SimilarArtistsCard } from "@/components/artist/SimilarArtistsCard";
+import { SimilarArtistsSkeleton } from "@/components/artist/SimilarArtistsSkeleton";
+import { TracksSkeleton } from "@/components/artist/TracksSkeleton";
+import { CardSignal } from "@/lib/analytics/umami";
 import { animateFlipFrom, type CapturedFlipState, captureFlipState } from "@/lib/motion/flip";
 
 interface AnimatedArtistColumnProps {
@@ -16,6 +24,8 @@ interface AnimatedArtistColumnProps {
   artistLoadStatus: ArtistInfoStatus;
   /** `true` while the fetch is in flight and no data has arrived yet (cards show skeletons). */
   isLoading: boolean;
+  /** The four artist-column section titles, supplied by the presentation owner. */
+  labels: ArtistCardLabels;
   /** Lifts the "resolve started" moment so the VFD flips to loading in sync with the spinning disc. */
   onArtistResolveStart: () => void;
   /** Resolves a clicked popular/similar track into a new share view. */
@@ -66,7 +76,7 @@ interface AnimatedArtistColumnProps {
  *
  * Snapshot freshness: the trigger is `artistLoadStatus`, which does not change
  * during the internal placeholder→skeleton step (`useSkeletonAllowed` in
- * `components/artist/ArtistCardParts.tsx`, 300 ms).
+ * `hooks/useSkeletonAllowed.ts`, 300 ms).
  * That step is shift-free by design — the cards' `min-h` placeholders are sized
  * to the skeleton heights — so the loading snapshot captured at mount stays a
  * faithful "before" for the resolve flip even when the skeleton phase is shown.
@@ -75,6 +85,7 @@ export function AnimatedArtistColumn({
   artistData,
   artistLoadStatus,
   isLoading,
+  labels,
   onArtistResolveStart,
   onTrackResolve,
   userRegion,
@@ -105,19 +116,44 @@ export function AnimatedArtistColumn({
     { scope: columnRef, dependencies: [artistLoadStatus] },
   );
 
+  // Resolve the loading presentation once for the track cards: first load shows
+  // the skeleton, a refetch with data on screen blurs + spins (mirrors the cards'
+  // former internal derivation, now hoisted so they stay pure presentation).
+  const showInitialSkeleton = isLoading && !artistData;
+  const isRefreshing = isLoading && !!artistData;
+
   return (
     <div ref={columnRef} className="flex flex-col gap-6" style={{ width: `${widthPx}px` }}>
-      <ArtistProfileDesktopCard data={artistData} isLoading={isLoading} status={artistLoadStatus} />
-      <PopularTracksCard
+      <ArtistProfileDesktopCard
+        title={labels.profile}
+        providedBy={labels.profileProvidedBy}
         data={artistData}
         isLoading={isLoading}
+        status={artistLoadStatus}
+      />
+      <ArtistTrackListCard
+        title={labels.popularTracks}
+        items={toPopularTrackItems(artistData)}
+        showInitialSkeleton={showInitialSkeleton}
+        isRefreshing={isRefreshing}
+        Skeleton={TracksSkeleton}
+        swapKey={buildTracksSwapKey(artistData)}
+        placeholderHeightClass="min-h-[186px]"
+        viewStorageKey={ArtistTrackViewKey.Popular}
         onTrackResolve={onTrackResolve}
         onResolveStart={onArtistResolveStart}
       />
-      <EventsCard data={artistData} isLoading={isLoading} userRegion={userRegion} />
-      <SimilarArtistsCard
-        data={artistData}
-        isLoading={isLoading}
+      <EventsCard title={labels.events} data={artistData} isLoading={isLoading} userRegion={userRegion} />
+      <ArtistTrackListCard
+        title={labels.similar}
+        items={toSimilarTrackItems(artistData)}
+        showInitialSkeleton={showInitialSkeleton}
+        isRefreshing={isRefreshing}
+        Skeleton={SimilarArtistsSkeleton}
+        swapKey={buildSimilarSwapKey(artistData)}
+        placeholderHeightClass="min-h-[205px]"
+        cardSignal={CardSignal.SimilarArtist}
+        viewStorageKey={ArtistTrackViewKey.Similar}
         onTrackResolve={onTrackResolve}
         onResolveStart={onArtistResolveStart}
       />

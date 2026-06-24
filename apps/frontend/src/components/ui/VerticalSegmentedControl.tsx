@@ -148,15 +148,20 @@ export function VerticalSegmentedControl<T extends string>({
                 // `inert` (not `aria-hidden`, which would flag a focusable button).
                 inert={!shown}
                 className={cn(
-                  "relative z-10 flex w-[34px] cursor-pointer items-center justify-center overflow-hidden rounded-lg border-none",
+                  "relative z-10 flex w-[34px] cursor-pointer items-center justify-center overflow-hidden border-none",
                   "transition-[height,opacity] duration-250 ease-out motion-reduce:transition-none",
                   shown ? "h-[34px] opacity-100" : "h-0 opacity-0 pointer-events-none",
-                  isActive ? "embossed-gradient-border mc-glass-nav-indicator mc-txt-nav-bright" : "mc-txt-nav-normal",
+                  // The inactive cells carry the same raised recipe + radius as the active
+                  // one, kept flat until hover by `mc-seg-cell-preview`, so hovering one
+                  // previews exactly how it will look once selected.
+                  isActive
+                    ? "embossed-gradient-border mc-glass-nav-indicator mc-txt-nav-bright"
+                    : "mc-seg-cell-preview embossed-gradient-border mc-glass-nav-indicator mc-txt-nav-normal",
                 )}
-                // The active cell is pinned to the top via flex `order`; the others keep
-                // their fixed relative order below it, so the active icon never moves on
-                // open/close.
-                style={isActive ? { ...ACTIVE_RADIUS_STYLE, order: -1 } : { order: index }}
+                // Every cell shares the active segment's raised-control radius (so the
+                // hover/selected shape matches); the active cell is pinned to the top via
+                // flex `order`, the others keep their fixed order below it.
+                style={{ ...ACTIVE_RADIUS_STYLE, order: isActive ? -1 : index }}
               >
                 {icon}
               </button>

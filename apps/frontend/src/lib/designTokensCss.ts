@@ -205,6 +205,16 @@ export function designTokensToCss(tokens: DesignTokens): string {
   decls.push(`--skylink-thickness:${sl.day.thickness}px`);
   decls.push(`--skylink-offset:${sl.day.offset}px`);
 
+  // Card-/glass-context link (e.g. the CC artist name): same shape as skylink,
+  // cross-faded in `a.mc-cardlink`; own tokens so it can diverge from sky links.
+  const cl = tokens.cardlink.cardlink;
+  decls.push(`--cardlink-day-color:${cl.day.color}`);
+  decls.push(`--cardlink-night-color:${cl.night.color}`);
+  decls.push(`--cardlink-day-deco:${cl.day.decoColor}`);
+  decls.push(`--cardlink-night-deco:${cl.night.decoColor}`);
+  decls.push(`--cardlink-thickness:${cl.day.thickness}px`);
+  decls.push(`--cardlink-offset:${cl.day.offset}px`);
+
   // TFT cover screen layers (bg, inset shadow strength, LCD matrix colour +
   // layer opacity, sheen highlight/shade strengths, art tint).
   const cover = tokens.cover.cover;

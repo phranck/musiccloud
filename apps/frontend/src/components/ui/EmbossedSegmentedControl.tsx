@@ -30,6 +30,25 @@ interface EmbossedSegmentedControlProps<T extends string> {
   value: T;
   onChange: (value: T) => void;
   className?: string;
+  /**
+   * Glass surface class for the recessed track. Defaults to the neutral
+   * `mc-glass-seg-track`. Callers that need a different token-driven surface
+   * (e.g. the CC-mode green `mc-glass-cc-seg-track`) pass it here instead of
+   * relying on ad-hoc colours.
+   */
+  trackClassName?: string;
+  /**
+   * Glass surface class for the sliding embossed indicator. Defaults to the
+   * neutral `mc-glass-seg-indicator`. Pair with {@link trackClassName} to swap
+   * the whole control onto an alternate token surface (e.g. the CC green).
+   */
+  indicatorClassName?: string;
+  /**
+   * Render a tighter control: smaller icon-only cells and a 2px track inset
+   * instead of 4px. For mini in-header toggles (e.g. the artist list/grid
+   * switch) where the default 34px cells are too tall. Text cells are unaffected.
+   */
+  compact?: boolean;
 }
 
 /**
@@ -50,7 +69,13 @@ export function EmbossedSegmentedControl<T extends string>({
   value,
   onChange,
   className,
+  trackClassName = "mc-glass-seg-track",
+  indicatorClassName = "mc-glass-seg-indicator",
+  compact = false,
 }: EmbossedSegmentedControlProps<T>) {
+  // Track inset (px) shared by the padding, the indicator's edge insets, and the
+  // indicator's translate offset, so they stay in lockstep at either density.
+  const padPx = compact ? 2 : 4;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const buttonRefs = useRef<Map<T, HTMLButtonElement> | null>(null);
   const buttonRefMap = buttonRefs.current ?? (buttonRefs.current = new Map());
@@ -85,21 +110,23 @@ export function EmbossedSegmentedControl<T extends string>({
   return (
     <RecessedCard
       ref={containerRef}
-      className={cn("mc-glass-seg-track relative flex gap-[var(--mc-gap-seg,0px)] p-1", className)}
+      className={cn(trackClassName, "relative flex gap-[var(--mc-gap-seg,0px)]", compact ? "p-0.5" : "p-1", className)}
       radius={recessedSurfaceRadius}
     >
       <RecessedCard.Body className="contents">
         {indicator && (
           <div
-            className="absolute top-1 bottom-1 transition-[transform,width] duration-250 ease-out"
+            className="absolute transition-[transform,width] duration-250 ease-out"
             style={{
+              top: padPx,
+              bottom: padPx,
+              left: padPx,
               width: indicator.width,
-              transform: `translateX(${indicator.left - 4}px)`,
-              left: "0.25rem",
+              transform: `translateX(${indicator.left - padPx}px)`,
             }}
           >
             <div
-              className="embossed-gradient-border mc-glass-seg-indicator size-full"
+              className={cn("embossed-gradient-border size-full", indicatorClassName)}
               style={
                 {
                   "--neu-radius-base": raisedControlRadius,
@@ -110,7 +137,7 @@ export function EmbossedSegmentedControl<T extends string>({
             />
           </div>
         )}
-        {segments.map(({ key, label, icon, ariaLabel }) => {
+        {segments.map(({ key, label, icon, ariaLabel, title }) => {
           const hasVisibleText = label.length > 0;
           return (
             <button
@@ -127,14 +154,19 @@ export function EmbossedSegmentedControl<T extends string>({
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => onChange(key)}
               aria-label={hasVisibleText ? undefined : ariaLabel}
+              title={title}
               className={cn(
-                "relative z-10 flex items-center justify-center rounded-lg whitespace-nowrap transition-colors duration-150",
+                "relative z-10 flex cursor-pointer items-center justify-center rounded-lg whitespace-nowrap transition-colors duration-150",
                 "border-none",
                 // Text cells grow to share the track width; icon-only cells get a
                 // fixed square size so a control's segment height/size stays the
                 // same regardless of the glyph (an 18px Phosphor icon and a 16px
                 // flag emoji both yield identical 34px segments).
-                hasVisibleText ? "flex-auto py-2 px-3 text-[13px] font-semibold text-center" : "size-[34px]",
+                hasVisibleText
+                  ? "flex-auto py-2 px-3 text-[13px] font-semibold text-center"
+                  : compact
+                    ? "size-[26px]"
+                    : "size-[34px]",
                 key === value ? "mc-txt-button-bright" : "mc-txt-button-normal",
               )}
             >

@@ -37,6 +37,8 @@ import type {
   CachedAlbumResult,
   CachedArtistResult,
   CachedTrackResult,
+  CcRepository,
+  CcShortIdLookup,
   CrawlRunFinalize,
   CrawlRunInsert,
   CrawlRunsPage,
@@ -47,6 +49,9 @@ import type {
   ExternalIdRecord,
   PersistAlbumData,
   PersistArtistData,
+  PersistCcAlbumData,
+  PersistCcArtistData,
+  PersistCcTrackData,
   PersistTrackData,
   PreviewObservation,
   PreviewRow,
@@ -116,6 +121,13 @@ import {
   persistArtistWithLinks as artistsPersistArtistWithLinks,
   saveArtistCache as artistsSaveArtistCache,
 } from "./postgres-artists.js";
+import {
+  findCcShortId as ccFindShortId,
+  getRandomCcShortId as ccGetRandomShortId,
+  persistCcAlbum as ccPersistAlbum,
+  persistCcArtist as ccPersistArtist,
+  persistCcTrack as ccPersistTrack,
+} from "./postgres-cc.js";
 import {
   deleteEmailTemplate as contentEmailDeleteEmailTemplate,
   getEmailTemplateById as contentEmailGetEmailTemplateById,
@@ -190,7 +202,7 @@ import {
 // POSTGRES ADAPTER
 // ============================================================================
 
-export class PostgresAdapter implements TrackRepository, AdminRepository {
+export class PostgresAdapter implements TrackRepository, AdminRepository, CcRepository {
   private pool: pgModule.Pool;
   private cleanupInterval: NodeJS.Timeout | null = null;
 
@@ -679,6 +691,30 @@ export class PostgresAdapter implements TrackRepository, AdminRepository {
 
   loadSharePageResult(shortId: string): Promise<SharePageDbResult | null> {
     return tracksLoadSharePageResult(this.pool, shortId);
+  }
+
+  // ============================================================================
+  // CREATIVE-COMMONS PERSISTENCE (CcRepository) — migration 0043
+  // ============================================================================
+
+  persistCcTrack(data: PersistCcTrackData): Promise<{ ccTrackId: string; shortId: string }> {
+    return ccPersistTrack(this.pool, data);
+  }
+
+  persistCcAlbum(data: PersistCcAlbumData): Promise<{ ccAlbumId: string; shortId: string }> {
+    return ccPersistAlbum(this.pool, data);
+  }
+
+  persistCcArtist(data: PersistCcArtistData): Promise<{ ccArtistId: string; shortId: string }> {
+    return ccPersistArtist(this.pool, data);
+  }
+
+  findCcShortId(shortId: string): Promise<CcShortIdLookup | null> {
+    return ccFindShortId(this.pool, shortId);
+  }
+
+  getRandomCcShortId(): Promise<string | null> {
+    return ccGetRandomShortId(this.pool);
   }
 
   // ============================================================================

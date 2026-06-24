@@ -1,4 +1,6 @@
 import { useEffect, useReducer, useRef, useState } from "react";
+import { DEFAULT_COVER_FALLBACK_URL } from "@/components/ui/coverFallback";
+import { createConcurrencyGate } from "@/lib/net/concurrencyGate";
 import { cn } from "@/lib/utils";
 
 interface LazyGenreArtworkProps {
@@ -6,36 +8,13 @@ interface LazyGenreArtworkProps {
   fallbackUrl?: string;
 }
 
-// ─── Global request-concurrency gate ───────────────────────────────────────
-//
-// At most `MAX_CONCURRENT` artwork tiles may have an in-flight <img> request
-// at the same time. Anything beyond waits in a FIFO queue. Prevents the
-// "user scrolls the whole grid before anything resolved" case from
-// collapsing the cold-cache generation queue on the backend — each tile
-// still gets its turn, but never more than 10 at once.
-const MAX_CONCURRENT = 10;
-let activeSlots = 0;
-const waitQueue: Array<() => void> = [];
-
-function acquireSlot(): Promise<void> {
-  return new Promise((resolve) => {
-    if (activeSlots < MAX_CONCURRENT) {
-      activeSlots++;
-      resolve();
-      return;
-    }
-    waitQueue.push(() => {
-      activeSlots++;
-      resolve();
-    });
-  });
-}
-
-function releaseSlot() {
-  activeSlots--;
-  const next = waitQueue.shift();
-  if (next) next();
-}
+// Global request-concurrency gate: at most 10 artwork tiles may have an
+// in-flight <img> request at the same time. Anything beyond waits in a FIFO
+// queue. Prevents the "user scrolls the whole grid before anything resolved"
+// case from collapsing the cold-cache generation queue on the backend — each
+// tile still gets its turn, but never more than 10 at once. A single shared
+// gate so all tiles on the page contend for the same 10 slots.
+const artworkGate = createConcurrencyGate(10);
 
 /**
  * Defers the artwork request until the tile scrolls into view, then passes
@@ -49,7 +28,7 @@ function releaseSlot() {
  * patiently waits its turn, which keeps the Jimp / Last.fm pipeline from
  * overloading.
  */
-export function LazyGenreArtwork({ url, fallbackUrl = "/og/default.jpg" }: LazyGenreArtworkProps) {
+export function LazyGenreArtwork({ url, fallbackUrl = DEFAULT_COVER_FALLBACK_URL }: LazyGenreArtworkProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [intersected, markIntersected] = useReducer(() => true, false);
   const [canLoad, setCanLoad] = useState(false);
@@ -77,9 +56,9 @@ export function LazyGenreArtwork({ url, fallbackUrl = "/og/default.jpg" }: LazyG
   useEffect(() => {
     if (!intersected || canLoad) return;
     let cancelled = false;
-    acquireSlot().then(() => {
+    artworkGate.acquire().then(() => {
       if (cancelled) {
-        releaseSlot();
+        artworkGate.release();
         return;
       }
       setCanLoad(true);
@@ -95,7 +74,7 @@ export function LazyGenreArtwork({ url, fallbackUrl = "/og/default.jpg" }: LazyG
   function releaseOnce() {
     if (slotReleasedRef.current) return;
     slotReleasedRef.current = true;
-    releaseSlot();
+    artworkGate.release();
   }
 
   return (
