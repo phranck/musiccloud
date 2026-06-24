@@ -6,7 +6,6 @@ import { raisedControlRadius, recessedControlInsetClassName } from "@/components
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { useDismissableLayer } from "@/components/ui/useDismissableLayer";
-import { cn } from "@/lib/utils";
 
 /**
  * Per-format download labels. Technical format names (codec + bitrate) are
@@ -82,8 +81,8 @@ export function CcDownloadMenu({ downloadUrl, ariaLabel }: CcDownloadMenuProps) 
 
   return (
     <div ref={containerRef} className="relative flex-shrink-0">
-      <RecessedCard className={cn(recessedControlInsetClassName, "h-full")}>
-        <RecessedCard.Body className="h-full">
+      <RecessedCard className={recessedControlInsetClassName}>
+        <RecessedCard.Body>
           <EmbossedButton
             as="button"
             onClick={toggle}
@@ -91,7 +90,10 @@ export function CcDownloadMenu({ downloadUrl, ariaLabel }: CcDownloadMenuProps) 
             aria-expanded={open}
             aria-controls={menuId}
             aria-label={ariaLabel}
-            className="flex aspect-square h-full items-center justify-center px-0 py-0 text-text-primary"
+            // Square trigger sized intrinsically from its icon + padding (the
+            // download button's icon + py-2.5 yield the same height); deriving
+            // the width from `h-full`/`aspect-square` collapsed it in the flex row.
+            className="flex aspect-square items-center justify-center p-2.5 text-text-primary"
           >
             <CaretDownIcon weight="bold" className="size-5 flex-shrink-0" aria-hidden="true" />
           </EmbossedButton>
