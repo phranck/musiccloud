@@ -30,7 +30,7 @@ import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { sectionCardFooterTextClassName } from "@/components/cards/sectionCardChromeStyles";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
-import { useTrackListView } from "@/hooks/useTrackListView";
+import { useTrackViewMorph } from "@/hooks/useTrackViewMorph";
 import { useLocale, useT } from "@/i18n/localeContext";
 import { CardSignal } from "@/lib/analytics/umami";
 import { cn } from "@/lib/utils";
@@ -73,19 +73,19 @@ export function ArtistInfoCard({
 
   // View + pager state must be declared before any early return (Rules of Hooks).
   // The view is remembered per section and shares its key with the desktop card.
-  const [popularView, setPopularView] = useTrackListView(ArtistTrackViewKey.Popular);
-  const [similarView, setSimilarView] = useTrackListView(ArtistTrackViewKey.Similar);
+  const popular = useTrackViewMorph(ArtistTrackViewKey.Popular);
+  const similar = useTrackViewMorph(ArtistTrackViewKey.Similar);
   const popularItems = toPopularTrackItems(data);
   const similarItems = toSimilarTrackItems(data);
   // Memoized so the toggle element identity stays stable (jsx-no-jsx-as-prop);
   // only offered once a section has rows to switch between.
   const popularAddOn = useMemo(
-    () => (popularItems.length > 0 ? <TrackViewToggle view={popularView} onChange={setPopularView} /> : undefined),
-    [popularItems.length, popularView, setPopularView],
+    () => (popularItems.length > 0 ? <TrackViewToggle view={popular.view} onChange={popular.setView} /> : undefined),
+    [popularItems.length, popular.view, popular.setView],
   );
   const similarAddOn = useMemo(
-    () => (similarItems.length > 0 ? <TrackViewToggle view={similarView} onChange={setSimilarView} /> : undefined),
-    [similarItems.length, similarView, setSimilarView],
+    () => (similarItems.length > 0 ? <TrackViewToggle view={similar.view} onChange={similar.setView} /> : undefined),
+    [similarItems.length, similar.view, similar.setView],
   );
 
   const effectiveStatus: ArtistInfoStatus = status ?? (isLoading ? "loading" : data ? "ready" : "empty");
@@ -159,12 +159,15 @@ export function ArtistInfoCard({
               hasContent={popularItems.length > 0}
               swapKey={buildTracksSwapKey(data)}
             >
-              <ArtistTrackContent
-                view={popularView}
-                items={popularItems}
-                onTrackResolve={onTrackResolve}
-                onResolveStart={onResolveStart}
-              />
+              <div ref={popular.containerRef}>
+                <ArtistTrackContent
+                  view={popular.view}
+                  outgoingView={popular.outgoingView}
+                  items={popularItems}
+                  onTrackResolve={onTrackResolve}
+                  onResolveStart={onResolveStart}
+                />
+              </div>
             </ArtistSectionWell>
           </CollapsibleSection>
 
@@ -194,13 +197,16 @@ export function ArtistInfoCard({
               hasContent={similarItems.length > 0}
               swapKey={buildSimilarSwapKey(data)}
             >
-              <ArtistTrackContent
-                view={similarView}
-                items={similarItems}
-                cardSignal={CardSignal.SimilarArtist}
-                onTrackResolve={onTrackResolve}
-                onResolveStart={onResolveStart}
-              />
+              <div ref={similar.containerRef}>
+                <ArtistTrackContent
+                  view={similar.view}
+                  outgoingView={similar.outgoingView}
+                  items={similarItems}
+                  cardSignal={CardSignal.SimilarArtist}
+                  onTrackResolve={onTrackResolve}
+                  onResolveStart={onResolveStart}
+                />
+              </div>
             </ArtistSectionWell>
           </CollapsibleSection>
         </div>
