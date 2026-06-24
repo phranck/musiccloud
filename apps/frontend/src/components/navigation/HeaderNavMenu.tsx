@@ -66,28 +66,35 @@ export function HeaderNavMenu({ navItems, onNavClick }: HeaderNavMenuProps) {
       </RecessedCard>
 
       {open && (
-        <nav
-          id={menuId}
-          aria-label={t("nav.menu")}
-          style={RAISED_RADIUS_STYLE}
-          className="recessed-gradient-border mc-glass-nav-track absolute left-0 top-full mt-2 flex min-w-[10rem] flex-col gap-0.5 overflow-hidden p-1"
-        >
-          {navItems.map((item) => (
-            <a
-              key={item.id}
-              href={navHref(item)}
-              target={item.target === NavTarget.Blank ? NavTarget.Blank : undefined}
-              rel={item.target === NavTarget.Blank ? "noopener noreferrer" : undefined}
-              onClick={(event) => {
-                onNavClick(event, item);
-                setOpen(false);
-              }}
-              className="mc-glass-nav-indicator mc-nav-item mc-txt-nav-normal rounded-lg px-3 py-2 transition-colors duration-150"
-            >
-              {navLabel(item)}
-            </a>
-          ))}
-        </nav>
+        // Positioning wrapper carries `absolute` on its own: the inner panel uses
+        // `recessed-gradient-border`, whose `position: relative` (glass.css) would
+        // otherwise beat the Tailwind `absolute` utility — leaving the panel in
+        // flow, which widened the trigger track to the menu's width. The wrapper
+        // keeps the panel out of flow so the hamburger button keeps its size.
+        <div className="absolute left-0 top-full z-50 mt-2">
+          <nav
+            id={menuId}
+            aria-label={t("nav.menu")}
+            style={RAISED_RADIUS_STYLE}
+            className="recessed-gradient-border mc-glass-nav-track flex min-w-[10rem] origin-top animate-menu-drop-in flex-col gap-0.5 overflow-hidden p-1"
+          >
+            {navItems.map((item) => (
+              <a
+                key={item.id}
+                href={navHref(item)}
+                target={item.target === NavTarget.Blank ? NavTarget.Blank : undefined}
+                rel={item.target === NavTarget.Blank ? "noopener noreferrer" : undefined}
+                onClick={(event) => {
+                  onNavClick(event, item);
+                  setOpen(false);
+                }}
+                className="mc-glass-nav-indicator mc-nav-item mc-txt-nav-normal rounded-lg px-3 py-2 transition-colors duration-150"
+              >
+                {navLabel(item)}
+              </a>
+            ))}
+          </nav>
+        </div>
       )}
     </div>
   );
