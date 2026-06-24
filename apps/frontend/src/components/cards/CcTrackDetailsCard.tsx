@@ -1,11 +1,18 @@
+import { CaretDownIcon } from "@phosphor-icons/react";
+import { useId } from "react";
 import { outerEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SectionCardShell } from "@/components/cards/SectionCardShell";
+import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
+import { usePersistedDisclosure } from "@/components/ui/usePersistedDisclosure";
 import { useT } from "@/i18n/localeContext";
 import { hasCcTrackDetails } from "@/lib/cc/track-details";
 import { formatCount } from "@/lib/format/count";
 import type { CcTrackContentConfiguration } from "@/lib/types/media-card";
 import { cn } from "@/lib/utils";
+
+/** localStorage key persisting whether the CC details card is expanded (default collapsed). */
+const DETAILS_DISCLOSURE_KEY = "mc:ccDetailsExpanded";
 
 /** A single label/value row in the details card. */
 interface DetailRowData {
@@ -71,6 +78,8 @@ interface CcTrackDetailsCardProps {
  */
 export function CcTrackDetailsCard({ content, className, animated = false }: CcTrackDetailsCardProps) {
   const t = useT();
+  const [expanded, toggleExpanded] = usePersistedDisclosure(DETAILS_DISCLOSURE_KEY, false);
+  const detailsId = useId();
 
   if (!hasCcTrackDetails(content)) return null;
 
@@ -137,29 +146,49 @@ export function CcTrackDetailsCard({ content, className, animated = false }: CcT
 
   return (
     <SectionCardShell
-      title={t("cc.details.title")}
+      title={
+        <button
+          type="button"
+          onClick={toggleExpanded}
+          aria-expanded={expanded}
+          aria-controls={detailsId}
+          className="flex w-full cursor-pointer items-center justify-between gap-2 border-0 bg-transparent p-0 text-left text-inherit"
+        >
+          <span>{t("cc.details.title")}</span>
+          <CaretDownIcon
+            weight="bold"
+            className={cn("size-4 shrink-0 transition-transform duration-200", expanded && "rotate-180")}
+            aria-hidden="true"
+          />
+        </button>
+      }
       animated={animated}
       className={cn(outerEmbossedCardClassName, className)}
     >
-      <div className="flex flex-col gap-[var(--mc-pad-card,0.75rem)] p-[var(--mc-pad-card,0.75rem)] pt-0">
-        {classRows.length > 0 && (
-          <RecessedCard className={recessedControlInsetClassName}>
-            <RecessedCard.Body className="flex flex-col divide-y divide-white/[0.06] py-1">
-              {classRows.map(({ key, ...row }) => (
-                <DetailRow key={key} {...row} />
-              ))}
-            </RecessedCard.Body>
-          </RecessedCard>
-        )}
-        {statRows.length > 0 && (
-          <RecessedCard className={recessedControlInsetClassName}>
-            <RecessedCard.Body className="flex flex-col divide-y divide-white/[0.06] py-1">
-              {statRows.map(({ key, ...row }) => (
-                <DetailRow key={key} {...row} />
-              ))}
-            </RecessedCard.Body>
-          </RecessedCard>
-        )}
+      <div id={detailsId}>
+        <CollapsibleSection
+          visible={expanded}
+          sectionClass="flex flex-col gap-[var(--mc-pad-card,0.75rem)] p-[var(--mc-pad-card,0.75rem)] pt-0"
+        >
+          {classRows.length > 0 && (
+            <RecessedCard className={recessedControlInsetClassName}>
+              <RecessedCard.Body className="flex flex-col divide-y divide-white/[0.06] py-1">
+                {classRows.map(({ key, ...row }) => (
+                  <DetailRow key={key} {...row} />
+                ))}
+              </RecessedCard.Body>
+            </RecessedCard>
+          )}
+          {statRows.length > 0 && (
+            <RecessedCard className={recessedControlInsetClassName}>
+              <RecessedCard.Body className="flex flex-col divide-y divide-white/[0.06] py-1">
+                {statRows.map(({ key, ...row }) => (
+                  <DetailRow key={key} {...row} />
+                ))}
+              </RecessedCard.Body>
+            </RecessedCard>
+          )}
+        </CollapsibleSection>
       </div>
     </SectionCardShell>
   );
