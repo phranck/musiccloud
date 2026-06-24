@@ -108,6 +108,8 @@
   "landing.exampleLink": "See a live example →",
   "artist.similarArtists": "Similar Artists",
   "artist.similarTracks": "Similar Tracks",
+  "artist.viewList": "List view",
+  "artist.viewGrid": "Grid view",
   "artist.eventsProvidedBy": "Event data provided by Bandsintown & Ticketmaster",
   "audio.previewUnavailable": "Preview unavailable",
   "audio.previewLoading": "Loading...",

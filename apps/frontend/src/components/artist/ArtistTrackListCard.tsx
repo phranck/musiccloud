@@ -1,8 +1,9 @@
-import type { ComponentType } from "react";
+import { type ComponentType, useMemo } from "react";
 import { ArtistCardShell } from "@/components/artist/ArtistCardShell";
 import { ArtistSectionWell } from "@/components/artist/ArtistSectionWell";
 import { ArtistTrackContent } from "@/components/artist/ArtistTrackContent";
 import type { ArtistPanelTrackResolveHandler, ArtistTrackItem } from "@/components/artist/artistPanelTypes";
+import { TrackViewToggle } from "@/components/artist/TrackViewToggle";
 import { PagedListFooter } from "@/components/ui/PagedListFooter";
 import { usePagedList } from "@/hooks/usePagedList";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
@@ -64,7 +65,14 @@ export function ArtistTrackListCard({
   onResolveStart,
 }: ArtistTrackListCardProps) {
   const skeletonAllowed = useSkeletonAllowed();
-  const [view] = useTrackListView(viewStorageKey);
+  const [view, setView] = useTrackListView(viewStorageKey);
+  // Only offer the list/grid switch once there are rows to switch between (the
+  // skeleton phase has none). Memoized so the element identity is stable across
+  // renders and not flagged as inline JSX-as-prop (jsx-no-jsx-as-prop).
+  const headerAddOn = useMemo(
+    () => (items.length > 0 ? <TrackViewToggle view={view} onChange={setView} /> : undefined),
+    [items.length, view, setView],
+  );
   const showContent = showInitialSkeleton || items.length > 0;
   const resetKey = items.map((item) => item.track.deezerUrl).join("|");
   const pageSize = view === TrackListView.Grid ? GRID_PAGE_SIZE : LIST_PAGE_SIZE;
@@ -91,7 +99,7 @@ export function ArtistTrackListCard({
     ) : undefined;
 
   return (
-    <ArtistCardShell title={title} footer={footer} isRefreshing={isRefreshing}>
+    <ArtistCardShell title={title} headerAddOn={headerAddOn} footer={footer} isRefreshing={isRefreshing}>
       <div className="px-3 pt-0 pb-3">
         <ArtistSectionWell
           showInitialSkeleton={showInitialSkeleton}

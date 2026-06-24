@@ -13,6 +13,13 @@ interface SectionCardShellProps {
   /** Card title rendered in the embossed header; omitted for a chromeless shell. */
   title?: ReactNode;
   /**
+   * Optional trailing control aligned to the header's right edge (e.g. a list/grid
+   * view toggle). Lives inside the titled header row (so it respects the header's
+   * `chrome-x` inset instead of an absolute `EmbossedCard.Header.AddOn`), pushed
+   * right after the title + refresh spinner. Only rendered when {@link title} is.
+   */
+  headerAddOn?: ReactNode;
+  /**
    * Optional footer content rendered in the card's footer slot. Any node — a
    * credit line (wrap it in {@link import("./SectionCardFooterText").SectionCardFooterText})
    * or a pager.
@@ -61,6 +68,7 @@ interface SectionCardShellProps {
  */
 export function SectionCardShell({
   title,
+  headerAddOn,
   footer,
   animated = false,
   className,
@@ -83,6 +91,7 @@ export function SectionCardShell({
               aria-hidden="true"
             />
           )}
+          {headerAddOn && <div className="ml-auto flex items-center">{headerAddOn}</div>}
         </EmbossedCard.Header>
       )}
       {title || footer ? (
