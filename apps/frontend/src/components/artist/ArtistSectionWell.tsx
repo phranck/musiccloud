@@ -10,6 +10,13 @@ interface ArtistSectionWellProps {
    * because their title sits on the outer `ArtistCardShell` header instead.
    */
   innerTitle?: ReactNode;
+  /**
+   * Optional trailing control for the inner header (e.g. the list/grid toggle),
+   * rendered as a `RecessedCard.Header.AddOn` beside {@link innerTitle}. Only
+   * shows when `innerTitle` is set (mobile), so the desktop cards — whose toggle
+   * sits on the outer card header — are unaffected.
+   */
+  headerAddOn?: ReactNode;
   /** Render the skeleton instead of content during the initial load. */
   showInitialSkeleton: boolean;
   /**
@@ -40,6 +47,7 @@ interface ArtistSectionWellProps {
  */
 export function ArtistSectionWell({
   innerTitle,
+  headerAddOn,
   showInitialSkeleton,
   Skeleton,
   hasContent,
@@ -51,6 +59,7 @@ export function ArtistSectionWell({
       {innerTitle && (
         <RecessedCard.Header>
           <RecessedCard.Header.Title>{innerTitle}</RecessedCard.Header.Title>
+          {headerAddOn && <RecessedCard.Header.AddOn>{headerAddOn}</RecessedCard.Header.AddOn>}
         </RecessedCard.Header>
       )}
       <RecessedCard.Body>

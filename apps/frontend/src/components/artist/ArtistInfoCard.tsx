@@ -6,21 +6,24 @@
 
 import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { CircleNotchIcon } from "@phosphor-icons/react";
+import { useMemo } from "react";
 import { ArtistCardCloseButton } from "@/components/artist/ArtistCardCloseButton";
 import { ArtistInfoNoticeCard } from "@/components/artist/ArtistInfoNoticeCard";
 import { ArtistProfileMobileCard } from "@/components/artist/ArtistProfileMobileCard";
 import { ArtistSectionWell } from "@/components/artist/ArtistSectionWell";
-import { ArtistTrackList } from "@/components/artist/ArtistTrackList";
+import { ArtistTrackContent } from "@/components/artist/ArtistTrackContent";
 import type {
   ArtistCardLabels,
   ArtistInfoStatus,
   ArtistPanelTrackResolveHandler,
 } from "@/components/artist/artistPanelTypes";
 import { buildEventsSwapKey, buildSimilarSwapKey, buildTracksSwapKey } from "@/components/artist/artistSwapKeys";
+import { toPopularTrackItems, toSimilarTrackItems } from "@/components/artist/artistTrackItems";
+import { ArtistTrackViewKey } from "@/components/artist/artistTrackViewKeys";
 import { EventsSkeleton } from "@/components/artist/EventsSkeleton";
 import { SimilarArtistsSkeleton } from "@/components/artist/SimilarArtistsSkeleton";
-import { hasResolvedTrack } from "@/components/artist/similarArtistTracks";
 import { TracksSkeleton } from "@/components/artist/TracksSkeleton";
+import { TrackViewToggle } from "@/components/artist/TrackViewToggle";
 import { UpcomingEventsSection } from "@/components/artist/UpcomingEventsSection";
 import { fullWidthEmbossedCardClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
@@ -29,6 +32,7 @@ import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { PagedListFooter } from "@/components/ui/PagedListFooter";
 import { usePagedList } from "@/hooks/usePagedList";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
+import { getTrackPageSize, useTrackListView } from "@/hooks/useTrackListView";
 import { useLocale, useT } from "@/i18n/localeContext";
 import { CardSignal } from "@/lib/analytics/umami";
 import { cn } from "@/lib/utils";
@@ -51,8 +55,9 @@ interface ArtistInfoCardProps {
  * section reuses the shared {@link ArtistSectionWell} (skeleton → content
  * tri-state) with its title supplied via {@link ArtistInfoCardProps.labels}, so
  * the markup matches the desktop cards without duplicating their body. Popular
- * and similar are capped at five per page, with the pager rendered beneath the
- * section's well (the mobile footer position).
+ * and similar each carry a list/grid toggle in their well header (remembered per
+ * section, shared with the desktop card) and page by the active view, with the
+ * pager rendered beneath the well (the mobile footer position).
  */
 export function ArtistInfoCard({
   data,
@@ -68,11 +73,30 @@ export function ArtistInfoCard({
   const { locale } = useLocale();
   const skeletonAllowed = useSkeletonAllowed();
 
-  // Pager state must be declared before any early return (Rules of Hooks).
-  const tracks = data?.topTracks ?? [];
-  const tracksPager = usePagedList(tracks, { resetKey: tracks.map((track) => track.deezerUrl).join("|") });
-  const withTrack = (data?.similarArtistTracks ?? []).filter(hasResolvedTrack);
-  const similarPager = usePagedList(withTrack, { resetKey: withTrack.map((entry) => entry.track.deezerUrl).join("|") });
+  // View + pager state must be declared before any early return (Rules of Hooks).
+  // The view is remembered per section and shares its key with the desktop card.
+  const [popularView, setPopularView] = useTrackListView(ArtistTrackViewKey.Popular);
+  const [similarView, setSimilarView] = useTrackListView(ArtistTrackViewKey.Similar);
+  const popularItems = toPopularTrackItems(data);
+  const tracksPager = usePagedList(popularItems, {
+    resetKey: popularItems.map((item) => item.track.deezerUrl).join("|"),
+    pageSize: getTrackPageSize(popularView),
+  });
+  const similarItems = toSimilarTrackItems(data);
+  const similarPager = usePagedList(similarItems, {
+    resetKey: similarItems.map((item) => item.track.deezerUrl).join("|"),
+    pageSize: getTrackPageSize(similarView),
+  });
+  // Memoized so the toggle element identity stays stable (jsx-no-jsx-as-prop);
+  // only offered once a section has rows to switch between.
+  const popularAddOn = useMemo(
+    () => (popularItems.length > 0 ? <TrackViewToggle view={popularView} onChange={setPopularView} /> : undefined),
+    [popularItems.length, popularView, setPopularView],
+  );
+  const similarAddOn = useMemo(
+    () => (similarItems.length > 0 ? <TrackViewToggle view={similarView} onChange={setSimilarView} /> : undefined),
+    [similarItems.length, similarView, setSimilarView],
+  );
 
   const effectiveStatus: ArtistInfoStatus = status ?? (isLoading ? "loading" : data ? "ready" : "empty");
 
@@ -104,9 +128,9 @@ export function ArtistInfoCard({
   // "updating" instead of frozen. Mirrors the desktop cards' `isRefreshing`.
   const isRefreshing = isLoading && !!data;
   const showProfile = showInitialSkeleton || !!data?.profile;
-  const showTracks = showInitialSkeleton || tracks.length > 0;
+  const showTracks = showInitialSkeleton || popularItems.length > 0;
   const showEvents = showInitialSkeleton || (data?.events.length ?? 0) > 0;
-  const showSimilar = showInitialSkeleton || withTrack.length > 0;
+  const showSimilar = showInitialSkeleton || similarItems.length > 0;
   // All sections empty after load -> keep the card shell and explain the empty state.
   if (!isLoading && !showProfile && !showTracks && !showEvents && !showSimilar) {
     return <ArtistInfoNoticeCard onClose={onClose} message={t("artist.empty")} />;
@@ -139,13 +163,15 @@ export function ArtistInfoCard({
           <CollapsibleSection visible={showTracks} sectionClass="p-[var(--mc-pad-card,0.75rem)]" disableMobileCollapse>
             <ArtistSectionWell
               innerTitle={labels.popularTracks}
+              headerAddOn={popularAddOn}
               showInitialSkeleton={showInitialSkeleton}
               Skeleton={TracksSkeleton}
-              hasContent={tracks.length > 0}
+              hasContent={popularItems.length > 0}
               swapKey={buildTracksSwapKey(data)}
             >
-              <ArtistTrackList
-                items={tracksPager.page.map((track) => ({ track }))}
+              <ArtistTrackContent
+                view={popularView}
+                items={tracksPager.page}
                 onTrackResolve={onTrackResolve}
                 onResolveStart={onResolveStart}
               />
@@ -183,13 +209,15 @@ export function ArtistInfoCard({
           <CollapsibleSection visible={showSimilar} sectionClass="p-[var(--mc-pad-card,0.75rem)]" disableMobileCollapse>
             <ArtistSectionWell
               innerTitle={labels.similar}
+              headerAddOn={similarAddOn}
               showInitialSkeleton={showInitialSkeleton}
               Skeleton={SimilarArtistsSkeleton}
-              hasContent={withTrack.length > 0}
+              hasContent={similarItems.length > 0}
               swapKey={buildSimilarSwapKey(data)}
             >
-              <ArtistTrackList
-                items={similarPager.page.map(({ artistName, track }) => ({ track, artistLabel: artistName }))}
+              <ArtistTrackContent
+                view={similarView}
+                items={similarPager.page}
                 cardSignal={CardSignal.SimilarArtist}
                 onTrackResolve={onTrackResolve}
                 onResolveStart={onResolveStart}

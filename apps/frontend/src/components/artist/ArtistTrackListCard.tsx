@@ -7,15 +7,7 @@ import { TrackViewToggle } from "@/components/artist/TrackViewToggle";
 import { PagedListFooter } from "@/components/ui/PagedListFooter";
 import { usePagedList } from "@/hooks/usePagedList";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
-import { TrackListView, useTrackListView } from "@/hooks/useTrackListView";
-
-/** Rows per page in list view (matches usePagedList's own default). */
-const LIST_PAGE_SIZE = 5;
-/**
- * Cover tiles per page in grid view. A multiple of both three and four so a full
- * page fills the responsive 3–4 column track without leaving an orphan row.
- */
-const GRID_PAGE_SIZE = 12;
+import { getTrackPageSize, useTrackListView } from "@/hooks/useTrackListView";
 
 interface ArtistTrackListCardProps {
   /** Card title, supplied by the presentation owner (never hardcoded here). */
@@ -75,7 +67,7 @@ export function ArtistTrackListCard({
   );
   const showContent = showInitialSkeleton || items.length > 0;
   const resetKey = items.map((item) => item.track.deezerUrl).join("|");
-  const pageSize = view === TrackListView.Grid ? GRID_PAGE_SIZE : LIST_PAGE_SIZE;
+  const pageSize = getTrackPageSize(view);
   const { page, pageCount, canGoPrevious, canGoNext, goPrevious, goNext } = usePagedList(items, { resetKey, pageSize });
 
   if (showInitialSkeleton && !skeletonAllowed) {
