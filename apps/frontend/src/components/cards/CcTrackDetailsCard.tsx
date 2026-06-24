@@ -194,7 +194,10 @@ export function CcTrackDetailsCard({ content, className, animated = false }: CcT
           onClick={toggleExpanded}
           aria-expanded={expanded}
           aria-controls={detailsId}
-          className="flex w-full cursor-pointer items-center justify-between gap-2 border-0 bg-transparent p-0 text-left text-inherit"
+          // `text-transform: inherit` defeats the browser's UA default
+          // (`button { text-transform: none }`), which would otherwise block the
+          // header's token-driven uppercase from cascading into the label.
+          className="flex w-full cursor-pointer items-center justify-between gap-2 border-0 bg-transparent p-0 text-left text-inherit [text-transform:inherit]"
         >
           <span>{t("cc.details.title")}</span>
           <CaretDownIcon
