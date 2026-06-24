@@ -15,6 +15,7 @@ import {
   SCALAR_API_REFERENCE_CONTENT_SECURITY_POLICY,
   SCALAR_REFERENCE_FONT_FILES,
 } from "./docs/scalar-reference.js";
+import { assertRequiredBootEnv } from "./lib/boot-env.js";
 import { requireEnvList } from "./lib/env.js";
 import authPlugin from "./plugins/auth.js";
 import adminAnalyticsRoutes from "./routes/admin-analytics.js";
@@ -513,6 +514,10 @@ async function start() {
   }
 
   try {
+    // Crash the boot before opening the port if a boot-critical env var is
+    // missing (see assertRequiredBootEnv) — a misconfigured CC path then shows
+    // as a loud restart loop instead of a silent request-time MC-API-0004.
+    assertRequiredBootEnv();
     await runMigrations();
     await app.listen({ host: HOST, port: PORT });
     app.log.info(`Backend listening on ${HOST}:${PORT}`);
