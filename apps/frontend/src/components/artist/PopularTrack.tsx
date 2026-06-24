@@ -1,12 +1,11 @@
 import type { ArtistTopTrack } from "@musiccloud/shared";
-import { type MouseEvent, useCallback, useState } from "react";
+import type { MouseEvent } from "react";
 import { ArtistPanelRow } from "@/components/artist/ArtistPanelRow";
 import { ArtistPanelRowText } from "@/components/artist/ArtistPanelRowText";
 import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
 import { SlideArtwork } from "@/components/ui/SlideArtwork";
-import { useToastSafe } from "@/context/ToastContext";
-import { useT } from "@/i18n/localeContext";
-import { CardSignal, ResolveSignal, sendMusicSignal } from "@/lib/analytics/umami";
+import { useTrackResolve } from "@/hooks/useTrackResolve";
+import { CardSignal } from "@/lib/analytics/umami";
 
 interface PopularTrackProps {
   /** The track to display and resolve on activation. */
@@ -38,36 +37,14 @@ export function PopularTrack({
   onTrackResolve,
   onResolveStart,
 }: PopularTrackProps) {
-  const t = useT();
-  const toast = useToastSafe();
   const showAlbum = !artistLabel && track.albumName && track.albumName !== track.title;
-  const [resolving, setResolving] = useState(false);
+  const { resolving, activate } = useTrackResolve(track, cardSignal, onTrackResolve, onResolveStart);
 
-  const handleListen = useCallback(
-    async (event: MouseEvent<HTMLButtonElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (resolving) return;
-
-      sendMusicSignal(cardSignal);
-      setResolving(true);
-      onResolveStart?.();
-      try {
-        if (!onTrackResolve) {
-          throw new Error("missing in-place resolve handler");
-        }
-
-        await onTrackResolve(track);
-        setResolving(false);
-      } catch (err) {
-        sendMusicSignal(err instanceof Error ? ResolveSignal.FailedClient : ResolveSignal.FailedUnknown);
-        setResolving(false);
-        if (import.meta.env.DEV) console.warn("[PopularTrack] resolve failed:", err);
-        toast?.show(t("error.generic"), "error");
-      }
-    },
-    [cardSignal, onResolveStart, onTrackResolve, resolving, track, toast, t],
-  );
+  const handleListen = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void activate();
+  };
 
   return (
     <ArtistPanelRow as="button" type="button" onClick={handleListen} aria-busy={resolving} aria-disabled={resolving}>
