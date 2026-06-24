@@ -557,6 +557,7 @@ function buildCcShareConfig(cc: CcTrackResult, t: TFunc): CcTrackContentConfigur
     stats: cc.stats,
     proLicensing: cc.proLicensing,
     proUrl: cc.proUrl,
+    jamendoTrackId: cc.jamendoId,
   };
 }
 

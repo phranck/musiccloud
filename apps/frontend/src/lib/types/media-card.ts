@@ -179,6 +179,8 @@ export interface CcTrackContentConfiguration {
   proLicensing?: boolean;
   /** Jamendo Pro licensing page for the track, linked from the Pro hint when `proLicensing` is true. */
   proUrl?: string;
+  /** Jamendo track id, used by the CcInfoCard's async "Buy on Bandcamp" lookup. */
+  jamendoTrackId?: string;
 }
 
 /** Type guard: true for song, album, and artist configs (all have shareUrl / srAnnouncement) */

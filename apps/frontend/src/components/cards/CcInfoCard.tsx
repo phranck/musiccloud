@@ -1,4 +1,5 @@
 import { ArrowSquareOutIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
+import { CcBandcampButton } from "@/components/cards/CcBandcampButton";
 import { CcDownloadMenu } from "@/components/cards/CcDownloadMenu";
 import { outerEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
@@ -136,8 +137,9 @@ export function CcInfoCard({ content, className, animated = false }: CcInfoCardP
           </a>
         )}
 
-        {(showDownload || showJamendo) && (
+        {(content.jamendoTrackId || showDownload || showJamendo) && (
           <div className="flex flex-col gap-2">
+            {content.jamendoTrackId && <CcBandcampButton jamendoId={content.jamendoTrackId} />}
             {showDownload && content.downloadUrl && (
               <div className="flex gap-2">
                 <RecessedCard className={cn(recessedControlInsetClassName, "min-w-0 flex-1")}>

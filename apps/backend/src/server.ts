@@ -31,6 +31,7 @@ import artistInfoRoutes from "./routes/artist-info.js";
 import authRoutes from "./routes/auth.js";
 import ccArtistInfoRoutes from "./routes/cc-artist-info.js";
 import ccAudioRoutes from "./routes/cc-audio.js";
+import ccBandcampRoutes from "./routes/cc-bandcamp.js";
 import ccGenreArtworkRoutes from "./routes/cc-genre-artwork.js";
 import ccRandomExampleRoutes from "./routes/cc-random-example.js";
 import ccResolveRoutes from "./routes/cc-resolve.js";
@@ -426,6 +427,8 @@ async function buildApp() {
   await app.register(artistInfoRoutes);
   // CC artist column (public, no auth - the CC share page loads it async)
   await app.register(ccArtistInfoRoutes);
+  // CC Bandcamp presence (public, no auth - the CC share page loads it async)
+  await app.register(ccBandcampRoutes);
   await app.register(randomExampleRoutes);
   await app.register(ccRandomExampleRoutes);
 

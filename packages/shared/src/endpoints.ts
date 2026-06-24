@@ -79,6 +79,10 @@ export const ENDPOINTS = {
      *  column (Jamendo top + similar tracks + profile), loaded async by the share
      *  page so the core card renders immediately. */
     ccArtistInfo: "/api/v1/cc/artist-info",
+    /** GET `/api/v1/cc/bandcamp/:jamendoId`: whether the CC track is also on
+     *  Bandcamp (fuzzy search + confidence). Async + cached (incl. negative
+     *  hits); the share page loads it after the core card renders. */
+    ccBandcamp: (jamendoId: string) => `/api/v1/cc/bandcamp/${encodeURIComponent(jamendoId)}`,
     siteSettings: {
       /** GET: public site settings exposed to the frontend (currently: tracking flag). */
       tracking: "/api/v1/site-settings/tracking",
@@ -144,6 +148,9 @@ export const ENDPOINTS = {
     /** GET: forwarded to `ENDPOINTS.v1.ccArtistInfo`. The CC share page loads the
      *  artist column through this async, after the core card has rendered. */
     ccArtistInfo: "/api/cc/artist-info",
+    /** GET: forwarded to `ENDPOINTS.v1.ccBandcamp`. The CC share page loads the
+     *  Bandcamp presence through this async, after the core card has rendered. */
+    ccBandcamp: (jamendoId: string) => `/api/cc/bandcamp/${encodeURIComponent(jamendoId)}`,
     /** GET: handled entirely by Astro (`pages/api/redirect.ts`): takes `?url=`,
      * calls `ENDPOINTS.v1.resolve`, then 302s to the resolved share page. */
     redirect: "/api/redirect",
@@ -316,6 +323,8 @@ export const ROUTE_TEMPLATES = {
     /** Route template for ENDPOINTS.v1.ccAudio (CORS-safe Jamendo stream proxy).
      *  The `format` is an optional `?format=` query (validated against JamendoAudioFormat), not a path segment. */
     ccAudio: "/api/v1/cc/audio/:jamendoId",
+    /** Route template for ENDPOINTS.v1.ccBandcamp (Bandcamp presence lookup). */
+    ccBandcamp: "/api/v1/cc/bandcamp/:jamendoId",
     nav: "/api/v1/nav/:navId",
     contentDetail: "/api/v1/content/:slug",
   },

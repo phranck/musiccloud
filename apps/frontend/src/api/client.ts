@@ -384,3 +384,14 @@ export async function fetchCcArtistInfo(
     20000,
   );
 }
+
+/** Forward a CC Bandcamp-presence request to the backend `ccBandcamp` endpoint.
+ *  Loaded async by the CC share page after the core card renders; the budget
+ *  covers the backend's (cached, timeout-bounded) fuzzy-search scrape. */
+export async function fetchCcBandcamp(jamendoId: string, clientIp?: string): Promise<Response> {
+  return fetchWithTimeout(
+    backendUrl(ENDPOINTS.v1.ccBandcamp(jamendoId)),
+    { headers: internalHeaders(forwardedForExtra(clientIp)) },
+    12000,
+  );
+}
