@@ -1,4 +1,4 @@
-import type { ArtistInfoResponse } from "@musiccloud/shared";
+import type { ArtistInfoResponse, ArtistTopTrack } from "@musiccloud/shared";
 import type { ArtistTrackItem } from "@/components/artist/artistPanelTypes";
 import { hasResolvedTrack } from "@/components/artist/similarArtistTracks";
 
@@ -25,4 +25,20 @@ export function toSimilarTrackItems(data: ArtistInfoResponse | null): ArtistTrac
   return (data?.similarArtistTracks ?? [])
     .filter(hasResolvedTrack)
     .map(({ artistName, track }) => ({ track, artistLabel: artistName }));
+}
+
+/**
+ * The secondary line shown under a track's title in both the list row and the
+ * grid item, so the two presentations stay in lockstep: the other artist's name
+ * for similar tracks, otherwise the album name when it differs from the title,
+ * and nothing when neither applies.
+ *
+ * @param track - The track whose album name is the popular-track fallback.
+ * @param artistLabel - The similar-artist label, when this is a similar track.
+ * @returns The subline string, or `undefined` when there is none.
+ */
+export function getTrackSubline(track: ArtistTopTrack, artistLabel?: string): string | undefined {
+  if (artistLabel) return artistLabel;
+  if (track.albumName && track.albumName !== track.title) return track.albumName;
+  return undefined;
 }

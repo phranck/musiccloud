@@ -3,6 +3,7 @@ import type { MouseEvent } from "react";
 import { ArtistPanelRow } from "@/components/artist/ArtistPanelRow";
 import { ArtistPanelRowText } from "@/components/artist/ArtistPanelRowText";
 import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
+import { getTrackSubline } from "@/components/artist/artistTrackItems";
 import { SlideArtwork } from "@/components/ui/SlideArtwork";
 import { useTrackResolve } from "@/hooks/useTrackResolve";
 import { CardSignal } from "@/lib/analytics/umami";
@@ -37,7 +38,7 @@ export function PopularTrack({
   onTrackResolve,
   onResolveStart,
 }: PopularTrackProps) {
-  const showAlbum = !artistLabel && track.albumName && track.albumName !== track.title;
+  const subline = getTrackSubline(track, artistLabel);
   const { resolving, activate } = useTrackResolve(track, cardSignal, onTrackResolve, onResolveStart);
 
   const handleListen = (event: MouseEvent<HTMLButtonElement>) => {
@@ -56,12 +57,7 @@ export function PopularTrack({
         >
           {track.title}
         </p>
-        {artistLabel && (
-          <p className="mc-txt-button-normal text-xs text-text-secondary mt-0.5 break-words">{artistLabel}</p>
-        )}
-        {showAlbum && (
-          <p className="mc-txt-button-normal text-xs text-text-secondary mt-0.5 break-words">{track.albumName}</p>
-        )}
+        {subline && <p className="mc-txt-button-normal text-xs text-text-secondary mt-0.5 break-words">{subline}</p>}
       </ArtistPanelRowText>
       {track.durationMs != null && (
         <span className="mc-txt-button-dimmed text-xs text-text-secondary tabular-nums flex-none">

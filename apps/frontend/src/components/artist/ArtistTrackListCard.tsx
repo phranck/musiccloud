@@ -1,11 +1,20 @@
 import type { ComponentType } from "react";
 import { ArtistCardShell } from "@/components/artist/ArtistCardShell";
 import { ArtistSectionWell } from "@/components/artist/ArtistSectionWell";
-import { ArtistTrackList } from "@/components/artist/ArtistTrackList";
+import { ArtistTrackContent } from "@/components/artist/ArtistTrackContent";
 import type { ArtistPanelTrackResolveHandler, ArtistTrackItem } from "@/components/artist/artistPanelTypes";
 import { PagedListFooter } from "@/components/ui/PagedListFooter";
 import { usePagedList } from "@/hooks/usePagedList";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
+import { TrackListView, useTrackListView } from "@/hooks/useTrackListView";
+
+/** Rows per page in list view (matches usePagedList's own default). */
+const LIST_PAGE_SIZE = 5;
+/**
+ * Cover tiles per page in grid view. A multiple of both three and four so a full
+ * page fills the responsive 3–4 column track without leaving an orphan row.
+ */
+const GRID_PAGE_SIZE = 12;
 
 interface ArtistTrackListCardProps {
   /** Card title, supplied by the presentation owner (never hardcoded here). */
@@ -24,6 +33,8 @@ interface ArtistTrackListCardProps {
   placeholderHeightClass: string;
   /** Analytics signal forwarded to each row (popular vs. similar). */
   cardSignal?: string;
+  /** localStorage key for this card's persisted list/grid view (see `ArtistTrackViewKey`). */
+  viewStorageKey: string;
   onTrackResolve?: ArtistPanelTrackResolveHandler;
   onResolveStart?: () => void;
 }
@@ -48,13 +59,16 @@ export function ArtistTrackListCard({
   swapKey,
   placeholderHeightClass,
   cardSignal,
+  viewStorageKey,
   onTrackResolve,
   onResolveStart,
 }: ArtistTrackListCardProps) {
   const skeletonAllowed = useSkeletonAllowed();
+  const [view] = useTrackListView(viewStorageKey);
   const showContent = showInitialSkeleton || items.length > 0;
   const resetKey = items.map((item) => item.track.deezerUrl).join("|");
-  const { page, pageCount, canGoPrevious, canGoNext, goPrevious, goNext } = usePagedList(items, { resetKey });
+  const pageSize = view === TrackListView.Grid ? GRID_PAGE_SIZE : LIST_PAGE_SIZE;
+  const { page, pageCount, canGoPrevious, canGoNext, goPrevious, goNext } = usePagedList(items, { resetKey, pageSize });
 
   if (showInitialSkeleton && !skeletonAllowed) {
     return (
@@ -85,7 +99,8 @@ export function ArtistTrackListCard({
           hasContent={items.length > 0}
           swapKey={swapKey}
         >
-          <ArtistTrackList
+          <ArtistTrackContent
+            view={view}
             items={page}
             cardSignal={cardSignal}
             onTrackResolve={onTrackResolve}
