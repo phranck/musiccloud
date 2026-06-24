@@ -6,6 +6,7 @@ import { RecessedCard } from "@/components/cards/RecessedCard";
 import { HeroSubmitSlot } from "@/components/landing/HeroSubmitSlot";
 import { useT } from "@/i18n/localeContext";
 import { isMusicUrl } from "@/lib/platform/url";
+import { parseJamendoUrl } from "@/lib/resolve/jamendoUrl";
 import { InputState } from "@/lib/types/app";
 import { cn } from "@/lib/utils";
 
@@ -88,7 +89,10 @@ export function HeroInput({
       if (!pastedText) return;
 
       setTimeout(() => {
-        if (isMusicUrl(pastedText)) {
+        // Commercial streaming links resolve via `isMusicUrl`; a Jamendo track/album
+        // link is recognized through the same parser the submit path uses, so pasting
+        // one auto-resolves it just like the other services.
+        if (isMusicUrl(pastedText) || parseJamendoUrl(pastedText) !== null) {
           autoSubmitTimer.current = setTimeout(() => {
             onSubmit(pastedText);
           }, 300);
