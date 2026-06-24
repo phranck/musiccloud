@@ -1,6 +1,22 @@
-import { ENDPOINTS } from "@musiccloud/shared";
+import {
+  DEFAULT_STREAM_FORMAT,
+  ENDPOINTS,
+  JAMENDO_FORMAT_META,
+  JAMENDO_FORMAT_ORDER,
+  type JamendoAudioFormat,
+  parseJamendoAudioFormat,
+} from "@musiccloud/shared";
 import gsap from "gsap";
-import { useCallback, useEffect, useEffectEvent, useReducer, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   AudioPreviewStatus,
   type AudioPreviewStatus as AudioPreviewStatusType,
@@ -14,10 +30,97 @@ import {
   writeSpectrumPeakHold,
 } from "@/components/audio/spectrumStore";
 import { Player } from "@/components/playback/Player";
+import { RadioButtonControl, type RadioButtonOption } from "@/components/ui/RadioButtonControl";
 import { useT } from "@/i18n/localeContext";
 import { PreviewSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { setupMotion } from "@/lib/motion/setup";
 import { type MediaKindType, MediaKindValue } from "@/lib/types/media-card";
+
+/** localStorage key holding the user's preferred CC streaming format. */
+const CC_FORMAT_STORAGE_KEY = "mc.ccAudioFormat";
+/** Jamendo's MP3 content-type — always streamable, so the two MP3 formats never need probing. */
+const MP3_MIME = "audio/mpeg";
+
+/**
+ * Appends a `?format=` query to a CC-audio proxy URL, preserving any existing
+ * query. The base URL is the format-agnostic `/api/cc/audio/<id>`; this picks the
+ * delivery format the proxy then streams.
+ *
+ * @param baseUrl - The format-agnostic CC-audio proxy URL.
+ * @param format - The desired delivery format.
+ * @returns The URL carrying the format query.
+ */
+function appendCcFormat(baseUrl: string, format: JamendoAudioFormat): string {
+  const separator = baseUrl.includes("?") ? "&" : "?";
+  return `${baseUrl}${separator}format=${format}`;
+}
+
+/**
+ * Reads and validates the persisted CC format preference. SSR-safe: returns
+ * {@link DEFAULT_STREAM_FORMAT} when `localStorage` is unavailable or empty.
+ *
+ * @returns The stored format, or the default when none is valid/available.
+ */
+function readStoredCcFormat(): JamendoAudioFormat {
+  if (typeof window === "undefined") return DEFAULT_STREAM_FORMAT;
+  try {
+    return parseJamendoAudioFormat(window.localStorage.getItem(CC_FORMAT_STORAGE_KEY));
+  } catch {
+    return DEFAULT_STREAM_FORMAT;
+  }
+}
+
+/**
+ * Persists the chosen CC format preference, swallowing storage errors (private
+ * mode, quota) so a failed write never interrupts playback.
+ *
+ * @param format - The format to remember.
+ */
+function persistCcFormat(format: JamendoAudioFormat): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(CC_FORMAT_STORAGE_KEY, format);
+  } catch {
+    // Ignore — preference persistence is best-effort.
+  }
+}
+
+/**
+ * Probes which Jamendo formats the current browser can stream. The two MP3
+ * formats are always offered (universally supported); `ogg`/`flac` are included
+ * only when `HTMLMediaElement.canPlayType` reports support, so unsupported
+ * lossless/Ogg buttons never appear.
+ *
+ * @returns The streamable formats in canonical order (always includes both MP3s).
+ */
+function resolveStreamableFormats(): JamendoAudioFormat[] {
+  const probe = document.createElement("audio");
+  return JAMENDO_FORMAT_ORDER.filter((format) => {
+    const { mime } = JAMENDO_FORMAT_META[format];
+    return mime === MP3_MIME || probe.canPlayType(mime) !== "";
+  });
+}
+
+/**
+ * Resolves the CC format to start playback with: the persisted preference when
+ * the browser can stream it, otherwise {@link DEFAULT_STREAM_FORMAT}. SSR-safe —
+ * returns the stored value verbatim when there is no DOM to probe.
+ *
+ * @returns The initial streamable format.
+ */
+function resolveInitialCcFormat(): JamendoAudioFormat {
+  const stored = readStoredCcFormat();
+  if (typeof document === "undefined") return stored;
+  return resolveStreamableFormats().includes(stored) ? stored : DEFAULT_STREAM_FORMAT;
+}
+
+// `useSyncExternalStore` snapshots for a client-only "mounted" flag: the value
+// is `false` during SSR and the hydration render (matching the server markup, so
+// no mismatch), then `true` once mounted — gating the canPlayType-driven format
+// selector to the client without a state-initializing effect.
+const subscribeNeverChanges = (): (() => void) => () => {};
+const getMountedSnapshot = (): boolean => true;
+const getMountedServerSnapshot = (): boolean => false;
 
 interface AudioPreviewPlayerProps {
   /** Immediately-playable preview URL. Optional when `refreshShortId` is set. */
@@ -29,6 +132,10 @@ interface AudioPreviewPlayerProps {
   /** Whether the source is a short preview clip (default) or a full track
    *  (CC / Jamendo). Switches the player's wording from "preview" to "song". */
   mediaKind?: MediaKindType;
+  /** CC only: when true, `previewUrl` is the format-agnostic CC-audio proxy URL
+   *  and the player renders a streaming-format selector beneath the analyzer,
+   *  swapping the delivery format in place while preserving the playhead. */
+  ccFormatSelect?: boolean;
   trackTitle: string;
   onStatusChange?: (status: AudioPreviewStatusType) => void;
 }
@@ -420,6 +527,7 @@ function useAudioPreviewController({
   previewUrl,
   refreshShortId,
   mediaKind,
+  ccFormatSelect,
   trackTitle,
   onStatusChange,
 }: AudioPreviewPlayerProps) {
@@ -454,6 +562,23 @@ function useAudioPreviewController({
   const progressRatioRef = useRef(0);
   const hasStartedRef = useRef(false);
   const [progressRatio, setProgressRatio] = useState(0);
+
+  // ── CC streaming-format selector ──────────────────────────────────────────
+  // The chosen format is applied by swapping `audio.src` in place (NOT by
+  // changing `effectiveUrl`), so the Web-Audio pipeline and AudioContext survive
+  // the swap — the playhead and the running context carry over without a fresh
+  // user gesture. `ccFormatRef` seeds from the persisted preference (validated
+  // against canPlayType) and is the live value the bind effect reads for the
+  // first `audio.src`; `ccFormat` mirrors it for the UI. `streamableFormats` is
+  // derived (not state-copied) only after mount, so the selector is client-only:
+  // no SSR canPlayType, and no hydration mismatch.
+  const ccFormatRef = useRef<JamendoAudioFormat>(ccFormatSelect ? resolveInitialCcFormat() : DEFAULT_STREAM_FORMAT);
+  const [ccFormat, setCcFormat] = useState<JamendoAudioFormat>(() => ccFormatRef.current);
+  const mounted = useSyncExternalStore(subscribeNeverChanges, getMountedSnapshot, getMountedServerSnapshot);
+  const streamableFormats = useMemo(
+    () => (mounted && ccFormatSelect ? resolveStreamableFormats() : null),
+    [mounted, ccFormatSelect],
+  );
 
   // Tune the shared ticker once on mount (lagSmoothing); idempotent.
   useEffect(() => {
@@ -883,7 +1008,9 @@ function useAudioPreviewController({
     audio.preload = "metadata";
     audio.muted = false;
     audio.volume = 1;
-    audio.src = effectiveUrl;
+    // CC: seed the source with the current format. Later format changes swap
+    // `audio.src` imperatively (see changeCcFormat) and do NOT re-run this effect.
+    audio.src = ccFormatSelect ? appendCcFormat(effectiveUrl, ccFormatRef.current) : effectiveUrl;
 
     const handleLoadedMetadata = () => {
       const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
@@ -977,7 +1104,7 @@ function useAudioPreviewController({
       audio.src = "";
       teardownSpectrum();
     };
-  }, [effectiveUrl, stopProgressLoop, stopProgressRewind, teardownSpectrum]);
+  }, [ccFormatSelect, effectiveUrl, stopProgressLoop, stopProgressRewind, teardownSpectrum]);
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;
@@ -1088,6 +1215,47 @@ function useAudioPreviewController({
   const togglePlayFromEvent = useEffectEvent(togglePlay);
 
   /**
+   * Switches the CC streaming format in place: swaps `audio.src` to the format-
+   * specific proxy URL while keeping the Web-Audio pipeline and AudioContext
+   * wired, then restores the playhead once the new source's metadata loads and
+   * resumes playback when it was playing. No-op when the format is unchanged or
+   * there is no audio element / base URL.
+   */
+  const changeCcFormat = useCallback(
+    (format: JamendoAudioFormat) => {
+      if (format === ccFormatRef.current) return;
+      ccFormatRef.current = format;
+      setCcFormat(format);
+      persistCcFormat(format);
+
+      const audio = audioRef.current;
+      if (!audio || !previewUrl) return;
+
+      const resumeAt = audio.currentTime;
+      const shouldResume = !audio.paused && !audio.ended;
+      audio.src = appendCcFormat(previewUrl, format);
+      audio.load();
+
+      const restore = () => {
+        audio.removeEventListener("loadedmetadata", restore);
+        const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : resumeAt;
+        audio.currentTime = Math.min(resumeAt, dur);
+        if (!shouldResume) return;
+        // The AudioContext is still running (a format swap does no teardown), so
+        // play() resumes without a fresh gesture; restart the progress loop that
+        // the pause-on-load stopped. The spectrum loop kept running and re-fills
+        // as soon as samples flow again.
+        void audio
+          .play()
+          .then(() => startProgressLoop(audio))
+          .catch(() => {});
+      };
+      audio.addEventListener("loadedmetadata", restore, { once: true });
+    },
+    [previewUrl, startProgressLoop],
+  );
+
+  /**
    * Wires up the global MediaSession so the OS can route Media Keys, Bluetooth
    * headset buttons, macOS Touch-Bar / Now-Playing controls and similar
    * transport inputs to the preview player while the tab is the active media
@@ -1190,12 +1358,15 @@ function useAudioPreviewController({
 
   return {
     ariaLabel,
+    ccFormat,
+    changeCcFormat,
     isDisabled,
     isLoading,
     isPlaying,
     isUnavailable,
     mediaLabel: isSong ? "Song" : "Preview",
     progressRatio,
+    streamableFormats,
     timeText,
     title: isLoading ? t("audio.previewLoading") : isUnavailable ? unavailableText : undefined,
     togglePlay,
@@ -1205,6 +1376,29 @@ function useAudioPreviewController({
 
 export function AudioPreviewPlayer(props: AudioPreviewPlayerProps) {
   const player = useAudioPreviewController(props);
+  const t = useT();
+  const { ccFormatSelect } = props;
+  const { ccFormat, changeCcFormat, streamableFormats } = player;
+
+  // CC format selector: built only once the client has probed which formats the
+  // browser can stream, and only when more than one is offered (a lone MP3 needs
+  // no chooser). Memoised so the analyzer button's sibling node stays stable
+  // across playback re-renders. Rendered below the analyzer via Player.Progress.
+  const formatSelector = useMemo(() => {
+    const options: RadioButtonOption<JamendoAudioFormat>[] = (streamableFormats ?? []).map((format) => ({
+      value: format,
+      label: JAMENDO_FORMAT_META[format].label,
+    }));
+    if (!ccFormatSelect || options.length <= 1) return null;
+    return (
+      <RadioButtonControl
+        options={options}
+        value={ccFormat}
+        onChange={changeCcFormat}
+        ariaLabel={t("cc.audioFormat")}
+      />
+    );
+  }, [ccFormatSelect, streamableFormats, ccFormat, changeCcFormat, t]);
 
   return (
     <section aria-label={`${player.mediaLabel}: ${player.trackTitle}`}>
@@ -1216,7 +1410,14 @@ export function AudioPreviewPlayer(props: AudioPreviewPlayerProps) {
         ariaLabel={player.ariaLabel}
         title={player.title}
         onTogglePlay={player.togglePlay}
-      />
+      >
+        {formatSelector ? (
+          <>
+            <Player.Button />
+            <Player.Progress belowDisplay={formatSelector} />
+          </>
+        ) : undefined}
+      </Player>
     </section>
   );
 }

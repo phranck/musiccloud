@@ -632,6 +632,9 @@ function ccTrackToShareConfig(cc: CcTrackResult): ShareContentConfiguration {
     // Jamendo omits the Range CORS headers the crossorigin player needs.
     previewUrl: ENDPOINTS.frontend.ccAudio(cc.jamendoId),
     mediaKind: MediaKindValue.Song,
+    // The proxy URL is format-agnostic; the player appends ?format= and shows the
+    // streaming-format selector beneath the analyzer.
+    ccAudioFormatSelect: true,
     ccJamendoArtistId: cc.jamendoArtistId,
     shortId: shortIdFromShortUrl(cc.shareUrl),
   };

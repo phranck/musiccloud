@@ -78,6 +78,13 @@ interface PlayerButtonProps {
 interface PlayerProgressProps {
   className?: string;
   children?: ReactNode;
+  /**
+   * Optional control rendered as a sibling directly BELOW the analyzer display
+   * (the CC format selector). When set, the progress block becomes a column so
+   * the control stacks under the VFD instead of nesting inside the analyzer
+   * button — a click on it must never toggle the analyzer mode.
+   */
+  belowDisplay?: ReactNode;
 }
 
 interface PlayerTimeProps {
@@ -532,7 +539,7 @@ export function PlayerButton({ className }: PlayerButtonProps) {
   );
 }
 
-export function PlayerProgress({ className, children }: PlayerProgressProps) {
+export function PlayerProgress({ className, children, belowDisplay }: PlayerProgressProps) {
   const { isDisabled, isPlaying, timeText, progressRatio, phosphorColor, title } = usePlayerContext();
   const t = useT();
   const analyzerMode = useAnalyzerMode();
@@ -635,25 +642,45 @@ export function PlayerProgress({ className, children }: PlayerProgressProps) {
     />
   );
 
-  if (hasAnalyzer) {
-    return (
-      <button
-        ref={setProgressRef}
-        type="button"
-        className={cn("flex-1 min-w-0 cursor-pointer appearance-none border-0 bg-transparent p-0 text-left", className)}
-        aria-pressed={isStereoVuMode}
-        aria-label={wrapperTitle}
-        title={wrapperTitle}
-        onClick={handleDisplayClick}
-      >
-        {vfd}
-      </button>
-    );
-  }
+  // When a `belowDisplay` control is present, the progress block stacks into a
+  // column (display on top, control below) and the ResizeObserver ref + flex-1
+  // sizing move to the outer wrapper; the display fills the wrapper width. The
+  // control is a sibling of the analyzer button so activating it never reaches
+  // the button's analyzer-toggle handler.
+  const stacked = !!belowDisplay;
+
+  const display = hasAnalyzer ? (
+    <button
+      ref={stacked ? undefined : setProgressRef}
+      type="button"
+      className={cn(
+        "cursor-pointer appearance-none border-0 bg-transparent p-0 text-left",
+        stacked ? "block w-full" : "flex-1 min-w-0",
+        !stacked && className,
+      )}
+      aria-pressed={isStereoVuMode}
+      aria-label={wrapperTitle}
+      title={wrapperTitle}
+      onClick={handleDisplayClick}
+    >
+      {vfd}
+    </button>
+  ) : (
+    <div
+      ref={stacked ? undefined : setProgressRef}
+      className={cn(stacked ? "w-full" : "flex-1 min-w-0", !stacked && className)}
+      title={stacked ? undefined : wrapperTitle}
+    >
+      {vfd}
+    </div>
+  );
+
+  if (!stacked) return display;
 
   return (
-    <div ref={setProgressRef} className={cn("flex-1 min-w-0", className)} title={wrapperTitle}>
-      {vfd}
+    <div ref={setProgressRef} className={cn("flex min-w-0 flex-1 flex-col gap-2", className)} title={wrapperTitle}>
+      {display}
+      {belowDisplay}
     </div>
   );
 }
