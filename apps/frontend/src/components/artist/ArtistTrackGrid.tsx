@@ -1,7 +1,14 @@
+import type { CSSProperties } from "react";
 import { ArtistTrackGridItem } from "@/components/artist/ArtistTrackGridItem";
 import type { ArtistPanelTrackResolveHandler, ArtistTrackItem } from "@/components/artist/artistPanelTypes";
 import { raisedControlRadius } from "@/components/cards/cardGeometry";
+import { useGroupedCorners } from "@/components/cards/useGroupedCorners";
 import { CardSignal } from "@/lib/analytics/umami";
+
+/** The grid tiles are padded 2px off the scroll area's rounded edge, so a corner
+ *  tile's promoted corner is concentric with that edge: scroll-area radius − 2px.
+ *  Fed to the tiles as `--neu-radius` so `useGroupedCorners` promotes to it. */
+const GRID_TILE_FULL_RADIUS = `calc(${raisedControlRadius} - 2px)`;
 
 interface ArtistTrackGridProps {
   /** Normalized rows to render (already filtered + paged by the owner). */
@@ -35,9 +42,22 @@ export function ArtistTrackGrid({
   onTrackResolve,
   onResolveStart,
 }: ArtistTrackGridProps) {
+  // Promote the four outer corners of the tile group so they nest concentrically
+  // in the scroll area's rounded corners; the cover (.recessed-gradient-border)
+  // fills each tile, so all four of its corners follow the tile's (fillFrame).
+  const gridRef = useGroupedCorners<HTMLDivElement>({
+    frameSelector: ".recessed-gradient-border",
+    frameInset: 0,
+    fillFrame: true,
+  });
+
   return (
     <div className="max-h-72 overflow-y-auto overscroll-contain" style={{ borderRadius: raisedControlRadius }}>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-1 p-[3px]">
+      <div
+        ref={gridRef}
+        className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-1 p-[2px]"
+        style={{ "--neu-radius": GRID_TILE_FULL_RADIUS } as CSSProperties}
+      >
         {items.map(({ track, artistLabel }) => (
           <ArtistTrackGridItem
             key={artistLabel ? `${artistLabel}:${track.deezerUrl}` : track.deezerUrl}
