@@ -10,6 +10,7 @@ import {
 import { type Dispatch, useCallback, useReducer } from "react";
 import { useT } from "@/i18n/localeContext";
 import { CardSignal, GenreSignal, ResolveSignal, SearchSignal, sendMusicSignal } from "@/lib/analytics/umami";
+import { parseJamendoUrl } from "@/lib/resolve/jamendoUrl";
 import {
   appReducer,
   type CcResolveData,
@@ -20,6 +21,7 @@ import {
   parseUnifiedResolveResponse,
   ResolveApiError,
 } from "@/lib/resolve/parsers";
+import { setResolveMode } from "@/lib/resolve/resolveMode";
 import {
   type ActiveResult,
   type AppAction,
@@ -105,14 +107,20 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
     async (url: string) => {
       sendMusicSignal(SearchSignal.Submitted);
       dispatch({ type: "SUBMIT" });
+      // A pasted Jamendo track/album URL resolves the exact entity through the CC
+      // path: translate it to the resolve candidate the backend understands and
+      // switch the mode store to CC so the mode indicator + persistence follow.
+      const jamendoCandidate = parseJamendoUrl(url);
+      if (jamendoCandidate) setResolveMode(ResolveMode.Cc);
       try {
-        const endpoint = mode === ResolveMode.Cc ? ENDPOINTS.frontend.ccResolve : ENDPOINTS.frontend.resolve;
+        const useCc = jamendoCandidate !== null || mode === ResolveMode.Cc;
+        const endpoint = useCc ? ENDPOINTS.frontend.ccResolve : ENDPOINTS.frontend.resolve;
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 15000);
         const response = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: url }),
+          body: JSON.stringify(jamendoCandidate ? { selectedCandidate: jamendoCandidate } : { query: url }),
           signal: controller.signal,
         });
         clearTimeout(timeout);
