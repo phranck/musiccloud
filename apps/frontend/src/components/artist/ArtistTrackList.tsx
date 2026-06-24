@@ -1,5 +1,6 @@
 import { ArtistPanelList } from "@/components/artist/ArtistPanelList";
 import type { ArtistPanelTrackResolveHandler, ArtistTrackItem } from "@/components/artist/artistPanelTypes";
+import { trackItemKey } from "@/components/artist/artistTrackItems";
 import { PopularTrack } from "@/components/artist/PopularTrack";
 import { raisedControlRadius } from "@/components/cards/cardGeometry";
 import { CardSignal } from "@/lib/analytics/umami";
@@ -42,16 +43,20 @@ export function ArtistTrackList({
     // concentric with the rows and the well — no gap, no clipped corner.
     <div className="max-h-[248px] overflow-y-auto overscroll-contain" style={{ borderRadius: raisedControlRadius }}>
       <ArtistPanelList frameSelector=".recessed-gradient-border" frameInset={4}>
-        {items.map(({ track, artistLabel }) => (
-          <PopularTrack
-            key={artistLabel ? `${artistLabel}:${track.deezerUrl}` : track.deezerUrl}
-            cardSignal={cardSignal}
-            track={track}
-            artistLabel={artistLabel}
-            onTrackResolve={onTrackResolve}
-            onResolveStart={onResolveStart}
-          />
-        ))}
+        {items.map((item) => {
+          const key = trackItemKey(item);
+          return (
+            <PopularTrack
+              key={key}
+              flipId={key}
+              cardSignal={cardSignal}
+              track={item.track}
+              artistLabel={item.artistLabel}
+              onTrackResolve={onTrackResolve}
+              onResolveStart={onResolveStart}
+            />
+          );
+        })}
       </ArtistPanelList>
     </div>
   );

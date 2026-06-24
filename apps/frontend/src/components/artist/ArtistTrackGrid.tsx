@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { ArtistTrackGridItem } from "@/components/artist/ArtistTrackGridItem";
 import type { ArtistPanelTrackResolveHandler, ArtistTrackItem } from "@/components/artist/artistPanelTypes";
+import { trackItemKey } from "@/components/artist/artistTrackItems";
 import { raisedControlRadius } from "@/components/cards/cardGeometry";
 import { useGroupedCorners } from "@/components/cards/useGroupedCorners";
 import { CardSignal } from "@/lib/analytics/umami";
@@ -63,16 +64,20 @@ export function ArtistTrackGrid({
         className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-1"
         style={{ "--neu-radius": GRID_TILE_FULL_RADIUS } as CSSProperties}
       >
-        {items.map(({ track, artistLabel }) => (
-          <ArtistTrackGridItem
-            key={artistLabel ? `${artistLabel}:${track.deezerUrl}` : track.deezerUrl}
-            cardSignal={cardSignal}
-            track={track}
-            artistLabel={artistLabel}
-            onTrackResolve={onTrackResolve}
-            onResolveStart={onResolveStart}
-          />
-        ))}
+        {items.map((item) => {
+          const key = trackItemKey(item);
+          return (
+            <ArtistTrackGridItem
+              key={key}
+              flipId={key}
+              cardSignal={cardSignal}
+              track={item.track}
+              artistLabel={item.artistLabel}
+              onTrackResolve={onTrackResolve}
+              onResolveStart={onResolveStart}
+            />
+          );
+        })}
       </div>
     </div>
   );

@@ -137,6 +137,12 @@ interface RecessedCardProps {
    * previous `p-4` default) when rendered standalone.
    */
   padding?: string;
+  /**
+   * When set, emitted as `data-flip-id` on the root element so a GSAP Flip can
+   * match this element across an unmount/remount with the same id (shared-element
+   * transition). A plain DOM-attribute pass-through — the card holds no flip logic.
+   */
+  flipId?: string;
 }
 
 // Fallback chain defaults: used when RecessedCard is rendered without an
@@ -207,7 +213,16 @@ function paddingFromClassName(className: string | undefined): string | undefined
  * classes — the component needs to align the gradient-border arc
  * with the corner.
  */
-export function RecessedCardRoot({ children, className, ref, style, borderWidth, radius, padding }: RecessedCardProps) {
+export function RecessedCardRoot({
+  children,
+  className,
+  ref,
+  style,
+  borderWidth,
+  radius,
+  padding,
+  flipId,
+}: RecessedCardProps) {
   const childArray = Children.toArray(children);
   const hasCompoundChild = childArray.some((c) => hasTag(c, HEADER_TAG) || hasTag(c, BODY_TAG));
 
@@ -253,7 +268,12 @@ export function RecessedCardRoot({ children, className, ref, style, borderWidth,
   );
 
   return (
-    <div ref={ref} className={cn("recessed-gradient-border overflow-hidden", className)} style={mergedStyle}>
+    <div
+      ref={ref}
+      data-flip-id={flipId}
+      className={cn("recessed-gradient-border overflow-hidden", className)}
+      style={mergedStyle}
+    >
       {content}
     </div>
   );

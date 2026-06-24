@@ -22,6 +22,8 @@ interface PopularTrackProps {
   onTrackResolve?: ArtistPanelTrackResolveHandler;
   /** Optional callback fired right before resolving begins. */
   onResolveStart?: () => void;
+  /** Forwarded as the cover's `data-flip-id` so the list↔grid morph can match it. */
+  flipId?: string;
 }
 
 /**
@@ -37,6 +39,7 @@ export function PopularTrack({
   cardSignal = CardSignal.PopularTrack,
   onTrackResolve,
   onResolveStart,
+  flipId,
 }: PopularTrackProps) {
   const subline = getTrackSubline(track, artistLabel);
   const { resolving, activate } = useTrackResolve(track, cardSignal, onTrackResolve, onResolveStart);
@@ -49,7 +52,13 @@ export function PopularTrack({
 
   return (
     <ArtistPanelRow as="button" type="button" onClick={handleListen} aria-busy={resolving} aria-disabled={resolving}>
-      <SlideArtwork active={resolving} artworkUrl={track.artworkUrl ?? undefined} sizeClass="w-12 h-12" imgDim={48} />
+      <SlideArtwork
+        active={resolving}
+        artworkUrl={track.artworkUrl ?? undefined}
+        sizeClass="w-12 h-12"
+        imgDim={48}
+        flipId={flipId}
+      />
       <ArtistPanelRowText>
         <p
           className="mc-txt-button-bright max-w-full truncate text-sm font-medium text-text-primary"

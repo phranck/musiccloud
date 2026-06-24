@@ -49,3 +49,23 @@ describe("SlideArtwork loading swap", () => {
     expect(coverEl(container).className).not.toMatch(/mc-cover-drop/);
   });
 });
+
+/**
+ * Flip-id anchor: the cover morph between the list and grid track views matches
+ * each cover across the unmount/remount by `data-flip-id`. The id is the shared
+ * track key; the attribute must reach the artwork root and stay absent when no
+ * id is supplied (so unrelated SlideArtwork usages never join a flip).
+ */
+describe("SlideArtwork flip id", () => {
+  it("emits the flipId as data-flip-id on the artwork root", () => {
+    const { container } = render(
+      <SlideArtwork active={false} artworkUrl="/a.jpg" sizeClass="w-12 h-12" flipId="abc:123" />,
+    );
+    expect(container.querySelector('[data-flip-id="abc:123"]')).not.toBeNull();
+  });
+
+  it("renders no data-flip-id when flipId is omitted", () => {
+    const { container } = render(<SlideArtwork active={false} artworkUrl="/a.jpg" sizeClass="w-12 h-12" />);
+    expect(container.querySelector("[data-flip-id]")).toBeNull();
+  });
+});

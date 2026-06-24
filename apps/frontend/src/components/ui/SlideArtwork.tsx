@@ -21,6 +21,9 @@ interface SlideArtworkProps {
    * radius) so the tile never hardcodes a nested radius. Square tiles only.
    */
   radius?: string;
+  /** When set, forwarded as `data-flip-id` on the artwork root so the cover can
+   *  be matched by a GSAP Flip across the list/grid view switch. */
+  flipId?: string;
 }
 
 /**
@@ -47,6 +50,7 @@ export function SlideArtwork({
   sizeClass,
   imgDim = 56,
   radius,
+  flipId,
 }: SlideArtworkProps) {
   // Keep the disc in the DOM across the EXIT animation: when `active` flips
   // back to false the disc must slide OUT before it unmounts, so its mount
@@ -84,6 +88,7 @@ export function SlideArtwork({
       )}
       radius={borderRadius}
       borderWidth="1px"
+      flipId={flipId}
       style={{ "--neu-light": "hsl(0 0% 100% / 0.5)", "--neu-shadow": "hsl(0 0% 0% / 0.1)" } as React.CSSProperties}
     >
       <RecessedCard.Body className="contents">

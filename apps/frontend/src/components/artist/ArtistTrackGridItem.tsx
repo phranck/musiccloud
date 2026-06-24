@@ -28,6 +28,8 @@ interface ArtistTrackGridItemProps {
   onTrackResolve?: ArtistPanelTrackResolveHandler;
   /** Optional callback fired right before resolving begins. */
   onResolveStart?: () => void;
+  /** Forwarded as the cover's `data-flip-id` so the list↔grid morph can match it. */
+  flipId?: string;
 }
 
 /**
@@ -50,6 +52,7 @@ export function ArtistTrackGridItem({
   cardSignal = CardSignal.PopularTrack,
   onTrackResolve,
   onResolveStart,
+  flipId,
 }: ArtistTrackGridItemProps) {
   const subline = getTrackSubline(track, artistLabel);
   const { resolving, activate } = useTrackResolve(track, cardSignal, onTrackResolve, onResolveStart);
@@ -76,6 +79,7 @@ export function ArtistTrackGridItem({
         sizeClass="w-full aspect-square"
         imgDim={96}
         radius={TILE_RADIUS}
+        flipId={flipId}
       />
       {/* Title/subline overlay — hidden at rest, revealed on hover or focus. The
           tile's own `overflow-hidden` clips the gradient to the (grouped) corners,
