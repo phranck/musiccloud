@@ -705,15 +705,37 @@ a.mc-cardlink {
     inset -1px -1px 1.5px rgba(255, 255, 255, var(--_el));
 }
 
-/* Header-nav dropdown row — flat on the recessed panel, lifting into the switcher's
-   raised "active segment" look on hover/focus. `.mc-glass-nav-indicator` (set on the
-   same element) seeds the indicator tint + rim vars; the surface only paints on
-   interaction, so a resting row shows just its text on the panel. */
+/* Hamburger dropdown links — flat on the recessed panel, painting a subtle fill +
+   rim and brightening the label on hover/focus. `.mc-glass-nav-indicator` (on the
+   same element) seeds the tint + rim vars; a resting row shows just its text. */
 .mc-nav-item:hover,
 .mc-nav-item:focus-visible {
   background: linear-gradient(to bottom, var(--_tt), var(--_tb));
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, var(--_rm));
   color: color-mix(in srgb, var(--text-nav-bright-day) calc(var(--g-dayness) * 100%), var(--text-nav-bright-night));
+}
+
+/* Inactive switcher cells (Day/Night, Language) carry the active segment's full
+   raised recipe + radius but stay flat at rest: this strips the chamfer + tint
+   until the pointer arrives, so hovering one previews the exact raised "active
+   segment" shape. The `:not()` chain outweighs `.embossed-gradient-border`, so the
+   reset wins at rest and the recipe re-appears on hover; the label brightens too. */
+.mc-seg-cell-preview:not(:hover):not(:focus-visible) {
+  background: none;
+  box-shadow: none;
+}
+.mc-seg-cell-preview:hover,
+.mc-seg-cell-preview:focus-visible {
+  color: color-mix(in srgb, var(--text-nav-bright-day) calc(var(--g-dayness) * 100%), var(--text-nav-bright-night));
+}
+
+/* Hamburger-nav dropdown links read a touch heavier than the thin nav default.
+   Two classes outweigh the single `.mc-txt-nav-normal`, so the weight lifts here
+   without `!important` and without retuning the nav token (which the switcher
+   labels share). The icon-only switcher cells carry the same combo but no text,
+   so they are visually unaffected. */
+.mc-txt-nav-normal.mc-nav-item {
+  font-weight: 500;
 }
 
 /* Frost — OUTER CARDS ONLY (see noFrost rule in the header). Neutral at all
