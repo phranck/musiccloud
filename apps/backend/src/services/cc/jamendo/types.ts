@@ -72,7 +72,14 @@ export interface JamendoTrackRaw {
    * the Jamendo Pro licensing flags — every value is the string `"true"` or
    * `"false"`, not a boolean.
    */
-  licenses?: { cc?: string; ccnc?: string; ccnd?: string; ccsa?: string; prolicensing?: string; probackground?: string };
+  licenses?: {
+    cc?: string;
+    ccnc?: string;
+    ccnd?: string;
+    ccsa?: string;
+    prolicensing?: string;
+    probackground?: string;
+  };
   /** Jamendo Pro licensing page URL for the track (top-level, present with `include=licenses`). */
   prourl?: string;
 }
