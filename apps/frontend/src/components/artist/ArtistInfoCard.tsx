@@ -10,6 +10,7 @@ import { ArtistCardCloseButton } from "@/components/artist/ArtistCardCloseButton
 import { ArtistInfoNoticeCard } from "@/components/artist/ArtistInfoNoticeCard";
 import { ArtistProfileMobileCard } from "@/components/artist/ArtistProfileMobileCard";
 import { ArtistSectionWell } from "@/components/artist/ArtistSectionWell";
+import { ArtistTrackList } from "@/components/artist/ArtistTrackList";
 import type {
   ArtistCardLabels,
   ArtistInfoStatus,
@@ -17,8 +18,6 @@ import type {
 } from "@/components/artist/artistPanelTypes";
 import { buildEventsSwapKey, buildSimilarSwapKey, buildTracksSwapKey } from "@/components/artist/artistSwapKeys";
 import { EventsSkeleton } from "@/components/artist/EventsSkeleton";
-import { PopularTracksSection } from "@/components/artist/PopularTracksSection";
-import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
 import { SimilarArtistsSkeleton } from "@/components/artist/SimilarArtistsSkeleton";
 import { hasResolvedTrack } from "@/components/artist/similarArtistTracks";
 import { TracksSkeleton } from "@/components/artist/TracksSkeleton";
@@ -31,6 +30,7 @@ import { PagedListFooter } from "@/components/ui/PagedListFooter";
 import { usePagedList } from "@/hooks/usePagedList";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
 import { useLocale, useT } from "@/i18n/localeContext";
+import { CardSignal } from "@/lib/analytics/umami";
 import { cn } from "@/lib/utils";
 
 interface ArtistInfoCardProps {
@@ -144,8 +144,8 @@ export function ArtistInfoCard({
               hasContent={tracks.length > 0}
               swapKey={buildTracksSwapKey(data)}
             >
-              <PopularTracksSection
-                tracks={tracksPager.page}
+              <ArtistTrackList
+                items={tracksPager.page.map((track) => ({ track }))}
                 onTrackResolve={onTrackResolve}
                 onResolveStart={onResolveStart}
               />
@@ -188,8 +188,9 @@ export function ArtistInfoCard({
               hasContent={withTrack.length > 0}
               swapKey={buildSimilarSwapKey(data)}
             >
-              <SimilarArtistsSection
-                withTrack={similarPager.page}
+              <ArtistTrackList
+                items={similarPager.page.map(({ artistName, track }) => ({ track, artistLabel: artistName }))}
+                cardSignal={CardSignal.SimilarArtist}
                 onTrackResolve={onTrackResolve}
                 onResolveStart={onResolveStart}
               />

@@ -13,6 +13,22 @@ import type { ArtistTopTrack } from "@musiccloud/shared";
 export type ArtistPanelTrackResolveHandler = (track: ArtistTopTrack) => Promise<void>;
 
 /**
+ * One normalized entry for the shared artist track list/grid — the "protocol"
+ * the presentation consumes. The owner maps the raw {@link import("@musiccloud/shared").ArtistInfoResponse}
+ * parts (the artist's own top tracks, or similar-artist tracks) into this shape,
+ * so the list/grid components stay pure presentation and never know which source
+ * produced a row.
+ *
+ * @property track - The track to show (cover, title, duration) and resolve on activation.
+ * @property artistLabel - The other artist's name, shown as a subline for similar
+ *   tracks; omitted for the artist's own popular tracks (which may show the album).
+ */
+export interface ArtistTrackItem {
+  track: ArtistTopTrack;
+  artistLabel?: string;
+}
+
+/**
  * Load phase of the artist-info fetch. Shared by the artist cards (which render
  * per-phase content) and `ShareLayout` (which drives the phase via its reducer
  * and uses it as the GSAP-flip trigger), so the two can never drift apart.

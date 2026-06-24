@@ -1,14 +1,15 @@
 import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { ArtistCardShell } from "@/components/artist/ArtistCardShell";
 import { ArtistSectionWell } from "@/components/artist/ArtistSectionWell";
+import { ArtistTrackList } from "@/components/artist/ArtistTrackList";
 import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
 import { buildSimilarSwapKey } from "@/components/artist/artistSwapKeys";
-import { SimilarArtistsSection } from "@/components/artist/SimilarArtistsSection";
 import { SimilarArtistsSkeleton } from "@/components/artist/SimilarArtistsSkeleton";
 import { hasResolvedTrack } from "@/components/artist/similarArtistTracks";
 import { PagedListFooter } from "@/components/ui/PagedListFooter";
 import { usePagedList } from "@/hooks/usePagedList";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
+import { CardSignal } from "@/lib/analytics/umami";
 
 interface SimilarArtistsCardProps {
   /** Card title, supplied by the presentation owner (never hardcoded here). */
@@ -69,7 +70,12 @@ export function SimilarArtistsCard({
           hasContent={withTrack.length > 0}
           swapKey={buildSimilarSwapKey(data)}
         >
-          <SimilarArtistsSection withTrack={page} onTrackResolve={onTrackResolve} onResolveStart={onResolveStart} />
+          <ArtistTrackList
+            items={page.map(({ artistName, track }) => ({ track, artistLabel: artistName }))}
+            cardSignal={CardSignal.SimilarArtist}
+            onTrackResolve={onTrackResolve}
+            onResolveStart={onResolveStart}
+          />
         </ArtistSectionWell>
       </div>
     </ArtistCardShell>

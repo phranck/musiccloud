@@ -1,9 +1,9 @@
 import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { ArtistCardShell } from "@/components/artist/ArtistCardShell";
 import { ArtistSectionWell } from "@/components/artist/ArtistSectionWell";
+import { ArtistTrackList } from "@/components/artist/ArtistTrackList";
 import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
 import { buildTracksSwapKey } from "@/components/artist/artistSwapKeys";
-import { PopularTracksSection } from "@/components/artist/PopularTracksSection";
 import { TracksSkeleton } from "@/components/artist/TracksSkeleton";
 import { PagedListFooter } from "@/components/ui/PagedListFooter";
 import { usePagedList } from "@/hooks/usePagedList";
@@ -61,7 +61,11 @@ export function PopularTracksCard({ title, data, isLoading, onTrackResolve, onRe
           hasContent={tracks.length > 0}
           swapKey={buildTracksSwapKey(data)}
         >
-          <PopularTracksSection tracks={page} onTrackResolve={onTrackResolve} onResolveStart={onResolveStart} />
+          <ArtistTrackList
+            items={page.map((track) => ({ track }))}
+            onTrackResolve={onTrackResolve}
+            onResolveStart={onResolveStart}
+          />
         </ArtistSectionWell>
       </div>
     </ArtistCardShell>
