@@ -1,6 +1,7 @@
 import { ArtistPanelList } from "@/components/artist/ArtistPanelList";
 import type { ArtistPanelTrackResolveHandler, ArtistTrackItem } from "@/components/artist/artistPanelTypes";
 import { PopularTrack } from "@/components/artist/PopularTrack";
+import { raisedControlRadius } from "@/components/cards/cardGeometry";
 import { CardSignal } from "@/lib/analytics/umami";
 
 interface ArtistTrackListProps {
@@ -35,9 +36,11 @@ export function ArtistTrackList({
   onResolveStart,
 }: ArtistTrackListProps) {
   return (
-    // Scrolls within a capped height instead of paging, matching the grid view so
-    // toggling list/grid keeps the card height stable.
-    <div className="max-h-72 overflow-y-auto overscroll-contain">
+    // Scrolls within a capped height instead of paging, like the grid view. The
+    // rounded clip uses the well's inner control radius (`raisedControlRadius`), the
+    // exact radius the grouped rows promote to, so the scroll viewport stays
+    // concentric with the rows and the well — no gap, no clipped corner.
+    <div className="max-h-[248px] overflow-y-auto overscroll-contain" style={{ borderRadius: raisedControlRadius }}>
       <ArtistPanelList frameSelector=".recessed-gradient-border" frameInset={4}>
         {items.map(({ track, artistLabel }) => (
           <PopularTrack
