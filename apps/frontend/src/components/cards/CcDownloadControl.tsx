@@ -5,7 +5,7 @@ import {
   swapDownloadFormat,
 } from "@musiccloud/shared";
 import { CaretDownIcon, CheckIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
-import { type CSSProperties, useCallback, useId, useRef, useState } from "react";
+import { type CSSProperties, useCallback, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { raisedControlRadius, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
@@ -21,6 +21,16 @@ const DOWNLOAD_FORMAT_LABELS: Record<JamendoAudioFormat, string> = {
   mp32: "MP3-HD",
   ogg: "OGG",
   flac: "FLAC",
+};
+
+/** Hover tooltip per format: codec + data rate ("Datenrate"). These Jamendo
+ *  delivery formats expose no resolution, so none is shown. Locale-independent
+ *  like the labels, so kept here rather than in the i18n catalogue. */
+const DOWNLOAD_FORMAT_TOOLTIPS: Record<JamendoAudioFormat, string> = {
+  mp31: "MP3 · 96 kbps",
+  mp32: "MP3 · 256 kbps (VBR)",
+  ogg: "Ogg Vorbis",
+  flac: "FLAC · lossless",
 };
 
 /** Raised-control radius for the floating menu panel. */
@@ -77,14 +87,16 @@ export function CcDownloadControl({ downloadUrl, formatAriaLabel }: CcDownloadCo
   const close = useCallback(() => setOpen(false), []);
   useDismissableLayer(open, close, containerRef, menuRef);
 
-  const toggle = useCallback(() => {
-    setOpen((prev) => {
-      if (prev) return false;
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (rect) setPosition({ top: rect.bottom + MENU_GAP_PX, right: window.innerWidth - rect.right });
-      return true;
-    });
-  }, []);
+  const toggle = useCallback(() => setOpen((prev) => !prev), []);
+
+  // Position the portal menu just below the trigger, right-aligned, in a pre-paint
+  // layout effect on open — not inside the toggle's state updater (an impure
+  // updater React's strict double-invoke would run twice).
+  useLayoutEffect(() => {
+    if (!open) return;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (rect) setPosition({ top: rect.bottom + MENU_GAP_PX, right: window.innerWidth - rect.right });
+  }, [open]);
 
   const selectFormat = useCallback((next: JamendoAudioFormat) => {
     setFormat(next);
@@ -119,7 +131,7 @@ export function CcDownloadControl({ downloadUrl, formatAriaLabel }: CcDownloadCo
               className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium text-text-primary"
             >
               <span className="leading-none">{DOWNLOAD_FORMAT_LABELS[format]}</span>
-              <CaretDownIcon weight="bold" className="size-4 flex-shrink-0" aria-hidden="true" />
+              <CaretDownIcon weight="bold" className="size-5 flex-shrink-0" aria-hidden="true" />
             </EmbossedButton>
           </RecessedCard.Body>
         </RecessedCard>
@@ -127,31 +139,37 @@ export function CcDownloadControl({ downloadUrl, formatAriaLabel }: CcDownloadCo
         {open &&
           position &&
           createPortal(
-            <div
-              ref={menuRef}
-              id={menuId}
-              role="menu"
-              aria-label={formatAriaLabel}
-              style={{ ...RAISED_RADIUS_STYLE, top: position.top, right: position.right }}
-              className="recessed-gradient-border mc-glass-nav-track fixed z-50 flex min-w-[10rem] flex-col gap-0.5 overflow-hidden p-1"
-            >
-              {JAMENDO_FORMAT_ORDER.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={option === format}
-                  onClick={() => selectFormat(option)}
-                  className="mc-glass-nav-indicator mc-txt-nav-normal flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors duration-150"
-                >
-                  <CheckIcon
-                    weight="bold"
-                    className={cn("size-4 flex-shrink-0", option === format ? "opacity-100" : "opacity-0")}
-                    aria-hidden="true"
-                  />
-                  <span className="truncate leading-none">{DOWNLOAD_FORMAT_LABELS[option]}</span>
-                </button>
-              ))}
+            // Positioning wrapper carries `fixed` on its own: the inner visual
+            // panel uses `recessed-gradient-border`, whose `position: relative`
+            // (in glass.css) would otherwise beat the Tailwind `fixed` utility and
+            // drop the menu out of place.
+            <div ref={menuRef} className="fixed z-50" style={{ top: position.top, right: position.right }}>
+              <div
+                id={menuId}
+                role="menu"
+                aria-label={formatAriaLabel}
+                style={RAISED_RADIUS_STYLE}
+                className="recessed-gradient-border mc-glass-nav-track flex min-w-[10rem] flex-col gap-0.5 overflow-hidden p-1"
+              >
+                {JAMENDO_FORMAT_ORDER.map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={option === format}
+                    onClick={() => selectFormat(option)}
+                    title={DOWNLOAD_FORMAT_TOOLTIPS[option]}
+                    className="mc-glass-nav-indicator mc-txt-nav-normal flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors duration-150"
+                  >
+                    <CheckIcon
+                      weight="bold"
+                      className={cn("size-4 flex-shrink-0", option === format ? "opacity-100" : "opacity-0")}
+                      aria-hidden="true"
+                    />
+                    <span className="truncate leading-none">{DOWNLOAD_FORMAT_LABELS[option]}</span>
+                  </button>
+                ))}
+              </div>
             </div>,
             document.body,
           )}
