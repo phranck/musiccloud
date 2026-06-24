@@ -279,12 +279,27 @@ reicht sie durch (Stats roh als Zahlen — Formatierung macht die Karte).
 
 ## Checklist
 
-- [ ] Slice 1: Daten-Layer durch alle 6 Schichten, Gates grün
-- [ ] Slice 2: Details-Karte (Desktop+Mobile) + Pro-Hinweis, formatCount extrahiert, Browser-verifiziert
-- [ ] Slice 3: Format-Plumbing, Download-URL-Pfad-Swap gegen echte Jamendo-URL verifiziert
-- [ ] Slice 4: RadioButtonControl + Player-Einbau (CC-only, Selector als Geschwister), FLAC via canPlayType, Position erhalten
-- [ ] Slice 5: Download-Dropdown (alle 4 Formate)
-- [ ] Slice 6: Bandcamp-Support-Button (Suche via bandcampAdapter, async+gecacht, Button über Download), an ywdl7 verifiziert
-- [ ] All code references verified (functions, scripts, paths, env vars, package-manager commands)
-- [ ] Pre-push-Gates pro Slice (check, lint, doctor:diff) grün
-- [ ] Memory `project_player_c_cc_divergence` beachtet: Player nur additiv per Prop, kein Fork/Refactor
+- [x] Slice 1: Daten-Layer durch alle 6 Schichten, Gates grün
+- [x] Slice 2: Details-Karte (Desktop+Mobile) + Pro-Hinweis, formatCount extrahiert, Browser-verifiziert
+- [x] Slice 3: Format-Plumbing, Download-URL-Pfad-Swap gegen echte Jamendo-URL verifiziert
+- [x] Slice 4: RadioButtonControl + Player-Einbau (CC-only, Selector als Geschwister), FLAC via canPlayType, Position erhalten
+- [x] Slice 5: Download-Dropdown (alle 4 Formate)
+- [x] Slice 6: Bandcamp-Support-Button (Suche via bandcampAdapter, async+gecacht, Button über Download), an ywdl7 verifiziert
+- [x] All code references verified (functions, scripts, paths, env vars, package-manager commands)
+- [x] Pre-push-Gates pro Slice (check, lint, doctor:diff) grün
+- [x] Memory `project_player_c_cc_divergence` beachtet: Player nur additiv per Prop, kein Fork/Refactor
+
+## Completed (2026-06-24)
+
+Alle sechs Slices umgesetzt, je in eigenem Commit auf `feat/cc-player-format-musicinfo`:
+
+- **Slice 1** (`ef3b385`): `CcMusicInfo`/`CcTrackStats` in shared, `ApiCcTrack`/`CcTrack`/`CcTrackResult`/`CcTrackContentConfiguration` erweitert; `getCcTrack` zieht `include=musicinfo+stats+licenses`; `mapJamendoTrack` flacht musicinfo ab. Beide Frontend-Parser (Live-Resolve **und** persistente Share-Page) reichen die Felder durch — der zweite (`ccResponseToResult`) war im Plan nicht explizit genannt, ist aber nötig, da `loadCcByShortId` den Track live über `getCcTrack` refetcht.
+- **Slice 2** (`9665334`): `CcTrackDetailsCard` (Klassifikation + Stats, self-hide via `hasCcTrackDetails`), `formatCount` nach `lib/format/count.ts` extrahiert, Pro-Hinweis in `CcInfoCard`, Desktop+Mobile-Einbau, i18n DE/EN. Live an ywdl7 verifiziert.
+- **Slice 3** (`98e58b9`): shared `audio-format.ts` (Katalog + Swap-Helper), `cc-audio.ts` `?format=`, Astro-Proxy + `fetchCcAudio` reichen format durch. Default-Stream jetzt mp32 (statt Jamendos mp31). Proxy-Swap aller vier Formate End-to-End verifiziert.
+- **Slice 4** (`8ccad59`): `RadioButtonControl` (equal-width Mini-VFDs), `PlayerProgress`-`belowDisplay`-Slot, `AudioPreviewPlayer` mit In-Place-`audio.src`-Swap (WebAudio-Pipeline + Playhead bleiben), `canPlayType`-Detection, localStorage-Persistenz. Format-Wechsel im Browser verifiziert.
+- **Slice 5** (`a8d3778`): `CcDownloadMenu` (Portal-Menü, alle vier Formate via `swapDownloadFormat`), `useDismissableLayer`-Hook extrahiert (auch in `HeaderNavMenu`). Kein Clipping, ESC/outside/scroll-dismiss verifiziert.
+- **Slice 6** (`bd1e674`): Endpoint `GET /api/v1/cc/bandcamp/:jamendoId` (Adapter-Fuzzysearch ≥0.6, Voll-Titel + Variant-Guard, 24h-Cache inkl. Negativ, 8s-Timeout), `CcBandcampButton` async über Download. ywdl7 → `pornophonique.bandcamp.com/track/sad-robot`; Remix 87870 → korrekt kein Treffer.
+
+**Gates:** Pro Slice Backend-`tsc` / Frontend-`astro check` / `doctor:diff` / Biome grün; Pre-Commit-Full-Scan (`pnpm doctor`) grün. Finale Regression: Backend 1057, Frontend 220, Shared 52 Tests — alle grün.
+
+**Offen / Hinweis:** Der Player-Playback-**Resume** (Weiterspielen nach Format-Wechsel während laufender Wiedergabe) ist code-complete, aber wegen der Kein-unbeaufsichtigtes-Audio-Regel nicht hörbar verifiziert — nur der Quellen-/Position-Swap im idle/paused-Zustand. Der Play-Button steht im Mobile-Layout via `items-center` mittig zur höheren Player-Spalte (VFD + Selector); falls eine andere vertikale Ausrichtung gewünscht ist, ist das ein kleiner Folge-Tweak.
