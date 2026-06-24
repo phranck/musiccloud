@@ -5,9 +5,11 @@ import { raisedControlRadius } from "@/components/cards/cardGeometry";
 import { useGroupedCorners } from "@/components/cards/useGroupedCorners";
 import { CardSignal } from "@/lib/analytics/umami";
 
-/** The grid tiles are padded 2px off the scroll area's rounded edge, so a corner
- *  tile's promoted corner is concentric with that edge: scroll-area radius − 2px.
- *  Fed to the tiles as `--neu-radius` so `useGroupedCorners` promotes to it. */
+/** The scroll area sits 2px inside the well (its own margin), so its rounded clip
+ *  is tight to the flush tiles instead of 2px wider. This radius — `raisedControlRadius`
+ *  (well − control inset) minus that 2px — is BOTH the clip radius and the tiles'
+ *  promoted corner (fed as `--neu-radius` for `useGroupedCorners`): corner tiles
+ *  are concentric with the clip with no gap between them. */
 const GRID_TILE_FULL_RADIUS = `calc(${raisedControlRadius} - 2px)`;
 
 interface ArtistTrackGridProps {
@@ -52,10 +54,13 @@ export function ArtistTrackGrid({
   });
 
   return (
-    <div className="max-h-72 overflow-y-auto overscroll-contain" style={{ borderRadius: raisedControlRadius }}>
+    <div
+      className="m-[2px] max-h-72 overflow-y-auto overscroll-contain"
+      style={{ borderRadius: GRID_TILE_FULL_RADIUS }}
+    >
       <div
         ref={gridRef}
-        className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-1 p-[2px]"
+        className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-1"
         style={{ "--neu-radius": GRID_TILE_FULL_RADIUS } as CSSProperties}
       >
         {items.map(({ track, artistLabel }) => (
