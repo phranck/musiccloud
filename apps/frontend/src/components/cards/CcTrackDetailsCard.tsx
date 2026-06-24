@@ -8,6 +8,7 @@ import { usePersistedDisclosure } from "@/components/ui/usePersistedDisclosure";
 import { useT } from "@/i18n/localeContext";
 import { hasCcTrackDetails } from "@/lib/cc/track-details";
 import { formatCount } from "@/lib/format/count";
+import { genreSearchHref } from "@/lib/resolve/genre-query";
 import type { CcTrackContentConfiguration } from "@/lib/types/media-card";
 import { cn } from "@/lib/utils";
 
@@ -24,26 +25,61 @@ interface DetailRowData {
   value: string;
   /** Optional CSS text transform for the value (e.g. `capitalize` for raw Jamendo tags). */
   valueClassName?: string;
+  /** When set, the value renders as clickable genre-search links (one per name)
+   *  instead of the plain {@link value} text. */
+  genreLinks?: string[];
+}
+
+/**
+ * Renders genre names as inline genre-search links, separated by a middot.
+ *
+ * Each link points at the homepage genre search ({@link genreSearchHref}); with
+ * Astro's ClientRouter the click is a soft navigation, so a genre clicked on a
+ * persistent share page (which has no in-page search flow) still lands on the
+ * genre results. Raw Jamendo tags are capitalised via CSS only, matching the
+ * plain-text rows.
+ *
+ * @param genres - The genre names (verbatim Jamendo tags).
+ */
+function GenreLinkList({ genres }: { genres: string[] }) {
+  return (
+    <span className="mc-txt-recessed-normal min-w-0 text-right text-sm text-text-primary">
+      {genres.map((genre, index) => (
+        <span key={genre}>
+          <a href={genreSearchHref(genre)} className="mc-cardlink capitalize">
+            {genre}
+          </a>
+          {index < genres.length - 1 && <span className="text-text-secondary"> · </span>}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 /**
  * One label/value row inside a details well: the dimmed label hugs the left, the
  * value hugs the right and may wrap. The value's casing is purely presentational
- * (`valueClassName`) so the underlying Jamendo strings stay verbatim.
+ * (`valueClassName`) so the underlying Jamendo strings stay verbatim. When
+ * `genreLinks` is set the value renders as clickable genre-search links instead.
  *
  * @param label - The pre-translated row label.
  * @param value - The pre-formatted display value.
  * @param valueClassName - Optional CSS transform for the value text.
+ * @param genreLinks - When set, render these names as genre-search links.
  */
-function DetailRow({ label, value, valueClassName }: Omit<DetailRowData, "key">) {
+function DetailRow({ label, value, valueClassName, genreLinks }: Omit<DetailRowData, "key">) {
   return (
     <div className="flex items-baseline justify-between gap-3 px-2 py-1.5">
       <span className="mc-txt-recessed-dimmed shrink-0 text-xs uppercase tracking-wide text-text-secondary">
         {label}
       </span>
-      <span className={cn("mc-txt-recessed-normal min-w-0 text-right text-sm text-text-primary", valueClassName)}>
-        {value}
-      </span>
+      {genreLinks ? (
+        <GenreLinkList genres={genreLinks} />
+      ) : (
+        <span className={cn("mc-txt-recessed-normal min-w-0 text-right text-sm text-text-primary", valueClassName)}>
+          {value}
+        </span>
+      )}
     </div>
   );
 }
@@ -89,7 +125,13 @@ export function CcTrackDetailsCard({ content, className, animated = false }: CcT
   const classRows: DetailRowData[] = mi
     ? (
         [
-          { key: "genres", label: t("cc.details.genres"), value: mi.genres.join(" · "), valueClassName: "capitalize" },
+          {
+            key: "genres",
+            label: t("cc.details.genres"),
+            value: mi.genres.join(" · "),
+            valueClassName: "capitalize",
+            genreLinks: mi.genres,
+          },
           {
             key: "instruments",
             label: t("cc.details.instruments"),

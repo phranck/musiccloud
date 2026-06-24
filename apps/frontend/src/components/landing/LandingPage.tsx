@@ -24,6 +24,7 @@ import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { DialogProvider } from "@/context/DialogContext";
 import { useAppState } from "@/hooks/useAppState";
 import { useDeferredResultReveal } from "@/hooks/useDeferredResultReveal";
+import { useGenreSearchParam } from "@/hooks/useGenreSearchParam";
 import { useHeroFieldFlip } from "@/hooks/useHeroFieldFlip";
 import { useSearchFieldReturn } from "@/hooks/useSearchFieldReturn";
 import { useToast } from "@/hooks/useToast";
@@ -131,6 +132,9 @@ function LandingPageInner({
     useSearchFieldReturn(searchFieldRef, { showCompact, onClear: handleClear, onResetInput: resetInputValue });
   useHeroFieldFlip(searchFieldRef, { showCompact, isReturning });
   const toast = useToast();
+  // A genre link from a page without its own search flow lands here with
+  // `?genre=<name>`; this runs that search on mount.
+  useGenreSearchParam(handleSubmit, setInputValue);
 
   // Memoized so a stable element identity reaches HeroInput's `leadingControl`.
   const heroLeadingControl = useMemo(() => (showCompact ? undefined : <ResolveModeSwitcher />), [showCompact]);

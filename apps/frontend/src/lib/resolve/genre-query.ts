@@ -20,3 +20,28 @@ export const GENRE_BROWSE_QUERY = "genre:?";
 export function buildGenreQuery(name: string): string {
   return `genre: ${name}`;
 }
+
+/**
+ * The homepage query-string parameter that carries a genre name to auto-search.
+ *
+ * Genre links rendered outside the landing page's own search flow (e.g. on a
+ * persistent share page, which has no in-page search) point at the homepage with
+ * this parameter set; the homepage reads it on mount and runs the genre search.
+ */
+export const GENRE_SEARCH_PARAM = "genre";
+
+/**
+ * Builds a homepage link that auto-runs a genre search for the given genre.
+ *
+ * Used by genre links that live where no in-page search flow exists (the CC
+ * details card on a persistent share page). With Astro's ClientRouter this
+ * resolves as a soft navigation, so the homepage mounts and submits the genre
+ * search ({@link buildGenreQuery}) without a full reload, then renders the genre
+ * results in place.
+ *
+ * @param name - The genre name (e.g. `electronic`).
+ * @returns The root-relative homepage URL (e.g. `/?genre=electronic`).
+ */
+export function genreSearchHref(name: string): string {
+  return `/?${GENRE_SEARCH_PARAM}=${encodeURIComponent(name)}`;
+}
