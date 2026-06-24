@@ -43,6 +43,12 @@ interface EmbossedSegmentedControlProps<T extends string> {
    * the whole control onto an alternate token surface (e.g. the CC green).
    */
   indicatorClassName?: string;
+  /**
+   * Render a tighter control: smaller icon-only cells and a 2px track inset
+   * instead of 4px. For mini in-header toggles (e.g. the artist list/grid
+   * switch) where the default 34px cells are too tall. Text cells are unaffected.
+   */
+  compact?: boolean;
 }
 
 /**
@@ -65,7 +71,11 @@ export function EmbossedSegmentedControl<T extends string>({
   className,
   trackClassName = "mc-glass-seg-track",
   indicatorClassName = "mc-glass-seg-indicator",
+  compact = false,
 }: EmbossedSegmentedControlProps<T>) {
+  // Track inset (px) shared by the padding, the indicator's edge insets, and the
+  // indicator's translate offset, so they stay in lockstep at either density.
+  const padPx = compact ? 2 : 4;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const buttonRefs = useRef<Map<T, HTMLButtonElement> | null>(null);
   const buttonRefMap = buttonRefs.current ?? (buttonRefs.current = new Map());
@@ -100,17 +110,19 @@ export function EmbossedSegmentedControl<T extends string>({
   return (
     <RecessedCard
       ref={containerRef}
-      className={cn(trackClassName, "relative flex gap-[var(--mc-gap-seg,0px)] p-1", className)}
+      className={cn(trackClassName, "relative flex gap-[var(--mc-gap-seg,0px)]", compact ? "p-0.5" : "p-1", className)}
       radius={recessedSurfaceRadius}
     >
       <RecessedCard.Body className="contents">
         {indicator && (
           <div
-            className="absolute top-1 bottom-1 transition-[transform,width] duration-250 ease-out"
+            className="absolute transition-[transform,width] duration-250 ease-out"
             style={{
+              top: padPx,
+              bottom: padPx,
+              left: padPx,
               width: indicator.width,
-              transform: `translateX(${indicator.left - 4}px)`,
-              left: "0.25rem",
+              transform: `translateX(${indicator.left - padPx}px)`,
             }}
           >
             <div
@@ -150,7 +162,11 @@ export function EmbossedSegmentedControl<T extends string>({
                 // fixed square size so a control's segment height/size stays the
                 // same regardless of the glyph (an 18px Phosphor icon and a 16px
                 // flag emoji both yield identical 34px segments).
-                hasVisibleText ? "flex-auto py-2 px-3 text-[13px] font-semibold text-center" : "size-[34px]",
+                hasVisibleText
+                  ? "flex-auto py-2 px-3 text-[13px] font-semibold text-center"
+                  : compact
+                    ? "size-[26px]"
+                    : "size-[34px]",
                 key === value ? "mc-txt-button-bright" : "mc-txt-button-normal",
               )}
             >

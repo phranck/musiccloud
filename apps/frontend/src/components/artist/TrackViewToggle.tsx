@@ -28,16 +28,16 @@ export function TrackViewToggle({ view, onChange }: TrackViewToggleProps) {
       label: "",
       ariaLabel: t("artist.viewList"),
       title: t("artist.viewList"),
-      icon: <ListIcon weight="duotone" className="size-5" aria-hidden="true" />,
+      icon: <ListIcon weight="duotone" className="size-[18px]" aria-hidden="true" />,
     },
     {
       key: TrackListView.Grid,
       label: "",
       ariaLabel: t("artist.viewGrid"),
       title: t("artist.viewGrid"),
-      icon: <SquaresFourIcon weight="duotone" className="size-5" aria-hidden="true" />,
+      icon: <SquaresFourIcon weight="duotone" className="size-[18px]" aria-hidden="true" />,
     },
   ];
 
-  return <EmbossedSegmentedControl segments={segments} value={view} onChange={onChange} />;
+  return <EmbossedSegmentedControl segments={segments} value={view} onChange={onChange} compact />;
 }
