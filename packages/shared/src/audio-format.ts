@@ -94,32 +94,6 @@ export function swapStreamFormat(streamUrl: string, format: JamendoAudioFormat):
   }
 }
 
-/**
- * Rewrites a Jamendo download URL to a different format by swapping its last path
- * segment (`…/download/track/<id>/<format>/`). The download path carries no
- * per-format token, so the swap is a pure path rewrite.
- *
- * @param downloadUrl - The Jamendo download URL.
- * @param format - The desired format code.
- * @returns The rewritten URL, or the input verbatim when the path shape is
- *   unexpected or the URL cannot be parsed.
- */
-export function swapDownloadFormat(downloadUrl: string, format: JamendoAudioFormat): string {
-  try {
-    const url = new URL(downloadUrl);
-    const segments = url.pathname.split("/").filter(Boolean);
-    const last = segments.length - 1;
-    if (segments[0] === "download" && segments[1] === "track" && last >= 3) {
-      segments[last] = format;
-      url.pathname = `/${segments.join("/")}/`;
-      return url.toString();
-    }
-    return downloadUrl;
-  } catch {
-    return downloadUrl;
-  }
-}
-
 /** Strips path and reserved characters so a value is safe in a filename on every
  *  OS, and collapses runs of whitespace (tabs / newlines included). */
 function sanitizeFilenameSegment(value: string): string {
