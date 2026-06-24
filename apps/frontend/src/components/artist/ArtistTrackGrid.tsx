@@ -35,8 +35,8 @@ export function ArtistTrackGrid({
   onResolveStart,
 }: ArtistTrackGridProps) {
   return (
-    <div className="max-h-72 overflow-y-auto overscroll-contain pr-1">
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-2">
+    <div className="max-h-72 overflow-y-auto overscroll-contain">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-2 p-1.5">
         {items.map(({ track, artistLabel }) => (
           <ArtistTrackGridItem
             key={artistLabel ? `${artistLabel}:${track.deezerUrl}` : track.deezerUrl}
