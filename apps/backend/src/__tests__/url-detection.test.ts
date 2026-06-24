@@ -35,6 +35,10 @@ describe("isMusicUrl", () => {
       expect(isMusicUrl("https://music.youtube.com/watch?v=fJ9rUzIMcZQ")).toBe(true);
     });
 
+    it("should detect mobile YouTube watch URL", () => {
+      expect(isMusicUrl("https://m.youtube.com/watch?v=fLbsQrJI63s")).toBe(true);
+    });
+
     it("should detect YouTube Shorts URL", () => {
       expect(isMusicUrl("https://www.youtube.com/shorts/abc123")).toBe(true);
     });
@@ -104,6 +108,10 @@ describe("detectPlatform", () => {
 
   it("should identify YouTube Music as YouTube", () => {
     expect(detectPlatform("https://music.youtube.com/watch?v=fJ9rUzIMcZQ")).toBe("youtube");
+  });
+
+  it("should identify mobile YouTube URL as YouTube", () => {
+    expect(detectPlatform("https://m.youtube.com/watch?v=fLbsQrJI63s")).toBe("youtube");
   });
 
   it("should identify Tidal platform", () => {

@@ -19,6 +19,12 @@ describe("validateMusicUrl", () => {
       expect(validateMusicUrl("https://www.youtube.com/watch?v=fJ9rUzIMcZQ")).toEqual({ valid: true });
     });
 
+    it("should accept mobile YouTube watch URL with extra params and fragment", () => {
+      expect(validateMusicUrl("https://m.youtube.com/watch?v=fLbsQrJI63s&pp=0gcJCUECo7VqN5tD&ra=m#searching")).toEqual({
+        valid: true,
+      });
+    });
+
     it("should accept plain text as valid (triggers text search)", () => {
       expect(validateMusicUrl("Bohemian Rhapsody Queen")).toEqual({ valid: true });
     });
@@ -148,6 +154,19 @@ describe("stripTrackingParams", () => {
 
   it("should return original string for invalid URL", () => {
     expect(stripTrackingParams("not a url")).toBe("not a url");
+  });
+
+  it("should normalize a mobile YouTube watch URL to the canonical www form", () => {
+    const url = "https://m.youtube.com/watch?v=fLbsQrJI63s&pp=0gcJCUECo7VqN5tD&ra=m#searching";
+    expect(stripTrackingParams(url)).toBe("https://www.youtube.com/watch?v=fLbsQrJI63s");
+  });
+
+  it("should normalize a mobile YouTube artist URL host to the canonical www form", () => {
+    // Non-/watch mobile paths are host-normalized too, so the route's
+    // `isArtistUrl(cleanUrl)` check sees the www form and routes to artist resolve.
+    expect(stripTrackingParams("https://m.youtube.com/@kreatorofficial")).toBe(
+      "https://www.youtube.com/@kreatorofficial",
+    );
   });
 });
 

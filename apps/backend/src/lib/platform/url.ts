@@ -17,7 +17,7 @@ type DetectableService = Exclude<ServiceId, "youtube-music" | "musicbrainz">;
 export const MUSIC_URL_PATTERNS: Record<DetectableService, RegExp> = {
   spotify: /^https?:\/\/(open\.)?spotify\.com\/(track|album|intl-\w+\/track)\//,
   "apple-music": /^https?:\/\/music\.apple\.com\//,
-  youtube: /^https?:\/\/(www\.)?(youtube\.com\/(watch|shorts)|youtu\.be\/|music\.youtube\.com\/)/,
+  youtube: /^https?:\/\/(?:www\.|m\.)?(youtube\.com\/(watch|shorts)|youtu\.be\/|music\.youtube\.com\/)/,
   soundcloud: /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/[^/]+\/[^/]+/,
   tidal: /^https?:\/\/(listen\.)?tidal\.com\/(browse\/)?track\//,
   deezer: /^https?:\/\/(www\.)?deezer\.com\/(([a-z]{2})\/)?track\//,
@@ -90,6 +90,7 @@ const ALLOWED_HOSTS = [
   // YouTube / YouTube Music
   "youtube.com",
   "www.youtube.com",
+  "m.youtube.com",
   "music.youtube.com",
   "youtu.be",
   // SoundCloud
@@ -289,10 +290,17 @@ export function stripTrackingParams(url: string): string {
       parsed.hostname = "open.qobuz.com";
     }
 
-    // YouTube: For /watch URLs only keep v= (removes list=, t=, etc.)
+    // YouTube: normalize the mobile host (m.youtube.com) to www so a link
+    // pasted from the mobile app shares the desktop cache key.
+    if (parsed.hostname === "m.youtube.com") {
+      parsed.hostname = "www.youtube.com";
+    }
+
+    // YouTube: For /watch URLs only keep v= (removes list=, t=, ra=, fragments, etc.)
     if ((parsed.hostname === "www.youtube.com" || parsed.hostname === "youtube.com") && parsed.pathname === "/watch") {
       const videoId = parsed.searchParams.get("v");
       parsed.search = "";
+      parsed.hash = "";
       if (videoId) parsed.searchParams.set("v", videoId);
     }
 

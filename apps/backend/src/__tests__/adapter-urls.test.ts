@@ -100,6 +100,16 @@ describe("YouTube: detectUrl", () => {
     expect(youtubeAdapter.detectUrl("https://music.youtube.com/watch?v=fJ9rUzIMcZQ")).toBe("fJ9rUzIMcZQ");
   });
 
+  it("should extract video ID from mobile URL", () => {
+    expect(youtubeAdapter.detectUrl("https://m.youtube.com/watch?v=fJ9rUzIMcZQ")).toBe("fJ9rUzIMcZQ");
+  });
+
+  it("should extract video ID from mobile URL with extra params and fragment", () => {
+    expect(
+      youtubeAdapter.detectUrl("https://m.youtube.com/watch?v=fLbsQrJI63s&pp=0gcJCUECo7VqN5tD&ra=m#searching"),
+    ).toBe("fLbsQrJI63s");
+  });
+
   it("should return null for playlist URL", () => {
     expect(youtubeAdapter.detectUrl("https://www.youtube.com/playlist?list=PLrAXtmErZgOe123")).toBeNull();
   });

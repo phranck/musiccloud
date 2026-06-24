@@ -22,7 +22,10 @@ const MUSIC_URL_PATTERNS: MusicUrlPattern[] = [
   },
   { service: Service.AppleMusic, pattern: /^https?:\/\/music\.apple\.com\// },
   { service: Service.YouTubeMusic, pattern: /^https?:\/\/music\.youtube\.com\// },
-  { service: Service.YouTube, pattern: /^https?:\/\/(www\.)?(youtube\.com\/(watch|shorts|@|channel\/)|youtu\.be\/)/ },
+  {
+    service: Service.YouTube,
+    pattern: /^https?:\/\/(?:www\.|m\.)?(youtube\.com\/(watch|shorts|@|channel\/)|youtu\.be\/)/,
+  },
   { service: Service.SoundCloud, pattern: /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/[^/]+\/[^/]+/ },
   { service: Service.SoundCloud, pattern: /^https?:\/\/on\.soundcloud\.com\/[A-Za-z0-9]+/ },
   { service: Service.Tidal, pattern: /^https?:\/\/(listen\.)?tidal\.com\/(browse\/)?(track|album|artist)\// },
