@@ -1,4 +1,5 @@
 import { ArrowSquareOutIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
+import { CcDownloadMenu } from "@/components/cards/CcDownloadMenu";
 import { outerEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SectionCardShell } from "@/components/cards/SectionCardShell";
@@ -137,19 +138,22 @@ export function CcInfoCard({ content, className, animated = false }: CcInfoCardP
 
         {(showDownload || showJamendo) && (
           <div className="flex flex-col gap-2">
-            {showDownload && (
-              <RecessedCard className={recessedControlInsetClassName}>
-                <RecessedCard.Body>
-                  <EmbossedButton
-                    href={content.downloadUrl}
-                    download
-                    className="flex w-full items-center justify-center gap-2.5 px-3 py-2.5 text-sm font-medium text-text-primary no-underline"
-                  >
-                    <DownloadSimpleIcon weight="duotone" className="size-5 flex-shrink-0" aria-hidden="true" />
-                    <span className="truncate leading-none">{t("cc.download")}</span>
-                  </EmbossedButton>
-                </RecessedCard.Body>
-              </RecessedCard>
+            {showDownload && content.downloadUrl && (
+              <div className="flex gap-2">
+                <RecessedCard className={cn(recessedControlInsetClassName, "min-w-0 flex-1")}>
+                  <RecessedCard.Body>
+                    <EmbossedButton
+                      href={content.downloadUrl}
+                      download
+                      className="flex w-full items-center justify-center gap-2.5 px-3 py-2.5 text-sm font-medium text-text-primary no-underline"
+                    >
+                      <DownloadSimpleIcon weight="duotone" className="size-5 flex-shrink-0" aria-hidden="true" />
+                      <span className="truncate leading-none">{t("cc.download")}</span>
+                    </EmbossedButton>
+                  </RecessedCard.Body>
+                </RecessedCard>
+                <CcDownloadMenu downloadUrl={content.downloadUrl} ariaLabel={t("cc.downloadFormat")} />
+              </div>
             )}
             {showJamendo && (
               <RecessedCard className={recessedControlInsetClassName}>

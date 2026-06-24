@@ -1,9 +1,10 @@
 import { type NavItem, NavTarget } from "@musiccloud/shared";
 import { ListIcon } from "@phosphor-icons/react";
-import { type MouseEvent, useEffect, useId, useRef, useState } from "react";
+import { type MouseEvent, useCallback, useId, useRef, useState } from "react";
 
 import { raisedControlRadius, recessedSurfaceRadius } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
+import { useDismissableLayer } from "@/components/ui/useDismissableLayer";
 import { useT } from "@/i18n/localeContext";
 import { navHref, navLabel } from "@/lib/nav";
 
@@ -41,24 +42,10 @@ export function HeaderNavMenu({ navItems, onNavClick }: HeaderNavMenuProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const menuId = useId();
+  const close = useCallback(() => setOpen(false), []);
 
-  // While open, dismiss on an outside pointer press or Escape. Listeners are
-  // scoped to the open state and removed when it closes or the menu unmounts.
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: PointerEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
+  // While open, dismiss on an outside pointer press or Escape.
+  useDismissableLayer(open, close, containerRef);
 
   return (
     <div ref={containerRef} className="relative">

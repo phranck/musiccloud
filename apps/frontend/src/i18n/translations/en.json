@@ -64,6 +64,7 @@
   "cc.stats.rating": "Rating",
   "cc.proLicensing": "Also licensable via Jamendo Pro",
   "cc.audioFormat": "Audio format",
+  "cc.downloadFormat": "Download format",
   "share.copyLink": "Copy share link to clipboard",
   "share.shareLink": "Copy Share Link",
   "share.copied": "Copied!",
