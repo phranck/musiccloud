@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { CcBandcampButton } from "@/components/cards/CcBandcampButton";
 import { CcDownloadControl } from "@/components/cards/CcDownloadControl";
 import { outerEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
@@ -12,6 +13,21 @@ import { cn } from "@/lib/utils";
  *  `/img/cc/`. CC0 / public-domain and any unknown clause set have no badge, so
  *  the card falls back to the parsed text label for those. */
 const CC_ICON_CLAUSES = new Set(["by", "by-sa", "by-nc", "by-nc-sa", "by-nd", "by-nc-nd"]);
+
+/** Renders the Jamendo brand mark as a CSS alpha mask so the glyph takes the
+ *  button's text color (`currentColor` via `bg-current`) instead of the logo's
+ *  fixed brand pink — an `<img>` cannot be recolored. The prefixed `-webkit-`
+ *  properties are kept alongside the standard ones for Safari. */
+const JAMENDO_ICON_MASK_STYLE: CSSProperties = {
+  maskImage: "url(/icons/jamendo.svg)",
+  maskRepeat: "no-repeat",
+  maskPosition: "center",
+  maskSize: "contain",
+  WebkitMaskImage: "url(/icons/jamendo.svg)",
+  WebkitMaskRepeat: "no-repeat",
+  WebkitMaskPosition: "center",
+  WebkitMaskSize: "contain",
+};
 
 /**
  * Resolves a Creative-Commons deed URL to its licence-badge SVG path under
@@ -145,7 +161,11 @@ export function CcInfoCard({ content, className, animated = false }: CcInfoCardP
                     aria-label={`${t("cc.openOnJamendo")} (${t("cc.opensInNewWindow")})`}
                     className="flex w-full items-center justify-center gap-2.5 px-3 py-2.5 text-sm font-medium text-text-primary no-underline"
                   >
-                    <img src="/icons/jamendo.svg" alt="" aria-hidden="true" className="size-5 flex-shrink-0" />
+                    <span
+                      aria-hidden="true"
+                      className="size-5 flex-shrink-0 bg-current"
+                      style={JAMENDO_ICON_MASK_STYLE}
+                    />
                     <span className="truncate leading-none">{t("cc.openOnJamendo")}</span>
                   </EmbossedButton>
                 </RecessedCard.Body>
