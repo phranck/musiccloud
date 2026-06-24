@@ -1,4 +1,3 @@
-import { ArrowSquareOutIcon } from "@phosphor-icons/react";
 import { CcBandcampButton } from "@/components/cards/CcBandcampButton";
 import { CcDownloadControl } from "@/components/cards/CcDownloadControl";
 import { outerEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
@@ -146,7 +145,7 @@ export function CcInfoCard({ content, className, animated = false }: CcInfoCardP
                     aria-label={`${t("cc.openOnJamendo")} (${t("cc.opensInNewWindow")})`}
                     className="flex w-full items-center justify-center gap-2.5 px-3 py-2.5 text-sm font-medium text-text-primary no-underline"
                   >
-                    <ArrowSquareOutIcon weight="duotone" className="size-5 flex-shrink-0" aria-hidden="true" />
+                    <img src="/icons/jamendo.svg" alt="" aria-hidden="true" className="size-5 flex-shrink-0" />
                     <span className="truncate leading-none">{t("cc.openOnJamendo")}</span>
                   </EmbossedButton>
                 </RecessedCard.Body>
