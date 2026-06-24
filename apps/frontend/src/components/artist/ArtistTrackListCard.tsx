@@ -7,7 +7,7 @@ import { TrackViewToggle } from "@/components/artist/TrackViewToggle";
 import { PagedListFooter } from "@/components/ui/PagedListFooter";
 import { usePagedList } from "@/hooks/usePagedList";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
-import { getTrackPageSize, useTrackListView } from "@/hooks/useTrackListView";
+import { TrackListView, useTrackListView } from "@/hooks/useTrackListView";
 
 interface ArtistTrackListCardProps {
   /** Card title, supplied by the presentation owner (never hardcoded here). */
@@ -34,10 +34,11 @@ interface ArtistTrackListCardProps {
 
 /**
  * The desktop artist-column track card: a titled section card around the shared
- * {@link ArtistTrackList}, capped at five rows per page with the pager in the
- * card FOOTER. One protocol-driven component for both the artist's own popular
- * tracks and similar-artist tracks — it takes already-normalized {@link items}
- * plus presentation config and only displays; the owner ({@link import("@/components/share/AnimatedArtistColumn").AnimatedArtistColumn})
+ * track content, with a header toggle switching list vs. grid. List view pages
+ * five rows with the pager in the card FOOTER; grid view shows every item and
+ * scrolls. One protocol-driven component for both the artist's own popular tracks
+ * and similar-artist tracks — it takes already-normalized {@link items} plus
+ * presentation config and only displays; the owner ({@link import("@/components/share/AnimatedArtistColumn").AnimatedArtistColumn})
  * extracts the items from the artist-info payload. Self-hides once loading settles
  * with no rows.
  *
@@ -58,6 +59,7 @@ export function ArtistTrackListCard({
 }: ArtistTrackListCardProps) {
   const skeletonAllowed = useSkeletonAllowed();
   const [view, setView] = useTrackListView(viewStorageKey);
+  const isGrid = view === TrackListView.Grid;
   // Only offer the list/grid switch once there are rows to switch between (the
   // skeleton phase has none). Memoized so the element identity is stable across
   // renders and not flagged as inline JSX-as-prop (jsx-no-jsx-as-prop).
@@ -67,8 +69,9 @@ export function ArtistTrackListCard({
   );
   const showContent = showInitialSkeleton || items.length > 0;
   const resetKey = items.map((item) => item.track.deezerUrl).join("|");
-  const pageSize = getTrackPageSize(view);
-  const { page, pageCount, canGoPrevious, canGoNext, goPrevious, goNext } = usePagedList(items, { resetKey, pageSize });
+  // List view pages five rows with the pager in the footer; grid view shows every
+  // item and scrolls instead, so it always renders the full list (no pager).
+  const { page, pageCount, canGoPrevious, canGoNext, goPrevious, goNext } = usePagedList(items, { resetKey });
 
   if (showInitialSkeleton && !skeletonAllowed) {
     return (
@@ -80,7 +83,7 @@ export function ArtistTrackListCard({
   if (!showContent) return null;
 
   const footer =
-    pageCount > 1 ? (
+    !isGrid && pageCount > 1 ? (
       <PagedListFooter
         pageCount={pageCount}
         canGoPrevious={canGoPrevious}
@@ -101,7 +104,7 @@ export function ArtistTrackListCard({
         >
           <ArtistTrackContent
             view={view}
-            items={page}
+            items={isGrid ? items : page}
             cardSignal={cardSignal}
             onTrackResolve={onTrackResolve}
             onResolveStart={onResolveStart}

@@ -11,26 +11,6 @@ export const TrackListView = {
 } as const;
 export type TrackListView = (typeof TrackListView)[keyof typeof TrackListView];
 
-/** Rows per page in list view (matches usePagedList's own default). */
-const LIST_PAGE_SIZE = 5;
-/**
- * Cover tiles per page in grid view. A multiple of both three and four so a full
- * page fills the responsive 3-4 column track without leaving an orphan row.
- */
-const GRID_PAGE_SIZE = 12;
-
-/**
- * The `usePagedList` page size for a track section in the given view: a short
- * list page, or a larger grid page that fills the 3-4 column track. Shared by
- * the desktop card and the mobile section so both page identically per view.
- *
- * @param view - The current presentation.
- * @returns Items per page.
- */
-export function getTrackPageSize(view: TrackListView): number {
-  return view === TrackListView.Grid ? GRID_PAGE_SIZE : LIST_PAGE_SIZE;
-}
-
 /** Empty subscribe for the mount-flag store — the value never changes after hydration. */
 const subscribeNever = (): (() => void) => () => {};
 const getMountedSnapshot = (): boolean => true;

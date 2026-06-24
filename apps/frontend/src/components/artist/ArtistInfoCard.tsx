@@ -32,7 +32,7 @@ import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { PagedListFooter } from "@/components/ui/PagedListFooter";
 import { usePagedList } from "@/hooks/usePagedList";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
-import { getTrackPageSize, useTrackListView } from "@/hooks/useTrackListView";
+import { TrackListView, useTrackListView } from "@/hooks/useTrackListView";
 import { useLocale, useT } from "@/i18n/localeContext";
 import { CardSignal } from "@/lib/analytics/umami";
 import { cn } from "@/lib/utils";
@@ -77,15 +77,17 @@ export function ArtistInfoCard({
   // The view is remembered per section and shares its key with the desktop card.
   const [popularView, setPopularView] = useTrackListView(ArtistTrackViewKey.Popular);
   const [similarView, setSimilarView] = useTrackListView(ArtistTrackViewKey.Similar);
+  const popularGrid = popularView === TrackListView.Grid;
+  const similarGrid = similarView === TrackListView.Grid;
+  // List view pages five rows; grid view shows every item and scrolls, so it
+  // always feeds the full list (and drops the pager below).
   const popularItems = toPopularTrackItems(data);
   const tracksPager = usePagedList(popularItems, {
     resetKey: popularItems.map((item) => item.track.deezerUrl).join("|"),
-    pageSize: getTrackPageSize(popularView),
   });
   const similarItems = toSimilarTrackItems(data);
   const similarPager = usePagedList(similarItems, {
     resetKey: similarItems.map((item) => item.track.deezerUrl).join("|"),
-    pageSize: getTrackPageSize(similarView),
   });
   // Memoized so the toggle element identity stays stable (jsx-no-jsx-as-prop);
   // only offered once a section has rows to switch between.
@@ -171,12 +173,12 @@ export function ArtistInfoCard({
             >
               <ArtistTrackContent
                 view={popularView}
-                items={tracksPager.page}
+                items={popularGrid ? popularItems : tracksPager.page}
                 onTrackResolve={onTrackResolve}
                 onResolveStart={onResolveStart}
               />
             </ArtistSectionWell>
-            {tracksPager.pageCount > 1 && (
+            {!popularGrid && tracksPager.pageCount > 1 && (
               <div className="mt-3">
                 <PagedListFooter
                   pageCount={tracksPager.pageCount}
@@ -217,13 +219,13 @@ export function ArtistInfoCard({
             >
               <ArtistTrackContent
                 view={similarView}
-                items={similarPager.page}
+                items={similarGrid ? similarItems : similarPager.page}
                 cardSignal={CardSignal.SimilarArtist}
                 onTrackResolve={onTrackResolve}
                 onResolveStart={onResolveStart}
               />
             </ArtistSectionWell>
-            {similarPager.pageCount > 1 && (
+            {!similarGrid && similarPager.pageCount > 1 && (
               <div className="mt-3">
                 <PagedListFooter
                   pageCount={similarPager.pageCount}

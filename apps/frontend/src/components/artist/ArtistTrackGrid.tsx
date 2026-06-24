@@ -18,9 +18,10 @@ interface ArtistTrackGridProps {
  * the alternative to {@link import("@/components/artist/ArtistTrackList").ArtistTrackList}.
  * Lays the normalized {@link ArtistTrackItem} rows out as square cover tiles in
  * a responsive 3–4 column track. `auto-fill` (not `auto-fit`) keeps the tiles at
- * their small column size when a page holds only a few items, instead of
- * stretching them across the full width. Pure presentation — the owning card
- * filters, pages, and renders any pager.
+ * their small column size when only a few items are present, instead of
+ * stretching them across the full width. The grid scrolls vertically inside a
+ * capped-height container (no paging), so a long section stays compact. Pure
+ * presentation — the owning card filters the items.
  *
  * @param items - The normalized rows to render.
  * @param cardSignal - Analytics signal forwarded to each item.
@@ -34,17 +35,19 @@ export function ArtistTrackGrid({
   onResolveStart,
 }: ArtistTrackGridProps) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-2">
-      {items.map(({ track, artistLabel }) => (
-        <ArtistTrackGridItem
-          key={artistLabel ? `${artistLabel}:${track.deezerUrl}` : track.deezerUrl}
-          cardSignal={cardSignal}
-          track={track}
-          artistLabel={artistLabel}
-          onTrackResolve={onTrackResolve}
-          onResolveStart={onResolveStart}
-        />
-      ))}
+    <div className="max-h-72 overflow-y-auto overscroll-contain pr-1">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-2">
+        {items.map(({ track, artistLabel }) => (
+          <ArtistTrackGridItem
+            key={artistLabel ? `${artistLabel}:${track.deezerUrl}` : track.deezerUrl}
+            cardSignal={cardSignal}
+            track={track}
+            artistLabel={artistLabel}
+            onTrackResolve={onTrackResolve}
+            onResolveStart={onResolveStart}
+          />
+        ))}
+      </div>
     </div>
   );
 }
