@@ -1,8 +1,8 @@
 import { CaretDownIcon } from "@phosphor-icons/react";
 import { useId } from "react";
-import { outerEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
+import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
-import { SectionCardShell } from "@/components/cards/SectionCardShell";
+import { sectionCardHeaderClassName, sectionCardTitleClassName } from "@/components/cards/sectionCardChromeStyles";
 import { CollapsibleHeight } from "@/components/ui/CollapsibleHeight";
 import { usePersistedDisclosure } from "@/components/ui/usePersistedDisclosure";
 import { useT } from "@/i18n/localeContext";
@@ -12,10 +12,10 @@ import { genreSearchHref } from "@/lib/resolve/genre-query";
 import type { CcTrackContentConfiguration } from "@/lib/types/media-card";
 import { cn } from "@/lib/utils";
 
-/** localStorage key persisting whether the CC details card is expanded (default collapsed). */
+/** localStorage key persisting whether the CC details section is expanded (default collapsed). */
 const DETAILS_DISCLOSURE_KEY = "mc:ccDetailsExpanded";
 
-/** A single label/value row in the details card. */
+/** A single label/value row in the details section. */
 interface DetailRowData {
   /** Stable React key (also the field identity). */
   key: string;
@@ -84,35 +84,29 @@ function DetailRow({ label, value, valueClassName, genreLinks }: Omit<DetailRowD
   );
 }
 
-interface CcTrackDetailsCardProps {
+interface CcTrackDetailsSectionProps {
   content: CcTrackContentConfiguration;
-  className?: string;
-  /** Mirrors the sibling cards' entrance flag so the details block joins the same zoom-in. */
-  animated?: boolean;
 }
 
 /**
- * Creative-Commons track details card: a titled section showing Jamendo's
- * `musicinfo` classification (genres, instruments, mood, vocal/instrumental,
- * voice, tempo, character, language) and `stats` engagement counters (listens,
- * downloads, favorites, playlisted, average rating).
+ * Creative-Commons track details rendered as a collapsible section at the foot of
+ * the media (cover/player) card rather than as its own card.
  *
- * Placed between the media summary card and the {@link import("./CcInfoCard").CcInfoCard}
- * licence card in both share layouts. Self-hides (returns `null`) when the track
- * carries no displayable details, matching {@link hasCcTrackDetails} so the
- * layouts can drop the slot without leaving a gap.
+ * A divider separates it from the player/share block above; a titled toggle row
+ * (uppercase "Details" + caret, mirroring the other section headers) expands a
+ * {@link CollapsibleHeight} holding Jamendo's `musicinfo` classification (genres,
+ * instruments, mood, vocal/instrumental, voice, tempo, character, language) and
+ * `stats` counters (listens, downloads, favorites, playlisted, rating). Default
+ * collapsed; the state persists across visits.
  *
- * Structure mirrors {@link import("./CcInfoCard").CcInfoCard}: a
- * {@link SectionCardShell} with recessed wells — one per group, each rendered
- * only when it has rows — so the geometry/token cascade stays identical to the
- * sibling cards. Classification values render verbatim from Jamendo (raw English
- * tags), capitalised via CSS only.
+ * Self-hides (returns `null`) when the track carries no displayable details — and
+ * because the divider lives inside, the host card shows nothing extra in that
+ * case. Classification values render verbatim from Jamendo (raw English tags),
+ * capitalised via CSS only.
  *
  * @param content - The resolved CC track content configuration.
- * @param className - Optional extra classes for the outer card.
- * @param animated - When true, plays the shared zoom-in entrance.
  */
-export function CcTrackDetailsCard({ content, className, animated = false }: CcTrackDetailsCardProps) {
+export function CcTrackDetailsSection({ content }: CcTrackDetailsSectionProps) {
   const t = useT();
   const [expanded, toggleExpanded] = usePersistedDisclosure(DETAILS_DISCLOSURE_KEY, false);
   const detailsId = useId();
@@ -187,37 +181,31 @@ export function CcTrackDetailsCard({ content, className, animated = false }: CcT
     : [];
 
   return (
-    <SectionCardShell
-      title={
-        <button
-          type="button"
-          onClick={toggleExpanded}
-          aria-expanded={expanded}
-          aria-controls={detailsId}
-          // `text-transform: inherit` defeats the browser's UA default
-          // (`button { text-transform: none }`), which would otherwise block the
-          // header's token-driven uppercase from cascading into the label.
-          // `-top-0.5` re-centres the row in the header: the shared section header
-          // is 2px top-heavy (`pt` > `pb`, sized for a card with a body below) plus
-          // the title's 1px optical nudge, which leaves a body-less collapsed card
-          // sitting low.
-          className="relative -top-0.5 flex w-full cursor-pointer items-center justify-between gap-2 border-0 bg-transparent p-0 text-left text-inherit [text-transform:inherit]"
-        >
-          <span>{t("cc.details.title")}</span>
-          <CaretDownIcon
-            weight="bold"
-            className={cn("size-4 shrink-0 transition-transform duration-200", expanded && "rotate-180")}
-            aria-hidden="true"
-          />
-        </button>
-      }
-      animated={animated}
-      className={cn(outerEmbossedCardClassName, className)}
-    >
+    // The section owns the bottom padding (matching the header's top) so the
+    // collapsed title sits centred above the card edge instead of hugging it; the
+    // wells therefore carry only horizontal padding.
+    <div className="border-t border-white/[0.08] pb-[var(--mc-pad-header,0.75rem)]">
+      <button
+        type="button"
+        onClick={toggleExpanded}
+        aria-expanded={expanded}
+        aria-controls={detailsId}
+        className={cn(
+          sectionCardHeaderClassName,
+          "flex w-full cursor-pointer items-center justify-between gap-2 border-0 bg-transparent text-left",
+        )}
+      >
+        <span className={sectionCardTitleClassName}>{t("cc.details.title")}</span>
+        <CaretDownIcon
+          weight="bold"
+          className={cn("size-4 shrink-0 transition-transform duration-200", expanded && "rotate-180")}
+          aria-hidden="true"
+        />
+      </button>
       <CollapsibleHeight
         id={detailsId}
         expanded={expanded}
-        className="flex flex-col gap-[var(--mc-pad-card,0.75rem)] p-[var(--mc-pad-card,0.75rem)] pt-0"
+        className="flex flex-col gap-[var(--mc-pad-card,0.75rem)] px-[var(--mc-pad-card,0.75rem)]"
       >
         {classRows.length > 0 && (
           <RecessedCard className={recessedControlInsetClassName}>
@@ -238,6 +226,6 @@ export function CcTrackDetailsCard({ content, className, animated = false }: CcT
           </RecessedCard>
         )}
       </CollapsibleHeight>
-    </SectionCardShell>
+    </div>
   );
 }

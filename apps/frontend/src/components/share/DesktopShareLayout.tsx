@@ -6,7 +6,6 @@ import type {
 } from "@/components/artist/artistPanelTypes";
 import type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
 import { CcInfoCard } from "@/components/cards/CcInfoCard";
-import { CcTrackDetailsCard } from "@/components/cards/CcTrackDetailsCard";
 import { MediaSummaryCard } from "@/components/cards/MediaSummaryCard";
 import { ServicesCard } from "@/components/cards/ServicesCard";
 import { AnimatedArtistColumn } from "@/components/share/AnimatedArtistColumn";
@@ -66,10 +65,7 @@ export function DesktopShareLayout({
         <div className="flex flex-col gap-[var(--mc-gap-cards,1.5rem)]" style={{ width: `${MEDIA_W}px` }}>
           <MediaSummaryCard content={config} animated={animated} onPreviewStatusChange={onPreviewStatusChange} />
           {config.ccInfoContent ? (
-            <>
-              <CcTrackDetailsCard content={config.ccInfoContent} animated={animated} />
-              <CcInfoCard content={config.ccInfoContent} animated={animated} />
-            </>
+            <CcInfoCard content={config.ccInfoContent} animated={animated} />
           ) : (
             <ServicesCard content={config} animated={animated} />
           )}

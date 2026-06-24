@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { AudioPreviewPlayer } from "@/components/audio/AudioPreviewPlayer";
 import type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
+import { CcTrackDetailsSection } from "@/components/cards/CcTrackDetailsSection";
 import { animatedOuterEmbossedCardClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { SongInfo } from "@/components/cards/SongInfo";
@@ -111,6 +112,12 @@ export function MediaCardHead({
       </CollapsibleSection>
 
       {children}
+
+      {/* Creative-Commons tracks fold their musicinfo/stats in here as a
+          collapsible section at the foot of the card; it self-hides (divider and
+          all) when there are no details, and commercial cards carry no
+          `ccInfoContent`, so neither path renders anything extra. */}
+      {content.ccInfoContent && <CcTrackDetailsSection content={content.ccInfoContent} />}
     </EmbossedCard>
   );
 }

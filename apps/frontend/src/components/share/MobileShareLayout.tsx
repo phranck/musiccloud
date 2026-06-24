@@ -2,11 +2,9 @@ import { MicrophoneStageIcon } from "@phosphor-icons/react";
 import type { CSSProperties } from "react";
 import type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
 import { CcInfoCard } from "@/components/cards/CcInfoCard";
-import { CcTrackDetailsCard } from "@/components/cards/CcTrackDetailsCard";
 import { raisedControlRadius, recessedControlInset } from "@/components/cards/cardGeometry";
 import { SharePageCard } from "@/components/share/SharePageCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
-import { hasCcTrackDetails } from "@/lib/cc/track-details";
 import type { MediaCardContentConfiguration } from "@/lib/types/media-card";
 
 /** Props for {@link MobileShareLayout}. */
@@ -43,11 +41,6 @@ export function MobileShareLayout({
   return (
     <div className="block min-[1080px]:hidden">
       <SharePageCard config={config} animated={animated} onPreviewStatusChange={onPreviewStatusChange} />
-      {config.ccInfoContent && hasCcTrackDetails(config.ccInfoContent) && (
-        <div className="mt-[var(--mc-gap-cards,1.5rem)]">
-          <CcTrackDetailsCard content={config.ccInfoContent} animated={animated} />
-        </div>
-      )}
       {config.ccInfoContent && (
         <div className="mt-[var(--mc-gap-cards,1.5rem)]">
           <CcInfoCard content={config.ccInfoContent} animated={animated} />
