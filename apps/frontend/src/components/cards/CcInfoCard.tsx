@@ -125,18 +125,6 @@ export function CcInfoCard({ content, className, animated = false }: CcInfoCardP
           </RecessedCard.Body>
         </RecessedCard>
 
-        {content.proLicensing && content.proUrl && (
-          <a
-            href={content.proUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`${t("cc.proLicensing")} (${t("cc.opensInNewWindow")})`}
-            className="mc-cardlink px-2 text-xs text-text-secondary"
-          >
-            {t("cc.proLicensing")}
-          </a>
-        )}
-
         {(content.jamendoTrackId || showDownload || showJamendo) && (
           <div className="flex flex-col gap-2">
             {content.jamendoTrackId && <CcBandcampButton jamendoId={content.jamendoTrackId} />}
