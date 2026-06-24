@@ -2,14 +2,18 @@ import { useGSAP } from "@gsap/react";
 import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { useRef } from "react";
 import { ArtistProfileDesktopCard } from "@/components/artist/ArtistProfileDesktopCard";
+import { ArtistTrackListCard } from "@/components/artist/ArtistTrackListCard";
 import type {
   ArtistCardLabels,
   ArtistInfoStatus,
   ArtistPanelTrackResolveHandler,
 } from "@/components/artist/artistPanelTypes";
+import { buildSimilarSwapKey, buildTracksSwapKey } from "@/components/artist/artistSwapKeys";
+import { toPopularTrackItems, toSimilarTrackItems } from "@/components/artist/artistTrackItems";
 import { EventsCard } from "@/components/artist/EventsCard";
-import { PopularTracksCard } from "@/components/artist/PopularTracksCard";
-import { SimilarArtistsCard } from "@/components/artist/SimilarArtistsCard";
+import { SimilarArtistsSkeleton } from "@/components/artist/SimilarArtistsSkeleton";
+import { TracksSkeleton } from "@/components/artist/TracksSkeleton";
+import { CardSignal } from "@/lib/analytics/umami";
 import { animateFlipFrom, type CapturedFlipState, captureFlipState } from "@/lib/motion/flip";
 
 interface AnimatedArtistColumnProps {
@@ -111,6 +115,12 @@ export function AnimatedArtistColumn({
     { scope: columnRef, dependencies: [artistLoadStatus] },
   );
 
+  // Resolve the loading presentation once for the track cards: first load shows
+  // the skeleton, a refetch with data on screen blurs + spins (mirrors the cards'
+  // former internal derivation, now hoisted so they stay pure presentation).
+  const showInitialSkeleton = isLoading && !artistData;
+  const isRefreshing = isLoading && !!artistData;
+
   return (
     <div ref={columnRef} className="flex flex-col gap-6" style={{ width: `${widthPx}px` }}>
       <ArtistProfileDesktopCard
@@ -120,18 +130,27 @@ export function AnimatedArtistColumn({
         isLoading={isLoading}
         status={artistLoadStatus}
       />
-      <PopularTracksCard
+      <ArtistTrackListCard
         title={labels.popularTracks}
-        data={artistData}
-        isLoading={isLoading}
+        items={toPopularTrackItems(artistData)}
+        showInitialSkeleton={showInitialSkeleton}
+        isRefreshing={isRefreshing}
+        Skeleton={TracksSkeleton}
+        swapKey={buildTracksSwapKey(artistData)}
+        placeholderHeightClass="min-h-[186px]"
         onTrackResolve={onTrackResolve}
         onResolveStart={onArtistResolveStart}
       />
       <EventsCard title={labels.events} data={artistData} isLoading={isLoading} userRegion={userRegion} />
-      <SimilarArtistsCard
+      <ArtistTrackListCard
         title={labels.similar}
-        data={artistData}
-        isLoading={isLoading}
+        items={toSimilarTrackItems(artistData)}
+        showInitialSkeleton={showInitialSkeleton}
+        isRefreshing={isRefreshing}
+        Skeleton={SimilarArtistsSkeleton}
+        swapKey={buildSimilarSwapKey(artistData)}
+        placeholderHeightClass="min-h-[205px]"
+        cardSignal={CardSignal.SimilarArtist}
         onTrackResolve={onTrackResolve}
         onResolveStart={onArtistResolveStart}
       />
