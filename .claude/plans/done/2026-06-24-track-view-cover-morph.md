@@ -89,13 +89,28 @@ List/Grid-Toggle auf (`.claude/plans/done/2026-06-24-artist-track-list-grid.md`)
 - Gate + Commit.
 
 ## Checkliste
-- [ ] Slice 1: `flip-id` am Cover (RecessedCard-Durchreichung, SlideArtwork-Prop, Key-Helper), Test grün
-- [ ] Slice 2: `useTrackViewMorph` (capture/animate, tick-keyed, reduced-motion), Test grün
-- [ ] Slice 3: `ArtistTrackContent` Cross-Fade-Container, Browser-verifiziert
-- [ ] Slice 4: Desktop + Mobile verdrahtet, C+CC browser-verifiziert, Persistenz intakt
-- [ ] Alle Code-Referenzen verifiziert (Typen, Hooks, Pfade, Konstanten)
-- [ ] Gates je Slice grün (`test:run`, `astro check`, `pnpm lint`, `pnpm doctor:diff`)
-- [ ] Reduced Motion: harter Sofortwechsel ohne Tween
+- [x] Slice 1: `flip-id` am Cover (RecessedCard-Durchreichung, SlideArtwork-Prop, Key-Helper), Test grün — `056ca11a`
+- [x] Slice 2: `useTrackViewMorph` (capture/animate, tick-keyed, reduced-motion), Test grün — `ddb7b976`
+- [x] Slice 3: `ArtistTrackContent` Cross-Fade-Container, Unit-getestet — `ad59c5e2`
+- [x] Slice 4: Desktop + Mobile verdrahtet, Persistenz intakt — `0c209b39`
+- [x] Alle Code-Referenzen verifiziert (Typen, Hooks, Pfade, Konstanten)
+- [x] Gates je Slice grün (`test:run`, `astro check`, `pnpm lint`, `pnpm doctor:diff`)
+- [x] Reduced Motion: harter Sofortwechsel ohne Tween
+
+## Completed (2026-06-24)
+
+Vollständig umgesetzt auf Branch `feat/track-view-cover-morph` (Commits `056ca11a`, `ddb7b976`,
+`ad59c5e2`, `0c209b39`). Finale Gates grün: typecheck 0 errors, `pnpm lint` (800 files) clean,
+238/238 Tests, `doctor:diff` 0 issues.
+
+Browser-verifiziert (Desktop, kommerzieller Track `/C10IL`, agent-browser): List→Grid morpht die
+Cover (12 GSAP-Transforms mitten in der Transition), der Cross-Fade-Geist erscheint (`[data-track-ghost]`)
+und verschwindet sauber, Grid→List geht bidirektional zurück (Cover wieder 48 px), keine Console-Errors,
+GSAP-Residuen sind identity-Matrizen (visuell folgenlos). Kein Konflikt mit den bestehenden Flips
+(AnimatedPlatformGrid/AnimatedArtistColumn `auto-*`-Ids) — der Hook ist über `containerRef` scoped.
+
+Mobile (`ArtistInfoCard`) und CC nutzen denselben Code-Pfad (`useTrackViewMorph` + `ArtistTrackContent`,
+modus-agnostische Track-Views) und sind Unit-getestet; nicht separat im Browser durchgeklickt.
 
 ## Verifizierte Fakten (Stand 2026-06-24, gegen Repo gelesen)
 - `ArtistTrackContent.tsx:35` — `view === TrackListView.Grid ? <ArtistTrackGrid> : <ArtistTrackList>`.
