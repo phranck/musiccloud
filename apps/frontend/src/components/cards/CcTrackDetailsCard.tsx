@@ -3,7 +3,7 @@ import { useId } from "react";
 import { outerEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SectionCardShell } from "@/components/cards/SectionCardShell";
-import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
+import { CollapsibleHeight } from "@/components/ui/CollapsibleHeight";
 import { usePersistedDisclosure } from "@/components/ui/usePersistedDisclosure";
 import { useT } from "@/i18n/localeContext";
 import { hasCcTrackDetails } from "@/lib/cc/track-details";
@@ -207,31 +207,30 @@ export function CcTrackDetailsCard({ content, className, animated = false }: CcT
       animated={animated}
       className={cn(outerEmbossedCardClassName, className)}
     >
-      <div id={detailsId}>
-        <CollapsibleSection
-          visible={expanded}
-          sectionClass="flex flex-col gap-[var(--mc-pad-card,0.75rem)] p-[var(--mc-pad-card,0.75rem)] pt-0"
-        >
-          {classRows.length > 0 && (
-            <RecessedCard className={recessedControlInsetClassName}>
-              <RecessedCard.Body className="flex flex-col divide-y divide-white/[0.06] py-1">
-                {classRows.map(({ key, ...row }) => (
-                  <DetailRow key={key} {...row} />
-                ))}
-              </RecessedCard.Body>
-            </RecessedCard>
-          )}
-          {statRows.length > 0 && (
-            <RecessedCard className={recessedControlInsetClassName}>
-              <RecessedCard.Body className="flex flex-col divide-y divide-white/[0.06] py-1">
-                {statRows.map(({ key, ...row }) => (
-                  <DetailRow key={key} {...row} />
-                ))}
-              </RecessedCard.Body>
-            </RecessedCard>
-          )}
-        </CollapsibleSection>
-      </div>
+      <CollapsibleHeight
+        id={detailsId}
+        expanded={expanded}
+        className="flex flex-col gap-[var(--mc-pad-card,0.75rem)] p-[var(--mc-pad-card,0.75rem)] pt-0"
+      >
+        {classRows.length > 0 && (
+          <RecessedCard className={recessedControlInsetClassName}>
+            <RecessedCard.Body className="flex flex-col divide-y divide-white/[0.06] py-1">
+              {classRows.map(({ key, ...row }) => (
+                <DetailRow key={key} {...row} />
+              ))}
+            </RecessedCard.Body>
+          </RecessedCard>
+        )}
+        {statRows.length > 0 && (
+          <RecessedCard className={recessedControlInsetClassName}>
+            <RecessedCard.Body className="flex flex-col divide-y divide-white/[0.06] py-1">
+              {statRows.map(({ key, ...row }) => (
+                <DetailRow key={key} {...row} />
+              ))}
+            </RecessedCard.Body>
+          </RecessedCard>
+        )}
+      </CollapsibleHeight>
     </SectionCardShell>
   );
 }
