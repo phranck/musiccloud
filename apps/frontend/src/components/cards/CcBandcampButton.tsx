@@ -20,7 +20,9 @@ interface CcBandcampButtonProps {
  * is fetched async after mount via `/api/cc/bandcamp/:jamendoId` and the button
  * only appears once a match comes back — mirroring the artist-column lazy-load.
  * The in-flight request is aborted on unmount / id change so a late response
- * never sets state on a stale tree.
+ * never sets state on a stale tree. Give it a `key={jamendoId}` at the call site:
+ * a track change then remounts it and resets the lookup, so a track with no
+ * Bandcamp release never keeps the previously viewed track's button.
  *
  * @param jamendoId - The Jamendo track id to look up.
  */
@@ -29,10 +31,6 @@ export function CcBandcampButton({ jamendoId }: CcBandcampButtonProps) {
   const [bandcampUrl, setBandcampUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    // Reset first so a previous track's URL never lingers: a no-match lookup
-    // leaves the state untouched (the `if (url)` below), which would otherwise
-    // keep the prior track's button pointing at the song viewed before.
-    setBandcampUrl(null);
     const controller = new AbortController();
     void lookupCcBandcampUrl(jamendoId, controller.signal)
       .then((url) => {

@@ -127,7 +127,12 @@ export function CcInfoCard({ content, className, animated = false }: CcInfoCardP
 
         {(content.jamendoTrackId || showDownload || showJamendo) && (
           <div className="flex flex-col gap-2">
-            {content.jamendoTrackId && <CcBandcampButton jamendoId={content.jamendoTrackId} />}
+            {/* Key by track id so a track change remounts the button — its
+                Bandcamp lookup resets to "no match" instead of lingering on the
+                previously viewed track's URL. */}
+            {content.jamendoTrackId && (
+              <CcBandcampButton key={content.jamendoTrackId} jamendoId={content.jamendoTrackId} />
+            )}
             {showDownload && content.downloadUrl && (
               <CcDownloadControl downloadUrl={content.downloadUrl} formatAriaLabel={t("cc.downloadFormat")} />
             )}
