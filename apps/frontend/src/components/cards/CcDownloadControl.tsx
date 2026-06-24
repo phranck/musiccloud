@@ -159,7 +159,7 @@ export function CcDownloadControl({ downloadUrl, formatAriaLabel }: CcDownloadCo
                     aria-checked={option === format}
                     onClick={() => selectFormat(option)}
                     title={DOWNLOAD_FORMAT_TOOLTIPS[option]}
-                    className="mc-glass-nav-indicator mc-txt-nav-normal flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors duration-150"
+                    className="mc-glass-nav-indicator mc-nav-item flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-text-primary transition-colors duration-150"
                   >
                     <CheckIcon
                       weight="bold"
