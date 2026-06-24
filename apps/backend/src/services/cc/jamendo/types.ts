@@ -33,6 +33,9 @@ export interface JamendoTrackRaw {
   album_id: string;
   album_name: string;
   album_image: string;
+  /** The track's 1-based position within its album, as a string. Absent for
+   *  album-less singles; Jamendo returns it on tracks that belong to an album. */
+  position?: string;
   image: string;
   audio: string; // full-track stream URL
   audiodownload: string;
@@ -141,6 +144,8 @@ export interface CcTrack {
   jamendoArtistId: string;
   albumName?: string;
   jamendoAlbumId?: string;
+  /** 1-based track position within its album, when the track belongs to one. */
+  albumPosition?: number;
   artworkUrl?: string;
   durationMs?: number;
   releaseDate?: string;

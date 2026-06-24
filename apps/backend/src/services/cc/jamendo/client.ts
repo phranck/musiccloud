@@ -194,6 +194,7 @@ export function mapJamendoTrack(raw: JamendoTrackRaw): CcTrack {
     jamendoArtistId: raw.artist_id,
     albumName: raw.album_name ? decodeHtmlEntities(raw.album_name) : undefined,
     jamendoAlbumId: raw.album_id || undefined,
+    albumPosition: raw.position ? Number(raw.position) || undefined : undefined,
     artworkUrl: raw.image || raw.album_image || undefined,
     durationMs: raw.duration ? raw.duration * 1000 : undefined,
     releaseDate: raw.releasedate || undefined,

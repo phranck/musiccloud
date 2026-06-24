@@ -133,8 +133,8 @@ export function CcInfoCard({ content, className, animated = false }: CcInfoCardP
             {content.jamendoTrackId && (
               <CcBandcampButton key={content.jamendoTrackId} jamendoId={content.jamendoTrackId} />
             )}
-            {showDownload && content.downloadUrl && (
-              <CcDownloadControl downloadUrl={content.downloadUrl} formatAriaLabel={t("cc.downloadFormat")} />
+            {showDownload && content.jamendoTrackId && (
+              <CcDownloadControl jamendoId={content.jamendoTrackId} formatAriaLabel={t("cc.downloadFormat")} />
             )}
             {showJamendo && (
               <RecessedCard className={recessedControlInsetClassName}>

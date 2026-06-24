@@ -75,6 +75,14 @@ export const ENDPOINTS = {
      *  Optional `?format=` selects the delivery format (default {@link DEFAULT_STREAM_FORMAT}). */
     ccAudio: (jamendoId: string, format?: JamendoAudioFormat) =>
       `/api/v1/cc/audio/${encodeURIComponent(jamendoId)}${format ? `?format=${format}` : ""}`,
+    /** GET `/api/v1/cc/download/:jamendoId`: same-origin download proxy. Re-serves
+     *  the Jamendo audio as an attachment with a proper `Content-Disposition`
+     *  filename (`Artist_Album_NN_Title.ext`), so the browser saves a correctly
+     *  named audio file instead of the cross-origin Jamendo download page (which a
+     *  bare `<a download>` cannot rename and saves as `.html`).
+     *  Optional `?format=` selects the delivery format (default {@link DEFAULT_STREAM_FORMAT}). */
+    ccDownload: (jamendoId: string, format?: JamendoAudioFormat) =>
+      `/api/v1/cc/download/${encodeURIComponent(jamendoId)}${format ? `?format=${format}` : ""}`,
     /** GET `/api/v1/cc/artist-info?jamendoArtistId&artistName`: the CC artist
      *  column (Jamendo top + similar tracks + profile), loaded async by the share
      *  page so the core card renders immediately. */
@@ -145,6 +153,11 @@ export const ENDPOINTS = {
      *  Optional `?format=` selects the delivery format (default {@link DEFAULT_STREAM_FORMAT}). */
     ccAudio: (jamendoId: string, format?: JamendoAudioFormat) =>
       `/api/cc/audio/${encodeURIComponent(jamendoId)}${format ? `?format=${format}` : ""}`,
+    /** GET: forwarded to `ENDPOINTS.v1.ccDownload`. The CC download button points
+     *  here so the browser downloads a correctly named, same-origin audio file.
+     *  Optional `?format=` selects the delivery format (default {@link DEFAULT_STREAM_FORMAT}). */
+    ccDownload: (jamendoId: string, format?: JamendoAudioFormat) =>
+      `/api/cc/download/${encodeURIComponent(jamendoId)}${format ? `?format=${format}` : ""}`,
     /** GET: forwarded to `ENDPOINTS.v1.ccArtistInfo`. The CC share page loads the
      *  artist column through this async, after the core card has rendered. */
     ccArtistInfo: "/api/cc/artist-info",
@@ -323,6 +336,8 @@ export const ROUTE_TEMPLATES = {
     /** Route template for ENDPOINTS.v1.ccAudio (CORS-safe Jamendo stream proxy).
      *  The `format` is an optional `?format=` query (validated against JamendoAudioFormat), not a path segment. */
     ccAudio: "/api/v1/cc/audio/:jamendoId",
+    /** Route template for ENDPOINTS.v1.ccDownload (same-origin download proxy). */
+    ccDownload: "/api/v1/cc/download/:jamendoId",
     /** Route template for ENDPOINTS.v1.ccBandcamp (Bandcamp presence lookup). */
     ccBandcamp: "/api/v1/cc/bandcamp/:jamendoId",
     nav: "/api/v1/nav/:navId",

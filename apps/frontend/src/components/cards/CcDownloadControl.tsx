@@ -1,9 +1,4 @@
-import {
-  DEFAULT_STREAM_FORMAT,
-  JAMENDO_FORMAT_ORDER,
-  type JamendoAudioFormat,
-  swapDownloadFormat,
-} from "@musiccloud/shared";
+import { DEFAULT_STREAM_FORMAT, ENDPOINTS, JAMENDO_FORMAT_ORDER, type JamendoAudioFormat } from "@musiccloud/shared";
 import { CaretDownIcon, CheckIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
 import { type CSSProperties, useCallback, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -50,9 +45,10 @@ interface MenuPosition {
 }
 
 interface CcDownloadControlProps {
-  /** Format-agnostic Jamendo download URL — its last path segment is the format,
-   *  swapped to the selected format via {@link swapDownloadFormat}. */
-  downloadUrl: string;
+  /** Jamendo track id. The download links to our same-origin `ccDownload` proxy,
+   *  which re-serves the audio as a correctly named attachment in the chosen
+   *  format (a direct cross-origin Jamendo link would be saved as `.html`). */
+  jamendoId: string;
   /** Accessible label for the format dropdown trigger and its menu. */
   formatAriaLabel: string;
 }
@@ -61,10 +57,11 @@ interface CcDownloadControlProps {
  * The CC download control: a download button plus a format selector that share
  * one selected format (default {@link DEFAULT_STREAM_FORMAT}, i.e. MP3-HD).
  *
- * The download button always points at the currently selected format's download
- * URL; the dropdown shows the selected format's label beside a caret and opens a
- * menu of all four formats (MP3 / MP3-HD / OGG / FLAC). All formats are always
- * offered — a download decodes nothing, so browser codec support is irrelevant.
+ * The download button always points at our same-origin `ccDownload` proxy for
+ * the currently selected format; the dropdown shows the selected format's label
+ * beside a caret and opens a menu of all four formats (MP3 / MP3-HD / OGG / FLAC).
+ * All formats are always offered — a download decodes nothing, so browser codec
+ * support is irrelevant.
  *
  * The menu is a disclosure (`aria-haspopup` + `aria-expanded` → a labelled
  * `role="menu"` of `role="menuitemradio"` options) that dismisses on an outside
@@ -73,10 +70,10 @@ interface CcDownloadControlProps {
  * `overflow-hidden` cannot clip it; {@link useDismissableLayer} treats both the
  * trigger container and the portal panel as "inside".
  *
- * @param downloadUrl - The format-agnostic download URL.
+ * @param jamendoId - The Jamendo track id, used to build the download proxy URL.
  * @param formatAriaLabel - Accessible name for the format dropdown.
  */
-export function CcDownloadControl({ downloadUrl, formatAriaLabel }: CcDownloadControlProps) {
+export function CcDownloadControl({ jamendoId, formatAriaLabel }: CcDownloadControlProps) {
   const t = useT();
   const [format, setFormat] = useState<JamendoAudioFormat>(DEFAULT_STREAM_FORMAT);
   const [open, setOpen] = useState(false);
@@ -108,7 +105,7 @@ export function CcDownloadControl({ downloadUrl, formatAriaLabel }: CcDownloadCo
       <RecessedCard className={cn(recessedControlInsetClassName, "min-w-0 flex-1")}>
         <RecessedCard.Body>
           <EmbossedButton
-            href={swapDownloadFormat(downloadUrl, format)}
+            href={ENDPOINTS.frontend.ccDownload(jamendoId, format)}
             download
             className="flex w-full items-center justify-center gap-2.5 px-3 py-2.5 text-sm font-medium text-text-primary no-underline"
           >

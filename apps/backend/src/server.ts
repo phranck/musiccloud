@@ -32,6 +32,7 @@ import authRoutes from "./routes/auth.js";
 import ccArtistInfoRoutes from "./routes/cc-artist-info.js";
 import ccAudioRoutes from "./routes/cc-audio.js";
 import ccBandcampRoutes from "./routes/cc-bandcamp.js";
+import ccDownloadRoutes from "./routes/cc-download.js";
 import ccGenreArtworkRoutes from "./routes/cc-genre-artwork.js";
 import ccRandomExampleRoutes from "./routes/cc-random-example.js";
 import ccResolveRoutes from "./routes/cc-resolve.js";
@@ -422,6 +423,8 @@ async function buildApp() {
 
   // CC audio proxy (public, no auth - the audio player streams CC tracks through it)
   await app.register(ccAudioRoutes);
+  // CC download proxy (public, no auth - re-serves the audio as a named attachment)
+  await app.register(ccDownloadRoutes);
 
   // Artist info endpoint (public, no auth - fetched by React island)
   await app.register(artistInfoRoutes);

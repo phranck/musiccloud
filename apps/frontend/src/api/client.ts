@@ -140,6 +140,22 @@ export async function fetchCcAudio(
   return fetch(backendUrl(ENDPOINTS.v1.ccAudio(jamendoId, format)), { headers });
 }
 
+/** Fetch a CC track's audio from the backend `ccDownload` proxy as a named
+ *  attachment. Returns the raw upstream Response so the Astro handler can relay
+ *  the body + `Content-Disposition` / `Content-Type` headers same-origin. An
+ *  optional `format` selects the Jamendo delivery format. */
+export async function fetchCcDownload(
+  jamendoId: string,
+  clientIp?: string,
+  format?: JamendoAudioFormat,
+): Promise<Response> {
+  const headers: Record<string, string> = {
+    ...(INTERNAL_API_KEY ? { "X-API-Key": INTERNAL_API_KEY } : {}),
+    ...(clientIp ? { "X-Forwarded-For": clientIp } : {}),
+  };
+  return fetch(backendUrl(ENDPOINTS.v1.ccDownload(jamendoId, format)), { headers });
+}
+
 /** Fetch share page data (track or album) by shortId from the backend. */
 export async function fetchShareData(
   shortId: string,
