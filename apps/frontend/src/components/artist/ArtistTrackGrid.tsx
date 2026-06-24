@@ -22,6 +22,12 @@ interface ArtistTrackGridProps {
   onTrackResolve?: ArtistPanelTrackResolveHandler;
   /** Optional callback fired right before an item begins resolving. */
   onResolveStart?: () => void;
+  /**
+   * Whether each tile's cover carries its `data-flip-id`. The live view sets it
+   * (default `true`); the cross-fade ghost passes `false` so exactly one element
+   * per id exists for the GSAP Flip to match.
+   */
+  withFlipIds?: boolean;
 }
 
 /**
@@ -44,6 +50,7 @@ export function ArtistTrackGrid({
   cardSignal = CardSignal.PopularTrack,
   onTrackResolve,
   onResolveStart,
+  withFlipIds = true,
 }: ArtistTrackGridProps) {
   // Promote the four outer corners of the tile group so they nest concentrically
   // in the scroll area's rounded corners; the cover (.recessed-gradient-border)
@@ -69,7 +76,7 @@ export function ArtistTrackGrid({
           return (
             <ArtistTrackGridItem
               key={key}
-              flipId={key}
+              flipId={withFlipIds ? key : undefined}
               cardSignal={cardSignal}
               track={item.track}
               artistLabel={item.artistLabel}
