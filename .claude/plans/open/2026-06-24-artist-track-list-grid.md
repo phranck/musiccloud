@@ -16,7 +16,9 @@ Komponente zusammengeführt (alle Daten kommen normalisiert von außen) und um e
 - **Reichweite:** Desktop **und** mobiles Artist-Sheet.
 - **Grid-Item:** nur Cover (quadratisch); bei Hover blendet unten ein Gradient mit
   Titel + Subline (Album bei Popular, Artist bei Similar) ein.
-- **Paging** bleibt erhalten (im Grid mehr Items pro Seite als in der Liste).
+- **Scrollen statt Paging:** Liste und Grid scrollen beide innerhalb einer gedeckelten
+  Höhe (`max-h-72`); keine Pager-Buttons in den Artist-Track-Sektionen. `usePagedList`
+  und `PagedListFooter` bleiben für andere Konsumenten (z. B. `DisambiguationPanel`).
 
 ## Das „Protocol" (normalisierte Daten von außen)
 

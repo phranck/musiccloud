@@ -4,7 +4,7 @@ import { PopularTrack } from "@/components/artist/PopularTrack";
 import { CardSignal } from "@/lib/analytics/umami";
 
 interface ArtistTrackListProps {
-  /** Normalized rows to render (already filtered + paged by the owner). */
+  /** Normalized rows to render (already filtered by the owner). */
   items: ArtistTrackItem[];
   /** Analytics signal forwarded to each row (e.g. popular vs. similar). */
   cardSignal?: string;
@@ -20,8 +20,8 @@ interface ArtistTrackListProps {
  * commercial and Creative-Commons modes. Maps the normalized
  * {@link ArtistTrackItem} rows onto {@link PopularTrack} inside a grouped-corner
  * {@link ArtistPanelList}; the `artistLabel` (set only for similar tracks) drives
- * the row's subline. Pure presentation — the owning card/section filters, pages,
- * and renders any pager.
+ * the row's subline. The list scrolls vertically inside a capped-height container
+ * (no paging). Pure presentation — the owning card/section filters the items.
  *
  * @param items - The normalized rows to render.
  * @param cardSignal - Analytics signal forwarded to each row.
@@ -35,17 +35,21 @@ export function ArtistTrackList({
   onResolveStart,
 }: ArtistTrackListProps) {
   return (
-    <ArtistPanelList frameSelector=".recessed-gradient-border" frameInset={4}>
-      {items.map(({ track, artistLabel }) => (
-        <PopularTrack
-          key={artistLabel ? `${artistLabel}:${track.deezerUrl}` : track.deezerUrl}
-          cardSignal={cardSignal}
-          track={track}
-          artistLabel={artistLabel}
-          onTrackResolve={onTrackResolve}
-          onResolveStart={onResolveStart}
-        />
-      ))}
-    </ArtistPanelList>
+    // Scrolls within a capped height instead of paging, matching the grid view so
+    // toggling list/grid keeps the card height stable.
+    <div className="max-h-72 overflow-y-auto overscroll-contain">
+      <ArtistPanelList frameSelector=".recessed-gradient-border" frameInset={4}>
+        {items.map(({ track, artistLabel }) => (
+          <PopularTrack
+            key={artistLabel ? `${artistLabel}:${track.deezerUrl}` : track.deezerUrl}
+            cardSignal={cardSignal}
+            track={track}
+            artistLabel={artistLabel}
+            onTrackResolve={onTrackResolve}
+            onResolveStart={onResolveStart}
+          />
+        ))}
+      </ArtistPanelList>
+    </div>
   );
 }

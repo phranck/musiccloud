@@ -13,7 +13,7 @@ import { CardSignal } from "@/lib/analytics/umami";
 const GRID_TILE_FULL_RADIUS = `calc(${raisedControlRadius} - 2px)`;
 
 interface ArtistTrackGridProps {
-  /** Normalized rows to render (already filtered + paged by the owner). */
+  /** Normalized rows to render (already filtered by the owner). */
   items: ArtistTrackItem[];
   /** Analytics signal forwarded to each item (e.g. popular vs. similar). */
   cardSignal?: string;

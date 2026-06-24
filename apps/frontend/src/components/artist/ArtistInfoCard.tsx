@@ -29,10 +29,8 @@ import { fullWidthEmbossedCardClassName } from "@/components/cards/cardGeometry"
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { sectionCardFooterTextClassName } from "@/components/cards/sectionCardChromeStyles";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
-import { PagedListFooter } from "@/components/ui/PagedListFooter";
-import { usePagedList } from "@/hooks/usePagedList";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
-import { TrackListView, useTrackListView } from "@/hooks/useTrackListView";
+import { useTrackListView } from "@/hooks/useTrackListView";
 import { useLocale, useT } from "@/i18n/localeContext";
 import { CardSignal } from "@/lib/analytics/umami";
 import { cn } from "@/lib/utils";
@@ -56,8 +54,8 @@ interface ArtistInfoCardProps {
  * tri-state) with its title supplied via {@link ArtistInfoCardProps.labels}, so
  * the markup matches the desktop cards without duplicating their body. Popular
  * and similar each carry a list/grid toggle in their well header (remembered per
- * section, shared with the desktop card) and page by the active view, with the
- * pager rendered beneath the well (the mobile footer position).
+ * section, shared with the desktop card); both views scroll within the well — no
+ * pager.
  */
 export function ArtistInfoCard({
   data,
@@ -77,18 +75,8 @@ export function ArtistInfoCard({
   // The view is remembered per section and shares its key with the desktop card.
   const [popularView, setPopularView] = useTrackListView(ArtistTrackViewKey.Popular);
   const [similarView, setSimilarView] = useTrackListView(ArtistTrackViewKey.Similar);
-  const popularGrid = popularView === TrackListView.Grid;
-  const similarGrid = similarView === TrackListView.Grid;
-  // List view pages five rows; grid view shows every item and scrolls, so it
-  // always feeds the full list (and drops the pager below).
   const popularItems = toPopularTrackItems(data);
-  const tracksPager = usePagedList(popularItems, {
-    resetKey: popularItems.map((item) => item.track.deezerUrl).join("|"),
-  });
   const similarItems = toSimilarTrackItems(data);
-  const similarPager = usePagedList(similarItems, {
-    resetKey: similarItems.map((item) => item.track.deezerUrl).join("|"),
-  });
   // Memoized so the toggle element identity stays stable (jsx-no-jsx-as-prop);
   // only offered once a section has rows to switch between.
   const popularAddOn = useMemo(
@@ -173,22 +161,11 @@ export function ArtistInfoCard({
             >
               <ArtistTrackContent
                 view={popularView}
-                items={popularGrid ? popularItems : tracksPager.page}
+                items={popularItems}
                 onTrackResolve={onTrackResolve}
                 onResolveStart={onResolveStart}
               />
             </ArtistSectionWell>
-            {!popularGrid && tracksPager.pageCount > 1 && (
-              <div className="mt-3">
-                <PagedListFooter
-                  pageCount={tracksPager.pageCount}
-                  canGoPrevious={tracksPager.canGoPrevious}
-                  canGoNext={tracksPager.canGoNext}
-                  onPrevious={tracksPager.goPrevious}
-                  onNext={tracksPager.goNext}
-                />
-              </div>
-            )}
           </CollapsibleSection>
 
           {/* 3. Upcoming Events */}
@@ -219,23 +196,12 @@ export function ArtistInfoCard({
             >
               <ArtistTrackContent
                 view={similarView}
-                items={similarGrid ? similarItems : similarPager.page}
+                items={similarItems}
                 cardSignal={CardSignal.SimilarArtist}
                 onTrackResolve={onTrackResolve}
                 onResolveStart={onResolveStart}
               />
             </ArtistSectionWell>
-            {!similarGrid && similarPager.pageCount > 1 && (
-              <div className="mt-3">
-                <PagedListFooter
-                  pageCount={similarPager.pageCount}
-                  canGoPrevious={similarPager.canGoPrevious}
-                  canGoNext={similarPager.canGoNext}
-                  onPrevious={similarPager.goPrevious}
-                  onNext={similarPager.goNext}
-                />
-              </div>
-            )}
           </CollapsibleSection>
         </div>
       </div>

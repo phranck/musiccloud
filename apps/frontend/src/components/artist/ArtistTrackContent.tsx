@@ -6,7 +6,7 @@ import { TrackListView } from "@/hooks/useTrackListView";
 interface ArtistTrackContentProps {
   /** Which presentation to render. */
   view: TrackListView;
-  /** Normalized rows to render (already filtered + paged by the owner). */
+  /** Normalized rows to render (already filtered by the owner). */
   items: ArtistTrackItem[];
   /** Analytics signal forwarded to each row/item. */
   cardSignal?: string;
@@ -20,7 +20,7 @@ interface ArtistTrackContentProps {
  * Picks the artist-track presentation from the current {@link TrackListView}:
  * the stacked {@link ArtistTrackList} or the cover {@link ArtistTrackGrid}. A
  * thin switch shared by both the desktop card and the mobile section so the
- * list/grid choice lives in one place and the same already-paged {@link items}
+ * list/grid choice lives in one place and the same already-filtered {@link items}
  * feed either view.
  *
  * @param props - {@link ArtistTrackContentProps}.
