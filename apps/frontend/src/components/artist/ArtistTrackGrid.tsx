@@ -1,5 +1,6 @@
 import { ArtistTrackGridItem } from "@/components/artist/ArtistTrackGridItem";
 import type { ArtistPanelTrackResolveHandler, ArtistTrackItem } from "@/components/artist/artistPanelTypes";
+import { raisedControlRadius } from "@/components/cards/cardGeometry";
 import { CardSignal } from "@/lib/analytics/umami";
 
 interface ArtistTrackGridProps {
@@ -35,8 +36,8 @@ export function ArtistTrackGrid({
   onResolveStart,
 }: ArtistTrackGridProps) {
   return (
-    <div className="max-h-72 overflow-y-auto overscroll-contain">
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-2 p-1.5">
+    <div className="max-h-72 overflow-y-auto overscroll-contain" style={{ borderRadius: raisedControlRadius }}>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-1.5 p-1">
         {items.map(({ track, artistLabel }) => (
           <ArtistTrackGridItem
             key={artistLabel ? `${artistLabel}:${track.deezerUrl}` : track.deezerUrl}

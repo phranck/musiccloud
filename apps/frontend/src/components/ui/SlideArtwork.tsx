@@ -15,6 +15,12 @@ interface SlideArtworkProps {
   sizeClass: string;
   /** Pixel dimension for the img width/height attributes. */
   imgDim?: number;
+  /**
+   * Explicit corner radius (a CSS length). Overrides the `imgDim`-derived
+   * default — pass a cascade-derived value (e.g. the grouped grid tile's inner
+   * radius) so the tile never hardcodes a nested radius. Square tiles only.
+   */
+  radius?: string;
 }
 
 /**
@@ -40,6 +46,7 @@ export function SlideArtwork({
   kind = SlideArtworkKind.Square,
   sizeClass,
   imgDim = 56,
+  radius,
 }: SlideArtworkProps) {
   // Keep the disc in the DOM across the EXIT animation: when `active` flips
   // back to false the disc must slide OUT before it unmounts, so its mount
@@ -50,7 +57,7 @@ export function SlideArtwork({
   const [discMounted, setDiscMounted] = useState(false);
   if (active && !discMounted) setDiscMounted(true);
 
-  const borderRadius = kind === SlideArtworkKind.Round ? "50%" : imgDim <= 40 ? "4px" : "6px";
+  const borderRadius = radius ?? (kind === SlideArtworkKind.Round ? "50%" : imgDim <= 40 ? "4px" : "6px");
   // Scale a tight top/left-only inner shadow proportionally. It should read
   // as the recessed rim casting onto the artwork/CD, not as a dark overlay.
   const shadowOffset = Math.max(2, Math.round((imgDim / 56) * 4));
