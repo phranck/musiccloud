@@ -197,7 +197,11 @@ export function CcTrackDetailsCard({ content, className, animated = false }: CcT
           // `text-transform: inherit` defeats the browser's UA default
           // (`button { text-transform: none }`), which would otherwise block the
           // header's token-driven uppercase from cascading into the label.
-          className="flex w-full cursor-pointer items-center justify-between gap-2 border-0 bg-transparent p-0 text-left text-inherit [text-transform:inherit]"
+          // `-top-0.5` re-centres the row in the header: the shared section header
+          // is 2px top-heavy (`pt` > `pb`, sized for a card with a body below) plus
+          // the title's 1px optical nudge, which leaves a body-less collapsed card
+          // sitting low.
+          className="relative -top-0.5 flex w-full cursor-pointer items-center justify-between gap-2 border-0 bg-transparent p-0 text-left text-inherit [text-transform:inherit]"
         >
           <span>{t("cc.details.title")}</span>
           <CaretDownIcon
