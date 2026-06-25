@@ -5,6 +5,15 @@ on:
     branches: [main]
   pull_request:
 
+# PR runs cancel on a new push: only checks run there, so an abort is free and
+# saves a CI slot. `main` runs serialize instead (cancel-in-progress: false) —
+# every main push deploys, and cancelling an in-flight run could abort a Zerops
+# deploy mid-push. Queuing lets the newest run land last, on the complete tree,
+# with no overtaking between back-to-back merges.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   lint:
     name: Lint
