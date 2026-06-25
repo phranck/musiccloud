@@ -135,7 +135,8 @@ export async function loadAlbumByShortId(
     artist: data.artistDisplay,
     totalTracks: data.album.totalTracks ?? undefined,
     releaseDate: data.album.releaseDate ?? undefined,
-    albumArtUrl: data.album.artworkUrl ?? "/og/default.jpg",
+    // Empty string lets generateAlbumOGMeta apply its absolute default-image fallback.
+    albumArtUrl: data.album.artworkUrl ?? "",
     shortId,
     availablePlatforms,
     origin,
@@ -181,7 +182,8 @@ export async function loadArtistByShortId(
     pageTitle: `${data.artist.name} - musiccloud`,
     ogTitle: `${data.artist.name} - musiccloud`,
     ogDescription: `Listen to ${data.artist.name} on ${availablePlatforms.length} platforms`,
-    ogImageUrl: data.artist.imageUrl ?? "/og/default.jpg",
+    // Absolute URL: og:image must be absolute (crawler previews + `format: uri`).
+    ogImageUrl: data.artist.imageUrl ?? `${baseUrl}/og/default.jpg`,
     ogUrl: `${baseUrl}/${shortId}`,
     twitterCard: "summary_large_image",
   };
@@ -223,7 +225,8 @@ function enrichWithOGMeta(
     title: data.track.title,
     artist: data.artistDisplay,
     album: data.track.albumName ?? undefined,
-    albumArtUrl: data.track.artworkUrl ?? "/og/default.jpg",
+    // Empty string lets generateOGMeta apply its absolute default-image fallback.
+    albumArtUrl: data.track.artworkUrl ?? "",
     shortId,
     availablePlatforms,
     origin,

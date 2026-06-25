@@ -78,12 +78,12 @@ describe("generateOGMeta", () => {
     expect(og.ogImageUrl).toBe("https://img.example.com/art.jpg");
   });
 
-  it("should use default image when no album art", () => {
+  it("should use the absolute default image when no album art", () => {
     const og = generateOGMeta({
       ...baseInput,
       albumArtUrl: "",
     });
-    expect(og.ogImageUrl).toBe("/og/default.jpg");
+    expect(og.ogImageUrl).toBe("https://musiccloud.io/og/default.jpg");
   });
 
   it("should set og:url with shortId", () => {
