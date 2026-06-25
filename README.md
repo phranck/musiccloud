@@ -12,7 +12,7 @@
 
 # musiccloud.io
 
-Paste a music link from one streaming service, get a universal share URL that opens the same track or album on every other service the listener has.
+Paste a music link from one streaming service, get a universal share URL that opens the same track or album on every other service the listener has — or paste a Creative Commons link from Jamendo and get a free-music page to preview and download instead.
 
 Live at [musiccloud.io](https://musiccloud.io).
 
@@ -25,6 +25,7 @@ This repository is published for **transparency**. It is not intended as a self-
 - **Universal share links.** Paste a link from any supported service and get one short URL that opens the same track or album on every other service your listeners use.
 - **Cross-service search.** Search by song title or artist and see matching results across services side by side.
 - **Genre discovery.** Browse music by genre tags and discover tracks across services.
+- **Creative Commons music.** Paste a Jamendo link and musiccloud opens a free-music page instead: preview the track, download it in your preferred format (MP3, MP3-HD, OGG or FLAC), open it on Jamendo, buy it on Bandcamp where the artist offers it, and explore its genres, mood, instruments and listener stats.
 - **Rich link previews.** Every share link renders with proper OpenGraph previews on social media and messengers.
 - **Native Apple app.** macOS, iOS and iPadOS app with a share extension, so you can create share links right from your streaming app of choice.
 - **Public API.** Third parties can integrate musiccloud through a [documented API](https://api.musiccloud.io/docs).
