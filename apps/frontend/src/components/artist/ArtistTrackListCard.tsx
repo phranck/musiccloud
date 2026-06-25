@@ -56,7 +56,7 @@ export function ArtistTrackListCard({
   onResolveStart,
 }: ArtistTrackListCardProps) {
   const skeletonAllowed = useSkeletonAllowed();
-  const { view, outgoingView, setView, containerRef } = useTrackViewMorph(viewStorageKey);
+  const { view, setView, containerRef } = useTrackViewMorph(viewStorageKey);
   // Only offer the list/grid switch once there are rows to switch between (the
   // skeleton phase has none). Memoized so the element identity is stable across
   // renders and not flagged as inline JSX-as-prop (jsx-no-jsx-as-prop).
@@ -87,7 +87,6 @@ export function ArtistTrackListCard({
           <div ref={containerRef}>
             <ArtistTrackContent
               view={view}
-              outgoingView={outgoingView}
               items={items}
               cardSignal={cardSignal}
               onTrackResolve={onTrackResolve}

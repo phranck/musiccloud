@@ -162,7 +162,6 @@ export function ArtistInfoCard({
               <div ref={popular.containerRef}>
                 <ArtistTrackContent
                   view={popular.view}
-                  outgoingView={popular.outgoingView}
                   items={popularItems}
                   onTrackResolve={onTrackResolve}
                   onResolveStart={onResolveStart}
@@ -200,7 +199,6 @@ export function ArtistInfoCard({
               <div ref={similar.containerRef}>
                 <ArtistTrackContent
                   view={similar.view}
-                  outgoingView={similar.outgoingView}
                   items={similarItems}
                   cardSignal={CardSignal.SimilarArtist}
                   onTrackResolve={onTrackResolve}

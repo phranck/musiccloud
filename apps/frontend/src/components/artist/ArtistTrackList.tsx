@@ -14,12 +14,6 @@ interface ArtistTrackListProps {
   onTrackResolve?: ArtistPanelTrackResolveHandler;
   /** Optional callback fired right before a row begins resolving. */
   onResolveStart?: () => void;
-  /**
-   * Whether each row's cover carries its `data-flip-id`. The live view sets it
-   * (default `true`); the cross-fade ghost passes `false` so exactly one element
-   * per id exists for the GSAP Flip to match.
-   */
-  withFlipIds?: boolean;
 }
 
 /**
@@ -41,7 +35,6 @@ export function ArtistTrackList({
   cardSignal = CardSignal.PopularTrack,
   onTrackResolve,
   onResolveStart,
-  withFlipIds = true,
 }: ArtistTrackListProps) {
   return (
     // Scrolls within a capped height instead of paging, like the grid view. The
@@ -55,7 +48,7 @@ export function ArtistTrackList({
           return (
             <PopularTrack
               key={key}
-              flipId={withFlipIds ? key : undefined}
+              flipId={key}
               cardSignal={cardSignal}
               track={item.track}
               artistLabel={item.artistLabel}
