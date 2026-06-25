@@ -59,21 +59,53 @@ const MOCK_OG_ONLY_HTML = `
 const MOCK_EMPTY_HTML = `<html><head></head><body></body></html>`;
 
 // =============================================================================
-// Helper: mock fetch to handle client_id + API calls
+// Helper: URL-routed fetch mock
 // =============================================================================
 
+const SC_HOMEPAGE_URL = "https://soundcloud.com";
+const SC_API_HOST = "https://api-v2.soundcloud.com";
+
+/** A routed response: body text plus an optional HTTP status (default 200). */
+interface ScRoute {
+  body: string;
+  status?: number;
+}
+
 /**
- * Sets up fetch mocks for API-based tests.
- * First call: SoundCloud homepage (client_id extraction)
- * Second call: the actual API call
+ * Installs a URL-routed `fetch` mock for the SoundCloud adapter.
+ *
+ * The adapter issues up to three distinct requests per call — the homepage
+ * (client_id extraction), the `api-v2` endpoint, and the track page (the HTML
+ * scrape fallback) — and whether the homepage request fires depends on the
+ * module-global client_id cache being warm. An order-based
+ * `mockResolvedValueOnce` chain therefore desyncs whenever the cache state
+ * shifts between tests: a drifting sequence eventually reads an exhausted mock
+ * as `undefined`, which the adapter dereferences (`response.ok`) and throws —
+ * the flaky CI failure this replaces. Routing by URL makes each response depend
+ * only on which target is hit, never on call order or cache state. An unrouted
+ * URL rejects so a genuinely drifting test fails loudly instead of silently.
+ *
+ * @param routes - Per-target responses. `homepage` defaults to the hydration
+ *   HTML carrying a valid client_id; pass it explicitly to simulate a missing
+ *   one. `api`/`page` are only needed for the requests a given test exercises.
  */
-function mockApiCall(apiResponse: Response) {
-  const fetchSpy = vi.spyOn(globalThis, "fetch");
-  // First call: homepage for client_id
-  fetchSpy.mockResolvedValueOnce(new Response(MOCK_SC_HOMEPAGE, { status: 200 }));
-  // Second call: actual API endpoint
-  fetchSpy.mockResolvedValueOnce(apiResponse);
-  return fetchSpy;
+function mockScFetch(routes: { homepage?: ScRoute; api?: ScRoute; page?: ScRoute }): void {
+  const homepage = routes.homepage ?? { body: MOCK_SC_HOMEPAGE };
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const url = input instanceof URL ? input.href : String(input);
+    if (url === SC_HOMEPAGE_URL) {
+      return new Response(homepage.body, { status: homepage.status ?? 200 });
+    }
+    if (url.startsWith(SC_API_HOST)) {
+      if (!routes.api) throw new Error(`Unexpected SoundCloud API call: ${url}`);
+      return new Response(routes.api.body, { status: routes.api.status ?? 200 });
+    }
+    if (url.startsWith(`${SC_HOMEPAGE_URL}/`)) {
+      if (!routes.page) throw new Error(`Unexpected SoundCloud page call: ${url}`);
+      return new Response(routes.page.body, { status: routes.page.status ?? 200 });
+    }
+    throw new Error(`Unmocked SoundCloud fetch: ${url}`);
+  });
 }
 
 // =============================================================================
@@ -167,7 +199,7 @@ describe("SoundCloud: getTrack (API)", () => {
   });
 
   it("should resolve track via internal API", async () => {
-    mockApiCall(new Response(JSON.stringify(MOCK_SC_TRACK), { status: 200 }));
+    mockScFetch({ api: { body: JSON.stringify(MOCK_SC_TRACK) } });
 
     const track = await soundcloudAdapter.getTrack("taylorswift/shake-it-off");
 
@@ -183,14 +215,14 @@ describe("SoundCloud: getTrack (API)", () => {
   });
 
   it("should use full_duration over duration", async () => {
-    mockApiCall(new Response(JSON.stringify(MOCK_SC_TRACK), { status: 200 }));
+    mockScFetch({ api: { body: JSON.stringify(MOCK_SC_TRACK) } });
 
     const track = await soundcloudAdapter.getTrack("taylorswift/shake-it-off");
     expect(track.durationMs).toBe(231863);
   });
 
   it("should replace -large with -t500x500 in artwork", async () => {
-    mockApiCall(new Response(JSON.stringify(MOCK_SC_TRACK), { status: 200 }));
+    mockScFetch({ api: { body: JSON.stringify(MOCK_SC_TRACK) } });
 
     const track = await soundcloudAdapter.getTrack("taylorswift/shake-it-off");
     expect(track.artworkUrl).toContain("t500x500");
@@ -209,13 +241,10 @@ describe("SoundCloud: getTrack (HTML fallback)", () => {
   });
 
   it("should fall back to HTML scraping when API fails", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
-    // client_id fetch
-    fetchSpy.mockResolvedValueOnce(new Response(MOCK_SC_HOMEPAGE, { status: 200 }));
-    // API resolve fails
-    fetchSpy.mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
-    // HTML scrape
-    fetchSpy.mockResolvedValueOnce(new Response(MOCK_HYDRATION_HTML, { status: 200 }));
+    mockScFetch({
+      api: { body: "Not Found", status: 404 },
+      page: { body: MOCK_HYDRATION_HTML },
+    });
 
     const track = await soundcloudAdapter.getTrack("taylorswift/shake-it-off");
     expect(track.title).toBe("Shake It Off");
@@ -223,13 +252,10 @@ describe("SoundCloud: getTrack (HTML fallback)", () => {
   });
 
   it("should fall back to OG tags when no JSON is found", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
-    // client_id fetch
-    fetchSpy.mockResolvedValueOnce(new Response(MOCK_SC_HOMEPAGE, { status: 200 }));
-    // API resolve fails
-    fetchSpy.mockResolvedValueOnce(new Response("Error", { status: 500 }));
-    // HTML scrape (OG only)
-    fetchSpy.mockResolvedValueOnce(new Response(MOCK_OG_ONLY_HTML, { status: 200 }));
+    mockScFetch({
+      api: { body: "Error", status: 500 },
+      page: { body: MOCK_OG_ONLY_HTML },
+    });
 
     const track = await soundcloudAdapter.getTrack("taylorswift/shake-it-off");
     expect(track.title).toBe("Shake It Off");
@@ -238,19 +264,19 @@ describe("SoundCloud: getTrack (HTML fallback)", () => {
   });
 
   it("should throw when page returns no usable data", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
-    fetchSpy.mockResolvedValueOnce(new Response(MOCK_SC_HOMEPAGE, { status: 200 }));
-    fetchSpy.mockResolvedValueOnce(new Response("Error", { status: 500 }));
-    fetchSpy.mockResolvedValueOnce(new Response(MOCK_EMPTY_HTML, { status: 200 }));
+    mockScFetch({
+      api: { body: "Error", status: 500 },
+      page: { body: MOCK_EMPTY_HTML },
+    });
 
     await expect(soundcloudAdapter.getTrack("broken/page")).rejects.toThrow("Could not extract track title");
   });
 
   it("should throw when page fetch fails", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
-    fetchSpy.mockResolvedValueOnce(new Response(MOCK_SC_HOMEPAGE, { status: 200 }));
-    fetchSpy.mockResolvedValueOnce(new Response("Error", { status: 500 }));
-    fetchSpy.mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
+    mockScFetch({
+      api: { body: "Error", status: 500 },
+      page: { body: "Not Found", status: 404 },
+    });
 
     await expect(soundcloudAdapter.getTrack("nonexistent/track")).rejects.toThrow("page fetch failed: 404");
   });
@@ -267,7 +293,7 @@ describe("SoundCloud: searchTrack", () => {
   });
 
   it("should find track with structured query", async () => {
-    mockApiCall(new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }));
+    mockScFetch({ api: { body: JSON.stringify(MOCK_SEARCH_RESPONSE) } });
 
     const result = await soundcloudAdapter.searchTrack({
       title: "Shake It Off",
@@ -282,7 +308,7 @@ describe("SoundCloud: searchTrack", () => {
   });
 
   it("should return not found for empty results", async () => {
-    mockApiCall(new Response(JSON.stringify({ collection: [] }), { status: 200 }));
+    mockScFetch({ api: { body: JSON.stringify({ collection: [] }) } });
 
     const result = await soundcloudAdapter.searchTrack({
       title: "Nonexistent Song",
@@ -294,7 +320,7 @@ describe("SoundCloud: searchTrack", () => {
   });
 
   it("should return not found on API error", async () => {
-    mockApiCall(new Response("Error", { status: 500 }));
+    mockScFetch({ api: { body: "Error", status: 500 } });
 
     const result = await soundcloudAdapter.searchTrack({
       title: "Test",
@@ -316,7 +342,7 @@ describe("SoundCloud: searchTrack", () => {
         },
       ],
     };
-    mockApiCall(new Response(JSON.stringify(multiResults), { status: 200 }));
+    mockScFetch({ api: { body: JSON.stringify(multiResults) } });
 
     const result = await soundcloudAdapter.searchTrack({
       title: "Shake It Off",
@@ -328,7 +354,7 @@ describe("SoundCloud: searchTrack", () => {
   });
 
   it("should use free-text scoring when title equals artist", async () => {
-    mockApiCall(new Response(JSON.stringify(MOCK_SEARCH_RESPONSE), { status: 200 }));
+    mockScFetch({ api: { body: JSON.stringify(MOCK_SEARCH_RESPONSE) } });
 
     const result = await soundcloudAdapter.searchTrack({
       title: "Taylor Swift Shake It Off",
@@ -340,7 +366,8 @@ describe("SoundCloud: searchTrack", () => {
   });
 
   it("should gracefully handle missing client_id", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 500 }));
+    // Homepage returns no usable hydration, so the adapter never obtains a client_id.
+    mockScFetch({ homepage: { body: "Error", status: 500 } });
 
     const result = await soundcloudAdapter.searchTrack({
       title: "Test",
