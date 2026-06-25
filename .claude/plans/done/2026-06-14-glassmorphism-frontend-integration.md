@@ -1,5 +1,7 @@
 # Glassmorphism-Material + Admin-Design-Config ins Frontend
 
+Plan-Nr.: MC-035
+
 > Status: offen · angelegt 2026-06-14
 > Quelle der Analyse: Multi-Agent-Workflow `glass-frontend-integration-analysis` (6 Subsystem-Analysten + Synthese, refs durch echtes Datei-Lesen verifiziert) plus eigene Stichproben-Greps am Plan-Schreibzeitpunkt.
 

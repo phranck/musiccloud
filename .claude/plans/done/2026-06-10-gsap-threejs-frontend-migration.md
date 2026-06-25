@@ -1,7 +1,6 @@
 # Plan: GSAP + Three.js Frontend-Migration (Native-App-Feeling)
 
-Plan-Nr.: MC-029
-
+Plan-Nr.: MC-033
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 ---

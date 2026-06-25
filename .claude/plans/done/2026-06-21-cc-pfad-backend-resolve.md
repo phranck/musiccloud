@@ -1,5 +1,7 @@
 # CC-Pfad — Backend Resolve + Endpoint — Implementation Plan
 
+Plan-Nr.: MC-046
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Einen vollständig getrennten CC-Track-Resolve bauen: eine eigene Fastify-Route `/api/v1/cc/resolve`, ein schlankes CC-Repository (Persistierung in die `cc_*`-Tabellen aus Plan 1), und ein CC-Resolve-Modul, das Freitext-/Structured-Queries über die Jamendo-Suche zu einer Trefferliste auflöst und die Auswahl persistiert.

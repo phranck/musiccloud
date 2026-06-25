@@ -1,5 +1,7 @@
 # Grouped-Corner-Radii (Disambiguation + Genre-Search)
 
+Plan-Nr.: MC-038
+
 ## Preface
 
 Regel jetzt kanonisch in `AGENTS.md`. Aktuell verletzen die Listen sie: Row-Buttons

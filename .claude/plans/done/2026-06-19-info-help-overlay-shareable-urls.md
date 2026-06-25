@@ -1,5 +1,7 @@
 # Info/Help-Overlays: teilbare URLs — Implementierungsplan
 
+Plan-Nr.: MC-043
+
 > **Für agentische Worker:** Umsetzung task-by-task via `superpowers:executing-plans` oder `superpowers:subagent-driven-development`. Schritte sind als Checkboxen (`- [ ]`) geführt. TDD: Test zuerst, dann minimal implementieren, verifizieren, committen.
 
 **Ziel:** Overlay-mode Content-Pages (Info/Help) bekommen teilbare URLs; der Direktaufruf zeigt stets die Landingpage mit geöffnetem Overlay und der korrekten Sektion.

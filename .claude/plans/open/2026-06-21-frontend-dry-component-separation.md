@@ -1,5 +1,7 @@
 # Frontend: striktes DRY, Component-Separation, Logik-Trennung + Artist-Profile + Pagination
 
+Plan-Nr.: MC-050
+
 > **Grundprinzip (User, non-negotiable):**
 > 1. **Striktes DRY** — kein Layout-/Card-/List-Pattern zweimal. Gleiche Struktur = EINE Quelle.
 > 2. **Eine Komponente pro File** — jede Komponente in ihrem eigenen File. Ausnahme: echtes Compound-Component-Pattern (Sub-Teile als Namespace an EIN Primitive, z.B. `RecessedCard.Header`).

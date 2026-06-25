@@ -1,5 +1,7 @@
 # CC-Share-Page-Auflösung (Plan 2b) — Implementation Plan
 
+Plan-Nr.: MC-053
+
 ## Preface / Problem (Code-verifiziert)
 
 Geteilte CC-Share-Links (z.B. `http://localhost:3001/V0onz`) liefern **404**. Ursache ist NICHT fehlende Persistierung — `V0onz` liegt korrekt in `cc_short_urls` (cc_track_id, 65 CC-Track-Shares lokal). Der **Auflöse-Pfad** ist komplett kommerziell:

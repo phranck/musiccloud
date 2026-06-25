@@ -1,5 +1,7 @@
 # MC-031 — Statische Himmels-Ausdehnung (Fenster zeigt Ausschnitt)
 
+Plan-Nr.: MC-031
+
 **Status:** abgeschlossen (2026-06-13)
 **Branch:** `gsap` (HEAD `acd68e2`, origin/gsap getrackt)
 **Vorgänger:** MC-029 Phase 4 (Nachthimmel-Stack), MC-030 (Day-Night-Switcher, UI derzeit ausgeblendet — von diesem Plan unberührt).

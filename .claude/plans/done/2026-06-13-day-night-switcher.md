@@ -1,4 +1,6 @@
-# MC-030 — Tag/Nacht-Umschalter im Page-Header
+# MC-034 — Tag/Nacht-Umschalter im Page-Header
+
+Plan-Nr.: MC-034
 
 **Status:** abgeschlossen (2026-06-13)
 **Branch:** `gsap` (Fortsetzung der MC-029-Arbeit, HEAD `90740e6`)

@@ -1,5 +1,7 @@
 # CC-Views durch den kommerziellen ShareLayout — Implementation Plan
 
+Plan-Nr.: MC-049
+
 > **Grundprinzip (User, non-negotiable):** UI ist strikt von Logik/Daten getrennt. UI = nur Presentation. CC und kommerziell nutzen EXAKT dieselben Presentation-Komponenten (`ShareLayout`, `MediaSummaryCard`, `AnimatedArtistColumn` mit Popular Tracks / Events / Similar). Nur die Datenabfrage (Jamendo vs. kommerzielle APIs) unterscheidet sich. Einzige CC-spezifische UI: `CcInfoCard` (Lizenz/Attribution, ersetzt `ServicesCard`).
 
 ## Problem (gemeldete Symptome)

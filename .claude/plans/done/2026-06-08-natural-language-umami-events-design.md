@@ -1,7 +1,6 @@
 # Design: Natural-Language Umami Events
 
-Plan-Nr.: MC-028
-
+Plan-Nr.: MC-032
 Status: Draft
 Created: 2026-06-08
 Owner: Claude
