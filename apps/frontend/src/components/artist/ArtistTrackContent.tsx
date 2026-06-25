@@ -3,6 +3,7 @@ import gsap from "gsap";
 import { useLayoutEffect, useRef, useState } from "react";
 import { ArtistTrackView } from "@/components/artist/ArtistTrackView";
 import type { ArtistPanelTrackResolveHandler, ArtistTrackItem } from "@/components/artist/artistPanelTypes";
+import { raisedControlRadius } from "@/components/cards/cardGeometry";
 import { TrackListView } from "@/hooks/useTrackListView";
 import { prefersReducedMotion } from "@/lib/motion/setup";
 
@@ -115,7 +116,12 @@ export function ArtistTrackContent({
   );
 
   return (
-    <div className="relative overflow-hidden">
+    // Round-clip the slide viewport itself, on its own compositing layer
+    // (transform-gpu). The well's border-radius alone fails to clip the slide:
+    // the layers run on GPU layers (force3D + will-change) that escape an
+    // ancestor's border-radius unless the clipping box is itself a GPU layer.
+    // The radius matches the rows'/tiles' promoted outer corner (raisedControlRadius).
+    <div className="relative overflow-hidden transform-gpu" style={{ borderRadius: raisedControlRadius }}>
       {/* Height anchor: an invisible grid view in normal flow gives the card the
           grid layout's height, so toggling never changes the height — only a
           horizontal slide. The visible views layer absolutely on top and fill it.
