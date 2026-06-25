@@ -186,7 +186,7 @@ export interface PersistArtistData {
 
 // ─── Artist Cache Types ───────────────────────────────────────────────────────
 
-import type { ArtistEvent, ArtistProfile, ArtistTopTrack } from "@musiccloud/shared";
+import type { ArtistEvent, ArtistProfile, ArtistTopTrack, CcMusicInfo, CcTrackStats } from "@musiccloud/shared";
 
 /** Artist cache row shape returned or accepted by the database repository layer. */
 export interface ArtistCacheRow {
@@ -862,12 +862,28 @@ export interface PersistCcTrackData {
   downloadAllowed: boolean;
   waveform?: string;
   shareUrl?: string;
+  /** 1-based position within an album tracklist (set when persisted via an album resolve). */
+  albumPosition?: number;
+  /** 0-based rank within the artist's popularity-ordered top tracks (set via an artist resolve). */
+  artistTopPosition?: number;
+  /** `include=musicinfo` classification (single-track resolve only). */
+  musicInfo?: CcMusicInfo;
+  /** `include=stats` engagement counters (single-track resolve only). */
+  stats?: CcTrackStats;
+  /** Jamendo Pro licensing flag (single-track resolve only). */
+  proLicensing?: boolean;
+  /** Jamendo Pro licensing page URL (single-track resolve only). */
+  proUrl?: string;
 }
 
 /**
  * Data needed to persist a resolved CC album. The artist is upserted minimally
  * (id + name) to satisfy the `cc_albums.cc_artist_id` FK; a later artist resolve
  * enriches it (image/website/share) via the same `jamendo_id` upsert key.
+ *
+ * `tracks` is the album's tracklist in release order — persisted alongside the
+ * album so the share page renders the tracklist from the DB without a live
+ * Jamendo call.
  */
 export interface PersistCcAlbumData {
   jamendoId: string;
@@ -878,26 +894,80 @@ export interface PersistCcAlbumData {
   releaseDate?: string;
   zipUrl?: string;
   shareUrl?: string;
+  tracks: PersistCcTrackData[];
 }
 
-/** Data needed to persist a resolved CC artist. */
+/**
+ * Data needed to persist a resolved CC artist.
+ *
+ * `topTracks` is the artist's popularity-ordered top tracks — persisted with the
+ * artist so the share page renders the column from the DB without a live call.
+ */
 export interface PersistCcArtistData {
   jamendoId: string;
   name: string;
   imageUrl?: string;
   website?: string;
   shareUrl?: string;
+  topTracks: PersistCcTrackData[];
 }
 
 /**
- * Result of resolving a public CC short id to its entity. The share-page loader
- * only needs the entity kind and its Jamendo id — it refetches the full entity
- * (and the live right-column artist info) from Jamendo, exactly like the live
- * resolve, so the share page and the live view render from identical data.
+ * Result of resolving a public CC short id to its entity kind. The share-page
+ * loader switches on `kind` to pick the matching DB read.
  */
 export interface CcShortIdLookup {
   kind: "cc-track" | "cc-album" | "cc-artist";
   jamendoId: string;
+}
+
+/**
+ * Full cc-track projection for the share page, read from the DB (no Jamendo).
+ * `jamendoArtistId` is joined in from `cc_artists` so the wire `ApiCcTrack` and
+ * the right-column artist fetch have it. `downloadAllowed`/`proLicensing` are the
+ * raw `integer` 0/1 columns; the mapper coerces them to booleans.
+ */
+export interface CcTrackShareRow {
+  jamendoId: string;
+  title: string;
+  artistName: string;
+  jamendoArtistId: string;
+  albumName: string | null;
+  albumPosition: number | null;
+  artworkUrl: string | null;
+  durationMs: number | null;
+  releaseDate: string | null;
+  licenseCcurl: string | null;
+  streamUrl: string;
+  downloadUrl: string | null;
+  downloadAllowed: number | null;
+  waveform: string | null;
+  shareUrl: string | null;
+  musicInfo: CcMusicInfo | null;
+  stats: CcTrackStats | null;
+  proLicensing: number | null;
+  proUrl: string | null;
+}
+
+/** Album entity projection for the share page (with `jamendoArtistId` joined in). */
+export interface CcAlbumShareRow {
+  jamendoId: string;
+  name: string;
+  artistName: string;
+  jamendoArtistId: string;
+  artworkUrl: string | null;
+  releaseDate: string | null;
+  zipUrl: string | null;
+  shareUrl: string | null;
+}
+
+/** Artist entity projection for the share page. */
+export interface CcArtistShareRow {
+  jamendoId: string;
+  name: string;
+  website: string | null;
+  imageUrl: string | null;
+  shareUrl: string | null;
 }
 
 /** CC persistence + lookups, kept separate from the commercial TrackRepository. */
@@ -907,6 +977,12 @@ export interface CcRepository {
   persistCcArtist(data: PersistCcArtistData): Promise<{ ccArtistId: string; shortId: string }>;
   /** Resolves a public CC short id (track, album or artist) to its kind + Jamendo id. */
   findCcShortId(shortId: string): Promise<CcShortIdLookup | null>;
+  /** Reads the full cc-track share projection from the DB (no Jamendo). */
+  loadCcTrackByShortId(shortId: string): Promise<CcTrackShareRow | null>;
+  /** Reads a cc-album entity plus its persisted tracklist (release order) from the DB. */
+  loadCcAlbumByShortId(shortId: string): Promise<{ album: CcAlbumShareRow; tracks: CcTrackShareRow[] } | null>;
+  /** Reads a cc-artist entity plus its persisted top tracks (popularity order) from the DB. */
+  loadCcArtistByShortId(shortId: string): Promise<{ artist: CcArtistShareRow; topTracks: CcTrackShareRow[] } | null>;
   /** Returns a random existing CC track short id, or `null` when none exist. */
   getRandomCcShortId(): Promise<string | null>;
 }

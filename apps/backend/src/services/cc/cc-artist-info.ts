@@ -83,13 +83,15 @@ function dedupeByArtist(tracks: CcTrack[]): CcTrack[] {
  *
  * Two throttled Jamendo calls: `getCcArtistMusicInfo` for the profile, plus
  * `getSimilarCcTracks` (skipped when there is no seed track). Both funnel
- * through `jamendoFetch`, so the shared burst throttle still holds.
+ * through `jamendoFetch`, so the shared burst throttle still holds. Both are
+ * best-effort: the column's core data is `columnTracks` (read from the DB on the
+ * share page), so a Jamendo hiccup degrades the enrichment to an empty similar
+ * list / null profile instead of throwing — the share page never 404s on it.
  *
  * @param artistName - The entity's artist name (column header context).
  * @param jamendoArtistId - The Jamendo artist id whose profile to fetch.
  * @param columnTracks - The "popular tracks" position: album tracks or top tracks.
  * @returns The artist-info payload for the shared `AnimatedArtistColumn`.
- * @throws Error on Jamendo API failure (see `jamendoFetch`).
  */
 export async function buildCcArtistInfo(
   artistName: string,
@@ -97,24 +99,36 @@ export async function buildCcArtistInfo(
   columnTracks: CcTrack[],
 ): Promise<ArtistInfoResponse> {
   const seed = columnTracks[0];
-  const similarPool = seed ? await getSimilarCcTracks(seed.jamendoId, CC_SIMILAR_POOL_SIZE) : [];
-  const candidates = dedupeByArtist(similarPool.filter((track) => track.jamendoArtistId !== seed?.jamendoArtistId));
-  const similarArtistTracks: SimilarArtistTrack[] = stratifiedSample(candidates, CC_SIMILAR_TRACKS_LIMIT).map(
-    (track) => ({ artistName: track.artistName, track: toArtistTopTrack(track) }),
-  );
 
-  const musicInfo = await getCcArtistMusicInfo(jamendoArtistId);
-  const profile: ArtistProfile | null = musicInfo
-    ? {
-        imageUrl: musicInfo.imageUrl,
-        genres: musicInfo.genres,
-        bioSummary: musicInfo.bioSummary,
-        popularity: null,
-        followers: null,
-        scrobbles: null,
-        similarArtists: [],
-      }
-    : null;
+  let similarArtistTracks: SimilarArtistTrack[] = [];
+  try {
+    const similarPool = seed ? await getSimilarCcTracks(seed.jamendoId, CC_SIMILAR_POOL_SIZE) : [];
+    const candidates = dedupeByArtist(similarPool.filter((track) => track.jamendoArtistId !== seed?.jamendoArtistId));
+    similarArtistTracks = stratifiedSample(candidates, CC_SIMILAR_TRACKS_LIMIT).map((track) => ({
+      artistName: track.artistName,
+      track: toArtistTopTrack(track),
+    }));
+  } catch {
+    similarArtistTracks = [];
+  }
+
+  let profile: ArtistProfile | null = null;
+  try {
+    const musicInfo = await getCcArtistMusicInfo(jamendoArtistId);
+    profile = musicInfo
+      ? {
+          imageUrl: musicInfo.imageUrl,
+          genres: musicInfo.genres,
+          bioSummary: musicInfo.bioSummary,
+          popularity: null,
+          followers: null,
+          scrobbles: null,
+          similarArtists: [],
+        }
+      : null;
+  } catch {
+    profile = null;
+  }
 
   return {
     artistName,

@@ -316,6 +316,13 @@
       "when": 1782066956908,
       "tag": "0044_lively_bullseye",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1782392152684,
+      "tag": "0045_bored_stingray",
+      "breakpoints": true
     }
   ]
 }

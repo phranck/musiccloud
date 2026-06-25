@@ -37,8 +37,11 @@ import type {
   CachedAlbumResult,
   CachedArtistResult,
   CachedTrackResult,
+  CcAlbumShareRow,
+  CcArtistShareRow,
   CcRepository,
   CcShortIdLookup,
+  CcTrackShareRow,
   CrawlRunFinalize,
   CrawlRunInsert,
   CrawlRunsPage,
@@ -124,6 +127,9 @@ import {
 import {
   findCcShortId as ccFindShortId,
   getRandomCcShortId as ccGetRandomShortId,
+  loadCcAlbumByShortId as ccLoadAlbumByShortId,
+  loadCcArtistByShortId as ccLoadArtistByShortId,
+  loadCcTrackByShortId as ccLoadTrackByShortId,
   persistCcAlbum as ccPersistAlbum,
   persistCcArtist as ccPersistArtist,
   persistCcTrack as ccPersistTrack,
@@ -711,6 +717,18 @@ export class PostgresAdapter implements TrackRepository, AdminRepository, CcRepo
 
   findCcShortId(shortId: string): Promise<CcShortIdLookup | null> {
     return ccFindShortId(this.pool, shortId);
+  }
+
+  loadCcTrackByShortId(shortId: string): Promise<CcTrackShareRow | null> {
+    return ccLoadTrackByShortId(this.pool, shortId);
+  }
+
+  loadCcAlbumByShortId(shortId: string): Promise<{ album: CcAlbumShareRow; tracks: CcTrackShareRow[] } | null> {
+    return ccLoadAlbumByShortId(this.pool, shortId);
+  }
+
+  loadCcArtistByShortId(shortId: string): Promise<{ artist: CcArtistShareRow; topTracks: CcTrackShareRow[] } | null> {
+    return ccLoadArtistByShortId(this.pool, shortId);
   }
 
   getRandomCcShortId(): Promise<string | null> {

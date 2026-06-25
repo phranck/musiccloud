@@ -78,7 +78,10 @@ export function generateAlbumOGMeta(input: AlbumOGMetaInput): OGMeta {
     pageTitle: `${ogTitle} | musiccloud`,
     ogTitle,
     ogDescription,
-    ogImageUrl: albumArtUrl || "/og/default.jpg",
+    // Absolute URL: og:image must be absolute for link-preview crawlers, and the
+    // share-page response schema validates it as `format: uri` (a relative path
+    // fails serialization).
+    ogImageUrl: albumArtUrl || `${origin}/og/default.jpg`,
     ogUrl: `${origin}/${shortId}`,
     twitterCard: "summary_large_image",
   };
@@ -115,8 +118,10 @@ export function generateOGMeta(input: OGMetaInput): OGMeta {
 
   ogDescription = truncate(ogDescription, MAX_DESCRIPTION_LENGTH);
 
-  // For MVP: use album art directly. Phase 2 will generate custom OG images.
-  const ogImageUrl = albumArtUrl || `/og/default.jpg`;
+  // Absolute URL: og:image must be absolute for link-preview crawlers, and the
+  // share-page response schema validates it as `format: uri` (a relative path
+  // fails serialization).
+  const ogImageUrl = albumArtUrl || `${origin}/og/default.jpg`;
 
   return {
     pageTitle: `${ogTitle} | musiccloud`,

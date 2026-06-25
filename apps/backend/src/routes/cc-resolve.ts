@@ -26,7 +26,12 @@ import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { runCcGenreBrowse, runCcGenreSearch } from "../services/cc/cc-genre.js";
 import { resolveCcCandidate, resolveCcTextSearch } from "../services/cc/cc-resolver.js";
-import { buildCcAlbumPayload, buildCcArtistPayload, toApiCcTrack } from "../services/cc/cc-share-response.js";
+import {
+  buildCcAlbumPayload,
+  buildCcArtistPayload,
+  ccTrackToPersistData,
+  toApiCcTrack,
+} from "../services/cc/cc-share-response.js";
 import type { CcAlbum, CcArtist, CcTrack } from "../services/cc/jamendo/types.js";
 import { GenreQueryParseError, isGenreBrowseQuery, isGenreSearchQuery } from "../services/genre-search/index.js";
 
@@ -171,31 +176,15 @@ function ccError(code: string, overrideMessage?: string): ResolveErrorResponse {
  */
 async function persistCcTrackAndRespond(track: CcTrack, origin: string): Promise<CcResolveSuccessResponse> {
   const repo = await getCcRepository();
-  const { ccTrackId, shortId } = await repo.persistCcTrack({
-    jamendoId: track.jamendoId,
-    title: track.title,
-    artistName: track.artistName,
-    jamendoArtistId: track.jamendoArtistId,
-    albumName: track.albumName,
-    jamendoAlbumId: track.jamendoAlbumId,
-    artworkUrl: track.artworkUrl,
-    durationMs: track.durationMs,
-    releaseDate: track.releaseDate,
-    licenseCcurl: track.licenseCcurl,
-    streamUrl: track.streamUrl,
-    downloadUrl: track.downloadUrl,
-    downloadAllowed: track.downloadAllowed,
-    waveform: track.waveform,
-    shareUrl: track.shareUrl,
-  });
+  const { ccTrackId, shortId } = await repo.persistCcTrack(ccTrackToPersistData(track));
 
   // Core card only — the artist column loads client-side via /api/cc/artist-info.
   return { type: "cc-track", id: ccTrackId, shortUrl: `${origin}/${shortId}`, track: toApiCcTrack(track) };
 }
 
 /**
- * Persists a resolved CC album (entity only — its tracks travel live and resolve
- * lazily on click) and shapes the `cc-album` success response.
+ * Persists a resolved CC album together with its tracklist (so the share page
+ * reads it from the DB) and shapes the `cc-album` success response.
  *
  * @param album - the resolved CC album.
  * @param tracks - the album's tracks in release order.
@@ -217,6 +206,9 @@ async function persistCcAlbumAndRespond(
     releaseDate: album.releaseDate,
     zipUrl: album.zipUrl,
     shareUrl: album.shareUrl,
+    // 1-based release-order position from the array index (Jamendo returns the
+    // tracklist in release order) so the share page reads it back in order.
+    tracks: tracks.map((track, i) => ({ ...ccTrackToPersistData(track), albumPosition: i + 1 })),
   });
 
   const { album: apiAlbum, artistInfo } = await buildCcAlbumPayload(album, tracks);
@@ -224,8 +216,8 @@ async function persistCcAlbumAndRespond(
 }
 
 /**
- * Persists a resolved CC artist (entity only — its top tracks travel live and
- * resolve lazily on click) and shapes the `cc-artist` success response.
+ * Persists a resolved CC artist together with its top tracks (so the share page
+ * reads the column from the DB) and shapes the `cc-artist` success response.
  *
  * @param artist - the resolved CC artist.
  * @param topTracks - the artist's most-popular tracks, descending.
@@ -244,6 +236,9 @@ async function persistCcArtistAndRespond(
     imageUrl: artist.imageUrl,
     website: artist.website,
     shareUrl: artist.shareUrl,
+    // 0-based popularity rank from the array index (Jamendo returns the tracks in
+    // popularity order) so the share page reads the column back in rank order.
+    topTracks: topTracks.map((track, i) => ({ ...ccTrackToPersistData(track), artistTopPosition: i })),
   });
 
   const { artist: apiArtist, artistInfo } = await buildCcArtistPayload(artist, topTracks);

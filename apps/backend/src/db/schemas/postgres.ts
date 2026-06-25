@@ -1322,6 +1322,19 @@ export const ccTracks = pgTable(
     downloadAllowed: integer("download_allowed"),
     waveform: text("waveform"),
     shareUrl: text("share_url"),
+    // 1-based position within an album's tracklist; set when this track is
+    // persisted as part of an album resolve, NULL for standalone single resolves.
+    albumPosition: integer("album_position"),
+    // 0-based rank within its artist's popularity-ordered top-tracks; set when
+    // persisted as part of an artist resolve, NULL otherwise.
+    artistTopPosition: integer("artist_top_position"),
+    // `include=musicinfo` classification + `include=stats` counters, captured at
+    // single-track resolve so the share page renders the details card from the DB.
+    musicInfo: jsonb("music_info"),
+    stats: jsonb("stats"),
+    // Jamendo Pro licensing flag (0/1) + page URL (`include=licenses`).
+    proLicensing: integer("pro_licensing"),
+    proUrl: text("pro_url"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
   },

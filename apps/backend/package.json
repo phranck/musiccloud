@@ -10,7 +10,8 @@
     "test": "VITE_CJS_IGNORE_WARNING=true vitest",
     "test:run": "VITE_CJS_IGNORE_WARNING=true vitest run",
     "docs:adapter-runbooks": "node scripts/check-adapter-runbooks.mjs",
-    "crawler:tick": "node dist/scripts/crawler-heartbeat.js"
+    "crawler:tick": "node dist/scripts/crawler-heartbeat.js",
+    "backfill:cc": "tsx src/scripts/backfill-cc-cache.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.2.0",
