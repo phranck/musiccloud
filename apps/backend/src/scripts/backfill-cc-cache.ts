@@ -103,14 +103,20 @@ async function backfill(): Promise<void> {
       }
     }
 
-    // 2. Album shares with no persisted tracklist.
+    // 2. Re-fetch every album share's full tracklist. Unlike `artist_top_position`
+    //    (synthetic — only the artist-resolve path sets it), `album_position` is
+    //    Jamendo's per-track field, so a single-track backfill sets it on a
+    //    shared album track too. It therefore can't distinguish a complete,
+    //    album-resolved tracklist from a couple of incidental track rows, so
+    //    there is no cheap "already complete" predicate. Album shares are few, so
+    //    re-fetch them all (idempotent: dedup by jamendo_id, COALESCE preserves
+    //    existing data, position is rewritten from the full release order).
     const albumRows = await pool.query<{ jamendo_id: string }>(
       `SELECT a.jamendo_id
          FROM cc_albums a
-         JOIN cc_album_short_urls su ON su.cc_album_id = a.id
-        WHERE NOT EXISTS (SELECT 1 FROM cc_tracks t WHERE t.cc_album_id = a.id)`,
+         JOIN cc_album_short_urls su ON su.cc_album_id = a.id`,
     );
-    console.log(`[backfill] album shares missing tracklist: ${albumRows.rows.length}`);
+    console.log(`[backfill] album shares to refresh: ${albumRows.rows.length}`);
     for (const { jamendo_id } of albumRows.rows) {
       try {
         const album = await withRateLimitRetry(() => getCcAlbum(jamendo_id), `album ${jamendo_id}`);
