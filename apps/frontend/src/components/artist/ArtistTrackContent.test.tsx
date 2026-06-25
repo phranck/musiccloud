@@ -1,32 +1,39 @@
-import { render } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ArtistTrackContent } from "@/components/artist/ArtistTrackContent";
 import { TrackListView } from "@/hooks/useTrackListView";
 
 /**
- * ArtistTrackContent is a thin list/grid switch. The presentations are mocked so
- * these tests pin which one renders per view; the cover morph itself lives in
- * useTrackViewMorph and is browser-verified (jsdom has no layout engine).
+ * ArtistTrackContent slides between the list and grid views. The single-view
+ * renderer is mocked so these tests pin the wiring: the current view is rendered,
+ * and under reduced motion a switch is instant (no outgoing overlay). The slide
+ * animation itself is browser-verified (jsdom has no layout engine).
  */
 
-vi.mock("@/components/artist/ArtistTrackList", () => ({
-  ArtistTrackList: () => <div data-testid="list" />,
+vi.mock("@/components/artist/ArtistTrackView", () => ({
+  ArtistTrackView: ({ view }: { view: string }) => <div data-testid="view" data-view={view} />,
 }));
 
-vi.mock("@/components/artist/ArtistTrackGrid", () => ({
-  ArtistTrackGrid: () => <div data-testid="grid" />,
-}));
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("ArtistTrackContent", () => {
-  it("renders the list presentation for the list view", () => {
-    const { queryByTestId } = render(<ArtistTrackContent view={TrackListView.List} items={[]} />);
-    expect(queryByTestId("list")).not.toBeNull();
-    expect(queryByTestId("grid")).toBeNull();
+  it("renders the list view", () => {
+    render(<ArtistTrackContent view={TrackListView.List} items={[]} />);
+    expect(screen.getByTestId("view").getAttribute("data-view")).toBe("list");
   });
 
-  it("renders the grid presentation for the grid view", () => {
-    const { queryByTestId } = render(<ArtistTrackContent view={TrackListView.Grid} items={[]} />);
-    expect(queryByTestId("grid")).not.toBeNull();
-    expect(queryByTestId("list")).toBeNull();
+  it("renders the grid view", () => {
+    render(<ArtistTrackContent view={TrackListView.Grid} items={[]} />);
+    expect(screen.getByTestId("view").getAttribute("data-view")).toBe("grid");
+  });
+
+  it("switches instantly under reduced motion, with no outgoing overlay", () => {
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true } as MediaQueryList));
+    const { rerender } = render(<ArtistTrackContent view={TrackListView.List} items={[]} />);
+    rerender(<ArtistTrackContent view={TrackListView.Grid} items={[]} />);
+    expect(screen.getAllByTestId("view")).toHaveLength(1);
+    expect(screen.getByTestId("view").getAttribute("data-view")).toBe("grid");
   });
 });

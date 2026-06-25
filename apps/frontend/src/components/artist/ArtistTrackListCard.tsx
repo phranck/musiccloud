@@ -5,7 +5,7 @@ import { ArtistTrackContent } from "@/components/artist/ArtistTrackContent";
 import type { ArtistPanelTrackResolveHandler, ArtistTrackItem } from "@/components/artist/artistPanelTypes";
 import { TrackViewToggle } from "@/components/artist/TrackViewToggle";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
-import { useTrackViewMorph } from "@/hooks/useTrackViewMorph";
+import { useTrackListView } from "@/hooks/useTrackListView";
 
 interface ArtistTrackListCardProps {
   /** Card title, supplied by the presentation owner (never hardcoded here). */
@@ -56,7 +56,7 @@ export function ArtistTrackListCard({
   onResolveStart,
 }: ArtistTrackListCardProps) {
   const skeletonAllowed = useSkeletonAllowed();
-  const { view, setView, containerRef } = useTrackViewMorph(viewStorageKey);
+  const [view, setView] = useTrackListView(viewStorageKey);
   // Only offer the list/grid switch once there are rows to switch between (the
   // skeleton phase has none). Memoized so the element identity is stable across
   // renders and not flagged as inline JSX-as-prop (jsx-no-jsx-as-prop).
@@ -84,15 +84,13 @@ export function ArtistTrackListCard({
           hasContent={items.length > 0}
           swapKey={swapKey}
         >
-          <div ref={containerRef}>
-            <ArtistTrackContent
-              view={view}
-              items={items}
-              cardSignal={cardSignal}
-              onTrackResolve={onTrackResolve}
-              onResolveStart={onResolveStart}
-            />
-          </div>
+          <ArtistTrackContent
+            view={view}
+            items={items}
+            cardSignal={cardSignal}
+            onTrackResolve={onTrackResolve}
+            onResolveStart={onResolveStart}
+          />
         </ArtistSectionWell>
       </div>
     </ArtistCardShell>
