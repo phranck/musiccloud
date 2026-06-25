@@ -26,6 +26,18 @@ const SLIDE_EASE = "power2.inOut";
  */
 const SCROLL_PEEK_PX = 30;
 
+/**
+ * Minimum card height: 4.5 list rows plus 3 inter-row gaps. A short artist (few
+ * popular/similar tracks) would otherwise collapse the card to one grid row; pin
+ * it to this floor so the toggleable track cards keep a consistent,
+ * scroll-affording size.
+ *
+ * Derived from the row geometry (not a magic height): one row is the 48px (`3rem`)
+ * cover plus its top/bottom `--mc-pad-track`; the gap is `--mc-gap-list`. So a
+ * spacing-token change re-sizes the floor concentrically.
+ */
+const MIN_CARD_HEIGHT = "calc(4.5 * (3rem + 2 * var(--mc-pad-track, 0.25rem)) + 3 * var(--mc-gap-list, 0.125rem))";
+
 /** The two presentations, in toggle order (list left, grid right). */
 const LAYER_VIEWS = [TrackListView.List, TrackListView.Grid] as const;
 
@@ -102,7 +114,10 @@ export function ArtistTrackContent({
     // the layers run on GPU layers (force3D) that escape an ancestor's
     // border-radius unless the clipping box is itself a GPU layer. The radius
     // matches the rows'/tiles' promoted outer corner (raisedControlRadius).
-    <div className="relative overflow-hidden transform-gpu" style={{ borderRadius: raisedControlRadius }}>
+    <div
+      className="relative overflow-hidden transform-gpu"
+      style={{ borderRadius: raisedControlRadius, minHeight: MIN_CARD_HEIGHT }}
+    >
       {/* Height anchor: an invisible grid view in normal flow gives the card the
           grid layout's height, so toggling never changes the height — only a
           horizontal slide. The visible views layer absolutely on top and fill it.
