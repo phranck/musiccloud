@@ -4,19 +4,25 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { ArtistTrackView } from "@/components/artist/ArtistTrackView";
 import type { ArtistPanelTrackResolveHandler, ArtistTrackItem } from "@/components/artist/artistPanelTypes";
 import { TrackListView } from "@/hooks/useTrackListView";
-import { MotionDuration, MotionEase } from "@/lib/motion/constants";
-import { prefersReducedMotion, setupMotion } from "@/lib/motion/setup";
+import { prefersReducedMotion } from "@/lib/motion/setup";
 
-/** Duration of the list↔grid slide. */
-const SLIDE_DURATION = MotionDuration.Grid;
+/**
+ * Duration (seconds) of the list↔grid slide. A whole-view move needs more room
+ * to read than a control reflow, but stays brisk enough not to feel sluggish.
+ */
+const SLIDE_DURATION = 0.85;
+/**
+ * Symmetric acceleration curve (ramp up, ramp down) so the view reads as one
+ * object gliding across. The front-loaded control ease makes a large translate
+ * look like it snaps then drifts, which reads as "too fast".
+ */
+const SLIDE_EASE = "power2.inOut";
 
-/** The view sliding OUT during a switch, plus the direction and the height to glide from. */
+/** The view sliding OUT during a switch, plus its direction. */
 interface OutgoingSlide {
   view: TrackListView;
   /** Switching to grid moves content left; to list, right. */
   toGrid: boolean;
-  /** The viewport height before the switch, glided to the new view's height. */
-  height: number;
 }
 
 interface ArtistTrackContentProps {
@@ -37,11 +43,16 @@ interface ArtistTrackContentProps {
  * section. Treats the list and the grid as two whole objects and slides between
  * them horizontally on a view switch: the list sits left and the grid right (as
  * in the toggle), so switching to the grid pushes the list out to the left while
- * the grid enters from the right, and switching back reverses it. The viewport
- * height glides between the two layouts so the sections below never jump.
+ * the grid enters from the right, and switching back reverses it.
  *
- * Only the live {@link ArtistTrackView} is mounted at rest; during a switch the
- * outgoing view is briefly mounted as an absolute overlay and both are tweened.
+ * The card height is fixed to the grid layout's height and never changes on a
+ * toggle: an invisible grid view in normal flow sets the height, and the visible
+ * views are layered absolutely on top and fill it (the list scrolls within it).
+ * Both layers move with `transform` on a GPU layer (`force3D` + `will-change`),
+ * which keeps the slide smooth.
+ *
+ * Only the anchor and the live view are mounted at rest; during a switch the
+ * outgoing view is briefly mounted as a second absolute layer and both are tweened.
  * Reduced motion skips the slide (a hard switch).
  *
  * @param props - {@link ArtistTrackContentProps}.
@@ -55,7 +66,6 @@ export function ArtistTrackContent({
 }: ArtistTrackContentProps) {
   const previousViewRef = useRef(view);
   const [outgoing, setOutgoing] = useState<OutgoingSlide | null>(null);
-  const viewportRef = useRef<HTMLDivElement>(null);
   const incomingRef = useRef<HTMLDivElement>(null);
   const outgoingRef = useRef<HTMLDivElement>(null);
 
@@ -66,38 +76,29 @@ export function ArtistTrackContent({
     if (previous === view) return;
     previousViewRef.current = view;
     if (prefersReducedMotion()) return;
-    const height = Math.round(viewportRef.current?.getBoundingClientRect().height ?? 0);
-    setOutgoing({ view: previous, toGrid: view === TrackListView.Grid, height });
+    setOutgoing({ view: previous, toGrid: view === TrackListView.Grid });
   }, [view]);
 
   // Run the slide once both layers are mounted.
   useGSAP(
     () => {
       if (!outgoing) return;
-      setupMotion();
       const incoming = incomingRef.current;
       const out = outgoingRef.current;
-      const viewport = viewportRef.current;
       const sign = outgoing.toGrid ? 1 : -1;
       if (incoming) {
         gsap.fromTo(
           incoming,
           { xPercent: sign * 100 },
-          { xPercent: 0, duration: SLIDE_DURATION, ease: MotionEase.McOut },
+          { xPercent: 0, duration: SLIDE_DURATION, ease: SLIDE_EASE, force3D: true },
         );
       }
       if (out) {
-        gsap.fromTo(out, { xPercent: 0 }, { xPercent: -sign * 100, duration: SLIDE_DURATION, ease: MotionEase.McOut });
-      }
-      if (viewport) {
-        const to = Math.round(incoming?.getBoundingClientRect().height ?? outgoing.height);
-        if (Math.abs(to - outgoing.height) > 1) {
-          gsap.fromTo(
-            viewport,
-            { height: outgoing.height },
-            { height: to, duration: SLIDE_DURATION, ease: MotionEase.McOut, clearProps: "height" },
-          );
-        }
+        gsap.fromTo(
+          out,
+          { xPercent: 0 },
+          { xPercent: -sign * 100, duration: SLIDE_DURATION, ease: SLIDE_EASE, force3D: true },
+        );
       }
       const done = gsap.delayedCall(SLIDE_DURATION, () => setOutgoing(null));
       return () => {
@@ -108,17 +109,28 @@ export function ArtistTrackContent({
   );
 
   return (
-    <div ref={viewportRef} className="relative overflow-hidden">
+    <div className="relative overflow-hidden">
+      {/* Height anchor: an invisible grid view in normal flow gives the card the
+          grid layout's height, so toggling never changes the height — only a
+          horizontal slide. The visible views layer absolutely on top and fill it. */}
+      <div aria-hidden="true" className="invisible">
+        <ArtistTrackView view={TrackListView.Grid} items={items} />
+      </div>
       {outgoing && (
-        <div ref={outgoingRef} className="pointer-events-none absolute inset-0" aria-hidden="true">
-          <ArtistTrackView view={outgoing.view} items={items} cardSignal={cardSignal} />
+        <div
+          ref={outgoingRef}
+          className="pointer-events-none absolute inset-0 will-change-transform"
+          aria-hidden="true"
+        >
+          <ArtistTrackView view={outgoing.view} items={items} cardSignal={cardSignal} fillHeight />
         </div>
       )}
-      <div ref={incomingRef}>
+      <div ref={incomingRef} className="absolute inset-0">
         <ArtistTrackView
           view={view}
           items={items}
           cardSignal={cardSignal}
+          fillHeight
           onTrackResolve={onTrackResolve}
           onResolveStart={onResolveStart}
         />
