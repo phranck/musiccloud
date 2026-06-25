@@ -1,15 +1,14 @@
 import { render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ArtistTrackContent } from "@/components/artist/ArtistTrackContent";
 import { TrackListView } from "@/hooks/useTrackListView";
 
 /**
- * ArtistTrackContent slides between the list and grid views at a fixed (grid)
- * card height. The single-view renderer is mocked so these tests pin the wiring:
- * an invisible grid height-anchor plus the active view (the one that fills the
- * height), and under reduced motion a switch is instant (no outgoing slide layer).
- * The slide and the fixed-height layering are browser-verified (jsdom has no
- * layout engine).
+ * ArtistTrackContent keeps both views permanently mounted as layers at a fixed
+ * (grid) card height and slides between them. The single-view renderer is mocked
+ * so these tests pin the wiring: an invisible grid height-anchor plus both view
+ * layers, where the visible layer is the one that is not aria-hidden. The slide
+ * and scroll geometry are browser-verified (jsdom has no layout engine).
  */
 
 vi.mock("@/components/artist/ArtistTrackView", () => ({
@@ -18,39 +17,56 @@ vi.mock("@/components/artist/ArtistTrackView", () => ({
   ),
 }));
 
+beforeEach(() => {
+  vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false } as MediaQueryList));
+});
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/** The active (visible) view fills the fixed height; the height anchor does not. */
-function activeView() {
-  return screen.getAllByTestId("view").find((el) => el.getAttribute("data-fill") === "1");
+/** The visible view: a fillHeight layer whose wrapper is not aria-hidden. */
+function visibleView() {
+  return screen
+    .getAllByTestId("view")
+    .find((el) => el.getAttribute("data-fill") === "1" && !el.parentElement?.hasAttribute("aria-hidden"));
+}
+
+/** The two fillHeight layers (both views), excluding the non-filling grid anchor. */
+function layerViews() {
+  return screen.getAllByTestId("view").filter((el) => el.getAttribute("data-fill") === "1");
 }
 
 describe("ArtistTrackContent", () => {
-  it("renders the list view as the active layer", () => {
+  it("shows the list view when selected", () => {
     render(<ArtistTrackContent view={TrackListView.List} items={[]} />);
-    expect(activeView()?.getAttribute("data-view")).toBe("list");
+    expect(visibleView()?.getAttribute("data-view")).toBe("list");
   });
 
-  it("renders the grid view as the active layer", () => {
+  it("shows the grid view when selected", () => {
     render(<ArtistTrackContent view={TrackListView.Grid} items={[]} />);
-    expect(activeView()?.getAttribute("data-view")).toBe("grid");
+    expect(visibleView()?.getAttribute("data-view")).toBe("grid");
+  });
+
+  it("keeps both views mounted as layers", () => {
+    render(<ArtistTrackContent view={TrackListView.List} items={[]} />);
+    expect(
+      layerViews()
+        .map((el) => el.getAttribute("data-view"))
+        .sort(),
+    ).toEqual(["grid", "list"]);
   });
 
   it("anchors the card height to an invisible grid view", () => {
     render(<ArtistTrackContent view={TrackListView.List} items={[]} />);
-    // Whatever the active view, the non-filling layer is always the grid anchor.
     const anchor = screen.getAllByTestId("view").find((el) => el.getAttribute("data-fill") === "0");
     expect(anchor?.getAttribute("data-view")).toBe("grid");
   });
 
-  it("switches instantly under reduced motion, with no outgoing slide layer", () => {
-    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true } as MediaQueryList));
+  it("switches the visible view on a view change", () => {
     const { rerender } = render(<ArtistTrackContent view={TrackListView.List} items={[]} />);
+    expect(visibleView()?.getAttribute("data-view")).toBe("list");
     rerender(<ArtistTrackContent view={TrackListView.Grid} items={[]} />);
-    // Anchor + active only; a slide would mount a third (outgoing) view.
-    expect(screen.getAllByTestId("view")).toHaveLength(2);
-    expect(activeView()?.getAttribute("data-view")).toBe("grid");
+    expect(visibleView()?.getAttribute("data-view")).toBe("grid");
   });
 });

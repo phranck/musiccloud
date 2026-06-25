@@ -1,11 +1,12 @@
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { ArtistTrackView } from "@/components/artist/ArtistTrackView";
 import type { ArtistPanelTrackResolveHandler, ArtistTrackItem } from "@/components/artist/artistPanelTypes";
 import { raisedControlRadius } from "@/components/cards/cardGeometry";
 import { TrackListView } from "@/hooks/useTrackListView";
 import { prefersReducedMotion } from "@/lib/motion/setup";
+import { cn } from "@/lib/utils";
 
 /**
  * Duration (seconds) of the list↔grid slide. A whole-view move needs more room
@@ -25,12 +26,8 @@ const SLIDE_EASE = "power2.inOut";
  */
 const SCROLL_PEEK_PX = 30;
 
-/** The view sliding OUT during a switch, plus its direction. */
-interface OutgoingSlide {
-  view: TrackListView;
-  /** Switching to grid moves content left; to list, right. */
-  toGrid: boolean;
-}
+/** The two presentations, in toggle order (list left, grid right). */
+const LAYER_VIEWS = [TrackListView.List, TrackListView.Grid] as const;
 
 interface ArtistTrackContentProps {
   /** Which presentation to render. */
@@ -52,15 +49,13 @@ interface ArtistTrackContentProps {
  * in the toggle), so switching to the grid pushes the list out to the left while
  * the grid enters from the right, and switching back reverses it.
  *
- * The card height is fixed to the grid layout's height and never changes on a
- * toggle: an invisible grid view in normal flow sets the height, and the visible
- * views are layered absolutely on top and fill it (the list scrolls within it).
- * Both layers move with `transform` on a GPU layer (`force3D` + `will-change`),
- * which keeps the slide smooth.
- *
- * Only the anchor and the live view are mounted at rest; during a switch the
- * outgoing view is briefly mounted as a second absolute layer and both are tweened.
- * Reduced motion skips the slide (a hard switch).
+ * Both views are permanently mounted as absolute layers: the active one rests at
+ * x=0, the other waits just off-screen, and a switch only tweens their transforms.
+ * Keeping both mounted is what stops the covers from flickering — a switch never
+ * remounts a view, so its `<img>`s never repaint. The card height is fixed to the
+ * grid layout via an invisible in-flow grid anchor (the list scrolls within it),
+ * and the viewport round-clips on its own GPU layer so the slide holds the card's
+ * corners. Reduced motion snaps without tweening.
  *
  * @param props - {@link ArtistTrackContentProps}.
  */
@@ -71,56 +66,42 @@ export function ArtistTrackContent({
   onTrackResolve,
   onResolveStart,
 }: ArtistTrackContentProps) {
-  const previousViewRef = useRef(view);
-  const [outgoing, setOutgoing] = useState<OutgoingSlide | null>(null);
-  const incomingRef = useRef<HTMLDivElement>(null);
-  const outgoingRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  // The previously positioned view; null until the first run. Drives whether a
+  // view change snaps (first paint / no change) or tweens (a real switch).
+  const prevViewRef = useRef<TrackListView | null>(null);
 
-  // Arm a slide when the view changes — in a layout effect (before paint) so the
-  // new view is never shown at rest for a frame before the slide starts.
-  useLayoutEffect(() => {
-    const previous = previousViewRef.current;
-    if (previous === view) return;
-    previousViewRef.current = view;
-    if (prefersReducedMotion()) return;
-    setOutgoing({ view: previous, toGrid: view === TrackListView.Grid });
-  }, [view]);
-
-  // Run the slide once both layers are mounted.
+  // Position both layers from `view`: the active view rests at 0, the other waits
+  // off-screen (list left, grid right). The first run and reduced motion snap;
+  // a real switch tweens. Both layers stay mounted throughout.
   useGSAP(
     () => {
-      if (!outgoing) return;
-      const incoming = incomingRef.current;
-      const out = outgoingRef.current;
-      const sign = outgoing.toGrid ? 1 : -1;
-      if (incoming) {
-        gsap.fromTo(
-          incoming,
-          { xPercent: sign * 100 },
-          { xPercent: 0, duration: SLIDE_DURATION, ease: SLIDE_EASE, force3D: true },
-        );
+      const listEl = listRef.current;
+      const gridEl = gridRef.current;
+      if (!listEl || !gridEl) return;
+      const toGrid = view === TrackListView.Grid;
+      const listX = toGrid ? -100 : 0;
+      const gridX = toGrid ? 0 : 100;
+      const animate = prevViewRef.current !== null && prevViewRef.current !== view && !prefersReducedMotion();
+      prevViewRef.current = view;
+      if (animate) {
+        gsap.to(listEl, { xPercent: listX, duration: SLIDE_DURATION, ease: SLIDE_EASE, force3D: true });
+        gsap.to(gridEl, { xPercent: gridX, duration: SLIDE_DURATION, ease: SLIDE_EASE, force3D: true });
+      } else {
+        gsap.set(listEl, { xPercent: listX });
+        gsap.set(gridEl, { xPercent: gridX });
       }
-      if (out) {
-        gsap.fromTo(
-          out,
-          { xPercent: 0 },
-          { xPercent: -sign * 100, duration: SLIDE_DURATION, ease: SLIDE_EASE, force3D: true },
-        );
-      }
-      const done = gsap.delayedCall(SLIDE_DURATION, () => setOutgoing(null));
-      return () => {
-        done.kill();
-      };
     },
-    { dependencies: [outgoing] },
+    { dependencies: [view] },
   );
 
   return (
     // Round-clip the slide viewport itself, on its own compositing layer
     // (transform-gpu). The well's border-radius alone fails to clip the slide:
-    // the layers run on GPU layers (force3D + will-change) that escape an
-    // ancestor's border-radius unless the clipping box is itself a GPU layer.
-    // The radius matches the rows'/tiles' promoted outer corner (raisedControlRadius).
+    // the layers run on GPU layers (force3D) that escape an ancestor's
+    // border-radius unless the clipping box is itself a GPU layer. The radius
+    // matches the rows'/tiles' promoted outer corner (raisedControlRadius).
     <div className="relative overflow-hidden transform-gpu" style={{ borderRadius: raisedControlRadius }}>
       {/* Height anchor: an invisible grid view in normal flow gives the card the
           grid layout's height, so toggling never changes the height — only a
@@ -130,25 +111,26 @@ export function ArtistTrackContent({
       <div aria-hidden="true" className="invisible" style={{ marginBottom: `-${SCROLL_PEEK_PX}px` }}>
         <ArtistTrackView view={TrackListView.Grid} items={items} />
       </div>
-      {outgoing && (
-        <div
-          ref={outgoingRef}
-          className="pointer-events-none absolute inset-0 will-change-transform"
-          aria-hidden="true"
-        >
-          <ArtistTrackView view={outgoing.view} items={items} cardSignal={cardSignal} fillHeight />
-        </div>
-      )}
-      <div ref={incomingRef} className="absolute inset-0">
-        <ArtistTrackView
-          view={view}
-          items={items}
-          cardSignal={cardSignal}
-          fillHeight
-          onTrackResolve={onTrackResolve}
-          onResolveStart={onResolveStart}
-        />
-      </div>
+      {LAYER_VIEWS.map((v) => {
+        const active = v === view;
+        return (
+          <div
+            key={v}
+            ref={v === TrackListView.List ? listRef : gridRef}
+            className={cn("absolute inset-0", !active && "pointer-events-none")}
+            aria-hidden={!active || undefined}
+          >
+            <ArtistTrackView
+              view={v}
+              items={items}
+              cardSignal={cardSignal}
+              fillHeight
+              onTrackResolve={active ? onTrackResolve : undefined}
+              onResolveStart={active ? onResolveStart : undefined}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }
