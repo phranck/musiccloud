@@ -27,6 +27,51 @@ describe("VfdDisplay glyph support", () => {
     }
   });
 
+  it("renders European Latin diacritic and special letters with their own glyph", () => {
+    // Each diacritic letter must keep its own pattern so the accent stays
+    // visible on the matrix instead of being stripped to the bare base letter
+    // by the NFD fallback. Grouped by mark family across Western, Central,
+    // Northern and Eastern European orthographies.
+    const byFamily = {
+      acute: "ÁÉÍÓÚÝĆĹŃŔŚŹáéíóúýćĺńŕśź",
+      grave: "ÀÈÌÒÙàèìòù",
+      circumflex: "ÂÊÎÔÛâêîôû",
+      diaeresis: "ÄËÏÖÜŸäëïöüÿ",
+      tilde: "ÃÑÕãñõ",
+      caron: "ČĎĚĽŇŘŠŤŽčďěľňřšťž",
+      ring: "ÅŮåů",
+      breve: "ĂĞăğ",
+      macron: "ĀĒĪŪāēīū",
+      doubleAcute: "ŐŰőű",
+      dotAbove: "ĖİŻėż",
+      cedilla: "ÇĢĶĻŅŞçģķļņş",
+      ogonek: "ĄĘĮŲąęįų",
+      commaBelow: "ȘȚșț",
+      specialLetters: "ÐĐŁÞŒðđłþœı",
+    };
+
+    for (const glyphs of Object.values(byFamily)) {
+      for (const glyph of Array.from(glyphs)) {
+        expect(glyphPatternKeyFor(glyph), `expected ${glyph} to resolve to its own glyph`).toBe(glyph);
+        expect(isVfdGlyphSupported(glyph), `expected ${glyph} to be supported`).toBe(true);
+      }
+    }
+  });
+
+  it("supports the inverted Spanish punctuation marks", () => {
+    for (const glyph of Array.from("¿¡")) {
+      expect(glyphPatternKeyFor(glyph), `expected ${glyph} to resolve to its own glyph`).toBe(glyph);
+    }
+  });
+
+  it("renders real-world accented artist names without losing a diacritic", () => {
+    const names = "Antonín Dvořák Mylène Sigur Rós Björk Renée Motörhead Lech Wałęsa François Beyoncé";
+    for (const glyph of Array.from(names)) {
+      if (glyph === " ") continue;
+      expect(isVfdGlyphSupported(glyph), `expected ${glyph} to be supported`).toBe(true);
+    }
+  });
+
   it("keeps unknown glyphs on the fallback path", () => {
     expect(isVfdGlyphSupported("🪩")).toBe(false);
   });
