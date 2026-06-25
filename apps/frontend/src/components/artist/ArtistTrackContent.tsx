@@ -17,6 +17,12 @@ const SLIDE_DURATION = 0.85;
  * look like it snaps then drifts, which reads as "too fast".
  */
 const SLIDE_EASE = "power2.inOut";
+/**
+ * How much of the last row is kept clipped below the fold, in px. Trimmed off the
+ * grid-anchor height so both views show a partially cut final row — a standing
+ * scroll affordance that signals "there's more, scroll for it".
+ */
+const SCROLL_PEEK_PX = 30;
 
 /** The view sliding OUT during a switch, plus its direction. */
 interface OutgoingSlide {
@@ -112,8 +118,10 @@ export function ArtistTrackContent({
     <div className="relative overflow-hidden">
       {/* Height anchor: an invisible grid view in normal flow gives the card the
           grid layout's height, so toggling never changes the height — only a
-          horizontal slide. The visible views layer absolutely on top and fill it. */}
-      <div aria-hidden="true" className="invisible">
+          horizontal slide. The visible views layer absolutely on top and fill it.
+          The negative bottom margin trims SCROLL_PEEK_PX so the last row stays
+          clipped in both views, signalling that the content scrolls. */}
+      <div aria-hidden="true" className="invisible" style={{ marginBottom: `-${SCROLL_PEEK_PX}px` }}>
         <ArtistTrackView view={TrackListView.Grid} items={items} />
       </div>
       {outgoing && (
