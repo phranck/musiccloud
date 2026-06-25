@@ -21,6 +21,12 @@ interface SlideArtworkProps {
    * radius) so the tile never hardcodes a nested radius. Square tiles only.
    */
   radius?: string;
+  /**
+   * `<img>` decoding hint forwarded to {@link CoverImage}. Defaults to `async`;
+   * pass `sync` where a remount must not flash an empty frame (e.g. covers that
+   * re-mount as the list/grid views slide past each other).
+   */
+  decoding?: "async" | "sync" | "auto";
 }
 
 /**
@@ -47,6 +53,7 @@ export function SlideArtwork({
   sizeClass,
   imgDim = 56,
   radius,
+  decoding = "async",
 }: SlideArtworkProps) {
   // Keep the disc in the DOM across the EXIT animation: when `active` flips
   // back to false the disc must slide OUT before it unmounts, so its mount
@@ -113,7 +120,7 @@ export function SlideArtwork({
         {/* Cover artwork -- drops out downward on enter, slides back in from the
             top on exit (see coverSlideClass). */}
         <div className={cn("relative z-0 w-full h-full bg-surface", coverSlideClass)}>
-          <CoverImage artworkUrl={artworkUrl} kind={kind} imgDim={imgDim} iconSize={20} />
+          <CoverImage artworkUrl={artworkUrl} kind={kind} imgDim={imgDim} iconSize={20} decoding={decoding} />
         </div>
 
         {/* Recessed rim shadow -- edge-localised (top/left), so the disc reads as

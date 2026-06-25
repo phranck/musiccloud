@@ -28,6 +28,19 @@ export function toSimilarTrackItems(data: ArtistInfoResponse | null): ArtistTrac
 }
 
 /**
+ * The stable React key for a track row, shared by the list and grid presentations
+ * so a track keeps one identity across the view switch. Similar tracks include the
+ * artist label because the same `deezerUrl` can appear under several artists;
+ * popular tracks use the bare `deezerUrl`.
+ *
+ * @param item - The normalized track row.
+ * @returns A string key unique within a section.
+ */
+export function trackItemKey({ track, artistLabel }: ArtistTrackItem): string {
+  return artistLabel ? `${artistLabel}:${track.deezerUrl}` : track.deezerUrl;
+}
+
+/**
  * The secondary line shown under a track's title in both the list row and the
  * grid item, so the two presentations stay in lockstep: the other artist's name
  * for similar tracks, otherwise the album name when it differs from the title,

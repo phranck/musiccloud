@@ -85,12 +85,28 @@ zeigt nur an — die Extraktion aus `ArtistInfoResponse` macht der Aufrufer.
 - Gates + Browser (Umschalten Desktop + Mobile, Persistenz) → Commit.
 
 ## Checkliste
-- [ ] Slice 1: Section vereinheitlicht, alte Sections gelöscht, Liste unverändert
-- [ ] Slice 2: Desktop-Karten vereinheitlicht (protocol-driven), alte Karten gelöscht
-- [ ] Slice 3: Grid + persisted View-State
-- [ ] Slice 4: Toggle Desktop + Mobile, Persistenz
-- [ ] Alle Code-Referenzen verifiziert (Typen, Hooks, Pfade)
-- [ ] Gates je Slice grün (typecheck, biome, doctor); Browser-Verifikation
+- [x] Slice 1: Section vereinheitlicht, alte Sections gelöscht, Liste unverändert
+- [x] Slice 2: Desktop-Karten vereinheitlicht (protocol-driven), alte Karten gelöscht
+- [x] Slice 3: Grid + persisted View-State
+- [x] Slice 4: Toggle Desktop + Mobile, Persistenz
+- [x] Alle Code-Referenzen verifiziert (Typen, Hooks, Pfade)
+- [x] Gates je Slice grün (typecheck, biome, doctor); Browser-Verifikation
+
+## Completed (2026-06-24)
+
+Vollständig umgesetzt und committet. Verifiziert per Code-Read am 2026-06-24:
+
+- Generische `ArtistTrackList` + `ArtistTrackListCard` (protocol-driven) ersetzen die alten
+  vier Komponenten; `PopularTracksSection`, `SimilarArtistsSection`, `PopularTracksCard` und
+  `SimilarArtistsCard` sind gelöscht (per grep bestätigt: keine Treffer mehr).
+- `useTrackListView` (persisted list/grid), `ArtistTrackGrid` + `ArtistTrackGridItem`,
+  `TrackViewToggle` (EmbossedSegmentedControl) und `ArtistTrackContent` (Switch list/grid)
+  existieren und sind verdrahtet (Desktop `ArtistTrackListCard`, Mobile `ArtistInfoCard`).
+- Scrollen statt Paging umgesetzt (Commits `4b975419`, `c2439590`, `6385e61f`).
+
+Folge-Feature: das Cover-Morph beim Umschalten (Spec
+`docs/superpowers/specs/2026-06-24-track-view-cover-morph-design.md`) ersetzt den harten
+Switch in `ArtistTrackContent` durch eine GSAP-Flip-Shared-Element-Transition.
 
 ## Verifizierte Fakten
 - `PopularTrack` props: `{ track, artistLabel?, cardSignal?, onTrackResolve?, onResolveStart? }`

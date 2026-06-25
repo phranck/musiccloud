@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 
 // Root of the geometry cascade. Resolves to the SSR-injected `--mc-card-radius`
@@ -8,6 +9,21 @@ export const embossedCardContentInset = "0.75rem";
 export const recessedSurfaceRadius = `calc(${embossedCardOuterRadius} - ${embossedCardContentInset})`;
 export const recessedControlInset = "0.1875rem";
 export const raisedControlRadius = `calc(${recessedSurfaceRadius} - ${recessedControlInset})`;
+
+const CONTROL_RADIUS_BASE = `max(4px, calc(var(--mc-recessed-radius-base, ${recessedSurfaceRadius}) - var(--mc-recessed-padding, ${recessedControlInset})))`;
+const CONTROL_RADIUS_SM = `max(4px, calc(var(--mc-recessed-radius-sm, var(--mc-recessed-radius-base, ${recessedSurfaceRadius})) - var(--mc-recessed-padding, ${recessedControlInset})))`;
+
+/**
+ * Inline style giving a raised control (e.g. {@link import("@/components/ui/EmbossedButton").EmbossedButton}
+ * or the list-row track cell) the corner radius of the surrounding `RecessedCard`
+ * minus its padding. Sets `--neu-radius-base`/`-sm` plus `border-radius` so the
+ * gradient-border arc stays aligned with the rounded corner.
+ */
+export const embossedControlRadiusStyle: CSSProperties = {
+  "--neu-radius-base": CONTROL_RADIUS_BASE,
+  "--neu-radius-sm": CONTROL_RADIUS_SM,
+  borderRadius: "var(--neu-radius)",
+} as CSSProperties;
 
 export const outerEmbossedCardClassName = "w-full max-w-full sm:max-w-lg mx-auto p-0";
 export const fullWidthEmbossedCardClassName = "w-full p-0";

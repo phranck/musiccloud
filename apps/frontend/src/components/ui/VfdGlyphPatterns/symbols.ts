@@ -6,8 +6,9 @@ import { BLANK_GLYPH, EMPTY_CELL } from "./blanks";
  * Covers whitespace cells, ASCII punctuation, brackets, math operators, music
  * notation marks, quotation marks (both ASCII and curly Unicode variants),
  * the dash family, the bullet, the ellipsis, the degree sign, currency signs,
- * and the Nordic Ø/Æ ligatures. These are the symbols that real song-info
- * strings tend to contain, not an exhaustive Unicode coverage.
+ * the Nordic Ø/Æ ligatures, and the inverted Spanish question and exclamation
+ * marks. These are the symbols that real song-info strings tend to contain,
+ * not an exhaustive Unicode coverage.
  *
  * Whitespace maps to {@link BLANK_GLYPH} so the renderer can emit empty cells
  * without a separate code path, and both ASCII space and {@link EMPTY_CELL}
@@ -69,4 +70,7 @@ export const SYMBOL_GLYPHS: Record<string, readonly string[]> = {
   ø: ["00000", "00001", "01110", "10011", "10101", "11001", "01110"],
   Æ: ["01111", "10100", "10100", "11110", "10100", "10100", "10111"],
   æ: ["00000", "00000", "11010", "00101", "01111", "10100", "01011"],
+  // Inverted Spanish punctuation
+  "¿": ["00100", "00000", "00100", "01000", "10000", "10001", "01110"],
+  "¡": ["00100", "00000", "00100", "00100", "00100", "00100", "00100"],
 };

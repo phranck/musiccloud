@@ -1,14 +1,5 @@
-import { recessedControlInset, recessedSurfaceRadius } from "@/components/cards/cardGeometry";
+import { embossedControlRadiusStyle } from "@/components/cards/cardGeometry";
 import { cn } from "@/lib/utils";
-
-const CONTROL_RADIUS_BASE = `max(4px, calc(var(--mc-recessed-radius-base, ${recessedSurfaceRadius}) - var(--mc-recessed-padding, ${recessedControlInset})))`;
-const CONTROL_RADIUS_SM = `max(4px, calc(var(--mc-recessed-radius-sm, var(--mc-recessed-radius-base, ${recessedSurfaceRadius})) - var(--mc-recessed-padding, ${recessedControlInset})))`;
-
-const controlRadiusStyle = {
-  "--neu-radius-base": CONTROL_RADIUS_BASE,
-  "--neu-radius-sm": CONTROL_RADIUS_SM,
-  borderRadius: "var(--neu-radius)",
-} as React.CSSProperties;
 
 // Glass buttons: the surface (tint gradient + chamfer) comes from the
 // `.embossed-gradient-border`/`.mc-glass-button` recipe. Hover/active NEVER change
@@ -42,7 +33,7 @@ type EmbossedButtonProps = (AnchorProps | ButtonProps) & {
 export function EmbossedButton({ children, className, style, pressed = false, ...props }: EmbossedButtonProps) {
   const surfaceClass = pressed ? "recessed-gradient-border" : "embossed-gradient-border";
   const mergedClassName = cn(surfaceClass, baseClasses, className);
-  const mergedStyle: React.CSSProperties = { ...controlRadiusStyle, ...style };
+  const mergedStyle: React.CSSProperties = { ...embossedControlRadiusStyle, ...style };
 
   if ("as" in props && props.as === "button") {
     const { as: _, type = "button", ...buttonProps } = props as ButtonProps;

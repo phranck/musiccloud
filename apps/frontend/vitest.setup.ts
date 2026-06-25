@@ -28,6 +28,22 @@ if (!("AnimationEvent" in globalThis)) {
   (globalThis as Record<string, unknown>).AnimationEvent = AnimationEventPolyfill;
 }
 
+/**
+ * jsdom does not implement `ResizeObserver`. `useGroupedCorners` constructs one
+ * on mount, so any test that renders a grouped-corner list (the artist track
+ * list/grid) would throw `ResizeObserver is not defined`. A no-op stub suffices —
+ * these tests assert wiring/DOM, not live reflow (which jsdom has no layout for).
+ */
+class ResizeObserverStub {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+
+if (!("ResizeObserver" in globalThis)) {
+  (globalThis as Record<string, unknown>).ResizeObserver = ResizeObserverStub;
+}
+
 // jest-dom's own `@testing-library/jest-dom/vitest` entry is broken twice
 // under this stack, so both halves are wired manually here:
 //
