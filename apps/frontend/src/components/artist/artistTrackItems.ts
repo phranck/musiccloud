@@ -28,11 +28,10 @@ export function toSimilarTrackItems(data: ArtistInfoResponse | null): ArtistTrac
 }
 
 /**
- * The stable identity of a track row, shared by the list and grid presentations
- * so the same row keeps one React `key` AND one `data-flip-id` across a view
- * switch — the anchor the cover morph (GSAP Flip) matches on. Similar tracks
- * include the artist label because the same `deezerUrl` can appear under several
- * artists; popular tracks use the bare `deezerUrl`.
+ * The stable React key for a track row, shared by the list and grid presentations
+ * so a track keeps one identity across the view switch. Similar tracks include the
+ * artist label because the same `deezerUrl` can appear under several artists;
+ * popular tracks use the bare `deezerUrl`.
  *
  * @param item - The normalized track row.
  * @returns A string key unique within a section.
