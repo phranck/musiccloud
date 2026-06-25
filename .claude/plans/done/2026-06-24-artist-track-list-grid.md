@@ -104,9 +104,9 @@ Vollständig umgesetzt und committet. Verifiziert per Code-Read am 2026-06-24:
   existieren und sind verdrahtet (Desktop `ArtistTrackListCard`, Mobile `ArtistInfoCard`).
 - Scrollen statt Paging umgesetzt (Commits `4b975419`, `c2439590`, `6385e61f`).
 
-Folge-Feature: das Cover-Morph beim Umschalten (Spec
-`docs/superpowers/specs/2026-06-24-track-view-cover-morph-design.md`) ersetzt den harten
-Switch in `ArtistTrackContent` durch eine GSAP-Flip-Shared-Element-Transition.
+Folge-Feature: der List/Grid-Slide beim Umschalten (Spec
+`docs/superpowers/specs/2026-06-24-track-view-list-grid-slide-design.md`) ersetzt den harten
+Switch in `ArtistTrackContent` durch einen horizontalen View-Slide.
 
 ## Verifizierte Fakten
 - `PopularTrack` props: `{ track, artistLabel?, cardSignal?, onTrackResolve?, onResolveStart? }`
