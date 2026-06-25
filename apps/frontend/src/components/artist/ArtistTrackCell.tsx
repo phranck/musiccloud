@@ -78,7 +78,13 @@ export function ArtistTrackCell({
         aria-disabled={resolving}
         aria-label={ariaLabel}
       >
-        <SlideArtwork active={resolving} artworkUrl={track.artworkUrl ?? undefined} sizeClass="w-12 h-12" imgDim={48} />
+        <SlideArtwork
+          active={resolving}
+          artworkUrl={track.artworkUrl ?? undefined}
+          sizeClass="w-12 h-12"
+          imgDim={48}
+          decoding="sync"
+        />
         <ArtistPanelRowText>
           <p
             className="mc-txt-button-bright max-w-full truncate text-sm font-medium text-text-primary"
@@ -117,6 +123,7 @@ export function ArtistTrackCell({
         sizeClass="w-full aspect-square"
         imgDim={96}
         radius={CELL_RADIUS}
+        decoding="sync"
       />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-0.5 bg-gradient-to-t from-black/85 via-black/55 to-transparent px-2 pt-5 pb-1.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
         <p className="mc-txt-button-bright truncate text-xs font-semibold leading-tight text-white">{track.title}</p>
