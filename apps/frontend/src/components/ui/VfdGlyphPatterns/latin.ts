@@ -1,10 +1,12 @@
 /**
  * Pixel patterns for the Latin glyph range supported by the VFD module.
  *
- * Includes ASCII digits, uppercase A-Z, lowercase a-z, and the Western
+ * Includes ASCII digits, uppercase A-Z, lowercase a-z, the Western
  * European diacritic letters needed to render German, French, Spanish,
- * Portuguese, and Italian song-info strings. Each value is a row-major
- * 5x7 bitmask using "1" for lit and "0" for unlit pixels.
+ * Portuguese, and Italian song-info strings, and the Slovene/Gaj caron
+ * letters (Č/č, Š/š, Ž/ž) used by South Slavic Latin-script artist
+ * names. Each value is a row-major 5x7 bitmask using "1" for lit and "0"
+ * for unlit pixels.
  *
  * The lookup layer in `index.ts` performs uppercase normalization and
  * NFD-stripped fallbacks, so adding a base letter implicitly covers its
@@ -91,4 +93,14 @@ export const LATIN_GLYPHS: Record<string, readonly string[]> = {
   ù: ["01000", "00100", "10001", "10001", "10001", "10011", "01101"],
   ñ: ["01010", "10100", "10110", "11001", "10001", "10001", "10001"],
   ç: ["00000", "00000", "01111", "10000", "10000", "01111", "00100"],
+  // Caron (háček) letters: rows 0-1 carry the symmetric "v" mark (01010/00100)
+  // that distinguishes the caron from the dieresis (01010/00000) and the acute
+  // (00010/00100). Case pairs share a bitmap because C/S/Z and c/s/z collapse to
+  // the same 5-row form once the top two rows are reserved for the mark.
+  Č: ["01010", "00100", "01111", "10000", "10000", "10000", "01111"],
+  č: ["01010", "00100", "01111", "10000", "10000", "10000", "01111"],
+  Š: ["01010", "00100", "01111", "10000", "01110", "00001", "11110"],
+  š: ["01010", "00100", "01111", "10000", "01110", "00001", "11110"],
+  Ž: ["01010", "00100", "11111", "00010", "00100", "01000", "11111"],
+  ž: ["01010", "00100", "11111", "00010", "00100", "01000", "11111"],
 };

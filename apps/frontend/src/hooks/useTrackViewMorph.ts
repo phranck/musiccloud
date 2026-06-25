@@ -1,24 +1,28 @@
 import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
 import { type RefObject, useCallback, useRef, useState } from "react";
 import { type TrackListView, useTrackListView } from "@/hooks/useTrackListView";
-import { MotionDuration } from "@/lib/motion/constants";
+import { MotionDuration, MotionEase } from "@/lib/motion/constants";
 import { animateFlipFrom, type CapturedFlipState, captureFlipState } from "@/lib/motion/flip";
 import { prefersReducedMotion } from "@/lib/motion/setup";
 
 /** Selects the cover elements that carry a flip id within the morph container. */
 const FLIP_TARGET_SELECTOR = "[data-flip-id]";
 
+/** Below this px delta the height change is imperceptible — skip the height tween. */
+const HEIGHT_TWEEN_THRESHOLD = 1;
+
 interface UseTrackViewMorphResult {
   /** The currently selected presentation. */
   view: TrackListView;
   /**
    * Switches the presentation with a cover morph: snapshots the current covers
-   * (before the commit), persists the new view, and animates the covers from the
-   * snapshot to their new layout after the commit. No-op when `next` already
-   * equals the current view.
+   * and the container height (before the commit), persists the new view, and
+   * animates the covers + height from the snapshot to the new layout after the
+   * commit. No-op when `next` already equals the current view.
    */
   setView: (next: TrackListView) => void;
-  /** Attach to the element wrapping the presentation; scopes the flip. */
+  /** Attach to the element wrapping the presentation; scopes the flip + height tween. */
   containerRef: RefObject<HTMLDivElement | null>;
 }
 
@@ -33,9 +37,12 @@ interface UseTrackViewMorphResult {
  * {@link import("@/hooks/useFlipAnimation").useFlipAnimation}): `setView`
  * captures the covers while the OLD view is still mounted, flips the stored
  * view, and a tick-keyed `useGSAP` effect animates from the snapshot on the next
- * commit. `absolute: false` is the key choice — the covers stay in the new
- * layout's flow and only receive a transform offset, so the grid tiles keep
- * their height (no collapse) and the list row text keeps its place (no jump).
+ * commit. Two things animate together:
+ * - the covers, via `Flip` with `absolute: false` — they stay in the new
+ *   layout's flow and only receive a transform offset, so the grid tiles keep
+ *   their height (no collapse) and the list row text keeps its place (no jump);
+ * - the container's own height, so the sections below the card glide instead of
+ *   snapping when the list and grid layouts differ in height.
  *
  * Reduced motion: switches instantly (no capture, no tween) — handled in
  * `setView` so no flip is even armed.
@@ -50,6 +57,7 @@ export function useTrackViewMorph(storageKey: string): UseTrackViewMorphResult {
   // guarantees the effect re-runs and consumes the new snapshot on every switch.
   const [morphTick, setMorphTick] = useState(0);
   const capturedStateRef = useRef<CapturedFlipState | null>(null);
+  const heightFromRef = useRef<number | null>(null);
 
   const setView = useCallback(
     (next: TrackListView) => {
@@ -65,6 +73,7 @@ export function useTrackViewMorph(storageKey: string): UseTrackViewMorphResult {
         // "before" the next commit replaces. Order is load-bearing (see
         // captureFlipState in lib/motion/flip.ts).
         capturedStateRef.current = captureFlipState(container.querySelectorAll(FLIP_TARGET_SELECTOR));
+        heightFromRef.current = container.getBoundingClientRect().height;
       }
       setStoredView(next);
       setMorphTick((tick) => tick + 1);
@@ -77,7 +86,9 @@ export function useTrackViewMorph(storageKey: string): UseTrackViewMorphResult {
       if (morphTick === 0) return;
       const container = containerRef.current;
       const state = capturedStateRef.current;
+      const heightFrom = heightFromRef.current;
       capturedStateRef.current = null;
+      heightFromRef.current = null;
       if (!container || !state) return;
       // absolute: false keeps the covers in the new layout's flow (only a
       // transform offset animates), so grid tiles keep their height and list
@@ -87,6 +98,18 @@ export function useTrackViewMorph(storageKey: string): UseTrackViewMorphResult {
         duration: MotionDuration.Grid,
         absolute: false,
       });
+      // Glide the container's own height from the old layout to the new one so
+      // the sections below it don't snap when list and grid heights differ.
+      if (heightFrom != null) {
+        const heightTo = container.getBoundingClientRect().height;
+        if (Math.abs(heightTo - heightFrom) > HEIGHT_TWEEN_THRESHOLD) {
+          gsap.fromTo(
+            container,
+            { height: heightFrom },
+            { height: heightTo, duration: MotionDuration.Grid, ease: MotionEase.McOut, clearProps: "height" },
+          );
+        }
+      }
     },
     { scope: containerRef, dependencies: [morphTick] },
   );
