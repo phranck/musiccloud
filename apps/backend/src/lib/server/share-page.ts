@@ -40,6 +40,26 @@ function filterLinksForAppleMusicStorefront<T extends { service: string; url: st
   });
 }
 
+/**
+ * Normalizes a stored release date to a strict `YYYY-MM-DD` for the share
+ * response schema's `format: date` validation.
+ *
+ * Some sources (YouTube, Bandcamp, SoundCloud) report a full ISO-8601 timestamp
+ * (e.g. `2009-10-07T23:12:34Z`). The Track/Album response schema validates
+ * `releaseDate` as `format: date`, so a timestamp — or a year-only value — fails
+ * serialization and 500s the entire share (which the frontend turns into a 404).
+ * Keep the `YYYY-MM-DD` prefix when present, otherwise drop the value so the
+ * field is omitted rather than rejected.
+ *
+ * @param value - The stored release date (date, date-time, or other).
+ * @returns A `YYYY-MM-DD` string, or `null` when there is no valid date prefix.
+ */
+export function toIsoDateOnly(value: string | null): string | null {
+  if (!value) return null;
+  const match = value.match(/^\d{4}-\d{2}-\d{2}/);
+  return match ? match[0] : null;
+}
+
 /** Load share page data by short URL ID. Returns null if not found.
  *
  *  The hot path does NOT contact Deezer. If the stored preview URL is an
@@ -62,6 +82,7 @@ export async function loadByShortId(
   const data = await repo.loadByShortId(shortId);
   if (!data) return null;
 
+  data.track.releaseDate = toIsoDateOnly(data.track.releaseDate);
   const expired = !!data.track.previewUrl && isExpiredDeezerPreviewUrl(data.track.previewUrl);
   if (expired) data.track.previewUrl = null;
 
@@ -84,6 +105,7 @@ export async function loadByTrackId(
   const data = await repo.loadByTrackId(trackId);
   if (!data) return null;
 
+  data.track.releaseDate = toIsoDateOnly(data.track.releaseDate);
   const expired = !!data.track.previewUrl && isExpiredDeezerPreviewUrl(data.track.previewUrl);
   if (expired) data.track.previewUrl = null;
 
@@ -127,6 +149,7 @@ export async function loadAlbumByShortId(
   const data = await repo.loadAlbumByShortId(shortId);
   if (!data) return null;
 
+  data.album.releaseDate = toIsoDateOnly(data.album.releaseDate);
   const links = filterLinksForAppleMusicStorefront(data.links, appleMusicStorefront);
   const availablePlatforms: ServiceId[] = links.map((l) => l.service).filter(isValidServiceId);
 
