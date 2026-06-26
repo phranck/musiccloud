@@ -7,9 +7,10 @@
  *
  * | Decorator              | Consumer                          | Credential                                  |
  * | ---------------------- | --------------------------------- | ------------------------------------------- |
- * | `authenticateInternal` | Astro SSR frontend BFF proxy      | `X-API-Key` header matching `INTERNAL_API_KEY` |
- * | `authenticatePublic`   | Public API clients + frontend BFF | `X-API-Key` **or** `Authorization: Bearer <JWT>` |
- * | `authenticateAdmin`    | Admin dashboard                   | `Authorization: Bearer <JWT>` with `role: "admin"` claim |
+ * | `authenticateInternal`  | Astro SSR frontend BFF proxy      | `X-API-Key` header matching `INTERNAL_API_KEY` |
+ * | `authenticatePublic`    | Public API clients + frontend BFF | `X-API-Key` **or** `Authorization: Bearer <JWT>` |
+ * | `authenticateAdmin`     | Admin dashboard                   | `Authorization: Bearer <JWT>` with `role: "admin"` claim |
+ * | `authenticateDeveloper` | developer.musiccloud.io portal    | `mc_dev_session` httpOnly cookie carrying a `kind: "developer"` JWT |
  *
  * ## Why a plugin?
  *
@@ -41,12 +42,23 @@
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
+import { getDeveloperRepository } from "../db/index.js";
+import { SESSION_COOKIE_NAME } from "../services/developer-auth.js";
 
 declare module "fastify" {
   interface FastifyInstance {
     authenticateInternal: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
     authenticatePublic: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
     authenticateAdmin: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
+    authenticateDeveloper: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
+  }
+  interface FastifyRequest {
+    /**
+     * Id of the authenticated developer account, set by
+     * {@link FastifyInstance.authenticateDeveloper} after a valid
+     * `mc_dev_session` cookie is verified. Absent on unauthenticated requests.
+     */
+    developerAccountId?: string;
   }
 }
 
@@ -149,6 +161,56 @@ async function authPlugin(app: FastifyInstance) {
     } catch {
       return reply.status(401).send({ error: "UNAUTHORIZED", message: "Invalid or expired token." });
     }
+  });
+
+  /**
+   * Cookie-based session authentication for the developer portal
+   * (developer.musiccloud.io).
+   *
+   * Unlike the admin/public guards this reads the session from the
+   * `mc_dev_session` **httpOnly cookie** rather than the `Authorization`
+   * header, so `request.jwtVerify()` (which only inspects the header) is the
+   * wrong tool here — the cookie value is verified directly via the synchronous
+   * `app.jwt.verify`. The JWT carries `{ sub: accountId, kind: "developer" }`;
+   * the account is then re-loaded so a suspended/deleted account cannot keep
+   * acting on a still-valid token.
+   *
+   * Response matrix (all failures share the `{ error: "UNAUTHORIZED" }` shape
+   * used by the other guards; the portal never needs to distinguish them):
+   * - cookie absent → `401`
+   * - cookie present but JWT invalid/expired → `401`
+   * - JWT valid but `kind !== "developer"` or `sub` missing → `401`
+   * - account missing or `status !== "active"` → `401`
+   * - all checks pass → `request.developerAccountId` set, pass-through
+   *
+   * @param request - incoming request; the `mc_dev_session` cookie is read and
+   *   `request.developerAccountId` is populated on success.
+   * @param reply - responds with `401 UNAUTHORIZED` on any auth failure.
+   */
+  app.decorate("authenticateDeveloper", async (request: FastifyRequest, reply: FastifyReply) => {
+    const token = request.cookies?.[SESSION_COOKIE_NAME];
+    if (!token) {
+      return reply.status(401).send({ error: "UNAUTHORIZED", message: "Authentication required." });
+    }
+
+    let payload: { sub?: string; kind?: string };
+    try {
+      payload = app.jwt.verify(token);
+    } catch {
+      return reply.status(401).send({ error: "UNAUTHORIZED", message: "Invalid or expired session." });
+    }
+
+    if (payload.kind !== "developer" || !payload.sub) {
+      return reply.status(401).send({ error: "UNAUTHORIZED", message: "Invalid or expired session." });
+    }
+
+    const repo = await getDeveloperRepository();
+    const account = await repo.findDeveloperAccountById(payload.sub);
+    if (!account || account.status !== "active") {
+      return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found or inactive." });
+    }
+
+    request.developerAccountId = account.id;
   });
 }
 

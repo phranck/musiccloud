@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import jwt from "@fastify/jwt";
@@ -152,8 +153,15 @@ async function buildApp() {
   }
   await app.register(jwt, { secret: jwtSecret });
 
-  // Auth decorators (authenticateInternal, authenticatePublic)
+  // Auth decorators (authenticateInternal, authenticatePublic, authenticateAdmin,
+  // authenticateDeveloper)
   await app.register(authPlugin);
+
+  // Cookie parsing, required by the developer-portal session
+  // (`authenticateDeveloper` reads the `mc_dev_session` httpOnly cookie).
+  // Registered after the auth plugin and before any route group so handlers
+  // and guards can read/write cookies.
+  await app.register(cookie);
 
   // Shared error response shape, registered via `addSchema` so that BOTH
   // the AJV validator AND the fast-json-stringify serializer can resolve
