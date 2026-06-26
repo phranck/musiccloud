@@ -1,0 +1,38 @@
+{
+  "name": "@musiccloud/developer",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "check": "astro check",
+    "dev": "node --env-file=.env.local ./node_modules/astro/astro.js dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "start": "node ./dist/server/entry.mjs",
+    "typecheck": "astro check",
+    "test": "vitest --passWithNoTests",
+    "test:run": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@astrojs/node": "9.5.5",
+    "@astrojs/react": "^4.4.2",
+    "@fontsource/barlow": "^5.2.8",
+    "@fontsource/roboto-condensed": "^5.2.8",
+    "@musiccloud/shared": "workspace:*",
+    "@phosphor-icons/react": "^2.1.10",
+    "astro": "5.17.3",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.9",
+    "@tailwindcss/vite": "^4.2.1",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "jsdom": "^29.1.1",
+    "tailwindcss": "^4.2.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.5"
+  }
+}

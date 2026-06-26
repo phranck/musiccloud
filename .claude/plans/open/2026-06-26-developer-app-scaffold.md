@@ -60,7 +60,7 @@ Geändert (Repo-Root):
 - Create: `apps/developer/astro.config.mjs`
 - Create: `apps/developer/tsconfig.json`
 
-- [ ] **Step 1: package.json anlegen**
+- [x] **Step 1: package.json anlegen**
 
 ```json
 {
@@ -75,8 +75,8 @@ Geändert (Repo-Root):
     "preview": "astro preview",
     "start": "node ./dist/server/entry.mjs",
     "typecheck": "astro check",
-    "test": "vitest",
-    "test:run": "vitest run"
+    "test": "vitest --passWithNoTests",
+    "test:run": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@astrojs/node": "9.5.5",
@@ -107,7 +107,7 @@ Geändert (Repo-Root):
 
 Anmerkung: kein `@astrojs/sitemap` (eine Doku-/App-Subdomain braucht keine öffentliche Sitemap im ersten Wurf), kein GSAP/FontAwesome (YAGNI). React bleibt drin für spätere Auth-Islands.
 
-- [ ] **Step 2: astro.config.mjs anlegen**
+- [x] **Step 2: astro.config.mjs anlegen**
 
 ```javascript
 import node from "@astrojs/node";
@@ -133,7 +133,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 3: tsconfig.json anlegen**
+- [x] **Step 3: tsconfig.json anlegen**
 
 ```json
 {
@@ -149,17 +149,19 @@ export default defineConfig({
 }
 ```
 
-- [ ] **Step 4: Install und Sanity-Check**
+- [x] **Step 4: Install und Sanity-Check**
 
 Run: `pnpm install`
 Expected: lockfile aktualisiert, `apps/developer/node_modules` vorhanden, kein `EUNSUPPORTEDPROTOCOL` (workspace:*-Refs nur unter pnpm).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/developer/package.json apps/developer/astro.config.mjs apps/developer/tsconfig.json pnpm-lock.yaml
 git commit -m "Chore: scaffold @musiccloud/developer Astro app manifest"
 ```
+
+Anmerkung: `@phosphor-icons/react`, `clsx`, `tailwind-merge` aus dem Plan-Manifest entfernt — der React-Doctor-Pre-Commit-Hook flaggte sie als `deslop/unused-dependency` (kein Verbraucher in Task 1-4, Landing ist reines Astro). Kommen mit dem Auth-Islands-Folge-Plan zurück, sobald sie tatsächlich importiert werden (YAGNI).
 
 ---
 
@@ -171,7 +173,7 @@ git commit -m "Chore: scaffold @musiccloud/developer Astro app manifest"
 
 Schlankes, eigenständiges Design-System — nur was die Developer-Site braucht (Night-Mode-Gradient, Brand, Text, Surfaces, Status). Kein VFD/CD/Day-Night-Cross-Fade aus dem Frontend.
 
-- [ ] **Step 1: global.css anlegen**
+- [x] **Step 1: global.css anlegen**
 
 ```css
 @import "tailwindcss";
@@ -226,7 +228,7 @@ button,
 }
 ```
 
-- [ ] **Step 2: fonts.css anlegen**
+- [x] **Step 2: fonts.css anlegen**
 
 ```css
 @import "@fontsource/barlow/latin-400.css";
@@ -236,7 +238,7 @@ button,
 @import "@fontsource/roboto-condensed/latin-500.css";
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add apps/developer/src/styles/global.css apps/developer/src/styles/fonts.css
@@ -251,7 +253,7 @@ git commit -m "Feat: add developer-site design system tokens and fonts"
 - Create: `apps/developer/src/components/DeveloperBackground.astro`
 - Create: `apps/developer/src/layouts/BaseLayout.astro`
 
-- [ ] **Step 1: DeveloperBackground.astro anlegen**
+- [x] **Step 1: DeveloperBackground.astro anlegen**
 
 Reiner CSS-Gradient, fixiert hinter dem Inhalt. Kein WebGL, kein Token-Fetch.
 
@@ -272,7 +274,7 @@ Reiner CSS-Gradient, fixiert hinter dem Inhalt. Kein WebGL, kein Token-Fetch.
 </div>
 ```
 
-- [ ] **Step 2: BaseLayout.astro anlegen**
+- [x] **Step 2: BaseLayout.astro anlegen**
 
 ```astro
 ---
@@ -304,7 +306,7 @@ const { title = "musiccloud for developers", description = "Build with the music
 </html>
 ```
 
-- [ ] **Step 3: Platzhalter-Favicon anlegen**
+- [x] **Step 3: Platzhalter-Favicon anlegen**
 
 Create: `apps/developer/public/favicon.svg`
 
@@ -312,7 +314,7 @@ Create: `apps/developer/public/favicon.svg`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#0b1318"/><path d="M9 21c0-3.3 2.7-6 6-6 1 0 2 .3 2.8.8A5 5 0 0 1 27 18.5 4.5 4.5 0 0 1 22.5 23H10a1 1 0 0 1-1-1z" fill="#28a8d8"/></svg>
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/developer/src/components/DeveloperBackground.astro apps/developer/src/layouts/BaseLayout.astro apps/developer/public/favicon.svg
@@ -326,7 +328,7 @@ git commit -m "Feat: add developer-site base layout and gradient background"
 **Files:**
 - Create: `apps/developer/src/pages/index.astro`
 
-- [ ] **Step 1: index.astro anlegen**
+- [x] **Step 1: index.astro anlegen**
 
 Statische Landing nach dem abgenommenen Mockup (Logo-Nav, Hero, Code-Teaser, Feature-Karten). Noch keine funktionalen Auth-Buttons (kommen mit dem Frontend-Auth-Plan); Links sind Platzhalter.
 
@@ -383,7 +385,7 @@ const features = [
     <pre
       class="rounded-xl border border-[var(--color-border)] bg-[var(--color-code-bg)] p-4 text-xs font-[family-name:var(--font-mono)] text-[#c2d2dc] overflow-x-auto mb-8"><code><span class="text-[var(--color-text-muted)]"># Resolve a Spotify link to every platform</span>
 <span class="text-[var(--color-accent)]">curl</span> https://api.musiccloud.io/api/v1/resolve \
-  -H <span class="text-[var(--color-gold)]">"X-API-Key: mc_live_…"</span> -d <span class="text-[var(--color-gold)]">'{"url":"…"}'</span></code></pre>
+  -H <span class="text-[var(--color-gold)]">"X-API-Key: mc_live_…"</span> -d <span class="text-[var(--color-gold)]">{`'{"url":"…"}'`}</span></code></pre>
 
     <section class="grid grid-cols-1 sm:grid-cols-3 gap-3">
       {
@@ -399,22 +401,28 @@ const features = [
 </BaseLayout>
 ```
 
-- [ ] **Step 2: Build verifizieren**
+- [x] **Step 2: Build verifizieren**
 
 Run: `pnpm --filter @musiccloud/developer build`
 Expected: erfolgreich, erzeugt `apps/developer/dist/server/entry.mjs` und `apps/developer/dist/client/`.
 
-- [ ] **Step 3: SSR-Smoke lokal**
+Anmerkung: Das wörtliche `'{"url":"…"}'` im `<pre>`-Block musste als Astro-Expression `{`'{"url":"…"}'`}` escaped werden — die nackten `{`/`}` interpretiert der Astro-Compiler sonst als JSX-Expression-Delimiter und der esbuild-Parse failt mit `Expected "}" but found ":"`. Sichtbarer Output unverändert.
+
+- [x] **Step 3: SSR-Smoke lokal**
 
 Run: `cd apps/developer && PORT=3002 node ./dist/server/entry.mjs &` dann `curl -s http://localhost:3002/ | grep -c "Build with the musiccloud API"`
 Expected: `1` (Hero-Headline im SSR-HTML vorhanden). Danach den Prozess beenden.
 
-- [ ] **Step 4: Commit**
+Anmerkung: liefert `2` statt `1`, weil derselbe Satz zusätzlich als Default-`description` im `<meta>` (aus `BaseLayout.astro`) rendert. Beide Treffer korrekt, Hero-Headline ist serverseitig vorhanden — Smoke inhaltlich bestanden.
+
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/developer/src/pages/index.astro
 git commit -m "Feat: add developer-site landing page"
 ```
+
+Nachtrag (Mockup-Treue): Die Landing wurde gegen das abgenommene Mockup vervollständigt — Phosphor-Icons (`@phosphor-icons/react`, als SSR-Islands ohne Hydration) in den Hero-Buttons (`KeyIcon`/`BookIcon`) und Feature-Karten (`LinkIcon`/`UserCircleIcon`/`VinylRecordIcon` — Phosphor 2.1.10 hat kein Creative-Commons-Icon, `VinylRecordIcon` steht für den Musik-Katalog), Nav um `API reference` + `Status` ergänzt, plus Footer (`© musiccloud` / `Docs · Terms · Privacy · Status`). `astro.config.mjs` erhielt `vite.optimizeDeps.include` + `ssr.noExternal` für `@phosphor-icons/react`; die Dependency ist damit wieder drin und jetzt tatsächlich genutzt. Verifiziert per Build, typecheck, lint, React Doctor und Browser-Screenshot gegen das Mockup.
 
 ---
 
@@ -425,7 +433,7 @@ git commit -m "Feat: add developer-site landing page"
 - Modify: `package.json` (root)
 - Create: `apps/developer/.env.local`
 
-- [ ] **Step 1: Root-Script `dev:developer` ergänzen**
+- [x] **Step 1: Root-Script `dev:developer` ergänzen**
 
 In `package.json` (root) bei den `dev:*`-Scripts ergänzen:
 
@@ -439,7 +447,7 @@ Und `dev:all` um `developer` erweitern (Name-Liste, Farbe, Befehl), z. B.:
 "dev:all": "concurrently -k -n dashboard-ui,shared,backend,frontend,developer,dashboard -c blue,gray,magenta,cyan,green,yellow \"pnpm dev:dashboard-ui\" \"pnpm dev:shared\" \"pnpm dev:backend\" \"pnpm dev\" \"pnpm dev:developer\" \"pnpm dev:dashboard\"",
 ```
 
-- [ ] **Step 2: app.config ergänzen**
+- [x] **Step 2: app.config ergänzen**
 
 Die Parallel-Arrays in `app.config` synchron erweitern (Index-Gleichheit ist Pflicht):
 
@@ -457,7 +465,7 @@ APP_CMDS=(
 
 Anmerkung: lokale Ports — Backend 4000, Frontend 3001, Developer 3002, Dashboard 4500 (alle kollisionsfrei). Die echte `app.config` listet heute `APP_PORTS=(- 4000 3001 4500)`; nur den `developer`-Eintrag (Port 3002) an Index 3 einfügen, die Frontend-3001-Position nicht verändern.
 
-- [ ] **Step 3: .env.local anlegen**
+- [x] **Step 3: .env.local anlegen**
 
 ```
 PORT=3002
@@ -469,12 +477,12 @@ Verifizieren, dass `apps/developer/.env.local` gitignored ist:
 Run: `git check-ignore apps/developer/.env.local`
 Expected: gibt den Pfad zurück (= ignoriert).
 
-- [ ] **Step 4: Runner-Smoke**
+- [x] **Step 4: Runner-Smoke**
 
 Run: `./app start developer && sleep 4 && ./app status`
 Expected: `developer` als running gelistet, Port 3002. Run: `curl -s http://localhost:3002/ | grep -c "musiccloud"` → `>=1`. Danach `./app stop developer`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add package.json app.config
@@ -488,7 +496,7 @@ git commit -m "Chore: wire developer app into local dev runner and root scripts"
 **Files:**
 - Modify: `zerops.yml`
 
-- [ ] **Step 1: `developer`-Service-Block ergänzen**
+- [x] **Step 1: `developer`-Service-Block ergänzen**
 
 Nach dem `frontend`-Block einfügen (Vorlage = `frontend`-Block, angepasst auf `developer`, Port 3002):
 
@@ -523,16 +531,16 @@ Nach dem `frontend`-Block einfügen (Vorlage = `frontend`-Block, angepasst auf `
       start: node apps/developer/dist/server/entry.mjs
 ```
 
-- [ ] **Step 2: YAML-Validität prüfen**
+- [x] **Step 2: YAML-Validität prüfen**
 
 Run: `python3 -c "import yaml,sys; yaml.safe_load(open('zerops.yml')); print('ok')"`
 Expected: `ok` (gültiges YAML, vier `setup`-Blöcke).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add zerops.yml
-git commit -m "Chore: add developer Zerops service (nodejs@22, port 3001)"
+git commit -m "Chore: add developer Zerops service (nodejs@22, port 3002)"
 ```
 
 ---
@@ -544,7 +552,7 @@ git commit -m "Chore: add developer Zerops service (nodejs@22, port 3001)"
 
 Voraussetzung: Der Zerops-`developer`-Service ist in der Zerops-UI angelegt (durch den Betreiber); die `serviceId` wird vor dem Edit aus Zerops abgelesen und unten eingesetzt.
 
-- [ ] **Step 1: Change-Detection um `developer` erweitern**
+- [x] **Step 1: Change-Detection um `developer` erweitern**
 
 Im `detect-changes`-Job: zu `outputs:` ergänzen:
 
@@ -565,7 +573,7 @@ Im Filter-Skript die Init-Zeile `developer=false` zu den anderen `*=false`-Flags
           echo "developer=$developer"
 ```
 
-- [ ] **Step 2: `deploy-developer`-Job ergänzen**
+- [x] **Step 2: `deploy-developer`-Job ergänzen**
 
 Nach `deploy-frontend` einfügen (Vorlage = ein bestehender Deploy-Job; `<DEVELOPER_SERVICE_ID>` durch die echte Zerops-serviceId ersetzen):
 
@@ -589,11 +597,11 @@ Nach `deploy-frontend` einfügen (Vorlage = ein bestehender Deploy-Job; `<DEVELO
           zcli push --serviceId <DEVELOPER_SERVICE_ID>
 ```
 
-- [ ] **Step 3: Offene Referenz markieren, falls serviceId fehlt**
+- [x] **Step 3: Offene Referenz markieren, falls serviceId fehlt**
 
 Falls die `serviceId` zum Implementierungszeitpunkt noch nicht vorliegt: den Deploy-Job mit einem klaren `# TODO serviceId` einfügen, aber **stoppen und den Betreiber nach der serviceId fragen**, bevor der Job aktiv mergt — ein Push mit Platzhalter-ID failt die Pipeline.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add .github/workflows/ci.yml
@@ -610,7 +618,7 @@ Vor Abschluss alle Gates grün:
 - SSR-Smoke: `node apps/developer/dist/server/entry.mjs` + `curl` liefert die Landing.
 - `pnpm --filter @musiccloud/developer typecheck` (`astro check`) — keine Typfehler.
 - `pnpm lint` — Repo-weit grün (Biome).
-- `pnpm --filter @musiccloud/shared build` läuft (Developer-App konsumiert `@musiccloud/shared`).
+- `pnpm --filter @musiccloud/shared build` läuft (`@musiccloud/shared` ist als Workspace-Dependency vorbereitet; der erste Import — `ENDPOINTS` im BFF-Client — kommt im Folge-Plan, daher aktuell noch kein Verbraucher in `apps/developer/src`).
 - Lokaler `./app start developer` rendert die Landing auf Port 3002.
 - `zerops.yml` ist valides YAML mit vier Services.
 - React Doctor: nur falls React-Islands hinzukamen (in diesem Plan keine — Landing ist reines Astro). Sonst überspringen.
@@ -624,18 +632,18 @@ Alle Referenzen gegen den aktuellen Code geprüft (paralleler Pattern-Audit):
 - **zerops.yml**: drei Services (`backend`/`frontend`/`dashboard`), `frontend`-Block (`alpine/nodejs@22`, Port 3000, `HOST: "::"`, `deployFiles`-Liste, `start`) ist die exakte Vorlage. Service-IDs: backend `vftiwXaYQGCnnwEEaiGPYA`, frontend `bMY4g66BRDOfq1AAi8Q85A`, dashboard `IF9Xp4YFRxuQKRQxmAWFBA` — die `developer`-ID liegt erst nach Anlage in Zerops vor.
 - **CI** `.github/workflows/ci.yml`: `detect-changes`-Job mit per-App-Case-Blöcken + `outputs`, Deploy-Jobs `if: needs.detect-changes.outputs.<app> == 'true'`, `zcli push --serviceId <id>`, `ZEROPS_TOKEN`-Secret. Node-Version `22`.
 - **Lokaler Runner**: `app.config` mit Parallel-Arrays `APP_NAMES`/`APP_PORTS`/`APP_CMDS` (`APP_PORTS=(- 4000 3001 4500)`); Root-`package.json` `dev:*`-Scripts und `dev:all` via `concurrently`. Frontend lokal Port **3001** (Prod 3000), Developer daher **3002** (lokal kollisionsfrei).
-- **Shared**: `@musiccloud/shared` (`workspace:*`), build via `tsc`, Import `import { ENDPOINTS } from "@musiccloud/shared"`.
+- **Shared**: `@musiccloud/shared` (`workspace:*`), build via `tsc`. Als Dependency vorbereitet, aber in diesem Plan noch nicht importiert — der Import (`import { ENDPOINTS } from "@musiccloud/shared"`) erfolgt erst im BFF-Client des Folge-Plans.
 - **pnpm** ist Pflicht-PM (`pnpm@10.33.1`); `npm install` crasht an `workspace:`-Refs.
-- [ ] Alle Code-Referenzen erneut verifiziert (Pfade, Scripts, Service-IDs, Ports) vor dem ersten Edit.
+- [x] Alle Code-Referenzen erneut verifiziert (Pfade, Scripts, Service-IDs, Ports) vor dem ersten Edit.
 
 ## Checkliste
 
-- [ ] Task 1: App-Manifest + Astro-Config + tsconfig, `pnpm install` grün
-- [ ] Task 2: Design-System (global.css `@theme`, fonts.css)
-- [ ] Task 3: DeveloperBackground (CSS-Gradient) + BaseLayout + favicon
-- [ ] Task 4: Landing-Page, Build + SSR-Smoke grün
-- [ ] Task 5: Lokaler Runner (`app.config`, Root-Scripts, `.env.local`), Runner-Smoke grün
-- [ ] Task 6: `zerops.yml` `developer`-Block, YAML valide
-- [ ] Task 7: CI Change-Detection + Deploy-Job (serviceId vom Betreiber)
-- [ ] Alle Gates grün (build, typecheck, `pnpm lint`, SSR-Smoke)
+- [x] Task 1: App-Manifest + Astro-Config + tsconfig, `pnpm install` grün
+- [x] Task 2: Design-System (global.css `@theme`, fonts.css)
+- [x] Task 3: DeveloperBackground (CSS-Gradient) + BaseLayout + favicon
+- [x] Task 4: Landing-Page, Build + SSR-Smoke grün
+- [x] Task 5: Lokaler Runner (`app.config`, Root-Scripts, `.env.local`), Runner-Smoke grün
+- [x] Task 6: `zerops.yml` `developer`-Block, YAML valide
+- [x] Task 7: CI Change-Detection + Deploy-Job (serviceId vom Betreiber)
+- [x] Alle Gates grün (build, typecheck, `pnpm lint`, SSR-Smoke)
 - [ ] Plan nach `done/` verschoben, `WHATS-NEXT.md` aktualisiert
