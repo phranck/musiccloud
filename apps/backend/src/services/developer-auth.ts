@@ -55,6 +55,47 @@ export const SESSION_COOKIE_NAME = "mc_dev_session";
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
 /**
+ * Discriminant for the `kind` claim carried by the developer session JWT. The
+ * login route stamps {@link SessionKind.Developer} into the token and the
+ * `authenticateDeveloper` guard rejects any token whose `kind` differs, so an
+ * admin JWT presented in the `mc_dev_session` cookie cannot pass. Centralized
+ * here so the produced and the checked literal can never drift apart.
+ */
+export const SessionKind = {
+  /** Marks a JWT as a developer-portal session (vs. an admin dashboard token). */
+  Developer: "developer",
+} as const;
+
+/**
+ * Purpose discriminant for single-use email tokens, persisted in
+ * `developer_email_tokens.purpose` and matched at redemption. A verify token
+ * confirms mailbox ownership at signup; a reset token authorizes a password
+ * change. The schema's `check (purpose IN ('verify','reset'))` constraint is
+ * the database-side guard; this namespace is the application-side source of
+ * truth for the same two strings.
+ */
+export const TokenPurpose = {
+  /** Email-verification token issued at signup. */
+  Verify: "verify",
+  /** Password-reset token issued by the request-reset flow. */
+  Reset: "reset",
+} as const;
+
+/**
+ * Authentication-provider discriminant, persisted in
+ * `developer_identities.provider`. `Email` is the built-in email/password
+ * provider (a `null` `provider_user_id`); `GitHub` is the OAuth provider
+ * landing in MC-065. Mirrors the schema's `check (provider IN ('email',
+ * 'github'))` constraint as the application-side source of truth.
+ */
+export const AuthProvider = {
+  /** Built-in email/password identity. */
+  Email: "email",
+  /** GitHub OAuth identity (MC-065). */
+  GitHub: "github",
+} as const;
+
+/**
  * Hashes a plaintext password with bcrypt at {@link BCRYPT_WORK_FACTOR}.
  *
  * @param password - The plaintext password to hash.

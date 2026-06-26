@@ -43,7 +43,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
 import { getDeveloperRepository } from "../db/index.js";
-import { SESSION_COOKIE_NAME } from "../services/developer-auth.js";
+import { SESSION_COOKIE_NAME, SessionKind } from "../services/developer-auth.js";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -200,7 +200,7 @@ async function authPlugin(app: FastifyInstance) {
       return reply.status(401).send({ error: "UNAUTHORIZED", message: "Invalid or expired session." });
     }
 
-    if (payload.kind !== "developer" || !payload.sub) {
+    if (payload.kind !== SessionKind.Developer || !payload.sub) {
       return reply.status(401).send({ error: "UNAUTHORIZED", message: "Invalid or expired session." });
     }
 
