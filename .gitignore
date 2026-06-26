@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# Brainstorming visual-companion scratch files (local-only)
+.superpowers/
+
 # Build output
 dist/
 build/
