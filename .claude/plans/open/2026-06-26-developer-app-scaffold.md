@@ -550,7 +550,7 @@ git commit -m "Chore: add developer Zerops service (nodejs@22, port 3001)"
 
 Voraussetzung: Der Zerops-`developer`-Service ist in der Zerops-UI angelegt (durch den Betreiber); die `serviceId` wird vor dem Edit aus Zerops abgelesen und unten eingesetzt.
 
-- [ ] **Step 1: Change-Detection um `developer` erweitern**
+- [x] **Step 1: Change-Detection um `developer` erweitern**
 
 Im `detect-changes`-Job: zu `outputs:` ergänzen:
 
@@ -571,7 +571,7 @@ Im Filter-Skript die Init-Zeile `developer=false` zu den anderen `*=false`-Flags
           echo "developer=$developer"
 ```
 
-- [ ] **Step 2: `deploy-developer`-Job ergänzen**
+- [x] **Step 2: `deploy-developer`-Job ergänzen**
 
 Nach `deploy-frontend` einfügen (Vorlage = ein bestehender Deploy-Job; `<DEVELOPER_SERVICE_ID>` durch die echte Zerops-serviceId ersetzen):
 
@@ -595,11 +595,11 @@ Nach `deploy-frontend` einfügen (Vorlage = ein bestehender Deploy-Job; `<DEVELO
           zcli push --serviceId <DEVELOPER_SERVICE_ID>
 ```
 
-- [ ] **Step 3: Offene Referenz markieren, falls serviceId fehlt**
+- [x] **Step 3: Offene Referenz markieren, falls serviceId fehlt**
 
 Falls die `serviceId` zum Implementierungszeitpunkt noch nicht vorliegt: den Deploy-Job mit einem klaren `# TODO serviceId` einfügen, aber **stoppen und den Betreiber nach der serviceId fragen**, bevor der Job aktiv mergt — ein Push mit Platzhalter-ID failt die Pipeline.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add .github/workflows/ci.yml
@@ -642,6 +642,6 @@ Alle Referenzen gegen den aktuellen Code geprüft (paralleler Pattern-Audit):
 - [x] Task 4: Landing-Page, Build + SSR-Smoke grün
 - [x] Task 5: Lokaler Runner (`app.config`, Root-Scripts, `.env.local`), Runner-Smoke grün
 - [x] Task 6: `zerops.yml` `developer`-Block, YAML valide
-- [ ] Task 7: CI Change-Detection + Deploy-Job (serviceId vom Betreiber)
+- [x] Task 7: CI Change-Detection + Deploy-Job (serviceId vom Betreiber)
 - [ ] Alle Gates grün (build, typecheck, `pnpm lint`, SSR-Smoke)
 - [ ] Plan nach `done/` verschoben, `WHATS-NEXT.md` aktualisiert
