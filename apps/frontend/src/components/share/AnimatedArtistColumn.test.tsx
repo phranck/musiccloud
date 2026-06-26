@@ -127,3 +127,20 @@ describe("AnimatedArtistColumn flip wiring", () => {
     expect(gsap.getTweensOf(Array.from(column.children))).toHaveLength(0);
   });
 });
+
+describe("AnimatedArtistColumn error state", () => {
+  // The flat `artist.error` value from the en translations the LocaleProvider loads.
+  const ARTIST_ERROR_MESSAGE = "Artist data could not be loaded.";
+
+  it("renders a single notice instead of four blank cards on a failed first load", () => {
+    const { getByText } = render(columnElement(null, "error", false));
+
+    expect(getByText(ARTIST_ERROR_MESSAGE)).toBeTruthy();
+  });
+
+  it("stays on the cards path (last-known data) when an error carries prior data", () => {
+    const { queryByText } = render(columnElement(SETTLED_PROFILE_ONLY_DATA, "error", false));
+
+    expect(queryByText(ARTIST_ERROR_MESSAGE)).toBeNull();
+  });
+});
