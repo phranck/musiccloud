@@ -144,7 +144,7 @@ if (treatAsBot) {
     {treatAsBot ? (
       <>
         {contentPage && contentPage.displayMode === "fullscreen" && (
-          <main id="main-content" class="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 pt-[calc(env(safe-area-inset-top)+5rem)] sm:pt-12 pb-12">
+          <main id="main-content" class="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 pt-content-safe pb-12">
             {contentPage.showTitle && contentPage.pageType !== "segmented" && (
               <h1
                 class:list={[
@@ -172,7 +172,7 @@ if (treatAsBot) {
         )}
 
         {contentPage && contentPage.displayMode !== "fullscreen" && (
-          <main id="main-content" class="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 pt-[calc(env(safe-area-inset-top)+5rem)] sm:pt-12 pb-12">
+          <main id="main-content" class="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 pt-content-safe pb-12">
             {/* Bots get the content statically — the overlay island never
                 hydrates without JS, so crawlers would otherwise index nothing.
                 Segmented pages emit every section so the full text is present. */}
@@ -198,7 +198,7 @@ if (treatAsBot) {
         )}
 
         {!contentPage && !ccPageProps && shareView && (
-          <main id="main-content" class="flex-1 flex flex-col items-center px-4 sm:px-6 pt-[calc(env(safe-area-inset-top)+5rem)] sm:pt-12 md:pt-14 pb-12">
+          <main id="main-content" class="flex-1 flex flex-col items-center px-4 sm:px-6 pt-content-safe pb-12">
             <ShareLogoHeader />
             <ShareLayout
               client:load
@@ -217,7 +217,7 @@ if (treatAsBot) {
               deferred island fetches share/content data. Astro swaps this
               fallback out for the island's rendered <main> as soon as the
               sub-request finishes. */}
-          <main id="main-content" class="flex-1 flex flex-col items-center px-4 sm:px-6 pt-[calc(env(safe-area-inset-top)+5rem)] sm:pt-12 md:pt-14 pb-12">
+          <main id="main-content" class="flex-1 flex flex-col items-center px-4 sm:px-6 pt-content-safe pb-12">
             <ShareLogoHeader />
             <ShareResultPlaceholder className="mt-6 sm:mt-8" />
           </main>

@@ -57,10 +57,7 @@ export function CcSharePageShell({ config, artistName, artistInfo, labels, initi
   );
 
   return (
-    <main
-      id="main-content"
-      className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-[calc(env(safe-area-inset-top)+5rem)] sm:pt-12 md:pt-14 pb-12"
-    >
+    <main id="main-content" className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-content-safe pb-12">
       <ShareLogoHeader onLogoClick={handleLogoClick} />
       {/* See SharePageShell: CSS fade is deliberate here (client:load inside a
           server:defer stream plays the enter before hydration). */}

@@ -38,10 +38,7 @@ export function SharePageShell({ config, artistName, artistInfoContext, initialL
   );
 
   return (
-    <main
-      id="main-content"
-      className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-[calc(env(safe-area-inset-top)+5rem)] sm:pt-12 md:pt-14 pb-12"
-    >
+    <main id="main-content" className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-content-safe pb-12">
       <ShareLogoHeader onLogoClick={handleLogoClick} />
       {/* `animate-fade-in` stays CSS deliberately (MC-029 Task 2.5 exception):
           this island is client:load inside the server:defer stream, so the
