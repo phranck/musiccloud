@@ -134,7 +134,7 @@ export default async function adminUserRoutes(app: FastifyInstance) {
       } catch (error) {
         // Mail send must not roll back user creation: the invite URL is
         // returned in the response and remains copy-pasteable from the
-        // UI even if delivery to Brevo fails.
+        // UI even if email delivery fails.
         request.log.error({ err: error, userId: id }, "failed to send welcome email");
       }
     }

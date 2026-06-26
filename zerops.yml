@@ -45,8 +45,8 @@ zerops:
         # BANDSINTOWN_APP_ID: <from Bandsintown Developer Portal>
         # PUBLIC_URL: <public site origin, e.g. https://musiccloud.io; used for email banner asset URLs>
         # DASHBOARD_URL: <dashboard origin, e.g. https://dashboard.musiccloud.io; used for invite + login links>
-        # BREVO_API_KEY: <from Brevo -> SMTP & API -> API keys>
-        # EMAIL_FROM_ADDRESS: <verified Brevo sender address, e.g. noreply@musiccloud.io>
+        # SMTP2GO_API_KEY: <from SMTP2GO -> Settings -> API Keys (send permission)>
+        # EMAIL_FROM_ADDRESS: <verified SMTP2GO sender address, e.g. noreply@musiccloud.io>
         # EMAIL_FROM_NAME: <display name for outgoing emails, e.g. musiccloud>
       initCommands:
         - "true"
