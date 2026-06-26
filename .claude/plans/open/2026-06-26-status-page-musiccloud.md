@@ -105,7 +105,9 @@ Umsetzung als **`status-website.css`-Block + `customHeadHtml`** in `.upptimerc.y
 
 ## Umsetzungsstand (2026-06-26)
 
-**Erledigt:**
+**LIVE — Velvet-Pivot (2026-06-26):** Der CSS-Reskin-Ansatz (natives Theming auf Stock-Upptime, Task 4/5) wurde verworfen, weil er das abgenommene Mockup strukturell nicht erreicht (keine 90-Tage-Balken, keine Phosphor-Icons pro Service). Stattdessen rendert `status.musiccloud.io` jetzt das eigene **Velvet**-Front-end (Svelte, config-getrieben) als OSS-Projekt: Repo `phranck/velvet` (MIT, GitHub Action `phranck/velvet@v1` + Template-Plan), README mit Badges/Screenshot. musiccloud ist der erste Konsument (`.upptimerc.yml` `velvet:`-Block + `velvet.yml`-Deploy-Workflow, Stock-`site.yml` disabled). **Live verifiziert.** Offen: `velvet-template`-Repo, README-Screenshot-Feinschliff, Down-Services-Monitoring (separat).
+
+**Erledigt (Reskin-Phase, jetzt durch Velvet abgelöst):**
 - Task 1 (Spike) komplett, Spec gesynct.
 - Task 2: Repo `phranck/status.musiccloud.io` mit Upptime-Template + `.upptimerc.yml` (Services Frontend / API `/health/ready` / Dashboard / Developer Site) + CNAME befüllt und nach `main` gepusht. Demo-Daten entfernt.
 - Task 4/5 (Look, erster Pass): Dark-Indigo-Theme via `css` + `customHeadHtml` (Inter, JetBrains Mono, Phosphor-Duotone-Web-Font) in `.upptimerc.yml`. Pixel-Feinschliff + Phosphor-pro-Service offen (iterativ gegen Live-Seite).
