@@ -26,7 +26,7 @@ Alle Refs gegen den aktuellen `main` (nach MC-064-Merge) grep-/Read-verifiziert.
 - **Env**: `GITHUB_OAUTH_CLIENT_ID` + `GITHUB_OAUTH_CLIENT_SECRET` in `apps/backend/.env.local` gesetzt (Key-Namen verifiziert). `DEVELOPER_URL` existiert (MC-064). `requireEnv` aus `lib/env.js`. `zerops.yml`: GitHub-Env-Kommentar fehlt → ergänzen.
 - **Kein User-OAuth-Pattern vorhanden**: nur Client-Credentials (`routes/auth.ts:40-78`, `lib/infra/token-manager.ts:87`). GitHub-OAuth ist neu. Kein `@octokit` in `package.json` → raw `fetch`.
 - **Rate-Limit** `lib/infra/rate-limiter.ts` `RateLimiter` + `lib/infra/rate-limit-response.js` `sendRateLimitError` (von `developer-auth.ts` genutzt). Für `/github/exchange` denselben dedizierten Limiter-Stil.
-- [ ] Refs vor dem ersten Edit erneut grep-verifiziert (am Execute-Time).
+- [x] Refs vor dem ersten Edit erneut grep-verifiziert (am Execute-Time).
 
 ## Designentscheidungen
 
@@ -71,7 +71,7 @@ Alle Refs gegen den aktuellen `main` (nach MC-064-Merge) grep-/Read-verifiziert.
 
 Reine Schicht für die zwei GitHub-Endpunkte + Authorize-URL-Bau. Raw `fetch`, kein SDK. `requireEnv` für Client-ID/Secret + `DEVELOPER_URL`.
 
-- [ ] **Step 1: Service schreiben**
+- [x] **Step 1: Service schreiben**
 
 ```ts
 /**
@@ -212,14 +212,14 @@ export async function fetchGitHubProfile(accessToken: string): Promise<GitHubPro
 }
 ```
 
-- [ ] **Step 2: Tests schreiben** (`developer-github.test.ts`): `fetch` via `vi.fn()`/`vi.stubGlobal` mocken, Env via `vi.stubEnv` (`GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `DEVELOPER_URL`). Fälle:
+- [x] **Step 2: Tests schreiben** (`developer-github.test.ts`): `fetch` via `vi.fn()`/`vi.stubGlobal` mocken, Env via `vi.stubEnv` (`GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `DEVELOPER_URL`). Fälle:
   - `buildGitHubAuthorizeUrl("st")` enthält `client_id`, `scope=read%3Auser`, `redirect_uri`=`${DEVELOPER_URL}/auth/github/callback`, `state=st`.
   - `exchangeGitHubCode` gibt Token bei `{access_token}`; wirft bei non-2xx; wirft bei `{error}` ohne Token.
   - `fetchGitHubProfile` mappt `/user`-Felder; nimmt verifizierte Primär-E-Mail aus `/user/emails`; `email:null` wenn keine verifiziert; wirft bei `/user`-non-2xx.
 
-- [ ] **Step 3: Gates** — `pnpm --filter @musiccloud/backend exec vitest run src/services/developer-github.test.ts` grün, `pnpm --filter @musiccloud/backend typecheck` grün.
+- [x] **Step 3: Gates** — `pnpm --filter @musiccloud/backend exec vitest run src/services/developer-github.test.ts` grün, `pnpm --filter @musiccloud/backend typecheck` grün.
 
-- [ ] **Step 4: Commit** — `Feat: GitHub OAuth HTTP service for developer portal (MC-065)`
+- [x] **Step 4: Commit** — `Feat: GitHub OAuth HTTP service for developer portal (MC-065)`
 
 ## Task 2: Shared-Endpoints + buildAccountResponse-Export
 
