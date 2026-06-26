@@ -13,6 +13,14 @@ const GITHUB_USER_URL = "https://api.github.com/user";
 const GITHUB_USER_EMAILS_URL = "https://api.github.com/user/emails";
 
 /**
+ * Per-request timeout (ms) for every outbound GitHub call. Without it a stalled
+ * GitHub response would block the OAuth exchange handler indefinitely; the
+ * `AbortSignal.timeout` aborts the `fetch` with a `TimeoutError`, which the
+ * route layer maps to a `502 GITHUB_ERROR`.
+ */
+const GITHUB_HTTP_TIMEOUT_MS = 10_000;
+
+/**
  * GitHub-OAuth constants shared between the service and the route layer:
  * the requested scopes and the `kind` discriminant stamped into the signed
  * state JWT (so the produced and checked literal never drift).
@@ -81,6 +89,7 @@ export async function exchangeGitHubCode(code: string): Promise<string> {
       code,
       redirect_uri: redirectUri(),
     }),
+    signal: AbortSignal.timeout(GITHUB_HTTP_TIMEOUT_MS),
   });
   if (!response.ok) {
     throw new Error(`GitHub token exchange failed (${response.status})`);
@@ -109,7 +118,7 @@ export async function fetchGitHubProfile(accessToken: string): Promise<GitHubPro
     "User-Agent": "musiccloud-developer-portal",
   };
 
-  const userRes = await fetch(GITHUB_USER_URL, { headers });
+  const userRes = await fetch(GITHUB_USER_URL, { headers, signal: AbortSignal.timeout(GITHUB_HTTP_TIMEOUT_MS) });
   if (!userRes.ok) throw new Error(`GitHub user fetch failed (${userRes.status})`);
   const user = (await userRes.json()) as {
     id: number;
@@ -119,7 +128,10 @@ export async function fetchGitHubProfile(accessToken: string): Promise<GitHubPro
     email: string | null;
   };
 
-  const emailsRes = await fetch(GITHUB_USER_EMAILS_URL, { headers });
+  const emailsRes = await fetch(GITHUB_USER_EMAILS_URL, {
+    headers,
+    signal: AbortSignal.timeout(GITHUB_HTTP_TIMEOUT_MS),
+  });
   let primaryVerified: string | null = null;
   if (emailsRes.ok) {
     const emails = (await emailsRes.json()) as Array<{ email: string; primary: boolean; verified: boolean }>;
