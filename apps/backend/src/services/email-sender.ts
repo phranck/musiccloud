@@ -1,19 +1,31 @@
 import { requireEnv } from "../lib/env.js";
+import { sendEmail } from "./email-provider.js";
 import { renderEmailTemplate } from "./email-renderer.js";
 import { getManagedEmailTemplateById } from "./email-templates.js";
 
-const BREVO_ENDPOINT = "https://api.brevo.com/v3/smtp/email";
-
+/**
+ * Input for {@link sendTemplatedEmail}: which managed template to render, the
+ * recipient, and the variables substituted into the template body.
+ */
 export interface SendTemplatedEmailInput {
+  /** Id of the managed email template to render. */
   templateId: number;
+  /** Recipient address and optional display name. */
   to: { email: string; name?: string };
+  /** `{{name}}`-style variables substituted into the rendered template. */
   variables: Record<string, string>;
 }
 
+/**
+ * Render a managed email template and send it via the configured email
+ * provider (SMTP2GO). The rendering pipeline (template lookup + variable
+ * substitution + banner-URL resolution against `PUBLIC_URL`) is unchanged; only
+ * the transport now goes through {@link sendEmail}.
+ *
+ * @param input - template id, recipient and substitution variables.
+ * @throws Error when the template is missing or the provider rejects the send.
+ */
 export async function sendTemplatedEmail(input: SendTemplatedEmailInput): Promise<void> {
-  const apiKey = requireEnv("BREVO_API_KEY");
-  const fromEmail = requireEnv("EMAIL_FROM_ADDRESS");
-  const fromName = requireEnv("EMAIL_FROM_NAME");
   const baseUrl = requireEnv("PUBLIC_URL");
 
   const templateResult = await getManagedEmailTemplateById(input.templateId);
@@ -35,23 +47,5 @@ export async function sendTemplatedEmail(input: SendTemplatedEmailInput): Promis
     baseUrl,
   );
 
-  const response = await fetch(BREVO_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "api-key": apiKey,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      sender: { email: fromEmail, name: fromName },
-      to: [{ email: input.to.email, ...(input.to.name ? { name: input.to.name } : {}) }],
-      subject,
-      htmlContent: html,
-    }),
-  });
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new Error(`Brevo API error (${response.status}): ${body}`);
-  }
+  await sendEmail({ to: input.to, subject, html });
 }
