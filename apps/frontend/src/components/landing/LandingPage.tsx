@@ -243,7 +243,9 @@ function LandingPageInner({
       <div className="flex-1 flex flex-col items-center px-4 transition-colors duration-700 relative">
         <div
           className={`flex-1 flex flex-col items-center w-full ${
-            isSharePageView || isCcResultView ? "justify-start pt-20 sm:pt-12 md:pt-14 pb-12" : "justify-center"
+            isSharePageView || isCcResultView
+              ? "justify-start pt-[calc(env(safe-area-inset-top)+5rem)] sm:pt-12 md:pt-14 pb-12"
+              : "justify-center"
           }`}
         >
           {/* During return-flip staging the (invisible, pre-paint) idle branch

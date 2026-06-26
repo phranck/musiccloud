@@ -92,6 +92,8 @@ Trennt Login-Methode von Account und macht späteres Account-Linking (mehrere Me
 ### Verzahnung mit MC-025
 MC-025s `api_access_requests` und `api_clients` bekommen je eine FK `developer_account_id` uuid → `developer_accounts`. MC-025s `contact_email` am Antrag bleibt als Anzeigewert, die Account-Verknüpfung ist die Wahrheit. Keys/Clients hängen am Account.
 
+**API-Key-Format:** ausgestellte Keys tragen den Prefix `mc_api` (Form `mc_api_<random>`). Gespeichert wird nur der Hash; der Klartext erscheint einmalig bei der Ausstellung.
+
 ### Billing-ready
 Das `plan`-Feld am Account ist der einzige strukturelle Vorgriff. Rate-Limits/Quotas werden aus dem Plan abgeleitet (Tier-Defaults), nicht hart pro Client gesetzt. Die Usage-Erfassung (MC-025 Phase 2, `api_usage_events`) ist die spätere Abrechnungsgrundlage. Plan-/Entitlement-Logik lebt in einer eigenen Schicht, sodass später ein Payment-Provider nur andockt.
 
