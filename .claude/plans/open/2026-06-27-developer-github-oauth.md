@@ -423,12 +423,12 @@ export async function devGitHubRoutes(app: FastifyInstance) {
 - Modify: `apps/backend/.env.local` (lokal, nur falls Keys fehlen — sie sind gesetzt)
 - Modify: `zerops.yml` (Backend-Env-Kommentare)
 
-- [ ] **Step 1: `zerops.yml`** — bei den Backend-Env-Kommentaren ergänzen:
+- [x] **Step 1: `zerops.yml`** — bei den Backend-Env-Kommentaren ergänzen:
   ```
   # GITHUB_OAUTH_CLIENT_ID: <from GitHub OAuth App; developer-portal sign-in>
   # GITHUB_OAUTH_CLIENT_SECRET: <from GitHub OAuth App>
   ```
-- [ ] **Step 2: Commit** — `Chore: document GitHub OAuth env in zerops.yml (MC-065)`
+- [x] **Step 2: Commit** — `Chore: document GitHub OAuth env in zerops.yml (MC-065)`
 
 ## Tests und Gates
 
@@ -440,12 +440,12 @@ export async function devGitHubRoutes(app: FastifyInstance) {
 
 ## Checkliste
 
-- [ ] Task 1: GitHub-HTTP-Service + Unit-Tests
-- [ ] Task 2: Shared-Endpoints `github.*` + `buildAccountResponse`-Export
-- [ ] Task 3: Routen `start` + `exchange` + Server-Registrierung
-- [ ] Task 4: Route-Tests grün
-- [ ] Task 5: Env-Doku (`zerops.yml`)
-- [ ] Gates grün (typecheck backend+shared, test:run, lint, doctor:diff)
+- [x] Task 1: GitHub-HTTP-Service + Unit-Tests
+- [x] Task 2: Shared-Endpoints `github.*` + `buildAccountResponse`-Export
+- [x] Task 3: Routen `start` + `exchange` + Server-Registrierung
+- [x] Task 4: Route-Tests grün
+- [x] Task 5: Env-Doku (`zerops.yml`)
+- [x] Gates grün (typecheck backend+shared, test:run, lint, doctor:diff)
 - [ ] Plan nach `done/`, gemergt
 
 ## Externer Handoff (Config, nicht Code)

@@ -46,6 +46,8 @@ zerops:
         # PUBLIC_URL: <public site origin, e.g. https://musiccloud.io; used for email banner asset URLs>
         # DASHBOARD_URL: <dashboard origin, e.g. https://dashboard.musiccloud.io; used for invite + login links>
         # DEVELOPER_URL: <developer site origin, e.g. https://developer.musiccloud.io; used for verify + reset links>
+        # GITHUB_OAUTH_CLIENT_ID: <from GitHub OAuth App; developer-portal sign-in>
+        # GITHUB_OAUTH_CLIENT_SECRET: <from GitHub OAuth App>
         # SMTP2GO_API_KEY: <from SMTP2GO -> Settings -> API Keys (send permission)>
         # EMAIL_FROM_ADDRESS: <verified SMTP2GO sender address, e.g. noreply@musiccloud.io>
         # EMAIL_FROM_NAME: <display name for outgoing emails, e.g. musiccloud>
