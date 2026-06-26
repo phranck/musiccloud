@@ -61,6 +61,13 @@
   /* Spacing - inset aligned to card corner radius */
   --spacing-card-inset: 12px;
 
+  /* Top spacing from the viewport edge to share/landing content, per breakpoint.
+     Combined with env(safe-area-inset-top) by the `pt-content-safe` utility so the
+     installed standalone PWA clears the notch / Dynamic Island. */
+  --spacing-content-top: 5rem;
+  --spacing-content-top-sm: 3rem;
+  --spacing-content-top-md: 3.5rem;
+
   /* Animations - Apple ease-out curves. CSS keyframes only serve the
      SSR/bot/pre-hydration paths; interaction-flow animations are GSAP
      (lib/motion/) — see styles/animations.css for the exception inventory. */
@@ -82,6 +89,22 @@
 /* Safe area padding for notch / home indicator (iPhone X+) */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Top padding for share / landing content columns. Adds the device safe-area
+   inset (notch / Dynamic Island) to the breakpoint-scaled content-top token so
+   the logo header clears the fixed, safe-area-offset header buttons in the
+   installed standalone PWA. env(safe-area-inset-top) resolves to 0 in the
+   browser, so desktop / Safari spacing is unchanged. Breakpoints mirror the
+   Tailwind defaults (sm 40rem, md 48rem). */
+@utility pt-content-safe {
+  padding-top: calc(env(safe-area-inset-top) + var(--spacing-content-top));
+  @media (width >= 40rem) {
+    padding-top: calc(env(safe-area-inset-top) + var(--spacing-content-top-sm));
+  }
+  @media (width >= 48rem) {
+    padding-top: calc(env(safe-area-inset-top) + var(--spacing-content-top-md));
+  }
 }
 
 /* Remove default link underline globally */

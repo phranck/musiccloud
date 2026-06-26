@@ -78,7 +78,7 @@ const artworkUrl = contentPage ? null : (ccPageProps?.artworkUrl ?? shareView?.a
 )}
 
 {!notFound && contentPage && contentPage.displayMode === "fullscreen" && (
-  <main id="main-content" class="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 pt-[calc(env(safe-area-inset-top)+5rem)] sm:pt-12 pb-12 animate-slide-up">
+  <main id="main-content" class="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 pt-content-safe pb-12 animate-slide-up">
     {contentPage.showTitle && contentPage.pageType !== "segmented" && (
       <h1
         class:list={[
