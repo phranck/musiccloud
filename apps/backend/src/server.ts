@@ -38,6 +38,7 @@ import ccDownloadRoutes from "./routes/cc-download.js";
 import ccGenreArtworkRoutes from "./routes/cc-genre-artwork.js";
 import ccRandomExampleRoutes from "./routes/cc-random-example.js";
 import ccResolveRoutes from "./routes/cc-resolve.js";
+import { devAuthRoutes } from "./routes/developer-auth.js";
 import genreArtworkRoutes from "./routes/genre-artwork.js";
 import linkRoutes from "./routes/link.js";
 import publicContentNavRoutes from "./routes/public-content-nav.js";
@@ -92,6 +93,13 @@ async function buildApp() {
   // Security & utility plugins
   await app.register(cors, {
     origin: requireEnvList("CORS_ORIGIN"),
+    // The developer portal (developer.musiccloud.io) authenticates with the
+    // httpOnly `mc_dev_session` cookie and calls these routes cross-origin with
+    // `credentials: "include"`. Without `Access-Control-Allow-Credentials: true`
+    // the browser refuses to send or store that cookie. Safe here because
+    // `origin` is an explicit allow-list (never the `*` wildcard, which the spec
+    // forbids combining with credentials).
+    credentials: true,
   });
   await app.register(helmet, {
     // Relaxed CSP so the Scalar API reference at /docs can load its
@@ -425,6 +433,12 @@ async function buildApp() {
 
   // Admin auth routes (no auth required - login, setup, setup-status)
   await app.register(adminAuthRoutes);
+
+  // Developer-portal auth routes (no auth required - signup, login, verify,
+  // reset, logout; `/me` guards itself via authenticateDeveloper). The session
+  // is the `mc_dev_session` cookie, parsed by the @fastify/cookie plugin
+  // registered above.
+  await app.register(devAuthRoutes);
 
   // Share endpoint (public, no auth - used for SSR)
   await app.register(shareRoutes);

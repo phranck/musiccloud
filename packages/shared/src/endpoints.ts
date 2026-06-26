@@ -317,6 +317,32 @@ export const ENDPOINTS = {
       runs: "/api/admin/crawler/runs",
     },
   },
+
+  /**
+   * `/api/dev/...`: external developer-portal endpoints for
+   * developer.musiccloud.io (MC-064). Separate account system from `admin`
+   * above — self-service portal users, not dashboard administrators. The
+   * session is an httpOnly `mc_dev_session` cookie, not a Bearer header, so
+   * these paths are called by the portal with `credentials: "include"`.
+   */
+  dev: {
+    auth: {
+      /** POST: register a new developer account (unverified) + send verification email. Body: { email, password, displayName? }. */
+      signup: "/api/dev/auth/signup",
+      /** POST: redeem a verification token, marking the account's email verified. Body: { token }. */
+      verifyEmail: "/api/dev/auth/verify-email",
+      /** POST: log in with email + password (verified accounts only); sets the session cookie. Body: { email, password }. */
+      login: "/api/dev/auth/login",
+      /** POST: request a password-reset email. Always 200 (no account-existence leak). Body: { email }. */
+      requestReset: "/api/dev/auth/request-reset",
+      /** POST: redeem a reset token and set a new password. Body: { token, password }. */
+      resetPassword: "/api/dev/auth/reset-password",
+      /** POST: clear the session cookie. */
+      logout: "/api/dev/auth/logout",
+      /** GET: the currently authenticated developer account (cookie session). */
+      me: "/api/dev/auth/me",
+    },
+  },
 } as const;
 
 // -----------------------------------------------------------------------------
