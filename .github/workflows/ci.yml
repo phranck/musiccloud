@@ -166,8 +166,7 @@ jobs:
           ZEROPS_TOKEN: ${{ secrets.ZEROPS_TOKEN }}
         run: |
           zcli login "$ZEROPS_TOKEN"
-          # TODO: serviceId vom Betreiber einsetzen (Zerops-UI -> developer-Service)
-          zcli push --serviceId <DEVELOPER_SERVICE_ID>
+          zcli push --serviceId snJHAWsxR32xetGASY33cQ
 
   deploy-dashboard:
     name: Deploy Dashboard
