@@ -52,12 +52,15 @@ import { getDeveloperRepository } from "../db/index.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { RateLimiter } from "../lib/infra/rate-limiter.js";
 import {
+  AuthProvider,
   clearedSessionCookieOptions,
   generateEmailToken,
   hashEmailToken,
   hashPassword,
   SESSION_COOKIE_NAME,
+  SessionKind,
   sessionCookieOptions,
+  TokenPurpose,
   verifyPassword,
 } from "../services/developer-auth.js";
 import { sendDeveloperPasswordResetEmail, sendDeveloperVerificationEmail } from "../services/developer-email.js";
@@ -73,6 +76,32 @@ const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 /** Password-reset-token lifetime: 1 hour from issuance. */
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
+
+/** Postgres SQLSTATE for a `unique_violation`, raised when a concurrent insert collides on a unique constraint. */
+const PG_UNIQUE_VIOLATION = "23505";
+
+/** Name of the unique constraint on `developer_accounts.email` (migration 0047). */
+const EMAIL_UNIQUE_CONSTRAINT = "developer_accounts_email_unique";
+
+/**
+ * Detects whether a thrown error is the Postgres unique-violation raised when
+ * two concurrent signups race past the `findByEmail` pre-check and both try to
+ * insert the same email. The adapter rethrows the native `pg` error verbatim
+ * (no wrapping), so its `code` is the SQLSTATE; the constraint-name check in
+ * the message is a defensive fallback for drivers that surface the code
+ * differently. Used by `/signup` to translate the race into the same `409`
+ * the pre-check returns, rather than a `500`.
+ *
+ * @param error - The value caught from the account/identity insert.
+ * @returns `true` when the error is a duplicate-email unique violation.
+ */
+function isDuplicateEmailError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const code = (error as { code?: unknown }).code;
+  if (code === PG_UNIQUE_VIOLATION) return true;
+  const message = (error as { message?: unknown }).message;
+  return typeof message === "string" && message.includes(EMAIL_UNIQUE_CONSTRAINT);
+}
 
 /**
  * Dedicated per-IP throttle for credential endpoints (`/login`,
@@ -166,13 +195,27 @@ export async function devAuthRoutes(app: FastifyInstance) {
     }
 
     const passwordHash = await hashPassword(password);
-    const account = await repo.createDeveloperAccount({ email, passwordHash, displayName });
-    await repo.createDeveloperIdentity({ accountId: account.id, provider: "email" });
+
+    // The findByEmail pre-check above is the fast path. Two concurrent signups
+    // can still both pass it and race to insert the same email; the unique
+    // constraint then rejects the loser with a 23505. Catch that here and
+    // return the same 409 the pre-check returns, so a race yields EMAIL_TAKEN
+    // rather than a 500. Any other error is a genuine failure and rethrows.
+    let account: DeveloperAccount;
+    try {
+      account = await repo.createDeveloperAccount({ email, passwordHash, displayName });
+      await repo.createDeveloperIdentity({ accountId: account.id, provider: AuthProvider.Email });
+    } catch (error) {
+      if (isDuplicateEmailError(error)) {
+        return reply.status(409).send({ error: "EMAIL_TAKEN", message: "An account with this email already exists." });
+      }
+      throw error;
+    }
 
     const { raw, hash } = generateEmailToken();
     await repo.createDeveloperEmailToken({
       accountId: account.id,
-      purpose: "verify",
+      purpose: TokenPurpose.Verify,
       tokenHash: hash,
       expiresAt: new Date(Date.now() + VERIFY_TOKEN_TTL_MS),
     });
@@ -195,13 +238,21 @@ export async function devAuthRoutes(app: FastifyInstance) {
     }
 
     const repo = await getDeveloperRepository();
-    const token = await repo.findActiveDeveloperEmailToken(hashEmailToken(body.token), "verify");
-    if (!token) {
+    const record = await repo.findActiveDeveloperEmailToken(hashEmailToken(body.token), TokenPurpose.Verify);
+    if (!record) {
       return reply.status(400).send({ error: "INVALID_TOKEN", message: "Verification token is invalid or expired." });
     }
 
-    await repo.markDeveloperEmailVerified(token.accountId);
-    await repo.consumeDeveloperEmailToken(token.id);
+    // Claim-then-act: the atomic UPDATE … WHERE consumed_at IS NULL in the
+    // adapter is the gate. Consuming first (and only acting on success) closes
+    // the check-then-act window where two concurrent requests carrying the same
+    // token could both pass the find above and apply the effect twice.
+    const consumed = await repo.consumeDeveloperEmailToken(record.id);
+    if (!consumed) {
+      return reply.status(400).send({ error: "INVALID_TOKEN", message: "Verification token is invalid or expired." });
+    }
+
+    await repo.markDeveloperEmailVerified(record.accountId);
 
     return reply.send({ ok: true });
   });
@@ -232,7 +283,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
       return reply.status(403).send({ error: "EMAIL_NOT_VERIFIED", message: "Please verify your email first." });
     }
 
-    const token = app.jwt.sign({ sub: account.id, kind: "developer" }, { expiresIn: "7d" });
+    const token = app.jwt.sign({ sub: account.id, kind: SessionKind.Developer }, { expiresIn: "7d" });
     reply.setCookie(SESSION_COOKIE_NAME, token, sessionCookieOptions());
 
     // Update last login timestamp (fire and forget): a failed stat write must
@@ -262,7 +313,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
       const { raw, hash } = generateEmailToken();
       await repo.createDeveloperEmailToken({
         accountId: account.id,
-        purpose: "reset",
+        purpose: TokenPurpose.Reset,
         tokenHash: hash,
         expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
       });
@@ -292,14 +343,22 @@ export async function devAuthRoutes(app: FastifyInstance) {
     }
 
     const repo = await getDeveloperRepository();
-    const token = await repo.findActiveDeveloperEmailToken(hashEmailToken(body.token), "reset");
-    if (!token) {
+    const record = await repo.findActiveDeveloperEmailToken(hashEmailToken(body.token), TokenPurpose.Reset);
+    if (!record) {
+      return reply.status(400).send({ error: "INVALID_TOKEN", message: "Reset token is invalid or expired." });
+    }
+
+    // Claim-then-act: consume the token before applying any effect. The atomic
+    // UPDATE … WHERE consumed_at IS NULL in the adapter guarantees exactly one
+    // caller wins, closing the replay window where two concurrent requests with
+    // the same token could both set a (different) password.
+    const consumed = await repo.consumeDeveloperEmailToken(record.id);
+    if (!consumed) {
       return reply.status(400).send({ error: "INVALID_TOKEN", message: "Reset token is invalid or expired." });
     }
 
     const passwordHash = await hashPassword(body.password);
-    const account = await repo.setDeveloperPassword(token.accountId, passwordHash);
-    await repo.consumeDeveloperEmailToken(token.id);
+    const account = await repo.setDeveloperPassword(record.accountId, passwordHash);
 
     // Redeeming a reset link proves mailbox control; verify the email if it was
     // still pending so the developer is not locked out at login.

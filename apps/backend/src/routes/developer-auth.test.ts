@@ -282,6 +282,24 @@ describe("POST /api/dev/auth/verify-email", () => {
     expect(res.json().error).toBe("INVALID_TOKEN");
     expect(vi.mocked(repo.markDeveloperEmailVerified)).not.toHaveBeenCalled();
   });
+
+  it("returns 400 INVALID_TOKEN and does not verify when the consume races and loses", async () => {
+    // Claim-then-act: the token is found, but a concurrent request already
+    // consumed it, so the atomic consume returns false. The effect must not run.
+    vi.mocked(repo.findActiveDeveloperEmailToken).mockResolvedValueOnce(makeToken({ purpose: "verify" }));
+    vi.mocked(repo.consumeDeveloperEmailToken).mockResolvedValueOnce(false);
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.verifyEmail,
+      payload: { token: "raced-verify-token" },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("INVALID_TOKEN");
+    expect(vi.mocked(repo.consumeDeveloperEmailToken)).toHaveBeenCalledWith("tok-1");
+    expect(vi.mocked(repo.markDeveloperEmailVerified)).not.toHaveBeenCalled();
+  });
 });
 
 describe("POST /api/dev/auth/login", () => {
@@ -415,6 +433,25 @@ describe("POST /api/dev/auth/reset-password", () => {
 
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toBe("INVALID_TOKEN");
+    expect(vi.mocked(repo.setDeveloperPassword)).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 INVALID_TOKEN and does not set the password when the consume races and loses", async () => {
+    // Claim-then-act guards a real replay window here: without consuming first,
+    // two concurrent requests could each set a different password. A lost race
+    // (consume → false) must leave the password untouched.
+    vi.mocked(repo.findActiveDeveloperEmailToken).mockResolvedValueOnce(makeToken({ purpose: "reset" }));
+    vi.mocked(repo.consumeDeveloperEmailToken).mockResolvedValueOnce(false);
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.resetPassword,
+      payload: { token: "raced-reset-token", password: "a-brand-new-password" },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("INVALID_TOKEN");
+    expect(vi.mocked(repo.consumeDeveloperEmailToken)).toHaveBeenCalledWith("tok-1");
     expect(vi.mocked(repo.setDeveloperPassword)).not.toHaveBeenCalled();
   });
 });
