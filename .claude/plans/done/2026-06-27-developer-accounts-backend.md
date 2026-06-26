@@ -93,9 +93,9 @@ Shared-Endpoints `ENDPOINTS.dev.auth.*` + `ROUTE_TEMPLATES` ergänzen.
 1. **Schema + Migration** — drei Tabellen in `postgres.ts` (Row-Type-Exports, checks, indexes, FKs), `pnpm db:generate` (nächste freie Nummer), Backend-Typecheck. Bei Drizzle-Prompt/Drift stoppen.
 2. **Repository + Adapter + Accessor** — `DeveloperAccount`/`DeveloperIdentity`/`DeveloperEmailToken`-DTOs + `DeveloperRepository`-Interface (`db/developer-repository.ts`), `db/adapters/postgres-developer.ts` (Row + Mapper + CRUD: createAccount, findByEmail, findById, markVerified, updateLastLogin, setPassword; createIdentity, findIdentity; createEmailToken, findActiveToken, consumeToken), Delegation in `postgres.ts`, `getDeveloperRepository()` in `db/index.ts`. Unit-Tests gegen einen Test-Pool optional; mind. Typecheck.
 3. **Auth-Service + Cookie + Guard** — `services/developer-auth.ts` (hashPassword/verifyPassword, generateEmailToken→{raw,hash}, hashToken, signSession/verifySession, cookie-options-Helper); `pnpm add -w @musiccloud/backend @fastify/cookie`; `@fastify/cookie` in `server.ts` registrieren; `authenticateDeveloper`-Guard in `plugins/auth.ts` (declare-module-Eintrag + decorate, liest Cookie, setzt `request.developerAccountId`). Unit-Tests für Token-Hash + Session-Roundtrip.
-3. **Dev-E-Mails** — `services/developer-email.ts`: `sendVerificationEmail(account, rawToken)` + `sendPasswordResetEmail(account, rawToken)` mit schlichtem Inline-HTML (Brand-Blau-Button, Link `${DEVELOPER_URL}/verify?token=` / `/reset?token=`), via `sendEmail`. `DEVELOPER_URL` über `requireEnv`. `.env.local` + `zerops.yml`-Kommentar ergänzen.
-4. **Routen + Registrierung** — `routes/developer-auth.ts` (alle sieben Routen, Validierung, bcrypt-timing-safe Login, Session-Cookie set/clear, `authenticateDeveloper` auf `me`/`logout`), `ENDPOINTS.dev.auth.*` + `ROUTE_TEMPLATES`, `devAuthRoutes` + `cookie` in `server.ts` registrieren. CORS: `developer.musiccloud.io` muss in `CORS_ORIGIN` (prod) + Credentials erlauben (`@fastify/cors` `credentials: true` prüfen).
-5. **Route-Tests** — vitest: signup legt unverifizierten Account an + sendet Mail (sendEmail gemockt); verify setzt verified; login scheitert unverifiziert, klappt verifiziert, setzt Cookie; reset-Flow; me mit/ohne Cookie; kein password_hash in Responses.
+4. **Dev-E-Mails** — `services/developer-email.ts`: `sendVerificationEmail(account, rawToken)` + `sendPasswordResetEmail(account, rawToken)` mit schlichtem Inline-HTML (Brand-Blau-Button, Link `${DEVELOPER_URL}/verify?token=` / `/reset?token=`), via `sendEmail`. `DEVELOPER_URL` über `requireEnv`. `.env.local` + `zerops.yml`-Kommentar ergänzen.
+5. **Routen + Registrierung** — `routes/developer-auth.ts` (alle sieben Routen, Validierung, bcrypt-timing-safe Login, Session-Cookie set/clear, `authenticateDeveloper` auf `me`/`logout`), `ENDPOINTS.dev.auth.*` + `ROUTE_TEMPLATES`, `devAuthRoutes` + `cookie` in `server.ts` registrieren. CORS: `developer.musiccloud.io` muss in `CORS_ORIGIN` (prod) + Credentials erlauben (`@fastify/cors` `credentials: true` prüfen).
+6. **Route-Tests** — vitest: signup legt unverifizierten Account an + sendet Mail (sendEmail gemockt); verify setzt verified; login scheitert unverifiziert, klappt verifiziert, setzt Cookie; reset-Flow; me mit/ohne Cookie; kein password_hash in Responses.
 
 ## Tests und Gates
 
@@ -107,11 +107,34 @@ Shared-Endpoints `ENDPOINTS.dev.auth.*` + `ROUTE_TEMPLATES` ergänzen.
 
 ## Checkliste
 
-- [ ] Task 1: Schema + Migration, Typecheck grün
-- [ ] Task 2: Repository + Adapter + Accessor
+- [x] Task 1: Schema + Migration, Typecheck grün
+- [x] Task 2: Repository + Adapter + Accessor
 - [x] Task 3: Auth-Service + @fastify/cookie + authenticateDeveloper-Guard
 - [x] Task 4: Developer-Verifikations-/Reset-Mails (DEVELOPER_URL)
 - [x] Task 5: Routen + Shared-Endpoints + Server-Registrierung (+ CORS credentials)
 - [x] Task 6: Route-Tests grün
-- [ ] Gates grün (typecheck backend+shared, test, lint); Migration lokal angew="ndet, /health/ready 200
-- [ ] Plan nach `done/`, gemergt
+- [x] Gates grün (typecheck backend+shared, test:run 1113, lint, doctor:diff); Migration 0047 lokal angewendet + idempotent (Tracker 48/48), Schema konsistent
+- [x] Plan nach `done/`, gemergt
+
+## Completed (2026-06-27)
+
+Alle sechs Tasks umgesetzt und nach `main` gemergt (10 Commits ab `5795edcc`). Gates grün, Migration verifiziert.
+
+**Geliefert:**
+- Drei Tabellen (`developer_accounts`/`developer_identities`/`developer_email_tokens`), Migration `0047_lumpy_kulan_gath.sql` — lokal angewendet, `db:migrate` idempotent, Tracker konsistent (48/48).
+- `DeveloperRepository` + Postgres-Sub-Adapter + `getDeveloperRepository()`-Accessor (ID-Erzeugung im Adapter via `nanoid`, `RETURNING`).
+- Auth-Service `developer-auth.ts` (bcrypt 12, timing-safe, sha256-Token, Cookie-Helper, Discriminant-Namespaces `SessionKind`/`TokenPurpose`/`AuthProvider`), `@fastify/cookie@11.0.2`, Guard `authenticateDeveloper`.
+- Verifikations-/Reset-Mails (`developer-email.ts`) über die SMTP2GO-Schicht aus MC-063, `DEVELOPER_URL`.
+- Sieben Routen `/api/dev/auth/*` + `ENDPOINTS.dev.auth.*`, registriert in `server.ts`, CORS `credentials: true`.
+- **Login-Bruteforce:** separater `credentialRateLimiter` (10/min, eigener Bucket, NICHT der globale `apiRateLimiter`) auf `/login` + `/request-reset` — die primäre Plan-Variante, keine Härtung in Folge-Plan nötig.
+- 19 Route-Tests + 7 Service-Tests; volle Backend-Suite 1113 passed | 35 skipped.
+
+**Review-Fixes (kein Merge-Blocker, vorab gefixt):**
+- Token-Replay-TOCTOU bei `verify-email`/`reset-password` → claim-then-act (erst `consume`, nur bei `true` die Wirkung); 2 Race-Tests ergänzt.
+- Duplicate-Email-Signup-Race → PG-`23505` abgefangen → 409 `EMAIL_TAKEN`.
+
+**Externer Handoff (Config, nicht Code):**
+- Prod-`CORS_ORIGIN` (Zerops Secrets / `zerops.yml`) muss `https://developer.musiccloud.io` enthalten, sobald MC-066 (Auth-UI) live gegen das Backend fetcht.
+- Backend-Env auf Zerops: `DEVELOPER_URL=https://developer.musiccloud.io` setzen (Verify-/Reset-Links).
+
+**Folge:** MC-065 (GitHub-OAuth), MC-066 (Auth-UI-Seiten).
