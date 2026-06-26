@@ -26,13 +26,13 @@ Plan-Nr.: MC-062
 
 ## Task 1: Spike — Einklink-Mechanismus & Daten-Contract klären
 
-Vor jedem Bau: die offenen technischen Fragen der Spec auflösen, am echten Code/Repo, nicht aus Doku geraten.
+Vor jedem Bau: die offenen technischen Fragen der Spec auflösen, am echten Code/Repo, nicht aus Doku geraten. **Erledigt 2026-06-26** (Befunde in Spec-Abschnitt „Spike-Ergebnis").
 
-- [ ] `upptime/upptime`-Template-Repo und `@upptime/status-page` lokal inspizieren: aktuelle Stack-Version (Svelte vs. veraltete Sapper-Doku), Site-Build-Workflow, wie das Front-end Daten bezieht.
-- [ ] Klären: genügen native Theming-Hooks (`status-website.css`/`themeUrl`/`assets/`/`customHeadHtml`) für die strukturellen Änderungen, oder ist ein voller Fork mit eigener Site-Build-Pipeline nötig?
-- [ ] Daten-Contract festhalten: welche generierten Dateien (`summary.json`, `history/*.yml`, `api/`) das Theme liest.
-- [ ] **Banner-Latenz real bestimmen:** werden Incidents/Maintenance client-seitig live aus der GitHub-API gelesen (schnell, kein Rebuild) oder in den Build gebacken (Rebuild nötig)? Ergebnis bestimmt Task 8/9.
-- [ ] Entscheidung + Daten-Contract in Spec-Abschnitt „Architektur" nachtragen (Plan↔Spec-Sync).
+- [x] `@upptime/status-page` v1.17.0 inspiziert: **Sapper + Svelte 3** (abgekündigt), gebaut vom Action `upptime/uptime-monitor@v1.43.2` (`command: site`), Deploy via `peaceiris/actions-gh-pages` (`site.yml`).
+- [x] Theming-Mechanismus: **native Hooks reichen** (`css`/`themeUrl`/`customHeadHtml`/`js` in `_layout.svelte`), **kein Fork**. Farben über CSS-Variablen.
+- [x] Daten-Contract: committet `api/`, `graphs/`, `history/`; Client liest live via GitHub-API (`@octokit/rest`) + `raw.githubusercontent`.
+- [x] **Banner-Latenz:** Issues werden **live geladen** (localStorage-Cache ~2 min) → Banner **ohne Rebuild**. Rate-Limit-Hinweis: unauth. GitHub-API 60/h/IP.
+- [x] Entscheidung + Daten-Contract in Spec nachgetragen.
 
 ## Task 2: Status-Repo `status.musiccloud.io` anlegen & Basis-Config
 
@@ -55,15 +55,13 @@ Vor jedem Bau: die offenen technischen Fragen der Spec auflösen, am echten Code
 
 ## Task 4: Custom-Theme bauen (Look)
 
-Strukturelle + visuelle Umsetzung gemäß Spec. Exakte Datei-Pfade ergeben sich aus Task 1.
+Umsetzung als **`status-website.css`-Block + `customHeadHtml`** in `.upptimerc.yml` (kein Fork). CSS-Variablen-Override (`--body-background-color`, `--card-*`, `--up-border-left-color`, `--tag-*`) + Custom-Regeln auf die Stock-DOM (`article.up/.degraded/.down`, `nav`, `.tag`, `.graph`).
 
 - [ ] Dark-Base mit Radial-Glow, embossed Display-Headline.
-- [ ] Indigo-Monochrom-Akzent; Amber/Rot nur als Warnzustände.
-- [ ] 90-Tage-Balken (CSS-Mask-Stripes) mit subtilem Vertikal-Gradient (oben heller).
-- [ ] `phosphor-svelte` Duotone integriert (`IconContext` global `weight="duotone"`): Service-Typ-Icons, `CheckCircle` Hero/Pill, `Bell` Feed.
-- [ ] Inter (UI) + Monospace (Metriken).
-- [ ] Hero, Service-Zeilen mit aufklappbarer Detailzeile (Sparkline, Quelle, Incident-Zähler).
-- [ ] Past-Incidents-Liste (letzte ~14 Tage) + Maintenance-Abschnitt (Tiefe B).
+- [ ] Indigo-Monochrom-Akzent (`--up`/`--tag-up` → Indigo); Amber/Rot nur als Warnzustände.
+- [ ] Inter (UI) + Monospace (Metriken) via `customHeadHtml`-Font-Links.
+- [ ] **Phosphor Duotone** via `@phosphor-icons/web`-CDN (`customHeadHtml`); Service-Typ-Icons per `js`-DOM-Enhancement, `CheckCircle`/`Bell` für Hero/Feed.
+- [ ] Karten/Balken/Past-Incidents an den Mockup angenähert (Pixel-Feinschliff iterativ gegen die Live-Seite, da Sapper-Build nur deployt prüfbar).
 
 ## Task 5: Konfigurationsoberfläche (CSS-Variablen + Keys)
 

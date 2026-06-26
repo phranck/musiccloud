@@ -30,11 +30,15 @@ Ein **wiederverwendbares, dunkles Status-Page-Theme** als Fork-/Custom-Front-end
   `<!-- start: <ISO> end: <ISO> expectedDown: <slug,…> expectedDegraded: <slug,…> -->`. `start`/`end` Pflicht; `expectedDown`/`expectedDegraded` unterdrücken Auto-Incidents im Fenster.
 - **Verteilung:** ein öffentliches Repo pro Projekt, je eine Subdomain via GitHub-Pages-`CNAME`.
 
-### Custom-Front-end-Strategie
+### Custom-Front-end-Strategie (Spike-entschieden)
 
-Das Redesign braucht **strukturelle** Änderungen (Phosphor-Icons pro Service, aufklappbare Detailzeile, eigenes Layout, Past-Incidents-Darstellung), die über reines CSS-Override nicht erreichbar sind. Vorgehen: Fork von `@upptime/status-page` (Svelte) bzw. ein Custom-Front-end, das Upptimes generierte Daten konsumiert und selbst nach GitHub Pages deployt.
+**Entscheidung: natives Theming über `.upptimerc.yml`, kein Fork.** Spike-Befunde (Task 1):
 
-**Offen (im Plan-Spike MC-062 zu klären, nicht geraten):** der exakte Einklink-Mechanismus — ob (a) Upptimes native Theming-Hooks (`status-website.css`, `themeUrl`, `assets/`-CSS, `customHeadHtml`) genügen, oder (b) ein voller Fork mit eigener Site-Build-Pipeline nötig ist, und wie das Front-end die Daten bezieht (committetes `api/`/`history/` vs. Live-GitHub-API). Davon hängt auch die reale Banner-Latenz ab (siehe unten).
+- `@upptime/status-page` v1.17.0 = **Sapper + Svelte 3** (abgekündigt), gebaut vom Action `upptime/uptime-monitor@v1.43.2` (`command: site`), deployt via `peaceiris/actions-gh-pages` (`site.yml`, Rebuild triggerbar per `repository_dispatch: static_site`). Ein Fork ließe sich **nicht** sauber einklinken (das Action zieht das publizierte npm-Paket).
+- `_layout.svelte` bietet native Hooks aus `.upptimerc.yml`: `css` (inline `<style>`), `themeUrl`, `customHeadHtml`, `js`, `customBodyHtml`, `links`, `scripts`. Theme-Farben laufen über CSS-Variablen (`--body-background-color`, `--card-background-color`, `--up-border-left-color`, `--tag-*` …).
+- **Datenfluss:** der Client liest **live über die GitHub-API** (`@octokit/rest`), mit localStorage-Cache (~2 min Prod). Daten-Contract committet: `api/`, `graphs/`, `history/`.
+
+Umsetzung als **Custom-Theme im `css`-Block** + `customHeadHtml` (Inter + Phosphor-Duotone-Web-Font); Phosphor-Icon **pro** Service via kleinem `js`-DOM-Enhancement. Kein Fork, überlebt Template-Updates, pro Projekt reusable. Pixel-Feinschliff iterativ gegen die Live-Seite.
 
 ## Visuelles Design
 
@@ -42,7 +46,7 @@ Das Redesign braucht **strukturelle** Änderungen (Phosphor-Icons pro Service, a
 - **Indigo als Leitakzent, monochrom** — Status-Icons, 90-Tage-Balken, Sparkline, Pill, Logo-Mark. **Kein dominantes Grün.**
 - **Amber = degraded, Rot = down** als einzige Warnfarben (semantische Signale).
 - **90-Tage-Balken** (vertikale Stripes via CSS-Mask) mit subtilem Vertikal-Gradient (oben heller).
-- **Phosphor Duotone Icons** (`phosphor-svelte`, `weight="duotone"` global via `IconContext`): pro Service ein Typ-Icon, `CheckCircle` im Hero/Pill, `Bell` beim Feed-Link.
+- **Phosphor Duotone Icons** (`@phosphor-icons/web` Duotone via `customHeadHtml`-CDN-Link, da kein Fork): pro Service ein Typ-Icon (per `js`-DOM-Enhancement), `CheckCircle` im Hero/Pill, `Bell` beim Feed-Link.
 - **Typografie:** Inter (UI) + Monospace (Metriken). Pro Projekt via `font` überschreibbar.
 
 ## Inhalt & Verhalten
@@ -79,14 +83,14 @@ Sofern Banner einen Rebuild brauchen (Spike klärt, ob nötig): die statische Se
 - **Hebel B — Volatile/Stabil trennen (optionaler Fast-Path):** aktueller Status/Banner in eine kleine `status.json`, client-seitig gelesen; Banner-Update = kleine Datei schreiben statt voller Rebuild. Datenschicht so designen, dass die Option offen bleibt; nur bauen, wenn die Latenz real stört.
 - **Realistische Decke:** Pages-Publish + CDN bleiben GitHub-seitig (~30–60 s). Nicht instant.
 
-**Latenz-Vorbehalt:** Wenn das Front-end Incidents/Maintenance live aus der GitHub-API zieht (Spike klärt), erscheinen Banner ggf. deutlich schneller ohne Rebuild. Nicht als Fakt angenommen.
+**Latenz-Korrektur (Spike):** Incidents/Maintenance (GitHub Issues) werden vom Client **live über die GitHub-API** geladen — ein Banner erscheint also beim nächsten Aufruf bzw. nach Ablauf des localStorage-Caches (~2 min Prod, Schlüssel `productionCacheTime`), **ohne Rebuild**. Die Rebuild-Latenz (1–2 min / 30–60 s mit Caching) betrifft nur die statische Hülle + Graphen, nicht die Banner. **Achtung Rate-Limit:** unauth. GitHub-API (60 req/h/IP) → Upptime hat dafür eine `rate-limit-exceeded`-Route und erlaubt einen optionalen PAT im localStorage. Für niedrige Zugriffszahlen unkritisch.
 
-## Offene technische Fragen (Spike MC-062, Task 1)
+## Spike-Ergebnis (Task 1 — erledigt)
 
-1. Einklink-Mechanismus: native Theming-Hooks vs. voller Fork + eigene Site-Build-Pipeline.
-2. Datenbezug des Front-ends: committetes `api/`/`history/` vs. Live-GitHub-API → bestimmt die Banner-Latenz.
-3. Welche generierten Upptime-Dateien bilden den Daten-Contract (`summary.json`/`history/*.yml`/`api/`).
-4. Aktuelle Stack-Version des `@upptime/status-page` (Svelte vs. veraltete Sapper-Doku).
+1. **Einklink-Mechanismus:** natives Theming via `.upptimerc.yml` (kein Fork) — siehe Architektur.
+2. **Datenbezug/Latenz:** Live-GitHub-API + localStorage-Cache → Banner ohne Rebuild (siehe Latenz-Korrektur).
+3. **Daten-Contract:** committet `api/`, `graphs/`, `history/`; Client liest via GitHub-API + `raw.githubusercontent`.
+4. **Stack:** `@upptime/status-page` v1.17.0 = Sapper + Svelte 3 (abgekündigt), gebaut vom `uptime-monitor`-Action.
 
 ## Verwandt
 
