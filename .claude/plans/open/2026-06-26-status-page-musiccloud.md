@@ -1,0 +1,135 @@
+# Status-Page `status.musiccloud.io` (Upptime-Fork-Theme) Implementation Plan
+
+Plan-Nr.: MC-062
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Die erste Status-Seite `status.musiccloud.io` live — dunkles, Indigo-akzentuiertes Custom-Theme auf Upptime, mit den musiccloud-Services (inkl. Email via `/health/email`), RSS-Abo, automatischen Deploy-Ankündigungen und Build-Caching. Das Theme wird so gebaut, dass es als wiederverwendbares Template für weitere Projekte (lmaa.space …) dient.
+
+**Architecture:** Upptime als Engine (GitHub Actions = Monitoring, GitHub Pages = Auslieferung) in einem **eigenen öffentlichen Repo** `phranck/status.musiccloud.io`. Das Default-Front-end von `@upptime/status-page` (Svelte) wird durch ein Custom-Theme ersetzt/geforkt. Branding ausschließlich über Config. Zwei Repos sind betroffen: das neue Status-Repo (Theme, Config, Pages) und das musiccloud-Monorepo (`/health/email`-Endpoint, Deploy-Ankündigungs-Schritte in `ci.yml`).
+
+**Tech Stack:** Upptime (GitHub Actions + Pages), `@upptime/status-page` (Svelte + plain CSS, Rollup), `phosphor-svelte` (`weight="duotone"`), Inter + Monospace, `.upptimerc.yml` (`status-website`-Hooks), GitHub `repository_dispatch`, `actions/cache`.
+
+**Verwandt:** [Spec](../../../docs/superpowers/specs/2026-06-26-status-page-theme-design.md) · E-Mail SMTP2GO-Wechsel (Voraussetzung für `/health/email`) · `.github/workflows/ci.yml` (Deploy-Quelle).
+
+---
+
+## Geltungsbereich
+
+**Enthalten:** Theme-Bau, das erste Status-Repo `status.musiccloud.io`, `/health/email`-Endpoint, RSS-Abo, automatische Deploy-Ankündigung (MVP: Backend), Build-Caching, Pages-Deploy unter `status.musiccloud.io`.
+
+**Bewusst nicht enthalten (Folge-Arbeit):** weitere Projekt-Status-Repos (lmaa.space etc.) — die kopieren das fertige Template. Optionaler Fast-Path (Hebel B `status.json`) — nur bauen, wenn die Latenz real stört. E-Mail-Subscribe (per Design ausgeschlossen).
+
+**Repo-Stand:** `phranck/status.musiccloud.io` existiert bereits (public, leer) — vom Betreiber angelegt. Outward-facing verbleibend: **DNS** (`CNAME status.musiccloud.io → phranck.github.io`) und **GitHub-Pages-Aktivierung** — mit dem Betreiber abgestimmt, nicht eigenmächtig.
+
+---
+
+## Task 1: Spike — Einklink-Mechanismus & Daten-Contract klären
+
+Vor jedem Bau: die offenen technischen Fragen der Spec auflösen, am echten Code/Repo, nicht aus Doku geraten.
+
+- [ ] `upptime/upptime`-Template-Repo und `@upptime/status-page` lokal inspizieren: aktuelle Stack-Version (Svelte vs. veraltete Sapper-Doku), Site-Build-Workflow, wie das Front-end Daten bezieht.
+- [ ] Klären: genügen native Theming-Hooks (`status-website.css`/`themeUrl`/`assets/`/`customHeadHtml`) für die strukturellen Änderungen, oder ist ein voller Fork mit eigener Site-Build-Pipeline nötig?
+- [ ] Daten-Contract festhalten: welche generierten Dateien (`summary.json`, `history/*.yml`, `api/`) das Theme liest.
+- [ ] **Banner-Latenz real bestimmen:** werden Incidents/Maintenance client-seitig live aus der GitHub-API gelesen (schnell, kein Rebuild) oder in den Build gebacken (Rebuild nötig)? Ergebnis bestimmt Task 8/9.
+- [ ] Entscheidung + Daten-Contract in Spec-Abschnitt „Architektur" nachtragen (Plan↔Spec-Sync).
+
+## Task 2: Status-Repo `status.musiccloud.io` anlegen & Basis-Config
+
+**Files (status.musiccloud.io repo):**
+- Create: `.upptimerc.yml` (Owner/Repo, `sites:` in Reihenfolge inkl. `Email` → `https://api.musiccloud.io/health/email`, `status-website`-Block: name, logoUrl, theme)
+- Create: `CNAME` (`status.musiccloud.io`)
+
+- [ ] Das bestehende leere Repo `phranck/status.musiccloud.io` mit Upptime-Template-Inhalt befüllen (klonen, Template-Struktur einspielen, pushen).
+- [ ] `sites:` mit musiccloud-Services in gewünschter Reihenfolge: Frontend, API, Backend, Database, Email, Developer Site.
+- [ ] Monitoring-Lauf grün (Up/Down korrekt erkannt) vor jeder Theme-Arbeit.
+
+## Task 3: `/health/email`-Endpoint im Backend (Variante B)
+
+**Files (musiccloud monorepo):**
+- Modify/Create: `apps/backend/...` (öffentlicher `GET /health/email`, prüft SMTP2GO-Erreichbarkeit server-seitig, `200`/`503`, kein Secret nach außen)
+
+- [ ] Endpoint implementiert, TSDoc, kein Secret im Response/Log.
+- [ ] Lokal + deployt verifiziert (`200` bei gesundem Provider, `503` simuliert).
+- [ ] Exakter Pfad/Dateistruktur nach Inspektion der bestehenden Backend-Routen (Task-intern verifizieren, nicht raten).
+
+## Task 4: Custom-Theme bauen (Look)
+
+Strukturelle + visuelle Umsetzung gemäß Spec. Exakte Datei-Pfade ergeben sich aus Task 1.
+
+- [ ] Dark-Base mit Radial-Glow, embossed Display-Headline.
+- [ ] Indigo-Monochrom-Akzent; Amber/Rot nur als Warnzustände.
+- [ ] 90-Tage-Balken (CSS-Mask-Stripes) mit subtilem Vertikal-Gradient (oben heller).
+- [ ] `phosphor-svelte` Duotone integriert (`IconContext` global `weight="duotone"`): Service-Typ-Icons, `CheckCircle` Hero/Pill, `Bell` Feed.
+- [ ] Inter (UI) + Monospace (Metriken).
+- [ ] Hero, Service-Zeilen mit aufklappbarer Detailzeile (Sparkline, Quelle, Incident-Zähler).
+- [ ] Past-Incidents-Liste (letzte ~14 Tage) + Maintenance-Abschnitt (Tiefe B).
+
+## Task 5: Konfigurationsoberfläche (CSS-Variablen + Keys)
+
+- [ ] CSS-Variablen-Vertrag: `--accent`, `--accent-deg`, `--accent-down`, `--font-sans`, `--font-mono`, Flächen-Variablen.
+- [ ] Config-Keys `accent`/`font` mappen auf die Variablen (über `status-website.css`/Build).
+- [ ] Pro-Service-Icon-Key (optional, Default-Icon fallback).
+- [ ] Verifiziert: zweites Beispiel-Branding (andere `--accent`) zieht durch das ganze Theme.
+
+## Task 6: RSS/Atom-Abo
+
+- [ ] „Subscribe" verlinkt den Upptime-Feed (Feed-Pfad in Task 1 bestätigen).
+- [ ] Keine E-Mail-Erfassung, keine Personendaten.
+
+## Task 7: Pages-Deploy unter `status.musiccloud.io`
+
+- [ ] GitHub Pages aktiv, `CNAME` gesetzt, DNS `CNAME status.musiccloud.io → <user>.github.io` (mit Betreiber).
+- [ ] „Enforce HTTPS" aktiv (Let's-Encrypt automatisch).
+- [ ] Seite live, Theme korrekt, alle Services sichtbar.
+
+## Task 8: Automatische Deploy-Ankündigungen (MVP Backend)
+
+**Files (status.musiccloud.io repo):**
+- Create: `.github/workflows/deploy-announce.yml` (`on: repository_dispatch` Typen `deploy_start`/`deploy_end` → `maintenance`-Issue anlegen/schließen + Rebuild anstoßen)
+- Create: `.github/ISSUE_TEMPLATE/maintenance.md`, `deploy.md`
+- Create: `.github/workflows/maintenance-switch.yml` (`workflow_dispatch`-Fallback)
+
+**Files (musiccloud monorepo):**
+- Modify: `.github/workflows/ci.yml` (`deploy-backend`: Announce-Start vor `zcli push`, Announce-End `if: always()` danach)
+
+- [ ] `STATUS_DISPATCH_TOKEN` (fein-scoped, nur Issue-Write aufs Status-Repo) als Secret im Monorepo.
+- [ ] Backend-Deploy setzt/schließt das Banner automatisch (success + failure getestet).
+- [ ] Manueller `workflow_dispatch`-Schalter funktioniert (geplante Wartung ohne Deploy).
+- [ ] Andere Services (Frontend/Dashboard/Developer) als opt-in dokumentiert (Copy-Paste der zwei Schritte).
+
+## Task 9: Build-Performance
+
+- [ ] Hebel A: `actions/cache` / pnpm-Store-Cache für Deps + unveränderte Theme-Assets.
+- [ ] Datenschicht so gestaltet, dass Hebel B (Fast-Path `status.json`) später ohne Umbau ergänzbar ist — Fast-Path selbst nur bauen, falls Latenz real stört (sonst YAGNI).
+
+---
+
+## Verified facts (Stand 2026-06-26)
+
+- **Plan-Nr.:** `~/.local/bin/plans next` → `MC-062` (Prefix MC bestätigt via bestehende Pläne).
+- **`@upptime/status-page` Stack:** Svelte (61 %) + Rollup + plain CSS, npm (GitHub-Repo-Sprachen-Breakdown). *Caveat:* „How it works"-Doku nennt Svelte+Sapper + Live-GitHub-API → Versions-/Datenfluss-Diskrepanz, in Task 1 zu klären.
+- **`.upptimerc.yml` `status-website`-Keys:** `theme`, `name`, `logoUrl`, `cname`, `navbar`, `css` (inline-CSS), `themeUrl`, `links`, `customHeadHtml`, `assets/`-CSS mit CSS-Variablen — verifiziert via upptime.js.org/docs/configuration.
+- **Maintenance-Format:** Issue-Label `maintenance` + Body-Kommentar `<!-- start: <ISO> end: <ISO> expectedDown: <slug,…> expectedDegraded: <slug,…> -->`; `start`/`end` Pflicht — verifiziert via upptime.js.org/docs/scheduled-maintenance.
+- **`phosphor-svelte`:** `import XIcon from "phosphor-svelte/lib/XIcon"`, Prop `weight="duotone"`, `IconContext` für globalen Default — verifiziert via npm/README.
+- **`@phosphor-icons/web`** (nur Mockup-Vorschau): Duotone-CDN `…/@phosphor-icons/web@2.1.2/src/duotone/style.css`, Klassen `ph-duotone ph-<name>`.
+- **SMTP2GO-API:** `https://api.smtp2go.com/v3/` (EU-Base-URL vorhanden), Auth-Key, POST+JSON, ungültiger Key → 401 — verifiziert via developers.smtp2go.com.
+- **Deploy-Pfad:** `.github/workflows/ci.yml` deployt pro-Service via `zcli push --serviceId …` auf GitHub Actions (Jobs `deploy-backend/-frontend/-developer/-dashboard`, Change-Detection) — gelesen.
+
+## Open questions (Task-1-Spike, kein Pseudo-Fakt)
+
+- Exakter Einklink-Mechanismus (native Hooks vs. Fork + eigene Build-Pipeline).
+- Datenfluss/Banner-Latenz (Live-GitHub-API vs. gebacken).
+- Daten-Contract-Dateien (`summary.json`/`history/`/`api/`) und Feed-Pfad.
+- Exakte Backend-Route-Struktur für `/health/email` (in Task 3 verifizieren).
+
+## Checkliste (Definition of Done)
+
+- [ ] Task 1 Spike abgeschlossen, Entscheidungen in Spec nachgetragen.
+- [ ] `status.musiccloud.io` live mit Custom-Theme, alle Services + Email sichtbar.
+- [ ] `/health/email` deployt und vom Monitor erfasst.
+- [ ] RSS-Abo verlinkt, keine E-Mail-Erfassung.
+- [ ] Backend-Deploy kündigt automatisch an (success + failure verifiziert), manueller Fallback funktioniert.
+- [ ] Build-Caching aktiv.
+- [ ] All code references verified (functions, scripts, paths, env vars, package-manager commands).
+- [ ] Theme als wiederverwendbares Template dokumentiert (Übernahme für weiteres Projekt skizziert).
