@@ -431,7 +431,7 @@ git commit -m "Feat: add developer-site landing page"
 - Modify: `package.json` (root)
 - Create: `apps/developer/.env.local`
 
-- [ ] **Step 1: Root-Script `dev:developer` ergänzen**
+- [x] **Step 1: Root-Script `dev:developer` ergänzen**
 
 In `package.json` (root) bei den `dev:*`-Scripts ergänzen:
 
@@ -445,7 +445,7 @@ Und `dev:all` um `developer` erweitern (Name-Liste, Farbe, Befehl), z. B.:
 "dev:all": "concurrently -k -n dashboard-ui,shared,backend,frontend,developer,dashboard -c blue,gray,magenta,cyan,green,yellow \"pnpm dev:dashboard-ui\" \"pnpm dev:shared\" \"pnpm dev:backend\" \"pnpm dev\" \"pnpm dev:developer\" \"pnpm dev:dashboard\"",
 ```
 
-- [ ] **Step 2: app.config ergänzen**
+- [x] **Step 2: app.config ergänzen**
 
 Die Parallel-Arrays in `app.config` synchron erweitern (Index-Gleichheit ist Pflicht):
 
@@ -463,7 +463,7 @@ APP_CMDS=(
 
 Anmerkung: lokale Ports — Backend 4000, Frontend 3001, Developer 3002, Dashboard 4500 (alle kollisionsfrei). Die echte `app.config` listet heute `APP_PORTS=(- 4000 3001 4500)`; nur den `developer`-Eintrag (Port 3002) an Index 3 einfügen, die Frontend-3001-Position nicht verändern.
 
-- [ ] **Step 3: .env.local anlegen**
+- [x] **Step 3: .env.local anlegen**
 
 ```
 PORT=3002
@@ -475,12 +475,12 @@ Verifizieren, dass `apps/developer/.env.local` gitignored ist:
 Run: `git check-ignore apps/developer/.env.local`
 Expected: gibt den Pfad zurück (= ignoriert).
 
-- [ ] **Step 4: Runner-Smoke**
+- [x] **Step 4: Runner-Smoke**
 
 Run: `./app start developer && sleep 4 && ./app status`
 Expected: `developer` als running gelistet, Port 3002. Run: `curl -s http://localhost:3002/ | grep -c "musiccloud"` → `>=1`. Danach `./app stop developer`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add package.json app.config
@@ -640,7 +640,7 @@ Alle Referenzen gegen den aktuellen Code geprüft (paralleler Pattern-Audit):
 - [x] Task 2: Design-System (global.css `@theme`, fonts.css)
 - [x] Task 3: DeveloperBackground (CSS-Gradient) + BaseLayout + favicon
 - [x] Task 4: Landing-Page, Build + SSR-Smoke grün
-- [ ] Task 5: Lokaler Runner (`app.config`, Root-Scripts, `.env.local`), Runner-Smoke grün
+- [x] Task 5: Lokaler Runner (`app.config`, Root-Scripts, `.env.local`), Runner-Smoke grün
 - [ ] Task 6: `zerops.yml` `developer`-Block, YAML valide
 - [ ] Task 7: CI Change-Detection + Deploy-Job (serviceId vom Betreiber)
 - [ ] Alle Gates grün (build, typecheck, `pnpm lint`, SSR-Smoke)
