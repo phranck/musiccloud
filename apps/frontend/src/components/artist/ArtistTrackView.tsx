@@ -7,9 +7,6 @@ import { useGroupedCorners } from "@/components/cards/useGroupedCorners";
 import { TrackListView } from "@/hooks/useTrackListView";
 import { cn } from "@/lib/utils";
 
-/** Grid scroll-clip + tile radius: the well's inner control radius minus the 2px the grid insets itself. */
-const GRID_TILE_FULL_RADIUS = `calc(${raisedControlRadius} - 2px)`;
-
 interface ArtistTrackViewProps {
   /** Which presentation to render. */
   view: TrackListView;
@@ -61,14 +58,13 @@ export function ArtistTrackView({
   });
 
   // Height: fill the parent's fixed height when layered, else cap at the view's own
-  // max-height. The grid keeps its 2px self-inset, so its filled height subtracts the
-  // 4px (top + bottom) that inset takes.
-  const heightClass = fillHeight ? (isGrid ? "h-[calc(100%-4px)]" : "h-full") : isGrid ? "max-h-72" : "max-h-[248px]";
+  // max-height. Both views sit flush in the well, so neither subtracts a self-inset.
+  const heightClass = fillHeight ? "h-full" : isGrid ? "max-h-72" : "max-h-[248px]";
 
   return (
     <div
-      className={cn("overflow-y-auto overscroll-contain", isGrid && "m-[2px]", heightClass)}
-      style={{ borderRadius: isGrid ? GRID_TILE_FULL_RADIUS : raisedControlRadius }}
+      className={cn("overflow-y-auto overscroll-contain", heightClass)}
+      style={{ borderRadius: raisedControlRadius }}
     >
       <div
         ref={groupedRef}
@@ -77,7 +73,7 @@ export function ArtistTrackView({
             ? "grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-1"
             : "flex flex-col gap-[var(--mc-gap-list,0.125rem)]"
         }
-        style={isGrid ? ({ "--neu-radius": GRID_TILE_FULL_RADIUS } as CSSProperties) : undefined}
+        style={isGrid ? ({ "--neu-radius": raisedControlRadius } as CSSProperties) : undefined}
       >
         {items.map((item) => (
           <ArtistTrackCell
