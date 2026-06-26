@@ -119,8 +119,20 @@ jobs:
     runs-on: ubuntu-latest
     needs: detect-changes
     if: needs.detect-changes.outputs.backend == 'true'
+    # Auto-announces the deploy on status.musiccloud.io (MC-062). Inert until the
+    # STATUS_DISPATCH_TOKEN secret (fine-scoped, issues:write on the status repo) exists.
+    env:
+      STATUS_TOKEN: ${{ secrets.STATUS_DISPATCH_TOKEN }}
     steps:
       - uses: actions/checkout@v5
+      - name: Announce deploy start
+        if: env.STATUS_TOKEN != ''
+        env:
+          GH_TOKEN: ${{ env.STATUS_TOKEN }}
+        run: |
+          gh api repos/phranck/status.musiccloud.io/dispatches --input - <<'JSON'
+          {"event_type":"deploy_start","client_payload":{"service":"API","slug":"api"}}
+          JSON
       - name: Install Zerops CLI
         run: |
           curl -fsSL https://github.com/zeropsio/zcli/releases/latest/download/zcli-linux-amd64 -o /usr/local/bin/zcli
@@ -131,6 +143,14 @@ jobs:
         run: |
           zcli login "$ZEROPS_TOKEN"
           zcli push --serviceId vftiwXaYQGCnnwEEaiGPYA
+      - name: Announce deploy end
+        if: always() && env.STATUS_TOKEN != ''
+        env:
+          GH_TOKEN: ${{ env.STATUS_TOKEN }}
+        run: |
+          gh api repos/phranck/status.musiccloud.io/dispatches --input - <<'JSON'
+          {"event_type":"deploy_end","client_payload":{"service":"API","slug":"api"}}
+          JSON
 
   deploy-frontend:
     name: Deploy Frontend
