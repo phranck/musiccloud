@@ -1,5 +1,7 @@
 # CC-Genre — 3 Spalten + CC-Album/Artist-Ansichten + Vollflächen-Artwork — Implementation Plan
 
+Plan-Nr.: MC-044
+
 > **Harte Produktregel:** Im CC-Modus kommt JEDES Ergebnis ausschließlich von Jamendo. **Rate-Limit-Regel:** Der CC-Pfad darf nie in Jamendos Burst-Limit laufen — alle Calls über die Drossel in `jamendoFetch`. **Sanitize-Regel:** Jamendo liefert HTML-entity-codierten Text (`R&amp;B`); jedes neue/abgeleitete Anzeige-Textfeld (Task B Album-/Artist-Spalten, Task C/D Views) muss durch `decodeHtmlEntities` (`lib/html.ts`). Die Mapper `mapJamendoTrack/Album/Artist` dekodieren bereits — über die Mapper abgeleitete Daten sind abgedeckt.
 
 **Goal:** Die CC-Genre-Suche liefert 3 Spalten (Tracks/Alben/Artists) **identisch zur kommerziellen** Darstellung; Track-Klick → CC-Track-Seite, **Album-Klick → CC-Album-Ansicht, Artist-Klick → CC-Artist-Ansicht** (neue Views, Jamendo-gespeist). Tile-Artwork = vollflächiges Jamendo-Cover + Name oben links (statt Spotify-Composite). Rate-Limit-Drossel.

@@ -1,5 +1,7 @@
 # List/Grid-Slide der Artist-Track-Ansichten
 
+Plan-Nr.: MC-057
+
 **Goal:** Beim Umschalten Liste ↔ Raster gleiten beide Ansichten als ganze Objekte horizontal
 ineinander über (Liste links, Raster rechts); die Card-Höhe bleibt fix (Grid-Höhe) mit einem
 Scroll-Peek der letzten Reihe.

@@ -1,5 +1,7 @@
 # C/CC-Umschalter → vertikaler Icon-only Control links vom Hero — Implementation Plan
 
+Plan-Nr.: MC-052
+
 ## Preface / Doku-Lücke
 
 Die Zielform des C/CC-Umschalters war eine frühere mündliche Absprache, die **nie in einem Plan/Memory festgehalten** wurde (beim Audit am 2026-06-22 bestätigt: kein Plan, kein Memory, keine Session-Notiz erwähnt sie). Dokumentiert war nur der **gebaute** Stand (cc-pfad-frontend.md, Task 6): horizontaler `EmbossedSegmentedControl` mit Text-Segmenten *über* dem HeroInput (nur Idle) + Modus-Icon *im* Feld. Dieser Plan hält die Zielform fest und setzt sie um.

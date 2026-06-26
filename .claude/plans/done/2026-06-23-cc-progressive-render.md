@@ -1,5 +1,7 @@
 # CC progressive render — Künstler-Info async statt blockierend
 
+Plan-Nr.: MC-055
+
 ## Problem
 
 CC-Track-Share und CC-Such-Result brauchen beide ~3s, bevor **irgendetwas** erscheint,

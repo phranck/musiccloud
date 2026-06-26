@@ -1,5 +1,7 @@
 # CC-Share-Pages aus der DB lesen statt Live-Jamendo-Refetch (track + album + artist)
 
+Plan-Nr.: MC-058
+
 ## Context — warum diese Änderung
 
 **Symptom (User-bestätigt):** Eine CC-Share-URL wird geöffnet, ein paar Sekunden passiert nichts, dann kommt ein 404. Kommerzielle Shares funktionieren.

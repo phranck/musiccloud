@@ -1,5 +1,7 @@
 # CC-Pfad — Backend-Foundation (Datenmodell + Jamendo-Client) — Implementation Plan
 
+Plan-Nr.: MC-045
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Das Datenfundament für den Creative-Commons-Pfad legen (vier eigene `cc_*`-Tabellen) und einen typisierten, in sich getesteten Jamendo-API-Client bauen, der Tracks/Alben/Künstler/„Ähnliche" aus der Jamendo-API v3.0 holt und auf CC-Domänen-Objekte mappt.

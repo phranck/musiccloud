@@ -1,5 +1,7 @@
 # CC-Pfad — Genre-Discovery (100% Jamendo) — Implementation Plan
 
+Plan-Nr.: MC-048
+
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development. Steps use `- [ ]`. **Harte Produktregel:** Im CC-Modus kommt JEDES Ergebnis ausschließlich von Jamendo — kein Last.fm, kein Deezer, kein kommerzieller Fallback.
 
 **Goal:** CC-natives Genre-Browse + Genre-Suche, ausschließlich aus Jamendo. `genre:?` im CC-Modus zeigt Jamendos Genre-Kacheln (aus `/radios`); `genre: <name>` listet Jamendo-Tracks des Genres; ein Klick öffnet die CC-Track-Seite. Ersetzt die (falsche) Abkürzung, die CC-Genre auf den kommerziellen Endpoint routete.

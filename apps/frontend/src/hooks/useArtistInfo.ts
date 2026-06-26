@@ -8,8 +8,16 @@ import {
   fetchCcArtistInfo,
 } from "@/lib/share/artist-info-client";
 
-/** Abort timeout for the commercial artist-info fetch, in milliseconds. */
-const ARTIST_FETCH_TIMEOUT_MS = 5000;
+/**
+ * Abort timeout for the commercial artist-info fetch, in milliseconds. The
+ * backend blocks the response while it refetches stale cache sections from
+ * upstream (Deezer top tracks, Last.fm/Spotify profile, Bandsintown events,
+ * plus up to three similar-artist lookups), which under concurrent load
+ * routinely takes well over five seconds. The budget sits above that so a
+ * slow-but-valid response still fills the artist column instead of aborting
+ * it to an empty one (all four cards render `null` on no data).
+ */
+const ARTIST_FETCH_TIMEOUT_MS = 15000;
 /** CC artist-info fetches mirror Jamendo live (~4 throttled calls), so they get a
  *  wider budget than the fast commercial Last.fm lookup. */
 const CC_ARTIST_FETCH_TIMEOUT_MS = 20000;

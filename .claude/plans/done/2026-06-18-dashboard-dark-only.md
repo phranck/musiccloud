@@ -1,5 +1,7 @@
 # Dashboard auf Dark-only konsolidieren — Implementierungsplan
 
+Plan-Nr.: MC-041
+
 > **Für ausführende Agents:** Schritte nutzen Checkbox-Syntax (`- [ ]`) zum Tracking. Reihenfolge der Phasen ist bindend (CSS zuerst, JS-Entfernung zuletzt), sonst flasht das Dashboard zwischenzeitlich hell.
 
 **Goal:** Das Admin-Dashboard (`apps/dashboard`) rendert ausschliesslich im Dark-Mode. Der Light/Dark/System-Switch, der `ThemeContext`/`ThemeProvider` und die komplette Light-Token-Ebene werden entfernt; übrig bleibt eine einzige Token-Ebene in `:root`.

@@ -2,7 +2,7 @@ import { isValidServiceId, type ServiceId } from "@musiccloud/shared";
 import { getRepository } from "../../db/index.js";
 import type { ArtistCredit } from "../../db/repository.js";
 import { deezerAdapter } from "../../services/plugins/deezer/adapter.js";
-import { isAppleMusicLinkRenderableForStorefront } from "../platform/apple-music-storefront.js";
+import { rewriteAppleMusicUrlForStorefront } from "../platform/apple-music-storefront.js";
 import { isExpiredDeezerPreviewUrl } from "../preview-url.js";
 import { generateAlbumOGMeta, generateOGMeta, type OGMeta } from "./og.js";
 
@@ -30,14 +30,15 @@ export interface SharePageData {
   og: OGMeta;
 }
 
-function filterLinksForAppleMusicStorefront<T extends { service: string; url: string }>(
+function rewriteLinksForAppleMusicStorefront<T extends { service: string; url: string }>(
   links: T[],
   appleMusicStorefront: string | null,
 ): T[] {
-  return links.filter((link) => {
-    if (link.service !== "apple-music") return true;
-    return isAppleMusicLinkRenderableForStorefront(link.url, appleMusicStorefront);
-  });
+  return links.map((link) =>
+    link.service === "apple-music"
+      ? { ...link, url: rewriteAppleMusicUrlForStorefront(link.url, appleMusicStorefront) }
+      : link,
+  );
 }
 
 /**
@@ -67,11 +68,11 @@ export function toIsoDateOnly(value: string | null): string | null {
  *  set so the client can request a fresh URL via the preview endpoint.
  *  This keeps the share-page response latency bounded by database alone.
  *
- *  Apple Music is the exception to "cached service link means globally
- *  renderable". Its catalogue links carry the storefront in the URL and can
- *  fail in the native app outside that storefront. Filtering here keeps the
- *  DB cache intact while preventing stale US-only Apple links from appearing
- *  for AT/DE/etc. users.
+ *  Apple Music is the exception to "cached service link is globally portable".
+ *  Its catalogue links carry the storefront in the URL, so the cached link's
+ *  storefront segment is rewritten to the viewer storefront here — the same
+ *  global catalogue ID then opens directly in the viewer's region instead of a
+ *  foreign native-app deep link. The DB cache keeps its original storefront.
  */
 export async function loadByShortId(
   shortId: string,
@@ -88,7 +89,7 @@ export async function loadByShortId(
 
   const previewRefreshable = !data.track.previewUrl && !!data.track.isrc && deezerAdapter.isAvailable();
   return enrichWithOGMeta(
-    { ...data, links: filterLinksForAppleMusicStorefront(data.links, appleMusicStorefront) },
+    { ...data, links: rewriteLinksForAppleMusicStorefront(data.links, appleMusicStorefront) },
     data.shortId,
     origin,
     previewRefreshable,
@@ -111,7 +112,7 @@ export async function loadByTrackId(
 
   const previewRefreshable = !data.track.previewUrl && !!data.track.isrc && deezerAdapter.isAvailable();
   return enrichWithOGMeta(
-    { ...data, links: filterLinksForAppleMusicStorefront(data.links, appleMusicStorefront) },
+    { ...data, links: rewriteLinksForAppleMusicStorefront(data.links, appleMusicStorefront) },
     data.shortId,
     origin,
     previewRefreshable,
@@ -150,7 +151,7 @@ export async function loadAlbumByShortId(
   if (!data) return null;
 
   data.album.releaseDate = toIsoDateOnly(data.album.releaseDate);
-  const links = filterLinksForAppleMusicStorefront(data.links, appleMusicStorefront);
+  const links = rewriteLinksForAppleMusicStorefront(data.links, appleMusicStorefront);
   const availablePlatforms: ServiceId[] = links.map((l) => l.service).filter(isValidServiceId);
 
   const og = generateAlbumOGMeta({
@@ -197,7 +198,7 @@ export async function loadArtistByShortId(
   const data = await repo.loadArtistByShortId(shortId);
   if (!data) return null;
 
-  const links = filterLinksForAppleMusicStorefront(data.links, appleMusicStorefront);
+  const links = rewriteLinksForAppleMusicStorefront(data.links, appleMusicStorefront);
   const availablePlatforms: ServiceId[] = links.map((l) => l.service).filter(isValidServiceId);
 
   const baseUrl = origin ?? "https://musiccloud.io";

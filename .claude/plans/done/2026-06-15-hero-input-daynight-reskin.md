@@ -1,5 +1,7 @@
 # Hero-Input Day/Night-Reskin (Produktions-Port)
 
+Plan-Nr.: MC-036
+
 ## Preface
 
 Der Landing-Page-Hero (`HeroInput.tsx`) hängt noch am alten „Dark Premium"-Stil:

@@ -11,15 +11,16 @@
  * globally stable IDs, but it is unsafe for Apple Music.
  *
  * Product rule:
- * A cached Apple Music link is renderable only when the link's URL storefront
- * matches the viewer storefront we can infer for this request. If we cannot
- * infer a storefront, we keep the old behaviour and render the link. If we
- * can infer one and the cached URL points elsewhere, we hide Apple Music
- * rather than sending the user into a broken native-app deep link.
+ * A cached Apple Music link carries the storefront it was resolved in (e.g.
+ * `/fr/`). Apple Music catalogue IDs are global, so the same recording opens
+ * under any storefront where it is licensed. At render time we therefore
+ * rewrite the URL's storefront segment to the viewer storefront we infer for
+ * the request, keeping the catalogue ID. The button then opens directly in the
+ * viewer's storefront instead of a foreign one. When we cannot infer a
+ * storefront, or it already matches, the cached URL is returned unchanged.
  *
- * This is intentionally a render-time guard, not a data migration. Existing
- * cached links remain in the database for their original storefront, but they
- * are no longer considered globally valid on share pages.
+ * This is intentionally a render-time transform, not a data migration. The
+ * cached link keeps its original storefront in the database.
  */
 import type { IncomingHttpHeaders } from "node:http";
 
@@ -93,14 +94,24 @@ export function resolveAppleMusicStorefrontFromHeaders(headers: IncomingHttpHead
 }
 
 /**
- * Decide whether a cached Apple Music URL is valid for the requested
- * storefront. A non-Apple URL passed here is treated as unverifiable and is
- * shown only when the request storefront is also unknown. Callers should only
- * use this for rows whose service is `apple-music`.
+ * Rewrite a cached Apple Music URL so it opens in the requested storefront.
+ *
+ * Apple Music catalogue IDs are global; only the leading `/<storefront>/`
+ * segment is region-specific. Swapping that segment to the viewer storefront
+ * lets the same recording open directly in their region instead of a foreign
+ * one. The URL is returned unchanged when no request storefront can be
+ * inferred, when it is not an Apple Music URL, or when it already matches.
+ * Callers should only use this for rows whose service is `apple-music`.
+ *
+ * @param url - The cached Apple Music URL.
+ * @param requestedStorefront - The viewer storefront (ISO 3166-1 alpha-2,
+ *   already normalized to lowercase by {@link resolveAppleMusicStorefrontFromHeaders}),
+ *   or `null` when it cannot be inferred.
+ * @returns The URL with its storefront segment rewritten, or the original URL.
  */
-export function isAppleMusicLinkRenderableForStorefront(url: string, requestedStorefront: string | null): boolean {
+export function rewriteAppleMusicUrlForStorefront(url: string, requestedStorefront: string | null): string {
+  if (!requestedStorefront) return url;
   const linkStorefront = extractAppleMusicStorefront(url);
-  if (!linkStorefront) return !requestedStorefront;
-  if (!requestedStorefront) return true;
-  return linkStorefront === requestedStorefront;
+  if (!linkStorefront || linkStorefront === requestedStorefront) return url;
+  return url.replace(/^(https?:\/\/music\.apple\.com\/)[a-z]{2}(\/|$)/i, `$1${requestedStorefront}$2`);
 }

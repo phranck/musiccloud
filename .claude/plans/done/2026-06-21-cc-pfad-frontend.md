@@ -1,5 +1,7 @@
 # CC-Pfad — Frontend (Hero-Umschalter + CC-Track-Seite) — Implementation Plan
 
+Plan-Nr.: MC-047
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans. Steps use checkbox (`- [ ]`) syntax. **Browser-Verifikation Pflicht** (Memory feedback_browser_verification: `agent-browser` CLI bzw. chrome-devtools-mcp; Dev-Server via `./app`, nicht manuell).
 
 **Goal:** Den CC-Modus im Frontend verdrahten: ein `commercial | cc`-Umschalter im Hero (mit eigenem grünem Akzent + Modus-Icon), der den Resolve auf die bestehende `/api/v1/cc/resolve`-Route lenkt; die CC-Trefferliste über das bestehende `DisambiguationPanel`; und eine CC-Track-Seite, die das bestehende Grundgerüst teilt, aber den „Listen On"-Service-Grid durch CC-Blöcke (Lizenz-Badge, Attribution, Download, „Auf Jamendo öffnen") ersetzt und den vollen Jamendo-Stream im bestehenden Player abspielt.
