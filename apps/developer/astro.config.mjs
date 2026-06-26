@@ -16,6 +16,12 @@ export default defineConfig({
     server: {
       allowedHosts: ["localhost", "developer.musiccloud.test"],
     },
+    // Phosphor icons render as SSR-only React islands (no client directive).
+    // Pre-bundle for dev and keep them in the SSR bundle so the same copy is
+    // used on both sides — avoids the "504 Outdated Optimize Dep" / externalised
+    // ESM-resolution issues that otherwise hit @phosphor-icons/react in Astro.
+    optimizeDeps: { include: ["@phosphor-icons/react"] },
+    ssr: { noExternal: ["@phosphor-icons/react"] },
   },
   site: "https://developer.musiccloud.io",
 });

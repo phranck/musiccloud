@@ -1,10 +1,11 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
+import { BookIcon, KeyIcon, LinkIcon, UserCircleIcon, VinylRecordIcon } from "@phosphor-icons/react";
 
 const features = [
-  { title: "Link resolve", body: "One link in, every platform out." },
-  { title: "Artist info", body: "Top tracks, similar artists, events." },
-  { title: "Creative Commons", body: "Free-to-use catalogue access." },
+  { Icon: LinkIcon, title: "Link resolve", body: "One link in, every platform out." },
+  { Icon: UserCircleIcon, title: "Artist info", body: "Top tracks, similar artists, events." },
+  { Icon: VinylRecordIcon, title: "Creative Commons", body: "Free-to-use catalogue access." },
 ];
 ---
 
@@ -20,6 +21,8 @@ const features = [
     </div>
     <nav class="flex items-center gap-4 text-[13px] text-[var(--color-text-secondary)]">
       <a href="/docs">Docs</a>
+      <a href="/docs/api">API reference</a>
+      <a href="/status">Status</a>
       <a href="/login">Log in</a>
       <a
         href="/signup"
@@ -37,14 +40,18 @@ const features = [
     <div class="flex gap-3 mb-10">
       <a
         href="/signup"
-        class="rounded-lg bg-[var(--color-accent)] text-[var(--color-accent-contrast)] px-4 py-2 text-sm font-medium"
-        >Get an API key</a
+        class="inline-flex items-center gap-2 rounded-lg bg-[var(--color-accent)] text-[var(--color-accent-contrast)] px-4 py-2 text-sm font-medium"
       >
+        <KeyIcon weight="duotone" className="size-4" aria-hidden="true" />
+        Get an API key
+      </a>
       <a
         href="/docs"
-        class="rounded-lg border border-[var(--color-border-strong)] px-4 py-2 text-sm font-medium"
-        >Read the docs</a
+        class="inline-flex items-center gap-2 rounded-lg border border-[var(--color-border-strong)] px-4 py-2 text-sm font-medium"
       >
+        <BookIcon weight="duotone" className="size-4" aria-hidden="true" />
+        Read the docs
+      </a>
     </div>
 
     <pre
@@ -54,13 +61,26 @@ const features = [
 
     <section class="grid grid-cols-1 sm:grid-cols-3 gap-3">
       {
-        features.map((f) => (
-          <article class="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-            <h2 class="text-sm font-medium mb-1">{f.title}</h2>
-            <p class="text-xs text-[var(--color-text-secondary)]">{f.body}</p>
-          </article>
-        ))
+        features.map((feature) => {
+          const Icon = feature.Icon;
+          return (
+            <article class="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+              <Icon weight="duotone" className="size-5 text-[var(--color-accent)]" aria-hidden="true" />
+              <h2 class="text-sm font-medium mt-2 mb-1">{feature.title}</h2>
+              <p class="text-xs text-[var(--color-text-secondary)]">{feature.body}</p>
+            </article>
+          );
+        })
       }
     </section>
   </main>
+
+  <footer class="border-t border-[var(--color-border)] mt-4">
+    <div
+      class="max-w-5xl mx-auto w-full px-6 py-4 flex items-center justify-between text-xs text-[var(--color-text-muted)]"
+    >
+      <span>© musiccloud</span>
+      <span>Docs · Terms · Privacy · Status</span>
+    </div>
+  </footer>
 </BaseLayout>

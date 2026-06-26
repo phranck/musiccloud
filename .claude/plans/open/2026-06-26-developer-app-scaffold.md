@@ -422,6 +422,8 @@ git add apps/developer/src/pages/index.astro
 git commit -m "Feat: add developer-site landing page"
 ```
 
+Nachtrag (Mockup-Treue): Die Landing wurde gegen das abgenommene Mockup vervollständigt — Phosphor-Icons (`@phosphor-icons/react`, als SSR-Islands ohne Hydration) in den Hero-Buttons (`KeyIcon`/`BookIcon`) und Feature-Karten (`LinkIcon`/`UserCircleIcon`/`VinylRecordIcon` — Phosphor 2.1.10 hat kein Creative-Commons-Icon, `VinylRecordIcon` steht für den Musik-Katalog), Nav um `API reference` + `Status` ergänzt, plus Footer (`© musiccloud` / `Docs · Terms · Privacy · Status`). `astro.config.mjs` erhielt `vite.optimizeDeps.include` + `ssr.noExternal` für `@phosphor-icons/react`; die Dependency ist damit wieder drin und jetzt tatsächlich genutzt. Verifiziert per Build, typecheck, lint, React Doctor und Browser-Screenshot gegen das Mockup.
+
 ---
 
 ## Task 5: Lokaler Dev-Runner und Root-Scripts
