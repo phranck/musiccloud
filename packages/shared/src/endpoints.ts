@@ -341,6 +341,13 @@ export const ENDPOINTS = {
       logout: "/api/dev/auth/logout",
       /** GET: the currently authenticated developer account (cookie session). */
       me: "/api/dev/auth/me",
+      /** GitHub OAuth (MC-065). `start` returns the authorize URL + signed state; `exchange` redeems the callback code. */
+      github: {
+        /** GET: returns `{ authorizeUrl, state }` for the Astro app to redirect to. */
+        start: "/api/dev/auth/github/start",
+        /** POST: redeems `{ code, state }`, issues the session cookie, returns `{ account }`. */
+        exchange: "/api/dev/auth/github/exchange",
+      },
     },
   },
 } as const;

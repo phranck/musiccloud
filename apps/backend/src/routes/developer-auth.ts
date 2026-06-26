@@ -139,7 +139,7 @@ async function throttleCredentials(request: FastifyRequest, reply: FastifyReply)
  *   string for JSON-safe transport. `passwordHash`, `status`, `updatedAt` and
  *   `lastLoginAt` are intentionally omitted.
  */
-function buildAccountResponse(account: DeveloperAccount) {
+export function buildAccountResponse(account: DeveloperAccount) {
   return {
     id: account.id,
     email: account.email,

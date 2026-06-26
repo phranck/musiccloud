@@ -227,7 +227,7 @@ export async function fetchGitHubProfile(accessToken: string): Promise<GitHubPro
 - Modify: `packages/shared/src/endpoints.ts` (dev.auth-Block)
 - Modify: `apps/backend/src/routes/developer-auth.ts:142` (`function buildAccountResponse` → `export function`)
 
-- [ ] **Step 1: Endpoints ergänzen** — in `ENDPOINTS.dev.auth` (nach `me`) eine `github`-Untergruppe:
+- [x] **Step 1: Endpoints ergänzen** — in `ENDPOINTS.dev.auth` (nach `me`) eine `github`-Untergruppe:
 
 ```ts
       /** GitHub OAuth (MC-065). `start` returns the authorize URL + signed state; `exchange` redeems the callback code. */
@@ -239,11 +239,11 @@ export async function fetchGitHubProfile(accessToken: string): Promise<GitHubPro
       },
 ```
 
-- [ ] **Step 2: `buildAccountResponse` exportieren** — `function buildAccountResponse` → `export function buildAccountResponse`. (Wird in `developer-github.ts` importiert; DRY statt Re-Implementierung.)
+- [x] **Step 2: `buildAccountResponse` exportieren** — `function buildAccountResponse` → `export function buildAccountResponse`. (Wird in `developer-github.ts` importiert; DRY statt Re-Implementierung.)
 
-- [ ] **Step 3: Shared bauen** — `pnpm --filter @musiccloud/shared build` (Backend importiert das gebaute Paket), dann `pnpm --filter @musiccloud/shared typecheck`.
+- [x] **Step 3: Shared bauen** — `pnpm --filter @musiccloud/shared build` (Backend importiert das gebaute Paket), dann `pnpm --filter @musiccloud/shared typecheck`.
 
-- [ ] **Step 4: Commit** — `Feat: dev.auth.github endpoints + share buildAccountResponse (MC-065)`
+- [x] **Step 4: Commit** — `Feat: dev.auth.github endpoints + share buildAccountResponse (MC-065)`
 
 ## Task 3: GitHub-OAuth-Routen
 
