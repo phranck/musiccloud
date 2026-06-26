@@ -59,6 +59,7 @@
 import { type ArtistInfoResponse, ENDPOINTS, type SimilarArtistTrack } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
+import { readEventLoopLagMs } from "../lib/infra/event-loop-lag.js";
 import { log } from "../lib/infra/logger.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter, isInternalRequest } from "../lib/infra/rate-limiter.js";
@@ -71,6 +72,15 @@ const TTL_TRACKS_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const TTL_PROFILE_DAYS = Math.round(365 / 2);
 const TTL_PROFILE_MS = TTL_PROFILE_DAYS * 24 * 60 * 60 * 1000; // 183 days
 const TTL_EVENTS_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+/**
+ * Above this total handler time a structured `request.log.info` breadcrumb is
+ * emitted segmenting where the time went (alias / cache read / upstream fetches
+ * / enrichment) plus the recent event-loop lag. It fires only on the slow tail
+ * (a few percent of requests) so prod log volume stays low while making the
+ * cause of a multi-second spike attributable instead of invisible.
+ */
+const SLOW_PATH_LOG_THRESHOLD_MS = 1500;
 
 export default async function artistInfoRoutes(app: FastifyInstance) {
   app.get(
@@ -164,8 +174,12 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
 
       const region = (query.region ?? "").toUpperCase().slice(0, 2);
 
+      // Phase timing for the slow-path breadcrumb below. `now` (captured right
+      // after the cache read) doubles as the after-cache mark.
+      const startedAt = Date.now();
       const repo = await getRepository();
       const contextAlias = query.shortId ? await repo.findArtistInfoAliasByShortId(query.shortId, rawName) : null;
+      const afterAliasAt = Date.now();
       const lookupName = contextAlias ?? rawName;
       const artistName = lookupName.toLowerCase();
       const cached = await repo.findArtistCache(artistName);
@@ -217,6 +231,7 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
       } else {
         log.debug("ArtistInfo", `Cache hit for "${lookupName}"`);
       }
+      const afterFetchesAt = Date.now();
 
       // Defensive filter: cached entries written before the upstream-mapper
       // fixes (Bandsintown could emit events without venueName/city/country)
@@ -266,6 +281,8 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
         }),
       );
 
+      const afterEnrichAt = Date.now();
+
       const response: ArtistInfoResponse = {
         artistName: lookupName,
         topTracks: enrichedTracks,
@@ -273,6 +290,31 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
         events: sortedEvents,
         similarArtistTracks,
       };
+
+      // Slow-path breadcrumb: only the multi-second tail is logged, segmented so
+      // a spike is attributable to upstream refetch (`fetchesMs` + cold flags),
+      // DB round-trips (`enrichMs`), or event-loop starvation (`eventLoopLagMaxMs`
+      // high while the others are low) rather than being an opaque number.
+      const totalMs = Date.now() - startedAt;
+      if (totalMs > SLOW_PATH_LOG_THRESHOLD_MS) {
+        const lag = readEventLoopLagMs();
+        request.log.info(
+          {
+            artist: artistName,
+            totalMs,
+            aliasMs: afterAliasAt - startedAt,
+            cacheReadMs: now - afterAliasAt,
+            fetchesMs: afterFetchesAt - now,
+            enrichMs: afterEnrichAt - afterFetchesAt,
+            coldTracks: needsTracks,
+            coldProfile: needsProfile,
+            coldEvents: needsEvents,
+            eventLoopLagMeanMs: Math.round(lag.mean),
+            eventLoopLagMaxMs: Math.round(lag.max),
+          },
+          "artist-info slow path",
+        );
+      }
 
       return reply.send(response);
     },
