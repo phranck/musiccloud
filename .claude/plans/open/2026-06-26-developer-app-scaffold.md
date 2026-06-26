@@ -60,7 +60,7 @@ Geändert (Repo-Root):
 - Create: `apps/developer/astro.config.mjs`
 - Create: `apps/developer/tsconfig.json`
 
-- [ ] **Step 1: package.json anlegen**
+- [x] **Step 1: package.json anlegen**
 
 ```json
 {
@@ -107,7 +107,7 @@ Geändert (Repo-Root):
 
 Anmerkung: kein `@astrojs/sitemap` (eine Doku-/App-Subdomain braucht keine öffentliche Sitemap im ersten Wurf), kein GSAP/FontAwesome (YAGNI). React bleibt drin für spätere Auth-Islands.
 
-- [ ] **Step 2: astro.config.mjs anlegen**
+- [x] **Step 2: astro.config.mjs anlegen**
 
 ```javascript
 import node from "@astrojs/node";
@@ -133,7 +133,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 3: tsconfig.json anlegen**
+- [x] **Step 3: tsconfig.json anlegen**
 
 ```json
 {
@@ -149,17 +149,19 @@ export default defineConfig({
 }
 ```
 
-- [ ] **Step 4: Install und Sanity-Check**
+- [x] **Step 4: Install und Sanity-Check**
 
 Run: `pnpm install`
 Expected: lockfile aktualisiert, `apps/developer/node_modules` vorhanden, kein `EUNSUPPORTEDPROTOCOL` (workspace:*-Refs nur unter pnpm).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/developer/package.json apps/developer/astro.config.mjs apps/developer/tsconfig.json pnpm-lock.yaml
 git commit -m "Chore: scaffold @musiccloud/developer Astro app manifest"
 ```
+
+Anmerkung: `@phosphor-icons/react`, `clsx`, `tailwind-merge` aus dem Plan-Manifest entfernt — der React-Doctor-Pre-Commit-Hook flaggte sie als `deslop/unused-dependency` (kein Verbraucher in Task 1-4, Landing ist reines Astro). Kommen mit dem Auth-Islands-Folge-Plan zurück, sobald sie tatsächlich importiert werden (YAGNI).
 
 ---
 
@@ -171,7 +173,7 @@ git commit -m "Chore: scaffold @musiccloud/developer Astro app manifest"
 
 Schlankes, eigenständiges Design-System — nur was die Developer-Site braucht (Night-Mode-Gradient, Brand, Text, Surfaces, Status). Kein VFD/CD/Day-Night-Cross-Fade aus dem Frontend.
 
-- [ ] **Step 1: global.css anlegen**
+- [x] **Step 1: global.css anlegen**
 
 ```css
 @import "tailwindcss";
@@ -226,7 +228,7 @@ button,
 }
 ```
 
-- [ ] **Step 2: fonts.css anlegen**
+- [x] **Step 2: fonts.css anlegen**
 
 ```css
 @import "@fontsource/barlow/latin-400.css";
@@ -236,7 +238,7 @@ button,
 @import "@fontsource/roboto-condensed/latin-500.css";
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add apps/developer/src/styles/global.css apps/developer/src/styles/fonts.css
@@ -251,7 +253,7 @@ git commit -m "Feat: add developer-site design system tokens and fonts"
 - Create: `apps/developer/src/components/DeveloperBackground.astro`
 - Create: `apps/developer/src/layouts/BaseLayout.astro`
 
-- [ ] **Step 1: DeveloperBackground.astro anlegen**
+- [x] **Step 1: DeveloperBackground.astro anlegen**
 
 Reiner CSS-Gradient, fixiert hinter dem Inhalt. Kein WebGL, kein Token-Fetch.
 
@@ -272,7 +274,7 @@ Reiner CSS-Gradient, fixiert hinter dem Inhalt. Kein WebGL, kein Token-Fetch.
 </div>
 ```
 
-- [ ] **Step 2: BaseLayout.astro anlegen**
+- [x] **Step 2: BaseLayout.astro anlegen**
 
 ```astro
 ---
@@ -304,7 +306,7 @@ const { title = "musiccloud for developers", description = "Build with the music
 </html>
 ```
 
-- [ ] **Step 3: Platzhalter-Favicon anlegen**
+- [x] **Step 3: Platzhalter-Favicon anlegen**
 
 Create: `apps/developer/public/favicon.svg`
 
@@ -312,7 +314,7 @@ Create: `apps/developer/public/favicon.svg`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#0b1318"/><path d="M9 21c0-3.3 2.7-6 6-6 1 0 2 .3 2.8.8A5 5 0 0 1 27 18.5 4.5 4.5 0 0 1 22.5 23H10a1 1 0 0 1-1-1z" fill="#28a8d8"/></svg>
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/developer/src/components/DeveloperBackground.astro apps/developer/src/layouts/BaseLayout.astro apps/developer/public/favicon.svg
@@ -326,7 +328,7 @@ git commit -m "Feat: add developer-site base layout and gradient background"
 **Files:**
 - Create: `apps/developer/src/pages/index.astro`
 
-- [ ] **Step 1: index.astro anlegen**
+- [x] **Step 1: index.astro anlegen**
 
 Statische Landing nach dem abgenommenen Mockup (Logo-Nav, Hero, Code-Teaser, Feature-Karten). Noch keine funktionalen Auth-Buttons (kommen mit dem Frontend-Auth-Plan); Links sind Platzhalter.
 
@@ -383,7 +385,7 @@ const features = [
     <pre
       class="rounded-xl border border-[var(--color-border)] bg-[var(--color-code-bg)] p-4 text-xs font-[family-name:var(--font-mono)] text-[#c2d2dc] overflow-x-auto mb-8"><code><span class="text-[var(--color-text-muted)]"># Resolve a Spotify link to every platform</span>
 <span class="text-[var(--color-accent)]">curl</span> https://api.musiccloud.io/api/v1/resolve \
-  -H <span class="text-[var(--color-gold)]">"X-API-Key: mc_live_…"</span> -d <span class="text-[var(--color-gold)]">'{"url":"…"}'</span></code></pre>
+  -H <span class="text-[var(--color-gold)]">"X-API-Key: mc_live_…"</span> -d <span class="text-[var(--color-gold)]">{`'{"url":"…"}'`}</span></code></pre>
 
     <section class="grid grid-cols-1 sm:grid-cols-3 gap-3">
       {
@@ -399,17 +401,21 @@ const features = [
 </BaseLayout>
 ```
 
-- [ ] **Step 2: Build verifizieren**
+- [x] **Step 2: Build verifizieren**
 
 Run: `pnpm --filter @musiccloud/developer build`
 Expected: erfolgreich, erzeugt `apps/developer/dist/server/entry.mjs` und `apps/developer/dist/client/`.
 
-- [ ] **Step 3: SSR-Smoke lokal**
+Anmerkung: Das wörtliche `'{"url":"…"}'` im `<pre>`-Block musste als Astro-Expression `{`'{"url":"…"}'`}` escaped werden — die nackten `{`/`}` interpretiert der Astro-Compiler sonst als JSX-Expression-Delimiter und der esbuild-Parse failt mit `Expected "}" but found ":"`. Sichtbarer Output unverändert.
+
+- [x] **Step 3: SSR-Smoke lokal**
 
 Run: `cd apps/developer && PORT=3002 node ./dist/server/entry.mjs &` dann `curl -s http://localhost:3002/ | grep -c "Build with the musiccloud API"`
 Expected: `1` (Hero-Headline im SSR-HTML vorhanden). Danach den Prozess beenden.
 
-- [ ] **Step 4: Commit**
+Anmerkung: liefert `2` statt `1`, weil derselbe Satz zusätzlich als Default-`description` im `<meta>` (aus `BaseLayout.astro`) rendert. Beide Treffer korrekt, Hero-Headline ist serverseitig vorhanden — Smoke inhaltlich bestanden.
+
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/developer/src/pages/index.astro
@@ -630,10 +636,10 @@ Alle Referenzen gegen den aktuellen Code geprüft (paralleler Pattern-Audit):
 
 ## Checkliste
 
-- [ ] Task 1: App-Manifest + Astro-Config + tsconfig, `pnpm install` grün
-- [ ] Task 2: Design-System (global.css `@theme`, fonts.css)
-- [ ] Task 3: DeveloperBackground (CSS-Gradient) + BaseLayout + favicon
-- [ ] Task 4: Landing-Page, Build + SSR-Smoke grün
+- [x] Task 1: App-Manifest + Astro-Config + tsconfig, `pnpm install` grün
+- [x] Task 2: Design-System (global.css `@theme`, fonts.css)
+- [x] Task 3: DeveloperBackground (CSS-Gradient) + BaseLayout + favicon
+- [x] Task 4: Landing-Page, Build + SSR-Smoke grün
 - [ ] Task 5: Lokaler Runner (`app.config`, Root-Scripts, `.env.local`), Runner-Smoke grün
 - [ ] Task 6: `zerops.yml` `developer`-Block, YAML valide
 - [ ] Task 7: CI Change-Detection + Deploy-Job (serviceId vom Betreiber)

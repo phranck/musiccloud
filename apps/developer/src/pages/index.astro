@@ -1,0 +1,66 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+
+const features = [
+  { title: "Link resolve", body: "One link in, every platform out." },
+  { title: "Artist info", body: "Top tracks, similar artists, events." },
+  { title: "Creative Commons", body: "Free-to-use catalogue access." },
+];
+---
+
+<BaseLayout>
+  <header class="flex items-center justify-between px-6 py-4 max-w-5xl mx-auto w-full">
+    <div class="flex items-center gap-2 text-[15px] font-medium">
+      <svg width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"
+        ><path
+          d="M9 21c0-3.3 2.7-6 6-6 1 0 2 .3 2.8.8A5 5 0 0 1 27 18.5 4.5 4.5 0 0 1 22.5 23H10a1 1 0 0 1-1-1z"
+          fill="var(--color-accent)"></path></svg
+      >
+      musiccloud <span class="text-[var(--color-text-muted)] font-normal">/ developers</span>
+    </div>
+    <nav class="flex items-center gap-4 text-[13px] text-[var(--color-text-secondary)]">
+      <a href="/docs">Docs</a>
+      <a href="/login">Log in</a>
+      <a
+        href="/signup"
+        class="rounded-lg bg-[var(--color-accent)] text-[var(--color-accent-contrast)] px-3 py-1.5 font-medium"
+        >Sign up</a
+      >
+    </nav>
+  </header>
+
+  <main class="max-w-5xl mx-auto w-full px-6 pt-12 pb-20">
+    <h1 class="text-4xl font-medium tracking-tight leading-tight mb-3">Build with the musiccloud API</h1>
+    <p class="text-[var(--color-text-secondary)] max-w-md mb-6">
+      Resolve any music link, fetch artist info, and explore Creative Commons tracks — one REST API, one key.
+    </p>
+    <div class="flex gap-3 mb-10">
+      <a
+        href="/signup"
+        class="rounded-lg bg-[var(--color-accent)] text-[var(--color-accent-contrast)] px-4 py-2 text-sm font-medium"
+        >Get an API key</a
+      >
+      <a
+        href="/docs"
+        class="rounded-lg border border-[var(--color-border-strong)] px-4 py-2 text-sm font-medium"
+        >Read the docs</a
+      >
+    </div>
+
+    <pre
+      class="rounded-xl border border-[var(--color-border)] bg-[var(--color-code-bg)] p-4 text-xs font-[family-name:var(--font-mono)] text-[#c2d2dc] overflow-x-auto mb-8"><code><span class="text-[var(--color-text-muted)]"># Resolve a Spotify link to every platform</span>
+<span class="text-[var(--color-accent)]">curl</span> https://api.musiccloud.io/api/v1/resolve \
+  -H <span class="text-[var(--color-gold)]">"X-API-Key: mc_live_…"</span> -d <span class="text-[var(--color-gold)]">{`'{"url":"…"}'`}</span></code></pre>
+
+    <section class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      {
+        features.map((f) => (
+          <article class="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+            <h2 class="text-sm font-medium mb-1">{f.title}</h2>
+            <p class="text-xs text-[var(--color-text-secondary)]">{f.body}</p>
+          </article>
+        ))
+      }
+    </section>
+  </main>
+</BaseLayout>
