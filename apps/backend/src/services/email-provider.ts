@@ -93,3 +93,30 @@ export async function sendEmail(message: EmailMessage): Promise<void> {
     throw new Error(`SMTP2GO send not accepted: ${JSON.stringify(data ?? result)}`);
   }
 }
+
+/**
+ * Lightweight readiness probe for the email subsystem, used by `GET /health/email`.
+ * Confirms the SMTP2GO transport is configured (API key + sender) and that the
+ * provider host is reachable. Sends no mail and uses no send quota, so it is safe
+ * to call on a frequent (per-minute) monitoring cadence.
+ *
+ * @returns true when the email subsystem is configured and the provider host responds.
+ */
+export async function isEmailProviderHealthy(): Promise<boolean> {
+  if (
+    !process.env.SMTP2GO_API_KEY ||
+    !process.env.EMAIL_FROM_ADDRESS ||
+    !process.env.EMAIL_FROM_NAME
+  ) {
+    return false;
+  }
+  try {
+    await fetch(new URL(SMTP2GO_ENDPOINT).origin, {
+      method: "HEAD",
+      signal: AbortSignal.timeout(5000),
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}

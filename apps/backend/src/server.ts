@@ -52,6 +52,7 @@ import sharePreviewRoutes from "./routes/share-preview.js";
 import { siteSettingsAdminRoutes, siteSettingsPublicRoutes } from "./routes/site-settings.js";
 import telemetryAppErrorRoutes from "./routes/telemetry-app-error.js";
 import { OPENAPI_SCHEMAS } from "./schemas/openapi-schemas.js";
+import { isEmailProviderHealthy } from "./services/email-provider.js";
 import { validateAdapters } from "./services/index.js";
 import { warmAppleMusicToken } from "./services/plugins/apple-music/adapter.js";
 
@@ -380,6 +381,28 @@ async function buildApp() {
     },
     async () => {
       return { status: "ok" };
+    },
+  );
+
+  // Email subsystem readiness (no auth) — confirms the SMTP2GO transport is
+  // configured and the provider host is reachable. Sends no mail and uses no
+  // send quota, so it is safe on a per-minute monitoring cadence. Powers the
+  // "Email" service on the public status page.
+  app.get(
+    "/health/email",
+    {
+      schema: {
+        tags: ["Health"],
+        summary: "Email subsystem readiness",
+        description:
+          "Returns 200 when the email provider is configured and reachable, else 503.",
+      },
+    },
+    async (_request, reply) => {
+      if (await isEmailProviderHealthy()) {
+        return { status: "ok" };
+      }
+      return reply.status(503).send({ status: "unavailable" });
     },
   );
 
