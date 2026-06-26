@@ -57,11 +57,11 @@ export function PageHeader({ navItems = EMPTY_NAV_ITEMS }: PageHeaderProps) {
   // visible delay.
   return (
     <>
-      <div className="absolute top-3 left-3 z-50 flex max-w-[calc(100vw-1.5rem)] animate-slide-down-in items-center gap-2 sm:fixed sm:top-4 sm:left-4 sm:gap-3">
+      <div className="absolute top-[calc(env(safe-area-inset-top)+0.75rem)] left-3 z-50 flex max-w-[calc(100vw-1.5rem)] animate-slide-down-in items-center gap-2 sm:fixed sm:top-[calc(env(safe-area-inset-top)+1rem)] sm:left-4 sm:gap-3">
         {navItems.length > 0 && <HeaderNavMenu navItems={navItems} onNavClick={handleNavClick} />}
         <ResolveModeIndicator />
       </div>
-      <div className="absolute top-3 right-3 z-50 flex max-w-[calc(100vw-1.5rem)] animate-slide-down-in items-start gap-2 sm:fixed sm:top-4 sm:right-4 sm:gap-3">
+      <div className="absolute top-[calc(env(safe-area-inset-top)+0.75rem)] right-3 z-50 flex max-w-[calc(100vw-1.5rem)] animate-slide-down-in items-start gap-2 sm:fixed sm:top-[calc(env(safe-area-inset-top)+1rem)] sm:right-4 sm:gap-3">
         <DayNightSwitcher />
         <LanguageSwitcher />
       </div>
