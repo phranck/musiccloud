@@ -1407,3 +1407,103 @@ export const ccArtistShortUrls = pgTable(
     uniqueIndex("uq_cc_artist_short_urls_cc_artist_id").on(table.ccArtistId),
   ],
 );
+
+// ============================================================================
+// DEVELOPER ACCOUNTS (developer.musiccloud.io self-service, MC-064)
+// ============================================================================
+
+/**
+ * External developer accounts for the developer portal, kept entirely
+ * separate from {@link adminUsers}. Backs the email/password auth flow
+ * (signup, verification, login, password reset) and acts as the owning
+ * entity for {@link developerIdentities} and {@link developerEmailTokens}.
+ *
+ * `passwordHash` is nullable to leave room for pure OAuth accounts added in
+ * MC-065; an email/password account always carries a hash. `emailVerifiedAt`
+ * gates login: it stays `null` until the verification token is consumed.
+ */
+export const developerAccounts = pgTable(
+  "developer_accounts",
+  {
+    id: text("id").primaryKey(),
+    email: text("email").notNull().unique(),
+    emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+    passwordHash: text("password_hash"),
+    displayName: text("display_name"),
+    avatarUrl: text("avatar_url"),
+    plan: text("plan").notNull().default("free"),
+    status: text("status").notNull().default("active"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+  },
+  (table) => [
+    check("chk_developer_accounts_plan", sql`${table.plan} IN ('free')`),
+    check("chk_developer_accounts_status", sql`${table.status} IN ('active', 'suspended')`),
+  ],
+);
+
+export type DeveloperAccountRow = typeof developerAccounts.$inferSelect;
+export type DeveloperAccountInsert = typeof developerAccounts.$inferInsert;
+
+/**
+ * Authentication identities linked to a {@link developerAccounts} row. Each
+ * row records how an account can authenticate: `provider = 'email'` for the
+ * built-in email/password path (with a `null` `providerUserId`), or
+ * `provider = 'github'` for the OAuth path added in MC-065 (with the GitHub
+ * user id in `providerUserId`).
+ *
+ * The first unique index keeps a single identity per provider per account;
+ * the second prevents two accounts from claiming the same external provider
+ * id. In Postgres, `NULL` values are distinct under a unique index, so
+ * multiple `(github, NULL)` placeholders never collide.
+ */
+export const developerIdentities = pgTable(
+  "developer_identities",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => developerAccounts.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    providerUserId: text("provider_user_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_developer_identities_account_provider").on(table.accountId, table.provider),
+    uniqueIndex("uq_developer_identities_provider_user").on(table.provider, table.providerUserId),
+    check("chk_developer_identities_provider", sql`${table.provider} IN ('email', 'github')`),
+  ],
+);
+
+export type DeveloperIdentityRow = typeof developerIdentities.$inferSelect;
+export type DeveloperIdentityInsert = typeof developerIdentities.$inferInsert;
+
+/**
+ * Single-use, hashed email tokens for developer account verification and
+ * password reset. The raw token is only ever sent in the email link; this
+ * table stores the SHA-256 hash. A token is valid while `expiresAt` is in the
+ * future and `consumedAt` is `null`; consuming it stamps `consumedAt` so it
+ * cannot be replayed. Rows cascade-delete with their owning account.
+ */
+export const developerEmailTokens = pgTable(
+  "developer_email_tokens",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => developerAccounts.id, { onDelete: "cascade" }),
+    purpose: text("purpose").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_developer_email_tokens_token_hash").on(table.tokenHash),
+    check("chk_developer_email_tokens_purpose", sql`${table.purpose} IN ('verify', 'reset')`),
+  ],
+);
+
+export type DeveloperEmailTokenRow = typeof developerEmailTokens.$inferSelect;
+export type DeveloperEmailTokenInsert = typeof developerEmailTokens.$inferInsert;
