@@ -24,8 +24,9 @@ SWR ist als eigener Plan [[MC-059]] (`.claude/plans/open/2026-06-26-artist-info-
 ### NOW — sichtbares Symptom killen + Ursache messbar machen
 
 - **Slow-Path-Logging** (erledigt): `request.log.info`-Breadcrumb in [`artist-info.ts`](../../apps/backend/src/routes/artist-info.ts) nur bei totalMs > 1500, segmentiert nach alias/cacheRead/fetches/enrich + Cold-Flags + Event-Loop-Lag ([`event-loop-lag.ts`](../../apps/backend/src/lib/infra/event-loop-lag.ts)). Diskriminiert Upstream-Refetch vs. DB-Round-Trips vs. Event-Loop-Starvation. Fastify-Logger ist in Prod `level: "info"` (`server.ts:78`), in VITEST aus.
-- **SSR-Prefill** der Artist-Spalte in `DeferredShareContent.astro`: artist-info server-seitig in das bestehende `Promise.all` aufnehmen und via `artistData`/`skipArtistFetch` an `SharePageShell` → `ShareLayout` durchreichen (die CC-Seite macht genau das: `CcSharePageShell.tsx:68-69`, `useArtistInfo.ts:165-169`). Kurzes Server-Budget; bei Miss Fallback auf den heutigen Client-Fetch. SSR-Fetch nutzt internen `X-API-Key` → kein Rate-Limit (kein 429-Risiko).
-- **Graceful Degradation:** in [`useArtistInfo.ts`](../../apps/frontend/src/hooks/useArtistInfo.ts) bei `Error` die letzten Daten NICHT auf `null` setzen; `EventsCard`/`ArtistTrackListCard` bei Fehler Skeleton/Retry statt `return null`. Plus einmaliger Client-Retry mit Backoff vor dem Error-Zustand.
+- **Graceful Degradation (erledigt):** In [`useArtistInfo.ts`](../../apps/frontend/src/hooks/useArtistInfo.ts) behält der Reducer bei `Error` die letzten Daten (ein fehlgeschlagener Refetch zeigt stale statt blank). `AnimatedArtistColumn` rendert bei `Error && !artistData` einen einzelnen Spalten-Notice (`ArtistNoticeWell` mit `t("artist.error")`) statt vier `null`-Karten. Damit ist die Spalte nie leer, egal wie langsam/fehlerhaft das Backend.
+- **SSR-Prefill (verschoben):** Das Server-Island `DeferredShareContent` rendert synchron — ein artist-info-Fetch im `Promise.all` verzögert die primäre Karte (Cover/Player) um bis zum Budget. Da Graceful Degradation die Spalte ohnehin nie leer lässt, ist Prefill nur eine optionale Perf-Nettigkeit, nicht den Karten-Delay wert. Mechanik bei Bedarf: via `artistData`/`skipArtistFetch` an `ShareLayout` (CC macht es so: `CcSharePageShell.tsx:68-69`, `useArtistInfo.ts:165-169`), interner `X-API-Key` → kein 429.
+- **Client-Retry (offen, niedrige Prio):** einmaliger Retry mit Backoff im Hook vor dem Error-Zustand. Nach dem RAM-Bump sind Timeouts selten, daher kleiner Mehrwert.
 
 ### NEXT — Warm-Pfad billiger
 
@@ -44,8 +45,9 @@ SWR ist als eigener Plan [[MC-059]] (`.claude/plans/open/2026-06-26-artist-info-
 ## Checklist
 
 - [x] Slow-Path-Breadcrumb + Event-Loop-Lag-Modul (NOW)
-- [ ] SSR-Prefill der Artist-Spalte (NOW)
-- [ ] Graceful Degradation: Spalte nicht leeren bei Fehler + Client-Retry (NOW)
+- [x] Graceful Degradation: Spalte nie leer (Reducer keep-data + Spalten-Error-Notice) (NOW)
+- [ ] SSR-Prefill der Artist-Spalte — verschoben, da es die primäre Karte verzögert (optional)
+- [ ] Client-Retry mit Backoff — niedrige Prio: Timeouts nach RAM-Bump selten (NEXT)
 - [ ] Round-Trips bündeln (`source_url = ANY($1)`) (NEXT)
 - [ ] HTTP-`Cache-Control` auf artist-info + Proxy reicht ihn durch (NEXT)
 - [ ] `fetchNavigation` in-process cachen (NEXT)

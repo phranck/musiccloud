@@ -1,6 +1,8 @@
 import { useGSAP } from "@gsap/react";
 import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { useRef } from "react";
+import { ArtistCardShell } from "@/components/artist/ArtistCardShell";
+import { ArtistNoticeWell } from "@/components/artist/ArtistNoticeWell";
 import { ArtistProfileDesktopCard } from "@/components/artist/ArtistProfileDesktopCard";
 import { ArtistTrackListCard } from "@/components/artist/ArtistTrackListCard";
 import type {
@@ -14,6 +16,8 @@ import { ArtistTrackViewKey } from "@/components/artist/artistTrackViewKeys";
 import { EventsCard } from "@/components/artist/EventsCard";
 import { SimilarArtistsSkeleton } from "@/components/artist/SimilarArtistsSkeleton";
 import { TracksSkeleton } from "@/components/artist/TracksSkeleton";
+import { ArtistLoadStatus } from "@/hooks/useArtistInfo";
+import { useT } from "@/i18n/localeContext";
 import { CardSignal } from "@/lib/analytics/umami";
 import { animateFlipFrom, type CapturedFlipState, captureFlipState } from "@/lib/motion/flip";
 
@@ -119,44 +123,60 @@ export function AnimatedArtistColumn({
   // Resolve the loading presentation once for the track cards: first load shows
   // the skeleton, a refetch with data on screen blurs + spins (mirrors the cards'
   // former internal derivation, now hoisted so they stay pure presentation).
+  const t = useT();
   const showInitialSkeleton = isLoading && !artistData;
   const isRefreshing = isLoading && !!artistData;
+  // A failed first load (error with no prior data) would otherwise render four
+  // `null` cards — a completely empty column. Surface a single notice instead so
+  // the column is never blank, whatever the backend latency. A failed *refetch*
+  // keeps its last-known data (see `artistReducer`) and stays on the cards path.
+  const showErrorNotice = artistLoadStatus === ArtistLoadStatus.Error && !artistData;
 
   return (
     <div ref={columnRef} className="flex flex-col gap-6" style={{ width: `${widthPx}px` }}>
-      <ArtistProfileDesktopCard
-        title={labels.profile}
-        providedBy={labels.profileProvidedBy}
-        data={artistData}
-        isLoading={isLoading}
-        status={artistLoadStatus}
-      />
-      <ArtistTrackListCard
-        title={labels.popularTracks}
-        items={toPopularTrackItems(artistData)}
-        showInitialSkeleton={showInitialSkeleton}
-        isRefreshing={isRefreshing}
-        Skeleton={TracksSkeleton}
-        swapKey={buildTracksSwapKey(artistData)}
-        placeholderHeightClass="min-h-[186px]"
-        viewStorageKey={ArtistTrackViewKey.Popular}
-        onTrackResolve={onTrackResolve}
-        onResolveStart={onArtistResolveStart}
-      />
-      <EventsCard title={labels.events} data={artistData} isLoading={isLoading} userRegion={userRegion} />
-      <ArtistTrackListCard
-        title={labels.similar}
-        items={toSimilarTrackItems(artistData)}
-        showInitialSkeleton={showInitialSkeleton}
-        isRefreshing={isRefreshing}
-        Skeleton={SimilarArtistsSkeleton}
-        swapKey={buildSimilarSwapKey(artistData)}
-        placeholderHeightClass="min-h-[205px]"
-        cardSignal={CardSignal.SimilarArtist}
-        viewStorageKey={ArtistTrackViewKey.Similar}
-        onTrackResolve={onTrackResolve}
-        onResolveStart={onArtistResolveStart}
-      />
+      {showErrorNotice ? (
+        <ArtistCardShell title={labels.popularTracks}>
+          <div className="px-3 pt-0 pb-3">
+            <ArtistNoticeWell message={t("artist.error")} />
+          </div>
+        </ArtistCardShell>
+      ) : (
+        <>
+          <ArtistProfileDesktopCard
+            title={labels.profile}
+            providedBy={labels.profileProvidedBy}
+            data={artistData}
+            isLoading={isLoading}
+            status={artistLoadStatus}
+          />
+          <ArtistTrackListCard
+            title={labels.popularTracks}
+            items={toPopularTrackItems(artistData)}
+            showInitialSkeleton={showInitialSkeleton}
+            isRefreshing={isRefreshing}
+            Skeleton={TracksSkeleton}
+            swapKey={buildTracksSwapKey(artistData)}
+            placeholderHeightClass="min-h-[186px]"
+            viewStorageKey={ArtistTrackViewKey.Popular}
+            onTrackResolve={onTrackResolve}
+            onResolveStart={onArtistResolveStart}
+          />
+          <EventsCard title={labels.events} data={artistData} isLoading={isLoading} userRegion={userRegion} />
+          <ArtistTrackListCard
+            title={labels.similar}
+            items={toSimilarTrackItems(artistData)}
+            showInitialSkeleton={showInitialSkeleton}
+            isRefreshing={isRefreshing}
+            Skeleton={SimilarArtistsSkeleton}
+            swapKey={buildSimilarSwapKey(artistData)}
+            placeholderHeightClass="min-h-[205px]"
+            cardSignal={CardSignal.SimilarArtist}
+            viewStorageKey={ArtistTrackViewKey.Similar}
+            onTrackResolve={onTrackResolve}
+            onResolveStart={onArtistResolveStart}
+          />
+        </>
+      )}
     </div>
   );
 }

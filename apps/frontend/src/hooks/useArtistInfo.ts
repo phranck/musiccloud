@@ -69,16 +69,18 @@ function hasArtistInfoContent(data: ArtistInfoResponse | null): boolean {
 }
 
 /**
- * Reduces the artist-info load lifecycle. `Loading` keeps the prior data
- * (avoids a flash to empty during a refetch); `Done` resolves to `ready` or
- * `empty` based on {@link hasArtistInfoContent}; `Error` clears the data and
- * records the error code.
+ * Reduces the artist-info load lifecycle. `Loading` and `Error` both keep the
+ * prior data so a refetch never blanks a column that already loaded: `Loading`
+ * avoids a flash to empty mid-refetch, and `Error` shows the last-known content
+ * instead of replacing it with an error state. A first-load failure has no prior
+ * data, so `artistData` stays `null` and the column renders an error notice.
+ * `Done` resolves to `ready` or `empty` based on {@link hasArtistInfoContent}.
  */
 function artistReducer(state: ArtistState, action: ArtistAction): ArtistState {
   if (action.type === ArtistActionType.Loading)
     return { status: ArtistLoadStatus.Loading, artistData: state.artistData };
   if (action.type === ArtistActionType.Error)
-    return { status: ArtistLoadStatus.Error, artistData: null, errorCode: action.code };
+    return { status: ArtistLoadStatus.Error, artistData: state.artistData, errorCode: action.code };
   return {
     status: hasArtistInfoContent(action.data) ? ArtistLoadStatus.Ready : ArtistLoadStatus.Empty,
     artistData: action.data,
