@@ -538,7 +538,7 @@ Expected: `ok` (gültiges YAML, vier `setup`-Blöcke).
 
 ```bash
 git add zerops.yml
-git commit -m "Chore: add developer Zerops service (nodejs@22, port 3001)"
+git commit -m "Chore: add developer Zerops service (nodejs@22, port 3002)"
 ```
 
 ---
@@ -616,7 +616,7 @@ Vor Abschluss alle Gates grün:
 - SSR-Smoke: `node apps/developer/dist/server/entry.mjs` + `curl` liefert die Landing.
 - `pnpm --filter @musiccloud/developer typecheck` (`astro check`) — keine Typfehler.
 - `pnpm lint` — Repo-weit grün (Biome).
-- `pnpm --filter @musiccloud/shared build` läuft (Developer-App konsumiert `@musiccloud/shared`).
+- `pnpm --filter @musiccloud/shared build` läuft (`@musiccloud/shared` ist als Workspace-Dependency vorbereitet; der erste Import — `ENDPOINTS` im BFF-Client — kommt im Folge-Plan, daher aktuell noch kein Verbraucher in `apps/developer/src`).
 - Lokaler `./app start developer` rendert die Landing auf Port 3002.
 - `zerops.yml` ist valides YAML mit vier Services.
 - React Doctor: nur falls React-Islands hinzukamen (in diesem Plan keine — Landing ist reines Astro). Sonst überspringen.
@@ -630,9 +630,9 @@ Alle Referenzen gegen den aktuellen Code geprüft (paralleler Pattern-Audit):
 - **zerops.yml**: drei Services (`backend`/`frontend`/`dashboard`), `frontend`-Block (`alpine/nodejs@22`, Port 3000, `HOST: "::"`, `deployFiles`-Liste, `start`) ist die exakte Vorlage. Service-IDs: backend `vftiwXaYQGCnnwEEaiGPYA`, frontend `bMY4g66BRDOfq1AAi8Q85A`, dashboard `IF9Xp4YFRxuQKRQxmAWFBA` — die `developer`-ID liegt erst nach Anlage in Zerops vor.
 - **CI** `.github/workflows/ci.yml`: `detect-changes`-Job mit per-App-Case-Blöcken + `outputs`, Deploy-Jobs `if: needs.detect-changes.outputs.<app> == 'true'`, `zcli push --serviceId <id>`, `ZEROPS_TOKEN`-Secret. Node-Version `22`.
 - **Lokaler Runner**: `app.config` mit Parallel-Arrays `APP_NAMES`/`APP_PORTS`/`APP_CMDS` (`APP_PORTS=(- 4000 3001 4500)`); Root-`package.json` `dev:*`-Scripts und `dev:all` via `concurrently`. Frontend lokal Port **3001** (Prod 3000), Developer daher **3002** (lokal kollisionsfrei).
-- **Shared**: `@musiccloud/shared` (`workspace:*`), build via `tsc`, Import `import { ENDPOINTS } from "@musiccloud/shared"`.
+- **Shared**: `@musiccloud/shared` (`workspace:*`), build via `tsc`. Als Dependency vorbereitet, aber in diesem Plan noch nicht importiert — der Import (`import { ENDPOINTS } from "@musiccloud/shared"`) erfolgt erst im BFF-Client des Folge-Plans.
 - **pnpm** ist Pflicht-PM (`pnpm@10.33.1`); `npm install` crasht an `workspace:`-Refs.
-- [ ] Alle Code-Referenzen erneut verifiziert (Pfade, Scripts, Service-IDs, Ports) vor dem ersten Edit.
+- [x] Alle Code-Referenzen erneut verifiziert (Pfade, Scripts, Service-IDs, Ports) vor dem ersten Edit.
 
 ## Checkliste
 
@@ -643,5 +643,5 @@ Alle Referenzen gegen den aktuellen Code geprüft (paralleler Pattern-Audit):
 - [x] Task 5: Lokaler Runner (`app.config`, Root-Scripts, `.env.local`), Runner-Smoke grün
 - [x] Task 6: `zerops.yml` `developer`-Block, YAML valide
 - [x] Task 7: CI Change-Detection + Deploy-Job (serviceId vom Betreiber)
-- [ ] Alle Gates grün (build, typecheck, `pnpm lint`, SSR-Smoke)
+- [x] Alle Gates grün (build, typecheck, `pnpm lint`, SSR-Smoke)
 - [ ] Plan nach `done/` verschoben, `WHATS-NEXT.md` aktualisiert
