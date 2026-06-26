@@ -27,6 +27,12 @@ import type {
   TrackListItem,
 } from "../admin-repository.js";
 import type {
+  DeveloperAccount,
+  DeveloperEmailToken,
+  DeveloperIdentity,
+  DeveloperRepository,
+} from "../developer-repository.js";
+import type {
   AppTelemetryEventInput,
   ArtistCacheData,
   ArtistCacheRow,
@@ -185,6 +191,19 @@ import {
   seedCrawlState as crawlSeedCrawlState,
   updateCrawlState as crawlUpdateCrawlState,
 } from "./postgres-crawl.js";
+import {
+  consumeDeveloperEmailToken as developerConsumeEmailToken,
+  createDeveloperAccount as developerCreateAccount,
+  createDeveloperEmailToken as developerCreateEmailToken,
+  createDeveloperIdentity as developerCreateIdentity,
+  findDeveloperAccountByEmail as developerFindAccountByEmail,
+  findDeveloperAccountById as developerFindAccountById,
+  findActiveDeveloperEmailToken as developerFindActiveEmailToken,
+  findDeveloperIdentity as developerFindIdentity,
+  markDeveloperEmailVerified as developerMarkEmailVerified,
+  setDeveloperPassword as developerSetPassword,
+  updateDeveloperLastLogin as developerUpdateLastLogin,
+} from "./postgres-developer.js";
 import { insertAppTelemetryEvent } from "./postgres-telemetry.js";
 import {
   addLinksToTrack as tracksAddLinksToTrack,
@@ -208,7 +227,7 @@ import {
 // POSTGRES ADAPTER
 // ============================================================================
 
-export class PostgresAdapter implements TrackRepository, AdminRepository, CcRepository {
+export class PostgresAdapter implements TrackRepository, AdminRepository, CcRepository, DeveloperRepository {
   private pool: pgModule.Pool;
   private cleanupInterval: NodeJS.Timeout | null = null;
 
@@ -927,5 +946,67 @@ export class PostgresAdapter implements TrackRepository, AdminRepository, CcRepo
 
   listCrawlRuns(params: { source?: string; page: number; limit: number }): Promise<CrawlRunsPage> {
     return crawlListCrawlRuns(this.pool, params);
+  }
+
+  // ============================================================================
+  // DEVELOPER ACCOUNTS (DeveloperRepository) — migration 0047
+  // ============================================================================
+
+  createDeveloperAccount(data: {
+    email: string;
+    passwordHash?: string | null;
+    displayName?: string | null;
+    avatarUrl?: string | null;
+  }): Promise<DeveloperAccount> {
+    return developerCreateAccount(this.pool, data);
+  }
+
+  findDeveloperAccountById(id: string): Promise<DeveloperAccount | null> {
+    return developerFindAccountById(this.pool, id);
+  }
+
+  findDeveloperAccountByEmail(email: string): Promise<DeveloperAccount | null> {
+    return developerFindAccountByEmail(this.pool, email);
+  }
+
+  markDeveloperEmailVerified(id: string): Promise<DeveloperAccount | null> {
+    return developerMarkEmailVerified(this.pool, id);
+  }
+
+  updateDeveloperLastLogin(id: string): Promise<void> {
+    return developerUpdateLastLogin(this.pool, id);
+  }
+
+  setDeveloperPassword(id: string, passwordHash: string): Promise<DeveloperAccount | null> {
+    return developerSetPassword(this.pool, id, passwordHash);
+  }
+
+  createDeveloperIdentity(data: {
+    accountId: string;
+    provider: string;
+    providerUserId?: string | null;
+  }): Promise<DeveloperIdentity> {
+    return developerCreateIdentity(this.pool, data);
+  }
+
+  findDeveloperIdentity(provider: string, providerUserId: string): Promise<DeveloperIdentity | null> {
+    return developerFindIdentity(this.pool, provider, providerUserId);
+  }
+
+  createDeveloperEmailToken(data: {
+    accountId: string;
+    purpose: string;
+    tokenHash: string;
+    expiresAt: Date;
+  }): Promise<DeveloperEmailToken> {
+    return developerCreateEmailToken(this.pool, data);
+  }
+
+  findActiveDeveloperEmailToken(tokenHash: string, purpose: string): Promise<DeveloperEmailToken | null> {
+    return developerFindActiveEmailToken(this.pool, tokenHash, purpose);
+  }
+
+  consumeDeveloperEmailToken(id: string): Promise<boolean> {
+    return developerConsumeEmailToken(this.pool, id);
   }
 }

@@ -2,6 +2,7 @@ import { log } from "../lib/infra/logger";
 import { PostgresAdapter } from "./adapters/postgres.js";
 import type { AdminRepository } from "./admin-repository.js";
 import { loadDatabaseConfig } from "./config.js";
+import type { DeveloperRepository } from "./developer-repository.js";
 import type { CcRepository, TrackRepository } from "./repository.js";
 
 let repositoryInstance: PostgresAdapter | null = null;
@@ -21,6 +22,12 @@ export async function getAdminRepository(): Promise<AdminRepository> {
 
 /** Returns the singleton CcRepository instance, creating it on first call. */
 export async function getCcRepository(): Promise<CcRepository> {
+  await ensureInstance();
+  return repositoryInstance!;
+}
+
+/** Returns the singleton DeveloperRepository instance, creating it on first call. */
+export async function getDeveloperRepository(): Promise<DeveloperRepository> {
   await ensureInstance();
   return repositoryInstance!;
 }
@@ -49,6 +56,12 @@ export async function closeRepository(): Promise<void> {
 
 // Re-export types for consumers
 export type { AdminRepository, AdminUser } from "./admin-repository.js";
+export type {
+  DeveloperAccount,
+  DeveloperEmailToken,
+  DeveloperIdentity,
+  DeveloperRepository,
+} from "./developer-repository.js";
 export type {
   CachedTrackResult,
   CcRepository,
