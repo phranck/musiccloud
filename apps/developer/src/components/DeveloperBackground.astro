@@ -1,0 +1,14 @@
+---
+/**
+ * Static night-mode background for the developer site: a single fixed layer
+ * with the main site's night sky gradient (zenith #0b1318 -> horizon #10273b),
+ * rendered as a plain vertical CSS gradient. No stars, no clouds, no WebGL.
+ */
+---
+
+<div
+  class="fixed inset-0 -z-10"
+  style="background: linear-gradient(180deg, var(--color-sky-top) 0%, var(--color-sky-bottom) 100%);"
+  aria-hidden="true"
+>
+</div>

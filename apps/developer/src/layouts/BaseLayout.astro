@@ -1,0 +1,27 @@
+---
+import "../styles/fonts.css";
+import "../styles/global.css";
+import DeveloperBackground from "@/components/DeveloperBackground.astro";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { title = "musiccloud for developers", description = "Build with the musiccloud API." } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body class="min-h-screen text-[var(--color-text-primary)] font-[family-name:var(--font-sans)] antialiased">
+    <DeveloperBackground />
+    <slot />
+  </body>
+</html>
