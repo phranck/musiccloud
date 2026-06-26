@@ -67,6 +67,9 @@ WHATS-NEXT.md
 .codex/SESSION.md
 .claude/memory/*credential*
 
+# Generated plan overview dashboard (reproducible via the `plans` tool)
+/plans.html
+
 # Xcode
 xcuserdata/
 *.xcuserstate
