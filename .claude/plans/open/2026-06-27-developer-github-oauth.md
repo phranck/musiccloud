@@ -251,7 +251,7 @@ export async function fetchGitHubProfile(accessToken: string): Promise<GitHubPro
 - Create: `apps/backend/src/routes/developer-github.ts`
 - Modify: `apps/backend/src/server.ts` (Import + `await app.register(devGitHubRoutes);` neben `devAuthRoutes`)
 
-- [ ] **Step 1: Routen schreiben**
+- [x] **Step 1: Routen schreiben**
 
 ```ts
 /**
@@ -389,11 +389,11 @@ export async function devGitHubRoutes(app: FastifyInstance) {
 }
 ```
 
-- [ ] **Step 2: Registrieren** — in `server.ts` Import `import { devGitHubRoutes } from "./routes/developer-github.js";` und neben `devAuthRoutes`: `await app.register(devGitHubRoutes);`.
+- [x] **Step 2: Registrieren** — in `server.ts` Import `import { devGitHubRoutes } from "./routes/developer-github.js";` und neben `devAuthRoutes`: `await app.register(devGitHubRoutes);`.
 
-- [ ] **Step 3: Gates** — `pnpm --filter @musiccloud/backend typecheck` grün, `pnpm lint` grün.
+- [x] **Step 3: Gates** — `pnpm --filter @musiccloud/backend typecheck` grün, `pnpm lint` grün.
 
-- [ ] **Step 4: Commit** — `Feat: GitHub OAuth start + exchange routes (MC-065)`
+- [x] **Step 4: Commit** — `Feat: GitHub OAuth start + exchange routes (MC-065)`
 
 ## Task 4: Route-Tests
 

@@ -39,6 +39,7 @@ import ccGenreArtworkRoutes from "./routes/cc-genre-artwork.js";
 import ccRandomExampleRoutes from "./routes/cc-random-example.js";
 import ccResolveRoutes from "./routes/cc-resolve.js";
 import { devAuthRoutes } from "./routes/developer-auth.js";
+import { devGitHubRoutes } from "./routes/developer-github.js";
 import genreArtworkRoutes from "./routes/genre-artwork.js";
 import linkRoutes from "./routes/link.js";
 import publicContentNavRoutes from "./routes/public-content-nav.js";
@@ -439,6 +440,11 @@ async function buildApp() {
   // is the `mc_dev_session` cookie, parsed by the @fastify/cookie plugin
   // registered above.
   await app.register(devAuthRoutes);
+
+  // Developer-portal GitHub OAuth routes (MC-065, public, root scope). `start`
+  // mints the signed-state authorize URL; `exchange` trades the callback code
+  // and issues the same `mc_dev_session` cookie as email login.
+  await app.register(devGitHubRoutes);
 
   // Share endpoint (public, no auth - used for SSR)
   await app.register(shareRoutes);
