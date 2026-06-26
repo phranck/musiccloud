@@ -103,11 +103,7 @@ export async function sendEmail(message: EmailMessage): Promise<void> {
  * @returns true when the email subsystem is configured and the provider host responds.
  */
 export async function isEmailProviderHealthy(): Promise<boolean> {
-  if (
-    !process.env.SMTP2GO_API_KEY ||
-    !process.env.EMAIL_FROM_ADDRESS ||
-    !process.env.EMAIL_FROM_NAME
-  ) {
+  if (!process.env.SMTP2GO_API_KEY || !process.env.EMAIL_FROM_ADDRESS || !process.env.EMAIL_FROM_NAME) {
     return false;
   }
   try {

@@ -394,8 +394,7 @@ async function buildApp() {
       schema: {
         tags: ["Health"],
         summary: "Email subsystem readiness",
-        description:
-          "Returns 200 when the email provider is configured and reachable, else 503.",
+        description: "Returns 200 when the email provider is configured and reachable, else 503.",
       },
     },
     async (_request, reply) => {
