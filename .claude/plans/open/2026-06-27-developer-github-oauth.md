@@ -402,7 +402,7 @@ export async function devGitHubRoutes(app: FastifyInstance) {
 
 `app.inject`-Setup wie `developer-auth.test.ts` (jwt → authPlugin → cookie → `devGitHubRoutes`). `services/developer-github.js` mocken (`exchangeGitHubCode`, `fetchGitHubProfile`, `buildGitHubAuthorizeUrl` real lassen oder mocken), `db/index.js` (`getDeveloperRepository`) mit Stub-Repo.
 
-- [ ] **Step 1: Tests schreiben** — Fälle:
+- [x] **Step 1: Tests schreiben** — Fälle:
   - **start**: 200, `authorizeUrl` enthält `github.com/login/oauth/authorize` + `state`; `state` ist ein per `app.jwt.verify` gültiges JWT mit `kind==="gh_oauth_state"`.
   - **exchange — fehlende Felder**: 400 `INVALID_REQUEST`.
   - **exchange — ungültiger State**: `{ code:"c", state:"garbage" }` → 401 `INVALID_STATE`; ebenso ein mit falschem `kind` signiertes JWT → 401.
@@ -413,9 +413,9 @@ export async function devGitHubRoutes(app: FastifyInstance) {
   - **exchange — keine verifizierte E-Mail**: Identity null, `profile.email===null` → 422 `NO_VERIFIED_EMAIL`, kein `createDeveloperAccount`.
   - State-Signatur in Tests: mit derselben `app.jwt.sign({nonce,kind:"gh_oauth_state"})` erzeugen, mit der die Test-App registriert ist. `DISABLE_RATE_LIMIT=true` via `vi.stubEnv` (wie in `developer-auth.test.ts`).
 
-- [ ] **Step 2: Gates** — `vitest run src/routes/developer-github.test.ts` grün, dann volle Suite `pnpm --filter @musiccloud/backend test:run` grün, `typecheck` grün, `pnpm lint` grün.
+- [x] **Step 2: Gates** — `vitest run src/routes/developer-github.test.ts` grün, dann volle Suite `pnpm --filter @musiccloud/backend test:run` grün, `typecheck` grün, `pnpm lint` grün.
 
-- [ ] **Step 3: Commit** — `Test: GitHub OAuth route tests (MC-065)`
+- [x] **Step 3: Commit** — `Test: GitHub OAuth route tests (MC-065)`
 
 ## Task 5: Env-Dokumentation
 
