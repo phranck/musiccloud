@@ -646,4 +646,8 @@ Alle Referenzen gegen den aktuellen Code geprüft (paralleler Pattern-Audit):
 - [x] Task 6: `zerops.yml` `developer`-Block, YAML valide
 - [x] Task 7: CI Change-Detection + Deploy-Job (serviceId vom Betreiber)
 - [x] Alle Gates grün (build, typecheck, `pnpm lint`, SSR-Smoke)
-- [ ] Plan nach `done/` verschoben, `WHATS-NEXT.md` aktualisiert
+- [x] Plan nach `done/` verschoben, `WHATS-NEXT.md` aktualisiert
+
+## Completed
+
+Umgesetzt und nach `main` gemergt (PR #23, 2026-06-26). Landing-Politur (Token-System, Sticky-Footer, Hover-Links, weiße Accent-Buttons) als Folge-Commit `fda1d8df`. Der `developer`-Zerops-Service (`snJHAWsxR32xetGASY33cQ`) ist deployt und `ACTIVE`; CI-Deploy-Job trägt die echte serviceId. Offen auf Infra-Seite: DNS-CNAME `developer.musiccloud.io` → Zerops-Zone + Domain-Zuweisung in Zerops (Betreiber).
