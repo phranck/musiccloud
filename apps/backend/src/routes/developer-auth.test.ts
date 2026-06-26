@@ -114,6 +114,7 @@ function makeRepo(): DeveloperRepository {
     markDeveloperEmailVerified: vi.fn(async () => makeAccount()),
     updateDeveloperLastLogin: vi.fn(async () => undefined),
     setDeveloperPassword: vi.fn(async () => makeAccount()),
+    clearDeveloperPassword: vi.fn(async () => undefined),
     createDeveloperIdentity: vi.fn(async () => ({
       id: "id-1",
       accountId: "dev-acc-1",

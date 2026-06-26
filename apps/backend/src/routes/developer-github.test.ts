@@ -107,6 +107,7 @@ function makeRepo(): DeveloperRepository {
     markDeveloperEmailVerified: vi.fn(async () => makeAccount()),
     updateDeveloperLastLogin: vi.fn(async () => undefined),
     setDeveloperPassword: vi.fn(async () => makeAccount()),
+    clearDeveloperPassword: vi.fn(async () => undefined),
     createDeveloperIdentity: vi.fn(async () => ({
       id: "id-1",
       accountId: "dev-acc-1",
@@ -291,7 +292,7 @@ describe("POST /api/dev/auth/github/exchange", () => {
     expect(vi.mocked(repo.updateDeveloperLastLogin)).toHaveBeenCalledWith("dev-acc-1");
   });
 
-  it("links GitHub to an existing email account and marks it verified", async () => {
+  it("links GitHub to an UNVERIFIED email account, clears its password and marks it verified", async () => {
     vi.mocked(exchangeGitHubCode).mockResolvedValueOnce("gho_token");
     vi.mocked(fetchGitHubProfile).mockResolvedValueOnce(makeProfile({ email: "Existing@Example.com" }));
     // No linked identity yet, but an (unverified) email account exists.
@@ -317,9 +318,49 @@ describe("POST /api/dev/auth/github/exchange", () => {
       provider: "github",
       providerUserId: "gh-42",
     });
+    // Unverified → the unproven password is discarded and the email is verified.
+    expect(vi.mocked(repo.clearDeveloperPassword)).toHaveBeenCalledWith("dev-acc-2");
     expect(vi.mocked(repo.markDeveloperEmailVerified)).toHaveBeenCalledWith("dev-acc-2");
     expect(vi.mocked(repo.createDeveloperAccount)).not.toHaveBeenCalled();
     expect(findSessionSetCookie(res.headers["set-cookie"])).toBeDefined();
+  });
+
+  it("links GitHub to an ALREADY-VERIFIED email account without clearing its password or re-verifying", async () => {
+    vi.mocked(exchangeGitHubCode).mockResolvedValueOnce("gho_token");
+    vi.mocked(fetchGitHubProfile).mockResolvedValueOnce(makeProfile({ email: "verified@example.com" }));
+    // No linked identity yet, but a VERIFIED email account (with a legitimately
+    // set password) exists — a genuine second account of the same person.
+    vi.mocked(repo.findDeveloperIdentity).mockResolvedValueOnce(null);
+    vi.mocked(repo.findDeveloperAccountByEmail).mockResolvedValueOnce(
+      makeAccount({
+        id: "dev-acc-3",
+        email: "verified@example.com",
+        emailVerifiedAt: 1_700_000_000_000,
+        passwordHash: "$2b$bcrypt-hash",
+      }),
+    );
+
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.github.exchange,
+      payload: { code: "c", state: signState(app) },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().account.id).toBe("dev-acc-3");
+
+    // Identity is attached and a session is issued …
+    expect(vi.mocked(repo.createDeveloperIdentity)).toHaveBeenCalledWith({
+      accountId: "dev-acc-3",
+      provider: "github",
+      providerUserId: "gh-42",
+    });
+    expect(findSessionSetCookie(res.headers["set-cookie"])).toBeDefined();
+    // … but the legitimately-set password and verification state stay untouched.
+    expect(vi.mocked(repo.clearDeveloperPassword)).not.toHaveBeenCalled();
+    expect(vi.mocked(repo.markDeveloperEmailVerified)).not.toHaveBeenCalled();
+    expect(vi.mocked(repo.createDeveloperAccount)).not.toHaveBeenCalled();
   });
 
   it("creates a new OAuth-only account (no password) when the email is unknown", async () => {
@@ -368,5 +409,34 @@ describe("POST /api/dev/auth/github/exchange", () => {
     expect(res.json().error).toBe("NO_VERIFIED_EMAIL");
     expect(vi.mocked(repo.createDeveloperAccount)).not.toHaveBeenCalled();
     expect(findSessionSetCookie(res.headers["set-cookie"])).toBeUndefined();
+  });
+
+  it("returns 403 ACCOUNT_SUSPENDED for a suspended account and sets no session cookie", async () => {
+    vi.mocked(exchangeGitHubCode).mockResolvedValueOnce("gho_token");
+    vi.mocked(fetchGitHubProfile).mockResolvedValueOnce(makeProfile());
+    // Returning user whose linked account has since been suspended.
+    vi.mocked(repo.findDeveloperIdentity).mockResolvedValueOnce({
+      id: "id-1",
+      accountId: "dev-acc-9",
+      provider: "github",
+      providerUserId: "gh-42",
+      createdAt: Date.now(),
+    });
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValueOnce(
+      makeAccount({ id: "dev-acc-9", status: "suspended" }),
+    );
+
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.github.exchange,
+      payload: { code: "c", state: signState(app) },
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error).toBe("ACCOUNT_SUSPENDED");
+    expect(findSessionSetCookie(res.headers["set-cookie"])).toBeUndefined();
+    // No session-side effects for a suspended account.
+    expect(vi.mocked(repo.updateDeveloperLastLogin)).not.toHaveBeenCalled();
   });
 });

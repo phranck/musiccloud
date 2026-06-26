@@ -192,6 +192,7 @@ import {
   updateCrawlState as crawlUpdateCrawlState,
 } from "./postgres-crawl.js";
 import {
+  clearDeveloperPassword as developerClearPassword,
   consumeDeveloperEmailToken as developerConsumeEmailToken,
   createDeveloperAccount as developerCreateAccount,
   createDeveloperEmailToken as developerCreateEmailToken,
@@ -979,6 +980,10 @@ export class PostgresAdapter implements TrackRepository, AdminRepository, CcRepo
 
   setDeveloperPassword(id: string, passwordHash: string): Promise<DeveloperAccount | null> {
     return developerSetPassword(this.pool, id, passwordHash);
+  }
+
+  clearDeveloperPassword(id: string): Promise<void> {
+    return developerClearPassword(this.pool, id);
   }
 
   createDeveloperIdentity(data: {

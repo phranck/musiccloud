@@ -253,6 +253,19 @@ export async function setDeveloperPassword(
   return rowToDeveloperAccount(result.rows[0] as DeveloperAccountRow);
 }
 
+/**
+ * Clears the account's password by setting `password_hash = NULL` and bumps
+ * `updated_at`. Used when GitHub OAuth links to a still-unverified account, to
+ * discard a password whose ownership GitHub now supersedes.
+ *
+ * @param pool - Postgres connection pool.
+ * @param id - The account id.
+ */
+export async function clearDeveloperPassword(pool: Pool, id: string): Promise<void> {
+  const now = new Date();
+  await pool.query(`UPDATE developer_accounts SET password_hash = NULL, updated_at = $1 WHERE id = $2`, [now, id]);
+}
+
 // ============================================================================
 // IDENTITIES
 // ============================================================================

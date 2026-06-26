@@ -164,6 +164,18 @@ export interface DeveloperRepository {
   setDeveloperPassword(id: string, passwordHash: string): Promise<DeveloperAccount | null>;
 
   /**
+   * Clears the account's password by setting `password_hash = NULL` and bumps
+   * `updated_at`. Invoked when GitHub OAuth links to an account that is still
+   * unverified: GitHub now proves mailbox ownership, so any password that was
+   * set on the unverified account has no trust value and is discarded to
+   * prevent an account-takeover via a pre-seeded password.
+   *
+   * @param id - The account id.
+   * @returns A promise that resolves when the update completes.
+   */
+  clearDeveloperPassword(id: string): Promise<void>;
+
+  /**
    * Creates an authentication identity for an account. The id is generated
    * by the implementation.
    *

@@ -9,6 +9,7 @@
 import crypto from "node:crypto";
 import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { DeveloperAccount } from "../db/developer-repository.js";
 import { getDeveloperRepository } from "../db/index.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { RateLimiter } from "../lib/infra/rate-limiter.js";
@@ -74,7 +75,7 @@ export async function devGitHubRoutes(app: FastifyInstance) {
     const repo = await getDeveloperRepository();
 
     // 1) Returning GitHub user: identity already linked.
-    let account = null;
+    let account: DeveloperAccount | null = null;
     const identity = await repo.findDeveloperIdentity(AuthProvider.GitHub, profile.id);
     if (identity) {
       account = await repo.findDeveloperAccountById(identity.accountId);
@@ -96,7 +97,17 @@ export async function devGitHubRoutes(app: FastifyInstance) {
           provider: AuthProvider.GitHub,
           providerUserId: profile.id,
         });
-        if (existing.emailVerifiedAt === null) await repo.markDeveloperEmailVerified(existing.id);
+        // If the account was still unverified, any password on it was set without
+        // proven mailbox ownership and has no trust value (an attacker could have
+        // pre-seeded it before the real owner arrived via GitHub). GitHub now
+        // proves ownership, so discard the unproven password and mark the email
+        // verified. A verified account's password was set legitimately (genuine
+        // second account of the same person), so leave it — and the verification
+        // state — untouched.
+        if (existing.emailVerifiedAt === null) {
+          await repo.clearDeveloperPassword(existing.id);
+          await repo.markDeveloperEmailVerified(existing.id);
+        }
         account = existing;
       } else {
         // Brand-new OAuth-only account (no password).
@@ -117,6 +128,12 @@ export async function devGitHubRoutes(app: FastifyInstance) {
 
     if (!account) {
       return reply.status(502).send({ error: "GITHUB_ERROR", message: "Account resolution failed." });
+    }
+
+    // Mirror the authenticateDeveloper guard: a suspended account must not be
+    // able to mint a fresh session via OAuth either.
+    if (account.status !== "active") {
+      return reply.status(403).send({ error: "ACCOUNT_SUSPENDED", message: "This account is not active." });
     }
 
     const token = app.jwt.sign({ sub: account.id, kind: SessionKind.Developer }, { expiresIn: "7d" });
