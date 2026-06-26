@@ -103,6 +103,35 @@ zerops:
         # INTERNAL_API_KEY: <same key as backend>
       start: node apps/frontend/dist/server/entry.mjs
 
+  - setup: developer
+    build:
+      base: alpine/nodejs@22
+      buildCommands:
+        - corepack enable
+        - corepack prepare pnpm@10.33.1 --activate
+        - pnpm install --frozen-lockfile
+        - pnpm --filter @musiccloud/shared build
+        - pnpm --filter @musiccloud/developer build
+      deployFiles:
+        - apps/developer/dist
+        - apps/developer/node_modules
+        - apps/developer/package.json
+        - node_modules
+        - packages/shared
+        - package.json
+    run:
+      base: alpine/nodejs@22
+      ports:
+        - port: 3002
+          httpSupport: true
+      envVariables:
+        HOST: "::"
+        PORT: "3002"
+        BACKEND_URL: http://backend:4000
+        # Set in Zerops Secrets (later sub-projects):
+        # INTERNAL_API_KEY: <same key as backend>
+      start: node apps/developer/dist/server/entry.mjs
+
   - setup: dashboard
     build:
       base: alpine/nodejs@22

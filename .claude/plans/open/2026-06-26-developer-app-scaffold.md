@@ -494,7 +494,7 @@ git commit -m "Chore: wire developer app into local dev runner and root scripts"
 **Files:**
 - Modify: `zerops.yml`
 
-- [ ] **Step 1: `developer`-Service-Block ergänzen**
+- [x] **Step 1: `developer`-Service-Block ergänzen**
 
 Nach dem `frontend`-Block einfügen (Vorlage = `frontend`-Block, angepasst auf `developer`, Port 3002):
 
@@ -529,12 +529,12 @@ Nach dem `frontend`-Block einfügen (Vorlage = `frontend`-Block, angepasst auf `
       start: node apps/developer/dist/server/entry.mjs
 ```
 
-- [ ] **Step 2: YAML-Validität prüfen**
+- [x] **Step 2: YAML-Validität prüfen**
 
 Run: `python3 -c "import yaml,sys; yaml.safe_load(open('zerops.yml')); print('ok')"`
 Expected: `ok` (gültiges YAML, vier `setup`-Blöcke).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add zerops.yml
@@ -641,7 +641,7 @@ Alle Referenzen gegen den aktuellen Code geprüft (paralleler Pattern-Audit):
 - [x] Task 3: DeveloperBackground (CSS-Gradient) + BaseLayout + favicon
 - [x] Task 4: Landing-Page, Build + SSR-Smoke grün
 - [x] Task 5: Lokaler Runner (`app.config`, Root-Scripts, `.env.local`), Runner-Smoke grün
-- [ ] Task 6: `zerops.yml` `developer`-Block, YAML valide
+- [x] Task 6: `zerops.yml` `developer`-Block, YAML valide
 - [ ] Task 7: CI Change-Detection + Deploy-Job (serviceId vom Betreiber)
 - [ ] Alle Gates grün (build, typecheck, `pnpm lint`, SSR-Smoke)
 - [ ] Plan nach `done/` verschoben, `WHATS-NEXT.md` aktualisiert
