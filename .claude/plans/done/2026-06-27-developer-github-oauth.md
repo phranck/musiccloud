@@ -446,7 +446,27 @@ export async function devGitHubRoutes(app: FastifyInstance) {
 - [x] Task 4: Route-Tests grün
 - [x] Task 5: Env-Doku (`zerops.yml`)
 - [x] Gates grün (typecheck backend+shared, test:run, lint, doctor:diff)
-- [ ] Plan nach `done/`, gemergt
+- [x] Plan nach `done/`, gemergt
+
+## Completed (2026-06-27)
+
+Alle fünf Tasks umgesetzt + ein Sicherheits-Review mit anschließenden Fixes, gemergt nach `main`. Backend-only, kein Schema/Migration.
+
+**Geliefert:**
+- GitHub-HTTP-Schicht `services/developer-github.ts` (raw `fetch`, Authorize-URL-Bau, Token-Exchange, Profil + verifizierte Primär-E-Mail) + Unit-Tests.
+- Routen `routes/developer-github.ts`: `GET /api/dev/auth/github/start` (signiertes State-JWT + Authorize-URL), `POST /api/dev/auth/github/exchange` (Code → Account find/link/create → identische `mc_dev_session`-Session). Dedizierter `githubExchangeRateLimiter` (20/min).
+- `ENDPOINTS.dev.auth.github.{start,exchange}`, `buildAccountResponse` als geteilter Export. Volle Suite 1131 passed.
+
+**Security-Review-Fixes (Blocker + Härtung, vor Merge):**
+- **B1 (Blocker, Account-Takeover):** Verknüpfung an einen UNVERIFIZIERTEN Passwort-Account entwertet jetzt dessen Passwort (`clearDeveloperPassword` — neues Repo-Verfahren), bevor `markDeveloperEmailVerified`. Ein angreifer-gepflanztes, ungeprüftes Passwort kann nach GitHub-Login nicht mehr zum Takeover genutzt werden. Verifizierte Accounts behalten ihr Passwort.
+- **S4:** `exchange` weist suspendierte Accounts (`status !== "active"`) mit 403 `ACCOUNT_SUSPENDED` ab, bevor eine Session ausgestellt wird.
+- **S1:** Alle drei GitHub-`fetch`-Calls mit `AbortSignal.timeout(10s)` — kein unbegrenztes Cold-Fetch-Blockieren (vgl. MC-059).
+
+**Mitläufer (Fremd-Commit, transparent):** `7ba60355 Feat: GET /health/email (MC-062)` einer Parallel-Session lag uncommittet/committet auf diesem Branch (nur hier, nirgends sonst). Vollständig + additiv (Status-Page Email-Probe) → mitgemergt statt verworfen; Biome-Format-Drift darin gefixt (`10b10f00`).
+
+**Externer Handoff:** siehe unten — GitHub-OAuth-App Callback-URLs + Zerops-Env (`GITHUB_OAUTH_*`, `DEVELOPER_URL`, `CORS_ORIGIN`-Eintrag) müssen gesetzt sein, bevor MC-066 den Flow live durchspielt.
+
+**Folge:** MC-066 (Astro-Auth-UI: E-Mail-Pages + GitHub-Button + BFF + State-Cookie-Handling).
 
 ## Externer Handoff (Config, nicht Code)
 
