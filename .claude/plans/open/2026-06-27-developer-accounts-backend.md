@@ -111,7 +111,7 @@ Shared-Endpoints `ENDPOINTS.dev.auth.*` + `ROUTE_TEMPLATES` ergänzen.
 - [ ] Task 2: Repository + Adapter + Accessor
 - [x] Task 3: Auth-Service + @fastify/cookie + authenticateDeveloper-Guard
 - [x] Task 4: Developer-Verifikations-/Reset-Mails (DEVELOPER_URL)
-- [ ] Task 5: Routen + Shared-Endpoints + Server-Registrierung (+ CORS credentials)
+- [x] Task 5: Routen + Shared-Endpoints + Server-Registrierung (+ CORS credentials)
 - [ ] Task 6: Route-Tests grün
 - [ ] Gates grün (typecheck backend+shared, test, lint); Migration lokal angew="ndet, /health/ready 200
 - [ ] Plan nach `done/`, gemergt
