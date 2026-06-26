@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   extractAppleMusicStorefront,
-  isAppleMusicLinkRenderableForStorefront,
   resolveAppleMusicStorefrontFromHeaders,
+  rewriteAppleMusicUrlForStorefront,
 } from "../apple-music-storefront.js";
 
 const originalStorefront = process.env.APPLE_MUSIC_STOREFRONT;
@@ -22,21 +22,30 @@ describe("Apple Music storefront helpers", () => {
     expect(extractAppleMusicStorefront("https://open.spotify.com/track/123")).toBeNull();
   });
 
-  it("hides Apple Music links when the cached URL storefront differs from the request storefront", () => {
+  it("rewrites the storefront segment to the viewer storefront, keeping the catalogue id", () => {
     const url = "https://music.apple.com/us/album/mercy-mercy-mercy/1443463488?i=1443463670";
 
-    expect(isAppleMusicLinkRenderableForStorefront(url, "us")).toBe(true);
-    expect(isAppleMusicLinkRenderableForStorefront(url, "at")).toBe(false);
+    expect(rewriteAppleMusicUrlForStorefront(url, "at")).toBe(
+      "https://music.apple.com/at/album/mercy-mercy-mercy/1443463488?i=1443463670",
+    );
   });
 
-  it("keeps existing behaviour when no request storefront can be inferred", () => {
+  it("returns the URL unchanged when the storefront already matches", () => {
     const url = "https://music.apple.com/us/album/mercy-mercy-mercy/1443463488?i=1443463670";
 
-    expect(isAppleMusicLinkRenderableForStorefront(url, null)).toBe(true);
+    expect(rewriteAppleMusicUrlForStorefront(url, "us")).toBe(url);
   });
 
-  it("hides unverifiable Apple Music service URLs when the request storefront is known", () => {
-    expect(isAppleMusicLinkRenderableForStorefront("https://example.com/not-apple", "at")).toBe(false);
+  it("returns the URL unchanged when no request storefront can be inferred", () => {
+    const url = "https://music.apple.com/us/album/mercy-mercy-mercy/1443463488?i=1443463670";
+
+    expect(rewriteAppleMusicUrlForStorefront(url, null)).toBe(url);
+  });
+
+  it("returns non-Apple URLs unchanged", () => {
+    expect(rewriteAppleMusicUrlForStorefront("https://example.com/not-apple", "at")).toBe(
+      "https://example.com/not-apple",
+    );
   });
 
   it("prefers explicit proxy country headers over Accept-Language and env fallback", () => {
