@@ -103,6 +103,24 @@ Umsetzung als **`status-website.css`-Block + `customHeadHtml`** in `.upptimerc.y
 
 ---
 
+## Umsetzungsstand (2026-06-26)
+
+**Erledigt:**
+- Task 1 (Spike) komplett, Spec gesynct.
+- Task 2: Repo `phranck/status.musiccloud.io` mit Upptime-Template + `.upptimerc.yml` (Services Frontend / API `/health/ready` / Dashboard / Developer Site) + CNAME befüllt und nach `main` gepusht. Demo-Daten entfernt.
+- Task 4/5 (Look, erster Pass): Dark-Indigo-Theme via `css` + `customHeadHtml` (Inter, JetBrains Mono, Phosphor-Duotone-Web-Font) in `.upptimerc.yml`. Pixel-Feinschliff + Phosphor-pro-Service offen (iterativ gegen Live-Seite).
+- Task 8: Status-Repo-seitig `deploy-announce.yml` (repository_dispatch) + `maintenance-switch.yml` + Issue-Templates. Monorepo-seitig `deploy-backend` in `ci.yml` verdrahtet (inert bis `STATUS_DISPATCH_TOKEN`).
+
+**Offen — extern (Betreiber):**
+- `GH_PAT`-Secret im Status-Repo (Upptime-Pflicht, sonst laufen die Monitor-Workflows nicht).
+- GitHub Pages aktivieren (Branch `gh-pages`) + DNS `CNAME status.musiccloud.io → phranck.github.io` + „Enforce HTTPS".
+- `STATUS_DISPATCH_TOKEN`-Secret im Monorepo (fine-scoped, issues:write aufs Status-Repo) → aktiviert Auto-Announce.
+
+**Offen — blockiert / Folge:**
+- Task 3 `/health/email`: blockiert, Backend nutzt noch **Brevo** (nicht SMTP2GO). Email-Service-Zeile ist in `.upptimerc.yml` auskommentiert.
+- Task 6 RSS: Stock-Upptime hat keinen Feed → kleiner Generator-Workflow als Folge-Schritt (Navbar aktuell Status/History/GitHub).
+- Task 9 Build-Caching / Fast-Path: noch offen.
+
 ## Verified facts (Stand 2026-06-26)
 
 - **Plan-Nr.:** `~/.local/bin/plans next` → `MC-062` (Prefix MC bestätigt via bestehende Pläne).
