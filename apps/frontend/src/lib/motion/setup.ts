@@ -66,6 +66,8 @@ let isMotionSetup = false;
  * - creates the `mcOut`, `mcIn` and `mcFade` CustomEases so
  *   `gsap.parseEase("mcOut")` (etc.) resolves
  * - sets `gsap.ticker.lagSmoothing` to avoid post-stall animation jumps
+ * - sets `gsap.config({ force3D: true })` so every transform tween is
+ *   GPU-composited (see the inline note for the jank rationale)
  *
  * **Consumer contract (tree-shaking safety):** any module that uses a GSAP
  * plugin (`Flip`) or the `mcOut` ease MUST call `setupMotion()` explicitly
@@ -90,6 +92,15 @@ export function setupMotion(): void {
   CustomEase.create(MotionEase.McIn, MC_IN_BEZIER);
   CustomEase.create(MotionEase.McFade, MC_FADE_BEZIER);
   gsap.ticker.lagSmoothing(LAG_THRESHOLD_MS, LAG_ADJUSTED_MS);
+
+  // Force every transform tween onto its own GPU compositor layer
+  // (translate3d/matrix3d) instead of GSAP's default "auto", which can leave a
+  // tween on the main thread until it promotes mid-flight — the source of the
+  // collapse-section jank after the CSS-keyframe→GSAP migration (the keyframes
+  // had baked-in translate3d + backface-visibility). Setting it centrally is
+  // the durable guarantee: a new transform tween is GPU-composited without each
+  // call site remembering `force3D: true`.
+  gsap.config({ force3D: true });
 }
 
 // Convenience: run setup as a side effect of importing the module so a bare
