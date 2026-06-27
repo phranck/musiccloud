@@ -154,11 +154,11 @@ Plan-Nr.: MC-066
 
 **Files:** Create `src/pages/auth/github.ts`, `src/pages/auth/github/callback.ts`
 
-- [ ] **Step 1: `auth/github.ts`** (`GET`): BFF-`start` server-seitig aufrufen (`fetch(backendUrl("/api/dev/auth/github/start"), { headers:{ "X-API-Key": KEY }})`) → `{authorizeUrl, state}`. `Astro.cookies.set("mc_dev_oauth_state", state, { httpOnly:true, secure: prod, sameSite:"lax", path:"/", maxAge:600 })`. `return redirect(authorizeUrl)`. Fehler → `redirect("/login?error=oauth")`.
+- [x] **Step 1: `auth/github.ts`** (`GET`): `start` server-seitig via `fetch(backendUrl(ENDPOINTS.dev.auth.github.start), { headers: internalHeaders(clientAddress) })` → `{authorizeUrl, state}`. `context.cookies.set("mc_dev_oauth_state", state, { httpOnly:true, secure: import.meta.env.PROD, sameSite:"lax", path:"/", maxAge:600 })`. `return context.redirect(authorizeUrl)`. Fehler/non-200/leerer Payload → `context.redirect("/login?error=oauth")`. `export const prerender = false`.
 
-- [ ] **Step 2: `auth/github/callback.ts`** (`GET`): `code` + `state` aus Query. `mc_dev_oauth_state`-Cookie lesen; fehlt/`!== state` → `redirect("/login?error=oauth")`. Sonst `POST` BFF-`exchange` `{code, state}` server-seitig. Bei non-200 → `redirect("/login?error=oauth")`. Bei 200: das `Set-Cookie` (mc_dev_session) aus der Backend-Antwort (`res.headers.getSetCookie()`) auf die ausgehende Response übertragen (`context.cookies.set` oder `response.headers.append("set-cookie", …)`), `mc_dev_oauth_state` löschen, `redirect("/dashboard")`. TSDoc, der den CSRF-Check erklärt.
+- [x] **Step 2: `auth/github/callback.ts`** (`GET`): `code` + `state` aus `context.url.searchParams`. `mc_dev_oauth_state`-Cookie lesen; fehlt/`!== state` → `/login?error=oauth`. Sonst `POST backendUrl(ENDPOINTS.dev.auth.github.exchange)` mit `internalHeaders()` + JSON-Body `{code, state}`. Non-200 → `/login?error=oauth`. Bei 200: Backend-`Set-Cookie` (`res.headers.getSetCookie()`, Fallback `get("set-cookie")`) raw weiterreichen + State-Cookie löschen → `/dashboard`. **Cookie-Relay-Lösung:** deterministische `new Response(null, { status:302, headers })` mit `headers.append("set-cookie", …)` (Repo-Pattern aus `apps/frontend/src/pages/api/redirect.ts`), da Astros `context.cookies`-Store nicht auf manuell konstruierte Responses angewandt wird — State-Delete daher als raw `Set-Cookie; Max-Age=0`-Header in derselben Response. TSDoc erklärt CSRF + Relay.
 
-- [ ] **Step 3: Gates + Commit** — Build/Lint grün. `Feat: developer-portal GitHub OAuth UI flow (MC-066)`.
+- [x] **Step 3: Gates + Commit** — Build ✓, astro check 0/0/0 ✓, shared-typecheck ✓, `pnpm lint` (837 files) ✓, `doctor:diff` 0 issues ✓, Full-Doctor-Scan (251 files, 4 workspaces) 0 issues ✓. `Feat: developer-portal GitHub OAuth UI flow (MC-066)`.
 
 ## Task 6: Dashboard-Shell + Logout
 
