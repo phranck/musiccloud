@@ -3,7 +3,7 @@ import type { NightSkySettings } from "./settings";
 
 /**
  * WebGL2 night-sky scene (plan MC-029 Phase 4) — the production port of the
- * user-approved `architecture/frontend-prototype.html`. Three passes per frame:
+ * user-approved `mockups/frontend-prototype.html`. Three passes per frame:
  *
  *   A) fullscreen quad: sky gradient (night↔day blend) + procedural faint
  *      fill stars rotating around Polaris;

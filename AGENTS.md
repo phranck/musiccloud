@@ -39,7 +39,7 @@ For any **grouped** list/grid of rows/buttons inside a rounded container
   (interior) corners stay inner.
 - Single-column lists: compute first/last **by index** (declarative, no layout effect).
   Multi-column grids: group rows by live `offsetTop` (see `applyGroupedCorners` in
-  `frontend-prototype.html`).
+  `mockups/frontend-prototype.html`).
 
 The disc/cover that swaps in on selection must read as a CD slotted into a device:
 oversized + centred, overhang clipped by the tile's `overflow:hidden`, and never
@@ -53,10 +53,10 @@ the SSR-injected `--mc-*` / glass vars). Every surface must consume them through
 cascade / tokens — **never ad-hoc Tailwind constants** that drift from the token
 model. When building or editing a screen, verify that **every** structural value
 (padding, gap, radius, inset) is token-derived and matches
-[`frontend-prototype.html`](frontend-prototype.html), the visual + settings reference.
+[`mockups/frontend-prototype.html`](mockups/frontend-prototype.html), the visual + settings reference.
 
 ## See also
 
 - [`docs/REACT_DOCTOR_PREVENTION.md`](docs/REACT_DOCTOR_PREVENTION.md) — React Doctor policy (run before/after React work).
 - [`apps/frontend/src/components/cards/cardGeometry.ts`](apps/frontend/src/components/cards/cardGeometry.ts) — the radius-cascade source of truth.
-- [`frontend-prototype.html`](frontend-prototype.html) — the tuned visual + settings reference for every screen.
+- [`mockups/frontend-prototype.html`](mockups/frontend-prototype.html) — the tuned visual + settings reference for every screen.
