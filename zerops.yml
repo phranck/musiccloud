@@ -26,6 +26,10 @@ zerops:
         NODE_ENV: production
         ALLOWED_ORIGINS: "https://musiccloud.io,https://dashboard.musiccloud.io"
         CORS_ORIGIN: "https://musiccloud.io,https://dashboard.musiccloud.io"
+        # Developer portal origin. Used for the email verify/reset links, the
+        # GitHub OAuth redirect_uri, and the /health/developer liveness probe.
+        # A public URL (not a secret), so it lives here next to CORS_ORIGIN.
+        DEVELOPER_URL: "https://developer.musiccloud.io"
         # Number of reverse-proxy hops to trust when resolving the client
         # IP from X-Forwarded-For. "1" covers the Zerops ingress. If a
         # CDN (e.g. Cloudflare) is placed in front, bump to "2".
@@ -45,7 +49,6 @@ zerops:
         # BANDSINTOWN_APP_ID: <from Bandsintown Developer Portal>
         # PUBLIC_URL: <public site origin, e.g. https://musiccloud.io; used for email banner asset URLs>
         # DASHBOARD_URL: <dashboard origin, e.g. https://dashboard.musiccloud.io; used for invite + login links>
-        # DEVELOPER_URL: <developer site origin, e.g. https://developer.musiccloud.io; used for verify + reset links>
         # GITHUB_OAUTH_CLIENT_ID: <from GitHub OAuth App; developer-portal sign-in>
         # GITHUB_OAUTH_CLIENT_SECRET: <from GitHub OAuth App>
         # SMTP2GO_API_KEY: <from SMTP2GO -> Settings -> API Keys (send permission)>
