@@ -25,6 +25,10 @@
  *
  * Geolocation is resolved and stored per event at ingest, so this only fixes
  * events received after deploy; rows already written keep their old country.
+ *
+ * Part of a recurring incident class — any SSR proxy that drops the visitor IP
+ * breaks a downstream IP consumer. See `docs/ssr-proxy-x-forwarded-for.md` for
+ * the full rule and the checklist for new proxies.
  */
 import type { APIRoute } from "astro";
 

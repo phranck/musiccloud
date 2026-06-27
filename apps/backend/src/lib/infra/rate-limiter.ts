@@ -127,6 +127,12 @@ export class RateLimiter {
 // runaway BFF loops. External callers without the key go through the
 // per-IP limiter unchanged.
 //
+// Both pre-conditions are instances of a wider recurring incident class:
+// "an SSR proxy hides the real visitor IP from a downstream consumer". The
+// same root has also broken Umami geo-analytics. See
+// `docs/ssr-proxy-x-forwarded-for.md` for the full incident history and the
+// checklist any new proxy must clear.
+//
 // Cleanup cadence is 5 minutes: aggressive enough that a burst of unique IPs
 // does not bloat the Map for long, slack enough that cleanup itself is
 // background noise on the event loop.

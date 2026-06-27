@@ -51,6 +51,11 @@ function internalHeaders(extra?: Record<string, string>): Record<string, string>
  * 60 seconds bucket globally — see `apps/backend/src/lib/infra/rate-limiter.ts:67-72`.
  * Pass `Astro.clientAddress` (or the equivalent in API endpoints) so the
  * backend buckets per real user.
+ *
+ * This is the canonical helper for a project-wide rule: any SSR proxy or
+ * fetch that re-issues a request must forward the visitor IP, or downstream
+ * IP consumers (rate limiter, analytics geo, …) see the pod IP. See
+ * `docs/ssr-proxy-x-forwarded-for.md`.
  */
 function forwardedForExtra(clientIp: string | undefined): Record<string, string> | undefined {
   return clientIp ? { "X-Forwarded-For": clientIp } : undefined;
