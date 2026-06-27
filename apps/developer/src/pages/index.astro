@@ -12,7 +12,7 @@ const footerLinks = [
   { href: "/docs", label: "Docs" },
   { href: "/terms", label: "Terms" },
   { href: "/privacy", label: "Privacy" },
-  { href: "/status", label: "Status" },
+  { href: "https://status.musiccloud.io", label: "Status", external: true },
 ];
 ---
 
@@ -84,7 +84,19 @@ const footerLinks = [
     <div class="max-w-5xl mx-auto w-full px-6 py-5 flex items-center justify-between text-body text-fg-subtle">
       <span>© musiccloud</span>
       <nav class="flex items-center gap-3">
-        {footerLinks.map((link) => <a href={link.href} class="text-link">{link.label}</a>)}
+        {
+          footerLinks.map((link) =>
+            link.external ? (
+              <a href={link.href} target="_blank" rel="noopener noreferrer" class="text-link">
+                {link.label}
+              </a>
+            ) : (
+              <a href={link.href} class="text-link">
+                {link.label}
+              </a>
+            ),
+          )
+        }
       </nav>
     </div>
   </footer>
