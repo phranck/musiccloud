@@ -21,7 +21,7 @@ Plan-Nr.: MC-066
 - **BFF-Vorlage** `apps/frontend/src/api/client.ts`: `BACKEND_URL` aus `process.env`/`import.meta.env`, `INTERNAL_API_KEY` als `X-API-Key`-Header, `X-Forwarded-For` aus `clientAddress`. Proxy-Beispiel `apps/frontend/src/pages/api/resolve.ts` (`APIRoute`, `clientAddress`, Response-Body durchleiten, `Retry-After` relayen). **Set-Cookie wird dort NICHT relayed** (kein Session-Cookie) → MC-066 ergänzt das.
 - **Backend-Routen** (`@musiccloud/shared` `ENDPOINTS.dev.auth`): `signup`/`verifyEmail`/`login`/`requestReset`/`resetPassword`/`logout`/`me` + `github.{start,exchange}`. Session = httpOnly-Cookie `mc_dev_session`. `/me` braucht das Cookie (Guard `authenticateDeveloper`). Antworten: signup/login/me → `{ account: { id, email, emailVerified, displayName, avatarUrl, plan, createdAt } }`; verify/reset/logout/request-reset → `{ ok: true }`; github/start → `{ authorizeUrl, state }`; github/exchange → `{ account }` + Set-Cookie. Fehler-Shape `{ error, message }` (Codes: `INVALID_REQUEST`, `EMAIL_TAKEN`, `INVALID_TOKEN`, `INVALID_CREDENTIALS`, `EMAIL_NOT_VERIFIED`, `INVALID_STATE`, `GITHUB_ERROR`, `NO_VERIFIED_EMAIL`, `ACCOUNT_SUSPENDED`).
 - **Form-Styles als Referenz**: `packages/dashboard-ui/src/primitives/FieldPrimitives.tsx` + `ButtonPrimitive.tsx` (React, für Dashboard-SPA). Nicht direkt importierbar (anderes Token-/Build-Setup) — die Developer-App baut eigene, schlanke Islands mit ihren `global.css`-Tokens. Klassen-Logik als Stil-Vorlage lesbar.
-- [ ] Refs am Execute-Time erneut verifiziert.
+- [x] Refs am Execute-Time erneut verifiziert. **Befund:** `/api/dev/*` ist backend-seitig PUBLIC (kein `authenticateInternal`/`authenticatePublic`; `devAuthRoutes`/`devGitHubRoutes` am Root-Scope, server.ts:454-469); Session = `mc_dev_session`-Cookie. `Headers.getSetCookie()` unter `@astrojs/node` verfügbar (Node v26, gibt unfolded Array). `buildAccountResponse`-Shape bestätigt. Cookie-Name `mc_dev_session` aus `SESSION_COOKIE_NAME`.
 
 ## Designentscheidungen
 
@@ -49,9 +49,9 @@ Plan-Nr.: MC-066
 
 **Files:** Create `src/lib/api.ts`, `src/pages/api/dev/[...path].ts`, `src/lib/session.ts`
 
-- [ ] **Step 1: `lib/api.ts`** — `BACKEND_URL`/`INTERNAL_API_KEY` aus `process.env`/`import.meta.env`, `backendUrl(path)`, `internalHeaders(clientIp, contentType?)` (setzt `X-API-Key`, `X-Forwarded-For`, optional `Content-Type`). TSDoc.
+- [x] **Step 1: `lib/api.ts`** — `BACKEND_URL`/`INTERNAL_API_KEY` aus `process.env`/`import.meta.env`, `backendUrl(path)`, `internalHeaders(clientIp, contentType?)` (setzt `X-API-Key`, `X-Forwarded-For`, optional `Content-Type`). TSDoc.
 
-- [ ] **Step 2: BFF-Catch-all `pages/api/dev/[...path].ts`** — `ALL`-Handler (`export const ALL: APIRoute`):
+- [x] **Step 2: BFF-Catch-all `pages/api/dev/[...path].ts`** — `ALL`-Handler (`export const ALL: APIRoute`):
   ```ts
   import type { APIRoute } from "astro";
   import { backendUrl } from "../../../lib/api.js";
@@ -100,23 +100,23 @@ Plan-Nr.: MC-066
   ```
   (Am Execute-Time prüfen: `request.headers.get("cookie")`-Forwarding + `getSetCookie()` unter dem Node-Adapter. Falls `getSetCookie` fehlt, `backendRes.headers.get("set-cookie")` als Fallback.)
 
-- [ ] **Step 3: `lib/session.ts`** — `getDeveloperSession(Astro): Promise<Account|null>`: liest `Astro.cookies.get("mc_dev_session")`; ohne Cookie → null. Sonst `fetch(backendUrl("/api/dev/auth/me"), { headers: { "X-API-Key": KEY, cookie: "mc_dev_session=…" } })`; bei 200 → `account`, sonst null. `requireDeveloperSession(Astro)` → bei null `return Astro.redirect("/login")` (Caller gibt das Redirect zurück). `Account`-Typ lokal definieren (Shape wie Backend `buildAccountResponse`). TSDoc.
+- [x] **Step 3: `lib/session.ts`** — `getDeveloperSession(Astro): Promise<Account|null>`: liest `Astro.cookies.get("mc_dev_session")`; ohne Cookie → null. Sonst `fetch(backendUrl("/api/dev/auth/me"), { headers: { "X-API-Key": KEY, cookie: "mc_dev_session=…" } })`; bei 200 → `account`, sonst null. `requireDeveloperSession(Astro)` → bei null `return Astro.redirect("/login")` (Caller gibt das Redirect zurück). `Account`-Typ lokal definieren (Shape wie Backend `buildAccountResponse`). TSDoc.
 
-- [ ] **Step 4: Commit** — `Feat: developer-portal BFF proxy + session helper (MC-066)`
+- [x] **Step 4: Commit** — `Feat: developer-portal BFF proxy + session helper (MC-066)` (5ad2c814)
 
 ## Task 2: Form-Island-Primitive + AuthCard
 
 **Files:** Create `src/components/auth/TextField.tsx`, `SubmitButton.tsx`, `AuthCard.astro`, `GitHubButton.astro`
 
-- [ ] **Step 1: `TextField.tsx`** (React-Island-Baustein, KEIN `client:` hier — wird in Formularen genutzt): kontrolliertes `<input>` mit Label, optionalem Error-Text, `type`, `name`, `value`, `onChange`, `autoComplete`, `required`. Styling token-getrieben (Tailwind-Klassen gegen `global.css`-Tokens: Hintergrund glasig, Border Hairline, Radius `--radius-button`, Focus-Ring Brand-Blau, Error-Border rot). TSDoc + Props-Interface.
+- [x] **Step 1: `TextField.tsx`** (React-Island-Baustein, KEIN `client:` hier — wird in Formularen genutzt): kontrolliertes `<input>` mit Label, optionalem Error-Text, `type`, `name`, `value`, `onChange`, `autoComplete`, `required`. Styling token-getrieben (Tailwind-Klassen gegen `global.css`-Tokens: Hintergrund glasig, Border Hairline, Radius `--radius-button`, Focus-Ring Brand-Blau, Error-Border rot). TSDoc + Props-Interface.
 
-- [ ] **Step 2: `SubmitButton.tsx`**: Button mit `loading`-Prop (Spinner/disabled), `children`, `variant` (primary=Brand-Blau+weißes Label / secondary). Weißes Label auf Accent (`--color-on-accent`). TSDoc.
+- [x] **Step 2: `SubmitButton.tsx`**: Button mit `loading`-Prop (Spinner/disabled), `children`, `variant` (primary=Brand-Blau+weißes Label / secondary). Weißes Label auf Accent (`--color-on-accent`). TSDoc. (Variant via `ButtonVariant`-`as const`-Namespace in `lib/buttonVariant.ts` — Doctor-Rules `no-inline-discriminant-literals` + non-component-export beachtet.)
 
-- [ ] **Step 3: `AuthCard.astro`**: zentrierte, glasige Card (max-w ~`28rem`), Logo/Wortmarke oben (wie `index.astro`), `title`-Prop (h1, kleiner als Hero), optionaler `subtitle`-Slot, `<slot />` für die Form, Footer-Slot für Links. Token-getriebene Paddings/Radien.
+- [x] **Step 3: `AuthCard.astro`**: zentrierte, glasige Card (max-w ~`28rem`), Logo/Wortmarke oben (wie `index.astro`), `title`-Prop (h1, kleiner als Hero), optionaler `subtitle`-Slot, `<slot />` für die Form, Footer-Slot für Links. Token-getriebene Paddings/Radien.
 
-- [ ] **Step 4: `GitHubButton.astro`**: voll-breiter Link-Button zu `/auth/github` mit Phosphor-`GithubLogoIcon` (`weight="fill"`) + Label „Continue with GitHub". Sekundär-Stil (nicht Brand-Blau, sondern neutrale glasige Fläche mit Border).
+- [x] **Step 4: `GitHubButton.astro`**: voll-breiter Link-Button zu `/auth/github` mit Phosphor-`GithubLogoIcon` (`weight="fill"`) + Label „Continue with GitHub". Sekundär-Stil (nicht Brand-Blau, sondern neutrale glasige Fläche mit Border).
 
-- [ ] **Step 5: Commit** — `Feat: developer-portal auth form primitives + AuthCard (MC-066)`
+- [x] **Step 5: Commit** — `Feat: developer-portal auth form primitives + AuthCard (MC-066)` (8a3831e9)
 
 ## Task 3: Login + Signup
 
@@ -189,8 +189,8 @@ Plan-Nr.: MC-066
 
 ## Checkliste
 
-- [ ] Task 1: BFF-Proxy + API-/Session-Helper
-- [ ] Task 2: Form-Island-Primitive + AuthCard
+- [x] Task 1: BFF-Proxy + API-/Session-Helper
+- [x] Task 2: Form-Island-Primitive + AuthCard
 - [ ] Task 3: Login + Signup
 - [ ] Task 4: Verify + Forgot + Reset
 - [ ] Task 5: GitHub-OAuth-UI-Flow
