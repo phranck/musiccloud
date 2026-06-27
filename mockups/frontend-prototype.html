@@ -4411,13 +4411,20 @@ function applyGroupedCorners(container, itemSelector, frameSelector, frameInset)
   const tops = [...rows.keys()].sort((a, b) => a - b);
   const firstTop = tops[0], lastTop = tops[tops.length - 1];
   const FULL = "var(--mc-control-radius)", INNER = "var(--mc-control-radius-inner)";
+  // Right content edge: a tile gets the well's RIGHT rounded corner only when its own
+  // right edge reaches it, so the last tile of a PARTIAL final row (short of the edge)
+  // keeps interior right corners while a FULL row's last tile is promoted. The left
+  // edge needs no test — the grid/list fills from the left.
+  const cStyle = getComputedStyle(container);
+  const contentRight = container.getBoundingClientRect().right - parseFloat(cStyle.paddingRight) - parseFloat(cStyle.borderRightWidth);
+  const isRightEdge = (el) => el.getBoundingClientRect().right >= contentRight - 1;
   for (const it of items) {
     const top = Math.round(it.offsetTop);
     const row = rows.get(top);
     const tl = top === firstTop && it === row[0];
-    const tr = top === firstTop && it === row[row.length - 1];
+    const tr = top === firstTop && isRightEdge(it);
     const bl = top === lastTop && it === row[0];
-    const br = top === lastTop && it === row[row.length - 1];
+    const br = top === lastTop && isRightEdge(it);
     it.style.borderTopLeftRadius = tl ? FULL : INNER;
     it.style.borderTopRightRadius = tr ? FULL : INNER;
     it.style.borderBottomLeftRadius = bl ? FULL : INNER;

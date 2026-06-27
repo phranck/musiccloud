@@ -21,6 +21,7 @@ const INNER = "min(5px, var(--neu-radius))";
 
 /** Computes which of an item's corners are outer, then writes the radii inline. */
 function applyGroupedCorners(
+  container: HTMLElement,
   items: HTMLElement[],
   frameSelector?: string,
   frameInset = 0,
@@ -51,15 +52,28 @@ function applyGroupedCorners(
   const firstTop = tops[0];
   const lastTop = tops[tops.length - 1];
 
+  // The right content edge of the container. A tile may take the well's RIGHT
+  // rounded corner only when its own right edge reaches this — so the last tile of
+  // a PARTIAL final row (which stops short of the edge in a responsive auto-fill
+  // grid) keeps its interior right corners, while the last tile of a FULL row, flush
+  // against the edge, is promoted. The left edge needs no such test: a grid/list
+  // fills from the left, so the first item of a row is always left-flush.
+  const containerStyle = getComputedStyle(container);
+  const contentRight =
+    container.getBoundingClientRect().right -
+    parseFloat(containerStyle.paddingRight) -
+    parseFloat(containerStyle.borderRightWidth);
+  const isRightEdge = (el: HTMLElement): boolean => el.getBoundingClientRect().right >= contentRight - 1;
+
   for (const item of items) {
     const top = itemTop.get(item)!;
     const row = rows.get(top) ?? [item];
     // `promoteTop` is false when a header sits above the rows inside the same
     // well (genre columns): the rows then never reach the well's top corners.
     const tl = promoteTop && top === firstTop && item === row[0];
-    const tr = promoteTop && top === firstTop && item === row[row.length - 1];
+    const tr = promoteTop && top === firstTop && isRightEdge(item);
     const bl = top === lastTop && item === row[0];
-    const br = top === lastTop && item === row[row.length - 1];
+    const br = top === lastTop && isRightEdge(item);
     item.style.borderTopLeftRadius = tl ? FULL : INNER;
     item.style.borderTopRightRadius = tr ? FULL : INNER;
     item.style.borderBottomLeftRadius = bl ? FULL : INNER;
@@ -131,6 +145,7 @@ export function useGroupedCorners<T extends HTMLElement = HTMLDivElement>(
 
     const apply = () => {
       applyGroupedCorners(
+        container,
         [...container.querySelectorAll<HTMLElement>(itemSelector)],
         frameSelector,
         frameInset,
