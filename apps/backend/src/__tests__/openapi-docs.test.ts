@@ -112,6 +112,44 @@ describe("OpenAPI docs", () => {
     expect(leakedAdmin).toEqual([]);
   });
 
+  it("lists tags, paths, and schemas alphabetically", async () => {
+    const res = await app.inject({ method: "GET", url: "/docs/json" });
+    const doc = res.json() as {
+      tags: Array<{ name: string }>;
+      paths: Record<string, unknown>;
+      components: { schemas: Record<string, unknown> };
+    };
+
+    expect(res.statusCode).toBe(200);
+
+    const tagNames = doc.tags.map((t) => t.name);
+    const pathKeys = Object.keys(doc.paths);
+    const schemaKeys = Object.keys(doc.components.schemas);
+
+    expect(tagNames).toEqual([...tagNames].sort((a, b) => a.localeCompare(b)));
+    expect(pathKeys).toEqual([...pathKeys].sort((a, b) => a.localeCompare(b)));
+    expect(schemaKeys).toEqual([...schemaKeys].sort((a, b) => a.localeCompare(b)));
+  });
+
+  it("does not leak internal-only schemas whose endpoints are hidden", async () => {
+    const res = await app.inject({ method: "GET", url: "/docs/json" });
+    const doc = res.json() as { components: { schemas: Record<string, unknown> } };
+
+    expect(res.statusCode).toBe(200);
+
+    // These models back hidden routes (services, nav, content) and must not
+    // appear in the public reference — they were leaking as orphan schemas.
+    for (const internal of [
+      "ActiveService",
+      "NavItem",
+      "PublicContentPage",
+      "PublicPageSegment",
+      "ContentPageSummary",
+    ]) {
+      expect(doc.components.schemas).not.toHaveProperty(internal);
+    }
+  });
+
   it("uses real service ids in generated OpenAPI examples", async () => {
     const res = await app.inject({ method: "GET", url: "/docs/json" });
     const docJson = res.body;

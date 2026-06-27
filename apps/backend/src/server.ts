@@ -10,6 +10,7 @@ import swagger from "@fastify/swagger";
 import Fastify from "fastify";
 import { getRepository } from "./db/index.js";
 import { runMigrations } from "./db/run-migrations.js";
+import { finalizePublicOpenApiDocument } from "./docs/openapi-finalize.js";
 import {
   getScalarApiReferenceHtml,
   getScalarReferenceFontCss,
@@ -329,14 +330,18 @@ async function buildApp() {
         version: "2.0.0",
       },
       servers: [{ url: "https://api.musiccloud.io", description: "Production" }],
+      // Tag order here does not need to be alphabetical: the document is
+      // sorted in finalizePublicOpenApiDocument before it is served, so groups
+      // always render alphabetically regardless of this list's order.
       tags: [
         { name: "Resolve", description: "Resolve music URLs or text queries" },
         { name: "Share", description: "Fetch previously-resolved shares" },
         { name: "Links", description: "Link metadata" },
         { name: "Artist", description: "Artist info (Last.fm + Ticketmaster)" },
+        { name: "CC", description: "Creative-Commons (Jamendo) resolve, audio, and metadata" },
         { name: "Services", description: "Active resolver plugins and examples" },
         { name: "Auth", description: "OAuth client-credentials token endpoint" },
-        { name: "Health", description: "Server health" },
+        { name: "Health", description: "Per-service liveness and readiness probes" },
       ],
       components: {
         securitySchemes: {
@@ -377,15 +382,17 @@ async function buildApp() {
     },
   });
 
-  // Expose the raw OpenAPI document so Scalar (and external consumers)
-  // can load it. Uses `app.swagger()` per-request so the spec always
-  // reflects the full route table after every plugin has registered.
+  // Expose the OpenAPI document so Scalar (and external consumers) can load
+  // it. Uses `app.swagger()` per-request so the spec always reflects the full
+  // route table after every plugin has registered, then finalizes it: orphan
+  // schemas from hidden routes are pruned and tags/paths/schemas are sorted
+  // alphabetically (see docs/openapi-finalize.ts).
   app.get(
     "/docs/json",
     {
       schema: { hide: true },
     },
-    async () => app.swagger(),
+    async () => finalizePublicOpenApiDocument(app.swagger()),
   );
 
   // Scalar API Reference UI at /docs. We render the same CDN-backed HTML
