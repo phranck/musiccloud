@@ -38,6 +38,19 @@ const config = {
         files: ["package.json"],
         rules: ["deslop/unused-dev-dependency"],
       },
+      /**
+       * MC-066 developer-portal BFF session helper. `src/lib/session.ts` is
+       * imported only by the protected dashboard pages that land in a later task
+       * of the same plan; until then the dead-code rules report it as
+       * unimported. The rule is suppressed on the file itself (not via
+       * `ignore.files`, which would also drop it as a graph node and cascade a
+       * false positive onto `api.ts`'s `internalHeaders` that it imports). Drop
+       * this glob once the consumer ships — see the MC-066 plan checklist.
+       */
+      {
+        files: ["src/lib/session.ts"],
+        rules: ["deslop/unused-file", "deslop/unused-export"],
+      },
     ],
   },
 } satisfies ReactDoctorConfig;
