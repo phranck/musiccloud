@@ -16,7 +16,7 @@ const REQUIRED_BOOT_ENV = ["JAMENDO_CLIENT_ID"] as const;
  *
  * Call once during startup, before the server accepts connections. Without it a
  * missing `JAMENDO_CLIENT_ID` only surfaces as a generic `MC-API-0004` the first
- * time someone uses CC mode, while `/health/ready` still reports the container
+ * time someone uses CC mode, while `/health/db` still reports the container
  * ready — an invisible, slow-to-trace breakage. Failing here instead turns the
  * misconfiguration into a loud restart loop, the same way a failed migration
  * does.

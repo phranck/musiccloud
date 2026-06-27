@@ -128,8 +128,8 @@ const READINESS_EXPECTED_TABLES = [
 ];
 
 /**
- * Readiness check shared by `GET /health/ready` and `GET /health/db`: confirms the
- * database is reachable and every hot-path table exists.
+ * Readiness check behind `GET /health/db`: confirms the database is
+ * reachable and every hot-path table exists.
  *
  * @returns `{ ok: true }` when ready, else `{ ok: false, body }` carrying the 503 payload.
  */
@@ -314,7 +314,7 @@ async function buildApp() {
           "Most endpoints require credentials. Endpoints declaring a `security` block (e.g. `POST /api/v1/resolve`, `GET /api/v1/link/:id`) " +
           "accept either an `X-API-Key` header (issued to first-party clients) or a `Bearer` JWT. " +
           "Public read-only endpoints — `GET /api/v1/share/:shortId`, `GET /api/v1/share/:shortId/preview`, " +
-          "`GET /api/v1/artist/...`, `GET /api/v1/genre-artwork/:genreKey`, `GET /health/ready` — are reachable without credentials.\n\n" +
+          "`GET /api/v1/artist/...`, `GET /api/v1/genre-artwork/:genreKey`, `GET /health/db` — are reachable without credentials.\n\n" +
           "**Getting a token (first-time integration):**\n\n" +
           '1. `POST /api/auth/token` with `{ client_id, client_secret, grant_type: "client_credentials" }`.\n' +
           "2. The response contains `access_token`, valid for 1 hour.\n" +
@@ -436,30 +436,6 @@ async function buildApp() {
     },
   );
 
-  // Health check (no auth)
-  app.get(
-    "/health",
-    {
-      schema: {
-        tags: ["Health"],
-        summary: "Server health",
-        description: "Returns 200 if the Fastify process is alive and serving requests.",
-        response: {
-          200: {
-            description: "Liveness probe response.",
-            type: "object",
-            properties: { status: { type: "string", enum: ["ok"] } },
-            required: ["status"],
-            example: { status: "ok" },
-          },
-        },
-      },
-    },
-    async () => {
-      return { status: "ok" };
-    },
-  );
-
   // Email subsystem readiness (no auth) — confirms the SMTP2GO transport is
   // configured and the provider host is reachable. Sends no mail and uses no
   // send quota, so it is safe on a per-minute monitoring cadence. Powers the
@@ -478,27 +454,6 @@ async function buildApp() {
         return { status: "ok" };
       }
       return reply.status(503).send({ status: "unavailable" });
-    },
-  );
-
-  // Readiness probe — verifies the DB is reachable AND that every table
-  // touched by the hot-path SELECTs exists. Catches the partially-migrated
-  // state where a deploy ships code that queries tables a failed migration
-  // never created (Apr 2026 outage: track_previews missing → all share
-  // URLs returned 500). Returns 503 with the missing-table list so Zerops
-  // and external monitoring can mark the container un-ready.
-  app.get(
-    "/health/ready",
-    {
-      schema: {
-        tags: ["Health"],
-        summary: "Readiness probe (schema + DB reachability)",
-      },
-    },
-    async (_request, reply) => {
-      const result = await checkReadiness();
-      if (result.ok) return { status: "ready" };
-      return reply.status(503).send(result.body);
     },
   );
 
@@ -568,8 +523,9 @@ async function buildApp() {
     },
   );
 
-  // Backend liveness (no auth). The same liveness as /health, exposed under the
-  // consistent /health/<service> naming the status page uses. Powers "Backend".
+  // Backend liveness (no auth). Returns 200 whenever the Fastify process is
+  // alive and serving requests, under the consistent /health/<service> naming
+  // the status page uses. Powers "Backend".
   app.get(
     "/health/backend",
     {
@@ -584,8 +540,13 @@ async function buildApp() {
     },
   );
 
-  // Database readiness (no auth). The same DB + schema check as /health/ready,
-  // under the consistent /health/<service> naming. Powers the "Database" service.
+  // Database readiness (no auth). Verifies the DB is reachable AND that every
+  // table touched by the hot-path SELECTs exists. Catches the partially-migrated
+  // state where a deploy ships code that queries tables a failed migration never
+  // created (Apr 2026 outage: track_previews missing → all share URLs returned
+  // 500). Returns 503 with the missing-table list so Zerops (this is the
+  // container healthCheck in zerops.yml) and external monitoring can mark the
+  // container un-ready. Powers the "Database" service on the status page.
   app.get(
     "/health/db",
     {

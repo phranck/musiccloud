@@ -122,6 +122,7 @@ Umsetzung als **`status-website.css`-Block + `customHeadHtml`** in `.upptimerc.y
 - Task 3 `/health/email`: blockiert, Backend nutzt noch **Brevo** (nicht SMTP2GO). Email-Service-Zeile ist in `.upptimerc.yml` auskommentiert.
 - Task 6 RSS: Stock-Upptime hat keinen Feed → kleiner Generator-Workflow als Folge-Schritt (Navbar aktuell Status/History/GitHub).
 - Task 9 Build-Caching / Fast-Path: noch offen.
+- **Health-URL-Umstellung (2026-06-27, erledigt):** Das Backend exponiert jetzt ausschliesslich uniforme `/health/<service>`-Endpoints (`backend`, `db`, `frontend`, `developer`, `dashboard`, `email`); die generischen `/health` und `/health/ready` wurden entfernt. Der Zerops-Container-`healthCheck` zeigt jetzt auf `/health/db`. Die `.upptimerc.yml` im Status-Repo nutzt bereits exakt diese uniformen URLs (Frontend/Backend/Database/Email/Dashboard/Developer je `/health/<service>`), kein `/health/ready` mehr — gegen das Live-Repo `phranck/status.musiccloud.io` verifiziert, kein externer Folge-Bedarf.
 
 ## Verified facts (Stand 2026-06-26)
 
