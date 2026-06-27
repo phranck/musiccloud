@@ -1,0 +1,199 @@
+---
+/**
+ * /docs — the developer-portal documentation landing page.
+ *
+ * Static, English-only marketing-grade overview of what the musiccloud API
+ * does and how a developer gets from zero to their first call. It mirrors the
+ * landing page's token-driven night-mode styling (glassy `bg-surface` sections
+ * over the night-sky gradient, brand-blue `--color-accent` accents, Phosphor
+ * duotone icons) and the same header/footer shell so the portal reads as one
+ * coherent site.
+ *
+ * No SSR context is needed (no session lookup, no request inspection), so the
+ * page is statically generated. It carries no `useT`/`useLocale` — all copy is
+ * hard-coded EN, matching the rest of the developer portal.
+ */
+import {
+  ArrowLeftIcon,
+  BookOpenIcon,
+  KeyIcon,
+  LinkIcon,
+  PlugsConnectedIcon,
+  UserPlusIcon,
+} from "@phosphor-icons/react";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+
+/**
+ * The four ordered steps that take a developer from no account to their first
+ * authenticated API call. Each step is rendered as a numbered glassy row.
+ */
+const steps = [
+  {
+    Icon: UserPlusIcon,
+    title: "Create a developer account",
+    body: "Sign up with your email or GitHub to get a developer account on the portal.",
+  },
+  {
+    Icon: PlugsConnectedIcon,
+    title: "Request API access",
+    body: "From your dashboard, request access to the musiccloud API for your account.",
+  },
+  {
+    Icon: KeyIcon,
+    title: "Receive an API key",
+    body: "Once access is granted, an API key is issued to your account for authenticating requests.",
+  },
+  {
+    Icon: LinkIcon,
+    title: "Call the API",
+    body: "Send your key in the request header and start resolving links and fetching artist info.",
+  },
+];
+
+const footerLinks = [
+  { href: "/docs", label: "Docs" },
+  { href: "/terms", label: "Terms" },
+  { href: "/privacy", label: "Privacy" },
+  { href: "https://status.musiccloud.io", label: "Status", external: true },
+];
+---
+
+<BaseLayout
+  title="Documentation · musiccloud for developers"
+  description="How the musiccloud API works and how to get started building with it."
+>
+  <header class="flex items-center justify-between px-6 py-5 max-w-5xl mx-auto w-full">
+    <a href="/" class="flex items-center gap-2 text-logo font-medium">
+      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"
+        ><path
+          d="M9 21c0-3.3 2.7-6 6-6 1 0 2 .3 2.8.8A5 5 0 0 1 27 18.5 4.5 4.5 0 0 1 22.5 23H10a1 1 0 0 1-1-1z"
+          fill="var(--color-accent)"></path></svg
+      >
+      musiccloud <span class="text-fg-subtle font-normal">/ developers</span>
+    </a>
+    <nav class="flex items-center gap-5 text-nav text-fg-muted">
+      <a href="/docs" class="text-fg text-link">Docs</a>
+      <a href="/docs/api" class="text-link">API reference</a>
+      <a href="https://status.musiccloud.io" target="_blank" rel="noopener noreferrer" class="text-link">Status</a>
+      <a href="/login" class="text-link">Log in</a>
+      <a href="/signup" class="rounded-button bg-accent text-on-accent px-4 py-1.5 font-medium">Sign up</a>
+    </nav>
+  </header>
+
+  <main class="flex-1 max-w-3xl mx-auto w-full px-6 pt-12 pb-20">
+    <div class="flex items-center gap-3 mb-5">
+      <BookOpenIcon weight="duotone" className="size-9 text-accent" aria-hidden="true" />
+      <h1 class="text-hero font-medium tracking-tight leading-none">Documentation</h1>
+    </div>
+    <p class="text-lead text-fg-muted mb-10">
+      The musiccloud API turns a single music link into every platform. Resolve a track or album from one
+      streaming service to its matches across the others, pull rich artist info, and explore a free-to-use
+      Creative Commons catalogue — all over one REST API.
+    </p>
+
+    <section class="rounded-card border border-border bg-surface px-7 py-7 mb-6">
+      <h2 class="text-card-title font-medium tracking-tight mb-2">What you can build</h2>
+      <p class="text-body text-fg-muted mb-5">
+        One key gives you three capabilities, each a JSON REST endpoint:
+      </p>
+      <ul class="grid grid-cols-1 gap-3">
+        <li class="flex items-start gap-3">
+          <LinkIcon weight="duotone" className="size-6 text-accent shrink-0 mt-0.5" aria-hidden="true" />
+          <span class="text-body text-fg-muted">
+            <span class="text-fg font-medium">Link resolve.</span> Match a track, album, or artist from one
+            streaming service to the same release everywhere else.
+          </span>
+        </li>
+        <li class="flex items-start gap-3">
+          <BookOpenIcon weight="duotone" className="size-6 text-accent shrink-0 mt-0.5" aria-hidden="true" />
+          <span class="text-body text-fg-muted">
+            <span class="text-fg font-medium">Artist info.</span> Top tracks, similar artists, and upcoming
+            events for any matched artist.
+          </span>
+        </li>
+        <li class="flex items-start gap-3">
+          <KeyIcon weight="duotone" className="size-6 text-accent shrink-0 mt-0.5" aria-hidden="true" />
+          <span class="text-body text-fg-muted">
+            <span class="text-fg font-medium">Creative Commons.</span> Search and resolve the free-to-use
+            Jamendo catalogue for tracks you can use openly.
+          </span>
+        </li>
+      </ul>
+    </section>
+
+    <section class="rounded-card border border-border bg-surface px-7 py-7 mb-6">
+      <h2 class="text-card-title font-medium tracking-tight mb-2">Getting started</h2>
+      <p class="text-body text-fg-muted mb-6">Four steps take you from zero to your first call.</p>
+      <ol class="grid grid-cols-1 gap-4">
+        {
+          steps.map((step, index) => {
+            const Icon = step.Icon;
+            return (
+              <li class="flex items-start gap-4">
+                <span class="flex items-center justify-center size-9 shrink-0 rounded-button border border-border-strong text-nav font-medium text-accent">
+                  {index + 1}
+                </span>
+                <div>
+                  <div class="flex items-center gap-2 mb-0.5">
+                    <Icon weight="duotone" className="size-5 text-accent" aria-hidden="true" />
+                    <h3 class="text-body font-medium text-fg">{step.title}</h3>
+                  </div>
+                  <p class="text-body text-fg-muted">{step.body}</p>
+                </div>
+              </li>
+            );
+          })
+        }
+      </ol>
+      <p class="text-body text-fg-subtle mt-6">
+        Self-service API-access management is being finalised — the request flow will appear in your
+        dashboard shortly. Create your account now so you are ready the moment it opens.
+      </p>
+    </section>
+
+    <div class="flex flex-wrap gap-3">
+      <a
+        href="/docs/api"
+        class="inline-flex items-center gap-2 rounded-button bg-accent text-on-accent px-5 py-2.5 text-body font-medium"
+      >
+        <BookOpenIcon weight="duotone" className="size-6" aria-hidden="true" />
+        API reference
+      </a>
+      <a
+        href="/signup"
+        class="inline-flex items-center gap-2 rounded-button border border-border-strong px-5 py-2.5 text-body font-medium"
+      >
+        <KeyIcon weight="duotone" className="size-6" aria-hidden="true" />
+        Create an account
+      </a>
+      <a
+        href="/"
+        class="inline-flex items-center gap-2 rounded-button border border-border-strong px-5 py-2.5 text-body font-medium"
+      >
+        <ArrowLeftIcon weight="duotone" className="size-6" aria-hidden="true" />
+        Back to home
+      </a>
+    </div>
+  </main>
+
+  <footer class="border-t border-border">
+    <div class="max-w-5xl mx-auto w-full px-6 py-5 flex items-center justify-between text-body text-fg-subtle">
+      <span>© musiccloud</span>
+      <nav class="flex items-center gap-3">
+        {
+          footerLinks.map((link) =>
+            link.external ? (
+              <a href={link.href} target="_blank" rel="noopener noreferrer" class="text-link">
+                {link.label}
+              </a>
+            ) : (
+              <a href={link.href} class="text-link">
+                {link.label}
+              </a>
+            ),
+          )
+        }
+      </nav>
+    </div>
+  </footer>
+</BaseLayout>
