@@ -195,9 +195,29 @@ Plan-Nr.: MC-066
 - [x] Task 4: Verify + Forgot + Reset
 - [x] Task 5: GitHub-OAuth-UI-Flow
 - [x] Task 6: Dashboard-Shell + Logout
-- [ ] Task 7: Lokale Browser-Verifikation grün
-- [ ] Gates grün (developer-build, shared-typecheck, lint, doctor:diff)
-- [ ] Plan nach `done/`, gemergt
+- [x] Task 7: Lokale Browser-Verifikation grün
+- [x] Gates grün (developer-build, shared-typecheck, lint, doctor:diff)
+- [x] Plan nach `done/`, gemergt
+
+## Completed (2026-06-27)
+
+Alle sieben Tasks umgesetzt + lokal browser-verifiziert, gemergt nach `main`. Frontend-only (apps/developer), kein Backend-Eingriff.
+
+**Geliefert:**
+- BFF-Catch-all `pages/api/dev/[...path].ts` (Cookie-Durchreichung + Set-Cookie-Relay, `getSetCookie()` bestätigt), `lib/api.ts`, `lib/session.ts` (`getDeveloperSession`). `/api/dev/*` ist backend-public (kein INTERNAL_API_KEY erzwungen) — Befund am Execute-Time.
+- Form-Islands + `AuthCard.astro`/`GitHubButton.astro`/`OrDivider.astro`, alle token-getrieben.
+- Auth-Seiten: `/login` (GitHub zuerst, dann E-Mail), `/signup`, `/verify?token`, `/forgot`, `/reset?token` — React-Islands mit Loading/Fehler/Erfolgs-States, EN-hardcoded (kein i18n → kein SSR-Island-Crash).
+- GitHub-OAuth-UI: `/auth/github` (start + State-Cookie), `/auth/github/callback` (CSRF-Check + `exchange` + Cookie-Relay via `new Response`).
+- Dashboard-Shell: `DashboardLayout` (Sidebar Overview + API access/keys/Usage „Soon"-Platzhalter, Header mit Account + Logout), `/dashboard` (protected, Account-Overview).
+- Alle Gates grün (developer-build, shared-typecheck, lint, doctor:diff EXIT 0, full-doctor-scan 0 issues, astro check 0/0/0).
+
+**Browser-Verifikation (agent-browser):** Alle Auth-Seiten zentriert + mockup-treu; voller Login-Flow e2e (Formular → BFF → Backend → Cookie → Redirect → Dashboard) mit lokalem Test-Account; Dashboard rendert Account-Daten + Nav; `/dashboard` ohne Session → 302 `/login`; keine Konsolen-Fehler.
+
+**Diagnose (kein Code-Bug):** Erster Screenshot zeigte unzentrierte Card + fehlende Form-Felder. Ursache war ein **stale Dev-Server** (lief vor Existenz der MC-066-Files; Tailwind/Vite hatte `justify-center`/Island-Hydration nicht vollständig nachgezogen). Production-Build war immer grün; `./app restart developer` behob es. Live-Boxen danach: `main` `justify-content:center`, Card x=416 (zentriert), E-Mail-Input 390×46.
+
+**Externer Handoff (Config, nicht Code):** GitHub-OAuth-App-Callback-URLs + Zerops-Env (`DEVELOPER_URL`, `CORS_ORIGIN`-Eintrag, `INTERNAL_API_KEY` am Developer-Service) — siehe unten. Nötig für den LIVE-Flow, lokales Bauen/Testen geht ohne.
+
+**Folge:** API-Doku, Token-Self-Service + MC-025, Account-Seite, Google/Apple, i18n.
 
 ## Externer Handoff (Config, nicht Code)
 
