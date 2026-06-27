@@ -76,21 +76,22 @@ function parseTrustProxy(raw: string | undefined): boolean | number | string {
   return raw;
 }
 
-/** Timeout for the upstream-app liveness probes (`/health/developer`, `/health/dashboard`). */
+/** Timeout for the upstream-app liveness probes (`/health/frontend`, `/health/developer`, `/health/dashboard`). */
 const UPSTREAM_HEALTH_TIMEOUT_MS = 5000;
 
 /**
- * Liveness check for an upstream MusicCloud app (developer portal / dashboard),
- * powering the `GET /health/developer` and `GET /health/dashboard` probes that
- * the public status page monitors.
+ * Liveness check for an upstream MusicCloud app (public site / developer portal /
+ * dashboard), powering the `GET /health/frontend`, `/health/developer` and
+ * `/health/dashboard` probes that the public status page monitors.
  *
- * The status-page monitor runs on GitHub Actions (IPv4-only) and cannot reach
- * the IPv6-only `developer.*` / `dashboard.*` Zerops subdomains directly, so it
- * probes them THROUGH the backend, which shares the same dual-stack Zerops
- * network. Any non-5xx response within the timeout means the app is serving
- * (a 3xx login redirect still counts as up; `fetch` follows it).
+ * Probing THROUGH the backend serves two ends: it keeps every service on the
+ * consistent `api.musiccloud.io/health/<service>` URL, and it lets the IPv4-only
+ * GitHub-Actions monitor reach the IPv6-only `developer.*` / `dashboard.*` Zerops
+ * subdomains, which it cannot hit directly. Any non-5xx response within the
+ * timeout means the app is serving (a 3xx login redirect still counts as up;
+ * `fetch` follows it).
  *
- * @param url - the upstream origin to probe (from `DEVELOPER_URL` / `DASHBOARD_URL`)
+ * @param url - the upstream origin to probe (from `PUBLIC_URL` / `DEVELOPER_URL` / `DASHBOARD_URL`)
  * @returns true when the upstream answers with a non-5xx status before the timeout
  */
 async function isUpstreamReachable(url: string): Promise<boolean> {
@@ -103,6 +104,45 @@ async function isUpstreamReachable(url: string): Promise<boolean> {
     return res.status < 500;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Tables added by recent migrations whose absence would crash a request handler.
+ * Extend this whenever a new migration adds a table referenced by request-time SELECTs.
+ */
+const READINESS_EXPECTED_TABLES = [
+  "tracks",
+  "albums",
+  "artist_profiles",
+  "short_urls",
+  "album_short_urls",
+  "artist_short_urls",
+  "service_links",
+  "track_previews",
+  "album_previews",
+  "track_external_ids",
+  "album_external_ids",
+  "artist_external_ids",
+  "artist_images",
+];
+
+/**
+ * Readiness check shared by `GET /health/ready` and `GET /health/db`: confirms the
+ * database is reachable and every hot-path table exists.
+ *
+ * @returns `{ ok: true }` when ready, else `{ ok: false, body }` carrying the 503 payload.
+ */
+async function checkReadiness(): Promise<{ ok: true } | { ok: false; body: Record<string, unknown> }> {
+  try {
+    const repo = await getRepository();
+    const missing = await repo.findMissingTables(READINESS_EXPECTED_TABLES);
+    if (missing.length > 0) {
+      return { ok: false, body: { status: "not_ready", missingTables: missing } };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, body: { status: "not_ready", error: (err as Error).message } };
   }
 }
 
@@ -450,34 +490,9 @@ async function buildApp() {
       },
     },
     async (_request, reply) => {
-      // Tables added by recent migrations whose absence would crash a
-      // request handler. Extend this list whenever a new migration adds a
-      // table referenced by request-time SELECTs.
-      const expected = [
-        "tracks",
-        "albums",
-        "artist_profiles",
-        "short_urls",
-        "album_short_urls",
-        "artist_short_urls",
-        "service_links",
-        "track_previews",
-        "album_previews",
-        "track_external_ids",
-        "album_external_ids",
-        "artist_external_ids",
-        "artist_images",
-      ];
-      try {
-        const repo = await getRepository();
-        const missing = await repo.findMissingTables(expected);
-        if (missing.length > 0) {
-          return reply.status(503).send({ status: "not_ready", missingTables: missing });
-        }
-        return { status: "ready" };
-      } catch (err) {
-        return reply.status(503).send({ status: "not_ready", error: (err as Error).message });
-      }
+      const result = await checkReadiness();
+      if (result.ok) return { status: "ready" };
+      return reply.status(503).send(result.body);
     },
   );
 
@@ -523,6 +538,61 @@ async function buildApp() {
         return { status: "ok" };
       }
       return reply.status(503).send({ status: "unavailable" });
+    },
+  );
+
+  // Frontend liveness (no auth). Probes the public site (PUBLIC_URL) from the
+  // backend, completing the consistent api.musiccloud.io/health/<service> set the
+  // status page monitors. Powers the "Frontend" service.
+  app.get(
+    "/health/frontend",
+    {
+      schema: {
+        tags: ["Health"],
+        summary: "Frontend liveness",
+        description: "Returns 200 when the public site (musiccloud.io) is reachable from the backend, else 503.",
+      },
+    },
+    async (_request, reply) => {
+      const url = process.env.PUBLIC_URL;
+      if (url && (await isUpstreamReachable(url))) {
+        return { status: "ok" };
+      }
+      return reply.status(503).send({ status: "unavailable" });
+    },
+  );
+
+  // Backend liveness (no auth). The same liveness as /health, exposed under the
+  // consistent /health/<service> naming the status page uses. Powers "Backend".
+  app.get(
+    "/health/backend",
+    {
+      schema: {
+        tags: ["Health"],
+        summary: "Backend liveness",
+        description: "Returns 200 if the backend process is alive and serving requests.",
+      },
+    },
+    async () => {
+      return { status: "ok" };
+    },
+  );
+
+  // Database readiness (no auth). The same DB + schema check as /health/ready,
+  // under the consistent /health/<service> naming. Powers the "Database" service.
+  app.get(
+    "/health/db",
+    {
+      schema: {
+        tags: ["Health"],
+        summary: "Database readiness",
+        description: "Returns 200 when the database is reachable and the schema is complete, else 503.",
+      },
+    },
+    async (_request, reply) => {
+      const result = await checkReadiness();
+      if (result.ok) return { status: "ok" };
+      return reply.status(503).send(result.body);
     },
   );
 
