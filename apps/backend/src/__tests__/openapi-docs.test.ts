@@ -95,6 +95,23 @@ describe("OpenAPI docs", () => {
     expect(JSON.stringify(queryParameter)).toContain("structured search query");
   });
 
+  it("never exposes internal surfaces (admin, developer-portal) in the public OpenAPI doc", async () => {
+    const res = await app.inject({ method: "GET", url: "/docs/json" });
+    const doc = res.json() as { paths: Record<string, unknown> };
+
+    expect(res.statusCode).toBe(200);
+
+    const paths = Object.keys(doc.paths);
+    // The developer-portal account API (`/api/dev/*`) and the admin API
+    // (`/api/admin/*`) are first-party surfaces, not part of the published
+    // REST contract. They are reachable but must never be advertised.
+    const leakedDev = paths.filter((p) => p.startsWith("/api/dev"));
+    const leakedAdmin = paths.filter((p) => p.startsWith("/api/admin"));
+
+    expect(leakedDev).toEqual([]);
+    expect(leakedAdmin).toEqual([]);
+  });
+
   it("uses real service ids in generated OpenAPI examples", async () => {
     const res = await app.inject({ method: "GET", url: "/docs/json" });
     const docJson = res.body;

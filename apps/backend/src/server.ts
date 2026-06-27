@@ -351,13 +351,19 @@ async function buildApp() {
       buildLocalReference: (json, _baseUri, _fragment, i) => (typeof json.$id === "string" ? json.$id : `def-${i}`),
     },
     transform: ({ schema, url }) => {
-      // Hide admin endpoints + internal helpers (SSR-only routes, frontend-
-      // marquee data, Apple Testflight ingest, landing-page teaser). The
-      // public API reference covers Health, Resolve, Share, Auth, Link,
-      // Artist, and Genre-Artwork — everything else is reachable but not
-      // advertised to external consumers.
+      // Hide admin endpoints, the developer-portal account API, and internal
+      // helpers (SSR-only routes, frontend-marquee data, Apple Testflight
+      // ingest, landing-page teaser). The public API reference covers Health,
+      // Resolve, Share, Auth, Link, Artist, and Genre-Artwork — everything
+      // else is reachable but not advertised to external consumers.
+      //
+      // `/api/dev/*` is the developer.musiccloud.io account system (signup,
+      // login, password reset, GitHub OAuth). It is a separate first-party
+      // surface, not part of the public REST contract, so it must never
+      // appear in the published OpenAPI document.
       const isInternal =
         url.startsWith("/api/admin") ||
+        url.startsWith("/api/dev") ||
         url.startsWith("/api/v1/content") ||
         url.startsWith("/api/v1/nav") ||
         url.startsWith("/api/v1/site-settings") ||
