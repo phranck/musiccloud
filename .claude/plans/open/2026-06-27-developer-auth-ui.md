@@ -136,19 +136,19 @@ Plan-Nr.: MC-066
 
 **Files:** Create `src/components/auth/VerifyView.tsx`, `ForgotForm.tsx`, `ResetForm.tsx`; `src/pages/verify.astro`, `forgot.astro`, `reset.astro`
 
-- [ ] **Step 1: `VerifyView.tsx`** (Island): `token`-Prop. Beim Mount `POST /api/dev/auth/verify-email {token}`. States: „Verifying…" → Erfolg „Email verified! You can now sign in." (Link/Auto-Redirect zu `/login`) → Fehler 400 `INVALID_TOKEN` „This verification link is invalid or expired." (Link „Request a new one" → `/forgot`? bzw. erneuter Signup-Hinweis).
+- [x] **Step 1: `VerifyView.tsx`** (Island): `token`-Prop. Beim Mount `POST /api/dev/auth/verify-email {token}` via `AbortController` (Cleanup bricht in-flight ab, kein State-Update nach Unmount). States: „Verifying…" (Spinner) → Erfolg „Email verified" (`AuthStatus` Success, Link `/login`) → Fehler „Verification failed" (`AuthStatus` Error, Signup-Hinweis).
 
-- [ ] **Step 2: `verify.astro`**: liest `Astro.url.searchParams.get("token")`. Ohne Token → Fehlertext. Mit Token → `AuthCard title="Verify email"` + `<VerifyView client:load token={token} />`.
+- [x] **Step 2: `verify.astro`**: liest `Astro.url.searchParams.get("token")`. Ohne Token → Fehlertext. Mit Token → `AuthCard title="Verify email"` + `<VerifyView client:load token={token} />`.
 
-- [ ] **Step 3: `ForgotForm.tsx`** (Island): E-Mail, Submit → `POST /api/dev/auth/request-reset`. IMMER Erfolgs-State „If an account exists for that email, a reset link is on its way." (kein Account-Leak, Backend gibt immer 200).
+- [x] **Step 3: `ForgotForm.tsx`** (Island): E-Mail, Submit → `POST /api/dev/auth/request-reset`. IMMER Erfolgs-State „If an account exists for that address, a password-reset link is on its way." (kein Account-Leak; nur Transport-Fail status 0 → Retry-Hinweis).
 
-- [ ] **Step 4: `forgot.astro`**: `AuthCard title="Reset password"` + `<ForgotForm client:load />`. Footer: „Back to sign in".
+- [x] **Step 4: `forgot.astro`**: `AuthCard title="Reset password"` + Subtitle + `<ForgotForm client:load />`. Footer: „Back to sign in".
 
-- [ ] **Step 5: `ResetForm.tsx`** (Island): `token`-Prop, Passwort + Confirm (Client-Match-Check), Submit → `POST /api/dev/auth/reset-password {token,password}`. Bei 200 → „Password updated. You can now sign in." (Link `/login`). Bei 400 `INVALID_TOKEN` → Fehler.
+- [x] **Step 5: `ResetForm.tsx`** (Island): `token`-Prop, Passwort + Confirm (Client-Match-Check vor dem Request), Submit → `POST /api/dev/auth/reset-password {token,password}`. Bei 200 → „Password updated" (`AuthStatus` Success, Link `/login`). Bei 400 `INVALID_TOKEN`/Validation → Inline-Fehler am Confirm-Feld.
 
-- [ ] **Step 6: `reset.astro`**: liest `token` aus Query. `AuthCard title="Set a new password"` + `<ResetForm client:load token={token} />`.
+- [x] **Step 6: `reset.astro`**: liest `token` aus Query. Ohne Token → Fehlertext mit `/forgot`-Link. Mit Token → `AuthCard title="Set a new password"` + `<ResetForm client:load token={token} />`.
 
-- [ ] **Step 7: Gates + Commit** — Build/Lint/Doctor grün. `Feat: developer-portal verify + reset flow pages (MC-066)`.
+- [x] **Step 7: Gates + Commit** — Build ✓, `astro check` 0/0/0 ✓, `pnpm lint` ✓, Full-Doctor-Scan + `doctor:diff` (0 issues) ✓, shared-typecheck ✓. `Feat: developer-portal verify + reset flow pages (MC-066)`.
 
 ## Task 5: GitHub-OAuth-UI-Flow
 
@@ -192,7 +192,7 @@ Plan-Nr.: MC-066
 - [x] Task 1: BFF-Proxy + API-/Session-Helper
 - [x] Task 2: Form-Island-Primitive + AuthCard
 - [x] Task 3: Login + Signup
-- [ ] Task 4: Verify + Forgot + Reset
+- [x] Task 4: Verify + Forgot + Reset
 - [ ] Task 5: GitHub-OAuth-UI-Flow
 - [ ] Task 6: Dashboard-Shell + Logout
 - [ ] Task 7: Lokale Browser-Verifikation grün

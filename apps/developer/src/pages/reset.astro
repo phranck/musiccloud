@@ -1,0 +1,37 @@
+---
+/**
+ * /reset?token=… — set-a-new-password page.
+ *
+ * Reads the reset token from the query string. Without one it shows a static
+ * error. With a token it mounts the {@link ResetForm} island (new password +
+ * confirmation), which posts `{ token, password }` to `reset-password`.
+ */
+import AuthCard from "@/components/auth/AuthCard.astro";
+import { ResetForm } from "@/components/auth/ResetForm";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+
+export const prerender = false;
+
+const token = Astro.url.searchParams.get("token");
+---
+
+<BaseLayout title="Set a new password · musiccloud for developers">
+  <AuthCard title="Set a new password">
+    {
+      token ? (
+        <ResetForm client:load token={token} />
+      ) : (
+        <p class="text-body text-fg-muted text-center py-2">
+          This reset link is missing its token. Request a new one from the{" "}
+          <a href="/forgot" class="text-fg text-link">
+            reset page
+          </a>
+          .
+        </p>
+      )
+    }
+    <Fragment slot="footer">
+      <a href="/login" class="text-fg text-link">Back to sign in</a>
+    </Fragment>
+  </AuthCard>
+</BaseLayout>
