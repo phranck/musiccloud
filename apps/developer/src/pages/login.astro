@@ -1,0 +1,43 @@
+---
+/**
+ * /login — developer-portal sign-in page.
+ *
+ * Server-side: if a valid `mc_dev_session` already resolves an account, the
+ * developer is redirected straight to the dashboard. A `?error=oauth` query
+ * (set by the GitHub OAuth callback on CSRF/exchange failure) renders an inline
+ * notice. Layout per spec: the GitHub button first, an "or" divider, then the
+ * email/password island, a "Forgot password?" link (inside the form), and a
+ * footer link to signup.
+ */
+import AuthCard from "@/components/auth/AuthCard.astro";
+import GitHubButton from "@/components/auth/GitHubButton.astro";
+import { LoginForm } from "@/components/auth/LoginForm";
+import OrDivider from "@/components/auth/OrDivider.astro";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { getDeveloperSession } from "@/lib/session";
+
+export const prerender = false;
+
+const account = await getDeveloperSession(Astro);
+if (account) return Astro.redirect("/dashboard");
+
+const oauthFailed = Astro.url.searchParams.get("error") === "oauth";
+---
+
+<BaseLayout title="Sign in · musiccloud for developers">
+  <AuthCard title="Sign in">
+    {
+      oauthFailed && (
+        <div class="rounded-button border border-red-400/40 bg-surface px-3.5 py-2.5 text-body text-red-400 mb-5">
+          GitHub sign-in could not be completed. Please try again.
+        </div>
+      )
+    }
+    <GitHubButton />
+    <OrDivider />
+    <LoginForm client:load />
+    <Fragment slot="footer">
+      No account? <a href="/signup" class="text-fg text-link">Sign up</a>
+    </Fragment>
+  </AuthCard>
+</BaseLayout>

@@ -1,0 +1,38 @@
+---
+/**
+ * /signup — developer-portal account creation page.
+ *
+ * Server-side: an already-authenticated developer is redirected to the
+ * dashboard. Layout per spec: the GitHub button first, an "or" divider, then the
+ * signup island, a Terms/Privacy consent line, and a footer link to sign-in.
+ * Submitting the form does not create a session — the developer must verify by
+ * email and then sign in.
+ */
+import AuthCard from "@/components/auth/AuthCard.astro";
+import GitHubButton from "@/components/auth/GitHubButton.astro";
+import OrDivider from "@/components/auth/OrDivider.astro";
+import { SignupForm } from "@/components/auth/SignupForm";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { getDeveloperSession } from "@/lib/session";
+
+export const prerender = false;
+
+const account = await getDeveloperSession(Astro);
+if (account) return Astro.redirect("/dashboard");
+---
+
+<BaseLayout title="Create account · musiccloud for developers">
+  <AuthCard title="Create your developer account">
+    <GitHubButton />
+    <OrDivider />
+    <SignupForm client:load />
+    <p class="text-body text-fg-subtle text-center mt-5">
+      By creating an account you agree to our{" "}
+      <a href="/terms" class="text-fg-muted text-link">Terms</a> and{" "}
+      <a href="/privacy" class="text-fg-muted text-link">Privacy Policy</a>.
+    </p>
+    <Fragment slot="footer">
+      Already have an account? <a href="/login" class="text-fg text-link">Sign in</a>
+    </Fragment>
+  </AuthCard>
+</BaseLayout>

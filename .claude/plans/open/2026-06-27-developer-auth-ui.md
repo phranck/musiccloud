@@ -122,15 +122,15 @@ Plan-Nr.: MC-066
 
 **Files:** Create `src/components/auth/LoginForm.tsx`, `SignupForm.tsx`; `src/pages/login.astro`, `signup.astro`
 
-- [ ] **Step 1: `LoginForm.tsx`** (Island): E-Mail + Passwort, Submit → `POST /api/dev/auth/login`. Bei 200 → `window.location.href = "/dashboard"`. Bei 401 `INVALID_CREDENTIALS` → Inline-Fehler „Invalid email or password." Bei 403 `EMAIL_NOT_VERIFIED` → Hinweis + Link „Resend verification"/„Verify". Loading-State. „Forgot password?"-Link zu `/forgot`.
+- [x] **Step 1: `LoginForm.tsx`** (Island): E-Mail + Passwort, Submit → `POST /api/dev/auth/login`. Bei 200 → `window.location.href = "/dashboard"`. Bei 401 `INVALID_CREDENTIALS` → Inline-Fehler „Invalid email or password." Bei 403 `EMAIL_NOT_VERIFIED` → Hinweis. Loading-State. „Forgot password?"-Link zu `/forgot`. (4 `useState`, unter dem `prefer-useReducer`-Threshold.)
 
-- [ ] **Step 2: `login.astro`**: redirect zu `/dashboard` wenn schon eingeloggt (`getDeveloperSession`). `AuthCard title="Sign in"` → **`GitHubButton` zuerst**, „or"-Divider, dann `<LoginForm client:load />`. Footer: „No account? Sign up" → `/signup`. `?error=oauth` (vom Callback) als Inline-Hinweis anzeigen.
+- [x] **Step 2: `login.astro`**: redirect zu `/dashboard` wenn schon eingeloggt (`getDeveloperSession`). `AuthCard title="Sign in"` → **`GitHubButton` zuerst**, „or"-Divider (`OrDivider.astro`), dann `<LoginForm client:load />`. Footer: „No account? Sign up" → `/signup`. `?error=oauth` (vom Callback) als Inline-Hinweis.
 
-- [ ] **Step 3: `SignupForm.tsx`** (Island): Display-Name (optional), E-Mail, Passwort (8–128, Client-Hinweis). Submit → `POST /api/dev/auth/signup`. Bei 201 → Erfolgs-State „Check your email to verify your account." (kein Redirect, keine Session). Bei 409 `EMAIL_TAKEN` → Inline-Fehler. Bei 400 → Feldfehler.
+- [x] **Step 3: `SignupForm.tsx`** (Island): Display-Name (optional), E-Mail, Passwort (8–128, Client-Hinweis). Submit → `POST /api/dev/auth/signup`. Bei 201 → Erfolgs-State (`AuthStatus` Info-Tone „Check your email"). Bei 409 `EMAIL_TAKEN` → Inline-Fehler am E-Mail-Feld. Bei 400 → Passwort-Feldfehler. State via `useReducer` (6 Felder → 1 Atom, klärt `prefer-useReducer`).
 
-- [ ] **Step 4: `signup.astro`**: redirect wenn eingeloggt. `AuthCard title="Create your developer account"` → `GitHubButton` zuerst, Divider, `<SignupForm client:load />`. Terms/Privacy-Zustimmungs-Hinweistext (Spec). Footer: „Already have an account? Sign in" → `/login`.
+- [x] **Step 4: `signup.astro`**: redirect wenn eingeloggt. `AuthCard title="Create your developer account"` → `GitHubButton` zuerst, Divider, `<SignupForm client:load />`. Terms/Privacy-Hinweis. Footer: „Already have an account? Sign in" → `/login`.
 
-- [ ] **Step 5: Gates** — `pnpm --filter @musiccloud/developer build` grün, `pnpm lint`, `pnpm doctor:diff` (React-Islands → Doctor läuft; sauber halten). Commit `Feat: developer-portal login + signup pages (MC-066)`.
+- [x] **Step 5: Gates** — `pnpm --filter @musiccloud/developer build` grün, `pnpm lint`, `pnpm doctor:diff` + Full-Scan (0 issues), `astro check` (0/0/0). MC-066-Doctor-Override-Block komplett entfernt (alle Scaffolding-Files haben jetzt Consumer); dead `requireDeveloperSession`-Export aus `session.ts` entfernt statt suppressed. Commit `Feat: developer-portal login + signup pages (MC-066)`.
 
 ## Task 4: Verify + Forgot + Reset
 
@@ -191,7 +191,7 @@ Plan-Nr.: MC-066
 
 - [x] Task 1: BFF-Proxy + API-/Session-Helper
 - [x] Task 2: Form-Island-Primitive + AuthCard
-- [ ] Task 3: Login + Signup
+- [x] Task 3: Login + Signup
 - [ ] Task 4: Verify + Forgot + Reset
 - [ ] Task 5: GitHub-OAuth-UI-Flow
 - [ ] Task 6: Dashboard-Shell + Logout

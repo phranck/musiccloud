@@ -71,32 +71,3 @@ export async function getDeveloperSession(astro: AstroGlobal): Promise<Account |
     return null;
   }
 }
-
-/**
- * The discriminated result of {@link requireDeveloperSession}: either a resolved
- * account, or a `Response` redirect the caller must return from the page.
- */
-export type RequireSessionResult = { account: Account; redirect: null } | { account: null; redirect: Response };
-
-/**
- * Guard a protected page: resolve the session, or produce a redirect to
- * `/login`. The caller returns the redirect when present, otherwise uses the
- * account.
- *
- * Usage in a protected `.astro` page:
- * ```astro
- * const { account, redirect } = await requireDeveloperSession(Astro);
- * if (redirect) return redirect;
- * // account is guaranteed non-null here
- * ```
- *
- * @param astro - The Astro global (page frontmatter); `redirect` and the
- *   session cookie are read from it.
- * @returns A {@link RequireSessionResult}: `{ account, redirect: null }` when
- *   authenticated, or `{ account: null, redirect }` pointing at `/login`.
- */
-export async function requireDeveloperSession(astro: AstroGlobal): Promise<RequireSessionResult> {
-  const account = await getDeveloperSession(astro);
-  if (account) return { account, redirect: null };
-  return { account: null, redirect: astro.redirect("/login") };
-}

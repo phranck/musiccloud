@@ -38,28 +38,6 @@ const config = {
         files: ["package.json"],
         rules: ["deslop/unused-dev-dependency"],
       },
-      /**
-       * MC-066 developer-portal auth scaffolding. These BFF/session helpers and
-       * form primitives (Tasks 1-2) are imported only by the auth pages, forms,
-       * and protected dashboard that land in Tasks 3-6 of the same plan. Until
-       * those consumers ship, the dead-code rules report the scaffolding as
-       * unimported. The rules are suppressed on the scaffolding files themselves
-       * (not via `ignore.files`, which would also drop them as graph nodes and
-       * cascade false positives onto the helpers they import, e.g. `api.ts`'s
-       * `internalHeaders`). Drop each glob as its consumer ships — see the
-       * MC-066 plan checklist.
-       */
-      {
-        files: [
-          "src/lib/session.ts",
-          "src/lib/buttonVariant.ts",
-          "src/components/auth/TextField.tsx",
-          "src/components/auth/SubmitButton.tsx",
-          "src/components/auth/AuthCard.astro",
-          "src/components/auth/GitHubButton.astro",
-        ],
-        rules: ["deslop/unused-file", "deslop/unused-export"],
-      },
     ],
   },
 } satisfies ReactDoctorConfig;
