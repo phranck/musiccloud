@@ -164,13 +164,13 @@ Plan-Nr.: MC-066
 
 **Files:** Create `src/components/dashboard/DashboardLayout.astro`, `src/components/dashboard/LogoutButton.tsx`, `src/pages/dashboard/index.astro`
 
-- [ ] **Step 1: `DashboardLayout.astro`**: Props `account`, `active` (Tab-Key). Sidebar-Nav: Overview (`/dashboard`), API access, API keys, Usage (letztere drei als deaktivierte/„Coming soon"-Items). Header: Wortmarke + Account (Avatar aus `avatarUrl` oder Initiale, E-Mail) + `<LogoutButton client:load />`. `<slot />` für Panel-Inhalt. Token-getrieben, glasig.
+- [x] **Step 1: `DashboardLayout.astro`**: Props `account`, `active` (Tab-Key via `DashboardTabValue`), optional `title`. Wrappt `BaseLayout` selbst (Chrome lebt einmal, Page bleibt minimal). Sidebar-Nav aus `DASHBOARD_NAV` (`lib/dashboardTabs.ts`): Overview (`/dashboard`, aktiv via `aria-current`), API access/keys/Usage als deaktivierte „Soon"-Items (kein Link, `aria-disabled`, gedimmt). Header: Wortmarke + Account (Avatar aus `avatarUrl` ODER Initiale ODER `UserIcon`, E-Mail) + `<LogoutButton client:load />`. `<slot />` für Panel. Token-getrieben, glasig.
 
-- [ ] **Step 2: `LogoutButton.tsx`** (Island): Button → `POST /api/dev/auth/logout` → `window.location.href = "/"`.
+- [x] **Step 2: `LogoutButton.tsx`** (Island): kompakter Button (nicht full-width `SubmitButton`, da Header-Kontext) → `postAuth(ENDPOINTS.dev.auth.logout, {})` → `window.location.href = "/"` (in Erfolg UND Fehler, best-effort). Loading-State via `FormPhase`, `useCallback`, kein Effect.
 
-- [ ] **Step 3: `dashboard/index.astro`** (Overview, protected): `const account = await getDeveloperSession(Astro); if (!account) return Astro.redirect("/login");`. `DashboardLayout account={account} active="overview"` → Begrüßung („Welcome, {displayName||email}"), Account-Summary-Karte (E-Mail, Plan, verifiziert-Status, Mitglied seit `createdAt`), Platzhalter „Get started"-Hinweis (API access folgt).
+- [x] **Step 3: `dashboard/index.astro`** (Overview, protected): `getDeveloperSession(Astro)`; null → `redirect("/login")`. `DashboardLayout account active={DashboardTab.Overview}` → Begrüßung („Welcome back, {displayName||email}"), Account-Summary-Karte (E-Mail + verifiziert-Icon, Plan, Email status, Member since via `toLocaleDateString("en-US")`), Platzhalter „Get started"-Hinweis. `export const prerender = false`.
 
-- [ ] **Step 4: Gates + Commit** — Build/Lint/Doctor grün. `Feat: developer-portal dashboard shell + overview (MC-066)`.
+- [x] **Step 4: Gates + Commit** — Build ✓, astro check 0/0/0 (36 files) ✓, shared-typecheck ✓, `pnpm lint` (840 files) ✓, `doctor:diff` 0 issues ✓, Full-Doctor-Scan (252 files, 4 workspaces) 0 issues ✓. `Feat: developer-portal dashboard shell + overview (MC-066)`.
 
 ## Task 7: Lokale Verifikation (Browser)
 
@@ -193,8 +193,8 @@ Plan-Nr.: MC-066
 - [x] Task 2: Form-Island-Primitive + AuthCard
 - [x] Task 3: Login + Signup
 - [x] Task 4: Verify + Forgot + Reset
-- [ ] Task 5: GitHub-OAuth-UI-Flow
-- [ ] Task 6: Dashboard-Shell + Logout
+- [x] Task 5: GitHub-OAuth-UI-Flow
+- [x] Task 6: Dashboard-Shell + Logout
 - [ ] Task 7: Lokale Browser-Verifikation grün
 - [ ] Gates grün (developer-build, shared-typecheck, lint, doctor:diff)
 - [ ] Plan nach `done/`, gemergt
