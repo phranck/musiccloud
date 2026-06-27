@@ -1,0 +1,52 @@
+---
+/**
+ * AuthCard — the glassy, centred card shell shared by every developer-portal
+ * auth screen (login, signup, verify, forgot, reset).
+ *
+ * Layout: a max-width column centred in the viewport, the musiccloud "/
+ * developers" wordmark on top (matching the landing header), a title heading,
+ * an optional subtitle via the `subtitle` slot, the default slot for the form
+ * body, and a `footer` slot for secondary links (e.g. "No account? Sign up").
+ *
+ * All geometry is token-driven: the card uses `--radius-card` (the outermost
+ * radius) and a hairline `--color-border`; inner controls derive their own
+ * `--radius-button`. No ad-hoc radii or colours.
+ */
+interface Props {
+  /** Heading shown at the top of the card (smaller than the landing hero). */
+  title: string;
+}
+
+const { title } = Astro.props;
+const hasSubtitle = Astro.slots.has("subtitle");
+const hasFooter = Astro.slots.has("footer");
+---
+
+<main class="flex-1 flex items-center justify-center px-6 py-12">
+  <div class="w-full max-w-md">
+    <a href="/" class="flex items-center justify-center gap-2 text-logo font-medium mb-8">
+      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"
+        ><path
+          d="M9 21c0-3.3 2.7-6 6-6 1 0 2 .3 2.8.8A5 5 0 0 1 27 18.5 4.5 4.5 0 0 1 22.5 23H10a1 1 0 0 1-1-1z"
+          fill="var(--color-accent)"></path></svg
+      >
+      musiccloud <span class="text-fg-subtle font-normal">/ developers</span>
+    </a>
+
+    <section class="rounded-card border border-border bg-surface px-7 py-8">
+      <h1 class="text-card-title font-medium tracking-tight mb-1">{title}</h1>
+      {hasSubtitle && <p class="text-body text-fg-muted mb-6"><slot name="subtitle" /></p>}
+      <div class={hasSubtitle ? "" : "mt-6"}>
+        <slot />
+      </div>
+    </section>
+
+    {
+      hasFooter && (
+        <p class="text-body text-fg-muted text-center mt-6">
+          <slot name="footer" />
+        </p>
+      )
+    }
+  </div>
+</main>

@@ -1,0 +1,20 @@
+---
+/**
+ * GitHubButton — full-width "Continue with GitHub" link that starts the
+ * server-side OAuth flow at `/auth/github` (a later MC-066 task wires that
+ * endpoint). Styled as the secondary, neutral glassy surface with a hairline
+ * border (not brand-blue), so the email/password primary action stays dominant.
+ *
+ * The Phosphor `GithubLogoIcon` renders as a static SSR SVG; no client
+ * directive is needed because it carries no interactivity.
+ */
+import { GithubLogoIcon } from "@phosphor-icons/react";
+---
+
+<a
+  href="/auth/github"
+  class="inline-flex w-full items-center justify-center gap-2.5 rounded-button border border-border-strong bg-surface px-4 py-2.5 text-body font-medium text-fg transition-colors hover:border-fg-subtle"
+>
+  <GithubLogoIcon weight="fill" className="size-5" aria-hidden="true" />
+  Continue with GitHub
+</a>
