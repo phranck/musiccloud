@@ -76,6 +76,36 @@ function parseTrustProxy(raw: string | undefined): boolean | number | string {
   return raw;
 }
 
+/** Timeout for the upstream-app liveness probes (`/health/developer`, `/health/dashboard`). */
+const UPSTREAM_HEALTH_TIMEOUT_MS = 5000;
+
+/**
+ * Liveness check for an upstream MusicCloud app (developer portal / dashboard),
+ * powering the `GET /health/developer` and `GET /health/dashboard` probes that
+ * the public status page monitors.
+ *
+ * The status-page monitor runs on GitHub Actions (IPv4-only) and cannot reach
+ * the IPv6-only `developer.*` / `dashboard.*` Zerops subdomains directly, so it
+ * probes them THROUGH the backend, which shares the same dual-stack Zerops
+ * network. Any non-5xx response within the timeout means the app is serving
+ * (a 3xx login redirect still counts as up; `fetch` follows it).
+ *
+ * @param url - the upstream origin to probe (from `DEVELOPER_URL` / `DASHBOARD_URL`)
+ * @returns true when the upstream answers with a non-5xx status before the timeout
+ */
+async function isUpstreamReachable(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      redirect: "follow",
+      signal: AbortSignal.timeout(UPSTREAM_HEALTH_TIMEOUT_MS),
+    });
+    return res.status < 500;
+  } catch {
+    return false;
+  }
+}
+
 async function buildApp() {
   const app = Fastify({
     // Silence log noise under vitest — integration tests stay quiet.
@@ -448,6 +478,51 @@ async function buildApp() {
       } catch (err) {
         return reply.status(503).send({ status: "not_ready", error: (err as Error).message });
       }
+    },
+  );
+
+  // Developer-portal liveness (no auth). The status-page monitor (IPv4-only
+  // GitHub Actions) cannot reach the IPv6-only developer.musiccloud.io, so it
+  // probes it THROUGH the backend, which shares the dual-stack Zerops network.
+  // Powers the "Developer Site" service on the public status page.
+  app.get(
+    "/health/developer",
+    {
+      schema: {
+        tags: ["Health"],
+        summary: "Developer portal liveness",
+        description:
+          "Returns 200 when the developer portal (developer.musiccloud.io) is reachable from the backend, else 503.",
+      },
+    },
+    async (_request, reply) => {
+      const url = process.env.DEVELOPER_URL;
+      if (url && (await isUpstreamReachable(url))) {
+        return { status: "ok" };
+      }
+      return reply.status(503).send({ status: "unavailable" });
+    },
+  );
+
+  // Dashboard liveness (no auth). Same backend-proxy rationale as
+  // /health/developer above — reaches the IPv6-only dashboard.musiccloud.io on
+  // the monitor's behalf. Powers the "Dashboard" service on the status page.
+  app.get(
+    "/health/dashboard",
+    {
+      schema: {
+        tags: ["Health"],
+        summary: "Dashboard liveness",
+        description:
+          "Returns 200 when the admin dashboard (dashboard.musiccloud.io) is reachable from the backend, else 503.",
+      },
+    },
+    async (_request, reply) => {
+      const url = process.env.DASHBOARD_URL;
+      if (url && (await isUpstreamReachable(url))) {
+        return { status: "ok" };
+      }
+      return reply.status(503).send({ status: "unavailable" });
     },
   );
 
