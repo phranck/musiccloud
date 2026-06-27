@@ -140,7 +140,12 @@ export function HeroInput({
   return (
     <div
       className={cn(
-        "relative w-full transition-all duration-500",
+        // Only max-width changes between states. Name it explicitly instead of
+        // `transition-all` so no other property animates by accident. max-width
+        // is a layout property and cannot move to the GPU without distorting the
+        // field's contents (a transform: scaleX would squash the input + buttons);
+        // the reflow is confined to this flat pill, so it stays cheap.
+        "relative w-full transition-[max-width] duration-500",
         state === InputState.Success || compact
           ? "max-w-full sm:max-w-[480px]"
           : "max-w-full sm:max-w-[520px] md:max-w-[640px]",

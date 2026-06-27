@@ -18,7 +18,11 @@ export function CrossFade({
       <div
         aria-hidden="true"
         className={cn(
-          "col-start-1 row-start-1 transition-all duration-300",
+          // Animate opacity only (GPU), matching the content layer below. The
+          // `h-0` collapse snaps instantly but stays invisible: the real content
+          // shares this grid cell and holds the row height, so animating the
+          // skeleton's height would only add main-thread layout work for nothing.
+          "col-start-1 row-start-1 transition-opacity duration-300",
           contentReady ? "opacity-0 pointer-events-none h-0 overflow-hidden" : "opacity-100",
         )}
       >

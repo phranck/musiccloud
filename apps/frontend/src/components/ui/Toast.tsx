@@ -40,7 +40,11 @@ export function Toast({ message, variant, visible, onDismiss, duration = 3000 }:
         "bg-surface-elevated",
         "border",
         "flex items-center gap-3",
-        "transition-all duration-350",
+        // Only opacity + transform change between states; name them explicitly
+        // instead of `transition-all` so the animation stays on the GPU and a
+        // future layout-affecting class cannot silently start animating on the
+        // main thread.
+        "transition-[opacity,transform] duration-350",
         variantStyles[variant],
         visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none",
       )}
