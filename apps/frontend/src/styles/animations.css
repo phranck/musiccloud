@@ -21,8 +21,8 @@
    - slide-down-in:  PageHeader enter — the island is client:idle, the SSR
                      markup animates from parse.
    - slide-up-in:    DeferredFooter server island, same reasoning as slide-up.
-   - spin:           trivial endless compositor-only spinners (loading
-                     indicator, CD artwork) — no JS needed. */
+   - spin/lp-coast:  trivial compositor-only spinners (loading indicator,
+                     CD/LP artwork) and finite LP coast-down — no JS needed. */
 
 /* 1. Row entrance - gentle reveal with subtle scale */
 @keyframes slide-up {
@@ -50,6 +50,15 @@
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes lp-coast {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(520deg);
   }
 }
 
@@ -122,6 +131,43 @@
   z-index: 20;
   box-shadow: inset 4px 4px 12px
     rgba(0, 0, 0, calc(var(--cover-day-inner) * var(--g-dayness) + var(--cover-night-inner) * (1 - var(--g-dayness))));
+}
+
+.mc-share-media-stage {
+  position: absolute;
+  inset: 0;
+  transform: translate3d(0, 0, 0);
+  transition: transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+.mc-share-media-stage--cover-active,
+.mc-share-media-stage--turntable-active {
+  transform: translate3d(0, 0, 0);
+}
+
+.mc-share-media-stage--cover-exit {
+  transform: translate3d(-100%, 0, 0);
+}
+
+.mc-share-media-stage--turntable-enter {
+  transform: translate3d(100%, 0, 0);
+}
+
+html[data-share-media-view="turntable"] .mc-share-media-screen .mc-share-media-stage[data-media-stage="cover"] {
+  transform: translate3d(-100%, 0, 0);
+}
+
+html[data-share-media-view="turntable"] .mc-share-media-screen .mc-share-media-stage[data-media-stage="turntable"] {
+  transform: translate3d(0, 0, 0);
+}
+
+html[data-share-media-view="turntable"] .mc-share-media-screen .mc-tft-screen-tint,
+html[data-share-media-view="turntable"] .mc-share-media-screen .mc-tft-screen-matrix,
+html[data-share-media-view="turntable"] .mc-share-media-screen .mc-tft-screen-sheen,
+html[data-share-media-view="turntable"] .mc-share-media-screen .mc-tft-screen-shadow {
+  display: none;
 }
 
 /* Reusable VFD module. Canvas owns the fixed integer pixel matrix. */
@@ -290,9 +336,9 @@
 }
 
 /* Disambiguation row artwork swap (see SlideArtwork). On selection the cover
-   slides down out of its tile while the spinning disc drops in from the top, so
-   it reads like a CD slotting into a device. The disc is oversized + centred and
-   the tile's `overflow:hidden` clips the overhang. */
+   slides down out of its tile while the spinning LP drops in from the top, so
+   it reads like a record slotting into a device. The disc is centred and the
+   tile's `overflow:hidden` clips any overhang. */
 @keyframes mc-disc-drop-in {
   from {
     transform: translateY(-100%);
@@ -311,14 +357,16 @@
 }
 .mc-disc-drop-in {
   animation: mc-disc-drop-in 420ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  will-change: transform;
 }
 .mc-cover-drop-out {
   animation: mc-cover-drop-out 420ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  will-change: transform;
 }
 
 /* Exit (the requested data finished loading): the symmetric reverse of the
    drop-in — the spinning disc drops back DOWN out of the tile while the cover
-   slides in from the top, reading like the CD being ejected and the artwork
+   slides in from the top, reading like the LP being ejected and the artwork
    returning. The disc's overhang is clipped by the tile's `overflow:hidden`,
    and the cover's brief jump from its dropped-out position to the top happens
    entirely outside the clipped tile, so only the downward eject is visible. */
@@ -340,9 +388,11 @@
 }
 .mc-disc-drop-out {
   animation: mc-disc-drop-out 420ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  will-change: transform;
 }
 .mc-cover-drop-in {
   animation: mc-cover-drop-in 420ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  will-change: transform;
 }
 
 /* Respect user preference for reduced motion (WCAG 2.3) */

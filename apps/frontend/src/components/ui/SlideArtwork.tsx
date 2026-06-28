@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { RecessedCard } from "@/components/cards/RecessedCard";
-import { CDSpinArtwork } from "@/components/ui/CDSpinArtwork";
 import { CoverImage } from "@/components/ui/CoverImage";
 import { SlideArtworkKind, type SlideArtworkKind as SlideArtworkKindType } from "@/components/ui/SlideArtworkTypes";
+import { VinylRecord } from "@/components/vinyl/VinylRecord";
+import { VinylSpinState } from "@/components/vinyl/VinylRecord.types";
 import { cn } from "@/lib/utils";
 
 interface SlideArtworkProps {
-  /** Whether the spinning CD should slide in (only this row gets the CD). */
+  /** Whether the spinning LP should slide in (only this row gets the LP). */
   active: boolean;
   artworkUrl?: string;
   /** "round" for artists, "square" for tracks/albums. */
@@ -34,13 +35,13 @@ interface SlideArtworkProps {
  * image in ArtistInfoCard.
  *
  * Drives a two-phase loading swap around `active`:
- * - **Enter** (`active` → true): a spinning CD slides in from above
+ * - **Enter** (`active` → true): a spinning LP slides in from above
  *   (`mc-disc-drop-in`) while the cover slides down out of the tile
- *   (`mc-cover-drop-out`), reading as a CD slotting into a device.
+ *   (`mc-cover-drop-out`), reading as a record slotting into a device.
  * - **Exit** (`active` → false, i.e. the requested data has loaded): the disc
  *   slides back DOWN out of the tile (`mc-disc-drop-out`) while the cover
- *   slides in from above (`mc-cover-drop-in`) — the symmetric reverse, like
- *   the CD being ejected and the artwork returning. The disc stays mounted
+ *   slides in from above (`mc-cover-drop-in`) - the symmetric reverse, like
+ *   the LP being ejected and the artwork returning. The disc stays mounted
  *   through the exit (`discMounted`) and only unmounts once its drop-out
  *   animation ends, so the reverse glide is never skipped.
  *
@@ -94,16 +95,16 @@ export function SlideArtwork({
       style={{ "--neu-light": "hsl(0 0% 100% / 0.5)", "--neu-shadow": "hsl(0 0% 0% / 0.1)" } as React.CSSProperties}
     >
       <RecessedCard.Body className="contents">
-        {/* Spinning CD: mounted for the selected row AND through its exit glide.
+        {/* Spinning LP: mounted for the selected row AND through its exit glide.
             On enter it drops in from the top (mc-disc-drop-in); on exit it drops
             back down out of the tile (mc-disc-drop-out) and unmounts once that
-            animation ends. Sized to the tile so the round disc stays fully
-            visible — never clipped — and settles centred. Sits below the rim
+            animation ends. Sized to the tile so the round disc settles centred
+            with its cover art as the label. Sits below the rim
             shadow only, so its face is never dimmed. */}
         {discMounted && (
           <div
             className={cn(
-              "absolute inset-0 z-0 flex items-center justify-center",
+              "absolute inset-0 z-0 flex transform-gpu items-center justify-center will-change-transform",
               active ? "mc-disc-drop-in" : "mc-disc-drop-out",
             )}
             aria-hidden="true"
@@ -113,13 +114,17 @@ export function SlideArtwork({
               if (event.target === event.currentTarget && !active) setDiscMounted(false);
             }}
           >
-            <CDSpinArtwork className="w-full h-full" />
+            <VinylRecord
+              className="h-full w-full"
+              labelArtworkUrl={artworkUrl}
+              spinState={VinylSpinState.Playing}
+            />
           </div>
         )}
 
         {/* Cover artwork -- drops out downward on enter, slides back in from the
             top on exit (see coverSlideClass). */}
-        <div className={cn("relative z-0 w-full h-full bg-surface", coverSlideClass)}>
+        <div className={cn("relative z-0 h-full w-full transform-gpu bg-surface will-change-transform", coverSlideClass)}>
           <CoverImage artworkUrl={artworkUrl} kind={kind} imgDim={imgDim} iconSize={20} decoding={decoding} />
         </div>
 

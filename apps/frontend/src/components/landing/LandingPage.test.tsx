@@ -151,6 +151,21 @@ describe("LandingPage search-field return flip wiring", () => {
 
     await submitQuery("https://open.spotify.com/track/x");
 
+    const buttonOut = await waitFor(() => {
+      const found = document.querySelector(".mc-hero-btn-out");
+      if (!found) throw new Error("hero slot phase element .mc-hero-btn-out not present yet");
+      return found;
+    });
+    act(() => {
+      buttonOut.dispatchEvent(new Event("animationend", { bubbles: true }));
+    });
+
+    await waitFor(() => {
+      const heroVinyl = document.querySelector(".mc-hero-disc-in [data-spin-state='playing']");
+      expect(heroVinyl).not.toBeNull();
+      expect(heroVinyl).toHaveTextContent("music cloud");
+    });
+
     // The result is held behind the hero's disc-exit choreography; drive it to
     // completion so the share view can replace the hero field.
     await completeHeroDiscExit();

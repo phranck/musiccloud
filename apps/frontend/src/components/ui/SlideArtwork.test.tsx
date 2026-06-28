@@ -4,9 +4,9 @@ import { SlideArtwork } from "@/components/ui/SlideArtwork";
 
 /**
  * Two-phase loading swap of {@link SlideArtwork} (artist popular/similar rows,
- * disambiguation, genre search). On ENTER the spinning CD drops in while the
+ * disambiguation, genre search). On ENTER the spinning LP drops in while the
  * cover drops out; on EXIT — when the requested data has loaded and `active`
- * flips back off — the CD drops back out while the cover slides in, and the
+ * flips back off — the LP drops back out while the cover slides in, and the
  * disc is held in the DOM until its exit animation ends so the reverse glide
  * is never skipped.
  *
@@ -17,8 +17,11 @@ import { SlideArtwork } from "@/components/ui/SlideArtwork";
 
 /** The disc container, mounted only while it is sliding in or out. */
 const discEl = (c: HTMLElement) => c.querySelector(".mc-disc-drop-in, .mc-disc-drop-out");
-/** The cover layer (the `<img>`'s wrapper). */
-const coverEl = (c: HTMLElement) => c.querySelector("img")?.parentElement as HTMLElement;
+/** The cover layer that moves independently from the LP label image. */
+const coverEl = (c: HTMLElement) =>
+  Array.from(c.querySelectorAll("div")).find(
+    (el) => el.className.includes("bg-surface") && el.className.includes("will-change-transform"),
+  ) as HTMLElement;
 
 describe("SlideArtwork loading swap", () => {
   it("renders no disc and a still cover while inactive", () => {
@@ -32,6 +35,7 @@ describe("SlideArtwork loading swap", () => {
     rerender(<SlideArtwork active={true} artworkUrl="/a.jpg" sizeClass="w-12 h-12" />);
     expect(discEl(container)?.className).toMatch(/mc-disc-drop-in/);
     expect(coverEl(container).className).toMatch(/mc-cover-drop-out/);
+    expect(container.querySelector("[data-spin-state='playing'] img")).toHaveAttribute("src", "/a.jpg");
   });
 
   it("ejects the disc and slides the cover back in on exit, then unmounts the disc after its animation ends", () => {
