@@ -4418,13 +4418,21 @@ function applyGroupedCorners(container, itemSelector, frameSelector, frameInset)
   const cStyle = getComputedStyle(container);
   const contentRight = container.getBoundingClientRect().right - parseFloat(cStyle.paddingRight) - parseFloat(cStyle.borderRightWidth);
   const isRightEdge = (el) => el.getBoundingClientRect().right >= contentRight - 1;
+  // Bottom content edge: a card's minHeight can make the well taller than the content
+  // (a single row with empty space below). The grid shrinks to the content vertically,
+  // so the last row takes the well's bottom corners only when it reaches the well's
+  // bottom edge. The top edge needs no test — the content sits flush against the top.
+  const well = container.closest(".recessed-card") ?? container;
+  const wStyle = getComputedStyle(well);
+  const wellBottom = well.getBoundingClientRect().bottom - parseFloat(wStyle.paddingBottom) - parseFloat(wStyle.borderBottomWidth);
+  const reachesBottom = container.getBoundingClientRect().bottom >= wellBottom - 1;
   for (const it of items) {
     const top = Math.round(it.offsetTop);
     const row = rows.get(top);
     const tl = top === firstTop && it === row[0];
     const tr = top === firstTop && isRightEdge(it);
-    const bl = top === lastTop && it === row[0];
-    const br = top === lastTop && isRightEdge(it);
+    const bl = reachesBottom && top === lastTop && it === row[0];
+    const br = reachesBottom && top === lastTop && isRightEdge(it);
     it.style.borderTopLeftRadius = tl ? FULL : INNER;
     it.style.borderTopRightRadius = tr ? FULL : INNER;
     it.style.borderBottomLeftRadius = bl ? FULL : INNER;

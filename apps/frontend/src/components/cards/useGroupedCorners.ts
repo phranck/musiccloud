@@ -65,6 +65,18 @@ function applyGroupedCorners(
     parseFloat(containerStyle.borderRightWidth);
   const isRightEdge = (el: HTMLElement): boolean => el.getBoundingClientRect().right >= contentRight - 1;
 
+  // Does the content reach the well's BOTTOM edge? A `minHeight` on the card can make
+  // the surrounding RecessedCard taller than the content (e.g. a single row of covers
+  // with empty space below). The grid container shrinks to the content vertically, so
+  // — unlike the right edge — it is NOT the reference here: the last row may take the
+  // well's bottom corners only when it actually reaches the well's bottom content edge.
+  // The top edge needs no test: the content sits flush against the well's top.
+  const well = container.closest(".recessed-gradient-border") ?? container;
+  const wellStyle = getComputedStyle(well);
+  const wellBottom =
+    well.getBoundingClientRect().bottom - parseFloat(wellStyle.paddingBottom) - parseFloat(wellStyle.borderBottomWidth);
+  const reachesBottom = container.getBoundingClientRect().bottom >= wellBottom - 1;
+
   for (const item of items) {
     const top = itemTop.get(item)!;
     const row = rows.get(top) ?? [item];
@@ -72,8 +84,8 @@ function applyGroupedCorners(
     // well (genre columns): the rows then never reach the well's top corners.
     const tl = promoteTop && top === firstTop && item === row[0];
     const tr = promoteTop && top === firstTop && isRightEdge(item);
-    const bl = top === lastTop && item === row[0];
-    const br = top === lastTop && isRightEdge(item);
+    const bl = reachesBottom && top === lastTop && item === row[0];
+    const br = reachesBottom && top === lastTop && isRightEdge(item);
     item.style.borderTopLeftRadius = tl ? FULL : INNER;
     item.style.borderTopRightRadius = tr ? FULL : INNER;
     item.style.borderBottomLeftRadius = bl ? FULL : INNER;
