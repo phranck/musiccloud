@@ -32,7 +32,12 @@ describe("VinylRecord", () => {
 
     expect(record).toHaveAttribute("data-spin-state", VinylSpinState.Playing);
     expect(record.className).toContain("rounded-full");
-    expect(container.querySelector("img")).toHaveAttribute("src", "/covers/kind-of-blue.jpg");
+    // The groove bitmap is also an <img> now, so target the cover label directly
+    // instead of the first <img> in the tree.
+    expect(container.querySelector("[data-vinyl-label-artwork='true']")).toHaveAttribute(
+      "src",
+      "/covers/kind-of-blue.jpg",
+    );
     expect(screen.getByText("Kind of Blue")).toBeInTheDocument();
     expect(screen.getByText("Miles Davis")).toBeInTheDocument();
     expect(screen.getByText("1959")).toBeInTheDocument();
@@ -60,9 +65,11 @@ describe("VinylRecord", () => {
     );
 
     expect(container.querySelector("[data-vinyl-ground-shadow='true']")).toBeInTheDocument();
-    expect(container.querySelector("[data-vinyl-surface='true']")?.getAttribute("style")).toContain(
-      "repeating-radial-gradient",
-    );
+    // The spiral groove ships as a rasterised SVG bitmap behind an <img>, so
+    // spinning the rotor is a pure GPU transform, not a per-frame vector re-raster.
+    const grooves = container.querySelector("[data-vinyl-grooves='true']");
+    expect(grooves?.tagName.toLowerCase()).toBe("img");
+    expect(decodeURIComponent(grooves?.getAttribute("src") ?? "")).toContain("<path");
     expect(container.querySelector("[data-vinyl-reflection='true']")?.getAttribute("style")).toContain(
       "conic-gradient(from 292deg",
     );
@@ -194,13 +201,14 @@ describe("VinylRecord", () => {
     expect(container.querySelector("[data-vinyl-label-subtitle='true']")).toHaveAttribute("text-anchor", "middle");
     expect(container.querySelector("[data-vinyl-label-legal-path='true']")).toHaveAttribute(
       "d",
-      "M 24.1 88 A 46 46 0 0 0 75.9 88",
+      "M 22 89 A 48 48 0 0 0 78 89",
     );
   });
 
   it("starts real LP rotation with WAAPI and coasts from the current angle", () => {
     const cancel = vi.fn();
-    const animate = vi.fn(() => ({ cancel })) as unknown as typeof HTMLElement.prototype.animate;
+    const commitStyles = vi.fn();
+    const animate = vi.fn(() => ({ cancel, commitStyles })) as unknown as typeof HTMLElement.prototype.animate;
     HTMLElement.prototype.animate = animate;
 
     const { container, rerender } = render(
@@ -222,5 +230,25 @@ describe("VinylRecord", () => {
       [{ transform: "rotate(90deg) translateZ(0.01px)" }, { transform: "rotate(290deg) translateZ(0.01px)" }],
       { duration: 2000, easing: "cubic-bezier(0.1, 0.2, 0.3, 1)", fill: "forwards" },
     );
+  });
+
+  it("commits the live transform before cancelling on handoff (prevents the Firefox compositor flash)", () => {
+    const cancel = vi.fn();
+    const commitStyles = vi.fn();
+    const animate = vi.fn(() => ({ cancel, commitStyles })) as unknown as typeof HTMLElement.prototype.animate;
+    HTMLElement.prototype.animate = animate;
+
+    const { rerender } = render(
+      <VinylRecord className="h-24 w-24" labelTitle="Kind of Blue" spinState={VinylSpinState.Playing} />,
+    );
+
+    // On the play -> coast handoff the running animation must flush its live value
+    // into the inline style (commitStyles) BEFORE cancel(); otherwise Firefox
+    // paints the base transform for a frame and the angle visibly jumps.
+    rerender(<VinylRecord className="h-24 w-24" labelTitle="Kind of Blue" spinState={VinylSpinState.Coasting} />);
+
+    expect(commitStyles).toHaveBeenCalled();
+    expect(cancel).toHaveBeenCalled();
+    expect(commitStyles.mock.invocationCallOrder[0]).toBeLessThan(cancel.mock.invocationCallOrder[0]);
   });
 });

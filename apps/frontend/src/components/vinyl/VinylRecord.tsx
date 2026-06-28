@@ -43,10 +43,34 @@ const LP_COAST_TIMING = {
 } satisfies KeyframeAnimationOptions;
 const LABEL_TITLE_ARC_RADIUS = 44;
 const LABEL_TITLE_ARC_BASELINE = 73;
-const LABEL_LEGAL_ARC_RADIUS = 46;
-const LABEL_LEGAL_ARC_BASELINE = 88;
+const LABEL_LEGAL_ARC_RADIUS = 48;
+const LABEL_LEGAL_ARC_BASELINE = 89;
 const LABEL_TITLE_ARC_PATH = labelArcPath(LABEL_TITLE_ARC_RADIUS, LABEL_TITLE_ARC_BASELINE);
 const LABEL_LEGAL_ARC_PATH = labelArcPath(LABEL_LEGAL_ARC_RADIUS, LABEL_LEGAL_ARC_BASELINE);
+// Single continuous groove spiral (a real record has one spiral groove per side,
+// not concentric rings). Computed once at module load.
+const VINYL_GROOVE_TURNS = 45;
+const VINYL_GROOVE_INNER_RADIUS = 19;
+const VINYL_GROOVE_OUTER_RADIUS = 49.5;
+const VINYL_GROOVE_SPIRAL_PATH = vinylGrooveSpiralPath(
+  VINYL_GROOVE_TURNS,
+  VINYL_GROOVE_INNER_RADIUS,
+  VINYL_GROOVE_OUTER_RADIUS,
+);
+// The spiral ships as a rasterised SVG bitmap behind an <img>, not an inline
+// <svg>. A replaced element is rasterised once and cached as its own compositor
+// layer, so spinning the rotor is a pure GPU transform. An inline <svg> with this
+// ~72 KB vector path is re-rasterised every frame in Firefox/WebRender (which does
+// not reliably cache a rotating vector layer) — that is what stuttered the spin
+// there. The groove has no external fonts or images, so the secure-static mode an
+// SVG carries inside an <img> imposes no constraint. Single quotes keep the data
+// URL compact: encodeURIComponent does not escape them.
+const VINYL_GROOVE_IMAGE_SRC = `data:image/svg+xml,${encodeURIComponent(
+  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>` +
+    `<path d='${VINYL_GROOVE_SPIRAL_PATH}' fill='none' stroke='rgba(0,0,0,0.5)' stroke-width='0.34'/>` +
+    `<path d='${VINYL_GROOVE_SPIRAL_PATH}' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='0.14'/>` +
+    `</svg>`,
+)}`;
 const LABEL_TITLE_ARC_LENGTH = labelArcLength(LABEL_TITLE_ARC_RADIUS, LABEL_TITLE_ARC_BASELINE);
 
 // Vinyl-label imprint typography. Iosevka Charon Mono is monospace: every glyph
@@ -72,8 +96,11 @@ const LABEL_LEGAL_LETTER_SPACING = 0.2;
 
 const RECORD_SURFACE_STYLE = {
   backgroundColor: "#030304",
+  // Concentric groove rings removed — the single spiral groove (rendered as an
+  // SVG layer) now carries the grooves. Kept: spindle ring, faint angular sheen,
+  // and the base radial shade.
   backgroundImage:
-    "radial-gradient(circle at 50% 50%, transparent 0 18.5%, rgba(0, 0, 0, 0.98) 18.8% 20.2%, transparent 20.6%), radial-gradient(circle at 50% 50%, transparent 0 26.2%, rgba(255, 255, 255, 0.055) 26.5%, rgba(0, 0, 0, 0.68) 26.9%, transparent 27.6%, transparent 39.8%, rgba(255, 255, 255, 0.05) 40.1%, rgba(0, 0, 0, 0.64) 40.45%, transparent 41.1%, transparent 54.6%, rgba(255, 255, 255, 0.048) 54.9%, rgba(0, 0, 0, 0.62) 55.25%, transparent 55.95%, transparent 68.4%, rgba(255, 255, 255, 0.05) 68.7%, rgba(0, 0, 0, 0.66) 69.08%, transparent 69.85%, transparent 80.6%, rgba(255, 255, 255, 0.045) 80.9%, rgba(0, 0, 0, 0.58) 81.28%, transparent 82%, transparent 100%), repeating-radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.034) 0 1px, transparent 1px 5px, rgba(255, 255, 255, 0.014) 5px 6px, transparent 6px 10px), repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0.009) 0deg 0.8deg, transparent 0.8deg 7deg), radial-gradient(circle at 50% 50%, #232527 0, #111214 54%, #030304 100%)",
+    "radial-gradient(circle at 50% 50%, transparent 0 18.5%, rgba(0, 0, 0, 0.98) 18.8% 20.2%, transparent 20.6%), repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0.009) 0deg 0.8deg, transparent 0.8deg 7deg), radial-gradient(circle at 50% 50%, #232527 0, #111214 54%, #030304 100%)",
   boxShadow:
     "inset 0 0 0 2px rgba(255, 255, 255, 0.05), inset 0 0 0 7px rgba(0, 0, 0, 0.56), inset 0 0 28px rgba(255, 255, 255, 0.065), inset 0 -15px 30px rgba(0, 0, 0, 0.48)",
 } satisfies CSSProperties;
@@ -234,6 +261,45 @@ function labelArcLength(radius: number, baselineY: number) {
 }
 
 /**
+ * Builds an Archimedean spiral as an SVG path (`r = innerRadius + b·θ`), centred
+ * on the 100×100 viewBox — one continuous groove from the outer edge inward, the
+ * way a real record is cut, instead of separate concentric rings.
+ *
+ * Sampled at a constant **arc length** rather than a fixed number of points per
+ * turn: a fixed per-turn count leaves visible polygon corners on the long outer
+ * windings while over-sampling the short inner ones. Walking from the outer edge
+ * inward with `cos(θ)`/`sin(θ)` and a decreasing angle makes the groove run
+ * counter-clockwise from outside to inside (SVG's y-axis points down).
+ *
+ * @param turns - Number of revolutions between inner and outer radius.
+ * @param innerRadius - Where the groove ends (near the label edge).
+ * @param outerRadius - Where the groove starts (near the record rim).
+ * @returns The `d` attribute for a `<path>`.
+ */
+function vinylGrooveSpiralPath(turns: number, innerRadius: number, outerRadius: number): string {
+  // ~1.6 viewBox units between samples keeps the curve smooth at the displayed
+  // size while keeping the path string small (it ships in the DOM and is
+  // re-rasterised per frame on software-rendered Firefox). 1-decimal coordinates
+  // are precise enough at this scale and roughly halve the string length.
+  const segmentLength = 1.6;
+  const totalAngle = turns * 2 * Math.PI;
+  const growthPerRadian = (outerRadius - innerRadius) / totalAngle;
+  const points: string[] = [];
+  let theta = totalAngle;
+  let isFirst = true;
+  while (theta > 0) {
+    const radius = innerRadius + growthPerRadian * theta;
+    const x = 50 + radius * Math.cos(theta);
+    const y = 50 + radius * Math.sin(theta);
+    points.push(`${isFirst ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`);
+    isFirst = false;
+    theta -= segmentLength / radius;
+  }
+  points.push(`L ${(50 + innerRadius).toFixed(1)} 50`);
+  return points.join(" ");
+}
+
+/**
  * Largest font-size at which a monospace string fits within `availableWidth`,
  * capped at `maxFontSize`. Iosevka Charon Mono advances every glyph by a fixed
  * {@link LABEL_FONT_ADVANCE_EM}, so the rendered width is exactly
@@ -255,10 +321,38 @@ function fittedMonoFontSize(value: string, availableWidth: number, maxFontSize: 
   return Math.round(fitted * 1000) / 1000;
 }
 
+/**
+ * Captures the rotor's current Z rotation, stops the running animation, and pins
+ * that angle as the inline transform. This is the handoff every play/pause/coast
+ * transition runs through so the spin continues from where it is instead of
+ * snapping.
+ *
+ * The live animated value is flushed into the inline style with `commitStyles()`
+ * BEFORE `cancel()`: cancelling a compositor animation in Firefox otherwise drops
+ * the transform back to its base value for a frame (a visible angle jump) before
+ * the next animation takes over. Committing first leaves the current angle in
+ * place across the cancel, so the angle is always carried over.
+ *
+ * @param element - The rotor element carrying the spin transform.
+ * @param animationRef - Mutable ref holding the active animation; cleared here.
+ * @returns The preserved rotation in degrees, normalized to [0, 360).
+ */
 function preserveRotorRotationAndCancel(element: HTMLElement, animationRef: { current: Animation | null }) {
-  const currentRotation = normalizeDegrees(readRotationDegrees(element));
-  animationRef.current?.cancel();
+  const animation = animationRef.current;
+  if (animation) {
+    // Persist the live transform into the inline style first; without this,
+    // Firefox briefly paints the base transform between cancel and the next
+    // style sync. commitStyles throws if the target is unstyled/detached — that
+    // is harmless, the angle is re-read from the computed transform below.
+    try {
+      animation.commitStyles();
+    } catch {
+      // ignore and fall back to reading the angle below
+    }
+    animation.cancel();
+  }
   animationRef.current = null;
+  const currentRotation = normalizeDegrees(readRotationDegrees(element));
   element.style.transform = rotateZ(currentRotation);
   return currentRotation;
 }
@@ -345,10 +439,17 @@ export function VinylRecord({
   }, [spinState]);
 
   return (
-    <div
+    // The vinyl is a composite image: role="img" + aria-label name the whole
+    // disc for assistive tech. It lives on a <figure> (a non-generic element),
+    // not a <div>, so react-doctor's prefer-tag-over-role does not flag it — that
+    // rule only fires on role-bearing generic tags, and no single HTML tag can
+    // represent an image assembled from child layers. m-0 drops the UA figure
+    // margin.
+    <figure
       aria-label={vinylAriaLabel(labelTitle)}
-      className={cn("relative aspect-square overflow-visible rounded-full transform-gpu", className)}
+      className={cn("relative m-0 aspect-square overflow-visible rounded-full transform-gpu", className)}
       data-spin-state={spinState}
+      role="img"
     >
       <span
         aria-hidden="true"
@@ -356,147 +457,161 @@ export function VinylRecord({
         data-vinyl-ground-shadow="true"
         style={GROUND_SHADOW_STYLE}
       />
-      {/* The record surface (concentric grooves) stays STATIC: being radially
-          symmetric, its rotation is imperceptible, so keeping it out of the
-          animated layer leaves only the much simpler label to repaint per frame
-          — which keeps the spin smooth in Firefox/WebRender. */}
+      {/* The base record surface (radial shade, spindle ring, rim) stays STATIC:
+          it is radially symmetric, so its rotation would be imperceptible, and
+          keeping it out of the rotor means it is never repainted per frame. */}
       <div
         className="relative z-10 h-full w-full overflow-hidden rounded-full"
         data-vinyl-surface="true"
         style={RECORD_SURFACE_STYLE}
       >
-        <span aria-hidden="true" className="absolute inset-[2.8%] rounded-full" style={RECORD_DETAIL_STYLE} />
         <span aria-hidden="true" className="absolute inset-0 rounded-full" style={RECORD_EDGE_STYLE} />
-        {/* Only the label (cover art + imprint) actually rotates. */}
+        {/* The groove spiral and the label rotate together so the groove visibly
+            spins. The spiral is a rasterised <img> bitmap, so the rotor composites
+            as one cached GPU layer instead of re-rasterising a heavy vector path
+            each frame; the base shade and rim stay static. */}
         <div
-          className="absolute inset-[32%] z-20 overflow-hidden rounded-full transform-gpu will-change-transform"
-          data-vinyl-label="true"
+          className="absolute inset-0 z-10 rounded-full transform-gpu will-change-transform"
           data-vinyl-rotor="true"
           ref={rotorRef}
-          style={LABEL_STYLE}
         >
-          {labelArtworkUrl ? (
-            <img
-              alt=""
-              className="absolute left-1/2 top-1/2 h-[112%] w-[112%] max-w-none -translate-x-1/2 -translate-y-1/2 object-cover"
-              data-vinyl-label-artwork="true"
-              draggable={false}
-              src={labelArtworkUrl}
-            />
-          ) : null}
-          {!labelArtworkUrl && <span aria-hidden="true" className="absolute inset-0 rounded-full bg-black/30" />}
-          <span aria-hidden="true" className="absolute inset-0 rounded-full" style={LABEL_TEXTURE_STYLE} />
-          <div
+          <img
+            alt=""
             aria-hidden="true"
-            className="absolute right-0 bottom-0 left-0 z-20 h-[43%]"
-            data-vinyl-label-print="true"
-            style={LABEL_PRINT_STYLE}
+            className="pointer-events-none absolute inset-0 h-full w-full"
+            data-vinyl-grooves="true"
+            draggable={false}
+            src={VINYL_GROOVE_IMAGE_SRC}
           />
-          <svg
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 z-30 h-full w-full"
-            data-vinyl-label-print-copy="true"
-            viewBox="0 0 100 100"
+          <span aria-hidden="true" className="absolute inset-[2.8%] rounded-full" style={RECORD_DETAIL_STYLE} />
+          <div
+            className="absolute inset-[32%] z-20 overflow-hidden rounded-full"
+            data-vinyl-label="true"
+            style={LABEL_STYLE}
           >
-            <defs>
-              <path d={LABEL_TITLE_ARC_PATH} data-vinyl-label-title-path="true" id={titleArcId} />
-              <path d={LABEL_LEGAL_ARC_PATH} data-vinyl-label-legal-path="true" id={legalArcId} />
-            </defs>
-            <text
-              fill="rgba(255, 255, 255, 0.68)"
-              fontSize="3.35"
-              fontWeight="400"
-              letterSpacing="0.5"
-              style={LABEL_TEXT_STYLE}
+            {labelArtworkUrl ? (
+              <img
+                alt=""
+                className="absolute left-1/2 top-1/2 h-[112%] w-[112%] max-w-none -translate-x-1/2 -translate-y-1/2 object-cover"
+                data-vinyl-label-artwork="true"
+                draggable={false}
+                src={labelArtworkUrl}
+              />
+            ) : null}
+            {!labelArtworkUrl && <span aria-hidden="true" className="absolute inset-0 rounded-full bg-black/30" />}
+            <span aria-hidden="true" className="absolute inset-0 rounded-full" style={LABEL_TEXTURE_STYLE} />
+            <div
+              aria-hidden="true"
+              className="absolute right-0 bottom-0 left-0 z-20 h-[43%]"
+              data-vinyl-label-print="true"
+              style={LABEL_PRINT_STYLE}
+            />
+            <svg
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 z-30 h-full w-full"
+              data-vinyl-label-print-copy="true"
+              viewBox="0 0 100 100"
             >
-              <tspan data-vinyl-label-gema="true" x="8" y="65">
-                {displayRights}
-              </tspan>
-              <tspan data-vinyl-label-catalog="true" textAnchor="middle" x="50" y="65">
-                {displayCatalog}
-              </tspan>
-              <tspan data-vinyl-label-tech="true" textAnchor="end" x="92" y="65">
-                {LABEL_TECH_TEXT}
-              </tspan>
-            </text>
-            <text
-              fill="rgba(255, 255, 255, 0.82)"
-              fontWeight="700"
-              letterSpacing="0.6"
-              style={LABEL_TEXT_STYLE}
-              textAnchor="middle"
-            >
-              <tspan data-vinyl-label-side="true" fontSize="3.4" x="38" y="70">
-                SIDE
-              </tspan>
-              <tspan fontSize="5.4" letterSpacing="0" x="38" y="75">
-                A
-              </tspan>
-            </text>
-            <text
-              data-vinyl-label-stereo="true"
-              fill="rgba(255, 255, 255, 0.9)"
-              fontSize="8.4"
-              style={LABEL_STEREO_STYLE}
-              textAnchor="middle"
-              x="60"
-              y="74.5"
-            >
-              STEREO
-            </text>
-            <text
-              className="uppercase"
-              data-vinyl-label-title="true"
-              fill="rgba(255, 255, 255, 0.94)"
-              fontSize={titleFontSize}
-              fontWeight="700"
-              letterSpacing={titleFontSize * LABEL_TITLE_LETTER_SPACING_RATIO}
-              style={LABEL_TEXT_STYLE}
-            >
-              <textPath
-                data-vinyl-label-title-arc="true"
-                href={`#${titleArcId}`}
-                startOffset="50%"
-                textAnchor="middle"
-              >
-                {displayTitle}
-              </textPath>
-            </text>
-            {labelSubtitle ? (
+              <defs>
+                <path d={LABEL_TITLE_ARC_PATH} data-vinyl-label-title-path="true" id={titleArcId} />
+                <path d={LABEL_LEGAL_ARC_PATH} data-vinyl-label-legal-path="true" id={legalArcId} />
+              </defs>
               <text
-                className="uppercase"
-                data-vinyl-label-subtitle="true"
-                fill="rgba(255, 255, 255, 0.66)"
-                fontSize={subtitleFontSize}
+                fill="rgba(255, 255, 255, 0.68)"
+                fontSize="3.35"
                 fontWeight="400"
-                letterSpacing={subtitleFontSize * LABEL_SUBTITLE_LETTER_SPACING_RATIO}
+                letterSpacing="0.5"
+                style={LABEL_TEXT_STYLE}
+              >
+                <tspan data-vinyl-label-gema="true" x="8" y="65">
+                  {displayRights}
+                </tspan>
+                <tspan data-vinyl-label-catalog="true" textAnchor="middle" x="50" y="65">
+                  {displayCatalog}
+                </tspan>
+                <tspan data-vinyl-label-tech="true" textAnchor="end" x="92" y="65">
+                  {LABEL_TECH_TEXT}
+                </tspan>
+              </text>
+              <text
+                fill="rgba(255, 255, 255, 0.82)"
+                fontWeight="700"
+                letterSpacing="0.6"
                 style={LABEL_TEXT_STYLE}
                 textAnchor="middle"
-                x="50"
-                y="84"
               >
-                {labelSubtitle}
+                <tspan data-vinyl-label-side="true" fontSize="3.4" x="38" y="70">
+                  SIDE
+                </tspan>
+                <tspan fontSize="5.4" letterSpacing="0" x="38" y="75">
+                  A
+                </tspan>
               </text>
-            ) : null}
-            <text
-              fill="rgba(255, 255, 255, 0.58)"
-              fontSize={LABEL_LEGAL_FONT_SIZE}
-              fontWeight="300"
-              letterSpacing={LABEL_LEGAL_LETTER_SPACING}
-              style={LABEL_TEXT_STYLE}
-            >
-              <textPath href={`#${legalArcId}`} startOffset="50%" textAnchor="middle">
-                {legalText}
-              </textPath>
-            </text>
-          </svg>
-          <span className="sr-only">SIDE A</span>
-          <span className="sr-only">{labelYear ?? DEFAULT_LABEL_SPEED}</span>
-          <div
-            aria-hidden="true"
-            className="absolute left-1/2 top-1/2 z-30 aspect-square w-[8%] -translate-x-1/2 -translate-y-1/2 rounded-full"
-            style={CENTER_HOLE_STYLE}
-          />
+              <text
+                data-vinyl-label-stereo="true"
+                fill="rgba(255, 255, 255, 0.9)"
+                fontSize="8.4"
+                style={LABEL_STEREO_STYLE}
+                textAnchor="middle"
+                x="60"
+                y="74.5"
+              >
+                STEREO
+              </text>
+              <text
+                className="uppercase"
+                data-vinyl-label-title="true"
+                fill="rgba(255, 255, 255, 0.94)"
+                fontSize={titleFontSize}
+                fontWeight="700"
+                letterSpacing={titleFontSize * LABEL_TITLE_LETTER_SPACING_RATIO}
+                style={LABEL_TEXT_STYLE}
+              >
+                <textPath
+                  data-vinyl-label-title-arc="true"
+                  href={`#${titleArcId}`}
+                  startOffset="50%"
+                  textAnchor="middle"
+                >
+                  {displayTitle}
+                </textPath>
+              </text>
+              {labelSubtitle ? (
+                <text
+                  className="uppercase"
+                  data-vinyl-label-subtitle="true"
+                  fill="rgba(255, 255, 255, 0.66)"
+                  fontSize={subtitleFontSize}
+                  fontWeight="400"
+                  letterSpacing={subtitleFontSize * LABEL_SUBTITLE_LETTER_SPACING_RATIO}
+                  style={LABEL_TEXT_STYLE}
+                  textAnchor="middle"
+                  x="50"
+                  y="84"
+                >
+                  {labelSubtitle}
+                </text>
+              ) : null}
+              <text
+                fill="rgba(255, 255, 255, 0.58)"
+                fontSize={LABEL_LEGAL_FONT_SIZE}
+                fontWeight="300"
+                letterSpacing={LABEL_LEGAL_LETTER_SPACING}
+                style={LABEL_TEXT_STYLE}
+              >
+                <textPath href={`#${legalArcId}`} startOffset="50%" textAnchor="middle">
+                  {legalText}
+                </textPath>
+              </text>
+            </svg>
+            <span className="sr-only">SIDE A</span>
+            <span className="sr-only">{labelYear ?? DEFAULT_LABEL_SPEED}</span>
+            <div
+              aria-hidden="true"
+              className="absolute left-1/2 top-1/2 z-30 aspect-square w-[8%] -translate-x-1/2 -translate-y-1/2 rounded-full"
+              style={CENTER_HOLE_STYLE}
+            />
+          </div>
         </div>
       </div>
       <div
@@ -506,6 +621,6 @@ export function VinylRecord({
         style={RECORD_REFLECTION_STYLE}
       />
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-40 rounded-full ring-1 ring-black/80" />
-    </div>
+    </figure>
   );
 }

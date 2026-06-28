@@ -35,7 +35,12 @@ describe("SlideArtwork loading swap", () => {
     rerender(<SlideArtwork active={true} artworkUrl="/a.jpg" sizeClass="w-12 h-12" />);
     expect(discEl(container)?.className).toMatch(/mc-disc-drop-in/);
     expect(coverEl(container).className).toMatch(/mc-cover-drop-out/);
-    expect(container.querySelector("[data-spin-state='playing'] img")).toHaveAttribute("src", "/a.jpg");
+    // The groove spiral is an <img> bitmap too, so target the LP cover label
+    // directly rather than the first <img> inside the spinning disc.
+    expect(container.querySelector("[data-spin-state='playing'] [data-vinyl-label-artwork='true']")).toHaveAttribute(
+      "src",
+      "/a.jpg",
+    );
   });
 
   it("ejects the disc and slides the cover back in on exit, then unmounts the disc after its animation ends", () => {
