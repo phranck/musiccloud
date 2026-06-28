@@ -22,6 +22,15 @@ const config = {
     ],
     overrides: [
       /**
+       * The visible loading/resolve affordances moved to the vinyl component in
+       * plan MC-031, but `CDSpinArtwork` remains intentionally available as a
+       * preserved legacy component until the migration proves stable.
+       */
+      {
+        files: ["src/components/ui/CDSpinArtwork.tsx"],
+        rules: ["deslop/unused-file"],
+      },
+      /**
        * `@astrojs/check` is a CLI-only dependency: Astro loads it at runtime
        * when `astro check` is invoked from the `check` npm script. There is
        * no source import for the scanner to discover, so the dead-code rule
