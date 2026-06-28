@@ -17,6 +17,8 @@
     "@astrojs/react": "^4.4.2",
     "@astrojs/sitemap": "^3.7.1",
     "@fontsource/barlow": "^5.2.8",
+    "@fontsource/iosevka-charon-mono": "^5.2.1",
+    "@fontsource/michroma": "^5.2.8",
     "@fontsource/roboto-condensed": "^5.2.8",
     "@fortawesome/fontawesome-svg-core": "^7.2.0",
     "@fortawesome/free-brands-svg-icons": "^7.2.0",

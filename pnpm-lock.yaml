@@ -330,6 +330,12 @@ importers:
       '@fontsource/barlow':
         specifier: ^5.2.8
         version: 5.2.8
+      '@fontsource/iosevka-charon-mono':
+        specifier: ^5.2.1
+        version: 5.2.1
+      '@fontsource/michroma':
+        specifier: ^5.2.8
+        version: 5.2.8
       '@fontsource/roboto-condensed':
         specifier: ^5.2.8
         version: 5.2.8
@@ -1697,6 +1703,12 @@ packages:
 
   '@fontsource/barlow@5.2.8':
     resolution: {integrity: sha512-iuFOnY4OI2cd1STrJ3NdJNzWjhcwv6JarmqfdoZzAmz9g0jTVjES86MNbuBxqVR3ydbTEjo4opEl24GXScRM7w==}
+
+  '@fontsource/iosevka-charon-mono@5.2.1':
+    resolution: {integrity: sha512-8MeGybfY6MUrFFuHDTdbBOJqAR3C9rAyuXryrEqWSMB4nY7L+6hnbdJN9xVlGLmqpOC5a/lIy7HRGugXI8Kc6A==}
+
+  '@fontsource/michroma@5.2.8':
+    resolution: {integrity: sha512-52Ml9TU/yC5YluqHxXqLK/AVUWbIeI3lCTZcTRnIkvfKHPZ0GSvSFi49ti872oCdo+YAMUk8RIfxVxXa6Cjigw==}
 
   '@fontsource/roboto-condensed@5.2.8':
     resolution: {integrity: sha512-M2OxXXGJQeif+LhxHjWiCEX3BHIYeZf64CcUTeh9AQFGp7DXo2UAXZiZUUOalVdOiuUtQSIi2CDHLDWFiyoECQ==}
@@ -8083,6 +8095,10 @@ snapshots:
       - supports-color
 
   '@fontsource/barlow@5.2.8': {}
+
+  '@fontsource/iosevka-charon-mono@5.2.1': {}
+
+  '@fontsource/michroma@5.2.8': {}
 
   '@fontsource/roboto-condensed@5.2.8': {}
 
