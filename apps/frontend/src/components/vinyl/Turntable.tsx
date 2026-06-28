@@ -31,8 +31,7 @@ const SPEED_MARK_STYLE = {
 } satisfies CSSProperties;
 
 const LED_STYLE = {
-  background:
-    "radial-gradient(circle at 35% 30%, #f0ffd8 0 11%, #8dff8c 18%, #2fc956 52%, #0b4f26 100%)",
+  background: "radial-gradient(circle at 35% 30%, #f0ffd8 0 11%, #8dff8c 18%, #2fc956 52%, #0b4f26 100%)",
   boxShadow:
     "0 0 0 1px rgba(0,0,0,0.7), 0 0 4px rgba(104,255,122,0.24), 0 0 12px rgba(48,210,83,0.11), 0 0 22px rgba(48,210,83,0.06), inset 0 1px 1px rgba(255,255,255,0.58), inset 0 -1px 2px rgba(0,0,0,0.48)",
 } satisfies CSSProperties;
@@ -50,6 +49,16 @@ const SPINDLE_STYLE = {
     "0 0 0 1px rgba(0,0,0,0.76), 0 1px 2px rgba(0,0,0,0.48), inset 0 1px 1px rgba(255,255,255,0.72), inset 0 -1px 1px rgba(0,0,0,0.58)",
 } satisfies CSSProperties;
 
+// Soft contact shadow the raised spindle drops onto the record, offset toward
+// the lower-right so it falls away from the same light source the rainbow sheen
+// reflects (sheen highlights sit upper-left / lower-right). translate carries the
+// centering (-50%) plus that offset.
+const SPINDLE_SHADOW_STYLE = {
+  background: "radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.5) 0 26%, rgba(0, 0, 0, 0.26) 52%, transparent 72%)",
+  filter: "blur(1.4px)",
+  transform: "translate(-38%, -30%)",
+} satisfies CSSProperties;
+
 function brandLetters(word: string) {
   return word.split("").map((letter) => (
     <span aria-hidden="true" key={letter}>
@@ -65,9 +74,13 @@ export function Turntable({ className, record }: TurntableProps) {
       className={cn("relative aspect-square overflow-hidden rounded-[inherit] bg-[#171a1f]", className)}
       style={TURNTABLE_SURFACE_STYLE}
     >
+      {/* Decorative deck branding: aria-hidden because the whole turntable is
+          already named by the figure's aria-label; a per-letter SR readout would
+          only add noise. Selected in tests via the data attribute. */}
       <span
-        aria-label="music cloud brand"
+        aria-hidden="true"
         className="absolute left-[5.2%] top-[5.2%] z-40 grid w-[10.2%] gap-[0.18em] text-[clamp(0.48rem,1.72vw,0.62rem)] leading-none text-white/85"
+        data-turntable-brand="true"
         style={{ fontFamily: '"Michroma", var(--font-sans)' }}
       >
         <span className="flex w-full justify-between" aria-hidden="true">
@@ -106,9 +119,11 @@ export function Turntable({ className, record }: TurntableProps) {
         </span>
       </span>
 
+      {/* Decorative power LED — part of the turntable image, hidden from AT. */}
       <span
-        aria-label="Power LED"
+        aria-hidden="true"
         className="absolute bottom-[6%] right-[6.2%] z-40 aspect-square w-[calc(2.1%_-_1px)] overflow-visible rounded-full"
+        data-turntable-led="true"
         style={LED_STYLE}
       >
         <span
@@ -122,9 +137,20 @@ export function Turntable({ className, record }: TurntableProps) {
         <VinylRecord {...record} className={cn("h-full w-full", record.className)} />
       </span>
 
+      {/* Contact shadow the raised spindle casts onto the record. Sits below the
+          spindle (z-50) but above the disc so it reads as resting on the vinyl. */}
       <span
-        aria-label="Chrome spindle"
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 top-1/2 z-40 aspect-square w-[2.7%] rounded-full"
+        data-turntable-spindle-shadow="true"
+        style={SPINDLE_SHADOW_STYLE}
+      />
+
+      {/* Decorative chrome spindle — part of the turntable image, hidden from AT. */}
+      <span
+        aria-hidden="true"
         className="pointer-events-none absolute left-1/2 top-1/2 z-50 aspect-square w-[2.15%] -translate-x-1/2 -translate-y-1/2 rounded-full"
+        data-turntable-spindle="true"
         style={SPINDLE_STYLE}
       />
     </figure>

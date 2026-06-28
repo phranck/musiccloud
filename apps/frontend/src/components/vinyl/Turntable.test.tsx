@@ -21,13 +21,16 @@ describe("Turntable", () => {
 
     const turntable = screen.getByLabelText("Turntable");
 
-    expect(screen.getByLabelText("music cloud brand")).toBeInTheDocument();
+    // The deck branding, LED and spindle are decorative (aria-hidden), so they
+    // are pinned via their data attributes rather than an accessible name.
+    expect(container.querySelector("[data-turntable-brand='true']")).toBeInTheDocument();
     expect(screen.getByText("33")).toBeInTheDocument();
     expect(screen.getByText("45")).toBeInTheDocument();
     expect(screen.getByText("ON")).toBeInTheDocument();
     expect(screen.getByText("STANDBY")).toBeInTheDocument();
-    expect(screen.getByLabelText("Power LED")).toBeInTheDocument();
-    expect(screen.getByLabelText("Chrome spindle")).toBeInTheDocument();
+    expect(container.querySelector("[data-turntable-led='true']")).toBeInTheDocument();
+    expect(container.querySelector("[data-turntable-spindle='true']")).toBeInTheDocument();
+    expect(container.querySelector("[data-turntable-spindle-shadow='true']")).toBeInTheDocument();
     expect(within(turntable).getByLabelText("Vinyl record for Blue Train")).toHaveAttribute(
       "data-spin-state",
       VinylSpinState.Playing,
