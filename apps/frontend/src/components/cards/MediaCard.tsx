@@ -1,7 +1,7 @@
 import type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
 import { MediaCardHead } from "@/components/cards/MediaCardHead";
-import type { ShareMediaView } from "@/components/share/ShareMediaView.types";
 import { PlatformsWell } from "@/components/cards/PlatformsWell";
+import type { ShareMediaView } from "@/components/share/ShareMediaView.types";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import type { VinylSpinState } from "@/components/vinyl/VinylRecord.types";
 import {

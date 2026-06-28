@@ -9,9 +9,9 @@ import { CcInfoCard } from "@/components/cards/CcInfoCard";
 import { MediaSummaryCard } from "@/components/cards/MediaSummaryCard";
 import { ServicesCard } from "@/components/cards/ServicesCard";
 import { AnimatedArtistColumn } from "@/components/share/AnimatedArtistColumn";
+import type { ShareMediaView } from "@/components/share/ShareMediaView.types";
 import { TwoColumnResultGrid } from "@/components/share/TwoColumnResultGrid";
 import { ARTIST_W, MEDIA_W } from "@/components/share/twoColumnGeometry";
-import type { ShareMediaView } from "@/components/share/ShareMediaView.types";
 import type { VinylSpinState } from "@/components/vinyl/VinylRecord.types";
 import type { MediaCardContentConfiguration } from "@/lib/types/media-card";
 

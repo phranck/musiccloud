@@ -16,8 +16,8 @@ import {
 } from "@/components/ui/VfdDisplay";
 import { Turntable } from "@/components/vinyl/Turntable";
 import { VinylSpinState, type VinylSpinState as VinylSpinStateType } from "@/components/vinyl/VinylRecord.types";
-import { cn } from "@/lib/utils";
 import { buildCoverSwapTimeline } from "@/lib/motion/coverSwap";
+import { cn } from "@/lib/utils";
 
 interface SongInfoProps {
   title: string;

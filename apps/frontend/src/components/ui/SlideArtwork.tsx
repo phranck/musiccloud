@@ -114,17 +114,15 @@ export function SlideArtwork({
               if (event.target === event.currentTarget && !active) setDiscMounted(false);
             }}
           >
-            <VinylRecord
-              className="h-full w-full"
-              labelArtworkUrl={artworkUrl}
-              spinState={VinylSpinState.Playing}
-            />
+            <VinylRecord className="h-full w-full" labelArtworkUrl={artworkUrl} spinState={VinylSpinState.Playing} />
           </div>
         )}
 
         {/* Cover artwork -- drops out downward on enter, slides back in from the
             top on exit (see coverSlideClass). */}
-        <div className={cn("relative z-0 h-full w-full transform-gpu bg-surface will-change-transform", coverSlideClass)}>
+        <div
+          className={cn("relative z-0 h-full w-full transform-gpu bg-surface will-change-transform", coverSlideClass)}
+        >
           <CoverImage artworkUrl={artworkUrl} kind={kind} imgDim={imgDim} iconSize={20} decoding={decoding} />
         </div>
 

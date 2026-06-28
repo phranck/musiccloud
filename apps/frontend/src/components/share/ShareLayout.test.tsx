@@ -2,8 +2,8 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ShareLayout } from "@/components/share/ShareLayout";
-import { createLocalStorageMock } from "@/test/localStorageMock";
 import { MediaCardContentTypeValue, type ShareContentConfiguration } from "@/lib/types/media-card";
+import { createLocalStorageMock } from "@/test/localStorageMock";
 
 vi.mock("@/components/cards/SongInfo", () => ({
   SongInfo: ({

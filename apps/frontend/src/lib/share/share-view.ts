@@ -9,8 +9,8 @@ import {
   type SharePageResponse,
   type UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
-import { apiLinksToPlatformLinks } from "@/lib/platform/api-links";
 import { catalogTextFromIds, labelAlbumTitleFrom, releaseYearFromDate } from "@/lib/media/lp-label";
+import { apiLinksToPlatformLinks } from "@/lib/platform/api-links";
 import { buildShareConfigFromActive, ccResponseToResult, ccResultToShareProps } from "@/lib/resolve/parsers";
 import { pathFromShortUrl } from "@/lib/share/short-url";
 import { type ActiveResult, ActiveResultKind } from "@/lib/types/app";
