@@ -10,6 +10,7 @@ import {
   type UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
 import { apiLinksToPlatformLinks } from "@/lib/platform/api-links";
+import { catalogTextFromIds, labelAlbumTitleFrom, releaseYearFromDate } from "@/lib/media/lp-label";
 import { buildShareConfigFromActive, ccResponseToResult, ccResultToShareProps } from "@/lib/resolve/parsers";
 import { pathFromShortUrl } from "@/lib/share/short-url";
 import { type ActiveResult, ActiveResultKind } from "@/lib/types/app";
@@ -173,6 +174,21 @@ export function buildShareViewFromSharePageResponse(
         : track
           ? buildMetaLine({ durationMs: track.durationMs, releaseDate: track.releaseDate }) || undefined
           : undefined,
+    labelAlbumTitle: isArtist
+      ? (artist?.name ?? undefined)
+      : isAlbum
+        ? (album?.title ?? undefined)
+        : labelAlbumTitleFrom(track?.albumName, track?.title),
+    labelReleaseYear: isAlbum
+      ? releaseYearFromDate(album?.releaseDate)
+      : isArtist
+        ? undefined
+        : releaseYearFromDate(track?.releaseDate),
+    labelCatalogText: isAlbum
+      ? catalogTextFromIds({ label: album?.label, upc: album?.upc })
+      : isArtist
+        ? undefined
+        : catalogTextFromIds({ isrc: track?.isrc }),
     platforms: apiLinksToPlatformLinks(data.links),
     platformsLabel: t(platformsLabelKey),
     platformsLabelKey,

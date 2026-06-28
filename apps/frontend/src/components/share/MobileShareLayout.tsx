@@ -4,7 +4,9 @@ import type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
 import { CcInfoCard } from "@/components/cards/CcInfoCard";
 import { raisedControlRadius, recessedControlInset } from "@/components/cards/cardGeometry";
 import { SharePageCard } from "@/components/share/SharePageCard";
+import type { ShareMediaView } from "@/components/share/ShareMediaView.types";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
+import type { VinylSpinState } from "@/components/vinyl/VinylRecord.types";
 import type { MediaCardContentConfiguration } from "@/lib/types/media-card";
 
 /** Props for {@link MobileShareLayout}. */
@@ -17,8 +19,16 @@ export interface MobileShareLayoutProps {
   label: string;
   /** Opens the artist-info bottom sheet. */
   onOpenSheet: () => void;
+  /** Reports a synchronous playback start intent before audio.play() resolves. */
+  onPlaybackIntent: () => void;
   /** Reports the share-card preview player's status to the owner. */
   onPreviewStatusChange: (status: AudioPreviewStatus | null) => void;
+  /** Current preview playback status, forwarded to the media visual stage. */
+  previewStatus: AudioPreviewStatus | null;
+  /** Current cover/turntable visual mode. */
+  shareMediaView: ShareMediaView;
+  /** Current visual LP spin state for the share turntable. */
+  vinylSpinState: VinylSpinState;
 }
 
 /**
@@ -36,11 +46,23 @@ export function MobileShareLayout({
   config,
   label,
   onOpenSheet,
+  onPlaybackIntent,
   onPreviewStatusChange,
+  previewStatus,
+  shareMediaView,
+  vinylSpinState,
 }: MobileShareLayoutProps) {
   return (
     <div className="block min-[1080px]:hidden">
-      <SharePageCard config={config} animated={animated} onPreviewStatusChange={onPreviewStatusChange} />
+      <SharePageCard
+        config={config}
+        animated={animated}
+        onPlaybackIntent={onPlaybackIntent}
+        onPreviewStatusChange={onPreviewStatusChange}
+        previewStatus={previewStatus}
+        shareMediaView={shareMediaView}
+        vinylSpinState={vinylSpinState}
+      />
       {config.ccInfoContent && (
         <div className="mt-[var(--mc-gap-cards,1.5rem)]">
           <CcInfoCard content={config.ccInfoContent} animated={animated} />

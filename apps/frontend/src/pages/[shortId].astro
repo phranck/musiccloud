@@ -114,6 +114,19 @@ if (treatAsBot) {
   preloadImage={treatAsBot ? (artworkUrl ?? undefined) : undefined}
   lang={locale}
 >
+  <Fragment slot="head">
+    <script is:inline>
+      (function () {
+        try {
+          var view = window.localStorage.getItem("musiccloud:share-media-view");
+          if (view === "cover" || view === "turntable") {
+            document.documentElement.dataset.shareMediaView = view;
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </Fragment>
+
   {treatAsBot && og && (
     <Fragment slot="head">
       <meta property="og:type" content={isArtist ? "profile" : isAlbum ? "music.album" : "music.song"} />

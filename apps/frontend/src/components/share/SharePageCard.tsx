@@ -9,6 +9,8 @@
  */
 
 import { type AudioPreviewStatus, MediaCard } from "@/components/cards/MediaCard";
+import type { ShareMediaView } from "@/components/share/ShareMediaView.types";
+import type { VinylSpinState } from "@/components/vinyl/VinylRecord.types";
 import { useT } from "@/i18n/localeContext";
 import {
   type MediaCardContentConfiguration,
@@ -21,10 +23,22 @@ export type { AudioPreviewStatus } from "@/components/cards/MediaCard";
 interface SharePageCardProps {
   config: MediaCardContentConfiguration;
   animated?: boolean;
-  onPreviewStatusChange?: (status: AudioPreviewStatus) => void;
+  onPlaybackIntent?: () => void;
+  onPreviewStatusChange?: (status: AudioPreviewStatus | null) => void;
+  previewStatus?: AudioPreviewStatus | null;
+  shareMediaView?: ShareMediaView;
+  vinylSpinState?: VinylSpinState;
 }
 
-export function SharePageCard({ config, animated = false, onPreviewStatusChange }: SharePageCardProps) {
+export function SharePageCard({
+  config,
+  animated = false,
+  onPlaybackIntent,
+  onPreviewStatusChange,
+  previewStatus,
+  shareMediaView,
+  vinylSpinState,
+}: SharePageCardProps) {
   const t = useT();
   const platformsLabel =
     config.type === MediaCardContentTypeValue.Share
@@ -34,7 +48,11 @@ export function SharePageCard({ config, animated = false, onPreviewStatusChange 
     <MediaCard
       content={{ ...config, platformsLabel }}
       animated={animated}
+      onPlaybackIntent={onPlaybackIntent}
       onPreviewStatusChange={onPreviewStatusChange}
+      previewStatus={previewStatus}
+      shareMediaView={shareMediaView}
+      vinylSpinState={vinylSpinState}
     />
   );
 }

@@ -30,6 +30,8 @@ interface AudioPreviewPlayerProps {
    *  (CC / Jamendo). Switches the player's wording from "preview" to "song". */
   mediaKind?: MediaKindType;
   trackTitle: string;
+  /** Fires synchronously when the user starts playback via click, media key, or Space. */
+  onPlaybackIntent?: () => void;
   onStatusChange?: (status: AudioPreviewStatusType) => void;
 }
 
@@ -421,6 +423,7 @@ function useAudioPreviewController({
   refreshShortId,
   mediaKind,
   trackTitle,
+  onPlaybackIntent,
   onStatusChange,
 }: AudioPreviewPlayerProps) {
   const t = useT();
@@ -615,6 +618,9 @@ function useAudioPreviewController({
     [onStatusChange],
   );
   const notifyStatusChangeFromEvent = useEffectEvent(notifyStatusChange);
+  const notifyPlaybackIntent = useCallback(() => {
+    onPlaybackIntent?.();
+  }, [onPlaybackIntent]);
 
   const teardownSpectrum = useCallback(() => {
     stopSpectrumLoop();
@@ -1029,6 +1035,7 @@ function useAudioPreviewController({
         startupGainNode.gain.setValueAtTime(0, muteAt);
       }
 
+      notifyPlaybackIntent();
       audio
         .play()
         .then(() => {
@@ -1082,6 +1089,7 @@ function useAudioPreviewController({
     stopProgressLoop,
     stopProgressRewind,
     stopSpectrumLoop,
+    notifyPlaybackIntent,
     notifyStatusChange,
   ]);
 

@@ -11,6 +11,8 @@ import { ServicesCard } from "@/components/cards/ServicesCard";
 import { AnimatedArtistColumn } from "@/components/share/AnimatedArtistColumn";
 import { TwoColumnResultGrid } from "@/components/share/TwoColumnResultGrid";
 import { ARTIST_W, MEDIA_W } from "@/components/share/twoColumnGeometry";
+import type { ShareMediaView } from "@/components/share/ShareMediaView.types";
+import type { VinylSpinState } from "@/components/vinyl/VinylRecord.types";
 import type { MediaCardContentConfiguration } from "@/lib/types/media-card";
 
 /** Props for {@link DesktopShareLayout}. */
@@ -29,12 +31,20 @@ export interface DesktopShareLayoutProps {
   labels: ArtistCardLabels;
   /** Called when a popular/similar row begins resolving (spinning-disc moment). */
   onArtistResolveStart: () => void;
+  /** Reports a synchronous playback start intent before audio.play() resolves. */
+  onPlaybackIntent: () => void;
   /** Reports the media-card preview player's status to the owner. */
   onPreviewStatusChange: (status: AudioPreviewStatus | null) => void;
   /** Resolves a clicked artist-panel track row. */
   onTrackResolve: ArtistPanelTrackResolveHandler;
+  /** Current preview playback status, forwarded to the media visual stage. */
+  previewStatus: AudioPreviewStatus | null;
+  /** Current cover/turntable visual mode. */
+  shareMediaView: ShareMediaView;
   /** Listener region used to localize artist-column data. */
   userRegion: string;
+  /** Current visual LP spin state for the share turntable. */
+  vinylSpinState: VinylSpinState;
 }
 
 /**
@@ -55,15 +65,27 @@ export function DesktopShareLayout({
   isLoading,
   labels,
   onArtistResolveStart,
+  onPlaybackIntent,
   onPreviewStatusChange,
   onTrackResolve,
+  previewStatus,
+  shareMediaView,
   userRegion,
+  vinylSpinState,
 }: DesktopShareLayoutProps) {
   return (
     <TwoColumnResultGrid
       left={
         <div className="flex flex-col gap-[var(--mc-gap-cards,1.5rem)]" style={{ width: `${MEDIA_W}px` }}>
-          <MediaSummaryCard content={config} animated={animated} onPreviewStatusChange={onPreviewStatusChange} />
+          <MediaSummaryCard
+            content={config}
+            animated={animated}
+            onPlaybackIntent={onPlaybackIntent}
+            onPreviewStatusChange={onPreviewStatusChange}
+            previewStatus={previewStatus}
+            shareMediaView={shareMediaView}
+            vinylSpinState={vinylSpinState}
+          />
           {config.ccInfoContent ? (
             <CcInfoCard content={config.ccInfoContent} animated={animated} />
           ) : (

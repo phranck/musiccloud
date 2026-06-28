@@ -43,6 +43,15 @@ export interface MediaCardContentConfiguration {
   isExplicit?: boolean;
   /** Pre-computed meta line (e.g. "3:45 · USRC1234" or "12 Tracks · 2024") */
   metaLine?: string;
+  /** LP paper-label album/title field. Kept structured so views never parse `metaLine`. */
+  labelAlbumTitle?: string;
+  /** LP paper-label year field, normally `YYYY`. Kept structured so views never parse `metaLine`. */
+  labelReleaseYear?: string;
+  /** LP paper-label catalog/imprint field such as ISRC, UPC, label or license text. */
+  labelCatalogText?: string;
+  /** LP paper-label rights field (top-left). Commercial defaults to "GEMA"; the
+   *  Creative-Commons path sets the CC licence label, where "GEMA" is meaningless. */
+  labelRightsText?: string;
   /** 30-second audio preview URL (Deezer or Spotify). Optional: mini-player shown only when set. */
   previewUrl?: string;
   /** True when `previewUrl` is absent but the backend can fetch a fresh URL
@@ -135,6 +144,15 @@ export interface CcTrackContentConfiguration {
   artworkUrl: string;
   /** Pre-computed meta line (e.g. "3:45 · 2023"). */
   metaLine?: string;
+  /** LP paper-label album/title field. Kept structured so views never parse `metaLine`. */
+  labelAlbumTitle?: string;
+  /** LP paper-label year field, normally `YYYY`. Kept structured so views never parse `metaLine`. */
+  labelReleaseYear?: string;
+  /** LP paper-label catalog/imprint field such as ISRC, UPC, label or license text. */
+  labelCatalogText?: string;
+  /** LP paper-label rights field (top-left). Commercial defaults to "GEMA"; the
+   *  Creative-Commons path sets the CC licence label, where "GEMA" is meaningless. */
+  labelRightsText?: string;
   /** Pre-translated screen-reader announcement for the result. */
   srAnnouncement?: string;
   /** musiccloud short URL for the "Copy link" share action. */

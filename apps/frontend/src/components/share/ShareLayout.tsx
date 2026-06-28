@@ -17,13 +17,16 @@ const ShareUiActionType = {
   ArtistReadyHidden: "artistReadyHidden",
   ArtistReadyVisible: "artistReadyVisible",
   CloseSheet: "closeSheet",
+  MediaViewToggled: "mediaViewToggled",
   OpenSheet: "openSheet",
+  PlaybackIntentStarted: "playbackIntentStarted",
   PreviewStatusChanged: "previewStatusChanged",
   PropsChanged: "propsChanged",
   ResolveErrorHidden: "resolveErrorHidden",
   ResolveErrorVisible: "resolveErrorVisible",
   ResolveStarted: "resolveStarted",
   Resolved: "resolved",
+  VinylCoastFinished: "vinylCoastFinished",
 } as const;
 
 interface ShareUiState {
@@ -35,14 +38,18 @@ interface ShareUiState {
   previewStatus: AudioPreviewStatus | null;
   resolveErrorVisible: boolean;
   resolveTriggeredArtistLoad: boolean;
+  shareMediaView: ShareMediaViewType;
   sheetOpen: boolean;
+  vinylSpinState: VinylSpinStateType;
 }
 type ShareUiAction =
   | { type: typeof ShareUiActionType.ArtistFetchFinished }
   | { type: typeof ShareUiActionType.ArtistReadyHidden }
   | { type: typeof ShareUiActionType.ArtistReadyVisible }
   | { type: typeof ShareUiActionType.CloseSheet }
+  | { type: typeof ShareUiActionType.MediaViewToggled }
   | { type: typeof ShareUiActionType.OpenSheet }
+  | { type: typeof ShareUiActionType.PlaybackIntentStarted }
   | { type: typeof ShareUiActionType.PreviewStatusChanged; status: AudioPreviewStatus | null }
   | {
       type: typeof ShareUiActionType.PropsChanged;
@@ -59,7 +66,8 @@ type ShareUiAction =
       artistContext?: ArtistInfoContext;
       artistName?: string;
       config: MediaCardContentConfiguration;
-    };
+    }
+  | { type: typeof ShareUiActionType.VinylCoastFinished };
 
 function shareUiReducer(state: ShareUiState, action: ShareUiAction): ShareUiState {
   switch (action.type) {
@@ -71,10 +79,18 @@ function shareUiReducer(state: ShareUiState, action: ShareUiAction): ShareUiStat
       return { ...state, artistReadyVisible: true };
     case ShareUiActionType.CloseSheet:
       return { ...state, sheetOpen: false };
+    case ShareUiActionType.MediaViewToggled:
+      return { ...state, shareMediaView: nextShareMediaView(state.shareMediaView) };
     case ShareUiActionType.OpenSheet:
       return { ...state, sheetOpen: true };
+    case ShareUiActionType.PlaybackIntentStarted:
+      return { ...state, vinylSpinState: VinylSpinState.Playing };
     case ShareUiActionType.PreviewStatusChanged:
-      return { ...state, previewStatus: action.status };
+      return {
+        ...state,
+        previewStatus: action.status,
+        vinylSpinState: nextVinylSpinStateFromPreviewStatus(state.vinylSpinState, action.status),
+      };
     case ShareUiActionType.PropsChanged:
       if (state.lastPropsConfigKey === action.configKey) return state;
       return {
@@ -88,6 +104,7 @@ function shareUiReducer(state: ShareUiState, action: ShareUiAction): ShareUiStat
         // resolve error from the previous entity is likewise no longer relevant.
         previewStatus: null,
         resolveErrorVisible: false,
+        vinylSpinState: VinylSpinState.Idle,
       };
     case ShareUiActionType.ResolveErrorHidden:
       return { ...state, resolveErrorVisible: false };
@@ -107,7 +124,11 @@ function shareUiReducer(state: ShareUiState, action: ShareUiAction): ShareUiStat
         // A prior resolve error no longer applies to the freshly resolved track.
         previewStatus: null,
         resolveErrorVisible: false,
+        vinylSpinState: VinylSpinState.Idle,
       };
+    case ShareUiActionType.VinylCoastFinished:
+      if (state.vinylSpinState !== VinylSpinState.Coasting) return state;
+      return { ...state, vinylSpinState: VinylSpinState.Idle };
   }
 }
 
@@ -125,7 +146,9 @@ function initialShareUiState({
     previewStatus: null,
     resolveErrorVisible: false,
     resolveTriggeredArtistLoad: false,
+    shareMediaView: readPersistedShareMediaView(),
     sheetOpen: false,
+    vinylSpinState: VinylSpinState.Idle,
   };
 }
 
@@ -135,12 +158,14 @@ import { DesktopShareLayout } from "@/components/share/DesktopShareLayout";
 import { MobileArtistSheet } from "@/components/share/MobileArtistSheet";
 import { MobileShareLayout } from "@/components/share/MobileShareLayout";
 import { ShareBackLink } from "@/components/share/ShareBackLink";
+import { ShareMediaView, type ShareMediaView as ShareMediaViewType } from "@/components/share/ShareMediaView.types";
 import { ToastProvider } from "@/context/ToastContext";
 import { ArtistLoadStatus, useArtistInfo } from "@/hooks/useArtistInfo";
 import { useIsClient } from "@/hooks/useIsClient";
 import { useOverlayEscape } from "@/hooks/useOverlayEscape";
 import { LocaleProvider } from "@/i18n/context";
 import { useT } from "@/i18n/localeContext";
+import { VinylSpinState, type VinylSpinState as VinylSpinStateType } from "@/components/vinyl/VinylRecord.types";
 import { CardSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { detectRegion } from "@/lib/geo/detect-region";
 import { commercialTrackResolver, type TrackResolver } from "@/lib/resolve/track-resolver";
@@ -153,6 +178,74 @@ import {
 } from "@/lib/types/media-card";
 
 export type { ArtistInfoContext };
+
+const SHARE_MEDIA_VIEW_TOGGLE_KEY = "p";
+const SHARE_MEDIA_VIEW_STORAGE_KEY = "musiccloud:share-media-view";
+const SHARE_MEDIA_TOGGLE_TARGET_SELECTOR =
+  "input, textarea, select, button, a[href], [contenteditable='true'], [contenteditable='']";
+
+function readPersistedShareMediaView(): ShareMediaViewType {
+  const documentView = readDocumentShareMediaView();
+  if (documentView) return documentView;
+
+  if (typeof window === "undefined") return ShareMediaView.Cover;
+  try {
+    return window.localStorage.getItem(SHARE_MEDIA_VIEW_STORAGE_KEY) === ShareMediaView.Turntable
+      ? ShareMediaView.Turntable
+      : ShareMediaView.Cover;
+  } catch {
+    return ShareMediaView.Cover;
+  }
+}
+
+function readDocumentShareMediaView(): ShareMediaViewType | null {
+  if (typeof document === "undefined") return null;
+  const view = document.documentElement.dataset.shareMediaView;
+  if (view === ShareMediaView.Turntable) return ShareMediaView.Turntable;
+  if (view === ShareMediaView.Cover) return ShareMediaView.Cover;
+  return null;
+}
+
+function writeDocumentShareMediaView(view: ShareMediaViewType): void {
+  if (typeof document === "undefined") return;
+  document.documentElement.dataset.shareMediaView = view;
+}
+
+function persistShareMediaView(view: ShareMediaViewType): void {
+  writeDocumentShareMediaView(view);
+  try {
+    window.localStorage.setItem(SHARE_MEDIA_VIEW_STORAGE_KEY, view);
+  } catch {
+    // Storage can be blocked in private/embedded contexts. The in-session
+    // toggle should keep working even when persistence is unavailable.
+  }
+}
+
+function nextShareMediaView(view: ShareMediaViewType): ShareMediaViewType {
+  return view === ShareMediaView.Cover ? ShareMediaView.Turntable : ShareMediaView.Cover;
+}
+
+function nextVinylSpinStateFromPreviewStatus(
+  currentSpinState: VinylSpinStateType,
+  status: AudioPreviewStatus | null,
+): VinylSpinStateType {
+  if (status === AudioPreviewStatus.Playing) return VinylSpinState.Playing;
+  if (status === AudioPreviewStatus.Unavailable || status === null) return VinylSpinState.Idle;
+  if (currentSpinState === VinylSpinState.Playing || currentSpinState === VinylSpinState.Coasting) {
+    return VinylSpinState.Coasting;
+  }
+  return VinylSpinState.Idle;
+}
+
+function isShareMediaToggleTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && Boolean(target.closest(SHARE_MEDIA_TOGGLE_TARGET_SELECTOR));
+}
+
+function shouldIgnoreShareMediaViewToggle(event: KeyboardEvent): boolean {
+  if (event.key.toLowerCase() !== SHARE_MEDIA_VIEW_TOGGLE_KEY) return true;
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.repeat) return true;
+  return isShareMediaToggleTarget(event.target);
+}
 
 function normalizeArtistName(name: string): string {
   return name.trim().toLocaleLowerCase();
@@ -266,7 +359,9 @@ function ShareLayoutInner({
     previewStatus,
     resolveErrorVisible,
     resolveTriggeredArtistLoad,
+    shareMediaView,
     sheetOpen,
+    vinylSpinState,
   } = shareUiState;
   // Clears the "resolve triggered a load" UI flag once each artist-info load
   // settles, matching the order the inline fetch effect used.
@@ -296,6 +391,26 @@ function ShareLayoutInner({
       configKey: configIdentity(config),
     });
   }, [artistInfoContext, artistName, config]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (shouldIgnoreShareMediaViewToggle(event)) return;
+      dispatchUi({ type: ShareUiActionType.MediaViewToggled });
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    persistShareMediaView(shareMediaView);
+  }, [shareMediaView]);
+
+  useEffect(() => {
+    if (vinylSpinState !== VinylSpinState.Coasting) return;
+    const timeout = window.setTimeout(() => dispatchUi({ type: ShareUiActionType.VinylCoastFinished }), 2000);
+    return () => window.clearTimeout(timeout);
+  }, [vinylSpinState]);
 
   const artistStatusLoading = isLoading || resolveTriggeredArtistLoad;
   useEffect(() => {
@@ -354,6 +469,7 @@ function ShareLayoutInner({
     (status: AudioPreviewStatus | null) => dispatchUi({ type: ShareUiActionType.PreviewStatusChanged, status }),
     [],
   );
+  const handlePlaybackIntent = useCallback(() => dispatchUi({ type: ShareUiActionType.PlaybackIntentStarted }), []);
   useOverlayEscape({ enabled: sheetOpen, onEscape: closeSheet });
 
   const handleArtistResolveStart = useCallback(() => {
@@ -422,16 +538,24 @@ function ShareLayoutInner({
         isLoading={isLoading}
         labels={artistLabels}
         onArtistResolveStart={handleArtistResolveStart}
+        onPlaybackIntent={handlePlaybackIntent}
         onPreviewStatusChange={handlePreviewStatusChange}
         onTrackResolve={resolveTrack}
+        previewStatus={previewStatus}
+        shareMediaView={shareMediaView}
         userRegion={userRegion}
+        vinylSpinState={vinylSpinState}
       />
       <MobileShareLayout
         animated={animated}
         config={enrichedConfig}
         label={t("artist.mobileButton")}
         onOpenSheet={openSheet}
+        onPlaybackIntent={handlePlaybackIntent}
         onPreviewStatusChange={handlePreviewStatusChange}
+        previewStatus={previewStatus}
+        shareMediaView={shareMediaView}
+        vinylSpinState={vinylSpinState}
       />
       {mounted &&
         createPortal(

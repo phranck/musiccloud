@@ -11,6 +11,7 @@ import type {
   UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
 import { buildMetaLine, ENDPOINTS, PLATFORM_CONFIG } from "@musiccloud/shared";
+import { catalogTextFromIds, labelAlbumTitleFrom, releaseYearFromDate } from "@/lib/media/lp-label";
 import { apiLinksToPlatformLinks } from "@/lib/platform/api-links";
 import { pathFromShortUrl } from "@/lib/share/short-url";
 import {
@@ -342,6 +343,9 @@ export function buildActiveConfig(
       isExplicit: active.isExplicit,
       previewUrl: active.previewUrl,
       metaLine: buildMetaLine({ durationMs: active.durationMs, releaseDate: active.releaseDate }) || undefined,
+      labelAlbumTitle: labelAlbumTitleFrom(active.album, active.title),
+      labelReleaseYear: releaseYearFromDate(active.releaseDate),
+      labelCatalogText: catalogTextFromIds({ isrc: active.isrc }),
       platforms: active.platforms,
       platformsLabel: t("results.listenOn"),
       platformsInfo,
@@ -359,6 +363,7 @@ export function buildActiveConfig(
       artist: "",
       artworkUrl: active.imageUrl,
       metaLine: genreLine || undefined,
+      labelAlbumTitle: active.name,
       platforms: active.platforms,
       platformsLabel: t("results.viewArtistOn"),
       platformsInfo,
@@ -380,6 +385,9 @@ export function buildActiveConfig(
     artworkUrl: active.artworkUrl,
     previewUrl: active.previewUrl,
     metaLine: metaParts.join(" \u00B7") || undefined,
+    labelAlbumTitle: active.title,
+    labelReleaseYear: year,
+    labelCatalogText: catalogTextFromIds({ label: active.label, upc: active.upc }),
     platforms: active.platforms,
     platformsLabel: t("results.openAlbumOn"),
     platformsInfo,
@@ -405,6 +413,7 @@ export function buildShareConfigFromActive(active: ActiveResult, t: TFunc): Shar
       artist: "",
       artworkUrl: active.imageUrl,
       metaLine: active.genres?.join(", ") || undefined,
+      labelAlbumTitle: active.name,
       platforms: active.platforms,
       platformsLabel: t(platformsLabelKey),
       platformsLabelKey,
@@ -427,9 +436,12 @@ export function buildShareConfigFromActive(active: ActiveResult, t: TFunc): Shar
       title: active.title,
       artist: active.artist,
       artworkUrl: active.artworkUrl,
-      previewUrl: active.previewUrl,
-      metaLine: metaParts.join(" \u00B7") || undefined,
-      platforms: active.platforms,
+    previewUrl: active.previewUrl,
+    metaLine: metaParts.join(" \u00B7") || undefined,
+    labelAlbumTitle: active.title,
+    labelReleaseYear: year,
+    labelCatalogText: catalogTextFromIds({ label: active.label, upc: active.upc }),
+    platforms: active.platforms,
       platformsLabel: t(platformsLabelKey),
       platformsLabelKey,
       platformsInfo,
@@ -448,6 +460,9 @@ export function buildShareConfigFromActive(active: ActiveResult, t: TFunc): Shar
     isExplicit: active.isExplicit,
     previewUrl: active.previewUrl,
     metaLine: buildMetaLine({ durationMs: active.durationMs, releaseDate: active.releaseDate }) || undefined,
+    labelAlbumTitle: labelAlbumTitleFrom(active.album, active.title),
+    labelReleaseYear: releaseYearFromDate(active.releaseDate),
+    labelCatalogText: catalogTextFromIds({ isrc: active.isrc }),
     platforms: active.platforms,
     platformsLabel: t(platformsLabelKey),
     platformsLabelKey,
@@ -541,6 +556,11 @@ function buildCcShareConfig(cc: CcTrackResult, t: TFunc): CcTrackContentConfigur
     album: cc.album,
     artworkUrl: cc.artworkUrl,
     metaLine: buildMetaLine({ durationMs: cc.durationMs, releaseDate: cc.releaseDate }) || undefined,
+    labelAlbumTitle: labelAlbumTitleFrom(cc.album, cc.title),
+    labelReleaseYear: releaseYearFromDate(cc.releaseDate),
+    // CC tracks are GEMA-free: show the licence in the top-left rights field
+    // (replacing "GEMA") and leave the center catalog field empty (no ISRC).
+    labelRightsText: ccLicenseLabel(cc.licenseCcurl),
     srAnnouncement: t("results.found", { title: cc.title, artist: cc.artist }),
     shortUrl: cc.shareUrl,
     shortId,
@@ -593,6 +613,10 @@ function buildCcEntityHeaderConfig(opts: {
   artist: string;
   artworkUrl: string;
   metaLine?: string;
+  labelAlbumTitle?: string;
+  labelReleaseYear?: string;
+  labelCatalogText?: string;
+  labelRightsText?: string;
   shortUrl: string;
 }): ShareContentConfiguration {
   return {
@@ -601,6 +625,10 @@ function buildCcEntityHeaderConfig(opts: {
     artist: opts.artist,
     artworkUrl: opts.artworkUrl,
     metaLine: opts.metaLine,
+    labelAlbumTitle: opts.labelAlbumTitle,
+    labelReleaseYear: opts.labelReleaseYear,
+    labelCatalogText: opts.labelCatalogText,
+    labelRightsText: opts.labelRightsText,
     platforms: [],
     platformsLabel: "",
     platformsLabelKey: "",
@@ -626,6 +654,10 @@ function ccTrackToShareConfig(cc: CcTrackResult): ShareContentConfiguration {
       artist: cc.artist,
       artworkUrl: cc.artworkUrl,
       metaLine: buildMetaLine({ durationMs: cc.durationMs, releaseDate: cc.releaseDate }) || undefined,
+      labelAlbumTitle: labelAlbumTitleFrom(cc.album, cc.title),
+      labelReleaseYear: releaseYearFromDate(cc.releaseDate),
+      // GEMA-free: licence goes in the top-left rights field; center stays empty.
+      labelRightsText: ccLicenseLabel(cc.licenseCcurl),
       shortUrl: cc.shareUrl,
     }),
     album: cc.album,
@@ -678,6 +710,8 @@ export function ccResultToShareProps(ccActive: CcResult, t: TFunc): CcResultShar
         artist: ccActive.artist,
         artworkUrl: ccActive.artworkUrl,
         metaLine: ccActive.releaseDate?.slice(0, 4),
+        labelAlbumTitle: ccActive.title,
+        labelReleaseYear: releaseYearFromDate(ccActive.releaseDate),
         shortUrl: ccActive.shareUrl,
       }),
       artistName: ccActive.artist,
@@ -689,6 +723,7 @@ export function ccResultToShareProps(ccActive: CcResult, t: TFunc): CcResultShar
         title: ccActive.name,
         artist: "",
         artworkUrl: ccActive.imageUrl,
+        labelAlbumTitle: ccActive.name,
         shortUrl: ccActive.shareUrl,
       }),
       artistName: ccActive.name,

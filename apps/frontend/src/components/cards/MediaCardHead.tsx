@@ -6,7 +6,9 @@ import { animatedOuterEmbossedCardClassName } from "@/components/cards/cardGeome
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { SongInfo } from "@/components/cards/SongInfo";
 import { ShareButton } from "@/components/share/ShareButton";
+import type { ShareMediaView } from "@/components/share/ShareMediaView.types";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
+import type { VinylSpinState } from "@/components/vinyl/VinylRecord.types";
 import { isShareableContent, isSharePageContent, type MediaCardContentConfiguration } from "@/lib/types/media-card";
 
 interface MediaCardHeadProps {
@@ -16,8 +18,16 @@ interface MediaCardHeadProps {
   animated?: boolean;
   /** Extra classes merged onto the outer embossed card. */
   className?: string;
+  /** Reports a synchronous playback start intent before audio.play() resolves. */
+  onPlaybackIntent?: () => void;
   /** Forwarded from the audio preview player so the caller can react to playback state. */
-  onPreviewStatusChange?: (status: AudioPreviewStatus) => void;
+  onPreviewStatusChange?: (status: AudioPreviewStatus | null) => void;
+  /** Current preview playback status, forwarded to the media visual stage. */
+  previewStatus?: AudioPreviewStatus | null;
+  /** Share-only cover/turntable visual mode. Omitted outside ShareLayout. */
+  shareMediaView?: ShareMediaView;
+  /** Share-only visual LP spin state. */
+  vinylSpinState?: VinylSpinState;
   /**
    * Pre-translated screen-reader announcement rendered as a polite live region
    * above the cover. Only the landing-page `MediaCard` supplies this; the share
@@ -49,6 +59,7 @@ interface MediaCardHeadProps {
  * @param content - The resolved media content configuration.
  * @param animated - When true, plays the shared zoom-in entrance.
  * @param className - Optional extra classes for the outer card.
+ * @param onPlaybackIntent - Forwarded audio-preview intent callback.
  * @param onPreviewStatusChange - Forwarded audio-preview status callback.
  * @param srAnnouncement - Optional polite screen-reader announcement.
  * @param children - Optional platform sections rendered below the share actions.
@@ -57,7 +68,11 @@ export function MediaCardHead({
   content,
   animated = true,
   className,
+  onPlaybackIntent,
   onPreviewStatusChange,
+  previewStatus,
+  shareMediaView,
+  vinylSpinState,
   srAnnouncement,
   children,
 }: MediaCardHeadProps) {
@@ -82,8 +97,15 @@ export function MediaCardHead({
         album={content.album}
         albumArtUrl={content.artworkUrl}
         isExplicit={content.isExplicit}
+        labelAlbumTitle={content.labelAlbumTitle}
+        labelCatalogText={content.labelCatalogText}
+        labelRightsText={content.labelRightsText}
+        labelReleaseYear={content.labelReleaseYear}
         metaOverride={content.metaLine}
+        previewStatus={previewStatus}
+        shareMediaView={shareMediaView}
         statusLine={content.statusLine}
+        vinylSpinState={vinylSpinState}
       />
 
       <CollapsibleSection
@@ -97,6 +119,7 @@ export function MediaCardHead({
             refreshShortId={content.previewRefreshable ? content.shortId : undefined}
             mediaKind={content.mediaKind}
             trackTitle={content.title}
+            onPlaybackIntent={onPlaybackIntent}
             onStatusChange={onPreviewStatusChange}
           />
         )}

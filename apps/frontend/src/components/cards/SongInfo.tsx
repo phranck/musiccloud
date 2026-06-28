@@ -1,8 +1,10 @@
 import { useGSAP } from "@gsap/react";
 import { buildMetaLine } from "@musiccloud/shared";
 import { memo, useEffect, useRef, useState } from "react";
+import type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
 import { ArtworkImage } from "@/components/cards/ArtworkImage";
 import { RecessedCard } from "@/components/cards/RecessedCard";
+import { ShareMediaView, type ShareMediaView as ShareMediaViewType } from "@/components/share/ShareMediaView.types";
 import { TftScreen } from "@/components/ui/TftScreen";
 import {
   VfdBrightness,
@@ -12,6 +14,9 @@ import {
   VfdSectionCells,
   VfdSizingMode,
 } from "@/components/ui/VfdDisplay";
+import { Turntable } from "@/components/vinyl/Turntable";
+import { VinylSpinState, type VinylSpinState as VinylSpinStateType } from "@/components/vinyl/VinylRecord.types";
+import { cn } from "@/lib/utils";
 import { buildCoverSwapTimeline } from "@/lib/motion/coverSwap";
 
 interface SongInfoProps {
@@ -22,8 +27,19 @@ interface SongInfoProps {
   durationMs?: number;
   isExplicit?: boolean;
   albumArtUrl: string;
+  labelAlbumTitle?: string;
+  labelReleaseYear?: string;
+  labelCatalogText?: string;
+  /** LP rights imprint (top-left): "GEMA" for commercial, CC licence for CC tracks. */
+  labelRightsText?: string;
   /** When provided, replaces the automatically computed meta line (duration · year) */
   metaOverride?: string;
+  /** Share-only cover/turntable visual mode. Stage 2.3 renders this. */
+  shareMediaView?: ShareMediaViewType;
+  /** Share-only playback status, forwarded by share media containers. */
+  previewStatus?: AudioPreviewStatus | null;
+  /** Share-only visual LP spin state. */
+  vinylSpinState?: VinylSpinStateType;
   /** Fourth VFD row. Pre-translated by the caller so the component stays reusable. */
   statusLine?: string;
 }
@@ -53,12 +69,20 @@ export const SongInfo = memo(function SongInfo({
   durationMs,
   isExplicit,
   albumArtUrl,
+  labelAlbumTitle,
+  labelCatalogText,
+  labelRightsText,
+  labelReleaseYear,
   metaOverride,
+  shareMediaView,
   statusLine = "READY",
+  vinylSpinState = VinylSpinState.Idle,
 }: SongInfoProps) {
   const metaLine = metaOverride ?? buildMetaLine({ durationMs, releaseDate });
   const detailLine = [album, isExplicit ? "E" : null].filter(Boolean).join(" · ");
   const shouldMarqueeStatus = statusLine.length > 28;
+  const mediaView = shareMediaView ?? ShareMediaView.Cover;
+  const showTurntableStage = shareMediaView !== undefined;
 
   const [artworkState, setArtworkState] = useState({
     currentUrl: albumArtUrl,
@@ -133,25 +157,64 @@ export const SongInfo = memo(function SongInfo({
       <div className="px-3 pt-3">
         <RecessedCard className="p-0.5">
           <RecessedCard.Body>
-            <TftScreen className="aspect-square w-full">
-              {artworkState.previousUrl !== null && (
+            <TftScreen
+              className="mc-share-media-screen aspect-square w-full"
+              showEffects={mediaView === ShareMediaView.Cover}
+              showMatrix={mediaView === ShareMediaView.Cover}
+            >
+              <div
+                className={cn(
+                  "mc-share-media-stage",
+                  mediaView === ShareMediaView.Cover
+                    ? "mc-share-media-stage--cover-active"
+                    : "mc-share-media-stage--cover-exit",
+                )}
+                data-media-stage="cover"
+              >
+                {artworkState.previousUrl !== null && (
+                  <ArtworkImage
+                    ref={outgoingCoverRef}
+                    key={`cover-out-${artworkState.generation}`}
+                    url={artworkState.previousUrl}
+                    alt=""
+                    className="absolute inset-0 transform-gpu will-change-transform"
+                  />
+                )}
                 <ArtworkImage
-                  ref={outgoingCoverRef}
-                  key={`cover-out-${artworkState.generation}`}
-                  url={artworkState.previousUrl}
-                  alt=""
-                  className="absolute inset-0 transform-gpu will-change-transform"
+                  ref={incomingCoverRef}
+                  key={`cover-in-${artworkState.generation}`}
+                  url={artworkState.currentUrl}
+                  alt={`"${title}" by ${artist} - album artwork`}
+                  className={
+                    artworkState.previousUrl !== null ? "absolute inset-0 transform-gpu will-change-transform" : ""
+                  }
                 />
+              </div>
+              {showTurntableStage && (
+                <div
+                  className={cn(
+                    "mc-share-media-stage",
+                    mediaView === ShareMediaView.Turntable
+                      ? "mc-share-media-stage--turntable-active"
+                      : "mc-share-media-stage--turntable-enter",
+                  )}
+                  data-media-stage="turntable"
+                >
+                  <Turntable
+                    className="h-full w-full"
+                    record={{
+                      className: "h-full w-full",
+                      labelArtworkUrl: albumArtUrl,
+                      labelCatalogText,
+                      labelRightsText,
+                      labelSubtitle: artist,
+                      labelTitle: labelAlbumTitle ?? album ?? title,
+                      labelYear: labelReleaseYear,
+                      spinState: vinylSpinState,
+                    }}
+                  />
+                </div>
               )}
-              <ArtworkImage
-                ref={incomingCoverRef}
-                key={`cover-in-${artworkState.generation}`}
-                url={artworkState.currentUrl}
-                alt={`"${title}" by ${artist} - album artwork`}
-                className={
-                  artworkState.previousUrl !== null ? "absolute inset-0 transform-gpu will-change-transform" : ""
-                }
-              />
             </TftScreen>
           </RecessedCard.Body>
         </RecessedCard>
