@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { ArtistTrackCell } from "@/components/artist/ArtistTrackCell";
 import type { ArtistPanelTrackResolveHandler, ArtistTrackItem } from "@/components/artist/artistPanelTypes";
 import { trackItemKey } from "@/components/artist/artistTrackItems";
+import { useRowCappedViewport } from "@/components/artist/useRowCappedViewport";
 import { raisedControlRadius } from "@/components/cards/cardGeometry";
 import { useGroupedCorners } from "@/components/cards/useGroupedCorners";
 import { TrackListView } from "@/hooks/useTrackListView";
@@ -15,10 +16,10 @@ interface ArtistTrackViewProps {
   /** Analytics signal forwarded to each cell. */
   cardSignal?: string;
   /**
-   * Fill the parent's height (`h-full`) and scroll within it, instead of capping
-   * at this view's own `max-height`. The layered slide host pins the card to the
-   * grid height and stacks the views absolutely, so each view must fill that fixed
-   * height rather than impose its own.
+   * Fill the parent's height (`h-full`) and scroll within it, instead of capping at
+   * 4.5 list rows / 2.5 grid tile rows. The host stacks the views as absolute layers
+   * that fill the (animated) card height, so they pass `fillHeight`; the in-flow copy
+   * that drives the card height omits it and imposes the cap.
    */
   fillHeight?: boolean;
   /** In-place resolve handler forwarded to each cell. */
@@ -35,10 +36,10 @@ interface ArtistTrackViewProps {
  * per track.
  *
  * The owning {@link import("@/components/artist/ArtistTrackContent").ArtistTrackContent}
- * renders these layered at a fixed (grid) card height and slides them horizontally
- * on a view switch, so this component itself is a plain, static renderer with no
- * transition logic. With {@link ArtistTrackViewProps.fillHeight} the scroll viewport
- * fills that fixed height; otherwise it caps at its own `max-height`.
+ * renders these layered, fills them to the card height while it animates, and slides
+ * them horizontally on a view switch, so this component itself is a plain, static
+ * renderer with no transition logic. With {@link ArtistTrackViewProps.fillHeight} the
+ * scroll viewport fills the parent height; otherwise it caps at 4.5 rows / 2.5 tiles.
  *
  * @param props - {@link ArtistTrackViewProps}.
  */
@@ -57,13 +58,16 @@ export function ArtistTrackView({
     fillFrame: isGrid,
   });
 
-  // Height: fill the parent's fixed height when layered, else cap at the view's own
-  // max-height. Both views sit flush in the well, so neither subtracts a self-inset.
-  const heightClass = fillHeight ? "h-full" : isGrid ? "max-h-72" : "max-h-[248px]";
+  // Height: when this view drives the card height (the in-flow spacer), cap it at
+  // 4.5 list rows / 2.5 grid tile rows so it wraps the content with a half-row scroll
+  // peek; the layered, slideable copies pass `fillHeight` and just fill the animated
+  // card height. The cap ref is only attached in the height-driving (non-fill) case.
+  const cappedRef = useRowCappedViewport<HTMLDivElement>(isGrid ? 2.5 : 4.5);
 
   return (
     <div
-      className={cn("overflow-y-auto overscroll-contain", heightClass)}
+      ref={fillHeight ? undefined : cappedRef}
+      className={cn("overflow-y-auto overscroll-contain", fillHeight && "h-full")}
       style={{ borderRadius: raisedControlRadius }}
     >
       <div
