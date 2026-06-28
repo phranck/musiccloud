@@ -4,11 +4,12 @@ import { ArtistTrackContent } from "@/components/artist/ArtistTrackContent";
 import { TrackListView } from "@/hooks/useTrackListView";
 
 /**
- * ArtistTrackContent keeps both views permanently mounted as layers at a fixed
- * (grid) card height and slides between them. The single-view renderer is mocked
- * so these tests pin the wiring: an invisible grid height-anchor plus both view
- * layers, where the visible layer is the one that is not aria-hidden. The slide
- * and scroll geometry are browser-verified (jsdom has no layout engine).
+ * ArtistTrackContent keeps both views permanently mounted as layers and sizes the
+ * card to the ACTIVE view via an invisible in-flow spacer. The single-view renderer
+ * is mocked so these tests pin the wiring: the spacer (a non-fillHeight copy of the
+ * active view) plus both fillHeight view layers, where the visible layer is the one
+ * that is not aria-hidden. The height animation and slide/scroll geometry are
+ * browser-verified (jsdom has no layout engine).
  */
 
 vi.mock("@/components/artist/ArtistTrackView", () => ({
@@ -32,7 +33,7 @@ function visibleView() {
     .find((el) => el.getAttribute("data-fill") === "1" && !el.parentElement?.hasAttribute("aria-hidden"));
 }
 
-/** The two fillHeight layers (both views), excluding the non-filling grid anchor. */
+/** The two fillHeight layers (both views), excluding the non-filling height spacer. */
 function layerViews() {
   return screen.getAllByTestId("view").filter((el) => el.getAttribute("data-fill") === "1");
 }
@@ -57,10 +58,12 @@ describe("ArtistTrackContent", () => {
     ).toEqual(["grid", "list"]);
   });
 
-  it("anchors the card height to an invisible grid view", () => {
-    render(<ArtistTrackContent view={TrackListView.List} items={[]} />);
-    const anchor = screen.getAllByTestId("view").find((el) => el.getAttribute("data-fill") === "0");
-    expect(anchor?.getAttribute("data-view")).toBe("grid");
+  it("sizes the card to the active view via an invisible spacer", () => {
+    const { rerender } = render(<ArtistTrackContent view={TrackListView.List} items={[]} />);
+    const spacer = () => screen.getAllByTestId("view").find((el) => el.getAttribute("data-fill") === "0");
+    expect(spacer()?.getAttribute("data-view")).toBe("list");
+    rerender(<ArtistTrackContent view={TrackListView.Grid} items={[]} />);
+    expect(spacer()?.getAttribute("data-view")).toBe("grid");
   });
 
   it("switches the visible view on a view change", () => {
