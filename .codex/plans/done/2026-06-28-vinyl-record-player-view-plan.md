@@ -1,6 +1,6 @@
 # Vinyl Record Player View Implementation Plan
 
-Plan-Nr.: MC-031
+Plan-Nr.: MC-068
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` or `superpowers:executing-plans` to implement this plan task-by-task. In this Codex session the Superpowers tools are not discoverable, so read the installed local skill files under `/Users/phranck/.codex/skills/superpowers/` when needed. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -147,7 +147,7 @@ Plan-Nr.: MC-031
 - [x] Update comments that explicitly say CD where the behavior is now vinyl.
 - [x] Run `pnpm --filter @musiccloud/frontend test:run -- LandingPage.test.tsx`.
 - [x] Run `pnpm doctor:diff`.
-  - Verified with direct Vitest and full React Doctor; `CDSpinArtwork` is preserved through a narrow documented Doctor override because MC-031 requires keeping it.
+  - Verified with direct Vitest and full React Doctor; `CDSpinArtwork` is preserved through a narrow documented Doctor override because MC-068 requires keeping it.
 
 ## Stage 2: Share Playeransicht
 
