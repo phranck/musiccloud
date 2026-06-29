@@ -1,6 +1,6 @@
 import { useGSAP } from "@gsap/react";
 import { buildMetaLine } from "@musiccloud/shared";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, type ReactNode, useEffect, useRef, useState } from "react";
 import type { AudioStatus } from "@/components/audio/AudioStatus";
 import { ArtworkImage } from "@/components/cards/ArtworkImage";
 import { RecessedCard } from "@/components/cards/RecessedCard";
@@ -8,8 +8,6 @@ import { ShareMediaView, type ShareMediaView as ShareMediaViewType } from "@/com
 import { TftScreen } from "@/components/ui/TftScreen";
 import type { VfdScrollOutDirection } from "@/components/ui/VfdDisplay";
 import { VfdInfoDisplay } from "@/components/ui/VfdInfoDisplay";
-import { Turntable } from "@/components/vinyl/Turntable";
-import { VinylSpinState, type VinylSpinState as VinylSpinStateType } from "@/components/vinyl/VinylRecord.types";
 import { buildCoverSwapTimeline } from "@/lib/motion/coverSwap";
 import { cn } from "@/lib/utils";
 
@@ -21,19 +19,20 @@ interface SongInfoProps {
   durationMs?: number;
   isExplicit?: boolean;
   albumArtUrl: string;
-  labelAlbumTitle?: string;
-  labelReleaseYear?: string;
-  labelCatalogText?: string;
-  /** LP rights imprint (top-left): "GEMA" for commercial, CC licence for CC tracks. */
-  labelRightsText?: string;
   /** When provided, replaces the automatically computed meta line (duration · year) */
   metaOverride?: string;
   /** Share-only cover/turntable visual mode. Stage 2.3 renders this. */
   shareMediaView?: ShareMediaViewType;
   /** Share-only playback status, forwarded by share media containers. */
   previewStatus?: AudioStatus | null;
-  /** Share-only visual LP spin state. */
-  vinylSpinState?: VinylSpinStateType;
+  /**
+   * The turntable deck rendered behind the cover on the share-only turntable
+   * view. Supplied by the caller (`MediaCardHead`) so the deck can be hub-driven
+   * under a `TurntablePlayerProvider` or a static prop-driven deck where no hub
+   * exists; `SongInfo` only owns the cover/VFD layout and the cover-swap
+   * animation. Only rendered when {@link shareMediaView} is set.
+   */
+  turntableStage?: ReactNode;
   /** Fourth VFD row. Pre-translated by the caller so the component stays reusable. */
   statusLine?: string;
   /** Transient seek-hint trigger forwarded to the status row overlay. */
@@ -65,15 +64,11 @@ export const SongInfo = memo(function SongInfo({
   durationMs,
   isExplicit,
   albumArtUrl,
-  labelAlbumTitle,
-  labelCatalogText,
-  labelRightsText,
-  labelReleaseYear,
   metaOverride,
   seekHint,
   shareMediaView,
   statusLine = "READY",
-  vinylSpinState = VinylSpinState.Idle,
+  turntableStage,
 }: SongInfoProps) {
   const metaLine = metaOverride ?? buildMetaLine({ durationMs, releaseDate });
   const detailLine = [album, isExplicit ? "E" : null].filter(Boolean).join(" · ");
@@ -196,19 +191,7 @@ export const SongInfo = memo(function SongInfo({
                   )}
                   data-media-stage="turntable"
                 >
-                  <Turntable
-                    className="h-full w-full"
-                    record={{
-                      className: "h-full w-full",
-                      labelArtworkUrl: albumArtUrl,
-                      labelCatalogText,
-                      labelRightsText,
-                      labelSubtitle: artist,
-                      labelTitle: labelAlbumTitle ?? album ?? title,
-                      labelYear: labelReleaseYear,
-                      spinState: vinylSpinState,
-                    }}
-                  />
+                  {turntableStage}
                 </div>
               )}
             </TftScreen>

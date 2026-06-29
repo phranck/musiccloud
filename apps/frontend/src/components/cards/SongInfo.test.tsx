@@ -2,20 +2,44 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { SongInfo } from "@/components/cards/SongInfo";
 import { ShareMediaView } from "@/components/share/ShareMediaView.types";
+import { Turntable } from "@/components/vinyl/Turntable";
 import { VinylSpinState } from "@/components/vinyl/VinylRecord.types";
 
+/**
+ * The deck node `MediaCardHead` hands to `SongInfo` for the turntable view. The
+ * prop-driven `Turntable` is used here (no hub needed) with the LP label fields
+ * `MediaCardHead` would derive from the resolved content.
+ *
+ * @param spinState - Visual spin state for the embedded vinyl record.
+ * @returns The turntable deck node.
+ */
+function turntableStageNode(spinState: VinylSpinState) {
+  return (
+    <Turntable
+      className="h-full w-full"
+      record={{
+        className: "h-full w-full",
+        labelArtworkUrl: "/covers/blue-train.jpg",
+        labelCatalogText: "STEREO MC-1958",
+        labelSubtitle: "John Coltrane",
+        labelTitle: "Blue Train",
+        labelYear: "1958",
+        spinState,
+      }}
+    />
+  );
+}
+
 describe("SongInfo media stage", () => {
-  it("slides from cover stage to turntable stage and uses structured LP label fields", () => {
+  it("slides from cover stage to turntable stage and shows the supplied turntable deck", () => {
     const { container, rerender } = render(
       <SongInfo
         title="Blue Train"
         artist="John Coltrane"
         album="Blue Train"
         albumArtUrl="/covers/blue-train.jpg"
-        labelAlbumTitle="Blue Train"
-        labelCatalogText="STEREO MC-1958"
-        labelReleaseYear="1958"
         shareMediaView={ShareMediaView.Cover}
+        turntableStage={turntableStageNode(VinylSpinState.Idle)}
       />,
     );
 
@@ -37,11 +61,8 @@ describe("SongInfo media stage", () => {
         artist="John Coltrane"
         album="Blue Train"
         albumArtUrl="/covers/blue-train.jpg"
-        labelAlbumTitle="Blue Train"
-        labelCatalogText="STEREO MC-1958"
-        labelReleaseYear="1958"
         shareMediaView={ShareMediaView.Turntable}
-        vinylSpinState={VinylSpinState.Playing}
+        turntableStage={turntableStageNode(VinylSpinState.Playing)}
       />,
     );
 

@@ -7,12 +7,41 @@ import { SongInfo } from "@/components/cards/SongInfo";
 import { ShareButton } from "@/components/share/ShareButton";
 import type { ShareMediaView } from "@/components/share/ShareMediaView.types";
 import { TurntableAnalyzerSlot } from "@/components/turntable/TurntableAnalyzerSlot";
-import { useTurntablePlayer } from "@/components/turntable/TurntablePlayerContext";
+import { TurntablePlayer } from "@/components/turntable/TurntablePlayer";
 import { TurntablePlayerProvider } from "@/components/turntable/TurntablePlayerProvider";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import type { VfdScrollOutDirection } from "@/components/ui/VfdDisplay";
-import { VinylSpinState } from "@/components/vinyl/VinylRecord.types";
+import { Turntable } from "@/components/vinyl/Turntable";
+import type { VinylRecordProps } from "@/components/vinyl/VinylRecord";
 import { isShareableContent, isSharePageContent, type MediaCardContentConfiguration } from "@/lib/types/media-card";
+
+/** The vinyl-label fields of {@link VinylRecordProps} (no spin/speed/class). */
+type VinylLabelRecord = Pick<
+  VinylRecordProps,
+  "labelArtworkUrl" | "labelTitle" | "labelSubtitle" | "labelYear" | "labelCatalogText" | "labelRightsText"
+>;
+
+/**
+ * Maps resolved media content to the vinyl-label imprint fields.
+ *
+ * Kept in one place so the hub-driven deck and the static no-preview deck always
+ * print the same label (cover art, title, artist, year, catalog, rights). The
+ * title falls back through the LP album title, the album, then the track title,
+ * matching the imprint the former inline turntable used.
+ *
+ * @param content - The resolved media content configuration.
+ * @returns The {@link VinylLabelRecord} for the deck.
+ */
+function buildVinylLabelRecord(content: MediaCardContentConfiguration): VinylLabelRecord {
+  return {
+    labelArtworkUrl: content.artworkUrl,
+    labelCatalogText: content.labelCatalogText,
+    labelRightsText: content.labelRightsText,
+    labelSubtitle: content.artist,
+    labelTitle: content.labelAlbumTitle ?? content.album ?? content.title,
+    labelYear: content.labelReleaseYear,
+  };
+}
 
 interface MediaCardHeadProps {
   /** Resolved media content driving the cover, info, preview and share affordances. */
@@ -41,7 +70,7 @@ interface MediaCardHeadProps {
   children?: ReactNode;
 }
 
-/** Props for {@link MediaCardHeadStage}: the cover/VFD block with hub-driven spin. */
+/** Props for {@link MediaCardHeadStage}: the cover/VFD block plus the deck node. */
 interface MediaCardHeadStageProps {
   content: MediaCardContentConfiguration;
   shareMediaView?: ShareMediaView;
@@ -49,18 +78,19 @@ interface MediaCardHeadStageProps {
   previewStatus?: AudioStatus | null;
   seekHint: { direction: VfdScrollOutDirection; nonce: number } | null;
   /**
-   * Visual LP spin state for the turntable stage. Defaults to `Idle`; the
-   * hub-connected `MediaCardHeadHubStage` overrides it with the live spin.
+   * The turntable deck rendered on the turntable view. The preview path supplies
+   * the hub-driven {@link TurntablePlayer}; the no-preview path supplies a static
+   * {@link Turntable}, so the deck only consumes the hub where a provider exists.
    */
-  vinylSpinState?: VinylSpinState;
+  turntableStage: ReactNode;
 }
 
 /**
- * Renders the {@link SongInfo} cover/VFD block for the media head.
+ * Renders the {@link SongInfo} cover/VFD block for the media head, handing it the
+ * turntable deck node to show on the turntable view.
  *
- * Kept as its own component so a hub-connected wrapper can inject the live spin
- * state while the no-preview path renders it with the default idle spin (no
- * turntable hub exists there).
+ * Kept as its own component so the preview path can pass a hub-driven deck and
+ * the no-preview path a static one, while the cover/VFD layout stays identical.
  *
  * @param props - {@link MediaCardHeadStageProps}.
  */
@@ -70,7 +100,7 @@ function MediaCardHeadStage({
   statusLine,
   previewStatus,
   seekHint,
-  vinylSpinState = VinylSpinState.Idle,
+  turntableStage,
 }: MediaCardHeadStageProps) {
   return (
     <SongInfo
@@ -79,30 +109,14 @@ function MediaCardHeadStage({
       album={content.album}
       albumArtUrl={content.artworkUrl}
       isExplicit={content.isExplicit}
-      labelAlbumTitle={content.labelAlbumTitle}
-      labelCatalogText={content.labelCatalogText}
-      labelRightsText={content.labelRightsText}
-      labelReleaseYear={content.labelReleaseYear}
       metaOverride={content.metaLine}
       previewStatus={previewStatus}
       seekHint={seekHint}
       shareMediaView={shareMediaView}
       statusLine={statusLine}
-      vinylSpinState={vinylSpinState}
+      turntableStage={turntableStage}
     />
   );
-}
-
-/**
- * Hub-connected variant of {@link MediaCardHeadStage}: reads the live spin state
- * from the turntable hub so the visible turntable spins in lock-step with
- * playback. Must render inside a `TurntablePlayerProvider`.
- *
- * @param props - The stage props minus `vinylSpinState`, which comes from the hub.
- */
-function MediaCardHeadHubStage(props: Omit<MediaCardHeadStageProps, "vinylSpinState">) {
-  const { spinState } = useTurntablePlayer();
-  return <MediaCardHeadStage {...props} vinylSpinState={spinState} />;
 }
 
 /**
@@ -119,8 +133,10 @@ function MediaCardHeadHubStage(props: Omit<MediaCardHeadStageProps, "vinylSpinSt
  * a `TurntablePlayerProvider` (the audio hub). The provider is keyed by the
  * content identity (`shortId`, `previewUrl`, title, artist) so swapping the
  * resolved track on the share page resets the engine cleanly instead of reusing
- * a stale instance. The hub owns the visual LP spin, which it feeds into the
- * cover stage; without a preview there is no hub and the stage stays idle.
+ * a stale instance. The turntable stage then renders the hub-driven
+ * {@link TurntablePlayer} deck, which reads its spin/speed/power from the hub.
+ * Without a preview there is no hub, so the stage gets a static {@link Turntable}
+ * deck (idle spin) instead, keeping the hook out of the provider-less path.
  *
  * @param content - The resolved media content configuration.
  * @param animated - When true, plays the shared zoom-in entrance.
@@ -166,15 +182,7 @@ export function MediaCardHead({
     setSeekHint((previous) => ({ direction, nonce: (previous?.nonce ?? 0) + 1 }));
   }, []);
 
-  const stageContent = (
-    <MediaCardHeadStage
-      content={content}
-      shareMediaView={shareMediaView}
-      statusLine={content.statusLine}
-      previewStatus={previewStatus}
-      seekHint={seekHint}
-    />
-  );
+  const labelRecord = buildVinylLabelRecord(content);
 
   return (
     <EmbossedCard className={animatedOuterEmbossedCardClassName(animated, className)}>
@@ -194,12 +202,15 @@ export function MediaCardHead({
           onSeekHint={handleSeekHint}
           onStatusChange={onPreviewStatusChange}
         >
-          <MediaCardHeadHubStage
+          <MediaCardHeadStage
             content={content}
             shareMediaView={shareMediaView}
             statusLine={content.statusLine}
             previewStatus={previewStatus}
             seekHint={seekHint}
+            turntableStage={
+              <TurntablePlayer className="h-full w-full" record={{ ...labelRecord, className: "h-full w-full" }} />
+            }
           />
           <CollapsibleSection
             visible
@@ -209,7 +220,16 @@ export function MediaCardHead({
           </CollapsibleSection>
         </TurntablePlayerProvider>
       ) : (
-        stageContent
+        <MediaCardHeadStage
+          content={content}
+          shareMediaView={shareMediaView}
+          statusLine={content.statusLine}
+          previewStatus={previewStatus}
+          seekHint={seekHint}
+          turntableStage={
+            <Turntable className="h-full w-full" record={{ ...labelRecord, className: "h-full w-full" }} />
+          }
+        />
       )}
 
       <CollapsibleSection
