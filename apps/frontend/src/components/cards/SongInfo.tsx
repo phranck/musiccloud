@@ -10,6 +10,8 @@ import {
   VfdBrightness,
   VfdDisplay,
   VfdMarqueeMode,
+  VfdScrollOutDirection,
+  type VfdScrollOutOverlay,
   VfdSectionAlign,
   VfdSectionCells,
   VfdSizingMode,
@@ -42,7 +44,22 @@ interface SongInfoProps {
   vinylSpinState?: VinylSpinStateType;
   /** Fourth VFD row. Pre-translated by the caller so the component stays reusable. */
   statusLine?: string;
+  /** Transient seek-hint trigger forwarded to the status row overlay. */
+  seekHint?: { direction: VfdScrollOutDirection; nonce: number } | null;
 }
+
+/** Seek-hint overlay length in milliseconds, set by product (interactive tuning). */
+const VFD_SEEK_HINT_DURATION_MS = 2900;
+
+/**
+ * Glyph text rendered in the status row overlay per scroll-out direction.
+ * Computed keys use the `VfdScrollOutDirection` namespace to satisfy the
+ * domain-literals rule (`domain-literals/no-inline-discriminant-literals`).
+ */
+const SEEK_HINT_TEXT = {
+  [VfdScrollOutDirection.Left]: "<< 10s",
+  [VfdScrollOutDirection.Right]: "10s >>",
+} as const;
 
 function nextAnimationFrame(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()));
@@ -74,6 +91,7 @@ export const SongInfo = memo(function SongInfo({
   labelRightsText,
   labelReleaseYear,
   metaOverride,
+  seekHint,
   shareMediaView,
   statusLine = "READY",
   vinylSpinState = VinylSpinState.Idle,
@@ -82,6 +100,21 @@ export const SongInfo = memo(function SongInfo({
   const detailLine = [album, isExplicit ? "E" : null].filter(Boolean).join(" · ");
   const shouldMarqueeStatus = statusLine.length > 28;
   const mediaView = shareMediaView ?? ShareMediaView.Cover;
+
+  /**
+   * Transient scroll-out overlay for the status row, built from the seek-hint
+   * trigger received from `MediaCardHead`. Undefined when no hint is active.
+   * Each new `nonce` value re-arms the overlay from the start even when the
+   * direction repeats ("jeder Druck neu").
+   */
+  const statusOverlay: VfdScrollOutOverlay | undefined = seekHint
+    ? {
+        text: SEEK_HINT_TEXT[seekHint.direction],
+        direction: seekHint.direction,
+        durationMs: VFD_SEEK_HINT_DURATION_MS,
+        nonce: seekHint.nonce,
+      }
+    : undefined;
   const showTurntableStage = shareMediaView !== undefined;
 
   const [artworkState, setArtworkState] = useState({
@@ -265,6 +298,7 @@ export const SongInfo = memo(function SongInfo({
               brightness: VfdBrightness.Bright,
               align: VfdSectionAlign.Center,
               marquee: shouldMarqueeStatus,
+              scrollOutOverlay: statusOverlay,
             },
           ]}
         />
