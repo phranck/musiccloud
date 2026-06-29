@@ -117,6 +117,8 @@
   "audio.statusPlaying": "♫ VORSCHAU LÄUFT",
   "audio.songUnavailable": "Song nicht verfügbar",
   "audio.statusPlayingSong": "♫ SONG LÄUFT",
+  "audio.statusPausedSong": "♫ SONG PAUSIERT",
+  "audio.statusPaused": "♫ VORSCHAU PAUSIERT",
   "artist.profileProvidedBy": "Künstlerdaten bereitgestellt von Spotify, Deezer & Last.fm",
   "artist.profileProvidedByJamendo": "Künstlerdaten bereitgestellt von Jamendo",
   "artist.empty": "Keine Künstlerdetails verfügbar.",
