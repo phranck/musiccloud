@@ -83,12 +83,9 @@ export interface VfdScrollOutOverlay {
 }
 
 /** Per-row scroll-out overlay state in flight on the canvas. */
-export interface VfdOverlayRuntimeState {
-  text: string;
-  direction: VfdScrollOutDirection;
+export interface VfdOverlayRuntimeState extends VfdScrollOutOverlay {
+  /** performance.now() timestamp captured when the overlay was (re-)armed. */
   startedAt: number;
-  durationMs: number;
-  nonce: number;
 }
 
 /**

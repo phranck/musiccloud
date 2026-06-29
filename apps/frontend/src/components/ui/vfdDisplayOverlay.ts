@@ -72,13 +72,7 @@ export function syncOverlayState(
   }
   const running = state.overlays.get(rowIndex);
   if (running && running.nonce === overlay.nonce) return;
-  state.overlays.set(rowIndex, {
-    text: overlay.text,
-    direction: overlay.direction,
-    durationMs: overlay.durationMs,
-    nonce: overlay.nonce,
-    startedAt: now,
-  });
+  state.overlays.set(rowIndex, { ...overlay, startedAt: now });
 }
 
 /**
