@@ -1,4 +1,4 @@
-import { type CSSProperties, type KeyboardEvent, type PointerEvent, useState } from "react";
+import { type CSSProperties, type KeyboardEvent, type PointerEvent, useEffect, useState } from "react";
 import {
   TurntableSpeed,
   type TurntableSpeed as TurntableSpeedValue,
@@ -175,13 +175,25 @@ export function TurntableKnob() {
   const { speed, setSpeed } = useTurntablePlayer();
   const [drag, setDrag] = useState<KnobDragState | null>(null);
 
+  // Safety net: if the knob unmounts mid-drag, release the body select-lock so a
+  // leftover `user-select: none` never sticks to the page.
+  useEffect(
+    () => () => {
+      document.body.style.userSelect = "";
+    },
+    [],
+  );
+
   const handlePointerDown = (event: PointerEvent<HTMLSpanElement>) => {
     if (event.button !== 0 && event.pointerType === "mouse") return;
-    // Suppress the browser's drag-to-select so dragging the knob never highlights
-    // page text; focus explicitly because the suppressed default would drop it.
-    event.preventDefault();
-    event.currentTarget.focus();
     event.currentTarget.setPointerCapture(event.pointerId);
+    // Suppress the page's drag-to-select while the knob is dragged. This must NOT
+    // call preventDefault on the pointer event: that also cancels the transient
+    // user activation that AudioContext.resume() inside togglePlay needs, which
+    // leaves knob-started playback silent until a playbutton restart. Locking the
+    // body's user-select suppresses the highlight without touching the gesture;
+    // it is released on pointer up/cancel and on unmount.
+    document.body.style.userSelect = "none";
     setDrag({ startX: event.clientX, startY: event.clientY, startSpeed: speed, snappedSpeed: speed, moved: false });
   };
 
@@ -201,6 +213,7 @@ export function TurntableKnob() {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+    document.body.style.userSelect = "";
     // Only a real drag changes the speed; a tap with no movement is a no-op.
     // setSpeed runs synchronously here so the gesture activation survives for
     // AudioContext.resume() (no await before it).
@@ -212,6 +225,7 @@ export function TurntableKnob() {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+    document.body.style.userSelect = "";
     setDrag(null);
   };
 
