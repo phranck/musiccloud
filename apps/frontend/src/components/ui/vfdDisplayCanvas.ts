@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/vfdDisplayGeometry";
 import { defaultMarqueeMode, marqueeStateFor, shouldMarquee } from "@/components/ui/vfdDisplayMarquee";
 import { normalizeLine, resolveSectionCells } from "@/components/ui/vfdDisplayNormalize";
+import { mergeOverlayColumns, overlayProgress, scrollOutStartColumn } from "@/components/ui/vfdDisplayOverlay";
 
 /**
  * Reduces one column of a glyph pattern into a 7-bit row mask.
@@ -398,11 +399,31 @@ export function drawVfdCanvas(
     } else {
       const current = lineCanvasColumns(line, state.cellCount, rowIndex, state, now);
       hasActiveMarquee = hasActiveMarquee || current.hasActiveMarquee;
-      drawCanvasPixelColumns(ctx, current.columns, rowTop, 0, colors);
+      const overlay = state.overlays.get(rowIndex);
+      if (overlay && !state.prefersReducedMotion) {
+        const progress = overlayProgress(overlay, now);
+        const overlaySource = contentCanvasPixelColumns(overlay.text, VfdBrightness.Bright);
+        const start = scrollOutStartColumn(overlay.direction, progress, current.columns.length, overlaySource.length);
+        const overlayColumns = Array.from({ length: current.columns.length }, (_, index) => {
+          const source = overlaySource[index - start];
+          return source ?? blankCanvasColumn(VfdBrightness.Bright);
+        });
+        const litColumns = current.columns
+          .map((column, index) => (column.mask !== 0 ? index : -1))
+          .filter((index) => index >= 0);
+        const textFirst = litColumns.length > 0 ? litColumns[0] : 0;
+        const textLast = litColumns.length > 0 ? litColumns[litColumns.length - 1] : -1;
+        const merged = mergeOverlayColumns(current.columns, overlayColumns, textFirst, textLast);
+        drawCanvasPixelColumns(ctx, merged, rowTop, 0, colors);
+        if (progress >= 1) state.overlays.delete(rowIndex);
+      } else {
+        if (overlay) state.overlays.delete(rowIndex);
+        drawCanvasPixelColumns(ctx, current.columns, rowTop, 0, colors);
+      }
     }
 
     ctx.restore();
   }
 
-  return state.transitions.size > 0 || hasActiveMarquee;
+  return state.transitions.size > 0 || state.overlays.size > 0 || hasActiveMarquee;
 }

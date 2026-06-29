@@ -512,13 +512,13 @@ export function overlayProgress(overlay: VfdOverlayRuntimeState, now: number): n
 - Modify: `apps/frontend/src/components/ui/VfdDisplay.tsx`
 - Modify: `apps/frontend/src/components/ui/vfdDisplayCanvas.ts`
 
-- [ ] **Step 1: `normalizeLine` durchreichen** — In `vfdDisplayNormalize.ts` im zurückgegebenen `NormalizedVfdLine` `scrollOutOverlay: line?.scrollOutOverlay` ergänzen (Feld aus der rohen Line übernehmen; bei undefined bleibt es undefined).
+- [x] **Step 1: `normalizeLine` durchreichen** — In `vfdDisplayNormalize.ts` im zurückgegebenen `NormalizedVfdLine` `scrollOutOverlay: line?.scrollOutOverlay` ergänzen (Feld aus der rohen Line übernehmen; bei undefined bleibt es undefined).
 
-- [ ] **Step 2: `renderStateRef` initial** — In `VfdDisplay.tsx` (Zeile 154-161) `overlays: new Map(),` zum Initial-State ergänzen.
+- [x] **Step 2: `renderStateRef` initial** — In `VfdDisplay.tsx` (Zeile 154-161) `overlays: new Map(),` zum Initial-State ergänzen.
 
-- [ ] **Step 3: Overlay-Arming in `syncRenderStateLines`** — In `VfdDisplay.tsx` (Funktion Zeile 43-71) am Ende der `normalizedLines.forEach`-Schleife `syncOverlayState(state, line, index, now)` aufrufen. Import: `import { syncOverlayState } from "@/components/ui/vfdDisplayOverlay";`. (Beide Pfade — React-`lines`-Effekt und imperativer `setLines` — laufen durch `syncRenderStateLines`, also wird das Overlay aus beiden Quellen korrekt geschärft.)
+- [x] **Step 3: Overlay-Arming in `syncRenderStateLines`** — In `VfdDisplay.tsx` (Funktion Zeile 43-71) am Ende der `normalizedLines.forEach`-Schleife `syncOverlayState(state, line, index, now)` aufrufen. Import: `import { syncOverlayState } from "@/components/ui/vfdDisplayOverlay";`. (Beide Pfade — React-`lines`-Effekt und imperativer `setLines` — laufen durch `syncRenderStateLines`, also wird das Overlay aus beiden Quellen korrekt geschärft.)
 
-- [ ] **Step 4: Overlay-Render in `drawVfdCanvas`** — In `vfdDisplayCanvas.ts` im Nicht-Transition-Zweig (Zeile 398-402) das Overlay einweben:
+- [x] **Step 4: Overlay-Render in `drawVfdCanvas`** — In `vfdDisplayCanvas.ts` im Nicht-Transition-Zweig (Zeile 398-402) das Overlay einweben:
 
 ```ts
 } else {
@@ -550,15 +550,15 @@ export function overlayProgress(overlay: VfdOverlayRuntimeState, now: number): n
 
 Imports oben in `vfdDisplayCanvas.ts` ergänzen: `mergeOverlayColumns`, `overlayProgress`, `scrollOutStartColumn` aus `vfdDisplayOverlay`.
 
-- [ ] **Step 5: `hasActiveAnimation`-Rückgabe** — Return von `drawVfdCanvas` (Zeile 407) erweitern, damit ein laufendes Overlay die Loop am Leben hält:
+- [x] **Step 5: `hasActiveAnimation`-Rückgabe** — Return von `drawVfdCanvas` (Zeile 407) erweitern, damit ein laufendes Overlay die Loop am Leben hält:
 
 ```ts
 return state.transitions.size > 0 || state.overlays.size > 0 || hasActiveMarquee;
 ```
 
-- [ ] **Step 6: Gate** — Typecheck grün; `biome check --write` auf die drei Dateien.
+- [x] **Step 6: Gate** — Typecheck grün; `biome check --write` auf die drei Dateien.
 
-- [ ] **Step 7: Commit** — `Feat: render VFD scroll-out overlay on the canvas (MC-067)`
+- [x] **Step 7: Commit** — `Feat: render VFD scroll-out overlay on the canvas (MC-067)`
 
 ### Task C1: seekHint-State in MediaCardHead
 
@@ -709,7 +709,7 @@ const vfdStatusLine = artistStatusLoading
 - [ ] A2 Tastatur-Router + Seek-Aktionen + Registry erweitert
 - [x] B1 Overlay-Typen + Re-Export
 - [x] B2 Overlay-Geometrie + Test grün
-- [ ] B3 Overlay in Normalize + sync + Canvas-Render
+- [x] B3 Overlay in Normalize + sync + Canvas-Render
 - [ ] C1 `seekHint`-State in `MediaCardHead`
 - [ ] C2 `seekHint` → VFD-Overlay in `SongInfo` (visuell verifiziert)
 - [ ] D1 Pausiert-Status i18n DE/EN

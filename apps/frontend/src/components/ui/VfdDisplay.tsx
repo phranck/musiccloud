@@ -24,6 +24,7 @@ import {
   vfdRowWidth,
 } from "@/components/ui/vfdDisplayGeometry";
 import { normalizeLine, sameLinePresentation } from "@/components/ui/vfdDisplayNormalize";
+import { syncOverlayState } from "@/components/ui/vfdDisplayOverlay";
 import { setupMotion } from "@/lib/motion/setup";
 import { cn } from "@/lib/utils";
 
@@ -50,7 +51,10 @@ function syncRenderStateLines(
 ): void {
   normalizedLines.forEach((line, index) => {
     const previousLine = state.lines[index];
-    if (!previousLine || sameLinePresentation(previousLine, line)) return;
+    if (!previousLine || sameLinePresentation(previousLine, line)) {
+      syncOverlayState(state, line, index, now);
+      return;
+    }
     if (
       previousLine.contentKey !== line.contentKey &&
       line.transition !== VfdContentTransition.None &&
@@ -60,6 +64,7 @@ function syncRenderStateLines(
     } else {
       state.transitions.delete(index);
     }
+    syncOverlayState(state, line, index, now);
   });
   for (const rowIndex of Array.from(state.transitions.keys())) {
     if (rowIndex >= rowCount) state.transitions.delete(rowIndex);

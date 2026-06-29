@@ -158,6 +158,7 @@ export function normalizeLine(index: number, line: VfdDisplayLine | undefined): 
     align: safeLine.align ?? VfdSectionAlign.Left,
     marquee: safeLine.marquee,
     transition: safeLine.transition ?? VfdContentTransition.Slide,
+    scrollOutOverlay: line?.scrollOutOverlay,
     className: safeLine.className,
   };
 }
