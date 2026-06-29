@@ -247,7 +247,7 @@ Wegen Größe und Risiko in vier separat testbare Einheiten geschnitten. Jede Ei
 - [x] **Step 4.4 — `TurntablePlayer.test.tsx` erweitert.** *(6 Interaktions-Tests mit echtem `TurntablePlayerProvider` + gemockter Engine (`play`/`pause`/`currentTime`): Slider-Rolle + Standby-Rest; Drag→45 startet Play + LED On + Indikator -120°; Drag→Standby stoppt + `seekToStart` + LED Standby; Tap=No-op; Pfeiltasten steppen ohne globalen Router; Playbutton + Knob teilen State. Plus 3 `stepSpeed`-Unit-Tests. Drag via gestubbtem `getBoundingClientRect` + Pointer-Capture-Stubs; kein unbeaufsichtigtes Audio.)*
 - [x] **Step 4.5 — Regression.** *(Volle Frontend-Suite grün: 52 Files / 320 Tests. Cross-Browser-Checkliste für den User: Spin-Handoff beim Speed-Wechsel (kein Winkel-Sprung), keine Audio-Clicks beim Drag-Start (gesture-sync `setSpeed`→`togglePlay`), Snap-Transition GPU-only.)*
 - [x] **Step 4.6 — Gates.** *(Biome `--write apps/frontend/src`: 0 Fixes (327 Files); `tsc --noEmit`: 0 Fehler; voller `pnpm run doctor` (Full-Scan): 0 Issues (alle 4 Workspaces, nach Fix eines `deslop/unused-export` auf `knobIndicatorTransform`); Frontend-Suite: 320 Tests grün.)*
-- [ ] **Step 4.7 — Commit.** `Feat: interactive turntable knob with 33/45 speed control (MC-071)`
+- [x] **Step 4.7 — Commit.** `Feat: interactive turntable knob with 33/45 speed control (MC-071)` *(Commit `bce8f84f`.)*
 
 ---
 
