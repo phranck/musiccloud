@@ -5,6 +5,7 @@ import {
   AudioPreviewStatus,
   type AudioPreviewStatus as AudioPreviewStatusType,
 } from "@/components/audio/AudioPreviewStatus";
+import { resolveSeekTarget, SEEK_END_GUARD_SECONDS, SEEK_STEP_SECONDS } from "@/components/audio/audioPreviewSeek";
 import {
   clearSpectrumFrame,
   getSpectrumFrame,
@@ -14,6 +15,7 @@ import {
   writeSpectrumPeakHold,
 } from "@/components/audio/spectrumStore";
 import { Player } from "@/components/playback/Player";
+import { VfdScrollOutDirection } from "@/components/ui/VfdDisplay";
 import { useT } from "@/i18n/localeContext";
 import { PreviewSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { setupMotion } from "@/lib/motion/setup";
@@ -33,6 +35,8 @@ interface AudioPreviewPlayerProps {
   /** Fires synchronously when the user starts playback via click, media key, or Space. */
   onPlaybackIntent?: () => void;
   onStatusChange?: (status: AudioPreviewStatusType) => void;
+  /** Fires after a ±step arrow seek so the host can flash a VFD hint. Not fired for cmd jumps. */
+  onSeekHint?: (direction: VfdScrollOutDirection) => void;
 }
 
 /**
@@ -234,19 +238,26 @@ interface StereoPeakHoldState {
 
 /**
  * Tab-wide registry of mounted `AudioPreviewPlayer` instances. Used by the
- * single shared window-keydown listener to route the spacebar to a player
- * when no input element holds focus. Set iteration is insertion-order,
- * which on the share page corresponds to "hero card first, then top tracks"
- * — so the fallback target is the most prominent preview on the page.
+ * single shared window-keydown listener to route the spacebar and arrow keys
+ * to a player when no input element holds focus. Set iteration is
+ * insertion-order, which on the share page corresponds to "hero card first,
+ * then top tracks" — so the fallback target is the most prominent preview on
+ * the page.
  */
-interface AudioPreviewSpacebarHandle {
+interface AudioPreviewKeyboardHandle {
   /** Forwards to the player's `togglePlay`. Stable across renders. */
   togglePlay: () => void;
   /** True while the player is in `Playing` or `Paused` phase, false otherwise. */
   isActive: () => boolean;
+  /** Relative seek by signed seconds (arrow keys). No-op unless active. */
+  seekBy: (deltaSeconds: number) => void;
+  /** Jump to the track start (cmd+Left). No-op unless active. */
+  seekToStart: () => void;
+  /** Jump to `SEEK_END_GUARD_SECONDS` before the end (cmd+Right). No-op unless active. */
+  seekToNearEnd: () => void;
 }
 
-const audioPreviewRegistry = new Set<AudioPreviewSpacebarHandle>();
+const audioPreviewRegistry = new Set<AudioPreviewKeyboardHandle>();
 let audioPreviewListenerRefCount = 0;
 
 /**
@@ -267,7 +278,7 @@ function shouldIgnoreSpacebarTarget(event: KeyboardEvent): boolean {
   return false;
 }
 
-function resolveSpacebarTarget(): AudioPreviewSpacebarHandle | null {
+function resolveSpacebarTarget(): AudioPreviewKeyboardHandle | null {
   for (const player of audioPreviewRegistry) {
     if (player.isActive()) return player;
   }
@@ -285,15 +296,33 @@ function handleAudioPreviewSpacebar(event: KeyboardEvent): void {
   target.togglePlay();
 }
 
+function handleAudioPreviewArrows(event: KeyboardEvent): void {
+  if (event.repeat) return;
+  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+  if (event.altKey || event.ctrlKey || event.shiftKey) return;
+  if (shouldIgnoreSpacebarTarget(event)) return;
+  const target = resolveSpacebarTarget();
+  if (!target || !target.isActive()) return;
+  event.preventDefault();
+  const isLeft = event.key === "ArrowLeft";
+  if (event.metaKey) {
+    if (isLeft) target.seekToStart();
+    else target.seekToNearEnd();
+    return;
+  }
+  target.seekBy(isLeft ? -SEEK_STEP_SECONDS : SEEK_STEP_SECONDS);
+}
+
 /**
  * Adds a player handle to the tab-wide registry and (de)activates the shared
- * window-keydown listener via refcount. Returns the cleanup function to be
- * used directly inside a React effect cleanup.
+ * window-keydown listeners (spacebar + arrows) via refcount. Returns the
+ * cleanup function to be used directly inside a React effect cleanup.
  */
-function registerAudioPreviewForSpacebar(handle: AudioPreviewSpacebarHandle): () => void {
+function registerAudioPreviewForKeyboard(handle: AudioPreviewKeyboardHandle): () => void {
   audioPreviewRegistry.add(handle);
   if (audioPreviewListenerRefCount === 0) {
     window.addEventListener("keydown", handleAudioPreviewSpacebar);
+    window.addEventListener("keydown", handleAudioPreviewArrows);
   }
   audioPreviewListenerRefCount += 1;
   return () => {
@@ -301,6 +330,7 @@ function registerAudioPreviewForSpacebar(handle: AudioPreviewSpacebarHandle): ()
     audioPreviewListenerRefCount -= 1;
     if (audioPreviewListenerRefCount === 0) {
       window.removeEventListener("keydown", handleAudioPreviewSpacebar);
+      window.removeEventListener("keydown", handleAudioPreviewArrows);
     }
   };
 }
@@ -425,6 +455,7 @@ function useAudioPreviewController({
   trackTitle,
   onPlaybackIntent,
   onStatusChange,
+  onSeekHint,
 }: AudioPreviewPlayerProps) {
   const t = useT();
   const initialPhase: PlayerState = previewUrl
@@ -1095,6 +1126,62 @@ function useAudioPreviewController({
 
   const togglePlayFromEvent = useEffectEvent(togglePlay);
 
+  const notifySeekHint = useCallback(
+    (direction: VfdScrollOutDirection) => {
+      onSeekHint?.(direction);
+    },
+    [onSeekHint],
+  );
+
+  /**
+   * Seeks the audio by a signed delta (arrow-key step). No-op when the player
+   * is not in `Playing` or `Paused` phase. Clamps to `0 … duration`. Fires
+   * `onSeekHint` so the host can flash a VFD direction hint.
+   *
+   * @param deltaSeconds - Signed offset in seconds (negative = rewind).
+   */
+  const seekBy = useCallback(
+    (deltaSeconds: number) => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      if (state.phase !== PlayerPhase.Playing && state.phase !== PlayerPhase.Paused) return;
+      const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
+      audio.currentTime = resolveSeekTarget(audio.currentTime, deltaSeconds, dur);
+      setProgressRatioValue(resolveAudioProgressRatio(audio));
+      notifySeekHint(deltaSeconds < 0 ? VfdScrollOutDirection.Left : VfdScrollOutDirection.Right);
+    },
+    [state.phase, notifySeekHint, setProgressRatioValue],
+  );
+
+  /**
+   * Jumps to the track start (cmd+Left). No-op unless active.
+   * Does not fire `onSeekHint` — silent jump per product spec.
+   */
+  const seekToStart = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (state.phase !== PlayerPhase.Playing && state.phase !== PlayerPhase.Paused) return;
+    audio.currentTime = 0;
+    setProgressRatioValue(resolveAudioProgressRatio(audio));
+  }, [state.phase, setProgressRatioValue]);
+
+  /**
+   * Jumps to `SEEK_END_GUARD_SECONDS` before the end (cmd+Right). No-op unless
+   * active. Does not fire `onSeekHint` — silent jump per product spec.
+   */
+  const seekToNearEnd = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (state.phase !== PlayerPhase.Playing && state.phase !== PlayerPhase.Paused) return;
+    const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
+    audio.currentTime = Math.max(0, dur - SEEK_END_GUARD_SECONDS);
+    setProgressRatioValue(resolveAudioProgressRatio(audio));
+  }, [state.phase, setProgressRatioValue]);
+
+  const seekByFromEvent = useEffectEvent(seekBy);
+  const seekToStartFromEvent = useEffectEvent(seekToStart);
+  const seekToNearEndFromEvent = useEffectEvent(seekToNearEnd);
+
   /**
    * Wires up the global MediaSession so the OS can route Media Keys, Bluetooth
    * headset buttons, macOS Touch-Bar / Now-Playing controls and similar
@@ -1150,17 +1237,21 @@ function useAudioPreviewController({
   }, [isPlayerActive]);
 
   /**
-   * Registers this player with the tab-wide spacebar router so the global
-   * keydown listener can start or toggle playback without the play button
-   * being focused. Resolves the autoplay-policy gap left by MediaSession:
-   * the OS media keys can only take over once playback has started at
-   * least once, whereas spacebar in the focused tab counts as a real user
-   * gesture and is therefore allowed to kick off the very first play.
+   * Registers this player with the tab-wide keyboard router so the global
+   * keydown listener can start, toggle, or seek playback without a player
+   * control being focused. Resolves the autoplay-policy gap left by
+   * MediaSession: the OS media keys can only take over once playback has
+   * started at least once, whereas spacebar/arrow keys in the focused tab
+   * count as real user gestures and are therefore allowed to kick off the
+   * very first play.
    */
   useEffect(() => {
-    return registerAudioPreviewForSpacebar({
+    return registerAudioPreviewForKeyboard({
       togglePlay: () => togglePlayFromEvent(),
       isActive: () => isPlayerActiveRef.current,
+      seekBy: (delta) => seekByFromEvent(delta),
+      seekToStart: () => seekToStartFromEvent(),
+      seekToNearEnd: () => seekToNearEndFromEvent(),
     });
   }, []);
 
