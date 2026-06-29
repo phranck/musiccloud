@@ -641,7 +641,7 @@ const statusOverlay: VfdScrollOutOverlay | undefined = seekHint
 - Modify: `apps/frontend/src/i18n/translations/de.json`
 - Modify: `apps/frontend/src/i18n/translations/en.json`
 
-- [ ] **Step 1: Keys ergänzen** — Direkt nach `audio.statusPlayingSong` (de.json:~456 / en.json:119):
+- [x] **Step 1: Keys ergänzen** — Direkt nach `audio.statusPlayingSong` (de.json:~456 / en.json:119):
 
 de.json:
 ```json
@@ -654,14 +654,14 @@ en.json:
   "audio.statusPaused": "♫ PREVIEW PAUSED",
 ```
 
-- [ ] **Step 2: Commit** — `Feat: add paused status strings (MC-067)`
+- [x] **Step 2: Commit** — `Feat: add paused status strings (MC-067)`
 
 ### Task D2: Pausiert-Status in ShareLayout
 
 **Files:**
 - Modify: `apps/frontend/src/components/share/ShareLayout.tsx`
 
-- [ ] **Step 1: `vfdStatusLine` erweitern** — Den `pausedStatus` analog zu `playingStatus` (Zeile 433-434) ableiten und den Pause-Fall vor `artistReadyVisible` in die Prioritätskette (Zeile 435-447) einhängen:
+- [x] **Step 1: `vfdStatusLine` erweitern** — Den `pausedStatus` analog zu `playingStatus` (Zeile 433-434) ableiten und den Pause-Fall vor `artistReadyVisible` in die Prioritätskette (Zeile 435-447) einhängen:
 
 ```ts
 const playingStatus =
@@ -685,11 +685,11 @@ const vfdStatusLine = artistStatusLoading
               : "";
 ```
 
-- [ ] **Step 2: Gate** — Typecheck grün; `biome check --write`.
+- [x] **Step 2: Gate** — Typecheck grün; `biome check --write`.
 
 - [ ] **Step 3: Visuelle Verifikation** — Song abspielen, pausieren: Statuszeile zeigt `♫ SONG PAUSIERT` (DE) / `♫ SONG PAUSED` (EN). Im pausierten Song `←`/`→` drücken: Hinweis kommt hinter dem Pausiert-Text hervor. Screenshot.
 
-- [ ] **Step 4: Commit** — `Feat: show paused status in the share VFD (MC-067)`
+- [x] **Step 4: Commit** — `Feat: show paused status in the share VFD (MC-067)`
 
 ### Task E1: Regression + Doctor + Suite
 
@@ -712,8 +712,8 @@ const vfdStatusLine = artistStatusLoading
 - [x] B3 Overlay in Normalize + sync + Canvas-Render
 - [x] C1 `seekHint`-State in `MediaCardHead`
 - [x] C2 `seekHint` → VFD-Overlay in `SongInfo` (visuell verifiziert)
-- [ ] D1 Pausiert-Status i18n DE/EN
-- [ ] D2 Pausiert-Status in `ShareLayout` (visuell verifiziert)
+- [x] D1 Pausiert-Status i18n DE/EN
+- [x] D2 Pausiert-Status in `ShareLayout` (visuell verifiziert)
 - [ ] E1 Doctor sauber, alle Gates grün, Chromium + Firefox geprüft
 - [ ] Alle Code-Referenzen verifiziert (Funktionen, Scripts, Pfade, i18n-Keys)
 
