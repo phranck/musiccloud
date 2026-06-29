@@ -790,46 +790,6 @@ code,
 
 /* Component-Hierarchie und Compound nutzen das .vtree-Pattern oben */
 
-/* ---------- Rename ---------- */
-.rename {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: var(--space-7);
-  align-items: center;
-}
-.renpanel {
-  background: linear-gradient(180deg, var(--bg-2), var(--surface));
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  padding: var(--space-7) var(--space-8);
-  box-shadow: var(--recess);
-}
-.renpanel h4 {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  margin: 0 0 var(--space-4);
-}
-.renpanel.after h4 { color: var(--success); }
-.renpanel ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-family: var(--font-mono);
-  font-size: 14.5px;
-  line-height: 2.1;
-}
-.renpanel.after li { color: var(--text); }
-.renpanel.after li b { color: var(--success); font-weight: 700; }
-.renarrow {
-  font-family: var(--font-mono);
-  font-size: var(--text-3xl);
-  color: var(--phosphor);
-  text-shadow: var(--glow-phos);
-  text-align: center;
-}
-
 /* ---------- Spec strip ---------- */
 .specs {
   display: grid;
@@ -892,8 +852,6 @@ footer .meta {
   .entry::after, .flow-merge { display: none; }
   .loop { grid-template-columns: 1fr 1fr; }
   .loop .step:not(:last-child)::after { display: none; }
-  .rename { grid-template-columns: 1fr; }
-  .renarrow { transform: rotate(90deg); }
   .device-row { flex-direction: column; align-items: center; }
   .device, .device.hub { width: 100%; max-width: 320px; }
   .navlinks { display: none; }
