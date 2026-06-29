@@ -83,6 +83,26 @@ export function nextSpeedInCycle(speed: TurntableSpeedValue): TurntableSpeedValu
 }
 
 /**
+ * Steps a speed up or down the ordered ladder Standby -> Rpm33 -> Rpm45.
+ *
+ * Drives the knob's keyboard control: a positive `delta` moves toward a faster
+ * speed, a negative `delta` toward `Standby`. The result clamps at both ends
+ * (no wrap), matching `role="slider"` arrow-key semantics where Up at the
+ * maximum and Down at the minimum are no-ops. Only the sign of `delta` matters.
+ *
+ * @param speed - The current speed.
+ * @param delta - Direction to step (positive = faster, negative = toward Standby).
+ * @returns The neighbouring speed, clamped at the ends of the ladder.
+ */
+export function stepSpeed(speed: TurntableSpeedValue, delta: number): TurntableSpeedValue {
+  const index = SPEED_CYCLE.indexOf(speed);
+  if (index === -1 || delta === 0) return speed;
+  const step = delta > 0 ? 1 : -1;
+  const nextIndex = Math.max(0, Math.min(SPEED_CYCLE.length - 1, index + step));
+  return SPEED_CYCLE[nextIndex] ?? speed;
+}
+
+/**
  * Normalizes a degree value into the half-open range `(-180, 180]`.
  *
  * Keeps the shortest-arc distance comparison in {@link speedFromAngle} correct

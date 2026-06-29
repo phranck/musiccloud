@@ -15,9 +15,11 @@ import {
  * of the hub:
  * - `TurntablePlayer.LED` — the power lamp (reads `power`).
  * - `TurntablePlayer.Platter` — the disc + spindle assembly (reads `speed`/`spinState`).
- * - `TurntablePlayer.Control` — the speed cluster (reads `speed`); it carries
- *   `Control.Knob` (the dial, prop-driven) and `Control.KnobLabels` (the static
- *   captions) for callers that need the bare presentational pieces.
+ * - `TurntablePlayer.Control` — the speed cluster: the static captions plus the
+ *   interactive `TurntableKnob`, which drags/steps the speed on the hub. It also
+ *   carries `Control.Knob` (the bare, prop-driven decorative dial) and
+ *   `Control.KnobLabels` (the static captions) for callers that need the
+ *   presentational pieces on their own.
  *
  * Assembled with `Object.assign` in this `.ts` module (mirroring `Player.ts`) so
  * the namespace value stays out of the `.tsx` parts file, which exports only

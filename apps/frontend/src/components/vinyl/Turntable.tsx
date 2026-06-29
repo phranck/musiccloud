@@ -1,6 +1,7 @@
 import { TurntableSpeed } from "@/components/turntable/TurntablePlayerContext";
 import {
   TurntablePlayerControl,
+  TurntablePlayerKnob,
   TurntablePlayerLed,
   TurntablePlayerPlatter,
   TurntablePlayerSurface,
@@ -45,7 +46,9 @@ export function Turntable({ className, record }: TurntableProps) {
         speed={speed}
         spinState={spinState}
       />
-      <TurntablePlayerControl speed={speed} />
+      <TurntablePlayerControl>
+        <TurntablePlayerKnob speed={speed} />
+      </TurntablePlayerControl>
       <TurntablePlayerLed power={derivePower(speed)} />
     </TurntablePlayerSurface>
   );

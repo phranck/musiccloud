@@ -46,17 +46,23 @@ type TurntableHubAction =
   | { type: typeof TurntableHubActionType.SpeedSet; speed: TurntableSpeedValue };
 
 /**
- * Maps an engine audio status to the speed the hub should hold.
+ * Maps an engine audio status to the speed the hub should hold, given the speed
+ * already selected.
  *
- * `Playing` selects the default play speed; `Paused`, `Ended`, `Unavailable`
- * and the loading/ready phases settle on `Standby`. This keeps the knob and LED
- * in lock-step with the engine regardless of which control triggered the change.
+ * On `Playing` the hub keeps an already-chosen playing speed (so a knob drag to
+ * 45 RPM stays at 45 once `audio.play()` resolves) and only falls back to the
+ * default {@link TurntableSpeed.Rpm33} when play started from `Standby` (spacebar,
+ * playbutton or media key — MC-071 design decision B). Every non-playing status
+ * (`Paused`, `Ended`, `Unavailable`, loading/ready) settles on `Standby`, keeping
+ * the knob and LED in lock-step with the engine.
  *
  * @param status - The latest engine audio status.
+ * @param currentSpeed - The speed the hub currently holds.
  * @returns The speed the hub should hold for that status.
  */
-function speedForEngineStatus(status: AudioStatusValue): TurntableSpeedValue {
-  return status === AudioStatus.Playing ? TurntableSpeed.Rpm33 : TurntableSpeed.Standby;
+function speedForEngineStatus(status: AudioStatusValue, currentSpeed: TurntableSpeedValue): TurntableSpeedValue {
+  if (status !== AudioStatus.Playing) return TurntableSpeed.Standby;
+  return currentSpeed === TurntableSpeed.Standby ? TurntableSpeed.Rpm33 : currentSpeed;
 }
 
 /**
@@ -74,7 +80,7 @@ function turntableHubReducer(state: TurntableHubState, action: TurntableHubActio
       return { speed: TurntableSpeed.Rpm33, spinState: VinylSpinState.Playing };
     case TurntableHubActionType.EngineStatus:
       return {
-        speed: speedForEngineStatus(action.status),
+        speed: speedForEngineStatus(action.status, state.speed),
         spinState: deriveSpinState({ currentSpinState: state.spinState, status: action.status }),
       };
     case TurntableHubActionType.CoastFinished:

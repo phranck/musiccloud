@@ -1,5 +1,7 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
+import { KnobDial, TurntableKnob } from "@/components/turntable/TurntableKnob";
 import {
+  TurntablePower,
   type TurntablePower as TurntablePowerValue,
   type TurntableSpeed as TurntableSpeedValue,
   useTurntablePlayer,
@@ -18,18 +20,6 @@ const PLATTER_STYLE = {
   background: "linear-gradient(180deg, #20262e 0%, #161b22 100%)",
   boxShadow:
     "0 0 0 2px rgba(5,7,10,0.92), 0 0 0 4px rgba(71,78,90,0.52), 0 1px 0 rgba(255,255,255,0.12), inset 0 1px 1px rgba(255,255,255,0.08), inset 0 -2px 3px rgba(0,0,0,0.38)",
-} satisfies CSSProperties;
-
-const SPEED_KNOB_STYLE = {
-  background:
-    "radial-gradient(circle at 48% 48%, #252b35 0 56%, #0b0e13 57.5% 59%, #333944 60% 61.2%, #090b0f 62% 100%)",
-  boxShadow:
-    "0 0 0 1px rgba(0,0,0,0.9), 0 1px 0 rgba(255,255,255,0.13), 0 3px 4px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.07), inset 0 -3px 5px rgba(0,0,0,0.32)",
-} satisfies CSSProperties;
-
-const SPEED_MARK_BASE_STYLE = {
-  background: "rgba(222,228,236,0.48)",
-  transformOrigin: "0% 50%",
 } satisfies CSSProperties;
 
 const LED_STYLE = {
@@ -62,26 +52,27 @@ const SPINDLE_SHADOW_STYLE = {
 } satisfies CSSProperties;
 
 /**
- * Builds the speed-knob indicator transform for a given knob angle.
+ * Lamp opacity when the deck is stopped (`power === Standby`).
  *
- * The indicator line is centered on the knob and rotated to point at the active
- * speed's caption ({@link speedKnobAngle}). `translateY(-50%)` keeps it vertically
- * centered; `rotate(<angle>deg)` aims it. `Rpm33` reproduces the original static
- * `rotate(-150deg)` decorative indicator exactly.
- *
- * @param angleDeg - Indicator angle in degrees from {@link speedKnobAngle}.
- * @returns The CSS `transform` value for the indicator line.
+ * Subtly dims the green lamp so a stopped deck reads as "off" without removing
+ * the lamp. The `On` state keeps full opacity (the accepted lit optic, unchanged
+ * byte-for-byte). Opacity-only so the dim composites on the GPU.
  */
-function knobIndicatorTransform(angleDeg: number): string {
-  return `translateY(-50%) rotate(${angleDeg}deg)`;
-}
+const LED_STANDBY_OPACITY = 0.32;
+
+/**
+ * Soft outer-glow opacity when stopped. Pushed lower than the lamp so the halo
+ * around the dimmed lamp all but disappears, reinforcing the "off" read while
+ * the `On` glow stays at its full optic.
+ */
+const LED_GLOW_STANDBY_OPACITY = 0.12;
 
 /** Props for {@link TurntablePlayerLed}. */
 interface TurntablePlayerLedProps {
   /**
    * Current power state, surfaced on `data-turntable-led-power` so the hub
-   * coupling is observable. The lit optic is identical in both states this unit
-   * (a dimmed Standby variant is deferred), preserving the accepted deck look.
+   * coupling is observable. `On` renders the full lit optic; `Standby` dims the
+   * lamp and its glow via opacity (GPU-only), reading as "off".
    */
   power: TurntablePowerValue;
 }
@@ -89,29 +80,30 @@ interface TurntablePlayerLedProps {
 /**
  * The deck power LED: a small round lamp pinned to the bottom-right of the deck.
  *
- * Renders the green gradient plus the soft outer glow, exactly the optic the
- * former decorative LED carried, and exposes the live `power` on
- * `data-turntable-led-power` for the hub coupling. The visible appearance does
- * not change between `On` and `Standby` in this unit — keeping the deck optic
- * 100% identical to the accepted mockup — while a later unit can introduce a
- * dimmed Standby state from the same `power` input. Decorative, so it stays
- * `aria-hidden`; selected in tests via `data-turntable-led`.
+ * Renders the green gradient plus the soft outer glow. At `On` (a playing speed)
+ * it shows the full lit optic, exactly the look the former decorative LED carried;
+ * at `Standby` (stopped) the lamp and glow dim via opacity so the deck reads as
+ * off. Only opacity changes between the two states, so the dim composites on the
+ * GPU and the `On` optic stays untouched. The live `power` is exposed on
+ * `data-turntable-led-power`. Decorative, so it stays `aria-hidden`; selected in
+ * tests via `data-turntable-led`.
  *
  * @param props - {@link TurntablePlayerLedProps}.
  */
 export function TurntablePlayerLed({ power }: TurntablePlayerLedProps) {
+  const isOn = power === TurntablePower.On;
   return (
     <span
       aria-hidden="true"
-      className="absolute right-[6.2%] bottom-[6%] z-40 aspect-square w-[calc(2.1%_-_1px)] overflow-visible rounded-full"
+      className="absolute right-[6.2%] bottom-[6%] z-40 aspect-square w-[calc(2.1%_-_1px)] overflow-visible rounded-full transition-opacity duration-300"
       data-turntable-led="true"
       data-turntable-led-power={power}
-      style={LED_STYLE}
+      style={{ ...LED_STYLE, opacity: isOn ? 1 : LED_STANDBY_OPACITY }}
     >
       <span
         aria-hidden="true"
-        className="absolute left-1/2 top-1/2 -z-10 aspect-square w-[430%] -translate-x-1/2 -translate-y-1/2 rounded-full"
-        style={LED_GLOW_STYLE}
+        className="absolute left-1/2 top-1/2 -z-10 aspect-square w-[430%] -translate-x-1/2 -translate-y-1/2 rounded-full transition-opacity duration-300"
+        style={{ ...LED_GLOW_STYLE, opacity: isOn ? 1 : LED_GLOW_STANDBY_OPACITY }}
       />
     </span>
   );
@@ -202,55 +194,47 @@ interface TurntablePlayerKnobProps {
 }
 
 /**
- * The speed knob: a round dial with an indicator line that points at the active
- * speed's caption.
+ * The decorative speed knob: a round dial whose indicator points at the active
+ * speed's caption, with no input handling.
  *
- * In this unit the knob is purely indicative — it renders the dial chrome and
- * rotates the indicator to `speedKnobAngle(speed)` but takes no input (drag
- * interaction lands in a later unit). The indicator transform is GPU-friendly
- * (`translate` + `rotate` only). Decorative, so `aria-hidden`; selected in tests
- * via `data-turntable-speed-knob` / `data-turntable-speed-indicator`.
+ * Used by the standalone, prop-driven `Turntable` deck where there is no hub to
+ * drive interaction; the hub-connected deck uses the interactive
+ * {@link TurntableKnob} instead. Renders through the shared {@link KnobDial}, so
+ * the dial chrome and the `data-turntable-speed-knob` / `-speed-indicator` hooks
+ * stay in one place. `aria-hidden` because it is purely indicative.
  *
  * @param props - {@link TurntablePlayerKnobProps}.
  */
 export function TurntablePlayerKnob({ speed }: TurntablePlayerKnobProps) {
-  return (
-    <span
-      aria-hidden="true"
-      className="absolute right-0 bottom-0 aspect-square w-[73%] rounded-full"
-      data-turntable-speed-knob="true"
-      style={SPEED_KNOB_STYLE}
-    >
-      <span
-        className="absolute left-1/2 top-1/2 h-0.5 w-[38%] rounded-full"
-        data-turntable-speed-indicator="true"
-        style={{ ...SPEED_MARK_BASE_STYLE, transform: knobIndicatorTransform(speedKnobAngle(speed)) }}
-      />
-    </span>
-  );
+  return <KnobDial aria-hidden="true" indicatorAngleDeg={speedKnobAngle(speed)} />;
 }
 
 /** Props for {@link TurntablePlayerControl}. */
 interface TurntablePlayerControlProps {
-  /** Current speed, forwarded to the {@link TurntablePlayerKnob} indicator. */
-  speed: TurntableSpeedValue;
+  /**
+   * The knob rendered in the cluster: the decorative {@link TurntablePlayerKnob}
+   * (prop-driven `Turntable` deck) or the interactive {@link TurntableKnob}
+   * (hub-driven {@link HubControl}).
+   */
+  children: ReactNode;
 }
 
 /**
  * The speed-control cluster: the positioned label box holding the static
- * {@link TurntablePlayerKnobLabels} captions and the {@link TurntablePlayerKnob}.
+ * {@link TurntablePlayerKnobLabels} captions and a knob.
  *
  * This is the layout container the former `Turntable` rendered as a single
  * bottom-left `<span>`; the captions and knob keep their exact coordinates so the
- * optic is unchanged.
+ * optic is unchanged. The caller supplies the knob as children — the decorative
+ * one or the interactive one — so the cluster layout stays in one place.
  *
  * @param props - {@link TurntablePlayerControlProps}.
  */
-export function TurntablePlayerControl({ speed }: TurntablePlayerControlProps) {
+export function TurntablePlayerControl({ children }: TurntablePlayerControlProps) {
   return (
     <span className="absolute bottom-[3.1%] left-[3.1%] z-30 aspect-square w-[19%] font-condensed text-[clamp(0.32rem,1.24vw,0.45rem)] font-bold leading-none tracking-[0.03em] text-white/70">
       <TurntablePlayerKnobLabels />
-      <TurntablePlayerKnob speed={speed} />
+      {children}
     </span>
   );
 }
@@ -286,14 +270,19 @@ export function HubPlatter({ record }: HubPlatterProps) {
 }
 
 /**
- * Hub-connected {@link TurntablePlayerControl}: reads `speed` from the turntable
- * hub to position the knob indicator.
+ * Hub-connected speed-control cluster: the static captions plus the interactive
+ * {@link TurntableKnob}, which reads/sets the speed on the hub itself.
  *
- * Must render inside a `TurntablePlayerProvider`.
+ * Must render inside a `TurntablePlayerProvider` (the knob calls
+ * `useTurntablePlayer`). The standalone `Turntable` deck instead passes a
+ * decorative knob via {@link TurntablePlayerControl}'s `speed` prop.
  */
 export function HubControl() {
-  const { speed } = useTurntablePlayer();
-  return <TurntablePlayerControl speed={speed} />;
+  return (
+    <TurntablePlayerControl>
+      <TurntableKnob />
+    </TurntablePlayerControl>
+  );
 }
 
 /** Props for {@link TurntablePlayerRoot}. */

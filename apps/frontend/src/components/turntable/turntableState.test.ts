@@ -11,6 +11,7 @@ import {
   SPEED_KNOB_ANGLE_DEG,
   speedFromAngle,
   speedKnobAngle,
+  stepSpeed,
 } from "@/components/turntable/turntableState";
 import { VinylSpinState } from "@/components/vinyl/VinylRecord.types";
 
@@ -30,6 +31,28 @@ describe("nextSpeedInCycle", () => {
     expect(nextSpeedInCycle(TurntableSpeed.Standby)).toBe(TurntableSpeed.Rpm33);
     expect(nextSpeedInCycle(TurntableSpeed.Rpm33)).toBe(TurntableSpeed.Rpm45);
     expect(nextSpeedInCycle(TurntableSpeed.Rpm45)).toBe(TurntableSpeed.Standby);
+  });
+});
+
+describe("stepSpeed", () => {
+  it("steps up the ladder and clamps at Rpm45", () => {
+    expect(stepSpeed(TurntableSpeed.Standby, 1)).toBe(TurntableSpeed.Rpm33);
+    expect(stepSpeed(TurntableSpeed.Rpm33, 1)).toBe(TurntableSpeed.Rpm45);
+    // Already at the top: clamps, no wrap.
+    expect(stepSpeed(TurntableSpeed.Rpm45, 1)).toBe(TurntableSpeed.Rpm45);
+  });
+
+  it("steps down the ladder and clamps at Standby", () => {
+    expect(stepSpeed(TurntableSpeed.Rpm45, -1)).toBe(TurntableSpeed.Rpm33);
+    expect(stepSpeed(TurntableSpeed.Rpm33, -1)).toBe(TurntableSpeed.Standby);
+    // Already at the bottom: clamps, no wrap.
+    expect(stepSpeed(TurntableSpeed.Standby, -1)).toBe(TurntableSpeed.Standby);
+  });
+
+  it("only reads the sign of delta and ignores a zero step", () => {
+    expect(stepSpeed(TurntableSpeed.Standby, 42)).toBe(TurntableSpeed.Rpm33);
+    expect(stepSpeed(TurntableSpeed.Rpm45, -42)).toBe(TurntableSpeed.Rpm33);
+    expect(stepSpeed(TurntableSpeed.Rpm33, 0)).toBe(TurntableSpeed.Rpm33);
   });
 });
 
