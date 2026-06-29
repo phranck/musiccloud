@@ -177,7 +177,7 @@ describe("TurntablePlayer compound", () => {
     // The hub-driven Control renders the interactive knob: same Rpm33 angle as
     // the former decorative indicator, plus the GPU compositor-layer hint.
     expect(container.querySelector("[data-turntable-speed-indicator='true']")).toHaveStyle({
-      transform: "translateY(-50%) rotate(-150deg) translateZ(0)",
+      transform: "translateY(-50%) rotate(210deg) translateZ(0)",
       transformOrigin: "0% 50%",
     });
 
@@ -188,7 +188,7 @@ describe("TurntablePlayer compound", () => {
     );
 
     expect(container.querySelector("[data-turntable-speed-indicator='true']")).toHaveStyle({
-      transform: "translateY(-50%) rotate(-120deg) translateZ(0)",
+      transform: "translateY(-50%) rotate(240deg) translateZ(0)",
     });
   });
 
@@ -249,7 +249,7 @@ describe("TurntablePlayer compound", () => {
     expect(container.querySelector("[data-turntable-speed-knob='true']")).toBeInTheDocument();
     // Control.Knob is the decorative knob: plain transform, no GPU layer hint.
     expect(container.querySelector("[data-turntable-speed-indicator='true']")).toHaveStyle({
-      transform: "translateY(-50%) rotate(-120deg)",
+      transform: "translateY(-50%) rotate(240deg)",
     });
     expect(screen.getByText("33")).toBeInTheDocument();
     expect(screen.getByText("STANDBY")).toBeInTheDocument();
@@ -389,7 +389,7 @@ describe("TurntablePlayer interactive knob", () => {
 
     expect(playedAudioElements.length).toBe(1);
     expect(knob(container)).toHaveAttribute("aria-valuetext", "45 RPM");
-    expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(-120deg) translateZ(0)" });
+    expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(240deg) translateZ(0)" });
     expect(ledPower(container)).toBe(TurntablePower.On);
   });
 
@@ -460,7 +460,7 @@ describe("TurntablePlayer interactive knob", () => {
     // The knob and LED follow the same hub: Rpm33 + power On.
     expect(playedAudioElements.length).toBe(1);
     expect(knob(container)).toHaveAttribute("aria-valuetext", "33 RPM");
-    expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(-150deg) translateZ(0)" });
+    expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(210deg) translateZ(0)" });
     expect(ledPower(container)).toBe(TurntablePower.On);
 
     // Stopping at the knob (drag down to Standby) flips the shared playbutton to "Play".
@@ -475,13 +475,13 @@ describe("TurntablePlayer interactive knob", () => {
     const pointer = { button: 0, pointerId: 1, pointerType: "mouse" };
     fireEvent.pointerDown(dial, { ...pointer, clientX: KNOB_CENTER.x, clientY: KNOB_CENTER.y });
 
-    // One detent up (KNOB_STEP_PX) from Standby -> the 33 detent (-150deg); the
+    // One detent up (KNOB_STEP_PX) from Standby -> the 33 detent (210deg); the
     // indicator rests on the detent, never between captions.
     fireEvent.pointerMove(dial, { ...pointer, clientX: KNOB_CENTER.x, clientY: KNOB_CENTER.y - KNOB_STEP_PX });
-    expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(-150deg) translateZ(0)" });
+    expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(210deg) translateZ(0)" });
 
-    // Far past the top clamps at Rpm45 (-120deg) instead of overshooting.
+    // Far past the top clamps at Rpm45 (240deg) instead of overshooting.
     fireEvent.pointerMove(dial, { ...pointer, clientX: KNOB_CENTER.x, clientY: KNOB_CENTER.y - KNOB_STEP_PX * 12 });
-    expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(-120deg) translateZ(0)" });
+    expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(240deg) translateZ(0)" });
   });
 });

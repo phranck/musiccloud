@@ -177,6 +177,10 @@ export function TurntableKnob() {
 
   const handlePointerDown = (event: PointerEvent<HTMLSpanElement>) => {
     if (event.button !== 0 && event.pointerType === "mouse") return;
+    // Suppress the browser's drag-to-select so dragging the knob never highlights
+    // page text; focus explicitly because the suppressed default would drop it.
+    event.preventDefault();
+    event.currentTarget.focus();
     event.currentTarget.setPointerCapture(event.pointerId);
     setDrag({ startX: event.clientX, startY: event.clientY, startSpeed: speed, snappedSpeed: speed, moved: false });
   };
@@ -258,7 +262,7 @@ export function TurntableKnob() {
       // Ease the indicator to every stage so it glides as it snaps between
       // detents while dragging and on a release/keyboard change.
       animateIndicator
-      className="cursor-grab touch-none active:cursor-grabbing"
+      className="cursor-grab touch-none select-none active:cursor-grabbing"
       indicatorAngleDeg={indicatorAngleDeg}
       interactive
       onKeyDown={handleKeyDown}

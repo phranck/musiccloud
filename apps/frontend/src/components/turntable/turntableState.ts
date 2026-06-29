@@ -29,19 +29,25 @@ export const LP_ROTATION_DURATION_45_MS = 1333;
  *
  * Derived from the label geometry in `Turntable.tsx`: the knob is a circle pinned
  * to the bottom-right of its 19%-wide label box (center at 63.5%/63.5% of the
- * box), and the "33", "45" and "STANDBY" captions sit at known box-relative
- * positions. The angle from the knob center to each caption (CSS convention:
- * 0deg points right, positive is clockwise because the y-axis points down)
- * resolves to exactly these values. `Rpm33` reproduces the original decorative
- * `rotate(-150deg)` indicator, which already pointed at the "33" caption.
+ * box), and the captions sit at 150deg ("STANDBY"), 210deg ("33") and 240deg
+ * ("45") from the knob center (CSS convention: 0deg points right, positive is
+ * clockwise because the y-axis points down).
+ *
+ * The values are kept **monotonically increasing** (150 < 210 < 240) instead of
+ * wrapped into (-180, 180]. A CSS `rotate` transition interpolates the raw degree
+ * numbers, so adjacent stages must stay numerically close or the indicator spins
+ * the long way through 0deg (e.g. 150 -> -150 animates 300deg the wrong way and
+ * looks like the zeiger flailing). `rotate(210deg)`/`rotate(240deg)` render
+ * identically to `-150deg`/`-120deg`, so the resting optic is unchanged; only the
+ * animated path shortens.
  */
 export const SPEED_KNOB_ANGLE_DEG = {
   /** Points at the lower-left "STANDBY" caption. */
   Standby: 150,
-  /** Points at the upper-left "33" caption (the original static indicator angle). */
-  Rpm33: -150,
-  /** Points at the upper "45" caption. */
-  Rpm45: -120,
+  /** Points at the upper-left "33" caption (= -150deg, kept positive for short-arc transitions). */
+  Rpm33: 210,
+  /** Points at the upper "45" caption (= -120deg, kept positive for short-arc transitions). */
+  Rpm45: 240,
 } as const;
 
 /** Ordered speed cycle for the keyboard arrow stepper: Standby -> Rpm33 -> Rpm45 -> Standby. */

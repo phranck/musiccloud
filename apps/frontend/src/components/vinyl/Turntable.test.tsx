@@ -38,7 +38,7 @@ describe("Turntable", () => {
     expect(container.querySelector("[data-turntable-platter='true']")).toBeInTheDocument();
     expect(container.querySelector("[data-turntable-speed-knob='true']")).toBeInTheDocument();
     expect(container.querySelector("[data-turntable-speed-indicator='true']")).toHaveStyle({
-      transform: "translateY(-50%) rotate(-150deg)",
+      transform: "translateY(-50%) rotate(210deg)",
       transformOrigin: "0% 50%",
     });
   });
