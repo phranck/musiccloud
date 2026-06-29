@@ -565,7 +565,7 @@ return state.transitions.size > 0 || state.overlays.size > 0 || hasActiveMarquee
 **Files:**
 - Modify: `apps/frontend/src/components/cards/MediaCardHead.tsx`
 
-- [ ] **Step 1: State + Handler** — In `MediaCardHead` (Funktionskörper ab Zeile 78):
+- [x] **Step 1: State + Handler** — In `MediaCardHead` (Funktionskörper ab Zeile 78):
 
 ```ts
 const [seekHint, setSeekHint] = useState<{ direction: VfdScrollOutDirection; nonce: number } | null>(null);
@@ -576,20 +576,20 @@ const handleSeekHint = useCallback((direction: VfdScrollOutDirection) => {
 
 Imports ergänzen: `import { useCallback, useState } from "react";` (vorhandenen React-Import erweitern) und `import { VfdScrollOutDirection } from "@/components/ui/VfdDisplay";`.
 
-- [ ] **Step 2: An Player + SongInfo verdrahten**
+- [x] **Step 2: An Player + SongInfo verdrahten**
 
 `AudioPreviewPlayer` (Zeile 116-124) `onSeekHint={handleSeekHint}` ergänzen. `SongInfo` (Zeile 94-109) `seekHint={seekHint}` ergänzen.
 
-- [ ] **Step 3: Gate** — Typecheck grün; `biome check --write`.
+- [x] **Step 3: Gate** — Typecheck grün; `biome check --write`.
 
-- [ ] **Step 4: Commit** — `Feat: hold seek-hint state in media card head (MC-067)`
+- [x] **Step 4: Commit** — `Feat: hold seek-hint state in media card head (MC-067)`
 
 ### Task C2: seekHint → VFD-Overlay in SongInfo
 
 **Files:**
 - Modify: `apps/frontend/src/components/cards/SongInfo.tsx`
 
-- [ ] **Step 1: Prop + Konstanten**
+- [x] **Step 1: Prop + Konstanten**
 
 `SongInfoProps` (nach Zeile 44) ergänzen:
 
@@ -612,7 +612,7 @@ const SEEK_HINT_TEXT = {
 
 Imports ergänzen: `VfdScrollOutDirection` und `type VfdScrollOutOverlay` aus `@/components/ui/VfdDisplay`; `seekHint` in die Props-Destrukturierung (Zeile 64-80) aufnehmen.
 
-- [ ] **Step 2: Overlay aus seekHint bauen**
+- [x] **Step 2: Overlay aus seekHint bauen**
 
 Vor dem `return` (nach Zeile 84):
 
@@ -627,13 +627,13 @@ const statusOverlay: VfdScrollOutOverlay | undefined = seekHint
   : undefined;
 ```
 
-- [ ] **Step 3: Auf die Statuszeile setzen** — In der `lines`-Liste die 4. Zeile (Zeile 263-268) um `scrollOutOverlay: statusOverlay,` ergänzen.
+- [x] **Step 3: Auf die Statuszeile setzen** — In der `lines`-Liste die 4. Zeile (Zeile 263-268) um `scrollOutOverlay: statusOverlay,` ergänzen.
 
-- [ ] **Step 4: Gate** — Typecheck grün; `biome check --write`.
+- [x] **Step 4: Gate** — Typecheck grün; `biome check --write`.
 
 - [ ] **Step 5: Visuelle Verifikation (agent-browser, lokal)** — Dev-Server via `./app status` prüfen/`./app start`. Auf einer Share-Page einen Song abspielen, Fokus aus Eingabefeldern nehmen, `←`/`→` drücken. Erwartet: `<< 10s` bzw. `10s >>` kommt hinter `♫ SONG PLAYING` hervor und scrollt in 2,9 s seitlich raus; `SONG PLAYING` bleibt stehen; `cmd+←`/`cmd+→` springen ohne Hinweis. Playback gemäß Vorgabe nicht unbeaufsichtigt laufen lassen (muted/sofort pausieren oder nur Status prüfen). Screenshot als Beleg.
 
-- [ ] **Step 6: Commit** — `Feat: flash seek hint in the status VFD row (MC-067)`
+- [x] **Step 6: Commit** — `Feat: flash seek hint in the status VFD row (MC-067)`
 
 ### Task D1: Pausiert-Status-Text (i18n)
 
@@ -710,8 +710,8 @@ const vfdStatusLine = artistStatusLoading
 - [x] B1 Overlay-Typen + Re-Export
 - [x] B2 Overlay-Geometrie + Test grün
 - [x] B3 Overlay in Normalize + sync + Canvas-Render
-- [ ] C1 `seekHint`-State in `MediaCardHead`
-- [ ] C2 `seekHint` → VFD-Overlay in `SongInfo` (visuell verifiziert)
+- [x] C1 `seekHint`-State in `MediaCardHead`
+- [x] C2 `seekHint` → VFD-Overlay in `SongInfo` (visuell verifiziert)
 - [ ] D1 Pausiert-Status i18n DE/EN
 - [ ] D2 Pausiert-Status in `ShareLayout` (visuell verifiziert)
 - [ ] E1 Doctor sauber, alle Gates grün, Chromium + Firefox geprüft
