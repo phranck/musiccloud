@@ -40,15 +40,15 @@ Das User-Prinzip (siehe `architecture/player-architecture.html`, Display-Basis):
 - Create: `apps/frontend/src/components/ui/VfdInfoDisplay.test.tsx`
 - Modify: `apps/frontend/src/components/cards/SongInfo.tsx`
 
-- [ ] **Step 1: `VfdInfoDisplay` mit Props-Interface anlegen.** Props: `title: string`, `artist: string`, `detailLine: string`, `metaLine: string`, `statusLine: string`, `seekHint?: { direction: VfdScrollOutDirection; nonce: number } | null`. Logik 1:1 aus `SongInfo` übernehmen: `shouldMarqueeStatus = statusLine.length > 28`, `statusOverlay` aus `seekHint`, die vier `lines` (Titel+Meta-Sections wie heute, Artist, Detail, Status mit `scrollOutOverlay`). `VfdDisplay` mit `sizingMode={VfdSizingMode.Container}`, `ariaLabel` wie heute. `VFD_SEEK_HINT_DURATION_MS`/`SEEK_HINT_TEXT` mitnehmen. TSDoc auf Component + Props.
+- [x] **Step 1: `VfdInfoDisplay` mit Props-Interface anlegen.** Props: `title: string`, `artist: string`, `detailLine: string`, `metaLine: string`, `statusLine: string`, `seekHint?: { direction: VfdScrollOutDirection; nonce: number } | null`. Logik 1:1 aus `SongInfo` übernehmen: `shouldMarqueeStatus = statusLine.length > 28`, `statusOverlay` aus `seekHint`, die vier `lines` (Titel+Meta-Sections wie heute, Artist, Detail, Status mit `scrollOutOverlay`). `VfdDisplay` mit `sizingMode={VfdSizingMode.Container}`, `ariaLabel` wie heute. `VFD_SEEK_HINT_DURATION_MS`/`SEEK_HINT_TEXT` mitnehmen. TSDoc auf Component + Props.
 
-- [ ] **Step 2: Test schreiben** (`VfdInfoDisplay.test.tsx`): rendert vier Zeilen mit gegebenem Titel/Artist/Detail/Status; Status-Marquee ab >28 Zeichen; mit `seekHint` ist der `scrollOutOverlay` gesetzt. (Analog zu bestehender `SongInfo.test.tsx`-Struktur prüfen.)
+- [x] **Step 2: Test schreiben** (`VfdInfoDisplay.test.tsx`): rendert vier Zeilen mit gegebenem Titel/Artist/Detail/Status; Status-Marquee ab >28 Zeichen; mit `seekHint` ist der `scrollOutOverlay` gesetzt. (Analog zu bestehender `SongInfo.test.tsx`-Struktur prüfen.)
 
-- [ ] **Step 3: `SongInfo` umstellen** — den `<VfdDisplay …>`-Block (261-304) durch `<VfdInfoDisplay title={title} artist={artist} detailLine={detailLine} metaLine={metaLine} statusLine={statusLine} seekHint={seekHint} />` ersetzen. `detailLine`/`metaLine` bleiben in `SongInfo` berechnet (sie hängen an `album`/`isExplicit`/`metaOverride`/`durationMs`/`releaseDate`). Die jetzt ungenutzten VFD-Imports und `SEEK_HINT_TEXT`/`VFD_SEEK_HINT_DURATION_MS` aus `SongInfo` entfernen.
+- [x] **Step 3: `SongInfo` umstellen** — den `<VfdDisplay …>`-Block (261-304) durch `<VfdInfoDisplay title={title} artist={artist} detailLine={detailLine} metaLine={metaLine} statusLine={statusLine} seekHint={seekHint} />` ersetzen. `detailLine`/`metaLine` bleiben in `SongInfo` berechnet (sie hängen an `album`/`isExplicit`/`metaOverride`/`durationMs`/`releaseDate`). Die jetzt ungenutzten VFD-Imports und `SEEK_HINT_TEXT`/`VFD_SEEK_HINT_DURATION_MS` aus `SongInfo` entfernen.
 
-- [ ] **Step 4: Gates** — `biome check --write`, `tsc --noEmit`, `react-doctor` 0 issues, `pnpm --filter @musiccloud/frontend test:run` (inkl. `SongInfo.test.tsx`, `VfdInfoDisplay.test.tsx`).
+- [x] **Step 4: Gates** — `biome check --write`, `tsc --noEmit`, `react-doctor` 0 issues, `pnpm --filter @musiccloud/frontend test:run` (inkl. `SongInfo.test.tsx`, `VfdInfoDisplay.test.tsx`).
 
-- [ ] **Step 5: Commit** — `Refactor: extract VfdInfoDisplay from SongInfo (MC-070)`
+- [x] **Step 5: Commit** — `Refactor: extract VfdInfoDisplay from SongInfo (MC-070)`
 
 ### Task B: Analyzer-Helfer in vfdAnalyzerLines.ts extrahieren
 
@@ -56,13 +56,13 @@ Das User-Prinzip (siehe `architecture/player-architecture.html`, Display-Basis):
 - Create: `apps/frontend/src/components/ui/vfdAnalyzerLines.ts`
 - Modify: `apps/frontend/src/components/playback/PlayerParts.tsx`
 
-- [ ] **Step 1: Reine Helfer 1:1 verschieben.** Alle in der File-Structure gelisteten Funktionen/Typen/Konstanten aus `PlayerParts.tsx` nach `vfdAnalyzerLines.ts` verschieben (kein Verhaltenswechsel, nur Move). Exporte ergänzen. Imports in `vfdAnalyzerLines.ts`: `VfdGlyph`, die `Vfd*`-Typen/Enums aus `VfdDisplay`, `SpectrumFrame`. TSDoc behalten.
+- [x] **Step 1: Reine Helfer 1:1 verschieben.** Alle in der File-Structure gelisteten Funktionen/Typen/Konstanten aus `PlayerParts.tsx` nach `vfdAnalyzerLines.ts` verschieben (kein Verhaltenswechsel, nur Move). Exporte ergänzen. Imports in `vfdAnalyzerLines.ts`: `VfdGlyph`, die `Vfd*`-Typen/Enums aus `VfdDisplay`, `SpectrumFrame`. TSDoc behalten.
 
-- [ ] **Step 2: `PlayerParts.tsx` importiert die verschobenen Symbole** aus `@/components/ui/vfdAnalyzerLines` (soweit `PlayerProgress` sie bis Task C noch direkt nutzt). Doppelte Definitionen entfernen.
+- [x] **Step 2: `PlayerParts.tsx` importiert die verschobenen Symbole** aus `@/components/ui/vfdAnalyzerLines` (soweit `PlayerProgress` sie bis Task C noch direkt nutzt). Doppelte Definitionen entfernen.
 
-- [ ] **Step 3: Gates** — `biome check --write`, `tsc --noEmit`, `react-doctor` 0 issues, `pnpm --filter @musiccloud/frontend test:run` (inkl. `spectrumStore.test.ts`). Verhalten unverändert.
+- [x] **Step 3: Gates** — `biome check --write`, `tsc --noEmit`, `react-doctor` 0 issues, `pnpm --filter @musiccloud/frontend test:run` (inkl. `spectrumStore.test.ts`). Verhalten unverändert.
 
-- [ ] **Step 4: Commit** — `Refactor: move player analyzer line builders to vfdAnalyzerLines (MC-070)`
+- [x] **Step 4: Commit** — `Refactor: move player analyzer line builders to vfdAnalyzerLines (MC-070)`
 
 ### Task C: VfdAnalyzerDisplay extrahieren und PlayerProgress umstellen
 
@@ -70,30 +70,30 @@ Das User-Prinzip (siehe `architecture/player-architecture.html`, Display-Basis):
 - Create: `apps/frontend/src/components/ui/VfdAnalyzerDisplay.tsx`
 - Modify: `apps/frontend/src/components/playback/PlayerParts.tsx`
 
-- [ ] **Step 1: `VfdAnalyzerDisplay` anlegen.** Props: `isPlaying: boolean`, `isDisabled: boolean`, `timeText: string`, `progressRatio: number`, `phosphorColor?: string`, `ariaLabel?: string`. Kapselt aus `PlayerProgress`: `vfdControllerRef` (`VfdDisplayHandle`), `displayCells`-State + ResizeObserver, `lineParams`/`lineParamsRef`/`lines` (via `buildPlayerLines` aus `vfdAnalyzerLines`), die `subscribeSpectrum`-Subscription (`setLines`), die `progress`-Geometrie (`progressWidthPx` → `VfdProgress`), den `analyzerMode` (`useAnalyzerMode`) und rendert `<VfdDisplay controllerRef rows={1} sizingMode={Container} phosphorColor progress lines ariaLabel />`. `hasAnalyzer` ist hier immer true (der children-Fall bleibt in `PlayerProgress`). TSDoc.
+- [x] **Step 1: `VfdAnalyzerDisplay` anlegen.** Props: `isPlaying: boolean`, `isDisabled: boolean`, `timeText: string`, `progressRatio: number`, `phosphorColor?: string`, `ariaLabel?: string`. Kapselt aus `PlayerProgress`: `vfdControllerRef` (`VfdDisplayHandle`), `displayCells`-State + ResizeObserver, `lineParams`/`lineParamsRef`/`lines` (via `buildPlayerLines` aus `vfdAnalyzerLines`), die `subscribeSpectrum`-Subscription (`setLines`), die `progress`-Geometrie (`progressWidthPx` → `VfdProgress`), den `analyzerMode` (`useAnalyzerMode`) und rendert `<VfdDisplay controllerRef rows={1} sizingMode={Container} phosphorColor progress lines ariaLabel />`. `hasAnalyzer` ist hier immer true (der children-Fall bleibt in `PlayerProgress`). TSDoc.
 
-- [ ] **Step 2: `PlayerProgress` umstellen.** Im Analyzer-Fall (`!children`) `<VfdAnalyzerDisplay isPlaying={…} isDisabled={…} timeText={…} progressRatio={…} phosphorColor={…} ariaLabel={…} />` rendern (Werte aus `usePlayerContext`), umschlossen vom `button` mit `aria-pressed={isStereoVuMode}`/`onClick={toggleAnalyzerMode}` (oder den Toggle in `VfdAnalyzerDisplay` ziehen, falls sauberer). Im `children`-Fall bleibt der bestehende Pfad (custom Progress-Content über `buildPlayerLines` mit `childrenContent`). `PlayerProgress` wird dadurch deutlich schlanker.
+- [x] **Step 2: `PlayerProgress` umstellen.** Im Analyzer-Fall (`!children`) `<VfdAnalyzerDisplay isPlaying={…} isDisabled={…} timeText={…} progressRatio={…} phosphorColor={…} ariaLabel={…} />` rendern (Werte aus `usePlayerContext`), umschlossen vom `button` mit `aria-pressed={isStereoVuMode}`/`onClick={toggleAnalyzerMode}` (oder den Toggle in `VfdAnalyzerDisplay` ziehen, falls sauberer). Im `children`-Fall bleibt der bestehende Pfad (custom Progress-Content über `buildPlayerLines` mit `childrenContent`). `PlayerProgress` wird dadurch deutlich schlanker.
 
-- [ ] **Step 3: Gates** — `biome check --write`, `tsc --noEmit`, `react-doctor` 0 issues, `pnpm --filter @musiccloud/frontend test:run`.
+- [x] **Step 3: Gates** — `biome check --write`, `tsc --noEmit`, `react-doctor` 0 issues, `pnpm --filter @musiccloud/frontend test:run`.
 
-- [ ] **Step 4: Visuelle/funktionale Verifikation durch den Nutzer** (Analyzer MultiBand + StereoVu, Progress, Toggle-Klick). Playback-Hinweis beachten.
+- [ ] **Step 4: Visuelle/funktionale Verifikation durch den Nutzer** (Analyzer MultiBand + StereoVu, Progress, Toggle-Klick). Playback-Hinweis beachten. (Offen: User-seitig.)
 
-- [ ] **Step 5: Commit** — `Refactor: extract VfdAnalyzerDisplay from PlayerProgress (MC-070)`
+- [x] **Step 5: Commit** — `Refactor: extract VfdAnalyzerDisplay from PlayerProgress (MC-070)`
 
 ### Task D: Abschluss
 
-- [ ] **Step 1: Volle Gates** auf dem ganzen Frontend (`tsc`, `pnpm lint`, `react-doctor` full, `pnpm test:run`).
-- [ ] **Step 2: Abschluss-Commit, falls Reständerungen** — `Chore: finalize MC-070 VFD sonderformen`
+- [x] **Step 1: Volle Gates** auf dem ganzen Frontend (`tsc`, `pnpm lint`, `react-doctor` full, `pnpm test:run`).
+- [x] **Step 2: Abschluss-Commit, falls Reständerungen** — `Chore: finalize MC-070 VFD sonderformen`
 
 ---
 
 ## Checkliste (auswertbar)
 
-- [ ] A: `VfdInfoDisplay` extrahiert, `SongInfo` umgestellt, Test grün
-- [ ] B: Analyzer-Helfer in `vfdAnalyzerLines.ts`, Verhalten unverändert
-- [ ] C: `VfdAnalyzerDisplay` extrahiert, `PlayerProgress` schlank, Analyzer funktioniert
-- [ ] D: volle Gates grün
-- [ ] Alle Code-Referenzen verifiziert (Symbole, Pfade, VfdDisplay-Props)
+- [x] A: `VfdInfoDisplay` extrahiert, `SongInfo` umgestellt, Test grün
+- [x] B: Analyzer-Helfer in `vfdAnalyzerLines.ts`, Verhalten unverändert
+- [x] C: `VfdAnalyzerDisplay` extrahiert, `PlayerProgress` schlank, Analyzer funktioniert
+- [x] D: volle Gates grün
+- [x] Alle Code-Referenzen verifiziert (Symbole, Pfade, VfdDisplay-Props)
 
 ## Verified Facts (Stand 2026-06-29)
 
