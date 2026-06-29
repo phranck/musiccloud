@@ -254,6 +254,12 @@ describe("TurntablePlayer compound", () => {
     expect(screen.getByText("33")).toBeInTheDocument();
     expect(screen.getByText("STANDBY")).toBeInTheDocument();
   });
+
+  it("exposes Brand as a hub-free compound member", () => {
+    // Renders without a provider — the wordmark needs no hub.
+    const { container } = render(<TurntablePlayer.Brand />);
+    expect(container.querySelector("[data-turntable-brand='true']")).toBeInTheDocument();
+  });
 });
 
 // ---------------------------------------------------------------------------

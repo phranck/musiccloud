@@ -264,6 +264,12 @@ Wegen Größe und Risiko in vier separat testbare Einheiten geschnitten. Jede Ei
 - [x] **Step 5.4 — Gates.** Biome 0 Fixes; `tsc --noEmit` 0 Fehler; react-doctor Full-Scan 0 Issues (alle 4 Workspaces); Frontend-Suite 52 Files / 321 Tests grün.
 - [x] **Step 5.5 — Commit.** `Feat: knob detents + lit speed captions on the turntable (MC-071)`; Drag-Mechanik-Fix nach User-Bugreport: `Fix: drive the turntable knob by vertical drag distance (MC-071)`
 
+### Einheit 6 — Kleine Folge-Anpassungen (User, 2026-06-29)
+
+- [x] **Control +5px.** `TurntablePlayerControl` von `left-[3.1%]` auf `left-[calc(3.1%_+_5px)]` (Knob-/Label-Cluster 5px nach rechts).
+- [x] **`TurntablePlayer.Brand`.** `TurntablePlayerBrand` exportiert und als hub-freies Compound-Member `TurntablePlayer.Brand` im Namespace ergänzt (zeigt das "music / cloud"-Wortzeichen links oben, rendert ohne Provider). Test ergänzt.
+- [x] **Gates + Commit.** Biome/tsc/Tests grün (35 Turntable-Tests). `Feat: expose TurntablePlayer.Brand and nudge the control 5px right (MC-071)`
+
 ---
 
 ## Entschiedene Design-Fragen (User, 2026-06-29)

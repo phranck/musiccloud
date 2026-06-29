@@ -290,7 +290,7 @@ interface TurntablePlayerControlProps {
  */
 export function TurntablePlayerControl({ speed, children }: TurntablePlayerControlProps) {
   return (
-    <span className="absolute bottom-[3.1%] left-[3.1%] z-30 aspect-square w-[19%] font-condensed text-[clamp(0.32rem,1.24vw,0.45rem)] font-bold leading-none tracking-[0.03em] text-white/70">
+    <span className="absolute bottom-[3.1%] left-[calc(3.1%_+_5px)] z-30 aspect-square w-[19%] font-condensed text-[clamp(0.32rem,1.24vw,0.45rem)] font-bold leading-none tracking-[0.03em] text-white/70">
       <TurntablePlayerKnobLabels speed={speed} />
       {children}
     </span>
@@ -413,13 +413,16 @@ export function TurntablePlayerSurface({ className, children }: TurntablePlayerS
 }
 
 /**
- * Decorative deck branding ("music cloud") printed in the top-left corner.
+ * Decorative deck branding ("music" over "cloud") printed in the top-left corner.
  *
- * `aria-hidden` because the whole turntable is already named by the figure's
- * `aria-label`; a per-letter screen-reader readout would only add noise. Selected
- * in tests via `data-turntable-brand`.
+ * Exposed as `TurntablePlayer.Brand` so callers can place the wordmark on a
+ * bespoke deck layout; the default {@link TurntablePlayerSurface} already renders
+ * it. Needs no hub, so it works on the standalone deck too. `aria-hidden` because
+ * the whole turntable is already named by the figure's `aria-label`; a per-letter
+ * screen-reader readout would only add noise. Selected in tests via
+ * `data-turntable-brand`.
  */
-function TurntablePlayerBrand() {
+export function TurntablePlayerBrand() {
   return (
     <span
       aria-hidden="true"

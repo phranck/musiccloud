@@ -2,6 +2,7 @@ import {
   HubControl,
   HubLed,
   HubPlatter,
+  TurntablePlayerBrand,
   TurntablePlayerKnob,
   TurntablePlayerKnobLabels,
   TurntablePlayerRoot,
@@ -13,6 +14,7 @@ import {
  * The root renders the full deck wired to the `useTurntablePlayer` hub. The
  * attached parts let a caller compose the deck piecemeal, each reading its slice
  * of the hub:
+ * - `TurntablePlayer.Brand` — the decorative "music / cloud" wordmark, top-left (no hub).
  * - `TurntablePlayer.LED` — the power lamp (reads `power`).
  * - `TurntablePlayer.Platter` — the disc + spindle assembly (reads `speed`/`spinState`).
  * - `TurntablePlayer.Control` — the speed cluster: the static captions plus the
@@ -26,6 +28,7 @@ import {
  * components.
  */
 export const TurntablePlayer = Object.assign(TurntablePlayerRoot, {
+  Brand: TurntablePlayerBrand,
   LED: HubLed,
   Platter: HubPlatter,
   Control: Object.assign(HubControl, {
