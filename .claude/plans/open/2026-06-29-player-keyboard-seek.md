@@ -188,14 +188,24 @@ Import oben ergänzen: `import { VfdScrollOutDirection } from "@/components/ui/V
 
 - [x] **Step 2: Arrow-Target-Schutz + Handler (Modulebene, neben dem Spacebar-Handler)**
 
-`shouldIgnoreSpacebarTarget` (Zeile 258-268) wird wiederverwendet. Neuer Handler:
+Die Pfeiltasten brauchen einen EIGENEN Target-Filter `shouldIgnoreArrowTarget`, NICHT `shouldIgnoreSpacebarTarget`: Letzterer schliesst `<button>`/`<a>` aus, weil die Leertaste einen fokussierten Button aktiviert. Pfeiltasten haben auf Buttons/Links aber kein natives Verhalten — würde man Buttons ausschliessen, schluckt der häufige Fokus-Zustand direkt nach einem Play/Toggle-Klick den Seek (verifiziert 2026-06-29: Seek griff bei Button-Fokus gar nicht). Der Arrow-Filter verschont nur echte Texteingaben (`input`/`textarea`/`select`/contentEditable), wo Pfeile Caret/Slider/Auswahl bewegen.
 
 ```ts
+function shouldIgnoreArrowTarget(event: KeyboardEvent): boolean {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return false;
+  if (target instanceof HTMLInputElement) return true;
+  if (target instanceof HTMLTextAreaElement) return true;
+  if (target instanceof HTMLSelectElement) return true;
+  if (target.isContentEditable) return true;
+  return false;
+}
+
 function handleAudioPreviewArrows(event: KeyboardEvent): void {
   if (event.repeat) return;
   if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
   if (event.altKey || event.ctrlKey || event.shiftKey) return;
-  if (shouldIgnoreSpacebarTarget(event)) return;
+  if (shouldIgnoreArrowTarget(event)) return;
   const target = resolveSpacebarTarget();
   if (!target || !target.isActive()) return;
   event.preventDefault();

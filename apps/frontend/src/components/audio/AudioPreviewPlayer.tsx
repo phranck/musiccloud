@@ -281,6 +281,26 @@ function shouldIgnoreSpacebarTarget(event: KeyboardEvent): boolean {
   return false;
 }
 
+/**
+ * Returns true if arrow-key seeking should fall through to default behaviour.
+ *
+ * Unlike the spacebar — which activates a focused button or link, so those must
+ * be excluded — arrow keys have no native action on buttons or links. Only
+ * genuine text-entry targets are spared, where arrows move the caret, slider
+ * thumb, or option selection. This is deliberately narrower than
+ * {@link shouldIgnoreSpacebarTarget}: a focused play/pause/toggle button (the
+ * common state right after a click) must NOT swallow the seek.
+ */
+function shouldIgnoreArrowTarget(event: KeyboardEvent): boolean {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return false;
+  if (target instanceof HTMLInputElement) return true;
+  if (target instanceof HTMLTextAreaElement) return true;
+  if (target instanceof HTMLSelectElement) return true;
+  if (target.isContentEditable) return true;
+  return false;
+}
+
 function resolveSpacebarTarget(): AudioPreviewKeyboardHandle | null {
   for (const player of audioPreviewRegistry) {
     if (player.isActive()) return player;
@@ -303,7 +323,7 @@ function handleAudioPreviewArrows(event: KeyboardEvent): void {
   if (event.repeat) return;
   if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
   if (event.altKey || event.ctrlKey || event.shiftKey) return;
-  if (shouldIgnoreSpacebarTarget(event)) return;
+  if (shouldIgnoreArrowTarget(event)) return;
   const target = resolveSpacebarTarget();
   if (!target || !target.isActive()) return;
   event.preventDefault();
