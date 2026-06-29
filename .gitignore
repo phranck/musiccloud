@@ -4,6 +4,9 @@ node_modules/
 # Brainstorming visual-companion scratch files (local-only)
 .superpowers/
 
+# Git worktrees (local isolated workspaces; reproducible via git worktree add)
+.worktrees/
+
 # Build output
 dist/
 build/
