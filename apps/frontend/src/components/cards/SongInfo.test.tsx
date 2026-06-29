@@ -50,8 +50,9 @@ describe("SongInfo media stage", () => {
       "mc-share-media-stage",
       "mc-share-media-stage--cover-active",
     );
-    expect(container.querySelector("[data-media-stage='turntable']")).toHaveClass(
-      "mc-share-media-stage",
+    // The turntable layer is fixed (no slide class); only the cover slides over it.
+    expect(container.querySelector("[data-media-stage='turntable']")).toHaveClass("mc-share-media-stage");
+    expect(container.querySelector("[data-media-stage='turntable']")).not.toHaveClass(
       "mc-share-media-stage--turntable-enter",
     );
 
@@ -71,8 +72,10 @@ describe("SongInfo media stage", () => {
     expect(container.querySelector(".mc-tft-screen-tint")).not.toBeInTheDocument();
     expect(container.querySelector(".mc-tft-screen-sheen")).not.toBeInTheDocument();
     expect(container.querySelector(".mc-tft-screen-shadow")).not.toBeInTheDocument();
+    // Turntable view: the cover slides out (cover-exit); the turntable stays fixed.
     expect(container.querySelector("[data-media-stage='cover']")).toHaveClass("mc-share-media-stage--cover-exit");
-    expect(container.querySelector("[data-media-stage='turntable']")).toHaveClass(
+    expect(container.querySelector("[data-media-stage='turntable']")).toHaveClass("mc-share-media-stage");
+    expect(container.querySelector("[data-media-stage='turntable']")).not.toHaveClass(
       "mc-share-media-stage--turntable-active",
     );
     expect(screen.getByLabelText("Turntable")).toBeInTheDocument();

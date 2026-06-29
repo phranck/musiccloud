@@ -269,6 +269,7 @@ Wegen Größe und Risiko in vier separat testbare Einheiten geschnitten. Jede Ei
 - [x] **Control +5px.** `TurntablePlayerControl` von `left-[3.1%]` auf `left-[calc(3.1%_+_5px)]` (Knob-/Label-Cluster 5px nach rechts).
 - [x] **`TurntablePlayer.Brand`.** `TurntablePlayerBrand` exportiert und als hub-freies Compound-Member `TurntablePlayer.Brand` im Namespace ergänzt (zeigt das "music / cloud"-Wortzeichen links oben, rendert ohne Provider). Test ergänzt.
 - [x] **Gates + Commit.** Biome/tsc/Tests grün (35 Turntable-Tests). `Feat: expose TurntablePlayer.Brand and nudge the control 5px right (MC-071)`
+- [x] **Cover-Schranktür beim Media-View-Toggle (User, 2026-06-30).** Der Turntable bleibt fix an seiner finalen Position; beim „P"-Toggle schiebt nur noch das Cover wie eine Schranktür zur Seite (Cover höherer z-index, `cover-active` ↔ `cover-exit` = 0/-100%), der Turntable-Layer (niedrigerer z-index) steht fix dahinter. Die `turntable-active`/`turntable-enter`-Slide-Klassen entfernt; `animations.css` + `SongInfo.tsx` + `SongInfo.test.tsx` angepasst. Commit `Feat: keep the turntable fixed, slide only the cover on view toggle (MC-071)`.
 
 ---
 

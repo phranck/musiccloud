@@ -142,8 +142,19 @@
   backface-visibility: hidden;
 }
 
-.mc-share-media-stage--cover-active,
-.mc-share-media-stage--turntable-active {
+/* The turntable sits fixed at the back of the screen and never moves. The cover
+   is the layer in front of it (higher z-index) and slides aside like a cabinet
+   door, so toggling the view reveals or hides the deck without ever shifting it. */
+.mc-share-media-stage[data-media-stage="turntable"] {
+  z-index: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+.mc-share-media-stage[data-media-stage="cover"] {
+  z-index: 2;
+}
+
+.mc-share-media-stage--cover-active {
   transform: translate3d(0, 0, 0);
 }
 
@@ -151,16 +162,8 @@
   transform: translate3d(-100%, 0, 0);
 }
 
-.mc-share-media-stage--turntable-enter {
-  transform: translate3d(100%, 0, 0);
-}
-
 html[data-share-media-view="turntable"] .mc-share-media-screen .mc-share-media-stage[data-media-stage="cover"] {
   transform: translate3d(-100%, 0, 0);
-}
-
-html[data-share-media-view="turntable"] .mc-share-media-screen .mc-share-media-stage[data-media-stage="turntable"] {
-  transform: translate3d(0, 0, 0);
 }
 
 html[data-share-media-view="turntable"] .mc-share-media-screen .mc-tft-screen-tint,

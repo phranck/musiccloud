@@ -181,16 +181,11 @@ export const SongInfo = memo(function SongInfo({
                   }
                 />
               </div>
+              {/* The turntable is a fixed layer at the back; only the cover in
+                  front of it slides (see .mc-share-media-stage CSS), so the deck
+                  never moves when toggling the media view. */}
               {showTurntableStage && (
-                <div
-                  className={cn(
-                    "mc-share-media-stage",
-                    mediaView === ShareMediaView.Turntable
-                      ? "mc-share-media-stage--turntable-active"
-                      : "mc-share-media-stage--turntable-enter",
-                  )}
-                  data-media-stage="turntable"
-                >
+                <div className="mc-share-media-stage" data-media-stage="turntable">
                   {turntableStage}
                 </div>
               )}
