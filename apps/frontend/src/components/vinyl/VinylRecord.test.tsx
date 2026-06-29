@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { TurntableSpeed } from "@/components/turntable/TurntablePlayerContext";
 import { VinylRecord } from "@/components/vinyl/VinylRecord";
 import { VinylSpinState } from "@/components/vinyl/VinylRecord.types";
 
@@ -250,5 +251,39 @@ describe("VinylRecord", () => {
     expect(commitStyles).toHaveBeenCalled();
     expect(cancel).toHaveBeenCalled();
     expect(commitStyles.mock.invocationCallOrder[0]).toBeLessThan(cancel.mock.invocationCallOrder[0]);
+  });
+
+  it("spins faster at 45 RPM (shorter revolution) than at the default 33 RPM", () => {
+    const cancel = vi.fn();
+    const commitStyles = vi.fn();
+    const animate = vi.fn(() => ({ cancel, commitStyles })) as unknown as typeof HTMLElement.prototype.animate;
+    HTMLElement.prototype.animate = animate;
+
+    const { rerender } = render(
+      <VinylRecord className="h-24 w-24" labelTitle="Kind of Blue" spinState={VinylSpinState.Playing} />,
+    );
+
+    // Default speed (33 RPM) keeps the original 1800 ms revolution.
+    expect(animate).toHaveBeenLastCalledWith(expect.anything(), {
+      duration: 1800,
+      easing: "linear",
+      iterations: Infinity,
+    });
+
+    rerender(
+      <VinylRecord
+        className="h-24 w-24"
+        labelTitle="Kind of Blue"
+        speed={TurntableSpeed.Rpm45}
+        spinState={VinylSpinState.Playing}
+      />,
+    );
+
+    // 45 RPM picks the faster 1333 ms revolution; the handoff preserves the angle.
+    expect(animate).toHaveBeenLastCalledWith(expect.anything(), {
+      duration: 1333,
+      easing: "linear",
+      iterations: Infinity,
+    });
   });
 });

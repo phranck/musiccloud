@@ -31,6 +31,17 @@ const config = {
         rules: ["deslop/unused-file"],
       },
       /**
+       * `useTurntablePlayer` is the forward-declared read side of the
+       * TurntablePlayer hub context (plan MC-071, Einheit 1). Its consumers —
+       * the provider and the compound parts — land in MC-071's later units, so
+       * the full-scan dead-code rule flags it as unused until then. Scoped to
+       * the context file; remove once a consumer imports the hook.
+       */
+      {
+        files: ["src/components/turntable/TurntablePlayerContext.ts"],
+        rules: ["deslop/unused-export"],
+      },
+      /**
        * `@astrojs/check` is a CLI-only dependency: Astro loads it at runtime
        * when `astro check` is invoked from the `check` npm script. There is
        * no source import for the scanner to discover, so the dead-code rule
