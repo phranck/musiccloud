@@ -59,6 +59,38 @@ export const VfdContentTransition = {
 } as const;
 export type VfdContentTransition = (typeof VfdContentTransition)[keyof typeof VfdContentTransition];
 
+/** Direction a transient scroll-out overlay leaves the row. */
+export const VfdScrollOutDirection = {
+  Left: "left",
+  Right: "right",
+} as const;
+export type VfdScrollOutDirection = (typeof VfdScrollOutDirection)[keyof typeof VfdScrollOutDirection];
+
+/**
+ * Transient one-shot overlay drawn BEHIND a row's content and scrolled out
+ * sideways. The row content stays put and visually occludes the overlay where
+ * they overlap, so the overlay appears to emerge from behind the standing text.
+ */
+export interface VfdScrollOutOverlay {
+  /** Glyph text scrolled out (e.g. a seek hint). */
+  text: string;
+  /** Side the overlay exits toward. */
+  direction: VfdScrollOutDirection;
+  /** Animation length in milliseconds. */
+  durationMs: number;
+  /** Monotonic trigger id. A changed nonce re-arms the animation from the start. */
+  nonce: number;
+}
+
+/** Per-row scroll-out overlay state in flight on the canvas. */
+export interface VfdOverlayRuntimeState {
+  text: string;
+  direction: VfdScrollOutDirection;
+  startedAt: number;
+  durationMs: number;
+  nonce: number;
+}
+
 /**
  * Hardware sizing mode for the VFD module.
  *
@@ -161,6 +193,8 @@ export interface VfdDisplayLine {
   marquee?: VfdMarqueeMode;
   /** Content replacement mode. Use `none` for high-frequency updates like progress meters. */
   transition?: VfdContentTransition;
+  /** Transient one-shot overlay scrolled out from behind this row's content. */
+  scrollOutOverlay?: VfdScrollOutOverlay;
   /** Stable content identity for non-string ReactNode content. String content uses itself as identity. */
   key?: string;
   /** Optional CSS class applied to the row content wrapper. */
@@ -296,6 +330,7 @@ export interface NormalizedVfdLine {
   align: VfdSectionAlign;
   marquee?: VfdMarqueeMode;
   transition: VfdContentTransition;
+  scrollOutOverlay?: VfdScrollOutOverlay;
   className?: string;
 }
 
@@ -335,6 +370,8 @@ export interface VfdCanvasRenderState {
   lines: NormalizedVfdLine[];
   transitions: Map<number, VfdLineTransition>;
   marqueeStates: Map<string, VfdMarqueeRuntimeState>;
+  /** Active scroll-out overlays keyed by row index. Entries are removed when their animation completes. */
+  overlays: Map<number, VfdOverlayRuntimeState>;
   cellCount: number;
   rowCount: number;
   prefersReducedMotion: boolean;

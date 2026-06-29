@@ -83,6 +83,7 @@ export type {
   VfdMarqueeModeLiteral,
   VfdPixelBarSegment,
   VfdProgress,
+  VfdScrollOutOverlay,
   VfdSectionCellsMode,
 } from "@/components/ui/VfdDisplayTypes";
 export {
@@ -90,6 +91,7 @@ export {
   VfdBrightness,
   VfdContentTransition,
   VfdMarqueeMode,
+  VfdScrollOutDirection,
   VfdSectionAlign,
   VfdSectionCells,
   VfdSizingMode,
@@ -155,6 +157,7 @@ export function VfdDisplay({
     lines: normalizedLines,
     transitions: new Map(),
     marqueeStates: new Map(),
+    overlays: new Map(),
     cellCount,
     rowCount,
     prefersReducedMotion,
