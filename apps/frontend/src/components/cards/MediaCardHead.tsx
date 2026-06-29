@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useCallback, useState } from "react";
 import { AudioPreviewPlayer } from "@/components/audio/AudioPreviewPlayer";
 import type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
 import { CcTrackDetailsSection } from "@/components/cards/CcTrackDetailsSection";
@@ -8,6 +8,7 @@ import { SongInfo } from "@/components/cards/SongInfo";
 import { ShareButton } from "@/components/share/ShareButton";
 import type { ShareMediaView } from "@/components/share/ShareMediaView.types";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
+import type { VfdScrollOutDirection } from "@/components/ui/VfdDisplay";
 import type { VinylSpinState } from "@/components/vinyl/VinylRecord.types";
 import { isShareableContent, isSharePageContent, type MediaCardContentConfiguration } from "@/lib/types/media-card";
 
@@ -83,6 +84,24 @@ export function MediaCardHead({
   const showPreview = !!(content.previewUrl || (content.previewRefreshable && content.shortId));
   const showShareActions = !!shareActionUrl;
 
+  /**
+   * Transient seek-hint state. The nonce monotonically increases on each
+   * arrow-key seek so that `SongInfo`'s VFD overlay re-arms even when the
+   * direction is the same as the previous keypress ("jeder Druck neu").
+   * Null when no hint is in flight (initial state, after the overlay expires).
+   */
+  const [seekHint, setSeekHint] = useState<{ direction: VfdScrollOutDirection; nonce: number } | null>(null);
+
+  /**
+   * Receives a seek direction from `AudioPreviewPlayer` and increments the
+   * nonce so each keypress triggers a fresh overlay animation in `SongInfo`.
+   *
+   * @param direction - The direction of the ±10 s arrow-key seek.
+   */
+  const handleSeekHint = useCallback((direction: VfdScrollOutDirection) => {
+    setSeekHint((previous) => ({ direction, nonce: (previous?.nonce ?? 0) + 1 }));
+  }, []);
+
   return (
     <EmbossedCard className={animatedOuterEmbossedCardClassName(animated, className)}>
       {srAnnouncement && (
@@ -103,6 +122,7 @@ export function MediaCardHead({
         labelReleaseYear={content.labelReleaseYear}
         metaOverride={content.metaLine}
         previewStatus={previewStatus}
+        seekHint={seekHint}
         shareMediaView={shareMediaView}
         statusLine={content.statusLine}
         vinylSpinState={vinylSpinState}
@@ -120,6 +140,7 @@ export function MediaCardHead({
             mediaKind={content.mediaKind}
             trackTitle={content.title}
             onPlaybackIntent={onPlaybackIntent}
+            onSeekHint={handleSeekHint}
             onStatusChange={onPreviewStatusChange}
           />
         )}
