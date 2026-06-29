@@ -121,6 +121,28 @@ button,
   touch-action: manipulation;
 }
 
+/* No native focus ring in any browser. Focus is styled explicitly per
+   component — via its own `outline-color` (.hero-field, EmbossedButton,
+   HeaderNavMenu) or a box-shadow ring (CancelButton, ArtistTrackCell, …). A
+   transparent 2px outline replaces the UA default WITHOUT dropping
+   `outline-style`, so a component that overrides only `outline-color` (or
+   `outline-width`) still shows its own ring. Lives in `@layer base` so Tailwind
+   utilities and the unlayered component CSS both override it. */
+@layer base {
+  :focus-visible,
+  :focus {
+    outline: 2px solid transparent;
+  }
+  ::-moz-focus-inner {
+    border: 0;
+  }
+}
+
+/* Suppress the grey tap-highlight flash on touch (Chrome/Android, iOS Safari). */
+:root {
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* Hero search field — focus ring directly on the RecessedCard well (LandingPage
    HeroInput). Uses `outline` (not box-shadow) so it never replaces the recessed
    chamfer of the `.recessed-gradient-border` recipe. The base ring is
