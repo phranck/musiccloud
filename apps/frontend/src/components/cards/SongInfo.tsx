@@ -49,7 +49,7 @@ interface SongInfoProps {
 }
 
 /** Seek-hint overlay length in milliseconds, set by product (interactive tuning). */
-const VFD_SEEK_HINT_DURATION_MS = 2900;
+const VFD_SEEK_HINT_DURATION_MS = 1400;
 
 /**
  * Glyph text rendered in the status row overlay per scroll-out direction.

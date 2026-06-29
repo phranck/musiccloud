@@ -16,7 +16,7 @@ Plan-Nr.: MC-067
 
 Das Feature lebt im Audio-Player-Stack der Share-Page (und gilt damit überall, wo `MediaCardHead` einen Player + `SongInfo`-VFD rendert). Das VFD ist ein Canvas-gerendertes Dot-Matrix-Display: alle Bewegung passiert spaltenweise im Canvas (`drawVfdCanvas`), kein CSS-Transform berührt die Pixel. Die Statuszeile ist die 4. VFD-Zeile (`SongInfo.tsx:263-268`), zentriert, mit Marquee ab 28 Zeichen. Seek existierte bisher nicht — `audio.currentTime` wurde nur gelesen.
 
-Alle Produkt-Entscheidungen wurden im Brainstorming geklärt (siehe Spec). Das Tempo (2,9 s) hat der Nutzer interaktiv festgelegt.
+Alle Produkt-Entscheidungen wurden im Brainstorming geklärt (siehe Spec). Das Tempo (1,4 s) hat der Nutzer interaktiv festgelegt.
 
 ## Spec (Entscheidungen)
 
@@ -26,7 +26,7 @@ Alle Produkt-Entscheidungen wurden im Brainstorming geklärt (siehe Spec). Das T
 | Zustand | Wiedergabe **und** Pause (`Playing`/`Paused`), nicht Idle/Loading/Error |
 | `←` / `→` | `currentTime ∓ 10 s`, begrenzt auf `0 … duration` |
 | `cmd+←` / `cmd+→` | `0` bzw. `duration − 3 s` — **still**, kein VFD-Hinweis |
-| VFD-Hinweis (nur ±10 s) | `<< 10s` (links) / `10s >>` (rechts), kommt hinter dem Status-Text hervor, scrollt seitlich raus, **2900 ms**, jeder Tastendruck startet neu |
+| VFD-Hinweis (nur ±10 s) | `<< 10s` (links) / `10s >>` (rechts), kommt hinter dem Status-Text hervor, scrollt seitlich raus, **1400 ms**, jeder Tastendruck startet neu |
 | Mehrfach-Sprung | Jeder Druck triggert den Hinweis neu (kein Aufsummieren) |
 | Pausiert-Status (neu) | `♫ SONG PAUSIERT` / `♫ VORSCHAU PAUSIERT` (DE), `♫ SONG PAUSED` / `♫ PREVIEW PAUSED` (EN) |
 | Schutz | Greift nicht, wenn Fokus in `input`/`textarea`/`select`/`button`/`a`/contentEditable liegt |
@@ -89,7 +89,7 @@ Damit bleibt der Status-Text stehen und das Overlay kommt nur links/rechts daneb
 |---|---|---|
 | `SEEK_STEP_SECONDS` | `10` | `AudioPreviewPlayer.tsx` |
 | `SEEK_END_GUARD_SECONDS` | `3` | `AudioPreviewPlayer.tsx` |
-| `VFD_SEEK_HINT_DURATION_MS` | `2900` | `SongInfo.tsx` |
+| `VFD_SEEK_HINT_DURATION_MS` | `1400` | `SongInfo.tsx` |
 | `SEEK_HINT_TEXT` | `{ Left: "<< 10s", Right: "10s >>" }` | `SongInfo.tsx` |
 
 ---
@@ -612,7 +612,7 @@ Konstanten auf Modulebene (vor der Komponente):
 
 ```ts
 /** Seek-hint overlay length, set by product (interactive tuning). */
-const VFD_SEEK_HINT_DURATION_MS = 2900;
+const VFD_SEEK_HINT_DURATION_MS = 1400;
 /** Glyph text per scroll-out direction. */
 const SEEK_HINT_TEXT = {
   [VfdScrollOutDirection.Left]: "<< 10s",
@@ -641,7 +641,7 @@ const statusOverlay: VfdScrollOutOverlay | undefined = seekHint
 
 - [x] **Step 4: Gate** — Typecheck grün; `biome check --write`.
 
-- [ ] **Step 5: Visuelle Verifikation (agent-browser, lokal)** — Dev-Server via `./app status` prüfen/`./app start`. Auf einer Share-Page einen Song abspielen, Fokus aus Eingabefeldern nehmen, `←`/`→` drücken. Erwartet: `<< 10s` bzw. `10s >>` kommt hinter `♫ SONG PLAYING` hervor und scrollt in 2,9 s seitlich raus; `SONG PLAYING` bleibt stehen; `cmd+←`/`cmd+→` springen ohne Hinweis. Playback gemäß Vorgabe nicht unbeaufsichtigt laufen lassen (muted/sofort pausieren oder nur Status prüfen). Screenshot als Beleg.
+- [ ] **Step 5: Visuelle Verifikation (agent-browser, lokal)** — Dev-Server via `./app status` prüfen/`./app start`. Auf einer Share-Page einen Song abspielen, Fokus aus Eingabefeldern nehmen, `←`/`→` drücken. Erwartet: `<< 10s` bzw. `10s >>` kommt hinter `♫ SONG PLAYING` hervor und scrollt in 1,4 s seitlich raus; `SONG PLAYING` bleibt stehen; `cmd+←`/`cmd+→` springen ohne Hinweis. Playback gemäß Vorgabe nicht unbeaufsichtigt laufen lassen (muted/sofort pausieren oder nur Status prüfen). Screenshot als Beleg.
 
 - [x] **Step 6: Commit** — `Feat: flash seek hint in the status VFD row (MC-067)`
 
