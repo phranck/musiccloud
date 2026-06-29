@@ -1,7 +1,7 @@
 import { useGSAP } from "@gsap/react";
 import { buildMetaLine } from "@musiccloud/shared";
 import { memo, useEffect, useRef, useState } from "react";
-import type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
+import type { AudioStatus } from "@/components/audio/AudioStatus";
 import { ArtworkImage } from "@/components/cards/ArtworkImage";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { ShareMediaView, type ShareMediaView as ShareMediaViewType } from "@/components/share/ShareMediaView.types";
@@ -39,7 +39,7 @@ interface SongInfoProps {
   /** Share-only cover/turntable visual mode. Stage 2.3 renders this. */
   shareMediaView?: ShareMediaViewType;
   /** Share-only playback status, forwarded by share media containers. */
-  previewStatus?: AudioPreviewStatus | null;
+  previewStatus?: AudioStatus | null;
   /** Share-only visual LP spin state. */
   vinylSpinState?: VinylSpinStateType;
   /** Fourth VFD row. Pre-translated by the caller so the component stays reusable. */

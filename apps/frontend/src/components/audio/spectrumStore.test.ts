@@ -14,7 +14,7 @@ import {
 /**
  * Contract of the module-scope spectrum store (plan MC-029 Task 5.1) — the
  * single channel that carries 50 ms audio-visualisation frames from the
- * AudioPreviewPlayer to the VFD renderer WITHOUT React state. Two properties
+ * AudioPlayer to the VFD renderer WITHOUT React state. Two properties
  * matter: every frame mutates the SAME pre-allocated Float32Array buffers
  * (no per-tick allocation → no GC pressure, policy 7), and a publish/clear
  * notifies subscribers so the renderer can repaint without a React commit.

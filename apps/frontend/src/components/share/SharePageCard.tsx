@@ -8,7 +8,7 @@
  * reactive via the calling component's t() and is passed through unchanged.
  */
 
-import { type AudioPreviewStatus, MediaCard } from "@/components/cards/MediaCard";
+import { type AudioStatus, MediaCard } from "@/components/cards/MediaCard";
 import type { ShareMediaView } from "@/components/share/ShareMediaView.types";
 import type { VinylSpinState } from "@/components/vinyl/VinylRecord.types";
 import { useT } from "@/i18n/localeContext";
@@ -18,14 +18,14 @@ import {
   type ShareContentConfiguration,
 } from "@/lib/types/media-card";
 
-export type { AudioPreviewStatus } from "@/components/cards/MediaCard";
+export type { AudioStatus } from "@/components/cards/MediaCard";
 
 interface SharePageCardProps {
   config: MediaCardContentConfiguration;
   animated?: boolean;
   onPlaybackIntent?: () => void;
-  onPreviewStatusChange?: (status: AudioPreviewStatus | null) => void;
-  previewStatus?: AudioPreviewStatus | null;
+  onPreviewStatusChange?: (status: AudioStatus | null) => void;
+  previewStatus?: AudioStatus | null;
   shareMediaView?: ShareMediaView;
   vinylSpinState?: VinylSpinState;
 }

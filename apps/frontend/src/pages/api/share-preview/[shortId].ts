@@ -5,7 +5,7 @@ import { fetchSharePreview } from "@/api/client";
 
 /**
  * Thin proxy: forwards GET to backend `/api/v1/share/:shortId/preview`.
- * Called client-side from AudioPreviewPlayer when the initial share page
+ * Called client-side from AudioPlayer when the initial share page
  * arrives with `previewRefreshable: true`.
  */
 export const GET: APIRoute = async ({ params, clientAddress }) => {

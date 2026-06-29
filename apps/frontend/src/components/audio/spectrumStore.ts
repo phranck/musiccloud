@@ -2,7 +2,7 @@
  * Module-scope store for the audio preview's per-frame visualisation data
  * (plan MC-029 Task 5.1).
  *
- * The AudioPreviewPlayer produces a new spectrum/level frame every
+ * The AudioPlayer produces a new spectrum/level frame every
  * `SPECTRUM_UPDATE_MS` (50 ms) while a preview plays. Routing that through
  * React state forced a component re-render on every tick — the dominant
  * 50 ms-cadence commit source on the share page. This store carries the
@@ -18,7 +18,7 @@
 
 /**
  * Per-channel frequency band count. Mirrors `SPECTRUM_CHANNEL_BAND_COUNT`
- * in {@link AudioPreviewPlayer}; the producer fills exactly this many bands
+ * in {@link AudioPlayer}; the producer fills exactly this many bands
  * per channel.
  */
 export const SPECTRUM_STORE_BAND_COUNT = 13;

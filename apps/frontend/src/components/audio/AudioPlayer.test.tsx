@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AudioPreviewPlayer } from "@/components/audio/AudioPreviewPlayer";
+import { AudioPlayer } from "@/components/audio/AudioPlayer";
 import { LocaleProvider } from "@/i18n/context";
 
 afterEach(() => {
@@ -8,7 +8,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("AudioPreviewPlayer playback intent", () => {
+describe("AudioPlayer playback intent", () => {
   it("reports playback intent before audio.play resolves", () => {
     const callOrder: string[] = [];
     const playMock = vi.spyOn(window.HTMLMediaElement.prototype, "play").mockImplementation(() => {
@@ -19,7 +19,7 @@ describe("AudioPreviewPlayer playback intent", () => {
 
     render(
       <LocaleProvider initialLocale="en">
-        <AudioPreviewPlayer
+        <AudioPlayer
           previewUrl="/preview.mp3"
           trackTitle="Blue Train"
           onPlaybackIntent={() => callOrder.push("intent")}

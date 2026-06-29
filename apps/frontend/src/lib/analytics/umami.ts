@@ -36,7 +36,7 @@ export function sendMusicSignal(name: string): void {
 /**
  * Audio-preview lifecycle. The five terminal states (Paused, Finished,
  * Error, Unavailable) plus the two entry states (Started, Resumed) cover the
- * full transport state machine of `AudioPreviewPlayer`.
+ * full transport state machine of `AudioPlayer`.
  */
 export const PreviewSignal = {
   Started: "Preview: Started",

@@ -38,6 +38,7 @@ Es gibt genau **einen** Audio-Player (`AudioPreviewPlayer`, eine Render-Stelle i
 | `AudioPreviewStatus` | `AudioStatus` |
 | `AudioPreviewPlayer` | `AudioPlayer` |
 | `ActiveShareResult` | `ShareResult` |
+| `ActiveShareResultProps` | `ShareResultProps` |
 | `audioPreviewSeek` | `audioSeek` |
 | `audioPreviewKey` | `audioPlayerKey` |
 
@@ -62,14 +63,14 @@ Die Import-Pfade (`@/components/audio/AudioPreviewPlayer` usw.) enthalten den Da
 
 **Files:** keine
 
-- [ ] **Step 1: Feature-Branch von aktuellem `main`**
+- [x] **Step 1: Feature-Branch von aktuellem `main`**
 
 ```bash
 git checkout main
 git checkout -b feat/mc-069-rename-audioplayer
 ```
 
-- [ ] **Step 2: Sauberen Ausgangszustand bestätigen**
+- [x] **Step 2: Sauberen Ausgangszustand bestätigen**
 
 Run: `git status --short`
 Expected: leer (keine uncommitteten Änderungen)
@@ -78,7 +79,7 @@ Expected: leer (keine uncommitteten Änderungen)
 
 **Files:** die sechs Dateien aus der Datei-Rename-Tabelle
 
-- [ ] **Step 1: Sechs `git mv` ausführen**
+- [x] **Step 1: Sechs `git mv` ausführen**
 
 ```bash
 cd apps/frontend/src/components
@@ -91,7 +92,7 @@ git mv landing/ActiveShareResult.tsx landing/ShareResult.tsx
 cd -
 ```
 
-- [ ] **Step 2: Renames verifizieren**
+- [x] **Step 2: Renames verifizieren**
 
 Run: `git status --short | grep -E "^R"`
 Expected: sechs Zeilen mit `R` (renamed), je alt → neu.
@@ -100,7 +101,7 @@ Expected: sechs Zeilen mit `R` (renamed), je alt → neu.
 
 **Files:** `apps/frontend/src/**/*.{ts,tsx,astro}` (Inhalte), plus temporär `scripts/rename-mc069.py`
 
-- [ ] **Step 1: Rename-Skript schreiben**
+- [x] **Step 1: Rename-Skript schreiben**
 
 Create: `scripts/rename-mc069.py`
 
@@ -143,22 +144,22 @@ for path in root.rglob("*"):
 print(f"{changed} files changed")
 ```
 
-- [ ] **Step 2: Skript ausführen**
+- [x] **Step 2: Skript ausführen**
 
 Run: `python3 scripts/rename-mc069.py`
 Expected: Liste der geänderten Dateien, am Ende `N files changed` (rund 17).
 
-- [ ] **Step 3: Keine Alt-Symbole mehr vorhanden**
+- [x] **Step 3: Keine Alt-Symbole mehr vorhanden**
 
 Run: `grep -riE "audiopreview|ActiveShareResult" apps/frontend/src --include='*.ts' --include='*.tsx' --include='*.astro'`
 Expected: keine Ausgabe (Exit-Code 1). Falls Treffer: prüfen, ob es ein echtes Alt-Symbol ist (dann fehlt es in der `SYMBOL_MAP`) oder ein gewolltes Vorkommen (es gibt keines).
 
-- [ ] **Step 4: Preview-Begriffe sind erhalten geblieben (Negativ-Kontrolle)**
+- [x] **Step 4: Preview-Begriffe sind erhalten geblieben (Negativ-Kontrolle)**
 
 Run: `grep -rn "previewUrl\|previewRefreshable\|share-preview" apps/frontend/src --include='*.ts' --include='*.tsx' --include='*.astro' | head`
 Expected: weiterhin Treffer (diese Begriffe wurden korrekt nicht angefasst).
 
-- [ ] **Step 5: Rename-Skript wieder entfernen**
+- [x] **Step 5: Rename-Skript wieder entfernen**
 
 ```bash
 rm scripts/rename-mc069.py
@@ -168,22 +169,22 @@ rm scripts/rename-mc069.py
 
 **Files:** keine (nur Verifikation)
 
-- [ ] **Step 1: Biome-Format auf das gesamte Frontend (organizeImports kann Import-Reihenfolge ändern)**
+- [x] **Step 1: Biome-Format auf das gesamte Frontend (organizeImports kann Import-Reihenfolge ändern)**
 
 Run: `pnpm exec biome check --write apps/frontend/src`
 Expected: `No fixes applied` oder angewandte Format-Fixes, am Ende kein Fehler.
 
-- [ ] **Step 2: Typecheck**
+- [x] **Step 2: Typecheck**
 
 Run: `pnpm --filter @musiccloud/frontend exec tsc --noEmit`
 Expected: keine Fehler. Insbesondere keine `has no exported member named AudioPlayer`-Fehler (das wäre die Signatur eines unvollständigen Renames).
 
-- [ ] **Step 3: React-Doctor (voll, da uncommittete Änderungen nicht im `--diff` sichtbar sind)**
+- [x] **Step 3: React-Doctor (voll, da uncommittete Änderungen nicht im `--diff` sichtbar sind)**
 
 Run: `pnpm exec react-doctor . --verbose --no-score --yes --no-color --blocking warning`
 Expected: `0 issues` für `@musiccloud/frontend`.
 
-- [ ] **Step 4: Volle Test-Suite**
+- [x] **Step 4: Volle Test-Suite**
 
 Run: `pnpm test:run`
 Expected: alle Suites grün, insbesondere `AudioPlayer.test.tsx`, `audioSeek.test.ts`, `ShareLayout.test.tsx`, `spectrumStore.test.ts` (Frontend 282 plus, Backend unverändert).
@@ -192,7 +193,7 @@ Expected: alle Suites grün, insbesondere `AudioPlayer.test.tsx`, `audioSeek.tes
 
 **Files:** keine
 
-- [ ] **Step 1: Alles stagen und committen**
+- [x] **Step 1: Alles stagen und committen**
 
 ```bash
 git add -A
@@ -203,7 +204,7 @@ git commit -m "Refactor: rename AudioPreviewPlayer to AudioPlayer and ActiveShar
 - Pure mechanical rename, no behaviour change"
 ```
 
-- [ ] **Step 2: gitleaks-Pre-Commit-Hook grün** (läuft automatisch beim Commit)
+- [x] **Step 2: gitleaks-Pre-Commit-Hook grün** (läuft automatisch beim Commit)
 
 Expected: `no leaks found`, Commit erstellt.
 
@@ -211,12 +212,12 @@ Expected: `no leaks found`, Commit erstellt.
 
 ## Checkliste (auswertbar)
 
-- [ ] Task 1: Feature-Branch `feat/mc-069-rename-audioplayer` angelegt
-- [ ] Task 2: sechs Dateien per `git mv` umbenannt
-- [ ] Task 3: Symbol-Skript gelaufen, keine `audioPreview`/`ActiveShareResult`-Reste, Preview-Begriffe erhalten, Skript entfernt
-- [ ] Task 4: Biome, tsc, React-Doctor (0 issues), `pnpm test:run` grün
-- [ ] Task 5: committet, gitleaks grün
-- [ ] Alle Code-Referenzen verifiziert (Symbole, Datei-Pfade, Zielnamen-Kollisionscheck)
+- [x] Task 1: Feature-Branch `feat/mc-069-rename-audioplayer` angelegt
+- [x] Task 2: sechs Dateien per `git mv` umbenannt
+- [x] Task 3: Symbol-Skript gelaufen, keine `audioPreview`/`ActiveShareResult`-Reste, Preview-Begriffe erhalten, Skript entfernt
+- [x] Task 4: Biome, tsc, React-Doctor (0 issues), `pnpm test:run` grün
+- [x] Task 5: committet, gitleaks grün
+- [x] Alle Code-Referenzen verifiziert (Symbole, Datei-Pfade, Zielnamen-Kollisionscheck)
 
 ## Verified Facts (Stand 2026-06-29)
 
@@ -237,6 +238,7 @@ Keiner. Reiner Rename ohne Produkt-Entscheidung.
 ## Risiken / Hinweise
 
 - **Teilstring-Sicherheit:** Der Regex nutzt `\b`-Wortgrenzen, daher matcht `\bAudioPreviewStatus\b` nicht `AudioPreviewStatusType` (zwischen `Status` und `Type` liegt keine Grenze). Beide Symbole haben eigene Map-Einträge. Die Reihenfolge (längste zuerst) ist zusätzliche Absicherung.
+- **Beim Execute nachgezogen (2026-06-29):** `ActiveShareResultProps` fehlte zunächst in der Map. Dieselbe Wortgrenzen-Mechanik trennt `ActiveShareResult` von `ActiveShareResultProps`, daher blieb das Props-Interface stehen. Direkt im Verify-Schritt (Task 3 Step 3) entdeckt und per `sed` nachgezogen; `CcShareResult` blieb dabei korrekt unangetastet.
 - **Import-Pfade:** Werden vom selben Skript erfasst, weil der Datei-Name als Wort im Pfad steht. Nach `git mv` zeigen sie auf die neuen Dateien. Der Typecheck (Task 4 Step 2) ist das Gate dafür.
 - **`/api/share-preview/[shortId]`:** Bleibt unverändert (kein `audioPreview` im Pfad). Falls die Datei ein Audio-Symbol importiert, ändert das Skript nur dieses Symbol, nicht den Routen-Pfad.
 - **Folgepläne:** MC-070 (VfdDisplay generisch + Sonderformen) und MC-071 (TurntablePlayer-Hub) setzen auf den hier begradigten Namen auf.

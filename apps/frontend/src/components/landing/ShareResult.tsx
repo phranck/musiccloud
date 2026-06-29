@@ -7,7 +7,7 @@ import type { ShareContentConfiguration } from "@/lib/types/media-card";
 // Lazy-loaded share UI — only pulled into the bundle when a result is shown.
 const ShareLayout = lazy(loadShareLayout);
 
-interface ActiveShareResultProps {
+interface ShareResultProps {
   activeArtistName: string;
   activeShareConfig: ShareContentConfiguration;
   artistInfoContext?: ShareArtistInfoContext;
@@ -42,7 +42,7 @@ interface ActiveShareResultProps {
  * @param isClearing - Whether the clearing slide-out is running.
  * @param resultsPanelRef - Focus / slide-out target ref.
  */
-export function ActiveShareResult({
+export function ShareResult({
   activeArtistName,
   activeShareConfig,
   artistInfoContext,
@@ -53,7 +53,7 @@ export function ActiveShareResult({
   handleShareLogoClick,
   isClearing,
   resultsPanelRef,
-}: ActiveShareResultProps) {
+}: ShareResultProps) {
   return (
     <ShareResultFrame
       resultsPanelRef={resultsPanelRef}

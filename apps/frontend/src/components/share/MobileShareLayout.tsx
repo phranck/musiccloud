@@ -1,6 +1,6 @@
 import { MicrophoneStageIcon } from "@phosphor-icons/react";
 import type { CSSProperties } from "react";
-import type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
+import type { AudioStatus } from "@/components/audio/AudioStatus";
 import { CcInfoCard } from "@/components/cards/CcInfoCard";
 import { raisedControlRadius, recessedControlInset } from "@/components/cards/cardGeometry";
 import type { ShareMediaView } from "@/components/share/ShareMediaView.types";
@@ -22,9 +22,9 @@ export interface MobileShareLayoutProps {
   /** Reports a synchronous playback start intent before audio.play() resolves. */
   onPlaybackIntent: () => void;
   /** Reports the share-card preview player's status to the owner. */
-  onPreviewStatusChange: (status: AudioPreviewStatus | null) => void;
+  onPreviewStatusChange: (status: AudioStatus | null) => void;
   /** Current preview playback status, forwarded to the media visual stage. */
-  previewStatus: AudioPreviewStatus | null;
+  previewStatus: AudioStatus | null;
   /** Current cover/turntable visual mode. */
   shareMediaView: ShareMediaView;
   /** Current visual LP spin state for the share turntable. */

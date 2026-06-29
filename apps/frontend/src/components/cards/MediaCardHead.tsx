@@ -1,6 +1,6 @@
 import { type ReactNode, useCallback, useState } from "react";
-import { AudioPreviewPlayer } from "@/components/audio/AudioPreviewPlayer";
-import type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
+import { AudioPlayer } from "@/components/audio/AudioPlayer";
+import type { AudioStatus } from "@/components/audio/AudioStatus";
 import { CcTrackDetailsSection } from "@/components/cards/CcTrackDetailsSection";
 import { animatedOuterEmbossedCardClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
@@ -22,9 +22,9 @@ interface MediaCardHeadProps {
   /** Reports a synchronous playback start intent before audio.play() resolves. */
   onPlaybackIntent?: () => void;
   /** Forwarded from the audio preview player so the caller can react to playback state. */
-  onPreviewStatusChange?: (status: AudioPreviewStatus | null) => void;
+  onPreviewStatusChange?: (status: AudioStatus | null) => void;
   /** Current preview playback status, forwarded to the media visual stage. */
-  previewStatus?: AudioPreviewStatus | null;
+  previewStatus?: AudioStatus | null;
   /** Share-only cover/turntable visual mode. Omitted outside ShareLayout. */
   shareMediaView?: ShareMediaView;
   /** Share-only visual LP spin state. */
@@ -80,7 +80,7 @@ export function MediaCardHead({
   const shareable = isShareableContent(content) ? content : null;
   const sharePageContent = isSharePageContent(content) ? content : null;
   const shareActionUrl = sharePageContent?.shortUrl ?? shareable?.shareUrl;
-  const audioPreviewKey = [content.shortId ?? "", content.previewUrl ?? "", content.title, content.artist].join("::");
+  const audioPlayerKey = [content.shortId ?? "", content.previewUrl ?? "", content.title, content.artist].join("::");
   const showPreview = !!(content.previewUrl || (content.previewRefreshable && content.shortId));
   const showShareActions = !!shareActionUrl;
 
@@ -93,7 +93,7 @@ export function MediaCardHead({
   const [seekHint, setSeekHint] = useState<{ direction: VfdScrollOutDirection; nonce: number } | null>(null);
 
   /**
-   * Receives a seek direction from `AudioPreviewPlayer` and increments the
+   * Receives a seek direction from `AudioPlayer` and increments the
    * nonce so each keypress triggers a fresh overlay animation in `SongInfo`.
    *
    * @param direction - The direction of the ±10 s arrow-key seek.
@@ -133,8 +133,8 @@ export function MediaCardHead({
         sectionClass="px-[var(--mc-pad-card,0.75rem)] pt-0 pb-[var(--mc-pad-card,0.75rem)]"
       >
         {showPreview && (
-          <AudioPreviewPlayer
-            key={audioPreviewKey}
+          <AudioPlayer
+            key={audioPlayerKey}
             previewUrl={content.previewUrl}
             refreshShortId={content.previewRefreshable ? content.shortId : undefined}
             mediaKind={content.mediaKind}

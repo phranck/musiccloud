@@ -11,13 +11,13 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { ActiveShareResult } from "@/components/landing/ActiveShareResult";
 import { CcShareResult } from "@/components/landing/CcShareResult";
 import { HeroInput } from "@/components/landing/HeroInput";
 import { LandingLogoBlock } from "@/components/landing/LandingLogoBlock";
 import { LandingPageErrorAlert } from "@/components/landing/LandingPageErrorAlert";
 import { LiveExampleTeaser } from "@/components/landing/LiveExampleTeaser";
 import { ResolveModeSwitcher } from "@/components/landing/ResolveModeSwitcher";
+import { ShareResult } from "@/components/landing/ShareResult";
 import { ShareResultPlaceholder } from "@/components/landing/ShareResultPlaceholder";
 import { AppFooter } from "@/components/layout/AppFooter";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
@@ -259,7 +259,7 @@ function LandingPageInner({
               t={t}
             />
           ) : activeShareConfig && active && !isFieldReturnStaging && !discExitPending ? (
-            <ActiveShareResult
+            <ShareResult
               activeArtistName={activeArtistName}
               activeShareConfig={activeShareConfig}
               artistInfoContext={activeShareView?.artistInfoContext}

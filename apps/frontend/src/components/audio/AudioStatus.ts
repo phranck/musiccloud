@@ -1,4 +1,4 @@
-export const AudioPreviewStatus = {
+export const AudioStatus = {
   Loading: "loading",
   Ready: "ready",
   Playing: "playing",
@@ -7,4 +7,4 @@ export const AudioPreviewStatus = {
   Unavailable: "unavailable",
 } as const;
 
-export type AudioPreviewStatus = (typeof AudioPreviewStatus)[keyof typeof AudioPreviewStatus];
+export type AudioStatus = (typeof AudioStatus)[keyof typeof AudioStatus];

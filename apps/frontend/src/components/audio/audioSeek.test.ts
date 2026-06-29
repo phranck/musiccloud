@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveSeekTarget } from "@/components/audio/audioPreviewSeek";
+import { resolveSeekTarget } from "@/components/audio/audioSeek";
 
 describe("resolveSeekTarget", () => {
   it("adds the delta within bounds", () => {

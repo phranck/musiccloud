@@ -1,4 +1,4 @@
-import type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
+import type { AudioStatus } from "@/components/audio/AudioStatus";
 import { MediaCardHead } from "@/components/cards/MediaCardHead";
 import { PlatformsWell } from "@/components/cards/PlatformsWell";
 import type { ShareMediaView } from "@/components/share/ShareMediaView.types";
@@ -10,7 +10,7 @@ import {
   type MediaCardContentConfiguration,
 } from "@/lib/types/media-card";
 
-export type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
+export type { AudioStatus } from "@/components/audio/AudioStatus";
 
 export type {
   AlbumContentConfiguration,
@@ -26,8 +26,8 @@ interface MediaCardProps {
   /** Set to false to skip the zoom-in entrance animation (e.g. on the share page) */
   animated?: boolean;
   onPlaybackIntent?: () => void;
-  onPreviewStatusChange?: (status: AudioPreviewStatus | null) => void;
-  previewStatus?: AudioPreviewStatus | null;
+  onPreviewStatusChange?: (status: AudioStatus | null) => void;
+  previewStatus?: AudioStatus | null;
   shareMediaView?: ShareMediaView;
   vinylSpinState?: VinylSpinState;
 }

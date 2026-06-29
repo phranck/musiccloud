@@ -4,7 +4,7 @@ import type {
   ArtistInfoStatus,
   ArtistPanelTrackResolveHandler,
 } from "@/components/artist/artistPanelTypes";
-import type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
+import type { AudioStatus } from "@/components/audio/AudioStatus";
 import { CcInfoCard } from "@/components/cards/CcInfoCard";
 import { MediaSummaryCard } from "@/components/cards/MediaSummaryCard";
 import { ServicesCard } from "@/components/cards/ServicesCard";
@@ -34,11 +34,11 @@ export interface DesktopShareLayoutProps {
   /** Reports a synchronous playback start intent before audio.play() resolves. */
   onPlaybackIntent: () => void;
   /** Reports the media-card preview player's status to the owner. */
-  onPreviewStatusChange: (status: AudioPreviewStatus | null) => void;
+  onPreviewStatusChange: (status: AudioStatus | null) => void;
   /** Resolves a clicked artist-panel track row. */
   onTrackResolve: ArtistPanelTrackResolveHandler;
   /** Current preview playback status, forwarded to the media visual stage. */
-  previewStatus: AudioPreviewStatus | null;
+  previewStatus: AudioStatus | null;
   /** Current cover/turntable visual mode. */
   shareMediaView: ShareMediaView;
   /** Listener region used to localize artist-column data. */

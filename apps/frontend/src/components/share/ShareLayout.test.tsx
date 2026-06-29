@@ -28,8 +28,8 @@ vi.mock("@/components/cards/SongInfo", () => ({
   ),
 }));
 
-vi.mock("@/components/audio/AudioPreviewPlayer", () => ({
-  AudioPreviewPlayer: ({
+vi.mock("@/components/audio/AudioPlayer", () => ({
+  AudioPlayer: ({
     onPlaybackIntent,
     onStatusChange,
   }: {

@@ -35,7 +35,7 @@ interface ShareUiState {
   currentArtistName: string;
   currentConfig: MediaCardContentConfiguration;
   lastPropsConfigKey: string;
-  previewStatus: AudioPreviewStatus | null;
+  previewStatus: AudioStatus | null;
   resolveErrorVisible: boolean;
   resolveTriggeredArtistLoad: boolean;
   shareMediaView: ShareMediaViewType;
@@ -50,7 +50,7 @@ type ShareUiAction =
   | { type: typeof ShareUiActionType.MediaViewToggled }
   | { type: typeof ShareUiActionType.OpenSheet }
   | { type: typeof ShareUiActionType.PlaybackIntentStarted }
-  | { type: typeof ShareUiActionType.PreviewStatusChanged; status: AudioPreviewStatus | null }
+  | { type: typeof ShareUiActionType.PreviewStatusChanged; status: AudioStatus | null }
   | {
       type: typeof ShareUiActionType.PropsChanged;
       artistContext: ArtistInfoContext;
@@ -153,7 +153,7 @@ function initialShareUiState({
 }
 
 import type { ArtistCardLabels } from "@/components/artist/artistPanelTypes";
-import { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
+import { AudioStatus } from "@/components/audio/AudioStatus";
 import { DesktopShareLayout } from "@/components/share/DesktopShareLayout";
 import { MobileArtistSheet } from "@/components/share/MobileArtistSheet";
 import { MobileShareLayout } from "@/components/share/MobileShareLayout";
@@ -227,10 +227,10 @@ function nextShareMediaView(view: ShareMediaViewType): ShareMediaViewType {
 
 function nextVinylSpinStateFromPreviewStatus(
   currentSpinState: VinylSpinStateType,
-  status: AudioPreviewStatus | null,
+  status: AudioStatus | null,
 ): VinylSpinStateType {
-  if (status === AudioPreviewStatus.Playing) return VinylSpinState.Playing;
-  if (status === AudioPreviewStatus.Unavailable || status === null) return VinylSpinState.Idle;
+  if (status === AudioStatus.Playing) return VinylSpinState.Playing;
+  if (status === AudioStatus.Unavailable || status === null) return VinylSpinState.Idle;
   if (currentSpinState === VinylSpinState.Playing || currentSpinState === VinylSpinState.Coasting) {
     return VinylSpinState.Coasting;
   }
@@ -441,9 +441,9 @@ function ShareLayoutInner({
         ? t("artist.statusError", { code: artistErrorCode ?? "ERR" })
         : artistLoadStatus === ArtistLoadStatus.Empty
           ? t("artist.statusEmpty")
-          : previewStatus === AudioPreviewStatus.Playing
+          : previewStatus === AudioStatus.Playing
             ? playingStatus
-            : previewStatus === AudioPreviewStatus.Paused
+            : previewStatus === AudioStatus.Paused
               ? pausedStatus
               : artistReadyVisible
                 ? t("artist.statusReady")
@@ -469,7 +469,7 @@ function ShareLayoutInner({
   }, []);
   const closeSheet = useCallback(() => dispatchUi({ type: ShareUiActionType.CloseSheet }), []);
   const handlePreviewStatusChange = useCallback(
-    (status: AudioPreviewStatus | null) => dispatchUi({ type: ShareUiActionType.PreviewStatusChanged, status }),
+    (status: AudioStatus | null) => dispatchUi({ type: ShareUiActionType.PreviewStatusChanged, status }),
     [],
   );
   const handlePlaybackIntent = useCallback(() => dispatchUi({ type: ShareUiActionType.PlaybackIntentStarted }), []);

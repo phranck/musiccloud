@@ -1,11 +1,8 @@
 import { ENDPOINTS } from "@musiccloud/shared";
 import gsap from "gsap";
 import { useCallback, useEffect, useEffectEvent, useReducer, useRef, useState } from "react";
-import {
-  AudioPreviewStatus,
-  type AudioPreviewStatus as AudioPreviewStatusType,
-} from "@/components/audio/AudioPreviewStatus";
-import { resolveSeekTarget, SEEK_END_GUARD_SECONDS, SEEK_STEP_SECONDS } from "@/components/audio/audioPreviewSeek";
+import { AudioStatus, type AudioStatus as AudioStatusType } from "@/components/audio/AudioStatus";
+import { resolveSeekTarget, SEEK_END_GUARD_SECONDS, SEEK_STEP_SECONDS } from "@/components/audio/audioSeek";
 import {
   clearSpectrumFrame,
   getSpectrumFrame,
@@ -21,7 +18,7 @@ import { PreviewSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { setupMotion } from "@/lib/motion/setup";
 import { type MediaKindType, MediaKindValue } from "@/lib/types/media-card";
 
-interface AudioPreviewPlayerProps {
+interface AudioPlayerProps {
   /** Immediately-playable preview URL. Optional when `refreshShortId` is set. */
   previewUrl?: string;
   /** Short ID used to refresh an expired/missing Deezer preview URL via the
@@ -34,13 +31,13 @@ interface AudioPreviewPlayerProps {
   trackTitle: string;
   /** Fires synchronously when the user starts playback via click, media key, or Space. */
   onPlaybackIntent?: () => void;
-  onStatusChange?: (status: AudioPreviewStatusType) => void;
+  onStatusChange?: (status: AudioStatusType) => void;
   /** Fires after a ±step arrow seek so the host can flash a VFD hint. Not fired for cmd jumps. */
   onSeekHint?: (direction: VfdScrollOutDirection) => void;
 }
 
 /**
- * AudioPreviewPlayer - Audio preview playback component
+ * AudioPlayer - Audio preview playback component
  *
  * Orchestrates the compound Player component for audio preview functionality.
  * Handles audio element lifecycle and state management.
@@ -240,14 +237,14 @@ interface StereoPeakHoldState {
 }
 
 /**
- * Tab-wide registry of mounted `AudioPreviewPlayer` instances. Used by the
+ * Tab-wide registry of mounted `AudioPlayer` instances. Used by the
  * single shared window-keydown listener to route the spacebar and arrow keys
  * to a player when no input element holds focus. Set iteration is
  * insertion-order, which on the share page corresponds to "hero card first,
  * then top tracks" — so the fallback target is the most prominent preview on
  * the page.
  */
-interface AudioPreviewKeyboardHandle {
+interface AudioKeyboardHandle {
   /** Forwards to the player's `togglePlay`. Stable across renders. */
   togglePlay: () => void;
   /** True while the player is in `Playing` or `Paused` phase, false otherwise. */
@@ -260,8 +257,8 @@ interface AudioPreviewKeyboardHandle {
   seekToNearEnd: () => void;
 }
 
-const audioPreviewRegistry = new Set<AudioPreviewKeyboardHandle>();
-let audioPreviewListenerRefCount = 0;
+const audioRegistry = new Set<AudioKeyboardHandle>();
+let audioListenerRefCount = 0;
 
 /**
  * Returns true if the spacebar should fall through to the default browser
@@ -301,14 +298,14 @@ function shouldIgnoreArrowTarget(event: KeyboardEvent): boolean {
   return false;
 }
 
-function resolveSpacebarTarget(): AudioPreviewKeyboardHandle | null {
-  for (const player of audioPreviewRegistry) {
+function resolveSpacebarTarget(): AudioKeyboardHandle | null {
+  for (const player of audioRegistry) {
     if (player.isActive()) return player;
   }
-  return audioPreviewRegistry.values().next().value ?? null;
+  return audioRegistry.values().next().value ?? null;
 }
 
-function handleAudioPreviewSpacebar(event: KeyboardEvent): void {
+function handleAudioSpacebar(event: KeyboardEvent): void {
   if (event.code !== "Space") return;
   if (event.repeat) return;
   if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
@@ -319,7 +316,7 @@ function handleAudioPreviewSpacebar(event: KeyboardEvent): void {
   target.togglePlay();
 }
 
-function handleAudioPreviewArrows(event: KeyboardEvent): void {
+function handleAudioArrows(event: KeyboardEvent): void {
   if (event.repeat) return;
   if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
   if (event.altKey || event.ctrlKey || event.shiftKey) return;
@@ -341,19 +338,19 @@ function handleAudioPreviewArrows(event: KeyboardEvent): void {
  * window-keydown listeners (spacebar + arrows) via refcount. Returns the
  * cleanup function to be used directly inside a React effect cleanup.
  */
-function registerAudioPreviewForKeyboard(handle: AudioPreviewKeyboardHandle): () => void {
-  audioPreviewRegistry.add(handle);
-  if (audioPreviewListenerRefCount === 0) {
-    window.addEventListener("keydown", handleAudioPreviewSpacebar);
-    window.addEventListener("keydown", handleAudioPreviewArrows);
+function registerAudioForKeyboard(handle: AudioKeyboardHandle): () => void {
+  audioRegistry.add(handle);
+  if (audioListenerRefCount === 0) {
+    window.addEventListener("keydown", handleAudioSpacebar);
+    window.addEventListener("keydown", handleAudioArrows);
   }
-  audioPreviewListenerRefCount += 1;
+  audioListenerRefCount += 1;
   return () => {
-    audioPreviewRegistry.delete(handle);
-    audioPreviewListenerRefCount -= 1;
-    if (audioPreviewListenerRefCount === 0) {
-      window.removeEventListener("keydown", handleAudioPreviewSpacebar);
-      window.removeEventListener("keydown", handleAudioPreviewArrows);
+    audioRegistry.delete(handle);
+    audioListenerRefCount -= 1;
+    if (audioListenerRefCount === 0) {
+      window.removeEventListener("keydown", handleAudioSpacebar);
+      window.removeEventListener("keydown", handleAudioArrows);
     }
   };
 }
@@ -471,7 +468,7 @@ function fadeBandValue(band: number): number {
   return band <= SPECTRUM_FADE_MIN_LEVEL ? 0 : band * SPECTRUM_FADE_FACTOR;
 }
 
-function useAudioPreviewController({
+function useAudioController({
   previewUrl,
   refreshShortId,
   mediaKind,
@@ -479,7 +476,7 @@ function useAudioPreviewController({
   onPlaybackIntent,
   onStatusChange,
   onSeekHint,
-}: AudioPreviewPlayerProps) {
+}: AudioPlayerProps) {
   const t = useT();
   const initialPhase: PlayerState = previewUrl
     ? { phase: PlayerPhase.Idle, duration: 30 }
@@ -530,13 +527,13 @@ function useAudioPreviewController({
           dispatch({ type: PlayerActionType.UrlReady });
         } else {
           sendMusicSignal(PreviewSignal.Unavailable);
-          notifyStatusChangeFromEvent(AudioPreviewStatus.Unavailable);
+          notifyStatusChangeFromEvent(AudioStatus.Unavailable);
           dispatch({ type: PlayerActionType.UrlUnavailable });
         }
       } catch (err) {
         if ((err as { name?: string })?.name === "AbortError") return;
         sendMusicSignal(PreviewSignal.Unavailable);
-        notifyStatusChangeFromEvent(AudioPreviewStatus.Unavailable);
+        notifyStatusChangeFromEvent(AudioStatus.Unavailable);
         dispatch({ type: PlayerActionType.UrlUnavailable });
       }
     })();
@@ -666,7 +663,7 @@ function useAudioPreviewController({
   }, [resetPeakHold, stopSpectrumLoop]);
   const startSpectrumFadeOutFromEvent = useEffectEvent(startSpectrumFadeOut);
   const notifyStatusChange = useCallback(
-    (status: AudioPreviewStatusType) => {
+    (status: AudioStatusType) => {
       onStatusChange?.(status);
     },
     [onStatusChange],
@@ -961,13 +958,13 @@ function useAudioPreviewController({
       startProgressRewindFromEvent();
       startSpectrumFadeOutFromEvent();
       sendMusicSignal(PreviewSignal.Finished);
-      notifyStatusChangeFromEvent(AudioPreviewStatus.Ready);
+      notifyStatusChangeFromEvent(AudioStatus.Ready);
       dispatch({ type: PlayerActionType.Ended });
     };
     const handleError = () => {
       stopProgressLoop();
       sendMusicSignal(PreviewSignal.Error);
-      notifyStatusChangeFromEvent(AudioPreviewStatus.Unavailable);
+      notifyStatusChangeFromEvent(AudioStatus.Unavailable);
       dispatch({ type: PlayerActionType.Error });
     };
 
@@ -1095,7 +1092,7 @@ function useAudioPreviewController({
         .then(() => {
           sendMusicSignal(hasStartedRef.current ? PreviewSignal.Resumed : PreviewSignal.Started);
           dispatch({ type: PlayerActionType.Play });
-          notifyStatusChange(AudioPreviewStatus.Playing);
+          notifyStatusChange(AudioStatus.Playing);
           hasStartedRef.current = true;
           startProgressLoop(audio);
 
@@ -1122,7 +1119,7 @@ function useAudioPreviewController({
         })
         .catch(() => {
           sendMusicSignal(PreviewSignal.Error);
-          notifyStatusChange(AudioPreviewStatus.Unavailable);
+          notifyStatusChange(AudioStatus.Unavailable);
           dispatch({ type: PlayerActionType.Error });
         });
     } else if (state.phase === PlayerPhase.Playing) {
@@ -1130,7 +1127,7 @@ function useAudioPreviewController({
       stopProgressLoop(audio);
       startSpectrumFadeOut();
       sendMusicSignal(PreviewSignal.Paused);
-      notifyStatusChange(AudioPreviewStatus.Paused);
+      notifyStatusChange(AudioStatus.Paused);
       dispatch({ type: PlayerActionType.Pause });
     }
   }, [
@@ -1217,7 +1214,7 @@ function useAudioPreviewController({
    * action handlers, metadata and `playbackState` are cleared so the Now-
    * Playing UI does not show a stale entry once the preview is gone.
    *
-   * Multiple parallel `AudioPreviewPlayer` instances on the same page share
+   * Multiple parallel `AudioPlayer` instances on the same page share
    * the single tab-wide MediaSession: whichever player most recently entered
    * Playing/Paused owns the OS controls. That matches user intuition (the
    * media key controls the preview you last interacted with) and avoids
@@ -1269,7 +1266,7 @@ function useAudioPreviewController({
    * very first play.
    */
   useEffect(() => {
-    return registerAudioPreviewForKeyboard({
+    return registerAudioForKeyboard({
       togglePlay: () => togglePlayFromEvent(),
       isActive: () => isPlayerActiveRef.current,
       seekBy: (delta) => seekByFromEvent(delta),
@@ -1325,8 +1322,8 @@ function useAudioPreviewController({
   };
 }
 
-export function AudioPreviewPlayer(props: AudioPreviewPlayerProps) {
-  const player = useAudioPreviewController(props);
+export function AudioPlayer(props: AudioPlayerProps) {
+  const player = useAudioController(props);
 
   return (
     <section aria-label={`${player.mediaLabel}: ${player.trackTitle}`}>

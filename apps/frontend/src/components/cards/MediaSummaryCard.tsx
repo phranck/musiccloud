@@ -1,4 +1,4 @@
-import type { AudioPreviewStatus } from "@/components/audio/AudioPreviewStatus";
+import type { AudioStatus } from "@/components/audio/AudioStatus";
 import { MediaCardHead } from "@/components/cards/MediaCardHead";
 import type { ShareMediaView } from "@/components/share/ShareMediaView.types";
 import type { VinylSpinState } from "@/components/vinyl/VinylRecord.types";
@@ -9,8 +9,8 @@ interface MediaSummaryCardProps {
   className?: string;
   animated?: boolean;
   onPlaybackIntent?: () => void;
-  onPreviewStatusChange?: (status: AudioPreviewStatus | null) => void;
-  previewStatus?: AudioPreviewStatus | null;
+  onPreviewStatusChange?: (status: AudioStatus | null) => void;
+  previewStatus?: AudioStatus | null;
   shareMediaView?: ShareMediaView;
   vinylSpinState?: VinylSpinState;
 }
