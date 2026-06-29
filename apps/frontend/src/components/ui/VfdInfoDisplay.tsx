@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/VfdDisplay";
 
 /** Seek-hint overlay length in milliseconds, set by product (interactive tuning). */
-const VFD_SEEK_HINT_DURATION_MS = 1400;
+const VFD_SEEK_HINT_DURATION_MS = 1200;
 
 /**
  * Status-row marquee threshold: a status string longer than this many glyph
