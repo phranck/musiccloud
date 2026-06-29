@@ -104,7 +104,7 @@ Damit bleibt der Status-Text stehen und das Overlay kommt nur links/rechts daneb
 - Modify: `apps/frontend/src/components/audio/AudioPreviewPlayer.tsx` (Helfer auf Modulebene, vor der Komponente)
 - Test: `apps/frontend/src/components/audio/AudioPreviewPlayer.seek.test.ts` (neu)
 
-- [ ] **Step 1: Failing test schreiben**
+- [x] **Step 1: Failing test schreiben**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -124,9 +124,9 @@ describe("resolveSeekTarget", () => {
 });
 ```
 
-- [ ] **Step 2: Test rot verifizieren** — `pnpm --filter @musiccloud/frontend exec vitest run src/components/audio/AudioPreviewPlayer.seek.test.ts` → FAIL (`resolveSeekTarget is not exported`).
+- [x] **Step 2: Test rot verifizieren** — `pnpm --filter @musiccloud/frontend exec vitest run src/components/audio/AudioPreviewPlayer.seek.test.ts` → FAIL (`resolveSeekTarget is not exported`).
 
-- [ ] **Step 3: Funktion + Konstanten implementieren** (Modulebene, exportiert):
+- [x] **Step 3: Funktion + Konstanten implementieren** (Modulebene, exportiert):
 
 ```ts
 /** Seconds one arrow-key step skips. */
@@ -147,9 +147,9 @@ export function resolveSeekTarget(currentTime: number, deltaSeconds: number, dur
 }
 ```
 
-- [ ] **Step 4: Test grün verifizieren** — gleicher vitest-Run → PASS.
+- [x] **Step 4: Test grün verifizieren** — gleicher vitest-Run → PASS.
 
-- [ ] **Step 5: Commit** — `Feat: add clamped seek-target helper (MC-067)`
+- [x] **Step 5: Commit** — `Feat: add clamped seek-target helper (MC-067)`
 
 ### Task A2: Seek-Aktionen + Tastatur-Router im Player
 
@@ -158,7 +158,7 @@ export function resolveSeekTarget(currentTime: number, deltaSeconds: number, dur
 
 Erweitert die bestehende Leertasten-Registry (`AudioPreviewPlayer.tsx:242-306`) um Seek, statt einer zweiten Registry (DRY: ein Set, ein `resolveTarget`, ein refcount-Listener).
 
-- [ ] **Step 1: Handle-Interface + Prop erweitern**
+- [x] **Step 1: Handle-Interface + Prop erweitern**
 
 `AudioPreviewSpacebarHandle` (Zeile 242-247) → umbenennen zu `AudioPreviewKeyboardHandle` und ergänzen:
 
@@ -186,7 +186,7 @@ Prop ergänzen in `AudioPreviewPlayerProps` (nach Zeile 35):
 
 Import oben ergänzen: `import { VfdScrollOutDirection } from "@/components/ui/VfdDisplay";` (Re-Export aus Task B1 sicherstellen).
 
-- [ ] **Step 2: Arrow-Target-Schutz + Handler (Modulebene, neben dem Spacebar-Handler)**
+- [x] **Step 2: Arrow-Target-Schutz + Handler (Modulebene, neben dem Spacebar-Handler)**
 
 `shouldIgnoreSpacebarTarget` (Zeile 258-268) wird wiederverwendet. Neuer Handler:
 
@@ -209,7 +209,7 @@ function handleAudioPreviewArrows(event: KeyboardEvent): void {
 }
 ```
 
-- [ ] **Step 3: Registry-Registrierung erweitern**
+- [x] **Step 3: Registry-Registrierung erweitern**
 
 `audioPreviewRegistry` Typ → `Set<AudioPreviewKeyboardHandle>`. `registerAudioPreviewForSpacebar` → `registerAudioPreviewForKeyboard`, registriert beide Handler über denselben refcount:
 
@@ -232,7 +232,7 @@ function registerAudioPreviewForKeyboard(handle: AudioPreviewKeyboardHandle): ()
 }
 ```
 
-- [ ] **Step 4: Seek-Funktionen im Hook (nach `togglePlay`, ~Zeile 1095)**
+- [x] **Step 4: Seek-Funktionen im Hook (nach `togglePlay`, ~Zeile 1095)**
 
 `onSeekHint` aus den destrukturierten Props lesen (Zeile 421-428 ergänzen). Dann:
 
@@ -283,7 +283,7 @@ const seekToStartFromEvent = useEffectEvent(seekToStart);
 const seekToNearEndFromEvent = useEffectEvent(seekToNearEnd);
 ```
 
-- [ ] **Step 5: Registrierung aktualisieren** (Zeile 1160-1165):
+- [x] **Step 5: Registrierung aktualisieren** (Zeile 1160-1165):
 
 ```ts
 useEffect(() => {
@@ -297,9 +297,9 @@ useEffect(() => {
 }, []);
 ```
 
-- [ ] **Step 6: Gates** — `pnpm --filter @musiccloud/frontend exec tsc --noEmit` (oder Repo-Typecheck-Script) grün; `biome check --write apps/frontend/src/components/audio/AudioPreviewPlayer.tsx`.
+- [x] **Step 6: Gates** — `pnpm --filter @musiccloud/frontend exec tsc --noEmit` (oder Repo-Typecheck-Script) grün; `biome check --write apps/frontend/src/components/audio/AudioPreviewPlayer.tsx`.
 
-- [ ] **Step 7: Commit** — `Feat: add keyboard seek router to audio preview player (MC-067)`
+- [x] **Step 7: Commit** — `Feat: add keyboard seek router to audio preview player (MC-067)`
 
 ### Task B1: VFD-Overlay-Typen
 
@@ -705,8 +705,8 @@ const vfdStatusLine = artistStatusLoading
 
 ## Checkliste (auswertbar)
 
-- [ ] A1 `resolveSeekTarget` + Test grün
-- [ ] A2 Tastatur-Router + Seek-Aktionen + Registry erweitert
+- [x] A1 `resolveSeekTarget` + Test grün
+- [x] A2 Tastatur-Router + Seek-Aktionen + Registry erweitert
 - [x] B1 Overlay-Typen + Re-Export
 - [x] B2 Overlay-Geometrie + Test grün
 - [x] B3 Overlay in Normalize + sync + Canvas-Render
