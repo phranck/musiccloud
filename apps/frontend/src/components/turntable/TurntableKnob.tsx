@@ -4,7 +4,7 @@ import {
   type TurntableSpeed as TurntableSpeedValue,
   useTurntablePlayer,
 } from "@/components/turntable/TurntablePlayerContext";
-import { speedFromAngle, speedKnobAngle, stepSpeed } from "@/components/turntable/turntableState";
+import { speedAtOffset, speedKnobAngle, stepSpeed } from "@/components/turntable/turntableState";
 import { cn } from "@/lib/utils";
 
 /**
@@ -105,6 +105,15 @@ export function KnobDial({
 /** Pixels the pointer must travel before a press counts as a drag (else it is a no-op tap). */
 const KNOB_DRAG_THRESHOLD_PX = 3;
 
+/**
+ * Vertical pixels the pointer drags to move one detent.
+ *
+ * The knob is driven by vertical drag distance (drag up = faster) rather than the
+ * raw pointer angle: on a small knob the angle jumps wildly between the three
+ * tightly-spaced captions, so distance gives a stable, predictable detent step.
+ */
+const KNOB_STEP_PX = 22;
+
 /** Accessible value text spoken for each speed by `aria-valuetext`. */
 const SPEED_VALUE_TEXT: Record<TurntableSpeedValue, string> = {
   [TurntableSpeed.Standby]: "Standby",
@@ -119,16 +128,17 @@ const SPEED_VALUE_NOW: Record<TurntableSpeedValue, number> = {
   [TurntableSpeed.Rpm45]: 2,
 };
 
-/** Live drag tracking: the down point (for the threshold) and the snapped stage. */
+/** Live drag tracking: the press origin, the stage held at press, and the current stage. */
 interface KnobDragState {
-  /** Pointer client X at press, used to measure drag distance. */
+  /** Pointer client X at press, used for the tap threshold. */
   startX: number;
-  /** Pointer client Y at press, used to measure drag distance. */
+  /** Pointer client Y at press, the origin the vertical detent offset is measured from. */
   startY: number;
+  /** The speed stage held at press; the drag offsets up/down from here. */
+  startSpeed: TurntableSpeedValue;
   /**
-   * The speed stage the live pointer angle snaps to. The knob rests on a stage
-   * (STANDBY/33/45) at all times and never points between captions, so the
-   * dragged value is a detent, not a free angle.
+   * The speed stage the current vertical drag resolves to. The knob rests on a
+   * stage (STANDBY/33/45) at all times and never sits between detents.
    */
   snappedSpeed: TurntableSpeedValue;
   /** True once the pointer has moved past {@link KNOB_DRAG_THRESHOLD_PX}. */
@@ -136,34 +146,18 @@ interface KnobDragState {
 }
 
 /**
- * Angle in CSS degrees from a knob's centre to a pointer position.
- *
- * `atan2(dy, dx)` already matches the CSS rotate convention (0 points right,
- * positive clockwise because the document y-axis points down), so the result
- * lines up directly with {@link speedKnobAngle} / {@link speedFromAngle}.
- *
- * @param rect - The knob's bounding box.
- * @param clientX - Pointer client X.
- * @param clientY - Pointer client Y.
- * @returns The pointer angle in degrees.
- */
-function pointerAngleDeg(rect: DOMRect, clientX: number, clientY: number): number {
-  const centerX = rect.left + rect.width / 2;
-  const centerY = rect.top + rect.height / 2;
-  return (Math.atan2(clientY - centerY, clientX - centerX) * 180) / Math.PI;
-}
-
-/**
  * The interactive turntable speed knob: a draggable rotary `role="slider"` that
  * selects Standby / 33 / 45 on the {@link useTurntablePlayer} hub.
  *
  * Interaction (MC-071 design decision A — drag, not click-to-cycle):
- * - **Drag** (pointer down → move → up): the live pointer angle snaps to the
- *   nearest of the three stages (STANDBY/33/45) via {@link speedFromAngle}, so the
- *   indicator rests on a detent and never points between captions while dragging;
- *   on release {@link useTurntablePlayer.setSpeed} applies that stage. A press with
- *   no real movement (below {@link KNOB_DRAG_THRESHOLD_PX}) is a no-op — pure drag
- *   semantics, no click-stepping.
+ * - **Drag** (pointer down → move → up): vertical drag distance picks the stage —
+ *   drag up toward 45, down toward Standby. Each {@link KNOB_STEP_PX} of travel
+ *   from the press point moves one detent ({@link speedAtOffset}), clamped to the
+ *   ladder; the indicator rests on that detent and never sits between captions. On
+ *   release {@link useTurntablePlayer.setSpeed} applies it. A press with no real
+ *   movement (below {@link KNOB_DRAG_THRESHOLD_PX}) is a no-op — pure drag
+ *   semantics, no click-stepping. Distance beats angle here: the three captions
+ *   are tightly spaced on a small knob, where a raw pointer angle jitters wildly.
  * - **Keyboard**: Up/Right step toward a faster speed, Down/Left toward Standby
  *   (clamped via {@link stepSpeed}); Home selects Standby, End selects 45. The
  *   handled keys stop propagation so the page-global spacebar/arrow audio router
@@ -184,15 +178,16 @@ export function TurntableKnob() {
   const handlePointerDown = (event: PointerEvent<HTMLSpanElement>) => {
     if (event.button !== 0 && event.pointerType === "mouse") return;
     event.currentTarget.setPointerCapture(event.pointerId);
-    setDrag({ startX: event.clientX, startY: event.clientY, snappedSpeed: speed, moved: false });
+    setDrag({ startX: event.clientX, startY: event.clientY, startSpeed: speed, snappedSpeed: speed, moved: false });
   };
 
   const handlePointerMove = (event: PointerEvent<HTMLSpanElement>) => {
     if (!drag) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    // Snap the live pointer angle to the nearest stage so the knob steps between
-    // STANDBY/33/45 and never drifts to a free angle between the captions.
-    const snappedSpeed = speedFromAngle(pointerAngleDeg(rect, event.clientX, event.clientY));
+    // Vertical drag distance (up = faster) maps to a detent offset from the stage
+    // held at press, then clamps to the ladder. Distance, not angle: the captions
+    // sit close together on a small knob, so a raw angle would jump erratically.
+    const detentOffset = Math.round((drag.startY - event.clientY) / KNOB_STEP_PX);
+    const snappedSpeed = speedAtOffset(drag.startSpeed, detentOffset);
     const moved =
       drag.moved || Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > KNOB_DRAG_THRESHOLD_PX;
     setDrag({ ...drag, snappedSpeed, moved });

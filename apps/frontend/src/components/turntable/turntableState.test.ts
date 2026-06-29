@@ -9,7 +9,7 @@ import {
   nextSpeedInCycle,
   rotationDurationForSpeed,
   SPEED_KNOB_ANGLE_DEG,
-  speedFromAngle,
+  speedAtOffset,
   speedKnobAngle,
   stepSpeed,
 } from "@/components/turntable/turntableState";
@@ -56,42 +56,31 @@ describe("stepSpeed", () => {
   });
 });
 
-describe("speedFromAngle", () => {
-  it("snaps the three stage angles to their own speed", () => {
-    expect(speedFromAngle(SPEED_KNOB_ANGLE_DEG.Rpm33)).toBe(TurntableSpeed.Rpm33);
-    expect(speedFromAngle(SPEED_KNOB_ANGLE_DEG.Rpm45)).toBe(TurntableSpeed.Rpm45);
-    expect(speedFromAngle(SPEED_KNOB_ANGLE_DEG.Standby)).toBe(TurntableSpeed.Standby);
+describe("speedAtOffset", () => {
+  it("shifts up the ladder by the offset and clamps at Rpm45", () => {
+    expect(speedAtOffset(TurntableSpeed.Standby, 1)).toBe(TurntableSpeed.Rpm33);
+    expect(speedAtOffset(TurntableSpeed.Standby, 2)).toBe(TurntableSpeed.Rpm45);
+    // Past the top clamps, no wrap.
+    expect(speedAtOffset(TurntableSpeed.Standby, 5)).toBe(TurntableSpeed.Rpm45);
   });
 
-  it("snaps intermediate angles to the nearest stage", () => {
-    // Closer to Rpm33 (-150) than Rpm45 (-120).
-    expect(speedFromAngle(-160)).toBe(TurntableSpeed.Rpm33);
-    expect(speedFromAngle(-145)).toBe(TurntableSpeed.Rpm33);
-    // Closer to Rpm45 (-120).
-    expect(speedFromAngle(-110)).toBe(TurntableSpeed.Rpm45);
-    expect(speedFromAngle(-90)).toBe(TurntableSpeed.Rpm45);
-    // Closer to Standby (150), including across the +/-180 wrap.
-    expect(speedFromAngle(170)).toBe(TurntableSpeed.Standby);
-    expect(speedFromAngle(140)).toBe(TurntableSpeed.Standby);
+  it("shifts down the ladder by the offset and clamps at Standby", () => {
+    expect(speedAtOffset(TurntableSpeed.Rpm45, -1)).toBe(TurntableSpeed.Rpm33);
+    expect(speedAtOffset(TurntableSpeed.Rpm45, -2)).toBe(TurntableSpeed.Standby);
+    // Past the bottom clamps, no wrap.
+    expect(speedAtOffset(TurntableSpeed.Rpm45, -5)).toBe(TurntableSpeed.Standby);
   });
 
-  it("normalizes out-of-range angles before snapping", () => {
-    // 210 deg == -150 deg (Rpm33) after normalization to (-180, 180].
-    expect(speedFromAngle(210)).toBe(TurntableSpeed.Rpm33);
+  it("returns the same speed for a zero offset", () => {
+    expect(speedAtOffset(TurntableSpeed.Rpm33, 0)).toBe(TurntableSpeed.Rpm33);
   });
 });
 
 describe("speedKnobAngle", () => {
-  it("returns the stage angle for each speed (inverse of speedFromAngle)", () => {
+  it("returns the stage angle for each speed", () => {
     expect(speedKnobAngle(TurntableSpeed.Rpm33)).toBe(SPEED_KNOB_ANGLE_DEG.Rpm33);
     expect(speedKnobAngle(TurntableSpeed.Rpm45)).toBe(SPEED_KNOB_ANGLE_DEG.Rpm45);
     expect(speedKnobAngle(TurntableSpeed.Standby)).toBe(SPEED_KNOB_ANGLE_DEG.Standby);
-  });
-
-  it("round-trips through speedFromAngle for every speed", () => {
-    for (const speed of [TurntableSpeed.Standby, TurntableSpeed.Rpm33, TurntableSpeed.Rpm45]) {
-      expect(speedFromAngle(speedKnobAngle(speed))).toBe(speed);
-    }
   });
 });
 

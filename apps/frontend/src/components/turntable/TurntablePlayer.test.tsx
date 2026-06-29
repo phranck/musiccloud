@@ -299,48 +299,29 @@ function ledPower(container: HTMLElement): string | null {
 }
 
 const KNOB_CENTER = { x: 100, y: 100 };
-const KNOB_RADIUS = 50;
+
+/** Vertical pixels per detent (mirrors `KNOB_STEP_PX` in TurntableKnob). */
+const KNOB_STEP_PX = 22;
 
 /**
- * Drags the knob from its centre to the point at `angleDeg` (CSS convention) and
- * releases. The knob's `getBoundingClientRect` is stubbed to a fixed box centred
- * on {@link KNOB_CENTER} so the angle math is deterministic in jsdom.
+ * Drags the knob vertically by `pixelsUp` (positive = up = faster) from its
+ * centre and releases. The knob is distance-driven, so no bounding-box stub is
+ * needed; each {@link KNOB_STEP_PX} of travel steps one detent.
  *
- * Each pointer event is dispatched in its own `act` so the `drag` state from the
- * press is flushed before the move reads it; a trailing async `act` drains the
- * `audio.play()` promise so the resulting status dispatch is wrapped too.
+ * A trailing async `act` drains the `audio.play()` promise so the resulting
+ * status dispatch is wrapped too.
  *
  * @param container - The render container holding the knob.
- * @param angleDeg - Target drag angle in degrees.
+ * @param pixelsUp - Vertical drag distance; positive drags up (toward 45).
  */
-/** Stubs the knob's bounding box to a fixed circle centred on {@link KNOB_CENTER}. */
-function stubKnobRect(dial: HTMLElement) {
-  dial.getBoundingClientRect = () =>
-    ({
-      bottom: KNOB_CENTER.y + KNOB_RADIUS,
-      height: KNOB_RADIUS * 2,
-      left: KNOB_CENTER.x - KNOB_RADIUS,
-      right: KNOB_CENTER.x + KNOB_RADIUS,
-      toJSON: () => ({}),
-      top: KNOB_CENTER.y - KNOB_RADIUS,
-      width: KNOB_RADIUS * 2,
-      x: KNOB_CENTER.x - KNOB_RADIUS,
-      y: KNOB_CENTER.y - KNOB_RADIUS,
-    }) as DOMRect;
-}
-
-async function dragKnobToAngle(container: HTMLElement, angleDeg: number) {
+async function dragKnobVertically(container: HTMLElement, pixelsUp: number) {
   const dial = knob(container);
-  stubKnobRect(dial);
-
-  const radians = (angleDeg * Math.PI) / 180;
-  const targetX = KNOB_CENTER.x + Math.cos(radians) * KNOB_RADIUS;
-  const targetY = KNOB_CENTER.y + Math.sin(radians) * KNOB_RADIUS;
   const pointer = { button: 0, pointerId: 1, pointerType: "mouse" };
+  const targetY = KNOB_CENTER.y - pixelsUp;
 
   fireEvent.pointerDown(dial, { ...pointer, clientX: KNOB_CENTER.x, clientY: KNOB_CENTER.y });
-  fireEvent.pointerMove(dial, { ...pointer, clientX: targetX, clientY: targetY });
-  fireEvent.pointerUp(dial, { ...pointer, clientX: targetX, clientY: targetY });
+  fireEvent.pointerMove(dial, { ...pointer, clientX: KNOB_CENTER.x, clientY: targetY });
+  fireEvent.pointerUp(dial, { ...pointer, clientX: KNOB_CENTER.x, clientY: targetY });
   // Drain the play() promise so its onStatusChange dispatch runs inside act.
   await act(async () => {});
 }
@@ -394,11 +375,11 @@ describe("TurntablePlayer interactive knob", () => {
     expect(ledPower(container)).toBe(TurntablePower.Standby);
   });
 
-  it("dragging to the 45 angle starts playback at Rpm45 and lights the LED", async () => {
+  it("dragging two detents up starts playback at Rpm45 and lights the LED", async () => {
     const { container } = renderHubDeck();
 
-    // -120deg snaps to Rpm45 (SPEED_KNOB_ANGLE_DEG.Rpm45).
-    await dragKnobToAngle(container, -120);
+    // Two detents up from Standby -> Rpm45.
+    await dragKnobVertically(container, KNOB_STEP_PX * 2);
 
     expect(playedAudioElements.length).toBe(1);
     expect(knob(container)).toHaveAttribute("aria-valuetext", "45 RPM");
@@ -406,19 +387,19 @@ describe("TurntablePlayer interactive knob", () => {
     expect(ledPower(container)).toBe(TurntablePower.On);
   });
 
-  it("dragging to the Standby angle stops, rewinds to start, and powers off", async () => {
+  it("dragging down to Standby stops, rewinds to start, and powers off", async () => {
     const { container } = renderHubDeck();
 
-    // Start playing first (drag to the 33 angle).
-    await dragKnobToAngle(container, -150);
+    // Start playing first (one detent up -> Rpm33).
+    await dragKnobVertically(container, KNOB_STEP_PX);
     expect(playedAudioElements.length).toBe(1);
     expect(ledPower(container)).toBe(TurntablePower.On);
 
     const pauseSpy = vi.spyOn(window.HTMLMediaElement.prototype, "pause");
     const seekBefore = seekToStartCalls;
 
-    // 150deg snaps to Standby: a stop (pause + seekToStart), not a pause.
-    await dragKnobToAngle(container, 150);
+    // Two detents down -> Standby (clamped): a stop (pause + seekToStart), not a pause.
+    await dragKnobVertically(container, -KNOB_STEP_PX * 2);
 
     expect(pauseSpy).toHaveBeenCalledTimes(1);
     expect(seekToStartCalls).toBeGreaterThan(seekBefore);
@@ -476,32 +457,25 @@ describe("TurntablePlayer interactive knob", () => {
     expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(-150deg) translateZ(0)" });
     expect(ledPower(container)).toBe(TurntablePower.On);
 
-    // Stopping at the knob (drag to Standby) flips the shared playbutton to "Play".
-    await dragKnobToAngle(container, 150);
+    // Stopping at the knob (drag down to Standby) flips the shared playbutton to "Play".
+    await dragKnobVertically(container, -KNOB_STEP_PX * 2);
     expect(screen.getByRole("button", { name: "Play preview" })).toBeInTheDocument();
     expect(ledPower(container)).toBe(TurntablePower.Standby);
   });
 
-  it("snaps the indicator to a detent while dragging, never a free angle", () => {
+  it("steps the indicator one detent at a time and clamps at the ladder ends", () => {
     const { container } = renderHubDeck();
     const dial = knob(container);
-    stubKnobRect(dial);
     const pointer = { button: 0, pointerId: 1, pointerType: "mouse" };
     fireEvent.pointerDown(dial, { ...pointer, clientX: KNOB_CENTER.x, clientY: KNOB_CENTER.y });
 
-    // -140deg sits between the 33 (-150) and 45 (-120) captions; it is closer to
-    // 33, so mid-drag the indicator rests on the 33 detent (-150deg), not -140deg.
-    const toward33 = (-140 * Math.PI) / 180;
-    fireEvent.pointerMove(dial, {
-      ...pointer,
-      clientX: KNOB_CENTER.x + Math.cos(toward33) * KNOB_RADIUS,
-      clientY: KNOB_CENTER.y + Math.sin(toward33) * KNOB_RADIUS,
-    });
+    // One detent up (KNOB_STEP_PX) from Standby -> the 33 detent (-150deg); the
+    // indicator rests on the detent, never between captions.
+    fireEvent.pointerMove(dial, { ...pointer, clientX: KNOB_CENTER.x, clientY: KNOB_CENTER.y - KNOB_STEP_PX });
     expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(-150deg) translateZ(0)" });
 
-    // 0deg points into the captionless gap; the knob stays clamped to the nearest
-    // allowed detent (45 at -120deg) rather than following the pointer there.
-    fireEvent.pointerMove(dial, { ...pointer, clientX: KNOB_CENTER.x + KNOB_RADIUS, clientY: KNOB_CENTER.y });
+    // Far past the top clamps at Rpm45 (-120deg) instead of overshooting.
+    fireEvent.pointerMove(dial, { ...pointer, clientX: KNOB_CENTER.x, clientY: KNOB_CENTER.y - KNOB_STEP_PX * 12 });
     expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(-120deg) translateZ(0)" });
   });
 });

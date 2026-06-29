@@ -51,13 +51,6 @@ const SPEED_CYCLE: readonly TurntableSpeedValue[] = [
   TurntableSpeed.Rpm45,
 ];
 
-/** All selectable speeds paired with their knob angle, used by {@link speedFromAngle}. */
-const SPEED_ANGLE_ENTRIES: readonly { speed: TurntableSpeedValue; angle: number }[] = [
-  { speed: TurntableSpeed.Standby, angle: SPEED_KNOB_ANGLE_DEG.Standby },
-  { speed: TurntableSpeed.Rpm33, angle: SPEED_KNOB_ANGLE_DEG.Rpm33 },
-  { speed: TurntableSpeed.Rpm45, angle: SPEED_KNOB_ANGLE_DEG.Rpm45 },
-];
-
 /**
  * Derives the power state from a speed.
  *
@@ -83,68 +76,43 @@ export function nextSpeedInCycle(speed: TurntableSpeedValue): TurntableSpeedValu
 }
 
 /**
- * Steps a speed up or down the ordered ladder Standby -> Rpm33 -> Rpm45.
+ * Shifts a speed by a signed number of detents along the ladder
+ * Standby -> Rpm33 -> Rpm45, clamped at both ends (no wrap).
+ *
+ * Drives the knob's vertical drag: the drag distance maps to a detent offset
+ * from the speed held at press, so a longer drag moves several detents at once.
+ * A positive `offset` moves toward a faster speed, a negative `offset` toward
+ * `Standby`; offsets past either end clamp.
+ *
+ * @param speed - The reference speed (where the drag started).
+ * @param offset - Signed detent count to move (positive = faster).
+ * @returns The speed `offset` detents away, clamped to the ladder ends.
+ */
+export function speedAtOffset(speed: TurntableSpeedValue, offset: number): TurntableSpeedValue {
+  const index = SPEED_CYCLE.indexOf(speed);
+  if (index === -1) return speed;
+  const nextIndex = Math.max(0, Math.min(SPEED_CYCLE.length - 1, index + offset));
+  return SPEED_CYCLE[nextIndex] ?? speed;
+}
+
+/**
+ * Steps a speed one detent up or down the ladder Standby -> Rpm33 -> Rpm45.
  *
  * Drives the knob's keyboard control: a positive `delta` moves toward a faster
- * speed, a negative `delta` toward `Standby`. The result clamps at both ends
- * (no wrap), matching `role="slider"` arrow-key semantics where Up at the
- * maximum and Down at the minimum are no-ops. Only the sign of `delta` matters.
+ * speed, a negative `delta` toward `Standby`, clamped at both ends (no wrap),
+ * matching `role="slider"` arrow-key semantics. Only the sign of `delta` matters.
  *
  * @param speed - The current speed.
  * @param delta - Direction to step (positive = faster, negative = toward Standby).
  * @returns The neighbouring speed, clamped at the ends of the ladder.
  */
 export function stepSpeed(speed: TurntableSpeedValue, delta: number): TurntableSpeedValue {
-  const index = SPEED_CYCLE.indexOf(speed);
-  if (index === -1 || delta === 0) return speed;
-  const step = delta > 0 ? 1 : -1;
-  const nextIndex = Math.max(0, Math.min(SPEED_CYCLE.length - 1, index + step));
-  return SPEED_CYCLE[nextIndex] ?? speed;
+  if (delta === 0) return speed;
+  return speedAtOffset(speed, delta > 0 ? 1 : -1);
 }
 
 /**
- * Normalizes a degree value into the half-open range `(-180, 180]`.
- *
- * Keeps the shortest-arc distance comparison in {@link speedFromAngle} correct
- * across the +/-180 seam (e.g. 150deg and -150deg are 60deg apart, not 300deg).
- *
- * @param degrees - Any angle in degrees.
- * @returns The equivalent angle in `(-180, 180]`.
- */
-function normalizeSignedDegrees(degrees: number): number {
-  const wrapped = ((((degrees + 180) % 360) + 360) % 360) - 180;
-  // ((x + 180) mod 360) maps to [0, 360); subtracting 180 gives [-180, 180).
-  // Shift the -180 edge to +180 so the range is (-180, 180], matching the
-  // largest knob angle (Standby at 150) without an off-by-one at the seam.
-  return wrapped <= -180 ? wrapped + 360 : wrapped;
-}
-
-/**
- * Maps a knob drag angle to the nearest speed stage.
- *
- * The knob is dragged freely; on release the angle snaps to whichever of the
- * three stage angles ({@link SPEED_KNOB_ANGLE_DEG}) is closest along the shortest
- * arc. Ties resolve toward the stage listed first in {@link SPEED_ANGLE_ENTRIES}.
- *
- * @param deg - The drag angle in degrees (any range; normalized internally).
- * @returns The closest {@link TurntableSpeed} stage.
- */
-export function speedFromAngle(deg: number): TurntableSpeedValue {
-  const normalized = normalizeSignedDegrees(deg);
-  let nearest: TurntableSpeedValue = TurntableSpeed.Standby;
-  let smallestDistance = Number.POSITIVE_INFINITY;
-  for (const entry of SPEED_ANGLE_ENTRIES) {
-    const distance = Math.abs(normalizeSignedDegrees(normalized - entry.angle));
-    if (distance < smallestDistance) {
-      smallestDistance = distance;
-      nearest = entry.speed;
-    }
-  }
-  return nearest;
-}
-
-/**
- * Maps a speed to its indicator angle (the inverse of {@link speedFromAngle}).
+ * Maps a speed to its indicator angle (the caption the knob points at).
  *
  * @param speed - The active speed.
  * @returns The knob indicator angle in degrees.
