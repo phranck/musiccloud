@@ -148,11 +148,7 @@ export const SongInfo = memo(function SongInfo({
       <div className="px-3 pt-3">
         <RecessedCard className="p-0.5">
           <RecessedCard.Body>
-            <TftScreen
-              className="mc-share-media-screen aspect-square w-full"
-              showEffects={mediaView === ShareMediaView.Cover}
-              showMatrix={mediaView === ShareMediaView.Cover}
-            >
+            <TftScreen className="mc-share-media-screen aspect-square w-full" showEffects={false} showMatrix={false}>
               <div
                 className={cn(
                   "mc-share-media-stage",
@@ -180,6 +176,15 @@ export const SongInfo = memo(function SongInfo({
                     artworkState.previousUrl !== null ? "absolute inset-0 transform-gpu will-change-transform" : ""
                   }
                 />
+                {/* The LCD overlay layers (dot-matrix grid, tint, sheen, inset
+                    shadow) live INSIDE the cover stage, not on the TftScreen, so
+                    they slide in and out together with the artwork like one
+                    cabinet-door panel instead of snapping over the fixed turntable
+                    behind it. */}
+                <div className="mc-tft-screen-tint" aria-hidden="true" />
+                <div className="mc-tft-screen-matrix" aria-hidden="true" />
+                <div className="mc-tft-screen-sheen" aria-hidden="true" />
+                <div className="mc-tft-screen-shadow" aria-hidden="true" />
               </div>
               {/* The turntable is a fixed layer at the back; only the cover in
                   front of it slides (see .mc-share-media-stage CSS), so the deck

@@ -166,13 +166,6 @@ html[data-share-media-view="turntable"] .mc-share-media-screen .mc-share-media-s
   transform: translate3d(-100%, 0, 0);
 }
 
-html[data-share-media-view="turntable"] .mc-share-media-screen .mc-tft-screen-tint,
-html[data-share-media-view="turntable"] .mc-share-media-screen .mc-tft-screen-matrix,
-html[data-share-media-view="turntable"] .mc-share-media-screen .mc-tft-screen-sheen,
-html[data-share-media-view="turntable"] .mc-share-media-screen .mc-tft-screen-shadow {
-  display: none;
-}
-
 /* Reusable VFD module. Canvas owns the fixed integer pixel matrix. */
 .mc-vfd {
   --mc-vfd-base-color: var(--color-vfd-phosphor);

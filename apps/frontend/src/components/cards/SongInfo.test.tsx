@@ -44,8 +44,9 @@ describe("SongInfo media stage", () => {
     );
 
     expect(container.querySelector(".mc-tft-screen")).toHaveClass("mc-share-media-screen");
-    expect(container.querySelector(".mc-tft-screen")).toHaveAttribute("data-tft-matrix", "on");
-    expect(container.querySelector(".mc-tft-screen-matrix")).toBeInTheDocument();
+    // The LCD overlay layers live inside the cover stage so they slide with it.
+    expect(container.querySelector("[data-media-stage='cover'] .mc-tft-screen-matrix")).toBeInTheDocument();
+    expect(container.querySelector("[data-media-stage='cover'] .mc-tft-screen-sheen")).toBeInTheDocument();
     expect(container.querySelector("[data-media-stage='cover']")).toHaveClass(
       "mc-share-media-stage",
       "mc-share-media-stage--cover-active",
@@ -67,11 +68,10 @@ describe("SongInfo media stage", () => {
       />,
     );
 
-    expect(container.querySelector(".mc-tft-screen")).toHaveAttribute("data-tft-matrix", "off");
-    expect(container.querySelector(".mc-tft-screen-matrix")).not.toBeInTheDocument();
-    expect(container.querySelector(".mc-tft-screen-tint")).not.toBeInTheDocument();
-    expect(container.querySelector(".mc-tft-screen-sheen")).not.toBeInTheDocument();
-    expect(container.querySelector(".mc-tft-screen-shadow")).not.toBeInTheDocument();
+    // The LCD layers stay inside the cover stage (sliding out with it), never as
+    // a layer over the fixed turntable.
+    expect(container.querySelector("[data-media-stage='cover'] .mc-tft-screen-matrix")).toBeInTheDocument();
+    expect(container.querySelector("[data-media-stage='turntable'] .mc-tft-screen-matrix")).not.toBeInTheDocument();
     // Turntable view: the cover slides out (cover-exit); the turntable stays fixed.
     expect(container.querySelector("[data-media-stage='cover']")).toHaveClass("mc-share-media-stage--cover-exit");
     expect(container.querySelector("[data-media-stage='turntable']")).toHaveClass("mc-share-media-stage");
