@@ -34,6 +34,12 @@ export interface AudioPlayerProps {
   onStatusChange?: (status: AudioStatusType) => void;
   /** Fires after a ±step arrow seek so the host can flash a VFD hint. Not fired for cmd jumps. */
   onSeekHint?: (direction: VfdScrollOutDirection) => void;
+  /**
+   * Real audio playback rate (default `1`). The turntable hub raises it for 45 RPM
+   * so playback speeds up; it is applied with `preservesPitch` off, so the pitch
+   * rises with it (the authentic vinyl-spun-at-45 sound).
+   */
+  playbackRate?: number;
 }
 
 /**
@@ -491,6 +497,7 @@ export function useAudioController({
   onPlaybackIntent,
   onStatusChange,
   onSeekHint,
+  playbackRate = 1,
 }: AudioPlayerProps) {
   const t = useT();
   const initialPhase: PlayerState = previewUrl
@@ -523,6 +530,19 @@ export function useAudioController({
   const progressRatioRef = useRef(0);
   const hasStartedRef = useRef(false);
   const [progressRatio, setProgressRatio] = useState(0);
+
+  // Apply the turntable speed to the real playback rate. The hub raises it for
+  // 45 RPM; `preservesPitch` stays off so the pitch rises with the tempo (the
+  // authentic vinyl-at-45 sound). Setting `defaultPlaybackRate` too makes the rate
+  // survive a source swap, since loading a fresh source resets `playbackRate` back
+  // to `defaultPlaybackRate` (default 1).
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.preservesPitch = false;
+    audio.defaultPlaybackRate = playbackRate;
+    audio.playbackRate = playbackRate;
+  }, [playbackRate]);
 
   // Tune the shared ticker once on mount (lagSmoothing); idempotent.
   useEffect(() => {

@@ -21,8 +21,8 @@ export interface VinylRecordProps {
   /**
    * Real rotor tempo while playing. Defaults to {@link TurntableSpeed.Rpm33}
    * (the original 1800 ms revolution), so deco spinners that omit it are
-   * unchanged. `Rpm45` spins ~1.35× faster. Visual only — never alters
-   * `audio.playbackRate`.
+   * unchanged. `Rpm45` spins ~1.35× faster. This prop is visual only; the
+   * matching audio speed-up at 45 RPM is wired separately through the hub.
    */
   speed?: TurntableSpeedValue;
 }

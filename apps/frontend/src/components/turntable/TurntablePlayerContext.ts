@@ -6,8 +6,9 @@ import type { VinylSpinState as VinylSpinStateValue } from "@/components/vinyl/V
  *
  * The hub treats `Standby` as the stopped state (no rotation, audio reset to the
  * start) and `Rpm33`/`Rpm45` as the two playing speeds. Both playing members map
- * to a real rotor duration in {@link rotationDurationForSpeed}; the speed only
- * changes the visual spin tempo, never `audio.playbackRate` (no pitch shift).
+ * to a real rotor duration in {@link rotationDurationForSpeed} and a real audio
+ * playback rate in {@link playbackRateForSpeed}: `Rpm45` speeds the audio up to
+ * ~1.35x and, with `preservesPitch` off, raises its pitch with the tempo.
  *
  * Members are PascalCase to satisfy the project Doctor rule
  * `domain-literals/prefer-pascal-case-literal-namespaces`.

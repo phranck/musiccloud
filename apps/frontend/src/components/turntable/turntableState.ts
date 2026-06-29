@@ -19,10 +19,16 @@ export const LP_ROTATION_DURATION_33_MS = 1800;
  * One full rotor revolution at 45 RPM, in milliseconds.
  *
  * ≈ 1800 × 33⅓ / 45 = 1333.3, rounded to 1333. 45 RPM turns ~1.35× faster than
- * 33⅓, so the rotor completes a revolution in proportionally less time. This is
- * a purely visual tempo; `audio.playbackRate` is never touched (no pitch shift).
+ * 33⅓, so the rotor completes a revolution in proportionally less time. This
+ * drives the visual rotor tempo; the matching audio speed-up lives in
+ * {@link playbackRateForSpeed}.
  */
 export const LP_ROTATION_DURATION_45_MS = 1333;
+
+/**
+ * Audio playback rate at 45 RPM relative to the 33⅓ baseline: 45 / 33⅓ = 1.35.
+ */
+export const LP_PLAYBACK_RATE_45 = 1.35;
 
 /**
  * Indicator angle (CSS `rotate`, degrees) the speed knob points at per speed.
@@ -143,6 +149,21 @@ export function speedKnobAngle(speed: TurntableSpeedValue): number {
  */
 export function rotationDurationForSpeed(speed: TurntableSpeedValue): number {
   return speed === TurntableSpeed.Rpm45 ? LP_ROTATION_DURATION_45_MS : LP_ROTATION_DURATION_33_MS;
+}
+
+/**
+ * Selects the real audio playback rate for a speed.
+ *
+ * `Rpm45` plays {@link LP_PLAYBACK_RATE_45} (~1.35x) faster than the 33⅓ baseline;
+ * `Rpm33` and `Standby` play at the normal `1`. Applied with `preservesPitch`
+ * off, so the pitch rises with the tempo: the authentic "vinyl spun at 45 instead
+ * of 33" sound (MC-071, user-chosen behaviour).
+ *
+ * @param speed - The active speed.
+ * @returns The `audio.playbackRate` to apply for that speed.
+ */
+export function playbackRateForSpeed(speed: TurntableSpeedValue): number {
+  return speed === TurntableSpeed.Rpm45 ? LP_PLAYBACK_RATE_45 : 1;
 }
 
 /** Parameters for {@link deriveSpinState}. */

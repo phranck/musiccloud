@@ -391,6 +391,8 @@ describe("TurntablePlayer interactive knob", () => {
     expect(knob(container)).toHaveAttribute("aria-valuetext", "45 RPM");
     expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(240deg) translateZ(0)" });
     expect(ledPower(container)).toBe(TurntablePower.On);
+    // 45 RPM speeds the real audio up to 1.35x.
+    expect(playedAudioElements[0].playbackRate).toBe(1.35);
   });
 
   it("dragging down to Standby stops, rewinds to start, and powers off", async () => {
@@ -462,6 +464,8 @@ describe("TurntablePlayer interactive knob", () => {
     expect(knob(container)).toHaveAttribute("aria-valuetext", "33 RPM");
     expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(210deg) translateZ(0)" });
     expect(ledPower(container)).toBe(TurntablePower.On);
+    // 33 RPM plays at the normal rate.
+    expect(playedAudioElements[0].playbackRate).toBe(1);
 
     // Stopping at the knob (drag down to Standby) flips the shared playbutton to "Play".
     await dragKnobVertically(container, -KNOB_STEP_PX * 2);

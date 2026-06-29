@@ -8,7 +8,7 @@ import {
   TurntableSpeed,
   type TurntableSpeed as TurntableSpeedValue,
 } from "@/components/turntable/TurntablePlayerContext";
-import { derivePower, deriveSpinState } from "@/components/turntable/turntableState";
+import { derivePower, deriveSpinState, playbackRateForSpeed } from "@/components/turntable/turntableState";
 import { VinylSpinState, type VinylSpinState as VinylSpinStateValue } from "@/components/vinyl/VinylRecord.types";
 
 /** Wind-down window after playback stops before the rotor returns to idle. */
@@ -156,6 +156,8 @@ export function TurntablePlayerProvider({
     onPlaybackIntent: handleEnginePlaybackIntent,
     onStatusChange: handleEngineStatusChange,
     onSeekHint,
+    // 45 RPM speeds the audio up (~1.35x, pitch rises with it); 33/Standby = 1.
+    playbackRate: playbackRateForSpeed(hubState.speed),
   });
 
   // Settle a winding-down rotor back to idle after the coast window, the same

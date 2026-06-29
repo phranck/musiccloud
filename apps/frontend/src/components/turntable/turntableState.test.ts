@@ -4,9 +4,11 @@ import { TurntablePower, TurntableSpeed } from "@/components/turntable/Turntable
 import {
   derivePower,
   deriveSpinState,
+  LP_PLAYBACK_RATE_45,
   LP_ROTATION_DURATION_33_MS,
   LP_ROTATION_DURATION_45_MS,
   nextSpeedInCycle,
+  playbackRateForSpeed,
   rotationDurationForSpeed,
   SPEED_KNOB_ANGLE_DEG,
   speedAtOffset,
@@ -94,6 +96,18 @@ describe("rotationDurationForSpeed", () => {
     expect(rotationDurationForSpeed(TurntableSpeed.Rpm33)).toBe(LP_ROTATION_DURATION_33_MS);
     expect(rotationDurationForSpeed(TurntableSpeed.Standby)).toBe(LP_ROTATION_DURATION_33_MS);
     expect(LP_ROTATION_DURATION_33_MS).toBe(1800);
+  });
+});
+
+describe("playbackRateForSpeed", () => {
+  it("speeds the audio up at 45 RPM (~1.35x)", () => {
+    expect(playbackRateForSpeed(TurntableSpeed.Rpm45)).toBe(LP_PLAYBACK_RATE_45);
+    expect(LP_PLAYBACK_RATE_45).toBe(1.35);
+  });
+
+  it("plays 33 RPM and Standby at the normal rate", () => {
+    expect(playbackRateForSpeed(TurntableSpeed.Rpm33)).toBe(1);
+    expect(playbackRateForSpeed(TurntableSpeed.Standby)).toBe(1);
   });
 });
 
