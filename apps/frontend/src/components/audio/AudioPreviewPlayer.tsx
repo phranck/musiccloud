@@ -143,6 +143,9 @@ function playerReducer(state: PlayerState, action: PlayerAction): PlayerState {
   }
 }
 
+/** Fallback track length when the element reports no usable duration (preview clips are ~30s). */
+const DEFAULT_DURATION_SECONDS = 30;
+
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
@@ -150,7 +153,7 @@ function formatTime(seconds: number): string {
 }
 
 function resolveAudioProgressRatio(audio: HTMLAudioElement): number {
-  const duration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
+  const duration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : DEFAULT_DURATION_SECONDS;
   const ratio = audio.currentTime / duration;
   return Number.isFinite(ratio) ? Math.max(0, Math.min(1, ratio)) : 0;
 }
@@ -923,12 +926,12 @@ function useAudioPreviewController({
     audio.src = effectiveUrl;
 
     const handleLoadedMetadata = () => {
-      const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
+      const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : DEFAULT_DURATION_SECONDS;
       dispatch({ type: PlayerActionType.MetadataLoaded, duration: dur });
       setProgressRatioFromEvent(resolveAudioProgressRatio(audio));
     };
     const handleTimeUpdate = () => {
-      const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
+      const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : DEFAULT_DURATION_SECONDS;
       dispatch({ type: PlayerActionType.TimeUpdate, currentTime: audio.currentTime, duration: dur });
       setProgressRatioFromEvent(resolveAudioProgressRatio(audio));
     };
@@ -1145,7 +1148,7 @@ function useAudioPreviewController({
       const audio = audioRef.current;
       if (!audio) return;
       if (state.phase !== PlayerPhase.Playing && state.phase !== PlayerPhase.Paused) return;
-      const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
+      const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : DEFAULT_DURATION_SECONDS;
       audio.currentTime = resolveSeekTarget(audio.currentTime, deltaSeconds, dur);
       setProgressRatioValue(resolveAudioProgressRatio(audio));
       notifySeekHint(deltaSeconds < 0 ? VfdScrollOutDirection.Left : VfdScrollOutDirection.Right);
@@ -1173,7 +1176,7 @@ function useAudioPreviewController({
     const audio = audioRef.current;
     if (!audio) return;
     if (state.phase !== PlayerPhase.Playing && state.phase !== PlayerPhase.Paused) return;
-    const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 30;
+    const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : DEFAULT_DURATION_SECONDS;
     audio.currentTime = Math.max(0, dur - SEEK_END_GUARD_SECONDS);
     setProgressRatioValue(resolveAudioProgressRatio(audio));
   }, [state.phase, setProgressRatioValue]);
