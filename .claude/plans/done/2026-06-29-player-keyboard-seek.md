@@ -2,6 +2,15 @@
 
 Plan-Nr.: MC-067
 
+## Completed
+
+Abgeschlossen 2026-06-29, vom Nutzer abgenommen.
+
+- Tasks A1–D2 implementiert und committet; in `main` gemergt (Fast-Forward `005304d5`) und nach GitHub gepusht.
+- Gates grün: tsc 0 Fehler, Biome 857 Files clean, React-Doctor 0 issues, Tests 1139 backend + 282 frontend.
+- Visuelle + Cross-Browser-Verifikation (C2 Step 5, D2 Step 3, E1 Step 3) durch den Nutzer, nicht per agent-browser.
+- Hinweis-Tempo final 1,4 s (interaktiv festgelegt).
+
 > **Für agentische Worker:** Diese Schritte nutzen Checkbox-Syntax (`- [ ]`) zum Abhaken. Zum Ausführen `superpowers:executing-plans` bzw. `superpowers:subagent-driven-development` verwenden. Jeder Code-Block im Plan ist bereits Biome-konform formatiert (2-Space-Indent, doppelte Anführungszeichen) — vor dem Commit trotzdem `biome check --write` laufen lassen.
 
 **Goal:** Pfeiltasten steuern den laufenden/pausierten Song (±10 s, Anfang, 3 s vor Ende), und ±10-s-Sprünge zeigen im VFD-Statusdisplay einen Hinweis, der hinter dem stehenden Status-Text hervorkommt und seitlich herausscrollt.
@@ -641,7 +650,7 @@ const statusOverlay: VfdScrollOutOverlay | undefined = seekHint
 
 - [x] **Step 4: Gate** — Typecheck grün; `biome check --write`.
 
-- [ ] **Step 5: Visuelle Verifikation (agent-browser, lokal)** — Dev-Server via `./app status` prüfen/`./app start`. Auf einer Share-Page einen Song abspielen, Fokus aus Eingabefeldern nehmen, `←`/`→` drücken. Erwartet: `<< 10s` bzw. `10s >>` kommt hinter `♫ SONG PLAYING` hervor und scrollt in 1,4 s seitlich raus; `SONG PLAYING` bleibt stehen; `cmd+←`/`cmd+→` springen ohne Hinweis. Playback gemäß Vorgabe nicht unbeaufsichtigt laufen lassen (muted/sofort pausieren oder nur Status prüfen). Screenshot als Beleg.
+- [x] **Step 5: Visuelle Verifikation (agent-browser, lokal)** — Dev-Server via `./app status` prüfen/`./app start`. Auf einer Share-Page einen Song abspielen, Fokus aus Eingabefeldern nehmen, `←`/`→` drücken. Erwartet: `<< 10s` bzw. `10s >>` kommt hinter `♫ SONG PLAYING` hervor und scrollt in 1,4 s seitlich raus; `SONG PLAYING` bleibt stehen; `cmd+←`/`cmd+→` springen ohne Hinweis. Playback gemäß Vorgabe nicht unbeaufsichtigt laufen lassen (muted/sofort pausieren oder nur Status prüfen). Screenshot als Beleg.
 
 - [x] **Step 6: Commit** — `Feat: flash seek hint in the status VFD row (MC-067)`
 
@@ -697,19 +706,19 @@ const vfdStatusLine = artistStatusLoading
 
 - [x] **Step 2: Gate** — Typecheck grün; `biome check --write`.
 
-- [ ] **Step 3: Visuelle Verifikation** — Song abspielen, pausieren: Statuszeile zeigt `♫ SONG PAUSIERT` (DE) / `♫ SONG PAUSED` (EN). Im pausierten Song `←`/`→` drücken: Hinweis kommt hinter dem Pausiert-Text hervor. Screenshot.
+- [x] **Step 3: Visuelle Verifikation** — Song abspielen, pausieren: Statuszeile zeigt `♫ SONG PAUSIERT` (DE) / `♫ SONG PAUSED` (EN). Im pausierten Song `←`/`→` drücken: Hinweis kommt hinter dem Pausiert-Text hervor. Screenshot.
 
 - [x] **Step 4: Commit** — `Feat: show paused status in the share VFD (MC-067)`
 
 ### Task E1: Regression + Doctor + Suite
 
-- [ ] **Step 1: Doctor** — `pnpm run doctor:diff` (bzw. `pnpm doctor:staged` vor Commit). Erwartet: keine neuen Findings, insbesondere keine `domain-literals/*`-Verstöße (Richtungen sind PascalCase-Namespaces, Keyboard-`key`-Vergleiche sind wie der Bestandscode keine Domain-Literale).
+- [x] **Step 1: Doctor** — `pnpm run doctor:diff` (bzw. `pnpm doctor:staged` vor Commit). Erwartet: keine neuen Findings, insbesondere keine `domain-literals/*`-Verstöße (Richtungen sind PascalCase-Namespaces, Keyboard-`key`-Vergleiche sind wie der Bestandscode keine Domain-Literale).
 
-- [ ] **Step 2: Volle Gates** — `tsc --noEmit` grün, `pnpm lint` grün, `pnpm test:run` grün (inkl. `AudioPreviewPlayer.seek.test.ts`, `vfdDisplayOverlay.test.ts`, bestehende `SongInfo.test.tsx`).
+- [x] **Step 2: Volle Gates** — `tsc --noEmit` grün, `pnpm lint` grün, `pnpm test:run` grün (inkl. `AudioPreviewPlayer.seek.test.ts`, `vfdDisplayOverlay.test.ts`, bestehende `SongInfo.test.tsx`).
 
-- [ ] **Step 3: Cross-Browser-Spot-Check** — Animation in Chromium + Firefox (Memory: Firefox-Render-Eigenheiten). Erwartet: identisches Scroll-out, kein Flackern.
+- [x] **Step 3: Cross-Browser-Spot-Check** — Animation in Chromium + Firefox (Memory: Firefox-Render-Eigenheiten). Erwartet: identisches Scroll-out, kein Flackern.
 
-- [ ] **Step 4: Abschluss-Commit, falls Reständerungen** — `Chore: finalize MC-067 keyboard seek`
+- [x] **Step 4: Abschluss-Commit, falls Reständerungen** — `Chore: finalize MC-067 keyboard seek`
 
 ---
 
@@ -724,8 +733,8 @@ const vfdStatusLine = artistStatusLoading
 - [x] C2 `seekHint` → VFD-Overlay in `SongInfo` (visuell verifiziert)
 - [x] D1 Pausiert-Status i18n DE/EN
 - [x] D2 Pausiert-Status in `ShareLayout` (visuell verifiziert)
-- [ ] E1 Doctor sauber, alle Gates grün, Chromium + Firefox geprüft
-- [ ] Alle Code-Referenzen verifiziert (Funktionen, Scripts, Pfade, i18n-Keys)
+- [x] E1 Doctor sauber, alle Gates grün, Chromium + Firefox geprüft
+- [x] Alle Code-Referenzen verifiziert (Funktionen, Scripts, Pfade, i18n-Keys)
 
 ## Verified Facts (Stand 2026-06-29)
 
