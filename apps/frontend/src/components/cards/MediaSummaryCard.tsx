@@ -1,18 +1,15 @@
 import type { AudioStatus } from "@/components/audio/AudioStatus";
 import { MediaCardHead } from "@/components/cards/MediaCardHead";
 import type { ShareMediaView } from "@/components/share/ShareMediaView.types";
-import type { VinylSpinState } from "@/components/vinyl/VinylRecord.types";
 import type { MediaCardContentConfiguration } from "@/lib/types/media-card";
 
 interface MediaSummaryCardProps {
   content: MediaCardContentConfiguration;
   className?: string;
   animated?: boolean;
-  onPlaybackIntent?: () => void;
   onPreviewStatusChange?: (status: AudioStatus | null) => void;
   previewStatus?: AudioStatus | null;
   shareMediaView?: ShareMediaView;
-  vinylSpinState?: VinylSpinState;
 }
 
 /**
@@ -25,22 +22,18 @@ export function MediaSummaryCard({
   content,
   className,
   animated = false,
-  onPlaybackIntent,
   onPreviewStatusChange,
   previewStatus,
   shareMediaView,
-  vinylSpinState,
 }: MediaSummaryCardProps) {
   return (
     <MediaCardHead
       content={content}
       animated={animated}
       className={className}
-      onPlaybackIntent={onPlaybackIntent}
       onPreviewStatusChange={onPreviewStatusChange}
       previewStatus={previewStatus}
       shareMediaView={shareMediaView}
-      vinylSpinState={vinylSpinState}
     />
   );
 }

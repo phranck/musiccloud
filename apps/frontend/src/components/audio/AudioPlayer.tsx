@@ -18,7 +18,7 @@ import { PreviewSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { setupMotion } from "@/lib/motion/setup";
 import { type MediaKindType, MediaKindValue } from "@/lib/types/media-card";
 
-interface AudioPlayerProps {
+export interface AudioPlayerProps {
   /** Immediately-playable preview URL. Optional when `refreshShortId` is set. */
   previewUrl?: string;
   /** Short ID used to refresh an expired/missing Deezer preview URL via the
@@ -468,7 +468,22 @@ function fadeBandValue(band: number): number {
   return band <= SPECTRUM_FADE_MIN_LEVEL ? 0 : band * SPECTRUM_FADE_FACTOR;
 }
 
-function useAudioController({
+/**
+ * Headless audio-preview engine: owns the `<audio>` element lifecycle, the
+ * WebAudio spectrum pipeline, the play-state machine, the seek transport, the
+ * tab-wide keyboard registry and MediaSession, and returns a flat view-model
+ * (play flags, time/progress, transport callbacks) for a host to render.
+ *
+ * Used directly by the {@link AudioPlayer} component and by the
+ * `TurntablePlayerProvider`, which lifts the engine into the turntable hub so
+ * the knob/LED/platter share one playback source.
+ *
+ * @param props - {@link AudioPlayerProps}.
+ * @returns The audio view-model: status flags, `timeText`, `progressRatio`,
+ *   `ariaLabel`, and the `togglePlay`/`seekBy`/`seekToStart`/`seekToNearEnd`
+ *   transport callbacks (all stable across renders).
+ */
+export function useAudioController({
   previewUrl,
   refreshShortId,
   mediaKind,
@@ -1315,6 +1330,9 @@ function useAudioController({
     isUnavailable,
     mediaLabel: isSong ? "Song" : "Preview",
     progressRatio,
+    seekBy,
+    seekToNearEnd,
+    seekToStart,
     timeText,
     title: isLoading ? t("audio.previewLoading") : isUnavailable ? unavailableText : undefined,
     togglePlay,

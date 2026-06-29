@@ -3,7 +3,6 @@ import { MediaCardHead } from "@/components/cards/MediaCardHead";
 import { PlatformsWell } from "@/components/cards/PlatformsWell";
 import type { ShareMediaView } from "@/components/share/ShareMediaView.types";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
-import type { VinylSpinState } from "@/components/vinyl/VinylRecord.types";
 import {
   derivePlatformsVisibility,
   isShareableContent,
@@ -25,22 +24,18 @@ interface MediaCardProps {
   className?: string;
   /** Set to false to skip the zoom-in entrance animation (e.g. on the share page) */
   animated?: boolean;
-  onPlaybackIntent?: () => void;
   onPreviewStatusChange?: (status: AudioStatus | null) => void;
   previewStatus?: AudioStatus | null;
   shareMediaView?: ShareMediaView;
-  vinylSpinState?: VinylSpinState;
 }
 
 export function MediaCard({
   content,
   className,
   animated = true,
-  onPlaybackIntent,
   onPreviewStatusChange,
   previewStatus,
   shareMediaView,
-  vinylSpinState,
 }: MediaCardProps) {
   const srAnnouncement = isShareableContent(content) ? content.srAnnouncement : undefined;
   const { showGrid, showInfoOnly } = derivePlatformsVisibility(content);
@@ -49,11 +44,9 @@ export function MediaCard({
       content={content}
       animated={animated}
       className={className}
-      onPlaybackIntent={onPlaybackIntent}
       onPreviewStatusChange={onPreviewStatusChange}
       previewStatus={previewStatus}
       shareMediaView={shareMediaView}
-      vinylSpinState={vinylSpinState}
       srAnnouncement={srAnnouncement}
     >
       <CollapsibleSection visible={showGrid} sectionClass="p-[var(--mc-pad-card,0.75rem)]">

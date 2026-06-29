@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ShareLayout } from "@/components/share/ShareLayout";
@@ -10,44 +10,22 @@ vi.mock("@/components/cards/SongInfo", () => ({
     shareMediaView,
     previewStatus,
     title,
-    vinylSpinState,
   }: {
     shareMediaView?: string;
     previewStatus?: string | null;
     title: string;
-    vinylSpinState?: string;
   }) => (
-    <div
-      data-testid="song-info-props"
-      data-media-view={shareMediaView}
-      data-preview-status={previewStatus ?? "none"}
-      data-vinyl-spin-state={vinylSpinState ?? "none"}
-    >
+    <div data-testid="song-info-props" data-media-view={shareMediaView} data-preview-status={previewStatus ?? "none"}>
       {title}
     </div>
   ),
 }));
 
-vi.mock("@/components/audio/AudioPlayer", () => ({
-  AudioPlayer: ({
-    onPlaybackIntent,
-    onStatusChange,
-  }: {
-    onPlaybackIntent?: () => void;
-    onStatusChange?: (status: string) => void;
-  }) => (
-    <div>
-      <button type="button" onClick={onPlaybackIntent}>
-        Preview intent
-      </button>
-      <button type="button" onClick={() => onStatusChange?.("playing")}>
-        Preview playing
-      </button>
-      <button type="button" onClick={() => onStatusChange?.("paused")}>
-        Preview paused
-      </button>
-    </div>
-  ),
+// The turntable hub (provider + analyzer slot) owns the audio engine; the
+// ShareLayout test only asserts the media-view/status responsibilities, so the
+// player is stubbed to avoid mounting the real audio engine.
+vi.mock("@/components/turntable/TurntableAnalyzerSlot", () => ({
+  TurntableAnalyzerSlot: () => null,
 }));
 
 vi.mock("@/components/share/AnimatedArtistColumn", () => ({
@@ -108,14 +86,6 @@ function mediaViews() {
 
 function expectAllMediaViews(view: string) {
   expect(mediaViews()).toEqual([view, view]);
-}
-
-function vinylSpinStates() {
-  return screen.getAllByTestId("song-info-props").map((node) => node.getAttribute("data-vinyl-spin-state"));
-}
-
-function expectAllVinylSpinStates(spinState: string) {
-  expect(vinylSpinStates()).toEqual([spinState, spinState]);
 }
 
 beforeEach(() => {
@@ -184,28 +154,5 @@ describe("ShareLayout media view toggle", () => {
     fireEvent.keyDown(window, { key: "p", repeat: true });
 
     expectAllMediaViews("cover");
-  });
-
-  it("starts LP rotation on playback intent and coasts for two seconds after pause", () => {
-    vi.useFakeTimers();
-    renderShareLayout();
-
-    expectAllVinylSpinStates("idle");
-
-    const intentButton = screen.getAllByRole("button", { name: "Preview intent" })[0];
-    expect(intentButton).toBeDefined();
-    fireEvent.click(intentButton as HTMLElement);
-    expectAllVinylSpinStates("playing");
-
-    const pausedButton = screen.getAllByRole("button", { name: "Preview paused" })[0];
-    expect(pausedButton).toBeDefined();
-    fireEvent.click(pausedButton as HTMLElement);
-    expectAllVinylSpinStates("coasting");
-
-    act(() => vi.advanceTimersByTime(1999));
-    expectAllVinylSpinStates("coasting");
-
-    act(() => vi.advanceTimersByTime(1));
-    expectAllVinylSpinStates("idle");
   });
 });

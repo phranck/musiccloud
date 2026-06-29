@@ -19,14 +19,12 @@ const ShareUiActionType = {
   CloseSheet: "closeSheet",
   MediaViewToggled: "mediaViewToggled",
   OpenSheet: "openSheet",
-  PlaybackIntentStarted: "playbackIntentStarted",
   PreviewStatusChanged: "previewStatusChanged",
   PropsChanged: "propsChanged",
   ResolveErrorHidden: "resolveErrorHidden",
   ResolveErrorVisible: "resolveErrorVisible",
   ResolveStarted: "resolveStarted",
   Resolved: "resolved",
-  VinylCoastFinished: "vinylCoastFinished",
 } as const;
 
 interface ShareUiState {
@@ -40,7 +38,6 @@ interface ShareUiState {
   resolveTriggeredArtistLoad: boolean;
   shareMediaView: ShareMediaViewType;
   sheetOpen: boolean;
-  vinylSpinState: VinylSpinStateType;
 }
 type ShareUiAction =
   | { type: typeof ShareUiActionType.ArtistFetchFinished }
@@ -49,7 +46,6 @@ type ShareUiAction =
   | { type: typeof ShareUiActionType.CloseSheet }
   | { type: typeof ShareUiActionType.MediaViewToggled }
   | { type: typeof ShareUiActionType.OpenSheet }
-  | { type: typeof ShareUiActionType.PlaybackIntentStarted }
   | { type: typeof ShareUiActionType.PreviewStatusChanged; status: AudioStatus | null }
   | {
       type: typeof ShareUiActionType.PropsChanged;
@@ -66,8 +62,7 @@ type ShareUiAction =
       artistContext?: ArtistInfoContext;
       artistName?: string;
       config: MediaCardContentConfiguration;
-    }
-  | { type: typeof ShareUiActionType.VinylCoastFinished };
+    };
 
 function shareUiReducer(state: ShareUiState, action: ShareUiAction): ShareUiState {
   switch (action.type) {
@@ -83,14 +78,8 @@ function shareUiReducer(state: ShareUiState, action: ShareUiAction): ShareUiStat
       return { ...state, shareMediaView: nextShareMediaView(state.shareMediaView) };
     case ShareUiActionType.OpenSheet:
       return { ...state, sheetOpen: true };
-    case ShareUiActionType.PlaybackIntentStarted:
-      return { ...state, vinylSpinState: VinylSpinState.Playing };
     case ShareUiActionType.PreviewStatusChanged:
-      return {
-        ...state,
-        previewStatus: action.status,
-        vinylSpinState: nextVinylSpinStateFromPreviewStatus(state.vinylSpinState, action.status),
-      };
+      return { ...state, previewStatus: action.status };
     case ShareUiActionType.PropsChanged:
       if (state.lastPropsConfigKey === action.configKey) return state;
       return {
@@ -99,12 +88,11 @@ function shareUiReducer(state: ShareUiState, action: ShareUiAction): ShareUiStat
         currentArtistName: action.artistName,
         currentConfig: action.config,
         lastPropsConfigKey: action.configKey,
-        // A new entity re-keys (and re-mounts) the audio player; it reports no
+        // A new entity re-keys (and re-mounts) the audio hub; it reports no
         // status on mount, so a stale `playing` would otherwise stick. A stale
         // resolve error from the previous entity is likewise no longer relevant.
         previewStatus: null,
         resolveErrorVisible: false,
-        vinylSpinState: VinylSpinState.Idle,
       };
     case ShareUiActionType.ResolveErrorHidden:
       return { ...state, resolveErrorVisible: false };
@@ -118,17 +106,13 @@ function shareUiReducer(state: ShareUiState, action: ShareUiAction): ShareUiStat
         currentArtistContext: action.artistContext ?? state.currentArtistContext,
         currentArtistName: action.artistName ?? state.currentArtistName,
         currentConfig: action.config,
-        // An in-place track swap re-keys (and re-mounts) the audio player; the
-        // fresh player reports no status on mount, so clear the stale one here
+        // An in-place track swap re-keys (and re-mounts) the audio hub; the
+        // fresh hub reports no status on mount, so clear the stale one here
         // (otherwise the VFD keeps showing "playing" after the audio stopped).
         // A prior resolve error no longer applies to the freshly resolved track.
         previewStatus: null,
         resolveErrorVisible: false,
-        vinylSpinState: VinylSpinState.Idle,
       };
-    case ShareUiActionType.VinylCoastFinished:
-      if (state.vinylSpinState !== VinylSpinState.Coasting) return state;
-      return { ...state, vinylSpinState: VinylSpinState.Idle };
   }
 }
 
@@ -148,7 +132,6 @@ function initialShareUiState({
     resolveTriggeredArtistLoad: false,
     shareMediaView: readPersistedShareMediaView(),
     sheetOpen: false,
-    vinylSpinState: VinylSpinState.Idle,
   };
 }
 
@@ -159,7 +142,6 @@ import { MobileArtistSheet } from "@/components/share/MobileArtistSheet";
 import { MobileShareLayout } from "@/components/share/MobileShareLayout";
 import { ShareBackLink } from "@/components/share/ShareBackLink";
 import { ShareMediaView, type ShareMediaView as ShareMediaViewType } from "@/components/share/ShareMediaView.types";
-import { VinylSpinState, type VinylSpinState as VinylSpinStateType } from "@/components/vinyl/VinylRecord.types";
 import { ToastProvider } from "@/context/ToastContext";
 import { ArtistLoadStatus, useArtistInfo } from "@/hooks/useArtistInfo";
 import { useIsClient } from "@/hooks/useIsClient";
@@ -223,18 +205,6 @@ function persistShareMediaView(view: ShareMediaViewType): void {
 
 function nextShareMediaView(view: ShareMediaViewType): ShareMediaViewType {
   return view === ShareMediaView.Cover ? ShareMediaView.Turntable : ShareMediaView.Cover;
-}
-
-function nextVinylSpinStateFromPreviewStatus(
-  currentSpinState: VinylSpinStateType,
-  status: AudioStatus | null,
-): VinylSpinStateType {
-  if (status === AudioStatus.Playing) return VinylSpinState.Playing;
-  if (status === AudioStatus.Unavailable || status === null) return VinylSpinState.Idle;
-  if (currentSpinState === VinylSpinState.Playing || currentSpinState === VinylSpinState.Coasting) {
-    return VinylSpinState.Coasting;
-  }
-  return VinylSpinState.Idle;
 }
 
 function isShareMediaToggleTarget(target: EventTarget | null): boolean {
@@ -361,7 +331,6 @@ function ShareLayoutInner({
     resolveTriggeredArtistLoad,
     shareMediaView,
     sheetOpen,
-    vinylSpinState,
   } = shareUiState;
   // Clears the "resolve triggered a load" UI flag once each artist-info load
   // settles, matching the order the inline fetch effect used.
@@ -405,12 +374,6 @@ function ShareLayoutInner({
   useEffect(() => {
     persistShareMediaView(shareMediaView);
   }, [shareMediaView]);
-
-  useEffect(() => {
-    if (vinylSpinState !== VinylSpinState.Coasting) return;
-    const timeout = window.setTimeout(() => dispatchUi({ type: ShareUiActionType.VinylCoastFinished }), 2000);
-    return () => window.clearTimeout(timeout);
-  }, [vinylSpinState]);
 
   const artistStatusLoading = isLoading || resolveTriggeredArtistLoad;
   useEffect(() => {
@@ -472,7 +435,6 @@ function ShareLayoutInner({
     (status: AudioStatus | null) => dispatchUi({ type: ShareUiActionType.PreviewStatusChanged, status }),
     [],
   );
-  const handlePlaybackIntent = useCallback(() => dispatchUi({ type: ShareUiActionType.PlaybackIntentStarted }), []);
   useOverlayEscape({ enabled: sheetOpen, onEscape: closeSheet });
 
   const handleArtistResolveStart = useCallback(() => {
@@ -541,24 +503,20 @@ function ShareLayoutInner({
         isLoading={isLoading}
         labels={artistLabels}
         onArtistResolveStart={handleArtistResolveStart}
-        onPlaybackIntent={handlePlaybackIntent}
         onPreviewStatusChange={handlePreviewStatusChange}
         onTrackResolve={resolveTrack}
         previewStatus={previewStatus}
         shareMediaView={shareMediaView}
         userRegion={userRegion}
-        vinylSpinState={vinylSpinState}
       />
       <MobileShareLayout
         animated={animated}
         config={enrichedConfig}
         label={t("artist.mobileButton")}
         onOpenSheet={openSheet}
-        onPlaybackIntent={handlePlaybackIntent}
         onPreviewStatusChange={handlePreviewStatusChange}
         previewStatus={previewStatus}
         shareMediaView={shareMediaView}
-        vinylSpinState={vinylSpinState}
       />
       {mounted &&
         createPortal(
