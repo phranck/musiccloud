@@ -432,6 +432,7 @@ function ShareLayoutInner({
 
   const playingStatus =
     config.mediaKind === MediaKindValue.Song ? t("audio.statusPlayingSong") : t("audio.statusPlaying");
+  const pausedStatus = config.mediaKind === MediaKindValue.Song ? t("audio.statusPausedSong") : t("audio.statusPaused");
   const vfdStatusLine = artistStatusLoading
     ? t("artist.statusLoading")
     : resolveErrorVisible
@@ -442,9 +443,11 @@ function ShareLayoutInner({
           ? t("artist.statusEmpty")
           : previewStatus === AudioPreviewStatus.Playing
             ? playingStatus
-            : artistReadyVisible
-              ? t("artist.statusReady")
-              : "";
+            : previewStatus === AudioPreviewStatus.Paused
+              ? pausedStatus
+              : artistReadyVisible
+                ? t("artist.statusReady")
+                : "";
   const enrichedConfig = useMemo(
     () => ({
       ...currentConfig,
