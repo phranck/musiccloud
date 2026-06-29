@@ -307,7 +307,7 @@ useEffect(() => {
 - Modify: `apps/frontend/src/components/ui/VfdDisplayTypes.ts`
 - Modify: `apps/frontend/src/components/ui/VfdDisplay.tsx` (Re-Export)
 
-- [ ] **Step 1: Typen ergänzen** (bei den anderen `as const`-Namespaces, ~Zeile 60):
+- [x] **Step 1: Typen ergänzen** (bei den anderen `as const`-Namespaces, ~Zeile 60):
 
 ```ts
 /** Direction a transient scroll-out overlay leaves the row. */
@@ -343,7 +343,7 @@ export interface VfdOverlayRuntimeState {
 }
 ```
 
-- [ ] **Step 2: Felder an Line + RenderState**
+- [x] **Step 2: Felder an Line + RenderState**
 
 In `VfdDisplayLine` (nach Zeile 163, `transition`):
 
@@ -364,11 +364,11 @@ In `VfdCanvasRenderState` (nach `marqueeStates`, Zeile 337):
   overlays: Map<number, VfdOverlayRuntimeState>;
 ```
 
-- [ ] **Step 3: Re-Export** in `VfdDisplay.tsx` (Export-Blöcke Zeile 78-96): `VfdScrollOutDirection` zu den `export {}`-Werten und `VfdScrollOutOverlay` zu den `export type {}`-Typen hinzufügen.
+- [x] **Step 3: Re-Export** in `VfdDisplay.tsx` (Export-Blöcke Zeile 78-96): `VfdScrollOutDirection` zu den `export {}`-Werten und `VfdScrollOutOverlay` zu den `export type {}`-Typen hinzufügen.
 
-- [ ] **Step 4: Gate** — Typecheck grün; `biome check --write` auf beide Dateien.
+- [x] **Step 4: Gate** — Typecheck grün; `biome check --write` auf beide Dateien.
 
-- [ ] **Step 5: Commit** — `Feat: add VFD scroll-out overlay types (MC-067)`
+- [x] **Step 5: Commit** — `Feat: add VFD scroll-out overlay types (MC-067)`
 
 ### Task B2: Overlay-Geometrie (reine Funktionen, TDD)
 
@@ -376,7 +376,7 @@ In `VfdCanvasRenderState` (nach `marqueeStates`, Zeile 337):
 - Create: `apps/frontend/src/components/ui/vfdDisplayOverlay.ts`
 - Test: `apps/frontend/src/components/ui/vfdDisplayOverlay.test.ts`
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -406,9 +406,9 @@ describe("scrollOutStartColumn", () => {
 });
 ```
 
-- [ ] **Step 2: Test rot** — `pnpm --filter @musiccloud/frontend exec vitest run src/components/ui/vfdDisplayOverlay.test.ts` → FAIL.
+- [x] **Step 2: Test rot** — `pnpm --filter @musiccloud/frontend exec vitest run src/components/ui/vfdDisplayOverlay.test.ts` → FAIL.
 
-- [ ] **Step 3: Implementieren**
+- [x] **Step 3: Implementieren**
 
 ```ts
 import {
@@ -445,9 +445,9 @@ export function scrollOutStartColumn(
 }
 ```
 
-- [ ] **Step 4: Test grün** — vitest-Run → PASS.
+- [x] **Step 4: Test grün** — vitest-Run → PASS.
 
-- [ ] **Step 5: Overlay-Arming + Merge ergänzen** (gleiche Datei, kein neuer Test — wird in Task B4 visuell verifiziert):
+- [x] **Step 5: Overlay-Arming + Merge ergänzen** (gleiche Datei, kein neuer Test — wird in Task B4 visuell verifiziert):
 
 ```ts
 /**
@@ -501,9 +501,9 @@ export function overlayProgress(overlay: VfdOverlayRuntimeState, now: number): n
 }
 ```
 
-- [ ] **Step 6: Gate** — Typecheck grün; `biome check --write`.
+- [x] **Step 6: Gate** — Typecheck grün; `biome check --write`.
 
-- [ ] **Step 7: Commit** — `Feat: add VFD scroll-out overlay geometry helpers (MC-067)`
+- [x] **Step 7: Commit** — `Feat: add VFD scroll-out overlay geometry helpers (MC-067)`
 
 ### Task B3: Overlay in die Render-Pipeline
 
@@ -707,8 +707,8 @@ const vfdStatusLine = artistStatusLoading
 
 - [ ] A1 `resolveSeekTarget` + Test grün
 - [ ] A2 Tastatur-Router + Seek-Aktionen + Registry erweitert
-- [ ] B1 Overlay-Typen + Re-Export
-- [ ] B2 Overlay-Geometrie + Test grün
+- [x] B1 Overlay-Typen + Re-Export
+- [x] B2 Overlay-Geometrie + Test grün
 - [ ] B3 Overlay in Normalize + sync + Canvas-Render
 - [ ] C1 `seekHint`-State in `MediaCardHead`
 - [ ] C2 `seekHint` → VFD-Overlay in `SongInfo` (visuell verifiziert)
