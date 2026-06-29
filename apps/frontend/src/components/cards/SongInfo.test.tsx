@@ -43,7 +43,10 @@ describe("SongInfo media stage", () => {
       />,
     );
 
-    expect(container.querySelector(".mc-tft-screen")).toHaveClass("mc-share-media-screen");
+    // The cover stage is the TftScreen compound itself; the screen frame around
+    // it carries `mc-share-media-screen`.
+    expect(container.querySelector(".mc-share-media-screen")).toBeInTheDocument();
+    expect(container.querySelector("[data-media-stage='cover']")).toHaveClass("mc-tft-screen");
     // The LCD overlay layers live inside the cover stage so they slide with it.
     expect(container.querySelector("[data-media-stage='cover'] .mc-tft-screen-matrix")).toBeInTheDocument();
     expect(container.querySelector("[data-media-stage='cover'] .mc-tft-screen-sheen")).toBeInTheDocument();

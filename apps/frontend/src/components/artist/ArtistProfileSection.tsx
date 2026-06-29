@@ -33,18 +33,12 @@ export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) 
           borderWidth="2px"
         >
           <RecessedCard.Body className="contents">
+            {/* The artist thumbnail is a plain recessed image: the cover plus the
+                inset frame shadow, deliberately without the LCD tint/grid/sheen
+                so the photo reads naturally. */}
             <TftScreen className="size-full">
-              <img
-                src={profile.imageUrl}
-                alt=""
-                width={96}
-                height={96}
-                decoding="async"
-                className="size-full object-cover"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = "none";
-                }}
-              />
+              <TftScreen.Cover image={profile.imageUrl} alt="" />
+              <TftScreen.Shadow />
             </TftScreen>
           </RecessedCard.Body>
         </RecessedCard>

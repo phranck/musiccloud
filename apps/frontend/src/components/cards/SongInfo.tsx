@@ -148,44 +148,16 @@ export const SongInfo = memo(function SongInfo({
       <div className="px-3 pt-3">
         <RecessedCard className="p-0.5">
           <RecessedCard.Body>
-            <TftScreen className="mc-share-media-screen aspect-square w-full" showEffects={false} showMatrix={false}>
-              <div
-                className={cn(
-                  "mc-share-media-stage",
-                  mediaView === ShareMediaView.Cover
-                    ? "mc-share-media-stage--cover-active"
-                    : "mc-share-media-stage--cover-exit",
-                )}
-                data-media-stage="cover"
-              >
-                {artworkState.previousUrl !== null && (
-                  <ArtworkImage
-                    ref={outgoingCoverRef}
-                    key={`cover-out-${artworkState.generation}`}
-                    url={artworkState.previousUrl}
-                    alt=""
-                    className="absolute inset-0 transform-gpu will-change-transform"
-                  />
-                )}
-                <ArtworkImage
-                  ref={incomingCoverRef}
-                  key={`cover-in-${artworkState.generation}`}
-                  url={artworkState.currentUrl}
-                  alt={`"${title}" by ${artist} - album artwork`}
-                  className={
-                    artworkState.previousUrl !== null ? "absolute inset-0 transform-gpu will-change-transform" : ""
-                  }
-                />
-                {/* The LCD overlay layers (dot-matrix grid, tint, sheen, inset
-                    shadow) live INSIDE the cover stage, not on the TftScreen, so
-                    they slide in and out together with the artwork like one
-                    cabinet-door panel instead of snapping over the fixed turntable
-                    behind it. */}
-                <div className="mc-tft-screen-tint" aria-hidden="true" />
-                <div className="mc-tft-screen-matrix" aria-hidden="true" />
-                <div className="mc-tft-screen-sheen" aria-hidden="true" />
-                <div className="mc-tft-screen-shadow" aria-hidden="true" />
-              </div>
+            {/* The media screen clips and stacks two sibling stages: the fixed
+                turntable at the back (lower z-index) and the cover in front of
+                it. The cover IS the TftScreen compound — the sliding LCD door
+                whose overlay layers travel with the artwork as one panel — so
+                toggling the view slides the whole door aside without ever
+                shifting the deck behind it. The clip (overflow-hidden + inner
+                radius) lives here so the `.mc-share-media-screen
+                .mc-share-media-stage[data-media-stage="cover"]` selectors and the
+                turntable pre-paint override in animations.css keep matching. */}
+            <div className="mc-share-media-screen relative aspect-square w-full overflow-hidden rounded-[var(--neu-radius-inner)]">
               {/* The turntable is a fixed layer at the back; only the cover in
                   front of it slides (see .mc-share-media-stage CSS), so the deck
                   never moves when toggling the media view. */}
@@ -194,7 +166,48 @@ export const SongInfo = memo(function SongInfo({
                   {turntableStage}
                 </div>
               )}
-            </TftScreen>
+              <TftScreen
+                className={cn(
+                  "mc-share-media-stage",
+                  mediaView === ShareMediaView.Cover
+                    ? "mc-share-media-stage--cover-active"
+                    : "mc-share-media-stage--cover-exit",
+                )}
+                data-media-stage="cover"
+              >
+                {/* The cover-swap double buffer (outgoing + incoming ArtworkImage)
+                    is the content layer; GSAP animates the two via their refs.
+                    children, not the `image` shortcut, so both buffers and the
+                    swap timeline survive unchanged. */}
+                <TftScreen.Cover>
+                  {artworkState.previousUrl !== null && (
+                    <ArtworkImage
+                      ref={outgoingCoverRef}
+                      key={`cover-out-${artworkState.generation}`}
+                      url={artworkState.previousUrl}
+                      alt=""
+                      className="absolute inset-0 transform-gpu will-change-transform"
+                    />
+                  )}
+                  <ArtworkImage
+                    ref={incomingCoverRef}
+                    key={`cover-in-${artworkState.generation}`}
+                    url={artworkState.currentUrl}
+                    alt={`"${title}" by ${artist} - album artwork`}
+                    className={
+                      artworkState.previousUrl !== null ? "absolute inset-0 transform-gpu will-change-transform" : ""
+                    }
+                  />
+                </TftScreen.Cover>
+                {/* The LCD overlay layers slide in and out together with the
+                    artwork like one cabinet-door panel instead of snapping over
+                    the fixed turntable behind it. */}
+                <TftScreen.Tint />
+                <TftScreen.Grid />
+                <TftScreen.Sheen />
+                <TftScreen.Shadow />
+              </TftScreen>
+            </div>
           </RecessedCard.Body>
         </RecessedCard>
       </div>
