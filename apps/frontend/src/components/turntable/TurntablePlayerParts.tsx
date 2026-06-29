@@ -3,10 +3,11 @@ import { KnobDial, TurntableKnob } from "@/components/turntable/TurntableKnob";
 import {
   TurntablePower,
   type TurntablePower as TurntablePowerValue,
+  TurntableSpeed,
   type TurntableSpeed as TurntableSpeedValue,
   useTurntablePlayer,
 } from "@/components/turntable/TurntablePlayerContext";
-import { speedKnobAngle } from "@/components/turntable/turntableState";
+import { derivePower, speedKnobAngle } from "@/components/turntable/turntableState";
 import { VinylRecord, type VinylRecordProps } from "@/components/vinyl/VinylRecord";
 import type { VinylSpinState as VinylSpinStateValue } from "@/components/vinyl/VinylRecord.types";
 import { cn } from "@/lib/utils";
@@ -170,18 +171,70 @@ export function TurntablePlayerPlatter({ spinState, speed, record }: TurntablePl
 }
 
 /**
+ * Lit caption style for the active speed ("33"/"45" when selected): a bright
+ * white with a soft white glow so the chosen detent reads as illuminated. Pure
+ * colour + text-shadow, so it composites cheaply.
+ */
+const LABEL_SPEED_LIT_STYLE = {
+  color: "#ffffff",
+  textShadow: "0 0 6px rgba(255,255,255,0.55), 0 0 2px rgba(255,255,255,0.85)",
+} satisfies CSSProperties;
+
+/**
+ * Lit caption style for "ON" while the deck is powered (any playing speed): a
+ * subdued amber with a soft glow, the classic powered-indicator tint. Stays lit
+ * for both 33 and 45 (any `power === On`), independent of which one is selected.
+ */
+const LABEL_POWER_LIT_STYLE = {
+  color: "#ff9f4a",
+  textShadow: "0 0 6px rgba(255,150,60,0.5), 0 0 2px rgba(255,150,60,0.8)",
+} satisfies CSSProperties;
+
+/** Props for {@link TurntablePlayerKnobLabels}. */
+interface TurntablePlayerKnobLabelsProps {
+  /**
+   * The active speed. Lights the matching "33"/"45" caption white and, when the
+   * derived power is `On`, the "ON" caption amber. Defaults to `Standby` (every
+   * caption at its unlit deck-print tint) so the decorative standalone deck can
+   * render the labels without a speed.
+   */
+  speed?: TurntableSpeedValue;
+}
+
+/**
  * Static speed captions printed beside the knob: "33", "45", "ON", "STANDBY".
  *
- * The captions are fixed deck print (not interactive), positioned at the same
- * box-relative coordinates as the accepted mockup. Rendered inside
- * {@link TurntablePlayerControl}, which owns the positioned label box.
+ * The captions are fixed deck print at the accepted box-relative coordinates.
+ * The active speed lights its caption: "33"/"45" glow white when selected, and
+ * "ON" glows amber whenever the deck is powered (any playing speed), mirroring a
+ * real deck's lit indicators. "STANDBY" has no lit state (it marks the
+ * powered-off detent). A short transition eases each light on and off. Rendered
+ * inside {@link TurntablePlayerControl}.
+ *
+ * @param props - {@link TurntablePlayerKnobLabelsProps}.
  */
-export function TurntablePlayerKnobLabels() {
+export function TurntablePlayerKnobLabels({ speed = TurntableSpeed.Standby }: TurntablePlayerKnobLabelsProps) {
+  const isPowered = derivePower(speed) === TurntablePower.On;
   return (
     <>
-      <span className="absolute left-[16.7%] top-[36.5%] -translate-y-full whitespace-nowrap">33</span>
-      <span className="absolute left-[39.5%] top-[21.9%] -translate-y-full whitespace-nowrap">45</span>
-      <span className="absolute left-[15.5%] top-[63.5%] -translate-x-full -translate-y-1/2 whitespace-nowrap">ON</span>
+      <span
+        className="absolute left-[16.7%] top-[36.5%] -translate-y-full whitespace-nowrap transition-[color,text-shadow] duration-200"
+        style={speed === TurntableSpeed.Rpm33 ? LABEL_SPEED_LIT_STYLE : undefined}
+      >
+        33
+      </span>
+      <span
+        className="absolute left-[39.5%] top-[21.9%] -translate-y-full whitespace-nowrap transition-[color,text-shadow] duration-200"
+        style={speed === TurntableSpeed.Rpm45 ? LABEL_SPEED_LIT_STYLE : undefined}
+      >
+        45
+      </span>
+      <span
+        className="absolute left-[15.5%] top-[63.5%] -translate-x-full -translate-y-1/2 whitespace-nowrap transition-[color,text-shadow] duration-200"
+        style={isPowered ? LABEL_POWER_LIT_STYLE : undefined}
+      >
+        ON
+      </span>
       <span className="absolute left-[21.9%] top-[87.5%] -translate-x-full whitespace-nowrap">STANDBY</span>
     </>
   );
@@ -212,6 +265,11 @@ export function TurntablePlayerKnob({ speed }: TurntablePlayerKnobProps) {
 /** Props for {@link TurntablePlayerControl}. */
 interface TurntablePlayerControlProps {
   /**
+   * The active speed, forwarded to {@link TurntablePlayerKnobLabels} so the
+   * captions light up. Defaults to `Standby` (no caption lit).
+   */
+  speed?: TurntableSpeedValue;
+  /**
    * The knob rendered in the cluster: the decorative {@link TurntablePlayerKnob}
    * (prop-driven `Turntable` deck) or the interactive {@link TurntableKnob}
    * (hub-driven {@link HubControl}).
@@ -230,10 +288,10 @@ interface TurntablePlayerControlProps {
  *
  * @param props - {@link TurntablePlayerControlProps}.
  */
-export function TurntablePlayerControl({ children }: TurntablePlayerControlProps) {
+export function TurntablePlayerControl({ speed, children }: TurntablePlayerControlProps) {
   return (
     <span className="absolute bottom-[3.1%] left-[3.1%] z-30 aspect-square w-[19%] font-condensed text-[clamp(0.32rem,1.24vw,0.45rem)] font-bold leading-none tracking-[0.03em] text-white/70">
-      <TurntablePlayerKnobLabels />
+      <TurntablePlayerKnobLabels speed={speed} />
       {children}
     </span>
   );
@@ -270,16 +328,19 @@ export function HubPlatter({ record }: HubPlatterProps) {
 }
 
 /**
- * Hub-connected speed-control cluster: the static captions plus the interactive
+ * Hub-connected speed-control cluster: the lit captions plus the interactive
  * {@link TurntableKnob}, which reads/sets the speed on the hub itself.
  *
- * Must render inside a `TurntablePlayerProvider` (the knob calls
- * `useTurntablePlayer`). The standalone `Turntable` deck instead passes a
- * decorative knob via {@link TurntablePlayerControl}'s `speed` prop.
+ * Reads the live `speed` from the hub so the captions light the active detent,
+ * and renders the interactive knob. Must render inside a `TurntablePlayerProvider`
+ * (the knob calls `useTurntablePlayer`). The standalone `Turntable` deck instead
+ * passes an explicit `speed` plus a decorative knob to
+ * {@link TurntablePlayerControl}.
  */
 export function HubControl() {
+  const { speed } = useTurntablePlayer();
   return (
-    <TurntablePlayerControl>
+    <TurntablePlayerControl speed={speed}>
       <TurntableKnob />
     </TurntablePlayerControl>
   );

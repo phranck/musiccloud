@@ -106,6 +106,41 @@ describe("TurntablePlayer compound", () => {
     expect(screen.getByText("STANDBY")).toBeInTheDocument();
   });
 
+  it("lights the active speed caption white and the ON caption amber while powered", () => {
+    const { rerender } = render(
+      <StubHubProvider speed={TurntableSpeed.Rpm33} spinState={VinylSpinState.Playing}>
+        <TurntablePlayer.Control />
+      </StubHubProvider>,
+    );
+
+    // Rpm33 selected: "33" lit white, "ON" lit amber (powered), "45" unlit.
+    expect(screen.getByText("33")).toHaveStyle({ color: "rgb(255, 255, 255)" });
+    expect(screen.getByText("ON")).toHaveStyle({ color: "rgb(255, 159, 74)" });
+    expect(screen.getByText("45")).not.toHaveStyle({ color: "rgb(255, 255, 255)" });
+
+    rerender(
+      <StubHubProvider speed={TurntableSpeed.Rpm45} spinState={VinylSpinState.Playing}>
+        <TurntablePlayer.Control />
+      </StubHubProvider>,
+    );
+
+    // Rpm45 selected: "45" lit white, "ON" still amber, "33" unlit.
+    expect(screen.getByText("45")).toHaveStyle({ color: "rgb(255, 255, 255)" });
+    expect(screen.getByText("ON")).toHaveStyle({ color: "rgb(255, 159, 74)" });
+    expect(screen.getByText("33")).not.toHaveStyle({ color: "rgb(255, 255, 255)" });
+
+    rerender(
+      <StubHubProvider speed={TurntableSpeed.Standby} spinState={VinylSpinState.Idle}>
+        <TurntablePlayer.Control />
+      </StubHubProvider>,
+    );
+
+    // Standby: powered off, so nothing is lit.
+    expect(screen.getByText("ON")).not.toHaveStyle({ color: "rgb(255, 159, 74)" });
+    expect(screen.getByText("33")).not.toHaveStyle({ color: "rgb(255, 255, 255)" });
+    expect(screen.getByText("45")).not.toHaveStyle({ color: "rgb(255, 255, 255)" });
+  });
+
   it("lights the LED power attribute from the hub power state", () => {
     const { container, rerender } = render(
       <StubHubProvider speed={TurntableSpeed.Rpm33} spinState={VinylSpinState.Playing}>
@@ -278,8 +313,8 @@ const KNOB_RADIUS = 50;
  * @param container - The render container holding the knob.
  * @param angleDeg - Target drag angle in degrees.
  */
-async function dragKnobToAngle(container: HTMLElement, angleDeg: number) {
-  const dial = knob(container);
+/** Stubs the knob's bounding box to a fixed circle centred on {@link KNOB_CENTER}. */
+function stubKnobRect(dial: HTMLElement) {
   dial.getBoundingClientRect = () =>
     ({
       bottom: KNOB_CENTER.y + KNOB_RADIUS,
@@ -292,6 +327,11 @@ async function dragKnobToAngle(container: HTMLElement, angleDeg: number) {
       x: KNOB_CENTER.x - KNOB_RADIUS,
       y: KNOB_CENTER.y - KNOB_RADIUS,
     }) as DOMRect;
+}
+
+async function dragKnobToAngle(container: HTMLElement, angleDeg: number) {
+  const dial = knob(container);
+  stubKnobRect(dial);
 
   const radians = (angleDeg * Math.PI) / 180;
   const targetX = KNOB_CENTER.x + Math.cos(radians) * KNOB_RADIUS;
@@ -440,5 +480,28 @@ describe("TurntablePlayer interactive knob", () => {
     await dragKnobToAngle(container, 150);
     expect(screen.getByRole("button", { name: "Play preview" })).toBeInTheDocument();
     expect(ledPower(container)).toBe(TurntablePower.Standby);
+  });
+
+  it("snaps the indicator to a detent while dragging, never a free angle", () => {
+    const { container } = renderHubDeck();
+    const dial = knob(container);
+    stubKnobRect(dial);
+    const pointer = { button: 0, pointerId: 1, pointerType: "mouse" };
+    fireEvent.pointerDown(dial, { ...pointer, clientX: KNOB_CENTER.x, clientY: KNOB_CENTER.y });
+
+    // -140deg sits between the 33 (-150) and 45 (-120) captions; it is closer to
+    // 33, so mid-drag the indicator rests on the 33 detent (-150deg), not -140deg.
+    const toward33 = (-140 * Math.PI) / 180;
+    fireEvent.pointerMove(dial, {
+      ...pointer,
+      clientX: KNOB_CENTER.x + Math.cos(toward33) * KNOB_RADIUS,
+      clientY: KNOB_CENTER.y + Math.sin(toward33) * KNOB_RADIUS,
+    });
+    expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(-150deg) translateZ(0)" });
+
+    // 0deg points into the captionless gap; the knob stays clamped to the nearest
+    // allowed detent (45 at -120deg) rather than following the pointer there.
+    fireEvent.pointerMove(dial, { ...pointer, clientX: KNOB_CENTER.x + KNOB_RADIUS, clientY: KNOB_CENTER.y });
+    expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(-120deg) translateZ(0)" });
   });
 });

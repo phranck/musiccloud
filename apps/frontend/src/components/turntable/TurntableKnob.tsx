@@ -50,17 +50,15 @@ interface KnobDialProps extends React.HTMLAttributes<HTMLSpanElement> {
   indicatorAngleDeg: number;
   /**
    * When true, the dial is interactive: the indicator gets a GPU compositor
-   * layer (`translateZ(0)`) and animates the angle with a short transition for
-   * the snap-back on release. The decorative dial leaves it false, so its
-   * transform stays plain (byte-identical to the accepted optic). While the
-   * pointer is actively dragging, pass false via {@link animateIndicator} to
-   * track the pointer 1:1.
+   * layer (`translateZ(0)`) and eases to its angle with a short transition as it
+   * snaps between detents. The decorative dial leaves it false, so its transform
+   * stays plain (byte-identical to the accepted optic).
    */
   interactive?: boolean;
   /**
-   * Whether the indicator animates to its angle (the snap transition). Only
-   * meaningful when {@link interactive}; the caller sets it false while dragging
-   * so the line follows the pointer with no easing lag.
+   * Whether the indicator eases to its angle via a short transition. Only
+   * meaningful when {@link interactive}; the interactive knob keeps it on so the
+   * line glides as it snaps from one detent to the next.
    */
   animateIndicator?: boolean;
 }
@@ -121,14 +119,18 @@ const SPEED_VALUE_NOW: Record<TurntableSpeedValue, number> = {
   [TurntableSpeed.Rpm45]: 2,
 };
 
-/** Live drag tracking: the down point (for the threshold) and the current angle. */
+/** Live drag tracking: the down point (for the threshold) and the snapped stage. */
 interface KnobDragState {
   /** Pointer client X at press, used to measure drag distance. */
   startX: number;
   /** Pointer client Y at press, used to measure drag distance. */
   startY: number;
-  /** Current indicator angle in degrees while dragging. */
-  angleDeg: number;
+  /**
+   * The speed stage the live pointer angle snaps to. The knob rests on a stage
+   * (STANDBY/33/45) at all times and never points between captions, so the
+   * dragged value is a detent, not a free angle.
+   */
+  snappedSpeed: TurntableSpeedValue;
   /** True once the pointer has moved past {@link KNOB_DRAG_THRESHOLD_PX}. */
   moved: boolean;
 }
@@ -156,11 +158,12 @@ function pointerAngleDeg(rect: DOMRect, clientX: number, clientY: number): numbe
  * selects Standby / 33 / 45 on the {@link useTurntablePlayer} hub.
  *
  * Interaction (MC-071 design decision A — drag, not click-to-cycle):
- * - **Drag** (pointer down → move → up): the indicator follows the pointer 1:1
- *   while dragging; on release the angle snaps to the nearest stage via
- *   {@link speedFromAngle} and {@link useTurntablePlayer.setSpeed} applies it. A
- *   press with no real movement (below {@link KNOB_DRAG_THRESHOLD_PX}) is a
- *   no-op — pure drag semantics, no click-stepping.
+ * - **Drag** (pointer down → move → up): the live pointer angle snaps to the
+ *   nearest of the three stages (STANDBY/33/45) via {@link speedFromAngle}, so the
+ *   indicator rests on a detent and never points between captions while dragging;
+ *   on release {@link useTurntablePlayer.setSpeed} applies that stage. A press with
+ *   no real movement (below {@link KNOB_DRAG_THRESHOLD_PX}) is a no-op — pure drag
+ *   semantics, no click-stepping.
  * - **Keyboard**: Up/Right step toward a faster speed, Down/Left toward Standby
  *   (clamped via {@link stepSpeed}); Home selects Standby, End selects 45. The
  *   handled keys stop propagation so the page-global spacebar/arrow audio router
@@ -181,16 +184,18 @@ export function TurntableKnob() {
   const handlePointerDown = (event: PointerEvent<HTMLSpanElement>) => {
     if (event.button !== 0 && event.pointerType === "mouse") return;
     event.currentTarget.setPointerCapture(event.pointerId);
-    setDrag({ startX: event.clientX, startY: event.clientY, angleDeg: speedKnobAngle(speed), moved: false });
+    setDrag({ startX: event.clientX, startY: event.clientY, snappedSpeed: speed, moved: false });
   };
 
   const handlePointerMove = (event: PointerEvent<HTMLSpanElement>) => {
     if (!drag) return;
     const rect = event.currentTarget.getBoundingClientRect();
-    const angleDeg = pointerAngleDeg(rect, event.clientX, event.clientY);
+    // Snap the live pointer angle to the nearest stage so the knob steps between
+    // STANDBY/33/45 and never drifts to a free angle between the captions.
+    const snappedSpeed = speedFromAngle(pointerAngleDeg(rect, event.clientX, event.clientY));
     const moved =
       drag.moved || Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > KNOB_DRAG_THRESHOLD_PX;
-    setDrag({ ...drag, angleDeg, moved });
+    setDrag({ ...drag, snappedSpeed, moved });
   };
 
   const handlePointerUp = (event: PointerEvent<HTMLSpanElement>) => {
@@ -200,7 +205,7 @@ export function TurntableKnob() {
     // Only a real drag changes the speed; a tap with no movement is a no-op.
     // setSpeed runs synchronously here so the gesture activation survives for
     // AudioContext.resume() (no await before it).
-    if (drag?.moved) setSpeed(speedFromAngle(drag.angleDeg));
+    if (drag?.moved) setSpeed(drag.snappedSpeed);
     setDrag(null);
   };
 
@@ -246,7 +251,7 @@ export function TurntableKnob() {
     if (next !== speed) setSpeed(next);
   };
 
-  const indicatorAngleDeg = drag ? drag.angleDeg : speedKnobAngle(speed);
+  const indicatorAngleDeg = speedKnobAngle(drag ? drag.snappedSpeed : speed);
 
   return (
     <KnobDial
@@ -255,8 +260,9 @@ export function TurntableKnob() {
       aria-valuemin={SPEED_VALUE_NOW[TurntableSpeed.Standby]}
       aria-valuenow={SPEED_VALUE_NOW[speed]}
       aria-valuetext={SPEED_VALUE_TEXT[speed]}
-      // Snap-back transition only when not actively dragging.
-      animateIndicator={!drag}
+      // Ease the indicator to every stage so it glides as it snaps between
+      // detents while dragging and on a release/keyboard change.
+      animateIndicator
       className="cursor-grab touch-none active:cursor-grabbing"
       indicatorAngleDeg={indicatorAngleDeg}
       interactive

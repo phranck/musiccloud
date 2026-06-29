@@ -46,7 +46,7 @@ export function Turntable({ className, record }: TurntableProps) {
         speed={speed}
         spinState={spinState}
       />
-      <TurntablePlayerControl>
+      <TurntablePlayerControl speed={speed}>
         <TurntablePlayerKnob speed={speed} />
       </TurntablePlayerControl>
       <TurntablePlayerLed power={derivePower(speed)} />
