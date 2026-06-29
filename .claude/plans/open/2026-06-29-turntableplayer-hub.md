@@ -247,19 +247,13 @@ Wegen Größe und Risiko in vier separat testbare Einheiten geschnitten. Jede Ei
 
 ---
 
-## Offene Design-Fragen (User-Entscheid)
+## Entschiedene Design-Fragen (User, 2026-06-29)
 
-Diese UI-/Verhaltens-Entscheidungen sind **nicht** technisch ableitbar und müssen vor (oder spätestens zu Beginn von) Einheit 4 vom User beantwortet werden ([[feedback_no_technical_detail_questions]]: Produkt-/Verhaltens-Unklarheiten vorab fragen):
-
-- **A — Knob-Interaktion (Hauptfrage).**
-  - Wie schaltet der Knob? **Klick rotiert durch** STANDBY → 33 → 45 → (zurück auf STANDBY? oder 45 → 33 → STANDBY rückwärts? oder 45-Klick = no-op und nur explizit auf STANDBY?). Default-Annahme im Plan: zyklisch STANDBY → 33 → 45 → STANDBY.
-  - **Drag/Drehung statt Klick?** Soll der Knob per Maus-Drag (oder Touch-Drag) gedreht werden wie ein echter Schalter, oder reicht Klick-zum-Weiterschalten? Drag ist deutlich mehr Aufwand (Pointer-Events, Winkel-Mapping, A11y).
-  - **Drehanimation:** Soll der Indikator-Strich **animiert** von Position zu Position drehen (sanfter Übergang), oder hart umspringen? Falls animiert: über welche Dauer/Easing (GPU-only, transform/rotate, [[feedback_animations_always_gpu]]).
-  - **A11y-Form:** `<button>` mit `aria-label`-Toggle, oder `role="slider"` mit `aria-valuetext` (STANDBY/33/45)?
-- **B — Standardverhalten bei Play über Leertaste / Playbutton / Media-Key.** Wenn der User **nicht** den Knob, sondern Leertaste/Playbutton/Media-Key zum Starten nutzt: Auf welchen Speed springt der Knob — **33** (klassische LP-Default-Geschwindigkeit) oder **45**? Plan-Default-Annahme: **33**.
-- **C — Pause-/Stopp-Semantik des Knobs.** Bedeutet „Knob auf STANDBY" = **Pause** (Position bleibt erhalten, Resume möglich) oder **Stopp** (zurück auf Anfang)? Heute ist die zweite Taste/Klick = Pause (Position bleibt). Plan-Default-Annahme: STANDBY = Pause (konsistent mit heute).
-- **D — `VfdWaveFormDisplay` ist NICHT Teil von MC-071.** Laut `architecture/player-architecture.html` (Hub-Sektion, `<span class="tag new">geplant</span>`, „Kommt später dazu") ist die Wellenform-Anzeige ein späterer Schritt. **Annahme: außerhalb des Scopes von MC-071** — kein Code dafür in diesem Plan. Bestätigung einholen, falls der User sie doch mitnehmen will (dann eigener Plan).
-- **E — Speed sichtbar bei Cover-View / Landing-ohne-Share?** Der Knob/Platter ist nur in der `turntable`-View sichtbar. Soll der Hub-Speed-Zustand auch dann „real" geführt werden, wenn gar keine Turntable sichtbar ist (Cover-View, Landing-ohne-Share)? Plan-Default: Ja, der Hub führt den Zustand immer, sichtbar wird er nur in der Turntable-View — kein Sonderpfad.
+- **A — Knob-Interaktion: DRAG/DREHEN.** Der Knob wird per Maus- und Touch-Drag gedreht (Pointer-Events, Winkel-Mapping), nicht per Klick weitergeschaltet. Der gedraggte Winkel rastet auf die nächste Speed-Stufe (STANDBY → 33 → 45, abgeleitet aus der Label-Geometrie in `Turntable.tsx`). Der Indikator-Strich folgt dem Drag live und schnappt beim Loslassen auf die Stufenposition (GPU-only-Transform, [[feedback_animations_always_gpu]]). A11y: `role="slider"` mit `aria-valuetext` (STANDBY/33/45) und Keyboard-Steuerung (Pfeil hoch/runter ändert die Stufe), ohne die globale Leertasten-Play-Registry zu stören. `cycleSpeed` entfällt; stattdessen `setSpeed(speed)` plus ein reiner Helfer `speedFromAngle(deg): TurntableSpeed` in `turntableState.ts`, der den Drag-Winkel auf die nächstgelegene Stufe mappt (mit Unit-Test in Einheit 1).
+- **B — Default-Play-Speed: 33 RPM.** Play über Leertaste, Playbutton oder Media-Key setzt `speed = Rpm33`.
+- **C — STANDBY = STOPP (nicht Pause).** Knob auf STANDBY stoppt die Wiedergabe UND setzt die Position auf Anfang zurück (`audio.currentTime = 0`), nicht nur Pause. Der Provider (Einheit 2) ruft beim Übergang nach `Standby`: Engine pausieren falls spielend, plus `seekToStart()` (existiert in der Engine, MC-067) für den Reset auf 0. Beim nächsten ON (33/45) startet die Wiedergabe von vorn. **Das weicht vom heutigen Play/Pause ab** (heute bleibt die Position): in Einheit 2/4 explizit verdrahten und testen.
+- **D — `VfdWaveFormDisplay` außerhalb Scope** (bestätigt). Kein Code in MC-071, eigener späterer Plan.
+- **E — Hub führt Speed immer** (bestätigt), sichtbar nur in der Turntable-View, kein Sonderpfad.
 
 ---
 
