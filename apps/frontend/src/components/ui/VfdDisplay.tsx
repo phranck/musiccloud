@@ -52,6 +52,11 @@ function syncRenderStateLines(
   normalizedLines.forEach((line, index) => {
     const previousLine = state.lines[index];
     if (!previousLine || sameLinePresentation(previousLine, line)) {
+      // Overlays arm independently of line-text changes: a seek only bumps the
+      // overlay nonce, which `sameLinePresentation` ignores, so the row takes
+      // this early-return path. The `syncOverlayState` call must therefore run
+      // on BOTH this path and the post-transition one below — do not hoist it
+      // out as "duplicate", that would miss the unchanged-text seek case.
       syncOverlayState(state, line, index, now);
       return;
     }
@@ -68,6 +73,13 @@ function syncRenderStateLines(
   });
   for (const rowIndex of Array.from(state.transitions.keys())) {
     if (rowIndex >= rowCount) state.transitions.delete(rowIndex);
+  }
+  // Prune overlays orphaned by a row-count shrink (e.g. Container-mode resize):
+  // a mid-flight overlay on a now-dropped row index is never revisited by the
+  // render loop, so without this its entry would keep `overlays.size > 0` true
+  // forever and the shared ticker would never deregister.
+  for (const rowIndex of Array.from(state.overlays.keys())) {
+    if (rowIndex >= rowCount) state.overlays.delete(rowIndex);
   }
   state.lines = normalizedLines;
   state.cellCount = cellCount;

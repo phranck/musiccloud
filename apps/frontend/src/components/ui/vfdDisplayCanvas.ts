@@ -7,6 +7,7 @@ import {
   type VfdCanvasPixelColumn,
   type VfdCanvasRenderState,
   type VfdMarqueeMode,
+  type VfdOverlayRuntimeState,
   type VfdPixelBarSegment,
   VfdSectionAlign,
 } from "@/components/ui/VfdDisplayTypes";
@@ -328,6 +329,46 @@ function drawCanvasPixelColumns(
 }
 
 /**
+ * Builds the merged pixel-column buffer for a row that has a scroll-out overlay
+ * in flight: the overlay glyph buffer projected to its time-dependent start
+ * column, composited BEHIND the row's foreground columns.
+ *
+ * The overlay is occluded solidly within the foreground's lit span so the
+ * standing text reads as opaque, then shows through outside that span as it
+ * scrolls sideways. An empty foreground row yields `textFirst = 0` /
+ * `textLast = -1`, which makes the occlusion span vacuously empty so the
+ * overlay shows through a blank row.
+ *
+ * @param overlay - The running overlay runtime state for this row.
+ * @param foregroundColumns - The row's normal (foreground) pixel columns.
+ * @param now - Current `performance.now()` timestamp driving the progress.
+ * @returns The merged column buffer plus `done` (true once progress reaches 1).
+ */
+function overlayMergedColumns(
+  overlay: VfdOverlayRuntimeState,
+  foregroundColumns: VfdCanvasPixelColumn[],
+  now: number,
+): { columns: VfdCanvasPixelColumn[]; done: boolean } {
+  const progress = overlayProgress(overlay, now);
+  const overlaySource = contentCanvasPixelColumns(overlay.text, VfdBrightness.Bright);
+  const start = scrollOutStartColumn(overlay.direction, progress, foregroundColumns.length, overlaySource.length);
+  const overlayColumns = Array.from(
+    { length: foregroundColumns.length },
+    (_, index) => overlaySource[index - start] ?? blankCanvasColumn(VfdBrightness.Bright),
+  );
+  // Lit span of the foreground = the inclusive range the standing text occupies.
+  // An empty row leaves `textFirst = 0` / `textLast = -1`, an empty span, so the
+  // overlay is never occluded and shows through the blank row.
+  const litIndices = foregroundColumns.flatMap((column, index) => (column.mask !== 0 ? [index] : []));
+  const textFirst = litIndices[0] ?? 0;
+  const textLast = litIndices.at(-1) ?? -1;
+  return {
+    columns: mergeOverlayColumns(foregroundColumns, overlayColumns, textFirst, textLast),
+    done: progress >= 1,
+  };
+}
+
+/**
  * Renders the whole VFD frame onto the canvas, returning whether any
  * animation is still in flight so the caller knows whether to request the
  * next animation frame.
@@ -340,10 +381,12 @@ function drawCanvasPixelColumns(
  *    row band so the line-swap transition cannot bleed past the row.
  * 3. If the row has a transition in progress, render both the previous and
  *    the current line shifted vertically by the transition progress.
- * 4. Otherwise render only the current line.
+ * 4. Otherwise render the current line, compositing a scroll-out overlay
+ *    behind it when one is in flight.
  *
- * Returns `true` when at least one transition is still incomplete or at
- * least one marquee section is still animating.
+ * Returns `true` when at least one transition is still incomplete, at least
+ * one scroll-out overlay is in flight, or at least one marquee section is
+ * still animating.
  */
 export function drawVfdCanvas(
   canvas: HTMLCanvasElement,
@@ -401,21 +444,9 @@ export function drawVfdCanvas(
       hasActiveMarquee = hasActiveMarquee || current.hasActiveMarquee;
       const overlay = state.overlays.get(rowIndex);
       if (overlay && !state.prefersReducedMotion) {
-        const progress = overlayProgress(overlay, now);
-        const overlaySource = contentCanvasPixelColumns(overlay.text, VfdBrightness.Bright);
-        const start = scrollOutStartColumn(overlay.direction, progress, current.columns.length, overlaySource.length);
-        const overlayColumns = Array.from({ length: current.columns.length }, (_, index) => {
-          const source = overlaySource[index - start];
-          return source ?? blankCanvasColumn(VfdBrightness.Bright);
-        });
-        const litColumns = current.columns
-          .map((column, index) => (column.mask !== 0 ? index : -1))
-          .filter((index) => index >= 0);
-        const textFirst = litColumns.length > 0 ? litColumns[0] : 0;
-        const textLast = litColumns.length > 0 ? litColumns[litColumns.length - 1] : -1;
-        const merged = mergeOverlayColumns(current.columns, overlayColumns, textFirst, textLast);
-        drawCanvasPixelColumns(ctx, merged, rowTop, 0, colors);
-        if (progress >= 1) state.overlays.delete(rowIndex);
+        const { columns, done } = overlayMergedColumns(overlay, current.columns, now);
+        drawCanvasPixelColumns(ctx, columns, rowTop, 0, colors);
+        if (done) state.overlays.delete(rowIndex);
       } else {
         if (overlay) state.overlays.delete(rowIndex);
         drawCanvasPixelColumns(ctx, current.columns, rowTop, 0, colors);
