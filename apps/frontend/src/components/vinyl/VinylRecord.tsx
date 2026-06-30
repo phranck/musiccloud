@@ -45,6 +45,17 @@ const LP_COAST_TIMING = {
   // spin speed, so the coast picks up exactly where the spin left off instead of
   // momentarily slowing down (a visible "stutter") before easing out.
   easing: "cubic-bezier(0.1, 0.2, 0.3, 1)",
+  // Holds the final angle when the 2s coast ends, so the rotor does not snap back
+  // to its start angle for the one frame between the animation finishing and
+  // `onfinish` pinning the inline transform.
+  //
+  // CRITICAL LEARNING (cost a long debug session): a finished `fill: forwards`
+  // animation does NOT remove itself — it stays "in effect" in the element's Web
+  // Animations stack and keeps overriding the transform. It MUST be cancelled
+  // explicitly: see the `onfinish` cancel in `startRotorAnimation` AND the blanket
+  // `getAnimations()` cancel in `preserveRotorRotationAndCancel`. Leaving even one
+  // finished coast animation uncancelled is what made the rotor jump to a "random"
+  // angle (really: the stale coast end-angle) after repeated play/pause/play.
   fill: "forwards",
 } satisfies KeyframeAnimationOptions;
 const LABEL_TITLE_ARC_RADIUS = 44;
@@ -328,16 +339,27 @@ function fittedMonoFontSize(value: string, availableWidth: number, maxFontSize: 
 }
 
 /**
- * Captures the rotor's current Z rotation, stops the running animation, and pins
- * that angle as the inline transform. This is the handoff every play/pause/coast
- * transition runs through so the spin continues from where it is instead of
- * snapping.
+ * Captures the rotor's current Z rotation, stops EVERY animation on the rotor, and
+ * pins that angle as the inline transform. This is the handoff every
+ * play/pause/coast transition runs through so the spin continues from where it is
+ * instead of snapping.
  *
  * The live animated value is flushed into the inline style with `commitStyles()`
  * BEFORE `cancel()`: cancelling a compositor animation in Firefox otherwise drops
  * the transform back to its base value for a frame (a visible angle jump) before
  * the next animation takes over. Committing first leaves the current angle in
  * place across the cancel, so the angle is always carried over.
+ *
+ * **Why it cancels ALL animations, not only `animationRef.current` (hard-won):**
+ * the coast animation runs with `fill: forwards`. A finished fill-forwards
+ * animation does NOT remove itself from the element's Web Animations stack — it
+ * stays "in effect" and keeps contributing its end value to the computed
+ * transform. The coast's `onfinish` clears `animationRef`, so a later handoff has
+ * no reference to cancel it. Across repeated play/pause/play these orphaned coast
+ * animations pile up and override every new spin, pinning the rotor to a stale
+ * angle — the "rotor jumps to a random angle on repeated play/pause" bug.
+ * `element.getAnimations()` is the only way to reach and cancel the orphans; it is
+ * guarded with `?.()` because jsdom does not implement it.
  *
  * @param element - The rotor element carrying the spin transform.
  * @param animationRef - Mutable ref holding the active animation; cleared here.
@@ -358,6 +380,14 @@ function preserveRotorRotationAndCancel(element: HTMLElement, animationRef: { cu
     animation.cancel();
   }
   animationRef.current = null;
+  // Safety net: cancel EVERY other animation still attached to the rotor, not
+  // just the tracked one. A coast animation runs with `fill: forwards`; once it
+  // finishes it lingers in the element's effect stack and keeps overriding the
+  // transform, while its onfinish already cleared `animationRef` — so only a
+  // blanket cancel can remove it. Without this, repeated play/pause/play leaves
+  // a stack of finished coast animations pinning the rotor to a stale angle (the
+  // "random" jump). `getAnimations` is guarded because jsdom does not implement it.
+  for (const active of element.getAnimations?.() ?? []) active.cancel();
   const currentRotation = normalizeDegrees(readRotationDegrees(element));
   element.style.transform = rotateZ(currentRotation);
   return currentRotation;
@@ -397,7 +427,11 @@ function startRotorAnimation(
         LP_COAST_TIMING,
       );
       animation.onfinish = () => {
+        // Pin the final angle as the inline transform, THEN cancel — a finished
+        // `fill: forwards` animation otherwise lingers in the element's effect
+        // stack and overrides the next spin's transform (the rotor jump bug).
         element.style.transform = rotateZ(normalizeDegrees(finishRotation));
+        animation.cancel();
         if (animationRef.current === animation) animationRef.current = null;
       };
       animationRef.current = animation;
