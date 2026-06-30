@@ -84,13 +84,30 @@ function mediaViews() {
   return screen.getAllByTestId("song-info-props").map((node) => node.getAttribute("data-media-view"));
 }
 
-function expectAllMediaViews(view: string) {
-  expect(mediaViews()).toEqual([view, view]);
+function expectMediaView(view: string) {
+  expect(mediaViews()).toEqual([view]);
 }
 
 beforeEach(() => {
   delete document.documentElement.dataset.shareMediaView;
   vi.stubGlobal("localStorage", createLocalStorageMock());
+  // jsdom has no matchMedia. Stub it so useMediaQuery resolves a viewport: the
+  // min-width (desktop) query matches, everything else (reduced-motion, etc.)
+  // does not — so ShareLayout renders ONLY the desktop layout, never both.
+  vi.stubGlobal(
+    "matchMedia",
+    (query: string) =>
+      ({
+        matches: query.includes("min-width"),
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }) as unknown as MediaQueryList,
+  );
 });
 
 afterEach(() => {
@@ -101,16 +118,23 @@ afterEach(() => {
 });
 
 describe("ShareLayout media view toggle", () => {
-  it("starts in cover view and toggles desktop and mobile media props with P", () => {
+  it("renders only the viewport-matching layout, never both", () => {
+    renderShareLayout();
+    // Desktop viewport (matchMedia min-width matches) → exactly one media card,
+    // not one per layout. The non-matching layout must not be in the DOM.
+    expect(screen.getAllByTestId("song-info-props")).toHaveLength(1);
+  });
+
+  it("starts in cover view and toggles the active layout's media props with P", () => {
     renderShareLayout();
 
-    expectAllMediaViews("cover");
+    expectMediaView("cover");
 
     fireEvent.keyDown(window, { key: "p" });
-    expectAllMediaViews("turntable");
+    expectMediaView("turntable");
 
     fireEvent.keyDown(window, { key: "P" });
-    expectAllMediaViews("cover");
+    expectMediaView("cover");
   });
 
   it("restores and persists the selected media view", () => {
@@ -118,12 +142,12 @@ describe("ShareLayout media view toggle", () => {
 
     renderShareLayout();
 
-    expectAllMediaViews("turntable");
+    expectMediaView("turntable");
     expect(document.documentElement.dataset.shareMediaView).toBe("turntable");
 
     fireEvent.keyDown(window, { key: "p" });
 
-    expectAllMediaViews("cover");
+    expectMediaView("cover");
     expect(window.localStorage.getItem("musiccloud:share-media-view")).toBe("cover");
     expect(document.documentElement.dataset.shareMediaView).toBe("cover");
   });
@@ -144,7 +168,7 @@ describe("ShareLayout media view toggle", () => {
       </>,
     );
 
-    expectAllMediaViews("cover");
+    expectMediaView("cover");
 
     fireEvent.keyDown(screen.getByTestId("search-input"), { key: "p" });
     fireEvent.keyDown(screen.getByTestId("plain-button"), { key: "p" });
@@ -153,6 +177,6 @@ describe("ShareLayout media view toggle", () => {
     fireEvent.keyDown(window, { ctrlKey: true, key: "p" });
     fireEvent.keyDown(window, { key: "p", repeat: true });
 
-    expectAllMediaViews("cover");
+    expectMediaView("cover");
   });
 });

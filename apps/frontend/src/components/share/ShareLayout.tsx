@@ -153,6 +153,7 @@ import { ShareMediaView, type ShareMediaView as ShareMediaViewType } from "@/com
 import { ToastProvider } from "@/context/ToastContext";
 import { ArtistLoadStatus, useArtistInfo } from "@/hooks/useArtistInfo";
 import { useIsClient } from "@/hooks/useIsClient";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useOverlayEscape } from "@/hooks/useOverlayEscape";
 import { LocaleProvider } from "@/i18n/context";
 import { useT } from "@/i18n/localeContext";
@@ -358,6 +359,16 @@ function ShareLayoutInner({
     onFetchSettled: handleArtistFetchSettled,
   });
   const mounted = useIsClient();
+  // Render ONLY the layout that matches the viewport, never both. Before mount
+  // (SSR + first client render) both render — the CSS responsive classes hide
+  // the wrong one, so there is no flash and SSR/hydration agree. After mount the
+  // non-matching layout (a full second media card + the mobile artist sheet, all
+  // previously display:none-but-still-recalculated) unmounts, halving the DOM and
+  // — critically — the per-frame style recalc the day/night cross-fade triggers.
+  // 1080px mirrors `MobileShareLayout`'s `min-[1080px]:hidden` breakpoint.
+  const isDesktop = useMediaQuery("(min-width: 1080px)");
+  const showDesktop = !mounted || isDesktop;
+  const showMobile = !mounted || !isDesktop;
 
   useEffect(() => {
     dispatchUi({
@@ -523,30 +534,35 @@ function ShareLayoutInner({
   return (
     <div className="w-full">
       <ShareBackLink label={backLabel} onBack={onBack} />
-      <DesktopShareLayout
-        animated={animated}
-        artistData={artistData}
-        artistLoadStatus={artistLoadStatus}
-        config={enrichedConfig}
-        isLoading={isLoading}
-        labels={artistLabels}
-        onArtistResolveStart={handleArtistResolveStart}
-        onPreviewStatusChange={handlePreviewStatusChange}
-        onTrackResolve={resolveTrack}
-        previewStatus={previewStatus}
-        shareMediaView={shareMediaView}
-        userRegion={userRegion}
-      />
-      <MobileShareLayout
-        animated={animated}
-        config={enrichedConfig}
-        label={t("artist.mobileButton")}
-        onOpenSheet={openSheet}
-        onPreviewStatusChange={handlePreviewStatusChange}
-        previewStatus={previewStatus}
-        shareMediaView={shareMediaView}
-      />
+      {showDesktop && (
+        <DesktopShareLayout
+          animated={animated}
+          artistData={artistData}
+          artistLoadStatus={artistLoadStatus}
+          config={enrichedConfig}
+          isLoading={isLoading}
+          labels={artistLabels}
+          onArtistResolveStart={handleArtistResolveStart}
+          onPreviewStatusChange={handlePreviewStatusChange}
+          onTrackResolve={resolveTrack}
+          previewStatus={previewStatus}
+          shareMediaView={shareMediaView}
+          userRegion={userRegion}
+        />
+      )}
+      {showMobile && (
+        <MobileShareLayout
+          animated={animated}
+          config={enrichedConfig}
+          label={t("artist.mobileButton")}
+          onOpenSheet={openSheet}
+          onPreviewStatusChange={handlePreviewStatusChange}
+          previewStatus={previewStatus}
+          shareMediaView={shareMediaView}
+        />
+      )}
       {mounted &&
+        !isDesktop &&
         createPortal(
           <MobileArtistSheet
             artistData={artistData}
