@@ -9,7 +9,7 @@
  */
 
 import type { ArtistInfoResponse, ArtistTopTrack } from "@musiccloud/shared";
-import { useCallback, useEffect, useMemo, useReducer } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { createPortal } from "react-dom";
 
 const ShareUiActionType = {
@@ -17,6 +17,7 @@ const ShareUiActionType = {
   ArtistReadyHidden: "artistReadyHidden",
   ArtistReadyVisible: "artistReadyVisible",
   CloseSheet: "closeSheet",
+  MediaViewRestored: "mediaViewRestored",
   MediaViewToggled: "mediaViewToggled",
   OpenSheet: "openSheet",
   PreviewStatusChanged: "previewStatusChanged",
@@ -44,6 +45,7 @@ type ShareUiAction =
   | { type: typeof ShareUiActionType.ArtistReadyHidden }
   | { type: typeof ShareUiActionType.ArtistReadyVisible }
   | { type: typeof ShareUiActionType.CloseSheet }
+  | { type: typeof ShareUiActionType.MediaViewRestored; view: ShareMediaViewType }
   | { type: typeof ShareUiActionType.MediaViewToggled }
   | { type: typeof ShareUiActionType.OpenSheet }
   | { type: typeof ShareUiActionType.PreviewStatusChanged; status: AudioStatus | null }
@@ -74,6 +76,8 @@ function shareUiReducer(state: ShareUiState, action: ShareUiAction): ShareUiStat
       return { ...state, artistReadyVisible: true };
     case ShareUiActionType.CloseSheet:
       return { ...state, sheetOpen: false };
+    case ShareUiActionType.MediaViewRestored:
+      return { ...state, shareMediaView: action.view };
     case ShareUiActionType.MediaViewToggled:
       return { ...state, shareMediaView: nextShareMediaView(state.shareMediaView) };
     case ShareUiActionType.OpenSheet:
@@ -130,7 +134,11 @@ function initialShareUiState({
     previewStatus: null,
     resolveErrorVisible: false,
     resolveTriggeredArtistLoad: false,
-    shareMediaView: readPersistedShareMediaView(),
+    // Always the server's default. The persisted view is restored after mount
+    // (see the restore effect) so the SSR markup and the client's first render
+    // match — reading localStorage here would diverge and trip a hydration
+    // mismatch on the cover stage.
+    shareMediaView: ShareMediaView.Cover,
     sheetOpen: false,
   };
 }
@@ -371,7 +379,27 @@ function ShareLayoutInner({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // Restore the persisted media view once after mount. The initial render uses
+  // the server's `Cover` default (the server has no localStorage), so the SSR
+  // markup and the client's first render match — no hydration mismatch. The
+  // pre-paint inline script + the `html[data-share-media-view]` CSS override
+  // (animations.css) hold the cover off-screen until this runs, so the
+  // turntable view restores without a cover flash.
   useEffect(() => {
+    const persisted = readPersistedShareMediaView();
+    if (persisted !== ShareMediaView.Cover) {
+      dispatchUi({ type: ShareUiActionType.MediaViewRestored, view: persisted });
+    }
+  }, []);
+
+  // Persist the media view on change. Skips the initial mount so it cannot
+  // clobber the persisted value before the restore effect above reads it.
+  const mediaViewPersistReadyRef = useRef(false);
+  useEffect(() => {
+    if (!mediaViewPersistReadyRef.current) {
+      mediaViewPersistReadyRef.current = true;
+      return;
+    }
     persistShareMediaView(shareMediaView);
   }, [shareMediaView]);
 
