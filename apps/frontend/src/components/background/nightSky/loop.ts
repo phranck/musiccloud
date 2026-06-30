@@ -1,4 +1,4 @@
-import { DAY_FADE_FPS, daynessForLocalTime, type NightSkySettings } from "./settings";
+import { DAY_FADE_FPS, daynessForLocalTime, type NightSkySettings, smooth01 } from "./settings";
 
 /**
  * The slice of the scene the driver needs — kept minimal so tests can pass
@@ -14,12 +14,6 @@ interface DayFade {
   from: number;
   to: number;
   startMs: number | null;
-}
-
-/** Clamped smoothstep on 0..1 — the fade easing (same curve as the prototype). */
-function smooth01(t: number): number {
-  const c = Math.max(0, Math.min(1, t));
-  return c * c * (3 - 2 * c);
 }
 
 /**
@@ -105,9 +99,7 @@ export class NightSkyDriver {
     if (this.lastDrawMs != null && nowMs - this.lastDrawMs < intervalMs - 1) return;
     if (!animating && !this.needsRedraw && !this.fade) return;
 
-    this.needsRedraw = false;
-    this.lastDrawMs = nowMs;
-    this.scene.draw(this.simTime);
+    this.commitDraw(nowMs);
   }
 
   /**
@@ -194,6 +186,20 @@ export class NightSkyDriver {
       this.needsRedraw = true;
       return;
     }
+    this.commitDraw(nowMs);
+  }
+
+  /**
+   * Commits one frame: clears the pending-redraw flag, re-anchors the fps gate
+   * on `nowMs`, and draws at the current sim time. The single source of truth
+   * for "a frame was drawn", shared by the gated {@link tick} path and the
+   * gate-bypassing {@link redrawNow}, so the draw invariant (clear flag +
+   * anchor gate + draw) can never drift between the two call sites. The gates
+   * (visibility, fps cap) stay at the call site; this only commits.
+   *
+   * @param nowMs - Monotonic timestamp the fps gate re-anchors on.
+   */
+  private commitDraw(nowMs: number): void {
     this.needsRedraw = false;
     this.lastDrawMs = nowMs;
     this.scene.draw(this.simTime);

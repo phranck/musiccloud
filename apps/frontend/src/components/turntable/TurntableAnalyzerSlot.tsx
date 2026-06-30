@@ -1,5 +1,5 @@
 import { Player } from "@/components/playback/Player";
-import { useTurntablePlayer } from "@/components/turntable/TurntablePlayerContext";
+import { useTurntablePlayer, useTurntableProgress } from "@/components/turntable/TurntablePlayerContext";
 
 /**
  * The transport "remote" of the turntable hub: the play/pause button and the
@@ -13,6 +13,10 @@ import { useTurntablePlayer } from "@/components/turntable/TurntablePlayerContex
  */
 export function TurntableAnalyzerSlot() {
   const hub = useTurntablePlayer();
+  // Progress comes from its own context: it updates ~60×/s, and subscribing to
+  // it here (rather than via the main hub value) keeps that churn from
+  // re-rendering the LED/platter/knob, which read only the stable hub value.
+  const progressRatio = useTurntableProgress();
 
   return (
     <section aria-label={`${hub.mediaLabel}: ${hub.trackTitle}`}>
@@ -20,7 +24,7 @@ export function TurntableAnalyzerSlot() {
         isPlaying={hub.isPlaying}
         isDisabled={hub.isDisabled}
         timeText={hub.timeText}
-        progressRatio={hub.progressRatio}
+        progressRatio={progressRatio}
         ariaLabel={hub.ariaLabel}
         title={hub.title}
         onTogglePlay={hub.togglePlay}

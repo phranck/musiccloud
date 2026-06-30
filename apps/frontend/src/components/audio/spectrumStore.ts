@@ -65,33 +65,6 @@ export function isSpectrumActive(): boolean {
 }
 
 /**
- * Copies one channel's band levels into a fixed-width destination buffer,
- * never reading past the destination's capacity.
- *
- * @param source - Producer band values (may be longer than the channel width).
- * @param destination - Pre-allocated store buffer to fill in place.
- */
-function copyBands(source: readonly number[], destination: Float32Array): void {
-  const count = Math.min(source.length, destination.length);
-  for (let index = 0; index < count; index += 1) {
-    destination[index] = source[index] ?? 0;
-  }
-}
-
-/**
- * Writes both channels' band levels into the store in place. Excess source
- * entries beyond {@link SPECTRUM_STORE_BAND_COUNT} are ignored; does not
- * notify (call {@link publishSpectrumFrame} once the whole frame is written).
- *
- * @param left - Left-channel band values.
- * @param right - Right-channel band values.
- */
-export function writeSpectrumBands(left: readonly number[], right: readonly number[]): void {
-  copyBands(left, frame.leftBands);
-  copyBands(right, frame.rightBands);
-}
-
-/**
  * Writes the smoothed per-channel VU levels in place. Does not notify.
  *
  * @param left - Left-channel level (0..1).

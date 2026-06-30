@@ -57,7 +57,6 @@ function StubHubProvider({
       isUnavailable: false,
       mediaLabel: "Preview",
       power: derivePower(speed),
-      progressRatio: 0,
       seekBy: noop,
       seekToNearEnd: noop,
       seekToStart: noop,

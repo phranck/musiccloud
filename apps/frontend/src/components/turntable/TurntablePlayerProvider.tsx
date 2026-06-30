@@ -5,14 +5,16 @@ import { AudioStatus, type AudioStatus as AudioStatusValue } from "@/components/
 import {
   TurntablePlayerContext,
   type TurntablePlayerContextValue,
+  TurntableProgressContext,
   TurntableSpeed,
   type TurntableSpeed as TurntableSpeedValue,
 } from "@/components/turntable/TurntablePlayerContext";
 import { derivePower, deriveSpinState } from "@/components/turntable/turntableState";
-import { VinylSpinState, type VinylSpinState as VinylSpinStateValue } from "@/components/vinyl/VinylRecord.types";
-
-/** Wind-down window after playback stops before the rotor returns to idle. */
-const LP_COAST_DURATION_MS = 2000;
+import {
+  LP_COAST_DURATION_MS,
+  VinylSpinState,
+  type VinylSpinState as VinylSpinStateValue,
+} from "@/components/vinyl/VinylRecord.types";
 
 /** The engine props the hub forwards to {@link useAudioController}, plus children. */
 interface TurntablePlayerProviderProps extends AudioPlayerProps {
@@ -166,7 +168,6 @@ export function TurntablePlayerProvider({
       isUnavailable: engine.isUnavailable,
       mediaLabel: engine.mediaLabel,
       power: derivePower(hubState.speed),
-      progressRatio: engine.progressRatio,
       seekBy: engine.seekBy,
       seekToNearEnd: engine.seekToNearEnd,
       seekToStart: engine.seekToStart,
@@ -177,8 +178,33 @@ export function TurntablePlayerProvider({
       togglePlay: engine.togglePlay,
       trackTitle: engine.trackTitle,
     }),
-    [engine, hubState.speed, hubState.spinState],
+    // Depend on the individual engine fields, NOT the `engine` object: useAudioController
+    // returns a fresh object every render (including the ~60fps progress ticks), so a bare
+    // `engine` dep would recompute this value — and re-render every hub consumer — each
+    // frame. progressRatio is intentionally NOT part of this value; it rides its own
+    // TurntableProgressContext below so only the analyzer slot re-renders per frame.
+    [
+      engine.ariaLabel,
+      engine.isDisabled,
+      engine.isLoading,
+      engine.isPlaying,
+      engine.isUnavailable,
+      engine.mediaLabel,
+      engine.seekBy,
+      engine.seekToNearEnd,
+      engine.seekToStart,
+      engine.timeText,
+      engine.title,
+      engine.togglePlay,
+      engine.trackTitle,
+      hubState.speed,
+      hubState.spinState,
+    ],
   );
 
-  return <TurntablePlayerContext.Provider value={value}>{children}</TurntablePlayerContext.Provider>;
+  return (
+    <TurntablePlayerContext.Provider value={value}>
+      <TurntableProgressContext.Provider value={engine.progressRatio}>{children}</TurntableProgressContext.Provider>
+    </TurntablePlayerContext.Provider>
+  );
 }

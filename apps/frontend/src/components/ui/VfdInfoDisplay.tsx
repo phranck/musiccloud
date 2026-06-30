@@ -1,6 +1,7 @@
 import {
   VfdBrightness,
   VfdDisplay,
+  type VfdDisplaySection,
   VfdMarqueeMode,
   VfdScrollOutDirection,
   type VfdScrollOutOverlay,
@@ -92,6 +93,24 @@ export function VfdInfoDisplay({ title, artist, detailLine, metaLine, statusLine
       }
     : undefined;
 
+  // Row 1 sections, built in the render body (not module scope) because they
+  // close over the runtime `title`/`metaLine` props (Doctor separate-logic).
+  // The title section gets the remaining cells and scrolls only if it
+  // overflows; VfdDisplay stays generic and only knows section sizing/alignment.
+  const titleSection: VfdDisplaySection = {
+    content: title,
+    cells: VfdSectionCells.Fill,
+    align: VfdSectionAlign.Left,
+    marquee: VfdMarqueeMode.Overflow,
+  };
+  // Right-pinned duration/year, appended only when metaLine is set so the title
+  // keeps the full row otherwise.
+  const metaSection: VfdDisplaySection = {
+    content: ` ${metaLine}`,
+    cells: VfdSectionCells.Auto,
+    align: VfdSectionAlign.Right,
+  };
+
   return (
     <VfdDisplay
       sizingMode={VfdSizingMode.Container}
@@ -99,32 +118,7 @@ export function VfdInfoDisplay({ title, artist, detailLine, metaLine, statusLine
       lines={[
         {
           brightness: VfdBrightness.Bright,
-          sections: metaLine
-            ? [
-                {
-                  content: title,
-                  cells: VfdSectionCells.Fill,
-                  align: VfdSectionAlign.Left,
-                  marquee: VfdMarqueeMode.Overflow,
-                },
-                // Keep duration/year pinned on the right while the
-                // title gets the remaining cells and scrolls only if
-                // it overflows. VfdDisplay stays generic: it only
-                // knows section sizing/alignment, not song metadata.
-                {
-                  content: ` ${metaLine}`,
-                  cells: VfdSectionCells.Auto,
-                  align: VfdSectionAlign.Right,
-                },
-              ]
-            : [
-                {
-                  content: title,
-                  cells: VfdSectionCells.Fill,
-                  align: VfdSectionAlign.Left,
-                  marquee: VfdMarqueeMode.Overflow,
-                },
-              ],
+          sections: metaLine ? [titleSection, metaSection] : [titleSection],
         },
         { content: artist, brightness: VfdBrightness.Bright },
         { content: detailLine, brightness: VfdBrightness.Bright },

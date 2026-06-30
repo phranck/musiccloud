@@ -63,8 +63,6 @@ export interface TurntablePlayerContextValue {
   isUnavailable: boolean;
   /** Pre-formatted elapsed/remaining time string for the analyzer display. */
   timeText: string;
-  /** Playback progress in the `[0, 1]` range. */
-  progressRatio: number;
   /** Accessible label describing the current transport action. */
   ariaLabel: string;
   /** Optional native `title` tooltip for the transport control. */
@@ -112,4 +110,26 @@ export function useTurntablePlayer(): TurntablePlayerContextValue {
   return ctx;
 }
 
-export { TurntablePlayerContext };
+/**
+ * Live playback progress (`[0, 1]`), carried in its OWN context separate from
+ * {@link TurntablePlayerContextValue}.
+ *
+ * The progress updates ~60×/s while playing. Keeping it out of the main hub
+ * value means that high-frequency churn no longer invalidates the hub value
+ * identity and re-renders every hub consumer (LED, platter, knob) each frame —
+ * only the analyzer slot, which actually paints the progress bar, subscribes
+ * here. Defaults to 0 so a consumer outside a provider degrades gracefully
+ * instead of throwing.
+ */
+const TurntableProgressContext = createContext<number>(0);
+
+/**
+ * Reads the live playback progress (`[0, 1]`) from {@link TurntableProgressContext}.
+ *
+ * @returns The current progress ratio, or 0 when used outside a provider.
+ */
+export function useTurntableProgress(): number {
+  return use(TurntableProgressContext);
+}
+
+export { TurntablePlayerContext, TurntableProgressContext };

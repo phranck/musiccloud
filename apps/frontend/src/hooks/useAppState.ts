@@ -115,19 +115,10 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
       try {
         const useCc = jamendoCandidate !== null || mode === ResolveMode.Cc;
         const endpoint = useCc ? ENDPOINTS.frontend.ccResolve : ENDPOINTS.frontend.resolve;
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 15000);
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(jamendoCandidate ? { selectedCandidate: jamendoCandidate } : { query: url }),
-          signal: controller.signal,
-        });
-        clearTimeout(timeout);
-        if (!response.ok) {
-          const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
-          throw new ResolveApiError(errorData);
-        }
+        const response = await resolveFetch(
+          endpoint,
+          jamendoCandidate ? { selectedCandidate: jamendoCandidate } : { query: url },
+        );
         const data = (await response.json()) as
           | UnifiedResolveSuccessResponse
           | ResolveDisambiguationResponse
@@ -180,19 +171,7 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
       dispatch({ type: "SELECT_CANDIDATE", selectedId: candidate.id });
       try {
         const endpoint = mode === ResolveMode.Cc ? ENDPOINTS.frontend.ccResolve : ENDPOINTS.frontend.resolve;
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 15000);
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ selectedCandidate: candidate.id }),
-          signal: controller.signal,
-        });
-        clearTimeout(timeout);
-        if (!response.ok) {
-          const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
-          throw new ResolveApiError(errorData);
-        }
+        const response = await resolveFetch(endpoint, { selectedCandidate: candidate.id });
         if (mode === ResolveMode.Cc) {
           const data = (await response.json()) as CcResolveData;
           sendMusicSignal(ResolveSignal.Completed);
@@ -225,25 +204,13 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
     async (webUrl: string, id: string) => {
       dispatch({ type: "SELECT_GENRE_RESULT", selectedId: id });
       try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 15000);
         // CC genre results resolve through the CC endpoint: the candidate carries
         // `id = "jamendo:<id>"`, fed straight back as `selectedCandidate`, so the
         // result stays 100% Jamendo. Commercial results resolve the picked Deezer URL.
-        const response = await fetch(
+        const response = await resolveFetch(
           mode === ResolveMode.Cc ? ENDPOINTS.frontend.ccResolve : ENDPOINTS.frontend.resolve,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(mode === ResolveMode.Cc ? { selectedCandidate: id } : { query: webUrl }),
-            signal: controller.signal,
-          },
+          mode === ResolveMode.Cc ? { selectedCandidate: id } : { query: webUrl },
         );
-        clearTimeout(timeout);
-        if (!response.ok) {
-          const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
-          throw new ResolveApiError(errorData);
-        }
         if (mode === ResolveMode.Cc) {
           const data = (await response.json()) as CcResolveData;
           sendMusicSignal(ResolveSignal.Completed);
@@ -292,6 +259,44 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
     handleBack,
     handleClear,
   };
+}
+
+/** Resolve fetches abort after this long so a stalled backend cannot hang the UI. */
+const RESOLVE_FETCH_TIMEOUT_MS = 15000;
+
+/**
+ * POSTs a JSON resolve request to `endpoint` with a {@link RESOLVE_FETCH_TIMEOUT_MS}
+ * abort budget and returns the raw OK `Response` for the caller to parse.
+ *
+ * The success body is intentionally NOT decoded here: each caller reads a
+ * different discriminated union (unified / disambiguation / genre-browse /
+ * genre-search / CC), so that branching stays at the call site. On a non-OK
+ * status it throws {@link ResolveApiError} built from the error body. The abort
+ * timer is cleared in a `finally`, so even a network rejection cannot leave a
+ * dangling timer that later aborts an already-settled request.
+ *
+ * @param endpoint - Resolve endpoint URL.
+ * @param body - Request payload, JSON-stringified as the POST body.
+ * @returns The OK `Response`, ready for the caller to `json()`.
+ */
+async function resolveFetch(endpoint: string, body: unknown): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), RESOLVE_FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const errorData = (await response.json().catch(() => ({}))) as Partial<ResolveErrorResponse>;
+      throw new ResolveApiError(errorData);
+    }
+    return response;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function dispatchResolveError(dispatch: Dispatch<{ type: "ERROR"; error: ResolveUiError }>, err: unknown): void {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { DisplaySignal, sendMusicSignal } from "@/lib/analytics/umami";
+import { createModeStore } from "@/lib/createModeStore";
 
 /**
  * Two display modes for the audio preview's spectrum/level indicator.
@@ -18,58 +19,25 @@ export const AnalyzerMode = {
 
 export type AnalyzerMode = (typeof AnalyzerMode)[keyof typeof AnalyzerMode];
 
-const STORAGE_KEY = "mc.player.analyzerMode";
+// Core persistence + subscriber fan-out via the shared factory. The
+// analyzer-specific layer below (toggle analytics, the "D" keybinding, and the
+// SSR-safe hook) is kept local on top of this store.
+const store = createModeStore<AnalyzerMode>({
+  storageKey: "mc.player.analyzerMode",
+  defaultMode: AnalyzerMode.MultiBand,
+  isValid: (value): value is AnalyzerMode => value === AnalyzerMode.MultiBand || value === AnalyzerMode.StereoVu,
+});
 
-let currentMode: AnalyzerMode = AnalyzerMode.MultiBand;
-let initialized = false;
 let activePlayerCount = 0;
-const subscribers = new Set<(mode: AnalyzerMode) => void>();
-
-function isAnalyzerMode(value: unknown): value is AnalyzerMode {
-  return value === AnalyzerMode.MultiBand || value === AnalyzerMode.StereoVu;
-}
-
-function readStoredMode(): AnalyzerMode {
-  if (typeof window === "undefined") return AnalyzerMode.MultiBand;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    return isAnalyzerMode(raw) ? raw : AnalyzerMode.MultiBand;
-  } catch {
-    return AnalyzerMode.MultiBand;
-  }
-}
-
-function writeStoredMode(mode: AnalyzerMode): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, mode);
-  } catch {
-    // Storage may be disabled (private mode quota, blocked cookies, etc.).
-    // The mode then stays in-memory for the current session, which is fine
-    // because the persistence is purely a convenience.
-  }
-}
-
-function ensureClientInit(): void {
-  if (initialized || typeof window === "undefined") return;
-  initialized = true;
-  currentMode = readStoredMode();
-}
-
-function notifySubscribers(): void {
-  for (const subscriber of subscribers) subscriber(currentMode);
-}
 
 /**
  * Flip the current analyzer mode and broadcast the change to all subscribed
  * players. The new mode is persisted to localStorage so it survives reloads.
  */
 export function toggleAnalyzerMode(): void {
-  ensureClientInit();
-  currentMode = currentMode === AnalyzerMode.MultiBand ? AnalyzerMode.StereoVu : AnalyzerMode.MultiBand;
-  writeStoredMode(currentMode);
-  sendMusicSignal(currentMode === AnalyzerMode.StereoVu ? DisplaySignal.VuMeter : DisplaySignal.Analyzer);
-  notifySubscribers();
+  const next = store.getMode() === AnalyzerMode.MultiBand ? AnalyzerMode.StereoVu : AnalyzerMode.MultiBand;
+  store.setMode(next);
+  sendMusicSignal(next === AnalyzerMode.StereoVu ? DisplaySignal.VuMeter : DisplaySignal.Analyzer);
 }
 
 function isTextInputTarget(target: EventTarget | null): boolean {
@@ -120,12 +88,14 @@ export function useAnalyzerMode(): AnalyzerMode {
   const [mode, setMode] = useState<AnalyzerMode>(AnalyzerMode.MultiBand);
 
   useEffect(() => {
-    ensureClientInit();
-    setMode(currentMode);
-    subscribers.add(setMode);
+    // Sync to the stored preference (getMode hydrates on first client access),
+    // then track changes. The initial render stays MultiBand so SSR and the
+    // first client render match before this effect upgrades the value.
+    setMode(store.getMode());
+    const unsubscribe = store.subscribe(setMode);
     activatePlayer();
     return () => {
-      subscribers.delete(setMode);
+      unsubscribe();
       deactivatePlayer();
     };
   }, []);

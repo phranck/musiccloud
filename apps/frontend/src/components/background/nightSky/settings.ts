@@ -229,8 +229,16 @@ export const NIGHT_SKY_RANGES: Record<
  */
 export const DAY_FADE_FPS = 30;
 
-/** Clamped smoothstep on 0..1 (the twilight ramp shape, ported from the prototype). */
-function smooth01(t: number): number {
+/**
+ * Clamped smoothstep on 0..1 (`3t²−2t³`, ported from the prototype). The single
+ * easing curve shared by the two ramps that need it: the twilight day-amount
+ * ramp here ({@link daynessForLocalTime}) and the manual day-fade easing in the
+ * loop driver.
+ *
+ * @param t - Input, clamped to [0, 1] before easing.
+ * @returns The eased value in [0, 1].
+ */
+export function smooth01(t: number): number {
   const c = Math.max(0, Math.min(1, t));
   return c * c * (3 - 2 * c);
 }

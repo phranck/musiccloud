@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { useEffect, useId, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { VinylSpinState, type VinylSpinState as VinylSpinStateValue } from "./VinylRecord.types";
+import { LP_COAST_DURATION_MS, VinylSpinState, type VinylSpinState as VinylSpinStateValue } from "./VinylRecord.types";
 
 export interface VinylRecordProps {
   className: string;
@@ -30,7 +30,6 @@ const LABEL_TECH_TEXT = "DMM";
  * single fixed speed, so this is the one and only revolution tempo.
  */
 const LP_ROTATION_DURATION_MS = 1800;
-const LP_COAST_DURATION_MS = 2000;
 const LP_COAST_DEGREES = 200;
 
 /** Looping playing-spin timing: one constant-tempo revolution, repeated forever. */
@@ -522,7 +521,16 @@ export function VinylRecord({
             as one cached GPU layer instead of re-rasterising a heavy vector path
             each frame; the base shade and rim stay static. */}
         <div
-          className="absolute inset-0 z-10 rounded-full transform-gpu will-change-transform"
+          // will-change is toggled with the spin state, not left on permanently:
+          // it hints a compositor layer only while the rotor actually animates
+          // (playing/coasting) and drops it at rest, so an idle deck — the common
+          // case on a share page before play — holds no standing GPU layer. The
+          // transitions are user-driven (play/pause), never per-frame, so this is
+          // the recommended "promote just before animating" usage, not churn.
+          className={cn(
+            "absolute inset-0 z-10 rounded-full transform-gpu",
+            spinState !== VinylSpinState.Idle && "will-change-transform",
+          )}
           data-vinyl-rotor="true"
           ref={rotorRef}
         >

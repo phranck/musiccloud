@@ -6,7 +6,6 @@ import {
   publishSpectrumFrame,
   SPECTRUM_STORE_BAND_COUNT,
   subscribeSpectrum,
-  writeSpectrumBands,
   writeSpectrumLevels,
   writeSpectrumPeakHold,
 } from "./spectrumStore";
@@ -36,15 +35,20 @@ describe("spectrumStore", () => {
     expect(frame.peakHold).toHaveLength(2);
   });
 
-  it("writes bands in place without ever swapping the buffer reference", () => {
+  it("exposes the same band buffers across reads so the producer can mutate in place", () => {
     const before = getSpectrumFrame();
     const leftRef = before.leftBands;
     const rightRef = before.rightBands;
 
-    writeSpectrumBands([1, 0.5], [0.25, 0.75]);
+    // The producer (resolveSpectrumBandsInto in AudioPlayer) writes straight
+    // into these exposed buffers; the store never swaps the reference, so a
+    // later read sees the mutation on the same backing array.
+    before.leftBands[0] = 1;
+    before.leftBands[1] = 0.5;
+    before.rightBands[0] = 0.25;
+    before.rightBands[1] = 0.75;
     const after = getSpectrumFrame();
 
-    // Same backing arrays — the producer mutated, it did not allocate.
     expect(after.leftBands).toBe(leftRef);
     expect(after.rightBands).toBe(rightRef);
     expect(after.leftBands[0]).toBe(1);
@@ -83,7 +87,9 @@ describe("spectrumStore", () => {
   });
 
   it("zeros every buffer and deactivates on clear, notifying once", () => {
-    writeSpectrumBands([1, 1], [1, 1]);
+    const populated = getSpectrumFrame();
+    populated.leftBands.fill(1);
+    populated.rightBands.fill(1);
     writeSpectrumLevels(1, 1);
     writeSpectrumPeakHold(1, 1);
     publishSpectrumFrame();
@@ -109,14 +115,5 @@ describe("spectrumStore", () => {
 
     publishSpectrumFrame();
     expect(listener).not.toHaveBeenCalled();
-  });
-
-  it("copies at most the channel width when given an oversized source", () => {
-    const oversized = Array.from({ length: SPECTRUM_STORE_BAND_COUNT + 5 }, (_, i) => i);
-    writeSpectrumBands(oversized, oversized);
-    const frame = getSpectrumFrame();
-    expect(frame.leftBands).toHaveLength(SPECTRUM_STORE_BAND_COUNT);
-    // Last in-range value made it; the overflow tail was ignored.
-    expect(frame.leftBands[SPECTRUM_STORE_BAND_COUNT - 1]).toBe(SPECTRUM_STORE_BAND_COUNT - 1);
   });
 });

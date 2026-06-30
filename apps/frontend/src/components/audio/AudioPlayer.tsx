@@ -143,6 +143,19 @@ function playerReducer(state: PlayerState, action: PlayerAction): PlayerState {
 /** Fallback track length when the element reports no usable duration (preview clips are ~30s). */
 const DEFAULT_DURATION_SECONDS = 30;
 
+/**
+ * Usable track length in seconds, falling back to {@link DEFAULT_DURATION_SECONDS}
+ * when the element reports no finite, positive duration (metadata not loaded yet,
+ * or a stream with no known length). Centralises the duration-or-default rule
+ * shared by the progress, seek and metadata paths.
+ *
+ * @param audio - The audio element to read `duration` from.
+ * @returns A positive, finite duration in seconds.
+ */
+function resolveAudioDuration(audio: HTMLAudioElement): number {
+  return Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : DEFAULT_DURATION_SECONDS;
+}
+
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
@@ -150,7 +163,7 @@ function formatTime(seconds: number): string {
 }
 
 function resolveAudioProgressRatio(audio: HTMLAudioElement): number {
-  const duration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : DEFAULT_DURATION_SECONDS;
+  const duration = resolveAudioDuration(audio);
   const ratio = audio.currentTime / duration;
   return Number.isFinite(ratio) ? Math.max(0, Math.min(1, ratio)) : 0;
 }
@@ -688,8 +701,12 @@ export function useAudioController({
     onPlaybackIntent?.();
   }, [onPlaybackIntent]);
 
-  const teardownSpectrum = useCallback(() => {
-    stopSpectrumLoop();
+  // Disconnects every Web Audio node and nulls the node + buffer refs. Shared
+  // by teardownSpectrum and the ensureSpectrumAnalyzer catch path; the optional
+  // chaining keeps it safe on a partially-built or already-null graph. It does
+  // NOT stop the loop or close the context — those steps differ per call site
+  // (teardown closes the context; the catch leaves it open for a rebuild).
+  const disconnectAudioGraphNodes = useCallback(() => {
     mediaSourceRef.current?.disconnect();
     channelSplitterRef.current?.disconnect();
     analysersRef.current?.left.disconnect();
@@ -700,6 +717,11 @@ export function useAudioController({
     analysersRef.current = null;
     gainNodeRef.current = null;
     spectrumDataRef.current = null;
+  }, []);
+
+  const teardownSpectrum = useCallback(() => {
+    stopSpectrumLoop();
+    disconnectAudioGraphNodes();
 
     const audioContext = audioContextRef.current;
     audioContextRef.current = null;
@@ -710,7 +732,7 @@ export function useAudioController({
         // element is disposed independently, so there is nothing else to do.
       });
     }
-  }, [stopSpectrumLoop]);
+  }, [disconnectAudioGraphNodes, stopSpectrumLoop]);
 
   const startSpectrumLoop = useCallback(() => {
     const analysers = analysersRef.current;
@@ -882,16 +904,7 @@ export function useAudioController({
           rightTime: new Uint8Array(rightAnalyser.fftSize),
         };
       } catch {
-        mediaSourceRef.current?.disconnect();
-        channelSplitterRef.current?.disconnect();
-        analysersRef.current?.left.disconnect();
-        analysersRef.current?.right.disconnect();
-        gainNodeRef.current?.disconnect();
-        mediaSourceRef.current = null;
-        channelSplitterRef.current = null;
-        analysersRef.current = null;
-        gainNodeRef.current = null;
-        spectrumDataRef.current = null;
+        disconnectAudioGraphNodes();
         clearSpectrumFrame();
         resetPeakHold();
         return Promise.resolve(false);
@@ -907,7 +920,7 @@ export function useAudioController({
         .then(() => audioContext.state === AudioContextState.Running)
         .catch(() => false);
     },
-    [resetPeakHold, startSpectrumLoop, stopSpectrumLoop],
+    [disconnectAudioGraphNodes, resetPeakHold, startSpectrumLoop, stopSpectrumLoop],
   );
 
   // Watchdog for the spectrum render loop while playback is active. The
@@ -958,12 +971,12 @@ export function useAudioController({
     audio.src = effectiveUrl;
 
     const handleLoadedMetadata = () => {
-      const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : DEFAULT_DURATION_SECONDS;
+      const dur = resolveAudioDuration(audio);
       dispatch({ type: PlayerActionType.MetadataLoaded, duration: dur });
       setProgressRatioFromEvent(resolveAudioProgressRatio(audio));
     };
     const handleTimeUpdate = () => {
-      const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : DEFAULT_DURATION_SECONDS;
+      const dur = resolveAudioDuration(audio);
       dispatch({ type: PlayerActionType.TimeUpdate, currentTime: audio.currentTime, duration: dur });
       setProgressRatioFromEvent(resolveAudioProgressRatio(audio));
     };
@@ -1180,7 +1193,7 @@ export function useAudioController({
       const audio = audioRef.current;
       if (!audio) return;
       if (state.phase !== PlayerPhase.Playing && state.phase !== PlayerPhase.Paused) return;
-      const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : DEFAULT_DURATION_SECONDS;
+      const dur = resolveAudioDuration(audio);
       audio.currentTime = resolveSeekTarget(audio.currentTime, deltaSeconds, dur);
       setProgressRatioValue(resolveAudioProgressRatio(audio));
       notifySeekHint(deltaSeconds < 0 ? VfdScrollOutDirection.Left : VfdScrollOutDirection.Right);
@@ -1208,7 +1221,7 @@ export function useAudioController({
     const audio = audioRef.current;
     if (!audio) return;
     if (state.phase !== PlayerPhase.Playing && state.phase !== PlayerPhase.Paused) return;
-    const dur = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : DEFAULT_DURATION_SECONDS;
+    const dur = resolveAudioDuration(audio);
     audio.currentTime = Math.max(0, dur - SEEK_END_GUARD_SECONDS);
     setProgressRatioValue(resolveAudioProgressRatio(audio));
   }, [state.phase, setProgressRatioValue]);

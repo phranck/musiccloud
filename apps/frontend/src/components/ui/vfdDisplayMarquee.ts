@@ -28,15 +28,12 @@ const MarqueeDirection = {
  * Decides whether a string-typed section's content is too wide for its
  * allocated cell range and should therefore be scrolled.
  *
- * Returns `false` immediately when marquee is disabled or undefined. Both
- * the explicit-true and `"overflow"` modes apply the same overflow test
- * today; the modes exist so callers can opt in to a future
- * always-scroll-anyway behavior without changing call sites.
+ * Returns `false` when marquee is disabled (`mode` falsy); otherwise scrolls
+ * only when the content overflows `visibleCells`. The `true` and `"overflow"`
+ * modes apply the same overflow test.
  */
 export function shouldMarquee(content: ReactNode, mode: VfdMarqueeMode | undefined, visibleCells: number): boolean {
-  if (!mode) return false;
-  if (mode === true) return stringLength(content) > visibleCells;
-  return stringLength(content) > visibleCells;
+  return Boolean(mode) && stringLength(content) > visibleCells;
 }
 
 /**
@@ -130,4 +127,29 @@ export function marqueeStateFor(
 
   current.offset = Math.min(current.offset, overflowColumns);
   return current;
+}
+
+/**
+ * Drops every marquee state whose key was not referenced in the current frame.
+ *
+ * The marquee map is keyed by content (the key embeds the title/status string),
+ * so each new track mints fresh keys while the previous track's keys are never
+ * read again. Without pruning they would accumulate for the lifetime of the
+ * render state — the one unbounded-growth path in the VFD render state, unlike
+ * `transitions`/`overlays`, which self-prune on completion. Called once per
+ * frame by the canvas renderer with the union of keys every row touched; any
+ * leftover key belongs to content no longer on screen and is removed. A fresh
+ * entry (offset 0) is re-created if that content scrolls again, which matches
+ * the intended bounce-from-start behavior.
+ *
+ * @param marqueeStates - The render state's live marquee-state map, mutated in place.
+ * @param touchedKeys - Keys referenced during the frame; everything else is pruned.
+ */
+export function pruneUntouchedMarqueeStates(
+  marqueeStates: Map<string, VfdMarqueeRuntimeState>,
+  touchedKeys: ReadonlySet<string>,
+): void {
+  for (const key of [...marqueeStates.keys()]) {
+    if (!touchedKeys.has(key)) marqueeStates.delete(key);
+  }
 }

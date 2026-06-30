@@ -25,7 +25,12 @@ import {
   vfdDisplayHeight,
   vfdRowWidth,
 } from "@/components/ui/vfdDisplayGeometry";
-import { defaultMarqueeMode, marqueeStateFor, shouldMarquee } from "@/components/ui/vfdDisplayMarquee";
+import {
+  defaultMarqueeMode,
+  marqueeStateFor,
+  pruneUntouchedMarqueeStates,
+  shouldMarquee,
+} from "@/components/ui/vfdDisplayMarquee";
 import { normalizeLine, resolveSectionCells } from "@/components/ui/vfdDisplayNormalize";
 import { mergeOverlayColumns, overlayProgress, scrollOutStartColumn } from "@/components/ui/vfdDisplayOverlay";
 
@@ -47,6 +52,41 @@ function patternColumnMask(pattern: readonly string[], column: number): number {
 /** Empty pixel column with the row's phosphor brightness, used as padding fill. */
 function blankCanvasColumn(brightness: VfdBrightness): VfdCanvasPixelColumn {
   return { mask: 0, brightness };
+}
+
+/**
+ * Allocates a buffer of `columnCount` blank columns at the given brightness,
+ * clamped to at least one column. The shared starting point for every row/
+ * section buffer that begins empty before glyph or bar columns are written in.
+ *
+ * @param columnCount - Final column width (already converted from cells); values
+ *   below 1 are clamped up so a buffer is never zero-length.
+ * @param brightness - Phosphor brightness applied to every blank column.
+ * @returns A fresh array of blank pixel columns.
+ */
+function blankColumnBuffer(columnCount: number, brightness: VfdBrightness): VfdCanvasPixelColumn[] {
+  return Array.from({ length: Math.max(1, columnCount) }, () => blankCanvasColumn(brightness));
+}
+
+/**
+ * Materialises a fixed-width window over a source column buffer: column `i` of
+ * the result is `source[i + offset]`, or a blank column where that index is out
+ * of range. Used for both marquee scrolling (positive offset) and the scroll-out
+ * overlay projection (negative offset).
+ *
+ * @param source - Source pixel columns to window over.
+ * @param length - Number of columns the window must produce.
+ * @param offset - Added to the result index to index `source` (negative shifts right).
+ * @param brightness - Phosphor brightness for out-of-range blank fill.
+ * @returns A buffer of exactly `length` columns.
+ */
+function windowColumns(
+  source: VfdCanvasPixelColumn[],
+  length: number,
+  offset: number,
+  brightness: VfdBrightness,
+): VfdCanvasPixelColumn[] {
+  return Array.from({ length }, (_, index) => source[index + offset] ?? blankCanvasColumn(brightness));
 }
 
 /**
@@ -139,9 +179,7 @@ function pixelBarsToCanvasColumns(
   totalColumns: number,
   fallbackBrightness: VfdBrightness,
 ): VfdCanvasPixelColumn[] {
-  const columns: VfdCanvasPixelColumn[] = Array.from({ length: Math.max(1, totalColumns) }, () =>
-    blankCanvasColumn(fallbackBrightness),
-  );
+  const columns: VfdCanvasPixelColumn[] = blankColumnBuffer(totalColumns, fallbackBrightness);
   for (const bar of bars) {
     const trailBrightness = bar.trailBrightness ?? VfdBrightness.Dim;
     const peakBrightness = bar.peakBrightness ?? VfdBrightness.Bright;
@@ -178,10 +216,7 @@ function scrolledCanvasPixelColumns(
 ): VfdCanvasPixelColumn[] {
   const sourceColumns = contentCanvasPixelColumns(content, brightness);
   const visibleColumns = vfdColumnCountForCells(visibleCells);
-  return Array.from(
-    { length: visibleColumns },
-    (_, index) => sourceColumns[columnOffset + index] ?? blankCanvasColumn(brightness),
-  );
+  return windowColumns(sourceColumns, visibleColumns, columnOffset, brightness);
 }
 
 /**
@@ -202,11 +237,13 @@ function lineCanvasColumns(
   rowIndex: number,
   state: VfdCanvasRenderState,
   now: number,
-): { columns: VfdCanvasPixelColumn[]; hasActiveMarquee: boolean } {
-  const rowColumns = Array.from({ length: vfdColumnCountForCells(cellCount) }, () =>
-    blankCanvasColumn(line.brightness),
-  );
+): { columns: VfdCanvasPixelColumn[]; hasActiveMarquee: boolean; touchedMarqueeKeys: Set<string> } {
+  const rowColumns = blankColumnBuffer(vfdColumnCountForCells(cellCount), line.brightness);
   let hasActiveMarquee = false;
+  // Marquee keys this row referenced this frame. The key embeds the content
+  // string, so every new track mints fresh keys; drawVfdCanvas prunes the keys
+  // NOT touched this frame so the marqueeStates map cannot grow without bound.
+  const touchedMarqueeKeys = new Set<string>();
 
   const writeColumns = (startColumn: number, sourceColumns: VfdCanvasPixelColumn[]) => {
     sourceColumns.forEach((column, index) => {
@@ -224,9 +261,7 @@ function lineCanvasColumns(
     marqueeKey: string,
   ) => {
     if (typeof content !== "string" || visibleCells <= 0) {
-      return Array.from({ length: vfdColumnCountForCells(Math.max(1, visibleCells)) }, () =>
-        blankCanvasColumn(brightness),
-      );
+      return blankColumnBuffer(vfdColumnCountForCells(Math.max(1, visibleCells)), brightness);
     }
 
     const effectiveMarquee = defaultMarqueeMode(content, marquee);
@@ -239,6 +274,7 @@ function lineCanvasColumns(
 
     const sourceColumns = contentCanvasPixelColumns(content, brightness);
     const overflowColumns = Math.max(0, sourceColumns.length - vfdColumnCountForCells(visibleCells));
+    touchedMarqueeKeys.add(marqueeKey);
     const marqueeState = marqueeStateFor(state, marqueeKey, now, overflowColumns);
     hasActiveMarquee = true;
     return scrolledCanvasPixelColumns(content, brightness, visibleCells, marqueeState.offset);
@@ -256,7 +292,7 @@ function lineCanvasColumns(
         `row:${rowIndex}:${line.content}`,
       ),
     );
-    return { columns: rowColumns, hasActiveMarquee };
+    return { columns: rowColumns, hasActiveMarquee, touchedMarqueeKeys };
   }
 
   const sectionCells = resolveSectionCells(line.sections, cellCount);
@@ -284,7 +320,7 @@ function lineCanvasColumns(
     cellCursor += cells;
   });
 
-  return { columns: rowColumns, hasActiveMarquee };
+  return { columns: rowColumns, hasActiveMarquee, touchedMarqueeKeys };
 }
 
 /**
@@ -352,10 +388,7 @@ function overlayMergedColumns(
   const progress = overlayProgress(overlay, now);
   const overlaySource = contentCanvasPixelColumns(overlay.text, VfdBrightness.Bright);
   const start = scrollOutStartColumn(overlay.direction, progress, foregroundColumns.length, overlaySource.length);
-  const overlayColumns = Array.from(
-    { length: foregroundColumns.length },
-    (_, index) => overlaySource[index - start] ?? blankCanvasColumn(VfdBrightness.Bright),
-  );
+  const overlayColumns = windowColumns(overlaySource, foregroundColumns.length, -start, VfdBrightness.Bright);
   // Lit span of the foreground = the inclusive range the standing text occupies.
   // An empty row leaves `textFirst = 0` / `textLast = -1`, an empty span, so the
   // overlay is never occluded and shows through the blank row.
@@ -413,6 +446,9 @@ export function drawVfdCanvas(
   ctx.clearRect(0, 0, width, height);
 
   let hasActiveMarquee = false;
+  // Union of marquee keys every row referenced this frame; entries in
+  // state.marqueeStates that are NOT in here are pruned after the row loop.
+  const touchedMarqueeKeys = new Set<string>();
   const ghostColumns = Array.from({ length: vfdColumnCountForCells(state.cellCount) }, () => ({
     mask: VFD_FULL_COLUMN_MASK,
     brightness: VfdBrightness.Ghost,
@@ -436,12 +472,15 @@ export function drawVfdCanvas(
       const previous = lineCanvasColumns(transition.previous, state.cellCount, rowIndex, state, now);
       const current = lineCanvasColumns(line, state.cellCount, rowIndex, state, now);
       hasActiveMarquee = hasActiveMarquee || previous.hasActiveMarquee || current.hasActiveMarquee;
+      for (const key of previous.touchedMarqueeKeys) touchedMarqueeKeys.add(key);
+      for (const key of current.touchedMarqueeKeys) touchedMarqueeKeys.add(key);
       drawCanvasPixelColumns(ctx, previous.columns, rowTop, step, colors);
       drawCanvasPixelColumns(ctx, current.columns, rowTop, -stepCount + step, colors);
       if (progress >= 1) state.transitions.delete(rowIndex);
     } else {
       const current = lineCanvasColumns(line, state.cellCount, rowIndex, state, now);
       hasActiveMarquee = hasActiveMarquee || current.hasActiveMarquee;
+      for (const key of current.touchedMarqueeKeys) touchedMarqueeKeys.add(key);
       const overlay = state.overlays.get(rowIndex);
       if (overlay && !state.prefersReducedMotion) {
         const { columns, done } = overlayMergedColumns(overlay, current.columns, now);
@@ -455,6 +494,10 @@ export function drawVfdCanvas(
 
     ctx.restore();
   }
+
+  // Prune marquee states no row referenced this frame so the content-keyed map
+  // cannot accumulate entries from past tracks (see the helper's contract).
+  pruneUntouchedMarqueeStates(state.marqueeStates, touchedMarqueeKeys);
 
   return state.transitions.size > 0 || state.overlays.size > 0 || hasActiveMarquee;
 }
