@@ -1,10 +1,5 @@
 import type { CSSProperties } from "react";
 import { useEffect, useId, useRef } from "react";
-import {
-  TurntableSpeed,
-  type TurntableSpeed as TurntableSpeedValue,
-} from "@/components/turntable/TurntablePlayerContext";
-import { rotationDurationForSpeed } from "@/components/turntable/turntableState";
 import { cn } from "@/lib/utils";
 import { VinylSpinState, type VinylSpinState as VinylSpinStateValue } from "./VinylRecord.types";
 
@@ -18,13 +13,6 @@ export interface VinylRecordProps {
   /** Top-left rights imprint. Defaults to "GEMA"; the CC path passes the licence label. */
   labelRightsText?: string | null;
   spinState?: VinylSpinStateValue;
-  /**
-   * Real rotor tempo while playing. Defaults to {@link TurntableSpeed.Rpm33}
-   * (the original 1800 ms revolution), so deco spinners that omit it are
-   * unchanged. `Rpm45` spins ~1.35× faster. This prop is visual only; the
-   * matching audio speed-up at 45 RPM is wired separately through the hub.
-   */
-  speed?: TurntableSpeedValue;
 }
 
 const DEFAULT_LABEL_TITLE = "music cloud";
@@ -37,26 +25,20 @@ const DEFAULT_LABEL_CATALOG_TEXT = "MC-4333";
 // authentic vinyl mark, meaningful in both commercial and CC modes (unlike the
 // commercial-only label code it replaces).
 const LABEL_TECH_TEXT = "DMM";
+/**
+ * One full rotor revolution at 33⅓ RPM, in milliseconds. The deck runs at a
+ * single fixed speed, so this is the one and only revolution tempo.
+ */
+const LP_ROTATION_DURATION_MS = 1800;
 const LP_COAST_DURATION_MS = 2000;
 const LP_COAST_DEGREES = 200;
 
-/**
- * Builds the looping playing-spin timing for a given speed.
- *
- * The revolution duration comes from {@link rotationDurationForSpeed} (1800 ms at
- * 33⅓ RPM, 1333 ms at 45 RPM) so the rotor tempo tracks the selected speed; the
- * easing and infinite iteration are constant.
- *
- * @param speed - The active turntable speed.
- * @returns Web Animations timing for one looping revolution.
- */
-function playingTimingForSpeed(speed: TurntableSpeedValue): KeyframeAnimationOptions {
-  return {
-    duration: rotationDurationForSpeed(speed),
-    easing: "linear",
-    iterations: Infinity,
-  };
-}
+/** Looping playing-spin timing: one constant-tempo revolution, repeated forever. */
+const LP_PLAYING_TIMING = {
+  duration: LP_ROTATION_DURATION_MS,
+  easing: "linear",
+  iterations: Infinity,
+} satisfies KeyframeAnimationOptions;
 const LP_COAST_TIMING = {
   duration: LP_COAST_DURATION_MS,
   // Decelerate easing whose initial slope (~2× the average) matches the playing
@@ -385,20 +367,17 @@ function preserveRotorRotationAndCancel(element: HTMLElement, animationRef: { cu
  * Starts (or hands off) the rotor animation for the given spin state.
  *
  * Every transition runs through {@link preserveRotorRotationAndCancel} first so
- * the angle carries over without snapping. While `Playing`, the loop duration is
- * chosen by `speed` via {@link playingTimingForSpeed}; coast and idle ignore the
- * speed (the wind-down tempo is fixed).
+ * the angle carries over without snapping. While `Playing` the rotor loops at the
+ * fixed {@link LP_PLAYING_TIMING} tempo; coast eases out and idle stops.
  *
  * @param element - The rotor element carrying the spin transform.
  * @param animationRef - Mutable ref holding the active animation.
  * @param spinState - Target spin state.
- * @param speed - Playing-speed selection (only used while `Playing`).
  */
 function startRotorAnimation(
   element: HTMLElement,
   animationRef: { current: Animation | null },
   spinState: VinylSpinStateValue,
-  speed: TurntableSpeedValue,
 ) {
   if (typeof element.animate !== "function") return;
 
@@ -408,7 +387,7 @@ function startRotorAnimation(
     case VinylSpinState.Playing:
       animationRef.current = element.animate(
         [{ transform: rotateZ(currentRotation) }, { transform: rotateZ(currentRotation + 360) }],
-        playingTimingForSpeed(speed),
+        LP_PLAYING_TIMING,
       );
       return;
     case VinylSpinState.Coasting: {
@@ -438,7 +417,6 @@ export function VinylRecord({
   labelTitle,
   labelYear,
   spinState = VinylSpinState.Idle,
-  speed = TurntableSpeed.Rpm33,
 }: VinylRecordProps) {
   const displayTitle = labelTitle ?? DEFAULT_LABEL_TITLE;
   const displayRights = labelRightsText ?? DEFAULT_LABEL_RIGHTS_TEXT;
@@ -466,19 +444,16 @@ export function VinylRecord({
   const rotorRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<Animation | null>(null);
 
-  // `speed` is a dependency so a speed change mid-`Playing` re-runs this and
-  // restarts the rotor at the new tempo. The restart goes through
-  // preserveRotorRotationAndCancel, so the current angle is preserved (no jump).
   useEffect(() => {
     const rotor = rotorRef.current;
     if (!rotor) return;
 
-    startRotorAnimation(rotor, animationRef, spinState, speed);
+    startRotorAnimation(rotor, animationRef, spinState);
 
     return () => {
       preserveRotorRotationAndCancel(rotor, animationRef);
     };
-  }, [spinState, speed]);
+  }, [spinState]);
 
   return (
     // The vinyl is a composite image: role="img" + aria-label name the whole

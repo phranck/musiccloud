@@ -16,10 +16,11 @@ import {
  * of the hub:
  * - `TurntablePlayer.Brand` — the decorative "music / cloud" wordmark, top-left (no hub).
  * - `TurntablePlayer.LED` — the power lamp (reads `power`).
- * - `TurntablePlayer.Platter` — the disc + spindle assembly (reads `speed`/`spinState`).
+ * - `TurntablePlayer.Platter` — the disc + spindle assembly (reads `spinState`).
  * - `TurntablePlayer.Control` — the speed cluster: the static captions plus the
- *   interactive `TurntableKnob`, which drags/steps the speed on the hub. It also
- *   carries `Control.Knob` (the bare, prop-driven decorative dial) and
+ *   animated indicator knob, which points at the live play state. The deck is
+ *   display-only; playback is driven by the playbutton/spacebar, not the knob. It
+ *   also carries `Control.Knob` (the bare, prop-driven decorative dial) and
  *   `Control.KnobLabels` (the static captions) for callers that need the
  *   presentational pieces on their own.
  *

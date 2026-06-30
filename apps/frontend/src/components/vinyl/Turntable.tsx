@@ -32,20 +32,15 @@ export interface TurntableProps {
  * @param props - {@link TurntableProps}.
  */
 export function Turntable({ className, record }: TurntableProps) {
-  const {
-    className: recordClassName,
-    spinState = VinylSpinState.Idle,
-    speed = TurntableSpeed.Rpm33,
-    ...labelProps
-  } = record;
+  const { className: recordClassName, spinState = VinylSpinState.Idle, ...labelProps } = record;
+  // The standalone deck has no playback to derive a state from, so it renders the
+  // accepted static deck print: the knob points at "33" and the LED is lit. The
+  // live play state only drives the hub-connected TurntablePlayer.
+  const speed = TurntableSpeed.Rpm33;
 
   return (
     <TurntablePlayerSurface className={className}>
-      <TurntablePlayerPlatter
-        record={{ ...labelProps, className: recordClassName }}
-        speed={speed}
-        spinState={spinState}
-      />
+      <TurntablePlayerPlatter record={{ ...labelProps, className: recordClassName }} spinState={spinState} />
       <TurntablePlayerControl speed={speed}>
         <TurntablePlayerKnob speed={speed} />
       </TurntablePlayerControl>

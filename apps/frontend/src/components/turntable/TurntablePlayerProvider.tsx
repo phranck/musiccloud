@@ -8,7 +8,7 @@ import {
   TurntableSpeed,
   type TurntableSpeed as TurntableSpeedValue,
 } from "@/components/turntable/TurntablePlayerContext";
-import { derivePower, deriveSpinState, playbackRateForSpeed } from "@/components/turntable/turntableState";
+import { derivePower, deriveSpinState } from "@/components/turntable/turntableState";
 import { VinylSpinState, type VinylSpinState as VinylSpinStateValue } from "@/components/vinyl/VinylRecord.types";
 
 /** Wind-down window after playback stops before the rotor returns to idle. */
@@ -35,34 +35,25 @@ const TurntableHubActionType = {
   EngineStatus: "engineStatus",
   /** The coast wind-down window elapsed; settle the rotor to idle. */
   CoastFinished: "coastFinished",
-  /** The host selected a speed on the knob (start play or stop). */
-  SpeedSet: "speedSet",
 } as const;
 
 type TurntableHubAction =
   | { type: typeof TurntableHubActionType.PlaybackIntentStarted }
   | { type: typeof TurntableHubActionType.EngineStatus; status: AudioStatusValue }
-  | { type: typeof TurntableHubActionType.CoastFinished }
-  | { type: typeof TurntableHubActionType.SpeedSet; speed: TurntableSpeedValue };
+  | { type: typeof TurntableHubActionType.CoastFinished };
 
 /**
- * Maps an engine audio status to the speed the hub should hold, given the speed
- * already selected.
+ * Maps an engine audio status to the speed the hub should display.
  *
- * On `Playing` the hub keeps an already-chosen playing speed (so a knob drag to
- * 45 RPM stays at 45 once `audio.play()` resolves) and only falls back to the
- * default {@link TurntableSpeed.Rpm33} when play started from `Standby` (spacebar,
- * playbutton or media key — MC-071 design decision B). Every non-playing status
- * (`Paused`, `Ended`, `Unavailable`, loading/ready) settles on `Standby`, keeping
- * the knob and LED in lock-step with the engine.
+ * The deck runs at a single speed, so this is a straight projection of the play
+ * status: `Rpm33` while `Playing`, `Standby` for every other status (`Paused`,
+ * `Ended`, `Unavailable`, loading/ready). The knob indicator and LED follow it.
  *
  * @param status - The latest engine audio status.
- * @param currentSpeed - The speed the hub currently holds.
- * @returns The speed the hub should hold for that status.
+ * @returns The speed the hub should display for that status.
  */
-function speedForEngineStatus(status: AudioStatusValue, currentSpeed: TurntableSpeedValue): TurntableSpeedValue {
-  if (status !== AudioStatus.Playing) return TurntableSpeed.Standby;
-  return currentSpeed === TurntableSpeed.Standby ? TurntableSpeed.Rpm33 : currentSpeed;
+function speedForEngineStatus(status: AudioStatusValue): TurntableSpeedValue {
+  return status === AudioStatus.Playing ? TurntableSpeed.Rpm33 : TurntableSpeed.Standby;
 }
 
 /**
@@ -80,14 +71,12 @@ function turntableHubReducer(state: TurntableHubState, action: TurntableHubActio
       return { speed: TurntableSpeed.Rpm33, spinState: VinylSpinState.Playing };
     case TurntableHubActionType.EngineStatus:
       return {
-        speed: speedForEngineStatus(action.status, state.speed),
+        speed: speedForEngineStatus(action.status),
         spinState: deriveSpinState({ currentSpinState: state.spinState, status: action.status }),
       };
     case TurntableHubActionType.CoastFinished:
       if (state.spinState !== VinylSpinState.Coasting) return state;
       return { ...state, spinState: VinylSpinState.Idle };
-    case TurntableHubActionType.SpeedSet:
-      return { ...state, speed: action.speed };
   }
 }
 
@@ -107,14 +96,13 @@ const INITIAL_HUB_STATE: TurntableHubState = {
  * (`onPlaybackIntent`/`onStatusChange`/`onSeekHint`) so `ShareLayout` can still
  * build its VFD status line.
  *
- * Speed/play synchronisation:
- * - Starting playback (any control) selects {@link TurntableSpeed.Rpm33}.
+ * Speed/play projection (the deck is display-only, never a control):
+ * - `Playing` displays {@link TurntableSpeed.Rpm33} (rotor spinning, LED on).
  * - Pause/end/unavailable settle on {@link TurntableSpeed.Standby}.
- * - {@link TurntablePlayerContextValue.setSpeed} to a playing speed starts
- *   playback if idle; to `Standby` it stops playback **and resets the position
- *   to the start** (`seekToStart`), so `Standby` is a stop, not a pause.
+ * The knob and LED are pure indicators of this projection; playback is driven by
+ * the playbutton/spacebar (`togglePlay`), not the deck.
  *
- * All transport callbacks invoke the engine synchronously so the browser's
+ * `togglePlay` invokes the engine synchronously so the browser's
  * autoplay/`AudioContext.resume()` user-gesture activation is preserved.
  *
  * @param props - {@link TurntablePlayerProviderProps}.
@@ -156,8 +144,6 @@ export function TurntablePlayerProvider({
     onPlaybackIntent: handleEnginePlaybackIntent,
     onStatusChange: handleEngineStatusChange,
     onSeekHint,
-    // 45 RPM speeds the audio up (~1.35x, pitch rises with it); 33/Standby = 1.
-    playbackRate: playbackRateForSpeed(hubState.speed),
   });
 
   // Settle a winding-down rotor back to idle after the coast window, the same
@@ -170,25 +156,6 @@ export function TurntablePlayerProvider({
     );
     return () => window.clearTimeout(timeout);
   }, [hubState.spinState]);
-
-  // Selects a speed. A playing speed starts playback when idle; `Standby` stops
-  // playback (pause + reset to start). Engine calls stay synchronous so the
-  // user-gesture activation survives for AudioContext.resume().
-  const setSpeed = useCallback(
-    (speed: TurntableSpeedValue) => {
-      if (speed === TurntableSpeed.Standby) {
-        if (engine.isPlaying) engine.togglePlay();
-        // Standby is a stop, not a pause: rewind to the start so the next play
-        // begins from the top (MC-071 design decision C).
-        engine.seekToStart();
-        dispatchHub({ type: TurntableHubActionType.SpeedSet, speed: TurntableSpeed.Standby });
-        return;
-      }
-      if (!engine.isPlaying) engine.togglePlay();
-      dispatchHub({ type: TurntableHubActionType.SpeedSet, speed });
-    },
-    [engine],
-  );
 
   const value = useMemo<TurntablePlayerContextValue>(
     () => ({
@@ -203,7 +170,6 @@ export function TurntablePlayerProvider({
       seekBy: engine.seekBy,
       seekToNearEnd: engine.seekToNearEnd,
       seekToStart: engine.seekToStart,
-      setSpeed,
       speed: hubState.speed,
       spinState: hubState.spinState,
       timeText: engine.timeText,
@@ -211,7 +177,7 @@ export function TurntablePlayerProvider({
       togglePlay: engine.togglePlay,
       trackTitle: engine.trackTitle,
     }),
-    [engine, hubState.speed, hubState.spinState, setSpeed],
+    [engine, hubState.speed, hubState.spinState],
   );
 
   return <TurntablePlayerContext.Provider value={value}>{children}</TurntablePlayerContext.Provider>;

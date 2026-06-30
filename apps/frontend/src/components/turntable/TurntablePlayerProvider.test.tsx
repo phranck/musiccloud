@@ -11,7 +11,7 @@ import { LocaleProvider } from "@/i18n/context";
  */
 const playedAudioElements: HTMLAudioElement[] = [];
 
-/** Thin hub probe: surfaces the hub view-model and a few transport triggers. */
+/** Thin hub probe: surfaces the hub view-model and the play/pause trigger. */
 function HubProbe() {
   const hub = useTurntablePlayer();
   return (
@@ -24,9 +24,6 @@ function HubProbe() {
     >
       <button type="button" onClick={hub.togglePlay}>
         toggle
-      </button>
-      <button type="button" onClick={() => hub.setSpeed("standby")}>
-        standby
       </button>
     </div>
   );
@@ -52,37 +49,18 @@ function latestAudio(): HTMLAudioElement {
   return audio;
 }
 
-let seekToStartCalls = 0;
-let originalCurrentTime: PropertyDescriptor | undefined;
-
 beforeEach(() => {
   playedAudioElements.length = 0;
-  seekToStartCalls = 0;
   vi.spyOn(window.HTMLMediaElement.prototype, "play").mockImplementation(function (this: HTMLAudioElement) {
     playedAudioElements.push(this);
     return Promise.resolve();
   });
   vi.spyOn(window.HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
-  // currentTime is a property on the prototype in jsdom; intercept assignments
-  // so the Standby stop-semantics (seekToStart -> currentTime = 0) is observable.
-  originalCurrentTime = Object.getOwnPropertyDescriptor(window.HTMLMediaElement.prototype, "currentTime");
-  Object.defineProperty(window.HTMLMediaElement.prototype, "currentTime", {
-    configurable: true,
-    get() {
-      return 0;
-    },
-    set(value: number) {
-      if (value === 0) seekToStartCalls += 1;
-    },
-  });
 });
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
-  if (originalCurrentTime) {
-    Object.defineProperty(window.HTMLMediaElement.prototype, "currentTime", originalCurrentTime);
-  }
 });
 
 describe("TurntablePlayerProvider", () => {
@@ -107,7 +85,7 @@ describe("TurntablePlayerProvider", () => {
     expect(hub()).toHaveAttribute("data-playing", "true");
   });
 
-  it("setSpeed(Standby) stops playback, resets to start, and powers off", async () => {
+  it("pausing drops to Standby, powers off, and coasts", async () => {
     renderHub();
 
     await act(async () => {
@@ -116,18 +94,16 @@ describe("TurntablePlayerProvider", () => {
     expect(hub()).toHaveAttribute("data-playing", "true");
 
     const pauseSpy = vi.spyOn(window.HTMLMediaElement.prototype, "pause");
-    const seekCallsBefore = seekToStartCalls;
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "standby" }));
+      fireEvent.click(screen.getByRole("button", { name: "toggle" }));
     });
 
-    // Standby is a stop, not a pause: the engine pauses AND rewinds to the start.
     expect(pauseSpy).toHaveBeenCalledTimes(1);
-    expect(seekToStartCalls).toBeGreaterThan(seekCallsBefore);
     expect(hub()).toHaveAttribute("data-speed", "standby");
     expect(hub()).toHaveAttribute("data-power", "standby");
     expect(hub()).toHaveAttribute("data-playing", "false");
+    expect(hub()).toHaveAttribute("data-spin", "coasting");
   });
 
   it("coasts then settles to idle when the track ends", async () => {

@@ -2,13 +2,13 @@ import { createContext, use } from "react";
 import type { VinylSpinState as VinylSpinStateValue } from "@/components/vinyl/VinylRecord.types";
 
 /**
- * Discrete turntable speed setting selected on the knob.
+ * The turntable's two display states.
  *
- * The hub treats `Standby` as the stopped state (no rotation, audio reset to the
- * start) and `Rpm33`/`Rpm45` as the two playing speeds. Both playing members map
- * to a real rotor duration in {@link rotationDurationForSpeed} and a real audio
- * playback rate in {@link playbackRateForSpeed}: `Rpm45` speeds the audio up to
- * ~1.35x and, with `preservesPitch` off, raises its pitch with the tempo.
+ * The deck runs at a single fixed speed (33⅓ RPM). This is not a user-selectable
+ * setting — the knob is a pure indicator and the value is derived from the play
+ * status: `Standby` while stopped (rotor idle, LED off, knob points at STANDBY),
+ * `Rpm33` while playing (rotor spinning, LED on, knob points at 33). It drives the
+ * deck optic only; it does not affect audio playback.
  *
  * Members are PascalCase to satisfy the project Doctor rule
  * `domain-literals/prefer-pascal-case-literal-namespaces`.
@@ -16,10 +16,8 @@ import type { VinylSpinState as VinylSpinStateValue } from "@/components/vinyl/V
 export const TurntableSpeed = {
   /** Stopped: rotor idle and audio reset to the start. */
   Standby: "standby",
-  /** 33⅓ RPM playing speed (the default play speed). */
+  /** 33⅓ RPM: the deck is playing. */
   Rpm33: "rpm33",
-  /** 45 RPM playing speed (the faster rotor tempo). */
-  Rpm45: "rpm45",
 } as const;
 
 /** A single {@link TurntableSpeed} value. */
@@ -28,10 +26,9 @@ export type TurntableSpeed = (typeof TurntableSpeed)[keyof typeof TurntableSpeed
 /**
  * Power state of the turntable, derived from the active {@link TurntableSpeed}.
  *
- * `On` whenever a playing speed (`Rpm33`/`Rpm45`) is selected, `Standby`
- * otherwise. The LED follows this value. Kept as its own namespace (rather than
- * reusing {@link TurntableSpeed}) so consumers read the binary on/off intent
- * directly instead of re-deriving it.
+ * `On` while playing (`Rpm33`), `Standby` otherwise. The LED follows this value.
+ * Kept as its own namespace (rather than reusing {@link TurntableSpeed}) so
+ * consumers read the binary on/off intent directly instead of re-deriving it.
  *
  * Members are PascalCase to satisfy the project Doctor rule
  * `domain-literals/prefer-pascal-case-literal-namespaces`.
@@ -76,19 +73,14 @@ export interface TurntablePlayerContextValue {
   mediaLabel: string;
   /** The current track title. */
   trackTitle: string;
-  /** Currently selected speed (`standby` | `rpm33` | `rpm45`). */
+  /** Display speed derived from the play status (`rpm33` playing, else `standby`). */
   speed: TurntableSpeed;
-  /** Power state derived from {@link speed} (`on` at a playing speed). */
+  /** Power state derived from {@link speed} (`on` while playing). */
   power: TurntablePower;
   /** Visual spin state derived from the play phase (idle | playing | coasting). */
   spinState: VinylSpinStateValue;
-  /** Toggles play/pause, keeping the speed/power state consistent. */
+  /** Toggles play/pause; the speed/power/spin state follows the play status. */
   togglePlay: () => void;
-  /**
-   * Selects a speed. Moving to a playing speed starts playback; moving to
-   * `Standby` stops playback and resets the position to the start.
-   */
-  setSpeed: (speed: TurntableSpeed) => void;
   /** Seeks by a relative number of seconds (negative rewinds). */
   seekBy: (deltaSeconds: number) => void;
   /** Seeks to the very start of the track. */

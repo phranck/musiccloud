@@ -61,7 +61,6 @@ function StubHubProvider({
       seekBy: noop,
       seekToNearEnd: noop,
       seekToStart: noop,
-      setSpeed: noop,
       speed,
       spinState,
       timeText: "0:00",
@@ -99,35 +98,25 @@ describe("TurntablePlayer compound", () => {
     expect(container.querySelector("[data-turntable-speed-knob='true']")).toBeInTheDocument();
     expect(container.querySelector("[data-turntable-speed-indicator='true']")).toBeInTheDocument();
 
-    // The static speed captions are part of the control cluster.
+    // The static speed captions are part of the control cluster; "45" stays as a
+    // permanent unlit deck print even though the deck runs only at 33.
     expect(screen.getByText("33")).toBeInTheDocument();
     expect(screen.getByText("45")).toBeInTheDocument();
     expect(screen.getByText("ON")).toBeInTheDocument();
     expect(screen.getByText("STANDBY")).toBeInTheDocument();
   });
 
-  it("lights the active speed caption white and the ON caption amber while powered", () => {
+  it("lights the 33 caption white and the ON caption amber while playing", () => {
     const { rerender } = render(
       <StubHubProvider speed={TurntableSpeed.Rpm33} spinState={VinylSpinState.Playing}>
         <TurntablePlayer.Control />
       </StubHubProvider>,
     );
 
-    // Rpm33 selected: "33" lit white, "ON" lit amber (powered), "45" unlit.
+    // Playing: "33" lit white, "ON" lit amber (powered); "45" is never lit.
     expect(screen.getByText("33")).toHaveStyle({ color: "rgb(255, 255, 255)" });
     expect(screen.getByText("ON")).toHaveStyle({ color: "rgb(255, 159, 74)" });
     expect(screen.getByText("45")).not.toHaveStyle({ color: "rgb(255, 255, 255)" });
-
-    rerender(
-      <StubHubProvider speed={TurntableSpeed.Rpm45} spinState={VinylSpinState.Playing}>
-        <TurntablePlayer.Control />
-      </StubHubProvider>,
-    );
-
-    // Rpm45 selected: "45" lit white, "ON" still amber, "33" unlit.
-    expect(screen.getByText("45")).toHaveStyle({ color: "rgb(255, 255, 255)" });
-    expect(screen.getByText("ON")).toHaveStyle({ color: "rgb(255, 159, 74)" });
-    expect(screen.getByText("33")).not.toHaveStyle({ color: "rgb(255, 255, 255)" });
 
     rerender(
       <StubHubProvider speed={TurntableSpeed.Standby} spinState={VinylSpinState.Idle}>
@@ -138,7 +127,6 @@ describe("TurntablePlayer compound", () => {
     // Standby: powered off, so nothing is lit.
     expect(screen.getByText("ON")).not.toHaveStyle({ color: "rgb(255, 159, 74)" });
     expect(screen.getByText("33")).not.toHaveStyle({ color: "rgb(255, 255, 255)" });
-    expect(screen.getByText("45")).not.toHaveStyle({ color: "rgb(255, 255, 255)" });
   });
 
   it("lights the LED power attribute from the hub power state", () => {
@@ -167,28 +155,28 @@ describe("TurntablePlayer compound", () => {
     );
   });
 
-  it("points the knob indicator at the active speed angle", () => {
+  it("eases the knob indicator between the Standby and 33 angles", () => {
     const { container, rerender } = render(
       <StubHubProvider speed={TurntableSpeed.Rpm33} spinState={VinylSpinState.Playing}>
         <TurntablePlayer.Control />
       </StubHubProvider>,
     );
 
-    // The hub-driven Control renders the interactive knob: same Rpm33 angle as
-    // the former decorative indicator, plus the GPU compositor-layer hint.
+    // Playing: the indicator points at the 33 caption (210deg) on a GPU layer.
     expect(container.querySelector("[data-turntable-speed-indicator='true']")).toHaveStyle({
       transform: "translateY(-50%) rotate(210deg) translateZ(0)",
       transformOrigin: "0% 50%",
     });
 
     rerender(
-      <StubHubProvider speed={TurntableSpeed.Rpm45} spinState={VinylSpinState.Playing}>
+      <StubHubProvider speed={TurntableSpeed.Standby} spinState={VinylSpinState.Idle}>
         <TurntablePlayer.Control />
       </StubHubProvider>,
     );
 
+    // Stopped: the indicator rests at the STANDBY caption (150deg).
     expect(container.querySelector("[data-turntable-speed-indicator='true']")).toHaveStyle({
-      transform: "translateY(-50%) rotate(240deg) translateZ(0)",
+      transform: "translateY(-50%) rotate(150deg) translateZ(0)",
     });
   });
 
@@ -205,34 +193,20 @@ describe("TurntablePlayer compound", () => {
     );
   });
 
-  it("drives the rotor revolution duration from the hub speed (45 RPM is faster)", () => {
+  it("loops the rotor at the fixed 1800 ms revolution while playing", () => {
     const cancel = vi.fn();
     const commitStyles = vi.fn();
     const animate = vi.fn(() => ({ cancel, commitStyles })) as unknown as typeof HTMLElement.prototype.animate;
     HTMLElement.prototype.animate = animate;
 
-    const { rerender } = render(
+    render(
       <StubHubProvider speed={TurntableSpeed.Rpm33} spinState={VinylSpinState.Playing}>
         <TurntablePlayer.Platter record={RECORD} />
       </StubHubProvider>,
     );
 
-    // Rpm33 spins at the default 1800 ms revolution.
     expect(animate).toHaveBeenLastCalledWith(expect.anything(), {
       duration: 1800,
-      easing: "linear",
-      iterations: Infinity,
-    });
-
-    rerender(
-      <StubHubProvider speed={TurntableSpeed.Rpm45} spinState={VinylSpinState.Playing}>
-        <TurntablePlayer.Platter record={RECORD} />
-      </StubHubProvider>,
-    );
-
-    // Rpm45 picks the faster 1333 ms revolution.
-    expect(animate).toHaveBeenLastCalledWith(expect.anything(), {
-      duration: 1333,
       easing: "linear",
       iterations: Infinity,
     });
@@ -241,15 +215,15 @@ describe("TurntablePlayer compound", () => {
   it("exposes Control.Knob and Control.KnobLabels as compound members", () => {
     const { container } = render(
       <>
-        <TurntablePlayer.Control.Knob speed={TurntableSpeed.Rpm45} />
+        <TurntablePlayer.Control.Knob speed={TurntableSpeed.Rpm33} />
         <TurntablePlayer.Control.KnobLabels />
       </>,
     );
 
     expect(container.querySelector("[data-turntable-speed-knob='true']")).toBeInTheDocument();
-    // Control.Knob is the decorative knob: plain transform, no GPU layer hint.
+    // Control.Knob is the static decorative knob: plain transform, no GPU layer hint.
     expect(container.querySelector("[data-turntable-speed-indicator='true']")).toHaveStyle({
-      transform: "translateY(-50%) rotate(240deg)",
+      transform: "translateY(-50%) rotate(210deg)",
     });
     expect(screen.getByText("33")).toBeInTheDocument();
     expect(screen.getByText("STANDBY")).toBeInTheDocument();
@@ -263,29 +237,26 @@ describe("TurntablePlayer compound", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Interactive knob (Unit 4): the real hub provider + mocked audio engine, so a
-// knob drag and the playbutton drive the SAME shared playback state end-to-end.
+// Display-only deck: the knob and LED are pure indicators. Playback is driven by
+// the playbutton/spacebar (the analyzer remote), and the deck reflects it.
 // ---------------------------------------------------------------------------
 
 /** Audio elements the engine drove (captured from `play()`'s `this`). */
 const playedAudioElements: HTMLAudioElement[] = [];
-/** Count of `currentTime = 0` writes — the seekToStart in the Standby stop. */
-let seekToStartCalls = 0;
-let originalCurrentTime: PropertyDescriptor | undefined;
 
-/** Renders the hub deck (and optionally the analyzer remote) under one provider. */
-function renderHubDeck(extra?: ReactNode) {
+/** Renders the hub deck plus the analyzer remote (its playbutton) under one provider. */
+function renderHubDeck() {
   return render(
     <LocaleProvider initialLocale="en">
       <TurntablePlayerProvider previewUrl="/preview.mp3" trackTitle="Blue Train">
         <TurntablePlayer record={RECORD} />
-        {extra}
+        <TurntableAnalyzerSlot />
       </TurntablePlayerProvider>
     </LocaleProvider>,
   );
 }
 
-/** The interactive knob element (the `role="slider"` dial). */
+/** The display knob element (`data-turntable-speed-knob`). */
 function knob(container: HTMLElement): HTMLElement {
   const node = container.querySelector<HTMLElement>("[data-turntable-speed-knob='true']");
   if (!node) throw new Error("knob not found");
@@ -304,188 +275,59 @@ function ledPower(container: HTMLElement): string | null {
   return container.querySelector("[data-turntable-led='true']")?.getAttribute("data-turntable-led-power") ?? null;
 }
 
-const KNOB_CENTER = { x: 100, y: 100 };
-
-/** Vertical pixels per detent (mirrors `KNOB_STEP_PX` in TurntableKnob). */
-const KNOB_STEP_PX = 22;
-
-/**
- * Drags the knob vertically by `pixelsUp` (positive = up = faster) from its
- * centre and releases. The knob is distance-driven, so no bounding-box stub is
- * needed; each {@link KNOB_STEP_PX} of travel steps one detent.
- *
- * A trailing async `act` drains the `audio.play()` promise so the resulting
- * status dispatch is wrapped too.
- *
- * @param container - The render container holding the knob.
- * @param pixelsUp - Vertical drag distance; positive drags up (toward 45).
- */
-async function dragKnobVertically(container: HTMLElement, pixelsUp: number) {
-  const dial = knob(container);
-  const pointer = { button: 0, pointerId: 1, pointerType: "mouse" };
-  const targetY = KNOB_CENTER.y - pixelsUp;
-
-  fireEvent.pointerDown(dial, { ...pointer, clientX: KNOB_CENTER.x, clientY: KNOB_CENTER.y });
-  fireEvent.pointerMove(dial, { ...pointer, clientX: KNOB_CENTER.x, clientY: targetY });
-  fireEvent.pointerUp(dial, { ...pointer, clientX: KNOB_CENTER.x, clientY: targetY });
-  // Drain the play() promise so its onStatusChange dispatch runs inside act.
-  await act(async () => {});
-}
-
-describe("TurntablePlayer interactive knob", () => {
+describe("TurntablePlayer deck reflects playback (display only)", () => {
   beforeEach(() => {
     playedAudioElements.length = 0;
-    seekToStartCalls = 0;
-    // jsdom has no WAAPI and no pointer capture; stub both so the deck renders
-    // and the drag handlers run without throwing.
+    // jsdom has no WAAPI; stub it so the deck renders without throwing.
     HTMLElement.prototype.animate = vi.fn(() => ({
       cancel: vi.fn(),
       commitStyles: vi.fn(),
     })) as unknown as typeof HTMLElement.prototype.animate;
-    HTMLElement.prototype.setPointerCapture = vi.fn();
-    HTMLElement.prototype.releasePointerCapture = vi.fn();
-    HTMLElement.prototype.hasPointerCapture = vi.fn(() => true);
-
     vi.spyOn(window.HTMLMediaElement.prototype, "play").mockImplementation(function (this: HTMLAudioElement) {
       playedAudioElements.push(this);
       return Promise.resolve();
     });
     vi.spyOn(window.HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
-    originalCurrentTime = Object.getOwnPropertyDescriptor(window.HTMLMediaElement.prototype, "currentTime");
-    Object.defineProperty(window.HTMLMediaElement.prototype, "currentTime", {
-      configurable: true,
-      get() {
-        return 0;
-      },
-      set(value: number) {
-        if (value === 0) seekToStartCalls += 1;
-      },
-    });
   });
 
   afterEach(() => {
     cleanup();
-    if (originalCurrentTime) {
-      Object.defineProperty(window.HTMLMediaElement.prototype, "currentTime", originalCurrentTime);
-    }
   });
 
-  it("renders the knob as a slider with the resting Standby value", () => {
+  it("renders the knob as a non-interactive indicator (no slider role, hidden from AT)", () => {
     const { container } = renderHubDeck();
     const dial = knob(container);
-    expect(dial).toHaveAttribute("role", "slider");
-    expect(dial).toHaveAttribute("tabindex", "0");
-    expect(dial).toHaveAttribute("aria-valuetext", "Standby");
+    expect(dial).not.toHaveAttribute("role", "slider");
+    expect(dial).not.toHaveAttribute("tabindex");
+    expect(dial).toHaveAttribute("aria-hidden", "true");
     // At rest the indicator points at the Standby caption angle.
     expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(150deg) translateZ(0)" });
     expect(ledPower(container)).toBe(TurntablePower.Standby);
   });
 
-  it("dragging two detents up starts playback at Rpm45 and lights the LED", async () => {
+  it("the playbutton drives the deck: play lights the LED and points the knob at 33", async () => {
     const { container } = renderHubDeck();
 
-    // Two detents up from Standby -> Rpm45.
-    await dragKnobVertically(container, KNOB_STEP_PX * 2);
-
-    expect(playedAudioElements.length).toBe(1);
-    expect(knob(container)).toHaveAttribute("aria-valuetext", "45 RPM");
-    expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(240deg) translateZ(0)" });
-    expect(ledPower(container)).toBe(TurntablePower.On);
-    // 45 RPM speeds the real audio up to 1.35x.
-    expect(playedAudioElements[0].playbackRate).toBe(1.35);
-  });
-
-  it("dragging down to Standby stops, rewinds to start, and powers off", async () => {
-    const { container } = renderHubDeck();
-
-    // Start playing first (one detent up -> Rpm33).
-    await dragKnobVertically(container, KNOB_STEP_PX);
-    expect(playedAudioElements.length).toBe(1);
-    expect(ledPower(container)).toBe(TurntablePower.On);
-
-    const pauseSpy = vi.spyOn(window.HTMLMediaElement.prototype, "pause");
-    const seekBefore = seekToStartCalls;
-
-    // Two detents down -> Standby (clamped): a stop (pause + seekToStart), not a pause.
-    await dragKnobVertically(container, -KNOB_STEP_PX * 2);
-
-    expect(pauseSpy).toHaveBeenCalledTimes(1);
-    expect(seekToStartCalls).toBeGreaterThan(seekBefore);
-    expect(knob(container)).toHaveAttribute("aria-valuetext", "Standby");
-    expect(ledPower(container)).toBe(TurntablePower.Standby);
-  });
-
-  it("a tap with no movement does not change the speed (pure drag semantics)", async () => {
-    const { container } = renderHubDeck();
-    const dial = knob(container);
-    const pointer = { button: 0, clientX: KNOB_CENTER.x, clientY: KNOB_CENTER.y, pointerId: 1, pointerType: "mouse" };
-
-    fireEvent.pointerDown(dial, pointer);
-    fireEvent.pointerUp(dial, pointer);
-    await act(async () => {});
-
-    expect(playedAudioElements.length).toBe(0);
-    expect(knob(container)).toHaveAttribute("aria-valuetext", "Standby");
-    expect(ledPower(container)).toBe(TurntablePower.Standby);
-  });
-
-  it("arrow keys step the speed without leaking to the global audio router", async () => {
-    const { container } = renderHubDeck();
-    const dial = knob(container);
-
-    // ArrowUp from Standby -> Rpm33 starts playback.
-    fireEvent.keyDown(dial, { key: "ArrowUp" });
-    await act(async () => {});
-    expect(playedAudioElements.length).toBe(1);
-    expect(knob(container)).toHaveAttribute("aria-valuetext", "33 RPM");
-
-    // ArrowUp again -> Rpm45.
-    fireEvent.keyDown(dial, { key: "ArrowUp" });
-    await act(async () => {});
-    expect(knob(container)).toHaveAttribute("aria-valuetext", "45 RPM");
-
-    // ArrowDown twice -> back to Standby (stop).
-    fireEvent.keyDown(dial, { key: "ArrowDown" });
-    await act(async () => {});
-    fireEvent.keyDown(dial, { key: "ArrowDown" });
-    await act(async () => {});
-    expect(knob(container)).toHaveAttribute("aria-valuetext", "Standby");
-  });
-
-  it("the playbutton and the knob drive the same hub state", async () => {
-    const { container } = renderHubDeck(<TurntableAnalyzerSlot />);
-
-    // Start via the analyzer remote's playbutton (default play speed Rpm33).
     fireEvent.click(screen.getByRole("button", { name: "Play preview" }));
     await act(async () => {});
 
-    // The knob and LED follow the same hub: Rpm33 + power On.
     expect(playedAudioElements.length).toBe(1);
-    expect(knob(container)).toHaveAttribute("aria-valuetext", "33 RPM");
     expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(210deg) translateZ(0)" });
     expect(ledPower(container)).toBe(TurntablePower.On);
-    // 33 RPM plays at the normal rate.
-    expect(playedAudioElements[0].playbackRate).toBe(1);
-
-    // Stopping at the knob (drag down to Standby) flips the shared playbutton to "Play".
-    await dragKnobVertically(container, -KNOB_STEP_PX * 2);
-    expect(screen.getByRole("button", { name: "Play preview" })).toBeInTheDocument();
-    expect(ledPower(container)).toBe(TurntablePower.Standby);
   });
 
-  it("steps the indicator one detent at a time and clamps at the ladder ends", () => {
+  it("pausing at the playbutton returns the knob to Standby and powers off", async () => {
     const { container } = renderHubDeck();
-    const dial = knob(container);
-    const pointer = { button: 0, pointerId: 1, pointerType: "mouse" };
-    fireEvent.pointerDown(dial, { ...pointer, clientX: KNOB_CENTER.x, clientY: KNOB_CENTER.y });
 
-    // One detent up (KNOB_STEP_PX) from Standby -> the 33 detent (210deg); the
-    // indicator rests on the detent, never between captions.
-    fireEvent.pointerMove(dial, { ...pointer, clientX: KNOB_CENTER.x, clientY: KNOB_CENTER.y - KNOB_STEP_PX });
-    expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(210deg) translateZ(0)" });
+    fireEvent.click(screen.getByRole("button", { name: "Play preview" }));
+    await act(async () => {});
+    expect(ledPower(container)).toBe(TurntablePower.On);
 
-    // Far past the top clamps at Rpm45 (240deg) instead of overshooting.
-    fireEvent.pointerMove(dial, { ...pointer, clientX: KNOB_CENTER.x, clientY: KNOB_CENTER.y - KNOB_STEP_PX * 12 });
-    expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(240deg) translateZ(0)" });
+    // The shared button is now a Pause control; clicking it pauses the deck.
+    fireEvent.click(screen.getByRole("button", { name: "Pause preview" }));
+    await act(async () => {});
+
+    expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(150deg) translateZ(0)" });
+    expect(ledPower(container)).toBe(TurntablePower.Standby);
   });
 });

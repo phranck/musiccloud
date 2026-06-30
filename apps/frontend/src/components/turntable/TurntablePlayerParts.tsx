@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import { KnobDial, TurntableKnob } from "@/components/turntable/TurntableKnob";
+import { KnobDial } from "@/components/turntable/KnobDial";
 import {
   TurntablePower,
   type TurntablePower as TurntablePowerValue,
@@ -114,16 +114,14 @@ export function TurntablePlayerLed({ power }: TurntablePlayerLedProps) {
 interface TurntablePlayerPlatterProps {
   /** Visual spin state forwarded to the {@link VinylRecord}. */
   spinState: VinylSpinStateValue;
-  /** Rotor tempo forwarded to the {@link VinylRecord}. */
-  speed: TurntableSpeedValue;
   /** The vinyl label/record props (artwork, title, catalog, ...). */
-  record: Omit<VinylRecordProps, "spinState" | "speed">;
+  record: Omit<VinylRecordProps, "spinState">;
 }
 
 /**
  * The rotating-disc assembly: the recessed platter shadow, the {@link VinylRecord}
- * itself (fed `speed`/`spinState`), the spindle contact shadow and the chrome
- * spindle on top.
+ * itself (fed `spinState`), the spindle contact shadow and the chrome spindle on
+ * top.
  *
  * The platter disc, spindle and its shadow are decorative deck chrome; the record
  * carries its own accessible name. All four layers keep their original
@@ -131,7 +129,7 @@ interface TurntablePlayerPlatterProps {
  *
  * @param props - {@link TurntablePlayerPlatterProps}.
  */
-export function TurntablePlayerPlatter({ spinState, speed, record }: TurntablePlayerPlatterProps) {
+export function TurntablePlayerPlatter({ spinState, record }: TurntablePlayerPlatterProps) {
   return (
     <>
       <span
@@ -142,12 +140,7 @@ export function TurntablePlayerPlatter({ spinState, speed, record }: TurntablePl
       />
 
       <span className="absolute left-1/2 top-1/2 z-20 aspect-square w-[86%] -translate-x-1/2 -translate-y-1/2">
-        <VinylRecord
-          {...record}
-          className={cn("h-full w-full", record.className)}
-          spinState={spinState}
-          speed={speed}
-        />
+        <VinylRecord {...record} className={cn("h-full w-full", record.className)} spinState={spinState} />
       </span>
 
       {/* Contact shadow the raised spindle casts onto the record. Sits below the
@@ -193,8 +186,8 @@ const LABEL_POWER_LIT_STYLE = {
 /** Props for {@link TurntablePlayerKnobLabels}. */
 interface TurntablePlayerKnobLabelsProps {
   /**
-   * The active speed. Lights the matching "33"/"45" caption white and, when the
-   * derived power is `On`, the "ON" caption amber. Defaults to `Standby` (every
+   * The active speed. Lights the "33" caption white while playing and the "ON"
+   * caption amber whenever the deck is powered. Defaults to `Standby` (every
    * caption at its unlit deck-print tint) so the decorative standalone deck can
    * render the labels without a speed.
    */
@@ -205,11 +198,12 @@ interface TurntablePlayerKnobLabelsProps {
  * Static speed captions printed beside the knob: "33", "45", "ON", "STANDBY".
  *
  * The captions are fixed deck print at the accepted box-relative coordinates.
- * The active speed lights its caption: "33"/"45" glow white when selected, and
- * "ON" glows amber whenever the deck is powered (any playing speed), mirroring a
- * real deck's lit indicators. "STANDBY" has no lit state (it marks the
- * powered-off detent). A short transition eases each light on and off. Rendered
- * inside {@link TurntablePlayerControl}.
+ * "33" glows white while playing and "ON" glows amber whenever the deck is
+ * powered, mirroring a real deck's lit indicators. "45" and "STANDBY" have no lit
+ * state — the deck runs at a single speed, so "45" stays a permanent unlit print
+ * (kept for the authentic deck face) and "STANDBY" marks the powered-off rest. A
+ * short transition eases the lit captions on and off. Rendered inside
+ * {@link TurntablePlayerControl}.
  *
  * @param props - {@link TurntablePlayerKnobLabelsProps}.
  */
@@ -218,24 +212,21 @@ export function TurntablePlayerKnobLabels({ speed = TurntableSpeed.Standby }: Tu
   return (
     <>
       <span
-        className="absolute left-[16.7%] top-[36.5%] -translate-y-full whitespace-nowrap transition-[color,text-shadow] duration-200"
+        className="absolute left-[13.6%] top-[41%] -translate-y-full whitespace-nowrap transition-[color,text-shadow] duration-200"
         style={speed === TurntableSpeed.Rpm33 ? LABEL_SPEED_LIT_STYLE : undefined}
       >
         33
       </span>
-      <span
-        className="absolute left-[39.5%] top-[21.9%] -translate-y-full whitespace-nowrap transition-[color,text-shadow] duration-200"
-        style={speed === TurntableSpeed.Rpm45 ? LABEL_SPEED_LIT_STYLE : undefined}
-      >
-        45
-      </span>
+      {/* "45" is a permanent unlit deck print: the deck runs at a single speed, so
+          this caption never lights. It stays for the authentic deck face. */}
+      <span className="absolute left-[34.5%] top-[24.3%] -translate-y-full whitespace-nowrap">45</span>
       <span
         className="absolute left-[15.5%] top-[63.5%] -translate-x-full -translate-y-1/2 whitespace-nowrap transition-[color,text-shadow] duration-200"
         style={isPowered ? LABEL_POWER_LIT_STYLE : undefined}
       >
         ON
       </span>
-      <span className="absolute left-[21.9%] top-[87.5%] -translate-x-full whitespace-nowrap">STANDBY</span>
+      <span className="absolute left-[23.7%] top-[91.8%] -translate-x-full whitespace-nowrap">STANDBY</span>
     </>
   );
 }
@@ -297,10 +288,10 @@ export function TurntablePlayerControl({ speed, children }: TurntablePlayerContr
   );
 }
 
-/** Props for {@link HubLed}, {@link HubPlatter} and {@link HubControl}: the platter needs the record. */
+/** Props for {@link HubPlatter}: the platter needs the record; spin comes from the hub. */
 interface HubPlatterProps {
-  /** The vinyl label/record props; `speed`/`spinState` come from the hub. */
-  record: Omit<VinylRecordProps, "spinState" | "speed">;
+  /** The vinyl label/record props; `spinState` comes from the hub. */
+  record: Omit<VinylRecordProps, "spinState">;
 }
 
 /**
@@ -315,33 +306,34 @@ export function HubLed() {
 }
 
 /**
- * Hub-connected {@link TurntablePlayerPlatter}: reads `speed`/`spinState` from the
- * turntable hub and feeds them to the {@link VinylRecord}.
+ * Hub-connected {@link TurntablePlayerPlatter}: reads `spinState` from the
+ * turntable hub and feeds it to the {@link VinylRecord}.
  *
  * Must render inside a `TurntablePlayerProvider`.
  *
  * @param props - {@link HubPlatterProps}.
  */
 export function HubPlatter({ record }: HubPlatterProps) {
-  const { speed, spinState } = useTurntablePlayer();
-  return <TurntablePlayerPlatter record={record} speed={speed} spinState={spinState} />;
+  const { spinState } = useTurntablePlayer();
+  return <TurntablePlayerPlatter record={record} spinState={spinState} />;
 }
 
 /**
- * Hub-connected speed-control cluster: the lit captions plus the interactive
- * {@link TurntableKnob}, which reads/sets the speed on the hub itself.
+ * Hub-connected speed-control cluster: the lit captions plus the animated
+ * indicator knob.
  *
- * Reads the live `speed` from the hub so the captions light the active detent,
- * and renders the interactive knob. Must render inside a `TurntablePlayerProvider`
- * (the knob calls `useTurntablePlayer`). The standalone `Turntable` deck instead
- * passes an explicit `speed` plus a decorative knob to
+ * Reads the live `speed` from the hub so the "33"/"ON" captions light while
+ * playing and the knob indicator glides between STANDBY and 33. The knob is a
+ * pure indicator — playback is driven by the playbutton/spacebar, not the deck.
+ * Must render inside a `TurntablePlayerProvider`. The standalone `Turntable` deck
+ * instead passes an explicit `speed` plus a static decorative knob to
  * {@link TurntablePlayerControl}.
  */
 export function HubControl() {
   const { speed } = useTurntablePlayer();
   return (
     <TurntablePlayerControl speed={speed}>
-      <TurntableKnob />
+      <KnobDial aria-hidden="true" animated gpuLayer indicatorAngleDeg={speedKnobAngle(speed)} />
     </TurntablePlayerControl>
   );
 }
