@@ -41,7 +41,20 @@ proxy author's job, every time.
 |---|---|---|---|---|
 | 1 | Backend trust-proxy | `TRUST_PROXY=1` missing in `zerops.yml` → Fastify ignored `X-Forwarded-For`, saw ingress IP | All users shared one `apiRateLimiter` bucket → 429 / 302→/404 after 2-3 requests | earlier |
 | 2 | SSR backend fetchers | Astro SSR calls to backend did not forward `X-Forwarded-For` → backend saw frontend pod IP | Same rate-limit symptom as #1 | 2026-05-01, `894146d9` |
-| 3 | Umami analytics proxy | `/api/mc/api/send` re-posted tracking events without the client IP → Umami geolocated by the Zerops pod IP (Prague) | Location analytics collapsed to ~100% Czech Republic | 2026-06-27, `23a94a9e` |
+| 3 | Umami analytics proxy | `/api/mc/api/send` re-posted tracking events without the client IP → Umami geolocated by the Zerops pod IP (Prague) | Location analytics collapsed to ~100% Czech Republic | 2026-06-30, `True-Client-IP` / `CF-Connecting-IP` (see note) |
+
+> **Incident #3 note — `X-Forwarded-For` is not enough for Umami.** The first
+> attempt (`23a94a9e`, 2026-06-27) forwarded `X-Forwarded-For` and assumed
+> Umami would honour it. It did not, and the analytics stayed ~100% CZ. An
+> empirical probe against the live instance (send synthetic events with
+> spoofed IP headers, read the country breakdown back through the Umami API)
+> showed the **reverse proxy in front of the managed Umami overwrites the
+> standard forwarding headers** (`X-Forwarded-For`, `X-Real-IP`,
+> `X-Client-IP`) with the immediate peer before Umami reads them, while it
+> passes the vendor headers `True-Client-IP` and `CF-Connecting-IP` through
+> untouched — and Umami honours those (they win even when `X-Forwarded-For`
+> is also present). The working fix carries the visitor IP in **both** vendor
+> headers. No Umami-side config change was needed.
 
 Incident #3 is instructive about detection: the regression was introduced on
 2026-04-10 (`cf3e7044`, the ad-blocker-friendly refactor that replaced the
@@ -63,8 +76,10 @@ aggregation windows; compare a short window against a long one.**
   attaches `X-Forwarded-For`.
 - **Same-origin analytics proxy** — the Umami send-proxy
   [`apps/frontend/src/pages/api/mc/api/send.ts`](../apps/frontend/src/pages/api/mc/api/send.ts)
-  forwards the incoming `X-Forwarded-For` (with `clientAddress` as fallback) to
-  Umami.
+  carries the visitor IP (first hop of the incoming `X-Forwarded-For`, with
+  `clientAddress` as fallback) in the `True-Client-IP` and `CF-Connecting-IP`
+  vendor headers, because the managed Umami's reverse proxy clobbers
+  `X-Forwarded-For`. See the file header and the incident #3 note above.
 
 ## Checklist for any NEW proxy or SSR fetch
 
@@ -80,9 +95,15 @@ analytics, third-party API, image/asset proxy, …):
 3. **Set `X-Forwarded-For` on the outgoing request** — reuse `forwardedForExtra`
    where it fits, or replicate the same pattern. Never send only `User-Agent`
    and call it done.
-4. **Confirm the receiving service trusts the header.** Self-hosted Umami reads
-   `x-forwarded-for` by default; a service behind its own reverse proxy may need
-   an explicit trust-proxy / `CLIENT_IP_HEADER` config.
+4. **Confirm the receiving service actually uses the header you set — do not
+   assume.** A service behind its own reverse proxy often never sees your
+   `X-Forwarded-For`: that proxy overwrites the standard forwarding headers
+   (`X-Forwarded-For`, `X-Real-IP`, `X-Client-IP`) with its immediate peer.
+   The managed Umami is exactly this case — it only honours the visitor IP via
+   the vendor headers `True-Client-IP` / `CF-Connecting-IP`, which the proxy
+   passes through untouched (incident #3). Probe it empirically: send synthetic
+   events with spoofed IPs across candidate headers and read the country
+   breakdown back through the service's API to see which header wins.
 5. **Verify with a real visitor.** Geolocation is resolved and stored per event
    at ingest, so a fix only affects data written after deploy; check a fresh
    short window after release, not the historical aggregate.

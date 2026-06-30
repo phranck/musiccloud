@@ -7,21 +7,29 @@
  * and its beacons out of the reach of the ad/tracker blocklists that would
  * otherwise drop a third-party `umami.layered.work` request.
  *
- * ## Why the client IP must be forwarded
+ * ## Why the visitor IP travels in vendor headers, not `X-Forwarded-For`
  *
  * Umami resolves a visitor's country/region/city from the source IP of the
  * `/api/send` request at ingest time. Because this proxy re-issues that
  * request server-side, the connection Umami sees originates from our SSR
- * host (Zerops, Prague) — not from the visitor. Without the real IP, every
- * event geolocates to the server's own location, so the Location analytics
- * collapse to ~100% Czech Republic regardless of who actually visited.
+ * host (Zerops, Prague) — not from the visitor. Without the real IP every
+ * event geolocates to the server and the Location analytics collapse to
+ * ~100% Czech Republic regardless of who actually visited.
  *
- * The incoming request already carries the visitor IP in `X-Forwarded-For`,
- * set by the Zerops ingress; `clientAddress` is the fallback when the header
- * is absent (e.g. local dev). We forward that value as `X-Forwarded-For` so
- * Umami geolocates the visitor, not the proxy. This mirrors the
- * `forwardedForExtra` helper that every backend call in
- * `apps/frontend/src/api/client.ts` already uses for the same reason.
+ * The reverse proxy in front of the managed Umami instance **overwrites**
+ * the standard forwarding headers (`X-Forwarded-For`, `X-Real-IP`,
+ * `X-Client-IP`) with the immediate peer before Umami reads them, so none
+ * of those can carry the visitor IP across this hop. It passes the vendor
+ * headers `True-Client-IP` and `CF-Connecting-IP` through untouched, and
+ * Umami honours them for geolocation (they win even when `X-Forwarded-For`
+ * is also present). We therefore put the real visitor IP into both of
+ * those, and keep `X-Forwarded-For` for any other consumer that trusts it.
+ * This header behaviour was verified empirically against the live instance;
+ * see `docs/ssr-proxy-x-forwarded-for.md`.
+ *
+ * The visitor IP is the first hop of the incoming `X-Forwarded-For` chain
+ * (set by our own ingress), with `clientAddress` as the fallback when the
+ * header is absent (e.g. local dev).
  *
  * Geolocation is resolved and stored per event at ingest, so this only fixes
  * events received after deploy; rows already written keep their old country.
@@ -42,15 +50,24 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
 
   try {
     const body = await request.text();
-    // Pass the visitor IP through so Umami geolocates the visitor rather
-    // than this SSR proxy. See the file header for the full rationale.
-    const clientIp = request.headers.get("x-forwarded-for") ?? clientAddress;
+    // The managed Umami's reverse proxy clobbers X-Forwarded-For with our
+    // SSR pod IP, so the visitor IP must ride in the vendor headers Umami
+    // honours. The visitor is the first hop of the incoming chain. See the
+    // file header for the full rationale.
+    const forwardedFor = request.headers.get("x-forwarded-for");
+    const visitorIp = forwardedFor?.split(",")[0]?.trim() || clientAddress;
     const res = await fetch(`${UMAMI_URL}/api/send`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "User-Agent": request.headers.get("user-agent") ?? "",
-        ...(clientIp ? { "X-Forwarded-For": clientIp } : {}),
+        ...(visitorIp
+          ? {
+              "X-Forwarded-For": forwardedFor ?? visitorIp,
+              "True-Client-IP": visitorIp,
+              "CF-Connecting-IP": visitorIp,
+            }
+          : {}),
       },
       body,
       signal: controller.signal,
