@@ -2135,7 +2135,7 @@ document.getElementById("paste").addEventListener("click", async () => {
     accepted++;
   }
   if (parsed && parsed.cover && typeof parsed.cover === "object") {
-    coverCfg = buildContentState(parsed.cover, COVER_DEFAULTS, COVER_GROUPS, COVER_FIELDS);
+    coverCfg = buildCoverState(parsed.cover);
     buildCoverControls();
     applyCover();
     saveCover();
@@ -3403,7 +3403,7 @@ const CARDLINK_DEFAULTS = {
    Day/Night. Mirrors the production TftScreen layers: screen base (bg + corner
    radius + inset frame shadow), the LCD dot-matrix, the sheen (top highlight →
    bottom shade gradient), and a tint overlay that dims/colours the album art.
-   applyCover() cross-fades the values in JS (gradients can't be CSS color-mix'd).
+   applyCover() writes the values straight into the CSS (single mode, mode-independent).
    The production original has NO title overlaid on the cover, so the prototype's
    former title was removed; the title lives only in the VFD below. ── */
 const COVER_GROUPS = [{ key: "cover", label: { en: "Cover Screen", de: "Cover-Screen" } }];
@@ -3418,19 +3418,30 @@ const COVER_FIELDS = [
   { key: "tintColor",     type: "color", label: { en: "Tint", de: "Tönung" }, tip: { en: "Colour of the overlay tint on top of the artwork.", de: "Farbe der Tönung über dem Cover." } },
   { key: "tintOpacity",   type: "range", min: 0, max: 1, step: 0.01, label: { en: "Tint opacity", de: "Tönung-Deckkraft" }, tip: { en: "Opacity of the tint over the artwork — dim or colour-shift the cover. 0 = none.", de: "Deckkraft der Tönung über dem Cover — abdunkeln oder einfärben. 0 = keine." } },
 ];
-/** Cover-screen day/night value bag (one per mode). Corner radius is NOT here —
- *  it derives from --mc-card-radius (the EmbossedCard radius) via CSS. */
+/** Cover-screen value bag. The cover is mode-independent (it looks the same day
+ *  and night), so there is a single set of values — no Day/Night split. Corner
+ *  radius is NOT here — it derives from --mc-card-radius (the EmbossedCard radius)
+ *  via CSS. */
 function mkCover(bg, bgOpacity, innerShadow, matrixColor, matrixOpacity, sheenLight, sheenShadow, tintColor, tintOpacity) {
   return { bg, bgOpacity, innerShadow, matrixColor, matrixOpacity, sheenLight, sheenShadow, tintColor, tintOpacity };
 }
-/** Defaults mirror the production TftScreen (matrix/sheen/inset-shadow); the
- *  corner radius is derived, not stored. */
+/** Single mode-independent default set, mirroring the production TftScreen
+ *  (matrix/sheen/inset-shadow); the corner radius is derived, not stored. */
 const COVER_DEFAULTS = {
-  cover: {
-    day:   mkCover("#05070a", 1, 0.42, "#00364a", 0.42, 0.07, 0.16, "#caf0fe", 0.15),
-    night: mkCover("#05070a", 1, 0.3, "#000000", 0.32, 0.07, 0.23, "#fff2d5", 0.15),
-  },
+  cover: mkCover("#05070a", 1, 0.42, "#00364a", 0.42, 0.07, 0.16, "#caf0fe", 0.15),
 };
+/** Overlays a saved cover store onto the single-mode defaults (a partial/old store
+ *  can't break it). Reads the single shape; falls back to a legacy day/night
+ *  store's `.day` side so an older persisted setting keeps working — mirrors the
+ *  shipped parseDesignTokens. */
+function buildCoverState(saved) {
+  const out = structuredClone(COVER_DEFAULTS);
+  const src = saved?.cover?.day ?? saved?.cover; // legacy {day,night} → .day; single → flat
+  if (src) for (const f of COVER_FIELDS) {
+    if (src[f.key] !== undefined) out.cover[f.key] = src[f.key];
+  }
+  return out;
+}
 
 /* ── Overlay backdrop — the dim layer behind the Info overlay (production
    OverlayBackdrop = bg-black/70). Tunable per Day/Night: colour, opacity, blur.
@@ -3492,7 +3503,7 @@ const COVER_KEY = "mc-card-prototype-cover-v1";
 let typoCfg = buildContentState(loadJsonStore("t", TYPO_KEY), TYPO_DEFAULTS, TYPO_SURFACES, TYPO_FIELDS);
 let vfdCfg = buildContentState(loadJsonStore("v", VFD_KEY), VFD_DEFAULTS, VFD_GROUPS, VFD_FIELDS);
 let skyTextCfg = buildContentState(loadJsonStore("k", SKYTEXT_KEY), SKYTEXT_DEFAULTS, SKYTEXT_GROUPS, SKYTEXT_FIELDS);
-let coverCfg = buildContentState(loadJsonStore("o", COVER_KEY), COVER_DEFAULTS, COVER_GROUPS, COVER_FIELDS);
+let coverCfg = buildCoverState(loadJsonStore("o", COVER_KEY));
 function saveTypo() { saveJsonStore("t", TYPO_KEY, typoCfg); }
 function saveVfd() { saveJsonStore("v", VFD_KEY, vfdCfg); }
 function saveSkyText() { saveJsonStore("k", SKYTEXT_KEY, stripUiOnly(skyTextCfg, SKYTEXT_GROUPS, SKYTEXT_FIELDS)); }
@@ -3564,15 +3575,6 @@ function lerpHex(a, b, t, alpha = 1) {
   const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
   const mix = (sh) => Math.round(((pa >> sh) & 255) + (((pb >> sh) & 255) - ((pa >> sh) & 255)) * t);
   return `rgba(${mix(16)},${mix(8)},${mix(0)},${alpha})`;
-}
-
-/** Like lerpHex but returns just the "r,g,b" triple (no alpha wrapper), so the
- *  caller can compose it into rgba() at several alphas — used by the cover matrix
- *  whose two grid lines share one colour at different opacities. */
-function lerpRgb(a, b, t) {
-  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
-  const mix = (sh) => Math.round(((pa >> sh) & 255) + (((pb >> sh) & 255) - ((pa >> sh) & 255)) * t);
-  return `${mix(16)},${mix(8)},${mix(0)}`;
 }
 
 /** Repaints the VFD canvas with the day↔night cross-faded phosphor colours
@@ -3672,20 +3674,18 @@ function applyCardLink() {
 function applyCover() {
   const screen = document.querySelector(".tft-screen");
   if (!screen) return;
-  const d = typeof state !== "undefined" ? Math.max(0, Math.min(1, state.dayness || 0)) : 0;
-  const day = coverCfg.cover.day, night = coverCfg.cover.night;
-  const n = (k) => night[k] + (day[k] - night[k]) * d; // numeric lerp: d=1 → day, d=0 → night
+  const c = coverCfg.cover; // single mode-independent value bag
   // Screen base: background tint (corner radius derives from --mc-card-radius via CSS).
-  screen.style.background = lerpHex(night.bg, day.bg, d, n("bgOpacity"));
+  screen.style.background = rgba(c.bg, c.bgOpacity);
   // Inset frame shadow (top-left); its strength scales the alpha.
   const shadow = screen.querySelector(".tft-screen-shadow");
-  if (shadow) shadow.style.boxShadow = `inset 4px 4px 12px rgba(0,0,0,${n("innerShadow")})`;
+  if (shadow) shadow.style.boxShadow = `inset 4px 4px 12px rgba(0,0,0,${c.innerShadow})`;
   // LCD dot-matrix: one colour at two line opacities (H .5 / V .58 — matches
   // production's 0.24/0.28 under a 0.48 layer); the layer opacity is the control.
   const matrix = screen.querySelector(".tft-screen-matrix");
   if (matrix) {
-    const mc = lerpRgb(night.matrixColor, day.matrixColor, d);
-    matrix.style.opacity = String(n("matrixOpacity"));
+    const mc = rgbTriplet(c.matrixColor);
+    matrix.style.opacity = String(c.matrixOpacity);
     matrix.style.backgroundImage =
       `linear-gradient(rgba(${mc},.5) 1px, transparent 1px), linear-gradient(90deg, rgba(${mc},.58) 1px, transparent 1px)`;
   }
@@ -3693,11 +3693,11 @@ function applyCover() {
   const sheen = screen.querySelector(".tft-screen-sheen");
   if (sheen) {
     sheen.style.background =
-      `linear-gradient(to bottom, rgba(255,255,255,${n("sheenLight")}) 0%, transparent 30%, rgba(0,0,0,${n("sheenShadow")}) 100%)`;
+      `linear-gradient(to bottom, rgba(255,255,255,${c.sheenLight}) 0%, transparent 30%, rgba(0,0,0,${c.sheenShadow}) 100%)`;
   }
   // Tint overlay over the artwork.
   const tint = screen.querySelector(".tft-cover-tint");
-  if (tint) tint.style.background = lerpHex(night.tintColor, day.tintColor, d, n("tintOpacity"));
+  if (tint) tint.style.background = rgba(c.tintColor, c.tintOpacity);
 }
 
 /** Cross-fades the overlay backdrop colour/opacity/blur day↔night into the CSS vars
@@ -3726,10 +3726,14 @@ let glass = buildGlassState(loadGlass());
  *  re-renders only when the sky actually flips, not on every frame. */
 let glassRenderedMode = null;
 
+/** '#rrggbb' → 'r,g,b' (the bare triplet for composing rgba()/gradient stops). */
+function rgbTriplet(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+}
 /** '#rrggbb' + alpha → 'rgba(r,g,b,a)'. */
 function rgba(hex, a) {
-  const n = parseInt(hex.slice(1), 16);
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+  return `rgba(${rgbTriplet(hex)},${a})`;
 }
 
 /** Lifts a #rrggbb colour's HSL lightness by `pct` percentage points (clamped to
@@ -3810,14 +3814,13 @@ function syncGlassMode() {
     buildTypographyControls();
     buildVfdControls();
     buildSkyTextControls();
-    buildCoverControls();
     buildBackdropControls();
     buildSkyLinkControls();
     buildCardLinkControls();
   }
   // The canvas can't read CSS color-mix; repaint its phosphor colours whenever
   // the sky's day amount actually changes (so it cross-fades like the glass).
-  if (d !== vfdLastDayness) { vfdLastDayness = d; redrawVfd(); applySkyText(); applyCover(); applyBackdrop(); }
+  if (d !== vfdLastDayness) { vfdLastDayness = d; redrawVfd(); applySkyText(); applyBackdrop(); }
 }
 
 /** Builds one labelled field row wired to cfg[group][mode][field]. `onChange` runs
@@ -3829,6 +3832,15 @@ function buildTuneField(cfg, ck, mode, f, onChange) {
   const label = document.createElement("label");
   label.textContent = loc(f.label);
   row.appendChild(label);
+  // Single-mode sections (cover) pass mode=null and store a flat value bag
+  // (cfg[ck][field]); day/night sections store cfg[ck][mode][field].
+  const readVal = () => (mode === null ? cfg[ck][f.key] : cfg[ck][mode][f.key]);
+  const writeVal = (v) => {
+    // Shared fields are mode-independent — write BOTH halves so day & night stay equal.
+    if (f.shared) { cfg[ck].day[f.key] = v; cfg[ck].night[f.key] = v; }
+    else if (mode === null) cfg[ck][f.key] = v;
+    else cfg[ck][mode][f.key] = v;
+  };
   if (f.type === "select") {
     const sel = document.createElement("select");
     for (const opt of f.options) {
@@ -3836,13 +3848,10 @@ function buildTuneField(cfg, ck, mode, f, onChange) {
       o.value = opt.value; o.textContent = opt.label;
       sel.appendChild(o);
     }
-    sel.value = cfg[ck][mode][f.key];
+    sel.value = readVal();
     row.appendChild(sel);
     sel.addEventListener("change", (e) => {
-      const v = e.target.value;
-      // Shared fields are mode-independent — write BOTH halves so day & night stay equal.
-      if (f.shared) { cfg[ck].day[f.key] = v; cfg[ck].night[f.key] = v; }
-      else cfg[ck][mode][f.key] = v;
+      writeVal(e.target.value);
       onChange();
     });
     return row;
@@ -3850,17 +3859,15 @@ function buildTuneField(cfg, ck, mode, f, onChange) {
   const input = document.createElement("input");
   input.type = f.type;
   if (f.type === "range") { input.min = f.min; input.max = f.max; input.step = f.step; }
-  input.value = cfg[ck][mode][f.key];
+  input.value = readVal();
   row.appendChild(input);
   const val = document.createElement("span");
   val.className = "val";
-  val.textContent = f.type === "color" ? "" : cfg[ck][mode][f.key] + (f.unit || "");
+  val.textContent = f.type === "color" ? "" : readVal() + (f.unit || "");
   row.appendChild(val);
   input.addEventListener("input", (e) => {
     const v = f.type === "range" ? parseFloat(e.target.value) : e.target.value;
-    // Shared fields are mode-independent — write BOTH halves so day & night stay equal.
-    if (f.shared) { cfg[ck].day[f.key] = v; cfg[ck].night[f.key] = v; }
-    else cfg[ck][mode][f.key] = v;
+    writeVal(v);
     val.textContent = f.type === "color" ? "" : v + (f.unit || "");
     onChange();
   });
@@ -4079,10 +4086,13 @@ function buildTuneSection(rootId, groups, fields, cfg, collapsed, mode, onChange
     for (const f of sharedFields) body.appendChild(buildTuneField(cfg, g.key, mode, f, onChange));
     // Contrast block: a Day/Night divider, then the per-mode fields.
     if (modeFields.length) {
-      const div = document.createElement("div");
-      div.className = "gg-mode-row";
-      div.textContent = mode === "day" ? UI[lang].badgeDay : UI[lang].badgeNight;
-      body.appendChild(div);
+      // Single-mode sections (cover, mode=null) are mode-independent — no Day/Night divider.
+      if (mode !== null) {
+        const div = document.createElement("div");
+        div.className = "gg-mode-row";
+        div.textContent = mode === "day" ? UI[lang].badgeDay : UI[lang].badgeNight;
+        body.appendChild(div);
+      }
       for (const f of modeFields) body.appendChild(buildTuneField(cfg, g.key, mode, f, onChange));
     }
 
@@ -4187,7 +4197,7 @@ function buildSkyTextControls() {
 
 /** (Re)builds the cover-screen controls for the active mode. */
 function buildCoverControls() {
-  buildTuneSection("cover-controls", COVER_GROUPS, COVER_FIELDS, coverCfg, glassCollapsed, currentGlassMode(),
+  buildTuneSection("cover-controls", COVER_GROUPS, COVER_FIELDS, coverCfg, glassCollapsed, null,
     () => { applyCover(); saveCover(); });
 }
 

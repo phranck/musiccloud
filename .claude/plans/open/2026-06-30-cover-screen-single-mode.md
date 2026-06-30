@@ -48,7 +48,7 @@ Plan-Nr.: MC-074
 - [x] designTokensCss: single `--cover-*` Emission
 - [x] glass.css: single `--cover-*` Seed
 - [x] animations.css: 5 TFT-Layer statisch, kein color-mix/--g-dayness (FIX)
-- [ ] Prototype: Cover Single-Mode (defaults/controls/apply/export/import/reset/store) — offen, Dev-Tuner-Tool (`mockups/frontend-prototype.html`) noch nicht angepasst
+- [x] Prototype: Cover Single-Mode (defaults/controls/apply/export/import/reset/store) — `mockups/frontend-prototype.html` umgestellt: `COVER_DEFAULTS` single, neuer `buildCoverState` (Legacy-`.day`-Fallback), `applyCover` ohne dayness/lerp, Controls über `buildTuneSection`/`buildTuneField` mit `mode=null` (kein Day/Night-Divider), `syncGlassMode` entkoppelt, totes `lerpRgb` entfernt
 - [x] Code-Referenzen verifiziert (Shipped-Seite)
 - [x] Gates Shipped grün: Biome clean, tsc 0, Doctor 0, shared 27 / frontend 126 Tests
 - [x] User verifiziert in Safari (Share-Page Day/Night-Wechsel glatt — bestätigt 2026-06-30 nach kombinierter DOM-Reduktion)
