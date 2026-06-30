@@ -29,9 +29,10 @@ function selectResolveMode(next: ResolveMode): void {
  * Horizontal, icon-only switcher for the resolve mode (Streaming vs. Creative
  * Commons), shown to the left of the hero input on the idle landing page.
  *
- * Uses the standard {@link EmbossedSegmentedControl} so it behaves like an
- * ordinary segmented switch: both cells keep fixed positions (Streaming left, CC
- * right) and the embossed indicator slides to the active one — no reordering. The
+ * Uses the standard {@link EmbossedSegmentedControl} in its `pill` (fully
+ * rounded) variant so it behaves like an ordinary segmented switch: both cells
+ * keep fixed positions (Streaming left, CC right) and the embossed indicator
+ * slides to the active one — no reordering. The
  * active mode comes from the shared persistent store (`mc:resolveMode`); the
  * active segment is filled with the mode accent (blue Streaming / green CC) via
  * `mc-mode-seg-indicator`, switched automatically by the `data-resolve-mode`
@@ -66,6 +67,7 @@ export function ResolveModeSwitcher() {
         value={mode}
         onChange={selectResolveMode}
         indicatorClassName="mc-glass-seg-indicator mc-mode-seg-indicator"
+        pill
       />
     </fieldset>
   );

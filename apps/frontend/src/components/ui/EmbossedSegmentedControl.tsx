@@ -4,6 +4,11 @@ import { raisedControlRadius, recessedSurfaceRadius } from "@/components/cards/c
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { cn } from "@/lib/utils";
 
+// Fully-rounded ("pill") corner length. A value far larger than any segment
+// height collapses the corner to a half-circle at both ends, independent of
+// the control's measured size — the idiomatic CSS pill radius.
+const PILL_RADIUS = "9999px";
+
 /**
  * One selectable cell of the segmented control.
  *
@@ -49,6 +54,14 @@ interface EmbossedSegmentedControlProps<T extends string> {
    * switch) where the default 34px cells are too tall. Text cells are unaffected.
    */
   compact?: boolean;
+  /**
+   * Render fully-rounded (pill) ends instead of the default rounded-rectangle
+   * corners: the recessed track, the sliding indicator, and each segment button
+   * all become half-circle-capped. Opt-in per call site (e.g. the hero
+   * resolve-mode switch) so the default rounded-rect geometry stays intact for
+   * every other segmented control.
+   */
+  pill?: boolean;
 }
 
 /**
@@ -72,10 +85,15 @@ export function EmbossedSegmentedControl<T extends string>({
   trackClassName = "mc-glass-seg-track",
   indicatorClassName = "mc-glass-seg-indicator",
   compact = false,
+  pill = false,
 }: EmbossedSegmentedControlProps<T>) {
   // Track inset (px) shared by the padding, the indicator's edge insets, and the
   // indicator's translate offset, so they stay in lockstep at either density.
   const padPx = compact ? 2 : 4;
+  // In pill mode the track, indicator, and buttons all round to a half-circle;
+  // otherwise they follow the radius cascade (recessed track, raised indicator).
+  const trackRadius = pill ? PILL_RADIUS : recessedSurfaceRadius;
+  const indicatorRadius = pill ? PILL_RADIUS : raisedControlRadius;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const buttonRefs = useRef<Map<T, HTMLButtonElement> | null>(null);
   const buttonRefMap = buttonRefs.current ?? (buttonRefs.current = new Map());
@@ -111,7 +129,7 @@ export function EmbossedSegmentedControl<T extends string>({
     <RecessedCard
       ref={containerRef}
       className={cn(trackClassName, "relative flex gap-[var(--mc-gap-seg,0px)]", compact ? "p-0.5" : "p-1", className)}
-      radius={recessedSurfaceRadius}
+      radius={trackRadius}
     >
       <RecessedCard.Body className="contents">
         {indicator && (
@@ -129,8 +147,8 @@ export function EmbossedSegmentedControl<T extends string>({
               className={cn("embossed-gradient-border size-full", indicatorClassName)}
               style={
                 {
-                  "--neu-radius-base": raisedControlRadius,
-                  "--neu-radius-sm": raisedControlRadius,
+                  "--neu-radius-base": indicatorRadius,
+                  "--neu-radius-sm": indicatorRadius,
                   borderRadius: "var(--neu-radius)",
                 } as React.CSSProperties
               }
@@ -156,7 +174,8 @@ export function EmbossedSegmentedControl<T extends string>({
               aria-label={hasVisibleText ? undefined : ariaLabel}
               title={title}
               className={cn(
-                "relative z-10 flex cursor-pointer items-center justify-center rounded-lg whitespace-nowrap transition-colors duration-150",
+                "relative z-10 flex cursor-pointer items-center justify-center whitespace-nowrap transition-colors duration-150",
+                pill ? "rounded-full" : "rounded-lg",
                 "border-none",
                 // Text cells grow to share the track width; icon-only cells get a
                 // fixed square size so a control's segment height/size stays the
