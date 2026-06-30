@@ -204,7 +204,11 @@ export interface SkyLinkFields {
   offset: number;
 }
 
-/** Tunable fields of the TFT cover plate, per mode. */
+/**
+ * Tunable fields of the TFT cover plate. Mode-independent: the cover screen
+ * renders one fixed look (no day/night cross-fade), so a single value bag drives
+ * it — unlike the {@link DayNight}-wrapped groups.
+ */
 export interface CoverFields {
   bg: string;
   bgOpacity: number;
@@ -316,8 +320,9 @@ export interface DesignTokens {
   vfd: { vfd: DayNight<VfdFields> };
   /** Footer/skytext tokens (export key `footer`, internal group `skytext`). */
   footer: { skytext: DayNight<SkyTextFields> };
-  /** TFT cover-plate tokens (single group, wrapper key kept 1:1 to export). */
-  cover: { cover: DayNight<CoverFields> };
+  /** TFT cover-plate tokens (single group, wrapper key kept 1:1 to export).
+   *  Mode-independent — one fixed look, no day/night ({@link CoverFields}). */
+  cover: { cover: CoverFields };
   /** Info-overlay backdrop tokens (single group, wrapper key kept 1:1 to export). */
   backdrop: { backdrop: DayNight<BackdropFields> };
   /** Sky-anchored link tokens (single group, wrapper key kept 1:1 to export). */
@@ -839,30 +844,20 @@ export const SKYTEXT_DEFAULTS: DayNight<SkyTextFields> = {
   },
 };
 
-/** Canonical cover defaults (prototype `COVER_DEFAULTS`). */
-export const COVER_DEFAULTS: DayNight<CoverFields> = {
-  day: {
-    bg: "#05070a",
-    bgOpacity: 1,
-    innerShadow: 0.42,
-    matrixColor: "#00364a",
-    matrixOpacity: 0.42,
-    sheenLight: 0.07,
-    sheenShadow: 0.16,
-    tintColor: "#caf0fe",
-    tintOpacity: 0.15,
-  },
-  night: {
-    bg: "#05070a",
-    bgOpacity: 1,
-    innerShadow: 0.3,
-    matrixColor: "#000000",
-    matrixOpacity: 0.32,
-    sheenLight: 0.07,
-    sheenShadow: 0.23,
-    tintColor: "#fff2d5",
-    tintOpacity: 0.15,
-  },
+/**
+ * Canonical cover defaults (prototype `COVER_DEFAULTS`). Mode-independent: one
+ * fixed look for the cover screen, with no day/night cross-fade.
+ */
+export const COVER_DEFAULTS: CoverFields = {
+  bg: "#05070a",
+  bgOpacity: 1,
+  innerShadow: 0.42,
+  matrixColor: "#00364a",
+  matrixOpacity: 0.42,
+  sheenLight: 0.07,
+  sheenShadow: 0.16,
+  tintColor: "#caf0fe",
+  tintOpacity: 0.15,
 };
 
 /** Canonical info-overlay backdrop defaults (prototype `BACKDROP_DEFAULTS`). */
@@ -1206,13 +1201,19 @@ export function parseDesignTokens(raw: unknown): { tokens: DesignTokens; errors:
     errors,
   ) as unknown as DayNight<SkyTextFields>;
 
-  const cover = sanitizeDayNight(
-    (obj.cover as { cover?: unknown } | undefined)?.cover,
-    COVER_DEFAULTS as unknown as DayNight<Record<string, unknown>>,
+  // Cover is mode-independent (one value bag). A blob saved before the collapse
+  // still carries the legacy `{ day, night }` shape — read its `day` half so a
+  // persisted token setting keeps working; otherwise read the flat single shape.
+  const rawCover = (obj.cover as { cover?: unknown } | undefined)?.cover;
+  const coverSource =
+    rawCover && typeof rawCover === "object" && "day" in rawCover ? (rawCover as { day?: unknown }).day : rawCover;
+  const cover = sanitizeFields(
+    coverSource,
+    COVER_DEFAULTS as unknown as Record<string, unknown>,
     COVER_FIELD_SPECS,
     "cover.cover",
     errors,
-  ) as unknown as DayNight<CoverFields>;
+  ) as unknown as CoverFields;
 
   const backdrop = sanitizeDayNight(
     (obj.backdrop as { backdrop?: unknown } | undefined)?.backdrop,

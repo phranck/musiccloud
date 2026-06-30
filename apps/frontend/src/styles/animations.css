@@ -65,8 +65,9 @@
 .mc-tft-screen {
   position: relative;
   border-radius: var(--neu-radius-inner);
-  /* Screen base, cross-faded day↔night from the cover tokens. */
-  background: color-mix(in srgb, var(--cover-day-bg) calc(var(--g-dayness) * 100%), var(--cover-night-bg));
+  /* Screen base. Mode-independent: one fixed look, no day/night cross-fade, so
+     it never repaints on a --g-dayness change (the Safari fade-jank fix). */
+  background: var(--cover-bg);
 }
 
 .mc-tft-screen-content {
@@ -93,19 +94,20 @@
 /* Art tint overlay. */
 .mc-tft-screen-tint {
   z-index: 1;
-  background: color-mix(in srgb, var(--cover-day-tint) calc(var(--g-dayness) * 100%), var(--cover-night-tint));
+  background: var(--cover-tint);
 }
 
-/* LCD dot-matrix: one cross-faded colour at two line opacities; the layer
-   opacity (matrixOpacity token) is the master strength. */
+/* LCD dot-matrix: one matrix colour at two line opacities; the layer opacity
+   (matrixOpacity token) is the master strength. The color-mix here only derives
+   the translucent grid-line colour from the static matrix token — no --g-dayness,
+   so it resolves once and never repaints on a dayness change. */
 .mc-tft-screen-matrix {
   z-index: 10;
-  --_cover-matrix: color-mix(in srgb, var(--cover-day-matrix) calc(var(--g-dayness) * 100%), var(--cover-night-matrix));
   background-image:
-    linear-gradient(color-mix(in srgb, var(--_cover-matrix) 50%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--_cover-matrix) 58%, transparent) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--cover-matrix) 50%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--cover-matrix) 58%, transparent) 1px, transparent 1px);
   background-size: 4px 4px;
-  opacity: calc(var(--cover-day-matrix-o) * var(--g-dayness) + var(--cover-night-matrix-o) * (1 - var(--g-dayness)));
+  opacity: var(--cover-matrix-o);
 }
 
 /* Sheen: top highlight → transparent → bottom shade. */
@@ -113,24 +115,16 @@
   z-index: 15;
   background: linear-gradient(
     to bottom,
-    rgba(
-        255,
-        255,
-        255,
-        calc(var(--cover-day-sheen-l) * var(--g-dayness) + var(--cover-night-sheen-l) * (1 - var(--g-dayness)))
-      )
-      0%,
+    rgba(255, 255, 255, var(--cover-sheen-l)) 0%,
     transparent 30%,
-    rgba(0, 0, 0, calc(var(--cover-day-sheen-s) * var(--g-dayness) + var(--cover-night-sheen-s) * (1 - var(--g-dayness))))
-      100%
+    rgba(0, 0, 0, var(--cover-sheen-s)) 100%
   );
 }
 
 /* Inset frame shadow (top-left); strength = innerShadow token. */
 .mc-tft-screen-shadow {
   z-index: 20;
-  box-shadow: inset 4px 4px 12px
-    rgba(0, 0, 0, calc(var(--cover-day-inner) * var(--g-dayness) + var(--cover-night-inner) * (1 - var(--g-dayness))));
+  box-shadow: inset 4px 4px 12px rgba(0, 0, 0, var(--cover-inner));
 }
 
 .mc-share-media-stage {

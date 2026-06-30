@@ -216,22 +216,16 @@ export function designTokensToCss(tokens: DesignTokens): string {
   decls.push(`--cardlink-offset:${cl.day.offset}px`);
 
   // TFT cover screen layers (bg, inset shadow strength, LCD matrix colour +
-  // layer opacity, sheen highlight/shade strengths, art tint).
+  // layer opacity, sheen highlight/shade strengths, art tint). Mode-independent:
+  // one fixed set, no day/night, so the cover never repaints on a dayness change.
   const cover = tokens.cover.cover;
-  decls.push(`--cover-day-bg:${toRgba(cover.day.bg, cover.day.bgOpacity)}`);
-  decls.push(`--cover-night-bg:${toRgba(cover.night.bg, cover.night.bgOpacity)}`);
-  decls.push(`--cover-day-inner:${cover.day.innerShadow}`);
-  decls.push(`--cover-night-inner:${cover.night.innerShadow}`);
-  decls.push(`--cover-day-matrix:${cover.day.matrixColor}`);
-  decls.push(`--cover-night-matrix:${cover.night.matrixColor}`);
-  decls.push(`--cover-day-matrix-o:${cover.day.matrixOpacity}`);
-  decls.push(`--cover-night-matrix-o:${cover.night.matrixOpacity}`);
-  decls.push(`--cover-day-sheen-l:${cover.day.sheenLight}`);
-  decls.push(`--cover-night-sheen-l:${cover.night.sheenLight}`);
-  decls.push(`--cover-day-sheen-s:${cover.day.sheenShadow}`);
-  decls.push(`--cover-night-sheen-s:${cover.night.sheenShadow}`);
-  decls.push(`--cover-day-tint:${toRgba(cover.day.tintColor, cover.day.tintOpacity)}`);
-  decls.push(`--cover-night-tint:${toRgba(cover.night.tintColor, cover.night.tintOpacity)}`);
+  decls.push(`--cover-bg:${toRgba(cover.bg, cover.bgOpacity)}`);
+  decls.push(`--cover-inner:${cover.innerShadow}`);
+  decls.push(`--cover-matrix:${cover.matrixColor}`);
+  decls.push(`--cover-matrix-o:${cover.matrixOpacity}`);
+  decls.push(`--cover-sheen-l:${cover.sheenLight}`);
+  decls.push(`--cover-sheen-s:${cover.sheenShadow}`);
+  decls.push(`--cover-tint:${toRgba(cover.tintColor, cover.tintOpacity)}`);
 
   // Sky-gradient base colours: the night-sky shader's sky top/horizon per mode,
   // emitted as CSS vars so the static backdrop behind the canvas renders the same

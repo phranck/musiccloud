@@ -45,7 +45,7 @@ describe("parseDesignTokens — happy path", () => {
     const { tokens } = parseDesignTokens(validExport());
     expect(tokens.vfd.vfd.day.bg).toBe("#00364a");
     expect(tokens.footer.skytext.night.opacity).toBe(0.55);
-    expect(tokens.cover.cover.day.tintColor).toBe("#caf0fe");
+    expect(tokens.cover.cover.tintColor).toBe("#caf0fe");
     expect(tokens.backdrop.backdrop.day.blur).toBe(3);
   });
 
