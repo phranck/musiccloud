@@ -70,3 +70,7 @@ Plan-Nr.: MC-073
 - K-A: `new AbortController` + `setTimeout(... abort, 15000)` `useAppState.ts:118/119, 183/184, 228/229`.
 - MEDIUM-2: Context-Value-Memo `TurntablePlayerProvider.tsx:160-181`, `progressRatio` `:169`; nur `TurntableAnalyzerSlot` konsumiert ihn.
 - Jeder Ziel-File wird vor dem Edit vollständig erneut gelesen (read-completely + execute-time re-verify).
+
+## Completed
+
+Abgeschlossen am 2026-06-30 als ein funktionserhaltender Refactor-Commit `0e0106f2` (alle Gruppen G1–G8: DRY-/Dead-Code-Konsolidierung plus die zwei medium-Leaks MEDIUM-1 `marqueeStates`-Pruning und MEDIUM-2 `progressRatio`-Context-Split). Gates grün (Biome, tsc 0, React-Doctor 0, Vitest 312 frontend). Vom User nach `done/` freigegeben.
