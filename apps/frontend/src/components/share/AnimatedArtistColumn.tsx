@@ -12,7 +12,6 @@ import type {
 } from "@/components/artist/artistPanelTypes";
 import { buildSimilarSwapKey, buildTracksSwapKey } from "@/components/artist/artistSwapKeys";
 import { toPopularTrackItems, toSimilarTrackItems } from "@/components/artist/artistTrackItems";
-import { ArtistTrackViewKey } from "@/components/artist/artistTrackViewKeys";
 import { EventsCard } from "@/components/artist/EventsCard";
 import { SimilarArtistsSkeleton } from "@/components/artist/SimilarArtistsSkeleton";
 import { TracksSkeleton } from "@/components/artist/TracksSkeleton";
@@ -157,7 +156,6 @@ export function AnimatedArtistColumn({
             Skeleton={TracksSkeleton}
             swapKey={buildTracksSwapKey(artistData)}
             placeholderHeightClass="min-h-[186px]"
-            viewStorageKey={ArtistTrackViewKey.Popular}
             onTrackResolve={onTrackResolve}
             onResolveStart={onArtistResolveStart}
           />
@@ -171,7 +169,6 @@ export function AnimatedArtistColumn({
             swapKey={buildSimilarSwapKey(artistData)}
             placeholderHeightClass="min-h-[205px]"
             cardSignal={CardSignal.SimilarArtist}
-            viewStorageKey={ArtistTrackViewKey.Similar}
             onTrackResolve={onTrackResolve}
             onResolveStart={onArtistResolveStart}
           />

@@ -6,12 +6,11 @@
 
 import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { CircleNotchIcon } from "@phosphor-icons/react";
-import { useMemo } from "react";
 import { ArtistCardCloseButton } from "@/components/artist/ArtistCardCloseButton";
 import { ArtistInfoNoticeCard } from "@/components/artist/ArtistInfoNoticeCard";
 import { ArtistProfileMobileCard } from "@/components/artist/ArtistProfileMobileCard";
 import { ArtistSectionWell } from "@/components/artist/ArtistSectionWell";
-import { ArtistTrackContent } from "@/components/artist/ArtistTrackContent";
+import { ArtistTrackView } from "@/components/artist/ArtistTrackView";
 import type {
   ArtistCardLabels,
   ArtistInfoStatus,
@@ -19,18 +18,15 @@ import type {
 } from "@/components/artist/artistPanelTypes";
 import { buildEventsSwapKey, buildSimilarSwapKey, buildTracksSwapKey } from "@/components/artist/artistSwapKeys";
 import { toPopularTrackItems, toSimilarTrackItems } from "@/components/artist/artistTrackItems";
-import { ArtistTrackViewKey } from "@/components/artist/artistTrackViewKeys";
 import { EventsSkeleton } from "@/components/artist/EventsSkeleton";
 import { SimilarArtistsSkeleton } from "@/components/artist/SimilarArtistsSkeleton";
 import { TracksSkeleton } from "@/components/artist/TracksSkeleton";
-import { TrackViewToggle } from "@/components/artist/TrackViewToggle";
 import { UpcomingEventsSection } from "@/components/artist/UpcomingEventsSection";
 import { fullWidthEmbossedCardClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { sectionCardFooterTextClassName } from "@/components/cards/sectionCardChromeStyles";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
-import { useTrackListView } from "@/hooks/useTrackListView";
 import { useLocale, useT } from "@/i18n/localeContext";
 import { CardSignal } from "@/lib/analytics/umami";
 import { cn } from "@/lib/utils";
@@ -71,22 +67,8 @@ export function ArtistInfoCard({
   const { locale } = useLocale();
   const skeletonAllowed = useSkeletonAllowed();
 
-  // View + pager state must be declared before any early return (Rules of Hooks).
-  // The view is remembered per section and shares its key with the desktop card.
-  const [popularView, setPopularView] = useTrackListView(ArtistTrackViewKey.Popular);
-  const [similarView, setSimilarView] = useTrackListView(ArtistTrackViewKey.Similar);
   const popularItems = toPopularTrackItems(data);
   const similarItems = toSimilarTrackItems(data);
-  // Memoized so the toggle element identity stays stable (jsx-no-jsx-as-prop);
-  // only offered once a section has rows to switch between.
-  const popularAddOn = useMemo(
-    () => (popularItems.length > 0 ? <TrackViewToggle view={popularView} onChange={setPopularView} /> : undefined),
-    [popularItems.length, popularView, setPopularView],
-  );
-  const similarAddOn = useMemo(
-    () => (similarItems.length > 0 ? <TrackViewToggle view={similarView} onChange={setSimilarView} /> : undefined),
-    [similarItems.length, similarView, setSimilarView],
-  );
 
   const effectiveStatus: ArtistInfoStatus = status ?? (isLoading ? "loading" : data ? "ready" : "empty");
 
@@ -153,18 +135,12 @@ export function ArtistInfoCard({
           <CollapsibleSection visible={showTracks} sectionClass="p-[var(--mc-pad-card,0.75rem)]" disableMobileCollapse>
             <ArtistSectionWell
               innerTitle={labels.popularTracks}
-              headerAddOn={popularAddOn}
               showInitialSkeleton={showInitialSkeleton}
               Skeleton={TracksSkeleton}
               hasContent={popularItems.length > 0}
               swapKey={buildTracksSwapKey(data)}
             >
-              <ArtistTrackContent
-                view={popularView}
-                items={popularItems}
-                onTrackResolve={onTrackResolve}
-                onResolveStart={onResolveStart}
-              />
+              <ArtistTrackView items={popularItems} onTrackResolve={onTrackResolve} onResolveStart={onResolveStart} />
             </ArtistSectionWell>
           </CollapsibleSection>
 
@@ -188,14 +164,12 @@ export function ArtistInfoCard({
           <CollapsibleSection visible={showSimilar} sectionClass="p-[var(--mc-pad-card,0.75rem)]" disableMobileCollapse>
             <ArtistSectionWell
               innerTitle={labels.similar}
-              headerAddOn={similarAddOn}
               showInitialSkeleton={showInitialSkeleton}
               Skeleton={SimilarArtistsSkeleton}
               hasContent={similarItems.length > 0}
               swapKey={buildSimilarSwapKey(data)}
             >
-              <ArtistTrackContent
-                view={similarView}
+              <ArtistTrackView
                 items={similarItems}
                 cardSignal={CardSignal.SimilarArtist}
                 onTrackResolve={onTrackResolve}

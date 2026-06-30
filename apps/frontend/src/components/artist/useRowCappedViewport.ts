@@ -20,11 +20,9 @@ import { type RefObject, useLayoutEffect, useRef } from "react";
 export function useRowCappedViewport<T extends HTMLElement = HTMLDivElement>(units: number): RefObject<T | null> {
   const ref = useRef<T>(null);
 
-  // useLayoutEffect, not useEffect: the cap must be written before paint and
-  // before the owning ArtistTrackContent measures/animates the card height (its
-  // useGSAP is a layout effect too, and child effects run before the parent's).
-  // Applying maxHeight after paint would let the browser show one frame at the
-  // uncapped height first — the height "flash" seen on a list/grid switch.
+  // useLayoutEffect, not useEffect: the cap must be written before paint, so the
+  // browser never shows one frame at the uncapped (full-content) height before
+  // the cap applies — that one-frame "flash" is what useEffect would let through.
   useLayoutEffect(() => {
     const viewport = ref.current;
     const track = viewport?.firstElementChild as HTMLElement | null;
