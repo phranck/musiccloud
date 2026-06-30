@@ -592,7 +592,7 @@ body.glass .embossed-card, body.glass .section-card, body.glass .emb-btn,
 body.glass .recessed-card:not(.seg-track), body.glass .seg-track, body.glass .seg-indicator, body.glass .seg-hover {
   background: linear-gradient(to bottom, var(--_tt), var(--_tb));
   box-shadow:
-    0 12px 40px rgba(0,0,0, var(--_sh)),
+    var(--mc-shadow-x, 0px) var(--mc-shadow-y, 12px) var(--mc-shadow-blur, 40px) rgba(var(--mc-shadow-rgb, 0, 0, 0), var(--_sh)),
     inset 0 0 0 1px rgba(255,255,255, var(--_rm)),
     inset 1px 1px 1.5px rgba(255,255,255, var(--_el)),
     inset -1px -1px 1.5px rgba(0,0,0, var(--_es));
@@ -617,7 +617,7 @@ body.glass .embossed-card, body.glass .section-card {
    corner each one sits in swaps. */
 body.glass .recessed-card:not(.seg-track), body.glass .seg-track {
   box-shadow:
-    0 12px 40px rgba(0,0,0, var(--_sh)),
+    var(--mc-shadow-x, 0px) var(--mc-shadow-y, 12px) var(--mc-shadow-blur, 40px) rgba(var(--mc-shadow-rgb, 0, 0, 0), var(--_sh)),
     inset 0 0 0 1px rgba(255,255,255, var(--_rm)),
     inset 1px 1px 1.5px rgba(0,0,0, var(--_es)),
     inset -1px -1px 1.5px rgba(255,255,255, var(--_el));
@@ -1380,6 +1380,15 @@ body.glass .emb-btn.hero-submit {
     </div>
   </div>
 
+  <!-- ── Drop shadow — the GLOBAL card drop-shadow geometry (offset/blur/colour) ── -->
+  <div class="sec" id="sec-shadow">
+    <h2 class="sec-head" data-sec="shadow"><span id="h-shadow">Drop Shadow</span></h2>
+    <div class="sec-body">
+      <div class="hint" id="hint-shadow"></div>
+      <div id="shadow-controls"></div>
+    </div>
+  </div>
+
   <!-- ── Overlay backdrop — the dim behind the Info overlay, Day + Night ── -->
   <div class="sec" id="sec-backdrop">
     <h2 class="sec-head" data-sec="backdrop"><span id="h-backdrop">Overlay Backdrop</span></h2>
@@ -1643,7 +1652,7 @@ const UI = {
     gpuTip: "GPU render time per frame; busy % = time × FPS — the closest browser proxy for energy use (real wattage is not exposed to websites). Live via EXT_disjoint_timer_query where available; Safari and Chrome on macOS block that extension, so the Measure button runs a 30-frame gl.finish() benchmark instead — treat its result as a slight upper bound.",
     groups: { Sky: "Sky", Stars: "Stars", Clouds: "Clouds", Performance: "Performance" },
     badgeDay: "Day", badgeNight: "Night",
-    secGlass: "Glass material", secHeaderControls: "Header Controls", secText: "Typography", secPaddings: "Paddings", secVfd: "VFD Display", secSkyText: "Footer", secSkyLink: "Sky link", secCardLink: "Card link", secCover: "Cover Screen", secBackdrop: "Overlay Backdrop",
+    secGlass: "Glass material", secHeaderControls: "Header Controls", secText: "Typography", secPaddings: "Paddings", secVfd: "VFD Display", secSkyText: "Footer", secSkyLink: "Sky link", secCardLink: "Card link", secCover: "Cover Screen", secShadow: "Drop Shadow", secBackdrop: "Overlay Backdrop",
     hintGlass: "Glass is always on. Tune each control's Day & Night settings; toggle ☀︎ Day to preview.",
     hintHeaderControls: "Navigation, Day/Night & language switchers. Tune their Track, Active/Icon and label-text colours per Day/Night; toggle ☀︎ Day to preview.",
     hintText: "Per-surface typography. Font, size, weight & capitalization are shared (same day & night); only the bright/normal/dimmed colours are tuned per Day/Night.",
@@ -1654,6 +1663,7 @@ const UI = {
     hintCardLink: "Links inside cards (e.g. the CC artist name): text + underline colour per Day/Night, underline width (0 = none) + offset.",
     hintCover: "The song card's cover screen (background, LCD matrix, sheen, inner shadow, art tint), per Day/Night.",
     hintBackdrop: "The dim layer behind the Info overlay: colour, opacity and blur, per Day/Night.",
+    hintShadow: "The card drop shadow's GEOMETRY — horizontal/vertical offset, blur and colour — shared by all cards (mode-independent). The per-surface strength stays in Glass material (Float shadow).",
     resetUi: "Reset UI",
   },
   de: {
@@ -1671,7 +1681,7 @@ const UI = {
     gpuTip: "GPU-Renderzeit pro Frame; Busy-% = Zeit × FPS — der beste Browser-Näherungswert für den Energieverbrauch (echte Watt geben Browser nicht preis). Live via EXT_disjoint_timer_query, wo verfügbar; Safari und Chrome auf macOS blockieren die Extension, daher misst der Messen-Button stattdessen 30 Frames mit gl.finish() — das Ergebnis ist eine leichte Obergrenze.",
     groups: { Sky: "Himmel", Stars: "Sterne", Clouds: "Wolken", Performance: "Performance" },
     badgeDay: "Tag", badgeNight: "Nacht",
-    secGlass: "Glas-Material", secHeaderControls: "Header-Controls", secText: "Typografie", secPaddings: "Paddings", secVfd: "VFD-Display", secSkyText: "Footer", secSkyLink: "Sky-Link", secCardLink: "Card-Link", secCover: "Cover-Screen", secBackdrop: "Overlay-Hintergrund",
+    secGlass: "Glas-Material", secHeaderControls: "Header-Controls", secText: "Typografie", secPaddings: "Paddings", secVfd: "VFD-Display", secSkyText: "Footer", secSkyLink: "Sky-Link", secCardLink: "Card-Link", secCover: "Cover-Screen", secShadow: "Schlagschatten", secBackdrop: "Overlay-Hintergrund",
     hintGlass: "Glas ist immer aktiv. Stelle pro Control die Tag- & Nacht-Werte ein; mit ☀︎ Tag umschalten zur Vorschau.",
     hintHeaderControls: "Navigation, Day/Night- & Sprachumschalter. Stelle Track, Aktiv/Icon und Label-Text je Tag/Nacht ein; mit ☀︎ Tag umschalten zur Vorschau.",
     hintText: "Typografie je Fläche. Font, Größe, Gewicht & Großschreibung sind geteilt (gleich Tag & Nacht); nur die hell/normal/gedämpft-Farben werden je Tag/Nacht getunt.",
@@ -1682,6 +1692,7 @@ const UI = {
     hintCardLink: "Links innerhalb von Cards (z.B. der CC-Artist-Name): Text- + Unterstrich-Farbe je Tag/Nacht, Unterstrich-Breite (0 = keine) + Abstand.",
     hintCover: "Der Cover-Screen der Song-Karte (Hintergrund, LCD-Matrix, Glanz, Innen-Schatten, Cover-Tönung), je Tag/Nacht.",
     hintBackdrop: "Die Abdunklung hinter dem Info-Overlay: Farbe, Deckkraft und Unschärfe, je Tag/Nacht.",
+    hintShadow: "Die GEOMETRIE des Card-Schlagschattens — Offset horizontal/vertikal, Weichzeichnung und Farbe — für alle Cards gemeinsam (mode-unabhängig). Die Stärke je Fläche bleibt im Glas-Material (Schlagschatten).",
     resetUi: "UI zurücksetzen",
   },
 };
@@ -2020,6 +2031,8 @@ function applyStaticTexts() {
   document.getElementById("hint-cardlink").textContent = t.hintCardLink;
   document.getElementById("h-cover").textContent = t.secCover;
   document.getElementById("hint-cover").textContent = t.hintCover;
+  document.getElementById("h-shadow").textContent = t.secShadow;
+  document.getElementById("hint-shadow").textContent = t.hintShadow;
   document.getElementById("h-backdrop").textContent = t.secBackdrop;
   document.getElementById("hint-backdrop").textContent = t.hintBackdrop;
 }
@@ -2087,7 +2100,7 @@ function applySettings(obj) {
 document.getElementById("copy").addEventListener("click", async () => {
   // Everything in one dump: background shader (flat keys) + UI glass + text + VFD +
   // footer (size/weight stripped — they're on-screen preview only).
-  const json = JSON.stringify({ ...state, cardRadius, paddings: paddingsCfg, glass, text: typoCfg, vfd: vfdCfg, footer: stripUiOnly(skyTextCfg, SKYTEXT_GROUPS, SKYTEXT_FIELDS), cover: coverCfg, backdrop: backdropCfg, skylink: skyLinkCfg, cardlink: cardLinkCfg }, null, 2);
+  const json = JSON.stringify({ ...state, cardRadius, paddings: paddingsCfg, glass, text: typoCfg, vfd: vfdCfg, footer: stripUiOnly(skyTextCfg, SKYTEXT_GROUPS, SKYTEXT_FIELDS), cover: coverCfg, shadow: shadowCfg, backdrop: backdropCfg, skylink: skyLinkCfg, cardlink: cardLinkCfg }, null, 2);
   try { await navigator.clipboard.writeText(json); } catch { /* clipboard may need user gesture context */ }
   console.log("settings:", json);
   flashFeedback(UI[lang].copied);
@@ -2139,6 +2152,13 @@ document.getElementById("paste").addEventListener("click", async () => {
     buildCoverControls();
     applyCover();
     saveCover();
+    accepted++;
+  }
+  if (parsed && parsed.shadow && typeof parsed.shadow === "object") {
+    shadowCfg = buildShadowState(parsed.shadow);
+    buildShadowControls();
+    applyShadow();
+    saveShadow();
     accepted++;
   }
   if (parsed && parsed.backdrop && typeof parsed.backdrop === "object") {
@@ -3053,7 +3073,7 @@ const G_FIELDS = [
   { key: "edgeLight",  type: "range", min: 0,   max: 1,   step: 0.01, label: { en: "Edge light", de: "Lichtkante" }, tip: { en: "Strength of the light chamfer edge (top-left when raised, bottom-right when recessed).", de: "Stärke der Licht-Fasenkante (oben-links bei erhaben, unten-rechts bei vertieft)." } },
   { key: "edgeShadow", type: "range", min: 0,   max: 1,   step: 0.01, label: { en: "Edge shadow", de: "Schattenkante" }, tip: { en: "Strength of the shadow chamfer edge (the corner opposite the light edge).", de: "Stärke der Schatten-Fasenkante (Ecke gegenüber der Lichtkante)." } },
   { key: "rim",        type: "range", min: 0,   max: 1,   step: 0.01, label: { en: "Glass rim", de: "Glaskante" }, tip: { en: "Brightness of the 1px glass rim around the whole surface.", de: "Helligkeit des umlaufenden 1px-Glasrands." } },
-  { key: "shadow",     type: "range", min: 0,   max: 0.8, step: 0.01, label: { en: "Float shadow", de: "Schlagschatten" }, tip: { en: "Soft drop shadow lifting the surface off the background.", de: "Weicher Schlagschatten, der die Fläche vom Hintergrund abhebt." } },
+  { key: "shadow",     type: "range", min: 0,   max: 1, step: 0.01, label: { en: "Float shadow", de: "Schlagschatten" }, tip: { en: "Soft drop shadow lifting the surface off the background.", de: "Weicher Schlagschatten, der die Fläche vom Hintergrund abhebt." } },
 ];
 
 /** Per-control day/night defaults (top == bottom initially, as requested).
@@ -3406,6 +3426,29 @@ const CARDLINK_DEFAULTS = {
    applyCover() writes the values straight into the CSS (single mode, mode-independent).
    The production original has NO title overlaid on the cover, so the prototype's
    former title was removed; the title lives only in the VFD below. ── */
+/* ── Drop shadow — the GLOBAL card drop-shadow geometry (offset/blur/colour). Single,
+   mode-independent (like paddings); the per-surface STRENGTH stays the glass `shadow`
+   field. Drives `--mc-shadow-*`, read by the shared box-shadow recipe. ── */
+const SHADOW_GROUPS = [{ key: "shadow", label: { en: "Drop Shadow", de: "Schlagschatten" } }];
+const SHADOW_FIELDS = [
+  { key: "offsetX", type: "range", min: -40, max: 40,  step: 1, unit: "px", label: { en: "Offset X", de: "Offset X" }, tip: { en: "Horizontal shadow offset (− left, + right).", de: "Horizontaler Schatten-Offset (− links, + rechts)." } },
+  { key: "offsetY", type: "range", min: -40, max: 40,  step: 1, unit: "px", label: { en: "Offset Y", de: "Offset Y" }, tip: { en: "Vertical shadow offset (− up, + down).", de: "Vertikaler Schatten-Offset (− oben, + unten)." } },
+  { key: "blur",    type: "range", min: 0,   max: 120, step: 1, unit: "px", label: { en: "Blur", de: "Weichzeichnung" }, tip: { en: "Shadow blur radius — higher = softer.", de: "Weichzeichnungs-Radius — höher = weicher." } },
+  { key: "color",   type: "color", label: { en: "Colour", de: "Farbe" }, tip: { en: "Shadow colour. Its opacity comes from each surface's Float-shadow strength.", de: "Schatten-Farbe. Die Deckkraft kommt aus der Schlagschatten-Stärke je Fläche." } },
+];
+/** Single mode-independent shadow-geometry bag. Defaults mirror the current `0 12px 40px` black. */
+function mkShadow(offsetX, offsetY, blur, color) { return { offsetX, offsetY, blur, color }; }
+const SHADOW_DEFAULTS = { shadow: mkShadow(0, 15, 21, "#000000") };
+/** Overlays a saved shadow store onto the single-mode defaults (a partial/old store can't break it). */
+function buildShadowState(saved) {
+  const out = structuredClone(SHADOW_DEFAULTS);
+  const src = saved?.shadow;
+  if (src) for (const f of SHADOW_FIELDS) {
+    if (src[f.key] !== undefined) out.shadow[f.key] = src[f.key];
+  }
+  return out;
+}
+
 const COVER_GROUPS = [{ key: "cover", label: { en: "Cover Screen", de: "Cover-Screen" } }];
 const COVER_FIELDS = [
   { key: "bg",            type: "color", label: { en: "Screen bg", de: "Hintergrund" }, tip: { en: "Screen background behind the artwork (shown at the edges / before the art loads).", de: "Bildschirm-Hintergrund hinter dem Cover (an den Rändern / bevor das Bild lädt)." } },
@@ -3508,6 +3551,10 @@ function saveTypo() { saveJsonStore("t", TYPO_KEY, typoCfg); }
 function saveVfd() { saveJsonStore("v", VFD_KEY, vfdCfg); }
 function saveSkyText() { saveJsonStore("k", SKYTEXT_KEY, stripUiOnly(skyTextCfg, SKYTEXT_GROUPS, SKYTEXT_FIELDS)); }
 function saveCover() { saveJsonStore("o", COVER_KEY, coverCfg); }
+
+const SHADOW_KEY = "mc-card-prototype-shadow-v1";
+let shadowCfg = buildShadowState(loadJsonStore("d", SHADOW_KEY));
+function saveShadow() { saveJsonStore("d", SHADOW_KEY, shadowCfg); }
 
 const BACKDROP_KEY = "mc-card-prototype-backdrop-v1";
 let backdropCfg = buildContentState(loadJsonStore("b", BACKDROP_KEY), BACKDROP_DEFAULTS, BACKDROP_GROUPS, BACKDROP_FIELDS);
@@ -3698,6 +3745,17 @@ function applyCover() {
   // Tint overlay over the artwork.
   const tint = screen.querySelector(".tft-cover-tint");
   if (tint) tint.style.background = rgba(c.tintColor, c.tintOpacity);
+}
+
+/** Writes the global drop-shadow geometry into `--mc-shadow-*` (read by the shared
+ *  box-shadow recipe; each surface's strength supplies the alpha via `--_sh`). */
+function applyShadow() {
+  const c = shadowCfg.shadow;
+  const r = document.documentElement.style;
+  r.setProperty("--mc-shadow-x", c.offsetX + "px");
+  r.setProperty("--mc-shadow-y", c.offsetY + "px");
+  r.setProperty("--mc-shadow-blur", c.blur + "px");
+  r.setProperty("--mc-shadow-rgb", rgbTriplet(c.color));
 }
 
 /** Cross-fades the overlay backdrop colour/opacity/blur day↔night into the CSS vars
@@ -4207,6 +4265,12 @@ function buildBackdropControls() {
     () => { applyBackdrop(); saveBackdrop(); });
 }
 
+/** (Re)builds the global drop-shadow geometry controls (single-mode, like the cover). */
+function buildShadowControls() {
+  buildTuneSection("shadow-controls", SHADOW_GROUPS, SHADOW_FIELDS, shadowCfg, glassCollapsed, null,
+    () => { applyShadow(); saveShadow(); });
+}
+
 /** (Re)builds the sky-link controls for the active mode. */
 function buildSkyLinkControls() {
   buildTuneSection("skylink-controls", SKYLINK_GROUPS, SKYLINK_FIELDS, skyLinkCfg, glassCollapsed, currentGlassMode(),
@@ -4223,7 +4287,7 @@ function buildCardLinkControls() {
  *  chevron, restores the saved collapsed state, and attaches the toggle handler.
  *  The sky groups self-wire in groupEl; this runs once at init. */
 function wireStaticSections() {
-  for (const id of ["sec-glass", "sec-headercontrols", "sec-paddings", "sec-text", "sec-vfd", "sec-skytext", "sec-skylink", "sec-cardlink", "sec-cover", "sec-backdrop"]) {
+  for (const id of ["sec-glass", "sec-headercontrols", "sec-paddings", "sec-text", "sec-vfd", "sec-skytext", "sec-skylink", "sec-cardlink", "sec-cover", "sec-shadow", "sec-backdrop"]) {
     const sec = document.getElementById(id);
     if (!sec) continue;
     const head = sec.querySelector(".sec-head");
@@ -4240,6 +4304,7 @@ document.getElementById("reset-glass").addEventListener("click", () => {
   vfdCfg = structuredClone(VFD_DEFAULTS);
   skyTextCfg = structuredClone(SKYTEXT_DEFAULTS);
   coverCfg = structuredClone(COVER_DEFAULTS);
+  shadowCfg = structuredClone(SHADOW_DEFAULTS);
   backdropCfg = structuredClone(BACKDROP_DEFAULTS);
   skyLinkCfg = structuredClone(SKYLINK_DEFAULTS);
   cardLinkCfg = structuredClone(CARDLINK_DEFAULTS);
@@ -4251,6 +4316,7 @@ document.getElementById("reset-glass").addEventListener("click", () => {
   buildVfdControls();
   buildSkyTextControls();
   buildCoverControls();
+  buildShadowControls();
   buildBackdropControls();
   buildSkyLinkControls();
   buildCardLinkControls();
@@ -4260,6 +4326,7 @@ document.getElementById("reset-glass").addEventListener("click", () => {
   applyVfd();
   applySkyText();
   applyCover();
+  applyShadow();
   applyBackdrop();
   applySkyLink();
   applyCardLink();
@@ -4269,6 +4336,7 @@ document.getElementById("reset-glass").addEventListener("click", () => {
   saveVfd();
   saveSkyText();
   saveCover();
+  saveShadow();
   saveBackdrop();
   saveSkyLink();
   saveCardLink();
@@ -4629,6 +4697,7 @@ buildPaddingControls();
 buildVfdControls();
 buildSkyTextControls();
 buildCoverControls();
+buildShadowControls();
 buildBackdropControls();
 buildSkyLinkControls();
 buildCardLinkControls();
@@ -4641,6 +4710,7 @@ applyTypography();
 applyVfd();
 applySkyText();
 applyCover();
+applyShadow();
 applyBackdrop();
 applySkyLink();
 applyCardLink();

@@ -53,6 +53,14 @@
      Phase 1 seeds night; Phase 2 drives this live from the sky driver. */
   --g-dayness: 0;
 
+  /* Global card drop-shadow geometry (offset/blur/colour). Compiled-in fallback;
+     SSR designTokensCss overrides per saved tokens. The per-surface strength is
+     `--_sh`; this is shared by every card's box-shadow recipe. */
+  --mc-shadow-x: 0px;
+  --mc-shadow-y: 15px;
+  --mc-shadow-blur: 21px;
+  --mc-shadow-rgb: 0, 0, 0;
+
   /* card (outer EmbossedCard / section card) */
   --card-day-tt: rgba(0, 0, 0, 0.35);
   --card-day-tb: rgba(0, 0, 0, 0.35);
@@ -63,14 +71,14 @@
   --card-day-es: 0;
   --card-day-rm: 0;
   --card-day-sh: 0.3;
-  --card-night-tt: rgba(35, 35, 35, 0.42);
-  --card-night-tb: rgba(35, 35, 35, 0.42);
+  --card-night-tt: rgba(53, 64, 70, 0.42);
+  --card-night-tb: rgba(41, 49, 55, 0.42);
   --card-night-bl: 6px;
   --card-night-sa: 0.25;
   --card-night-br: 0.5;
   --card-night-el: 0;
   --card-night-es: 0;
-  --card-night-rm: 0.07;
+  --card-night-rm: 0.03;
   --card-night-sh: 0.2;
 
   /* cardOverlay (draggable page-overlay frame — heavier frost over the scrim) */
@@ -110,7 +118,7 @@
   --button-night-br: 0.42;
   --button-night-el: 0;
   --button-night-es: 0;
-  --button-night-rm: 0;
+  --button-night-rm: 0.03;
   --button-night-sh: 0;
 
   /* recessed (RecessedCard inset well) */
@@ -184,8 +192,8 @@
   --navTrack-day-es: 0;
   --navTrack-day-rm: 0;
   --navTrack-day-sh: 0;
-  --navTrack-night-tt: rgba(0, 0, 0, 0.28);
-  --navTrack-night-tb: rgba(0, 0, 0, 0.28);
+  --navTrack-night-tt: rgba(0, 79, 111, 0.32);
+  --navTrack-night-tb: rgba(0, 79, 111, 0.32);
   --navTrack-night-bl: 0px;
   --navTrack-night-sa: 0;
   --navTrack-night-br: 0;
@@ -668,7 +676,7 @@ a.mc-cardlink {
   position: relative;
   background: linear-gradient(to bottom, var(--_tt), var(--_tb));
   box-shadow:
-    0 12px 40px rgba(0, 0, 0, var(--_sh)),
+    var(--mc-shadow-x, 0px) var(--mc-shadow-y, 15px) var(--mc-shadow-blur, 21px) rgba(var(--mc-shadow-rgb, 0, 0, 0), var(--_sh)),
     inset 0 0 0 1px rgba(255, 255, 255, var(--_rm)),
     inset 1px 1px 1.5px rgba(255, 255, 255, var(--_el)),
     inset -1px -1px 1.5px rgba(0, 0, 0, var(--_es));
@@ -692,7 +700,7 @@ a.mc-cardlink {
 .mc-glass-nav-track,
 .mc-glass-cc-seg-track {
   box-shadow:
-    0 12px 40px rgba(0, 0, 0, var(--_sh)),
+    var(--mc-shadow-x, 0px) var(--mc-shadow-y, 15px) var(--mc-shadow-blur, 21px) rgba(var(--mc-shadow-rgb, 0, 0, 0), var(--_sh)),
     inset 0 0 0 1px rgba(255, 255, 255, var(--_rm)),
     inset 1px 1px 1.5px rgba(0, 0, 0, var(--_es)),
     inset -1px -1px 1.5px rgba(255, 255, 255, var(--_el));

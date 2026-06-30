@@ -64,7 +64,7 @@ const EXPECTED_KEYS = [
 const PINNED_VALUES: Partial<Record<(typeof EXPECTED_KEYS)[number], number | string>> = {
   dayness: 0,
   autoDayNight: 0,
-  fpsCap: 7,
+  fpsCap: 8,
   renderScale: 0.7,
   cloudDetail: 7,
   rotationPeriod: 1200,

@@ -49,6 +49,12 @@ describe("parseDesignTokens — happy path", () => {
     expect(tokens.backdrop.backdrop.day.blur).toBe(3);
   });
 
+  it("parses the global drop-shadow single group, falling back to the default when absent", () => {
+    const tuned = parseDesignTokens({ shadow: { shadow: { offsetX: 2, offsetY: 8, blur: 30, color: "#112233" } } });
+    expect(tuned.tokens.shadow.shadow).toEqual({ offsetX: 2, offsetY: 8, blur: 30, color: "#112233" });
+    expect(parseDesignTokens({}).tokens.shadow.shadow).toEqual(DESIGN_TOKENS_DEFAULTS.shadow.shadow);
+  });
+
   it("exports & applies the footer text size, clamped to range and defaulted when missing", () => {
     const within = parseDesignTokens({ footer: { skytext: { day: { size: 20 } } } });
     expect(within.tokens.footer.skytext.day.size).toBe(20);

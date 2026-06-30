@@ -161,7 +161,7 @@ describe("BackgroundScene bridge", () => {
     expect(message.canvas).toBe(FAKE_OFFSCREEN);
     expect(init.transfer).toContain(FAKE_OFFSCREEN);
     // Production settings ride along (spot check the approved fps cap).
-    expect(message.settings.fpsCap).toBe(7);
+    expect(message.settings.fpsCap).toBe(8);
   });
 
   it("keeps the canvas invisible until the worker reports ready, then fades it in", () => {
@@ -213,7 +213,7 @@ describe("BackgroundScene main-thread fallback", () => {
     const canvas = container.querySelector("canvas") as HTMLCanvasElement;
 
     expect(workerInstances).toHaveLength(0);
-    expect(createNightSkyScene).toHaveBeenCalledWith(canvas, expect.objectContaining({ fpsCap: 7 }), expect.anything());
+    expect(createNightSkyScene).toHaveBeenCalledWith(canvas, expect.objectContaining({ fpsCap: 8 }), expect.anything());
     expect(scene.draw).toHaveBeenCalled(); // first frame renders before the reveal
     expect(gsap.getTweensOf(canvas).length).toBeGreaterThan(0); // reveal fade started
     expect(tickerAdd).toHaveBeenCalledTimes(1);

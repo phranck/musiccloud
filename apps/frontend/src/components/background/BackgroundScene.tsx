@@ -110,7 +110,7 @@ function scheduleIdle(callback: () => void): () => void {
  * calls (fallback). In System mode a `prefers-color-scheme` listener plays
  * live OS theme flips as animated fades.
  *
- * Default behaviour per the approved settings: fixed night start, 7 fps
+ * Default behaviour per the approved settings: fixed night start, 8 fps
  * idle loop, 30 fps lift during the manual day/night fade.
  */
 export function BackgroundScene({ shaderTokens }: { shaderTokens?: ShaderTokens }) {

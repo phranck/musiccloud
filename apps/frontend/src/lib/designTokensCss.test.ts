@@ -39,3 +39,13 @@ describe("designTokensToCss — button hover/active tints", () => {
     expect(active.alpha).toBe(base.alpha);
   });
 });
+
+describe("designTokensToCss — global drop shadow", () => {
+  it("emits the drop-shadow geometry vars from tokens.shadow.shadow", () => {
+    const css = designTokensToCss(DESIGN_TOKENS_DEFAULTS);
+    expect(css).toContain("--mc-shadow-x:0px");
+    expect(css).toContain("--mc-shadow-y:15px");
+    expect(css).toContain("--mc-shadow-blur:21px");
+    expect(css).toContain("--mc-shadow-rgb:0,0,0");
+  });
+});

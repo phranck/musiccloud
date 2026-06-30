@@ -158,7 +158,7 @@ export const NIGHT_SKY_DEFAULTS: NightSkySettings = {
   starOcclusion: 0.1,
   animate: 1,
   renderScale: 0.7,
-  fpsCap: 7,
+  fpsCap: 8,
   skyTop: "#0b1318",
   skyBottom: "#10273b",
   skyTopDay: "#0076d5",

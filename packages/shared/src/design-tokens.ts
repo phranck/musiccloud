@@ -121,7 +121,7 @@ export interface GlassFields {
   edgeShadow: number;
   /** 1px inner rim intensity (0..1). */
   rim: number;
-  /** Outer float/drop-shadow intensity (0..0.8). */
+  /** Outer float/drop-shadow intensity (0..1). */
   shadow: number;
 }
 
@@ -219,6 +219,22 @@ export interface CoverFields {
   sheenShadow: number;
   tintColor: string;
   tintOpacity: number;
+}
+
+/**
+ * Tunable fields of the GLOBAL card drop-shadow geometry. Mode-independent: one
+ * shadow shape for every card (the per-surface STRENGTH is the glass `shadow`
+ * field). Drives `--mc-shadow-*` in the shared box-shadow recipe.
+ */
+export interface ShadowFields {
+  /** Horizontal offset in px (− left, + right). */
+  offsetX: number;
+  /** Vertical offset in px (− up, + down). */
+  offsetY: number;
+  /** Blur radius in px (higher = softer). */
+  blur: number;
+  /** Shadow colour (`#rrggbb`); its opacity comes from each surface's `shadow` strength. */
+  color: string;
 }
 
 /** Tunable fields of the info-overlay backdrop scrim, per mode. */
@@ -323,6 +339,9 @@ export interface DesignTokens {
   /** TFT cover-plate tokens (single group, wrapper key kept 1:1 to export).
    *  Mode-independent — one fixed look, no day/night ({@link CoverFields}). */
   cover: { cover: CoverFields };
+  /** Global card drop-shadow geometry (single group, mode-independent); the
+   *  per-surface strength is the glass `shadow` field ({@link ShadowFields}). */
+  shadow: { shadow: ShadowFields };
   /** Info-overlay backdrop tokens (single group, wrapper key kept 1:1 to export). */
   backdrop: { backdrop: DayNight<BackdropFields> };
   /** Sky-anchored link tokens (single group, wrapper key kept 1:1 to export). */
@@ -363,17 +382,17 @@ export const CARD_RADIUS_DEFAULT = 28;
  * components + cardGeometry consume these vars. Range 0..{@link PADDING_MAX} px.
  */
 export const PADDING_DEFAULTS = {
-  "--mc-pad-card": 12,
-  "--mc-pad-header": 10,
-  "--mc-pad-header-b": 0,
+  "--mc-pad-card": 10,
+  "--mc-pad-header": 14,
+  "--mc-pad-header-b": 12,
   "--mc-pad-recessed": 3,
-  "--mc-pad-artist": 6,
-  "--mc-pad-track": 3,
-  "--mc-pad-tracktime": 8,
+  "--mc-pad-artist": 10,
+  "--mc-pad-track": 4,
+  "--mc-pad-tracktime": 14,
   "--mc-pad-svc-y": 10,
   "--mc-pad-svc-x": 12,
   "--mc-pad-event-x": 12,
-  "--mc-pad-event-y": 4,
+  "--mc-pad-event-y": 10,
   "--mc-gap-cards": 22,
   "--mc-gap-list": 3,
   "--mc-gap-grid": 3,
@@ -441,7 +460,7 @@ export const SHADER_DEFAULTS: ShaderTokens = {
   starOcclusion: 0.1,
   animate: 1,
   renderScale: 0.7,
-  fpsCap: 7,
+  fpsCap: 8,
   skyTop: "#0b1318",
   skyBottom: "#10273b",
   skyTopDay: "#0076d5",
@@ -466,15 +485,15 @@ export const GLASS_DEFAULTS: Record<GlassControlKey, DayNight<GlassFields>> = {
       shadow: 0.3,
     },
     night: {
-      tintTop: "#232323",
-      tintBottom: "#232323",
+      tintTop: "#354046",
+      tintBottom: "#293137",
       opacity: 0.42,
       blur: 6,
       saturate: 0.25,
       brightness: 0.5,
       edgeLight: 0,
       edgeShadow: 0,
-      rim: 0.07,
+      rim: 0.03,
       shadow: 0.2,
     },
   },
@@ -526,7 +545,7 @@ export const GLASS_DEFAULTS: Record<GlassControlKey, DayNight<GlassFields>> = {
       brightness: 0.42,
       edgeLight: 0,
       edgeShadow: 0,
-      rim: 0.06,
+      rim: 0.03,
       shadow: 0.0,
     },
   },
@@ -625,9 +644,9 @@ export const GLASS_DEFAULTS: Record<GlassControlKey, DayNight<GlassFields>> = {
       shadow: 0.0,
     },
     night: {
-      tintTop: "#000000",
-      tintBottom: "#000000",
-      opacity: 0.28,
+      tintTop: "#004f6f",
+      tintBottom: "#004f6f",
+      opacity: 0.32,
       blur: 0,
       saturate: 0.0,
       brightness: 0.0,
@@ -860,6 +879,17 @@ export const COVER_DEFAULTS: CoverFields = {
   tintOpacity: 0.15,
 };
 
+/**
+ * Canonical drop-shadow geometry default (prototype `SHADOW_DEFAULTS`). Global +
+ * mode-independent; the per-surface strength is the glass `shadow` field.
+ */
+export const SHADOW_DEFAULTS: ShadowFields = {
+  offsetX: 0,
+  offsetY: 15,
+  blur: 21,
+  color: "#000000",
+};
+
 /** Canonical info-overlay backdrop defaults (prototype `BACKDROP_DEFAULTS`). */
 export const BACKDROP_DEFAULTS: DayNight<BackdropFields> = {
   day: { color: "#000000", opacity: 0.32, blur: 3 },
@@ -868,8 +898,8 @@ export const BACKDROP_DEFAULTS: DayNight<BackdropFields> = {
 
 /** Canonical sky-link defaults (prototype `SKYLINK_DEFAULTS`). */
 export const SKYLINK_DEFAULTS: DayNight<SkyLinkFields> = {
-  day: { color: "#06324a", decoColor: "#28a8d8", thickness: 1.5, offset: 2.5 },
-  night: { color: "#caf0fe", decoColor: "#28a8d8", thickness: 1.5, offset: 2.5 },
+  day: { color: "#fff800", decoColor: "#fff800", thickness: 0.25, offset: 2.5 },
+  night: { color: "#caf0fe", decoColor: "#28a8d8", thickness: 0.25, offset: 2.5 },
 };
 
 /**
@@ -878,8 +908,8 @@ export const SKYLINK_DEFAULTS: DayNight<SkyLinkFields> = {
  * own token group so it can later diverge without touching sky links.
  */
 export const CARDLINK_DEFAULTS: DayNight<SkyLinkFields> = {
-  day: { color: "#06324a", decoColor: "#28a8d8", thickness: 1.5, offset: 2.5 },
-  night: { color: "#caf0fe", decoColor: "#28a8d8", thickness: 1.5, offset: 2.5 },
+  day: { color: "#fefcdd", decoColor: "#fff800", thickness: 0.25, offset: 3.5 },
+  night: { color: "#caf0fe", decoColor: "#28a8d8", thickness: 0.25, offset: 3.5 },
 };
 
 /** The fully-assembled canonical default token set. */
@@ -892,6 +922,7 @@ export const DESIGN_TOKENS_DEFAULTS: DesignTokens = {
   vfd: { vfd: VFD_DEFAULTS },
   footer: { skytext: SKYTEXT_DEFAULTS },
   cover: { cover: COVER_DEFAULTS },
+  shadow: { shadow: SHADOW_DEFAULTS },
   backdrop: { backdrop: BACKDROP_DEFAULTS },
   skylink: { skylink: SKYLINK_DEFAULTS },
   cardlink: { cardlink: CARDLINK_DEFAULTS },
@@ -916,7 +947,7 @@ const GLASS_FIELD_SPECS: Record<keyof GlassFields, FieldSpec> = {
   edgeLight: { kind: "number", min: 0, max: 1 },
   edgeShadow: { kind: "number", min: 0, max: 1 },
   rim: { kind: "number", min: 0, max: 1 },
-  shadow: { kind: "number", min: 0, max: 0.8 },
+  shadow: { kind: "number", min: 0, max: 1 },
 };
 
 const TEXT_SURFACE_FIELD_SPECS: Record<keyof TextSurfaceFields, FieldSpec> = {
@@ -963,6 +994,13 @@ const COVER_FIELD_SPECS: Record<keyof CoverFields, FieldSpec> = {
   sheenShadow: { kind: "number", min: 0, max: 1 },
   tintColor: { kind: "color" },
   tintOpacity: { kind: "number", min: 0, max: 1 },
+};
+
+const SHADOW_FIELD_SPECS: Record<keyof ShadowFields, FieldSpec> = {
+  offsetX: { kind: "number", min: -40, max: 40 },
+  offsetY: { kind: "number", min: -40, max: 40 },
+  blur: { kind: "number", min: 0, max: 120 },
+  color: { kind: "color" },
 };
 
 const BACKDROP_FIELD_SPECS: Record<keyof BackdropFields, FieldSpec> = {
@@ -1215,6 +1253,14 @@ export function parseDesignTokens(raw: unknown): { tokens: DesignTokens; errors:
     errors,
   ) as unknown as CoverFields;
 
+  const shadow = sanitizeFields(
+    (obj.shadow as { shadow?: unknown } | undefined)?.shadow,
+    SHADOW_DEFAULTS as unknown as Record<string, unknown>,
+    SHADOW_FIELD_SPECS,
+    "shadow.shadow",
+    errors,
+  ) as unknown as ShadowFields;
+
   const backdrop = sanitizeDayNight(
     (obj.backdrop as { backdrop?: unknown } | undefined)?.backdrop,
     BACKDROP_DEFAULTS as unknown as DayNight<Record<string, unknown>>,
@@ -1249,6 +1295,7 @@ export function parseDesignTokens(raw: unknown): { tokens: DesignTokens; errors:
       vfd: { vfd },
       footer: { skytext },
       cover: { cover },
+      shadow: { shadow },
       backdrop: { backdrop },
       skylink: { skylink },
       cardlink: { cardlink },

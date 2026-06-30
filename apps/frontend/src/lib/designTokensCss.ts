@@ -29,6 +29,20 @@ function toRgba(color: string, alpha: number): string {
 }
 
 /**
+ * A `#rrggbb` colour as the bare `r,g,b` triplet (no alpha wrapper), so the caller
+ * can compose it into `rgba()` with a separate alpha — used by the drop shadow,
+ * whose colour is global but whose opacity comes from each surface's `--_sh`.
+ * Non-hex inputs pass through unchanged.
+ */
+function rgbTriplet(color: string): string {
+  if (color.startsWith("#")) {
+    const n = Number.parseInt(color.slice(1), 16);
+    return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+  }
+  return color;
+}
+
+/**
  * Lifts a `#rrggbb` colour's HSL lightness by `pct` percentage points (clamped to
  * 0..100), returning a new `#rrggbb`. Non-hex inputs (e.g. `rgb()`) pass through
  * unchanged.
@@ -226,6 +240,14 @@ export function designTokensToCss(tokens: DesignTokens): string {
   decls.push(`--cover-sheen-l:${cover.sheenLight}`);
   decls.push(`--cover-sheen-s:${cover.sheenShadow}`);
   decls.push(`--cover-tint:${toRgba(cover.tintColor, cover.tintOpacity)}`);
+
+  // Global card drop-shadow geometry (offset/blur/colour); the per-surface
+  // strength supplies the alpha via --_sh in the shared box-shadow recipe.
+  const shadow = tokens.shadow.shadow;
+  decls.push(`--mc-shadow-x:${shadow.offsetX}px`);
+  decls.push(`--mc-shadow-y:${shadow.offsetY}px`);
+  decls.push(`--mc-shadow-blur:${shadow.blur}px`);
+  decls.push(`--mc-shadow-rgb:${rgbTriplet(shadow.color)}`);
 
   // Sky-gradient base colours: the night-sky shader's sky top/horizon per mode,
   // emitted as CSS vars so the static backdrop behind the canvas renders the same
