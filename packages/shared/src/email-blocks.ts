@@ -56,6 +56,29 @@ export interface EmailSpacerBlock {
 /** Ein Body-Block. */
 export type EmailBlock = EmailTextBlock | EmailButtonBlock | EmailImageBlock | EmailDividerBlock | EmailSpacerBlock;
 
+/** Matches a leading URI scheme (e.g. `https:`, `javascript:`) at the start of a string. */
+const URL_SCHEME_PATTERN = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
+
+/** Schemes a button block's `url` may start with. Anything else (`javascript:`, `data:`, `vbscript:`, ...) is rejected. */
+const ALLOWED_URL_SCHEMES = new Set(["http:", "https:", "mailto:"]);
+
+/**
+ * Rejects dangerous URI schemes (`javascript:`, `data:`, ...) in a button
+ * block's `url` before it can reach an `href` attribute. A `url` may also be
+ * a bare `{{variable}}` placeholder with no literal scheme at all (resolved
+ * later from action-supplied, backend-trusted values) or a schemeless
+ * relative path — neither can execute as a pseudo-protocol, so both are safe
+ * and this check only inspects a literal scheme when one is actually present.
+ *
+ * @param url - the button block's (still uninterpolated) `url` field.
+ * @returns `true` when the URL has no scheme, or an allow-listed one.
+ */
+function hasSafeUrlScheme(url: string): boolean {
+  const match = url.match(URL_SCHEME_PATTERN);
+  if (!match) return true;
+  return ALLOWED_URL_SCHEMES.has(match[0].toLowerCase());
+}
+
 /**
  * Prüft, ob ein unbekannter Wert ein wohlgeformtes `EmailBlock[]` ist. Nutzt
  * die Route-/Service-Schicht zur Body-Validierung, bevor Blöcke persistiert
@@ -73,7 +96,7 @@ export function isEmailBlockArray(value: unknown): value is EmailBlock[] {
       case EmailBlockType.Text:
         return typeof block.markdown === "string";
       case EmailBlockType.Button:
-        return typeof block.label === "string" && typeof block.url === "string";
+        return typeof block.label === "string" && typeof block.url === "string" && hasSafeUrlScheme(block.url);
       case EmailBlockType.Image:
         return typeof block.assetId === "string" && typeof block.altText === "string";
       case EmailBlockType.Divider:

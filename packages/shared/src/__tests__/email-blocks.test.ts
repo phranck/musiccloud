@@ -26,6 +26,24 @@ describe("isEmailBlockArray", () => {
   it("rejects an unknown block type", () => {
     expect(isEmailBlockArray([{ type: "video", src: "x" }])).toBe(false);
   });
+
+  it("accepts button urls with an allow-listed scheme", () => {
+    for (const url of ["https://musiccloud.io/reset", "http://localhost:3002/x", "mailto:hi@musiccloud.io"]) {
+      expect(isEmailBlockArray([{ type: EmailBlockType.Button, label: "Go", url }])).toBe(true);
+    }
+  });
+
+  it("accepts button urls that are schemeless (relative path or bare {{variable}})", () => {
+    for (const url of ["/reset", "{{inviteUrl}}", "https://{{domain}}/reset"]) {
+      expect(isEmailBlockArray([{ type: EmailBlockType.Button, label: "Go", url }])).toBe(true);
+    }
+  });
+
+  it("rejects button urls with a dangerous scheme", () => {
+    for (const url of ["javascript:alert(1)", "data:text/html,<script>alert(1)</script>", "vbscript:msgbox(1)"]) {
+      expect(isEmailBlockArray([{ type: EmailBlockType.Button, label: "Go", url }])).toBe(false);
+    }
+  });
 });
 
 describe("email actions registry", () => {
