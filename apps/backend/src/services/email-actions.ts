@@ -66,10 +66,6 @@ export async function triggerEmailAction(actionKey: string, input: TriggerEmailA
     throw new Error(`Required email action "${actionKey}" has no enabled template binding`);
   }
 
-  if (bindings.length === 0) {
-    return;
-  }
-
   const branding = await repo.getEmailBranding();
   const baseUrl = requireEnv("PUBLIC_URL");
 

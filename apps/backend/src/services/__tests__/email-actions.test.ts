@@ -138,21 +138,27 @@ describe("triggerEmailAction", () => {
     expect(subjects).toEqual(["A: alice", "B: alice"]);
   });
 
-  it("excludes a disabled binding from the fan-out", async () => {
-    const template = makeTemplateRow();
-    // The repository call is already scoped to enabled=true bindings in
-    // production, but triggerEmailAction must not assume that and should
-    // filter defensively — so this test hands back a disabled row directly.
+  it("excludes a disabled binding from the fan-out, sending only the enabled one", async () => {
+    const enabledTemplate = makeTemplateRow({ id: 1, name: "Enabled template", subject: "Enabled: {{username}}" });
+    const disabledTemplate = makeTemplateRow({ id: 2, name: "Disabled template", subject: "Disabled: {{username}}" });
+    // Mixed set: the repository call is already scoped to enabled=true
+    // bindings in production, but triggerEmailAction must not assume that and
+    // should filter defensively — so this test hands back BOTH an enabled and
+    // a disabled row, and asserts only the enabled one's template is ever
+    // looked up or sent.
     vi.mocked(repo.listEmailActionBindings).mockResolvedValueOnce([
-      { id: "bind-1", actionKey: ADMIN_INVITE_SENT, templateId: 1, enabled: false },
+      { id: "bind-1", actionKey: ADMIN_INVITE_SENT, templateId: 1, enabled: true },
+      { id: "bind-2", actionKey: ADMIN_INVITE_SENT, templateId: 2, enabled: false },
     ]);
-    vi.mocked(repo.getEmailTemplateById).mockResolvedValueOnce(template);
+    vi.mocked(repo.getEmailTemplateById).mockImplementation(async (id) =>
+      id === 1 ? enabledTemplate : id === 2 ? disabledTemplate : null,
+    );
 
-    await expect(
-      triggerEmailAction(ADMIN_INVITE_SENT, { to: RECIPIENT, variables: ADMIN_INVITE_VARIABLES }),
-    ).rejects.toThrow();
+    await triggerEmailAction(ADMIN_INVITE_SENT, { to: RECIPIENT, variables: ADMIN_INVITE_VARIABLES });
 
-    expect(vi.mocked(sendEmail)).not.toHaveBeenCalled();
+    expect(vi.mocked(sendEmail)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(sendEmail).mock.calls[0]![0].subject).toBe("Enabled: alice");
+    expect(vi.mocked(repo.getEmailTemplateById)).not.toHaveBeenCalledWith(2);
   });
 
   it("throws when a required action has zero enabled bindings", async () => {
