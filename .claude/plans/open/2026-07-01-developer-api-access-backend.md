@@ -1241,7 +1241,7 @@ git commit -m "Feat: add API-access token generation/hashing service (MC-077)"
 **Files:**
 - Modify: `packages/shared/src/endpoints.ts`
 
-- [ ] **Step 1: Admin-Gruppe ergänzen**
+- [x] **Step 1: Admin-Gruppe ergänzen**
 
 In `ENDPOINTS`, in der `admin`-Gruppe, nach der `crawler`-Untergruppe (vor der schliessenden `}` bei `:319`) einfügen:
 
@@ -1270,7 +1270,7 @@ In `ENDPOINTS`, in der `admin`-Gruppe, nach der `crawler`-Untergruppe (vor der s
     },
 ```
 
-- [ ] **Step 2: Dev-Gruppe ergänzen**
+- [x] **Step 2: Dev-Gruppe ergänzen**
 
 Im `dev`-Objekt, neben `auth`, ergänzen:
 
@@ -1297,7 +1297,7 @@ Im `dev`-Objekt, neben `auth`, ergänzen:
     },
 ```
 
-- [ ] **Step 3: `ROUTE_TEMPLATES` ergänzen**
+- [x] **Step 3: `ROUTE_TEMPLATES` ergänzen**
 
 Im `admin`-Objekt von `ROUTE_TEMPLATES` ergänzen:
 
@@ -1328,12 +1328,12 @@ Neu im `ROUTE_TEMPLATES`-Objekt eine `dev`-Gruppe ergänzen (erste `dev.*`-Param
   },
 ```
 
-- [ ] **Step 4: Shared bauen + Typecheck**
+- [x] **Step 4: Shared bauen + Typecheck**
 
 Run: `pnpm --filter @musiccloud/shared build && pnpm --filter @musiccloud/shared typecheck`
 Expected: beide grün.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/shared/src/endpoints.ts
@@ -2253,7 +2253,7 @@ git commit -m "Test: admin + developer API-access route tests (MC-077)"
 - [ ] Task 1: Schema + Migration, Typecheck grün
 - [ ] Task 2: Repository + Adapter + Accessor
 - [x] Task 3: Token-Service + Unit-Tests
-- [ ] Task 4: Shared Endpoints (admin + dev + ROUTE_TEMPLATES)
+- [x] Task 4: Shared Endpoints (admin + dev + ROUTE_TEMPLATES)
 - [ ] Task 5: Admin-Routen + Registrierung
 - [ ] Task 6: Developer-Self-Service-Routen + Registrierung
 - [ ] Task 7: Route-Tests (Admin + Dev) grün, volle Backend-Suite grün
