@@ -1,5 +1,7 @@
+import { type EmailBlock, EmailBlockType } from "@musiccloud/shared";
 import { marked } from "marked";
 
+import type { EmailBrandingDto } from "../db/admin-repository.js";
 import { escapeHtml } from "../lib/html.js";
 
 marked.use({ breaks: true, gfm: true });
@@ -24,6 +26,9 @@ const DARK_RULES = `
 
 const DARK_MODE_CSS = `@media (prefers-color-scheme: dark) {${DARK_RULES}}`;
 
+/** Accent color for the button block, reused verbatim from the developer-portal's dark-mode-safe button (`developer-email.ts`). */
+const BUTTON_ACCENT = "#28A8D8";
+
 function interpolate(text: string, variables: Record<string, string>): string {
   return text.replace(new RegExp(VAR_REGEX.source, "g"), (_, name) => escapeHtml(variables[name] ?? ""));
 }
@@ -44,61 +49,94 @@ function parseMarkdown(text: string): string {
 }
 
 /**
- * Resolves a user-entered banner URL against the public site base URL so the
- * rendered email (and preview iframe) always emits fully qualified URLs —
- * absolute inputs pass through, relative inputs are anchored at `baseUrl`.
+ * Builds the `<tr>` markup for a single button block. Style values (accent
+ * color, padding, border-radius, dark text-on-accent) are lifted verbatim
+ * from the already-shipped, dark-mode-safe developer-portal button
+ * (`developer-email.ts`) rather than inventing a new look.
  *
- * - `http://`, `https://`, `data:` → kept verbatim
- * - `//host/path` (protocol-relative) → `https:` prepended
- * - `/path` or `path` → prefixed with `baseUrl`
+ * @param label - visible button text (escaped).
+ * @param url - already-interpolated target URL.
+ * @returns a single `<tr>` row.
  */
-function resolveAssetUrl(url: string, baseUrl: string): string {
-  const trimmed = url.trim();
-  if (!trimmed) return trimmed;
-  if (/^(https?:|data:)/i.test(trimmed)) return trimmed;
-  if (trimmed.startsWith("//")) return `https:${trimmed}`;
-  const base = baseUrl.replace(/\/+$/, "");
-  const path = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
-  return `${base}${path}`;
+function renderButton(label: string, url: string): string {
+  return `<tr><td style="padding:8px 40px 24px;"><table cellpadding="0" cellspacing="0" border="0"><tr><td style="border-radius:8px;background:${BUTTON_ACCENT};"><a href="${url}" style="display:inline-block;padding:12px 24px;font-size:15px;font-weight:600;color:#0f1115;text-decoration:none;">${escapeHtml(label)}</a></td></tr></table></td></tr>`;
 }
 
-export interface EmailTemplateFields {
-  headerBannerUrl?: string | null;
-  headerText?: string | null;
-  bodyText: string;
-  footerText?: string | null;
-  footerBannerUrl?: string | null;
+/**
+ * Builds the streaming asset URL for an `email_assets` row, anchored at the
+ * backend's own public base URL.
+ *
+ * @param assetId - the `email_assets.id` to point at.
+ * @param baseUrl - the backend's own public base URL (e.g. `PUBLIC_URL`).
+ * @returns an absolute URL to `GET /api/admin/email-assets/:id`.
+ */
+function assetUrl(assetId: string, baseUrl: string): string {
+  return `${baseUrl.replace(/\/+$/, "")}/api/admin/email-assets/${assetId}`;
 }
 
-function buildRows(fields: EmailTemplateFields, variables: Record<string, string>, baseUrl: string): string[] {
-  const headerHtml = fields.headerText ? parseMarkdown(interpolate(fields.headerText, variables)) : null;
-  const bodyHtml = parseMarkdown(interpolate(fields.bodyText, variables));
-  const footerHtml = fields.footerText ? parseMarkdown(interpolate(fields.footerText, variables)) : null;
-
+/**
+ * Builds the ordered `<tr>` rows for a template's body blocks wrapped by the
+ * global branding (header asset, footer text, footer asset), with `{{var}}`
+ * interpolation applied from `variables`. This is the single place the
+ * block-rendering switch statement lives — both the live-send path
+ * ({@link renderBlocks}) and the dashboard-preview path
+ * ({@link renderEmailPreview}) call this and only differ in which CSS they
+ * hand to {@link buildEmailHtml} afterwards, so the row markup can never
+ * drift between what gets sent and what gets previewed.
+ *
+ * @param blocks - the template's ordered body blocks.
+ * @param branding - the global branding singleton (header/footer asset ids + footer text).
+ * @param variables - `{{var}}` substitution values available to text/button/footer content.
+ * @param baseUrl - the backend's own public base URL, used to build asset URLs.
+ * @returns the ordered list of `<tr>...</tr>` row strings.
+ */
+function buildBlockRows(
+  blocks: EmailBlock[],
+  branding: EmailBrandingDto,
+  variables: Record<string, string>,
+  baseUrl: string,
+): string[] {
   const rows: string[] = [];
-
-  if (fields.headerBannerUrl) {
-    const src = resolveAssetUrl(fields.headerBannerUrl, baseUrl);
+  if (branding.headerAssetId) {
     rows.push(
-      `<tr><td><img src="${src}" width="560" alt="" style="display:block;width:100%;border-radius:8px 8px 0 0;"></td></tr>`,
+      `<tr><td><img src="${assetUrl(branding.headerAssetId, baseUrl)}" width="560" alt="" style="display:block;width:100%;border-radius:8px 8px 0 0;"></td></tr>`,
     );
   }
-  if (headerHtml) {
-    rows.push(`<tr><td style="padding:32px 40px 0;">${headerHtml}</td></tr>`);
+  for (const block of blocks) {
+    switch (block.type) {
+      case EmailBlockType.Text:
+        rows.push(
+          `<tr><td style="padding:24px 40px;">${parseMarkdown(interpolate(block.markdown, variables))}</td></tr>`,
+        );
+        break;
+      case EmailBlockType.Button:
+        rows.push(renderButton(block.label, interpolate(block.url, variables)));
+        break;
+      case EmailBlockType.Image:
+        rows.push(
+          `<tr><td style="padding:0 40px;"><img src="${assetUrl(block.assetId, baseUrl)}" width="480" alt="${escapeHtml(block.altText)}" style="display:block;max-width:100%;"></td></tr>`,
+        );
+        break;
+      case EmailBlockType.Divider:
+        rows.push(`<tr><td style="padding:8px 40px;"><hr style="border:none;border-top:1px solid #E5E5EA;"></td></tr>`);
+        break;
+      case EmailBlockType.Spacer:
+        rows.push(
+          `<tr><td style="height:${Math.max(0, Math.round(block.heightPx))}px;line-height:0;">&nbsp;</td></tr>`,
+        );
+        break;
+    }
   }
-  rows.push(`<tr><td style="padding:32px 40px;">${bodyHtml}</td></tr>`);
-  if (footerHtml) {
+  if (branding.footerText) {
     rows.push(
-      `<tr><td class="em-footer-border" style="padding:24px 40px;border-top:1px solid #E5E5EA;text-align:center;"><div class="em-footer-text" style="font-size:13px;color:#8E8E93;line-height:1.5;">${footerHtml}</div></td></tr>`,
+      `<tr><td class="em-footer-border" style="padding:24px 40px;border-top:1px solid #E5E5EA;text-align:center;"><div class="em-footer-text" style="font-size:13px;color:#8E8E93;line-height:1.5;">${parseMarkdown(interpolate(branding.footerText, variables))}</div></td></tr>`,
     );
   }
-  if (fields.footerBannerUrl) {
-    const src = resolveAssetUrl(fields.footerBannerUrl, baseUrl);
+  if (branding.footerAssetId) {
     rows.push(
-      `<tr><td><img src="${src}" width="560" alt="" style="display:block;width:100%;border-radius:0 0 8px 8px;"></td></tr>`,
+      `<tr><td><img src="${assetUrl(branding.footerAssetId, baseUrl)}" width="560" alt="" style="display:block;width:100%;border-radius:0 0 8px 8px;"></td></tr>`,
     );
   }
-
   return rows;
 }
 
@@ -127,21 +165,75 @@ function buildEmailHtml(rows: string[], css: string): string {
 </html>`;
 }
 
-export async function renderEmailTemplate(
-  template: EmailTemplateFields & { subject: string },
+/**
+ * Renders a template's body blocks into the shared HTML shell, wrapped by the
+ * global branding (header/footer asset + footer text). Text and button blocks
+ * interpolate `{{var}}` from `variables`; the caller is responsible for having
+ * validated required variables. This is the live-send path, so the wrapper
+ * always carries {@link DARK_MODE_CSS} (the `@media (prefers-color-scheme:
+ * dark)` rules) — the recipient's own mail client decides light vs dark, since
+ * the backend has no other way to know it ahead of time.
+ *
+ * @param blocks - the template's ordered body blocks.
+ * @param branding - the global branding singleton (header/footer asset ids + footer text).
+ * @param variables - `{{var}}` substitution values available to text/button blocks.
+ * @param baseUrl - the backend's own public base URL, used to build asset URLs.
+ * @returns the complete HTML email document.
+ */
+export function renderBlocks(
+  blocks: EmailBlock[],
+  branding: EmailBrandingDto,
   variables: Record<string, string>,
   baseUrl: string,
-): Promise<{ html: string; subject: string }> {
-  const subject = interpolate(template.subject, variables);
-  const rows = buildRows(template, variables, baseUrl);
-  return { html: buildEmailHtml(rows, DARK_MODE_CSS), subject };
+): string {
+  return buildEmailHtml(buildBlockRows(blocks, branding, variables, baseUrl), DARK_MODE_CSS);
 }
 
+/**
+ * Renders a template's blocks + the global branding wrapper into a complete
+ * email, with `{{var}}` interpolation applied from `variables`.
+ *
+ * @param template - the template's subject + ordered body blocks.
+ * @param branding - the global branding singleton.
+ * @param variables - substitution values for `{{var}}` placeholders.
+ * @param baseUrl - the backend's own public base URL (used for asset URLs).
+ * @returns the rendered HTML and the interpolated subject line.
+ */
+export function renderEmailTemplate(
+  template: { subject: string; blocks: EmailBlock[] },
+  branding: EmailBrandingDto,
+  variables: Record<string, string>,
+  baseUrl: string,
+): { html: string; subject: string } {
+  const subject = interpolate(template.subject, variables);
+  const html = renderBlocks(template.blocks, branding, variables, baseUrl);
+  return { html, subject };
+}
+
+/**
+ * Renders a live preview of a set of blocks for the dashboard editor's
+ * iframe, with no variable substitution (an empty variables map) so
+ * placeholders like `{{username}}` remain visible verbatim in the preview.
+ *
+ * Unlike {@link renderBlocks} (the live-send path, which always inlines the
+ * `@media (prefers-color-scheme: dark)` rules so the recipient's mail client
+ * picks light/dark), the dashboard preview iframe has an explicit light/dark
+ * toggle in the UI (`EmailPreview.tsx`) and re-requests this endpoint on every
+ * toggle — so here `colorScheme` forces one specific scheme's rules directly,
+ * with no `@media` query.
+ *
+ * @param blocks - the blocks currently being edited.
+ * @param branding - the global branding singleton.
+ * @param colorScheme - "light" or "dark" — selects which CSS rules are inlined into the `<style>` block.
+ * @param baseUrl - the backend's own public base URL (used for asset URLs).
+ * @returns the rendered HTML.
+ */
 export function renderEmailPreview(
-  fields: EmailTemplateFields,
+  blocks: EmailBlock[],
+  branding: EmailBrandingDto,
   colorScheme: "light" | "dark",
   baseUrl: string,
 ): string {
-  const rows = buildRows(fields, {}, baseUrl);
+  const rows = buildBlockRows(blocks, branding, {}, baseUrl);
   return buildEmailHtml(rows, colorScheme === "dark" ? DARK_RULES : "");
 }

@@ -683,7 +683,7 @@ git commit -m "Feat: repository + adapter for block templates, branding, assets,
 - Modify: `apps/backend/src/services/email-renderer.ts`
 - Test: `apps/backend/src/services/__tests__/email-renderer.test.ts`
 
-- [ ] **Step 1: Failing test schreiben**
+- [x] **Step 1: Failing test schreiben**
 
 Create `apps/backend/src/services/__tests__/email-renderer.test.ts`:
 
@@ -729,12 +729,12 @@ describe("renderBlocks", () => {
 });
 ```
 
-- [ ] **Step 2: Test läuft rot**
+- [x] **Step 2: Test läuft rot**
 
 Run: `pnpm --filter @musiccloud/backend test:run -- email-renderer`
 Expected: FAIL (`renderBlocks` existiert nicht).
 
-- [ ] **Step 3: Renderer umbauen**
+- [x] **Step 3: Renderer umbauen**
 
 In `email-renderer.ts`: `EmailTemplateFields`-Interface + `buildRows` durch eine block-basierte `renderBlocks` ersetzen. `interpolate`/`parseMarkdown`/`applyInlineStyles`/`buildEmailHtml`/`DARK_RULES`/`DARK_MODE_CSS` bleiben. Der Button-Block übernimmt das dark-mode-sichere Tabellen-Button-HTML aus `developer-email.ts:48-54` (Akzent `#28A8D8`, `border-radius:8px`, `color:#0f1115`). Bild-Block: `<img src="${baseUrl}/api/admin/email-assets/${assetId}" alt="${escapeHtml(altText)}" ...>`. Branding-Header-Asset (falls gesetzt) als erste Zeile, Footer-Asset + Footer-Text als letzte.
 
@@ -807,12 +807,12 @@ export function renderBlocks(
 
 `renderEmailTemplate` und `renderEmailPreview` auf `renderBlocks` umstellen: `renderEmailTemplate(template: { subject: string; blocks: EmailBlock[] }, branding, variables, baseUrl)` gibt `{ html: renderBlocks(...), subject: interpolate(template.subject, variables) }`. `renderEmailPreview(blocks, branding, colorScheme, baseUrl)` nutzt `renderBlocks(blocks, branding, {}, baseUrl)` mit `colorScheme === "dark" ? DARK_RULES`-Variante (Signatur von `buildEmailHtml` beibehalten). `resolveAssetUrl` entfällt (Assets kommen jetzt über die Asset-Route).
 
-- [ ] **Step 4: Test grün**
+- [x] **Step 4: Test grün**
 
 Run: `pnpm --filter @musiccloud/backend test:run -- email-renderer`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/backend/src/services/email-renderer.ts apps/backend/src/services/__tests__/email-renderer.test.ts
