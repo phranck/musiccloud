@@ -1,4 +1,11 @@
-import type { ContentCardStyle, OverlayWidth, PageDisplayMode, PageTitleAlignment, PageType } from "@musiccloud/shared";
+import type {
+  ContentCardStyle,
+  EmailBlock,
+  OverlayWidth,
+  PageDisplayMode,
+  PageTitleAlignment,
+  PageType,
+} from "@musiccloud/shared";
 import type { ArtistCredit } from "../services/types.js";
 
 /** Admin user data shape returned or accepted by the database repository layer. */
@@ -111,16 +118,19 @@ export interface ListResult<T> {
   limit: number;
 }
 
+/** A declared template variable: name + human description shown in the editor. */
+export interface EmailTemplateVariable {
+  name: string;
+  description: string;
+}
+
 /** Email template row shape returned or accepted by the database repository layer. */
 export interface EmailTemplateRow {
   id: number;
   name: string;
   subject: string;
-  headerBannerUrl: string | null;
-  headerText: string | null;
-  bodyText: string;
-  footerBannerUrl: string | null;
-  footerText: string | null;
+  blocks: EmailBlock[];
+  requiredVariables: EmailTemplateVariable[];
   isSystemTemplate: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -130,12 +140,31 @@ export interface EmailTemplateRow {
 export interface EmailTemplateWriteData {
   name: string;
   subject: string;
-  headerBannerUrl?: string | null;
-  headerText?: string | null;
-  bodyText: string;
-  footerBannerUrl?: string | null;
-  footerText?: string | null;
+  blocks: EmailBlock[];
+  requiredVariables?: EmailTemplateVariable[];
   isSystemTemplate?: boolean;
+}
+
+/** Global branding singleton (header/footer assets + footer text wrapped around every rendered template). */
+export interface EmailBrandingDto {
+  headerAssetId: string | null;
+  footerAssetId: string | null;
+  footerText: string | null;
+}
+
+/** An issued email image asset (metadata; bytes fetched separately via a dedicated streaming route). */
+export interface EmailAssetDto {
+  id: string;
+  mimeType: string;
+  createdAt: Date;
+}
+
+/** A binding of a code-defined system action key to a template. */
+export interface EmailActionBindingDto {
+  id: string;
+  actionKey: string;
+  templateId: number;
+  enabled: boolean;
 }
 
 // ----------------------------------------------------------------------------
@@ -604,6 +633,63 @@ export interface AdminRepository {
    * @returns Whether the requested row exists or mutation succeeded.
    */
   deleteEmailTemplate(id: number): Promise<boolean>;
+
+  /**
+   * Gets the global email branding singleton (header/footer asset + footer text).
+   *
+   * @returns The branding row.
+   */
+  getEmailBranding(): Promise<EmailBrandingDto>;
+  /**
+   * Partially updates the global email branding singleton.
+   *
+   * @param data - Subset of mutable branding fields.
+   * @returns The updated branding row.
+   */
+  updateEmailBranding(data: Partial<EmailBrandingDto>): Promise<EmailBrandingDto>;
+  /**
+   * Inserts a new email image asset.
+   *
+   * @param data - The asset's MIME type and raw bytes.
+   * @returns The persisted asset's metadata (bytes are not returned).
+   */
+  insertEmailAsset(data: { mimeType: string; bytes: Buffer }): Promise<EmailAssetDto>;
+  /**
+   * Gets an email asset's raw bytes for streaming.
+   *
+   * @param id - The asset's id.
+   * @returns The MIME type and bytes, or `null` when no row matches.
+   */
+  getEmailAssetBytes(id: string): Promise<{ mimeType: string; bytes: Buffer } | null>;
+  /**
+   * Lists email action bindings, optionally filtered by action key.
+   *
+   * @param actionKey - When given, restricts results to this action.
+   * @returns The matching bindings.
+   */
+  listEmailActionBindings(actionKey?: string): Promise<EmailActionBindingDto[]>;
+  /**
+   * Creates (or re-enables) a binding of an action key to a template.
+   *
+   * @param data - The action key and template id to bind.
+   * @returns The persisted binding.
+   */
+  createEmailActionBinding(data: { actionKey: string; templateId: number }): Promise<EmailActionBindingDto>;
+  /**
+   * Enables or disables an existing action binding.
+   *
+   * @param id - The binding's id.
+   * @param enabled - The new enabled state.
+   * @returns The updated binding, or `null` when no row matches.
+   */
+  setEmailActionBindingEnabled(id: string, enabled: boolean): Promise<EmailActionBindingDto | null>;
+  /**
+   * Deletes an action binding.
+   *
+   * @param id - The binding's id.
+   * @returns Whether the requested row exists or mutation succeeded.
+   */
+  deleteEmailActionBinding(id: string): Promise<boolean>;
 
   // Content pages
   /**

@@ -14,6 +14,9 @@ import type {
   ContentPageSummaryRow,
   ContentPageTranslationRow,
   ContentPageTranslationUpsert,
+  EmailActionBindingDto,
+  EmailAssetDto,
+  EmailBrandingDto,
   EmailTemplateRow,
   EmailTemplateWriteData,
   ListResult,
@@ -166,11 +169,19 @@ import {
   persistCcTrack as ccPersistTrack,
 } from "./postgres-cc.js";
 import {
+  createEmailActionBinding as contentEmailCreateEmailActionBinding,
+  deleteEmailActionBinding as contentEmailDeleteEmailActionBinding,
   deleteEmailTemplate as contentEmailDeleteEmailTemplate,
+  getEmailAssetBytes as contentEmailGetEmailAssetBytes,
+  getEmailBranding as contentEmailGetEmailBranding,
   getEmailTemplateById as contentEmailGetEmailTemplateById,
   getEmailTemplateByName as contentEmailGetEmailTemplateByName,
+  insertEmailAsset as contentEmailInsertEmailAsset,
   insertEmailTemplate as contentEmailInsertEmailTemplate,
+  listEmailActionBindings as contentEmailListEmailActionBindings,
   listEmailTemplates as contentEmailListEmailTemplates,
+  setEmailActionBindingEnabled as contentEmailSetEmailActionBindingEnabled,
+  updateEmailBranding as contentEmailUpdateEmailBranding,
   updateEmailTemplate as contentEmailUpdateEmailTemplate,
 } from "./postgres-content-email.js";
 import {
@@ -809,6 +820,38 @@ export class PostgresAdapter
 
   deleteEmailTemplate(id: number): Promise<boolean> {
     return contentEmailDeleteEmailTemplate(this.pool, id);
+  }
+
+  getEmailBranding(): Promise<EmailBrandingDto> {
+    return contentEmailGetEmailBranding(this.pool);
+  }
+
+  updateEmailBranding(data: Partial<EmailBrandingDto>): Promise<EmailBrandingDto> {
+    return contentEmailUpdateEmailBranding(this.pool, data);
+  }
+
+  insertEmailAsset(data: { mimeType: string; bytes: Buffer }): Promise<EmailAssetDto> {
+    return contentEmailInsertEmailAsset(this.pool, data);
+  }
+
+  getEmailAssetBytes(id: string): Promise<{ mimeType: string; bytes: Buffer } | null> {
+    return contentEmailGetEmailAssetBytes(this.pool, id);
+  }
+
+  listEmailActionBindings(actionKey?: string): Promise<EmailActionBindingDto[]> {
+    return contentEmailListEmailActionBindings(this.pool, actionKey);
+  }
+
+  createEmailActionBinding(data: { actionKey: string; templateId: number }): Promise<EmailActionBindingDto> {
+    return contentEmailCreateEmailActionBinding(this.pool, data);
+  }
+
+  setEmailActionBindingEnabled(id: string, enabled: boolean): Promise<EmailActionBindingDto | null> {
+    return contentEmailSetEmailActionBindingEnabled(this.pool, id, enabled);
+  }
+
+  deleteEmailActionBinding(id: string): Promise<boolean> {
+    return contentEmailDeleteEmailActionBinding(this.pool, id);
   }
 
   // ============================================================================
