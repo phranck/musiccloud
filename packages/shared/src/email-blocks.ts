@@ -54,12 +54,7 @@ export interface EmailSpacerBlock {
 }
 
 /** Ein Body-Block. */
-export type EmailBlock =
-  | EmailTextBlock
-  | EmailButtonBlock
-  | EmailImageBlock
-  | EmailDividerBlock
-  | EmailSpacerBlock;
+export type EmailBlock = EmailTextBlock | EmailButtonBlock | EmailImageBlock | EmailDividerBlock | EmailSpacerBlock;
 
 /**
  * Prüft, ob ein unbekannter Wert ein wohlgeformtes `EmailBlock[]` ist. Nutzt

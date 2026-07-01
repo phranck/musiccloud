@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { EmailBlockType, isEmailBlockArray } from "../email-blocks.js";
 import { EMAIL_ACTIONS, EmailAction, getEmailActionMeta } from "../email-actions.js";
+import { EmailBlockType, isEmailBlockArray } from "../email-blocks.js";
 
 describe("isEmailBlockArray", () => {
   it("accepts a well-formed mixed block array", () => {
