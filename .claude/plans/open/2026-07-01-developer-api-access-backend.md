@@ -46,7 +46,7 @@ Alle Referenzen per direktem Read/Grep gegen den aktuellen Code verifiziert (sie
 **Files:**
 - Modify: `apps/backend/src/db/schemas/postgres.ts` (Anhängen nach Zeile 1509)
 
-- [ ] **Step 1: Vier Tabellen anhängen**
+- [x] **Step 1: Vier Tabellen anhängen**
 
 Ans Dateiende von `apps/backend/src/db/schemas/postgres.ts` (nach der letzten Zeile, `export type DeveloperEmailTokenInsert = ...`) anhängen:
 
@@ -189,22 +189,22 @@ export type ApiAccessAuditEventRow = typeof apiAccessAuditEvents.$inferSelect;
 export type ApiAccessAuditEventInsert = typeof apiAccessAuditEvents.$inferInsert;
 ```
 
-- [ ] **Step 2: Migration generieren**
+- [x] **Step 2: Migration generieren**
 
 Run: `pnpm db:generate`
 Expected: neue Datei `apps/backend/src/db/migrations/postgres/0048_*.sql` mit vier `CREATE TABLE`-Statements. Bei Drift-/Snapshot-Prompt: stoppen und den Konflikt berichten statt zu raten.
 
-- [ ] **Step 3: Backend-Typecheck**
+- [x] **Step 3: Backend-Typecheck**
 
 Run: `pnpm --filter @musiccloud/backend typecheck`
 Expected: keine Fehler.
 
-- [ ] **Step 4: Migration lokal anwenden**
+- [x] **Step 4: Migration lokal anwenden**
 
 Run: `pnpm --filter @musiccloud/backend db:migrate` (oder das Repo-Äquivalent aus `package.json`; gegen die lokale Dev-DB)
 Expected: vier neue Tabellen in der lokalen DB, Migrations-Tracker (`drizzle.__drizzle_migrations`) zeigt `0048` als angewendet.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/backend/src/db/schemas/postgres.ts apps/backend/src/db/migrations/postgres
@@ -221,7 +221,7 @@ git commit -m "Feat: add api_access_requests/clients/tokens/audit_events schema 
 - Modify: `apps/backend/src/db/adapters/postgres.ts`
 - Modify: `apps/backend/src/db/index.ts`
 
-- [ ] **Step 1: Repository-Interface + DTOs anlegen**
+- [x] **Step 1: Repository-Interface + DTOs anlegen**
 
 Create `apps/backend/src/db/api-access-repository.ts`:
 
@@ -455,7 +455,7 @@ export interface ApiAccessRepository {
 }
 ```
 
-- [ ] **Step 2: Postgres-Adapter anlegen**
+- [x] **Step 2: Postgres-Adapter anlegen**
 
 Create `apps/backend/src/db/adapters/postgres-api-access.ts`:
 
@@ -891,7 +891,7 @@ export async function createApiAccessAuditEvent(
 }
 ```
 
-- [ ] **Step 3: In `PostgresAdapter` delegieren**
+- [x] **Step 3: In `PostgresAdapter` delegieren**
 
 Modify `apps/backend/src/db/adapters/postgres.ts`:
 
@@ -1048,7 +1048,7 @@ Vor der schliessenden `}` der Klasse (aktuell Zeile `:1017`) einfügen:
 }
 ```
 
-- [ ] **Step 4: Accessor ergänzen**
+- [x] **Step 4: Accessor ergänzen**
 
 Modify `apps/backend/src/db/index.ts`: Import ergänzen (`import type { ApiAccessRepository } from "./api-access-repository.js";`), nach `getDeveloperRepository` einfügen:
 
@@ -1072,12 +1072,12 @@ export type {
 } from "./api-access-repository.js";
 ```
 
-- [ ] **Step 5: Backend-Typecheck**
+- [x] **Step 5: Backend-Typecheck**
 
 Run: `pnpm --filter @musiccloud/backend typecheck`
 Expected: keine Fehler.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/backend/src/db/api-access-repository.ts apps/backend/src/db/adapters/postgres-api-access.ts apps/backend/src/db/adapters/postgres.ts apps/backend/src/db/index.ts

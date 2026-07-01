@@ -27,6 +27,13 @@ import type {
   TrackListItem,
 } from "../admin-repository.js";
 import type {
+  ApiAccessAuditEvent,
+  ApiAccessRepository,
+  ApiAccessRequest,
+  ApiClient,
+  ApiClientToken,
+} from "../api-access-repository.js";
+import type {
   DeveloperAccount,
   DeveloperEmailToken,
   DeveloperIdentity,
@@ -114,6 +121,24 @@ import {
   persistAlbumWithLinks as albumsPersistAlbumWithLinks,
   upsertAlbumPreview as albumsUpsertAlbumPreview,
 } from "./postgres-albums.js";
+import {
+  createApiAccessAuditEvent as apiAccessCreateAuditEvent,
+  createApiClient as apiAccessCreateClient,
+  createApiClientToken as apiAccessCreateClientToken,
+  createApiAccessRequest as apiAccessCreateRequest,
+  findApiClientById as apiAccessFindClientById,
+  findApiClientTokenById as apiAccessFindClientTokenById,
+  findApiAccessRequestById as apiAccessFindRequestById,
+  listApiClients as apiAccessListClients,
+  listApiClientsByDeveloperAccount as apiAccessListClientsByDeveloperAccount,
+  listApiClientTokensByClient as apiAccessListClientTokensByClient,
+  listApiAccessRequests as apiAccessListRequests,
+  listApiAccessRequestsByDeveloperAccount as apiAccessListRequestsByDeveloperAccount,
+  reviewApiAccessRequest as apiAccessReviewRequest,
+  revokeApiClientToken as apiAccessRevokeClientToken,
+  rotateApiClientToken as apiAccessRotateClientToken,
+  updateApiClient as apiAccessUpdateClient,
+} from "./postgres-api-access.js";
 import {
   addArtistExternalIds as artistsAddArtistExternalIds,
   addLinksToArtist as artistsAddLinksToArtist,
@@ -228,7 +253,9 @@ import {
 // POSTGRES ADAPTER
 // ============================================================================
 
-export class PostgresAdapter implements TrackRepository, AdminRepository, CcRepository, DeveloperRepository {
+export class PostgresAdapter
+  implements TrackRepository, AdminRepository, CcRepository, DeveloperRepository, ApiAccessRepository
+{
   private pool: pgModule.Pool;
   private cleanupInterval: NodeJS.Timeout | null = null;
 
@@ -1013,5 +1040,110 @@ export class PostgresAdapter implements TrackRepository, AdminRepository, CcRepo
 
   consumeDeveloperEmailToken(id: string): Promise<boolean> {
     return developerConsumeEmailToken(this.pool, id);
+  }
+
+  // ============================================================================
+  // API ACCESS (ApiAccessRepository) — migration 0048
+  // ============================================================================
+
+  createApiAccessRequest(data: {
+    developerAccountId: string;
+    contactEmail: string;
+    appName: string;
+    appDescription: string;
+    estimatedRequestsPerDay: number;
+  }): Promise<ApiAccessRequest> {
+    return apiAccessCreateRequest(this.pool, data);
+  }
+
+  findApiAccessRequestById(id: string): Promise<ApiAccessRequest | null> {
+    return apiAccessFindRequestById(this.pool, id);
+  }
+
+  listApiAccessRequestsByDeveloperAccount(developerAccountId: string): Promise<ApiAccessRequest[]> {
+    return apiAccessListRequestsByDeveloperAccount(this.pool, developerAccountId);
+  }
+
+  listApiAccessRequests(status?: string): Promise<ApiAccessRequest[]> {
+    return apiAccessListRequests(this.pool, status);
+  }
+
+  reviewApiAccessRequest(
+    id: string,
+    data: { status: "approved" | "rejected"; reviewedByAdminId: string; reviewNote?: string | null },
+  ): Promise<ApiAccessRequest | null> {
+    return apiAccessReviewRequest(this.pool, id, data);
+  }
+
+  createApiClient(data: {
+    requestId?: string | null;
+    developerAccountId: string;
+    appName: string;
+    contactEmail: string;
+    description: string;
+    requestsPerMinute?: number;
+    requestsPerDay?: number;
+    createdByAdminId?: string | null;
+  }): Promise<ApiClient> {
+    return apiAccessCreateClient(this.pool, data);
+  }
+
+  findApiClientById(id: string): Promise<ApiClient | null> {
+    return apiAccessFindClientById(this.pool, id);
+  }
+
+  listApiClientsByDeveloperAccount(developerAccountId: string): Promise<ApiClient[]> {
+    return apiAccessListClientsByDeveloperAccount(this.pool, developerAccountId);
+  }
+
+  listApiClients(status?: string): Promise<ApiClient[]> {
+    return apiAccessListClients(this.pool, status);
+  }
+
+  updateApiClient(
+    id: string,
+    data: { status?: string; requestsPerMinute?: number; requestsPerDay?: number },
+  ): Promise<ApiClient | null> {
+    return apiAccessUpdateClient(this.pool, id, data);
+  }
+
+  createApiClientToken(data: {
+    clientId: string;
+    tokenPrefix: string;
+    tokenHash: string;
+    rotatedFromTokenId?: string | null;
+  }): Promise<ApiClientToken> {
+    return apiAccessCreateClientToken(this.pool, data);
+  }
+
+  listApiClientTokensByClient(clientId: string): Promise<ApiClientToken[]> {
+    return apiAccessListClientTokensByClient(this.pool, clientId);
+  }
+
+  findApiClientTokenById(id: string): Promise<ApiClientToken | null> {
+    return apiAccessFindClientTokenById(this.pool, id);
+  }
+
+  revokeApiClientToken(id: string): Promise<ApiClientToken | null> {
+    return apiAccessRevokeClientToken(this.pool, id);
+  }
+
+  rotateApiClientToken(
+    id: string,
+    data: { newTokenPrefix: string; newTokenHash: string },
+  ): Promise<{ oldToken: ApiClientToken; newToken: ApiClientToken } | null> {
+    return apiAccessRotateClientToken(this.pool, id, data);
+  }
+
+  createApiAccessAuditEvent(data: {
+    clientId?: string | null;
+    requestId?: string | null;
+    tokenId?: string | null;
+    eventType: string;
+    actorAdminId?: string | null;
+    actorDeveloperAccountId?: string | null;
+    eventData?: Record<string, unknown>;
+  }): Promise<ApiAccessAuditEvent> {
+    return apiAccessCreateAuditEvent(this.pool, data);
   }
 }

@@ -1,6 +1,7 @@
 import { log } from "../lib/infra/logger";
 import { PostgresAdapter } from "./adapters/postgres.js";
 import type { AdminRepository } from "./admin-repository.js";
+import type { ApiAccessRepository } from "./api-access-repository.js";
 import { loadDatabaseConfig } from "./config.js";
 import type { DeveloperRepository } from "./developer-repository.js";
 import type { CcRepository, TrackRepository } from "./repository.js";
@@ -32,6 +33,12 @@ export async function getDeveloperRepository(): Promise<DeveloperRepository> {
   return repositoryInstance!;
 }
 
+/** Returns the singleton ApiAccessRepository instance, creating it on first call. */
+export async function getApiAccessRepository(): Promise<ApiAccessRepository> {
+  await ensureInstance();
+  return repositoryInstance!;
+}
+
 async function ensureInstance(): Promise<void> {
   if (!repositoryInstance) {
     const config = loadDatabaseConfig();
@@ -56,6 +63,13 @@ export async function closeRepository(): Promise<void> {
 
 // Re-export types for consumers
 export type { AdminRepository, AdminUser } from "./admin-repository.js";
+export type {
+  ApiAccessAuditEvent,
+  ApiAccessRepository,
+  ApiAccessRequest,
+  ApiClient,
+  ApiClientToken,
+} from "./api-access-repository.js";
 export type {
   DeveloperAccount,
   DeveloperEmailToken,
