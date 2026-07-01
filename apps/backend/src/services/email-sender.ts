@@ -1,7 +1,7 @@
 import { requireEnv } from "../lib/env.js";
 import { sendEmail } from "./email-provider.js";
 import { renderEmailTemplate } from "./email-renderer.js";
-import { getManagedEmailTemplateById } from "./email-templates.js";
+import { getManagedEmailBranding, getManagedEmailTemplateById } from "./email-templates.js";
 
 /**
  * Input for {@link sendTemplatedEmail}: which managed template to render, the
@@ -17,10 +17,9 @@ export interface SendTemplatedEmailInput {
 }
 
 /**
- * Render a managed email template and send it via the configured email
- * provider (SMTP2GO). The rendering pipeline (template lookup + variable
- * substitution + banner-URL resolution against `PUBLIC_URL`) is unchanged; only
- * the transport now goes through {@link sendEmail}.
+ * Renders a managed email template's blocks (wrapped by the global branding
+ * singleton) and sends it via the configured email provider (SMTP2GO). Asset
+ * URLs embedded in the rendered HTML are resolved against `PUBLIC_URL`.
  *
  * @param input - template id, recipient and substitution variables.
  * @throws Error when the template is missing or the provider rejects the send.
@@ -33,16 +32,11 @@ export async function sendTemplatedEmail(input: SendTemplatedEmailInput): Promis
     throw new Error(`Email template not found: id=${input.templateId}`);
   }
   const template = templateResult.data;
+  const branding = await getManagedEmailBranding();
 
-  const { html, subject } = await renderEmailTemplate(
-    {
-      subject: template.subject,
-      headerBannerUrl: template.headerBannerUrl,
-      headerText: template.headerText,
-      bodyText: template.bodyText,
-      footerBannerUrl: template.footerBannerUrl,
-      footerText: template.footerText,
-    },
+  const { html, subject } = renderEmailTemplate(
+    { subject: template.subject, blocks: template.blocks },
+    branding,
     input.variables,
     baseUrl,
   );
