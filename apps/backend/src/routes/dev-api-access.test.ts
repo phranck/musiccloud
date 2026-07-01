@@ -3,19 +3,19 @@
  * (`/api/dev/api-access/*`, MC-077). Drives the real {@link devApiAccessRoutes}
  * handlers through `app.inject` against a Fastify instance wired like
  * `server.ts`'s `devProtectedRoutes` scope: a `preHandler` stands in for
- * `authenticateDeveloper` by setting `request.developerAccountId` directly
- * (the cookie-verification half is already covered by
- * `plugins/auth.ts`/`developer-github.test.ts`; this suite's job is the
- * route logic once the caller is known).
+ * `authenticateDeveloper` by setting `request.developerAccountId` and
+ * `request.developerAccount` directly (the cookie-verification half is
+ * already covered by `plugins/auth.ts`/`developer-github.test.ts`; this
+ * suite's job is the route logic once the caller is known).
  *
  * ## What is real vs. mocked
  *
  * - **Real:** route logic, ownership checks (`loadOwnedClientForToken`),
  *   input validation, response shaping, the per-developer token-mutation
  *   rate limiter (disabled via `DISABLE_RATE_LIMIT`).
- * - **Mocked:** the persistence layer (`getApiAccessRepository` and
- *   `getDeveloperRepository` from `../db/index.js`) so no Postgres pool is
- *   built. `generateApiToken` runs for real.
+ * - **Mocked:** the persistence layer (`getApiAccessRepository` from
+ *   `../db/index.js`) so no Postgres pool is built. `generateApiToken` runs
+ *   for real.
  */
 import cookie from "@fastify/cookie";
 import jwt from "@fastify/jwt";
@@ -24,6 +24,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ApiAccessRequest, ApiClient, ApiClientToken } from "../db/api-access-repository.js";
+import type { DeveloperAccount } from "../db/developer-repository.js";
 
 vi.stubEnv("DISABLE_RATE_LIMIT", "true");
 
@@ -46,16 +47,35 @@ const mockRepo = {
   createApiAccessAuditEvent: vi.fn().mockResolvedValue({}),
 };
 
-const mockDeveloperRepo = {
-  findDeveloperAccountById: vi.fn().mockResolvedValue({ id: "dev-1", email: "dev@example.com" }),
-};
-
 vi.mock("../db/index.js", () => ({
   getApiAccessRepository: async () => mockRepo,
-  getDeveloperRepository: async () => mockDeveloperRepo,
 }));
 
 import { devApiAccessRoutes } from "./dev-api-access.js";
+
+/**
+ * Builds a complete {@link DeveloperAccount} DTO for stamping onto
+ * `request.developerAccount` in the `buildApp` preHandler stub, standing in
+ * for the row `authenticateDeveloper` would have loaded.
+ *
+ * @param developerAccountId - The account id, matching `request.developerAccountId`.
+ * @returns A fully populated developer-account DTO.
+ */
+function makeDeveloperAccount(developerAccountId: string): DeveloperAccount {
+  return {
+    id: developerAccountId,
+    email: "dev@example.com",
+    emailVerifiedAt: 1_700_000_000_000,
+    passwordHash: null,
+    displayName: null,
+    avatarUrl: null,
+    plan: "free",
+    status: "active",
+    createdAt: 1_700_000_000_000,
+    updatedAt: 1_700_000_000_000,
+    lastLoginAt: null,
+  };
+}
 
 /**
  * Builds a complete {@link ApiAccessRequest} DTO that tests can override field-by-field.
@@ -127,11 +147,11 @@ function makeToken(overrides: Partial<ApiClientToken> = {}): ApiClientToken {
 
 /**
  * Wires a Fastify instance mirroring `server.ts`'s `devProtectedRoutes` scope:
- * a `preHandler` that sets `request.developerAccountId` directly (standing in
- * for `authenticateDeveloper`'s cookie-verification half, which is exercised
- * separately in `plugins/auth.ts`), plus the routes under test. `jwt`/`cookie`
- * are registered for parity with the real app even though these routes don't
- * read them directly.
+ * a `preHandler` that sets `request.developerAccountId`/`request.developerAccount`
+ * directly (standing in for `authenticateDeveloper`'s cookie-verification and
+ * account-load half, which is exercised separately in `plugins/auth.ts`),
+ * plus the routes under test. `jwt`/`cookie` are registered for parity with
+ * the real app even though these routes don't read them directly.
  *
  * @param developerAccountId - The account id the preHandler stamps onto the request.
  * @returns The ready app.
@@ -143,6 +163,7 @@ async function buildApp(developerAccountId = "dev-1"): Promise<FastifyInstance> 
   await app.register(async function devProtectedRoutes(devApp) {
     devApp.addHook("preHandler", async (request) => {
       request.developerAccountId = developerAccountId;
+      request.developerAccount = makeDeveloperAccount(developerAccountId);
     });
     await devApp.register(devApiAccessRoutes);
   });
@@ -156,7 +177,6 @@ beforeEach(() => {
   mockRepo.listApiAccessRequestsByDeveloperAccount.mockResolvedValue([]);
   mockRepo.listApiClientsByDeveloperAccount.mockResolvedValue([]);
   mockRepo.createApiAccessAuditEvent.mockResolvedValue({});
-  mockDeveloperRepo.findDeveloperAccountById.mockResolvedValue({ id: "dev-1", email: "dev@example.com" });
 });
 
 describe("devApiAccessRoutes", () => {

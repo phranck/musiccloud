@@ -10,7 +10,7 @@
 import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { ApiAccessRequest, ApiClient, ApiClientToken } from "../db/api-access-repository.js";
-import { getApiAccessRepository, getDeveloperRepository } from "../db/index.js";
+import { getApiAccessRepository } from "../db/index.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { RateLimiter } from "../lib/infra/rate-limiter.js";
 import { generateApiToken } from "../services/api-access-token.js";
@@ -112,15 +112,10 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
         .send({ error: "INVALID_REQUEST", message: "estimatedRequestsPerDay must be a positive integer." });
     }
 
-    // authenticateDeveloper already loaded and validated the account; re-fetch
-    // only the email needed for the contactEmail display snapshot.
-    const developerRepo = await getDeveloperRepository();
-    const account = await developerRepo.findDeveloperAccountById(request.developerAccountId!);
-
     const repo = await getApiAccessRepository();
     const created = await repo.createApiAccessRequest({
       developerAccountId: request.developerAccountId!,
-      contactEmail: account!.email,
+      contactEmail: request.developerAccount!.email,
       appName,
       appDescription,
       estimatedRequestsPerDay: estimatedRequestsPerDay as number,

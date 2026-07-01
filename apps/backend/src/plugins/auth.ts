@@ -42,6 +42,7 @@
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
+import type { DeveloperAccount } from "../db/developer-repository.js";
 import { getDeveloperRepository } from "../db/index.js";
 import { SESSION_COOKIE_NAME, SessionKind } from "../services/developer-auth.js";
 
@@ -59,6 +60,14 @@ declare module "fastify" {
      * `mc_dev_session` cookie is verified. Absent on unauthenticated requests.
      */
     developerAccountId?: string;
+    /**
+     * The full developer account row loaded by
+     * {@link FastifyInstance.authenticateDeveloper} while checking
+     * `status === "active"`. Downstream handlers reuse this instead of
+     * re-fetching the account by {@link developerAccountId}. Absent on
+     * unauthenticated requests.
+     */
+    developerAccount?: DeveloperAccount;
   }
 }
 
@@ -181,10 +190,10 @@ async function authPlugin(app: FastifyInstance) {
    * - cookie present but JWT invalid/expired → `401`
    * - JWT valid but `kind !== "developer"` or `sub` missing → `401`
    * - account missing or `status !== "active"` → `401`
-   * - all checks pass → `request.developerAccountId` set, pass-through
+   * - all checks pass → `request.developerAccountId` and `request.developerAccount` set, pass-through
    *
    * @param request - incoming request; the `mc_dev_session` cookie is read and
-   *   `request.developerAccountId` is populated on success.
+   *   `request.developerAccountId`/`request.developerAccount` are populated on success.
    * @param reply - responds with `401 UNAUTHORIZED` on any auth failure.
    */
   app.decorate("authenticateDeveloper", async (request: FastifyRequest, reply: FastifyReply) => {
@@ -211,6 +220,7 @@ async function authPlugin(app: FastifyInstance) {
     }
 
     request.developerAccountId = account.id;
+    request.developerAccount = account;
   });
 }
 
