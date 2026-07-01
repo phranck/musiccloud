@@ -21,6 +21,7 @@ import { assertRequiredBootEnv } from "./lib/boot-env.js";
 import { requireEnvList } from "./lib/env.js";
 import authPlugin from "./plugins/auth.js";
 import adminAnalyticsRoutes from "./routes/admin-analytics.js";
+import { adminApiAccessRoutes } from "./routes/admin-api-access.js";
 import adminAuthRoutes from "./routes/admin-auth.js";
 import adminContentRoutes from "./routes/admin-content.js";
 import adminCrawlerRoutes from "./routes/admin-crawler.js";
@@ -641,6 +642,7 @@ async function buildApp() {
   await app.register(async function adminRoutes(adminApp) {
     adminApp.addHook("preHandler", adminApp.authenticateAdmin);
     await adminApp.register(adminAnalyticsRoutes);
+    await adminApp.register(adminApiAccessRoutes);
     await adminApp.register(adminContentRoutes);
     await adminApp.register(adminDataRoutes);
     await adminApp.register(adminEmailTemplateRoutes);
