@@ -316,6 +316,29 @@ export const ENDPOINTS = {
       /** GET: paginated `crawl_runs` history. Query: `?source=<id>&page=<n>&limit=<m>`. */
       runs: "/api/admin/crawler/runs",
     },
+
+    developer: {
+      apiAccess: {
+        /** GET: overview — pending requests + active clients. Query: `?status=` filters requests. */
+        overview: "/api/admin/developer/api-access",
+        /** GET: a single request by id. */
+        requestDetail: (id: string) => `/api/admin/developer/api-access/requests/${id}`,
+        /** POST: approve a request; creates a new client linked to it. Body: `{ requestsPerMinute?, requestsPerDay? }`. */
+        requestApprove: (id: string) => `/api/admin/developer/api-access/requests/${id}/approve`,
+        /** POST: reject a request. Body: `{ reviewNote }` (required). */
+        requestReject: (id: string) => `/api/admin/developer/api-access/requests/${id}/reject`,
+        /** GET: a single client by id, including its tokens (never the hash). */
+        clientDetail: (id: string) => `/api/admin/developer/api-access/clients/${id}`,
+        /** PATCH: update a client's status/rate limits. Body: `{ status?, requestsPerMinute?, requestsPerDay? }`. */
+        clientUpdate: (id: string) => `/api/admin/developer/api-access/clients/${id}`,
+        /** POST: admin-issued token for a client (moderation/support case). Returns the raw token once. */
+        clientCreateToken: (id: string) => `/api/admin/developer/api-access/clients/${id}/tokens`,
+        /** POST: revoke a token. */
+        tokenRevoke: (id: string) => `/api/admin/developer/api-access/tokens/${id}/revoke`,
+        /** POST: rotate a token. Returns the new raw token once. */
+        tokenRotate: (id: string) => `/api/admin/developer/api-access/tokens/${id}/rotate`,
+      },
+    },
   },
 
   /**
@@ -348,6 +371,27 @@ export const ENDPOINTS = {
         /** POST: redeems `{ code, state }`, issues the session cookie, returns `{ account }`. */
         exchange: "/api/dev/auth/github/exchange",
       },
+    },
+
+    /**
+     * Developer self-service API-access management (MC-025/MC-077).
+     * Every route requires the `mc_dev_session` cookie; ownership is
+     * enforced server-side (a developer can only ever see/mutate their
+     * own requests, clients and tokens).
+     */
+    apiAccess: {
+      /** POST: submit a new access request. Body: { appName, appDescription, estimatedRequestsPerDay }. */
+      requestsCreate: "/api/dev/api-access/requests",
+      /** GET: list the caller's own requests. */
+      requestsList: "/api/dev/api-access/requests",
+      /** GET: list the caller's own clients, including their tokens (never the hash). */
+      clientsList: "/api/dev/api-access/clients",
+      /** POST: create a new token for one of the caller's own clients. Returns the raw token once. */
+      clientCreateToken: (id: string) => `/api/dev/api-access/clients/${id}/tokens`,
+      /** POST: revoke one of the caller's own tokens. */
+      tokenRevoke: (id: string) => `/api/dev/api-access/tokens/${id}/revoke`,
+      /** POST: rotate one of the caller's own tokens. Returns the new raw token once. */
+      tokenRotate: (id: string) => `/api/dev/api-access/tokens/${id}/rotate`,
     },
   },
 } as const;
@@ -395,6 +439,18 @@ export const ROUTE_TEMPLATES = {
       sourceRunNow: "/api/admin/crawler/sources/:id/run-now",
       sourceReleaseLock: "/api/admin/crawler/sources/:id/release-lock",
     },
+    developer: {
+      apiAccess: {
+        requestDetail: "/api/admin/developer/api-access/requests/:id",
+        requestApprove: "/api/admin/developer/api-access/requests/:id/approve",
+        requestReject: "/api/admin/developer/api-access/requests/:id/reject",
+        clientDetail: "/api/admin/developer/api-access/clients/:id",
+        clientUpdate: "/api/admin/developer/api-access/clients/:id",
+        clientCreateToken: "/api/admin/developer/api-access/clients/:id/tokens",
+        tokenRevoke: "/api/admin/developer/api-access/tokens/:id/revoke",
+        tokenRotate: "/api/admin/developer/api-access/tokens/:id/rotate",
+      },
+    },
     emailTemplates: {
       detail: "/api/admin/email-templates/:id",
       test: "/api/admin/email-templates/:id/test",
@@ -413,6 +469,13 @@ export const ROUTE_TEMPLATES = {
       translationsList: "/api/admin/pages/:slug/translations",
       /** Route template for ENDPOINTS.admin.pages.translations.detail. */
       translationsDetail: "/api/admin/pages/:slug/translations/:locale",
+    },
+  },
+  dev: {
+    apiAccess: {
+      clientCreateToken: "/api/dev/api-access/clients/:id/tokens",
+      tokenRevoke: "/api/dev/api-access/tokens/:id/revoke",
+      tokenRotate: "/api/dev/api-access/tokens/:id/rotate",
     },
   },
 } as const;
