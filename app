@@ -80,7 +80,6 @@ start_one() {
   local name="${APP_NAMES[$i]}" port="${APP_PORTS[$i]}" cmd="${APP_CMDS[$i]}"
   local pidfile="$PID_DIR/$name.pid"
   local logfile="$LOG_DIR/$name.log"
-  local runfile="$STATE/$name.run.sh"
 
   if [ -f "$pidfile" ]; then
     local oldpid
@@ -94,35 +93,23 @@ start_one() {
 
   : > "$logfile"
 
-  {
-    printf '#!/usr/bin/env bash\n'
-    printf 'set -euo pipefail\n'
-    printf 'cd %q\n' "$ROOT"
-    printf 'echo "$$" > %q\n' "$pidfile"
-    printf 'exec > %q 2>&1\n' "$logfile"
-    if [ -n "$port" ] && [ "$port" != "-" ]; then
-      printf 'export PORT=%q\n' "$port"
-    fi
-    # Keep stdin open for dev servers such as Vite, which stop on stdin EOF.
-    printf 'tail -f /dev/null | %s\n' "$cmd"
-  } > "$runfile"
-  chmod +x "$runfile"
-
-  rm -f "$pidfile"
-  if command -v screen >/dev/null 2>&1; then
-    screen -dmS "musiccloud-$name" "$runfile"
+  # Background the real command and record ITS pid ($!), so is_alive/status
+  # track the actual dev server, not a wrapper that could outlive it.
+  # stdin is /dev/null on purpose: modern dev servers (Vite/Astro) only bind
+  # stdin when it is a TTY, so EOF here does not stop them. Do NOT reintroduce
+  # a `tail -f /dev/null | $cmd` keep-alive: the wrapper shell would block
+  # forever on the never-closing pipe and mask a dead server as "running".
+  cd "$ROOT"
+  if [ -n "$port" ] && [ "$port" != "-" ]; then
+    PORT="$port" nohup bash -c "$cmd" >"$logfile" 2>&1 < /dev/null &
   else
-    nohup "$runfile" >/dev/null 2>&1 &
+    nohup bash -c "$cmd" >"$logfile" 2>&1 < /dev/null &
   fi
+  local pid=$!
+  echo "$pid" > "$pidfile"
 
-  local pid="" n=0
-  while [ ! -s "$pidfile" ] && [ "$n" -lt 20 ]; do
-    sleep 0.1
-    n=$((n + 1))
-  done
-  pid="$(cat "$pidfile" 2>/dev/null || true)"
   sleep 0.4
-  if [ -z "$pid" ] || ! is_alive "$pid"; then
+  if ! is_alive "$pid"; then
     printf "  %-12s FAILED to start - see %s\n" "$name" "$logfile"
     rm -f "$pidfile"
     return 1
