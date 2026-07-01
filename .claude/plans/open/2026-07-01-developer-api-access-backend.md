@@ -1092,7 +1092,7 @@ git commit -m "Feat: add ApiAccessRepository + Postgres adapter (MC-077)"
 - Create: `apps/backend/src/services/api-access-token.ts`
 - Create: `apps/backend/src/services/api-access-token.test.ts`
 
-- [ ] **Step 1: Service schreiben**
+- [x] **Step 1: Service schreiben**
 
 Create `apps/backend/src/services/api-access-token.ts`:
 
@@ -1162,7 +1162,15 @@ export function formatApiTokenForDisplay(prefix: string): string {
 }
 ```
 
-- [ ] **Step 2: Tests schreiben**
+- [x] **Step 2: Tests schreiben**
+
+Umsetzungshinweis: `raw.split("_")` als Shape-Assertion war fragil — base64url
+(`crypto.randomBytes(...).toString("base64url")`) nutzt das Alphabet
+`A-Za-z0-9-_`, Prefix/Secret enthalten empirisch regelmässig eigene `_`
+(Stichprobe: 200k Läufe → Prefix ca. 12 %, Secret ca. 40 % mit mindestens
+einem `_`). Ersetzt durch eine Struktur-Assertion, die das fixe Label + den
+bekannten Prefix + einen nicht-leeren Secret-Rest prüft, ohne von der
+Segmentanzahl abzuhängen.
 
 Create `apps/backend/src/services/api-access-token.test.ts`:
 
@@ -1208,7 +1216,7 @@ describe("formatApiTokenForDisplay", () => {
 });
 ```
 
-- [ ] **Step 3: Gates**
+- [x] **Step 3: Gates**
 
 Run: `pnpm --filter @musiccloud/backend exec vitest run src/services/api-access-token.test.ts`
 Expected: alle Tests grün.
@@ -1216,7 +1224,10 @@ Expected: alle Tests grün.
 Run: `pnpm --filter @musiccloud/backend typecheck`
 Expected: keine Fehler.
 
-- [ ] **Step 4: Commit**
+Run: `pnpm lint`
+Expected: grün.
+
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/backend/src/services/api-access-token.ts apps/backend/src/services/api-access-token.test.ts
@@ -2241,7 +2252,7 @@ git commit -m "Test: admin + developer API-access route tests (MC-077)"
 
 - [ ] Task 1: Schema + Migration, Typecheck grün
 - [ ] Task 2: Repository + Adapter + Accessor
-- [ ] Task 3: Token-Service + Unit-Tests
+- [x] Task 3: Token-Service + Unit-Tests
 - [ ] Task 4: Shared Endpoints (admin + dev + ROUTE_TEMPLATES)
 - [ ] Task 5: Admin-Routen + Registrierung
 - [ ] Task 6: Developer-Self-Service-Routen + Registrierung
