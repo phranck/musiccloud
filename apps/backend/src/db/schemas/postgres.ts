@@ -1535,10 +1535,7 @@ export const apiAccessRequests = pgTable(
   (table) => [
     index("idx_api_access_requests_status_submitted").on(table.status, table.submittedAt),
     index("idx_api_access_requests_developer_account").on(table.developerAccountId),
-    check(
-      "chk_api_access_requests_status",
-      sql`${table.status} IN ('pending', 'approved', 'rejected', 'archived')`,
-    ),
+    check("chk_api_access_requests_status", sql`${table.status} IN ('pending', 'approved', 'rejected', 'archived')`),
     check("chk_api_access_requests_estimated_requests", sql`${table.estimatedRequestsPerDay} > 0`),
   ],
 );
