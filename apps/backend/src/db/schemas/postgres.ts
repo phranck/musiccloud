@@ -958,16 +958,11 @@ export const emailTemplates = pgTable("email_templates", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
   subject: text("subject").notNull().default(""),
-  headerBannerUrl: text("header_banner_url"),
-  headerText: text("header_text"),
-  bodyText: text("body_text").notNull().default(""),
-  footerBannerUrl: text("footer_banner_url"),
-  footerText: text("footer_text"),
   isSystemTemplate: boolean("is_system_template").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-  blocks: jsonb("blocks"),
-  requiredVariables: jsonb("required_variables"),
+  blocks: jsonb("blocks").notNull().default([]),
+  requiredVariables: jsonb("required_variables").notNull().default([]),
 });
 
 export type EmailTemplateRow = typeof emailTemplates.$inferSelect;
