@@ -4,7 +4,10 @@
  *
  * Server-side: an already-authenticated developer is redirected to the
  * dashboard. Layout per spec: the GitHub button first, an "or" divider, then the
- * signup island, a Terms/Privacy consent line, and a footer link to sign-in.
+ * signup island, a Terms/Privacy consent line, and a footer link to sign-in. The
+ * GitHub button and divider are passed as children of the signup island so that,
+ * once the form succeeds, they are hidden together with the form and only the
+ * "check your email" panel remains.
  * Submitting the form does not create a session — the developer must verify by
  * email and then sign in.
  */
@@ -23,9 +26,10 @@ if (account) return Astro.redirect("/dashboard");
 
 <BaseLayout title="Create account · musiccloud for developers">
   <AuthCard title="Create your developer account">
-    <GitHubButton />
-    <OrDivider />
-    <SignupForm client:load />
+    <SignupForm client:load>
+      <GitHubButton />
+      <OrDivider />
+    </SignupForm>
     <p class="text-body text-fg-subtle text-center mt-5">
       By creating an account you agree to our{" "}
       <a href="/terms" class="text-fg-muted text-link">Terms</a> and{" "}
