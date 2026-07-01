@@ -47,7 +47,7 @@ Alle Referenzen per direktem Read/Grep/psql gegen den aktuellen Code + die Prod-
 - Modify: `packages/shared/src/index.ts` (Re-Export)
 - Test: `packages/shared/src/__tests__/email-blocks.test.ts`
 
-- [ ] **Step 1: Block-Typen + Validierung schreiben**
+- [x] **Step 1: Block-Typen + Validierung schreiben**
 
 Create `packages/shared/src/email-blocks.ts`:
 
@@ -195,7 +195,7 @@ export function getEmailActionMeta(key: string): EmailActionMeta | undefined {
 
 > **Hinweis Phase 2:** `verify:developer`, `reset:developer`, `deleted:developer` kommen im Folge-Plan dazu; hier bewusst nur `adminInviteSent`, da nur der Invite-Flow in Phase 1 auf den Trigger umgestellt wird.
 
-- [ ] **Step 2: Re-Export ergänzen**
+- [x] **Step 2: Re-Export ergänzen**
 
 In `packages/shared/src/index.ts` (bestehendes Re-Export-Muster spiegeln) hinzufügen:
 
@@ -204,7 +204,7 @@ export * from "./email-blocks.js";
 export * from "./email-actions.js";
 ```
 
-- [ ] **Step 3: Test schreiben**
+- [x] **Step 3: Test schreiben**
 
 Create `packages/shared/src/__tests__/email-blocks.test.ts`:
 
@@ -257,12 +257,12 @@ describe("email actions registry", () => {
 });
 ```
 
-- [ ] **Step 4: Bauen + testen**
+- [x] **Step 4: Bauen + testen**
 
 Run: `pnpm --filter @musiccloud/shared build && pnpm --filter @musiccloud/shared test:run`
 Expected: Build ok, alle Tests grün.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/shared/src/email-blocks.ts packages/shared/src/email-actions.ts packages/shared/src/index.ts packages/shared/src/__tests__/email-blocks.test.ts
@@ -276,7 +276,7 @@ git commit -m "Feat: shared email-block + system-action types (MC-078)"
 **Files:**
 - Modify: `apps/backend/src/db/schemas/postgres.ts` (nach `emailTemplates`, `:969`)
 
-- [ ] **Step 1: Singleton-Branding, Assets, additive Template-Spalten, Bindings anlegen**
+- [x] **Step 1: Singleton-Branding, Assets, additive Template-Spalten, Bindings anlegen**
 
 Direkt nach `export type EmailTemplateInsert = ...` (`:972`) einfügen:
 
@@ -345,17 +345,17 @@ In der `emailTemplates`-Definition (`:957-969`) zwei **nullable** Spalten ergän
   requiredVariables: jsonb("required_variables"),
 ```
 
-- [ ] **Step 2: Migration generieren**
+- [x] **Step 2: Migration generieren**
 
 Run: `pnpm db:generate`
 Expected: neue Datei `apps/backend/src/db/migrations/postgres/0049_*.sql` mit `CREATE TABLE email_branding|email_assets|email_action_bindings` + `ALTER TABLE email_templates ADD COLUMN blocks jsonb, ADD COLUMN required_variables jsonb`. Bei Drift-/Snapshot-Prompt: stoppen und Konflikt berichten.
 
-- [ ] **Step 3: Backend-Typecheck**
+- [x] **Step 3: Backend-Typecheck**
 
 Run: `pnpm --filter @musiccloud/backend typecheck`
 Expected: keine Fehler.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/backend/src/db/schemas/postgres.ts apps/backend/src/db/migrations/postgres
@@ -370,7 +370,7 @@ git commit -m "Feat: add email_branding/assets/action_bindings schema + blocks c
 - Create: `apps/backend/src/db/migrations/postgres/0050_backfill_email_template_blocks.sql`
 - Modify: `apps/backend/src/db/migrations/postgres/meta/_journal.json`
 
-- [ ] **Step 1: Hand-authored SQL-Migration schreiben**
+- [x] **Step 1: Hand-authored SQL-Migration schreiben**
 
 Create `apps/backend/src/db/migrations/postgres/0050_backfill_email_template_blocks.sql` (Muster: `0046_cleanup_release_dates.sql`):
 
@@ -412,7 +412,7 @@ UPDATE "email_templates"
  WHERE "blocks" IS NULL;
 ```
 
-- [ ] **Step 2: Journal-Eintrag ergänzen**
+- [x] **Step 2: Journal-Eintrag ergänzen**
 
 In `apps/backend/src/db/migrations/postgres/meta/_journal.json` nach dem `idx: 48`-Objekt (mirror the `0046`-style entry; `when` = fester Timestamp, da `Date.now()` in diesem Kontext nicht relevant — nimm den Wert aus dem `git`-Commit-Zeitpunkt oder einen monoton größeren als 1782901306731, z.B. `1782987706731`):
 
@@ -428,13 +428,15 @@ In `apps/backend/src/db/migrations/postgres/meta/_journal.json` nach dem `idx: 4
 
 > **Achtung:** `idx` ist der Journal-Index (fortlaufend, hier `49`, da `0048` = idx 48 und `0049_*` = idx 49 belegt) — **prüfe die tatsächlichen idx-Werte** nach `pnpm db:generate` aus Task 2: die generierte `0049`-Migration hat bereits idx 49 belegt, diese Backfill-Migration ist dann idx **50**, `tag` bleibt der Dateiname ohne `.sql`. Setze `idx` auf den nächsthöheren freien Wert und `tag` exakt auf den Dateinamen.
 
-- [ ] **Step 3: Prod-Stand lokal spiegeln, dann migrieren**
+- [x] **Step 3: Prod-Stand lokal spiegeln, dann migrieren**
 
 Run (Prod-Daten lokal spiegeln, damit die echte „New User"-Zeile vorliegt): `/db-dump`
 Dann Backend neu starten (Heartbeat wendet 0049 + 0050 an) oder: `pnpm db:migrate`
 Expected: `[DB] All migrations applied successfully`.
 
-- [ ] **Step 4: Backfill verifizieren**
+> Umsetzungshinweis: `/db-dump` selbst nicht nötig gewesen — vor der Migration verifiziert (`psql`, direkter Zeilenvergleich), dass die lokale DB die „New User"-Zeile bereits byte-identisch zu Prod enthielt (gleicher `header_banner_url`, `body_text`, `footer_text`). Migration direkt gegen die lokale DB angewendet, Ergebnis gegen die per VPN gelesenen Prod-Werte gegengeprüft.
+
+- [x] **Step 4: Backfill verifizieren**
 
 Run:
 ```bash
@@ -444,7 +446,7 @@ psql "postgresql://musiccloud:dev-password-local-only@localhost:5433/musiccloud"
 ```
 Expected: `blocks` = ein `text`-Block mit dem originalen `body_text` (inkl. `{{username}}`/`{{inviteUrl}}`), `required_variables` = `[]`; `email_branding` = eine Zeile mit `footer_text = "share it everywhere"`, `header_asset_id = null`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/backend/src/db/migrations/postgres/0050_backfill_email_template_blocks.sql apps/backend/src/db/migrations/postgres/meta/_journal.json
@@ -828,7 +830,7 @@ git commit -m "Feat: block-based email renderer with global branding + button bl
 - Modify: `apps/backend/src/services/email-sender.ts`
 - Test: `apps/backend/src/services/__tests__/email-actions.test.ts`
 
-- [ ] **Step 1: Failing test schreiben**
+- [x] **Step 1: Failing test schreiben**
 
 Create `apps/backend/src/services/__tests__/email-actions.test.ts` mit gemocktem Repository (`getAdminRepository`) + gemocktem `sendEmail`. Fälle:
 - `triggerEmailAction(AdminInviteSent, {to, variables})` mit einem aktivierten Binding → `sendEmail` genau 1×; mit zwei Bindings → 2×.
@@ -837,12 +839,12 @@ Create `apps/backend/src/services/__tests__/email-actions.test.ts` mit gemocktem
 
 (Vollständiger Testcode analog zu `developer-auth.test.ts` mocking-Stil: `vi.mock("../db/index.js", …)`, `vi.mock("./email-provider.js", …)`.)
 
-- [ ] **Step 2: Test läuft rot**
+- [x] **Step 2: Test läuft rot**
 
 Run: `pnpm --filter @musiccloud/backend test:run -- email-actions`
 Expected: FAIL.
 
-- [ ] **Step 3: Trigger-Service schreiben**
+- [x] **Step 3: Trigger-Service schreiben**
 
 Create `apps/backend/src/services/email-actions.ts`:
 
@@ -907,12 +909,12 @@ export async function triggerEmailAction(
 
 `sendTemplatedEmail` in `email-sender.ts` auf den neuen Renderer + Branding umstellen (wird noch vom Test-Send-Button in Task 8 gebraucht): lädt Branding, ruft `renderEmailTemplate({subject, blocks}, branding, variables, PUBLIC_URL)`.
 
-- [ ] **Step 4: Test grün**
+- [x] **Step 4: Test grün**
 
 Run: `pnpm --filter @musiccloud/backend test:run -- email-actions`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/backend/src/services/email-actions.ts apps/backend/src/services/email-sender.ts apps/backend/src/services/__tests__/email-actions.test.ts
@@ -1181,13 +1183,13 @@ git add -A && git commit -m "Test: verify email-template-system-v2 end-to-end (M
 
 ## Checkliste (Gesamt)
 
-- [ ] Task 1: Shared Block-/Action-Typen + Tests grün
-- [ ] Task 2: Schema additive Migration (0049) generiert + Typecheck grün
-- [ ] Task 3: Daten-Backfill (0050) — „New User" verlustfrei auf Blöcke, Branding-Footer geseedet, verifiziert gegen Prod-Spiegel
+- [x] Task 1: Shared Block-/Action-Typen + Tests grün
+- [x] Task 2: Schema additive Migration (0049) generiert + Typecheck grün
+- [x] Task 3: Daten-Backfill (0050) — „New User" verlustfrei auf Blöcke, Branding-Footer geseedet, verifiziert gegen Prod-Spiegel
 - [x] Task 4: Alt-Spalten gedroppt (0051), blocks NOT NULL
-- [ ] Task 5: Repository + Adapter (Templates/Branding/Assets/Bindings)
-- [ ] Task 6: Block-Renderer + globales Branding + Button-Block, Tests grün
-- [ ] Task 7: triggerEmailAction Fan-out + Variablen-Validierung, Tests grün
+- [x] Task 5: Repository + Adapter (Templates/Branding/Assets/Bindings)
+- [x] Task 6: Block-Renderer + globales Branding + Button-Block, Tests grün
+- [x] Task 7: triggerEmailAction Fan-out + Variablen-Validierung, Tests grün
 - [ ] Task 8: Endpoints + Asset/Branding/Action-Routen + Invite-Umstellung, Backend grün
 - [ ] Task 9: Dashboard Contracts + Hooks
 - [ ] Task 10: Block-Editor
