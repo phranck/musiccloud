@@ -1,5 +1,7 @@
 import type { EmailBlock } from "@musiccloud/shared";
 import type {
+  EmailActionBindingDto,
+  EmailAssetDto,
   EmailBrandingDto,
   EmailTemplateRow,
   EmailTemplateVariable,
@@ -117,7 +119,7 @@ export async function updateManagedEmailBranding(data: Partial<EmailBrandingDto>
  * @param data - The asset's MIME type and raw bytes.
  * @returns The persisted asset's metadata (bytes are not returned).
  */
-export async function createManagedEmailAsset(data: { mimeType: string; bytes: Buffer }) {
+export async function createManagedEmailAsset(data: { mimeType: string; bytes: Buffer }): Promise<EmailAssetDto> {
   const repo = await getAdminRepository();
   return repo.insertEmailAsset(data);
 }
@@ -128,7 +130,7 @@ export async function createManagedEmailAsset(data: { mimeType: string; bytes: B
  * @param id - The asset's id.
  * @returns The MIME type and bytes, or `null` when no row matches.
  */
-export async function getManagedEmailAssetBytes(id: string) {
+export async function getManagedEmailAssetBytes(id: string): Promise<{ mimeType: string; bytes: Buffer } | null> {
   const repo = await getAdminRepository();
   return repo.getEmailAssetBytes(id);
 }
@@ -139,7 +141,7 @@ export async function getManagedEmailAssetBytes(id: string) {
  * @param actionKey - When given, restricts results to this action.
  * @returns The matching bindings.
  */
-export async function listManagedEmailActionBindings(actionKey?: string) {
+export async function listManagedEmailActionBindings(actionKey?: string): Promise<EmailActionBindingDto[]> {
   const repo = await getAdminRepository();
   return repo.listEmailActionBindings(actionKey);
 }
@@ -150,7 +152,10 @@ export async function listManagedEmailActionBindings(actionKey?: string) {
  * @param data - The action key and template id to bind.
  * @returns The persisted binding.
  */
-export async function createManagedEmailActionBinding(data: { actionKey: string; templateId: number }) {
+export async function createManagedEmailActionBinding(data: {
+  actionKey: string;
+  templateId: number;
+}): Promise<EmailActionBindingDto> {
   const repo = await getAdminRepository();
   return repo.createEmailActionBinding(data);
 }
@@ -162,7 +167,10 @@ export async function createManagedEmailActionBinding(data: { actionKey: string;
  * @param enabled - The new enabled state.
  * @returns The updated binding, or `null` when no row matches.
  */
-export async function setManagedEmailActionBindingEnabled(id: string, enabled: boolean) {
+export async function setManagedEmailActionBindingEnabled(
+  id: string,
+  enabled: boolean,
+): Promise<EmailActionBindingDto | null> {
   const repo = await getAdminRepository();
   return repo.setEmailActionBindingEnabled(id, enabled);
 }
@@ -173,7 +181,7 @@ export async function setManagedEmailActionBindingEnabled(id: string, enabled: b
  * @param id - The binding's id.
  * @returns Whether the requested row exists or mutation succeeded.
  */
-export async function deleteManagedEmailActionBinding(id: string) {
+export async function deleteManagedEmailActionBinding(id: string): Promise<boolean> {
   const repo = await getAdminRepository();
   return repo.deleteEmailActionBinding(id);
 }

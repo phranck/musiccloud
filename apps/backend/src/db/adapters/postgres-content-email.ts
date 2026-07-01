@@ -179,11 +179,17 @@ export async function updateEmailTemplate(
   let paramIndex = 1;
 
   for (const [key, value] of Object.entries(data)) {
+    // Treat an explicit `undefined` the same as an absent key (leave the
+    // column unchanged) rather than binding it: JSON.stringify(undefined) is
+    // the JS value `undefined`, not a string, which `pg` would otherwise send
+    // as a NULL bind param and violate the NOT NULL constraint on the jsonb
+    // columns.
+    if (value === undefined) continue;
     const typedKey = key as keyof EmailTemplateWriteData;
     const column = columnMap[typedKey];
     if (column) {
       setClauses.push(`${column} = $${paramIndex}`);
-      values.push(jsonbColumns.has(typedKey) ? JSON.stringify(value) : (value ?? null));
+      values.push(jsonbColumns.has(typedKey) ? JSON.stringify(value) : value);
       paramIndex++;
     }
   }
