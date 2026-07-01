@@ -496,7 +496,7 @@ git commit -m "Feat: drop legacy email_templates field columns, enforce blocks N
 - Modify: `apps/backend/src/db/adapters/postgres-content-email.ts`
 - Modify: `apps/backend/src/db/adapters/postgres.ts` (Delegation)
 
-- [ ] **Step 1: DTOs im Contract umstellen + neue DTOs**
+- [x] **Step 1: DTOs im Contract umstellen + neue DTOs**
 
 In `admin-repository.ts` `EmailTemplateRow` (`:115-127`) und `EmailTemplateWriteData` (`:130-139`) die fünf Feld-Properties durch `blocks`/`requiredVariables` ersetzen:
 
@@ -567,7 +567,7 @@ Im `AdminRepository`-Interface (`:570-606`) die bestehenden 6 Email-Template-Sig
   deleteEmailActionBinding(id: string): Promise<boolean>;
 ```
 
-- [ ] **Step 2: Adapter umstellen + neue Funktionen**
+- [x] **Step 2: Adapter umstellen + neue Funktionen**
 
 In `postgres-content-email.ts`: `EmailTemplateSqlRow` + Mapper auf `blocks jsonb`/`required_variables jsonb` umstellen; alle SELECT/INSERT/UPDATE-Spaltenlisten von den fünf Feldern auf `blocks, required_variables` ändern. Neue Funktionen (mirror the file's `export async function`-Muster, `nanoid()` für Text-PKs wie in `postgres-developer.ts`):
 
@@ -655,20 +655,20 @@ export async function deleteEmailActionBinding(pool: Pool, id: string): Promise<
 
 `nanoid` importieren (`import { nanoid } from "nanoid";`).
 
-- [ ] **Step 3: In `PostgresAdapter` delegieren**
+- [x] **Step 3: In `PostgresAdapter` delegieren**
 
 In `postgres.ts` die neuen Funktionen aus `postgres-content-email.js` aliased importieren (Muster wie die bestehenden Email-Template-Importe) und im Class-Body je eine One-Line-Delegation ergänzen (analog zu MC-077 Task 2 Step 3). Der bestehende `implements AdminRepository` deckt die neuen Methoden über das erweiterte Interface ab.
 
-- [ ] **Step 4: Service-Layer anpassen**
+- [x] **Step 4: Service-Layer anpassen**
 
 In `apps/backend/src/services/email-templates.ts`: `EmailTemplate`-Interface (`:4-16`) auf `blocks`/`requiredVariables` umstellen, `rowToEmailTemplate` entsprechend. Neue dünne Service-Wrapper für Branding/Assets/Bindings (Muster: bestehende `getManagedEmailTemplates` etc.).
 
-- [ ] **Step 5: Typecheck**
+- [x] **Step 5: Typecheck**
 
 Run: `pnpm --filter @musiccloud/backend typecheck`
 Expected: Fehler NUR noch in Routen/Renderer (Task 6–8), nicht im db-/service-Layer. (Renderer/Routen referenzieren noch alte Felder — in den Folge-Tasks behoben.)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/backend/src/db/admin-repository.ts apps/backend/src/db/adapters/postgres-content-email.ts apps/backend/src/db/adapters/postgres.ts apps/backend/src/services/email-templates.ts
