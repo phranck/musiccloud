@@ -1348,7 +1348,7 @@ git commit -m "Feat: add admin.developer.apiAccess + dev.apiAccess endpoints (MC
 - Create: `apps/backend/src/routes/admin-api-access.ts`
 - Modify: `apps/backend/src/server.ts`
 
-- [ ] **Step 1: Routen schreiben**
+- [x] **Step 1: Routen schreiben**
 
 Create `apps/backend/src/routes/admin-api-access.ts`:
 
@@ -1624,11 +1624,11 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
 }
 ```
 
-- [ ] **Step 2: Registrieren**
+- [x] **Step 2: Registrieren**
 
 Modify `apps/backend/src/server.ts`: Import `import { adminApiAccessRoutes } from "./routes/admin-api-access.js";` und im `adminRoutes`-Block (`:640-653`) neben den anderen `admin*Routes` ergänzen: `await adminApp.register(adminApiAccessRoutes);`.
 
-- [ ] **Step 3: Gates**
+- [x] **Step 3: Gates**
 
 Run: `pnpm --filter @musiccloud/backend typecheck`
 Expected: keine Fehler.
@@ -1636,7 +1636,7 @@ Expected: keine Fehler.
 Run: `pnpm lint`
 Expected: grün.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/backend/src/routes/admin-api-access.ts apps/backend/src/server.ts
@@ -1651,7 +1651,7 @@ git commit -m "Feat: admin API-access routes (MC-077)"
 - Create: `apps/backend/src/routes/dev-api-access.ts`
 - Modify: `apps/backend/src/server.ts`
 
-- [ ] **Step 1: Routen schreiben**
+- [x] **Step 1: Routen schreiben**
 
 Create `apps/backend/src/routes/dev-api-access.ts`:
 
@@ -1878,7 +1878,7 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
 }
 ```
 
-- [ ] **Step 2: Registrieren mit neuem guarded Scope**
+- [x] **Step 2: Registrieren mit neuem guarded Scope**
 
 Modify `apps/backend/src/server.ts`: Import `import { devApiAccessRoutes } from "./routes/dev-api-access.js";` ergänzen. Direkt nach den bestehenden `await app.register(devAuthRoutes); await app.register(devGitHubRoutes);`-Zeilen (`:583-588`) einen neuen guarded Scope registrieren (erste Verwendung von `authenticateDeveloper` als Scope-Hook statt Pro-Route):
 
@@ -1889,7 +1889,7 @@ Modify `apps/backend/src/server.ts`: Import `import { devApiAccessRoutes } from 
   });
 ```
 
-- [ ] **Step 3: Gates**
+- [x] **Step 3: Gates**
 
 Run: `pnpm --filter @musiccloud/backend typecheck`
 Expected: keine Fehler.
@@ -1897,7 +1897,7 @@ Expected: keine Fehler.
 Run: `pnpm lint`
 Expected: grün.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/backend/src/routes/dev-api-access.ts apps/backend/src/server.ts
@@ -1914,7 +1914,7 @@ git commit -m "Feat: developer self-service API-access routes (MC-077)"
 
 Setup-Vorlage: `developer-github.test.ts` (`app.inject`, `jwt` → `authPlugin` → `cookie` → Route-Registrierung; `DISABLE_RATE_LIMIT=true` via `vi.stubEnv`; `db/index.js` gemockt).
 
-- [ ] **Step 1: Admin-Route-Tests**
+- [x] **Step 1: Admin-Route-Tests**
 
 Create `apps/backend/src/routes/admin-api-access.test.ts` — Fälle:
 - **Moderator abgelehnt:** JWT `role:"admin"` (passiert `authenticateAdmin`) aber Caller-DB-Rolle `moderator` → 403 auf jedem Endpoint.
@@ -2097,7 +2097,7 @@ describe("adminApiAccessRoutes", () => {
 });
 ```
 
-- [ ] **Step 2: Dev-Route-Tests**
+- [x] **Step 2: Dev-Route-Tests**
 
 Create `apps/backend/src/routes/dev-api-access.test.ts` — Fälle:
 - **requestsCreate:** fehlende Felder → 400; gültige Payload → 201, Response ohne `developerAccountId`/`contactEmail`-Leak über den `authenticateDeveloper`-Kontext hinaus (nur die eigenen Felder).
@@ -2217,7 +2217,7 @@ describe("devApiAccessRoutes", () => {
 });
 ```
 
-- [ ] **Step 3: Volle Gates**
+- [x] **Step 3: Volle Gates**
 
 Run: `pnpm --filter @musiccloud/backend exec vitest run src/routes/admin-api-access.test.ts src/routes/dev-api-access.test.ts`
 Expected: alle Tests grün.
@@ -2231,7 +2231,7 @@ Expected: beide grün.
 Run: `pnpm lint`
 Expected: grün.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/backend/src/routes/admin-api-access.test.ts apps/backend/src/routes/dev-api-access.test.ts
@@ -2250,14 +2250,34 @@ git commit -m "Test: admin + developer API-access route tests (MC-077)"
 
 ## Checkliste
 
-- [ ] Task 1: Schema + Migration, Typecheck grün
-- [ ] Task 2: Repository + Adapter + Accessor
+- [x] Task 1: Schema + Migration, Typecheck grün
+- [x] Task 2: Repository + Adapter + Accessor
 - [x] Task 3: Token-Service + Unit-Tests
 - [x] Task 4: Shared Endpoints (admin + dev + ROUTE_TEMPLATES)
-- [ ] Task 5: Admin-Routen + Registrierung
-- [ ] Task 6: Developer-Self-Service-Routen + Registrierung
-- [ ] Task 7: Route-Tests (Admin + Dev) grün, volle Backend-Suite grün
-- [ ] Alle Gates grün (typecheck backend+shared, test:run, lint)
-- [ ] Plan-Fortschritt dem User gemeldet (kein Auto-Merge/Verschieben nach `done/` — nur auf User-OK)
+- [x] Task 5: Admin-Routen + Registrierung
+- [x] Task 6: Developer-Self-Service-Routen + Registrierung
+- [x] Task 7: Route-Tests (Admin + Dev) grün, volle Backend-Suite grün
+- [x] Alle Gates grün (typecheck backend+shared, test:run, lint)
+- [x] Plan-Fortschritt dem User gemeldet (kein Auto-Merge/Verschieben nach `done/` — nur auf User-OK)
 
 **Folge:** Dashboard-Admin-UI (Abschnitt D), Developer-Portal-Self-Service-UI (Abschnitt E), MC-025 Phase 2 (Enforcement, Rate-Limits, Usage-Analytics).
+
+## Completed (2026-07-01)
+
+Alle sieben Tasks per subagent-driven-development umgesetzt (frischer Implementer-Subagent + zweistufiges Review je Task), in einem isolierten Git-Worktree (`feat/mc-077-api-access-backend`) und lokal nach `main` gemergt (Fast-Forward, 9 Commits ab `5767a683`).
+
+**Geliefert:**
+- Vier Tabellen (`api_access_requests`/`api_clients`/`api_client_tokens`/`api_access_audit_events`), Migration `0048_clumsy_carnage.sql` — `text`+`nanoid`-IDs (kein `uuid`-Ausreisser), lokal angewendet.
+- `ApiAccessRepository` + Postgres-Sub-Adapter (16 Methoden), delegiert über `PostgresAdapter`, Accessor `getApiAccessRepository()`.
+- Token-Service (`mc_live_<prefix>_<secret>`, SHA-256-Hash) + Unit-Tests — inkl. eines vom Implementer selbst gefundenen und gefixten flaky-Test-Assertions-Bugs (`raw.split("_")` unzuverlässig wegen base64url-Alphabet).
+- `ENDPOINTS.admin.developer.apiAccess.*` + `ENDPOINTS.dev.apiAccess.*` + passende `ROUTE_TEMPLATES`.
+- Admin-Routen (`admin-api-access.ts`, 9 Endpunkte, owner/admin-Rollen-Gate) und Developer-Self-Service-Routen (`dev-api-access.ts`, 6 Endpunkte, Ownership-Check mit 404-statt-403).
+- 44 Route-Tests (29 Admin + 15 Dev), volle Backend-Suite 1189 passed | 35 skipped, keine Regressionen.
+
+**Review-Fix (vor Merge):** Code-Review fand einen doppelten `getCaller()`-Aufruf in jedem mutierenden Admin-Handler (redundanter DB-Round-Trip + echte TOCTOU-Crash-Lücke über `caller!.id`, falls der Admin-Datensatz zwischen den beiden Lookups gelöscht wird). Gefixt: `requireOwnerOrAdmin` gibt jetzt den aufgelösten Caller zurück statt eines Booleans — ein Lookup pro Request, keine `!`-Assertions mehr.
+
+**Bewusst nicht gefixt (Blast-Radius zu gross für diesen Durchgang):** Der Developer-seitige Self-Service-Endpoint `requestsCreate` lädt den Account erneut, obwohl `authenticateDeveloper` ihn schon geladen hat — der Fix würde die gemeinsame, bereits live deployte `plugins/auth.ts` anfassen (Blast-Radius über andere, bereits deployte Developer-Routen hinaus). Als separater Background-Task geflaggt.
+
+**Alle Gates grün:** Backend-Typecheck, Shared-Typecheck, volle Backend-Suite, `pnpm lint` (repo-weit) — jeweils sowohl im Worktree als auch nach dem Merge auf `main` erneut verifiziert.
+
+**Nicht Teil dieses Durchgangs (Abschnitt D/E, MC-025 Phase 2):** Ausgestellte Tokens funktionieren noch nicht gegen die echte Public API (`authenticatePublic` prüft `api_client_tokens` noch nicht). Keine Dashboard-Admin-UI, kein Developer-Portal-Self-Service-UI — die beiden „Soon"-Platzhalter im Developer-Dashboard-Nav bleiben bis zu den Folge-Plänen bestehen.
