@@ -458,7 +458,7 @@ git commit -m "Feat: backfill email_templates onto block model + seed global bra
 **Files:**
 - Modify: `apps/backend/src/db/schemas/postgres.ts` (`emailTemplates`)
 
-- [ ] **Step 1: Feld-Spalten entfernen, blocks/requiredVariables NOT NULL setzen**
+- [x] **Step 1: Feld-Spalten entfernen, blocks/requiredVariables NOT NULL setzen**
 
 In `emailTemplates` die fünf alten Spalten (`headerBannerUrl`, `headerText`, `footerBannerUrl`, `footerText`, `bodyText`) löschen und die zwei neuen auf NOT NULL mit Default `'[]'` heben:
 
@@ -467,12 +467,12 @@ In `emailTemplates` die fünf alten Spalten (`headerBannerUrl`, `headerText`, `f
   requiredVariables: jsonb("required_variables").notNull().default([]),
 ```
 
-- [ ] **Step 2: Migration generieren**
+- [x] **Step 2: Migration generieren**
 
 Run: `pnpm db:generate`
 Expected: `0051_*.sql` mit `ALTER TABLE email_templates DROP COLUMN header_banner_url|header_text|body_text|footer_banner_url|footer_text`, `ALTER COLUMN blocks SET NOT NULL SET DEFAULT ...`. Da der Backfill in Task 3 alle Zeilen befüllt hat, ist SET NOT NULL sicher.
 
-- [ ] **Step 3: Anwenden + verifizieren**
+- [x] **Step 3: Anwenden + verifizieren**
 
 Backend-Restart oder `pnpm db:migrate`. Dann:
 ```bash
@@ -480,7 +480,7 @@ psql "postgresql://musiccloud:dev-password-local-only@localhost:5433/musiccloud"
 ```
 Expected: nur noch `id, name, subject, is_system_template, created_at, updated_at, blocks, required_variables`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/backend/src/db/schemas/postgres.ts apps/backend/src/db/migrations/postgres
@@ -1184,7 +1184,7 @@ git add -A && git commit -m "Test: verify email-template-system-v2 end-to-end (M
 - [ ] Task 1: Shared Block-/Action-Typen + Tests grün
 - [ ] Task 2: Schema additive Migration (0049) generiert + Typecheck grün
 - [ ] Task 3: Daten-Backfill (0050) — „New User" verlustfrei auf Blöcke, Branding-Footer geseedet, verifiziert gegen Prod-Spiegel
-- [ ] Task 4: Alt-Spalten gedroppt (0051), blocks NOT NULL
+- [x] Task 4: Alt-Spalten gedroppt (0051), blocks NOT NULL
 - [ ] Task 5: Repository + Adapter (Templates/Branding/Assets/Bindings)
 - [ ] Task 6: Block-Renderer + globales Branding + Button-Block, Tests grün
 - [ ] Task 7: triggerEmailAction Fan-out + Variablen-Validierung, Tests grün
