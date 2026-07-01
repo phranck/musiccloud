@@ -135,15 +135,19 @@ async function throttleCredentials(request: FastifyRequest, reply: FastifyReply)
  *
  * @param account - row as returned by the developer repository.
  * @returns The wire-level account object: `emailVerifiedAt` is collapsed to the
- *   boolean `emailVerified`, and `createdAt` (epoch ms) is rendered as an ISO
- *   string for JSON-safe transport. `passwordHash`, `status`, `updatedAt` and
- *   `lastLoginAt` are intentionally omitted.
+ *   boolean `emailVerified`, `passwordHash` is collapsed to the boolean
+ *   `hasPassword` (lets the portal decide whether `/delete-account` needs a
+ *   password confirmation — `false` for a GitHub-only account), and `createdAt`
+ *   (epoch ms) is rendered as an ISO string for JSON-safe transport. The raw
+ *   `passwordHash`, `status` and `updatedAt`/`lastLoginAt` are intentionally
+ *   omitted.
  */
 export function buildAccountResponse(account: DeveloperAccount) {
   return {
     id: account.id,
     email: account.email,
     emailVerified: account.emailVerifiedAt !== null,
+    hasPassword: account.passwordHash !== null,
     displayName: account.displayName,
     avatarUrl: account.avatarUrl,
     plan: account.plan,
@@ -153,7 +157,8 @@ export function buildAccountResponse(account: DeveloperAccount) {
 
 /**
  * Registers the developer-portal email/password auth routes (signup, verify,
- * login, request-reset, reset-password, logout, me) under `/api/dev/auth/*`.
+ * login, request-reset, reset-password, logout, me, delete-account) under
+ * `/api/dev/auth/*`.
  *
  * All routes validate their JSON body manually (mirroring `admin-auth.ts`) and
  * return the standard `{ error, message }` envelope on failure. Only `/login`
@@ -393,5 +398,35 @@ export async function devAuthRoutes(app: FastifyInstance) {
     }
 
     return reply.send({ account: buildAccountResponse(account) });
+  });
+
+  /**
+   * POST /api/dev/auth/delete-account
+   * Permanently deletes the caller's own account (the dashboard's "Danger
+   * Zone"). Cascades to the account's identities, email tokens, API-access
+   * requests and clients (see `deleteDeveloperAccount`), then clears the
+   * session cookie. When the account has a password set, `body.password`
+   * must match it (401 `INVALID_CREDENTIALS` otherwise) — an extra
+   * confirmation for an irreversible action. A GitHub-only account
+   * (`hasPassword: false` on `/me`) has no password to confirm, so the body
+   * is not required.
+   */
+  app.post(ENDPOINTS.dev.auth.deleteAccount, { preHandler: app.authenticateDeveloper }, async (request, reply) => {
+    const account = request.developerAccount!;
+
+    if (account.passwordHash !== null) {
+      const body = request.body as { password?: string } | null;
+      const isValid = await verifyPassword(body?.password ?? "", account.passwordHash);
+      if (!isValid) {
+        return reply.status(401).send({ error: "INVALID_CREDENTIALS", message: "Incorrect password." });
+      }
+    }
+
+    const repo = await getDeveloperRepository();
+    await repo.deleteDeveloperAccount(account.id);
+    reply.clearCookie(SESSION_COOKIE_NAME, clearedSessionCookieOptions());
+
+    app.log.info("[Developer] Account deleted");
+    return reply.send({ ok: true });
   });
 }

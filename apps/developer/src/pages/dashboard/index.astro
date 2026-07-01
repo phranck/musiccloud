@@ -6,11 +6,13 @@
  * without a valid session the request is redirected to `/login` before any
  * markup renders. With a session it renders the dashboard shell with the
  * Overview tab active: a greeting, an account-summary card (email, plan,
- * verification status, member-since), and a placeholder pointing at the
- * not-yet-built API-access flow.
+ * verification status, member-since), a placeholder pointing at the
+ * not-yet-built API-access flow, and a Danger Zone card for self-service
+ * account deletion.
  */
 import { CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout.astro";
+import { DeleteAccountSection } from "@/components/dashboard/DeleteAccountSection";
 import { DashboardTab } from "@/lib/dashboardTabs";
 import { getDeveloperSession } from "@/lib/session";
 
@@ -63,10 +65,12 @@ const memberSince = new Date(account.createdAt).toLocaleDateString("en-US", {
     </dl>
   </section>
 
-  <section class="rounded-card border border-border bg-surface px-6 py-5">
+  <section class="rounded-card border border-border bg-surface px-6 py-5 mb-6">
     <h2 class="text-body font-medium text-fg mb-1">Get started</h2>
     <p class="text-body text-fg-muted">
       Request API access to receive a key and start calling the musiccloud API. This flow is coming soon.
     </p>
   </section>
+
+  <DeleteAccountSection client:load hasPassword={account.hasPassword} />
 </DashboardLayout>

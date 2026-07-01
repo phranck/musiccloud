@@ -222,6 +222,7 @@ import {
   createDeveloperAccount as developerCreateAccount,
   createDeveloperEmailToken as developerCreateEmailToken,
   createDeveloperIdentity as developerCreateIdentity,
+  deleteDeveloperAccount as developerDeleteAccount,
   findDeveloperAccountByEmail as developerFindAccountByEmail,
   findDeveloperAccountById as developerFindAccountById,
   findActiveDeveloperEmailToken as developerFindActiveEmailToken,
@@ -1011,6 +1012,10 @@ export class PostgresAdapter
 
   clearDeveloperPassword(id: string): Promise<void> {
     return developerClearPassword(this.pool, id);
+  }
+
+  deleteDeveloperAccount(id: string): Promise<boolean> {
+    return developerDeleteAccount(this.pool, id);
   }
 
   createDeveloperIdentity(data: {

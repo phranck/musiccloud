@@ -164,6 +164,18 @@ export interface DeveloperRepository {
   setDeveloperPassword(id: string, passwordHash: string): Promise<DeveloperAccount | null>;
 
   /**
+   * Permanently deletes a developer account. All owned rows in
+   * `developer_identities`, `developer_email_tokens`, `api_access_requests`
+   * and `api_clients` (and, transitively, their tokens and audit events)
+   * cascade-delete via `ON DELETE CASCADE`, so this single call is sufficient
+   * to remove the account's entire footprint.
+   *
+   * @param id - The account id.
+   * @returns `true` if a row was deleted, `false` if no account matched `id`.
+   */
+  deleteDeveloperAccount(id: string): Promise<boolean>;
+
+  /**
    * Clears the account's password by setting `password_hash = NULL` and bumps
    * `updated_at`. Invoked when GitHub OAuth links to an account that is still
    * unverified: GitHub now proves mailbox ownership, so any password that was

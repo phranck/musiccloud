@@ -10,6 +10,7 @@ import { ButtonVariant, type ButtonVariantValue } from "@/lib/buttonVariant";
 const VARIANT_CLASS: Record<ButtonVariantValue, string> = {
   [ButtonVariant.Primary]: "bg-accent text-on-accent hover:bg-accent-hover",
   [ButtonVariant.Secondary]: "bg-surface text-fg border border-border-strong hover:border-fg-subtle",
+  [ButtonVariant.Danger]: "bg-red-400 text-on-accent hover:bg-red-500",
 };
 
 /**
@@ -34,8 +35,10 @@ export interface SubmitButtonProps {
 /**
  * Full-width form submit button styled from the developer-portal tokens. The
  * primary variant is brand-blue with a white label (`--color-on-accent`); the
- * secondary variant is a neutral glassy surface. While `loading`, it renders a
- * Phosphor spinner and is disabled to prevent double submits.
+ * secondary variant is a neutral glassy surface; the danger variant is red,
+ * for irreversible destructive actions (e.g. account deletion). While
+ * `loading`, it renders a Phosphor spinner and is disabled to prevent double
+ * submits.
  *
  * @param props - See {@link SubmitButtonProps}.
  * @returns The button element.

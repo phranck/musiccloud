@@ -115,6 +115,7 @@ function makeRepo(): DeveloperRepository {
     updateDeveloperLastLogin: vi.fn(async () => undefined),
     setDeveloperPassword: vi.fn(async () => makeAccount()),
     clearDeveloperPassword: vi.fn(async () => undefined),
+    deleteDeveloperAccount: vi.fn(async () => true),
     createDeveloperIdentity: vi.fn(async () => ({
       id: "id-1",
       accountId: "dev-acc-1",
@@ -157,6 +158,20 @@ async function buildApp(): Promise<FastifyInstance> {
 function findSessionSetCookie(raw: string | string[] | undefined): string | undefined {
   const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
   return list.find((c) => c.startsWith(`${SESSION_COOKIE_NAME}=`));
+}
+
+/**
+ * Signs a session JWT and returns it as the `mc_dev_session` cookie header
+ * value, mirroring what login sets. `kind` defaults to `"developer"`.
+ *
+ * @param app - The app whose `jwt` signer is used.
+ * @param sub - The account id to embed as the `sub` claim.
+ * @param kind - The `kind` claim; pass a non-developer value to assert rejection.
+ * @returns A `Cookie` header string of the form `mc_dev_session=<jwt>`.
+ */
+function sessionCookie(app: FastifyInstance, sub: string, kind = "developer"): string {
+  const token = app.jwt.sign({ sub, kind });
+  return `${SESSION_COOKIE_NAME}=${token}`;
 }
 
 let repo: DeveloperRepository;
@@ -472,20 +487,6 @@ describe("POST /api/dev/auth/logout", () => {
 });
 
 describe("GET /api/dev/auth/me", () => {
-  /**
-   * Signs a session JWT and returns it as the `mc_dev_session` cookie header
-   * value, mirroring what login sets. `kind` defaults to `"developer"`.
-   *
-   * @param app - The app whose `jwt` signer is used.
-   * @param sub - The account id to embed as the `sub` claim.
-   * @param kind - The `kind` claim; pass a non-developer value to assert rejection.
-   * @returns A `Cookie` header string of the form `mc_dev_session=<jwt>`.
-   */
-  function sessionCookie(app: FastifyInstance, sub: string, kind = "developer"): string {
-    const token = app.jwt.sign({ sub, kind });
-    return `${SESSION_COOKIE_NAME}=${token}`;
-  }
-
   it("returns 200 and the account for a valid developer session cookie", async () => {
     vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
     const app = await buildApp();
@@ -519,5 +520,82 @@ describe("GET /api/dev/auth/me", () => {
 
     expect(res.statusCode).toBe(401);
     expect(res.json().error).toBe("UNAUTHORIZED");
+  });
+});
+
+describe("POST /api/dev/auth/delete-account", () => {
+  it("deletes the account, clears the session cookie and returns ok on a correct password", async () => {
+    const passwordHash = await hashPassword(VALID_PASSWORD);
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount({ passwordHash }));
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.deleteAccount,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { password: VALID_PASSWORD },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().ok).toBe(true);
+    expect(vi.mocked(repo.deleteDeveloperAccount)).toHaveBeenCalledWith("dev-acc-1");
+    const setCookie = findSessionSetCookie(res.headers["set-cookie"]);
+    expect(setCookie).toBeDefined();
+    expect(setCookie).toMatch(new RegExp(`^${SESSION_COOKIE_NAME}=;`));
+  });
+
+  it("returns 401 INVALID_CREDENTIALS and does not delete on a wrong password", async () => {
+    const passwordHash = await hashPassword(VALID_PASSWORD);
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount({ passwordHash }));
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.deleteAccount,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { password: "wrong-password" },
+    });
+
+    expect(res.statusCode).toBe(401);
+    expect(res.json().error).toBe("INVALID_CREDENTIALS");
+    expect(vi.mocked(repo.deleteDeveloperAccount)).not.toHaveBeenCalled();
+    expect(findSessionSetCookie(res.headers["set-cookie"])).toBeUndefined();
+  });
+
+  it("returns 401 INVALID_CREDENTIALS and does not delete when the password is omitted", async () => {
+    const passwordHash = await hashPassword(VALID_PASSWORD);
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount({ passwordHash }));
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.deleteAccount,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: {},
+    });
+
+    expect(res.statusCode).toBe(401);
+    expect(res.json().error).toBe("INVALID_CREDENTIALS");
+    expect(vi.mocked(repo.deleteDeveloperAccount)).not.toHaveBeenCalled();
+  });
+
+  it("deletes a GitHub-only account (no password set) without requiring a password", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount({ passwordHash: null }));
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.deleteAccount,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: {},
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().ok).toBe(true);
+    expect(vi.mocked(repo.deleteDeveloperAccount)).toHaveBeenCalledWith("dev-acc-1");
+  });
+
+  it("returns 401 without a session cookie", async () => {
+    const app = await buildApp();
+    const res = await app.inject({ method: "POST", url: ENDPOINTS.dev.auth.deleteAccount, payload: {} });
+
+    expect(res.statusCode).toBe(401);
+    expect(vi.mocked(repo.deleteDeveloperAccount)).not.toHaveBeenCalled();
   });
 });

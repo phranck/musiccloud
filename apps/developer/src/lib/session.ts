@@ -30,6 +30,12 @@ export interface Account {
   email: string;
   /** Whether the email has been verified via the signup verification link. */
   emailVerified: boolean;
+  /**
+   * Whether the account has a password set. `false` for a GitHub-only
+   * account (no email/password identity) — the dashboard's Danger Zone
+   * skips the password-confirmation field for those accounts.
+   */
+  hasPassword: boolean;
   /** Optional display name; `null` until the developer sets one. */
   displayName: string | null;
   /** Optional avatar URL (e.g. GitHub or Gravatar); `null` when unset. */

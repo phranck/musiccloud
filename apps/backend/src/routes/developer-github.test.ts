@@ -108,6 +108,7 @@ function makeRepo(): DeveloperRepository {
     updateDeveloperLastLogin: vi.fn(async () => undefined),
     setDeveloperPassword: vi.fn(async () => makeAccount()),
     clearDeveloperPassword: vi.fn(async () => undefined),
+    deleteDeveloperAccount: vi.fn(async () => true),
     createDeveloperIdentity: vi.fn(async () => ({
       id: "id-1",
       accountId: "dev-acc-1",

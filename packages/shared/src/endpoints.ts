@@ -364,6 +364,13 @@ export const ENDPOINTS = {
       logout: "/api/dev/auth/logout",
       /** GET: the currently authenticated developer account (cookie session). */
       me: "/api/dev/auth/me",
+      /**
+       * POST: permanently delete the caller's own developer account (cascades
+       * to identities, tokens, API-access requests/clients) and clear the
+       * session cookie. Body: `{ password }` — required only when the
+       * account has a password set (omitted/ignored for GitHub-only accounts).
+       */
+      deleteAccount: "/api/dev/auth/delete-account",
       /** GitHub OAuth (MC-065). `start` returns the authorize URL + signed state; `exchange` redeems the callback code. */
       github: {
         /** GET: returns `{ authorizeUrl, state }` for the Astro app to redirect to. */

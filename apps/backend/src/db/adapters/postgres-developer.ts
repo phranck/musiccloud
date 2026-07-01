@@ -266,6 +266,22 @@ export async function clearDeveloperPassword(pool: Pool, id: string): Promise<vo
   await pool.query(`UPDATE developer_accounts SET password_hash = NULL, updated_at = $1 WHERE id = $2`, [now, id]);
 }
 
+/**
+ * Permanently deletes a developer account by primary key. `developer_accounts`
+ * is the FK root for `developer_identities`, `developer_email_tokens`,
+ * `api_access_requests` and `api_clients` (each `ON DELETE CASCADE`, see
+ * `schemas/postgres.ts`), so this single `DELETE` removes the account's
+ * entire footprint without any additional queries.
+ *
+ * @param pool - Postgres connection pool.
+ * @param id - The account id.
+ * @returns `true` if a row was deleted, `false` if no account matched `id`.
+ */
+export async function deleteDeveloperAccount(pool: Pool, id: string): Promise<boolean> {
+  const result = await pool.query(`DELETE FROM developer_accounts WHERE id = $1`, [id]);
+  return (result.rowCount ?? 0) > 0;
+}
+
 // ============================================================================
 // IDENTITIES
 // ============================================================================

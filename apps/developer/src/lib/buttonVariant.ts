@@ -16,6 +16,8 @@ export const ButtonVariant = {
   Primary: "Primary",
   /** Neutral glassy surface with a hairline border — secondary actions. */
   Secondary: "Secondary",
+  /** Red fill with a white label — irreversible, destructive actions (e.g. account deletion). */
+  Danger: "Danger",
 } as const;
 
 /** A {@link ButtonVariant} member value. */
