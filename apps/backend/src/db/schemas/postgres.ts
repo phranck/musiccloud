@@ -1507,3 +1507,140 @@ export const developerEmailTokens = pgTable(
 
 export type DeveloperEmailTokenRow = typeof developerEmailTokens.$inferSelect;
 export type DeveloperEmailTokenInsert = typeof developerEmailTokens.$inferInsert;
+
+/**
+ * A developer's request for Public-API access (MC-025/MC-077). Each row
+ * describes one app; `developerAccountId` is the source of truth for who
+ * submitted it (`contactEmail` is a display snapshot, not the identity).
+ * Approval creates exactly one new {@link apiClients} row per request —
+ * requests are never merged into an existing client.
+ */
+export const apiAccessRequests = pgTable(
+  "api_access_requests",
+  {
+    id: text("id").primaryKey(),
+    developerAccountId: text("developer_account_id")
+      .notNull()
+      .references(() => developerAccounts.id, { onDelete: "cascade" }),
+    contactEmail: text("contact_email").notNull(),
+    appName: text("app_name").notNull(),
+    appDescription: text("app_description").notNull(),
+    estimatedRequestsPerDay: integer("estimated_requests_per_day").notNull(),
+    status: text("status").notNull().default("pending"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewedByAdminId: text("reviewed_by_admin_id").references(() => adminUsers.id, { onDelete: "set null" }),
+    reviewNote: text("review_note"),
+  },
+  (table) => [
+    index("idx_api_access_requests_status_submitted").on(table.status, table.submittedAt),
+    index("idx_api_access_requests_developer_account").on(table.developerAccountId),
+    check(
+      "chk_api_access_requests_status",
+      sql`${table.status} IN ('pending', 'approved', 'rejected', 'archived')`,
+    ),
+    check("chk_api_access_requests_estimated_requests", sql`${table.estimatedRequestsPerDay} > 0`),
+  ],
+);
+
+export type ApiAccessRequestRow = typeof apiAccessRequests.$inferSelect;
+export type ApiAccessRequestInsert = typeof apiAccessRequests.$inferInsert;
+
+/**
+ * An approved API consumer ("app"). Linked to the developer account that
+ * owns it and, when created via the request flow, to the originating
+ * {@link apiAccessRequests} row. `requestsPerMinute`/`requestsPerDay` are
+ * free-tier defaults, editable by an admin — not yet enforced anywhere
+ * (Public-API enforcement is MC-025 Phase 2).
+ */
+export const apiClients = pgTable(
+  "api_clients",
+  {
+    id: text("id").primaryKey(),
+    requestId: text("request_id").references(() => apiAccessRequests.id, { onDelete: "set null" }),
+    developerAccountId: text("developer_account_id")
+      .notNull()
+      .references(() => developerAccounts.id, { onDelete: "cascade" }),
+    appName: text("app_name").notNull(),
+    contactEmail: text("contact_email").notNull(),
+    description: text("description").notNull(),
+    status: text("status").notNull().default("active"),
+    requestsPerMinute: integer("requests_per_minute").notNull().default(60),
+    requestsPerDay: integer("requests_per_day").notNull().default(10000),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdByAdminId: text("created_by_admin_id").references(() => adminUsers.id, { onDelete: "set null" }),
+  },
+  (table) => [
+    index("idx_api_clients_status").on(table.status),
+    index("idx_api_clients_developer_account").on(table.developerAccountId),
+    check("chk_api_clients_status", sql`${table.status} IN ('active', 'suspended', 'revoked')`),
+    check("chk_api_clients_requests_per_minute", sql`${table.requestsPerMinute} > 0`),
+    check("chk_api_clients_requests_per_day", sql`${table.requestsPerDay} > 0`),
+  ],
+);
+
+export type ApiClientRow = typeof apiClients.$inferSelect;
+export type ApiClientInsert = typeof apiClients.$inferInsert;
+
+/**
+ * An issued bearer token for an {@link apiClients} row, sent as
+ * `X-API-Key: mc_live_<prefix>_<secret>`. Only the SHA-256 hash is
+ * persisted (`tokenHash`); `tokenPrefix` is safe to display. Both admins
+ * and the owning developer can create/revoke/rotate tokens — see
+ * `api-access-repository.ts`. `rotatedFromTokenId` is informational only
+ * (no FK constraint, to avoid a self-referential-FK typing detour for a
+ * field that is never used for integrity checks, only display history).
+ */
+export const apiClientTokens = pgTable(
+  "api_client_tokens",
+  {
+    id: text("id").primaryKey(),
+    clientId: text("client_id")
+      .notNull()
+      .references(() => apiClients.id, { onDelete: "cascade" }),
+    tokenPrefix: text("token_prefix").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    status: text("status").notNull().default("active"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    rotatedFromTokenId: text("rotated_from_token_id"),
+  },
+  (table) => [
+    uniqueIndex("uq_api_client_tokens_prefix").on(table.tokenPrefix),
+    uniqueIndex("uq_api_client_tokens_hash").on(table.tokenHash),
+    index("idx_api_client_tokens_client_status").on(table.clientId, table.status),
+    check("chk_api_client_tokens_status", sql`${table.status} IN ('active', 'revoked', 'rotated')`),
+  ],
+);
+
+export type ApiClientTokenRow = typeof apiClientTokens.$inferSelect;
+export type ApiClientTokenInsert = typeof apiClientTokens.$inferInsert;
+
+/**
+ * Audit trail for every mutating action on requests/clients/tokens.
+ * `actorAdminId` is set for admin-initiated actions, `actorDeveloperAccountId`
+ * for developer self-service actions — exactly one of the two is set (never
+ * both, never neither) by every writer in `api-access-repository.ts`.
+ */
+export const apiAccessAuditEvents = pgTable(
+  "api_access_audit_events",
+  {
+    id: text("id").primaryKey(),
+    clientId: text("client_id").references(() => apiClients.id, { onDelete: "set null" }),
+    requestId: text("request_id").references(() => apiAccessRequests.id, { onDelete: "set null" }),
+    tokenId: text("token_id").references(() => apiClientTokens.id, { onDelete: "set null" }),
+    eventType: text("event_type").notNull(),
+    actorAdminId: text("actor_admin_id").references(() => adminUsers.id, { onDelete: "set null" }),
+    actorDeveloperAccountId: text("actor_developer_account_id").references(() => developerAccounts.id, {
+      onDelete: "set null",
+    }),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+    eventData: jsonb("event_data").notNull().default({}),
+  },
+  (table) => [index("idx_api_access_audit_events_client_occurred").on(table.clientId, table.occurredAt)],
+);
+
+export type ApiAccessAuditEventRow = typeof apiAccessAuditEvents.$inferSelect;
+export type ApiAccessAuditEventInsert = typeof apiAccessAuditEvents.$inferInsert;

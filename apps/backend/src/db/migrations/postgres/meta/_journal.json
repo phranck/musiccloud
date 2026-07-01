@@ -337,6 +337,13 @@
       "when": 1782512969474,
       "tag": "0047_lumpy_kulan_gath",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1782901306731,
+      "tag": "0048_clumsy_carnage",
+      "breakpoints": true
     }
   ]
 }
