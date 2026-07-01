@@ -40,6 +40,7 @@ import ccDownloadRoutes from "./routes/cc-download.js";
 import ccGenreArtworkRoutes from "./routes/cc-genre-artwork.js";
 import ccRandomExampleRoutes from "./routes/cc-random-example.js";
 import ccResolveRoutes from "./routes/cc-resolve.js";
+import { devApiAccessRoutes } from "./routes/dev-api-access.js";
 import { devAuthRoutes } from "./routes/developer-auth.js";
 import { devGitHubRoutes } from "./routes/developer-github.js";
 import genreArtworkRoutes from "./routes/genre-artwork.js";
@@ -587,6 +588,15 @@ async function buildApp() {
   // mints the signed-state authorize URL; `exchange` trades the callback code
   // and issues the same `mc_dev_session` cookie as email login.
   await app.register(devGitHubRoutes);
+
+  // Developer-portal self-service API-access routes (MC-025/MC-077):
+  // submit a request, list the caller's own requests/clients, and
+  // manage the caller's own tokens. Guarded by authenticateDeveloper as
+  // this scope's preHandler, mirroring adminRoutes/protectedRoutes below.
+  await app.register(async function devProtectedRoutes(devApp) {
+    devApp.addHook("preHandler", devApp.authenticateDeveloper);
+    await devApp.register(devApiAccessRoutes);
+  });
 
   // Share endpoint (public, no auth - used for SSR)
   await app.register(shareRoutes);
