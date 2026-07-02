@@ -29,8 +29,18 @@ const DARK_MODE_CSS = `@media (prefers-color-scheme: dark) {${DARK_RULES}}`;
 /** Accent color for the button block, reused verbatim from the developer-portal's dark-mode-safe button (`developer-email.ts`). */
 const BUTTON_ACCENT = "#28A8D8";
 
+/**
+ * Replaces `{{name}}` placeholders with `variables[name]`. A placeholder
+ * whose name isn't a key in `variables` is left untouched (not blanked) —
+ * this is what lets `renderEmailPreview`'s always-empty `{}` variables map
+ * show `{{username}}` etc. literally rather than silently erasing them, and
+ * what makes an undeclared-but-referenced variable on the send path fail
+ * loudly (visible raw placeholder) instead of silently vanishing.
+ */
 function interpolate(text: string, variables: Record<string, string>): string {
-  return text.replace(new RegExp(VAR_REGEX.source, "g"), (_, name) => escapeHtml(variables[name] ?? ""));
+  return text.replace(new RegExp(VAR_REGEX.source, "g"), (match, name) =>
+    name in variables ? escapeHtml(variables[name]) : match,
+  );
 }
 
 function applyInlineStyles(html: string): string {

@@ -1,6 +1,6 @@
 import { EmailBlockType } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
-import { renderBlocks } from "../email-renderer.js";
+import { renderBlocks, renderEmailPreview } from "../email-renderer.js";
 
 const branding = { headerAssetId: null, footerAssetId: null, footerText: "share it everywhere" };
 const baseUrl = "http://localhost:4000";
@@ -35,5 +35,32 @@ describe("renderBlocks", () => {
     );
     expect(html).toContain("/api/admin/email-assets/abc");
     expect(html).toContain('alt="banner"');
+  });
+
+  it("leaves a placeholder literal when its name isn't in the variables map, instead of blanking it", () => {
+    const html = renderBlocks(
+      [{ type: EmailBlockType.Text, markdown: "Hello {{username}}, ref {{notSupplied}}" }],
+      branding,
+      { username: "Alice" },
+      baseUrl,
+    );
+    expect(html).toContain("Alice");
+    expect(html).toContain("{{notSupplied}}");
+  });
+});
+
+describe("renderEmailPreview", () => {
+  it("shows every {{variable}} placeholder literally, since preview never supplies variable values", () => {
+    const html = renderEmailPreview(
+      [
+        { type: EmailBlockType.Text, markdown: "Hello {{username}}" },
+        { type: EmailBlockType.Button, label: "Activate", url: "{{inviteUrl}}" },
+      ],
+      branding,
+      "light",
+      baseUrl,
+    );
+    expect(html).toContain("{{username}}");
+    expect(html).toContain("{{inviteUrl}}");
   });
 });
