@@ -171,7 +171,7 @@ function buildBlockRows(
   }
   if (branding.footerText) {
     rows.push(
-      `<tr><td class="em-footer-border" style="padding:24px 40px;border-top:1px solid #E5E5EA;text-align:center;"><div class="em-footer-text" style="font-size:13px;color:#8E8E93;line-height:1.5;">${parseMarkdown(interpolate(branding.footerText, variables))}</div></td></tr>`,
+      `<tr><td class="em-footer-border" style="padding:16px 40px;border-top:1px solid #E5E5EA;text-align:center;"><div class="em-footer-text" style="font-size:13px;color:#8E8E93;line-height:1.5;">${parseMarkdown(interpolate(branding.footerText, variables))}</div></td></tr>`,
     );
   }
   if (branding.footerAssetId) {
@@ -192,6 +192,7 @@ function buildEmailHtml(rows: string[], css: string): string {
   <meta name="supported-color-schemes" content="light dark">
   <style>
     :root { color-scheme: light dark; supported-color-schemes: light dark; }
+    .em-footer-text p { margin: 0; }
     ${css}
   </style>
 </head>
