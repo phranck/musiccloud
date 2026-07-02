@@ -100,6 +100,9 @@ export function EmailActionsPage() {
 /** This page's i18n message block, reused as a prop type by every sub-component below (mirrors `EmailTemplateEditPage`'s `labels` prop convention). */
 type EmailActionsLabels = ReturnType<typeof useI18n>["messages"]["emailActions"];
 
+/** The subset of `EmailTemplate` this page ever needs: enough to list and pick a template by id, never its body/blocks. */
+type TemplateOption = { id: number; name: string };
+
 interface ActionListSectionProps {
   actions: EmailActionWithBindings[];
   selectedKey: string | null;
@@ -166,7 +169,7 @@ function ActionListRow({ action, isSelected, onSelect, labels }: ActionListRowPr
 
 interface ActionDetailSectionProps {
   action: EmailActionWithBindings;
-  templates: Array<{ id: number; name: string }>;
+  templates: TemplateOption[];
   labels: EmailActionsLabels;
 }
 
@@ -206,7 +209,7 @@ function ActionDetailSection({ action, templates, labels }: ActionDetailSectionP
 
 interface BoundTemplatesListProps {
   action: EmailActionWithBindings;
-  templates: Array<{ id: number; name: string }>;
+  templates: TemplateOption[];
   labels: EmailActionsLabels;
 }
 
@@ -243,6 +246,7 @@ interface BoundTemplateRowProps {
   onRemove: () => void;
 }
 
+/** One bound-template row: name (or `fallbackName` if the template was since deleted), an enable/disable toggle, and a remove button. */
 function BoundTemplateRow({ binding, templateName, fallbackName, onToggle, onRemove }: BoundTemplateRowProps) {
   const { messages } = useI18n();
 
@@ -257,6 +261,7 @@ function BoundTemplateRow({ binding, templateName, fallbackName, onToggle, onRem
         onClick={() => onToggle(!binding.enabled)}
         variant={binding.enabled ? DashboardButtonVariant.Success : DashboardButtonVariant.Neutral}
       >
+        {/* Reuses the generic enabled/disabled wording from the services feature (messages.services) rather than a new emailActions-scoped pair — same plain "Enabled"/"Disabled" semantics, no plugin-specific meaning baked in. */}
         {binding.enabled ? messages.services.enabled : messages.services.disabled}
       </DashboardButton>
       <DashboardActionButton
@@ -304,7 +309,13 @@ function AssignTemplateControl({ action, templates, labels }: AssignTemplateCont
         <select
           aria-label={labels.assignTemplateTitle}
           value={selectedTemplateId}
-          onChange={(e) => setSelectedTemplateId(e.target.value ? Number(e.target.value) : "")}
+          onChange={(e) => {
+            setSelectedTemplateId(e.target.value ? Number(e.target.value) : "");
+            // Clear a stale compatibility error from a previous attempt once
+            // the admin picks a different template (mirrors DesignSettingsPage's
+            // handleChange, which resets its save mutation on the next edit).
+            if (createMutation.isError) createMutation.reset();
+          }}
           className={formInputClass}
           disabled={availableTemplates.length === 0}
         >
