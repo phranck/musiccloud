@@ -197,14 +197,14 @@ function BrandingImageSlot({ label, assetId, onAssetChange }: BrandingImageSlotP
       <DashboardSection.Header icon={<ImageIcon weight="duotone" className="size-4" />} title={label} />
       <DashboardSection.Body>
         <p className="text-xs text-[var(--ds-text-muted)]">{m.brandingImageHint}</p>
+        {assetId && (
+          <img
+            src={`/api/admin/email-assets/${assetId}`}
+            alt=""
+            className="h-24 w-full rounded border border-[var(--ds-border)] bg-[var(--ds-bg-elevated)] object-contain"
+          />
+        )}
         <div className="flex items-center gap-3">
-          {assetId && (
-            <img
-              src={`/api/admin/email-assets/${assetId}`}
-              alt=""
-              className="h-14 w-24 rounded border border-[var(--ds-border)] object-cover"
-            />
-          )}
           <DashboardActionButton
             action={DashboardActionId.Import}
             busyLabel={m.imageUpload}
