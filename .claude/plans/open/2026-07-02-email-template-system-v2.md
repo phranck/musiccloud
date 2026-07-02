@@ -1199,7 +1199,7 @@ git add -A && git commit -m "Test: verify email-template-system-v2 end-to-end (M
 - [x] Task 6: Block-Renderer + globales Branding + Button-Block, Tests grün
 - [x] Task 7: triggerEmailAction Fan-out + Variablen-Validierung, Tests grün
 - [x] Task 8: Endpoints + Asset/Branding/Action-Routen + Invite-Umstellung, Backend grün
-- [ ] Task 9: Dashboard Contracts + Hooks
+- [x] Task 9: Dashboard Contracts + Hooks
 - [ ] Task 10: Block-Editor
 - [ ] Task 11: Branding-Seite
 - [ ] Task 12: Actions-Seite + Invite-Picker entfernt + i18n
