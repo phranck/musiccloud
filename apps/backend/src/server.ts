@@ -26,6 +26,9 @@ import adminAuthRoutes from "./routes/admin-auth.js";
 import adminContentRoutes from "./routes/admin-content.js";
 import adminCrawlerRoutes from "./routes/admin-crawler.js";
 import adminDataRoutes from "./routes/admin-data.js";
+import adminEmailActionsRoutes from "./routes/admin-email-actions.js";
+import adminEmailAssetsRoutes from "./routes/admin-email-assets.js";
+import adminEmailBrandingRoutes from "./routes/admin-email-branding.js";
 import adminEmailTemplateRoutes from "./routes/admin-email-templates.js";
 import adminNavRoutes from "./routes/admin-nav.js";
 import adminPluginsRoutes from "./routes/admin-plugins.js";
@@ -43,6 +46,7 @@ import ccResolveRoutes from "./routes/cc-resolve.js";
 import { devApiAccessRoutes } from "./routes/dev-api-access.js";
 import { devAuthRoutes } from "./routes/developer-auth.js";
 import { devGitHubRoutes } from "./routes/developer-github.js";
+import emailAssetServeRoutes from "./routes/email-assets.js";
 import genreArtworkRoutes from "./routes/genre-artwork.js";
 import linkRoutes from "./routes/link.js";
 import publicContentNavRoutes from "./routes/public-content-nav.js";
@@ -619,6 +623,13 @@ async function buildApp() {
   // Genre artwork endpoint (public, no auth - referenced from browse grid tiles)
   await app.register(genreArtworkRoutes);
 
+  // Email asset serve endpoint (public, no auth - sent-email <img> tags are
+  // fetched by the recipient's mail client, which has no admin JWT to
+  // present; the matching admin-guarded UPLOAD route is registered
+  // separately below, inside adminRoutes). See routes/email-assets.ts's file
+  // header for the full rationale.
+  await app.register(emailAssetServeRoutes);
+
   // CC genre artwork endpoint (public, no auth - referenced from CC browse grid
   // tiles). Same per-IP rate-limit exemption as the commercial route above: it
   // never calls `apiRateLimiter`, only the global 300/min ceiling applies.
@@ -655,6 +666,9 @@ async function buildApp() {
     await adminApp.register(adminApiAccessRoutes);
     await adminApp.register(adminContentRoutes);
     await adminApp.register(adminDataRoutes);
+    await adminApp.register(adminEmailActionsRoutes);
+    await adminApp.register(adminEmailAssetsRoutes);
+    await adminApp.register(adminEmailBrandingRoutes);
     await adminApp.register(adminEmailTemplateRoutes);
     await adminApp.register(adminNavRoutes);
     await adminApp.register(adminSseRoutes);

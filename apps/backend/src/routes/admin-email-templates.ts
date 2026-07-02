@@ -1,7 +1,8 @@
-import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import { type EmailBlock, ENDPOINTS, isEmailBlockArray, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { strToU8, zipSync } from "fflate";
 
+import type { EmailTemplateVariable } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
 import { requireEnv } from "../lib/env.js";
 import { renderEmailPreview } from "../services/email-renderer.js";
@@ -9,6 +10,7 @@ import { sendTemplatedEmail } from "../services/email-sender.js";
 import {
   createManagedEmailTemplate,
   deleteManagedEmailTemplate,
+  getManagedEmailBranding,
   getManagedEmailTemplateById,
   getManagedEmailTemplates,
   importManagedEmailTemplate,
@@ -18,11 +20,8 @@ import {
 interface EmailTemplateCreateBody {
   name: string;
   subject: string;
-  headerBannerUrl?: string | null;
-  headerText?: string | null;
-  bodyText: string;
-  footerBannerUrl?: string | null;
-  footerText?: string | null;
+  blocks: EmailBlock[];
+  requiredVariables: EmailTemplateVariable[];
 }
 
 interface EmailTemplateUpdateBody extends Partial<EmailTemplateCreateBody> {}
@@ -33,11 +32,7 @@ interface EmailTemplateImportBody extends EmailTemplateCreateBody {
 }
 
 interface EmailTemplatePreviewBody {
-  headerBannerUrl?: string | null;
-  headerText?: string | null;
-  bodyText?: string | null;
-  footerText?: string | null;
-  footerBannerUrl?: string | null;
+  blocks: EmailBlock[];
   colorScheme?: "light" | "dark";
 }
 
@@ -45,6 +40,25 @@ function parseId(raw: string): number | null {
   const id = Number(raw);
   if (!Number.isInteger(id) || id <= 0) return null;
   return id;
+}
+
+/**
+ * Validates a `requiredVariables` value: an array of `{name, description}`
+ * objects (both strings). Used by create/update/import — every write path
+ * accepts the same shape.
+ *
+ * @param value - the raw, untyped value to check.
+ * @returns the validated array, or a string error message.
+ */
+function validateRequiredVariables(value: unknown): EmailTemplateVariable[] | string {
+  if (!Array.isArray(value)) return "requiredVariables must be an array";
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") return "requiredVariables entries must be objects";
+    const e = entry as Record<string, unknown>;
+    if (typeof e.name !== "string" || e.name.length === 0) return "requiredVariables[].name must be a non-empty string";
+    if (typeof e.description !== "string") return "requiredVariables[].description must be a string";
+  }
+  return value as EmailTemplateVariable[];
 }
 
 function validateCreateBody(body: unknown): EmailTemplateCreateBody | string {
@@ -56,27 +70,16 @@ function validateCreateBody(body: unknown): EmailTemplateCreateBody | string {
   if (typeof b.subject !== "string" || b.subject.length === 0 || b.subject.length > 500) {
     return "subject required (1-500 chars)";
   }
-  if (typeof b.bodyText !== "string" || b.bodyText.length > 50000) {
-    return "bodyText required (max 50000 chars)";
+  if (!isEmailBlockArray(b.blocks)) {
+    return "blocks required: must be a well-formed EmailBlock[] array";
   }
-  for (const field of ["headerText", "footerText"] as const) {
-    const v = b[field];
-    if (v != null && (typeof v !== "string" || v.length > 50000)) {
-      return `${field} must be string (max 50000 chars)`;
-    }
-  }
-  for (const field of ["headerBannerUrl", "footerBannerUrl"] as const) {
-    const v = b[field];
-    if (v != null && typeof v !== "string") return `${field} must be string`;
-  }
+  const requiredVariables = validateRequiredVariables(b.requiredVariables ?? []);
+  if (typeof requiredVariables === "string") return requiredVariables;
   return {
     name: b.name,
     subject: b.subject,
-    headerBannerUrl: (b.headerBannerUrl as string | null | undefined) ?? null,
-    headerText: (b.headerText as string | null | undefined) ?? null,
-    bodyText: b.bodyText,
-    footerBannerUrl: (b.footerBannerUrl as string | null | undefined) ?? null,
-    footerText: (b.footerText as string | null | undefined) ?? null,
+    blocks: b.blocks,
+    requiredVariables,
   };
 }
 
@@ -96,27 +99,16 @@ function validateUpdateBody(body: unknown): EmailTemplateUpdateBody | string {
     }
     out.subject = b.subject;
   }
-  if (b.bodyText !== undefined) {
-    if (typeof b.bodyText !== "string" || b.bodyText.length > 50000) {
-      return "bodyText must be string (max 50000 chars)";
+  if (b.blocks !== undefined) {
+    if (!isEmailBlockArray(b.blocks)) {
+      return "blocks must be a well-formed EmailBlock[] array";
     }
-    out.bodyText = b.bodyText;
+    out.blocks = b.blocks;
   }
-  for (const field of ["headerText", "footerText"] as const) {
-    if (b[field] !== undefined) {
-      const v = b[field];
-      if (v !== null && (typeof v !== "string" || v.length > 50000)) {
-        return `${field} must be string or null (max 50000 chars)`;
-      }
-      out[field] = v as string | null;
-    }
-  }
-  for (const field of ["headerBannerUrl", "footerBannerUrl"] as const) {
-    if (b[field] !== undefined) {
-      const v = b[field];
-      if (v !== null && typeof v !== "string") return `${field} must be string or null`;
-      out[field] = v as string | null;
-    }
+  if (b.requiredVariables !== undefined) {
+    const requiredVariables = validateRequiredVariables(b.requiredVariables);
+    if (typeof requiredVariables === "string") return requiredVariables;
+    out.requiredVariables = requiredVariables;
   }
   return out;
 }
@@ -124,16 +116,15 @@ function validateUpdateBody(body: unknown): EmailTemplateUpdateBody | string {
 function validatePreviewBody(body: unknown): EmailTemplatePreviewBody | string {
   if (!body || typeof body !== "object") return "body must be an object";
   const b = body as Record<string, unknown>;
+  if (!isEmailBlockArray(b.blocks)) {
+    return "blocks required: must be a well-formed EmailBlock[] array";
+  }
   const scheme = b.colorScheme;
   if (scheme !== undefined && scheme !== "light" && scheme !== "dark") {
     return "colorScheme must be 'light' or 'dark'";
   }
   return {
-    headerBannerUrl: (b.headerBannerUrl as string | null | undefined) ?? null,
-    headerText: (b.headerText as string | null | undefined) ?? null,
-    bodyText: typeof b.bodyText === "string" ? b.bodyText : "",
-    footerText: (b.footerText as string | null | undefined) ?? null,
-    footerBannerUrl: (b.footerBannerUrl as string | null | undefined) ?? null,
+    blocks: b.blocks,
     colorScheme: (scheme as "light" | "dark" | undefined) ?? "light",
   };
 }
@@ -216,16 +207,11 @@ export default async function adminEmailTemplateRoutes(app: FastifyInstance) {
     if (typeof validated === "string") {
       return reply.status(400).send({ error: validated });
     }
-    const { colorScheme = "light", ...fields } = validated;
+    const branding = await getManagedEmailBranding();
     const html = renderEmailPreview(
-      {
-        headerBannerUrl: fields.headerBannerUrl,
-        headerText: fields.headerText,
-        bodyText: fields.bodyText ?? "",
-        footerText: fields.footerText,
-        footerBannerUrl: fields.footerBannerUrl,
-      },
-      colorScheme,
+      validated.blocks,
+      branding,
+      validated.colorScheme ?? "light",
       requireEnv("PUBLIC_URL"),
     );
     return { html };

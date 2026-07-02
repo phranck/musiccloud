@@ -56,14 +56,14 @@
  *   via arbitrary image hosts.
  * - **DELETE** (`avatar`): clears the column.
  */
-import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import { EmailAction, ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import bcrypt from "bcryptjs";
 import type { FastifyInstance } from "fastify";
 import { nanoid } from "nanoid";
 import type { AdminUser } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
 import { requireEnv } from "../lib/env.js";
-import { sendTemplatedEmail } from "../services/email-sender.js";
+import { triggerEmailAction } from "../services/email-actions.js";
 
 export default async function adminUserRoutes(app: FastifyInstance) {
   // GET /api/admin/users
@@ -84,7 +84,6 @@ export default async function adminUserRoutes(app: FastifyInstance) {
       username?: string;
       email?: string;
       role?: string;
-      welcomeTemplateId?: number;
     } | null;
     if (!body?.username || !body?.email) {
       return reply.status(400).send({ error: "username and email required" });
@@ -118,25 +117,27 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     const dashboardUrl = requireEnv("DASHBOARD_URL");
     const inviteUrl = `${dashboardUrl}/invite/${inviteToken}`;
 
-    if (body.welcomeTemplateId) {
-      try {
-        await sendTemplatedEmail({
-          templateId: body.welcomeTemplateId,
-          to: { email: body.email, name: body.username },
-          variables: {
-            username: body.username,
-            email: body.email,
-            role,
-            inviteUrl,
-            loginUrl: `${dashboardUrl}/login`,
-          },
-        });
-      } catch (error) {
-        // Mail send must not roll back user creation: the invite URL is
-        // returned in the response and remains copy-pasteable from the
-        // UI even if email delivery fails.
-        request.log.error({ err: error, userId: id }, "failed to send welcome email");
-      }
+    try {
+      await triggerEmailAction(EmailAction.AdminInviteSent, {
+        to: { email: body.email, name: body.username },
+        variables: {
+          username: body.username,
+          email: body.email,
+          role,
+          inviteUrl,
+          loginUrl: `${dashboardUrl}/login`,
+        },
+      });
+    } catch (error) {
+      // Mail send must not roll back user creation: the invite URL is
+      // returned in the response and remains copy-pasteable from the UI
+      // even if email delivery fails. `triggerEmailAction` can now throw for
+      // reasons beyond "SMTP failed" (e.g. no enabled template bound to
+      // AdminInviteSent, or a bound template's required variable this route
+      // does not supply) — those are still just logged here, not surfaced
+      // as a failed user creation, matching the previous resilience
+      // behavior.
+      request.log.error({ err: error, userId: id }, "failed to send welcome email");
     }
 
     return reply.status(201).send({
