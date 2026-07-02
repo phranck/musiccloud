@@ -1099,25 +1099,33 @@ git commit -m "Feat: block-based email template editor (MC-078)"
 - Modify: `apps/dashboard/src/routes.tsx` (Route `email-branding`)
 - Modify: `apps/dashboard/src/components/layout/Sidebar.tsx` (Eintrag unter „Templates" oder „System")
 
-- [ ] **Step 1: Branding-Seite bauen**
+- [x] **Step 1: Branding-Seite bauen**
 
 `EmailBrandingPage.tsx`: lädt `useEmailBranding`, zeigt Header-Asset (Upload/Vorschau), Footer-Asset (Upload/Vorschau), Footer-Text (Markdown), speichert per `useUpdateEmailBranding`. Asset-Upload: File→`data:`-URL→`POST emailAssets.upload`→`{id}`→als `headerAssetId`/`footerAssetId` speichern.
 
-- [ ] **Step 2: Route + Sidebar**
+> Umsetzungshinweis: `routeComponents.tsx` war im Plan-File-Header nicht gelistet, aber Pflicht — `routes.tsx` importiert Seiten-Komponenten ausschliesslich über den `lazy()`-Re-Export aus `routeComponents.tsx` (Muster identisch zu `EmailTemplateEditPage`), nie direkt. `EmailBrandingPage`-Export dort direkt nach `EmailTemplateEditPage` ergänzt. Layout-Entscheidung: `PageHeader` + `SaveActionButton` im Header (Muster `NavManagerPage.tsx`/`EmailTemplateEditPage.tsx`, nicht `DesignSettingsPage.tsx`s Inline-Heading), da diese Seite im selben Feature-Ordner wie `EmailTemplateEditPage.tsx` lebt und dieselbe „mehrere Felder, ein Save"-Form hat. Draft-State: lokales `{headerAssetId, footerAssetId, footerText}`-Objekt, geseedet per ref-guarded Sync (`syncedRef`), identisch zum Idiom in `EmailTemplateEditPage.tsx`s `syncedExistingIdRef`. Save sendet immer das volle Draft-Objekt (nie eine Sparse-Delta), da `useUpdateEmailBranding`s Vertrag ein weggelassenes Feld unverändert lässt, aber ein explizites `null` cleared — so cleared „Bild entfernen" zuverlässig. Jeder Bild-Slot (Header/Footer) besitzt eine eigene `useUploadEmailAsset()`-Instanz + eigenen Hidden-File-Input + eigenes Remove-Button (sichtbar nur wenn eine assetId gesetzt ist), gespiegelt an `BlockEditor.tsx`s `ImageBlockForm`, aber mit zusätzlichem Remove (Branding-Slots sind permanent nullbar, nicht löschbar wie ein Block). Footer-Text: lazy-geladener `MarkdownEditor` in `<Suspense>`, identisches Pattern zu `BlockEditor.tsx`s `TextBlockForm`. Icon: `PaintBrushIcon` (verifiziert als aktueller, nicht-deprecated Named-Export in `@phosphor-icons/react@2.1.10`) für Footer-Text-Sektion + Sidebar-Eintrag.
+
+- [x] **Step 2: Route + Sidebar**
 
 `routes.tsx`: `<Route path="email-branding" element={lazyFallback(<EmailBrandingPage />)} />`. Sidebar: Eintrag „Email branding" (i18n) in der Templates-Sektion.
 
-- [ ] **Step 3: Build**
+> Umsetzungshinweis: i18n — neuer `sidebar.emailBranding`-Key (DE „E-Mail-Branding", EN „Email branding") sowie sechs neue Keys im bestehenden `emailTemplates`-Block (`brandingTitle`, `brandingDescription`, `brandingHeaderImage`, `brandingFooterImage`, `brandingFooterText`, `brandingFooterTextPlaceholder`) — Interface + beide Locale-Objekte synchron ergänzt. `brandingFooterText` ist ein NEUER Key für ein NEUES Feld (Seiten-Editor), nicht die Restaurierung des in Task 10 als Dead-Code entfernten `footerText`-Keys (verifiziert: 0 verbleibende Referenzen vor dieser Ergänzung). Sidebar-Eintrag als flaches `NavLink` direkt nach `<EmailTemplatesGroup />` (Muster identisch zum `/navigation`-Eintrag im „Content"-Abschnitt).
+
+- [x] **Step 3: Build**
 
 Run: `pnpm --filter @musiccloud/dashboard build`
 Expected: kompiliert.
 
-- [ ] **Step 4: Commit**
+> Ergebnis: 0 Fehler (Typecheck + Vite-Build). `EmailBrandingPage` erscheint als eigener Lazy-Chunk (`EmailBrandingPage-*.js`) im Build-Output. `pnpm lint` (Biome): 2 Findings (Import-Sortierung, Suspense-Fallback-Formatierung) in der neuen Datei, per `biome check --write` behoben, danach clean. `pnpm doctor:diff` und `pnpm run doctor` (voller Scan, alle 4 Projekte): 0 Findings.
+
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/dashboard/src/features/templates/email-templates/EmailBrandingPage.tsx apps/dashboard/src/routes.tsx apps/dashboard/src/components/layout/Sidebar.tsx
 git commit -m "Feat: global email branding settings page (MC-078)"
 ```
+
+> Commit `ebf68c88`, 5 Files geändert (282 Insertions) — zusätzlich zu den drei oben genannten auch `apps/dashboard/src/routeComponents.tsx` (Step 1, pre-authorisiert) und `apps/dashboard/src/i18n/messages.ts` (Step 2, i18n-Keys).
 
 ---
 
@@ -1211,7 +1219,7 @@ git add -A && git commit -m "Test: verify email-template-system-v2 end-to-end (M
 - [x] Task 8: Endpoints + Asset/Branding/Action-Routen + Invite-Umstellung, Backend grün
 - [x] Task 9: Dashboard Contracts + Hooks
 - [x] Task 10: Block-Editor
-- [ ] Task 11: Branding-Seite
+- [x] Task 11: Branding-Seite
 - [ ] Task 12: Actions-Seite + Invite-Picker entfernt + i18n
 - [ ] Task 13: Clean-State-Gate + React-Doctor + Live-Smoke grün
 - [ ] Alle Code-Referenzen verifiziert (functions, scripts, paths, env vars, package-manager commands)
