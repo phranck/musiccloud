@@ -271,6 +271,25 @@ export const ENDPOINTS = {
       test: (id: number) => `/api/admin/email-templates/${id}/test`,
     },
 
+    emailAssets: {
+      /** POST: upload an image (data: URL body), returns { id }. */
+      upload: "/api/admin/email-assets",
+      /** GET: serve an asset's bytes by id (public — mail clients have no admin JWT). */
+      detail: (id: string) => `/api/admin/email-assets/${id}`,
+    },
+    emailBranding: {
+      /** GET: read / PUT: update the global branding singleton. */
+      base: "/api/admin/email-branding",
+    },
+    emailActions: {
+      /** GET: list all code-defined actions + their bindings. */
+      list: "/api/admin/email-actions",
+      /** POST: bind a template to an action. Body: { actionKey, templateId }. */
+      bindings: "/api/admin/email-actions/bindings",
+      /** PATCH: toggle / DELETE: remove a binding by id. */
+      binding: (id: string) => `/api/admin/email-actions/bindings/${id}`,
+    },
+
     navigations: {
       /** GET / PUT: managed navigation items for "header" or "footer". */
       detail: (navId: "header" | "footer") => `/api/admin/nav/${navId}`,
@@ -462,6 +481,8 @@ export const ROUTE_TEMPLATES = {
       detail: "/api/admin/email-templates/:id",
       test: "/api/admin/email-templates/:id/test",
     },
+    emailAssets: { detail: "/api/admin/email-assets/:id" },
+    emailActions: { binding: "/api/admin/email-actions/bindings/:id" },
     invite: {
       state: "/api/admin/invite/:token",
     },

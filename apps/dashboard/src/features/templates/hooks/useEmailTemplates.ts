@@ -1,12 +1,11 @@
 import { ENDPOINTS } from "@musiccloud/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { EmailTemplate } from "@/shared/contracts/admin-email-templates";
+import type { EmailTemplate, EmailTemplateInput } from "@/shared/contracts/admin-email-templates";
 
-export type { EmailTemplate };
+export type { EmailTemplate, EmailTemplateInput };
 
-export type EmailTemplateInput = Omit<EmailTemplate, "id" | "createdAt" | "updatedAt" | "isSystemTemplate">;
-
+/** Import payload: the same fields as a create, plus whether an existing template with the same name should be overwritten. */
 export type ImportEmailTemplateInput = EmailTemplateInput & { overwrite: boolean };
 
 export function useEmailTemplates() {

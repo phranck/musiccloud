@@ -43,10 +43,12 @@ export interface DashboardMessages {
       formsOverview: string;
       emailTemplates: string;
       emailTemplatesOverview: string;
+      emailBranding: string;
       footerBuilder: string;
       system: string;
       services: string;
       design: string;
+      actions: string;
       expandAll: string;
       collapseAll: string;
       expandAllAria: string;
@@ -300,19 +302,11 @@ export interface DashboardMessages {
       username: string;
       email: string;
       inviteFlowHint: string;
-      welcomeTemplate: string;
-      welcomeTemplateNone: string;
       inviteCreated: string;
       inviteHint: string;
       inviteLink: string;
       copyInvite: string;
       inviteCopied: string;
-      templateVariablesLabel: string;
-      templateVariableUsername: string;
-      templateVariableEmail: string;
-      templateVariableRole: string;
-      templateVariableInviteUrl: string;
-      templateVariableLoginUrl: string;
       errorCreating: string;
       creating: string;
       create: string;
@@ -625,11 +619,7 @@ export interface DashboardMessages {
     templateName: string;
     templateSubject: string;
     subjectPlaceholder: string;
-    headerBanner: string;
-    headerText: string;
     bodyText: string;
-    footerBanner: string;
-    footerText: string;
     deleteTemplate: string;
     deleteTemplateConfirm: string;
     noTemplates: string;
@@ -643,9 +633,22 @@ export interface DashboardMessages {
     tableCreated: string;
     preview: string;
     previewTitle: string;
-    sectionHeader: string;
-    sectionBody: string;
-    sectionFooter: string;
+    blocksTitle: string;
+    blockTypeText: string;
+    blockTypeButton: string;
+    blockTypeImage: string;
+    blockTypeDivider: string;
+    blockTypeSpacer: string;
+    buttonLabel: string;
+    buttonUrl: string;
+    imageUpload: string;
+    imageUploadError: string;
+    imageAltText: string;
+    spacerHeight: string;
+    requiredVariablesTitle: string;
+    requiredVariableName: string;
+    requiredVariableDescription: string;
+    addRequiredVariable: string;
     exportTemplate: string;
     exportAll: string;
     importTemplate: string;
@@ -662,6 +665,26 @@ export interface DashboardMessages {
     sendingTest: string;
     testSent: string;
     testFailed: string;
+    brandingTitle: string;
+    brandingDescription: string;
+    brandingHeaderImage: string;
+    brandingFooterImage: string;
+    brandingFooterText: string;
+    brandingFooterTextPlaceholder: string;
+  };
+  emailActions: {
+    title: string;
+    requiredBadge: string;
+    noActionSelected: string;
+    variablesTitle: string;
+    boundTemplatesTitle: string;
+    noTemplateBound: string;
+    deletedTemplateFallback: string;
+    assignTemplateTitle: string;
+    assignTemplatePlaceholder: string;
+    assignTemplateAction: string;
+    assignTemplateNoOptions: string;
+    bindErrorFallback: string;
   };
   analytics: {
     title: string;
@@ -774,10 +797,12 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         formsOverview: "\u00dcbersicht",
         emailTemplates: "E-Mail-Vorlagen",
         emailTemplatesOverview: "\u00dcbersicht",
+        emailBranding: "E-Mail-Branding",
         footerBuilder: "Footer-Builder",
         system: "System",
         services: "Services",
         design: "Design",
+        actions: "Aktionen",
         expandAll: "Alle aufklappen",
         collapseAll: "Alle zuklappen",
         expandAllAria: "Alle Gruppen aufklappen",
@@ -1035,19 +1060,11 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         username: "Benutzername",
         email: "E-Mail",
         inviteFlowHint: "Der Benutzer erh\u00e4lt einen Einladungslink.",
-        welcomeTemplate: "Willkommens-Vorlage",
-        welcomeTemplateNone: "Keine",
         inviteCreated: "Einladung erstellt",
         inviteHint: "Teile den folgenden Link mit dem Benutzer:",
         inviteLink: "Einladungslink",
         copyInvite: "Link kopieren",
         inviteCopied: "Kopiert!",
-        templateVariablesLabel: "Verf\u00fcgbare Variablen",
-        templateVariableUsername: "Benutzername",
-        templateVariableEmail: "E-Mail",
-        templateVariableRole: "Rolle",
-        templateVariableInviteUrl: "Einladungs-URL",
-        templateVariableLoginUrl: "Login-URL",
         errorCreating: "Fehler beim Erstellen",
         creating: "Wird erstellt\u2026",
         create: "Einladen",
@@ -1333,11 +1350,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       templateName: "Name",
       templateSubject: "Betreff",
       subjectPlaceholder: "E-Mail-Betreff",
-      headerBanner: "Header-Banner",
-      headerText: "Header-Text",
       bodyText: "Inhalt",
-      footerBanner: "Footer-Banner",
-      footerText: "Footer-Text",
       deleteTemplate: "Vorlage l\u00f6schen",
       deleteTemplateConfirm: "Wirklich l\u00f6schen?",
       noTemplates: "Keine Vorlagen vorhanden",
@@ -1351,9 +1364,22 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       tableCreated: "Erstellt",
       preview: "Vorschau",
       previewTitle: "E-Mail-Vorschau",
-      sectionHeader: "Header",
-      sectionBody: "Inhalt",
-      sectionFooter: "Footer",
+      blocksTitle: "Inhalt",
+      blockTypeText: "Text",
+      blockTypeButton: "Button",
+      blockTypeImage: "Bild",
+      blockTypeDivider: "Trennlinie",
+      blockTypeSpacer: "Abstand",
+      buttonLabel: "Beschriftung",
+      buttonUrl: "Ziel-URL",
+      imageUpload: "Bild hochladen",
+      imageUploadError: "Bild konnte nicht hochgeladen werden",
+      imageAltText: "Alt-Text",
+      spacerHeight: "H\u00f6he (px)",
+      requiredVariablesTitle: "Erwartete Variablen",
+      requiredVariableName: "Name",
+      requiredVariableDescription: "Beschreibung",
+      addRequiredVariable: "Variable hinzuf\u00fcgen",
       exportTemplate: "Exportieren",
       exportAll: "Alle exportieren",
       importTemplate: "Importieren",
@@ -1370,6 +1396,27 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       sendingTest: "Wird gesendet\u2026",
       testSent: "Test-Mail gesendet an {email}",
       testFailed: "Test-Mail fehlgeschlagen",
+      brandingTitle: "E-Mail-Branding",
+      brandingDescription:
+        "Header/Footer-Bild und Footer-Text werden um JEDE versendete E-Mail-Vorlage gelegt \u2014 global, nicht pro Vorlage.",
+      brandingHeaderImage: "Header-Bild",
+      brandingFooterImage: "Footer-Bild",
+      brandingFooterText: "Footer-Text",
+      brandingFooterTextPlaceholder: "Markdown-Text, der unter jeder Vorlage erscheint",
+    },
+    emailActions: {
+      title: "Aktionen",
+      requiredBadge: "Erforderlich",
+      noActionSelected: "Keine Aktion ausgewählt",
+      variablesTitle: "Variablen",
+      boundTemplatesTitle: "Zugeordnete Vorlagen",
+      noTemplateBound: "Keine Vorlage zugeordnet",
+      deletedTemplateFallback: "(gelöschte Vorlage)",
+      assignTemplateTitle: "Vorlage zuordnen",
+      assignTemplatePlaceholder: "Vorlage wählen…",
+      assignTemplateAction: "Zuordnen",
+      assignTemplateNoOptions: "Keine weiteren Vorlagen verfügbar",
+      bindErrorFallback: "Vorlage konnte nicht zugeordnet werden",
     },
     analytics: {
       title: "Analytics",
@@ -1480,10 +1527,12 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         formsOverview: "Overview",
         emailTemplates: "Email Templates",
         emailTemplatesOverview: "Overview",
+        emailBranding: "Email branding",
         footerBuilder: "Footer Builder",
         system: "System",
         services: "Services",
         design: "Design",
+        actions: "Actions",
         expandAll: "Expand all",
         collapseAll: "Collapse all",
         expandAllAria: "Expand all groups",
@@ -1741,19 +1790,11 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         username: "Username",
         email: "Email",
         inviteFlowHint: "The user will receive an invitation link.",
-        welcomeTemplate: "Welcome Template",
-        welcomeTemplateNone: "None",
         inviteCreated: "Invitation Created",
         inviteHint: "Share the following link with the user:",
         inviteLink: "Invitation Link",
         copyInvite: "Copy Link",
         inviteCopied: "Copied!",
-        templateVariablesLabel: "Available Variables",
-        templateVariableUsername: "Username",
-        templateVariableEmail: "Email",
-        templateVariableRole: "Role",
-        templateVariableInviteUrl: "Invitation URL",
-        templateVariableLoginUrl: "Login URL",
         errorCreating: "Error creating",
         creating: "Creating\u2026",
         create: "Invite",
@@ -2039,11 +2080,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       templateName: "Name",
       templateSubject: "Subject",
       subjectPlaceholder: "Email subject",
-      headerBanner: "Header Banner",
-      headerText: "Header Text",
       bodyText: "Body",
-      footerBanner: "Footer Banner",
-      footerText: "Footer Text",
       deleteTemplate: "Delete Template",
       deleteTemplateConfirm: "Really delete?",
       noTemplates: "No templates yet",
@@ -2057,9 +2094,22 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       tableCreated: "Created",
       preview: "Preview",
       previewTitle: "Email Preview",
-      sectionHeader: "Header",
-      sectionBody: "Body",
-      sectionFooter: "Footer",
+      blocksTitle: "Body",
+      blockTypeText: "Text",
+      blockTypeButton: "Button",
+      blockTypeImage: "Image",
+      blockTypeDivider: "Divider",
+      blockTypeSpacer: "Spacer",
+      buttonLabel: "Label",
+      buttonUrl: "Target URL",
+      imageUpload: "Upload image",
+      imageUploadError: "Failed to upload image",
+      imageAltText: "Alt text",
+      spacerHeight: "Height (px)",
+      requiredVariablesTitle: "Required variables",
+      requiredVariableName: "Name",
+      requiredVariableDescription: "Description",
+      addRequiredVariable: "Add variable",
       exportTemplate: "Export",
       exportAll: "Export all",
       importTemplate: "Import",
@@ -2076,6 +2126,27 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       sendingTest: "Sending\u2026",
       testSent: "Test email sent to {email}",
       testFailed: "Test email failed",
+      brandingTitle: "Email branding",
+      brandingDescription:
+        "The header/footer image and footer text are wrapped around EVERY sent email template \u2014 global, not per template.",
+      brandingHeaderImage: "Header image",
+      brandingFooterImage: "Footer image",
+      brandingFooterText: "Footer text",
+      brandingFooterTextPlaceholder: "Markdown text shown below every template",
+    },
+    emailActions: {
+      title: "Actions",
+      requiredBadge: "Required",
+      noActionSelected: "No action selected",
+      variablesTitle: "Variables",
+      boundTemplatesTitle: "Bound templates",
+      noTemplateBound: "No template bound",
+      deletedTemplateFallback: "(deleted template)",
+      assignTemplateTitle: "Bind template",
+      assignTemplatePlaceholder: "Choose a template…",
+      assignTemplateAction: "Bind",
+      assignTemplateNoOptions: "No further templates available",
+      bindErrorFallback: "Could not bind template",
     },
     analytics: {
       title: "Analytics",

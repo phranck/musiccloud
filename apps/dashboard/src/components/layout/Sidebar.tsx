@@ -11,10 +11,12 @@ import {
   FilesIcon,
   GearIcon,
   HouseSimpleIcon,
+  LightningIcon,
   ListIcon,
   MicrophoneStageIcon,
   MusicNotesIcon,
   NotebookIcon,
+  PaintBrushIcon,
   PaletteIcon,
   PlugsConnectedIcon,
   PlusCircleIcon,
@@ -473,11 +475,8 @@ function EmailTemplatesGroup({
                 const created = await createTemplate.mutateAsync({
                   name: `${tpl.name} (Copy)`,
                   subject: tpl.subject,
-                  bodyText: tpl.bodyText,
-                  headerBannerUrl: tpl.headerBannerUrl ?? undefined,
-                  headerText: tpl.headerText ?? undefined,
-                  footerBannerUrl: tpl.footerBannerUrl ?? undefined,
-                  footerText: tpl.footerText ?? undefined,
+                  blocks: tpl.blocks,
+                  requiredVariables: tpl.requiredVariables,
                 });
                 void navigate(`/email-templates/${created.id}`);
               } catch (err) {
@@ -734,6 +733,15 @@ export function Sidebar({
                   open={groupStatus["sidebar-email-templates-open"] ?? false}
                   onOpenChange={(open) => handleGroupOpenChange("sidebar-email-templates-open", open)}
                 />
+                <NavLink to="/email-branding" onClick={onItemClick} className="contents">
+                  {({ isActive }) => (
+                    <DashboardSection.Item
+                      icon={<PaintBrushIcon weight="duotone" className="w-4 h-4" />}
+                      label={s.emailBranding}
+                      active={isActive}
+                    />
+                  )}
+                </NavLink>
               </DashboardSection.Body>
             </DashboardSection>
           </div>
@@ -782,6 +790,15 @@ export function Sidebar({
                     <DashboardSection.Item
                       icon={<PaletteIcon weight="duotone" className="w-4 h-4" />}
                       label={s.design}
+                      active={isActive}
+                    />
+                  )}
+                </NavLink>
+                <NavLink to="/actions" onClick={onItemClick} className="contents">
+                  {({ isActive }) => (
+                    <DashboardSection.Item
+                      icon={<LightningIcon weight="duotone" className="w-4 h-4" />}
+                      label={s.actions}
                       active={isActive}
                     />
                   )}

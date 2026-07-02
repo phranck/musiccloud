@@ -1,0 +1,64 @@
+import { describe, expect, it } from "vitest";
+import { EMAIL_ACTIONS, EmailAction, getEmailActionMeta } from "../email-actions.js";
+import { EmailBlockType, isEmailBlockArray } from "../email-blocks.js";
+
+describe("isEmailBlockArray", () => {
+  it("accepts a well-formed mixed block array", () => {
+    expect(
+      isEmailBlockArray([
+        { type: EmailBlockType.Text, markdown: "Hi {{username}}" },
+        { type: EmailBlockType.Button, label: "Open", url: "{{inviteUrl}}" },
+        { type: EmailBlockType.Image, assetId: "a1", altText: "" },
+        { type: EmailBlockType.Divider },
+        { type: EmailBlockType.Spacer, heightPx: 24 },
+      ]),
+    ).toBe(true);
+  });
+
+  it("rejects a non-array", () => {
+    expect(isEmailBlockArray({})).toBe(false);
+  });
+
+  it("rejects a button block missing url", () => {
+    expect(isEmailBlockArray([{ type: EmailBlockType.Button, label: "x" }])).toBe(false);
+  });
+
+  it("rejects an unknown block type", () => {
+    expect(isEmailBlockArray([{ type: "video", src: "x" }])).toBe(false);
+  });
+
+  it("accepts button urls with an allow-listed scheme", () => {
+    for (const url of ["https://musiccloud.io/reset", "http://localhost:3002/x", "mailto:hi@musiccloud.io"]) {
+      expect(isEmailBlockArray([{ type: EmailBlockType.Button, label: "Go", url }])).toBe(true);
+    }
+  });
+
+  it("accepts button urls that are schemeless (relative path or bare {{variable}})", () => {
+    for (const url of ["/reset", "{{inviteUrl}}", "https://{{domain}}/reset"]) {
+      expect(isEmailBlockArray([{ type: EmailBlockType.Button, label: "Go", url }])).toBe(true);
+    }
+  });
+
+  it("rejects button urls with a dangerous scheme", () => {
+    for (const url of ["javascript:alert(1)", "data:text/html,<script>alert(1)</script>", "vbscript:msgbox(1)"]) {
+      expect(isEmailBlockArray([{ type: EmailBlockType.Button, label: "Go", url }])).toBe(false);
+    }
+  });
+});
+
+describe("email actions registry", () => {
+  it("exposes adminInviteSent as required with its variables", () => {
+    const meta = getEmailActionMeta(EmailAction.AdminInviteSent);
+    expect(meta).toBeDefined();
+    expect(meta!.required).toBe(true);
+    expect(meta!.variables).toContain("inviteUrl");
+  });
+
+  it("returns undefined for an unknown key", () => {
+    expect(getEmailActionMeta("nope")).toBeUndefined();
+  });
+
+  it("key namespace matches registry keys", () => {
+    expect(EMAIL_ACTIONS[EmailAction.AdminInviteSent].key).toBe(EmailAction.AdminInviteSent);
+  });
+});

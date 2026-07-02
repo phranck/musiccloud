@@ -1,15 +1,20 @@
-import type { EmailTemplateRow, EmailTemplateWriteData } from "../db/admin-repository.js";
+import type { EmailBlock } from "@musiccloud/shared";
+import type {
+  EmailActionBindingDto,
+  EmailAssetDto,
+  EmailBrandingDto,
+  EmailTemplateRow,
+  EmailTemplateVariable,
+  EmailTemplateWriteData,
+} from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
 
 export interface EmailTemplate {
   id: number;
   name: string;
   subject: string;
-  headerBannerUrl: string | null;
-  headerText: string | null;
-  bodyText: string;
-  footerBannerUrl: string | null;
-  footerText: string | null;
+  blocks: EmailBlock[];
+  requiredVariables: EmailTemplateVariable[];
   isSystemTemplate: boolean;
   createdAt: string;
   updatedAt: string;
@@ -20,11 +25,8 @@ function rowToEmailTemplate(row: EmailTemplateRow): EmailTemplate {
     id: row.id,
     name: row.name,
     subject: row.subject,
-    headerBannerUrl: row.headerBannerUrl,
-    headerText: row.headerText,
-    bodyText: row.bodyText,
-    footerBannerUrl: row.footerBannerUrl,
-    footerText: row.footerText,
+    blocks: row.blocks,
+    requiredVariables: row.requiredVariables,
     isSystemTemplate: row.isSystemTemplate,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -88,4 +90,98 @@ export async function deleteManagedEmailTemplate(
   const repo = await getAdminRepository();
   const deleted = await repo.deleteEmailTemplate(id);
   return deleted ? { ok: true } : { ok: false, reason: "not_found" };
+}
+
+/**
+ * Reads the global email branding singleton (header/footer asset + footer text).
+ *
+ * @returns The branding row.
+ */
+export async function getManagedEmailBranding(): Promise<EmailBrandingDto> {
+  const repo = await getAdminRepository();
+  return repo.getEmailBranding();
+}
+
+/**
+ * Partially updates the global email branding singleton.
+ *
+ * @param data - Subset of mutable branding fields.
+ * @returns The updated branding row.
+ */
+export async function updateManagedEmailBranding(data: Partial<EmailBrandingDto>): Promise<EmailBrandingDto> {
+  const repo = await getAdminRepository();
+  return repo.updateEmailBranding(data);
+}
+
+/**
+ * Persists a new email image asset.
+ *
+ * @param data - The asset's MIME type and raw bytes.
+ * @returns The persisted asset's metadata (bytes are not returned).
+ */
+export async function createManagedEmailAsset(data: { mimeType: string; bytes: Buffer }): Promise<EmailAssetDto> {
+  const repo = await getAdminRepository();
+  return repo.insertEmailAsset(data);
+}
+
+/**
+ * Reads an email asset's raw bytes for streaming.
+ *
+ * @param id - The asset's id.
+ * @returns The MIME type and bytes, or `null` when no row matches.
+ */
+export async function getManagedEmailAssetBytes(id: string): Promise<{ mimeType: string; bytes: Buffer } | null> {
+  const repo = await getAdminRepository();
+  return repo.getEmailAssetBytes(id);
+}
+
+/**
+ * Lists action↔template bindings, optionally restricted to one action key.
+ *
+ * @param actionKey - When given, restricts results to this action.
+ * @returns The matching bindings.
+ */
+export async function listManagedEmailActionBindings(actionKey?: string): Promise<EmailActionBindingDto[]> {
+  const repo = await getAdminRepository();
+  return repo.listEmailActionBindings(actionKey);
+}
+
+/**
+ * Creates (or re-enables) a binding of an action key to a template.
+ *
+ * @param data - The action key and template id to bind.
+ * @returns The persisted binding.
+ */
+export async function createManagedEmailActionBinding(data: {
+  actionKey: string;
+  templateId: number;
+}): Promise<EmailActionBindingDto> {
+  const repo = await getAdminRepository();
+  return repo.createEmailActionBinding(data);
+}
+
+/**
+ * Enables or disables an existing action binding.
+ *
+ * @param id - The binding's id.
+ * @param enabled - The new enabled state.
+ * @returns The updated binding, or `null` when no row matches.
+ */
+export async function setManagedEmailActionBindingEnabled(
+  id: string,
+  enabled: boolean,
+): Promise<EmailActionBindingDto | null> {
+  const repo = await getAdminRepository();
+  return repo.setEmailActionBindingEnabled(id, enabled);
+}
+
+/**
+ * Deletes an action binding.
+ *
+ * @param id - The binding's id.
+ * @returns Whether the requested row exists or mutation succeeded.
+ */
+export async function deleteManagedEmailActionBinding(id: string): Promise<boolean> {
+  const repo = await getAdminRepository();
+  return repo.deleteEmailActionBinding(id);
 }

@@ -4,6 +4,8 @@ export * from "./color.js";
 export * from "./content.js";
 export * from "./crawler.js";
 export * from "./design-tokens.js";
+export * from "./email-actions.js";
+export * from "./email-blocks.js";
 export * from "./endpoints.js";
 export * from "./error-codes.js";
 export * from "./errors.js";

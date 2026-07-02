@@ -1,26 +1,22 @@
 import {
+  DashboardActionButton,
+  DashboardActionId,
   DashboardActionStatus,
   DashboardButton,
   DashboardButtonVariant,
   DashboardInput,
   SaveActionButton,
 } from "@musiccloud/dashboard-ui";
-import {
-  ArticleIcon,
-  CheckCircleIcon,
-  EnvelopeOpenIcon,
-  EnvelopeSimpleIcon,
-  PaperPlaneTiltIcon,
-  SealWarningIcon,
-  SquareHalfBottomIcon,
-} from "@phosphor-icons/react";
-import { lazy, type ReactNode, Suspense, useRef, useState } from "react";
+import type { EmailBlock } from "@musiccloud/shared";
+import { ArticleIcon, CheckCircleIcon, EnvelopeSimpleIcon, PaperPlaneTiltIcon, TagIcon } from "@phosphor-icons/react";
+import { useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useI18n } from "@/context/I18nContext";
+import { BlockEditor } from "@/features/templates/email-templates/BlockEditor";
 import { EmailPreview } from "@/features/templates/email-templates/EmailPreview";
 import {
   type EmailTemplateInput,
@@ -30,12 +26,7 @@ import {
   useUpdateEmailTemplate,
 } from "@/features/templates/hooks/useEmailTemplates";
 import { useKeyboardSave } from "@/lib/useKeyboardSave";
-
-const MarkdownEditor = lazy(() =>
-  import("@/components/ui/MarkdownEditor").then((m) => ({ default: m.MarkdownEditor })),
-);
-
-const FLUSH_MARKDOWN_EDITOR_CLASS = "rounded-none border-x-0 border-b-0";
+import type { EmailTemplateVariable } from "@/shared/contracts/admin-email-templates";
 
 const EmailTestFeedbackType = {
   Ok: "ok",
@@ -51,40 +42,8 @@ type EmailTestFeedbackType = (typeof EmailTestFeedbackType)[keyof typeof EmailTe
 interface TemplateFormFields {
   name: string;
   subject: string;
-  headerBannerUrl: string;
-  headerText: string;
-  bodyText: string;
-  footerBannerUrl: string;
-  footerText: string;
-}
-
-function MarkdownEditorField({
-  id,
-  label,
-  required,
-  showLabel = true,
-  children,
-}: {
-  id: string;
-  label: string;
-  required?: boolean;
-  showLabel?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <div>
-      <label
-        htmlFor={id}
-        className={showLabel ? "block px-3 pb-1 text-xs font-medium text-[var(--ds-text-subtle)]" : "sr-only"}
-      >
-        {label}
-        {required && (
-          <SealWarningIcon weight="duotone" className="inline-block ml-1 size-3 text-red-500 align-middle" />
-        )}
-      </label>
-      {children}
-    </div>
-  );
+  blocks: EmailBlock[];
+  requiredVariables: EmailTemplateVariable[];
 }
 
 /**
@@ -108,13 +67,10 @@ export function EmailTemplateEditPage() {
   const [form, setForm] = useState<TemplateFormFields>({
     name: "",
     subject: "",
-    headerBannerUrl: "",
-    headerText: "",
-    bodyText: "",
-    footerBannerUrl: "",
-    footerText: "",
+    blocks: [],
+    requiredVariables: [],
   });
-  const { name, subject, headerBannerUrl, headerText, bodyText, footerBannerUrl, footerText } = form;
+  const { name, subject, blocks, requiredVariables } = form;
 
   const updateField = <K extends keyof TemplateFormFields>(key: K, value: TemplateFormFields[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -130,11 +86,8 @@ export function EmailTemplateEditPage() {
     setForm({
       name: existing.name,
       subject: existing.subject,
-      headerBannerUrl: existing.headerBannerUrl ?? "",
-      headerText: existing.headerText ?? "",
-      bodyText: existing.bodyText,
-      footerBannerUrl: existing.footerBannerUrl ?? "",
-      footerText: existing.footerText ?? "",
+      blocks: existing.blocks,
+      requiredVariables: existing.requiredVariables,
     });
   }
 
@@ -142,11 +95,8 @@ export function EmailTemplateEditPage() {
     return {
       name: name.trim(),
       subject: subject.trim(),
-      headerBannerUrl: headerBannerUrl.trim() || undefined,
-      headerText: headerText || undefined,
-      bodyText,
-      footerBannerUrl: footerBannerUrl.trim() || undefined,
-      footerText: footerText || undefined,
+      blocks,
+      requiredVariables,
     };
   }
 
@@ -244,7 +194,10 @@ export function EmailTemplateEditPage() {
         onNameChange={(value) => updateField("name", value)}
       />
 
-      <EmailTemplateEditorGrid form={form} labels={m} onFieldChange={updateField} />
+      {/* Keyed by numId so switching templates in place (route param change, no page unmount)
+          resets RequiredVariablesEditor's local row-identity state instead of carrying over
+          stale keys from the previous template's requiredVariables array. */}
+      <EmailTemplateEditorGrid key={numId} form={form} labels={m} onFieldChange={updateField} />
     </div>
   );
 }
@@ -386,145 +339,124 @@ function EmailTemplateEditorGrid({ form, labels, onFieldChange }: EmailTemplateE
               </DashboardSection.Body>
             </DashboardSection>
 
-            <EmailTemplateMarkdownSection
-              icon={<EnvelopeOpenIcon weight="duotone" className="size-4" />}
-              title={labels.sectionHeader}
-              banner={{
-                id: "tpl-header-banner",
-                value: form.headerBannerUrl,
-                label: labels.headerBanner,
-                placeholder: "https://example.com/header.png",
-                onChange: (value) => onFieldChange("headerBannerUrl", value),
-              }}
-              editor={{
-                id: "tpl-header-text",
-                value: form.headerText,
-                label: labels.headerText,
-                rows: 4,
-                fallbackHeight: "h-[6rem]",
-                onChange: (value) => onFieldChange("headerText", value),
-              }}
-            />
+            <DashboardSection className="overflow-hidden">
+              <DashboardSection.Header
+                icon={<ArticleIcon weight="duotone" className="size-4" />}
+                title={labels.blocksTitle}
+              />
+              <DashboardSection.Body>
+                <BlockEditor blocks={form.blocks} onChange={(blocks) => onFieldChange("blocks", blocks)} />
+              </DashboardSection.Body>
+            </DashboardSection>
 
-            <EmailTemplateMarkdownSection
-              icon={<ArticleIcon weight="duotone" className="size-4" />}
-              title={
-                <>
-                  {labels.sectionBody}
-                  <SealWarningIcon weight="duotone" className="inline-block ml-1 size-3.5 text-red-500 align-middle" />
-                </>
-              }
-              editor={{
-                id: "tpl-body-text",
-                value: form.bodyText,
-                label: labels.bodyText,
-                rows: 12,
-                fallbackHeight: "h-[18rem]",
-                required: true,
-                showLabel: false,
-                onChange: (value) => onFieldChange("bodyText", value),
-              }}
-            />
-
-            <EmailTemplateMarkdownSection
-              icon={<SquareHalfBottomIcon weight="duotone" className="size-4" />}
-              title={labels.sectionFooter}
-              banner={{
-                id: "tpl-footer-banner",
-                value: form.footerBannerUrl,
-                label: labels.footerBanner,
-                placeholder: "https://example.com/footer.png",
-                onChange: (value) => onFieldChange("footerBannerUrl", value),
-              }}
-              editor={{
-                id: "tpl-footer-text",
-                value: form.footerText,
-                label: labels.footerText,
-                rows: 4,
-                fallbackHeight: "h-[6rem]",
-                onChange: (value) => onFieldChange("footerText", value),
-              }}
-            />
+            <DashboardSection className="overflow-hidden">
+              <DashboardSection.Header
+                icon={<TagIcon weight="duotone" className="size-4" />}
+                title={labels.requiredVariablesTitle}
+              />
+              <DashboardSection.Body>
+                <RequiredVariablesEditor
+                  variables={form.requiredVariables}
+                  labels={labels}
+                  onChange={(requiredVariables) => onFieldChange("requiredVariables", requiredVariables)}
+                />
+              </DashboardSection.Body>
+            </DashboardSection>
           </div>
         </div>
 
         <div className="min-h-[32rem] overflow-hidden xl:min-h-0">
-          <EmailPreview
-            headerBannerUrl={form.headerBannerUrl}
-            headerText={form.headerText}
-            bodyText={form.bodyText}
-            footerBannerUrl={form.footerBannerUrl}
-            footerText={form.footerText}
-          />
+          <EmailPreview blocks={form.blocks} />
         </div>
       </div>
     </div>
   );
 }
 
-interface EmailTemplateMarkdownSectionProps {
-  icon: ReactNode;
-  title: ReactNode;
-  banner?: {
-    id: string;
-    value: string;
-    label: string;
-    placeholder: string;
-    onChange: (value: string) => void;
-  };
-  editor: {
-    id: string;
-    value: string;
-    label: string;
-    rows: number;
-    fallbackHeight: string;
-    required?: boolean;
-    showLabel?: boolean;
-    onChange: (value: string) => void;
-  };
+interface RequiredVariablesEditorProps {
+  variables: EmailTemplateVariable[];
+  labels: ReturnType<typeof useI18n>["messages"]["emailTemplates"];
+  onChange: (variables: EmailTemplateVariable[]) => void;
 }
 
-function EmailTemplateMarkdownSection({ icon, title, banner, editor }: EmailTemplateMarkdownSectionProps) {
+/**
+ * Small inline editor for a template's `requiredVariables`: a hand-declared
+ * list of `{name, description}` rows (e.g. `inviteUrl` — "the invite
+ * acceptance link"), with add/remove per row. Declaring a variable here is
+ * what the backend's action-binding compatibility check validates against
+ * (`POST .../bindings` rejects a binding whose action doesn't supply every
+ * name declared here) and what the test-send flow prompts for — an empty
+ * list is the permissive default (no variables enforced).
+ *
+ * Rows carry no id of their own (`EmailTemplateVariable` is just
+ * `{name, description}`), so a parallel array of locally-generated, stable
+ * row keys is kept alongside `variables` — recomputed only on add/remove, via
+ * a monotonic counter rather than the array index, so React never
+ * misattributes an input's DOM state to the wrong row after a mid-list
+ * removal.
+ */
+function RequiredVariablesEditor({ variables, labels, onChange }: RequiredVariablesEditorProps) {
+  const { messages } = useI18n();
+  const nextRowKeyRef = useRef(0);
+  const [rowKeys, setRowKeys] = useState<number[]>(() => variables.map(() => nextRowKeyRef.current++));
+
+  function updateAt(index: number, next: EmailTemplateVariable) {
+    onChange(variables.map((v, i) => (i === index ? next : v)));
+  }
+
+  function removeAt(index: number) {
+    onChange(variables.filter((_, i) => i !== index));
+    setRowKeys((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function add() {
+    onChange([...variables, { name: "", description: "" }]);
+    setRowKeys((prev) => [...prev, nextRowKeyRef.current++]);
+  }
+
   return (
-    <DashboardSection className="overflow-hidden">
-      <DashboardSection.Header icon={icon} title={title} />
-      <DashboardSection.Body className="!gap-0 !p-0">
-        {banner && (
-          <div className="p-3">
+    <div className="space-y-2">
+      {variables.map((variable, index) => {
+        const rowKey = rowKeys[index] ?? index;
+        return (
+          <div key={rowKey} className="flex items-start gap-2">
             <DashboardInput
-              id={banner.id}
+              id={`req-var-name-${rowKey}`}
               type="text"
-              value={banner.value}
-              onChange={(event) => banner.onChange(event.target.value)}
-              placeholder={banner.placeholder}
-              label={banner.label}
+              value={variable.name}
+              onChange={(e) => updateAt(index, { ...variable, name: e.target.value })}
+              label={labels.requiredVariableName}
+              placeholder={labels.requiredVariableName}
+              className="w-40 font-mono"
+            />
+            <DashboardInput
+              id={`req-var-desc-${rowKey}`}
+              type="text"
+              value={variable.description}
+              onChange={(e) => updateAt(index, { ...variable, description: e.target.value })}
+              label={labels.requiredVariableDescription}
+              placeholder={labels.requiredVariableDescription}
+              className="flex-1"
+            />
+            <DashboardActionButton
+              action={DashboardActionId.Remove}
+              iconOnly
+              label={messages.common.remove}
+              onClick={() => removeAt(index)}
+              size="action"
+              type="button"
             />
           </div>
-        )}
-        <MarkdownEditorField
-          id={editor.id}
-          label={editor.label}
-          required={editor.required}
-          showLabel={editor.showLabel}
-        >
-          <Suspense
-            fallback={
-              <div
-                className={`${editor.fallbackHeight} animate-pulse rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)]`}
-              />
-            }
-          >
-            <MarkdownEditor
-              id={editor.id}
-              value={editor.value}
-              onChange={editor.onChange}
-              rows={editor.rows}
-              resizable
-              className={FLUSH_MARKDOWN_EDITOR_CLASS}
-            />
-          </Suspense>
-        </MarkdownEditorField>
-      </DashboardSection.Body>
-    </DashboardSection>
+        );
+      })}
+      <DashboardActionButton
+        action={DashboardActionId.Create}
+        label={labels.addRequiredVariable}
+        onClick={add}
+        size="action"
+        type="button"
+        variant={DashboardButtonVariant.Neutral}
+      />
+    </div>
   );
 }

@@ -102,9 +102,21 @@ export const EmailTemplateEditPage = lazy(() =>
   })),
 );
 
+export const EmailBrandingPage = lazy(() =>
+  import("@/features/templates/email-templates/EmailBrandingPage").then((m) => ({
+    default: m.EmailBrandingPage,
+  })),
+);
+
 export const SystemPage = lazy(() =>
   import("@/features/system/SystemPage").then((m) => ({
     default: m.SystemPage,
+  })),
+);
+
+export const EmailActionsPage = lazy(() =>
+  import("@/features/system/EmailActionsPage").then((m) => ({
+    default: m.EmailActionsPage,
   })),
 );
 

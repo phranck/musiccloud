@@ -958,18 +958,71 @@ export const emailTemplates = pgTable("email_templates", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
   subject: text("subject").notNull().default(""),
-  headerBannerUrl: text("header_banner_url"),
-  headerText: text("header_text"),
-  bodyText: text("body_text").notNull().default(""),
-  footerBannerUrl: text("footer_banner_url"),
-  footerText: text("footer_text"),
   isSystemTemplate: boolean("is_system_template").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  blocks: jsonb("blocks").notNull().default([]),
+  requiredVariables: jsonb("required_variables").notNull().default([]),
 });
 
 export type EmailTemplateRow = typeof emailTemplates.$inferSelect;
 export type EmailTemplateInsert = typeof emailTemplates.$inferInsert;
+
+/**
+ * Global email branding (MC-078): a single row carrying the header/footer
+ * assets and footer text wrapped around EVERY rendered template. The app
+ * always reads/writes the lowest-id row; the migration seeds exactly one.
+ */
+export const emailBranding = pgTable("email_branding", {
+  id: serial("id").primaryKey(),
+  headerAssetId: text("header_asset_id").references(() => emailAssets.id, { onDelete: "set null" }),
+  footerAssetId: text("footer_asset_id").references(() => emailAssets.id, { onDelete: "set null" }),
+  footerText: text("footer_text"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type EmailBrandingRow = typeof emailBranding.$inferSelect;
+export type EmailBrandingInsert = typeof emailBranding.$inferInsert;
+
+/**
+ * Binary email images (MC-078). Mirrors {@link genreArtworks}: bytes live in
+ * Postgres, served by `GET /api/admin/email-assets/:id` with a long immutable
+ * cache. Referenced by {@link emailBranding} and by `image` body-blocks.
+ */
+export const emailAssets = pgTable("email_assets", {
+  id: text("id").primaryKey(),
+  mimeType: text("mime_type").notNull(),
+  bytes: bytea("bytes").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type EmailAssetRow = typeof emailAssets.$inferSelect;
+export type EmailAssetInsert = typeof emailAssets.$inferInsert;
+
+/**
+ * Binds a system action (code-defined, see `@musiccloud/shared` EMAIL_ACTIONS)
+ * to a template (MC-078). Many-to-many: one action fans out to every enabled
+ * binding's template; a template may be bound to several actions.
+ */
+export const emailActionBindings = pgTable(
+  "email_action_bindings",
+  {
+    id: text("id").primaryKey(),
+    actionKey: text("action_key").notNull(),
+    templateId: integer("template_id")
+      .notNull()
+      .references(() => emailTemplates.id, { onDelete: "cascade" }),
+    enabled: boolean("enabled").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_email_action_bindings_action_template").on(table.actionKey, table.templateId),
+    index("idx_email_action_bindings_action").on(table.actionKey),
+  ],
+);
+
+export type EmailActionBindingRow = typeof emailActionBindings.$inferSelect;
+export type EmailActionBindingInsert = typeof emailActionBindings.$inferInsert;
 
 // Managed content pages. Created and edited via the dashboard pages
 // editor; rendered server-side by the Astro frontend at `/:slug`.
