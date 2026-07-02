@@ -17,6 +17,7 @@ import {
   DashboardPage,
   DesignSettingsPage,
   EditorStubPage,
+  EmailActionsPage,
   EmailBrandingPage,
   EmailTemplateEditPage,
   EmailTemplateListPage,
@@ -70,6 +71,7 @@ export const routes = createRoutesFromElements(
           <Route path="system" element={lazyFallback(<SystemPage />)} />
           <Route path="services" element={lazyFallback(<ServicesPage />)} />
           <Route path="design" element={lazyFallback(<DesignSettingsPage />)} />
+          <Route path="actions" element={lazyFallback(<EmailActionsPage />)} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

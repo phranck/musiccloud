@@ -10,12 +10,11 @@ import { useState } from "react";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useI18n } from "@/context/I18nContext";
 import { useAuth } from "@/features/auth/AuthContext";
-import { useEmailTemplates } from "@/features/templates/hooks/useEmailTemplates";
 import { getSegmentedStorageKey } from "@/lib/segmented-storage";
 import { AdminRole } from "@/shared/constants/domain";
 import type { AdminUserInvite } from "@/shared/types/admin";
 import { dialogHeaderIconClass } from "@/shared/ui/Dialog";
-import { FormLabel, FormLabelText, formInputClass } from "@/shared/ui/FormPrimitives";
+import { FormLabel, FormLabelText } from "@/shared/ui/FormPrimitives";
 import { OverlayCard } from "@/shared/ui/OverlayCard";
 import type { CreateUserFormData } from "./hooks/useAdminUsers";
 import { EMPTY_CREATE_USER_FORM, useCreateUser } from "./hooks/useAdminUsers";
@@ -47,14 +46,6 @@ export function UserCreateCard({ onClose, onCreated }: UserCreateCardProps) {
   const [copied, setCopied] = useState(false);
 
   const createMutation = useCreateUser();
-  const { data: emailTemplates = [] } = useEmailTemplates();
-  const templateVariables = [
-    { name: "{{username}}", description: usersMessages.createCard.templateVariableUsername },
-    { name: "{{email}}", description: usersMessages.createCard.templateVariableEmail },
-    { name: "{{role}}", description: usersMessages.createCard.templateVariableRole },
-    { name: "{{inviteUrl}}", description: usersMessages.createCard.templateVariableInviteUrl },
-    { name: "{{loginUrl}}", description: usersMessages.createCard.templateVariableLoginUrl },
-  ] as const;
 
   function handleSubmit() {
     createMutation.mutate(form, {
@@ -135,42 +126,6 @@ export function UserCreateCard({ onClose, onCreated }: UserCreateCardProps) {
               />
             </div>
             <p className="text-xs text-[var(--ds-text-subtle)]">{usersMessages.createCard.inviteFlowHint}</p>
-            <div>
-              <FormLabel htmlFor="uc-welcome-template">{usersMessages.createCard.welcomeTemplate}</FormLabel>
-              <select
-                id="uc-welcome-template"
-                value={form.welcomeTemplateId ?? ""}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, welcomeTemplateId: e.target.value ? Number(e.target.value) : undefined }))
-                }
-                className={formInputClass}
-              >
-                <option value="">{usersMessages.createCard.welcomeTemplateNone}</option>
-                {emailTemplates.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-              <div className="mt-3 rounded-control border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-inset)] p-3">
-                <p className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--ds-text-subtle)]">
-                  {usersMessages.createCard.templateVariablesLabel}
-                </p>
-                <div className="mt-2 space-y-2">
-                  {templateVariables.map((variable) => (
-                    <div
-                      key={variable.name}
-                      className="grid grid-cols-[8.5rem_minmax(0,1fr)] items-start gap-x-2 text-xs text-left"
-                    >
-                      <code className="shrink-0 rounded bg-[var(--ds-bg-elevated)] px-1.5 py-0.5 font-mono text-[var(--ds-text)]">
-                        {variable.name}
-                      </code>
-                      <span className="text-[var(--ds-text-muted)]">{variable.description}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
             {createMutation.isError && (
               <p className="text-[var(--ds-danger-text)] text-sm">
                 {createMutation.error instanceof Error

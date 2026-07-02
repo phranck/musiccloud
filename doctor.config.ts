@@ -19,15 +19,6 @@ const config = {
        */
       "src/components/ui/CrossFade.tsx",
       "src/lib/loadNav.ts",
-      /**
-       * useEmailActions.ts is a new hook module created in Task 9 of the
-       * email-template-system-v2 plan (2026-07-02-email-template-system-v2).
-       * It will be consumed by the System-Actions page (Task 12). Remove this
-       * suppression when that task lands and the first real import exists.
-       * (useEmailBranding.ts's sibling suppression was removed in Task 11,
-       * once EmailBrandingPage.tsx became its first real consumer.)
-       */
-      "src/features/templates/hooks/useEmailActions.ts",
     ],
     overrides: [
       /**

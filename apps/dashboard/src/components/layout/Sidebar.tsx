@@ -11,6 +11,7 @@ import {
   FilesIcon,
   GearIcon,
   HouseSimpleIcon,
+  LightningIcon,
   ListIcon,
   MicrophoneStageIcon,
   MusicNotesIcon,
@@ -789,6 +790,15 @@ export function Sidebar({
                     <DashboardSection.Item
                       icon={<PaletteIcon weight="duotone" className="w-4 h-4" />}
                       label={s.design}
+                      active={isActive}
+                    />
+                  )}
+                </NavLink>
+                <NavLink to="/actions" onClick={onItemClick} className="contents">
+                  {({ isActive }) => (
+                    <DashboardSection.Item
+                      icon={<LightningIcon weight="duotone" className="w-4 h-4" />}
+                      label={s.actions}
                       active={isActive}
                     />
                   )}

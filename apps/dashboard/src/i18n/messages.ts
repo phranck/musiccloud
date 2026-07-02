@@ -48,6 +48,7 @@ export interface DashboardMessages {
       system: string;
       services: string;
       design: string;
+      actions: string;
       expandAll: string;
       collapseAll: string;
       expandAllAria: string;
@@ -301,19 +302,11 @@ export interface DashboardMessages {
       username: string;
       email: string;
       inviteFlowHint: string;
-      welcomeTemplate: string;
-      welcomeTemplateNone: string;
       inviteCreated: string;
       inviteHint: string;
       inviteLink: string;
       copyInvite: string;
       inviteCopied: string;
-      templateVariablesLabel: string;
-      templateVariableUsername: string;
-      templateVariableEmail: string;
-      templateVariableRole: string;
-      templateVariableInviteUrl: string;
-      templateVariableLoginUrl: string;
       errorCreating: string;
       creating: string;
       create: string;
@@ -679,6 +672,20 @@ export interface DashboardMessages {
     brandingFooterText: string;
     brandingFooterTextPlaceholder: string;
   };
+  emailActions: {
+    title: string;
+    requiredBadge: string;
+    noActionSelected: string;
+    variablesTitle: string;
+    boundTemplatesTitle: string;
+    noTemplateBound: string;
+    deletedTemplateFallback: string;
+    assignTemplateTitle: string;
+    assignTemplatePlaceholder: string;
+    assignTemplateAction: string;
+    assignTemplateNoOptions: string;
+    bindErrorFallback: string;
+  };
   analytics: {
     title: string;
     noData: string;
@@ -795,6 +802,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         system: "System",
         services: "Services",
         design: "Design",
+        actions: "Aktionen",
         expandAll: "Alle aufklappen",
         collapseAll: "Alle zuklappen",
         expandAllAria: "Alle Gruppen aufklappen",
@@ -1052,19 +1060,11 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         username: "Benutzername",
         email: "E-Mail",
         inviteFlowHint: "Der Benutzer erh\u00e4lt einen Einladungslink.",
-        welcomeTemplate: "Willkommens-Vorlage",
-        welcomeTemplateNone: "Keine",
         inviteCreated: "Einladung erstellt",
         inviteHint: "Teile den folgenden Link mit dem Benutzer:",
         inviteLink: "Einladungslink",
         copyInvite: "Link kopieren",
         inviteCopied: "Kopiert!",
-        templateVariablesLabel: "Verf\u00fcgbare Variablen",
-        templateVariableUsername: "Benutzername",
-        templateVariableEmail: "E-Mail",
-        templateVariableRole: "Rolle",
-        templateVariableInviteUrl: "Einladungs-URL",
-        templateVariableLoginUrl: "Login-URL",
         errorCreating: "Fehler beim Erstellen",
         creating: "Wird erstellt\u2026",
         create: "Einladen",
@@ -1404,6 +1404,20 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       brandingFooterText: "Footer-Text",
       brandingFooterTextPlaceholder: "Markdown-Text, der unter jeder Vorlage erscheint",
     },
+    emailActions: {
+      title: "Aktionen",
+      requiredBadge: "Erforderlich",
+      noActionSelected: "Keine Aktion ausgewählt",
+      variablesTitle: "Variablen",
+      boundTemplatesTitle: "Zugeordnete Vorlagen",
+      noTemplateBound: "Keine Vorlage zugeordnet",
+      deletedTemplateFallback: "(gelöschte Vorlage)",
+      assignTemplateTitle: "Vorlage zuordnen",
+      assignTemplatePlaceholder: "Vorlage wählen…",
+      assignTemplateAction: "Zuordnen",
+      assignTemplateNoOptions: "Keine weiteren Vorlagen verfügbar",
+      bindErrorFallback: "Vorlage konnte nicht zugeordnet werden",
+    },
     analytics: {
       title: "Analytics",
       noData: "Keine Daten",
@@ -1518,6 +1532,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         system: "System",
         services: "Services",
         design: "Design",
+        actions: "Actions",
         expandAll: "Expand all",
         collapseAll: "Collapse all",
         expandAllAria: "Expand all groups",
@@ -1775,19 +1790,11 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         username: "Username",
         email: "Email",
         inviteFlowHint: "The user will receive an invitation link.",
-        welcomeTemplate: "Welcome Template",
-        welcomeTemplateNone: "None",
         inviteCreated: "Invitation Created",
         inviteHint: "Share the following link with the user:",
         inviteLink: "Invitation Link",
         copyInvite: "Copy Link",
         inviteCopied: "Copied!",
-        templateVariablesLabel: "Available Variables",
-        templateVariableUsername: "Username",
-        templateVariableEmail: "Email",
-        templateVariableRole: "Role",
-        templateVariableInviteUrl: "Invitation URL",
-        templateVariableLoginUrl: "Login URL",
         errorCreating: "Error creating",
         creating: "Creating\u2026",
         create: "Invite",
@@ -2126,6 +2133,20 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       brandingFooterImage: "Footer image",
       brandingFooterText: "Footer text",
       brandingFooterTextPlaceholder: "Markdown text shown below every template",
+    },
+    emailActions: {
+      title: "Actions",
+      requiredBadge: "Required",
+      noActionSelected: "No action selected",
+      variablesTitle: "Variables",
+      boundTemplatesTitle: "Bound templates",
+      noTemplateBound: "No template bound",
+      deletedTemplateFallback: "(deleted template)",
+      assignTemplateTitle: "Bind template",
+      assignTemplatePlaceholder: "Choose a template…",
+      assignTemplateAction: "Bind",
+      assignTemplateNoOptions: "No further templates available",
+      bindErrorFallback: "Could not bind template",
     },
     analytics: {
       title: "Analytics",

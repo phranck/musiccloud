@@ -8,7 +8,6 @@ export interface CreateUserFormData {
   username: string;
   email: string;
   role?: "admin" | "moderator";
-  welcomeTemplateId?: number;
 }
 
 export const EMPTY_CREATE_USER_FORM: CreateUserFormData = {

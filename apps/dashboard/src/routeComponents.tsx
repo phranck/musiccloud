@@ -114,6 +114,12 @@ export const SystemPage = lazy(() =>
   })),
 );
 
+export const EmailActionsPage = lazy(() =>
+  import("@/features/system/EmailActionsPage").then((m) => ({
+    default: m.EmailActionsPage,
+  })),
+);
+
 export const DesignSettingsPage = lazy(() =>
   import("@/features/system/DesignSettingsPage").then((m) => ({
     default: m.DesignSettingsPage,
