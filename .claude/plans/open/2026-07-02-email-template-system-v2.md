@@ -1139,33 +1139,45 @@ git commit -m "Feat: global email branding settings page (MC-078)"
 - Modify: `apps/dashboard/src/features/system/UserCreateCard.tsx` (welcomeTemplateId-Picker raus)
 - Modify: `apps/dashboard/src/features/system/hooks/useAdminUsers.ts` (welcomeTemplateId raus)
 
-- [ ] **Step 1: Actions-Seite (Liste+Detail)**
+- [x] **Step 1: Actions-Seite (Liste+Detail)**
 
 `EmailActionsPage.tsx`: `useEmailActions` → links Liste aller Actions (Label + Required-Badge), rechts Detail der ausgewählten: Variablen-Chips (read-only), gebundene Templates mit Enable/Disable-Toggle (`useToggleBinding`) + Entfernen (`useDeleteBinding`), „+ Template zuordnen" (Select aus `useEmailTemplates`, `useCreateBinding`; Kompatibilitäts-Fehler vom Backend inline anzeigen). Muster: bestehende Liste+Detail-Navigation.
 
-- [ ] **Step 2: Route + Sidebar-Eintrag „Actions"**
+> Umsetzungshinweis: Layout als zweispaltiges Grid (`xl:grid-cols-[minmax(16rem,0.4fr)_minmax(0,1fr)]`), schmalere Listen-Spalte als bei `EmailTemplateEditPage.tsx`s Editor/Preview-Grid, da eine Liste von Action-Labels weniger Breite braucht als eine Live-Vorschau. Erstauswahl per ref-guarded `syncedRef`-Idiom (identisch zu `EmailBrandingPage.tsx`), die auf spätere User-Selektion beim Refetch nicht erneut zugreift. Toggle-Button als `DashboardButton` mit `DashboardButtonVariant.Success`/`Neutral` + `messages.services.enabled`/`disabled` (Muster 1:1 aus `PluginCard.tsx`, da `DashboardActionId` keinen eigenen „Toggle"-Actioneintrag kennt). Labels-Prop-Typ per `ReturnType<typeof useI18n>["messages"]["emailActions"]` (nicht hand-deklariertes Parallel-Interface — DRY, Muster aus `EmailTemplateEditPage.tsx`s `labels`-Prop). React-Doctor (`jsx-no-jsx-as-prop`) flaggte die inline `action.required && (<span>…)`-Badge-JSX an `DashboardSection.Item`s `addOn`-Prop (die, anders als `.Header`s `addOn`/`renderAddOn`-Paar, keine deferred-construction-Alternative hat); behoben durch Extraktion in eine eigene `ActionListRow`-Komponente mit `useMemo`-gewrappter Badge (Doctors eigener Fix-Vorschlag: „move the JSX outside the component, or wrap it in useMemo"), ohne die geteilte `DashboardSection.tsx` anzufassen. `pnpm run doctor` danach 0 Findings über alle 4 Projekte.
+
+- [x] **Step 2: Route + Sidebar-Eintrag „Actions"**
 
 `routes.tsx`: `<Route path="actions" element={lazyFallback(<EmailActionsPage />)} />`. In `Sidebar.tsx` System-Sektion (`:744-789`) einen `NavLink to="/actions"` mit passendem Phosphor-Icon (z.B. `LightningIcon`) + `label={s.actions}` einreihen (analog zu `/users`, `/services`).
 
-- [ ] **Step 3: i18n**
+> Umsetzungshinweis: `routeComponents.tsx` (wie bei Task 11) nicht im Plan-File-Header gelistet, aber Pflicht — `EmailActionsPage`-Lazy-Export direkt nach `SystemPage` ergänzt. `LightningIcon` vor Verwendung gegen die installierte `@phosphor-icons/react@2.1.10`-Bundle verifiziert (echter Re-Export aus `./csr/Lightning`). Sidebar-Eintrag nach `/design` einsortiert (letzter Eintrag der System-Sektion).
+
+- [x] **Step 3: i18n**
 
 `messages.ts`: `actions`-Key im `system`-Sidebar-Block (`de`/`en`) + ein `emailActions`-Nachrichtenblock (Titel, Required-Badge, „Bind template", „No template bound", Kompatibilitäts-Fehlertext). Beide Locales.
 
-- [ ] **Step 4: welcomeTemplateId-Picker entfernen**
+> Umsetzungshinweis: `actions: string;` im `layout.sidebar`-Interface direkt nach `design` (Zeile 50, wie vom Dispatcher verifiziert) + beiden Locale-Objekten ergänzt. Neuer `emailActions`-Block direkt nach `emailTemplates`s schließendem `};` eingefügt (Interface + `de` + `en`, alle drei synchron), mit 12 Keys: `title`, `requiredBadge`, `noActionSelected`, `variablesTitle`, `boundTemplatesTitle`, `noTemplateBound`, `deletedTemplateFallback`, `assignTemplateTitle`, `assignTemplatePlaceholder`, `assignTemplateAction`, `assignTemplateNoOptions`, `bindErrorFallback`.
+
+- [x] **Step 4: welcomeTemplateId-Picker entfernen**
 
 `UserCreateCard.tsx`: das Template-Auswahlfeld + `welcomeTemplateId`-State entfernen (Einladung nutzt jetzt automatisch die an `AdminInviteSent` gebundenen Templates). `useAdminUsers.ts`: `welcomeTemplateId` aus dem Create-Payload-Typ + Call entfernen.
 
-- [ ] **Step 5: Build + Lint**
+> Umsetzungshinweis: Vor dem Löschen per Grep verifiziert, dass `emailTemplates`/`useEmailTemplates`, `formInputClass` und `welcomeTemplateId` in `UserCreateCard.tsx` genau je einmal (bzw. nur dort) referenziert werden — beide Imports jetzt entfernt (`useEmailTemplates`, `formInputClass`; `FormLabel`/`FormLabelText` bleiben, weiterhin für Username/Email-Labels gebraucht). 8 tote i18n-Keys unter `messages.users.createCard` per Voll-Baum-Grep verifiziert (0 externe Treffer) und entfernt: `welcomeTemplate`, `welcomeTemplateNone`, `templateVariablesLabel`, `templateVariableUsername`, `templateVariableEmail`, `templateVariableRole`, `templateVariableInviteUrl`, `templateVariableLoginUrl` (Interface + `de` + `en`). `doctor.config.ts`s `useEmailActions.ts`-Suppression-Eintrag (Task 9, „remove when Task 12 lands") entfernt, nachdem verifiziert war, dass `EmailActionsPage.tsx` den Import tatsächlich enthält — mirror des `useEmailBranding.ts`-Präzedenzfalls aus Task 11.
+
+- [x] **Step 5: Build + Lint**
 
 Run: `pnpm --filter @musiccloud/dashboard build && pnpm lint`
 Expected: grün.
 
-- [ ] **Step 6: Commit**
+> Ergebnis: `pnpm --filter @musiccloud/dashboard build` → 0 Typecheck-Fehler, `EmailActionsPage` als eigener Lazy-Chunk im Build-Output. `pnpm lint` (Biome): 1 Formatierungsfehler (Import-Zeilenlänge, JSX-Zeilen-Kollaps) in der neuen Datei, per `biome check --write` behoben, danach clean. `pnpm run doctor` (voller Repo-Scan, alle 4 Projekte): 0 Findings (nach dem `jsx-no-jsx-as-prop`-Fix aus Step 1).
+
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/dashboard/src/features/system/EmailActionsPage.tsx apps/dashboard/src/routes.tsx apps/dashboard/src/components/layout/Sidebar.tsx apps/dashboard/src/i18n/messages.ts apps/dashboard/src/features/system/UserCreateCard.tsx apps/dashboard/src/features/system/hooks/useAdminUsers.ts
 git commit -m "Feat: System Actions page + drop per-invite template picker (MC-078)"
 ```
+
+> Commit `ec18a465`, 8 Files geändert (401 Insertions, 80 Deletions) — zusätzlich zu den sechs oben genannten auch `apps/dashboard/src/routeComponents.tsx` (Step 2, pre-authorisiert) und `doctor.config.ts` (Step 4, Suppression-Entfernung).
 
 ---
 
@@ -1220,7 +1232,7 @@ git add -A && git commit -m "Test: verify email-template-system-v2 end-to-end (M
 - [x] Task 9: Dashboard Contracts + Hooks
 - [x] Task 10: Block-Editor
 - [x] Task 11: Branding-Seite
-- [ ] Task 12: Actions-Seite + Invite-Picker entfernt + i18n
+- [x] Task 12: Actions-Seite + Invite-Picker entfernt + i18n
 - [ ] Task 13: Clean-State-Gate + React-Doctor + Live-Smoke grün
 - [ ] Alle Code-Referenzen verifiziert (functions, scripts, paths, env vars, package-manager commands)
 - [x] Asset-Serve-Route-Auth-Entscheidung getroffen (public serve, admin upload) und umgesetzt — als zwei separate Route-Dateien (`email-assets.ts` public, `admin-email-assets.ts` admin), siehe Task 8 Step 2
