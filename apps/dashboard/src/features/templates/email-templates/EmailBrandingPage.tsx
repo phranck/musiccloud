@@ -85,7 +85,7 @@ export function EmailBrandingPage() {
       {
         headerAssetId: draft.headerAssetId,
         footerAssetId: draft.footerAssetId,
-        footerText: draft.footerText?.trim() ? draft.footerText : null,
+        footerText: draft.footerText?.trim() || null,
       },
       {
         onSuccess: () => showSaved(),
