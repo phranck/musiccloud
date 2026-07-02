@@ -669,6 +669,7 @@ export interface DashboardMessages {
     brandingDescription: string;
     brandingHeaderImage: string;
     brandingFooterImage: string;
+    brandingImageHint: string;
     brandingFooterText: string;
     brandingFooterTextPlaceholder: string;
   };
@@ -1401,6 +1402,8 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         "Header/Footer-Bild und Footer-Text werden um JEDE versendete E-Mail-Vorlage gelegt \u2014 global, nicht pro Vorlage.",
       brandingHeaderImage: "Header-Bild",
       brandingFooterImage: "Footer-Bild",
+      brandingImageHint:
+        "JPEG, PNG oder WebP, max. 5 MB. Wird auf 560 px Breite skaliert — empfohlen: ca. 1120 px breit (2× für Retina-Schärfe), breites Banner-Format.",
       brandingFooterText: "Footer-Text",
       brandingFooterTextPlaceholder: "Markdown-Text, der unter jeder Vorlage erscheint",
     },
@@ -2131,6 +2134,8 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         "The header/footer image and footer text are wrapped around EVERY sent email template \u2014 global, not per template.",
       brandingHeaderImage: "Header image",
       brandingFooterImage: "Footer image",
+      brandingImageHint:
+        "JPEG, PNG or WebP, max 5 MB. Scaled to 560px wide — recommended: about 1120px wide (2× for retina sharpness), wide banner format.",
       brandingFooterText: "Footer text",
       brandingFooterTextPlaceholder: "Markdown text shown below every template",
     },

@@ -196,6 +196,7 @@ function BrandingImageSlot({ label, assetId, onAssetChange }: BrandingImageSlotP
     <DashboardSection>
       <DashboardSection.Header icon={<ImageIcon weight="duotone" className="size-4" />} title={label} />
       <DashboardSection.Body>
+        <p className="text-xs text-[var(--ds-text-muted)]">{m.brandingImageHint}</p>
         <div className="flex items-center gap-3">
           {assetId && (
             <img
