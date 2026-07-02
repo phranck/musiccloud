@@ -360,6 +360,11 @@ function ImageBlockForm({
           onChange={handleFileChange}
         />
       </div>
+      {uploadMutation.isError && (
+        <p className="text-xs text-red-500">
+          {uploadMutation.error instanceof Error ? uploadMutation.error.message : m.imageUploadError}
+        </p>
+      )}
       <DashboardInput
         type="text"
         value={block.altText}

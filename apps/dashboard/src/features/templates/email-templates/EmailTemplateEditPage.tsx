@@ -396,6 +396,7 @@ interface RequiredVariablesEditorProps {
  * removal.
  */
 function RequiredVariablesEditor({ variables, labels, onChange }: RequiredVariablesEditorProps) {
+  const { messages } = useI18n();
   const nextRowKeyRef = useRef(0);
   const [rowKeys, setRowKeys] = useState<number[]>(() => variables.map(() => nextRowKeyRef.current++));
 
@@ -415,32 +416,39 @@ function RequiredVariablesEditor({ variables, labels, onChange }: RequiredVariab
 
   return (
     <div className="space-y-2">
-      {variables.map((variable, index) => (
-        <div key={rowKeys[index] ?? index} className="flex items-start gap-2">
-          <DashboardInput
-            type="text"
-            value={variable.name}
-            onChange={(e) => updateAt(index, { ...variable, name: e.target.value })}
-            placeholder={labels.requiredVariableName}
-            className="w-40 font-mono"
-          />
-          <DashboardInput
-            type="text"
-            value={variable.description}
-            onChange={(e) => updateAt(index, { ...variable, description: e.target.value })}
-            placeholder={labels.requiredVariableDescription}
-            className="flex-1"
-          />
-          <DashboardActionButton
-            action={DashboardActionId.Remove}
-            iconOnly
-            label={labels.addRequiredVariable}
-            onClick={() => removeAt(index)}
-            size="action"
-            type="button"
-          />
-        </div>
-      ))}
+      {variables.map((variable, index) => {
+        const rowKey = rowKeys[index] ?? index;
+        return (
+          <div key={rowKey} className="flex items-start gap-2">
+            <DashboardInput
+              id={`req-var-name-${rowKey}`}
+              type="text"
+              value={variable.name}
+              onChange={(e) => updateAt(index, { ...variable, name: e.target.value })}
+              label={labels.requiredVariableName}
+              placeholder={labels.requiredVariableName}
+              className="w-40 font-mono"
+            />
+            <DashboardInput
+              id={`req-var-desc-${rowKey}`}
+              type="text"
+              value={variable.description}
+              onChange={(e) => updateAt(index, { ...variable, description: e.target.value })}
+              label={labels.requiredVariableDescription}
+              placeholder={labels.requiredVariableDescription}
+              className="flex-1"
+            />
+            <DashboardActionButton
+              action={DashboardActionId.Remove}
+              iconOnly
+              label={messages.common.remove}
+              onClick={() => removeAt(index)}
+              size="action"
+              type="button"
+            />
+          </div>
+        );
+      })}
       <DashboardActionButton
         action={DashboardActionId.Create}
         label={labels.addRequiredVariable}

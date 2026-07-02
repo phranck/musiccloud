@@ -648,6 +648,7 @@ export interface DashboardMessages {
     buttonLabel: string;
     buttonUrl: string;
     imageUpload: string;
+    imageUploadError: string;
     imageAltText: string;
     spacerHeight: string;
     requiredVariablesTitle: string;
@@ -1364,6 +1365,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       buttonLabel: "Beschriftung",
       buttonUrl: "Ziel-URL",
       imageUpload: "Bild hochladen",
+      imageUploadError: "Bild konnte nicht hochgeladen werden",
       imageAltText: "Alt-Text",
       spacerHeight: "H\u00f6he (px)",
       requiredVariablesTitle: "Erwartete Variablen",
@@ -2078,6 +2080,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       buttonLabel: "Label",
       buttonUrl: "Target URL",
       imageUpload: "Upload image",
+      imageUploadError: "Failed to upload image",
       imageAltText: "Alt text",
       spacerHeight: "Height (px)",
       requiredVariablesTitle: "Required variables",
