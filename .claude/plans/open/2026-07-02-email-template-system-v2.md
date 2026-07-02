@@ -1018,25 +1018,33 @@ Commit: `047b5beb`, 8 Files geändert (425 Insertions, 83 Deletions).
 - Create: `apps/dashboard/src/features/templates/hooks/useEmailBranding.ts`
 - Create: `apps/dashboard/src/features/templates/hooks/useEmailActions.ts`
 
-- [ ] **Step 1: Contract auf Blöcke umstellen**
+- [x] **Step 1: Contract auf Blöcke umstellen**
 
 `admin-email-templates.ts`: `EmailTemplate` von den fünf Feldern auf `blocks: EmailBlock[]` + `requiredVariables: {name;description}[]` umstellen (import `EmailBlock` aus `@musiccloud/shared`).
 
-- [ ] **Step 2: Hooks ergänzen**
+- [x] **Step 2: Hooks ergänzen**
 
 `useEmailTemplates.ts`: `EmailTemplateInput` bleibt `Omit<...>`, Shape folgt dem Contract. Neue Files `useEmailBranding.ts` (`useEmailBranding` GET, `useUpdateEmailBranding` PUT gegen `ENDPOINTS.admin.emailBranding.base`) und `useEmailActions.ts` (`useEmailActions` GET `list`, `useCreateBinding`/`useToggleBinding`/`useDeleteBinding` gegen `emailActions.*`), Muster wie die bestehenden TanStack-Hooks.
 
-- [ ] **Step 3: Typecheck**
+> Umsetzungshinweis: `useEmailTemplates.ts`'s bisherige lokale `EmailTemplateInput = Omit<EmailTemplate, ...>`-Redeklaration war byte-identisch zur Contract-Definition (DRY-Verstoss) — durch Re-Import + Re-Export des Contract-Typs ersetzt, Konsumenten-Imports (`EmailTemplateEditPage.tsx`, `EmailTemplateListPage.tsx`) unverändert funktionsfähig, da sie weiterhin aus dem Hook-File importieren.
+>
+> Doctor-Gate: `useEmailBranding.ts`/`useEmailActions.ts` haben in diesem Task noch keine Importer (Consumer folgen in Task 11/12) — React Doctor's `deslop/unused-file` blockierte den Pre-Commit-Hook. Gelöst nach demselben Präzedenzfall wie Commit `46c70d66` (resolveMode.ts-Store ohne Task-1-Konsument): scoped, kommentierte Suppression in `doctor.config.ts` (`ignore.files`), mit Verweis auf Task 9 (Ersteller) und Task 11/12 (Konsumenten), Entfernungshinweis inklusive.
+
+- [x] **Step 3: Typecheck**
 
 Run: `pnpm --filter @musiccloud/dashboard typecheck` (falls Script existiert; sonst `pnpm --filter @musiccloud/dashboard build`)
 Expected: Fehler nur noch in den UI-Files (Task 10–12).
 
-- [ ] **Step 4: Commit**
+> Ergebnis: 12 Fehler, alle in `Sidebar.tsx` (Duplicate-Template-Button, Zeilen 476-480) und `EmailTemplateEditPage.tsx` (Zeilen 133-145) — beides Konsumenten der alten 5-Feld-Form, ausserhalb dieses Tasks' File-Liste. Null Fehler in `shared/contracts/` und `features/templates/hooks/`.
+
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/dashboard/src/shared/contracts/admin-email-templates.ts apps/dashboard/src/features/templates/hooks
 git commit -m "Feat: dashboard contracts + hooks for blocks/branding/actions (MC-078)"
 ```
+
+> Commit `8b561a10`. Zusätzlich `doctor.config.ts` mitgestaged (Pre-Commit-Gate-Fix, siehe Step 2).
 
 ---
 
