@@ -1217,7 +1217,9 @@ Prod lokal spiegeln (`/db-dump`), Server starten, dann via `agent-browser` (Memo
 
 > Umsetzungshinweis: `/db-dump` nicht erneut nötig — lokale DB stand bereits verifiziert im Post-Migration-Zustand (direkter psql-Check: „New User"-Template mit migriertem Text-Block, Branding-Zeile mit `footer_text = "share it everywhere"`). Isolierter Worktree-Server aufgesetzt (Backend Port 4001, Dashboard Port 4501, eigene `.env.local`-Kopien mit angepassten Ports, Haupt-Checkout-Server auf 4000/4500 unberührt); Health-Check bestätigt: Server laufen, Migrationen angewendet, Admin-Routen antworten korrekt mit 401 (kein 500). Den eigentlichen visuellen Klick-Durch-Test übernimmt der User selbst (explizite Entscheidung gegen Live-Browser-Verifikation durch Claude in diesem Projekt, siehe Memory `feedback_browser_verification`).
 
-- [ ] **Step 4: Abschluss**
+- [x] **Step 4: Abschluss**
+
+> Umsetzungshinweis: Branch lokal nach `main` gemergt (sauber, keine Konflikte, `Fix:`/`Feat:`-Commits siehe Historie). Live-Smoke durch den User selbst deckte zwei reale Bugs auf (Broken-Image durch `PUBLIC_URL`-Fehlnutzung im Preview-Pfad, Footer-Vertikalzentrierung durch Inline-Style-Spezifität), beide gefunden, gefixt und verifiziert. Zusätzlich `cmd+s`-Save auf der Branding-Seite nachgerüstet. MC-078 ist damit funktional abgeschlossen; Folge-Arbeit (per-Vorlage-Branding-Override + Tag/Nacht-Hintergrund) läuft als eigener Plan MC-079.
 
 ```bash
 git add -A && git commit -m "Test: verify email-template-system-v2 end-to-end (MC-078)" --allow-empty
@@ -1239,7 +1241,7 @@ git add -A && git commit -m "Test: verify email-template-system-v2 end-to-end (M
 - [x] Task 10: Block-Editor
 - [x] Task 11: Branding-Seite
 - [x] Task 12: Actions-Seite + Invite-Picker entfernt + i18n
-- [ ] Task 13: Clean-State-Gate + React-Doctor + Live-Smoke grün
+- [x] Task 13: Clean-State-Gate + React-Doctor + Live-Smoke grün
 - [ ] Alle Code-Referenzen verifiziert (functions, scripts, paths, env vars, package-manager commands)
 - [x] Asset-Serve-Route-Auth-Entscheidung getroffen (public serve, admin upload) und umgesetzt — als zwei separate Route-Dateien (`email-assets.ts` public, `admin-email-assets.ts` admin), siehe Task 8 Step 2
 - [ ] Phase 2 (developer-email.ts verify/reset/danger-zone → Actions) als Folge-Plan vermerkt, NICHT in diesem Plan umgesetzt
