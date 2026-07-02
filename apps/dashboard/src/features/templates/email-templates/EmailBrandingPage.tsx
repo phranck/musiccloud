@@ -17,6 +17,7 @@ import {
   useEmailBranding,
   useUpdateEmailBranding,
 } from "@/features/templates/hooks/useEmailBranding";
+import { useKeyboardSave } from "@/lib/useKeyboardSave";
 
 const MarkdownEditor = lazy(() =>
   import("@/components/ui/MarkdownEditor").then((m) => ({ default: m.MarkdownEditor })),
@@ -95,6 +96,8 @@ export function EmailBrandingPage() {
       },
     );
   }
+
+  useKeyboardSave(handleSave, isDirty && !updateMutation.isPending);
 
   if (isLoading) {
     return (
