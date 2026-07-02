@@ -934,7 +934,7 @@ git commit -m "Feat: triggerEmailAction fan-out + variable validation (MC-078)"
 - Modify: `apps/backend/src/routes/admin-users.ts` (Invite → Trigger)
 - Modify: `apps/backend/src/server.ts` (Routen registrieren)
 
-- [ ] **Step 1: Endpoints ergänzen**
+- [x] **Step 1: Endpoints ergänzen**
 
 In `packages/shared/src/endpoints.ts` `admin`-Gruppe (nach `emailTemplates`, `:272`):
 
@@ -961,52 +961,52 @@ In `packages/shared/src/endpoints.ts` `admin`-Gruppe (nach `emailTemplates`, `:2
 
 In `ROUTE_TEMPLATES.admin` (`:454-457`) ergänzen: `emailAssets: { detail: "/api/admin/email-assets/:id" }`, `emailActions: { binding: "/api/admin/email-actions/bindings/:id" }`.
 
-- [ ] **Step 2: Asset-Route (Upload + Serve)**
+- [x] **Step 2: Asset-Route (Upload + Serve) — auf zwei Files gesplittet**
 
-Create `apps/backend/src/routes/admin-email-assets.ts`. Upload: akzeptiere `data:`-URL-Body (mirror admin-users avatar-upload `:213-251`: `{ dataUrl }`, base64 dekodieren, ≤5 MB, MIME aus dem `data:`-Prefix), `insertEmailAsset({mimeType, bytes})`, `201 { id }`. Serve (`GET :id`, mirror `genre-artwork.ts`): `getEmailAssetBytes(id)` → `reply.header("Content-Type", mimeType).header("Cache-Control", "public, max-age=31536000, immutable").send(bytes)`, sonst `404`.
+**Drift/Korrektur beim Execute:** Der Plan-Text sah EIN File `admin-email-assets.ts` für Upload+Serve vor. Das Repo hat aber eine etablierte Konvention: eine Route-Datei wird in `server.ts` immer nur in EINEM Scope registriert (`admin-*.ts` → `adminRoutes`-Block mit `authenticateAdmin`-preHandler; Files ohne `admin-`-Prefix, z.B. `genre-artwork.ts` → Root-Scope, kein Auth-Wrapper). Da Fastifys preHandler für alle Routen EINER Datei gilt, können Upload (muss admin-only bleiben) und Serve (muss public sein, Mail-Clients haben kein Admin-JWT) nicht in derselben Datei liegen, wenn diese Datei nur in einem Scope registriert wird. Deshalb zwei Files:
 
-> **Hinweis:** Same-origin zum Backend, kein `PUBLIC_URL`-Cross-App-Abgleich — behebt die Broken-Image-Bug-Klasse strukturell. Der Serve-Endpoint ist unter `authenticateAdmin`-Scope registriert; Mail-Clients laden das Bild jedoch ohne Admin-JWT → **prüfen:** entweder den Serve-Endpoint in den public Scope heben (Bilder sind nicht geheim) oder eine separate unauth. `/api/v1/email-assets/:id`-Route. Entscheidung im Execute: public Serve-Route (Bilder sind öffentlich referenzierbar in versendeten Mails), Upload bleibt admin-guarded.
+- **`apps/backend/src/routes/admin-email-assets.ts`** (NEU, kein Plan-Name-Konflikt): nur die admin-guarded `POST`. Akzeptiert `data:`-URL-Body (mirror admin-users avatar-upload: `{ dataUrl }`, base64 dekodieren, ≤5 MB, MIME-Whitelist JPEG/PNG/WebP wie beim Avatar-Upload — gleiches SVG-XSS-Risiko), `createManagedEmailAsset({mimeType, bytes})`, `201 { id }`. Registriert im `adminRoutes`-Block.
+- **`apps/backend/src/routes/email-assets.ts`** (NEU, kein `admin-`-Prefix, öffentlicher Serve-Endpoint): nur `GET :id` (mirror `genre-artwork.ts`), `getManagedEmailAssetBytes(id)` → `reply.code(200).header("Content-Type", mimeType).header("Cache-Control", "public, max-age=31536000, immutable").send(bytes)`, sonst `404`. Registriert an Fastifys ROOT-Scope (mirror exakt `genreArtworkRoutes`), OHNE `authenticateAdmin`.
 
-- [ ] **Step 3: Branding-Route**
+URL-Pfad bleibt für beide bei `/api/admin/email-assets/...` (nur String, keine Auth-Grenze) — die Serve-Route liegt trotzdem im PUBLIC-Scope, weil die Fastify-Registrierung (nicht der Pfad-String) die tatsächliche Auth-Grenze zieht.
 
-Create `apps/backend/src/routes/admin-email-branding.ts`: `GET base` → `getEmailBranding()`; `PUT base` (Body `{ headerAssetId?, footerAssetId?, footerText? }`, validiert) → `updateEmailBranding(...)`.
+> **Hinweis (erledigt):** Same-origin zum Backend, kein `PUBLIC_URL`-Cross-App-Abgleich — behebt die Broken-Image-Bug-Klasse strukturell. Entscheidung: public Serve-Route (Bilder sind öffentlich referenzierbar in versendeten Mails, nicht geheim), Upload bleibt admin-guarded. Umgesetzt wie oben beschrieben, verifiziert per Trace der tatsächlichen `server.ts`-Registrierungsreihenfolge (Serve vor dem `adminRoutes`-Block registriert, Upload danach innerhalb) + grünem Backend-Testlauf (der die volle Route-Registrierung via `buildApp()` exercised).
 
-- [ ] **Step 4: Actions-Route**
+- [x] **Step 3: Branding-Route**
 
-Create `apps/backend/src/routes/admin-email-actions.ts`: `GET list` → alle `EMAIL_ACTIONS` (aus shared) angereichert mit ihren `listEmailActionBindings(key)`. `POST bindings` (Body `{actionKey, templateId}`): validiert dass `actionKey` in `EMAIL_ACTIONS` existiert UND dass das Template kompatibel ist (jede `template.requiredVariables[].name` ∈ `action.variables`) → sonst `400`; sonst `createEmailActionBinding`. `PATCH binding(:id)` (`{enabled}`) → `setEmailActionBindingEnabled`. `DELETE binding(:id)` → `deleteEmailActionBinding`.
+Create `apps/backend/src/routes/admin-email-branding.ts`: `GET base` → `getManagedEmailBranding()`; `PUT base` (Body `{ headerAssetId?, footerAssetId?, footerText? }`, validiert per manuellem `typeof`-Check wie `admin-email-templates.ts`) → `updateManagedEmailBranding(...)`.
 
-- [ ] **Step 5: Template-Routen auf Blöcke umstellen**
+> **Bekannte Einschränkung (nicht in diesem Task behoben, gehört zu Task 5):** `updateEmailBranding`'s SQL nutzt `COALESCE($1, header_asset_id)` — ein explizites `null` im PUT-Body (Absicht: Asset entfernen) wird SQL-seitig identisch zu "Feld weggelassen" behandelt und NICHT gecleared. Route-Validierung akzeptiert `null` korrekt laut Doku, aber der Adapter ignoriert es. Eigener Fix (Sentinel-Wert oder Adapter-Umbau) wäre ein Change am Task-5-Contract, nicht Teil von Task 8.
 
-In `admin-email-templates.ts`: `validateCreateBody`/`validateUpdateBody`/`validateImportBody` auf `blocks` (via `isEmailBlockArray` aus shared) + `requiredVariables` umstellen, die fünf Feld-Validierungen entfernen. `preview`-Endpoint: Body `{ blocks, colorScheme }`, lädt Branding, `renderEmailPreview(blocks, branding, colorScheme, requireEnv("PUBLIC_URL"))`. Export/Import-JSON-Shape auf `blocks`/`requiredVariables` anpassen. Test-Send (`:249-283`) nutzt weiterhin `sendTemplatedEmail` (jetzt block-basiert), Variablen-Map unverändert.
+- [x] **Step 4: Actions-Route**
 
-- [ ] **Step 6: Invite-Flow auf Trigger umstellen**
+Create `apps/backend/src/routes/admin-email-actions.ts`: `GET list` → alle `EMAIL_ACTIONS` (aus shared) angereichert mit ihren `listManagedEmailActionBindings(key)`. `POST bindings` (Body `{actionKey, templateId}`): validiert dass `actionKey` in `EMAIL_ACTIONS` existiert (via `getEmailActionMeta`) UND dass das Template kompatibel ist (jede `template.requiredVariables[].name` ∈ `action.variables`) → sonst `400` mit konkretem Variablennamen; sonst `createManagedEmailActionBinding`. `PATCH binding(:id)` (`{enabled}`) → `setManagedEmailActionBindingEnabled`. `DELETE binding(:id)` → `deleteManagedEmailActionBinding`.
 
-In `admin-users.ts:121-133`: `sendTemplatedEmail({templateId: body.welcomeTemplateId, …})` ersetzen durch:
+- [x] **Step 5: Template-Routen auf Blöcke umstellen**
 
-```typescript
-await triggerEmailAction(EmailAction.AdminInviteSent, {
-  to: { email: body.email, name: body.username },
-  variables: { username: body.username, email: body.email, role, inviteUrl, loginUrl: `${dashboardUrl}/login` },
-});
-```
+In `admin-email-templates.ts`: `validateCreateBody`/`validateUpdateBody`/`validateImportBody`/`validatePreviewBody` auf `blocks` (via `isEmailBlockArray` aus shared) + `requiredVariables` umgestellt, die fünf Feld-Validierungen entfernt. `preview`-Endpoint: Body `{ blocks, colorScheme }`, lädt Branding via `getManagedEmailBranding()`, ruft `renderEmailPreview(blocks, branding, colorScheme, requireEnv("PUBLIC_URL"))` (neue Argumentreihenfolge aus Task 6). Export/Import-JSON-Shape trägt jetzt automatisch `blocks`/`requiredVariables` (destructured aus dem `EmailTemplate`-Objekt, das seit Task 5 diese Felder hat). Test-Send (`:234-269`) unverändert, nutzt weiterhin `sendTemplatedEmail` (bereits in Task 7 auf Blöcke umgestellt), Variablen-Map unverändert. Keine bestehende `admin-email-templates.test.ts` gefunden — kein Test-Update nötig.
 
-`welcomeTemplateId` aus dem Request-Body-Typ + der Validierung entfernen. Import: `import { EmailAction } from "@musiccloud/shared"; import { triggerEmailAction } from "../services/email-actions.js";`. Der try/catch-Wrapper (Mail-Fail rollt User-Anlage nicht zurück) bleibt.
+- [x] **Step 6: Invite-Flow auf Trigger umstellen**
 
-- [ ] **Step 7: Routen registrieren**
+In `admin-users.ts`: `sendTemplatedEmail({templateId: body.welcomeTemplateId, …})` ersetzt durch `triggerEmailAction(EmailAction.AdminInviteSent, {...})` mit allen 5 von der Action verlangten Variablen (`username`, `email`, `role`, `inviteUrl`, `loginUrl`). `welcomeTemplateId` komplett aus Request-Body-Typ + Validierung entfernt (Backend-seitig verifiziert: 0 Treffer für `grep welcomeTemplateId apps/backend/src`). Der try/catch-Wrapper (Mail-Fail rollt User-Anlage nicht zurück) bleibt erhalten, Kommentar ergänzt um die neuen Throw-Gründe (kein Binding, inkompatible Variable).
 
-In `server.ts` im `adminRoutes`-Block die drei neuen Route-Funktionen registrieren; die Asset-**Serve**-Route (public) im passenden unauth./public Scope (siehe Step 2 Hinweis).
+- [x] **Step 7: Routen registrieren**
 
-- [ ] **Step 8: Typecheck + Backend-Tests + Lint**
+In `server.ts`: `emailAssetServeRoutes` (public Serve) an Root-Scope registriert, direkt nach `genreArtworkRoutes` (Zeile 631, vor dem `adminRoutes`-Block). `adminEmailActionsRoutes`/`adminEmailAssetsRoutes`/`adminEmailBrandingRoutes` im `adminRoutes`-Block registriert (Zeilen 669-671, nach dem `authenticateAdmin`-preHandler-Hook), alphabetisch neben `adminEmailTemplateRoutes` einsortiert.
+
+- [x] **Step 8: Typecheck + Backend-Tests + Lint**
 
 Run: `pnpm --filter @musiccloud/backend typecheck && pnpm --filter @musiccloud/backend test:run && pnpm lint`
-Expected: alles grün. Bestehende `admin-email-templates`-Tests (falls vorhanden) auf Block-Shape angepasst.
+Ergebnis: alle drei grün. Typecheck 0 Fehler (erster fehlerfreier Lauf seit Task 4). Tests: 87 Files, 1203 Tests grün, 35 skipped (unverändert). Lint: 1 Formatierungsfehler in `admin-email-actions.ts` (zu lange Import-Zeile) gefunden und sofort per `biome check --write` behoben, danach clean.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
-git add packages/shared/src/endpoints.ts apps/backend/src/routes/admin-email-assets.ts apps/backend/src/routes/admin-email-branding.ts apps/backend/src/routes/admin-email-actions.ts apps/backend/src/routes/admin-email-templates.ts apps/backend/src/routes/admin-users.ts apps/backend/src/server.ts
+git add packages/shared/src/endpoints.ts apps/backend/src/routes/email-assets.ts apps/backend/src/routes/admin-email-assets.ts apps/backend/src/routes/admin-email-branding.ts apps/backend/src/routes/admin-email-actions.ts apps/backend/src/routes/admin-email-templates.ts apps/backend/src/routes/admin-users.ts apps/backend/src/server.ts
 git commit -m "Feat: email asset/branding/action routes + invite via triggerEmailAction (MC-078)"
 ```
+
+Commit: `047b5beb`, 8 Files geändert (425 Insertions, 83 Deletions).
 
 ---
 
@@ -1190,14 +1190,14 @@ git add -A && git commit -m "Test: verify email-template-system-v2 end-to-end (M
 - [x] Task 5: Repository + Adapter (Templates/Branding/Assets/Bindings)
 - [x] Task 6: Block-Renderer + globales Branding + Button-Block, Tests grün
 - [x] Task 7: triggerEmailAction Fan-out + Variablen-Validierung, Tests grün
-- [ ] Task 8: Endpoints + Asset/Branding/Action-Routen + Invite-Umstellung, Backend grün
+- [x] Task 8: Endpoints + Asset/Branding/Action-Routen + Invite-Umstellung, Backend grün
 - [ ] Task 9: Dashboard Contracts + Hooks
 - [ ] Task 10: Block-Editor
 - [ ] Task 11: Branding-Seite
 - [ ] Task 12: Actions-Seite + Invite-Picker entfernt + i18n
 - [ ] Task 13: Clean-State-Gate + React-Doctor + Live-Smoke grün
 - [ ] Alle Code-Referenzen verifiziert (functions, scripts, paths, env vars, package-manager commands)
-- [ ] Asset-Serve-Route-Auth-Entscheidung getroffen (public serve, admin upload) und umgesetzt
+- [x] Asset-Serve-Route-Auth-Entscheidung getroffen (public serve, admin upload) und umgesetzt — als zwei separate Route-Dateien (`email-assets.ts` public, `admin-email-assets.ts` admin), siehe Task 8 Step 2
 - [ ] Phase 2 (developer-email.ts verify/reset/danger-zone → Actions) als Folge-Plan vermerkt, NICHT in diesem Plan umgesetzt
 
 ---
