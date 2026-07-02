@@ -976,7 +976,7 @@ URL-Pfad bleibt für beide bei `/api/admin/email-assets/...` (nur String, keine 
 
 Create `apps/backend/src/routes/admin-email-branding.ts`: `GET base` → `getManagedEmailBranding()`; `PUT base` (Body `{ headerAssetId?, footerAssetId?, footerText? }`, validiert per manuellem `typeof`-Check wie `admin-email-templates.ts`) → `updateManagedEmailBranding(...)`.
 
-> **Bekannte Einschränkung (nicht in diesem Task behoben, gehört zu Task 5):** `updateEmailBranding`'s SQL nutzt `COALESCE($1, header_asset_id)` — ein explizites `null` im PUT-Body (Absicht: Asset entfernen) wird SQL-seitig identisch zu "Feld weggelassen" behandelt und NICHT gecleared. Route-Validierung akzeptiert `null` korrekt laut Doku, aber der Adapter ignoriert es. Eigener Fix (Sentinel-Wert oder Adapter-Umbau) wäre ein Change am Task-5-Contract, nicht Teil von Task 8.
+> **Behoben (Task-5-Adapter-Fix, ausserhalb von Task 8 committet):** `updateEmailBranding`'s SQL nutzte ursprünglich `COALESCE($1, header_asset_id)`, was ein explizites `null` im PUT-Body identisch zu "Feld weggelassen" behandelte und NICHT clearte. Der Adapter (`postgres-content-email.ts`) wurde auf ein present-keys-only dynamisches SET-Pattern umgestellt (Muster: `updateEmailTemplate` in derselben Datei) — ein explizites `null` cleared das Feld jetzt korrekt, ein weggelassenes Feld bleibt unverändert. Empirisch gegen die lokale DB verifiziert (Commit `04b97a60`).
 
 - [x] **Step 4: Actions-Route**
 
