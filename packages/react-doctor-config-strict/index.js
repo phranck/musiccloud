@@ -2,6 +2,13 @@ const strictReactDoctorConfig = {
   deadCode: true,
   warnings: true,
   respectInlineDisables: true,
+  // Bare package name: react-doctor resolves this via Node module resolution
+  // against `node_modules/react-doctor-plugin-domain-literals` (a pnpm
+  // workspace symlink). In `--diff` mode, the baseline side is scanned from a
+  // temp directory materialized via `git show <ref>:<path>` (no `node_modules`
+  // there), so this bare-name resolution fails for that pass unless
+  // `NODE_PATH` points back at the real repo's `node_modules` — see the
+  // `doctor:diff` script in the root `package.json`.
   plugins: ["react-doctor-plugin-domain-literals"],
   adoptExistingLintConfig: true,
   blocking: "warning",
