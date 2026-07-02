@@ -1,10 +1,22 @@
 import { type EmailBlock, EmailBlockType } from "@musiccloud/shared";
-import { marked } from "marked";
+import { Marked } from "marked";
 
 import type { EmailBrandingDto } from "../db/admin-repository.js";
 import { escapeHtml } from "../lib/html.js";
 
-marked.use({ breaks: true, gfm: true });
+/**
+ * A dedicated `Marked` instance, NOT the package's shared default export.
+ * `admin-content.ts` calls `marked.use({..., async: true, ...})` on that
+ * default export to add its own footnote handling — since `marked.use()`
+ * mutates process-wide singleton state, using the default export here would
+ * make `.parse()` return a `Promise<string>` instead of a `string` for every
+ * caller in the process, this one included, with no way to opt back out
+ * (`marked.parse(text, {async: false})` on a polluted singleton throws:
+ * "The async option was set to true by an extension"). A separate instance
+ * keeps this file's markdown parsing genuinely synchronous regardless of
+ * what other modules configure on the shared singleton.
+ */
+const emailMarked = new Marked({ breaks: true, gfm: true });
 
 const VAR_REGEX = /\{\{(\w+)\}\}/g;
 
@@ -52,9 +64,14 @@ function applyInlineStyles(html: string): string {
     .replace(/<strong>/g, '<strong style="color:#1C1C1E;">');
 }
 
+/**
+ * Parses markdown to HTML using the module-local {@link emailMarked}
+ * instance (never the package's shared default export — see its own doc
+ * comment for why). `{ async: false }` selects the overload that returns a
+ * plain `string`.
+ */
 function parseMarkdown(text: string): string {
-  const result = marked.parse(text);
-  const html = typeof result === "string" ? result : "";
+  const html = emailMarked.parse(text, { async: false });
   return applyInlineStyles(html);
 }
 
