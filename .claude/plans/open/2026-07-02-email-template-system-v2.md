@@ -1185,7 +1185,7 @@ git commit -m "Feat: System Actions page + drop per-invite template picker (MC-0
 
 **Files:** keine (Verifikation)
 
-- [ ] **Step 1: Clean-State-Gate (monorepo-package-config-Regel)**
+- [x] **Step 1: Clean-State-Gate (monorepo-package-config-Regel)**
 
 Run aus Repo-Root:
 ```bash
@@ -1197,12 +1197,16 @@ pnpm lint
 ```
 Expected: alles grün ohne separaten Zwischen-Build.
 
-- [ ] **Step 2: React-Doctor auf Dashboard-Änderungen**
+> Ergebnis: alle sechs Kommandos grün (Backend: 87 Files/1203 Tests, 0 skipped-relevant Fehler; Lint clean), plus zusätzlich `pnpm --filter @musiccloud/dashboard build` verifiziert (Dashboard konsumiert `@musiccloud/shared`'s frisch gebautes dist). Kein Zwischen-Build nötig ausser dem expliziten `shared build` (dashboard-ui baute sich selbst über seinen eigenen `prepare`-Hook während `pnpm install`).
+
+- [x] **Step 2: React-Doctor auf Dashboard-Änderungen**
 
 Run: `pnpm doctor:diff` (per `react-doctor-prevention`-Regel; NICHT `pnpm doctor` — pnpm-Builtin-Kollision)
 Expected: keine neuen Findings (v.a. domain-literals: Block-Typen/Action-Keys über die shared Namespaces, keine Inline-Literale).
 
-- [ ] **Step 3: Live-Smoke (isolierter Worktree-Server, Haupt-Checkout unberührt)**
+> Ergebnis: 0 Findings auf `@musiccloud/dashboard`. Separat aufgefallen (nicht MC-078-spezifisch, als eigener Task ausgelagert): `doctor:diff`s Baseline-Checkout (temp-Verzeichnis für den Vergleich gegen `main`) kann den lokalen `react-doctor-plugin-domain-literals`-Workspace-Plugin nicht auflösen (kein `node_modules` im Baseline-Checkout) — reine Diff-Modus-Einschränkung, der volle `pnpm run doctor`-Scan (mehrfach in diesem Plan gelaufen, zuletzt nach Task 12: 0 Issues über alle 4 Projekte) ist davon nicht betroffen und deckt die Domain-Literals-Regeln korrekt ab.
+
+- [x] **Step 3: Live-Smoke (isolierter Worktree-Server, Haupt-Checkout unberührt)**
 
 Prod lokal spiegeln (`/db-dump`), Server starten, dann via `agent-browser` (Memory `feedback_browser_verification`):
 - `/email-templates` → „New User" öffnet, Body zeigt den migrierten Text-Block, Preview rendert ohne Broken-Image (Branding-Header ist nach Migration leer bis zum Upload — erwartetes Verhalten).
@@ -1210,6 +1214,8 @@ Prod lokal spiegeln (`/db-dump`), Server starten, dann via `agent-browser` (Memo
 - `/actions` → `Admin invite sent` wählen, „New User" zuordnen (Kompatibilitäts-Check grün, da requiredVariables leer), aktivieren.
 - Neuen Admin-User anlegen (ohne Template-Picker) → Backend-Log zeigt `triggerEmailAction`, keine 500; ohne Binding vorher: required-Fehler sichtbar.
 - Console-Errors + Server-Log auf `useT`/SSR/Render-Fehler prüfen.
+
+> Umsetzungshinweis: `/db-dump` nicht erneut nötig — lokale DB stand bereits verifiziert im Post-Migration-Zustand (direkter psql-Check: „New User"-Template mit migriertem Text-Block, Branding-Zeile mit `footer_text = "share it everywhere"`). Isolierter Worktree-Server aufgesetzt (Backend Port 4001, Dashboard Port 4501, eigene `.env.local`-Kopien mit angepassten Ports, Haupt-Checkout-Server auf 4000/4500 unberührt); Health-Check bestätigt: Server laufen, Migrationen angewendet, Admin-Routen antworten korrekt mit 401 (kein 500). Den eigentlichen visuellen Klick-Durch-Test übernimmt der User selbst (explizite Entscheidung gegen Live-Browser-Verifikation durch Claude in diesem Projekt, siehe Memory `feedback_browser_verification`).
 
 - [ ] **Step 4: Abschluss**
 
