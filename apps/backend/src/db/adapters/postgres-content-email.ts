@@ -247,22 +247,49 @@ export async function getEmailBranding(pool: Pool): Promise<EmailBrandingDto> {
 }
 
 /**
- * Partially updates the global email branding singleton. Omitted fields
- * (`undefined`) keep their current value via `COALESCE`.
+ * Partially updates the global email branding singleton. A key that is
+ * ABSENT from `data` leaves its column untouched; a key that is PRESENT (even
+ * with value `null`) sets the column to that value — so `{ headerAssetId:
+ * null }` genuinely clears the header image, distinct from not mentioning
+ * `headerAssetId` at all. (An earlier version used `COALESCE`, which could
+ * not tell "omitted" apart from "explicitly null" and silently ignored any
+ * attempt to clear a field — fixed before the Branding page's "remove image"
+ * action needed it.)
  *
  * @param pool - Postgres connection pool.
- * @param data - Subset of mutable branding fields.
+ * @param data - Subset of mutable branding fields; only present keys are written.
  * @returns The branding row after the update.
  */
 export async function updateEmailBranding(pool: Pool, data: Partial<EmailBrandingDto>): Promise<EmailBrandingDto> {
+  const columnMap: Record<keyof EmailBrandingDto, string> = {
+    headerAssetId: "header_asset_id",
+    footerAssetId: "footer_asset_id",
+    footerText: "footer_text",
+  };
+
+  const setClauses: string[] = [];
+  const values: unknown[] = [];
+  let paramIndex = 1;
+
+  for (const [key, value] of Object.entries(data)) {
+    if (value === undefined) continue;
+    const column = columnMap[key as keyof EmailBrandingDto];
+    if (column) {
+      setClauses.push(`${column} = $${paramIndex}`);
+      values.push(value);
+      paramIndex++;
+    }
+  }
+
+  if (setClauses.length === 0) {
+    return getEmailBranding(pool);
+  }
+
+  setClauses.push("updated_at = NOW()");
   await pool.query(
-    `UPDATE email_branding SET
-       header_asset_id = COALESCE($1, header_asset_id),
-       footer_asset_id = COALESCE($2, footer_asset_id),
-       footer_text = COALESCE($3, footer_text),
-       updated_at = NOW()
+    `UPDATE email_branding SET ${setClauses.join(", ")}
      WHERE id = (SELECT id FROM email_branding ORDER BY id ASC LIMIT 1)`,
-    [data.headerAssetId ?? null, data.footerAssetId ?? null, data.footerText ?? null],
+    values,
   );
   return getEmailBranding(pool);
 }
