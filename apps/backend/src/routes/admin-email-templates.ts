@@ -208,12 +208,7 @@ export default async function adminEmailTemplateRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: validated });
     }
     const branding = await getManagedEmailBranding();
-    const html = renderEmailPreview(
-      validated.blocks,
-      branding,
-      validated.colorScheme ?? "light",
-      requireEnv("PUBLIC_URL"),
-    );
+    const html = renderEmailPreview(validated.blocks, branding, validated.colorScheme ?? "light");
     return { html };
   });
 

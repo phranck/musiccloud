@@ -37,6 +37,18 @@ describe("renderBlocks", () => {
     expect(html).toContain('alt="banner"');
   });
 
+  it("builds an absolute asset URL from baseUrl for the live-send path", () => {
+    const html = renderBlocks(
+      [{ type: EmailBlockType.Image, assetId: "abc", altText: "" }],
+      { headerAssetId: "header1", footerAssetId: "footer1", footerText: null },
+      {},
+      baseUrl,
+    );
+    expect(html).toContain(`src="${baseUrl}/api/admin/email-assets/abc"`);
+    expect(html).toContain(`src="${baseUrl}/api/admin/email-assets/header1"`);
+    expect(html).toContain(`src="${baseUrl}/api/admin/email-assets/footer1"`);
+  });
+
   it("leaves a placeholder literal when its name isn't in the variables map, instead of blanking it", () => {
     const html = renderBlocks(
       [{ type: EmailBlockType.Text, markdown: "Hello {{username}}, ref {{notSupplied}}" }],
@@ -58,9 +70,27 @@ describe("renderEmailPreview", () => {
       ],
       branding,
       "light",
-      baseUrl,
     );
     expect(html).toContain("{{username}}");
     expect(html).toContain("{{inviteUrl}}");
+  });
+
+  it("builds a relative asset URL, never an absolute one built from PUBLIC_URL", () => {
+    // Regression test: the preview iframe's srcDoc document has no origin of
+    // its own, so a relative URL resolving against the dashboard's own origin
+    // (proxied to the backend) is the only URL shape that works here. An
+    // earlier version wrongly threaded PUBLIC_URL (the public *frontend*
+    // domain, a different origin/port than the backend in local dev) through
+    // to this path, producing a 404 against the wrong server.
+    const html = renderEmailPreview(
+      [{ type: EmailBlockType.Image, assetId: "abc", altText: "" }],
+      { headerAssetId: "header1", footerAssetId: "footer1", footerText: null },
+      "light",
+    );
+    expect(html).toContain('src="/api/admin/email-assets/abc"');
+    expect(html).toContain('src="/api/admin/email-assets/header1"');
+    expect(html).toContain('src="/api/admin/email-assets/footer1"');
+    expect(html).not.toContain("http://");
+    expect(html).not.toContain("https://");
   });
 });

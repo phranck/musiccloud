@@ -90,15 +90,29 @@ function renderButton(label: string, url: string): string {
 }
 
 /**
- * Builds the streaming asset URL for an `email_assets` row, anchored at the
- * backend's own public base URL.
+ * Builds the streaming asset URL for an `email_assets` row.
+ *
+ * `baseUrl: null` (the dashboard-preview path) builds a relative path
+ * instead of an absolute URL. The preview iframe's `srcDoc` document has no
+ * origin of its own, so a relative `/api/...` URL resolves against the
+ * dashboard's own origin — which the dashboard's dev/prod setup already
+ * proxies to the backend (the same convention `lib/api.ts`'s `resolvePath`
+ * uses for every other dashboard API call). An absolute URL built from
+ * `PUBLIC_URL` would be wrong here: `PUBLIC_URL` is the public *frontend*
+ * domain, not necessarily where the backend itself is reachable (in local
+ * dev they're different ports entirely, producing a 404 on the wrong
+ * origin). The live-send path (`baseUrl` a real string) still needs an
+ * absolute URL — a recipient's mail client has no dashboard proxy to
+ * resolve a relative path against.
  *
  * @param assetId - the `email_assets.id` to point at.
- * @param baseUrl - the backend's own public base URL (e.g. `PUBLIC_URL`).
- * @returns an absolute URL to `GET /api/admin/email-assets/:id`.
+ * @param baseUrl - the backend's own public base URL for the send path
+ *   (e.g. `PUBLIC_URL`), or `null` to build a relative URL for the preview path.
+ * @returns a URL (absolute or relative) to `GET /api/admin/email-assets/:id`.
  */
-function assetUrl(assetId: string, baseUrl: string): string {
-  return `${baseUrl.replace(/\/+$/, "")}/api/admin/email-assets/${assetId}`;
+function assetUrl(assetId: string, baseUrl: string | null): string {
+  const path = `/api/admin/email-assets/${assetId}`;
+  return baseUrl ? `${baseUrl.replace(/\/+$/, "")}${path}` : path;
 }
 
 /**
@@ -114,14 +128,15 @@ function assetUrl(assetId: string, baseUrl: string): string {
  * @param blocks - the template's ordered body blocks.
  * @param branding - the global branding singleton (header/footer asset ids + footer text).
  * @param variables - `{{var}}` substitution values available to text/button/footer content.
- * @param baseUrl - the backend's own public base URL, used to build asset URLs.
+ * @param baseUrl - the backend's own public base URL for asset URLs, or `null`
+ *   to build relative asset URLs (see {@link assetUrl}'s doc comment).
  * @returns the ordered list of `<tr>...</tr>` row strings.
  */
 function buildBlockRows(
   blocks: EmailBlock[],
   branding: EmailBrandingDto,
   variables: Record<string, string>,
-  baseUrl: string,
+  baseUrl: string | null,
 ): string[] {
   const rows: string[] = [];
   if (branding.headerAssetId) {
@@ -249,18 +264,20 @@ export function renderEmailTemplate(
  * toggle — so here `colorScheme` forces one specific scheme's rules directly,
  * with no `@media` query.
  *
+ * Takes no `baseUrl`: asset URLs are always built relative (see
+ * {@link assetUrl}'s doc comment for why an absolute `PUBLIC_URL`-based URL
+ * is wrong for this path specifically).
+ *
  * @param blocks - the blocks currently being edited.
  * @param branding - the global branding singleton.
  * @param colorScheme - "light" or "dark" — selects which CSS rules are inlined into the `<style>` block.
- * @param baseUrl - the backend's own public base URL (used for asset URLs).
  * @returns the rendered HTML.
  */
 export function renderEmailPreview(
   blocks: EmailBlock[],
   branding: EmailBrandingDto,
   colorScheme: "light" | "dark",
-  baseUrl: string,
 ): string {
-  const rows = buildBlockRows(blocks, branding, {}, baseUrl);
+  const rows = buildBlockRows(blocks, branding, {}, null);
   return buildEmailHtml(rows, colorScheme === "dark" ? DARK_RULES : "");
 }
