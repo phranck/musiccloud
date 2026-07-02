@@ -17,6 +17,7 @@ import {
   DashboardPage,
   DesignSettingsPage,
   EditorStubPage,
+  EmailBrandingPage,
   EmailTemplateEditPage,
   EmailTemplateListPage,
   FormBuilderListPage,
@@ -62,6 +63,7 @@ export const routes = createRoutesFromElements(
           <Route path="email-templates" element={lazyFallback(<EmailTemplateListPage />)} />
           <Route path="email-templates/new" element={lazyFallback(<EmailTemplateEditPage />)} />
           <Route path="email-templates/:id" element={lazyFallback(<EmailTemplateEditPage />)} />
+          <Route path="email-branding" element={lazyFallback(<EmailBrandingPage />)} />
           <Route path="pages" element={lazyFallback(<PagesListPage />)} />
           <Route path="pages/:slug" element={lazyFallback(<ContentEditorPage />)} />
           <Route path="navigation" element={lazyFallback(<NavManagerPage />)} />

@@ -43,6 +43,7 @@ export interface DashboardMessages {
       formsOverview: string;
       emailTemplates: string;
       emailTemplatesOverview: string;
+      emailBranding: string;
       footerBuilder: string;
       system: string;
       services: string;
@@ -671,6 +672,12 @@ export interface DashboardMessages {
     sendingTest: string;
     testSent: string;
     testFailed: string;
+    brandingTitle: string;
+    brandingDescription: string;
+    brandingHeaderImage: string;
+    brandingFooterImage: string;
+    brandingFooterText: string;
+    brandingFooterTextPlaceholder: string;
   };
   analytics: {
     title: string;
@@ -783,6 +790,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         formsOverview: "\u00dcbersicht",
         emailTemplates: "E-Mail-Vorlagen",
         emailTemplatesOverview: "\u00dcbersicht",
+        emailBranding: "E-Mail-Branding",
         footerBuilder: "Footer-Builder",
         system: "System",
         services: "Services",
@@ -1388,6 +1396,13 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       sendingTest: "Wird gesendet\u2026",
       testSent: "Test-Mail gesendet an {email}",
       testFailed: "Test-Mail fehlgeschlagen",
+      brandingTitle: "E-Mail-Branding",
+      brandingDescription:
+        "Header/Footer-Bild und Footer-Text werden um JEDE versendete E-Mail-Vorlage gelegt \u2014 global, nicht pro Vorlage.",
+      brandingHeaderImage: "Header-Bild",
+      brandingFooterImage: "Footer-Bild",
+      brandingFooterText: "Footer-Text",
+      brandingFooterTextPlaceholder: "Markdown-Text, der unter jeder Vorlage erscheint",
     },
     analytics: {
       title: "Analytics",
@@ -1498,6 +1513,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         formsOverview: "Overview",
         emailTemplates: "Email Templates",
         emailTemplatesOverview: "Overview",
+        emailBranding: "Email branding",
         footerBuilder: "Footer Builder",
         system: "System",
         services: "Services",
@@ -2103,6 +2119,13 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       sendingTest: "Sending\u2026",
       testSent: "Test email sent to {email}",
       testFailed: "Test email failed",
+      brandingTitle: "Email branding",
+      brandingDescription:
+        "The header/footer image and footer text are wrapped around EVERY sent email template \u2014 global, not per template.",
+      brandingHeaderImage: "Header image",
+      brandingFooterImage: "Footer image",
+      brandingFooterText: "Footer text",
+      brandingFooterTextPlaceholder: "Markdown text shown below every template",
     },
     analytics: {
       title: "Analytics",

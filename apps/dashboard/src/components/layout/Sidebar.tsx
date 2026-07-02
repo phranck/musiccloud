@@ -15,6 +15,7 @@ import {
   MicrophoneStageIcon,
   MusicNotesIcon,
   NotebookIcon,
+  PaintBrushIcon,
   PaletteIcon,
   PlugsConnectedIcon,
   PlusCircleIcon,
@@ -731,6 +732,15 @@ export function Sidebar({
                   open={groupStatus["sidebar-email-templates-open"] ?? false}
                   onOpenChange={(open) => handleGroupOpenChange("sidebar-email-templates-open", open)}
                 />
+                <NavLink to="/email-branding" onClick={onItemClick} className="contents">
+                  {({ isActive }) => (
+                    <DashboardSection.Item
+                      icon={<PaintBrushIcon weight="duotone" className="w-4 h-4" />}
+                      label={s.emailBranding}
+                      active={isActive}
+                    />
+                  )}
+                </NavLink>
               </DashboardSection.Body>
             </DashboardSection>
           </div>
