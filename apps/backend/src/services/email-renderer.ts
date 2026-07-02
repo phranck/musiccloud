@@ -192,7 +192,10 @@ function buildEmailHtml(rows: string[], css: string): string {
   <meta name="supported-color-schemes" content="light dark">
   <style>
     :root { color-scheme: light dark; supported-color-schemes: light dark; }
-    .em-footer-text p { margin: 0; }
+    /* !important: applyInlineStyles already writes an inline margin (meant for
+       body-text paragraph spacing) directly onto this <p>; a plain class rule
+       here loses to that inline style on specificity alone. */
+    .em-footer-text p { margin: 0 !important; }
     ${css}
   </style>
 </head>
