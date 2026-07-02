@@ -1056,29 +1056,39 @@ git commit -m "Feat: dashboard contracts + hooks for blocks/branding/actions (MC
 - Modify: `apps/dashboard/src/features/templates/email-templates/EmailTemplateEditPage.tsx`
 - Modify: `apps/dashboard/src/features/templates/email-templates/EmailPreview.tsx`
 
-- [ ] **Step 1: Block-Defaults + Editor-Komponente**
+- [x] **Step 1: Block-Defaults + Editor-Komponente**
 
 `blockDefaults.ts`: Factory pro `EmailBlockType` (leerer Text-Block, Button mit leerem Label/URL, etc.). `BlockEditor.tsx`: sortierbare Liste (dnd-kit, Muster aus `NavManagerPage.tsx` — `DndContext`/`SortableContext`/`useSortable`/`arrayMove`/`PointerSensor`+`KeyboardSensor`/`handleDragEnd`), pro Block ein Typ-spezifisches Formular (Text→`MarkdownEditor`, Button→2 Inputs, Bild→Asset-Upload/-Referenz + Alt-Text, Divider/Spacer→minimal), „+ Block hinzufügen"-Menü, Entfernen pro Karte. Props: `blocks`, `onChange(blocks)`.
 
-- [ ] **Step 2: Edit-Page umbauen**
+> Umsetzungshinweis: „+ Block hinzufügen" als fünf `DashboardActionButton`s (einer pro Typ) statt eines Dropdown-Menüs umgesetzt (KISS — kein generisches Dropdown-Menü existiert in `@musiccloud/dashboard-ui` für 5 fixe Optionen, `ListboxPopover` ist für ein anderes Pattern gebaut). Zwei zusätzliche, vom Dispatcher vorautorisierte Files erstellt: `apps/dashboard/src/features/templates/hooks/useEmailAssets.ts` (`useUploadEmailAsset()`-Mutation gegen `ENDPOINTS.admin.emailAssets.upload`, Muster aus `useEmailBranding.ts`/`useEmailActions.ts`) und `apps/dashboard/src/lib/files.ts` (extrahiert `fileToDataUrl` aus `useAdminUsers.ts:64-71`, DRY — beide Upload-Flows teilen sich jetzt eine Implementierung; `useAdminUsers.ts` importiert von dort). Icons verifiziert gegen die installierte `@phosphor-icons/react@2.1.10`-Bundle-Typdefinition vor Verwendung (`TextTIcon`, `CursorClickIcon`, `ImageIcon`, `MinusIcon`, `TrayArrowUpIcon`, plus die bereits etablierten `ListIcon`/`XCircleIcon`/`PlusCircle`-Familie aus `NavManagerPage.tsx`/`actionCatalog.tsx`).
+
+- [x] **Step 2: Edit-Page umbauen**
 
 `EmailTemplateEditPage.tsx`: `TemplateFormFields` von den fünf Feldern auf `{ name, subject, blocks, requiredVariables }` umstellen. `EmailTemplateEditorGrid` links `BlockEditor` statt der drei `EmailTemplateMarkdownSection`, plus ein kleiner Editor für `requiredVariables` (Liste von name/description). `buildPayload` liefert `{name, subject, blocks, requiredVariables}`.
 
-- [ ] **Step 3: Preview umbauen**
+> Umsetzungshinweis: `RequiredVariablesEditor` als lokale Komponente in derselben Datei (kurz genug, kein eigenes File nötig). React-Doctor (`no-array-index-key`/`no-array-index-as-key`) flaggte den anfänglichen `key={index}` auf den Variable-Rows als echtes Bug-Risiko (Remove-in-der-Mitte kann DOM-State fehlzuordnen) — behoben mit einem lokalen monotonen Row-Key-Counter (`nextRowKeyRef`) statt Array-Index, PLUS `key={numId}` auf `EmailTemplateEditorGrid`, damit ein In-Place-Templatewechsel (Route-Param ändert sich, Seite bleibt gemountet — React Router remountet bei reinem `:id`-Wechsel nicht) den lokalen Row-Key-State sauber zurücksetzt statt stale Keys vom vorigen Template zu behalten. `doctor:diff` danach 0 Findings. Alte, jetzt tote `EmailTemplateMarkdownSection`/`MarkdownEditorField`-Helper + ihre Imports (`Suspense`, `lazy`, `MarkdownEditor`, `SealWarningIcon`, `EnvelopeOpenIcon`, `SquareHalfBottomIcon`) vollständig entfernt (keine externen Referenzen, per Grep verifiziert). `EmailTemplateVariable`-Typ direkt aus `@/shared/contracts/admin-email-templates` importiert (nicht über `useEmailTemplates.ts` re-exportiert, da dort nicht vorhanden — Typecheck deckte das sofort auf).
+>
+> **`Sidebar.tsx`-Frage geklärt:** Task 9 hatte 6 Typecheck-Fehler in `Sidebar.tsx:476-480` (der „Duplicate template"-Button spreadet die 5 alten Flat-Fields in `createTemplate.mutateAsync`) als „nicht Teil dieses Tasks' File-Liste" vermerkt. Dieser Task hat `EmailTemplateInput` genau auf `blocks`/`requiredVariables` umgestellt — die 6 Fehler sind eine direkte, mechanische Konsequenz derselben Shape-Änderung (identisch zum Rest dieses Tasks: „alte Feld-Referenzen aufräumen"), keine neue Feature-Anforderung. Gefixt: die 5 alten Felder durch `blocks: tpl.blocks, requiredVariables: tpl.requiredVariables` ersetzt. `Sidebar.tsx` ist daher Teil dieses Commits, obwohl nicht im Plan-Task-10-File-Header gelistet.
+
+- [x] **Step 3: Preview umbauen**
 
 `EmailPreview.tsx`: Props `{ blocks }` statt der fünf Felder; POST an `preview` mit `{ blocks, colorScheme }`.
 
-- [ ] **Step 4: Build/Typecheck**
+- [x] **Step 4: Build/Typecheck**
 
 Run: `pnpm --filter @musiccloud/dashboard build`
 Expected: kompiliert. Manueller Smoke folgt in Task 13.
 
-- [ ] **Step 5: Commit**
+> Ergebnis: `pnpm --filter @musiccloud/dashboard typecheck` → 0 Fehler (alle 12 Fehler aus Task 9 — 6× `EmailTemplateEditPage.tsx`, 6× `Sidebar.tsx` — behoben). `pnpm --filter @musiccloud/dashboard build` → kompiliert sauber. `pnpm lint` (repo-weit, Biome) → clean nach `biome check --write` auf zwei Formatierungs-/Import-Sortierungs-Findings in `BlockEditor.tsx`/`EmailTemplateEditPage.tsx`. `pnpm doctor:diff` → 0 Findings (siehe Step-2-Notiz zur Row-Key-Behebung in `EmailTemplateEditPage.tsx`). Beim `git commit` fing der Pre-Commit-Hook (Full-Scan via `pnpm run doctor`, nicht Diff-Scan) danach zusätzlich denselben `no-array-index-key`/`no-array-index-as-key`-Befund in `BlockEditor.tsx:136` (`SortableBlockCard`s `key={index}`) — vom vorherigen `doctor:diff`-Lauf nicht gemeldet (Root Cause nicht ermittelt, keine Vermutung dazu). Behoben nach demselben Muster wie `RequiredVariablesEditor`: dnd-kits sortable `id` bleibt Index-basiert (Pflicht für `arrayMove`/`handleDragEnd`), der React-`key` läuft über einen separaten, monoton hochzählenden `cardKeys`-State (add/remove/reorder pflegen ihn synchron mit `blocks`). `pnpm run doctor` (voller Repo-Scan, identisch zum Pre-Commit-Hook) danach 0 Findings über alle 4 gescannten Projekte.
+
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/dashboard/src/features/templates/email-templates
 git commit -m "Feat: block-based email template editor (MC-078)"
 ```
+
+> Umgesetzt als: `apps/dashboard/src/features/templates/email-templates/BlockEditor.tsx`, `blockDefaults.ts`, `EmailTemplateEditPage.tsx`, `EmailPreview.tsx`, plus `apps/dashboard/src/features/templates/hooks/useEmailAssets.ts`, `apps/dashboard/src/lib/files.ts`, `apps/dashboard/src/features/system/hooks/useAdminUsers.ts` (Extraktions-Update), `apps/dashboard/src/i18n/messages.ts` (neue/entfernte Keys), `apps/dashboard/src/components/layout/Sidebar.tsx` (Duplicate-Button-Fix, siehe Step-2-Notiz).
 
 ---
 
@@ -1200,7 +1210,7 @@ git add -A && git commit -m "Test: verify email-template-system-v2 end-to-end (M
 - [x] Task 7: triggerEmailAction Fan-out + Variablen-Validierung, Tests grün
 - [x] Task 8: Endpoints + Asset/Branding/Action-Routen + Invite-Umstellung, Backend grün
 - [x] Task 9: Dashboard Contracts + Hooks
-- [ ] Task 10: Block-Editor
+- [x] Task 10: Block-Editor
 - [ ] Task 11: Branding-Seite
 - [ ] Task 12: Actions-Seite + Invite-Picker entfernt + i18n
 - [ ] Task 13: Clean-State-Gate + React-Doctor + Live-Smoke grün

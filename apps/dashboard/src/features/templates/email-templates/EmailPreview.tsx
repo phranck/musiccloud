@@ -1,3 +1,4 @@
+import type { EmailBlock } from "@musiccloud/shared";
 import { ENDPOINTS } from "@musiccloud/shared";
 import { EyeIcon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
@@ -8,11 +9,8 @@ import { useI18n } from "@/context/I18nContext";
 import { api } from "@/lib/api";
 
 interface EmailPreviewProps {
-  headerBannerUrl: string;
-  headerText: string;
-  bodyText: string;
-  footerBannerUrl: string;
-  footerText: string;
+  /** The template body's ordered blocks, rendered wrapped in the global branding (header/footer asset + footer text). */
+  blocks: EmailBlock[];
 }
 
 const COLOR_SCHEME_STORAGE_KEY = "email-template:preview-color-scheme";
@@ -27,13 +25,7 @@ function loadColorScheme(): "light" | "dark" {
  * Fetches rendered HTML from the backend preview endpoint so the output is
  * always identical to what recipients receive.
  */
-export function EmailPreview({
-  headerBannerUrl,
-  headerText,
-  bodyText,
-  footerBannerUrl,
-  footerText,
-}: EmailPreviewProps) {
+export function EmailPreview({ blocks }: EmailPreviewProps) {
   const { messages } = useI18n();
   const m = messages.emailTemplates;
   const [colorScheme, setColorScheme] = useState<"light" | "dark">(loadColorScheme);
@@ -44,21 +36,14 @@ export function EmailPreview({
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       api
-        .post<{ html: string }>(ENDPOINTS.admin.emailTemplates.preview, {
-          headerBannerUrl: headerBannerUrl || null,
-          headerText: headerText || null,
-          bodyText,
-          footerText: footerText || null,
-          footerBannerUrl: footerBannerUrl || null,
-          colorScheme,
-        })
+        .post<{ html: string }>(ENDPOINTS.admin.emailTemplates.preview, { blocks, colorScheme })
         .then(({ html }) => setSrcDoc(html))
         .catch(() => {});
     }, 800);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [headerBannerUrl, headerText, bodyText, footerText, footerBannerUrl, colorScheme]);
+  }, [blocks, colorScheme]);
 
   return (
     <DashboardSection className="flex h-full min-h-0 flex-col overflow-hidden">

@@ -625,11 +625,7 @@ export interface DashboardMessages {
     templateName: string;
     templateSubject: string;
     subjectPlaceholder: string;
-    headerBanner: string;
-    headerText: string;
     bodyText: string;
-    footerBanner: string;
-    footerText: string;
     deleteTemplate: string;
     deleteTemplateConfirm: string;
     noTemplates: string;
@@ -643,9 +639,21 @@ export interface DashboardMessages {
     tableCreated: string;
     preview: string;
     previewTitle: string;
-    sectionHeader: string;
-    sectionBody: string;
-    sectionFooter: string;
+    blocksTitle: string;
+    blockTypeText: string;
+    blockTypeButton: string;
+    blockTypeImage: string;
+    blockTypeDivider: string;
+    blockTypeSpacer: string;
+    buttonLabel: string;
+    buttonUrl: string;
+    imageUpload: string;
+    imageAltText: string;
+    spacerHeight: string;
+    requiredVariablesTitle: string;
+    requiredVariableName: string;
+    requiredVariableDescription: string;
+    addRequiredVariable: string;
     exportTemplate: string;
     exportAll: string;
     importTemplate: string;
@@ -1333,11 +1341,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       templateName: "Name",
       templateSubject: "Betreff",
       subjectPlaceholder: "E-Mail-Betreff",
-      headerBanner: "Header-Banner",
-      headerText: "Header-Text",
       bodyText: "Inhalt",
-      footerBanner: "Footer-Banner",
-      footerText: "Footer-Text",
       deleteTemplate: "Vorlage l\u00f6schen",
       deleteTemplateConfirm: "Wirklich l\u00f6schen?",
       noTemplates: "Keine Vorlagen vorhanden",
@@ -1351,9 +1355,21 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       tableCreated: "Erstellt",
       preview: "Vorschau",
       previewTitle: "E-Mail-Vorschau",
-      sectionHeader: "Header",
-      sectionBody: "Inhalt",
-      sectionFooter: "Footer",
+      blocksTitle: "Inhalt",
+      blockTypeText: "Text",
+      blockTypeButton: "Button",
+      blockTypeImage: "Bild",
+      blockTypeDivider: "Trennlinie",
+      blockTypeSpacer: "Abstand",
+      buttonLabel: "Beschriftung",
+      buttonUrl: "Ziel-URL",
+      imageUpload: "Bild hochladen",
+      imageAltText: "Alt-Text",
+      spacerHeight: "H\u00f6he (px)",
+      requiredVariablesTitle: "Erwartete Variablen",
+      requiredVariableName: "Name",
+      requiredVariableDescription: "Beschreibung",
+      addRequiredVariable: "Variable hinzuf\u00fcgen",
       exportTemplate: "Exportieren",
       exportAll: "Alle exportieren",
       importTemplate: "Importieren",
@@ -2039,11 +2055,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       templateName: "Name",
       templateSubject: "Subject",
       subjectPlaceholder: "Email subject",
-      headerBanner: "Header Banner",
-      headerText: "Header Text",
       bodyText: "Body",
-      footerBanner: "Footer Banner",
-      footerText: "Footer Text",
       deleteTemplate: "Delete Template",
       deleteTemplateConfirm: "Really delete?",
       noTemplates: "No templates yet",
@@ -2057,9 +2069,21 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       tableCreated: "Created",
       preview: "Preview",
       previewTitle: "Email Preview",
-      sectionHeader: "Header",
-      sectionBody: "Body",
-      sectionFooter: "Footer",
+      blocksTitle: "Body",
+      blockTypeText: "Text",
+      blockTypeButton: "Button",
+      blockTypeImage: "Image",
+      blockTypeDivider: "Divider",
+      blockTypeSpacer: "Spacer",
+      buttonLabel: "Label",
+      buttonUrl: "Target URL",
+      imageUpload: "Upload image",
+      imageAltText: "Alt text",
+      spacerHeight: "Height (px)",
+      requiredVariablesTitle: "Required variables",
+      requiredVariableName: "Name",
+      requiredVariableDescription: "Description",
+      addRequiredVariable: "Add variable",
       exportTemplate: "Export",
       exportAll: "Export all",
       importTemplate: "Import",

@@ -1,6 +1,7 @@
 import { ENDPOINTS } from "@musiccloud/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { fileToDataUrl } from "@/lib/files";
 import type { AdminUser, AdminUserInvite } from "@/shared/types/admin";
 
 export interface CreateUserFormData {
@@ -58,15 +59,6 @@ export function useUpdateUser() {
       qc.invalidateQueries({ queryKey: ["users-admin"] });
       qc.invalidateQueries({ queryKey: ["auth", "me"] });
     },
-  });
-}
-
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error("Failed to read file"));
-    reader.readAsDataURL(file);
   });
 }
 

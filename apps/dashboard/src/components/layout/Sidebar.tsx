@@ -473,11 +473,8 @@ function EmailTemplatesGroup({
                 const created = await createTemplate.mutateAsync({
                   name: `${tpl.name} (Copy)`,
                   subject: tpl.subject,
-                  bodyText: tpl.bodyText,
-                  headerBannerUrl: tpl.headerBannerUrl ?? undefined,
-                  headerText: tpl.headerText ?? undefined,
-                  footerBannerUrl: tpl.footerBannerUrl ?? undefined,
-                  footerText: tpl.footerText ?? undefined,
+                  blocks: tpl.blocks,
+                  requiredVariables: tpl.requiredVariables,
                 });
                 void navigate(`/email-templates/${created.id}`);
               } catch (err) {
