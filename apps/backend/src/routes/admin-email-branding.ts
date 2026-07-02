@@ -13,7 +13,7 @@ import type { FastifyInstance } from "fastify";
 import type { EmailBrandingDto } from "../db/admin-repository.js";
 import { getManagedEmailBranding, updateManagedEmailBranding } from "../services/email-templates.js";
 
-/** Body accepted by `PUT /api/admin/email-branding`. Every field is optional; omitted fields keep their current stored value (see `updateManagedEmailBranding`'s `COALESCE`-based partial update). */
+/** Body accepted by `PUT /api/admin/email-branding`. Every field is optional; omitted fields keep their current stored value, while a field explicitly sent as `null` clears it (see `updateManagedEmailBranding`'s present-keys-only partial update). */
 interface EmailBrandingUpdateBody {
   headerAssetId?: string | null;
   footerAssetId?: string | null;

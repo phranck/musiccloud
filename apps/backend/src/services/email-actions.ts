@@ -73,6 +73,11 @@ export async function triggerEmailAction(actionKey: string, input: TriggerEmailA
     const template = await repo.getEmailTemplateById(binding.templateId);
     if (!template) continue;
 
+    // Send-time gate: did *this invocation* actually supply every variable
+    // the template requires? Mirrors the bind-time gate in
+    // `routes/admin-email-actions.ts` (which checks the action's *declared*
+    // variable set, not a specific invocation's) — keep both in sync if this
+    // rule changes.
     const missingVariable = template.requiredVariables.find((rv) => !(rv.name in input.variables));
     if (missingVariable) {
       throw new Error(

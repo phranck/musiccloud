@@ -111,7 +111,10 @@ export default async function adminEmailActionsRoutes(app: FastifyInstance) {
     // keeps `triggerEmailAction` from ever rendering a template with an
     // unresolved `{{var}}` placeholder — enforced here at bind-time so a
     // bad pairing is rejected immediately instead of surfacing as a runtime
-    // throw the next time the action fires.
+    // throw the next time the action fires. Mirrors the send-time gate in
+    // `services/email-actions.ts`'s `triggerEmailAction` (which checks the
+    // variables an actual invocation supplied, not the action's declared
+    // set) — keep both in sync if this rule changes.
     const incompatible = template.requiredVariables.find((rv) => !meta.variables.includes(rv.name));
     if (incompatible) {
       return reply.status(400).send({
