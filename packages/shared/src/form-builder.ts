@@ -30,6 +30,22 @@ export type FieldType =
   | "separator"
   | "paragraph";
 
+/** Value namespace for {@link FieldType} — compare against these members instead of inline literals. */
+export const FormFieldType = {
+  Text: "text",
+  Email: "email",
+  Textarea: "textarea",
+  Select: "select",
+  MultiSelect: "multi-select",
+  Checkbox: "checkbox",
+  RichText: "richtext",
+  Button: "button",
+  Password: "password",
+  Headline: "headline",
+  Separator: "separator",
+  Paragraph: "paragraph",
+} as const satisfies Record<string, FieldType>;
+
 /**
  * Visual style variants for richtext blocks.
  *
@@ -199,6 +215,12 @@ export interface SubmissionStepEmail {
  * with a matching handler in the backend pipeline.
  */
 export type SubmissionStep = SubmissionStepStore | SubmissionStepEmail;
+
+/** Value namespace for the step discriminant — compare against these members instead of inline literals. */
+export const SubmissionStepType = {
+  Store: "store",
+  Email: "email",
+} as const satisfies Record<string, SubmissionStep["type"]>;
 
 /** Defines the processing chain and success UI after a form is submitted. */
 export interface SubmissionConfig {

@@ -90,6 +90,12 @@ export const FormBuilderListPage = lazy(() =>
   })),
 );
 
+export const FormBuilderEditPage = lazy(() =>
+  import("@/features/templates/form-builder/FormBuilderEditPage").then((m) => ({
+    default: m.FormBuilderEditPage,
+  })),
+);
+
 export const EmailTemplateListPage = lazy(() =>
   import("@/features/templates/email-templates/EmailTemplateListPage").then((m) => ({
     default: m.EmailTemplateListPage,
@@ -131,11 +137,3 @@ export const ServicesPage = lazy(() =>
     default: m.ServicesPage,
   })),
 );
-
-export function EditorStubPage() {
-  return (
-    <div className="flex flex-1 items-center justify-center">
-      <p className="text-[var(--ds-text-muted)]">Editor coming soon</p>
-    </div>
-  );
-}

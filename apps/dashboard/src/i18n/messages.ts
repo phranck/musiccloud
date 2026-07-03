@@ -525,6 +525,36 @@ export interface DashboardMessages {
     nameConflict: string;
     noFieldSelected: string;
     noFieldSelectedHint: string;
+    canvasTitle: string;
+    paletteTitle: string;
+    preferencesTitle: string;
+    exportForm: string;
+    exportUnsavedWarning: string;
+    importForm: string;
+    importSuccess: string;
+    importError: string;
+    importInvalidFile: string;
+    importConflictTitle: string;
+    importConflictHint: string;
+    importNewNameLabel: string;
+    importOverwrite: string;
+    importRename: string;
+    importSkip: string;
+    noLabel: string;
+    fieldTypes: {
+      text: string;
+      email: string;
+      textarea: string;
+      select: string;
+      multiSelect: string;
+      checkbox: string;
+      richtext: string;
+      button: string;
+      password: string;
+      headline: string;
+      separator: string;
+      paragraph: string;
+    };
     deleteConfirmPrefix: string;
     deleteConfirmSuffix: string;
     deleteConfirmDescription: string;
@@ -579,6 +609,20 @@ export interface DashboardMessages {
       headlineLevelH2: string;
       headlineLevelH3: string;
       separatorNoSettings: string;
+      inputType: string;
+      inputTypeText: string;
+      inputTypeEmail: string;
+      inputTypePassword: string;
+      inputTypeUrl: string;
+      inputTypeTel: string;
+      inputTypeDate: string;
+      inputTypeNumber: string;
+      buttonAction: string;
+      buttonActionNone: string;
+      buttonActionOpenUrl: string;
+      buttonActionCopyClipboard: string;
+      buttonActionClearField: string;
+      buttonActionSourceField: string;
       loadingEditor: string;
       validation: string;
       spanAriaOf: string;
@@ -601,6 +645,9 @@ export interface DashboardMessages {
       emailSubjectPlaceholder: string;
       emailTemplate: string;
       emailTemplateNone: string;
+      emailReplyTo: string;
+      emailReplyToNone: string;
+      successText: string;
       successBehaviourLabel: string;
       successMessage: string;
       successHeadline: string;
@@ -1285,6 +1332,36 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       nameConflict: "Name bereits vergeben",
       noFieldSelected: "Kein Feld ausgew\u00e4hlt",
       noFieldSelectedHint: "W\u00e4hle ein Feld, um es zu bearbeiten.",
+      canvasTitle: "Formular",
+      paletteTitle: "Felder",
+      preferencesTitle: "Einstellungen",
+      exportForm: "Exportieren",
+      exportUnsavedWarning: "Erst speichern, dann exportieren.",
+      importForm: "Importieren",
+      importSuccess: "{n} Formulare importiert",
+      importError: "Fehler beim Import",
+      importInvalidFile: "Ung\u00fcltige Datei",
+      importConflictTitle: "Formular \u201e{name}\u201c existiert bereits",
+      importConflictHint: "W\u00e4hle, wie mit dem bestehenden Formular verfahren werden soll.",
+      importNewNameLabel: "Neuer Name",
+      importOverwrite: "\u00dcberschreiben",
+      importRename: "Umbenennen",
+      importSkip: "\u00dcberspringen",
+      noLabel: "Kein Label",
+      fieldTypes: {
+        text: "Input",
+        email: "E-Mail",
+        textarea: "Textbereich",
+        select: "Auswahl",
+        multiSelect: "Mehrfachauswahl",
+        checkbox: "Checkbox",
+        richtext: "Markdown",
+        button: "Button",
+        password: "Passwort",
+        headline: "\u00dcberschrift",
+        separator: "Trennlinie",
+        paragraph: "Textabsatz",
+      },
       deleteConfirmPrefix: "Formular",
       deleteConfirmSuffix: "wirklich l\u00f6schen?",
       deleteConfirmDescription: "Alle zugeordneten Einsendungen werden ebenfalls gel\u00f6scht.",
@@ -1336,6 +1413,20 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         headlineLevelH2: "\u00dcberschrift 2",
         headlineLevelH3: "\u00dcberschrift 3",
         separatorNoSettings: "Keine Einstellungen",
+        inputType: "Eingabetyp",
+        inputTypeText: "Text",
+        inputTypeEmail: "E-Mail",
+        inputTypePassword: "Passwort",
+        inputTypeUrl: "URL",
+        inputTypeTel: "Telefon",
+        inputTypeDate: "Datum",
+        inputTypeNumber: "Zahl",
+        buttonAction: "Button-Aktion",
+        buttonActionNone: "Keine",
+        buttonActionOpenUrl: "URL \u00f6ffnen",
+        buttonActionCopyClipboard: "In Zwischenablage kopieren",
+        buttonActionClearField: "Feld leeren",
+        buttonActionSourceField: "Quellfeld",
         loadingEditor: "Editor wird geladen\u2026",
         validation: "Validierung",
         spanAriaOf: "von",
@@ -1358,6 +1449,9 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         emailSubjectPlaceholder: "E-Mail-Betreff",
         emailTemplate: "E-Mail-Vorlage",
         emailTemplateNone: "Keine",
+        emailReplyTo: "Antwort an (Reply-To)",
+        emailReplyToNone: "Keins",
+        successText: "Text",
         successBehaviourLabel: "Nach dem Absenden",
         successMessage: "Erfolgsmeldung",
         successHeadline: "\u00dcberschrift",
@@ -2045,6 +2139,36 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       nameConflict: "Name already taken",
       noFieldSelected: "No field selected",
       noFieldSelectedHint: "Select a field to edit it.",
+      canvasTitle: "Form",
+      paletteTitle: "Fields",
+      preferencesTitle: "Settings",
+      exportForm: "Export",
+      exportUnsavedWarning: "Save before exporting.",
+      importForm: "Import",
+      importSuccess: "{n} forms imported",
+      importError: "Import failed",
+      importInvalidFile: "Invalid file",
+      importConflictTitle: "Form \u201c{name}\u201d already exists",
+      importConflictHint: "Choose how to handle the existing form.",
+      importNewNameLabel: "New name",
+      importOverwrite: "Overwrite",
+      importRename: "Rename",
+      importSkip: "Skip",
+      noLabel: "No label",
+      fieldTypes: {
+        text: "Input",
+        email: "Email",
+        textarea: "Text area",
+        select: "Select",
+        multiSelect: "Multi-select",
+        checkbox: "Checkbox",
+        richtext: "Markdown",
+        button: "Button",
+        password: "Password",
+        headline: "Heading",
+        separator: "Separator",
+        paragraph: "Paragraph",
+      },
       deleteConfirmPrefix: "Form",
       deleteConfirmSuffix: "really delete?",
       deleteConfirmDescription: "All associated submissions will also be deleted.",
@@ -2096,6 +2220,20 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         headlineLevelH2: "Heading 2",
         headlineLevelH3: "Heading 3",
         separatorNoSettings: "No settings",
+        inputType: "Input type",
+        inputTypeText: "Text",
+        inputTypeEmail: "Email",
+        inputTypePassword: "Password",
+        inputTypeUrl: "URL",
+        inputTypeTel: "Phone",
+        inputTypeDate: "Date",
+        inputTypeNumber: "Number",
+        buttonAction: "Button action",
+        buttonActionNone: "None",
+        buttonActionOpenUrl: "Open URL",
+        buttonActionCopyClipboard: "Copy to clipboard",
+        buttonActionClearField: "Clear field",
+        buttonActionSourceField: "Source field",
         loadingEditor: "Loading editor\u2026",
         validation: "Validation",
         spanAriaOf: "of",
@@ -2118,6 +2256,9 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         emailSubjectPlaceholder: "Email subject",
         emailTemplate: "Email template",
         emailTemplateNone: "None",
+        emailReplyTo: "Reply-To",
+        emailReplyToNone: "None",
+        successText: "Text",
         successBehaviourLabel: "After submission",
         successMessage: "Success message",
         successHeadline: "Headline",
