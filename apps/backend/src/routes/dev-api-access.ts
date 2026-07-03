@@ -7,13 +7,14 @@
  * a client/token that exists but belongs to a different developer account
  * is reported as 404, never 403, so its existence is not leaked.
  */
-import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import { EmailAction, ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { ApiAccessRequest, ApiClient, ApiClientToken } from "../db/api-access-repository.js";
 import { getApiAccessRepository } from "../db/index.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { RateLimiter } from "../lib/infra/rate-limiter.js";
 import { generateApiToken } from "../services/api-access-token.js";
+import { notifyDeveloper } from "../services/developer-notifications.js";
 
 const MAX_APP_NAME_LENGTH = 200;
 const MAX_APP_DESCRIPTION_LENGTH = 2000;
@@ -165,6 +166,9 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
         eventType: "token_created",
         actorDeveloperAccountId: request.developerAccountId!,
       });
+      await notifyDeveloper(request.log, client.developerAccountId, EmailAction.DeveloperApiTokenCreated, {
+        appName: client.appName,
+      });
       return reply.status(201).send({ token: { ...toTokenResponse(token), rawToken: generated.raw } });
     },
   );
@@ -201,6 +205,10 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
       eventType: "token_rotated",
       actorDeveloperAccountId: request.developerAccountId!,
       eventData: { rotatedFromTokenId: rotated.oldToken.id },
+    });
+    // A rotation mints a new token, so the same "token created" notification applies.
+    await notifyDeveloper(request.log, owned.client.developerAccountId, EmailAction.DeveloperApiTokenCreated, {
+      appName: owned.client.appName,
     });
     return reply.status(201).send({ token: { ...toTokenResponse(rotated.newToken), rawToken: generated.raw } });
   });

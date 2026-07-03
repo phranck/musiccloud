@@ -134,6 +134,18 @@ export const EMAIL_VARIABLES = {
     description: "One-time developer password-reset link.",
     sampleValue: "https://developer.musiccloud.io/reset?token=sample-token",
   },
+  appName: {
+    name: "appName",
+    scope: EmailVariableScope.Context,
+    description: "Name of the developer's registered application/client.",
+    sampleValue: "My Music App",
+  },
+  reviewNote: {
+    name: "reviewNote",
+    scope: EmailVariableScope.Context,
+    description: "Admin's note explaining an API-access review decision.",
+    sampleValue: "Please describe your use case in more detail.",
+  },
 } as const satisfies Record<string, EmailVariableMeta>;
 
 /**

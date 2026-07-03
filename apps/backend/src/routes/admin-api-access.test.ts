@@ -52,11 +52,22 @@ const mockAdminRepo = {
   findAdminById: vi.fn(),
 };
 
+const mockDeveloperRepo = {
+  findDeveloperAccountById: vi.fn(),
+};
+
 vi.mock("../db/index.js", () => ({
   getApiAccessRepository: async () => mockRepo,
   getAdminRepository: async () => mockAdminRepo,
+  getDeveloperRepository: async () => mockDeveloperRepo,
 }));
 
+vi.mock("../services/email-actions.js", () => ({
+  triggerEmailAction: vi.fn(async () => undefined),
+}));
+
+import { EmailAction, EmailRecipientKind } from "@musiccloud/shared";
+import { triggerEmailAction } from "../services/email-actions.js";
 import { adminApiAccessRoutes } from "./admin-api-access.js";
 
 const TEST_JWT_SECRET = "test-admin-api-access-secret-key-do-not-use-in-prod";
@@ -354,6 +365,54 @@ describe("adminApiAccessRoutes", () => {
       );
     });
 
+    it("notifies the developer about the approval with the app name as context", async () => {
+      const { app, token } = await buildApp("admin");
+      mockRepo.findApiAccessRequestById.mockResolvedValue(makeRequest({ appName: "My Music App" }));
+      mockRepo.reviewApiAccessRequest.mockResolvedValue(makeRequest({ status: "approved" }));
+      mockRepo.createApiClient.mockResolvedValue(makeClient());
+      mockDeveloperRepo.findDeveloperAccountById.mockResolvedValue({
+        id: "dev-acc-1",
+        email: "dev@example.com",
+        displayName: "Dev Jane",
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: ROUTE_TEMPLATES.admin.developer.apiAccess.requestApprove.replace(":id", "req-1"),
+        headers: { authorization: `Bearer ${token}` },
+        payload: {},
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(vi.mocked(triggerEmailAction)).toHaveBeenCalledWith(EmailAction.DeveloperApiAccessApproved, {
+        to: { email: "dev@example.com" },
+        recipient: { kind: EmailRecipientKind.DeveloperAccount, email: "dev@example.com", displayName: "Dev Jane" },
+        context: { appName: "My Music App" },
+      });
+    });
+
+    it("still approves when the notification trigger throws", async () => {
+      const { app, token } = await buildApp("admin");
+      mockRepo.findApiAccessRequestById.mockResolvedValue(makeRequest());
+      mockRepo.reviewApiAccessRequest.mockResolvedValue(makeRequest({ status: "approved" }));
+      mockRepo.createApiClient.mockResolvedValue(makeClient());
+      mockDeveloperRepo.findDeveloperAccountById.mockResolvedValue({
+        id: "dev-acc-1",
+        email: "dev@example.com",
+        displayName: null,
+      });
+      vi.mocked(triggerEmailAction).mockRejectedValueOnce(new Error("smtp down"));
+
+      const response = await app.inject({
+        method: "POST",
+        url: ROUTE_TEMPLATES.admin.developer.apiAccess.requestApprove.replace(":id", "req-1"),
+        headers: { authorization: `Bearer ${token}` },
+        payload: {},
+      });
+
+      expect(response.statusCode).toBe(200);
+    });
+
     it("rejects an already-reviewed request with 400 and performs no mutation", async () => {
       const { app, token } = await buildApp("owner");
       mockRepo.findApiAccessRequestById.mockResolvedValue(makeRequest({ status: "approved" }));
@@ -386,6 +445,33 @@ describe("adminApiAccessRoutes", () => {
   });
 
   describe("POST requestReject", () => {
+    it("notifies the developer about the rejection with app name and review note", async () => {
+      const { app, token } = await buildApp("admin");
+      mockRepo.findApiAccessRequestById.mockResolvedValue(makeRequest({ appName: "My Music App" }));
+      mockRepo.reviewApiAccessRequest.mockResolvedValue(
+        makeRequest({ status: "rejected", reviewNote: "Not enough detail." }),
+      );
+      mockDeveloperRepo.findDeveloperAccountById.mockResolvedValue({
+        id: "dev-acc-1",
+        email: "dev@example.com",
+        displayName: "Dev Jane",
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: ROUTE_TEMPLATES.admin.developer.apiAccess.requestReject.replace(":id", "req-1"),
+        headers: { authorization: `Bearer ${token}` },
+        payload: { reviewNote: "Not enough detail." },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(vi.mocked(triggerEmailAction)).toHaveBeenCalledWith(EmailAction.DeveloperApiAccessRejected, {
+        to: { email: "dev@example.com" },
+        recipient: { kind: EmailRecipientKind.DeveloperAccount, email: "dev@example.com", displayName: "Dev Jane" },
+        context: { appName: "My Music App", reviewNote: "Not enough detail." },
+      });
+    });
+
     it("requires reviewNote and returns 400 without it", async () => {
       const { app, token } = await buildApp("owner");
       const response = await app.inject({
@@ -484,7 +570,31 @@ describe("adminApiAccessRoutes", () => {
     });
   });
 
-  describe("POST clientCreateToken", () => {
+  describe("POST clientCreateToken (admin-issued)", () => {
+    it("notifies the developer that a token was created for their app", async () => {
+      const { app, token } = await buildApp("admin");
+      mockRepo.findApiClientById.mockResolvedValue(makeClient({ appName: "My Music App" }));
+      mockRepo.createApiClientToken.mockResolvedValue(makeToken());
+      mockDeveloperRepo.findDeveloperAccountById.mockResolvedValue({
+        id: "dev-acc-1",
+        email: "dev@example.com",
+        displayName: "Dev Jane",
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: ROUTE_TEMPLATES.admin.developer.apiAccess.clientCreateToken.replace(":id", "client-1"),
+        headers: { authorization: `Bearer ${token}` },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(vi.mocked(triggerEmailAction)).toHaveBeenCalledWith(EmailAction.DeveloperApiTokenCreated, {
+        to: { email: "dev@example.com" },
+        recipient: { kind: EmailRecipientKind.DeveloperAccount, email: "dev@example.com", displayName: "Dev Jane" },
+        context: { appName: "My Music App" },
+      });
+    });
+
     it("returns the raw token once, never the hash", async () => {
       const { app, token } = await buildApp("owner");
       mockRepo.findApiClientById.mockResolvedValue(makeClient());
@@ -561,7 +671,33 @@ describe("adminApiAccessRoutes", () => {
     });
   });
 
-  describe("POST tokenRotate", () => {
+  describe("POST tokenRotate (admin)", () => {
+    it("notifies the developer that a new token was created by the rotation", async () => {
+      const { app, token } = await buildApp("admin");
+      mockRepo.rotateApiClientToken.mockResolvedValue({
+        oldToken: makeToken({ id: "token-old", status: "revoked" }),
+        newToken: makeToken({ id: "token-new", clientId: "client-1" }),
+      });
+      mockRepo.findApiClientById.mockResolvedValue(makeClient({ appName: "My Music App" }));
+      mockDeveloperRepo.findDeveloperAccountById.mockResolvedValue({
+        id: "dev-acc-1",
+        email: "dev@example.com",
+        displayName: null,
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: ROUTE_TEMPLATES.admin.developer.apiAccess.tokenRotate.replace(":id", "token-old"),
+        headers: { authorization: `Bearer ${token}` },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(vi.mocked(triggerEmailAction)).toHaveBeenCalledWith(
+        EmailAction.DeveloperApiTokenCreated,
+        expect.objectContaining({ context: { appName: "My Music App" } }),
+      );
+    });
+
     it("rotates the token, returns the new raw token once, and audits without leaking secrets", async () => {
       const { app, token } = await buildApp("owner");
       mockRepo.rotateApiClientToken.mockResolvedValue({

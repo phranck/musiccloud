@@ -206,6 +206,21 @@ describe("triggerEmailAction", () => {
     expect(vi.mocked(repo.getEmailTemplateById)).not.toHaveBeenCalledWith(2);
   });
 
+  it("silently skips an optional (required: false) action with zero enabled bindings", async () => {
+    vi.mocked(repo.listEmailActionBindings).mockResolvedValueOnce([]);
+
+    await expect(
+      triggerEmailAction("developerAccountDeleted", {
+        to: { email: "dev@example.com" },
+        recipient: { kind: EmailRecipientKind.DeveloperAccount, email: "dev@example.com", displayName: "Dev" },
+        context: {},
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(vi.mocked(sendEmail)).not.toHaveBeenCalled();
+    expect(vi.mocked(repo.getEmailBranding)).not.toHaveBeenCalled();
+  });
+
   it("throws when a required action has zero enabled bindings", async () => {
     vi.mocked(repo.listEmailActionBindings).mockResolvedValueOnce([]);
 

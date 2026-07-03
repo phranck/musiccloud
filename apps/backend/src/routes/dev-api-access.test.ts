@@ -19,7 +19,7 @@
  */
 import cookie from "@fastify/cookie";
 import jwt from "@fastify/jwt";
-import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import { EmailAction, EmailRecipientKind, ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import Fastify, { type FastifyInstance } from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -27,6 +27,14 @@ import type { ApiAccessRequest, ApiClient, ApiClientToken } from "../db/api-acce
 import type { DeveloperAccount } from "../db/developer-repository.js";
 
 vi.stubEnv("DISABLE_RATE_LIMIT", "true");
+
+const mockDeveloperRepo = {
+  findDeveloperAccountById: vi.fn(async () => ({
+    id: "dev-1",
+    email: "dev@example.com",
+    displayName: "Dev Jane",
+  })),
+};
 
 const mockRepo = {
   createApiAccessRequest: vi.fn(),
@@ -49,8 +57,14 @@ const mockRepo = {
 
 vi.mock("../db/index.js", () => ({
   getApiAccessRepository: async () => mockRepo,
+  getDeveloperRepository: async () => mockDeveloperRepo,
 }));
 
+vi.mock("../services/email-actions.js", () => ({
+  triggerEmailAction: vi.fn(async () => undefined),
+}));
+
+import { triggerEmailAction } from "../services/email-actions.js";
 import { devApiAccessRoutes } from "./dev-api-access.js";
 
 /**
@@ -263,6 +277,26 @@ describe("devApiAccessRoutes", () => {
   });
 
   describe("POST clientCreateToken", () => {
+    it("notifies the developer that a token was created for their app", async () => {
+      mockRepo.findApiClientById.mockResolvedValue(
+        makeClient({ developerAccountId: "dev-1", appName: "My Music App" }),
+      );
+      mockRepo.createApiClientToken.mockResolvedValue(makeToken());
+      const app = await buildApp("dev-1");
+
+      const res = await app.inject({
+        method: "POST",
+        url: ROUTE_TEMPLATES.dev.apiAccess.clientCreateToken.replace(":id", "client-1"),
+      });
+
+      expect(res.statusCode).toBe(201);
+      expect(vi.mocked(triggerEmailAction)).toHaveBeenCalledWith(EmailAction.DeveloperApiTokenCreated, {
+        to: { email: "dev@example.com" },
+        recipient: { kind: EmailRecipientKind.DeveloperAccount, email: "dev@example.com", displayName: "Dev Jane" },
+        context: { appName: "My Music App" },
+      });
+    });
+
     it("returns the raw token once for an owned client, never the hash", async () => {
       const app = await buildApp("dev-1");
       mockRepo.findApiClientById.mockResolvedValue(makeClient({ developerAccountId: "dev-1" }));
@@ -366,6 +400,28 @@ describe("devApiAccessRoutes", () => {
   });
 
   describe("POST tokenRotate", () => {
+    it("notifies the developer that a new token was created by the rotation", async () => {
+      const owned = makeClient({ developerAccountId: "dev-1", appName: "My Music App" });
+      mockRepo.findApiClientTokenById.mockResolvedValue(makeToken({ clientId: "client-1" }));
+      mockRepo.findApiClientById.mockResolvedValue(owned);
+      mockRepo.rotateApiClientToken.mockResolvedValue({
+        oldToken: makeToken({ id: "token-old", status: "revoked" }),
+        newToken: makeToken({ id: "token-new" }),
+      });
+      const app = await buildApp("dev-1");
+
+      const res = await app.inject({
+        method: "POST",
+        url: ROUTE_TEMPLATES.dev.apiAccess.tokenRotate.replace(":id", "token-old"),
+      });
+
+      expect(res.statusCode).toBe(201);
+      expect(vi.mocked(triggerEmailAction)).toHaveBeenCalledWith(
+        EmailAction.DeveloperApiTokenCreated,
+        expect.objectContaining({ context: { appName: "My Music App" } }),
+      );
+    });
+
     it("rotates an owned token, returns the new raw token once, and audits without leaking secrets", async () => {
       const app = await buildApp("dev-1");
       mockRepo.findApiClientTokenById.mockResolvedValue(makeToken({ id: "token-1" }));

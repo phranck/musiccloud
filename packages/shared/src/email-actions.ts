@@ -57,6 +57,34 @@ export const EMAIL_ACTIONS = {
     recipientKind: EmailRecipientKind.DeveloperAccount,
     required: true,
   },
+  developerAccountDeleted: {
+    key: "developerAccountDeleted",
+    label: "Developer account deleted",
+    contextVariables: [],
+    recipientKind: EmailRecipientKind.DeveloperAccount,
+    required: false,
+  },
+  developerApiAccessApproved: {
+    key: "developerApiAccessApproved",
+    label: "Developer API access approved",
+    contextVariables: ["appName"],
+    recipientKind: EmailRecipientKind.DeveloperAccount,
+    required: false,
+  },
+  developerApiAccessRejected: {
+    key: "developerApiAccessRejected",
+    label: "Developer API access rejected",
+    contextVariables: ["appName", "reviewNote"],
+    recipientKind: EmailRecipientKind.DeveloperAccount,
+    required: false,
+  },
+  developerApiTokenCreated: {
+    key: "developerApiTokenCreated",
+    label: "Developer API token created",
+    contextVariables: ["appName"],
+    recipientKind: EmailRecipientKind.DeveloperAccount,
+    required: false,
+  },
 } as const satisfies Record<string, EmailActionMeta>;
 
 /** Ein Action-Key aus {@link EMAIL_ACTIONS}. */
@@ -67,6 +95,10 @@ export const EmailAction = {
   AdminInviteSent: "adminInviteSent",
   DeveloperVerificationRequested: "developerVerificationRequested",
   DeveloperPasswordResetRequested: "developerPasswordResetRequested",
+  DeveloperAccountDeleted: "developerAccountDeleted",
+  DeveloperApiAccessApproved: "developerApiAccessApproved",
+  DeveloperApiAccessRejected: "developerApiAccessRejected",
+  DeveloperApiTokenCreated: "developerApiTokenCreated",
 } as const satisfies Record<string, EmailActionKey>;
 
 /**

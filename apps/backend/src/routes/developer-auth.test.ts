@@ -546,6 +546,46 @@ describe("GET /api/dev/auth/me", () => {
 });
 
 describe("POST /api/dev/auth/delete-account", () => {
+  it("triggers the optional account-deleted notification for the account being removed", async () => {
+    const passwordHash = await hashPassword(VALID_PASSWORD);
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount({ passwordHash }));
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.deleteAccount,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { password: VALID_PASSWORD },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(vi.mocked(triggerEmailAction)).toHaveBeenCalledTimes(1);
+    const [actionKey, input] = vi.mocked(triggerEmailAction).mock.calls[0]!;
+    expect(actionKey).toBe(EmailAction.DeveloperAccountDeleted);
+    expect(input.to).toEqual({ email: "dev@example.com" });
+    expect(input.recipient).toEqual({
+      kind: EmailRecipientKind.DeveloperAccount,
+      email: "dev@example.com",
+      displayName: null,
+    });
+    expect(input.context).toEqual({});
+  });
+
+  it("does not fail the deletion when the notification trigger throws", async () => {
+    const passwordHash = await hashPassword(VALID_PASSWORD);
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount({ passwordHash }));
+    vi.mocked(triggerEmailAction).mockRejectedValueOnce(new Error("smtp down"));
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.deleteAccount,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { password: VALID_PASSWORD },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(vi.mocked(repo.deleteDeveloperAccount)).toHaveBeenCalledWith("dev-acc-1");
+  });
+
   it("deletes the account, clears the session cookie and returns ok on a correct password", async () => {
     const passwordHash = await hashPassword(VALID_PASSWORD);
     vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount({ passwordHash }));

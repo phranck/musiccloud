@@ -7,12 +7,13 @@
  * already let the JWT through, because that guard only checks the JWT's
  * `role: "admin"` claim, not the finer owner/admin/moderator distinction.
  */
-import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import { EmailAction, ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AdminUser } from "../db/admin-repository.js";
 import type { ApiAccessRequest, ApiClient, ApiClientToken } from "../db/api-access-repository.js";
 import { getAdminRepository, getApiAccessRepository } from "../db/index.js";
 import { generateApiToken } from "../services/api-access-token.js";
+import { notifyDeveloper } from "../services/developer-notifications.js";
 
 /**
  * Resolves the caller's full DB record from the verified JWT payload,
@@ -148,6 +149,9 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
       eventType: "request_approved",
       actorAdminId: caller.id,
     });
+    await notifyDeveloper(request.log, found.developerAccountId, EmailAction.DeveloperApiAccessApproved, {
+      appName: found.appName,
+    });
     return reply.send({ request: toRequestResponse(reviewed!), client: toClientResponse(client, []) });
   });
 
@@ -171,6 +175,10 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
       reviewNote: body.reviewNote.trim(),
     });
     await repo.createApiAccessAuditEvent({ requestId: id, eventType: "request_rejected", actorAdminId: caller.id });
+    await notifyDeveloper(request.log, found.developerAccountId, EmailAction.DeveloperApiAccessRejected, {
+      appName: found.appName,
+      reviewNote: body.reviewNote.trim(),
+    });
     return reply.send({ request: toRequestResponse(reviewed!) });
   });
 
@@ -231,6 +239,9 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
       eventType: "token_created",
       actorAdminId: caller.id,
     });
+    await notifyDeveloper(request.log, client.developerAccountId, EmailAction.DeveloperApiTokenCreated, {
+      appName: client.appName,
+    });
     return reply.status(201).send({ token: { ...toTokenResponse(token), rawToken: generated.raw } });
   });
 
@@ -268,6 +279,13 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
       actorAdminId: caller.id,
       eventData: { rotatedFromTokenId: rotated.oldToken.id },
     });
+    // A rotation mints a new token, so the same "token created" notification applies.
+    const rotatedClient = await repo.findApiClientById(rotated.newToken.clientId);
+    if (rotatedClient) {
+      await notifyDeveloper(request.log, rotatedClient.developerAccountId, EmailAction.DeveloperApiTokenCreated, {
+        appName: rotatedClient.appName,
+      });
+    }
     return reply.status(201).send({ token: { ...toTokenResponse(rotated.newToken), rawToken: generated.raw } });
   });
 }

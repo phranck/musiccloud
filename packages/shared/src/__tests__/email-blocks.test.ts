@@ -72,6 +72,22 @@ describe("email actions registry", () => {
     expect(meta!.recipientKind).toBe(EmailRecipientKind.DeveloperAccount);
   });
 
+  it("exposes the optional developer lifecycle notifications (MC-084)", () => {
+    const expectations = [
+      { key: EmailAction.DeveloperAccountDeleted, contextVariables: [] as string[] },
+      { key: EmailAction.DeveloperApiAccessApproved, contextVariables: ["appName"] },
+      { key: EmailAction.DeveloperApiAccessRejected, contextVariables: ["appName", "reviewNote"] },
+      { key: EmailAction.DeveloperApiTokenCreated, contextVariables: ["appName"] },
+    ];
+    for (const expected of expectations) {
+      const meta = getEmailActionMeta(expected.key);
+      expect(meta).toBeDefined();
+      expect(meta!.required).toBe(false);
+      expect(meta!.recipientKind).toBe(EmailRecipientKind.DeveloperAccount);
+      expect(meta!.contextVariables).toEqual(expected.contextVariables);
+    }
+  });
+
   it("declares every context variable in the EMAIL_VARIABLES catalog with Context scope", () => {
     for (const meta of Object.values(EMAIL_ACTIONS)) {
       for (const name of meta.contextVariables) {

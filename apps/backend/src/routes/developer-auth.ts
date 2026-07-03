@@ -441,6 +441,23 @@ export async function devAuthRoutes(app: FastifyInstance) {
       }
     }
 
+    // Optional farewell notification (MC-084): fired BEFORE the delete while
+    // the account data still exists; a mail failure must never block the
+    // deletion itself (mirrors the invite route's resilience semantics).
+    try {
+      await triggerEmailAction(EmailAction.DeveloperAccountDeleted, {
+        to: { email: account.email },
+        recipient: {
+          kind: EmailRecipientKind.DeveloperAccount,
+          email: account.email,
+          displayName: account.displayName,
+        },
+        context: {},
+      });
+    } catch (error) {
+      request.log.error({ err: error }, "failed to send account-deleted notification");
+    }
+
     const repo = await getDeveloperRepository();
     await repo.deleteDeveloperAccount(account.id);
     reply.clearCookie(SESSION_COOKIE_NAME, clearedSessionCookieOptions());
