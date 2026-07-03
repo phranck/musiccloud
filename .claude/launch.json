@@ -7,6 +7,13 @@
       "runtimeArgs": ["dev"],
       "port": 3001,
       "autoPort": true
+    },
+    {
+      "name": "dashboard",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@musiccloud/dashboard", "dev"],
+      "port": 4500,
+      "autoPort": true
     }
   ]
 }
