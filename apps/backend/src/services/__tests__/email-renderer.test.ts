@@ -157,6 +157,12 @@ describe("renderBlocks — page background (send path)", () => {
     expect(html).toContain("linear-gradient(180deg, #123456, #abcdef)");
   });
 
+  it("gives the page-bg cell 80px top/bottom padding (double the 16px side inset) around the card", () => {
+    const html = renderBlocks([...body], NO_OVERRIDES, GLOBAL, {}, baseUrl);
+    const cellTag = html.match(/<td align="center" class="em-page-bg" style="([^"]*)"/)?.[1] ?? "";
+    expect(cellTag).toContain("padding:80px 16px;");
+  });
+
   it("also paints the light gradient on <body>, so the sky fills the viewport beyond the email's own content height", () => {
     const html = renderBlocks([...body], NO_OVERRIDES, GLOBAL, {}, baseUrl);
     const bodyTag = html.match(/<body style="([^"]*)"/)?.[1] ?? "";

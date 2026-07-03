@@ -231,7 +231,9 @@ function buildPageBackground(top: string, bottom: string, imageUrl: string | nul
   const backgroundCss = buildBackgroundCss(top, bottom, imageUrl);
   return {
     bodyStyle: backgroundCss,
-    cellStyle: `padding:40px 16px;${backgroundCss}`,
+    // 80px top/bottom (double the 16px side inset) gives the card generous
+    // breathing room above and below within the page background.
+    cellStyle: `padding:80px 16px;${backgroundCss}`,
   };
 }
 
