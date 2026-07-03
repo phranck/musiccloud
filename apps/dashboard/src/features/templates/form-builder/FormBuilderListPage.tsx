@@ -6,21 +6,65 @@ import {
   DashboardField,
   DashboardInput,
 } from "@musiccloud/dashboard-ui";
-import { CheckCircleIcon, CircleIcon, FileIcon, FileTextIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
-import { useState } from "react";
+import type { FormConfigPayload } from "@musiccloud/shared";
+import {
+  CheckCircleIcon,
+  CircleIcon,
+  FileIcon,
+  FileTextIcon,
+  PlusCircleIcon,
+  TrashIcon,
+  TrayArrowDownIcon,
+} from "@phosphor-icons/react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { useI18n } from "@/context/I18nContext";
+import { ImportConflictDialog } from "@/features/templates/form-builder/ImportConflictDialog";
 import {
   useCreateFormConfig,
   useDeleteFormConfig,
   useFormConfigs,
+  useImportFormConfig,
   useSetFormConfigActive,
 } from "@/features/templates/hooks/useFormConfig";
+import { useImportQueue } from "@/lib/useImportQueue";
 import { Dialog, dialogHeaderIconClass } from "@/shared/ui/Dialog";
+
+/** One entry of an import file: a form payload plus its target name. */
+type ImportFormData = FormConfigPayload & { name: string };
+
+/**
+ * Parses an export file into the import queue's entries. Accepts both the
+ * single-form envelope (`{ name, rows, … }`) and a multi-form envelope
+ * (`{ forms: [...] }`); returns `null` for anything unusable.
+ */
+function parseImportFile(raw: string): ImportFormData[] | null {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    const obj = parsed as Record<string, unknown>;
+    const candidates: unknown[] = Array.isArray(obj.forms) ? obj.forms : [obj];
+    const entries: ImportFormData[] = [];
+    for (const candidate of candidates) {
+      if (!candidate || typeof candidate !== "object") return null;
+      const c = candidate as Record<string, unknown>;
+      if (typeof c.name !== "string" || c.name.trim() === "" || !Array.isArray(c.rows)) return null;
+      entries.push({
+        name: c.name,
+        slug: typeof c.slug === "string" ? c.slug : undefined,
+        rows: c.rows,
+        submissionConfig: c.submissionConfig,
+      } as ImportFormData);
+    }
+    return entries.length > 0 ? entries : null;
+  } catch {
+    return null;
+  }
+}
 
 function deriveSlug(name: string): string {
   return name
@@ -181,8 +225,29 @@ export function FormBuilderListPage() {
   const { data: forms = [], isLoading } = useFormConfigs();
   const deleteForm = useDeleteFormConfig();
   const setActive = useSetFormConfigActive();
+  const importForm = useImportFormConfig();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
+  const importQueue = useImportQueue<ImportFormData>({
+    mutate: (data, callbacks) => importForm.mutate(data, callbacks),
+    messages: { importSuccess: m.importSuccess, importError: m.importError },
+  });
+
+  function handleImportFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    void file.text().then((raw) => {
+      const entries = parseImportFile(raw);
+      if (!entries) {
+        importQueue.setAlertMessage(m.importInvalidFile);
+        return;
+      }
+      importQueue.processQueue(entries, 0);
+    });
+  }
 
   function handleDelete(name: string) {
     setDeleteTarget(name);
@@ -202,14 +267,36 @@ export function FormBuilderListPage() {
   return (
     <>
       <PageHeader title={m.listTitle}>
-        <DashboardActionButton
-          action={DashboardActionId.Create}
-          icon={<PlusCircleIcon weight="duotone" className="size-3.5" />}
-          label={m.newForm}
-          onClick={() => setShowDialog(true)}
-          size="control"
-          type="button"
-        />
+        <div className="flex items-center gap-2">
+          {importQueue.alertMessage && (
+            <span className="text-sm text-[var(--ds-text-muted)]">{importQueue.alertMessage}</span>
+          )}
+          <DashboardActionButton
+            action={DashboardActionId.Import}
+            icon={<TrayArrowDownIcon weight="duotone" className="size-3.5" />}
+            label={m.importForm}
+            onClick={() => fileInputRef.current?.click()}
+            size="control"
+            type="button"
+            variant={DashboardButtonVariant.Neutral}
+          />
+          <input
+            ref={fileInputRef}
+            aria-label={m.importForm}
+            type="file"
+            accept="application/json"
+            className="hidden"
+            onChange={handleImportFile}
+          />
+          <DashboardActionButton
+            action={DashboardActionId.Create}
+            icon={<PlusCircleIcon weight="duotone" className="size-3.5" />}
+            label={m.newForm}
+            onClick={() => setShowDialog(true)}
+            size="control"
+            type="button"
+          />
+        </div>
       </PageHeader>
 
       <div className="space-y-6">
@@ -299,6 +386,15 @@ export function FormBuilderListPage() {
       </div>
 
       <NewFormDialog open={showDialog} onClose={() => setShowDialog(false)} onCreated={handleCreated} />
+
+      {importQueue.conflict && (
+        <ImportConflictDialog
+          formName={importQueue.conflict.item.name}
+          onOverwrite={importQueue.handleConflictOverwrite}
+          onRename={importQueue.handleConflictRename}
+          onCancel={importQueue.handleConflictSkip}
+        />
+      )}
 
       <Dialog
         open={deleteTarget !== null}
