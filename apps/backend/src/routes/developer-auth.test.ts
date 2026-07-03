@@ -14,7 +14,7 @@
  *   guard. Exercising these end-to-end is the point of a route test.
  * - **Mocked:** the persistence layer (`getDeveloperRepository` from
  *   `../db/index.js`) so no Postgres pool is built, and the transactional
- *   emails (`../services/developer-email.js`) so nothing is sent and the
+ *   emails (`../services/email-actions.js` triggerEmailAction) so nothing is sent and the
  *   SMTP2GO provider is never touched. Both the guard and the routes import
  *   `getDeveloperRepository` from the same module, so one mock covers both.
  *
@@ -25,7 +25,7 @@
 
 import cookie from "@fastify/cookie";
 import jwt from "@fastify/jwt";
-import { ENDPOINTS } from "@musiccloud/shared";
+import { EmailAction, EmailRecipientKind, ENDPOINTS } from "@musiccloud/shared";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -33,16 +33,15 @@ import type { DeveloperAccount, DeveloperEmailToken, DeveloperRepository } from 
 import { getDeveloperRepository } from "../db/index.js";
 import authPlugin from "../plugins/auth.js";
 import { hashEmailToken, hashPassword, SESSION_COOKIE_NAME } from "../services/developer-auth.js";
-import { sendDeveloperPasswordResetEmail, sendDeveloperVerificationEmail } from "../services/developer-email.js";
+import { triggerEmailAction } from "../services/email-actions.js";
 import { devAuthRoutes } from "./developer-auth.js";
 
 vi.mock("../db/index.js", () => ({
   getDeveloperRepository: vi.fn(),
 }));
 
-vi.mock("../services/developer-email.js", () => ({
-  sendDeveloperVerificationEmail: vi.fn(async () => undefined),
-  sendDeveloperPasswordResetEmail: vi.fn(async () => undefined),
+vi.mock("../services/email-actions.js", () => ({
+  triggerEmailAction: vi.fn(async () => undefined),
 }));
 
 /** JWT secret used to sign/verify session tokens in these tests. */
@@ -182,6 +181,9 @@ beforeEach(() => {
   // across these tests; disable it so repeated login / request-reset calls from
   // the same loopback IP are not throttled mid-suite.
   vi.stubEnv("DISABLE_RATE_LIMIT", "true");
+  // The routes build verify/reset context URLs from DEVELOPER_URL themselves
+  // (the mail send is fully mocked via triggerEmailAction).
+  vi.stubEnv("DEVELOPER_URL", "https://developer.musiccloud.example");
   repo = makeRepo();
   vi.mocked(getDeveloperRepository).mockResolvedValue(repo);
 });
@@ -204,7 +206,19 @@ describe("POST /api/dev/auth/signup", () => {
     expect(account.id).toBe("dev-acc-1");
     expect(account).not.toHaveProperty("passwordHash");
     expect(account).not.toHaveProperty("status");
-    expect(vi.mocked(sendDeveloperVerificationEmail)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(triggerEmailAction)).toHaveBeenCalledTimes(1);
+    const [actionKey, input] = vi.mocked(triggerEmailAction).mock.calls[0]!;
+    expect(actionKey).toBe(EmailAction.DeveloperVerificationRequested);
+    // The repo stub's createDeveloperAccount always returns makeAccount()
+    // (email dev@example.com); the route correctly addresses the CREATED
+    // account's canonical email, not the raw payload value.
+    expect(input.to).toEqual({ email: "dev@example.com" });
+    expect(input.recipient).toEqual({
+      kind: EmailRecipientKind.DeveloperAccount,
+      email: "dev@example.com",
+      displayName: null,
+    });
+    expect(input.context.verifyUrl).toMatch(/^https:\/\/developer\.musiccloud\.example\/verify\?token=.+/);
     expect(vi.mocked(repo.createDeveloperIdentity)).toHaveBeenCalledWith({
       accountId: "dev-acc-1",
       provider: "email",
@@ -236,7 +250,7 @@ describe("POST /api/dev/auth/signup", () => {
     expect(res.statusCode).toBe(409);
     expect(res.json().error).toBe("EMAIL_TAKEN");
     expect(vi.mocked(repo.createDeveloperAccount)).not.toHaveBeenCalled();
-    expect(vi.mocked(sendDeveloperVerificationEmail)).not.toHaveBeenCalled();
+    expect(vi.mocked(triggerEmailAction)).not.toHaveBeenCalled();
   });
 
   it("returns 400 INVALID_REQUEST when required fields are missing", async () => {
@@ -399,7 +413,15 @@ describe("POST /api/dev/auth/request-reset", () => {
     });
 
     expect(res.statusCode).toBe(200);
-    expect(vi.mocked(sendDeveloperPasswordResetEmail)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(triggerEmailAction)).toHaveBeenCalledTimes(1);
+    const [actionKey, input] = vi.mocked(triggerEmailAction).mock.calls[0]!;
+    expect(actionKey).toBe(EmailAction.DeveloperPasswordResetRequested);
+    expect(input.recipient).toEqual({
+      kind: EmailRecipientKind.DeveloperAccount,
+      email: "dev@example.com",
+      displayName: null,
+    });
+    expect(input.context.resetUrl).toMatch(/^https:\/\/developer\.musiccloud\.example\/reset\?token=.+/);
   });
 
   it("returns 200 without sending email for an unknown account (no enumeration)", async () => {
@@ -412,7 +434,7 @@ describe("POST /api/dev/auth/request-reset", () => {
     });
 
     expect(res.statusCode).toBe(200);
-    expect(vi.mocked(sendDeveloperPasswordResetEmail)).not.toHaveBeenCalled();
+    expect(vi.mocked(triggerEmailAction)).not.toHaveBeenCalled();
     expect(vi.mocked(repo.createDeveloperEmailToken)).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { EMAIL_ACTIONS, EmailAction, getEmailActionMeta } from "../email-actions.js";
 import { EmailBlockType, isEmailBlockArray } from "../email-blocks.js";
+import { EmailRecipientKind, EmailVariableScope, getEmailVariableMeta } from "../email-variables.js";
 
 describe("isEmailBlockArray", () => {
   it("accepts a well-formed mixed block array", () => {
@@ -47,11 +48,36 @@ describe("isEmailBlockArray", () => {
 });
 
 describe("email actions registry", () => {
-  it("exposes adminInviteSent as required with its variables", () => {
+  it("exposes adminInviteSent as required with its context variables and recipient kind", () => {
     const meta = getEmailActionMeta(EmailAction.AdminInviteSent);
     expect(meta).toBeDefined();
     expect(meta!.required).toBe(true);
-    expect(meta!.variables).toContain("inviteUrl");
+    expect(meta!.contextVariables).toEqual(["inviteUrl"]);
+    expect(meta!.recipientKind).toBe(EmailRecipientKind.AdminUser);
+  });
+
+  it("exposes the developer verification action for developer-account recipients", () => {
+    const meta = getEmailActionMeta(EmailAction.DeveloperVerificationRequested);
+    expect(meta).toBeDefined();
+    expect(meta!.required).toBe(true);
+    expect(meta!.contextVariables).toEqual(["verifyUrl"]);
+    expect(meta!.recipientKind).toBe(EmailRecipientKind.DeveloperAccount);
+  });
+
+  it("exposes the developer password-reset action for developer-account recipients", () => {
+    const meta = getEmailActionMeta(EmailAction.DeveloperPasswordResetRequested);
+    expect(meta).toBeDefined();
+    expect(meta!.required).toBe(true);
+    expect(meta!.contextVariables).toEqual(["resetUrl"]);
+    expect(meta!.recipientKind).toBe(EmailRecipientKind.DeveloperAccount);
+  });
+
+  it("declares every context variable in the EMAIL_VARIABLES catalog with Context scope", () => {
+    for (const meta of Object.values(EMAIL_ACTIONS)) {
+      for (const name of meta.contextVariables) {
+        expect(getEmailVariableMeta(name)?.scope).toBe(EmailVariableScope.Context);
+      }
+    }
   });
 
   it("returns undefined for an unknown key", () => {

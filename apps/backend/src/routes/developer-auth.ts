@@ -45,10 +45,11 @@
  * bucket used by the public resolve/share surface, so portal credential traffic
  * is throttled on its own budget without coupling to public-API limits.
  */
-import { ENDPOINTS } from "@musiccloud/shared";
+import { EmailAction, EmailRecipientKind, ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { DeveloperAccount } from "../db/developer-repository.js";
 import { getDeveloperRepository } from "../db/index.js";
+import { requireEnv } from "../lib/env.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { RateLimiter } from "../lib/infra/rate-limiter.js";
 import {
@@ -63,7 +64,7 @@ import {
   TokenPurpose,
   verifyPassword,
 } from "../services/developer-auth.js";
-import { sendDeveloperPasswordResetEmail, sendDeveloperVerificationEmail } from "../services/developer-email.js";
+import { triggerEmailAction } from "../services/email-actions.js";
 
 /** Minimum accepted password length, matching the admin surface (admin-auth.ts). */
 const PASSWORD_MIN_LENGTH = 8;
@@ -224,7 +225,17 @@ export async function devAuthRoutes(app: FastifyInstance) {
       tokenHash: hash,
       expiresAt: new Date(Date.now() + VERIFY_TOKEN_TTL_MS),
     });
-    await sendDeveloperVerificationEmail(account, raw);
+    await triggerEmailAction(EmailAction.DeveloperVerificationRequested, {
+      to: { email: account.email },
+      recipient: {
+        kind: EmailRecipientKind.DeveloperAccount,
+        email: account.email,
+        displayName: account.displayName,
+      },
+      // The raw token is embedded in the URL here; only its SHA-256 hash is
+      // ever persisted (see generateEmailToken).
+      context: { verifyUrl: `${requireEnv("DEVELOPER_URL")}/verify?token=${raw}` },
+    });
 
     app.log.info("[Developer] Account created (unverified)");
     return reply.status(201).send({ account: buildAccountResponse(account) });
@@ -322,7 +333,15 @@ export async function devAuthRoutes(app: FastifyInstance) {
         tokenHash: hash,
         expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
       });
-      await sendDeveloperPasswordResetEmail(account, raw);
+      await triggerEmailAction(EmailAction.DeveloperPasswordResetRequested, {
+        to: { email: account.email },
+        recipient: {
+          kind: EmailRecipientKind.DeveloperAccount,
+          email: account.email,
+          displayName: account.displayName,
+        },
+        context: { resetUrl: `${requireEnv("DEVELOPER_URL")}/reset?token=${raw}` },
+      });
     }
 
     return reply.send({ ok: true });

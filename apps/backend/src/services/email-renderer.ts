@@ -44,7 +44,7 @@ const DARK_RULES = `
 
 const DARK_MODE_CSS = `@media (prefers-color-scheme: dark) {${DARK_RULES}}`;
 
-/** Accent color for the button block, reused verbatim from the developer-portal's dark-mode-safe button (`developer-email.ts`). */
+/** Accent color for the button block (brand blue, dark-mode-safe). */
 const BUTTON_ACCENT = "#28A8D8";
 
 /**
@@ -85,7 +85,7 @@ function parseMarkdown(text: string): string {
  * Builds the `<tr>` markup for a single button block. Style values (accent
  * color, padding, border-radius, dark text-on-accent) are lifted verbatim
  * from the already-shipped, dark-mode-safe developer-portal button
- * (`developer-email.ts`) rather than inventing a new look.
+ * rather than inventing a new look.
  *
  * @param label - visible button text (escaped).
  * @param url - already-interpolated target URL.

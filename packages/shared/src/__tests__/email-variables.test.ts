@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { EmailBlockType } from "../email-blocks.js";
-import { extractEmailTemplateVariables } from "../email-variables.js";
+import {
+  EMAIL_VARIABLES,
+  EmailRecipientKind,
+  EmailVariableScope,
+  extractEmailTemplateVariables,
+  getEmailVariableMeta,
+  listAvailableEmailVariables,
+} from "../email-variables.js";
 
 describe("extractEmailTemplateVariables", () => {
   it("extracts {{var}} placeholders from the subject", () => {
@@ -53,5 +60,61 @@ describe("extractEmailTemplateVariables", () => {
 
   it("extracts multiple distinct placeholders from a single string", () => {
     expect(extractEmailTemplateVariables("{{a}} {{b}} {{a}} {{c}}", [])).toEqual(["a", "b", "c"]);
+  });
+});
+
+describe("EMAIL_VARIABLES catalog", () => {
+  it("declares websiteUrl as a system variable with a sample value", () => {
+    const meta = EMAIL_VARIABLES.websiteUrl;
+    expect(meta.scope).toBe(EmailVariableScope.System);
+    expect(meta.sampleValue.length).toBeGreaterThan(0);
+    expect(meta.description.length).toBeGreaterThan(0);
+  });
+
+  it("declares every context variable used by the action registry", () => {
+    expect(EMAIL_VARIABLES.inviteUrl.scope).toBe(EmailVariableScope.Context);
+    expect(EMAIL_VARIABLES.verifyUrl.scope).toBe(EmailVariableScope.Context);
+    expect(EMAIL_VARIABLES.resetUrl.scope).toBe(EmailVariableScope.Context);
+  });
+
+  it("restricts role to admin-user recipients", () => {
+    expect(EMAIL_VARIABLES.role.recipientKinds).toEqual([EmailRecipientKind.AdminUser]);
+  });
+});
+
+describe("getEmailVariableMeta", () => {
+  it("returns the catalog entry for a known name", () => {
+    expect(getEmailVariableMeta("verifyUrl")?.scope).toBe(EmailVariableScope.Context);
+  });
+
+  it("returns undefined for an unknown name", () => {
+    expect(getEmailVariableMeta("nopeNotAVariable")).toBeUndefined();
+  });
+});
+
+describe("listAvailableEmailVariables", () => {
+  it("lists system + admin-user recipient variables without any context", () => {
+    const names = listAvailableEmailVariables(EmailRecipientKind.AdminUser, []);
+    expect(names).toEqual(
+      expect.arrayContaining(["websiteUrl", "dashboardUrl", "developerUrl", "loginUrl", "username", "email", "role"]),
+    );
+    expect(names).not.toContain("inviteUrl");
+  });
+
+  it("omits role for developer-account recipients", () => {
+    const names = listAvailableEmailVariables(EmailRecipientKind.DeveloperAccount, []);
+    expect(names).toContain("username");
+    expect(names).toContain("email");
+    expect(names).not.toContain("role");
+  });
+
+  it("appends the given context variables", () => {
+    const names = listAvailableEmailVariables(EmailRecipientKind.AdminUser, ["inviteUrl"]);
+    expect(names).toContain("inviteUrl");
+  });
+
+  it("deduplicates repeated context variables", () => {
+    const names = listAvailableEmailVariables(EmailRecipientKind.AdminUser, ["inviteUrl", "inviteUrl"]);
+    expect(names.filter((n) => n === "inviteUrl")).toHaveLength(1);
   });
 });

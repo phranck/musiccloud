@@ -16,6 +16,7 @@ import {
   ENDPOINTS,
   extractEmailTemplateVariables,
   getEmailActionMeta,
+  listAvailableEmailVariables,
   ROUTE_TEMPLATES,
 } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
@@ -107,21 +108,24 @@ export default async function adminEmailActionsRoutes(app: FastifyInstance) {
     }
     const template = templateResult.data;
 
-    // Compatibility check: every variable the template uses (auto-extracted
-    // from its subject + body, MC-080) must be one the action actually
-    // supplies when it fires. This is the gate that keeps `triggerEmailAction`
-    // from ever rendering a template with an unresolved `{{var}}` placeholder —
-    // enforced here at bind-time so a bad pairing is rejected immediately
-    // instead of surfacing as a runtime throw the next time the action fires.
-    // Mirrors the send-time gate in `services/email-actions.ts`'s
-    // `triggerEmailAction` (which checks the variables an actual invocation
-    // supplied, not the action's declared set) — keep both in sync.
+    // Compatibility check (MC-081): every variable the template uses
+    // (auto-extracted from its subject + body, MC-080) must be AVAILABLE for
+    // this action — system scope (always), recipient scope (per the action's
+    // `recipientKind`), or one of the action's declared context variables.
+    // This is the gate that keeps `triggerEmailAction` from ever rendering a
+    // template with an unresolved `{{var}}` placeholder — enforced here at
+    // bind-time so a bad pairing is rejected immediately instead of surfacing
+    // as a runtime throw the next time the action fires. Mirrors the
+    // send-time gate in `services/email-actions.ts`'s `triggerEmailAction`
+    // (which checks the merged resolution of an actual invocation) — keep
+    // both in sync.
+    const available = listAvailableEmailVariables(meta.recipientKind, meta.contextVariables);
     const incompatible = extractEmailTemplateVariables(template.subject, template.blocks).find(
-      (name) => !meta.variables.includes(name),
+      (name) => !available.includes(name),
     );
     if (incompatible) {
       return reply.status(400).send({
-        error: `Template "${template.name}" requires variable "${incompatible}", which action "${meta.key}" does not provide`,
+        error: `Template "${template.name}" requires variable "${incompatible}", which is not available for action "${meta.key}" (recipient: ${meta.recipientKind})`,
       });
     }
 

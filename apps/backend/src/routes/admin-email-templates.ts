@@ -1,11 +1,17 @@
-import { type EmailBlock, ENDPOINTS, isEmailBlockArray, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import {
+  type EmailBlock,
+  EmailRecipientKind,
+  ENDPOINTS,
+  extractEmailTemplateVariables,
+  isEmailBlockArray,
+  ROUTE_TEMPLATES,
+} from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { strToU8, zipSync } from "fflate";
 
 import type { EmailTemplateBrandingOverrides } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
 import { isHexColor } from "../lib/color.js";
-import { requireEnv } from "../lib/env.js";
 import { renderEmailPreview } from "../services/email-renderer.js";
 import { sendTemplatedEmail } from "../services/email-sender.js";
 import {
@@ -17,6 +23,11 @@ import {
   importManagedEmailTemplate,
   updateManagedEmailTemplate,
 } from "../services/email-templates.js";
+import {
+  applySampleValues,
+  resolveRecipientVariables,
+  resolveSystemVariables,
+} from "../services/email-variable-resolver.js";
 
 interface EmailTemplateCreateBody {
   name: string;
@@ -289,19 +300,32 @@ export default async function adminEmailTemplateRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "Caller has no email address on file" });
     }
 
-    const dashboardUrl = requireEnv("DASHBOARD_URL");
+    const templateResult = await getManagedEmailTemplateById(id);
+    if (!templateResult.ok) {
+      return reply.status(404).send({ error: "Email template not found" });
+    }
+    const template = templateResult.data;
+
+    // System + recipient variables resolve for real (the caller is the
+    // recipient of a test send); context variables have no live flow here, so
+    // any remaining extracted name gets its catalog sample value. Unknown
+    // names stay unfilled and appear literally in the delivered mail.
+    const resolved = {
+      ...resolveSystemVariables(),
+      ...resolveRecipientVariables({
+        kind: EmailRecipientKind.AdminUser,
+        username: caller.username,
+        email: caller.email,
+        role: caller.role,
+      }),
+    };
+    const variables = applySampleValues(resolved, extractEmailTemplateVariables(template.subject, template.blocks));
 
     try {
       await sendTemplatedEmail({
         templateId: id,
         to: { email: caller.email, name: caller.username },
-        variables: {
-          username: caller.username,
-          email: caller.email,
-          role: caller.role,
-          inviteUrl: `${dashboardUrl}/invite/test-token`,
-          loginUrl: `${dashboardUrl}/login`,
-        },
+        variables,
       });
     } catch (error) {
       request.log.error({ err: error, templateId: id }, "test email send failed");

@@ -56,7 +56,7 @@
  *   via arbitrary image hosts.
  * - **DELETE** (`avatar`): clears the column.
  */
-import { EmailAction, ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import { EmailAction, EmailRecipientKind, ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import bcrypt from "bcryptjs";
 import type { FastifyInstance } from "fastify";
 import { nanoid } from "nanoid";
@@ -120,13 +120,15 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     try {
       await triggerEmailAction(EmailAction.AdminInviteSent, {
         to: { email: body.email, name: body.username },
-        variables: {
+        recipient: {
+          kind: EmailRecipientKind.AdminUser,
           username: body.username,
           email: body.email,
           role,
-          inviteUrl,
-          loginUrl: `${dashboardUrl}/login`,
         },
+        // System variables (websiteUrl, dashboardUrl, loginUrl, …) resolve
+        // inside the trigger; only the action's context extras go here.
+        context: { inviteUrl },
       });
     } catch (error) {
       // Mail send must not roll back user creation: the invite URL is

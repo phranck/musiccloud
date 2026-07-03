@@ -1,13 +1,15 @@
 /**
- * @file Service tests for {@link triggerEmailAction} (MC-078). Drives the real
- * fan-out/validation logic against a fully-stubbed {@link AdminRepository} and
- * a mocked {@link sendEmail}, so no Postgres pool or SMTP2GO call is ever made.
+ * @file Service tests for {@link triggerEmailAction} (MC-078, Scopes MC-081).
+ * Drives the real fan-out/validation logic against a fully-stubbed
+ * {@link AdminRepository} and a mocked {@link sendEmail}, so no Postgres pool
+ * or SMTP2GO call is ever made.
  *
  * ## What is real vs. mocked
  *
  * - **Real:** `triggerEmailAction`'s own logic (action lookup, binding
- *   fan-out, `enabled` filtering, required-variable validation, rendering via
- *   the real {@link renderEmailTemplate}).
+ *   fan-out, `enabled` filtering, recipient-kind check, variable resolution
+ *   via the real resolver, send-time gate, rendering via the real
+ *   {@link renderEmailTemplate}).
  * - **Mocked:** the persistence layer (`getAdminRepository` from
  *   `../db/index.js`) and the transport (`sendEmail` from
  *   `./email-provider.js`), mirroring the mocking conventions already
@@ -17,7 +19,7 @@
  *   `vi.mocked(...).mockResolvedValue(...)` wiring in `beforeEach`).
  */
 
-import { EmailBlockType } from "@musiccloud/shared";
+import { EmailBlockType, EmailRecipientKind } from "@musiccloud/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminRepository, EmailBrandingDto, EmailTemplateRow } from "../../db/admin-repository.js";
@@ -33,16 +35,20 @@ vi.mock("../email-provider.js", () => ({
   sendEmail: vi.fn(async () => undefined),
 }));
 
-/** `email_action_bindings` action key used by every case (`required: true` in the EMAIL_ACTIONS registry). */
+/** `email_action_bindings` action key used by most cases (`required: true` in the EMAIL_ACTIONS registry). */
 const ADMIN_INVITE_SENT = "adminInviteSent";
 
-/** Variables `adminInviteSent` supplies per the shared registry (`username`, `email`, `role`, `inviteUrl`, `loginUrl`). */
-const ADMIN_INVITE_VARIABLES = {
+/** The admin-user addressee: recipient-scope variables resolve from this object. */
+const ADMIN_RECIPIENT = {
+  kind: EmailRecipientKind.AdminUser,
   username: "alice",
   email: "alice@example.com",
   role: "admin",
-  inviteUrl: "https://dashboard.musiccloud.io/invite/abc",
-  loginUrl: "https://dashboard.musiccloud.io/login",
+} as const;
+
+/** Context extras `adminInviteSent` supplies per the shared registry. */
+const INVITE_CONTEXT = {
+  inviteUrl: "https://dashboard.musiccloud.example/invite/abc",
 };
 
 const RECIPIENT = { email: "alice@example.com", name: "Alice" };
@@ -61,9 +67,10 @@ const BRANDING: EmailBrandingDto = {
 
 /**
  * Builds a fully-populated {@link EmailTemplateRow}, defaulting to a single
- * text block whose body references only `adminInviteSent` variables — so the
- * template's auto-extracted required set (MC-080) is always satisfiable on the
- * happy path. Most tests use this shape unmodified.
+ * text block whose body references only variables available to
+ * `adminInviteSent` (recipient + context scopes) — so the template's
+ * auto-extracted required set (MC-080) is always satisfiable on the happy
+ * path. Most tests use this shape unmodified.
  *
  * @param overrides - Partial fields to override the defaults.
  * @returns A complete email-template row.
@@ -114,27 +121,48 @@ let repo: AdminRepository;
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.stubEnv("PUBLIC_URL", "http://localhost:4000");
+  vi.stubEnv("PUBLIC_URL", "https://musiccloud.example");
+  vi.stubEnv("DASHBOARD_URL", "https://dashboard.musiccloud.example");
+  vi.stubEnv("DEVELOPER_URL", "https://developer.musiccloud.example");
   repo = makeRepo();
   vi.mocked(getAdminRepository).mockResolvedValue(repo);
 });
 
 describe("triggerEmailAction", () => {
-  it("renders and sends the one enabled binding whose required variables are all supplied", async () => {
+  it("renders and sends the one enabled binding, resolving recipient and context variables", async () => {
     const template = makeTemplateRow();
     vi.mocked(repo.listEmailActionBindings).mockResolvedValueOnce([
       { id: "bind-1", actionKey: ADMIN_INVITE_SENT, templateId: 1, enabled: true },
     ]);
     vi.mocked(repo.getEmailTemplateById).mockResolvedValueOnce(template);
 
-    await triggerEmailAction(ADMIN_INVITE_SENT, { to: RECIPIENT, variables: ADMIN_INVITE_VARIABLES });
+    await triggerEmailAction(ADMIN_INVITE_SENT, { to: RECIPIENT, recipient: ADMIN_RECIPIENT, context: INVITE_CONTEXT });
 
     expect(vi.mocked(sendEmail)).toHaveBeenCalledTimes(1);
     const sent = vi.mocked(sendEmail).mock.calls[0]![0];
     expect(sent.to).toEqual(RECIPIENT);
     expect(sent.subject).toBe("Welcome alice");
     expect(sent.html).toContain("Hi alice");
-    expect(sent.html).toContain("https://dashboard.musiccloud.io/invite/abc");
+    expect(sent.html).toContain("https://dashboard.musiccloud.example/invite/abc");
+  });
+
+  it("resolves system variables from the environment without the caller supplying them", async () => {
+    const template = makeTemplateRow({
+      subject: "Login at {{loginUrl}}",
+      blocks: [{ type: EmailBlockType.Text, markdown: "Site: {{websiteUrl}}" }],
+    });
+    vi.mocked(repo.listEmailActionBindings).mockResolvedValueOnce([
+      { id: "bind-1", actionKey: ADMIN_INVITE_SENT, templateId: 1, enabled: true },
+    ]);
+    vi.mocked(repo.getEmailTemplateById).mockResolvedValueOnce(template);
+
+    await triggerEmailAction(ADMIN_INVITE_SENT, { to: RECIPIENT, recipient: ADMIN_RECIPIENT, context: INVITE_CONTEXT });
+
+    const sent = vi.mocked(sendEmail).mock.calls[0]![0];
+    expect(sent.subject).toBe("Login at https://dashboard.musiccloud.example/login");
+    // The markdown renderer auto-links bare URLs, so assert on the resolved
+    // URL itself rather than the contiguous "Site: <url>" text.
+    expect(sent.html).toContain("https://musiccloud.example");
   });
 
   it("fans out to two enabled bindings pointing at two different templates", async () => {
@@ -148,7 +176,7 @@ describe("triggerEmailAction", () => {
       id === 1 ? templateA : id === 2 ? templateB : null,
     );
 
-    await triggerEmailAction(ADMIN_INVITE_SENT, { to: RECIPIENT, variables: ADMIN_INVITE_VARIABLES });
+    await triggerEmailAction(ADMIN_INVITE_SENT, { to: RECIPIENT, recipient: ADMIN_RECIPIENT, context: INVITE_CONTEXT });
 
     expect(vi.mocked(sendEmail)).toHaveBeenCalledTimes(2);
     const subjects = vi.mocked(sendEmail).mock.calls.map((call) => call[0].subject);
@@ -171,7 +199,7 @@ describe("triggerEmailAction", () => {
       id === 1 ? enabledTemplate : id === 2 ? disabledTemplate : null,
     );
 
-    await triggerEmailAction(ADMIN_INVITE_SENT, { to: RECIPIENT, variables: ADMIN_INVITE_VARIABLES });
+    await triggerEmailAction(ADMIN_INVITE_SENT, { to: RECIPIENT, recipient: ADMIN_RECIPIENT, context: INVITE_CONTEXT });
 
     expect(vi.mocked(sendEmail)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(sendEmail).mock.calls[0]![0].subject).toBe("Enabled: alice");
@@ -182,16 +210,17 @@ describe("triggerEmailAction", () => {
     vi.mocked(repo.listEmailActionBindings).mockResolvedValueOnce([]);
 
     await expect(
-      triggerEmailAction(ADMIN_INVITE_SENT, { to: RECIPIENT, variables: ADMIN_INVITE_VARIABLES }),
+      triggerEmailAction(ADMIN_INVITE_SENT, { to: RECIPIENT, recipient: ADMIN_RECIPIENT, context: INVITE_CONTEXT }),
     ).rejects.toThrow(/adminInviteSent/);
 
     expect(vi.mocked(sendEmail)).not.toHaveBeenCalled();
   });
 
-  it("throws when a bound template uses a variable the action did not supply", async () => {
+  it("throws when a bound template uses a variable that is neither resolvable nor supplied", async () => {
     // The required set is auto-extracted from the body (MC-080): this template
-    // references `{{notSuppliedByAction}}`, which `adminInviteSent` never
-    // provides, so the send-time gate must reject it before sending.
+    // references `{{notSuppliedByAction}}`, which neither the resolver (system
+    // + recipient scopes) nor the invite context provides, so the send-time
+    // gate must reject it before sending.
     const template = makeTemplateRow({
       blocks: [{ type: EmailBlockType.Text, markdown: "Hi {{username}}, ref {{notSuppliedByAction}}" }],
     });
@@ -201,16 +230,28 @@ describe("triggerEmailAction", () => {
     vi.mocked(repo.getEmailTemplateById).mockResolvedValueOnce(template);
 
     await expect(
-      triggerEmailAction(ADMIN_INVITE_SENT, { to: RECIPIENT, variables: ADMIN_INVITE_VARIABLES }),
+      triggerEmailAction(ADMIN_INVITE_SENT, { to: RECIPIENT, recipient: ADMIN_RECIPIENT, context: INVITE_CONTEXT }),
     ).rejects.toThrow(/notSuppliedByAction/);
 
     expect(vi.mocked(sendEmail)).not.toHaveBeenCalled();
   });
 
+  it("throws when the recipient kind does not match the action's declared kind", async () => {
+    await expect(
+      triggerEmailAction(ADMIN_INVITE_SENT, {
+        to: RECIPIENT,
+        recipient: { kind: EmailRecipientKind.DeveloperAccount, email: "dev@example.com", displayName: "Dev" },
+        context: INVITE_CONTEXT,
+      }),
+    ).rejects.toThrow(/recipient kind/i);
+
+    expect(vi.mocked(sendEmail)).not.toHaveBeenCalled();
+  });
+
   it("throws for an unknown action key", async () => {
-    await expect(triggerEmailAction("notARealAction", { to: RECIPIENT, variables: {} })).rejects.toThrow(
-      /notARealAction/,
-    );
+    await expect(
+      triggerEmailAction("notARealAction", { to: RECIPIENT, recipient: ADMIN_RECIPIENT, context: {} }),
+    ).rejects.toThrow(/notARealAction/);
 
     expect(vi.mocked(repo.listEmailActionBindings)).not.toHaveBeenCalled();
     expect(vi.mocked(sendEmail)).not.toHaveBeenCalled();

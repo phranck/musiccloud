@@ -1,14 +1,19 @@
 /**
- * @file System-Action-Registry für ausgehende Mails (MC-078). Eine Action ist
- * ein benanntes Ereignis im System (z.B. „Admin-Einladung versendet"), das
- * einen festen Satz Template-Variablen liefert. Templates werden über
+ * @file System-Action-Registry für ausgehende Mails (MC-078, Scopes MC-081).
+ * Eine Action ist ein benanntes Ereignis im System (z.B. „Admin-Einladung
+ * versendet"), das an einen Empfänger-Typ gerichtet ist und nur noch seine
+ * ereignis-spezifischen Kontext-Variablen deklariert — System- und
+ * Empfänger-Variablen (siehe `EMAIL_VARIABLES` in `email-variables.ts`) löst
+ * der Backend-Trigger automatisch auf. Templates werden über
  * `email_action_bindings` lose an Actions gebunden; der Backend-Trigger
  * (`services/email-actions.ts`) rendert + sendet alle gebundenen Templates.
  *
- * Diese Registry ist die einzige Quelle der Wahrheit für Action-Keys und ihre
- * Variablen — Dashboard (Actions-Seite) und Backend (Trigger, Kompatibilitäts-
- * Check) konsumieren sie beide.
+ * Diese Registry ist die einzige Quelle der Wahrheit für Action-Keys, ihren
+ * Empfänger-Typ und ihre Kontext-Variablen — Dashboard (Actions-Seite) und
+ * Backend (Trigger, Kompatibilitäts-Check) konsumieren sie beide.
  */
+
+import { EmailRecipientKind, type EmailRecipientKindValue } from "./email-variables.js";
 
 /** Metadaten einer System-Action. */
 export interface EmailActionMeta {
@@ -16,8 +21,15 @@ export interface EmailActionMeta {
   key: string;
   /** Menschlich lesbares Label (Dashboard-Anzeige). */
   label: string;
-  /** Variablennamen, die diese Action beim Auslösen bereitstellt. */
-  variables: string[];
+  /**
+   * Nur die ereignis-spezifischen Extra-Variablen, die diese Action beim
+   * Auslösen liefert (z.B. eine One-Time-Token-URL). System- und
+   * Empfänger-Variablen sind hier NICHT aufgeführt — sie sind für jede Action
+   * automatisch verfügbar (siehe `listAvailableEmailVariables`).
+   */
+  contextVariables: readonly string[];
+  /** An welchen Empfänger-Typ diese Action ihre Mails richtet (entscheidet, welche Empfänger-Variablen auflösbar sind). */
+  recipientKind: EmailRecipientKindValue;
   /** Wenn `true`, muss mindestens ein aktiviertes Template gebunden sein, sonst wirft der Trigger. */
   required: boolean;
 }
@@ -27,7 +39,22 @@ export const EMAIL_ACTIONS = {
   adminInviteSent: {
     key: "adminInviteSent",
     label: "Admin invite sent",
-    variables: ["username", "email", "role", "inviteUrl", "loginUrl"],
+    contextVariables: ["inviteUrl"],
+    recipientKind: EmailRecipientKind.AdminUser,
+    required: true,
+  },
+  developerVerificationRequested: {
+    key: "developerVerificationRequested",
+    label: "Developer email verification",
+    contextVariables: ["verifyUrl"],
+    recipientKind: EmailRecipientKind.DeveloperAccount,
+    required: true,
+  },
+  developerPasswordResetRequested: {
+    key: "developerPasswordResetRequested",
+    label: "Developer password reset",
+    contextVariables: ["resetUrl"],
+    recipientKind: EmailRecipientKind.DeveloperAccount,
     required: true,
   },
 } as const satisfies Record<string, EmailActionMeta>;
@@ -38,6 +65,8 @@ export type EmailActionKey = keyof typeof EMAIL_ACTIONS;
 /** Bequemer Namespace für Action-Keys (statt Magic-Strings an Call-Sites). */
 export const EmailAction = {
   AdminInviteSent: "adminInviteSent",
+  DeveloperVerificationRequested: "developerVerificationRequested",
+  DeveloperPasswordResetRequested: "developerPasswordResetRequested",
 } as const satisfies Record<string, EmailActionKey>;
 
 /**
