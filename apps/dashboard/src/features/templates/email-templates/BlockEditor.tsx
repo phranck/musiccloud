@@ -32,6 +32,7 @@ import {
   type Icon as PhosphorIcon,
   TextTIcon,
   TrayArrowUpIcon,
+  XCircleIcon,
 } from "@phosphor-icons/react";
 import { type ChangeEvent, lazy, Suspense, useRef, useState } from "react";
 import { useI18n } from "@/context/I18nContext";
@@ -184,7 +185,13 @@ interface SortableBlockCardProps {
   onRemove: () => void;
 }
 
-/** One draggable block card: drag handle, type-specific form, remove button. */
+/**
+ * One draggable block card: a compact header row (drag handle, block-type
+ * label, remove button all on one line) above the type-specific form body.
+ * Text blocks embed the Markdown editor flush — the body gets no padding and
+ * the editor renders borderless so it sits gaplessly under the header; every
+ * other block type gets a padded body around its inputs.
+ */
 function SortableBlockCard({ id, block, label, removeLabel, onChange, onRemove }: SortableBlockCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
 
@@ -194,38 +201,45 @@ function SortableBlockCard({ id, block, label, removeLabel, onChange, onRemove }
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const isTextBlock = block.type === EmailBlockType.Text;
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-start gap-3 rounded-control border border-[var(--ds-border)] bg-[var(--ds-surface)] p-3"
+      className="overflow-hidden rounded-control border border-[var(--ds-border)] bg-[var(--ds-surface)]"
     >
-      <DashboardIconButton
-        type="button"
-        {...attributes}
-        {...listeners}
-        className="mt-1 touch-none cursor-grab active:cursor-grabbing"
-        title={label}
-        aria-label={label}
-        variant={DashboardButtonVariant.Ghost}
-      >
-        <ListIcon weight="bold" className="size-4" />
-      </DashboardIconButton>
+      <div className="flex items-center gap-2 border-b border-[var(--ds-border)] bg-[var(--ds-section-header-bg,var(--ds-bg-elevated))] px-2 py-1.5">
+        <DashboardIconButton
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="touch-none cursor-grab active:cursor-grabbing"
+          title={label}
+          aria-label={label}
+          variant={DashboardButtonVariant.Ghost}
+        >
+          <ListIcon weight="bold" className="size-4" />
+        </DashboardIconButton>
 
-      <div className="min-w-0 flex-1 space-y-2">
-        <div className="text-xs font-medium uppercase tracking-wide text-[var(--ds-text-muted)]">{label}</div>
-        <BlockForm block={block} onChange={onChange} />
+        <span className="min-w-0 flex-1 truncate text-xs font-medium uppercase tracking-wide text-[var(--ds-text-muted)]">
+          {label}
+        </span>
+
+        <DashboardIconButton
+          type="button"
+          onClick={onRemove}
+          title={removeLabel}
+          aria-label={removeLabel}
+          variant={DashboardButtonVariant.Ghost}
+        >
+          <XCircleIcon weight="duotone" className="size-5 text-[var(--ds-danger-text)]" />
+        </DashboardIconButton>
       </div>
 
-      <DashboardActionButton
-        action={DashboardActionId.Remove}
-        iconOnly
-        label={removeLabel}
-        onClick={onRemove}
-        size="action"
-        title={removeLabel}
-        type="button"
-      />
+      <div className={isTextBlock ? undefined : "p-3"}>
+        <BlockForm block={block} onChange={onChange} />
+      </div>
     </div>
   );
 }
@@ -253,6 +267,13 @@ function BlockForm({ block, onChange }: BlockFormProps) {
 
 const MARKDOWN_EDITOR_FALLBACK_HEIGHT = "h-24";
 
+/**
+ * localStorage key under which the text-block Markdown editor persists its
+ * drag-resized height. All text blocks share one remembered height, so the
+ * editor opens at the user's last chosen size across templates and reloads.
+ */
+const MARKDOWN_EDITOR_HEIGHT_STORAGE_KEY = "musiccloud.emailTemplate.blockEditorHeight";
+
 function TextBlockForm({
   block,
   onChange,
@@ -262,18 +283,14 @@ function TextBlockForm({
 }) {
   const { messages } = useI18n();
   return (
-    <Suspense
-      fallback={
-        <div
-          className={`${MARKDOWN_EDITOR_FALLBACK_HEIGHT} animate-pulse rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)]`}
-        />
-      }
-    >
+    <Suspense fallback={<div className={`${MARKDOWN_EDITOR_FALLBACK_HEIGHT} animate-pulse bg-[var(--ds-input-bg)]`} />}>
       <MarkdownEditor
         value={block.markdown}
         onChange={(markdown) => onChange({ ...block, markdown })}
         rows={5}
         resizable
+        bare
+        storageKey={MARKDOWN_EDITOR_HEIGHT_STORAGE_KEY}
         placeholder={messages.emailTemplates.bodyText}
       />
     </Suspense>

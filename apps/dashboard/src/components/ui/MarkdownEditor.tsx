@@ -20,6 +20,20 @@ export interface MarkdownEditorProps {
   rows?: number;
   height?: string;
   resizable?: boolean;
+  /**
+   * Renders the editor "flush": drops the outer rounded border so it can be
+   * embedded gaplessly inside a host container (for example a card body that
+   * already supplies the border and rounding). The input background, overflow
+   * clipping and focus-within ring are kept. Defaults to `false`.
+   */
+  bare?: boolean;
+  /**
+   * When set together with {@link MarkdownEditorProps.resizable}, the height the
+   * user drags to is persisted to `localStorage` under this key and restored on
+   * the next mount. All editors sharing a key share one remembered height.
+   * Without a key the resize is session-only (reset on reload).
+   */
+  storageKey?: string;
   showHints?: boolean;
   extensions?: unknown[];
   className?: string;
@@ -721,6 +735,38 @@ function HintsBar() {
   );
 }
 
+const EDITOR_HEIGHT_PERSIST_DEBOUNCE_MS = 300;
+
+/**
+ * Reads a previously persisted editor height (in pixels) for the given
+ * `localStorage` key. Returns `null` when nothing is stored, the value is
+ * unusable, or storage is unavailable (for example private mode) — callers then
+ * fall back to the `rows`-derived default height.
+ */
+function readStoredEditorHeight(key: string): number | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Persists the editor's current pixel height under the given `localStorage` key
+ * so it can be restored on the next mount. Swallows storage errors: remembering
+ * the height is an enhancement, never a requirement for editing.
+ */
+function persistEditorHeight(key: string, height: number) {
+  try {
+    localStorage.setItem(key, String(Math.round(height)));
+  } catch {
+    // Persistence is an enhancement; editor usage must not depend on storage.
+  }
+}
+
 export function MarkdownEditor({
   id,
   value,
@@ -730,15 +776,47 @@ export function MarkdownEditor({
   rows = 4,
   height,
   resizable = false,
+  bare = false,
+  storageKey,
   showHints = true,
   extensions: extraExtensions = EMPTY_EXTENSIONS,
   className = "",
 }: MarkdownEditorProps) {
+  const wrapperRef = React.useRef<HTMLDivElement>(null);
+  const [storedHeight] = React.useState<number | null>(() =>
+    resizable && storageKey ? readStoredEditorHeight(storageKey) : null,
+  );
+
+  // The native `resize: vertical` handle changes the wrapper's inline height
+  // directly; React never re-applies its own height because the derived value
+  // is stable across renders, so the drag survives. A ResizeObserver captures
+  // the final height and persists it (debounced to one write per settle) when a
+  // `storageKey` is given — otherwise the resize is session-only.
+  React.useEffect(() => {
+    if (!resizable || !storageKey) return;
+    const el = wrapperRef.current;
+    if (!el) return;
+    let timer: number | undefined;
+    const observer = new ResizeObserver(() => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(
+        () => persistEditorHeight(storageKey, el.offsetHeight),
+        EDITOR_HEIGHT_PERSIST_DEBOUNCE_MS,
+      );
+    });
+    observer.observe(el);
+    return () => {
+      window.clearTimeout(timer);
+      observer.disconnect();
+    };
+  }, [resizable, storageKey]);
+
   const rowsHeight = `${rows * 1.5}rem`;
-  const wrapperHeight = resizable && showHints ? `calc(${rowsHeight} + 2.25rem)` : rowsHeight;
+  const defaultHeight = resizable && showHints ? `calc(${rowsHeight} + 2.25rem)` : rowsHeight;
+  const resizableHeight = storedHeight != null ? `${storedHeight}px` : defaultHeight;
 
   const wrapperStyle: React.CSSProperties | undefined = resizable
-    ? { height: wrapperHeight, resize: "vertical", overflow: "hidden" }
+    ? { height: resizableHeight, minHeight: "4.5rem", resize: "vertical", overflow: "hidden" }
     : height
       ? { height }
       : undefined;
@@ -746,11 +824,15 @@ export function MarkdownEditor({
   const isFlexCol = resizable && showHints;
   const hasBoundedHeight = resizable || Boolean(height);
   const editorContainerClassName = hasBoundedHeight ? "h-full min-h-0" : undefined;
+  const frameClassName = bare
+    ? "bg-[var(--ds-input-bg)]"
+    : "rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)]";
 
   return (
     <div
       id={id}
-      className={`rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)] overflow-hidden focus-within:ring-2 focus-within:ring-inset focus-within:ring-[var(--color-primary)] focus-within:outline-none ${isFlexCol ? "flex flex-col" : ""} ${className}`}
+      ref={wrapperRef}
+      className={`${frameClassName} overflow-hidden focus-within:ring-2 focus-within:ring-inset focus-within:ring-[var(--color-primary)] focus-within:outline-none ${isFlexCol ? "flex flex-col" : ""} ${className}`}
       style={wrapperStyle}
     >
       <div className={isFlexCol ? "flex-1 min-h-0 overflow-hidden" : undefined}>
