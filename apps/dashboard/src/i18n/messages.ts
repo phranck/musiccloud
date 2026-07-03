@@ -645,9 +645,15 @@ export interface DashboardMessages {
     imageUploadError: string;
     imageAltText: string;
     spacerHeight: string;
-    requiredVariablesTitle: string;
-    requiredVariablesHint: string;
-    requiredVariablesEmpty: string;
+    variablesTitle: string;
+    variablesInsertHint: string;
+    variablesGroupSystem: string;
+    variablesGroupRecipient: string;
+    variablesGroupContext: string;
+    variablesContextUnbound: string;
+    variablesDetectedTitle: string;
+    variablesDetectedEmpty: string;
+    variablesUnknownWarning: string;
     exportTemplate: string;
     exportAll: string;
     importTemplate: string;
@@ -695,6 +701,8 @@ export interface DashboardMessages {
     requiredBadge: string;
     noActionSelected: string;
     variablesTitle: string;
+    variablesContextHint: string;
+    variablesNone: string;
     boundTemplatesTitle: string;
     noTemplateBound: string;
     deletedTemplateFallback: string;
@@ -1394,10 +1402,16 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       imageUploadError: "Bild konnte nicht hochgeladen werden",
       imageAltText: "Alt-Text",
       spacerHeight: "H\u00f6he (px)",
-      requiredVariablesTitle: "Erwartete Variablen",
-      requiredVariablesHint:
-        "Automatisch aus Betreff und Inhalt erkannt \u2014 diese Platzhalter muss der Ausl\u00f6ser liefern.",
-      requiredVariablesEmpty: "Keine \u2014 dieses Template nutzt keine {{Platzhalter}}.",
+      variablesTitle: "Variablen",
+      variablesInsertHint: "Klicken f\u00fcgt den Platzhalter an der Cursor-Position ein.",
+      variablesGroupSystem: "System",
+      variablesGroupRecipient: "Empf\u00e4nger",
+      variablesGroupContext: "Aktion",
+      variablesContextUnbound: "Aktions-Variablen erscheinen, sobald die Vorlage einer Aktion zugeordnet ist.",
+      variablesDetectedTitle: "Im Template verwendet",
+      variablesDetectedEmpty: "Keine \u2014 dieses Template nutzt keine {{Platzhalter}}.",
+      variablesUnknownWarning:
+        "Unbekannte Variablen \u2014 werden beim Senden nicht gef\u00fcllt (Tippfehler oder fehlende Aktions-Zuordnung).",
       exportTemplate: "Exportieren",
       exportAll: "Alle exportieren",
       importTemplate: "Importieren",
@@ -1448,6 +1462,9 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       requiredBadge: "Erforderlich",
       noActionSelected: "Keine Aktion ausgewählt",
       variablesTitle: "Variablen",
+      variablesContextHint:
+        "Ereignis-spezifische Variablen dieser Aktion. System- und Empf\u00e4nger-Variablen sind in jeder Vorlage verf\u00fcgbar.",
+      variablesNone: "Keine \u2014 diese Aktion liefert nur System- und Empf\u00e4nger-Variablen.",
       boundTemplatesTitle: "Zugeordnete Vorlagen",
       noTemplateBound: "Keine Vorlage zugeordnet",
       deletedTemplateFallback: "(gelöschte Vorlage)",
@@ -2145,9 +2162,16 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       imageUploadError: "Failed to upload image",
       imageAltText: "Alt text",
       spacerHeight: "Height (px)",
-      requiredVariablesTitle: "Required variables",
-      requiredVariablesHint: "Auto-detected from the subject and content — the trigger must supply these placeholders.",
-      requiredVariablesEmpty: "None — this template uses no {{placeholders}}.",
+      variablesTitle: "Variables",
+      variablesInsertHint: "Click to insert the placeholder at the cursor position.",
+      variablesGroupSystem: "System",
+      variablesGroupRecipient: "Recipient",
+      variablesGroupContext: "Action",
+      variablesContextUnbound: "Action variables appear once the template is bound to an action.",
+      variablesDetectedTitle: "Used in this template",
+      variablesDetectedEmpty: "None — this template uses no {{placeholders}}.",
+      variablesUnknownWarning:
+        "Unknown variables — they will not be filled when sending (typo or missing action binding).",
       exportTemplate: "Export",
       exportAll: "Export all",
       importTemplate: "Import",
@@ -2198,6 +2222,9 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       requiredBadge: "Required",
       noActionSelected: "No action selected",
       variablesTitle: "Variables",
+      variablesContextHint:
+        "Event-specific variables of this action. System and recipient variables are available in every template.",
+      variablesNone: "None — this action only provides system and recipient variables.",
       boundTemplatesTitle: "Bound templates",
       noTemplateBound: "No template bound",
       deletedTemplateFallback: "(deleted template)",

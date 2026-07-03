@@ -34,6 +34,14 @@ export interface MarkdownEditorProps {
    * Without a key the resize is session-only (reset on reload).
    */
   storageKey?: string;
+  /**
+   * Called with an insert-at-cursor function every time this editor gains
+   * focus, registering it as the caller's "active insert target" (e.g. for a
+   * click-to-insert variables panel). The passed function replaces the current
+   * selection with the given text and refocuses the editor; it stays valid
+   * while the editor is mounted, even after focus moves elsewhere.
+   */
+  registerInsert?: (insert: (text: string) => void) => void;
   showHints?: boolean;
   extensions?: unknown[];
   className?: string;
@@ -125,6 +133,7 @@ interface MarkdownCodeMirrorProps {
   className?: string;
   height?: string;
   minHeight?: string;
+  registerInsert?: (insert: (text: string) => void) => void;
 }
 
 const MarkdownCodeMirror = React.lazy(async () => {
@@ -260,13 +269,33 @@ const MarkdownCodeMirror = React.lazy(async () => {
       className,
       height,
       minHeight,
+      registerInsert,
     }: MarkdownCodeMirrorProps) {
+      const viewRef = React.useRef<LoadedEditorView | null>(null);
+      // Ref indirection keeps the focus-handler extension stable across
+      // renders even when the caller passes a fresh `registerInsert` closure.
+      const registerInsertRef = React.useRef(registerInsert);
+      registerInsertRef.current = registerInsert;
+
+      const insertAtSelection = React.useCallback((text: string) => {
+        const view = viewRef.current;
+        if (!view) return;
+        view.dispatch(view.state.replaceSelection(text));
+        view.focus();
+      }, []);
+
       const extensions = React.useMemo(
         () => [
           markdown(),
           EditorView.lineWrapping,
           drawSelection(),
           mdKeymap,
+          EditorView.domEventHandlers({
+            focus() {
+              registerInsertRef.current?.(insertAtSelection);
+              return false;
+            },
+          }),
           ...(onPaste
             ? [
                 EditorView.domEventHandlers({
@@ -280,13 +309,16 @@ const MarkdownCodeMirror = React.lazy(async () => {
           ...(placeholder ? [cmPlaceholder(placeholder)] : []),
           ...extraExtensions,
         ],
-        [onPaste, placeholder, extraExtensions],
+        [onPaste, placeholder, extraExtensions, insertAtSelection],
       );
 
       return (
         <CodeMirror
           value={value}
           onChange={(nextValue) => onChange(nextValue)}
+          onCreateEditor={(view) => {
+            viewRef.current = view;
+          }}
           extensions={extensions as React.ComponentProps<typeof CodeMirror>["extensions"]}
           theme={mcTheme}
           className={className}
@@ -778,6 +810,7 @@ export function MarkdownEditor({
   resizable = false,
   bare = false,
   storageKey,
+  registerInsert,
   showHints = true,
   extensions: extraExtensions = EMPTY_EXTENSIONS,
   className = "",
@@ -846,6 +879,7 @@ export function MarkdownEditor({
             className={editorContainerClassName}
             height={resizable ? "100%" : height}
             minHeight={resizable ? undefined : height ? undefined : rowsHeight}
+            registerInsert={registerInsert}
           />
         </React.Suspense>
       </div>

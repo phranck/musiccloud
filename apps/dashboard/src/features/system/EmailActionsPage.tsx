@@ -180,15 +180,22 @@ function ActionDetailSection({ action, templates, labels }: ActionDetailSectionP
       <DashboardSection>
         <DashboardSection.Header icon={<TagIcon weight="duotone" className="size-4" />} title={labels.variablesTitle} />
         <DashboardSection.Body>
-          <div className="flex flex-wrap gap-2">
-            {action.variables.map((name) => (
-              <code
-                key={name}
-                className="shrink-0 rounded bg-[var(--ds-bg-elevated)] px-1.5 py-0.5 font-mono text-xs text-[var(--ds-text)]"
-              >
-                {`{{${name}}}`}
-              </code>
-            ))}
+          <div className="space-y-2">
+            {action.contextVariables.length === 0 ? (
+              <p className="text-xs text-[var(--ds-text-muted)]">{labels.variablesNone}</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {action.contextVariables.map((name) => (
+                  <code
+                    key={name}
+                    className="shrink-0 rounded bg-[var(--ds-bg-elevated)] px-1.5 py-0.5 font-mono text-xs text-[var(--ds-text)]"
+                  >
+                    {`{{${name}}}`}
+                  </code>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-[var(--ds-text-subtle)]">{labels.variablesContextHint}</p>
           </div>
         </DashboardSection.Body>
       </DashboardSection>

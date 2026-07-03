@@ -5,9 +5,9 @@ import {
   DashboardInput,
   SaveActionButton,
 } from "@musiccloud/dashboard-ui";
-import { type EmailBlock, extractEmailTemplateVariables } from "@musiccloud/shared";
+import type { EmailBlock } from "@musiccloud/shared";
 import { ArticleIcon, CheckCircleIcon, EnvelopeSimpleIcon, PaperPlaneTiltIcon, TagIcon } from "@phosphor-icons/react";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
@@ -18,6 +18,9 @@ import { BlockEditor } from "@/features/templates/email-templates/BlockEditor";
 import { EmailPreview } from "@/features/templates/email-templates/EmailPreview";
 import { collectGradientSwatches, type GradientSwatch } from "@/features/templates/email-templates/gradientSwatches";
 import { TemplateBrandingSection } from "@/features/templates/email-templates/TemplateBrandingSection";
+import { VariablesPanel } from "@/features/templates/email-templates/VariablesPanel";
+import type { BoundActionVariables } from "@/features/templates/email-templates/variablesPanelModel";
+import { useEmailActions } from "@/features/templates/hooks/useEmailActions";
 import { type EmailBranding, useEmailBranding } from "@/features/templates/hooks/useEmailBranding";
 import {
   type EmailTemplateInput,
@@ -93,6 +96,37 @@ export function EmailTemplateEditPage() {
   const { data: globalBranding } = useEmailBranding();
   const { data: allTemplates } = useEmailTemplates();
   const swatches = collectGradientSwatches(globalBranding, allTemplates);
+
+  // Actions this template is bound to drive the variables panel: their
+  // recipient kind decides which recipient-scope variables resolve, their
+  // context variables form the "action" group. Unbound/new templates get the
+  // panel's admin-user default.
+  const { data: emailActions } = useEmailActions();
+  const boundActions: BoundActionVariables[] = [];
+  for (const action of emailActions ?? []) {
+    if (action.bindings.some((binding) => binding.templateId === numId)) {
+      boundActions.push({ recipientKind: action.recipientKind, contextVariables: action.contextVariables });
+    }
+  }
+
+  // Variables-panel insertion routing: the most recently focused text target
+  // (subject input or a text block's Markdown editor) registers an
+  // insert-at-cursor function here; chip clicks go to that target. Before any
+  // focus happened, insertions append to the subject.
+  const activeInsertRef = useRef<((text: string) => void) | null>(null);
+  const registerInsertTarget = useCallback((insert: (text: string) => void) => {
+    activeInsertRef.current = insert;
+  }, []);
+
+  function handleInsertVariable(variableName: string) {
+    const text = `{{${variableName}}}`;
+    const insert = activeInsertRef.current;
+    if (insert) {
+      insert(text);
+    } else {
+      updateField("subject", `${subject}${text}`);
+    }
+  }
 
   const updateField = <K extends keyof TemplateFormFields>(key: K, value: TemplateFormFields[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -226,6 +260,9 @@ export function EmailTemplateEditPage() {
         onFieldChange={updateField}
         global={globalBranding}
         swatches={swatches}
+        boundActions={boundActions}
+        onInsertVariable={handleInsertVariable}
+        registerInsertTarget={registerInsertTarget}
       />
     </div>
   );
@@ -344,9 +381,24 @@ interface EmailTemplateEditorGridProps {
   onFieldChange: <K extends keyof TemplateFormFields>(key: K, value: TemplateFormFields[K]) => void;
   global: EmailBranding | undefined;
   swatches: GradientSwatch[];
+  /** Actions the template is bound to (drives the variables panel's groups). */
+  boundActions: BoundActionVariables[];
+  /** Inserts `{{name}}` into the most recently focused text target. */
+  onInsertVariable: (name: string) => void;
+  /** Registers a text target's insert-at-cursor function (subject input, Markdown editors). */
+  registerInsertTarget: (insert: (text: string) => void) => void;
 }
 
-function EmailTemplateEditorGrid({ form, labels, onFieldChange, global, swatches }: EmailTemplateEditorGridProps) {
+function EmailTemplateEditorGrid({
+  form,
+  labels,
+  onFieldChange,
+  global,
+  swatches,
+  boundActions,
+  onInsertVariable,
+  registerInsertTarget,
+}: EmailTemplateEditorGridProps) {
   return (
     <div className="flex-1 overflow-hidden">
       <div className="grid h-full grid-cols-1 gap-3 overflow-hidden xl:grid-cols-[minmax(0,1fr)_minmax(26rem,0.9fr)]">
@@ -365,6 +417,23 @@ function EmailTemplateEditorGrid({ form, labels, onFieldChange, global, swatches
                   type="text"
                   value={form.subject}
                   onChange={(event) => onFieldChange("subject", event.target.value)}
+                  onFocus={(event) => {
+                    // Register this input as the active variables-insert
+                    // target. The inserter reads value + caret from the DOM at
+                    // insert time (the input is controlled, so `el.value` is
+                    // always current) and restores focus + caret afterwards.
+                    const el = event.currentTarget;
+                    registerInsertTarget((text) => {
+                      const start = el.selectionStart ?? el.value.length;
+                      const end = el.selectionEnd ?? start;
+                      onFieldChange("subject", `${el.value.slice(0, start)}${text}${el.value.slice(end)}`);
+                      requestAnimationFrame(() => {
+                        el.focus();
+                        const caret = start + text.length;
+                        el.setSelectionRange(caret, caret);
+                      });
+                    });
+                  }}
                   placeholder={labels.subjectPlaceholder}
                 />
               </DashboardSection.Body>
@@ -376,17 +445,27 @@ function EmailTemplateEditorGrid({ form, labels, onFieldChange, global, swatches
                 title={labels.blocksTitle}
               />
               <DashboardSection.Body>
-                <BlockEditor blocks={form.blocks} onChange={(blocks) => onFieldChange("blocks", blocks)} />
+                <BlockEditor
+                  blocks={form.blocks}
+                  onChange={(blocks) => onFieldChange("blocks", blocks)}
+                  registerMarkdownInsert={registerInsertTarget}
+                />
               </DashboardSection.Body>
             </DashboardSection>
 
             <DashboardSection className="overflow-hidden">
               <DashboardSection.Header
                 icon={<TagIcon weight="duotone" className="size-4" />}
-                title={labels.requiredVariablesTitle}
+                title={labels.variablesTitle}
               />
               <DashboardSection.Body>
-                <DetectedVariables subject={form.subject} blocks={form.blocks} labels={labels} />
+                <VariablesPanel
+                  subject={form.subject}
+                  blocks={form.blocks}
+                  boundActions={boundActions}
+                  onInsert={onInsertVariable}
+                  labels={labels}
+                />
               </DashboardSection.Body>
             </DashboardSection>
 
@@ -402,44 +481,6 @@ function EmailTemplateEditorGrid({ form, labels, onFieldChange, global, swatches
         <div className="min-h-[32rem] overflow-hidden xl:min-h-0">
           <EmailPreview blocks={form.blocks} branding={form.branding} />
         </div>
-      </div>
-    </div>
-  );
-}
-
-interface DetectedVariablesProps {
-  subject: string;
-  blocks: EmailBlock[];
-  labels: ReturnType<typeof useI18n>["messages"]["emailTemplates"];
-}
-
-/**
- * Read-only display of the `{{var}}` placeholders auto-extracted from the
- * template's subject + body (MC-080). This is the single source of truth for a
- * template's "required variables" — the backend derives the exact same set for
- * its bind-time and send-time gates — so there is nothing to declare or keep in
- * sync by hand. Renders one chip per detected variable, live as the subject and
- * blocks change, or a hint when the template uses no placeholders.
- */
-function DetectedVariables({ subject, blocks, labels }: DetectedVariablesProps) {
-  const variables = extractEmailTemplateVariables(subject, blocks);
-
-  if (variables.length === 0) {
-    return <p className="text-xs text-[var(--ds-text-muted)]">{labels.requiredVariablesEmpty}</p>;
-  }
-
-  return (
-    <div className="space-y-2">
-      <p className="text-xs text-[var(--ds-text-muted)]">{labels.requiredVariablesHint}</p>
-      <div className="flex flex-wrap gap-1.5">
-        {variables.map((name) => (
-          <span
-            key={name}
-            className="rounded-control border border-[var(--ds-border)] bg-[var(--ds-surface)] px-2 py-0.5 font-mono text-xs text-[var(--ds-text)]"
-          >
-            {`{{${name}}}`}
-          </span>
-        ))}
       </div>
     </div>
   );

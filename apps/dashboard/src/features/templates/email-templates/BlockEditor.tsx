@@ -66,6 +66,12 @@ export interface BlockEditorProps {
   blocks: EmailBlock[];
   /** Called with the full next `blocks` array on every add/remove/reorder/field edit. */
   onChange: (blocks: EmailBlock[]) => void;
+  /**
+   * Forwarded to every text block's Markdown editor: called with an
+   * insert-at-cursor function whenever that editor gains focus, so the page
+   * can route variables-panel insertions to the most recently focused editor.
+   */
+  registerMarkdownInsert?: (insert: (text: string) => void) => void;
 }
 
 /**
@@ -81,7 +87,7 @@ export interface BlockEditorProps {
  * only calling `onChange` with the next full array. The caller
  * (`EmailTemplateEditPage`) owns `blocks` as part of its form state.
  */
-export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
+export function BlockEditor({ blocks, onChange, registerMarkdownInsert }: BlockEditorProps) {
   const { messages } = useI18n();
   const m = messages.emailTemplates;
 
@@ -149,6 +155,7 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
                 removeLabel={messages.common.remove}
                 onChange={(next) => updateBlockAt(index, next)}
                 onRemove={() => removeBlockAt(index)}
+                registerMarkdownInsert={registerMarkdownInsert}
               />
             ))}
           </div>
@@ -183,6 +190,7 @@ interface SortableBlockCardProps {
   removeLabel: string;
   onChange: (block: EmailBlock) => void;
   onRemove: () => void;
+  registerMarkdownInsert?: (insert: (text: string) => void) => void;
 }
 
 /**
@@ -192,7 +200,15 @@ interface SortableBlockCardProps {
  * the editor renders borderless so it sits gaplessly under the header; every
  * other block type gets a padded body around its inputs.
  */
-function SortableBlockCard({ id, block, label, removeLabel, onChange, onRemove }: SortableBlockCardProps) {
+function SortableBlockCard({
+  id,
+  block,
+  label,
+  removeLabel,
+  onChange,
+  onRemove,
+  registerMarkdownInsert,
+}: SortableBlockCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
 
   const style = {
@@ -238,7 +254,7 @@ function SortableBlockCard({ id, block, label, removeLabel, onChange, onRemove }
       </div>
 
       <div className={isTextBlock ? undefined : "p-3"}>
-        <BlockForm block={block} onChange={onChange} />
+        <BlockForm block={block} onChange={onChange} registerMarkdownInsert={registerMarkdownInsert} />
       </div>
     </div>
   );
@@ -247,13 +263,14 @@ function SortableBlockCard({ id, block, label, removeLabel, onChange, onRemove }
 interface BlockFormProps {
   block: EmailBlock;
   onChange: (block: EmailBlock) => void;
+  registerMarkdownInsert?: (insert: (text: string) => void) => void;
 }
 
 /** Renders the type-specific inline form for a single block. */
-function BlockForm({ block, onChange }: BlockFormProps) {
+function BlockForm({ block, onChange, registerMarkdownInsert }: BlockFormProps) {
   switch (block.type) {
     case EmailBlockType.Text:
-      return <TextBlockForm block={block} onChange={onChange} />;
+      return <TextBlockForm block={block} onChange={onChange} registerMarkdownInsert={registerMarkdownInsert} />;
     case EmailBlockType.Button:
       return <ButtonBlockForm block={block} onChange={onChange} />;
     case EmailBlockType.Image:
@@ -277,9 +294,11 @@ const MARKDOWN_EDITOR_HEIGHT_STORAGE_KEY = "musiccloud.emailTemplate.blockEditor
 function TextBlockForm({
   block,
   onChange,
+  registerMarkdownInsert,
 }: {
   block: Extract<EmailBlock, { type: typeof EmailBlockType.Text }>;
   onChange: (block: EmailBlock) => void;
+  registerMarkdownInsert?: (insert: (text: string) => void) => void;
 }) {
   const { messages } = useI18n();
   return (
@@ -292,6 +311,7 @@ function TextBlockForm({
         bare
         storageKey={MARKDOWN_EDITOR_HEIGHT_STORAGE_KEY}
         placeholder={messages.emailTemplates.bodyText}
+        registerInsert={registerMarkdownInsert}
       />
     </Suspense>
   );
