@@ -1,6 +1,8 @@
 import type {
   ContentCardStyle,
   EmailBlock,
+  FormConfig,
+  FormConfigPayload,
   OverlayWidth,
   PageDisplayMode,
   PageTitleAlignment,
@@ -198,6 +200,42 @@ export interface EmailActionBindingDto {
   actionKey: string;
   templateId: number;
   enabled: boolean;
+}
+
+// ----------------------------------------------------------------------------
+// Form builder (admin-built forms + their submissions, MC-082)
+// ----------------------------------------------------------------------------
+
+/**
+ * Create payload for an empty form: the admin-facing `name` plus the public
+ * `slug` (both unique; the dialog defaults the slug to the name).
+ */
+export interface FormConfigCreateData {
+  name: string;
+  slug: string;
+}
+
+/**
+ * Discriminated write result for form-config mutations. Uniqueness conflicts
+ * are expected admin input errors (409s), not exceptions: `name_taken` /
+ * `slug_taken` map to the violated unique column, `not_found` to a
+ * save/toggle against a name that has no row.
+ */
+export type FormConfigWriteResult = { ok: true; data: FormConfig } | { ok: false; reason: FormConfigWriteErrorReason };
+
+/** The failure reasons a {@link FormConfigWriteResult} can carry. */
+export type FormConfigWriteErrorReason = "name_taken" | "slug_taken" | "not_found";
+
+/**
+ * Insert payload for one stored submission (the pipeline's `store` step).
+ * `submitterEmail` / `developerAccountId` are the nullable GDPR anchors — set
+ * whenever the submission is attributable to a person or account.
+ */
+export interface FormSubmissionInsertData {
+  formConfigId: number;
+  data: Record<string, unknown>;
+  submitterEmail?: string | null;
+  developerAccountId?: string | null;
 }
 
 // ----------------------------------------------------------------------------
@@ -731,6 +769,67 @@ export interface AdminRepository {
    * @returns Whether the requested row exists or mutation succeeded.
    */
   deleteEmailActionBinding(id: string): Promise<boolean>;
+
+  // Form builder (MC-082)
+  /**
+   * Lists every form config, newest first.
+   *
+   * @returns The matching rows (field grid + submission chain included).
+   */
+  listFormConfigs(): Promise<FormConfig[]>;
+  /**
+   * Gets a form config by its admin-facing name.
+   *
+   * @param name - The form's unique name.
+   * @returns The matching record, or `null` when no row matches.
+   */
+  getFormConfigByName(name: string): Promise<FormConfig | null>;
+  /**
+   * Gets an ACTIVE form config by its public slug — the public submit route's
+   * lookup. Inactive forms are treated as nonexistent here.
+   *
+   * @param slug - The form's public slug.
+   * @returns The matching active record, or `null`.
+   */
+  getActiveFormConfigBySlug(slug: string): Promise<FormConfig | null>;
+  /**
+   * Creates a new, empty form (no rows, no submission chain).
+   *
+   * @param data - Unique name + slug.
+   * @returns `ok` with the created row, or `name_taken` / `slug_taken`.
+   */
+  createFormConfig(data: FormConfigCreateData): Promise<FormConfigWriteResult>;
+  /**
+   * Replaces an existing form's payload (rows, submission chain, slug) —
+   * the editor's save.
+   *
+   * @param name - The form's unique name.
+   * @param payload - The full new payload.
+   * @returns `ok` with the updated row, `not_found`, or `slug_taken`.
+   */
+  saveFormConfigPayload(name: string, payload: FormConfigPayload): Promise<FormConfigWriteResult>;
+  /**
+   * Enables or disables a form (inactive forms 404 on the public submit route).
+   *
+   * @param name - The form's unique name.
+   * @param isActive - The new active state.
+   * @returns The updated row, or `null` when no row matches.
+   */
+  setFormConfigActive(name: string, isActive: boolean): Promise<FormConfig | null>;
+  /**
+   * Deletes a form config; its submissions cascade.
+   *
+   * @param name - The form's unique name.
+   * @returns Whether the requested row exists or mutation succeeded.
+   */
+  deleteFormConfig(name: string): Promise<boolean>;
+  /**
+   * Inserts one stored submission (the pipeline's `store` step).
+   *
+   * @param data - Form id, submitted values, and optional GDPR anchors.
+   * @returns The new submission's id.
+   */
+  insertFormSubmission(data: FormSubmissionInsertData): Promise<{ id: number }>;
 
   // Content pages
   /**

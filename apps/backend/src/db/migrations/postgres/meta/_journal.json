@@ -379,6 +379,20 @@
       "when": 1783100119327,
       "tag": "0053_tearful_bloodstorm",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1783112491792,
+      "tag": "0054_seed_developer_email_templates",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1783113493918,
+      "tag": "0055_lyrical_cobalt_man",
+      "breakpoints": true
     }
   ]
 }

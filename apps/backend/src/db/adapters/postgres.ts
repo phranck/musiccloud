@@ -1,3 +1,4 @@
+import type { FormConfig, FormConfigPayload } from "@musiccloud/shared";
 import * as pgModule from "pg";
 import { log } from "../../lib/infra/logger.js";
 import type { NormalizedTrack } from "../../services/types.js";
@@ -19,6 +20,9 @@ import type {
   EmailBrandingDto,
   EmailTemplateRow,
   EmailTemplateWriteData,
+  FormConfigCreateData,
+  FormConfigWriteResult,
+  FormSubmissionInsertData,
   ListResult,
   NavId,
   NavItemReplaceInput,
@@ -243,6 +247,16 @@ import {
   setDeveloperPassword as developerSetPassword,
   updateDeveloperLastLogin as developerUpdateLastLogin,
 } from "./postgres-developer.js";
+import {
+  createFormConfig as formsCreateFormConfig,
+  deleteFormConfig as formsDeleteFormConfig,
+  getActiveFormConfigBySlug as formsGetActiveFormConfigBySlug,
+  getFormConfigByName as formsGetFormConfigByName,
+  insertFormSubmission as formsInsertFormSubmission,
+  listFormConfigs as formsListFormConfigs,
+  saveFormConfigPayload as formsSaveFormConfigPayload,
+  setFormConfigActive as formsSetFormConfigActive,
+} from "./postgres-forms.js";
 import { insertAppTelemetryEvent } from "./postgres-telemetry.js";
 import {
   addLinksToTrack as tracksAddLinksToTrack,
@@ -857,6 +871,42 @@ export class PostgresAdapter
 
   deleteEmailActionBinding(id: string): Promise<boolean> {
     return contentEmailDeleteEmailActionBinding(this.pool, id);
+  }
+
+  // ============================================================================
+  // FORM BUILDER (AdminRepository, MC-082)
+  // ============================================================================
+
+  listFormConfigs(): Promise<FormConfig[]> {
+    return formsListFormConfigs(this.pool);
+  }
+
+  getFormConfigByName(name: string): Promise<FormConfig | null> {
+    return formsGetFormConfigByName(this.pool, name);
+  }
+
+  getActiveFormConfigBySlug(slug: string): Promise<FormConfig | null> {
+    return formsGetActiveFormConfigBySlug(this.pool, slug);
+  }
+
+  createFormConfig(data: FormConfigCreateData): Promise<FormConfigWriteResult> {
+    return formsCreateFormConfig(this.pool, data);
+  }
+
+  saveFormConfigPayload(name: string, payload: FormConfigPayload): Promise<FormConfigWriteResult> {
+    return formsSaveFormConfigPayload(this.pool, name, payload);
+  }
+
+  setFormConfigActive(name: string, isActive: boolean): Promise<FormConfig | null> {
+    return formsSetFormConfigActive(this.pool, name, isActive);
+  }
+
+  deleteFormConfig(name: string): Promise<boolean> {
+    return formsDeleteFormConfig(this.pool, name);
+  }
+
+  insertFormSubmission(data: FormSubmissionInsertData): Promise<{ id: number }> {
+    return formsInsertFormSubmission(this.pool, data);
   }
 
   // ============================================================================

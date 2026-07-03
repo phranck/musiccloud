@@ -30,6 +30,7 @@ import adminEmailActionsRoutes from "./routes/admin-email-actions.js";
 import adminEmailAssetsRoutes from "./routes/admin-email-assets.js";
 import adminEmailBrandingRoutes from "./routes/admin-email-branding.js";
 import adminEmailTemplateRoutes from "./routes/admin-email-templates.js";
+import adminFormsRoutes from "./routes/admin-forms.js";
 import adminNavRoutes from "./routes/admin-nav.js";
 import adminPluginsRoutes from "./routes/admin-plugins.js";
 import adminSseRoutes from "./routes/admin-sse.js";
@@ -47,6 +48,7 @@ import { devApiAccessRoutes } from "./routes/dev-api-access.js";
 import { devAuthRoutes } from "./routes/developer-auth.js";
 import { devGitHubRoutes } from "./routes/developer-github.js";
 import emailAssetServeRoutes from "./routes/email-assets.js";
+import formsPublicRoutes from "./routes/forms-public.js";
 import genreArtworkRoutes from "./routes/genre-artwork.js";
 import linkRoutes from "./routes/link.js";
 import publicContentNavRoutes from "./routes/public-content-nav.js";
@@ -650,6 +652,9 @@ async function buildApp() {
   // Apple-client telemetry ingest (public, no auth, Testflight-only caller)
   await app.register(telemetryAppErrorRoutes);
 
+  // Public form submissions (MC-082): unauthenticated, per-route rate-limited.
+  await app.register(formsPublicRoutes);
+
   // Protected API routes (X-API-Key or Bearer JWT)
   await app.register(async function protectedRoutes(protectedApp) {
     protectedApp.addHook("preHandler", protectedApp.authenticatePublic);
@@ -667,6 +672,7 @@ async function buildApp() {
     await adminApp.register(adminContentRoutes);
     await adminApp.register(adminDataRoutes);
     await adminApp.register(adminEmailActionsRoutes);
+    await adminApp.register(adminFormsRoutes);
     await adminApp.register(adminEmailAssetsRoutes);
     await adminApp.register(adminEmailBrandingRoutes);
     await adminApp.register(adminEmailTemplateRoutes);

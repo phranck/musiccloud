@@ -14,6 +14,8 @@ export interface EmailMessage {
   html: string;
   /** Optional plain-text alternative. */
   text?: string;
+  /** Optional Reply-To address (e.g. a form submitter, so replies reach them directly). */
+  replyTo?: string;
 }
 
 /**
@@ -79,6 +81,7 @@ export async function sendEmail(message: EmailMessage): Promise<void> {
       subject: message.subject,
       html_body: message.html,
       ...(message.text ? { text_body: message.text } : {}),
+      ...(message.replyTo ? { custom_headers: [{ header: "Reply-To", value: message.replyTo }] } : {}),
     }),
   });
 
