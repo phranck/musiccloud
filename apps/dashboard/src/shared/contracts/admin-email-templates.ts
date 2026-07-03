@@ -1,20 +1,6 @@
 import type { EmailBlock } from "@musiccloud/shared";
 
 /**
- * A declared template variable: the interpolation name plus a human-readable
- * description shown next to it in the block editor (e.g. so an admin editing
- * a button block's `{{inviteUrl}}` knows what it resolves to). Dashboard-local
- * mirror of the backend's `EmailTemplateVariable` DTO
- * (`apps/backend/src/db/admin-repository.ts`) — not a `@musiccloud/shared`
- * type, following this file's existing convention of mirroring backend DTO
- * shapes rather than importing backend internals.
- */
-export interface EmailTemplateVariable {
-  name: string;
-  description: string;
-}
-
-/**
  * Per-template branding overrides (MC-079). Dashboard-local mirror of the
  * backend's `EmailTemplateBrandingOverrides` DTO: every field is present, and
  * `null` means "no override for this field — inherit the global branding
@@ -37,18 +23,17 @@ export interface EmailTemplateBranding {
 /**
  * An email template as returned by the admin email-templates API. The body is
  * a `blocks` array (block-based email body model, MC-078) rather than the
- * flat header/body/footer text fields the pre-MC-078 template shape used;
- * `requiredVariables` declares which `{{var}}` placeholders the template
- * expects an action to supply, gating `POST .../bindings` compatibility
- * checks and the test-send flow. `branding` carries the per-template branding
- * overrides (MC-079); each `null` field inherits the global default.
+ * flat header/body/footer text fields the pre-MC-078 template shape used. The
+ * template's expected `{{var}}` placeholders are auto-extracted from its
+ * subject + body at use time (MC-080), not stored on the template. `branding`
+ * carries the per-template branding overrides (MC-079); each `null` field
+ * inherits the global default.
  */
 export interface EmailTemplate {
   id: number;
   name: string;
   subject: string;
   blocks: EmailBlock[];
-  requiredVariables: EmailTemplateVariable[];
   isSystemTemplate: boolean;
   createdAt: string;
   updatedAt: string;

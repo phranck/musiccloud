@@ -646,9 +646,8 @@ export interface DashboardMessages {
     imageAltText: string;
     spacerHeight: string;
     requiredVariablesTitle: string;
-    requiredVariableName: string;
-    requiredVariableDescription: string;
-    addRequiredVariable: string;
+    requiredVariablesHint: string;
+    requiredVariablesEmpty: string;
     exportTemplate: string;
     exportAll: string;
     importTemplate: string;
@@ -1396,9 +1395,9 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       imageAltText: "Alt-Text",
       spacerHeight: "H\u00f6he (px)",
       requiredVariablesTitle: "Erwartete Variablen",
-      requiredVariableName: "Name",
-      requiredVariableDescription: "Beschreibung",
-      addRequiredVariable: "Variable hinzuf\u00fcgen",
+      requiredVariablesHint:
+        "Automatisch aus Betreff und Inhalt erkannt \u2014 diese Platzhalter muss der Ausl\u00f6ser liefern.",
+      requiredVariablesEmpty: "Keine \u2014 dieses Template nutzt keine {{Platzhalter}}.",
       exportTemplate: "Exportieren",
       exportAll: "Alle exportieren",
       importTemplate: "Importieren",
@@ -2147,9 +2146,8 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       imageAltText: "Alt text",
       spacerHeight: "Height (px)",
       requiredVariablesTitle: "Required variables",
-      requiredVariableName: "Name",
-      requiredVariableDescription: "Description",
-      addRequiredVariable: "Add variable",
+      requiredVariablesHint: "Auto-detected from the subject and content — the trigger must supply these placeholders.",
+      requiredVariablesEmpty: "None — this template uses no {{placeholders}}.",
       exportTemplate: "Export",
       exportAll: "Export all",
       importTemplate: "Import",

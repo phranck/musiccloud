@@ -1,13 +1,11 @@
 import {
-  DashboardActionButton,
-  DashboardActionId,
   DashboardActionStatus,
   DashboardButton,
   DashboardButtonVariant,
   DashboardInput,
   SaveActionButton,
 } from "@musiccloud/dashboard-ui";
-import type { EmailBlock } from "@musiccloud/shared";
+import { type EmailBlock, extractEmailTemplateVariables } from "@musiccloud/shared";
 import { ArticleIcon, CheckCircleIcon, EnvelopeSimpleIcon, PaperPlaneTiltIcon, TagIcon } from "@phosphor-icons/react";
 import { useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
@@ -30,7 +28,7 @@ import {
   useUpdateEmailTemplate,
 } from "@/features/templates/hooks/useEmailTemplates";
 import { useKeyboardSave } from "@/lib/useKeyboardSave";
-import type { EmailTemplateBranding, EmailTemplateVariable } from "@/shared/contracts/admin-email-templates";
+import type { EmailTemplateBranding } from "@/shared/contracts/admin-email-templates";
 
 const EmailTestFeedbackType = {
   Ok: "ok",
@@ -47,7 +45,6 @@ interface TemplateFormFields {
   name: string;
   subject: string;
   blocks: EmailBlock[];
-  requiredVariables: EmailTemplateVariable[];
   branding: EmailTemplateBranding;
 }
 
@@ -86,10 +83,9 @@ export function EmailTemplateEditPage() {
     name: "",
     subject: "",
     blocks: [],
-    requiredVariables: [],
     branding: EMPTY_TEMPLATE_BRANDING,
   });
-  const { name, subject, blocks, requiredVariables, branding } = form;
+  const { name, subject, blocks, branding } = form;
 
   // Global branding default + all templates, for the branding-override editor:
   // the global seeds a gradient when an override is switched on, and the
@@ -113,7 +109,6 @@ export function EmailTemplateEditPage() {
       name: existing.name,
       subject: existing.subject,
       blocks: existing.blocks,
-      requiredVariables: existing.requiredVariables,
       branding: existing.branding,
     });
   }
@@ -123,7 +118,6 @@ export function EmailTemplateEditPage() {
       name: name.trim(),
       subject: subject.trim(),
       blocks,
-      requiredVariables,
       branding,
     };
   }
@@ -223,8 +217,8 @@ export function EmailTemplateEditPage() {
       />
 
       {/* Keyed by numId so switching templates in place (route param change, no page unmount)
-          resets RequiredVariablesEditor's and TemplateBrandingSection's local state instead of
-          carrying over stale keys/modes from the previous template. */}
+          resets TemplateBrandingSection's local override state instead of carrying over stale
+          modes from the previous template. */}
       <EmailTemplateEditorGrid
         key={numId}
         form={form}
@@ -392,11 +386,7 @@ function EmailTemplateEditorGrid({ form, labels, onFieldChange, global, swatches
                 title={labels.requiredVariablesTitle}
               />
               <DashboardSection.Body>
-                <RequiredVariablesEditor
-                  variables={form.requiredVariables}
-                  labels={labels}
-                  onChange={(requiredVariables) => onFieldChange("requiredVariables", requiredVariables)}
-                />
+                <DetectedVariables subject={form.subject} blocks={form.blocks} labels={labels} />
               </DashboardSection.Body>
             </DashboardSection>
 
@@ -417,90 +407,40 @@ function EmailTemplateEditorGrid({ form, labels, onFieldChange, global, swatches
   );
 }
 
-interface RequiredVariablesEditorProps {
-  variables: EmailTemplateVariable[];
+interface DetectedVariablesProps {
+  subject: string;
+  blocks: EmailBlock[];
   labels: ReturnType<typeof useI18n>["messages"]["emailTemplates"];
-  onChange: (variables: EmailTemplateVariable[]) => void;
 }
 
 /**
- * Small inline editor for a template's `requiredVariables`: a hand-declared
- * list of `{name, description}` rows (e.g. `inviteUrl` — "the invite
- * acceptance link"), with add/remove per row. Declaring a variable here is
- * what the backend's action-binding compatibility check validates against
- * (`POST .../bindings` rejects a binding whose action doesn't supply every
- * name declared here) and what the test-send flow prompts for — an empty
- * list is the permissive default (no variables enforced).
- *
- * Rows carry no id of their own (`EmailTemplateVariable` is just
- * `{name, description}`), so a parallel array of locally-generated, stable
- * row keys is kept alongside `variables` — recomputed only on add/remove, via
- * a monotonic counter rather than the array index, so React never
- * misattributes an input's DOM state to the wrong row after a mid-list
- * removal.
+ * Read-only display of the `{{var}}` placeholders auto-extracted from the
+ * template's subject + body (MC-080). This is the single source of truth for a
+ * template's "required variables" — the backend derives the exact same set for
+ * its bind-time and send-time gates — so there is nothing to declare or keep in
+ * sync by hand. Renders one chip per detected variable, live as the subject and
+ * blocks change, or a hint when the template uses no placeholders.
  */
-function RequiredVariablesEditor({ variables, labels, onChange }: RequiredVariablesEditorProps) {
-  const { messages } = useI18n();
-  const nextRowKeyRef = useRef(0);
-  const [rowKeys, setRowKeys] = useState<number[]>(() => variables.map(() => nextRowKeyRef.current++));
+function DetectedVariables({ subject, blocks, labels }: DetectedVariablesProps) {
+  const variables = extractEmailTemplateVariables(subject, blocks);
 
-  function updateAt(index: number, next: EmailTemplateVariable) {
-    onChange(variables.map((v, i) => (i === index ? next : v)));
-  }
-
-  function removeAt(index: number) {
-    onChange(variables.filter((_, i) => i !== index));
-    setRowKeys((prev) => prev.filter((_, i) => i !== index));
-  }
-
-  function add() {
-    onChange([...variables, { name: "", description: "" }]);
-    setRowKeys((prev) => [...prev, nextRowKeyRef.current++]);
+  if (variables.length === 0) {
+    return <p className="text-xs text-[var(--ds-text-muted)]">{labels.requiredVariablesEmpty}</p>;
   }
 
   return (
     <div className="space-y-2">
-      {variables.map((variable, index) => {
-        const rowKey = rowKeys[index] ?? index;
-        return (
-          <div key={rowKey} className="flex items-start gap-2">
-            <DashboardInput
-              id={`req-var-name-${rowKey}`}
-              type="text"
-              value={variable.name}
-              onChange={(e) => updateAt(index, { ...variable, name: e.target.value })}
-              label={labels.requiredVariableName}
-              placeholder={labels.requiredVariableName}
-              className="w-40 font-mono"
-            />
-            <DashboardInput
-              id={`req-var-desc-${rowKey}`}
-              type="text"
-              value={variable.description}
-              onChange={(e) => updateAt(index, { ...variable, description: e.target.value })}
-              label={labels.requiredVariableDescription}
-              placeholder={labels.requiredVariableDescription}
-              className="flex-1"
-            />
-            <DashboardActionButton
-              action={DashboardActionId.Remove}
-              iconOnly
-              label={messages.common.remove}
-              onClick={() => removeAt(index)}
-              size="action"
-              type="button"
-            />
-          </div>
-        );
-      })}
-      <DashboardActionButton
-        action={DashboardActionId.Create}
-        label={labels.addRequiredVariable}
-        onClick={add}
-        size="action"
-        type="button"
-        variant={DashboardButtonVariant.Neutral}
-      />
+      <p className="text-xs text-[var(--ds-text-muted)]">{labels.requiredVariablesHint}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {variables.map((name) => (
+          <span
+            key={name}
+            className="rounded-control border border-[var(--ds-border)] bg-[var(--ds-surface)] px-2 py-0.5 font-mono text-xs text-[var(--ds-text)]"
+          >
+            {`{{${name}}}`}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

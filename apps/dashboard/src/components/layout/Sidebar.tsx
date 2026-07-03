@@ -476,7 +476,6 @@ function EmailTemplatesGroup({
                   name: `${tpl.name} (Copy)`,
                   subject: tpl.subject,
                   blocks: tpl.blocks,
-                  requiredVariables: tpl.requiredVariables,
                   branding: tpl.branding,
                 });
                 void navigate(`/email-templates/${created.id}`);

@@ -285,9 +285,9 @@ interface AssignTemplateControlProps {
 /**
  * "+ assign template" control: a native `<select>` of every template not yet
  * bound to this action, plus an assign button. The backend's compatibility
- * check (a template whose `requiredVariables` includes a name the action
- * doesn't supply) surfaces as the mutation's `error` — shown inline near the
- * control rather than assumed to always succeed.
+ * check (a template using a `{{var}}` the action doesn't supply — auto-extracted
+ * from the template's subject + body) surfaces as the mutation's `error`, shown
+ * inline near the control rather than assumed to always succeed.
  */
 function AssignTemplateControl({ action, templates, labels }: AssignTemplateControlProps) {
   const createMutation = useCreateBinding();

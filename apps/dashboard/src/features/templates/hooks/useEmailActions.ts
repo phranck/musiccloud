@@ -8,8 +8,8 @@ import { api } from "@/lib/api";
  * to several enabled bindings, and a template may be bound to several
  * actions. Dashboard-local mirror of the backend's `EmailActionBindingDto`
  * (`apps/backend/src/db/admin-repository.ts`) — not itself a shared type,
- * following the same convention as `EmailTemplateVariable` in
- * `admin-email-templates.ts`.
+ * following this project's convention of mirroring backend DTO shapes in the
+ * dashboard rather than importing backend internals.
  */
 export interface EmailActionBinding {
   id: string;
