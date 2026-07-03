@@ -258,6 +258,25 @@ export async function fetchGenreArtwork(genreKey: string): Promise<Response> {
 }
 
 /**
+ * Fetch a stored email image asset's bytes from the backend by id (MC-079).
+ *
+ * The backend is not publicly exposed; every backend route reachable from the
+ * public domain is proxied by an Astro route (see
+ * `pages/api/admin/email-assets/[id].ts`). Sent emails embed
+ * `${PUBLIC_URL}/api/admin/email-assets/:id` as absolute image URLs, so the
+ * public domain must serve those bytes — this is the fetcher behind that
+ * proxy. Returns the raw `Response` so the proxy can stream the image body
+ * through with the upstream headers (Content-Type, immutable Cache-Control)
+ * intact.
+ *
+ * @param id - the `email_assets.id` to fetch.
+ * @returns the raw upstream `Response`.
+ */
+export async function fetchEmailAsset(id: string): Promise<Response> {
+  return fetchWithTimeout(backendUrl(ENDPOINTS.admin.emailAssets.detail(id)), { headers: internalHeaders() }, 15000);
+}
+
+/**
  * Fetch a procedurally generated Creative-Commons genre artwork from the
  * backend. Clone of {@link fetchGenreArtwork} targeting the CC route
  * (`ENDPOINTS.v1.ccGenreArtwork`), whose cover is Jamendo-sourced so the CC
