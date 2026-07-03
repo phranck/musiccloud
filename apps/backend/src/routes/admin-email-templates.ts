@@ -2,8 +2,9 @@ import { type EmailBlock, ENDPOINTS, isEmailBlockArray, ROUTE_TEMPLATES } from "
 import type { FastifyInstance } from "fastify";
 import { strToU8, zipSync } from "fflate";
 
-import type { EmailTemplateVariable } from "../db/admin-repository.js";
+import type { EmailTemplateBrandingOverrides, EmailTemplateVariable } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
+import { isHexColor } from "../lib/color.js";
 import { requireEnv } from "../lib/env.js";
 import { renderEmailPreview } from "../services/email-renderer.js";
 import { sendTemplatedEmail } from "../services/email-sender.js";
@@ -22,6 +23,7 @@ interface EmailTemplateCreateBody {
   subject: string;
   blocks: EmailBlock[];
   requiredVariables: EmailTemplateVariable[];
+  branding?: Partial<EmailTemplateBrandingOverrides>;
 }
 
 interface EmailTemplateUpdateBody extends Partial<EmailTemplateCreateBody> {}
@@ -34,12 +36,65 @@ interface EmailTemplateImportBody extends EmailTemplateCreateBody {
 interface EmailTemplatePreviewBody {
   blocks: EmailBlock[];
   colorScheme?: "light" | "dark";
+  branding?: Partial<EmailTemplateBrandingOverrides>;
 }
 
 function parseId(raw: string): number | null {
   const id = Number(raw);
   if (!Number.isInteger(id) || id <= 0) return null;
   return id;
+}
+
+/** Template-override asset/text fields: present ⇒ string or null (null = inherit global). */
+const BRANDING_OVERRIDE_NULLABLE_FIELDS = [
+  "headerAssetId",
+  "footerAssetId",
+  "footerText",
+  "lightBackgroundAssetId",
+  "darkBackgroundAssetId",
+] as const;
+
+/** Template-override gradient fields: nullable (null = inherit global), else a literal hex colour. */
+const BRANDING_OVERRIDE_GRADIENT_FIELDS = [
+  "lightGradientTop",
+  "lightGradientBottom",
+  "darkGradientTop",
+  "darkGradientBottom",
+] as const;
+
+/**
+ * Validates a template's branding-override payload (`Partial` — present-keys
+ * only). Unlike the global branding, EVERY template-override field is nullable
+ * (`null` = "no override, inherit the global default"): the asset/text fields
+ * accept string or null, the gradient fields accept a literal hex colour
+ * ({@link isHexColor}) or null. A non-null gradient must be hex because it is
+ * interpolated straight into inline CSS on the send path.
+ *
+ * @param value - the raw, untyped `branding` value from the request body.
+ * @returns the validated partial overrides, or a string error message.
+ */
+function validateBrandingOverrides(value: unknown): Partial<EmailTemplateBrandingOverrides> | string {
+  if (!value || typeof value !== "object") return "branding must be an object";
+  const b = value as Record<string, unknown>;
+  const out: Partial<EmailTemplateBrandingOverrides> = {};
+
+  for (const field of BRANDING_OVERRIDE_NULLABLE_FIELDS) {
+    if (b[field] !== undefined) {
+      const v = b[field];
+      if (v !== null && typeof v !== "string") return `branding.${field} must be string or null`;
+      out[field] = v as string | null;
+    }
+  }
+
+  for (const field of BRANDING_OVERRIDE_GRADIENT_FIELDS) {
+    if (b[field] !== undefined) {
+      const v = b[field];
+      if (v !== null && !isHexColor(v)) return `branding.${field} must be a hex colour or null`;
+      out[field] = v as string | null;
+    }
+  }
+
+  return out;
 }
 
 /**
@@ -75,12 +130,18 @@ function validateCreateBody(body: unknown): EmailTemplateCreateBody | string {
   }
   const requiredVariables = validateRequiredVariables(b.requiredVariables ?? []);
   if (typeof requiredVariables === "string") return requiredVariables;
-  return {
+  const result: EmailTemplateCreateBody = {
     name: b.name,
     subject: b.subject,
     blocks: b.blocks,
     requiredVariables,
   };
+  if (b.branding !== undefined) {
+    const branding = validateBrandingOverrides(b.branding);
+    if (typeof branding === "string") return branding;
+    result.branding = branding;
+  }
+  return result;
 }
 
 function validateUpdateBody(body: unknown): EmailTemplateUpdateBody | string {
@@ -110,6 +171,11 @@ function validateUpdateBody(body: unknown): EmailTemplateUpdateBody | string {
     if (typeof requiredVariables === "string") return requiredVariables;
     out.requiredVariables = requiredVariables;
   }
+  if (b.branding !== undefined) {
+    const branding = validateBrandingOverrides(b.branding);
+    if (typeof branding === "string") return branding;
+    out.branding = branding;
+  }
   return out;
 }
 
@@ -123,10 +189,16 @@ function validatePreviewBody(body: unknown): EmailTemplatePreviewBody | string {
   if (scheme !== undefined && scheme !== "light" && scheme !== "dark") {
     return "colorScheme must be 'light' or 'dark'";
   }
-  return {
+  const result: EmailTemplatePreviewBody = {
     blocks: b.blocks,
     colorScheme: (scheme as "light" | "dark" | undefined) ?? "light",
   };
+  if (b.branding !== undefined) {
+    const branding = validateBrandingOverrides(b.branding);
+    if (typeof branding === "string") return branding;
+    result.branding = branding;
+  }
+  return result;
 }
 
 function validateImportBody(body: unknown): EmailTemplateImportBody | string {
@@ -207,8 +279,13 @@ export default async function adminEmailTemplateRoutes(app: FastifyInstance) {
     if (typeof validated === "string") {
       return reply.status(400).send({ error: validated });
     }
-    const branding = await getManagedEmailBranding();
-    const html = renderEmailPreview(validated.blocks, branding, validated.colorScheme ?? "light");
+    const globalBranding = await getManagedEmailBranding();
+    const html = renderEmailPreview(
+      validated.blocks,
+      validated.branding ?? {},
+      globalBranding,
+      validated.colorScheme ?? "light",
+    );
     return { html };
   });
 

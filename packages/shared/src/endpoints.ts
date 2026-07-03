@@ -272,8 +272,8 @@ export const ENDPOINTS = {
     },
 
     emailAssets: {
-      /** POST: upload an image (data: URL body), returns { id }. */
-      upload: "/api/admin/email-assets",
+      /** GET: list all asset metadata (admin) / POST: upload an image (data: URL body), returns { id }. */
+      list: "/api/admin/email-assets",
       /** GET: serve an asset's bytes by id (public — mail clients have no admin JWT). */
       detail: (id: string) => `/api/admin/email-assets/${id}`,
     },

@@ -47,7 +47,17 @@ const ADMIN_INVITE_VARIABLES = {
 
 const RECIPIENT = { email: "alice@example.com", name: "Alice" };
 
-const BRANDING: EmailBrandingDto = { headerAssetId: null, footerAssetId: null, footerText: null };
+const BRANDING: EmailBrandingDto = {
+  headerAssetId: null,
+  footerAssetId: null,
+  footerText: null,
+  lightBackgroundAssetId: null,
+  darkBackgroundAssetId: null,
+  lightGradientTop: "#0076d5",
+  lightGradientBottom: "#69d1fd",
+  darkGradientTop: "#0b1318",
+  darkGradientBottom: "#10273b",
+};
 
 /**
  * Builds a fully-populated {@link EmailTemplateRow}, defaulting to a single
@@ -71,6 +81,17 @@ function makeTemplateRow(overrides: Partial<EmailTemplateRow> = {}): EmailTempla
     isSystemTemplate: true,
     createdAt: new Date(),
     updatedAt: new Date(),
+    branding: {
+      headerAssetId: null,
+      footerAssetId: null,
+      footerText: null,
+      lightBackgroundAssetId: null,
+      darkBackgroundAssetId: null,
+      lightGradientTop: null,
+      lightGradientBottom: null,
+      darkGradientTop: null,
+      darkGradientBottom: null,
+    },
     ...overrides,
   };
 }

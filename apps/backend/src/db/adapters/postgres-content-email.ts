@@ -22,10 +22,43 @@ import type {
   EmailActionBindingDto,
   EmailAssetDto,
   EmailBrandingDto,
+  EmailTemplateBrandingOverrides,
   EmailTemplateRow,
   EmailTemplateVariable,
   EmailTemplateWriteData,
 } from "../admin-repository.js";
+
+// ============================================================================
+// COLUMN LISTS
+// ============================================================================
+
+/**
+ * The full `email_templates` column list, snake_case, shared by every
+ * SELECT and by INSERT/UPDATE `RETURNING` so the six read/write paths never
+ * drift on which columns they project (MC-079 added the nine trailing
+ * branding-override columns).
+ */
+const EMAIL_TEMPLATE_COLUMNS = `id, name, subject, blocks, required_variables, is_system_template, created_at, updated_at,
+       header_asset_id, footer_asset_id, footer_text,
+       light_background_asset_id, dark_background_asset_id,
+       light_gradient_top, light_gradient_bottom, dark_gradient_top, dark_gradient_bottom`;
+
+/**
+ * Maps each {@link EmailTemplateBrandingOverrides} key to its snake_case
+ * `email_templates` column. Drives both the branding half of the present-keys
+ * INSERT/UPDATE and the row→DTO mapping, so the two can never disagree.
+ */
+const BRANDING_OVERRIDE_COLUMNS: Record<keyof EmailTemplateBrandingOverrides, string> = {
+  headerAssetId: "header_asset_id",
+  footerAssetId: "footer_asset_id",
+  footerText: "footer_text",
+  lightBackgroundAssetId: "light_background_asset_id",
+  darkBackgroundAssetId: "dark_background_asset_id",
+  lightGradientTop: "light_gradient_top",
+  lightGradientBottom: "light_gradient_bottom",
+  darkGradientTop: "dark_gradient_top",
+  darkGradientBottom: "dark_gradient_bottom",
+};
 
 // ============================================================================
 // ROW TYPES
@@ -40,6 +73,15 @@ interface EmailTemplateSqlRow {
   is_system_template: boolean;
   created_at: Date;
   updated_at: Date;
+  header_asset_id: string | null;
+  footer_asset_id: string | null;
+  footer_text: string | null;
+  light_background_asset_id: string | null;
+  dark_background_asset_id: string | null;
+  light_gradient_top: string | null;
+  light_gradient_bottom: string | null;
+  dark_gradient_top: string | null;
+  dark_gradient_bottom: string | null;
 }
 
 // ============================================================================
@@ -50,7 +92,9 @@ interface EmailTemplateSqlRow {
  * Maps a raw `email_templates` row to the public {@link EmailTemplateRow}
  * DTO (snake_case → camelCase). `blocks`/`required_variables` are JSONB
  * columns; the raw `pg` driver already parses them into JS values on
- * SELECT, so they only need a type cast here.
+ * SELECT, so they only need a type cast here. The nine branding-override
+ * columns are collected into `branding` (each `null` = inherit the global
+ * default at render time).
  */
 function rowToEmailTemplate(row: EmailTemplateSqlRow): EmailTemplateRow {
   return {
@@ -62,6 +106,17 @@ function rowToEmailTemplate(row: EmailTemplateSqlRow): EmailTemplateRow {
     isSystemTemplate: row.is_system_template,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    branding: {
+      headerAssetId: row.header_asset_id,
+      footerAssetId: row.footer_asset_id,
+      footerText: row.footer_text,
+      lightBackgroundAssetId: row.light_background_asset_id,
+      darkBackgroundAssetId: row.dark_background_asset_id,
+      lightGradientTop: row.light_gradient_top,
+      lightGradientBottom: row.light_gradient_bottom,
+      darkGradientTop: row.dark_gradient_top,
+      darkGradientBottom: row.dark_gradient_bottom,
+    },
   };
 }
 
@@ -76,7 +131,7 @@ function rowToEmailTemplate(row: EmailTemplateSqlRow): EmailTemplateRow {
  */
 export async function listEmailTemplates(pool: Pool): Promise<EmailTemplateRow[]> {
   const result = await pool.query(
-    `SELECT id, name, subject, blocks, required_variables, is_system_template, created_at, updated_at
+    `SELECT ${EMAIL_TEMPLATE_COLUMNS}
      FROM email_templates
      ORDER BY name ASC`,
   );
@@ -92,7 +147,7 @@ export async function listEmailTemplates(pool: Pool): Promise<EmailTemplateRow[]
  */
 export async function getEmailTemplateById(pool: Pool, id: number): Promise<EmailTemplateRow | null> {
   const result = await pool.query(
-    `SELECT id, name, subject, blocks, required_variables, is_system_template, created_at, updated_at
+    `SELECT ${EMAIL_TEMPLATE_COLUMNS}
      FROM email_templates
      WHERE id = $1`,
     [id],
@@ -110,7 +165,7 @@ export async function getEmailTemplateById(pool: Pool, id: number): Promise<Emai
  */
 export async function getEmailTemplateByName(pool: Pool, name: string): Promise<EmailTemplateRow | null> {
   const result = await pool.query(
-    `SELECT id, name, subject, blocks, required_variables, is_system_template, created_at, updated_at
+    `SELECT ${EMAIL_TEMPLATE_COLUMNS}
      FROM email_templates
      WHERE name = $1`,
     [name],
@@ -131,18 +186,31 @@ export async function getEmailTemplateByName(pool: Pool, name: string): Promise<
  * @returns The persisted row, including DB-assigned id and timestamps.
  */
 export async function insertEmailTemplate(pool: Pool, data: EmailTemplateWriteData): Promise<EmailTemplateRow> {
+  // A new row has no "unchanged" concept, so an absent branding key simply
+  // becomes NULL (= inherit the global default), same as an all-null default.
+  const brandingKeys = Object.keys(BRANDING_OVERRIDE_COLUMNS) as (keyof EmailTemplateBrandingOverrides)[];
+  const columns = [
+    "name",
+    "subject",
+    "blocks",
+    "required_variables",
+    "is_system_template",
+    ...brandingKeys.map((key) => BRANDING_OVERRIDE_COLUMNS[key]),
+  ];
+  const values: unknown[] = [
+    data.name,
+    data.subject,
+    JSON.stringify(data.blocks),
+    JSON.stringify(data.requiredVariables ?? []),
+    data.isSystemTemplate ?? false,
+    ...brandingKeys.map((key) => data.branding?.[key] ?? null),
+  ];
+  const placeholders = columns.map((_, i) => `$${i + 1}`).join(", ");
   const result = await pool.query(
-    `INSERT INTO email_templates
-       (name, subject, blocks, required_variables, is_system_template)
-     VALUES ($1, $2, $3, $4, $5)
-     RETURNING id, name, subject, blocks, required_variables, is_system_template, created_at, updated_at`,
-    [
-      data.name,
-      data.subject,
-      JSON.stringify(data.blocks),
-      JSON.stringify(data.requiredVariables ?? []),
-      data.isSystemTemplate ?? false,
-    ],
+    `INSERT INTO email_templates (${columns.join(", ")})
+     VALUES (${placeholders})
+     RETURNING ${EMAIL_TEMPLATE_COLUMNS}`,
+    values,
   );
   return rowToEmailTemplate(result.rows[0]);
 }
@@ -165,7 +233,7 @@ export async function updateEmailTemplate(
   id: number,
   data: Partial<EmailTemplateWriteData>,
 ): Promise<EmailTemplateRow | null> {
-  const columnMap: Record<keyof EmailTemplateWriteData, string> = {
+  const columnMap: Record<Exclude<keyof EmailTemplateWriteData, "branding">, string> = {
     name: "name",
     subject: "subject",
     blocks: "blocks",
@@ -185,12 +253,29 @@ export async function updateEmailTemplate(
     // as a NULL bind param and violate the NOT NULL constraint on the jsonb
     // columns.
     if (value === undefined) continue;
-    const typedKey = key as keyof EmailTemplateWriteData;
-    const column = columnMap[typedKey];
+    // `branding` is a nested object, handled by its own present-keys loop below.
+    if (key === "branding") continue;
+    const column = columnMap[key as Exclude<keyof EmailTemplateWriteData, "branding">];
     if (column) {
       setClauses.push(`${column} = $${paramIndex}`);
-      values.push(jsonbColumns.has(typedKey) ? JSON.stringify(value) : value);
+      values.push(jsonbColumns.has(key as keyof EmailTemplateWriteData) ? JSON.stringify(value) : value);
       paramIndex++;
+    }
+  }
+
+  // Branding overrides: same present-keys-only semantics as the top-level
+  // fields — an ABSENT key leaves the column untouched, a key present as
+  // `null` clears the override (template falls back to the global default),
+  // a non-null value sets it.
+  if (data.branding) {
+    for (const [key, value] of Object.entries(data.branding)) {
+      if (value === undefined) continue;
+      const column = BRANDING_OVERRIDE_COLUMNS[key as keyof EmailTemplateBrandingOverrides];
+      if (column) {
+        setClauses.push(`${column} = $${paramIndex}`);
+        values.push(value);
+        paramIndex++;
+      }
     }
   }
 
@@ -206,7 +291,7 @@ export async function updateEmailTemplate(
   const result = await pool.query(
     `UPDATE email_templates SET ${setClauses.join(", ")}
      WHERE id = $${paramIndex}
-     RETURNING id, name, subject, blocks, required_variables, is_system_template, created_at, updated_at`,
+     RETURNING ${EMAIL_TEMPLATE_COLUMNS}`,
     values,
   );
 
@@ -240,10 +325,40 @@ export async function deleteEmailTemplate(pool: Pool, id: number): Promise<boole
  */
 export async function getEmailBranding(pool: Pool): Promise<EmailBrandingDto> {
   const r = await pool.query(
-    `SELECT header_asset_id, footer_asset_id, footer_text FROM email_branding ORDER BY id ASC LIMIT 1`,
+    `SELECT header_asset_id, footer_asset_id, footer_text,
+            light_background_asset_id, dark_background_asset_id,
+            light_gradient_top, light_gradient_bottom, dark_gradient_top, dark_gradient_bottom
+     FROM email_branding ORDER BY id ASC LIMIT 1`,
   );
-  const row = r.rows[0] ?? { header_asset_id: null, footer_asset_id: null, footer_text: null };
-  return { headerAssetId: row.header_asset_id, footerAssetId: row.footer_asset_id, footerText: row.footer_text };
+  const row = r.rows[0];
+  if (!row) {
+    // Defensive: the migration seeds exactly one row, so this only fires on a
+    // freshly-created empty table. Mirror the schema's NOT NULL gradient
+    // defaults (the website night-sky shader colours) so the non-null
+    // gradient contract of EmailBrandingDto always holds.
+    return {
+      headerAssetId: null,
+      footerAssetId: null,
+      footerText: null,
+      lightBackgroundAssetId: null,
+      darkBackgroundAssetId: null,
+      lightGradientTop: "#0076d5",
+      lightGradientBottom: "#69d1fd",
+      darkGradientTop: "#0b1318",
+      darkGradientBottom: "#10273b",
+    };
+  }
+  return {
+    headerAssetId: row.header_asset_id,
+    footerAssetId: row.footer_asset_id,
+    footerText: row.footer_text,
+    lightBackgroundAssetId: row.light_background_asset_id,
+    darkBackgroundAssetId: row.dark_background_asset_id,
+    lightGradientTop: row.light_gradient_top,
+    lightGradientBottom: row.light_gradient_bottom,
+    darkGradientTop: row.dark_gradient_top,
+    darkGradientBottom: row.dark_gradient_bottom,
+  };
 }
 
 /**
@@ -265,6 +380,12 @@ export async function updateEmailBranding(pool: Pool, data: Partial<EmailBrandin
     headerAssetId: "header_asset_id",
     footerAssetId: "footer_asset_id",
     footerText: "footer_text",
+    lightBackgroundAssetId: "light_background_asset_id",
+    darkBackgroundAssetId: "dark_background_asset_id",
+    lightGradientTop: "light_gradient_top",
+    lightGradientBottom: "light_gradient_bottom",
+    darkGradientTop: "dark_gradient_top",
+    darkGradientBottom: "dark_gradient_bottom",
   };
 
   const setClauses: string[] = [];
@@ -297,6 +418,20 @@ export async function updateEmailBranding(pool: Pool, data: Partial<EmailBrandin
 // ============================================================================
 // EMAIL ASSETS
 // ============================================================================
+
+/**
+ * Lists every email image asset's metadata (id, MIME type, created-at),
+ * newest first. Bytes are intentionally not selected — they are streamed
+ * separately by id via {@link getEmailAssetBytes}. Backs the dashboard's
+ * shared-asset picker.
+ *
+ * @param pool - Postgres connection pool.
+ * @returns All email asset metadata rows, newest first.
+ */
+export async function listEmailAssets(pool: Pool): Promise<EmailAssetDto[]> {
+  const r = await pool.query(`SELECT id, mime_type, created_at FROM email_assets ORDER BY created_at DESC`);
+  return r.rows.map((x) => ({ id: x.id, mimeType: x.mime_type, createdAt: x.created_at }));
+}
 
 /**
  * Inserts a new binary email image asset, with a nanoid id.

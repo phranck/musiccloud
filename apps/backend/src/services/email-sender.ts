@@ -36,6 +36,7 @@ export async function sendTemplatedEmail(input: SendTemplatedEmailInput): Promis
 
   const { html, subject } = renderEmailTemplate(
     { subject: template.subject, blocks: template.blocks },
+    template.branding,
     branding,
     input.variables,
     baseUrl,

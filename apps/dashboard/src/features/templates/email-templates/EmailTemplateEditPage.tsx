@@ -18,15 +18,19 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { useI18n } from "@/context/I18nContext";
 import { BlockEditor } from "@/features/templates/email-templates/BlockEditor";
 import { EmailPreview } from "@/features/templates/email-templates/EmailPreview";
+import { collectGradientSwatches, type GradientSwatch } from "@/features/templates/email-templates/gradientSwatches";
+import { TemplateBrandingSection } from "@/features/templates/email-templates/TemplateBrandingSection";
+import { type EmailBranding, useEmailBranding } from "@/features/templates/hooks/useEmailBranding";
 import {
   type EmailTemplateInput,
   useCreateEmailTemplate,
   useEmailTemplate,
+  useEmailTemplates,
   useSendTestEmail,
   useUpdateEmailTemplate,
 } from "@/features/templates/hooks/useEmailTemplates";
 import { useKeyboardSave } from "@/lib/useKeyboardSave";
-import type { EmailTemplateVariable } from "@/shared/contracts/admin-email-templates";
+import type { EmailTemplateBranding, EmailTemplateVariable } from "@/shared/contracts/admin-email-templates";
 
 const EmailTestFeedbackType = {
   Ok: "ok",
@@ -44,7 +48,21 @@ interface TemplateFormFields {
   subject: string;
   blocks: EmailBlock[];
   requiredVariables: EmailTemplateVariable[];
+  branding: EmailTemplateBranding;
 }
+
+/** A fresh template's branding: every override null (inherits the global default). */
+const EMPTY_TEMPLATE_BRANDING: EmailTemplateBranding = {
+  headerAssetId: null,
+  footerAssetId: null,
+  footerText: null,
+  lightBackgroundAssetId: null,
+  darkBackgroundAssetId: null,
+  lightGradientTop: null,
+  lightGradientBottom: null,
+  darkGradientTop: null,
+  darkGradientBottom: null,
+};
 
 /**
  * Create/edit page for a single email template.
@@ -69,8 +87,16 @@ export function EmailTemplateEditPage() {
     subject: "",
     blocks: [],
     requiredVariables: [],
+    branding: EMPTY_TEMPLATE_BRANDING,
   });
-  const { name, subject, blocks, requiredVariables } = form;
+  const { name, subject, blocks, requiredVariables, branding } = form;
+
+  // Global branding default + all templates, for the branding-override editor:
+  // the global seeds a gradient when an override is switched on, and the
+  // template list feeds the gradient preset swatches.
+  const { data: globalBranding } = useEmailBranding();
+  const { data: allTemplates } = useEmailTemplates();
+  const swatches = collectGradientSwatches(globalBranding, allTemplates);
 
   const updateField = <K extends keyof TemplateFormFields>(key: K, value: TemplateFormFields[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -88,6 +114,7 @@ export function EmailTemplateEditPage() {
       subject: existing.subject,
       blocks: existing.blocks,
       requiredVariables: existing.requiredVariables,
+      branding: existing.branding,
     });
   }
 
@@ -97,6 +124,7 @@ export function EmailTemplateEditPage() {
       subject: subject.trim(),
       blocks,
       requiredVariables,
+      branding,
     };
   }
 
@@ -195,9 +223,16 @@ export function EmailTemplateEditPage() {
       />
 
       {/* Keyed by numId so switching templates in place (route param change, no page unmount)
-          resets RequiredVariablesEditor's local row-identity state instead of carrying over
-          stale keys from the previous template's requiredVariables array. */}
-      <EmailTemplateEditorGrid key={numId} form={form} labels={m} onFieldChange={updateField} />
+          resets RequiredVariablesEditor's and TemplateBrandingSection's local state instead of
+          carrying over stale keys/modes from the previous template. */}
+      <EmailTemplateEditorGrid
+        key={numId}
+        form={form}
+        labels={m}
+        onFieldChange={updateField}
+        global={globalBranding}
+        swatches={swatches}
+      />
     </div>
   );
 }
@@ -313,9 +348,11 @@ interface EmailTemplateEditorGridProps {
   form: TemplateFormFields;
   labels: ReturnType<typeof useI18n>["messages"]["emailTemplates"];
   onFieldChange: <K extends keyof TemplateFormFields>(key: K, value: TemplateFormFields[K]) => void;
+  global: EmailBranding | undefined;
+  swatches: GradientSwatch[];
 }
 
-function EmailTemplateEditorGrid({ form, labels, onFieldChange }: EmailTemplateEditorGridProps) {
+function EmailTemplateEditorGrid({ form, labels, onFieldChange, global, swatches }: EmailTemplateEditorGridProps) {
   return (
     <div className="flex-1 overflow-hidden">
       <div className="grid h-full grid-cols-1 gap-3 overflow-hidden xl:grid-cols-[minmax(0,1fr)_minmax(26rem,0.9fr)]">
@@ -362,11 +399,18 @@ function EmailTemplateEditorGrid({ form, labels, onFieldChange }: EmailTemplateE
                 />
               </DashboardSection.Body>
             </DashboardSection>
+
+            <TemplateBrandingSection
+              branding={form.branding}
+              onChange={(next) => onFieldChange("branding", next)}
+              global={global}
+              swatches={swatches}
+            />
           </div>
         </div>
 
         <div className="min-h-[32rem] overflow-hidden xl:min-h-0">
-          <EmailPreview blocks={form.blocks} />
+          <EmailPreview blocks={form.blocks} branding={form.branding} />
         </div>
       </div>
     </div>

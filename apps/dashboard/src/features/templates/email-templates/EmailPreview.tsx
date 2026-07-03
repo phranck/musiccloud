@@ -7,10 +7,18 @@ import { ColorSchemeSegmentedControl } from "@/components/ui/ColorSchemeSegmente
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { useI18n } from "@/context/I18nContext";
 import { api } from "@/lib/api";
+import type { EmailTemplateBranding } from "@/shared/contracts/admin-email-templates";
 
 interface EmailPreviewProps {
-  /** The template body's ordered blocks, rendered wrapped in the global branding (header/footer asset + footer text). */
+  /** The template body's ordered blocks. */
   blocks: EmailBlock[];
+  /**
+   * The template's (possibly still-unsaved) branding overrides. Sent with the
+   * preview request so the iframe reflects the day/night background and any
+   * header/footer/text override live, resolved over the global default exactly
+   * as the send path would.
+   */
+  branding: EmailTemplateBranding;
 }
 
 const COLOR_SCHEME_STORAGE_KEY = "email-template:preview-color-scheme";
@@ -25,7 +33,7 @@ function loadColorScheme(): "light" | "dark" {
  * Fetches rendered HTML from the backend preview endpoint so the output is
  * always identical to what recipients receive.
  */
-export function EmailPreview({ blocks }: EmailPreviewProps) {
+export function EmailPreview({ blocks, branding }: EmailPreviewProps) {
   const { messages } = useI18n();
   const m = messages.emailTemplates;
   const [colorScheme, setColorScheme] = useState<"light" | "dark">(loadColorScheme);
@@ -36,14 +44,14 @@ export function EmailPreview({ blocks }: EmailPreviewProps) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       api
-        .post<{ html: string }>(ENDPOINTS.admin.emailTemplates.preview, { blocks, colorScheme })
+        .post<{ html: string }>(ENDPOINTS.admin.emailTemplates.preview, { blocks, colorScheme, branding })
         .then(({ html }) => setSrcDoc(html))
         .catch(() => {});
     }, 800);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [blocks, colorScheme]);
+  }, [blocks, colorScheme, branding]);
 
   return (
     <DashboardSection className="flex h-full min-h-0 flex-col overflow-hidden">

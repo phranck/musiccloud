@@ -672,6 +672,24 @@ export interface DashboardMessages {
     brandingImageHint: string;
     brandingFooterText: string;
     brandingFooterTextPlaceholder: string;
+    brandingLightBackground: string;
+    brandingDarkBackground: string;
+    brandingBackgroundHint: string;
+    brandingGradientTop: string;
+    brandingGradientBottom: string;
+    brandingGradientImage: string;
+    brandingGradientPresets: string;
+    assetPickerTitle: string;
+    assetPickerChoose: string;
+    assetPickerChange: string;
+    assetPickerUploadNew: string;
+    assetPickerExisting: string;
+    assetPickerEmpty: string;
+    brandingOverrideTitle: string;
+    brandingOverrideHint: string;
+    brandingModeDefault: string;
+    brandingModeOverride: string;
+    brandingInheritsDefault: string;
   };
   emailActions: {
     title: string;
@@ -1399,13 +1417,32 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       testFailed: "Test-Mail fehlgeschlagen",
       brandingTitle: "E-Mail-Branding",
       brandingDescription:
-        "Header/Footer-Bild und Footer-Text werden um JEDE versendete E-Mail-Vorlage gelegt \u2014 global, nicht pro Vorlage.",
+        "Header/Footer-Bild, Footer-Text und Tag/Nacht-Hintergrund sind der globale Default f\u00fcr jede versendete Vorlage \u2014 einzelne Vorlagen k\u00f6nnen jedes Feld \u00fcberschreiben.",
       brandingHeaderImage: "Header-Bild",
       brandingFooterImage: "Footer-Bild",
       brandingImageHint:
         "JPEG, PNG oder WebP, max. 5 MB. Wird auf 560 px Breite skaliert — empfohlen: ca. 1120 px breit (2× für Retina-Schärfe), breites Banner-Format.",
       brandingFooterText: "Footer-Text",
       brandingFooterTextPlaceholder: "Markdown-Text, der unter jeder Vorlage erscheint",
+      brandingLightBackground: "Tag-Hintergrund",
+      brandingDarkBackground: "Nacht-Hintergrund",
+      brandingBackgroundHint:
+        "Immer ein Farbverlauf, optional zusätzlich ein Bild darüber. Zeigt sich in Mail-Clients mit hellem bzw. dunklem Farbschema.",
+      brandingGradientTop: "Verlauf oben",
+      brandingGradientBottom: "Verlauf unten",
+      brandingGradientImage: "Hintergrundbild (optional)",
+      brandingGradientPresets: "Bereits verwendet",
+      assetPickerTitle: "Bild wählen",
+      assetPickerChoose: "Bild wählen",
+      assetPickerChange: "Bild ändern",
+      assetPickerUploadNew: "Neu hochladen",
+      assetPickerExisting: "Bereits hochgeladen",
+      assetPickerEmpty: "Noch keine Bilder hochgeladen",
+      brandingOverrideTitle: "Branding",
+      brandingOverrideHint: "Pro Feld den globalen Default nutzen oder für diese Vorlage überschreiben.",
+      brandingModeDefault: "Default",
+      brandingModeOverride: "Override",
+      brandingInheritsDefault: "Erbt globales Branding",
     },
     emailActions: {
       title: "Aktionen",
@@ -2131,13 +2168,32 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       testFailed: "Test email failed",
       brandingTitle: "Email branding",
       brandingDescription:
-        "The header/footer image and footer text are wrapped around EVERY sent email template \u2014 global, not per template.",
+        "The header/footer image, footer text and day/night background are the global default for every sent template \u2014 individual templates can override any field.",
       brandingHeaderImage: "Header image",
       brandingFooterImage: "Footer image",
       brandingImageHint:
         "JPEG, PNG or WebP, max 5 MB. Scaled to 560px wide — recommended: about 1120px wide (2× for retina sharpness), wide banner format.",
       brandingFooterText: "Footer text",
       brandingFooterTextPlaceholder: "Markdown text shown below every template",
+      brandingLightBackground: "Day background",
+      brandingDarkBackground: "Night background",
+      brandingBackgroundHint:
+        "Always a gradient, optionally with an image layered on top. Shown in mail clients with a light or dark colour scheme respectively.",
+      brandingGradientTop: "Gradient top",
+      brandingGradientBottom: "Gradient bottom",
+      brandingGradientImage: "Background image (optional)",
+      brandingGradientPresets: "Previously used",
+      assetPickerTitle: "Choose image",
+      assetPickerChoose: "Choose image",
+      assetPickerChange: "Change image",
+      assetPickerUploadNew: "Upload new",
+      assetPickerExisting: "Already uploaded",
+      assetPickerEmpty: "No images uploaded yet",
+      brandingOverrideTitle: "Branding",
+      brandingOverrideHint: "Per field, use the global default or override it for this template.",
+      brandingModeDefault: "Default",
+      brandingModeOverride: "Override",
+      brandingInheritsDefault: "Inherits global branding",
     },
     emailActions: {
       title: "Actions",

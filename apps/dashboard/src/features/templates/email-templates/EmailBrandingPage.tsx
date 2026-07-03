@@ -1,42 +1,56 @@
-import {
-  DashboardActionButton,
-  DashboardActionId,
-  DashboardActionStatus,
-  SaveActionButton,
-} from "@musiccloud/dashboard-ui";
-import { ImageIcon, PaintBrushIcon, TrayArrowUpIcon } from "@phosphor-icons/react";
-import { type ChangeEvent, lazy, Suspense, useRef, useState } from "react";
+import { DashboardActionStatus, SaveActionButton } from "@musiccloud/dashboard-ui";
+import { MoonIcon, PaintBrushIcon, SunIcon } from "@phosphor-icons/react";
+import { lazy, type ReactNode, Suspense, useRef, useState } from "react";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SaveNotification, useSaveNotification } from "@/components/ui/SaveNotification";
 import { useI18n } from "@/context/I18nContext";
-import { useUploadEmailAsset } from "@/features/templates/hooks/useEmailAssets";
+import { AssetPickerControl, AssetPickerField } from "@/features/templates/email-templates/AssetPickerField";
+import { GradientColorFields } from "@/features/templates/email-templates/GradientColorFields";
+import { collectGradientSwatches, type GradientSwatch } from "@/features/templates/email-templates/gradientSwatches";
 import {
   type EmailBranding,
   useEmailBranding,
   useUpdateEmailBranding,
 } from "@/features/templates/hooks/useEmailBranding";
+import { useEmailTemplates } from "@/features/templates/hooks/useEmailTemplates";
 import { useKeyboardSave } from "@/lib/useKeyboardSave";
 
 const MarkdownEditor = lazy(() =>
   import("@/components/ui/MarkdownEditor").then((m) => ({ default: m.MarkdownEditor })),
 );
 
-/** The branding singleton's three editable fields, mirrored as local draft state. */
+/** The branding singleton's editable fields, mirrored as local draft state. */
 type BrandingDraft = EmailBranding;
 
-const EMPTY_DRAFT: BrandingDraft = { headerAssetId: null, footerAssetId: null, footerText: null };
+/**
+ * Seed draft used before the query resolves. The four gradient colours default
+ * to the website night-sky shader colours (matching the DB column defaults) so
+ * the pre-load state is never an invalid empty gradient.
+ */
+const EMPTY_DRAFT: BrandingDraft = {
+  headerAssetId: null,
+  footerAssetId: null,
+  footerText: null,
+  lightBackgroundAssetId: null,
+  darkBackgroundAssetId: null,
+  lightGradientTop: "#0076d5",
+  lightGradientBottom: "#69d1fd",
+  darkGradientTop: "#0b1318",
+  darkGradientBottom: "#10273b",
+};
 
 /**
  * Settings page for the global email branding singleton (System → Templates
  * → Email branding).
  *
  * Unlike an email template, branding is not a list of records the admin
- * creates and deletes — there is exactly one `email_branding` row
- * server-side, wrapped around EVERY rendered template's body (header image
- * above it, footer image + footer text below it). This page edits that one
- * row directly, with no create/delete affordances.
+ * creates and deletes — there is exactly one `email_branding` row server-side.
+ * It is the DEFAULT wrapped around every rendered template (header image,
+ * footer image + text, day/night page background), which individual templates
+ * may override. This page edits that one default row directly, with no
+ * create/delete affordances.
  *
  * The page loads the current branding via {@link useEmailBranding}, seeds a
  * local draft once (via a ref-guarded sync, mirroring
@@ -44,9 +58,8 @@ const EMPTY_DRAFT: BrandingDraft = { headerAssetId: null, footerAssetId: null, f
  * background refetch never clobbers in-progress edits), and saves the full
  * draft object via {@link useUpdateEmailBranding} on demand. The mutation's
  * contract treats an omitted field as "leave unchanged" and an explicit
- * `null` as "clear it" — sending the complete draft every time (never a
- * sparse delta) means "remove header image" (draft's `headerAssetId` set to
- * `null`) reliably clears it, with no ambiguity between omitted and null.
+ * `null` as "clear it"; sending the complete draft every time (never a sparse
+ * delta) means "remove image" (an asset id set to `null`) reliably clears it.
  */
 export function EmailBrandingPage() {
   const { messages } = useI18n();
@@ -54,6 +67,7 @@ export function EmailBrandingPage() {
   const common = messages.common;
 
   const { data: existing, isLoading } = useEmailBranding();
+  const { data: templates } = useEmailTemplates();
   const updateMutation = useUpdateEmailBranding();
   const { phase: savedPhase, show: showSaved } = useSaveNotification();
   const [error, setError] = useState<string | null>(null);
@@ -74,11 +88,19 @@ export function EmailBrandingPage() {
     !!existing &&
     (draft.headerAssetId !== existing.headerAssetId ||
       draft.footerAssetId !== existing.footerAssetId ||
-      draft.footerText !== existing.footerText);
+      draft.footerText !== existing.footerText ||
+      draft.lightBackgroundAssetId !== existing.lightBackgroundAssetId ||
+      draft.darkBackgroundAssetId !== existing.darkBackgroundAssetId ||
+      draft.lightGradientTop !== existing.lightGradientTop ||
+      draft.lightGradientBottom !== existing.lightGradientBottom ||
+      draft.darkGradientTop !== existing.darkGradientTop ||
+      draft.darkGradientBottom !== existing.darkGradientBottom);
 
   function updateField<K extends keyof BrandingDraft>(key: K, value: BrandingDraft[K]) {
     setDraft((prev) => ({ ...prev, [key]: value }));
   }
+
+  const swatches = collectGradientSwatches(existing, templates);
 
   function handleSave() {
     setError(null);
@@ -87,6 +109,12 @@ export function EmailBrandingPage() {
         headerAssetId: draft.headerAssetId,
         footerAssetId: draft.footerAssetId,
         footerText: draft.footerText?.trim() || null,
+        lightBackgroundAssetId: draft.lightBackgroundAssetId,
+        darkBackgroundAssetId: draft.darkBackgroundAssetId,
+        lightGradientTop: draft.lightGradientTop,
+        lightGradientBottom: draft.lightGradientBottom,
+        darkGradientTop: draft.darkGradientTop,
+        darkGradientBottom: draft.darkGradientBottom,
       },
       {
         onSuccess: () => showSaved(),
@@ -124,14 +152,16 @@ export function EmailBrandingPage() {
       <div className="max-w-2xl space-y-4 overflow-y-auto p-3">
         <p className="text-sm text-[var(--ds-text-muted)]">{m.brandingDescription}</p>
 
-        <BrandingImageSlot
+        <AssetPickerField
           label={m.brandingHeaderImage}
+          hint={m.brandingImageHint}
           assetId={draft.headerAssetId}
           onAssetChange={(assetId) => updateField("headerAssetId", assetId)}
         />
 
-        <BrandingImageSlot
+        <AssetPickerField
           label={m.brandingFooterImage}
+          hint={m.brandingImageHint}
           assetId={draft.footerAssetId}
           onAssetChange={(assetId) => updateField("footerAssetId", assetId)}
         />
@@ -157,88 +187,82 @@ export function EmailBrandingPage() {
             </Suspense>
           </DashboardSection.Body>
         </DashboardSection>
+
+        <BackgroundEditor
+          icon={<SunIcon weight="duotone" className="size-4" />}
+          title={m.brandingLightBackground}
+          gradientTop={draft.lightGradientTop}
+          gradientBottom={draft.lightGradientBottom}
+          onGradientChange={(next) =>
+            setDraft((prev) => ({ ...prev, lightGradientTop: next.top, lightGradientBottom: next.bottom }))
+          }
+          assetId={draft.lightBackgroundAssetId}
+          onAssetChange={(assetId) => updateField("lightBackgroundAssetId", assetId)}
+          swatches={swatches}
+        />
+
+        <BackgroundEditor
+          icon={<MoonIcon weight="duotone" className="size-4" />}
+          title={m.brandingDarkBackground}
+          gradientTop={draft.darkGradientTop}
+          gradientBottom={draft.darkGradientBottom}
+          onGradientChange={(next) =>
+            setDraft((prev) => ({ ...prev, darkGradientTop: next.top, darkGradientBottom: next.bottom }))
+          }
+          assetId={draft.darkBackgroundAssetId}
+          onAssetChange={(assetId) => updateField("darkBackgroundAssetId", assetId)}
+          swatches={swatches}
+        />
       </div>
     </div>
   );
 }
 
-interface BrandingImageSlotProps {
-  label: string;
+interface BackgroundEditorProps {
+  icon: ReactNode;
+  title: string;
+  gradientTop: string;
+  gradientBottom: string;
+  onGradientChange: (next: { top: string; bottom: string }) => void;
   assetId: string | null;
   onAssetChange: (assetId: string | null) => void;
+  swatches: GradientSwatch[];
 }
 
 /**
- * One branding image slot (header or footer): preview, upload button, and a
- * remove button shown only while an asset is currently set. Each slot owns
- * its own {@link useUploadEmailAsset} mutation instance and hidden file
- * input — header and footer are independent uploads, so a failure or
- * in-flight upload on one slot never affects the other.
- *
- * Unlike a template's `image` body block (which can simply be deleted from
- * the block list), a branding slot is a permanent field that can only be
- * nulled, never removed outright — hence the explicit remove button here,
- * absent from `BlockEditor`'s `ImageBlockForm`.
+ * One day/night background editor section: a hint, the gradient colour fields
+ * (with preset swatches), and an optional background-image slot layered over
+ * the gradient. Rendered twice on the branding page — once for the light (day)
+ * scheme, once for the dark (night) scheme.
  */
-function BrandingImageSlot({ label, assetId, onAssetChange }: BrandingImageSlotProps) {
+function BackgroundEditor({
+  icon,
+  title,
+  gradientTop,
+  gradientBottom,
+  onGradientChange,
+  assetId,
+  onAssetChange,
+  swatches,
+}: BackgroundEditorProps) {
   const { messages } = useI18n();
   const m = messages.emailTemplates;
-  const uploadMutation = useUploadEmailAsset();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    uploadMutation.mutate(file, {
-      onSuccess: (result) => onAssetChange(result.id),
-    });
-  }
 
   return (
     <DashboardSection>
-      <DashboardSection.Header icon={<ImageIcon weight="duotone" className="size-4" />} title={label} />
+      <DashboardSection.Header icon={icon} title={title} />
       <DashboardSection.Body>
-        <p className="text-xs text-[var(--ds-text-muted)]">{m.brandingImageHint}</p>
-        {assetId && (
-          <img
-            src={`/api/admin/email-assets/${assetId}`}
-            alt=""
-            className="h-24 w-full rounded border border-[var(--ds-border)] bg-[var(--ds-bg-elevated)] object-contain"
-          />
-        )}
-        <div className="flex items-center gap-3">
-          <DashboardActionButton
-            action={DashboardActionId.Import}
-            busyLabel={m.imageUpload}
-            icon={<TrayArrowUpIcon weight="duotone" className="size-3.5" />}
-            label={m.imageUpload}
-            onClick={() => fileInputRef.current?.click()}
-            status={uploadMutation.isPending ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
-            type="button"
-          />
-          {assetId && (
-            <DashboardActionButton
-              action={DashboardActionId.Remove}
-              label={messages.common.remove}
-              onClick={() => onAssetChange(null)}
-              type="button"
-            />
-          )}
-          <input
-            ref={fileInputRef}
-            aria-label={m.imageUpload}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="hidden"
-            onChange={handleFileChange}
-          />
+        <p className="text-xs text-[var(--ds-text-muted)]">{m.brandingBackgroundHint}</p>
+        <GradientColorFields
+          top={gradientTop}
+          bottom={gradientBottom}
+          onChange={onGradientChange}
+          swatches={swatches}
+        />
+        <div>
+          <p className="mb-1 text-xs font-medium text-[var(--ds-text-muted)]">{m.brandingGradientImage}</p>
+          <AssetPickerControl assetId={assetId} onAssetChange={onAssetChange} />
         </div>
-        {uploadMutation.isError && (
-          <p className="text-xs text-red-500">
-            {uploadMutation.error instanceof Error ? uploadMutation.error.message : m.imageUploadError}
-          </p>
-        )}
       </DashboardSection.Body>
     </DashboardSection>
   );

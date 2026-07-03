@@ -477,6 +477,7 @@ function EmailTemplatesGroup({
                   subject: tpl.subject,
                   blocks: tpl.blocks,
                   requiredVariables: tpl.requiredVariables,
+                  branding: tpl.branding,
                 });
                 void navigate(`/email-templates/${created.id}`);
               } catch (err) {

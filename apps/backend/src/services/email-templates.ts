@@ -3,6 +3,7 @@ import type {
   EmailActionBindingDto,
   EmailAssetDto,
   EmailBrandingDto,
+  EmailTemplateBrandingOverrides,
   EmailTemplateRow,
   EmailTemplateVariable,
   EmailTemplateWriteData,
@@ -18,6 +19,8 @@ export interface EmailTemplate {
   isSystemTemplate: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Per-template branding overrides; each `null` field inherits the global default. */
+  branding: EmailTemplateBrandingOverrides;
 }
 
 function rowToEmailTemplate(row: EmailTemplateRow): EmailTemplate {
@@ -30,6 +33,7 @@ function rowToEmailTemplate(row: EmailTemplateRow): EmailTemplate {
     isSystemTemplate: row.isSystemTemplate,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    branding: row.branding,
   };
 }
 
@@ -111,6 +115,17 @@ export async function getManagedEmailBranding(): Promise<EmailBrandingDto> {
 export async function updateManagedEmailBranding(data: Partial<EmailBrandingDto>): Promise<EmailBrandingDto> {
   const repo = await getAdminRepository();
   return repo.updateEmailBranding(data);
+}
+
+/**
+ * Lists every email image asset's metadata (newest first), for the dashboard's
+ * shared-asset picker so a previously uploaded image can be reused.
+ *
+ * @returns All email asset metadata rows, newest first.
+ */
+export async function listManagedEmailAssets(): Promise<EmailAssetDto[]> {
+  const repo = await getAdminRepository();
+  return repo.listEmailAssets();
 }
 
 /**

@@ -14,7 +14,7 @@
 
 import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
-import { createManagedEmailAsset } from "../services/email-templates.js";
+import { createManagedEmailAsset, listManagedEmailAssets } from "../services/email-templates.js";
 
 /** Logical (post-decode) size cap, matching the avatar upload's limit for consistency across the two `data:` URL upload endpoints. */
 const MAX_ASSET_BYTES = 5 * 1024 * 1024;
@@ -23,8 +23,16 @@ const MAX_ASSET_BYTES = 5 * 1024 * 1024;
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
 
 export default async function adminEmailAssetsRoutes(app: FastifyInstance) {
+  // GET /api/admin/email-assets — list all asset metadata (newest first) for
+  // the dashboard's shared-asset picker. Admin-only (this whole file is
+  // registered behind `authenticateAdmin`); the public serve-by-id route lives
+  // separately in `email-assets.ts`.
+  app.get(ENDPOINTS.admin.emailAssets.list, async () => {
+    return listManagedEmailAssets();
+  });
+
   // POST /api/admin/email-assets
-  app.post(ENDPOINTS.admin.emailAssets.upload, { bodyLimit: MAX_BODY_BYTES }, async (request, reply) => {
+  app.post(ENDPOINTS.admin.emailAssets.list, { bodyLimit: MAX_BODY_BYTES }, async (request, reply) => {
     const body = request.body as { dataUrl?: string } | null;
     if (!body?.dataUrl) {
       return reply.status(400).send({ error: "No image provided" });

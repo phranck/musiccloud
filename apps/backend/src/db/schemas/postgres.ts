@@ -951,8 +951,14 @@ export const genreArtworks = pgTable("genre_artworks", {
 // template editor; rendered to HTML by services/email-renderer.ts.
 /**
  * Managed email templates edited through the dashboard.
- * Stores subject, banner, body and footer text plus a system-template flag for
- * protected built-in templates.
+ *
+ * Stores the block-based body (`blocks`), subject, declared
+ * `requiredVariables`, and a system-template flag for protected built-in
+ * templates. The nine trailing branding columns are per-template overrides
+ * (MC-079): each is nullable, and `NULL` means "no override — inherit the
+ * corresponding {@link emailBranding} global default for this render". A
+ * non-null value wins over the global default for that one field only (merge
+ * logic lives in `email-renderer.ts`'s `resolveBranding`).
  */
 export const emailTemplates = pgTable("email_templates", {
   id: serial("id").primaryKey(),
@@ -963,21 +969,47 @@ export const emailTemplates = pgTable("email_templates", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   blocks: jsonb("blocks").notNull().default([]),
   requiredVariables: jsonb("required_variables").notNull().default([]),
+  // Per-template branding overrides (MC-079). All nullable: NULL = inherit the
+  // matching global emailBranding default for this field.
+  headerAssetId: text("header_asset_id").references(() => emailAssets.id, { onDelete: "set null" }),
+  footerAssetId: text("footer_asset_id").references(() => emailAssets.id, { onDelete: "set null" }),
+  footerText: text("footer_text"),
+  lightBackgroundAssetId: text("light_background_asset_id").references(() => emailAssets.id, { onDelete: "set null" }),
+  darkBackgroundAssetId: text("dark_background_asset_id").references(() => emailAssets.id, { onDelete: "set null" }),
+  lightGradientTop: text("light_gradient_top"),
+  lightGradientBottom: text("light_gradient_bottom"),
+  darkGradientTop: text("dark_gradient_top"),
+  darkGradientBottom: text("dark_gradient_bottom"),
 });
 
 export type EmailTemplateRow = typeof emailTemplates.$inferSelect;
 export type EmailTemplateInsert = typeof emailTemplates.$inferInsert;
 
 /**
- * Global email branding (MC-078): a single row carrying the header/footer
- * assets and footer text wrapped around EVERY rendered template. The app
+ * Global email branding (MC-078, extended MC-079): a single row carrying the
+ * default header/footer assets, footer text, and day/night page background
+ * (gradient + optional image) applied to every rendered template UNLESS the
+ * template overrides the matching field (see {@link emailTemplates}). The app
  * always reads/writes the lowest-id row; the migration seeds exactly one.
+ *
+ * The four gradient columns are NOT NULL with the real website night-sky
+ * shader defaults (`apps/frontend/src/components/background/nightSky/settings.ts`):
+ * a gradient always needs two colours to render, so there is no nullable
+ * fallback chain here — a fresh setup already looks coherent without any admin
+ * action. The two background-image asset ids stay nullable (no image until the
+ * user uploads one; the gradient alone renders in the meantime).
  */
 export const emailBranding = pgTable("email_branding", {
   id: serial("id").primaryKey(),
   headerAssetId: text("header_asset_id").references(() => emailAssets.id, { onDelete: "set null" }),
   footerAssetId: text("footer_asset_id").references(() => emailAssets.id, { onDelete: "set null" }),
   footerText: text("footer_text"),
+  lightBackgroundAssetId: text("light_background_asset_id").references(() => emailAssets.id, { onDelete: "set null" }),
+  darkBackgroundAssetId: text("dark_background_asset_id").references(() => emailAssets.id, { onDelete: "set null" }),
+  lightGradientTop: text("light_gradient_top").notNull().default("#0076d5"),
+  lightGradientBottom: text("light_gradient_bottom").notNull().default("#69d1fd"),
+  darkGradientTop: text("dark_gradient_top").notNull().default("#0b1318"),
+  darkGradientBottom: text("dark_gradient_bottom").notNull().default("#10273b"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

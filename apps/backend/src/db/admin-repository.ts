@@ -124,6 +124,31 @@ export interface EmailTemplateVariable {
   description: string;
 }
 
+/**
+ * Branding fields a single email template may override (MC-079). Every field
+ * is REQUIRED here (always present on a read), and the value `null` carries
+ * meaning: "no override for this field — fall back to the global
+ * {@link EmailBrandingDto} default at render time". This is the shape read
+ * fully out of the DB, mirroring {@link EmailBrandingDto}.
+ *
+ * For partial updates (present-keys-only semantics, matching
+ * `updateEmailBranding`) this type is wrapped in `Partial<>` rather than being
+ * declared double-optional: an ABSENT key leaves the stored override
+ * untouched, a key present as `null` clears the override, and a non-null value
+ * sets it.
+ */
+export interface EmailTemplateBrandingOverrides {
+  headerAssetId: string | null;
+  footerAssetId: string | null;
+  footerText: string | null;
+  lightBackgroundAssetId: string | null;
+  darkBackgroundAssetId: string | null;
+  lightGradientTop: string | null;
+  lightGradientBottom: string | null;
+  darkGradientTop: string | null;
+  darkGradientBottom: string | null;
+}
+
 /** Email template row shape returned or accepted by the database repository layer. */
 export interface EmailTemplateRow {
   id: number;
@@ -134,6 +159,8 @@ export interface EmailTemplateRow {
   isSystemTemplate: boolean;
   createdAt: Date;
   updatedAt: Date;
+  /** Per-template branding overrides; each `null` field inherits the global default. */
+  branding: EmailTemplateBrandingOverrides;
 }
 
 /** Email template write payload shape returned or accepted by the database repository layer. */
@@ -143,13 +170,27 @@ export interface EmailTemplateWriteData {
   blocks: EmailBlock[];
   requiredVariables?: EmailTemplateVariable[];
   isSystemTemplate?: boolean;
+  /** Present-keys-only branding overrides (like `updateEmailBranding`): absent key = unchanged, `null` = clear override. */
+  branding?: Partial<EmailTemplateBrandingOverrides>;
 }
 
-/** Global branding singleton (header/footer assets + footer text wrapped around every rendered template). */
+/**
+ * Global branding singleton — the per-render default (MC-078), now including
+ * the day/night page background (MC-079). Header/footer asset ids, footer
+ * text and the two background-image asset ids are nullable; the four gradient
+ * colours are always set (NOT NULL in the DB with the website night-sky
+ * shader defaults), so a gradient can always render.
+ */
 export interface EmailBrandingDto {
   headerAssetId: string | null;
   footerAssetId: string | null;
   footerText: string | null;
+  lightBackgroundAssetId: string | null;
+  darkBackgroundAssetId: string | null;
+  lightGradientTop: string;
+  lightGradientBottom: string;
+  darkGradientTop: string;
+  darkGradientBottom: string;
 }
 
 /** An issued email image asset (metadata; bytes fetched separately via a dedicated streaming route). */
@@ -647,6 +688,14 @@ export interface AdminRepository {
    * @returns The updated branding row.
    */
   updateEmailBranding(data: Partial<EmailBrandingDto>): Promise<EmailBrandingDto>;
+  /**
+   * Lists every email image asset's metadata (id, MIME type, created-at),
+   * newest first — bytes are not included. Backs the dashboard's shared-asset
+   * picker so a previously uploaded image can be reused without re-uploading.
+   *
+   * @returns All email asset metadata rows, newest first.
+   */
+  listEmailAssets(): Promise<EmailAssetDto[]>;
   /**
    * Inserts a new email image asset.
    *

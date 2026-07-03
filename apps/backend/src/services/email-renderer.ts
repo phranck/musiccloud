@@ -1,7 +1,7 @@
 import { type EmailBlock, EmailBlockType } from "@musiccloud/shared";
 import { Marked } from "marked";
 
-import type { EmailBrandingDto } from "../db/admin-repository.js";
+import type { EmailBrandingDto, EmailTemplateBrandingOverrides } from "../db/admin-repository.js";
 import { escapeHtml } from "../lib/html.js";
 
 /**
@@ -24,9 +24,15 @@ const VAR_REGEX = /\{\{(\w+)\}\}/g;
 // (see apps/frontend/src/styles/global.css: --color-background, --color-surface,
 // --color-border, --color-text-primary, --color-text-secondary, --color-text-muted,
 // --color-accent-hover).
+//
+// No `body { background: ... }` rule here (unlike earlier versions): the
+// dark page background is now always a real resolved gradient (see
+// `buildPageBackground`/`buildDarkPageBackgroundCss`), painted inline on
+// `<body>` itself. A flat `!important` rule in this block would beat that
+// plain inline style outright (importance always wins over specificity) and
+// blank out the sky, regardless of source order.
 const DARK_RULES = `
-  body                        { background: #0A0A0C !important; }
-  table.em-container          { background: #161618 !important; border-color: #38383A !important; }
+  table.em-container          { background: rgba(22, 22, 24, 0.94) !important; border-color: #2A2A2C !important; }
   h1, h2, h3                  { color: #F5F5F7 !important; }
   p                           { color: #C7C7CC !important; }
   a                           { color: #45BFE8 !important; }
@@ -116,8 +122,139 @@ function assetUrl(assetId: string, baseUrl: string | null): string {
 }
 
 /**
+ * Fully-resolved branding for one render: the winning value per field after a
+ * template's override (if any) is merged over the global default. Mirrors
+ * {@link EmailBrandingDto} exactly — gradient colours are always present
+ * (never null), asset ids may be null (no image).
+ */
+export interface ResolvedBranding {
+  headerAssetId: string | null;
+  footerAssetId: string | null;
+  footerText: string | null;
+  lightBackgroundAssetId: string | null;
+  darkBackgroundAssetId: string | null;
+  lightGradientTop: string;
+  lightGradientBottom: string;
+  darkGradientTop: string;
+  darkGradientBottom: string;
+}
+
+/**
+ * Merges a template's branding overrides over the global branding default,
+ * field by field: a non-null override wins, otherwise the global value is
+ * used. Called on BOTH the send and preview paths (via {@link renderBlocks} /
+ * {@link renderEmailPreview}) so the merge can never drift between what is
+ * sent and what is previewed.
+ *
+ * @param overrides - the template's per-field overrides; an absent or `null`
+ *   field falls back to `global` (present-keys-only, so a `Partial` from the
+ *   preview endpoint's live-edit body is accepted as-is).
+ * @param global - the global branding singleton (all gradient fields non-null).
+ * @returns the resolved branding used for one render.
+ */
+export function resolveBranding(
+  overrides: Partial<EmailTemplateBrandingOverrides>,
+  global: EmailBrandingDto,
+): ResolvedBranding {
+  return {
+    headerAssetId: overrides.headerAssetId ?? global.headerAssetId,
+    footerAssetId: overrides.footerAssetId ?? global.footerAssetId,
+    footerText: overrides.footerText ?? global.footerText,
+    lightBackgroundAssetId: overrides.lightBackgroundAssetId ?? global.lightBackgroundAssetId,
+    darkBackgroundAssetId: overrides.darkBackgroundAssetId ?? global.darkBackgroundAssetId,
+    lightGradientTop: overrides.lightGradientTop ?? global.lightGradientTop,
+    lightGradientBottom: overrides.lightGradientBottom ?? global.lightGradientBottom,
+    darkGradientTop: overrides.darkGradientTop ?? global.darkGradientTop,
+    darkGradientBottom: overrides.darkGradientBottom ?? global.darkGradientBottom,
+  };
+}
+
+/**
+ * Builds the shared background declarations for one colour scheme — reused for
+ * both the outer page-background `<td>` (which also needs its own padding) and
+ * `<body>` (no padding). The gradient is ALWAYS present; `imageUrl`, when set,
+ * is layered ON TOP of the gradient (CSS renders the first comma-separated
+ * `background-image` value uppermost). `background-color` is the solid
+ * last-resort fallback for clients that support neither gradients nor images.
+ *
+ * `background-repeat:no-repeat` is explicit and mandatory: the background image
+ * must NEVER tile. Some mail clients honour `background-image` but ignore
+ * `background-size`, which would otherwise fall back to the CSS default
+ * (`repeat`) and tile the sky across the viewport.
+ *
+ * @param top - gradient top colour (hex).
+ * @param bottom - gradient bottom colour (hex); doubles as the solid fallback.
+ * @param imageUrl - optional background image URL layered over the gradient.
+ * @returns the background declarations (no padding), each terminated by `;`.
+ */
+function buildBackgroundCss(top: string, bottom: string, imageUrl: string | null): string {
+  const imageLayer = imageUrl ? `url(${imageUrl}), ` : "";
+  return `background-color:${bottom};background-image:${imageLayer}linear-gradient(180deg, ${top}, ${bottom});background-repeat:no-repeat;background-size:cover;background-position:center;`;
+}
+
+/**
+ * Resolved page-background styling for one colour scheme, split across the
+ * two elements that both need to carry it: `<body>` and the outer `<td>`.
+ *
+ * A shrink-wrapped `<table>`/`<td>` only paints its OWN content height — if
+ * only the `<td>` carried the background, a recipient whose viewport is
+ * taller than the actual email would see the sky end abruptly and the plain
+ * `<body>` colour take over below it. Painting the same background on
+ * `<body>` too (which browsers and virtually all modern mail-client webviews
+ * size to the full viewport) makes the sky fill the whole visible area
+ * regardless of how tall the email content is. The `<td>` background is kept
+ * as well because Outlook's Word rendering engine supports table-cell
+ * backgrounds far more reliably than `<body>` backgrounds.
+ *
+ * There is deliberately NO legacy `background="..."` HTML attribute: the Word
+ * engine (old Outlook desktop) ignores CSS `background-size`/`background-repeat`
+ * and TILES that attribute's image with no non-VML way to stop it. Rather than
+ * ever tile the sky, those clients fall back to the solid `background-color`
+ * (the gradient's bottom colour) — no image, but never a tiled one.
+ */
+interface PageBackground {
+  /** Inline style for `<body>` — background only, no padding. */
+  bodyStyle: string;
+  /** Inline style for the outer `<td class="em-page-bg">` — background plus the cell's own padding. */
+  cellStyle: string;
+}
+
+/**
+ * Builds {@link PageBackground} for one colour scheme.
+ *
+ * @param top - gradient top colour (hex).
+ * @param bottom - gradient bottom colour (hex).
+ * @param imageUrl - optional background image URL layered over the gradient.
+ * @returns the body and cell inline styles for this scheme.
+ */
+function buildPageBackground(top: string, bottom: string, imageUrl: string | null): PageBackground {
+  const backgroundCss = buildBackgroundCss(top, bottom, imageUrl);
+  return {
+    bodyStyle: backgroundCss,
+    cellStyle: `padding:40px 16px;${backgroundCss}`,
+  };
+}
+
+/**
+ * Builds the `@media (prefers-color-scheme: dark)` block that overrides the
+ * page background — on BOTH `<body>` and the page-bg `<td>` — for dark-mode
+ * mail clients on the send path, mirroring the existing {@link DARK_RULES}
+ * pattern (`!important` to beat the inline style).
+ *
+ * @param top - dark gradient top colour (hex).
+ * @param bottom - dark gradient bottom colour (hex).
+ * @param imageUrl - optional dark background image URL layered over the gradient.
+ * @returns the CSS `@media` block appended into the document's `<style>`.
+ */
+function buildDarkPageBackgroundCss(top: string, bottom: string, imageUrl: string | null): string {
+  const imageLayer = imageUrl ? `url(${imageUrl}), ` : "";
+  const rule = `background-color:${bottom} !important; background-image:${imageLayer}linear-gradient(180deg, ${top}, ${bottom}) !important; background-repeat:no-repeat !important;`;
+  return `@media (prefers-color-scheme: dark) { body { ${rule} } .em-page-bg { ${rule} } }`;
+}
+
+/**
  * Builds the ordered `<tr>` rows for a template's body blocks wrapped by the
- * global branding (header asset, footer text, footer asset), with `{{var}}`
+ * resolved branding (header asset, footer text, footer asset), with `{{var}}`
  * interpolation applied from `variables`. This is the single place the
  * block-rendering switch statement lives — both the live-send path
  * ({@link renderBlocks}) and the dashboard-preview path
@@ -126,7 +263,7 @@ function assetUrl(assetId: string, baseUrl: string | null): string {
  * drift between what gets sent and what gets previewed.
  *
  * @param blocks - the template's ordered body blocks.
- * @param branding - the global branding singleton (header/footer asset ids + footer text).
+ * @param branding - the resolved branding for this render (header/footer asset ids + footer text).
  * @param variables - `{{var}}` substitution values available to text/button/footer content.
  * @param baseUrl - the backend's own public base URL for asset URLs, or `null`
  *   to build relative asset URLs (see {@link assetUrl}'s doc comment).
@@ -134,7 +271,7 @@ function assetUrl(assetId: string, baseUrl: string | null): string {
  */
 function buildBlockRows(
   blocks: EmailBlock[],
-  branding: EmailBrandingDto,
+  branding: ResolvedBranding,
   variables: Record<string, string>,
   baseUrl: string | null,
 ): string[] {
@@ -182,7 +319,31 @@ function buildBlockRows(
   return rows;
 }
 
-function buildEmailHtml(rows: string[], css: string): string {
+/** Drop shadow behind the content card, giving it visible lift over the page background. */
+const CARD_SHADOW = "0 20px 50px rgba(15, 23, 42, 0.35)";
+
+/**
+ * Assembles the complete HTML email document: the `<style>` block (shared
+ * base rules + the caller's scheme-specific `css`), a full-viewport `<body>`
+ * background, and the outer page-background `<td>` wrapping the 560px
+ * content card.
+ *
+ * The card is nested in an extra, unclipped `<td>` that carries the
+ * `box-shadow` — `box-shadow` and `overflow:hidden` never combine on the same
+ * element (the shadow, which paints outside the border box, gets clipped by
+ * the element's own overflow rule), and `overflow:hidden` on the card itself
+ * is required to clip the header/footer images to its rounded corners. The
+ * card's own background is a subtly translucent white (light) /
+ * near-black (dark, via {@link DARK_RULES}) rather than fully opaque, so the
+ * page background reads through slightly at the edges.
+ *
+ * @param rows - the body block rows from {@link buildBlockRows}.
+ * @param css - scheme-specific `<style>` content (the dark `@media` block on the
+ *   send path, or the forced light/dark rules on the preview path).
+ * @param background - this render's {@link PageBackground} (body + cell inline styles).
+ * @returns the complete HTML email document.
+ */
+function buildEmailHtml(rows: string[], css: string, background: PageBackground): string {
   return `<!DOCTYPE html>
 <html lang="de">
 <head>
@@ -199,11 +360,15 @@ function buildEmailHtml(rows: string[], css: string): string {
     ${css}
   </style>
 </head>
-<body style="margin:0;padding:0;background:#F5F5F7;font-family:'Barlow',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;">
+<body style="margin:0;padding:0;${background.bodyStyle}font-family:'Barlow',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" border="0">
-    <tr><td align="center" style="padding:40px 16px;">
-      <table class="em-container" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background:#FFFFFF;border:1px solid #E5E5EA;border-radius:8px;overflow:hidden;">
-        ${rows.join("\n        ")}
+    <tr><td align="center" class="em-page-bg" style="${background.cellStyle}">
+      <table cellpadding="0" cellspacing="0" border="0" style="width:560px;max-width:560px;">
+        <tr><td style="border-radius:8px;box-shadow:${CARD_SHADOW};">
+          <table class="em-container" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background:rgba(255,255,255,0.94);border:1px solid #E5E5EA;border-radius:8px;overflow:hidden;">
+            ${rows.join("\n            ")}
+          </table>
+        </td></tr>
       </table>
     </td></tr>
   </table>
@@ -213,46 +378,57 @@ function buildEmailHtml(rows: string[], css: string): string {
 
 /**
  * Renders a template's body blocks into the shared HTML shell, wrapped by the
- * global branding (header/footer asset + footer text). Text and button blocks
- * interpolate `{{var}}` from `variables`; the caller is responsible for having
- * validated required variables. This is the live-send path, so the wrapper
- * always carries {@link DARK_MODE_CSS} (the `@media (prefers-color-scheme:
- * dark)` rules) — the recipient's own mail client decides light vs dark, since
- * the backend has no other way to know it ahead of time.
+ * branding resolved from the template's overrides over the global default
+ * (header/footer asset + footer text + day/night page background). Text and
+ * button blocks interpolate `{{var}}` from `variables`; the caller is
+ * responsible for having validated required variables. This is the live-send
+ * path, so the wrapper always carries {@link DARK_MODE_CSS} plus the dark
+ * page-background `@media` block — the recipient's own mail client decides
+ * light vs dark, since the backend has no other way to know it ahead of time.
  *
  * @param blocks - the template's ordered body blocks.
- * @param branding - the global branding singleton (header/footer asset ids + footer text).
+ * @param overrides - the template's per-field branding overrides (`null`/absent inherits global).
+ * @param global - the global branding singleton default.
  * @param variables - `{{var}}` substitution values available to text/button blocks.
  * @param baseUrl - the backend's own public base URL, used to build asset URLs.
  * @returns the complete HTML email document.
  */
 export function renderBlocks(
   blocks: EmailBlock[],
-  branding: EmailBrandingDto,
+  overrides: Partial<EmailTemplateBrandingOverrides>,
+  global: EmailBrandingDto,
   variables: Record<string, string>,
   baseUrl: string,
 ): string {
-  return buildEmailHtml(buildBlockRows(blocks, branding, variables, baseUrl), DARK_MODE_CSS);
+  const branding = resolveBranding(overrides, global);
+  const rows = buildBlockRows(blocks, branding, variables, baseUrl);
+  const lightImageUrl = branding.lightBackgroundAssetId ? assetUrl(branding.lightBackgroundAssetId, baseUrl) : null;
+  const darkImageUrl = branding.darkBackgroundAssetId ? assetUrl(branding.darkBackgroundAssetId, baseUrl) : null;
+  const background = buildPageBackground(branding.lightGradientTop, branding.lightGradientBottom, lightImageUrl);
+  const css = `${DARK_MODE_CSS}\n    ${buildDarkPageBackgroundCss(branding.darkGradientTop, branding.darkGradientBottom, darkImageUrl)}`;
+  return buildEmailHtml(rows, css, background);
 }
 
 /**
- * Renders a template's blocks + the global branding wrapper into a complete
+ * Renders a template's blocks + the resolved branding wrapper into a complete
  * email, with `{{var}}` interpolation applied from `variables`.
  *
  * @param template - the template's subject + ordered body blocks.
- * @param branding - the global branding singleton.
+ * @param overrides - the template's per-field branding overrides (`null`/absent inherits global).
+ * @param global - the global branding singleton default.
  * @param variables - substitution values for `{{var}}` placeholders.
  * @param baseUrl - the backend's own public base URL (used for asset URLs).
  * @returns the rendered HTML and the interpolated subject line.
  */
 export function renderEmailTemplate(
   template: { subject: string; blocks: EmailBlock[] },
-  branding: EmailBrandingDto,
+  overrides: Partial<EmailTemplateBrandingOverrides>,
+  global: EmailBrandingDto,
   variables: Record<string, string>,
   baseUrl: string,
 ): { html: string; subject: string } {
   const subject = interpolate(template.subject, variables);
-  const html = renderBlocks(template.blocks, branding, variables, baseUrl);
+  const html = renderBlocks(template.blocks, overrides, global, variables, baseUrl);
   return { html, subject };
 }
 
@@ -272,16 +448,29 @@ export function renderEmailTemplate(
  * {@link assetUrl}'s doc comment for why an absolute `PUBLIC_URL`-based URL
  * is wrong for this path specifically).
  *
+ * Because the scheme is forced (not left to `@media`), the page background is
+ * emitted directly as the chosen scheme's variant: the dark gradient/image for
+ * `"dark"`, the light one for `"light"`.
+ *
  * @param blocks - the blocks currently being edited.
- * @param branding - the global branding singleton.
- * @param colorScheme - "light" or "dark" — selects which CSS rules are inlined into the `<style>` block.
+ * @param overrides - the (possibly still-unsaved) per-field branding overrides being edited.
+ * @param global - the global branding singleton default.
+ * @param colorScheme - "light" or "dark" — selects which CSS rules and background variant are inlined.
  * @returns the rendered HTML.
  */
 export function renderEmailPreview(
   blocks: EmailBlock[],
-  branding: EmailBrandingDto,
+  overrides: Partial<EmailTemplateBrandingOverrides>,
+  global: EmailBrandingDto,
   colorScheme: "light" | "dark",
 ): string {
+  const branding = resolveBranding(overrides, global);
   const rows = buildBlockRows(blocks, branding, {}, null);
-  return buildEmailHtml(rows, colorScheme === "dark" ? DARK_RULES : "");
+  const isDark = colorScheme === "dark";
+  const gradientTop = isDark ? branding.darkGradientTop : branding.lightGradientTop;
+  const gradientBottom = isDark ? branding.darkGradientBottom : branding.lightGradientBottom;
+  const backgroundAssetId = isDark ? branding.darkBackgroundAssetId : branding.lightBackgroundAssetId;
+  const imageUrl = backgroundAssetId ? assetUrl(backgroundAssetId, null) : null;
+  const background = buildPageBackground(gradientTop, gradientBottom, imageUrl);
+  return buildEmailHtml(rows, isDark ? DARK_RULES : "", background);
 }

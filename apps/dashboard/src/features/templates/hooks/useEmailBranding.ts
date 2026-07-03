@@ -3,10 +3,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
 /**
- * Global email branding singleton (MC-078): the header/footer image assets
- * and footer text wrapped around every rendered template. There is exactly
- * one row server-side (`email_branding`, seeded by the MC-078 backfill
- * migration) — this is not a per-template setting.
+ * Global email branding singleton (MC-078, extended MC-079): the default
+ * header/footer image assets, footer text, and day/night page background
+ * (gradient + optional image) applied to every rendered template UNLESS the
+ * template overrides the matching field. There is exactly one row server-side
+ * (`email_branding`, seeded by the MC-078 backfill migration). The four
+ * gradient colours are always set (NOT NULL, seeded with the website night-sky
+ * shader defaults); the background-image asset ids are nullable.
  */
 export interface EmailBranding {
   /** Id of the `email_assets` row rendered above every template's body, or `null` when no header image is set. */
@@ -15,6 +18,18 @@ export interface EmailBranding {
   footerAssetId: string | null;
   /** Markdown footer copy rendered beneath the body (and above the footer image, if any), or `null` when unset. */
   footerText: string | null;
+  /** Id of the `email_assets` row layered over the light (day) page background gradient, or `null` for gradient-only. */
+  lightBackgroundAssetId: string | null;
+  /** Id of the `email_assets` row layered over the dark (night) page background gradient, or `null` for gradient-only. */
+  darkBackgroundAssetId: string | null;
+  /** Light (day) page background gradient top colour (hex). */
+  lightGradientTop: string;
+  /** Light (day) page background gradient bottom colour (hex). */
+  lightGradientBottom: string;
+  /** Dark (night) page background gradient top colour (hex). */
+  darkGradientTop: string;
+  /** Dark (night) page background gradient bottom colour (hex). */
+  darkGradientBottom: string;
 }
 
 /**

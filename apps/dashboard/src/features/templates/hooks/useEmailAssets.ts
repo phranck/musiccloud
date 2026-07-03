@@ -1,11 +1,40 @@
 import { ENDPOINTS } from "@musiccloud/shared";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { fileToDataUrl } from "@/lib/files";
 
 /** Response shape of `POST /api/admin/email-assets`: the newly created asset's id. */
 export interface UploadedEmailAsset {
   id: string;
+}
+
+/**
+ * Metadata of one stored email image asset, as returned by
+ * `GET /api/admin/email-assets` (MC-079). Bytes are not included — the image
+ * itself is fetched by id from the public serve route
+ * (`/api/admin/email-assets/:id`). Backs the shared-asset picker.
+ */
+export interface EmailAsset {
+  id: string;
+  mimeType: string;
+  /** ISO timestamp string (the API serialises the DB `created_at` to JSON). */
+  createdAt: string;
+}
+
+/** TanStack Query key for the shared email-asset list. */
+const EMAIL_ASSETS_QUERY_KEY = ["email-assets"] as const;
+
+/**
+ * Lists every stored email image asset (newest first) for the shared-asset
+ * picker, so a previously uploaded image can be reused without re-uploading.
+ *
+ * @returns A TanStack Query result wrapping the {@link EmailAsset} list.
+ */
+export function useEmailAssets() {
+  return useQuery({
+    queryKey: EMAIL_ASSETS_QUERY_KEY,
+    queryFn: () => api.get<EmailAsset[]>(ENDPOINTS.admin.emailAssets.list),
+  });
 }
 
 /**
@@ -18,21 +47,23 @@ export interface UploadedEmailAsset {
  * caps the decoded size at 5 MB; a rejected upload surfaces as the
  * mutation's `error` (`api.post` rejects on any non-2xx response).
  *
- * There is no `["email-assets"]` list query to invalidate on success: assets
- * are referenced by id (from a template's `image` block, or from the global
- * branding singleton's `headerAssetId`/`footerAssetId`) rather than browsed
- * as a collection, so this hook intentionally skips query invalidation.
+ * On success it invalidates the {@link useEmailAssets} list query so the
+ * shared-asset picker immediately shows the newly uploaded image.
  *
  * @returns A TanStack Query mutation accepting a `File` and resolving to the
  *   created {@link UploadedEmailAsset} (`{ id }`). The caller is responsible
  *   for storing the returned id wherever the asset reference belongs (a
- *   block's `assetId`, or the branding's `headerAssetId`/`footerAssetId`).
+ *   block's `assetId`, or a branding asset field).
  */
 export function useUploadEmailAsset() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: async (file: File) => {
       const dataUrl = await fileToDataUrl(file);
-      return api.post<UploadedEmailAsset>(ENDPOINTS.admin.emailAssets.upload, { dataUrl });
+      return api.post<UploadedEmailAsset>(ENDPOINTS.admin.emailAssets.list, { dataUrl });
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: EMAIL_ASSETS_QUERY_KEY });
     },
   });
 }

@@ -179,6 +179,7 @@ import {
   insertEmailAsset as contentEmailInsertEmailAsset,
   insertEmailTemplate as contentEmailInsertEmailTemplate,
   listEmailActionBindings as contentEmailListEmailActionBindings,
+  listEmailAssets as contentEmailListEmailAssets,
   listEmailTemplates as contentEmailListEmailTemplates,
   setEmailActionBindingEnabled as contentEmailSetEmailActionBindingEnabled,
   updateEmailBranding as contentEmailUpdateEmailBranding,
@@ -828,6 +829,10 @@ export class PostgresAdapter
 
   updateEmailBranding(data: Partial<EmailBrandingDto>): Promise<EmailBrandingDto> {
     return contentEmailUpdateEmailBranding(this.pool, data);
+  }
+
+  listEmailAssets(): Promise<EmailAssetDto[]> {
+    return contentEmailListEmailAssets(this.pool);
   }
 
   insertEmailAsset(data: { mimeType: string; bytes: Buffer }): Promise<EmailAssetDto> {
