@@ -5,7 +5,6 @@ import type {
   EmailBrandingDto,
   EmailTemplateBrandingOverrides,
   EmailTemplateRow,
-  EmailTemplateVariable,
   EmailTemplateWriteData,
 } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
@@ -15,7 +14,6 @@ export interface EmailTemplate {
   name: string;
   subject: string;
   blocks: EmailBlock[];
-  requiredVariables: EmailTemplateVariable[];
   isSystemTemplate: boolean;
   createdAt: string;
   updatedAt: string;
@@ -29,7 +27,6 @@ function rowToEmailTemplate(row: EmailTemplateRow): EmailTemplate {
     name: row.name,
     subject: row.subject,
     blocks: row.blocks,
-    requiredVariables: row.requiredVariables,
     isSystemTemplate: row.isSystemTemplate,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

@@ -61,9 +61,9 @@ const BRANDING: EmailBrandingDto = {
 
 /**
  * Builds a fully-populated {@link EmailTemplateRow}, defaulting to a single
- * text block that references every `adminInviteSent` variable and declaring
- * all of them as required — the "happy path" shape most tests can use
- * unmodified.
+ * text block whose body references only `adminInviteSent` variables — so the
+ * template's auto-extracted required set (MC-080) is always satisfiable on the
+ * happy path. Most tests use this shape unmodified.
  *
  * @param overrides - Partial fields to override the defaults.
  * @returns A complete email-template row.
@@ -74,10 +74,6 @@ function makeTemplateRow(overrides: Partial<EmailTemplateRow> = {}): EmailTempla
     name: "Admin invite",
     subject: "Welcome {{username}}",
     blocks: [{ type: EmailBlockType.Text, markdown: "Hi {{username}}, visit {{inviteUrl}}" }],
-    requiredVariables: [
-      { name: "username", description: "Invited admin's username" },
-      { name: "inviteUrl", description: "Invite acceptance link" },
-    ],
     isSystemTemplate: true,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -192,12 +188,12 @@ describe("triggerEmailAction", () => {
     expect(vi.mocked(sendEmail)).not.toHaveBeenCalled();
   });
 
-  it("throws when a bound template requires a variable the action did not supply", async () => {
+  it("throws when a bound template uses a variable the action did not supply", async () => {
+    // The required set is auto-extracted from the body (MC-080): this template
+    // references `{{notSuppliedByAction}}`, which `adminInviteSent` never
+    // provides, so the send-time gate must reject it before sending.
     const template = makeTemplateRow({
-      requiredVariables: [
-        { name: "username", description: "Invited admin's username" },
-        { name: "notSuppliedByAction", description: "A variable this action never provides" },
-      ],
+      blocks: [{ type: EmailBlockType.Text, markdown: "Hi {{username}}, ref {{notSuppliedByAction}}" }],
     });
     vi.mocked(repo.listEmailActionBindings).mockResolvedValueOnce([
       { id: "bind-1", actionKey: ADMIN_INVITE_SENT, templateId: 1, enabled: true },

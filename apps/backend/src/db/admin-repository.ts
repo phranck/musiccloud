@@ -118,12 +118,6 @@ export interface ListResult<T> {
   limit: number;
 }
 
-/** A declared template variable: name + human description shown in the editor. */
-export interface EmailTemplateVariable {
-  name: string;
-  description: string;
-}
-
 /**
  * Branding fields a single email template may override (MC-079). Every field
  * is REQUIRED here (always present on a read), and the value `null` carries
@@ -155,7 +149,6 @@ export interface EmailTemplateRow {
   name: string;
   subject: string;
   blocks: EmailBlock[];
-  requiredVariables: EmailTemplateVariable[];
   isSystemTemplate: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -168,7 +161,6 @@ export interface EmailTemplateWriteData {
   name: string;
   subject: string;
   blocks: EmailBlock[];
-  requiredVariables?: EmailTemplateVariable[];
   isSystemTemplate?: boolean;
   /** Present-keys-only branding overrides (like `updateEmailBranding`): absent key = unchanged, `null` = clear override. */
   branding?: Partial<EmailTemplateBrandingOverrides>;

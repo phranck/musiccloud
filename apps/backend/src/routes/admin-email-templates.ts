@@ -2,7 +2,7 @@ import { type EmailBlock, ENDPOINTS, isEmailBlockArray, ROUTE_TEMPLATES } from "
 import type { FastifyInstance } from "fastify";
 import { strToU8, zipSync } from "fflate";
 
-import type { EmailTemplateBrandingOverrides, EmailTemplateVariable } from "../db/admin-repository.js";
+import type { EmailTemplateBrandingOverrides } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
 import { isHexColor } from "../lib/color.js";
 import { requireEnv } from "../lib/env.js";
@@ -22,7 +22,6 @@ interface EmailTemplateCreateBody {
   name: string;
   subject: string;
   blocks: EmailBlock[];
-  requiredVariables: EmailTemplateVariable[];
   branding?: Partial<EmailTemplateBrandingOverrides>;
 }
 
@@ -97,25 +96,6 @@ function validateBrandingOverrides(value: unknown): Partial<EmailTemplateBrandin
   return out;
 }
 
-/**
- * Validates a `requiredVariables` value: an array of `{name, description}`
- * objects (both strings). Used by create/update/import — every write path
- * accepts the same shape.
- *
- * @param value - the raw, untyped value to check.
- * @returns the validated array, or a string error message.
- */
-function validateRequiredVariables(value: unknown): EmailTemplateVariable[] | string {
-  if (!Array.isArray(value)) return "requiredVariables must be an array";
-  for (const entry of value) {
-    if (!entry || typeof entry !== "object") return "requiredVariables entries must be objects";
-    const e = entry as Record<string, unknown>;
-    if (typeof e.name !== "string" || e.name.length === 0) return "requiredVariables[].name must be a non-empty string";
-    if (typeof e.description !== "string") return "requiredVariables[].description must be a string";
-  }
-  return value as EmailTemplateVariable[];
-}
-
 function validateCreateBody(body: unknown): EmailTemplateCreateBody | string {
   if (!body || typeof body !== "object") return "body must be an object";
   const b = body as Record<string, unknown>;
@@ -128,13 +108,10 @@ function validateCreateBody(body: unknown): EmailTemplateCreateBody | string {
   if (!isEmailBlockArray(b.blocks)) {
     return "blocks required: must be a well-formed EmailBlock[] array";
   }
-  const requiredVariables = validateRequiredVariables(b.requiredVariables ?? []);
-  if (typeof requiredVariables === "string") return requiredVariables;
   const result: EmailTemplateCreateBody = {
     name: b.name,
     subject: b.subject,
     blocks: b.blocks,
-    requiredVariables,
   };
   if (b.branding !== undefined) {
     const branding = validateBrandingOverrides(b.branding);
@@ -165,11 +142,6 @@ function validateUpdateBody(body: unknown): EmailTemplateUpdateBody | string {
       return "blocks must be a well-formed EmailBlock[] array";
     }
     out.blocks = b.blocks;
-  }
-  if (b.requiredVariables !== undefined) {
-    const requiredVariables = validateRequiredVariables(b.requiredVariables);
-    if (typeof requiredVariables === "string") return requiredVariables;
-    out.requiredVariables = requiredVariables;
   }
   if (b.branding !== undefined) {
     const branding = validateBrandingOverrides(b.branding);

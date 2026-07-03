@@ -24,7 +24,6 @@ import type {
   EmailBrandingDto,
   EmailTemplateBrandingOverrides,
   EmailTemplateRow,
-  EmailTemplateVariable,
   EmailTemplateWriteData,
 } from "../admin-repository.js";
 
@@ -38,7 +37,7 @@ import type {
  * drift on which columns they project (MC-079 added the nine trailing
  * branding-override columns).
  */
-const EMAIL_TEMPLATE_COLUMNS = `id, name, subject, blocks, required_variables, is_system_template, created_at, updated_at,
+const EMAIL_TEMPLATE_COLUMNS = `id, name, subject, blocks, is_system_template, created_at, updated_at,
        header_asset_id, footer_asset_id, footer_text,
        light_background_asset_id, dark_background_asset_id,
        light_gradient_top, light_gradient_bottom, dark_gradient_top, dark_gradient_bottom`;
@@ -69,7 +68,6 @@ interface EmailTemplateSqlRow {
   name: string;
   subject: string;
   blocks: unknown;
-  required_variables: unknown;
   is_system_template: boolean;
   created_at: Date;
   updated_at: Date;
@@ -90,11 +88,10 @@ interface EmailTemplateSqlRow {
 
 /**
  * Maps a raw `email_templates` row to the public {@link EmailTemplateRow}
- * DTO (snake_case → camelCase). `blocks`/`required_variables` are JSONB
- * columns; the raw `pg` driver already parses them into JS values on
- * SELECT, so they only need a type cast here. The nine branding-override
- * columns are collected into `branding` (each `null` = inherit the global
- * default at render time).
+ * DTO (snake_case → camelCase). `blocks` is a JSONB column; the raw `pg`
+ * driver already parses it into a JS value on SELECT, so it only needs a type
+ * cast here. The nine branding-override columns are collected into `branding`
+ * (each `null` = inherit the global default at render time).
  */
 function rowToEmailTemplate(row: EmailTemplateSqlRow): EmailTemplateRow {
   return {
@@ -102,7 +99,6 @@ function rowToEmailTemplate(row: EmailTemplateSqlRow): EmailTemplateRow {
     name: row.name,
     subject: row.subject,
     blocks: row.blocks as EmailTemplateRow["blocks"],
-    requiredVariables: row.required_variables as EmailTemplateVariable[],
     isSystemTemplate: row.is_system_template,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -178,8 +174,7 @@ export async function getEmailTemplateByName(pool: Pool, name: string): Promise<
 // ============================================================================
 
 /**
- * Inserts a new email template. `requiredVariables` defaults to an empty
- * array; `isSystemTemplate` defaults to `false`.
+ * Inserts a new email template. `isSystemTemplate` defaults to `false`.
  *
  * @param pool - Postgres connection pool.
  * @param data - Template payload. `subject` and `blocks` are required.
@@ -193,7 +188,6 @@ export async function insertEmailTemplate(pool: Pool, data: EmailTemplateWriteDa
     "name",
     "subject",
     "blocks",
-    "required_variables",
     "is_system_template",
     ...brandingKeys.map((key) => BRANDING_OVERRIDE_COLUMNS[key]),
   ];
@@ -201,7 +195,6 @@ export async function insertEmailTemplate(pool: Pool, data: EmailTemplateWriteDa
     data.name,
     data.subject,
     JSON.stringify(data.blocks),
-    JSON.stringify(data.requiredVariables ?? []),
     data.isSystemTemplate ?? false,
     ...brandingKeys.map((key) => data.branding?.[key] ?? null),
   ];
@@ -218,9 +211,9 @@ export async function insertEmailTemplate(pool: Pool, data: EmailTemplateWriteDa
 /**
  * Partially updates an email template. Only keys present on `data` are
  * written. `updated_at` is always bumped to `NOW()` when at least one
- * column changed; an empty `data` short-circuits to a re-read. The
- * `blocks`/`requiredVariables` columns are JSONB and need their bound
- * values JSON-stringified before being pushed as parameters.
+ * column changed; an empty `data` short-circuits to a re-read. The `blocks`
+ * column is JSONB and needs its bound value JSON-stringified before being
+ * pushed as a parameter.
  *
  * @param pool - Postgres connection pool.
  * @param id - The template's id.
@@ -237,10 +230,9 @@ export async function updateEmailTemplate(
     name: "name",
     subject: "subject",
     blocks: "blocks",
-    requiredVariables: "required_variables",
     isSystemTemplate: "is_system_template",
   };
-  const jsonbColumns = new Set<keyof EmailTemplateWriteData>(["blocks", "requiredVariables"]);
+  const jsonbColumns = new Set<keyof EmailTemplateWriteData>(["blocks"]);
 
   const setClauses: string[] = [];
   const values: unknown[] = [];

@@ -14,6 +14,7 @@ import {
   EMAIL_ACTIONS,
   type EmailActionMeta,
   ENDPOINTS,
+  extractEmailTemplateVariables,
   getEmailActionMeta,
   ROUTE_TEMPLATES,
 } from "@musiccloud/shared";
@@ -106,19 +107,21 @@ export default async function adminEmailActionsRoutes(app: FastifyInstance) {
     }
     const template = templateResult.data;
 
-    // Compatibility check: every variable the template requires must be one
-    // the action actually supplies when it fires. This is the gate that
-    // keeps `triggerEmailAction` from ever rendering a template with an
-    // unresolved `{{var}}` placeholder — enforced here at bind-time so a
-    // bad pairing is rejected immediately instead of surfacing as a runtime
-    // throw the next time the action fires. Mirrors the send-time gate in
-    // `services/email-actions.ts`'s `triggerEmailAction` (which checks the
-    // variables an actual invocation supplied, not the action's declared
-    // set) — keep both in sync if this rule changes.
-    const incompatible = template.requiredVariables.find((rv) => !meta.variables.includes(rv.name));
+    // Compatibility check: every variable the template uses (auto-extracted
+    // from its subject + body, MC-080) must be one the action actually
+    // supplies when it fires. This is the gate that keeps `triggerEmailAction`
+    // from ever rendering a template with an unresolved `{{var}}` placeholder —
+    // enforced here at bind-time so a bad pairing is rejected immediately
+    // instead of surfacing as a runtime throw the next time the action fires.
+    // Mirrors the send-time gate in `services/email-actions.ts`'s
+    // `triggerEmailAction` (which checks the variables an actual invocation
+    // supplied, not the action's declared set) — keep both in sync.
+    const incompatible = extractEmailTemplateVariables(template.subject, template.blocks).find(
+      (name) => !meta.variables.includes(name),
+    );
     if (incompatible) {
       return reply.status(400).send({
-        error: `Template "${template.name}" requires variable "${incompatible.name}", which action "${meta.key}" does not provide`,
+        error: `Template "${template.name}" requires variable "${incompatible}", which action "${meta.key}" does not provide`,
       });
     }
 

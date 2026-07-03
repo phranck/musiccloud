@@ -5,7 +5,7 @@
  * gesendet. Ersetzt die festverdrahteten Direkt-Aufrufe (`sendTemplatedEmail`
  * mit fester templateId).
  */
-import { getEmailActionMeta } from "@musiccloud/shared";
+import { extractEmailTemplateVariables, getEmailActionMeta } from "@musiccloud/shared";
 
 import { getAdminRepository } from "../db/index.js";
 import { requireEnv } from "../lib/env.js";
@@ -14,8 +14,8 @@ import { renderEmailTemplate } from "./email-renderer.js";
 
 /**
  * Input for {@link triggerEmailAction}: the recipient and the variables this
- * action instance provides (must satisfy every bound template's
- * `requiredVariables`, see {@link triggerEmailAction}'s `@throws`).
+ * action instance provides (must satisfy every bound template's auto-extracted
+ * `{{var}}` placeholders, see {@link triggerEmailAction}'s `@throws`).
  */
 export interface TriggerEmailActionInput {
   /** Recipient address and optional display name. */
@@ -42,10 +42,10 @@ export interface TriggerEmailActionInput {
  *   - `required: false` → returns without sending anything. An optional
  *     action with no binding is a deliberate "not wired up yet", not an
  *     error.
- * - A bound template whose `requiredVariables` includes a name the action did
- *   not supply → throws *before* rendering or sending that template. Sending
- *   with an unresolved `{{var}}` placeholder would ship broken mail to a real
- *   recipient; the validation gate exists specifically to prevent that.
+ * - A bound template that uses a `{{var}}` the action did not supply → throws
+ *   *before* rendering or sending that template. Sending with an unresolved
+ *   `{{var}}` placeholder would ship broken mail to a real recipient; the
+ *   validation gate exists specifically to prevent that.
  *
  * @param actionKey - a key from `EMAIL_ACTIONS` (e.g. `EmailAction.AdminInviteSent`).
  * @param input - recipient and the variables this action occurrence provides.
@@ -73,15 +73,18 @@ export async function triggerEmailAction(actionKey: string, input: TriggerEmailA
     const template = await repo.getEmailTemplateById(binding.templateId);
     if (!template) continue;
 
-    // Send-time gate: did *this invocation* actually supply every variable
-    // the template requires? Mirrors the bind-time gate in
-    // `routes/admin-email-actions.ts` (which checks the action's *declared*
-    // variable set, not a specific invocation's) — keep both in sync if this
-    // rule changes.
-    const missingVariable = template.requiredVariables.find((rv) => !(rv.name in input.variables));
+    // Send-time gate: did *this invocation* actually supply every variable the
+    // template uses? The required set is auto-extracted from the template's
+    // subject + body (MC-080), never a hand-declared list. Mirrors the
+    // bind-time gate in `routes/admin-email-actions.ts` (which checks the
+    // action's *declared* variable set, not a specific invocation's) — keep
+    // both in sync if this rule changes.
+    const missingVariable = extractEmailTemplateVariables(template.subject, template.blocks).find(
+      (name) => !(name in input.variables),
+    );
     if (missingVariable) {
       throw new Error(
-        `Template "${template.name}" requires variable "${missingVariable.name}" not supplied by action "${actionKey}"`,
+        `Template "${template.name}" requires variable "${missingVariable}" not supplied by action "${actionKey}"`,
       );
     }
 

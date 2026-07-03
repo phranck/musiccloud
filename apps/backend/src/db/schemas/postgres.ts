@@ -952,9 +952,10 @@ export const genreArtworks = pgTable("genre_artworks", {
 /**
  * Managed email templates edited through the dashboard.
  *
- * Stores the block-based body (`blocks`), subject, declared
- * `requiredVariables`, and a system-template flag for protected built-in
- * templates. The nine trailing branding columns are per-template overrides
+ * Stores the block-based body (`blocks`), subject, and a system-template flag
+ * for protected built-in templates. A template's expected `{{var}}` variables
+ * are auto-extracted from its subject + body at use time (MC-080), not stored.
+ * The nine trailing branding columns are per-template overrides
  * (MC-079): each is nullable, and `NULL` means "no override — inherit the
  * corresponding {@link emailBranding} global default for this render". A
  * non-null value wins over the global default for that one field only (merge
@@ -968,7 +969,6 @@ export const emailTemplates = pgTable("email_templates", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   blocks: jsonb("blocks").notNull().default([]),
-  requiredVariables: jsonb("required_variables").notNull().default([]),
   // Per-template branding overrides (MC-079). All nullable: NULL = inherit the
   // matching global emailBranding default for this field.
   headerAssetId: text("header_asset_id").references(() => emailAssets.id, { onDelete: "set null" }),
