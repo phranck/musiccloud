@@ -31,7 +31,7 @@ import {
   useImportFormConfig,
   useSetFormConfigActive,
 } from "@/features/templates/hooks/useFormConfig";
-import { useImportQueue } from "@/lib/useImportQueue";
+import { useImportQueue } from "@/lib/hooks/useImportQueue";
 import { Dialog, dialogHeaderIconClass } from "@/shared/ui/Dialog";
 
 /** One entry of an import file: a form payload plus its target name. */

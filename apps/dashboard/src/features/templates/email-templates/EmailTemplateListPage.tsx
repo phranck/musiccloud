@@ -101,13 +101,14 @@ export function EmailTemplateListPage() {
       {
         id: "name",
         header: m.templateName,
+        className: "w-[24rem]",
         sortKey: (tpl) => tpl.name.toLowerCase(),
         cell: (tpl) => (
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => navigate(`/email-templates/${tpl.id}`)}
-              className="font-medium text-[var(--ds-text)] hover:underline text-left truncate font-mono"
+              className="font-medium text-[var(--ds-text)] hover:underline text-left font-mono"
             >
               {tpl.name}
             </button>
@@ -123,14 +124,16 @@ export function EmailTemplateListPage() {
       {
         id: "subject",
         header: m.templateSubject,
-        cell: (tpl) => <span className="text-[var(--ds-text-muted)] truncate max-w-xs">{tpl.subject || "—"}</span>,
+        cell: (tpl) => <span className="block truncate text-[var(--ds-text-muted)]">{tpl.subject || "—"}</span>,
       },
       {
         id: "createdAt",
         header: m.tableCreated,
+        // Narrow and right-aligned so the date sits directly beside the row actions.
+        className: "w-28 text-right",
         sortKey: (tpl) => tpl.createdAt,
         cell: (tpl) => (
-          <span className="text-xs text-[var(--ds-text-muted)]">
+          <span className="whitespace-nowrap text-xs text-[var(--ds-text-muted)]">
             {new Date(tpl.createdAt).toLocaleDateString(locale, {
               day: "2-digit",
               month: "2-digit",
@@ -141,7 +144,7 @@ export function EmailTemplateListPage() {
       },
       {
         id: "actions",
-        className: "w-[28rem]",
+        className: "w-80",
         cell: (tpl) => (
           <div className="flex items-center justify-end gap-2">
             <TableActionButton
