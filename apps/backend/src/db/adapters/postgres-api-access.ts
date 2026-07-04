@@ -388,6 +388,13 @@ export async function rotateApiClientToken(
 // AUDIT EVENTS
 // ============================================================================
 
+export async function countPendingApiAccessRequests(pool: Pool): Promise<number> {
+  const result = await pool.query(
+    `SELECT COUNT(*)::int AS cnt FROM api_access_requests WHERE status = 'pending'`,
+  );
+  return (result.rows[0] as { cnt: number }).cnt;
+}
+
 export async function createApiAccessAuditEvent(
   pool: Pool,
   data: {

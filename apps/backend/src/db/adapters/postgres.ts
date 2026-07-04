@@ -131,6 +131,7 @@ import {
   upsertAlbumPreview as albumsUpsertAlbumPreview,
 } from "./postgres-albums.js";
 import {
+  countPendingApiAccessRequests as apiAccessCountPending,
   createApiAccessAuditEvent as apiAccessCreateAuditEvent,
   createApiClient as apiAccessCreateClient,
   createApiClientToken as apiAccessCreateClientToken,
@@ -245,6 +246,7 @@ import {
   findDeveloperAccountById as developerFindAccountById,
   findActiveDeveloperEmailToken as developerFindActiveEmailToken,
   findDeveloperIdentity as developerFindIdentity,
+  listDeveloperAccounts as developerListAccounts,
   listDeveloperIdentitiesByAccount as developerListIdentitiesByAccount,
   markDeveloperEmailVerified as developerMarkEmailVerified,
   setDeveloperPassword as developerSetPassword,
@@ -1109,6 +1111,10 @@ export class PostgresAdapter
     return developerFindAccountByEmail(this.pool, email);
   }
 
+  listDeveloperAccounts(): Promise<(DeveloperAccount & { clientCount: number })[]> {
+    return developerListAccounts(this.pool);
+  }
+
   markDeveloperEmailVerified(id: string): Promise<DeveloperAccount | null> {
     return developerMarkEmailVerified(this.pool, id);
   }
@@ -1165,6 +1171,10 @@ export class PostgresAdapter
   // ============================================================================
   // API ACCESS (ApiAccessRepository) — migration 0048
   // ============================================================================
+
+  countPendingApiAccessRequests(): Promise<number> {
+    return apiAccessCountPending(this.pool);
+  }
 
   createApiAccessRequest(data: {
     developerAccountId: string;

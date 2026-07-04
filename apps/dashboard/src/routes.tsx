@@ -12,10 +12,13 @@ import {
   AdminLayout,
   AlbumsPage,
   AnalyticsPage,
+  ApiAccessRequestsPage,
+  ApiClientsPage,
   ArtistsPage,
   ContentEditorPage,
   DashboardPage,
   DesignSettingsPage,
+  DeveloperAccountsPage,
   EmailActionsPage,
   EmailBrandingPage,
   EmailTemplateEditPage,
@@ -26,6 +29,7 @@ import {
   LoginPage,
   NavManagerPage,
   PagesListPage,
+  RequestDetailPage,
   ServicesPage,
   SetupPage,
   SystemPage,
@@ -72,6 +76,10 @@ export const routes = createRoutesFromElements(
           <Route path="services" element={lazyFallback(<ServicesPage />)} />
           <Route path="design" element={lazyFallback(<DesignSettingsPage />)} />
           <Route path="actions" element={lazyFallback(<EmailActionsPage />)} />
+          <Route path="developer/requests" element={lazyFallback(<ApiAccessRequestsPage />)} />
+          <Route path="developer/requests/:id" element={lazyFallback(<RequestDetailPage />)} />
+          <Route path="developer/clients" element={lazyFallback(<ApiClientsPage />)} />
+          <Route path="developer/accounts" element={lazyFallback(<DeveloperAccountsPage />)} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

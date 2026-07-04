@@ -377,6 +377,8 @@ export const ENDPOINTS = {
         /** POST: rotate a token. Returns the new raw token once. */
         tokenRotate: (id: string) => `/api/admin/developer/api-access/tokens/${id}/rotate`,
       },
+      /** GET: list all developer accounts with client counts. */
+      accounts: "/api/admin/developer/accounts",
     },
   },
 
@@ -500,6 +502,7 @@ export const ROUTE_TEMPLATES = {
         tokenRevoke: "/api/admin/developer/api-access/tokens/:id/revoke",
         tokenRotate: "/api/admin/developer/api-access/tokens/:id/rotate",
       },
+      accounts: "/api/admin/developer/accounts",
     },
     emailTemplates: {
       detail: "/api/admin/email-templates/:id",

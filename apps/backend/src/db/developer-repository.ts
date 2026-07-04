@@ -136,6 +136,15 @@ export interface DeveloperRepository {
   findDeveloperAccountByEmail(email: string): Promise<DeveloperAccount | null>;
 
   /**
+   * Lists all developer accounts ordered by creation time (newest first).
+   * Includes the count of active API clients each account owns for the
+   * dashboard overview.
+   *
+   * @returns Array of account DTOs, each extended with `clientCount`.
+   */
+  listDeveloperAccounts(): Promise<(DeveloperAccount & { clientCount: number })[]>;
+
+  /**
    * Stamps `email_verified_at = NOW()` (and bumps `updated_at`) on the
    * given account, marking its email as verified.
    *

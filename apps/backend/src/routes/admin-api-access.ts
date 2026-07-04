@@ -10,7 +10,7 @@
 import { EmailAction, ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import type { ApiAccessRequest, ApiClient, ApiClientToken } from "../db/api-access-repository.js";
-import { getApiAccessRepository } from "../db/index.js";
+import { getApiAccessRepository, getDeveloperRepository } from "../db/index.js";
 import { requireOwnerOrAdmin } from "../lib/admin-caller.js";
 import { generateApiToken } from "../services/api-access-token.js";
 import { notifyDeveloper } from "../services/developer-notifications.js";
@@ -83,6 +83,26 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
       clients: await Promise.all(
         clients.map(async (client) => toClientResponse(client, await repo.listApiClientTokensByClient(client.id))),
       ),
+    });
+  });
+
+  app.get("/api/admin/developer/accounts", async (request, reply) => {
+    if (!(await requireOwnerOrAdmin(request, reply))) return;
+    const devRepo = await getDeveloperRepository();
+    const accounts = await devRepo.listDeveloperAccounts();
+    return reply.send({
+      accounts: accounts.map((a: typeof accounts[number]) => ({
+        id: a.id,
+        email: a.email,
+        emailVerifiedAt: a.emailVerifiedAt ? new Date(a.emailVerifiedAt).toISOString() : null,
+        displayName: a.displayName,
+        avatarUrl: a.avatarUrl,
+        plan: a.plan,
+        status: a.status,
+        clientCount: a.clientCount,
+        createdAt: new Date(a.createdAt).toISOString(),
+        lastLoginAt: a.lastLoginAt ? new Date(a.lastLoginAt).toISOString() : null,
+      })),
     });
   });
 

@@ -4,6 +4,7 @@ import {
   CaretCircleDoubleUpIcon,
   CaretDownIcon,
   ChartBarIcon,
+  ClipboardTextIcon,
   CopyIcon,
   EnvelopeOpenIcon,
   FileDashedIcon,
@@ -11,6 +12,7 @@ import {
   FilesIcon,
   GearIcon,
   HouseSimpleIcon,
+  KeyIcon,
   LightningIcon,
   ListIcon,
   MicrophoneStageIcon,
@@ -598,6 +600,57 @@ function SidebarAnalyticsSection({ onItemClick, s }: { onItemClick?: () => void;
   );
 }
 
+function SidebarDeveloperSection({
+  onItemClick,
+  pendingRequests,
+  s,
+}: {
+  onItemClick?: () => void;
+  pendingRequests?: number;
+  s: SidebarLabels;
+}) {
+  return (
+    <div className="mt-3">
+      <DashboardSection>
+        <DashboardSection.Header
+          icon={<KeyIcon weight="duotone" className="w-4 h-4" />}
+          title={s.sectionDeveloper}
+        />
+        <DashboardSection.Body className="!gap-0.5 !p-2">
+          <NavLink to="/developer/requests" onClick={onItemClick} className="contents">
+            {({ isActive }) => (
+              <DashboardSection.Item
+                icon={<ClipboardTextIcon weight="duotone" className="w-4 h-4" />}
+                label={s.apiAccessRequests}
+                badge={pendingRequests}
+                active={isActive}
+              />
+            )}
+          </NavLink>
+          <NavLink to="/developer/clients" onClick={onItemClick} className="contents">
+            {({ isActive }) => (
+              <DashboardSection.Item
+                icon={<PlugsConnectedIcon weight="duotone" className="w-4 h-4" />}
+                label={s.clientsAndTokens}
+                active={isActive}
+              />
+            )}
+          </NavLink>
+          <NavLink to="/developer/accounts" onClick={onItemClick} className="contents">
+            {({ isActive }) => (
+              <DashboardSection.Item
+                icon={<UsersThreeIcon weight="duotone" className="w-4 h-4" />}
+                label={s.developerAccounts}
+                active={isActive}
+              />
+            )}
+          </NavLink>
+        </DashboardSection.Body>
+      </DashboardSection>
+    </div>
+  );
+}
+
 export function Sidebar({
   username,
   firstName,
@@ -748,6 +801,15 @@ export function Sidebar({
         )}
 
         {isAdmin && <SidebarAnalyticsSection onItemClick={onItemClick} s={s} />}
+
+        {/* Developer */}
+        {isAdmin && (
+          <SidebarDeveloperSection
+            onItemClick={onItemClick}
+            pendingRequests={stats?.pendingApiAccessRequests}
+            s={s}
+          />
+        )}
 
         {/* System */}
         {isAdmin && (

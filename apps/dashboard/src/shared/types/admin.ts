@@ -25,6 +25,7 @@ export interface AdminStats {
   artistProfiles?: number;
   artistEntities?: number;
   users: number;
+  pendingApiAccessRequests?: number;
 }
 
 export interface AdminSetup {

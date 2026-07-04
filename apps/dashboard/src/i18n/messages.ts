@@ -30,6 +30,10 @@ export interface DashboardMessages {
       sectionAnalytics: string;
       analytics: string;
       sectionSystem: string;
+      sectionDeveloper: string;
+      apiAccessRequests: string;
+      clientsAndTokens: string;
+      developerAccounts: string;
       overview: string;
       tracks: string;
       albums: string;
@@ -108,7 +112,52 @@ export interface DashboardMessages {
       artists: string;
       artistEntities: string;
       users: string;
+      pendingApiAccessRequests: string;
     };
+  };
+  developer: {
+    requestsTitle: string;
+    requestsFilterAll: string;
+    requestsFilterPending: string;
+    requestsFilterApproved: string;
+    requestsFilterRejected: string;
+    colApp: string;
+    colDeveloper: string;
+    colTraffic: string;
+    colSubmitted: string;
+    colStatus: string;
+    detailBackLabel: string;
+    detailApprove: string;
+    detailReject: string;
+    detailRejectReasonLabel: string;
+    detailRejectReasonPlaceholder: string;
+    detailRejectConfirm: string;
+    detailRejectCancel: string;
+    detailRateLimitMinute: string;
+    detailRateLimitDay: string;
+    statusPending: string;
+    statusApproved: string;
+    statusRejected: string;
+    statusActive: string;
+    statusSuspended: string;
+    statusRevoked: string;
+    clientsTitle: string;
+    clientsEmpty: string;
+    clientsTokensLabel: string;
+    clientsNoTokens: string;
+    clientsCreateToken: string;
+    clientsRevokeToken: string;
+    clientsRotateToken: string;
+    tokenRevealTitle: string;
+    tokenRevealHint: string;
+    tokenRevealCopy: string;
+    accountsTitle: string;
+    colEmail: string;
+    colDisplayName: string;
+    colPlan: string;
+    colClients: string;
+    colRegistered: string;
+    overviewCardLabel: string;
   };
   music: {
     tracks: {
@@ -872,6 +921,10 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         emailBranding: "E-Mail-Branding",
         footerBuilder: "Footer-Builder",
         system: "System",
+        sectionDeveloper: "Developer",
+        apiAccessRequests: "API Access Requests",
+        clientsAndTokens: "Clients & Tokens",
+        developerAccounts: "Developer Accounts",
         services: "Services",
         design: "Design",
         actions: "Aktionen",
@@ -934,7 +987,52 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         artists: "Artist-Profile",
         artistEntities: "Artist-Entities",
         users: "Benutzer",
+        pendingApiAccessRequests: "Offene API-Requests",
       },
+    },
+    developer: {
+      requestsTitle: "API Access Requests",
+      requestsFilterAll: "Alle",
+      requestsFilterPending: "Pending",
+      requestsFilterApproved: "Genehmigt",
+      requestsFilterRejected: "Abgelehnt",
+      colApp: "App",
+      colDeveloper: "Developer",
+      colTraffic: "Traffic Est.",
+      colSubmitted: "Eingereicht",
+      colStatus: "Status",
+      detailBackLabel: "← API Access Requests",
+      detailApprove: "Genehmigen",
+      detailReject: "Ablehnen",
+      detailRejectReasonLabel: "Begründung (erforderlich)",
+      detailRejectReasonPlaceholder: "Begründung für die Ablehnung…",
+      detailRejectConfirm: "Ablehnen",
+      detailRejectCancel: "Abbrechen",
+      detailRateLimitMinute: "Requests / Minute",
+      detailRateLimitDay: "Requests / Tag",
+      statusPending: "Pending",
+      statusApproved: "Genehmigt",
+      statusRejected: "Abgelehnt",
+      statusActive: "Aktiv",
+      statusSuspended: "Suspendiert",
+      statusRevoked: "Widerrufen",
+      clientsTitle: "Clients & Tokens",
+      clientsEmpty: "Keine aktiven Clients",
+      clientsTokensLabel: "Tokens",
+      clientsNoTokens: "Keine Tokens",
+      clientsCreateToken: "Token erstellen",
+      clientsRevokeToken: "Widerrufen",
+      clientsRotateToken: "Rotieren",
+      tokenRevealTitle: "Token wird nur einmal angezeigt",
+      tokenRevealHint: "Kopiere ihn jetzt. Nach dem Schließen ist er nicht mehr abrufbar.",
+      tokenRevealCopy: "In Zwischenablage kopieren",
+      accountsTitle: "Developer Accounts",
+      colEmail: "E-Mail",
+      colDisplayName: "Name",
+      colPlan: "Plan",
+      colClients: "Clients",
+      colRegistered: "Registriert",
+      overviewCardLabel: "Offene API-Requests",
     },
     music: {
       tracks: {
@@ -1678,6 +1776,10 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         emailBranding: "Email branding",
         footerBuilder: "Footer Builder",
         system: "System",
+        sectionDeveloper: "Developer",
+        apiAccessRequests: "API Access Requests",
+        clientsAndTokens: "Clients & Tokens",
+        developerAccounts: "Developer Accounts",
         services: "Services",
         design: "Design",
         actions: "Actions",
@@ -1740,7 +1842,52 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         artists: "Artist Profiles",
         artistEntities: "Artist Entities",
         users: "Users",
+        pendingApiAccessRequests: "Pending API Requests",
       },
+    },
+    developer: {
+      requestsTitle: "API Access Requests",
+      requestsFilterAll: "All",
+      requestsFilterPending: "Pending",
+      requestsFilterApproved: "Approved",
+      requestsFilterRejected: "Rejected",
+      colApp: "App",
+      colDeveloper: "Developer",
+      colTraffic: "Traffic Est.",
+      colSubmitted: "Submitted",
+      colStatus: "Status",
+      detailBackLabel: "\u2190 API Access Requests",
+      detailApprove: "Approve",
+      detailReject: "Reject",
+      detailRejectReasonLabel: "Reason (required)",
+      detailRejectReasonPlaceholder: "Reason for rejection\u2026",
+      detailRejectConfirm: "Reject",
+      detailRejectCancel: "Cancel",
+      detailRateLimitMinute: "Requests / Minute",
+      detailRateLimitDay: "Requests / Day",
+      statusPending: "Pending",
+      statusApproved: "Approved",
+      statusRejected: "Rejected",
+      statusActive: "Active",
+      statusSuspended: "Suspended",
+      statusRevoked: "Revoked",
+      clientsTitle: "Clients & Tokens",
+      clientsEmpty: "No active clients",
+      clientsTokensLabel: "Tokens",
+      clientsNoTokens: "No tokens",
+      clientsCreateToken: "Create token",
+      clientsRevokeToken: "Revoke",
+      clientsRotateToken: "Rotate",
+      tokenRevealTitle: "Token shown only once",
+      tokenRevealHint: "Copy it now. After closing, it cannot be retrieved again.",
+      tokenRevealCopy: "Copy to clipboard",
+      accountsTitle: "Developer Accounts",
+      colEmail: "Email",
+      colDisplayName: "Name",
+      colPlan: "Plan",
+      colClients: "Clients",
+      colRegistered: "Registered",
+      overviewCardLabel: "Pending API Requests",
     },
     music: {
       tracks: {

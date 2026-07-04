@@ -135,6 +135,28 @@ function rowToDeveloperEmailToken(row: DeveloperEmailTokenRow): DeveloperEmailTo
 // ============================================================================
 
 /**
+ * Lists all developer accounts ordered by creation time (newest first), with
+ * the count of active API clients each account owns for the dashboard
+ * overview.
+ *
+ * @param pool - Postgres connection pool.
+ * @returns Array of account DTOs, each extended with `clientCount`.
+ */
+export async function listDeveloperAccounts(pool: Pool): Promise<(DeveloperAccount & { clientCount: number })[]> {
+  const result = await pool.query(
+    `SELECT da.*, COUNT(ac.id)::int AS client_count
+     FROM developer_accounts da
+     LEFT JOIN api_clients ac ON ac.developer_account_id = da.id
+     GROUP BY da.id
+     ORDER BY da.created_at DESC`,
+  );
+  return result.rows.map((row) => ({
+    ...rowToDeveloperAccount(row as DeveloperAccountRow),
+    clientCount: (row as any).client_count as number,
+  }));
+}
+
+/**
  * Looks up a developer account by primary key.
  *
  * @param pool - Postgres connection pool.
