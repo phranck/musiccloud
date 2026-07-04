@@ -1,14 +1,19 @@
+import { DashboardButtonVariant, DashboardInput } from "@musiccloud/dashboard-ui";
+import {
+  CheckCircle as CheckCircleIcon,
+  SpinnerGap as SpinnerGapIcon,
+  XCircle as XCircleIcon,
+} from "@phosphor-icons/react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { PageLayout } from "@/components/ui/PageLayout";
+import { EditorPageShell } from "@/components/ui/EditorPageShell";
+import { EditorToolbarButton } from "@/components/ui/EditorToolbarButton";
 import { useI18n } from "@/context/I18nContext";
-import {
-  useApiAccessRequest,
-  useApproveRequest,
-  useRejectRequest,
-} from "@/features/developer/hooks/useDeveloperData";
 import { ApiAccessRequestStatus } from "@/features/developer/domain";
+import { useApiAccessRequest, useApproveRequest, useRejectRequest } from "@/features/developer/hooks/useDeveloperData";
+import { Dialog } from "@/shared/ui/Dialog";
+
+const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 
 export function RequestDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -23,161 +28,168 @@ export function RequestDetailPage() {
   const [reqPerMin, setReqPerMin] = useState(60);
   const [reqPerDay, setReqPerDay] = useState(1000);
 
+  function handleBack() {
+    navigate("/developer/requests");
+  }
+
+  function handleApprove() {
+    approve.mutate(
+      { id: id!, requestsPerMinute: reqPerMin, requestsPerDay: reqPerDay },
+      { onSuccess: () => navigate("/developer/requests") },
+    );
+  }
+
+  function handleReject() {
+    reject.mutate({ id: id!, reviewNote: reviewNote.trim() }, { onSuccess: () => navigate("/developer/requests") });
+  }
+
   if (isLoading || !data) {
     return (
-      <PageLayout>
-        <PageHeader title="" />
-        <div className="text-[var(--ds-text-muted)] text-sm">{messages.common.loading}</div>
-      </PageLayout>
+      <EditorPageShell title="" backLabel={dm.detailBackLabel} onBack={handleBack}>
+        <div className="flex items-center justify-center py-12">
+          <SpinnerGapIcon className="w-6 h-6 animate-spin text-[var(--ds-text-muted)]" />
+        </div>
+      </EditorPageShell>
     );
   }
 
   const r = data.request;
+  const isPending = r.status === ApiAccessRequestStatus.Pending;
+
+  const toolbar = isPending && (
+    <div className="flex items-center gap-2 ml-auto">
+      <EditorToolbarButton
+        variant={DashboardButtonVariant.Primary}
+        icon={<CheckCircleIcon weight="duotone" className="w-3.5 h-3.5" />}
+        onClick={handleApprove}
+        disabled={approve.isPending}
+      >
+        {dm.detailApprove}
+      </EditorToolbarButton>
+      <EditorToolbarButton
+        variant={DashboardButtonVariant.Neutral}
+        icon={<XCircleIcon weight="duotone" className="w-3.5 h-3.5" />}
+        onClick={() => setShowReject(true)}
+      >
+        {dm.detailReject}
+      </EditorToolbarButton>
+    </div>
+  );
 
   return (
-    <PageLayout>
-      <button
-        type="button"
-        onClick={() => navigate("/developer/requests")}
-        className="text-sm text-[var(--ds-text-muted)] hover:text-[var(--ds-text)] mb-4 transition-colors"
+    <>
+      <EditorPageShell
+        title={r.appName}
+        backLabel={dm.detailBackLabel}
+        onBack={handleBack}
+        toolbar={toolbar}
+        cardClassName="!flex-initial w-[60%]"
       >
-        {dm.detailBackLabel}
-      </button>
-      <PageHeader title={r.appName} />
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-        <div className="bg-[var(--ds-surface)] rounded-xl border border-[var(--ds-border-subtle)] p-4">
-          <div className="text-xs text-[var(--ds-text-muted)] uppercase tracking-wide mb-1">
-            {dm.colDeveloper}
-          </div>
-          <div className="text-sm">{r.contactEmail}</div>
-        </div>
-        <div className="bg-[var(--ds-surface)] rounded-xl border border-[var(--ds-border-subtle)] p-4">
-          <div className="text-xs text-[var(--ds-text-muted)] uppercase tracking-wide mb-1">
-            {dm.colSubmitted}
-          </div>
-          <div className="text-sm">
-            {new Date(r.submittedAt).toLocaleDateString("de-AT")}
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-[var(--ds-surface)] rounded-xl border border-[var(--ds-border-subtle)] p-4 mb-6">
-        <div className="text-xs text-[var(--ds-text-muted)] uppercase tracking-wide mb-2">
-          Beschreibung
-        </div>
-        <p className="text-sm leading-relaxed">{r.appDescription}</p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <div className="bg-[var(--ds-surface)] rounded-xl border border-[var(--ds-border-subtle)] p-4">
-          <div className="text-xs text-[var(--ds-text-muted)] uppercase tracking-wide mb-1">
-            {dm.colTraffic}
-          </div>
-          <div className="text-sm font-semibold">~{r.estimatedRequestsPerDay} / Tag</div>
-        </div>
-      </div>
-
-      {r.status === ApiAccessRequestStatus.Pending && (
-        <>
-          <div className="bg-[var(--ds-surface)] rounded-xl border border-[var(--ds-border-subtle)] p-4 mb-6">
-            <div className="text-xs text-[var(--ds-text-muted)] uppercase tracking-wide mb-3">
-              Rate Limits (optionaler Override)
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+        <div className="flex gap-6">
+          {/* Left column: Info */}
+          <div className="shrink-0 w-[220px] flex flex-col gap-4">
+            <div className="bg-[var(--ds-surface-raised)] rounded-lg p-4 space-y-3">
               <div>
-                <label htmlFor="req-per-min" className="block text-xs text-[var(--ds-text-muted)] mb-1">
-                  {dm.detailRateLimitMinute}
-                </label>
-                <input
-                  id="req-per-min"
-                  type="number"
-                  value={reqPerMin}
-                  onChange={(e) => setReqPerMin(Number(e.target.value))}
-                  className="w-full bg-[var(--ds-bg)] border border-[var(--ds-border)] rounded px-3 py-2 text-sm"
-                />
+                <div className={labelClass}>{dm.colDeveloper}</div>
+                <div className="text-sm">{r.contactEmail}</div>
               </div>
               <div>
-                <label htmlFor="req-per-day" className="block text-xs text-[var(--ds-text-muted)] mb-1">
-                  {dm.detailRateLimitDay}
-                </label>
-                <input
-                  id="req-per-day"
-                  type="number"
-                  value={reqPerDay}
-                  onChange={(e) => setReqPerDay(Number(e.target.value))}
-                  className="w-full bg-[var(--ds-bg)] border border-[var(--ds-border)] rounded px-3 py-2 text-sm"
-                />
+                <div className={labelClass}>{dm.colSubmitted}</div>
+                <div className="text-sm text-[var(--ds-text-muted)]">
+                  {new Date(r.submittedAt).toLocaleDateString("de-AT")}
+                </div>
+              </div>
+              <div>
+                <div className={labelClass}>{dm.colTraffic}</div>
+                <div className="text-sm font-medium">~{r.estimatedRequestsPerDay} / Tag</div>
               </div>
             </div>
           </div>
 
-          {showReject ? (
-            <div className="bg-[var(--ds-surface)] rounded-xl border border-red-500/30 p-4 mb-6">
-              <div className="text-sm font-semibold text-red-400 mb-3">
-                {dm.detailRejectReasonLabel}
-              </div>
-              <textarea
-                id="review-note"
-                value={reviewNote}
-                onChange={(e) => setReviewNote(e.target.value)}
-                placeholder={dm.detailRejectReasonPlaceholder}
-                aria-label={dm.detailRejectReasonLabel}
-                rows={4}
-                className="w-full bg-[var(--ds-bg)] border border-[var(--ds-border)] rounded px-3 py-2 text-sm resize-y mb-3"
-              />
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  disabled={!reviewNote.trim() || reject.isPending}
-                  onClick={() =>
-                    reject.mutate(
-                      { id: r.id, reviewNote: reviewNote.trim() },
-                      { onSuccess: () => navigate("/developer/requests") },
-                    )
-                  }
-                  className="px-4 py-2 rounded bg-red-600 text-white text-sm font-semibold disabled:opacity-40"
-                >
-                  {dm.detailRejectConfirm}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowReject(false);
-                    setReviewNote("");
-                  }}
-                  className="px-4 py-2 rounded bg-[var(--ds-bg)] border border-[var(--ds-border)] text-sm"
-                >
-                  {dm.detailRejectCancel}
-                </button>
-              </div>
+          {/* Right column: Description + Rate Limits */}
+          <div className="flex-1 min-w-0 space-y-6">
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--ds-text-muted)] mb-3">
+                Beschreibung
+              </h3>
+              <p className="text-sm leading-relaxed">{r.appDescription}</p>
             </div>
-          ) : (
-            <div className="flex gap-3">
-              <button
-                type="button"
-                disabled={approve.isPending}
-                onClick={() =>
-                  approve.mutate(
-                    { id: r.id, requestsPerMinute: reqPerMin, requestsPerDay: reqPerDay },
-                    { onSuccess: () => navigate("/developer/requests") },
-                  )
-                }
-                className="flex-1 py-2.5 rounded bg-emerald-600 text-white text-sm font-semibold disabled:opacity-40"
-              >
-                {dm.detailApprove}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowReject(true)}
-                className="flex-1 py-2.5 rounded bg-red-600 text-white text-sm font-semibold"
-              >
-                {dm.detailReject}
-              </button>
-            </div>
-          )}
-        </>
-      )}
-    </PageLayout>
+
+            {isPending && (
+              <div className="pt-2">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--ds-text-muted)] mb-4">
+                  Rate Limits
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="req-per-min" className={labelClass}>
+                      {dm.detailRateLimitMinute}
+                    </label>
+                    <DashboardInput
+                      id="req-per-min"
+                      type="number"
+                      value={reqPerMin.toString()}
+                      onChange={(e) => setReqPerMin(Number(e.target.value))}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="req-per-day" className={labelClass}>
+                      {dm.detailRateLimitDay}
+                    </label>
+                    <DashboardInput
+                      id="req-per-day"
+                      type="number"
+                      value={reqPerDay.toString()}
+                      onChange={(e) => setReqPerDay(Number(e.target.value))}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </EditorPageShell>
+
+      <Dialog
+        open={showReject}
+        title={dm.detailReject}
+        onClose={() => {
+          setShowReject(false);
+          setReviewNote("");
+        }}
+      >
+        <div className="px-6 py-4 space-y-3">
+          <p className="text-sm text-[var(--ds-text)]">{dm.detailRejectReasonLabel}</p>
+          <textarea
+            value={reviewNote}
+            onChange={(e) => setReviewNote(e.target.value)}
+            placeholder={dm.detailRejectReasonPlaceholder}
+            rows={4}
+            className="w-full bg-[var(--ds-bg)] border border-[var(--ds-border)] rounded px-3 py-2 text-sm resize-y"
+            aria-label={dm.detailRejectReasonLabel}
+          />
+        </div>
+        <Dialog.Footer>
+          <EditorToolbarButton
+            variant={DashboardButtonVariant.Neutral}
+            icon={false}
+            onClick={() => {
+              setShowReject(false);
+              setReviewNote("");
+            }}
+          >
+            {dm.detailRejectCancel}
+          </EditorToolbarButton>
+          <EditorToolbarButton
+            variant={DashboardButtonVariant.Primary}
+            icon={false}
+            onClick={handleReject}
+            disabled={!reviewNote.trim() || reject.isPending}
+          >
+            {dm.detailRejectConfirm}
+          </EditorToolbarButton>
+        </Dialog.Footer>
+      </Dialog>
+    </>
   );
 }
