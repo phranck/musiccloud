@@ -1,7 +1,8 @@
 import { UsersThree as UsersThreeIcon } from "@phosphor-icons/react";
 import { useMemo } from "react";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
-import { PageBody, PageHeader, PageLayout } from "@/components/ui/PageLayout";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { useI18n } from "@/context/I18nContext";
