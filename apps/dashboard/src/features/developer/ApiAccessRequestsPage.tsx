@@ -104,7 +104,6 @@ function useRequestColumns(
           );
         },
       },
-    ],
       {
         id: "actions",
         className: "w-24",
@@ -118,9 +117,9 @@ function useRequestColumns(
           </div>
         ),
       },
-  ],
+    ],
     [dm, common, navigate],
-  )
+  );
 }
 
 export function ApiAccessRequestsPage() {
