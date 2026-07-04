@@ -26,6 +26,21 @@ Jede neue Dashboard-Seite MUSS diesen Patterns folgen. Keine Abweichungen ohne v
 **Schrift-Family:** System-UI-Stack (Inter via Google Fonts; `system-ui, -apple-system, sans-serif` als Fallback).
 **Icon-Größen:** `w-3.5 h-3.5` (action-size Buttons), `w-4 h-4` (control-size Buttons, Sidebar), `w-12 h-12` (ContentUnavailableView). Icons IMMER mit `weight="duotone"`.
 
+### Label-Konsistenz (verbindlich)
+
+**Zwei Label-Typen mit UNTERSCHIEDLICHER visueller Behandlung:**
+
+1. **Field-Labels** (in Forms, Info-Blöcken, DashboardSection.Body): `text-xs font-medium text-[var(--ds-text-muted)]` — KEIN `uppercase`, KEIN `tracking-wider`. i18n-Text in normaler Groß-/Kleinschreibung (Sentence case).
+   - Beispiel: `"Developer"`, `"Eingereicht"`, `"Traffic Est."`, `"Beschreibung"`
+   - Klasse: `const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1"`
+
+2. **Section-Headers** (in DashboardSection.Body als `<h3>`): `text-xs font-semibold uppercase tracking-wider text-[var(--ds-text-muted)]` — MIT `uppercase` + `tracking-wider`. Die CSS-Transformation macht den Text automatisch uppercase, also i18n-Text in Sentence case belassen.
+   - Beispiel: `"Rate Limits"` → visuell "RATE LIMITS"
+
+3. **DataTable-Headers**: Werden automatisch via `section-header`-CSS-Klasse uppercase dargestellt. i18n-Text ebenfalls in Sentence case.
+
+**Niemals:** i18n-Texte in ALL CAPS schreiben und dann CSS-uppercase drüberlaufen lassen. Immer Sentence case im i18n, Transformation via CSS.
+
 ---
 
 ## Farben (Design Tokens)
@@ -64,9 +79,12 @@ Jede neue Dashboard-Seite MUSS diesen Patterns folgen. Keine Abweichungen ohne v
 ### PageLayout / PageBody
 ```
 PageLayout:   flex flex-1 min-h-0 flex-col
-PageBody:     flex flex-1 min-h-0 flex-col   (KEIN className bei DataTable)
-PageBody:     flex flex-1 min-h-0 flex-col gap-4 p-4   (Cards-Seiten: ServicesPage)
+PageBody:     flex flex-1 min-h-0 flex-col              (DataTable-Seiten: KEIN className)
+PageBody:     flex flex-1 min-h-0 flex-col gap-4        (DashboardSection-Cards: KEIN p-4! Die Sections bringen eigenes Padding)
+PageBody:     flex flex-1 min-h-0 flex-col gap-4 p-4    (NUR Flat-Card-Container-Seiten: ServicesPage)
 ```
+
+**Regel:** `DashboardSection` hat eingebautes Padding (`Body`: `p-3`). Der umgebende Container (PageBody) darf KEIN zusätzliches Padding setzen. Sonst entsteht Doppel-Padding. Ausnahme: ServicesPage-Pattern mit rohem `<div>`-Container statt DashboardSection.
 
 ### DataTable-Seite
 | Bereich | CSS |
@@ -348,3 +366,6 @@ const dm = messages.developer;
 | Hartkodierte Strings | `messages.developer.*` via `useI18n()` |
 | Harte Farbwerte (`#xxx`, `rgb()`) | CSS-Variablen (`var(--ds-*)`) |
 | `forwardRef` in React 19 | Normale Funktionskomponente mit `ref` als Prop |
+| i18n-Texte in ALL CAPS | Sentence case im i18n, CSS macht ggf. uppercase |
+| DashboardSection in EditorPageShell wrappen | DashboardSection direkt in PageLayout (kein Doppel-Card) |
+| Gemischte Label-Stile (mal uppercase, mal nicht) | Field-Labels einheitlich `labelClass`, Section-Header einheitlich `<h3>` |

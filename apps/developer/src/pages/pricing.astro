@@ -1,0 +1,138 @@
+---
+/**
+ * /pricing — the portal's public pricing page and written commitment.
+ *
+ * While the API is built out it is free for everyone; this page says so
+ * honestly AND states upfront that paid tiers for high-volume/commercial use
+ * are planned — with a dated, concrete commitment (free tier stays free,
+ * early users grandfathered, ≥30 days notice, no degradation) so nobody can
+ * feel rug-pulled later. The wording is the product decision recorded in
+ * `docs/superpowers/specs/2026-07-04-developer-api-monetization-design.md`.
+ *
+ * Static, English-only, BaseLayout-based, fully token-driven, sharing the
+ * public header/footer shell with /docs and /terms.
+ */
+import { CheckCircleIcon, HandshakeIcon } from "@phosphor-icons/react";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { FOOTER_LINKS } from "@/lib/footerLinks";
+
+/**
+ * The four commitment bullets, rendered as check rows. Kept as data so the
+ * list reads as one unit and the markup stays a single loop.
+ */
+const commitments = [
+  {
+    title: "The free tier stays free.",
+    body: "Paid tiers will add capacity — they won't take away what you have today.",
+  },
+  {
+    title: "Early users are grandfathered.",
+    body: "If you're here before pricing launches, your free allowance is locked in.",
+  },
+  {
+    title: "Plenty of notice.",
+    body: "At least 30 days before anything changes. No surprises, no rug-pulls.",
+  },
+  {
+    title: "No artificial friction.",
+    body: "We won't degrade the free experience to push you to pay.",
+  },
+];
+---
+
+<BaseLayout
+  title="Pricing · musiccloud for developers"
+  description="The musiccloud API is free while we build it out — and here is our written commitment for what happens when paid tiers arrive."
+>
+  <header class="flex items-center justify-between px-6 py-5 max-w-5xl mx-auto w-full">
+    <a href="/" class="flex items-center gap-2 text-logo font-medium">
+      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"
+        ><path
+          d="M9 21c0-3.3 2.7-6 6-6 1 0 2 .3 2.8.8A5 5 0 0 1 27 18.5 4.5 4.5 0 0 1 22.5 23H10a1 1 0 0 1-1-1z"
+          fill="var(--color-accent)"></path></svg
+      >
+      musiccloud <span class="text-fg-subtle font-normal">/ developers</span>
+    </a>
+    <nav class="flex items-center gap-5 text-nav text-fg-muted">
+      <a href="/docs" class="text-link">Docs</a>
+      <a href="/docs/api" class="text-link">API reference</a>
+      <a href="https://status.musiccloud.io" target="_blank" rel="noopener noreferrer" class="text-link">Status</a>
+      <a href="/login" class="text-link">Log in</a>
+      <a href="/signup" class="rounded-button bg-accent text-on-accent px-4 py-1.5 font-medium">Sign up</a>
+    </nav>
+  </header>
+
+  <main class="flex-1 max-w-3xl mx-auto w-full px-6 pt-12 pb-20">
+    <div class="flex items-center gap-3 mb-5">
+      <HandshakeIcon weight="duotone" className="size-9 text-accent" aria-hidden="true" />
+      <h1 class="text-hero font-medium tracking-tight leading-none">Pricing — honest and upfront</h1>
+    </div>
+    <p class="text-lead text-fg-muted mb-10">
+      musiccloud's API is <span class="text-fg font-medium">free while we build it out</span>, and it won't stay
+      free forever — running it has real costs, and paid tiers for high-volume and commercial use are planned.
+      Here is what you can count on.
+    </p>
+
+    <section class="rounded-card border border-border bg-surface px-7 py-7 mb-6">
+      <h2 class="text-card-title font-medium tracking-tight mb-5">Our commitment</h2>
+      <ul class="grid grid-cols-1 gap-4">
+        {
+          commitments.map((commitment) => (
+            <li class="flex items-start gap-3">
+              <CheckCircleIcon weight="duotone" className="size-6 text-accent shrink-0 mt-0.5" aria-hidden="true" />
+              <span class="text-body text-fg-muted">
+                <span class="text-fg font-medium">{commitment.title}</span> {commitment.body}
+              </span>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="rounded-card border border-border bg-surface px-7 py-7 mb-8">
+      <h2 class="text-card-title font-medium tracking-tight mb-2">The free tier today</h2>
+      <p class="text-body text-fg-muted">
+        Every approved app currently gets <span class="text-fg font-medium">60 requests per minute</span> and{" "}
+        <span class="text-fg font-medium">10,000 requests per day</span>. Need more while it's free?{" "}
+        <a href="/dashboard/api-access" class="text-fg text-link">Tell us about your app</a> — quotas are set per
+        app, not one-size-fits-all.
+      </p>
+    </section>
+
+    <div class="flex flex-wrap gap-3">
+      <a
+        href="/signup"
+        class="inline-flex items-center gap-2 rounded-button bg-accent text-on-accent px-5 py-2.5 text-body font-medium"
+      >
+        Get started for free
+      </a>
+      <a
+        href="/docs"
+        class="inline-flex items-center gap-2 rounded-button border border-border-strong px-5 py-2.5 text-body font-medium"
+      >
+        Read the docs
+      </a>
+    </div>
+  </main>
+
+  <footer class="border-t border-border">
+    <div class="max-w-5xl mx-auto w-full px-6 py-5 flex items-center justify-between text-body text-fg-subtle">
+      <span>© musiccloud</span>
+      <nav class="flex items-center gap-3">
+        {
+          FOOTER_LINKS.map((link) =>
+            link.external ? (
+              <a href={link.href} target="_blank" rel="noopener noreferrer" class="text-link">
+                {link.label}
+              </a>
+            ) : (
+              <a href={link.href} class="text-link">
+                {link.label}
+              </a>
+            ),
+          )
+        }
+      </nav>
+    </div>
+  </footer>
+</BaseLayout>

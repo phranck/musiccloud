@@ -8,7 +8,7 @@
  * | Decorator              | Consumer                          | Credential                                  |
  * | ---------------------- | --------------------------------- | ------------------------------------------- |
  * | `authenticateInternal`  | Astro SSR frontend BFF proxy      | `X-API-Key` header matching `INTERNAL_API_KEY` |
- * | `authenticatePublic`    | Public API clients + frontend BFF | `X-API-Key` **or** `Authorization: Bearer <JWT>` |
+ * | `authenticatePublic`    | Public API clients + frontend BFF | `X-API-Key` (internal key **or** issued `mc_live_…` token) **or** `Authorization: Bearer <JWT>` |
  * | `authenticateAdmin`     | Admin dashboard                   | `Authorization: Bearer <JWT>` with `role: "admin"` claim |
  * | `authenticateDeveloper` | developer.musiccloud.io portal    | `mc_dev_session` httpOnly cookie carrying a `kind: "developer"` JWT |
  *
@@ -42,8 +42,12 @@
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
+import type { ApiClient } from "../db/api-access-repository.js";
 import type { DeveloperAccount } from "../db/developer-repository.js";
-import { getDeveloperRepository } from "../db/index.js";
+import { getApiAccessRepository, getDeveloperRepository } from "../db/index.js";
+import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
+import { clientDayRateLimiter, clientMinuteRateLimiter } from "../lib/infra/rate-limiter.js";
+import { hashApiToken, looksLikeApiAccessToken } from "../services/api-access-token.js";
 import { SESSION_COOKIE_NAME, SessionKind } from "../services/developer-auth.js";
 
 declare module "fastify" {
@@ -54,6 +58,15 @@ declare module "fastify" {
     authenticateDeveloper: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
   }
   interface FastifyRequest {
+    /**
+     * The resolved API client, set by {@link FastifyInstance.authenticatePublic}
+     * when the request authenticated with an issued `mc_live_…` token
+     * (MC-088). Routes use it to skip the per-IP `apiRateLimiter` (the
+     * request's identity is the client, which already carries its own
+     * per-client quota). Absent for BFF-key, Bearer-JWT, and anonymous
+     * requests.
+     */
+    apiClient?: ApiClient;
     /**
      * Id of the authenticated developer account, set by
      * {@link FastifyInstance.authenticateDeveloper} after a valid
@@ -103,26 +116,69 @@ async function authPlugin(app: FastifyInstance) {
   });
 
   /**
-   * Dual-credential authentication for public API endpoints.
+   * Multi-credential authentication for public API endpoints.
    *
-   * Accepts either credential, in this order:
+   * Accepts one of three credentials, checked in this order:
    * 1. **`X-API-Key`** matching `INTERNAL_API_KEY` — used by the frontend BFF
    *    proxy so it can hit the same public routes an external client would.
-   * 2. **`Authorization: Bearer <JWT>`** — for external API clients. Verified
-   *    via `request.jwtVerify()` (provided by `@fastify/jwt`).
+   * 2. **`X-API-Key`** carrying an issued **`mc_live_…` API-access token**
+   *    (MC-088). Validated by SHA-256 hash against `api_client_tokens`; the
+   *    token and its owning client must both be `"active"`. On success the
+   *    client is attached as `request.apiClient`, the token's `lastUsedAt`
+   *    is stamped fire-and-forget, and the client's own per-minute/per-day
+   *    quotas (`requestsPerMinute` / `requestsPerDay`) are enforced here —
+   *    centrally, so every route in the `authenticatePublic` scope is
+   *    covered without per-route wiring.
+   * 3. **`Authorization: Bearer <JWT>`** — for OAuth client-credentials
+   *    consumers. Verified via `request.jwtVerify()` (provided by
+   *    `@fastify/jwt`).
    *
    * Response matrix:
-   * - missing both headers → `401 UNAUTHORIZED` ("Authentication required.")
+   * - missing all credentials → `401 UNAUTHORIZED` ("Authentication required.")
+   * - `mc_live_…` key unknown/revoked/rotated, or client suspended/revoked →
+   *   `401 UNAUTHORIZED` (one shape for every miss, so existence is not leaked)
+   * - `mc_live_…` key valid but per-client quota exhausted → `429` with the
+   *   standard `MC-API-0003` envelope and `Retry-After`
    * - Bearer token present but invalid/expired → `401 UNAUTHORIZED`
-   * - either credential valid → pass-through (no reply sent)
+   * - any credential valid → pass-through (no reply sent)
    *
-   * @param request - incoming request; `x-api-key` and `authorization` headers are read
-   * @param reply   - responds with `401` on auth failure
+   * @param request - incoming request; `x-api-key` and `authorization` headers are read,
+   *   `request.apiClient` is populated for token-authenticated callers
+   * @param reply   - responds with `401` on auth failure, `429` on quota exhaustion
    */
   app.decorate("authenticatePublic", async (request: FastifyRequest, reply: FastifyReply) => {
     // Check X-API-Key first (internal)
     const apiKey = request.headers["x-api-key"];
     if (apiKey && internalApiKey && apiKey === internalApiKey) {
+      return;
+    }
+
+    // Issued developer token (mc_live_…) — hash lookup + per-client quotas.
+    if (typeof apiKey === "string" && looksLikeApiAccessToken(apiKey)) {
+      const repo = await getApiAccessRepository();
+      const resolved = await repo.findActiveApiClientByTokenHash(hashApiToken(apiKey));
+      if (!resolved) {
+        return reply.status(401).send({ error: "UNAUTHORIZED", message: "Invalid or revoked API key." });
+      }
+
+      request.apiClient = resolved.client;
+
+      // Usage stamp is fire-and-forget: the auth hot path must not block on
+      // (or fail because of) a bookkeeping write. Quota checks below still
+      // count this request even when it ends up 429 — a blocked request is
+      // still usage.
+      repo.touchApiClientTokenLastUsed(resolved.token.id).catch((err) => {
+        request.log.warn({ err }, "Failed to stamp api_client_tokens.last_used_at");
+      });
+
+      const minuteCheck = clientMinuteRateLimiter.check(resolved.client.id, resolved.client.requestsPerMinute);
+      if (minuteCheck.limited) {
+        return sendRateLimitError(reply, minuteCheck);
+      }
+      const dayCheck = clientDayRateLimiter.check(resolved.client.id, resolved.client.requestsPerDay);
+      if (dayCheck.limited) {
+        return sendRateLimitError(reply, dayCheck);
+      }
       return;
     }
 

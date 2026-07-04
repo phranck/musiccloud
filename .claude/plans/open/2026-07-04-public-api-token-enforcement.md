@@ -37,12 +37,12 @@ Reihenfolge im Decorator:
 
 ### 2. Per-Client-Rate-Limiting
 
-Problem: `RateLimiter` hat `maxRequests` fix im Konstruktor; Pro-Client-Limits variieren. Lösung (KISS): eine Limit-pro-`check`-Variante — ein `Map<string, number[]>`-Store mit zwei Schlüsseln je Client:
+Problem: `RateLimiter` hat `maxRequests` fix im Konstruktor; Pro-Client-Limits variieren. Lösung (KISS): Schwesterklasse `DynamicRateLimiter` in `lib/infra/rate-limiter.ts` — Fenster fix im Konstruktor, **Cap pro `check(key, maxRequests)`-Aufruf** (Admin-Edits greifen sofort). Zwei Singleton-Instanzen, gekeyt auf die `api_clients.id`:
 
-- `rpm:<clientId>` (Fenster 60 s, Limit `client.requestsPerMinute`)
-- `rpd:<clientId>` (Fenster 86.400 s, Limit `client.requestsPerDay`)
+- `clientMinuteRateLimiter = new DynamicRateLimiter(60_000)` (Limit `client.requestsPerMinute`)
+- `clientDayRateLimiter = new DynamicRateLimiter(24*60*60*1000)` (Limit `client.requestsPerDay`)
 
-Umsetzung entweder als neue Methode `check(key, maxRequests, windowMs)` oder kleine Schwesterklasse `DynamicRateLimiter` in `lib/infra/rate-limiter.ts`; Cleanup-Interval wie bei `apiRateLimiter`. Enforcement **zentral in `authenticatePublic`** direkt nach Client-Auflösung (deckt alle `authenticatePublic`-Routen ab, DRY): erst `rpm`, dann `rpd`; bei Cap `sendRateLimitError(reply, check)` + return.
+Gemeinsame Fenster-Logik (`checkWindow`/`cleanupWindows`) modul-intern extrahiert, `RateLimiter` delegiert dorthin (DRY). Cleanup-Interval wie bei `apiRateLimiter` (5 min). Enforcement **zentral in `authenticatePublic`** direkt nach Client-Auflösung (deckt alle `authenticatePublic`-Routen ab): erst Minute, dann Tag; bei Cap `sendRateLimitError(reply, check)` + return.
 
 ### 3. Interaktion mit dem Per-IP-`apiRateLimiter`
 
@@ -81,15 +81,21 @@ Präzedenz für Hash-Lookup + `NOW()`-Stempel: `findActiveDeveloperEmailToken` (
 
 ## Checkliste
 
-- [ ] `request.apiClient`-Augmentation in `plugins/auth.ts`
-- [ ] `authenticatePublic`: `mc_live_`-Token-Pfad (Hash-Lookup, `401` bei ungültig/inaktiv)
-- [ ] Repo: `findActiveApiClientByTokenHash` + `touchApiClientTokenLastUsed` (Interface + `postgres-api-access.ts`)
-- [ ] `lastUsedAt`-Stempelung (fire-and-forget, Fehler geloggt)
-- [ ] Dynamischer Per-Client-Limiter (`rpm` + `rpd`), `429` via `sendRateLimitError`
-- [ ] Per-IP-`apiRateLimiter`-Bypass bei gesetztem `request.apiClient` (betroffene Routen)
-- [ ] Tests: valid / unknown / revoked / suspended / rpm / rpd / BFF / Bearer / Bypass
-- [ ] Alle Code-Referenzen verifiziert (Funktionen, Pfade, Schema, Endpunkte)
-- [ ] Gates grün (`tsc`, `lint`, `doctor:diff`, `test:run`)
+- [x] `request.apiClient`-Augmentation in `plugins/auth.ts`
+- [x] `authenticatePublic`: `mc_live_`-Token-Pfad (Hash-Lookup, `401` bei ungültig/inaktiv)
+- [x] Repo: `findActiveApiClientByTokenHash` + `touchApiClientTokenLastUsed` (Interface + `postgres-api-access.ts` + Bindings in `adapters/postgres.ts`)
+- [x] `lastUsedAt`-Stempelung (fire-and-forget, Fehler geloggt)
+- [x] Dynamischer Per-Client-Limiter (Minute + Tag), `429` via `sendRateLimitError`
+- [x] Per-IP-`apiRateLimiter`-Bypass bei gesetztem `request.apiClient` (`resolve.ts`, `cc-resolve.ts`, `link.ts` — die drei Routen im `authenticatePublic`-Scope)
+- [x] Tests: valid / unknown (deckt revoked/rotated/suspended, Repo-Miss) / rpm / rpd / BFF / Bearer / Bypass / Per-IP-bleibt (`plugins/auth.test.ts`, 10 Tests) + `DynamicRateLimiter`-Unit-Suite (6 Tests)
+- [x] Alle Code-Referenzen verifiziert (Funktionen, Pfade, Schema, Endpunkte)
+- [x] Gates grün (`tsc` exit 0, `pnpm lint` 948 Files clean, `doctor:diff` keine React-Änderungen, `pnpm test:run` 1386/1386)
+
+## Umsetzungsnotizen (2026-07-04)
+
+- OpenAPI-Doku mitgezogen: `server.ts` (Auth- + Rate-Limiting-Absätze), 429-Descriptions in `resolve.ts`/`link.ts`.
+- Token-Shape-Erkennung als `looksLikeApiAccessToken` in `services/api-access-token.ts` (Shape-Logik bleibt in einem Modul).
+- Quota zählt auch 429-abgelehnte Requests (bewusst: geblockte Nutzung ist Nutzung); ein Minute-429 verbraucht kein Tages-Budget (Reihenfolge Minute → Tag).
 
 ## Verwandt
 

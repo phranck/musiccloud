@@ -18,7 +18,7 @@ export interface TextFieldProps {
    * HTML input type. Defaults to `text`. `type` is an allow-listed JSX
    * attribute for the domain-literal rule, so passing it inline is fine.
    */
-  type?: "text" | "email" | "password";
+  type?: "text" | "email" | "password" | "number";
   /** Optional inline error message; renders red text + an invalid border when set. */
   error?: string;
   /** Optional helper text shown below the control when there is no error. */

@@ -1,0 +1,89 @@
+---
+/**
+ * /dashboard/usage — per-app quotas and key usage at a glance (protected).
+ *
+ * Server-side: resolves the session, then loads the caller's clients
+ * server-to-server (`getOwnApiClients`) and renders everything statically —
+ * no island needed, the page is a read-only snapshot. Shows each app's
+ * enforced quota (requests/minute + requests/day) and each key's last-used
+ * timestamp; detailed per-request analytics are a later, separate stage.
+ */
+import { ChartLineIcon } from "@phosphor-icons/react";
+import DashboardLayout from "@/components/dashboard/DashboardLayout.astro";
+import { StatusBadge } from "@/components/dashboard/StatusBadge";
+import { getOwnApiClients } from "@/lib/apiAccessServer";
+import { maskToken } from "@/lib/apiAccessClient";
+import { DashboardTab } from "@/lib/dashboardTabs";
+import { formatDate } from "@/lib/formatDate";
+import { getDeveloperSession } from "@/lib/session";
+
+export const prerender = false;
+
+// Session check and client list are independent backend reads (both key off
+// the cookie), so they run in parallel instead of back-to-back.
+const [account, clients] = await Promise.all([getDeveloperSession(Astro), getOwnApiClients(Astro)]);
+if (!account) return Astro.redirect("/login");
+---
+
+<DashboardLayout account={account} active={DashboardTab.Usage} title="Usage · musiccloud for developers">
+  <h1 class="text-card-title font-medium tracking-tight mb-1">Usage</h1>
+  <p class="text-body text-fg-muted mb-7">Your enforced quotas per app, and when each key was last used.</p>
+
+  {
+    clients === null ? (
+      <p class="text-body text-red-400">Could not load your usage data. Reload the page to try again.</p>
+    ) : clients.length === 0 ? (
+      <section class="rounded-card border border-border bg-surface px-6 py-5">
+        <h2 class="text-body font-medium text-fg mb-1">Nothing to show yet</h2>
+        <p class="text-body text-fg-muted">
+          Usage appears here once you have an approved app.{" "}
+          <a href="/dashboard/api-access" class="text-fg text-link">
+            Request API access
+          </a>{" "}
+          to get started.
+        </p>
+      </section>
+    ) : (
+      <div class="flex flex-col gap-6">
+        {clients.map((client) => (
+          <section class="rounded-card border border-border bg-surface px-6 py-5">
+            <div class="flex items-center justify-between gap-3 mb-4">
+              <h2 class="text-body font-medium text-fg truncate">{client.appName}</h2>
+              <StatusBadge status={client.status} />
+            </div>
+            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 mb-4">
+              <div>
+                <dt class="text-nav text-fg-subtle mb-0.5">Rate limit</dt>
+                <dd class="text-body text-fg">{client.requestsPerMinute} requests/minute</dd>
+              </div>
+              <div>
+                <dt class="text-nav text-fg-subtle mb-0.5">Daily quota</dt>
+                <dd class="text-body text-fg">{client.requestsPerDay.toLocaleString("en-US")} requests/day</dd>
+              </div>
+            </dl>
+            {client.tokens.length === 0 ? (
+              <p class="text-body text-fg-muted">No keys yet.</p>
+            ) : (
+              <ul class="flex flex-col divide-y divide-border">
+                {client.tokens.map((token) => (
+                  <li class="py-2.5 first:pt-0 last:pb-0 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <code class="text-code font-mono text-code-fg">{maskToken(token.tokenPrefix)}</code>
+                    <StatusBadge status={token.status} />
+                    <span class="text-nav text-fg-subtle">
+                      Last used {token.lastUsedAt ? formatDate(token.lastUsedAt) : "never"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        ))}
+      </div>
+    )
+  }
+
+  <p class="text-body text-fg-subtle mt-6 flex items-center gap-2">
+    <ChartLineIcon weight="duotone" className="size-5" aria-hidden="true" />
+    Detailed request analytics are coming later — this page will grow with them.
+  </p>
+</DashboardLayout>

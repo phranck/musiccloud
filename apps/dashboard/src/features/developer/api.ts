@@ -62,10 +62,6 @@ export function fetchApiAccessOverview(status?: string): Promise<ApiAccessOvervi
   return api.get<ApiAccessOverview>(ENDPOINTS.admin.developer.apiAccess.overview + qs);
 }
 
-export function fetchApiAccessRequest(id: string): Promise<{ request: ApiAccessRequestResponse }> {
-  return api.get<{ request: ApiAccessRequestResponse }>(ENDPOINTS.admin.developer.apiAccess.requestDetail(id));
-}
-
 export function approveApiAccessRequest(
   id: string,
   body?: { requestsPerMinute?: number; requestsPerDay?: number },

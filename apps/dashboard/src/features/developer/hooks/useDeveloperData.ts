@@ -4,7 +4,6 @@ import {
   approveApiAccessRequest,
   createClientToken,
   fetchApiAccessOverview,
-  fetchApiAccessRequest,
   fetchDeveloperAccounts,
   rejectApiAccessRequest,
   revokeToken,
@@ -15,14 +14,6 @@ export function useApiAccessOverview(status?: string) {
   return useQuery<ApiAccessOverview>({
     queryKey: ["developer", "api-access", status ?? "all"],
     queryFn: () => fetchApiAccessOverview(status),
-  });
-}
-
-export function useApiAccessRequest(id: string) {
-  return useQuery({
-    queryKey: ["developer", "api-access-request", id],
-    queryFn: () => fetchApiAccessRequest(id),
-    enabled: !!id,
   });
 }
 

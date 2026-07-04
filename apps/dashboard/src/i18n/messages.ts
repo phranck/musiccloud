@@ -165,6 +165,8 @@ export interface DashboardMessages {
     copied: string;
     descriptionLabel: string;
     rateLimitsLabel: string;
+    perMinute: string;
+    perDay: string;
   };
   music: {
     tracks: {
@@ -998,14 +1000,14 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       },
     },
     developer: {
-      requestsTitle: "API Access Requests",
+      requestsTitle: "API-Zugriffsanfragen",
       requestsFilterAll: "Alle",
-      requestsFilterPending: "Pending",
+      requestsFilterPending: "Ausstehend",
       requestsFilterApproved: "Genehmigt",
       requestsFilterRejected: "Abgelehnt",
       colApp: "App",
-      colDeveloper: "Developer",
-      colTraffic: "Traffic Est.",
+      colDeveloper: "Entwickler",
+      colTraffic: "Geschätztes Volumen",
       colSubmitted: "Eingereicht",
       colStatus: "Status",
       detailBackLabel: "← API Access Requests",
@@ -1015,9 +1017,9 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       detailRejectReasonPlaceholder: "Begründung für die Ablehnung…",
       detailRejectConfirm: "Ablehnen",
       detailRejectCancel: "Abbrechen",
-      detailRateLimitMinute: "Requests / Minute",
-      detailRateLimitDay: "Requests / Tag",
-      statusPending: "Pending",
+      detailRateLimitMinute: "Anfragen / Minute",
+      detailRateLimitDay: "Anfragen / Tag",
+      statusPending: "Ausstehend",
       statusApproved: "Genehmigt",
       statusRejected: "Abgelehnt",
       statusActive: "Aktiv",
@@ -1040,13 +1042,15 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       colClients: "Clients",
       colRegistered: "Registriert",
       overviewCardLabel: "Offene API-Requests",
-      noRequests: "Keine Requests",
-      requestCount: "{n} Requests",
+      noRequests: "Keine Anfragen",
+      requestCount: "{n} Anfragen",
       accountCount: "{n} Accounts",
       noAccounts: "Keine Developer Accounts",
       copied: "Kopiert!",
       descriptionLabel: "Beschreibung",
-      rateLimitsLabel: "Rate Limits",
+      rateLimitsLabel: "Ratenlimits",
+      perMinute: "/Minute",
+      perDay: "/Tag",
     },
     music: {
       tracks: {
@@ -1909,6 +1913,8 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       copied: "Copied!",
       descriptionLabel: "Description",
       rateLimitsLabel: "Rate Limits",
+      perMinute: "/minute",
+      perDay: "/day",
     },
     music: {
       tracks: {

@@ -322,7 +322,7 @@ async function buildApp() {
           "Public REST API for musiccloud.io. Resolve music URLs or text queries across 20+ streaming services and retrieve unified metadata.\n\n" +
           "## Authentication\n\n" +
           "Most endpoints require credentials. Endpoints declaring a `security` block (e.g. `POST /api/v1/resolve`, `GET /api/v1/link/:id`) " +
-          "accept either an `X-API-Key` header (issued to first-party clients) or a `Bearer` JWT. " +
+          "accept either an `X-API-Key` header (an `mc_live_…` token issued via the developer portal at developer.musiccloud.io) or a `Bearer` JWT. " +
           "Public read-only endpoints — `GET /api/v1/share/:shortId`, `GET /api/v1/share/:shortId/preview`, " +
           "`GET /api/v1/artist/...`, `GET /api/v1/genre-artwork/:genreKey`, `GET /health/db` — are reachable without credentials.\n\n" +
           "**Getting a token (first-time integration):**\n\n" +
@@ -332,8 +332,9 @@ async function buildApp() {
           "4. Refresh by re-issuing the token call when it expires; there is no refresh-token flow.\n\n" +
           "Without valid credentials, protected endpoints return `401 Unauthorized` and the client never reaches the resolver.\n\n" +
           "## Rate limiting\n\n" +
-          "All public endpoints (Resolve, Share, Auth, Link, Artist) are limited to **10 requests per 60 seconds per client IP**. " +
-          "Exceeding the quota returns `429 Too Many Requests` with `error: MC-API-0003`, an English `message`, structured `context`, and a `Retry-After` header. " +
+          "Anonymous calls to public endpoints (Resolve, Share, Auth, Link, Artist) are limited to **10 requests per 60 seconds per client IP**. " +
+          "Requests authenticated with an issued `X-API-Key` token are limited by **the client's own per-minute and per-day quota** instead of the per-IP limit. " +
+          "Exceeding either quota returns `429 Too Many Requests` with `error: MC-API-0003`, an English `message`, structured `context`, and a `Retry-After` header. " +
           "The asset endpoint `GET /api/v1/genre-artwork/:genreKey` is exempt from this per-IP quota because the frontend loads artwork tiles in parallel; " +
           "it is still bounded by a global 300 requests/minute ceiling shared with all routes.",
         version: "2.0.0",

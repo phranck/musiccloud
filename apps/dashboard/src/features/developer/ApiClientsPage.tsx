@@ -1,6 +1,7 @@
-import { DashboardButton, DashboardButtonVariant } from "@musiccloud/dashboard-ui";
-import { PlusCircle as PlusCircleIcon } from "@phosphor-icons/react";
+import { DashboardActionButton, DashboardActionId } from "@musiccloud/dashboard-ui";
+import { Code as CodeIcon } from "@phosphor-icons/react";
 import { useState } from "react";
+import { DashboardSection } from "@/components/ui/DashboardSection";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { useI18n } from "@/context/I18nContext";
@@ -11,6 +12,8 @@ import {
   useRevokeToken,
   useRotateToken,
 } from "@/features/developer/hooks/useDeveloperData";
+
+const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 
 export function ApiClientsPage() {
   const { messages } = useI18n();
@@ -29,29 +32,31 @@ export function ApiClientsPage() {
   };
 
   const statusBadge = (status: string) => {
-    const cls =
-      status === ApiClientStatus.Active
-        ? "bg-emerald-500/10 text-emerald-400"
-        : status === ApiClientStatus.Suspended
-          ? "bg-amber-500/10 text-amber-400"
-          : status === ApiClientStatus.Revoked
-            ? "bg-red-500/10 text-red-400"
-            : "bg-gray-500/10 text-gray-400";
-    const label =
-      status === ApiClientStatus.Active
-        ? dm.statusActive
-        : status === ApiClientStatus.Suspended
-          ? dm.statusSuspended
-          : status === ApiClientStatus.Revoked
-            ? dm.statusRevoked
-            : status;
-    return <span className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold ${cls}`}>{label}</span>;
+    if (status === ApiClientStatus.Active) {
+      return (
+        <span className="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/10 text-emerald-400">
+          {dm.statusActive}
+        </span>
+      );
+    }
+    if (status === ApiClientStatus.Suspended) {
+      return (
+        <span className="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-amber-500/10 text-amber-400">
+          {dm.statusSuspended}
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-red-500/10 text-red-400">
+        {dm.statusRevoked}
+      </span>
+    );
   };
 
   return (
     <PageLayout>
       <PageHeader title={dm.clientsTitle} />
-      <PageBody className="gap-4 p-4">
+      <PageBody className="gap-4">
         {revealToken && (
           <div className="rounded-md border border-emerald-500/30 bg-[var(--ds-surface)] p-5 text-center">
             <p className="text-sm font-semibold text-amber-400 mb-1">{dm.tokenRevealTitle}</p>
@@ -59,14 +64,12 @@ export function ApiClientsPage() {
             <div className="rounded border border-emerald-500/20 bg-[var(--ds-bg)] p-3 mb-3">
               <code className="text-xs text-emerald-400 break-all">{revealToken}</code>
             </div>
-            <DashboardButton
-              type="button"
-              variant={DashboardButtonVariant.Primary}
-              size="action"
+            <DashboardActionButton
+              action={DashboardActionId.Copy}
+              label={copied ? dm.copied : dm.tokenRevealCopy}
               onClick={() => handleCopy(revealToken)}
-            >
-              {copied ? dm.copied : dm.tokenRevealCopy}
-            </DashboardButton>
+              type="button"
+            />
           </div>
         )}
 
@@ -76,31 +79,48 @@ export function ApiClientsPage() {
           <p className="text-sm text-[var(--ds-text-muted)]">{dm.clientsEmpty}</p>
         )}
 
-        {!isLoading && data && data.clients.length > 0 && (
-          <div className="rounded-lg border border-[var(--ds-border)] bg-[var(--ds-surface)] px-4">
-            {data.clients.map((client) => (
-              <div key={client.id} className="border-b border-[var(--ds-border)] last:border-0 py-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <h3 className="text-sm font-semibold">{client.appName}</h3>
-                  {statusBadge(client.status)}
-                  <span className="ml-auto text-xs text-[var(--ds-text-muted)]">{client.contactEmail}</span>
+        {!isLoading &&
+          data?.clients.map((client) => (
+            <DashboardSection key={client.id} className="overflow-hidden">
+              <DashboardSection.Header
+                icon={<CodeIcon weight="duotone" className="size-4" />}
+                title={client.appName}
+                addOn={statusBadge(client.status)}
+              />
+              <DashboardSection.Body>
+                <div className="flex gap-6 items-start">
+                  <div>
+                    <div className={labelClass}>{dm.colDeveloper}</div>
+                    <a href={`mailto:${client.contactEmail}`} className="text-sm text-[var(--ds-text)] hover:underline">
+                      {client.contactEmail}
+                    </a>
+                  </div>
+                  <div>
+                    <div className={labelClass}>{dm.colTraffic}</div>
+                    <div className="text-sm">
+                      {client.requestsPerMinute}
+                      {dm.perMinute} &middot; {client.requestsPerDay}
+                      {dm.perDay}
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className={labelClass}>{dm.descriptionLabel}</div>
+                    <p className="text-sm">{client.description || "—"}</p>
+                  </div>
                 </div>
-                <div className="flex gap-4 text-xs text-[var(--ds-text-muted)] mb-3">
-                  <span>{client.requestsPerMinute}/min</span>
-                  <span>{client.requestsPerDay}/Tag</span>
-                </div>
+
                 <div className="border-t border-[var(--ds-border-subtle)] pt-3">
-                  <p className="text-xs text-[var(--ds-text-muted)] uppercase tracking-wide mb-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--ds-text-muted)] mb-2">
                     {dm.clientsTokensLabel}
-                  </p>
+                  </h3>
                   {client.tokens.length === 0 ? (
-                    <p className="text-xs text-[var(--ds-text-muted)] mb-2">{dm.clientsNoTokens}</p>
+                    <p className="text-xs text-[var(--ds-text-muted)]">{dm.clientsNoTokens}</p>
                   ) : (
                     <div className="space-y-1.5 mb-3">
                       {client.tokens.map((token) => (
                         <div
                           key={token.id}
-                          className="flex items-center gap-2 rounded bg-[var(--ds-bg)] px-3 py-2 text-xs"
+                          className="flex items-center gap-3 rounded bg-[var(--ds-bg)] px-3 py-2 text-xs"
                         >
                           <code className="text-[var(--ds-accent)]">{token.tokenPrefix}••••••••</code>
                           {token.status === ApiTokenStatus.Active && (
@@ -108,54 +128,50 @@ export function ApiClientsPage() {
                               Active
                             </span>
                           )}
-                          <span className="ml-auto text-[var(--ds-text-muted)]">
+                          <span className="flex-1 text-[var(--ds-text-muted)] text-right">
                             {token.createdAt ? new Date(token.createdAt).toLocaleDateString("de-AT") : ""}
                           </span>
-                          <DashboardButton
-                            type="button"
-                            variant={DashboardButtonVariant.Neutral}
-                            size="action"
+                          <DashboardActionButton
+                            action={DashboardActionId.Delete}
+                            label={dm.clientsRevokeToken}
                             onClick={() => revokeToken.mutate(token.id)}
                             disabled={token.status !== ApiTokenStatus.Active || revokeToken.isPending}
-                          >
-                            {dm.clientsRevokeToken}
-                          </DashboardButton>
-                          <DashboardButton
-                            type="button"
-                            variant={DashboardButtonVariant.Neutral}
                             size="action"
+                            type="button"
+                          />
+                          <DashboardActionButton
+                            action={DashboardActionId.Edit}
+                            label={dm.clientsRotateToken}
                             onClick={() =>
                               rotateToken.mutate(token.id, {
                                 onSuccess: (res) => setRevealToken(res.token.rawToken),
                               })
                             }
                             disabled={token.status !== ApiTokenStatus.Active || rotateToken.isPending}
-                          >
-                            {dm.clientsRotateToken}
-                          </DashboardButton>
+                            size="action"
+                            type="button"
+                          />
                         </div>
                       ))}
                     </div>
                   )}
-                  <DashboardButton
-                    type="button"
-                    variant={DashboardButtonVariant.Primary}
-                    size="action"
-                    leadingIcon={<PlusCircleIcon weight="duotone" className="size-3.5" />}
-                    onClick={() =>
-                      createToken.mutate(client.id, {
-                        onSuccess: (res) => setRevealToken(res.token.rawToken),
-                      })
-                    }
-                    disabled={createToken.isPending}
-                  >
-                    {dm.clientsCreateToken}
-                  </DashboardButton>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              </DashboardSection.Body>
+              <DashboardSection.Footer>
+                <DashboardActionButton
+                  action={DashboardActionId.Create}
+                  label={dm.clientsCreateToken}
+                  onClick={() =>
+                    createToken.mutate(client.id, {
+                      onSuccess: (res) => setRevealToken(res.token.rawToken),
+                    })
+                  }
+                  disabled={createToken.isPending}
+                  type="button"
+                />
+              </DashboardSection.Footer>
+            </DashboardSection>
+          ))}
       </PageBody>
     </PageLayout>
   );

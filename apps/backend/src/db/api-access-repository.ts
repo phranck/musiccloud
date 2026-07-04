@@ -198,6 +198,27 @@ export interface ApiAccessRepository {
   /** Looks up a token by primary key. */
   findApiClientTokenById(id: string): Promise<ApiClientToken | null>;
 
+  /**
+   * Resolves an incoming `X-API-Key` bearer value to its client for
+   * public-API authentication (MC-088). Matches on the token's SHA-256
+   * hash and returns a hit only when **both** the token and its owning
+   * client are `"active"` — revoked/rotated tokens and suspended/revoked
+   * clients all miss, so the auth layer can treat every miss as a plain 401.
+   *
+   * @param tokenHash - Hex-encoded SHA-256 of the raw token (`hashApiToken`).
+   * @returns The active client + token pair, or `null` on any miss.
+   */
+  findActiveApiClientByTokenHash(tokenHash: string): Promise<{ client: ApiClient; token: ApiClientToken } | null>;
+
+  /**
+   * Stamps a token's `lastUsedAt` to now. Called fire-and-forget from the
+   * public-API auth hot path on every token-authenticated request, so it
+   * must stay a single cheap UPDATE.
+   *
+   * @param tokenId - The token whose usage timestamp to bump.
+   */
+  touchApiClientTokenLastUsed(tokenId: string): Promise<void>;
+
   /** Marks a token `"revoked"` and stamps `revokedAt`. Idempotent: revoking an already-revoked token is a no-op that still returns the row. */
   revokeApiClientToken(id: string): Promise<ApiClientToken | null>;
 

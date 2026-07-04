@@ -78,9 +78,13 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
       },
     },
     async (request, reply) => {
-      const rateLimit = apiRateLimiter.check(request.ip);
-      if (rateLimit.limited) {
-        return sendRateLimitError(reply, rateLimit);
+      // Per-IP limit for anonymous/BFF/JWT callers; token-authenticated clients
+      // are quota-checked centrally in authenticatePublic (MC-088).
+      if (!request.apiClient) {
+        const rateLimit = apiRateLimiter.check(request.ip);
+        if (rateLimit.limited) {
+          return sendRateLimitError(reply, rateLimit);
+        }
       }
 
       const body = request.body as { query?: string; selectedCandidate?: string };

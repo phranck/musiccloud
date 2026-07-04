@@ -76,17 +76,21 @@ export default async function linkRoutes(app: FastifyInstance) {
           401: { description: "Missing or invalid API key / bearer token.", $ref: "ErrorResponse#" },
           404: { description: "No track exists for this id.", $ref: "ErrorResponse#" },
           429: {
-            description: "Rate limit exceeded for this client IP (10 requests per 60 seconds).",
+            description:
+              "Rate limit exceeded — per client IP (10 requests per 60 seconds) for anonymous callers, or the client's own per-minute/per-day quota for API-key-authenticated callers.",
             $ref: "ErrorResponse#",
           },
         },
       },
     },
     async (request, reply) => {
-      const clientIp = request.ip;
-      const rateLimit = apiRateLimiter.check(clientIp);
-      if (rateLimit.limited) {
-        return sendRateLimitError(reply, rateLimit);
+      // Per-IP limit for anonymous/BFF/JWT callers; token-authenticated clients
+      // are quota-checked centrally in authenticatePublic (MC-088).
+      if (!request.apiClient) {
+        const rateLimit = apiRateLimiter.check(request.ip);
+        if (rateLimit.limited) {
+          return sendRateLimitError(reply, rateLimit);
+        }
       }
 
       const { id } = request.params;

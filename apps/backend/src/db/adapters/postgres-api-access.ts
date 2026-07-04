@@ -331,6 +331,40 @@ export async function findApiClientTokenById(pool: Pool, id: string): Promise<Ap
   return rowToApiClientToken(result.rows[0] as ApiClientTokenRow);
 }
 
+/**
+ * Resolves a raw-token hash to its active client for public-API auth
+ * (MC-088). Two indexed point reads (token by `uq_api_client_tokens_hash`,
+ * then client by PK) instead of a join, so both queries reuse the existing
+ * column lists and row mappers. Misses (unknown hash, non-active token,
+ * non-active client) all return `null`.
+ */
+export async function findActiveApiClientByTokenHash(
+  pool: Pool,
+  tokenHash: string,
+): Promise<{ client: ApiClient; token: ApiClientToken } | null> {
+  const tokenResult = await pool.query(
+    `SELECT ${TOKEN_COLUMNS} FROM api_client_tokens WHERE token_hash = $1 AND status = 'active'`,
+    [tokenHash],
+  );
+  if (tokenResult.rows.length === 0) return null;
+  const token = rowToApiClientToken(tokenResult.rows[0] as ApiClientTokenRow);
+
+  const clientResult = await pool.query(
+    `SELECT ${CLIENT_COLUMNS} FROM api_clients WHERE id = $1 AND status = 'active'`,
+    [token.clientId],
+  );
+  if (clientResult.rows.length === 0) return null;
+  return { client: rowToApiClient(clientResult.rows[0] as ApiClientRow), token };
+}
+
+/**
+ * Stamps a token's `last_used_at` to now. Single cheap UPDATE — called
+ * fire-and-forget from the auth hot path, so it must not grow heavier.
+ */
+export async function touchApiClientTokenLastUsed(pool: Pool, tokenId: string): Promise<void> {
+  await pool.query(`UPDATE api_client_tokens SET last_used_at = $1 WHERE id = $2`, [new Date(), tokenId]);
+}
+
 export async function revokeApiClientToken(pool: Pool, id: string): Promise<ApiClientToken | null> {
   const now = new Date();
   const result = await pool.query(

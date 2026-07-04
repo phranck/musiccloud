@@ -27,6 +27,85 @@ export interface RateLimitCheck {
   windowSeconds: number;
 }
 
+/**
+ * Shared sliding-window check over a per-key timestamp store. Both limiter
+ * classes delegate here so the window semantics (filtering, retry-after
+ * math, the `DISABLE_RATE_LIMIT` escape hatch) live in exactly one place.
+ *
+ * @param windows - The caller's per-key timestamp store (mutated in place).
+ * @param key - Bucket key (client IP, client id, …).
+ * @param maxRequests - Maximum requests allowed inside the window.
+ * @param windowMs - Window length in milliseconds.
+ * @returns The check result, with `limited: true` once the quota is hit.
+ */
+function checkWindow(
+  windows: Map<string, number[]>,
+  key: string,
+  maxRequests: number,
+  windowMs: number,
+): RateLimitCheck {
+  const windowSeconds = Math.ceil(windowMs / 1000);
+  if (isRateLimitDisabled()) {
+    return {
+      limited: false,
+      limit: maxRequests,
+      remaining: maxRequests,
+      retryAfterSeconds: 0,
+      windowSeconds,
+    };
+  }
+
+  const now = Date.now();
+  const windowStart = now - windowMs;
+
+  let timestamps = windows.get(key) ?? [];
+  timestamps = timestamps.filter((t) => t > windowStart);
+
+  if (timestamps.length >= maxRequests) {
+    windows.set(key, timestamps);
+    const oldestTimestamp = timestamps[0] ?? now;
+    const retryAfterMs = Math.max(0, oldestTimestamp + windowMs - now);
+    return {
+      limited: true,
+      limit: maxRequests,
+      remaining: 0,
+      retryAfterSeconds: Math.max(1, Math.ceil(retryAfterMs / 1000)),
+      windowSeconds,
+    };
+  }
+
+  timestamps.push(now);
+  windows.set(key, timestamps);
+  return {
+    limited: false,
+    limit: maxRequests,
+    remaining: Math.max(0, maxRequests - timestamps.length),
+    retryAfterSeconds: 0,
+    windowSeconds,
+  };
+}
+
+/**
+ * Drops fully-expired keys from a timestamp store and trims the rest.
+ * Shared by both limiter classes' `cleanup()` (see the file header for why
+ * cleanup must be scheduled).
+ *
+ * @param windows - The per-key timestamp store (mutated in place).
+ * @param windowMs - Window length in milliseconds; entries older than this are dropped.
+ */
+function cleanupWindows(windows: Map<string, number[]>, windowMs: number): void {
+  const now = Date.now();
+  const windowStart = now - windowMs;
+  for (const [key, timestamps] of windows) {
+    const filtered = timestamps.filter((t) => t > windowStart);
+    if (filtered.length === 0) {
+      windows.delete(key);
+    } else {
+      windows.set(key, filtered);
+    }
+  }
+}
+
 export class RateLimiter {
   private windows: Map<string, number[]> = new Map();
 
@@ -36,45 +115,7 @@ export class RateLimiter {
   ) {}
 
   check(key: string): RateLimitCheck {
-    const windowSeconds = Math.ceil(this.windowMs / 1000);
-    if (isRateLimitDisabled()) {
-      return {
-        limited: false,
-        limit: this.maxRequests,
-        remaining: this.maxRequests,
-        retryAfterSeconds: 0,
-        windowSeconds,
-      };
-    }
-
-    const now = Date.now();
-    const windowStart = now - this.windowMs;
-
-    let timestamps = this.windows.get(key) ?? [];
-    timestamps = timestamps.filter((t) => t > windowStart);
-
-    if (timestamps.length >= this.maxRequests) {
-      this.windows.set(key, timestamps);
-      const oldestTimestamp = timestamps[0] ?? now;
-      const retryAfterMs = Math.max(0, oldestTimestamp + this.windowMs - now);
-      return {
-        limited: true,
-        limit: this.maxRequests,
-        remaining: 0,
-        retryAfterSeconds: Math.max(1, Math.ceil(retryAfterMs / 1000)),
-        windowSeconds,
-      };
-    }
-
-    timestamps.push(now);
-    this.windows.set(key, timestamps);
-    return {
-      limited: false,
-      limit: this.maxRequests,
-      remaining: Math.max(0, this.maxRequests - timestamps.length),
-      retryAfterSeconds: 0,
-      windowSeconds,
-    };
+    return checkWindow(this.windows, key, this.maxRequests, this.windowMs);
   }
 
   isLimited(key: string): boolean {
@@ -82,16 +123,46 @@ export class RateLimiter {
   }
 
   cleanup(): void {
-    const now = Date.now();
-    const windowStart = now - this.windowMs;
-    for (const [key, timestamps] of this.windows) {
-      const filtered = timestamps.filter((t) => t > windowStart);
-      if (filtered.length === 0) {
-        this.windows.delete(key);
-      } else {
-        this.windows.set(key, filtered);
-      }
-    }
+    cleanupWindows(this.windows, this.windowMs);
+  }
+}
+
+/**
+ * Sliding-window limiter with a fixed window but a **per-call request cap**,
+ * for quotas that vary by caller — the public-API per-client limits
+ * (`api_clients.requestsPerMinute` / `requestsPerDay`) are admin-editable
+ * per client, so the cap cannot live in the constructor like
+ * {@link RateLimiter}'s.
+ *
+ * One instance per window length; the caller passes the client's own cap on
+ * every `check`. Memory note: a key holds up to `maxRequests` timestamps, so
+ * the day-window instance can hold up to `requestsPerDay` entries per active
+ * client. Fine at the current scale (single-digit clients); the deferred
+ * usage-analytics phase replaces this with persistent counting if that ever
+ * changes.
+ */
+export class DynamicRateLimiter {
+  private windows: Map<string, number[]> = new Map();
+
+  /**
+   * @param windowMs - Window length in milliseconds, fixed for this instance.
+   */
+  constructor(private readonly windowMs: number) {}
+
+  /**
+   * Records a hit for `key` and reports whether it exceeded `maxRequests`
+   * within this instance's window.
+   *
+   * @param key - Bucket key (the api_client id).
+   * @param maxRequests - The caller's current cap for this window.
+   * @returns The check result, with `limited: true` once the quota is hit.
+   */
+  check(key: string, maxRequests: number): RateLimitCheck {
+    return checkWindow(this.windows, key, maxRequests, this.windowMs);
+  }
+
+  cleanup(): void {
+    cleanupWindows(this.windows, this.windowMs);
   }
 }
 
@@ -138,6 +209,24 @@ export class RateLimiter {
 // background noise on the event loop.
 export const apiRateLimiter = new RateLimiter(10, 60_000);
 setInterval(() => apiRateLimiter.cleanup(), 5 * 60 * 1000);
+
+// Per-client quota buckets for token-authenticated public-API requests
+// (MC-088). Keyed by `api_clients.id`; the cap comes from the client row
+// (`requestsPerMinute` / `requestsPerDay`) on every check, so admin edits
+// take effect immediately. Enforced centrally in `authenticatePublic`
+// (plugins/auth.ts) — token-authenticated requests skip the per-IP
+// `apiRateLimiter` above (their identity is the client, not the IP; see
+// the `request.apiClient` guard in resolve/cc-resolve/link routes).
+// Same 5-minute cleanup cadence as the per-IP limiter.
+export const clientMinuteRateLimiter = new DynamicRateLimiter(60_000);
+export const clientDayRateLimiter = new DynamicRateLimiter(24 * 60 * 60 * 1000);
+setInterval(
+  () => {
+    clientMinuteRateLimiter.cleanup();
+    clientDayRateLimiter.cleanup();
+  },
+  5 * 60 * 1000,
+);
 
 /**
  * Explicit local/test escape hatch for migration and compatibility test

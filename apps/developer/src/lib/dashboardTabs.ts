@@ -11,18 +11,15 @@
 
 /**
  * Sidebar tab keys for the developer dashboard.
- *
- * Only {@link DashboardTab.Overview} is live today; the remaining tabs are
- * placeholders for later sub-projects (API access, keys, usage).
  */
 export const DashboardTab = {
-  /** Account overview — the only implemented dashboard panel. */
+  /** Account overview. */
   Overview: "Overview",
-  /** Request/manage API access (not yet implemented). */
+  /** Request API access + review-status history. */
   ApiAccess: "ApiAccess",
-  /** API key management (not yet implemented). */
+  /** API clients + key management (create/rotate/revoke). */
   ApiKeys: "ApiKeys",
-  /** Usage + quota reporting (not yet implemented). */
+  /** Quotas + key usage at a glance. */
   Usage: "Usage",
 } as const;
 
@@ -45,13 +42,10 @@ export interface DashboardNavItem {
   comingSoon: boolean;
 }
 
-/**
- * Ordered sidebar navigation for the dashboard shell. Overview links to
- * `/dashboard`; the rest are disabled placeholders until their sub-projects ship.
- */
+/** Ordered sidebar navigation for the dashboard shell. */
 export const DASHBOARD_NAV: readonly DashboardNavItem[] = [
   { tab: DashboardTab.Overview, label: "Overview", href: "/dashboard", comingSoon: false },
-  { tab: DashboardTab.ApiAccess, label: "API access", href: null, comingSoon: true },
-  { tab: DashboardTab.ApiKeys, label: "API keys", href: null, comingSoon: true },
-  { tab: DashboardTab.Usage, label: "Usage", href: null, comingSoon: true },
+  { tab: DashboardTab.ApiAccess, label: "API access", href: "/dashboard/api-access", comingSoon: false },
+  { tab: DashboardTab.ApiKeys, label: "API keys", href: "/dashboard/api-keys", comingSoon: false },
+  { tab: DashboardTab.Usage, label: "Usage", href: "/dashboard/usage", comingSoon: false },
 ];

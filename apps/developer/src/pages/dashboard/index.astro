@@ -5,10 +5,10 @@
  * Server-side: resolves the `mc_dev_session` cookie via `getDeveloperSession`;
  * without a valid session the request is redirected to `/login` before any
  * markup renders. With a session it renders the dashboard shell with the
- * Overview tab active: a greeting, an account-summary card (email, plan,
- * verification status, member-since), a placeholder pointing at the
- * not-yet-built API-access flow, and a Danger Zone card for self-service
- * account deletion.
+ * Overview tab active: a greeting, an account-summary card (email, plan with
+ * a pricing-commitment link, verification status, member-since), a
+ * get-started card linking to the API-access flow, and a Danger Zone card
+ * for self-service account deletion.
  */
 import { CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout.astro";
@@ -52,7 +52,10 @@ const memberSince = new Date(account.createdAt).toLocaleDateString("en-US", {
       </div>
       <div>
         <dt class="text-nav text-fg-subtle mb-0.5">Plan</dt>
-        <dd class="text-body text-fg">{planLabel}</dd>
+        <dd class="text-body text-fg">
+          {planLabel}
+          <a href="/pricing" class="text-nav text-fg-muted text-link ml-2">see our pricing commitment</a>
+        </dd>
       </div>
       <div>
         <dt class="text-nav text-fg-subtle mb-0.5">Email status</dt>
@@ -67,9 +70,15 @@ const memberSince = new Date(account.createdAt).toLocaleDateString("en-US", {
 
   <section class="rounded-card border border-border bg-surface px-6 py-5 mb-6">
     <h2 class="text-body font-medium text-fg mb-1">Get started</h2>
-    <p class="text-body text-fg-muted">
-      Request API access to receive a key and start calling the musiccloud API. This flow is coming soon.
+    <p class="text-body text-fg-muted mb-4">
+      Request API access to receive a key and start calling the musiccloud API.
     </p>
+    <a
+      href="/dashboard/api-access"
+      class="inline-flex items-center gap-2 rounded-button bg-accent text-on-accent px-4 py-2 text-body font-medium"
+    >
+      Request API access
+    </a>
   </section>
 
   <DeleteAccountSection client:load hasPassword={account.hasPassword} />

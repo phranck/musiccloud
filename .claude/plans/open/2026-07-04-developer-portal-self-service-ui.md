@@ -49,7 +49,7 @@ React-Island `ApiKeysPanel`: `GET clientsList` → pro Client eine Card (`appNam
 
 ### Usage
 
-Pro Client Limits (`requestsPerMinute`/`requestsPerDay`) + `lastUsedAt` je Token; Hinweis „Detailed usage analytics coming later". Datenquelle = `clientsList` (enthält Limits + Tokens inkl. `lastUsedAt`). `lastUsedAt` wird erst durch **MC-088** befüllt — bis dahin „never/—".
+Pro Client Limits (`requestsPerMinute`/`requestsPerDay`) + `lastUsedAt` je Token; Hinweis „Detailed usage analytics coming later". Datenquelle = `clientsList` (enthält Limits + Tokens inkl. `lastUsedAt`), **serverseitig gefetcht** (`lib/apiAccessServer.ts`, Muster `session.ts`) — reine SSR-Seite ohne Island, weil read-only. `lastUsedAt` wird erst durch **MC-088** befüllt — bis dahin „never".
 
 ### Pricing / Commitment
 
@@ -75,16 +75,23 @@ Neue öffentliche Seite `pages/pricing.astro` (kein Login). Inhalt = das englisc
 
 ## Checkliste
 
-- [ ] `DASHBOARD_NAV`: `ApiAccess`/`ApiKeys`/`Usage` live (`href` + `comingSoon: false`)
-- [ ] `pages/dashboard/api-access.astro` + `ApiAccessPanel`-Island (Antrag + Requests-Liste + Status-Badge)
-- [ ] `pages/dashboard/api-keys.astro` + `ApiKeysPanel`-Island (Clients/Tokens, create/rotate/revoke, Reveal-once + Copy, 429-Handling)
-- [ ] `pages/dashboard/usage.astro` (Limits + `lastUsedAt` + „analytics later")
-- [ ] `pages/pricing.astro` (Commitment-Text) + Verlinkung (Dashboard/Landing/Footer)
-- [ ] Overview-„Get started"-Karte verlinkt auf API access
-- [ ] Status-Literale als PascalCase-Namespace; Shared-Komponenten extrahiert (Card/Badge/Copy/Reveal)
-- [ ] a11y (Labels/aria/Fokus), Phosphor-Icons, Design-Tokens
-- [ ] Alle Code-Referenzen verifiziert (Endpunkte, Pfade, Tabs, BFF)
-- [ ] Gates grün (`astro check`, `lint`, `doctor:diff`, `astro build`)
+- [x] `DASHBOARD_NAV`: `ApiAccess`/`ApiKeys`/`Usage` live (`href` + `comingSoon: false`)
+- [x] `pages/dashboard/api-access.astro` + `ApiAccessPanel`-Island (Antrag + Requests-Liste + Status-Badge)
+- [x] `pages/dashboard/api-keys.astro` + `ApiKeysPanel`-Island (Clients/Tokens, create/rotate/revoke, Reveal-once + Copy, 429-Handling mit `retryAfterSeconds`)
+- [x] `pages/dashboard/usage.astro` (SSR: Limits + `lastUsedAt` + „analytics later")
+- [x] `pages/pricing.astro` (Commitment-Text) + Verlinkung (Dashboard-Plan-Zeile, Footer aller Public-Seiten, docs)
+- [x] Overview-„Get started"-Karte verlinkt auf API access (+ stale „coming soon"-Texte in Overview/docs ersetzt)
+- [x] Status-Literale als PascalCase-Namespace (`AccessRequestStatus`/`ApiClientStatus`/`ApiTokenStatus`); Shared-Komponenten extrahiert (`StatusBadge`, `TextAreaField`, `TokenRevealBox`)
+- [x] a11y (Labels/aria/Fokus-Management im Reveal, `<output>` statt `role="status"`), Phosphor-Icons, Design-Tokens
+- [x] Alle Code-Referenzen verifiziert (Endpunkte, Pfade, Tabs, BFF)
+- [x] Gates grün (`astro check` 0/0/0, `pnpm lint` clean, React Doctor Full-Scan 0 Issues, `astro build` ✓)
+
+## Umsetzungsnotizen (2026-07-04)
+
+- Panel-State als **Reducer-Module in `lib/`** (`apiAccessPanelState.ts`, `apiKeysPanelState.ts`) — Doctor-Policy (prefer-useReducer, Logik getrennt von Komponenten); Actions als PascalCase-Namespaces.
+- Transport zentral in `lib/apiAccessClient.ts` (DTOs, 429-Normalisierung, `maskToken`, Backend-Caps gespiegelt); SSR-Read in `lib/apiAccessServer.ts`.
+- **Footer-Links zentralisiert** (`lib/footerLinks.ts`, vorher 5 identische Kopien) — Pricing-Link damit überall in einem Schritt.
+- `TextField` um `type="number"` erweitert (Traffic-Estimate-Feld).
 
 ## Verwandt
 

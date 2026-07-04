@@ -1,0 +1,26 @@
+---
+/**
+ * /dashboard/api-access — request API access + review-status history (protected).
+ *
+ * Server-side: resolves the `mc_dev_session` cookie via `getDeveloperSession`;
+ * without a valid session the request is redirected to `/login` before any
+ * markup renders. The interactive part (form + own-requests list) is the
+ * `ApiAccessPanel` island, which talks to the same-origin BFF
+ * (`/api/dev/api-access/*`).
+ */
+import DashboardLayout from "@/components/dashboard/DashboardLayout.astro";
+import { ApiAccessPanel } from "@/components/dashboard/ApiAccessPanel";
+import { DashboardTab } from "@/lib/dashboardTabs";
+import { getDeveloperSession } from "@/lib/session";
+
+export const prerender = false;
+
+const account = await getDeveloperSession(Astro);
+if (!account) return Astro.redirect("/login");
+---
+
+<DashboardLayout account={account} active={DashboardTab.ApiAccess} title="API access · musiccloud for developers">
+  <h1 class="text-card-title font-medium tracking-tight mb-1">API access</h1>
+  <p class="text-body text-fg-muted mb-7">Request access for your app and follow the review status.</p>
+  <ApiAccessPanel client:load />
+</DashboardLayout>

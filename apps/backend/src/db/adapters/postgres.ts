@@ -136,6 +136,7 @@ import {
   createApiClient as apiAccessCreateClient,
   createApiClientToken as apiAccessCreateClientToken,
   createApiAccessRequest as apiAccessCreateRequest,
+  findActiveApiClientByTokenHash as apiAccessFindActiveClientByTokenHash,
   findApiClientById as apiAccessFindClientById,
   findApiClientTokenById as apiAccessFindClientTokenById,
   findApiAccessRequestById as apiAccessFindRequestById,
@@ -147,6 +148,7 @@ import {
   reviewApiAccessRequest as apiAccessReviewRequest,
   revokeApiClientToken as apiAccessRevokeClientToken,
   rotateApiClientToken as apiAccessRotateClientToken,
+  touchApiClientTokenLastUsed as apiAccessTouchClientTokenLastUsed,
   updateApiClient as apiAccessUpdateClient,
 } from "./postgres-api-access.js";
 import {
@@ -1252,6 +1254,14 @@ export class PostgresAdapter
 
   findApiClientTokenById(id: string): Promise<ApiClientToken | null> {
     return apiAccessFindClientTokenById(this.pool, id);
+  }
+
+  findActiveApiClientByTokenHash(tokenHash: string): Promise<{ client: ApiClient; token: ApiClientToken } | null> {
+    return apiAccessFindActiveClientByTokenHash(this.pool, tokenHash);
+  }
+
+  touchApiClientTokenLastUsed(tokenId: string): Promise<void> {
+    return apiAccessTouchClientTokenLastUsed(this.pool, tokenId);
   }
 
   revokeApiClientToken(id: string): Promise<ApiClientToken | null> {

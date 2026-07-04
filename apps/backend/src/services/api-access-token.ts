@@ -52,6 +52,19 @@ export function hashApiToken(rawToken: string): string {
 }
 
 /**
+ * Tells whether an incoming `X-API-Key` value has the shape of an issued
+ * API-access token (`mc_live_…`), so the auth layer can route it to the
+ * token-hash lookup instead of the internal-key comparison. Shape check
+ * only — validity is decided by the DB lookup.
+ *
+ * @param value - The raw header value.
+ * @returns `true` when the value starts with the issued-token label.
+ */
+export function looksLikeApiAccessToken(value: string): boolean {
+  return value.startsWith(`${TOKEN_LABEL}_`);
+}
+
+/**
  * Formats a token prefix for display in a list (developer's own key list,
  * or the admin client-detail view). Never touches the secret half.
  *

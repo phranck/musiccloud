@@ -1,0 +1,28 @@
+---
+/**
+ * /dashboard/api-keys — manage the caller's API clients and keys (protected).
+ *
+ * Server-side: resolves the `mc_dev_session` cookie via `getDeveloperSession`;
+ * without a valid session the request is redirected to `/login` before any
+ * markup renders. The interactive part (clients, tokens,
+ * create/rotate/revoke with one-time reveal) is the `ApiKeysPanel` island,
+ * which talks to the same-origin BFF (`/api/dev/api-access/*`).
+ */
+import DashboardLayout from "@/components/dashboard/DashboardLayout.astro";
+import { ApiKeysPanel } from "@/components/dashboard/ApiKeysPanel";
+import { DashboardTab } from "@/lib/dashboardTabs";
+import { getDeveloperSession } from "@/lib/session";
+
+export const prerender = false;
+
+const account = await getDeveloperSession(Astro);
+if (!account) return Astro.redirect("/login");
+---
+
+<DashboardLayout account={account} active={DashboardTab.ApiKeys} title="API keys · musiccloud for developers">
+  <h1 class="text-card-title font-medium tracking-tight mb-1">API keys</h1>
+  <p class="text-body text-fg-muted mb-7">
+    Your approved apps and their keys. A key is shown in full exactly once, when it is created.
+  </p>
+  <ApiKeysPanel client:load />
+</DashboardLayout>

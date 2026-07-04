@@ -184,7 +184,8 @@ export default async function resolveRoutes(app: FastifyInstance) {
           404: { description: "URL is valid but the track/album/artist could not be found.", $ref: "ErrorResponse#" },
           408: { description: "Upstream service timed out before a match could be confirmed.", $ref: "ErrorResponse#" },
           429: {
-            description: "Rate limit exceeded for this client IP (10 requests per 60 seconds).",
+            description:
+              "Rate limit exceeded — per client IP (10 requests per 60 seconds) for anonymous callers, or the client's own per-minute/per-day quota for API-key-authenticated callers.",
             $ref: "ErrorResponse#",
           },
           500: { description: "Unexpected server error.", $ref: "ErrorResponse#" },
@@ -196,11 +197,15 @@ export default async function resolveRoutes(app: FastifyInstance) {
       },
     },
     async (request, reply) => {
-      // Rate limiting
-      const clientIp = request.ip;
-      const rateLimit = apiRateLimiter.check(clientIp);
-      if (rateLimit.limited) {
-        return sendRateLimitError(reply, rateLimit);
+      // Per-IP rate limiting for anonymous/BFF/JWT callers. Token-authenticated
+      // clients (request.apiClient set by authenticatePublic) skip it: their
+      // identity is the client, whose own per-minute/per-day quota was already
+      // enforced centrally in the auth hook (MC-088).
+      if (!request.apiClient) {
+        const rateLimit = apiRateLimiter.check(request.ip);
+        if (rateLimit.limited) {
+          return sendRateLimitError(reply, rateLimit);
+        }
       }
 
       // Schema guarantees the object shape and length caps; we still trim
