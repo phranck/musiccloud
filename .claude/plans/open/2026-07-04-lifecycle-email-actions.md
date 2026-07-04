@@ -35,6 +35,11 @@ Plan-Nr.: MC-084
 - [x] **Task 5 — Token-Notifications (TDD):** vier Call-Sites (`dev-api-access.ts:146,187`; `admin-api-access.ts:215,253`) triggern `developerApiTokenCreated` mit `appName`; Tests in beiden Route-Suiten.
 - [x] **Task 6 — Verifikation:** *(Gates grün 2026-07-04: backend tsc EXIT 0, lint 941 Files, doctor Full-Scan 0 Issues, Backend-Suite 1355/1355; Live-Smoke: GET /api/admin/email-actions listet 7 Actions mit korrekten required/recipientKind/contextVariables)* Typecheck backend, `pnpm lint`, `pnpm run doctor` clean, Backend-Tests grün; Smoke: `GET /api/admin/email-actions` listet 7 Actions (3 bestehende + 4 neue) inkl. `contextVariables`/`recipientKind`.
 
+## Nachtrag (2026-07-04, User-Wunsch)
+
+- **`developerAccountCreated`** ergänzt (required:false, Kontext leer): getriggert an BEIDEN Anlegepfaden — Email-Signup (`developer-auth.ts`, try/catch nach der Verify-Mail) und GitHub-Signup (`developer-github.ts`, Brand-new-Zweig nach `markDeveloperEmailVerified`). Registry damit 8 Actions.
+- Actions-Liste im Dashboard linksbündig (`text-left` auf `DashboardSection.Item` — neutralisiert das Browser-Default `text-align: center` der Button-Variante).
+
 ## Verifizierte Fakten (2026-07-04)
 
 - Plan-Nr. `MC-084` via `plans next`.
