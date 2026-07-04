@@ -102,15 +102,33 @@ Gap:       space-y-4 zwischen Cards
 
 ### Dashboard-Buttons (NIE raw `<button>`)
 
-| Button-Typ | Komponente | Variante | Größe |
+**Semantische Actions (DashboardActionButton):** Vordefinierte Aktionen mit Icon + Label + Farbe. Die Action bestimmt die Farbe automatisch.
+
+| Aktion | DashboardActionId | Farbe | Verwendung |
 |---|---|---|---|
-| Primäre Aktion | `DashboardButton` | `DashboardButtonVariant.Primary` | `"action"` |
-| Sekundäre Aktion | `DashboardButton` | `DashboardButtonVariant.Neutral` | `"action"` |
-| Löschen | `DashboardActionButton` | `action={DashboardActionId.Delete}` | `"action"` |
-| Erstellen | `DashboardActionButton` | `action={DashboardActionId.Create}` | `"control"` |
-| Icon-Only | `DashboardActionButton` | beliebig, `iconOnly`-Prop | `"action"` |
-| Toolbar (Editor) | `EditorToolbarButton` | `DashboardButtonVariant.Primary` | — |
-| Toolbar (Cancel) | `EditorToolbarButton` | `DashboardButtonVariant.Neutral` | — |
+| Genehmigen | `DashboardActionId.Approve` | Grün (Success) | Approve, Aktivieren |
+| Ablehnen | `DashboardActionId.Reject` | Rot (Danger) | Reject, Ablehnen |
+| Löschen | `DashboardActionId.Delete` | Rot (Danger) | Löschen, Entfernen |
+| Erstellen | `DashboardActionId.Create` | Blau (Primary) | Neu anlegen |
+| Abbrechen | `DashboardActionId.Cancel` | Neutral | Abbrechen, Zurück |
+| Speichern | `DashboardActionId.Save` | Grün (Success) | Speichern |
+| Bearbeiten | `DashboardActionId.Edit` | Neutral | Bearbeiten |
+| Schließen | `DashboardActionId.Close` | Neutral | Schließen |
+
+**Props:** `action={DashboardActionId.Xxx}`, `label="Text"`, `onClick={...}`, `disabled={...}`, `type="button"`, optional `size="action"|"control"`.
+
+**Generische Buttons (DashboardButton):**
+| Variante | Verwendung |
+|---|---|
+| `DashboardButtonVariant.Primary` | Hauptaktion ohne vordefinierte Action |
+| `DashboardButtonVariant.Neutral` | Sekundäre Aktion |
+
+**Wo gehören Buttons hin?**
+- **Card-Footer:** `DashboardSection.Footer` — Review-Buttons (Approve/Reject), Formular-Actions
+- **PageHeader:** Als Children — Create/Add-Buttons für die ganze Seite
+- **Toolbar:** `Toolbar`-Komponente — Bulk-Actions (Delete selected), Edit-Mode-Toggle
+- **Dialog-Footer:** `Dialog.Footer` — Bestätigen/Abbrechen
+- **Editor-Toolbar:** `EditorPageShell`-Toolbar-Prop — NUR für klassische Save/Cancel bei Editor-Pages (TrackEditPage-Pattern). NICHT für Review-Buttons.
 
 ### Button-Positionierung
 
