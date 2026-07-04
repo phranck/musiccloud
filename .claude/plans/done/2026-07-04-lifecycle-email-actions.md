@@ -53,6 +53,6 @@ Plan-Nr.: MC-084
 - Gates: `tsc --noEmit` backend, `pnpm lint`, `pnpm run doctor` (Full-Scan, pre-commit-Gate), `pnpm test:run` mit `DATABASE_URL`.
 - [x] All code references verified (functions, scripts, paths, env vars, package-manager commands).
 
-## Abschluss (nur nach User-OK)
+## Abgeschlossen (2026-07-04)
 
-Nicht selbst nach `done/` verschieben. Commit/Push nur auf ausdrückliche Ansage.
+Checkliste 100 %, alle Deliverables gegen den aktuellen Code verifiziert (8 Actions in `packages/shared/src/email-actions.ts`, `notifyDeveloper`-Trigger in `developer-auth.ts`/`developer-github.ts`/`admin-api-access.ts`/`dev-api-access.ts`, `services/developer-notifications.ts`), Gates grün, in Produktion. Nach `done/` verschoben auf ausdrückliche User-Ansage vom 2026-07-04.

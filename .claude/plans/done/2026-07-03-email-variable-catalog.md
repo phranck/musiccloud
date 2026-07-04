@@ -69,6 +69,6 @@ Plan-Nr.: MC-081
 - Exakte Insert-Mechanik der MarkdownEditor-API (ref-Prop vs. Callback-Registrierung) wird in Task 10 per TDD entschieden — kein Fakt, bewusst offen.
 - Migrationsnummer der Seed-Migration ergibt sich beim Generieren (Head kann durch MC-082 wandern).
 
-## Abschluss (nur nach User-OK)
+## Abgeschlossen (2026-07-04)
 
-Nicht selbst nach `done/` verschieben. Commit/Push nur auf ausdrückliche Ansage.
+Checkliste 100 %, alle Deliverables gegen den aktuellen Code verifiziert (`EMAIL_VARIABLES` in `packages/shared/src/email-variables.ts`, `services/email-variable-resolver.ts`), Gates grün, in Produktion. Nach `done/` verschoben auf ausdrückliche User-Ansage vom 2026-07-04.

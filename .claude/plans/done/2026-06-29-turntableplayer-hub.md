@@ -342,4 +342,8 @@ Wegen Größe und Risiko in vier separat testbare Einheiten geschnitten. Jede Ei
 - [x] Hub-fremde `VinylRecord`-Nutzungen (HeroSubmitSlot, SlideArtwork) unverändert.
 - [x] Pro Einheit: `biome check --write` → `tsc --noEmit`/`astro check` → `pnpm run doctor:diff` (Einheit 4 zusätzlich voller `pnpm run doctor`) → `pnpm --filter @musiccloud/frontend test:run`, alle grün.
 - [x] TSDoc auf jedem neuen Export; Kommentare/Docs bei jeder Änderung mitgezogen ([[feedback_keep_code_docs_current]]).
-- [ ] Abschluss-Verschiebung nach `done/` nur nach expliziter User-Abnahme ([[feedback_plan_hygiene]]).
+- [x] Abschluss-Verschiebung nach `done/` — vom User abgenommen 2026-07-04 ([[feedback_plan_hygiene]]).
+
+## Abgeschlossen (2026-07-04)
+
+Checkliste 100 %, Code committet (Einheiten 1–5) und Gates grün; vom User abgenommen. Nach `done/` verschoben auf ausdrückliche User-Ansage vom 2026-07-04.

@@ -76,7 +76,7 @@ Das User-Prinzip (siehe `architecture/player-architecture.html`, Display-Basis):
 
 - [x] **Step 3: Gates** — `biome check --write`, `tsc --noEmit`, `react-doctor` 0 issues, `pnpm --filter @musiccloud/frontend test:run`.
 
-- [ ] **Step 4: Visuelle/funktionale Verifikation durch den Nutzer** (Analyzer MultiBand + StereoVu, Progress, Toggle-Klick). Playback-Hinweis beachten. (Offen: User-seitig.)
+- [x] **Step 4: Visuelle/funktionale Verifikation durch den Nutzer** (Analyzer MultiBand + StereoVu, Progress, Toggle-Klick). Playback-Hinweis beachten. (Vom User abgenommen 2026-07-04.)
 
 - [x] **Step 5: Commit** — `Refactor: extract VfdAnalyzerDisplay from PlayerProgress (MC-070)`
 
@@ -116,3 +116,7 @@ Das User-Prinzip (siehe `architecture/player-architecture.html`, Display-Basis):
 - **Performance-kritisch:** Der Analyzer läuft mit 20 Hz über `controllerRef.setLines` (kein React-Commit pro Frame). Beim Verschieben darf dieser Pfad nicht in einen React-State-Pfad umgebogen werden. `buildPlayerLines` bleibt pur.
 - **`PlayerProgress`-children-Pfad:** Bleibt erhalten (custom Progress-Inhalt), nur der Analyzer-Zweig wird zu `VfdAnalyzerDisplay`.
 - **Folgeplan MC-071:** Der TurntablePlayer-Hub dockt `VfdInfoDisplay`/`VfdAnalyzerDisplay` als Peripherie an seinen Context an; die hier gewählten Props-Schnittstellen sind dafür die Basis.
+
+## Abgeschlossen (2026-07-04)
+
+Checkliste 100 %, Code committet und Gates grün; vom User abgenommen. Nach `done/` verschoben auf ausdrückliche User-Ansage vom 2026-07-04.

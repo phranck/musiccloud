@@ -37,11 +37,15 @@ Plan-Nr.: MC-072
 - [x] "45"-Caption bleibt als unbeleuchteter Deck-Print stehen (Optik), nur nie mehr beleuchtet
 - [x] Tests angepasst (kein 45/Drag/playbackRate/setSpeed)
 - [x] Gates grün: Biome, tsc (0 Fehler), React-Doctor (0 Issues), Vitest (53 Files / 312 Tests)
-- [ ] Visuelle Abnahme durch User (Knob-Animation, LED, Deck-Optik)
-- [ ] Commit + Push (nur auf ausdrückliche User-Ansage)
+- [x] Visuelle Abnahme durch User (Knob-Animation, LED, Deck-Optik) — abgenommen 2026-07-04
+- [x] Commit + Push — committet (`3cb46d17`)
 
 ## Verified facts
 
 - `~/.local/bin/plans next` → `MC-072` (2026-06-30).
 - Gates am 2026-06-30: `pnpm exec biome check` clean; `pnpm exec astro check` 0 errors; `pnpm run doctor:diff` 0 issues (10 Files); `pnpm exec vitest run` 53 Files / 312 Tests grün.
 - `TurntableKnob.tsx` via `git rm` entfernt; `KnobDial.tsx` neu unter `apps/frontend/src/components/turntable/`.
+
+## Abgeschlossen (2026-07-04)
+
+Checkliste 100 %, Code committet (`3cb46d17`) und Gates grün; vom User abgenommen. Nach `done/` verschoben auf ausdrückliche User-Ansage vom 2026-07-04.

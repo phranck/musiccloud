@@ -34,8 +34,8 @@ Alle Referenzen per direktem Read/Grep/psql gegen den aktuellen Code + die Prod-
 - **Dashboard-Contract** `apps/dashboard/src/shared/contracts/admin-email-templates.ts` (`EmailTemplate`-Interface); **Hooks** `apps/dashboard/src/features/templates/hooks/useEmailTemplates.ts`; **Edit-Page** `EmailTemplateEditPage.tsx`, **Preview** `EmailPreview.tsx`.
 - **i18n** `apps/dashboard/src/i18n/messages.ts`: `de` (`:734`), `en` (`:1440`), `emailTemplates`-Block (`:621`).
 - **pnpm** ist PM (`pnpm@10.33.1`). Backend-Typecheck: `pnpm --filter @musiccloud/backend typecheck`. Shared-Build: `pnpm --filter @musiccloud/shared build`. Lint: `pnpm lint` (Biome). Tests: `pnpm --filter @musiccloud/backend test:run`. Migration generieren: `pnpm db:generate`. Lokal anwenden: Backend-Restart (Heartbeat) oder `pnpm db:migrate`.
-- [ ] Alle Referenzen erneut gegen den aktuellen Code + Prod verifiziert vor dem ersten Edit.
-- [ ] Vor jeder DB-Änderung: aktuellen Prod-Stand via `/db-dump` lokal gespiegelt (die Backfill-Migration muss gegen die echte „New User"-Zeile getestet werden, nicht gegen eine leere lokale DB).
+- [x] Alle Referenzen erneut gegen den aktuellen Code + Prod verifiziert vor dem ersten Edit.
+- [x] Vor jeder DB-Änderung: aktuellen Prod-Stand via `/db-dump` lokal gespiegelt (die Backfill-Migration muss gegen die echte „New User"-Zeile getestet werden, nicht gegen eine leere lokale DB).
 
 ---
 
@@ -1242,9 +1242,9 @@ git add -A && git commit -m "Test: verify email-template-system-v2 end-to-end (M
 - [x] Task 11: Branding-Seite
 - [x] Task 12: Actions-Seite + Invite-Picker entfernt + i18n
 - [x] Task 13: Clean-State-Gate + React-Doctor + Live-Smoke grün
-- [ ] Alle Code-Referenzen verifiziert (functions, scripts, paths, env vars, package-manager commands)
+- [x] Alle Code-Referenzen verifiziert (functions, scripts, paths, env vars, package-manager commands)
 - [x] Asset-Serve-Route-Auth-Entscheidung getroffen (public serve, admin upload) und umgesetzt — als zwei separate Route-Dateien (`email-assets.ts` public, `admin-email-assets.ts` admin), siehe Task 8 Step 2
-- [ ] Phase 2 (developer-email.ts verify/reset/danger-zone → Actions) als Folge-Plan vermerkt, NICHT in diesem Plan umgesetzt
+- [x] Phase 2 (developer-email.ts verify/reset/danger-zone → Actions) als Folge-Plan vermerkt (Abschnitt „Verwandt / Folge") und inzwischen geliefert: MC-081 (verify/reset → Actions) + MC-084 (deleted:developer + Lifecycle)
 
 ---
 
@@ -1252,3 +1252,7 @@ git add -A && git commit -m "Test: verify email-template-system-v2 end-to-end (M
 
 - **Phase 2 (eigener Plan):** `developer-email.ts` (`sendDeveloperVerificationEmail`/`sendDeveloperPasswordResetEmail` + Danger-Zone-Mail) auf `triggerEmailAction` mit neuen Actions (`verify:developer`, `reset:developer`, `deleted:developer`) umstellen; der hand-gerollte `renderDeveloperEmail`-Button-HTML entfällt (Button-Block deckt ihn ab). Voraussetzung: Button-Block + Variablen-Validierung aus diesem Plan bewährt.
 - **Spec:** [email-template-system-design.md](../../../docs/superpowers/specs/2026-07-01-email-template-system-design.md).
+
+## Abgeschlossen (2026-07-04)
+
+Phase 1 vollständig (Tasks 1–13), Code committet und end-to-end getestet (`84aee806`); Gates grün. Phase 2 als Folge-Plan vermerkt und inzwischen via MC-081 + MC-084 geliefert. Nach `done/` verschoben auf ausdrückliche User-Ansage vom 2026-07-04.

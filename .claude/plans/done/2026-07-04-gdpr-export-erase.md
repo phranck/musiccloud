@@ -45,6 +45,6 @@ Plan-Nr.: MC-085
 - Gates: `tsc --noEmit` backend, `pnpm lint`, `pnpm run doctor`, `pnpm test:run` mit `DATABASE_URL`.
 - [x] All code references verified (functions, scripts, paths, env vars, package-manager commands).
 
-## Abschluss (nur nach User-OK)
+## Abgeschlossen (2026-07-04)
 
-Nicht selbst nach `done/` verschieben. Commit/Push nur auf ausdrückliche Ansage.
+Checkliste 100 %, alle Deliverables gegen den aktuellen Code verifiziert (`services/gdpr-export.ts`, `services/gdpr-erase.ts`, `routes/admin-gdpr.ts`, Self-Service-Export + Erase-Integration), Gates grün, in Produktion. Nach `done/` verschoben auf ausdrückliche User-Ansage vom 2026-07-04.

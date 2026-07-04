@@ -78,6 +78,6 @@ Reihenfolge = Abhängigkeitsreihenfolge (Backend-Datenschicht → Renderer → R
 
 Bestehende Vorlagen: alle neuen `email_templates`-Spalten `NULL` → erben unverändert das globale Branding. Globales Branding: 4 Gradient-Spalten bekommen Shader-Default-Farben, Bild-Asset-IDs `NULL` → jede Mail zeigt ab Migration den Gradient-Hintergrund (unaufdringlich), bis der User optional ein Bild ergänzt. Kein Backfill nötig.
 
-## Abschluss (nur nach User-OK)
+## Abgeschlossen (2026-07-04)
 
-Nicht selbst nach `done/` verschieben (Memory `feedback_plan_hygiene`). Commit/Push nur auf ausdrückliche Ansage (Memory `feedback_no_auto_push`).
+Checkliste 100 %, alle Deliverables gegen den aktuellen Code verifiziert (`resolveBranding` in `services/email-renderer.ts`, Migration `0052_minor_miek.sql`, `AssetPicker`/`GradientColorFields`/`TemplateBrandingSection`), Gates grün, in Produktion. Nach `done/` verschoben auf ausdrückliche User-Ansage vom 2026-07-04.

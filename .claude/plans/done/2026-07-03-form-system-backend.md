@@ -52,6 +52,6 @@ Plan-Nr.: MC-082
 - Existenz eines HTML-Escape-Helpers im musiccloud-Backend (lmaa: `lib/html.ts` `escapeHtml`) — bei Task 6 prüfen (grep `escapeHtml`), sonst minimal anlegen.
 - Exakte Migrationsnummer ergibt sich beim `db:generate` (Head kann durch MC-081-Seed wandern).
 
-## Abschluss (nur nach User-OK)
+## Abgeschlossen (2026-07-04)
 
-Nicht selbst nach `done/` verschieben. Commit/Push nur auf ausdrückliche Ansage.
+Checkliste 100 %, alle Deliverables gegen den aktuellen Code verifiziert (`routes/admin-forms.ts`, `routes/forms-public.ts`, `adapters/postgres-forms.ts`, Migration `0055_lyrical_cobalt_man.sql`), Gates grün, in Produktion. Nach `done/` verschoben auf ausdrückliche User-Ansage vom 2026-07-04.

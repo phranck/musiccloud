@@ -55,6 +55,6 @@ Plan-Nr.: MC-083
 - Existenz von `FlowConnector`/`HeaderBackButton`/`ToggleSwitch`/`IconPicker`/`useDashboardSortableSensors` in musiccloud wird in Task 1 per grep geklärt (bewusst offen, keine Pseudo-Fakten).
 - `TextTokensHelp`-Inhalt (welche Tokens dokumentiert es) wird beim Port gelesen und ggf. an musiccloud-Realität angepasst.
 
-## Abschluss (nur nach User-OK)
+## Abgeschlossen (2026-07-04)
 
-Nicht selbst nach `done/` verschieben. Commit/Push nur auf ausdrückliche Ansage.
+Checkliste 100 %, alle Deliverables gegen den aktuellen Code verifiziert (`form-builder/FormBuilderEditPage.tsx`, `FieldPalette.tsx` u.a.), Gates grün, in Produktion. Nach `done/` verschoben auf ausdrückliche User-Ansage vom 2026-07-04.

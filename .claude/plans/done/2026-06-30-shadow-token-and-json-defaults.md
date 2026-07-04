@@ -63,7 +63,7 @@ Die Live-Site rendert den **DB-persistierten** `design_tokens`-Blob (überschrei
 - [x] G6 Tests (shadow parse `design-tokens.test`, shadow emit `designTokensCss.test`) + alle Gates grün (shared 53, frontend 313, tsc/astro check 0, Doctor 0, Biome 870)
 - [x] Shader-Defaults: `fpsCap` 7→8 in `SHADER_DEFAULTS` + `NIGHT_SKY_DEFAULTS` + PINNED-Guard + 2 BackgroundScene-Asserts + Component-Doc. `dayness` 0 bleibt (mode-owned, Nacht-Start by design, inert).
 - [x] Alle Code-Referenzen verifiziert (Cover-Vorbild, 24 Diffs gegen dist)
-- [ ] Commit (nur auf User-Ansage)
+- [x] Commit — committet (`3619b814`)
 
 ## Verified facts
 
@@ -72,3 +72,7 @@ Die Live-Site rendert den **DB-persistierten** `design_tokens`-Blob (überschrei
 - designTokensCss cover-Emission `:221-228` (`tokens.cover.cover`).
 - 24 Diffs via `node` gegen `packages/shared/dist/design-tokens.js` (`parseDesignTokens` 0 Fehler) — siehe Diff-Block oben.
 - Prototyp-`shadow`-Pipeline (Phase A) bereits drin: `SHADOW_GROUPS`/`SHADOW_FIELDS`/`applyShadow`/`buildShadowControls`, Box-Shadow-Rezeptur auf `--mc-shadow-*`, Export `shadow: shadowCfg`. `SHADOW_DEFAULTS` dort noch 0/12/40 → auf 0/15/21 ziehen.
+
+## Abgeschlossen (2026-07-04)
+
+Checkliste 100 %, Code committet (`3619b814`) und Gates grün; vom User abgenommen. Nach `done/` verschoben auf ausdrückliche User-Ansage vom 2026-07-04.
