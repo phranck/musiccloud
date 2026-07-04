@@ -1,4 +1,4 @@
-import { ClipboardText as ClipboardTextIcon } from "@phosphor-icons/react";
+import { ClipboardText as ClipboardTextIcon, PencilSimple as PencilSimpleIcon } from "@phosphor-icons/react";
 import { type ComponentPropsWithoutRef, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { type ColumnDef, DataTable, type DataTableRowProps } from "@/components/ui/Table";
+import { TableActionButton } from "@/components/ui/TableActionButton";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { useI18n } from "@/context/I18nContext";
 import type { ApiAccessRequestResponse } from "@/features/developer/api";
@@ -40,6 +41,8 @@ const STATUS_CLASS: Record<string, string> = {
 
 function useRequestColumns(
   dm: ReturnType<typeof useI18n>["messages"]["developer"],
+  common: ReturnType<typeof useI18n>["messages"]["common"],
+  navigate: ReturnType<typeof useNavigate>,
 ): ColumnDef<ApiAccessRequestResponse>[] {
   return useMemo<ColumnDef<ApiAccessRequestResponse>[]>(
     () => [
@@ -102,8 +105,22 @@ function useRequestColumns(
         },
       },
     ],
-    [dm],
-  );
+      {
+        id: "actions",
+        className: "w-24",
+        cell: (r) => (
+          <div className="flex justify-end">
+            <TableActionButton
+              onClick={() => navigate(`/developer/requests/${r.id}`)}
+              icon={<PencilSimpleIcon weight="duotone" className="size-3" />}
+              label={common.edit}
+            />
+          </div>
+        ),
+      },
+  ],
+    [dm, common, navigate],
+  )
 }
 
 export function ApiAccessRequestsPage() {
@@ -112,8 +129,8 @@ export function ApiAccessRequestsPage() {
   const [filter, setFilter] = useState("all");
   const { data, isLoading } = useApiAccessOverview(filter === "all" ? undefined : filter);
 
-  const columns = useRequestColumns(dm);
   const navigate = useNavigate();
+  const columns = useRequestColumns(dm, messages.common, navigate);
 
   const requests = data?.requests ?? [];
 
