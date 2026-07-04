@@ -63,9 +63,7 @@ export function fetchApiAccessOverview(status?: string): Promise<ApiAccessOvervi
 }
 
 export function fetchApiAccessRequest(id: string): Promise<{ request: ApiAccessRequestResponse }> {
-  return api.get<{ request: ApiAccessRequestResponse }>(
-    ENDPOINTS.admin.developer.apiAccess.requestDetail(id),
-  );
+  return api.get<{ request: ApiAccessRequestResponse }>(ENDPOINTS.admin.developer.apiAccess.requestDetail(id));
 }
 
 export function approveApiAccessRequest(
@@ -82,38 +80,25 @@ export function rejectApiAccessRequest(
   id: string,
   body: { reviewNote: string },
 ): Promise<{ request: ApiAccessRequestResponse }> {
-  return api.post<{ request: ApiAccessRequestResponse }>(
-    ENDPOINTS.admin.developer.apiAccess.requestReject(id),
-    body,
-  );
+  return api.post<{ request: ApiAccessRequestResponse }>(ENDPOINTS.admin.developer.apiAccess.requestReject(id), body);
 }
 
-export function createClientToken(
-  id: string,
-): Promise<{ token: ApiClientTokenResponse & { rawToken: string } }> {
+export function createClientToken(id: string): Promise<{ token: ApiClientTokenResponse & { rawToken: string } }> {
   return api.post<{ token: ApiClientTokenResponse & { rawToken: string } }>(
     ENDPOINTS.admin.developer.apiAccess.clientCreateToken(id),
   );
 }
 
-export function revokeToken(
-  id: string,
-): Promise<{ token: ApiClientTokenResponse }> {
-  return api.post<{ token: ApiClientTokenResponse }>(
-    ENDPOINTS.admin.developer.apiAccess.tokenRevoke(id),
-  );
+export function revokeToken(id: string): Promise<{ token: ApiClientTokenResponse }> {
+  return api.post<{ token: ApiClientTokenResponse }>(ENDPOINTS.admin.developer.apiAccess.tokenRevoke(id));
 }
 
-export function rotateToken(
-  id: string,
-): Promise<{ token: ApiClientTokenResponse & { rawToken: string } }> {
+export function rotateToken(id: string): Promise<{ token: ApiClientTokenResponse & { rawToken: string } }> {
   return api.post<{ token: ApiClientTokenResponse & { rawToken: string } }>(
     ENDPOINTS.admin.developer.apiAccess.tokenRotate(id),
   );
 }
 
 export function fetchDeveloperAccounts(): Promise<{ accounts: DeveloperAccountResponse[] }> {
-  return api.get<{ accounts: DeveloperAccountResponse[] }>(
-    ENDPOINTS.admin.developer.accounts,
-  );
+  return api.get<{ accounts: DeveloperAccountResponse[] }>(ENDPOINTS.admin.developer.accounts);
 }

@@ -1,15 +1,36 @@
 import { ClipboardText as ClipboardTextIcon } from "@phosphor-icons/react";
-import { useMemo, useState } from "react";
-import { Link } from "react-router";
+import { type ComponentPropsWithoutRef, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
-import { type ColumnDef, DataTable } from "@/components/ui/Table";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { type ColumnDef, DataTable, type DataTableRowProps } from "@/components/ui/Table";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { useI18n } from "@/context/I18nContext";
 import type { ApiAccessRequestResponse } from "@/features/developer/api";
 import { ApiAccessRequestStatus } from "@/features/developer/domain";
 import { useApiAccessOverview } from "@/features/developer/hooks/useDeveloperData";
+
+function ClickableRow({
+  className,
+  children,
+  onClick,
+  ...rest
+}: DataTableRowProps<ApiAccessRequestResponse> & { onClick: () => void } & ComponentPropsWithoutRef<"tr">) {
+  return (
+    <tr
+      className={`table-row-hover cursor-pointer ${className ?? ""}`}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") onClick();
+      }}
+      {...rest}
+    >
+      {children}
+    </tr>
+  );
+}
 
 const STATUS_CLASS: Record<string, string> = {
   [ApiAccessRequestStatus.Pending]: "bg-amber-500/10 text-amber-400",
@@ -25,6 +46,7 @@ function useRequestColumns(
       {
         id: "appName",
         header: dm.colApp,
+        headerClassName: "whitespace-nowrap",
         sortKey: (r) => r.appName.toLowerCase(),
         cell: (r) => (
           <Link to={`/developer/requests/${r.id}`} className="font-medium text-[var(--ds-text)] hover:underline">
@@ -35,6 +57,7 @@ function useRequestColumns(
       {
         id: "contactEmail",
         header: dm.colDeveloper,
+        headerClassName: "whitespace-nowrap",
         sortKey: (r) => r.contactEmail.toLowerCase(),
         cell: (r) => <span className="text-[var(--ds-text-muted)]">{r.contactEmail}</span>,
       },
@@ -42,6 +65,7 @@ function useRequestColumns(
         id: "estimatedRequestsPerDay",
         header: dm.colTraffic,
         className: "w-32",
+        headerClassName: "whitespace-nowrap",
         sortKey: (r) => r.estimatedRequestsPerDay,
         cell: (r) => <span>~{r.estimatedRequestsPerDay} / Tag</span>,
       },
@@ -49,6 +73,7 @@ function useRequestColumns(
         id: "submittedAt",
         header: dm.colSubmitted,
         className: "w-36",
+        headerClassName: "whitespace-nowrap",
         sortKey: (r) => r.submittedAt,
         cell: (r) => (
           <span className="text-[var(--ds-text-muted)] whitespace-nowrap">
@@ -60,6 +85,7 @@ function useRequestColumns(
         id: "status",
         header: dm.colStatus,
         className: "w-28",
+        headerClassName: "whitespace-nowrap",
         sortKey: (r) => r.status,
         cell: (r) => {
           const cls = STATUS_CLASS[r.status] ?? "bg-gray-500/10 text-gray-400";
@@ -83,38 +109,32 @@ function useRequestColumns(
 export function ApiAccessRequestsPage() {
   const { messages } = useI18n();
   const dm = messages.developer;
-  const [filter, setFilter] = useState<string | undefined>(undefined);
-  const { data, isLoading } = useApiAccessOverview(filter);
+  const [filter, setFilter] = useState("all");
+  const { data, isLoading } = useApiAccessOverview(filter === "all" ? undefined : filter);
 
   const columns = useRequestColumns(dm);
+  const navigate = useNavigate();
 
   const requests = data?.requests ?? [];
 
-  const filters = [
-    { key: undefined, label: dm.requestsFilterAll },
-    { key: ApiAccessRequestStatus.Pending, label: dm.requestsFilterPending },
-    { key: ApiAccessRequestStatus.Approved, label: dm.requestsFilterApproved },
-    { key: ApiAccessRequestStatus.Rejected, label: dm.requestsFilterRejected },
-  ];
-
-  const filterBar = (
-    <div className="flex gap-2">
-      {filters.map((f) => (
-        <button
-          key={f.key ?? "__all"}
-          type="button"
-          onClick={() => setFilter(f.key)}
-          className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-            filter === f.key
-              ? "bg-[var(--ds-accent)] text-black"
-              : "bg-[var(--ds-surface)] text-[var(--ds-text-muted)] hover:text-[var(--ds-text)]"
-          }`}
-        >
-          {f.label}
-        </button>
-      ))}
-    </div>
+  const RowComponent = useMemo(
+    () => (props: DataTableRowProps<ApiAccessRequestResponse>) => (
+      <ClickableRow {...props} onClick={() => navigate(`/developer/requests/${props.row.id}`)} />
+    ),
+    [navigate],
   );
+
+  const requestFilterOptions = useMemo(
+    () => [
+      { value: "all", label: dm.requestsFilterAll },
+      { value: ApiAccessRequestStatus.Pending, label: dm.requestsFilterPending },
+      { value: ApiAccessRequestStatus.Approved, label: dm.requestsFilterApproved },
+      { value: ApiAccessRequestStatus.Rejected, label: dm.requestsFilterRejected },
+    ],
+    [dm],
+  );
+
+  const filterBar = <SegmentedControl value={filter} onChange={setFilter} options={requestFilterOptions} />;
 
   const toolbar = requests.length > 0 && (
     <Toolbar>
@@ -130,7 +150,7 @@ export function ApiAccessRequestsPage() {
       <PageBody>
         {isLoading && (
           <div className="space-y-px">
-            {Array.from({ length: 5 }, (_, i) => `sk-${i}`).map((key) => (
+            {Array.from({ length: 8 }, (_, i) => `sk-${i}`).map((key) => (
               <div
                 key={key}
                 className="h-14 bg-[var(--ds-surface)] animate-pulse border-b border-[var(--ds-border-subtle)]"
@@ -153,6 +173,7 @@ export function ApiAccessRequestsPage() {
               columns={columns}
               data={requests}
               getRowKey={(r) => r.id}
+              RowComponent={RowComponent}
               stickyHeader
               defaultSort={{ id: "submittedAt", dir: "desc" }}
             />

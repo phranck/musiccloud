@@ -23,12 +23,14 @@ function useAccountColumns(
       {
         id: "email",
         header: dm.colEmail,
+        headerClassName: "whitespace-nowrap",
         sortKey: (a) => a.email.toLowerCase(),
         cell: (a) => <span className="font-medium">{a.email}</span>,
       },
       {
         id: "displayName",
         header: dm.colDisplayName,
+        headerClassName: "whitespace-nowrap",
         sortKey: (a) => a.displayName ?? "",
         cell: (a) => <span className="text-[var(--ds-text-muted)]">{a.displayName ?? "—"}</span>,
       },
@@ -36,6 +38,7 @@ function useAccountColumns(
         id: "plan",
         header: dm.colPlan,
         className: "w-20",
+        headerClassName: "whitespace-nowrap",
         sortKey: (a) => a.plan,
         cell: (a) => <span>{a.plan}</span>,
       },
@@ -43,6 +46,7 @@ function useAccountColumns(
         id: "clientCount",
         header: dm.colClients,
         className: "w-20",
+        headerClassName: "whitespace-nowrap",
         sortKey: (a) => a.clientCount,
         cell: (a) => (
           <span className="inline-block min-w-6 px-1.5 py-0.5 rounded text-xs font-medium text-center border border-[var(--ds-border)] text-[var(--ds-text)]">
@@ -54,6 +58,7 @@ function useAccountColumns(
         id: "status",
         header: dm.colStatus,
         className: "w-28",
+        headerClassName: "whitespace-nowrap",
         sortKey: (a) => a.status,
         cell: (a) => {
           const cls = STATUS_CLASS[a.status] ?? "bg-gray-500/10 text-gray-400";
@@ -72,6 +77,7 @@ function useAccountColumns(
         id: "createdAt",
         header: dm.colRegistered,
         className: "w-36",
+        headerClassName: "whitespace-nowrap",
         sortKey: (a) => a.createdAt,
         cell: (a) => (
           <span className="text-[var(--ds-text-muted)] whitespace-nowrap">
@@ -106,7 +112,7 @@ export function DeveloperAccountsPage() {
       <PageBody>
         {isLoading && (
           <div className="space-y-px">
-            {Array.from({ length: 5 }, (_, i) => `sk-${i}`).map((key) => (
+            {Array.from({ length: 8 }, (_, i) => `sk-${i}`).map((key) => (
               <div
                 key={key}
                 className="h-14 bg-[var(--ds-surface)] animate-pulse border-b border-[var(--ds-border-subtle)]"

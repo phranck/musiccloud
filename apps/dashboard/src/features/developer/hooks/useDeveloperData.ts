@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  type ApiAccessOverview,
   approveApiAccessRequest,
   createClientToken,
   fetchApiAccessOverview,
@@ -8,7 +9,6 @@ import {
   rejectApiAccessRequest,
   revokeToken,
   rotateToken,
-  type ApiAccessOverview,
 } from "@/features/developer/api";
 
 export function useApiAccessOverview(status?: string) {
@@ -36,10 +36,7 @@ export function useDeveloperAccounts() {
 export function useApproveRequest() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      id,
-      ...body
-    }: { id: string; requestsPerMinute?: number; requestsPerDay?: number }) =>
+    mutationFn: ({ id, ...body }: { id: string; requestsPerMinute?: number; requestsPerDay?: number }) =>
       approveApiAccessRequest(id, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["developer"] });
@@ -50,8 +47,7 @@ export function useApproveRequest() {
 export function useRejectRequest() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, reviewNote }: { id: string; reviewNote: string }) =>
-      rejectApiAccessRequest(id, { reviewNote }),
+    mutationFn: ({ id, reviewNote }: { id: string; reviewNote: string }) => rejectApiAccessRequest(id, { reviewNote }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["developer"] });
     },
