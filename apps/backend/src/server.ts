@@ -31,6 +31,7 @@ import adminEmailAssetsRoutes from "./routes/admin-email-assets.js";
 import adminEmailBrandingRoutes from "./routes/admin-email-branding.js";
 import adminEmailTemplateRoutes from "./routes/admin-email-templates.js";
 import adminFormsRoutes from "./routes/admin-forms.js";
+import adminGdprRoutes from "./routes/admin-gdpr.js";
 import adminNavRoutes from "./routes/admin-nav.js";
 import adminPluginsRoutes from "./routes/admin-plugins.js";
 import adminSseRoutes from "./routes/admin-sse.js";
@@ -673,6 +674,7 @@ async function buildApp() {
     await adminApp.register(adminDataRoutes);
     await adminApp.register(adminEmailActionsRoutes);
     await adminApp.register(adminFormsRoutes);
+    await adminApp.register(adminGdprRoutes);
     await adminApp.register(adminEmailAssetsRoutes);
     await adminApp.register(adminEmailBrandingRoutes);
     await adminApp.register(adminEmailTemplateRoutes);

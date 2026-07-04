@@ -65,6 +65,8 @@ import {
   verifyPassword,
 } from "../services/developer-auth.js";
 import { triggerEmailAction } from "../services/email-actions.js";
+import { erasePersonalData } from "../services/gdpr-erase.js";
+import { buildPersonalDataExport } from "../services/gdpr-export.js";
 
 /** Minimum accepted password length, matching the admin surface (admin-auth.ts). */
 const PASSWORD_MIN_LENGTH = 8;
@@ -236,6 +238,22 @@ export async function devAuthRoutes(app: FastifyInstance) {
       // ever persisted (see generateEmailToken).
       context: { verifyUrl: `${requireEnv("DEVELOPER_URL")}/verify?token=${raw}` },
     });
+
+    // Optional welcome notification (MC-085 follow-up): unlike the required
+    // verification mail above, this must never fail the signup.
+    try {
+      await triggerEmailAction(EmailAction.DeveloperAccountCreated, {
+        to: { email: account.email },
+        recipient: {
+          kind: EmailRecipientKind.DeveloperAccount,
+          email: account.email,
+          displayName: account.displayName,
+        },
+        context: {},
+      });
+    } catch (error) {
+      request.log.error({ err: error }, "failed to send account-created notification");
+    }
 
     app.log.info("[Developer] Account created (unverified)");
     return reply.status(201).send({ account: buildAccountResponse(account) });
@@ -420,6 +438,19 @@ export async function devAuthRoutes(app: FastifyInstance) {
   });
 
   /**
+   * GET /api/dev/auth/export
+   * The caller's complete personal-data package (GDPR Art. 15/20) as a JSON
+   * attachment: account (without secrets), auth identities, API-access
+   * requests/clients with token metadata, and attributable form submissions.
+   */
+  app.get(ENDPOINTS.dev.auth.export, { preHandler: app.authenticateDeveloper }, async (request, reply) => {
+    const account = request.developerAccount!;
+    const pkg = await buildPersonalDataExport({ developerAccountId: account.id, email: account.email });
+    reply.header("content-disposition", 'attachment; filename="musiccloud-data-export.json"');
+    return reply.send(pkg);
+  });
+
+  /**
    * POST /api/dev/auth/delete-account
    * Permanently deletes the caller's own account (the dashboard's "Danger
    * Zone"). Cascades to the account's identities, email tokens, API-access
@@ -458,8 +489,10 @@ export async function devAuthRoutes(app: FastifyInstance) {
       request.log.error({ err: error }, "failed to send account-deleted notification");
     }
 
-    const repo = await getDeveloperRepository();
-    await repo.deleteDeveloperAccount(account.id);
+    // GDPR-complete erasure (MC-085): anonymises the account's form
+    // submissions, then deletes the account (DB cascade clears identities,
+    // email tokens and API-access data).
+    await erasePersonalData({ developerAccountId: account.id, email: account.email });
     reply.clearCookie(SESSION_COOKIE_NAME, clearedSessionCookieOptions());
 
     app.log.info("[Developer] Account deleted");

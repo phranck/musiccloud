@@ -210,6 +210,14 @@ export interface DeveloperRepository {
    * @returns The matching identity, or `null` when no row matches.
    */
   findDeveloperIdentity(provider: string, providerUserId: string): Promise<DeveloperIdentity | null>;
+  /**
+   * Lists every auth identity linked to an account (email, GitHub, …) — part
+   * of the GDPR export package (MC-085).
+   *
+   * @param accountId - The developer account's id.
+   * @returns The account's identities, oldest first.
+   */
+  listDeveloperIdentitiesByAccount(accountId: string): Promise<DeveloperIdentity[]>;
 
   /**
    * Creates a single-use email token. The raw token is hashed by the caller;

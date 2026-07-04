@@ -22,6 +22,7 @@ import type {
   EmailTemplateWriteData,
   FormConfigCreateData,
   FormConfigWriteResult,
+  FormSubmissionDto,
   FormSubmissionInsertData,
   ListResult,
   NavId,
@@ -31,6 +32,7 @@ import type {
   PageSegmentInputRow,
   PageSegmentRow,
   PageSegmentTranslationRow,
+  PersonalDataSubject,
   TrackListItem,
 } from "../admin-repository.js";
 import type {
@@ -243,17 +245,20 @@ import {
   findDeveloperAccountById as developerFindAccountById,
   findActiveDeveloperEmailToken as developerFindActiveEmailToken,
   findDeveloperIdentity as developerFindIdentity,
+  listDeveloperIdentitiesByAccount as developerListIdentitiesByAccount,
   markDeveloperEmailVerified as developerMarkEmailVerified,
   setDeveloperPassword as developerSetPassword,
   updateDeveloperLastLogin as developerUpdateLastLogin,
 } from "./postgres-developer.js";
 import {
+  anonymizeFormSubmissionsBySubject as formsAnonymizeFormSubmissionsBySubject,
   createFormConfig as formsCreateFormConfig,
   deleteFormConfig as formsDeleteFormConfig,
   getActiveFormConfigBySlug as formsGetActiveFormConfigBySlug,
   getFormConfigByName as formsGetFormConfigByName,
   insertFormSubmission as formsInsertFormSubmission,
   listFormConfigs as formsListFormConfigs,
+  listFormSubmissionsBySubject as formsListFormSubmissionsBySubject,
   saveFormConfigPayload as formsSaveFormConfigPayload,
   setFormConfigActive as formsSetFormConfigActive,
 } from "./postgres-forms.js";
@@ -909,6 +914,14 @@ export class PostgresAdapter
     return formsInsertFormSubmission(this.pool, data);
   }
 
+  listFormSubmissionsBySubject(subject: PersonalDataSubject): Promise<FormSubmissionDto[]> {
+    return formsListFormSubmissionsBySubject(this.pool, subject);
+  }
+
+  anonymizeFormSubmissionsBySubject(subject: PersonalDataSubject): Promise<{ anonymized: number }> {
+    return formsAnonymizeFormSubmissionsBySubject(this.pool, subject);
+  }
+
   // ============================================================================
   // CONTENT PAGES + PAGE TRANSLATIONS + SEGMENTS (AdminRepository)
   // ============================================================================
@@ -1122,6 +1135,10 @@ export class PostgresAdapter
     providerUserId?: string | null;
   }): Promise<DeveloperIdentity> {
     return developerCreateIdentity(this.pool, data);
+  }
+
+  listDeveloperIdentitiesByAccount(accountId: string): Promise<DeveloperIdentity[]> {
+    return developerListIdentitiesByAccount(this.pool, accountId);
   }
 
   findDeveloperIdentity(provider: string, providerUserId: string): Promise<DeveloperIdentity | null> {

@@ -34,6 +34,8 @@ import { getDeveloperRepository } from "../db/index.js";
 import authPlugin from "../plugins/auth.js";
 import { hashEmailToken, hashPassword, SESSION_COOKIE_NAME } from "../services/developer-auth.js";
 import { triggerEmailAction } from "../services/email-actions.js";
+import { erasePersonalData } from "../services/gdpr-erase.js";
+import { buildPersonalDataExport } from "../services/gdpr-export.js";
 import { devAuthRoutes } from "./developer-auth.js";
 
 vi.mock("../db/index.js", () => ({
@@ -42,6 +44,19 @@ vi.mock("../db/index.js", () => ({
 
 vi.mock("../services/email-actions.js", () => ({
   triggerEmailAction: vi.fn(async () => undefined),
+}));
+
+vi.mock("../services/gdpr-erase.js", () => ({
+  erasePersonalData: vi.fn(async () => ({ anonymizedSubmissions: 0, accountDeleted: true })),
+}));
+
+vi.mock("../services/gdpr-export.js", () => ({
+  buildPersonalDataExport: vi.fn(async () => ({
+    version: 1,
+    exportedAt: "2026-07-04T00:00:00.000Z",
+    subject: { developerAccountId: "dev-acc-1", email: "dev@example.com" },
+    formSubmissions: [],
+  })),
 }));
 
 /** JWT secret used to sign/verify session tokens in these tests. */
@@ -123,6 +138,7 @@ function makeRepo(): DeveloperRepository {
       createdAt: Date.now(),
     })),
     findDeveloperIdentity: vi.fn(async () => null),
+    listDeveloperIdentitiesByAccount: vi.fn(async () => []),
     createDeveloperEmailToken: vi.fn(async () => makeToken()),
     findActiveDeveloperEmailToken: vi.fn(async () => null),
     consumeDeveloperEmailToken: vi.fn(async () => true),
@@ -206,9 +222,10 @@ describe("POST /api/dev/auth/signup", () => {
     expect(account.id).toBe("dev-acc-1");
     expect(account).not.toHaveProperty("passwordHash");
     expect(account).not.toHaveProperty("status");
-    expect(vi.mocked(triggerEmailAction)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(triggerEmailAction)).toHaveBeenCalledTimes(2);
     const [actionKey, input] = vi.mocked(triggerEmailAction).mock.calls[0]!;
     expect(actionKey).toBe(EmailAction.DeveloperVerificationRequested);
+    expect(vi.mocked(triggerEmailAction).mock.calls[1]![0]).toBe(EmailAction.DeveloperAccountCreated);
     // The repo stub's createDeveloperAccount always returns makeAccount()
     // (email dev@example.com); the route correctly addresses the CREATED
     // account's canonical email, not the raw payload value.
@@ -545,6 +562,32 @@ describe("GET /api/dev/auth/me", () => {
   });
 });
 
+describe("GET /api/dev/auth/export", () => {
+  it("returns the caller's personal-data package as an attachment", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: ENDPOINTS.dev.auth.export,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-disposition"]).toContain('attachment; filename="musiccloud-data-export.json"');
+    expect(res.json().version).toBe(1);
+    expect(vi.mocked(buildPersonalDataExport)).toHaveBeenCalledWith({
+      developerAccountId: "dev-acc-1",
+      email: "dev@example.com",
+    });
+  });
+
+  it("requires an authenticated session", async () => {
+    const app = await buildApp();
+    const res = await app.inject({ method: "GET", url: ENDPOINTS.dev.auth.export });
+    expect(res.statusCode).toBe(401);
+  });
+});
+
 describe("POST /api/dev/auth/delete-account", () => {
   it("triggers the optional account-deleted notification for the account being removed", async () => {
     const passwordHash = await hashPassword(VALID_PASSWORD);
@@ -583,7 +626,7 @@ describe("POST /api/dev/auth/delete-account", () => {
     });
 
     expect(res.statusCode).toBe(200);
-    expect(vi.mocked(repo.deleteDeveloperAccount)).toHaveBeenCalledWith("dev-acc-1");
+    expect(vi.mocked(erasePersonalData)).toHaveBeenCalled();
   });
 
   it("deletes the account, clears the session cookie and returns ok on a correct password", async () => {
@@ -599,7 +642,10 @@ describe("POST /api/dev/auth/delete-account", () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.json().ok).toBe(true);
-    expect(vi.mocked(repo.deleteDeveloperAccount)).toHaveBeenCalledWith("dev-acc-1");
+    expect(vi.mocked(erasePersonalData)).toHaveBeenCalledWith({
+      developerAccountId: "dev-acc-1",
+      email: "dev@example.com",
+    });
     const setCookie = findSessionSetCookie(res.headers["set-cookie"]);
     expect(setCookie).toBeDefined();
     expect(setCookie).toMatch(new RegExp(`^${SESSION_COOKIE_NAME}=;`));
@@ -618,7 +664,7 @@ describe("POST /api/dev/auth/delete-account", () => {
 
     expect(res.statusCode).toBe(401);
     expect(res.json().error).toBe("INVALID_CREDENTIALS");
-    expect(vi.mocked(repo.deleteDeveloperAccount)).not.toHaveBeenCalled();
+    expect(vi.mocked(erasePersonalData)).not.toHaveBeenCalled();
     expect(findSessionSetCookie(res.headers["set-cookie"])).toBeUndefined();
   });
 
@@ -635,7 +681,7 @@ describe("POST /api/dev/auth/delete-account", () => {
 
     expect(res.statusCode).toBe(401);
     expect(res.json().error).toBe("INVALID_CREDENTIALS");
-    expect(vi.mocked(repo.deleteDeveloperAccount)).not.toHaveBeenCalled();
+    expect(vi.mocked(erasePersonalData)).not.toHaveBeenCalled();
   });
 
   it("deletes a GitHub-only account (no password set) without requiring a password", async () => {
@@ -650,7 +696,10 @@ describe("POST /api/dev/auth/delete-account", () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.json().ok).toBe(true);
-    expect(vi.mocked(repo.deleteDeveloperAccount)).toHaveBeenCalledWith("dev-acc-1");
+    expect(vi.mocked(erasePersonalData)).toHaveBeenCalledWith({
+      developerAccountId: "dev-acc-1",
+      email: "dev@example.com",
+    });
   });
 
   it("returns 401 without a session cookie", async () => {
@@ -658,6 +707,6 @@ describe("POST /api/dev/auth/delete-account", () => {
     const res = await app.inject({ method: "POST", url: ENDPOINTS.dev.auth.deleteAccount, payload: {} });
 
     expect(res.statusCode).toBe(401);
-    expect(vi.mocked(repo.deleteDeveloperAccount)).not.toHaveBeenCalled();
+    expect(vi.mocked(erasePersonalData)).not.toHaveBeenCalled();
   });
 });

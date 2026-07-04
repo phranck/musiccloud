@@ -21,7 +21,13 @@
 
 import type { FormConfig, FormConfigPayload, SubmissionConfig } from "@musiccloud/shared";
 import type { Pool } from "pg";
-import type { FormConfigCreateData, FormConfigWriteResult, FormSubmissionInsertData } from "../admin-repository.js";
+import type {
+  FormConfigCreateData,
+  FormConfigWriteResult,
+  FormSubmissionDto,
+  FormSubmissionInsertData,
+  PersonalDataSubject,
+} from "../admin-repository.js";
 
 // ============================================================================
 // ROW TYPES + MAPPERS
@@ -221,4 +227,56 @@ export async function insertFormSubmission(pool: Pool, data: FormSubmissionInser
     [data.formConfigId, JSON.stringify(data.data), data.submitterEmail ?? null, data.developerAccountId ?? null],
   );
   return { id: r.rows[0].id };
+}
+
+/**
+ * Lists every stored submission attributable to a subject — matched by
+ * account id OR (case-insensitively) by submitter email, newest first.
+ * Backs the GDPR export package (MC-085).
+ *
+ * @param pool - Postgres connection pool.
+ * @param subject - The person the request is about.
+ */
+export async function listFormSubmissionsBySubject(
+  pool: Pool,
+  subject: PersonalDataSubject,
+): Promise<FormSubmissionDto[]> {
+  const r = await pool.query(
+    `SELECT id, form_config_id, data, submitter_email, created_at
+     FROM form_submissions
+     WHERE ($1::text IS NOT NULL AND developer_account_id = $1)
+        OR lower(submitter_email) = lower($2)
+     ORDER BY created_at DESC`,
+    [subject.developerAccountId ?? null, subject.email],
+  );
+  return r.rows.map((row) => ({
+    id: row.id,
+    formConfigId: row.form_config_id,
+    data: row.data as Record<string, unknown>,
+    submitterEmail: row.submitter_email,
+    createdAt: row.created_at,
+  }));
+}
+
+/**
+ * Nulls `submitter_email` on every submission attributable to the subject
+ * (account id OR case-insensitive email) — erasure by anonymisation, the
+ * submission data itself stays (MC-085).
+ *
+ * @param pool - Postgres connection pool.
+ * @param subject - The person the request is about.
+ * @returns How many rows were anonymised.
+ */
+export async function anonymizeFormSubmissionsBySubject(
+  pool: Pool,
+  subject: PersonalDataSubject,
+): Promise<{ anonymized: number }> {
+  const r = await pool.query(
+    `UPDATE form_submissions
+     SET submitter_email = NULL
+     WHERE ($1::text IS NOT NULL AND developer_account_id = $1)
+        OR lower(submitter_email) = lower($2)`,
+    [subject.developerAccountId ?? null, subject.email],
+  );
+  return { anonymized: r.rowCount ?? 0 };
 }

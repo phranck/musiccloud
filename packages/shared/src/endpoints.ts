@@ -294,6 +294,13 @@ export const ENDPOINTS = {
       binding: (id: string) => `/api/admin/email-actions/bindings/${id}`,
     },
 
+    gdpr: {
+      /** GET `?email=`: a subject's personal-data package (GDPR Art. 15/20) — also covers account-less submitters. */
+      export: "/api/admin/gdpr/export",
+      /** POST: erase a subject's data by email. Body: { email }. 409 when a developer account exists (owner must use the danger zone). */
+      erase: "/api/admin/gdpr/erase",
+    },
+
     forms: {
       /** GET: list all form configs / POST: create an empty form. Body: { name, slug }. */
       list: "/api/admin/forms",
@@ -403,6 +410,8 @@ export const ENDPOINTS = {
        * account has a password set (omitted/ignored for GitHub-only accounts).
        */
       deleteAccount: "/api/dev/auth/delete-account",
+      /** GET: the caller's complete personal-data package as a JSON download (GDPR Art. 15/20). */
+      export: "/api/dev/auth/export",
       /** GitHub OAuth (MC-065). `start` returns the authorize URL + signed state; `exchange` redeems the callback code. */
       github: {
         /** GET: returns `{ authorizeUrl, state }` for the Astro app to redirect to. */

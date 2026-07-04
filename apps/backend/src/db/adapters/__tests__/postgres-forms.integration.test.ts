@@ -1,12 +1,14 @@
 import * as pgModule from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  anonymizeFormSubmissionsBySubject,
   createFormConfig,
   deleteFormConfig,
   getActiveFormConfigBySlug,
   getFormConfigByName,
   insertFormSubmission,
   listFormConfigs,
+  listFormSubmissionsBySubject,
   saveFormConfigPayload,
   setFormConfigActive,
 } from "../postgres-forms.js";
@@ -108,6 +110,34 @@ describe.skipIf(!process.env.DATABASE_URL)("form configs (integration)", () => {
     const toggled = await setFormConfigActive(pool, created.name, false);
     expect(toggled?.isActive).toBe(false);
     expect(await getActiveFormConfigBySlug(pool, slug)).toBeNull();
+  });
+
+  it("finds submissions by subject (account id OR email, case-insensitive) and anonymizes only the email", async () => {
+    const created = await createTracked();
+    const byAccount = await insertFormSubmission(pool, {
+      formConfigId: created.id,
+      data: { message: "via account" },
+      developerAccountId: null,
+      submitterEmail: "Person@Example.com",
+    });
+    const unrelated = await insertFormSubmission(pool, {
+      formConfigId: created.id,
+      data: { message: "someone else" },
+      submitterEmail: "other@example.com",
+    });
+
+    const found = await listFormSubmissionsBySubject(pool, { email: "person@example.com" });
+    expect(found.map((s) => s.id)).toContain(byAccount.id);
+    expect(found.map((s) => s.id)).not.toContain(unrelated.id);
+    expect(found.find((s) => s.id === byAccount.id)?.data).toEqual({ message: "via account" });
+
+    const result = await anonymizeFormSubmissionsBySubject(pool, { email: "person@example.com" });
+    expect(result.anonymized).toBe(1);
+
+    const after = await pool.query("SELECT submitter_email, data FROM form_submissions WHERE id = $1", [byAccount.id]);
+    expect(after.rows[0].submitter_email).toBeNull();
+    expect(after.rows[0].data).toEqual({ message: "via account" });
+    expect(await listFormSubmissionsBySubject(pool, { email: "person@example.com" })).toHaveLength(0);
   });
 
   it("stores a submission with GDPR anchors and cascades it on form delete", async () => {

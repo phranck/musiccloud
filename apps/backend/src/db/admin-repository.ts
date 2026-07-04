@@ -238,6 +238,25 @@ export interface FormSubmissionInsertData {
   developerAccountId?: string | null;
 }
 
+/**
+ * The person a GDPR request is about (MC-085): an account holder (both
+ * fields) or an account-less submitter (email only). Email matching is
+ * case-insensitive.
+ */
+export interface PersonalDataSubject {
+  developerAccountId?: string;
+  email: string;
+}
+
+/** One stored form submission as returned to GDPR tooling (export packages). */
+export interface FormSubmissionDto {
+  id: number;
+  formConfigId: number;
+  data: Record<string, unknown>;
+  submitterEmail: string | null;
+  createdAt: Date;
+}
+
 // ----------------------------------------------------------------------------
 // Content pages (managed in dashboard, rendered by Astro frontend at /:slug)
 // ----------------------------------------------------------------------------
@@ -830,6 +849,24 @@ export interface AdminRepository {
    * @returns The new submission's id.
    */
   insertFormSubmission(data: FormSubmissionInsertData): Promise<{ id: number }>;
+  /**
+   * Lists every stored submission attributable to a person — matched by
+   * account id OR (case-insensitively) by submitter email. Backs the GDPR
+   * export package (MC-085).
+   *
+   * @param subject - The person the request is about.
+   * @returns The matching submissions, newest first.
+   */
+  listFormSubmissionsBySubject(subject: PersonalDataSubject): Promise<FormSubmissionDto[]>;
+  /**
+   * Removes the personal attribution from a person's submissions: nulls
+   * `submitter_email` on every match (account id OR email). Submission data
+   * itself stays (erasure by anonymisation) — MC-085.
+   *
+   * @param subject - The person the request is about.
+   * @returns How many rows were anonymised.
+   */
+  anonymizeFormSubmissionsBySubject(subject: PersonalDataSubject): Promise<{ anonymized: number }>;
 
   // Content pages
   /**

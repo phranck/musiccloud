@@ -336,6 +336,24 @@ export async function findDeveloperIdentity(
   return rowToDeveloperIdentity(result.rows[0] as DeveloperIdentityRow);
 }
 
+/**
+ * Lists every auth identity linked to an account, oldest first — part of the
+ * GDPR export package (MC-085).
+ *
+ * @param pool - Postgres connection pool.
+ * @param accountId - The developer account's id.
+ */
+export async function listDeveloperIdentitiesByAccount(pool: Pool, accountId: string): Promise<DeveloperIdentity[]> {
+  const result = await pool.query(
+    `SELECT id, account_id, provider, provider_user_id, created_at
+     FROM developer_identities
+     WHERE account_id = $1
+     ORDER BY created_at ASC`,
+    [accountId],
+  );
+  return result.rows.map(rowToDeveloperIdentity);
+}
+
 // ============================================================================
 // EMAIL TOKENS
 // ============================================================================

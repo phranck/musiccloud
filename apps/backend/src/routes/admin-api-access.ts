@@ -8,10 +8,10 @@
  * `role: "admin"` claim, not the finer owner/admin/moderator distinction.
  */
 import { EmailAction, ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import type { AdminUser } from "../db/admin-repository.js";
+import type { FastifyInstance } from "fastify";
 import type { ApiAccessRequest, ApiClient, ApiClientToken } from "../db/api-access-repository.js";
-import { getAdminRepository, getApiAccessRepository } from "../db/index.js";
+import { getApiAccessRepository } from "../db/index.js";
+import { requireOwnerOrAdmin } from "../lib/admin-caller.js";
 import { generateApiToken } from "../services/api-access-token.js";
 import { notifyDeveloper } from "../services/developer-notifications.js";
 
@@ -21,28 +21,6 @@ import { notifyDeveloper } from "../services/developer-notifications.js";
  * `sub`/`role`, but the owner/admin/moderator check here needs the fresh
  * DB role in case it changed since the token was issued.
  */
-async function getCaller(request: { user?: unknown }) {
-  const payload = request.user as { sub?: string } | undefined;
-  if (!payload?.sub) return null;
-  const repo = await getAdminRepository();
-  return repo.findAdminById(payload.sub);
-}
-
-/**
- * Resolves the caller and rejects the request with 403 unless they are
- * `owner` or `admin`. Returns the caller so handlers can reuse it (e.g.
- * for `actorAdminId`) without a second `getCaller` DB round-trip.
- *
- * @returns The caller's DB record, or `null` if a 403 reply was already sent.
- */
-async function requireOwnerOrAdmin(request: FastifyRequest, reply: FastifyReply): Promise<AdminUser | null> {
-  const caller = await getCaller(request);
-  if (!caller || (caller.role !== "owner" && caller.role !== "admin")) {
-    await reply.status(403).send({ error: "FORBIDDEN", message: "Owner or admin role required." });
-    return null;
-  }
-  return caller;
-}
 
 function toRequestResponse(request: ApiAccessRequest) {
   return {
