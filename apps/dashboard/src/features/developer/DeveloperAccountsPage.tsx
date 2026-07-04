@@ -1,78 +1,140 @@
-import { PageHeader } from "@/components/ui/PageHeader";
-import { PageLayout } from "@/components/ui/PageLayout";
+import { UsersThree as UsersThreeIcon } from "@phosphor-icons/react";
+import { useMemo } from "react";
+import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
+import { PageBody, PageHeader, PageLayout } from "@/components/ui/PageLayout";
+import { type ColumnDef, DataTable } from "@/components/ui/Table";
+import { Toolbar } from "@/components/ui/Toolbar";
 import { useI18n } from "@/context/I18nContext";
-import { useDeveloperAccounts } from "@/features/developer/hooks/useDeveloperData";
+import type { DeveloperAccountResponse } from "@/features/developer/api";
 import { DeveloperAccountStatus } from "@/features/developer/domain";
+import { useDeveloperAccounts } from "@/features/developer/hooks/useDeveloperData";
+
+const STATUS_CLASS: Record<string, string> = {
+  [DeveloperAccountStatus.Active]: "bg-emerald-500/10 text-emerald-400",
+  [DeveloperAccountStatus.Suspended]: "bg-red-500/10 text-red-400",
+};
+
+function useAccountColumns(
+  dm: ReturnType<typeof useI18n>["messages"]["developer"],
+): ColumnDef<DeveloperAccountResponse>[] {
+  return useMemo<ColumnDef<DeveloperAccountResponse>[]>(
+    () => [
+      {
+        id: "email",
+        header: dm.colEmail,
+        sortKey: (a) => a.email.toLowerCase(),
+        cell: (a) => <span className="font-medium">{a.email}</span>,
+      },
+      {
+        id: "displayName",
+        header: dm.colDisplayName,
+        sortKey: (a) => a.displayName ?? "",
+        cell: (a) => <span className="text-[var(--ds-text-muted)]">{a.displayName ?? "—"}</span>,
+      },
+      {
+        id: "plan",
+        header: dm.colPlan,
+        className: "w-20",
+        sortKey: (a) => a.plan,
+        cell: (a) => <span>{a.plan}</span>,
+      },
+      {
+        id: "clientCount",
+        header: dm.colClients,
+        className: "w-20",
+        sortKey: (a) => a.clientCount,
+        cell: (a) => (
+          <span className="inline-block min-w-6 px-1.5 py-0.5 rounded text-xs font-medium text-center border border-[var(--ds-border)] text-[var(--ds-text)]">
+            {a.clientCount}
+          </span>
+        ),
+      },
+      {
+        id: "status",
+        header: dm.colStatus,
+        className: "w-28",
+        sortKey: (a) => a.status,
+        cell: (a) => {
+          const cls = STATUS_CLASS[a.status] ?? "bg-gray-500/10 text-gray-400";
+          const labelMap: Record<string, string> = {
+            [DeveloperAccountStatus.Active]: dm.statusActive,
+            [DeveloperAccountStatus.Suspended]: dm.statusSuspended,
+          };
+          return (
+            <span className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold ${cls}`}>
+              {labelMap[a.status] ?? a.status}
+            </span>
+          );
+        },
+      },
+      {
+        id: "createdAt",
+        header: dm.colRegistered,
+        className: "w-36",
+        sortKey: (a) => a.createdAt,
+        cell: (a) => (
+          <span className="text-[var(--ds-text-muted)] whitespace-nowrap">
+            {new Date(a.createdAt).toLocaleDateString("de-AT")}
+          </span>
+        ),
+      },
+    ],
+    [dm],
+  );
+}
 
 export function DeveloperAccountsPage() {
   const { messages } = useI18n();
   const dm = messages.developer;
   const { data, isLoading } = useDeveloperAccounts();
 
-  const statusBadge = (status: string) => {
-    const map: Record<string, string> = {
-      [DeveloperAccountStatus.Active]: "bg-emerald-500/10 text-emerald-400",
-      [DeveloperAccountStatus.Suspended]: "bg-red-500/10 text-red-400",
-    };
-    const labelMap: Record<string, string> = {
-      [DeveloperAccountStatus.Active]: dm.statusActive,
-      [DeveloperAccountStatus.Suspended]: dm.statusSuspended,
-    };
-    const cls = map[status] ?? "bg-gray-500/10 text-gray-400";
-    return (
-      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold ${cls}`}>
-        {labelMap[status] ?? status}
+  const columns = useAccountColumns(dm);
+  const accounts = data?.accounts ?? [];
+
+  const toolbar = accounts.length > 0 && (
+    <Toolbar>
+      <span className="text-sm text-[var(--ds-text-muted)]">
+        {accounts.length} {accounts.length === 1 ? "Account" : "Accounts"}
       </span>
-    );
-  };
+    </Toolbar>
+  );
 
   return (
     <PageLayout>
       <PageHeader title={dm.accountsTitle} />
-      {isLoading ? (
-        <div className="text-[var(--ds-text-muted)] text-sm">{messages.common.loading}</div>
-      ) : (
-        <div className="bg-[var(--ds-surface)] rounded-xl border border-[var(--ds-border-subtle)] overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-[var(--ds-border-subtle)] text-xs text-[var(--ds-text-muted)] uppercase tracking-wide">
-                <th className="text-left p-3 font-medium">{dm.colEmail}</th>
-                <th className="text-left p-3 font-medium">{dm.colDisplayName}</th>
-                <th className="text-left p-3 font-medium">{dm.colPlan}</th>
-                <th className="text-left p-3 font-medium">{dm.colClients}</th>
-                <th className="text-left p-3 font-medium">{dm.colStatus}</th>
-                <th className="text-left p-3 font-medium">{dm.colRegistered}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(data?.accounts ?? []).map((a) => (
-                <tr key={a.id} className="border-b border-[var(--ds-border-subtle)]">
-                  <td className="p-3 text-sm font-medium">{a.email}</td>
-                  <td className="p-3 text-sm text-[var(--ds-text-muted)]">
-                    {a.displayName ?? "—"}
-                  </td>
-                  <td className="p-3 text-sm">{a.plan}</td>
-                  <td className="p-3 text-sm">{a.clientCount}</td>
-                  <td className="p-3">{statusBadge(a.status)}</td>
-                  <td className="p-3 text-sm text-[var(--ds-text-muted)]">
-                    {new Date(a.createdAt).toLocaleDateString("de-AT")}
-                  </td>
-                </tr>
-              ))}
-              {(!data || data.accounts.length === 0) && (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="p-6 text-center text-sm text-[var(--ds-text-muted)]"
-                  >
-                    Keine Developer Accounts
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <PageBody>
+        {isLoading && (
+          <div className="space-y-px">
+            {Array.from({ length: 5 }, (_, i) => `sk-${i}`).map((key) => (
+              <div
+                key={key}
+                className="h-14 bg-[var(--ds-surface)] animate-pulse border-b border-[var(--ds-border-subtle)]"
+              />
+            ))}
+          </div>
+        )}
+
+        {!isLoading && accounts.length === 0 && (
+          <ContentUnavailableView
+            icon={<UsersThreeIcon weight="duotone" aria-hidden />}
+            title="Keine Developer Accounts"
+            className="flex-1 min-h-0"
+          />
+        )}
+
+        {!isLoading && accounts.length > 0 && (
+          <div className="-mx-3 -mt-3 min-h-0 flex-1 overflow-y-auto">
+            <DataTable
+              columns={columns}
+              data={accounts}
+              getRowKey={(a) => a.id}
+              stickyHeader
+              defaultSort={{ id: "createdAt", dir: "desc" }}
+            />
+          </div>
+        )}
+      </PageBody>
+      {toolbar}
     </PageLayout>
   );
 }
