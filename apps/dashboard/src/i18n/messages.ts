@@ -158,6 +158,13 @@ export interface DashboardMessages {
     colClients: string;
     colRegistered: string;
     overviewCardLabel: string;
+    noRequests: string;
+    requestCount: string;
+    accountCount: string;
+    noAccounts: string;
+    copied: string;
+    descriptionLabel: string;
+    rateLimitsLabel: string;
   };
   music: {
     tracks: {
@@ -1033,6 +1040,13 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       colClients: "Clients",
       colRegistered: "Registriert",
       overviewCardLabel: "Offene API-Requests",
+      noRequests: "Keine Requests",
+      requestCount: "{n} Requests",
+      accountCount: "{n} Accounts",
+      noAccounts: "Keine Developer Accounts",
+      copied: "Kopiert!",
+      descriptionLabel: "Beschreibung",
+      rateLimitsLabel: "Rate Limits",
     },
     music: {
       tracks: {
@@ -1888,6 +1902,13 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       colClients: "Clients",
       colRegistered: "Registered",
       overviewCardLabel: "Pending API Requests",
+      noRequests: "No requests",
+      requestCount: "{n} requests",
+      accountCount: "{n} accounts",
+      noAccounts: "No developer accounts",
+      copied: "Copied!",
+      descriptionLabel: "Description",
+      rateLimitsLabel: "Rate Limits",
     },
     music: {
       tracks: {

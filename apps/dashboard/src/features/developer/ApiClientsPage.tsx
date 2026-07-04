@@ -65,7 +65,7 @@ export function ApiClientsPage() {
               size="action"
               onClick={() => handleCopy(revealToken)}
             >
-              {copied ? "Kopiert!" : dm.tokenRevealCopy}
+              {copied ? dm.copied : dm.tokenRevealCopy}
             </DashboardButton>
           </div>
         )}

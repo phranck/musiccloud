@@ -110,7 +110,7 @@ export function RequestDetailPage() {
           <div className="flex-1 min-w-0 space-y-6">
             <div>
               <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--ds-text-muted)] mb-3">
-                Beschreibung
+                {dm.descriptionLabel}
               </h3>
               <p className="text-sm leading-relaxed">{r.appDescription}</p>
             </div>
@@ -118,7 +118,7 @@ export function RequestDetailPage() {
             {isPending && (
               <div className="pt-2">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--ds-text-muted)] mb-4">
-                  Rate Limits
+                  {dm.rateLimitsLabel}
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>

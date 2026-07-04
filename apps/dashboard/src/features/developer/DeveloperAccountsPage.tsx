@@ -101,7 +101,7 @@ export function DeveloperAccountsPage() {
   const toolbar = accounts.length > 0 && (
     <Toolbar>
       <span className="text-sm text-[var(--ds-text-muted)]">
-        {accounts.length} {accounts.length === 1 ? "Account" : "Accounts"}
+        {dm.accountCount.replace("{n}", String(accounts.length))}
       </span>
     </Toolbar>
   );
@@ -124,7 +124,7 @@ export function DeveloperAccountsPage() {
         {!isLoading && accounts.length === 0 && (
           <ContentUnavailableView
             icon={<UsersThreeIcon weight="duotone" aria-hidden />}
-            title="Keine Developer Accounts"
+            title={dm.noAccounts}
             className="flex-1 min-h-0"
           />
         )}

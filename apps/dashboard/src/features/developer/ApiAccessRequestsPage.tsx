@@ -139,7 +139,7 @@ export function ApiAccessRequestsPage() {
   const toolbar = requests.length > 0 && (
     <Toolbar>
       <span className="text-sm text-[var(--ds-text-muted)]">
-        {requests.length} {requests.length === 1 ? "Request" : "Requests"}
+        {dm.requestCount.replace("{n}", String(requests.length))}
       </span>
     </Toolbar>
   );
@@ -162,7 +162,7 @@ export function ApiAccessRequestsPage() {
         {!isLoading && requests.length === 0 && (
           <ContentUnavailableView
             icon={<ClipboardTextIcon weight="duotone" aria-hidden />}
-            title="Keine Requests"
+            title={dm.noRequests}
             className="flex-1 min-h-0"
           />
         )}
