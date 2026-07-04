@@ -74,6 +74,7 @@ describe("email actions registry", () => {
 
   it("exposes the optional developer lifecycle notifications (MC-084)", () => {
     const expectations = [
+      { key: EmailAction.DeveloperAccountCreated, contextVariables: [] as string[] },
       { key: EmailAction.DeveloperAccountDeleted, contextVariables: [] as string[] },
       { key: EmailAction.DeveloperApiAccessApproved, contextVariables: ["appName"] },
       { key: EmailAction.DeveloperApiAccessRejected, contextVariables: ["appName", "reviewNote"] },

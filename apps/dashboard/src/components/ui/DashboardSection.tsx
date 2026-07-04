@@ -117,7 +117,9 @@ function DashboardSectionItem({
   className = "",
   onClick,
 }: DashboardSectionItemProps) {
-  const itemClass = `flex items-center gap-3 py-2 px-3 rounded-control text-sm font-medium ${
+  // text-left neutralises the browser's centered text-align default on the
+  // <button> variant, so clickable items align like the static div variant.
+  const itemClass = `flex items-center gap-3 py-2 px-3 rounded-control text-left text-sm font-medium ${
     active
       ? "bg-[var(--ds-nav-active-bg)] text-[var(--ds-nav-active-text)]"
       : "text-[var(--ds-nav-text)] hover:bg-[var(--ds-nav-hover-bg)] hover:text-[var(--ds-nav-hover-text)]"

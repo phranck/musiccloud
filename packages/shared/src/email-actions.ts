@@ -57,6 +57,13 @@ export const EMAIL_ACTIONS = {
     recipientKind: EmailRecipientKind.DeveloperAccount,
     required: true,
   },
+  developerAccountCreated: {
+    key: "developerAccountCreated",
+    label: "Developer account created",
+    contextVariables: [],
+    recipientKind: EmailRecipientKind.DeveloperAccount,
+    required: false,
+  },
   developerAccountDeleted: {
     key: "developerAccountDeleted",
     label: "Developer account deleted",
@@ -95,6 +102,7 @@ export const EmailAction = {
   AdminInviteSent: "adminInviteSent",
   DeveloperVerificationRequested: "developerVerificationRequested",
   DeveloperPasswordResetRequested: "developerPasswordResetRequested",
+  DeveloperAccountCreated: "developerAccountCreated",
   DeveloperAccountDeleted: "developerAccountDeleted",
   DeveloperApiAccessApproved: "developerApiAccessApproved",
   DeveloperApiAccessRejected: "developerApiAccessRejected",

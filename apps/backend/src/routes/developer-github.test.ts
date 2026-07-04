@@ -19,7 +19,7 @@
  */
 import cookie from "@fastify/cookie";
 import jwt from "@fastify/jwt";
-import { ENDPOINTS } from "@musiccloud/shared";
+import { EmailAction, ENDPOINTS } from "@musiccloud/shared";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -28,7 +28,12 @@ import { getDeveloperRepository } from "../db/index.js";
 import authPlugin from "../plugins/auth.js";
 import { SESSION_COOKIE_NAME } from "../services/developer-auth.js";
 import { exchangeGitHubCode, fetchGitHubProfile, GitHubOAuth } from "../services/developer-github.js";
+import { triggerEmailAction } from "../services/email-actions.js";
 import { devGitHubRoutes } from "./developer-github.js";
+
+vi.mock("../services/email-actions.js", () => ({
+  triggerEmailAction: vi.fn(async () => undefined),
+}));
 
 vi.mock("../db/index.js", () => ({
   getDeveloperRepository: vi.fn(),
@@ -117,6 +122,7 @@ function makeRepo(): DeveloperRepository {
       createdAt: Date.now(),
     })),
     findDeveloperIdentity: vi.fn(async () => null),
+    listDeveloperIdentitiesByAccount: vi.fn(async () => []),
     createDeveloperEmailToken: vi.fn(async () => ({
       id: "tok-1",
       accountId: "dev-acc-1",
@@ -391,6 +397,10 @@ describe("POST /api/dev/auth/github/exchange", () => {
       providerUserId: "gh-42",
     });
     expect(vi.mocked(repo.markDeveloperEmailVerified)).toHaveBeenCalledWith("dev-acc-new");
+    expect(vi.mocked(triggerEmailAction)).toHaveBeenCalledWith(
+      EmailAction.DeveloperAccountCreated,
+      expect.objectContaining({ to: { email: "dev@example.com" } }),
+    );
     expect(findSessionSetCookie(res.headers["set-cookie"])).toBeDefined();
   });
 

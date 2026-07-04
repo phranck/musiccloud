@@ -7,7 +7,7 @@
  * account and issues the same `mc_dev_session` cookie as email login.
  */
 import crypto from "node:crypto";
-import { ENDPOINTS } from "@musiccloud/shared";
+import { EmailAction, EmailRecipientKind, ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { DeveloperAccount } from "../db/developer-repository.js";
 import { getDeveloperRepository } from "../db/index.js";
@@ -20,6 +20,7 @@ import {
   fetchGitHubProfile,
   GitHubOAuth,
 } from "../services/developer-github.js";
+import { triggerEmailAction } from "../services/email-actions.js";
 import { buildAccountResponse } from "./developer-auth.js";
 
 /** Dedicated per-IP throttle for the OAuth exchange (20/min), separate from the global apiRateLimiter. */
@@ -122,6 +123,20 @@ export async function devGitHubRoutes(app: FastifyInstance) {
           providerUserId: profile.id,
         });
         await repo.markDeveloperEmailVerified(created.id);
+        // Optional welcome notification — must never fail the OAuth signup.
+        try {
+          await triggerEmailAction(EmailAction.DeveloperAccountCreated, {
+            to: { email: created.email },
+            recipient: {
+              kind: EmailRecipientKind.DeveloperAccount,
+              email: created.email,
+              displayName: created.displayName,
+            },
+            context: {},
+          });
+        } catch (error) {
+          request.log.error({ err: error }, "failed to send account-created notification");
+        }
         account = created;
       }
     }
