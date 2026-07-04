@@ -107,6 +107,9 @@ DerivedData/
 # Local DB-dump helper (machine-specific: Zerops project id + local DB creds)
 scripts/dbdump
 
+# Personal / local-only reference docs (never publish — may contain private data)
+/.private/
+
 # OS
 .DS_Store
 
