@@ -174,10 +174,12 @@ Plan-Nr.: MC-066
 
 ## Task 7: Lokale Verifikation (Browser)
 
-- [ ] **Step 1:** Dev-Server via `./app start` (developer + backend). Backend braucht lokale DB + `mc_dev_session`-fähige Env.
-- [ ] **Step 2: agent-browser** (erste Wahl, [[browser_verification]]): Rendering aller Seiten prüfen (`/login`, `/signup`, `/verify`, `/forgot`, `/reset`, `/dashboard`→redirect). Konsole + Server-Log auf SSR-Island-Fehler prüfen (kein LocaleProvider-Crash, da kein `useT`).
-- [ ] **Step 3: E-Mail-Flow lokal** (kein echter Versand nötig fürs Rendering): Signup-Form abschicken → 201-State; Login mit falschen Daten → Fehler-State; Login-Redirect-Logik. **Kein unbeaufsichtigtes Playback/Mailversand** — nur UI-/Status-Verifikation.
-- [ ] **Step 4:** Screenshots Login + Signup + Dashboard (Beleg, [[doc_screenshots]] gilt für Doku, hier reicht lokal). Geometrie/Tokens gegen Landing + Spec abgleichen.
+> **Nachtrag (2026-07-04):** Diese vier Steps wurden am 2026-06-27 tatsächlich ausgeführt (agent-browser: alle Auth-Seiten zentriert/mockup-treu, voller Login-Flow e2e mit lokalem Test-Account, `/dashboard`-Redirect ohne Session, keine Konsolen-Fehler, Live-Box-Messungen) — siehe „Completed" + „Browser-Verifikation (agent-browser)" unten. Nur die Inline-Boxen waren nie abgehakt; hier nachgeholt.
+
+- [x] **Step 1:** Dev-Server via `./app start` (developer + backend). Backend braucht lokale DB + `mc_dev_session`-fähige Env.
+- [x] **Step 2: agent-browser** (erste Wahl, [[browser_verification]]): Rendering aller Seiten prüfen (`/login`, `/signup`, `/verify`, `/forgot`, `/reset`, `/dashboard`→redirect). Konsole + Server-Log auf SSR-Island-Fehler prüfen (kein LocaleProvider-Crash, da kein `useT`).
+- [x] **Step 3: E-Mail-Flow lokal** (kein echter Versand nötig fürs Rendering): Signup-Form abschicken → 201-State; Login mit falschen Daten → Fehler-State; Login-Redirect-Logik. **Kein unbeaufsichtigtes Playback/Mailversand** — nur UI-/Status-Verifikation.
+- [x] **Step 4:** Screenshots Login + Signup + Dashboard (Beleg, [[doc_screenshots]] gilt für Doku, hier reicht lokal). Geometrie/Tokens gegen Landing + Spec abgleichen.
 
 ## Tests und Gates
 

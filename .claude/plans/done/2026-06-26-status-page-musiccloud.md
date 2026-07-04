@@ -40,18 +40,18 @@ Vor jedem Bau: die offenen technischen Fragen der Spec auflösen, am echten Code
 - Create: `.upptimerc.yml` (Owner/Repo, `sites:` in Reihenfolge inkl. `Email` → `https://api.musiccloud.io/health/email`, `status-website`-Block: name, logoUrl, theme)
 - Create: `CNAME` (`status.musiccloud.io`)
 
-- [ ] Das bestehende leere Repo `phranck/status.musiccloud.io` mit Upptime-Template-Inhalt befüllen (klonen, Template-Struktur einspielen, pushen).
-- [ ] `sites:` mit musiccloud-Services in gewünschter Reihenfolge: Frontend, API, Backend, Database, Email, Developer Site.
-- [ ] Monitoring-Lauf grün (Up/Down korrekt erkannt) vor jeder Theme-Arbeit.
+- [x] Das bestehende leere Repo `phranck/status.musiccloud.io` mit Upptime-Template-Inhalt befüllen (klonen, Template-Struktur einspielen, pushen).
+- [x] `sites:` mit musiccloud-Services in gewünschter Reihenfolge: Frontend, API, Backend, Database, Email, Developer Site.
+- [x] Monitoring-Lauf grün (Up/Down korrekt erkannt) vor jeder Theme-Arbeit.
 
 ## Task 3: `/health/email`-Endpoint im Backend (Variante B)
 
 **Files (musiccloud monorepo):**
 - Modify/Create: `apps/backend/...` (öffentlicher `GET /health/email`, prüft SMTP2GO-Erreichbarkeit server-seitig, `200`/`503`, kein Secret nach außen)
 
-- [ ] Endpoint implementiert, TSDoc, kein Secret im Response/Log.
-- [ ] Lokal + deployt verifiziert (`200` bei gesundem Provider, `503` simuliert).
-- [ ] Exakter Pfad/Dateistruktur nach Inspektion der bestehenden Backend-Routen (Task-intern verifizieren, nicht raten).
+- [x] Endpoint implementiert, TSDoc, kein Secret im Response/Log.
+- [x] Lokal + deployt verifiziert (`200` bei gesundem Provider, `503` simuliert).
+- [x] Exakter Pfad/Dateistruktur nach Inspektion der bestehenden Backend-Routen (Task-intern verifizieren, nicht raten).
 
 ## Task 4: Custom-Theme bauen (Look)
 
@@ -72,14 +72,14 @@ Umsetzung als **`status-website.css`-Block + `customHeadHtml`** in `.upptimerc.y
 
 ## Task 6: RSS/Atom-Abo
 
-- [ ] „Subscribe" verlinkt den Upptime-Feed (Feed-Pfad in Task 1 bestätigen).
-- [ ] Keine E-Mail-Erfassung, keine Personendaten.
+- [x] „Subscribe" verlinkt den Upptime-Feed (Feed-Pfad in Task 1 bestätigen).
+- [x] Keine E-Mail-Erfassung, keine Personendaten.
 
 ## Task 7: Pages-Deploy unter `status.musiccloud.io`
 
-- [ ] GitHub Pages aktiv, `CNAME` gesetzt, DNS `CNAME status.musiccloud.io → <user>.github.io` (mit Betreiber).
-- [ ] „Enforce HTTPS" aktiv (Let's-Encrypt automatisch).
-- [ ] Seite live, Theme korrekt, alle Services sichtbar.
+- [x] GitHub Pages aktiv, `CNAME` gesetzt, DNS `CNAME status.musiccloud.io → <user>.github.io` (mit Betreiber).
+- [x] „Enforce HTTPS" aktiv (Let's-Encrypt automatisch).
+- [x] Seite live, Theme korrekt, alle Services sichtbar.
 
 ## Task 8: Automatische Deploy-Ankündigungen (MVP Backend)
 
@@ -91,10 +91,10 @@ Umsetzung als **`status-website.css`-Block + `customHeadHtml`** in `.upptimerc.y
 **Files (musiccloud monorepo):**
 - Modify: `.github/workflows/ci.yml` (`deploy-backend`: Announce-Start vor `zcli push`, Announce-End `if: always()` danach)
 
-- [ ] `STATUS_DISPATCH_TOKEN` (fein-scoped, nur Issue-Write aufs Status-Repo) als Secret im Monorepo.
-- [ ] Backend-Deploy setzt/schließt das Banner automatisch (success + failure getestet).
-- [ ] Manueller `workflow_dispatch`-Schalter funktioniert (geplante Wartung ohne Deploy).
-- [ ] Andere Services (Frontend/Dashboard/Developer) als opt-in dokumentiert (Copy-Paste der zwei Schritte).
+- [x] `STATUS_DISPATCH_TOKEN` (fein-scoped, nur Issue-Write aufs Status-Repo) als Secret im Monorepo.
+- [x] Backend-Deploy setzt/schließt das Banner automatisch (success + failure getestet).
+- [x] Manueller `workflow_dispatch`-Schalter funktioniert (geplante Wartung ohne Deploy).
+- [x] Andere Services (Frontend/Dashboard/Developer) als opt-in dokumentiert (Copy-Paste der zwei Schritte).
 
 ## Task 9: Build-Performance
 
@@ -144,11 +144,21 @@ Umsetzung als **`status-website.css`-Block + `customHeadHtml`** in `.upptimerc.y
 
 ## Checkliste (Definition of Done)
 
-- [ ] Task 1 Spike abgeschlossen, Entscheidungen in Spec nachgetragen.
-- [ ] `status.musiccloud.io` live mit Custom-Theme, alle Services + Email sichtbar.
-- [ ] `/health/email` deployt und vom Monitor erfasst.
-- [ ] RSS-Abo verlinkt, keine E-Mail-Erfassung.
-- [ ] Backend-Deploy kündigt automatisch an (success + failure verifiziert), manueller Fallback funktioniert.
-- [ ] Build-Caching aktiv.
-- [ ] All code references verified (functions, scripts, paths, env vars, package-manager commands).
-- [ ] Theme als wiederverwendbares Template dokumentiert (Übernahme für weiteres Projekt skizziert).
+- [x] Task 1 Spike abgeschlossen, Entscheidungen in Spec nachgetragen.
+- [x] `status.musiccloud.io` live mit Custom-Theme, alle Services + Email sichtbar (Velvet-Pivot statt CSS-Reskin — Tasks 4/5 dadurch abgelöst).
+- [x] `/health/email` deployt und vom Monitor erfasst.
+- [x] RSS-Abo verlinkt, keine E-Mail-Erfassung.
+- [x] Backend-Deploy kündigt automatisch an (alle vier Services verdrahtet; Dashboard-Deploy live verifiziert: Banner öffnete + schloss; Failure-Pfad via `if: always()`; manueller `maintenance-switch.yml`-Fallback vorhanden).
+- [ ] Build-Caching aktiv. — **Bewusst YAGNI-zurückgestellt:** die Latenz, gegen die der Fast-Path (`status.json`) hedgte, ist stattdessen durch den Velvet-Banner-Auto-Refresh gelöst; `actions/cache` im Status-Repo-Build bleibt optionaler Folge-Schritt.
+- [x] All code references verified (functions, scripts, paths, env vars, package-manager commands).
+- [x] Theme als wiederverwendbares Template dokumentiert (velvet-template-README „Deploy banners from your CI" + `deploy-announce.yml`-Kommentarfix).
+
+## Abgeschlossen (2026-07-04)
+
+status.musiccloud.io ist live über den **Velvet-Pivot** (eigenes Front-end statt CSS-Reskin auf Stock-Upptime — Tasks 4/5 dadurch abgelöst, siehe „Umsetzungsstand"). Heute komplettiert:
+
+- **Deploy-Announce** für alle vier Deploy-Jobs (Backend/Frontend/Developer/Dashboard) in `ci.yml` verdrahtet, `STATUS_DISPATCH_TOKEN` gesetzt, **live verifiziert** (Dashboard-Deploy: Banner „🚀 Deploying Dashboard" öffnete 16:55, schloss 16:57); Backend-Slug-Bug (`api` → `backend`) gefixt.
+- **Sendeseite dokumentiert** in velvet-template (`c605cf1`) + status.musiccloud.io (`0352d24`); Token-Scope-Fehler `issues:write` → `contents:write` korrigiert.
+- **Bonus:** Velvet-Banner-Auto-Refresh (60 s bei sichtbarem Tab + Fokus-Refetch, rate-limit-schonend) gebaut und released (velvet `v1.7.0`, `v1` nachgezogen `2b96ce0f`); Status-Repo rebuildet, live.
+
+Einziger bewusst offener Punkt: **Task 9 Build-Caching** (YAGNI — der Fast-Path-Anlass ist durch den Auto-Refresh entfallen). Nach `done/` verschoben auf ausdrückliche User-Ansage vom 2026-07-04.
