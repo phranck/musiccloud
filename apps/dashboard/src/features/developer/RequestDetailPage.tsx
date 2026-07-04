@@ -1,11 +1,16 @@
 import { DashboardButtonVariant, DashboardInput } from "@musiccloud/dashboard-ui";
 import {
+  ChartBar as ChartBarIcon,
   CheckCircle as CheckCircleIcon,
+  ClockCountdown as ClockCountdownIcon,
+  Info as InfoIcon,
   SpinnerGap as SpinnerGapIcon,
+  User as UserIcon,
   XCircle as XCircleIcon,
 } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
+import { DashboardSection } from "@/components/ui/DashboardSection";
 import { EditorPageShell } from "@/components/ui/EditorPageShell";
 import { EditorToolbarButton } from "@/components/ui/EditorToolbarButton";
 import { useI18n } from "@/context/I18nContext";
@@ -85,41 +90,58 @@ export function RequestDetailPage() {
         toolbar={toolbar}
         cardClassName="!flex-initial w-[60%]"
       >
-        <div className="flex gap-6">
-          {/* Left column: Info */}
-          <div className="shrink-0 w-[220px] flex flex-col gap-4">
-            <div className="bg-[var(--ds-surface-raised)] rounded-lg p-4 space-y-3">
-              <div>
-                <div className={labelClass}>{dm.colDeveloper}</div>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <DashboardSection>
+              <DashboardSection.Header
+                icon={<UserIcon weight="duotone" className="size-4" />}
+                title={dm.colDeveloper}
+              />
+              <DashboardSection.Body>
                 <div className="text-sm">{r.contactEmail}</div>
-              </div>
-              <div>
-                <div className={labelClass}>{dm.colSubmitted}</div>
+              </DashboardSection.Body>
+            </DashboardSection>
+
+            <DashboardSection>
+              <DashboardSection.Header
+                icon={<ClockCountdownIcon weight="duotone" className="size-4" />}
+                title={dm.colSubmitted}
+              />
+              <DashboardSection.Body>
                 <div className="text-sm text-[var(--ds-text-muted)]">
                   {new Date(r.submittedAt).toLocaleDateString("de-AT")}
                 </div>
-              </div>
-              <div>
-                <div className={labelClass}>{dm.colTraffic}</div>
+              </DashboardSection.Body>
+            </DashboardSection>
+
+            <DashboardSection>
+              <DashboardSection.Header
+                icon={<ChartBarIcon weight="duotone" className="size-4" />}
+                title={dm.colTraffic}
+              />
+              <DashboardSection.Body>
                 <div className="text-sm font-medium">~{r.estimatedRequestsPerDay} / Tag</div>
-              </div>
-            </div>
+              </DashboardSection.Body>
+            </DashboardSection>
           </div>
 
-          {/* Right column: Description + Rate Limits */}
-          <div className="flex-1 min-w-0 space-y-6">
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--ds-text-muted)] mb-3">
-                {dm.descriptionLabel}
-              </h3>
+          <DashboardSection className="overflow-hidden">
+            <DashboardSection.Header
+              icon={<InfoIcon weight="duotone" className="size-4" />}
+              title={dm.descriptionLabel}
+            />
+            <DashboardSection.Body>
               <p className="text-sm leading-relaxed">{r.appDescription}</p>
-            </div>
+            </DashboardSection.Body>
+          </DashboardSection>
 
-            {isPending && (
-              <div className="pt-2">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--ds-text-muted)] mb-4">
-                  {dm.rateLimitsLabel}
-                </h3>
+          {isPending && (
+            <DashboardSection className="overflow-hidden">
+              <DashboardSection.Header
+                icon={<ChartBarIcon weight="duotone" className="size-4" />}
+                title={dm.rateLimitsLabel}
+              />
+              <DashboardSection.Body>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="req-per-min" className={labelClass}>
@@ -144,9 +166,9 @@ export function RequestDetailPage() {
                     />
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
+              </DashboardSection.Body>
+            </DashboardSection>
+          )}
         </div>
       </EditorPageShell>
 
