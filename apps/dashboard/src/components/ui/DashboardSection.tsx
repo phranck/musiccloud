@@ -98,9 +98,16 @@ function DashboardSectionBody({ children, className = "", flush = false }: Dashb
 
 /* ---- DashboardSection.Footer -------------------------------------- */
 
+/**
+ * Card footer bar closing a {@link DashboardSection}. Action buttons live
+ * here, right-aligned — a project-wide UI rule, so `justify-end` is the
+ * built-in default rather than something each call site re-declares.
+ */
 function DashboardSectionFooter({ children, className = "" }: DashboardSectionFooterProps) {
   return (
-    <div className={`flex items-center gap-2 px-4 py-2.5 bg-[var(--ds-section-header-bg)] rounded-b-xl ${className}`}>
+    <div
+      className={`flex items-center justify-end gap-2 px-4 py-2.5 bg-[var(--ds-section-header-bg)] rounded-b-xl ${className}`}
+    >
       {children}
     </div>
   );

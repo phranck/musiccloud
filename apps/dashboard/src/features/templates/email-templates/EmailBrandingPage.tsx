@@ -6,7 +6,11 @@ import { DashboardSection } from "@/components/ui/DashboardSection";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SaveNotification, useSaveNotification } from "@/components/ui/SaveNotification";
 import { useI18n } from "@/context/I18nContext";
-import { AssetPickerControl, AssetPickerField } from "@/features/templates/email-templates/AssetPickerField";
+import {
+  AssetPickerActions,
+  AssetPickerField,
+  AssetPickerPreview,
+} from "@/features/templates/email-templates/AssetPickerField";
 import { GradientColorFields } from "@/features/templates/email-templates/GradientColorFields";
 import { collectGradientSwatches, type GradientSwatch } from "@/features/templates/email-templates/gradientSwatches";
 import {
@@ -31,7 +35,6 @@ type BrandingDraft = EmailBranding;
  */
 const EMPTY_DRAFT: BrandingDraft = {
   headerAssetId: null,
-  footerAssetId: null,
   footerText: null,
   lightBackgroundAssetId: null,
   darkBackgroundAssetId: null,
@@ -42,13 +45,20 @@ const EMPTY_DRAFT: BrandingDraft = {
 };
 
 /**
+ * localStorage key under which the footer-text Markdown editor persists its
+ * drag-resized height, so it reopens at the user's last chosen size across
+ * reloads.
+ */
+const FOOTER_TEXT_EDITOR_HEIGHT_STORAGE_KEY = "musiccloud.emailBranding.footerTextHeight";
+
+/**
  * Settings page for the global email branding singleton (System → Templates
  * → Email branding).
  *
  * Unlike an email template, branding is not a list of records the admin
  * creates and deletes — there is exactly one `email_branding` row server-side.
  * It is the DEFAULT wrapped around every rendered template (header image,
- * footer image + text, day/night page background), which individual templates
+ * footer text, day/night page background), which individual templates
  * may override. This page edits that one default row directly, with no
  * create/delete affordances.
  *
@@ -87,7 +97,6 @@ export function EmailBrandingPage() {
   const isDirty =
     !!existing &&
     (draft.headerAssetId !== existing.headerAssetId ||
-      draft.footerAssetId !== existing.footerAssetId ||
       draft.footerText !== existing.footerText ||
       draft.lightBackgroundAssetId !== existing.lightBackgroundAssetId ||
       draft.darkBackgroundAssetId !== existing.darkBackgroundAssetId ||
@@ -107,7 +116,6 @@ export function EmailBrandingPage() {
     updateMutation.mutate(
       {
         headerAssetId: draft.headerAssetId,
-        footerAssetId: draft.footerAssetId,
         footerText: draft.footerText?.trim() || null,
         lightBackgroundAssetId: draft.lightBackgroundAssetId,
         darkBackgroundAssetId: draft.darkBackgroundAssetId,
@@ -149,70 +157,70 @@ export function EmailBrandingPage() {
         </div>
       </PageHeader>
 
-      <div className="max-w-2xl space-y-4 overflow-y-auto p-3">
+      {/* No own padding: the AdminLayout outlet already wraps route content in p-3. */}
+      <div className="space-y-3 overflow-y-auto">
         <p className="text-sm text-[var(--ds-text-muted)]">{m.brandingDescription}</p>
 
-        <AssetPickerField
-          label={m.brandingHeaderImage}
-          hint={m.brandingImageHint}
-          assetId={draft.headerAssetId}
-          onAssetChange={(assetId) => updateField("headerAssetId", assetId)}
-        />
-
-        <AssetPickerField
-          label={m.brandingFooterImage}
-          hint={m.brandingImageHint}
-          assetId={draft.footerAssetId}
-          onAssetChange={(assetId) => updateField("footerAssetId", assetId)}
-        />
-
-        <DashboardSection>
-          <DashboardSection.Header
-            icon={<PaintBrushIcon weight="duotone" className="size-4" />}
-            title={m.brandingFooterText}
+        {/* Header image + footer text side by side (50/50); items-start keeps each
+            card its natural height. */}
+        <div className="grid grid-cols-2 items-start gap-3">
+          <AssetPickerField
+            label={m.brandingHeaderImage}
+            hint={m.brandingImageHint}
+            assetId={draft.headerAssetId}
+            onAssetChange={(assetId) => updateField("headerAssetId", assetId)}
           />
-          <DashboardSection.Body>
-            <Suspense
-              fallback={
-                <div className="h-24 animate-pulse rounded-control border border-[var(--ds-border)] bg-[var(--ds-input-bg)]" />
-              }
-            >
+
+          <DashboardSection>
+            <DashboardSection.Header
+              icon={<PaintBrushIcon weight="duotone" className="size-4" />}
+              title={m.brandingFooterText}
+            />
+            <Suspense fallback={<div className="h-24 animate-pulse rounded-b-xl bg-[var(--ds-input-bg)]" />}>
+              {/* `bare` drops the editor's own border so it embeds gaplessly as the card's bottom edge. */}
               <MarkdownEditor
                 value={draft.footerText ?? ""}
                 onChange={(footerText) => updateField("footerText", footerText)}
                 rows={4}
                 resizable
+                storageKey={FOOTER_TEXT_EDITOR_HEIGHT_STORAGE_KEY}
+                bare
+                className="rounded-b-xl"
                 placeholder={m.brandingFooterTextPlaceholder}
               />
             </Suspense>
-          </DashboardSection.Body>
-        </DashboardSection>
+          </DashboardSection>
+        </div>
 
-        <BackgroundEditor
-          icon={<SunIcon weight="duotone" className="size-4" />}
-          title={m.brandingLightBackground}
-          gradientTop={draft.lightGradientTop}
-          gradientBottom={draft.lightGradientBottom}
-          onGradientChange={(next) =>
-            setDraft((prev) => ({ ...prev, lightGradientTop: next.top, lightGradientBottom: next.bottom }))
-          }
-          assetId={draft.lightBackgroundAssetId}
-          onAssetChange={(assetId) => updateField("lightBackgroundAssetId", assetId)}
-          swatches={swatches}
-        />
+        {/* Day + night sit side by side (50/50); items-start keeps each card its
+            natural height so a card without an image never grows a gap below its footer. */}
+        <div className="grid grid-cols-2 items-start gap-3">
+          <BackgroundEditor
+            icon={<SunIcon weight="duotone" className="size-4" />}
+            title={m.brandingLightBackground}
+            gradientTop={draft.lightGradientTop}
+            gradientBottom={draft.lightGradientBottom}
+            onGradientChange={(next) =>
+              setDraft((prev) => ({ ...prev, lightGradientTop: next.top, lightGradientBottom: next.bottom }))
+            }
+            assetId={draft.lightBackgroundAssetId}
+            onAssetChange={(assetId) => updateField("lightBackgroundAssetId", assetId)}
+            swatches={swatches}
+          />
 
-        <BackgroundEditor
-          icon={<MoonIcon weight="duotone" className="size-4" />}
-          title={m.brandingDarkBackground}
-          gradientTop={draft.darkGradientTop}
-          gradientBottom={draft.darkGradientBottom}
-          onGradientChange={(next) =>
-            setDraft((prev) => ({ ...prev, darkGradientTop: next.top, darkGradientBottom: next.bottom }))
-          }
-          assetId={draft.darkBackgroundAssetId}
-          onAssetChange={(assetId) => updateField("darkBackgroundAssetId", assetId)}
-          swatches={swatches}
-        />
+          <BackgroundEditor
+            icon={<MoonIcon weight="duotone" className="size-4" />}
+            title={m.brandingDarkBackground}
+            gradientTop={draft.darkGradientTop}
+            gradientBottom={draft.darkGradientBottom}
+            onGradientChange={(next) =>
+              setDraft((prev) => ({ ...prev, darkGradientTop: next.top, darkGradientBottom: next.bottom }))
+            }
+            assetId={draft.darkBackgroundAssetId}
+            onAssetChange={(assetId) => updateField("darkBackgroundAssetId", assetId)}
+            swatches={swatches}
+          />
+        </div>
       </div>
     </div>
   );
@@ -232,8 +240,9 @@ interface BackgroundEditorProps {
 /**
  * One day/night background editor section: a hint, the gradient colour fields
  * (with preset swatches), and an optional background-image slot layered over
- * the gradient. Rendered twice on the branding page — once for the light (day)
- * scheme, once for the dark (night) scheme.
+ * the gradient — preview in the body, the image actions right-aligned in the
+ * card footer (project UI rule). Rendered twice on the branding page — once
+ * for the light (day) scheme, once for the dark (night) scheme.
  */
 function BackgroundEditor({
   icon,
@@ -261,9 +270,12 @@ function BackgroundEditor({
         />
         <div>
           <p className="mb-1 text-xs font-medium text-[var(--ds-text-muted)]">{m.brandingGradientImage}</p>
-          <AssetPickerControl assetId={assetId} onAssetChange={onAssetChange} />
+          <AssetPickerPreview assetId={assetId} />
         </div>
       </DashboardSection.Body>
+      <DashboardSection.Footer>
+        <AssetPickerActions assetId={assetId} onAssetChange={onAssetChange} />
+      </DashboardSection.Footer>
     </DashboardSection>
   );
 }

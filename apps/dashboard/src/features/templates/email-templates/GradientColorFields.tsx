@@ -93,7 +93,7 @@ function ColorField({ label, value, onChange }: ColorFieldProps) {
           value={value}
           onChange={(event) => onChange(event.target.value)}
           aria-label={label}
-          className="w-28 font-mono"
+          className="!w-[4.5rem] !px-2 text-xs font-mono"
         />
       </div>
     </div>

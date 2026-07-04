@@ -54,7 +54,6 @@ interface TemplateFormFields {
 /** A fresh template's branding: every override null (inherits the global default). */
 const EMPTY_TEMPLATE_BRANDING: EmailTemplateBranding = {
   headerAssetId: null,
-  footerAssetId: null,
   footerText: null,
   lightBackgroundAssetId: null,
   darkBackgroundAssetId: null,

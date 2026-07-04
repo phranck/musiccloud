@@ -27,7 +27,6 @@ import { getManagedEmailBranding, updateManagedEmailBranding } from "../services
  */
 interface EmailBrandingUpdateBody {
   headerAssetId?: string | null;
-  footerAssetId?: string | null;
   footerText?: string | null;
   lightBackgroundAssetId?: string | null;
   darkBackgroundAssetId?: string | null;
@@ -40,7 +39,6 @@ interface EmailBrandingUpdateBody {
 /** The nullable string fields: asset ids + footer text (present ⇒ string or null). */
 const NULLABLE_STRING_FIELDS = [
   "headerAssetId",
-  "footerAssetId",
   "footerText",
   "lightBackgroundAssetId",
   "darkBackgroundAssetId",

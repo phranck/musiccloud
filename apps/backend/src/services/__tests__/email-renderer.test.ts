@@ -6,7 +6,6 @@ import { renderBlocks, renderEmailPreview, resolveBranding } from "../email-rend
 /** Global branding default with the website night-sky shader gradient colours. */
 const GLOBAL: EmailBrandingDto = {
   headerAssetId: null,
-  footerAssetId: null,
   footerText: "share it everywhere",
   lightBackgroundAssetId: null,
   darkBackgroundAssetId: null,
@@ -22,7 +21,6 @@ describe("resolveBranding", () => {
   it("falls back to the global default for every absent override field", () => {
     expect(resolveBranding({}, GLOBAL)).toEqual({
       headerAssetId: null,
-      footerAssetId: null,
       footerText: "share it everywhere",
       lightBackgroundAssetId: null,
       darkBackgroundAssetId: null,
@@ -84,14 +82,13 @@ describe("renderBlocks", () => {
   it("builds an absolute asset URL from baseUrl for the live-send path", () => {
     const html = renderBlocks(
       [{ type: EmailBlockType.Image, assetId: "abc", altText: "" }],
-      { headerAssetId: "header1", footerAssetId: "footer1" },
+      { headerAssetId: "header1" },
       GLOBAL,
       {},
       baseUrl,
     );
     expect(html).toContain(`src="${baseUrl}/api/admin/email-assets/abc"`);
     expect(html).toContain(`src="${baseUrl}/api/admin/email-assets/header1"`);
-    expect(html).toContain(`src="${baseUrl}/api/admin/email-assets/footer1"`);
   });
 
   it("leaves a placeholder literal when its name isn't in the variables map, instead of blanking it", () => {
@@ -221,13 +218,12 @@ describe("renderEmailPreview", () => {
     // to this path, producing a 404 against the wrong server.
     const html = renderEmailPreview(
       [{ type: EmailBlockType.Image, assetId: "abc", altText: "" }],
-      { headerAssetId: "header1", footerAssetId: "footer1" },
+      { headerAssetId: "header1" },
       GLOBAL,
       "light",
     );
     expect(html).toContain('src="/api/admin/email-assets/abc"');
     expect(html).toContain('src="/api/admin/email-assets/header1"');
-    expect(html).toContain('src="/api/admin/email-assets/footer1"');
     expect(html).not.toContain("http://");
     expect(html).not.toContain("https://");
   });

@@ -38,7 +38,7 @@ import type {
  * branding-override columns).
  */
 const EMAIL_TEMPLATE_COLUMNS = `id, name, subject, blocks, is_system_template, created_at, updated_at,
-       header_asset_id, footer_asset_id, footer_text,
+       header_asset_id, footer_text,
        light_background_asset_id, dark_background_asset_id,
        light_gradient_top, light_gradient_bottom, dark_gradient_top, dark_gradient_bottom`;
 
@@ -49,7 +49,6 @@ const EMAIL_TEMPLATE_COLUMNS = `id, name, subject, blocks, is_system_template, c
  */
 const BRANDING_OVERRIDE_COLUMNS: Record<keyof EmailTemplateBrandingOverrides, string> = {
   headerAssetId: "header_asset_id",
-  footerAssetId: "footer_asset_id",
   footerText: "footer_text",
   lightBackgroundAssetId: "light_background_asset_id",
   darkBackgroundAssetId: "dark_background_asset_id",
@@ -72,7 +71,6 @@ interface EmailTemplateSqlRow {
   created_at: Date;
   updated_at: Date;
   header_asset_id: string | null;
-  footer_asset_id: string | null;
   footer_text: string | null;
   light_background_asset_id: string | null;
   dark_background_asset_id: string | null;
@@ -104,7 +102,6 @@ function rowToEmailTemplate(row: EmailTemplateSqlRow): EmailTemplateRow {
     updatedAt: row.updated_at,
     branding: {
       headerAssetId: row.header_asset_id,
-      footerAssetId: row.footer_asset_id,
       footerText: row.footer_text,
       lightBackgroundAssetId: row.light_background_asset_id,
       darkBackgroundAssetId: row.dark_background_asset_id,
@@ -317,7 +314,7 @@ export async function deleteEmailTemplate(pool: Pool, id: number): Promise<boole
  */
 export async function getEmailBranding(pool: Pool): Promise<EmailBrandingDto> {
   const r = await pool.query(
-    `SELECT header_asset_id, footer_asset_id, footer_text,
+    `SELECT header_asset_id, footer_text,
             light_background_asset_id, dark_background_asset_id,
             light_gradient_top, light_gradient_bottom, dark_gradient_top, dark_gradient_bottom
      FROM email_branding ORDER BY id ASC LIMIT 1`,
@@ -330,7 +327,6 @@ export async function getEmailBranding(pool: Pool): Promise<EmailBrandingDto> {
     // gradient contract of EmailBrandingDto always holds.
     return {
       headerAssetId: null,
-      footerAssetId: null,
       footerText: null,
       lightBackgroundAssetId: null,
       darkBackgroundAssetId: null,
@@ -342,7 +338,6 @@ export async function getEmailBranding(pool: Pool): Promise<EmailBrandingDto> {
   }
   return {
     headerAssetId: row.header_asset_id,
-    footerAssetId: row.footer_asset_id,
     footerText: row.footer_text,
     lightBackgroundAssetId: row.light_background_asset_id,
     darkBackgroundAssetId: row.dark_background_asset_id,
@@ -370,7 +365,6 @@ export async function getEmailBranding(pool: Pool): Promise<EmailBrandingDto> {
 export async function updateEmailBranding(pool: Pool, data: Partial<EmailBrandingDto>): Promise<EmailBrandingDto> {
   const columnMap: Record<keyof EmailBrandingDto, string> = {
     headerAssetId: "header_asset_id",
-    footerAssetId: "footer_asset_id",
     footerText: "footer_text",
     lightBackgroundAssetId: "light_background_asset_id",
     darkBackgroundAssetId: "dark_background_asset_id",

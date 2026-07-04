@@ -24,7 +24,6 @@ vi.mock("../email-provider.js", () => ({
 
 const BRANDING: EmailBrandingDto = {
   headerAssetId: null,
-  footerAssetId: null,
   footerText: null,
   lightBackgroundAssetId: null,
   darkBackgroundAssetId: null,
@@ -59,7 +58,6 @@ function makeTemplateRow(overrides: Partial<EmailTemplateRow> = {}): EmailTempla
     updatedAt: new Date(),
     branding: {
       headerAssetId: null,
-      footerAssetId: null,
       footerText: null,
       lightBackgroundAssetId: null,
       darkBackgroundAssetId: null,

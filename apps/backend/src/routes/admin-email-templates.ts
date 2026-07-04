@@ -58,7 +58,6 @@ function parseId(raw: string): number | null {
 /** Template-override asset/text fields: present ⇒ string or null (null = inherit global). */
 const BRANDING_OVERRIDE_NULLABLE_FIELDS = [
   "headerAssetId",
-  "footerAssetId",
   "footerText",
   "lightBackgroundAssetId",
   "darkBackgroundAssetId",

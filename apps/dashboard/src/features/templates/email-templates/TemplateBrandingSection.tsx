@@ -52,7 +52,6 @@ export function TemplateBrandingSection({ branding, onChange, global, swatches }
   // component remounts when the edited template changes, re-seeding this).
   const [modes, setModes] = useState(() => ({
     header: branding.headerAssetId !== null,
-    footer: branding.footerAssetId !== null,
     footerText: branding.footerText !== null,
     day: branding.lightGradientTop !== null || branding.lightBackgroundAssetId !== null,
     night: branding.darkGradientTop !== null || branding.darkBackgroundAssetId !== null,
@@ -64,10 +63,6 @@ export function TemplateBrandingSection({ branding, onChange, global, swatches }
   const toggleHeader = (on: boolean) => {
     setModes((prev) => ({ ...prev, header: on }));
     if (!on) setField("headerAssetId", null);
-  };
-  const toggleFooter = (on: boolean) => {
-    setModes((prev) => ({ ...prev, footer: on }));
-    if (!on) setField("footerAssetId", null);
   };
   const toggleFooterText = (on: boolean) => {
     setModes((prev) => ({ ...prev, footerText: on }));
@@ -124,10 +119,6 @@ export function TemplateBrandingSection({ branding, onChange, global, swatches }
 
         <OverrideGroup title={m.brandingHeaderImage} overridden={modes.header} onModeChange={toggleHeader}>
           <AssetPickerControl assetId={branding.headerAssetId} onAssetChange={(id) => setField("headerAssetId", id)} />
-        </OverrideGroup>
-
-        <OverrideGroup title={m.brandingFooterImage} overridden={modes.footer} onModeChange={toggleFooter}>
-          <AssetPickerControl assetId={branding.footerAssetId} onAssetChange={(id) => setField("footerAssetId", id)} />
         </OverrideGroup>
 
         <OverrideGroup title={m.brandingFooterText} overridden={modes.footerText} onModeChange={toggleFooterText}>

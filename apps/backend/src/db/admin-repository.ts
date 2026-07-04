@@ -135,7 +135,6 @@ export interface ListResult<T> {
  */
 export interface EmailTemplateBrandingOverrides {
   headerAssetId: string | null;
-  footerAssetId: string | null;
   footerText: string | null;
   lightBackgroundAssetId: string | null;
   darkBackgroundAssetId: string | null;
@@ -177,7 +176,6 @@ export interface EmailTemplateWriteData {
  */
 export interface EmailBrandingDto {
   headerAssetId: string | null;
-  footerAssetId: string | null;
   footerText: string | null;
   lightBackgroundAssetId: string | null;
   darkBackgroundAssetId: string | null;

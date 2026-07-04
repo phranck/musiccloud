@@ -129,7 +129,6 @@ function assetUrl(assetId: string, baseUrl: string | null): string {
  */
 export interface ResolvedBranding {
   headerAssetId: string | null;
-  footerAssetId: string | null;
   footerText: string | null;
   lightBackgroundAssetId: string | null;
   darkBackgroundAssetId: string | null;
@@ -158,7 +157,6 @@ export function resolveBranding(
 ): ResolvedBranding {
   return {
     headerAssetId: overrides.headerAssetId ?? global.headerAssetId,
-    footerAssetId: overrides.footerAssetId ?? global.footerAssetId,
     footerText: overrides.footerText ?? global.footerText,
     lightBackgroundAssetId: overrides.lightBackgroundAssetId ?? global.lightBackgroundAssetId,
     darkBackgroundAssetId: overrides.darkBackgroundAssetId ?? global.darkBackgroundAssetId,
@@ -311,11 +309,6 @@ function buildBlockRows(
   if (branding.footerText) {
     rows.push(
       `<tr><td class="em-footer-border" style="padding:16px 40px;border-top:1px solid #E5E5EA;text-align:center;"><div class="em-footer-text" style="font-size:13px;color:#8E8E93;line-height:1.5;">${parseMarkdown(interpolate(branding.footerText, variables))}</div></td></tr>`,
-    );
-  }
-  if (branding.footerAssetId) {
-    rows.push(
-      `<tr><td><img src="${assetUrl(branding.footerAssetId, baseUrl)}" width="560" alt="" style="display:block;width:100%;border-radius:0 0 8px 8px;"></td></tr>`,
     );
   }
   return rows;

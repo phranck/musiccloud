@@ -15,7 +15,6 @@ export interface EmailBranding {
   /** Id of the `email_assets` row rendered above every template's body, or `null` when no header image is set. */
   headerAssetId: string | null;
   /** Id of the `email_assets` row rendered below every template's body, or `null` when no footer image is set. */
-  footerAssetId: string | null;
   /** Markdown footer copy rendered beneath the body (and above the footer image, if any), or `null` when unset. */
   footerText: string | null;
   /** Id of the `email_assets` row layered over the light (day) page background gradient, or `null` for gradient-only. */

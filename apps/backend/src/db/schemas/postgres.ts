@@ -973,7 +973,6 @@ export const emailTemplates = pgTable("email_templates", {
   // Per-template branding overrides (MC-079). All nullable: NULL = inherit the
   // matching global emailBranding default for this field.
   headerAssetId: text("header_asset_id").references(() => emailAssets.id, { onDelete: "set null" }),
-  footerAssetId: text("footer_asset_id").references(() => emailAssets.id, { onDelete: "set null" }),
   footerText: text("footer_text"),
   lightBackgroundAssetId: text("light_background_asset_id").references(() => emailAssets.id, { onDelete: "set null" }),
   darkBackgroundAssetId: text("dark_background_asset_id").references(() => emailAssets.id, { onDelete: "set null" }),
@@ -1003,7 +1002,6 @@ export type EmailTemplateInsert = typeof emailTemplates.$inferInsert;
 export const emailBranding = pgTable("email_branding", {
   id: serial("id").primaryKey(),
   headerAssetId: text("header_asset_id").references(() => emailAssets.id, { onDelete: "set null" }),
-  footerAssetId: text("footer_asset_id").references(() => emailAssets.id, { onDelete: "set null" }),
   footerText: text("footer_text"),
   lightBackgroundAssetId: text("light_background_asset_id").references(() => emailAssets.id, { onDelete: "set null" }),
   darkBackgroundAssetId: text("dark_background_asset_id").references(() => emailAssets.id, { onDelete: "set null" }),

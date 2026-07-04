@@ -10,7 +10,6 @@ import type { EmailBlock } from "@musiccloud/shared";
  */
 export interface EmailTemplateBranding {
   headerAssetId: string | null;
-  footerAssetId: string | null;
   footerText: string | null;
   lightBackgroundAssetId: string | null;
   darkBackgroundAssetId: string | null;

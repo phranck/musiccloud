@@ -42,7 +42,6 @@ describe.skipIf(!process.env.DATABASE_URL)("email template branding overrides (i
     const row = await insert();
     expect(row.branding).toEqual({
       headerAssetId: null,
-      footerAssetId: null,
       footerText: null,
       lightBackgroundAssetId: null,
       darkBackgroundAssetId: null,
@@ -57,7 +56,6 @@ describe.skipIf(!process.env.DATABASE_URL)("email template branding overrides (i
     const row = await insert({ branding: { footerText: "insert footer", lightGradientTop: "#123456" } });
     expect(row.branding.footerText).toBe("insert footer");
     expect(row.branding.lightGradientTop).toBe("#123456");
-    expect(row.branding.footerAssetId).toBeNull();
   });
 
   it("leaves an absent branding key unchanged on update (present-keys-only)", async () => {
@@ -84,7 +82,6 @@ describe.skipIf(!process.env.DATABASE_URL)("email template branding overrides (i
     const row = await insert();
     const branding = {
       headerAssetId: null,
-      footerAssetId: null,
       footerText: "full",
       lightBackgroundAssetId: null,
       darkBackgroundAssetId: null,
