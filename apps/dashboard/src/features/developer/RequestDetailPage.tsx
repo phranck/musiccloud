@@ -1,11 +1,8 @@
 import { DashboardButtonVariant, DashboardInput } from "@musiccloud/dashboard-ui";
 import {
-  ChartBar as ChartBarIcon,
   CheckCircle as CheckCircleIcon,
-  ClockCountdown as ClockCountdownIcon,
   Info as InfoIcon,
   SpinnerGap as SpinnerGapIcon,
-  User as UserIcon,
   XCircle as XCircleIcon,
 } from "@phosphor-icons/react";
 import { useState } from "react";
@@ -90,86 +87,68 @@ export function RequestDetailPage() {
         toolbar={toolbar}
         cardClassName="!flex-initial w-[60%]"
       >
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <DashboardSection>
-              <DashboardSection.Header
-                icon={<UserIcon weight="duotone" className="size-4" />}
-                title={dm.colDeveloper}
-              />
-              <DashboardSection.Body>
-                <div className="text-sm">{r.contactEmail}</div>
-              </DashboardSection.Body>
-            </DashboardSection>
-
-            <DashboardSection>
-              <DashboardSection.Header
-                icon={<ClockCountdownIcon weight="duotone" className="size-4" />}
-                title={dm.colSubmitted}
-              />
-              <DashboardSection.Body>
-                <div className="text-sm text-[var(--ds-text-muted)]">
-                  {new Date(r.submittedAt).toLocaleDateString("de-AT")}
+        <DashboardSection className="overflow-hidden">
+          <DashboardSection.Header icon={<InfoIcon weight="duotone" className="size-4" />} title={r.appName} />
+          <DashboardSection.Body>
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div>
+                  <div className={labelClass}>{dm.colDeveloper}</div>
+                  <div className="text-sm">{r.contactEmail}</div>
                 </div>
-              </DashboardSection.Body>
-            </DashboardSection>
-
-            <DashboardSection>
-              <DashboardSection.Header
-                icon={<ChartBarIcon weight="duotone" className="size-4" />}
-                title={dm.colTraffic}
-              />
-              <DashboardSection.Body>
-                <div className="text-sm font-medium">~{r.estimatedRequestsPerDay} / Tag</div>
-              </DashboardSection.Body>
-            </DashboardSection>
-          </div>
-
-          <DashboardSection className="overflow-hidden">
-            <DashboardSection.Header
-              icon={<InfoIcon weight="duotone" className="size-4" />}
-              title={dm.descriptionLabel}
-            />
-            <DashboardSection.Body>
-              <p className="text-sm leading-relaxed">{r.appDescription}</p>
-            </DashboardSection.Body>
-          </DashboardSection>
-
-          {isPending && (
-            <DashboardSection className="overflow-hidden">
-              <DashboardSection.Header
-                icon={<ChartBarIcon weight="duotone" className="size-4" />}
-                title={dm.rateLimitsLabel}
-              />
-              <DashboardSection.Body>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="req-per-min" className={labelClass}>
-                      {dm.detailRateLimitMinute}
-                    </label>
-                    <DashboardInput
-                      id="req-per-min"
-                      type="number"
-                      value={reqPerMin.toString()}
-                      onChange={(e) => setReqPerMin(Number(e.target.value))}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="req-per-day" className={labelClass}>
-                      {dm.detailRateLimitDay}
-                    </label>
-                    <DashboardInput
-                      id="req-per-day"
-                      type="number"
-                      value={reqPerDay.toString()}
-                      onChange={(e) => setReqPerDay(Number(e.target.value))}
-                    />
+                <div>
+                  <div className={labelClass}>{dm.colSubmitted}</div>
+                  <div className="text-sm text-[var(--ds-text-muted)]">
+                    {new Date(r.submittedAt).toLocaleDateString("de-AT")}
                   </div>
                 </div>
-              </DashboardSection.Body>
-            </DashboardSection>
-          )}
-        </div>
+                <div>
+                  <div className={labelClass}>{dm.colTraffic}</div>
+                  <div className="text-sm font-medium">~{r.estimatedRequestsPerDay} / Tag</div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--ds-text-muted)] mb-3">
+                  {dm.descriptionLabel}
+                </h3>
+                <p className="text-sm leading-relaxed">{r.appDescription}</p>
+              </div>
+
+              {isPending && (
+                <div>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--ds-text-muted)] mb-3">
+                    {dm.rateLimitsLabel}
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="req-per-min" className={labelClass}>
+                        {dm.detailRateLimitMinute}
+                      </label>
+                      <DashboardInput
+                        id="req-per-min"
+                        type="number"
+                        value={reqPerMin.toString()}
+                        onChange={(e) => setReqPerMin(Number(e.target.value))}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="req-per-day" className={labelClass}>
+                        {dm.detailRateLimitDay}
+                      </label>
+                      <DashboardInput
+                        id="req-per-day"
+                        type="number"
+                        value={reqPerDay.toString()}
+                        onChange={(e) => setReqPerDay(Number(e.target.value))}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </DashboardSection.Body>
+        </DashboardSection>
       </EditorPageShell>
 
       <Dialog
