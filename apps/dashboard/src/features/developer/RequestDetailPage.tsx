@@ -1,15 +1,9 @@
-import { DashboardButtonVariant, DashboardInput } from "@musiccloud/dashboard-ui";
-import {
-  CheckCircle as CheckCircleIcon,
-  Info as InfoIcon,
-  SpinnerGap as SpinnerGapIcon,
-  XCircle as XCircleIcon,
-} from "@phosphor-icons/react";
+import { DashboardActionButton, DashboardActionId, DashboardInput } from "@musiccloud/dashboard-ui";
+import { Info as InfoIcon, SpinnerGap as SpinnerGapIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { EditorPageShell } from "@/components/ui/EditorPageShell";
-import { EditorToolbarButton } from "@/components/ui/EditorToolbarButton";
 import { useI18n } from "@/context/I18nContext";
 import { ApiAccessRequestStatus } from "@/features/developer/domain";
 import { useApiAccessRequest, useApproveRequest, useRejectRequest } from "@/features/developer/hooks/useDeveloperData";
@@ -58,33 +52,12 @@ export function RequestDetailPage() {
   const r = data.request;
   const isPending = r.status === ApiAccessRequestStatus.Pending;
 
-  const toolbar = isPending && (
-    <div className="flex items-center gap-2 ml-auto">
-      <EditorToolbarButton
-        variant={DashboardButtonVariant.Primary}
-        icon={<CheckCircleIcon weight="duotone" className="w-3.5 h-3.5" />}
-        onClick={handleApprove}
-        disabled={approve.isPending}
-      >
-        {dm.detailApprove}
-      </EditorToolbarButton>
-      <EditorToolbarButton
-        variant={DashboardButtonVariant.Neutral}
-        icon={<XCircleIcon weight="duotone" className="w-3.5 h-3.5" />}
-        onClick={() => setShowReject(true)}
-      >
-        {dm.detailReject}
-      </EditorToolbarButton>
-    </div>
-  );
-
   return (
     <>
       <EditorPageShell
         title={r.appName}
         backLabel={dm.detailBackLabel}
         onBack={handleBack}
-        toolbar={toolbar}
         cardClassName="!flex-initial w-[60%]"
       >
         <DashboardSection className="overflow-hidden">
@@ -148,6 +121,23 @@ export function RequestDetailPage() {
               )}
             </div>
           </DashboardSection.Body>
+          {isPending && (
+            <DashboardSection.Footer>
+              <DashboardActionButton
+                action={DashboardActionId.Approve}
+                label={dm.detailApprove}
+                onClick={handleApprove}
+                disabled={approve.isPending}
+                type="button"
+              />
+              <DashboardActionButton
+                action={DashboardActionId.Reject}
+                label={dm.detailReject}
+                onClick={() => setShowReject(true)}
+                type="button"
+              />
+            </DashboardSection.Footer>
+          )}
         </DashboardSection>
       </EditorPageShell>
 
@@ -171,24 +161,22 @@ export function RequestDetailPage() {
           />
         </div>
         <Dialog.Footer>
-          <EditorToolbarButton
-            variant={DashboardButtonVariant.Neutral}
-            icon={false}
+          <DashboardActionButton
+            action={DashboardActionId.Cancel}
+            label={dm.detailRejectCancel}
             onClick={() => {
               setShowReject(false);
               setReviewNote("");
             }}
-          >
-            {dm.detailRejectCancel}
-          </EditorToolbarButton>
-          <EditorToolbarButton
-            variant={DashboardButtonVariant.Primary}
-            icon={false}
+            type="button"
+          />
+          <DashboardActionButton
+            action={DashboardActionId.Reject}
+            label={dm.detailRejectConfirm}
             onClick={handleReject}
             disabled={!reviewNote.trim() || reject.isPending}
-          >
-            {dm.detailRejectConfirm}
-          </EditorToolbarButton>
+            type="button"
+          />
         </Dialog.Footer>
       </Dialog>
     </>
