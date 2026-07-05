@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>musiccloud API &mdash; Test Requests</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css">
+
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-hover: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-secondary: #8b949e;
+    --muted: #6e7681;
+    --accent: #8190f4;
+    --accent-dim: #3d4270;
+    --green: #47ba88;
+    --green-dim: #1a3a2e;
+    --red: #e86676;
+    --red-dim: #3a1e25;
+    --amber: #d8a43a;
+    --amber-dim: #3a2e18;
+    --code-bg: #0d1117;
+    --token-bg: #0d1117;
+    --radius: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    font-size: 17px;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Token Bar (full-width wrapper) ── */
+  .token-bar-outer {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    background: color-mix(in srgb, var(--token-bg) 85%, transparent);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .token-bar {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: .75rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+  }
+
+  .token-bar-label {
+    font-size: .9375rem;
+    font-weight: 600;
+    color: var(--accent);
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+  }
+
+  .token-bar-label i { font-size: 1.15rem; }
+
+  .token-bar input {
+    flex: 1;
+    min-width: 0;
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--text);
+    padding: .55rem .75rem;
+    font-family: "SF Mono", "Fira Code", "Fira Mono", monospace;
+    font-size: .9375rem;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .token-bar input:focus { border-color: var(--accent); }
+  .token-bar input::placeholder { color: #484f58; }
+
+  .token-status {
+    font-size: .875rem;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 5px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+  }
+  .token-status.set   { background: var(--green-dim); color: var(--green); }
+  .token-status.unset { background: var(--amber-dim); color: var(--amber); }
+  .token-status i { font-size: 1rem; }
+
+  .btn-clear {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    background: none;
+    border: 1px solid #30363d;
+    color: var(--muted);
+    padding: .45rem .75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: .875rem;
+    font-family: inherit;
+    white-space: nowrap;
+    transition: border-color .2s, color .2s, background .2s;
+  }
+  .btn-clear i { font-size: 1rem; }
+  .btn-clear:hover { border-color: var(--red); color: var(--red); background: #1a1015; }
+
+  /* ── Container ── */
+  .container {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 5.5rem 1.5rem 4rem;
+  }
+
+  /* ── Header ── */
+  .page-title {
+    font-size: 1.875rem;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    margin-bottom: .25rem;
+  }
+
+  .page-subtitle {
+    color: var(--text-secondary);
+    font-size: 1.0625rem;
+    margin-bottom: 1.75rem;
+  }
+  .page-subtitle code {
+    background: #161b22;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: .9375rem;
+    font-family: "SF Mono", "Fira Code", monospace;
+  }
+
+  /* ── Token Warning ── */
+  .token-warn {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    color: var(--amber);
+    background: var(--amber-dim);
+    border: 1px solid #3a3018;
+    border-radius: 8px;
+    padding: .65rem 1rem;
+    font-size: 1rem;
+    margin-bottom: 1.75rem;
+  }
+  .token-warn i { font-size: 1.2rem; flex-shrink: 0; }
+
+  /* ── Flow Box ── */
+  .flow {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.125rem 1.375rem;
+    margin-bottom: 2.5rem;
+  }
+  .flow strong {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: .5rem;
+  }
+  .flow strong i { color: var(--accent); font-size: 1.15rem; }
+  .flow ol { padding-left: 1.4rem; font-size: 1rem; color: var(--text-secondary); }
+  .flow li { margin-bottom: .35rem; }
+  .flow code {
+    background: #1c2128;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: .875rem;
+    font-family: "SF Mono", "Fira Code", monospace;
+    color: var(--text);
+  }
+
+  /* ── Section Headings ── */
+  h2 {
+    font-size: 1.375rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 2.5rem 0 .875rem;
+    padding-bottom: .5rem;
+    border-bottom: 1px solid var(--border);
+    letter-spacing: -.01em;
+  }
+
+  /* ── Request Card ── */
+  .request {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: .75rem;
+    overflow: hidden;
+    transition: border-color .2s;
+  }
+  .request:hover { border-color: #30363d; }
+
+  .request-header {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .75rem 1rem;
+    background: #161b22;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .req-icon {
+    color: var(--muted);
+    font-size: 1.15rem;
+    flex-shrink: 0;
+    width: 1.25rem;
+    text-align: center;
+  }
+
+  .num {
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-weight: 700;
+    font-size: .875rem;
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+
+  .method {
+    font-weight: 700;
+    font-size: .8125rem;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    letter-spacing: .03em;
+  }
+  .method.get  { background: var(--green-dim); color: var(--green); }
+  .method.post { background: var(--accent-dim); color: var(--accent); }
+
+  .url-path {
+    font-family: "SF Mono", "Fira Code", "Fira Mono", monospace;
+    font-size: .875rem;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+  }
+
+  .desc {
+    font-size: .875rem;
+    color: var(--muted);
+    margin-left: auto;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .auth-tag {
+    font-size: .75rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .auth-none  { background: #21262d; color: var(--muted); }
+  .auth-bogus { background: var(--red-dim); color: var(--red); }
+  .auth-token { background: #2e2248; color: #b496d8; }
+
+  /* ── Code Block ── */
+  .code-wrap {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+  }
+  .code-wrap pre {
+    flex: 1;
+    background: var(--code-bg);
+    color: #c9d1d9;
+    padding: .875rem 1.125rem;
+    margin: 0;
+    overflow-x: auto;
+    font-family: "SF Mono", "Fira Code", "Fira Mono", monospace;
+    font-size: .875rem;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .btn-copy {
+    flex-shrink: 0;
+    width: 44px;
+    background: #161b22;
+    border: none;
+    border-left: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 1.1rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .2s, color .2s;
+  }
+  .btn-copy:hover { background: #1c2128; color: var(--text-secondary); }
+  .btn-copy.copied { background: #13261e; color: var(--green); }
+
+  /* ── Syntax Highlighting ── */
+  .hl-comment { color: #6a9955; font-style: italic; }
+  .hl-string  { color: #ce9178; }
+  .hl-url     { color: #569cd6; }
+  .hl-flag    { color: #9cdcfe; }
+  .hl-cmd     { color: #dcdcaa; font-weight: 500; }
+  .hl-pipe    { color: #c586c0; }
+  .hl-token   { color: #8190f4; font-weight: 600; }
+
+  /* ── Responsive ── */
+  @media (max-width: 640px) {
+    .container { padding: 5rem 1rem 3rem; }
+    .page-title { font-size: 1.5rem; }
+    .token-bar { padding: .6rem 1rem; gap: .5rem; }
+    .token-bar input { font-size: .85rem; }
+    .btn-clear span { display: none; }
+    .request-header { flex-wrap: wrap; gap: .4rem; }
+    .desc { width: 100%; text-align: left; margin-left: 0; }
+    .url-path { font-size: .8125rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Token Bar ── -->
+<div class="token-bar-outer">
+  <div class="token-bar">
+    <label class="token-bar-label" for="tokenInput">
+      <i class="ph ph-key"></i> X-API-Key
+    </label>
+    <input id="tokenInput" type="text" placeholder="00000000-0000-4000-8000-&hellip;" spellcheck="false" autocomplete="off">
+    <span id="tokenStatus" class="token-status unset">
+      <i class="ph ph-x-circle"></i> <span class="status-label">nicht gesetzt</span>
+    </span>
+    <button id="btnClear" class="btn-clear">
+      <i class="ph ph-trash"></i> <span>l&ouml;schen</span>
+    </button>
+  </div>
+</div>
+
+<div class="container">
+
+<header>
+  <h1 class="page-title">musiccloud API &mdash; Test Requests</h1>
+  <p class="page-subtitle">
+    18 curl-Befehle f&uuml;r lokales API-Token-Testing. Basis-URL:
+    <code>http://localhost:4000</code>
+  </p>
+</header>
+
+<p class="token-warn" id="tokenWarn">
+  <i class="ph ph-warning"></i>
+  Token nicht gesetzt &mdash; authentifizierte Requests (6&ndash;10, 13, 18) enthalten Platzhalter.
+</p>
+
+<div class="flow">
+  <strong><i class="ph ph-info"></i> Vorbereitung</strong>
+  <ol>
+    <li><code>./app start</code> &mdash; Backend + Developer-App starten</li>
+    <li><code>http://localhost:4321</code> &mdash; Developer-Account anlegen</li>
+    <li>API Access beantragen, Client anlegen, Token generieren</li>
+    <li>Token oben in die Leiste einf&uuml;gen &mdash; wird automatisch in alle Requests eingesetzt</li>
+  </ol>
+</div>
+
+<!-- ──────────────────────────────────────────── -->
+<h2>1&ndash;3 &ensp;Unauthentifizierte Endpoints</h2>
+
+<div class="request">
+  <div class="request-header">
+    <i class="ph ph-heartbeat req-icon"></i>
+    <span class="num">1</span>
+    <span class="method get">GET</span>
+    <span class="url-path">/health/backend</span>
+    <span class="auth-tag auth-none">kein Token</span>
+    <span class="desc">Backend-Liveness</span>
+  </div>
+  <div class="code-wrap">
+    <pre>curl -s http://localhost:4000/health/backend | jq</pre>
+    <button class="btn-copy" title="Kopieren"><i class="ph ph-copy"></i></button>
+  </div>
+</div>
+
+<div class="request">
+  <div class="request-header">
+    <i class="ph ph-link req-icon"></i>
+    <span class="num">2</span>
+    <span class="method get">GET</span>
+    <span class="url-path">/api/v1/resolve</span>
+    <span class="auth-tag auth-none">kein Token</span>
+    <span class="desc">Public Resolve &mdash; Spotify-URL</span>
+  </div>
+  <div class="code-wrap">
+    <pre>curl -s "http://localhost:4000/api/v1/resolve?query=https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L" | jq</pre>
+    <button class="btn-copy" title="Kopieren"><i class="ph ph-copy"></i></button>
+  </div>
+</div>
+
+<div class="request">
+  <div class="request-header">
+    <i class="ph ph-magnifying-glass req-icon"></i>
+    <span class="num">3</span>
+    <span class="method get">GET</span>
+    <span class="url-path">/api/v1/resolve</span>
+    <span class="auth-tag auth-none">kein Token</span>
+    <span class="desc">Public Resolve &mdash; Textsuche, Plaintext</span>
+  </div>
+  <div class="code-wrap">
+    <pre>curl -s "http://localhost:4000/api/v1/resolve?query=bohemian+rhapsody+queen&format=text"</pre>
+    <button class="btn-copy" title="Kopieren"><i class="ph ph-copy"></i></button>
+  </div>
+</div>
+
+<!-- ──────────────────────────────────────────── -->
+<h2>4&ndash;5 &ensp;Share-Page &amp; Artist-Info</h2>
+
+<div class="request">
+  <div class="request-header">
+    <i class="ph ph-share-network req-icon"></i>
+    <span class="num">4</span>
+    <span class="method get">GET</span>
+    <span class="url-path">/api/v1/share/:shortId</span>
+    <span class="auth-tag auth-none">kein Token</span>
+    <span class="desc">Share-Page abrufen</span>
+  </div>
+  <div class="code-wrap">
+    <pre># SHORT_ID aus Request #2 (Feld .shortUrl, letztes Segment) oder #3 entnehmen
+curl -s http://localhost:4000/api/v1/share/SHORT_ID | jq</pre>
+    <button class="btn-copy" title="Kopieren"><i class="ph ph-copy"></i></button>
+  </div>
+</div>
+
+<div class="request">
+  <div class="request-header">
+    <i class="ph ph-user-circle req-icon"></i>
+    <span class="num">5</span>
+    <span class="method get">GET</span>
+    <span class="url-path">/api/v1/artist-info</span>
+    <span class="auth-tag auth-none">kein Token</span>
+    <span class="desc">Artist-Info mit Region</span>
+  </div>
+  <div class="code-wrap">
+    <pre>curl -s "http://localhost:4000/api/v1/artist-info?name=a-ha&region=NO" | jq</pre>
+    <button class="btn-copy" title="Kopieren"><i class="ph ph-copy"></i></button>
+  </div>
+</div>
+
+<!-- ──────────────────────────────────────────── -->
+<h2>6&ndash;8 &ensp;Authentifizierte Resolve-Varianten</h2>
+
+<div class="request">
+  <div class="request-header">
+    <i class="ph ph-link req-icon"></i>
+    <span class="num">6</span>
+    <span class="method post">POST</span>
+    <span class="url-path">/api/v1/resolve</span>
+    <span class="auth-tag auth-token">Token</span>
+    <span class="desc">Spotify-Track (Quota-tracked)</span>
+  </div>
+  <div class="code-wrap">
+    <pre data-token>curl -s http://localhost:4000/api/v1/resolve \
+  -H "X-API-Key: __TOKEN__" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT"}' | jq</pre>
+    <button class="btn-copy" title="Kopieren"><i class="ph ph-copy"></i></button>
+  </div>
+</div>
+
+<div class="request">
+  <div class="request-header">
+    <i class="ph ph-magnifying-glass req-icon"></i>
+    <span class="num">7</span>
+    <span class="method post">POST</span>
+    <span class="url-path">/api/v1/resolve</span>
+    <span class="auth-tag auth-token">Token</span>
+    <span class="desc">Textsuche (authenticated)</span>
+  </div>
+  <div class="code-wrap">
+    <pre data-token>curl -s http://localhost:4000/api/v1/resolve \
+  -H "X-API-Key: __TOKEN__" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"never gonna give you up"}' | jq</pre>
+    <button class="btn-copy" title="Kopieren"><i class="ph ph-copy"></i></button>
+  </div>
+</div>
+
+<div class="request">
+  <div class="request-header">
+    <i class="ph ph-sliders req-icon"></i>
+    <span class="num">8</span>
+    <span class="method post">POST</span>
+    <span class="url-path">/api/v1/resolve</span>
+    <span class="auth-tag auth-token">Token</span>
+    <span class="desc">Strukturierte Suche</span>
+  </div>
+  <div class="code-wrap">
+    <pre data-token>curl -s http://localhost:4000/api/v1/resolve \
+  -H "X-API-Key: __TOKEN__" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"title:blinding lights artist:the weeknd"}' | jq</pre>
+    <button class="btn-copy" title="Kopieren"><i class="ph ph-copy"></i></button>
+  </div>
+</div>
+
+<!-- ──────────────────────────────────────────── -->
+<h2>9&ndash;10 &ensp;Link &amp; CC-Resolve</h2>
+
+<div class="request">
+  <div class="request-header">
+    <i class="ph ph-link-break req-icon"></i>
+    <span class="num">9</span>
+    <span class="method get">GET</span>
+    <span class="url-path">/api/v1/link/:id</span>
+    <span class="auth-tag auth-token">Token</span>
+    <span class="desc">Link-Metadaten abrufen</span>
+  </div>
+  <div class="code-wrap">
+    <pre data-token># TRACK_ID aus Request #6 (Feld .id) entnehmen
+curl -s http://localhost:4000/api/v1/link/TRACK_ID \
+  -H "X-API-Key: __TOKEN__" | jq</pre>
+    <button class="btn-copy" title="Kopieren"><i class="ph ph-copy"></i></button>
+  </div>
+</div>
+
+<div class="request">
+  <div class="request-header">
+    <i class="ph ph-globe req-icon"></i>
+    <span class="num">10</span>
+    <span class="method post">POST</span>
+    <span class="url-path">/api/v1/cc/resolve</span>
+    <span class="auth-tag auth-token">Token</span>
+    <span class="desc">Creative-Commons-Track suchen</span>
+  </div>
+  <div class="code-wrap">
+    <pre data-token>curl -s http://localhost:4000/api/v1/cc/resolve \
+  -H "X-API-Key: __TOKEN__" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"ambient"}' | jq</pre>
+    <button class="btn-copy" title="Kopieren"><i class="ph ph-copy"></i></button>
+  </div>
+</div>
+
+<!-- ──────────────────────────────────────────── -->
+<h2>11&ndash;13 &ensp;Edge Cases &amp; Fehlerf&auml;lle</h2>
+
+<div class="request">
+  <div class="request-header">
+    <i class="ph ph-warning-circle req-icon"></i>
+    <span class="num">11</span>
+    <span class="method post">POST</span>
+    <span class="url-path">/api/v1/resolve</span>
+    <span class="auth-tag auth-none">kein Token</span>
+    <span class="desc">Fehlender Token &rarr; 401</span>
+  </div>
+  <div class="code-wrap">
+    <pre>curl -s -o /dev/null -w "HTTP %{http_code}\n" \
+  http://localhost:4000/api/v1/resolve \
+  -H "Content-Type: application/json" \
+  -d '{"query":"test"}'</pre>
+    <button class="btn-copy" title="Kopieren"><i class="ph ph-copy"></i></button>
+  </div>
+</div>
+
+<div class="request">
+  <div class="request-header">
+    <i class="ph ph-shield-warning req-icon"></i>
+    <span class="num">12</span>
+    <span class="method post">POST</span>
+    <span class="url-path">/api/v1/resolve</span>
+    <span class="auth-tag auth-bogus">Bogus</span>
+    <span class="desc">Ung&uuml;ltiger Token &rarr; 401</span>
+  </div>
+  <div class="code-wrap">
+    <pre>curl -s http://localhost:4000/api/v1/resolve \
+  -H "X-API-Key: 00000000-0000-4000-8000-000000000000" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"test"}' | jq</pre>
+    <button class="btn-copy" title="Kopieren"><i class="ph ph-copy"></i></button>
+  </div>
+</div>
+
+<div class="request">
+  <div class="request-header">
+    <i class="ph ph-warning-circle req-icon"></i>
+    <span class="num">13</span>
+    <span class="method post">POST</span>
+    <span class="url-path">/api/v1/resolve</span>
+    <span class="auth-tag auth-token">Token</span>
+    <span class="desc">Leerer Query &rarr; 400</span>
+  </div>
+  <div class="code-wrap">
+    <pre data-token>curl -s http://localhost:4000/api/v1/resolve \
+  -H "X-API-Key: __TOKEN__" \
+  -H "Content-Type: application/json" \
+  -d '{"query":""}' | jq</pre>
+    <button class="btn-copy" title="Kopieren"><i class="ph ph-copy"></i></button>
+  </div>
+</div>
+
+<!-- ──────────────────────────────────────────── -->
+<h2>14&ndash;15 &ensp;CC-Audio &amp; OAuth</h2>
+
+<div class="request">
+  <div class="request-header">
+    <i class="ph ph-music-notes req-icon"></i>
+    <span class="num">14</span>
+    <span class="method get">GET</span>
+    <span class="url-path">/api/v1/cc/audio/:jamendoId</span>
+    <span class="auth-tag auth-none">kein Token</span>
+    <span class="desc">CC-Audio-Stream-Proxy</span>
+  </div>
+  <div class="code-wrap">
+    <pre>curl -s -o /dev/null -w "HTTP %{http_code}, Content-Type: %{content_type}\n" \
+  "http://localhost:4000/api/v1/cc/audio/189887?format=mp31"</pre>
+    <button class="btn-copy" title="Kopieren"><i class="ph ph-copy"></i></button>
+  </div>
+</div>
+
+<div class="request">
+  <div class="request-header">
+    <i class="ph ph-key req-icon"></i>
+    <span class="num">15</span>
+    <span class="method post">POST</span>
+    <span class="url-path">/api/auth/token</span>
+    <span class="auth-tag auth-none">kein Token</span>
+    <span class="desc">OAuth client_credentials &rarr; JWT</span>
+  </div>
+  <div class="code-wrap">
+    <pre># Braucht API_CLIENT_ID / API_CLIENT_SECRET in apps/backend/.env.local
+curl -s http://localhost:4000/api/auth/token \
+  -H "Content-Type: application/json" \
+  -d '{"client_id":"DEINE_CLIENT_ID","client_secret":"DEIN_CLIENT_SECRET","grant_type":"client_credentials"}' | jq</pre>
+    <button class="btn-copy" title="Kopieren"><i class="ph ph-copy"></i></button>
+  </div>
+</div>
+
+<!-- ──────────────────────────────────────────── -->
+<h2>16&ndash;18 &ensp;Share-Preview &amp; Rate-Limits</h2>
+
+<div class="request">
+  <div class="request-header">
+    <i class="ph ph-eye req-icon"></i>
+    <span class="num">16</span>
+    <span class="method get">GET</span>
+    <span class="url-path">/api/v1/share/:shortId/preview</span>
+    <span class="auth-tag auth-none">kein Token</span>
+    <span class="desc">Share-Preview (Link-Vorschau)</span>
+  </div>
+  <div class="code-wrap">
+    <pre># SHORT_ID aus Request #2 oder #3 entnehmen
+curl -s http://localhost:4000/api/v1/share/SHORT_ID/preview | jq</pre>
+    <button class="btn-copy" title="Kopieren"><i class="ph ph-copy"></i></button>
+  </div>
+</div>
+
+<div class="request">
+  <div class="request-header">
+    <i class="ph ph-hand-palm req-icon"></i>
+    <span class="num">17</span>
+    <span class="method get">GET</span>
+    <span class="url-path">/api/v1/resolve</span>
+    <span class="auth-tag auth-none">kein Token</span>
+    <span class="desc">Per-IP-Rate-Limit &rarr; 429 (10 req/60s)</span>
+  </div>
+  <div class="code-wrap">
+    <pre># 11 Requests in schneller Folge – der 11. bekommt 429
+for i in $(seq 1 11); do
+  echo -n "Request $i: "
+  curl -s -o /dev/null -w "HTTP %{http_code}\n" "http://localhost:4000/api/v1/resolve?query=test"
+done</pre>
+    <button class="btn-copy" title="Kopieren"><i class="ph ph-copy"></i></button>
+  </div>
+</div>
+
+<div class="request">
+  <div class="request-header">
+    <i class="ph ph-hourglass req-icon"></i>
+    <span class="num">18</span>
+    <span class="method post">POST</span>
+    <span class="url-path">/api/v1/resolve</span>
+    <span class="auth-tag auth-token">Token</span>
+    <span class="desc">Per-Client-Rate-Limit &rarr; 429</span>
+  </div>
+  <div class="code-wrap">
+    <pre data-token># Client-Quota (requestsPerMinute) im Developer-Dashboard einstellbar
+# Loop so oft wiederholen wie Quota + 1
+for i in $(seq 1 5); do
+  echo -n "Request $i: "
+  curl -s -o /dev/null -w "HTTP %{http_code}\n" \
+    -H "X-API-Key: __TOKEN__" \
+    -H "Content-Type: application/json" \
+    -d '{"query":"test"}' \
+    http://localhost:4000/api/v1/resolve
+done</pre>
+    <button class="btn-copy" title="Kopieren"><i class="ph ph-copy"></i></button>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<script>
+var STORAGE_KEY = "musiccloud_api_token";
+
+var tokenInput  = document.getElementById("tokenInput");
+var tokenStatus = document.getElementById("tokenStatus");
+var statusIcon  = tokenStatus.querySelector("i");
+var statusLabel = tokenStatus.querySelector(".status-label");
+var tokenWarn   = document.getElementById("tokenWarn");
+var btnClear    = document.getElementById("btnClear");
+
+/* ── Syntax Highlighting ── */
+
+function highlightAllPres() {
+  document.querySelectorAll("pre").forEach(function (pre) {
+    highlightPre(pre);
+    injectTokenSpans(pre);
+  });
+}
+
+function injectTokenSpans(pre) {
+  var walker = document.createTreeWalker(pre, NodeFilter.SHOW_TEXT);
+  var nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(function (node) {
+    var text = node.textContent;
+    var idx = text.indexOf("__TOKEN__");
+    if (idx === -1) return;
+    var parent = node.parentNode;
+    var before = document.createTextNode(text.slice(0, idx));
+    var span = document.createElement("span");
+    span.className = "hl-token";
+    span.textContent = "YOUR_API_KEY";
+    var after = document.createTextNode(text.slice(idx + 10));
+    parent.insertBefore(before, node);
+    parent.insertBefore(span, node);
+    parent.insertBefore(after, node);
+    parent.removeChild(node);
+  });
+}
+
+function highlightPre(pre) {
+  var text = pre.textContent;
+  var frag = document.createDocumentFragment();
+  var rx = /(#[^\n]*)|(__TOKEN__)|("(?:[^"\\]|\\.)*")|(https?:\/\/[^\s"'<]+)|(\s-[a-zA-Z]+)|(\bcurl\b)|(\bjq\b)|(\|)/g;
+  var last = 0;
+  var m;
+  while ((m = rx.exec(text)) !== null) {
+    if (m.index > last) {
+      frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+    }
+    var span = document.createElement("span");
+    var val = m[0];
+    if (m[1])      { span.className = "hl-comment"; }
+    else if (m[2]) { span.className = "hl-token"; val = "YOUR_API_KEY"; }
+    else if (m[3]) { span.className = "hl-string"; }
+    else if (m[4]) { span.className = "hl-url"; }
+    else if (m[5]) { span.className = "hl-flag"; }
+    else if (m[6]) { span.className = "hl-cmd"; }
+    else if (m[7]) { span.className = "hl-cmd"; }
+    else if (m[8]) { span.className = "hl-pipe"; }
+    span.textContent = val;
+    frag.appendChild(span);
+    last = rx.lastIndex;
+  }
+  if (last < text.length) {
+    frag.appendChild(document.createTextNode(text.slice(last)));
+  }
+  while (pre.firstChild) pre.removeChild(pre.firstChild);
+  pre.appendChild(frag);
+}
+
+/* ── Token Injection ── */
+
+function injectTokens() {
+  var token = tokenInput.value.trim();
+  document.querySelectorAll(".hl-token").forEach(function (span) {
+    span.textContent = token || "YOUR_API_KEY";
+  });
+}
+
+/* ── Token Persistence ── */
+
+function loadToken() {
+  return localStorage.getItem(STORAGE_KEY) || "";
+}
+
+function saveToken(value) {
+  if (value) localStorage.setItem(STORAGE_KEY, value);
+  else localStorage.removeItem(STORAGE_KEY);
+}
+
+function updateUI() {
+  var token = tokenInput.value.trim();
+  if (token) {
+    statusIcon.className = "ph-fill ph-check-circle";
+    statusLabel.textContent = "gesetzt";
+    tokenStatus.className = "token-status set";
+    tokenWarn.style.display = "none";
+  } else {
+    statusIcon.className = "ph ph-x-circle";
+    statusLabel.textContent = "nicht gesetzt";
+    tokenStatus.className = "token-status unset";
+    tokenWarn.style.display = "";
+  }
+  injectTokens();
+}
+
+/* ── Init ── */
+
+highlightAllPres();
+
+var saved = loadToken();
+if (saved) tokenInput.value = saved;
+updateUI();
+
+tokenInput.addEventListener("input", function () {
+  saveToken(tokenInput.value.trim());
+  updateUI();
+});
+
+btnClear.addEventListener("click", function () {
+  tokenInput.value = "";
+  saveToken("");
+  updateUI();
+  tokenInput.focus();
+});
+
+/* ── Copy Buttons ── */
+
+document.querySelectorAll(".btn-copy").forEach(function (btn) {
+  btn.addEventListener("click", function () {
+    var pre = this.parentElement.querySelector("pre");
+    var icon = this.querySelector("i");
+    var text = pre.textContent;
+    navigator.clipboard.writeText(text).finally(function () {
+      icon.className = "ph-fill ph-check";
+      btn.classList.add("copied");
+      setTimeout(function () {
+        icon.className = "ph ph-copy";
+        btn.classList.remove("copied");
+      }, 1400);
+    });
+  });
+});
+</script>
+
+</body>
+</html>
