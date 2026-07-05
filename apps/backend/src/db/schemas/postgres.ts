@@ -1775,3 +1775,30 @@ export const apiAccessAuditEvents = pgTable(
 
 export type ApiAccessAuditEventRow = typeof apiAccessAuditEvents.$inferSelect;
 export type ApiAccessAuditEventInsert = typeof apiAccessAuditEvents.$inferInsert;
+
+/**
+ * API tariff tiers (MC-092). Pure definitions displayed on the Developer Portal
+ * pricing page and managed in the admin dashboard. No FK from api_clients yet —
+ * the client↔tier link comes later with billing (MC-093+).
+ */
+export const tiers = pgTable(
+  "tiers",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull().unique(),
+    requestsPerMinute: integer("requests_per_minute").notNull(),
+    requestsPerDay: integer("requests_per_day").notNull(),
+    attributionRequired: boolean("attribution_required").notNull().default(false),
+    price: text("price"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check("chk_tiers_requests_per_minute", sql`${table.requestsPerMinute} > 0`),
+    check("chk_tiers_requests_per_day", sql`${table.requestsPerDay} > 0`),
+  ],
+);
+
+export type TierRow = typeof tiers.$inferSelect;
+export type TierInsert = typeof tiers.$inferInsert;
