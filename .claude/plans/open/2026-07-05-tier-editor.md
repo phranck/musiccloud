@@ -87,26 +87,30 @@ Neuer Eintrag "Tiers" in der Developer-Sektion (unter "Developer Accounts").
 
 ## Checkliste
 
-- [ ] Migration `0058_tiers.sql` geschrieben
-- [ ] Drizzle-Schema `tiers` in `schemas/postgres.ts`
-- [ ] `TierRepository`-Interface in `tiers-repository.ts`
-- [ ] Postgres-Adapter `postgres-tiers.ts`
-- [ ] Wiring in `postgres.ts` + `db/index.ts`
-- [ ] Admin-CRUD-Routen `routes/admin-tiers.ts`
-- [ ] Öffentliche Route `routes/public-tiers.ts`
-- [ ] Endpoint-Konstanten in `endpoints.ts`
-- [ ] Dashboard `TierEditorPage.tsx`
-- [ ] Dashboard API-Types + Fetcher in `api.ts`
-- [ ] Dashboard Hooks in `useDeveloperData.ts`
-- [ ] Dashboard Routes + RouteComponents registriert
-- [ ] Dashboard i18n-Messages
-- [ ] Dashboard Sidebar-Eintrag
-- [ ] Developer Portal: Pricing-Page dynamisch
-- [ ] Developer Portal: Dashboard zeigt Tier
-- [ ] Backend-Typecheck grün
-- [ ] Dashboard-Typecheck grün
-- [ ] Biome-Lint grün
-- [ ] Backend-Tests (CRUD-Routen)
+- [x] Migration `0058_tiers.sql` geschrieben
+- [x] Drizzle-Schema `tiers` in `schemas/postgres.ts`
+- [x] `TierRepository`-Interface in `tiers-repository.ts`
+- [x] Postgres-Adapter `postgres-tiers.ts`
+- [x] Wiring in `postgres.ts` + `db/index.ts`
+- [x] Admin-CRUD-Routen `routes/admin-tiers.ts`
+- [x] Öffentliche Route `routes/public-tiers.ts`
+- [x] Endpoint-Konstanten in `endpoints.ts`
+- [x] Dashboard `TierEditorPage.tsx`
+- [x] Dashboard API-Types + Fetcher in `api.ts`
+- [x] Dashboard Hooks in `useDeveloperData.ts`
+- [x] Dashboard Routes + RouteComponents registriert
+- [x] Dashboard i18n-Messages
+- [x] Dashboard Sidebar-Eintrag
+- [x] Developer Portal: Pricing-Page dynamisch
+- [x] Developer Portal: Dashboard zeigt Tier (via planLabel, bereits vorhanden)
+- [x] Backend-Typecheck grün
+- [x] Dashboard-Typecheck grün
+- [x] Biome-Lint grün
+- [x] Backend-Tests (CRUD-Routen) — 6 Tests grün
+
+## Completed
+
+Alle 20 Tasks umgesetzt in 6 Commits.
 
 ## Verifizierte Fakten
 
