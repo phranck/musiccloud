@@ -148,7 +148,7 @@ Bleiben (nicht dupliziert): `music.albums.colTracks`, `music.artists.colName`, `
 
 `content.editor.statusDraft/statusPublished/statusHidden` löschen, Callsites auf das bestehende Set `content.pages.status.draft/published/hidden` umstellen.
 
-- [ ] Task 8: Ein Status-Set statt zwei; `tsc` grün; Commit `Refactor: single page status label set`
+- [x] Task 8: Ein Status-Set statt zwei; `tsc` grün; Commit `Refactor: single page status label set`
 
 ### Task 9: Ausrichtung nach `common.*`
 

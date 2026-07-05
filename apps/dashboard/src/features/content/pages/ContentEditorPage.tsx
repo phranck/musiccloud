@@ -308,12 +308,14 @@ interface EditorMetadataBarProps {
     slugLabel: string;
     statusLabel: string;
     showTitleLabel: string;
-    statusDraft: string;
-    statusPublished: string;
-    statusHidden: string;
     createdBy: string;
     updatedBy: string;
     updatedAt: string;
+  };
+  statusLabels: {
+    draft: string;
+    published: string;
+    hidden: string;
   };
   locale: string;
   common: {
@@ -349,6 +351,7 @@ function EditorMetadataBar({
   editingSlug,
   editSlugValue,
   editorMessages,
+  statusLabels,
   locale,
   common,
   onStartEditSlug,
@@ -405,9 +408,9 @@ function EditorMetadataBar({
           onChange={(e) => onStatusChange(e.target.value)}
           className="text-xs bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded px-1.5 py-0.5 text-[var(--ds-text)] focus:outline-none cursor-pointer"
         >
-          <option value={ContentEditorPageStatus.Draft}>{editorMessages.statusDraft}</option>
-          <option value={ContentEditorPageStatus.Published}>{editorMessages.statusPublished}</option>
-          <option value={ContentEditorPageStatus.Hidden}>{editorMessages.statusHidden}</option>
+          <option value={ContentEditorPageStatus.Draft}>{statusLabels.draft}</option>
+          <option value={ContentEditorPageStatus.Published}>{statusLabels.published}</option>
+          <option value={ContentEditorPageStatus.Hidden}>{statusLabels.hidden}</option>
         </select>
       </div>
 
@@ -635,6 +638,91 @@ function DeletePageDialog({ open, title, pending, messages, common, onClose, onD
 }
 
 // ---------------------------------------------------------------------------
+// Editor hydration + locale tab helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Hydrates the shared pages-editor slices (meta, content, translations and —
+ * for segmented pages — segments) from a loaded page record. No-op while the
+ * page query is still pending.
+ *
+ * @param page - The loaded content page, or undefined while the query is pending.
+ * @param dispatch - The pages-editor dispatch bundle whose slices get hydrated.
+ */
+function hydrateEditorSlices(
+  page: ContentPage | undefined,
+  dispatch: ReturnType<typeof usePagesEditor>["dispatch"],
+): void {
+  if (!page) return;
+  dispatch.meta({ type: ContentMetaActionType.Hydrate, entries: [{ slug: page.slug, meta: page }] });
+  dispatch.content({
+    type: ContentBodyActionType.Hydrate,
+    entries: [{ slug: page.slug, content: page.content }],
+  });
+  dispatch.translations({
+    type: ContentTranslationsActionType.Hydrate,
+    entries: (page.translations ?? []).map((translation) => ({
+      slug: page.slug,
+      locale: translation.locale,
+      title: translation.title,
+      content: translation.content,
+    })),
+  });
+  if (page.pageType === "segmented") {
+    dispatch.segments({
+      type: ContentSegmentsActionType.HydrateOwner,
+      ownerSlug: page.slug,
+      segments: page.segments.map((segment) => ({
+        position: segment.position,
+        label: segment.label,
+        targetSlug: segment.targetSlug,
+        translations: segment.translations,
+      })),
+    });
+  }
+}
+
+/**
+ * Re-hydrates the editor slices whenever the loaded page changes, so slice
+ * readers reflect live edits with the server data as the base line.
+ *
+ * @param page - The loaded content page, or undefined while the query is pending.
+ * @param editor - The pages-editor context whose slices get hydrated.
+ */
+function usePageEditorHydration(page: ContentPage | undefined, editor: ReturnType<typeof usePagesEditor>) {
+  const { dispatch } = editor;
+  useEffect(() => {
+    hydrateEditorSlices(page, dispatch);
+  }, [page, dispatch]);
+}
+
+/**
+ * Derives the per-locale tab states (translation status + dirty flag) for the
+ * language tabs from the loaded page and the live editor slices.
+ *
+ * @param page - The loaded content page, or undefined while pending.
+ * @param editor - The pages-editor context providing the dirty state.
+ * @returns One `{ status, dirty }` record per configured locale.
+ */
+function buildTabStates(page: ContentPage | undefined, editor: ReturnType<typeof usePagesEditor>) {
+  const statuses = page?.translationStatus ?? ({} as ContentPage["translationStatus"]);
+
+  return Object.fromEntries(
+    LOCALES.map((loc) => [
+      loc,
+      {
+        status: statuses[loc] ?? TranslationStatus.Missing,
+        dirty: page
+          ? loc === DEFAULT_LOCALE
+            ? isMetaFieldDirty(editor.meta, page.slug, "title") || isContentDirty(editor.content, page.slug)
+            : isTranslationDirty(editor.translations, page.slug, loc)
+          : false,
+      },
+    ]),
+  ) as Record<Locale, { status: ContentPage["translationStatus"][Locale]; dirty: boolean }>;
+}
+
+// ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
@@ -668,35 +756,7 @@ export function ContentEditorPage() {
     setActiveLocale(DEFAULT_LOCALE);
   }, [slug]);
 
-  useEffect(() => {
-    if (!page) return;
-    editor.dispatch.meta({ type: ContentMetaActionType.Hydrate, entries: [{ slug: page.slug, meta: page }] });
-    editor.dispatch.content({
-      type: ContentBodyActionType.Hydrate,
-      entries: [{ slug: page.slug, content: page.content }],
-    });
-    editor.dispatch.translations({
-      type: ContentTranslationsActionType.Hydrate,
-      entries: (page.translations ?? []).map((translation) => ({
-        slug: page.slug,
-        locale: translation.locale,
-        title: translation.title,
-        content: translation.content,
-      })),
-    });
-    if (page.pageType === "segmented") {
-      editor.dispatch.segments({
-        type: ContentSegmentsActionType.HydrateOwner,
-        ownerSlug: page.slug,
-        segments: page.segments.map((segment) => ({
-          position: segment.position,
-          label: segment.label,
-          targetSlug: segment.targetSlug,
-          translations: segment.translations,
-        })),
-      });
-    }
-  }, [page, editor.dispatch]);
+  usePageEditorHydration(page, editor);
 
   // ---------------------------------------------------------------------------
   // Slice readers — reflect live edits, fall back to server data on first paint.
@@ -780,21 +840,7 @@ export function ContentEditorPage() {
   // Locale tab helpers
   // ---------------------------------------------------------------------------
 
-  const statuses = page?.translationStatus ?? ({} as ContentPage["translationStatus"]);
-
-  const tabStates = Object.fromEntries(
-    LOCALES.map((loc) => [
-      loc,
-      {
-        status: statuses[loc] ?? TranslationStatus.Missing,
-        dirty: page
-          ? loc === DEFAULT_LOCALE
-            ? isMetaFieldDirty(editor.meta, page.slug, "title") || isContentDirty(editor.content, page.slug)
-            : isTranslationDirty(editor.translations, page.slug, loc)
-          : false,
-      },
-    ]),
-  ) as Record<Locale, { status: ContentPage["translationStatus"][Locale]; dirty: boolean }>;
+  const tabStates = buildTabStates(page, editor);
 
   function handleCreateTranslation() {
     if (!page) return;
@@ -863,6 +909,7 @@ export function ContentEditorPage() {
           editingSlug={state.editingSlug}
           editSlugValue={state.editSlugValue}
           editorMessages={editorMessages}
+          statusLabels={pageMessages.status}
           locale={locale}
           common={common}
           onStartEditSlug={() => {

@@ -350,9 +350,6 @@ export interface DashboardMessages {
       pageTitleLabel: string;
       slugLabel: string;
       statusLabel: string;
-      statusDraft: string;
-      statusPublished: string;
-      statusHidden: string;
       showTitleLabel: string;
       titleAlignmentLabel: string;
       titleAlignmentLeft: string;
@@ -1077,9 +1074,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         pageTitleLabel: "Seitentitel",
         slugLabel: "Slug",
         statusLabel: "Status",
-        statusDraft: "Entwurf",
-        statusPublished: "Ver\u00f6ffentlicht",
-        statusHidden: "Versteckt",
         showTitleLabel: "Titel anzeigen",
         titleAlignmentLabel: "Ausrichtung",
         titleAlignmentLeft: "Links",
@@ -1800,9 +1794,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         pageTitleLabel: "Page title",
         slugLabel: "Slug",
         statusLabel: "Status",
-        statusDraft: "Draft",
-        statusPublished: "Published",
-        statusHidden: "Hidden",
         showTitleLabel: "Show title",
         titleAlignmentLabel: "Alignment",
         titleAlignmentLeft: "Left",
