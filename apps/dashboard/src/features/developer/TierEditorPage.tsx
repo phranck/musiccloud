@@ -8,6 +8,7 @@ import {
   XCircle as XCircleIcon,
 } from "@phosphor-icons/react";
 import { useCallback, useMemo, useReducer } from "react";
+import { ContentLoadingView } from "@/components/ui/ContentLoadingView";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { Dialog, dialogHeaderIconClass } from "@/components/ui/Dialog";
@@ -140,6 +141,25 @@ interface TierFormDialogProps {
   onSave: () => void;
 }
 
+/**
+ * Modal form for creating or editing a single API tier.
+ *
+ * Renders inputs for name, per-minute / per-day request limits, an
+ * attribution-required toggle, an optional display price and a sort order.
+ * The dialog is presentational: validation errors are passed in via `errors`
+ * and all state changes are surfaced through the `onFormChange` / `onSave`
+ * callbacks.
+ *
+ * @param open - Whether the dialog is visible.
+ * @param editingTier - The tier being edited, or `null` for create mode (drives title and submit label).
+ * @param form - Current form values.
+ * @param errors - Per-field validation messages to display.
+ * @param dm - Developer section of the localized dashboard messages.
+ * @param cm - Common (shared) localized dashboard messages.
+ * @param onClose - Invoked when the dialog is dismissed.
+ * @param onFormChange - Invoked with a partial patch whenever a field changes.
+ * @param onSave - Invoked when the user confirms create/save.
+ */
 function TierFormDialog({
   open,
   editingTier,
@@ -264,6 +284,15 @@ function TierFormDialog({
 // Delete confirmation dialog
 // -----------------------------------------------------------------------------
 
+/**
+ * Confirmation dialog shown before deleting a tier.
+ *
+ * @param open - Whether the dialog is visible.
+ * @param dm - Developer section of the localized dashboard messages.
+ * @param cm - Common (shared) localized dashboard messages.
+ * @param onClose - Invoked when the deletion is cancelled.
+ * @param onDelete - Invoked when the user confirms deletion.
+ */
 function TierDeleteConfirmDialog({
   open,
   dm,
@@ -308,51 +337,28 @@ function TierDeleteConfirmDialog({
 }
 
 // -----------------------------------------------------------------------------
-// TierEditorPage
+// Table columns
 // -----------------------------------------------------------------------------
 
-export function TierEditorPage() {
-  const { messages } = useI18n();
-  const dm = messages.developer;
-  const cm = messages.common;
-  const { data: tiers, isLoading } = useTiers();
-  const createTier = useCreateTier();
-  const updateTier = useUpdateTier();
-  const deleteTier = useDeleteTier();
-  const [state, dispatch] = useReducer(tierEditorReducer, {
-    dialogOpen: false,
-    editingTier: null,
-    form: EMPTY_FORM,
-    errors: {},
-    deleteConfirm: null,
-  });
-
-  const openCreate = useCallback(() => dispatch({ type: TierEditorActionType.OpenCreate }), []);
-
-  const openEdit = useCallback((tier: TierResponse) => dispatch({ type: TierEditorActionType.OpenEdit, tier }), []);
-
-  function handleSave() {
-    const errs = validateForm(state.form);
-    if (Object.keys(errs).length > 0) {
-      dispatch({ type: TierEditorActionType.SetErrors, errors: errs });
-      return;
-    }
-    if (state.editingTier) {
-      updateTier.mutate({ id: state.editingTier.id, ...toSubmitBody(state.form) });
-    } else {
-      createTier.mutate(toSubmitBody(state.form));
-    }
-    dispatch({ type: TierEditorActionType.CloseDialog });
-  }
-
-  function handleDelete() {
-    if (state.deleteConfirm) {
-      deleteTier.mutate(state.deleteConfirm);
-      dispatch({ type: TierEditorActionType.CancelDelete });
-    }
-  }
-
-  const columns = useMemo<ColumnDef<TierResponse>[]>(
+/**
+ * Builds the memoized column definitions for the tiers table.
+ *
+ * Columns: name, combined per-minute/per-day traffic, attribution requirement
+ * badge, display price, sort order, and an edit/delete action pair.
+ *
+ * @param dm - Developer section of the localized dashboard messages.
+ * @param cm - Common (shared) localized dashboard messages.
+ * @param onEdit - Invoked with the tier when its edit action is triggered.
+ * @param onDelete - Invoked with the tier id when its delete action is triggered.
+ * @returns Stable column definitions, re-created only when a dependency changes.
+ */
+function useTierColumns(
+  dm: ReturnType<typeof useI18n>["messages"]["developer"],
+  cm: ReturnType<typeof useI18n>["messages"]["common"],
+  onEdit: (tier: TierResponse) => void,
+  onDelete: (id: string) => void,
+): ColumnDef<TierResponse>[] {
+  return useMemo<ColumnDef<TierResponse>[]>(
     () => [
       {
         id: "name",
@@ -414,12 +420,12 @@ export function TierEditorPage() {
         cell: (a) => (
           <div className="flex justify-end gap-1">
             <TableActionButton
-              onClick={() => openEdit(a)}
+              onClick={() => onEdit(a)}
               icon={<PencilSimpleIcon weight="duotone" className="size-3" />}
               label={cm.edit}
             />
             <TableActionButton
-              onClick={() => dispatch({ type: TierEditorActionType.ConfirmDelete, id: a.id })}
+              onClick={() => onDelete(a.id)}
               icon={<TrashIcon weight="duotone" className="size-3" />}
               label={cm.delete}
             />
@@ -427,8 +433,64 @@ export function TierEditorPage() {
         ),
       },
     ],
-    [dm, cm, openEdit],
+    [dm, cm, onEdit, onDelete],
   );
+}
+
+// -----------------------------------------------------------------------------
+// TierEditorPage
+// -----------------------------------------------------------------------------
+
+/**
+ * Admin page for managing API rate-limit tiers.
+ *
+ * Lists all tiers in a sortable table and provides create, edit and delete
+ * flows via modal dialogs. While the tiers query is loading the page shows a
+ * neutral {@link ContentLoadingView}; once settled it renders either the empty
+ * state ({@link ContentUnavailableView}) or the populated table.
+ */
+export function TierEditorPage() {
+  const { messages } = useI18n();
+  const dm = messages.developer;
+  const cm = messages.common;
+  const { data: tiers, isLoading } = useTiers();
+  const createTier = useCreateTier();
+  const updateTier = useUpdateTier();
+  const deleteTier = useDeleteTier();
+  const [state, dispatch] = useReducer(tierEditorReducer, {
+    dialogOpen: false,
+    editingTier: null,
+    form: EMPTY_FORM,
+    errors: {},
+    deleteConfirm: null,
+  });
+
+  const openCreate = useCallback(() => dispatch({ type: TierEditorActionType.OpenCreate }), []);
+  const openEdit = useCallback((tier: TierResponse) => dispatch({ type: TierEditorActionType.OpenEdit, tier }), []);
+  const confirmDelete = useCallback((id: string) => dispatch({ type: TierEditorActionType.ConfirmDelete, id }), []);
+
+  const columns = useTierColumns(dm, cm, openEdit, confirmDelete);
+
+  function handleSave() {
+    const errs = validateForm(state.form);
+    if (Object.keys(errs).length > 0) {
+      dispatch({ type: TierEditorActionType.SetErrors, errors: errs });
+      return;
+    }
+    if (state.editingTier) {
+      updateTier.mutate({ id: state.editingTier.id, ...toSubmitBody(state.form) });
+    } else {
+      createTier.mutate(toSubmitBody(state.form));
+    }
+    dispatch({ type: TierEditorActionType.CloseDialog });
+  }
+
+  function handleDelete() {
+    if (state.deleteConfirm) {
+      deleteTier.mutate(state.deleteConfirm);
+      dispatch({ type: TierEditorActionType.CancelDelete });
+    }
+  }
 
   const tierList = tiers ?? [];
 
@@ -443,21 +505,7 @@ export function TierEditorPage() {
         />
       </PageHeader>
 
-      {isLoading && (
-        <DashboardSection className="overflow-hidden flex-1 min-h-0 flex flex-col">
-          <DashboardSection.Header icon={<StackIcon weight="duotone" className="size-4" />} title={dm.tiersTitle} />
-          <DashboardSection.Body flush>
-            <div className="space-y-px">
-              {Array.from({ length: 4 }, (_, i) => `sk-${i}`).map((key) => (
-                <div
-                  key={key}
-                  className="h-14 bg-[var(--ds-surface)] animate-pulse border-b border-[var(--ds-border-subtle)]"
-                />
-              ))}
-            </div>
-          </DashboardSection.Body>
-        </DashboardSection>
-      )}
+      {isLoading && <ContentLoadingView className="flex-1 min-h-0" />}
 
       {!isLoading && tierList.length === 0 && (
         <ContentUnavailableView
