@@ -54,8 +54,9 @@ function formatDate(ts: number): string {
 
 type AlbumTable = ReturnType<typeof useInfiniteAdminTable<AlbumListItem>>;
 type AlbumMessages = ReturnType<typeof useI18n>["messages"]["music"]["albums"];
+type MusicColumnMessages = ReturnType<typeof useI18n>["messages"]["music"]["columns"];
 
-function useAlbumColumns(table: AlbumTable, ma: AlbumMessages): ColumnDef<AlbumListItem>[] {
+function useAlbumColumns(table: AlbumTable, ma: AlbumMessages, mc: MusicColumnMessages): ColumnDef<AlbumListItem>[] {
   return useMemo<ColumnDef<AlbumListItem>[]>(
     () => [
       ...(table.editMode
@@ -91,7 +92,7 @@ function useAlbumColumns(table: AlbumTable, ma: AlbumMessages): ColumnDef<AlbumL
       },
       {
         id: "title",
-        header: ma.colTitle,
+        header: mc.title,
         sortKey: (album) => album.title.toLowerCase(),
         cell: (album) => (
           <>
@@ -115,13 +116,13 @@ function useAlbumColumns(table: AlbumTable, ma: AlbumMessages): ColumnDef<AlbumL
       },
       {
         id: "artists",
-        header: ma.colArtists,
+        header: mc.artists,
         sortKey: (album) => album.artists.join(", ").toLowerCase(),
         cell: (album) => <span className="text-sm">{album.artists.join(", ")}</span>,
       },
       {
         id: "source",
-        header: ma.colSource,
+        header: mc.source,
         className: "w-28",
         sortKey: (album) => album.sourceService ?? "",
         cell: (album) =>
@@ -149,7 +150,7 @@ function useAlbumColumns(table: AlbumTable, ma: AlbumMessages): ColumnDef<AlbumL
       },
       {
         id: "links",
-        header: ma.colLinks,
+        header: mc.links,
         className: "w-24",
         headerClassName: "w-24 text-right",
         cellClassName: "w-24 text-right",
@@ -162,7 +163,7 @@ function useAlbumColumns(table: AlbumTable, ma: AlbumMessages): ColumnDef<AlbumL
       },
       {
         id: "createdAt",
-        header: ma.colAdded,
+        header: mc.added,
         className: "w-36",
         sortKey: (album) => album.createdAt,
         cell: (album) => (
@@ -170,7 +171,7 @@ function useAlbumColumns(table: AlbumTable, ma: AlbumMessages): ColumnDef<AlbumL
         ),
       },
     ],
-    [ma, table.editMode, table.allSelected, table.selectedIds, table.toggleAll, table.toggleRow],
+    [ma, mc, table.editMode, table.allSelected, table.selectedIds, table.toggleAll, table.toggleRow],
   );
 }
 
@@ -189,7 +190,7 @@ export function AlbumsPage() {
     sseToItem: (data) => data as unknown as AlbumListItem,
   });
 
-  const columns = useAlbumColumns(table, ma);
+  const columns = useAlbumColumns(table, ma, messages.music.columns);
 
   async function handleConfirmDelete() {
     setDeleting(true);

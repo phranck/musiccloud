@@ -47,8 +47,13 @@ function formatDate(ts: number): string {
 
 type ArtistTable = ReturnType<typeof useInfiniteAdminTable<ArtistListItem>>;
 type ArtistMessages = ReturnType<typeof useI18n>["messages"]["music"]["artists"];
+type MusicColumnMessages = ReturnType<typeof useI18n>["messages"]["music"]["columns"];
 
-function useArtistColumns(table: ArtistTable, ma: ArtistMessages): ColumnDef<ArtistListItem>[] {
+function useArtistColumns(
+  table: ArtistTable,
+  ma: ArtistMessages,
+  mc: MusicColumnMessages,
+): ColumnDef<ArtistListItem>[] {
   return useMemo<ColumnDef<ArtistListItem>[]>(
     () => [
       ...(table.editMode
@@ -122,7 +127,7 @@ function useArtistColumns(table: ArtistTable, ma: ArtistMessages): ColumnDef<Art
       },
       {
         id: "source",
-        header: ma.colSource,
+        header: mc.source,
         className: "w-28",
         sortKey: (artist) => artist.sourceService ?? "",
         cell: (artist) =>
@@ -134,7 +139,7 @@ function useArtistColumns(table: ArtistTable, ma: ArtistMessages): ColumnDef<Art
       },
       {
         id: "links",
-        header: ma.colLinks,
+        header: mc.links,
         className: "w-24",
         headerClassName: "w-24 text-right",
         cellClassName: "w-24 text-right",
@@ -147,7 +152,7 @@ function useArtistColumns(table: ArtistTable, ma: ArtistMessages): ColumnDef<Art
       },
       {
         id: "createdAt",
-        header: ma.colAdded,
+        header: mc.added,
         className: "w-36",
         sortKey: (artist) => artist.createdAt,
         cell: (artist) => (
@@ -164,7 +169,7 @@ function useArtistColumns(table: ArtistTable, ma: ArtistMessages): ColumnDef<Art
         ),
       },
     ],
-    [ma, table.editMode, table.allSelected, table.selectedIds, table.toggleAll, table.toggleRow],
+    [ma, mc, table.editMode, table.allSelected, table.selectedIds, table.toggleAll, table.toggleRow],
   );
 }
 
@@ -182,7 +187,7 @@ export function ArtistsPage() {
     sseToItem: (data) => data as unknown as ArtistListItem,
   });
 
-  const columns = useArtistColumns(table, ma);
+  const columns = useArtistColumns(table, ma, messages.music.columns);
 
   async function handleConfirmDelete() {
     setDeleting(true);

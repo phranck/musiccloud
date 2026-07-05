@@ -182,16 +182,18 @@ export interface DashboardMessages {
     colKey: string;
   };
   music: {
+    columns: {
+      title: string;
+      artists: string;
+      source: string;
+      links: string;
+      added: string;
+    };
     tracks: {
       title: string;
       searchPlaceholder: string;
       total: string;
       noTracks: string;
-      colTitle: string;
-      colArtists: string;
-      colSource: string;
-      colLinks: string;
-      colAdded: string;
     };
     trackEdit: {
       backLabel: string;
@@ -213,12 +215,7 @@ export interface DashboardMessages {
       searchPlaceholder: string;
       total: string;
       noAlbums: string;
-      colTitle: string;
-      colArtists: string;
-      colSource: string;
       colTracks: string;
-      colLinks: string;
-      colAdded: string;
     };
     artists: {
       title: string;
@@ -231,9 +228,6 @@ export interface DashboardMessages {
       deleteConfirmAction: string;
       colName: string;
       colGenres: string;
-      colSource: string;
-      colLinks: string;
-      colAdded: string;
       refreshLabel: string;
       refreshTooltip: string;
       refreshConfirm: string;
@@ -911,16 +905,18 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       colKey: "API Key",
     },
     music: {
+      columns: {
+        title: "Titel",
+        artists: "K\u00fcnstler",
+        source: "Quelle",
+        links: "Services",
+        added: "Hinzugef\u00fcgt",
+      },
       tracks: {
         title: "Tracks",
         searchPlaceholder: "Tracks suchen\u2026",
         total: "Tracks",
         noTracks: "Keine Tracks vorhanden",
-        colTitle: "Titel",
-        colArtists: "K\u00fcnstler",
-        colSource: "Quelle",
-        colLinks: "Services",
-        colAdded: "Hinzugef\u00fcgt",
       },
       trackEdit: {
         backLabel: "Tracks",
@@ -942,12 +938,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         searchPlaceholder: "Alben suchen\u2026",
         total: "Alben",
         noAlbums: "Keine Alben vorhanden",
-        colTitle: "Titel",
-        colArtists: "K\u00fcnstler",
-        colSource: "Quelle",
         colTracks: "Tracks",
-        colLinks: "Services",
-        colAdded: "Hinzugef\u00fcgt",
       },
       artists: {
         title: "Artist-Profile",
@@ -961,9 +952,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         deleteConfirmAction: "Profile l\u00f6schen",
         colName: "Name",
         colGenres: "Genres",
-        colSource: "Quelle",
-        colLinks: "Services",
-        colAdded: "Hinzugef\u00fcgt",
         refreshLabel: "Auffrischen",
         refreshTooltip: "K\u00fcnstlerdaten neu von der Quelle laden",
         refreshConfirm: "Aufgefrischt",
@@ -1640,16 +1628,18 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       colKey: "API Key",
     },
     music: {
+      columns: {
+        title: "Title",
+        artists: "Artists",
+        source: "Source",
+        links: "Services",
+        added: "Added",
+      },
       tracks: {
         title: "Tracks",
         searchPlaceholder: "Search tracks\u2026",
         total: "tracks",
         noTracks: "No tracks yet",
-        colTitle: "Title",
-        colArtists: "Artists",
-        colSource: "Source",
-        colLinks: "Services",
-        colAdded: "Added",
       },
       trackEdit: {
         backLabel: "Tracks",
@@ -1671,12 +1661,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         searchPlaceholder: "Search albums\u2026",
         total: "albums",
         noAlbums: "No albums yet",
-        colTitle: "Title",
-        colArtists: "Artists",
-        colSource: "Source",
         colTracks: "Tracks",
-        colLinks: "Services",
-        colAdded: "Added",
       },
       artists: {
         title: "Artist Profiles",
@@ -1690,9 +1675,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         deleteConfirmAction: "Delete profiles",
         colName: "Name",
         colGenres: "Genres",
-        colSource: "Source",
-        colLinks: "Services",
-        colAdded: "Added",
         refreshLabel: "Refresh",
         refreshTooltip: "Reload artist data from the source",
         refreshConfirm: "Refreshed",

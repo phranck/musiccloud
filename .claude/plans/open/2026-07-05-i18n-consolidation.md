@@ -140,7 +140,7 @@ Neues Objekt `music.columns` = `{ title, artists, source, links, added }` (Werte
 
 Bleiben (nicht dupliziert): `music.albums.colTracks`, `music.artists.colName`, `music.artists.colGenres`.
 
-- [ ] Task 7: `music.columns` aktiv, 13 col-Keys weg; `tsc` grün; Commit `Refactor: shared music.columns table headers`
+- [x] Task 7: `music.columns` aktiv, 13 col-Keys weg; `tsc` grün; Commit `Refactor: shared music.columns table headers`
 
 ### Task 8: Seitenstatus auf `content.pages.status.*`
 

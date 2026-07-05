@@ -49,12 +49,12 @@ function formatDate(ts: number): string {
 }
 
 type TrackTable = ReturnType<typeof useInfiniteAdminTable<TrackListItem>>;
-type TrackMessages = ReturnType<typeof useI18n>["messages"]["music"]["tracks"];
+type MusicColumnMessages = ReturnType<typeof useI18n>["messages"]["music"]["columns"];
 type CommonMessages = ReturnType<typeof useI18n>["messages"]["common"];
 
 function useTrackColumns(
   table: TrackTable,
-  mt: TrackMessages,
+  mc: MusicColumnMessages,
   common: CommonMessages,
   navigate: ReturnType<typeof useNavigate>,
 ): ColumnDef<TrackListItem>[] {
@@ -93,7 +93,7 @@ function useTrackColumns(
       },
       {
         id: "title",
-        header: mt.colTitle,
+        header: mc.title,
         sortKey: (track) => track.title.toLowerCase(),
         cell: (track) => (
           <>
@@ -115,13 +115,13 @@ function useTrackColumns(
       },
       {
         id: "artists",
-        header: mt.colArtists,
+        header: mc.artists,
         sortKey: (track) => track.artists.join(", ").toLowerCase(),
         cell: (track) => <span className="text-sm">{track.artists.join(", ")}</span>,
       },
       {
         id: "source",
-        header: mt.colSource,
+        header: mc.source,
         className: "w-28",
         sortKey: (track) => track.sourceService ?? "",
         cell: (track) =>
@@ -140,7 +140,7 @@ function useTrackColumns(
       },
       {
         id: "links",
-        header: mt.colLinks,
+        header: mc.links,
         className: "w-24",
         headerClassName: "w-24 text-right",
         cellClassName: "w-24 text-right",
@@ -153,7 +153,7 @@ function useTrackColumns(
       },
       {
         id: "createdAt",
-        header: mt.colAdded,
+        header: mc.added,
         className: "w-36",
         sortKey: (track) => track.createdAt,
         cell: (track) => (
@@ -174,7 +174,7 @@ function useTrackColumns(
         ),
       },
     ],
-    [mt, common, navigate, table.editMode, table.allSelected, table.selectedIds, table.toggleAll, table.toggleRow],
+    [mc, common, navigate, table.editMode, table.allSelected, table.selectedIds, table.toggleAll, table.toggleRow],
   );
 }
 
@@ -194,7 +194,7 @@ export function TracksPage() {
     sseToItem: (data) => data as unknown as TrackListItem,
   });
 
-  const columns = useTrackColumns(table, mt, messages.common, navigate);
+  const columns = useTrackColumns(table, messages.music.columns, messages.common, navigate);
 
   async function handleConfirmDelete() {
     setDeleting(true);
