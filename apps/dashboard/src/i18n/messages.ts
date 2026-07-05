@@ -561,7 +561,6 @@ export interface DashboardMessages {
     deleteTemplateConfirm: string;
     noTemplates: string;
     noTemplatesHint: string;
-    nameConflict: string;
     systemBadge: string;
     tableCreated: string;
     preview: string;
@@ -1261,7 +1260,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       deleteTemplateConfirm: "Wirklich l\u00f6schen?",
       noTemplates: "Keine Vorlagen vorhanden",
       noTemplatesHint: "Erstelle eine neue E-Mail-Vorlage.",
-      nameConflict: "Name bereits vergeben",
       systemBadge: "System",
       tableCreated: "Erstellt",
       preview: "Vorschau",
@@ -1964,7 +1962,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       deleteTemplateConfirm: "Really delete?",
       noTemplates: "No templates yet",
       noTemplatesHint: "Create a new email template.",
-      nameConflict: "Name already taken",
       systemBadge: "System",
       tableCreated: "Created",
       preview: "Preview",
