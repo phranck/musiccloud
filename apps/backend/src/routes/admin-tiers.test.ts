@@ -5,8 +5,8 @@
  */
 import cookie from "@fastify/cookie";
 import jwt from "@fastify/jwt";
-import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
-import Fastify, { type FastifyInstance } from "fastify";
+import { ENDPOINTS } from "@musiccloud/shared";
+import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Tier } from "../db/tiers-repository.js";
@@ -50,17 +50,16 @@ async function buildApp(): Promise<FastifyInstance> {
   await app.register(jwt, { secret: "test-secret" });
   await app.register(cookie);
 
-  app.decorate("authenticateAdmin", async (request: any) => {
+  app.decorate("authenticateAdmin", async (request: FastifyRequest) => {
     try {
       await request.jwtVerify();
-      request.adminUser = { sub: "admin-1", role: "admin" };
     } catch {
       // let the route handler's own role gate reject
     }
   });
 
   // Simulate the adminRoutes scope from server.ts
-  await app.register(async function adminRoutes(adminApp: any) {
+  await app.register(async function adminRoutes(adminApp: FastifyInstance) {
     adminApp.addHook("preHandler", adminApp.authenticateAdmin);
     const { adminTiersRoutes } = await import("./admin-tiers.js");
     await adminApp.register(adminTiersRoutes);
