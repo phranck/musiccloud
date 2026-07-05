@@ -51,7 +51,7 @@ export function ServicesPage() {
         )}
 
         {isLoading ? (
-          <p className="text-sm text-[var(--ds-text-muted)]">{s.loading}</p>
+          <p className="text-sm text-[var(--ds-text-muted)]">{messages.common.loading}</p>
         ) : error ? (
           <p className="text-sm text-[var(--ds-danger-text)]">{s.loadError}</p>
         ) : sortedPlugins.length === 0 ? (

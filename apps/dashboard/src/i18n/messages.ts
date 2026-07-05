@@ -301,7 +301,6 @@ export interface DashboardMessages {
     toggleAction: string;
     toggleError: string;
     loadError: string;
-    loading: string;
     empty: string;
   };
   users: {
@@ -371,7 +370,6 @@ export interface DashboardMessages {
       loadingContent: string;
       preview: string;
     };
-    loadingFallback: string;
     pages: {
       title: string;
       newPage: string;
@@ -742,7 +740,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       remove: "Entfernen",
       duplicate: "Duplizieren",
       close: "Schlie\u00dfen",
-      loading: "Lade\u2026",
+      loading: "Wird geladen\u2026",
       copied: "Kopiert!",
       unknownError: "Unbekannter Fehler",
     },
@@ -1040,7 +1038,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       toggleAction: "Umschalten",
       toggleError: "Umschalten fehlgeschlagen.",
       loadError: "Plugin-Liste konnte nicht geladen werden.",
-      loading: "Wird geladen\u2026",
       empty: "Keine Plugins installiert.",
     },
     users: {
@@ -1106,7 +1103,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         loadingContent: "Inhalt wird geladen\u2026",
         preview: "Vorschau",
       },
-      loadingFallback: "Wird geladen\u2026",
       pages: {
         title: "Seiten",
         newPage: "Neue Seite",
@@ -1771,7 +1767,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       toggleAction: "Toggle",
       toggleError: "Toggle failed.",
       loadError: "Failed to load the plugin list.",
-      loading: "Loading\u2026",
       empty: "No plugins installed.",
     },
     users: {
@@ -1837,7 +1832,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         loadingContent: "Loading content\u2026",
         preview: "Preview",
       },
-      loadingFallback: "Loading\u2026",
       pages: {
         title: "Pages",
         newPage: "New Page",

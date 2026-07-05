@@ -122,7 +122,7 @@ Neuer Key `common.saveError` = DE „Fehler beim Speichern" / EN „Error saving
 - `common.loading` DE von „Lade…" auf „Wird geladen…" ändern (Mehrheits-Wording)
 - `services.loading`, `content.loadingFallback` → `common.loading`, alte Keys löschen
 
-- [ ] Task 6: loading vereinheitlicht; `tsc` grün; Commit `Refactor: unify loading message under common.loading`
+- [x] Task 6: loading vereinheitlicht (common.loading DE = „Wird geladen…", services.loading + content.loadingFallback weg); `tsc` grün; Commit `Refactor: unify loading message under common.loading`
 
 ---
 
