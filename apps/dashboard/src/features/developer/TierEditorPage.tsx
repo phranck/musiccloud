@@ -1,3 +1,4 @@
+import { DashboardActionButton, DashboardActionId, DashboardButtonVariant } from "@musiccloud/dashboard-ui";
 import {
   CheckCircle as CheckCircleIcon,
   PencilSimple as PencilSimpleIcon,
@@ -9,7 +10,7 @@ import {
 import { useCallback, useMemo, useReducer } from "react";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { DashboardSection } from "@/components/ui/DashboardSection";
-import { Dialog } from "@/components/ui/Dialog";
+import { Dialog, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
 import { type ColumnDef, DataTable } from "@/components/ui/Table";
@@ -17,6 +18,11 @@ import { TableActionButton } from "@/components/ui/TableActionButton";
 import { useI18n } from "@/context/I18nContext";
 import type { TierResponse } from "@/features/developer/api";
 import { useCreateTier, useDeleteTier, useTiers, useUpdateTier } from "@/features/developer/hooks/useDeveloperData";
+import { FormLabel, FormLabelText, formInputClass } from "@/shared/ui/FormPrimitives";
+
+// -----------------------------------------------------------------------------
+// Tier form data & validation
+// -----------------------------------------------------------------------------
 
 interface TierFormData {
   name: string;
@@ -36,88 +42,6 @@ const EMPTY_FORM: TierFormData = {
   sortOrder: 0,
 };
 
-function TierForm({
-  data,
-  onChange,
-  errors,
-}: {
-  data: TierFormData;
-  onChange: (patch: Partial<TierFormData>) => void;
-  errors: Partial<Record<keyof TierFormData, string>>;
-}) {
-  return (
-    <div className="flex flex-col gap-4 px-6 py-4">
-      <label className="flex flex-col gap-1">
-        <span className="text-sm font-medium text-[var(--ds-text)]">Name</span>
-        <input
-          type="text"
-          className="rounded-input bg-[var(--ds-surface)] border border-[var(--ds-border)] px-3 py-2 text-sm text-[var(--ds-text)]"
-          value={data.name}
-          onChange={(e) => onChange({ name: e.target.value })}
-          placeholder="e.g. Pro"
-        />
-        {errors.name && <span className="text-xs text-red-400">{errors.name}</span>}
-      </label>
-
-      <div className="grid grid-cols-2 gap-4">
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-[var(--ds-text)]">Requests / minute</span>
-          <input
-            type="number"
-            className="rounded-input bg-[var(--ds-surface)] border border-[var(--ds-border)] px-3 py-2 text-sm text-[var(--ds-text)]"
-            value={data.requestsPerMinute}
-            onChange={(e) => onChange({ requestsPerMinute: Number(e.target.value) })}
-            min={1}
-          />
-          {errors.requestsPerMinute && <span className="text-xs text-red-400">{errors.requestsPerMinute}</span>}
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-[var(--ds-text)]">Requests / day</span>
-          <input
-            type="number"
-            className="rounded-input bg-[var(--ds-surface)] border border-[var(--ds-border)] px-3 py-2 text-sm text-[var(--ds-text)]"
-            value={data.requestsPerDay}
-            onChange={(e) => onChange({ requestsPerDay: Number(e.target.value) })}
-            min={1}
-          />
-          {errors.requestsPerDay && <span className="text-xs text-red-400">{errors.requestsPerDay}</span>}
-        </label>
-      </div>
-
-      <label className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          checked={data.attributionRequired}
-          onChange={(e) => onChange({ attributionRequired: e.target.checked })}
-          className="rounded"
-        />
-        <span className="text-sm font-medium text-[var(--ds-text)]">Attribution required</span>
-      </label>
-
-      <label className="flex flex-col gap-1">
-        <span className="text-sm font-medium text-[var(--ds-text)]">Price</span>
-        <input
-          type="text"
-          className="rounded-input bg-[var(--ds-surface)] border border-[var(--ds-border)] px-3 py-2 text-sm text-[var(--ds-text)]"
-          value={data.price}
-          onChange={(e) => onChange({ price: e.target.value })}
-          placeholder='e.g. "€ 9,90/Monat"'
-        />
-      </label>
-
-      <label className="flex flex-col gap-1">
-        <span className="text-sm font-medium text-[var(--ds-text)]">Sort order</span>
-        <input
-          type="number"
-          className="rounded-input bg-[var(--ds-surface)] border border-[var(--ds-border)] px-3 py-2 text-sm text-[var(--ds-text)]"
-          value={data.sortOrder}
-          onChange={(e) => onChange({ sortOrder: Number(e.target.value) })}
-        />
-      </label>
-    </div>
-  );
-}
-
 function toSubmitBody(data: TierFormData) {
   return {
     name: data.name,
@@ -136,6 +60,10 @@ function validateForm(data: TierFormData): Partial<Record<keyof TierFormData, st
   if (data.requestsPerDay < 1) errs.requestsPerDay = "Must be > 0";
   return errs;
 }
+
+// -----------------------------------------------------------------------------
+// Reducer
+// -----------------------------------------------------------------------------
 
 interface TierEditorState {
   dialogOpen: boolean;
@@ -196,6 +124,193 @@ function tierEditorReducer(state: TierEditorState, action: TierEditorAction): Ti
   }
 }
 
+// -----------------------------------------------------------------------------
+// Tier form dialog (create / edit)
+// -----------------------------------------------------------------------------
+
+interface TierFormDialogProps {
+  open: boolean;
+  editingTier: TierResponse | null;
+  form: TierFormData;
+  errors: Partial<Record<keyof TierFormData, string>>;
+  dm: ReturnType<typeof useI18n>["messages"]["developer"];
+  cm: ReturnType<typeof useI18n>["messages"]["common"];
+  onClose: () => void;
+  onFormChange: (patch: Partial<TierFormData>) => void;
+  onSave: () => void;
+}
+
+function TierFormDialog({
+  open,
+  editingTier,
+  form,
+  errors,
+  dm,
+  cm,
+  onClose,
+  onFormChange,
+  onSave,
+}: TierFormDialogProps) {
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={editingTier ? dm.tierEdit : dm.tierCreate}
+      titleIcon={<StackIcon weight="duotone" className={dialogHeaderIconClass} />}
+      maxWidth="sm"
+    >
+      <div className="p-6 space-y-3">
+        <div>
+          <FormLabel htmlFor="tier-name">{dm.colName}</FormLabel>
+          <input
+            id="tier-name"
+            aria-label={dm.colName}
+            type="text"
+            className={formInputClass}
+            value={form.name}
+            onChange={(e) => onFormChange({ name: e.target.value })}
+            placeholder="e.g. Pro"
+          />
+          {errors.name && <p className="text-xs text-red-400 mt-1">{errors.name}</p>}
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <FormLabel htmlFor="tier-rpm">{dm.detailRateLimitMinute}</FormLabel>
+            <input
+              id="tier-rpm"
+              aria-label={dm.detailRateLimitMinute}
+              type="number"
+              className={formInputClass}
+              value={form.requestsPerMinute}
+              onChange={(e) => onFormChange({ requestsPerMinute: Number(e.target.value) })}
+              min={1}
+            />
+            {errors.requestsPerMinute && <p className="text-xs text-red-400 mt-1">{errors.requestsPerMinute}</p>}
+          </div>
+          <div>
+            <FormLabel htmlFor="tier-rpd">{dm.detailRateLimitDay}</FormLabel>
+            <input
+              id="tier-rpd"
+              aria-label={dm.detailRateLimitDay}
+              type="number"
+              className={formInputClass}
+              value={form.requestsPerDay}
+              onChange={(e) => onFormChange({ requestsPerDay: Number(e.target.value) })}
+              min={1}
+            />
+            {errors.requestsPerDay && <p className="text-xs text-red-400 mt-1">{errors.requestsPerDay}</p>}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 pt-1">
+          <input
+            id="tier-attribution"
+            aria-label={dm.colAttribution}
+            type="checkbox"
+            className="rounded"
+            checked={form.attributionRequired}
+            onChange={(e) => onFormChange({ attributionRequired: e.target.checked })}
+          />
+          <FormLabelText>{dm.colAttribution}</FormLabelText>
+        </div>
+
+        <div>
+          <FormLabel htmlFor="tier-price">{dm.colPrice}</FormLabel>
+          <input
+            id="tier-price"
+            aria-label={dm.colPrice}
+            type="text"
+            className={formInputClass}
+            value={form.price}
+            onChange={(e) => onFormChange({ price: e.target.value })}
+            placeholder='e.g. "€ 9,90/Monat"'
+          />
+        </div>
+
+        <div>
+          <FormLabel htmlFor="tier-sort">{dm.colSortOrder}</FormLabel>
+          <input
+            id="tier-sort"
+            aria-label={dm.colSortOrder}
+            type="number"
+            className={formInputClass}
+            value={form.sortOrder}
+            onChange={(e) => onFormChange({ sortOrder: Number(e.target.value) })}
+          />
+        </div>
+      </div>
+      <Dialog.Footer>
+        <DashboardActionButton
+          action={DashboardActionId.Cancel}
+          icon={false}
+          label={cm.cancel}
+          onClick={onClose}
+          type="button"
+          variant={DashboardButtonVariant.Neutral}
+        />
+        <DashboardActionButton
+          action={DashboardActionId.Save}
+          label={editingTier ? cm.save : cm.create}
+          onClick={onSave}
+          type="button"
+        />
+      </Dialog.Footer>
+    </Dialog>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Delete confirmation dialog
+// -----------------------------------------------------------------------------
+
+function TierDeleteConfirmDialog({
+  open,
+  dm,
+  cm,
+  onClose,
+  onDelete,
+}: {
+  open: boolean;
+  dm: ReturnType<typeof useI18n>["messages"]["developer"];
+  cm: ReturnType<typeof useI18n>["messages"]["common"];
+  onClose: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={dm.tierDeleteTitle}
+      titleIcon={<TrashIcon weight="duotone" className={dialogHeaderIconClass} />}
+      maxWidth="sm"
+    >
+      <div className="p-6 text-sm text-[var(--ds-text-muted)]">{dm.tierDeleteConfirm}</div>
+      <Dialog.Footer>
+        <DashboardActionButton
+          action={DashboardActionId.Cancel}
+          icon={false}
+          label={cm.cancel}
+          onClick={onClose}
+          type="button"
+          variant={DashboardButtonVariant.Neutral}
+        />
+        <DashboardActionButton
+          action={DashboardActionId.Delete}
+          label={cm.delete}
+          onClick={onDelete}
+          type="button"
+          variant={DashboardButtonVariant.Danger}
+        />
+      </Dialog.Footer>
+    </Dialog>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// TierEditorPage
+// -----------------------------------------------------------------------------
+
 export function TierEditorPage() {
   const { messages } = useI18n();
   const dm = messages.developer;
@@ -230,9 +345,11 @@ export function TierEditorPage() {
     dispatch({ type: TierEditorActionType.CloseDialog });
   }
 
-  function handleDelete(id: string) {
-    deleteTier.mutate(id);
-    dispatch({ type: TierEditorActionType.CancelDelete });
+  function handleDelete() {
+    if (state.deleteConfirm) {
+      deleteTier.mutate(state.deleteConfirm);
+      dispatch({ type: TierEditorActionType.CancelDelete });
+    }
   }
 
   const columns = useMemo<ColumnDef<TierResponse>[]>(
@@ -318,14 +435,12 @@ export function TierEditorPage() {
   return (
     <PageLayout>
       <PageHeader title={dm.tiersTitle}>
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 rounded-button bg-[var(--ds-accent)] text-[var(--ds-on-accent)] px-4 py-2 text-sm font-medium"
+        <DashboardActionButton
+          action={DashboardActionId.Create}
+          icon={<PlusCircleIcon weight="duotone" />}
+          label={dm.tierCreate}
           onClick={openCreate}
-        >
-          <PlusCircleIcon weight="duotone" className="size-4" />
-          {dm.tierCreate}
-        </button>
+        />
       </PageHeader>
 
       {isLoading && (
@@ -370,61 +485,25 @@ export function TierEditorPage() {
         </DashboardSection>
       )}
 
-      <Dialog
+      <TierFormDialog
         open={state.dialogOpen}
+        editingTier={state.editingTier}
+        form={state.form}
+        errors={state.errors}
+        dm={dm}
+        cm={cm}
         onClose={() => dispatch({ type: TierEditorActionType.CloseDialog })}
-        title={state.editingTier ? dm.tierEdit : dm.tierCreate}
-        titleIcon={<StackIcon weight="duotone" className="w-6 h-6 text-[var(--ds-text-muted)]" />}
-        maxWidth="sm"
-      >
-        <TierForm
-          data={state.form}
-          onChange={(p) => dispatch({ type: TierEditorActionType.SetForm, patch: p })}
-          errors={state.errors}
-        />
-        <Dialog.Footer>
-          <button
-            type="button"
-            className="rounded-button border border-[var(--ds-border)] px-4 py-2 text-sm text-[var(--ds-text-muted)]"
-            onClick={() => dispatch({ type: TierEditorActionType.CloseDialog })}
-          >
-            {cm.cancel}
-          </button>
-          <button
-            type="button"
-            className="rounded-button bg-[var(--ds-accent)] text-[var(--ds-on-accent)] px-4 py-2 text-sm font-medium"
-            onClick={handleSave}
-          >
-            {state.editingTier ? cm.save : cm.create}
-          </button>
-        </Dialog.Footer>
-      </Dialog>
+        onFormChange={(patch) => dispatch({ type: TierEditorActionType.SetForm, patch })}
+        onSave={handleSave}
+      />
 
-      <Dialog
+      <TierDeleteConfirmDialog
         open={state.deleteConfirm !== null}
+        dm={dm}
+        cm={cm}
         onClose={() => dispatch({ type: TierEditorActionType.CancelDelete })}
-        title={dm.tierDeleteTitle}
-        titleIcon={<TrashIcon weight="duotone" className="w-6 h-6 text-red-400" />}
-        maxWidth="sm"
-      >
-        <div className="px-6 py-4 text-sm text-[var(--ds-text-muted)]">{dm.tierDeleteConfirm}</div>
-        <Dialog.Footer>
-          <button
-            type="button"
-            className="rounded-button border border-[var(--ds-border)] px-4 py-2 text-sm text-[var(--ds-text-muted)]"
-            onClick={() => dispatch({ type: TierEditorActionType.CancelDelete })}
-          >
-            {cm.cancel}
-          </button>
-          <button
-            type="button"
-            className="rounded-button bg-red-500 text-white px-4 py-2 text-sm font-medium"
-            onClick={() => state.deleteConfirm && handleDelete(state.deleteConfirm)}
-          >
-            {cm.delete}
-          </button>
-        </Dialog.Footer>
-      </Dialog>
+        onDelete={handleDelete}
+      />
     </PageLayout>
   );
 }
