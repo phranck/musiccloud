@@ -84,7 +84,6 @@ export type {
   DeveloperIdentity,
   DeveloperRepository,
 } from "./developer-repository.js";
-export type { Tier, TierCreateData, TierRepository, TierUpdateData } from "./tiers-repository.js";
 export type {
   CachedTrackResult,
   CcRepository,
@@ -94,3 +93,4 @@ export type {
   SharePageDbResult,
   TrackRepository,
 } from "./repository.js";
+export type { Tier, TierCreateData, TierRepository, TierUpdateData } from "./tiers-repository.js";

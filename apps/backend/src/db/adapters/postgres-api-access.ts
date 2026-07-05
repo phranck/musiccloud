@@ -307,7 +307,13 @@ export async function updateApiClient(
 
 export async function createApiClientToken(
   pool: Pool,
-  data: { clientId: string; tokenPrefix: string; tokenHash: string; rawToken: string; rotatedFromTokenId?: string | null },
+  data: {
+    clientId: string;
+    tokenPrefix: string;
+    tokenHash: string;
+    rawToken: string;
+    rotatedFromTokenId?: string | null;
+  },
 ): Promise<ApiClientToken> {
   const now = new Date();
   const result = await pool.query(
@@ -436,9 +442,7 @@ export async function rotateApiClientToken(
 // ============================================================================
 
 export async function countPendingApiAccessRequests(pool: Pool): Promise<number> {
-  const result = await pool.query(
-    `SELECT COUNT(*)::int AS cnt FROM api_access_requests WHERE status = 'pending'`,
-  );
+  const result = await pool.query(`SELECT COUNT(*)::int AS cnt FROM api_access_requests WHERE status = 'pending'`);
   return (result.rows[0] as { cnt: number }).cnt;
 }
 

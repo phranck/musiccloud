@@ -37,9 +37,7 @@ export class PostgresTierRepository implements TierRepository {
   }
 
   async listTiers(): Promise<Tier[]> {
-    const { rows } = await this.#pool.query<TierRow>(
-      "SELECT * FROM tiers ORDER BY sort_order ASC",
-    );
+    const { rows } = await this.#pool.query<TierRow>("SELECT * FROM tiers ORDER BY sort_order ASC");
     return rows.map(toTier);
   }
 
@@ -67,12 +65,30 @@ export class PostgresTierRepository implements TierRepository {
     const values: unknown[] = [];
     let idx = 1;
 
-    if (data.name !== undefined) { fields.push(`name = $${idx++}`); values.push(data.name); }
-    if (data.requestsPerMinute !== undefined) { fields.push(`requests_per_minute = $${idx++}`); values.push(data.requestsPerMinute); }
-    if (data.requestsPerDay !== undefined) { fields.push(`requests_per_day = $${idx++}`); values.push(data.requestsPerDay); }
-    if (data.attributionRequired !== undefined) { fields.push(`attribution_required = $${idx++}`); values.push(data.attributionRequired); }
-    if (data.price !== undefined) { fields.push(`price = $${idx++}`); values.push(data.price); }
-    if (data.sortOrder !== undefined) { fields.push(`sort_order = $${idx++}`); values.push(data.sortOrder); }
+    if (data.name !== undefined) {
+      fields.push(`name = $${idx++}`);
+      values.push(data.name);
+    }
+    if (data.requestsPerMinute !== undefined) {
+      fields.push(`requests_per_minute = $${idx++}`);
+      values.push(data.requestsPerMinute);
+    }
+    if (data.requestsPerDay !== undefined) {
+      fields.push(`requests_per_day = $${idx++}`);
+      values.push(data.requestsPerDay);
+    }
+    if (data.attributionRequired !== undefined) {
+      fields.push(`attribution_required = $${idx++}`);
+      values.push(data.attributionRequired);
+    }
+    if (data.price !== undefined) {
+      fields.push(`price = $${idx++}`);
+      values.push(data.price);
+    }
+    if (data.sortOrder !== undefined) {
+      fields.push(`sort_order = $${idx++}`);
+      values.push(data.sortOrder);
+    }
 
     fields.push(`updated_at = now()`);
 
