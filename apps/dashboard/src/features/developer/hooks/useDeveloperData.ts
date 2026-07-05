@@ -4,15 +4,20 @@ import {
   activateToken,
   approveApiAccessRequest,
   createClientToken,
+  createTier,
   type DeveloperAccountResponse,
   deactivateToken,
   deleteDeveloperAccount,
+  deleteTier,
   fetchApiAccessOverview,
   fetchDeveloperAccount,
   fetchDeveloperAccounts,
+  fetchTiers,
   rejectApiAccessRequest,
+  type TierResponse,
   updateApiClient,
   updateDeveloperAccount,
+  updateTier,
 } from "@/features/developer/api";
 
 export function useApiAccessOverview(status?: string) {
@@ -124,6 +129,54 @@ export function useUpdateClient() {
       updateApiClient(id, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["developer"] });
+    },
+  });
+}
+
+export function useTiers() {
+  return useQuery<TierResponse[]>({
+    queryKey: ["developer", "tiers"],
+    queryFn: fetchTiers,
+  });
+}
+
+export function useCreateTier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: createTier,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["developer", "tiers"] });
+    },
+  });
+}
+
+export function useUpdateTier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...body
+    }: {
+      id: string;
+      name?: string;
+      requestsPerMinute?: number;
+      requestsPerDay?: number;
+      attributionRequired?: boolean;
+      price?: string | null;
+      sortOrder?: number;
+    }) => updateTier(id, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["developer", "tiers"] });
+    },
+  });
+}
+
+export function useDeleteTier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: deleteTier,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["developer", "tiers"] });
     },
   });
 }

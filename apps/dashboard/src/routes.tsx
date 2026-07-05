@@ -35,6 +35,7 @@ import {
   ServicesPage,
   SetupPage,
   SystemPage,
+  TierEditorPage,
   TrackEditPage,
   TracksPage,
   UsersPage,
@@ -84,6 +85,7 @@ export const routes = createRoutesFromElements(
           <Route path="developer/clients/:id" element={lazyFallback(<ClientDetailPage />)} />
           <Route path="developer/accounts" element={lazyFallback(<DeveloperAccountsPage />)} />
           <Route path="developer/accounts/:id" element={lazyFallback(<DeveloperDetailPage />)} />
+          <Route path="developer/tiers" element={lazyFallback(<TierEditorPage />)} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

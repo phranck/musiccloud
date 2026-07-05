@@ -4,6 +4,7 @@ export interface DashboardMessages {
   common: {
     ok: string;
     cancel: string;
+    create: string;
     save: string;
     saving: string;
     saved: string;
@@ -49,6 +50,7 @@ export interface DashboardMessages {
       apiAccessRequests: string;
       clientsAndTokens: string;
       developerAccounts: string;
+      tiers: string;
       overview: string;
       tracks: string;
       albums: string;
@@ -190,6 +192,17 @@ export interface DashboardMessages {
     perMinute: string;
     perDay: string;
     colKey: string;
+    tiersTitle: string;
+    tierCreate: string;
+    tierEdit: string;
+    tierDeleteTitle: string;
+    tierDeleteConfirm: string;
+    colName: string;
+    colAttribution: string;
+    colPrice: string;
+    colSortOrder: string;
+    noTiers: string;
+    noTiersHint: string;
   };
   music: {
     columns: {
@@ -704,6 +717,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
     common: {
       ok: "OK",
       cancel: "Abbrechen",
+      create: "Erstellen",
       save: "Speichern",
       saving: "Wird gespeichert\u2026",
       saved: "Gespeichert",
@@ -763,6 +777,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         apiAccessRequests: "API Access Requests",
         clientsAndTokens: "API Keys",
         developerAccounts: "Developer Accounts",
+        tiers: "Tiers",
         services: "Services",
         design: "Design",
         actions: "Aktionen",
@@ -892,6 +907,17 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       perMinute: "/Minute",
       perDay: "/Tag",
       colKey: "API Key",
+      tiersTitle: "Tiers",
+      tierCreate: "Tier erstellen",
+      tierEdit: "Tier bearbeiten",
+      tierDeleteTitle: "Tier löschen",
+      tierDeleteConfirm: "Möchtest du dieses Tier wirklich löschen?",
+      colName: "Name",
+      colAttribution: "Attribution",
+      colPrice: "Preis",
+      colSortOrder: "Sortierung",
+      noTiers: "Keine Tiers",
+      noTiersHint: "Erstelle dein erstes API-Tarifstufen-Tier über den Button oben.",
     },
     music: {
       columns: {
@@ -1406,6 +1432,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
     common: {
       ok: "OK",
       cancel: "Cancel",
+      create: "Create",
       save: "Save",
       saving: "Saving\u2026",
       saved: "Saved",
@@ -1465,6 +1492,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         apiAccessRequests: "API Access Requests",
         clientsAndTokens: "API Keys",
         developerAccounts: "Developer Accounts",
+        tiers: "Tiers",
         services: "Services",
         design: "Design",
         actions: "Actions",
@@ -1594,6 +1622,17 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       perMinute: "/minute",
       perDay: "/day",
       colKey: "API Key",
+      tiersTitle: "Tiers",
+      tierCreate: "Create Tier",
+      tierEdit: "Edit Tier",
+      tierDeleteTitle: "Delete Tier",
+      tierDeleteConfirm: "Are you sure you want to delete this tier?",
+      colName: "Name",
+      colAttribution: "Attribution",
+      colPrice: "Price",
+      colSortOrder: "Sort Order",
+      noTiers: "No tiers",
+      noTiersHint: "Create your first API tier using the button above.",
     },
     music: {
       columns: {

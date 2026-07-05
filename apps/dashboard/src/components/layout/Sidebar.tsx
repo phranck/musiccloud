@@ -23,6 +23,7 @@ import {
   PlugsConnectedIcon,
   PlusCircleIcon,
   SquaresFourIcon,
+  StackIcon,
   UsersThreeIcon,
   VinylRecordIcon,
 } from "@phosphor-icons/react";
@@ -638,6 +639,15 @@ function SidebarDeveloperSection({
               <DashboardSection.Item
                 icon={<UsersThreeIcon weight="duotone" className="w-4 h-4" />}
                 label={s.developerAccounts}
+                active={isActive}
+              />
+            )}
+          </NavLink>
+          <NavLink to="/developer/tiers" onClick={onItemClick} className="contents">
+            {({ isActive }) => (
+              <DashboardSection.Item
+                icon={<StackIcon weight="duotone" className="w-4 h-4" />}
+                label={s.tiers}
                 active={isActive}
               />
             )}

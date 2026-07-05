@@ -119,3 +119,39 @@ export function deactivateToken(id: string): Promise<{ token: ApiClientTokenResp
 export function fetchDeveloperAccounts(): Promise<{ accounts: DeveloperAccountResponse[] }> {
   return api.get<{ accounts: DeveloperAccountResponse[] }>(ENDPOINTS.admin.developer.accounts);
 }
+
+export interface TierResponse {
+  id: string;
+  name: string;
+  requestsPerMinute: number;
+  requestsPerDay: number;
+  attributionRequired: boolean;
+  price: string | null;
+  sortOrder: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export function fetchTiers(): Promise<TierResponse[]> {
+  return api.get<TierResponse[]>(ENDPOINTS.admin.developer.tiers);
+}
+
+export function createTier(
+  body: Pick<TierResponse, "name" | "requestsPerMinute" | "requestsPerDay"> &
+    Partial<Pick<TierResponse, "attributionRequired" | "price" | "sortOrder">>,
+): Promise<TierResponse> {
+  return api.post<TierResponse>(ENDPOINTS.admin.developer.tiers, body);
+}
+
+export function updateTier(
+  id: string,
+  body: Partial<
+    Pick<TierResponse, "name" | "requestsPerMinute" | "requestsPerDay" | "attributionRequired" | "price" | "sortOrder">
+  >,
+): Promise<TierResponse> {
+  return api.patch<TierResponse>(ENDPOINTS.admin.developer.tierDetail(id), body);
+}
+
+export function deleteTier(id: string): Promise<void> {
+  return api.delete(ENDPOINTS.admin.developer.tierDetail(id));
+}

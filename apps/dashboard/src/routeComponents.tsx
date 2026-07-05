@@ -173,3 +173,9 @@ export const DeveloperDetailPage = lazy(() =>
     default: m.DeveloperDetailPage,
   })),
 );
+
+export const TierEditorPage = lazy(() =>
+  import("@/features/developer/TierEditorPage").then((m) => ({
+    default: m.TierEditorPage,
+  })),
+);
