@@ -1,178 +1,248 @@
-import { DashboardActionButton, DashboardActionId } from "@musiccloud/dashboard-ui";
-import { Code as CodeIcon } from "@phosphor-icons/react";
-import { useState } from "react";
+import {
+  Code as CodeIcon,
+  MagnifyingGlass as MagnifyingGlassIcon,
+  PencilSimple as PencilSimpleIcon,
+} from "@phosphor-icons/react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
+import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { PageBody, PageLayout } from "@/components/ui/PageLayout";
+import { PageLayout } from "@/components/ui/PageLayout";
+import { type ColumnDef, DataTable } from "@/components/ui/Table";
+import { TableActionButton } from "@/components/ui/TableActionButton";
 import { useI18n } from "@/context/I18nContext";
+import type { ApiClientResponse } from "@/features/developer/api";
 import { ApiClientStatus, ApiTokenStatus } from "@/features/developer/domain";
-import {
-  useApiAccessOverview,
-  useCreateToken,
-  useRevokeToken,
-  useRotateToken,
-} from "@/features/developer/hooks/useDeveloperData";
+import { useApiAccessOverview } from "@/features/developer/hooks/useDeveloperData";
 
-const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
+/**
+ * Builds the memoized column definitions for the API clients table.
+ *
+ * Columns: active token prefix (key), app name, developer contact email,
+ * configured traffic limits, client status badge, and an edit action that
+ * navigates to the client detail page.
+ *
+ * @param dm - Developer section of the localized dashboard messages.
+ * @param common - Common (shared) localized dashboard messages.
+ * @param navigate - Router navigate function used by the edit action.
+ * @returns Stable column definitions, re-created only when a dependency changes.
+ */
+function useClientColumns(
+  dm: ReturnType<typeof useI18n>["messages"]["developer"],
+  common: ReturnType<typeof useI18n>["messages"]["common"],
+  navigate: ReturnType<typeof useNavigate>,
+): ColumnDef<ApiClientResponse>[] {
+  return useMemo<ColumnDef<ApiClientResponse>[]>(
+    () => [
+      {
+        id: "apiKey",
+        header: dm.colKey,
+        headerClassName: "whitespace-nowrap",
+        sortKey: (c) => {
+          const activeToken = c.tokens.find((t) => t.status === ApiTokenStatus.Active);
+          return (activeToken?.tokenPrefix ?? "").toLowerCase();
+        },
+        cell: (c) => {
+          const activeToken = c.tokens.find((t) => t.status === ApiTokenStatus.Active);
+          const prefix = activeToken?.tokenPrefix ?? c.tokens[0]?.tokenPrefix;
+          return (
+            <code className="text-sm text-[var(--ds-accent)]">
+              {prefix ? `${prefix}-...` : <span className="text-[var(--ds-text-muted)]">{dm.clientsNoTokens}</span>}
+            </code>
+          );
+        },
+      },
+      {
+        id: "appName",
+        header: dm.colApp,
+        headerClassName: "whitespace-nowrap",
+        sortKey: (c) => c.appName.toLowerCase(),
+        cell: (c) => <span className="font-medium text-[var(--ds-text)]">{c.appName}</span>,
+      },
+      {
+        id: "contactEmail",
+        header: dm.colDeveloper,
+        headerClassName: "whitespace-nowrap",
+        sortKey: (c) => c.contactEmail.toLowerCase(),
+        cell: (c) => (
+          <a href={`mailto:${c.contactEmail}`} className="text-[var(--ds-text)] hover:underline">
+            {c.contactEmail}
+          </a>
+        ),
+      },
+      {
+        id: "traffic",
+        header: dm.clientTrafficLabel,
+        headerClassName: "whitespace-nowrap",
+        className: "w-44",
+        sortKey: (c) => c.requestsPerMinute,
+        cell: (c) => (
+          <span>
+            {c.requestsPerMinute}
+            {dm.perMinute} &middot; {c.requestsPerDay}
+            {dm.perDay}
+          </span>
+        ),
+      },
+      {
+        id: "status",
+        header: dm.colStatus,
+        headerClassName: "whitespace-nowrap",
+        className: "w-28",
+        sortKey: (c) => c.status,
+        cell: (c) => {
+          const cls =
+            c.status === ApiClientStatus.Active
+              ? "bg-emerald-500/10 text-emerald-400"
+              : c.status === ApiClientStatus.Suspended
+                ? "bg-amber-500/10 text-amber-400"
+                : "bg-red-500/10 text-red-400";
+          const label =
+            c.status === ApiClientStatus.Active
+              ? dm.statusActive
+              : c.status === ApiClientStatus.Suspended
+                ? dm.statusSuspended
+                : dm.statusRevoked;
+          return <span className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold ${cls}`}>{label}</span>;
+        },
+      },
+      {
+        id: "actions",
+        className: "w-24",
+        cell: (c) => (
+          <div className="flex justify-end">
+            <TableActionButton
+              onClick={() => navigate(`/developer/clients/${c.id}`)}
+              icon={<PencilSimpleIcon weight="duotone" className="size-3" />}
+              label={common.edit}
+            />
+          </div>
+        ),
+      },
+    ],
+    [dm, common, navigate],
+  );
+}
 
+/**
+ * Admin page listing all API clients with their active key, app, developer,
+ * traffic limits and status.
+ *
+ * A footer search field (focusable via Cmd/Ctrl+K) filters across key prefix,
+ * app name, developer email and the formatted traffic values.
+ */
 export function ApiClientsPage() {
   const { messages } = useI18n();
   const dm = messages.developer;
   const { data, isLoading } = useApiAccessOverview();
-  const createToken = useCreateToken();
-  const revokeToken = useRevokeToken();
-  const rotateToken = useRotateToken();
-  const [revealToken, setRevealToken] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const navigate = useNavigate();
+  const columns = useClientColumns(dm, messages.common, navigate);
+  const clients = useMemo(() => data?.clients ?? [], [data]);
+  const [search, setSearch] = useState("");
 
-  const handleCopy = async (raw: string) => {
-    await navigator.clipboard.writeText(raw);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const filteredClients = useMemo(() => {
+    if (!search.trim()) return clients;
+    const q = search.toLowerCase();
+    return clients.filter((c) => {
+      const activeToken = c.tokens.find((t) => t.status === ApiTokenStatus.Active);
+      const prefix = activeToken?.tokenPrefix ?? c.tokens[0]?.tokenPrefix ?? "";
+      return (
+        prefix.toLowerCase().includes(q) ||
+        c.appName.toLowerCase().includes(q) ||
+        c.contactEmail.toLowerCase().includes(q) ||
+        `${c.requestsPerMinute}${dm.perMinute} ${c.requestsPerDay}${dm.perDay}`.toLowerCase().includes(q)
+      );
+    });
+  }, [clients, search, dm]);
 
-  const statusBadge = (status: string) => {
-    if (status === ApiClientStatus.Active) {
-      return (
-        <span className="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/10 text-emerald-400">
-          {dm.statusActive}
-        </span>
-      );
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        document.getElementById("api-keys-search")?.focus();
+      }
     }
-    if (status === ApiClientStatus.Suspended) {
-      return (
-        <span className="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-amber-500/10 text-amber-400">
-          {dm.statusSuspended}
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-red-500/10 text-red-400">
-        {dm.statusRevoked}
-      </span>
-    );
-  };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   return (
     <PageLayout>
       <PageHeader title={dm.clientsTitle} />
-      <PageBody className="gap-4">
-        {revealToken && (
-          <div className="rounded-md border border-emerald-500/30 bg-[var(--ds-surface)] p-5 text-center">
-            <p className="text-sm font-semibold text-amber-400 mb-1">{dm.tokenRevealTitle}</p>
-            <p className="text-xs text-[var(--ds-text-muted)] mb-3">{dm.tokenRevealHint}</p>
-            <div className="rounded border border-emerald-500/20 bg-[var(--ds-bg)] p-3 mb-3">
-              <code className="text-xs text-emerald-400 break-all">{revealToken}</code>
-            </div>
-            <DashboardActionButton
-              action={DashboardActionId.Copy}
-              label={copied ? dm.copied : dm.tokenRevealCopy}
-              onClick={() => handleCopy(revealToken)}
-              type="button"
-            />
-          </div>
-        )}
 
-        {isLoading && <p className="text-sm text-[var(--ds-text-muted)]">{messages.common.loading}</p>}
-
-        {!isLoading && (!data || data.clients.length === 0) && (
-          <p className="text-sm text-[var(--ds-text-muted)]">{dm.clientsEmpty}</p>
-        )}
-
-        {!isLoading &&
-          data?.clients.map((client) => (
-            <DashboardSection key={client.id} className="overflow-hidden">
-              <DashboardSection.Header
-                icon={<CodeIcon weight="duotone" className="size-4" />}
-                title={client.appName}
-                addOn={statusBadge(client.status)}
-              />
-              <DashboardSection.Body>
-                <div className="flex gap-6 items-start">
-                  <div>
-                    <div className={labelClass}>{dm.colDeveloper}</div>
-                    <a href={`mailto:${client.contactEmail}`} className="text-sm text-[var(--ds-text)] hover:underline">
-                      {client.contactEmail}
-                    </a>
-                  </div>
-                  <div>
-                    <div className={labelClass}>{dm.colTraffic}</div>
-                    <div className="text-sm">
-                      {client.requestsPerMinute}
-                      {dm.perMinute} &middot; {client.requestsPerDay}
-                      {dm.perDay}
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <div className={labelClass}>{dm.descriptionLabel}</div>
-                    <p className="text-sm">{client.description || "—"}</p>
-                  </div>
-                </div>
-
-                <div className="border-t border-[var(--ds-border-subtle)] pt-3">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--ds-text-muted)] mb-2">
-                    {dm.clientsTokensLabel}
-                  </h3>
-                  {client.tokens.length === 0 ? (
-                    <p className="text-xs text-[var(--ds-text-muted)]">{dm.clientsNoTokens}</p>
-                  ) : (
-                    <div className="space-y-1.5 mb-3">
-                      {client.tokens.map((token) => (
-                        <div
-                          key={token.id}
-                          className="flex items-center gap-3 rounded bg-[var(--ds-bg)] px-3 py-2 text-xs"
-                        >
-                          <code className="text-[var(--ds-accent)]">{token.tokenPrefix}••••••••</code>
-                          {token.status === ApiTokenStatus.Active && (
-                            <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold bg-emerald-500/10 text-emerald-400">
-                              Active
-                            </span>
-                          )}
-                          <span className="flex-1 text-[var(--ds-text-muted)] text-right">
-                            {token.createdAt ? new Date(token.createdAt).toLocaleDateString("de-AT") : ""}
-                          </span>
-                          <DashboardActionButton
-                            action={DashboardActionId.Delete}
-                            label={dm.clientsRevokeToken}
-                            onClick={() => revokeToken.mutate(token.id)}
-                            disabled={token.status !== ApiTokenStatus.Active || revokeToken.isPending}
-                            size="action"
-                            type="button"
-                          />
-                          <DashboardActionButton
-                            action={DashboardActionId.Edit}
-                            label={dm.clientsRotateToken}
-                            onClick={() =>
-                              rotateToken.mutate(token.id, {
-                                onSuccess: (res) => setRevealToken(res.token.rawToken),
-                              })
-                            }
-                            disabled={token.status !== ApiTokenStatus.Active || rotateToken.isPending}
-                            size="action"
-                            type="button"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </DashboardSection.Body>
-              <DashboardSection.Footer>
-                <DashboardActionButton
-                  action={DashboardActionId.Create}
-                  label={dm.clientsCreateToken}
-                  onClick={() =>
-                    createToken.mutate(client.id, {
-                      onSuccess: (res) => setRevealToken(res.token.rawToken),
-                    })
-                  }
-                  disabled={createToken.isPending}
-                  type="button"
+      {isLoading && (
+        <DashboardSection className="overflow-hidden flex-1 min-h-0 flex flex-col">
+          <DashboardSection.Header icon={<CodeIcon weight="duotone" className="size-4" />} title={dm.clientsTitle} />
+          <DashboardSection.Body flush>
+            <div className="space-y-px">
+              {Array.from({ length: 8 }, (_, i) => `sk-${i}`).map((key) => (
+                <div
+                  key={key}
+                  className="h-14 bg-[var(--ds-surface)] animate-pulse border-b border-[var(--ds-border-subtle)]"
                 />
-              </DashboardSection.Footer>
-            </DashboardSection>
-          ))}
-      </PageBody>
+              ))}
+            </div>
+          </DashboardSection.Body>
+        </DashboardSection>
+      )}
+
+      {!isLoading && clients.length === 0 && (
+        <ContentUnavailableView
+          icon={<CodeIcon weight="duotone" aria-hidden />}
+          title={dm.clientsEmpty}
+          subtitle={dm.clientsEmptyHint}
+          className="flex-1 min-h-0"
+        />
+      )}
+
+      {!isLoading && clients.length > 0 && (
+        <DashboardSection className="overflow-hidden flex-1 min-h-0 flex flex-col">
+          <DashboardSection.Header icon={<CodeIcon weight="duotone" className="size-4" />} title={dm.clientsTitle} />
+          <DashboardSection.Body flush>
+            {filteredClients.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <p className="text-sm text-[var(--ds-text-muted)]">
+                  {dm.clientsSearchNoResults.replace("{q}", search)}
+                </p>
+              </div>
+            ) : (
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <DataTable
+                  columns={columns}
+                  data={filteredClients}
+                  getRowKey={(c) => c.id}
+                  stickyHeader
+                  defaultSort={{ id: "appName", dir: "asc" }}
+                />
+              </div>
+            )}
+          </DashboardSection.Body>
+        </DashboardSection>
+      )}
+
+      {clients.length > 0 && (
+        <div className="flex justify-center mt-4">
+          <div className="relative w-full max-w-md">
+            <MagnifyingGlassIcon
+              weight="duotone"
+              className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--ds-text-muted)] pointer-events-none"
+            />
+            <input
+              id="api-keys-search"
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={dm.clientsSearchPlaceholder}
+              aria-label={dm.clientsSearchPlaceholder}
+              className="w-full h-9 pl-9 pr-8 rounded-control border border-[var(--ds-border)] bg-[var(--ds-bg)] text-sm text-[var(--ds-text)] placeholder:text-[var(--ds-text-muted)] focus:outline-none focus:border-[var(--ds-border-strong)]"
+            />
+            <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-[var(--ds-text-muted)] bg-[var(--ds-surface)] border border-[var(--ds-border)] rounded px-1.5 py-0.5 pointer-events-none">
+              ⌘K
+            </kbd>
+          </div>
+        </div>
+      )}
     </PageLayout>
   );
 }

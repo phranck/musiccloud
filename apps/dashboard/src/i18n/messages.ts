@@ -15,6 +15,7 @@ export interface DashboardMessages {
     copyUrl: string;
     close: string;
     loading: string;
+    copied: string;
     unknownError: string;
   };
   layout: {
@@ -143,30 +144,46 @@ export interface DashboardMessages {
     statusRevoked: string;
     clientsTitle: string;
     clientsEmpty: string;
+    clientsEmptyHint: string;
+    clientTrafficLabel: string;
     clientsTokensLabel: string;
     clientsNoTokens: string;
     clientsCreateToken: string;
     clientsRevokeToken: string;
     clientsRotateToken: string;
+    clientsDeactivateToken: string;
     tokenRevealTitle: string;
     tokenRevealHint: string;
     tokenRevealCopy: string;
+    clientsSearchPlaceholder: string;
+    clientsSearchNoResults: string;
     accountsTitle: string;
     colEmail: string;
     colDisplayName: string;
     colPlan: string;
-    colClients: string;
+    colAppName: string;
     colRegistered: string;
     overviewCardLabel: string;
     noRequests: string;
+    noRequestsHint: string;
     requestCount: string;
     accountCount: string;
     noAccounts: string;
+    noAccountsHint: string;
+    accountDetailTitle: string;
+    accountDetailBackLabel: string;
+    accountDetailDeactivate: string;
+    accountDetailDeactivateHint: string;
+    accountDetailReactivate: string;
+    accountDetailDelete: string;
+    accountDetailDeleteHint: string;
+    accountDetailDeleteConfirm: string;
     copied: string;
     descriptionLabel: string;
     rateLimitsLabel: string;
     perMinute: string;
     perDay: string;
+    colKey: string;
   };
   music: {
     tracks: {
@@ -899,6 +916,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       copyUrl: "URL kopieren",
       close: "Schlie\u00dfen",
       loading: "Lade\u2026",
+      copied: "Kopiert!",
       unknownError: "Unbekannter Fehler",
     },
     layout: {
@@ -932,7 +950,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         system: "System",
         sectionDeveloper: "Developer",
         apiAccessRequests: "API Access Requests",
-        clientsAndTokens: "Clients & Tokens",
+        clientsAndTokens: "API Keys",
         developerAccounts: "Developer Accounts",
         services: "Services",
         design: "Design",
@@ -1025,13 +1043,18 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       statusActive: "Aktiv",
       statusSuspended: "Suspendiert",
       statusRevoked: "Widerrufen",
-      clientsTitle: "Clients & Tokens",
-      clientsEmpty: "Keine aktiven Clients",
+      clientsTitle: "API Keys",
+      clientsEmpty: "Keine API Keys",
+      clientsEmptyHint: "Genehmigte API-Zugriffsanfragen erscheinen hier mit ihrem Key.",
+      clientTrafficLabel: "Eingestelltes Volumen",
       clientsTokensLabel: "Tokens",
       clientsNoTokens: "Keine Tokens",
       clientsCreateToken: "Token erstellen",
       clientsRevokeToken: "Widerrufen",
       clientsRotateToken: "Rotieren",
+      clientsDeactivateToken: "Deaktivieren",
+      clientsSearchPlaceholder: "Keys durchsuchen…",
+      clientsSearchNoResults: "Keine Ergebnisse für „{q}“",
       tokenRevealTitle: "Token wird nur einmal angezeigt",
       tokenRevealHint: "Kopiere ihn jetzt. Nach dem Schließen ist er nicht mehr abrufbar.",
       tokenRevealCopy: "In Zwischenablage kopieren",
@@ -1039,18 +1062,31 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       colEmail: "E-Mail",
       colDisplayName: "Name",
       colPlan: "Plan",
-      colClients: "Clients",
+      colAppName: "App",
       colRegistered: "Registriert",
       overviewCardLabel: "Offene API-Requests",
-      noRequests: "Keine Anfragen",
+      noRequests: "Keine offenen Anfragen",
+      noRequestsHint: "Sobald Developer API-Zugriff beantragen, erscheinen sie hier zur Prüfung.",
       requestCount: "{n} Anfragen",
       accountCount: "{n} Accounts",
       noAccounts: "Keine Developer Accounts",
+      noAccountsHint: "Registrierte Developer erscheinen hier, sobald sie sich im Developer Portal anmelden.",
+      accountDetailTitle: "Developer Account",
+      accountDetailBackLabel: "← Developer Accounts",
+      accountDetailDeactivate: "Deaktivieren",
+      accountDetailDeactivateHint:
+        "Der Login bleibt möglich, aber der API-Key wird gesperrt. Der Developer kann nur noch DSGVO-Daten anfordern oder seinen Account löschen.",
+      accountDetailReactivate: "Reaktivieren",
+      accountDetailDelete: "Löschen",
+      accountDetailDeleteHint:
+        "Der Account und alle zugehörigen Daten (API-Clients, Tokens, Requests) werden unwiderruflich gelöscht.",
+      accountDetailDeleteConfirm: "Account wirklich löschen?",
       copied: "Kopiert!",
       descriptionLabel: "Beschreibung",
       rateLimitsLabel: "Ratenlimits",
       perMinute: "/Minute",
       perDay: "/Tag",
+      colKey: "API Key",
     },
     music: {
       tracks: {
@@ -1763,6 +1799,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       copyUrl: "Copy URL",
       close: "Close",
       loading: "Loading\u2026",
+      copied: "Copied!",
       unknownError: "Unknown error",
     },
     layout: {
@@ -1796,7 +1833,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         system: "System",
         sectionDeveloper: "Developer",
         apiAccessRequests: "API Access Requests",
-        clientsAndTokens: "Clients & Tokens",
+        clientsAndTokens: "API Keys",
         developerAccounts: "Developer Accounts",
         services: "Services",
         design: "Design",
@@ -1889,13 +1926,18 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       statusActive: "Active",
       statusSuspended: "Suspended",
       statusRevoked: "Revoked",
-      clientsTitle: "Clients & Tokens",
-      clientsEmpty: "No active clients",
+      clientsTitle: "API Keys",
+      clientsEmpty: "No API keys",
+      clientsEmptyHint: "Approved API access requests appear here with their key.",
+      clientTrafficLabel: "Configured volume",
       clientsTokensLabel: "Tokens",
       clientsNoTokens: "No tokens",
       clientsCreateToken: "Create token",
       clientsRevokeToken: "Revoke",
       clientsRotateToken: "Rotate",
+      clientsDeactivateToken: "Deactivate",
+      clientsSearchPlaceholder: "Search keys…",
+      clientsSearchNoResults: "No results for “{q}”",
       tokenRevealTitle: "Token shown only once",
       tokenRevealHint: "Copy it now. After closing, it cannot be retrieved again.",
       tokenRevealCopy: "Copy to clipboard",
@@ -1903,18 +1945,31 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       colEmail: "Email",
       colDisplayName: "Name",
       colPlan: "Plan",
-      colClients: "Clients",
+      colAppName: "App",
       colRegistered: "Registered",
       overviewCardLabel: "Pending API Requests",
-      noRequests: "No requests",
+      noRequests: "No open requests",
+      noRequestsHint: "When developers request API access, they'll appear here for review.",
       requestCount: "{n} requests",
       accountCount: "{n} accounts",
       noAccounts: "No developer accounts",
+      noAccountsHint: "Registered developers appear here once they sign up in the Developer Portal.",
+      accountDetailTitle: "Developer Account",
+      accountDetailBackLabel: "← Developer Accounts",
+      accountDetailDeactivate: "Deactivate",
+      accountDetailDeactivateHint:
+        "Login remains possible, but the API key is blocked. The developer can only request GDPR data or delete their account.",
+      accountDetailReactivate: "Reactivate",
+      accountDetailDelete: "Delete",
+      accountDetailDeleteHint:
+        "The account and all associated data (API clients, tokens, requests) will be permanently deleted.",
+      accountDetailDeleteConfirm: "Really delete account?",
       copied: "Copied!",
       descriptionLabel: "Description",
       rateLimitsLabel: "Rate Limits",
       perMinute: "/minute",
       perDay: "/day",
+      colKey: "API Key",
     },
     music: {
       tracks: {

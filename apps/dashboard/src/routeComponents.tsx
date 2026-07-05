@@ -161,3 +161,15 @@ export const DeveloperAccountsPage = lazy(() =>
     default: m.DeveloperAccountsPage,
   })),
 );
+
+export const ClientDetailPage = lazy(() =>
+  import("@/features/developer/ClientDetailPage").then((m) => ({
+    default: m.ClientDetailPage,
+  })),
+);
+
+export const DeveloperDetailPage = lazy(() =>
+  import("@/features/developer/DeveloperDetailPage").then((m) => ({
+    default: m.DeveloperDetailPage,
+  })),
+);

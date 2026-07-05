@@ -55,11 +55,11 @@ function toClientResponse(client: ApiClient, tokens: ApiClientToken[]) {
   };
 }
 
-/** Never includes `tokenHash` — the create/rotate handlers add the one-time raw token separately. */
 function toTokenResponse(token: ApiClientToken) {
   return {
     id: token.id,
     tokenPrefix: token.tokenPrefix,
+    rawToken: token.rawToken,
     status: token.status,
     createdAt: new Date(token.createdAt).toISOString(),
     lastUsedAt: token.lastUsedAt ? new Date(token.lastUsedAt).toISOString() : null,
@@ -91,7 +91,7 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
     const devRepo = await getDeveloperRepository();
     const accounts = await devRepo.listDeveloperAccounts();
     return reply.send({
-      accounts: accounts.map((a: typeof accounts[number]) => ({
+      accounts: accounts.map((a: (typeof accounts)[number]) => ({
         id: a.id,
         email: a.email,
         emailVerifiedAt: a.emailVerifiedAt ? new Date(a.emailVerifiedAt).toISOString() : null,
@@ -100,10 +100,84 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
         plan: a.plan,
         status: a.status,
         clientCount: a.clientCount,
+        appName: a.appName,
         createdAt: new Date(a.createdAt).toISOString(),
         lastLoginAt: a.lastLoginAt ? new Date(a.lastLoginAt).toISOString() : null,
       })),
     });
+  });
+
+  app.get("/api/admin/developer/accounts/:id", async (request, reply) => {
+    if (!(await requireOwnerOrAdmin(request, reply))) return;
+    const { id } = request.params as { id: string };
+    const devRepo = await getDeveloperRepository();
+    const account = await devRepo.findDeveloperAccountById(id);
+    if (!account) return reply.status(404).send({ error: "NOT_FOUND", message: "Developer account not found." });
+    return reply.send({
+      id: account.id,
+      email: account.email,
+      emailVerifiedAt: account.emailVerifiedAt ? new Date(account.emailVerifiedAt).toISOString() : null,
+      displayName: account.displayName,
+      avatarUrl: account.avatarUrl,
+      plan: account.plan,
+      status: account.status,
+      createdAt: new Date(account.createdAt).toISOString(),
+      lastLoginAt: account.lastLoginAt ? new Date(account.lastLoginAt).toISOString() : null,
+    });
+  });
+
+  app.patch("/api/admin/developer/accounts/:id", async (request, reply) => {
+    const caller = await requireOwnerOrAdmin(request, reply);
+    if (!caller) return;
+    const { id } = request.params as { id: string };
+    const body = request.body as {
+      email?: string;
+      displayName?: string | null;
+      plan?: string;
+      status?: string;
+    } | null;
+    if (body?.status && !["active", "suspended"].includes(body.status)) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid status." });
+    }
+    const devRepo = await getDeveloperRepository();
+    const updated = await devRepo.updateDeveloperAccount(id, {
+      email: body?.email,
+      displayName: body?.displayName,
+      plan: body?.plan,
+      status: body?.status,
+    });
+    if (!updated) return reply.status(404).send({ error: "NOT_FOUND", message: "Developer account not found." });
+
+    // When an account is suspended, also suspend their API clients
+    if (body?.status === "suspended") {
+      const apiRepo = await getApiAccessRepository();
+      const clients = await apiRepo.listApiClientsByDeveloperAccount(id);
+      for (const client of clients) {
+        await apiRepo.updateApiClient(client.id, { status: "suspended" });
+      }
+    }
+
+    return reply.send({
+      id: updated.id,
+      email: updated.email,
+      emailVerifiedAt: updated.emailVerifiedAt ? new Date(updated.emailVerifiedAt).toISOString() : null,
+      displayName: updated.displayName,
+      avatarUrl: updated.avatarUrl,
+      plan: updated.plan,
+      status: updated.status,
+      createdAt: new Date(updated.createdAt).toISOString(),
+      lastLoginAt: updated.lastLoginAt ? new Date(updated.lastLoginAt).toISOString() : null,
+    });
+  });
+
+  app.delete("/api/admin/developer/accounts/:id", async (request, reply) => {
+    const caller = await requireOwnerOrAdmin(request, reply);
+    if (!caller) return;
+    const { id } = request.params as { id: string };
+    const devRepo = await getDeveloperRepository();
+    const deleted = await devRepo.deleteDeveloperAccount(id);
+    if (!deleted) return reply.status(404).send({ error: "NOT_FOUND", message: "Developer account not found." });
+    return reply.status(204).send();
   });
 
   app.get(ROUTE_TEMPLATES.admin.developer.apiAccess.requestDetail, async (request, reply) => {
@@ -230,6 +304,7 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
       clientId: id,
       tokenPrefix: generated.prefix,
       tokenHash: generated.hash,
+      rawToken: generated.raw,
     });
     await repo.createApiAccessAuditEvent({
       clientId: id,
@@ -243,7 +318,23 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
     return reply.status(201).send({ token: { ...toTokenResponse(token), rawToken: generated.raw } });
   });
 
-  app.post(ROUTE_TEMPLATES.admin.developer.apiAccess.tokenRevoke, async (request, reply) => {
+  app.post(ROUTE_TEMPLATES.admin.developer.apiAccess.tokenActivate, async (request, reply) => {
+    const caller = await requireOwnerOrAdmin(request, reply);
+    if (!caller) return;
+    const { id } = request.params as { id: string };
+    const repo = await getApiAccessRepository();
+    const token = await repo.activateApiClientToken(id);
+    if (!token) return reply.status(404).send({ error: "NOT_FOUND", message: "Revoked token not found." });
+    await repo.createApiAccessAuditEvent({
+      clientId: token.clientId,
+      tokenId: id,
+      eventType: "token_activated",
+      actorAdminId: caller.id,
+    });
+    return reply.send({ token: toTokenResponse(token) });
+  });
+
+  app.post(ROUTE_TEMPLATES.admin.developer.apiAccess.tokenDeactivate, async (request, reply) => {
     const caller = await requireOwnerOrAdmin(request, reply);
     if (!caller) return;
     const { id } = request.params as { id: string };
@@ -253,37 +344,9 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
     await repo.createApiAccessAuditEvent({
       clientId: token.clientId,
       tokenId: id,
-      eventType: "token_revoked",
+      eventType: "token_deactivated",
       actorAdminId: caller.id,
     });
     return reply.send({ token: toTokenResponse(token) });
-  });
-
-  app.post(ROUTE_TEMPLATES.admin.developer.apiAccess.tokenRotate, async (request, reply) => {
-    const caller = await requireOwnerOrAdmin(request, reply);
-    if (!caller) return;
-    const { id } = request.params as { id: string };
-    const repo = await getApiAccessRepository();
-    const generated = generateApiToken();
-    const rotated = await repo.rotateApiClientToken(id, {
-      newTokenPrefix: generated.prefix,
-      newTokenHash: generated.hash,
-    });
-    if (!rotated) return reply.status(404).send({ error: "NOT_FOUND", message: "Active token not found." });
-    await repo.createApiAccessAuditEvent({
-      clientId: rotated.newToken.clientId,
-      tokenId: rotated.newToken.id,
-      eventType: "token_rotated",
-      actorAdminId: caller.id,
-      eventData: { rotatedFromTokenId: rotated.oldToken.id },
-    });
-    // A rotation mints a new token, so the same "token created" notification applies.
-    const rotatedClient = await repo.findApiClientById(rotated.newToken.clientId);
-    if (rotatedClient) {
-      await notifyDeveloper(request.log, rotatedClient.developerAccountId, EmailAction.DeveloperApiTokenCreated, {
-        appName: rotatedClient.appName,
-      });
-    }
-    return reply.status(201).send({ token: { ...toTokenResponse(rotated.newToken), rawToken: generated.raw } });
   });
 }

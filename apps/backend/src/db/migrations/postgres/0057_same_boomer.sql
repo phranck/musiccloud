@@ -1,0 +1,1 @@
+ALTER TABLE "api_client_tokens" ADD COLUMN "token_raw" text;

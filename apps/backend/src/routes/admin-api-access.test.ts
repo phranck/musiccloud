@@ -282,11 +282,11 @@ describe("adminApiAccessRoutes", () => {
       expect(mockRepo.createApiClientToken).not.toHaveBeenCalled();
     });
 
-    it("rejects a moderator with 403 on tokenRevoke", async () => {
+    it("rejects a moderator with 403 on tokenDeactivate", async () => {
       const { app, token } = await buildApp("moderator");
       const response = await app.inject({
         method: "POST",
-        url: ROUTE_TEMPLATES.admin.developer.apiAccess.tokenRevoke.replace(":id", "token-1"),
+        url: ROUTE_TEMPLATES.admin.developer.apiAccess.tokenDeactivate.replace(":id", "token-1"),
         headers: { authorization: `Bearer ${token}` },
         payload: {},
       });
@@ -294,11 +294,11 @@ describe("adminApiAccessRoutes", () => {
       expect(mockRepo.revokeApiClientToken).not.toHaveBeenCalled();
     });
 
-    it("rejects a moderator with 403 on tokenRotate", async () => {
+    it("rejects a moderator with 403 on tokenDeactivate", async () => {
       const { app, token } = await buildApp("moderator");
       const response = await app.inject({
         method: "POST",
-        url: ROUTE_TEMPLATES.admin.developer.apiAccess.tokenRotate.replace(":id", "token-1"),
+        url: ROUTE_TEMPLATES.admin.developer.apiAccess.tokenDeactivate.replace(":id", "token-1"),
         headers: { authorization: `Bearer ${token}` },
         payload: {},
       });
@@ -628,14 +628,14 @@ describe("adminApiAccessRoutes", () => {
     });
   });
 
-  describe("POST tokenRevoke", () => {
+  describe("POST tokenDeactivate", () => {
     it("revokes the token and writes an audit event without leaking secrets", async () => {
       const { app, token } = await buildApp("admin");
       mockRepo.revokeApiClientToken.mockResolvedValue(makeToken({ status: "revoked", revokedAt: 1_700_000_200_000 }));
 
       const response = await app.inject({
         method: "POST",
-        url: ROUTE_TEMPLATES.admin.developer.apiAccess.tokenRevoke.replace(":id", "token-1"),
+        url: ROUTE_TEMPLATES.admin.developer.apiAccess.tokenDeactivate.replace(":id", "token-1"),
         headers: { authorization: `Bearer ${token}` },
         payload: {},
       });
@@ -662,7 +662,7 @@ describe("adminApiAccessRoutes", () => {
       mockRepo.revokeApiClientToken.mockResolvedValue(null);
       const response = await app.inject({
         method: "POST",
-        url: ROUTE_TEMPLATES.admin.developer.apiAccess.tokenRevoke.replace(":id", "missing"),
+        url: ROUTE_TEMPLATES.admin.developer.apiAccess.tokenDeactivate.replace(":id", "missing"),
         headers: { authorization: `Bearer ${token}` },
         payload: {},
       });
@@ -671,7 +671,7 @@ describe("adminApiAccessRoutes", () => {
     });
   });
 
-  describe("POST tokenRotate (admin)", () => {
+  describe("POST tokenDeactivate (admin)", () => {
     it("notifies the developer that a new token was created by the rotation", async () => {
       const { app, token } = await buildApp("admin");
       mockRepo.rotateApiClientToken.mockResolvedValue({
@@ -687,7 +687,7 @@ describe("adminApiAccessRoutes", () => {
 
       const response = await app.inject({
         method: "POST",
-        url: ROUTE_TEMPLATES.admin.developer.apiAccess.tokenRotate.replace(":id", "token-old"),
+        url: ROUTE_TEMPLATES.admin.developer.apiAccess.tokenDeactivate.replace(":id", "token-old"),
         headers: { authorization: `Bearer ${token}` },
       });
 
@@ -707,7 +707,7 @@ describe("adminApiAccessRoutes", () => {
 
       const response = await app.inject({
         method: "POST",
-        url: ROUTE_TEMPLATES.admin.developer.apiAccess.tokenRotate.replace(":id", "token-1"),
+        url: ROUTE_TEMPLATES.admin.developer.apiAccess.tokenDeactivate.replace(":id", "token-1"),
         headers: { authorization: `Bearer ${token}` },
         payload: {},
       });
@@ -736,7 +736,7 @@ describe("adminApiAccessRoutes", () => {
       mockRepo.rotateApiClientToken.mockResolvedValue(null);
       const response = await app.inject({
         method: "POST",
-        url: ROUTE_TEMPLATES.admin.developer.apiAccess.tokenRotate.replace(":id", "missing"),
+        url: ROUTE_TEMPLATES.admin.developer.apiAccess.tokenDeactivate.replace(":id", "missing"),
         headers: { authorization: `Bearer ${token}` },
         payload: {},
       });

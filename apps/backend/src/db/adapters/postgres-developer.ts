@@ -142,18 +142,27 @@ function rowToDeveloperEmailToken(row: DeveloperEmailTokenRow): DeveloperEmailTo
  * @param pool - Postgres connection pool.
  * @returns Array of account DTOs, each extended with `clientCount`.
  */
-export async function listDeveloperAccounts(pool: Pool): Promise<(DeveloperAccount & { clientCount: number })[]> {
+export async function listDeveloperAccounts(
+  pool: Pool,
+): Promise<(DeveloperAccount & { clientCount: number; appName: string | null })[]> {
   const result = await pool.query(
-    `SELECT da.*, COUNT(ac.id)::int AS client_count
+    `SELECT da.*, COUNT(ac.id)::int AS client_count,
+            (SELECT ac2.app_name FROM api_clients ac2
+             WHERE ac2.developer_account_id = da.id
+             ORDER BY ac2.created_at DESC LIMIT 1) AS app_name
      FROM developer_accounts da
      LEFT JOIN api_clients ac ON ac.developer_account_id = da.id
      GROUP BY da.id
      ORDER BY da.created_at DESC`,
   );
-  return result.rows.map((row) => ({
-    ...rowToDeveloperAccount(row as DeveloperAccountRow),
-    clientCount: (row as any).client_count as number,
-  }));
+  return result.rows.map((row) => {
+    const r = row as DeveloperAccountRow & { client_count: number; app_name: string | null };
+    return {
+      ...rowToDeveloperAccount(r),
+      clientCount: r.client_count,
+      appName: r.app_name,
+    };
+  });
 }
 
 /**
@@ -286,6 +295,58 @@ export async function setDeveloperPassword(
 export async function clearDeveloperPassword(pool: Pool, id: string): Promise<void> {
   const now = new Date();
   await pool.query(`UPDATE developer_accounts SET password_hash = NULL, updated_at = $1 WHERE id = $2`, [now, id]);
+}
+
+/**
+ * Updates mutable fields on a developer account and bumps `updated_at`.
+ * Only the provided fields are changed; omitted/undefined fields stay as-is.
+ *
+ * @param pool - Postgres connection pool.
+ * @param id - The account id.
+ * @param data - Fields to update. `email`, `displayName`, `plan` and
+ *   `status` are all optional.
+ * @returns The updated account, or `null` if no row matches.
+ */
+export async function updateDeveloperAccount(
+  pool: Pool,
+  id: string,
+  data: {
+    email?: string;
+    displayName?: string | null;
+    plan?: string;
+    status?: string;
+  },
+): Promise<DeveloperAccount | null> {
+  const now = new Date();
+  const sets: string[] = ["updated_at = $1"];
+  const values: unknown[] = [now];
+  let paramIdx = 2;
+
+  if (data.email !== undefined) {
+    sets.push(`email = $${paramIdx++}`);
+    values.push(data.email);
+  }
+  if (data.displayName !== undefined) {
+    sets.push(`display_name = $${paramIdx++}`);
+    values.push(data.displayName);
+  }
+  if (data.plan !== undefined) {
+    sets.push(`plan = $${paramIdx++}`);
+    values.push(data.plan);
+  }
+  if (data.status !== undefined) {
+    sets.push(`status = $${paramIdx++}`);
+    values.push(data.status);
+  }
+
+  values.push(id);
+  const result = await pool.query(
+    `UPDATE developer_accounts SET ${sets.join(", ")} WHERE id = $${paramIdx}
+     RETURNING ${DEVELOPER_ACCOUNT_COLUMNS}`,
+    values,
+  );
+  if (result.rows.length === 0) return null;
+  return rowToDeveloperAccount(result.rows[0] as DeveloperAccountRow);
 }
 
 /**

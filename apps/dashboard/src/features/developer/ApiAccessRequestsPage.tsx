@@ -1,17 +1,18 @@
 import { ClipboardText as ClipboardTextIcon, PencilSimple as PencilSimpleIcon } from "@phosphor-icons/react";
-import { type ComponentPropsWithoutRef, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { type ComponentPropsWithoutRef, useMemo } from "react";
+import { useNavigate } from "react-router";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
+import { DashboardSection } from "@/components/ui/DashboardSection";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { PageBody, PageLayout } from "@/components/ui/PageLayout";
-import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { PageLayout } from "@/components/ui/PageLayout";
 import { type ColumnDef, DataTable, type DataTableRowProps } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
-import { Toolbar } from "@/components/ui/Toolbar";
 import { useI18n } from "@/context/I18nContext";
 import type { ApiAccessRequestResponse } from "@/features/developer/api";
 import { ApiAccessRequestStatus } from "@/features/developer/domain";
 import { useApiAccessOverview } from "@/features/developer/hooks/useDeveloperData";
+import { formatDate } from "@/features/developer/lib";
+import type { DashboardLocale } from "@/i18n/messages";
 
 function ClickableRow({
   className,
@@ -33,16 +34,11 @@ function ClickableRow({
   );
 }
 
-const STATUS_CLASS: Record<string, string> = {
-  [ApiAccessRequestStatus.Pending]: "bg-amber-500/10 text-amber-400",
-  [ApiAccessRequestStatus.Approved]: "bg-emerald-500/10 text-emerald-400",
-  [ApiAccessRequestStatus.Rejected]: "bg-red-500/10 text-red-400",
-};
-
 function useRequestColumns(
   dm: ReturnType<typeof useI18n>["messages"]["developer"],
   common: ReturnType<typeof useI18n>["messages"]["common"],
   navigate: ReturnType<typeof useNavigate>,
+  locale: DashboardLocale,
 ): ColumnDef<ApiAccessRequestResponse>[] {
   return useMemo<ColumnDef<ApiAccessRequestResponse>[]>(
     () => [
@@ -52,9 +48,12 @@ function useRequestColumns(
         headerClassName: "whitespace-nowrap",
         sortKey: (r) => r.appName.toLowerCase(),
         cell: (r) => (
-          <Link to={`/developer/requests/${r.id}`} className="font-medium text-[var(--ds-text)] hover:underline">
-            {r.appName}
-          </Link>
+          <div>
+            <span className="font-medium text-[var(--ds-text)]">{r.appName}</span>
+            {r.appDescription && (
+              <span className="block text-xs text-[var(--ds-text-muted)] truncate max-w-64">{r.appDescription}</span>
+            )}
+          </div>
         ),
       },
       {
@@ -79,30 +78,8 @@ function useRequestColumns(
         headerClassName: "whitespace-nowrap",
         sortKey: (r) => r.submittedAt,
         cell: (r) => (
-          <span className="text-[var(--ds-text-muted)] whitespace-nowrap">
-            {new Date(r.submittedAt).toLocaleDateString("de-AT")}
-          </span>
+          <span className="text-[var(--ds-text-muted)] whitespace-nowrap">{formatDate(r.submittedAt, locale)}</span>
         ),
-      },
-      {
-        id: "status",
-        header: dm.colStatus,
-        className: "w-28",
-        headerClassName: "whitespace-nowrap",
-        sortKey: (r) => r.status,
-        cell: (r) => {
-          const cls = STATUS_CLASS[r.status] ?? "bg-gray-500/10 text-gray-400";
-          const labelMap: Record<string, string> = {
-            [ApiAccessRequestStatus.Pending]: dm.statusPending,
-            [ApiAccessRequestStatus.Approved]: dm.statusApproved,
-            [ApiAccessRequestStatus.Rejected]: dm.statusRejected,
-          };
-          return (
-            <span className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold ${cls}`}>
-              {labelMap[r.status] ?? r.status}
-            </span>
-          );
-        },
       },
       {
         id: "actions",
@@ -118,18 +95,17 @@ function useRequestColumns(
         ),
       },
     ],
-    [dm, common, navigate],
+    [dm, common, navigate, locale],
   );
 }
 
 export function ApiAccessRequestsPage() {
-  const { messages } = useI18n();
+  const { messages, locale } = useI18n();
   const dm = messages.developer;
-  const [filter, setFilter] = useState("all");
-  const { data, isLoading } = useApiAccessOverview(filter === "all" ? undefined : filter);
+  const { data, isLoading } = useApiAccessOverview(ApiAccessRequestStatus.Pending);
 
   const navigate = useNavigate();
-  const columns = useRequestColumns(dm, messages.common, navigate);
+  const columns = useRequestColumns(dm, messages.common, navigate, locale);
 
   const requests = data?.requests ?? [];
 
@@ -140,63 +116,58 @@ export function ApiAccessRequestsPage() {
     [navigate],
   );
 
-  const requestFilterOptions = useMemo(
-    () => [
-      { value: "all", label: dm.requestsFilterAll },
-      { value: ApiAccessRequestStatus.Pending, label: dm.requestsFilterPending },
-      { value: ApiAccessRequestStatus.Approved, label: dm.requestsFilterApproved },
-      { value: ApiAccessRequestStatus.Rejected, label: dm.requestsFilterRejected },
-    ],
-    [dm],
-  );
-
-  const filterBar = <SegmentedControl value={filter} onChange={setFilter} options={requestFilterOptions} />;
-
-  const toolbar = requests.length > 0 && (
-    <Toolbar>
-      <span className="text-sm text-[var(--ds-text-muted)]">
-        {dm.requestCount.replace("{n}", String(requests.length))}
-      </span>
-    </Toolbar>
-  );
-
   return (
     <PageLayout>
-      <PageHeader title={dm.requestsTitle}>{filterBar}</PageHeader>
-      <PageBody>
-        {isLoading && (
-          <div className="space-y-px">
-            {Array.from({ length: 8 }, (_, i) => `sk-${i}`).map((key) => (
-              <div
-                key={key}
-                className="h-14 bg-[var(--ds-surface)] animate-pulse border-b border-[var(--ds-border-subtle)]"
-              />
-            ))}
-          </div>
-        )}
+      <PageHeader title={dm.requestsTitle} />
 
-        {!isLoading && requests.length === 0 && (
-          <ContentUnavailableView
-            icon={<ClipboardTextIcon weight="duotone" aria-hidden />}
-            title={dm.noRequests}
-            className="flex-1 min-h-0"
+      {isLoading && (
+        <DashboardSection className="overflow-hidden flex-1 min-h-0 flex flex-col">
+          <DashboardSection.Header
+            icon={<ClipboardTextIcon weight="duotone" className="size-4" />}
+            title={dm.requestsTitle}
           />
-        )}
+          <DashboardSection.Body flush>
+            <div className="space-y-px">
+              {Array.from({ length: 8 }, (_, i) => `sk-${i}`).map((key) => (
+                <div
+                  key={key}
+                  className="h-14 bg-[var(--ds-surface)] animate-pulse border-b border-[var(--ds-border-subtle)]"
+                />
+              ))}
+            </div>
+          </DashboardSection.Body>
+        </DashboardSection>
+      )}
 
-        {!isLoading && requests.length > 0 && (
-          <div className="-mx-3 -mt-3 min-h-0 flex-1 overflow-y-auto">
-            <DataTable
-              columns={columns}
-              data={requests}
-              getRowKey={(r) => r.id}
-              RowComponent={RowComponent}
-              stickyHeader
-              defaultSort={{ id: "submittedAt", dir: "desc" }}
-            />
-          </div>
-        )}
-      </PageBody>
-      {toolbar}
+      {!isLoading && requests.length === 0 && (
+        <ContentUnavailableView
+          icon={<ClipboardTextIcon weight="duotone" aria-hidden />}
+          title={dm.noRequests}
+          subtitle={dm.noRequestsHint}
+          className="flex-1 min-h-0"
+        />
+      )}
+
+      {!isLoading && requests.length > 0 && (
+        <DashboardSection className="overflow-hidden flex-1 min-h-0 flex flex-col">
+          <DashboardSection.Header
+            icon={<ClipboardTextIcon weight="duotone" className="size-4" />}
+            title={dm.requestsTitle}
+          />
+          <DashboardSection.Body flush>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <DataTable
+                columns={columns}
+                data={requests}
+                getRowKey={(r) => r.id}
+                RowComponent={RowComponent}
+                stickyHeader
+                defaultSort={{ id: "submittedAt", dir: "desc" }}
+              />
+            </div>
+          </DashboardSection.Body>
+        </DashboardSection>
+      )}
     </PageLayout>
   );
 }

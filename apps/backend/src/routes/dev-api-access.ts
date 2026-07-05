@@ -159,6 +159,7 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
         clientId: id,
         tokenPrefix: generated.prefix,
         tokenHash: generated.hash,
+        rawToken: generated.raw,
       });
       await repo.createApiAccessAuditEvent({
         clientId: id,

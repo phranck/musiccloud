@@ -322,7 +322,7 @@ async function buildApp() {
           "Public REST API for musiccloud.io. Resolve music URLs or text queries across 20+ streaming services and retrieve unified metadata.\n\n" +
           "## Authentication\n\n" +
           "Most endpoints require credentials. Endpoints declaring a `security` block (e.g. `POST /api/v1/resolve`, `GET /api/v1/link/:id`) " +
-          "accept either an `X-API-Key` header (an `mc_live_…` token issued via the developer portal at developer.musiccloud.io) or a `Bearer` JWT. " +
+          "accept either an `X-API-Key` header (a UUID v4 token issued via the developer portal at developer.musiccloud.io) or a `Bearer` JWT. " +
           "Public read-only endpoints — `GET /api/v1/share/:shortId`, `GET /api/v1/share/:shortId/preview`, " +
           "`GET /api/v1/artist/...`, `GET /api/v1/genre-artwork/:genreKey`, `GET /health/db` — are reachable without credentials.\n\n" +
           "**Getting a token (first-time integration):**\n\n" +

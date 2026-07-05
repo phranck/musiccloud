@@ -192,13 +192,13 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<ApiAcce
 
 /**
  * Formats a token's stored prefix for display, mirroring the backend's
- * `formatApiTokenForDisplay` — label + prefix + masked secret half.
+ * `formatApiTokenForDisplay`.
  *
- * @param tokenPrefix - The token's non-secret `tokenPrefix`.
- * @returns e.g. `mc_live_AbC123••••••••`.
+ * @param tokenPrefix - The token's non-secret `tokenPrefix` (first 8 hex chars of the UUID).
+ * @returns e.g. `6121de17-...`.
  */
 export function maskToken(tokenPrefix: string): string {
-  return `mc_live_${tokenPrefix}••••••••`;
+  return `${tokenPrefix}-...`;
 }
 
 /**

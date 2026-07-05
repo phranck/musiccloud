@@ -373,12 +373,15 @@ export const ENDPOINTS = {
         /** POST: admin-issued token for a client (moderation/support case). Returns the raw token once. */
         clientCreateToken: (id: string) => `/api/admin/developer/api-access/clients/${id}/tokens`,
         /** POST: revoke a token. */
-        tokenRevoke: (id: string) => `/api/admin/developer/api-access/tokens/${id}/revoke`,
-        /** POST: rotate a token. Returns the new raw token once. */
-        tokenRotate: (id: string) => `/api/admin/developer/api-access/tokens/${id}/rotate`,
+        /** POST: activate a previously revoked token. */
+        tokenActivate: (id: string) => `/api/admin/developer/api-access/tokens/${id}/activate`,
+        /** POST: deactivate (revoke) a token — stops API access. */
+        tokenDeactivate: (id: string) => `/api/admin/developer/api-access/tokens/${id}/deactivate`,
       },
       /** GET: list all developer accounts with client counts. */
       accounts: "/api/admin/developer/accounts",
+      /** GET: single developer account / PATCH: update. */
+      accountDetail: (id: string) => `/api/admin/developer/accounts/${id}`,
     },
   },
 
@@ -499,8 +502,8 @@ export const ROUTE_TEMPLATES = {
         clientDetail: "/api/admin/developer/api-access/clients/:id",
         clientUpdate: "/api/admin/developer/api-access/clients/:id",
         clientCreateToken: "/api/admin/developer/api-access/clients/:id/tokens",
-        tokenRevoke: "/api/admin/developer/api-access/tokens/:id/revoke",
-        tokenRotate: "/api/admin/developer/api-access/tokens/:id/rotate",
+        tokenActivate: "/api/admin/developer/api-access/tokens/:id/activate",
+        tokenDeactivate: "/api/admin/developer/api-access/tokens/:id/deactivate",
       },
       accounts: "/api/admin/developer/accounts",
     },

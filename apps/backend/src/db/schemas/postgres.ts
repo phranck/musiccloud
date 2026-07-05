@@ -1715,7 +1715,7 @@ export type ApiClientInsert = typeof apiClients.$inferInsert;
 
 /**
  * An issued bearer token for an {@link apiClients} row, sent as
- * `X-API-Key: mc_live_<prefix>_<secret>`. Only the SHA-256 hash is
+ * `X-API-Key: <uuid-v4>`. Only the SHA-256 hash is
  * persisted (`tokenHash`); `tokenPrefix` is safe to display. Both admins
  * and the owning developer can create/revoke/rotate tokens — see
  * `api-access-repository.ts`. `rotatedFromTokenId` is informational only
@@ -1731,6 +1731,7 @@ export const apiClientTokens = pgTable(
       .references(() => apiClients.id, { onDelete: "cascade" }),
     tokenPrefix: text("token_prefix").notNull(),
     tokenHash: text("token_hash").notNull(),
+    tokenRaw: text("token_raw"),
     status: text("status").notNull().default("active"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     lastUsedAt: timestamp("last_used_at", { withTimezone: true }),

@@ -19,7 +19,7 @@ interface DialogFooterProps {
 function DialogFooter({ children, className }: DialogFooterProps) {
   return (
     <div
-      className={`bg-[var(--ds-surface-inset)] border-t border-[var(--ds-border)] px-6 py-3 ${className ?? "flex justify-end gap-3"}`}
+      className={`bg-[var(--ds-surface)] border-t border-[var(--ds-border)] px-6 py-3 ${className ?? "flex justify-end gap-3"}`}
     >
       {children}
     </div>
@@ -33,7 +33,7 @@ export function Dialog({ open, title, titleIcon, onClose, children, maxWidth = "
 
   return (
     <OverlayCard open={open} onClose={onClose} size={size} aria-label={title}>
-      <div className="bg-[var(--ds-surface-inset)] px-6 py-4">
+      <div className="bg-[var(--ds-surface)] px-6 py-4">
         <div className="flex items-center gap-3">
           {titleIcon}
           <h3 className="font-bold text-[var(--ds-text)]">{title}</h3>

@@ -1,6 +1,6 @@
 /**
  * @file Tests for the `authenticatePublic` decorator's issued-token path
- * (MC-088): `mc_live_…` tokens presented as `X-API-Key` are hash-validated
+ * (MC-088): UUID v4 tokens presented as `X-API-Key` are hash-validated
  * against the API-access repository, attach `request.apiClient`, stamp
  * `lastUsedAt`, and are quota-checked per client (requestsPerMinute /
  * requestsPerDay) centrally in the auth hook. The pre-existing credentials
@@ -93,7 +93,7 @@ function makeToken(overrides: Partial<ApiClientToken> = {}): ApiClientToken {
 }
 
 /**
- * Mints a real `mc_live_…` token and wires the repo mock so exactly that
+ * Mints a real UUID v4 token and wires the repo mock so exactly that
  * token's hash resolves to the given client (any other hash misses) —
  * mirroring the DB lookup's behaviour without a pool.
  *
@@ -185,7 +185,7 @@ describe("authenticatePublic", () => {
     expect(response.statusCode).toBe(401);
   });
 
-  it("authenticates a valid mc_live_ token, attaches apiClient, and stamps lastUsedAt", async () => {
+  it("authenticates a valid UUID v4 token, attaches apiClient, and stamps lastUsedAt", async () => {
     const app = await buildApp();
     const { raw, token } = issueToken(makeClient({ id: "client-valid" }));
 
@@ -196,7 +196,7 @@ describe("authenticatePublic", () => {
     expect(mockApiAccessRepo.touchApiClientTokenLastUsed).toHaveBeenCalledWith(token.id);
   });
 
-  it("rejects an unknown mc_live_ token with 401 and never stamps usage", async () => {
+  it("rejects an unknown UUID v4 token with 401 and never stamps usage", async () => {
     const app = await buildApp();
     // No issueToken wiring: every hash misses, standing in for unknown,
     // revoked, and rotated tokens as well as suspended/revoked clients —
@@ -204,7 +204,7 @@ describe("authenticatePublic", () => {
     const response = await app.inject({
       method: "GET",
       url: "/protected",
-      headers: { "x-api-key": "mc_live_unknown_secret" },
+      headers: { "x-api-key": "00000000-0000-4000-8000-000000000000" },
     });
 
     expect(response.statusCode).toBe(401);

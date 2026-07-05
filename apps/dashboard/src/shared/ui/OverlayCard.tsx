@@ -155,7 +155,7 @@ function Header({ children, className }: { children: ReactNode; className?: stri
   return (
     <div
       className={[
-        "px-5 py-4 bg-[var(--ds-surface-inset)] border-b border-[var(--ds-border-subtle)] shrink-0",
+        "px-5 py-4 bg-[var(--ds-surface)] border-b border-[var(--ds-border-subtle)] shrink-0",
         className,
       ]
         .filter(Boolean)
@@ -170,7 +170,7 @@ function Footer({ children, className }: { children: ReactNode; className?: stri
   return (
     <div
       className={[
-        "px-5 py-4 bg-[var(--ds-surface-inset)] border-t border-[var(--ds-border-subtle)] shrink-0",
+        "px-5 py-4 bg-[var(--ds-surface)] border-t border-[var(--ds-border-subtle)] shrink-0",
         className,
       ]
         .filter(Boolean)

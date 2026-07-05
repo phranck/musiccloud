@@ -53,8 +53,24 @@ export interface DeveloperAccountResponse {
   plan: string;
   status: string;
   clientCount: number;
+  appName: string | null;
   createdAt: string;
   lastLoginAt: string | null;
+}
+
+export function fetchDeveloperAccount(id: string): Promise<DeveloperAccountResponse> {
+  return api.get<DeveloperAccountResponse>(ENDPOINTS.admin.developer.accountDetail(id));
+}
+
+export function updateDeveloperAccount(
+  id: string,
+  body: { email?: string; displayName?: string | null; plan?: string; status?: string },
+): Promise<DeveloperAccountResponse> {
+  return api.patch<DeveloperAccountResponse>(ENDPOINTS.admin.developer.accountDetail(id), body);
+}
+
+export function deleteDeveloperAccount(id: string): Promise<void> {
+  return api.delete(ENDPOINTS.admin.developer.accountDetail(id));
 }
 
 export function fetchApiAccessOverview(status?: string): Promise<ApiAccessOverview> {
@@ -85,14 +101,19 @@ export function createClientToken(id: string): Promise<{ token: ApiClientTokenRe
   );
 }
 
-export function revokeToken(id: string): Promise<{ token: ApiClientTokenResponse }> {
-  return api.post<{ token: ApiClientTokenResponse }>(ENDPOINTS.admin.developer.apiAccess.tokenRevoke(id));
+export function updateApiClient(
+  id: string,
+  body: { status?: string; requestsPerMinute?: number; requestsPerDay?: number },
+): Promise<{ client: ApiClientResponse }> {
+  return api.patch<{ client: ApiClientResponse }>(ENDPOINTS.admin.developer.apiAccess.clientUpdate(id), body);
 }
 
-export function rotateToken(id: string): Promise<{ token: ApiClientTokenResponse & { rawToken: string } }> {
-  return api.post<{ token: ApiClientTokenResponse & { rawToken: string } }>(
-    ENDPOINTS.admin.developer.apiAccess.tokenRotate(id),
-  );
+export function activateToken(id: string): Promise<{ token: ApiClientTokenResponse }> {
+  return api.post<{ token: ApiClientTokenResponse }>(ENDPOINTS.admin.developer.apiAccess.tokenActivate(id));
+}
+
+export function deactivateToken(id: string): Promise<{ token: ApiClientTokenResponse }> {
+  return api.post<{ token: ApiClientTokenResponse }>(ENDPOINTS.admin.developer.apiAccess.tokenDeactivate(id));
 }
 
 export function fetchDeveloperAccounts(): Promise<{ accounts: DeveloperAccountResponse[] }> {

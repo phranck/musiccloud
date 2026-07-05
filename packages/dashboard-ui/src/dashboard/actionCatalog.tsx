@@ -136,11 +136,11 @@ export const DashboardActions = {
   },
   [DashboardActionId.Cancel]: {
     ariaBehavior: "visible-label",
-    colorRole: "danger",
+    colorRole: "ghost",
     icon: XIcon,
     labelKey: "common.cancel",
     size: "action",
-    variant: DashboardButtonVariant.Danger,
+    variant: DashboardButtonVariant.Ghost,
   },
   [DashboardActionId.Close]: {
     ariaBehavior: "icon-only-label",

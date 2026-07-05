@@ -48,6 +48,7 @@ interface ApiClientTokenRow {
   client_id: string;
   token_prefix: string;
   token_hash: string;
+  token_raw: string | null;
   status: string;
   created_at: Date;
   last_used_at: Date | null;
@@ -71,7 +72,7 @@ const REQUEST_COLUMNS = `id, developer_account_id, contact_email, app_name, app_
             estimated_requests_per_day, status, submitted_at, reviewed_at, reviewed_by_admin_id, review_note`;
 const CLIENT_COLUMNS = `id, request_id, developer_account_id, app_name, contact_email, description,
             status, requests_per_minute, requests_per_day, created_at, updated_at, created_by_admin_id`;
-const TOKEN_COLUMNS = `id, client_id, token_prefix, token_hash, status, created_at, last_used_at,
+const TOKEN_COLUMNS = `id, client_id, token_prefix, token_hash, token_raw, status, created_at, last_used_at,
             revoked_at, rotated_from_token_id`;
 const AUDIT_COLUMNS = `id, client_id, request_id, token_id, event_type, actor_admin_id,
             actor_developer_account_id, occurred_at, event_data`;
@@ -119,6 +120,7 @@ function rowToApiClientToken(row: ApiClientTokenRow): ApiClientToken {
     clientId: row.client_id,
     tokenPrefix: row.token_prefix,
     tokenHash: row.token_hash,
+    rawToken: row.token_raw,
     status: row.status,
     createdAt: dateToMs(row.created_at),
     lastUsedAt: row.last_used_at ? dateToMs(row.last_used_at) : null,
@@ -305,14 +307,14 @@ export async function updateApiClient(
 
 export async function createApiClientToken(
   pool: Pool,
-  data: { clientId: string; tokenPrefix: string; tokenHash: string; rotatedFromTokenId?: string | null },
+  data: { clientId: string; tokenPrefix: string; tokenHash: string; rawToken: string; rotatedFromTokenId?: string | null },
 ): Promise<ApiClientToken> {
   const now = new Date();
   const result = await pool.query(
-    `INSERT INTO api_client_tokens (id, client_id, token_prefix, token_hash, created_at, rotated_from_token_id)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO api_client_tokens (id, client_id, token_prefix, token_hash, token_raw, created_at, rotated_from_token_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING ${TOKEN_COLUMNS}`,
-    [nanoid(), data.clientId, data.tokenPrefix, data.tokenHash, now, data.rotatedFromTokenId ?? null],
+    [nanoid(), data.clientId, data.tokenPrefix, data.tokenHash, data.rawToken, now, data.rotatedFromTokenId ?? null],
   );
   return rowToApiClientToken(result.rows[0] as ApiClientTokenRow);
 }
@@ -372,6 +374,17 @@ export async function revokeApiClientToken(pool: Pool, id: string): Promise<ApiC
      WHERE id = $2
      RETURNING ${TOKEN_COLUMNS}`,
     [now, id],
+  );
+  if (result.rows.length === 0) return null;
+  return rowToApiClientToken(result.rows[0] as ApiClientTokenRow);
+}
+
+export async function activateApiClientToken(pool: Pool, id: string): Promise<ApiClientToken | null> {
+  const result = await pool.query(
+    `UPDATE api_client_tokens SET status = 'active', revoked_at = NULL
+     WHERE id = $1 AND status = 'revoked'
+     RETURNING ${TOKEN_COLUMNS}`,
+    [id],
   );
   if (result.rows.length === 0) return null;
   return rowToApiClientToken(result.rows[0] as ApiClientTokenRow);

@@ -1,19 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { formatApiTokenForDisplay, generateApiToken, hashApiToken } from "./api-access-token.js";
 
+const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 describe("generateApiToken", () => {
-  it("produces a token in the mc_live_<prefix>_<secret> shape", () => {
+  it("produces a UUID v4 token", () => {
     const { raw, prefix } = generateApiToken();
-    expect(raw.startsWith("mc_live_")).toBe(true);
-    expect(raw).toContain(`mc_live_${prefix}_`);
-    // Not `raw.split("_")` — base64url's alphabet (`A-Za-z0-9-_`) can itself
-    // contain `_`, so prefix/secret regularly embed extra underscores and a
-    // fixed segment count would be flaky. Instead verify the two fixed
-    // label segments plus a non-empty secret tail after the known prefix.
-    const afterLabel = raw.slice("mc_live_".length);
-    expect(afterLabel.startsWith(`${prefix}_`)).toBe(true);
-    const secret = afterLabel.slice(prefix.length + 1);
-    expect(secret.length).toBeGreaterThan(0);
+    expect(raw).toMatch(UUID_V4_RE);
+    // prefix is the first 8 hex chars
+    expect(raw.startsWith(prefix)).toBe(true);
+    expect(prefix).toHaveLength(8);
   });
 
   it("returns a hash matching hashApiToken(raw)", () => {
@@ -25,13 +21,14 @@ describe("generateApiToken", () => {
     const a = generateApiToken();
     const b = generateApiToken();
     expect(a.raw).not.toBe(b.raw);
-    expect(a.prefix).not.toBe(b.prefix);
   });
 });
 
 describe("hashApiToken", () => {
   it("is deterministic for the same input", () => {
-    expect(hashApiToken("mc_live_abc_def")).toBe(hashApiToken("mc_live_abc_def"));
+    expect(hashApiToken("6121de17-1a63-4d44-95f2-ffa17452f715")).toBe(
+      hashApiToken("6121de17-1a63-4d44-95f2-ffa17452f715"),
+    );
   });
 
   it("produces a 64-char hex SHA-256 digest", () => {
@@ -40,7 +37,7 @@ describe("hashApiToken", () => {
 });
 
 describe("formatApiTokenForDisplay", () => {
-  it("masks the secret, keeping only the label and prefix visible", () => {
-    expect(formatApiTokenForDisplay("AbC123")).toBe("mc_live_AbC123••••••••");
+  it("masks the full token, keeping only the prefix visible", () => {
+    expect(formatApiTokenForDisplay("6121de17")).toBe("6121de17-...");
   });
 });

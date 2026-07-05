@@ -1,13 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   type ApiAccessOverview,
+  activateToken,
   approveApiAccessRequest,
   createClientToken,
+  type DeveloperAccountResponse,
+  deactivateToken,
+  deleteDeveloperAccount,
   fetchApiAccessOverview,
+  fetchDeveloperAccount,
   fetchDeveloperAccounts,
   rejectApiAccessRequest,
-  revokeToken,
-  rotateToken,
+  updateApiClient,
+  updateDeveloperAccount,
 } from "@/features/developer/api";
 
 export function useApiAccessOverview(status?: string) {
@@ -21,6 +26,14 @@ export function useDeveloperAccounts() {
   return useQuery({
     queryKey: ["developer", "accounts"],
     queryFn: fetchDeveloperAccounts,
+  });
+}
+
+export function useDeveloperAccount(id: string) {
+  return useQuery<DeveloperAccountResponse>({
+    queryKey: ["developer", "account", id],
+    queryFn: () => fetchDeveloperAccount(id),
+    enabled: !!id,
   });
 }
 
@@ -55,20 +68,60 @@ export function useCreateToken() {
   });
 }
 
-export function useRevokeToken() {
+export function useUpdateDeveloperAccount() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (tokenId: string) => revokeToken(tokenId),
+    mutationFn: ({
+      id,
+      ...body
+    }: {
+      id: string;
+      email?: string;
+      displayName?: string | null;
+      plan?: string;
+      status?: string;
+    }) => updateDeveloperAccount(id, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["developer"] });
     },
   });
 }
 
-export function useRotateToken() {
+export function useDeleteDeveloperAccount() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (tokenId: string) => rotateToken(tokenId),
+    mutationFn: (id: string) => deleteDeveloperAccount(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["developer"] });
+    },
+  });
+}
+
+export function useActivateToken() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (tokenId: string) => activateToken(tokenId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["developer"] });
+    },
+  });
+}
+
+export function useDeactivateToken() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (tokenId: string) => deactivateToken(tokenId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["developer"] });
+    },
+  });
+}
+
+export function useUpdateClient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; requestsPerMinute?: number; requestsPerDay?: number }) =>
+      updateApiClient(id, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["developer"] });
     },

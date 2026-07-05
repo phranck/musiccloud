@@ -7,7 +7,7 @@ import type {
 } from "./ButtonPrimitive.js";
 
 export const buttonPrimitiveBaseClass =
-  "inline-flex shrink-0 items-center justify-center rounded-control border font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--ds-focus-ring)] disabled:cursor-not-allowed disabled:opacity-[var(--ds-control-disabled-opacity)]";
+  "inline-flex shrink-0 items-center justify-center rounded-control border font-medium transition-colors outline-none focus:ring-2 focus:ring-[var(--ds-focus-ring)] disabled:cursor-not-allowed disabled:opacity-[var(--ds-control-disabled-opacity)]";
 
 export const buttonPrimitiveVariantClass: Record<ButtonPrimitiveVariant, string> = {
   neutral:

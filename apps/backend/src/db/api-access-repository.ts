@@ -90,6 +90,7 @@ export interface ApiClientToken {
   clientId: string;
   tokenPrefix: string;
   tokenHash: string;
+  rawToken?: string | null;
   status: string;
   createdAt: number;
   lastUsedAt: number | null;
@@ -189,6 +190,7 @@ export interface ApiAccessRepository {
     clientId: string;
     tokenPrefix: string;
     tokenHash: string;
+    rawToken: string;
     rotatedFromTokenId?: string | null;
   }): Promise<ApiClientToken>;
 
@@ -221,6 +223,9 @@ export interface ApiAccessRepository {
 
   /** Marks a token `"revoked"` and stamps `revokedAt`. Idempotent: revoking an already-revoked token is a no-op that still returns the row. */
   revokeApiClientToken(id: string): Promise<ApiClientToken | null>;
+
+  /** Sets a revoked token back to `"active"` and clears `revokedAt`. Returns null if the token was not revoked. */
+  activateApiClientToken(id: string): Promise<ApiClientToken | null>;
 
   /**
    * Atomically marks the given token `"rotated"` and creates a new active

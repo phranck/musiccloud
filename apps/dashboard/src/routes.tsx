@@ -15,10 +15,12 @@ import {
   ApiAccessRequestsPage,
   ApiClientsPage,
   ArtistsPage,
+  ClientDetailPage,
   ContentEditorPage,
   DashboardPage,
   DesignSettingsPage,
   DeveloperAccountsPage,
+  DeveloperDetailPage,
   EmailActionsPage,
   EmailBrandingPage,
   EmailTemplateEditPage,
@@ -79,7 +81,9 @@ export const routes = createRoutesFromElements(
           <Route path="developer/requests" element={lazyFallback(<ApiAccessRequestsPage />)} />
           <Route path="developer/requests/:id" element={lazyFallback(<RequestDetailPage />)} />
           <Route path="developer/clients" element={lazyFallback(<ApiClientsPage />)} />
+          <Route path="developer/clients/:id" element={lazyFallback(<ClientDetailPage />)} />
           <Route path="developer/accounts" element={lazyFallback(<DeveloperAccountsPage />)} />
+          <Route path="developer/accounts/:id" element={lazyFallback(<DeveloperDetailPage />)} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

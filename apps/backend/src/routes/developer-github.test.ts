@@ -135,6 +135,7 @@ function makeRepo(): DeveloperRepository {
     })),
     findActiveDeveloperEmailToken: vi.fn(async () => null),
     consumeDeveloperEmailToken: vi.fn(async () => true),
+    updateDeveloperAccount: vi.fn(async () => null),
   };
 }
 

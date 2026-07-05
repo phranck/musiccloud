@@ -131,6 +131,7 @@ import {
   upsertAlbumPreview as albumsUpsertAlbumPreview,
 } from "./postgres-albums.js";
 import {
+  activateApiClientToken as apiAccessActivateClientToken,
   countPendingApiAccessRequests as apiAccessCountPending,
   createApiAccessAuditEvent as apiAccessCreateAuditEvent,
   createApiClient as apiAccessCreateClient,
@@ -252,6 +253,7 @@ import {
   listDeveloperIdentitiesByAccount as developerListIdentitiesByAccount,
   markDeveloperEmailVerified as developerMarkEmailVerified,
   setDeveloperPassword as developerSetPassword,
+  updateDeveloperAccount as developerUpdateAccount,
   updateDeveloperLastLogin as developerUpdateLastLogin,
 } from "./postgres-developer.js";
 import {
@@ -1113,7 +1115,7 @@ export class PostgresAdapter
     return developerFindAccountByEmail(this.pool, email);
   }
 
-  listDeveloperAccounts(): Promise<(DeveloperAccount & { clientCount: number })[]> {
+  listDeveloperAccounts(): Promise<(DeveloperAccount & { clientCount: number; appName: string | null })[]> {
     return developerListAccounts(this.pool);
   }
 
@@ -1135,6 +1137,18 @@ export class PostgresAdapter
 
   deleteDeveloperAccount(id: string): Promise<boolean> {
     return developerDeleteAccount(this.pool, id);
+  }
+
+  updateDeveloperAccount(
+    id: string,
+    data: {
+      email?: string;
+      displayName?: string | null;
+      plan?: string;
+      status?: string;
+    },
+  ): Promise<DeveloperAccount | null> {
+    return developerUpdateAccount(this.pool, id, data);
   }
 
   createDeveloperIdentity(data: {
@@ -1243,6 +1257,7 @@ export class PostgresAdapter
     clientId: string;
     tokenPrefix: string;
     tokenHash: string;
+    rawToken: string;
     rotatedFromTokenId?: string | null;
   }): Promise<ApiClientToken> {
     return apiAccessCreateClientToken(this.pool, data);
@@ -1266,6 +1281,10 @@ export class PostgresAdapter
 
   revokeApiClientToken(id: string): Promise<ApiClientToken | null> {
     return apiAccessRevokeClientToken(this.pool, id);
+  }
+
+  activateApiClientToken(id: string): Promise<ApiClientToken | null> {
+    return apiAccessActivateClientToken(this.pool, id);
   }
 
   rotateApiClientToken(

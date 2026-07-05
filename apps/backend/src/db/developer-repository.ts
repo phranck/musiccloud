@@ -142,7 +142,7 @@ export interface DeveloperRepository {
    *
    * @returns Array of account DTOs, each extended with `clientCount`.
    */
-  listDeveloperAccounts(): Promise<(DeveloperAccount & { clientCount: number })[]>;
+  listDeveloperAccounts(): Promise<(DeveloperAccount & { clientCount: number; appName: string | null })[]>;
 
   /**
    * Stamps `email_verified_at = NOW()` (and bumps `updated_at`) on the
@@ -171,6 +171,25 @@ export interface DeveloperRepository {
    * @returns The updated account, or `null` when no row matches.
    */
   setDeveloperPassword(id: string, passwordHash: string): Promise<DeveloperAccount | null>;
+
+  /**
+   * Updates mutable fields on a developer account and bumps `updated_at`.
+   * Only the provided fields are changed; omitted/undefined fields stay as-is.
+   *
+   * @param id - The account id.
+   * @param data - Fields to update. `email`, `displayName`, `plan` and
+   *   `status` are all optional.
+   * @returns The updated account, or `null` if no row matches.
+   */
+  updateDeveloperAccount(
+    id: string,
+    data: {
+      email?: string;
+      displayName?: string | null;
+      plan?: string;
+      status?: string;
+    },
+  ): Promise<DeveloperAccount | null>;
 
   /**
    * Permanently deletes a developer account. All owned rows in
