@@ -8,6 +8,7 @@ import { FileTextIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
 import { ItemCard } from "@/components/ui/Card";
+import { ContentLoadingView } from "@/components/ui/ContentLoadingView";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { useI18n } from "@/context/I18nContext";
@@ -48,13 +49,7 @@ export function UsersPage() {
       </PageHeader>
 
       <PageBody>
-        {isLoading && (
-          <div className="space-y-2">
-            {Array.from({ length: 3 }, (_, i) => `sk-${i}`).map((key) => (
-              <ItemCard key={key} className="h-16 animate-pulse" />
-            ))}
-          </div>
-        )}
+        {isLoading && <ContentLoadingView className="flex-1 min-h-0" />}
 
         <div className="space-y-2">
           {users.map((user) => (

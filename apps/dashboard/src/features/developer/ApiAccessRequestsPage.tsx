@@ -1,6 +1,7 @@
 import { ClipboardText as ClipboardTextIcon, PencilSimple as PencilSimpleIcon } from "@phosphor-icons/react";
 import { type ComponentPropsWithoutRef, useMemo } from "react";
 import { useNavigate } from "react-router";
+import { ContentLoadingView } from "@/components/ui/ContentLoadingView";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -120,24 +121,7 @@ export function ApiAccessRequestsPage() {
     <PageLayout>
       <PageHeader title={dm.requestsTitle} />
 
-      {isLoading && (
-        <DashboardSection className="overflow-hidden flex-1 min-h-0 flex flex-col">
-          <DashboardSection.Header
-            icon={<ClipboardTextIcon weight="duotone" className="size-4" />}
-            title={dm.requestsTitle}
-          />
-          <DashboardSection.Body flush>
-            <div className="space-y-px">
-              {Array.from({ length: 8 }, (_, i) => `sk-${i}`).map((key) => (
-                <div
-                  key={key}
-                  className="h-14 bg-[var(--ds-surface)] animate-pulse border-b border-[var(--ds-border-subtle)]"
-                />
-              ))}
-            </div>
-          </DashboardSection.Body>
-        </DashboardSection>
-      )}
+      {isLoading && <ContentLoadingView className="flex-1 min-h-0" />}
 
       {!isLoading && requests.length === 0 && (
         <ContentUnavailableView

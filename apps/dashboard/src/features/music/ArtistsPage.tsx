@@ -17,6 +17,7 @@ import {
   XCircle as XCircleIcon,
 } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
+import { ContentLoadingView } from "@/components/ui/ContentLoadingView";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
@@ -275,16 +276,7 @@ export function ArtistsPage() {
       <PageHeader title={ma.title}>{searchField}</PageHeader>
 
       <PageBody>
-        {table.isInitialLoading && (
-          <div className="space-y-px">
-            {Array.from({ length: 8 }, (_, i) => `sk-${i}`).map((key) => (
-              <div
-                key={key}
-                className="h-14 bg-[var(--ds-surface)] animate-pulse border-b border-[var(--ds-border-subtle)]"
-              />
-            ))}
-          </div>
-        )}
+        {table.isInitialLoading && <ContentLoadingView className="flex-1 min-h-0" />}
 
         {table.isError && <p className="text-sm text-[var(--ds-danger-text)] p-4">{table.errorMessage}</p>}
 
