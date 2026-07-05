@@ -142,7 +142,7 @@ export function DesignSettingsPage() {
           {saveMutation.isSuccess && <span className="text-green-500">{m.saved}</span>}
           {saveMutation.isError && (
             <span className="text-[var(--ds-danger-text)]">
-              {saveMutation.error instanceof Error ? saveMutation.error.message : m.saveError}
+              {saveMutation.error instanceof Error ? saveMutation.error.message : messages.common.saveError}
             </span>
           )}
         </div>

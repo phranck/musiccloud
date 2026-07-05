@@ -127,7 +127,7 @@ export function EmailBrandingPage() {
       {
         onSuccess: () => showSaved(),
         onError: (err: unknown) => {
-          setError(err instanceof Error ? err.message : m.saveError);
+          setError(err instanceof Error ? err.message : common.saveError);
         },
       },
     );

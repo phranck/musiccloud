@@ -395,8 +395,6 @@ export function FormBuilderEditPage() {
           hasConfig={!!config}
           onExport={handleExport}
           onSave={handleSave}
-          m={m}
-          savingLabel={messages.common.saving}
         />
       </PageHeader>
 
@@ -606,8 +604,6 @@ interface BuilderHeaderActionsProps {
   hasConfig: boolean;
   onExport: () => void;
   onSave: () => void;
-  m: ReturnType<typeof useI18n>["messages"]["formBuilder"];
-  savingLabel: string;
 }
 
 /** Header action row: export (with unsaved warning), save status text, save button. */
@@ -618,9 +614,11 @@ function BuilderHeaderActions({
   hasConfig,
   onExport,
   onSave,
-  m,
-  savingLabel,
 }: BuilderHeaderActionsProps) {
+  const { messages } = useI18n();
+  const m = messages.formBuilder;
+  const common = messages.common;
+
   return (
     <div className="flex items-center gap-3">
       {showExportWarning && <span className="text-sm font-medium text-amber-500">{m.exportUnsavedWarning}</span>}
@@ -633,9 +631,9 @@ function BuilderHeaderActions({
         type="button"
         variant={DashboardButtonVariant.Neutral}
       />
-      {saveStatus === "saved" && <span className="text-sm font-medium text-green-400">{m.saved}</span>}
+      {saveStatus === "saved" && <span className="text-sm font-medium text-green-400">{common.saved}</span>}
       {saveStatus === "error" && (
-        <span className="text-sm font-medium text-[var(--ds-danger-text)]">{m.saveError}</span>
+        <span className="text-sm font-medium text-[var(--ds-danger-text)]">{common.saveError}</span>
       )}
       {saveStatus === "slug_conflict" && (
         <span className="text-sm font-medium text-[var(--ds-danger-text)]">{m.slugConflict}</span>
@@ -644,8 +642,8 @@ function BuilderHeaderActions({
         type="button"
         onClick={onSave}
         disabled={isSaving}
-        busyLabel={savingLabel}
-        label={m.save}
+        busyLabel={common.saving}
+        label={common.save}
         status={isSaving ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
       />
     </div>

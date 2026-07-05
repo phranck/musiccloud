@@ -7,6 +7,7 @@ export interface DashboardMessages {
     save: string;
     saving: string;
     saved: string;
+    saveError: string;
     edit: string;
     delete: string;
     remove: string;
@@ -206,7 +207,6 @@ export interface DashboardMessages {
       serviceUrls: string;
       createdAt: string;
       notFound: string;
-      saveError: string;
     };
     albums: {
       title: string;
@@ -284,7 +284,6 @@ export interface DashboardMessages {
     save: string;
     saving: string;
     saved: string;
-    saveError: string;
     reset: string;
     validJson: string;
     invalidJson: string;
@@ -356,7 +355,6 @@ export interface DashboardMessages {
       language: string;
       sessionTimeout: string;
       sessionTimeoutNone: string;
-      errorSaving: string;
       editTooltip: string;
     };
   };
@@ -383,7 +381,6 @@ export interface DashboardMessages {
       updatedBy: string;
       updatedAt: string;
       loadingContent: string;
-      saveError: string;
       preview: string;
       shortcuts: {
         save: string;
@@ -433,7 +430,6 @@ export interface DashboardMessages {
         labelPlaceholder: string;
         save: string;
         saving: string;
-        saveError: string;
         remove: string;
         preview: string;
       };
@@ -465,7 +461,6 @@ export interface DashboardMessages {
     slugPlaceholder: string;
     save: string;
     saved: string;
-    saveError: string;
     empty: string;
     editButton: string;
     noForms: string;
@@ -614,7 +609,6 @@ export interface DashboardMessages {
     noTemplatesHint: string;
     save: string;
     saved: string;
-    saveError: string;
     nameConflict: string;
     systemBadge: string;
     tableCreated: string;
@@ -773,6 +767,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       save: "Speichern",
       saving: "Wird gespeichert\u2026",
       saved: "Gespeichert",
+      saveError: "Fehler beim Speichern",
       edit: "Bearbeiten",
       delete: "L\u00f6schen",
       remove: "Entfernen",
@@ -974,7 +969,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         serviceUrls: "Service URLs",
         createdAt: "Hinzugef\u00fcgt",
         notFound: "Track nicht gefunden",
-        saveError: "Fehler beim Speichern",
       },
       albums: {
         title: "Alben",
@@ -1059,7 +1053,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       save: "Speichern",
       saving: "Speichern…",
       saved: "Gespeichert",
-      saveError: "Speichern fehlgeschlagen",
       reset: "Verworfen zurücksetzen",
       validJson: "Gültiges JSON",
       invalidJson: "Ungültiges JSON",
@@ -1128,7 +1121,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         language: "Sprache",
         sessionTimeout: "Inaktivitäts-Timeout (Minuten)",
         sessionTimeoutNone: "Kein automatischer Logout",
-        errorSaving: "Fehler beim Speichern",
         editTooltip: "Bearbeiten",
       },
     },
@@ -1155,7 +1147,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         updatedBy: "Aktualisiert von",
         updatedAt: "Aktualisiert am",
         loadingContent: "Inhalt wird geladen\u2026",
-        saveError: "Fehler beim Speichern",
         preview: "Vorschau",
         shortcuts: {
           save: "Speichern",
@@ -1205,7 +1196,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
           labelPlaceholder: "Beschriftung",
           save: "Segmente speichern",
           saving: "Wird gespeichert\u2026",
-          saveError: "Fehler beim Speichern",
           remove: "Entfernen",
           preview: "Vorschau",
         },
@@ -1233,7 +1223,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       slugPlaceholder: "formular-slug",
       save: "Speichern",
       saved: "Gespeichert",
-      saveError: "Fehler beim Speichern",
       empty: "Ziehe Felder in das Formular",
       editButton: "Bearbeiten",
       noForms: "Keine Formulare vorhanden",
@@ -1379,7 +1368,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       noTemplatesHint: "Erstelle eine neue E-Mail-Vorlage.",
       save: "Speichern",
       saved: "Gespeichert",
-      saveError: "Fehler beim Speichern",
       nameConflict: "Name bereits vergeben",
       systemBadge: "System",
       tableCreated: "Erstellt",
@@ -1541,6 +1529,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       save: "Save",
       saving: "Saving\u2026",
       saved: "Saved",
+      saveError: "Error saving",
       edit: "Edit",
       delete: "Delete",
       remove: "Remove",
@@ -1742,7 +1731,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         serviceUrls: "Service URLs",
         createdAt: "Added",
         notFound: "Track not found",
-        saveError: "Failed to save",
       },
       albums: {
         title: "Albums",
@@ -1827,7 +1815,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       save: "Save",
       saving: "Saving…",
       saved: "Saved",
-      saveError: "Save failed",
       reset: "Discard changes",
       validJson: "Valid JSON",
       invalidJson: "Invalid JSON",
@@ -1896,7 +1883,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         language: "Language",
         sessionTimeout: "Inactivity timeout (minutes)",
         sessionTimeoutNone: "No automatic logout",
-        errorSaving: "Error saving",
         editTooltip: "Edit",
       },
     },
@@ -1923,7 +1909,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         updatedBy: "Updated by",
         updatedAt: "Updated at",
         loadingContent: "Loading content\u2026",
-        saveError: "Error saving",
         preview: "Preview",
         shortcuts: {
           save: "Save",
@@ -1973,7 +1958,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
           labelPlaceholder: "Label",
           save: "Save segments",
           saving: "Saving\u2026",
-          saveError: "Failed to save",
           remove: "Remove",
           preview: "Preview",
         },
@@ -2001,7 +1985,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       slugPlaceholder: "form-slug",
       save: "Save",
       saved: "Saved",
-      saveError: "Error saving",
       empty: "Drag fields into the form",
       editButton: "Edit",
       noForms: "No forms yet",
@@ -2147,7 +2130,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       noTemplatesHint: "Create a new email template.",
       save: "Save",
       saved: "Saved",
-      saveError: "Error saving",
       nameConflict: "Name already taken",
       systemBadge: "System",
       tableCreated: "Created",

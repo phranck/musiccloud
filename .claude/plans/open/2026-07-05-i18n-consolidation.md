@@ -90,7 +90,7 @@ Neuer Key `common.saveError` = DE „Fehler beim Speichern" / EN „Error saving
 | `emailTemplates.saveError` | |
 | `design.saveError` | DE war „Speichern fehlgeschlagen" → normalisiert |
 
-- [ ] Task 3: `common.saveError` aktiv, 7 alte Keys weg; `tsc` grün; Commit `Refactor: unify save error message under common.saveError`
+- [x] Task 3: `common.saveError` aktiv, 7 alte Keys weg; `tsc` grün; Commit `Refactor: unify save error message under common.saveError`. Zusatz: BuilderHeaderActions (FormBuilderEditPage) bezieht useI18n jetzt selbst — save/saved/saving dort schon auf `common.*` (Task-4-Anteil miterledigt)
 
 ### Task 4: save / saved / saving auf `common.*`
 

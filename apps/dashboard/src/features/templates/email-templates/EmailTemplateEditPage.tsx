@@ -166,7 +166,7 @@ export function EmailTemplateEditPage() {
         },
         onError: (err: unknown) => {
           const status = err && typeof err === "object" && "status" in err ? (err as { status: number }).status : 0;
-          setError(status === HttpStatus.Conflict ? m.nameConflict : m.saveError);
+          setError(status === HttpStatus.Conflict ? m.nameConflict : messages.common.saveError);
         },
       });
     } else {
@@ -176,7 +176,7 @@ export function EmailTemplateEditPage() {
           setTimeout(() => setSavedIndicator(false), 2000);
         },
         onError: () => {
-          setError(m.saveError);
+          setError(messages.common.saveError);
         },
       });
     }
