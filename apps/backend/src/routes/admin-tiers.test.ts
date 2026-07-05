@@ -1,0 +1,155 @@
+/**
+ * Route tests for the admin tier CRUD surface (`/api/admin/developer/tiers`,
+ * MC-092). Drives the real route handlers through `app.inject` against a
+ * Fastify instance with mocked persistence.
+ */
+import cookie from "@fastify/cookie";
+import jwt from "@fastify/jwt";
+import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import Fastify, { type FastifyInstance } from "fastify";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { Tier } from "../db/tiers-repository.js";
+
+vi.stubEnv("DISABLE_RATE_LIMIT", "true");
+
+const freeTier: Tier = {
+  id: "tier_free",
+  name: "Free",
+  requestsPerMinute: 60,
+  requestsPerDay: 10000,
+  attributionRequired: false,
+  price: null,
+  sortOrder: 0,
+  createdAt: 1700000000000,
+  updatedAt: 1700000000000,
+};
+
+const mockTierRepo = {
+  listTiers: vi.fn(),
+  createTier: vi.fn(),
+  updateTier: vi.fn(),
+  deleteTier: vi.fn(),
+};
+
+const mockAdminRepo = {
+  findAdminById: vi.fn(),
+};
+
+vi.mock("../db/index.js", () => ({
+  getTierRepository: async () => mockTierRepo,
+  getAdminRepository: async () => mockAdminRepo,
+  getRepository: async () => ({}),
+  getDeveloperRepository: async () => ({}),
+  getApiAccessRepository: async () => ({}),
+  getCcRepository: async () => ({}),
+}));
+
+async function buildApp(): Promise<FastifyInstance> {
+  const app = Fastify({ logger: false });
+  await app.register(jwt, { secret: "test-secret" });
+  await app.register(cookie);
+
+  app.decorate("authenticateAdmin", async (request: any) => {
+    try {
+      await request.jwtVerify();
+      request.adminUser = { sub: "admin-1", role: "admin" };
+    } catch {
+      // let the route handler's own role gate reject
+    }
+  });
+
+  // Simulate the adminRoutes scope from server.ts
+  await app.register(async function adminRoutes(adminApp: any) {
+    adminApp.addHook("preHandler", adminApp.authenticateAdmin);
+    const { adminTiersRoutes } = await import("./admin-tiers.js");
+    await adminApp.register(adminTiersRoutes);
+  });
+
+  return app;
+}
+
+function bearerToken(role = "admin"): string {
+  return app.jwt.sign({ sub: "admin-1", role });
+}
+
+let app: FastifyInstance;
+
+beforeEach(async () => {
+  vi.clearAllMocks();
+  app = await buildApp();
+  mockAdminRepo.findAdminById.mockResolvedValue({ id: "admin-1", role: "admin" });
+});
+
+describe("GET /api/admin/developer/tiers", () => {
+  it("returns the tier list sorted by sort_order", async () => {
+    mockTierRepo.listTiers.mockResolvedValue([freeTier]);
+    const res = await app.inject({
+      method: "GET",
+      url: ENDPOINTS.admin.developer.tiers,
+      headers: { authorization: `Bearer ${bearerToken()}` },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([freeTier]);
+  });
+
+  it("rejects unauthenticated callers", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: ENDPOINTS.admin.developer.tiers,
+    });
+    expect(res.statusCode).toBe(403);
+  });
+});
+
+describe("POST /api/admin/developer/tiers", () => {
+  it("creates a tier and returns 201", async () => {
+    const created = { ...freeTier, id: "tier_pro", name: "Pro" };
+    mockTierRepo.createTier.mockResolvedValue(created);
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.admin.developer.tiers,
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: { name: "Pro", requestsPerMinute: 120, requestsPerDay: 50000 },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toEqual(created);
+  });
+
+  it("rejects missing name", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.admin.developer.tiers,
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: { requestsPerMinute: 120, requestsPerDay: 50000 },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+});
+
+describe("PATCH /api/admin/developer/tiers/:id", () => {
+  it("updates a tier", async () => {
+    const updated = { ...freeTier, name: "Free v2" };
+    mockTierRepo.updateTier.mockResolvedValue(updated);
+    const res = await app.inject({
+      method: "PATCH",
+      url: ENDPOINTS.admin.developer.tierDetail("tier_free"),
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: { name: "Free v2" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual(updated);
+  });
+});
+
+describe("DELETE /api/admin/developer/tiers/:id", () => {
+  it("deletes a tier and returns 204", async () => {
+    mockTierRepo.deleteTier.mockResolvedValue(undefined);
+    const res = await app.inject({
+      method: "DELETE",
+      url: ENDPOINTS.admin.developer.tierDetail("tier_free"),
+      headers: { authorization: `Bearer ${bearerToken()}` },
+    });
+    expect(res.statusCode).toBe(204);
+  });
+});
