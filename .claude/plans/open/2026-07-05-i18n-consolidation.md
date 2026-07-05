@@ -202,7 +202,7 @@ Neues Objekt `common.importExport` = `{ exportAction, importAction, importError,
 - `pnpm test:run` grün
 - Audit-Skript erneut laufen lassen (flatten + Duplikat-Gruppierung): Volltreffer-Gruppen außerhalb der dokumentierten Nicht-Ziele = deutlich reduziert; keine toten Keys außerhalb `developer.*`
 
-- [ ] Task 12: Alle Gates grün, Audit-Re-Run dokumentiert; Abschluss-Commit falls Restdiff
+- [x] Task 12: Alle Gates grün (tsc, `pnpm lint` im Dashboard-Scope, `doctor:diff` 0 Issues, `pnpm test:run` 1793 passed). Audit-Re-Run: 780 → 603 Leaf-Keys (−177), Volltreffer-Gruppen 113 → 70; Rest = dokumentierte Nicht-Ziele (developer.*, Sidebar-vs-Titel, kontextgebundene Feld-Labels, Genus-None). Gate-Fixes unterwegs: 3 stale Backend-Token-Tests repariert (alte Rotations-Suite → tokenActivate-Coverage), Leftover `emailTemplates.nameConflict` entfernt, Backend-Format-Drift (api-access + tiers) per Biome behoben. Hinweis: parallele Session arbeitet während des Laufs aktiv an MC-092-Tier-Files (server.ts, endpoints.ts, admin/public-tiers.ts) — nicht angefasst
 
 ---
 
@@ -221,4 +221,4 @@ Neues Objekt `common.importExport` = `{ exportAction, importAction, importError,
 | `pnpm lint` = `biome check .`, `pnpm run doctor:diff`, `pnpm test:run` | Root-`package.json` gelesen |
 | Plan-Nr. | `plans next` → MC-093 |
 
-- [ ] All code references verified (functions, scripts, paths, env vars, package-manager commands)
+- [x] All code references verified (functions, scripts, paths, env vars, package-manager commands)
