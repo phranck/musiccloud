@@ -16,6 +16,10 @@ export interface DashboardMessages {
     loading: string;
     copied: string;
     unknownError: string;
+    alignment: string;
+    alignLeft: string;
+    alignCenter: string;
+    alignRight: string;
   };
   layout: {
     menuOpen: string;
@@ -351,10 +355,6 @@ export interface DashboardMessages {
       slugLabel: string;
       statusLabel: string;
       showTitleLabel: string;
-      titleAlignmentLabel: string;
-      titleAlignmentLeft: string;
-      titleAlignmentCenter: string;
-      titleAlignmentRight: string;
       createdBy: string;
       updatedBy: string;
       updatedAt: string;
@@ -501,10 +501,6 @@ export interface DashboardMessages {
       buttonWidth: string;
       buttonWidthAutomatic: string;
       buttonWidthFull: string;
-      buttonAlign: string;
-      buttonAlignLeft: string;
-      buttonAlignCenter: string;
-      buttonAlignRight: string;
       buttonIcon: string;
       buttonDisplay: string;
       headlineLevel: string;
@@ -734,6 +730,10 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       loading: "Wird geladen\u2026",
       copied: "Kopiert!",
       unknownError: "Unbekannter Fehler",
+      alignment: "Ausrichtung",
+      alignLeft: "Links",
+      alignCenter: "Zentriert",
+      alignRight: "Rechts",
     },
     layout: {
       menuOpen: "Men\u00fc \u00f6ffnen",
@@ -1075,10 +1075,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         slugLabel: "Slug",
         statusLabel: "Status",
         showTitleLabel: "Titel anzeigen",
-        titleAlignmentLabel: "Ausrichtung",
-        titleAlignmentLeft: "Links",
-        titleAlignmentCenter: "Zentriert",
-        titleAlignmentRight: "Rechts",
         createdBy: "Erstellt von",
         updatedBy: "Aktualisiert von",
         updatedAt: "Aktualisiert am",
@@ -1218,10 +1214,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         buttonWidth: "Breite",
         buttonWidthAutomatic: "Automatisch",
         buttonWidthFull: "Volle Breite",
-        buttonAlign: "Ausrichtung",
-        buttonAlignLeft: "Links",
-        buttonAlignCenter: "Zentriert",
-        buttonAlignRight: "Rechts",
         buttonIcon: "Icon",
         buttonDisplay: "Anzeige",
         headlineLevel: "\u00dcberschriftsebene",
@@ -1454,6 +1446,10 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       loading: "Loading\u2026",
       copied: "Copied!",
       unknownError: "Unknown error",
+      alignment: "Alignment",
+      alignLeft: "Left",
+      alignCenter: "Center",
+      alignRight: "Right",
     },
     layout: {
       menuOpen: "Open menu",
@@ -1795,10 +1791,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         slugLabel: "Slug",
         statusLabel: "Status",
         showTitleLabel: "Show title",
-        titleAlignmentLabel: "Alignment",
-        titleAlignmentLeft: "Left",
-        titleAlignmentCenter: "Center",
-        titleAlignmentRight: "Right",
         createdBy: "Created by",
         updatedBy: "Updated by",
         updatedAt: "Updated at",
@@ -1938,10 +1930,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         buttonWidth: "Width",
         buttonWidthAutomatic: "Automatic",
         buttonWidthFull: "Full Width",
-        buttonAlign: "Alignment",
-        buttonAlignLeft: "Left",
-        buttonAlignCenter: "Center",
-        buttonAlignRight: "Right",
         buttonIcon: "Icon",
         buttonDisplay: "Display",
         headlineLevel: "Heading Level",

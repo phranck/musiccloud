@@ -159,7 +159,7 @@ Neu: `common.alignment` („Ausrichtung"/„Alignment"), `common.alignLeft`, `co
 - `content.editor.titleAlignmentLabel`, `.titleAlignmentLeft`, `.titleAlignmentCenter`, `.titleAlignmentRight`
 - `formBuilder.panel.buttonAlign`, `.buttonAlignLeft`, `.buttonAlignCenter`, `.buttonAlignRight`
 
-- [ ] Task 9: Alignment konsolidiert (8 → 4 Keys); `tsc` grün; Commit `Refactor: shared alignment labels in common`
+- [x] Task 9: Alignment konsolidiert (8 → 4 Keys); `tsc` grün; Commit `Refactor: shared alignment labels in common`
 
 ### Task 10: Rollen-Labels konsolidieren
 

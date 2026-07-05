@@ -399,6 +399,9 @@ interface ButtonFieldConfigProps {
  * `buttonType === "button"` — submit/reset buttons act on the form itself).
  */
 function ButtonFieldConfig({ field, onChange, allFields, m }: ButtonFieldConfigProps) {
+  const { messages } = useI18n();
+  const common = messages.common;
+
   function set<K extends keyof FormField>(key: K, value: FormField[K]) {
     onChange({ ...field, [key]: value });
   }
@@ -435,15 +438,15 @@ function ButtonFieldConfig({ field, onChange, allFields, m }: ButtonFieldConfigP
       </div>
 
       <div className="flex flex-col gap-1">
-        <FormLabelText>{m.buttonAlign}</FormLabelText>
+        <FormLabelText>{common.alignment}</FormLabelText>
         <DashboardSegmentedControl
-          aria-label={m.buttonAlign}
+          aria-label={common.alignment}
           value={field.buttonAlign ?? "left"}
           onValueChange={(value) => set("buttonAlign", value as FormField["buttonAlign"])}
           options={[
-            { value: "left", label: m.buttonAlignLeft },
-            { value: "center", label: m.buttonAlignCenter },
-            { value: "right", label: m.buttonAlignRight },
+            { value: "left", label: common.alignLeft },
+            { value: "center", label: common.alignCenter },
+            { value: "right", label: common.alignRight },
           ]}
         />
       </div>
