@@ -2,24 +2,28 @@
 /**
  * /pricing — the portal's public pricing page and written commitment.
  *
- * While the API is built out it is free for everyone; this page says so
- * honestly AND states upfront that paid tiers for high-volume/commercial use
- * are planned — with a dated, concrete commitment (free tier stays free,
- * early users grandfathered, ≥30 days notice, no degradation) so nobody can
- * feel rug-pulled later. The wording is the product decision recorded in
- * `docs/superpowers/specs/2026-07-04-developer-api-monetization-design.md`.
+ * Dynamically renders tier cards from `GET /api/v1/tiers`, sorted by
+ * `sort_order`. Falls back to the hard-coded commitment-only layout when the
+ * backend is unreachable.
  *
- * Static, English-only, BaseLayout-based, fully token-driven, sharing the
- * public header/footer shell with /docs and /terms.
+ * English-only, BaseLayout-based, fully token-driven, sharing the public
+ * header/footer shell with /docs and /terms.
  */
-import { CheckCircleIcon, HandshakeIcon } from "@phosphor-icons/react";
+import { CheckCircleIcon, CurrencyEurIcon, HandshakeIcon } from "@phosphor-icons/react";
 import BaseLayout from "@/layouts/BaseLayout.astro";
+import { backendUrl } from "@/lib/api";
 import { FOOTER_LINKS } from "@/lib/footerLinks";
 
-/**
- * The four commitment bullets, rendered as check rows. Kept as data so the
- * list reads as one unit and the markup stays a single loop.
- */
+interface TierDto {
+  id: string;
+  name: string;
+  requestsPerMinute: number;
+  requestsPerDay: number;
+  attributionRequired: boolean;
+  price: string | null;
+  sortOrder: number;
+}
+
 const commitments = [
   {
     title: "The free tier stays free.",
@@ -38,6 +42,17 @@ const commitments = [
     body: "We won't degrade the free experience to push you to pay.",
   },
 ];
+
+let tiers: TierDto[] = [];
+try {
+  const res = await fetch(backendUrl("/api/v1/tiers"));
+  if (res.ok) {
+    tiers = (await res.json()) as TierDto[];
+    tiers.sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+} catch {
+  // backend unreachable — show commitment-only layout
+}
 ---
 
 <BaseLayout
@@ -89,15 +104,51 @@ const commitments = [
       </ul>
     </section>
 
-    <section class="rounded-card border border-border bg-surface px-7 py-7 mb-8">
-      <h2 class="text-card-title font-medium tracking-tight mb-2">The free tier today</h2>
-      <p class="text-body text-fg-muted">
-        Every approved app currently gets <span class="text-fg font-medium">60 requests per minute</span> and{" "}
-        <span class="text-fg font-medium">10,000 requests per day</span>. Need more while it's free?{" "}
-        <a href="/dashboard/api-access" class="text-fg text-link">Tell us about your app</a> — quotas are set per
-        app, not one-size-fits-all.
-      </p>
-    </section>
+    {tiers.length > 0 && (
+      <section class="mb-8">
+        <h2 class="text-card-title font-medium tracking-tight mb-5">Available tiers</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {tiers.map((tier) => (
+            <div class="rounded-card border border-border bg-surface px-6 py-5 flex flex-col gap-3">
+              <div class="flex items-center justify-between">
+                <h3 class="text-body font-semibold text-fg">{tier.name}</h3>
+                {tier.price ? (
+                  <span class="text-lg font-bold text-accent">{tier.price}</span>
+                ) : (
+                  <span class="inline-flex items-center gap-1 text-sm font-semibold text-accent">
+                    <CurrencyEurIcon weight="duotone" className="size-4" aria-hidden="true" />
+                    Free
+                  </span>
+                )}
+              </div>
+              <div class="text-body text-fg-muted space-y-1">
+                <p>
+                  <span class="text-fg font-medium">{tier.requestsPerMinute}</span> requests / minute
+                </p>
+                <p>
+                  <span class="text-fg font-medium">{tier.requestsPerDay.toLocaleString()}</span> requests / day
+                </p>
+              </div>
+              {tier.attributionRequired && (
+                <p class="text-sm text-fg-subtle">Attribution required</p>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+    )}
+
+    {tiers.length === 0 && (
+      <section class="rounded-card border border-border bg-surface px-7 py-7 mb-8">
+        <h2 class="text-card-title font-medium tracking-tight mb-2">The free tier today</h2>
+        <p class="text-body text-fg-muted">
+          Every approved app currently gets <span class="text-fg font-medium">60 requests per minute</span> and{" "}
+          <span class="text-fg font-medium">10,000 requests per day</span>. Need more while it's free?{" "}
+          <a href="/dashboard/api-access" class="text-fg text-link">Tell us about your app</a> — quotas are set per
+          app, not one-size-fits-all.
+        </p>
+      </section>
+    )}
 
     <div class="flex flex-wrap gap-3">
       <a
