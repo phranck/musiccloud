@@ -281,9 +281,6 @@ export interface DashboardMessages {
     description: string;
     jsonLabel: string;
     jsonHint: string;
-    save: string;
-    saving: string;
-    saved: string;
     reset: string;
     validJson: string;
     invalidJson: string;
@@ -364,11 +361,9 @@ export interface DashboardMessages {
       increaseFontSize: string;
       deletePage: string;
       confirmDelete: string;
-      saved: string;
       pageTitleLabel: string;
       slugLabel: string;
       statusLabel: string;
-      ok: string;
       statusDraft: string;
       statusPublished: string;
       statusHidden: string;
@@ -382,13 +377,6 @@ export interface DashboardMessages {
       updatedAt: string;
       loadingContent: string;
       preview: string;
-      shortcuts: {
-        save: string;
-        bold: string;
-        italic: string;
-        strikethrough: string;
-        link: string;
-      };
     };
     loadingFallback: string;
     pages: {
@@ -428,10 +416,6 @@ export interface DashboardMessages {
         title: string;
         empty: string;
         labelPlaceholder: string;
-        save: string;
-        saving: string;
-        remove: string;
-        preview: string;
       };
       table: {
         title: string;
@@ -459,8 +443,6 @@ export interface DashboardMessages {
     create: string;
     slugLabel: string;
     slugPlaceholder: string;
-    save: string;
-    saved: string;
     empty: string;
     editButton: string;
     noForms: string;
@@ -607,8 +589,6 @@ export interface DashboardMessages {
     deleteTemplateConfirm: string;
     noTemplates: string;
     noTemplatesHint: string;
-    save: string;
-    saved: string;
     nameConflict: string;
     systemBadge: string;
     tableCreated: string;
@@ -754,8 +734,6 @@ export interface DashboardMessages {
     description: string;
     cancel: string;
     discard: string;
-    save: string;
-    saving: string;
   };
 }
 
@@ -1050,9 +1028,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       description: "Erscheinungsbild der Website — Glas-Material, Farben und Nachthimmel.",
       jsonLabel: "Design-Token JSON",
       jsonHint: "Das vom Prototyp exportierte Settings-JSON hier einfügen und speichern.",
-      save: "Speichern",
-      saving: "Speichern…",
-      saved: "Gespeichert",
       reset: "Verworfen zurücksetzen",
       validJson: "Gültiges JSON",
       invalidJson: "Ungültiges JSON",
@@ -1130,11 +1105,9 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         increaseFontSize: "Schrift vergr\u00f6\u00dfern",
         deletePage: "Seite l\u00f6schen",
         confirmDelete: "Wirklich l\u00f6schen?",
-        saved: "Gespeichert",
         pageTitleLabel: "Seitentitel",
         slugLabel: "Slug",
         statusLabel: "Status",
-        ok: "OK",
         statusDraft: "Entwurf",
         statusPublished: "Ver\u00f6ffentlicht",
         statusHidden: "Versteckt",
@@ -1148,13 +1121,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         updatedAt: "Aktualisiert am",
         loadingContent: "Inhalt wird geladen\u2026",
         preview: "Vorschau",
-        shortcuts: {
-          save: "Speichern",
-          bold: "Fett",
-          italic: "Kursiv",
-          strikethrough: "Durchgestrichen",
-          link: "Link einf\u00fcgen",
-        },
       },
       loadingFallback: "Wird geladen\u2026",
       pages: {
@@ -1194,10 +1160,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
           title: "Segmente",
           empty: "Noch keine Segmente definiert.",
           labelPlaceholder: "Beschriftung",
-          save: "Segmente speichern",
-          saving: "Wird gespeichert\u2026",
-          remove: "Entfernen",
-          preview: "Vorschau",
         },
         table: {
           title: "Titel",
@@ -1221,8 +1183,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       create: "Erstellen",
       slugLabel: "Slug",
       slugPlaceholder: "formular-slug",
-      save: "Speichern",
-      saved: "Gespeichert",
       empty: "Ziehe Felder in das Formular",
       editButton: "Bearbeiten",
       noForms: "Keine Formulare vorhanden",
@@ -1366,8 +1326,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       deleteTemplateConfirm: "Wirklich l\u00f6schen?",
       noTemplates: "Keine Vorlagen vorhanden",
       noTemplatesHint: "Erstelle eine neue E-Mail-Vorlage.",
-      save: "Speichern",
-      saved: "Gespeichert",
       nameConflict: "Name bereits vergeben",
       systemBadge: "System",
       tableCreated: "Erstellt",
@@ -1518,8 +1476,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       description: "Du hast ungespeicherte Änderungen. Was möchtest du tun?",
       cancel: "Abbrechen",
       discard: "Verwerfen",
-      save: "Speichern",
-      saving: "Wird gespeichert…",
     },
   },
   en: {
@@ -1812,9 +1768,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       description: "Website appearance — glass material, colours and night sky.",
       jsonLabel: "Design token JSON",
       jsonHint: "Paste the settings JSON exported from the prototype here and save.",
-      save: "Save",
-      saving: "Saving…",
-      saved: "Saved",
       reset: "Discard changes",
       validJson: "Valid JSON",
       invalidJson: "Invalid JSON",
@@ -1892,11 +1845,9 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         increaseFontSize: "Increase font size",
         deletePage: "Delete page",
         confirmDelete: "Really delete?",
-        saved: "Saved",
         pageTitleLabel: "Page title",
         slugLabel: "Slug",
         statusLabel: "Status",
-        ok: "OK",
         statusDraft: "Draft",
         statusPublished: "Published",
         statusHidden: "Hidden",
@@ -1910,13 +1861,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         updatedAt: "Updated at",
         loadingContent: "Loading content\u2026",
         preview: "Preview",
-        shortcuts: {
-          save: "Save",
-          bold: "Bold",
-          italic: "Italic",
-          strikethrough: "Strikethrough",
-          link: "Insert link",
-        },
       },
       loadingFallback: "Loading\u2026",
       pages: {
@@ -1956,10 +1900,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
           title: "Segments",
           empty: "No segments yet.",
           labelPlaceholder: "Label",
-          save: "Save segments",
-          saving: "Saving\u2026",
-          remove: "Remove",
-          preview: "Preview",
         },
         table: {
           title: "Title",
@@ -1983,8 +1923,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       create: "Create",
       slugLabel: "Slug",
       slugPlaceholder: "form-slug",
-      save: "Save",
-      saved: "Saved",
       empty: "Drag fields into the form",
       editButton: "Edit",
       noForms: "No forms yet",
@@ -2128,8 +2066,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       deleteTemplateConfirm: "Really delete?",
       noTemplates: "No templates yet",
       noTemplatesHint: "Create a new email template.",
-      save: "Save",
-      saved: "Saved",
       nameConflict: "Name already taken",
       systemBadge: "System",
       tableCreated: "Created",
@@ -2280,8 +2216,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       description: "You have unsaved changes. What would you like to do?",
       cancel: "Cancel",
       discard: "Discard",
-      save: "Save",
-      saving: "Saving…",
     },
   },
 };

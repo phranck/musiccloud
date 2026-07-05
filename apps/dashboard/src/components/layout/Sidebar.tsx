@@ -612,10 +612,7 @@ function SidebarDeveloperSection({
   return (
     <div className="mt-3">
       <DashboardSection>
-        <DashboardSection.Header
-          icon={<KeyIcon weight="duotone" className="w-4 h-4" />}
-          title={s.sectionDeveloper}
-        />
+        <DashboardSection.Header icon={<KeyIcon weight="duotone" className="w-4 h-4" />} title={s.sectionDeveloper} />
         <DashboardSection.Body className="!gap-0.5 !p-2">
           <NavLink to="/developer/requests" onClick={onItemClick} className="contents">
             {({ isActive }) => (
@@ -804,11 +801,7 @@ export function Sidebar({
 
         {/* Developer */}
         {isAdmin && (
-          <SidebarDeveloperSection
-            onItemClick={onItemClick}
-            pendingRequests={stats?.pendingApiAccessRequests}
-            s={s}
-          />
+          <SidebarDeveloperSection onItemClick={onItemClick} pendingRequests={stats?.pendingApiAccessRequests} s={s} />
         )}
 
         {/* System */}

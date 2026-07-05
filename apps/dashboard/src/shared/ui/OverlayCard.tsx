@@ -154,10 +154,7 @@ interface OverlayCardProps {
 function Header({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div
-      className={[
-        "px-5 py-4 bg-[var(--ds-surface)] border-b border-[var(--ds-border-subtle)] shrink-0",
-        className,
-      ]
+      className={["px-5 py-4 bg-[var(--ds-surface)] border-b border-[var(--ds-border-subtle)] shrink-0", className]
         .filter(Boolean)
         .join(" ")}
     >
@@ -169,10 +166,7 @@ function Header({ children, className }: { children: ReactNode; className?: stri
 function Footer({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div
-      className={[
-        "px-5 py-4 bg-[var(--ds-surface)] border-t border-[var(--ds-border-subtle)] shrink-0",
-        className,
-      ]
+      className={["px-5 py-4 bg-[var(--ds-surface)] border-t border-[var(--ds-border-subtle)] shrink-0", className]
         .filter(Boolean)
         .join(" ")}
     >

@@ -308,7 +308,6 @@ interface EditorMetadataBarProps {
     slugLabel: string;
     statusLabel: string;
     showTitleLabel: string;
-    ok: string;
     statusDraft: string;
     statusPublished: string;
     statusHidden: string;
@@ -319,6 +318,7 @@ interface EditorMetadataBarProps {
   locale: string;
   common: {
     cancel: string;
+    ok: string;
   };
   onStartEditSlug: () => void;
   onSlugValueChange: (value: string) => void;
@@ -379,7 +379,7 @@ function EditorMetadataBar({
               className="w-40 font-mono text-xs"
             />
             <DashboardButton type="button" onClick={onSaveSlug} size="action" variant={DashboardButtonVariant.Primary}>
-              {editorMessages.ok}
+              {common.ok}
             </DashboardButton>
             <DashboardActionButton
               action={DashboardActionId.Cancel}

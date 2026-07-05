@@ -133,13 +133,13 @@ export function DesignSettingsPage() {
               size="action"
               variant={DashboardButtonVariant.Success}
             >
-              {saveMutation.isPending ? m.saving : m.save}
+              {saveMutation.isPending ? messages.common.saving : messages.common.save}
             </DashboardButton>
           </div>
         </div>
 
         <div className="min-h-4 text-xs">
-          {saveMutation.isSuccess && <span className="text-green-500">{m.saved}</span>}
+          {saveMutation.isSuccess && <span className="text-green-500">{messages.common.saved}</span>}
           {saveMutation.isError && (
             <span className="text-[var(--ds-danger-text)]">
               {saveMutation.error instanceof Error ? saveMutation.error.message : messages.common.saveError}

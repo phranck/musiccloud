@@ -100,7 +100,7 @@ Neuer Key `common.saveError` = DE „Fehler beim Speichern" / EN „Error saving
 - → `common.saved`: `design.saved`, `content.editor.saved`, `formBuilder.saved`, `emailTemplates.saved`
 - → `common.saving`: `design.saving` (DE war „Speichern…" → normalisiert), `content.pages.segments.saving`, `unsavedGuard.saving`
 
-- [ ] Task 4: 12 Keys auf `common.*` umgestellt und gelöscht; `tsc` grün; Commit `Refactor: use common save/saved/saving across dashboard features`
+- [x] Task 4: save/saved/saving auf `common.*` umgestellt und gelöscht; `tsc` grün. Zusatzbefunde beim Lesen: `content.editor.shortcuts.*` (5), `content.editor.saved`, `content.editor.ok` (Callsite → `common.ok`, Task-5-Anteil vorgezogen) und `content.pages.segments.save/saving/remove/preview` waren komplett callsite-los → mitgelöscht; Commit `Refactor: use common save/saved/saving across dashboard features`
 
 ### Task 5: cancel / edit / delete / copied / remove / ok auf `common.*`
 

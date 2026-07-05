@@ -228,11 +228,11 @@ export function EmailTemplateEditPage() {
             canSendTest,
             isSendingTest: sendTestMutation.isPending,
           }}
-          savedLabel={m.saved}
+          savedLabel={messages.common.saved}
           sendingTestLabel={m.sendingTest}
           sendTestLabel={m.sendTest}
           savingLabel={messages.common.saving}
-          saveLabel={m.save}
+          saveLabel={messages.common.save}
           onSendTest={handleSendTest}
           onSave={handleSave}
         />

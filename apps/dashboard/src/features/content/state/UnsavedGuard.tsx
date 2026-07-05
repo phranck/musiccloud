@@ -97,9 +97,9 @@ export function UnsavedGuard() {
         />
         <DashboardActionButton
           action={DashboardActionId.Save}
-          busyLabel={t.saving}
+          busyLabel={messages.common.saving}
           icon={false}
-          label={t.save}
+          label={messages.common.save}
           onClick={handleSave}
           status={isSaving ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
           type="button"
