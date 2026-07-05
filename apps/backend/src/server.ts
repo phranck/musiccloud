@@ -35,6 +35,7 @@ import adminGdprRoutes from "./routes/admin-gdpr.js";
 import adminNavRoutes from "./routes/admin-nav.js";
 import adminPluginsRoutes from "./routes/admin-plugins.js";
 import adminSseRoutes from "./routes/admin-sse.js";
+import { adminTiersRoutes } from "./routes/admin-tiers.js";
 import adminUserRoutes from "./routes/admin-users.js";
 import artistInfoRoutes from "./routes/artist-info.js";
 import authRoutes from "./routes/auth.js";
@@ -53,6 +54,7 @@ import formsPublicRoutes from "./routes/forms-public.js";
 import genreArtworkRoutes from "./routes/genre-artwork.js";
 import linkRoutes from "./routes/link.js";
 import publicContentNavRoutes from "./routes/public-content-nav.js";
+import publicTiersRoutes from "./routes/public-tiers.js";
 import randomExampleRoutes from "./routes/random-example.js";
 import resolveRoutes from "./routes/resolve.js";
 import resolvePublicGetRoutes from "./routes/resolve-public-get.js";
@@ -644,6 +646,7 @@ async function buildApp() {
 
   // Active-services list (public read for SSR — marquee, resolve pages)
   await app.register(servicesPublicRoutes);
+  await app.register(publicTiersRoutes);
 
   // Public navigation + content pages (no auth - SSR'd by Astro frontend)
   await app.register(publicContentNavRoutes);
@@ -671,6 +674,7 @@ async function buildApp() {
     adminApp.addHook("preHandler", adminApp.authenticateAdmin);
     await adminApp.register(adminAnalyticsRoutes);
     await adminApp.register(adminApiAccessRoutes);
+    await adminApp.register(adminTiersRoutes);
     await adminApp.register(adminContentRoutes);
     await adminApp.register(adminDataRoutes);
     await adminApp.register(adminEmailActionsRoutes);

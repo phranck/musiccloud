@@ -120,6 +120,8 @@ export const ENDPOINTS = {
       /** POST `/api/v1/forms/:slug/submit`: public submission of an ACTIVE admin-built form (rate-limited). */
       submit: (slug: string) => `/api/v1/forms/${encodeURIComponent(slug)}/submit`,
     },
+    /** GET `/api/v1/tiers`: public tier list for the Developer Portal pricing page. */
+    tiers: "/api/v1/tiers",
   },
 
   /** `/api/auth/...`: public auth endpoints (machine-to-machine token issuance). */
@@ -382,6 +384,10 @@ export const ENDPOINTS = {
       accounts: "/api/admin/developer/accounts",
       /** GET: single developer account / PATCH: update. */
       accountDetail: (id: string) => `/api/admin/developer/accounts/${id}`,
+      /** GET: list all tiers / POST: create. */
+      tiers: "/api/admin/developer/tiers",
+      /** PATCH / DELETE: single tier by id. */
+      tierDetail: (id: string) => `/api/admin/developer/tiers/${id}`,
     },
   },
 
@@ -506,6 +512,8 @@ export const ROUTE_TEMPLATES = {
         tokenDeactivate: "/api/admin/developer/api-access/tokens/:id/deactivate",
       },
       accounts: "/api/admin/developer/accounts",
+      accountDetail: "/api/admin/developer/accounts/:id",
+      tierDetail: "/api/admin/developer/tiers/:id",
     },
     emailTemplates: {
       detail: "/api/admin/email-templates/:id",
