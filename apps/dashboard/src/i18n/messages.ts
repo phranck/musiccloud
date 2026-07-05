@@ -20,6 +20,17 @@ export interface DashboardMessages {
     alignLeft: string;
     alignCenter: string;
     alignRight: string;
+    nameConflict: string;
+    importExport: {
+      exportAction: string;
+      importAction: string;
+      importError: string;
+      invalidFile: string;
+      newNameLabel: string;
+      overwrite: string;
+      rename: string;
+      skip: string;
+    };
   };
   layout: {
     menuOpen: string;
@@ -422,24 +433,15 @@ export interface DashboardMessages {
     noForms: string;
     noFormsHint: string;
     slugConflict: string;
-    nameConflict: string;
     noFieldSelected: string;
     noFieldSelectedHint: string;
     canvasTitle: string;
     paletteTitle: string;
     preferencesTitle: string;
-    exportForm: string;
     exportUnsavedWarning: string;
-    importForm: string;
     importSuccess: string;
-    importError: string;
-    importInvalidFile: string;
     importConflictTitle: string;
     importConflictHint: string;
-    importNewNameLabel: string;
-    importOverwrite: string;
-    importRename: string;
-    importSkip: string;
     noLabel: string;
     fieldTypes: {
       text: string;
@@ -585,18 +587,10 @@ export interface DashboardMessages {
     variablesDetectedTitle: string;
     variablesDetectedEmpty: string;
     variablesUnknownWarning: string;
-    exportTemplate: string;
     exportAll: string;
-    importTemplate: string;
     importSuccess: string;
-    importError: string;
-    importInvalidFile: string;
     importConflictTitle: string;
     importConflictHint: string;
-    importNewNameLabel: string;
-    importOverwrite: string;
-    importRename: string;
-    importSkip: string;
     sendTest: string;
     sendingTest: string;
     testSent: string;
@@ -727,6 +721,17 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       alignLeft: "Links",
       alignCenter: "Zentriert",
       alignRight: "Rechts",
+      nameConflict: "Name bereits vergeben",
+      importExport: {
+        exportAction: "Exportieren",
+        importAction: "Importieren",
+        importError: "Fehler beim Import",
+        invalidFile: "Ungültige Datei",
+        newNameLabel: "Neuer Name",
+        overwrite: "Überschreiben",
+        rename: "Umbenennen",
+        skip: "Überspringen",
+      },
     },
     layout: {
       menuOpen: "Men\u00fc \u00f6ffnen",
@@ -1131,24 +1136,15 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       noForms: "Keine Formulare vorhanden",
       noFormsHint: "Erstelle ein neues Formular.",
       slugConflict: "Slug bereits vergeben",
-      nameConflict: "Name bereits vergeben",
       noFieldSelected: "Kein Feld ausgew\u00e4hlt",
       noFieldSelectedHint: "W\u00e4hle ein Feld, um es zu bearbeiten.",
       canvasTitle: "Formular",
       paletteTitle: "Felder",
       preferencesTitle: "Einstellungen",
-      exportForm: "Exportieren",
       exportUnsavedWarning: "Erst speichern, dann exportieren.",
-      importForm: "Importieren",
       importSuccess: "{n} Formulare importiert",
-      importError: "Fehler beim Import",
-      importInvalidFile: "Ung\u00fcltige Datei",
       importConflictTitle: "Formular \u201e{name}\u201c existiert bereits",
       importConflictHint: "W\u00e4hle, wie mit dem bestehenden Formular verfahren werden soll.",
-      importNewNameLabel: "Neuer Name",
-      importOverwrite: "\u00dcberschreiben",
-      importRename: "Umbenennen",
-      importSkip: "\u00dcberspringen",
       noLabel: "Kein Label",
       fieldTypes: {
         text: "Input",
@@ -1292,18 +1288,10 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       variablesDetectedEmpty: "Keine \u2014 dieses Template nutzt keine {{Platzhalter}}.",
       variablesUnknownWarning:
         "Unbekannte Variablen \u2014 werden beim Senden nicht gef\u00fcllt (Tippfehler oder fehlende Aktions-Zuordnung).",
-      exportTemplate: "Exportieren",
       exportAll: "Alle exportieren",
-      importTemplate: "Importieren",
       importSuccess: "{n} Vorlagen importiert",
-      importError: "Fehler beim Import",
-      importInvalidFile: "Ung\u00fcltige Datei",
       importConflictTitle: "Vorlage \u201e{name}\u201c existiert bereits",
       importConflictHint: "W\u00e4hle, wie mit der bestehenden Vorlage verfahren werden soll.",
-      importNewNameLabel: "Neuer Name",
-      importOverwrite: "\u00dcberschreiben",
-      importRename: "Umbenennen",
-      importSkip: "\u00dcberspringen",
       sendTest: "Test-Mail senden",
       sendingTest: "Wird gesendet\u2026",
       testSent: "Test-Mail gesendet an {email}",
@@ -1436,6 +1424,17 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       alignLeft: "Left",
       alignCenter: "Center",
       alignRight: "Right",
+      nameConflict: "Name already taken",
+      importExport: {
+        exportAction: "Export",
+        importAction: "Import",
+        importError: "Import failed",
+        invalidFile: "Invalid file",
+        newNameLabel: "New name",
+        overwrite: "Overwrite",
+        rename: "Rename",
+        skip: "Skip",
+      },
     },
     layout: {
       menuOpen: "Open menu",
@@ -1840,24 +1839,15 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       noForms: "No forms yet",
       noFormsHint: "Create a new form.",
       slugConflict: "Slug already taken",
-      nameConflict: "Name already taken",
       noFieldSelected: "No field selected",
       noFieldSelectedHint: "Select a field to edit it.",
       canvasTitle: "Form",
       paletteTitle: "Fields",
       preferencesTitle: "Settings",
-      exportForm: "Export",
       exportUnsavedWarning: "Save before exporting.",
-      importForm: "Import",
       importSuccess: "{n} forms imported",
-      importError: "Import failed",
-      importInvalidFile: "Invalid file",
       importConflictTitle: "Form \u201c{name}\u201d already exists",
       importConflictHint: "Choose how to handle the existing form.",
-      importNewNameLabel: "New name",
-      importOverwrite: "Overwrite",
-      importRename: "Rename",
-      importSkip: "Skip",
       noLabel: "No label",
       fieldTypes: {
         text: "Input",
@@ -2001,18 +1991,10 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       variablesDetectedEmpty: "None — this template uses no {{placeholders}}.",
       variablesUnknownWarning:
         "Unknown variables — they will not be filled when sending (typo or missing action binding).",
-      exportTemplate: "Export",
       exportAll: "Export all",
-      importTemplate: "Import",
       importSuccess: "{n} templates imported",
-      importError: "Import failed",
-      importInvalidFile: "Invalid file",
       importConflictTitle: "Template \u201c{name}\u201d already exists",
       importConflictHint: "Choose how to handle the existing template.",
-      importNewNameLabel: "New name",
-      importOverwrite: "Overwrite",
-      importRename: "Rename",
-      importSkip: "Skip",
       sendTest: "Send test email",
       sendingTest: "Sending\u2026",
       testSent: "Test email sent to {email}",

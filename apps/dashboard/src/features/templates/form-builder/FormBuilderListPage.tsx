@@ -149,7 +149,7 @@ function NewFormDialog({
             if (msg.toLowerCase().includes("slug")) {
               setError(m.slugConflict);
             } else {
-              setError(m.nameConflict);
+              setError(messages.common.nameConflict);
             }
           } else {
             setError(messages.common.unknownError);
@@ -232,7 +232,7 @@ export function FormBuilderListPage() {
 
   const importQueue = useImportQueue<ImportFormData>({
     mutate: (data, callbacks) => importForm.mutate(data, callbacks),
-    messages: { importSuccess: m.importSuccess, importError: m.importError },
+    messages: { importSuccess: m.importSuccess, importError: messages.common.importExport.importError },
   });
 
   function handleImportFile(event: React.ChangeEvent<HTMLInputElement>) {
@@ -242,7 +242,7 @@ export function FormBuilderListPage() {
     void file.text().then((raw) => {
       const entries = parseImportFile(raw);
       if (!entries) {
-        importQueue.setAlertMessage(m.importInvalidFile);
+        importQueue.setAlertMessage(messages.common.importExport.invalidFile);
         return;
       }
       importQueue.processQueue(entries, 0);
@@ -274,7 +274,7 @@ export function FormBuilderListPage() {
           <DashboardActionButton
             action={DashboardActionId.Import}
             icon={<TrayArrowDownIcon weight="duotone" className="size-3.5" />}
-            label={m.importForm}
+            label={messages.common.importExport.importAction}
             onClick={() => fileInputRef.current?.click()}
             size="control"
             type="button"
@@ -282,7 +282,7 @@ export function FormBuilderListPage() {
           />
           <input
             ref={fileInputRef}
-            aria-label={m.importForm}
+            aria-label={messages.common.importExport.importAction}
             type="file"
             accept="application/json"
             className="hidden"

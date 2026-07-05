@@ -51,7 +51,7 @@ export function EmailTemplateListPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
   const importQueue = useImportQueue<ImportTemplateData>({
     mutate: (data, cbs) => importMutation.mutate(data, cbs),
-    messages: { importSuccess: m.importSuccess, importError: m.importError },
+    messages: { importSuccess: m.importSuccess, importError: messages.common.importExport.importError },
   });
 
   function handleDeleteConfirm() {
@@ -89,7 +89,7 @@ export function EmailTemplateListPage() {
     void Promise.all(files.map(readFile)).then((results) => {
       const queue = results.flat();
       if (queue.length === 0) {
-        importQueue.setAlertMessage(m.importInvalidFile);
+        importQueue.setAlertMessage(messages.common.importExport.invalidFile);
         return;
       }
       importQueue.processQueue(queue, 0);
@@ -150,7 +150,7 @@ export function EmailTemplateListPage() {
             <TableActionButton
               onClick={() => exportEmailTemplateSingle(tpl)}
               icon={<UploadIcon weight="duotone" className="w-3.5 h-3.5" />}
-              label={m.exportTemplate}
+              label={common.importExport.exportAction}
             />
             <TableActionButton
               onClick={() => navigate(`/email-templates/${tpl.id}`)}
@@ -177,7 +177,7 @@ export function EmailTemplateListPage() {
         <DashboardActionButton
           action={DashboardActionId.Import}
           icon={<DownloadIcon weight="duotone" className="w-3.5 h-3.5" />}
-          label={m.importTemplate}
+          label={common.importExport.importAction}
           onClick={() => fileInputRef.current?.click()}
           size="control"
           type="button"
@@ -229,7 +229,7 @@ export function EmailTemplateListPage() {
       {/* Hidden file input for import */}
       <input
         ref={fileInputRef}
-        aria-label={m.importTemplate}
+        aria-label={common.importExport.importAction}
         type="file"
         accept=".json"
         multiple

@@ -26,6 +26,7 @@ interface ImportConflictDialogProps {
 export function ImportConflictDialog({ formName, onOverwrite, onRename, onCancel }: ImportConflictDialogProps) {
   const { messages } = useI18n();
   const fb = messages.formBuilder;
+  const ie = messages.common.importExport;
   const [showRename, setShowRename] = useState(false);
   const [newName, setNewName] = useState(`${formName}-copy`);
 
@@ -42,7 +43,7 @@ export function ImportConflictDialog({ formName, onOverwrite, onRename, onCancel
         {showRename && (
           <div className="mb-4">
             <label htmlFor="import-new-name" className="mb-1 block text-xs font-medium text-[var(--ds-text-muted)]">
-              {fb.importNewNameLabel}
+              {ie.newNameLabel}
             </label>
             <DashboardInput
               id="import-new-name"
@@ -58,7 +59,7 @@ export function ImportConflictDialog({ formName, onOverwrite, onRename, onCancel
       <Dialog.Footer className="flex flex-col gap-2">
         <DashboardActionButton
           action={DashboardActionId.Overwrite}
-          label={fb.importOverwrite}
+          label={ie.overwrite}
           onClick={onOverwrite}
           size="action"
           type="button"
@@ -72,7 +73,7 @@ export function ImportConflictDialog({ formName, onOverwrite, onRename, onCancel
             type="button"
             variant={DashboardButtonVariant.Neutral}
           >
-            {fb.importRename}
+            {ie.rename}
           </DashboardButton>
         ) : (
           <DashboardButton
@@ -82,12 +83,12 @@ export function ImportConflictDialog({ formName, onOverwrite, onRename, onCancel
             type="button"
             variant={DashboardButtonVariant.Neutral}
           >
-            {fb.importRename}
+            {ie.rename}
           </DashboardButton>
         )}
         <DashboardActionButton
           action={DashboardActionId.Skip}
-          label={fb.importSkip}
+          label={ie.skip}
           onClick={onCancel}
           size="action"
           type="button"

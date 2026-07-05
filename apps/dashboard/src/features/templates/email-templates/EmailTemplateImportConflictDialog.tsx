@@ -26,6 +26,7 @@ export function EmailTemplateImportConflictDialog({
 }: EmailTemplateImportConflictDialogProps) {
   const { messages } = useI18n();
   const m = messages.emailTemplates;
+  const ie = messages.common.importExport;
   const [showRename, setShowRename] = useState(false);
   const [newName, setNewName] = useState(`${templateName}-copy`);
 
@@ -42,7 +43,7 @@ export function EmailTemplateImportConflictDialog({
         {showRename && (
           <div className="mb-4">
             <label htmlFor="import-new-name" className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1">
-              {m.importNewNameLabel}
+              {ie.newNameLabel}
             </label>
             <input
               id="import-new-name"
@@ -59,7 +60,7 @@ export function EmailTemplateImportConflictDialog({
         <DashboardActionButton
           action={DashboardActionId.Overwrite}
           icon={false}
-          label={m.importOverwrite}
+          label={ie.overwrite}
           onClick={onOverwrite}
           type="button"
         />
@@ -68,7 +69,7 @@ export function EmailTemplateImportConflictDialog({
             action={DashboardActionId.Import}
             disabled={!newName.trim()}
             icon={false}
-            label={m.importRename}
+            label={ie.rename}
             onClick={() => onRename(newName.trim())}
             type="button"
             variant={DashboardButtonVariant.Neutral}
@@ -77,7 +78,7 @@ export function EmailTemplateImportConflictDialog({
           <DashboardActionButton
             action={DashboardActionId.Import}
             icon={false}
-            label={m.importRename}
+            label={ie.rename}
             onClick={() => setShowRename(true)}
             type="button"
             variant={DashboardButtonVariant.Neutral}
@@ -86,7 +87,7 @@ export function EmailTemplateImportConflictDialog({
         <DashboardActionButton
           action={DashboardActionId.Skip}
           icon={false}
-          label={m.importSkip}
+          label={ie.skip}
           onClick={onCancel}
           type="button"
           variant={DashboardButtonVariant.Neutral}

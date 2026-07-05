@@ -625,7 +625,7 @@ function BuilderHeaderActions({
       <DashboardActionButton
         action={DashboardActionId.Export}
         disabled={!hasConfig}
-        label={m.exportForm}
+        label={common.importExport.exportAction}
         onClick={onExport}
         size="action"
         type="button"

@@ -188,7 +188,7 @@ Neues Objekt `common.importExport` = `{ exportAction, importAction, importError,
 - `formBuilder.importSkip` / `emailTemplates.importSkip` → `skip`
 - `formBuilder.nameConflict` / `emailTemplates.nameConflict` → `nameConflict`
 
-- [ ] Task 11: importExport-Namespace aktiv (18 → 9 Keys); `tsc` grün; Commit `Refactor: shared import/export i18n namespace`
+- [x] Task 11: importExport-Namespace aktiv (18 → 9 Keys); `tsc` grün. Korrektur zum Plan: `nameConflict` wanderte nach `common.nameConflict` (Konflikt entsteht beim Erstellen, nicht beim Import); Commit `Refactor: shared import/export i18n namespace`
 
 ---
 

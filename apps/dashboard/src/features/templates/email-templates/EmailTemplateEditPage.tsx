@@ -166,7 +166,7 @@ export function EmailTemplateEditPage() {
         },
         onError: (err: unknown) => {
           const status = err && typeof err === "object" && "status" in err ? (err as { status: number }).status : 0;
-          setError(status === HttpStatus.Conflict ? m.nameConflict : messages.common.saveError);
+          setError(status === HttpStatus.Conflict ? messages.common.nameConflict : messages.common.saveError);
         },
       });
     } else {
