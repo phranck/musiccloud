@@ -4,6 +4,9 @@
  * public Developer Portal reads them for its pricing page.
  */
 
+/** Default tier accent colour (neutral slate) applied when none is supplied. */
+export const DEFAULT_TIER_COLOR = "#64748b";
+
 export interface Tier {
   id: string;
   name: string;
@@ -11,6 +14,8 @@ export interface Tier {
   requestsPerDay: number;
   attributionRequired: boolean;
   price: string | null;
+  /** Hex accent colour `#RRGGBB` (validated at the API boundary; default `#64748b`). */
+  color: string;
   sortOrder: number;
   createdAt: number;
   updatedAt: number;
@@ -22,6 +27,7 @@ export interface TierCreateData {
   requestsPerDay: number;
   attributionRequired?: boolean;
   price?: string | null;
+  color?: string;
   sortOrder?: number;
 }
 
@@ -31,6 +37,7 @@ export interface TierUpdateData {
   requestsPerDay?: number;
   attributionRequired?: boolean;
   price?: string | null;
+  color?: string;
   sortOrder?: number;
 }
 

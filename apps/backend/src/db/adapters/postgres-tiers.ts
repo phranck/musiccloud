@@ -1,6 +1,12 @@
 import { nanoid } from "nanoid";
 import type { Pool } from "pg";
-import type { Tier, TierCreateData, TierRepository, TierUpdateData } from "../tiers-repository.js";
+import {
+  DEFAULT_TIER_COLOR,
+  type Tier,
+  type TierCreateData,
+  type TierRepository,
+  type TierUpdateData,
+} from "../tiers-repository.js";
 import { dateToMs } from "./postgres-shared.js";
 
 interface TierRow {
@@ -10,6 +16,7 @@ interface TierRow {
   requests_per_day: number;
   attribution_required: boolean;
   price: string | null;
+  color: string;
   sort_order: number;
   created_at: Date;
   updated_at: Date;
@@ -23,6 +30,7 @@ function toTier(row: TierRow): Tier {
     requestsPerDay: row.requests_per_day,
     attributionRequired: row.attribution_required,
     price: row.price,
+    color: row.color,
     sortOrder: row.sort_order,
     createdAt: dateToMs(row.created_at),
     updatedAt: dateToMs(row.updated_at),
@@ -44,8 +52,8 @@ export class PostgresTierRepository implements TierRepository {
   async createTier(data: TierCreateData): Promise<Tier> {
     const id = nanoid();
     const { rows } = await this.#pool.query<TierRow>(
-      `INSERT INTO tiers (id, name, requests_per_minute, requests_per_day, attribution_required, price, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO tiers (id, name, requests_per_minute, requests_per_day, attribution_required, price, color, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
       [
         id,
@@ -54,6 +62,7 @@ export class PostgresTierRepository implements TierRepository {
         data.requestsPerDay,
         data.attributionRequired ?? false,
         data.price ?? null,
+        data.color ?? DEFAULT_TIER_COLOR,
         data.sortOrder ?? 0,
       ],
     );
@@ -84,6 +93,10 @@ export class PostgresTierRepository implements TierRepository {
     if (data.price !== undefined) {
       fields.push(`price = $${idx++}`);
       values.push(data.price);
+    }
+    if (data.color !== undefined) {
+      fields.push(`color = $${idx++}`);
+      values.push(data.color);
     }
     if (data.sortOrder !== undefined) {
       fields.push(`sort_order = $${idx++}`);

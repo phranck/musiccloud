@@ -9,6 +9,9 @@ import { getTierRepository } from "../db/index.js";
 import type { TierCreateData, TierUpdateData } from "../db/tiers-repository.js";
 import { requireOwnerOrAdmin } from "../lib/admin-caller.js";
 
+/** Matches a 6-digit hex colour like `#RRGGBB`. */
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+
 export async function adminTiersRoutes(app: FastifyInstance) {
   app.get(ENDPOINTS.admin.developer.tiers, async (request, reply) => {
     if (!(await requireOwnerOrAdmin(request, reply))) return;
@@ -28,6 +31,9 @@ export async function adminTiersRoutes(app: FastifyInstance) {
     if (body.requestsPerDay < 1) {
       return reply.status(400).send({ error: "requestsPerDay must be > 0" });
     }
+    if (body.color != null && !HEX_COLOR_RE.test(body.color)) {
+      return reply.status(400).send({ error: "color must be a hex value like #RRGGBB" });
+    }
     const repo = await getTierRepository();
     const tier = await repo.createTier(body);
     return reply.status(201).send(tier);
@@ -42,6 +48,9 @@ export async function adminTiersRoutes(app: FastifyInstance) {
     }
     if (body.requestsPerDay != null && body.requestsPerDay < 1) {
       return reply.status(400).send({ error: "requestsPerDay must be > 0" });
+    }
+    if (body.color != null && !HEX_COLOR_RE.test(body.color)) {
+      return reply.status(400).send({ error: "color must be a hex value like #RRGGBB" });
     }
     const repo = await getTierRepository();
     const tier = await repo.updateTier(id, body);

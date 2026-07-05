@@ -1790,6 +1790,7 @@ export const tiers = pgTable(
     requestsPerDay: integer("requests_per_day").notNull(),
     attributionRequired: boolean("attribution_required").notNull().default(false),
     price: text("price"),
+    color: text("color").notNull().default("#64748b"),
     sortOrder: integer("sort_order").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
