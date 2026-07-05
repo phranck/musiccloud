@@ -44,7 +44,7 @@ Komplett löschen (0 Referenzen im gesamten Dashboard- und dashboard-ui-Code, gr
 - `content.linkPicker.*` — alle 7 Keys inkl. `groups`
 - `layout.sidebar.media`, `layout.sidebar.footerBuilder`
 
-- [ ] Task 1: Namespaces aus Interface, `de` und `en` entfernt; `pnpm --filter @musiccloud/dashboard exec tsc --noEmit` grün; Commit `Refactor: drop dead media/footerBuilder/linkPicker i18n namespaces`
+- [x] Task 1: Namespaces aus Interface, `de` und `en` entfernt; `pnpm --filter @musiccloud/dashboard exec tsc --noEmit` grün; Commit `Refactor: drop dead media/footerBuilder/linkPicker i18n namespaces`
 
 ### Task 2: Tote Einzel-Keys löschen
 

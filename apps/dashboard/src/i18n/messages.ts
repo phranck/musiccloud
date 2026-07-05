@@ -39,7 +39,6 @@ export interface DashboardMessages {
       tracks: string;
       albums: string;
       artists: string;
-      media: string;
       users: string;
       pages: string;
       pagesOverview: string;
@@ -49,7 +48,6 @@ export interface DashboardMessages {
       emailTemplates: string;
       emailTemplatesOverview: string;
       emailBranding: string;
-      footerBuilder: string;
       system: string;
       services: string;
       design: string;
@@ -321,42 +319,6 @@ export interface DashboardMessages {
     loading: string;
     empty: string;
   };
-  media: {
-    title: string;
-    upload: string;
-    uploading: string;
-    uploadHint: string;
-    empty: string;
-    emptyHint: string;
-    selectPrompt: string;
-    detailsTitle: string;
-    previewTitle: string;
-    infoTitle: string;
-    displayName: string;
-    originalName: string;
-    fileType: string;
-    dimensions: string;
-    fileSize: string;
-    internalUrl: string;
-    createdAt: string;
-    updatedAt: string;
-    uploadedBy: string;
-    saveName: string;
-    openFile: string;
-    copyUrl: string;
-    copied: string;
-    renameError: string;
-    uploadError: string;
-    unsupportedPreview: string;
-    deleteTitle: string;
-    deleteDescription: string;
-    table: {
-      name: string;
-      type: string;
-      size: string;
-      updated: string;
-    };
-  };
   users: {
     title: string;
     inviteUser: string;
@@ -440,77 +402,6 @@ export interface DashboardMessages {
         italic: string;
         strikethrough: string;
         link: string;
-      };
-    };
-    footerBuilder: {
-      title: string;
-      saveError: string;
-      styleTitle: string;
-      paletteTitle: string;
-      noSettings: string;
-      headlineTextLabel: string;
-      contentLabel: string;
-      buttonLabelField: string;
-      buttonLabelPlaceholder: string;
-      urlLabel: string;
-      urlPlaceholder: string;
-      styleLabel: string;
-      externalLink: string;
-      directionLabel: string;
-      styleOptions: {
-        filled: string;
-        outline: string;
-        ghost: string;
-      };
-      directionOptions: {
-        vertical: string;
-        horizontal: string;
-      };
-      colorFields: {
-        background: string;
-        text: string;
-        headlines: string;
-        links: string;
-        linkHover: string;
-        button: string;
-        buttonText: string;
-      };
-      sizeOptions: {
-        small: string;
-        medium: string;
-        large: string;
-        extraLarge: string;
-      };
-      heightLabel: string;
-      verticalPaddingLabel: string;
-      previewTitle: string;
-      noPreviewLoaded: string;
-      moveColumn: string;
-      removeColumn: string;
-      dragBlockHere: string;
-      removeBlock: string;
-      columnSpan: {
-        narrow: string;
-        normal: string;
-        wide: string;
-      };
-      blockLabels: {
-        headline: string;
-        markdown: string;
-        button: string;
-        footerNav: string;
-        separator: string;
-      };
-    };
-    linkPicker: {
-      insertInternalLink: string;
-      closeSelection: string;
-      searchPlaceholder: string;
-      noResults: string;
-      groups: {
-        static: string;
-        pages: string;
-        forms: string;
       };
     };
     loadingFallback: string;
@@ -936,7 +827,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         tracks: "Tracks",
         albums: "Alben",
         artists: "K\u00fcnstler",
-        media: "Medien",
         users: "Benutzer",
         pages: "Seiten",
         pagesOverview: "\u00dcbersicht",
@@ -946,7 +836,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         emailTemplates: "E-Mail-Vorlagen",
         emailTemplatesOverview: "\u00dcbersicht",
         emailBranding: "E-Mail-Branding",
-        footerBuilder: "Footer-Builder",
         system: "System",
         sectionDeveloper: "Developer",
         apiAccessRequests: "API Access Requests",
@@ -1232,42 +1121,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       loading: "Wird geladen\u2026",
       empty: "Keine Plugins installiert.",
     },
-    media: {
-      title: "Medien",
-      upload: "Hochladen",
-      uploading: "Wird hochgeladen\u2026",
-      uploadHint: "Dateien hierher ziehen oder klicken",
-      empty: "Keine Medien vorhanden",
-      emptyHint: "Lade Bilder und Dateien hoch.",
-      selectPrompt: "W\u00e4hle eine Datei aus",
-      detailsTitle: "Details",
-      previewTitle: "Vorschau",
-      infoTitle: "Informationen",
-      displayName: "Anzeigename",
-      originalName: "Originalname",
-      fileType: "Dateityp",
-      dimensions: "Abmessungen",
-      fileSize: "Dateigr\u00f6\u00dfe",
-      internalUrl: "Interne URL",
-      createdAt: "Erstellt am",
-      updatedAt: "Aktualisiert am",
-      uploadedBy: "Hochgeladen von",
-      saveName: "Name speichern",
-      openFile: "Datei \u00f6ffnen",
-      copyUrl: "URL kopieren",
-      copied: "Kopiert!",
-      renameError: "Fehler beim Umbenennen",
-      uploadError: "Fehler beim Hochladen",
-      unsupportedPreview: "Vorschau nicht verf\u00fcgbar",
-      deleteTitle: "Datei l\u00f6schen",
-      deleteDescription: "M\u00f6chtest du diese Datei wirklich l\u00f6schen?",
-      table: {
-        name: "Name",
-        type: "Typ",
-        size: "Gr\u00f6\u00dfe",
-        updated: "Aktualisiert",
-      },
-    },
     users: {
       title: "Benutzer",
       inviteUser: "Benutzer einladen",
@@ -1348,57 +1201,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
           strikethrough: "Durchgestrichen",
           link: "Link einf\u00fcgen",
         },
-      },
-      footerBuilder: {
-        title: "Footer-Builder",
-        saveError: "Fehler beim Speichern",
-        styleTitle: "Stil",
-        paletteTitle: "Farbpalette",
-        noSettings: "Keine Einstellungen",
-        headlineTextLabel: "\u00dcberschrift",
-        contentLabel: "Inhalt",
-        buttonLabelField: "Beschriftung",
-        buttonLabelPlaceholder: "Button-Text",
-        urlLabel: "URL",
-        urlPlaceholder: "https://...",
-        styleLabel: "Stil",
-        externalLink: "Externer Link",
-        directionLabel: "Richtung",
-        styleOptions: { filled: "Ausgef\u00fcllt", outline: "Umriss", ghost: "Transparent" },
-        directionOptions: { vertical: "Vertikal", horizontal: "Horizontal" },
-        colorFields: {
-          background: "Hintergrund",
-          text: "Text",
-          headlines: "\u00dcberschriften",
-          links: "Links",
-          linkHover: "Link-Hover",
-          button: "Button",
-          buttonText: "Button-Text",
-        },
-        sizeOptions: { small: "Klein", medium: "Mittel", large: "Gro\u00df", extraLarge: "Sehr gro\u00df" },
-        heightLabel: "H\u00f6he",
-        verticalPaddingLabel: "Vertikaler Abstand",
-        previewTitle: "Vorschau",
-        noPreviewLoaded: "Keine Vorschau geladen",
-        moveColumn: "Spalte verschieben",
-        removeColumn: "Spalte entfernen",
-        dragBlockHere: "Block hierher ziehen",
-        removeBlock: "Block entfernen",
-        columnSpan: { narrow: "Schmal", normal: "Normal", wide: "Breit" },
-        blockLabels: {
-          headline: "\u00dcberschrift",
-          markdown: "Markdown",
-          button: "Button",
-          footerNav: "Footer-Navigation",
-          separator: "Trennlinie",
-        },
-      },
-      linkPicker: {
-        insertInternalLink: "Internen Link einf\u00fcgen",
-        closeSelection: "Auswahl schlie\u00dfen",
-        searchPlaceholder: "Seiten suchen\u2026",
-        noResults: "Keine Ergebnisse",
-        groups: { static: "Statische Routen", pages: "Seiten", forms: "Formulare" },
       },
       loadingFallback: "Wird geladen\u2026",
       pages: {
@@ -1819,7 +1621,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         tracks: "Tracks",
         albums: "Albums",
         artists: "Artists",
-        media: "Media",
         users: "Users",
         pages: "Pages",
         pagesOverview: "Overview",
@@ -1829,7 +1630,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         emailTemplates: "Email Templates",
         emailTemplatesOverview: "Overview",
         emailBranding: "Email branding",
-        footerBuilder: "Footer Builder",
         system: "System",
         sectionDeveloper: "Developer",
         apiAccessRequests: "API Access Requests",
@@ -2115,42 +1915,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       loading: "Loading\u2026",
       empty: "No plugins installed.",
     },
-    media: {
-      title: "Media",
-      upload: "Upload",
-      uploading: "Uploading\u2026",
-      uploadHint: "Drag files here or click to upload",
-      empty: "No media files",
-      emptyHint: "Upload images and files.",
-      selectPrompt: "Select a file",
-      detailsTitle: "Details",
-      previewTitle: "Preview",
-      infoTitle: "Information",
-      displayName: "Display Name",
-      originalName: "Original Name",
-      fileType: "File Type",
-      dimensions: "Dimensions",
-      fileSize: "File Size",
-      internalUrl: "Internal URL",
-      createdAt: "Created",
-      updatedAt: "Updated",
-      uploadedBy: "Uploaded by",
-      saveName: "Save Name",
-      openFile: "Open File",
-      copyUrl: "Copy URL",
-      copied: "Copied!",
-      renameError: "Error renaming",
-      uploadError: "Error uploading",
-      unsupportedPreview: "Preview not available",
-      deleteTitle: "Delete File",
-      deleteDescription: "Are you sure you want to delete this file?",
-      table: {
-        name: "Name",
-        type: "Type",
-        size: "Size",
-        updated: "Updated",
-      },
-    },
     users: {
       title: "Users",
       inviteUser: "Invite User",
@@ -2231,57 +1995,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
           strikethrough: "Strikethrough",
           link: "Insert link",
         },
-      },
-      footerBuilder: {
-        title: "Footer Builder",
-        saveError: "Error saving",
-        styleTitle: "Style",
-        paletteTitle: "Color Palette",
-        noSettings: "No settings",
-        headlineTextLabel: "Headline",
-        contentLabel: "Content",
-        buttonLabelField: "Label",
-        buttonLabelPlaceholder: "Button text",
-        urlLabel: "URL",
-        urlPlaceholder: "https://...",
-        styleLabel: "Style",
-        externalLink: "External link",
-        directionLabel: "Direction",
-        styleOptions: { filled: "Filled", outline: "Outline", ghost: "Ghost" },
-        directionOptions: { vertical: "Vertical", horizontal: "Horizontal" },
-        colorFields: {
-          background: "Background",
-          text: "Text",
-          headlines: "Headlines",
-          links: "Links",
-          linkHover: "Link Hover",
-          button: "Button",
-          buttonText: "Button Text",
-        },
-        sizeOptions: { small: "Small", medium: "Medium", large: "Large", extraLarge: "Extra Large" },
-        heightLabel: "Height",
-        verticalPaddingLabel: "Vertical Padding",
-        previewTitle: "Preview",
-        noPreviewLoaded: "No preview loaded",
-        moveColumn: "Move column",
-        removeColumn: "Remove column",
-        dragBlockHere: "Drag block here",
-        removeBlock: "Remove block",
-        columnSpan: { narrow: "Narrow", normal: "Normal", wide: "Wide" },
-        blockLabels: {
-          headline: "Headline",
-          markdown: "Markdown",
-          button: "Button",
-          footerNav: "Footer Navigation",
-          separator: "Separator",
-        },
-      },
-      linkPicker: {
-        insertInternalLink: "Insert internal link",
-        closeSelection: "Close selection",
-        searchPlaceholder: "Search pages\u2026",
-        noResults: "No results",
-        groups: { static: "Static Routes", pages: "Pages", forms: "Forms" },
       },
       loadingFallback: "Loading\u2026",
       pages: {
