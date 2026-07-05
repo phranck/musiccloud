@@ -44,7 +44,7 @@ const mockRepo = {
   listApiClientTokensByClient: vi.fn().mockResolvedValue([]),
   findApiClientTokenById: vi.fn(),
   revokeApiClientToken: vi.fn(),
-  rotateApiClientToken: vi.fn(),
+  activateApiClientToken: vi.fn(),
   createApiAccessAuditEvent: vi.fn().mockResolvedValue({}),
 };
 
@@ -294,16 +294,16 @@ describe("adminApiAccessRoutes", () => {
       expect(mockRepo.revokeApiClientToken).not.toHaveBeenCalled();
     });
 
-    it("rejects a moderator with 403 on tokenDeactivate", async () => {
+    it("rejects a moderator with 403 on tokenActivate", async () => {
       const { app, token } = await buildApp("moderator");
       const response = await app.inject({
         method: "POST",
-        url: ROUTE_TEMPLATES.admin.developer.apiAccess.tokenDeactivate.replace(":id", "token-1"),
+        url: ROUTE_TEMPLATES.admin.developer.apiAccess.tokenActivate.replace(":id", "token-1"),
         headers: { authorization: `Bearer ${token}` },
         payload: {},
       });
       expect(response.statusCode).toBe(403);
-      expect(mockRepo.rotateApiClientToken).not.toHaveBeenCalled();
+      expect(mockRepo.activateApiClientToken).not.toHaveBeenCalled();
     });
   });
 
@@ -649,7 +649,7 @@ describe("adminApiAccessRoutes", () => {
         expect.objectContaining({
           clientId: "client-1",
           tokenId: "token-1",
-          eventType: "token_revoked",
+          eventType: "token_deactivated",
           actorAdminId: "admin-1",
         }),
       );
@@ -671,72 +671,41 @@ describe("adminApiAccessRoutes", () => {
     });
   });
 
-  describe("POST tokenDeactivate (admin)", () => {
-    it("notifies the developer that a new token was created by the rotation", async () => {
+  describe("POST tokenActivate", () => {
+    it("re-activates a revoked token and writes an audit event without leaking secrets", async () => {
       const { app, token } = await buildApp("admin");
-      mockRepo.rotateApiClientToken.mockResolvedValue({
-        oldToken: makeToken({ id: "token-old", status: "revoked" }),
-        newToken: makeToken({ id: "token-new", clientId: "client-1" }),
-      });
-      mockRepo.findApiClientById.mockResolvedValue(makeClient({ appName: "My Music App" }));
-      mockDeveloperRepo.findDeveloperAccountById.mockResolvedValue({
-        id: "dev-acc-1",
-        email: "dev@example.com",
-        displayName: null,
-      });
+      mockRepo.activateApiClientToken.mockResolvedValue(makeToken({ status: "active", revokedAt: null }));
 
       const response = await app.inject({
         method: "POST",
-        url: ROUTE_TEMPLATES.admin.developer.apiAccess.tokenDeactivate.replace(":id", "token-old"),
-        headers: { authorization: `Bearer ${token}` },
-      });
-
-      expect(response.statusCode).toBe(201);
-      expect(vi.mocked(triggerEmailAction)).toHaveBeenCalledWith(
-        EmailAction.DeveloperApiTokenCreated,
-        expect.objectContaining({ context: { appName: "My Music App" } }),
-      );
-    });
-
-    it("rotates the token, returns the new raw token once, and audits without leaking secrets", async () => {
-      const { app, token } = await buildApp("owner");
-      mockRepo.rotateApiClientToken.mockResolvedValue({
-        oldToken: makeToken({ id: "token-1", status: "rotated" }),
-        newToken: makeToken({ id: "token-2" }),
-      });
-
-      const response = await app.inject({
-        method: "POST",
-        url: ROUTE_TEMPLATES.admin.developer.apiAccess.tokenDeactivate.replace(":id", "token-1"),
+        url: ROUTE_TEMPLATES.admin.developer.apiAccess.tokenActivate.replace(":id", "token-1"),
         headers: { authorization: `Bearer ${token}` },
         payload: {},
       });
 
-      expect(response.statusCode).toBe(201);
+      expect(response.statusCode).toBe(200);
       const body = response.json();
-      expect(body.token.id).toBe("token-2");
-      expect(body.token.rawToken).toBeTruthy();
+      expect(body.token.status).toBe("active");
       expect(body.token.tokenHash).toBeUndefined();
 
       expect(mockRepo.createApiAccessAuditEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           clientId: "client-1",
-          tokenId: "token-2",
-          eventType: "token_rotated",
+          tokenId: "token-1",
+          eventType: "token_activated",
           actorAdminId: "admin-1",
-          eventData: { rotatedFromTokenId: "token-1" },
         }),
       );
       const auditCall = mockRepo.createApiAccessAuditEvent.mock.calls[0]![0];
       expect(JSON.stringify(auditCall)).not.toContain("deadbeef");
     });
 
-    it("returns 404 when there is no active token to rotate", async () => {
+    it("returns 404 when there is no revoked token to activate", async () => {
       const { app, token } = await buildApp("owner");
-      mockRepo.rotateApiClientToken.mockResolvedValue(null);
+      mockRepo.activateApiClientToken.mockResolvedValue(null);
       const response = await app.inject({
         method: "POST",
-        url: ROUTE_TEMPLATES.admin.developer.apiAccess.tokenDeactivate.replace(":id", "missing"),
+        url: ROUTE_TEMPLATES.admin.developer.apiAccess.tokenActivate.replace(":id", "missing"),
         headers: { authorization: `Bearer ${token}` },
         payload: {},
       });
