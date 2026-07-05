@@ -1,7 +1,6 @@
 export type DashboardLocale = "de" | "en";
 
 export interface DashboardMessages {
-  languageName: string;
   common: {
     ok: string;
     cancel: string;
@@ -12,7 +11,6 @@ export interface DashboardMessages {
     delete: string;
     remove: string;
     duplicate: string;
-    copyUrl: string;
     close: string;
     loading: string;
     copied: string;
@@ -71,7 +69,6 @@ export interface DashboardMessages {
     };
   };
   auth: {
-    adminArea: string;
     login: {
       title: string;
       username: string;
@@ -189,13 +186,11 @@ export interface DashboardMessages {
       searchPlaceholder: string;
       total: string;
       noTracks: string;
-      noTracksHint: string;
       colTitle: string;
       colArtists: string;
       colSource: string;
       colLinks: string;
       colAdded: string;
-      colActions: string;
     };
     trackEdit: {
       backLabel: string;
@@ -218,7 +213,6 @@ export interface DashboardMessages {
       searchPlaceholder: string;
       total: string;
       noAlbums: string;
-      noAlbumsHint: string;
       colTitle: string;
       colArtists: string;
       colSource: string;
@@ -231,7 +225,6 @@ export interface DashboardMessages {
       searchPlaceholder: string;
       total: string;
       noArtists: string;
-      noArtistsHint: string;
       deleteButton: string;
       deleteConfirmTitle: string;
       deleteConfirmDescription: string;
@@ -328,12 +321,10 @@ export interface DashboardMessages {
       admin: string;
       moderator: string;
     };
-    editTitle: string;
     remove: string;
     removeConfirmTitle: string;
     removeConfirmDescription: string;
     createCard: {
-      closeAria: string;
       title: string;
       role: string;
       username: string;
@@ -375,9 +366,7 @@ export interface DashboardMessages {
       increaseFontSize: string;
       deletePage: string;
       confirmDelete: string;
-      confirmDeleteAction: string;
       saved: string;
-      titleLabel: string;
       pageTitleLabel: string;
       slugLabel: string;
       statusLabel: string;
@@ -441,15 +430,10 @@ export interface DashboardMessages {
       segments: {
         title: string;
         empty: string;
-        addSegment: string;
         labelPlaceholder: string;
-        targetPlaceholder: string;
-        invalidSegments: string;
         save: string;
         saving: string;
         saveError: string;
-        moveUp: string;
-        moveDown: string;
         remove: string;
         preview: string;
       };
@@ -477,7 +461,6 @@ export interface DashboardMessages {
     formSlugLabel: string;
     formSlugHint: string;
     create: string;
-    backToList: string;
     slugLabel: string;
     slugPlaceholder: string;
     save: string;
@@ -565,11 +548,7 @@ export interface DashboardMessages {
       buttonAlignCenter: string;
       buttonAlignRight: string;
       buttonIcon: string;
-      buttonIconNone: string;
       buttonDisplay: string;
-      buttonDisplayText: string;
-      buttonDisplayIcon: string;
-      buttonDisplayBoth: string;
       headlineLevel: string;
       headlineLevelH1: string;
       headlineLevelH2: string;
@@ -589,11 +568,8 @@ export interface DashboardMessages {
       buttonActionCopyClipboard: string;
       buttonActionClearField: string;
       buttonActionSourceField: string;
-      loadingEditor: string;
       validation: string;
       spanAriaOf: string;
-      iconPickerSearch: string;
-      iconPickerEmpty: string;
       allowMarkdown: string;
     };
     submission: {
@@ -628,7 +604,6 @@ export interface DashboardMessages {
   emailTemplates: {
     listTitle: string;
     newTemplate: string;
-    editTemplate: string;
     templateName: string;
     templateSubject: string;
     subjectPlaceholder: string;
@@ -637,7 +612,6 @@ export interface DashboardMessages {
     deleteTemplateConfirm: string;
     noTemplates: string;
     noTemplatesHint: string;
-    backToList: string;
     save: string;
     saved: string;
     saveError: string;
@@ -793,7 +767,6 @@ export interface DashboardMessages {
 
 export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
   de: {
-    languageName: "Deutsch",
     common: {
       ok: "OK",
       cancel: "Abbrechen",
@@ -804,7 +777,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       delete: "L\u00f6schen",
       remove: "Entfernen",
       duplicate: "Duplizieren",
-      copyUrl: "URL kopieren",
       close: "Schlie\u00dfen",
       loading: "Lade\u2026",
       copied: "Kopiert!",
@@ -863,7 +835,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       },
     },
     auth: {
-      adminArea: "Admin-Bereich",
       login: {
         title: "Anmelden",
         username: "Benutzername",
@@ -983,13 +954,11 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         searchPlaceholder: "Tracks suchen\u2026",
         total: "Tracks",
         noTracks: "Keine Tracks vorhanden",
-        noTracksHint: "Tracks werden automatisch beim Aufl\u00f6sen von Links erstellt.",
         colTitle: "Titel",
         colArtists: "K\u00fcnstler",
         colSource: "Quelle",
         colLinks: "Services",
         colAdded: "Hinzugef\u00fcgt",
-        colActions: "",
       },
       trackEdit: {
         backLabel: "Tracks",
@@ -1012,7 +981,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         searchPlaceholder: "Alben suchen\u2026",
         total: "Alben",
         noAlbums: "Keine Alben vorhanden",
-        noAlbumsHint: "Alben werden automatisch beim Aufl\u00f6sen von Links erstellt.",
         colTitle: "Titel",
         colArtists: "K\u00fcnstler",
         colSource: "Quelle",
@@ -1025,7 +993,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         searchPlaceholder: "Artist-Profile suchen\u2026",
         total: "Artist-Profile",
         noArtists: "Keine Artist-Profile vorhanden",
-        noArtistsHint: "Artist-Profile werden automatisch beim Aufl\u00f6sen von Artist-Links erstellt.",
         deleteButton: "Profile l\u00f6schen ({count})",
         deleteConfirmTitle: "Artist-Profile l\u00f6schen",
         deleteConfirmDescription:
@@ -1126,12 +1093,10 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       inviteUser: "Benutzer einladen",
       you: "(du)",
       role: { owner: "Eigent\u00fcmer", admin: "Administrator", moderator: "Moderator" },
-      editTitle: "Benutzer bearbeiten",
       remove: "Entfernen",
       removeConfirmTitle: "Benutzer entfernen",
       removeConfirmDescription: "M\u00f6chtest du diesen Benutzer wirklich entfernen?",
       createCard: {
-        closeAria: "Schlie\u00dfen",
         title: "Benutzer einladen",
         role: "Rolle",
         username: "Benutzername",
@@ -1173,9 +1138,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         increaseFontSize: "Schrift vergr\u00f6\u00dfern",
         deletePage: "Seite l\u00f6schen",
         confirmDelete: "Wirklich l\u00f6schen?",
-        confirmDeleteAction: "L\u00f6schen",
         saved: "Gespeichert",
-        titleLabel: "Titel",
         pageTitleLabel: "Seitentitel",
         slugLabel: "Slug",
         statusLabel: "Status",
@@ -1239,15 +1202,10 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         segments: {
           title: "Segmente",
           empty: "Noch keine Segmente definiert.",
-          addSegment: "Segment hinzuf\u00fcgen",
           labelPlaceholder: "Beschriftung",
-          targetPlaceholder: "Zielseite w\u00e4hlen",
-          invalidSegments: "Mindestens ein Segment hat keine Zielseite.",
           save: "Segmente speichern",
           saving: "Wird gespeichert\u2026",
           saveError: "Fehler beim Speichern",
-          moveUp: "Nach oben",
-          moveDown: "Nach unten",
           remove: "Entfernen",
           preview: "Vorschau",
         },
@@ -1271,7 +1229,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       formSlugLabel: "Slug",
       formSlugHint: "\u00d6ffentlicher Pfad",
       create: "Erstellen",
-      backToList: "Zur\u00fcck",
       slugLabel: "Slug",
       slugPlaceholder: "formular-slug",
       save: "Speichern",
@@ -1356,11 +1313,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         buttonAlignCenter: "Zentriert",
         buttonAlignRight: "Rechts",
         buttonIcon: "Icon",
-        buttonIconNone: "Keins",
         buttonDisplay: "Anzeige",
-        buttonDisplayText: "Text",
-        buttonDisplayIcon: "Icon",
-        buttonDisplayBoth: "Beides",
         headlineLevel: "\u00dcberschriftsebene",
         headlineLevelH1: "\u00dcberschrift 1",
         headlineLevelH2: "\u00dcberschrift 2",
@@ -1380,11 +1333,8 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         buttonActionCopyClipboard: "In Zwischenablage kopieren",
         buttonActionClearField: "Feld leeren",
         buttonActionSourceField: "Quellfeld",
-        loadingEditor: "Editor wird geladen\u2026",
         validation: "Validierung",
         spanAriaOf: "von",
-        iconPickerSearch: "Icon suchen\u2026",
-        iconPickerEmpty: "Keine Icons gefunden",
         allowMarkdown: "Markdown erlauben",
       },
       submission: {
@@ -1419,7 +1369,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
     emailTemplates: {
       listTitle: "E-Mail-Vorlagen",
       newTemplate: "Neue Vorlage",
-      editTemplate: "Vorlage bearbeiten",
       templateName: "Name",
       templateSubject: "Betreff",
       subjectPlaceholder: "E-Mail-Betreff",
@@ -1428,7 +1377,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       deleteTemplateConfirm: "Wirklich l\u00f6schen?",
       noTemplates: "Keine Vorlagen vorhanden",
       noTemplatesHint: "Erstelle eine neue E-Mail-Vorlage.",
-      backToList: "Zur\u00fcck",
       save: "Speichern",
       saved: "Gespeichert",
       saveError: "Fehler beim Speichern",
@@ -1587,7 +1535,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
     },
   },
   en: {
-    languageName: "English",
     common: {
       ok: "OK",
       cancel: "Cancel",
@@ -1598,7 +1545,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       delete: "Delete",
       remove: "Remove",
       duplicate: "Duplicate",
-      copyUrl: "Copy URL",
       close: "Close",
       loading: "Loading\u2026",
       copied: "Copied!",
@@ -1657,7 +1603,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       },
     },
     auth: {
-      adminArea: "Admin Area",
       login: {
         title: "Sign In",
         username: "Username",
@@ -1777,13 +1722,11 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         searchPlaceholder: "Search tracks\u2026",
         total: "tracks",
         noTracks: "No tracks yet",
-        noTracksHint: "Tracks are created automatically when resolving links.",
         colTitle: "Title",
         colArtists: "Artists",
         colSource: "Source",
         colLinks: "Services",
         colAdded: "Added",
-        colActions: "",
       },
       trackEdit: {
         backLabel: "Tracks",
@@ -1806,7 +1749,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         searchPlaceholder: "Search albums\u2026",
         total: "albums",
         noAlbums: "No albums yet",
-        noAlbumsHint: "Albums are created automatically when resolving links.",
         colTitle: "Title",
         colArtists: "Artists",
         colSource: "Source",
@@ -1819,7 +1761,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         searchPlaceholder: "Search artist profiles\u2026",
         total: "artist profiles",
         noArtists: "No artist profiles yet",
-        noArtistsHint: "Artist profiles are created automatically when resolving artist links.",
         deleteButton: "Delete profiles ({count})",
         deleteConfirmTitle: "Delete artist profiles",
         deleteConfirmDescription:
@@ -1920,12 +1861,10 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       inviteUser: "Invite User",
       you: "(you)",
       role: { owner: "Owner", admin: "Administrator", moderator: "Moderator" },
-      editTitle: "Edit User",
       remove: "Remove",
       removeConfirmTitle: "Remove User",
       removeConfirmDescription: "Are you sure you want to remove this user?",
       createCard: {
-        closeAria: "Close",
         title: "Invite User",
         role: "Role",
         username: "Username",
@@ -1967,9 +1906,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         increaseFontSize: "Increase font size",
         deletePage: "Delete page",
         confirmDelete: "Really delete?",
-        confirmDeleteAction: "Delete",
         saved: "Saved",
-        titleLabel: "Title",
         pageTitleLabel: "Page title",
         slugLabel: "Slug",
         statusLabel: "Status",
@@ -2033,15 +1970,10 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         segments: {
           title: "Segments",
           empty: "No segments yet.",
-          addSegment: "Add segment",
           labelPlaceholder: "Label",
-          targetPlaceholder: "Pick a target page",
-          invalidSegments: "At least one segment is missing a target page.",
           save: "Save segments",
           saving: "Saving\u2026",
           saveError: "Failed to save",
-          moveUp: "Move up",
-          moveDown: "Move down",
           remove: "Remove",
           preview: "Preview",
         },
@@ -2065,7 +1997,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       formSlugLabel: "Slug",
       formSlugHint: "Public path",
       create: "Create",
-      backToList: "Back",
       slugLabel: "Slug",
       slugPlaceholder: "form-slug",
       save: "Save",
@@ -2150,11 +2081,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         buttonAlignCenter: "Center",
         buttonAlignRight: "Right",
         buttonIcon: "Icon",
-        buttonIconNone: "None",
         buttonDisplay: "Display",
-        buttonDisplayText: "Text",
-        buttonDisplayIcon: "Icon",
-        buttonDisplayBoth: "Both",
         headlineLevel: "Heading Level",
         headlineLevelH1: "Heading 1",
         headlineLevelH2: "Heading 2",
@@ -2174,11 +2101,8 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         buttonActionCopyClipboard: "Copy to clipboard",
         buttonActionClearField: "Clear field",
         buttonActionSourceField: "Source field",
-        loadingEditor: "Loading editor\u2026",
         validation: "Validation",
         spanAriaOf: "of",
-        iconPickerSearch: "Search icons\u2026",
-        iconPickerEmpty: "No icons found",
         allowMarkdown: "Allow Markdown",
       },
       submission: {
@@ -2213,7 +2137,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
     emailTemplates: {
       listTitle: "Email Templates",
       newTemplate: "New Template",
-      editTemplate: "Edit Template",
       templateName: "Name",
       templateSubject: "Subject",
       subjectPlaceholder: "Email subject",
@@ -2222,7 +2145,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       deleteTemplateConfirm: "Really delete?",
       noTemplates: "No templates yet",
       noTemplatesHint: "Create a new email template.",
-      backToList: "Back",
       save: "Save",
       saved: "Saved",
       saveError: "Error saving",

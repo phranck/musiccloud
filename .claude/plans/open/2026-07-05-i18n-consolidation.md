@@ -66,7 +66,7 @@ Löschen (Leaf-Segment kommt im gesamten Quellcode nicht vor, Corpus-Scan):
 
 Falls `tsc` bei einem Key doch eine Callsite meldet: Key behalten, im Plan als Korrektur vermerken.
 
-- [ ] Task 2: Einzel-Keys entfernt; `tsc --noEmit` grün; Commit `Refactor: drop dead dashboard i18n keys`
+- [x] Task 2: Einzel-Keys entfernt (26 Properties, backToList in beiden Namespaces); `tsc --noEmit` grün; Commit `Refactor: drop dead dashboard i18n keys`
 
 ---
 
