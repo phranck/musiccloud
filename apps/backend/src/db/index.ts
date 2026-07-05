@@ -6,6 +6,8 @@ import { loadDatabaseConfig } from "./config.js";
 import type { DeveloperRepository } from "./developer-repository.js";
 import type { CcRepository, TrackRepository } from "./repository.js";
 
+import type { TierRepository } from "./tiers-repository.js";
+
 let repositoryInstance: PostgresAdapter | null = null;
 const _cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -37,6 +39,12 @@ export async function getDeveloperRepository(): Promise<DeveloperRepository> {
 export async function getApiAccessRepository(): Promise<ApiAccessRepository> {
   await ensureInstance();
   return repositoryInstance!;
+}
+
+/** Returns the singleton TierRepository instance, creating it on first call. */
+export async function getTierRepository(): Promise<TierRepository> {
+  await ensureInstance();
+  return repositoryInstance!.tiers;
 }
 
 async function ensureInstance(): Promise<void> {
@@ -76,6 +84,7 @@ export type {
   DeveloperIdentity,
   DeveloperRepository,
 } from "./developer-repository.js";
+export type { Tier, TierCreateData, TierRepository, TierUpdateData } from "./tiers-repository.js";
 export type {
   CachedTrackResult,
   CcRepository,

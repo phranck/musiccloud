@@ -269,6 +269,7 @@ import {
   setFormConfigActive as formsSetFormConfigActive,
 } from "./postgres-forms.js";
 import { insertAppTelemetryEvent } from "./postgres-telemetry.js";
+import { PostgresTierRepository } from "./postgres-tiers.js";
 import {
   addLinksToTrack as tracksAddLinksToTrack,
   addTrackExternalIds as tracksAddTrackExternalIds,
@@ -1304,5 +1305,16 @@ export class PostgresAdapter
     eventData?: Record<string, unknown>;
   }): Promise<ApiAccessAuditEvent> {
     return apiAccessCreateAuditEvent(this.pool, data);
+  }
+
+  // ============================================================================
+  // TIER QUERIES
+  // ============================================================================
+
+  /** Lazy-initialised tier repository, sharing the same pool. */
+  private _tiers: PostgresTierRepository | null = null;
+  get tiers(): PostgresTierRepository {
+    if (!this._tiers) this._tiers = new PostgresTierRepository(this.pool);
+    return this._tiers;
   }
 }
