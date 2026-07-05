@@ -277,8 +277,8 @@ function UserProfileFields({
             onChange={(e) => onRoleChange(e.target.value as EditableRole)}
             className={formInputClass}
           >
-            <option value={AdminRole.Admin}>{usersMessages.editCard.roleAdmin}</option>
-            <option value={AdminRole.Moderator}>{usersMessages.editCard.roleModerator}</option>
+            <option value={AdminRole.Admin}>{usersMessages.role.admin}</option>
+            <option value={AdminRole.Moderator}>{usersMessages.role.moderator}</option>
           </select>
         </div>
       )}

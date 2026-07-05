@@ -66,11 +66,6 @@ export interface DashboardMessages {
       logoutConfirmAction: string;
       logoutSkipConfirm: string;
       logoutConfirmLabel: string;
-      roles: {
-        owner: string;
-        admin: string;
-        moderator: string;
-      };
     };
   };
   auth: {
@@ -338,8 +333,6 @@ export interface DashboardMessages {
       role: string;
       password: string;
       passwordPlaceholder: string;
-      roleAdmin: string;
-      roleModerator: string;
       language: string;
       sessionTimeout: string;
       sessionTimeoutNone: string;
@@ -780,11 +773,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         logoutConfirmAction: "Abmelden",
         logoutSkipConfirm: "Nicht mehr fragen",
         logoutConfirmLabel: "Abmeldebest\u00e4tigung",
-        roles: {
-          owner: "Eigent\u00fcmer",
-          admin: "Administrator",
-          moderator: "Moderator",
-        },
       },
     },
     auth: {
@@ -1058,8 +1046,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         role: "Rolle",
         password: "Neues Passwort",
         passwordPlaceholder: "Leer lassen, um Passwort beizubehalten",
-        roleAdmin: "Administrator",
-        roleModerator: "Moderator",
         language: "Sprache",
         sessionTimeout: "Inaktivitäts-Timeout (Minuten)",
         sessionTimeoutNone: "Kein automatischer Logout",
@@ -1496,11 +1482,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         logoutConfirmAction: "Log out",
         logoutSkipConfirm: "Don't ask again",
         logoutConfirmLabel: "Logout confirmation",
-        roles: {
-          owner: "Owner",
-          admin: "Administrator",
-          moderator: "Moderator",
-        },
       },
     },
     auth: {
@@ -1774,8 +1755,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         role: "Role",
         password: "New Password",
         passwordPlaceholder: "Leave empty to keep current password",
-        roleAdmin: "Administrator",
-        roleModerator: "Moderator",
         language: "Language",
         sessionTimeout: "Inactivity timeout (minutes)",
         sessionTimeoutNone: "No automatic logout",

@@ -170,7 +170,7 @@ Neu: `common.alignment` („Ausrichtung"/„Alignment"), `common.alignLeft`, `co
 - `layout.sidebar.roles.owner/admin/moderator` → `users.role.*`
 - `users.editCard.roleAdmin`, `users.editCard.roleModerator` → `users.role.admin` / `users.role.moderator`
 
-- [ ] Task 10: Ein Rollen-Set statt drei; `tsc` grün; Commit `Refactor: single role label set`
+- [x] Task 10: Ein Rollen-Set statt drei; `tsc` grün; Commit `Refactor: single role label set`
 
 ### Task 11: `common.importExport.*` für Form-Builder + E-Mail-Vorlagen
 

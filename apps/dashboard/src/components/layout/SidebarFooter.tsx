@@ -36,9 +36,9 @@ export function FooterUserInfo({
   const s = messages.layout.sidebar;
   const displayName = [firstName, lastName].filter(Boolean).join(" ") || username;
   const roleLabel: Record<AdminRole, string> = {
-    owner: s.roles.owner,
-    admin: s.roles.admin,
-    moderator: s.roles.moderator,
+    owner: messages.users.role.owner,
+    admin: messages.users.role.admin,
+    moderator: messages.users.role.moderator,
   };
 
   const [confirmOpen, setConfirmOpen] = useState(false);
