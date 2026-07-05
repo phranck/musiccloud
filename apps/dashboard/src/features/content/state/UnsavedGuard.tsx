@@ -82,7 +82,7 @@ export function UnsavedGuard() {
           action={DashboardActionId.Cancel}
           disabled={isSaving}
           icon={false}
-          label={t.cancel}
+          label={messages.common.cancel}
           onClick={handleCancel}
           type="button"
           variant={DashboardButtonVariant.Neutral}

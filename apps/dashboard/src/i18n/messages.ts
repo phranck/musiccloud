@@ -239,12 +239,9 @@ export interface DashboardMessages {
       refreshConfirm: string;
     };
     table: {
-      editButton: string;
       deleteButton: string;
       deleteConfirmTitle: string;
       deleteConfirmDescription: string;
-      deleteConfirmCancel: string;
-      deleteConfirmAction: string;
     };
   };
   system: {
@@ -268,7 +265,6 @@ export interface DashboardMessages {
     deleteAllSuccess: string;
     deleteAllButton: string;
     deleteAllConfirm: string;
-    deleteAllCancel: string;
     entriesDeleted: string;
     trackingTitle: string;
     trackingLabel: string;
@@ -317,7 +313,6 @@ export interface DashboardMessages {
       admin: string;
       moderator: string;
     };
-    remove: string;
     removeConfirmTitle: string;
     removeConfirmDescription: string;
     createCard: {
@@ -330,7 +325,6 @@ export interface DashboardMessages {
       inviteHint: string;
       inviteLink: string;
       copyInvite: string;
-      inviteCopied: string;
       errorCreating: string;
       creating: string;
       create: string;
@@ -352,7 +346,6 @@ export interface DashboardMessages {
       language: string;
       sessionTimeout: string;
       sessionTimeoutNone: string;
-      editTooltip: string;
     };
   };
   content: {
@@ -444,7 +437,6 @@ export interface DashboardMessages {
     slugLabel: string;
     slugPlaceholder: string;
     empty: string;
-    editButton: string;
     noForms: string;
     noFormsHint: string;
     slugConflict: string;
@@ -732,7 +724,6 @@ export interface DashboardMessages {
   unsavedGuard: {
     title: string;
     description: string;
-    cancel: string;
     discard: string;
   };
 }
@@ -980,12 +971,9 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         refreshConfirm: "Aufgefrischt",
       },
       table: {
-        editButton: "Bearbeiten",
         deleteButton: "L\u00f6schen ({count})",
         deleteConfirmTitle: "Eintr\u00e4ge l\u00f6schen",
         deleteConfirmDescription: "{count} Eintr\u00e4ge werden unwiderruflich gel\u00f6scht.",
-        deleteConfirmCancel: "Abbrechen",
-        deleteConfirmAction: "L\u00f6schen",
       },
     },
     system: {
@@ -1014,7 +1002,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       deleteAllSuccess: "{tracks} {tracksLabel} und {albums} {albumsLabel} wurden gel\u00f6scht.",
       deleteAllButton: "Zur\u00fccksetzen\u2026",
       deleteAllConfirm: "Ja, alles l\u00f6schen",
-      deleteAllCancel: "Abbrechen",
       entriesDeleted: "{count} Eintr\u00e4ge gel\u00f6scht.",
       trackingTitle: "Website-Tracking",
       trackingLabel: "Umami Analytics",
@@ -1061,7 +1048,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       inviteUser: "Benutzer einladen",
       you: "(du)",
       role: { owner: "Eigent\u00fcmer", admin: "Administrator", moderator: "Moderator" },
-      remove: "Entfernen",
       removeConfirmTitle: "Benutzer entfernen",
       removeConfirmDescription: "M\u00f6chtest du diesen Benutzer wirklich entfernen?",
       createCard: {
@@ -1074,7 +1060,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         inviteHint: "Teile den folgenden Link mit dem Benutzer:",
         inviteLink: "Einladungslink",
         copyInvite: "Link kopieren",
-        inviteCopied: "Kopiert!",
         errorCreating: "Fehler beim Erstellen",
         creating: "Wird erstellt\u2026",
         create: "Einladen",
@@ -1096,7 +1081,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         language: "Sprache",
         sessionTimeout: "Inaktivitäts-Timeout (Minuten)",
         sessionTimeoutNone: "Kein automatischer Logout",
-        editTooltip: "Bearbeiten",
       },
     },
     content: {
@@ -1184,7 +1168,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       slugLabel: "Slug",
       slugPlaceholder: "formular-slug",
       empty: "Ziehe Felder in das Formular",
-      editButton: "Bearbeiten",
       noForms: "Keine Formulare vorhanden",
       noFormsHint: "Erstelle ein neues Formular.",
       slugConflict: "Slug bereits vergeben",
@@ -1474,7 +1457,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
     unsavedGuard: {
       title: "Ungespeicherte Änderungen",
       description: "Du hast ungespeicherte Änderungen. Was möchtest du tun?",
-      cancel: "Abbrechen",
       discard: "Verwerfen",
     },
   },
@@ -1720,12 +1702,9 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         refreshConfirm: "Refreshed",
       },
       table: {
-        editButton: "Edit",
         deleteButton: "Delete ({count})",
         deleteConfirmTitle: "Delete entries",
         deleteConfirmDescription: "{count} entries will be permanently deleted.",
-        deleteConfirmCancel: "Cancel",
-        deleteConfirmAction: "Delete",
       },
     },
     system: {
@@ -1754,7 +1733,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       deleteAllSuccess: "{tracks} {tracksLabel} and {albums} {albumsLabel} deleted.",
       deleteAllButton: "Reset\u2026",
       deleteAllConfirm: "Yes, delete all",
-      deleteAllCancel: "Cancel",
       entriesDeleted: "{count} entries deleted.",
       trackingTitle: "Website Tracking",
       trackingLabel: "Umami Analytics",
@@ -1801,7 +1779,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       inviteUser: "Invite User",
       you: "(you)",
       role: { owner: "Owner", admin: "Administrator", moderator: "Moderator" },
-      remove: "Remove",
       removeConfirmTitle: "Remove User",
       removeConfirmDescription: "Are you sure you want to remove this user?",
       createCard: {
@@ -1814,7 +1791,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         inviteHint: "Share the following link with the user:",
         inviteLink: "Invitation Link",
         copyInvite: "Copy Link",
-        inviteCopied: "Copied!",
         errorCreating: "Error creating",
         creating: "Creating\u2026",
         create: "Invite",
@@ -1836,7 +1812,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         language: "Language",
         sessionTimeout: "Inactivity timeout (minutes)",
         sessionTimeoutNone: "No automatic logout",
-        editTooltip: "Edit",
       },
     },
     content: {
@@ -1924,7 +1899,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       slugLabel: "Slug",
       slugPlaceholder: "form-slug",
       empty: "Drag fields into the form",
-      editButton: "Edit",
       noForms: "No forms yet",
       noFormsHint: "Create a new form.",
       slugConflict: "Slug already taken",
@@ -2214,7 +2188,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
     unsavedGuard: {
       title: "Unsaved changes",
       description: "You have unsaved changes. What would you like to do?",
-      cancel: "Cancel",
       discard: "Discard",
     },
   },

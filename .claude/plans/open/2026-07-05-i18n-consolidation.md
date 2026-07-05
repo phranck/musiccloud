@@ -113,7 +113,7 @@ Neuer Key `common.saveError` = DE „Fehler beim Speichern" / EN „Error saving
 - → `common.remove`: `users.remove`, `content.pages.segments.remove`
 - → `common.ok`: `content.editor.ok`
 
-- [ ] Task 5: 11 Keys auf `common.*` umgestellt und gelöscht; `tsc` grün; Commit `Refactor: use common action labels across dashboard features`
+- [x] Task 5: Action-Labels auf `common.*` umgestellt und gelöscht (`ok` schon in Task 4); Zusatz: hartkodiertes "OK" in SystemPage-DangerZone → `common.ok`; `tsc` grün; Commit `Refactor: use common action labels across dashboard features`
 
 ### Task 6: loading normalisieren
 

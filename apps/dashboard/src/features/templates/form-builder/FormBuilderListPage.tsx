@@ -366,7 +366,7 @@ export function FormBuilderListPage() {
                         <TableActionButton
                           onClick={() => navigate(`/forms/${form.name}`)}
                           icon={<FileTextIcon weight="duotone" className="size-3.5" />}
-                          label={m.editButton}
+                          label={messages.common.edit}
                         />
                         <TableActionButton
                           variant={DashboardButtonVariant.Danger}

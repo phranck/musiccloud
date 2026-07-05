@@ -263,7 +263,7 @@ function DangerZone() {
                 <DashboardActionButton
                   action={DashboardActionId.Cancel}
                   icon={false}
-                  label={m.deleteAllCancel}
+                  label={messages.common.cancel}
                   onClick={handleCancel}
                   type="button"
                   variant={DashboardButtonVariant.Neutral}
@@ -293,7 +293,7 @@ function DangerZone() {
                 size="action"
                 variant={DashboardButtonVariant.Neutral}
               >
-                OK
+                {messages.common.ok}
               </DashboardButton>
             )}
           </div>

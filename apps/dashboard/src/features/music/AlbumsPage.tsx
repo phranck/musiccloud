@@ -266,7 +266,7 @@ export function AlbumsPage() {
           size="action"
           variant={table.editMode ? DashboardButtonVariant.Primary : DashboardButtonVariant.Neutral}
         >
-          {m.editButton}
+          {messages.common.edit}
         </DashboardButton>
       </div>
     </Toolbar>
@@ -345,7 +345,7 @@ export function AlbumsPage() {
             action={DashboardActionId.Cancel}
             disabled={deleting}
             icon={false}
-            label={m.deleteConfirmCancel}
+            label={messages.common.cancel}
             onClick={() => setConfirmOpen(false)}
             type="button"
             variant={DashboardButtonVariant.Neutral}
@@ -354,7 +354,7 @@ export function AlbumsPage() {
             action={DashboardActionId.Delete}
             busyLabel="\u2026"
             icon={false}
-            label={m.deleteConfirmAction}
+            label={messages.common.delete}
             onClick={handleConfirmDelete}
             status={deleting ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
             type="button"

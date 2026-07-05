@@ -91,7 +91,7 @@ export function UsersPage() {
                   <DashboardActionButton
                     action={DashboardActionId.Edit}
                     icon={<FileTextIcon weight="duotone" className="w-3.5 h-3.5" />}
-                    label={usersMessages.editCard.editTooltip}
+                    label={common.edit}
                     onClick={() => setEditingUserId(user.id)}
                     size="control"
                     type="button"
@@ -101,7 +101,7 @@ export function UsersPage() {
                   <DashboardActionButton
                     action={DashboardActionId.Delete}
                     icon={<TrashIcon weight="duotone" className="w-3.5 h-3.5" />}
-                    label={usersMessages.remove}
+                    label={common.remove}
                     onClick={() => setDeleteId(user.id)}
                     size="control"
                     type="button"

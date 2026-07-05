@@ -151,7 +151,7 @@ export function UserCreateCard({ onClose, onCreated }: UserCreateCardProps) {
           <DashboardActionButton
             action={DashboardActionId.Copy}
             icon={<CopyIcon weight="duotone" className="size-3.5" />}
-            label={copied ? usersMessages.createCard.inviteCopied : usersMessages.createCard.copyInvite}
+            label={copied ? common.copied : usersMessages.createCard.copyInvite}
             onClick={handleCopyInviteLink}
             size="control"
             type="button"

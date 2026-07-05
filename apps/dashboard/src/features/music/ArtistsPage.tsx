@@ -171,7 +171,6 @@ function useArtistColumns(table: ArtistTable, ma: ArtistMessages): ColumnDef<Art
 export function ArtistsPage() {
   const { messages } = useI18n();
   const ma = messages.music.artists;
-  const m = messages.music.table;
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -260,7 +259,7 @@ export function ArtistsPage() {
           size="action"
           variant={table.editMode ? DashboardButtonVariant.Primary : DashboardButtonVariant.Neutral}
         >
-          {m.editButton}
+          {messages.common.edit}
         </DashboardButton>
       </div>
     </Toolbar>
@@ -339,7 +338,7 @@ export function ArtistsPage() {
             action={DashboardActionId.Cancel}
             disabled={deleting}
             icon={false}
-            label={m.deleteConfirmCancel}
+            label={messages.common.cancel}
             onClick={() => setConfirmOpen(false)}
             type="button"
             variant={DashboardButtonVariant.Neutral}
