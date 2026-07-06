@@ -166,6 +166,35 @@ button {
 .overlay-card-enter { animation: card-in 380ms ease forwards; }
 .overlay-card-exit { animation: card-out 280ms ease forwards; }
 
+/* Animated reveal for conditionally shown form fields (e.g. the tier
+   disable-reason textarea). The field stays mounted; toggling `.is-open`
+   grows the wrapper via grid rows (smooth height from 0 to auto) while the
+   content fades in. The delayed `visibility` swap keeps collapsed content
+   out of the tab order without JS. */
+.field-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    grid-template-rows var(--ds-duration-base) var(--ds-ease),
+    opacity var(--ds-duration-base) var(--ds-ease),
+    visibility 0s linear var(--ds-duration-base);
+}
+.field-reveal.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    grid-template-rows var(--ds-duration-base) var(--ds-ease),
+    opacity var(--ds-duration-base) var(--ds-ease),
+    visibility 0s;
+}
+.field-reveal > div {
+  overflow: hidden;
+  min-height: 0;
+}
+
 /* Save notification animations */
 @keyframes save-notification-in {
   from { opacity: 0; transform: translateY(-4px); }

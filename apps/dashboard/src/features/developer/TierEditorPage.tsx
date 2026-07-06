@@ -16,10 +16,11 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
 import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
+import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { useI18n } from "@/context/I18nContext";
 import type { TierResponse } from "@/features/developer/api";
 import { useCreateTier, useDeleteTier, useTiers, useUpdateTier } from "@/features/developer/hooks/useDeveloperData";
-import { FormLabel, FormLabelText, formInputClass, formTextareaClass } from "@/shared/ui/FormPrimitives";
+import { FormLabel, formInputClass, formTextareaClass } from "@/shared/ui/FormPrimitives";
 
 // -----------------------------------------------------------------------------
 // Tier form data & validation
@@ -33,6 +34,8 @@ interface TierFormData {
   price: string;
   color: string;
   description: string;
+  enabled: boolean;
+  disableReason: string;
   sortOrder: number;
 }
 
@@ -44,6 +47,8 @@ const EMPTY_FORM: TierFormData = {
   price: "",
   color: "#64748b",
   description: "",
+  enabled: true,
+  disableReason: "",
   sortOrder: 0,
 };
 
@@ -56,6 +61,8 @@ function toSubmitBody(data: TierFormData) {
     price: data.price || null,
     color: data.color,
     description: data.description,
+    enabled: data.enabled,
+    disableReason: data.disableReason,
     sortOrder: data.sortOrder,
   };
 }
@@ -116,6 +123,8 @@ function tierEditorReducer(state: TierEditorState, action: TierEditorAction): Ti
           price: action.tier.price ?? "",
           color: action.tier.color,
           description: action.tier.description,
+          enabled: action.tier.enabled,
+          disableReason: action.tier.disableReason,
           sortOrder: action.tier.sortOrder,
         },
         errors: {},
@@ -189,17 +198,51 @@ function TierFormDialog({
     >
       <div className="p-6 space-y-3">
         <div>
-          <FormLabel htmlFor="tier-name">{dm.colName}</FormLabel>
-          <input
-            id="tier-name"
-            aria-label={dm.colName}
-            type="text"
-            className={formInputClass}
-            value={form.name}
-            onChange={(e) => onFormChange({ name: e.target.value })}
-            placeholder="e.g. Pro"
-          />
-          {errors.name && <p className="text-xs text-red-400 mt-1">{errors.name}</p>}
+          <div className="flex items-start gap-3">
+            <div className="flex-1">
+              <FormLabel htmlFor="tier-name">{dm.colName}</FormLabel>
+              <input
+                id="tier-name"
+                aria-label={dm.colName}
+                type="text"
+                className={formInputClass}
+                value={form.name}
+                onChange={(e) => onFormChange({ name: e.target.value })}
+                placeholder="e.g. Pro"
+              />
+              {errors.name && <p className="text-xs text-red-400 mt-1">{errors.name}</p>}
+            </div>
+            <div className="flex flex-col gap-1">
+              <FormLabel htmlFor="tier-active">{dm.colActive}</FormLabel>
+              <div className="flex h-9 items-center">
+                <ToggleSwitch
+                  id="tier-active"
+                  checked={form.enabled}
+                  onChange={(checked) => onFormChange({ enabled: checked })}
+                  aria-label={dm.colActive}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Stays mounted so the reveal can animate; grid-row + opacity
+              transition lives in index.css (.field-reveal). */}
+          <div className={`field-reveal${form.enabled ? "" : " is-open"}`}>
+            <div>
+              <div className="pt-3">
+                <FormLabel htmlFor="tier-disable-reason">{dm.colDisableReason}</FormLabel>
+                <textarea
+                  id="tier-disable-reason"
+                  aria-label={dm.colDisableReason}
+                  className={formTextareaClass}
+                  value={form.disableReason}
+                  onChange={(e) => onFormChange({ disableReason: e.target.value })}
+                  maxLength={200}
+                  placeholder="e.g. Replaced by the new Pro plan."
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         <div>
@@ -215,8 +258,8 @@ function TierFormDialog({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
+        <div className="flex items-start gap-3">
+          <div className="flex-1">
             <FormLabel htmlFor="tier-rpm">{dm.detailRateLimitMinute}</FormLabel>
             <input
               id="tier-rpm"
@@ -229,7 +272,7 @@ function TierFormDialog({
             />
             {errors.requestsPerMinute && <p className="text-xs text-red-400 mt-1">{errors.requestsPerMinute}</p>}
           </div>
-          <div>
+          <div className="flex-1">
             <FormLabel htmlFor="tier-rpd">{dm.detailRateLimitDay}</FormLabel>
             <input
               id="tier-rpd"
@@ -242,18 +285,17 @@ function TierFormDialog({
             />
             {errors.requestsPerDay && <p className="text-xs text-red-400 mt-1">{errors.requestsPerDay}</p>}
           </div>
-        </div>
-
-        <div className="flex items-center gap-2 pt-1">
-          <input
-            id="tier-attribution"
-            aria-label={dm.colAttribution}
-            type="checkbox"
-            className="rounded"
-            checked={form.attributionRequired}
-            onChange={(e) => onFormChange({ attributionRequired: e.target.checked })}
-          />
-          <FormLabelText>{dm.colAttribution}</FormLabelText>
+          <div className="flex flex-col gap-1">
+            <FormLabel htmlFor="tier-attribution">{dm.colAttribution}</FormLabel>
+            <div className="flex h-9 items-center">
+              <ToggleSwitch
+                id="tier-attribution"
+                checked={form.attributionRequired}
+                onChange={(checked) => onFormChange({ attributionRequired: checked })}
+                aria-label={dm.colAttribution}
+              />
+            </div>
+          </div>
         </div>
 
         <div>
@@ -269,31 +311,32 @@ function TierFormDialog({
           />
         </div>
 
-        <div>
-          <FormLabel htmlFor="tier-color">{dm.colColor}</FormLabel>
-          <div className="flex items-center gap-2">
-            <input
-              id="tier-color"
-              aria-label={dm.colColor}
-              type="color"
-              className="size-9 shrink-0 overflow-hidden rounded-full border border-[var(--ds-border)] bg-[var(--ds-bg)] p-0 [&::-moz-color-swatch]:rounded-full [&::-moz-color-swatch]:border-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded-full [&::-webkit-color-swatch]:border-0"
-              value={form.color}
-              onChange={(e) => onFormChange({ color: e.target.value })}
-            />
-            <span className="font-mono text-sm text-[var(--ds-text-muted)]">{form.color}</span>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <FormLabel htmlFor="tier-color">{dm.colColor}</FormLabel>
+            <div className="flex items-center gap-2">
+              <input
+                id="tier-color"
+                aria-label={dm.colColor}
+                type="color"
+                className="size-9 shrink-0 cursor-pointer appearance-none overflow-hidden rounded-full border border-[var(--ds-border)] bg-transparent p-0 [&::-moz-color-swatch]:rounded-full [&::-moz-color-swatch]:border-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded-full [&::-webkit-color-swatch]:border-0"
+                value={form.color}
+                onChange={(e) => onFormChange({ color: e.target.value })}
+              />
+              <span className="font-mono text-sm text-[var(--ds-text-muted)]">{form.color}</span>
+            </div>
           </div>
-        </div>
-
-        <div>
-          <FormLabel htmlFor="tier-sort">{dm.colSortOrder}</FormLabel>
-          <input
-            id="tier-sort"
-            aria-label={dm.colSortOrder}
-            type="number"
-            className={formInputClass}
-            value={form.sortOrder}
-            onChange={(e) => onFormChange({ sortOrder: Number(e.target.value) })}
-          />
+          <div>
+            <FormLabel htmlFor="tier-sort">{dm.colSortOrder}</FormLabel>
+            <input
+              id="tier-sort"
+              aria-label={dm.colSortOrder}
+              type="number"
+              className={formInputClass}
+              value={form.sortOrder}
+              onChange={(e) => onFormChange({ sortOrder: Number(e.target.value) })}
+            />
+          </div>
         </div>
       </div>
       <Dialog.Footer>
@@ -409,6 +452,11 @@ function useTierColumns(
               aria-hidden
             />
             <span className="font-medium">{a.name}</span>
+            {!a.enabled && (
+              <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-xs font-semibold text-amber-400">
+                {dm.tierDisabledBadge}
+              </span>
+            )}
           </span>
         ),
       },

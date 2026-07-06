@@ -203,6 +203,9 @@ export interface DashboardMessages {
     colPrice: string;
     colColor: string;
     colSortOrder: string;
+    colActive: string;
+    colDisableReason: string;
+    tierDisabledBadge: string;
     noTiers: string;
     noTiersHint: string;
   };
@@ -920,6 +923,9 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       colPrice: "Preis",
       colColor: "Farbe",
       colSortOrder: "Sortierung",
+      colActive: "Aktiv",
+      colDisableReason: "Deaktivierungsgrund",
+      tierDisabledBadge: "Deaktiviert",
       noTiers: "Keine Tiers",
       noTiersHint: "Erstelle dein erstes API-Tarifstufen-Tier über den Button oben.",
     },
@@ -1637,6 +1643,9 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       colPrice: "Price",
       colColor: "Color",
       colSortOrder: "Sort Order",
+      colActive: "Active",
+      colDisableReason: "Disable reason",
+      tierDisabledBadge: "Disabled",
       noTiers: "No tiers",
       noTiersHint: "Create your first API tier using the button above.",
     },

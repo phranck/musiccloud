@@ -129,6 +129,8 @@ export interface TierResponse {
   price: string | null;
   color: string;
   description: string;
+  enabled: boolean;
+  disableReason: string;
   sortOrder: number;
   createdAt: number;
   updatedAt: number;
@@ -140,7 +142,12 @@ export function fetchTiers(): Promise<TierResponse[]> {
 
 export function createTier(
   body: Pick<TierResponse, "name" | "requestsPerMinute" | "requestsPerDay"> &
-    Partial<Pick<TierResponse, "attributionRequired" | "price" | "color" | "description" | "sortOrder">>,
+    Partial<
+      Pick<
+        TierResponse,
+        "attributionRequired" | "price" | "color" | "description" | "enabled" | "disableReason" | "sortOrder"
+      >
+    >,
 ): Promise<TierResponse> {
   return api.post<TierResponse>(ENDPOINTS.admin.developer.tiers, body);
 }
@@ -157,6 +164,8 @@ export function updateTier(
       | "price"
       | "color"
       | "description"
+      | "enabled"
+      | "disableReason"
       | "sortOrder"
     >
   >,

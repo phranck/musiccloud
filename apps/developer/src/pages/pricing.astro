@@ -23,6 +23,8 @@ interface TierDto {
   price: string | null;
   color: string;
   description: string;
+  enabled: boolean;
+  disableReason: string;
   sortOrder: number;
 }
 
@@ -111,7 +113,9 @@ try {
         <h2 class="text-card-title font-medium tracking-tight mb-5">Available tiers</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {tiers.map((tier) => (
-            <div class="rounded-card border border-border bg-surface px-6 py-5 flex flex-col gap-3">
+            <div
+              class={`rounded-card border border-border bg-surface px-6 py-5 flex flex-col gap-3${tier.enabled ? "" : " opacity-60"}`}
+            >
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
                   <span class="size-3 shrink-0 rounded-full" style={`background-color:${tier.color}`} aria-hidden="true"></span>
@@ -126,6 +130,11 @@ try {
                   </span>
                 )}
               </div>
+              {!tier.enabled && (
+                <p class="rounded bg-gold/10 px-3 py-2 text-body font-medium text-gold">
+                  Currently unavailable{tier.disableReason ? ` — ${tier.disableReason}` : ""}
+                </p>
+              )}
               {tier.description && (
                 <p class="text-lg text-fg-muted">{tier.description}</p>
               )}
