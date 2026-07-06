@@ -118,6 +118,17 @@ button {
   cursor: pointer;
 }
 
+/* presetWind4 does not emit these radius utilities in this project — `full` and
+   `sm` are absent from its merged radius scale, and `theme.radius` overrides do
+   not restore them. Define them explicitly so full pill / circle shapes render
+   (toggles, colour swatches, avatars). */
+.rounded-full {
+  border-radius: 9999px;
+}
+.rounded-sm {
+  border-radius: 0.125rem;
+}
+
 /* Dashboard grid layout */
 .dashboard-grid {
   display: grid;
