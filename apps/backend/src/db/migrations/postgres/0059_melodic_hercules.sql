@@ -1,0 +1,1 @@
+ALTER TABLE "tiers" ADD COLUMN "description" text DEFAULT '' NOT NULL;

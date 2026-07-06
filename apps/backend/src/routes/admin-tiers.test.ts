@@ -21,6 +21,7 @@ const freeTier: Tier = {
   attributionRequired: false,
   price: null,
   color: "#64748b",
+  description: "",
   sortOrder: 0,
   createdAt: 1700000000000,
   updatedAt: 1700000000000,
@@ -145,6 +146,29 @@ describe("POST /api/admin/developer/tiers", () => {
       url: ENDPOINTS.admin.developer.tiers,
       headers: { authorization: `Bearer ${bearerToken()}` },
       payload: { name: "Pro", requestsPerMinute: 120, requestsPerDay: 50000, color: "red" },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("accepts a description", async () => {
+    const created = { ...freeTier, id: "tier_pro", name: "Pro", description: "For hobby projects." };
+    mockTierRepo.createTier.mockResolvedValue(created);
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.admin.developer.tiers,
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: { name: "Pro", requestsPerMinute: 120, requestsPerDay: 50000, description: "For hobby projects." },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toEqual(created);
+  });
+
+  it("rejects a description longer than 500 characters", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.admin.developer.tiers,
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: { name: "Pro", requestsPerMinute: 120, requestsPerDay: 50000, description: "x".repeat(501) },
     });
     expect(res.statusCode).toBe(400);
   });

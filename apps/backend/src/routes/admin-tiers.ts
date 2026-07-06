@@ -12,6 +12,9 @@ import { requireOwnerOrAdmin } from "../lib/admin-caller.js";
 /** Matches a 6-digit hex colour like `#RRGGBB`. */
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
+/** Maximum length of a tier's free-text description. */
+const MAX_TIER_DESCRIPTION_LENGTH = 500;
+
 export async function adminTiersRoutes(app: FastifyInstance) {
   app.get(ENDPOINTS.admin.developer.tiers, async (request, reply) => {
     if (!(await requireOwnerOrAdmin(request, reply))) return;
@@ -34,6 +37,9 @@ export async function adminTiersRoutes(app: FastifyInstance) {
     if (body.color != null && !HEX_COLOR_RE.test(body.color)) {
       return reply.status(400).send({ error: "color must be a hex value like #RRGGBB" });
     }
+    if (body.description != null && body.description.length > MAX_TIER_DESCRIPTION_LENGTH) {
+      return reply.status(400).send({ error: `description must be at most ${MAX_TIER_DESCRIPTION_LENGTH} characters` });
+    }
     const repo = await getTierRepository();
     const tier = await repo.createTier(body);
     return reply.status(201).send(tier);
@@ -51,6 +57,9 @@ export async function adminTiersRoutes(app: FastifyInstance) {
     }
     if (body.color != null && !HEX_COLOR_RE.test(body.color)) {
       return reply.status(400).send({ error: "color must be a hex value like #RRGGBB" });
+    }
+    if (body.description != null && body.description.length > MAX_TIER_DESCRIPTION_LENGTH) {
+      return reply.status(400).send({ error: `description must be at most ${MAX_TIER_DESCRIPTION_LENGTH} characters` });
     }
     const repo = await getTierRepository();
     const tier = await repo.updateTier(id, body);

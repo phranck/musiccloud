@@ -16,6 +16,8 @@ export interface Tier {
   price: string | null;
   /** Hex accent colour `#RRGGBB` (validated at the API boundary; default `#64748b`). */
   color: string;
+  /** Free-text description shown on the public pricing card (English, ≤500 chars; default `""`). */
+  description: string;
   sortOrder: number;
   createdAt: number;
   updatedAt: number;
@@ -28,6 +30,7 @@ export interface TierCreateData {
   attributionRequired?: boolean;
   price?: string | null;
   color?: string;
+  description?: string;
   sortOrder?: number;
 }
 
@@ -38,6 +41,7 @@ export interface TierUpdateData {
   attributionRequired?: boolean;
   price?: string | null;
   color?: string;
+  description?: string;
   sortOrder?: number;
 }
 
