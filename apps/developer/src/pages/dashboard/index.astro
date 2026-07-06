@@ -1,6 +1,6 @@
 ---
 /**
- * /dashboard — the signed-in developer overview (protected).
+ * /dashboard: the signed-in developer overview (protected).
  *
  * Server-side: resolves the `mc_dev_session` cookie via `getDeveloperSession`;
  * without a valid session the request is redirected to `/login` before any
@@ -10,10 +10,10 @@
  * get-started card linking to the API-access flow, and a Danger Zone card
  * for self-service account deletion.
  */
-import { CheckCircleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout.astro";
 import { DeleteAccountSection } from "@/components/dashboard/DeleteAccountSection";
 import { DashboardTab } from "@/lib/dashboardTabs";
+import { TickCircleIcon, Warning2Icon } from "@/lib/icons";
 import { getDeveloperSession } from "@/lib/session";
 
 export const prerender = false;
@@ -22,7 +22,7 @@ const account = await getDeveloperSession(Astro);
 if (!account) return Astro.redirect("/login");
 
 const greetingName = account.displayName?.trim() || account.email;
-const planLabel = account.tierName ?? "—";
+const planLabel = account.tierName ?? "None";
 const memberSince = new Date(account.createdAt).toLocaleDateString("en-US", {
   year: "numeric",
   month: "long",
@@ -43,9 +43,9 @@ const memberSince = new Date(account.createdAt).toLocaleDateString("en-US", {
           {account.email}
           {
             account.emailVerified ? (
-              <CheckCircleIcon weight="duotone" className="size-4 text-accent" aria-label="Verified" />
+              <TickCircleIcon className="size-4 text-accent" aria-label="Verified" />
             ) : (
-              <WarningCircleIcon weight="duotone" className="size-4 text-gold" aria-label="Not verified" />
+              <Warning2Icon className="size-4 text-gold" aria-label="Not verified" />
             )
           }
         </dd>

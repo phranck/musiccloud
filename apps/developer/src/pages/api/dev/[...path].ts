@@ -15,7 +15,7 @@ const STRIPPED_RESPONSE_HEADERS = new Set(["content-encoding", "content-length"]
  * BFF proxy for the developer portal. Forwards every `/api/dev/*` request to the
  * backend (`BACKEND_URL`), injecting the internal API key and the real client
  * IP, passing the browser `Cookie` header through, and relaying the backend's
- * response — crucially including `Set-Cookie`, so the `mc_dev_session` cookie is
+ * response, crucially including `Set-Cookie`, so the `mc_dev_session` cookie is
  * set first-party on `developer.musiccloud.io`.
  *
  * ## Auth surface

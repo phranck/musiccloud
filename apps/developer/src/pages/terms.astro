@@ -1,46 +1,35 @@
 ---
 /**
- * /terms — developer-portal Terms of Service placeholder.
+ * /terms: the developer-portal Terms of Service placeholder.
  *
  * Honest, minimal page that removes the live 404 the landing footer and the
  * signup consent line link to. It deliberately contains NO binding legal text:
  * the full Terms are finalised by the operator before public API launch. Only a
- * heading, a factual placeholder paragraph, and a link home.
+ * heading and a factual placeholder paragraph.
  *
- * Static, English-only, BaseLayout-based, fully token-driven (glassy surface,
- * brand-blue accents, shared header/footer shell matching /docs). No
- * `useT`/`useLocale`.
+ * English-only, BaseLayout-based, fully token-driven (glassy surface,
+ * brand-blue accents, shared header/footer shell matching /docs). Rendered
+ * server-side: the shared `PublicHeader` resolves the developer session for
+ * the avatar menu. No `useT`/`useLocale`.
  */
-import { ArrowLeftIcon, ScrollIcon } from "@phosphor-icons/react";
+import PublicHeader from "@/components/PublicHeader.astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { FOOTER_LINKS } from "@/lib/footerLinks";
+import { ScrollIcon } from "@/lib/icons";
+import { getDeveloperSession } from "@/lib/session";
+
+const account = await getDeveloperSession(Astro);
 ---
 
 <BaseLayout
   title="Terms of Service · musiccloud for developers"
   description="The musiccloud developer Terms of Service."
 >
-  <header class="flex items-center justify-between px-6 py-5 max-w-5xl mx-auto w-full">
-    <a href="/" class="flex items-center gap-2 text-logo font-medium">
-      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"
-        ><path
-          d="M9 21c0-3.3 2.7-6 6-6 1 0 2 .3 2.8.8A5 5 0 0 1 27 18.5 4.5 4.5 0 0 1 22.5 23H10a1 1 0 0 1-1-1z"
-          fill="var(--color-accent)"></path></svg
-      >
-      musiccloud <span class="text-fg-subtle font-normal">/ developers</span>
-    </a>
-    <nav class="flex items-center gap-5 text-nav text-fg-muted">
-      <a href="/docs" class="text-link">Docs</a>
-      <a href="/docs/api" class="text-link">API reference</a>
-      <a href="https://status.musiccloud.io" target="_blank" rel="noopener noreferrer" class="text-link">Status</a>
-      <a href="/login" class="text-link">Log in</a>
-      <a href="/signup" class="rounded-button bg-accent text-on-accent px-4 py-1.5 font-medium">Sign up</a>
-    </nav>
-  </header>
+  <PublicHeader account={account} />
 
-  <main class="flex-1 max-w-3xl mx-auto w-full px-6 pt-12 pb-20">
+  <main class="flex-1 max-w-6xl mx-auto w-full px-6 pt-12 pb-20">
     <div class="flex items-center gap-3 mb-5">
-      <ScrollIcon weight="duotone" className="size-9 text-accent" aria-hidden="true" />
+      <ScrollIcon className="size-9 text-accent" aria-hidden="true" />
       <h1 class="text-hero font-medium tracking-tight leading-none">Terms of Service</h1>
     </div>
 
@@ -51,19 +40,10 @@ import { FOOTER_LINKS } from "@/lib/footerLinks";
       </p>
     </section>
 
-    <div class="flex flex-wrap gap-3">
-      <a
-        href="/"
-        class="inline-flex items-center gap-2 rounded-button border border-border-strong px-5 py-2.5 text-body font-medium"
-      >
-        <ArrowLeftIcon weight="duotone" className="size-6" aria-hidden="true" />
-        Back to home
-      </a>
-    </div>
   </main>
 
   <footer class="border-t border-border">
-    <div class="max-w-5xl mx-auto w-full px-6 py-5 flex items-center justify-between text-body text-fg-subtle">
+    <div class="max-w-6xl mx-auto w-full px-6 py-5 flex items-center justify-between text-body text-fg-subtle">
       <span>© musiccloud</span>
       <nav class="flex items-center gap-3">
         {

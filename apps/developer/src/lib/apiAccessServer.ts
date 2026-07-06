@@ -18,7 +18,7 @@ const SESSION_COOKIE_NAME = "mc_dev_session";
 /**
  * Loads the caller's own API clients (with tokens) server-side for SSR
  * rendering. Returns `null` on a missing session or any fetch failure so the
- * page can branch without a try/catch — distinguishing "no clients" (`[]`)
+ * page can branch without a try/catch, distinguishing "no clients" (`[]`)
  * from "could not load" (`null`).
  *
  * @param astro - The Astro global; only `cookies` and `clientAddress` are read.

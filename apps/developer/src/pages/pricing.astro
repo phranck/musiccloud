@@ -1,6 +1,6 @@
 ---
 /**
- * /pricing — the portal's public pricing page and written commitment.
+ * /pricing: the portal's public pricing page and written commitment.
  *
  * Dynamically renders tier cards from `GET /api/v1/tiers`, sorted by
  * `sort_order`. Falls back to the hard-coded commitment-only layout when the
@@ -9,10 +9,12 @@
  * English-only, BaseLayout-based, fully token-driven, sharing the public
  * header/footer shell with /docs and /terms.
  */
-import { CheckCircleIcon, CurrencyEurIcon, HandshakeIcon } from "@phosphor-icons/react";
+import PublicHeader from "@/components/PublicHeader.astro";
+import { CoinIcon, Like1Icon, TickCircleIcon } from "@/lib/icons";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { backendUrl } from "@/lib/api";
 import { FOOTER_LINKS } from "@/lib/footerLinks";
+import { getDeveloperSession } from "@/lib/session";
 
 interface TierDto {
   id: string;
@@ -31,7 +33,7 @@ interface TierDto {
 const commitments = [
   {
     title: "The free tier stays free.",
-    body: "Paid tiers will add capacity — they won't take away what you have today.",
+    body: "Paid tiers will add capacity. They won't take away what you have today.",
   },
   {
     title: "Early users are grandfathered.",
@@ -47,6 +49,8 @@ const commitments = [
   },
 ];
 
+const account = await getDeveloperSession(Astro);
+
 let tiers: TierDto[] = [];
 try {
   const res = await fetch(backendUrl("/api/v1/tiers"));
@@ -55,50 +59,34 @@ try {
     tiers.sort((a, b) => a.sortOrder - b.sortOrder);
   }
 } catch {
-  // backend unreachable — show commitment-only layout
+  // The backend is unreachable. Show the commitment-only layout.
 }
 ---
 
 <BaseLayout
   title="Pricing · musiccloud for developers"
-  description="The musiccloud API is free while we build it out — and here is our written commitment for what happens when paid tiers arrive."
+  description="The musiccloud API is free while we build it out. Here is our written commitment for what happens when paid tiers arrive."
 >
-  <header class="flex items-center justify-between px-6 py-5 max-w-5xl mx-auto w-full">
-    <a href="/" class="flex items-center gap-2 text-logo font-medium">
-      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"
-        ><path
-          d="M9 21c0-3.3 2.7-6 6-6 1 0 2 .3 2.8.8A5 5 0 0 1 27 18.5 4.5 4.5 0 0 1 22.5 23H10a1 1 0 0 1-1-1z"
-          fill="var(--color-accent)"></path></svg
-      >
-      musiccloud <span class="text-fg-subtle font-normal">/ developers</span>
-    </a>
-    <nav class="flex items-center gap-5 text-nav text-fg-muted">
-      <a href="/docs" class="text-link">Docs</a>
-      <a href="/docs/api" class="text-link">API reference</a>
-      <a href="https://status.musiccloud.io" target="_blank" rel="noopener noreferrer" class="text-link">Status</a>
-      <a href="/login" class="text-link">Log in</a>
-      <a href="/signup" class="rounded-button bg-accent text-on-accent px-4 py-1.5 font-medium">Sign up</a>
-    </nav>
-  </header>
+  <PublicHeader account={account} active="pricing" />
 
-  <main class="flex-1 max-w-5xl mx-auto w-full px-6 pt-12 pb-20">
+  <main class="flex-1 max-w-6xl mx-auto w-full px-6 pt-12 pb-20">
     <div class="flex items-center gap-3 mb-5">
-      <HandshakeIcon weight="duotone" className="size-9 text-accent" aria-hidden="true" />
-      <h1 class="text-hero font-medium tracking-tight leading-none">Pricing — honest and upfront</h1>
+      <Like1Icon className="size-9 text-accent" aria-hidden="true" />
+      <h1 class="text-hero font-medium tracking-tight leading-none">Honest and upfront pricing</h1>
     </div>
     <p class="text-lead text-fg-muted mb-10">
       musiccloud's API is <span class="text-fg font-medium">free while we build it out</span>, and it won't stay
-      free forever — running it has real costs, and paid tiers for high-volume and commercial use are planned.
+      free forever. Running it has real costs, and paid tiers for high-volume and commercial use are planned.
       Here is what you can count on.
     </p>
 
-    <section class="rounded-card border border-border bg-surface px-7 py-7 mb-6">
+    <section class="mb-6">
       <h2 class="text-card-title font-medium tracking-tight mb-5">Our commitment</h2>
-      <ul class="grid grid-cols-1 gap-4">
+      <ul class="rounded-card border border-border bg-surface px-7 py-7 grid grid-cols-1 gap-4">
         {
           commitments.map((commitment) => (
             <li class="flex items-start gap-3">
-              <CheckCircleIcon weight="duotone" className="size-6 text-accent shrink-0 mt-0.5" aria-hidden="true" />
+              <TickCircleIcon className="size-6 text-accent shrink-0 mt-0.5" aria-hidden="true" />
               <span class="text-body text-fg-muted">
                 <span class="text-fg font-medium">{commitment.title}</span> {commitment.body}
               </span>
@@ -111,7 +99,7 @@ try {
     {tiers.length > 0 && (
       <section class="mb-8">
         <h2 class="text-card-title font-medium tracking-tight mb-5">Available tiers</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-flow-col lg:auto-cols-fr gap-4">
           {tiers.map((tier) => (
             <div
               class={`rounded-card border border-border bg-surface px-6 py-5 flex flex-col gap-3${tier.enabled ? "" : " opacity-60"}`}
@@ -125,14 +113,14 @@ try {
                   <span class="text-xl font-bold text-accent">{tier.price}</span>
                 ) : (
                   <span class="inline-flex items-center gap-1 text-body font-semibold text-accent">
-                    <CurrencyEurIcon weight="duotone" className="size-5" aria-hidden="true" />
+                    <CoinIcon className="size-5" aria-hidden="true" />
                     Free
                   </span>
                 )}
               </div>
               {!tier.enabled && (
                 <p class="rounded bg-gold/10 px-3 py-2 text-body font-medium text-gold">
-                  Currently unavailable{tier.disableReason ? ` — ${tier.disableReason}` : ""}
+                  Currently unavailable{tier.disableReason ? `. ${tier.disableReason}` : ""}
                 </p>
               )}
               {tier.description && (
@@ -149,6 +137,15 @@ try {
               {tier.attributionRequired && (
                 <p class="text-body text-fg-subtle">Attribution required</p>
               )}
+              {tier.enabled && (
+                <a
+                  href={`/signup?tier=${tier.id}`}
+                  class="mt-auto inline-flex justify-center rounded-button text-on-accent px-5 py-2.5 text-body font-medium"
+                  style={`background-color:${tier.color}`}
+                >
+                  Subscribe
+                </a>
+              )}
             </div>
           ))}
         </div>
@@ -161,30 +158,16 @@ try {
         <p class="text-body text-fg-muted">
           Every approved app currently gets <span class="text-fg font-medium">60 requests per minute</span> and{" "}
           <span class="text-fg font-medium">10,000 requests per day</span>. Need more while it's free?{" "}
-          <a href="/dashboard/api-access" class="text-fg text-link">Tell us about your app</a> — quotas are set per
+          <a href="/dashboard/api-access" class="text-fg text-link">Tell us about your app</a>. Quotas are set per
           app, not one-size-fits-all.
         </p>
       </section>
     )}
 
-    <div class="flex flex-wrap gap-3">
-      <a
-        href="/signup"
-        class="inline-flex items-center gap-2 rounded-button bg-accent text-on-accent px-5 py-2.5 text-body font-medium"
-      >
-        Get started for free
-      </a>
-      <a
-        href="/docs"
-        class="inline-flex items-center gap-2 rounded-button border border-border-strong px-5 py-2.5 text-body font-medium"
-      >
-        Read the docs
-      </a>
-    </div>
   </main>
 
   <footer class="border-t border-border">
-    <div class="max-w-5xl mx-auto w-full px-6 py-5 flex items-center justify-between text-body text-fg-subtle">
+    <div class="max-w-6xl mx-auto w-full px-6 py-5 flex items-center justify-between text-body text-fg-subtle">
       <span>© musiccloud</span>
       <nav class="flex items-center gap-3">
         {

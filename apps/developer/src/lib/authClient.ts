@@ -4,7 +4,7 @@
  * The auth forms are React islands that POST JSON to the same-origin BFF
  * (`/api/dev/auth/*`), which proxies to the backend and relays the session
  * cookie. This module centralises that fetch so each form only describes *what*
- * it sends and *how* it reacts — not the transport boilerplate (method,
+ * it sends and *how* it reacts, not the transport boilerplate (method,
  * headers, JSON encode/decode, `credentials`, error normalisation).
  */
 

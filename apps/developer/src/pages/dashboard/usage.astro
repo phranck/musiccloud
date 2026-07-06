@@ -1,20 +1,20 @@
 ---
 /**
- * /dashboard/usage — per-app quotas and key usage at a glance (protected).
+ * /dashboard/usage: per-app quotas and key usage at a glance (protected).
  *
  * Server-side: resolves the session, then loads the caller's clients
- * server-to-server (`getOwnApiClients`) and renders everything statically —
- * no island needed, the page is a read-only snapshot. Shows each app's
+ * server-to-server (`getOwnApiClients`) and renders everything statically;
+ * no island is needed because the page is a read-only snapshot. Shows each app's
  * enforced quota (requests/minute + requests/day) and each key's last-used
  * timestamp; detailed per-request analytics are a later, separate stage.
  */
-import { ChartLineIcon } from "@phosphor-icons/react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout.astro";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { getOwnApiClients } from "@/lib/apiAccessServer";
 import { maskToken } from "@/lib/apiAccessClient";
 import { DashboardTab } from "@/lib/dashboardTabs";
 import { formatDate } from "@/lib/formatDate";
+import { DiagramIcon } from "@/lib/icons";
 import { getDeveloperSession } from "@/lib/session";
 
 export const prerender = false;
@@ -83,7 +83,7 @@ if (!account) return Astro.redirect("/login");
   }
 
   <p class="text-body text-fg-subtle mt-6 flex items-center gap-2">
-    <ChartLineIcon weight="duotone" className="size-5" aria-hidden="true" />
-    Detailed request analytics are coming later — this page will grow with them.
+    <DiagramIcon className="size-5" aria-hidden="true" />
+    Detailed request analytics are coming later. This page will grow with them.
   </p>
 </DashboardLayout>

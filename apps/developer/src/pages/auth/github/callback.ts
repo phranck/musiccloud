@@ -26,12 +26,12 @@ const CLEAR_STATE_COOKIE = `${STATE_COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; 
 /**
  * Build a 302 redirect carrying an explicit set of `Set-Cookie` headers.
  *
- * The callback must emit several cookies at once — the backend's `mc_dev_session`
+ * The callback must emit several cookies at once: the backend's `mc_dev_session`
  * (relayed verbatim so its httpOnly/secure/SameSite flags survive) plus the
  * state-cookie clear. Astro's `context.cookies` store only applies to responses
  * Astro itself produces, so we construct the `Response` directly (the pattern
  * used by `apps/frontend/src/pages/api/redirect.ts`) and append each cookie as a
- * raw header — the one place all outgoing cookies are guaranteed to land.
+ * raw header, the one place where all outgoing cookies are guaranteed to land.
  *
  * @param location - The redirect target (`Location` header).
  * @param setCookies - Raw `Set-Cookie` header values to append verbatim.
@@ -44,7 +44,7 @@ function redirectWithCookies(location: string, setCookies: string[]): Response {
 }
 
 /**
- * `GET /auth/github/callback` — completion of the GitHub OAuth flow.
+ * `GET /auth/github/callback`: the completion of the GitHub OAuth flow.
  *
  * GitHub redirects here with `code` + `state`. CSRF defence: the `state` query
  * parameter must match the httpOnly `mc_dev_oauth_state` cookie set by

@@ -13,7 +13,7 @@
  * `devAuthRoutes` / `devGitHubRoutes` registrations are commented "no auth
  * required"). The session is the httpOnly `mc_dev_session` cookie, not the
  * internal key. The BFF still attaches `X-API-Key` because it is harmless on a
- * public route and keeps the proxy uniform with the main frontend — should the
+ * public route and keeps the proxy uniform with the main frontend, should the
  * backend ever tighten `/api/dev/*` behind `authenticateInternal`, the proxy
  * already satisfies it.
  */

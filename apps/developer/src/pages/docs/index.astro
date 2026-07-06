@@ -1,28 +1,26 @@
 ---
 /**
- * /docs — the developer-portal documentation landing page.
+ * /docs: the developer-portal documentation landing page.
  *
  * Static, English-only marketing-grade overview of what the musiccloud API
  * does and how a developer gets from zero to their first call. It mirrors the
  * landing page's token-driven night-mode styling (glassy `bg-surface` sections
- * over the night-sky gradient, brand-blue `--color-accent` accents, Phosphor
- * duotone icons) and the same header/footer shell so the portal reads as one
- * coherent site.
+ * over the night-sky gradient, brand-blue `--color-accent` accents, Iconsax
+ * TwoTone icons via `@/lib/icons`) and the same header/footer shell so the
+ * portal reads as one coherent site.
  *
- * No SSR context is needed (no session lookup, no request inspection), so the
- * page is statically generated. It carries no `useT`/`useLocale` — all copy is
- * hard-coded EN, matching the rest of the developer portal.
+ * Rendered server-side: the shared `PublicHeader` resolves the developer
+ * session so a signed-in visitor sees their avatar menu instead of
+ * Log in/Sign up. It carries no `useT`/`useLocale`; all copy is hard-coded
+ * EN, matching the rest of the developer portal.
  */
-import {
-  ArrowLeftIcon,
-  BookOpenIcon,
-  KeyIcon,
-  LinkIcon,
-  PlugsConnectedIcon,
-  UserPlusIcon,
-} from "@phosphor-icons/react";
+import PublicHeader from "@/components/PublicHeader.astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { FOOTER_LINKS } from "@/lib/footerLinks";
+import { BookIcon, FlashIcon, KeyIcon, LinkIcon, ProfileAddIcon } from "@/lib/icons";
+import { getDeveloperSession } from "@/lib/session";
+
+const account = await getDeveloperSession(Astro);
 
 /**
  * The four ordered steps that take a developer from no account to their first
@@ -30,12 +28,12 @@ import { FOOTER_LINKS } from "@/lib/footerLinks";
  */
 const steps = [
   {
-    Icon: UserPlusIcon,
+    Icon: ProfileAddIcon,
     title: "Create a developer account",
     body: "Sign up with your email or GitHub to get a developer account on the portal.",
   },
   {
-    Icon: PlugsConnectedIcon,
+    Icon: FlashIcon,
     title: "Request API access",
     body: "From your dashboard, request access to the musiccloud API for your account.",
   },
@@ -57,33 +55,17 @@ const steps = [
   title="Documentation · musiccloud for developers"
   description="How the musiccloud API works and how to get started building with it."
 >
-  <header class="flex items-center justify-between px-6 py-5 max-w-5xl mx-auto w-full">
-    <a href="/" class="flex items-center gap-2 text-logo font-medium">
-      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"
-        ><path
-          d="M9 21c0-3.3 2.7-6 6-6 1 0 2 .3 2.8.8A5 5 0 0 1 27 18.5 4.5 4.5 0 0 1 22.5 23H10a1 1 0 0 1-1-1z"
-          fill="var(--color-accent)"></path></svg
-      >
-      musiccloud <span class="text-fg-subtle font-normal">/ developers</span>
-    </a>
-    <nav class="flex items-center gap-5 text-nav text-fg-muted">
-      <a href="/docs" class="text-fg text-link">Docs</a>
-      <a href="/docs/api" class="text-link">API reference</a>
-      <a href="https://status.musiccloud.io" target="_blank" rel="noopener noreferrer" class="text-link">Status</a>
-      <a href="/login" class="text-link">Log in</a>
-      <a href="/signup" class="rounded-button bg-accent text-on-accent px-4 py-1.5 font-medium">Sign up</a>
-    </nav>
-  </header>
+  <PublicHeader account={account} active="docs" />
 
-  <main class="flex-1 max-w-3xl mx-auto w-full px-6 pt-12 pb-20">
+  <main class="flex-1 max-w-6xl mx-auto w-full px-6 pt-12 pb-20">
     <div class="flex items-center gap-3 mb-5">
-      <BookOpenIcon weight="duotone" className="size-9 text-accent" aria-hidden="true" />
+      <BookIcon className="size-9 text-accent" aria-hidden="true" />
       <h1 class="text-hero font-medium tracking-tight leading-none">Documentation</h1>
     </div>
     <p class="text-lead text-fg-muted mb-10">
       The musiccloud API turns a single music link into every platform. Resolve a track or album from one
       streaming service to its matches across the others, pull rich artist info, and explore a free-to-use
-      Creative Commons catalogue — all over one REST API.
+      Creative Commons catalogue. All of it runs over one REST API.
     </p>
 
     <section class="rounded-card border border-border bg-surface px-7 py-7 mb-6">
@@ -93,21 +75,21 @@ const steps = [
       </p>
       <ul class="grid grid-cols-1 gap-3">
         <li class="flex items-start gap-3">
-          <LinkIcon weight="duotone" className="size-6 text-accent shrink-0 mt-0.5" aria-hidden="true" />
+          <LinkIcon className="size-6 text-accent shrink-0 mt-0.5" aria-hidden="true" />
           <span class="text-body text-fg-muted">
             <span class="text-fg font-medium">Link resolve.</span> Match a track, album, or artist from one
             streaming service to the same release everywhere else.
           </span>
         </li>
         <li class="flex items-start gap-3">
-          <BookOpenIcon weight="duotone" className="size-6 text-accent shrink-0 mt-0.5" aria-hidden="true" />
+          <BookIcon className="size-6 text-accent shrink-0 mt-0.5" aria-hidden="true" />
           <span class="text-body text-fg-muted">
             <span class="text-fg font-medium">Artist info.</span> Top tracks, similar artists, and upcoming
             events for any matched artist.
           </span>
         </li>
         <li class="flex items-start gap-3">
-          <KeyIcon weight="duotone" className="size-6 text-accent shrink-0 mt-0.5" aria-hidden="true" />
+          <KeyIcon className="size-6 text-accent shrink-0 mt-0.5" aria-hidden="true" />
           <span class="text-body text-fg-muted">
             <span class="text-fg font-medium">Creative Commons.</span> Search and resolve the free-to-use
             Jamendo catalogue for tracks you can use openly.
@@ -130,7 +112,7 @@ const steps = [
                 </span>
                 <div>
                   <div class="flex items-center gap-2 mb-0.5">
-                    <Icon weight="duotone" className="size-5 text-accent" aria-hidden="true" />
+                    <Icon className="size-5 text-accent" aria-hidden="true" />
                     <h3 class="text-body font-medium text-fg">{step.title}</h3>
                   </div>
                   <p class="text-body text-fg-muted">{step.body}</p>
@@ -141,7 +123,7 @@ const steps = [
         }
       </ol>
       <p class="text-body text-fg-subtle mt-6">
-        The whole flow is self-service: request access, receive your key, and manage it — all from{" "}
+        The whole flow is self-service: request access, receive your key, and manage it, all from{" "}
         <a href="/dashboard" class="text-fg text-link">your dashboard</a>. The API is free while we build it
         out; see <a href="/pricing" class="text-fg text-link">pricing</a> for our written commitment.
       </p>
@@ -152,28 +134,21 @@ const steps = [
         href="/docs/api"
         class="inline-flex items-center gap-2 rounded-button bg-accent text-on-accent px-5 py-2.5 text-body font-medium"
       >
-        <BookOpenIcon weight="duotone" className="size-6" aria-hidden="true" />
+        <BookIcon className="size-6" aria-hidden="true" />
         API reference
       </a>
       <a
         href="/signup"
         class="inline-flex items-center gap-2 rounded-button border border-border-strong px-5 py-2.5 text-body font-medium"
       >
-        <KeyIcon weight="duotone" className="size-6" aria-hidden="true" />
+        <KeyIcon className="size-6" aria-hidden="true" />
         Create an account
-      </a>
-      <a
-        href="/"
-        class="inline-flex items-center gap-2 rounded-button border border-border-strong px-5 py-2.5 text-body font-medium"
-      >
-        <ArrowLeftIcon weight="duotone" className="size-6" aria-hidden="true" />
-        Back to home
       </a>
     </div>
   </main>
 
   <footer class="border-t border-border">
-    <div class="max-w-5xl mx-auto w-full px-6 py-5 flex items-center justify-between text-body text-fg-subtle">
+    <div class="max-w-6xl mx-auto w-full px-6 py-5 flex items-center justify-between text-body text-fg-subtle">
       <span>© musiccloud</span>
       <nav class="flex items-center gap-3">
         {

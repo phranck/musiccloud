@@ -12,11 +12,11 @@
  * discriminant literal (per the project domain-literals policy).
  */
 export const ButtonVariant = {
-  /** Brand-blue fill with a white label — the primary call to action. */
+  /** Brand-blue fill with a white label: the primary call to action. */
   Primary: "Primary",
-  /** Neutral glassy surface with a hairline border — secondary actions. */
+  /** Neutral glassy surface with a hairline border: secondary actions. */
   Secondary: "Secondary",
-  /** Red fill with a white label — irreversible, destructive actions (e.g. account deletion). */
+  /** Red fill with a white label: irreversible, destructive actions (e.g. account deletion). */
   Danger: "Danger",
 } as const;
 

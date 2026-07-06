@@ -1,27 +1,26 @@
 ---
 /**
- * /docs/api — the developer-portal API reference page.
+ * /docs/api: the developer-portal API reference page.
  *
  * Static, English-only preview of the musiccloud API's shape: base URL, API-key
  * header authentication, and JSON responses. It deliberately does NOT invent
- * endpoint signatures — the concrete endpoint list is published once public
+ * endpoint signatures; the concrete endpoint list is published once public
  * access opens. Everything stated here (base URL, auth header, JSON contract)
  * is real and stable; anything still in flight is described as a preview.
  *
  * Styling mirrors /docs and the landing page: token-driven night-mode glass
- * sections, brand-blue accents, Phosphor duotone icons, and the shared
- * header/footer shell. No SSR context is needed, so the page is statically
- * generated. No `useT`/`useLocale`; all copy is hard-coded EN.
+ * sections, brand-blue accents, Iconsax TwoTone icons (`@/lib/icons`), and
+ * the shared header/footer shell. Rendered server-side: the shared `PublicHeader`
+ * resolves the developer session for the avatar menu. No `useT`/`useLocale`;
+ * all copy is hard-coded EN.
  */
-import {
-  ArrowLeftIcon,
-  BracketsCurlyIcon,
-  GlobeIcon,
-  KeyIcon,
-  TerminalWindowIcon,
-} from "@phosphor-icons/react";
+import PublicHeader from "@/components/PublicHeader.astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { FOOTER_LINKS } from "@/lib/footerLinks";
+import { CodeIcon, CommandSquareIcon, GlobalIcon, KeyIcon } from "@/lib/icons";
+import { getDeveloperSession } from "@/lib/session";
+
+const account = await getDeveloperSession(Astro);
 
 /**
  * The three foundational concepts a caller needs before any endpoint exists:
@@ -29,7 +28,7 @@ import { FOOTER_LINKS } from "@/lib/footerLinks";
  */
 const concepts = [
   {
-    Icon: GlobeIcon,
+    Icon: GlobalIcon,
     title: "Base URL",
     body: "Every request goes to a single versioned base, so the path is stable as the API grows.",
   },
@@ -39,7 +38,7 @@ const concepts = [
     body: "Authenticate each request with your API key in a request header. No OAuth dance, no per-call tokens.",
   },
   {
-    Icon: BracketsCurlyIcon,
+    Icon: CodeIcon,
     title: "JSON responses",
     body: "Requests and responses are JSON. Errors return a JSON body with a clear status code and message.",
   },
@@ -51,32 +50,16 @@ const concepts = [
   title="API reference · musiccloud for developers"
   description="The musiccloud API at a glance: base URL, API-key authentication, and JSON responses."
 >
-  <header class="flex items-center justify-between px-6 py-5 max-w-5xl mx-auto w-full">
-    <a href="/" class="flex items-center gap-2 text-logo font-medium">
-      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"
-        ><path
-          d="M9 21c0-3.3 2.7-6 6-6 1 0 2 .3 2.8.8A5 5 0 0 1 27 18.5 4.5 4.5 0 0 1 22.5 23H10a1 1 0 0 1-1-1z"
-          fill="var(--color-accent)"></path></svg
-      >
-      musiccloud <span class="text-fg-subtle font-normal">/ developers</span>
-    </a>
-    <nav class="flex items-center gap-5 text-nav text-fg-muted">
-      <a href="/docs" class="text-link">Docs</a>
-      <a href="/docs/api" class="text-fg text-link">API reference</a>
-      <a href="https://status.musiccloud.io" target="_blank" rel="noopener noreferrer" class="text-link">Status</a>
-      <a href="/login" class="text-link">Log in</a>
-      <a href="/signup" class="rounded-button bg-accent text-on-accent px-4 py-1.5 font-medium">Sign up</a>
-    </nav>
-  </header>
+  <PublicHeader account={account} active="api" />
 
-  <main class="flex-1 max-w-3xl mx-auto w-full px-6 pt-12 pb-20">
+  <main class="flex-1 max-w-6xl mx-auto w-full px-6 pt-12 pb-20">
     <div class="flex items-center gap-3 mb-5">
-      <TerminalWindowIcon weight="duotone" className="size-9 text-accent" aria-hidden="true" />
+      <CommandSquareIcon className="size-9 text-accent" aria-hidden="true" />
       <h1 class="text-hero font-medium tracking-tight leading-none">API reference</h1>
     </div>
     <p class="text-lead text-fg-muted mb-10">
       The full endpoint reference is published the moment public API access opens. Until then, here is the
-      shape every call shares — the base URL, how you authenticate, and what you get back.
+      shape every call shares: the base URL, how you authenticate, and what you get back.
     </p>
 
     <section class="grid grid-cols-1 gap-4 mb-6">
@@ -86,7 +69,7 @@ const concepts = [
           return (
             <article class="rounded-card border border-border bg-surface px-7 py-6">
               <div class="flex items-center gap-2.5 mb-2">
-                <Icon weight="duotone" className="size-7 text-accent" aria-hidden="true" />
+                <Icon className="size-7 text-accent" aria-hidden="true" />
                 <h2 class="text-card-title font-medium tracking-tight">{concept.title}</h2>
               </div>
               <p class="text-body text-fg-muted">{concept.body}</p>
@@ -99,7 +82,7 @@ const concepts = [
     <section class="rounded-card border border-border bg-surface px-7 py-7 mb-6">
       <h2 class="text-card-title font-medium tracking-tight mb-2">A request at a glance</h2>
       <p class="text-body text-fg-muted mb-5">
-        A call carries your API key in a header and sends a JSON body. This shows the shape — the published
+        A call carries your API key in a header and sends a JSON body. This shows the shape; the published
         reference will list each endpoint and its exact parameters.
       </p>
       <pre
@@ -115,26 +98,17 @@ const concepts = [
       <p class="text-body text-fg-muted">
         Three capabilities are exposed: resolving a link across streaming services, fetching artist info
         (top tracks, similar artists, events), and searching the free-to-use Creative Commons catalogue.
-        The reference describes each in full once access is open — read the <a
+        The reference describes each in full once access is open. Read the <a
           href="/docs"
           class="text-fg text-link">documentation overview</a
         > for how to get your key.
       </p>
     </section>
 
-    <div class="flex flex-wrap gap-3">
-      <a
-        href="/docs"
-        class="inline-flex items-center gap-2 rounded-button border border-border-strong px-5 py-2.5 text-body font-medium"
-      >
-        <ArrowLeftIcon weight="duotone" className="size-6" aria-hidden="true" />
-        Back to documentation
-      </a>
-    </div>
   </main>
 
   <footer class="border-t border-border">
-    <div class="max-w-5xl mx-auto w-full px-6 py-5 flex items-center justify-between text-body text-fg-subtle">
+    <div class="max-w-6xl mx-auto w-full px-6 py-5 flex items-center justify-between text-body text-fg-subtle">
       <span>© musiccloud</span>
       <nav class="flex items-center gap-3">
         {

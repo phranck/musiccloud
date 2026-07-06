@@ -20,15 +20,15 @@
  * `error` field of a non-2xx response.
  */
 export const AuthErrorCode = {
-  /** 400 — a required field was missing or failed validation. */
+  /** 400: a required field was missing or failed validation. */
   InvalidRequest: "INVALID_REQUEST",
-  /** 409 — signup with an email that already has an account. */
+  /** 409: signup with an email that already has an account. */
   EmailTaken: "EMAIL_TAKEN",
-  /** 401 — login email/password did not match. */
+  /** 401: login email/password did not match. */
   InvalidCredentials: "INVALID_CREDENTIALS",
-  /** 403 — login attempt on an account whose email is not yet verified. */
+  /** 403: login attempt on an account whose email is not yet verified. */
   EmailNotVerified: "EMAIL_NOT_VERIFIED",
-  /** 400 — a verification or password-reset token is unknown, expired, or used. */
+  /** 400: a verification or password-reset token is unknown, expired, or used. */
   InvalidToken: "INVALID_TOKEN",
 } as const;
 

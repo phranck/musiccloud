@@ -12,14 +12,14 @@ export const prerender = false;
  */
 const STATE_COOKIE_NAME = "mc_dev_oauth_state";
 
-/** State-cookie lifetime in seconds — long enough to complete the GitHub consent screen, short enough to bound replay. */
+/** State-cookie lifetime in seconds: long enough to complete the GitHub consent screen and short enough to bound replay. */
 const STATE_COOKIE_MAX_AGE = 600;
 
 /** Where the developer lands when the OAuth start cannot be initiated. */
 const LOGIN_OAUTH_ERROR = "/login?error=oauth";
 
 /**
- * `GET /auth/github` — entry point of the GitHub OAuth flow.
+ * `GET /auth/github`: the entry point of the GitHub OAuth flow.
  *
  * Calls the backend `start` endpoint server-to-server (never exposing the
  * internal key to the browser) to mint a signed, short-lived `state` and the

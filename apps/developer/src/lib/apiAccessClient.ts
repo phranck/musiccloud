@@ -7,7 +7,7 @@
  * This module centralises the transport (JSON encode/decode, credentials,
  * error + 429 normalisation) and the response DTO shapes so the panels only
  * describe what they render. Server-side (SSR) reads live in
- * `apiAccessServer.ts` instead — different transport, same DTOs.
+ * `apiAccessServer.ts` instead: different transport, same DTOs.
  */
 import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 
@@ -15,7 +15,7 @@ import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 export const MAX_APP_NAME_LENGTH = 200;
 /** Maximum `appDescription` length accepted by the backend (mirrored for inline validation). */
 export const MAX_APP_DESCRIPTION_LENGTH = 2000;
-/** HTTP 429 — the backend's rate-limit response, carrying `retryAfterSeconds`. */
+/** HTTP 429: the backend's rate-limit response, carrying `retryAfterSeconds`. */
 export const HTTP_STATUS_TOO_MANY_REQUESTS = 429;
 
 /**
@@ -26,7 +26,7 @@ export const HTTP_STATUS_TOO_MANY_REQUESTS = 429;
 export const AccessRequestStatus = {
   /** Submitted, awaiting admin review. */
   Pending: "pending",
-  /** Approved — a client was created for it. */
+  /** Approved: a client was created for it. */
   Approved: "approved",
   /** Rejected by an admin (see `reviewNote`). */
   Rejected: "rejected",
@@ -39,7 +39,7 @@ export type AccessRequestStatusValue = (typeof AccessRequestStatus)[keyof typeof
 
 /** Lifecycle of an approved API client ("app"). */
 export const ApiClientStatus = {
-  /** Live — its tokens authenticate requests. */
+  /** Live: its tokens authenticate requests. */
   Active: "active",
   /** Temporarily blocked by an admin. */
   Suspended: "suspended",
@@ -103,7 +103,7 @@ export interface ApiTokenDto {
   lastUsedAt: string | null;
   /** Revocation timestamp, ISO-8601, or `null`. */
   revokedAt: string | null;
-  /** The full secret token — present only on the create/rotate response. */
+  /** The full secret token, present only on the create/rotate response. */
   rawToken?: string;
 }
 

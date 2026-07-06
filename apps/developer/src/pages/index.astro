@@ -1,52 +1,40 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
-import { BookIcon, KeyIcon, LinkIcon, UserCircleIcon, VinylRecordIcon } from "@phosphor-icons/react";
+import PublicHeader from "@/components/PublicHeader.astro";
 import { FOOTER_LINKS } from "@/lib/footerLinks";
+import { Book1Icon, CdIcon, KeyIcon, LinkIcon, ProfileCircleIcon } from "@/lib/icons";
+import { getDeveloperSession } from "@/lib/session";
+
+const account = await getDeveloperSession(Astro);
 
 const features = [
   { Icon: LinkIcon, title: "Link resolve", body: "One link in, every platform out." },
-  { Icon: UserCircleIcon, title: "Artist info", body: "Top tracks, similar artists, events." },
-  { Icon: VinylRecordIcon, title: "Creative Commons", body: "Free-to-use catalogue access." },
+  { Icon: ProfileCircleIcon, title: "Artist info", body: "Top tracks, similar artists, events." },
+  { Icon: CdIcon, title: "Creative Commons", body: "Free-to-use catalogue access." },
 ];
 ---
 
 <BaseLayout>
-  <header class="flex items-center justify-between px-6 py-5 max-w-5xl mx-auto w-full">
-    <div class="flex items-center gap-2 text-logo font-medium">
-      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"
-        ><path
-          d="M9 21c0-3.3 2.7-6 6-6 1 0 2 .3 2.8.8A5 5 0 0 1 27 18.5 4.5 4.5 0 0 1 22.5 23H10a1 1 0 0 1-1-1z"
-          fill="var(--color-accent)"></path></svg
-      >
-      musiccloud <span class="text-fg-subtle font-normal">/ developers</span>
-    </div>
-    <nav class="flex items-center gap-5 text-nav text-fg-muted">
-      <a href="/docs" class="text-link">Docs</a>
-      <a href="/docs/api" class="text-link">API reference</a>
-      <a href="https://status.musiccloud.io" target="_blank" rel="noopener noreferrer" class="text-link">Status</a>
-      <a href="/login" class="text-link">Log in</a>
-      <a href="/signup" class="rounded-button bg-accent text-on-accent px-4 py-1.5 font-medium">Sign up</a>
-    </nav>
-  </header>
+  <PublicHeader account={account} />
 
-  <main class="flex-1 max-w-5xl mx-auto w-full px-6 pt-14 pb-20">
+  <main class="flex-1 max-w-6xl mx-auto w-full px-6 pt-14 pb-20">
     <h1 class="text-hero font-medium tracking-tight leading-tight mb-5">Build with the musiccloud API</h1>
     <p class="text-lead text-fg-muted max-w-2xl mb-8">
-      Resolve any music link, fetch artist info, and explore Creative Commons tracks — one REST API, one key.
+      Resolve any music link, fetch artist info, and explore Creative Commons tracks. One REST API, one key.
     </p>
     <div class="flex gap-3 mb-12">
       <a
         href="/signup"
         class="inline-flex items-center gap-2 rounded-button bg-accent text-on-accent px-5 py-2.5 text-body font-medium"
       >
-        <KeyIcon weight="duotone" className="size-6" aria-hidden="true" />
+        <KeyIcon className="size-6" aria-hidden="true" />
         Get an API key
       </a>
       <a
         href="/docs"
         class="inline-flex items-center gap-2 rounded-button border border-border-strong px-5 py-2.5 text-body font-medium"
       >
-        <BookIcon weight="duotone" className="size-6" aria-hidden="true" />
+        <Book1Icon className="size-6" aria-hidden="true" />
         Read the docs
       </a>
     </div>
@@ -63,7 +51,7 @@ const features = [
           return (
             <article class="rounded-card border border-border bg-surface p-5">
               <div class="flex items-center gap-2.5 mb-2">
-                <Icon weight="duotone" className="size-7 text-accent" aria-hidden="true" />
+                <Icon className="size-7 text-accent" aria-hidden="true" />
                 <h2 class="text-card-title font-medium">{feature.title}</h2>
               </div>
               <p class="text-body text-fg-muted">{feature.body}</p>
@@ -75,7 +63,7 @@ const features = [
   </main>
 
   <footer class="border-t border-border">
-    <div class="max-w-5xl mx-auto w-full px-6 py-5 flex items-center justify-between text-body text-fg-subtle">
+    <div class="max-w-6xl mx-auto w-full px-6 py-5 flex items-center justify-between text-body text-fg-subtle">
       <span>© musiccloud</span>
       <nav class="flex items-center gap-3">
         {
