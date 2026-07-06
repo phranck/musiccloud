@@ -1792,6 +1792,8 @@ export const tiers = pgTable(
     price: text("price"),
     color: text("color").notNull().default("#64748b"),
     description: text("description").notNull().default(""),
+    enabled: boolean("enabled").notNull().default(true),
+    disableReason: text("disable_reason").notNull().default(""),
     sortOrder: integer("sort_order").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

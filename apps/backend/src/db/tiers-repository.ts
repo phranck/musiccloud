@@ -18,6 +18,10 @@ export interface Tier {
   color: string;
   /** Free-text description shown on the public pricing card (English, ≤500 chars; default `""`). */
   description: string;
+  /** Whether the tier is currently offered. Disabled tiers stay visible on the pricing page (marked) but can no longer be assigned. */
+  enabled: boolean;
+  /** Reason shown when the tier is disabled (English, ≤200 chars; default `""`). Only meaningful when `enabled` is false. */
+  disableReason: string;
   sortOrder: number;
   createdAt: number;
   updatedAt: number;
@@ -31,6 +35,8 @@ export interface TierCreateData {
   price?: string | null;
   color?: string;
   description?: string;
+  enabled?: boolean;
+  disableReason?: string;
   sortOrder?: number;
 }
 
@@ -42,6 +48,8 @@ export interface TierUpdateData {
   price?: string | null;
   color?: string;
   description?: string;
+  enabled?: boolean;
+  disableReason?: string;
   sortOrder?: number;
 }
 

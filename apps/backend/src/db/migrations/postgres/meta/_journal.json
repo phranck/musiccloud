@@ -421,6 +421,13 @@
       "when": 1783321234533,
       "tag": "0059_melodic_hercules",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1783338075916,
+      "tag": "0060_yielding_mastermind",
+      "breakpoints": true
     }
   ]
 }

@@ -18,6 +18,8 @@ interface TierRow {
   price: string | null;
   color: string;
   description: string;
+  enabled: boolean;
+  disable_reason: string;
   sort_order: number;
   created_at: Date;
   updated_at: Date;
@@ -33,6 +35,8 @@ function toTier(row: TierRow): Tier {
     price: row.price,
     color: row.color,
     description: row.description,
+    enabled: row.enabled,
+    disableReason: row.disable_reason,
     sortOrder: row.sort_order,
     createdAt: dateToMs(row.created_at),
     updatedAt: dateToMs(row.updated_at),
@@ -54,8 +58,8 @@ export class PostgresTierRepository implements TierRepository {
   async createTier(data: TierCreateData): Promise<Tier> {
     const id = nanoid();
     const { rows } = await this.#pool.query<TierRow>(
-      `INSERT INTO tiers (id, name, requests_per_minute, requests_per_day, attribution_required, price, color, description, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO tiers (id, name, requests_per_minute, requests_per_day, attribution_required, price, color, description, enabled, disable_reason, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
       [
         id,
@@ -66,6 +70,8 @@ export class PostgresTierRepository implements TierRepository {
         data.price ?? null,
         data.color ?? DEFAULT_TIER_COLOR,
         data.description ?? "",
+        data.enabled ?? true,
+        data.disableReason ?? "",
         data.sortOrder ?? 0,
       ],
     );
@@ -104,6 +110,14 @@ export class PostgresTierRepository implements TierRepository {
     if (data.description !== undefined) {
       fields.push(`description = $${idx++}`);
       values.push(data.description);
+    }
+    if (data.enabled !== undefined) {
+      fields.push(`enabled = $${idx++}`);
+      values.push(data.enabled);
+    }
+    if (data.disableReason !== undefined) {
+      fields.push(`disable_reason = $${idx++}`);
+      values.push(data.disableReason);
     }
     if (data.sortOrder !== undefined) {
       fields.push(`sort_order = $${idx++}`);

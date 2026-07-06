@@ -22,6 +22,8 @@ const freeTier: Tier = {
   price: null,
   color: "#64748b",
   description: "",
+  enabled: true,
+  disableReason: "",
   sortOrder: 0,
   createdAt: 1700000000000,
   updatedAt: 1700000000000,
@@ -169,6 +171,41 @@ describe("POST /api/admin/developer/tiers", () => {
       url: ENDPOINTS.admin.developer.tiers,
       headers: { authorization: `Bearer ${bearerToken()}` },
       payload: { name: "Pro", requestsPerMinute: 120, requestsPerDay: 50000, description: "x".repeat(501) },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("creates a disabled tier with a reason", async () => {
+    const created = {
+      ...freeTier,
+      id: "tier_legacy",
+      name: "Legacy",
+      enabled: false,
+      disableReason: "No longer offered.",
+    };
+    mockTierRepo.createTier.mockResolvedValue(created);
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.admin.developer.tiers,
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: {
+        name: "Legacy",
+        requestsPerMinute: 120,
+        requestsPerDay: 50000,
+        enabled: false,
+        disableReason: "No longer offered.",
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toEqual(created);
+  });
+
+  it("rejects a disable reason longer than 200 characters", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.admin.developer.tiers,
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: { name: "Pro", requestsPerMinute: 120, requestsPerDay: 50000, disableReason: "x".repeat(201) },
     });
     expect(res.statusCode).toBe(400);
   });
