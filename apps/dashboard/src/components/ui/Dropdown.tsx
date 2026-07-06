@@ -26,6 +26,12 @@ interface DropdownProps<T extends string = string> {
   align?: "start" | "end";
   /** Shown in the trigger when no option matches `value` (e.g. value=""). */
   placeholder?: string;
+  /**
+   * Accessible name for the trigger when no visible `label` is rendered
+   * (e.g. the surrounding form already provides its own label element).
+   * Falls back to `label`.
+   */
+  "aria-label"?: string;
 }
 
 export function Dropdown<T extends string = string>({
@@ -37,6 +43,7 @@ export function Dropdown<T extends string = string>({
   size = "md",
   align = "start",
   placeholder,
+  "aria-label": ariaLabel,
 }: DropdownProps<T>) {
   const [open, setOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
@@ -123,7 +130,7 @@ export function Dropdown<T extends string = string>({
           open={open}
           aria-haspopup="listbox"
           aria-expanded={open}
-          aria-label={label}
+          aria-label={ariaLabel ?? label}
         >
           {current?.icon && <span className="shrink-0">{current.icon}</span>}
           <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis">

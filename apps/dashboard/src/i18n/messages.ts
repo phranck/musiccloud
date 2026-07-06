@@ -168,7 +168,12 @@ export interface DashboardMessages {
     accountsTitle: string;
     colEmail: string;
     colDisplayName: string;
-    colPlan: string;
+    colTier: string;
+    tierNone: string;
+    tierInactiveBadge: string;
+    tierDropdownInactiveSuffix: string;
+    clientCustomBadge: string;
+    clientInheritsFrom: string;
     colAppName: string;
     colRegistered: string;
     overviewCardLabel: string;
@@ -886,7 +891,12 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       accountsTitle: "Developer Accounts",
       colEmail: "E-Mail",
       colDisplayName: "Name",
-      colPlan: "Plan",
+      colTier: "Tier",
+      tierNone: "Kein Tier",
+      tierInactiveBadge: "Nicht mehr aktiv",
+      tierDropdownInactiveSuffix: "(inaktiv)",
+      clientCustomBadge: "Custom",
+      clientInheritsFrom: "erbt von {tier}",
       colAppName: "App",
       colRegistered: "Registriert",
       overviewCardLabel: "Offene API-Requests",
@@ -1606,7 +1616,12 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       accountsTitle: "Developer Accounts",
       colEmail: "Email",
       colDisplayName: "Name",
-      colPlan: "Plan",
+      colTier: "Tier",
+      tierNone: "No tier",
+      tierInactiveBadge: "No longer active",
+      tierDropdownInactiveSuffix: "(inactive)",
+      clientCustomBadge: "Custom",
+      clientInheritsFrom: "inherits from {tier}",
       colAppName: "App",
       colRegistered: "Registered",
       overviewCardLabel: "Pending API Requests",

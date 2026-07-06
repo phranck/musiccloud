@@ -7,6 +7,7 @@ import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
 import { useI18n } from "@/context/I18nContext";
+import { TierDropdown } from "@/features/developer/components/TierDropdown";
 import { DeveloperAccountStatus } from "@/features/developer/domain";
 import {
   useDeleteDeveloperAccount,
@@ -25,7 +26,8 @@ const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 interface AccountDraft {
   email: string;
   displayName: string;
-  plan: string;
+  /** Assigned tier id, or `null` for "no tier". */
+  tierId: string | null;
 }
 
 /**
@@ -53,7 +55,7 @@ export function DeveloperDetailPage() {
   const form = accountDraft ?? {
     email: account?.email ?? "",
     displayName: account?.displayName ?? "",
-    plan: account?.plan ?? "",
+    tierId: account?.tierId ?? null,
   };
 
   function handleBack() {
@@ -62,7 +64,7 @@ export function DeveloperDetailPage() {
 
   function handleSave() {
     updateAccount.mutate(
-      { id: id!, email: form.email, displayName: form.displayName || null, plan: form.plan },
+      { id: id!, email: form.email, displayName: form.displayName || null, tierId: form.tierId },
       {
         onSuccess: () => {
           setSaved(true);
@@ -148,15 +150,17 @@ export function DeveloperDetailPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="dev-plan" className={labelClass}>
-                    {dm.colPlan}
-                  </label>
-                  <DashboardInput
-                    id="dev-plan"
-                    type="text"
-                    value={form.plan}
-                    onChange={(e) => setAccountDraft({ ...form, plan: e.target.value })}
+                  <span className={labelClass}>{dm.colTier}</span>
+                  <TierDropdown
+                    value={form.tierId}
+                    onChange={(tierId) => setAccountDraft({ ...form, tierId })}
+                    aria-label={dm.colTier}
                   />
+                  {account.tierEnabled === false && form.tierId === account.tierId && (
+                    <p className="mt-1.5 inline-flex rounded bg-amber-500/10 px-1.5 py-0.5 text-xs font-semibold text-amber-400">
+                      {dm.tierInactiveBadge}
+                    </p>
+                  )}
                 </div>
               </div>
             </DashboardSection.Body>

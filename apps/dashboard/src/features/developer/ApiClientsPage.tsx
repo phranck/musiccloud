@@ -76,13 +76,20 @@ function useClientColumns(
         id: "traffic",
         header: dm.clientTrafficLabel,
         headerClassName: "whitespace-nowrap",
-        className: "w-44",
-        sortKey: (c) => c.requestsPerMinute,
+        className: "w-52",
+        sortKey: (c) => c.effectiveRequestsPerMinute,
         cell: (c) => (
-          <span>
-            {c.requestsPerMinute}
-            {dm.perMinute} &middot; {c.requestsPerDay}
-            {dm.perDay}
+          <span className="inline-flex items-center gap-1.5">
+            <span>
+              {c.effectiveRequestsPerMinute}
+              {dm.perMinute} &middot; {c.effectiveRequestsPerDay}
+              {dm.perDay}
+            </span>
+            {(c.requestsPerMinute != null || c.requestsPerDay != null) && (
+              <span className="rounded bg-violet-500/10 px-1.5 py-0.5 text-xs font-semibold text-violet-400">
+                {dm.clientCustomBadge}
+              </span>
+            )}
           </span>
         ),
       },
@@ -152,7 +159,9 @@ export function ApiClientsPage() {
         prefix.toLowerCase().includes(q) ||
         c.appName.toLowerCase().includes(q) ||
         c.contactEmail.toLowerCase().includes(q) ||
-        `${c.requestsPerMinute}${dm.perMinute} ${c.requestsPerDay}${dm.perDay}`.toLowerCase().includes(q)
+        `${c.effectiveRequestsPerMinute}${dm.perMinute} ${c.effectiveRequestsPerDay}${dm.perDay}`
+          .toLowerCase()
+          .includes(q)
       );
     });
   }, [clients, search, dm]);

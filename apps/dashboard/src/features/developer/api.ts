@@ -32,8 +32,20 @@ export interface ApiClientResponse {
   contactEmail: string;
   description: string;
   status: string;
-  requestsPerMinute: number;
-  requestsPerDay: number;
+  /** Per-key override, or `null` when the client inherits the account tier's limit. */
+  requestsPerMinute: number | null;
+  /** Per-key override, or `null` when the client inherits the account tier's limit. */
+  requestsPerDay: number | null;
+  /** Display name of the owning account's tier, or `null` when unassigned. */
+  tierName: string | null;
+  /** The tier's per-minute limit (what applies when the override is cleared), or `null` when unassigned. */
+  tierRequestsPerMinute: number | null;
+  /** The tier's per-day limit, or `null` when unassigned. */
+  tierRequestsPerDay: number | null;
+  /** Resolved limit (override ?? tier ?? fallback) that is actually enforced. */
+  effectiveRequestsPerMinute: number;
+  /** Resolved daily limit (same precedence). */
+  effectiveRequestsPerDay: number;
   createdAt: string;
   updatedAt: string;
   tokens: ApiClientTokenResponse[];
@@ -50,7 +62,12 @@ export interface DeveloperAccountResponse {
   emailVerifiedAt: string | null;
   displayName: string | null;
   avatarUrl: string | null;
-  plan: string;
+  /** Assigned tier id, or `null` when no tier is assigned. */
+  tierId: string | null;
+  /** Display name of the assigned tier, or `null`. */
+  tierName: string | null;
+  /** Whether the assigned tier is still offered; `false` marks a legacy assignment, `null` when unassigned. */
+  tierEnabled: boolean | null;
   status: string;
   clientCount: number;
   appName: string | null;
@@ -64,7 +81,7 @@ export function fetchDeveloperAccount(id: string): Promise<DeveloperAccountRespo
 
 export function updateDeveloperAccount(
   id: string,
-  body: { email?: string; displayName?: string | null; plan?: string; status?: string },
+  body: { email?: string; displayName?: string | null; tierId?: string | null; status?: string },
 ): Promise<DeveloperAccountResponse> {
   return api.patch<DeveloperAccountResponse>(ENDPOINTS.admin.developer.accountDetail(id), body);
 }
@@ -103,7 +120,7 @@ export function createClientToken(id: string): Promise<{ token: ApiClientTokenRe
 
 export function updateApiClient(
   id: string,
-  body: { status?: string; requestsPerMinute?: number; requestsPerDay?: number },
+  body: { status?: string; requestsPerMinute?: number | null; requestsPerDay?: number | null },
 ): Promise<{ client: ApiClientResponse }> {
   return api.patch<{ client: ApiClientResponse }>(ENDPOINTS.admin.developer.apiAccess.clientUpdate(id), body);
 }

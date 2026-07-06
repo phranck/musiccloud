@@ -20,19 +20,32 @@ import { formatDate } from "@/features/developer/lib";
 const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 
 /**
- * Rate-limit values as edited by the admin, kept separate from the loaded
- * client so unsaved edits survive re-renders without a sync effect.
+ * Rate-limit overrides as edited by the admin, kept separate from the loaded
+ * client so unsaved edits survive re-renders without a sync effect. Values
+ * are raw input strings: an empty field means "no override — inherit the
+ * account tier's limit" and is submitted as `null` (MC-100).
  */
 interface RateLimitDraft {
-  min: number;
-  day: number;
+  min: string;
+  day: string;
+}
+
+/**
+ * Parses a rate-limit input value: an empty/blank field clears the override
+ * (`null` = inherit from the tier), anything else is submitted numerically.
+ */
+function parseLimitInput(value: string): number | null {
+  const trimmed = value.trim();
+  return trimmed === "" ? null : Number(trimmed);
 }
 
 /**
  * Admin detail page for a single API client.
  *
- * Lets the admin adjust the client's rate limits, and manage its token
- * lifecycle (create, deactivate, reactivate). A freshly created token is
+ * Lets the admin set per-key rate-limit overrides (empty fields inherit the
+ * owning account's tier limits — the placeholders show what applies), and
+ * manage its token lifecycle (create, deactivate, reactivate). A client with
+ * at least one override is marked "Custom". A freshly created token is
  * revealed exactly once in a copyable banner.
  *
  * Rate-limit inputs use a draft state that falls back to the loaded client
@@ -96,11 +109,15 @@ export function ClientDetailPage() {
   const activeToken = client.tokens.find((t) => t.status === ApiTokenStatus.Active) ?? null;
   const revokedToken = client.tokens.find((t) => t.status === ApiTokenStatus.Revoked) ?? null;
 
-  const limits = limitsDraft ?? { min: client.requestsPerMinute, day: client.requestsPerDay };
+  const limits = limitsDraft ?? {
+    min: client.requestsPerMinute?.toString() ?? "",
+    day: client.requestsPerDay?.toString() ?? "",
+  };
+  const hasOverride = client.requestsPerMinute != null || client.requestsPerDay != null;
 
   function handleSave() {
     updateClient.mutate(
-      { id: id!, requestsPerMinute: limits.min, requestsPerDay: limits.day },
+      { id: id!, requestsPerMinute: parseLimitInput(limits.min), requestsPerDay: parseLimitInput(limits.day) },
       {
         onSuccess: () => {
           setSaved(true);
@@ -134,7 +151,21 @@ export function ClientDetailPage() {
         </div>
       )}
       <DashboardSection className="overflow-hidden">
-        <DashboardSection.Header icon={<CodeIcon weight="duotone" className="size-4" />} title={client.appName} />
+        <DashboardSection.Header
+          icon={<CodeIcon weight="duotone" className="size-4" />}
+          title={
+            hasOverride ? (
+              <span className="inline-flex items-center gap-2">
+                {client.appName}
+                <span className="rounded bg-violet-500/10 px-1.5 py-0.5 text-xs font-semibold text-violet-400 normal-case tracking-normal">
+                  {dm.clientCustomBadge}
+                </span>
+              </span>
+            ) : (
+              client.appName
+            )
+          }
+        />
         <DashboardSection.Body>
           <div className="flex gap-6 items-start">
             <div className="space-y-3">
@@ -146,8 +177,10 @@ export function ClientDetailPage() {
                   <DashboardInput
                     id="edit-min"
                     type="number"
-                    value={limits.min.toString()}
-                    onChange={(e) => setLimitsDraft({ ...limits, min: Number(e.target.value) })}
+                    min={1}
+                    value={limits.min}
+                    placeholder={String(client.tierRequestsPerMinute ?? client.effectiveRequestsPerMinute)}
+                    onChange={(e) => setLimitsDraft({ ...limits, min: e.target.value })}
                   />
                 </div>
                 <div>
@@ -157,11 +190,16 @@ export function ClientDetailPage() {
                   <DashboardInput
                     id="edit-day"
                     type="number"
-                    value={limits.day.toString()}
-                    onChange={(e) => setLimitsDraft({ ...limits, day: Number(e.target.value) })}
+                    min={1}
+                    value={limits.day}
+                    placeholder={String(client.tierRequestsPerDay ?? client.effectiveRequestsPerDay)}
+                    onChange={(e) => setLimitsDraft({ ...limits, day: e.target.value })}
                   />
                 </div>
               </div>
+              <p className="text-xs text-[var(--ds-text-muted)]">
+                {dm.clientInheritsFrom.replace("{tier}", client.tierName ?? dm.tierNone)}
+              </p>
             </div>
             <div>
               <div className={labelClass}>

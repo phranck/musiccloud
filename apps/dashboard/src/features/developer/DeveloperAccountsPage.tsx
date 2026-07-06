@@ -50,12 +50,24 @@ function useAccountColumns(
         cell: (a) => <span className="text-[var(--ds-text-muted)]">{a.appName ?? "—"}</span>,
       },
       {
-        id: "plan",
-        header: dm.colPlan,
-        className: "w-20",
+        id: "tier",
+        header: dm.colTier,
+        className: "w-40",
         headerClassName: "whitespace-nowrap",
-        sortKey: (a) => a.plan,
-        cell: (a) => <span>{a.plan}</span>,
+        sortKey: (a) => a.tierName ?? "",
+        cell: (a) =>
+          a.tierName ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span>{a.tierName}</span>
+              {a.tierEnabled === false && (
+                <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-xs font-semibold text-amber-400">
+                  {dm.tierInactiveBadge}
+                </span>
+              )}
+            </span>
+          ) : (
+            <span className="text-[var(--ds-text-muted)]">—</span>
+          ),
       },
       {
         id: "status",

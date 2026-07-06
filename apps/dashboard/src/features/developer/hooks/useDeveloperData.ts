@@ -83,7 +83,7 @@ export function useUpdateDeveloperAccount() {
       id: string;
       email?: string;
       displayName?: string | null;
-      plan?: string;
+      tierId?: string | null;
       status?: string;
     }) => updateDeveloperAccount(id, body),
     onSuccess: () => {
@@ -125,7 +125,7 @@ export function useDeactivateToken() {
 export function useUpdateClient() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: string; requestsPerMinute?: number; requestsPerDay?: number }) =>
+    mutationFn: ({ id, ...body }: { id: string; requestsPerMinute?: number | null; requestsPerDay?: number | null }) =>
       updateApiClient(id, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["developer"] });
