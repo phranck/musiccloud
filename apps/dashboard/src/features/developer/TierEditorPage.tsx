@@ -31,6 +31,7 @@ interface TierFormData {
   requestsPerDay: number;
   attributionRequired: boolean;
   price: string;
+  color: string;
   sortOrder: number;
 }
 
@@ -40,6 +41,7 @@ const EMPTY_FORM: TierFormData = {
   requestsPerDay: 10000,
   attributionRequired: false,
   price: "",
+  color: "#64748b",
   sortOrder: 0,
 };
 
@@ -50,6 +52,7 @@ function toSubmitBody(data: TierFormData) {
     requestsPerDay: data.requestsPerDay,
     attributionRequired: data.attributionRequired,
     price: data.price || null,
+    color: data.color,
     sortOrder: data.sortOrder,
   };
 }
@@ -108,6 +111,7 @@ function tierEditorReducer(state: TierEditorState, action: TierEditorAction): Ti
           requestsPerDay: action.tier.requestsPerDay,
           attributionRequired: action.tier.attributionRequired,
           price: action.tier.price ?? "",
+          color: action.tier.color,
           sortOrder: action.tier.sortOrder,
         },
         errors: {},
@@ -249,6 +253,21 @@ function TierFormDialog({
         </div>
 
         <div>
+          <FormLabel htmlFor="tier-color">{dm.colColor}</FormLabel>
+          <div className="flex items-center gap-2">
+            <input
+              id="tier-color"
+              aria-label={dm.colColor}
+              type="color"
+              className="h-9 w-14 rounded-control border border-[var(--ds-border)] bg-[var(--ds-bg)] p-1"
+              value={form.color}
+              onChange={(e) => onFormChange({ color: e.target.value })}
+            />
+            <span className="font-mono text-sm text-[var(--ds-text-muted)]">{form.color}</span>
+          </div>
+        </div>
+
+        <div>
           <FormLabel htmlFor="tier-sort">{dm.colSortOrder}</FormLabel>
           <input
             id="tier-sort"
@@ -365,7 +384,16 @@ function useTierColumns(
         header: dm.colName,
         headerClassName: "whitespace-nowrap",
         sortKey: (a) => a.name.toLowerCase(),
-        cell: (a) => <span className="font-medium">{a.name}</span>,
+        cell: (a) => (
+          <span className="inline-flex items-center gap-2">
+            <span
+              className="size-3 shrink-0 rounded-full border border-[var(--ds-border)]"
+              style={{ backgroundColor: a.color }}
+              aria-hidden
+            />
+            <span className="font-medium">{a.name}</span>
+          </span>
+        ),
       },
       {
         id: "traffic",

@@ -200,6 +200,7 @@ export interface DashboardMessages {
     colName: string;
     colAttribution: string;
     colPrice: string;
+    colColor: string;
     colSortOrder: string;
     noTiers: string;
     noTiersHint: string;
@@ -915,6 +916,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       colName: "Name",
       colAttribution: "Attribution",
       colPrice: "Preis",
+      colColor: "Farbe",
       colSortOrder: "Sortierung",
       noTiers: "Keine Tiers",
       noTiersHint: "Erstelle dein erstes API-Tarifstufen-Tier über den Button oben.",
@@ -1630,6 +1632,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       colName: "Name",
       colAttribution: "Attribution",
       colPrice: "Price",
+      colColor: "Color",
       colSortOrder: "Sort Order",
       noTiers: "No tiers",
       noTiersHint: "Create your first API tier using the button above.",

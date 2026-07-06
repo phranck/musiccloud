@@ -127,6 +127,7 @@ export interface TierResponse {
   requestsPerDay: number;
   attributionRequired: boolean;
   price: string | null;
+  color: string;
   sortOrder: number;
   createdAt: number;
   updatedAt: number;
@@ -138,7 +139,7 @@ export function fetchTiers(): Promise<TierResponse[]> {
 
 export function createTier(
   body: Pick<TierResponse, "name" | "requestsPerMinute" | "requestsPerDay"> &
-    Partial<Pick<TierResponse, "attributionRequired" | "price" | "sortOrder">>,
+    Partial<Pick<TierResponse, "attributionRequired" | "price" | "color" | "sortOrder">>,
 ): Promise<TierResponse> {
   return api.post<TierResponse>(ENDPOINTS.admin.developer.tiers, body);
 }
@@ -146,7 +147,10 @@ export function createTier(
 export function updateTier(
   id: string,
   body: Partial<
-    Pick<TierResponse, "name" | "requestsPerMinute" | "requestsPerDay" | "attributionRequired" | "price" | "sortOrder">
+    Pick<
+      TierResponse,
+      "name" | "requestsPerMinute" | "requestsPerDay" | "attributionRequired" | "price" | "color" | "sortOrder"
+    >
   >,
 ): Promise<TierResponse> {
   return api.patch<TierResponse>(ENDPOINTS.admin.developer.tierDetail(id), body);

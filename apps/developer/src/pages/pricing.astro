@@ -21,6 +21,7 @@ interface TierDto {
   requestsPerDay: number;
   attributionRequired: boolean;
   price: string | null;
+  color: string;
   sortOrder: number;
 }
 
@@ -111,7 +112,10 @@ try {
           {tiers.map((tier) => (
             <div class="rounded-card border border-border bg-surface px-6 py-5 flex flex-col gap-3">
               <div class="flex items-center justify-between">
-                <h3 class="text-body font-semibold text-fg">{tier.name}</h3>
+                <div class="flex items-center gap-2">
+                  <span class="size-3 shrink-0 rounded-full" style={`background-color:${tier.color}`} aria-hidden="true"></span>
+                  <h3 class="text-body font-semibold text-fg">{tier.name}</h3>
+                </div>
                 {tier.price ? (
                   <span class="text-lg font-bold text-accent">{tier.price}</span>
                 ) : (
