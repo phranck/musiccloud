@@ -198,6 +198,7 @@ export interface DashboardMessages {
     tierDeleteTitle: string;
     tierDeleteConfirm: string;
     colName: string;
+    colDescription: string;
     colAttribution: string;
     colPrice: string;
     colColor: string;
@@ -914,6 +915,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       tierDeleteTitle: "Tier löschen",
       tierDeleteConfirm: "Möchtest du dieses Tier wirklich löschen?",
       colName: "Name",
+      colDescription: "Beschreibung",
       colAttribution: "Attribution",
       colPrice: "Preis",
       colColor: "Farbe",
@@ -1630,6 +1632,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       tierDeleteTitle: "Delete Tier",
       tierDeleteConfirm: "Are you sure you want to delete this tier?",
       colName: "Name",
+      colDescription: "Description",
       colAttribution: "Attribution",
       colPrice: "Price",
       colColor: "Color",

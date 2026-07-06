@@ -19,7 +19,7 @@ import { TableActionButton } from "@/components/ui/TableActionButton";
 import { useI18n } from "@/context/I18nContext";
 import type { TierResponse } from "@/features/developer/api";
 import { useCreateTier, useDeleteTier, useTiers, useUpdateTier } from "@/features/developer/hooks/useDeveloperData";
-import { FormLabel, FormLabelText, formInputClass } from "@/shared/ui/FormPrimitives";
+import { FormLabel, FormLabelText, formInputClass, formTextareaClass } from "@/shared/ui/FormPrimitives";
 
 // -----------------------------------------------------------------------------
 // Tier form data & validation
@@ -32,6 +32,7 @@ interface TierFormData {
   attributionRequired: boolean;
   price: string;
   color: string;
+  description: string;
   sortOrder: number;
 }
 
@@ -42,6 +43,7 @@ const EMPTY_FORM: TierFormData = {
   attributionRequired: false,
   price: "",
   color: "#64748b",
+  description: "",
   sortOrder: 0,
 };
 
@@ -53,6 +55,7 @@ function toSubmitBody(data: TierFormData) {
     attributionRequired: data.attributionRequired,
     price: data.price || null,
     color: data.color,
+    description: data.description,
     sortOrder: data.sortOrder,
   };
 }
@@ -112,6 +115,7 @@ function tierEditorReducer(state: TierEditorState, action: TierEditorAction): Ti
           attributionRequired: action.tier.attributionRequired,
           price: action.tier.price ?? "",
           color: action.tier.color,
+          description: action.tier.description,
           sortOrder: action.tier.sortOrder,
         },
         errors: {},
@@ -148,8 +152,8 @@ interface TierFormDialogProps {
 /**
  * Modal form for creating or editing a single API tier.
  *
- * Renders inputs for name, per-minute / per-day request limits, an
- * attribution-required toggle, an optional display price and a sort order.
+ * Renders inputs for name, a free-text description, per-minute / per-day request
+ * limits, an attribution-required toggle, an optional display price and a sort order.
  * The dialog is presentational: validation errors are passed in via `errors`
  * and all state changes are surfaced through the `onFormChange` / `onSave`
  * callbacks.
@@ -196,6 +200,19 @@ function TierFormDialog({
             placeholder="e.g. Pro"
           />
           {errors.name && <p className="text-xs text-red-400 mt-1">{errors.name}</p>}
+        </div>
+
+        <div>
+          <FormLabel htmlFor="tier-description">{dm.colDescription}</FormLabel>
+          <textarea
+            id="tier-description"
+            aria-label={dm.colDescription}
+            className={formTextareaClass}
+            value={form.description}
+            onChange={(e) => onFormChange({ description: e.target.value })}
+            maxLength={500}
+            placeholder="e.g. For hobby projects and evaluation."
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -259,7 +276,7 @@ function TierFormDialog({
               id="tier-color"
               aria-label={dm.colColor}
               type="color"
-              className="h-9 w-14 rounded-control border border-[var(--ds-border)] bg-[var(--ds-bg)] p-1"
+              className="size-9 shrink-0 overflow-hidden rounded-full border border-[var(--ds-border)] bg-[var(--ds-bg)] p-0 [&::-moz-color-swatch]:rounded-full [&::-moz-color-swatch]:border-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded-full [&::-webkit-color-swatch]:border-0"
               value={form.color}
               onChange={(e) => onFormChange({ color: e.target.value })}
             />
@@ -454,6 +471,7 @@ function useTierColumns(
             />
             <TableActionButton
               onClick={() => onDelete(a.id)}
+              variant={DashboardButtonVariant.Danger}
               icon={<TrashIcon weight="duotone" className="size-3" />}
               label={cm.delete}
             />
