@@ -16,7 +16,7 @@ const PASSWORD_MAX_LENGTH = 128;
 /**
  * Consolidated signup-form state. Grouped behind a single `useReducer` (rather
  * than six `useState` slots) so a submit can update the phase and clear both
- * field errors in one dispatch — one render, no intermediate states.
+ * field errors in one dispatch: one render, no intermediate states.
  */
 interface SignupState {
   /** Current display-name input (optional field). */
@@ -69,13 +69,20 @@ function reduceSignup(state: SignupState, patch: Partial<SignupState>): SignupSt
  */
 interface SignupFormProps {
   /**
-   * The alternate sign-up affordances shown above the email/password form —
-   * the "Continue with GitHub" button and the "or" divider — passed in as Astro
-   * slot children. They render while the form is active and are dropped once it
+   * The alternate sign-up affordances shown above the email/password form
+   * (the "Continue with GitHub" button and the "or" divider), passed in as
+   * Astro slot children. They render while the form is active and are dropped once it
    * succeeds, so the post-submit "check your email" panel stands on its own
    * (an "or" with no second option would otherwise linger).
    */
   children?: ReactNode;
+  /**
+   * Tier pre-selected via the pricing page's Subscribe button (MC-101),
+   * already validated server-side by `signup.astro` (existing + enabled).
+   * Shown as a hint above the fields and submitted as `tierId` so the
+   * account is created with that tier assigned. Absent for a plain signup.
+   */
+  tier?: { id: string; name: string; color: string };
 }
 
 /**
@@ -94,10 +101,10 @@ interface SignupFormProps {
  * can hide them alongside the form.
  *
  * @param props - See {@link SignupFormProps}.
- * @returns The GitHub/divider affordances plus the signup form, or — once
- *   submitted — the standalone "check your email" panel.
+ * @returns The GitHub/divider affordances plus the signup form, or, once
+ *   submitted, the standalone "check your email" panel.
  */
-export function SignupForm({ children }: SignupFormProps) {
+export function SignupForm({ children, tier }: SignupFormProps) {
   const [state, dispatch] = useReducer(reduceSignup, INITIAL_STATE);
   const { displayName, email, password, confirmPassword, phase, emailError, passwordError, confirmPasswordError } =
     state;
@@ -131,6 +138,7 @@ export function SignupForm({ children }: SignupFormProps) {
         email,
         password,
         displayName: displayName.trim() || undefined,
+        tierId: tier?.id,
       });
 
       if (result.ok) {
@@ -145,7 +153,7 @@ export function SignupForm({ children }: SignupFormProps) {
         dispatch({ phase: FormPhase.Error, passwordError: label });
       }
     },
-    [displayName, email, password, confirmPassword],
+    [displayName, email, password, confirmPassword, tier],
   );
 
   if (phase === FormPhase.Success) {
@@ -160,6 +168,12 @@ export function SignupForm({ children }: SignupFormProps) {
   return (
     <>
       {children}
+      {tier && (
+        <p className="flex items-center gap-2 rounded-button border border-border bg-surface px-3 py-2 text-body text-fg-muted">
+          <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: tier.color }} aria-hidden="true" />
+          Signing up for the <span className="text-fg font-medium">{tier.name}</span> tier.
+        </p>
+      )}
       <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
         <TextField
           name="displayName"

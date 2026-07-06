@@ -182,7 +182,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
    * until the email is verified and the developer logs in.
    */
   app.post(ENDPOINTS.dev.auth.signup, async (request, reply) => {
-    const body = request.body as { email?: string; password?: string; displayName?: string } | null;
+    const body = request.body as { email?: string; password?: string; displayName?: string; tierId?: string } | null;
 
     if (!body?.email || !body?.password) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "email and password are required." });
@@ -197,6 +197,18 @@ export async function devAuthRoutes(app: FastifyInstance) {
         error: "INVALID_REQUEST",
         message: `password must be between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters.`,
       });
+    }
+
+    // Tier pre-selection from the pricing page's Subscribe flow (MC-101):
+    // only an existing, still-enabled tier is honoured. Anything else —
+    // unknown id, meanwhile-disabled tier, stale link — is silently dropped
+    // so a signup never fails on the pre-selection; the account then simply
+    // starts unassigned.
+    let tierId: string | null = null;
+    if (body.tierId) {
+      const tiers = await (await getTierRepository()).listTiers();
+      const tier = tiers.find((t) => t.id === body.tierId);
+      if (tier?.enabled) tierId = tier.id;
     }
 
     const repo = await getDeveloperRepository();
@@ -214,7 +226,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
     // rather than a 500. Any other error is a genuine failure and rethrows.
     let account: DeveloperAccount;
     try {
-      account = await repo.createDeveloperAccount({ email, passwordHash, displayName });
+      account = await repo.createDeveloperAccount({ email, passwordHash, displayName, tierId });
       await repo.createDeveloperIdentity({ accountId: account.id, provider: AuthProvider.Email });
     } catch (error) {
       if (isDuplicateEmailError(error)) {

@@ -1104,6 +1104,7 @@ export class PostgresAdapter
     passwordHash?: string | null;
     displayName?: string | null;
     avatarUrl?: string | null;
+    tierId?: string | null;
   }): Promise<DeveloperAccount> {
     return developerCreateAccount(this.pool, data);
   }

@@ -1,6 +1,6 @@
 ---
 /**
- * /signup — developer-portal account creation page.
+ * /signup: the developer-portal account creation page.
  *
  * Server-side: an already-authenticated developer is redirected to the
  * dashboard. Layout per spec: the GitHub button first, an "or" divider, then the
@@ -8,25 +8,53 @@
  * GitHub button and divider are passed as children of the signup island so that,
  * once the form succeeds, they are hidden together with the form and only the
  * "check your email" panel remains.
- * Submitting the form does not create a session — the developer must verify by
+ * Submitting the form does not create a session; the developer must verify by
  * email and then sign in.
+ *
+ * A `?tier=<id>` query param (the pricing page's Subscribe flow, MC-101) is
+ * validated server-side against the public tier list; only an existing,
+ * enabled tier is passed to the form, which shows the pre-selection and
+ * submits it with the signup. Invalid/stale params fall back to a plain
+ * signup.
  */
 import AuthCard from "@/components/auth/AuthCard.astro";
 import GitHubButton from "@/components/auth/GitHubButton.astro";
 import OrDivider from "@/components/auth/OrDivider.astro";
 import { SignupForm } from "@/components/auth/SignupForm";
 import BaseLayout from "@/layouts/BaseLayout.astro";
+import { backendUrl } from "@/lib/api";
 import { getDeveloperSession } from "@/lib/session";
 
 export const prerender = false;
 
 const account = await getDeveloperSession(Astro);
 if (account) return Astro.redirect("/dashboard");
+
+interface SelectedTier {
+  id: string;
+  name: string;
+  color: string;
+}
+
+let selectedTier: SelectedTier | null = null;
+const tierParam = Astro.url.searchParams.get("tier");
+if (tierParam) {
+  try {
+    const res = await fetch(backendUrl("/api/v1/tiers"));
+    if (res.ok) {
+      const tiers = (await res.json()) as (SelectedTier & { enabled: boolean })[];
+      const tier = tiers.find((t) => t.id === tierParam && t.enabled);
+      if (tier) selectedTier = { id: tier.id, name: tier.name, color: tier.color };
+    }
+  } catch {
+    // The backend is unreachable. Proceed as a plain signup.
+  }
+}
 ---
 
 <BaseLayout title="Create account · musiccloud for developers">
   <AuthCard title="Create your developer account">
-    <SignupForm client:load>
+    <SignupForm client:load tier={selectedTier ?? undefined}>
       <GitHubButton />
       <OrDivider />
     </SignupForm>

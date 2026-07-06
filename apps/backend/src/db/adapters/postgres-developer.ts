@@ -216,12 +216,13 @@ export async function findDeveloperAccountByEmail(pool: Pool, email: string): Pr
 
 /**
  * Inserts a new (unverified) developer account with a nanoid id. `status`
- * falls back to the column default (`'active'`); `tier_id`,
- * `email_verified_at` and `last_login_at` start `null`.
+ * falls back to the column default (`'active'`); `email_verified_at` and
+ * `last_login_at` start `null`.
  *
  * @param pool - Postgres connection pool.
- * @param data - Account payload. `passwordHash`, `displayName` and
- *   `avatarUrl` are optional.
+ * @param data - Account payload. `passwordHash`, `displayName`, `avatarUrl`
+ *   and `tierId` (Subscribe flow, validated enabled by the route layer) are
+ *   optional.
  * @returns The freshly created account DTO.
  */
 export async function createDeveloperAccount(
@@ -231,14 +232,23 @@ export async function createDeveloperAccount(
     passwordHash?: string | null;
     displayName?: string | null;
     avatarUrl?: string | null;
+    tierId?: string | null;
   },
 ): Promise<DeveloperAccount> {
   const now = new Date();
   const result = await pool.query(
-    `INSERT INTO developer_accounts (id, email, password_hash, display_name, avatar_url, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $6)
+    `INSERT INTO developer_accounts (id, email, password_hash, display_name, avatar_url, tier_id, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
      RETURNING ${DEVELOPER_ACCOUNT_COLUMNS}`,
-    [nanoid(), data.email, data.passwordHash ?? null, data.displayName ?? null, data.avatarUrl ?? null, now],
+    [
+      nanoid(),
+      data.email,
+      data.passwordHash ?? null,
+      data.displayName ?? null,
+      data.avatarUrl ?? null,
+      data.tierId ?? null,
+      now,
+    ],
   );
   return rowToDeveloperAccount(result.rows[0] as DeveloperAccountRow);
 }

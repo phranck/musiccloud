@@ -30,7 +30,8 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DeveloperAccount, DeveloperEmailToken, DeveloperRepository } from "../db/developer-repository.js";
-import { getDeveloperRepository } from "../db/index.js";
+import { getDeveloperRepository, getTierRepository } from "../db/index.js";
+import type { Tier, TierRepository } from "../db/tiers-repository.js";
 import authPlugin from "../plugins/auth.js";
 import { hashEmailToken, hashPassword, SESSION_COOKIE_NAME } from "../services/developer-auth.js";
 import { triggerEmailAction } from "../services/email-actions.js";
@@ -40,6 +41,7 @@ import { devAuthRoutes } from "./developer-auth.js";
 
 vi.mock("../db/index.js", () => ({
   getDeveloperRepository: vi.fn(),
+  getTierRepository: vi.fn(),
 }));
 
 vi.mock("../services/email-actions.js", () => ({
@@ -204,7 +206,34 @@ beforeEach(() => {
   vi.stubEnv("DEVELOPER_URL", "https://developer.musiccloud.example");
   repo = makeRepo();
   vi.mocked(getDeveloperRepository).mockResolvedValue(repo);
+  vi.mocked(getTierRepository).mockResolvedValue({ listTiers: vi.fn(async () => []) } as unknown as TierRepository);
 });
+
+/**
+ * Builds a complete {@link Tier} DTO (enabled by default) that tests can
+ * override field-by-field — used by the signup tier-pre-selection cases.
+ *
+ * @param overrides - Partial tier fields to override the defaults.
+ * @returns A fully populated tier DTO.
+ */
+function makeTier(overrides: Partial<Tier> = {}): Tier {
+  return {
+    id: "tier-pro",
+    name: "Pro",
+    requestsPerMinute: 120,
+    requestsPerDay: 50000,
+    attributionRequired: false,
+    price: null,
+    color: "#3b82f6",
+    description: "",
+    enabled: true,
+    disableReason: "",
+    sortOrder: 1,
+    createdAt: 1_700_000_000_000,
+    updatedAt: 1_700_000_000_000,
+    ...overrides,
+  };
+}
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -294,6 +323,38 @@ describe("POST /api/dev/auth/signup", () => {
 
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toBe("INVALID_REQUEST");
+  });
+
+  it("assigns a pre-selected enabled tier at signup (Subscribe flow)", async () => {
+    vi.mocked(getTierRepository).mockResolvedValue({
+      listTiers: vi.fn(async () => [makeTier()]),
+    } as unknown as TierRepository);
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.signup,
+      payload: { email: "new@example.com", password: VALID_PASSWORD, tierId: "tier-pro" },
+    });
+
+    expect(res.statusCode).toBe(201);
+    const createArg = vi.mocked(repo.createDeveloperAccount).mock.calls[0]![0];
+    expect(createArg.tierId).toBe("tier-pro");
+  });
+
+  it("silently drops an unknown or disabled tierId (signup still succeeds unassigned)", async () => {
+    vi.mocked(getTierRepository).mockResolvedValue({
+      listTiers: vi.fn(async () => [makeTier({ id: "tier-legacy", enabled: false })]),
+    } as unknown as TierRepository);
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.signup,
+      payload: { email: "new@example.com", password: VALID_PASSWORD, tierId: "tier-legacy" },
+    });
+
+    expect(res.statusCode).toBe(201);
+    const createArg = vi.mocked(repo.createDeveloperAccount).mock.calls[0]![0];
+    expect(createArg.tierId).toBeNull();
   });
 });
 
