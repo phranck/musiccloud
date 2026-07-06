@@ -43,7 +43,7 @@ export function LoginForm() {
       }
 
       if (result.code === AuthErrorCode.EmailNotVerified) {
-        setError("Please verify your email address first — check your inbox for the verification link.");
+        setError("Please verify your email address first. Check your inbox for the verification link.");
       } else {
         setError(authErrorLabel(result.code, result.message));
       }

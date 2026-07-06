@@ -1,4 +1,3 @@
-import { ArrowsClockwiseIcon, KeyIcon, PlusIcon, ProhibitIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useReducer } from "react";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { TokenRevealBox } from "@/components/dashboard/TokenRevealBox";
@@ -21,6 +20,7 @@ import {
   mutationErrorMessage,
 } from "@/lib/apiKeysPanelState";
 import { formatDate } from "@/lib/formatDate";
+import { AddIcon, ForbiddenIcon, KeyIcon, Refresh2Icon } from "@/lib/icons";
 
 /** Shared classes for the small inline action buttons on token rows. */
 const ACTION_BUTTON_CLASS =
@@ -136,7 +136,7 @@ export function ApiKeysPanel() {
             </p>
 
             {client.tokens.length === 0 ? (
-              <p className="text-body text-fg-muted mb-4">No keys yet — create the first one below.</p>
+              <p className="text-body text-fg-muted mb-4">No keys yet. Create the first one below.</p>
             ) : (
               <ul className="flex flex-col divide-y divide-border mb-4">
                 {client.tokens.map((token) => {
@@ -183,7 +183,7 @@ export function ApiKeysPanel() {
                                 onClick={() => onRotate(client, token.id)}
                                 className={ACTION_BUTTON_CLASS}
                               >
-                                <ArrowsClockwiseIcon weight="duotone" className="size-4" aria-hidden="true" />
+                                <Refresh2Icon className="size-4" aria-hidden="true" />
                                 Rotate
                               </button>
                               <button
@@ -192,7 +192,7 @@ export function ApiKeysPanel() {
                                 onClick={() => dispatch({ type: KeysPanelActionType.RevokeArmed, tokenId: token.id })}
                                 className={`${ACTION_BUTTON_CLASS} border-red-400/60 text-red-400 hover:border-red-400`}
                               >
-                                <ProhibitIcon weight="duotone" className="size-4" aria-hidden="true" />
+                                <ForbiddenIcon className="size-4" aria-hidden="true" />
                                 Revoke
                               </button>
                             </>
@@ -207,12 +207,12 @@ export function ApiKeysPanel() {
 
             {clientActive ? (
               <button type="button" disabled={busy} onClick={() => onCreate(client)} className={ACTION_BUTTON_CLASS}>
-                <PlusIcon weight="bold" className="size-4" aria-hidden="true" />
+                <AddIcon className="size-4" aria-hidden="true" />
                 Create key
               </button>
             ) : (
               <p className="text-nav text-fg-subtle flex items-center gap-1.5">
-                <KeyIcon weight="duotone" className="size-4" aria-hidden="true" />
+                <KeyIcon className="size-4" aria-hidden="true" />
                 Key management is unavailable while this client is {client.status}.
               </p>
             )}

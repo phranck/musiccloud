@@ -1,5 +1,5 @@
-import { CheckIcon, CopyIcon, XIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CloseCircleIcon, CopyIcon, TickCircleIcon } from "@/lib/icons";
 
 /** How long the "Copied" confirmation stays visible. */
 const COPY_FEEDBACK_MS = 2000;
@@ -20,8 +20,8 @@ export interface TokenRevealBoxProps {
  * One-time token reveal: shows a freshly created/rotated raw token with a
  * copy button and an unmissable "shown only once" warning. Focuses itself on
  * mount so keyboard users land on the announcement, and clears its copy
- * feedback timer on unmount. The token lives only in this component's props —
- * dismissing the box is final, matching the backend's store-hash-only model.
+ * feedback timer on unmount. The token lives only in this component's props.
+ * Dismissing the box is final, matching the backend's store-hash-only model.
  *
  * @param props - See {@link TokenRevealBoxProps}.
  * @returns The reveal panel.
@@ -64,14 +64,14 @@ export function TokenRevealBox({ rawToken, appName, onDismiss }: TokenRevealBoxP
         <button
           type="button"
           onClick={onDismiss}
-          aria-label="Dismiss — the key will not be shown again"
+          aria-label="Dismiss. The key will not be shown again."
           className="rounded-button p-1 text-fg-muted hover:text-fg transition-colors"
         >
-          <XIcon weight="bold" className="size-4" aria-hidden="true" />
+          <CloseCircleIcon className="size-4" aria-hidden="true" />
         </button>
       </div>
       <p className="text-body text-gold mb-3">
-        Copy it now — this is the only time the full key is shown. It is stored hashed and cannot be recovered.
+        Copy it now. This is the only time the full key is shown. It is stored hashed and cannot be recovered.
       </p>
       <div className="flex items-center gap-2">
         <code className="flex-1 min-w-0 rounded-button border border-border bg-code-bg px-3 py-2 text-code font-mono text-code-fg overflow-x-auto whitespace-nowrap">
@@ -83,15 +83,15 @@ export function TokenRevealBox({ rawToken, appName, onDismiss }: TokenRevealBoxP
           className="inline-flex items-center gap-1.5 rounded-button border border-border-strong px-3 py-2 text-body font-medium text-fg hover:border-fg-subtle transition-colors shrink-0"
         >
           {copied ? (
-            <CheckIcon weight="bold" className="size-4 text-accent" aria-hidden="true" />
+            <TickCircleIcon className="size-4 text-accent" aria-hidden="true" />
           ) : (
-            <CopyIcon weight="duotone" className="size-4" aria-hidden="true" />
+            <CopyIcon className="size-4" aria-hidden="true" />
           )}
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
       {copyError ? (
-        <p className="text-body text-red-400 mt-2">Copying failed — select and copy the key manually.</p>
+        <p className="text-body text-red-400 mt-2">Copying failed. Select and copy the key manually.</p>
       ) : null}
     </output>
   );

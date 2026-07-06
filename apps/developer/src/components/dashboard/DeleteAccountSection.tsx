@@ -29,7 +29,7 @@ export interface DeleteAccountSectionProps {
  * irreversibility notice, the password field when {@link hasPassword}, and
  * the final destructive submit) rather than deleting immediately. On success
  * it hard-navigates home so the cleared session takes effect, mirroring
- * `LogoutButton`.
+ * the `AvatarMenu` logout.
  *
  * Rendered with `client:load` from `dashboard/index.astro`.
  *

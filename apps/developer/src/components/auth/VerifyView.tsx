@@ -1,10 +1,10 @@
 import { ENDPOINTS } from "@musiccloud/shared";
-import { CircleNotchIcon } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { AuthStatus } from "@/components/auth/AuthStatus";
 import { postAuth } from "@/lib/authClient";
 import { AuthStatusTone } from "@/lib/authStatusTone";
 import { FormPhase, type FormPhaseValue } from "@/lib/formPhase";
+import { RefreshIcon } from "@/lib/icons";
 
 /**
  * Props for {@link VerifyView}.
@@ -69,7 +69,7 @@ export function VerifyView({ token }: VerifyViewProps) {
 
   return (
     <div className="flex flex-col items-center text-center gap-3 py-2">
-      <CircleNotchIcon weight="bold" className="size-7 text-accent animate-spin" aria-hidden="true" />
+      <RefreshIcon className="size-7 text-accent animate-spin" aria-hidden="true" />
       <p className="text-body text-fg-muted">Verifying your email…</p>
     </div>
   );

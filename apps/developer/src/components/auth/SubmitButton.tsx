@@ -1,6 +1,6 @@
-import { CircleNotchIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 import { ButtonVariant, type ButtonVariantValue } from "@/lib/buttonVariant";
+import { RefreshIcon } from "@/lib/icons";
 
 /**
  * Per-variant Tailwind classes, keyed by the {@link ButtonVariant} members via
@@ -37,7 +37,7 @@ export interface SubmitButtonProps {
  * primary variant is brand-blue with a white label (`--color-on-accent`); the
  * secondary variant is a neutral glassy surface; the danger variant is red,
  * for irreversible destructive actions (e.g. account deletion). While
- * `loading`, it renders a Phosphor spinner and is disabled to prevent double
+ * `loading`, it renders a spinning icon and is disabled to prevent double
  * submits.
  *
  * @param props - See {@link SubmitButtonProps}.
@@ -57,7 +57,7 @@ export function SubmitButton({
       disabled={loading}
       className={`inline-flex w-full items-center justify-center gap-2 rounded-button px-4 py-2.5 text-body font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${VARIANT_CLASS[variant]}`}
     >
-      {loading ? <CircleNotchIcon weight="bold" className="size-5 animate-spin" aria-hidden="true" /> : null}
+      {loading ? <RefreshIcon className="size-5 animate-spin" aria-hidden="true" /> : null}
       {children}
     </button>
   );

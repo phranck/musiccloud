@@ -1,4 +1,3 @@
-import { PaperPlaneTiltIcon } from "@phosphor-icons/react";
 import { type ChangeEvent, type SyntheticEvent, useCallback, useEffect, useReducer } from "react";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
@@ -14,6 +13,7 @@ import {
 import { ACCESS_PANEL_INITIAL_STATE, AccessPanelActionType, accessPanelReducer } from "@/lib/apiAccessPanelState";
 import { formatDate } from "@/lib/formatDate";
 import { FormPhase } from "@/lib/formPhase";
+import { Send2Icon } from "@/lib/icons";
 
 /**
  * "API access" dashboard island: a request form (app name, description,
@@ -144,17 +144,17 @@ export function ApiAccessPanel() {
             value={fields.estimatedPerDay}
             onChange={onEstimatedPerDay}
             placeholder="500"
-            hint="A rough estimate is fine — it helps us size your quota."
+            hint="A rough estimate is fine. It helps us size your quota."
           />
           {formError ? <p className="text-body text-red-400">{formError}</p> : null}
           {phase === FormPhase.Success ? (
             <output className="text-body text-accent">
-              Request submitted — you will be notified once it has been reviewed.
+              Request submitted. You will be notified once it has been reviewed.
             </output>
           ) : null}
           <div className="sm:max-w-xs">
             <SubmitButton loading={phase === FormPhase.Submitting}>
-              <PaperPlaneTiltIcon weight="duotone" className="size-5" aria-hidden="true" />
+              <Send2Icon className="size-5" aria-hidden="true" />
               Submit request
             </SubmitButton>
           </div>
@@ -168,7 +168,7 @@ export function ApiAccessPanel() {
           <p className="text-body text-red-400">Could not load your requests. Reload the page to try again.</p>
         ) : null}
         {requests !== null && requests.length === 0 ? (
-          <p className="text-body text-fg-muted">No requests yet — submit your first one above.</p>
+          <p className="text-body text-fg-muted">No requests yet. Submit your first one above.</p>
         ) : null}
         {requests !== null && requests.length > 0 ? (
           <ul className="flex flex-col divide-y divide-border">
