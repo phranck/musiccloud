@@ -1,5 +1,26 @@
 ---
-import "../styles/fonts.css";
+/**
+ * BaseLayout is the HTML shell every developer-portal page renders into:
+ * head metadata, the self-hosted font stack, the global token stylesheet and
+ * the night-sky background layer.
+ *
+ * Fonts are declared here (not via the fontsource CSS files) so they carry
+ * `font-display: optional` instead of fontsource's hardcoded `swap`: a font
+ * is used only when it is available at first paint and the browser NEVER
+ * swaps it in afterwards, which eliminates the visible text reflow on every
+ * server navigation. Combined with the `<link rel="preload">` for each woff2
+ * (the fetch starts with the HTML, and navigations hit the cache) the real
+ * font is effectively always ready in time. Preload href and @font-face src
+ * come from the same `?url` imports, so they can never point at different
+ * URLs (a mismatch would double-fetch). Font preloads require `crossorigin`
+ * even same-origin.
+ */
+import barlowCondensed500 from "@fontsource/barlow-condensed/files/barlow-condensed-latin-500-normal.woff2?url";
+import barlowCondensed600 from "@fontsource/barlow-condensed/files/barlow-condensed-latin-600-normal.woff2?url";
+import barlow400 from "@fontsource/barlow/files/barlow-latin-400-normal.woff2?url";
+import barlow500 from "@fontsource/barlow/files/barlow-latin-500-normal.woff2?url";
+import barlow600 from "@fontsource/barlow/files/barlow-latin-600-normal.woff2?url";
+import barlow700 from "@fontsource/barlow/files/barlow-latin-700-normal.woff2?url";
 import "../styles/global.css";
 import DeveloperBackground from "@/components/DeveloperBackground.astro";
 
@@ -9,6 +30,26 @@ interface Props {
 }
 
 const { title = "musiccloud for developers", description = "Build with the musiccloud API." } = Astro.props;
+
+/**
+ * Every self-hosted font weight the portal renders (latin subset, normal
+ * style): body copy and UI run in Barlow, headlines in Barlow Condensed
+ * (the h1-h6 rule in global.css). Each entry becomes one preload link and
+ * one @font-face rule.
+ */
+const FONTS: readonly { family: string; weight: number; url: string }[] = [
+  { family: "Barlow", weight: 400, url: barlow400 },
+  { family: "Barlow", weight: 500, url: barlow500 },
+  { family: "Barlow", weight: 600, url: barlow600 },
+  { family: "Barlow", weight: 700, url: barlow700 },
+  { family: "Barlow Condensed", weight: 500, url: barlowCondensed500 },
+  { family: "Barlow Condensed", weight: 600, url: barlowCondensed600 },
+];
+
+const fontFaceCss = FONTS.map(
+  ({ family, weight, url }) =>
+    `@font-face{font-family:"${family}";font-style:normal;font-display:optional;font-weight:${weight};src:url(${url}) format("woff2")}`,
+).join("");
 ---
 
 <!doctype html>
@@ -19,6 +60,8 @@ const { title = "musiccloud for developers", description = "Build with the music
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    {FONTS.map(({ url }) => <link rel="preload" as="font" type="font/woff2" crossorigin href={url} />)}
+    <style is:inline set:html={fontFaceCss}></style>
   </head>
   <body class="min-h-screen flex flex-col text-fg font-sans antialiased">
     <DeveloperBackground />

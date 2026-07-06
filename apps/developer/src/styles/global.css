@@ -1,58 +1,83 @@
 @import "tailwindcss";
 
-/* musiccloud Developer — Night-Mode design system.
-   Single source of truth for every colour, radius and type size on the site.
-   Templates consume ONLY these tokens (generated utilities like text-fg,
-   bg-surface, rounded-card, text-hero) — no ad-hoc hex values or magic
-   numbers. The background is the main site's static night-sky gradient
+/* musiccloud Developer: the night-mode design system and single source of
+   truth for every colour, radius and type size on the site. Templates
+   consume ONLY these tokens (generated utilities like text-fg, bg-surface,
+   rounded-card, text-hero); ad-hoc hex values or magic numbers are not
+   allowed. The background is the main site's static night-sky gradient
    (apps/frontend/src/components/background/nightSky/settings.ts: skyTop/
-   skyBottom), rendered as a plain vertical gradient — no stars, no clouds. */
+   skyBottom), rendered as a plain vertical gradient without stars or
+   clouds. */
 @theme {
-  /* Colours — night-mode sky gradient (zenith -> horizon) */
+  /* Colours: night-mode sky gradient (zenith to horizon) */
   --color-sky-top: #0b1318;
   --color-sky-bottom: #10273b;
 
-  /* Colours — foreground text */
+  /* Colours: foreground text */
   --color-fg: #ececf1;
   --color-fg-muted: #9fb0bc;
   --color-fg-subtle: #67676f;
 
-  /* Colours — surfaces & borders (glassy over the gradient) */
+  /* Colours: surfaces and borders (glassy over the gradient) */
   --color-surface: rgba(255, 255, 255, 0.045);
+  /* Opaque surface for floating layers (dropdown menus, popovers) that must
+     cover the content underneath. The tone sits between sky-top and
+     sky-bottom. */
+  --color-surface-solid: #13212e;
   --color-border: rgba(255, 255, 255, 0.09);
   --color-border-strong: rgba(255, 255, 255, 0.16);
 
-  /* Colours — brand */
+  /* Colours: brand */
   --color-accent: #28a8d8;
   --color-accent-hover: #45bfe8;
   --color-on-accent: #ffffff;
   --color-gold: #d4a843;
 
-  /* Colours — code block */
+  /* Colours: code block */
   --color-code-bg: rgba(0, 0, 0, 0.38);
   --color-code-fg: #c2d2dc;
+
+  /* Brand: the musiccloud rainbow, stop-for-stop the main site's banner
+     gradient (apps/frontend/public/img/musiccloud-banner-very-small.svg). */
+  --gradient-logo-rainbow: linear-gradient(
+    90deg,
+    #ff6699 0%,
+    #9966ff 14%,
+    #4d99ff 28%,
+    #00cce6 42%,
+    #00e6b3 57%,
+    #80e64d 71%,
+    #e6e64d 85%,
+    #ffb34d 100%
+  );
 
   /* Radii */
   --radius-button: 0.5rem;
   --radius-card: 0.75rem;
 
-  /* Fonts */
+  /* Fonts: Barlow carries all body copy, Barlow Condensed every headline
+     (see the h1-h6 rule below). Both are self-hosted fontsource files,
+     declared with font-display: optional in BaseLayout.astro (preload +
+     @font-face live there together). */
   --font-sans: "Barlow", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-condensed: "Roboto Condensed", "Barlow", sans-serif;
+  --font-condensed: "Barlow Condensed", "Barlow", sans-serif;
   --font-mono: "SF Mono", "Fira Code", ui-monospace, monospace;
 
   /* Type scale (semantic) */
   --text-nav: 1rem;
   --text-logo: 1.25rem;
-  --text-body: 1rem;
+  /* The "musiccloud" brand name in the header wordmark; the "/ developers"
+     suffix stays at --text-logo. */
+  --text-wordmark: 1.5rem;
+  --text-body: 1.125rem;
   --text-code: 0.9375rem;
-  --text-card-title: 1.25rem;
+  --text-card-title: 1.75rem;
   --text-lead: 1.5rem;
   --text-hero: 3.25rem;
 }
 
 /* Base resets in @layer base so Tailwind text-colour utilities (in
-   @layer utilities) still win — an unlayered `a { color: inherit }` would
+   @layer utilities) still win. An unlayered `a { color: inherit }` would
    otherwise override every text-* class on links (e.g. accent buttons). */
 @layer base {
   a {
@@ -63,6 +88,25 @@
   button,
   [role="button"] {
     touch-action: manipulation;
+  }
+
+  /* Every headline runs in Barlow Condensed; body copy stays Barlow
+     (--font-sans on the body via BaseLayout).
+
+     text-box trims each heading's line box to cap height and baseline, so a
+     flex items-center row (icon + heading) centres the icon on the VISIBLE
+     glyphs. Barlow Condensed reserves a tall descent in its em box that the
+     glyphs barely use, which otherwise pushes the text a few pixels below
+     the geometric middle. Progressive enhancement: browsers without text-box
+     support keep the untrimmed box. */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-condensed);
+    text-box: trim-both cap alphabetic;
   }
 }
 
@@ -76,5 +120,23 @@
     color: var(--color-fg);
     text-decoration: underline;
     text-underline-offset: 3px;
+  }
+
+  /* Iconsax TwoTone icons (see lib/icons.tsx) ship their secondary layer
+     with a hardcoded opacity=".4" attribute, which is barely visible on the
+     dark gradient. This override lifts the dimmed layer to a readable level
+     while keeping the two-tone contrast. */
+  .mc-icon path[opacity] {
+    opacity: 0.65;
+  }
+
+  /* The musiccloud wordmark (see Wordmark.astro): the brand rainbow masked
+     onto the text via background-clip, one continuous gradient across the
+     word rather than per-letter colours. */
+  .text-logo-rainbow {
+    background-image: var(--gradient-logo-rainbow);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 }
