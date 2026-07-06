@@ -73,4 +73,4 @@ Eine Spalte `description text NOT NULL DEFAULT ''` auf `tiers`, überall verfüg
 - [x] i18n-Key `colDescription` (Interface + DE „Beschreibung" + EN „Description")
 - [x] Preisseite `pricing.astro`: `TierDto.description` + Absatz in der Card (conditional)
 - [x] Gates grün: Typecheck (Backend/Dashboard/developer astro 0/0/0), `pnpm lint` (976), `doctor:diff` (0 Issues), Tests Backend 1345 / Frontend 313 / Dashboard 61/61
-- [ ] Kleine logische Commits (auf User-Freigabe)
+- [x] Kleine logische Commits (01bf8cc6 Backend, e60f5603 UI — 2026-07-06)

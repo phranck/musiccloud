@@ -428,6 +428,20 @@
       "when": 1783338075916,
       "tag": "0060_yielding_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1783348634983,
+      "tag": "0061_lowly_kylun",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1783348678559,
+      "tag": "0062_first_anthem",
+      "breakpoints": true
     }
   ]
 }

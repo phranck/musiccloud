@@ -1116,7 +1116,14 @@ export class PostgresAdapter
     return developerFindAccountByEmail(this.pool, email);
   }
 
-  listDeveloperAccounts(): Promise<(DeveloperAccount & { clientCount: number; appName: string | null })[]> {
+  listDeveloperAccounts(): Promise<
+    (DeveloperAccount & {
+      clientCount: number;
+      appName: string | null;
+      tierName: string | null;
+      tierEnabled: boolean | null;
+    })[]
+  > {
     return developerListAccounts(this.pool);
   }
 
@@ -1145,7 +1152,7 @@ export class PostgresAdapter
     data: {
       email?: string;
       displayName?: string | null;
-      plan?: string;
+      tierId?: string | null;
       status?: string;
     },
   ): Promise<DeveloperAccount | null> {

@@ -80,4 +80,4 @@ NOT NULL + Default → Bestands-Tiers automatisch `enabled=true` / `disableReaso
 - [x] `pricing.astro`: `TierDto` + disabled-Card gedimmt + „Currently unavailable" + Reason in Gold (`text-gold`)
 - [x] Tests: `admin-tiers.test.ts` (freeTier enabled/disableReason, disabled-create → 201, reason >200 → 400) — Backend 1347
 - [x] Gates grün: Typecheck (0/0/0), `pnpm lint` (976), `doctor:diff` (0), Tests Backend 1347 / Frontend 313 / Dashboard 61/61
-- [ ] Kleine logische Commits (auf User-Freigabe)
+- [x] Kleine logische Commits (9c7dc6bd Backend, 31e9e1e2 rounded-Fix, 2e0ac178 UI — 2026-07-06)

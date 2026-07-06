@@ -36,7 +36,7 @@ interface DeveloperAccountRow {
   password_hash: string | null;
   display_name: string | null;
   avatar_url: string | null;
-  plan: string;
+  tier_id: string | null;
   status: string;
   created_at: Date;
   updated_at: Date;
@@ -72,7 +72,7 @@ interface DeveloperEmailTokenRow {
 }
 
 const DEVELOPER_ACCOUNT_COLUMNS = `id, email, email_verified_at, password_hash, display_name,
-            avatar_url, plan, status, created_at, updated_at, last_login_at`;
+            avatar_url, tier_id, status, created_at, updated_at, last_login_at`;
 
 // ============================================================================
 // MAPPERS
@@ -91,7 +91,7 @@ function rowToDeveloperAccount(row: DeveloperAccountRow): DeveloperAccount {
     passwordHash: row.password_hash,
     displayName: row.display_name,
     avatarUrl: row.avatar_url,
-    plan: row.plan,
+    tierId: row.tier_id,
     status: row.status,
     createdAt: dateToMs(row.created_at),
     updatedAt: dateToMs(row.updated_at),
@@ -136,31 +136,47 @@ function rowToDeveloperEmailToken(row: DeveloperEmailTokenRow): DeveloperEmailTo
 
 /**
  * Lists all developer accounts ordered by creation time (newest first), with
- * the count of active API clients each account owns for the dashboard
- * overview.
+ * the count of active API clients each account owns and the assigned tier's
+ * display fields (name + enabled) for the dashboard overview.
  *
  * @param pool - Postgres connection pool.
- * @returns Array of account DTOs, each extended with `clientCount`.
+ * @returns Array of account DTOs, each extended with `clientCount`,
+ *   `appName`, `tierName` and `tierEnabled` (the latter two `null` when no
+ *   tier is assigned).
  */
-export async function listDeveloperAccounts(
-  pool: Pool,
-): Promise<(DeveloperAccount & { clientCount: number; appName: string | null })[]> {
+export async function listDeveloperAccounts(pool: Pool): Promise<
+  (DeveloperAccount & {
+    clientCount: number;
+    appName: string | null;
+    tierName: string | null;
+    tierEnabled: boolean | null;
+  })[]
+> {
   const result = await pool.query(
     `SELECT da.*, COUNT(ac.id)::int AS client_count,
             (SELECT ac2.app_name FROM api_clients ac2
              WHERE ac2.developer_account_id = da.id
-             ORDER BY ac2.created_at DESC LIMIT 1) AS app_name
+             ORDER BY ac2.created_at DESC LIMIT 1) AS app_name,
+            t.name AS tier_name, t.enabled AS tier_enabled
      FROM developer_accounts da
      LEFT JOIN api_clients ac ON ac.developer_account_id = da.id
-     GROUP BY da.id
+     LEFT JOIN tiers t ON t.id = da.tier_id
+     GROUP BY da.id, t.name, t.enabled
      ORDER BY da.created_at DESC`,
   );
   return result.rows.map((row) => {
-    const r = row as DeveloperAccountRow & { client_count: number; app_name: string | null };
+    const r = row as DeveloperAccountRow & {
+      client_count: number;
+      app_name: string | null;
+      tier_name: string | null;
+      tier_enabled: boolean | null;
+    };
     return {
       ...rowToDeveloperAccount(r),
       clientCount: r.client_count,
       appName: r.app_name,
+      tierName: r.tier_name,
+      tierEnabled: r.tier_enabled,
     };
   });
 }
@@ -199,8 +215,8 @@ export async function findDeveloperAccountByEmail(pool: Pool, email: string): Pr
 // ============================================================================
 
 /**
- * Inserts a new (unverified) developer account with a nanoid id. `plan`
- * and `status` fall back to the column defaults (`'free'` / `'active'`);
+ * Inserts a new (unverified) developer account with a nanoid id. `status`
+ * falls back to the column default (`'active'`); `tier_id`,
  * `email_verified_at` and `last_login_at` start `null`.
  *
  * @param pool - Postgres connection pool.
@@ -303,8 +319,8 @@ export async function clearDeveloperPassword(pool: Pool, id: string): Promise<vo
  *
  * @param pool - Postgres connection pool.
  * @param id - The account id.
- * @param data - Fields to update. `email`, `displayName`, `plan` and
- *   `status` are all optional.
+ * @param data - Fields to update. `email`, `displayName`, `tierId` and
+ *   `status` are all optional; `tierId: null` removes the assignment.
  * @returns The updated account, or `null` if no row matches.
  */
 export async function updateDeveloperAccount(
@@ -313,7 +329,7 @@ export async function updateDeveloperAccount(
   data: {
     email?: string;
     displayName?: string | null;
-    plan?: string;
+    tierId?: string | null;
     status?: string;
   },
 ): Promise<DeveloperAccount | null> {
@@ -330,9 +346,9 @@ export async function updateDeveloperAccount(
     sets.push(`display_name = $${paramIdx++}`);
     values.push(data.displayName);
   }
-  if (data.plan !== undefined) {
-    sets.push(`plan = $${paramIdx++}`);
-    values.push(data.plan);
+  if (data.tierId !== undefined) {
+    sets.push(`tier_id = $${paramIdx++}`);
+    values.push(data.tierId);
   }
   if (data.status !== undefined) {
     sets.push(`status = $${paramIdx++}`);

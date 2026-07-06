@@ -1564,16 +1564,13 @@ export const developerAccounts = pgTable(
     passwordHash: text("password_hash"),
     displayName: text("display_name"),
     avatarUrl: text("avatar_url"),
-    plan: text("plan").notNull().default("free"),
+    tierId: text("tier_id").references(() => tiers.id, { onDelete: "set null" }),
     status: text("status").notNull().default("active"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
   },
-  (table) => [
-    check("chk_developer_accounts_plan", sql`${table.plan} IN ('free')`),
-    check("chk_developer_accounts_status", sql`${table.status} IN ('active', 'suspended')`),
-  ],
+  (table) => [check("chk_developer_accounts_status", sql`${table.status} IN ('active', 'suspended')`)],
 );
 
 export type DeveloperAccountRow = typeof developerAccounts.$inferSelect;
@@ -1680,8 +1677,9 @@ export type ApiAccessRequestInsert = typeof apiAccessRequests.$inferInsert;
  * An approved API consumer ("app"). Linked to the developer account that
  * owns it and, when created via the request flow, to the originating
  * {@link apiAccessRequests} row. `requestsPerMinute`/`requestsPerDay` are
- * free-tier defaults, editable by an admin — not yet enforced anywhere
- * (Public-API enforcement is MC-025 Phase 2).
+ * per-key overrides: `NULL` inherits the owning account's tier limits, a
+ * value takes precedence (a "custom tier"). The effective limits are
+ * enforced centrally in `authenticatePublic` (plugins/auth.ts).
  */
 export const apiClients = pgTable(
   "api_clients",
@@ -1695,8 +1693,8 @@ export const apiClients = pgTable(
     contactEmail: text("contact_email").notNull(),
     description: text("description").notNull(),
     status: text("status").notNull().default("active"),
-    requestsPerMinute: integer("requests_per_minute").notNull().default(60),
-    requestsPerDay: integer("requests_per_day").notNull().default(10000),
+    requestsPerMinute: integer("requests_per_minute"),
+    requestsPerDay: integer("requests_per_day"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     createdByAdminId: text("created_by_admin_id").references(() => adminUsers.id, { onDelete: "set null" }),
@@ -1705,8 +1703,11 @@ export const apiClients = pgTable(
     index("idx_api_clients_status").on(table.status),
     index("idx_api_clients_developer_account").on(table.developerAccountId),
     check("chk_api_clients_status", sql`${table.status} IN ('active', 'suspended', 'revoked')`),
-    check("chk_api_clients_requests_per_minute", sql`${table.requestsPerMinute} > 0`),
-    check("chk_api_clients_requests_per_day", sql`${table.requestsPerDay} > 0`),
+    check(
+      "chk_api_clients_requests_per_minute",
+      sql`${table.requestsPerMinute} IS NULL OR ${table.requestsPerMinute} > 0`,
+    ),
+    check("chk_api_clients_requests_per_day", sql`${table.requestsPerDay} IS NULL OR ${table.requestsPerDay} > 0`),
   ],
 );
 
@@ -1777,9 +1778,10 @@ export type ApiAccessAuditEventRow = typeof apiAccessAuditEvents.$inferSelect;
 export type ApiAccessAuditEventInsert = typeof apiAccessAuditEvents.$inferInsert;
 
 /**
- * API tariff tiers (MC-092). Pure definitions displayed on the Developer Portal
- * pricing page and managed in the admin dashboard. No FK from api_clients yet —
- * the client↔tier link comes later with billing (MC-093+).
+ * API tariff tiers (MC-092). Managed in the admin dashboard and displayed on
+ * the Developer Portal pricing page. Assigned to developer accounts via
+ * `developer_accounts.tier_id` (MC-100); a tier supplies the default rate
+ * limits, which {@link apiClients} rows can override per key.
  */
 export const tiers = pgTable(
   "tiers",
