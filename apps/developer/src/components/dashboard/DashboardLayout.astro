@@ -1,18 +1,18 @@
 ---
 /**
- * DashboardLayout — the signed-in shell for the developer portal: a top header
- * (wordmark + account block + logout) over a two-column body (sidebar nav +
- * panel slot). Wraps `BaseLayout` so a dashboard page only supplies its panel
- * content plus the active tab; the chrome lives here once (DRY across future
- * dashboard tabs).
+ * DashboardLayout is the signed-in shell for the developer portal: a top header
+ * (wordmark + the shared avatar menu, mirroring the public `PublicHeader` for
+ * consistency) over a two-column body (sidebar nav + panel slot). Wraps
+ * `BaseLayout` so a dashboard page only supplies its panel content plus the
+ * active tab; the chrome lives here once (DRY across future dashboard tabs).
  *
  * All geometry is token-driven (`--radius-card`, `--radius-button`, hairline
- * `--color-border`, glassy `--color-surface`) per the project geometry rules —
+ * `--color-border`, glassy `--color-surface`) per the project geometry rules;
  * no ad-hoc radii or colours. The sidebar entries come from `DASHBOARD_NAV`, the
  * single source of truth for labels, links and the "coming soon" placeholders.
  */
-import { UserIcon } from "@phosphor-icons/react";
-import { LogoutButton } from "@/components/dashboard/LogoutButton";
+import { AvatarMenu } from "@/components/portal/AvatarMenu";
+import Wordmark from "@/components/Wordmark.astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { DASHBOARD_NAV, type DashboardTabValue } from "@/lib/dashboardTabs";
 import type { Account } from "@/lib/session";
@@ -27,48 +27,18 @@ interface Props {
 }
 
 const { account, active, title } = Astro.props;
-
-/**
- * First character shown in the avatar fallback. Prefers the display name, then
- * the email; uppercased. Empty only in the (schema-impossible) case of a blank
- * email, in which case the Phosphor icon fallback renders instead.
- */
-const initial = (account.displayName?.trim() || account.email).charAt(0).toUpperCase();
 ---
 
 <BaseLayout title={title}>
 <header class="border-b border-border">
   <div class="max-w-6xl mx-auto w-full px-6 py-4 flex items-center justify-between gap-4">
-    <a href="/" class="flex items-center gap-2 text-logo font-medium">
-      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"
-        ><path
-          d="M9 21c0-3.3 2.7-6 6-6 1 0 2 .3 2.8.8A5 5 0 0 1 27 18.5 4.5 4.5 0 0 1 22.5 23H10a1 1 0 0 1-1-1z"
-          fill="var(--color-accent)"></path></svg
-      >
-      musiccloud <span class="text-fg-subtle font-normal">/ developers</span>
-    </a>
+    <Wordmark />
 
-    <div class="flex items-center gap-3">
-      <div class="flex items-center gap-2.5">
-        {
-          account.avatarUrl ? (
-            <img
-              src={account.avatarUrl}
-              alt=""
-              width="36"
-              height="36"
-              class="size-9 rounded-full border border-border object-cover"
-            />
-          ) : (
-            <span class="inline-flex items-center justify-center size-9 rounded-full border border-border bg-surface text-body font-medium text-fg">
-              {initial || <UserIcon weight="duotone" className="size-5 text-fg-muted" aria-hidden="true" />}
-            </span>
-          )
-        }
-        <span class="text-body text-fg-muted hidden sm:inline">{account.email}</span>
-      </div>
-      <LogoutButton client:load />
-    </div>
+    <AvatarMenu
+      client:load
+      account={{ email: account.email, displayName: account.displayName, avatarUrl: account.avatarUrl }}
+      showDashboard={false}
+    />
   </div>
 </header>
 

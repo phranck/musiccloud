@@ -1,0 +1,50 @@
+---
+/**
+ * PublicHeader is the shared top bar of every public developer-portal page
+ * (landing, docs, API reference, pricing, terms, privacy). Replaces the
+ * previously per-page duplicated header markup (MC-102).
+ *
+ * Signed out it offers "Log in" only; sign-up happens exclusively through
+ * picking a tier on /pricing (the Subscribe flow, MC-101), so the header
+ * carries no sign-up entry. Signed in, "Log in" disappears and the account's
+ * avatar (with the Dashboard/Logout menu, see `AvatarMenu`) sits at the far
+ * right, after the nav links. The nav itself is identical in both states:
+ * Docs, API reference and Pricing. Status lives in the footer only.
+ */
+import { AvatarMenu } from "@/components/portal/AvatarMenu";
+import Wordmark from "@/components/Wordmark.astro";
+import type { Account } from "@/lib/session";
+
+/** Identifies which top-nav entry the current page is, for the active highlight. */
+export type PublicNavId = "docs" | "api" | "pricing";
+
+interface Props {
+  /** The signed-in account (drives the avatar menu), or `null` when signed out. */
+  account: Account | null;
+  /** The nav entry to highlight as the current page, if any. */
+  active?: PublicNavId;
+}
+
+const { account, active } = Astro.props;
+
+/** Nav link classes: the active page gets full-strength text. */
+const navClass = (id: PublicNavId) => (active === id ? "text-fg text-link" : "text-link");
+---
+
+<header class="flex items-center justify-between px-6 py-5 max-w-6xl mx-auto w-full">
+  <Wordmark />
+  <nav class="flex items-center gap-5 text-nav text-fg-muted">
+    <a href="/docs" class={navClass("docs")}>Docs</a>
+    <a href="/docs/api" class={navClass("api")}>API reference</a>
+    <a href="/pricing" class={navClass("pricing")}>Pricing</a>
+    {!account && <a href="/login" class="text-link">Log in</a>}
+    {
+      account && (
+        <AvatarMenu
+          client:load
+          account={{ email: account.email, displayName: account.displayName, avatarUrl: account.avatarUrl }}
+        />
+      )
+    }
+  </nav>
+</header>

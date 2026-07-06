@@ -4,7 +4,7 @@
  * The landing, docs, terms, privacy and pricing pages all render the same
  * footer link row; keeping the list here makes it the single source of truth
  * (adding a page means one edit, not five). The markup stays in each page's
- * template — only the data is shared.
+ * template; only the data is shared.
  */
 
 /**
@@ -21,10 +21,12 @@ export interface FooterLink {
   external?: boolean;
 }
 
-/** Ordered footer links shared by all public portal pages. */
+/**
+ * Ordered footer links shared by all public portal pages. Docs and Pricing
+ * live in the top nav (`PublicHeader`), not here; Status lives here only
+ * (MC-102).
+ */
 export const FOOTER_LINKS: readonly FooterLink[] = [
-  { href: "/docs", label: "Docs" },
-  { href: "/pricing", label: "Pricing" },
   { href: "/terms", label: "Terms" },
   { href: "/privacy", label: "Privacy" },
   { href: "https://status.musiccloud.io", label: "Status", external: true },

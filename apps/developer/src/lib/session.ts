@@ -4,7 +4,7 @@
  * These run in `.astro` frontmatter (SSR), reading the httpOnly
  * `mc_dev_session` cookie and resolving it against the backend `/me` endpoint.
  * The portal session is a cookie (not a Bearer token), so the browser never
- * sees the account directly — the page asks the backend on every render.
+ * sees the account directly; the page asks the backend on every render.
  */
 import { ENDPOINTS } from "@musiccloud/shared";
 import type { AstroGlobal } from "astro";
@@ -32,7 +32,7 @@ export interface Account {
   emailVerified: boolean;
   /**
    * Whether the account has a password set. `false` for a GitHub-only
-   * account (no email/password identity) — the dashboard's Danger Zone
+   * account (no email/password identity); the dashboard's Danger Zone
    * skips the password-confirmation field for those accounts.
    */
   hasPassword: boolean;
@@ -43,7 +43,7 @@ export interface Account {
   /**
    * Display name of the account's assigned tier, or `null` when no tier is
    * assigned yet (assignment is an admin action in the dashboard). Only the
-   * `/me` endpoint resolves it — which is the endpoint this helper calls.
+   * `/me` endpoint resolves it, and that is the endpoint this helper calls.
    */
   tierName: string | null;
   /** Account creation timestamp as an ISO-8601 string. */
