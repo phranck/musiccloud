@@ -40,8 +40,12 @@ export interface Account {
   displayName: string | null;
   /** Optional avatar URL (e.g. GitHub or Gravatar); `null` when unset. */
   avatarUrl: string | null;
-  /** The account's plan tier identifier. */
-  plan: string;
+  /**
+   * Display name of the account's assigned tier, or `null` when no tier is
+   * assigned yet (assignment is an admin action in the dashboard). Only the
+   * `/me` endpoint resolves it — which is the endpoint this helper calls.
+   */
+  tierName: string | null;
   /** Account creation timestamp as an ISO-8601 string. */
   createdAt: string;
 }

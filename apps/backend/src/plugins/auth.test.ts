@@ -2,8 +2,9 @@
  * @file Tests for the `authenticatePublic` decorator's issued-token path
  * (MC-088): UUID v4 tokens presented as `X-API-Key` are hash-validated
  * against the API-access repository, attach `request.apiClient`, stamp
- * `lastUsedAt`, and are quota-checked per client (requestsPerMinute /
- * requestsPerDay) centrally in the auth hook. The pre-existing credentials
+ * `lastUsedAt`, and are quota-checked per client against the **effective**
+ * limits (per-key override ?? account tier ?? fallback, MC-100) centrally
+ * in the auth hook. The pre-existing credentials
  * (internal BFF key, Bearer JWT) must keep working unchanged, and
  * token-authenticated callers must skip the strict per-IP `apiRateLimiter`
  * in routes registered inside the `authenticatePublic` scope.
@@ -62,8 +63,15 @@ function makeClient(overrides: Partial<ApiClient> = {}): ApiClient {
     contactEmail: "dev@example.com",
     description: "Desc",
     status: "active",
-    requestsPerMinute: 60,
-    requestsPerDay: 10000,
+    // Defaults model a key without overrides that inherits the Free tier.
+    requestsPerMinute: null,
+    requestsPerDay: null,
+    tierId: "tier-free",
+    tierName: "Free",
+    tierRequestsPerMinute: 60,
+    tierRequestsPerDay: 10000,
+    effectiveRequestsPerMinute: 60,
+    effectiveRequestsPerDay: 10000,
     createdAt: 1_700_000_000_000,
     updatedAt: 1_700_000_000_000,
     createdByAdminId: null,
@@ -211,9 +219,17 @@ describe("authenticatePublic", () => {
     expect(mockApiAccessRepo.touchApiClientTokenLastUsed).not.toHaveBeenCalled();
   });
 
-  it("enforces the client's requestsPerMinute with 429 + Retry-After", async () => {
+  it("enforces the client's effective requestsPerMinute with 429 + Retry-After", async () => {
     const app = await buildApp();
-    const { raw } = issueToken(makeClient({ id: "client-rpm", requestsPerMinute: 2, requestsPerDay: 100 }));
+    const { raw } = issueToken(
+      makeClient({
+        id: "client-rpm",
+        requestsPerMinute: 2,
+        requestsPerDay: 100,
+        effectiveRequestsPerMinute: 2,
+        effectiveRequestsPerDay: 100,
+      }),
+    );
 
     const first = await app.inject({ method: "GET", url: "/protected", headers: { "x-api-key": raw } });
     const second = await app.inject({ method: "GET", url: "/protected", headers: { "x-api-key": raw } });
@@ -226,9 +242,17 @@ describe("authenticatePublic", () => {
     expect(third.json().error).toBe("MC-API-0003");
   });
 
-  it("enforces the client's requestsPerDay with 429", async () => {
+  it("enforces the client's effective requestsPerDay with 429", async () => {
     const app = await buildApp();
-    const { raw } = issueToken(makeClient({ id: "client-rpd", requestsPerMinute: 100, requestsPerDay: 1 }));
+    const { raw } = issueToken(
+      makeClient({
+        id: "client-rpd",
+        requestsPerMinute: 100,
+        requestsPerDay: 1,
+        effectiveRequestsPerMinute: 100,
+        effectiveRequestsPerDay: 1,
+      }),
+    );
 
     const first = await app.inject({ method: "GET", url: "/protected", headers: { "x-api-key": raw } });
     const second = await app.inject({ method: "GET", url: "/protected", headers: { "x-api-key": raw } });
@@ -239,7 +263,7 @@ describe("authenticatePublic", () => {
 
   it("skips the per-IP apiRateLimiter for token-authenticated callers", async () => {
     const app = await buildApp();
-    const { raw } = issueToken(makeClient({ id: "client-bypass", requestsPerMinute: 60 }));
+    const { raw } = issueToken(makeClient({ id: "client-bypass" }));
     const url = ROUTE_TEMPLATES.v1.link.replace(":id", "tr_missing");
 
     // 12 requests from one IP: the per-IP limiter (10/60s) would trip at

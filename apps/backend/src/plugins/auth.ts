@@ -125,10 +125,11 @@ async function authPlugin(app: FastifyInstance) {
    *    (MC-088). Validated by SHA-256 hash against `api_client_tokens`; the
    *    token and its owning client must both be `"active"`. On success the
    *    client is attached as `request.apiClient`, the token's `lastUsedAt`
-   *    is stamped fire-and-forget, and the client's own per-minute/per-day
-   *    quotas (`requestsPerMinute` / `requestsPerDay`) are enforced here —
-   *    centrally, so every route in the `authenticatePublic` scope is
-   *    covered without per-route wiring.
+   *    is stamped fire-and-forget, and the client's **effective**
+   *    per-minute/per-day quotas are enforced here — centrally, so every
+   *    route in the `authenticatePublic` scope is covered without per-route
+   *    wiring. Effective means per-key override ?? account tier limit ??
+   *    conservative fallback (MC-100), resolved by the repository.
    * 3. **`Authorization: Bearer <JWT>`** — for OAuth client-credentials
    *    consumers. Verified via `request.jwtVerify()` (provided by
    *    `@fastify/jwt`).
@@ -171,11 +172,11 @@ async function authPlugin(app: FastifyInstance) {
         request.log.warn({ err }, "Failed to stamp api_client_tokens.last_used_at");
       });
 
-      const minuteCheck = clientMinuteRateLimiter.check(resolved.client.id, resolved.client.requestsPerMinute);
+      const minuteCheck = clientMinuteRateLimiter.check(resolved.client.id, resolved.client.effectiveRequestsPerMinute);
       if (minuteCheck.limited) {
         return sendRateLimitError(reply, minuteCheck);
       }
-      const dayCheck = clientDayRateLimiter.check(resolved.client.id, resolved.client.requestsPerDay);
+      const dayCheck = clientDayRateLimiter.check(resolved.client.id, resolved.client.effectiveRequestsPerDay);
       if (dayCheck.limited) {
         return sendRateLimitError(reply, dayCheck);
       }

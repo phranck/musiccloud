@@ -22,7 +22,7 @@ const account = await getDeveloperSession(Astro);
 if (!account) return Astro.redirect("/login");
 
 const greetingName = account.displayName?.trim() || account.email;
-const planLabel = account.plan.charAt(0).toUpperCase() + account.plan.slice(1);
+const planLabel = account.tierName ?? "—";
 const memberSince = new Date(account.createdAt).toLocaleDateString("en-US", {
   year: "numeric",
   month: "long",

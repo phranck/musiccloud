@@ -82,7 +82,7 @@ function makeAccount(overrides: Partial<DeveloperAccount> = {}): DeveloperAccoun
     passwordHash: null,
     displayName: null,
     avatarUrl: null,
-    plan: "free",
+    tierId: null,
     status: "active",
     createdAt: 1_699_000_000_000,
     updatedAt: 1_699_000_000_000,

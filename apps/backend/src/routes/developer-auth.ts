@@ -48,7 +48,7 @@
 import { EmailAction, EmailRecipientKind, ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { DeveloperAccount } from "../db/developer-repository.js";
-import { getDeveloperRepository } from "../db/index.js";
+import { getDeveloperRepository, getTierRepository } from "../db/index.js";
 import { requireEnv } from "../lib/env.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { RateLimiter } from "../lib/infra/rate-limiter.js";
@@ -137,6 +137,9 @@ async function throttleCredentials(request: FastifyRequest, reply: FastifyReply)
  * `passwordHash` field is *never* serialized to the client.
  *
  * @param account - row as returned by the developer repository.
+ * @param tierName - Display name of the account's assigned tier, or `null`.
+ *   Only `/me` resolves it (the portal renders every protected page from a
+ *   fresh `/me`); the signup/login/OAuth responses pass the default `null`.
  * @returns The wire-level account object: `emailVerifiedAt` is collapsed to the
  *   boolean `emailVerified`, `passwordHash` is collapsed to the boolean
  *   `hasPassword` (lets the portal decide whether `/delete-account` needs a
@@ -145,7 +148,7 @@ async function throttleCredentials(request: FastifyRequest, reply: FastifyReply)
  *   `passwordHash`, `status` and `updatedAt`/`lastLoginAt` are intentionally
  *   omitted.
  */
-export function buildAccountResponse(account: DeveloperAccount) {
+export function buildAccountResponse(account: DeveloperAccount, tierName: string | null = null) {
   return {
     id: account.id,
     email: account.email,
@@ -153,7 +156,7 @@ export function buildAccountResponse(account: DeveloperAccount) {
     hasPassword: account.passwordHash !== null,
     displayName: account.displayName,
     avatarUrl: account.avatarUrl,
-    plan: account.plan,
+    tierName,
     createdAt: new Date(account.createdAt).toISOString(),
   };
 }
@@ -434,7 +437,15 @@ export async function devAuthRoutes(app: FastifyInstance) {
       return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
     }
 
-    return reply.send({ account: buildAccountResponse(account) });
+    // Resolve the assigned tier's display name for the portal dashboard;
+    // the tiers table is tiny, so list + find beats a dedicated query.
+    let tierName: string | null = null;
+    if (account.tierId) {
+      const tiers = await (await getTierRepository()).listTiers();
+      tierName = tiers.find((t) => t.id === account.tierId)?.name ?? null;
+    }
+
+    return reply.send({ account: buildAccountResponse(account, tierName) });
   });
 
   /**

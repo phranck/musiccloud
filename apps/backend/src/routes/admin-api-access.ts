@@ -10,7 +10,8 @@
 import { EmailAction, ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import type { ApiAccessRequest, ApiClient, ApiClientToken } from "../db/api-access-repository.js";
-import { getApiAccessRepository, getDeveloperRepository } from "../db/index.js";
+import type { DeveloperAccount } from "../db/developer-repository.js";
+import { getApiAccessRepository, getDeveloperRepository, getTierRepository } from "../db/index.js";
 import { requireOwnerOrAdmin } from "../lib/admin-caller.js";
 import { generateApiToken } from "../services/api-access-token.js";
 import { notifyDeveloper } from "../services/developer-notifications.js";
@@ -49,9 +50,49 @@ function toClientResponse(client: ApiClient, tokens: ApiClientToken[]) {
     status: client.status,
     requestsPerMinute: client.requestsPerMinute,
     requestsPerDay: client.requestsPerDay,
+    tierName: client.tierName,
+    tierRequestsPerMinute: client.tierRequestsPerMinute,
+    tierRequestsPerDay: client.tierRequestsPerDay,
+    effectiveRequestsPerMinute: client.effectiveRequestsPerMinute,
+    effectiveRequestsPerDay: client.effectiveRequestsPerDay,
     createdAt: new Date(client.createdAt).toISOString(),
     updatedAt: new Date(client.updatedAt).toISOString(),
     tokens: tokens.map(toTokenResponse),
+  };
+}
+
+/**
+ * Resolves a tier id to its dashboard display fields (name + enabled flag),
+ * both `null` when no tier is assigned or the id no longer resolves. The
+ * tiers table is tiny, so a list + find is cheaper than a dedicated query.
+ */
+async function resolveTierDisplay(tierId: string | null): Promise<{
+  tierName: string | null;
+  tierEnabled: boolean | null;
+}> {
+  if (!tierId) return { tierName: null, tierEnabled: null };
+  const tiers = await (await getTierRepository()).listTiers();
+  const tier = tiers.find((t) => t.id === tierId);
+  return { tierName: tier?.name ?? null, tierEnabled: tier?.enabled ?? null };
+}
+
+/** Serialises a developer account (plus resolved tier display fields) for the admin dashboard. */
+function toAccountResponse(
+  account: DeveloperAccount,
+  tierDisplay: { tierName: string | null; tierEnabled: boolean | null },
+) {
+  return {
+    id: account.id,
+    email: account.email,
+    emailVerifiedAt: account.emailVerifiedAt ? new Date(account.emailVerifiedAt).toISOString() : null,
+    displayName: account.displayName,
+    avatarUrl: account.avatarUrl,
+    tierId: account.tierId,
+    tierName: tierDisplay.tierName,
+    tierEnabled: tierDisplay.tierEnabled,
+    status: account.status,
+    createdAt: new Date(account.createdAt).toISOString(),
+    lastLoginAt: account.lastLoginAt ? new Date(account.lastLoginAt).toISOString() : null,
   };
 }
 
@@ -92,17 +133,9 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
     const accounts = await devRepo.listDeveloperAccounts();
     return reply.send({
       accounts: accounts.map((a: (typeof accounts)[number]) => ({
-        id: a.id,
-        email: a.email,
-        emailVerifiedAt: a.emailVerifiedAt ? new Date(a.emailVerifiedAt).toISOString() : null,
-        displayName: a.displayName,
-        avatarUrl: a.avatarUrl,
-        plan: a.plan,
-        status: a.status,
+        ...toAccountResponse(a, { tierName: a.tierName, tierEnabled: a.tierEnabled }),
         clientCount: a.clientCount,
         appName: a.appName,
-        createdAt: new Date(a.createdAt).toISOString(),
-        lastLoginAt: a.lastLoginAt ? new Date(a.lastLoginAt).toISOString() : null,
       })),
     });
   });
@@ -113,17 +146,7 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
     const devRepo = await getDeveloperRepository();
     const account = await devRepo.findDeveloperAccountById(id);
     if (!account) return reply.status(404).send({ error: "NOT_FOUND", message: "Developer account not found." });
-    return reply.send({
-      id: account.id,
-      email: account.email,
-      emailVerifiedAt: account.emailVerifiedAt ? new Date(account.emailVerifiedAt).toISOString() : null,
-      displayName: account.displayName,
-      avatarUrl: account.avatarUrl,
-      plan: account.plan,
-      status: account.status,
-      createdAt: new Date(account.createdAt).toISOString(),
-      lastLoginAt: account.lastLoginAt ? new Date(account.lastLoginAt).toISOString() : null,
-    });
+    return reply.send(toAccountResponse(account, await resolveTierDisplay(account.tierId)));
   });
 
   app.patch("/api/admin/developer/accounts/:id", async (request, reply) => {
@@ -133,17 +156,35 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
     const body = request.body as {
       email?: string;
       displayName?: string | null;
-      plan?: string;
+      tierId?: string | null;
       status?: string;
     } | null;
     if (body?.status && !["active", "suspended"].includes(body.status)) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid status." });
     }
     const devRepo = await getDeveloperRepository();
+    const existing = await devRepo.findDeveloperAccountById(id);
+    if (!existing) return reply.status(404).send({ error: "NOT_FOUND", message: "Developer account not found." });
+    // A tier can only be (re)assigned while it is enabled; disabled tiers
+    // stay assigned where they already are (MC-100), but are no longer a
+    // valid target. Re-submitting the unchanged assignment is fine (the
+    // dashboard PATCHes the full form), and `null` explicitly removes it.
+    if (body?.tierId != null && body.tierId !== existing.tierId) {
+      const tiers = await (await getTierRepository()).listTiers();
+      const tier = tiers.find((t) => t.id === body.tierId);
+      if (!tier) {
+        return reply.status(400).send({ error: "INVALID_REQUEST", message: "Unknown tier." });
+      }
+      if (!tier.enabled) {
+        return reply
+          .status(400)
+          .send({ error: "INVALID_REQUEST", message: "Tier is disabled and can no longer be assigned." });
+      }
+    }
     const updated = await devRepo.updateDeveloperAccount(id, {
       email: body?.email,
       displayName: body?.displayName,
-      plan: body?.plan,
+      tierId: body?.tierId,
       status: body?.status,
     });
     if (!updated) return reply.status(404).send({ error: "NOT_FOUND", message: "Developer account not found." });
@@ -157,17 +198,7 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
       }
     }
 
-    return reply.send({
-      id: updated.id,
-      email: updated.email,
-      emailVerifiedAt: updated.emailVerifiedAt ? new Date(updated.emailVerifiedAt).toISOString() : null,
-      displayName: updated.displayName,
-      avatarUrl: updated.avatarUrl,
-      plan: updated.plan,
-      status: updated.status,
-      createdAt: new Date(updated.createdAt).toISOString(),
-      lastLoginAt: updated.lastLoginAt ? new Date(updated.lastLoginAt).toISOString() : null,
-    });
+    return reply.send(toAccountResponse(updated, await resolveTierDisplay(updated.tierId)));
   });
 
   app.delete("/api/admin/developer/accounts/:id", async (request, reply) => {
@@ -270,11 +301,19 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
     const { id } = request.params as { id: string };
     const body = request.body as {
       status?: string;
-      requestsPerMinute?: number;
-      requestsPerDay?: number;
+      requestsPerMinute?: number | null;
+      requestsPerDay?: number | null;
     } | null;
     if (body?.status && !["active", "suspended", "revoked"].includes(body.status)) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid status." });
+    }
+    // `null` clears a per-key override (the client inherits the tier limit
+    // again); numeric overrides must stay positive.
+    if (typeof body?.requestsPerMinute === "number" && body.requestsPerMinute < 1) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "requestsPerMinute must be > 0." });
+    }
+    if (typeof body?.requestsPerDay === "number" && body.requestsPerDay < 1) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "requestsPerDay must be > 0." });
     }
     const repo = await getApiAccessRepository();
     const updated = await repo.updateApiClient(id, {

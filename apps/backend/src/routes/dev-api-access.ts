@@ -48,8 +48,11 @@ function toClientResponse(client: ApiClient, tokens: ApiClientToken[]) {
     appName: client.appName,
     description: client.description,
     status: client.status,
-    requestsPerMinute: client.requestsPerMinute,
-    requestsPerDay: client.requestsPerDay,
+    // The portal always shows what actually applies: the effective limits
+    // (per-key override ?? account tier ?? fallback, MC-100). The raw
+    // override values are an admin-dashboard concern.
+    requestsPerMinute: client.effectiveRequestsPerMinute,
+    requestsPerDay: client.effectiveRequestsPerDay,
     createdAt: new Date(client.createdAt).toISOString(),
     tokens: tokens.map(toTokenResponse),
   };
