@@ -55,4 +55,4 @@ Der GitHub-OAuth-Signup nimmt das Tier **nicht** mit (der `tier`-Param müsste d
 - [x] Repository/Adapter/Wiring: createDeveloperAccount mit tierId (INSERT tier_id)
 - [x] Tests: signup mit valid tierId → zugewiesen; unknown/disabled → null (Backend 1353)
 - [x] Gates grün: Typecheck 0, lint 978, doctor 0, Tests Backend 1353 / Frontend 313 / Dashboard 61; DevTools-Verify Pricing-Button + „Signing up for the Free tier."-Hinweis (stale .vite-Cache der developer-App zwischendurch per bekanntem Fix geräumt)
-- [ ] Kleine logische Commits (auf User-Freigabe)
+- [x] Kleine logische Commits (auf User-Freigabe)

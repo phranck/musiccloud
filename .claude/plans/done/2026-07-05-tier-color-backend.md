@@ -77,4 +77,4 @@ Fix (nach User-Freigabe, sicher da keine Umgebung die Tabelle hat): `0058_tiers.
 - [x] Admin-Route validiert `color` (`^#[0-9a-fA-F]{6}$` → 400)
 - [x] Tests: `admin-tiers.test.ts` (freeTier.color, valid-color → 201, invalid-color → 400) — 8/8
 - [x] Gates grün: Backend `typecheck`, `pnpm lint` (976 Files), `test:run` (1343 passed / 50 skipped)
-- [ ] Kleine logische Commits (auf User-Freigabe)
+- [x] Kleine logische Commits (auf User-Freigabe)

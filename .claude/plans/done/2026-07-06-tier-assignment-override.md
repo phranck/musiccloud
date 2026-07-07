@@ -109,7 +109,7 @@ Nach `pnpm db:generate` die generierte `0061_*.sql` editieren (Muster 0058-Seed,
 - [x] i18n (DE/EN): colTier, tierNone, tierInactiveBadge, tierDropdownInactiveSuffix, clientCustomBadge, clientInheritsFrom (colPlan ersetzt)
 - [x] Tests: 4 neue effective-limit-Unit-Tests (override/erbt/gemischt/fallback), Fixtures aller 5 Route-/Auth-Suiten migriert, auth.test enforced effective
 - [x] Gates grün: Typecheck 0, `pnpm lint` (978), `doctor:diff` 0, Tests Backend 1351 / Frontend 313 / Dashboard 61
-- [ ] Kleine logische Commits (auf User-Freigabe)
+- [x] Kleine logische Commits (auf User-Freigabe)
 
 ## Offener Produkt-Punkt (bewusst nicht umgesetzt)
 

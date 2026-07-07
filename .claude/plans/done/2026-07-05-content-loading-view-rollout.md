@@ -51,4 +51,4 @@ Pro Seite: den `{isLoading && (<DashboardSection>…animate-pulse-Zeilen…</Das
 - [x] UsersPage: Card-Skeleton → ContentLoadingView
 - [x] Ungenutzte Skeleton-Imports/Konstanten entfernt (Typecheck bestätigt keine verwaisten Imports)
 - [x] Gates grün: `typecheck`, `pnpm lint` (976 Files), `pnpm run doctor:diff` (8 Files, 0 Issues), `test:run` (61/61)
-- [ ] Kleine logische Commits (auf User-Freigabe)
+- [x] Kleine logische Commits (auf User-Freigabe)

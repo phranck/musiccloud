@@ -66,4 +66,4 @@ Damit ist der Skeleton→Empty-Flicker strukturell weg (kein Skeleton mehr); der
 - [x] `TierEditorPage.tsx` neu gebaut (ContentLoadingView statt Skeleton, `useTierColumns`, Dialoge + Reducer)
 - [x] Datenschicht/Route/Nav/i18n unverändert und vom Neuaufbau korrekt konsumiert (Typecheck grün)
 - [x] Gates grün: `typecheck` (Dashboard + Backend), `pnpm lint` (976 Files clean), `pnpm run doctor:diff` (0 Issues), `test:run` (Dashboard 61/61, Tier-Route 6/6). Nebenbefund: 3 pre-existing Lint-Fehler in `admin-tiers.test.ts` (unused Import + 2× `any`) mitgefixt.
-- [ ] Kleine logische Commits (auf User-Freigabe)
+- [x] Kleine logische Commits (auf User-Freigabe)

@@ -55,4 +55,4 @@ Keine zusätzliche Client-Validierung nötig: `color` ist am Backend-Write-Bound
 - [x] Dashboard `useTierColumns`: Swatch vor dem Namen in der name-Cell
 - [x] Preisseite `pricing.astro`: `TierDto.color` + Swatch im Card-Heading
 - [x] Gates grün: Dashboard `typecheck`, developer astro check (0 Fehler), `pnpm lint` (976), `pnpm run doctor:diff`/full (0 Issues), Dashboard `test:run` (61/61)
-- [ ] Kleine logische Commits (auf User-Freigabe)
+- [x] Kleine logische Commits (auf User-Freigabe)
