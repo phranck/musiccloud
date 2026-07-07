@@ -1,14 +1,105 @@
 ---
 /**
- * Static night-mode background for the developer site: a single fixed layer
- * with the main site's night sky gradient (zenith #0b1318 -> horizon #10273b),
- * rendered as a plain vertical CSS gradient. No stars, no clouds, no WebGL.
+ * Background for the developer site: a fixed near-black vertical gradient
+ * (sky-top to sky-bottom) overlaid with a STATIC aurora — soft, blurry colour
+ * clouds in aurora green (dominant) with cyan, violet, magenta and blue
+ * accents, scattered across the whole area and glowing additively
+ * (`mix-blend-mode: screen`) on the dark backdrop. No animation, no WebGL:
+ * just blurred SVG blobs.
+ *
+ * Each blob is an ellipse filled with a radial colour gradient (bright core
+ * fading to transparent); a heavy blur melts them into diffuse clouds. Sizes,
+ * positions, colours and opacities are irregular so the field reads as a
+ * natural, scattered aurora rather than a repeating pattern.
  */
+
+/** Aurora blob colours (radial-gradient ids), green-weighted. */
+const blobColors = ["green", "cyan", "violet", "magenta", "blue"] as const;
+
+/**
+ * Scattered aurora clouds. `cx`/`cy` place each blob across the 1440x900
+ * viewBox, `rx`/`ry` size it, `grad` picks a colour, `op` its opacity.
+ * Deliberately spread over the whole plane with varied sizes and opacities.
+ */
+const blobs = [
+  { cx: 160, cy: 130, rx: 260, ry: 200, grad: "green", op: 0.48 },
+  { cx: 560, cy: 60, rx: 300, ry: 210, grad: "cyan", op: 0.36 },
+  { cx: 1020, cy: 150, rx: 280, ry: 210, grad: "violet", op: 0.4 },
+  { cx: 1360, cy: 310, rx: 260, ry: 220, grad: "green", op: 0.34 },
+  { cx: 300, cy: 430, rx: 330, ry: 250, grad: "green", op: 0.44 },
+  { cx: 790, cy: 360, rx: 350, ry: 260, grad: "blue", op: 0.28 },
+  { cx: 1190, cy: 540, rx: 300, ry: 230, grad: "green", op: 0.4 },
+  { cx: 80, cy: 700, rx: 280, ry: 210, grad: "magenta", op: 0.3 },
+  { cx: 520, cy: 800, rx: 330, ry: 240, grad: "cyan", op: 0.34 },
+  { cx: 950, cy: 730, rx: 300, ry: 240, grad: "green", op: 0.42 },
+  { cx: 1330, cy: 660, rx: 260, ry: 220, grad: "violet", op: 0.3 },
+];
+
+/** Core colour per blob gradient id. */
+const blobHex: Record<(typeof blobColors)[number], string> = {
+  green: "#33ff99",
+  cyan: "#2fffd6",
+  violet: "#b060ff",
+  magenta: "#ff5fc0",
+  blue: "#4d9bff",
+};
 ---
 
-<div
-  class="fixed inset-0 -z-10"
-  style="background: linear-gradient(180deg, var(--color-sky-top) 0%, var(--color-sky-bottom) 100%);"
-  aria-hidden="true"
->
+<div class="dev-bg fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
+  <div
+    class="dev-bg-gradient absolute inset-0"
+    style="background: linear-gradient(180deg, var(--color-sky-top) 0%, var(--color-sky-bottom) 100%);"
+  >
+  </div>
+  <svg
+    class="dev-aurora"
+    viewBox="0 0 1440 900"
+    preserveAspectRatio="xMidYMid slice"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <defs>
+      {
+        blobColors.map((name) => (
+          <radialGradient id={`mc-aurora-${name}`}>
+            <stop offset="0%" stop-color={blobHex[name]} stop-opacity="0.85" />
+            <stop offset="55%" stop-color={blobHex[name]} stop-opacity="0.18" />
+            <stop offset="100%" stop-color={blobHex[name]} stop-opacity="0" />
+          </radialGradient>
+        ))
+      }
+    </defs>
+    {
+      blobs.map((blob) => (
+        <ellipse
+          cx={blob.cx}
+          cy={blob.cy}
+          rx={blob.rx}
+          ry={blob.ry}
+          fill={`url(#mc-aurora-${blob.grad})`}
+          opacity={blob.op}
+        />
+      ))
+    }
+  </svg>
 </div>
+
+<style>
+  /* Isolate so the aurora's screen blend mixes only with the gradient behind
+     it, not with whatever sits below the fixed background layer. */
+  .dev-bg {
+    isolation: isolate;
+  }
+
+  /* The whole cloud field: overscanned so blurred edges fall off-screen,
+     softly blurred into diffuse clouds, blended additively so it glows on the
+     dark sky. Static — no animation. */
+  .dev-aurora {
+    position: absolute;
+    inset: -12%;
+    width: 124%;
+    height: 124%;
+    filter: blur(52px) saturate(1.15);
+    mix-blend-mode: screen;
+    opacity: 0.4;
+  }
+</style>

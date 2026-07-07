@@ -1,0 +1,24 @@
+---
+/**
+ * RollingText: two values stacked in a clipped box. When an ancestor's
+ * `data-billing` flips between "monthly" and "yearly", the current value rolls
+ * up and out of view while the next rolls in from below, and the reverse when
+ * flipping back, like a split-flap board or an odometer reel. Pure CSS
+ * (transform only, no fade) so both values are briefly visible mid-roll, which
+ * sells the mechanical "printed on a reel" feel.
+ *
+ * Both slots must render the same single-line height for the roll distance to
+ * line up. Used on the pricing cards for the monthly/yearly price.
+ */
+interface Props {
+  /** Extra classes merged onto the clipping container. */
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+---
+
+<span class:list={["rolling-text", className]}>
+  <span class="rolling-text-item rolling-text-monthly"><slot name="monthly" /></span>
+  <span class="rolling-text-item rolling-text-yearly"><slot name="yearly" /></span>
+</span>

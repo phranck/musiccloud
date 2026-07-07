@@ -10,6 +10,7 @@
  * header/footer shell with /docs and /terms.
  */
 import PublicHeader from "@/components/PublicHeader.astro";
+import RollingText from "@/components/RollingText.astro";
 import { TierIcon } from "@/components/TierIcon";
 import { CoinIcon, Like1Icon, TickCircleIcon } from "@/lib/icons";
 import BaseLayout from "@/layouts/BaseLayout.astro";
@@ -30,6 +31,8 @@ interface TierDto {
   color: string;
   /** Iconsax icon name (one of the shared `TIER_ICONS`), or `null` for none. */
   icon: string | null;
+  /** Custom label for the CTA button, or `null` to use the portal default. */
+  buttonLabel: string | null;
   description: string;
   enabled: boolean;
   disableReason: string;
@@ -126,7 +129,7 @@ try {
         <div class="mb-5 flex items-center justify-between gap-4">
           <h2 class="text-card-title font-medium tracking-tight">Available tiers</h2>
           <div
-            class="relative grid grid-cols-2 rounded-button border border-border-strong p-0.5 text-nav"
+            class="billing-track relative grid grid-cols-2 border border-border-strong p-0.5 text-nav"
             role="group"
             aria-label="Billing period"
           >
@@ -142,7 +145,7 @@ try {
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-flow-col lg:auto-cols-fr gap-x-4 gap-y-16 pt-12">
           {tiers.map((tier) => (
             <div
-              class={`tier-card relative flex flex-col items-center gap-3 rounded-card border border-border bg-surface px-6 pb-5 pt-16 text-center${tier.enabled ? "" : " opacity-60"}`}
+              class={`tier-card relative flex flex-col items-center gap-3 border border-border bg-surface pt-16 text-center${tier.enabled ? "" : " opacity-60"}`}
               style={`--tier:${tier.color}`}
             >
               <span class="tier-medal absolute -top-10 left-1/2 flex size-20 -translate-x-1/2 rounded-full">
@@ -160,7 +163,7 @@ try {
               <h3 class="text-card-title font-normal text-fg">{tier.name}</h3>
 
               {!tier.enabled && (
-                <p class="rounded bg-gold/10 px-3 py-2 text-body font-medium text-gold">
+                <p class="tier-notice bg-gold/10 px-2.5 py-1.5 text-body font-medium text-gold">
                   Currently unavailable{tier.disableReason ? `. ${tier.disableReason}` : ""}
                 </p>
               )}
@@ -177,16 +180,17 @@ try {
 
               <div class="mt-auto flex w-full flex-col items-center gap-3 pt-3">
                 {tier.price ? (
-                  <span class="grid text-center">
-                    <span class="billing-price billing-price-monthly col-start-1 row-start-1">
-                      <span class="text-xl font-bold text-accent">{formatEuro(tier.price)}</span>
+                  <RollingText>
+                    <Fragment slot="monthly">
+                      <span class="text-3xl font-bold" style={`color:${tier.color}`}>{formatEuro(tier.price)}</span>
                       <span class="text-body text-fg-subtle"> / month</span>
-                    </span>
-                    <span class="billing-price billing-price-yearly col-start-1 row-start-1">
-                      <span class="text-xl font-bold text-accent">{formatEuro(tier.priceYearly ?? tier.price)}</span>
+                    </Fragment>
+                    <Fragment slot="yearly">
+                      {tier.priceYearly && <span class="text-body text-fg-subtle">only </span>}
+                      <span class="text-3xl font-bold" style={`color:${tier.color}`}>{formatEuro(tier.priceYearly ?? tier.price)}</span>
                       <span class="text-body text-fg-subtle"> / {tier.priceYearly ? "year" : "month"}</span>
-                    </span>
-                  </span>
+                    </Fragment>
+                  </RollingText>
                 ) : (
                   <span class="inline-flex items-center gap-1 text-body font-semibold text-accent">
                     <CoinIcon className="size-5" aria-hidden="true" />
@@ -196,10 +200,9 @@ try {
                 {tier.enabled && (
                   <a
                     href={`/signup?tier=${tier.id}`}
-                    class="inline-flex w-full justify-center rounded-button px-5 py-2.5 text-body font-medium text-on-accent"
-                    style={`background-color:${tier.color}`}
+                    class="tier-cta inline-flex w-full justify-center px-5 py-2.5 text-body font-bold"
                   >
-                    I want this
+                    <span class="tier-cta-label">{tier.buttonLabel || "I want this"}</span>
                   </a>
                 )}
               </div>
@@ -230,14 +233,37 @@ try {
   /* Billing switch: an accent thumb slides between the two equal-width
      options (GPU transform only); the buttons themselves just swap their
      text colour. Geometry derives from the container's 2px inner padding. */
+  /* Recessed track: an inset shadow sinks the pill into the surface, echoing
+     the medal's dished face — dark rim at the top, faint light at the foot. */
+  .billing-track {
+    --billing-radius: 0.75rem;
+    border-radius: var(--billing-radius);
+    background: rgba(0, 0, 0, 0.22);
+    box-shadow:
+      inset 0 1.5px 3px rgba(0, 0, 0, 0.55),
+      inset 0 -1px 1px rgba(255, 255, 255, 0.05);
+  }
+
+  /* Embossed thumb: a raised accent key with a top-lit bevel and drop shadow,
+     mirroring the medal's metallic material (gradient + inset bevel + lift). */
   .billing-thumb {
     position: absolute;
     top: 2px;
     left: 2px;
     width: calc(50% - 2px);
     height: calc(100% - 4px);
-    border-radius: calc(var(--radius-button) - 2px);
-    background-color: var(--color-accent);
+    border-radius: calc(var(--billing-radius) - 2px);
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--color-accent), white 20%),
+      var(--color-accent) 55%,
+      color-mix(in srgb, var(--color-accent), black 22%)
+    );
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--color-accent), white 45%),
+      inset 0 -1px 1px color-mix(in srgb, var(--color-accent), black 30%),
+      0 1px 2px rgba(0, 0, 0, 0.45),
+      0 2px 4px rgba(0, 0, 0, 0.3);
     transition: transform 0.25s ease;
   }
 
@@ -246,25 +272,25 @@ try {
   }
 
   .billing-option {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     position: relative;
+    /* Barlow seats its glyphs low in the line box, so plain centering looks too
+       low; nudge the label up so it reads as optically centered — visual only,
+       the control's height is unchanged. */
+    transform: translateY(-2px);
     color: var(--color-fg-muted);
     transition: color 0.2s ease;
+    /* Recessed engraving: dark rim on the lit (top) edge, faint light on the
+       lower edge — no blur, so the label reads as stamped into the segment. */
+    text-shadow:
+      0 -1px 0 rgba(0, 0, 0, 0.4),
+      0 1px 0 rgba(255, 255, 255, 0.12);
   }
 
   .billing-option[aria-pressed="true"] {
     color: var(--color-on-accent);
-  }
-
-  /* The two price variants sit stacked in the same grid cell; the section's
-     data-billing attribute cross-fades them (UI reveals are always animated). */
-  .billing-price {
-    transition: opacity 0.25s ease;
-  }
-
-  [data-billing="monthly"] .billing-price-yearly,
-  [data-billing="yearly"] .billing-price-monthly {
-    opacity: 0;
-    pointer-events: none;
   }
 </style>
 

@@ -4,14 +4,13 @@
    truth for every colour, radius and type size on the site. Templates
    consume ONLY these tokens (generated utilities like text-fg, bg-surface,
    rounded-card, text-hero); ad-hoc hex values or magic numbers are not
-   allowed. The background is the main site's static night-sky gradient
-   (apps/frontend/src/components/background/nightSky/settings.ts: skyTop/
-   skyBottom), rendered as a plain vertical gradient without stars or
-   clouds. */
+   allowed. The background is a plain vertical near-black gradient
+   (sky-top to sky-bottom), rendered without stars or clouds. */
 @theme {
-  /* Colours: night-mode sky gradient (zenith to horizon) */
-  --color-sky-top: #0b1318;
-  --color-sky-bottom: #10273b;
+  /* Colours: near-black backdrop gradient. Almost black at the top, a neutral
+     dark grey at the bottom (a faint cool cast, no blue tint). */
+  --color-sky-top: #08090b;
+  --color-sky-bottom: #1a1c22;
 
   /* Colours: foreground text */
   --color-fg: #ececf1;
@@ -23,7 +22,7 @@
   /* Opaque surface for floating layers (dropdown menus, popovers) that must
      cover the content underneath. The tone sits between sky-top and
      sky-bottom. */
-  --color-surface-solid: #13212e;
+  --color-surface-solid: #14161c;
   --color-border: rgba(255, 255, 255, 0.09);
   --color-border-strong: rgba(255, 255, 255, 0.16);
 
@@ -146,11 +145,65 @@
      the medal can still overhang the top edge). `--tier` is set inline per
      card and inherited by the medal. */
   .tier-card {
+    /* Single source of truth for the card's rounded geometry: only
+       --tier-card-radius is authored. Everything else derives from it, so
+       changing this one value re-proportions the whole card:
+         - horizontal + bottom padding = radius * 2/3
+         - CTA radius (concentric) = radius - padding = radius / 3
+       The top padding (pt-16) is separate: it clears the medal overhang, which
+       scales with the medal, not the card radius. */
+    --tier-card-radius: 1.5rem;
+    --tier-card-pad: calc(var(--tier-card-radius) * 2 / 3);
+    position: relative;
+    isolation: isolate;
+    border-radius: var(--tier-card-radius);
+    padding-inline: var(--tier-card-pad);
+    padding-bottom: var(--tier-card-pad);
     background-image: radial-gradient(
       110% 46% at 50% 0%,
       color-mix(in srgb, var(--tier), transparent 80%) 0%,
       transparent 62%
     );
+    transition:
+      transform 0.3s ease,
+      box-shadow 0.3s ease;
+  }
+
+  /* Stronger top glow revealed on hover: a second tier-coloured wash that fades
+     in over the resting glow (opacity is animatable; background-image is not).
+     Sits above the card's own background but below its content (z-index: -1
+     within the card's isolation context). */
+  .tier-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background-image: radial-gradient(
+      120% 52% at 50% 0%,
+      color-mix(in srgb, var(--tier), transparent 66%) 0%,
+      transparent 66%
+    );
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+
+  /* Lift and subtly enlarge on hover, with a soft drop shadow to sell the
+     raise. Transform only, so it stays on the GPU compositor. */
+  .tier-card:hover {
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.65);
+  }
+
+  .tier-card:hover::before {
+    opacity: 1;
+  }
+
+  /* Inactive-tier notice box: its radius rides the same concentric cascade as
+     the card, so it stays parallel to the corners (card radius minus padding). */
+  .tier-notice {
+    border-radius: calc(var(--tier-card-radius, 1.5rem) - var(--tier-card-pad, 1rem));
   }
 
   /* Tier medal (pricing cards): a metallic, beveled badge in the tier colour.
@@ -193,23 +246,157 @@
       inset 0 -1px 1px color-mix(in srgb, var(--tier), white 32%);
   }
 
+  /* Glassy finish: a broad convex top gloss (cabochon highlight) reading as
+     light through glass, plus a sharp specular glint upper-left. Both sit
+     above the icon so the medal looks like polished glass, not matte metal. */
+  .tier-medal-face::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.5) 0%,
+      rgba(255, 255, 255, 0.14) 40%,
+      rgba(255, 255, 255, 0) 54%
+    );
+    pointer-events: none;
+    z-index: 2;
+  }
+
   .tier-medal-face::after {
     content: "";
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: radial-gradient(62% 48% at 34% 24%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 70%);
+    background: radial-gradient(38% 26% at 32% 20%, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0) 62%);
     pointer-events: none;
+    z-index: 3;
   }
 
-  /* The icon reads as embossed metal: full-strength white with a drop shadow,
-     above the sheen. Overrides the dimmed Bulk layer inside a medal. */
+  /* The icon reads as embossed metal under the glass: full-strength white with
+     a drop shadow, below the gloss. Overrides the dimmed Bulk layer. */
   .tier-medal-face svg {
     position: relative;
+    z-index: 1;
     filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.4));
   }
 
   .tier-medal-face .mc-icon path[opacity] {
     opacity: 0.68;
+  }
+
+  /* Tier CTA button: shares the medal's material so the card's call-to-action
+     reads as the same raised, glassy metal in the tier colour, adapted from a
+     disc to a wide rounded pill. Same color-mix shading, bevel and gloss/glint
+     as .tier-medal; `--tier` is inherited from the card. */
+  .tier-cta {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    /* Concentric with the card: card radius minus the card's padding inset, so
+       the CTA's corners stay parallel to the card's rounded corners. */
+    border-radius: calc(var(--tier-card-radius, 1.5rem) - var(--tier-card-pad, 1rem));
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--tier), white 16%) 0%,
+      var(--tier) 58%,
+      color-mix(in srgb, var(--tier), black 20%) 100%
+    );
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--tier), white 40%),
+      inset 0 -1px 1px color-mix(in srgb, var(--tier), black 28%),
+      0 2px 6px -2px rgba(0, 0, 0, 0.4),
+      0 1px 2px rgba(0, 0, 0, 0.28);
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+
+  /* Shallow top sheen, a toned-down echo of .tier-medal-face::before: fades
+     out quickly so the button reads as lightly polished, not domed glass. */
+  .tier-cta::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.24) 0%,
+      rgba(255, 255, 255, 0.05) 42%,
+      rgba(255, 255, 255, 0) 58%
+    );
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  /* Faint upper-left glint, a restrained version of .tier-medal-face::after. */
+  .tier-cta::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(60% 70% at 28% 10%, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 62%);
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  /* The label reads as embossed metal beneath the sheen: white with a soft
+     drop shadow, below the gloss layers so light glides over it. */
+  .tier-cta-label {
+    position: relative;
+    z-index: 1;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  }
+
+  /* Raised-metal interactivity: a small lift and slightly deeper shadow on
+     hover, pressing into a shallow recessed bevel on active. */
+  .tier-cta:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--tier), white 46%),
+      inset 0 -1px 1px color-mix(in srgb, var(--tier), black 28%),
+      0 4px 10px -3px rgba(0, 0, 0, 0.45),
+      0 1px 3px rgba(0, 0, 0, 0.3);
+  }
+
+  .tier-cta:active {
+    transform: translateY(0);
+    box-shadow:
+      inset 0 1px 2px color-mix(in srgb, var(--tier), black 36%),
+      0 1px 3px rgba(0, 0, 0, 0.35);
+  }
+
+  /* RollingText (see RollingText.astro): two values stacked in one grid cell,
+     clipped, that roll vertically when an ancestor's data-billing flips.
+     Transform only (no fade) so both are briefly visible mid-roll, like an
+     odometer reel. The easing overshoots slightly for a mechanical snap. */
+  .rolling-text {
+    display: inline-grid;
+    justify-items: center;
+    overflow: hidden;
+    vertical-align: bottom;
+  }
+
+  .rolling-text-item {
+    grid-area: 1 / 1;
+    transition: transform 0.42s cubic-bezier(0.34, 1.25, 0.5, 1);
+  }
+
+  [data-billing="monthly"] .rolling-text-monthly {
+    transform: translateY(0);
+  }
+
+  [data-billing="yearly"] .rolling-text-monthly {
+    transform: translateY(-100%);
+  }
+
+  [data-billing="monthly"] .rolling-text-yearly {
+    transform: translateY(100%);
+  }
+
+  [data-billing="yearly"] .rolling-text-yearly {
+    transform: translateY(0);
   }
 }
