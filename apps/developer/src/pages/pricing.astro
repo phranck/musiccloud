@@ -10,10 +10,11 @@
  * header/footer shell with /docs and /terms.
  */
 import PublicHeader from "@/components/PublicHeader.astro";
+import { TierIcon } from "@/components/TierIcon";
 import { CoinIcon, Like1Icon, TickCircleIcon } from "@/lib/icons";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { backendUrl } from "@/lib/api";
-import { FOOTER_LINKS } from "@/lib/footerLinks";
+import PublicFooter from "@/components/PublicFooter.astro";
 import { getDeveloperSession } from "@/lib/session";
 
 interface TierDto {
@@ -22,12 +23,36 @@ interface TierDto {
   requestsPerMinute: number;
   requestsPerDay: number;
   attributionRequired: boolean;
+  /** Monthly price in euros as a numeric string, or `null` for free tiers. */
   price: string | null;
+  /** Yearly price in euros as a numeric string, or `null` when no yearly billing is offered. */
+  priceYearly: string | null;
   color: string;
+  /** Iconsax icon name (one of the shared `TIER_ICONS`), or `null` for none. */
+  icon: string | null;
   description: string;
   enabled: boolean;
   disableReason: string;
   sortOrder: number;
+}
+
+/**
+ * Formats a euro amount for the pricing cards: whole amounts render without
+ * decimals ("€9"), fractional ones with two ("€9.90"). Legacy values that do
+ * not parse as a number are shown unchanged.
+ *
+ * @param raw - The price as stored on the tier (numeric string).
+ * @returns The formatted euro amount.
+ */
+function formatEuro(raw: string): string {
+  const value = Number(raw);
+  if (!Number.isFinite(value)) return raw;
+  return new Intl.NumberFormat("en", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(value);
 }
 
 const commitments = [
@@ -97,35 +122,49 @@ try {
     </section>
 
     {tiers.length > 0 && (
-      <section class="mb-8">
-        <h2 class="text-card-title font-medium tracking-tight mb-5">Available tiers</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-flow-col lg:auto-cols-fr gap-4">
+      <section class="mb-8" data-billing="monthly">
+        <div class="mb-5 flex items-center justify-between gap-4">
+          <h2 class="text-card-title font-medium tracking-tight">Available tiers</h2>
+          <div
+            class="relative grid grid-cols-2 rounded-button border border-border-strong p-0.5 text-nav"
+            role="group"
+            aria-label="Billing period"
+          >
+            <span class="billing-thumb" aria-hidden="true"></span>
+            <button type="button" class="billing-option rounded-button px-4 py-0.5 font-medium" data-mode="monthly" aria-pressed="true">
+              Monthly
+            </button>
+            <button type="button" class="billing-option rounded-button px-4 py-0.5 font-medium" data-mode="yearly" aria-pressed="false">
+              Yearly
+            </button>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-flow-col lg:auto-cols-fr gap-x-4 gap-y-16 pt-12">
           {tiers.map((tier) => (
             <div
-              class={`rounded-card border border-border bg-surface px-6 py-5 flex flex-col gap-3${tier.enabled ? "" : " opacity-60"}`}
+              class={`tier-card relative flex flex-col items-center gap-3 rounded-card border border-border bg-surface px-6 pb-5 pt-16 text-center${tier.enabled ? "" : " opacity-60"}`}
+              style={`--tier:${tier.color}`}
             >
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                  <span class="size-3 shrink-0 rounded-full" style={`background-color:${tier.color}`} aria-hidden="true"></span>
-                  <h3 class="text-card-title font-semibold text-fg">{tier.name}</h3>
-                </div>
-                {tier.price ? (
-                  <span class="text-xl font-bold text-accent">{tier.price}</span>
-                ) : (
-                  <span class="inline-flex items-center gap-1 text-body font-semibold text-accent">
-                    <CoinIcon className="size-5" aria-hidden="true" />
-                    Free
-                  </span>
-                )}
-              </div>
+              <span class="tier-medal absolute -top-10 left-1/2 flex size-20 -translate-x-1/2 rounded-full">
+                <span class="tier-medal-face">
+                  {tier.icon ? (
+                    <TierIcon name={tier.icon} className="size-10 text-white" />
+                  ) : (
+                    <span class="relative text-3xl font-semibold text-white [filter:drop-shadow(0_1px_1.5px_rgba(0,0,0,0.4))]">
+                      {tier.name.charAt(0)}
+                    </span>
+                  )}
+                </span>
+              </span>
+
+              <h3 class="text-card-title font-normal text-fg">{tier.name}</h3>
+
               {!tier.enabled && (
                 <p class="rounded bg-gold/10 px-3 py-2 text-body font-medium text-gold">
                   Currently unavailable{tier.disableReason ? `. ${tier.disableReason}` : ""}
                 </p>
               )}
-              {tier.description && (
-                <p class="text-lg text-fg-muted">{tier.description}</p>
-              )}
+              {tier.description && <p class="text-lg text-fg-muted">{tier.description}</p>}
               <div class="text-lg text-fg-muted space-y-1">
                 <p>
                   <span class="text-fg font-medium">{tier.requestsPerMinute}</span> requests / minute
@@ -134,18 +173,36 @@ try {
                   <span class="text-fg font-medium">{tier.requestsPerDay.toLocaleString()}</span> requests / day
                 </p>
               </div>
-              {tier.attributionRequired && (
-                <p class="text-body text-fg-subtle">Attribution required</p>
-              )}
-              {tier.enabled && (
-                <a
-                  href={`/signup?tier=${tier.id}`}
-                  class="mt-auto inline-flex justify-center rounded-button text-on-accent px-5 py-2.5 text-body font-medium"
-                  style={`background-color:${tier.color}`}
-                >
-                  Subscribe
-                </a>
-              )}
+              {tier.attributionRequired && <p class="text-body text-fg-subtle">Attribution required</p>}
+
+              <div class="mt-auto flex w-full flex-col items-center gap-3 pt-3">
+                {tier.price ? (
+                  <span class="grid text-center">
+                    <span class="billing-price billing-price-monthly col-start-1 row-start-1">
+                      <span class="text-xl font-bold text-accent">{formatEuro(tier.price)}</span>
+                      <span class="text-body text-fg-subtle"> / month</span>
+                    </span>
+                    <span class="billing-price billing-price-yearly col-start-1 row-start-1">
+                      <span class="text-xl font-bold text-accent">{formatEuro(tier.priceYearly ?? tier.price)}</span>
+                      <span class="text-body text-fg-subtle"> / {tier.priceYearly ? "year" : "month"}</span>
+                    </span>
+                  </span>
+                ) : (
+                  <span class="inline-flex items-center gap-1 text-body font-semibold text-accent">
+                    <CoinIcon className="size-5" aria-hidden="true" />
+                    Free
+                  </span>
+                )}
+                {tier.enabled && (
+                  <a
+                    href={`/signup?tier=${tier.id}`}
+                    class="inline-flex w-full justify-center rounded-button px-5 py-2.5 text-body font-medium text-on-accent"
+                    style={`background-color:${tier.color}`}
+                  >
+                    I want this
+                  </a>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -166,24 +223,58 @@ try {
 
   </main>
 
-  <footer class="border-t border-border">
-    <div class="max-w-6xl mx-auto w-full px-6 py-5 flex items-center justify-between text-body text-fg-subtle">
-      <span>© musiccloud</span>
-      <nav class="flex items-center gap-3">
-        {
-          FOOTER_LINKS.map((link) =>
-            link.external ? (
-              <a href={link.href} target="_blank" rel="noopener noreferrer" class="text-link">
-                {link.label}
-              </a>
-            ) : (
-              <a href={link.href} class="text-link">
-                {link.label}
-              </a>
-            ),
-          )
-        }
-      </nav>
-    </div>
-  </footer>
+  <PublicFooter />
 </BaseLayout>
+
+<style>
+  /* Billing switch: an accent thumb slides between the two equal-width
+     options (GPU transform only); the buttons themselves just swap their
+     text colour. Geometry derives from the container's 2px inner padding. */
+  .billing-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: calc(50% - 2px);
+    height: calc(100% - 4px);
+    border-radius: calc(var(--radius-button) - 2px);
+    background-color: var(--color-accent);
+    transition: transform 0.25s ease;
+  }
+
+  [data-billing="yearly"] .billing-thumb {
+    transform: translateX(100%);
+  }
+
+  .billing-option {
+    position: relative;
+    color: var(--color-fg-muted);
+    transition: color 0.2s ease;
+  }
+
+  .billing-option[aria-pressed="true"] {
+    color: var(--color-on-accent);
+  }
+
+  /* The two price variants sit stacked in the same grid cell; the section's
+     data-billing attribute cross-fades them (UI reveals are always animated). */
+  .billing-price {
+    transition: opacity 0.25s ease;
+  }
+
+  [data-billing="monthly"] .billing-price-yearly,
+  [data-billing="yearly"] .billing-price-monthly {
+    opacity: 0;
+    pointer-events: none;
+  }
+</style>
+
+<script>
+  const section = document.querySelector("[data-billing]");
+  const options = document.querySelectorAll<HTMLButtonElement>(".billing-option");
+  for (const option of options) {
+    option.addEventListener("click", () => {
+      section?.setAttribute("data-billing", option.dataset.mode === "yearly" ? "yearly" : "monthly");
+      for (const other of options) other.setAttribute("aria-pressed", String(other === option));
+    });
+  }
+</script>

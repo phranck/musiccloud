@@ -122,12 +122,12 @@
     text-underline-offset: 3px;
   }
 
-  /* Iconsax TwoTone icons (see lib/icons.tsx) ship their secondary layer
+  /* Iconsax Bulk icons (see lib/icons.tsx) ship their secondary layer
      with a hardcoded opacity=".4" attribute, which is barely visible on the
      dark gradient. This override lifts the dimmed layer to a readable level
      while keeping the two-tone contrast. */
   .mc-icon path[opacity] {
-    opacity: 0.65;
+    opacity: 0.42;
   }
 
   /* The musiccloud wordmark (see Wordmark.astro): the brand rainbow masked
@@ -138,5 +138,78 @@
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
+  }
+
+  /* Tier card: a soft glow in the tier colour bleeds down from the top,
+     echoing the medal above. Painted as a background-image over the glassy
+     `bg-surface`, clipped by the card's border-radius (no overflow:hidden, so
+     the medal can still overhang the top edge). `--tier` is set inline per
+     card and inherited by the medal. */
+  .tier-card {
+    background-image: radial-gradient(
+      110% 46% at 50% 0%,
+      color-mix(in srgb, var(--tier), transparent 80%) 0%,
+      transparent 62%
+    );
+  }
+
+  /* Tier medal (pricing cards): a metallic, beveled badge in the tier colour.
+     `--tier` is set inline per card; every shade derives from it via
+     color-mix, so one hex drives the whole material. Two layers: the outer
+     ring (this element, the raised metal rim) and the recessed inner face
+     (.tier-medal-face) that holds the icon. */
+  .tier-medal {
+    padding: 4px;
+    background: linear-gradient(
+      150deg,
+      color-mix(in srgb, var(--tier), white 42%) 0%,
+      var(--tier) 46%,
+      color-mix(in srgb, var(--tier), black 46%) 100%
+    );
+    box-shadow:
+      inset 0 1px 1px color-mix(in srgb, var(--tier), white 75%),
+      inset 0 -2px 4px color-mix(in srgb, var(--tier), black 55%),
+      0 9px 20px -5px rgba(0, 0, 0, 0.6),
+      0 2px 5px rgba(0, 0, 0, 0.45);
+  }
+
+  /* Recessed inner disc: darker dish that seats the icon, with its own bevel
+     and a soft specular sheen from the top-left. */
+  .tier-medal-face {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: linear-gradient(
+      150deg,
+      color-mix(in srgb, var(--tier), white 14%) 0%,
+      color-mix(in srgb, var(--tier), black 24%) 100%
+    );
+    box-shadow:
+      inset 0 2px 3px color-mix(in srgb, var(--tier), black 48%),
+      inset 0 -1px 1px color-mix(in srgb, var(--tier), white 32%);
+  }
+
+  .tier-medal-face::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(62% 48% at 34% 24%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 70%);
+    pointer-events: none;
+  }
+
+  /* The icon reads as embossed metal: full-strength white with a drop shadow,
+     above the sheen. Overrides the dimmed Bulk layer inside a medal. */
+  .tier-medal-face svg {
+    position: relative;
+    filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.4));
+  }
+
+  .tier-medal-face .mc-icon path[opacity] {
+    opacity: 0.68;
   }
 }
