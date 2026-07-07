@@ -1,4 +1,5 @@
 import { TIER_ICONS } from "@musiccloud/shared";
+import { CaretDown as CaretDownIcon } from "@phosphor-icons/react";
 import * as Iconsax from "iconsax-react";
 import { useMemo, useState } from "react";
 import { FormLabel, formInputClass } from "@/shared/ui/FormPrimitives";
@@ -64,7 +65,7 @@ export function TierIconPicker({ value, onChange, label, searchPlaceholder, none
         id="tier-icon-trigger"
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex h-9 w-full items-center gap-2 rounded-[var(--ds-radius-control)] border border-[var(--ds-border)] px-3 text-sm text-[var(--ds-text)]"
+        className={`${formInputClass} flex items-center gap-2 text-left hover:border-[var(--ds-border-strong)]`}
       >
         {value ? (
           <>
@@ -72,12 +73,17 @@ export function TierIconPicker({ value, onChange, label, searchPlaceholder, none
             <span className="font-mono text-[var(--ds-text-muted)]">{value}</span>
           </>
         ) : (
-          <span className="text-[var(--ds-text-muted)]">{noneLabel}</span>
+          <span className="text-[var(--ds-text-subtle)]">{noneLabel}</span>
         )}
+        <CaretDownIcon
+          weight="bold"
+          className={`ml-auto size-3.5 shrink-0 text-[var(--ds-text-subtle)] transition-transform ${open ? "rotate-180" : ""}`}
+          aria-hidden
+        />
       </button>
 
       {open && (
-        <div className="mt-2 rounded-[var(--ds-radius-control)] border border-[var(--ds-border)] bg-[var(--ds-surface)] p-2">
+        <div className="mt-2 rounded-control border border-[var(--ds-border)] bg-[var(--ds-surface)] p-3">
           <input
             type="text"
             className={formInputClass}
@@ -86,7 +92,7 @@ export function TierIconPicker({ value, onChange, label, searchPlaceholder, none
             placeholder={searchPlaceholder}
             aria-label={searchPlaceholder}
           />
-          <div className="mt-2 grid max-h-56 grid-cols-8 gap-1 overflow-y-auto">
+          <div className="mt-3 grid max-h-56 grid-cols-8 gap-1.5 overflow-y-auto">
             <button
               type="button"
               onClick={() => {
@@ -95,7 +101,7 @@ export function TierIconPicker({ value, onChange, label, searchPlaceholder, none
               }}
               title={noneLabel}
               aria-label={noneLabel}
-              className={`flex aspect-square items-center justify-center rounded border text-xs text-[var(--ds-text-muted)] ${
+              className={`flex aspect-square items-center justify-center rounded-[var(--ds-radius-sm)] border text-xs text-[var(--ds-text-muted)] transition-colors ${
                 value === null ? "border-[var(--ds-accent)]" : "border-transparent hover:border-[var(--ds-border)]"
               }`}
             >
@@ -111,7 +117,7 @@ export function TierIconPicker({ value, onChange, label, searchPlaceholder, none
                 }}
                 title={name}
                 aria-label={name}
-                className={`flex aspect-square items-center justify-center rounded border text-[var(--ds-text)] ${
+                className={`flex aspect-square items-center justify-center rounded-[var(--ds-radius-sm)] border text-[var(--ds-text)] transition-colors ${
                   value === name
                     ? "border-[var(--ds-accent)] text-[var(--ds-accent)]"
                     : "border-transparent hover:border-[var(--ds-border)]"

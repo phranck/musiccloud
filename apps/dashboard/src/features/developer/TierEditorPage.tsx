@@ -36,6 +36,7 @@ interface TierFormData {
   priceYearly: string;
   color: string;
   icon: string | null;
+  buttonLabel: string;
   description: string;
   enabled: boolean;
   disableReason: string;
@@ -51,6 +52,7 @@ const EMPTY_FORM: TierFormData = {
   priceYearly: "",
   color: "#64748b",
   icon: null,
+  buttonLabel: "",
   description: "",
   enabled: true,
   disableReason: "",
@@ -67,6 +69,7 @@ function toSubmitBody(data: TierFormData) {
     priceYearly: data.priceYearly || null,
     color: data.color,
     icon: data.icon,
+    buttonLabel: data.buttonLabel.trim() || null,
     description: data.description,
     enabled: data.enabled,
     disableReason: data.disableReason,
@@ -131,6 +134,7 @@ function tierEditorReducer(state: TierEditorState, action: TierEditorAction): Ti
           priceYearly: action.tier.priceYearly ?? "",
           color: action.tier.color,
           icon: action.tier.icon,
+          buttonLabel: action.tier.buttonLabel ?? "",
           description: action.tier.description,
           enabled: action.tier.enabled,
           disableReason: action.tier.disableReason,
@@ -267,6 +271,14 @@ function TierFormDialog({
           />
         </div>
 
+        <TierIconPicker
+          value={form.icon}
+          onChange={(icon) => onFormChange({ icon })}
+          label={dm.colIcon}
+          searchPlaceholder={dm.iconPickerSearch}
+          noneLabel={dm.iconNone}
+        />
+
         <div className="flex items-start gap-3">
           <div className="flex-1">
             <FormLabel htmlFor="tier-rpm">{dm.detailRateLimitMinute}</FormLabel>
@@ -364,13 +376,19 @@ function TierFormDialog({
           </div>
         </div>
 
-        <TierIconPicker
-          value={form.icon}
-          onChange={(icon) => onFormChange({ icon })}
-          label={dm.colIcon}
-          searchPlaceholder={dm.iconPickerSearch}
-          noneLabel={dm.iconNone}
-        />
+        <div>
+          <FormLabel htmlFor="tier-button-label">{dm.colButtonLabel}</FormLabel>
+          <input
+            id="tier-button-label"
+            aria-label={dm.colButtonLabel}
+            type="text"
+            className={formInputClass}
+            value={form.buttonLabel}
+            onChange={(e) => onFormChange({ buttonLabel: e.target.value })}
+            maxLength={40}
+            placeholder={dm.colButtonLabelPlaceholder}
+          />
+        </div>
       </div>
       <Dialog.Footer>
         <DashboardActionButton
@@ -478,9 +496,9 @@ function useTierColumns(
         headerClassName: "whitespace-nowrap",
         sortKey: (a) => a.name.toLowerCase(),
         cell: (a) => (
-          <span className="inline-flex items-center gap-2">
+          <span className="inline-flex items-center gap-2 font-medium" style={{ color: a.color }}>
             {a.icon ? (
-              <TierIconGlyph name={a.icon} className="size-4 text-[var(--ds-text-muted)]" />
+              <TierIconGlyph name={a.icon} className="size-6" />
             ) : (
               <span
                 className="size-3 shrink-0 rounded-full border border-[var(--ds-border)]"
@@ -488,7 +506,7 @@ function useTierColumns(
                 aria-hidden
               />
             )}
-            <span className="font-medium">{a.name}</span>
+            <span>{a.name}</span>
             {!a.enabled && (
               <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-xs font-semibold text-amber-400">
                 {dm.tierDisabledBadge}

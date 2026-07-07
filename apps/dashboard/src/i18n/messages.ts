@@ -208,6 +208,8 @@ export interface DashboardMessages {
     colPriceYearly: string;
     colColor: string;
     colIcon: string;
+    colButtonLabel: string;
+    colButtonLabelPlaceholder: string;
     iconPickerSearch: string;
     iconNone: string;
     colSortOrder: string;
@@ -936,6 +938,8 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       colPriceYearly: "Preis jährlich (€)",
       colColor: "Farbe",
       colIcon: "Icon",
+      colButtonLabel: "Button-Text",
+      colButtonLabelPlaceholder: "Standard: „I want this“",
       iconPickerSearch: "Icon suchen…",
       iconNone: "Kein Icon",
       colSortOrder: "Sortierung",
@@ -1664,6 +1668,8 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       colPriceYearly: "Yearly price (€)",
       colColor: "Color",
       colIcon: "Icon",
+      colButtonLabel: "Button label",
+      colButtonLabelPlaceholder: "Default: “I want this”",
       iconPickerSearch: "Search icons…",
       iconNone: "No icon",
       colSortOrder: "Sort Order",

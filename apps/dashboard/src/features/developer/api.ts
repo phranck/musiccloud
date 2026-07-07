@@ -152,6 +152,8 @@ export interface TierResponse {
   color: string;
   /** Iconsax icon name for the tier (one of the shared `TIER_ICONS`), or `null` for none. */
   icon: string | null;
+  /** Custom label for the pricing-card CTA button, or `null` to use the portal default. */
+  buttonLabel: string | null;
   description: string;
   enabled: boolean;
   disableReason: string;
@@ -174,6 +176,7 @@ export function createTier(
         | "priceYearly"
         | "color"
         | "icon"
+        | "buttonLabel"
         | "description"
         | "enabled"
         | "disableReason"
@@ -197,6 +200,7 @@ export function updateTier(
       | "priceYearly"
       | "color"
       | "icon"
+      | "buttonLabel"
       | "description"
       | "enabled"
       | "disableReason"
