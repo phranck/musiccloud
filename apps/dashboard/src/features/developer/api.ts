@@ -18,6 +18,8 @@ export interface ApiAccessRequestResponse {
 export interface ApiClientTokenResponse {
   id: string;
   tokenPrefix: string;
+  /** The full plaintext token. Present for created tokens (stored as `token_raw`), `null` for rotated ones. */
+  rawToken: string | null;
   status: string;
   createdAt: string;
   lastUsedAt: string | null;
@@ -143,8 +145,13 @@ export interface TierResponse {
   requestsPerMinute: number;
   requestsPerDay: number;
   attributionRequired: boolean;
+  /** Monthly price in euros as a numeric string (e.g. "9" or "9.90"), or `null` for free tiers. */
   price: string | null;
+  /** Yearly price in euros as a numeric string, or `null` when no yearly billing is offered. */
+  priceYearly: string | null;
   color: string;
+  /** Iconsax icon name for the tier (one of the shared `TIER_ICONS`), or `null` for none. */
+  icon: string | null;
   description: string;
   enabled: boolean;
   disableReason: string;
@@ -162,7 +169,15 @@ export function createTier(
     Partial<
       Pick<
         TierResponse,
-        "attributionRequired" | "price" | "color" | "description" | "enabled" | "disableReason" | "sortOrder"
+        | "attributionRequired"
+        | "price"
+        | "priceYearly"
+        | "color"
+        | "icon"
+        | "description"
+        | "enabled"
+        | "disableReason"
+        | "sortOrder"
       >
     >,
 ): Promise<TierResponse> {
@@ -179,7 +194,9 @@ export function updateTier(
       | "requestsPerDay"
       | "attributionRequired"
       | "price"
+      | "priceYearly"
       | "color"
+      | "icon"
       | "description"
       | "enabled"
       | "disableReason"

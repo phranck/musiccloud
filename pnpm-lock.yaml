@@ -196,6 +196,9 @@ importers:
       blueimp-md5:
         specifier: ^2.19.0
         version: 2.19.0
+      iconsax-react:
+        specifier: 0.0.8
+        version: 0.0.8(react@19.2.4)
       react:
         specifier: ^19.2.4
         version: 19.2.4

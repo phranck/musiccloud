@@ -19,6 +19,7 @@ import { TableActionButton } from "@/components/ui/TableActionButton";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { useI18n } from "@/context/I18nContext";
 import type { TierResponse } from "@/features/developer/api";
+import { TierIconGlyph, TierIconPicker } from "@/features/developer/components/TierIconPicker";
 import { useCreateTier, useDeleteTier, useTiers, useUpdateTier } from "@/features/developer/hooks/useDeveloperData";
 import { FormLabel, formInputClass, formTextareaClass } from "@/shared/ui/FormPrimitives";
 
@@ -32,7 +33,9 @@ interface TierFormData {
   requestsPerDay: number;
   attributionRequired: boolean;
   price: string;
+  priceYearly: string;
   color: string;
+  icon: string | null;
   description: string;
   enabled: boolean;
   disableReason: string;
@@ -45,7 +48,9 @@ const EMPTY_FORM: TierFormData = {
   requestsPerDay: 10000,
   attributionRequired: false,
   price: "",
+  priceYearly: "",
   color: "#64748b",
+  icon: null,
   description: "",
   enabled: true,
   disableReason: "",
@@ -59,7 +64,9 @@ function toSubmitBody(data: TierFormData) {
     requestsPerDay: data.requestsPerDay,
     attributionRequired: data.attributionRequired,
     price: data.price || null,
+    priceYearly: data.priceYearly || null,
     color: data.color,
+    icon: data.icon,
     description: data.description,
     enabled: data.enabled,
     disableReason: data.disableReason,
@@ -121,7 +128,9 @@ function tierEditorReducer(state: TierEditorState, action: TierEditorAction): Ti
           requestsPerDay: action.tier.requestsPerDay,
           attributionRequired: action.tier.attributionRequired,
           price: action.tier.price ?? "",
+          priceYearly: action.tier.priceYearly ?? "",
           color: action.tier.color,
+          icon: action.tier.icon,
           description: action.tier.description,
           enabled: action.tier.enabled,
           disableReason: action.tier.disableReason,
@@ -298,17 +307,33 @@ function TierFormDialog({
           </div>
         </div>
 
-        <div>
-          <FormLabel htmlFor="tier-price">{dm.colPrice}</FormLabel>
-          <input
-            id="tier-price"
-            aria-label={dm.colPrice}
-            type="text"
-            className={formInputClass}
-            value={form.price}
-            onChange={(e) => onFormChange({ price: e.target.value })}
-            placeholder='e.g. "€ 9,90/Monat"'
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <FormLabel htmlFor="tier-price">{dm.colPriceMonthly}</FormLabel>
+            <input
+              id="tier-price"
+              aria-label={dm.colPriceMonthly}
+              type="text"
+              inputMode="decimal"
+              className={formInputClass}
+              value={form.price}
+              onChange={(e) => onFormChange({ price: e.target.value })}
+              placeholder="e.g. 9.90"
+            />
+          </div>
+          <div>
+            <FormLabel htmlFor="tier-price-yearly">{dm.colPriceYearly}</FormLabel>
+            <input
+              id="tier-price-yearly"
+              aria-label={dm.colPriceYearly}
+              type="text"
+              inputMode="decimal"
+              className={formInputClass}
+              value={form.priceYearly}
+              onChange={(e) => onFormChange({ priceYearly: e.target.value })}
+              placeholder="e.g. 99"
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -338,6 +363,14 @@ function TierFormDialog({
             />
           </div>
         </div>
+
+        <TierIconPicker
+          value={form.icon}
+          onChange={(icon) => onFormChange({ icon })}
+          label={dm.colIcon}
+          searchPlaceholder={dm.iconPickerSearch}
+          noneLabel={dm.iconNone}
+        />
       </div>
       <Dialog.Footer>
         <DashboardActionButton
@@ -446,11 +479,15 @@ function useTierColumns(
         sortKey: (a) => a.name.toLowerCase(),
         cell: (a) => (
           <span className="inline-flex items-center gap-2">
-            <span
-              className="size-3 shrink-0 rounded-full border border-[var(--ds-border)]"
-              style={{ backgroundColor: a.color }}
-              aria-hidden
-            />
+            {a.icon ? (
+              <TierIconGlyph name={a.icon} className="size-4 text-[var(--ds-text-muted)]" />
+            ) : (
+              <span
+                className="size-3 shrink-0 rounded-full border border-[var(--ds-border)]"
+                style={{ backgroundColor: a.color }}
+                aria-hidden
+              />
+            )}
             <span className="font-medium">{a.name}</span>
             {!a.enabled && (
               <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-xs font-semibold text-amber-400">
@@ -497,7 +534,12 @@ function useTierColumns(
         className: "w-32",
         headerClassName: "whitespace-nowrap",
         sortKey: (a) => a.price ?? "",
-        cell: (a) => <span className="text-[var(--ds-text-muted)]">{a.price ?? "—"}</span>,
+        cell: (a) => (
+          <span className="text-[var(--ds-text-muted)]">
+            {a.price ?? "—"}
+            {a.priceYearly != null && <span className="text-xs"> / {a.priceYearly} p.a.</span>}
+          </span>
+        ),
       },
       {
         id: "sortOrder",

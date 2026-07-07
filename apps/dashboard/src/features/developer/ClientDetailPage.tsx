@@ -1,5 +1,5 @@
 import { DashboardActionButton, DashboardActionId, DashboardInput } from "@musiccloud/dashboard-ui";
-import { Code as CodeIcon, SpinnerGap as SpinnerGapIcon } from "@phosphor-icons/react";
+import { Code as CodeIcon, Copy as CopyIcon, SpinnerGap as SpinnerGapIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { DashboardSection } from "@/components/ui/DashboardSection";
@@ -61,7 +61,6 @@ export function ClientDetailPage() {
   const activateToken = useActivateToken();
   const deactivateToken = useDeactivateToken();
   const updateClient = useUpdateClient();
-  const [revealToken, setRevealToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [limitsDraft, setLimitsDraft] = useState<RateLimitDraft | null>(null);
   const [saved, setSaved] = useState(false);
@@ -135,21 +134,6 @@ export function ClientDetailPage() {
           <HeaderBackButton label={dm.clientsTitle} onClick={() => navigate("/developer/clients")} />
         )}
       />
-      {revealToken && (
-        <div className="rounded-md border border-emerald-500/30 bg-[var(--ds-surface)] p-5 text-center mb-4">
-          <p className="text-sm font-semibold text-amber-400 mb-1">{dm.tokenRevealTitle}</p>
-          <p className="text-xs text-[var(--ds-text-muted)] mb-3">{dm.tokenRevealHint}</p>
-          <div className="rounded border border-emerald-500/20 bg-[var(--ds-bg)] p-3 mb-3">
-            <code className="text-xs text-emerald-400 break-all">{revealToken}</code>
-          </div>
-          <DashboardActionButton
-            action={DashboardActionId.Copy}
-            label={copied ? messages.common.copied : dm.tokenRevealCopy}
-            onClick={() => handleCopy(revealToken)}
-            type="button"
-          />
-        </div>
-      )}
       <DashboardSection className="overflow-hidden">
         <DashboardSection.Header
           icon={<CodeIcon weight="duotone" className="size-4" />}
@@ -211,9 +195,26 @@ export function ClientDetailPage() {
                 )}
               </div>
               {activeToken ? (
-                <code className="text-sm text-[var(--ds-accent)]">{activeToken.tokenPrefix}</code>
+                <div className="flex items-start gap-2">
+                  <code className="max-w-xs text-sm text-[var(--ds-accent)] break-all">
+                    {activeToken.rawToken ?? activeToken.tokenPrefix}
+                  </code>
+                  {activeToken.rawToken && (
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(activeToken.rawToken!)}
+                      aria-label={copied ? messages.common.copied : dm.tokenRevealCopy}
+                      title={copied ? messages.common.copied : dm.tokenRevealCopy}
+                      className="shrink-0 text-[var(--ds-text-muted)] hover:text-[var(--ds-accent)] transition-colors"
+                    >
+                      <CopyIcon weight="duotone" className="size-4" />
+                    </button>
+                  )}
+                </div>
               ) : revokedToken ? (
-                <code className="text-sm text-[var(--ds-text-muted)]">{revokedToken.tokenPrefix}</code>
+                <code className="block max-w-xs text-sm text-[var(--ds-text-muted)] break-all">
+                  {revokedToken.rawToken ?? revokedToken.tokenPrefix}
+                </code>
               ) : (
                 <p className="text-sm text-[var(--ds-text-muted)]">{dm.clientsNoTokens}</p>
               )}
@@ -241,7 +242,7 @@ export function ClientDetailPage() {
             <DashboardActionButton
               action={DashboardActionId.Create}
               label={dm.clientsCreateToken}
-              onClick={() => createToken.mutate(client.id, { onSuccess: (res) => setRevealToken(res.token.rawToken) })}
+              onClick={() => createToken.mutate(client.id)}
               disabled={createToken.isPending}
               type="button"
             />

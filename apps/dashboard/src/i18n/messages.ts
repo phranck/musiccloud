@@ -160,8 +160,6 @@ export interface DashboardMessages {
     clientsRevokeToken: string;
     clientsRotateToken: string;
     clientsDeactivateToken: string;
-    tokenRevealTitle: string;
-    tokenRevealHint: string;
     tokenRevealCopy: string;
     clientsSearchPlaceholder: string;
     clientsSearchNoResults: string;
@@ -206,7 +204,12 @@ export interface DashboardMessages {
     colDescription: string;
     colAttribution: string;
     colPrice: string;
+    colPriceMonthly: string;
+    colPriceYearly: string;
     colColor: string;
+    colIcon: string;
+    iconPickerSearch: string;
+    iconNone: string;
     colSortOrder: string;
     colActive: string;
     colDisableReason: string;
@@ -885,8 +888,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       clientsDeactivateToken: "Deaktivieren",
       clientsSearchPlaceholder: "Keys durchsuchen…",
       clientsSearchNoResults: "Keine Ergebnisse für „{q}“",
-      tokenRevealTitle: "Token wird nur einmal angezeigt",
-      tokenRevealHint: "Kopiere ihn jetzt. Nach dem Schließen ist er nicht mehr abrufbar.",
       tokenRevealCopy: "In Zwischenablage kopieren",
       accountsTitle: "Developer Accounts",
       colEmail: "E-Mail",
@@ -931,7 +932,12 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       colDescription: "Beschreibung",
       colAttribution: "Attribution",
       colPrice: "Preis",
+      colPriceMonthly: "Preis monatlich (€)",
+      colPriceYearly: "Preis jährlich (€)",
       colColor: "Farbe",
+      colIcon: "Icon",
+      iconPickerSearch: "Icon suchen…",
+      iconNone: "Kein Icon",
       colSortOrder: "Sortierung",
       colActive: "Aktiv",
       colDisableReason: "Deaktivierungsgrund",
@@ -1610,8 +1616,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       clientsDeactivateToken: "Deactivate",
       clientsSearchPlaceholder: "Search keys…",
       clientsSearchNoResults: "No results for “{q}”",
-      tokenRevealTitle: "Token shown only once",
-      tokenRevealHint: "Copy it now. After closing, it cannot be retrieved again.",
       tokenRevealCopy: "Copy to clipboard",
       accountsTitle: "Developer Accounts",
       colEmail: "Email",
@@ -1656,7 +1660,12 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       colDescription: "Description",
       colAttribution: "Attribution",
       colPrice: "Price",
+      colPriceMonthly: "Monthly price (€)",
+      colPriceYearly: "Yearly price (€)",
       colColor: "Color",
+      colIcon: "Icon",
+      iconPickerSearch: "Search icons…",
+      iconNone: "No icon",
       colSortOrder: "Sort Order",
       colActive: "Active",
       colDisableReason: "Disable reason",
