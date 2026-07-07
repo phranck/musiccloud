@@ -16,6 +16,7 @@
   "dependencies": {
     "@astrojs/node": "9.5.5",
     "@astrojs/react": "^4.4.2",
+    "@fontsource/audiowide": "^5.2.7",
     "@fontsource/barlow": "^5.2.8",
     "@fontsource/barlow-condensed": "^5.2.8",
     "@musiccloud/shared": "workspace:*",

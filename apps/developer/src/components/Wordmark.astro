@@ -1,16 +1,17 @@
 ---
 /**
- * Wordmark is the "musiccloud / developers" home link shared by the public
+ * Wordmark is the "musiccloud / developer" home link shared by the public
  * header (`PublicHeader.astro`), the dashboard shell
  * (`DashboardLayout.astro`) and the auth card (`AuthCard.astro`), so the
  * brand mark exists in exactly one place.
  *
- * The brand name renders in the musiccloud rainbow: one continuous gradient
- * masked onto the text (`.text-logo-rainbow` in global.css, stop-for-stop the
- * main site's banner colours), deliberately without an icon in front and
- * semibold. The "/ developer" suffix shares the same size (`--text-wordmark`)
- * but stays regular weight in muted foreground, slash included. The two
- * spans align on their baselines.
+ * The brand name renders in Audiowide, masked with the musiccloud rainbow:
+ * one continuous gradient across the text (`.text-logo-rainbow` in
+ * global.css, stop-for-stop the main site's banner colours), deliberately
+ * without an icon in front. The "/ developer" suffix runs in Barlow
+ * Condensed at wordmark size: the "/" is solid bright foreground and
+ * semibold, the word "developer" a white-to-dimmed grey gradient
+ * (`.text-logo-suffix`) at regular weight. All parts align on their baselines.
  */
 interface Props {
   /** Extra classes merged onto the link, e.g. `justify-center mb-8` for the centred auth-card variant. */
@@ -21,6 +22,9 @@ const { class: className } = Astro.props;
 ---
 
 <a href="/" class:list={["flex items-baseline gap-2", className]}>
-  <span class="text-logo-rainbow text-wordmark font-semibold">musiccloud</span>
-  <span class="text-wordmark font-normal text-fg-muted">/ developer</span>
+  <span class="text-gradient text-logo-rainbow text-wordmark font-normal">musiccloud</span>
+  <span class="text-wordmark font-condensed">
+    <span class="text-fg font-semibold">/</span>
+    <span class="text-gradient text-logo-suffix font-normal">developer</span>
+  </span>
 </a>

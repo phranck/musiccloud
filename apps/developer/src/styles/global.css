@@ -50,16 +50,23 @@
     #ffb34d 100%
   );
 
+  /* Wordmark suffix word "developer": fades horizontally from foreground white
+     to the dimmed subtle grey. The "/" prefix stays a solid bright fg, set in
+     the template (see Wordmark.astro). */
+  --gradient-logo-suffix: linear-gradient(90deg, var(--color-fg) 0%, var(--color-fg-subtle) 100%);
+
   /* Radii */
   --radius-button: 0.5rem;
   --radius-card: 0.75rem;
 
   /* Fonts: Barlow carries all body copy, Barlow Condensed every headline
-     (see the h1-h6 rule below). Both are self-hosted fontsource files,
-     declared with font-display: optional in BaseLayout.astro (preload +
-     @font-face live there together). */
+     (see the h1-h6 rule below), Audiowide the brand wordmark
+     (.text-logo-rainbow). All self-hosted fontsource files, declared with
+     font-display: optional in BaseLayout.astro (preload + @font-face live
+     there together). */
   --font-sans: "Barlow", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-condensed: "Barlow Condensed", "Barlow", sans-serif;
+  --font-logo: "Audiowide", var(--font-sans);
   --font-mono: "SF Mono", "Fira Code", ui-monospace, monospace;
 
   /* Type scale (semantic) */
@@ -129,14 +136,26 @@
     opacity: 0.42;
   }
 
-  /* The musiccloud wordmark (see Wordmark.astro): the brand rainbow masked
-     onto the text via background-clip, one continuous gradient across the
-     word rather than per-letter colours. */
-  .text-logo-rainbow {
-    background-image: var(--gradient-logo-rainbow);
+  /* Shared gradient-text masking (see Wordmark.astro): clips a background-image
+     gradient onto the glyphs, one continuous gradient across the word rather
+     than per-letter colours. The companion class supplies the actual gradient
+     (and, for the brand name, the font). */
+  .text-gradient {
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
+  }
+
+  /* Wordmark brand name: set in Audiowide (--font-logo) with the musiccloud
+     rainbow, stop-for-stop the main site's banner colours. */
+  .text-logo-rainbow {
+    font-family: var(--font-logo);
+    background-image: var(--gradient-logo-rainbow);
+  }
+
+  /* Wordmark suffix word "developer": white-to-dimmed grey gradient. */
+  .text-logo-suffix {
+    background-image: var(--gradient-logo-suffix);
   }
 
   /* Tier card: a soft glow in the tier colour bleeds down from the top,

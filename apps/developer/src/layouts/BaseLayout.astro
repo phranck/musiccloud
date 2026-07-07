@@ -15,6 +15,8 @@
  * URLs (a mismatch would double-fetch). Font preloads require `crossorigin`
  * even same-origin.
  */
+import audiowide400 from "@fontsource/audiowide/files/audiowide-latin-400-normal.woff2?url";
+import barlowCondensed400 from "@fontsource/barlow-condensed/files/barlow-condensed-latin-400-normal.woff2?url";
 import barlowCondensed500 from "@fontsource/barlow-condensed/files/barlow-condensed-latin-500-normal.woff2?url";
 import barlowCondensed600 from "@fontsource/barlow-condensed/files/barlow-condensed-latin-600-normal.woff2?url";
 import barlow400 from "@fontsource/barlow/files/barlow-latin-400-normal.woff2?url";
@@ -34,16 +36,19 @@ const { title = "musiccloud for developers", description = "Build with the music
 /**
  * Every self-hosted font weight the portal renders (latin subset, normal
  * style): body copy and UI run in Barlow, headlines in Barlow Condensed
- * (the h1-h6 rule in global.css). Each entry becomes one preload link and
- * one @font-face rule.
+ * (the h1-h6 rule in global.css) and the brand wordmark in Audiowide
+ * (`.text-logo-rainbow`, a single 400 weight). Each entry becomes one preload
+ * link and one @font-face rule.
  */
 const FONTS: readonly { family: string; weight: number; url: string }[] = [
   { family: "Barlow", weight: 400, url: barlow400 },
   { family: "Barlow", weight: 500, url: barlow500 },
   { family: "Barlow", weight: 600, url: barlow600 },
   { family: "Barlow", weight: 700, url: barlow700 },
+  { family: "Barlow Condensed", weight: 400, url: barlowCondensed400 },
   { family: "Barlow Condensed", weight: 500, url: barlowCondensed500 },
   { family: "Barlow Condensed", weight: 600, url: barlowCondensed600 },
+  { family: "Audiowide", weight: 400, url: audiowide400 },
 ];
 
 const fontFaceCss = FONTS.map(
