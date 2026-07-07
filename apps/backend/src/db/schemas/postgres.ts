@@ -1795,6 +1795,7 @@ export const tiers = pgTable(
     priceYearly: text("price_yearly"),
     color: text("color").notNull().default("#64748b"),
     icon: text("icon"),
+    buttonLabel: text("button_label"),
     description: text("description").notNull().default(""),
     enabled: boolean("enabled").notNull().default(true),
     disableReason: text("disable_reason").notNull().default(""),

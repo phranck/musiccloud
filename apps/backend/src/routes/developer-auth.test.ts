@@ -227,6 +227,7 @@ function makeTier(overrides: Partial<Tier> = {}): Tier {
     priceYearly: null,
     color: "#3b82f6",
     icon: null,
+    buttonLabel: null,
     description: "",
     enabled: true,
     disableReason: "",

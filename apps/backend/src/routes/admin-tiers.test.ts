@@ -23,6 +23,7 @@ const freeTier: Tier = {
   priceYearly: null,
   color: "#64748b",
   icon: null,
+  buttonLabel: null,
   description: "",
   enabled: true,
   disableReason: "",
@@ -233,6 +234,27 @@ describe("POST /api/admin/developer/tiers", () => {
       url: ENDPOINTS.admin.developer.tiers,
       headers: { authorization: `Bearer ${bearerToken()}` },
       payload: { name: "Pro", requestsPerMinute: 120, requestsPerDay: 50000, icon: "NotAnIcon" },
+    });
+    expect(bad.statusCode).toBe(400);
+  });
+
+  it("passes a custom button label through and rejects one longer than 40 characters", async () => {
+    const created = { ...freeTier, id: "tier_pro", name: "Pro", buttonLabel: "Count me in" };
+    mockTierRepo.createTier.mockResolvedValue(created);
+    const ok = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.admin.developer.tiers,
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: { name: "Pro", requestsPerMinute: 120, requestsPerDay: 50000, buttonLabel: "Count me in" },
+    });
+    expect(ok.statusCode).toBe(201);
+    expect(mockTierRepo.createTier).toHaveBeenCalledWith(expect.objectContaining({ buttonLabel: "Count me in" }));
+
+    const bad = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.admin.developer.tiers,
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: { name: "Pro", requestsPerMinute: 120, requestsPerDay: 50000, buttonLabel: "x".repeat(41) },
     });
     expect(bad.statusCode).toBe(400);
   });

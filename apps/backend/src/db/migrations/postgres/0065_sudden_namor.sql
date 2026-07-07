@@ -1,0 +1,1 @@
+ALTER TABLE "tiers" ADD COLUMN "button_label" text;

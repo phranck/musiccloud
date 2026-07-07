@@ -19,6 +19,7 @@ interface TierRow {
   price_yearly: string | null;
   color: string;
   icon: string | null;
+  button_label: string | null;
   description: string;
   enabled: boolean;
   disable_reason: string;
@@ -38,6 +39,7 @@ function toTier(row: TierRow): Tier {
     priceYearly: row.price_yearly,
     color: row.color,
     icon: row.icon,
+    buttonLabel: row.button_label,
     description: row.description,
     enabled: row.enabled,
     disableReason: row.disable_reason,
@@ -62,8 +64,8 @@ export class PostgresTierRepository implements TierRepository {
   async createTier(data: TierCreateData): Promise<Tier> {
     const id = nanoid();
     const { rows } = await this.#pool.query<TierRow>(
-      `INSERT INTO tiers (id, name, requests_per_minute, requests_per_day, attribution_required, price, price_yearly, color, icon, description, enabled, disable_reason, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      `INSERT INTO tiers (id, name, requests_per_minute, requests_per_day, attribution_required, price, price_yearly, color, icon, button_label, description, enabled, disable_reason, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING *`,
       [
         id,
@@ -75,6 +77,7 @@ export class PostgresTierRepository implements TierRepository {
         data.priceYearly ?? null,
         data.color ?? DEFAULT_TIER_COLOR,
         data.icon ?? null,
+        data.buttonLabel ?? null,
         data.description ?? "",
         data.enabled ?? true,
         data.disableReason ?? "",
@@ -120,6 +123,10 @@ export class PostgresTierRepository implements TierRepository {
     if (data.icon !== undefined) {
       fields.push(`icon = $${idx++}`);
       values.push(data.icon);
+    }
+    if (data.buttonLabel !== undefined) {
+      fields.push(`button_label = $${idx++}`);
+      values.push(data.buttonLabel);
     }
     if (data.description !== undefined) {
       fields.push(`description = $${idx++}`);

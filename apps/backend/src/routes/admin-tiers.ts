@@ -18,6 +18,9 @@ const MAX_TIER_DESCRIPTION_LENGTH = 500;
 /** Maximum length of a tier's disable reason. */
 const MAX_TIER_DISABLE_REASON_LENGTH = 200;
 
+/** Maximum length of a tier's custom CTA button label. */
+const MAX_TIER_BUTTON_LABEL_LENGTH = 40;
+
 export async function adminTiersRoutes(app: FastifyInstance) {
   app.get(ENDPOINTS.admin.developer.tiers, async (request, reply) => {
     if (!(await requireOwnerOrAdmin(request, reply))) return;
@@ -42,6 +45,11 @@ export async function adminTiersRoutes(app: FastifyInstance) {
     }
     if (body.icon != null && !isTierIconName(body.icon)) {
       return reply.status(400).send({ error: "icon must be one of the supported tier icon names" });
+    }
+    if (body.buttonLabel != null && body.buttonLabel.length > MAX_TIER_BUTTON_LABEL_LENGTH) {
+      return reply
+        .status(400)
+        .send({ error: `buttonLabel must be at most ${MAX_TIER_BUTTON_LABEL_LENGTH} characters` });
     }
     if (body.description != null && body.description.length > MAX_TIER_DESCRIPTION_LENGTH) {
       return reply.status(400).send({ error: `description must be at most ${MAX_TIER_DESCRIPTION_LENGTH} characters` });
@@ -71,6 +79,11 @@ export async function adminTiersRoutes(app: FastifyInstance) {
     }
     if (body.icon != null && !isTierIconName(body.icon)) {
       return reply.status(400).send({ error: "icon must be one of the supported tier icon names" });
+    }
+    if (body.buttonLabel != null && body.buttonLabel.length > MAX_TIER_BUTTON_LABEL_LENGTH) {
+      return reply
+        .status(400)
+        .send({ error: `buttonLabel must be at most ${MAX_TIER_BUTTON_LABEL_LENGTH} characters` });
     }
     if (body.description != null && body.description.length > MAX_TIER_DESCRIPTION_LENGTH) {
       return reply.status(400).send({ error: `description must be at most ${MAX_TIER_DESCRIPTION_LENGTH} characters` });

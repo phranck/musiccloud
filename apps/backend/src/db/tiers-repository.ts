@@ -31,6 +31,8 @@ export interface Tier {
   color: string;
   /** Iconsax icon name for the tier (one of the shared `TIER_ICONS`), or `null` for none. */
   icon: string | null;
+  /** Custom label for the pricing-card CTA button, or `null` to use the portal default. */
+  buttonLabel: string | null;
   /** Free-text description shown on the public pricing card (English, ≤500 chars; default `""`). */
   description: string;
   /** Whether the tier is currently offered. Disabled tiers stay visible on the pricing page (marked) but can no longer be assigned. */
@@ -51,6 +53,7 @@ export interface TierCreateData {
   priceYearly?: string | null;
   color?: string;
   icon?: string | null;
+  buttonLabel?: string | null;
   description?: string;
   enabled?: boolean;
   disableReason?: string;
@@ -66,6 +69,7 @@ export interface TierUpdateData {
   priceYearly?: string | null;
   color?: string;
   icon?: string | null;
+  buttonLabel?: string | null;
   description?: string;
   enabled?: boolean;
   disableReason?: string;
