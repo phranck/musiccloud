@@ -40,6 +40,7 @@ interface TierFormData {
   description: string;
   enabled: boolean;
   disableReason: string;
+  recommended: boolean;
   sortOrder: number;
 }
 
@@ -56,6 +57,7 @@ const EMPTY_FORM: TierFormData = {
   description: "",
   enabled: true,
   disableReason: "",
+  recommended: false,
   sortOrder: 0,
 };
 
@@ -73,6 +75,7 @@ function toSubmitBody(data: TierFormData) {
     description: data.description,
     enabled: data.enabled,
     disableReason: data.disableReason,
+    recommended: data.recommended,
     sortOrder: data.sortOrder,
   };
 }
@@ -138,6 +141,7 @@ function tierEditorReducer(state: TierEditorState, action: TierEditorAction): Ti
           description: action.tier.description,
           enabled: action.tier.enabled,
           disableReason: action.tier.disableReason,
+          recommended: action.tier.recommended,
           sortOrder: action.tier.sortOrder,
         },
         errors: {},
@@ -269,6 +273,18 @@ function TierFormDialog({
             maxLength={500}
             placeholder="e.g. For hobby projects and evaluation."
           />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <FormLabel htmlFor="tier-recommended">{dm.colRecommended}</FormLabel>
+          <div className="flex h-9 items-center">
+            <ToggleSwitch
+              id="tier-recommended"
+              checked={form.recommended}
+              onChange={(checked) => onFormChange({ recommended: checked })}
+              aria-label={dm.colRecommended}
+            />
+          </div>
         </div>
 
         <TierIconPicker
@@ -510,6 +526,11 @@ function useTierColumns(
             {!a.enabled && (
               <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-xs font-semibold text-amber-400">
                 {dm.tierDisabledBadge}
+              </span>
+            )}
+            {a.recommended && (
+              <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-xs font-semibold text-emerald-400">
+                {dm.tierRecommendedBadge}
               </span>
             )}
           </span>

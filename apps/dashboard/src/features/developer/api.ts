@@ -157,6 +157,8 @@ export interface TierResponse {
   description: string;
   enabled: boolean;
   disableReason: string;
+  /** Whether this tier is the highlighted "recommended" one on the pricing page. At most one tier is recommended at a time (server-enforced); may be none. */
+  recommended: boolean;
   sortOrder: number;
   createdAt: number;
   updatedAt: number;
@@ -180,6 +182,7 @@ export function createTier(
         | "description"
         | "enabled"
         | "disableReason"
+        | "recommended"
         | "sortOrder"
       >
     >,
@@ -204,6 +207,7 @@ export function updateTier(
       | "description"
       | "enabled"
       | "disableReason"
+      | "recommended"
       | "sortOrder"
     >
   >,

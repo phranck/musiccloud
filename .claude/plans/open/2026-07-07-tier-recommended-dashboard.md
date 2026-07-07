@@ -37,13 +37,13 @@ das Backend (MC-106); die Liste refetcht nach dem Speichern und spiegelt den Zus
 
 ## Task-Checkliste
 
-- [ ] DTO: `recommended` in `TierResponse` + in die Create-/Update-Input-Feldlisten (api.ts)
-- [ ] Editor Form-State: `recommended` + Default `false` + `OpenEdit`-Mapping (TierEditorPage.tsx)
-- [ ] `ToggleSwitch` „Recommended" im Dialog (Muster `enabled`), `SetForm`-Dispatch
-- [ ] Submit: `recommended` in Create/Update-Payload aufnehmen
-- [ ] Tabelle: „Recommended"-Badge in der Name-Zelle des empfohlenen Tiers
-- [ ] Gates grün: dashboard `typecheck`, `pnpm lint`, `pnpm run doctor:diff`, dashboard `test:run`
-- [ ] All code references verified (functions, scripts, paths, env vars, package-manager commands)
+- [x] DTO: `recommended` in `TierResponse` + in die Create-/Update-Input-Feldlisten (api.ts)
+- [x] Editor Form-State: `recommended` + Default `false` + `OpenEdit`-Mapping (TierEditorPage.tsx)
+- [x] `ToggleSwitch` „Recommended" im Dialog (Muster `enabled`), `SetForm`-Dispatch
+- [x] Submit: `recommended` fließt via `toSubmitBody` in Create/Update-Payload (Spread durch die Hooks)
+- [x] Tabelle: „Recommended"-Badge (emerald) in der Name-Zelle des empfohlenen Tiers; i18n-Keys `colRecommended`/`tierRecommendedBadge` (de/en)
+- [x] Gates: dashboard `typecheck` grün, Biome clean, `doctor:diff` 0 Issues. `test:run` NICHT lauffähig — vorbestehender vitest-Env-Bug (`Cannot set property testPath ... getter`) failt die GESAMTE Dashboard-Suite (per Stash-Vergleich als pre-existing verifiziert), keine MC-107-Regression
+- [x] All code references verified (functions, scripts, paths, env vars, package-manager commands)
 
 ## Verifizierte Fakten
 

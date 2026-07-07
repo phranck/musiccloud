@@ -216,6 +216,8 @@ export interface DashboardMessages {
     colActive: string;
     colDisableReason: string;
     tierDisabledBadge: string;
+    colRecommended: string;
+    tierRecommendedBadge: string;
     noTiers: string;
     noTiersHint: string;
   };
@@ -946,6 +948,8 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       colActive: "Aktiv",
       colDisableReason: "Deaktivierungsgrund",
       tierDisabledBadge: "Deaktiviert",
+      colRecommended: "Empfohlen",
+      tierRecommendedBadge: "Empfohlen",
       noTiers: "Keine Tiers",
       noTiersHint: "Erstelle dein erstes API-Tarifstufen-Tier über den Button oben.",
     },
@@ -1676,6 +1680,8 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       colActive: "Active",
       colDisableReason: "Disable reason",
       tierDisabledBadge: "Disabled",
+      colRecommended: "Recommended",
+      tierRecommendedBadge: "Recommended",
       noTiers: "No tiers",
       noTiersHint: "Create your first API tier using the button above.",
     },
