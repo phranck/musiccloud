@@ -231,6 +231,7 @@ function makeTier(overrides: Partial<Tier> = {}): Tier {
     description: "",
     enabled: true,
     disableReason: "",
+    recommended: false,
     sortOrder: 1,
     createdAt: 1_700_000_000_000,
     updatedAt: 1_700_000_000_000,

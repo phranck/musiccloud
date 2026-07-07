@@ -27,6 +27,7 @@ const freeTier: Tier = {
   description: "",
   enabled: true,
   disableReason: "",
+  recommended: false,
   sortOrder: 0,
   createdAt: 1700000000000,
   updatedAt: 1700000000000,
@@ -268,6 +269,27 @@ describe("POST /api/admin/developer/tiers", () => {
     });
     expect(res.statusCode).toBe(400);
   });
+
+  it("passes recommended through and rejects a non-boolean", async () => {
+    const created = { ...freeTier, id: "tier_pro", name: "Pro", recommended: true };
+    mockTierRepo.createTier.mockResolvedValue(created);
+    const ok = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.admin.developer.tiers,
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: { name: "Pro", requestsPerMinute: 120, requestsPerDay: 50000, recommended: true },
+    });
+    expect(ok.statusCode).toBe(201);
+    expect(mockTierRepo.createTier).toHaveBeenCalledWith(expect.objectContaining({ recommended: true }));
+
+    const bad = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.admin.developer.tiers,
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: { name: "Pro", requestsPerMinute: 120, requestsPerDay: 50000, recommended: "yes" },
+    });
+    expect(bad.statusCode).toBe(400);
+  });
 });
 
 describe("PATCH /api/admin/developer/tiers/:id", () => {
@@ -296,6 +318,27 @@ describe("PATCH /api/admin/developer/tiers/:id", () => {
     expect(res.statusCode).toBe(200);
     expect(mockTierRepo.updateTier).toHaveBeenCalledWith("tier_free", { priceYearly: "90" });
     expect(res.json()).toEqual(updated);
+  });
+
+  it("passes recommended through and rejects a non-boolean", async () => {
+    const updated = { ...freeTier, recommended: true };
+    mockTierRepo.updateTier.mockResolvedValue(updated);
+    const ok = await app.inject({
+      method: "PATCH",
+      url: ENDPOINTS.admin.developer.tierDetail("tier_free"),
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: { recommended: true },
+    });
+    expect(ok.statusCode).toBe(200);
+    expect(mockTierRepo.updateTier).toHaveBeenCalledWith("tier_free", { recommended: true });
+
+    const bad = await app.inject({
+      method: "PATCH",
+      url: ENDPOINTS.admin.developer.tierDetail("tier_free"),
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: { recommended: "yes" },
+    });
+    expect(bad.statusCode).toBe(400);
   });
 });
 

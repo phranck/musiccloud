@@ -39,6 +39,13 @@ export interface Tier {
   enabled: boolean;
   /** Reason shown when the tier is disabled (English, ≤200 chars; default `""`). Only meaningful when `enabled` is false. */
   disableReason: string;
+  /**
+   * Whether this tier is the highlighted "recommended" one on the pricing page.
+   * At most one tier is recommended at a time (server-enforced): setting this
+   * `true` clears it on every other tier. May also be none (all `false`), in
+   * which case the pricing cards render flat. Independent of `enabled`.
+   */
+  recommended: boolean;
   sortOrder: number;
   createdAt: number;
   updatedAt: number;
@@ -57,6 +64,8 @@ export interface TierCreateData {
   description?: string;
   enabled?: boolean;
   disableReason?: string;
+  /** Mark this tier as the recommended one on create; `true` clears the flag on all other tiers. Defaults to `false`. */
+  recommended?: boolean;
   sortOrder?: number;
 }
 
@@ -73,6 +82,8 @@ export interface TierUpdateData {
   description?: string;
   enabled?: boolean;
   disableReason?: string;
+  /** Set the recommended flag. `true` makes this the recommended tier and clears it on all others; `false` leaves none recommended. */
+  recommended?: boolean;
   sortOrder?: number;
 }
 

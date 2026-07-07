@@ -463,6 +463,13 @@
       "when": 1783416941898,
       "tag": "0065_sudden_namor",
       "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1783450660403,
+      "tag": "0066_supreme_tusk",
+      "breakpoints": true
     }
   ]
 }

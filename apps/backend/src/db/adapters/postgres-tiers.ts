@@ -23,6 +23,7 @@ interface TierRow {
   description: string;
   enabled: boolean;
   disable_reason: string;
+  recommended: boolean;
   sort_order: number;
   created_at: Date;
   updated_at: Date;
@@ -43,6 +44,7 @@ function toTier(row: TierRow): Tier {
     description: row.description,
     enabled: row.enabled,
     disableReason: row.disable_reason,
+    recommended: row.recommended,
     sortOrder: row.sort_order,
     createdAt: dateToMs(row.created_at),
     updatedAt: dateToMs(row.updated_at),
@@ -63,28 +65,68 @@ export class PostgresTierRepository implements TierRepository {
 
   async createTier(data: TierCreateData): Promise<Tier> {
     const id = nanoid();
-    const { rows } = await this.#pool.query<TierRow>(
-      `INSERT INTO tiers (id, name, requests_per_minute, requests_per_day, attribution_required, price, price_yearly, color, icon, button_label, description, enabled, disable_reason, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-       RETURNING *`,
-      [
-        id,
-        data.name,
-        data.requestsPerMinute,
-        data.requestsPerDay,
-        data.attributionRequired ?? false,
-        data.price ?? null,
-        data.priceYearly ?? null,
-        data.color ?? DEFAULT_TIER_COLOR,
-        data.icon ?? null,
-        data.buttonLabel ?? null,
-        data.description ?? "",
-        data.enabled ?? true,
-        data.disableReason ?? "",
-        data.sortOrder ?? 0,
-      ],
-    );
+    const recommended = data.recommended ?? false;
+    const sql = `INSERT INTO tiers (id, name, requests_per_minute, requests_per_day, attribution_required, price, price_yearly, color, icon, button_label, description, enabled, disable_reason, recommended, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+       RETURNING *`;
+    const values = [
+      id,
+      data.name,
+      data.requestsPerMinute,
+      data.requestsPerDay,
+      data.attributionRequired ?? false,
+      data.price ?? null,
+      data.priceYearly ?? null,
+      data.color ?? DEFAULT_TIER_COLOR,
+      data.icon ?? null,
+      data.buttonLabel ?? null,
+      data.description ?? "",
+      data.enabled ?? true,
+      data.disableReason ?? "",
+      recommended,
+      data.sortOrder ?? 0,
+    ];
+
+    if (recommended) {
+      return this.#writeAndClearOtherRecommendations(id, sql, values);
+    }
+
+    const { rows } = await this.#pool.query<TierRow>(sql, values);
     return toTier(rows[0]!);
+  }
+
+  /**
+   * Runs a write that sets `recommended = true` on tier `id` (an INSERT or
+   * UPDATE that returns the affected row) and, in the same transaction, clears
+   * the flag on every other tier. This enforces the "at most one recommended"
+   * invariant atomically, so concurrent writers can never leave two tiers
+   * recommended.
+   *
+   * @param id - The tier being made recommended.
+   * @param sql - The INSERT/UPDATE statement (must `RETURNING *`).
+   * @param values - Parameters for `sql`.
+   * @returns The written tier.
+   */
+  async #writeAndClearOtherRecommendations(id: string, sql: string, values: unknown[]): Promise<Tier> {
+    const client = await this.#pool.connect();
+    try {
+      await client.query("BEGIN");
+      const { rows } = await client.query<TierRow>(sql, values);
+      if (rows.length === 0) {
+        throw new Error(`Tier not found: ${id}`);
+      }
+      await client.query(
+        "UPDATE tiers SET recommended = false, updated_at = now() WHERE recommended = true AND id <> $1",
+        [id],
+      );
+      await client.query("COMMIT");
+      return toTier(rows[0]!);
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => {});
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async updateTier(id: string, data: TierUpdateData): Promise<Tier> {
@@ -144,6 +186,10 @@ export class PostgresTierRepository implements TierRepository {
       fields.push(`sort_order = $${idx++}`);
       values.push(data.sortOrder);
     }
+    if (data.recommended !== undefined) {
+      fields.push(`recommended = $${idx++}`);
+      values.push(data.recommended);
+    }
 
     fields.push(`updated_at = now()`);
 
@@ -154,10 +200,13 @@ export class PostgresTierRepository implements TierRepository {
     }
 
     values.push(id);
-    const { rows } = await this.#pool.query<TierRow>(
-      `UPDATE tiers SET ${fields.join(", ")} WHERE id = $${idx} RETURNING *`,
-      values,
-    );
+    const sql = `UPDATE tiers SET ${fields.join(", ")} WHERE id = $${idx} RETURNING *`;
+
+    if (data.recommended === true) {
+      return this.#writeAndClearOtherRecommendations(id, sql, values);
+    }
+
+    const { rows } = await this.#pool.query<TierRow>(sql, values);
     if (rows.length === 0) throw new Error(`Tier not found: ${id}`);
     return toTier(rows[0]!);
   }

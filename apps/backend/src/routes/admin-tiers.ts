@@ -59,6 +59,9 @@ export async function adminTiersRoutes(app: FastifyInstance) {
         .status(400)
         .send({ error: `disableReason must be at most ${MAX_TIER_DISABLE_REASON_LENGTH} characters` });
     }
+    if (body.recommended != null && typeof body.recommended !== "boolean") {
+      return reply.status(400).send({ error: "recommended must be a boolean" });
+    }
     const repo = await getTierRepository();
     const tier = await repo.createTier(body);
     return reply.status(201).send(tier);
@@ -92,6 +95,9 @@ export async function adminTiersRoutes(app: FastifyInstance) {
       return reply
         .status(400)
         .send({ error: `disableReason must be at most ${MAX_TIER_DISABLE_REASON_LENGTH} characters` });
+    }
+    if (body.recommended != null && typeof body.recommended !== "boolean") {
+      return reply.status(400).send({ error: "recommended must be a boolean" });
     }
     const repo = await getTierRepository();
     const tier = await repo.updateTier(id, body);
