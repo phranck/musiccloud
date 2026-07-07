@@ -21,6 +21,11 @@ vite.config.d.ts
 # graphify knowledge-graph output (generated, reproducible via /graphify)
 graphify-out/
 
+# gource dev-history render dir: large local input assets (background audio,
+# avatars) and generated output (mp4/HLS), rendered via scripts/mkgource. The
+# tracked config lives in .gource.conf (a file, not this dir).
+.gource/
+
 # Astro
 .astro/
 

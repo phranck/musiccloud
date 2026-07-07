@@ -1,0 +1,28 @@
+./mkgource \
+--output ~/Desktop/musiccloud-history.mp4 \
+--no-hls \
+--poster-time 5 \
+--no-key \
+--viewport 2160p \
+--audio-fade-in 0.25 \
+--audio-fade-out 3.5 \
+--animation-font "Roboto" \
+--animation-font-size 10 \
+--animation-font-color 55555 \
+--date-format "%A, %d.%m.%Y %R" \
+--title "musiccloud.io" \
+--title-font Orbitron \
+--title-fade-in 5 \
+--subtitle "a visualized development history" \
+--subtitle-font Orbitron \
+--subtitle-font-size 24 \
+--subtitle-delay 4.25 \
+--subtitle-fade-in 1.75 \
+--intro-hold 9.4 \
+--crossfade 5 \
+--outro-title "Thanks for watching" \
+--outro-title-font Orbitron \
+--outro-hold 8 \
+--outro-fade-out 1.75 \
+--outro-crossfade 0.75
+
