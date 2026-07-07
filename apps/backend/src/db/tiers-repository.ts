@@ -23,9 +23,14 @@ export interface Tier {
   requestsPerMinute: number;
   requestsPerDay: number;
   attributionRequired: boolean;
+  /** Monthly price in euros as a numeric string (e.g. "9" or "9.90"), or `null` for free tiers. */
   price: string | null;
+  /** Yearly price in euros as a numeric string, or `null` when no yearly billing is offered. */
+  priceYearly: string | null;
   /** Hex accent colour `#RRGGBB` (validated at the API boundary; default `#64748b`). */
   color: string;
+  /** Iconsax icon name for the tier (one of the shared `TIER_ICONS`), or `null` for none. */
+  icon: string | null;
   /** Free-text description shown on the public pricing card (English, ≤500 chars; default `""`). */
   description: string;
   /** Whether the tier is currently offered. Disabled tiers stay visible on the pricing page (marked) but can no longer be assigned. */
@@ -43,7 +48,9 @@ export interface TierCreateData {
   requestsPerDay: number;
   attributionRequired?: boolean;
   price?: string | null;
+  priceYearly?: string | null;
   color?: string;
+  icon?: string | null;
   description?: string;
   enabled?: boolean;
   disableReason?: string;
@@ -56,7 +63,9 @@ export interface TierUpdateData {
   requestsPerDay?: number;
   attributionRequired?: boolean;
   price?: string | null;
+  priceYearly?: string | null;
   color?: string;
+  icon?: string | null;
   description?: string;
   enabled?: boolean;
   disableReason?: string;

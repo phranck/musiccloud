@@ -3,7 +3,7 @@
  * Restricted to owner/admin roles; registered inside the adminRoutes scope
  * where `authenticateAdmin` already verified the JWT.
  */
-import { ENDPOINTS } from "@musiccloud/shared";
+import { ENDPOINTS, isTierIconName } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getTierRepository } from "../db/index.js";
 import type { TierCreateData, TierUpdateData } from "../db/tiers-repository.js";
@@ -40,6 +40,9 @@ export async function adminTiersRoutes(app: FastifyInstance) {
     if (body.color != null && !HEX_COLOR_RE.test(body.color)) {
       return reply.status(400).send({ error: "color must be a hex value like #RRGGBB" });
     }
+    if (body.icon != null && !isTierIconName(body.icon)) {
+      return reply.status(400).send({ error: "icon must be one of the supported tier icon names" });
+    }
     if (body.description != null && body.description.length > MAX_TIER_DESCRIPTION_LENGTH) {
       return reply.status(400).send({ error: `description must be at most ${MAX_TIER_DESCRIPTION_LENGTH} characters` });
     }
@@ -65,6 +68,9 @@ export async function adminTiersRoutes(app: FastifyInstance) {
     }
     if (body.color != null && !HEX_COLOR_RE.test(body.color)) {
       return reply.status(400).send({ error: "color must be a hex value like #RRGGBB" });
+    }
+    if (body.icon != null && !isTierIconName(body.icon)) {
+      return reply.status(400).send({ error: "icon must be one of the supported tier icon names" });
     }
     if (body.description != null && body.description.length > MAX_TIER_DESCRIPTION_LENGTH) {
       return reply.status(400).send({ error: `description must be at most ${MAX_TIER_DESCRIPTION_LENGTH} characters` });

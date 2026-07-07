@@ -20,7 +20,9 @@ const freeTier: Tier = {
   requestsPerDay: 10000,
   attributionRequired: false,
   price: null,
+  priceYearly: null,
   color: "#64748b",
+  icon: null,
   description: "",
   enabled: true,
   disableReason: "",
@@ -200,6 +202,41 @@ describe("POST /api/admin/developer/tiers", () => {
     expect(res.json()).toEqual(created);
   });
 
+  it("passes monthly and yearly prices through to the repository", async () => {
+    const created = { ...freeTier, id: "tier_pro", name: "Pro", price: "9", priceYearly: "90" };
+    mockTierRepo.createTier.mockResolvedValue(created);
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.admin.developer.tiers,
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: { name: "Pro", requestsPerMinute: 120, requestsPerDay: 50000, price: "9", priceYearly: "90" },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(mockTierRepo.createTier).toHaveBeenCalledWith(expect.objectContaining({ price: "9", priceYearly: "90" }));
+    expect(res.json()).toEqual(created);
+  });
+
+  it("passes a valid icon through and rejects an invalid one", async () => {
+    const created = { ...freeTier, id: "tier_pro", name: "Pro", icon: "Crown1" };
+    mockTierRepo.createTier.mockResolvedValue(created);
+    const ok = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.admin.developer.tiers,
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: { name: "Pro", requestsPerMinute: 120, requestsPerDay: 50000, icon: "Crown1" },
+    });
+    expect(ok.statusCode).toBe(201);
+    expect(mockTierRepo.createTier).toHaveBeenCalledWith(expect.objectContaining({ icon: "Crown1" }));
+
+    const bad = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.admin.developer.tiers,
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: { name: "Pro", requestsPerMinute: 120, requestsPerDay: 50000, icon: "NotAnIcon" },
+    });
+    expect(bad.statusCode).toBe(400);
+  });
+
   it("rejects a disable reason longer than 200 characters", async () => {
     const res = await app.inject({
       method: "POST",
@@ -222,6 +259,20 @@ describe("PATCH /api/admin/developer/tiers/:id", () => {
       payload: { name: "Free v2" },
     });
     expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual(updated);
+  });
+
+  it("updates the yearly price", async () => {
+    const updated = { ...freeTier, priceYearly: "90" };
+    mockTierRepo.updateTier.mockResolvedValue(updated);
+    const res = await app.inject({
+      method: "PATCH",
+      url: ENDPOINTS.admin.developer.tierDetail("tier_free"),
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: { priceYearly: "90" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(mockTierRepo.updateTier).toHaveBeenCalledWith("tier_free", { priceYearly: "90" });
     expect(res.json()).toEqual(updated);
   });
 });

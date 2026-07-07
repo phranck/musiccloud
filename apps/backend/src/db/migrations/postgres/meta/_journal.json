@@ -442,6 +442,20 @@
       "when": 1783348678559,
       "tag": "0062_first_anthem",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1783361582208,
+      "tag": "0063_chemical_bug",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1783405183560,
+      "tag": "0064_jittery_stellaris",
+      "breakpoints": true
     }
   ]
 }
