@@ -16,7 +16,7 @@
  */
 import PublicHeader from "@/components/PublicHeader.astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
-import { FOOTER_LINKS } from "@/lib/footerLinks";
+import PublicFooter from "@/components/PublicFooter.astro";
 import { BookIcon, FlashIcon, KeyIcon, LinkIcon, ProfileAddIcon } from "@/lib/icons";
 import { getDeveloperSession } from "@/lib/session";
 
@@ -147,24 +147,5 @@ const steps = [
     </div>
   </main>
 
-  <footer class="border-t border-border">
-    <div class="max-w-6xl mx-auto w-full px-6 py-5 flex items-center justify-between text-body text-fg-subtle">
-      <span>© musiccloud</span>
-      <nav class="flex items-center gap-3">
-        {
-          FOOTER_LINKS.map((link) =>
-            link.external ? (
-              <a href={link.href} target="_blank" rel="noopener noreferrer" class="text-link">
-                {link.label}
-              </a>
-            ) : (
-              <a href={link.href} class="text-link">
-                {link.label}
-              </a>
-            ),
-          )
-        }
-      </nav>
-    </div>
-  </footer>
+  <PublicFooter />
 </BaseLayout>

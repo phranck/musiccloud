@@ -83,45 +83,47 @@ export function DeleteAccountSection({ hasPassword }: DeleteAccountSectionProps)
   );
 
   return (
-    <section className="rounded-card border border-red-400/40 bg-surface px-6 py-5">
-      <h2 className="text-body font-medium text-red-400 mb-1">Danger zone</h2>
-      <p className="text-body text-fg-muted mb-4">
-        Deleting your account permanently removes your profile, API clients and tokens. This cannot be undone.
-      </p>
+    <section>
+      <h2 className="text-card-title font-medium tracking-tight text-red-400 mb-3">Danger zone</h2>
+      <div className="rounded-card border border-red-400/40 bg-surface px-6 py-5">
+        <p className="text-body text-fg-muted mb-4">
+          Deleting your account permanently removes your profile, API clients and tokens. This cannot be undone.
+        </p>
 
-      {!revealed ? (
-        <SubmitButton variant={ButtonVariant.Danger} type="button" onClick={onReveal}>
-          Delete account
-        </SubmitButton>
-      ) : (
-        <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-          <p className="text-body font-medium text-red-400">This action is permanent and cannot be undone.</p>
-          {hasPassword && (
-            <TextField
-              name="password"
-              label="Confirm your password"
-              type="password"
-              value={password}
-              onChange={onPassword}
-              autoComplete="current-password"
-              error={error ?? undefined}
-            />
-          )}
-          {!hasPassword && error ? <p className="text-body text-red-400">{error}</p> : null}
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
-              <SubmitButton variant={ButtonVariant.Danger} loading={phase === FormPhase.Submitting}>
-                Permanently delete account
-              </SubmitButton>
+        {!revealed ? (
+          <SubmitButton variant={ButtonVariant.Danger} type="button" onClick={onReveal}>
+            Delete account
+          </SubmitButton>
+        ) : (
+          <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+            <p className="text-body font-medium text-red-400">This action is permanent and cannot be undone.</p>
+            {hasPassword && (
+              <TextField
+                name="password"
+                label="Confirm your password"
+                type="password"
+                value={password}
+                onChange={onPassword}
+                autoComplete="current-password"
+                error={error ?? undefined}
+              />
+            )}
+            {!hasPassword && error ? <p className="text-body text-red-400">{error}</p> : null}
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <SubmitButton variant={ButtonVariant.Danger} loading={phase === FormPhase.Submitting}>
+                  Permanently delete account
+                </SubmitButton>
+              </div>
+              <div className="flex-1">
+                <SubmitButton variant={ButtonVariant.Secondary} type="button" onClick={onCancel}>
+                  Cancel
+                </SubmitButton>
+              </div>
             </div>
-            <div className="flex-1">
-              <SubmitButton variant={ButtonVariant.Secondary} type="button" onClick={onCancel}>
-                Cancel
-              </SubmitButton>
-            </div>
-          </div>
-        </form>
-      )}
+          </form>
+        )}
+      </div>
     </section>
   );
 }

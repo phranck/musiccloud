@@ -112,83 +112,87 @@ export function ApiAccessPanel() {
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="rounded-card border border-border bg-surface px-6 py-5">
-        <h2 className="text-body font-medium text-fg mb-1">Request API access</h2>
-        <p className="text-body text-fg-muted mb-4">
-          Tell us about your app. Once a request is approved, the app and its API keys appear under{" "}
-          <a href="/dashboard/api-keys" className="text-fg text-link">
-            API keys
-          </a>
-          .
-        </p>
-        <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-          <TextField
-            name="appName"
-            label="App name"
-            value={fields.appName}
-            onChange={onAppName}
-            placeholder="My Music App"
-          />
-          <TextAreaField
-            name="appDescription"
-            label="What does your app do?"
-            value={fields.appDescription}
-            onChange={onAppDescription}
-            placeholder="A short description of your app and how it uses the musiccloud API."
-            maxLength={MAX_APP_DESCRIPTION_LENGTH}
-          />
-          <TextField
-            name="estimatedRequestsPerDay"
-            label="Estimated requests per day"
-            type="number"
-            value={fields.estimatedPerDay}
-            onChange={onEstimatedPerDay}
-            placeholder="500"
-            hint="A rough estimate is fine. It helps us size your quota."
-          />
-          {formError ? <p className="text-body text-red-400">{formError}</p> : null}
-          {phase === FormPhase.Success ? (
-            <output className="text-body text-accent">
-              Request submitted. You will be notified once it has been reviewed.
-            </output>
-          ) : null}
-          <div className="sm:max-w-xs">
-            <SubmitButton loading={phase === FormPhase.Submitting}>
-              <Send2Icon className="size-5" aria-hidden="true" />
-              Submit request
-            </SubmitButton>
-          </div>
-        </form>
+      <section>
+        <h2 className="text-card-title font-medium tracking-tight mb-3">Request API access</h2>
+        <div className="rounded-card border border-border bg-surface px-6 py-5">
+          <p className="text-body text-fg-muted mb-4">
+            Tell us about your app. Once a request is approved, the app and its API keys appear under{" "}
+            <a href="/dashboard/api-keys" className="text-fg text-link">
+              API keys
+            </a>
+            .
+          </p>
+          <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+            <TextField
+              name="appName"
+              label="App name"
+              value={fields.appName}
+              onChange={onAppName}
+              placeholder="My Music App"
+            />
+            <TextAreaField
+              name="appDescription"
+              label="What does your app do?"
+              value={fields.appDescription}
+              onChange={onAppDescription}
+              placeholder="A short description of your app and how it uses the musiccloud API."
+              maxLength={MAX_APP_DESCRIPTION_LENGTH}
+            />
+            <TextField
+              name="estimatedRequestsPerDay"
+              label="Estimated requests per day"
+              type="number"
+              value={fields.estimatedPerDay}
+              onChange={onEstimatedPerDay}
+              placeholder="500"
+              hint="A rough estimate is fine. It helps us size your quota."
+            />
+            {formError ? <p className="text-body text-red-400">{formError}</p> : null}
+            {phase === FormPhase.Success ? (
+              <output className="text-body text-accent">
+                Request submitted. You will be notified once it has been reviewed.
+              </output>
+            ) : null}
+            <div className="sm:max-w-xs">
+              <SubmitButton loading={phase === FormPhase.Submitting}>
+                <Send2Icon className="size-5" aria-hidden="true" />
+                Submit request
+              </SubmitButton>
+            </div>
+          </form>
+        </div>
       </section>
 
-      <section className="rounded-card border border-border bg-surface px-6 py-5">
-        <h2 className="text-body font-medium text-fg mb-4">Your requests</h2>
-        {requests === null && !listError ? <p className="text-body text-fg-muted">Loading…</p> : null}
-        {listError ? (
-          <p className="text-body text-red-400">Could not load your requests. Reload the page to try again.</p>
-        ) : null}
-        {requests !== null && requests.length === 0 ? (
-          <p className="text-body text-fg-muted">No requests yet. Submit your first one above.</p>
-        ) : null}
-        {requests !== null && requests.length > 0 ? (
-          <ul className="flex flex-col divide-y divide-border">
-            {requests.map((request) => (
-              <li key={request.id} className="py-3 first:pt-0 last:pb-0">
-                <div className="flex items-center justify-between gap-3 mb-0.5">
-                  <span className="text-body font-medium text-fg truncate">{request.appName}</span>
-                  <StatusBadge status={request.status} />
-                </div>
-                <p className="text-nav text-fg-subtle">
-                  Submitted {formatDate(request.submittedAt)}
-                  {request.reviewedAt ? ` · reviewed ${formatDate(request.reviewedAt)}` : ""}
-                </p>
-                {request.status === AccessRequestStatus.Rejected && request.reviewNote ? (
-                  <p className="text-body text-fg-muted mt-1.5">“{request.reviewNote}”</p>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        ) : null}
+      <section>
+        <h2 className="text-card-title font-medium tracking-tight mb-3">Your requests</h2>
+        <div className="rounded-card border border-border bg-surface px-6 py-5">
+          {requests === null && !listError ? <p className="text-body text-fg-muted">Loading…</p> : null}
+          {listError ? (
+            <p className="text-body text-red-400">Could not load your requests. Reload the page to try again.</p>
+          ) : null}
+          {requests !== null && requests.length === 0 ? (
+            <p className="text-body text-fg-muted">No requests yet. Submit your first one above.</p>
+          ) : null}
+          {requests !== null && requests.length > 0 ? (
+            <ul className="flex flex-col divide-y divide-border">
+              {requests.map((request) => (
+                <li key={request.id} className="py-3 first:pt-0 last:pb-0">
+                  <div className="flex items-center justify-between gap-3 mb-0.5">
+                    <span className="text-body font-medium text-fg truncate">{request.appName}</span>
+                    <StatusBadge status={request.status} />
+                  </div>
+                  <p className="text-nav text-fg-subtle">
+                    Submitted {formatDate(request.submittedAt)}
+                    {request.reviewedAt ? ` · reviewed ${formatDate(request.reviewedAt)}` : ""}
+                  </p>
+                  {request.status === AccessRequestStatus.Rejected && request.reviewNote ? (
+                    <p className="text-body text-fg-muted mt-1.5">“{request.reviewNote}”</p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
       </section>
     </div>
   );

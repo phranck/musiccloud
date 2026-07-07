@@ -31,12 +31,12 @@ const memberSince = new Date(account.createdAt).toLocaleDateString("en-US", {
 ---
 
 <DashboardLayout account={account} active={DashboardTab.Overview} title="Dashboard · musiccloud for developers">
-  <h1 class="text-card-title font-medium tracking-tight mb-1">Welcome back, {greetingName}</h1>
+  <h1 class="text-hero font-medium tracking-tight mb-1">Welcome back, {greetingName}</h1>
   <p class="text-body text-fg-muted mb-7">Here is your developer account at a glance.</p>
 
-  <section class="rounded-card border border-border bg-surface px-6 py-5 mb-6">
-    <h2 class="text-body font-medium text-fg mb-4">Account</h2>
-    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+  <section class="mb-6">
+    <h2 class="text-card-title font-medium tracking-tight mb-3">Account</h2>
+    <dl class="rounded-card border border-border bg-surface px-6 py-5 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
       <div>
         <dt class="text-nav text-fg-subtle mb-0.5">Email</dt>
         <dd class="text-body text-fg flex items-center gap-1.5">
@@ -68,17 +68,19 @@ const memberSince = new Date(account.createdAt).toLocaleDateString("en-US", {
     </dl>
   </section>
 
-  <section class="rounded-card border border-border bg-surface px-6 py-5 mb-6">
-    <h2 class="text-body font-medium text-fg mb-1">Get started</h2>
-    <p class="text-body text-fg-muted mb-4">
-      Request API access to receive a key and start calling the musiccloud API.
-    </p>
-    <a
-      href="/dashboard/api-access"
-      class="inline-flex items-center gap-2 rounded-button bg-accent text-on-accent px-4 py-2 text-body font-medium"
-    >
-      Request API access
-    </a>
+  <section class="mb-6">
+    <h2 class="text-card-title font-medium tracking-tight mb-3">Get started</h2>
+    <div class="rounded-card border border-border bg-surface px-6 py-5">
+      <p class="text-body text-fg-muted mb-4">
+        Request API access to receive a key and start calling the musiccloud API.
+      </p>
+      <a
+        href="/dashboard/api-access"
+        class="inline-flex items-center gap-2 rounded-button bg-accent text-on-accent px-4 py-2 text-body font-medium"
+      >
+        Request API access
+      </a>
+    </div>
   </section>
 
   <DeleteAccountSection client:load hasPassword={account.hasPassword} />

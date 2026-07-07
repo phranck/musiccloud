@@ -4,9 +4,9 @@
  * (landing, docs, API reference, pricing, terms, privacy). Replaces the
  * previously per-page duplicated header markup (MC-102).
  *
- * Signed out it offers "Log in" only; sign-up happens exclusively through
+ * Signed out it offers "Sign in" only; sign-up happens exclusively through
  * picking a tier on /pricing (the Subscribe flow, MC-101), so the header
- * carries no sign-up entry. Signed in, "Log in" disappears and the account's
+ * carries no sign-up entry. Signed in, "Sign in" disappears and the account's
  * avatar (with the Dashboard/Logout menu, see `AvatarMenu`) sits at the far
  * right, after the nav links. The nav itself is identical in both states:
  * Docs, API reference and Pricing. Status lives in the footer only.
@@ -37,7 +37,7 @@ const navClass = (id: PublicNavId) => (active === id ? "text-fg text-link" : "te
     <a href="/docs" class={navClass("docs")}>Docs</a>
     <a href="/docs/api" class={navClass("api")}>API reference</a>
     <a href="/pricing" class={navClass("pricing")}>Pricing</a>
-    {!account && <a href="/login" class="text-link">Log in</a>}
+    {!account && <a href="/login" class="text-link">Sign in</a>}
     {
       account && (
         <AvatarMenu

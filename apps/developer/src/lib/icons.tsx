@@ -2,12 +2,12 @@
  * @file Central icon module for the developer portal (MC-103).
  *
  * The portal renders **Iconsax** icons (free set, rounded corners) in the
- * TwoTone style. This is a deliberate, user-ordered exception to the repo's
+ * Bulk style. This is a deliberate, user-ordered exception to the repo's
  * otherwise Phosphor-only icon rule, scoped to `apps/developer`. Every icon
  * used anywhere in the portal is bound and re-exported here so the style
  * decision (variant + colour inheritance) lives in exactly one place:
  *
- * - `variant="TwoTone"`: the chosen Iconsax style.
+ * - `variant="Bulk"`: the chosen Iconsax style.
  * - `color="currentColor"`: iconsax-react has NO colour default; without
  *   this the SVG paths carry `stroke: undefined` and render invisible.
  *   Binding `currentColor` lets the usual Tailwind `text-*` utilities drive
@@ -55,58 +55,58 @@ import {
 
 /** The single Iconsax render style the portal uses (see the file header). */
 const IconVariant = {
-  TwoTone: "TwoTone",
+  Bulk: "Bulk",
 } as const;
 
 /**
- * Binds the portal's icon policy (TwoTone + currentColor) onto an Iconsax
+ * Binds the portal's icon policy (Bulk + currentColor) onto an Iconsax
  * icon and returns a drop-in component that only needs `className`/`aria-*`.
  * Every bound icon also carries the `mc-icon` class, which global.css uses
- * to lift the TwoTone secondary layer's hardcoded `opacity=".4"` to a level
+ * to lift the Bulk secondary layer's hardcoded `opacity=".4"` to a level
  * that stays visible on the dark gradient.
  *
  * @param Base - The raw iconsax-react icon component.
  * @returns The pre-styled icon component.
  */
-function twotone(Base: Icon): Icon {
+function bulk(Base: Icon): Icon {
   const Bound = ({ className, ...rest }: IconProps) => (
     <Base
-      variant={IconVariant.TwoTone}
+      variant={IconVariant.Bulk}
       color="currentColor"
       className={className ? `mc-icon ${className}` : "mc-icon"}
       {...rest}
     />
   );
-  Bound.displayName = `TwoTone(${Base.displayName ?? Base.name ?? "Icon"})`;
+  Bound.displayName = `Bulk(${Base.displayName ?? Base.name ?? "Icon"})`;
   return Bound;
 }
 
-export const AddIcon = twotone(Add);
-export const Book1Icon = twotone(Book1);
-export const BookIcon = twotone(Book);
-export const CategoryIcon = twotone(Category);
-export const CdIcon = twotone(Cd);
-export const CloseCircleIcon = twotone(CloseCircle);
-export const CodeIcon = twotone(Code);
-export const CoinIcon = twotone(Coin);
-export const CommandSquareIcon = twotone(CommandSquare);
-export const CopyIcon = twotone(Copy);
-export const DiagramIcon = twotone(Diagram);
-export const FlashIcon = twotone(Flash);
-export const ForbiddenIcon = twotone(Forbidden);
-export const GlobalIcon = twotone(Global);
-export const KeyIcon = twotone(Key);
-export const Like1Icon = twotone(Like1);
-export const LinkIcon = twotone(Link);
-export const LogoutIcon = twotone(Logout);
-export const ProfileAddIcon = twotone(ProfileAdd);
-export const ProfileCircleIcon = twotone(ProfileCircle);
-export const ProfileIcon = twotone(Profile);
-export const Refresh2Icon = twotone(Refresh2);
-export const RefreshIcon = twotone(Refresh);
-export const ScrollIcon = twotone(Scroll);
-export const Send2Icon = twotone(Send2);
-export const ShieldTickIcon = twotone(ShieldTick);
-export const SmsIcon = twotone(Sms);
-export const TickCircleIcon = twotone(TickCircle);
-export const Warning2Icon = twotone(Warning2);
+export const AddIcon = bulk(Add);
+export const Book1Icon = bulk(Book1);
+export const BookIcon = bulk(Book);
+export const CategoryIcon = bulk(Category);
+export const CdIcon = bulk(Cd);
+export const CloseCircleIcon = bulk(CloseCircle);
+export const CodeIcon = bulk(Code);
+export const CoinIcon = bulk(Coin);
+export const CommandSquareIcon = bulk(CommandSquare);
+export const CopyIcon = bulk(Copy);
+export const DiagramIcon = bulk(Diagram);
+export const FlashIcon = bulk(Flash);
+export const ForbiddenIcon = bulk(Forbidden);
+export const GlobalIcon = bulk(Global);
+export const KeyIcon = bulk(Key);
+export const Like1Icon = bulk(Like1);
+export const LinkIcon = bulk(Link);
+export const LogoutIcon = bulk(Logout);
+export const ProfileAddIcon = bulk(ProfileAdd);
+export const ProfileCircleIcon = bulk(ProfileCircle);
+export const ProfileIcon = bulk(Profile);
+export const Refresh2Icon = bulk(Refresh2);
+export const RefreshIcon = bulk(Refresh);
+export const ScrollIcon = bulk(Scroll);
+export const Send2Icon = bulk(Send2);
+export const ShieldTickIcon = bulk(ShieldTick);
+export const SmsIcon = bulk(Sms);
+export const TickCircleIcon = bulk(TickCircle);
+export const Warning2Icon = bulk(Warning2);
