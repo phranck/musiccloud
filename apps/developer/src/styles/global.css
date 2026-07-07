@@ -185,7 +185,8 @@
     );
     transition:
       transform 0.3s ease,
-      box-shadow 0.3s ease;
+      box-shadow 0.3s ease,
+      opacity 0.3s ease;
   }
 
   /* Stronger top glow revealed on hover: a second tier-coloured wash that fades
@@ -217,6 +218,50 @@
 
   .tier-card:hover::before {
     opacity: 1;
+  }
+
+  /* Recommended-tier highlight + depth (pricing page). When exactly one tier is
+     recommended, each card carries `--depth` = its distance from the recommended
+     card (0 = the recommended card). The recommended card also gets a
+     `data-recommended` attribute. When none is recommended no card has `--depth`
+     and the cards render flat, unchanged. GPU only: transform + opacity. */
+
+  /* Front-of-stack highlight: a tier-coloured elevation glow marks the
+     recommended card at every breakpoint. The depth recede below is lg-only, so
+     on stacked mobile this glow plus the badge are the whole highlight. */
+  .tier-card[data-recommended] {
+    box-shadow: 0 18px 40px -16px color-mix(in srgb, var(--tier), transparent 42%);
+  }
+
+  /* "Recommended" pill, top-right of the card, in the tier colour. */
+  .tier-badge {
+    z-index: 1;
+    border-radius: 9999px;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--color-on-accent);
+    background: var(--tier);
+    box-shadow: 0 2px 6px -1px color-mix(in srgb, var(--tier), transparent 40%);
+  }
+
+  /* Depth recede only on the lg row (below lg the cards stack, so there is no
+     "further back"). Each step out from the recommended card scales down, drops,
+     fades and sinks in z; the recommended card (`--depth: 0`) stays at the
+     front. Hover pulls any card fully forward regardless of its depth. */
+  @media (min-width: 64rem) {
+    .tier-card[style*="--depth"] {
+      transform: translateY(calc(var(--depth) * 0.55rem)) scale(calc(1 - var(--depth) * 0.055));
+      opacity: calc(1 - var(--depth) * 0.11);
+      z-index: calc(10 - var(--depth));
+    }
+
+    .tier-card[style*="--depth"]:hover {
+      transform: translateY(-6px) scale(1.03);
+      opacity: 1;
+      z-index: 20;
+    }
   }
 
   /* Inactive-tier notice box: its radius rides the same concentric cascade as

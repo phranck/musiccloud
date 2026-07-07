@@ -46,16 +46,16 @@ recommended, bleibt die Darstellung exakt wie jetzt (flach, kein Badge).
 
 ## Task-Checkliste
 
-- [ ] `TierDto.recommended` (pricing.astro)
-- [ ] `recommendedIndex` nach Sort berechnen; pro Card `--depth` + `data-recommended` nur wenn eines recommended
-- [ ] Recommended-Badge-Markup an der recommended-Card
-- [ ] CSS: Tiefen-Staffelung ab `lg` aus `--depth` (scale/translateY/opacity/z-index/shadow), GPU-only
-- [ ] CSS: Hover in die Basis-Transform integrieren (kein Konflikt mit Depth)
-- [ ] CSS: Mobile/`sm`-Highlight (Glow) statt Tiefe; Badge-Styling (`--tier`)
-- [ ] Flach-Fallback (kein recommended) verifizieren — unverändert zur aktuellen Darstellung
-- [ ] Gates grün: developer `astro check` (0 Fehler), `pnpm lint`, `pnpm run doctor:diff`
+- [x] `TierDto.recommended` (pricing.astro)
+- [x] `recommendedIndex` nach Sort berechnen; pro Card `--depth` + `data-recommended` nur wenn eines recommended
+- [x] Recommended-Badge-Markup an der recommended-Card (`.tier-badge`, top-right)
+- [x] CSS: Tiefen-Staffelung ab `lg` (`@media min-width:64rem`) aus `--depth` (scale/translateY/opacity/z-index), GPU-only
+- [x] CSS: Hover in die Basis-Transform integriert (`[style*="--depth"]:hover` holt Card nach vorn); `opacity` in Basis-Transition
+- [x] CSS: Mobile/`sm`-Highlight via `[data-recommended]`-Glow (alle Breakpoints) statt Tiefe; Badge-Styling (`--tier`)
+- [x] Flach-Fallback (kein recommended) — per Logik: kein `--depth`/`data-recommended`/Badge, `[style*="--depth"]` matcht nicht → unverändert
+- [x] Gates grün: developer `astro check` (0/0/0), Repo-`lint` (biome, 982), `doctor:diff` (keine React-Änderung)
 - [ ] Visuelle Prüfung durch User (Dev-Server via `./app`) — 0/1 recommended, Desktop + Mobile
-- [ ] All code references verified (functions, scripts, paths, env vars, package-manager commands)
+- [x] All code references verified (functions, scripts, paths, env vars, package-manager commands)
 
 ## Verifizierte Fakten
 

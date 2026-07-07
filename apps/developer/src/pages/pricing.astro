@@ -36,6 +36,8 @@ interface TierDto {
   description: string;
   enabled: boolean;
   disableReason: string;
+  /** Whether this tier is highlighted as the recommended one (at most one across all tiers). */
+  recommended: boolean;
   sortOrder: number;
 }
 
@@ -89,6 +91,11 @@ try {
 } catch {
   // The backend is unreachable. Show the commitment-only layout.
 }
+
+// Index of the single recommended tier, or -1 when none is. Drives the pricing
+// cards' depth effect: the recommended card sits at the front and the others
+// recede by their distance from it. When -1 the cards render flat.
+const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
 ---
 
 <BaseLayout
@@ -143,11 +150,15 @@ try {
           </div>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-flow-col lg:auto-cols-fr gap-x-4 gap-y-16 pt-12">
-          {tiers.map((tier) => (
+          {tiers.map((tier, index) => (
             <div
               class={`tier-card relative flex flex-col items-center gap-3 border border-border bg-surface pt-16 text-center${tier.enabled ? "" : " opacity-60"}`}
-              style={`--tier:${tier.color}`}
+              style={`--tier:${tier.color}${recommendedIndex >= 0 ? `;--depth:${Math.abs(index - recommendedIndex)}` : ""}`}
+              data-recommended={recommendedIndex >= 0 && index === recommendedIndex ? "true" : undefined}
             >
+              {recommendedIndex >= 0 && index === recommendedIndex && (
+                <span class="tier-badge absolute right-3 top-3">Recommended</span>
+              )}
               <span class="tier-medal absolute -top-10 left-1/2 flex size-20 -translate-x-1/2 rounded-full">
                 <span class="tier-medal-face">
                   {tier.icon ? (
