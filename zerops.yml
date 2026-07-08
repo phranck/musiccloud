@@ -134,10 +134,12 @@ zerops:
         HOST: "::"
         PORT: "3002"
         BACKEND_URL: http://backend:4000
-        # Maintenance gate: while "true", the middleware seals EVERY route behind
-        # the coming-soon page. Flip to "false" (or remove) to open the real
-        # portal once the redesigned signup/signin flow ships.
-        COMING_SOON: "true"
+        # Maintenance gate: the developer portal is sealed behind the coming-soon
+        # page while the COMING_SOON env flag is truthy. Set on the developer
+        # service in the Zerops env (not here), so it can be toggled without a
+        # redeploy; flip it there to open the real portal once the redesigned
+        # signup/signin flow ships.
+        # COMING_SOON: <set in the Zerops env on the developer service>
         # Set in Zerops Secrets (later sub-projects):
         # INTERNAL_API_KEY: <same key as backend>
       start: node apps/developer/dist/server/entry.mjs
