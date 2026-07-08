@@ -59,6 +59,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: typecheck
     if: github.event_name == 'push'
+    # `contents: read` for the checkout, `actions: read` so `gh run list` can
+    # look up the last successful run of this workflow (the diff base below).
+    permissions:
+      contents: read
+      actions: read
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
@@ -71,13 +76,50 @@ jobs:
       - name: Detect changed paths
         id: filter
         shell: bash
+        env:
+          # Passed through env (not inlined into the script) so these run-context
+          # values cannot break out of the shell. Both are commit SHAs.
+          HEAD_SHA: ${{ github.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
-          before_sha="${{ github.event.before }}"
-          head_sha="${{ github.sha }}"
+          head_sha="$HEAD_SHA"
 
+          # Diff base is the head SHA of the last SUCCESSFUL run of this workflow
+          # on main, not github.event.before. A push that fails before its deploy
+          # jobs (e.g. at lint) must not "consume" its file changes: with
+          # github.event.before the next green push would diff only against the
+          # failed push and never re-evaluate the stranded paths, silently
+          # skipping that service's deploy. Anchoring to the last green run
+          # re-includes everything changed since the last real deploy, so a
+          # lint-fix follow-up still deploys whatever the failed push touched.
+          before_sha=$(gh run list \
+            --workflow ci.yml \
+            --branch main \
+            --status success \
+            --limit 1 \
+            --json headSha \
+            --jq '.[0].headSha // empty' 2>/dev/null || true)
+
+          # Fall back to the push's own before-ref if the lookup yields nothing
+          # (e.g. no prior successful run, or the API call failed).
+          if [[ -z "$before_sha" ]]; then
+            before_sha="$PUSH_BEFORE_SHA"
+          fi
+
+          # Treat every tracked file as changed when there is no usable base:
+          # the zero-SHA of a branch's first push, or a base commit that is not
+          # present in this checkout (e.g. after a force-push rewrites history).
+          use_full_tree=false
           if [[ -z "$before_sha" || "$before_sha" == "0000000000000000000000000000000000000000" ]]; then
+            use_full_tree=true
+          elif ! git cat-file -e "${before_sha}^{commit}" 2>/dev/null; then
+            use_full_tree=true
+          fi
+
+          if [[ "$use_full_tree" == true ]]; then
             mapfile -t changed_files < <(git ls-tree -r --name-only "$head_sha")
           else
             mapfile -t changed_files < <(git diff --name-only "$before_sha" "$head_sha")
