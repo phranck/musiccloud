@@ -21,6 +21,19 @@ const GITHUB_USER_EMAILS_URL = "https://api.github.com/user/emails";
 const GITHUB_HTTP_TIMEOUT_MS = 10_000;
 
 /**
+ * The caller's declared intent for the OAuth flow, carried as a signed claim
+ * inside the state JWT so it survives the round-trip to GitHub without being
+ * forgeable or tampered with.
+ *
+ * - `"login"` — the user wants to sign in to an existing account. If no
+ *   account is found for the GitHub identity the exchange returns 409 and
+ *   does NOT create an account.
+ * - `"signup"` — the user wants to create a new account. If no account is
+ *   found the exchange creates one and assigns `tier_free`.
+ */
+export type GitHubOAuthIntent = "login" | "signup";
+
+/**
  * GitHub-OAuth constants shared between the service and the route layer:
  * the requested scopes and the `kind` discriminant stamped into the signed
  * state JWT (so the produced and checked literal never drift).
