@@ -81,6 +81,23 @@ export const GET: APIRoute = async (context) => {
       body: JSON.stringify({ code, state }),
     });
 
+    // HTTP 409 with error "NO_ACCOUNT": a GitHub identity attempted to sign in
+    // but has no registered developer account. Redirect to pricing so the
+    // visitor can start a signup flow from there. The state cookie is cleared;
+    // no session is set.
+    if (res.status === 409) {
+      let isNoAccount = false;
+      try {
+        const body = (await res.json()) as { error?: string };
+        isNoAccount = body.error === "NO_ACCOUNT";
+      } catch {
+        // Unparseable body — fall through to the generic error path below.
+      }
+      if (isNoAccount) {
+        return redirectWithCookies("/pricing?signup=required", [CLEAR_STATE_COOKIE]);
+      }
+    }
+
     if (!res.ok) return redirectWithCookies(LOGIN_OAUTH_ERROR, [CLEAR_STATE_COOKIE]);
 
     // Relay the backend session cookie(s) verbatim, then clear the spent state.
