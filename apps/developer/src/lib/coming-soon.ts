@@ -13,16 +13,46 @@
  */
 
 /**
- * The complete maintenance page. `robots: noindex` keeps it out of search
- * results; Umami tracks visits under the developer-portal website id.
+ * The complete maintenance page. Ships full SEO metadata (description,
+ * canonical, Open Graph, Twitter card) so shared links render a rich preview
+ * and the page is indexable. The `og:image` is hosted on the frontend origin
+ * (`musiccloud.io/img`) because this service seals its own asset routes behind
+ * the maintenance gate. Umami tracks visits under the developer-portal website id.
  */
 export const COMING_SOON_HTML = `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="robots" content="noindex" />
-    <title>coming soon · musiccloud for developers</title>
+    <title>musiccloud for developers · coming soon</title>
+    <meta
+      name="description"
+      content="Public API access and developer tools for musiccloud are on the way. Build music-sharing experiences on the musiccloud platform."
+    />
+    <link rel="canonical" href="https://developer.musiccloud.io/" />
+    <meta name="theme-color" content="#08090b" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="musiccloud" />
+    <meta property="og:title" content="musiccloud for developers · coming soon" />
+    <meta
+      property="og:description"
+      content="Public API access and developer tools for musiccloud are on the way. Build music-sharing experiences on the musiccloud platform."
+    />
+    <meta property="og:url" content="https://developer.musiccloud.io/" />
+    <meta property="og:image" content="https://musiccloud.io/img/developer-og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="musiccloud / developer" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="musiccloud for developers · coming soon" />
+    <meta
+      name="twitter:description"
+      content="Public API access and developer tools for musiccloud are on the way. Build music-sharing experiences on the musiccloud platform."
+    />
+    <meta name="twitter:image" content="https://musiccloud.io/img/developer-og.png" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
