@@ -470,6 +470,13 @@
       "when": 1783450660403,
       "tag": "0066_supreme_tusk",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1783530152159,
+      "tag": "0067_backfill_accounts_tier_free",
+      "breakpoints": true
     }
   ]
 }
