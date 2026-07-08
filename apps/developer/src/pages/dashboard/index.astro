@@ -20,6 +20,9 @@ export const prerender = false;
 
 const account = await getDeveloperSession(Astro);
 if (!account) return Astro.redirect("/login");
+// Defense-in-depth: after the backfill migration no account should be tier-less;
+// this catches any future tier-less path (e.g. a race before tier assignment).
+if (account.tierName == null) return Astro.redirect("/pricing");
 
 const greetingName = account.displayName?.trim() || account.email;
 const planLabel = account.tierName ?? "None";
