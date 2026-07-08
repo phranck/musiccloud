@@ -211,3 +211,7 @@ UPDATE "developer_accounts" SET "tier_id" = 'tier_free' WHERE "tier_id" IS NULL;
 ## Abgrenzung (bewusst NICHT in Plan A)
 
 - Kein Polar/Checkout/Webhook (Plan B/C), keine `tier`/`interval` im State (Plan C), kein Master-/`istKaufbar`-Gate und keine „Coming soon“-Darstellung (Plan E). In Plan A ist der einzige zuweisbare Tier `tier_free`; Bezahl-Tiers landen über die Gates auf `/pricing`.
+
+## Completed
+
+Abgeschlossen am 2026-07-08, vom User abgenommen. Alle 13 Tasks implementiert, committet (`a0e14bfb` „carry signed intent" … `50f3b5e7` „pricing notice", plus `2b77a810` Em-Dash-Cleanup) und in Produktion deployt; der Signup-/Tier-Flow ist live. Checkliste am 2026-07-08 an den ausgelieferten Stand angepasst (`b636d9be`). Nachfolger: Plan B (Polar-Fundament) laut Spec `docs/superpowers/specs/2026-07-08-signup-flow-polar-billing-design.md`.
