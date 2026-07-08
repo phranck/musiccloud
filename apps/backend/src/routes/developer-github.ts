@@ -19,8 +19,10 @@ import {
   exchangeGitHubCode,
   fetchGitHubProfile,
   GitHubOAuth,
+  type GitHubOAuthIntent,
 } from "../services/developer-github.js";
 import { triggerEmailAction } from "../services/email-actions.js";
+import { resolveSignupTierId } from "../services/signup-tier.js";
 import { buildAccountResponse } from "./developer-auth.js";
 
 /** Dedicated per-IP throttle for the OAuth exchange (20/min), separate from the global apiRateLimiter. */
@@ -41,9 +43,13 @@ async function throttleExchange(request: FastifyRequest, reply: FastifyReply): P
  */
 export async function devGitHubRoutes(app: FastifyInstance) {
   /** GET /github/start — mint signed state + authorize URL. */
-  app.get(ENDPOINTS.dev.auth.github.start, async (_request, reply) => {
+  app.get(ENDPOINTS.dev.auth.github.start, async (request, reply) => {
+    const query = request.query as { intent?: string };
+    // Whitelist the intent: anything other than "signup" defaults to "login"
+    // so a forged or missing query value never grants unintended signup paths.
+    const intent: GitHubOAuthIntent = query.intent === "signup" ? "signup" : "login";
     const nonce = crypto.randomBytes(16).toString("base64url");
-    const state = app.jwt.sign({ nonce, kind: GitHubOAuth.StateKind }, { expiresIn: "10m" });
+    const state = app.jwt.sign({ nonce, kind: GitHubOAuth.StateKind, intent }, { expiresIn: "10m" });
     return reply.send({ authorizeUrl: buildGitHubAuthorizeUrl(state), state });
   });
 
@@ -57,9 +63,13 @@ export async function devGitHubRoutes(app: FastifyInstance) {
     // Defense-in-depth: the Astro callback already compared state-cookie vs
     // state-query (CSRF); re-verify the signature/kind/expiry here so a forged
     // state cannot reach the code exchange even if the BFF is bypassed.
+    let intent: GitHubOAuthIntent;
     try {
-      const payload = app.jwt.verify(body.state) as { kind?: string };
+      const payload = app.jwt.verify(body.state) as { kind?: string; intent?: string };
       if (payload.kind !== GitHubOAuth.StateKind) throw new Error("wrong kind");
+      // Read intent from the VERIFIED payload only — never from the request body
+      // or query string — so the caller cannot forge or escalate their own intent.
+      intent = payload.intent === "signup" ? "signup" : "login";
     } catch {
       return reply.status(401).send({ error: "INVALID_STATE", message: "OAuth state is invalid or expired." });
     }
@@ -111,11 +121,24 @@ export async function devGitHubRoutes(app: FastifyInstance) {
         }
         account = existing;
       } else {
-        // Brand-new OAuth-only account (no password).
+        // Brand-new GitHub identity with no existing account.
+        if (intent === "login") {
+          // Login intent must not auto-create an account: the user chose "sign
+          // in" but has no account yet. Return 409 so the frontend can redirect
+          // to the pricing page instead of silently creating a tier-less record.
+          return reply.status(409).send({
+            error: "NO_ACCOUNT",
+            message: "No developer account for this GitHub identity. Choose a plan to sign up.",
+          });
+        }
+        // Signup intent: create the account and always assign a tier so the
+        // account is never left tier-less.
+        const tierId = await resolveSignupTierId(undefined);
         const created = await repo.createDeveloperAccount({
           email,
           displayName: profile.name ?? profile.login,
           avatarUrl: profile.avatarUrl,
+          tierId,
         });
         await repo.createDeveloperIdentity({
           accountId: created.id,

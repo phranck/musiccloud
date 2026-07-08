@@ -39,6 +39,11 @@ vi.mock("../db/index.js", () => ({
   getDeveloperRepository: vi.fn(),
 }));
 
+vi.mock("../services/signup-tier.js", () => ({
+  resolveSignupTierId: vi.fn(async () => "tier_free"),
+  TIER_FREE_ID: "tier_free",
+}));
+
 // Mock only the two secret-bearing HTTP calls; keep GitHubOAuth and the
 // authorize-URL builder real so `start` mints a genuine, verifiable state and
 // the route/test share the same StateKind literal.
@@ -202,19 +207,61 @@ describe("GET /api/dev/auth/github/start", () => {
     const payload = app.jwt.verify(state) as { kind?: string };
     expect(payload.kind).toBe(GitHubOAuth.StateKind);
   });
+
+  it("stamps intent=login in the state JWT when no query param is given", async () => {
+    const app = await buildApp();
+    const res = await app.inject({ method: "GET", url: ENDPOINTS.dev.auth.github.start });
+
+    expect(res.statusCode).toBe(200);
+    const { state } = res.json() as { state: string };
+    const payload = app.jwt.verify(state) as { intent?: string };
+    expect(payload.intent).toBe("login");
+  });
+
+  it("stamps intent=signup in the state JWT when ?intent=signup is given", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `${ENDPOINTS.dev.auth.github.start}?intent=signup`,
+    });
+
+    expect(res.statusCode).toBe(200);
+    const { state } = res.json() as { state: string };
+    const payload = app.jwt.verify(state) as { intent?: string };
+    expect(payload.intent).toBe("signup");
+  });
+
+  it("stamps intent=login for any unknown intent value (whitelist default)", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "GET",
+      url: `${ENDPOINTS.dev.auth.github.start}?intent=unknown-value`,
+    });
+
+    expect(res.statusCode).toBe(200);
+    const { state } = res.json() as { state: string };
+    const payload = app.jwt.verify(state) as { intent?: string };
+    expect(payload.intent).toBe("login");
+  });
 });
 
 describe("POST /api/dev/auth/github/exchange", () => {
   /**
    * Signs a state JWT the same way `start` does. `kind` defaults to the valid
-   * OAuth state kind; pass a different value to assert rejection.
+   * OAuth state kind; pass a different value to assert rejection. `intent`
+   * defaults to `"login"` (the same default the `start` endpoint applies).
    *
    * @param app - The app whose `jwt` signer is used.
    * @param kind - The `kind` claim to stamp.
+   * @param intent - The `intent` claim (`"login"` or `"signup"`).
    * @returns A signed state JWT string.
    */
-  function signState(app: FastifyInstance, kind: string = GitHubOAuth.StateKind): string {
-    return app.jwt.sign({ nonce: "n", kind }, { expiresIn: "10m" });
+  function signState(
+    app: FastifyInstance,
+    kind: string = GitHubOAuth.StateKind,
+    intent: "login" | "signup" = "login",
+  ): string {
+    return app.jwt.sign({ nonce: "n", kind, intent }, { expiresIn: "10m" });
   }
 
   it("returns 400 INVALID_REQUEST when code or state is missing", async () => {
@@ -372,18 +419,20 @@ describe("POST /api/dev/auth/github/exchange", () => {
     expect(vi.mocked(repo.createDeveloperAccount)).not.toHaveBeenCalled();
   });
 
-  it("creates a new OAuth-only account (no password) when the email is unknown", async () => {
+  it("creates a new OAuth-only account (no password) when the email is unknown and intent=signup", async () => {
     vi.mocked(exchangeGitHubCode).mockResolvedValueOnce("gho_token");
     vi.mocked(fetchGitHubProfile).mockResolvedValueOnce(makeProfile({ email: "fresh@example.com" }));
     vi.mocked(repo.findDeveloperIdentity).mockResolvedValueOnce(null);
     vi.mocked(repo.findDeveloperAccountByEmail).mockResolvedValueOnce(null);
-    vi.mocked(repo.createDeveloperAccount).mockResolvedValueOnce(makeAccount({ id: "dev-acc-new" }));
+    vi.mocked(repo.createDeveloperAccount).mockResolvedValueOnce(
+      makeAccount({ id: "dev-acc-new", tierId: "tier_free" }),
+    );
 
     const app = await buildApp();
     const res = await app.inject({
       method: "POST",
       url: ENDPOINTS.dev.auth.github.exchange,
-      payload: { code: "c", state: signState(app) },
+      payload: { code: "c", state: signState(app, GitHubOAuth.StateKind, "signup") },
     });
 
     expect(res.statusCode).toBe(200);
@@ -393,6 +442,8 @@ describe("POST /api/dev/auth/github/exchange", () => {
     expect(createArg.email).toBe("fresh@example.com");
     expect(createArg.displayName).toBe("The Octocat");
     expect(createArg).not.toHaveProperty("passwordHash");
+    // Signup branch always assigns a tier, never tier-less.
+    expect(createArg.tierId).toBe("tier_free");
     expect(vi.mocked(repo.createDeveloperIdentity)).toHaveBeenCalledWith({
       accountId: "dev-acc-new",
       provider: "github",
@@ -420,6 +471,27 @@ describe("POST /api/dev/auth/github/exchange", () => {
 
     expect(res.statusCode).toBe(422);
     expect(res.json().error).toBe("NO_VERIFIED_EMAIL");
+    expect(vi.mocked(repo.createDeveloperAccount)).not.toHaveBeenCalled();
+    expect(findSessionSetCookie(res.headers["set-cookie"])).toBeUndefined();
+  });
+
+  it("returns 409 NO_ACCOUNT and does not create an account when intent=login and email is unknown", async () => {
+    vi.mocked(exchangeGitHubCode).mockResolvedValueOnce("gho_token");
+    vi.mocked(fetchGitHubProfile).mockResolvedValueOnce(makeProfile({ email: "newcomer@example.com" }));
+    vi.mocked(repo.findDeveloperIdentity).mockResolvedValueOnce(null);
+    vi.mocked(repo.findDeveloperAccountByEmail).mockResolvedValueOnce(null);
+
+    const app = await buildApp();
+    // Default intent is "login" — no ?intent=signup in the original start call.
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.github.exchange,
+      payload: { code: "c", state: signState(app, GitHubOAuth.StateKind, "login") },
+    });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toBe("NO_ACCOUNT");
+    // No account must be created, no session must be issued.
     expect(vi.mocked(repo.createDeveloperAccount)).not.toHaveBeenCalled();
     expect(findSessionSetCookie(res.headers["set-cookie"])).toBeUndefined();
   });
