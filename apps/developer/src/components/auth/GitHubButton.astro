@@ -1,9 +1,9 @@
 ---
 /**
  * GitHubButton is the full-width "Continue with GitHub" link that starts the
- * server-side OAuth flow at `/auth/github` (a later MC-066 task wires that
- * endpoint). Styled as the secondary, neutral glassy surface with a hairline
- * border (not brand-blue), so the email/password primary action stays dominant.
+ * server-side OAuth flow at `/auth/github`. Styled as the secondary, neutral
+ * glassy surface with a hairline border (not brand-blue), so the
+ * email/password primary action stays dominant.
  *
  * The Phosphor `GithubLogoIcon` renders as a static SSR SVG; no client
  * directive is needed because it carries no interactivity. It deliberately
@@ -12,10 +12,25 @@
  * raw SVG is off-limits per the icon rules.
  */
 import { GithubLogoIcon } from "@phosphor-icons/react";
+
+/**
+ * Props for {@link GitHubButton}.
+ *
+ * @property intent - Whether the button starts a sign-in or a sign-up flow.
+ *   Forwarded as `?intent=<value>` to the BFF start route so the backend can
+ *   embed the intent in the signed OAuth `state` and enforce it at the exchange
+ *   step (e.g. returning HTTP 409 when an unknown GitHub identity attempts to
+ *   sign in). Defaults to `"login"`.
+ */
+interface Props {
+  intent?: "login" | "signup";
+}
+
+const { intent = "login" } = Astro.props;
 ---
 
 <a
-  href="/auth/github"
+  href={`/auth/github?intent=${intent}`}
   class="inline-flex w-full items-center justify-center gap-2.5 rounded-button border border-border-strong bg-surface px-4 py-2.5 text-body font-medium text-fg transition-colors hover:border-fg-subtle"
 >
   <GithubLogoIcon weight="fill" className="size-5" aria-hidden="true" />

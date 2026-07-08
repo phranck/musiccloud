@@ -33,7 +33,7 @@ const oauthFailed = Astro.url.searchParams.get("error") === "oauth";
         </div>
       )
     }
-    <GitHubButton />
+    <GitHubButton intent="login" />
     <OrDivider />
     <LoginForm client:load />
     <Fragment slot="footer">
