@@ -23,9 +23,12 @@ const LOGIN_OAUTH_ERROR = "/login?error=oauth";
  *
  * Calls the backend `start` endpoint server-to-server (never exposing the
  * internal key to the browser) to mint a signed, short-lived `state` and the
- * GitHub authorize URL. The `state` is stored in the httpOnly
- * `mc_dev_oauth_state` cookie so the callback can prove the round-trip
- * originated here (CSRF defence), then the visitor is redirected to GitHub.
+ * GitHub authorize URL. The `intent` query param (`"login"` | `"signup"`,
+ * default `"login"`) is forwarded so the backend can embed it in the signed
+ * `state`; the callback enforces it at exchange time. The `state` is stored in
+ * the httpOnly `mc_dev_oauth_state` cookie so the callback can prove the
+ * round-trip originated here (CSRF defence), then the visitor is redirected to
+ * GitHub.
  *
  * On any backend failure (non-200, malformed payload, transport error) the
  * developer is sent back to `/login?error=oauth` rather than to a broken GitHub
@@ -37,8 +40,10 @@ const LOGIN_OAUTH_ERROR = "/login?error=oauth";
  * @returns A redirect to the GitHub authorize URL, or to the login page on error.
  */
 export const GET: APIRoute = async (context) => {
+  const intent = context.url.searchParams.get("intent") === "signup" ? "signup" : "login";
+
   try {
-    const res = await fetch(backendUrl(ENDPOINTS.dev.auth.github.start), {
+    const res = await fetch(`${backendUrl(ENDPOINTS.dev.auth.github.start)}?intent=${intent}`, {
       headers: internalHeaders(context.clientAddress),
     });
     if (!res.ok) return context.redirect(LOGIN_OAUTH_ERROR);
