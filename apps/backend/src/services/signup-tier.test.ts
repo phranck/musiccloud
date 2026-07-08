@@ -11,7 +11,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getTierRepository } from "../db/index.js";
 import type { Tier, TierRepository } from "../db/tiers-repository.js";
-import { TIER_FREE_ID, resolveSignupTierId } from "./signup-tier.js";
+import { resolveSignupTierId, TIER_FREE_ID } from "./signup-tier.js";
 
 vi.mock("../db/index.js", () => ({
   getTierRepository: vi.fn(),
