@@ -482,7 +482,7 @@ describe("POST /api/dev/auth/github/exchange", () => {
     vi.mocked(repo.findDeveloperAccountByEmail).mockResolvedValueOnce(null);
 
     const app = await buildApp();
-    // Default intent is "login" — no ?intent=signup in the original start call.
+    // Default intent is "login" (no ?intent=signup in the original start call).
     const res = await app.inject({
       method: "POST",
       url: ENDPOINTS.dev.auth.github.exchange,

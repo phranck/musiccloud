@@ -25,10 +25,10 @@ const GITHUB_HTTP_TIMEOUT_MS = 10_000;
  * inside the state JWT so it survives the round-trip to GitHub without being
  * forgeable or tampered with.
  *
- * - `"login"` — the user wants to sign in to an existing account. If no
+ * - `"login"`: the user wants to sign in to an existing account. If no
  *   account is found for the GitHub identity the exchange returns 409 and
  *   does NOT create an account.
- * - `"signup"` — the user wants to create a new account. If no account is
+ * - `"signup"`: the user wants to create a new account. If no account is
  *   found the exchange creates one and assigns `tier_free`.
  */
 export type GitHubOAuthIntent = "login" | "signup";

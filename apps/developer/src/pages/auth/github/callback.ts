@@ -91,7 +91,7 @@ export const GET: APIRoute = async (context) => {
         const body = (await res.json()) as { error?: string };
         isNoAccount = body.error === "NO_ACCOUNT";
       } catch {
-        // Unparseable body — fall through to the generic error path below.
+        // Unparseable body; fall through to the generic error path below.
       }
       if (isNoAccount) {
         return redirectWithCookies("/pricing?signup=required", [CLEAR_STATE_COOKIE]);

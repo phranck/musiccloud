@@ -28,7 +28,7 @@ export const TIER_FREE_ID = "tier_free";
  * 1. If no tier id is requested, `tier_free` is assigned.
  * 2. If `tier_free` is explicitly requested, it is assigned.
  * 3. If any paid tier is requested, the request is silently ignored and
- *    `tier_free` is assigned instead — paid tiers are not yet purchasable.
+ *    `tier_free` is assigned instead; paid tiers are not yet purchasable.
  * 4. If an unknown id is requested, `tier_free` is assigned.
  *
  * The function always fetches the current tier list via

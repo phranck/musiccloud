@@ -67,8 +67,8 @@ export async function devGitHubRoutes(app: FastifyInstance) {
     try {
       const payload = app.jwt.verify(body.state) as { kind?: string; intent?: string };
       if (payload.kind !== GitHubOAuth.StateKind) throw new Error("wrong kind");
-      // Read intent from the VERIFIED payload only — never from the request body
-      // or query string — so the caller cannot forge or escalate their own intent.
+      // Read intent from the VERIFIED payload only, never from the request body
+      // or query string, so the caller cannot forge or escalate their own intent.
       intent = payload.intent === "signup" ? "signup" : "login";
     } catch {
       return reply.status(401).send({ error: "INVALID_STATE", message: "OAuth state is invalid or expired." });
