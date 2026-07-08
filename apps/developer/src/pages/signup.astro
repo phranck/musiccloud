@@ -12,10 +12,9 @@
  * email and then sign in.
  *
  * A `?tier=<id>` query param (the pricing page's Subscribe flow, MC-101) is
- * validated server-side against the public tier list; only an existing,
- * enabled tier is passed to the form, which shows the pre-selection and
- * submits it with the signup. Invalid/stale params fall back to a plain
- * signup.
+ * required: missing, disabled, or non-assignable tiers redirect to /pricing.
+ * Only the free tier (`tier_free`) is selectable until billing lands; this
+ * mirrors the backend's `resolveSignupTierId` invariant.
  */
 import AuthCard from "@/components/auth/AuthCard.astro";
 import GitHubButton from "@/components/auth/GitHubButton.astro";
@@ -24,6 +23,7 @@ import { SignupForm } from "@/components/auth/SignupForm";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { backendUrl } from "@/lib/api";
 import { getDeveloperSession } from "@/lib/session";
+import { ENDPOINTS } from "@musiccloud/shared";
 
 export const prerender = false;
 
@@ -36,20 +36,31 @@ interface SelectedTier {
   color: string;
 }
 
-let selectedTier: SelectedTier | null = null;
 const tierParam = Astro.url.searchParams.get("tier");
+
+// Gate: a tier param must be present, resolve to an enabled tier, and be
+// assignable in this phase. Only tier_free is assignable until billing lands;
+// this mirrors the backend's resolveSignupTierId invariant. On any failure
+// (missing param, disabled/unknown tier, unreachable backend) we redirect to
+// /pricing rather than rendering a tier-less signup form.
+let selectedTier: SelectedTier | null = null;
 if (tierParam) {
   try {
-    const res = await fetch(backendUrl("/api/v1/tiers"));
+    const res = await fetch(backendUrl(ENDPOINTS.v1.tiers));
     if (res.ok) {
       const tiers = (await res.json()) as (SelectedTier & { enabled: boolean })[];
       const tier = tiers.find((t) => t.id === tierParam && t.enabled);
-      if (tier) selectedTier = { id: tier.id, name: tier.name, color: tier.color };
+      // Only the free tier is assignable until paid billing lands.
+      if (tier && tier.id === "tier_free") {
+        selectedTier = { id: tier.id, name: tier.name, color: tier.color };
+      }
     }
   } catch {
-    // The backend is unreachable. Proceed as a plain signup.
+    // The backend is unreachable. Fail safe: redirect to /pricing below.
   }
 }
+
+if (!selectedTier) return Astro.redirect("/pricing");
 ---
 
 <BaseLayout title="Create account · musiccloud for developers">
