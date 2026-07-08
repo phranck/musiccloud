@@ -329,9 +329,11 @@ describe("POST /api/dev/auth/signup", () => {
     expect(res.json().error).toBe("INVALID_REQUEST");
   });
 
-  it("assigns a pre-selected enabled tier at signup (Subscribe flow)", async () => {
+  it("assigns tier_free when a paid tier is requested (Plan A: only free tier is assignable)", async () => {
+    // Plan A: resolveSignupTierId only allows tier_free. A paid tier request
+    // falls back to tier_free so no tier can be granted for free.
     vi.mocked(getTierRepository).mockResolvedValue({
-      listTiers: vi.fn(async () => [makeTier()]),
+      listTiers: vi.fn(async () => [makeTier({ id: "tier_free", name: "Free" }), makeTier()]),
     } as unknown as TierRepository);
     const app = await buildApp();
     const res = await app.inject({
@@ -342,23 +344,39 @@ describe("POST /api/dev/auth/signup", () => {
 
     expect(res.statusCode).toBe(201);
     const createArg = vi.mocked(repo.createDeveloperAccount).mock.calls[0]![0];
-    expect(createArg.tierId).toBe("tier-pro");
+    expect(createArg.tierId).toBe("tier_free");
   });
 
-  it("silently drops an unknown or disabled tierId (signup still succeeds unassigned)", async () => {
+  it("falls back to tier_free when the requested tierId is unknown (resolver guarantees non-null)", async () => {
     vi.mocked(getTierRepository).mockResolvedValue({
-      listTiers: vi.fn(async () => [makeTier({ id: "tier-legacy", enabled: false })]),
+      listTiers: vi.fn(async () => [makeTier({ id: "tier_free", name: "Free" })]),
     } as unknown as TierRepository);
     const app = await buildApp();
     const res = await app.inject({
       method: "POST",
       url: ENDPOINTS.dev.auth.signup,
-      payload: { email: "new@example.com", password: VALID_PASSWORD, tierId: "tier-legacy" },
+      payload: { email: "new@example.com", password: VALID_PASSWORD, tierId: "tier-unknown" },
     });
 
     expect(res.statusCode).toBe(201);
     const createArg = vi.mocked(repo.createDeveloperAccount).mock.calls[0]![0];
-    expect(createArg.tierId).toBeNull();
+    expect(createArg.tierId).toBe("tier_free");
+  });
+
+  it("assigns tier_free when no tierId is provided in the request body", async () => {
+    vi.mocked(getTierRepository).mockResolvedValue({
+      listTiers: vi.fn(async () => [makeTier({ id: "tier_free", name: "Free" })]),
+    } as unknown as TierRepository);
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.signup,
+      payload: { email: "new@example.com", password: VALID_PASSWORD },
+    });
+
+    expect(res.statusCode).toBe(201);
+    const createArg = vi.mocked(repo.createDeveloperAccount).mock.calls[0]![0];
+    expect(createArg.tierId).toBe("tier_free");
   });
 });
 

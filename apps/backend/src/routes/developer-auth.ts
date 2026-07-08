@@ -67,6 +67,7 @@ import {
 import { triggerEmailAction } from "../services/email-actions.js";
 import { erasePersonalData } from "../services/gdpr-erase.js";
 import { buildPersonalDataExport } from "../services/gdpr-export.js";
+import { resolveSignupTierId } from "../services/signup-tier.js";
 
 /** Minimum accepted password length, matching the admin surface (admin-auth.ts). */
 const PASSWORD_MIN_LENGTH = 8;
@@ -199,17 +200,11 @@ export async function devAuthRoutes(app: FastifyInstance) {
       });
     }
 
-    // Tier pre-selection from the pricing page's Subscribe flow (MC-101):
-    // only an existing, still-enabled tier is honoured. Anything else —
-    // unknown id, meanwhile-disabled tier, stale link — is silently dropped
-    // so a signup never fails on the pre-selection; the account then simply
-    // starts unassigned.
-    let tierId: string | null = null;
-    if (body.tierId) {
-      const tiers = await (await getTierRepository()).listTiers();
-      const tier = tiers.find((t) => t.id === body.tierId);
-      if (tier?.enabled) tierId = tier.id;
-    }
+    // Every signup is assigned a tier via the shared resolver (MC-109).
+    // If the request carries a valid free-tier id it is honoured; any paid
+    // tier, unknown id, or missing value falls back to tier_free so the
+    // account is never left tier-less.
+    const tierId = await resolveSignupTierId(body.tierId);
 
     const repo = await getDeveloperRepository();
     const existing = await repo.findDeveloperAccountByEmail(email);
