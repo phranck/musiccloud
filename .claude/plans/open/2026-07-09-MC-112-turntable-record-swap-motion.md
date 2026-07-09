@@ -55,8 +55,8 @@ Reiner Visual-/Motion-Teil. Am Ende existiert die Animation als getestete Factor
 **Files:**
 - Create: `apps/frontend/src/lib/motion/recordSwap.ts` (Konstanten-Kopf)
 
-- [ ] Lokale, benannte ms-Timing-Konstanten definieren (Gesamt plus Teilphasen Heben/Slide/Absetzen) und die Easing-`cubic-bezier`-Strings, Muster wie `VinylRecord.tsx:32-59`. Kein Eintrag in der Sekunden-basierten `MotionDuration`. TSDoc mit Verweis auf `MC_OUT_BEZIER` für den geteilten Feel.
-- [ ] Biome. Commit.
+- [x] `recordSwap.ts` definiert lokale ms-/Skalar-Konstanten (`RECORD_SWAP_DURATION_MS`, `LIFT_SCALE`) plus den Easing-`cubic-bezier`-String `MC_OUT_EASING` (= `MC_OUT_BEZIER`-Kurve), Muster wie `VinylRecord.tsx:32-59`. Kein Eintrag in der Sekunden-`MotionDuration`. Heben/Absetzen sind über die Scale-Rampe innerhalb der Gesamtdauer kodiert (statt separater ms-Phasen), feinjustierbar. TSDoc vorhanden.
+- [x] Biome clean. (Commit gemeinsam mit Task 2.)
 
 ### Task 2: `buildRecordSwapTimeline` Factory (Web Animations API, reduced-motion)
 
@@ -64,10 +64,10 @@ Reiner Visual-/Motion-Teil. Am Ende existiert die Animation als getestete Factor
 - Modify: `apps/frontend/src/lib/motion/recordSwap.ts`
 - Test: `apps/frontend/src/lib/motion/recordSwap.test.ts`
 
-- [ ] Failing Test: `buildRecordSwapTimeline({ incoming, outgoing, onSettle })` gibt bei reduced-motion `null` zurück und schreibt keine Styles; andernfalls startet es `element.animate` auf beiden Puffern und liefert ein Handle mit `cancel()`. `onSettle` feuert genau einmal bei natürlicher Vollendung (`onfinish`/`finished`), nicht bei `cancel()`.
-- [ ] Test rot.
-- [ ] Factory implementieren mit `element.animate`: `prefersReducedMotion()` → `null`. Phasen als Transform-Keyframes: (a) outgoing Heben (kurzer `scale`-up als Anheben-Illusion), (b) outgoing Bogen-Slide zur Austritts-Position, (c) incoming Bogen-Slide von der Eintritts-Position zum Zentrum, (d) incoming Absetzen (`scale` zurück). Bogen als gesampelte Prozent-`translate`-Keyframes (Geometrie oben), jeder Transform mit angehängtem `translateZ(0.01px)` für stabiles `matrix3d`. Easing `cubic-bezier(0.16, 1, 0.3, 1)`. Interrupt: Handle hält die aktiven `Animation`-Objekte; `cancel()` macht `commitStyles()` vor `cancel()` und blanket-cancelt lingernde `fill`-Animationen (Muster `VinylRecord.tsx:367-393`). `onfinish` des maßgeblichen Tracks ruft `onSettle` (Guard, damit ein superseded/gecancelter Lauf nicht settlet). TSDoc mit Geometrie- und GPU-Begründung.
-- [ ] Test grün (inkl. reduced-motion-Pfad und "cancel settlet nicht"). Biome. Commit.
+- [x] Failing Test (`recordSwap.test.ts`): reduced-motion → `null` ohne `animate`; sonst zwei `animate`-Aufrufe + Handle mit `cancel()`; `onSettle` genau einmal bei natürlicher `onfinish`, nicht bei `cancel()`.
+- [x] Test rot.
+- [x] Factory implementiert mit `element.animate`: `prefersReducedMotion()`/kein `animate` → `null`. Outgoing Bogen Zentrum→Austritt mit Scale 1→1.05 (Heben), incoming Bogen Eintritt→Zentrum mit Scale 1.05→1 (Absetzen). Bogen als 12 gesampelte Prozent-`translate`-Keyframes (Geometrie oben), jeder Transform mit `translateZ(0.01px)`. Easing `cubic-bezier(0.16, 1, 0.3, 1)`, `fill: "forwards"`. `cancel()` macht `commitStyles()` vor `cancel()`; `onfinish` des incoming ruft `onSettle` mit `cancelled`-Guard.
+- [x] Test grün (4/4, inkl. reduced-motion und "cancel settlet nicht"). Biome. Commit.
 
 ### Task 3: `RecordSwapStage` Doppelpuffer-Komponente
 
@@ -87,8 +87,8 @@ Reiner Visual-/Motion-Teil. Am Ende existiert die Animation als getestete Factor
 
 ## Checkliste
 
-- [ ] Task 1: WAAPI-Timing-/Easing-Konstanten
-- [ ] Task 2: `buildRecordSwapTimeline` (Web Animations API) + Tests (inkl. reduced-motion, cancel-settlet-nicht)
+- [x] Task 1: WAAPI-Timing-/Easing-Konstanten
+- [x] Task 2: `buildRecordSwapTimeline` (Web Animations API) + Tests (inkl. reduced-motion, cancel-settlet-nicht)
 - [ ] Task 3: `RecordSwapStage` Doppelpuffer + Tests (inkl. Interrupt)
 - [ ] Alle Code-Referenzen verifiziert (Funktionen, Skripte, Pfade, Env-Vars, Package-Manager-Kommandos)
 - [ ] Gates grün: `pnpm typecheck`, Biome, `doctor:diff`, `test:run`
