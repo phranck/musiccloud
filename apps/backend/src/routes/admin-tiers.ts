@@ -6,7 +6,12 @@
 import { ENDPOINTS, isTierIconName } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getTierRepository } from "../db/index.js";
-import type { TierCreateData, TierUpdateData } from "../db/tiers-repository.js";
+import {
+  MAX_TIER_FEATURE_LABEL_LENGTH,
+  MAX_TIER_FEATURES,
+  type TierCreateData,
+  type TierUpdateData,
+} from "../db/tiers-repository.js";
 import { requireOwnerOrAdmin } from "../lib/admin-caller.js";
 
 /** Matches a 6-digit hex colour like `#RRGGBB`. */
@@ -20,6 +25,34 @@ const MAX_TIER_DISABLE_REASON_LENGTH = 200;
 
 /** Maximum length of a tier's custom CTA button label. */
 const MAX_TIER_BUTTON_LABEL_LENGTH = 40;
+
+/**
+ * Validates the `features` payload for a tier create/update request. Returns an
+ * error message describing the first problem found, or `null` when the value is
+ * a well-formed list of feature bullets (each a non-empty label plus a boolean
+ * `included` flag), within the count and length limits.
+ *
+ * @param features - The raw `features` value from the request body.
+ * @returns An error string, or `null` when valid.
+ */
+function validateFeatures(features: unknown): string | null {
+  if (!Array.isArray(features)) return "features must be an array";
+  if (features.length > MAX_TIER_FEATURES) return `features must have at most ${MAX_TIER_FEATURES} entries`;
+  for (const feature of features) {
+    if (typeof feature !== "object" || feature === null) {
+      return "each feature must be an object with a label and an included flag";
+    }
+    const { label, included } = feature as { label?: unknown; included?: unknown };
+    if (typeof label !== "string" || label.trim().length === 0) {
+      return "each feature label must be a non-empty string";
+    }
+    if (label.length > MAX_TIER_FEATURE_LABEL_LENGTH) {
+      return `each feature label must be at most ${MAX_TIER_FEATURE_LABEL_LENGTH} characters`;
+    }
+    if (typeof included !== "boolean") return "each feature included flag must be a boolean";
+  }
+  return null;
+}
 
 export async function adminTiersRoutes(app: FastifyInstance) {
   app.get(ENDPOINTS.admin.developer.tiers, async (request, reply) => {
@@ -62,6 +95,10 @@ export async function adminTiersRoutes(app: FastifyInstance) {
     if (body.recommended != null && typeof body.recommended !== "boolean") {
       return reply.status(400).send({ error: "recommended must be a boolean" });
     }
+    if (body.features != null) {
+      const featuresError = validateFeatures(body.features);
+      if (featuresError) return reply.status(400).send({ error: featuresError });
+    }
     const repo = await getTierRepository();
     const tier = await repo.createTier(body);
     return reply.status(201).send(tier);
@@ -98,6 +135,10 @@ export async function adminTiersRoutes(app: FastifyInstance) {
     }
     if (body.recommended != null && typeof body.recommended !== "boolean") {
       return reply.status(400).send({ error: "recommended must be a boolean" });
+    }
+    if (body.features != null) {
+      const featuresError = validateFeatures(body.features);
+      if (featuresError) return reply.status(400).send({ error: featuresError });
     }
     const repo = await getTierRepository();
     const tier = await repo.updateTier(id, body);

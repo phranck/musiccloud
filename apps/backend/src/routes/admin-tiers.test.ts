@@ -291,6 +291,39 @@ describe("POST /api/admin/developer/tiers", () => {
     });
     expect(bad.statusCode).toBe(400);
   });
+
+  it("passes features through and rejects malformed features", async () => {
+    const created = { ...freeTier, id: "tier_pro", name: "Pro" };
+    mockTierRepo.createTier.mockResolvedValue(created);
+    const ok = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.admin.developer.tiers,
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: {
+        name: "Pro",
+        requestsPerMinute: 120,
+        requestsPerDay: 50000,
+        features: [{ label: "Commercial use", included: true }],
+      },
+    });
+    expect(ok.statusCode).toBe(201);
+    expect(mockTierRepo.createTier).toHaveBeenCalledWith(
+      expect.objectContaining({ features: [{ label: "Commercial use", included: true }] }),
+    );
+
+    const bad = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.admin.developer.tiers,
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      payload: {
+        name: "Pro",
+        requestsPerMinute: 120,
+        requestsPerDay: 50000,
+        features: [{ label: "Missing included flag" }],
+      },
+    });
+    expect(bad.statusCode).toBe(400);
+  });
 });
 
 describe("PATCH /api/admin/developer/tiers/:id", () => {

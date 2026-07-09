@@ -76,9 +76,9 @@ Grenzen (neue Konstanten in `tiers-repository.ts`): `MAX_TIER_FEATURES = 12`, `M
 
 **Files:** `admin-tiers.ts`, Test (falls Route-Tests existieren)
 
-- [ ] **Step 1:** Helper `validateFeatures(features): string | null` (Fehlermeldung oder null): muss Array sein, Laenge <= `MAX_TIER_FEATURES`, jedes Element `{ label: string (1..MAX_TIER_FEATURE_LABEL_LENGTH), included: boolean }`. In POST und PATCH aufrufen, bei Fehler 400 analog zu den bestehenden Checks.
-- [ ] **Step 2:** Verify: create/patch mit gueltigen und ungueltigen features (zu lang, falscher Typ) lokal gegen die Admin-API.
-- [ ] **Step 3: Commit:** `Feat: validate tier features on the admin API (MC-115)`.
+- [x] **Step 1:** `validateFeatures(features): string | null` (Array, <= `MAX_TIER_FEATURES`, jedes Element `{ label: nicht-leerer String <= `MAX_TIER_FEATURE_LABEL_LENGTH`, included: boolean }`); in POST und PATCH aufgerufen, 400 bei Fehler. TSDoc.
+- [x] **Step 2:** Test in `admin-tiers.test.ts` ergaenzt (features durchgereicht -> 201; malformed -> 400), 19/19 gruen. Parametrisierter jsonb-Write-Mechanismus (`$1::jsonb` plus `JSON.stringify`) real gegen die DB verifiziert (round-trip als Array zurueck).
+- [x] **Step 3: Commit:** `Feat: validate tier features on the admin API (MC-115)`.
 
 ## Task 4: Admin-Bullet-Editor (`TierEditorPage.tsx`)
 
