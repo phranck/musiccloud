@@ -31,7 +31,7 @@ Voraussetzung von deiner Seite: ein Creem-Konto mit einem Test-API-Key (`creem_t
 ## Verifizierte Fakten (2026-07-09, per Doku/SDK-Inspektion)
 
 - **SDK:** `creem@^1.5.3` installiert (Polar-SDK entfernt, `cdca9655`). Exports u.a. `Creem`, `ServerTest`, `ServerProd`, `serverURLFromOptions`. Auth per Header `x-api-key`. Test-Base `https://test-api.creem.io/v1`, Live-Base `https://api.creem.io/v1`. Test vs Live ergibt sich aus dem Key-Prefix `creem_test_`.
-- **Free-Tier:** Creem unterstützt Free-Produkte (0-Preis) und Free-Subscriptions per API ohne Checkout (`POST /v1/subscriptions`).
+- **Free-Tier:** Creem erzwingt fuer Preis-0-Produkte `billing_type onetime` (ein wiederkehrendes 0-Preis-Produkt wird mit HTTP 400 abgelehnt: "Free products (price = 0) must use billing_type onetime", live verifiziert 2026-07-09 beim Seed). Konsequenz fuer uns: der Free-Tier (Indie) bekommt **kein** Creem-Produkt und keine Creem-Subscription. Free-Accounts tragen einfach `tier_free` ohne Zeile in `developer_subscriptions`; der Free-Preis kommt aus unserer `tiers`-Tabelle, nicht aus Creem. Nur bezahlte Tiers werden in Creem angelegt.
 - **Products:** ein Produkt pro Intervall (month und year sind zwei Produkte). Billing-Perioden `every-month`, `every-three-months`, `every-six-months`, `every-year`. **KEIN Metadata-Feld am Produkt** (verifiziert 2026-07-09 gegen `creem@1.5.3` dist-Typen UND `docs.creem.io/api-reference/endpoint/create-product`: weder `ProductEntity` noch `CreateProductRequestEntity` haben `metadata`; nur `features` (kundensichtbar) und `custom_fields` (Kunden-Input). Daher lebt die Tier-zu-Produkt-Zuordnung bei uns, siehe `tier_creem_products`.)
 - **SDK-Methoden (creem@1.5.3):** `client.products.get(productId) -> ProductEntity`, `client.products.create(CreateProductRequestEntity) -> ProductEntity`, `client.products.search(pageNumber?, pageSize?) -> PageIterator` (paginierte Liste, heisst `search`, nicht `list`). `client.subscriptions.get/search/cancel/update/upgrade/pause/resume`. `ProductEntity`-Felder u.a.: `id`, `name`, `description`, `price` (Cent, number), `currency` (ISO-String), `billingType`, `billingPeriod`, `status`. Konstruktor `new Creem({ server: ServerTest|ServerProd, apiKey })` (`ServerTest="test"`, `ServerProd="prod"`; `apiKey` ist die x-api-key-Security).
 - **Subscription-Status (Creem):** `active`, `trialing`, `paused`, `past_due`, `expired`, `canceled`, `scheduled_cancel`.
@@ -191,13 +191,13 @@ Zweck: Preise/Waehrung liegen bei Creem, die Tier-Zuordnung bei uns. Diese Funkt
 
 **Voraussetzung:** Phase 0 erledigt (`CREEM_API_KEY` in `apps/backend/.env.local`). Ohne Key nicht ausfuehrbar (blockiert).
 
-Zweck: Die vier Tiers als Creem-Produkte anlegen (je month und year; Demo als ein Free-Produkt) und die von Creem zurueckgegebene `creemProductId` pro (tierId, interval) in `tier_creem_products` schreiben. KEINE Metadata am Produkt (Creem unterstuetzt das nicht). Idempotent: existiert die Mapping-Zeile schon, ueberspringen.
+Zweck: Die bezahlten Tiers als Creem-Produkte anlegen (je month und year) und die von Creem zurueckgegebene `creemProductId` pro (tierId, interval) in `tier_creem_products` schreiben. KEINE Metadata am Produkt (Creem unterstuetzt das nicht). Der Free-Tier bekommt kein Produkt (Creem erzwingt onetime bei Preis 0, siehe Verifizierte Fakten). Idempotent: existiert die Mapping-Zeile schon, ueberspringen. Sicherheits-Guard: das Skript verweigert den Lauf, wenn `CREEM_API_KEY` kein `creem_test_`-Key ist.
 
-- [ ] **Step 1: Creem-Produkt-Create-Payload verifizieren** gegen `docs.creem.io/api-reference` und `CreateProductRequestEntity`: `name`, `description`, `price` (Cent, 0 oder >=100), `currency`, `billingType` ('recurring'|'onetime'), `billingPeriod` ('every-month'|'every-year'). Es gibt KEIN `metadata`-Feld.
-- [ ] **Step 2: Skript schreiben**: liest `CREEM_API_KEY` aus `apps/backend/.env.local`, Base aus dem Key-Prefix (`test-api.creem.io` vs `api.creem.io`), liest die vorhandenen `tier_creem_products`-Zeilen, legt fehlende Produkte via `client.products.create(...)` an und schreibt (tierId, interval, creemProductId) in `tier_creem_products`. Preise aus der Monetization-Spec (Demo frei; Club 9/90, Arena 29/290, Stadium 149/1490 Euro). `scripts/creem-seed.mjs` in `.gitignore` aufnehmen (analog `scripts/dbdump`).
-- [ ] **Step 3: Ausfuehren** (mit gesetztem Test-Key): Produkte in der Creem-Test-Umgebung angelegt, Mapping befuellt; `getCreemCatalog()` findet danach alle vier Tiers.
-- [ ] **Step 4: Verify**: Produkte im Creem-Dashboard; `tier_creem_products` befuellt (Demo 1 plus Club/Arena/Stadium je 2); Katalog-Fetch liefert Preise.
-- [ ] **Step 5: Commit**: kein Code-Commit noetig (Skript ist gitignored); nur die `.gitignore`-Zeile committen: `Chore: gitignore the local creem-seed helper (MC-110)`.
+- [x] **Step 1: Creem-Produkt-Create-Payload verifiziert** gegen die `creem@1.5.3`-Typen: `name`, `description`, `price` (Cent, 0 oder >=100), `currency` (nur `EUR`/`USD`), `billingType` ('recurring'|'onetime'), `billingPeriod` ('every-month'|'every-year'|...). Kein `metadata`-Feld. Beim Lauf zusaetzlich verifiziert: Preis-0 nur mit `onetime` erlaubt.
+- [x] **Step 2: Skript geschrieben** (`scripts/creem-seed.mjs`, gitignored): liest `CREEM_API_KEY` plus `DATABASE_URL` aus `apps/backend/.env.local`, Server aus dem Key-Prefix (`ServerTest`), liest die **Tiers und Preise aus der DB** (nicht hartkodiert), legt fehlende bezahlte Produkte via `client.products.create(...)` an und schreibt (tierId, interval, creemProductId) in `tier_creem_products`. Free-Tier wird uebersprungen. `scripts/creem-seed.mjs` in `.gitignore` aufgenommen.
+- [x] **Step 3: Ausgefuehrt** (Test-Key): 6 Produkte in der Creem-Sandbox angelegt (Club 700/7000, Arena 2800/28000, Stadium 14900/149000 Cent EUR), Mapping mit 6 Zeilen befuellt. Zweiter Lauf idempotent (created=0, skipped=6, failed=0).
+- [x] **Step 4: Verify**: Katalog-Lesepfad end-to-end geprueft (Mapping join tiers, pro Produkt `client.products.get(...)`): alle 6 Live-Preise kommen korrekt aus Creem und stimmen mit der `tiers`-Tabelle ueberein.
+- [x] **Step 5: Commit**: nur die `.gitignore`-Zeile committen: `Chore: gitignore the local creem-seed helper (MC-110)`.
 
 ## Task 9: dbdump-Scrub
 
@@ -217,13 +217,23 @@ Hinweis: Task 8 (Produkt-Seed) ist der einzige offene Punkt, blockiert auf Phase
 
 ## Self-Review (nach Fertigstellung auszufüllen)
 
-- [ ] **Abdeckung**: Creem-Config plus Boot-Guard, `developer_subscriptions`-Umbau, SDK-Client, `tier_creem_products`-Mapping-Tabelle, Katalog-Fetch (Mapping plus Live-Preise), Produkt-Seed je einem Task zugeordnet.
-- [ ] **Placeholder-Scan**: die bewussten Laufzeit-Verifikationen sind die SDK-Shape-Checks (Task 5 Step 3a: Konstruktor; Task 8 Step 1: create-product-Payload), dokumentiert, nicht erfunden.
-- [ ] **Typ-Konsistenz**: `CreemConfig`, `getCreemConfig`, `getCreemClient`, `getCreemCatalog`, `developerSubscriptions`/`creemSubscriptionId`, `tierCreemProducts`/`creemProductId` über alle Tasks identisch.
+- [x] **Abdeckung**: Creem-Config plus Boot-Guard, `developer_subscriptions`-Umbau, SDK-Client, `tier_creem_products`-Mapping-Tabelle, Katalog-Fetch (Mapping plus Live-Preise), Produkt-Seed je einem Task zugeordnet.
+- [x] **Placeholder-Scan**: die bewussten Laufzeit-Verifikationen sind die SDK-Shape-Checks (Task 5 Step 3a: Konstruktor; Task 8 Step 1: create-product-Payload), dokumentiert, nicht erfunden.
+- [x] **Typ-Konsistenz**: `CreemConfig`, `getCreemConfig`, `getCreemClient`, `getCreemCatalog`, `developerSubscriptions`/`creemSubscriptionId`, `tierCreemProducts`/`creemProductId` über alle Tasks identisch.
 
 ## Abgrenzung (bewusst NICHT in Plan B)
 
-- Kein Checkout (gehosteter Creem-Redirect), kein Webhook-Handler, kein Schreiben von `account.tierId` oder `developer_subscriptions` (Plan C).
+- Kein Checkout (gehosteter Creem-Redirect), kein Webhook-Handler, kein Schreiben von `account.tierId` oder `developer_subscriptions` (Plan C). Hinweis fuer Plan C: Der Webhook-Endpoint-Pfad ist bereits verbindlich auf `POST /api/webhooks/creem` festgelegt (der User hat diese URL am 2026-07-09 in der Creem-Sandbox hinterlegt, via ngrok auf das lokale Backend). Plan C MUSS genau diesen Pfad bauen (HMAC-SHA256 gegen `CREEM_WEBHOOK_SECRET`).
 - Keine Subscription-Management-UI (Plan D).
 - Kein Master-Schalter, keine Kaufbarkeits-Regel, keine Coming-soon-Darstellung (Plan E).
 - Kein Usage-Metering (Creem-Credits) fuer Per-Request-Abrechnung (spätere Phase).
+
+## Completed (2026-07-09)
+
+Alle 10 Tasks erledigt und verifiziert. Commits: SDK-Swap `cdca9655`, Config `51c9ad83`, Boot-Guard `87030f7a`, `developer_subscriptions`-Umbau plus Migration 0069 `18310f8d`, SDK-Client `aff2b837`, Mapping-Tabelle plus Migration 0070 `e42d1344`, Katalog-Fetch `4ef31fb8`, Gates-Ticks `50d252b6`.
+
+Kernkorrektur waehrend der Umsetzung: Creem-Produkte tragen kein Metadata-Feld (gegen SDK und Live-Doku verifiziert), daher lebt die Tier-zu-Produkt-Zuordnung in `tier_creem_products` bei uns; Creem bleibt SoT nur fuer die Preise. Zusaetzlich live verifiziert: Creem erzwingt `onetime` bei Preis 0, daher bekommt der Free-Tier kein Creem-Produkt (Free-Accounts sind rein lokal).
+
+Seed gelaufen: 6 bezahlte Produkte in der Creem-Sandbox angelegt (Club/Arena/Stadium je month/year), `tier_creem_products` mit 6 Zeilen befuellt, Katalog-Lesepfad end-to-end gegen Creem verifiziert. Gates gruen: 1385 Backend-Tests, Typecheck, Biome, Clean-State-Migration (71 Migrationen inkl. 0069/0070), `plans check`.
+
+Offene Anschluss-Arbeit (eigene Plaene, NICHT Teil von MC-110): Plan C (Checkout plus Webhook-Handler `POST /api/webhooks/creem`), Plan D (Subscription-Management-UI), Plan E (Master-Schalter/Kaufbarkeit/Coming-soon).

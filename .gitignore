@@ -112,6 +112,9 @@ DerivedData/
 # Local DB-dump helper (machine-specific: Zerops project id + local DB creds)
 scripts/dbdump
 
+# Local Creem product seed helper (touches the Creem sandbox with a test key)
+scripts/creem-seed.mjs
+
 # Personal / local-only reference docs (never publish — may contain private data)
 /.private/
 
