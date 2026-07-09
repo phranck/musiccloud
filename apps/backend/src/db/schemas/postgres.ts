@@ -1639,11 +1639,11 @@ export type DeveloperEmailTokenRow = typeof developerEmailTokens.$inferSelect;
 export type DeveloperEmailTokenInsert = typeof developerEmailTokens.$inferInsert;
 
 /**
- * Polar billing detail per paid subscription. Kept separate from
+ * Creem billing detail per paid subscription. Kept separate from
  * developer_accounts (SRP): account.tierId stays the effective tier for
- * enforcement, this table only mirrors Polar's billing state. Free accounts
- * have no row here. Written by the Polar webhook (Plan C), read by the
- * subscription-management UI (Plan D). polarSubscriptionId is unique so the
+ * enforcement, this table only mirrors Creem's billing state. Free accounts
+ * have no row here. Written by the Creem webhook (Plan C), read by the
+ * subscription-management UI (Plan D). creemSubscriptionId is unique so the
  * idempotent webhook can upsert by it.
  */
 export const developerSubscriptions = pgTable(
@@ -1656,8 +1656,8 @@ export const developerSubscriptions = pgTable(
     tierId: text("tier_id")
       .notNull()
       .references(() => tiers.id, { onDelete: "restrict" }),
-    polarSubscriptionId: text("polar_subscription_id").notNull().unique(),
-    polarCustomerId: text("polar_customer_id").notNull(),
+    creemSubscriptionId: text("creem_subscription_id").notNull().unique(),
+    creemCustomerId: text("creem_customer_id").notNull(),
     status: text("status").notNull(),
     interval: text("interval").notNull(),
     currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
@@ -1666,10 +1666,10 @@ export const developerSubscriptions = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("uq_developer_subscriptions_polar_id").on(table.polarSubscriptionId),
+    uniqueIndex("uq_developer_subscriptions_creem_id").on(table.creemSubscriptionId),
     check(
       "chk_developer_subscriptions_status",
-      sql`${table.status} IN ('active', 'canceled', 'past_due', 'revoked', 'incomplete')`,
+      sql`${table.status} IN ('active', 'trialing', 'paused', 'past_due', 'expired', 'canceled', 'scheduled_cancel')`,
     ),
     check("chk_developer_subscriptions_interval", sql`${table.interval} IN ('month', 'year')`),
   ],

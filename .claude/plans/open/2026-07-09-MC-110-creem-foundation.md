@@ -125,11 +125,11 @@ Kommentar: warum nur bei gesetztem Key (Creem in der Foundation-Phase optional b
 
 **Files:** Modify `apps/backend/src/db/schemas/postgres.ts`, Generated `0069_*.sql` plus Journal
 
-- [ ] **Step 1: Schema anpassen** an `developerSubscriptions`: `polarSubscriptionId` zu `creemSubscriptionId` (Spalte `creem_subscription_id`), `polarCustomerId` zu `creemCustomerId` (`creem_customer_id`), Index `uq_developer_subscriptions_polar_id` zu `uq_developer_subscriptions_creem_id`. Status-Check-Constraint auf Creems Werte: ``sql`${table.status} IN ('active', 'trialing', 'paused', 'past_due', 'expired', 'canceled', 'scheduled_cancel')` ``. Den TSDoc-Kommentar von Polar auf Creem umschreiben (keine Em-Dashes, kein Polar mehr). `interval` bleibt `month`/`year` (unsere normalisierte Form; Creems `every-month` wird in Plan C darauf gemappt).
-- [ ] **Step 2: Migration generieren**: `pnpm db:generate`. Erwartet `0069_*.sql` mit Spalten-Rename plus Constraint-Wechsel. Generiertes SQL sichten: es soll nur `developer_subscriptions` betreffen. Falls drizzle-kit einen Rename als drop-and-add auflöst, ist das hier unkritisch (Tabelle ist leer), aber im SQL prüfen.
-- [ ] **Step 3: Anwenden**: `pnpm db:migrate` gegen die lokale DB (Port 5433). Kein Fehler.
-- [ ] **Step 4: Verify**: `psql "$LOCAL_DB_URL" -c "\d developer_subscriptions"` zeigt `creem_subscription_id`, `creem_customer_id`, den umbenannten Index und die neue Status-Constraint.
-- [ ] **Step 5: Commit**: `Feat: retarget developer_subscriptions at Creem (MC-110)`.
+- [x] **Step 1: Schema anpassen** an `developerSubscriptions`: `polarSubscriptionId` zu `creemSubscriptionId` (Spalte `creem_subscription_id`), `polarCustomerId` zu `creemCustomerId` (`creem_customer_id`), Index `uq_developer_subscriptions_polar_id` zu `uq_developer_subscriptions_creem_id`. Status-Check-Constraint auf Creems Werte: ``sql`${table.status} IN ('active', 'trialing', 'paused', 'past_due', 'expired', 'canceled', 'scheduled_cancel')` ``. Den TSDoc-Kommentar von Polar auf Creem umschreiben (keine Em-Dashes, kein Polar mehr). `interval` bleibt `month`/`year` (unsere normalisierte Form; Creems `every-month` wird in Plan C darauf gemappt).
+- [x] **Step 2: Migration** `0069_creem_retarget.sql` von Hand geschrieben, weil `pnpm db:generate` fuer den Spalten-Rename ein TTY braucht (non-interaktiv nicht moeglich). Reines `ALTER ... RENAME` (Tabelle leer, kein Datenverlust), plus Drop/Add der Status-Constraint. Snapshot `0069_snapshot.json` deterministisch aus `0068_snapshot.json` abgeleitet (nur `developer_subscriptions` geaendert) und per `db:generate`-Idempotenz-Check verifiziert: meldet danach "No schema changes", kein Diff, kein `0070`.
+- [x] **Step 3: Anwenden**: `pnpm db:migrate` gegen die lokale DB (Port 5433). "Drizzle migrations applied.", kein Fehler.
+- [x] **Step 4: Verify**: `\d developer_subscriptions` zeigt `creem_subscription_id`, `creem_customer_id`, Index `uq_developer_subscriptions_creem_id`, Unique `developer_subscriptions_creem_subscription_id_unique` und die neue Status-Constraint (7 Creem-Werte); FKs intakt.
+- [x] **Step 5: Commit**: `Feat: retarget developer_subscriptions at Creem (MC-110)`.
 
 ## Task 5: Creem-SDK-Client (`creem-client.ts`)
 
