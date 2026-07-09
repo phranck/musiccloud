@@ -1639,6 +1639,46 @@ export type DeveloperEmailTokenRow = typeof developerEmailTokens.$inferSelect;
 export type DeveloperEmailTokenInsert = typeof developerEmailTokens.$inferInsert;
 
 /**
+ * Polar billing detail per paid subscription. Kept separate from
+ * developer_accounts (SRP): account.tierId stays the effective tier for
+ * enforcement, this table only mirrors Polar's billing state. Free accounts
+ * have no row here. Written by the Polar webhook (Plan C), read by the
+ * subscription-management UI (Plan D). polarSubscriptionId is unique so the
+ * idempotent webhook can upsert by it.
+ */
+export const developerSubscriptions = pgTable(
+  "developer_subscriptions",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => developerAccounts.id, { onDelete: "cascade" }),
+    tierId: text("tier_id")
+      .notNull()
+      .references(() => tiers.id, { onDelete: "restrict" }),
+    polarSubscriptionId: text("polar_subscription_id").notNull().unique(),
+    polarCustomerId: text("polar_customer_id").notNull(),
+    status: text("status").notNull(),
+    interval: text("interval").notNull(),
+    currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_developer_subscriptions_polar_id").on(table.polarSubscriptionId),
+    check(
+      "chk_developer_subscriptions_status",
+      sql`${table.status} IN ('active', 'canceled', 'past_due', 'revoked', 'incomplete')`,
+    ),
+    check("chk_developer_subscriptions_interval", sql`${table.interval} IN ('month', 'year')`),
+  ],
+);
+
+export type DeveloperSubscriptionRow = typeof developerSubscriptions.$inferSelect;
+export type DeveloperSubscriptionInsert = typeof developerSubscriptions.$inferInsert;
+
+/**
  * A developer's request for Public-API access (MC-025/MC-077). Each row
  * describes one app; `developerAccountId` is the source of truth for who
  * submitted it (`contactEmail` is a display snapshot, not the identity).

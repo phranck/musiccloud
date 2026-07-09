@@ -177,7 +177,7 @@ TSDoc am Aufruf: warum nur bei gesetztem Token (Polar ist in der Foundation-Phas
 - Modify: `apps/backend/src/db/schemas/postgres.ts`
 - Generated: `apps/backend/src/db/migrations/postgres/0068_*.sql` plus `meta/_journal.json`
 
-- [ ] **Step 1: Schema ergänzen** (nach den developer-Tabellen, Stil wie `developerAccounts`):
+- [x] **Step 1: Schema ergänzen** (nach den developer-Tabellen, Stil wie `developerAccounts`):
 ```ts
 /**
  * Polar billing detail per paid subscription. Kept separate from
@@ -220,10 +220,10 @@ export type DeveloperSubscriptionRow = typeof developerSubscriptions.$inferSelec
 export type DeveloperSubscriptionInsert = typeof developerSubscriptions.$inferInsert;
 ```
 Sicherstellen, dass `boolean` aus `drizzle-orm/pg-core` importiert ist; falls nicht, Import ergänzen.
-- [ ] **Step 2: Migration generieren**: `pnpm db:generate`. Erwartet: neue `0068_*.sql` mit `CREATE TABLE "developer_subscriptions"` plus Journal-Eintrag idx 68. Generiertes SQL sichten (FKs, Unique-Index, Checks vorhanden).
-- [ ] **Step 3: Anwenden**: `pnpm db:migrate` (lokaler Postgres, Port 5433). Kein Fehler.
-- [ ] **Step 4: Verify**: `psql "$LOCAL_DB_URL" -c "\d developer_subscriptions"` zeigt die Tabelle plus Constraints; Migrations-Tail in `drizzle.__drizzle_migrations` enthält 0068.
-- [ ] **Step 5: Commit**: `Feat: add developer_subscriptions table (Polar billing detail) (MC-110)`.
+- [x] **Step 2: Migration generieren**: `pnpm db:generate`. Erwartet: neue `0068_*.sql` mit `CREATE TABLE "developer_subscriptions"` plus Journal-Eintrag idx 68. Generiertes SQL sichten (FKs, Unique-Index, Checks vorhanden).
+- [x] **Step 3: Anwenden**: `pnpm db:migrate` (lokaler Postgres, Port 5433). Kein Fehler.
+- [x] **Step 4: Verify**: `psql "$LOCAL_DB_URL" -c "\d developer_subscriptions"` zeigt die Tabelle plus Constraints; Migrations-Tail in `drizzle.__drizzle_migrations` enthält 0068.
+- [x] **Step 5: Commit**: `Feat: add developer_subscriptions table (Polar billing detail) (MC-110)`.
 
 ## Task 5: Polar-SDK-Client-Factory (`polar-client.ts`)
 

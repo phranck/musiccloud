@@ -477,6 +477,13 @@
       "when": 1783530152159,
       "tag": "0067_backfill_accounts_tier_free",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1783607457781,
+      "tag": "0068_careless_scalphunter",
+      "breakpoints": true
     }
   ]
 }
