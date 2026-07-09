@@ -39,11 +39,15 @@ function renderHub() {
   );
 }
 
-/** A hub tree with a parametrized preview URL, for same-album source-switch rerenders. */
-function tree(previewUrl: string, trackTitle: string) {
+/**
+ * A hub tree with a parametrized preview URL (and optional record-swap identity),
+ * for source-switch rerenders. Omitting `recordSwapKey` exercises the legacy
+ * continue-on-switch path; passing a changed key exercises the record swap.
+ */
+function tree(previewUrl: string, trackTitle: string, recordSwapKey?: string) {
   return (
     <LocaleProvider initialLocale="en">
-      <TurntablePlayerProvider previewUrl={previewUrl} trackTitle={trackTitle}>
+      <TurntablePlayerProvider previewUrl={previewUrl} trackTitle={trackTitle} recordSwapKey={recordSwapKey}>
         <HubProbe />
       </TurntablePlayerProvider>
     </LocaleProvider>
@@ -175,5 +179,44 @@ describe("TurntablePlayerProvider", () => {
       fireEvent.click(screen.getByRole("button", { name: "toggle" }));
     });
     expect(latestAudio().src).toContain("/b.mp3");
+  });
+
+  it("continues playing on a same-album track switch (unchanged recordSwapKey)", async () => {
+    const { rerender } = render(tree("/a.mp3", "A", "album-a"));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "toggle" }));
+    });
+    expect(hub()).toHaveAttribute("data-playing", "true");
+
+    await act(async () => {
+      rerender(tree("/a2.mp3", "A2", "album-a"));
+    });
+
+    expect(latestAudio().src).toContain("/a2.mp3");
+    expect(hub()).toHaveAttribute("data-playing", "true");
+    expect(hub()).toHaveAttribute("data-spin", "playing");
+  });
+
+  it("defers playback to the swap orchestration on a record swap while playing (different album)", async () => {
+    const { rerender } = render(tree("/a.mp3", "A", "album-a"));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "toggle" }));
+    });
+    expect(hub()).toHaveAttribute("data-playing", "true");
+    const playsBefore = playedAudioElements.length;
+
+    await act(async () => {
+      rerender(tree("/b.mp3", "B", "album-b"));
+    });
+
+    // The new album is NOT auto-continued: no fresh play(), and the deck reports
+    // Ready so the rotor winds down (Coasting). The record swap re-triggers play
+    // once the disc has settled.
+    expect(playedAudioElements).toHaveLength(playsBefore);
+    expect(hub()).toHaveAttribute("data-playing", "false");
+    expect(hub()).toHaveAttribute("data-spin", "coasting");
+    expect(hub()).toHaveAttribute("data-speed", "standby");
   });
 });

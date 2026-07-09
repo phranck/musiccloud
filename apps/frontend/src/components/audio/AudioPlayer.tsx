@@ -15,7 +15,7 @@ import { Player } from "@/components/playback/Player";
 import { VfdScrollOutDirection } from "@/components/ui/VfdDisplay";
 import { useT } from "@/i18n/localeContext";
 import { PreviewSignal, sendMusicSignal } from "@/lib/analytics/umami";
-import { setupMotion } from "@/lib/motion/setup";
+import { prefersReducedMotion, setupMotion } from "@/lib/motion/setup";
 import { type MediaKindType, MediaKindValue } from "@/lib/types/media-card";
 
 export interface AudioPlayerProps {
@@ -29,6 +29,15 @@ export interface AudioPlayerProps {
    *  (CC / Jamendo). Switches the player's wording from "preview" to "song". */
   mediaKind?: MediaKindType;
   trackTitle: string;
+  /**
+   * Identity of the current record (album-scoped). When it CHANGES across a
+   * source switch while playing, playback is NOT auto-continued: the engine
+   * reports Ready so the deck coasts to a halt and the record-swap orchestration
+   * re-triggers play once the new disc has settled. Unchanged (same album),
+   * reduced motion, or omitted (standalone `AudioPlayer`) keeps the seamless
+   * continue behaviour.
+   */
+  recordSwapKey?: string;
   /** Fires synchronously when the user starts playback via click, media key, or Space. */
   onPlaybackIntent?: () => void;
   onStatusChange?: (status: AudioStatusType) => void;
@@ -507,6 +516,7 @@ export function useAudioController({
   refreshShortId,
   mediaKind,
   trackTitle,
+  recordSwapKey,
   onPlaybackIntent,
   onStatusChange,
   onSeekHint,
@@ -558,6 +568,17 @@ export function useAudioController({
   useEffect(() => {
     isPlayingRef.current = state.phase === PlayerPhase.Playing;
   }, [state.phase]);
+
+  // Mirrors the album-scoped record identity so the source effect can compare the
+  // incoming key against the previous one WITHOUT taking recordSwapKey as a
+  // dependency (which would rebuild the audio element on an identity change alone).
+  const recordSwapKeyRef = useRef(recordSwapKey);
+  useEffect(() => {
+    recordSwapKeyRef.current = recordSwapKey;
+  }, [recordSwapKey]);
+  // The record identity applied at the last source switch — the baseline the next
+  // switch compares against to tell a same-album track change from a record swap.
+  const lastSwapKeyRef = useRef(recordSwapKey);
 
   // Lazy fetch the preview URL when the component mounted without one.
   // Aborts on unmount so a slow Deezer call doesn't update a stale tree.
@@ -1054,16 +1075,36 @@ export function useAudioController({
       stopSpectrumLoop,
     ],
   );
-  const beginPlaybackFromEvent = useEffectEvent(beginPlayback);
+  // Decides how a source switch (a previewUrl change on the mounted hub) proceeds.
+  // A same-album track change — or no swap identity, or reduced motion — continues
+  // playback seamlessly on the fresh element. A record swap to a different album
+  // instead hands playback to the swap orchestration: it reports Ready so the deck
+  // coasts to a halt and leaves the new element idle until the disc has settled and
+  // the deck re-triggers play. `previousSwapKey` is the identity at the prior
+  // switch (captured before the ref is advanced), so it is never the incoming one.
+  const applySourceSwitch = useEffectEvent((audio: HTMLAudioElement, previousSwapKey: string | undefined) => {
+    dispatch({ type: PlayerActionType.SourceChanged });
+    setProgressRatioValue(0);
+    if (!isPlayingRef.current) return;
+    const currentSwapKey = recordSwapKeyRef.current;
+    const isRecordSwap = currentSwapKey !== undefined && currentSwapKey !== previousSwapKey && !prefersReducedMotion();
+    if (isRecordSwap) {
+      notifyStatusChange(AudioStatus.Ready);
+      return;
+    }
+    beginPlayback(audio);
+  });
 
-  // The audio element is (re)created whenever the effective URL changes. A
-  // same-album track switch changes the URL on the mounted hub (a different album
-  // re-keys/remounts instead); the element is rebuilt for the new source, and if
-  // playback was active it continues on the new element. Playback-state
-  // transitions (play/pause) do NOT re-run this — only the URL does — so a running
-  // play() is never torn down mid-promise. The cleanup fades out and tears down
-  // the audio graph (deferred pause + AudioContext.close so the destination sees
-  // silence, avoiding the speaker click a mid-playback teardown otherwise produces).
+  // The audio element is (re)created whenever the effective URL changes. Both a
+  // same-album track switch and a different-album record swap change the URL on the
+  // mounted hub (the hub no longer remounts per track, MC-113); the element is
+  // rebuilt for the new source, and `applySourceSwitch` decides whether to continue
+  // playback on the new element (same album) or defer it to the swap orchestration
+  // (different album). Playback-state transitions (play/pause) do NOT re-run this —
+  // only the URL does — so a running play() is never torn down mid-promise. The
+  // cleanup fades out and tears down the audio graph (deferred pause +
+  // AudioContext.close so the destination sees silence, avoiding the speaker click
+  // a mid-playback teardown otherwise produces).
   useEffect(() => {
     if (!effectiveUrl) return;
 
@@ -1107,13 +1148,17 @@ export function useAudioController({
 
     audioRef.current = audio;
 
-    // A same-album source switch (not the initial mount): reset the player to a
-    // fresh idle track and continue on the new element if playback was active.
+    // Advance the record-swap baseline for every source change (including idle
+    // adopts and the initial mount) so it never goes stale, capturing the prior
+    // identity first for the switch decision.
+    const previousSwapKey = lastSwapKeyRef.current;
+    lastSwapKeyRef.current = recordSwapKeyRef.current;
+
+    // A source switch (not the initial mount): reset the player to a fresh idle
+    // track and either continue or defer playback per the swap decision.
     // `hasStartedRef` flips true on the first play, so it is the "not initial" signal.
     if (hasStartedRef.current) {
-      dispatch({ type: PlayerActionType.SourceChanged });
-      setProgressRatioFromEvent(0);
-      if (isPlayingRef.current) beginPlaybackFromEvent(audio);
+      applySourceSwitch(audio, previousSwapKey);
     }
 
     return () => {
