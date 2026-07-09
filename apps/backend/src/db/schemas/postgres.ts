@@ -1872,6 +1872,7 @@ export const tiers = pgTable(
     disableReason: text("disable_reason").notNull().default(""),
     recommended: boolean("recommended").notNull().default(false),
     sortOrder: integer("sort_order").notNull().default(0),
+    features: jsonb("features").notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

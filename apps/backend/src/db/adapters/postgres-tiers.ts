@@ -5,6 +5,7 @@ import {
   type Tier,
   type TierCreateData,
   type TierCreemProductMapping,
+  type TierFeature,
   type TierRepository,
   type TierUpdateData,
 } from "../tiers-repository.js";
@@ -26,6 +27,7 @@ interface TierRow {
   disable_reason: string;
   recommended: boolean;
   sort_order: number;
+  features: TierFeature[];
   created_at: Date;
   updated_at: Date;
 }
@@ -47,6 +49,7 @@ function toTier(row: TierRow): Tier {
     disableReason: row.disable_reason,
     recommended: row.recommended,
     sortOrder: row.sort_order,
+    features: row.features ?? [],
     createdAt: dateToMs(row.created_at),
     updatedAt: dateToMs(row.updated_at),
   };
@@ -67,8 +70,8 @@ export class PostgresTierRepository implements TierRepository {
   async createTier(data: TierCreateData): Promise<Tier> {
     const id = nanoid();
     const recommended = data.recommended ?? false;
-    const sql = `INSERT INTO tiers (id, name, requests_per_minute, requests_per_day, attribution_required, price, price_yearly, color, icon, button_label, description, enabled, disable_reason, recommended, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    const sql = `INSERT INTO tiers (id, name, requests_per_minute, requests_per_day, attribution_required, price, price_yearly, color, icon, button_label, description, enabled, disable_reason, recommended, sort_order, features)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb)
        RETURNING *`;
     const values = [
       id,
@@ -86,6 +89,7 @@ export class PostgresTierRepository implements TierRepository {
       data.disableReason ?? "",
       recommended,
       data.sortOrder ?? 0,
+      JSON.stringify(data.features ?? []),
     ];
 
     if (recommended) {
@@ -190,6 +194,10 @@ export class PostgresTierRepository implements TierRepository {
     if (data.recommended !== undefined) {
       fields.push(`recommended = $${idx++}`);
       values.push(data.recommended);
+    }
+    if (data.features !== undefined) {
+      fields.push(`features = $${idx++}::jsonb`);
+      values.push(JSON.stringify(data.features));
     }
 
     fields.push(`updated_at = now()`);

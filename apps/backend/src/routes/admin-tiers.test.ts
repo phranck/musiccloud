@@ -29,6 +29,7 @@ const freeTier: Tier = {
   disableReason: "",
   recommended: false,
   sortOrder: 0,
+  features: [],
   createdAt: 1700000000000,
   updatedAt: 1700000000000,
 };

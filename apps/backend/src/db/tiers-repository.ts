@@ -17,6 +17,23 @@ export const DEFAULT_TIER_COLOR = "#64748b";
 export const FALLBACK_REQUESTS_PER_MINUTE = 60;
 export const FALLBACK_REQUESTS_PER_DAY = 10000;
 
+/** Maximum number of feature bullets shown on a tier's pricing card. */
+export const MAX_TIER_FEATURES = 12;
+/** Maximum length of a single feature bullet label. */
+export const MAX_TIER_FEATURE_LABEL_LENGTH = 80;
+
+/**
+ * One feature bullet on a tier's pricing card: a short label and whether the
+ * tier includes it (rendered as a check) or not (rendered as a cross). The
+ * stored order is the display order. Managed in the admin dashboard and shown
+ * on the Developer Portal pricing page. This is our own data, kept on our side
+ * rather than at the payment provider.
+ */
+export interface TierFeature {
+  label: string;
+  included: boolean;
+}
+
 export interface Tier {
   id: string;
   name: string;
@@ -47,6 +64,8 @@ export interface Tier {
    */
   recommended: boolean;
   sortOrder: number;
+  /** Ordered feature bullets shown on the pricing card. Empty array when none are set. */
+  features: TierFeature[];
   createdAt: number;
   updatedAt: number;
 }
@@ -67,6 +86,8 @@ export interface TierCreateData {
   /** Mark this tier as the recommended one on create; `true` clears the flag on all other tiers. Defaults to `false`. */
   recommended?: boolean;
   sortOrder?: number;
+  /** Ordered feature bullets for the pricing card. Defaults to an empty list. */
+  features?: TierFeature[];
 }
 
 export interface TierUpdateData {
@@ -85,6 +106,8 @@ export interface TierUpdateData {
   /** Set the recommended flag. `true` makes this the recommended tier and clears it on all others; `false` leaves none recommended. */
   recommended?: boolean;
   sortOrder?: number;
+  /** Replace the tier's feature bullets. Omit to leave them unchanged. */
+  features?: TierFeature[];
 }
 
 /**

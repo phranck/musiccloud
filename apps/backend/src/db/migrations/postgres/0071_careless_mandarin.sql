@@ -1,0 +1,1 @@
+ALTER TABLE "tiers" ADD COLUMN "features" jsonb DEFAULT '[]'::jsonb NOT NULL;
