@@ -12,7 +12,7 @@
 import PublicHeader from "@/components/PublicHeader.astro";
 import RollingText from "@/components/RollingText.astro";
 import { TierIcon } from "@/components/TierIcon";
-import { CloseCircleIcon, CoinIcon, Like1Icon, TickCircleIcon } from "@/lib/icons";
+import { CoinIcon, Like1Icon, TickCircleIcon } from "@/lib/icons";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { backendUrl } from "@/lib/api";
 import PublicFooter from "@/components/PublicFooter.astro";
@@ -187,8 +187,8 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
                   Currently unavailable{tier.disableReason ? `. ${tier.disableReason}` : ""}
                 </p>
               )}
-              {tier.description && <p class="text-lg text-fg-muted">{tier.description}</p>}
-              <div class="text-lg text-fg-muted space-y-1">
+              {tier.description && <p class="w-full text-right text-lg text-fg-muted">{tier.description}</p>}
+              <div class="w-full space-y-1 text-right text-lg text-fg-muted">
                 <p>
                   <span class="text-fg font-medium">{tier.requestsPerMinute}</span> requests / minute
                 </p>
@@ -196,24 +196,18 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
                   <span class="text-fg font-medium">{tier.requestsPerDay.toLocaleString()}</span> requests / day
                 </p>
               </div>
-              {tier.attributionRequired && <p class="text-body text-fg-subtle">Attribution required</p>}
+              {tier.attributionRequired && <p class="w-full text-right text-body text-fg-subtle">Attribution required</p>}
 
-              {tier.features.length > 0 && (
+              {tier.features.some((feature) => feature.included) && (
                 <ul class="mx-auto flex w-full max-w-[15rem] flex-col gap-1.5 text-left text-body">
-                  {tier.features.map((feature) => (
-                    <li class="flex items-start gap-2">
-                      {feature.included ? (
-                        <TickCircleIcon
-                          className="mt-0.5 size-4 shrink-0"
-                          style={{ color: tier.color }}
-                          aria-hidden="true"
-                        />
-                      ) : (
-                        <CloseCircleIcon className="mt-0.5 size-4 shrink-0 text-fg-subtle" aria-hidden="true" />
-                      )}
-                      <span class={feature.included ? "text-fg-muted" : "text-fg-subtle"}>{feature.label}</span>
-                    </li>
-                  ))}
+                  {tier.features
+                    .filter((feature) => feature.included)
+                    .map((feature) => (
+                      <li class="flex items-center gap-2">
+                        <TickCircleIcon className="size-4 shrink-0" style={{ color: tier.color }} aria-hidden="true" />
+                        <span class="text-fg-muted">{feature.label}</span>
+                      </li>
+                    ))}
                 </ul>
               )}
 
