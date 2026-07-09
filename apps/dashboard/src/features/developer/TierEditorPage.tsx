@@ -400,6 +400,17 @@ function TierFormDialog({
                 />
               </div>
             </div>
+            <div className="flex flex-col gap-1">
+              <FormLabel htmlFor="tier-recommended">{dm.colRecommended}</FormLabel>
+              <div className="flex h-9 items-center">
+                <ToggleSwitch
+                  id="tier-recommended"
+                  checked={form.recommended}
+                  onChange={(checked) => onFormChange({ recommended: checked })}
+                  aria-label={dm.colRecommended}
+                />
+              </div>
+            </div>
           </div>
 
           {/* Stays mounted so the reveal can animate; grid-row + opacity
@@ -433,18 +444,6 @@ function TierFormDialog({
             maxLength={500}
             placeholder="e.g. For hobby projects and evaluation."
           />
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <FormLabel htmlFor="tier-recommended">{dm.colRecommended}</FormLabel>
-          <div className="flex h-9 items-center">
-            <ToggleSwitch
-              id="tier-recommended"
-              checked={form.recommended}
-              onChange={(checked) => onFormChange({ recommended: checked })}
-              aria-label={dm.colRecommended}
-            />
-          </div>
         </div>
 
         <TierIconPicker
