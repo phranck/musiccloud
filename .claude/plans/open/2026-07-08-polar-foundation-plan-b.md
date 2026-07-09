@@ -86,9 +86,9 @@ pnpm --filter @musiccloud/backend add @polar-sh/sdk
 
 Zweck: Eine typisierte, an einer Stelle validierte Sicht auf die Polar-Env. `POLAR_PRODUCTS` ist ein JSON-String der Form `{ "<tierId>": { "month": "<polarProductId>", "year": "<polarProductId>" } }` (Free hat keinen Eintrag). Fehlerhaftes JSON oder falscher `POLAR_SERVER` führt zu throw (fail-fast), nie zu stillem Fallback.
 
-- [ ] **Step 1: Failing test**: `polar-config.test.ts`: `getPolarConfig()` mit gesetzten `POLAR_SERVER=sandbox`, `POLAR_ACCESS_TOKEN=tok`, `POLAR_PRODUCTS='{"tier_club":{"month":"prod_m","year":"prod_y"}}'` (via `vi.stubEnv`) liefert `{ server: "sandbox", accessToken: "tok", products: { tier_club: { month: "prod_m", year: "prod_y" } }, webhookSecret: undefined }`. Fehlerfälle: `POLAR_SERVER=foo` throwt; `POLAR_PRODUCTS='{invalid'` throwt; Product-Eintrag ohne `month` throwt.
-- [ ] **Step 2: Fails**: `pnpm --filter @musiccloud/backend test:run polar-config` FAIL (Modul fehlt).
-- [ ] **Step 3: Implementieren.**
+- [x] **Step 1: Failing test**: `polar-config.test.ts`: `getPolarConfig()` mit gesetzten `POLAR_SERVER=sandbox`, `POLAR_ACCESS_TOKEN=tok`, `POLAR_PRODUCTS='{"tier_club":{"month":"prod_m","year":"prod_y"}}'` (via `vi.stubEnv`) liefert `{ server: "sandbox", accessToken: "tok", products: { tier_club: { month: "prod_m", year: "prod_y" } }, webhookSecret: undefined }`. Fehlerfälle: `POLAR_SERVER=foo` throwt; `POLAR_PRODUCTS='{invalid'` throwt; Product-Eintrag ohne `month` throwt.
+- [x] **Step 2: Fails**: `pnpm --filter @musiccloud/backend test:run polar-config` FAIL (Modul fehlt).
+- [x] **Step 3: Implementieren.**
 ```ts
 import { requireEnv } from "./env.js";
 
@@ -149,8 +149,8 @@ export function getPolarConfig(): PolarConfig {
   };
 }
 ```
-- [ ] **Step 4: Grün**: `pnpm --filter @musiccloud/backend test:run polar-config` PASS.
-- [ ] **Step 5: Commit**: `Feat: read and validate Polar env config (MC-110)`.
+- [x] **Step 4: Grün**: `pnpm --filter @musiccloud/backend test:run polar-config` PASS.
+- [x] **Step 5: Commit**: `Feat: read and validate Polar env config (MC-110)`.
 
 ## Task 3: Boot-Guard für Polar-Konsistenz (`boot-env.ts`)
 
