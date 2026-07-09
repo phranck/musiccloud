@@ -4,6 +4,7 @@ import { CcTrackDetailsSection } from "@/components/cards/CcTrackDetailsSection"
 import { animatedOuterEmbossedCardClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { SongInfo } from "@/components/cards/SongInfo";
+import { turntableHubKey } from "@/components/cards/turntableHubKey";
 import { ShareButton } from "@/components/share/ShareButton";
 import type { ShareMediaView } from "@/components/share/ShareMediaView.types";
 import { TurntableAnalyzerSlot } from "@/components/turntable/TurntableAnalyzerSlot";
@@ -131,9 +132,9 @@ function MediaCardHeadStage({
  *
  * When the track has a preview, the cover block and the transport are wrapped in
  * a `TurntablePlayerProvider` (the audio hub). The provider is keyed by the
- * content identity (`shortId`, `previewUrl`, title, artist) so swapping the
- * resolved track on the share page resets the engine cleanly instead of reusing
- * a stale instance. The turntable stage then renders the hub-driven
+ * album-scoped `turntableHubKey`, so switching between tracks of the same album
+ * keeps the same hub (the deck keeps spinning, only the audio source swaps),
+ * while a different album remounts the hub and resets the engine cleanly. The turntable stage then renders the hub-driven
  * {@link TurntablePlayer} deck, which reads its spin/speed/power from the hub.
  * Without a preview there is no hub, so the stage gets a static {@link Turntable}
  * deck (idle spin) instead, keeping the hook out of the provider-less path.
@@ -160,7 +161,7 @@ export function MediaCardHead({
   const shareable = isShareableContent(content) ? content : null;
   const sharePageContent = isSharePageContent(content) ? content : null;
   const shareActionUrl = sharePageContent?.shortUrl ?? shareable?.shareUrl;
-  const turntableHubKey = [content.shortId ?? "", content.previewUrl ?? "", content.title, content.artist].join("::");
+  const hubKey = turntableHubKey(content);
   const showPreview = !!(content.previewUrl || (content.previewRefreshable && content.shortId));
   const showShareActions = !!shareActionUrl;
 
@@ -194,7 +195,7 @@ export function MediaCardHead({
 
       {showPreview ? (
         <TurntablePlayerProvider
-          key={turntableHubKey}
+          key={hubKey}
           previewUrl={content.previewUrl}
           refreshShortId={content.previewRefreshable ? content.shortId : undefined}
           mediaKind={content.mediaKind}

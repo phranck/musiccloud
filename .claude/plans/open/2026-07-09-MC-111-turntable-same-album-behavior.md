@@ -51,10 +51,10 @@ Dieser Plan ist der Verhaltensteil ("selbes Album, kein Wechsel"). Die neue Boge
 - Modify: `apps/frontend/src/components/cards/MediaCardHead.tsx:163`
 - Test: `apps/frontend/src/components/cards/MediaCardHead.test.tsx` (neu, falls nicht vorhanden)
 
-- [ ] Failing Test: bei zwei Renders mit Same-Album-Configs (unterschiedliche Tracks, gleiches Album) bleibt der Hub-Provider dieselbe Instanz (kein Remount); bei unterschiedlichem Album remountet er.
-- [ ] Test rot.
-- [ ] `turntableHubKey` auf Album-Skope umstellen: aus Album-Identität (`artist` + `labelAlbumTitle ?? album`) statt Track-Feldern. Fallback für album-lose Inhalte (Artist/Single): weiter track-eindeutig (bisheriges Verhalten), damit nur echte Same-Album-Wechsel den Remount vermeiden. TSDoc am Key anpassen (IST-Zustand).
-- [ ] Test grün. Biome. Commit.
+- [x] Failing Test: getestet über die reine Funktion `turntableHubKey(content)` (deterministischer als Remount-Beobachtung): gleicher Key für Same-Album-Tracks, anderer Key für anderes Album, track-eindeutiger Key für album-lose Inhalte.
+- [x] Test rot.
+- [x] `turntableHubKey` auf Album-Skope umstellen: gemeinsamer `albumIdentityKey(config)` (artist + `labelAlbumTitle ?? album`) als Single Source; `sameAlbum` darauf aufgebaut (spekulativer Artwork-Zweig entfernt, damit Key und Swap-Entscheidung konsistent sind). Fallback album-los = track-eindeutig. MediaCardHead nutzt `turntableHubKey(content)`; TSDoc angepasst.
+- [x] Test grün. Biome. Commit.
 
 ### Task 3: `useAudioController` reagiert auf `previewUrl`-Wechsel mit Fade
 
@@ -86,7 +86,7 @@ Dieser Plan ist der Verhaltensteil ("selbes Album, kein Wechsel"). Die neue Boge
 ## Checkliste
 
 - [x] Task 1: `sameAlbum`-Helfer + Tests
-- [ ] Task 2: Album-skopierter Hub-Key
+- [x] Task 2: Album-skopierter Hub-Key
 - [ ] Task 3: `useAudioController` `previewUrl`-Sync + Fade
 - [ ] Task 4: Same-Album-Verhalten verdrahtet + Tests
 - [ ] Alle Code-Referenzen verifiziert (Funktionen, Skripte, Pfade, Env-Vars, Package-Manager-Kommandos)

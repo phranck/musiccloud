@@ -24,17 +24,14 @@ function normalize(value: string): string {
 }
 
 /**
- * The normalized album key of a config, or `null` when the entity carries no
- * album at all (a single, or an artist entity). A missing album key means the
- * entity is treated as standalone, never "the same album" as anything.
- *
- * The LP paper-label album title wins over the plain `album` field so the key
- * matches what the vinyl label actually prints.
+ * The normalized album title of a config (LP paper-label title wins over the
+ * plain `album` field, matching what the vinyl label prints), or `null` when the
+ * entity carries no album at all (a single, or an artist entity).
  *
  * @param config - The album-identity input.
- * @returns The normalized album key, or `null` when no album is present.
+ * @returns The normalized album title, or `null` when no album is present.
  */
-function albumKey(config: AlbumIdentityInput): string | null {
+function albumTitle(config: AlbumIdentityInput): string | null {
   const raw = config.labelAlbumTitle ?? config.album;
   if (!raw) return null;
   const normalized = normalize(raw);
@@ -42,28 +39,39 @@ function albumKey(config: AlbumIdentityInput): string | null {
 }
 
 /**
+ * The stable album-identity key of a config: a normalized `artist + album`
+ * string, or `null` when the entity has no album (single/artist). Two tracks of
+ * the same album share this key regardless of their differing track title,
+ * preview URL or artwork, which is exactly what the turntable hub keys on to
+ * avoid remounting the deck on a same-album track switch.
+ *
+ * There is no stable `albumId` in the domain, so this derived key is the single
+ * source of truth for album sameness. {@link sameAlbum} is defined in terms of
+ * it, so the swap decision and the hub remount decision can never diverge.
+ *
+ * @param config - The album-identity input.
+ * @returns The album-identity key, or `null` when the entity has no album.
+ */
+export function albumIdentityKey(config: AlbumIdentityInput): string | null {
+  const title = albumTitle(config);
+  return title === null ? null : `${normalize(config.artist)}::${title}`;
+}
+
+/**
  * Decides whether two configs belong to the same album, which is the signal the
  * turntable uses to keep the record on the deck (no vinyl swap) and only switch
  * the audio track.
  *
- * There is no stable `albumId` in the domain, so identity is derived: both sides
- * must name the same artist and both must carry an album. Given that, they count
- * as the same album when either the album keys match or the cover artwork is
- * byte-identical. The artwork match is only an additional positive signal (it
- * catches differently-formatted album titles for the same release); it is never
- * the sole reason, because a missing album on either side already returns
- * `false`.
+ * Two configs are the same album exactly when they share a non-null
+ * {@link albumIdentityKey} (same artist and same album title). A missing album
+ * on either side means the entity is standalone and never matches, so selecting
+ * a single always counts as a real change.
  *
  * @param a - The currently displayed config.
  * @param b - The newly resolved config.
  * @returns `true` when both configs are the same album, otherwise `false`.
  */
 export function sameAlbum(a: AlbumIdentityInput, b: AlbumIdentityInput): boolean {
-  if (normalize(a.artist) !== normalize(b.artist)) return false;
-
-  const keyA = albumKey(a);
-  const keyB = albumKey(b);
-  if (keyA === null || keyB === null) return false;
-
-  return keyA === keyB || a.artworkUrl === b.artworkUrl;
+  const keyA = albumIdentityKey(a);
+  return keyA !== null && keyA === albumIdentityKey(b);
 }
