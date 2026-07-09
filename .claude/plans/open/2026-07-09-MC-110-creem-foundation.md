@@ -135,10 +135,10 @@ Kommentar: warum nur bei gesetztem Key (Creem in der Foundation-Phase optional b
 
 **Files:** Create `apps/backend/src/services/creem-client.ts`, Test `apps/backend/src/services/creem-client.test.ts`
 
-- [ ] **Step 1: Failing test**: `getCreemClient()` (mit gemocktem `getCreemConfig` auf `{ apiKey: "creem_test_x", mode: "test", webhookSecret: undefined }`) liefert eine Instanz und beim zweiten Aufruf dieselbe (Singleton). `creem` mit `vi.mock` stubben.
-- [ ] **Step 2: Fails**: `pnpm --filter @musiccloud/backend test:run creem-client` FAIL.
-- [ ] **Step 3a: SDK-Shape verifizieren**: den exakten Konstruktor gegen `creem@1.5.3` prüfen (Option `serverURL` vs `serverIdx`, wie der `x-api-key` gesetzt wird: Konstruktor-Security vs pro Call). Nichts erfinden.
-- [ ] **Step 3: Implementieren.** Erwartete Form (an die verifizierte SDK-Signatur anpassen):
+- [x] **Step 1: Failing test**: `getCreemClient()` (mit gemocktem `getCreemConfig` auf `{ apiKey: "creem_test_x", mode: "test", webhookSecret: undefined }`) liefert eine Instanz und beim zweiten Aufruf dieselbe (Singleton). `creem` mit `vi.mock` stubben.
+- [x] **Step 2: Fails**: `pnpm --filter @musiccloud/backend test:run creem-client` FAIL.
+- [x] **Step 3a: SDK-Shape verifizieren**: den exakten Konstruktor gegen `creem@1.5.3` prüfen (Option `serverURL` vs `serverIdx`, wie der `x-api-key` gesetzt wird: Konstruktor-Security vs pro Call). Nichts erfinden. Ergebnis: Option heisst `server` (nicht `serverURL`), `apiKey` ist Pflicht-Parameter fuer `x-api-key`; Plan-Snippet war falsch (korrigiert).
+- [x] **Step 3: Implementieren.** Erwartete Form (an die verifizierte SDK-Signatur anpassen):
 ```ts
 import { Creem, ServerTest, ServerProd } from "creem";
 import { getCreemConfig } from "../lib/creem-config.js";
@@ -152,13 +152,13 @@ let instance: Creem | null = null;
  */
 export function getCreemClient(): Creem {
   if (instance) return instance;
-  const { mode } = getCreemConfig();
-  instance = new Creem({ serverURL: mode === "test" ? ServerTest : ServerProd });
+  const { apiKey, mode } = getCreemConfig();
+  instance = new Creem({ server: mode === "test" ? ServerTest : ServerProd, apiKey });
   return instance;
 }
 ```
-- [ ] **Step 4: Grün** PASS.
-- [ ] **Step 5: Commit**: `Feat: add Creem SDK client factory (MC-110)`.
+- [x] **Step 4: Grün** PASS (4/4 tests).
+- [x] **Step 5: Commit**: `Feat: add Creem SDK client factory (MC-110)`.
 
 ## Task 6: Creem-Katalog-Fetch mit Tier-Zuordnung aus Metadata
 
