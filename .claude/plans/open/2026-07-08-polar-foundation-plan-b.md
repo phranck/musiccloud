@@ -69,14 +69,14 @@ Voraussetzung von deiner Seite: Bevor dieser Plan sinnvoll getestet werden kann,
 
 **Files:** Modify `apps/backend/package.json`
 
-- [ ] **Step 1: Dependency hinzufügen (USER führt aus, Install-Regel).**
+- [x] **Step 1: Dependency hinzufügen (USER führt aus, Install-Regel).**
 
 Befehl an den User weitergeben, nicht selbst ausführen:
 ```bash
 pnpm --filter @musiccloud/backend add @polar-sh/sdk
 ```
-- [ ] **Step 2: Verify**: `grep '@polar-sh/sdk' apps/backend/package.json` zeigt einen Eintrag; `pnpm --filter @musiccloud/backend exec node -e "require('@polar-sh/sdk')"` wirft nicht.
-- [ ] **Step 3: Commit**: `Chore: add @polar-sh/sdk backend dependency (MC-110)`.
+- [x] **Step 2: Verify**: `grep '@polar-sh/sdk' apps/backend/package.json` zeigt einen Eintrag; `pnpm --filter @musiccloud/backend exec node -e "require('@polar-sh/sdk')"` wirft nicht.
+- [x] **Step 3: Commit**: `Chore: add @polar-sh/sdk backend dependency (MC-110)`.
 
 ## Task 2: Polar-Config lesen plus validieren (`polar-config.ts`)
 

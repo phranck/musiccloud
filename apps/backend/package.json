@@ -23,6 +23,7 @@
     "@fastify/sensible": "^6.0.4",
     "@fastify/swagger": "^9.7.0",
     "@musiccloud/shared": "workspace:*",
+    "@polar-sh/sdk": "^0.48.1",
     "@scalar/core": "0.3.45",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.1",
