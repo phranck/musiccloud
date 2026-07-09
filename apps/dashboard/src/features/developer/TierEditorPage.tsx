@@ -1,11 +1,16 @@
 import { DashboardActionButton, DashboardActionId, DashboardButtonVariant } from "@musiccloud/dashboard-ui";
 import {
+  ArrowDown as ArrowDownIcon,
+  ArrowUp as ArrowUpIcon,
   CheckCircle as CheckCircleIcon,
+  Check as CheckIcon,
   PencilSimple as PencilSimpleIcon,
   PlusCircle as PlusCircleIcon,
+  Plus as PlusIcon,
   Stack as StackIcon,
   Trash as TrashIcon,
   XCircle as XCircleIcon,
+  X as XIcon,
 } from "@phosphor-icons/react";
 import { useCallback, useMemo, useReducer } from "react";
 import { ContentLoadingView } from "@/components/ui/ContentLoadingView";
@@ -18,14 +23,34 @@ import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { useI18n } from "@/context/I18nContext";
-import type { TierResponse } from "@/features/developer/api";
+import type { TierFeatureBullet, TierResponse } from "@/features/developer/api";
 import { TierIconGlyph, TierIconPicker } from "@/features/developer/components/TierIconPicker";
 import { useCreateTier, useDeleteTier, useTiers, useUpdateTier } from "@/features/developer/hooks/useDeveloperData";
-import { FormLabel, formInputClass, formTextareaClass } from "@/shared/ui/FormPrimitives";
+import { FormLabel, FormLabelText, formInputClass, formTextareaClass } from "@/shared/ui/FormPrimitives";
 
 // -----------------------------------------------------------------------------
 // Tier form data & validation
 // -----------------------------------------------------------------------------
+
+/**
+ * Form-local extension of {@link TierFeatureBullet} that carries a stable `id`
+ * used as the React list key. The `id` is never sent to the backend; it is
+ * assigned when populating the form from server data or when the user adds a
+ * new row.
+ */
+interface FormFeatureBullet extends TierFeatureBullet {
+  id: string;
+}
+
+/** Returns a collision-resistant id suitable for keying a form-local feature row. */
+function nextFeatureId(): string {
+  return `feat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+/** Converts server-side feature bullets to form-local bullets with stable ids. */
+function toFormFeatures(bullets: TierFeatureBullet[]): FormFeatureBullet[] {
+  return bullets.map((b) => ({ ...b, id: nextFeatureId() }));
+}
 
 interface TierFormData {
   name: string;
@@ -42,6 +67,8 @@ interface TierFormData {
   disableReason: string;
   recommended: boolean;
   sortOrder: number;
+  /** Ordered feature bullets for the public pricing card. At most 12 entries. */
+  features: FormFeatureBullet[];
 }
 
 const EMPTY_FORM: TierFormData = {
@@ -59,7 +86,11 @@ const EMPTY_FORM: TierFormData = {
   disableReason: "",
   recommended: false,
   sortOrder: 0,
+  features: [],
 };
+
+/** Maximum number of feature bullets the backend accepts per tier. */
+const MAX_FEATURES = 12;
 
 function toSubmitBody(data: TierFormData) {
   return {
@@ -77,6 +108,12 @@ function toSubmitBody(data: TierFormData) {
     disableReason: data.disableReason,
     recommended: data.recommended,
     sortOrder: data.sortOrder,
+    // Strip rows whose label is blank so the backend never receives an empty label.
+    features: data.features.reduce<{ label: string; included: boolean }[]>((acc, f) => {
+      const label = f.label.trim();
+      if (label !== "") acc.push({ label, included: f.included });
+      return acc;
+    }, []),
   };
 }
 
@@ -143,6 +180,7 @@ function tierEditorReducer(state: TierEditorState, action: TierEditorAction): Ti
           disableReason: action.tier.disableReason,
           recommended: action.tier.recommended,
           sortOrder: action.tier.sortOrder,
+          features: toFormFeatures(action.tier.features ?? []),
         },
         errors: {},
       };
@@ -157,6 +195,153 @@ function tierEditorReducer(state: TierEditorState, action: TierEditorAction): Ti
     case TierEditorActionType.CancelDelete:
       return { ...state, deleteConfirm: null };
   }
+}
+
+// -----------------------------------------------------------------------------
+// Feature bullets editor
+// -----------------------------------------------------------------------------
+
+interface TierFeatureBulletsEditorProps {
+  /** Current ordered list of feature bullets (with local stable ids). */
+  features: FormFeatureBullet[];
+  /** Invoked with a new copy of the list whenever the user makes a change. */
+  onChange: (features: FormFeatureBullet[]) => void;
+  /** Localized labels for the editor controls. */
+  dm: ReturnType<typeof useI18n>["messages"]["developer"];
+}
+
+/**
+ * Inline editor for the ordered feature-bullets list of a tier.
+ *
+ * Renders each bullet as a row containing a text input for the label and a
+ * toggle that marks the feature as included (check) or excluded (cross).
+ * Rows can be moved up/down and removed. An "Add feature" button appends a
+ * new empty row; it is disabled once the maximum of 12 is reached.
+ *
+ * @param features - The current ordered list of feature bullets (with local stable ids).
+ * @param onChange - Called with a new list whenever the user edits, adds, reorders, or removes a row.
+ * @param dm - Developer section of the localized dashboard messages.
+ */
+function TierFeatureBulletsEditor({ features, onChange, dm }: TierFeatureBulletsEditorProps) {
+  function handleLabelChange(id: string, label: string) {
+    onChange(features.map((f) => (f.id === id ? { ...f, label } : f)));
+  }
+
+  function handleIncludedToggle(id: string, included: boolean) {
+    onChange(features.map((f) => (f.id === id ? { ...f, included } : f)));
+  }
+
+  function handleMoveUp(index: number) {
+    if (index === 0) return;
+    const next = [...features];
+    [next[index - 1], next[index]] = [next[index], next[index - 1]];
+    onChange(next);
+  }
+
+  function handleMoveDown(index: number) {
+    if (index === features.length - 1) return;
+    const next = [...features];
+    [next[index], next[index + 1]] = [next[index + 1], next[index]];
+    onChange(next);
+  }
+
+  function handleRemove(id: string) {
+    onChange(features.filter((f) => f.id !== id));
+  }
+
+  function handleAdd() {
+    if (features.length >= MAX_FEATURES) return;
+    onChange([...features, { id: nextFeatureId(), label: "", included: true }]);
+  }
+
+  const atMax = features.length >= MAX_FEATURES;
+
+  return (
+    <div>
+      <FormLabelText>{dm.featuresLabel}</FormLabelText>
+
+      {features.length > 0 && (
+        <ul className="mt-1 space-y-1.5">
+          {features.map((feature, index) => (
+            <li key={feature.id} className="flex items-center gap-2">
+              {/* Included toggle: check = included, cross = not included */}
+              <button
+                type="button"
+                onClick={() => handleIncludedToggle(feature.id, !feature.included)}
+                aria-label={dm.featureIncludedLabel}
+                aria-pressed={feature.included}
+                className={`flex size-7 shrink-0 items-center justify-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-focus-ring)] ${
+                  feature.included
+                    ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
+                    : "border-red-500/50 bg-red-500/10 text-red-400"
+                }`}
+              >
+                {feature.included ? (
+                  <CheckIcon weight="bold" className="size-3.5" aria-hidden />
+                ) : (
+                  <XIcon weight="bold" className="size-3.5" aria-hidden />
+                )}
+              </button>
+
+              {/* Label input */}
+              <input
+                type="text"
+                aria-label={`${dm.featuresLabel} ${index + 1}`}
+                className={`${formInputClass} flex-1`}
+                value={feature.label}
+                onChange={(e) => handleLabelChange(feature.id, e.target.value)}
+                maxLength={80}
+                placeholder={dm.featureLabelPlaceholder}
+              />
+
+              {/* Reorder buttons */}
+              <button
+                type="button"
+                onClick={() => handleMoveUp(index)}
+                disabled={index === 0}
+                aria-label={dm.featureMoveUp}
+                className="flex size-7 shrink-0 items-center justify-center rounded border border-[var(--ds-border)] text-[var(--ds-text-muted)] transition-colors hover:bg-[var(--ds-bg-elevated)] disabled:cursor-not-allowed disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-focus-ring)]"
+              >
+                <ArrowUpIcon weight="bold" className="size-3" aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMoveDown(index)}
+                disabled={index === features.length - 1}
+                aria-label={dm.featureMoveDown}
+                className="flex size-7 shrink-0 items-center justify-center rounded border border-[var(--ds-border)] text-[var(--ds-text-muted)] transition-colors hover:bg-[var(--ds-bg-elevated)] disabled:cursor-not-allowed disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-focus-ring)]"
+              >
+                <ArrowDownIcon weight="bold" className="size-3" aria-hidden />
+              </button>
+
+              {/* Remove button */}
+              <button
+                type="button"
+                onClick={() => handleRemove(feature.id)}
+                aria-label={dm.featureRemove}
+                className="flex size-7 shrink-0 items-center justify-center rounded border border-red-500/30 text-red-400 transition-colors hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-focus-ring)]"
+              >
+                <TrashIcon weight="duotone" className="size-3.5" aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="mt-2 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={handleAdd}
+          disabled={atMax}
+          className="inline-flex items-center gap-1.5 rounded border border-[var(--ds-border)] px-2.5 py-1 text-xs font-medium text-[var(--ds-text-muted)] transition-colors hover:bg-[var(--ds-bg-elevated)] disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-focus-ring)]"
+        >
+          <PlusIcon weight="bold" className="size-3" aria-hidden />
+          {dm.featureAddButton}
+        </button>
+        {atMax && <p className="text-xs text-amber-400">{dm.featureMaxReached}</p>}
+      </div>
+    </div>
+  );
 }
 
 // -----------------------------------------------------------------------------
@@ -405,6 +590,12 @@ function TierFormDialog({
             placeholder={dm.colButtonLabelPlaceholder}
           />
         </div>
+
+        <TierFeatureBulletsEditor
+          features={form.features}
+          onChange={(features) => onFormChange({ features })}
+          dm={dm}
+        />
       </div>
       <Dialog.Footer>
         <DashboardActionButton

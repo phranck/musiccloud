@@ -139,6 +139,17 @@ export function fetchDeveloperAccounts(): Promise<{ accounts: DeveloperAccountRe
   return api.get<{ accounts: DeveloperAccountResponse[] }>(ENDPOINTS.admin.developer.accounts);
 }
 
+/**
+ * A single feature bullet shown on the public pricing card for a tier.
+ *
+ * @property label - Short descriptive text for the feature (non-empty, max 80 chars).
+ * @property included - When `true` the bullet renders with a check mark; `false` renders a cross.
+ */
+export interface TierFeatureBullet {
+  label: string;
+  included: boolean;
+}
+
 export interface TierResponse {
   id: string;
   name: string;
@@ -160,6 +171,8 @@ export interface TierResponse {
   /** Whether this tier is the highlighted "recommended" one on the pricing page. At most one tier is recommended at a time (server-enforced); may be none. */
   recommended: boolean;
   sortOrder: number;
+  /** Ordered feature bullets shown on the public pricing card. At most 12 entries. */
+  features: TierFeatureBullet[];
   createdAt: number;
   updatedAt: number;
 }
@@ -184,6 +197,7 @@ export function createTier(
         | "disableReason"
         | "recommended"
         | "sortOrder"
+        | "features"
       >
     >,
 ): Promise<TierResponse> {
@@ -209,6 +223,7 @@ export function updateTier(
       | "disableReason"
       | "recommended"
       | "sortOrder"
+      | "features"
     >
   >,
 ): Promise<TierResponse> {

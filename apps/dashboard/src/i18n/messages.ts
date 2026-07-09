@@ -220,6 +220,14 @@ export interface DashboardMessages {
     tierRecommendedBadge: string;
     noTiers: string;
     noTiersHint: string;
+    featuresLabel: string;
+    featureAddButton: string;
+    featureLabelPlaceholder: string;
+    featureIncludedLabel: string;
+    featureMoveUp: string;
+    featureMoveDown: string;
+    featureRemove: string;
+    featureMaxReached: string;
   };
   music: {
     columns: {
@@ -952,6 +960,14 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       tierRecommendedBadge: "Empfohlen",
       noTiers: "Keine Tiers",
       noTiersHint: "Erstelle dein erstes API-Tarifstufen-Tier über den Button oben.",
+      featuresLabel: "Features",
+      featureAddButton: "Feature hinzufügen",
+      featureLabelPlaceholder: "z. B. Unbegrenzte Anfragen",
+      featureIncludedLabel: "Enthalten",
+      featureMoveUp: "Nach oben",
+      featureMoveDown: "Nach unten",
+      featureRemove: "Entfernen",
+      featureMaxReached: "Maximal 12 Features erlaubt.",
     },
     music: {
       columns: {
@@ -1684,6 +1700,14 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       tierRecommendedBadge: "Recommended",
       noTiers: "No tiers",
       noTiersHint: "Create your first API tier using the button above.",
+      featuresLabel: "Features",
+      featureAddButton: "Add feature",
+      featureLabelPlaceholder: "e.g. Unlimited requests",
+      featureIncludedLabel: "Included",
+      featureMoveUp: "Move up",
+      featureMoveDown: "Move down",
+      featureRemove: "Remove",
+      featureMaxReached: "Maximum of 12 features allowed.",
     },
     music: {
       columns: {

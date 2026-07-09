@@ -14,6 +14,7 @@ import {
   fetchDeveloperAccounts,
   fetchTiers,
   rejectApiAccessRequest,
+  type TierFeatureBullet,
   type TierResponse,
   updateApiClient,
   updateDeveloperAccount,
@@ -163,7 +164,16 @@ export function useUpdateTier() {
       requestsPerDay?: number;
       attributionRequired?: boolean;
       price?: string | null;
+      priceYearly?: string | null;
+      color?: string;
+      icon?: string | null;
+      buttonLabel?: string | null;
+      description?: string;
+      enabled?: boolean;
+      disableReason?: string;
+      recommended?: boolean;
       sortOrder?: number;
+      features?: TierFeatureBullet[];
     }) => updateTier(id, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["developer", "tiers"] });

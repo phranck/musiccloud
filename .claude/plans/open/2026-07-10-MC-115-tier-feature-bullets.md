@@ -84,18 +84,18 @@ Grenzen (neue Konstanten in `tiers-repository.ts`): `MAX_TIER_FEATURES = 12`, `M
 
 **Files:** `TierEditorPage.tsx` (plus `api.ts`/`useDeveloperData.ts` falls der DTO das Feld braucht)
 
-- [ ] **Step 1:** Dem Tier-Formular einen "Features"-Block hinzufuegen (den bestehenden Feldmustern der Datei folgen): Liste von Zeilen, je Zeile ein Text-Input (`label`) plus ein enthalten/nicht-enthalten-Umschalter (`included`, Haken/Kreuz), plus Entfernen; ein "Feature hinzufuegen"-Button; Umsortieren via Hoch/Runter. State im Formular, beim Speichern als `features` mitsenden. Reused/animierte UI-Muster der Seite verwenden (React-Doctor-konform, keine Inline-Discriminant-Literals).
-- [ ] **Step 2: Verify (User, visuell):** im Dashboard einen Tier editieren, Bullets anlegen/umsortieren/toggeln, speichern, neu laden -> persistiert.
-- [ ] **Step 3: Commit:** `Feat: edit tier feature bullets in the admin (MC-115)`.
+- [x] **Step 1:** `TierFeatureBulletsEditor` in `TierEditorPage.tsx`: geordnete Liste, je Zeile Haken/Kreuz-Toggle plus Label-Input plus Hoch/Runter plus Entfernen; "Feature hinzufuegen"-Button (disabled ab `MAX_FEATURES = 12`); Blank-Labels werden beim Speichern verworfen. `features` in `api.ts` (`TierFeatureBullet`, `TierResponse`, create/update-Body), `useDeveloperData.ts` und 8 i18n-Keys (DE/EN) ergaenzt. Phosphor-Icons, kein Inline-SVG. (Subagent, verifiziert.)
+- [ ] **Step 2: Verify (User, visuell):** im Dashboard einen Tier editieren, Bullets anlegen/umsortieren/toggeln, speichern, neu laden -> persistiert. Gates gruen (Full-Doctor 0 issues, Dashboard-Typecheck clean, Biome clean, neuer Code em-dash-frei, Submit-Wiring geprueft); finale visuelle Abnahme durch User offen.
+- [x] **Step 3: Commit:** `Feat: edit tier feature bullets in the admin (MC-115)`.
 
 ## Task 5: Pricing-Card-Rendering (`pricing.astro`)
 
 **Files:** `pricing.astro`
 
-- [ ] **Step 1:** `features: { label: string; included: boolean }[]` an `interface TierDto`.
-- [ ] **Step 2:** Nach dem Attribution-Absatz (`:197`) einen Bullet-Block rendern: pro Feature eine Zeile mit Haken (in Tier-Farbe) bzw. Kreuz (gedaempft) plus Label. Iconsax-Icons via `lib/icons.tsx` (kein Inline-SVG). Leere Liste -> kein Block.
-- [ ] **Step 3: Verify (User, visuell):** `http://localhost:3002/pricing` zeigt die Bullets pro Tier korrekt (Haken/Kreuz, Farbe).
-- [ ] **Step 4: Commit:** `Feat: render tier feature bullets on the pricing cards (MC-115)`.
+- [x] **Step 1:** `features: { label: string; included: boolean }[]` an `interface TierDto`.
+- [x] **Step 2:** Nach dem Attribution-Absatz eine `<ul>` gerendert: pro Feature `TickCircleIcon` (Haken, in Tier-Farbe via `style={{ color: tier.color }}`) bzw. `CloseCircleIcon` (Kreuz, `text-fg-subtle`) plus Label. Iconsax via `@/lib/icons`, kein Inline-SVG. Leere Liste -> kein Block. `developer check` clean (React-Icon-`style` als CSSProperties-Objekt, nicht String).
+- [ ] **Step 3: Verify (User, visuell):** `http://localhost:3002/pricing` zeigt die Bullets pro Tier korrekt (Haken/Kreuz, Farbe). Render bereits belegt (HTTP 200, alle Labels im HTML); Demo-Bullets zum Anschauen in der DB gesetzt (Platzhalter, per Admin ersetzbar).
+- [x] **Step 4: Commit:** `Feat: render tier feature bullets on the pricing cards (MC-115)`.
 
 ## Task 6: Gesamt-Gates
 
