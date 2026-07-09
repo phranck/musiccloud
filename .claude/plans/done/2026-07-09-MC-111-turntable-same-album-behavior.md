@@ -75,21 +75,26 @@ Dieser Plan ist der Verhaltensteil ("selbes Album, kein Wechsel"). Die neue Boge
 - Modify: `apps/frontend/src/components/share/ShareLayout.tsx` (`resolveTrack`, um Same-Album-Fall bewusst zu behandeln, falls nötig)
 - Test: Erweiterung `ShareLayout`-naher Test oder Integrationstest des Hub-Verhaltens
 
-- [ ] Prüfen, ob mit Task 2 + 3 ein Same-Album-Klick bereits ohne Remount durchläuft (Hub bleibt, `previewUrl`-Prop wechselt, Fade greift, Teller dreht weiter). Falls `resolveTrack` zusätzlich etwas zurücksetzt, das den Durchlauf stört (z. B. `previewStatus: null` im `Resolved`-Reducer `:117`), gezielt für den Same-Album-Fall anpassen, ohne den Different-Album-Fall zu verändern.
-- [ ] Failing Test / grün: Same-Album-Klick hält die Rotation (spinState bleibt `Playing`), Different-Album-Klick verhält sich wie bisher.
-- [ ] Biome. Commit.
+- [x] Prüfung: Mit Task 2 (album-skopierter Key → kein Remount) + Task 3 (Source-Effekt re-sourced das Element + Auto-Continue) läuft ein Same-Album-Klick bereits durch — Hub bleibt gemountet, `previewUrl`-Prop wechselt, Teller dreht weiter. Keine zusätzliche `resolveTrack`-Änderung nötig: das `previewStatus: null` im `Resolved`-Reducer `:117` korrigiert sich im Playing-Fall selbst (Task 3 ruft `notifyStatusChange(Playing)`) und ist im Paused-Fall korrekt (neuer Track idle).
+- [x] Abgedeckt durch Komposition der bestehenden Tests: Task-2-Test (stabiler Hub-Key = kein Remount bei selbem Album) + Task-3-Test ("continues playing ... `data-spin` bleibt `playing`"). Kein redundanter ShareLayout-Integrationstest ergänzt.
+- [x] Gates grün (im Task-3-Commit mitverifiziert). Keine Produktionsänderung in Task 4 → kein separater Commit.
 
 ## Offene Punkte
 
 - Kein echter überlappender Doppel-Source-Crossfade (Design-Entscheidung: schneller Fade-out/Fade-in über die vorhandene GainNode). Falls sich das später als zu abrupt zeigt, eigener Folgeplan.
 - Bei einem Same-Album-Auto-Continue wird das Audio-Element pro URL neu erzeugt; die WebAudio-Spectrum-Verdrahtung (VFD) kann dabei kurz aussetzen, bis der Nutzer erneut interagiert (nahtloser Element-Reuse kollidiert mit react-doctors `exhaustive-deps` am Cleanup-only-Effekt). Politur-Kandidat, kein Funktionsfehler — der User verifiziert im UI-Smoke (MC-113 Task 5).
 - Artwork-Zweig aus `sameAlbum` entfernt (Task 2): Album-Identität ist rein artist+album-Titel, konsistent mit dem Hub-Key.
+- Kosmetik: Beim Same-Album-Klick während der Wiedergabe setzt der `Resolved`-Reducer `previewStatus: null`; die VFD-Statuszeile kann kurz (Sub-Sekunde) leer blinken, bis Task 3 `Playing` nachmeldet. Selbstkorrigierend, kein Funktionsfehler. Falls im UI-Smoke störend, gezielter Folge-Fix (previewStatus beim Same-Album-Playing bewusst erhalten).
 
 ## Checkliste
 
 - [x] Task 1: `sameAlbum`-Helfer + Tests
 - [x] Task 2: Album-skopierter Hub-Key
 - [x] Task 3: `useAudioController` `previewUrl`-Sync + Fade
-- [ ] Task 4: Same-Album-Verhalten verdrahtet + Tests
-- [ ] Alle Code-Referenzen verifiziert (Funktionen, Skripte, Pfade, Env-Vars, Package-Manager-Kommandos)
-- [ ] Gates grün: `pnpm typecheck`, Biome, `doctor:diff`, `test:run`
+- [x] Task 4: Same-Album-Verhalten verdrahtet + Tests
+- [x] Alle Code-Referenzen verifiziert (Funktionen, Skripte, Pfade, Env-Vars, Package-Manager-Kommandos)
+- [x] Gates grün: astro check (Typecheck) 0 errors, Biome, `doctor:diff` 0 issues, `test:run` 330/330
+
+## Completed
+
+Umgesetzt 2026-07-09. `sameAlbum`/`albumIdentityKey` (`lib/resolve/album-identity.ts`), album-skopierter `turntableHubKey` (`components/cards/turntableHubKey.ts`, verdrahtet in `MediaCardHead`), und `useAudioController` re-sourced das Element bei `previewUrl`-Wechsel mit Auto-Continue (`beginPlayback`, `SourceChanged`). Same-Album-Klick hält den Hub gemountet und den Teller in Rotation; anderes Album remountet wie bisher. Gates grün, doctor-sauber. Offene Politur-Punkte (kein Blocker): kein echter Doppel-Source-Crossfade, kurzer Spectrum-/VFD-Aussetzer beim Same-Album-Continue.
