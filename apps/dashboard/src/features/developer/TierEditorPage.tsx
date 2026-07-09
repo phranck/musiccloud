@@ -481,7 +481,7 @@ function TierFormDialog({
             />
             {errors.requestsPerDay && <p className="text-xs text-red-400 mt-1">{errors.requestsPerDay}</p>}
           </div>
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col items-center gap-1">
             <FormLabel htmlFor="tier-attribution">{dm.colAttribution}</FormLabel>
             <div className="flex h-9 items-center">
               <ToggleSwitch
