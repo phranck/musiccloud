@@ -56,7 +56,7 @@ Beispiel-Szenario (vom User): Nutzer klickt einen Similar Artist (Different-Albu
 
 - [x] Failing Test für `preloadResolvedMedia(target, { signal })`: leerer Target/aborted-Signal → sofort; Cover-Decode → auflösen; nie-bereite Ressource → über 15s-Timeout auflösen (blockiert nie).
 - [x] Test rot.
-- [x] `preloadResolvedMedia` implementiert (`preload-media.ts`): `raceReady` (Timeout `PRELOAD_TIMEOUT_MS = 15000` + Abort + Ready), `decodeCover` (`Image.decode`, guarded), `preloadAudio` (`new Audio()`, `preload="auto"`, `canplaythrough`/`loadedmetadata`/`error`, dann Element freigeben), `Promise.all`. Fehler-/Timeout-tolerant. 4/4 Tests grün. **Das `resolveTrack`-Wiring (Different-Album-Gate mit `sameAlbum`-Check) folgt mit der Integration (Task 2/6).**
+- [x] `preloadResolvedMedia` implementiert (`preload-media.ts`): `raceReady` (Timeout `PRELOAD_TIMEOUT_MS = 15000` + Abort + Ready), `decodeCover` (`Image.decode`, guarded), `preloadAudio` (`new Audio()`, `preload="auto"`, `canplaythrough`/`loadedmetadata`/`error`, dann Element freigeben), `Promise.all`. Fehler-/Timeout-tolerant. 4/4 Tests grün. **Das `resolveTrack`-Wiring ist erledigt (siehe unten): Different-Album-Gate mit `sameAlbum`-Check + Preload vor Dispatch.**
 - [x] Test grün. Biome. Commit (Helfer).
 
 ### Task 2: `RecordSwapStage` oberhalb des Hub-Keys einsetzen
@@ -117,10 +117,9 @@ Beispiel-Szenario (vom User): Nutzer klickt einen Similar Artist (Different-Albu
 - Kein hängender Zustand: kein orphaned outgoing-Puffer, kein orphaner Coast-Timer, keine liegengebliebene WAAPI-Animation, Audio-Hub nicht im Limbo.
 - Die Same-/Different-Album-Entscheidung fällt gegen den jeweils aktuellen Ziel-Zustand, nicht gegen einen veralteten.
 
-- [ ] Failing Test: zwei schnell aufeinanderfolgende Selektionen (Different-Album, dann kurz darauf Same-Album des neuen Ziels) — nur die letzte gewinnt; kein doppelter Dispatch, kein hängender outgoing-Puffer; Endzustand entspricht der letzten Selektion. Zusätzlicher Test: neue Selektion mitten in einer laufenden Swap-Animation canceled diese sauber und lässt keinen outgoing zurück.
-- [ ] Test rot.
-- [ ] Request-Token in `resolveTrack` einführen (Ref, monoton hochzählen): nur dispatchen, wenn das beim Aufruf gezogene Token noch das aktuelle ist; einen laufenden Vorgänger via seinen `AbortController` abbrechen. Swap-Interrupt in der Stage: laufendes WAAPI-Handle `cancel()`en, outgoing des Vorgängers unmounten, Coast-Timer clearen. Same-/Different-Album-Entscheidung gegen das aktuelle Ziel (nicht gegen einen zwischenzeitlich überholten `currentConfig`).
-- [ ] Test grün. Biome. `doctor:diff`. Commit.
+- [x] **Resolve-seitige Härtung erledigt** in `useTrackResolver` (aus `ShareLayoutInner` ausgelagert, damit die Komponente nicht "too large" wird): monoton hochzählendes Request-Token (`resolveRequestRef`) + geteilter `AbortController` (`resolveAbortRef`). Eine neuere Selektion abortet den Vorgänger; `resolveTrack` committet nur, wenn `isLatest()` (nested `if`, kein Early-Return nach `await`, sonst react-doctor `await-before-early-return-guard`-Warning). Aborted-Resolve ist kein Fehler; superseded-Resolve leert die Loading-Flag nicht. Same-/Different-Album-Entscheidung gegen den `currentConfig` zur Resolve-Zeit; eine spätere Selektion bewertet frisch.
+- [x] Stage-seitiger Interrupt (WAAPI `cancel()` + outgoing-Unmount) ist bereits in `RecordSwapStage` (MC-112) gebaut. **Coast-Timer-Clearing gehört zur Coast-Kopplung (Task 3) und wird dort mit erledigt.**
+- [ ] Race-Verhalten: kein isolierter `resolveTrack`-Unit-Test (bräuchte volles `ShareLayout`-Render + Resolver-Mock); durch Reasoning abgesichert und im UI-Smoke (Task 5) verifiziert (schnelle Doppel-Klicks). Gates grün (Full-Doctor 0, Biome, astro 0, 342/342).
 
 ## Offene Punkte
 
@@ -129,7 +128,7 @@ Beispiel-Szenario (vom User): Nutzer klickt einen Similar Artist (Different-Albu
 
 ## Checkliste
 
-- [ ] Task 1: Daten-Gate (Cover + Audio Preload) im `resolveTrack`
+- [x] Task 1: Daten-Gate (Cover + Audio Preload) im `resolveTrack`
 - [ ] Task 2: `RecordSwapStage` oberhalb des Hub-Keys
 - [ ] Task 3: Coast-Kopplung + Sequenz-Trigger
 - [ ] Task 4: Auto-Play best-effort

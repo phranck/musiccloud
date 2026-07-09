@@ -9,7 +9,7 @@
  */
 
 import type { ArtistInfoResponse, ArtistTopTrack } from "@musiccloud/shared";
-import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
+import { type Dispatch, useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { createPortal } from "react-dom";
 
 const ShareUiActionType = {
@@ -159,6 +159,8 @@ import { LocaleProvider } from "@/i18n/context";
 import { useT } from "@/i18n/localeContext";
 import { CardSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { detectRegion } from "@/lib/geo/detect-region";
+import { sameAlbum } from "@/lib/resolve/album-identity";
+import { preloadResolvedMedia } from "@/lib/resolve/preload-media";
 import { commercialTrackResolver, type TrackResolver } from "@/lib/resolve/track-resolver";
 import type { ArtistInfoContext } from "@/lib/share/artist-info-client";
 import { replaceBrowserUrlWithShortUrl } from "@/lib/share/short-url";
@@ -291,6 +293,104 @@ export function ShareLayout({ initialLocale, ...props }: ShareLayoutProps) {
         <ShareLayoutInner {...props} />
       </ToastProvider>
     </LocaleProvider>
+  );
+}
+
+/**
+ * The generic in-place track resolve shared by both modes, extracted so
+ * `ShareLayoutInner` stays focused. Owns the race hardening (a newer selection
+ * supersedes an older in-flight one via a request token + shared AbortController)
+ * and the different-album data gate (preload the new cover + audio before swapping
+ * so the outgoing record keeps playing until the swap can commit).
+ *
+ * @param params - Current config/artist context, the injected resolver, the
+ *   translator, and the share-UI dispatch.
+ * @returns The `resolveTrack(track)` handler for artist-column row clicks.
+ */
+function useTrackResolver(params: {
+  currentConfig: MediaCardContentConfiguration;
+  currentArtistName: string;
+  currentArtistContext: ArtistInfoContext;
+  trackResolver: TrackResolver;
+  t: (key: string, vars?: Record<string, string>) => string;
+  dispatchUi: Dispatch<ShareUiAction>;
+}) {
+  const { currentConfig, currentArtistName, currentArtistContext, trackResolver, t, dispatchUi } = params;
+  // Race hardening for overlapping selections (e.g. a similar-artist click quickly
+  // followed by a same-album popular-track click): the token tags each resolve so a
+  // stale resolve/preload can never dispatch, and the shared AbortController cancels
+  // the predecessor's resolve + preload. Last selection always wins.
+  const resolveRequestRef = useRef(0);
+  const resolveAbortRef = useRef<AbortController | null>(null);
+  return useCallback(
+    async (track: ArtistTopTrack) => {
+      // Supersede any in-flight resolve, then tag this request as the latest one.
+      resolveAbortRef.current?.abort();
+      const controller = new AbortController();
+      resolveAbortRef.current = controller;
+      const requestId = resolveRequestRef.current + 1;
+      resolveRequestRef.current = requestId;
+      const isLatest = () => requestId === resolveRequestRef.current;
+
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      let keepResolveLoadingForArtistFetch = false;
+      try {
+        const update = await trackResolver(track.deezerUrl, {
+          signal: controller.signal,
+          t,
+          configType: currentConfig.type,
+        });
+
+        // Data gate: for a DIFFERENT album, wait until the new cover and audio are
+        // preloaded before swapping the config, so the outgoing record keeps playing
+        // until the swap can commit and the animation starts on ready data (never a
+        // placeholder). Same album keeps the deck spinning and switches the source
+        // seamlessly (MC-111), so it needs no gate.
+        if (!sameAlbum(currentConfig, update.config)) {
+          await preloadResolvedMedia(update.config, { signal: controller.signal });
+        }
+
+        // Commit only if this is still the latest selection: a newer selection aborts
+        // this controller (superseding both the resolve and the preload), so a stale
+        // resolve never dispatches over the newer one. Nested (not an early return)
+        // so the awaits above are not immediately followed by a return guard.
+        if (isLatest()) {
+          replaceBrowserUrlWithShortUrl(update.shortUrl);
+          // Will the artist column actually re-fetch? CC keys the column off
+          // `ccJamendoArtistId` (a same-artist popular-track swap fetches nothing);
+          // commercial keys off the artist name + narrowing context. Only then do
+          // we flip the VFD to loading — otherwise a same-artist swap would show a
+          // "loading" status that never clears (no fetch ever settles it).
+          const nextCcArtistId = update.config.ccJamendoArtistId ?? "";
+          const shouldFetchArtist = nextCcArtistId
+            ? nextCcArtistId !== (currentConfig.ccJamendoArtistId ?? "")
+            : normalizeArtistName(update.artistName) !== normalizeArtistName(currentArtistName) ||
+              !sameArtistInfoContext(update.artistInfoContext ?? {}, currentArtistContext);
+          keepResolveLoadingForArtistFetch = shouldFetchArtist;
+          if (shouldFetchArtist) dispatchUi({ type: ShareUiActionType.ResolveStarted });
+          dispatchUi({
+            type: ShareUiActionType.Resolved,
+            artistContext: update.artistInfoContext,
+            artistName: shouldFetchArtist ? update.artistName : undefined,
+            config: update.config,
+          });
+          if (update.pageTitle) document.title = update.pageTitle;
+        }
+      } catch (err) {
+        // A resolve aborted by a newer selection is not a user-facing error.
+        if (controller.signal.aborted) return;
+        dispatchUi({ type: ShareUiActionType.ResolveErrorVisible });
+        throw err;
+      } finally {
+        // Only the latest request may clear the loading flag, so a superseded
+        // resolve cannot flip the newer one's VFD state.
+        if (isLatest() && !keepResolveLoadingForArtistFetch) {
+          dispatchUi({ type: ShareUiActionType.ArtistFetchFinished });
+        }
+        clearTimeout(timeout);
+      }
+    },
+    [currentArtistContext, currentArtistName, currentConfig, dispatchUi, t, trackResolver],
   );
 }
 
@@ -489,47 +589,14 @@ function ShareLayoutInner({
   // config (and its `ccInfoContent` / `ccJamendoArtistId`) via `dispatchUi` and
   // rewrites the address bar — no navigation, no re-mount. Commercial and CC
   // differ only in the resolver, not in this mechanism.
-  const resolveTrack = useCallback(
-    async (track: ArtistTopTrack) => {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
-      let keepResolveLoadingForArtistFetch = false;
-      try {
-        const update = await trackResolver(track.deezerUrl, {
-          signal: controller.signal,
-          t,
-          configType: currentConfig.type,
-        });
-        replaceBrowserUrlWithShortUrl(update.shortUrl);
-        // Will the artist column actually re-fetch? CC keys the column off
-        // `ccJamendoArtistId` (a same-artist popular-track swap fetches nothing);
-        // commercial keys off the artist name + narrowing context. Only then do
-        // we flip the VFD to loading — otherwise a same-artist swap would show a
-        // "loading" status that never clears (no fetch ever settles it).
-        const nextCcArtistId = update.config.ccJamendoArtistId ?? "";
-        const shouldFetchArtist = nextCcArtistId
-          ? nextCcArtistId !== (currentConfig.ccJamendoArtistId ?? "")
-          : normalizeArtistName(update.artistName) !== normalizeArtistName(currentArtistName) ||
-            !sameArtistInfoContext(update.artistInfoContext ?? {}, currentArtistContext);
-        keepResolveLoadingForArtistFetch = shouldFetchArtist;
-        if (shouldFetchArtist) dispatchUi({ type: ShareUiActionType.ResolveStarted });
-        dispatchUi({
-          type: ShareUiActionType.Resolved,
-          artistContext: update.artistInfoContext,
-          artistName: shouldFetchArtist ? update.artistName : undefined,
-          config: update.config,
-        });
-        if (update.pageTitle) document.title = update.pageTitle;
-      } catch (err) {
-        dispatchUi({ type: ShareUiActionType.ResolveErrorVisible });
-        throw err;
-      } finally {
-        if (!keepResolveLoadingForArtistFetch) dispatchUi({ type: ShareUiActionType.ArtistFetchFinished });
-        clearTimeout(timeout);
-      }
-    },
-    [currentArtistContext, currentArtistName, currentConfig, t, trackResolver],
-  );
+  const resolveTrack = useTrackResolver({
+    currentConfig,
+    currentArtistName,
+    currentArtistContext,
+    trackResolver,
+    t,
+    dispatchUi,
+  });
 
   return (
     <div className="w-full">
