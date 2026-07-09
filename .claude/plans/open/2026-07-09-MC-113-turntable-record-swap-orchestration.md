@@ -37,7 +37,7 @@ Integrationsplan. Er verbindet den Verhaltensteil (MC-111) und den Motion-Teil (
 2. Nach Resolver-Ergebnis: `sameAlbum(current, update.config)`? Wenn ja → MC-111-Pfad (kein Wechsel), Ende.
 3. Different-Album: Preload parallel: `decodeArtwork(update.config.artworkUrl)` **und** Audio-Preload (`update.config.previewUrl`, `canplay`/`loadedmetadata`). Erst wenn beide bereit → weiter.
 4. outgoing Label-Props snapshotten, dann `Resolved` dispatchen.
-5. Audio Stop (Hub remountet fürs neue Album) → Hub coastet bis Idle (`LP_COAST_DURATION_MS`).
+5. Engine defert (meldet `AudioStatus.Ready` statt Auto-Continue, da `recordSwapKey` sich änderte) → Hub coastet bis Idle (`LP_COAST_DURATION_MS`). Der Hub remountet NICHT (stabil, MC-113 Task 2); nur die Audio-Engine wechselt die Source in-place.
 6. Nach Stillstand: `RecordSwapStage` fährt Heben → Slide (raus ‖ rein) → Absetzen.
 7. Nach `onSettle`: Auto-Play best-effort (`togglePlay`), bei Block Fallback = Platte bleibt aufgelegt (kein Fehler).
 
@@ -77,10 +77,9 @@ Beispiel-Szenario (vom User): Nutzer klickt einen Similar Artist (Different-Albu
 - Create (optional): `apps/frontend/src/lib/motion/useRecordSwapSequence.ts`
 - Test: entsprechende `.test.tsx`
 
-- [ ] Failing Test: nach Dispatch wird zuerst gecoastet (Spin läuft aus), und der Slide startet erst bei Stillstand; nicht vorher.
-- [ ] Test rot.
-- [ ] Sequenz koppeln: Slide-Start an das Erreichen von `Idle` (Ende des Coast-Fensters, `LP_COAST_DURATION_MS`) hängen. `buildRecordSwapTimeline` erst dann bauen. Reduced-motion → Instant-Swap ohne Coast-Warten.
-- [ ] Test grün. Biome. Commit.
+- [x] Failing Test + grün: `RecordSwapStage.test.tsx` — bei aktivem Spin startet der Slide erst, wenn `spinState` nach dem swapKey-Wechsel `Idle` erreicht (nicht während Playing/Coasting); bei bereits idler Deck sofort. 6/6.
+- [x] **Coast-Kopplung umgesetzt (zweiteilig):** (1) Stage-seitig: `RecordSwapStage` hält die alte Platte in einer neuen `PendingCoast`-Phase auf dem Teller (läuft mit dem live `spinState` aus) und baut `buildRecordSwapTimeline` erst beim Erreichen von `Idle`. (2) Engine-seitig: der Different-Album-Defer (`useAudioController`, Task 3/4-Commit) meldet `AudioStatus.Ready`, damit der Hub coastet und `spinState` überhaupt nach `Idle` läuft. Reduced-motion → Instant-Swap ohne Coast-Warten (Stage) + nahtloser Continue (Engine).
+- [x] Test grün. Biome. Full-Doctor 0. Commit (`Feat: coast-gate the record swap until the deck spins down` + `Feat: defer playback to the swap orchestration on a different-album switch`).
 
 ### Task 4: Auto-Play best-effort nach `onSettle`
 
@@ -88,10 +87,10 @@ Beispiel-Szenario (vom User): Nutzer klickt einen Similar Artist (Different-Albu
 - Modify: Orchestrierung aus Task 3 (Auto-Play-Aufruf), ggf. `TurntablePlayerProvider`/Engine für einen best-effort Auto-Play-Einstieg
 - Test: entsprechende `.test.tsx`
 
-- [ ] Failing Test: nach `onSettle` wird ein Play-Versuch unternommen; scheitert er (Autoplay-Policy), bleibt die Platte aufgelegt ohne Fehler/Absturz.
-- [ ] Test rot.
-- [ ] Auto-Play immer versuchen (Design-Entscheidung), `play()`-Reject abfangen und in einen aufgelegten Idle-Zustand fallen. Warmer-Context-Fall (es lief schon Audio) funktioniert zuverlässig; kalter Safari-Fall degradiert sauber.
-- [ ] Test grün. Biome. Commit.
+- [x] `RecordSwapStage` bekommt ein optionales `onSettled` (feuert nur bei natürlichem Settle, nicht bei Interrupt/Reduced-Motion), durch `TurntablePlayerPlatter` durchgereicht. `RecordSwapStage.test.tsx` deckt das ab.
+- [x] `HubPlatter` verdrahtet `onSettled` auf best-effort Play: `if (!isPlaying) togglePlay()`. Der Engine-Defer hat das neue Element idle gelassen, also startet `togglePlay` → `beginPlayback` → `audio.play()`. Ein `play()`-Reject wird von der Engine bereits in einen aufgelegten Unavailable-Idle abgefangen (kein Absturz). **Bewusste Design-Entscheidung „immer auto-play" (auch aus Pause).**
+- [x] **Tradeoff im Code dokumentiert (`HubPlatter`-TSDoc):** Der Different-Album-Defer schließt den alten AudioContext (Teardown-Fade). Der Play-nach-Settle läuft ~3 s später ohne frischen User-Gesture → `audio.play()` greift i. d. R. dank Media-Engagement, aber ein frischer `AudioContext.resume()` kann in Safari suspended bleiben (Spektrum kurz dunkel, bis der User interagiert). Bewusst akzeptiert.
+- [x] astro check 0, Biome, Full-Doctor 0, 347/347. Commit (`Feat: auto-play the swapped-in record after it settles`).
 
 ### Task 5: Reduced-Motion + Cover-Swap-Interaktion + Regressionscheck
 
@@ -99,10 +98,10 @@ Beispiel-Szenario (vom User): Nutzer klickt einen Similar Artist (Different-Albu
 - Review/Modify: `components/cards/SongInfo.tsx` Cover-Swap-Interaktion mit dem album-skopierten Key
 - Test: bestehende Turntable-/SongInfo-Tests erweitern
 
-- [ ] Prüfen und testen: reduced-motion macht den ganzen Ablauf zu einem Instant-Swap (kein Coast-Warten, kein Slide).
-- [ ] Verifizieren, ob der Cover-Swap in `SongInfo` durch den album-skopierten Key jetzt bei Different-Album animiert oder weiterhin remountet; Verhalten dokumentieren und, falls es mit dem Platten-Swap kollidiert (doppelte Bewegung), abstimmen.
-- [ ] Manuelles UI-Smoke (lokal, `./app`): Same-Album (dreht durch), Different-Album (voller Bogen-Swap), Similar Artist, reduced-motion. Golden Path + Edge Cases.
-- [ ] Biome. `doctor:diff`. `test:run`. Commit.
+- [x] Reduced-motion end-to-end getestet: Stage macht Instant-Swap (kein Coast, kein Slide, kein onSettled) — `RecordSwapStage.test.tsx`; Engine defert nicht, sondern spielt nahtlos weiter — `TurntablePlayerProvider.test.tsx` (`continues playback under reduced motion even on a different-album switch`).
+- [x] **Cover-Swap-Interaktion untersucht (Code-first, `SongInfo.tsx`): keine Kollision.** Der Cover-Swap animiert die TFT-Cover-„Tür" (`buildCoverSwapTimeline`, keyed auf `albumArtUrl`), der Platten-Swap die Vinyl auf dem fixen Turntable-Layer dahinter. Pro Zeitpunkt ist nur eine `mc-share-media-stage` sichtbar (Cover-Ansicht = Tür vorne, Turntable-Ansicht = Tür weggeschoben). Beide Mechanismen laufen unabhängig ihre State-Updates, überlagern sich aber nie visuell. Same-Album: beide no-op (Cover-URL gleich, swapKey gleich). Kein Suppress nötig.
+- [ ] **Manuelles UI-Smoke (User):** lokal `./app`, Same-Album (dreht durch), Different-Album (voller Bogen-Swap: stop → coast → slide → play), Similar Artist, überlappende schnelle Klicks, reduced-motion. Golden Path + Edge Cases. → offen, macht der User (visuelle Prüfung liegt beim User).
+- [x] Biome. Full-Doctor 0. `test:run` 347/347. Commits gemacht.
 
 ### Task 6: Härtung gegen überlappende/schnelle Interaktionen (Race Conditions)
 
@@ -117,7 +116,7 @@ Beispiel-Szenario (vom User): Nutzer klickt einen Similar Artist (Different-Albu
 - Die Same-/Different-Album-Entscheidung fällt gegen den jeweils aktuellen Ziel-Zustand, nicht gegen einen veralteten.
 
 - [x] **Resolve-seitige Härtung erledigt** in `useTrackResolver` (aus `ShareLayoutInner` ausgelagert, damit die Komponente nicht "too large" wird): monoton hochzählendes Request-Token (`resolveRequestRef`) + geteilter `AbortController` (`resolveAbortRef`). Eine neuere Selektion abortet den Vorgänger; `resolveTrack` committet nur, wenn `isLatest()` (nested `if`, kein Early-Return nach `await`, sonst react-doctor `await-before-early-return-guard`-Warning). Aborted-Resolve ist kein Fehler; superseded-Resolve leert die Loading-Flag nicht. Same-/Different-Album-Entscheidung gegen den `currentConfig` zur Resolve-Zeit; eine spätere Selektion bewertet frisch.
-- [x] Stage-seitiger Interrupt (WAAPI `cancel()` + outgoing-Unmount) ist bereits in `RecordSwapStage` (MC-112) gebaut. **Coast-Timer-Clearing gehört zur Coast-Kopplung (Task 3) und wird dort mit erledigt.**
+- [x] Stage-seitiger Interrupt (WAAPI `cancel()` + outgoing-Unmount) ist in `RecordSwapStage` gebaut (`RecordSwapStage.test.tsx`: „cancels the in-flight swap and starts a new one on an overlapping swapKey change"). **Coast-Timer-Clearing:** der Hub-Coast-Timer (`TurntablePlayerProvider`, `useEffect` keyed auf `spinState`) räumt sich per Cleanup bei Spin-Wechsel/Unmount selbst auf; ein Interrupt während des Coasts hält den Spin durchgehend `Coasting` (der zweite Defer meldet erneut `Ready`, `spinState` bleibt `Coasting`), der bestehende Timer feuert genau einmal `CoastFinished` → kein Orphan-Timer. Kein zusätzliches Clearing nötig.
 - [ ] Race-Verhalten: kein isolierter `resolveTrack`-Unit-Test (bräuchte volles `ShareLayout`-Render + Resolver-Mock); durch Reasoning abgesichert und im UI-Smoke (Task 5) verifiziert (schnelle Doppel-Klicks). Gates grün (Full-Doctor 0, Biome, astro 0, 342/342).
 
 ## Offene Punkte
@@ -129,9 +128,9 @@ Beispiel-Szenario (vom User): Nutzer klickt einen Similar Artist (Different-Albu
 
 - [x] Task 1: Daten-Gate (Cover + Audio Preload) im `resolveTrack`
 - [x] Task 2: `RecordSwapStage` in den Platter (Hub-Key stabil)
-- [ ] Task 3: Coast-Kopplung + Sequenz-Trigger
-- [ ] Task 4: Auto-Play best-effort
-- [ ] Task 5: Reduced-Motion + Cover-Swap-Interaktion + UI-Smoke
-- [ ] Task 6: Härtung gegen überlappende/schnelle Interaktionen (Race Conditions)
-- [ ] Alle Code-Referenzen verifiziert (Funktionen, Skripte, Pfade, Env-Vars, Package-Manager-Kommandos)
-- [ ] Gates grün: `pnpm typecheck`, Biome, `doctor:diff`, `test:run`
+- [x] Task 3: Coast-Kopplung + Sequenz-Trigger (Stage `PendingCoast`-Phase + Engine-Defer meldet `Ready`)
+- [x] Task 4: Auto-Play best-effort (`HubPlatter.onSettled` → guarded `togglePlay`)
+- [x] Task 5: Reduced-Motion (getestet) + Cover-Swap-Interaktion (untersucht, keine Kollision). **Offen: manuelles UI-Smoke (User).**
+- [x] Task 6: Härtung (Resolve-seitig „latest wins" + Stage-Interrupt-Cancel + selbsträumender Coast-Timer)
+- [x] Alle Code-Referenzen verifiziert (Funktionen, Skripte, Pfade, Env-Vars, Package-Manager-Kommandos)
+- [x] Gates grün: astro check 0/0, Biome, Full-Doctor 0, `test:run` 347/347
