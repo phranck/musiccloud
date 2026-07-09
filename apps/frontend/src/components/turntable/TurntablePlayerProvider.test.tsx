@@ -3,6 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useTurntablePlayer } from "@/components/turntable/TurntablePlayerContext";
 import { TurntablePlayerProvider } from "@/components/turntable/TurntablePlayerProvider";
 import { LocaleProvider } from "@/i18n/context";
+import { prefersReducedMotion } from "@/lib/motion/setup";
+
+// Keep the real setup module (GSAP registration is harmless in jsdom) but make the
+// reduced-motion read a controllable spy so a test can exercise the instant path.
+vi.mock("@/lib/motion/setup", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/motion/setup")>();
+  return { ...actual, prefersReducedMotion: vi.fn(() => false) };
+});
+const mockReducedMotion = vi.mocked(prefersReducedMotion);
 
 /**
  * Captures every audio element the engine drives (recorded from `play()`'s
@@ -66,6 +75,7 @@ function latestAudio(): HTMLAudioElement {
 
 beforeEach(() => {
   playedAudioElements.length = 0;
+  mockReducedMotion.mockReturnValue(false);
   vi.spyOn(window.HTMLMediaElement.prototype, "play").mockImplementation(function (this: HTMLAudioElement) {
     playedAudioElements.push(this);
     return Promise.resolve();
@@ -218,5 +228,26 @@ describe("TurntablePlayerProvider", () => {
     expect(hub()).toHaveAttribute("data-playing", "false");
     expect(hub()).toHaveAttribute("data-spin", "coasting");
     expect(hub()).toHaveAttribute("data-speed", "standby");
+  });
+
+  it("continues playback under reduced motion even on a different-album switch", async () => {
+    mockReducedMotion.mockReturnValue(true);
+    const { rerender } = render(tree("/a.mp3", "A", "album-a"));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "toggle" }));
+    });
+    const playsBefore = playedAudioElements.length;
+
+    await act(async () => {
+      rerender(tree("/b.mp3", "B", "album-b"));
+    });
+
+    // Reduced motion skips the coast/defer entirely: the new album continues
+    // seamlessly (matching the stage's instant swap), no coasting in between.
+    expect(latestAudio().src).toContain("/b.mp3");
+    expect(playedAudioElements).toHaveLength(playsBefore + 1);
+    expect(hub()).toHaveAttribute("data-playing", "true");
+    expect(hub()).toHaveAttribute("data-spin", "playing");
   });
 });
