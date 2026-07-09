@@ -107,9 +107,9 @@ export function getCreemConfig(): CreemConfig {
 
 **Files:** Modify `apps/backend/src/lib/boot-env.ts`, Test `apps/backend/src/lib/boot-env.test.ts`
 
-- [ ] **Step 1: Failing test**: Guard mit `vi.mock("./creem-config.js")`. Bei gesetztem `CREEM_API_KEY` wird `getCreemConfig` aufgerufen und wirft weiter; bei fehlendem Key nicht.
-- [ ] **Step 2: Fails**: `pnpm --filter @musiccloud/backend test:run boot-env` FAIL.
-- [ ] **Step 3: Implementieren.** In `assertRequiredBootEnv()` nach der Schleife:
+- [x] **Step 1: Failing test**: Guard mit `vi.mock("./creem-config.js")`. Bei gesetztem `CREEM_API_KEY` wird `getCreemConfig` aufgerufen und wirft weiter; bei fehlendem Key nicht.
+- [x] **Step 2: Fails**: `pnpm --filter @musiccloud/backend test:run boot-env` FAIL.
+- [x] **Step 3: Implementieren.** In `assertRequiredBootEnv()` nach der Schleife:
 ```ts
 import { getCreemConfig } from "./creem-config.js";
 // nach der REQUIRED_BOOT_ENV-Schleife:
@@ -118,8 +118,8 @@ if (process.env.CREEM_API_KEY) {
 }
 ```
 Kommentar: warum nur bei gesetztem Key (Creem in der Foundation-Phase optional bootbar, aber wenn verdrahtet, dann konsistent).
-- [ ] **Step 4: Grün** PASS.
-- [ ] **Step 5: Commit**: `Feat: boot-guard validates Creem config when wired (MC-110)`.
+- [x] **Step 4: Grün** PASS.
+- [x] **Step 5: Commit**: `Feat: boot-guard validates Creem config when wired (MC-110)`.
 
 ## Task 4: `developer_subscriptions` auf Creem umbauen (Migration 0069)
 
