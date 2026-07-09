@@ -99,7 +99,7 @@ Grenzen (neue Konstanten in `tiers-repository.ts`): `MAX_TIER_FEATURES = 12`, `M
 
 ## Task 6: Gesamt-Gates
 
-- [ ] Backend-Typecheck plus `test:run` gruen; Dashboard- und Developer-Typecheck (`check`) gruen; Biome sauber; React Doctor (`doctor:diff`) sauber fuer Dashboard/Developer; keine Em-Dashes; Clean-State-Migration inkl. `0071` fehlerfrei.
+- [x] Backend-Typecheck plus `test:run` gruen (1391 passed); Dashboard-Typecheck (`typecheck`) clean; Developer-`check` 0 errors; Biome-Lint repo-weit clean (1005 Dateien); Full React Doctor 0 issues; neuer Code em-dash-frei; Clean-State-Migration inkl. `0071` fehlerfrei (72 Migrationen, features-Spalte da); `plans check` OK.
 
 ## Abgrenzung
 
