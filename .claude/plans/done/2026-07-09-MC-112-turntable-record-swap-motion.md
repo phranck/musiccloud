@@ -75,10 +75,10 @@ Reiner Visual-/Motion-Teil. Am Ende existiert die Animation als getestete Factor
 - Create: `apps/frontend/src/components/turntable/RecordSwapStage.tsx`
 - Test: `apps/frontend/src/components/turntable/RecordSwapStage.test.tsx`
 
-- [ ] Failing Test: bei Wechsel der Record-Identität rendert die Stage kurz zwei `VinylRecord` (outgoing + incoming, je `key` per Generation), ruft die Factory, und unmountet den outgoing nach `onSettle` (Generation-Guard). Ein zweiter, überlappender Wechsel canceled den laufenden und startet neu, ohne den outgoing des ersten Laufs hängenzulassen (Interrupt). Reduced-motion → sofortiger Wechsel ohne zweiten Puffer.
-- [ ] Test rot.
-- [ ] Implementieren analog `SongInfo`-Doppelpuffer (`:78-144`), aber mit WAAPI: State `{ current, previous, generation }` über die Label-Props der Platte; `useEffect`/`useLayoutEffect` keyed auf `generation` (statt `useGSAP`); `buildRecordSwapTimeline` mit den beiden Puffer-Refs; das Handle des Vorgängers vor dem Neubau `cancel()`en; `onSettle` unmountet outgoing via Generation-Guard. Layout: beide Puffer absolut über der Plattenposition (86%-Span-Geometrie aus `TurntablePlayerParts`), damit die Bewegung an der Deck-Kante geclippt wird. Outgoing spinState während des Ablaufs `Coasting`→`Idle`, incoming zunächst `Idle`. Props für den externen Trigger (Generation/Record-Props) sauber typisieren; TSDoc.
-- [ ] Test grün. React-Doctor `doctor:diff` grün. Biome. Commit.
+- [x] Failing Test (`RecordSwapStage.test.tsx`, `buildRecordSwapTimeline` gemockt): initial 1 `VinylRecord`; `swapKey`-Wechsel → 2 `VinylRecord` + Factory-Aufruf; `onSettle` unmountet den outgoing; überlappender Wechsel canceled den Vorgänger und startet neu; Factory-`null` (reduced motion) → sofort 1 Record.
+- [x] Test rot.
+- [x] Implementiert analog `SongInfo`-Doppelpuffer, mit WAAPI: State `{ previous, generation }` (das `current`-Record wird direkt aus der Prop gerendert, nicht in State kopiert); `swapKey`-getriggerter Swap in einem Effekt mit `cancelled`-Guard + Cleanup (spiegelt SongInfo, damit react-doctors `no-derived-state` nicht feuert); Animations-Effekt keyed auf `[generation, previous]` baut `buildRecordSwapTimeline`, canceled den Vorgänger vorher und im Cleanup, `onSettle` unmountet outgoing via Generation-Guard. Beide Puffer `absolute inset-0 transform-gpu` über der Plattenposition; outgoing `Coasting`, incoming `Idle` bis settle. `RecordLabel`-Typ exportiert. TSDoc vorhanden.
+- [x] Test grün (4/4). **Full-Scan** `pnpm doctor` 0 issues (nicht nur `doctor:diff`, der untracked Neu-Dateien überspringt und `no-derived-state` zunächst übersah). Biome. Commit.
 
 ## Offene Punkte
 
@@ -89,6 +89,10 @@ Reiner Visual-/Motion-Teil. Am Ende existiert die Animation als getestete Factor
 
 - [x] Task 1: WAAPI-Timing-/Easing-Konstanten
 - [x] Task 2: `buildRecordSwapTimeline` (Web Animations API) + Tests (inkl. reduced-motion, cancel-settlet-nicht)
-- [ ] Task 3: `RecordSwapStage` Doppelpuffer + Tests (inkl. Interrupt)
-- [ ] Alle Code-Referenzen verifiziert (Funktionen, Skripte, Pfade, Env-Vars, Package-Manager-Kommandos)
-- [ ] Gates grün: `pnpm typecheck`, Biome, `doctor:diff`, `test:run`
+- [x] Task 3: `RecordSwapStage` Doppelpuffer + Tests (inkl. Interrupt)
+- [x] Alle Code-Referenzen verifiziert (Funktionen, Skripte, Pfade, Env-Vars, Package-Manager-Kommandos)
+- [x] Gates grün: astro check (Typecheck) 0 errors, Biome, `doctor:diff` 0 issues, `test:run` 338/338
+
+## Completed
+
+Umgesetzt 2026-07-09. `buildRecordSwapTimeline` (`lib/motion/recordSwap.ts`, Web Animations API, Kreisbogen-Keyframes, reduced-motion/interrupt) plus `RecordSwapStage` (`components/turntable/RecordSwapStage.tsx`, Doppelpuffer mit Generation-Guard und Interrupt). Rein prop-getrieben (kein Hub-Zugriff), einsetzbar an der von MC-113 gewählten Stelle. Gates grün, doctor-sauber. Feinabstimmung von Ein-/Austrittswinkeln und Hebe-/Absetz-Amplitude erfolgt beim UI-Smoke in MC-113. Lektion: `doctor:diff` überspringt noch-untracked Neu-Dateien; für neue Dateien vor dem Commit den Full-Scan `pnpm doctor` fahren. Der `no-derived-state`-Flag am Doppelpuffer wurde per SongInfo-Muster gelöst (Swap-Effekt mit Cleanup/`cancelled`-Guard, `current` aus der Prop abgeleitet statt in State kopiert), ohne Inline-Disable.
