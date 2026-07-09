@@ -1,11 +1,31 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { VinylRecord, type VinylRecordProps } from "@/components/vinyl/VinylRecord";
 import { VinylSpinState, type VinylSpinState as VinylSpinStateValue } from "@/components/vinyl/VinylRecord.types";
 import { buildRecordSwapTimeline, type RecordSwapHandle } from "@/lib/motion/recordSwap";
+import { prefersReducedMotion } from "@/lib/motion/setup";
 import { cn } from "@/lib/utils";
 
 /** The vinyl-label fields of a record (no spin state, no class — the stage owns those). */
 export type RecordLabel = Omit<VinylRecordProps, "spinState" | "className">;
+
+/**
+ * The stage's swap phases.
+ *
+ * - `Idle`: one resting record, no swap in flight.
+ * - `PendingCoast`: the record identity changed while the deck was still
+ *   spinning; the OLD record stays on the platter and coasts down. The new
+ *   record is withheld until the spin settles, so the wind-down reads as "this
+ *   record is stopping" rather than "a new record already arrived".
+ * - `Sliding`: the coast has finished (spin idle); both records mount and the
+ *   arc swap runs (old lifts off and slides out, new slides in and settles).
+ */
+const SwapPhase = {
+  Idle: "idle",
+  PendingCoast: "pendingCoast",
+  Sliding: "sliding",
+} as const;
+
+type SwapPhaseValue = (typeof SwapPhase)[keyof typeof SwapPhase];
 
 /** Props for {@link RecordSwapStage}. */
 interface RecordSwapStageProps {
@@ -18,16 +38,26 @@ interface RecordSwapStageProps {
    * record slides out while the new one slides in. Same value = no swap.
    */
   swapKey: string;
+  /**
+   * Fired once the arc swap has naturally settled (the new record is on the
+   * spindle). NOT fired on an interrupted swap, and NOT on the reduced-motion
+   * instant path (there the audio continues seamlessly, so nothing needs to be
+   * re-triggered). The hub-connected platter uses this to auto-play the new
+   * record after it settles.
+   */
+  onSettled?: () => void;
   /** Extra classes on the stage wrapper (sizes/positions it over the platter). */
   className?: string;
 }
 
 /**
- * Swap animation state. The incoming record is NOT stored here (it is rendered
- * straight from the `record` prop); only the outgoing snapshot and the generation
- * live in state.
+ * Swap animation state. Neither the incoming nor (at rest) the outgoing record is
+ * copied into state: the incoming renders straight from the `record` prop, and
+ * `previous` only holds the outgoing snapshot for the duration of a swap.
  */
 interface SwapState {
+  /** The current phase of the swap. */
+  phase: SwapPhaseValue;
   /** The outgoing disc's label fields during a swap, or `null` when at rest. */
   previous: RecordLabel | null;
   /** Bumped on every swap; keys the buffers and guards the settle. */
@@ -35,41 +65,67 @@ interface SwapState {
 }
 
 /**
- * Renders the vinyl record on the platter and animates the arc swap when the
- * record identity ({@link RecordSwapStageProps.swapKey}) changes: a double buffer
- * of {@link VinylRecord}s (outgoing snapshot + incoming current) driven by
- * {@link buildRecordSwapTimeline} (Web Animations API). Deliberately prop-driven
- * with no hub access, so it works both inside the platter and as a layer above the
- * audio hub (the placement MC-113 chooses). The movement is clipped at the deck
- * edge by the surrounding `overflow-hidden` deck surface.
+ * Renders the vinyl record on the platter and choreographs the arc swap when the
+ * record identity ({@link RecordSwapStageProps.swapKey}) changes.
  *
- * The incoming record is rendered straight from the `record` prop (never copied
- * into state); only the outgoing snapshot is captured for the duration of the
- * swap, mirroring the cover-swap double buffer in `SongInfo`. Interrupt contract:
- * a swap arriving mid-flight cancels the predecessor's timeline (no settle) and
- * starts fresh; the settle unmounts the outgoing buffer via a generation guard.
- * Reduced motion (factory returns `null`) settles immediately.
+ * The choreography is coast-gated: a swap that arrives while the deck is spinning
+ * does NOT slide immediately. Instead the OLD record stays on the platter and
+ * winds down (driven by the live `spinState` handed down from the hub); only once
+ * the spin reaches {@link VinylSpinState.Idle} — the end of the deck's coast
+ * window — do both records mount and the arc swap run via
+ * {@link buildRecordSwapTimeline} (Web Animations API). This matches the accepted
+ * choreography "stop the music, the platter coasts to a stop, then the old record
+ * slides out and the new one slides in".
+ *
+ * Deliberately prop-driven with no hub access, so the same stage powers both the
+ * hub-connected deck and the standalone (no-preview) deck, where `spinState` is
+ * always idle and the swap therefore slides at once. The movement is clipped at
+ * the deck edge by the surrounding `overflow-hidden` deck surface.
+ *
+ * Interrupt contract: a swap arriving mid-flight cancels the predecessor's
+ * timeline (no settle) and starts fresh; the settle unmounts the outgoing buffer
+ * via a generation guard and re-arms the resting record. Reduced motion skips the
+ * coast wait entirely and swaps instantly (the new record simply appears).
  *
  * @param props - {@link RecordSwapStageProps}.
  */
-export function RecordSwapStage({ record, spinState, swapKey, className }: RecordSwapStageProps) {
-  const [swap, setSwap] = useState<SwapState>({ previous: null, generation: 0 });
+export function RecordSwapStage({ record, spinState, swapKey, onSettled, className }: RecordSwapStageProps) {
+  const [swap, setSwap] = useState<SwapState>({ phase: SwapPhase.Idle, previous: null, generation: 0 });
   const previousSwapKeyRef = useRef(swapKey);
-  // The label fields currently shown, snapshotted as the outgoing disc when a swap starts.
+  // The label fields of the resting/primary disc, snapshotted as the outgoing
+  // record when a swap starts and advanced to the new record only on settle.
   const displayedRecordRef = useRef(record);
+  // Mirrors the latest `record` prop so the async settle can promote it to the
+  // resting record without taking `record` as an animation-effect dependency.
+  const latestRecordRef = useRef(record);
   const incomingRef = useRef<HTMLDivElement>(null);
   const outgoingRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<RecordSwapHandle | null>(null);
+  // Fires the latest onSettled without making it an effect dependency.
+  const fireSettled = useEffectEvent(() => onSettled?.());
 
+  useEffect(() => {
+    latestRecordRef.current = record;
+  }, [record]);
+
+  // Detects a record-identity change and enters the swap. Reduced motion swaps
+  // instantly; otherwise the old record is held on the platter to coast down
+  // (PendingCoast) until the spin settles. The `cancelled` guard + cleanup keep
+  // this a genuine reaction to an external change (not derived state).
   useEffect(() => {
     if (previousSwapKeyRef.current === swapKey) return;
     let cancelled = false;
     const startSwap = () => {
       if (cancelled) return;
-      const outgoing = displayedRecordRef.current;
       previousSwapKeyRef.current = swapKey;
-      displayedRecordRef.current = record;
-      setSwap((state) => ({ previous: outgoing, generation: state.generation + 1 }));
+      const outgoing = displayedRecordRef.current;
+      if (prefersReducedMotion()) {
+        // Instant swap: the new record simply becomes the resting disc.
+        displayedRecordRef.current = record;
+        setSwap((state) => ({ phase: SwapPhase.Idle, previous: null, generation: state.generation + 1 }));
+        return;
+      }
+      setSwap((state) => ({ phase: SwapPhase.PendingCoast, previous: outgoing, generation: state.generation + 1 }));
     };
     startSwap();
     return () => {
@@ -77,48 +133,99 @@ export function RecordSwapStage({ record, spinState, swapKey, className }: Recor
     };
   }, [swapKey, record]);
 
+  // Coast gate: once the deck's spin has wound down to idle, promote a pending
+  // swap into the sliding phase so the arc animation runs. A deck that was
+  // already idle at swap time (paused, or the static standalone deck) slides at
+  // once because this fires on the same commit.
   useEffect(() => {
-    if (swap.previous === null) return;
+    if (swap.phase !== SwapPhase.PendingCoast) return;
+    if (spinState !== VinylSpinState.Idle) return;
+    let cancelled = false;
+    const beginSlide = () => {
+      if (cancelled) return;
+      displayedRecordRef.current = latestRecordRef.current;
+      setSwap((state) => (state.phase === SwapPhase.PendingCoast ? { ...state, phase: SwapPhase.Sliding } : state));
+    };
+    beginSlide();
+    return () => {
+      cancelled = true;
+    };
+  }, [swap.phase, spinState]);
+
+  // Builds and runs the arc timeline for the sliding phase. `unmountOutgoing`
+  // drops the outgoing buffer (generation-guarded). On natural completion the
+  // timeline's `onSettle` unmounts AND fires the parent `onSettled` (async, so it
+  // is a legitimate parent notification, not live state passed during the effect).
+  // A `null` handle (no Web Animations API — jsdom/SSR) only unmounts, without the
+  // parent notification, so the synchronous fallback never notifies the parent
+  // from inside the effect.
+  useEffect(() => {
+    if (swap.phase !== SwapPhase.Sliding || swap.previous === null) return;
     const incoming = incomingRef.current;
     const outgoing = outgoingRef.current;
     if (!incoming || !outgoing) return;
 
     const settledGeneration = swap.generation;
-    const settle = () =>
-      setSwap((state) => (state.generation === settledGeneration ? { ...state, previous: null } : state));
+    const unmountOutgoing = () => {
+      setSwap((state) =>
+        state.generation === settledGeneration
+          ? { phase: SwapPhase.Idle, previous: null, generation: state.generation }
+          : state,
+      );
+    };
 
     handleRef.current?.cancel();
-    handleRef.current = buildRecordSwapTimeline({ incoming, outgoing, onSettle: settle });
-    // Reduced motion / no Web Animations API: the commit already shows the incoming
-    // record in place, so settle (unmount the outgoing buffer) immediately.
-    if (handleRef.current === null) settle();
+    handleRef.current = buildRecordSwapTimeline({
+      incoming,
+      outgoing,
+      onSettle: () => {
+        unmountOutgoing();
+        fireSettled();
+      },
+    });
+    if (handleRef.current === null) unmountOutgoing();
 
     return () => {
       handleRef.current?.cancel();
       handleRef.current = null;
     };
-  }, [swap.generation, swap.previous]);
+  }, [swap.phase, swap.generation, swap.previous]);
 
-  const swapping = swap.previous !== null;
+  const sliding = swap.phase === SwapPhase.Sliding;
 
   return (
     <div className={cn("relative h-full w-full", className)}>
-      {swap.previous !== null && (
+      {/* PendingCoast: only the outgoing record is on the platter, winding down
+          with the live spin state until the coast finishes. */}
+      {swap.phase === SwapPhase.PendingCoast && swap.previous !== null && (
+        <div key={`record-coast-${swap.generation}`} className="h-full w-full">
+          <VinylRecord {...swap.previous} className="h-full w-full" spinState={spinState} />
+        </div>
+      )}
+
+      {/* Sliding: the outgoing record lifts off and slides out (already stopped,
+          so idle spin) along the arc. */}
+      {sliding && swap.previous !== null && (
         <div
           key={`record-out-${swap.generation}`}
           ref={outgoingRef}
           className="absolute inset-0 transform-gpu will-change-transform"
         >
-          <VinylRecord {...swap.previous} className="h-full w-full" spinState={VinylSpinState.Coasting} />
+          <VinylRecord {...swap.previous} className="h-full w-full" spinState={VinylSpinState.Idle} />
         </div>
       )}
-      <div
-        key={`record-in-${swap.generation}`}
-        ref={incomingRef}
-        className={cn("h-full w-full", swapping && "absolute inset-0 transform-gpu will-change-transform")}
-      >
-        <VinylRecord {...record} className="h-full w-full" spinState={swapping ? VinylSpinState.Idle : spinState} />
-      </div>
+
+      {/* The current record: the resting disc at Idle/PendingCoast-exit, or the
+          incoming disc during the slide. Withheld entirely while coasting. */}
+      {swap.phase !== SwapPhase.PendingCoast && (
+        <div
+          key={`record-in-${swap.generation}`}
+          ref={incomingRef}
+          className={cn("h-full w-full", sliding && "absolute inset-0 transform-gpu will-change-transform")}
+        >
+          <VinylRecord {...record} className="h-full w-full" spinState={sliding ? VinylSpinState.Idle : spinState} />
+        </div>
+      )}
     </div>
   );
 }
