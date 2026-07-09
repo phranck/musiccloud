@@ -29,8 +29,8 @@ const MAX_TIER_BUTTON_LABEL_LENGTH = 40;
 /**
  * Validates the `features` payload for a tier create/update request. Returns an
  * error message describing the first problem found, or `null` when the value is
- * a well-formed list of feature bullets (each a non-empty label plus a boolean
- * `included` flag), within the count and length limits.
+ * a well-formed list of feature bullets (each a non-empty label string), within
+ * the count and length limits.
  *
  * @param features - The raw `features` value from the request body.
  * @returns An error string, or `null` when valid.
@@ -39,17 +39,12 @@ function validateFeatures(features: unknown): string | null {
   if (!Array.isArray(features)) return "features must be an array";
   if (features.length > MAX_TIER_FEATURES) return `features must have at most ${MAX_TIER_FEATURES} entries`;
   for (const feature of features) {
-    if (typeof feature !== "object" || feature === null) {
-      return "each feature must be an object with a label and an included flag";
+    if (typeof feature !== "string" || feature.trim().length === 0) {
+      return "each feature must be a non-empty string";
     }
-    const { label, included } = feature as { label?: unknown; included?: unknown };
-    if (typeof label !== "string" || label.trim().length === 0) {
-      return "each feature label must be a non-empty string";
+    if (feature.length > MAX_TIER_FEATURE_LABEL_LENGTH) {
+      return `each feature must be at most ${MAX_TIER_FEATURE_LABEL_LENGTH} characters`;
     }
-    if (label.length > MAX_TIER_FEATURE_LABEL_LENGTH) {
-      return `each feature label must be at most ${MAX_TIER_FEATURE_LABEL_LENGTH} characters`;
-    }
-    if (typeof included !== "boolean") return "each feature included flag must be a boolean";
   }
   return null;
 }

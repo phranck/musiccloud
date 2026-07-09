@@ -39,8 +39,8 @@ interface TierDto {
   /** Whether this tier is highlighted as the recommended one (at most one across all tiers). */
   recommended: boolean;
   sortOrder: number;
-  /** Ordered feature bullets: each a label plus whether the tier includes it (check) or not (cross). */
-  features: { label: string; included: boolean }[];
+  /** Ordered feature bullets shown on the card, each a short label. */
+  features: string[];
 }
 
 /**
@@ -187,8 +187,8 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
                   Currently unavailable{tier.disableReason ? `. ${tier.disableReason}` : ""}
                 </p>
               )}
-              {tier.description && <p class="w-full text-right text-lg text-fg-muted">{tier.description}</p>}
-              <div class="w-full space-y-1 text-right text-lg text-fg-muted">
+              {tier.description && <p class="w-full text-left text-lg text-fg-muted">{tier.description}</p>}
+              <div class="w-full space-y-1 text-left text-lg text-fg-muted">
                 <p>
                   <span class="text-fg font-medium">{tier.requestsPerMinute}</span> requests / minute
                 </p>
@@ -196,18 +196,16 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
                   <span class="text-fg font-medium">{tier.requestsPerDay.toLocaleString()}</span> requests / day
                 </p>
               </div>
-              {tier.attributionRequired && <p class="w-full text-right text-body text-fg-subtle">Attribution required</p>}
+              {tier.attributionRequired && <p class="w-full text-left text-body text-fg-subtle">Attribution required</p>}
 
-              {tier.features.some((feature) => feature.included) && (
+              {tier.features.length > 0 && (
                 <ul class="mx-auto flex w-full max-w-[15rem] flex-col gap-1.5 text-left text-body">
-                  {tier.features
-                    .filter((feature) => feature.included)
-                    .map((feature) => (
-                      <li class="flex items-center gap-2">
-                        <TickCircleIcon className="size-4 shrink-0" style={{ color: tier.color }} aria-hidden="true" />
-                        <span class="text-fg-muted">{feature.label}</span>
-                      </li>
-                    ))}
+                  {tier.features.map((feature) => (
+                    <li class="flex items-center gap-2">
+                      <TickCircleIcon className="size-4 shrink-0" style={{ color: tier.color }} aria-hidden="true" />
+                      <span class="text-fg-muted">{feature}</span>
+                    </li>
+                  ))}
                 </ul>
               )}
 

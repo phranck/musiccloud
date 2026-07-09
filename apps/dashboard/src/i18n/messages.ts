@@ -223,7 +223,6 @@ export interface DashboardMessages {
     featuresLabel: string;
     featureAddButton: string;
     featureLabelPlaceholder: string;
-    featureIncludedLabel: string;
     featureMoveUp: string;
     featureMoveDown: string;
     featureRemove: string;
@@ -963,7 +962,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       featuresLabel: "Features",
       featureAddButton: "Feature hinzufügen",
       featureLabelPlaceholder: "z. B. Unbegrenzte Anfragen",
-      featureIncludedLabel: "Enthalten",
       featureMoveUp: "Nach oben",
       featureMoveDown: "Nach unten",
       featureRemove: "Entfernen",
@@ -1703,7 +1701,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       featuresLabel: "Features",
       featureAddButton: "Add feature",
       featureLabelPlaceholder: "e.g. Unlimited requests",
-      featureIncludedLabel: "Included",
       featureMoveUp: "Move up",
       featureMoveDown: "Move down",
       featureRemove: "Remove",

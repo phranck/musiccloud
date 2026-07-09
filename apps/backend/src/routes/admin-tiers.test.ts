@@ -303,12 +303,12 @@ describe("POST /api/admin/developer/tiers", () => {
         name: "Pro",
         requestsPerMinute: 120,
         requestsPerDay: 50000,
-        features: [{ label: "Commercial use", included: true }],
+        features: ["Commercial use", "Email support"],
       },
     });
     expect(ok.statusCode).toBe(201);
     expect(mockTierRepo.createTier).toHaveBeenCalledWith(
-      expect.objectContaining({ features: [{ label: "Commercial use", included: true }] }),
+      expect.objectContaining({ features: ["Commercial use", "Email support"] }),
     );
 
     const bad = await app.inject({
@@ -319,7 +319,7 @@ describe("POST /api/admin/developer/tiers", () => {
         name: "Pro",
         requestsPerMinute: 120,
         requestsPerDay: 50000,
-        features: [{ label: "Missing included flag" }],
+        features: [42],
       },
     });
     expect(bad.statusCode).toBe(400);

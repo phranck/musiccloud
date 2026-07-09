@@ -5,7 +5,6 @@ import {
   type Tier,
   type TierCreateData,
   type TierCreemProductMapping,
-  type TierFeature,
   type TierRepository,
   type TierUpdateData,
 } from "../tiers-repository.js";
@@ -27,7 +26,7 @@ interface TierRow {
   disable_reason: string;
   recommended: boolean;
   sort_order: number;
-  features: TierFeature[];
+  features: string[];
   created_at: Date;
   updated_at: Date;
 }

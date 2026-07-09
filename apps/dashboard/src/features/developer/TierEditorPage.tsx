@@ -3,14 +3,12 @@ import {
   ArrowDown as ArrowDownIcon,
   ArrowUp as ArrowUpIcon,
   CheckCircle as CheckCircleIcon,
-  Check as CheckIcon,
   PencilSimple as PencilSimpleIcon,
   PlusCircle as PlusCircleIcon,
   Plus as PlusIcon,
   Stack as StackIcon,
   Trash as TrashIcon,
   XCircle as XCircleIcon,
-  X as XIcon,
 } from "@phosphor-icons/react";
 import { useCallback, useMemo, useReducer } from "react";
 import { ContentLoadingView } from "@/components/ui/ContentLoadingView";
@@ -23,7 +21,7 @@ import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { useI18n } from "@/context/I18nContext";
-import type { TierFeatureBullet, TierResponse } from "@/features/developer/api";
+import type { TierResponse } from "@/features/developer/api";
 import { TierIconGlyph, TierIconPicker } from "@/features/developer/components/TierIconPicker";
 import { useCreateTier, useDeleteTier, useTiers, useUpdateTier } from "@/features/developer/hooks/useDeveloperData";
 import { FormLabel, FormLabelText, formInputClass, formTextareaClass } from "@/shared/ui/FormPrimitives";
@@ -33,13 +31,14 @@ import { FormLabel, FormLabelText, formInputClass, formTextareaClass } from "@/s
 // -----------------------------------------------------------------------------
 
 /**
- * Form-local extension of {@link TierFeatureBullet} that carries a stable `id`
- * used as the React list key. The `id` is never sent to the backend; it is
- * assigned when populating the form from server data or when the user adds a
- * new row.
+ * Form-local representation of a single feature label with a stable `id`
+ * used as the React list key and for reordering. The `id` is never sent to
+ * the backend; it is assigned when populating the form from server data or
+ * when the user adds a new row.
  */
-interface FormFeatureBullet extends TierFeatureBullet {
+interface FormFeatureBullet {
   id: string;
+  label: string;
 }
 
 /** Returns a collision-resistant id suitable for keying a form-local feature row. */
@@ -47,9 +46,9 @@ function nextFeatureId(): string {
   return `feat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-/** Converts server-side feature bullets to form-local bullets with stable ids. */
-function toFormFeatures(bullets: TierFeatureBullet[]): FormFeatureBullet[] {
-  return bullets.map((b) => ({ ...b, id: nextFeatureId() }));
+/** Converts server-side feature label strings to form-local bullets with stable ids. */
+function toFormFeatures(labels: string[]): FormFeatureBullet[] {
+  return labels.map((label) => ({ id: nextFeatureId(), label }));
 }
 
 interface TierFormData {
@@ -109,9 +108,9 @@ function toSubmitBody(data: TierFormData) {
     recommended: data.recommended,
     sortOrder: data.sortOrder,
     // Strip rows whose label is blank so the backend never receives an empty label.
-    features: data.features.reduce<{ label: string; included: boolean }[]>((acc, f) => {
+    features: data.features.reduce<string[]>((acc, f) => {
       const label = f.label.trim();
-      if (label !== "") acc.push({ label, included: f.included });
+      if (label !== "") acc.push(label);
       return acc;
     }, []),
   };
@@ -211,24 +210,19 @@ interface TierFeatureBulletsEditorProps {
 }
 
 /**
- * Inline editor for the ordered feature-bullets list of a tier.
+ * Inline editor for the ordered feature labels list of a tier.
  *
- * Renders each bullet as a row containing a text input for the label and a
- * toggle that marks the feature as included (check) or excluded (cross).
- * Rows can be moved up/down and removed. An "Add feature" button appends a
- * new empty row; it is disabled once the maximum of 12 is reached.
+ * Renders each feature as a row containing a text input for the label plus
+ * up/down reorder buttons and a remove button. An "Add feature" button appends
+ * a new empty row; it is disabled once the maximum of 12 is reached.
  *
- * @param features - The current ordered list of feature bullets (with local stable ids).
+ * @param features - The current ordered list of feature rows (with local stable ids).
  * @param onChange - Called with a new list whenever the user edits, adds, reorders, or removes a row.
  * @param dm - Developer section of the localized dashboard messages.
  */
 function TierFeatureBulletsEditor({ features, onChange, dm }: TierFeatureBulletsEditorProps) {
   function handleLabelChange(id: string, label: string) {
     onChange(features.map((f) => (f.id === id ? { ...f, label } : f)));
-  }
-
-  function handleIncludedToggle(id: string, included: boolean) {
-    onChange(features.map((f) => (f.id === id ? { ...f, included } : f)));
   }
 
   function handleMoveUp(index: number) {
@@ -251,7 +245,7 @@ function TierFeatureBulletsEditor({ features, onChange, dm }: TierFeatureBullets
 
   function handleAdd() {
     if (features.length >= MAX_FEATURES) return;
-    onChange([...features, { id: nextFeatureId(), label: "", included: true }]);
+    onChange([...features, { id: nextFeatureId(), label: "" }]);
   }
 
   const atMax = features.length >= MAX_FEATURES;
@@ -264,25 +258,6 @@ function TierFeatureBulletsEditor({ features, onChange, dm }: TierFeatureBullets
         <ul className="mt-1 space-y-1.5">
           {features.map((feature, index) => (
             <li key={feature.id} className="flex items-center gap-2">
-              {/* Included toggle: check = included, cross = not included */}
-              <button
-                type="button"
-                onClick={() => handleIncludedToggle(feature.id, !feature.included)}
-                aria-label={dm.featureIncludedLabel}
-                aria-pressed={feature.included}
-                className={`flex size-7 shrink-0 items-center justify-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-focus-ring)] ${
-                  feature.included
-                    ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
-                    : "border-red-500/50 bg-red-500/10 text-red-400"
-                }`}
-              >
-                {feature.included ? (
-                  <CheckIcon weight="bold" className="size-3.5" aria-hidden />
-                ) : (
-                  <XIcon weight="bold" className="size-3.5" aria-hidden />
-                )}
-              </button>
-
               {/* Label input */}
               <input
                 type="text"

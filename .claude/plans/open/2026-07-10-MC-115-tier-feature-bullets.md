@@ -107,3 +107,11 @@ Grenzen (neue Konstanten in `tiers-repository.ts`): `MAX_TIER_FEATURES = 12`, `M
 - Kein Rich-Text/Markdown in Bullets (einfacher Text-Label).
 - Keine Aenderung an den bestehenden Rate-Limit-/Attribution-Zeilen (die bleiben separat, auto-generiert).
 - Keine Reorder-per-Drag-and-Drop noetig (Hoch/Runter reicht).
+
+## Nachtrag (2026-07-10, nach visuellem User-Feedback)
+
+Das urspruengliche `{ label, included }`-Modell (Haken/Kreuz) wurde nach dem ersten Anschauen vereinfacht: die Pricing-Card zaehlt nur noch auf, was ENTHALTEN ist. Konsequenz (User-Entscheidung "Umschalter entfernen"):
+
+- **Modell auf `string[]` vereinfacht**: `features` ist jetzt eine geordnete Liste von Label-Strings, kein `included`-Feld mehr. Betrifft `Tier`/`TierCreateData`/`TierUpdateData`, `TierRow`/Adapter, Admin-Validierung (`validateFeatures` prueft nicht-leere Strings), Admin-Editor (Include/Exclude-Toggle entfernt, jede Zeile nur Label-Input, `featureIncludedLabel`-i18n raus) und die Card (rendert jeden String mit Haken in Tier-Farbe).
+- **Kein Schema-Migration noetig**: die jsonb-Spalte bleibt; nur die App-Interpretation und die (leeren) Prod-Daten aendern sich. Lokale Demo-Daten wurden auf `string[]` zurueckgesetzt.
+- **Card-Ausrichtung**: Beschreibung, Rate-Limits und Attribution sind linksbuendig; Bullet-Icon und Label vertikal zueinander zentriert. (Ersetzt die urspruengliche zentrierte Darstellung; die Abgrenzung "keine Aenderung an Rate-Limit-/Attribution-Zeilen" ist damit ueberholt.)
