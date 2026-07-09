@@ -59,17 +59,16 @@ Beispiel-Szenario (vom User): Nutzer klickt einen Similar Artist (Different-Albu
 - [x] `preloadResolvedMedia` implementiert (`preload-media.ts`): `raceReady` (Timeout `PRELOAD_TIMEOUT_MS = 15000` + Abort + Ready), `decodeCover` (`Image.decode`, guarded), `preloadAudio` (`new Audio()`, `preload="auto"`, `canplaythrough`/`loadedmetadata`/`error`, dann Element freigeben), `Promise.all`. Fehler-/Timeout-tolerant. 4/4 Tests grün. **Das `resolveTrack`-Wiring ist erledigt (siehe unten): Different-Album-Gate mit `sameAlbum`-Check + Preload vor Dispatch.**
 - [x] Test grün. Biome. Commit (Helfer).
 
-### Task 2: `RecordSwapStage` oberhalb des Hub-Keys einsetzen
+### Task 2: `RecordSwapStage` in den Platter (Hub-Key stabil)
 
 **Files:**
 - Modify: `apps/frontend/src/components/cards/MediaCardHead.tsx` (Stage oberhalb des `TurntablePlayerProvider`-Keys platzieren, outgoing-Snapshot durchreichen)
 - ggf. Modify: `apps/frontend/src/components/turntable/TurntablePlayerParts.tsx` / `HubPlatter`, damit der incoming-Deck seinen Platten-Render an die Stage abgibt
 - Test: `apps/frontend/src/components/cards/MediaCardHead.test.tsx`
 
-- [ ] Failing Test: bei Different-Album-Wechsel überlebt die outgoing Platte den Hub-Remount sichtbar (Doppelpuffer aktiv), die incoming erscheint über die Stage.
-- [ ] Test rot.
-- [ ] `RecordSwapStage` so einsetzen, dass sie den Config-Wechsel überlebt (oberhalb des `key={turntableHubKey}`). Outgoing-Label-Props via Snapshot; incoming aus der neuen Config. Deck-Chrome/Spindel bleiben statisch. Sicherstellen, dass kein doppelter Platten-Render (Hub-Platter zusätzlich zur Stage) entsteht.
-- [ ] Test grün. React-Doctor `doctor:diff`. Biome. Commit.
+- [x] **Architektur-Entscheidung (Plan-Deviation, dokumentiert im Code):** Statt "Stage als Overlay oberhalb des Hub-Keys" den **Hub-Key entfernt/stabil** gemacht (kein Remount pro Track) und `RecordSwapStage` direkt in `TurntablePlayerPlatter` gesetzt. Grund: so ist die Platte by-construction korrekt platziert (kein fragiles Overlay-Positioning quer über die Hub-Grenze, keine Handoff-/Alignment-Probleme). Die alte Platte überlebt den Wechsel, weil der Hub nicht mehr remountet (die Audio-Engine reagiert per `previewUrl`-Sync auf den neuen Track, MC-111).
+- [x] `turntableHubKey` → `recordSwapKey` umgewidmet (jetzt die Swap-Identität statt Hub-Remount-Key). `MediaCardHead`: `key={hubKey}` entfernt, `swapKey={recordSwapKey(content)}` an beide Decks (`TurntablePlayer` + `Turntable`). `swapKey` durch `TurntablePlayerRoot`/`HubPlatter`/`TurntablePlayerPlatter` verkabelt; Platter rendert `RecordSwapStage(record, spinState, swapKey)` statt `VinylRecord`. Deck-Chrome/Spindel bleiben statisch, kein Doppel-Render.
+- [x] Tests: `recordSwapKey.test.ts` (3/3) + alle Deck-Aufrufer (Turntable/TurntablePlayer/SongInfo) mit `swapKey` versorgt. astro check 0 errors, Biome, Full-Doctor 0 issues, 342/342. Der Swap/Doppelpuffer selbst ist in `RecordSwapStage` (MC-112) getestet.
 
 ### Task 3: Coast-Kopplung + Sequenz-Trigger
 
@@ -129,7 +128,7 @@ Beispiel-Szenario (vom User): Nutzer klickt einen Similar Artist (Different-Albu
 ## Checkliste
 
 - [x] Task 1: Daten-Gate (Cover + Audio Preload) im `resolveTrack`
-- [ ] Task 2: `RecordSwapStage` oberhalb des Hub-Keys
+- [x] Task 2: `RecordSwapStage` in den Platter (Hub-Key stabil)
 - [ ] Task 3: Coast-Kopplung + Sequenz-Trigger
 - [ ] Task 4: Auto-Play best-effort
 - [ ] Task 5: Reduced-Motion + Cover-Swap-Interaktion + UI-Smoke

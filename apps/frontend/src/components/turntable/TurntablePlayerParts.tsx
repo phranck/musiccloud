@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { KnobDial } from "@/components/turntable/KnobDial";
+import { RecordSwapStage } from "@/components/turntable/RecordSwapStage";
 import {
   TurntablePower,
   type TurntablePower as TurntablePowerValue,
@@ -8,7 +9,7 @@ import {
   useTurntablePlayer,
 } from "@/components/turntable/TurntablePlayerContext";
 import { derivePower, speedKnobAngle } from "@/components/turntable/turntableState";
-import { VinylRecord, type VinylRecordProps } from "@/components/vinyl/VinylRecord";
+import type { VinylRecordProps } from "@/components/vinyl/VinylRecord";
 import type { VinylSpinState as VinylSpinStateValue } from "@/components/vinyl/VinylRecord.types";
 import { cn } from "@/lib/utils";
 
@@ -112,10 +113,12 @@ export function TurntablePlayerLed({ power }: TurntablePlayerLedProps) {
 
 /** Props for {@link TurntablePlayerPlatter}. */
 interface TurntablePlayerPlatterProps {
-  /** Visual spin state forwarded to the {@link VinylRecord}. */
+  /** Visual spin state forwarded to the resting record. */
   spinState: VinylSpinStateValue;
   /** The vinyl label/record props (artwork, title, catalog, ...). */
   record: Omit<VinylRecordProps, "spinState">;
+  /** Identity of the current record; a change runs the arc swap (see {@link RecordSwapStage}). */
+  swapKey: string;
 }
 
 /**
@@ -129,7 +132,8 @@ interface TurntablePlayerPlatterProps {
  *
  * @param props - {@link TurntablePlayerPlatterProps}.
  */
-export function TurntablePlayerPlatter({ spinState, record }: TurntablePlayerPlatterProps) {
+export function TurntablePlayerPlatter({ spinState, record, swapKey }: TurntablePlayerPlatterProps) {
+  const { className: recordClassName, ...labelRecord } = record;
   return (
     <>
       <span
@@ -140,7 +144,12 @@ export function TurntablePlayerPlatter({ spinState, record }: TurntablePlayerPla
       />
 
       <span className="absolute left-1/2 top-1/2 z-20 aspect-square w-[86%] -translate-x-1/2 -translate-y-1/2">
-        <VinylRecord {...record} className={cn("h-full w-full", record.className)} spinState={spinState} />
+        <RecordSwapStage
+          record={labelRecord}
+          spinState={spinState}
+          swapKey={swapKey}
+          className={cn("h-full w-full", recordClassName)}
+        />
       </span>
 
       {/* Contact shadow the raised spindle casts onto the record. Sits below the
@@ -292,6 +301,8 @@ export function TurntablePlayerControl({ speed, children }: TurntablePlayerContr
 interface HubPlatterProps {
   /** The vinyl label/record props; `spinState` comes from the hub. */
   record: Omit<VinylRecordProps, "spinState">;
+  /** Identity of the current record; a change runs the arc swap. */
+  swapKey: string;
 }
 
 /**
@@ -313,9 +324,9 @@ export function HubLed() {
  *
  * @param props - {@link HubPlatterProps}.
  */
-export function HubPlatter({ record }: HubPlatterProps) {
+export function HubPlatter({ record, swapKey }: HubPlatterProps) {
   const { spinState } = useTurntablePlayer();
-  return <TurntablePlayerPlatter record={record} spinState={spinState} />;
+  return <TurntablePlayerPlatter record={record} spinState={spinState} swapKey={swapKey} />;
 }
 
 /**
@@ -344,6 +355,8 @@ interface TurntablePlayerRootProps {
   className?: string;
   /** The vinyl label/record props; the platter pulls `speed`/`spinState` from the hub. */
   record: Omit<VinylRecordProps, "spinState" | "speed">;
+  /** Identity of the current record; a change runs the arc swap. */
+  swapKey: string;
 }
 
 /**
@@ -358,10 +371,10 @@ interface TurntablePlayerRootProps {
  *
  * @param props - {@link TurntablePlayerRootProps}.
  */
-export function TurntablePlayerRoot({ className, record }: TurntablePlayerRootProps) {
+export function TurntablePlayerRoot({ className, record, swapKey }: TurntablePlayerRootProps) {
   return (
     <TurntablePlayerSurface className={className}>
-      <HubPlatter record={record} />
+      <HubPlatter record={record} swapKey={swapKey} />
       <HubControl />
       <HubLed />
     </TurntablePlayerSurface>

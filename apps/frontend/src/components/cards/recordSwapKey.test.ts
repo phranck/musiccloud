@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { turntableHubKey } from "@/components/cards/turntableHubKey";
+import { recordSwapKey } from "@/components/cards/recordSwapKey";
 
-/** Minimal hub-key input used across the cases. */
+/** Minimal swap-key input used across the cases. */
 type Input = {
   artist: string;
   title: string;
@@ -21,20 +21,20 @@ const albumTrack: Input = {
   previewUrl: "https://cdn.example/so-what.mp3",
 };
 
-describe("turntableHubKey", () => {
-  it("is stable across tracks of the same album (so the hub does not remount)", () => {
+describe("recordSwapKey", () => {
+  it("is stable across tracks of the same album (so the record does not swap)", () => {
     const trackTwo: Input = {
       ...albumTrack,
       title: "Freddie Freeloader",
       shortId: "bbb",
       previewUrl: "https://cdn.example/freddie.mp3",
     };
-    expect(turntableHubKey(albumTrack)).toBe(turntableHubKey(trackTwo));
+    expect(recordSwapKey(albumTrack)).toBe(recordSwapKey(trackTwo));
   });
 
-  it("differs between different albums (so the hub remounts)", () => {
+  it("differs between different albums (so the record swaps)", () => {
     const otherAlbum: Input = { ...albumTrack, album: "Bitches Brew", title: "Spanish Key" };
-    expect(turntableHubKey(albumTrack)).not.toBe(turntableHubKey(otherAlbum));
+    expect(recordSwapKey(albumTrack)).not.toBe(recordSwapKey(otherAlbum));
   });
 
   it("is track-unique when the entity carries no album (single/artist)", () => {
@@ -52,6 +52,6 @@ describe("turntableHubKey", () => {
       shortId: "s2",
       previewUrl: "https://cdn.example/xtal.mp3",
     };
-    expect(turntableHubKey(singleOne)).not.toBe(turntableHubKey(singleTwo));
+    expect(recordSwapKey(singleOne)).not.toBe(recordSwapKey(singleTwo));
   });
 });

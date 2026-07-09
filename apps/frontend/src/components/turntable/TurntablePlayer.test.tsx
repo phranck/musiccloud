@@ -84,7 +84,7 @@ describe("TurntablePlayer compound", () => {
   it("renders the LED, platter, control and static knob labels", () => {
     const { container } = render(
       <StubHubProvider speed={TurntableSpeed.Rpm33} spinState={VinylSpinState.Playing}>
-        <TurntablePlayer record={RECORD} />
+        <TurntablePlayer record={RECORD} swapKey="tp-test" />
       </StubHubProvider>,
     );
 
@@ -182,7 +182,7 @@ describe("TurntablePlayer compound", () => {
   it("forwards the hub spin state to the embedded vinyl record", () => {
     render(
       <StubHubProvider speed={TurntableSpeed.Rpm33} spinState={VinylSpinState.Coasting}>
-        <TurntablePlayer.Platter record={RECORD} />
+        <TurntablePlayer.Platter record={RECORD} swapKey="tp-test" />
       </StubHubProvider>,
     );
 
@@ -200,7 +200,7 @@ describe("TurntablePlayer compound", () => {
 
     render(
       <StubHubProvider speed={TurntableSpeed.Rpm33} spinState={VinylSpinState.Playing}>
-        <TurntablePlayer.Platter record={RECORD} />
+        <TurntablePlayer.Platter record={RECORD} swapKey="tp-test" />
       </StubHubProvider>,
     );
 
@@ -248,7 +248,7 @@ function renderHubDeck() {
   return render(
     <LocaleProvider initialLocale="en">
       <TurntablePlayerProvider previewUrl="/preview.mp3" trackTitle="Blue Train">
-        <TurntablePlayer record={RECORD} />
+        <TurntablePlayer record={RECORD} swapKey="tp-test" />
         <TurntableAnalyzerSlot />
       </TurntablePlayerProvider>
     </LocaleProvider>,

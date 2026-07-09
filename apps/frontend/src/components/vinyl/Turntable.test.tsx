@@ -16,6 +16,7 @@ describe("Turntable", () => {
           labelYear: "1958",
           spinState: VinylSpinState.Playing,
         }}
+        swapKey="turntable-test"
       />,
     );
 

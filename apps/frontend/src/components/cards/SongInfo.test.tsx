@@ -26,6 +26,7 @@ function turntableStageNode(spinState: VinylSpinState) {
         labelYear: "1958",
         spinState,
       }}
+      swapKey="songinfo-test"
     />
   );
 }
