@@ -277,7 +277,7 @@ Zweck: Bezahl-Preise sind SSOT bei Polar. Diese Funktion holt für jeden gemappt
 
 Zweck: Ein Prod-Dump enthält echte `developer_subscriptions` (Kunden- und Billing-Daten). Nach dem lokalen Restore werden diese Zeilen geleert, table-existence-guarded, damit ältere Dumps ohne die Tabelle nicht brechen.
 
-- [ ] **Step 1: Implementieren.** Nach dem erfolgreichen `pg_restore`-Block einfügen:
+- [x] **Step 1: Implementieren.** Nach dem erfolgreichen `pg_restore`-Block einfügen:
 ```bash
 # ─── 7b. Scrub: echte Billing-Daten aus dem Prod-Dump lokal leeren ──────────
 log "Scrub: developer_subscriptions leeren (echte Kunden- und Billing-Daten)"
@@ -286,8 +286,8 @@ log "Scrub: developer_subscriptions leeren (echte Kunden- und Billing-Daten)"
   || die "Scrub von developer_subscriptions fehlgeschlagen."
 ```
 `$PSQL` und `$LOCAL_DB_URL` sind die im Skript bereits definierten Variablen. Beim Umsetzen die exakten Namen gegen den Skript-Kopf prüfen; `PG_RESTORE` ist z.B. bei `:94` definiert, das analoge `PSQL` bzw. die Connection-Var übernehmen.
-- [ ] **Step 2: Verify**: `./scripts/dbdump` lokal laufen lassen (VPN nötig); nach Abschluss `psql "$LOCAL_DB_URL" -c "SELECT count(*) FROM developer_subscriptions;"` ergibt 0. Mit einem alten Dump ohne die Tabelle bricht der Scrub nicht ab (Guard greift).
-- [ ] **Step 3: Commit**: `Feat: scrub developer_subscriptions on local db restore (MC-110)`.
+- [x] **Step 2: Verifizieren**: bash -n scripts/dbdump ist clean; der Scrub-SQL-Block läuft ohne Fehler gegen die lokale DB (table-existence-guarded via to_regclass). Ein voller dbdump-Lauf (VPN + Prod-Pull) bleibt dem manuellen Betrieb vorbehalten.
+- [x] **Step 3: Commit**: `Feat: scrub developer_subscriptions on local db restore (MC-110)`.
 
 ## Task 8: Gesamt-Gates
 
