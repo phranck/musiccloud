@@ -19,7 +19,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
 import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
+import { LabeledSwitch } from "@/components/ui/LabeledSwitch";
 import { useI18n } from "@/context/I18nContext";
 import type { TierResponse } from "@/features/developer/api";
 import { TierIconGlyph, TierIconPicker } from "@/features/developer/components/TierIconPicker";
@@ -389,28 +389,18 @@ function TierFormDialog({
               />
               {errors.name && <p className="text-xs text-red-400 mt-1">{errors.name}</p>}
             </div>
-            <div className="flex flex-col items-center gap-1">
-              <FormLabel htmlFor="tier-active">{dm.colActive}</FormLabel>
-              <div className="flex h-9 items-center">
-                <ToggleSwitch
-                  id="tier-active"
-                  checked={form.enabled}
-                  onChange={(checked) => onFormChange({ enabled: checked })}
-                  aria-label={dm.colActive}
-                />
-              </div>
-            </div>
-            <div className="flex flex-col items-center gap-1">
-              <FormLabel htmlFor="tier-recommended">{dm.colRecommended}</FormLabel>
-              <div className="flex h-9 items-center">
-                <ToggleSwitch
-                  id="tier-recommended"
-                  checked={form.recommended}
-                  onChange={(checked) => onFormChange({ recommended: checked })}
-                  aria-label={dm.colRecommended}
-                />
-              </div>
-            </div>
+            <LabeledSwitch
+              id="tier-active"
+              label={dm.colActive}
+              checked={form.enabled}
+              onChange={(checked) => onFormChange({ enabled: checked })}
+            />
+            <LabeledSwitch
+              id="tier-recommended"
+              label={dm.colRecommended}
+              checked={form.recommended}
+              onChange={(checked) => onFormChange({ recommended: checked })}
+            />
           </div>
 
           {/* Stays mounted so the reveal can animate; grid-row + opacity
@@ -481,17 +471,12 @@ function TierFormDialog({
             />
             {errors.requestsPerDay && <p className="text-xs text-red-400 mt-1">{errors.requestsPerDay}</p>}
           </div>
-          <div className="flex flex-col items-center gap-1">
-            <FormLabel htmlFor="tier-attribution">{dm.colAttribution}</FormLabel>
-            <div className="flex h-9 items-center">
-              <ToggleSwitch
-                id="tier-attribution"
-                checked={form.attributionRequired}
-                onChange={(checked) => onFormChange({ attributionRequired: checked })}
-                aria-label={dm.colAttribution}
-              />
-            </div>
-          </div>
+          <LabeledSwitch
+            id="tier-attribution"
+            label={dm.colAttribution}
+            checked={form.attributionRequired}
+            onChange={(checked) => onFormChange({ attributionRequired: checked })}
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
