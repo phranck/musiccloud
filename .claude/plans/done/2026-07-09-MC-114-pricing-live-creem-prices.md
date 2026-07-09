@@ -57,3 +57,7 @@ Die Developer-Pricing-Seite zeigt heute die Preise aus unserer `tiers`-Tabelle. 
 - Kein Pull von Name/Beschreibung/Farbe aus Creem (die bleiben unsere SoT).
 - Keine Checkout-/Kauf-Logik (Plan C).
 - Kein Cache-Bust-Endpoint: eine Creem-Preisaenderung erscheint nach der 5-min-TTL oder einem Backend-Restart.
+
+## Completed (2026-07-10)
+
+Umgesetzt und lokal verifiziert (Commit `49b53d2d`). Der Public-Tiers-Endpoint reichert die Preise live aus Creem an, die Pricing-Seite (`http://localhost:3002/pricing`) zeigt sie. Live-Pfad bewiesen (DB-Preis 999 vs. Endpoint 7). Der User hat bestaetigt: eine Preisaenderung im Creem-Dashboard schlaegt sofort durch. Randbefund: Creem-Produktpreise sind ueber die API unveraenderlich (kein `update`), im Dashboard aber editierbar.
