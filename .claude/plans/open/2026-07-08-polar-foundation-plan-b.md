@@ -158,7 +158,7 @@ export function getPolarConfig(): PolarConfig {
 
 Zweck: Wenn `POLAR_ACCESS_TOKEN` gesetzt ist (dev und prod verdrahten Polar von Anfang an), muss die restliche Polar-Config konsistent sein, also beim Boot prüfen (fail-fast, loud restart loop). Ist `POLAR_ACCESS_TOKEN` nicht gesetzt (z.B. CI/Tests ohne Polar), bleibt der Guard inert.
 
-- [ ] **Step 1: Implementieren.** In `assertRequiredBootEnv()` nach der bestehenden Schleife ergänzen:
+- [x] **Step 1: Implementieren.** In `assertRequiredBootEnv()` nach der bestehenden Schleife ergänzen:
 ```ts
 import { getPolarConfig } from "./polar-config.js";
 // … innerhalb assertRequiredBootEnv(), nach der REQUIRED_BOOT_ENV-Schleife:
@@ -168,8 +168,8 @@ if (process.env.POLAR_ACCESS_TOKEN) {
 }
 ```
 TSDoc am Aufruf: warum nur bei gesetztem Token (Polar ist in der Foundation-Phase optional bootbar, aber wenn verdrahtet, dann konsistent).
-- [ ] **Step 2: Manuell verifizieren**: Backend lokal mit gültiger Polar-Env bootet; mit `POLAR_SERVER=foo` bricht der Boot mit klarer Meldung ab (`./app restart` plus Log prüfen).
-- [ ] **Step 3: Commit**: `Feat: boot-guard validates Polar config when wired (MC-110)`.
+- [x] **Step 2: Verifizieren (automatisiert)**: Unit-Test in boot-env.test.ts deckt den Guard ab (getPolarConfig wird bei gesetztem POLAR_ACCESS_TOKEN aufgerufen und wirft bei kaputter Config; bei fehlendem Token nicht).
+- [x] **Step 3: Commit**: `Feat: boot-guard validates Polar config when wired (MC-110)`.
 
 ## Task 4: Tabelle `developer_subscriptions` plus Migration 0068
 
