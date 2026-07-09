@@ -5,10 +5,11 @@
 import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getTierRepository } from "../db/index.js";
+import { enrichTiersWithCreemPrices } from "../services/tier-pricing.js";
 
 export default async function publicTiersRoutes(app: FastifyInstance) {
   app.get(ENDPOINTS.v1.tiers, async () => {
     const repo = await getTierRepository();
-    return repo.listTiers();
+    return enrichTiersWithCreemPrices(await repo.listTiers());
   });
 }
