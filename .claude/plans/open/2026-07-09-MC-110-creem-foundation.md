@@ -1,312 +1,212 @@
-# Polar-Fundament (Developer-Subscription): Implementierungsplan
+# Creem-Fundament (Developer-Subscription): Implementierungsplan
 
 Plan-Nr.: MC-110
 
 ## TLDR
 
-Dieser Plan legt das Fundament dafür, dass das Developer-Portal später kostenpflichtige Abos verkaufen kann. Abgerechnet wird über Polar, einen Zahlungsdienst, der rechtlich selbst als Verkäufer auftritt (Merchant of Record) und damit Umsatzsteuer, Rechnungen und Rückerstattungen für uns übernimmt. Wir bauen hier bewusst nur die Grundlage, noch nicht den eigentlichen Kaufvorgang.
+Dieser Plan legt das Fundament dafür, dass das Developer-Portal später kostenpflichtige Abos verkaufen kann. Abgerechnet wird über Creem, einen EU-inkorporierten Zahlungsdienst (Estland), der rechtlich als Verkäufer auftritt (Merchant of Record) und damit Umsatzsteuer, Rechnungen und Rückerstattungen für uns übernimmt. Wir bauen hier nur die Grundlage, noch nicht den Kaufvorgang.
 
-Fundament heißt konkret: die Datenstrukturen und die Konfiguration, auf denen alles Bezahlte aufsetzt. In diesem Plan gibt es noch keinen Checkout, keinen Zahlungs-Webhook und keine Bedienoberfläche. Diese Teile kommen in den Folgeplänen C, D und E. Plan B bleibt absichtlich klein und in sich abgeschlossen, damit jeder Baustein einzeln testbar ist.
+Der Anbieter hat sich von Polar zu Creem geändert, weil EU-Inkorporation eine harte Anforderung ist und Polar eine US-Firma ist. Creem ist EU-nativ (Estland) und übernimmt die EU-Steuer über das OSS-Verfahren. Der Polar-spezifische Code wurde bereits zurückgebaut; die vendor-neutralen Teile (die Idee der Subscription-Tabelle, der dbdump-Scrub) bleiben und werden auf Creem angepasst.
 
-Was gebaut wird: eine Zuordnung, welcher unserer Tarife zu welchem Polar-Produkt gehört. Diese Zuordnung lebt in der Umgebungs-Konfiguration und nicht in der Datenbank, damit ein Produktions-Datenbank-Abzug lokal keine falschen Produkt-IDs mitbringt. Dazu kommen eine neue Datenbank-Tabelle für die Abo-Details eines Kunden, eine konfigurierte Verbindung zu Polar, die zwischen einer Test-Umgebung (Sandbox) und der echten Produktion umschaltbar ist, eine Prüfung der Polar-Zugangsdaten beim Start (damit eine Fehlkonfiguration laut auffällt statt still zu brechen), ein zwischengespeicherter Abruf des Polar-Preiskatalogs (die Preise sind die alleinige Wahrheit bei Polar, nicht bei uns), und ein Sicherheits-Schritt im Datenbank-Abzug-Skript, der echte Abrechnungsdaten löscht, wenn Produktionsdaten lokal eingespielt werden.
+Was gebaut wird: eine validierte Creem-Konfiguration (API-Key, Test- oder Live-Umgebung, Webhook-Secret), ein Creem-SDK-Client, die auf Creem umbenannte Subscription-Tabelle, ein server-seitiger Zugriff auf den Creem-Produktkatalog (Preise plus die Tier-Zuordnung, die aus der Product-Metadata kommt), und ein einmaliges Anlegen unserer Tier-Produkte in Creem. Bei Creem gibt es keine Env-Produktliste mehr: die Zuordnung Tier zu Produkt lebt in der Product-Metadata bei Creem selbst, damit Creem die alleinige Wahrheit bleibt.
 
-Warum es so geschnitten ist: Es ist die Verrohrung, auf der später der ganze Bezahlvorgang sitzt. Das Design sorgt dafür, dass Billing später nur ein Konfigurations-Schalter ist und dass vor dem gewollten Start kein echter Zahlvorgang aus Versehen passieren kann. Die Preise bleiben die alleinige Wahrheit bei Polar; unsere Tier-Tabelle behält nur Name, Limits und Flags.
+Ein wichtiger Unterschied zu Polar: Creems Checkout ist eine gehostete Weiterleitung (kein eingebettetes iframe). Der Kunde bezahlt auf Creems Seite und kommt zurück. Karten- und Bankdaten berühren unsere Server nie; die PCI-Verantwortung bleibt vollständig bei Creem. Der Checkout selbst kommt erst in Plan C, dieser Plan bereitet nur die Datenbasis vor.
 
-Voraussetzung von deiner Seite: Bevor dieser Plan sinnvoll getestet werden kann, brauchst du ein Polar-Sandbox-Konto und die dazugehörigen Zugangsdaten in der lokalen Umgebung. Ohne diese Sandbox lassen sich die Polar-nahen Schritte (SDK-Client und Katalog-Abruf) nicht real prüfen.
-
----
-
-> **Für agentische Worker:** REQUIRED SUB-SKILL: `superpowers:subagent-driven-development` (empfohlen) oder `superpowers:executing-plans`, um diesen Plan Task für Task umzusetzen. Steps nutzen Checkbox-Syntax (`- [ ]`). Beim Abarbeiten SOFORT im Dokument abhaken (Plan ist die Referenz für den Stand, keine Batch-Nachträge). Alle neuen Texte em-dash-frei.
-
-**Goal:** Das Datenmodell- und Config-Fundament für Polar-Billing im Developer-Portal bauen (ohne Checkout, Webhook oder UI): Env-Product-Mapping, `developer_subscriptions`-Tabelle, Polar-SDK-Client, `POLAR_*`-Config plus Boot-Guard, server-seitiger Polar-Katalog-Fetch, und ein `dbdump`-Scrub für echte Billing-Daten.
-
-**Architecture:** Alles config- und datengetrieben, keine Code-Verzweigung zwischen Sandbox und Prod. Das Tier→Polar-Product-Mapping lebt in Env (`POLAR_PRODUCTS` als JSON), nicht in der DB. So bringt ein Prod-Dump keine falschen Product-IDs nach lokal. Bezahl-Preise sind SSOT bei Polar (Katalog-Fetch, server-seitig gecacht), nicht in `tiers`. Die neue Tabelle `developer_subscriptions` trägt nur Polar-Billing-Details; `account.tierId` bleibt der effektive Tier und wird erst in Plan C vom Webhook geschrieben. Der SDK-Client wird per `POLAR_SERVER` auf Sandbox oder Prod gestellt, gespiegelt am bestehenden GitHub-OAuth-Env-Muster.
-
-**Tech Stack:** Fastify plus Drizzle (Postgres) plus `@polar-sh/sdk` (Backend), Vitest (Tests), drizzle-kit (Schema-Migration), Bash (`scripts/dbdump`).
-
-**Referenz-Spec:** `docs/superpowers/specs/2026-07-08-signup-flow-polar-billing-design.md`, Sektion 3 (Polar-Mechanik/Datenmodell) plus Sektion 6 (Plan-Split, Plan B). Reconciliation: Diese (2026-07-08) Spec schlägt die ältere `2026-07-04-developer-api-monetization-design.md`. Preise sind SSOT bei Polar, nicht in `tiers` oder einer Code-Konstante; das Tier→Product-Mapping liegt in Env, nicht in der DB.
+Voraussetzung von deiner Seite: ein Creem-Konto mit einem Test-API-Key (`creem_test_...`) und einem Webhook-Secret, eingetragen in `apps/backend/.env.local`. Die alten `POLAR_*`-Variablen können raus.
 
 ---
 
-## Verifizierte Fakten (2026-07-08, per grep/Read)
+> **Für agentische Worker:** REQUIRED SUB-SKILL: `superpowers:subagent-driven-development` (empfohlen) oder `superpowers:executing-plans`. Steps nutzen Checkbox-Syntax (`- [ ]`), beim Abarbeiten SOFORT im Dokument abhaken. Alle neuen Texte em-dash-frei.
 
-- **Migrationen:** letzte ist `0067_backfill_accounts_tier_free.sql` (MC-109). Die neue Tabelle wird `0068` und via `pnpm db:generate` (`drizzle-kit generate --config=drizzle.config.postgres.ts`, root `package.json`) aus dem Schema-Diff erzeugt, also kein hand-geschriebenes SQL (das war nur Plan As reine Daten-Migration). Anwenden: `pnpm db:migrate` (= `node scripts/migrate.mjs`) oder Backend-Boot. drizzle-kit `^0.31.10`.
-- **Schema-Datei:** `apps/backend/src/db/schemas/postgres.ts`. Stil (verifiziert an `developerAccounts` `:1558-1574`): `pgTable("name", { … }, (table) => [uniqueIndex(...), check(...)])`; Spalten `text("col")`, `timestamp("col", { withTimezone: true })`, FK `text("x_id").references(() => other.id, { onDelete: "…" })`, `.notNull()`, `.defaultNow()`, `.unique()`; Typ-Exports `typeof x.$inferSelect` und `$inferInsert`. `tiers` (`:1786`) und `developerAccounts` (`:1558`) mit `id: text("id").primaryKey()`.
-- **Env:** `apps/backend/src/lib/env.ts` bietet `requireEnv(name)` (throws bei fehlend/leer) plus `requireEnvList(name)`. `apps/backend/src/lib/boot-env.ts` hat `REQUIRED_BOOT_ENV`-Array plus `assertRequiredBootEnv()` (loopt, `requireEnv` je Var). Config-Sammelstelle: `apps/backend/src/lib/config.ts`.
-- **Env-Muster (Vorbild):** `GITHUB_OAUTH_CLIENT_ID`/`GITHUB_OAUTH_CLIENT_SECRET` via `requireEnv` in `apps/backend/src/services/developer-github.ts:79,100,101`. Secrets in `apps/backend/.env.local` (gitignored) vs Zerops-Prod.
-- **`@polar-sh/sdk`:** NICHT installiert (grep über alle package.json). Muss als Backend-Dependency ergänzt werden. Den `pnpm add`-Befehl führt der User aus (Install-Regel); der Plan liefert nur den Befehl.
-- **DB-Adapter:** ein Adapter `apps/backend/src/db/adapters/postgres.ts` (`PostgresAdapter`), gewählt in `apps/backend/src/db/index.ts:2`. Repos: `TrackRepository`, `AdminRepository`, `ApiAccessRepository`, `DeveloperRepository`, `CcRepository`, `TierRepository`. Neue Subscription-Schreib-Methoden gehören erst zu Plan C (Webhook); Plan B legt nur Tabelle plus Typen an.
-- **`scripts/dbdump`** (Bash, ausführbar, ~250 Z.): Sektion „7. pg_restore" ab Z.209, Sektion „8. Verify + Cleanup" ab Z.241. Scrub-Insert-Punkt: nach erfolgreichem `pg_restore` (nach Z.238), vor Sektion 8.
+**Goal:** Das Datenmodell- und Config-Fundament für Creem-Billing im Developer-Portal bauen (ohne Checkout, Webhook-Handler oder UI): Creem-Config plus Boot-Guard, Creem-SDK-Client, Umbau der `developer_subscriptions`-Tabelle auf Creem, server-seitiger Creem-Katalog-Fetch mit Tier-Zuordnung aus der Metadata, und das Anlegen der Tier-Produkte in Creem.
+
+**Architecture:** Creem ist die Source of Truth. Die Tier-zu-Produkt-Zuordnung lebt in der Creem-Product-Metadata (`tierId`), nicht in einer Env-Variable, damit ein Prod-Dump keine falschen Produkt-IDs mitbringt und Creem die einzige Quelle bleibt. Bezahl-Preise liegen bei Creem (Katalog-Fetch, server-seitig gecacht). Die Tabelle `developer_subscriptions` trägt nur Creem-Billing-Details; der effektive Tier wird erst in Plan C aus Creem gespiegelt. Test- oder Live-Umgebung ergibt sich aus dem Key-Prefix (`creem_test_`), gespiegelt am bestehenden GitHub-OAuth-Env-Muster.
+
+**Tech Stack:** Fastify plus Drizzle (Postgres) plus `creem` SDK (Backend), Vitest, drizzle-kit, Bash (`scripts/dbdump`).
+
+**Referenz:** Creem-Doku `https://docs.creem.io` (getting-started, api-reference, webhooks, llms-full). Die frühere Polar-Spec ist überholt; die vendor-neutralen Design-Entscheidungen (Flow, Sicherheitsmodell, Free als MoR-Subscription) bleiben gültig.
+
+---
+
+## Verifizierte Fakten (2026-07-09, per Doku/SDK-Inspektion)
+
+- **SDK:** `creem@^1.5.3` installiert (Polar-SDK entfernt, `cdca9655`). Exports u.a. `Creem`, `ServerTest`, `ServerProd`, `serverURLFromOptions`. Auth per Header `x-api-key`. Test-Base `https://test-api.creem.io/v1`, Live-Base `https://api.creem.io/v1`. Test vs Live ergibt sich aus dem Key-Prefix `creem_test_`.
+- **Free-Tier:** Creem unterstützt Free-Produkte (0-Preis) und Free-Subscriptions per API ohne Checkout (`POST /v1/subscriptions`).
+- **Products:** ein Produkt pro Intervall (month und year sind zwei Produkte). Billing-Perioden `every-month`, `every-three-months`, `every-six-months`, `every-year`. Metadata am Produkt (unsere `tierId` plus Limits/Flags).
+- **Subscription-Status (Creem):** `active`, `trialing`, `paused`, `past_due`, `expired`, `canceled`, `scheduled_cancel`.
+- **Entitlements:** webhook-getrieben (`checkout.completed`, `subscription.paid`, `subscription.active/canceled/expired`) plus abrufbar (`GET /v1/subscriptions/{id}`, `GET /v1/customers/{id}/subscriptions`). Webhook-Signatur per HMAC-SHA256 (timing-safe), Secret aus Env. Idempotenz per Upsert.
+- **Verknüpfung:** Metadata (unsere Account-ID) plus `request_id` an der Checkout-/Subscription-Erstellung.
+- **Schema:** `apps/backend/src/db/schemas/postgres.ts`. `developerSubscriptions` existiert bereits (Migration `0068`), trägt aber noch Polar-Spalten (`polarSubscriptionId` `:1659`, `polarCustomerId` `:1660`, Index `uq_developer_subscriptions_polar_id` `:1669`) und Polar-Status. Muss auf Creem umbenannt und die Status-Constraint auf Creems Werte gesetzt werden. Letzte Migration `0068`, neue wird `0069`.
+- **Env:** `apps/backend/src/lib/env.ts` (`requireEnv`), `boot-env.ts` (`assertRequiredBootEnv`, wieder Polar-frei), `config.ts`. Muster `GITHUB_OAUTH_*` via `requireEnv` in `services/developer-github.ts`.
+- **dbdump-Scrub:** bereits umgesetzt (vendor-neutral, leert `developer_subscriptions`), `scripts/dbdump` ist ein gitignored lokaler Helper.
 
 **Verifikations-Checkliste:**
-- [ ] Alle Code-Referenzen vor Task-Start re-verifiziert (Migrationsnummer via `ls` der postgres-migrations, `env.ts`/`boot-env.ts`/`config.ts`-Pfade, Schema-Stil, `dbdump`-Sektionsgrenzen, `@polar-sh/sdk`-Version).
+- [ ] Alle Code-Referenzen vor Task-Start re-verifiziert (Migrationsnummer via `ls`, Schema-Zeilen, Creem-SDK-Konstruktor und Methodennamen gegen `creem@1.5.3`, Creem-Produkt- und Subscription-Endpunkte gegen die aktuelle Doku).
 
-## Manuelle Voraussetzung (Phase 0, User-Aufgabe, NICHT Plan-Code)
+## Manuelle Voraussetzung (Phase 0, deine Aufgabe)
 
-- Bei sandbox.polar.sh registrieren, Organisation anlegen, Organization Access Token erzeugen.
-- Pro Bezahl-Tier zwei Sandbox-Products (monatlich und jährlich), Product-IDs kopieren.
-- In `apps/backend/.env.local` setzen: `POLAR_SERVER=sandbox`, `POLAR_ACCESS_TOKEN=<sandbox-token>`, `POLAR_WEBHOOK_SECRET=<sandbox-signing-secret>` (Secret erst in Plan C zwingend, hier optional), `POLAR_PRODUCTS=<JSON, siehe Task 2>`.
+- Bei Creem registrieren (EU/Estland), einen **Test-API-Key** (`creem_test_...`) und ein **Webhook-Secret** erzeugen.
+- In `apps/backend/.env.local`: `CREEM_API_KEY=creem_test_...` und `CREEM_WEBHOOK_SECRET=...` setzen. Die alten `POLAR_*`-Zeilen entfernen.
+- Die Tier-Produkte legt Task 7 per Skript an (kein manuelles Klicken nötig).
 
 ## Dateistruktur
 
-- `apps/backend/package.json`: `@polar-sh/sdk`-Dependency (User-Install).
-- `apps/backend/src/lib/polar-config.ts` (neu): liest und validiert `POLAR_SERVER`, `POLAR_ACCESS_TOKEN`, `POLAR_WEBHOOK_SECRET`, `POLAR_PRODUCTS`; exportiert typisierte `PolarConfig` plus `getPolarConfig()` (throw bei Inkonsistenz).
-- `apps/backend/src/lib/boot-env.ts` (modify): Polar-Konsistenz-Guard, nur wenn `POLAR_ACCESS_TOKEN` gesetzt ist.
-- `apps/backend/src/db/schemas/postgres.ts` (modify): Tabelle `developerSubscriptions` plus Typ-Exports.
-- `apps/backend/src/db/migrations/postgres/0068_*.sql` plus `meta/_journal.json`: generiert via `db:generate`.
-- `apps/backend/src/services/polar-client.ts` (neu): `getPolarClient()` (Singleton `new Polar({ accessToken, server })`).
-- `apps/backend/src/services/polar-catalog.ts` (neu): `getPolarCatalog()` (Produkt-Preise plus Währungen je gemapptem Product, in-memory-Cache mit TTL).
-- `scripts/dbdump` (modify): Scrub-Schritt (`developer_subscriptions` leeren, `to_regclass`-guarded).
+- `apps/backend/src/lib/creem-config.ts` (neu): liest/validiert `CREEM_API_KEY` (leitet Test/Live aus dem Prefix ab) und `CREEM_WEBHOOK_SECRET`; exportiert `CreemConfig` plus `getCreemConfig()`.
+- `apps/backend/src/lib/boot-env.ts` (modify): Creem-Konsistenz-Guard, nur wenn `CREEM_API_KEY` gesetzt.
+- `apps/backend/src/db/schemas/postgres.ts` (modify): `developerSubscriptions` auf Creem umbenennen (Spalten, Index, Status-Constraint).
+- `apps/backend/src/db/migrations/postgres/0069_*.sql` plus Journal: via `db:generate`.
+- `apps/backend/src/services/creem-client.ts` (neu): `getCreemClient()` (Singleton, Test/Live-Server aus der Config).
+- `apps/backend/src/services/creem-catalog.ts` (neu): `getCreemCatalog()` (Produkte listen, Tier-Zuordnung aus Metadata ableiten, Preise, In-memory-Cache mit TTL).
+- `scripts/creem-seed.mjs` (neu, gitignored lokaler Helper wie dbdump): legt die Tier-Produkte in Creem an (Metadata `tierId` plus Limits).
 
-**Tests:**
-- `apps/backend/src/lib/polar-config.test.ts` (neu).
-- `apps/backend/src/services/polar-client.test.ts` (neu).
-- `apps/backend/src/services/polar-catalog.test.ts` (neu).
+**Tests:** `creem-config.test.ts`, `creem-client.test.ts`, `creem-catalog.test.ts`.
 
 ---
 
-## Task 1: `@polar-sh/sdk`-Dependency ergänzen (User-Install)
+## Task 1: `creem` SDK-Dependency
 
-**Files:** Modify `apps/backend/package.json`
+- [x] **Step 1: Dependency-Swap** durchgeführt: `@polar-sh/sdk` entfernt, `creem@^1.5.3` hinzugefügt (`cdca9655`), lädt sauber.
 
-- [x] **Step 1: Dependency hinzufügen (USER führt aus, Install-Regel).**
+## Task 2: Creem-Config lesen plus validieren (`creem-config.ts`)
 
-Befehl an den User weitergeben, nicht selbst ausführen:
-```bash
-pnpm --filter @musiccloud/backend add @polar-sh/sdk
-```
-- [x] **Step 2: Verify**: `grep '@polar-sh/sdk' apps/backend/package.json` zeigt einen Eintrag; `pnpm --filter @musiccloud/backend exec node -e "require('@polar-sh/sdk')"` wirft nicht.
-- [x] **Step 3: Commit**: `Chore: add @polar-sh/sdk backend dependency (MC-110)`.
+**Files:** Create `apps/backend/src/lib/creem-config.ts`, Test `apps/backend/src/lib/creem-config.test.ts`
 
-## Task 2: Polar-Config lesen plus validieren (`polar-config.ts`)
+Zweck: Eine typisierte, an einer Stelle validierte Sicht auf die Creem-Env. Test vs Live folgt aus dem Key-Prefix `creem_test_`.
 
-**Files:**
-- Create: `apps/backend/src/lib/polar-config.ts`
-- Test: `apps/backend/src/lib/polar-config.test.ts`
-
-Zweck: Eine typisierte, an einer Stelle validierte Sicht auf die Polar-Env. `POLAR_PRODUCTS` ist ein JSON-String der Form `{ "<tierId>": { "month": "<polarProductId>", "year": "<polarProductId>" } }` (Free hat keinen Eintrag). Fehlerhaftes JSON oder falscher `POLAR_SERVER` führt zu throw (fail-fast), nie zu stillem Fallback.
-
-- [x] **Step 1: Failing test**: `polar-config.test.ts`: `getPolarConfig()` mit gesetzten `POLAR_SERVER=sandbox`, `POLAR_ACCESS_TOKEN=tok`, `POLAR_PRODUCTS='{"tier_club":{"month":"prod_m","year":"prod_y"}}'` (via `vi.stubEnv`) liefert `{ server: "sandbox", accessToken: "tok", products: { tier_club: { month: "prod_m", year: "prod_y" } }, webhookSecret: undefined }`. Fehlerfälle: `POLAR_SERVER=foo` throwt; `POLAR_PRODUCTS='{invalid'` throwt; Product-Eintrag ohne `month` throwt.
-- [x] **Step 2: Fails**: `pnpm --filter @musiccloud/backend test:run polar-config` FAIL (Modul fehlt).
+- [x] **Step 1: Failing test**: `getCreemConfig()` mit `CREEM_API_KEY=creem_test_abc` liefert `{ apiKey: "creem_test_abc", mode: "test", webhookSecret: undefined }`; mit einem Key ohne `creem_test_`-Prefix `mode: "live"`; mit gesetztem `CREEM_WEBHOOK_SECRET` wird es zurückgegeben; fehlender `CREEM_API_KEY` wirft. `vi.stubEnv` plus `vi.unstubAllEnvs()`, Muster aus einem bestehenden `apps/backend/src/**/*.test.ts`.
+- [x] **Step 2: Fails**: `pnpm --filter @musiccloud/backend test:run creem-config` FAIL.
 - [x] **Step 3: Implementieren.**
 ```ts
 import { requireEnv } from "./env.js";
 
-/** Ein Tier→Polar-Product-Mapping-Eintrag: je ein Polar-Product pro Abrechnungsintervall. */
-export interface PolarProductPair {
-  month: string;
-  year: string;
-}
-
-/** Validierte Polar-Laufzeit-Config, an einer Stelle gelesen (fail-fast bei Fehlkonfiguration). */
-export interface PolarConfig {
-  server: "sandbox" | "production";
-  accessToken: string;
+/** Validierte Creem-Laufzeit-Config, an einer Stelle gelesen (fail-fast). */
+export interface CreemConfig {
+  apiKey: string;
+  mode: "test" | "live";
   webhookSecret: string | undefined;
-  /** tierId auf { month, year } Polar-Product-IDs. Der Free-Tier hat keinen Eintrag. */
-  products: Record<string, PolarProductPair>;
-}
-
-function parseProducts(raw: string): Record<string, PolarProductPair> {
-  let obj: unknown;
-  try {
-    obj = JSON.parse(raw);
-  } catch {
-    throw new Error("POLAR_PRODUCTS is not valid JSON.");
-  }
-  if (typeof obj !== "object" || obj === null || Array.isArray(obj)) {
-    throw new Error("POLAR_PRODUCTS must be a JSON object of tierId to { month, year }.");
-  }
-  const out: Record<string, PolarProductPair> = {};
-  for (const [tierId, pair] of Object.entries(obj as Record<string, unknown>)) {
-    if (typeof pair !== "object" || pair === null) {
-      throw new Error(`POLAR_PRODUCTS["${tierId}"] must be an object with month and year.`);
-    }
-    const { month, year } = pair as Record<string, unknown>;
-    if (typeof month !== "string" || !month || typeof year !== "string" || !year) {
-      throw new Error(`POLAR_PRODUCTS["${tierId}"] needs non-empty string "month" and "year".`);
-    }
-    out[tierId] = { month, year };
-  }
-  return out;
 }
 
 /**
- * Reads and validates the Polar runtime config from the environment. Throws on
- * any inconsistency (unknown server, malformed product map) so misconfiguration
- * fails fast instead of silently disabling billing at request time.
+ * Reads and validates the Creem runtime config from the environment. The mode
+ * (test vs live) is derived from the API key prefix, so a test key can never
+ * accidentally hit live and vice versa.
  */
-export function getPolarConfig(): PolarConfig {
-  const server = requireEnv("POLAR_SERVER");
-  if (server !== "sandbox" && server !== "production") {
-    throw new Error(`POLAR_SERVER must be "sandbox" or "production", got "${server}".`);
-  }
+export function getCreemConfig(): CreemConfig {
+  const apiKey = requireEnv("CREEM_API_KEY");
   return {
-    server,
-    accessToken: requireEnv("POLAR_ACCESS_TOKEN"),
-    webhookSecret: process.env.POLAR_WEBHOOK_SECRET || undefined,
-    products: parseProducts(requireEnv("POLAR_PRODUCTS")),
+    apiKey,
+    mode: apiKey.startsWith("creem_test_") ? "test" : "live",
+    webhookSecret: process.env.CREEM_WEBHOOK_SECRET || undefined,
   };
 }
 ```
-- [x] **Step 4: Grün**: `pnpm --filter @musiccloud/backend test:run polar-config` PASS.
-- [x] **Step 5: Commit**: `Feat: read and validate Polar env config (MC-110)`.
+- [x] **Step 4: Grün** PASS.
+- [x] **Step 5: Commit**: `Feat: read and validate Creem env config (MC-110)`.
 
-## Task 3: Boot-Guard für Polar-Konsistenz (`boot-env.ts`)
+## Task 3: Boot-Guard für Creem-Config (`boot-env.ts`)
 
-**Files:** Modify `apps/backend/src/lib/boot-env.ts`
+**Files:** Modify `apps/backend/src/lib/boot-env.ts`, Test `apps/backend/src/lib/boot-env.test.ts`
 
-Zweck: Wenn `POLAR_ACCESS_TOKEN` gesetzt ist (dev und prod verdrahten Polar von Anfang an), muss die restliche Polar-Config konsistent sein, also beim Boot prüfen (fail-fast, loud restart loop). Ist `POLAR_ACCESS_TOKEN` nicht gesetzt (z.B. CI/Tests ohne Polar), bleibt der Guard inert.
-
-- [x] **Step 1: Implementieren.** In `assertRequiredBootEnv()` nach der bestehenden Schleife ergänzen:
+- [ ] **Step 1: Failing test**: Guard mit `vi.mock("./creem-config.js")`. Bei gesetztem `CREEM_API_KEY` wird `getCreemConfig` aufgerufen und wirft weiter; bei fehlendem Key nicht.
+- [ ] **Step 2: Fails**: `pnpm --filter @musiccloud/backend test:run boot-env` FAIL.
+- [ ] **Step 3: Implementieren.** In `assertRequiredBootEnv()` nach der Schleife:
 ```ts
-import { getPolarConfig } from "./polar-config.js";
-// … innerhalb assertRequiredBootEnv(), nach der REQUIRED_BOOT_ENV-Schleife:
-if (process.env.POLAR_ACCESS_TOKEN) {
-  // Wirft bei falschem POLAR_SERVER oder kaputtem POLAR_PRODUCTS.
-  getPolarConfig();
+import { getCreemConfig } from "./creem-config.js";
+// nach der REQUIRED_BOOT_ENV-Schleife:
+if (process.env.CREEM_API_KEY) {
+  getCreemConfig();
 }
 ```
-TSDoc am Aufruf: warum nur bei gesetztem Token (Polar ist in der Foundation-Phase optional bootbar, aber wenn verdrahtet, dann konsistent).
-- [x] **Step 2: Verifizieren (automatisiert)**: Unit-Test in boot-env.test.ts deckt den Guard ab (getPolarConfig wird bei gesetztem POLAR_ACCESS_TOKEN aufgerufen und wirft bei kaputter Config; bei fehlendem Token nicht).
-- [x] **Step 3: Commit**: `Feat: boot-guard validates Polar config when wired (MC-110)`.
+Kommentar: warum nur bei gesetztem Key (Creem in der Foundation-Phase optional bootbar, aber wenn verdrahtet, dann konsistent).
+- [ ] **Step 4: Grün** PASS.
+- [ ] **Step 5: Commit**: `Feat: boot-guard validates Creem config when wired (MC-110)`.
 
-## Task 4: Tabelle `developer_subscriptions` plus Migration 0068
+## Task 4: `developer_subscriptions` auf Creem umbauen (Migration 0069)
 
-**Files:**
-- Modify: `apps/backend/src/db/schemas/postgres.ts`
-- Generated: `apps/backend/src/db/migrations/postgres/0068_*.sql` plus `meta/_journal.json`
+**Files:** Modify `apps/backend/src/db/schemas/postgres.ts`, Generated `0069_*.sql` plus Journal
 
-- [x] **Step 1: Schema ergänzen** (nach den developer-Tabellen, Stil wie `developerAccounts`):
+- [ ] **Step 1: Schema anpassen** an `developerSubscriptions`: `polarSubscriptionId` zu `creemSubscriptionId` (Spalte `creem_subscription_id`), `polarCustomerId` zu `creemCustomerId` (`creem_customer_id`), Index `uq_developer_subscriptions_polar_id` zu `uq_developer_subscriptions_creem_id`. Status-Check-Constraint auf Creems Werte: ``sql`${table.status} IN ('active', 'trialing', 'paused', 'past_due', 'expired', 'canceled', 'scheduled_cancel')` ``. Den TSDoc-Kommentar von Polar auf Creem umschreiben (keine Em-Dashes, kein Polar mehr). `interval` bleibt `month`/`year` (unsere normalisierte Form; Creems `every-month` wird in Plan C darauf gemappt).
+- [ ] **Step 2: Migration generieren**: `pnpm db:generate`. Erwartet `0069_*.sql` mit Spalten-Rename plus Constraint-Wechsel. Generiertes SQL sichten: es soll nur `developer_subscriptions` betreffen. Falls drizzle-kit einen Rename als drop-and-add auflöst, ist das hier unkritisch (Tabelle ist leer), aber im SQL prüfen.
+- [ ] **Step 3: Anwenden**: `pnpm db:migrate` gegen die lokale DB (Port 5433). Kein Fehler.
+- [ ] **Step 4: Verify**: `psql "$LOCAL_DB_URL" -c "\d developer_subscriptions"` zeigt `creem_subscription_id`, `creem_customer_id`, den umbenannten Index und die neue Status-Constraint.
+- [ ] **Step 5: Commit**: `Feat: retarget developer_subscriptions at Creem (MC-110)`.
+
+## Task 5: Creem-SDK-Client (`creem-client.ts`)
+
+**Files:** Create `apps/backend/src/services/creem-client.ts`, Test `apps/backend/src/services/creem-client.test.ts`
+
+- [ ] **Step 1: Failing test**: `getCreemClient()` (mit gemocktem `getCreemConfig` auf `{ apiKey: "creem_test_x", mode: "test", webhookSecret: undefined }`) liefert eine Instanz und beim zweiten Aufruf dieselbe (Singleton). `creem` mit `vi.mock` stubben.
+- [ ] **Step 2: Fails**: `pnpm --filter @musiccloud/backend test:run creem-client` FAIL.
+- [ ] **Step 3a: SDK-Shape verifizieren**: den exakten Konstruktor gegen `creem@1.5.3` prüfen (Option `serverURL` vs `serverIdx`, wie der `x-api-key` gesetzt wird: Konstruktor-Security vs pro Call). Nichts erfinden.
+- [ ] **Step 3: Implementieren.** Erwartete Form (an die verifizierte SDK-Signatur anpassen):
 ```ts
-/**
- * Polar billing detail per paid subscription. Kept separate from
- * developer_accounts (SRP): account.tierId stays the effective tier for
- * enforcement, this table only mirrors Polar's billing state. Free accounts
- * have no row here. Written by the Polar webhook (Plan C), read by the
- * subscription-management UI (Plan D). polarSubscriptionId is unique so the
- * idempotent webhook can upsert by it.
- */
-export const developerSubscriptions = pgTable(
-  "developer_subscriptions",
-  {
-    id: text("id").primaryKey(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => developerAccounts.id, { onDelete: "cascade" }),
-    tierId: text("tier_id")
-      .notNull()
-      .references(() => tiers.id, { onDelete: "restrict" }),
-    polarSubscriptionId: text("polar_subscription_id").notNull().unique(),
-    polarCustomerId: text("polar_customer_id").notNull(),
-    status: text("status").notNull(),
-    interval: text("interval").notNull(),
-    currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
-    cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [
-    uniqueIndex("uq_developer_subscriptions_polar_id").on(table.polarSubscriptionId),
-    check(
-      "chk_developer_subscriptions_status",
-      sql`${table.status} IN ('active', 'canceled', 'past_due', 'revoked', 'incomplete')`,
-    ),
-    check("chk_developer_subscriptions_interval", sql`${table.interval} IN ('month', 'year')`),
-  ],
-);
+import { Creem, ServerTest, ServerProd } from "creem";
+import { getCreemConfig } from "../lib/creem-config.js";
 
-export type DeveloperSubscriptionRow = typeof developerSubscriptions.$inferSelect;
-export type DeveloperSubscriptionInsert = typeof developerSubscriptions.$inferInsert;
-```
-Sicherstellen, dass `boolean` aus `drizzle-orm/pg-core` importiert ist; falls nicht, Import ergänzen.
-- [x] **Step 2: Migration generieren**: `pnpm db:generate`. Erwartet: neue `0068_*.sql` mit `CREATE TABLE "developer_subscriptions"` plus Journal-Eintrag idx 68. Generiertes SQL sichten (FKs, Unique-Index, Checks vorhanden).
-- [x] **Step 3: Anwenden**: `pnpm db:migrate` (lokaler Postgres, Port 5433). Kein Fehler.
-- [x] **Step 4: Verify**: `psql "$LOCAL_DB_URL" -c "\d developer_subscriptions"` zeigt die Tabelle plus Constraints; Migrations-Tail in `drizzle.__drizzle_migrations` enthält 0068.
-- [x] **Step 5: Commit**: `Feat: add developer_subscriptions table (Polar billing detail) (MC-110)`.
-
-## Task 5: Polar-SDK-Client-Factory (`polar-client.ts`)
-
-**Files:**
-- Create: `apps/backend/src/services/polar-client.ts`
-- Test: `apps/backend/src/services/polar-client.test.ts`
-
-- [ ] **Step 1: Failing test**: `polar-client.test.ts`: `getPolarClient()` (mit gemockter `getPolarConfig` via `vi.mock("../lib/polar-config.js")` auf `{ server: "sandbox", accessToken: "tok", products: {}, webhookSecret: undefined }`) liefert eine Instanz, und ein zweiter Aufruf liefert dieselbe Instanz (Singleton). `@polar-sh/sdk` mit `vi.mock` stubben, sodass der `Polar`-Ctor mit `{ accessToken: "tok", server: "sandbox" }` aufgerufen wird.
-- [ ] **Step 2: Fails**: `pnpm --filter @musiccloud/backend test:run polar-client` FAIL.
-- [ ] **Step 3: Implementieren.**
-```ts
-import { Polar } from "@polar-sh/sdk";
-import { getPolarConfig } from "../lib/polar-config.js";
-
-let instance: Polar | null = null;
+let instance: Creem | null = null;
 
 /**
- * Returns the singleton Polar SDK client, configured from the validated env
- * (getPolarConfig). server selects the sandbox vs production Polar backend;
- * the account token is env-specific, so there is one dev-Polar and one
- * prod-Polar, never a shared client.
+ * Returns the singleton Creem SDK client. The server (test vs live) follows the
+ * config mode, which is derived from the API key prefix. The api key is the
+ * x-api-key security option (verify the exact wiring against creem@1.5.3).
  */
-export function getPolarClient(): Polar {
+export function getCreemClient(): Creem {
   if (instance) return instance;
-  const { accessToken, server } = getPolarConfig();
-  instance = new Polar({ accessToken, server });
+  const { mode } = getCreemConfig();
+  instance = new Creem({ serverURL: mode === "test" ? ServerTest : ServerProd });
   return instance;
 }
 ```
-- [ ] **Step 4: Grün**: Test PASS.
-- [ ] **Step 5: Commit**: `Feat: add Polar SDK client factory (MC-110)`.
+- [ ] **Step 4: Grün** PASS.
+- [ ] **Step 5: Commit**: `Feat: add Creem SDK client factory (MC-110)`.
 
-## Task 6: Polar-Katalog-Fetch (Preise plus Währungen, gecacht)
+## Task 6: Creem-Katalog-Fetch mit Tier-Zuordnung aus Metadata
 
-**Files:**
-- Create: `apps/backend/src/services/polar-catalog.ts`
-- Test: `apps/backend/src/services/polar-catalog.test.ts`
+**Files:** Create `apps/backend/src/services/creem-catalog.ts`, Test `apps/backend/src/services/creem-catalog.test.ts`
 
-Zweck: Bezahl-Preise sind SSOT bei Polar. Diese Funktion holt für jeden gemappten Product die Preise plus verfügbaren Währungen, server-seitig, mit kurzem In-Memory-Cache (TTL, damit die Pricing-Seite Polar nicht bei jedem Request trifft). Nur Fetch, Shape und Cache. Die geo-basierte Währungswahl ist Plan E.
+Zweck: Bezahl-Preise und die Tier-Zuordnung sind bei Creem. Diese Funktion listet die Creem-Produkte, filtert die mit unserer `tierId`-Metadata und baut die Zuordnung `tierId -> { interval -> { productId, price, currency } }`, server-seitig, mit kurzem In-memory-Cache (TTL). Kein Env-Produkt-Mapping mehr.
 
-- [ ] **Step 1: Failing test**: `polar-catalog.test.ts`: `getPolarCatalog()` mit gemocktem Client (`getPolarClient` via `vi.mock` auf ein Objekt mit `products.get`/`products.list`, das ein Product mit Preisen liefert) und gemocktem `getPolarConfig` (products-Map mit einem Tier). Erwartung: liefert eine Map `productId` auf `{ prices: [{ currency, amount }] }`; ein zweiter Aufruf innerhalb der TTL ruft den Client nicht erneut (Cache-Hit; Aufrufzähler prüfen); nach abgelaufener TTL (Zeit via `vi.useFakeTimers` oder injizierbarem `now`) erneuter Fetch.
-- [ ] **Step 2: Fails**: `pnpm --filter @musiccloud/backend test:run polar-catalog` FAIL.
-- [ ] **Step 3: Implementieren.** Funktion iteriert über `getPolarConfig().products`, ruft den Client je Product-ID, extrahiert `{ currency, amount }`-Paare, cached das Ergebnis mit einem Modul-Level-Timestamp plus `CATALOG_TTL_MS` (Konstante, z.B. `5 * 60_000`). Die exakte SDK-Methode und die Feldnamen (`products.get(id)` vs `products.list`, Preis-Feldpfad) beim Implementieren gegen die installierte `@polar-sh/sdk`-Version verifizieren (Step 3a). TSDoc: SSOT-Begründung plus warum Cache (Rate und Latenz der Pricing-Seite).
-- [ ] **Step 3a: SDK-Shape verifizieren**: vor dem finalen Impl die reale Methoden- und Feldstruktur der installierten SDK prüfen (Typen in `node_modules/@polar-sh/sdk`), damit keine erfundenen Feldnamen im Code landen.
-- [ ] **Step 4: Grün**: Test PASS.
-- [ ] **Step 5: Commit**: `Feat: fetch and cache the Polar product catalog (MC-110)`.
+- [ ] **Step 1: Failing test**: `getCreemCatalog()` mit gemocktem Client, dessen Produkt-Liste ein Produkt mit `metadata.tierId` plus `metadata.interval` und einem Preis liefert. Erwartung: Map `tierId -> { interval -> { productId, price, currency } }`; zweiter Aufruf innerhalb der TTL trifft den Client nicht (Cache-Hit); nach abgelaufener TTL erneuter Fetch. Produkte ohne unsere `tierId`-Metadata werden ignoriert.
+- [ ] **Step 2: Fails**: `pnpm --filter @musiccloud/backend test:run creem-catalog` FAIL.
+- [ ] **Step 3a: SDK-Shape verifizieren**: die reale List-Products-Methode und die Feldpfade (Produkt-ID, Preis, Währung, `metadata`) gegen `creem@1.5.3` prüfen.
+- [ ] **Step 3: Implementieren.** Iteriert über die Produkt-Liste, filtert nach `metadata.tierId`, baut die Map, cached mit Modul-Timestamp plus `CATALOG_TTL_MS` (z.B. `5 * 60_000`). TSDoc: warum SoT bei Creem, warum Cache.
+- [ ] **Step 4: Grün** PASS.
+- [ ] **Step 5: Commit**: `Feat: fetch and cache the Creem product catalog (MC-110)`.
 
-## Task 7: `scripts/dbdump`, Scrub der Billing-Daten nach Restore
+## Task 7: Tier-Produkte in Creem anlegen (`scripts/creem-seed.mjs`)
 
-**Files:** Modify `scripts/dbdump` (nach `pg_restore`-Erfolg ~Z.238, vor Sektion 8 ab Z.241)
+**Files:** Create `scripts/creem-seed.mjs` (gitignored lokaler Helper, wie `scripts/dbdump`)
 
-Zweck: Ein Prod-Dump enthält echte `developer_subscriptions` (Kunden- und Billing-Daten). Nach dem lokalen Restore werden diese Zeilen geleert, table-existence-guarded, damit ältere Dumps ohne die Tabelle nicht brechen.
+Zweck: Die vier Tiers als Creem-Produkte anlegen, mit `tierId`, Preisen und Limits/Flags in der Metadata. Werte aus der Monetization-Spec (Demo frei; Club 9/90, Arena 29/290, Stadium 149/1490 Euro; je month und year; Demo nur ein Free-Produkt). Idempotent: vor dem Anlegen die vorhandenen Produkte listen und per `metadata.tierId` plus `interval` Duplikate überspringen.
 
-- [x] **Step 1: Implementieren.** Nach dem erfolgreichen `pg_restore`-Block einfügen:
-```bash
-# ─── 7b. Scrub: echte Billing-Daten aus dem Prod-Dump lokal leeren ──────────
-log "Scrub: developer_subscriptions leeren (echte Kunden- und Billing-Daten)"
-"$PSQL" "$LOCAL_DB_URL" -v ON_ERROR_STOP=1 -c \
-  "DO \$\$ BEGIN IF to_regclass('public.developer_subscriptions') IS NOT NULL THEN EXECUTE 'TRUNCATE TABLE public.developer_subscriptions'; END IF; END \$\$;" \
-  || die "Scrub von developer_subscriptions fehlgeschlagen."
-```
-`$PSQL` und `$LOCAL_DB_URL` sind die im Skript bereits definierten Variablen. Beim Umsetzen die exakten Namen gegen den Skript-Kopf prüfen; `PG_RESTORE` ist z.B. bei `:94` definiert, das analoge `PSQL` bzw. die Connection-Var übernehmen.
-- [x] **Step 2: Verifizieren**: bash -n scripts/dbdump ist clean; der Scrub-SQL-Block läuft ohne Fehler gegen die lokale DB (table-existence-guarded via to_regclass). Ein voller dbdump-Lauf (VPN + Prod-Pull) bleibt dem manuellen Betrieb vorbehalten.
-- [x] **Step 3: Commit**: `Feat: scrub developer_subscriptions on local db restore (MC-110)`.
+- [ ] **Step 1: Creem-Produkt-Create-Payload verifizieren** gegen `docs.creem.io/api-reference` (Feldnamen für Name, Preis in Cent, Währung, `billing_period` `every-month`/`every-year`, Free-Preis, `metadata`). Nichts erfinden.
+- [ ] **Step 2: Skript schreiben**: liest `CREEM_API_KEY` aus `apps/backend/.env.local`, Base aus dem Key-Prefix (`test-api.creem.io` vs `api.creem.io`), listet Produkte, legt fehlende an (Metadata: `tierId`, `tierName`, `interval`, `requestsPerMinute`, `requestsPerDay`, `commercialUse`, `attributionRequired`, `maxKeys`, `support`), gibt die angelegten Produkt-IDs plus die abgeleitete Zuordnung aus. `scripts/creem-seed.mjs` in `.gitignore` aufnehmen (analog `scripts/dbdump`).
+- [ ] **Step 3: Ausführen** (mit gesetztem Test-Key): Produkte werden in der Creem-Test-Umgebung angelegt; `getCreemCatalog()` findet danach alle vier Tiers.
+- [ ] **Step 4: Verify**: die Produkte erscheinen im Creem-Dashboard und im Katalog-Fetch mit korrekter `tierId`-Metadata.
+- [ ] **Step 5: Commit**: kein Code-Commit nötig (Skript ist gitignored); nur die `.gitignore`-Zeile committen: `Chore: gitignore the local creem-seed helper (MC-110)`.
 
-## Task 8: Gesamt-Gates
+## Task 8: dbdump-Scrub
+
+- [x] **Bereits umgesetzt**: `scripts/dbdump` leert `developer_subscriptions` nach dem Restore (table-existence-guarded). Vendor-neutral, keine Änderung nötig.
+
+## Task 9: Gesamt-Gates
 
 - [ ] **Step 1: Backend-Gates**: `pnpm --filter @musiccloud/backend test:run` grün; Backend-Typecheck grün.
-- [ ] **Step 2: Lint**: Biome sauber auf allen berührten `.ts` (`pnpm doctor:diff` bzw. projektüblich); keine Em-Dashes in neuem Text oder Kommentaren.
-- [ ] **Step 3: Clean-State-Migration**: aus sauberem Stand (`pnpm db:migrate`) läuft 0068 ohne Fehler; `developer_subscriptions` existiert.
-- [ ] **Step 4: Alle Refs verifiziert**: Verifikations-Checkliste oben abhaken; `plans check` grün.
+- [ ] **Step 2: Lint**: Biome sauber auf allen berührten `.ts`; keine Em-Dashes.
+- [ ] **Step 3: Clean-State-Migration**: aus sauberem Stand (`pnpm db:migrate`) laufen alle Migrationen inkl. `0069` ohne Fehler.
+- [ ] **Step 4: Alle Refs verifiziert**; `plans check` grün.
 
 ---
 
 ## Self-Review (nach Fertigstellung auszufüllen)
 
-- [ ] **Spec-Abdeckung:** Sektion-6-Plan-B-Punkte (Env-Product-Map, `developer_subscriptions`, SDK-Client, `POLAR_*`-Config plus Boot-Guard, Katalog-Fetch, `dbdump`-Scrub) je einem Task zugeordnet?
-- [ ] **Placeholder-Scan:** keine „TBD/TODO" ohne Inhalt; die einzige bewusste Laufzeit-Verifikation ist die SDK-Shape in Task 6 Step 3a (dokumentiert, nicht erfunden).
-- [ ] **Typ-Konsistenz:** `PolarConfig`/`PolarProductPair`, `getPolarConfig`, `getPolarClient`, `getPolarCatalog`, `developerSubscriptions`/`DeveloperSubscriptionRow` über alle Tasks identisch benannt.
+- [ ] **Abdeckung**: Creem-Config plus Boot-Guard, Tabellen-Umbau, SDK-Client, Katalog-Fetch mit Metadata-Zuordnung, Produkt-Seed je einem Task zugeordnet.
+- [ ] **Placeholder-Scan**: die bewussten Laufzeit-Verifikationen sind die SDK-Shape-Checks (Task 5 Step 3a, Task 6 Step 3a, Task 7 Step 1), dokumentiert, nicht erfunden.
+- [ ] **Typ-Konsistenz**: `CreemConfig`, `getCreemConfig`, `getCreemClient`, `getCreemCatalog`, `developerSubscriptions`/`creemSubscriptionId` über alle Tasks identisch.
 
 ## Abgrenzung (bewusst NICHT in Plan B)
 
-- Kein Checkout, kein Webhook-Handler, kein Schreiben von `account.tierId` oder `developer_subscriptions` (Plan C).
+- Kein Checkout (gehosteter Creem-Redirect), kein Webhook-Handler, kein Schreiben von `account.tierId` oder `developer_subscriptions` (Plan C).
 - Keine Subscription-Management-UI (Plan D).
-- Kein Master-Schalter `billingActive`, keine `istKaufbar`-Regel, keine „Coming soon"-Darstellung, keine geo-basierte Währungswahl (Plan E).
-- Keine Subscription-Repository-Schreibmethoden (kommen mit dem Webhook in Plan C); Plan B liefert nur Tabelle, Typen und den Katalog-Lesepfad.
+- Kein Master-Schalter, keine Kaufbarkeits-Regel, keine Coming-soon-Darstellung (Plan E).
+- Kein Usage-Metering (Creem-Credits) fuer Per-Request-Abrechnung (spätere Phase).
