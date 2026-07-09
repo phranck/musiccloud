@@ -1679,6 +1679,37 @@ export type DeveloperSubscriptionRow = typeof developerSubscriptions.$inferSelec
 export type DeveloperSubscriptionInsert = typeof developerSubscriptions.$inferInsert;
 
 /**
+ * Maps each internal tier and billing interval to its Creem product id. Creem
+ * products carry no metadata field, so the tier-to-product association cannot
+ * live at Creem and lives here instead. Creem stays the source of truth for
+ * prices only, fetched live by the catalog service. A row is written by the
+ * seed script when it creates the product in Creem, and cleared by the dbdump
+ * scrub because the product ids are environment-specific (test vs live). There
+ * is one product per (tierId, interval); a free tier uses a single row.
+ * creemProductId is globally unique.
+ */
+export const tierCreemProducts = pgTable(
+  "tier_creem_products",
+  {
+    id: text("id").primaryKey(),
+    tierId: text("tier_id")
+      .notNull()
+      .references(() => tiers.id, { onDelete: "cascade" }),
+    interval: text("interval").notNull(),
+    creemProductId: text("creem_product_id").notNull().unique(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_tier_creem_products_tier_interval").on(table.tierId, table.interval),
+    check("chk_tier_creem_products_interval", sql`${table.interval} IN ('month', 'year')`),
+  ],
+);
+
+export type TierCreemProductRow = typeof tierCreemProducts.$inferSelect;
+export type TierCreemProductInsert = typeof tierCreemProducts.$inferInsert;
+
+/**
  * A developer's request for Public-API access (MC-025/MC-077). Each row
  * describes one app; `developerAccountId` is the source of truth for who
  * submitted it (`contactEmail` is a display snapshot, not the identity).
