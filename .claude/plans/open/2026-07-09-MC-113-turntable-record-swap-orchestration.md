@@ -54,10 +54,10 @@ Beispiel-Szenario (vom User): Nutzer klickt einen Similar Artist (Different-Albu
 - Create: `apps/frontend/src/lib/resolve/preload-media.ts` (Cover-Decode + Audio-Preload-Helfer)
 - Test: `apps/frontend/src/lib/resolve/preload-media.test.ts`
 
-- [ ] Failing Test für `preloadResolvedMedia(config, { signal })`: löst erst auf, wenn Cover dekodiert und Audio vorgeladen ist; bricht bei `signal.abort` sauber ab; robust bei fehlender/kaputter Ressource (blockiert nie dauerhaft, respektiert das bestehende 15s-Timeout aus `resolveTrack:495`).
-- [ ] Test rot.
-- [ ] `preloadResolvedMedia` implementieren: `decodeArtwork`-Muster für `artworkUrl` + Audio-Preload (`new Audio()`, `preload="auto"`, warten auf `canplaythrough`/`loadedmetadata` mit Timeout). In `resolveTrack` nach dem Resolver und vor `dispatchUi(Resolved)` einbauen, nur im Different-Album-Zweig (`sameAlbum`-Check aus MC-111).
-- [ ] Test grün. Biome. Commit.
+- [x] Failing Test für `preloadResolvedMedia(target, { signal })`: leerer Target/aborted-Signal → sofort; Cover-Decode → auflösen; nie-bereite Ressource → über 15s-Timeout auflösen (blockiert nie).
+- [x] Test rot.
+- [x] `preloadResolvedMedia` implementiert (`preload-media.ts`): `raceReady` (Timeout `PRELOAD_TIMEOUT_MS = 15000` + Abort + Ready), `decodeCover` (`Image.decode`, guarded), `preloadAudio` (`new Audio()`, `preload="auto"`, `canplaythrough`/`loadedmetadata`/`error`, dann Element freigeben), `Promise.all`. Fehler-/Timeout-tolerant. 4/4 Tests grün. **Das `resolveTrack`-Wiring (Different-Album-Gate mit `sameAlbum`-Check) folgt mit der Integration (Task 2/6).**
+- [x] Test grün. Biome. Commit (Helfer).
 
 ### Task 2: `RecordSwapStage` oberhalb des Hub-Keys einsetzen
 
