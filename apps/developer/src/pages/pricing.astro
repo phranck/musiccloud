@@ -12,7 +12,7 @@
 import PublicHeader from "@/components/PublicHeader.astro";
 import RollingText from "@/components/RollingText.astro";
 import { TierIcon } from "@/components/TierIcon";
-import { CoinIcon, Like1Icon, TickCircleIcon } from "@/lib/icons";
+import { CloseCircleIcon, CoinIcon, Like1Icon, TickCircleIcon } from "@/lib/icons";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { backendUrl } from "@/lib/api";
 import PublicFooter from "@/components/PublicFooter.astro";
@@ -39,6 +39,8 @@ interface TierDto {
   /** Whether this tier is highlighted as the recommended one (at most one across all tiers). */
   recommended: boolean;
   sortOrder: number;
+  /** Ordered feature bullets: each a label plus whether the tier includes it (check) or not (cross). */
+  features: { label: string; included: boolean }[];
 }
 
 /**
@@ -195,6 +197,25 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
                 </p>
               </div>
               {tier.attributionRequired && <p class="text-body text-fg-subtle">Attribution required</p>}
+
+              {tier.features.length > 0 && (
+                <ul class="mx-auto flex w-full max-w-[15rem] flex-col gap-1.5 text-left text-body">
+                  {tier.features.map((feature) => (
+                    <li class="flex items-start gap-2">
+                      {feature.included ? (
+                        <TickCircleIcon
+                          className="mt-0.5 size-4 shrink-0"
+                          style={{ color: tier.color }}
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <CloseCircleIcon className="mt-0.5 size-4 shrink-0 text-fg-subtle" aria-hidden="true" />
+                      )}
+                      <span class={feature.included ? "text-fg-muted" : "text-fg-subtle"}>{feature.label}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
 
               <div class="mt-auto flex w-full flex-col items-center gap-3 pt-3">
                 {tier.price ? (
