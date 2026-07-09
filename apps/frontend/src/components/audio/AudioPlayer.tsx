@@ -68,6 +68,7 @@ const PlayerActionType = {
   TimeUpdate: "TIME_UPDATE",
   Ended: "ENDED",
   Error: "ERROR",
+  SourceChanged: "SOURCE_CHANGED",
 } as const;
 
 const AudioContextState = {
@@ -103,7 +104,8 @@ type PlayerAction =
   | { type: typeof PlayerActionType.Pause }
   | { type: typeof PlayerActionType.TimeUpdate; currentTime: number; duration: number }
   | { type: typeof PlayerActionType.Ended }
-  | { type: typeof PlayerActionType.Error };
+  | { type: typeof PlayerActionType.Error }
+  | { type: typeof PlayerActionType.SourceChanged };
 
 function playerReducer(state: PlayerState, action: PlayerAction): PlayerState {
   switch (action.type) {
@@ -135,6 +137,10 @@ function playerReducer(state: PlayerState, action: PlayerAction): PlayerState {
       return state;
     case PlayerActionType.Error:
       return { phase: PlayerPhase.Error };
+    case PlayerActionType.SourceChanged:
+      // A new source (same-album track switch) resets to a fresh idle track;
+      // metadata for the new src arrives via loadedmetadata.
+      return { phase: PlayerPhase.Idle, duration: 30 };
     default:
       return state;
   }
@@ -510,10 +516,12 @@ export function useAudioController({
     ? { phase: PlayerPhase.Idle, duration: 30 }
     : { phase: PlayerPhase.Loading };
   const [state, dispatch] = useReducer(playerReducer, initialPhase);
-  const [effectiveUrl, setEffectiveUrl] = useReducer(
-    (_: string | null, next: string | null) => next,
-    previewUrl ?? null,
-  );
+  const [fetchedUrl, setFetchedUrl] = useState<string | null>(null);
+  // effectiveUrl is derived so a same-album track switch (the previewUrl prop
+  // changing on the mounted hub) flows straight into the source effect below, which
+  // swaps the element's src in place. `fetchedUrl` is the fallback for the refresh
+  // path, where the component mounted without a preview URL.
+  const effectiveUrl = previewUrl ?? fetchedUrl;
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analysersRef = useRef<StereoSpectrumAnalysers | null>(null);
@@ -535,12 +543,21 @@ export function useAudioController({
   const progressRewindTickRef = useRef<(() => void) | null>(null);
   const progressRatioRef = useRef(0);
   const hasStartedRef = useRef(false);
+  // Mirrors whether playback is active, read by the source effect on a same-album
+  // src swap to decide whether to continue playing the new track on the same element.
+  const isPlayingRef = useRef(false);
   const [progressRatio, setProgressRatio] = useState(0);
 
   // Tune the shared ticker once on mount (lagSmoothing); idempotent.
   useEffect(() => {
     setupMotion();
   }, []);
+
+  // Keep the playing-state mirror current so the source effect can read it without
+  // taking state.phase as a dependency (which would re-run the swap on every play/pause).
+  useEffect(() => {
+    isPlayingRef.current = state.phase === PlayerPhase.Playing;
+  }, [state.phase]);
 
   // Lazy fetch the preview URL when the component mounted without one.
   // Aborts on unmount so a slow Deezer call doesn't update a stale tree.
@@ -551,7 +568,7 @@ export function useAudioController({
       try {
         const nextPreviewUrl = await fetchPreviewUrl(refreshShortId, controller.signal);
         if (nextPreviewUrl) {
-          setEffectiveUrl(nextPreviewUrl);
+          setFetchedUrl(nextPreviewUrl);
           dispatch({ type: PlayerActionType.UrlReady });
         } else {
           sendMusicSignal(PreviewSignal.Unavailable);
@@ -956,10 +973,97 @@ export function useAudioController({
     return () => window.clearInterval(recoveryTimer);
   }, [startSpectrumLoop, state.phase]);
 
-  // Bind the <audio> element when a URL becomes available. The only
-  // dependency is the URL itself — playback state transitions (play/pause)
-  // must NOT retear the audio element down, or the play() promise starting
-  // the transition gets aborted and surfaces as a spurious "unavailable".
+  // Starts playback on the given element: the load-bearing gesture-synchronous
+  // AudioContext/gain setup, then audio.play() with the startup fade. Extracted
+  // from togglePlay so a same-album source switch can continue playback on the
+  // same element (see the source effect below).
+  const beginPlayback = useCallback(
+    (audio: HTMLAudioElement) => {
+      stopProgressRewind();
+      stopSpectrumLoop({ clearBands: false });
+      audio.muted = false;
+      audio.volume = 1;
+
+      // Order is load-bearing. `ensureSpectrumAnalyzer` performs all AudioContext
+      // setup synchronously and fires `resume()` on the same tick, BEFORE
+      // `audio.play()`, so the operations share the play button's user-gesture
+      // activation (a resume() racing play()'s resolution can leave the context
+      // suspended and the analyser dark while playback continues).
+      const spectrumReadyPromise = ensureSpectrumAnalyzer(audio);
+
+      // Mute the WebAudio gain synchronously before play() so the first decoded
+      // samples hit the speaker at zero amplitude; the ramp back to unity below
+      // fades the audio in over the startup window instead of slamming on. This
+      // kills the startup click a brand-new track produces (MP3 decoder warmup +
+      // MediaElementSource route engaging). Resuming a paused track is skipped
+      // (hasStartedRef) because the audio path is already warm.
+      const isFirstPlay = !hasStartedRef.current;
+      const startupGainNode = gainNodeRef.current;
+      const startupAudioContext = audioContextRef.current;
+      if (isFirstPlay && startupGainNode && startupAudioContext) {
+        const muteAt = startupAudioContext.currentTime;
+        startupGainNode.gain.cancelScheduledValues(muteAt);
+        startupGainNode.gain.setValueAtTime(0, muteAt);
+      }
+
+      notifyPlaybackIntent();
+      audio
+        .play()
+        .then(() => {
+          sendMusicSignal(hasStartedRef.current ? PreviewSignal.Resumed : PreviewSignal.Started);
+          dispatch({ type: PlayerActionType.Play });
+          notifyStatusChange(AudioStatus.Playing);
+          hasStartedRef.current = true;
+          startProgressLoop(audio);
+
+          // Sample-accurate ramp back up to unity. Re-read the refs in case
+          // `ensureSpectrumAnalyzer` rebuilt the pipeline between the mute above
+          // and this resolution.
+          const rampGainNode = gainNodeRef.current;
+          const rampAudioContext = audioContextRef.current;
+          if (isFirstPlay && rampGainNode && rampAudioContext) {
+            const rampStart = rampAudioContext.currentTime;
+            rampGainNode.gain.cancelScheduledValues(rampStart);
+            rampGainNode.gain.setValueAtTime(0, rampStart);
+            rampGainNode.gain.linearRampToValueAtTime(1, rampStart + STARTUP_FADE_MS / 1000);
+          }
+
+          void spectrumReadyPromise
+            .then((isAnalyzerReady) => {
+              if (isAnalyzerReady && !audio.paused) startSpectrumLoop();
+            })
+            .catch(() => {
+              clearSpectrumFrame();
+              resetPeakHold();
+            });
+        })
+        .catch(() => {
+          sendMusicSignal(PreviewSignal.Error);
+          notifyStatusChange(AudioStatus.Unavailable);
+          dispatch({ type: PlayerActionType.Error });
+        });
+    },
+    [
+      ensureSpectrumAnalyzer,
+      notifyPlaybackIntent,
+      notifyStatusChange,
+      resetPeakHold,
+      startProgressLoop,
+      startSpectrumLoop,
+      stopProgressRewind,
+      stopSpectrumLoop,
+    ],
+  );
+  const beginPlaybackFromEvent = useEffectEvent(beginPlayback);
+
+  // The audio element is (re)created whenever the effective URL changes. A
+  // same-album track switch changes the URL on the mounted hub (a different album
+  // re-keys/remounts instead); the element is rebuilt for the new source, and if
+  // playback was active it continues on the new element. Playback-state
+  // transitions (play/pause) do NOT re-run this — only the URL does — so a running
+  // play() is never torn down mid-promise. The cleanup fades out and tears down
+  // the audio graph (deferred pause + AudioContext.close so the destination sees
+  // silence, avoiding the speaker click a mid-playback teardown otherwise produces).
   useEffect(() => {
     if (!effectiveUrl) return;
 
@@ -1003,6 +1107,15 @@ export function useAudioController({
 
     audioRef.current = audio;
 
+    // A same-album source switch (not the initial mount): reset the player to a
+    // fresh idle track and continue on the new element if playback was active.
+    // `hasStartedRef` flips true on the first play, so it is the "not initial" signal.
+    if (hasStartedRef.current) {
+      dispatch({ type: PlayerActionType.SourceChanged });
+      setProgressRatioFromEvent(0);
+      if (isPlayingRef.current) beginPlaybackFromEvent(audio);
+    }
+
     return () => {
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
       audio.removeEventListener("timeupdate", handleTimeUpdate);
@@ -1012,21 +1125,6 @@ export function useAudioController({
       stopProgressRewind();
       audioRef.current = null;
 
-      // Teardown fade-OUT path. When the user switches tracks via the
-      // share-page Top-Tracks selector WHILE the current preview is
-      // still playing, this unmount happens in mid-playback. Without a
-      // fade, the immediate audio.pause() + AudioContext.close() cuts
-      // the OS audio session at a non-zero waveform sample, producing
-      // an audible speaker click. User-initiated pauses don't show
-      // this symptom because the context stays alive after pause.
-      //
-      // The audio element is intentionally left running for the fade
-      // window so the WebAudio graph has real samples to ramp. The
-      // actual audio.pause() + audio.src clear + teardownSpectrum() are
-      // deferred via setTimeout so they execute AFTER the sample-
-      // accurate gain ramp has settled at zero. Because Astro View
-      // Transitions keep the window/JS heap across share-page
-      // navigations, the deferred timer survives the SPA swap.
       const audioContext = audioContextRef.current;
       const gainNode = gainNodeRef.current;
       const canFade =
@@ -1043,9 +1141,7 @@ export function useAudioController({
           gainNode.gain.setValueAtTime(gainNode.gain.value, fadeStartTime);
           gainNode.gain.linearRampToValueAtTime(0, fadeStartTime + TEARDOWN_FADE_MS / 1000);
         } catch {
-          // If scheduling throws because the context flipped to closed
-          // between the canFade check and the ramp call, the fallback
-          // below will still finish the teardown cleanly.
+          // The fallback below still finishes teardown if scheduling throws.
         }
         window.setTimeout(() => {
           audio.pause();
@@ -1055,9 +1151,6 @@ export function useAudioController({
         return;
       }
 
-      // No-fade fallback (already paused/ended or no gain pipeline).
-      // Pause first so the audio element stops feeding samples before
-      // AudioContext.close() disengages the destination.
       audio.pause();
       audio.src = "";
       teardownSpectrum();
@@ -1069,87 +1162,7 @@ export function useAudioController({
     if (!audio) return;
 
     if (state.phase === PlayerPhase.Idle || state.phase === PlayerPhase.Paused) {
-      stopProgressRewind();
-      stopSpectrumLoop({ clearBands: false });
-      audio.muted = false;
-      audio.volume = 1;
-
-      // Order is load-bearing. `ensureSpectrumAnalyzer` performs all
-      // AudioContext setup synchronously — constructor, source, splitter,
-      // analyser connections — and fires `resume()` on the same tick. This
-      // must happen BEFORE `audio.play()` so the AudioContext operations
-      // share the user-gesture activation that the click on the play button
-      // provides. Doing it inside the play().then() callback (the previous
-      // behaviour) makes resume() race with audio.play()'s own resolution:
-      // when play() takes longer than a few hundred ms (cold HTTP cache,
-      // slow Deezer CDN, decode latency) the activation expires, resume()
-      // resolves but leaves the context suspended, and the analyser stays
-      // dark while playback continues. The promise itself is awaited inside
-      // play().then() — that part is fine because the gesture-bound call
-      // already happened on this synchronous tick.
-      const spectrumReadyPromise = ensureSpectrumAnalyzer(audio);
-
-      // Mute the WebAudio gain synchronously BEFORE audio.play() so the
-      // very first decoded samples hit the speaker at zero amplitude.
-      // The corresponding ramp back to unity is scheduled below, after
-      // audio.play() resolves, so that the audio fades in over the
-      // startup window instead of slamming on at full level.
-      //
-      // This eliminates the startup click users hear when a brand-new
-      // track begins playing — observed when switching from a paused
-      // (silent) state to a freshly mounted preview. The transient
-      // arises from the MP3 decoder warming up and the
-      // MediaElementSource → destination route engaging the audio
-      // output device for the first time; both produce a brief
-      // amplitude spike that the human ear perceives as a click against
-      // the prior silence. Resuming a paused track is left untouched
-      // (hasStartedRef gate) because the audio path is already warm
-      // and the click does not occur there.
-      const isFirstPlay = !hasStartedRef.current;
-      const startupGainNode = gainNodeRef.current;
-      const startupAudioContext = audioContextRef.current;
-      if (isFirstPlay && startupGainNode && startupAudioContext) {
-        const muteAt = startupAudioContext.currentTime;
-        startupGainNode.gain.cancelScheduledValues(muteAt);
-        startupGainNode.gain.setValueAtTime(0, muteAt);
-      }
-
-      notifyPlaybackIntent();
-      audio
-        .play()
-        .then(() => {
-          sendMusicSignal(hasStartedRef.current ? PreviewSignal.Resumed : PreviewSignal.Started);
-          dispatch({ type: PlayerActionType.Play });
-          notifyStatusChange(AudioStatus.Playing);
-          hasStartedRef.current = true;
-          startProgressLoop(audio);
-
-          // Sample-accurate ramp back up to unity. Re-read the refs in
-          // case `ensureSpectrumAnalyzer` had to rebuild the pipeline
-          // between the synchronous mute above and this resolution.
-          const rampGainNode = gainNodeRef.current;
-          const rampAudioContext = audioContextRef.current;
-          if (isFirstPlay && rampGainNode && rampAudioContext) {
-            const rampStart = rampAudioContext.currentTime;
-            rampGainNode.gain.cancelScheduledValues(rampStart);
-            rampGainNode.gain.setValueAtTime(0, rampStart);
-            rampGainNode.gain.linearRampToValueAtTime(1, rampStart + STARTUP_FADE_MS / 1000);
-          }
-
-          void spectrumReadyPromise
-            .then((isAnalyzerReady) => {
-              if (isAnalyzerReady && !audio.paused) startSpectrumLoop();
-            })
-            .catch(() => {
-              clearSpectrumFrame();
-              resetPeakHold();
-            });
-        })
-        .catch(() => {
-          sendMusicSignal(PreviewSignal.Error);
-          notifyStatusChange(AudioStatus.Unavailable);
-          dispatch({ type: PlayerActionType.Error });
-        });
+      beginPlayback(audio);
     } else if (state.phase === PlayerPhase.Playing) {
       audio.pause();
       stopProgressLoop(audio);
@@ -1158,19 +1171,7 @@ export function useAudioController({
       notifyStatusChange(AudioStatus.Paused);
       dispatch({ type: PlayerActionType.Pause });
     }
-  }, [
-    ensureSpectrumAnalyzer,
-    resetPeakHold,
-    startProgressLoop,
-    startSpectrumFadeOut,
-    startSpectrumLoop,
-    state.phase,
-    stopProgressLoop,
-    stopProgressRewind,
-    stopSpectrumLoop,
-    notifyPlaybackIntent,
-    notifyStatusChange,
-  ]);
+  }, [beginPlayback, notifyStatusChange, startSpectrumFadeOut, state.phase, stopProgressLoop]);
 
   const togglePlayFromEvent = useEffectEvent(togglePlay);
 

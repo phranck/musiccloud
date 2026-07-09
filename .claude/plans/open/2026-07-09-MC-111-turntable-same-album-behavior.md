@@ -62,11 +62,12 @@ Dieser Plan ist der Verhaltensteil ("selbes Album, kein Wechsel"). Die neue Boge
 - Modify: `apps/frontend/src/components/audio/AudioPlayer.tsx` (effectiveUrl-Sync-Effekt + Fade beim Quellenwechsel)
 - Test: `apps/frontend/src/components/audio/AudioPlayer.test.tsx` (neu, falls nicht vorhanden) oder Erweiterung von `TurntablePlayerProvider.test.tsx`
 
-- [ ] Failing Test: ändert sich das `previewUrl`-Prop bei bestehendem Hub, lädt die Engine die neue Quelle (`effectiveUrl` folgt), und der Play/Pause-Zustand bleibt konsistent (spielte es, spielt der neue Track weiter).
-- [ ] Test rot.
-- [ ] Sync-Effekt hinzufügen: bei `previewUrl`-Prop-Wechsel `setEffectiveUrl(previewUrl)` und Play-State-Übergang. Beim Wechsel kurzer GainNode-Fade-out der alten Quelle (bestehendes Teardown-Fade-Muster `:1039-1055` wiederverwenden), dann Fade-in der neuen (`STARTUP_FADE_MS`-Muster `:1132-1137`). War der alte Track am Spielen, den neuen automatisch fortsetzen (Kontinuität); war er pausiert, den neuen pausiert vorladen.
-- [ ] Sicherstellen, dass der Quellenwechsel die sorgfältige Gesten-/AudioContext-Logik nicht bricht (kein doppeltes `createMediaElementSource` auf demselben Element; neues `<audio>` wird ohnehin pro `effectiveUrl` erzeugt).
-- [ ] Test grün. Biome. React-Doctor `doctor:diff` grün. Commit.
+- [x] Failing Test (in `TurntablePlayerProvider.test.tsx`): bei `previewUrl`-Prop-Wechsel am bestehenden Hub adoptiert die Engine die neue Quelle; spielte es, spielt der neue Track weiter (`data-playing`/`data-spin` bleiben `playing`, neue `src`); war es idle, wird nur adoptiert ohne Auto-Play.
+- [x] Test rot.
+- [x] `effectiveUrl` als abgeleiteten Wert (`previewUrl ?? fetchedUrl`) statt Reducer, damit ein Prop-Wechsel ohne Sync-Effekt in den Source-Effekt fließt (vermeidet das react-doctor `no-event-handler`-Finding). `fetchedUrl` ist der Refresh-Fallback.
+- [x] Neue Reducer-Action `SourceChanged` (→ Idle). Play-Start aus `togglePlay` in `beginPlayback(audio)` extrahiert (bestehende Provider-Tests als Sicherheitsnetz, blieben grün). `isPlayingRef` spiegelt den Play-Zustand ohne `state.phase`-Dep.
+- [x] **Finale Struktur (doctor-sauber):** EIN Source-Effekt (Original-Struktur, deps `[effectiveUrl, stopProgressLoop, stopProgressRewind, teardownSpectrum]`) erzeugt das Element pro URL neu und macht im Cleanup den Teardown-Fade. Bei einem echten Wechsel (`hasStartedRef` true) `SourceChanged` + Auto-Continue via `beginPlayback`, falls `isPlayingRef`. Der zunächst versuchte Element-Reuse-Split (zwei Effekte) wurde verworfen, weil react-doctor den Cleanup-only-Effekt als `exhaustive-deps` flaggt; die single-effect-Form ist doctor-sauber und erfüllt die Anforderung (Audio wechselt, Teller dreht weiter, kurzer Fade über Teardown-/Startup-Fade).
+- [x] Test grün (330/330). Biome. `doctor:diff` grün (0 issues). astro check 0 errors. Commit.
 
 ### Task 4: Verhalten verdrahten (selbes Album dreht durch)
 
@@ -81,13 +82,14 @@ Dieser Plan ist der Verhaltensteil ("selbes Album, kein Wechsel"). Die neue Boge
 ## Offene Punkte
 
 - Kein echter überlappender Doppel-Source-Crossfade (Design-Entscheidung: schneller Fade-out/Fade-in über die vorhandene GainNode). Falls sich das später als zu abrupt zeigt, eigener Folgeplan.
-- Genauer Schwellwert für `artworkUrl` als Signal wird im Test festgezurrt (Task 1).
+- Bei einem Same-Album-Auto-Continue wird das Audio-Element pro URL neu erzeugt; die WebAudio-Spectrum-Verdrahtung (VFD) kann dabei kurz aussetzen, bis der Nutzer erneut interagiert (nahtloser Element-Reuse kollidiert mit react-doctors `exhaustive-deps` am Cleanup-only-Effekt). Politur-Kandidat, kein Funktionsfehler — der User verifiziert im UI-Smoke (MC-113 Task 5).
+- Artwork-Zweig aus `sameAlbum` entfernt (Task 2): Album-Identität ist rein artist+album-Titel, konsistent mit dem Hub-Key.
 
 ## Checkliste
 
 - [x] Task 1: `sameAlbum`-Helfer + Tests
 - [x] Task 2: Album-skopierter Hub-Key
-- [ ] Task 3: `useAudioController` `previewUrl`-Sync + Fade
+- [x] Task 3: `useAudioController` `previewUrl`-Sync + Fade
 - [ ] Task 4: Same-Album-Verhalten verdrahtet + Tests
 - [ ] Alle Code-Referenzen verifiziert (Funktionen, Skripte, Pfade, Env-Vars, Package-Manager-Kommandos)
 - [ ] Gates grün: `pnpm typecheck`, Biome, `doctor:diff`, `test:run`

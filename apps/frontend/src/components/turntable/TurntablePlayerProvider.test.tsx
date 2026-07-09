@@ -39,6 +39,17 @@ function renderHub() {
   );
 }
 
+/** A hub tree with a parametrized preview URL, for same-album source-switch rerenders. */
+function tree(previewUrl: string, trackTitle: string) {
+  return (
+    <LocaleProvider initialLocale="en">
+      <TurntablePlayerProvider previewUrl={previewUrl} trackTitle={trackTitle}>
+        <HubProbe />
+      </TurntablePlayerProvider>
+    </LocaleProvider>
+  );
+}
+
 function hub() {
   return screen.getByTestId("hub");
 }
@@ -132,5 +143,37 @@ describe("TurntablePlayerProvider", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("continues playing the new track when previewUrl changes while playing (same-album switch)", async () => {
+    const { rerender } = render(tree("/a.mp3", "A"));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "toggle" }));
+    });
+    expect(hub()).toHaveAttribute("data-playing", "true");
+
+    await act(async () => {
+      rerender(tree("/b.mp3", "B"));
+    });
+
+    expect(latestAudio().src).toContain("/b.mp3");
+    expect(hub()).toHaveAttribute("data-playing", "true");
+    expect(hub()).toHaveAttribute("data-spin", "playing");
+  });
+
+  it("adopts the new source without auto-playing when previewUrl changes while idle", async () => {
+    const { rerender } = render(tree("/a.mp3", "A"));
+
+    await act(async () => {
+      rerender(tree("/b.mp3", "B"));
+    });
+    expect(playedAudioElements).toHaveLength(0);
+    expect(hub()).toHaveAttribute("data-playing", "false");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "toggle" }));
+    });
+    expect(latestAudio().src).toContain("/b.mp3");
   });
 });
