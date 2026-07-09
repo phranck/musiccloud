@@ -1,5 +1,4 @@
 import { requireEnv } from "./env.js";
-import { getPolarConfig } from "./polar-config.js";
 
 /**
  * Environment variables the backend cannot serve correctly without. Each is
@@ -18,7 +17,7 @@ const REQUIRED_BOOT_ENV = ["JAMENDO_CLIENT_ID"] as const;
  * Call once during startup, before the server accepts connections. Without it a
  * missing `JAMENDO_CLIENT_ID` only surfaces as a generic `MC-API-0004` the first
  * time someone uses CC mode, while `/health/db` still reports the container
- * ready, making the breakage invisible and slow to trace. Failing here instead turns the
+ * ready — an invisible, slow-to-trace breakage. Failing here instead turns the
  * misconfiguration into a loud restart loop, the same way a failed migration
  * does.
  *
@@ -29,16 +28,5 @@ const REQUIRED_BOOT_ENV = ["JAMENDO_CLIENT_ID"] as const;
 export function assertRequiredBootEnv(): void {
   for (const name of REQUIRED_BOOT_ENV) {
     requireEnv(name);
-  }
-
-  // Polar is optional to boot in the foundation phase: CI and tests that do not
-  // wire Polar can leave POLAR_ACCESS_TOKEN unset and the guard stays inert.
-  // When the token IS present, however, the rest of the Polar config must also
-  // be consistent (correct POLAR_SERVER, valid POLAR_PRODUCTS JSON). Calling
-  // getPolarConfig() here converts a misconfiguration from a silent request-time
-  // failure into a loud restart loop at boot, matching the guarantee already
-  // provided for JAMENDO_CLIENT_ID above.
-  if (process.env.POLAR_ACCESS_TOKEN) {
-    getPolarConfig();
   }
 }
