@@ -179,11 +179,11 @@ Zweck: Creem-Produkte tragen kein Metadata-Feld (verifiziert, siehe Verifizierte
 
 Zweck: Preise/Waehrung liegen bei Creem, die Tier-Zuordnung bei uns. Diese Funktion liest die `tier_creem_products`-Zuordnung, holt pro Produkt den Live-Preis von Creem und baut `tierId -> { interval -> { productId, price, currency } }`, server-seitig mit kurzem In-memory-Cache (TTL). Kein Product-Metadata, kein Env-Mapping.
 
-- [ ] **Step 1: Failing test**: `getCreemCatalog()` mit (a) gemockter Mapping-Query (liefert eine Zeile tierId/interval/creemProductId) und (b) gemocktem Creem-Client, dessen `products.get(id)` Preis (Cent) plus Waehrung liefert. Erwartung: Map `tierId -> { interval -> { productId, price, currency } }`; zweiter Aufruf innerhalb der TTL trifft weder DB noch Client (Cache-Hit); nach TTL erneuter Fetch.
-- [ ] **Step 2: Fails**: `pnpm --filter @musiccloud/backend test:run creem-catalog` FAIL.
-- [ ] **Step 3: Implementieren.** Liest die Mapping-Tabelle (Drizzle), ruft pro `creemProductId` `client.products.get(productId)` auf (verifiziert: `ProductEntity.price` in Cent (number), `.currency` ISO-String), baut die Map, cached mit Modul-Timestamp plus `CATALOG_TTL_MS` (z.B. `5 * 60_000`). TSDoc: warum Preis-SoT bei Creem, warum Mapping bei uns, warum Cache.
-- [ ] **Step 4: Grün** PASS.
-- [ ] **Step 5: Commit**: `Feat: fetch and cache the Creem product catalog (MC-110)`.
+- [x] **Step 1: Failing test**: `getCreemCatalog()` mit (a) gemockter Mapping-Query (liefert eine Zeile tierId/interval/creemProductId) und (b) gemocktem Creem-Client, dessen `products.get(id)` Preis (Cent) plus Waehrung liefert. Erwartung: Map `tierId -> { interval -> { productId, price, currency } }`; zweiter Aufruf innerhalb der TTL trifft weder DB noch Client (Cache-Hit); nach TTL erneuter Fetch.
+- [x] **Step 2: Fails**: `pnpm --filter @musiccloud/backend test:run creem-catalog` FAIL.
+- [x] **Step 3: Implementieren.** Liest die Mapping-Tabelle (Drizzle), ruft pro `creemProductId` `client.products.get(productId)` auf (verifiziert: `ProductEntity.price` in Cent (number), `.currency` ISO-String), baut die Map, cached mit Modul-Timestamp plus `CATALOG_TTL_MS` (z.B. `5 * 60_000`). TSDoc: warum Preis-SoT bei Creem, warum Mapping bei uns, warum Cache.
+- [x] **Step 4: Grün** PASS.
+- [x] **Step 5: Commit**: `Feat: fetch and cache the Creem product catalog (MC-110)`.
 
 ## Task 8: Tier-Produkte in Creem anlegen plus Mapping befuellen (`scripts/creem-seed.mjs`)
 

@@ -87,9 +87,37 @@ export interface TierUpdateData {
   sortOrder?: number;
 }
 
+/**
+ * One row from the `tier_creem_products` mapping table (MC-110).
+ *
+ * The tier-to-product link lives on our side because Creem products carry no
+ * metadata field (verified against `creem@1.5.3` and `docs.creem.io` on
+ * 2026-07-09): neither `ProductEntity` nor `CreateProductRequestEntity` expose
+ * a `metadata` property. Keeping the mapping in our own table also makes it
+ * vendor-portable: swapping payment providers does not require re-seeding
+ * Creem products with back-references.
+ */
+export interface TierCreemProductMapping {
+  /** Internal tier identifier (e.g. `"tier_club"`). */
+  tierId: string;
+  /** Billing interval in our normalised form: `"month"` or `"year"`. */
+  interval: string;
+  /** The corresponding Creem product ID returned when the product was created. */
+  creemProductId: string;
+}
+
 export interface TierRepository {
   listTiers(): Promise<Tier[]>;
   createTier(data: TierCreateData): Promise<Tier>;
   updateTier(id: string, data: TierUpdateData): Promise<Tier>;
   deleteTier(id: string): Promise<void>;
+  /**
+   * Returns all rows from `tier_creem_products`, which maps each internal tier
+   * plus billing interval to the corresponding Creem product ID.
+   *
+   * This mapping exists on our side because Creem products carry no metadata
+   * field. Creem remains the source of truth for prices; we own the
+   * tier-to-product link.
+   */
+  listCreemProductMappings(): Promise<TierCreemProductMapping[]>;
 }

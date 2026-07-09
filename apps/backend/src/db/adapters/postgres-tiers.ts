@@ -4,6 +4,7 @@ import {
   DEFAULT_TIER_COLOR,
   type Tier,
   type TierCreateData,
+  type TierCreemProductMapping,
   type TierRepository,
   type TierUpdateData,
 } from "../tiers-repository.js";
@@ -214,5 +215,23 @@ export class PostgresTierRepository implements TierRepository {
   async deleteTier(id: string): Promise<void> {
     const { rowCount } = await this.#pool.query("DELETE FROM tiers WHERE id = $1", [id]);
     if (rowCount === 0) throw new Error(`Tier not found: ${id}`);
+  }
+
+  /**
+   * Returns all rows from the `tier_creem_products` table, which maps each
+   * internal tier plus billing interval to the corresponding Creem product ID.
+   *
+   * The mapping lives here (not at Creem) because Creem products carry no
+   * metadata field. Creem is the source of truth for prices and currency; this
+   * table is the source of truth for which product ID belongs to which tier and
+   * interval.
+   *
+   * @returns Array of all tier-to-Creem-product mapping rows.
+   */
+  async listCreemProductMappings(): Promise<TierCreemProductMapping[]> {
+    const { rows } = await this.#pool.query<{ tier_id: string; interval: string; creem_product_id: string }>(
+      "SELECT tier_id, interval, creem_product_id FROM tier_creem_products",
+    );
+    return rows.map((r) => ({ tierId: r.tier_id, interval: r.interval, creemProductId: r.creem_product_id }));
   }
 }
