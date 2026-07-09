@@ -42,7 +42,7 @@ Voraussetzung von deiner Seite: ein Creem-Konto mit einem Test-API-Key (`creem_t
 - **dbdump-Scrub:** bereits umgesetzt (vendor-neutral, leert `developer_subscriptions`), `scripts/dbdump` ist ein gitignored lokaler Helper.
 
 **Verifikations-Checkliste:**
-- [ ] Alle Code-Referenzen vor Task-Start re-verifiziert (Migrationsnummer via `ls`, Schema-Zeilen, Creem-SDK-Konstruktor und Methodennamen gegen `creem@1.5.3`, Creem-Produkt- und Subscription-Endpunkte gegen die aktuelle Doku).
+- [x] Alle Code-Referenzen vor Task-Start re-verifiziert (Migrationsnummer via `ls`, Schema-Zeilen, Creem-SDK-Konstruktor und Methodennamen gegen `creem@1.5.3`, Creem-Produkt-Endpunkt `create-product` gegen die Live-Doku: kein Metadata-Feld bestaetigt).
 
 ## Manuelle Voraussetzung (Phase 0, deine Aufgabe)
 
@@ -202,14 +202,16 @@ Zweck: Die vier Tiers als Creem-Produkte anlegen (je month und year; Demo als ei
 ## Task 9: dbdump-Scrub
 
 - [x] **developer_subscriptions**: bereits gescrubbt (`scripts/dbdump` leert es nach dem Restore, table-existence-guarded, vendor-neutral).
-- [ ] **Step 1: `tier_creem_products` in den Scrub aufnehmen**: nach dem Restore auch `tier_creem_products` leeren (to_regclass-guarded TRUNCATE), damit Prod-Produkt-IDs nicht in die lokale Test-Umgebung gelangen. `scripts/dbdump` ist gitignored, kein Code-Commit.
+- [x] **Step 1: `tier_creem_products` in den Scrub aufnehmen**: nach dem Restore auch `tier_creem_products` leeren (to_regclass-guarded TRUNCATE, analog `developer_subscriptions`), damit Prod-Produkt-IDs nicht in die lokale Test-Umgebung gelangen. `scripts/dbdump` ist gitignored, kein Code-Commit. Bash-Syntax via `bash -n` geprueft.
 
 ## Task 10: Gesamt-Gates
 
-- [ ] **Step 1: Backend-Gates**: `pnpm --filter @musiccloud/backend test:run` grün; Backend-Typecheck grün.
-- [ ] **Step 2: Lint**: Biome sauber auf allen berührten `.ts`; keine Em-Dashes.
-- [ ] **Step 3: Clean-State-Migration**: aus sauberem Stand (`pnpm db:migrate`) laufen alle Migrationen inkl. `0069` und `0070` ohne Fehler.
-- [ ] **Step 4: Alle Refs verifiziert**; `plans check` grün.
+- [x] **Step 1: Backend-Gates**: `pnpm --filter @musiccloud/backend test:run` grün (1385 passed, 54 skipped, 0 failed); Backend-Typecheck (`tsc --noEmit`) clean.
+- [x] **Step 2: Lint**: Biome sauber auf allen berührten `.ts` (7 Dateien, no fixes); neuer Code em-dash-frei (Bestandskorpus unangetastet).
+- [x] **Step 3: Clean-State-Migration**: gegen eine Wegwerf-DB alle 71 Migrationen aus leerem Stand angewandt (inkl. `0069`-Rename und `0070`-Mapping), beide Creem-Tabellen plus die `creem_*`-Spalten vorhanden, DB danach gedroppt. Kein Fehler.
+- [x] **Step 4: Alle Refs verifiziert** (SDK-Methoden gegen `creem@1.5.3`, Migrationsnummern via `ls`, Schema-/Repo-Pfade via grep); `plans check` OK.
+
+Hinweis: Task 8 (Produkt-Seed) ist der einzige offene Punkt, blockiert auf Phase 0 (`CREEM_API_KEY`). Er fuegt keinen getesteten Backend-Code hinzu (gitignored Skript plus Mapping-Zeilen), daher sind diese Gates bereits jetzt aussagekraeftig.
 
 ---
 
