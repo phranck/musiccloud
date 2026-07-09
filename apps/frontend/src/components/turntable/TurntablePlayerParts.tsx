@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import { type CSSProperties, type ReactNode, useCallback } from "react";
 import { KnobDial } from "@/components/turntable/KnobDial";
 import { RecordSwapStage } from "@/components/turntable/RecordSwapStage";
 import {
@@ -119,6 +119,12 @@ interface TurntablePlayerPlatterProps {
   record: Omit<VinylRecordProps, "spinState">;
   /** Identity of the current record; a change runs the arc swap (see {@link RecordSwapStage}). */
   swapKey: string;
+  /**
+   * Fired once the arc swap settles the new record on the spindle. The
+   * hub-connected {@link HubPlatter} wires this to a best-effort play so the new
+   * record starts after it lands; the standalone deck omits it.
+   */
+  onSettled?: () => void;
 }
 
 /**
@@ -132,7 +138,7 @@ interface TurntablePlayerPlatterProps {
  *
  * @param props - {@link TurntablePlayerPlatterProps}.
  */
-export function TurntablePlayerPlatter({ spinState, record, swapKey }: TurntablePlayerPlatterProps) {
+export function TurntablePlayerPlatter({ spinState, record, swapKey, onSettled }: TurntablePlayerPlatterProps) {
   const { className: recordClassName, ...labelRecord } = record;
   return (
     <>
@@ -148,6 +154,7 @@ export function TurntablePlayerPlatter({ spinState, record, swapKey }: Turntable
           record={labelRecord}
           spinState={spinState}
           swapKey={swapKey}
+          onSettled={onSettled}
           className={cn("h-full w-full", recordClassName)}
         />
       </span>
@@ -318,15 +325,29 @@ export function HubLed() {
 
 /**
  * Hub-connected {@link TurntablePlayerPlatter}: reads `spinState` from the
- * turntable hub and feeds it to the {@link VinylRecord}.
+ * turntable hub and feeds it to the {@link VinylRecord}, and starts the freshly
+ * swapped-in record once it settles.
+ *
+ * The record-swap defer (see `useAudioController`) stops playback and leaves the
+ * new source idle while the deck coasts and the arc swap runs, so `onSettled`
+ * begins playback once the new disc lands. This is the product's "always auto-play
+ * the new record after the swap" decision; it is best effort — `togglePlay` calls
+ * `audio.play()`, whose promise rejection the engine already downgrades to an idle
+ * unavailable state, so a browser autoplay block simply leaves the record resting.
+ * The `isPlaying` guard avoids pausing a deck that is already playing (a same-album
+ * or reduced-motion path never reaches settle, but the guard keeps the intent
+ * explicit).
  *
  * Must render inside a `TurntablePlayerProvider`.
  *
  * @param props - {@link HubPlatterProps}.
  */
 export function HubPlatter({ record, swapKey }: HubPlatterProps) {
-  const { spinState } = useTurntablePlayer();
-  return <TurntablePlayerPlatter record={record} spinState={spinState} swapKey={swapKey} />;
+  const { spinState, isPlaying, togglePlay } = useTurntablePlayer();
+  const handleSettled = useCallback(() => {
+    if (!isPlaying) togglePlay();
+  }, [isPlaying, togglePlay]);
+  return <TurntablePlayerPlatter record={record} spinState={spinState} swapKey={swapKey} onSettled={handleSettled} />;
 }
 
 /**

@@ -134,10 +134,13 @@ function MediaCardHeadStage({
  * a `TurntablePlayerProvider` (the audio hub). The provider persists across track
  * changes (it is NOT re-keyed): the audio engine reacts to the `previewUrl` prop
  * in place, and the outgoing record survives long enough for `RecordSwapStage` to
- * animate it out. The record's identity (`recordSwapKey`) drives the deck's arc
- * swap instead: same album keeps the record, a different album swaps it. The
- * turntable stage then renders the hub-driven {@link TurntablePlayer} deck, which
- * reads its spin/speed/power from the hub.
+ * animate it out. The record's identity (`recordSwapKey`) drives BOTH sides of a
+ * swap: it is handed to the provider (so a different album defers playback and
+ * lets the deck coast to a halt instead of continuing) and to the deck (so the arc
+ * swap runs). Same album keeps the record and continues playback seamlessly; a
+ * different album stops, coasts, swaps and then auto-plays the new record. The
+ * turntable stage renders the hub-driven {@link TurntablePlayer} deck, which reads
+ * its spin/speed/power from the hub.
  * Without a preview there is no hub, so the stage gets a static {@link Turntable}
  * deck (idle spin) instead, keeping the hook out of the provider-less path.
  *
@@ -201,6 +204,7 @@ export function MediaCardHead({
           refreshShortId={content.previewRefreshable ? content.shortId : undefined}
           mediaKind={content.mediaKind}
           trackTitle={content.title}
+          recordSwapKey={swapKey}
           onSeekHint={handleSeekHint}
           onStatusChange={onPreviewStatusChange}
         >
