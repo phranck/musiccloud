@@ -7,6 +7,29 @@
  */
 
 /**
+ * A single entry from the Discogs Master Versions endpoint
+ * (`GET /masters/{id}/versions`).
+ *
+ * Only the fields required for original-pressing selection are included.
+ * The Discogs client (Task 5) reuses this interface when mapping the raw
+ * API response into a typed list before calling `selectOriginalVinylVersion`.
+ *
+ * @property id - Discogs release ID of this pressing.
+ * @property released - Release year string as returned by the API, e.g. `"1959"`.
+ *   May carry extra characters; only the leading four digits are used for
+ *   year comparison.
+ * @property format - Comma-joined format descriptor returned by the API,
+ *   e.g. `"LP, Album, Stereo"` or `"LP, Album, Reissue, Mono"`.
+ * @property country - Two-letter country code of the pressing, when present.
+ */
+export interface DiscogsMasterVersion {
+  id: number;
+  released: string;
+  format: string;
+  country?: string;
+}
+
+/**
  * Parses a Discogs track-duration string into milliseconds.
  *
  * Discogs encodes durations as `"M:SS"` or `"MM:SS"` (minutes colon
@@ -49,4 +72,40 @@ export function sideLabelFromPosition(position: string): string | null {
     return null;
   }
   return match[1].toUpperCase();
+}
+
+/**
+ * Selects the original vinyl pressing from a list of Discogs master versions.
+ *
+ * "Original" is defined as the non-reissue vinyl version with the earliest
+ * release year. When two versions share the same earliest year, the one that
+ * appears first in the input array is returned (stable, input-order tie-break).
+ *
+ * Filtering rules applied in order:
+ * 1. Keep only versions whose `format` contains `"Vinyl"` or `"LP"`
+ *    (case-insensitive). All other formats (CD, Cassette, …) are discarded.
+ * 2. Drop versions whose `format` contains `"Reissue"` (case-insensitive).
+ * 3. Among the remaining candidates, pick the one with the smallest year
+ *    derived from the leading four digits of the `released` field.
+ *
+ * @param versions - Array of version entries from the Discogs Master Versions
+ *   endpoint (`GET /masters/{id}/versions`).
+ * @returns The best-matching `DiscogsMasterVersion`, or `null` when no version
+ *   survives the filters (empty input, only reissues, only non-vinyl formats).
+ */
+export function selectOriginalVinylVersion(versions: DiscogsMasterVersion[]): DiscogsMasterVersion | null {
+  const VINYL_RE = /\b(vinyl|lp)\b/i;
+  const REISSUE_RE = /\breissue\b/i;
+
+  const candidates = versions.filter((v) => VINYL_RE.test(v.format) && !REISSUE_RE.test(v.format));
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  return candidates.reduce((best, current) => {
+    const bestYear = Number.parseInt(best.released.slice(0, 4), 10);
+    const currentYear = Number.parseInt(current.released.slice(0, 4), 10);
+    return currentYear < bestYear ? current : best;
+  });
 }
