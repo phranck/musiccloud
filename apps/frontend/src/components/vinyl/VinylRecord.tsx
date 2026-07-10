@@ -1,6 +1,7 @@
+import type { VinylSide } from "@musiccloud/shared";
 import type { CSSProperties } from "react";
-import { useEffect, useId, useRef } from "react";
-import { labelArcPath, vinylGrooveSpiralPath } from "@/lib/media/vinyl-geometry.js";
+import { useEffect, useId, useMemo, useRef } from "react";
+import { labelArcPath, vinylGrooveSpiralPath, vinylSideGroovePath } from "@/lib/media/vinyl-geometry.js";
 import { cn } from "@/lib/utils";
 import { LP_COAST_DURATION_MS, VinylSpinState, type VinylSpinState as VinylSpinStateValue } from "./VinylRecord.types";
 
@@ -13,6 +14,7 @@ export interface VinylRecordProps {
   labelCatalogText?: string | null;
   /** Top-left rights imprint. Defaults to "GEMA"; the CC path passes the licence label. */
   labelRightsText?: string | null;
+  sideLayout?: VinylSide;
   spinState?: VinylSpinStateValue;
 }
 
@@ -82,12 +84,15 @@ const VINYL_GROOVE_SPIRAL_PATH = vinylGrooveSpiralPath(
 // there. The groove has no external fonts or images, so the secure-static mode an
 // SVG carries inside an <img> imposes no constraint. Single quotes keep the data
 // URL compact: encodeURIComponent does not escape them.
-const VINYL_GROOVE_IMAGE_SRC = `data:image/svg+xml,${encodeURIComponent(
-  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>` +
-    `<path d='${VINYL_GROOVE_SPIRAL_PATH}' fill='none' stroke='rgba(0,0,0,0.5)' stroke-width='0.34'/>` +
-    `<path d='${VINYL_GROOVE_SPIRAL_PATH}' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='0.14'/>` +
-    `</svg>`,
-)}`;
+function vinylGrooveImageSrc(path: string) {
+  return `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>` +
+      `<path d='${path}' fill='none' stroke='rgba(0,0,0,0.5)' stroke-width='0.34'/>` +
+      `<path d='${path}' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='0.14'/>` +
+      `</svg>`,
+  )}`;
+}
+const VINYL_GROOVE_IMAGE_SRC = vinylGrooveImageSrc(VINYL_GROOVE_SPIRAL_PATH);
 const LABEL_TITLE_ARC_LENGTH = labelArcLength(LABEL_TITLE_ARC_RADIUS, LABEL_TITLE_ARC_BASELINE);
 
 // Vinyl-label imprint typography. Iosevka Charon Mono is monospace: every glyph
@@ -398,6 +403,7 @@ export function VinylRecord({
   labelSubtitle,
   labelTitle,
   labelYear,
+  sideLayout,
   spinState = VinylSpinState.Idle,
 }: VinylRecordProps) {
   const displayTitle = labelTitle ?? DEFAULT_LABEL_TITLE;
@@ -423,6 +429,17 @@ export function VinylRecord({
   const labelPathId = `vinyl${useId().replaceAll(":", "")}`;
   const titleArcId = `${labelPathId}-title`;
   const legalArcId = `${labelPathId}-legal`;
+  const grooveImageSrc = useMemo(() => {
+    if (!sideLayout) return VINYL_GROOVE_IMAGE_SRC;
+    return vinylGrooveImageSrc(
+      vinylSideGroovePath(sideLayout, {
+        innerRadius: VINYL_GROOVE_INNER_RADIUS,
+        outerRadius: VINYL_GROOVE_OUTER_RADIUS,
+        turns: VINYL_GROOVE_TURNS,
+      }),
+    );
+  }, [sideLayout]);
+  const sideLetter = sideLayout?.label ?? "A";
   const rotorRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<Animation | null>(null);
 
@@ -489,7 +506,7 @@ export function VinylRecord({
             className="pointer-events-none absolute inset-0 h-full w-full"
             data-vinyl-grooves="true"
             draggable={false}
-            src={VINYL_GROOVE_IMAGE_SRC}
+            src={grooveImageSrc}
           />
           <span aria-hidden="true" className="absolute inset-[2.8%] rounded-full" style={RECORD_DETAIL_STYLE} />
           <div
@@ -551,8 +568,8 @@ export function VinylRecord({
                 <tspan data-vinyl-label-side="true" fontSize="3.4" x="38" y="70">
                   SIDE
                 </tspan>
-                <tspan fontSize="5.4" letterSpacing="0" x="38" y="75">
-                  A
+                <tspan data-vinyl-label-side-letter="true" fontSize="5.4" letterSpacing="0" x="38" y="75">
+                  {sideLetter}
                 </tspan>
               </text>
               <text
@@ -612,7 +629,7 @@ export function VinylRecord({
                 </textPath>
               </text>
             </svg>
-            <span className="sr-only">SIDE A</span>
+            <span className="sr-only">SIDE {sideLetter}</span>
             <span className="sr-only">{labelYear ?? DEFAULT_LABEL_SPEED}</span>
             <div
               aria-hidden="true"
