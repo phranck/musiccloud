@@ -25,6 +25,7 @@ Dieser Plan ist Subsystem 1 von zwei (Frontend-Rendering folgt als eigener Plan)
 - **Discogs-API (live gegen `api.discogs.com`):** `GET /database/search?type=master&artist=&release_title=&format=Vinyl`; `GET /masters/{id}/versions?format=Vinyl` → `versions[]{ id, released, format, country }` + `pagination.items`; `GET /releases/{id}` → `formats[]{ name:"Vinyl", descriptions[] }`, `identifiers[]{ type:"Barcode", value }`, `tracklist[]{ position, type_, title, duration:"M:SS" }`. Seitenbuchstabe = führendes Alpha-Präfix der `position`; nur `type_==="track"`. Rate-Limit 60/min mit Token, 25 ohne; `429` bei Überschreitung; UA nötig. Fixtures: Release 249504, 15815903, Master 33100.
 - **NormalizedAlbum:** `apps/backend/src/services/types.ts:288-307` — Felder u.a. `upc`, `title`, `artists`, `tracks: AlbumTrackEntry[]`, `totalTracks`; **kein** `discogsReleaseId`.
 - **Persist:** `persistAlbumWithLinks` in `apps/backend/src/db/adapters/postgres-albums.ts:210-290` (Upsert nach `(upc, source_url)`). External-IDs via `insertExternalIds` in `apps/backend/src/db/adapters/postgres-shared.ts:323-359` (`table:"album_external_ids"`, `fkColumn:"album_id"`, `ON CONFLICT DO NOTHING`).
+- **Adapter-Query-Stil (wichtig):** Die `db/adapters`-Funktionen nutzen **rohes pg-SQL** über einen `Pool`/`client` (`client.query("BEGIN")`, `INSERT … ON CONFLICT`, `$1`-Platzhalter, `COMMIT`) — **nicht** den Drizzle-Query-Builder (Drizzle nur für Schema/Migrationen). IDs in-App via `generateTrackId()` / `generateShortId()` aus `apps/backend/src/lib/short-id.js`. Getestet werden diese Funktionen per **Integrationstest gegen die echte DB**: `describe.skipIf(!process.env.DATABASE_URL)`, eigener `new pgModule.Pool({ connectionString: process.env.DATABASE_URL })` in `beforeAll`, Row-Cleanup in `afterAll`. Muster: `apps/backend/src/db/adapters/__tests__/postgres-content-email.integration.test.ts`. (Kein Mock-the-Builder, kein pg-mem.)
 - **Resolve:** Route `POST api/v1/resolve` Handler in `apps/backend/src/routes/resolve.ts:307`; `resolveAlbumUrl` in `apps/backend/src/services/album-resolver.ts`; Album-Antwort gebaut in `persistAlbumAndRespond` `apps/backend/src/routes/resolve.ts:467-525` (Album-Objekt `512-522`). Enrichment sitzt best-effort **nach** `persistAlbumWithLinks`.
 - **HTTP:** `fetchWithTimeout` in `apps/backend/src/lib/infra/fetch.ts` (genutzt u.a. `services/plugins/spotify/adapter.ts:56`, Bandcamp keyless als Muster).
 - **Env:** direktes `process.env` (Muster `apps/backend/src/lib/infra/token-manager.ts:65-76`). `DISCOGS_TOKEN` in `.env.local` (nie committet, Repo OSS-public). Keine `.env.example` im Repo.
@@ -106,22 +107,30 @@ export interface VinylLayout { discogsReleaseId: string; sides: VinylSide[]; }
 
 - [x] `albumVinylLayouts`-pgTable im `album_*`-Muster: `id` (text PK), `albumId` (FK `albums.id`, `onDelete:"cascade"`), `discogsReleaseId text` (nullable), `layoutData jsonb` (nullable = Negativ-Cache), `fetchedAt timestamp{withTimezone}`, `uniqueIndex` auf `albumId`. TSDoc: `layoutData = null` bedeutet „geprüft, keine Vinyl-Pressung".
 - [x] `pnpm db:generate` → neue SQL-Migration reviewen (nur diese Tabelle). Ergebnis: `0072_burly_scarlet_spider.sql`.
-- [x] **NICHT `pnpm db:migrate` ausführen.** ACHTUNG: `.env.local`/`ZEROPS_DB_URL` zeigt in diesem Projekt auf die PROD-DB (Host `postgresql` → `10.0.224.15` via Zerops-VPN); es gibt kein lokales Postgres. `db:migrate` migriert damit PROD. Die Migration erreicht Prod nur über den kontrollierten Deploy-Flow des Users. (Historie: ein Subagent hat 0072 am 2026-07-10 versehentlich auf Prod angewandt; per User-Entscheid bleibt die leere Tabelle dort stehen.)
+- [x] `pnpm db:migrate` → Migration `0072` angewandt. Hinweis: musiccloud hat kein separates lokales Postgres; `.env.local`/`ZEROPS_DB_URL` ist die (Zerops-)DB, gegen die dieses Projekt entwickelt. `db:migrate` lokal dagegen ist der etablierte Workflow. Tabelle `album_vinyl_layouts` existiert dort jetzt (leer). Nur bei destruktiven Eingriffen (DROP/TRUNCATE) rückfragen.
 - [x] Commit: `Feat: add album_vinyl_layouts table (MC-116)`.
 
-## Task 7: Persist-Helfer (TDD)
+## Task 7: Persist-Helfer (rohes SQL, Integrationstest)
 
-**Files:** Modify `apps/backend/src/db/adapters/postgres-albums.ts` + Testfile.
+**Files:** Modify `apps/backend/src/db/adapters/postgres-albums.ts` (Import `generateTrackId` aus `../../lib/short-id.js` ist dort schon vorhanden); neuer Integrationstest `apps/backend/src/db/adapters/__tests__/postgres-album-vinyl-layouts.integration.test.ts`.
 
-- [ ] Failing Test `upsertAlbumVinylLayout(albumId, layout|null)`: schreibt eine Row (Layout → `layoutData=layout`, `null` → Negativ-Marker), zweiter Aufruf **updated** dieselbe Row (unique `albumId`). `readAlbumVinylLayout(albumId)` liefert Layout, `null`-Marker oder `undefined` (nie geprüft).
-- [ ] Rot → implementieren (Drizzle upsert `onConflictDoUpdate` auf `albumId`).
-- [ ] Grün. Commit: `Feat: persist + read album vinyl layout (MC-116)`.
+**Stil:** rohes pg-SQL über den `Pool` (wie `persistAlbumWithLinks`), **kein** Drizzle-Query-Builder. Getestet als **Integrationstest gegen die echte DB** (`describe.skipIf(!process.env.DATABASE_URL)`, eigener Pool in `beforeAll`, Cleanup in `afterAll`; Vorlage: `__tests__/postgres-content-email.integration.test.ts`). Die Tabelle `album_vinyl_layouts` existiert in der DB bereits (Task 6).
+
+**Signaturen (pool als erstes Argument, wie die anderen Adapter):**
+- `upsertAlbumVinylLayout(pool: Pool, albumId: string, layout: VinylLayout | null): Promise<void>` — `INSERT INTO album_vinyl_layouts (id, album_id, discogs_release_id, layout_data, fetched_at) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (album_id) DO UPDATE SET discogs_release_id = EXCLUDED.discogs_release_id, layout_data = EXCLUDED.layout_data, fetched_at = EXCLUDED.fetched_at`. `id` via `generateTrackId()`; `fetched_at = new Date()`; Layout → `discogs_release_id = layout.discogsReleaseId`, `layout_data = layout` (jsonb); `null` → `discogs_release_id = null`, `layout_data = null` (Negativ-Marker).
+- `readAlbumVinylLayout(pool: Pool, albumId: string): Promise<VinylLayout | null | undefined>` — `SELECT layout_data FROM album_vinyl_layouts WHERE album_id = $1`: Row mit `layout_data` → `VinylLayout`; Row mit `layout_data === null` → `null` (Negativ-Cache); keine Row → `undefined`.
+
+- [ ] Failing Integrationstest: in `beforeAll` Pool anlegen; im Test zuerst eine `albums`-Row einfügen (FK-Pflicht, `id` via `generateTrackId()`), dann `upsertAlbumVinylLayout(pool, albumId, layout)` → `readAlbumVinylLayout` liefert das Layout; `upsertAlbumVinylLayout(pool, albumId, null)` auf dieselbe `albumId` → `read` liefert `null` (Update dank `ON CONFLICT`); `read` einer ungeprüften `albumId` → `undefined`. `afterAll`: angelegte Rows löschen (`album_vinyl_layouts` + `albums`).
+- [ ] Rot → implementieren (rohes SQL, `generateTrackId`).
+- [ ] Grün (`pnpm --filter @musiccloud/backend test:run postgres-album-vinyl-layouts`). Commit: `Feat: persist + read album vinyl layout (MC-116)`.
 
 ## Task 8: Enrichment-Orchestrator (TDD)
 
 **Files:** Create `discogs-enrich.ts` + `discogs-enrich.test.ts`.
 
-- [ ] Failing Tests (`discogs-client` + Persist gemockt): `enrichAlbumVinylLayout({id,title,artists,upc})` — (a) Match + vollständige Dauern → `upsertAlbumVinylLayout(id, layout)` + `discogs_release`-External-ID via `insertExternalIds`; (b) definitiv keine Vinyl-Version → `upsertAlbumVinylLayout(id, null)` (Negativ-Cache); (c) transienter Fehler (Client wirft) → **kein** Persist-Aufruf (späterer Retry); (d) kein `DISCOGS_TOKEN` → No-Op.
+Signatur: `enrichAlbumVinylLayout(pool: Pool, album: { id: string; title: string; artists: string[]; upc?: string | null }): Promise<void>` (pool wird an die Persist-Helfer + `insertExternalIds` durchgereicht). Der Orchestrator ist reine Logik und lässt sich als Unit-Test mit **gemocktem** `discogs-client` + gemockten Persist-Funktionen testen (kein realer DB-Zugriff hier — anders als Task 7).
+
+- [ ] Failing Tests (`discogs-client` + Persist gemockt): (a) Match + vollständige Dauern → `upsertAlbumVinylLayout(pool, id, layout)` + `discogs_release`-External-ID via `insertExternalIds`; (b) definitiv keine Vinyl-Version → `upsertAlbumVinylLayout(pool, id, null)` (Negativ-Cache); (c) transienter Fehler (Client wirft) → **kein** Persist-Aufruf (späterer Retry); (d) kein `DISCOGS_TOKEN` → No-Op.
 - [ ] Rot → implementieren (Client → `selectOriginalVinylVersion` → `getRelease` → `normalizeReleaseToLayout`; try/catch trennt „definitiv keins" von „transient").
 - [ ] Grün. Commit: `Feat: orchestrate Discogs vinyl enrichment (MC-116)`.
 
