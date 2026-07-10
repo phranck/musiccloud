@@ -329,6 +329,24 @@ export const albumVinylLayouts = pgTable(
   (table) => [uniqueIndex("uq_album_vinyl_layouts_album_id").on(table.albumId)],
 );
 
+/**
+ * Artist-qualified lookup index for Discogs layout caches. This is separate
+ * from canonical album identity: two real releases with different UPCs or
+ * source URLs must remain separate album records even when they share an
+ * artist and title.
+ */
+export const albumVinylLayoutIdentities = pgTable(
+  "album_vinyl_layout_identities",
+  {
+    identityKey: text("identity_key").primaryKey(),
+    albumId: text("album_id")
+      .notNull()
+      .references(() => albums.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [index("idx_album_vinyl_layout_identities_album").on(table.albumId)],
+);
+
 // ─── Normalized Artist Identity Tables ───────────────────────────────────────
 
 /**

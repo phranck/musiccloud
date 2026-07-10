@@ -99,6 +99,11 @@ export interface CachedAlbumResult {
   }>;
 }
 
+/** Minimal lookup result for an artist-qualified vinyl-layout cache identity. */
+export interface AlbumVinylLayoutIdentityResult {
+  albumId: string;
+}
+
 /** Minimal share-page data for albums */
 export interface SharePageAlbumResult {
   album: {
@@ -464,6 +469,10 @@ export interface TrackRepository {
    * @returns The matching record, or `null` when no row matches.
    */
   findAlbumByUpc(upc: string): Promise<CachedAlbumResult | null>;
+  /** Finds the album owning the artist-qualified shared vinyl-layout cache. */
+  findAlbumByVinylLayoutIdentity(identityKey: string): Promise<AlbumVinylLayoutIdentityResult | null>;
+  /** Atomically links an identity to its first owning layout cache and returns that owner. */
+  ensureAlbumVinylLayoutIdentity(identityKey: string, albumId: string): Promise<string>;
   /**
    * Finds existing album by UPC.
    *

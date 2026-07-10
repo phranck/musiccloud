@@ -40,6 +40,12 @@ export interface ApiTrack {
    *  Deezer URL on demand via the preview-refresh endpoint. Clients use
    *  this to decide whether to render the audio player in a loading state. */
   previewRefreshable?: boolean;
+  /**
+   * Discogs-derived vinyl layout for this track's containing album. Absent
+   * when the track has no stable album identity; null when no suitable vinyl
+   * pressing is available.
+   */
+  vinylLayout: VinylLayout | null;
 }
 
 export interface ApiLink {

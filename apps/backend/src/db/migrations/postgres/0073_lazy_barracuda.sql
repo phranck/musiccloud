@@ -1,0 +1,2 @@
+ALTER TABLE "albums" ADD COLUMN "identity_key" text;--> statement-breakpoint
+CREATE UNIQUE INDEX "uq_albums_identity_key" ON "albums" USING btree ("identity_key") WHERE "albums"."identity_key" IS NOT NULL;

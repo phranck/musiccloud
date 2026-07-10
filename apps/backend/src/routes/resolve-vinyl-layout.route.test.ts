@@ -1,4 +1,4 @@
-import type { AlbumResolveSuccessResponse, VinylLayout } from "@musiccloud/shared";
+import type { AlbumResolveSuccessResponse, ApiTrack, VinylLayout } from "@musiccloud/shared";
 import Fastify from "fastify";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { OPENAPI_SCHEMAS } from "../schemas/openapi-schemas.js";
@@ -6,12 +6,17 @@ import { OPENAPI_SCHEMAS } from "../schemas/openapi-schemas.js";
 const persistAlbumWithLinks = vi.fn();
 const enrichAlbumVinylLayout = vi.fn();
 const readAlbumVinylLayout = vi.fn();
+const findAlbumByVinylLayoutIdentity = vi.fn();
+const ensureAlbumVinylLayoutIdentity = vi.fn((_identityKey: string, albumId: string) => Promise.resolve(albumId));
+const persistResolution = vi.fn();
 
 vi.mock("../db/index.js", () => ({
   getRepository: vi.fn().mockResolvedValue({
     persistAlbumWithLinks,
     enrichAlbumVinylLayout,
     readAlbumVinylLayout,
+    findAlbumByVinylLayoutIdentity,
+    ensureAlbumVinylLayoutIdentity,
     upsertAlbumPreview: vi.fn(),
     addAlbumExternalIds: vi.fn(),
   }),
@@ -47,8 +52,12 @@ vi.mock("../services/resolver.js", () => ({
   resolveTextSearchWithDisambiguation: vi.fn(),
 }));
 
+vi.mock("../services/persist-resolution.js", () => ({ persistResolution }));
+
 const { default: resolveRoutes } = await import("./resolve.js");
 const { resolveAlbumUrl } = await import("../services/album-resolver.js");
+const { resolveQuery } = await import("../services/resolver.js");
+const { isAlbumUrl } = await import("../lib/platform/url.js");
 
 const vinylLayout = {
   discogsReleaseId: "15815903",
@@ -115,10 +124,49 @@ function buildAlbumSerializerApp() {
 describe("POST /api/v1/resolve album vinyl layout", () => {
   afterEach(() => {
     vi.clearAllMocks();
+    vi.mocked(isAlbumUrl).mockReturnValue(true);
   });
 
   it("requires vinylLayout in the shared album resolve contract", () => {
     expectTypeOf<AlbumResolveSuccessResponse["album"]["vinylLayout"]>().toEqualTypeOf<VinylLayout | null>();
+  });
+
+  it("exposes the artist-qualified album layout on a track resolve", async () => {
+    expectTypeOf<ApiTrack["vinylLayout"]>().toEqualTypeOf<VinylLayout | null>();
+    vi.mocked(isAlbumUrl).mockReturnValue(false);
+    persistResolution.mockResolvedValue({
+      trackId: "track-id",
+      shortId: "track-short",
+      refreshedPreviewUrl: undefined,
+      artistCredits: [],
+    });
+    findAlbumByVinylLayoutIdentity.mockResolvedValue({ albumId: "persisted-album-id" });
+    readAlbumVinylLayout.mockResolvedValue(vinylLayout);
+    vi.mocked(resolveQuery).mockResolvedValue({
+      sourceTrack: {
+        title: "The Sermon!",
+        artists: ["Jimmy Smith"],
+        albumName: "The Sermon!",
+        sourceService: "spotify",
+        sourceId: "track-1",
+        webUrl: "https://open.spotify.com/track/track-1",
+      },
+      links: [],
+      externalIds: [],
+    });
+    const app = buildApp();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/resolve",
+      headers: { origin: "http://localhost:3000" },
+      payload: { query: "https://open.spotify.com/track/track-1" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().track.vinylLayout).toEqual(vinylLayout);
+    expect(findAlbumByVinylLayoutIdentity).toHaveBeenCalledWith("jimmy smith::the sermon");
+    await app.close();
   });
 
   it("preserves vinylLayout through the AlbumResolveSuccess serializer", async () => {

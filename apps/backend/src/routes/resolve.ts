@@ -69,6 +69,7 @@ import { getPreviewExpiry } from "../lib/preview-url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
 import { toApiLinks } from "../lib/server/api-links.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
+import { createAlbumIdentityKey } from "../services/album-identity.js";
 import type { AlbumResolutionResult } from "../services/album-resolver.js";
 import { resolveAlbumUrl } from "../services/album-resolver.js";
 import type { ArtistResolutionResult } from "../services/artist-resolver.js";
@@ -95,6 +96,7 @@ import {
   parseStructuredSearchQuery,
   StructuredSearchQueryParseError,
 } from "../services/structured-search/index.js";
+import { resolveTrackVinylLayout } from "../services/track-vinyl-layout.js";
 
 /**
  * Whitelist sourced from env `ALLOWED_ORIGINS` (comma-separated). The full
@@ -406,6 +408,8 @@ async function persistTrackAndRespond(
   origin: string,
 ): Promise<UnifiedResolveSuccessResponse> {
   const { trackId, shortId, refreshedPreviewUrl, artistCredits } = await persistResolution(result);
+  const repo = await getRepository();
+  const vinylLayout = await resolveTrackVinylLayout(repo, result.sourceTrack);
   const shortUrl = `${origin}/${shortId}`;
 
   return {
@@ -423,6 +427,7 @@ async function persistTrackAndRespond(
       releaseDate: result.sourceTrack.releaseDate,
       isExplicit: result.sourceTrack.isExplicit,
       previewUrl: refreshedPreviewUrl,
+      vinylLayout,
     },
     links: toApiLinks(result.links, { stripTracking: true }),
   };
@@ -503,10 +508,27 @@ async function persistAlbumAndRespond(
     }
   }
 
+  const albumIdentity = createAlbumIdentityKey({
+    artists: result.sourceAlbum.artists,
+    title: result.sourceAlbum.title,
+  });
+  let layoutAlbumId = albumId;
+  if (albumIdentity) {
+    try {
+      layoutAlbumId = await repo.ensureAlbumVinylLayoutIdentity(albumIdentity, albumId);
+    } catch (err) {
+      log.debug(
+        "Resolve",
+        "Album vinyl-layout identity persist failed:",
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+  }
+
   if (!result.albumId) {
     try {
       await repo.enrichAlbumVinylLayout({
-        id: albumId,
+        id: layoutAlbumId,
         title: result.sourceAlbum.title,
         artists: result.sourceAlbum.artists,
         upc: result.sourceAlbum.upc,
@@ -515,8 +537,7 @@ async function persistAlbumAndRespond(
       log.debug("Resolve", "Album vinyl-layout enrichment failed:", err instanceof Error ? err.message : String(err));
     }
   }
-
-  const vinylLayout = (await repo.readAlbumVinylLayout(albumId)) ?? null;
+  const vinylLayout = await repo.readAlbumVinylLayout(layoutAlbumId);
 
   const shortUrl = `${origin}/${shortId}`;
 
@@ -534,7 +555,7 @@ async function persistAlbumAndRespond(
       label: result.sourceAlbum.label,
       upc: result.sourceAlbum.upc,
       previewUrl,
-      vinylLayout,
+      vinylLayout: vinylLayout ?? null,
     },
     links: toApiLinks(result.links, { stripTracking: true }),
   };

@@ -23,6 +23,7 @@ import type { Pool } from "pg";
 import { generateShortId, generateTrackId } from "../../lib/short-id.js";
 import type { NormalizedAlbum, TrackSource } from "../../services/types.js";
 import type {
+  AlbumVinylLayoutIdentityResult,
   ArtistCredit,
   CachedAlbumResult,
   ExternalIdRecord,
@@ -150,6 +151,42 @@ export async function findAlbumByUpc(pool: Pool, upc: string): Promise<CachedAlb
   }
 
   return findAlbumByExternalId(pool, "upc", upc);
+}
+
+/**
+ * Looks up an album cache entry by its normalized primary-artist + title key.
+ * This is intentionally not a title query: unrelated artists can release
+ * albums with the same title and must never share a Discogs layout.
+ */
+export async function findAlbumByVinylLayoutIdentity(
+  pool: Pool,
+  identityKey: string,
+): Promise<AlbumVinylLayoutIdentityResult | null> {
+  const result = await pool.query(
+    `SELECT album_id FROM album_vinyl_layout_identities WHERE identity_key = $1 LIMIT 1`,
+    [identityKey],
+  );
+  return result.rows.length > 0 ? { albumId: result.rows[0].album_id as string } : null;
+}
+
+/**
+ * Atomically installs the first album as a shared layout-cache owner. Later
+ * resolves receive that existing owner instead of changing canonical album
+ * identity or overwriting a checked layout.
+ */
+export async function ensureAlbumVinylLayoutIdentity(
+  pool: Pool,
+  identityKey: string,
+  albumId: string,
+): Promise<string> {
+  const result = await pool.query(
+    `INSERT INTO album_vinyl_layout_identities (identity_key, album_id, created_at)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (identity_key) DO UPDATE SET identity_key = EXCLUDED.identity_key
+     RETURNING album_id`,
+    [identityKey, albumId, new Date()],
+  );
+  return result.rows[0].album_id as string;
 }
 
 /**

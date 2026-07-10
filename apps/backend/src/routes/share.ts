@@ -43,6 +43,7 @@
  */
 import { ROUTE_TEMPLATES, type SharePageResponse } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
+import { getRepository } from "../db/index.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter, isInternalRequest } from "../lib/infra/rate-limiter.js";
 import { resolveAppleMusicStorefrontFromHeaders } from "../lib/platform/apple-music-storefront.js";
@@ -50,6 +51,7 @@ import { toCachedApiLinks } from "../lib/server/api-links.js";
 import { loadCcByShortId } from "../lib/server/cc-share-page.js";
 import { loadAlbumByShortId, loadArtistByShortId, loadByShortId } from "../lib/server/share-page.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
+import { createAlbumIdentityKey } from "../services/album-identity.js";
 
 export default async function shareRoutes(app: FastifyInstance) {
   app.get<{ Params: { shortId: string } }>(
@@ -125,6 +127,20 @@ export default async function shareRoutes(app: FastifyInstance) {
       ]);
 
       if (trackData) {
+        let vinylLayout = null;
+        const albumName = trackData.track.albumName ?? undefined;
+        if (albumName) {
+          try {
+            const identityKey = createAlbumIdentityKey({ artists: trackData.artists, title: albumName });
+            if (identityKey) {
+              const repo = await getRepository();
+              const cached = await repo.findAlbumByVinylLayoutIdentity(identityKey);
+              if (cached) vinylLayout = (await repo.readAlbumVinylLayout(cached.albumId)) ?? null;
+            }
+          } catch {
+            // Layout metadata is optional enhancement for an otherwise valid share page.
+          }
+        }
         const response: SharePageResponse = {
           type: "track",
           og: {
@@ -145,6 +161,7 @@ export default async function shareRoutes(app: FastifyInstance) {
             isExplicit: trackData.track.isExplicit ?? undefined,
             previewUrl: trackData.track.previewUrl ?? undefined,
             previewRefreshable: trackData.previewRefreshable || undefined,
+            vinylLayout,
           },
           links: toCachedApiLinks(trackData.links),
           shortUrl: trackData.og.ogUrl,

@@ -512,6 +512,20 @@
       "when": 1783717093382,
       "tag": "0072_burly_scarlet_spider",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1783727099560,
+      "tag": "0073_lazy_barracuda",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1783727522012,
+      "tag": "0074_safe_puma",
+      "breakpoints": true
     }
   ]
 }

@@ -42,7 +42,7 @@ export const TrackSchema = {
   $id: "Track",
   type: "object",
   description: "Canonical track metadata returned across the public API.",
-  required: ["title", "artists"],
+  required: ["title", "artists", "vinylLayout"],
   additionalProperties: false,
   properties: {
     title: { type: "string", description: "Track title as reported by the origin service." },
@@ -67,6 +67,10 @@ export const TrackSchema = {
       type: "boolean",
       description:
         "Present and true when `previewUrl` is absent but the backend can fetch a fresh Deezer URL on demand via /api/v1/share/:shortId/preview.",
+    },
+    vinylLayout: {
+      anyOf: [{ $ref: "VinylLayout#" }, { type: "null" }],
+      description: "Discogs-derived vinyl layout for the containing album, or null when unavailable.",
     },
   },
   example: {
