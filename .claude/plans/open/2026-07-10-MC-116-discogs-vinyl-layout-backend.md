@@ -104,10 +104,10 @@ export interface VinylLayout { discogsReleaseId: string; sides: VinylSide[]; }
 
 **Files:** Modify `apps/backend/src/db/schemas/postgres.ts`; generierte Migration in `apps/backend/src/db/migrations/`.
 
-- [ ] `albumVinylLayouts`-pgTable im `album_*`-Muster: `id` (text PK), `albumId` (FK `albums.id`, `onDelete:"cascade"`), `discogsReleaseId text` (nullable), `layoutData jsonb` (nullable = Negativ-Cache), `fetchedAt timestamp{withTimezone}`, `uniqueIndex` auf `albumId`, `index` auf `albumId`. TSDoc: `layoutData = null` bedeutet „geprüft, keine Vinyl-Pressung".
-- [ ] `pnpm db:generate` → neue SQL-Migration reviewen (nur diese Tabelle).
-- [ ] `pnpm db:migrate` lokal → grün.
-- [ ] Commit: `Feat: add album_vinyl_layouts table (MC-116)`.
+- [x] `albumVinylLayouts`-pgTable im `album_*`-Muster: `id` (text PK), `albumId` (FK `albums.id`, `onDelete:"cascade"`), `discogsReleaseId text` (nullable), `layoutData jsonb` (nullable = Negativ-Cache), `fetchedAt timestamp{withTimezone}`, `uniqueIndex` auf `albumId`. TSDoc: `layoutData = null` bedeutet „geprüft, keine Vinyl-Pressung".
+- [x] `pnpm db:generate` → neue SQL-Migration reviewen (nur diese Tabelle).
+- [x] `pnpm db:migrate` lokal → grün.
+- [x] Commit: `Feat: add album_vinyl_layouts table (MC-116)`.
 
 ## Task 7: Persist-Helfer (TDD)
 
@@ -154,7 +154,7 @@ export interface VinylLayout { discogsReleaseId: string; sides: VinylSide[]; }
 - [x] Task 3 — Original-Pressung wählen
 - [x] Task 4 — Release → VinylLayout
 - [ ] Task 5 — Discogs-HTTP-Client
-- [ ] Task 6 — Tabelle + Migration
+- [x] Task 6 — Tabelle + Migration
 - [ ] Task 7 — Persist-Helfer
 - [ ] Task 8 — Enrichment-Orchestrator
 - [ ] Task 9 — In Resolve verdrahten + Payload

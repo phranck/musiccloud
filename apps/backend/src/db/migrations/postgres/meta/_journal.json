@@ -505,6 +505,13 @@
       "when": 1783636256751,
       "tag": "0071_careless_mandarin",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1783717093382,
+      "tag": "0072_burly_scarlet_spider",
+      "breakpoints": true
     }
   ]
 }

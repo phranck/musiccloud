@@ -1,4 +1,4 @@
-import type { FormConfigPayload } from "@musiccloud/shared";
+import type { FormConfigPayload, VinylLayout } from "@musiccloud/shared";
 import { sql } from "drizzle-orm";
 import {
   boolean,
@@ -294,6 +294,40 @@ export const albumShortUrls = pgTable(
   (table) => [
     index("idx_album_short_urls_album_id").on(table.albumId),
     uniqueIndex("uq_album_short_urls_album_id").on(table.albumId),
+  ],
+);
+
+/**
+ * Vinyl-layout cache derived from Discogs, keyed one row per album.
+ *
+ * Each row is written by the Discogs enrichment step that runs best-effort
+ * after an album is persisted. Two cases are stored:
+ *
+ * - **Positive cache:** `layout_data` holds a {@link VinylLayout} JSON object
+ *   with the normalized side/track structure derived from a real Discogs
+ *   vinyl pressing. `discogs_release_id` records which Discogs release was
+ *   matched.
+ * - **Negative cache:** `layout_data` is `null`. This means "we checked
+ *   Discogs for this album and found no suitable vinyl pressing". A `null`
+ *   value prevents repeated lookups for albums that have no vinyl data.
+ *
+ * The unique index on `album_id` enforces the one-row-per-album invariant and
+ * serves as the primary lookup key so no additional plain index is needed on
+ * that column.
+ */
+export const albumVinylLayouts = pgTable(
+  "album_vinyl_layouts",
+  {
+    id: text("id").primaryKey(),
+    albumId: text("album_id")
+      .notNull()
+      .references(() => albums.id, { onDelete: "cascade" }),
+    discogsReleaseId: text("discogs_release_id"),
+    layoutData: jsonb("layout_data").$type<VinylLayout>(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("uq_album_vinyl_layouts_album_id").on(table.albumId),
   ],
 );
 
