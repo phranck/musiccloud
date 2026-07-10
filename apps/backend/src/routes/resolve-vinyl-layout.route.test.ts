@@ -1,5 +1,7 @@
+import type { AlbumResolveSuccessResponse, VinylLayout } from "@musiccloud/shared";
 import Fastify from "fastify";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
+import { OPENAPI_SCHEMAS } from "../schemas/openapi-schemas.js";
 
 const persistAlbumWithLinks = vi.fn();
 const enrichAlbumVinylLayout = vi.fn();
@@ -67,9 +69,46 @@ const albumResolution = {
 };
 
 function buildApp() {
-  const app = Fastify({ ajv: { customOptions: { strict: false } } });
-  app.setSerializerCompiler(() => (data) => JSON.stringify(data));
+  const app = Fastify({ ajv: { customOptions: { keywords: ["example"] } } });
+  app.addSchema({
+    $id: "ErrorResponse",
+    type: "object",
+    required: ["error"],
+    properties: { error: { type: "string" } },
+  });
+  for (const schema of OPENAPI_SCHEMAS) {
+    app.addSchema(schema);
+  }
   app.register(resolveRoutes);
+  return app;
+}
+
+function buildAlbumSerializerApp() {
+  const app = Fastify({ ajv: { customOptions: { keywords: ["example"] } } });
+  for (const schema of OPENAPI_SCHEMAS) {
+    app.addSchema(schema);
+  }
+  app.get(
+    "/album-serializer-contract",
+    {
+      schema: {
+        response: {
+          200: { $ref: "AlbumResolveSuccess#" },
+        },
+      },
+    },
+    async () => ({
+      type: "album",
+      id: "persisted-album-id",
+      shortUrl: "http://localhost:3000/album-short",
+      album: {
+        title: "The Sermon!",
+        artists: ["Jimmy Smith"],
+        vinylLayout,
+      },
+      links: [],
+    }),
+  );
   return app;
 }
 
@@ -78,8 +117,30 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
     vi.clearAllMocks();
   });
 
+  it("requires vinylLayout in the shared album resolve contract", () => {
+    expectTypeOf<AlbumResolveSuccessResponse["album"]["vinylLayout"]>().toEqualTypeOf<VinylLayout | null>();
+  });
+
+  it("preserves vinylLayout through the AlbumResolveSuccess serializer", async () => {
+    const app = buildAlbumSerializerApp();
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/album-serializer-contract",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().album.vinylLayout).toEqual(vinylLayout);
+
+    await app.close();
+  });
+
   it("enriches after persistence and returns the persisted vinyl layout", async () => {
-    persistAlbumWithLinks.mockResolvedValue({ albumId: "album-1", shortId: "album-short", artistCredits: [] });
+    persistAlbumWithLinks.mockResolvedValue({
+      albumId: "persisted-album-id",
+      shortId: "album-short",
+      artistCredits: [],
+    });
     enrichAlbumVinylLayout.mockResolvedValue(undefined);
     readAlbumVinylLayout.mockResolvedValue(vinylLayout);
     vi.mocked(resolveAlbumUrl).mockResolvedValue(albumResolution);
@@ -94,13 +155,17 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
 
     expect(response.statusCode).toBe(200);
     expect(enrichAlbumVinylLayout).toHaveBeenCalledWith({
-      id: "album-1",
+      id: "persisted-album-id",
       title: "The Sermon!",
       artists: ["Jimmy Smith"],
       upc: "094635000000",
     });
-    expect(enrichAlbumVinylLayout.mock.invocationCallOrder[0]).toBeGreaterThan(
-      persistAlbumWithLinks.mock.invocationCallOrder[0] ?? 0,
+    expect(readAlbumVinylLayout).toHaveBeenCalledWith("persisted-album-id");
+    expect(persistAlbumWithLinks.mock.invocationCallOrder[0]).toBeLessThan(
+      enrichAlbumVinylLayout.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    );
+    expect(enrichAlbumVinylLayout.mock.invocationCallOrder[0]).toBeLessThan(
+      readAlbumVinylLayout.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
     );
     expect(response.json().album.vinylLayout).toEqual(vinylLayout);
 
@@ -108,7 +173,11 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
   });
 
   it("returns the resolved album when vinyl enrichment fails", async () => {
-    persistAlbumWithLinks.mockResolvedValue({ albumId: "album-1", shortId: "album-short", artistCredits: [] });
+    persistAlbumWithLinks.mockResolvedValue({
+      albumId: "persisted-album-id",
+      shortId: "album-short",
+      artistCredits: [],
+    });
     enrichAlbumVinylLayout.mockRejectedValue(new Error("Discogs unavailable"));
     readAlbumVinylLayout.mockResolvedValue(undefined);
     vi.mocked(resolveAlbumUrl).mockResolvedValue(albumResolution);
@@ -122,6 +191,19 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
     });
 
     expect(response.statusCode).toBe(200);
+    expect(enrichAlbumVinylLayout).toHaveBeenCalledWith({
+      id: "persisted-album-id",
+      title: "The Sermon!",
+      artists: ["Jimmy Smith"],
+      upc: "094635000000",
+    });
+    expect(readAlbumVinylLayout).toHaveBeenCalledWith("persisted-album-id");
+    expect(persistAlbumWithLinks.mock.invocationCallOrder[0]).toBeLessThan(
+      enrichAlbumVinylLayout.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    );
+    expect(enrichAlbumVinylLayout.mock.invocationCallOrder[0]).toBeLessThan(
+      readAlbumVinylLayout.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    );
     expect(response.json().album.vinylLayout).toBeNull();
 
     await app.close();

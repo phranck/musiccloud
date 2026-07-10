@@ -83,6 +83,59 @@ export const TrackSchema = {
   },
 } as const;
 
+/** OpenAPI schema for one Discogs-derived vinyl track. */
+export const VinylLayoutTrackSchema = {
+  $id: "VinylLayoutTrack",
+  type: "object",
+  description: "One track on a physical vinyl side, including its Discogs position and duration.",
+  required: ["position", "title", "durationMs"],
+  additionalProperties: false,
+  properties: {
+    position: { type: "string", description: "Discogs position string, for example A1 or B2." },
+    title: { type: "string" },
+    durationMs: { type: "integer", minimum: 0 },
+  },
+  example: {
+    position: "A1",
+    title: "Take on Me",
+    durationMs: 225280,
+  },
+} as const;
+
+/** OpenAPI schema for one physical side of a vinyl release. */
+export const VinylSideSchema = {
+  $id: "VinylSide",
+  type: "object",
+  description: "One physical vinyl side with its tracks in play order.",
+  required: ["label", "tracks"],
+  additionalProperties: false,
+  properties: {
+    label: { type: "string", description: "Physical side label, for example A or B." },
+    tracks: { type: "array", items: { $ref: "VinylLayoutTrack#" } },
+  },
+  example: {
+    label: "A",
+    tracks: [{ position: "A1", title: "Take on Me", durationMs: 225280 }],
+  },
+} as const;
+
+/** OpenAPI schema for a normalized Discogs vinyl release layout. */
+export const VinylLayoutSchema = {
+  $id: "VinylLayout",
+  type: "object",
+  description: "Discogs-derived side and track timing data for a matched vinyl release.",
+  required: ["discogsReleaseId", "sides"],
+  additionalProperties: false,
+  properties: {
+    discogsReleaseId: { type: "string", description: "Discogs release id used as the layout source." },
+    sides: { type: "array", items: { $ref: "VinylSide#" } },
+  },
+  example: {
+    discogsReleaseId: "249504",
+    sides: [{ label: "A", tracks: [{ position: "A1", title: "Take on Me", durationMs: 225280 }] }],
+  },
+} as const;
+
 export const AlbumSchema = {
   $id: "Album",
   type: "object",
@@ -103,6 +156,10 @@ export const AlbumSchema = {
     label: { type: "string", description: "Record label, when known." },
     upc: { type: "string", description: "Universal Product Code, when known." },
     previewUrl: { type: "string", format: "uri" },
+    vinylLayout: {
+      anyOf: [{ $ref: "VinylLayout#" }, { type: "null" }],
+      description: "Discogs-derived vinyl layout, or null when no suitable pressing exists.",
+    },
   },
   example: {
     title: "Hunting High and Low",
@@ -114,6 +171,10 @@ export const AlbumSchema = {
     label: "Warner Records",
     upc: "075993257228",
     previewUrl: "https://p.scdn.co/mp3-preview/7ae363b1bc5d7c6bd9cbca4d4f2ae6e3a8c7b0f5",
+    vinylLayout: {
+      discogsReleaseId: "249504",
+      sides: [{ label: "A", tracks: [{ position: "A1", title: "Take on Me", durationMs: 225280 }] }],
+    },
   },
 } as const;
 
@@ -290,7 +351,10 @@ export const AlbumResolveSuccessSchema = {
     type: { type: "string", enum: ["album"], description: "Discriminator: always `album` for this variant." },
     id: { type: "string" },
     shortUrl: { type: "string", format: "uri" },
-    album: { $ref: "Album#" },
+    album: {
+      allOf: [{ $ref: "Album#" }, { type: "object", required: ["vinylLayout"] }],
+      description: "Resolved album metadata with a mandatory vinyl lookup state.",
+    },
     links: { type: "array", items: { $ref: "PlatformLink#" } },
   },
   example: {
@@ -305,6 +369,10 @@ export const AlbumResolveSuccessSchema = {
       artworkUrl: "https://i.scdn.co/image/ab67616d0000b273e58a0f7f1f2f8e4f6a3c8b2d",
       label: "Warner Records",
       upc: "075993257228",
+      vinylLayout: {
+        discogsReleaseId: "249504",
+        sides: [{ label: "A", tracks: [{ position: "A1", title: "Take on Me", durationMs: 225280 }] }],
+      },
     },
     links: [
       {
@@ -894,6 +962,9 @@ export const ActiveServiceSchema = {
 export const OPENAPI_SCHEMAS = [
   ArtistCreditSchema,
   TrackSchema,
+  VinylLayoutTrackSchema,
+  VinylSideSchema,
+  VinylLayoutSchema,
   AlbumSchema,
   ArtistSchema,
   PlatformLinkSchema,

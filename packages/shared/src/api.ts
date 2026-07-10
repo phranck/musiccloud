@@ -390,7 +390,8 @@ export interface ApiAlbum {
 export interface AlbumResolveSuccessResponse {
   id: string;
   shortUrl: string;
-  album: ApiAlbum;
+  /** Album resolve payloads always expose the vinyl lookup state. */
+  album: ApiAlbum & { vinylLayout: VinylLayout | null };
   links: ApiLink[];
 }
 
