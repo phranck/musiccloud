@@ -1,3 +1,4 @@
+import type { VinylLayout } from "@musiccloud/shared";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { type ReactNode, useMemo } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -80,6 +81,16 @@ const RECORD = {
   labelYear: "1958",
 };
 
+const VINYL_LAYOUT: VinylLayout = {
+  discogsReleaseId: "10013707",
+  sides: [
+    {
+      label: "A",
+      tracks: [{ durationMs: 240000, position: "A1", title: "Blue Train" }],
+    },
+  ],
+};
+
 describe("TurntablePlayer compound", () => {
   it("renders the LED, platter, control and static knob labels", () => {
     const { container } = render(
@@ -151,6 +162,31 @@ describe("TurntablePlayer compound", () => {
     expect(container.querySelector("[data-turntable-led='true']")).toHaveAttribute(
       "data-turntable-led-power",
       TurntablePower.Standby,
+    );
+  });
+
+  it("renders the Discogs layout LED from the record layout before the power LED", () => {
+    const { container, rerender } = render(
+      <StubHubProvider speed={TurntableSpeed.Standby} spinState={VinylSpinState.Idle}>
+        <TurntablePlayer record={{ ...RECORD, vinylLayout: VINYL_LAYOUT }} swapKey="tp-test" />
+      </StubHubProvider>,
+    );
+
+    const layoutLed = container.querySelector("[data-turntable-layout-led='true']");
+    const powerLed = container.querySelector("[data-turntable-led='true']");
+    expect(layoutLed).toHaveAttribute("data-turntable-layout-led-state", "lit");
+    expect(layoutLed).toHaveClass("right-[9.6%]");
+    expect(layoutLed?.compareDocumentPosition(powerLed as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+
+    rerender(
+      <StubHubProvider speed={TurntableSpeed.Standby} spinState={VinylSpinState.Idle}>
+        <TurntablePlayer record={RECORD} swapKey="tp-test" />
+      </StubHubProvider>,
+    );
+
+    expect(container.querySelector("[data-turntable-layout-led='true']")).toHaveAttribute(
+      "data-turntable-layout-led-state",
+      "off",
     );
   });
 

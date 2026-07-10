@@ -1,3 +1,4 @@
+import type { VinylLayout } from "@musiccloud/shared";
 import { type CSSProperties, type ReactNode, useCallback } from "react";
 import { KnobDial } from "@/components/turntable/KnobDial";
 import { RecordSwapStage } from "@/components/turntable/RecordSwapStage";
@@ -33,6 +34,18 @@ const LED_STYLE = {
 const LED_GLOW_STYLE = {
   background:
     "radial-gradient(circle, rgba(118,255,133,0.34) 0 12%, rgba(54,218,83,0.19) 26%, rgba(45,186,75,0.09) 43%, transparent 66%)",
+  filter: "blur(2px)",
+} satisfies CSSProperties;
+
+const LAYOUT_LED_STYLE = {
+  background: "radial-gradient(circle at 35% 30%, #fff1ce 0 11%, #ffc15a 18%, #f28a20 52%, #7d3608 100%)",
+  boxShadow:
+    "0 0 0 1px rgba(0,0,0,0.7), 0 0 4px rgba(255,169,64,0.24), 0 0 12px rgba(242,138,32,0.11), 0 0 22px rgba(242,138,32,0.06), inset 0 1px 1px rgba(255,255,255,0.58), inset 0 -1px 2px rgba(0,0,0,0.48)",
+} satisfies CSSProperties;
+
+const LAYOUT_LED_GLOW_STYLE = {
+  background:
+    "radial-gradient(circle, rgba(255,199,105,0.34) 0 12%, rgba(255,161,48,0.19) 26%, rgba(232,120,24,0.09) 43%, transparent 66%)",
   filter: "blur(2px)",
 } satisfies CSSProperties;
 
@@ -106,6 +119,42 @@ export function TurntablePlayerLed({ power }: TurntablePlayerLedProps) {
         aria-hidden="true"
         className="absolute left-1/2 top-1/2 -z-10 aspect-square w-[430%] -translate-x-1/2 -translate-y-1/2 rounded-full transition-opacity duration-300"
         style={{ ...LED_GLOW_STYLE, opacity: isOn ? 1 : LED_GLOW_STANDBY_OPACITY }}
+      />
+    </span>
+  );
+}
+
+/** Props for {@link TurntablePlayerLayoutLed}. */
+interface TurntablePlayerLayoutLedProps {
+  /** Persisted Discogs layout for the inserted album; absent layouts leave the lamp off. */
+  vinylLayout?: VinylLayout | null;
+}
+
+/**
+ * Orange Discogs-layout LED, positioned directly left of the green power LED.
+ *
+ * The lamp is lit precisely when the inserted record has a persisted
+ * {@link VinylLayout}. Its status deliberately does not depend on playback or
+ * the side currently on the platter. Decorative only, it is hidden from assistive
+ * technology and exposes its state through `data-turntable-layout-led-state` for
+ * focused tests.
+ *
+ * @param props - {@link TurntablePlayerLayoutLedProps}.
+ */
+function TurntablePlayerLayoutLed({ vinylLayout }: TurntablePlayerLayoutLedProps) {
+  const isLit = Boolean(vinylLayout);
+  return (
+    <span
+      aria-hidden="true"
+      className="absolute right-[9.6%] bottom-[6%] z-40 aspect-square w-[calc(2.1%_-_1px)] overflow-visible rounded-full transition-opacity duration-300"
+      data-turntable-layout-led="true"
+      data-turntable-layout-led-state={isLit ? "lit" : "off"}
+      style={{ ...LAYOUT_LED_STYLE, opacity: isLit ? 1 : LED_STANDBY_OPACITY }}
+    >
+      <span
+        aria-hidden="true"
+        className="absolute left-1/2 top-1/2 -z-10 aspect-square w-[430%] -translate-x-1/2 -translate-y-1/2 rounded-full transition-opacity duration-300"
+        style={{ ...LAYOUT_LED_GLOW_STYLE, opacity: isLit ? 1 : LED_GLOW_STANDBY_OPACITY }}
       />
     </span>
   );
@@ -328,6 +377,25 @@ export function HubLed() {
   return <TurntablePlayerLed power={power} />;
 }
 
+/** Props for {@link HubLayoutLed}. */
+interface HubLayoutLedProps {
+  /** Persisted Discogs layout of the record currently inserted on the deck. */
+  vinylLayout?: VinylLayout | null;
+}
+
+/**
+ * Hub-composed {@link TurntablePlayerLayoutLed} for the root deck.
+ *
+ * The layout is record data rather than transport state, so this compound part
+ * receives it directly from {@link TurntablePlayerRoot} instead of reading the
+ * playback hub.
+ *
+ * @param props - {@link HubLayoutLedProps}.
+ */
+export function HubLayoutLed({ vinylLayout }: HubLayoutLedProps) {
+  return <TurntablePlayerLayoutLed vinylLayout={vinylLayout} />;
+}
+
 /**
  * Hub-connected {@link TurntablePlayerPlatter}: reads `spinState` from the
  * turntable hub and feeds it to the {@link VinylRecord}, and starts the freshly
@@ -380,7 +448,10 @@ interface TurntablePlayerRootProps {
   /** Extra classes merged onto the deck figure. */
   className?: string;
   /** The vinyl label/record props; the platter pulls `speed`/`spinState` from the hub. */
-  record: Omit<VinylRecordProps, "spinState" | "speed">;
+  record: Omit<VinylRecordProps, "spinState" | "speed"> & {
+    /** Persisted Discogs layout used by {@link HubLayoutLed}. */
+    vinylLayout?: VinylLayout | null;
+  };
   /** Identity of the current record; a change runs the arc swap. */
   swapKey: string;
 }
@@ -398,10 +469,12 @@ interface TurntablePlayerRootProps {
  * @param props - {@link TurntablePlayerRootProps}.
  */
 export function TurntablePlayerRoot({ className, record, swapKey }: TurntablePlayerRootProps) {
+  const { vinylLayout, ...vinylRecord } = record;
   return (
     <TurntablePlayerSurface className={className}>
-      <HubPlatter record={record} swapKey={swapKey} />
+      <HubPlatter record={vinylRecord} swapKey={swapKey} />
       <HubControl />
+      <HubLayoutLed vinylLayout={vinylLayout} />
       <HubLed />
     </TurntablePlayerSurface>
   );
