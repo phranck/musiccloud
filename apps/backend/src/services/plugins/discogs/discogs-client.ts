@@ -15,8 +15,8 @@
  *   skip all delays.
  */
 
-import { fetchWithTimeout } from "../../../lib/infra/fetch";
-import type { DiscogsMasterVersion, DiscogsRelease, DiscogsTrack } from "./discogs-parse";
+import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
+import type { DiscogsMasterVersion, DiscogsRelease, DiscogsTrack } from "./discogs-parse.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -34,6 +34,26 @@ const DEFAULT_MIN_INTERVAL_MS = 1100;
 let lastRequestAt = 0;
 
 /**
+ * Resolves the effective minimum inter-request interval in milliseconds.
+ *
+ * Reads `DISCOGS_MIN_REQUEST_INTERVAL_MS` from the environment. A missing or
+ * non-numeric value (e.g. `"fast"`, empty string) falls back to
+ * `DEFAULT_MIN_INTERVAL_MS`. The NaN guard is critical: without it a
+ * non-numeric env value would produce `NaN`, and every `NaN < elapsed`
+ * comparison in `rateGuard` is `false`, silently disabling the throttle.
+ *
+ * @returns The interval in milliseconds; never `NaN`.
+ */
+function resolveMinInterval(): number {
+  const raw = process.env.DISCOGS_MIN_REQUEST_INTERVAL_MS;
+  if (raw === undefined) {
+    return DEFAULT_MIN_INTERVAL_MS;
+  }
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) ? parsed : DEFAULT_MIN_INTERVAL_MS;
+}
+
+/**
  * Enforces the minimum inter-request interval configured via
  * `DISCOGS_MIN_REQUEST_INTERVAL_MS`. Awaits a short delay when the previous
  * request was issued too recently.
@@ -41,10 +61,7 @@ let lastRequestAt = 0;
  * @returns A promise that resolves once the guard interval has elapsed.
  */
 async function rateGuard(): Promise<void> {
-  const minInterval =
-    process.env.DISCOGS_MIN_REQUEST_INTERVAL_MS !== undefined
-      ? Number.parseInt(process.env.DISCOGS_MIN_REQUEST_INTERVAL_MS, 10)
-      : DEFAULT_MIN_INTERVAL_MS;
+  const minInterval = resolveMinInterval();
 
   const now = Date.now();
   const elapsed = now - lastRequestAt;
@@ -164,10 +181,8 @@ export async function getMasterVinylVersions(masterId: number): Promise<DiscogsM
     versions: Array<{
       id: number;
       released: string;
-      major_formats: string[];
       format: string;
       country?: string;
-      label: string;
     }>;
   }>(`/masters/${masterId}/versions?format=Vinyl`);
 

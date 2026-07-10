@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchWithTimeout } from "../../../lib/infra/fetch";
+import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
 
-vi.mock("../../../lib/infra/fetch", () => ({
+vi.mock("../../../lib/infra/fetch.js", () => ({
   fetchWithTimeout: vi.fn(),
 }));
 
@@ -120,6 +120,7 @@ describe("searchVinylMaster", () => {
     const headers = init.headers as Record<string, string>;
     expect(headers.Authorization).toBe("Discogs token=test-token");
     expect(headers["User-Agent"]).toBeTruthy();
+    expect(headers.Accept).toBe("application/json");
   });
 
   it("returns null when results array is empty", async () => {
@@ -216,5 +217,42 @@ describe("getRelease", () => {
   it("throws when fetch rejects", async () => {
     fetchMock.mockRejectedValue(new Error("Timeout"));
     await expect(getRelease(15815903)).rejects.toThrow("Timeout");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Rate guard NaN fallback
+// ---------------------------------------------------------------------------
+
+describe("rate guard interval fallback", () => {
+  it("falls back to the default interval for a non-numeric env value (throttle stays active)", async () => {
+    // A non-numeric value must NOT silently disable the throttle. Number.parseInt
+    // would yield NaN, and `NaN < elapsed` is always false, so without the guard
+    // the second request would fire immediately. Assert the second call is held
+    // back until the default 1100ms interval elapses.
+    // A far-future fixed clock guarantees the first call sees a large positive
+    // `elapsed` (prior tests left lastRequestAt at a real, much earlier time),
+    // so it is not itself throttled.
+    vi.useFakeTimers({ now: 10_000_000_000_000 });
+    try {
+      process.env.DISCOGS_MIN_REQUEST_INTERVAL_MS = "fast";
+      fetchMock.mockResolvedValue(jsonResponse(RELEASE_RESPONSE));
+
+      // First call establishes lastRequestAt with no prior delay.
+      await getRelease(15815903);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      // Second call must be throttled: it is still pending before the interval.
+      const secondCall = getRelease(15815903);
+      await vi.advanceTimersByTimeAsync(500);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      // After the default 1100ms interval elapses, the second call proceeds.
+      await vi.advanceTimersByTimeAsync(700);
+      await secondCall;
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
