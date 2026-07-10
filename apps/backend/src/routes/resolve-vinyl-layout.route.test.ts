@@ -211,7 +211,7 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
 
   it("serves a cached album layout without repeating Discogs enrichment", async () => {
     persistAlbumWithLinks.mockResolvedValue({
-      albumId: "cached-album-id",
+      albumId: "persisted-album-id",
       shortId: "album-short",
       artistCredits: [],
     });
@@ -228,7 +228,8 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
 
     expect(response.statusCode).toBe(200);
     expect(enrichAlbumVinylLayout).not.toHaveBeenCalled();
-    expect(readAlbumVinylLayout).toHaveBeenCalledWith("cached-album-id");
+    expect(readAlbumVinylLayout).toHaveBeenCalledWith("persisted-album-id");
+    expect(readAlbumVinylLayout).not.toHaveBeenCalledWith("cached-album-id");
     expect(response.json().album.vinylLayout).toEqual(vinylLayout);
 
     await app.close();
@@ -236,7 +237,7 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
 
   it("serves a cached album negative vinyl lookup as null without repeating Discogs enrichment", async () => {
     persistAlbumWithLinks.mockResolvedValue({
-      albumId: "cached-album-id",
+      albumId: "persisted-album-id",
       shortId: "album-short",
       artistCredits: [],
     });
@@ -253,7 +254,8 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
 
     expect(response.statusCode).toBe(200);
     expect(enrichAlbumVinylLayout).not.toHaveBeenCalled();
-    expect(readAlbumVinylLayout).toHaveBeenCalledWith("cached-album-id");
+    expect(readAlbumVinylLayout).toHaveBeenCalledWith("persisted-album-id");
+    expect(readAlbumVinylLayout).not.toHaveBeenCalledWith("cached-album-id");
     expect(response.json().album.vinylLayout).toBeNull();
 
     await app.close();
