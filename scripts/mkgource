@@ -86,8 +86,8 @@ INTRO_HOLD=2
 INTRO_TEXT_FADE_OUT=0
 INTRO_CROSSFADE=1
 
-OUTRO_ENABLED=0
-OUTRO_TITLE=""
+OUTRO_ENABLED=1
+OUTRO_TITLE="Thanks for watching"
 OUTRO_SUBTITLE=""
 OUTRO_TITLE_FONT="Audiowide"
 OUTRO_SUBTITLE_FONT="Helvetica Neue"
@@ -209,9 +209,9 @@ EOF
   print_help_row "--intro-crossfade SEC" "Crossfade from intro to animation. Default: 1"
 
   printf '\nOutro title screen:\n'
-  print_help_row "--outro" "Enable outro using the intro title/subtitle text."
-  print_help_row "--no-outro" "Disable outro title screen. Default."
-  print_help_row "--outro-title TEXT" "Outro title text; enables outro."
+  print_help_row "--outro" "Enable outro title screen. Default."
+  print_help_row "--no-outro" "Disable outro title screen."
+  print_help_row "--outro-title TEXT" "Outro title text. Default: Thanks for watching"
   print_help_row "--outro-subtitle TEXT" "Outro subtitle text; enables outro."
   print_help_row "--outro-title-font FONT" "Outro title font. Default: Audiowide"
   print_help_row "--outro-subtitle-font FONT" "Outro subtitle font. Default: Helvetica Neue"
