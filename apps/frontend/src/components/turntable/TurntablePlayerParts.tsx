@@ -129,12 +129,18 @@ interface TurntablePlayerPlatterProps {
 
 /**
  * The rotating-disc assembly: the recessed platter shadow, the {@link VinylRecord}
- * itself (fed `spinState`), the spindle contact shadow and the chrome spindle on
- * top.
+ * itself (fed `spinState`), the spindle contact shadow and the chrome spindle.
  *
  * The platter disc, spindle and its shadow are decorative deck chrome; the record
- * carries its own accessible name. All four layers keep their original
+ * carries its own accessible name. All layers keep their original
  * `data-turntable-*` attributes so existing selectors and tests still match.
+ *
+ * The spindle + contact shadow are handed to {@link RecordSwapStage} as its
+ * `centerpiece` rather than being a deck sibling: the stage draws them ABOVE the
+ * resting record but BELOW a record mid-swap, so the chrome never floats over a
+ * disc that has lifted off the spindle. Their widths are the deck-relative 2.15% /
+ * 2.7% divided by the stage's 86% span (`≈ 2.5%` / `≈ 3.14%`), so the rendered size
+ * on the deck is unchanged; both stay centred.
  *
  * @param props - {@link TurntablePlayerPlatterProps}.
  */
@@ -156,25 +162,24 @@ export function TurntablePlayerPlatter({ spinState, record, swapKey, onSettled }
           swapKey={swapKey}
           onSettled={onSettled}
           className={cn("h-full w-full", recordClassName)}
-        />
+        >
+          {/* Spindle centrepiece (children), sized deck-relative ÷ 0.86 so the
+              rendered size is unchanged. Contact shadow DOM-before the spindle so
+              it paints beneath it; the stage flips both under the records mid-swap. */}
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute left-1/2 top-1/2 aspect-square w-[3.14%] rounded-full"
+            data-turntable-spindle-shadow="true"
+            style={SPINDLE_SHADOW_STYLE}
+          />
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute left-1/2 top-1/2 aspect-square w-[2.5%] -translate-x-1/2 -translate-y-1/2 rounded-full"
+            data-turntable-spindle="true"
+            style={SPINDLE_STYLE}
+          />
+        </RecordSwapStage>
       </span>
-
-      {/* Contact shadow the raised spindle casts onto the record. Sits below the
-          spindle (z-50) but above the disc so it reads as resting on the vinyl. */}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-1/2 z-40 aspect-square w-[2.7%] rounded-full"
-        data-turntable-spindle-shadow="true"
-        style={SPINDLE_SHADOW_STYLE}
-      />
-
-      {/* Decorative chrome spindle — part of the turntable image, hidden from AT. */}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-1/2 z-50 aspect-square w-[2.15%] -translate-x-1/2 -translate-y-1/2 rounded-full"
-        data-turntable-spindle="true"
-        style={SPINDLE_STYLE}
-      />
     </>
   );
 }

@@ -77,12 +77,14 @@ export function VfdAnalyzerDisplay({
   const [displayCells, setDisplayCells] = useState(PLAYER_DEFAULT_VFD_CELLS);
 
   // Memoised on the STRUCTURAL inputs only — not on the spectrum and not on
-  // the 60 Hz progressRatio. So a playback-position re-render reuses the same
-  // params and line objects, VfdDisplay's memo/effect stay cached, and the
-  // analyzer is never recomputed off the progress loop. The live 20 Hz
-  // spectrum reaches the canvas through the store subscription below, never
-  // through a React commit. `hasAnalyzer` is always true here (the analyzer
-  // row); the custom-children variant lives in PlayerProgress.
+  // `progressRatio`. So a playback-position re-render reuses the same params and
+  // line objects, VfdDisplay's memo/effect stay cached, and the analyzer is never
+  // recomputed off the progress loop. `progressRatio` still arrives on the shared
+  // ticker, but the engine quantizes it (see AudioPlayer's setProgressRatioValue /
+  // quantizeProgressRatio) so this re-renders on a visible progress step, not per
+  // frame. The live 20 Hz spectrum reaches the canvas through the store
+  // subscription below, never through a React commit. `hasAnalyzer` is always true
+  // here (the analyzer row); the custom-children variant lives in PlayerProgress.
   const lineParams: PlayerLineParams = useMemo(
     () => ({
       hasAnalyzer: true,

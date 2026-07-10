@@ -3,6 +3,7 @@ import gsap from "gsap";
 import { useCallback, useEffect, useEffectEvent, useReducer, useRef, useState } from "react";
 import { AudioStatus, type AudioStatus as AudioStatusType } from "@/components/audio/AudioStatus";
 import { resolveSeekTarget, SEEK_END_GUARD_SECONDS, SEEK_STEP_SECONDS } from "@/components/audio/audioSeek";
+import { quantizeProgressRatio } from "@/components/audio/progressQuantize";
 import {
   clearSpectrumFrame,
   getSpectrumFrame,
@@ -556,6 +557,20 @@ export function useAudioController({
   // Mirrors whether playback is active, read by the source effect on a same-album
   // src swap to decide whether to continue playing the new track on the same element.
   const isPlayingRef = useRef(false);
+  // True while a source SWITCH is in flight (a new source effect has mounted), so
+  // the previous cleanup's deferred teardown keeps the AudioContext warm instead of
+  // closing it. Only a real unmount (no following source effect) leaves it false and
+  // closes the context. See the source effect + finishTeardown.
+  const switchPendingRef = useRef(false);
+  // REGRESSION GUARD — do not defeat the quantize. This is the only React state the
+  // playback progress feeds, and it is sampled on the shared 60 Hz ticker
+  // (startProgressLoop). It MUST only ever be written through setProgressRatioValue,
+  // which snaps the ratio to a coarse grid (quantizeProgressRatio) and dedups it.
+  // Writing raw per-frame values here re-renders the ENTIRE player subtree 60×/s and
+  // starves hover/transition paints — the "everything lags/stutters while a song
+  // plays" bug. The analyzer stays smooth through it all because it bypasses React
+  // via the imperative spectrumStore. If you need finer progress, move it to an
+  // imperative store like spectrumStore — never remove the quantize.
   const [progressRatio, setProgressRatio] = useState(0);
 
   // Tune the shared ticker once on mount (lagSmoothing); idempotent.
@@ -624,7 +639,10 @@ export function useAudioController({
   );
 
   const setProgressRatioValue = useCallback((ratio: number) => {
-    const nextRatio = Number.isFinite(ratio) ? Math.max(0, Math.min(1, ratio)) : 0;
+    // Snap to the progress grid so the shared 60 Hz ticker only flips React state
+    // when the bar visibly moves (~a few Hz), not every frame. The raw 60 Hz churn
+    // re-rendered the whole player subtree and starved hover/transition paints.
+    const nextRatio = quantizeProgressRatio(ratio);
     if (progressRatioRef.current === nextRatio) return;
     progressRatioRef.current = nextRatio;
     setProgressRatio(nextRatio);
@@ -673,6 +691,10 @@ export function useAudioController({
   const startProgressLoop = useCallback(
     (audio: HTMLAudioElement) => {
       stopProgressLoop();
+      // Runs on the shared 60 Hz ticker. Sampling every frame is fine ONLY because
+      // setProgressRatioValue quantizes + dedups before touching React state (see the
+      // regression guard on the progressRatio state); it re-renders on a visible step,
+      // not per frame.
       const tick = () => {
         setProgressRatioValue(resolveAudioProgressRatio(audio));
         if (audio.paused || audio.ended) {
@@ -1102,11 +1124,17 @@ export function useAudioController({
   // playback on the new element (same album) or defer it to the swap orchestration
   // (different album). Playback-state transitions (play/pause) do NOT re-run this —
   // only the URL does — so a running play() is never torn down mid-promise. The
-  // cleanup fades out and tears down the audio graph (deferred pause +
-  // AudioContext.close so the destination sees silence, avoiding the speaker click
-  // a mid-playback teardown otherwise produces).
+  // cleanup fades the old element out then disconnects it, but KEEPS the
+  // AudioContext warm across the switch (only an unmount closes it): a fresh context
+  // cannot be resumed without a user gesture, which the record swap's coast + slide
+  // (~3s) outlives — the exact cause of the new track running silently with a dark
+  // analyzer after the swap. Reusing the still-running context needs no resume.
   useEffect(() => {
     if (!effectiveUrl) return;
+
+    // A new source is mounting: mark this as a switch so the PREVIOUS cleanup's
+    // deferred teardown keeps the context warm instead of closing it.
+    switchPendingRef.current = true;
 
     const audio = new Audio();
     audio.crossOrigin = "anonymous";
@@ -1162,6 +1190,11 @@ export function useAudioController({
     }
 
     return () => {
+      // Reset the switch flag; a FOLLOWING source effect (a real switch) sets it
+      // back to true before the deferred teardown below reads it. On unmount no such
+      // effect runs, so it stays false and the context is closed.
+      switchPendingRef.current = false;
+
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
       audio.removeEventListener("timeupdate", handleTimeUpdate);
       audio.removeEventListener("ended", handleEnded);
@@ -1169,6 +1202,26 @@ export function useAudioController({
       stopProgressLoop();
       stopProgressRewind();
       audioRef.current = null;
+
+      // Pauses + clears the old element. Kept synchronous (or on the fade timer) so
+      // it never leaks past a later render tick.
+      const detachOldElement = () => {
+        audio.pause();
+        audio.src = "";
+      };
+      // Tears down the old element's graph. On a switch it stops at disconnect (the
+      // AudioContext stays warm for the next track); on a real unmount it closes the
+      // context via the full teardown. Deferred so a following source effect can flip
+      // `switchPendingRef` to true first, but pause-free so the deferral cannot
+      // inflate teardown pauses.
+      const finalizeGraph = () => {
+        if (switchPendingRef.current) {
+          stopSpectrumLoop();
+          disconnectAudioGraphNodes();
+          return;
+        }
+        teardownSpectrum();
+      };
 
       const audioContext = audioContextRef.current;
       const gainNode = gainNodeRef.current;
@@ -1189,18 +1242,26 @@ export function useAudioController({
           // The fallback below still finishes teardown if scheduling throws.
         }
         window.setTimeout(() => {
-          audio.pause();
-          audio.src = "";
-          teardownSpectrum();
+          detachOldElement();
+          finalizeGraph();
         }, TEARDOWN_FADE_MS + TEARDOWN_FADE_GUARD_MS);
         return;
       }
 
-      audio.pause();
-      audio.src = "";
-      teardownSpectrum();
+      // Not playing: detach synchronously (nothing to fade), but defer the switch-vs-
+      // unmount graph decision so a synchronous following source effect can flag the
+      // switch first.
+      detachOldElement();
+      window.setTimeout(finalizeGraph, 0);
     };
-  }, [effectiveUrl, stopProgressLoop, stopProgressRewind, teardownSpectrum]);
+  }, [
+    effectiveUrl,
+    stopProgressLoop,
+    stopProgressRewind,
+    stopSpectrumLoop,
+    disconnectAudioGraphNodes,
+    teardownSpectrum,
+  ]);
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;
