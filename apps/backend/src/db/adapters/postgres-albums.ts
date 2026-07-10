@@ -18,6 +18,7 @@
  *     `replaceAlbumArtistCredits` (see `postgres-shared.ts`).
  */
 
+import type { VinylLayout } from "@musiccloud/shared";
 import type { Pool } from "pg";
 import { generateShortId, generateTrackId } from "../../lib/short-id.js";
 import type { NormalizedAlbum, TrackSource } from "../../services/types.js";
@@ -391,6 +392,42 @@ export async function addLinksToAlbum(
   } finally {
     client.release();
   }
+}
+
+/**
+ * Inserts or replaces the cached Discogs vinyl layout for an album.
+ *
+ * A `null` layout records a negative cache entry, meaning the album was
+ * checked but has no suitable vinyl pressing.
+ *
+ * @param pool - Postgres connection pool.
+ * @param albumId - Album whose layout cache is written.
+ * @param layout - Normalized Discogs layout, or `null` for a negative cache.
+ */
+export async function upsertAlbumVinylLayout(pool: Pool, albumId: string, layout: VinylLayout | null): Promise<void> {
+  await pool.query(
+    `INSERT INTO album_vinyl_layouts (id, album_id, discogs_release_id, layout_data, fetched_at)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (album_id) DO UPDATE SET
+       discogs_release_id = EXCLUDED.discogs_release_id,
+       layout_data = EXCLUDED.layout_data,
+       fetched_at = EXCLUDED.fetched_at`,
+    [generateTrackId(), albumId, layout?.discogsReleaseId ?? null, layout, new Date()],
+  );
+}
+
+/**
+ * Reads an album's cached Discogs vinyl layout.
+ *
+ * @param pool - Postgres connection pool.
+ * @param albumId - Album whose layout cache is read.
+ * @returns The positive layout, `null` for a negative cache, or `undefined`
+ * when the album has never been checked.
+ */
+export async function readAlbumVinylLayout(pool: Pool, albumId: string): Promise<VinylLayout | null | undefined> {
+  const result = await pool.query(`SELECT layout_data FROM album_vinyl_layouts WHERE album_id = $1`, [albumId]);
+  if (result.rows.length === 0) return undefined;
+  return result.rows[0].layout_data as VinylLayout | null;
 }
 
 // ============================================================================
