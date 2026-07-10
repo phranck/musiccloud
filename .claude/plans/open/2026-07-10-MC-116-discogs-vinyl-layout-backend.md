@@ -86,11 +86,11 @@ export interface VinylLayout { discogsReleaseId: string; sides: VinylSide[]; }
 
 **Files:** Modify `discogs-parse.ts` + `discogs-parse.test.ts`.
 
-- [ ] Failing Test `normalizeReleaseToLayout` mit **The-Sermon!-Fixture** (Release 15815903: `tracklist` `A`/`B1`/`B2`, `type_:"track"`, Dauern `20:10`/`11:54`/`8:00`): erwartet `sides=[{label:"A",tracks:[{durationMs:1210000,…}]},{label:"B",tracks:[714000,480000]}]`, `discogsReleaseId:"15815903"`.
-- [ ] Failing Test: fehlt bei einem Track die `duration` → Rückgabe `null` (Verwerfen).
-- [ ] Failing Test: `type_!=="track"`-Einträge werden ignoriert; hat eine Seite dadurch einen Track ohne Dauer → `null`.
-- [ ] Rot → implementieren (Gruppierung per `sideLabelFromPosition`, `parseDiscogsDuration`, Vollständigkeits-Pflicht).
-- [ ] Grün. Commit: `Feat: normalize Discogs release into VinylLayout (MC-116)`.
+- [x] Failing Test `normalizeReleaseToLayout` mit **The-Sermon!-Fixture** (Release 15815903: `tracklist` `A`/`B1`/`B2`, `type_:"track"`, Dauern `20:10`/`11:54`/`8:00`): erwartet `sides=[{label:"A",tracks:[{durationMs:1210000,…}]},{label:"B",tracks:[714000,480000]}]`, `discogsReleaseId:"15815903"`.
+- [x] Failing Test: fehlt bei einem Track die `duration` → Rückgabe `null` (Verwerfen).
+- [x] Failing Test: `type_!=="track"`-Einträge werden ignoriert; hat eine Seite dadurch einen Track ohne Dauer → `null`.
+- [x] Rot → implementieren (Gruppierung per `sideLabelFromPosition`, `parseDiscogsDuration`, Vollständigkeits-Pflicht).
+- [x] Grün. Commit: `Feat: normalize Discogs release into VinylLayout (MC-116)`.
 
 ## Task 5: Discogs-HTTP-Client (TDD, fetch gemockt)
 
@@ -151,8 +151,8 @@ export interface VinylLayout { discogsReleaseId: string; sides: VinylSide[]; }
 
 - [x] Task 1 — Geteilte VinylLayout-Typen
 - [x] Task 2 — Dauer-Parsing + Seitenableitung
-- [ ] Task 3 — Original-Pressung wählen
-- [ ] Task 4 — Release → VinylLayout
+- [x] Task 3 — Original-Pressung wählen
+- [x] Task 4 — Release → VinylLayout
 - [ ] Task 5 — Discogs-HTTP-Client
 - [ ] Task 6 — Tabelle + Migration
 - [ ] Task 7 — Persist-Helfer

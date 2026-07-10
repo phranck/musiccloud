@@ -6,6 +6,8 @@
  * normalisation and enrichment code in the same directory.
  */
 
+import type { VinylLayout, VinylSide } from "@musiccloud/shared";
+
 /**
  * A single entry from the Discogs Master Versions endpoint
  * (`GET /masters/{id}/versions`).
@@ -108,4 +110,117 @@ export function selectOriginalVinylVersion(versions: DiscogsMasterVersion[]): Di
     const currentYear = Number.parseInt(current.released.slice(0, 4), 10);
     return currentYear < bestYear ? current : best;
   });
+}
+
+// =============================================================================
+// DiscogsTrack / DiscogsRelease — raw shapes from the Discogs Release endpoint
+// =============================================================================
+
+/**
+ * A single entry from the Discogs release tracklist
+ * (`GET /releases/{id}` → `tracklist[]`).
+ *
+ * Both the backend normaliser and the Discogs HTTP client (Task 5) share this
+ * interface, so it is exported from this module.
+ *
+ * @property position - Discogs track position, e.g. `"A"`, `"B1"`, `"C2"`.
+ *   Purely numeric positions (e.g. `"3"`) indicate a non-vinyl format.
+ * @property type_ - Entry type as returned by the API. Only `"track"` entries
+ *   are included in the layout; all others (`"heading"`, `"index"`, …) are
+ *   ignored during normalisation.
+ * @property title - Track title, verbatim from the API.
+ * @property duration - Duration string in `"M:SS"` or `"MM:SS"` format.
+ *   May be an empty string when Discogs has no duration data for the track.
+ */
+export interface DiscogsTrack {
+  position: string;
+  type_: string;
+  title: string;
+  duration: string;
+}
+
+/**
+ * Minimal shape of the Discogs Release object used for vinyl layout
+ * normalisation (`GET /releases/{id}`).
+ *
+ * Only the fields required by `normalizeReleaseToLayout` are declared. The
+ * Discogs HTTP client (Task 5) maps the full API response to this interface
+ * before passing it to the normaliser.
+ *
+ * @property id - Discogs release ID.
+ * @property tracklist - All tracklist entries for the release, in play order.
+ *   May contain headings, index tracks, and other non-track entries that
+ *   `normalizeReleaseToLayout` silently ignores.
+ */
+export interface DiscogsRelease {
+  id: number;
+  tracklist: DiscogsTrack[];
+}
+
+// =============================================================================
+// normalizeReleaseToLayout
+// =============================================================================
+
+/**
+ * Converts a Discogs release object into a normalised `VinylLayout`.
+ *
+ * This is a pure function: no I/O, no side effects, fully deterministic.
+ * It is called after the release has already been confirmed to be a vinyl
+ * pressing (via `selectOriginalVinylVersion`), so format validation is
+ * intentionally omitted here.
+ *
+ * **Filtering:** Only tracklist entries with `type_ === "track"` are
+ * considered. Headings, index entries, and any other types are silently
+ * discarded before grouping.
+ *
+ * **Completeness requirement:** If any considered track has an unparseable
+ * or empty `duration` (i.e. `parseDiscogsDuration` returns `null`), or if
+ * any track has a `position` that does not yield a side label (i.e.
+ * `sideLabelFromPosition` returns `null`), the entire release is discarded
+ * and `null` is returned. Incomplete data cannot produce a meaningful groove
+ * visualisation.
+ *
+ * **Grouping and ordering:** Tracks are grouped into `VinylSide` buckets by
+ * side label. Side order follows the first appearance of each label in the
+ * input tracklist (A, B, C, …). Track order within each side is preserved
+ * from the input.
+ *
+ * @param release - The Discogs release object to normalise.
+ * @returns A `VinylLayout` when the release has complete, parseable track
+ *   data, or `null` when any required field is missing or unparseable.
+ */
+export function normalizeReleaseToLayout(release: DiscogsRelease): VinylLayout | null {
+  const tracks = release.tracklist.filter((t) => t.type_ === "track");
+
+  // Resolve all durations and side labels up front; bail on any null.
+  const resolved: Array<{ position: string; title: string; durationMs: number; sideLabel: string }> = [];
+  for (const track of tracks) {
+    const durationMs = parseDiscogsDuration(track.duration);
+    if (durationMs === null) {
+      return null;
+    }
+    const sideLabel = sideLabelFromPosition(track.position);
+    if (sideLabel === null) {
+      return null;
+    }
+    resolved.push({ position: track.position, title: track.title, durationMs, sideLabel });
+  }
+
+  // Group into sides, preserving input order for both sides and tracks.
+  const sideMap = new Map<string, VinylSide>();
+  const sideOrder: string[] = [];
+  for (const t of resolved) {
+    let side = sideMap.get(t.sideLabel);
+    if (!side) {
+      side = { label: t.sideLabel, tracks: [] };
+      sideMap.set(t.sideLabel, side);
+      sideOrder.push(t.sideLabel);
+    }
+    side.tracks.push({ position: t.position, title: t.title, durationMs: t.durationMs });
+  }
+
+  return {
+    discogsReleaseId: String(release.id),
+    sides: sideOrder.map((label) => sideMap.get(label) as VinylSide),
+  };
 }

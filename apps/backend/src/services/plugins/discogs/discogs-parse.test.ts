@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { DiscogsMasterVersion } from "./discogs-parse";
-import { parseDiscogsDuration, selectOriginalVinylVersion, sideLabelFromPosition } from "./discogs-parse";
+import type { DiscogsMasterVersion, DiscogsRelease } from "./discogs-parse";
+import {
+  normalizeReleaseToLayout,
+  parseDiscogsDuration,
+  selectOriginalVinylVersion,
+  sideLabelFromPosition,
+} from "./discogs-parse";
 
 // =============================================================================
 // parseDiscogsDuration
@@ -92,5 +97,83 @@ describe("selectOriginalVinylVersion", () => {
     ];
     const result = selectOriginalVinylVersion(mixed);
     expect(result?.id).toBe(11);
+  });
+});
+
+// =============================================================================
+// normalizeReleaseToLayout
+// =============================================================================
+
+describe("normalizeReleaseToLayout", () => {
+  // Fixture modelled on Discogs release 15815903 (Jimmy Smith — The Sermon!)
+  const sermon: DiscogsRelease = {
+    id: 15815903,
+    tracklist: [
+      { position: "A", type_: "track", title: "The Sermon", duration: "20:10" },
+      { position: "B1", type_: "track", title: "J.O.S.", duration: "11:54" },
+      { position: "B2", type_: "track", title: "Flamingo", duration: "8:00" },
+    ],
+  };
+
+  it("returns the correct VinylLayout for the The Sermon! fixture", () => {
+    const result = normalizeReleaseToLayout(sermon);
+    expect(result).toEqual({
+      discogsReleaseId: "15815903",
+      sides: [
+        {
+          label: "A",
+          tracks: [{ position: "A", title: "The Sermon", durationMs: 1210000 }],
+        },
+        {
+          label: "B",
+          tracks: [
+            { position: "B1", title: "J.O.S.", durationMs: 714000 },
+            { position: "B2", title: "Flamingo", durationMs: 480000 },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("returns null when any track has an empty duration", () => {
+    const release: DiscogsRelease = {
+      id: 99,
+      tracklist: [
+        { position: "A", type_: "track", title: "Track One", duration: "" },
+        { position: "B1", type_: "track", title: "Track Two", duration: "3:00" },
+      ],
+    };
+    expect(normalizeReleaseToLayout(release)).toBeNull();
+  });
+
+  it("ignores non-track entries (headings) and builds layout from real tracks only", () => {
+    const release: DiscogsRelease = {
+      id: 42,
+      tracklist: [
+        { position: "", type_: "heading", title: "Side One", duration: "" },
+        { position: "A", type_: "track", title: "Real Track", duration: "5:00" },
+      ],
+    };
+    const result = normalizeReleaseToLayout(release);
+    expect(result).toEqual({
+      discogsReleaseId: "42",
+      sides: [
+        {
+          label: "A",
+          tracks: [{ position: "A", title: "Real Track", durationMs: 300000 }],
+        },
+      ],
+    });
+  });
+
+  it("returns null when a heading with empty duration is mixed in but the only real track also lacks a duration", () => {
+    const release: DiscogsRelease = {
+      id: 77,
+      tracklist: [
+        { position: "", type_: "heading", title: "Side A", duration: "" },
+        { position: "A", type_: "track", title: "Bad Track", duration: "" },
+      ],
+    };
+    expect(normalizeReleaseToLayout(release)).toBeNull();
   });
 });
