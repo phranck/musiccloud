@@ -120,9 +120,9 @@ export interface VinylLayout { discogsReleaseId: string; sides: VinylSide[]; }
 - `upsertAlbumVinylLayout(pool: Pool, albumId: string, layout: VinylLayout | null): Promise<void>` — `INSERT INTO album_vinyl_layouts (id, album_id, discogs_release_id, layout_data, fetched_at) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (album_id) DO UPDATE SET discogs_release_id = EXCLUDED.discogs_release_id, layout_data = EXCLUDED.layout_data, fetched_at = EXCLUDED.fetched_at`. `id` via `generateTrackId()`; `fetched_at = new Date()`; Layout → `discogs_release_id = layout.discogsReleaseId`, `layout_data = layout` (jsonb); `null` → `discogs_release_id = null`, `layout_data = null` (Negativ-Marker).
 - `readAlbumVinylLayout(pool: Pool, albumId: string): Promise<VinylLayout | null | undefined>` — `SELECT layout_data FROM album_vinyl_layouts WHERE album_id = $1`: Row mit `layout_data` → `VinylLayout`; Row mit `layout_data === null` → `null` (Negativ-Cache); keine Row → `undefined`.
 
-- [ ] Failing Integrationstest: in `beforeAll` Pool anlegen; im Test zuerst eine `albums`-Row einfügen (FK-Pflicht, `id` via `generateTrackId()`), dann `upsertAlbumVinylLayout(pool, albumId, layout)` → `readAlbumVinylLayout` liefert das Layout; `upsertAlbumVinylLayout(pool, albumId, null)` auf dieselbe `albumId` → `read` liefert `null` (Update dank `ON CONFLICT`); `read` einer ungeprüften `albumId` → `undefined`. `afterAll`: angelegte Rows löschen (`album_vinyl_layouts` + `albums`).
-- [ ] Rot → implementieren (rohes SQL, `generateTrackId`).
-- [ ] Grün (`pnpm --filter @musiccloud/backend test:run postgres-album-vinyl-layouts`). Commit: `Feat: persist + read album vinyl layout (MC-116)`.
+- [x] Failing Integrationstest: in `beforeAll` Pool anlegen; im Test zuerst eine `albums`-Row einfügen (FK-Pflicht, `id` via `generateTrackId()`), dann `upsertAlbumVinylLayout(pool, albumId, layout)` → `readAlbumVinylLayout` liefert das Layout; `upsertAlbumVinylLayout(pool, albumId, null)` auf dieselbe `albumId` → `read` liefert `null` (Update dank `ON CONFLICT`); `read` einer ungeprüften `albumId` → `undefined`. `afterAll`: angelegte Rows löschen (`album_vinyl_layouts` + `albums`).
+- [x] Rot → implementieren (rohes SQL, `generateTrackId`).
+- [x] Grün (`pnpm --filter @musiccloud/backend test:run postgres-album-vinyl-layouts`; bei nicht erreichbarem `DATABASE_URL` korrekt übersprungen). Commit: `Feat: persist + read album vinyl layout (MC-116)`.
 
 ## Task 8: Enrichment-Orchestrator (TDD)
 
@@ -130,31 +130,31 @@ export interface VinylLayout { discogsReleaseId: string; sides: VinylSide[]; }
 
 Signatur: `enrichAlbumVinylLayout(pool: Pool, album: { id: string; title: string; artists: string[]; upc?: string | null }): Promise<void>` (pool wird an die Persist-Helfer + `insertExternalIds` durchgereicht). Der Orchestrator ist reine Logik und lässt sich als Unit-Test mit **gemocktem** `discogs-client` + gemockten Persist-Funktionen testen (kein realer DB-Zugriff hier — anders als Task 7).
 
-- [ ] Failing Tests (`discogs-client` + Persist gemockt): (a) Match + vollständige Dauern → `upsertAlbumVinylLayout(pool, id, layout)` + `discogs_release`-External-ID via `insertExternalIds`; (b) definitiv keine Vinyl-Version → `upsertAlbumVinylLayout(pool, id, null)` (Negativ-Cache); (c) transienter Fehler (Client wirft) → **kein** Persist-Aufruf (späterer Retry); (d) kein `DISCOGS_TOKEN` → No-Op.
-- [ ] Rot → implementieren (Client → `selectOriginalVinylVersion` → `getRelease` → `normalizeReleaseToLayout`; try/catch trennt „definitiv keins" von „transient").
-- [ ] Grün. Commit: `Feat: orchestrate Discogs vinyl enrichment (MC-116)`.
+- [x] Failing Tests (`discogs-client` + Persist gemockt): (a) Match + vollständige Dauern → `upsertAlbumVinylLayout(pool, id, layout)` + `discogs_release`-External-ID via `insertExternalIds`; (b) definitiv keine Vinyl-Version → `upsertAlbumVinylLayout(pool, id, null)` (Negativ-Cache); (c) transienter Fehler (Client wirft) → **kein** Persist-Aufruf (späterer Retry); (d) kein `DISCOGS_TOKEN` → No-Op.
+- [x] Rot → implementieren (Client → `selectOriginalVinylVersion` → `getRelease` → `normalizeReleaseToLayout`; try/catch trennt „definitiv keins" von „transient").
+- [x] Grün. Commit: `Feat: orchestrate Discogs vinyl enrichment (MC-116)`.
 
 ## Task 9: In Resolve verdrahten + Payload (TDD)
 
 **Files:** Modify `apps/backend/src/routes/resolve.ts`; `album-resolver.test.ts` erweitern.
 
-- [ ] Failing Test: nach Album-Resolve ist `enrichAlbumVinylLayout` best-effort **nach** `persistAlbumWithLinks` aufgerufen; die Album-Antwort (`512-522`) enthält `vinylLayout` (aus `readAlbumVinylLayout`, sonst `null`). Enrichment-Fehler wirft **nicht** aus dem Resolve (best-effort).
-- [ ] Rot → implementieren (Aufruf nach Persist, `vinylLayout` ins Album-Response-Objekt).
-- [ ] Grün. Commit: `Feat: wire vinyl enrichment into album resolve (MC-116)`.
+- [x] Failing Test: nach Album-Resolve ist `enrichAlbumVinylLayout` best-effort **nach** `persistAlbumWithLinks` aufgerufen; die Album-Antwort (`512-522`) enthält `vinylLayout` (aus `readAlbumVinylLayout`, sonst `null`). Enrichment-Fehler wirft **nicht** aus dem Resolve (best-effort).
+- [x] Rot → implementieren (Aufruf nach Persist, `vinylLayout` ins Album-Response-Objekt).
+- [x] Grün. Commit: `Feat: wire vinyl enrichment into album resolve (MC-116)`.
 
 ## Task 10: Read-Path für gecachte Alben (TDD)
 
 **Files:** Modify Resolve/Album-Serve-Pfad + Test.
 
-- [ ] Failing Test: wird ein bereits gecachtes Album ausgeliefert (ohne erneuten Discogs-Call), trägt die Antwort das persistierte `vinylLayout` (bzw. `null`).
-- [ ] Rot → implementieren (`readAlbumVinylLayout` im Serve-Pfad).
-- [ ] Grün. Commit: `Feat: serve persisted vinyl layout for cached albums (MC-116)`.
+- [x] Failing Test: wird ein bereits gecachtes Album ausgeliefert (ohne erneuten Discogs-Call), trägt die Antwort das persistierte `vinylLayout` (bzw. `null`).
+- [x] Rot → implementieren (`readAlbumVinylLayout` im Serve-Pfad).
+- [x] Grün. Commit: `Feat: serve persisted vinyl layout for cached albums (MC-116)`.
 
 ## Task 11: Gates + Env-Doku
 
-- [ ] `pnpm --filter @musiccloud/backend test:run` grün; Typecheck grün.
-- [ ] `.env.local` lokal um `DISCOGS_TOKEN=<vom User>` ergänzen (nicht committen). Falls eine Env-Referenzdatei existiert, `DISCOGS_TOKEN` dort dokumentieren.
-- [ ] Commit: `Chore: finalize Discogs vinyl backend (MC-116)`.
+- [x] `pnpm --filter @musiccloud/backend test:run` grün; Typecheck grün.
+- [x] `.env.local` lokal um `DISCOGS_TOKEN=<vom User>` ergänzen (nicht committen). Falls eine Env-Referenzdatei existiert, `DISCOGS_TOKEN` dort dokumentieren.
+- [x] Commit: `Chore: finalize Discogs vinyl backend (MC-116)`.
 
 ## Checkliste (Plan-Fortschritt)
 
@@ -162,11 +162,11 @@ Signatur: `enrichAlbumVinylLayout(pool: Pool, album: { id: string; title: string
 - [x] Task 2 — Dauer-Parsing + Seitenableitung
 - [x] Task 3 — Original-Pressung wählen
 - [x] Task 4 — Release → VinylLayout
-- [ ] Task 5 — Discogs-HTTP-Client
+- [x] Task 5 — Discogs-HTTP-Client
 - [x] Task 6 — Tabelle + Migration
-- [ ] Task 7 — Persist-Helfer
-- [ ] Task 8 — Enrichment-Orchestrator
-- [ ] Task 9 — In Resolve verdrahten + Payload
-- [ ] Task 10 — Read-Path gecachte Alben
-- [ ] Task 11 — Gates + Env-Doku
-- [ ] Alle Code-Referenzen re-verifiziert (Funktionen, Scripts, Pfade, Env-Vars, Package-Manager-Commands) vor erstem Edit
+- [x] Task 7 — Persist-Helfer
+- [x] Task 8 — Enrichment-Orchestrator
+- [x] Task 9 — In Resolve verdrahten + Payload
+- [x] Task 10 — Read-Path gecachte Alben
+- [x] Task 11 — Gates + Env-Doku
+- [x] Alle Code-Referenzen re-verifiziert (Funktionen, Scripts, Pfade, Env-Vars, Package-Manager-Commands) vor erstem Edit

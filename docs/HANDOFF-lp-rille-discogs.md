@@ -1,6 +1,6 @@
 # Handoff: LP-Rille aus echten Discogs-Vinyl-Daten (MC-116 / MC-117)
 
-**Stand:** 2026-07-10 · **Branch:** `feat/discogs-vinyl-layout` (nur lokal, nichts gepusht)
+**Stand:** 2026-07-11 · **Branch:** `feat/discogs-vinyl-layout` (nur lokal, nichts gepusht)
 
 Diese Notiz übergibt die laufende Umsetzung an ein anderes LLM, damit es nahtlos weitermachen kann. Lies zuerst die drei Quell-Artefakte, dann diesen Statusblock.
 
@@ -24,7 +24,7 @@ Die LP (`VinylRecord`) soll pro Seite echte Rillen zeigen: Pausenrillen zwischen
 
 ## Fortschritt
 
-**Ausführungsmethode:** superpowers:subagent-driven-development — pro Task ein frischer Implementer-Subagent (TDD), danach Review. Für reine Logik-Tasks (T1-T4) habe ich die Spec/Qualität selbst verifiziert; für substanzielle Tasks (ab T5) die volle Zwei-Stufen-Review (Spec-Compliance-Subagent, dann Code-Quality-Subagent `superpowers:code-reviewer`).
+**Ausführungsmethode:** superpowers:subagent-driven-development, pro Task ein frischer Implementer-Subagent (TDD), danach Review. Für reine Logik-Tasks (T1-T4) wurde die Spec/Qualität selbst verifiziert; für substanzielle Tasks (ab T5) erfolgte die Review-Schleife aus Spec-Compliance und Code-Quality.
 
 **MC-116 (Backend):**
 - T1 ✅ `a8707ede` — geteilte Typen `VinylLayout`/`VinylSide`/`VinylLayoutTrack` in `packages/shared/src/vinyl-layout.ts` (+ index-Export).
@@ -32,22 +32,24 @@ Die LP (`VinylRecord`) soll pro Seite echte Rillen zeigen: Pausenrillen zwischen
 - T3 ✅ `ca3911bc` — `selectOriginalVinylVersion` (+ Typ `DiscogsMasterVersion`) in derselben Datei.
 - T4 ✅ `f2d8e530` — `normalizeReleaseToLayout` (+ Typen `DiscogsRelease`/`DiscogsTrack`) in derselben Datei.
 - T5 ✅ `12502e69` + Review-Fix `add2450f` — `discogs-client.ts` (`isDiscogsConfigured`, `searchVinylMaster`, `getMasterVinylVersions`, `getRelease`). Beide Review-Stufen bestanden.
-- T6 ✅ `e9530618` — Tabelle `albumVinylLayouts` in `apps/backend/src/db/schemas/postgres.ts` + Migration `0072_burly_scarlet_spider.sql`. **Migration ist bereits gegen die DB angewandt** (siehe DB-Hinweis unten).
-- Plan-Doku-Fix: `ed849a4b`.
+- T6 ✅ `e9530618` — Tabelle `albumVinylLayouts` in `apps/backend/src/db/schemas/postgres.ts` + Migration `0072_burly_scarlet_spider.sql`. Die Migration ist lokal per Drizzle-Historie und Hash verifiziert angewandt.
+- T7 ✅ `39e81df5` — raw-pg-Helfer `upsertAlbumVinylLayout`/`readAlbumVinylLayout` und isolierter lokaler Postgres-Integrationstest, 1/1 grün.
+- T8 ✅ `e593c8c1` + Review-Fix `d4592e4f` — Orchestrator `enrichAlbumVinylLayout`. Review bestanden: unvollständige Discogs-Dauern bleiben retrybar und werden nicht negativ gecacht; die External-ID-Provenienz wird vor dem positiven Layout geschrieben.
+- T9 ✅ `4030c650` + Review-Fix `c6892819` — Resolve-Payload, Repository-Delegationen, OpenAPI-Serializer und verpflichtender Resolve-Typ. Best-effort-Enrichment, Reihenfolge und persistierte Album-ID sind getestet.
+- T10 ✅ `4e921d78` + Test-Fix `d14c5174` — gecachte Resolves überspringen Discogs; die Share-Payload liefert persistierte Layouts inklusive Negativ-Cache. Lokaler Adapter-Integrationstest 3/3 grün.
+- T11 ✅ `57a4dc8c` — finale Gates, lokale Drizzle-Verifikation und read-only Live-Discogs-Client-Nachweis: Master `33100`, Release `10013707`, zwei Seiten, drei Tracks.
 
-**Discogs-Testsuite aktuell: 38 Tests grün** (`discogs-parse.test.ts` 19 + `discogs-client.test.ts` 19). Testlauf: `pnpm --filter @musiccloud/backend test:run discogs`.
-
-**Noch offen — MC-116:** T7 (Persist-Helfer) ist der nächste Task, dann T8 (Enrichment-Orchestrator), T9 (in Resolve verdrahten + Payload), T10 (Read-Path gecachte Alben), T11 (Gates + Env-Doku).
+**Verifizierte Gates:** Backend-Suite 1.443 grün, 58 gezielt ohne DB-URL übersprungen; Vinyl-Integration 4/4 grün gegen localhost; Backend-Typecheck, Shared-Build und Full-Repo-Biome grün. Vier ältere, datenunsichere DB-Tests bleiben aus Sicherheitsgründen außerhalb des Laufs.
 
 **Noch offen — MC-117 (Frontend):** komplett offen (7 Tasks), erst nach MC-116 sinnvoll.
 
 ## DB-Hinweis (wichtig, sonst verliert man Zeit)
 
-musiccloud hat **kein separates lokales Postgres**. `.env.local`/`ZEROPS_DB_URL` ist die eine (Zerops-)DB, gegen die dieses Projekt entwickelt (Host `postgresql` → `10.0.224.15` via VPN). `pnpm db:generate` (schema-only) → `pnpm db:migrate` ist der **normale, erlaubte** Dev-Workflow; nicht als Prod-Zwischenfall behandeln. Migration `0072` (Tabelle `album_vinyl_layouts`, leer) ist dort bereits angewandt und bleibt. Nur bei **destruktiven** Eingriffen (DROP/TRUNCATE/Daten-Löschung) beim User rückfragen. Migrations-Tracker: genau einer, `drizzle.__drizzle_migrations`.
+Die lokale Entwicklungsdatenbank ist über `apps/backend/.env.local` konfiguriert. Migration `0072_burly_scarlet_spider.sql` ist dort bereits angewandt: Tabelle, Unique-Index und letzter Drizzle-Migrationshash wurden read-only verifiziert. Keine Migration erneut anwenden. Die Vinyl-Integrationstests legen ausschließlich eigene Album-, Short-ID- und Layout-Zeilen an und entfernen sie wieder.
 
 ## Token
 
-`DISCOGS_TOKEN` liefert der User. Gehört in `.env.local` (nie committen — Repo ist OSS-public). Wird erst für T11 (Live-Enrichment-Verifikation) gebraucht; T7-T10 mocken DB/Client, also kein Token nötig.
+`DISCOGS_TOKEN` liegt lokal in `apps/backend/.env.local` und wird nie committed. Die Live-Verifikation in T11 ist abgeschlossen.
 
 ## Konventionen (nicht verhandelbar — an alle Subagents weitergeben)
 
@@ -64,8 +66,8 @@ musiccloud hat **kein separates lokales Postgres**. `.env.local`/`ZEROPS_DB_URL`
 
 ## Nächster konkreter Schritt
 
-MC-116 **Task 7 (Persist-Helfer)** dispatchen — Details stehen ausführlich in Plan-Task-7. Kurz: `upsertAlbumVinylLayout(pool, albumId, layout|null)` + `readAlbumVinylLayout(pool, albumId)` in `apps/backend/src/db/adapters/postgres-albums.ts`, **rohes SQL** (`INSERT … ON CONFLICT (album_id) DO UPDATE …`), `id` via `generateTrackId()`. `readAlbumVinylLayout` unterscheidet drei Zustände: `VinylLayout` (Treffer), `null` (geprüft, kein Vinyl = Negativ-Cache), `undefined` (nie geprüft). Getestet als **Integrationstest gegen die echte DB** (`skipIf(!DATABASE_URL)`, im Test zuerst eine `albums`-Row anlegen wegen FK, dann upsert/read/Cleanup) — NICHT gemockt. Danach T8-T11, dann MC-117.
+MC-117 Task 1 beginnen: Geometrie-Helfer aus `VinylRecord.tsx` nach `lib/media/vinyl-geometry.ts` auslagern und charakterisierend testen. MC-116 ist vollständig abgeschlossen.
 
 ## Offene Baustelle nebenbei
 
-`git status` zeigt ein untracked `.agents/`-Verzeichnis (vom Teammate-/Subagent-Framework erzeugt) — harness-managed, nicht committen, nicht anfassen.
+`git status` zeigt das untracked `.agents/`-Verzeichnis (vom Teammate-/Subagent-Framework erzeugt). Es ist harness-managed und darf weder verändert noch committed werden.
