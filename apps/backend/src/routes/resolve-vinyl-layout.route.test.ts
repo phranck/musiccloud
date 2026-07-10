@@ -208,4 +208,54 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
 
     await app.close();
   });
+
+  it("serves a cached album layout without repeating Discogs enrichment", async () => {
+    persistAlbumWithLinks.mockResolvedValue({
+      albumId: "cached-album-id",
+      shortId: "album-short",
+      artistCredits: [],
+    });
+    readAlbumVinylLayout.mockResolvedValue(vinylLayout);
+    vi.mocked(resolveAlbumUrl).mockResolvedValue({ ...albumResolution, albumId: "cached-album-id" });
+    const app = buildApp();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/resolve",
+      headers: { origin: "http://localhost:3000" },
+      payload: { query: albumResolution.sourceAlbum.webUrl },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(enrichAlbumVinylLayout).not.toHaveBeenCalled();
+    expect(readAlbumVinylLayout).toHaveBeenCalledWith("cached-album-id");
+    expect(response.json().album.vinylLayout).toEqual(vinylLayout);
+
+    await app.close();
+  });
+
+  it("serves a cached album negative vinyl lookup as null without repeating Discogs enrichment", async () => {
+    persistAlbumWithLinks.mockResolvedValue({
+      albumId: "cached-album-id",
+      shortId: "album-short",
+      artistCredits: [],
+    });
+    readAlbumVinylLayout.mockResolvedValue(null);
+    vi.mocked(resolveAlbumUrl).mockResolvedValue({ ...albumResolution, albumId: "cached-album-id" });
+    const app = buildApp();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/resolve",
+      headers: { origin: "http://localhost:3000" },
+      payload: { query: albumResolution.sourceAlbum.webUrl },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(enrichAlbumVinylLayout).not.toHaveBeenCalled();
+    expect(readAlbumVinylLayout).toHaveBeenCalledWith("cached-album-id");
+    expect(response.json().album.vinylLayout).toBeNull();
+
+    await app.close();
+  });
 });

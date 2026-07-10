@@ -109,6 +109,7 @@ export interface SharePageAlbumResult {
     label: string | null;
     upc: string | null;
     previewUrl: string | null;
+    vinylLayout: VinylLayout | null;
   };
   artists: string[];
   artistCredits: ArtistCredit[];

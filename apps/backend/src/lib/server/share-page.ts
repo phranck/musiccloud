@@ -1,4 +1,4 @@
-import { isValidServiceId, type ServiceId } from "@musiccloud/shared";
+import { isValidServiceId, type ServiceId, type VinylLayout } from "@musiccloud/shared";
 import { getRepository } from "../../db/index.js";
 import type { ArtistCredit } from "../../db/repository.js";
 import { deezerAdapter } from "../../services/plugins/deezer/adapter.js";
@@ -130,6 +130,7 @@ export interface ShareAlbumPageData {
     label: string | null;
     upc: string | null;
     previewUrl: string | null;
+    vinylLayout: VinylLayout | null;
   };
   artists: string[];
   artistCredits: ArtistCredit[];

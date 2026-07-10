@@ -78,6 +78,11 @@ export interface AlbumWithLinkRow extends AlbumRow {
   short_id: string | null;
 }
 
+/** Raw album share projection including the persisted vinyl-cache state. */
+export interface AlbumShareRow extends AlbumWithLinkRow {
+  vinyl_layout: VinylLayout | null;
+}
+
 // ============================================================================
 // RESOLUTION
 // ============================================================================
@@ -556,18 +561,20 @@ export async function loadAlbumByShortId(pool: Pool, shortId: string): Promise<S
       a.id, a.title, ${ALBUM_ARTIST_FIELDS_SELECT}, a.release_date, a.total_tracks,
       a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
       (SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY (ap.service = 'deezer') DESC, ap.observed_at DESC LIMIT 1) AS preview_url,
+      avl.layout_data AS vinyl_layout,
       asl.url as link_url, asl.service,
       asu.id as short_id
     FROM albums a
     JOIN album_short_urls asu ON a.id = asu.album_id
     LEFT JOIN album_service_links asl ON a.id = asl.album_id
+    LEFT JOIN album_vinyl_layouts avl ON a.id = avl.album_id
     WHERE asu.id = $1`,
     [shortId],
   );
 
   if (result.rows.length === 0) return null;
 
-  const firstRow = result.rows[0] as AlbumWithLinkRow;
+  const firstRow = result.rows[0] as AlbumShareRow;
   const artists = safeParseArray(firstRow.artists);
   const artistCredits = safeParseArtistCredits(firstRow.artist_credits);
   const artistDisplay = artists.length > 0 ? artists[0] : "Unknown Artist";
@@ -637,7 +644,7 @@ export function buildCachedAlbumResult(rows: AlbumWithLinkRow[]): CachedAlbumRes
  *
  * @param row - Raw album row.
  */
-export function rowToAlbum(row: AlbumRow): SharePageAlbumResult["album"] {
+export function rowToAlbum(row: AlbumShareRow): SharePageAlbumResult["album"] {
   return {
     title: row.title,
     artworkUrl: row.artwork_url,
@@ -646,6 +653,7 @@ export function rowToAlbum(row: AlbumRow): SharePageAlbumResult["album"] {
     label: row.label,
     upc: row.upc,
     previewUrl: row.preview_url ?? null,
+    vinylLayout: row.vinyl_layout ?? null,
   };
 }
 
