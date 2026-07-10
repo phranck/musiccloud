@@ -127,6 +127,30 @@ describe("parseDesignTokens — clamping & coercion", () => {
     expect(a.tokens.shader.autoDayNight).toBe(1);
   });
 
+  it("accepts dayTransition 0 (hard switch) without defaulting it", () => {
+    // 0 is a valid choice — the crossfade duration bottoms out at an instant switch.
+    const { tokens, errors } = parseDesignTokens({ dayTransition: 0 });
+    expect(tokens.shader.dayTransition).toBe(0);
+    expect(errors).toEqual([]);
+  });
+
+  it("migrates a legacy tintTop/tintBottom glass blob onto the single tint (keeps tintTop)", () => {
+    // The tint collapsed from a gradient to one colour; a blob saved before that
+    // carries tintTop but no tint — the admin's tuned tintTop must survive.
+    const legacy: unknown = { glass: { card: { day: { tintTop: "#123456", tintBottom: "#654321", opacity: 0.5 } } } };
+    const { tokens, errors } = parseDesignTokens(legacy);
+    expect(tokens.glass.card.day.tint).toBe("#123456");
+    expect(tokens.glass.card.day.opacity).toBe(0.5);
+    // The dropped legacy keys are not errors — unknown keys are silently ignored.
+    expect(errors).toEqual([]);
+  });
+
+  it("prefers an explicit tint over a legacy tintTop when both are present", () => {
+    const mixed: unknown = { glass: { card: { night: { tint: "#abcdef", tintTop: "#000000" } } } };
+    const { tokens } = parseDesignTokens(mixed);
+    expect(tokens.glass.card.night.tint).toBe("#abcdef");
+  });
+
   it("rejects a non-numeric number field, keeping the default", () => {
     const { tokens, errors } = parseDesignTokens({ cardRadius: "huge" });
     expect(tokens.cardRadius).toBe(CARD_RADIUS_DEFAULT);
@@ -137,19 +161,18 @@ describe("parseDesignTokens — clamping & coercion", () => {
 describe("parseDesignTokens — colors & injection safety", () => {
   it("accepts rgb()/rgba() colours", () => {
     const { tokens, errors } = parseDesignTokens({
-      glass: { card: { day: { tintTop: "rgb(10, 20, 30)", tintBottom: "rgba(1,2,3,0.5)" } } },
+      glass: { card: { day: { tint: "rgb(10, 20, 30)" } } },
     });
     expect(errors).toEqual([]);
-    expect(tokens.glass.card.day.tintTop).toBe("rgb(10, 20, 30)");
-    expect(tokens.glass.card.day.tintBottom).toBe("rgba(1,2,3,0.5)");
+    expect(tokens.glass.card.day.tint).toBe("rgb(10, 20, 30)");
   });
 
   it("rejects a CSS-injection attempt in a colour field", () => {
     const injection = "#fff; } body { display: none } .x {";
     const { tokens, errors } = parseDesignTokens({
-      glass: { card: { day: { tintTop: injection } } },
+      glass: { card: { day: { tint: injection } } },
     });
-    expect(tokens.glass.card.day.tintTop).toBe(DESIGN_TOKENS_DEFAULTS.glass.card.day.tintTop);
+    expect(tokens.glass.card.day.tint).toBe(DESIGN_TOKENS_DEFAULTS.glass.card.day.tint);
     expect(errors.some((e) => e.includes("invalid color"))).toBe(true);
   });
 

@@ -103,24 +103,10 @@ export interface DayNight<T> {
 
 /** Tunable fields of a single glass surface control, per mode. */
 export interface GlassFields {
-  /** Top tint colour of the vertical surface gradient (`#rrggbb`). */
-  tintTop: string;
-  /** Bottom tint colour of the vertical surface gradient (`#rrggbb`). */
-  tintBottom: string;
-  /** Tint alpha applied to the gradient (0..1). */
+  /** Flat tint colour of the surface (`#rrggbb`). */
+  tint: string;
+  /** Tint alpha applied to the fill (0..1). */
   opacity: number;
-  /** Backdrop blur radius in px (0..60); only honoured on outer cards (noFrost). */
-  blur: number;
-  /** Backdrop saturate boost added to 1 (0..1.5); frost-only. */
-  saturate: number;
-  /** Backdrop brightness boost added to 1 (0..0.6, "Vibrancy"); frost-only. */
-  brightness: number;
-  /** Light chamfer-edge intensity (0..1). */
-  edgeLight: number;
-  /** Shadow chamfer-edge intensity (0..1). */
-  edgeShadow: number;
-  /** 1px inner rim intensity (0..1). */
-  rim: number;
   /** Outer float/drop-shadow intensity (0..1). */
   shadow: number;
 }
@@ -253,7 +239,7 @@ export interface BackdropFields {
  */
 export const SHADER_NUMBER_SPECS = {
   dayness: { min: 0, max: 1 },
-  dayTransition: { min: 0.2, max: 10 },
+  dayTransition: { min: 0, max: 10 },
   autoDayNight: { min: 0, max: 1, bool: true },
   sunriseHour: { min: 0, max: 12 },
   sunsetHour: { min: 12, max: 24 },
@@ -473,157 +459,73 @@ export const SHADER_DEFAULTS: ShaderTokens = {
 export const GLASS_DEFAULTS: Record<GlassControlKey, DayNight<GlassFields>> = {
   card: {
     day: {
-      tintTop: "#000000",
-      tintBottom: "#000000",
+      tint: "#000000",
       opacity: 0.42,
-      blur: 6,
-      saturate: 0.0,
-      brightness: 0.1,
-      edgeLight: 0,
-      edgeShadow: 0,
-      rim: 0.0,
       shadow: 0.3,
     },
     night: {
-      tintTop: "#354046",
-      tintBottom: "#293137",
+      tint: "#354046",
       opacity: 0.42,
-      blur: 6,
-      saturate: 0.25,
-      brightness: 0.5,
-      edgeLight: 0,
-      edgeShadow: 0,
-      rim: 0.03,
       shadow: 0.2,
     },
   },
   cardOverlay: {
     day: {
-      tintTop: "#000000",
-      tintBottom: "#000000",
+      tint: "#000000",
       opacity: 0.5,
-      blur: 42,
-      saturate: 0.0,
-      brightness: 0.42,
-      edgeLight: 0,
-      edgeShadow: 0,
-      rim: 0.0,
       shadow: 0.42,
     },
     night: {
-      tintTop: "#232323",
-      tintBottom: "#232323",
+      tint: "#232323",
       opacity: 0.5,
-      blur: 42,
-      saturate: 0.75,
-      brightness: 0.42,
-      edgeLight: 0,
-      edgeShadow: 0,
-      rim: 0.07,
       shadow: 0.42,
     },
   },
   button: {
     day: {
-      tintTop: "#94e3fe",
-      tintBottom: "#94e3fe",
+      tint: "#94e3fe",
       opacity: 0.13,
-      blur: 0,
-      saturate: 0.0,
-      brightness: 0.0,
-      edgeLight: 0,
-      edgeShadow: 0,
-      rim: 0.06,
       shadow: 0.0,
     },
     night: {
-      tintTop: "#94e3fe",
-      tintBottom: "#94e3fe",
+      tint: "#94e3fe",
       opacity: 0.13,
-      blur: 2,
-      saturate: 0.0,
-      brightness: 0.42,
-      edgeLight: 0,
-      edgeShadow: 0,
-      rim: 0.03,
       shadow: 0.0,
     },
   },
   recessed: {
     day: {
-      tintTop: "#000000",
-      tintBottom: "#000000",
+      tint: "#000000",
       opacity: 0.28,
-      blur: 0,
-      saturate: 0.0,
-      brightness: 0.0,
-      edgeLight: 0,
-      edgeShadow: 0,
-      rim: 0.0,
       shadow: 0.0,
     },
     night: {
-      tintTop: "#000000",
-      tintBottom: "#000000",
+      tint: "#000000",
       opacity: 0.28,
-      blur: 0,
-      saturate: 0.0,
-      brightness: 0.0,
-      edgeLight: 0,
-      edgeShadow: 0,
-      rim: 0.0,
       shadow: 0.0,
     },
   },
   segTrack: {
     day: {
-      tintTop: "#00364a",
-      tintBottom: "#00364a",
+      tint: "#00364a",
       opacity: 0.32,
-      blur: 0,
-      saturate: 0.0,
-      brightness: 0.0,
-      edgeLight: 0,
-      edgeShadow: 0,
-      rim: 0.0,
       shadow: 0.0,
     },
     night: {
-      tintTop: "#000000",
-      tintBottom: "#000000",
+      tint: "#000000",
       opacity: 0.28,
-      blur: 0,
-      saturate: 0.0,
-      brightness: 0.0,
-      edgeLight: 0,
-      edgeShadow: 0,
-      rim: 0.0,
       shadow: 0.0,
     },
   },
   segIndicator: {
     day: {
-      tintTop: "#94e3fe",
-      tintBottom: "#94e3fe",
+      tint: "#94e3fe",
       opacity: 0.35,
-      blur: 0,
-      saturate: 0.0,
-      brightness: 0.0,
-      edgeLight: 0,
-      edgeShadow: 0,
-      rim: 0.0,
       shadow: 0.0,
     },
     night: {
-      tintTop: "#94e3fe",
-      tintBottom: "#94e3fe",
+      tint: "#94e3fe",
       opacity: 0.2,
-      blur: 2,
-      saturate: 0.0,
-      brightness: 0.42,
-      edgeLight: 0,
-      edgeShadow: 0,
-      rim: 0.08,
       shadow: 0.0,
     },
   },
@@ -632,53 +534,25 @@ export const GLASS_DEFAULTS: Record<GlassControlKey, DayNight<GlassFields>> = {
   // mirror segTrack/segIndicator (the current shared look).
   navTrack: {
     day: {
-      tintTop: "#00364a",
-      tintBottom: "#00364a",
+      tint: "#00364a",
       opacity: 0.32,
-      blur: 0,
-      saturate: 0.0,
-      brightness: 0.0,
-      edgeLight: 0,
-      edgeShadow: 0,
-      rim: 0.0,
       shadow: 0.0,
     },
     night: {
-      tintTop: "#004f6f",
-      tintBottom: "#004f6f",
+      tint: "#004f6f",
       opacity: 0.32,
-      blur: 0,
-      saturate: 0.0,
-      brightness: 0.0,
-      edgeLight: 0,
-      edgeShadow: 0,
-      rim: 0.0,
       shadow: 0.0,
     },
   },
   navIndicator: {
     day: {
-      tintTop: "#94e3fe",
-      tintBottom: "#94e3fe",
+      tint: "#94e3fe",
       opacity: 0.35,
-      blur: 0,
-      saturate: 0.0,
-      brightness: 0.0,
-      edgeLight: 0,
-      edgeShadow: 0,
-      rim: 0.0,
       shadow: 0.0,
     },
     night: {
-      tintTop: "#94e3fe",
-      tintBottom: "#94e3fe",
+      tint: "#94e3fe",
       opacity: 0.2,
-      blur: 2,
-      saturate: 0.0,
-      brightness: 0.42,
-      edgeLight: 0,
-      edgeShadow: 0,
-      rim: 0.08,
       shadow: 0.0,
     },
   },
@@ -690,53 +564,25 @@ export const GLASS_DEFAULTS: Record<GlassControlKey, DayNight<GlassFields>> = {
   // the browser (Task 8).
   ccSegTrack: {
     day: {
-      tintTop: "#00364a",
-      tintBottom: "#00364a",
+      tint: "#00364a",
       opacity: 0.32,
-      blur: 0,
-      saturate: 0.0,
-      brightness: 0.0,
-      edgeLight: 0,
-      edgeShadow: 0,
-      rim: 0.0,
       shadow: 0.0,
     },
     night: {
-      tintTop: "#000000",
-      tintBottom: "#000000",
+      tint: "#000000",
       opacity: 0.28,
-      blur: 0,
-      saturate: 0.0,
-      brightness: 0.0,
-      edgeLight: 0,
-      edgeShadow: 0,
-      rim: 0.0,
       shadow: 0.0,
     },
   },
   ccSegIndicator: {
     day: {
-      tintTop: "#30d158",
-      tintBottom: "#30d158",
+      tint: "#30d158",
       opacity: 0.35,
-      blur: 0,
-      saturate: 0.0,
-      brightness: 0.0,
-      edgeLight: 0,
-      edgeShadow: 0,
-      rim: 0.0,
       shadow: 0.0,
     },
     night: {
-      tintTop: "#30d158",
-      tintBottom: "#30d158",
+      tint: "#30d158",
       opacity: 0.2,
-      blur: 2,
-      saturate: 0.0,
-      brightness: 0.42,
-      edgeLight: 0,
-      edgeShadow: 0,
-      rim: 0.08,
       shadow: 0.0,
     },
   },
@@ -938,15 +784,8 @@ type FieldSpec =
   | { kind: "enum"; values: readonly string[] };
 
 const GLASS_FIELD_SPECS: Record<keyof GlassFields, FieldSpec> = {
-  tintTop: { kind: "color" },
-  tintBottom: { kind: "color" },
+  tint: { kind: "color" },
   opacity: { kind: "number", min: 0, max: 1 },
-  blur: { kind: "number", min: 0, max: 60 },
-  saturate: { kind: "number", min: 0, max: 1.5 },
-  brightness: { kind: "number", min: 0, max: 0.6 },
-  edgeLight: { kind: "number", min: 0, max: 1 },
-  edgeShadow: { kind: "number", min: 0, max: 1 },
-  rim: { kind: "number", min: 0, max: 1 },
   shadow: { kind: "number", min: 0, max: 1 },
 };
 
@@ -1112,6 +951,29 @@ function cloneDefaults(): DesignTokens {
   return JSON.parse(JSON.stringify(DESIGN_TOKENS_DEFAULTS)) as DesignTokens;
 }
 
+/**
+ * Back-compat for the glass tint collapse: the material dropped its
+ * `tintTop`/`tintBottom` vertical gradient for a single flat `tint`. A blob
+ * saved (or a prototype export pasted) before the collapse carries `tintTop`
+ * but no `tint`; map `tintTop` → `tint` so the admin's tuned colour survives the
+ * upgrade instead of snapping back to the canonical default. The now-unknown
+ * `tintBottom` (and the removed frost fields) are dropped by {@link sanitizeFields}.
+ *
+ * @param raw One glass control's raw `{ day, night }` value from the token blob.
+ * @returns The same shape with `tint` seeded from `tintTop` where it was absent.
+ */
+function migrateLegacyGlassTint(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object") return raw;
+  const migrateMode = (mode: unknown): unknown => {
+    if (!mode || typeof mode !== "object") return mode;
+    const m = mode as Record<string, unknown>;
+    if (m.tint === undefined && m.tintTop !== undefined) return { ...m, tint: m.tintTop };
+    return m;
+  };
+  const src = raw as { day?: unknown; night?: unknown };
+  return { ...src, day: migrateMode(src.day), night: migrateMode(src.night) };
+}
+
 // ─── Public parser ─────────────────────────────────────────────────────────────
 
 /**
@@ -1203,7 +1065,7 @@ export function parseDesignTokens(raw: unknown): { tokens: DesignTokens; errors:
   const glass = {} as Record<GlassControlKey, DayNight<GlassFields>>;
   for (const control of Object.keys(GLASS_DEFAULTS) as GlassControlKey[]) {
     glass[control] = sanitizeDayNight(
-      rawGlass[control],
+      migrateLegacyGlassTint(rawGlass[control]),
       GLASS_DEFAULTS[control] as unknown as DayNight<Record<string, unknown>>,
       GLASS_FIELD_SPECS,
       `glass.${control}`,

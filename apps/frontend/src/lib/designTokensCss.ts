@@ -107,20 +107,10 @@ function liftLightness(color: string, pct: number): string {
 const BUTTON_HOVER_LIFT = 10;
 const BUTTON_ACTIVE_LIFT = 5;
 
-/** Builds the nine `--<control>-<mode>-<field>` declarations for one glass control + mode. */
+/** Builds the two `--<control>-<mode>-<field>` declarations for one glass control + mode. */
 function glassControlDecls(control: GlassControlKey, fields: GlassFields, mode: "day" | "night"): string {
   const p = `--${control}-${mode}`;
-  return [
-    `${p}-tt:${toRgba(fields.tintTop, fields.opacity)}`,
-    `${p}-tb:${toRgba(fields.tintBottom, fields.opacity)}`,
-    `${p}-bl:${fields.blur}px`,
-    `${p}-sa:${fields.saturate}`,
-    `${p}-br:${fields.brightness}`,
-    `${p}-el:${fields.edgeLight}`,
-    `${p}-es:${fields.edgeShadow}`,
-    `${p}-rm:${fields.rim}`,
-    `${p}-sh:${fields.shadow}`,
-  ].join(";");
+  return [`${p}-t:${toRgba(fields.tint, fields.opacity)}`, `${p}-sh:${fields.shadow}`].join(";");
 }
 
 /**
@@ -146,10 +136,8 @@ export function designTokensToCss(tokens: DesignTokens): string {
   const btn = tokens.glass.button;
   for (const mode of ["day", "night"] as const) {
     const f = btn[mode];
-    decls.push(`--button-${mode}-htt:${toRgba(liftLightness(f.tintTop, BUTTON_HOVER_LIFT), f.opacity)}`);
-    decls.push(`--button-${mode}-htb:${toRgba(liftLightness(f.tintBottom, BUTTON_HOVER_LIFT), f.opacity)}`);
-    decls.push(`--button-${mode}-att:${toRgba(liftLightness(f.tintTop, BUTTON_ACTIVE_LIFT), f.opacity)}`);
-    decls.push(`--button-${mode}-atb:${toRgba(liftLightness(f.tintBottom, BUTTON_ACTIVE_LIFT), f.opacity)}`);
+    decls.push(`--button-${mode}-ht:${toRgba(liftLightness(f.tint, BUTTON_HOVER_LIFT), f.opacity)}`);
+    decls.push(`--button-${mode}-at:${toRgba(liftLightness(f.tint, BUTTON_ACTIVE_LIFT), f.opacity)}`);
   }
 
   // Per-surface text: one font (size/weight cross-faded per mode; family discrete,

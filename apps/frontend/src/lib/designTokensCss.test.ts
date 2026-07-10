@@ -13,24 +13,15 @@ describe("designTokensToCss — button hover/active tints", () => {
   const css = designTokensToCss(DESIGN_TOKENS_DEFAULTS);
 
   it("emits HSL-lifted hover + active button tint vars for both modes", () => {
-    for (const v of [
-      "--button-day-htt",
-      "--button-day-htb",
-      "--button-night-htt",
-      "--button-night-htb",
-      "--button-day-att",
-      "--button-day-atb",
-      "--button-night-att",
-      "--button-night-atb",
-    ]) {
+    for (const v of ["--button-day-ht", "--button-night-ht", "--button-day-at", "--button-night-at"]) {
       expect(css).toContain(`${v}:`);
     }
   });
 
   it("lifts hover lighter than base, active between, with the base tint's opacity preserved", () => {
-    const base = rgbaVar(css, "--button-night-tt");
-    const hover = rgbaVar(css, "--button-night-htt");
-    const active = rgbaVar(css, "--button-night-att");
+    const base = rgbaVar(css, "--button-night-t");
+    const hover = rgbaVar(css, "--button-night-ht");
+    const active = rgbaVar(css, "--button-night-at");
     // Lightness lift raises the channels (the tint gets lighter); hover > active > base.
     expect(hover.sum).toBeGreaterThan(active.sum);
     expect(active.sum).toBeGreaterThan(base.sum);

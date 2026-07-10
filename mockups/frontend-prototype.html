@@ -572,129 +572,51 @@ a.mc-cardlink {
 
 /* ════════════════════════════════════════════════════════════════════════
    GLASS MODE — always on (body.glass). Every control has its own day/night
-   settings in JS-set CSS vars (--<control>-<mode>-{tt,tb,bl,sa,el,es,sh});
-   they cross-fade via --g-dayness. Material = vertical tint gradient
-   (top→bottom) + frosted blur + chamfered edge (light TL / shadow BR) + float
-   shadow. The dark hardware screens (TFT, VFD) stay as-is.
+   settings in JS-set CSS vars (--<control>-<mode>-{t,sh}); they cross-fade via
+   --g-dayness. Material = flat tint + float drop-shadow. The dark hardware
+   screens (TFT, VFD) stay as-is.
    ════════════════════════════════════════════════════════════════════════ */
-/* Rimless: drop the neumorphic 1px gradient-strip ::before — the edge is a soft
-   chamfer via the inset box-shadows below. */
+/* Drop the neumorphic 1px gradient-strip ::before — the surface is a flat tint. */
 body.glass .embossed-card::before, body.glass .section-card::before,
 body.glass .recessed-card::before,
 body.glass .seg-track::before, body.glass .seg-indicator::before, body.glass .seg-hover::before,
 body.glass .emb-btn::before { background: none; }
 
-/* Shared surface recipe — vertical tint gradient + chamfered edge/rim/shadow.
-   The box-shadow here is the RAISED chamfer (light top-left, shadow
-   bottom-right); recessed surfaces override just the box-shadow right after.
-   The frosted backdrop-filter lives on the OUTER cards ONLY (rule below). */
+/* Shared surface recipe — flat tint + float drop-shadow. */
 body.glass .embossed-card, body.glass .section-card, body.glass .emb-btn,
 body.glass .recessed-card:not(.seg-track), body.glass .seg-track, body.glass .seg-indicator, body.glass .seg-hover {
-  background: linear-gradient(to bottom, var(--_tt), var(--_tb));
-  box-shadow:
-    var(--mc-shadow-x, 0px) var(--mc-shadow-y, 12px) var(--mc-shadow-blur, 40px) rgba(var(--mc-shadow-rgb, 0, 0, 0), var(--_sh)),
-    inset 0 0 0 1px rgba(255,255,255, var(--_rm)),
-    inset 1px 1px 1.5px rgba(255,255,255, var(--_el)),
-    inset -1px -1px 1.5px rgba(0,0,0, var(--_es));
-}
-
-/* Frost lives ONLY on the outer cards — they sit directly over the sky, so a
-   neutral filter (all sliders 0) leaves them invisible and a tuned one frosts
-   the sky cleanly. Nested controls (button, recessed, segmented track/indicator)
-   deliberately get NO backdrop-filter: a nested filter re-samples the RAW sky
-   instead of the parent card's frosted result, which both breaks the day↔night
-   cross-fade (a hard none↔active jump) and shows a "window to the sky". Their
-   frost comes from the card behind them; they only add tint + chamfer. */
-body.glass .embossed-card, body.glass .section-card {
-  -webkit-backdrop-filter: blur(var(--_bl)) saturate(calc(1 + var(--_sa))) brightness(calc(1 + var(--_br)));
-  backdrop-filter: blur(var(--_bl)) saturate(calc(1 + var(--_sa))) brightness(calc(1 + var(--_br)));
-}
-
-/* Recessed surfaces (RecessedCard, segmented track) sink INTO the surface, so
-   under the same top-left light their chamfer inverts: shadow top-left, light
-   bottom-right — the opposite of the raised cards/buttons above. edgeLight (--_el)
-   still drives the light edge and edgeShadow (--_es) the shadow edge; only the
-   corner each one sits in swaps. */
-body.glass .recessed-card:not(.seg-track), body.glass .seg-track {
-  box-shadow:
-    var(--mc-shadow-x, 0px) var(--mc-shadow-y, 12px) var(--mc-shadow-blur, 40px) rgba(var(--mc-shadow-rgb, 0, 0, 0), var(--_sh)),
-    inset 0 0 0 1px rgba(255,255,255, var(--_rm)),
-    inset 1px 1px 1.5px rgba(0,0,0, var(--_es)),
-    inset -1px -1px 1.5px rgba(255,255,255, var(--_el));
+  background: var(--_t);
+  box-shadow: var(--mc-shadow-x, 0px) var(--mc-shadow-y, 12px) var(--mc-shadow-blur, 40px) rgba(var(--mc-shadow-rgb, 0, 0, 0), var(--_sh));
 }
 
 /* Per-control: resolve the active values from each control's day/night vars.
    Colours blend via color-mix; numbers lerp via calc on --g-dayness. */
 body.glass .embossed-card, body.glass .section-card {
-  --_tt: color-mix(in srgb, var(--card-day-tt) calc(var(--g-dayness)*100%), var(--card-night-tt));
-  --_tb: color-mix(in srgb, var(--card-day-tb) calc(var(--g-dayness)*100%), var(--card-night-tb));
-  --_bl: calc(var(--card-day-bl)*var(--g-dayness) + var(--card-night-bl)*(1 - var(--g-dayness)));
-  --_sa: calc(var(--card-day-sa)*var(--g-dayness) + var(--card-night-sa)*(1 - var(--g-dayness)));
-  --_br: calc(var(--card-day-br)*var(--g-dayness) + var(--card-night-br)*(1 - var(--g-dayness)));
-  --_el: calc(var(--card-day-el)*var(--g-dayness) + var(--card-night-el)*(1 - var(--g-dayness)));
-  --_es: calc(var(--card-day-es)*var(--g-dayness) + var(--card-night-es)*(1 - var(--g-dayness)));
-  --_rm: calc(var(--card-day-rm)*var(--g-dayness) + var(--card-night-rm)*(1 - var(--g-dayness)));
+  --_t: color-mix(in srgb, var(--card-day-t) calc(var(--g-dayness)*100%), var(--card-night-t));
   --_sh: calc(var(--card-day-sh)*var(--g-dayness) + var(--card-night-sh)*(1 - var(--g-dayness)));
 }
 /* Buttons get their own glass control (defaults match the card, now tunable apart). */
 body.glass .emb-btn {
-  --_tt: color-mix(in srgb, var(--button-day-tt) calc(var(--g-dayness)*100%), var(--button-night-tt));
-  --_tb: color-mix(in srgb, var(--button-day-tb) calc(var(--g-dayness)*100%), var(--button-night-tb));
-  --_bl: calc(var(--button-day-bl)*var(--g-dayness) + var(--button-night-bl)*(1 - var(--g-dayness)));
-  --_sa: calc(var(--button-day-sa)*var(--g-dayness) + var(--button-night-sa)*(1 - var(--g-dayness)));
-  --_br: calc(var(--button-day-br)*var(--g-dayness) + var(--button-night-br)*(1 - var(--g-dayness)));
-  --_el: calc(var(--button-day-el)*var(--g-dayness) + var(--button-night-el)*(1 - var(--g-dayness)));
-  --_es: calc(var(--button-day-es)*var(--g-dayness) + var(--button-night-es)*(1 - var(--g-dayness)));
-  --_rm: calc(var(--button-day-rm)*var(--g-dayness) + var(--button-night-rm)*(1 - var(--g-dayness)));
+  --_t: color-mix(in srgb, var(--button-day-t) calc(var(--g-dayness)*100%), var(--button-night-t));
   --_sh: calc(var(--button-day-sh)*var(--g-dayness) + var(--button-night-sh)*(1 - var(--g-dayness)));
-  /* HSL-lifted hover/active tints (computed in applyGlass), cross-faded like --_tt. */
-  --_htt: color-mix(in srgb, var(--button-day-htt) calc(var(--g-dayness)*100%), var(--button-night-htt));
-  --_htb: color-mix(in srgb, var(--button-day-htb) calc(var(--g-dayness)*100%), var(--button-night-htb));
-  --_att: color-mix(in srgb, var(--button-day-att) calc(var(--g-dayness)*100%), var(--button-night-att));
-  --_atb: color-mix(in srgb, var(--button-day-atb) calc(var(--g-dayness)*100%), var(--button-night-atb));
+  /* HSL-lifted hover/active tints (computed in applyGlass), cross-faded like --_t. */
+  --_ht: color-mix(in srgb, var(--button-day-ht) calc(var(--g-dayness)*100%), var(--button-night-ht));
+  --_at: color-mix(in srgb, var(--button-day-at) calc(var(--g-dayness)*100%), var(--button-night-at));
 }
 body.glass .recessed-card:not(.seg-track) {
-  --_tt: color-mix(in srgb, var(--recessed-day-tt) calc(var(--g-dayness)*100%), var(--recessed-night-tt));
-  --_tb: color-mix(in srgb, var(--recessed-day-tb) calc(var(--g-dayness)*100%), var(--recessed-night-tb));
-  --_bl: calc(var(--recessed-day-bl)*var(--g-dayness) + var(--recessed-night-bl)*(1 - var(--g-dayness)));
-  --_sa: calc(var(--recessed-day-sa)*var(--g-dayness) + var(--recessed-night-sa)*(1 - var(--g-dayness)));
-  --_br: calc(var(--recessed-day-br)*var(--g-dayness) + var(--recessed-night-br)*(1 - var(--g-dayness)));
-  --_el: calc(var(--recessed-day-el)*var(--g-dayness) + var(--recessed-night-el)*(1 - var(--g-dayness)));
-  --_es: calc(var(--recessed-day-es)*var(--g-dayness) + var(--recessed-night-es)*(1 - var(--g-dayness)));
-  --_rm: calc(var(--recessed-day-rm)*var(--g-dayness) + var(--recessed-night-rm)*(1 - var(--g-dayness)));
+  --_t: color-mix(in srgb, var(--recessed-day-t) calc(var(--g-dayness)*100%), var(--recessed-night-t));
   --_sh: calc(var(--recessed-day-sh)*var(--g-dayness) + var(--recessed-night-sh)*(1 - var(--g-dayness)));
 }
 body.glass .seg-track {
-  --_tt: color-mix(in srgb, var(--segTrack-day-tt) calc(var(--g-dayness)*100%), var(--segTrack-night-tt));
-  --_tb: color-mix(in srgb, var(--segTrack-day-tb) calc(var(--g-dayness)*100%), var(--segTrack-night-tb));
-  --_bl: calc(var(--segTrack-day-bl)*var(--g-dayness) + var(--segTrack-night-bl)*(1 - var(--g-dayness)));
-  --_sa: calc(var(--segTrack-day-sa)*var(--g-dayness) + var(--segTrack-night-sa)*(1 - var(--g-dayness)));
-  --_br: calc(var(--segTrack-day-br)*var(--g-dayness) + var(--segTrack-night-br)*(1 - var(--g-dayness)));
-  --_el: calc(var(--segTrack-day-el)*var(--g-dayness) + var(--segTrack-night-el)*(1 - var(--g-dayness)));
-  --_es: calc(var(--segTrack-day-es)*var(--g-dayness) + var(--segTrack-night-es)*(1 - var(--g-dayness)));
-  --_rm: calc(var(--segTrack-day-rm)*var(--g-dayness) + var(--segTrack-night-rm)*(1 - var(--g-dayness)));
+  --_t: color-mix(in srgb, var(--segTrack-day-t) calc(var(--g-dayness)*100%), var(--segTrack-night-t));
   --_sh: calc(var(--segTrack-day-sh)*var(--g-dayness) + var(--segTrack-night-sh)*(1 - var(--g-dayness)));
 }
 body.glass .seg-indicator {
-  --_tt: color-mix(in srgb, var(--segIndicator-day-tt) calc(var(--g-dayness)*100%), var(--segIndicator-night-tt));
-  --_tb: color-mix(in srgb, var(--segIndicator-day-tb) calc(var(--g-dayness)*100%), var(--segIndicator-night-tb));
-  --_bl: calc(var(--segIndicator-day-bl)*var(--g-dayness) + var(--segIndicator-night-bl)*(1 - var(--g-dayness)));
-  --_sa: calc(var(--segIndicator-day-sa)*var(--g-dayness) + var(--segIndicator-night-sa)*(1 - var(--g-dayness)));
-  --_br: calc(var(--segIndicator-day-br)*var(--g-dayness) + var(--segIndicator-night-br)*(1 - var(--g-dayness)));
-  --_el: calc(var(--segIndicator-day-el)*var(--g-dayness) + var(--segIndicator-night-el)*(1 - var(--g-dayness)));
-  --_es: calc(var(--segIndicator-day-es)*var(--g-dayness) + var(--segIndicator-night-es)*(1 - var(--g-dayness)));
-  --_rm: calc(var(--segIndicator-day-rm)*var(--g-dayness) + var(--segIndicator-night-rm)*(1 - var(--g-dayness)));
+  --_t: color-mix(in srgb, var(--segIndicator-day-t) calc(var(--g-dayness)*100%), var(--segIndicator-night-t));
   --_sh: calc(var(--segIndicator-day-sh)*var(--g-dayness) + var(--segIndicator-night-sh)*(1 - var(--g-dayness)));
 }
 body.glass .seg-hover {
-  --_tt: color-mix(in srgb, var(--segHover-day-tt) calc(var(--g-dayness)*100%), var(--segHover-night-tt));
-  --_tb: color-mix(in srgb, var(--segHover-day-tb) calc(var(--g-dayness)*100%), var(--segHover-night-tb));
-  --_bl: calc(var(--segHover-day-bl)*var(--g-dayness) + var(--segHover-night-bl)*(1 - var(--g-dayness)));
-  --_sa: calc(var(--segHover-day-sa)*var(--g-dayness) + var(--segHover-night-sa)*(1 - var(--g-dayness)));
-  --_br: calc(var(--segHover-day-br)*var(--g-dayness) + var(--segHover-night-br)*(1 - var(--g-dayness)));
-  --_el: calc(var(--segHover-day-el)*var(--g-dayness) + var(--segHover-night-el)*(1 - var(--g-dayness)));
-  --_es: calc(var(--segHover-day-es)*var(--g-dayness) + var(--segHover-night-es)*(1 - var(--g-dayness)));
-  --_rm: calc(var(--segHover-day-rm)*var(--g-dayness) + var(--segHover-night-rm)*(1 - var(--g-dayness)));
+  --_t: color-mix(in srgb, var(--segHover-day-t) calc(var(--g-dayness)*100%), var(--segHover-night-t));
   --_sh: calc(var(--segHover-day-sh)*var(--g-dayness) + var(--segHover-night-sh)*(1 - var(--g-dayness)));
 }
 /* Header-controls live preview — sits on the sky, top-right, like the real header
@@ -707,29 +629,19 @@ body.glass .seg-hover {
 .sky-header { position: fixed; top: 12px; right: 12px; z-index: 5; display: flex; gap: 8px; align-items: flex-start; }
 .sky-header.panel-open { right: calc(var(--panel-width, 380px) + 36px); }  /* clear the open sidebar */
 
-/* Recessed track surface (shadow top-left, light bottom-right). */
+/* Recessed track surface — flat tint + float drop-shadow. */
 .hc-sw, .hc-nav-track, .hc-nav-menu {
-  --t-tt: color-mix(in srgb, var(--navTrack-day-tt) calc(var(--g-dayness)*100%), var(--navTrack-night-tt));
-  --t-tb: color-mix(in srgb, var(--navTrack-day-tb) calc(var(--g-dayness)*100%), var(--navTrack-night-tb));
-  --t-rm: calc(var(--navTrack-day-rm)*var(--g-dayness) + var(--navTrack-night-rm)*(1 - var(--g-dayness)));
-  --t-el: calc(var(--navTrack-day-el)*var(--g-dayness) + var(--navTrack-night-el)*(1 - var(--g-dayness)));
-  --t-es: calc(var(--navTrack-day-es)*var(--g-dayness) + var(--navTrack-night-es)*(1 - var(--g-dayness)));
+  --t-t: color-mix(in srgb, var(--navTrack-day-t) calc(var(--g-dayness)*100%), var(--navTrack-night-t));
   --t-sh: calc(var(--navTrack-day-sh)*var(--g-dayness) + var(--navTrack-night-sh)*(1 - var(--g-dayness)));
-  background: linear-gradient(to bottom, var(--t-tt), var(--t-tb));
-  box-shadow: 0 12px 40px rgba(0,0,0,var(--t-sh)), inset 0 0 0 1px rgba(255,255,255,var(--t-rm)),
-    inset 1px 1px 1.5px rgba(0,0,0,var(--t-es)), inset -1px -1px 1.5px rgba(255,255,255,var(--t-el));
+  background: var(--t-t);
+  box-shadow: 0 12px 40px rgba(0,0,0,var(--t-sh));
 }
-/* Raised indicator surface (light top-left, shadow bottom-right) — active cell + trigger. */
+/* Raised indicator surface — flat tint + float drop-shadow — active cell + trigger. */
 #hc-switch .hc-sw-cell.hc-sw-active, .hc-nav-trigger {
-  --i-tt: color-mix(in srgb, var(--navIndicator-day-tt) calc(var(--g-dayness)*100%), var(--navIndicator-night-tt));
-  --i-tb: color-mix(in srgb, var(--navIndicator-day-tb) calc(var(--g-dayness)*100%), var(--navIndicator-night-tb));
-  --i-rm: calc(var(--navIndicator-day-rm)*var(--g-dayness) + var(--navIndicator-night-rm)*(1 - var(--g-dayness)));
-  --i-el: calc(var(--navIndicator-day-el)*var(--g-dayness) + var(--navIndicator-night-el)*(1 - var(--g-dayness)));
-  --i-es: calc(var(--navIndicator-day-es)*var(--g-dayness) + var(--navIndicator-night-es)*(1 - var(--g-dayness)));
+  --i-t: color-mix(in srgb, var(--navIndicator-day-t) calc(var(--g-dayness)*100%), var(--navIndicator-night-t));
   --i-sh: calc(var(--navIndicator-day-sh)*var(--g-dayness) + var(--navIndicator-night-sh)*(1 - var(--g-dayness)));
-  background: linear-gradient(to bottom, var(--i-tt), var(--i-tb));
-  box-shadow: 0 12px 40px rgba(0,0,0,var(--i-sh)), inset 0 0 0 1px rgba(255,255,255,var(--i-rm)),
-    inset 1px 1px 1.5px rgba(255,255,255,var(--i-el)), inset -1px -1px 1.5px rgba(0,0,0,var(--i-es));
+  background: var(--i-t);
+  box-shadow: 0 12px 40px rgba(0,0,0,var(--i-sh));
   color: color-mix(in srgb, var(--text-nav-bright-day) calc(var(--g-dayness)*100%), var(--text-nav-bright-night));
 }
 
@@ -767,36 +679,24 @@ body.glass .seg-hover {
   color: color-mix(in srgb, var(--text-nav-normal-day) calc(var(--g-dayness)*100%), var(--text-nav-normal-night));
 }
 .hc-nav-item:hover, .hc-nav-item:focus-visible {
-  --i-tt: color-mix(in srgb, var(--navIndicator-day-tt) calc(var(--g-dayness)*100%), var(--navIndicator-night-tt));
-  --i-tb: color-mix(in srgb, var(--navIndicator-day-tb) calc(var(--g-dayness)*100%), var(--navIndicator-night-tb));
-  --i-rm: calc(var(--navIndicator-day-rm)*var(--g-dayness) + var(--navIndicator-night-rm)*(1 - var(--g-dayness)));
-  background: linear-gradient(to bottom, var(--i-tt), var(--i-tb));
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,var(--i-rm));
+  --i-t: color-mix(in srgb, var(--navIndicator-day-t) calc(var(--g-dayness)*100%), var(--navIndicator-night-t));
+  background: var(--i-t);
   color: color-mix(in srgb, var(--text-nav-bright-day) calc(var(--g-dayness)*100%), var(--text-nav-bright-night));
 }
 /* Overlay card: .info-overlay-card IS an .embossed-card, so the rule above gave it
-   the card glass + backdrop-filter. This later rule re-points the resolved vars to the
-   cardOverlay control, so an EmbossedCard shown as an overlay tunes apart from the
-   inline cards. The frost (.embossed-card backdrop-filter) reuses the overridden --_bl. */
+   the card glass. This later rule re-points the resolved vars to the cardOverlay
+   control, so an EmbossedCard shown as an overlay tunes apart from the inline cards. */
 body.glass .info-overlay-card {
-  --_tt: color-mix(in srgb, var(--cardOverlay-day-tt) calc(var(--g-dayness)*100%), var(--cardOverlay-night-tt));
-  --_tb: color-mix(in srgb, var(--cardOverlay-day-tb) calc(var(--g-dayness)*100%), var(--cardOverlay-night-tb));
-  --_bl: calc(var(--cardOverlay-day-bl)*var(--g-dayness) + var(--cardOverlay-night-bl)*(1 - var(--g-dayness)));
-  --_sa: calc(var(--cardOverlay-day-sa)*var(--g-dayness) + var(--cardOverlay-night-sa)*(1 - var(--g-dayness)));
-  --_br: calc(var(--cardOverlay-day-br)*var(--g-dayness) + var(--cardOverlay-night-br)*(1 - var(--g-dayness)));
-  --_el: calc(var(--cardOverlay-day-el)*var(--g-dayness) + var(--cardOverlay-night-el)*(1 - var(--g-dayness)));
-  --_es: calc(var(--cardOverlay-day-es)*var(--g-dayness) + var(--cardOverlay-night-es)*(1 - var(--g-dayness)));
-  --_rm: calc(var(--cardOverlay-day-rm)*var(--g-dayness) + var(--cardOverlay-night-rm)*(1 - var(--g-dayness)));
+  --_t: color-mix(in srgb, var(--cardOverlay-day-t) calc(var(--g-dayness)*100%), var(--cardOverlay-night-t));
   --_sh: calc(var(--cardOverlay-day-sh)*var(--g-dayness) + var(--cardOverlay-night-sh)*(1 - var(--g-dayness)));
 }
 
 /* Button hover NEVER changes size — only the background lightens. The hover/active
    tint is computed from the configured tint via HSL (lift the lightness a few %),
-   so it tracks whatever colour the button is tuned to. Gradients can't be CSS-
-   transitioned, so this is an instant, lag-free swap that still follows the
-   day↔night cross-fade (--_tt/--_tb are the resolved tints). */
-body.glass .emb-btn:hover { background: linear-gradient(to bottom, var(--_htt), var(--_htb)); }
-body.glass .emb-btn:active { background: linear-gradient(to bottom, var(--_att), var(--_atb)); }
+   so it tracks whatever colour the button is tuned to. This is an instant, lag-free
+   swap that still follows the day↔night cross-fade (--_t is the resolved tint). */
+body.glass .emb-btn:hover { background: var(--_ht); }
+body.glass .emb-btn:active { background: var(--_at); }
 /* Close knob inherits the same card glass (it is .emb-btn); keeps its round
    shape + size from the neumorph .emb-close-knob rule. */
 
@@ -1298,6 +1198,7 @@ body.glass .emb-btn.hero-submit {
     <button id="reset-glass">Reset UI</button>
     <button id="pause">Pause</button>
     <button id="daynight">☀︎ Day</button>
+    <button id="adopt-mode" title="Copy the active day/night mode's values onto the other mode"></button>
     <button id="langtoggle" title="Sprache wechseln / switch language">DE</button>
     <span id="copied">copied ✓</span>
   </div>
@@ -1516,7 +1417,7 @@ const STAR_CATALOG = [
 const PARAMS = [
   // ── Sky ──
   { key: "dayness",        label: "Day amount",        group: "Sky",    min: 0,    max: 1,    step: 0.01,  def: 1 },
-  { key: "dayTransition",  label: "Day/night fade (s)",group: "Sky",    min: 0.2,  max: 10,   step: 0.2,   def: 1 },
+  { key: "dayTransition",  label: "Day/night fade (s)",group: "Sky",    min: 0,    max: 10,   step: 0.2,   def: 1 },
   { key: "autoDayNight",   label: "Auto (local time)", group: "Sky",    min: 0,    max: 1,    step: 1,     def: 0, bool: true },
   { key: "sunriseHour",    label: "Sunrise (h)",       group: "Sky",    min: 0,    max: 12,   step: 0.25,  def: 6.5 },
   { key: "sunsetHour",     label: "Sunset (h)",        group: "Sky",    min: 12,   max: 24,   step: 0.25,  def: 20.5 },
@@ -1577,7 +1478,7 @@ const COLORS = [
 const TIPS = {
   // Sky
   dayness:        "Blend between night (0) and day (1). Moving this manually turns auto mode off.",
-  dayTransition:  "Duration in seconds of the animated fade when using the Day/Night button. The fade itself temporarily renders at 30 FPS, so it stays smooth even with a low FPS cap.",
+  dayTransition:  "Duration in seconds of the animated fade when using the Day/Night button. 0 = hard switch (day and night swap instantly, no crossfade). The fade itself temporarily renders at 30 FPS, so it stays smooth even with a low FPS cap.",
   autoDayNight:   "Follow the viewer's local clock: stars at night, blue sky at day, real-time twilight in between. Any manual change switches this off.",
   sunriseHour:    "Local hour the morning twilight is centred on (auto mode).",
   sunsetHour:     "Local hour the evening twilight is centred on (auto mode).",
@@ -1641,7 +1542,7 @@ const UI = {
     title: "Night-sky background",
     sub: "musiccloud prototype — real northern sky, Polaris at the pivot. Tune, then “Copy settings”.",
     copy: "Copy settings", paste: "Paste settings", reset: "Reset",
-    pause: "Pause", resume: "Resume", day: "☀︎ Day", night: "☾ Night",
+    pause: "Pause", resume: "Resume", day: "☀︎ Day", night: "☾ Night", adoptToNight: "Copy to Night", adoptToDay: "Copy to Day",
     copied: "copied ✓", appliedFmt: "applied {n} ✓", invalid: "invalid JSON ✗",
     pastePrompt: "Paste the settings JSON:",
     noWebgl: "WebGL2 not available in this browser.",
@@ -1670,7 +1571,7 @@ const UI = {
     title: "Nachthimmel-Hintergrund",
     sub: "musiccloud-Prototyp — echter Nordhimmel, Polarstern als Drehpunkt. Einstellen, dann „Settings kopieren“.",
     copy: "Settings kopieren", paste: "Settings einfügen", reset: "Zurücksetzen",
-    pause: "Pause", resume: "Weiter", day: "☀︎ Tag", night: "☾ Nacht",
+    pause: "Pause", resume: "Weiter", day: "☀︎ Tag", night: "☾ Nacht", adoptToNight: "Nachtwerte übernehmen", adoptToDay: "Tagwerte übernehmen",
     copied: "kopiert ✓", appliedFmt: "{n} übernommen ✓", invalid: "ungültiges JSON ✗",
     pastePrompt: "Settings-JSON hier einfügen:",
     noWebgl: "WebGL2 ist in diesem Browser nicht verfügbar.",
@@ -1721,7 +1622,7 @@ const LABELS_DE = {
 /** German tooltips (English fallback = TIPS). */
 const TIPS_DE = {
   dayness:        "Mischung zwischen Nacht (0) und Tag (1). Manuelles Verstellen schaltet die Automatik ab.",
-  dayTransition:  "Dauer der animierten Blende in Sekunden beim Tag/Nacht-Button. Die Blende selbst rendert vorübergehend mit 30 FPS und bleibt so auch bei niedrigem FPS-Limit flüssig.",
+  dayTransition:  "Dauer der animierten Blende in Sekunden beim Tag/Nacht-Button. 0 = harter Wechsel (Tag und Nacht springen ohne Überblendung um). Die Blende selbst rendert vorübergehend mit 30 FPS und bleibt so auch bei niedrigem FPS-Limit flüssig.",
   autoDayNight:   "Folgt der Ortszeit des Betrachters: nachts Sterne, tagsüber blauer Himmel, dazwischen Echtzeit-Dämmerung. Jede manuelle Änderung schaltet die Automatik ab.",
   sunriseHour:    "Ortszeit-Stunde, auf der die Morgendämmerung zentriert ist (Automatik).",
   sunsetHour:     "Ortszeit-Stunde, auf der die Abenddämmerung zentriert ist (Automatik).",
@@ -2223,6 +2124,7 @@ document.getElementById("pause").addEventListener("click", (e) => {
  */
 let dayAnim = null;
 const dayBtn = document.getElementById("daynight");
+const adoptBtn = document.getElementById("adopt-mode");
 
 /**
  * Frame rate the manual day/night fade renders at (user decision 2026-06-12):
@@ -2255,6 +2157,7 @@ function daynessForLocalTime(date = new Date()) {
 /** Reflects the current dayness target on the toggle button label. */
 function syncDayButton() {
   dayBtn.textContent = state.dayness < 0.5 ? UI[lang].day : UI[lang].night;
+  syncAdoptButton();
 }
 syncDayButton();
 
@@ -2281,6 +2184,39 @@ dayBtn.addEventListener("click", () => {
   const to = state.dayness < 0.5 ? 1 : 0;
   dayAnim = { from: state.dayness, to, t0: performance.now() };
 });
+
+/** Copies EVERY per-mode tuning value from the ACTIVE glass mode onto the other
+ *  mode (day→night while in day mode, night→day while in night mode). Instant, no
+ *  animation: it clones the values, re-applies the CSS vars, rebuilds the sidebar
+ *  for the current mode, and persists every store. This is the
+ *  "Nachtwerte/Tagwerte übernehmen" button. */
+function adoptModeAcross() {
+  const from = currentGlassMode();
+  const to = from === "day" ? "night" : "day";
+  const copyGroups = (cfg, groups) => {
+    for (const g of groups) {
+      const key = g.key ?? g;
+      if (cfg[key] && cfg[key][from] && cfg[key][to]) cfg[key][to] = structuredClone(cfg[key][from]);
+    }
+  };
+  copyGroups(glass, G_CONTROLS);
+  copyGroups(typoCfg, TYPO_SURFACES);
+  copyGroups(vfdCfg, VFD_GROUPS);
+  copyGroups(skyTextCfg, SKYTEXT_GROUPS);
+  copyGroups(backdropCfg, BACKDROP_GROUPS);
+  copyGroups(skyLinkCfg, SKYLINK_GROUPS);
+  copyGroups(cardLinkCfg, CARDLINK_GROUPS);
+  applyGlass(); applyTypography(); applyVfd(); applySkyText(); applyBackdrop(); applySkyLink(); applyCardLink();
+  buildGlassControls(); buildTypographyControls(); buildVfdControls(); buildSkyTextControls(); buildBackdropControls(); buildSkyLinkControls(); buildCardLinkControls();
+  saveGlass(); saveTypo(); saveVfd(); saveSkyText(); saveBackdrop(); saveSkyLink(); saveCardLink();
+}
+
+/** Button label names the mode it writes TO — the opposite of the active mode. */
+function syncAdoptButton() {
+  if (!adoptBtn) return;
+  adoptBtn.textContent = currentGlassMode() === "day" ? UI[lang].adoptToNight : UI[lang].adoptToDay;
+}
+adoptBtn.addEventListener("click", adoptModeAcross);
 
 /**
  * Follows the local clock while auto mode is on (called once per frame).
@@ -2323,7 +2259,10 @@ applyStaticTexts();
 /** Advances the running day/night transition (called once per frame). */
 function tickDayAnim(now) {
   if (!dayAnim) return;
-  const t = Math.min(1, (now - dayAnim.t0) / (state.dayTransition * 1000));
+  const durMs = state.dayTransition * 1000;
+  // dayTransition 0 = hard switch: land on the target this frame (a 0 ms
+  // duration would divide to Infinity/NaN and never settle).
+  const t = durMs <= 0 ? 1 : Math.min(1, (now - dayAnim.t0) / durMs);
   const eased = t * t * (3 - 2 * t); // smoothstep
   state.dayness = dayAnim.from + (dayAnim.to - dayAnim.from) * eased;
   const rounded = Math.round(state.dayness * 100) / 100;
@@ -3034,10 +2973,9 @@ requestAnimationFrame(frame);
 
 /* ════════════════════════════════════════════════════════════════════════
    GLASS MATERIAL CONTROLS — per control, per mode (day/night).
-   Each control has a vertical tint gradient (top/bottom) + opacity, blur,
-   saturate, a chamfered edge (light/shadow) and a float shadow. JS writes one
-   set of CSS vars per control+mode; the body.glass rules cross-fade day↔night
-   via --g-dayness (driven live by the sky). Always glass — no neumorph toggle.
+   Each control has a flat tint (colour + opacity) and a float drop-shadow. JS
+   writes one set of CSS vars per control+mode; the body.glass rules cross-fade
+   day↔night via --g-dayness (driven live by the sky). Always glass — no neumorph toggle.
    ════════════════════════════════════════════════════════════════════════ */
 
 UI.en.title = "Card / glass prototype";
@@ -3047,53 +2985,43 @@ UI.de.sub   = "musiccloud — jedes Glas-Control pro Tag/Nacht über dem Himmel 
 applyStaticTexts();
 
 /** Glass surfaces the user tunes (key = CSS-var prefix; label = sidebar group;
- *  recessed = sunken face, so its chamfer inverts vs. the raised surfaces;
- *  noFrost = nested control with no own backdrop-filter — its frost comes from the
- *  card behind it, so the frost-only fields (blur/saturate/vibrancy) are hidden). */
+ *  `recessed` / `header` only gate WHERE a control renders — the material itself is
+ *  a flat tint + float drop-shadow for every surface). */
 const G_CONTROLS = [
   { key: "card",         label: { en: "Embossed Card", de: "Erhabene Karte" }, radiusControl: true },
   { key: "cardOverlay",  label: { en: "Embossed Overlay Card", de: "Overlay-Karte" } },
-  { key: "button",       label: { en: "Embossed Button", de: "Erhabener Button" }, noFrost: true },
-  { key: "recessed",     label: { en: "Recessed Card", de: "Vertiefte Karte" }, recessed: true, noFrost: true },
-  { key: "segTrack",     label: { en: "Segmented Track", de: "Segment-Leiste" }, recessed: true, noFrost: true },
-  { key: "segIndicator", label: { en: "Segmented Indicator", de: "Segment-Indikator" }, noFrost: true },
+  { key: "button",       label: { en: "Embossed Button", de: "Erhabener Button" } },
+  { key: "recessed",     label: { en: "Recessed Card", de: "Vertiefte Karte" }, recessed: true },
+  { key: "segTrack",     label: { en: "Segmented Track", de: "Segment-Leiste" }, recessed: true },
+  { key: "segIndicator", label: { en: "Segmented Indicator", de: "Segment-Indikator" } },
   // Header controls (nav hamburger + day/night & language switchers) — rendered in the
   // dedicated "Header Controls" section (filtered out of the Glass section via `header`).
-  { key: "navTrack",     label: { en: "Track", de: "Track" }, header: true, recessed: true, noFrost: true },
-  { key: "navIndicator", label: { en: "Active / Icon", de: "Aktiv / Icon" }, header: true, noFrost: true },
+  { key: "navTrack",     label: { en: "Track", de: "Track" }, header: true, recessed: true },
+  { key: "navIndicator", label: { en: "Active / Icon", de: "Aktiv / Icon" }, header: true },
 ];
 /** Per-control / per-mode fields (label + tooltip localized inline via loc()). */
 const G_FIELDS = [
-  { key: "tintTop",    type: "color", label: { en: "Tint top", de: "Tönung oben" }, tip: { en: "Top colour of the vertical glass tint gradient.", de: "Obere Farbe des vertikalen Glas-Tönungsverlaufs." } },
-  { key: "tintBottom", type: "color", label: { en: "Tint bottom", de: "Tönung unten" }, tip: { en: "Bottom colour of the vertical tint gradient.", de: "Untere Farbe des Tönungsverlaufs." } },
-  { key: "opacity",    type: "range", min: 0,   max: 1,   step: 0.01, label: { en: "Opacity", de: "Deckkraft" }, tip: { en: "Opacity of the glass tint over the blurred backdrop.", de: "Deckkraft der Glas-Tönung über dem unscharfen Hintergrund." } },
-  { key: "blur",       type: "range", frostOnly: true, min: 0,   max: 60,  step: 1, unit: "px", label: { en: "Blur", de: "Unschärfe" }, tip: { en: "Backdrop blur radius — the frosted base.", de: "Unschärferadius des Hintergrunds — die Milchglas-Basis." } },
-  { key: "saturate",   type: "range", frostOnly: true, min: 0, max: 1.5, step: 0.05, label: { en: "Saturate", de: "Sättigung" }, tip: { en: "Saturation boost over neutral (0 = no change).", de: "Sättigungs-Verstärkung über neutral (0 = keine Änderung)." } },
-  { key: "brightness", type: "range", frostOnly: true, min: 0, max: 0.6, step: 0.01, label: { en: "Vibrancy", de: "Vibrancy" }, tip: { en: "Brightness boost over neutral — Apple-style vibrancy (0 = no change).", de: "Helligkeits-Verstärkung über neutral — Vibrancy à la Apple (0 = keine Änderung)." } },
-  { key: "edgeLight",  type: "range", min: 0,   max: 1,   step: 0.01, label: { en: "Edge light", de: "Lichtkante" }, tip: { en: "Strength of the light chamfer edge (top-left when raised, bottom-right when recessed).", de: "Stärke der Licht-Fasenkante (oben-links bei erhaben, unten-rechts bei vertieft)." } },
-  { key: "edgeShadow", type: "range", min: 0,   max: 1,   step: 0.01, label: { en: "Edge shadow", de: "Schattenkante" }, tip: { en: "Strength of the shadow chamfer edge (the corner opposite the light edge).", de: "Stärke der Schatten-Fasenkante (Ecke gegenüber der Lichtkante)." } },
-  { key: "rim",        type: "range", min: 0,   max: 1,   step: 0.01, label: { en: "Glass rim", de: "Glaskante" }, tip: { en: "Brightness of the 1px glass rim around the whole surface.", de: "Helligkeit des umlaufenden 1px-Glasrands." } },
-  { key: "shadow",     type: "range", min: 0,   max: 1, step: 0.01, label: { en: "Float shadow", de: "Schlagschatten" }, tip: { en: "Soft drop shadow lifting the surface off the background.", de: "Weicher Schlagschatten, der die Fläche vom Hintergrund abhebt." } },
+  { key: "tint",    type: "color", label: { en: "Tint", de: "Tönung" }, tip: { en: "Flat tint colour of the glass surface.", de: "Flache Tönungsfarbe der Glasfläche." } },
+  { key: "opacity", type: "range", min: 0, max: 1, step: 0.01, label: { en: "Opacity", de: "Deckkraft" }, tip: { en: "Opacity of the glass tint.", de: "Deckkraft der Glas-Tönung." } },
+  { key: "shadow",  type: "range", min: 0, max: 1, step: 0.01, label: { en: "Float shadow", de: "Schlagschatten" }, tip: { en: "Soft drop shadow lifting the surface off the background.", de: "Weicher Schlagschatten, der die Fläche vom Hintergrund abhebt." } },
 ];
 
-/** Per-control day/night defaults (top == bottom initially, as requested).
- *  Args: top, bottom, opacity, blur, saturate, brightness, edgeLight, edgeShadow, rim, shadow. */
-function mk(top, bottom, opacity, blur, saturate, brightness, edgeLight, edgeShadow, rim, shadow) {
-  return { tintTop: top, tintBottom: bottom, opacity, blur, saturate, brightness, edgeLight, edgeShadow, rim, shadow };
+/** Per-control day/night defaults. Args: tint, opacity, shadow. */
+function mk(tint, opacity, shadow) {
+  return { tint, opacity, shadow };
 }
 const G_DEFAULTS = {
-  card:         { day: mk("#000000", "#000000", 0.42, 6, 0.0, 0.10, 0, 0, 0.00, 0.30), night: mk("#354046", "#293137", 0.42, 6, 0.25, 0.50, 0, 0, 0.03, 0.20) },
-  // Overlay card: same recipe as the card, its own day/night values — an overlay sits
-  // over a dimmed backdrop, so it wants much heavier frost (high blur) than the inline
-  // cards. Tune it apart in the "Embossed Overlay Card" group.
-  cardOverlay:  { day: mk("#000000", "#000000", 0.5, 42, 0.0, 0.42, 0, 0, 0.00, 0.42), night: mk("#232323", "#232323", 0.5, 42, 0.75, 0.42, 0, 0, 0.07, 0.42) },
-  button:       { day: mk("#94e3fe", "#94e3fe", 0.13, 0, 0.0, 0.00, 0, 0, 0.06, 0.00), night: mk("#94e3fe", "#94e3fe", 0.13, 2, 0.0, 0.42, 0, 0, 0.03, 0.00) },
-  recessed:     { day: mk("#000000", "#000000", 0.28, 0, 0.0, 0.00, 0, 0, 0.00, 0.00), night: mk("#000000", "#000000", 0.28, 0, 0.0, 0.00, 0, 0, 0.00, 0.00) },
-  segTrack:     { day: mk("#00364a", "#00364a", 0.32, 0, 0.0, 0.00, 0, 0, 0.00, 0.00), night: mk("#000000", "#000000", 0.28, 0, 0.0, 0.00, 0, 0, 0.00, 0.00) },
-  segIndicator: { day: mk("#94e3fe", "#94e3fe", 0.35, 0, 0.0, 0.00, 0, 0, 0.00, 0.00), night: mk("#94e3fe", "#94e3fe", 0.20, 2, 0.0, 0.42, 0, 0, 0.08, 0.00) },
+  card:         { day: mk("#000000", 0.42, 0.30), night: mk("#354046", 0.42, 0.20) },
+  // Overlay card: same recipe as the card, its own day/night values. Tune it apart
+  // in the "Embossed Overlay Card" group.
+  cardOverlay:  { day: mk("#000000", 0.5, 0.42), night: mk("#232323", 0.5, 0.42) },
+  button:       { day: mk("#94e3fe", 0.13, 0.00), night: mk("#94e3fe", 0.13, 0.00) },
+  recessed:     { day: mk("#000000", 0.28, 0.00), night: mk("#000000", 0.28, 0.00) },
+  segTrack:     { day: mk("#00364a", 0.32, 0.00), night: mk("#000000", 0.28, 0.00) },
+  segIndicator: { day: mk("#94e3fe", 0.35, 0.00), night: mk("#94e3fe", 0.20, 0.00) },
   // Header controls — dedicated tokens, defaults mirror seg-track / seg-indicator.
-  navTrack:     { day: mk("#00364a", "#00364a", 0.32, 0, 0.0, 0.00, 0, 0, 0.00, 0.00), night: mk("#004f6f", "#004f6f", 0.32, 0, 0.0, 0.00, 0, 0, 0.00, 0.00) },
-  navIndicator: { day: mk("#94e3fe", "#94e3fe", 0.35, 0, 0.0, 0.00, 0, 0, 0.00, 0.00), night: mk("#94e3fe", "#94e3fe", 0.20, 2, 0.0, 0.42, 0, 0, 0.08, 0.00) },
+  navTrack:     { day: mk("#00364a", 0.32, 0.00), night: mk("#004f6f", 0.32, 0.00) },
+  navIndicator: { day: mk("#94e3fe", 0.35, 0.00), night: mk("#94e3fe", 0.20, 0.00) },
 };
 
 const GLASS_KEY = "mc-card-prototype-glass-v5";
@@ -3829,14 +3757,7 @@ function applyGlass() {
   for (const c of G_CONTROLS) {
     for (const m of ["day", "night"]) {
       const s = glass[c.key][m];
-      r.setProperty(`--${c.key}-${m}-tt`, rgba(s.tintTop, s.opacity));
-      r.setProperty(`--${c.key}-${m}-tb`, rgba(s.tintBottom, s.opacity));
-      r.setProperty(`--${c.key}-${m}-bl`, s.blur + "px");
-      r.setProperty(`--${c.key}-${m}-sa`, s.saturate);
-      r.setProperty(`--${c.key}-${m}-br`, s.brightness);
-      r.setProperty(`--${c.key}-${m}-el`, s.edgeLight);
-      r.setProperty(`--${c.key}-${m}-es`, s.edgeShadow);
-      r.setProperty(`--${c.key}-${m}-rm`, s.rim);
+      r.setProperty(`--${c.key}-${m}-t`, rgba(s.tint, s.opacity));
       r.setProperty(`--${c.key}-${m}-sh`, s.shadow);
     }
   }
@@ -3844,10 +3765,8 @@ function applyGlass() {
   // emitted per mode so the CSS color-mix cross-fades them like the base tint.
   for (const m of ["day", "night"]) {
     const s = glass.button[m];
-    r.setProperty(`--button-${m}-htt`, rgba(liftLightness(s.tintTop, BTN_HOVER_LIFT), s.opacity));
-    r.setProperty(`--button-${m}-htb`, rgba(liftLightness(s.tintBottom, BTN_HOVER_LIFT), s.opacity));
-    r.setProperty(`--button-${m}-att`, rgba(liftLightness(s.tintTop, BTN_ACTIVE_LIFT), s.opacity));
-    r.setProperty(`--button-${m}-atb`, rgba(liftLightness(s.tintBottom, BTN_ACTIVE_LIFT), s.opacity));
+    r.setProperty(`--button-${m}-ht`, rgba(liftLightness(s.tint, BTN_HOVER_LIFT), s.opacity));
+    r.setProperty(`--button-${m}-at`, rgba(liftLightness(s.tint, BTN_ACTIVE_LIFT), s.opacity));
   }
   document.body.classList.add("glass"); // always glass — no neumorph mode
   syncGlassMode();
@@ -3875,6 +3794,7 @@ function syncGlassMode() {
     buildBackdropControls();
     buildSkyLinkControls();
     buildCardLinkControls();
+    syncAdoptButton();
   }
   // The canvas can't read CSS color-mix; repaint its phosphor colours whenever
   // the sky's day amount actually changes (so it cross-fades like the glass).
@@ -4116,9 +4036,7 @@ function buildTuneSection(rootId, groups, fields, cfg, collapsed, mode, onChange
     // Split applicable fields into structural (mode-independent — font/size/weight/
     // capitalization, shared across day & night) and contrast (tuned per mode —
     // colours/opacities, the legibility values).
-    const applies = (f) =>
-      !(f.frostOnly && g.noFrost) && // nested controls have no own backdrop-filter
-      !(f.titleOnly && g.key !== "embossedTitle"); // capitalization → title surface only
+    const applies = (f) => !(f.titleOnly && g.key !== "embossedTitle"); // capitalization → title surface only
     const sharedFields = fields.filter((f) => applies(f) && f.shared);
     // Single-emphasis surfaces (placeholder) have one colour: keep only the chosen
     // level's colour/opacity, hide the other two, and present them without the level prefix.

@@ -1,42 +1,26 @@
 /**
  * Glass surface material — the single material for every card and control.
  *
- * Every surface renders as a tunable matte glass: a vertical tint gradient, a
- * 4-layer chamfer box-shadow, and (on outer cards only) a frosted
- * `backdrop-filter`. All visual parameters resolve from CSS custom properties
- * so the material is fully runtime-themeable and cross-fades day↔night via
- * `--g-dayness` (0 = night, 1 = day).
+ * Every surface renders as a tunable matte glass: a flat tint and a float
+ * drop-shadow. All visual parameters resolve from CSS custom properties so the
+ * material is fully runtime-themeable and cross-fades day↔night via `--g-dayness`
+ * (0 = night, 1 = day).
+ *
+ * The material is opaque — no `backdrop-filter`. A `backdrop-filter` (even at
+ * neutral values) forces its element onto its own compositor layer and re-samples
+ * the pixels behind it every frame the backdrop changes; over the live night sky
+ * and the spinning turntable rotor that per-frame re-blur saturated GPU
+ * compositing and made other animations stutter. Tint + drop-shadow carry the look.
  *
  * ## Mechanism
  * - Each control has a `day` and a `night` value per field, exposed as
  *   `--<control>-<day|night>-<field>` custom properties (the design-token
  *   model writes these; the `:root` block below seeds the canonical defaults).
- * - A per-control resolver blends day↔night into the eight `--_*` intermediates
+ * - A per-control resolver blends day↔night into the `--_*` intermediates
  *   (`color-mix()` for colours, `calc()` for numbers, both weighted by
  *   `--g-dayness`).
  * - The shared recipe reads the `--_*` intermediates into `background` +
- *   `box-shadow`. Outer cards additionally read them into `backdrop-filter`.
- *
- * ## noFrost rule
- * `backdrop-filter` lives ONLY on the outer cards (`.mc-glass-card`,
- * `.mc-glass-card-overlay`). Nested controls (button, recessed, segmented
- * track/indicator) deliberately get no filter: a nested filter re-samples the
- * raw sky instead of the parent card's frosted result, which both breaks the
- * day↔night cross-fade (a hard none↔active jump) and shows a "window to the
- * sky". Their frost comes from the card behind them; they add tint + chamfer.
- *
- * ## Firefox clip rule
- * NEVER combine `backdrop-filter` with `overflow: hidden` on the SAME element in
- * Firefox. WebRender renders a clipped backdrop-filter element through a separate
- * intermediate surface whose compositor-tile boundary shows through as a lighter,
- * sharp-edged rectangle in the frost (most visible over an animated backdrop like
- * the sky, where `--g-dayness` repaints every frame). Chrome is unaffected. The
- * frost element must keep `overflow: visible`; clip child content another way
- * (children are usually inset by padding and never reach the rounded edge). This
- * is why the hero pill (`HeroInput`) overrides EmbossedCard's default
- * `overflow-hidden` to `overflow-visible`. GPU-layer hints (`translateZ`,
- * `isolation`), dropping individual filter functions, and shrinking the radius do
- * NOT cure it; only removing the clip does. Ref: Bugzilla 1749625.
+ *   `box-shadow`.
  *
  * The radius cascade further down is unchanged from the previous system — it is
  * orthogonal to the material and every consumer still depends on it.
@@ -45,8 +29,8 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    1. Canonical default tokens (seeded statically; Phase 3 SSR overrides these)
    These are plain `:root` runtime vars (NOT Tailwind `@theme`) so they can be
-   re-pointed at runtime. tintTop/tintBottom fold opacity into the rgba alpha,
-   exactly as the prototype's applyGlass() writes them.
+   re-pointed at runtime. The tint folds opacity into the rgba alpha,
+   exactly as the prototype's applyGlass() writes it.
    ═════════════════════════════════════════════════════════════════════════ */
 :root {
   /* Master day↔night cross-fade. 0 = full night, 1 = full day.
@@ -62,202 +46,62 @@
   --mc-shadow-rgb: 0, 0, 0;
 
   /* card (outer EmbossedCard / section card) */
-  --card-day-tt: rgba(0, 0, 0, 0.35);
-  --card-day-tb: rgba(0, 0, 0, 0.35);
-  --card-day-bl: 6px;
-  --card-day-sa: 0;
-  --card-day-br: 0.1;
-  --card-day-el: 0;
-  --card-day-es: 0;
-  --card-day-rm: 0;
+  --card-day-t: rgba(0, 0, 0, 0.35);
   --card-day-sh: 0.3;
-  --card-night-tt: rgba(53, 64, 70, 0.42);
-  --card-night-tb: rgba(41, 49, 55, 0.42);
-  --card-night-bl: 6px;
-  --card-night-sa: 0.25;
-  --card-night-br: 0.5;
-  --card-night-el: 0;
-  --card-night-es: 0;
-  --card-night-rm: 0.03;
+  --card-night-t: rgba(53, 64, 70, 0.42);
   --card-night-sh: 0.2;
 
-  /* cardOverlay (draggable page-overlay frame — heavier frost over the scrim) */
-  --cardOverlay-day-tt: rgba(0, 0, 0, 0.5);
-  --cardOverlay-day-tb: rgba(0, 0, 0, 0.5);
-  --cardOverlay-day-bl: 42px;
-  --cardOverlay-day-sa: 0;
-  --cardOverlay-day-br: 0.42;
-  --cardOverlay-day-el: 0;
-  --cardOverlay-day-es: 0;
-  --cardOverlay-day-rm: 0;
+  /* cardOverlay (draggable page-overlay frame — its own tint over the scrim) */
+  --cardOverlay-day-t: rgba(0, 0, 0, 0.5);
   --cardOverlay-day-sh: 0.42;
-  --cardOverlay-night-tt: rgba(35, 35, 35, 0.5);
-  --cardOverlay-night-tb: rgba(35, 35, 35, 0.5);
-  --cardOverlay-night-bl: 42px;
-  --cardOverlay-night-sa: 0.75;
-  --cardOverlay-night-br: 0.42;
-  --cardOverlay-night-el: 0;
-  --cardOverlay-night-es: 0;
-  --cardOverlay-night-rm: 0.07;
+  --cardOverlay-night-t: rgba(35, 35, 35, 0.5);
   --cardOverlay-night-sh: 0.42;
 
   /* button (EmbossedButton) */
-  --button-day-tt: rgba(148, 227, 254, 0.18);
-  --button-day-tb: rgba(148, 227, 254, 0.18);
-  --button-day-bl: 0px;
-  --button-day-sa: 0;
-  --button-day-br: 0;
-  --button-day-el: 0;
-  --button-day-es: 0;
-  --button-day-rm: 0;
+  --button-day-t: rgba(148, 227, 254, 0.18);
   --button-day-sh: 0;
-  --button-night-tt: rgba(148, 227, 254, 0.13);
-  --button-night-tb: rgba(148, 227, 254, 0.13);
-  --button-night-bl: 2px;
-  --button-night-sa: 0;
-  --button-night-br: 0.42;
-  --button-night-el: 0;
-  --button-night-es: 0;
-  --button-night-rm: 0.03;
+  --button-night-t: rgba(148, 227, 254, 0.13);
   --button-night-sh: 0;
 
   /* recessed (RecessedCard inset well) */
-  --recessed-day-tt: rgba(0, 54, 74, 0.32);
-  --recessed-day-tb: rgba(0, 54, 74, 0.32);
-  --recessed-day-bl: 0px;
-  --recessed-day-sa: 0;
-  --recessed-day-br: 0;
-  --recessed-day-el: 0;
-  --recessed-day-es: 0;
-  --recessed-day-rm: 0;
+  --recessed-day-t: rgba(0, 54, 74, 0.32);
   --recessed-day-sh: 0;
-  --recessed-night-tt: rgba(0, 0, 0, 0.32);
-  --recessed-night-tb: rgba(0, 0, 0, 0.32);
-  --recessed-night-bl: 0px;
-  --recessed-night-sa: 0;
-  --recessed-night-br: 0;
-  --recessed-night-el: 0;
-  --recessed-night-es: 0;
-  --recessed-night-rm: 0;
+  --recessed-night-t: rgba(0, 0, 0, 0.32);
   --recessed-night-sh: 0;
 
   /* segTrack (segmented-control track) */
-  --segTrack-day-tt: rgba(0, 54, 74, 0.32);
-  --segTrack-day-tb: rgba(0, 54, 74, 0.32);
-  --segTrack-day-bl: 0px;
-  --segTrack-day-sa: 0;
-  --segTrack-day-br: 0;
-  --segTrack-day-el: 0;
-  --segTrack-day-es: 0;
-  --segTrack-day-rm: 0;
+  --segTrack-day-t: rgba(0, 54, 74, 0.32);
   --segTrack-day-sh: 0;
-  --segTrack-night-tt: rgba(0, 0, 0, 0.21);
-  --segTrack-night-tb: rgba(0, 0, 0, 0.21);
-  --segTrack-night-bl: 0px;
-  --segTrack-night-sa: 0;
-  --segTrack-night-br: 0;
-  --segTrack-night-el: 0;
-  --segTrack-night-es: 0;
-  --segTrack-night-rm: 0;
+  --segTrack-night-t: rgba(0, 0, 0, 0.21);
   --segTrack-night-sh: 0;
 
   /* segIndicator (sliding active indicator) */
-  --segIndicator-day-tt: rgba(148, 227, 254, 0.35);
-  --segIndicator-day-tb: rgba(148, 227, 254, 0.35);
-  --segIndicator-day-bl: 0px;
-  --segIndicator-day-sa: 0;
-  --segIndicator-day-br: 0;
-  --segIndicator-day-el: 0;
-  --segIndicator-day-es: 0;
-  --segIndicator-day-rm: 0;
+  --segIndicator-day-t: rgba(148, 227, 254, 0.35);
   --segIndicator-day-sh: 0;
-  --segIndicator-night-tt: rgba(148, 227, 254, 0.2);
-  --segIndicator-night-tb: rgba(148, 227, 254, 0.2);
-  --segIndicator-night-bl: 2px;
-  --segIndicator-night-sa: 0;
-  --segIndicator-night-br: 0.42;
-  --segIndicator-night-el: 0;
-  --segIndicator-night-es: 0;
-  --segIndicator-night-rm: 0;
+  --segIndicator-night-t: rgba(148, 227, 254, 0.2);
   --segIndicator-night-sh: 0;
 
   /* navTrack / navIndicator (header controls — nav hamburger + day/night & language
      switchers). Compiled-in fallback; SSR designTokensCss overrides with saved tokens. */
-  --navTrack-day-tt: rgba(0, 54, 74, 0.32);
-  --navTrack-day-tb: rgba(0, 54, 74, 0.32);
-  --navTrack-day-bl: 0px;
-  --navTrack-day-sa: 0;
-  --navTrack-day-br: 0;
-  --navTrack-day-el: 0;
-  --navTrack-day-es: 0;
-  --navTrack-day-rm: 0;
+  --navTrack-day-t: rgba(0, 54, 74, 0.32);
   --navTrack-day-sh: 0;
-  --navTrack-night-tt: rgba(0, 79, 111, 0.32);
-  --navTrack-night-tb: rgba(0, 79, 111, 0.32);
-  --navTrack-night-bl: 0px;
-  --navTrack-night-sa: 0;
-  --navTrack-night-br: 0;
-  --navTrack-night-el: 0;
-  --navTrack-night-es: 0;
-  --navTrack-night-rm: 0;
+  --navTrack-night-t: rgba(0, 79, 111, 0.32);
   --navTrack-night-sh: 0;
-  --navIndicator-day-tt: rgba(148, 227, 254, 0.35);
-  --navIndicator-day-tb: rgba(148, 227, 254, 0.35);
-  --navIndicator-day-bl: 0px;
-  --navIndicator-day-sa: 0;
-  --navIndicator-day-br: 0;
-  --navIndicator-day-el: 0;
-  --navIndicator-day-es: 0;
-  --navIndicator-day-rm: 0;
+  --navIndicator-day-t: rgba(148, 227, 254, 0.35);
   --navIndicator-day-sh: 0;
-  --navIndicator-night-tt: rgba(148, 227, 254, 0.2);
-  --navIndicator-night-tb: rgba(148, 227, 254, 0.2);
-  --navIndicator-night-bl: 2px;
-  --navIndicator-night-sa: 0;
-  --navIndicator-night-br: 0.42;
-  --navIndicator-night-el: 0;
-  --navIndicator-night-es: 0;
-  --navIndicator-night-rm: 0.08;
+  --navIndicator-night-t: rgba(148, 227, 254, 0.2);
   --navIndicator-night-sh: 0;
 
   /* ccSegTrack / ccSegIndicator (CC-mode hero segmented control). Neutral track
      mirrors segTrack; green indicator uses #30d158 (system --color-success).
      Compiled-in fallback; SSR designTokensCss overrides with saved tokens. */
-  --ccSegTrack-day-tt: rgba(0, 54, 74, 0.32);
-  --ccSegTrack-day-tb: rgba(0, 54, 74, 0.32);
-  --ccSegTrack-day-bl: 0px;
-  --ccSegTrack-day-sa: 0;
-  --ccSegTrack-day-br: 0;
-  --ccSegTrack-day-el: 0;
-  --ccSegTrack-day-es: 0;
-  --ccSegTrack-day-rm: 0;
+  --ccSegTrack-day-t: rgba(0, 54, 74, 0.32);
   --ccSegTrack-day-sh: 0;
-  --ccSegTrack-night-tt: rgba(0, 0, 0, 0.28);
-  --ccSegTrack-night-tb: rgba(0, 0, 0, 0.28);
-  --ccSegTrack-night-bl: 0px;
-  --ccSegTrack-night-sa: 0;
-  --ccSegTrack-night-br: 0;
-  --ccSegTrack-night-el: 0;
-  --ccSegTrack-night-es: 0;
-  --ccSegTrack-night-rm: 0;
+  --ccSegTrack-night-t: rgba(0, 0, 0, 0.28);
   --ccSegTrack-night-sh: 0;
-  --ccSegIndicator-day-tt: rgba(48, 209, 88, 0.35);
-  --ccSegIndicator-day-tb: rgba(48, 209, 88, 0.35);
-  --ccSegIndicator-day-bl: 0px;
-  --ccSegIndicator-day-sa: 0;
-  --ccSegIndicator-day-br: 0;
-  --ccSegIndicator-day-el: 0;
-  --ccSegIndicator-day-es: 0;
-  --ccSegIndicator-day-rm: 0;
+  --ccSegIndicator-day-t: rgba(48, 209, 88, 0.35);
   --ccSegIndicator-day-sh: 0;
-  --ccSegIndicator-night-tt: rgba(48, 209, 88, 0.2);
-  --ccSegIndicator-night-tb: rgba(48, 209, 88, 0.2);
-  --ccSegIndicator-night-bl: 2px;
-  --ccSegIndicator-night-sa: 0;
-  --ccSegIndicator-night-br: 0.42;
-  --ccSegIndicator-night-el: 0;
-  --ccSegIndicator-night-es: 0;
-  --ccSegIndicator-night-rm: 0.08;
+  --ccSegIndicator-night-t: rgba(48, 209, 88, 0.2);
   --ccSegIndicator-night-sh: 0;
 
   /* Per-surface text — embossed seeds (SSR designTokensCss overrides per saved tokens,
@@ -523,80 +367,36 @@ a.mc-cardlink {
    ═════════════════════════════════════════════════════════════════════════ */
 
 .embossed-gradient-border {
-  --_tt: color-mix(in srgb, var(--card-day-tt) calc(var(--g-dayness) * 100%), var(--card-night-tt));
-  --_tb: color-mix(in srgb, var(--card-day-tb) calc(var(--g-dayness) * 100%), var(--card-night-tb));
-  --_bl: calc(var(--card-day-bl) * var(--g-dayness) + var(--card-night-bl) * (1 - var(--g-dayness)));
-  --_sa: calc(var(--card-day-sa) * var(--g-dayness) + var(--card-night-sa) * (1 - var(--g-dayness)));
-  --_br: calc(var(--card-day-br) * var(--g-dayness) + var(--card-night-br) * (1 - var(--g-dayness)));
-  --_el: calc(var(--card-day-el) * var(--g-dayness) + var(--card-night-el) * (1 - var(--g-dayness)));
-  --_es: calc(var(--card-day-es) * var(--g-dayness) + var(--card-night-es) * (1 - var(--g-dayness)));
-  --_rm: calc(var(--card-day-rm) * var(--g-dayness) + var(--card-night-rm) * (1 - var(--g-dayness)));
+  --_t: color-mix(in srgb, var(--card-day-t) calc(var(--g-dayness) * 100%), var(--card-night-t));
   --_sh: calc(var(--card-day-sh) * var(--g-dayness) + var(--card-night-sh) * (1 - var(--g-dayness)));
 }
 
 .recessed-gradient-border {
-  --_tt: color-mix(in srgb, var(--recessed-day-tt) calc(var(--g-dayness) * 100%), var(--recessed-night-tt));
-  --_tb: color-mix(in srgb, var(--recessed-day-tb) calc(var(--g-dayness) * 100%), var(--recessed-night-tb));
-  --_bl: calc(var(--recessed-day-bl) * var(--g-dayness) + var(--recessed-night-bl) * (1 - var(--g-dayness)));
-  --_sa: calc(var(--recessed-day-sa) * var(--g-dayness) + var(--recessed-night-sa) * (1 - var(--g-dayness)));
-  --_br: calc(var(--recessed-day-br) * var(--g-dayness) + var(--recessed-night-br) * (1 - var(--g-dayness)));
-  --_el: calc(var(--recessed-day-el) * var(--g-dayness) + var(--recessed-night-el) * (1 - var(--g-dayness)));
-  --_es: calc(var(--recessed-day-es) * var(--g-dayness) + var(--recessed-night-es) * (1 - var(--g-dayness)));
-  --_rm: calc(var(--recessed-day-rm) * var(--g-dayness) + var(--recessed-night-rm) * (1 - var(--g-dayness)));
+  --_t: color-mix(in srgb, var(--recessed-day-t) calc(var(--g-dayness) * 100%), var(--recessed-night-t));
   --_sh: calc(var(--recessed-day-sh) * var(--g-dayness) + var(--recessed-night-sh) * (1 - var(--g-dayness)));
 }
 
 .mc-glass-card-overlay {
-  --_tt: color-mix(in srgb, var(--cardOverlay-day-tt) calc(var(--g-dayness) * 100%), var(--cardOverlay-night-tt));
-  --_tb: color-mix(in srgb, var(--cardOverlay-day-tb) calc(var(--g-dayness) * 100%), var(--cardOverlay-night-tb));
-  --_bl: calc(var(--cardOverlay-day-bl) * var(--g-dayness) + var(--cardOverlay-night-bl) * (1 - var(--g-dayness)));
-  --_sa: calc(var(--cardOverlay-day-sa) * var(--g-dayness) + var(--cardOverlay-night-sa) * (1 - var(--g-dayness)));
-  --_br: calc(var(--cardOverlay-day-br) * var(--g-dayness) + var(--cardOverlay-night-br) * (1 - var(--g-dayness)));
-  --_el: calc(var(--cardOverlay-day-el) * var(--g-dayness) + var(--cardOverlay-night-el) * (1 - var(--g-dayness)));
-  --_es: calc(var(--cardOverlay-day-es) * var(--g-dayness) + var(--cardOverlay-night-es) * (1 - var(--g-dayness)));
-  --_rm: calc(var(--cardOverlay-day-rm) * var(--g-dayness) + var(--cardOverlay-night-rm) * (1 - var(--g-dayness)));
+  --_t: color-mix(in srgb, var(--cardOverlay-day-t) calc(var(--g-dayness) * 100%), var(--cardOverlay-night-t));
   --_sh: calc(var(--cardOverlay-day-sh) * var(--g-dayness) + var(--cardOverlay-night-sh) * (1 - var(--g-dayness)));
 }
 
 .mc-glass-button {
-  --_tt: color-mix(in srgb, var(--button-day-tt) calc(var(--g-dayness) * 100%), var(--button-night-tt));
-  --_tb: color-mix(in srgb, var(--button-day-tb) calc(var(--g-dayness) * 100%), var(--button-night-tb));
-  --_bl: calc(var(--button-day-bl) * var(--g-dayness) + var(--button-night-bl) * (1 - var(--g-dayness)));
-  --_sa: calc(var(--button-day-sa) * var(--g-dayness) + var(--button-night-sa) * (1 - var(--g-dayness)));
-  --_br: calc(var(--button-day-br) * var(--g-dayness) + var(--button-night-br) * (1 - var(--g-dayness)));
-  --_el: calc(var(--button-day-el) * var(--g-dayness) + var(--button-night-el) * (1 - var(--g-dayness)));
-  --_es: calc(var(--button-day-es) * var(--g-dayness) + var(--button-night-es) * (1 - var(--g-dayness)));
-  --_rm: calc(var(--button-day-rm) * var(--g-dayness) + var(--button-night-rm) * (1 - var(--g-dayness)));
+  --_t: color-mix(in srgb, var(--button-day-t) calc(var(--g-dayness) * 100%), var(--button-night-t));
   --_sh: calc(var(--button-day-sh) * var(--g-dayness) + var(--button-night-sh) * (1 - var(--g-dayness)));
   /* HSL-lifted hover/active tints (computed at SSR in designTokensCss), cross-faded
-     like --_tt so a raised button lightens its background on interaction. */
-  --_htt: color-mix(in srgb, var(--button-day-htt) calc(var(--g-dayness) * 100%), var(--button-night-htt));
-  --_htb: color-mix(in srgb, var(--button-day-htb) calc(var(--g-dayness) * 100%), var(--button-night-htb));
-  --_att: color-mix(in srgb, var(--button-day-att) calc(var(--g-dayness) * 100%), var(--button-night-att));
-  --_atb: color-mix(in srgb, var(--button-day-atb) calc(var(--g-dayness) * 100%), var(--button-night-atb));
+     like --_t so a raised button lightens its background on interaction. */
+  --_ht: color-mix(in srgb, var(--button-day-ht) calc(var(--g-dayness) * 100%), var(--button-night-ht));
+  --_at: color-mix(in srgb, var(--button-day-at) calc(var(--g-dayness) * 100%), var(--button-night-at));
 }
 
 .mc-glass-seg-track {
-  --_tt: color-mix(in srgb, var(--segTrack-day-tt) calc(var(--g-dayness) * 100%), var(--segTrack-night-tt));
-  --_tb: color-mix(in srgb, var(--segTrack-day-tb) calc(var(--g-dayness) * 100%), var(--segTrack-night-tb));
-  --_bl: calc(var(--segTrack-day-bl) * var(--g-dayness) + var(--segTrack-night-bl) * (1 - var(--g-dayness)));
-  --_sa: calc(var(--segTrack-day-sa) * var(--g-dayness) + var(--segTrack-night-sa) * (1 - var(--g-dayness)));
-  --_br: calc(var(--segTrack-day-br) * var(--g-dayness) + var(--segTrack-night-br) * (1 - var(--g-dayness)));
-  --_el: calc(var(--segTrack-day-el) * var(--g-dayness) + var(--segTrack-night-el) * (1 - var(--g-dayness)));
-  --_es: calc(var(--segTrack-day-es) * var(--g-dayness) + var(--segTrack-night-es) * (1 - var(--g-dayness)));
-  --_rm: calc(var(--segTrack-day-rm) * var(--g-dayness) + var(--segTrack-night-rm) * (1 - var(--g-dayness)));
+  --_t: color-mix(in srgb, var(--segTrack-day-t) calc(var(--g-dayness) * 100%), var(--segTrack-night-t));
   --_sh: calc(var(--segTrack-day-sh) * var(--g-dayness) + var(--segTrack-night-sh) * (1 - var(--g-dayness)));
 }
 
 .mc-glass-seg-indicator {
-  --_tt: color-mix(in srgb, var(--segIndicator-day-tt) calc(var(--g-dayness) * 100%), var(--segIndicator-night-tt));
-  --_tb: color-mix(in srgb, var(--segIndicator-day-tb) calc(var(--g-dayness) * 100%), var(--segIndicator-night-tb));
-  --_bl: calc(var(--segIndicator-day-bl) * var(--g-dayness) + var(--segIndicator-night-bl) * (1 - var(--g-dayness)));
-  --_sa: calc(var(--segIndicator-day-sa) * var(--g-dayness) + var(--segIndicator-night-sa) * (1 - var(--g-dayness)));
-  --_br: calc(var(--segIndicator-day-br) * var(--g-dayness) + var(--segIndicator-night-br) * (1 - var(--g-dayness)));
-  --_el: calc(var(--segIndicator-day-el) * var(--g-dayness) + var(--segIndicator-night-el) * (1 - var(--g-dayness)));
-  --_es: calc(var(--segIndicator-day-es) * var(--g-dayness) + var(--segIndicator-night-es) * (1 - var(--g-dayness)));
-  --_rm: calc(var(--segIndicator-day-rm) * var(--g-dayness) + var(--segIndicator-night-rm) * (1 - var(--g-dayness)));
+  --_t: color-mix(in srgb, var(--segIndicator-day-t) calc(var(--g-dayness) * 100%), var(--segIndicator-night-t));
   --_sh: calc(var(--segIndicator-day-sh) * var(--g-dayness) + var(--segIndicator-night-sh) * (1 - var(--g-dayness)));
 }
 
@@ -604,26 +404,12 @@ a.mc-cardlink {
    track + indicator pair, independent of the segmented controls above. Same recipe
    as seg-track/seg-indicator, reading the `--navTrack-*` / `--navIndicator-*` vars. */
 .mc-glass-nav-track {
-  --_tt: color-mix(in srgb, var(--navTrack-day-tt) calc(var(--g-dayness) * 100%), var(--navTrack-night-tt));
-  --_tb: color-mix(in srgb, var(--navTrack-day-tb) calc(var(--g-dayness) * 100%), var(--navTrack-night-tb));
-  --_bl: calc(var(--navTrack-day-bl) * var(--g-dayness) + var(--navTrack-night-bl) * (1 - var(--g-dayness)));
-  --_sa: calc(var(--navTrack-day-sa) * var(--g-dayness) + var(--navTrack-night-sa) * (1 - var(--g-dayness)));
-  --_br: calc(var(--navTrack-day-br) * var(--g-dayness) + var(--navTrack-night-br) * (1 - var(--g-dayness)));
-  --_el: calc(var(--navTrack-day-el) * var(--g-dayness) + var(--navTrack-night-el) * (1 - var(--g-dayness)));
-  --_es: calc(var(--navTrack-day-es) * var(--g-dayness) + var(--navTrack-night-es) * (1 - var(--g-dayness)));
-  --_rm: calc(var(--navTrack-day-rm) * var(--g-dayness) + var(--navTrack-night-rm) * (1 - var(--g-dayness)));
+  --_t: color-mix(in srgb, var(--navTrack-day-t) calc(var(--g-dayness) * 100%), var(--navTrack-night-t));
   --_sh: calc(var(--navTrack-day-sh) * var(--g-dayness) + var(--navTrack-night-sh) * (1 - var(--g-dayness)));
 }
 
 .mc-glass-nav-indicator {
-  --_tt: color-mix(in srgb, var(--navIndicator-day-tt) calc(var(--g-dayness) * 100%), var(--navIndicator-night-tt));
-  --_tb: color-mix(in srgb, var(--navIndicator-day-tb) calc(var(--g-dayness) * 100%), var(--navIndicator-night-tb));
-  --_bl: calc(var(--navIndicator-day-bl) * var(--g-dayness) + var(--navIndicator-night-bl) * (1 - var(--g-dayness)));
-  --_sa: calc(var(--navIndicator-day-sa) * var(--g-dayness) + var(--navIndicator-night-sa) * (1 - var(--g-dayness)));
-  --_br: calc(var(--navIndicator-day-br) * var(--g-dayness) + var(--navIndicator-night-br) * (1 - var(--g-dayness)));
-  --_el: calc(var(--navIndicator-day-el) * var(--g-dayness) + var(--navIndicator-night-el) * (1 - var(--g-dayness)));
-  --_es: calc(var(--navIndicator-day-es) * var(--g-dayness) + var(--navIndicator-night-es) * (1 - var(--g-dayness)));
-  --_rm: calc(var(--navIndicator-day-rm) * var(--g-dayness) + var(--navIndicator-night-rm) * (1 - var(--g-dayness)));
+  --_t: color-mix(in srgb, var(--navIndicator-day-t) calc(var(--g-dayness) * 100%), var(--navIndicator-night-t));
   --_sh: calc(var(--navIndicator-day-sh) * var(--g-dayness) + var(--navIndicator-night-sh) * (1 - var(--g-dayness)));
 }
 
@@ -631,26 +417,12 @@ a.mc-cardlink {
    of the commercial seg-track/seg-indicator. Same resolver recipe as nav; reading
    the `--ccSegTrack-*` / `--ccSegIndicator-*` vars. */
 .mc-glass-cc-seg-track {
-  --_tt: color-mix(in srgb, var(--ccSegTrack-day-tt) calc(var(--g-dayness) * 100%), var(--ccSegTrack-night-tt));
-  --_tb: color-mix(in srgb, var(--ccSegTrack-day-tb) calc(var(--g-dayness) * 100%), var(--ccSegTrack-night-tb));
-  --_bl: calc(var(--ccSegTrack-day-bl) * var(--g-dayness) + var(--ccSegTrack-night-bl) * (1 - var(--g-dayness)));
-  --_sa: calc(var(--ccSegTrack-day-sa) * var(--g-dayness) + var(--ccSegTrack-night-sa) * (1 - var(--g-dayness)));
-  --_br: calc(var(--ccSegTrack-day-br) * var(--g-dayness) + var(--ccSegTrack-night-br) * (1 - var(--g-dayness)));
-  --_el: calc(var(--ccSegTrack-day-el) * var(--g-dayness) + var(--ccSegTrack-night-el) * (1 - var(--g-dayness)));
-  --_es: calc(var(--ccSegTrack-day-es) * var(--g-dayness) + var(--ccSegTrack-night-es) * (1 - var(--g-dayness)));
-  --_rm: calc(var(--ccSegTrack-day-rm) * var(--g-dayness) + var(--ccSegTrack-night-rm) * (1 - var(--g-dayness)));
+  --_t: color-mix(in srgb, var(--ccSegTrack-day-t) calc(var(--g-dayness) * 100%), var(--ccSegTrack-night-t));
   --_sh: calc(var(--ccSegTrack-day-sh) * var(--g-dayness) + var(--ccSegTrack-night-sh) * (1 - var(--g-dayness)));
 }
 
 .mc-glass-cc-seg-indicator {
-  --_tt: color-mix(in srgb, var(--ccSegIndicator-day-tt) calc(var(--g-dayness) * 100%), var(--ccSegIndicator-night-tt));
-  --_tb: color-mix(in srgb, var(--ccSegIndicator-day-tb) calc(var(--g-dayness) * 100%), var(--ccSegIndicator-night-tb));
-  --_bl: calc(var(--ccSegIndicator-day-bl) * var(--g-dayness) + var(--ccSegIndicator-night-bl) * (1 - var(--g-dayness)));
-  --_sa: calc(var(--ccSegIndicator-day-sa) * var(--g-dayness) + var(--ccSegIndicator-night-sa) * (1 - var(--g-dayness)));
-  --_br: calc(var(--ccSegIndicator-day-br) * var(--g-dayness) + var(--ccSegIndicator-night-br) * (1 - var(--g-dayness)));
-  --_el: calc(var(--ccSegIndicator-day-el) * var(--g-dayness) + var(--ccSegIndicator-night-el) * (1 - var(--g-dayness)));
-  --_es: calc(var(--ccSegIndicator-day-es) * var(--g-dayness) + var(--ccSegIndicator-night-es) * (1 - var(--g-dayness)));
-  --_rm: calc(var(--ccSegIndicator-day-rm) * var(--g-dayness) + var(--ccSegIndicator-night-rm) * (1 - var(--g-dayness)));
+  --_t: color-mix(in srgb, var(--ccSegIndicator-day-t) calc(var(--g-dayness) * 100%), var(--ccSegIndicator-night-t));
   --_sh: calc(var(--ccSegIndicator-day-sh) * var(--g-dayness) + var(--ccSegIndicator-night-sh) * (1 - var(--g-dayness)));
 }
 
@@ -661,58 +433,48 @@ a.mc-cardlink {
    `mc-glass-seg-indicator` applied alongside this class). The active icon flips
    to the accent contrast colour so it reads on the coloured fill. */
 .mc-mode-seg-indicator {
-  --_tt: var(--color-accent);
-  --_tb: var(--color-accent);
+  --_t: var(--color-accent);
 }
 .mc-mode-switch .mc-txt-button-bright {
   color: var(--color-accent-contrast);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   3. Shared surface recipe — tint gradient + 4-layer raised chamfer box-shadow.
+   3. Shared surface recipe — flat tint + float drop-shadow.
    ═════════════════════════════════════════════════════════════════════════ */
 .embossed-gradient-border,
 .recessed-gradient-border {
   position: relative;
-  background: linear-gradient(to bottom, var(--_tt), var(--_tb));
-  box-shadow:
-    var(--mc-shadow-x, 0px) var(--mc-shadow-y, 15px) var(--mc-shadow-blur, 21px) rgba(var(--mc-shadow-rgb, 0, 0, 0), var(--_sh)),
-    inset 0 0 0 1px rgba(255, 255, 255, var(--_rm)),
-    inset 1px 1px 1.5px rgba(255, 255, 255, var(--_el)),
-    inset -1px -1px 1.5px rgba(0, 0, 0, var(--_es));
+  background: var(--_t);
+  box-shadow: var(--mc-shadow-x, 0px) var(--mc-shadow-y, 15px) var(--mc-shadow-blur, 21px)
+    rgba(var(--mc-shadow-rgb, 0, 0, 0), var(--_sh));
 }
 
 /* Raised button hover/active: ONLY the background lightens (HSL-lifted tint) — NEVER
    a size change. Gated on `.embossed-gradient-border` so a pressed/latched button
-   (`.recessed-gradient-border`) does not react. Gradients can't CSS-transition, so
-   this is an instant, lag-free swap that still follows the day↔night cross-fade. */
+   (`.recessed-gradient-border`) does not react. This is an instant, lag-free swap
+   that still follows the day↔night cross-fade. */
 .embossed-gradient-border.mc-glass-button:hover {
-  background: linear-gradient(to bottom, var(--_htt), var(--_htb));
+  background: var(--_ht);
 }
 .embossed-gradient-border.mc-glass-button:active {
-  background: linear-gradient(to bottom, var(--_att), var(--_atb));
+  background: var(--_at);
 }
 
-/* Recessed surfaces sink in, so the chamfer inverts: shadow top-left, light
-   bottom-right (the opposite corners from the raised recipe above). */
-.recessed-gradient-border,
+/* Segmented / nav tracks carry the same flat float drop-shadow as the cards. */
 .mc-glass-seg-track,
 .mc-glass-nav-track,
 .mc-glass-cc-seg-track {
-  box-shadow:
-    var(--mc-shadow-x, 0px) var(--mc-shadow-y, 15px) var(--mc-shadow-blur, 21px) rgba(var(--mc-shadow-rgb, 0, 0, 0), var(--_sh)),
-    inset 0 0 0 1px rgba(255, 255, 255, var(--_rm)),
-    inset 1px 1px 1.5px rgba(0, 0, 0, var(--_es)),
-    inset -1px -1px 1.5px rgba(255, 255, 255, var(--_el));
+  box-shadow: var(--mc-shadow-x, 0px) var(--mc-shadow-y, 15px) var(--mc-shadow-blur, 21px)
+    rgba(var(--mc-shadow-rgb, 0, 0, 0), var(--_sh));
 }
 
-/* Hamburger dropdown links — flat on the recessed panel, painting a subtle fill +
-   rim and brightening the label on hover/focus. `.mc-glass-nav-indicator` (on the
-   same element) seeds the tint + rim vars; a resting row shows just its text. */
+/* Hamburger dropdown links — flat on the recessed panel, painting a subtle tint
+   fill and brightening the label on hover/focus. `.mc-glass-nav-indicator` (on the
+   same element) seeds the tint var; a resting row shows just its text. */
 .mc-nav-item:hover,
 .mc-nav-item:focus-visible {
-  background: linear-gradient(to bottom, var(--_tt), var(--_tb));
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, var(--_rm));
+  background: var(--_t);
   color: color-mix(in srgb, var(--text-nav-bright-day) calc(var(--g-dayness) * 100%), var(--text-nav-bright-night));
 }
 
@@ -737,14 +499,6 @@ a.mc-cardlink {
    so they are visually unaffected. */
 .mc-txt-nav-normal.mc-nav-item {
   font-weight: 500;
-}
-
-/* Frost — OUTER CARDS ONLY (see noFrost rule in the header). Neutral at all
-   sliders 0: blur(0) saturate(1) brightness(1) → invisible. */
-.mc-glass-card,
-.mc-glass-card-overlay {
-  -webkit-backdrop-filter: blur(var(--_bl)) saturate(calc(1 + var(--_sa))) brightness(calc(1 + var(--_br)));
-  backdrop-filter: blur(var(--_bl)) saturate(calc(1 + var(--_sa))) brightness(calc(1 + var(--_br)));
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
