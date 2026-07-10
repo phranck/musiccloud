@@ -105,8 +105,8 @@ export interface VinylLayout { discogsReleaseId: string; sides: VinylSide[]; }
 **Files:** Modify `apps/backend/src/db/schemas/postgres.ts`; generierte Migration in `apps/backend/src/db/migrations/`.
 
 - [x] `albumVinylLayouts`-pgTable im `album_*`-Muster: `id` (text PK), `albumId` (FK `albums.id`, `onDelete:"cascade"`), `discogsReleaseId text` (nullable), `layoutData jsonb` (nullable = Negativ-Cache), `fetchedAt timestamp{withTimezone}`, `uniqueIndex` auf `albumId`. TSDoc: `layoutData = null` bedeutet „geprüft, keine Vinyl-Pressung".
-- [x] `pnpm db:generate` → neue SQL-Migration reviewen (nur diese Tabelle).
-- [x] `pnpm db:migrate` lokal → grün.
+- [x] `pnpm db:generate` → neue SQL-Migration reviewen (nur diese Tabelle). Ergebnis: `0072_burly_scarlet_spider.sql`.
+- [x] **NICHT `pnpm db:migrate` ausführen.** ACHTUNG: `.env.local`/`ZEROPS_DB_URL` zeigt in diesem Projekt auf die PROD-DB (Host `postgresql` → `10.0.224.15` via Zerops-VPN); es gibt kein lokales Postgres. `db:migrate` migriert damit PROD. Die Migration erreicht Prod nur über den kontrollierten Deploy-Flow des Users. (Historie: ein Subagent hat 0072 am 2026-07-10 versehentlich auf Prod angewandt; per User-Entscheid bleibt die leere Tabelle dort stehen.)
 - [x] Commit: `Feat: add album_vinyl_layouts table (MC-116)`.
 
 ## Task 7: Persist-Helfer (TDD)
