@@ -60,19 +60,19 @@ export interface VinylLayout { discogsReleaseId: string; sides: VinylSide[]; }
 
 **Files:** Create `packages/shared/src/vinyl-layout.ts`; Modify `packages/shared/src/index.ts`.
 
-- [ ] Typen `VinylLayoutTrack`/`VinylSide`/`VinylLayout` (exakt wie „Geteilter Typ" oben) mit TSDoc anlegen und in `index.ts` re-exportieren.
-- [ ] `pnpm --filter @musiccloud/shared build` (bzw. Typecheck) grün.
-- [ ] Commit: `Feat: add shared VinylLayout types (MC-116)`.
+- [x] Typen `VinylLayoutTrack`/`VinylSide`/`VinylLayout` (exakt wie „Geteilter Typ" oben) mit TSDoc anlegen und in `index.ts` re-exportieren.
+- [x] `pnpm --filter @musiccloud/shared build` (bzw. Typecheck) grün.
+- [x] Commit: `Feat: add shared VinylLayout types (MC-116)`.
 
 ## Task 2: Dauer-Parsing + Seitenableitung (rein, TDD)
 
 **Files:** Create `discogs-parse.ts` + `discogs-parse.test.ts`.
 
-- [ ] Failing Test `parseDiscogsDuration`: `"3:32"→212000`, `"11:54"→714000`, `"20:10"→1210000`, `""→null`, `"abc"→null`.
-- [ ] Failing Test `sideLabelFromPosition`: `"A"→"A"`, `"B2"→"B"`, `"C1"→"C"`, `""→null`, `"3"→null`.
-- [ ] Test laufen → rot (Funktionen fehlen).
-- [ ] Minimal implementieren (`M:SS`/`MM:SS`; führendes `[A-Z]`-Präfix).
-- [ ] Test grün. Commit: `Feat: parse Discogs durations + side labels (MC-116)`.
+- [x] Failing Test `parseDiscogsDuration`: `"3:32"→212000`, `"11:54"→714000`, `"20:10"→1210000`, `""→null`, `"abc"→null`.
+- [x] Failing Test `sideLabelFromPosition`: `"A"→"A"`, `"B2"→"B"`, `"C1"→"C"`, `""→null`, `"3"→null`.
+- [x] Test laufen → rot (Funktionen fehlen).
+- [x] Minimal implementieren (`M:SS`/`MM:SS`; führendes `[A-Z]`-Präfix).
+- [x] Test grün. Commit: `Feat: parse Discogs durations + side labels (MC-116)`.
 
 ## Task 3: Original-Pressung wählen (rein, TDD)
 
@@ -149,8 +149,8 @@ export interface VinylLayout { discogsReleaseId: string; sides: VinylSide[]; }
 
 ## Checkliste (Plan-Fortschritt)
 
-- [ ] Task 1 — Geteilte VinylLayout-Typen
-- [ ] Task 2 — Dauer-Parsing + Seitenableitung
+- [x] Task 1 — Geteilte VinylLayout-Typen
+- [x] Task 2 — Dauer-Parsing + Seitenableitung
 - [ ] Task 3 — Original-Pressung wählen
 - [ ] Task 4 — Release → VinylLayout
 - [ ] Task 5 — Discogs-HTTP-Client
