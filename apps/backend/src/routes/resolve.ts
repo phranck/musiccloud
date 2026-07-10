@@ -503,6 +503,19 @@ async function persistAlbumAndRespond(
     }
   }
 
+  try {
+    await repo.enrichAlbumVinylLayout({
+      id: albumId,
+      title: result.sourceAlbum.title,
+      artists: result.sourceAlbum.artists,
+      upc: result.sourceAlbum.upc,
+    });
+  } catch (err) {
+    log.debug("Resolve", "Album vinyl-layout enrichment failed:", err instanceof Error ? err.message : String(err));
+  }
+
+  const vinylLayout = (await repo.readAlbumVinylLayout(albumId)) ?? null;
+
   const shortUrl = `${origin}/${shortId}`;
 
   return {
@@ -519,6 +532,7 @@ async function persistAlbumAndRespond(
       label: result.sourceAlbum.label,
       upc: result.sourceAlbum.upc,
       previewUrl,
+      vinylLayout,
     },
     links: toApiLinks(result.links, { stripTracking: true }),
   };

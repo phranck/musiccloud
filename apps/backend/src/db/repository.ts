@@ -1,3 +1,4 @@
+import type { VinylLayout } from "@musiccloud/shared";
 import type {
   ArtistCredit,
   ExternalIdRecord,
@@ -506,6 +507,21 @@ export interface TrackRepository {
       externalId?: string;
     }>,
   ): Promise<void>;
+  /**
+   * Reads the persisted Discogs vinyl layout state for an album.
+   *
+   * @param albumId - Persisted album identifier.
+   * @returns The positive layout, `null` for a negative cache, or `undefined`
+   * when the album has not been checked.
+   */
+  readAlbumVinylLayout(albumId: string): Promise<VinylLayout | null | undefined>;
+  /**
+   * Best-effort Discogs vinyl-layout enrichment for a persisted album.
+   *
+   * @param album - Persisted album metadata used for the Discogs lookup.
+   * @returns A promise that resolves after enrichment or a no-op.
+   */
+  enrichAlbumVinylLayout(album: { id: string; title: string; artists: string[]; upc?: string | null }): Promise<void>;
 
   // Artist: Read operations
   /**

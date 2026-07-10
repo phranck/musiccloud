@@ -16,6 +16,8 @@
  * one endpoint for all three without the frontend probing fields.
  */
 
+import type { VinylLayout } from "./vinyl-layout.js";
+
 export interface ApiArtistCredit {
   artistEntityId: string;
   name: string;
@@ -378,6 +380,11 @@ export interface ApiAlbum {
   label?: string;
   upc?: string;
   previewUrl?: string;
+  /**
+   * Discogs-derived vinyl side and track timing data when it has been
+   * checked, or `null` when no suitable vinyl pressing exists.
+   */
+  vinylLayout?: VinylLayout | null;
 }
 
 export interface AlbumResolveSuccessResponse {
