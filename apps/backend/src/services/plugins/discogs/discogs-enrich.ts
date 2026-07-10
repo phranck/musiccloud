@@ -14,9 +14,10 @@ import { normalizeReleaseToLayout, selectOriginalVinylVersion } from "./discogs-
 /**
  * Looks up, normalises, and persists an album's original Discogs vinyl layout.
  *
- * Definitive misses create a negative cache entry. Client and persistence
- * failures are transient, so they are deliberately swallowed without writing
- * a cache entry and can be retried by a future resolve.
+ * Definitive missing masters or versions create a negative cache entry.
+ * Incomplete release data plus client and persistence failures are transient,
+ * so they are deliberately swallowed without writing a cache entry and can be
+ * retried by a future resolve.
  *
  * @param pool - Postgres connection pool used by the persistence helpers.
  * @param album - Persisted album metadata used to query Discogs.
@@ -45,14 +46,13 @@ export async function enrichAlbumVinylLayout(
 
     const layout = normalizeReleaseToLayout(await getRelease(version.id));
     if (layout === null) {
-      await upsertAlbumVinylLayout(pool, album.id, null);
       return;
     }
 
-    await upsertAlbumVinylLayout(pool, album.id, layout);
     await insertExternalIds(pool, "album_external_ids", "album_id", album.id, [
       { idType: "discogs_release", idValue: layout.discogsReleaseId, sourceService: "discogs" },
     ]);
+    await upsertAlbumVinylLayout(pool, album.id, layout);
   } catch {
     // A failed Discogs or persistence operation must remain retryable.
   }

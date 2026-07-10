@@ -91,6 +91,34 @@ describe("enrichAlbumVinylLayout", () => {
     expect(persistenceMocks.insertExternalIds).not.toHaveBeenCalled();
   });
 
+  it("does not cache a release with incomplete track durations", async () => {
+    clientMocks.searchVinylMaster.mockResolvedValue(33100);
+    clientMocks.getMasterVinylVersions.mockResolvedValue([{ id: 15815903, released: "1959", format: "LP, Album" }]);
+    clientMocks.getRelease.mockResolvedValue({
+      id: 15815903,
+      tracklist: [{ position: "A", type_: "track", title: "The Sermon", duration: "" }],
+    });
+
+    await enrichAlbumVinylLayout(pool, album);
+
+    expect(persistenceMocks.upsertAlbumVinylLayout).not.toHaveBeenCalled();
+    expect(persistenceMocks.insertExternalIds).not.toHaveBeenCalled();
+  });
+
+  it("does not persist a layout when writing its Discogs provenance fails", async () => {
+    clientMocks.searchVinylMaster.mockResolvedValue(33100);
+    clientMocks.getMasterVinylVersions.mockResolvedValue([{ id: 15815903, released: "1959", format: "LP, Album" }]);
+    clientMocks.getRelease.mockResolvedValue({
+      id: 15815903,
+      tracklist: [{ position: "A", type_: "track", title: "The Sermon", duration: "20:10" }],
+    });
+    persistenceMocks.insertExternalIds.mockRejectedValue(new Error("database unavailable"));
+
+    await enrichAlbumVinylLayout(pool, album);
+
+    expect(persistenceMocks.upsertAlbumVinylLayout).not.toHaveBeenCalled();
+  });
+
   it("does not persist when the Discogs client fails transiently", async () => {
     clientMocks.searchVinylMaster.mockRejectedValue(new Error("rate limited"));
 
