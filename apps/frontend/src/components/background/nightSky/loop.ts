@@ -103,15 +103,16 @@ export class NightSkyDriver {
   }
 
   /**
-   * Sets (or fades to) a new day amount. Under reduced motion the value
-   * always snaps — the fade is an animation.
+   * Sets (or fades to) a new day amount. The value always snaps (no fade) under
+   * reduced motion or when `dayTransition` is 0 — the admin's "hard switch"
+   * choice, where a fade would divide by a 0 ms duration and corrupt `dayness`.
    *
    * @param target - Day amount in [0, 1].
    * @param options.animated - Play the boosted fade over `dayTransition` s.
    */
   setDayness(target: number, options: { animated: boolean }): void {
     const clamped = Math.max(0, Math.min(1, target));
-    if (options.animated && !this.reducedMotion) {
+    if (options.animated && !this.reducedMotion && this.settings.dayTransition > 0) {
       this.fade = { from: this.settings.dayness, to: clamped, startMs: null };
       return;
     }

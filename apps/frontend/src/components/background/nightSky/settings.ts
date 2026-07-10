@@ -15,7 +15,7 @@
 export interface NightSkySettings {
   /** Night→day blend: 0 = night sky with stars, 1 = summer day. */
   dayness: number;
-  /** Duration in seconds of the animated manual day/night fade. */
+  /** Duration in seconds of the animated manual day/night fade; 0 = hard switch (snap, no fade). */
   dayTransition: number;
   /** 1 = follow the viewer's local clock (opt-in), 0 = fixed `dayness`. */
   autoDayNight: 0 | 1;
@@ -180,7 +180,7 @@ export const NIGHT_SKY_RANGES: Record<
   { min: number; max: number }
 > = {
   dayness: { min: 0, max: 1 },
-  dayTransition: { min: 0.2, max: 10 },
+  dayTransition: { min: 0, max: 10 },
   autoDayNight: { min: 0, max: 1 },
   sunriseHour: { min: 0, max: 12 },
   sunsetHour: { min: 12, max: 24 },

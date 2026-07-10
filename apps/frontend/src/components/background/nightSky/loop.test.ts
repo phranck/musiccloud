@@ -103,6 +103,17 @@ describe("NightSkyDriver", () => {
     expect(scene.draw).toHaveBeenCalledTimes(1);
   });
 
+  it("hard-switches instantly (no fade) when dayTransition is 0, even with animated on", () => {
+    // dayTransition 0 = the admin's "hard switch" choice: an animated request
+    // must snap, never open a fade (a fade would divide by a 0 ms duration → NaN).
+    const { driver } = makeDriver({ fpsCap: 10, dayTransition: 0, dayness: 0 });
+    driver.tick(0);
+    driver.setDayness(1, { animated: true });
+    expect(driver.settings.dayness).toBe(1); // snapped on the spot, no pending fade
+    driver.tick(100); // a later tick must not corrupt the value into NaN
+    expect(driver.settings.dayness).toBe(1);
+  });
+
   it("renders exactly one static frame under reduced motion", () => {
     const { scene, driver } = makeDriver();
     driver.setReducedMotion(true);
