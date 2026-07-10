@@ -121,6 +121,8 @@ import {
 import {
   addAlbumExternalIds as albumsAddAlbumExternalIds,
   addLinksToAlbum as albumsAddLinksToAlbum,
+  createAlbumVinylLayoutPlaceholder as albumsCreateAlbumVinylLayoutPlaceholder,
+  deleteAlbumVinylLayoutPlaceholder as albumsDeleteAlbumVinylLayoutPlaceholder,
   ensureAlbumVinylLayoutIdentity as albumsEnsureAlbumVinylLayoutIdentity,
   findAlbumByExternalId as albumsFindAlbumByExternalId,
   findAlbumByUpc as albumsFindAlbumByUpc,
@@ -551,6 +553,14 @@ export class PostgresAdapter
 
   ensureAlbumVinylLayoutIdentity(identityKey: string, albumId: string): Promise<string> {
     return albumsEnsureAlbumVinylLayoutIdentity(this.pool, identityKey, albumId);
+  }
+
+  createAlbumVinylLayoutPlaceholder(title: string): Promise<string> {
+    return albumsCreateAlbumVinylLayoutPlaceholder(this.pool, title);
+  }
+
+  deleteAlbumVinylLayoutPlaceholder(albumId: string): Promise<void> {
+    return albumsDeleteAlbumVinylLayoutPlaceholder(this.pool, albumId);
   }
 
   findExistingAlbumByUpc(upc: string): Promise<{ albumId: string; shortId: string } | null> {

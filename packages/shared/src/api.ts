@@ -41,9 +41,8 @@ export interface ApiTrack {
    *  this to decide whether to render the audio player in a loading state. */
   previewRefreshable?: boolean;
   /**
-   * Discogs-derived vinyl layout for this track's containing album. Absent
-   * when the track has no stable album identity; null when no suitable vinyl
-   * pressing is available.
+   * Discogs-derived vinyl layout for this track's containing album, or null
+   * when the track has no stable album identity or no suitable pressing.
    */
   vinylLayout: VinylLayout | null;
 }

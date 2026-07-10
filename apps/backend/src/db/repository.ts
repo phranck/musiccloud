@@ -473,6 +473,10 @@ export interface TrackRepository {
   findAlbumByVinylLayoutIdentity(identityKey: string): Promise<AlbumVinylLayoutIdentityResult | null>;
   /** Atomically links an identity to its first owning layout cache and returns that owner. */
   ensureAlbumVinylLayoutIdentity(identityKey: string, albumId: string): Promise<string>;
+  /** Creates a minimal, non-catalogue owner for a track-originated layout cache. */
+  createAlbumVinylLayoutPlaceholder(title: string): Promise<string>;
+  /** Removes an unclaimed placeholder created by a concurrent losing resolve. */
+  deleteAlbumVinylLayoutPlaceholder(albumId: string): Promise<void>;
   /**
    * Finds existing album by UPC.
    *

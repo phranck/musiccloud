@@ -11,7 +11,8 @@ function createRepository() {
   return {
     findAlbumByVinylLayoutIdentity: vi.fn(),
     ensureAlbumVinylLayoutIdentity: vi.fn(),
-    persistAlbumWithLinks: vi.fn(),
+    createAlbumVinylLayoutPlaceholder: vi.fn(),
+    deleteAlbumVinylLayoutPlaceholder: vi.fn(),
     enrichAlbumVinylLayout: vi.fn(),
     readAlbumVinylLayout: vi.fn(),
   };
@@ -28,13 +29,13 @@ describe("resolveTrackVinylLayout", () => {
     ).resolves.toEqual(layout);
 
     expect(repo.enrichAlbumVinylLayout).not.toHaveBeenCalled();
-    expect(repo.persistAlbumWithLinks).not.toHaveBeenCalled();
+    expect(repo.createAlbumVinylLayoutPlaceholder).not.toHaveBeenCalled();
   });
 
-  it("persists the artist-qualified album identity before enriching a cache miss", async () => {
+  it("claims the artist-qualified album identity before enriching a cache miss", async () => {
     const repo = createRepository();
     repo.findAlbumByVinylLayoutIdentity.mockResolvedValue(null);
-    repo.persistAlbumWithLinks.mockResolvedValue({ albumId: "album-1" });
+    repo.createAlbumVinylLayoutPlaceholder.mockResolvedValue("album-1");
     repo.ensureAlbumVinylLayoutIdentity.mockResolvedValue("album-1");
     repo.readAlbumVinylLayout.mockResolvedValueOnce(undefined).mockResolvedValueOnce(layout);
 
@@ -42,10 +43,7 @@ describe("resolveTrackVinylLayout", () => {
       resolveTrackVinylLayout(repo, { artists: ["Jimmy Smith"], albumName: "The Sermon!" }),
     ).resolves.toEqual(layout);
 
-    expect(repo.persistAlbumWithLinks).toHaveBeenCalledWith({
-      sourceAlbum: { title: "The Sermon!", artists: ["Jimmy Smith"] },
-      links: [],
-    });
+    expect(repo.createAlbumVinylLayoutPlaceholder).toHaveBeenCalledWith("The Sermon!");
     expect(repo.enrichAlbumVinylLayout).toHaveBeenCalledWith({
       id: "album-1",
       title: "The Sermon!",
@@ -59,6 +57,21 @@ describe("resolveTrackVinylLayout", () => {
     await expect(resolveTrackVinylLayout(repo, { artists: [], albumName: "The Sermon!" })).resolves.toBeNull();
 
     expect(repo.findAlbumByVinylLayoutIdentity).not.toHaveBeenCalled();
-    expect(repo.persistAlbumWithLinks).not.toHaveBeenCalled();
+    expect(repo.createAlbumVinylLayoutPlaceholder).not.toHaveBeenCalled();
+  });
+
+  it("removes a concurrently losing placeholder after another resolve claims the identity", async () => {
+    const repo = createRepository();
+    repo.findAlbumByVinylLayoutIdentity.mockResolvedValue(null);
+    repo.createAlbumVinylLayoutPlaceholder.mockResolvedValue("losing-placeholder");
+    repo.ensureAlbumVinylLayoutIdentity.mockResolvedValue("winning-placeholder");
+    repo.readAlbumVinylLayout.mockResolvedValue(layout);
+
+    await expect(
+      resolveTrackVinylLayout(repo, { artists: ["Jimmy Smith"], albumName: "The Sermon!" }),
+    ).resolves.toEqual(layout);
+
+    expect(repo.deleteAlbumVinylLayoutPlaceholder).toHaveBeenCalledWith("losing-placeholder");
+    expect(repo.enrichAlbumVinylLayout).not.toHaveBeenCalled();
   });
 });

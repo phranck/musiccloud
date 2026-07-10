@@ -189,6 +189,30 @@ export async function ensureAlbumVinylLayoutIdentity(
   return result.rows[0].album_id as string;
 }
 
+/** Creates a minimal cache owner without artist credits, links, or a short URL. */
+export async function createAlbumVinylLayoutPlaceholder(pool: Pool, title: string): Promise<string> {
+  const albumId = generateTrackId();
+  const now = new Date();
+  await pool.query(`INSERT INTO albums (id, title, created_at, updated_at) VALUES ($1, $2, $3, $4)`, [
+    albumId,
+    title,
+    now,
+    now,
+  ]);
+  return albumId;
+}
+
+/** Deletes only a still-unclaimed, layout-free placeholder. */
+export async function deleteAlbumVinylLayoutPlaceholder(pool: Pool, albumId: string): Promise<void> {
+  await pool.query(
+    `DELETE FROM albums a
+     WHERE a.id = $1
+       AND NOT EXISTS (SELECT 1 FROM album_vinyl_layout_identities i WHERE i.album_id = a.id)
+       AND NOT EXISTS (SELECT 1 FROM album_vinyl_layouts l WHERE l.album_id = a.id)`,
+    [albumId],
+  );
+}
+
 /**
  * Cheap existence check: returns the album-id and short-id for a given
  * UPC, used by persistence callers to dedup before insert.

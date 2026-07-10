@@ -3,17 +3,18 @@ import * as pgModule from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAlbumIdentityKey } from "../../../services/album-identity.js";
 import {
+  createAlbumVinylLayoutPlaceholder,
+  deleteAlbumVinylLayoutPlaceholder,
   ensureAlbumVinylLayoutIdentity,
   findAlbumByVinylLayoutIdentity,
-  persistAlbumWithLinks,
   readAlbumVinylLayout,
   upsertAlbumVinylLayout,
 } from "../postgres-albums.js";
 
 /**
  * Exercises the artist-qualified identity used by track resolves against the
- * local database. Fixtures are isolated and only their own album rows are
- * removed in teardown.
+ * local database. Fixtures are minimal placeholders, so they create no artist
+ * entities or names; teardown removes only their own rows.
  */
 describe.skipIf(!process.env.DATABASE_URL)("album identity vinyl cache (integration)", () => {
   let pool: pgModule.Pool;
@@ -31,14 +32,14 @@ describe.skipIf(!process.env.DATABASE_URL)("album identity vinyl cache (integrat
 
   beforeAll(async () => {
     pool = new pgModule.Pool({ connectionString: process.env.DATABASE_URL });
-    firstAlbumId = (await persistAlbumWithLinks(pool, { sourceAlbum: { title, artists: [firstArtist] }, links: [] }))
-      .albumId;
-    secondAlbumId = (await persistAlbumWithLinks(pool, { sourceAlbum: { title, artists: [secondArtist] }, links: [] }))
-      .albumId;
+    firstAlbumId = await createAlbumVinylLayoutPlaceholder(pool, title);
+    secondAlbumId = await createAlbumVinylLayoutPlaceholder(pool, title);
   });
 
   afterAll(async () => {
-    await pool.query("DELETE FROM album_short_urls WHERE album_id = ANY($1::text[])", [[firstAlbumId, secondAlbumId]]);
+    await pool.query("DELETE FROM album_vinyl_layout_identities WHERE album_id = ANY($1::text[])", [
+      [firstAlbumId, secondAlbumId],
+    ]);
     await pool.query("DELETE FROM album_vinyl_layouts WHERE album_id = ANY($1::text[])", [
       [firstAlbumId, secondAlbumId],
     ]);
@@ -54,5 +55,26 @@ describe.skipIf(!process.env.DATABASE_URL)("album identity vinyl cache (integrat
     await expect(readAlbumVinylLayout(pool, firstAlbumId)).resolves.toEqual(layout);
     await expect(findAlbumByVinylLayoutIdentity(pool, secondIdentity)).resolves.toBeNull();
     await expect(readAlbumVinylLayout(pool, secondAlbumId)).resolves.toBeUndefined();
+  });
+
+  it("leaves only one owner after concurrent claims and safely removes the loser", async () => {
+    const identity = createAlbumIdentityKey({ artists: ["MC-119 Concurrent Artist"], title: "MC-119 concurrent" })!;
+    const first = await createAlbumVinylLayoutPlaceholder(pool, "MC-119 concurrent");
+    const second = await createAlbumVinylLayoutPlaceholder(pool, "MC-119 concurrent");
+
+    const [firstOwner, secondOwner] = await Promise.all([
+      ensureAlbumVinylLayoutIdentity(pool, identity, first),
+      ensureAlbumVinylLayoutIdentity(pool, identity, second),
+    ]);
+    expect(firstOwner).toBe(secondOwner);
+    const loser = firstOwner === first ? second : first;
+    await deleteAlbumVinylLayoutPlaceholder(pool, loser);
+
+    await expect(findAlbumByVinylLayoutIdentity(pool, identity)).resolves.toEqual({ albumId: firstOwner });
+    const remaining = await pool.query("SELECT id FROM albums WHERE id = ANY($1::text[])", [[first, second]]);
+    expect(remaining.rows).toHaveLength(1);
+
+    await pool.query("DELETE FROM album_vinyl_layout_identities WHERE identity_key = $1", [identity]);
+    await pool.query("DELETE FROM albums WHERE id = ANY($1::text[])", [[first, second]]);
   });
 });

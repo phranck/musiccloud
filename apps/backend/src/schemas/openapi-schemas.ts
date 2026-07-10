@@ -84,6 +84,7 @@ export const TrackSchema = {
     releaseDate: "1985-06-01",
     isExplicit: false,
     previewUrl: "https://p.scdn.co/mp3-preview/7ae363b1bc5d7c6bd9cbca4d4f2ae6e3a8c7b0f5",
+    vinylLayout: null,
   },
 } as const;
 

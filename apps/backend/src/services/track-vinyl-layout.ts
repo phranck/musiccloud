@@ -6,10 +6,8 @@ import { createAlbumIdentityKey } from "./album-identity.js";
 export interface TrackVinylLayoutRepository {
   findAlbumByVinylLayoutIdentity(identityKey: string): Promise<{ albumId: string } | null>;
   ensureAlbumVinylLayoutIdentity(identityKey: string, albumId: string): Promise<string>;
-  persistAlbumWithLinks(data: {
-    sourceAlbum: { title: string; artists: string[] };
-    links: [];
-  }): Promise<{ albumId: string }>;
+  createAlbumVinylLayoutPlaceholder(title: string): Promise<string>;
+  deleteAlbumVinylLayoutPlaceholder(albumId: string): Promise<void>;
   readAlbumVinylLayout(albumId: string): Promise<VinylLayout | null | undefined>;
   enrichAlbumVinylLayout(album: { id: string; title: string; artists: string[] }): Promise<void>;
 }
@@ -30,15 +28,12 @@ export async function resolveTrackVinylLayout(
 
   try {
     const cached = await repo.findAlbumByVinylLayoutIdentity(identityKey);
-    const persistedAlbumId =
-      cached?.albumId ??
-      (
-        await repo.persistAlbumWithLinks({
-          sourceAlbum: { title: track.albumName, artists: track.artists },
-          links: [],
-        })
-      ).albumId;
-    const albumId = cached?.albumId ?? (await repo.ensureAlbumVinylLayoutIdentity(identityKey, persistedAlbumId));
+    let albumId = cached?.albumId;
+    if (!albumId) {
+      const placeholderId = await repo.createAlbumVinylLayoutPlaceholder(track.albumName);
+      albumId = await repo.ensureAlbumVinylLayoutIdentity(identityKey, placeholderId);
+      if (albumId !== placeholderId) await repo.deleteAlbumVinylLayoutPlaceholder(placeholderId);
+    }
 
     const cachedLayout = await repo.readAlbumVinylLayout(albumId);
     if (cachedLayout !== undefined) return cachedLayout;
