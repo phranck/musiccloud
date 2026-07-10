@@ -326,9 +326,7 @@ export const albumVinylLayouts = pgTable(
     layoutData: jsonb("layout_data").$type<VinylLayout>(),
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
   },
-  (table) => [
-    uniqueIndex("uq_album_vinyl_layouts_album_id").on(table.albumId),
-  ],
+  (table) => [uniqueIndex("uq_album_vinyl_layouts_album_id").on(table.albumId)],
 );
 
 // ─── Normalized Artist Identity Tables ───────────────────────────────────────
