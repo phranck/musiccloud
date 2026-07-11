@@ -74,4 +74,17 @@ describe("resolveTrackVinylLayout", () => {
     expect(repo.deleteAlbumVinylLayoutPlaceholder).toHaveBeenCalledWith("losing-placeholder");
     expect(repo.enrichAlbumVinylLayout).not.toHaveBeenCalled();
   });
+
+  it("removes an unclaimed placeholder when the identity claim fails", async () => {
+    const repo = createRepository();
+    repo.findAlbumByVinylLayoutIdentity.mockResolvedValue(null);
+    repo.createAlbumVinylLayoutPlaceholder.mockResolvedValue("unclaimed-placeholder");
+    repo.ensureAlbumVinylLayoutIdentity.mockRejectedValue(new Error("database unavailable"));
+
+    await expect(
+      resolveTrackVinylLayout(repo, { artists: ["Jimmy Smith"], albumName: "The Sermon!" }),
+    ).resolves.toBeNull();
+
+    expect(repo.deleteAlbumVinylLayoutPlaceholder).toHaveBeenCalledWith("unclaimed-placeholder");
+  });
 });

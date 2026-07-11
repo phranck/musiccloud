@@ -16,10 +16,11 @@ import {
  * local database. Fixtures are minimal placeholders, so they create no artist
  * entities or names; teardown removes only their own rows.
  */
-describe.skipIf(!process.env.DATABASE_URL)("album identity vinyl cache (integration)", () => {
+describe.skipIf(!process.env.TEST_DATABASE_URL)("album identity vinyl cache (integration)", () => {
   let pool: pgModule.Pool;
   let firstAlbumId: string;
   let secondAlbumId: string;
+  const albumIds: string[] = [];
   const title = "MC-119 shared-title fixture";
   const firstArtist = "MC-119 First Artist";
   const secondArtist = "MC-119 Second Artist";
@@ -31,19 +32,16 @@ describe.skipIf(!process.env.DATABASE_URL)("album identity vinyl cache (integrat
   };
 
   beforeAll(async () => {
-    pool = new pgModule.Pool({ connectionString: process.env.DATABASE_URL });
+    pool = new pgModule.Pool({ connectionString: process.env.TEST_DATABASE_URL });
     firstAlbumId = await createAlbumVinylLayoutPlaceholder(pool, title);
     secondAlbumId = await createAlbumVinylLayoutPlaceholder(pool, title);
+    albumIds.push(firstAlbumId, secondAlbumId);
   });
 
   afterAll(async () => {
-    await pool.query("DELETE FROM album_vinyl_layout_identities WHERE album_id = ANY($1::text[])", [
-      [firstAlbumId, secondAlbumId],
-    ]);
-    await pool.query("DELETE FROM album_vinyl_layouts WHERE album_id = ANY($1::text[])", [
-      [firstAlbumId, secondAlbumId],
-    ]);
-    await pool.query("DELETE FROM albums WHERE id = ANY($1::text[])", [[firstAlbumId, secondAlbumId]]);
+    await pool.query("DELETE FROM album_vinyl_layout_identities WHERE album_id = ANY($1::text[])", [albumIds]);
+    await pool.query("DELETE FROM album_vinyl_layouts WHERE album_id = ANY($1::text[])", [albumIds]);
+    await pool.query("DELETE FROM albums WHERE id = ANY($1::text[])", [albumIds]);
     await pool.end();
   });
 
@@ -61,6 +59,7 @@ describe.skipIf(!process.env.DATABASE_URL)("album identity vinyl cache (integrat
     const identity = createAlbumIdentityKey({ artists: ["MC-119 Concurrent Artist"], title: "MC-119 concurrent" })!;
     const first = await createAlbumVinylLayoutPlaceholder(pool, "MC-119 concurrent");
     const second = await createAlbumVinylLayoutPlaceholder(pool, "MC-119 concurrent");
+    albumIds.push(first, second);
 
     const [firstOwner, secondOwner] = await Promise.all([
       ensureAlbumVinylLayoutIdentity(pool, identity, first),
@@ -73,8 +72,5 @@ describe.skipIf(!process.env.DATABASE_URL)("album identity vinyl cache (integrat
     await expect(findAlbumByVinylLayoutIdentity(pool, identity)).resolves.toEqual({ albumId: firstOwner });
     const remaining = await pool.query("SELECT id FROM albums WHERE id = ANY($1::text[])", [[first, second]]);
     expect(remaining.rows).toHaveLength(1);
-
-    await pool.query("DELETE FROM album_vinyl_layout_identities WHERE identity_key = $1", [identity]);
-    await pool.query("DELETE FROM albums WHERE id = ANY($1::text[])", [[first, second]]);
   });
 });

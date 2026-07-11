@@ -26,11 +26,13 @@ export async function resolveTrackVinylLayout(
   const identityKey = createAlbumIdentityKey({ artists: track.artists, title: track.albumName });
   if (!identityKey) return null;
 
+  let albumId: string | undefined;
+  let placeholderId: string | undefined;
   try {
     const cached = await repo.findAlbumByVinylLayoutIdentity(identityKey);
-    let albumId = cached?.albumId;
+    albumId = cached?.albumId;
     if (!albumId) {
-      const placeholderId = await repo.createAlbumVinylLayoutPlaceholder(track.albumName);
+      placeholderId = await repo.createAlbumVinylLayoutPlaceholder(track.albumName);
       albumId = await repo.ensureAlbumVinylLayoutIdentity(identityKey, placeholderId);
       if (albumId !== placeholderId) await repo.deleteAlbumVinylLayoutPlaceholder(placeholderId);
     }
@@ -41,6 +43,20 @@ export async function resolveTrackVinylLayout(
     await repo.enrichAlbumVinylLayout({ id: albumId, title: track.albumName, artists: track.artists });
     return (await repo.readAlbumVinylLayout(albumId)) ?? null;
   } catch (error) {
+    // A failed identity claim can only leave behind the freshly-created,
+    // unclaimed placeholder. Retain a claimed owner so a transient Discogs
+    // failure remains retryable, but remove every losing placeholder.
+    if (typeof placeholderId !== "undefined" && albumId !== placeholderId) {
+      try {
+        await repo.deleteAlbumVinylLayoutPlaceholder(placeholderId);
+      } catch (cleanupError) {
+        log.debug(
+          "Resolve",
+          "Track vinyl-layout placeholder cleanup failed:",
+          cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+        );
+      }
+    }
     log.debug(
       "Resolve",
       "Track vinyl-layout enrichment failed:",
