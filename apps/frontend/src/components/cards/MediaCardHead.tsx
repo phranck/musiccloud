@@ -65,6 +65,10 @@ interface MediaCardHeadProps {
   previewStatus?: AudioStatus | null;
   /** Share-only cover/turntable visual mode. Omitted outside ShareLayout. */
   shareMediaView?: ShareMediaView;
+  /** Accessible name for the clickable share media surface. */
+  mediaViewToggleLabel?: string;
+  /** Toggles the share-only cover/turntable visual mode. */
+  onMediaViewToggle?: () => void;
   /**
    * Pre-translated screen-reader announcement rendered as a polite live region
    * above the cover. Only the landing-page `MediaCard` supplies this; the share
@@ -83,6 +87,8 @@ interface MediaCardHeadProps {
 interface MediaCardHeadStageProps {
   content: MediaCardContentConfiguration;
   shareMediaView?: ShareMediaView;
+  mediaViewToggleLabel?: string;
+  onMediaViewToggle?: () => void;
   statusLine?: string;
   previewStatus?: AudioStatus | null;
   seekHint: { direction: VfdScrollOutDirection; nonce: number } | null;
@@ -106,6 +112,8 @@ interface MediaCardHeadStageProps {
 function MediaCardHeadStage({
   content,
   shareMediaView,
+  mediaViewToggleLabel,
+  onMediaViewToggle,
   statusLine,
   previewStatus,
   seekHint,
@@ -119,6 +127,8 @@ function MediaCardHeadStage({
       albumArtUrl={content.artworkUrl}
       isExplicit={content.isExplicit}
       metaOverride={content.metaLine}
+      mediaViewToggleLabel={mediaViewToggleLabel}
+      onMediaViewToggle={onMediaViewToggle}
       previewStatus={previewStatus}
       seekHint={seekHint}
       shareMediaView={shareMediaView}
@@ -166,6 +176,8 @@ export function MediaCardHead({
   animated = true,
   className,
   onPreviewStatusChange,
+  mediaViewToggleLabel,
+  onMediaViewToggle,
   previewStatus,
   shareMediaView,
   srAnnouncement,
@@ -218,6 +230,8 @@ export function MediaCardHead({
         >
           <MediaCardHeadStage
             content={content}
+            mediaViewToggleLabel={mediaViewToggleLabel}
+            onMediaViewToggle={onMediaViewToggle}
             shareMediaView={shareMediaView}
             statusLine={content.statusLine}
             previewStatus={previewStatus}
@@ -240,6 +254,8 @@ export function MediaCardHead({
       ) : (
         <MediaCardHeadStage
           content={content}
+          mediaViewToggleLabel={mediaViewToggleLabel}
+          onMediaViewToggle={onMediaViewToggle}
           shareMediaView={shareMediaView}
           statusLine={content.statusLine}
           previewStatus={previewStatus}

@@ -24,6 +24,8 @@ interface MediaCardProps {
   className?: string;
   /** Set to false to skip the zoom-in entrance animation (e.g. on the share page) */
   animated?: boolean;
+  mediaViewToggleLabel?: string;
+  onMediaViewToggle?: () => void;
   onPreviewStatusChange?: (status: AudioStatus | null) => void;
   previewStatus?: AudioStatus | null;
   shareMediaView?: ShareMediaView;
@@ -33,6 +35,8 @@ export function MediaCard({
   content,
   className,
   animated = true,
+  mediaViewToggleLabel,
+  onMediaViewToggle,
   onPreviewStatusChange,
   previewStatus,
   shareMediaView,
@@ -44,6 +48,8 @@ export function MediaCard({
       content={content}
       animated={animated}
       className={className}
+      mediaViewToggleLabel={mediaViewToggleLabel}
+      onMediaViewToggle={onMediaViewToggle}
       onPreviewStatusChange={onPreviewStatusChange}
       previewStatus={previewStatus}
       shareMediaView={shareMediaView}

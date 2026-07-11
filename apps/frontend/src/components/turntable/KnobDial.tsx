@@ -12,10 +12,9 @@ const SPEED_KNOB_STYLE = {
     "0 0 0 1px rgba(0,0,0,0.9), 0 1px 0 rgba(255,255,255,0.13), 0 3px 4px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.07), inset 0 -3px 5px rgba(0,0,0,0.32)",
 } satisfies CSSProperties;
 
-/** Indicator line styling (colour + the `0% 50%` origin the rotation pivots on). */
+/** Indicator line styling; rotation is owned by its stable full-size carrier. */
 const SPEED_MARK_BASE_STYLE = {
   background: "rgba(222,228,236,0.48)",
-  transformOrigin: "0% 50%",
 } satisfies CSSProperties;
 
 /** Subtle directional sheen on the brushed-metal knob face. */
@@ -30,33 +29,30 @@ const BRUSHED_METAL_REFLECTION_STYLE = {
 const KNOB_ROTATION_TRANSITION = "transform 480ms cubic-bezier(0.22, 0.61, 0.36, 1)";
 
 /**
- * Builds the speed-knob indicator transform for a given angle.
+ * Builds the full-size speed-knob rotor transform for a given angle.
  *
- * `translateY(-50%)` keeps the line vertically centred on the knob; `rotate` aims
- * it. When `gpuLayer` is set, a trailing `translateZ(0)` forces a stable
- * compositor layer so the indicator's glide between STANDBY and 33 stays on the
- * GPU ([[feedback_animations_always_gpu]]); the static decorative knob omits it so
- * its transform stays byte-identical to the accepted deck optic. The transform
- * never reads layout (transform-only).
+ * The rotor fills the knob and carries the thin indicator as a static child.
+ * Safari can therefore composite one stable, fixed-size surface instead of
+ * repeatedly rasterizing a rotating 2px line. When `gpuLayer` is set, a trailing
+ * `translateZ(0)` promotes that carrier to its own compositor layer.
  *
  * @param angleDeg - Indicator angle in degrees (CSS convention: 0 points right,
  *   positive is clockwise).
  * @param gpuLayer - When true, append `translateZ(0)` for a GPU compositor layer.
- * @returns The CSS `transform` value for the indicator line.
+ * @returns The CSS `transform` value for the full-size rotor.
  */
-function knobIndicatorTransform(angleDeg: number, gpuLayer = false): string {
-  const base = `translateY(-50%) rotate(${angleDeg}deg)`;
+function knobRotorTransform(angleDeg: number, gpuLayer = false): string {
+  const base = `rotate(${angleDeg}deg)`;
   return gpuLayer ? `${base} translateZ(0)` : base;
 }
 
 /** Props for {@link KnobDial}. */
 interface KnobDialProps extends React.HTMLAttributes<HTMLSpanElement> {
-  /** Indicator line angle in degrees ({@link knobIndicatorTransform}). */
+  /** Indicator line angle in degrees ({@link knobRotorTransform}). */
   indicatorAngleDeg: number;
   /**
-   * When true, the indicator gets a GPU compositor layer (`translateZ(0)`) so it
-   * composites cheaply while it eases between angles. The static decorative dial
-   * leaves it false, keeping its transform byte-identical to the accepted optic.
+   * When true, the full-size rotor gets a GPU compositor layer (`translateZ(0)`)
+   * so Safari does not re-rasterize the thin indicator while it moves.
    */
   gpuLayer?: boolean;
   /**
@@ -95,16 +91,22 @@ export function KnobDial({ indicatorAngleDeg, gpuLayer = false, animated = false
         style={BRUSHED_METAL_REFLECTION_STYLE}
       />
       <span
-        className="absolute left-1/2 top-1/2 h-0.5 w-[38%] rounded-full"
-        data-turntable-speed-indicator="true"
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        data-turntable-speed-rotor="true"
         style={{
-          ...SPEED_MARK_BASE_STYLE,
-          transform: knobIndicatorTransform(indicatorAngleDeg, gpuLayer),
-          // Animate only when the hub asks for it (play/pause glide); the static
-          // deck keeps the indicator fixed.
+          backfaceVisibility: gpuLayer ? "hidden" : undefined,
+          WebkitBackfaceVisibility: gpuLayer ? "hidden" : undefined,
+          transform: knobRotorTransform(indicatorAngleDeg, gpuLayer),
           transition: animated ? KNOB_ROTATION_TRANSITION : "none",
         }}
-      />
+      >
+        <span
+          className="absolute left-1/2 top-1/2 h-0.5 w-[38%] rounded-full"
+          data-turntable-speed-indicator="true"
+          style={{ ...SPEED_MARK_BASE_STYLE, transform: "translateY(-50%)", transition: "none" }}
+        />
+      </span>
     </span>
   );
 }

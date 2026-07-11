@@ -13,6 +13,72 @@ export interface TrackVinylLayoutRepository {
 }
 
 /**
+ * Reads a previously checked Discogs layout by artist-qualified album identity.
+ * It never creates an album, calls Discogs, or changes cache state, so it is safe
+ * for persistent share-page reads.
+ */
+export async function readCachedAlbumVinylLayout(
+  repo: TrackVinylLayoutRepository,
+  album: { artists: string[]; title: string },
+): Promise<VinylLayout | null> {
+  const identityKey = createAlbumIdentityKey(album);
+  if (!identityKey) return null;
+
+  try {
+    const cached = await repo.findAlbumByVinylLayoutIdentity(identityKey);
+    if (!cached) return null;
+    return (await repo.readAlbumVinylLayout(cached.albumId)) ?? null;
+  } catch (error) {
+    log.debug("Resolve", "Cached vinyl-layout read failed:", error instanceof Error ? error.message : String(error));
+    return null;
+  }
+}
+
+/**
+ * Forces a fresh Discogs lookup for an artist-qualified album identity while
+ * retaining the previous cached layout when the refresh fails transiently.
+ */
+export async function refreshAlbumVinylLayout(
+  repo: TrackVinylLayoutRepository,
+  album: { artists: string[]; title: string },
+): Promise<VinylLayout | null> {
+  const identityKey = createAlbumIdentityKey(album);
+  if (!identityKey) return null;
+
+  let albumId: string | undefined;
+  let placeholderId: string | undefined;
+  let cachedLayout: VinylLayout | null | undefined;
+  try {
+    const cached = await repo.findAlbumByVinylLayoutIdentity(identityKey);
+    albumId = cached?.albumId;
+    if (!albumId) {
+      placeholderId = await repo.createAlbumVinylLayoutPlaceholder(album.title);
+      albumId = await repo.ensureAlbumVinylLayoutIdentity(identityKey, placeholderId);
+      if (albumId !== placeholderId) await repo.deleteAlbumVinylLayoutPlaceholder(placeholderId);
+    }
+
+    cachedLayout = await repo.readAlbumVinylLayout(albumId);
+    await repo.enrichAlbumVinylLayout({ id: albumId, title: album.title, artists: album.artists });
+    const refreshedLayout = await repo.readAlbumVinylLayout(albumId);
+    return refreshedLayout === undefined ? (cachedLayout ?? null) : refreshedLayout;
+  } catch (error) {
+    if (typeof placeholderId !== "undefined" && albumId !== placeholderId) {
+      try {
+        await repo.deleteAlbumVinylLayoutPlaceholder(placeholderId);
+      } catch (cleanupError) {
+        log.debug(
+          "Resolve",
+          "Vinyl-layout refresh placeholder cleanup failed:",
+          cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+        );
+      }
+    }
+    log.debug("Resolve", "Vinyl-layout refresh failed:", error instanceof Error ? error.message : String(error));
+    return cachedLayout ?? null;
+  }
+}
+
+/**
  * Gets the Discogs layout belonging to a resolved track's album. The primary
  * artist is part of the cache identity, making a title-only cross-artist match
  * impossible. Every failure remains non-fatal for the track resolve.
@@ -23,7 +89,18 @@ export async function resolveTrackVinylLayout(
 ): Promise<VinylLayout | null> {
   if (!track.albumName) return null;
 
-  const identityKey = createAlbumIdentityKey({ artists: track.artists, title: track.albumName });
+  return resolveAlbumVinylLayout(repo, { artists: track.artists, title: track.albumName });
+}
+
+/**
+ * Gets the shared Discogs layout for an artist-qualified album identity. This is
+ * the common cache and enrichment path used by commercial and CC album sources.
+ */
+export async function resolveAlbumVinylLayout(
+  repo: TrackVinylLayoutRepository,
+  album: { artists: string[]; title: string },
+): Promise<VinylLayout | null> {
+  const identityKey = createAlbumIdentityKey(album);
   if (!identityKey) return null;
 
   let albumId: string | undefined;
@@ -32,7 +109,7 @@ export async function resolveTrackVinylLayout(
     const cached = await repo.findAlbumByVinylLayoutIdentity(identityKey);
     albumId = cached?.albumId;
     if (!albumId) {
-      placeholderId = await repo.createAlbumVinylLayoutPlaceholder(track.albumName);
+      placeholderId = await repo.createAlbumVinylLayoutPlaceholder(album.title);
       albumId = await repo.ensureAlbumVinylLayoutIdentity(identityKey, placeholderId);
       if (albumId !== placeholderId) await repo.deleteAlbumVinylLayoutPlaceholder(placeholderId);
     }
@@ -40,7 +117,7 @@ export async function resolveTrackVinylLayout(
     const cachedLayout = await repo.readAlbumVinylLayout(albumId);
     if (cachedLayout !== undefined) return cachedLayout;
 
-    await repo.enrichAlbumVinylLayout({ id: albumId, title: track.albumName, artists: track.artists });
+    await repo.enrichAlbumVinylLayout({ id: albumId, title: album.title, artists: album.artists });
     return (await repo.readAlbumVinylLayout(albumId)) ?? null;
   } catch (error) {
     // A failed identity claim can only leave behind the freshly-created,

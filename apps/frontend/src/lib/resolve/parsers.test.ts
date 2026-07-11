@@ -1,8 +1,15 @@
-import type { VinylLayout } from "@musiccloud/shared";
+import type { ArtistInfoResponse, VinylLayout } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
 import { buildShareViewFromSharePageResponse } from "@/lib/share/share-view";
 import { ActiveResultKind, type AlbumResult, type SongResult } from "@/lib/types/app";
-import { buildActiveConfig, buildShareConfigFromActive, parseUnifiedResolveResponse } from "./parsers";
+import {
+  buildActiveConfig,
+  buildShareConfigFromActive,
+  ccResolveDataToResult,
+  ccResponseToResult,
+  ccResultToShareProps,
+  parseUnifiedResolveResponse,
+} from "./parsers";
 
 const t = (key: string, vars?: Record<string, string>) => (vars?.count ? `${key}:${vars.count}` : key);
 
@@ -16,7 +23,82 @@ const VINYL_LAYOUT: VinylLayout = {
   ],
 };
 
+const CC_ARTIST_INFO: ArtistInfoResponse = {
+  artistName: "Jimmy Smith",
+  topTracks: [],
+  profile: null,
+  events: [],
+};
+
 describe("media-card LP label fields", () => {
+  it("preserves CC track and album layouts from live resolves through the turntable config", () => {
+    const track = ccResolveDataToResult({
+      type: "cc-track",
+      id: "cc-track-id",
+      shortUrl: "https://musiccloud.local/cc-track",
+      track: {
+        jamendoId: "track-1",
+        title: "The Sermon!",
+        artistName: "Jimmy Smith",
+        jamendoArtistId: "artist-1",
+        albumName: "The Sermon!",
+        streamUrl: "https://cdn.example/track.mp3",
+        downloadAllowed: false,
+        vinylLayout: VINYL_LAYOUT,
+      },
+    });
+    const album = ccResolveDataToResult({
+      type: "cc-album",
+      id: "cc-album-id",
+      shortUrl: "https://musiccloud.local/cc-album",
+      album: {
+        jamendoId: "album-1",
+        name: "The Sermon!",
+        artistName: "Jimmy Smith",
+        tracks: [],
+        vinylLayout: VINYL_LAYOUT,
+      },
+      artistInfo: CC_ARTIST_INFO,
+    });
+
+    expect(ccResultToShareProps(track, t).config.vinylLayout).toEqual(VINYL_LAYOUT);
+    expect(ccResultToShareProps(album, t).config.vinylLayout).toEqual(VINYL_LAYOUT);
+  });
+
+  it("preserves cached CC track and album layouts through the persistent share parser", () => {
+    const track = ccResponseToResult({
+      type: "cc-track",
+      og: { title: "", description: "", url: "https://musiccloud.local/cc-track" },
+      shortUrl: "https://musiccloud.local/cc-track",
+      track: {
+        jamendoId: "track-1",
+        title: "The Sermon!",
+        artistName: "Jimmy Smith",
+        jamendoArtistId: "artist-1",
+        albumName: "The Sermon!",
+        streamUrl: "https://cdn.example/track.mp3",
+        downloadAllowed: false,
+        vinylLayout: VINYL_LAYOUT,
+      },
+    });
+    const album = ccResponseToResult({
+      type: "cc-album",
+      og: { title: "", description: "", url: "https://musiccloud.local/cc-album" },
+      shortUrl: "https://musiccloud.local/cc-album",
+      album: {
+        jamendoId: "album-1",
+        name: "The Sermon!",
+        artistName: "Jimmy Smith",
+        tracks: [],
+        vinylLayout: VINYL_LAYOUT,
+      },
+      artistInfo: CC_ARTIST_INFO,
+    });
+
+    expect(ccResultToShareProps(track, t).config.vinylLayout).toEqual(VINYL_LAYOUT);
+    expect(ccResultToShareProps(album, t).config.vinylLayout).toEqual(VINYL_LAYOUT);
+  });
+
   it("preserves a resolve vinyl layout from track and album payloads through the view model", () => {
     const track = parseUnifiedResolveResponse({
       type: "track",

@@ -14,8 +14,9 @@
  * artist profile) is the only Jamendo touch: cc-track loads it client-side via
  * `/api/cc/artist-info`; cc-album/cc-artist build it from the DB tracks via
  * `buildCc{Album,Artist}Payload`, whose enrichment calls are fault-tolerant (see
- * `buildCcArtistInfo`) so they never fail the share. The share route caches the
- * response for an hour.
+ * `buildCcArtistInfo`) so they never fail the share. CC track and album opens
+ * temporarily force a fresh Discogs vinyl-layout lookup; failures remain
+ * non-fatal and fall back to the prior persisted layout.
  */
 import type {
   CcAlbumSharePageResponse,
@@ -23,7 +24,7 @@ import type {
   CcTrackSharePageResponse,
   OgMeta,
 } from "@musiccloud/shared";
-import { getCcRepository } from "../../db/index.js";
+import { getCcRepository, getRepository } from "../../db/index.js";
 import {
   buildCcAlbumPayload,
   buildCcArtistPayload,
@@ -32,6 +33,7 @@ import {
   mapDbRowToCcTrack,
   toApiCcTrack,
 } from "../../services/cc/cc-share-response.js";
+import { refreshAlbumVinylLayout } from "../../services/track-vinyl-layout.js";
 import { generateAlbumOGMeta, generateOGMeta, type OGMeta } from "./og.js";
 
 const DEFAULT_ORIGIN = "https://musiccloud.io";
@@ -75,6 +77,12 @@ export async function loadCcByShortId(shortId: string, origin?: string): Promise
       const row = await repo.loadCcTrackByShortId(shortId);
       if (!row) return null;
       const track = mapDbRowToCcTrack(row);
+      const vinylLayout = track.albumName
+        ? await refreshAlbumVinylLayout(await getRepository(), {
+            artists: [track.artistName],
+            title: track.albumName,
+          })
+        : null;
       // Core card only — the artist column loads client-side via /api/cc/artist-info.
       const og = toWireOg(
         generateOGMeta({
@@ -87,7 +95,7 @@ export async function loadCcByShortId(shortId: string, origin?: string): Promise
           origin,
         }),
       );
-      return { type: "cc-track", og, shortUrl, track: toApiCcTrack(track) };
+      return { type: "cc-track", og, shortUrl, track: { ...toApiCcTrack(track), vinylLayout } };
     }
     case "cc-album": {
       const data = await repo.loadCcAlbumByShortId(shortId);
@@ -95,6 +103,10 @@ export async function loadCcByShortId(shortId: string, origin?: string): Promise
       const album = mapDbRowToCcAlbum(data.album);
       const tracks = data.tracks.map(mapDbRowToCcTrack);
       const { album: apiAlbum, artistInfo } = await buildCcAlbumPayload(album, tracks);
+      const vinylLayout = await refreshAlbumVinylLayout(await getRepository(), {
+        artists: [album.artistName],
+        title: album.name,
+      });
       const og = toWireOg(
         generateAlbumOGMeta({
           title: album.name,
@@ -107,7 +119,7 @@ export async function loadCcByShortId(shortId: string, origin?: string): Promise
           origin,
         }),
       );
-      return { type: "cc-album", og, shortUrl, album: apiAlbum, artistInfo };
+      return { type: "cc-album", og, shortUrl, album: { ...apiAlbum, vinylLayout }, artistInfo };
     }
     case "cc-artist": {
       const data = await repo.loadCcArtistByShortId(shortId);

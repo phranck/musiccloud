@@ -69,6 +69,7 @@
   "share.copied": "Kopiert!",
   "share.copyError": "Kopieren fehlgeschlagen",
   "share.nativeShare": "\"{title}\" teilen",
+  "share.toggleMediaView": "Cover- und Plattenspieleransicht wechseln",
   "error.dialogTitle": "Problem bei der Suche",
   "error.dismiss": "OK",
   "error.offline": "Du scheinst offline zu sein. Überprüfe deine Verbindung und versuche es erneut.",

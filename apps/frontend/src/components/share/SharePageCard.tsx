@@ -22,6 +22,8 @@ export type { AudioStatus } from "@/components/cards/MediaCard";
 interface SharePageCardProps {
   config: MediaCardContentConfiguration;
   animated?: boolean;
+  mediaViewToggleLabel?: string;
+  onMediaViewToggle?: () => void;
   onPreviewStatusChange?: (status: AudioStatus | null) => void;
   previewStatus?: AudioStatus | null;
   shareMediaView?: ShareMediaView;
@@ -30,6 +32,8 @@ interface SharePageCardProps {
 export function SharePageCard({
   config,
   animated = false,
+  mediaViewToggleLabel,
+  onMediaViewToggle,
   onPreviewStatusChange,
   previewStatus,
   shareMediaView,
@@ -43,6 +47,8 @@ export function SharePageCard({
     <MediaCard
       content={{ ...config, platformsLabel }}
       animated={animated}
+      mediaViewToggleLabel={mediaViewToggleLabel}
+      onMediaViewToggle={onMediaViewToggle}
       onPreviewStatusChange={onPreviewStatusChange}
       previewStatus={previewStatus}
       shareMediaView={shareMediaView}

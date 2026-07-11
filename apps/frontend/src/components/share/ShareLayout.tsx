@@ -176,6 +176,7 @@ export type { ArtistInfoContext };
 
 const SHARE_MEDIA_VIEW_TOGGLE_KEY = "p";
 const SHARE_MEDIA_VIEW_STORAGE_KEY = "musiccloud:share-media-view";
+const SHARE_MEDIA_VIEW_TOGGLE_SELECTOR = "[data-media-view-toggle='true']";
 const SHARE_MEDIA_TOGGLE_TARGET_SELECTOR =
   "input, textarea, select, button, a[href], [contenteditable='true'], [contenteditable='']";
 
@@ -221,7 +222,9 @@ function nextShareMediaView(view: ShareMediaViewType): ShareMediaViewType {
 }
 
 function isShareMediaToggleTarget(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && Boolean(target.closest(SHARE_MEDIA_TOGGLE_TARGET_SELECTOR));
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.closest(SHARE_MEDIA_VIEW_TOGGLE_SELECTOR)) return false;
+  return Boolean(target.closest(SHARE_MEDIA_TOGGLE_TARGET_SELECTOR));
 }
 
 function shouldIgnoreShareMediaViewToggle(event: KeyboardEvent): boolean {
@@ -595,6 +598,7 @@ function ShareLayoutInner({
     dispatchUi({ type: ShareUiActionType.OpenSheet });
   }, []);
   const closeSheet = useCallback(() => dispatchUi({ type: ShareUiActionType.CloseSheet }), []);
+  const toggleMediaView = useCallback(() => dispatchUi({ type: ShareUiActionType.MediaViewToggled }), []);
   const handlePreviewStatusChange = useCallback(
     (status: AudioStatus | null) => dispatchUi({ type: ShareUiActionType.PreviewStatusChanged, status }),
     [],
@@ -634,7 +638,9 @@ function ShareLayoutInner({
           config={enrichedConfig}
           isLoading={isLoading}
           labels={artistLabels}
+          mediaViewToggleLabel={t("share.toggleMediaView")}
           onArtistResolveStart={handleArtistResolveStart}
+          onMediaViewToggle={toggleMediaView}
           onPreviewStatusChange={handlePreviewStatusChange}
           onTrackResolve={resolveTrack}
           previewStatus={previewStatus}
@@ -647,6 +653,8 @@ function ShareLayoutInner({
           animated={animated}
           config={enrichedConfig}
           label={t("artist.mobileButton")}
+          mediaViewToggleLabel={t("share.toggleMediaView")}
+          onMediaViewToggle={toggleMediaView}
           onOpenSheet={openSheet}
           onPreviewStatusChange={handlePreviewStatusChange}
           previewStatus={previewStatus}

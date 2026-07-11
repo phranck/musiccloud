@@ -1,4 +1,4 @@
-import type { ArtistInfoResponse } from "@musiccloud/shared";
+import type { ArtistInfoResponse, VinylLayout } from "@musiccloud/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // The loader reads every CC entity straight from the DB (no live Jamendo on the
@@ -8,9 +8,14 @@ const findCcShortId = vi.fn();
 const loadCcTrackByShortId = vi.fn();
 const loadCcAlbumByShortId = vi.fn();
 const loadCcArtistByShortId = vi.fn();
+const commercialRepository = { kind: "commercial" };
 vi.mock("../../../db/index.js", () => ({
   getCcRepository: async () => ({ findCcShortId, loadCcTrackByShortId, loadCcAlbumByShortId, loadCcArtistByShortId }),
+  getRepository: async () => commercialRepository,
 }));
+
+const refreshAlbumVinylLayout = vi.fn();
+vi.mock("../../../services/track-vinyl-layout.js", () => ({ refreshAlbumVinylLayout }));
 
 const buildCcAlbumPayload = vi.fn();
 const buildCcArtistPayload = vi.fn();
@@ -38,6 +43,11 @@ const ARTIST_INFO: ArtistInfoResponse = {
   events: [],
 };
 
+const VINYL_LAYOUT: VinylLayout = {
+  discogsReleaseId: "10013707",
+  sides: [{ label: "A", tracks: [{ position: "A1", title: "Moments", durationMs: 240_000 }] }],
+};
+
 describe("loadCcByShortId", () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -49,16 +59,31 @@ describe("loadCcByShortId", () => {
 
   it("shapes a cc-track core response from the DB row (artist column loads async)", async () => {
     findCcShortId.mockResolvedValue({ kind: "cc-track", jamendoId: "j1" });
-    loadCcTrackByShortId.mockResolvedValue({ jamendoId: "j1", title: "Moments", artistName: "Madpix" });
+    loadCcTrackByShortId.mockResolvedValue({
+      jamendoId: "j1",
+      title: "Moments",
+      artistName: "Madpix",
+      albumName: "Changes",
+    });
+    refreshAlbumVinylLayout.mockResolvedValue(VINYL_LAYOUT);
 
     const res = await loadCcByShortId("V0onz", "https://musiccloud.io");
 
     expect(loadCcTrackByShortId).toHaveBeenCalledWith("V0onz");
-    expect(toApiCcTrack).toHaveBeenCalledWith({ jamendoId: "j1", title: "Moments", artistName: "Madpix" });
+    expect(toApiCcTrack).toHaveBeenCalledWith({
+      jamendoId: "j1",
+      title: "Moments",
+      artistName: "Madpix",
+      albumName: "Changes",
+    });
+    expect(refreshAlbumVinylLayout).toHaveBeenCalledWith(commercialRepository, {
+      artists: ["Madpix"],
+      title: "Changes",
+    });
     expect(res).toMatchObject({
       type: "cc-track",
       shortUrl: "https://musiccloud.io/V0onz",
-      track: { title: "Moments" },
+      track: { title: "Moments", vinylLayout: VINYL_LAYOUT },
     });
     expect(res?.og.title).toBe("Moments - Madpix");
     expect(res?.og.url).toBe("https://musiccloud.io/V0onz");
@@ -82,6 +107,7 @@ describe("loadCcByShortId", () => {
       tracks: [{ jamendoId: "t1" }, { jamendoId: "t2" }],
     });
     buildCcAlbumPayload.mockResolvedValue({ album: { name: "Suite", tracks: [{}, {}] }, artistInfo: ARTIST_INFO });
+    refreshAlbumVinylLayout.mockResolvedValue(VINYL_LAYOUT);
 
     const res = await loadCcByShortId("8oTIg", "https://musiccloud.io");
 
@@ -90,7 +116,11 @@ describe("loadCcByShortId", () => {
       { jamendoId: "t1" },
       { jamendoId: "t2" },
     ]);
-    expect(res).toMatchObject({ type: "cc-album", album: { name: "Suite" } });
+    expect(refreshAlbumVinylLayout).toHaveBeenCalledWith(commercialRepository, {
+      artists: ["Olepash"],
+      title: "Suite",
+    });
+    expect(res).toMatchObject({ type: "cc-album", album: { name: "Suite", vinylLayout: VINYL_LAYOUT } });
   });
 
   it("returns null when the cc-album row is gone", async () => {
@@ -117,6 +147,7 @@ describe("loadCcByShortId", () => {
     expect(buildCcArtistPayload).toHaveBeenCalledWith({ jamendoId: "ar1", name: "pinegroove" }, [{ jamendoId: "t1" }]);
     expect(res).toMatchObject({ type: "cc-artist", artist: { name: "pinegroove" } });
     expect(res?.og.title).toBe("pinegroove - musiccloud");
+    expect(refreshAlbumVinylLayout).not.toHaveBeenCalled();
   });
 
   it("returns null when the cc-artist row is gone", async () => {

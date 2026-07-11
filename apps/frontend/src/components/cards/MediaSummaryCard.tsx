@@ -7,6 +7,8 @@ interface MediaSummaryCardProps {
   content: MediaCardContentConfiguration;
   className?: string;
   animated?: boolean;
+  mediaViewToggleLabel?: string;
+  onMediaViewToggle?: () => void;
   onPreviewStatusChange?: (status: AudioStatus | null) => void;
   previewStatus?: AudioStatus | null;
   shareMediaView?: ShareMediaView;
@@ -22,6 +24,8 @@ export function MediaSummaryCard({
   content,
   className,
   animated = false,
+  mediaViewToggleLabel,
+  onMediaViewToggle,
   onPreviewStatusChange,
   previewStatus,
   shareMediaView,
@@ -31,6 +35,8 @@ export function MediaSummaryCard({
       content={content}
       animated={animated}
       className={className}
+      mediaViewToggleLabel={mediaViewToggleLabel}
+      onMediaViewToggle={onMediaViewToggle}
       onPreviewStatusChange={onPreviewStatusChange}
       previewStatus={previewStatus}
       shareMediaView={shareMediaView}

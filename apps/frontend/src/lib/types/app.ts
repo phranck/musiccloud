@@ -191,6 +191,8 @@ export interface CcTrackResult {
   durationMs?: number;
   /** URL of the track's cover art (always present — falls back to a placeholder). */
   artworkUrl: string;
+  /** Discogs-derived vinyl timing data for this track's containing album. */
+  vinylLayout?: VinylLayout;
   /** Direct MP3 stream URL for the full track (Jamendo's `audio` field). */
   streamUrl: string;
   /** Canonical URL of the CC licence deed (e.g. `https://creativecommons.org/licenses/by/4.0/`), if available. */
@@ -234,6 +236,8 @@ export interface CcAlbumResult {
   artist: string;
   releaseDate?: string;
   artworkUrl: string;
+  /** Discogs-derived vinyl timing data for this album. */
+  vinylLayout?: VinylLayout;
   jamendoUrl?: string;
   shareUrl: string;
   /** Right-column data (the album's tracks + similar tracks) for the shared artist column. */

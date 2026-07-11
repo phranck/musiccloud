@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { SongInfo } from "@/components/cards/SongInfo";
 import { ShareMediaView } from "@/components/share/ShareMediaView.types";
 import { Turntable } from "@/components/vinyl/Turntable";
@@ -32,6 +32,27 @@ function turntableStageNode(spinState: VinylSpinState) {
 }
 
 describe("SongInfo media stage", () => {
+  it("exposes the share media surface as a native button toggle", () => {
+    const onMediaViewToggle = vi.fn();
+    render(
+      <SongInfo
+        title="Blue Train"
+        artist="John Coltrane"
+        albumArtUrl="/covers/blue-train.jpg"
+        mediaViewToggleLabel="Toggle cover and turntable view"
+        onMediaViewToggle={onMediaViewToggle}
+        shareMediaView={ShareMediaView.Cover}
+        turntableStage={turntableStageNode(VinylSpinState.Idle)}
+      />,
+    );
+
+    const surface = screen.getByRole("button", { name: "Toggle cover and turntable view" });
+    expect(surface.tagName).toBe("BUTTON");
+    fireEvent.click(surface);
+
+    expect(onMediaViewToggle).toHaveBeenCalledOnce();
+  });
+
   it("slides from cover stage to turntable stage and shows the supplied turntable deck", () => {
     const { container, rerender } = render(
       <SongInfo

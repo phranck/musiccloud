@@ -307,10 +307,9 @@ describe("TurntablePlayer compound", () => {
       </StubHubProvider>,
     );
 
-    // Playing: the indicator points at the 33 caption (210deg) on a GPU layer.
-    expect(container.querySelector("[data-turntable-speed-indicator='true']")).toHaveStyle({
-      transform: "translateY(-50%) rotate(210deg) translateZ(0)",
-      transformOrigin: "0% 50%",
+    // Playing: the stable rotor points the indicator at the 33 caption (210deg).
+    expect(container.querySelector("[data-turntable-speed-rotor='true']")).toHaveStyle({
+      transform: "rotate(210deg) translateZ(0)",
     });
 
     rerender(
@@ -319,9 +318,9 @@ describe("TurntablePlayer compound", () => {
       </StubHubProvider>,
     );
 
-    // Stopped: the indicator rests at the STANDBY caption (150deg).
-    expect(container.querySelector("[data-turntable-speed-indicator='true']")).toHaveStyle({
-      transform: "translateY(-50%) rotate(150deg) translateZ(0)",
+    // Stopped: the rotor rests at the STANDBY caption (150deg).
+    expect(container.querySelector("[data-turntable-speed-rotor='true']")).toHaveStyle({
+      transform: "rotate(150deg) translateZ(0)",
     });
   });
 
@@ -332,8 +331,26 @@ describe("TurntablePlayer compound", () => {
       </StubHubProvider>,
     );
 
-    expect(container.querySelector("[data-turntable-speed-indicator='true']")).toHaveStyle({
+    expect(container.querySelector("[data-turntable-speed-rotor='true']")).toHaveStyle({
       transition: "transform 480ms cubic-bezier(0.22, 0.61, 0.36, 1)",
+    });
+  });
+
+  it("rotates a stable full-size carrier instead of rasterizing the thin indicator", () => {
+    const { container } = render(
+      <StubHubProvider speed={TurntableSpeed.Rpm33} spinState={VinylSpinState.Playing}>
+        <TurntablePlayer.Control />
+      </StubHubProvider>,
+    );
+
+    expect(container.querySelector("[data-turntable-speed-rotor='true']")).toHaveStyle({
+      backfaceVisibility: "hidden",
+      transform: "rotate(210deg) translateZ(0)",
+      transition: "transform 480ms cubic-bezier(0.22, 0.61, 0.36, 1)",
+    });
+    expect(container.querySelector("[data-turntable-speed-indicator='true']")).toHaveStyle({
+      transform: "translateY(-50%)",
+      transition: "none",
     });
   });
 
@@ -412,8 +429,8 @@ describe("TurntablePlayer compound", () => {
 
     expect(container.querySelector("[data-turntable-speed-knob='true']")).toBeInTheDocument();
     // Control.Knob is the static decorative knob: plain transform, no GPU layer hint.
-    expect(container.querySelector("[data-turntable-speed-indicator='true']")).toHaveStyle({
-      transform: "translateY(-50%) rotate(210deg)",
+    expect(container.querySelector("[data-turntable-speed-rotor='true']")).toHaveStyle({
+      transform: "rotate(210deg)",
     });
     expect(screen.getByText("33")).toBeInTheDocument();
     expect(screen.getByText("STANDBY")).toBeInTheDocument();
@@ -453,10 +470,10 @@ function knob(container: HTMLElement): HTMLElement {
   return node;
 }
 
-/** The knob's indicator line, whose transform reflects the active angle. */
-function indicator(container: HTMLElement): HTMLElement {
-  const node = container.querySelector<HTMLElement>("[data-turntable-speed-indicator='true']");
-  if (!node) throw new Error("indicator not found");
+/** The stable knob rotor whose transform reflects the active angle. */
+function rotor(container: HTMLElement): HTMLElement {
+  const node = container.querySelector<HTMLElement>("[data-turntable-speed-rotor='true']");
+  if (!node) throw new Error("rotor not found");
   return node;
 }
 
@@ -491,7 +508,7 @@ describe("TurntablePlayer deck reflects playback (display only)", () => {
     expect(dial).not.toHaveAttribute("tabindex");
     expect(dial).toHaveAttribute("aria-hidden", "true");
     // At rest the indicator points at the Standby caption angle.
-    expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(150deg) translateZ(0)" });
+    expect(rotor(container)).toHaveStyle({ transform: "rotate(150deg) translateZ(0)" });
     expect(ledPower(container)).toBe(TurntablePower.Standby);
   });
 
@@ -502,7 +519,7 @@ describe("TurntablePlayer deck reflects playback (display only)", () => {
     await act(async () => {});
 
     expect(playedAudioElements.length).toBe(1);
-    expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(210deg) translateZ(0)" });
+    expect(rotor(container)).toHaveStyle({ transform: "rotate(210deg) translateZ(0)" });
     expect(ledPower(container)).toBe(TurntablePower.On);
   });
 
@@ -517,7 +534,7 @@ describe("TurntablePlayer deck reflects playback (display only)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Pause preview" }));
     await act(async () => {});
 
-    expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(150deg) translateZ(0)" });
+    expect(rotor(container)).toHaveStyle({ transform: "rotate(150deg) translateZ(0)" });
     expect(ledPower(container)).toBe(TurntablePower.Standby);
   });
 });

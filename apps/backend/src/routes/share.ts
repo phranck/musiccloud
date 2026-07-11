@@ -51,7 +51,7 @@ import { toCachedApiLinks } from "../lib/server/api-links.js";
 import { loadCcByShortId } from "../lib/server/cc-share-page.js";
 import { loadAlbumByShortId, loadArtistByShortId, loadByShortId } from "../lib/server/share-page.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
-import { createAlbumIdentityKey } from "../services/album-identity.js";
+import { readCachedAlbumVinylLayout } from "../services/track-vinyl-layout.js";
 
 export default async function shareRoutes(app: FastifyInstance) {
   app.get<{ Params: { shortId: string } }>(
@@ -131,12 +131,10 @@ export default async function shareRoutes(app: FastifyInstance) {
         const albumName = trackData.track.albumName ?? undefined;
         if (albumName) {
           try {
-            const identityKey = createAlbumIdentityKey({ artists: trackData.artists, title: albumName });
-            if (identityKey) {
-              const repo = await getRepository();
-              const cached = await repo.findAlbumByVinylLayoutIdentity(identityKey);
-              if (cached) vinylLayout = (await repo.readAlbumVinylLayout(cached.albumId)) ?? null;
-            }
+            vinylLayout = await readCachedAlbumVinylLayout(await getRepository(), {
+              artists: trackData.artists,
+              title: albumName,
+            });
           } catch {
             // Layout metadata is optional enhancement for an otherwise valid share page.
           }
@@ -223,9 +221,11 @@ export default async function shareRoutes(app: FastifyInstance) {
       }
 
       // CC entities carry no cross-service links; the loader already shapes the
-      // full cc-* SharePageResponse, so it is sent verbatim.
+      // full cc-* SharePageResponse, so it is sent verbatim. Disable client-side
+      // caching only while CC track and album opens intentionally refresh Discogs.
       if (ccData) {
-        reply.header("Cache-Control", "private, max-age=3600");
+        const refreshesDiscogs = ccData.type === "cc-track" || ccData.type === "cc-album";
+        reply.header("Cache-Control", refreshesDiscogs ? "no-store" : "private, max-age=3600");
         return reply.send(ccData);
       }
 

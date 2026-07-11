@@ -19,7 +19,7 @@ import type {
 } from "@musiccloud/shared";
 import { ENDPOINTS, formatUserMessage, getErrorEntry } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
-import { getCcRepository } from "../db/index.js";
+import { getCcRepository, getRepository } from "../db/index.js";
 import { requireEnvList } from "../lib/env.js";
 import { log } from "../lib/infra/logger.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
@@ -34,6 +34,7 @@ import {
 } from "../services/cc/cc-share-response.js";
 import type { CcAlbum, CcArtist, CcTrack } from "../services/cc/jamendo/types.js";
 import { GenreQueryParseError, isGenreBrowseQuery, isGenreSearchQuery } from "../services/genre-search/index.js";
+import { resolveAlbumVinylLayout, resolveTrackVinylLayout } from "../services/track-vinyl-layout.js";
 
 const ALLOWED_ORIGINS = requireEnvList("ALLOWED_ORIGINS");
 
@@ -181,9 +182,18 @@ function ccError(code: string, overrideMessage?: string): ResolveErrorResponse {
 async function persistCcTrackAndRespond(track: CcTrack, origin: string): Promise<CcResolveSuccessResponse> {
   const repo = await getCcRepository();
   const { ccTrackId, shortId } = await repo.persistCcTrack(ccTrackToPersistData(track));
+  const vinylLayout = await resolveTrackVinylLayout(await getRepository(), {
+    artists: [track.artistName],
+    albumName: track.albumName,
+  });
 
   // Core card only — the artist column loads client-side via /api/cc/artist-info.
-  return { type: "cc-track", id: ccTrackId, shortUrl: `${origin}/${shortId}`, track: toApiCcTrack(track) };
+  return {
+    type: "cc-track",
+    id: ccTrackId,
+    shortUrl: `${origin}/${shortId}`,
+    track: { ...toApiCcTrack(track), vinylLayout },
+  };
 }
 
 /**
@@ -216,7 +226,17 @@ async function persistCcAlbumAndRespond(
   });
 
   const { album: apiAlbum, artistInfo } = await buildCcAlbumPayload(album, tracks);
-  return { type: "cc-album", id: ccAlbumId, shortUrl: `${origin}/${shortId}`, album: apiAlbum, artistInfo };
+  const vinylLayout = await resolveAlbumVinylLayout(await getRepository(), {
+    artists: [album.artistName],
+    title: album.name,
+  });
+  return {
+    type: "cc-album",
+    id: ccAlbumId,
+    shortUrl: `${origin}/${shortId}`,
+    album: { ...apiAlbum, vinylLayout },
+    artistInfo,
+  };
 }
 
 /**

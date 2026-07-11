@@ -300,7 +300,8 @@ export interface CcResolveSuccessResponse {
   type: "cc-track";
   id: string;
   shortUrl: string;
-  track: ApiCcTrack;
+  /** The resolved track plus the Discogs lookup state of its containing album. */
+  track: ApiCcTrack & { vinylLayout: VinylLayout | null };
   /**
    * Right-column data for the shared share layout, built from Jamendo: the
    * track artist's popular tracks (`topTracks`) plus similar tracks
@@ -340,7 +341,8 @@ export interface CcAlbumResolveSuccessResponse {
   type: "cc-album";
   id: string;
   shortUrl: string;
-  album: ApiCcAlbum;
+  /** The resolved album plus its Discogs vinyl lookup state. */
+  album: ApiCcAlbum & { vinylLayout: VinylLayout | null };
   /** Right-column data: the album's tracks as `topTracks` plus similar tracks. See {@link CcResolveSuccessResponse.artistInfo}. */
   artistInfo: ArtistInfoResponse;
 }
@@ -451,7 +453,8 @@ export interface CcTrackSharePageResponse {
   type: "cc-track";
   og: OgMeta;
   shortUrl: string;
-  track: ApiCcTrack;
+  /** The persisted track plus the cached Discogs layout of its containing album. */
+  track: ApiCcTrack & { vinylLayout: VinylLayout | null };
   /** Optional: loaded client-side (async) via `/api/cc/artist-info` so the share
    *  page renders the core card immediately. */
   artistInfo?: ArtistInfoResponse;
@@ -462,7 +465,8 @@ export interface CcAlbumSharePageResponse {
   type: "cc-album";
   og: OgMeta;
   shortUrl: string;
-  album: ApiCcAlbum;
+  /** The persisted album plus its cached Discogs vinyl layout state. */
+  album: ApiCcAlbum & { vinylLayout: VinylLayout | null };
   artistInfo: ArtistInfoResponse;
 }
 

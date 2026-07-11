@@ -11,20 +11,28 @@ vi.mock("@/components/cards/SongInfo", () => ({
     previewStatus,
     statusLine,
     title,
+    mediaViewToggleLabel,
+    onMediaViewToggle,
   }: {
     shareMediaView?: string;
     previewStatus?: string | null;
     statusLine?: string;
     title: string;
+    mediaViewToggleLabel?: string;
+    onMediaViewToggle?: () => void;
   }) => (
-    <div
+    <button
+      aria-label={mediaViewToggleLabel}
       data-testid="song-info-props"
+      data-media-view-toggle="true"
       data-media-view={shareMediaView}
       data-preview-status={previewStatus ?? "none"}
       data-status-line={statusLine ?? ""}
+      onClick={onMediaViewToggle}
+      type="button"
     >
       {title}
-    </div>
+    </button>
   ),
 }));
 
@@ -173,6 +181,27 @@ describe("ShareLayout media view toggle", () => {
 
     fireEvent.keyDown(window, { key: "P" });
     expectMediaView("cover");
+  });
+
+  it("toggles the active media view when the visible cover or turntable surface is clicked", () => {
+    renderShareLayout();
+
+    expectMediaView("cover");
+    fireEvent.click(screen.getByRole("button", { name: "Toggle cover and turntable view" }));
+    expectMediaView("turntable");
+
+    fireEvent.click(screen.getByRole("button", { name: "Toggle cover and turntable view" }));
+    expectMediaView("cover");
+  });
+
+  it("keeps the P shortcut active while the clickable media surface has focus", () => {
+    renderShareLayout();
+    const surface = screen.getByRole("button", { name: "Toggle cover and turntable view" });
+    surface.focus();
+
+    fireEvent.keyDown(surface, { key: "p" });
+
+    expectMediaView("turntable");
   });
 
   it("restores and persists the selected media view", () => {

@@ -28,8 +28,12 @@ export interface DesktopShareLayoutProps {
   isLoading: boolean;
   /** Section titles for the artist column. */
   labels: ArtistCardLabels;
+  /** Accessible name for the clickable cover/turntable media surface. */
+  mediaViewToggleLabel: string;
   /** Called when a popular/similar row begins resolving (spinning-disc moment). */
   onArtistResolveStart: () => void;
+  /** Toggles between the cover and turntable media views. */
+  onMediaViewToggle: () => void;
   /** Reports the media-card preview player's status to the owner. */
   onPreviewStatusChange: (status: AudioStatus | null) => void;
   /** Resolves a clicked artist-panel track row. */
@@ -59,7 +63,9 @@ export function DesktopShareLayout({
   config,
   isLoading,
   labels,
+  mediaViewToggleLabel,
   onArtistResolveStart,
+  onMediaViewToggle,
   onPreviewStatusChange,
   onTrackResolve,
   previewStatus,
@@ -73,6 +79,8 @@ export function DesktopShareLayout({
           <MediaSummaryCard
             content={config}
             animated={animated}
+            mediaViewToggleLabel={mediaViewToggleLabel}
+            onMediaViewToggle={onMediaViewToggle}
             onPreviewStatusChange={onPreviewStatusChange}
             previewStatus={previewStatus}
             shareMediaView={shareMediaView}
