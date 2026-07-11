@@ -1,3 +1,4 @@
+import type { VinylLayout, VinylSide } from "@musiccloud/shared";
 import { type ReactNode, useEffect, useEffectEvent, useRef, useState } from "react";
 import { VinylRecord, type VinylRecordProps } from "@/components/vinyl/VinylRecord";
 import { VinylSpinState, type VinylSpinState as VinylSpinStateValue } from "@/components/vinyl/VinylRecord.types";
@@ -5,8 +6,17 @@ import { buildRecordSwapTimeline, type RecordSwapHandle } from "@/lib/motion/rec
 import { prefersReducedMotion } from "@/lib/motion/setup";
 import { cn } from "@/lib/utils";
 
-/** The vinyl-label fields of a record (no spin state, no class — the stage owns those). */
-export type RecordLabel = Omit<VinylRecordProps, "spinState" | "className">;
+/**
+ * The vinyl-label fields of a record (no spin state, class or resolved side).
+ *
+ * The whole persisted layout remains attached to the record through the
+ * turntable compound. The hub resolves its current side from the live track
+ * title immediately before rendering the presentational {@link VinylRecord}.
+ */
+export type RecordLabel = Omit<VinylRecordProps, "spinState" | "className" | "sideLayout"> & {
+  /** Persisted Discogs layout for the inserted record, if one is available. */
+  vinylLayout?: VinylLayout | null;
+};
 
 /**
  * The stage's swap phases.
@@ -31,6 +41,8 @@ type SwapPhaseValue = (typeof SwapPhase)[keyof typeof SwapPhase];
 interface RecordSwapStageProps {
   /** The current record's vinyl-label fields (cover art, title, catalog, ...). */
   record: RecordLabel;
+  /** Resolved side for the live track on the inserted record. */
+  sideLayout?: VinylSide;
   /** Spin state applied to the settled record (during a swap the incoming is idle). */
   spinState: VinylSpinStateValue;
   /**
@@ -119,7 +131,15 @@ interface SwapState {
  *
  * @param props - {@link RecordSwapStageProps}.
  */
-export function RecordSwapStage({ record, spinState, swapKey, onSettled, children, className }: RecordSwapStageProps) {
+export function RecordSwapStage({
+  record,
+  sideLayout,
+  spinState,
+  swapKey,
+  onSettled,
+  children,
+  className,
+}: RecordSwapStageProps) {
   const [swap, setSwap] = useState<SwapState>({
     phase: SwapPhase.Idle,
     current: record,
@@ -270,6 +290,7 @@ export function RecordSwapStage({ record, spinState, swapKey, onSettled, childre
           <VinylRecord
             {...swap.current}
             className="h-full w-full"
+            sideLayout={sideLayout}
             spinState={sliding ? VinylSpinState.Idle : spinState}
           />
         </div>

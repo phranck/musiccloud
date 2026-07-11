@@ -1,7 +1,7 @@
 import type { VinylLayout } from "@musiccloud/shared";
 import { type CSSProperties, type ReactNode, useCallback } from "react";
 import { KnobDial } from "@/components/turntable/KnobDial";
-import { RecordSwapStage } from "@/components/turntable/RecordSwapStage";
+import { type RecordLabel, RecordSwapStage } from "@/components/turntable/RecordSwapStage";
 import {
   TurntablePower,
   type TurntablePower as TurntablePowerValue,
@@ -12,6 +12,7 @@ import {
 import { derivePower, speedKnobAngle } from "@/components/turntable/turntableState";
 import type { VinylRecordProps } from "@/components/vinyl/VinylRecord";
 import type { VinylSpinState as VinylSpinStateValue } from "@/components/vinyl/VinylRecord.types";
+import { sideForTrackTitle } from "@/lib/media/vinyl-side.js";
 import { cn } from "@/lib/utils";
 
 // Deck-chrome styles, ported verbatim from the former monolithic `Turntable`
@@ -141,7 +142,7 @@ interface TurntablePlayerLayoutLedProps {
  *
  * @param props - {@link TurntablePlayerLayoutLedProps}.
  */
-function TurntablePlayerLayoutLed({ vinylLayout }: TurntablePlayerLayoutLedProps) {
+export function TurntablePlayerLayoutLed({ vinylLayout }: TurntablePlayerLayoutLedProps) {
   const isLit = Boolean(vinylLayout);
   return (
     <span
@@ -194,7 +195,7 @@ interface TurntablePlayerPlatterProps {
  * @param props - {@link TurntablePlayerPlatterProps}.
  */
 export function TurntablePlayerPlatter({ spinState, record, swapKey, onSettled }: TurntablePlayerPlatterProps) {
-  const { className: recordClassName, ...labelRecord } = record;
+  const { className: recordClassName, sideLayout, ...labelRecord } = record;
   return (
     <>
       <span
@@ -207,6 +208,7 @@ export function TurntablePlayerPlatter({ spinState, record, swapKey, onSettled }
       <span className="absolute left-1/2 top-1/2 z-20 aspect-square w-[86%] -translate-x-1/2 -translate-y-1/2">
         <RecordSwapStage
           record={labelRecord}
+          sideLayout={sideLayout}
           spinState={spinState}
           swapKey={swapKey}
           onSettled={onSettled}
@@ -358,10 +360,13 @@ export function TurntablePlayerControl({ speed, children }: TurntablePlayerContr
   );
 }
 
+/** Record props for the hub-driven deck, including its stage-owned CSS sizing. */
+type HubRecord = RecordLabel & Pick<VinylRecordProps, "className">;
+
 /** Props for {@link HubPlatter}: the platter needs the record; spin comes from the hub. */
 interface HubPlatterProps {
-  /** The vinyl label/record props; `spinState` comes from the hub. */
-  record: Omit<VinylRecordProps, "spinState">;
+  /** The inserted record; `spinState` and the current track title come from the hub. */
+  record: HubRecord;
   /** Identity of the current record; a change runs the arc swap. */
   swapKey: string;
 }
@@ -416,11 +421,20 @@ export function HubLayoutLed({ vinylLayout }: HubLayoutLedProps) {
  * @param props - {@link HubPlatterProps}.
  */
 export function HubPlatter({ record, swapKey }: HubPlatterProps) {
-  const { spinState, isPlaying, togglePlay } = useTurntablePlayer();
+  const { spinState, isPlaying, togglePlay, trackTitle } = useTurntablePlayer();
   const handleSettled = useCallback(() => {
     if (!isPlaying) togglePlay();
   }, [isPlaying, togglePlay]);
-  return <TurntablePlayerPlatter record={record} spinState={spinState} swapKey={swapKey} onSettled={handleSettled} />;
+  const { vinylLayout, ...vinylRecord } = record;
+  const sideLayout = sideForTrackTitle(vinylLayout, trackTitle) ?? undefined;
+  return (
+    <TurntablePlayerPlatter
+      record={{ ...vinylRecord, sideLayout }}
+      spinState={spinState}
+      swapKey={swapKey}
+      onSettled={handleSettled}
+    />
+  );
 }
 
 /**
@@ -448,10 +462,7 @@ interface TurntablePlayerRootProps {
   /** Extra classes merged onto the deck figure. */
   className?: string;
   /** The vinyl label/record props; the platter pulls `speed`/`spinState` from the hub. */
-  record: Omit<VinylRecordProps, "spinState" | "speed"> & {
-    /** Persisted Discogs layout used by {@link HubLayoutLed}. */
-    vinylLayout?: VinylLayout | null;
-  };
+  record: HubRecord;
   /** Identity of the current record; a change runs the arc swap. */
   swapKey: string;
 }
@@ -469,12 +480,11 @@ interface TurntablePlayerRootProps {
  * @param props - {@link TurntablePlayerRootProps}.
  */
 export function TurntablePlayerRoot({ className, record, swapKey }: TurntablePlayerRootProps) {
-  const { vinylLayout, ...vinylRecord } = record;
   return (
     <TurntablePlayerSurface className={className}>
-      <HubPlatter record={vinylRecord} swapKey={swapKey} />
+      <HubPlatter record={record} swapKey={swapKey} />
       <HubControl />
-      <HubLayoutLed vinylLayout={vinylLayout} />
+      <HubLayoutLed vinylLayout={record.vinylLayout} />
       <HubLed />
     </TurntablePlayerSurface>
   );

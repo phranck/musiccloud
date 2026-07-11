@@ -43,10 +43,12 @@ function noop() {}
 function StubHubProvider({
   speed,
   spinState,
+  trackTitle = "Blue Train",
   children,
 }: {
   speed: TurntableSpeedValue;
   spinState: VinylSpinStateValue;
+  trackTitle?: string;
   children: ReactNode;
 }) {
   const value = useMemo<TurntablePlayerContextValue>(
@@ -66,9 +68,9 @@ function StubHubProvider({
       timeText: "0:00",
       title: undefined,
       togglePlay: noop,
-      trackTitle: "Blue Train",
+      trackTitle,
     }),
-    [speed, spinState],
+    [speed, spinState, trackTitle],
   );
   return <TurntablePlayerContext.Provider value={value}>{children}</TurntablePlayerContext.Provider>;
 }
@@ -87,6 +89,23 @@ const VINYL_LAYOUT: VinylLayout = {
     {
       label: "A",
       tracks: [{ durationMs: 240000, position: "A1", title: "Blue Train" }],
+    },
+  ],
+};
+
+const MULTI_SIDE_VINYL_LAYOUT: VinylLayout = {
+  discogsReleaseId: "10013707",
+  sides: [
+    {
+      label: "A",
+      tracks: [{ durationMs: 1_210_000, position: "A", title: "The Sermon" }],
+    },
+    {
+      label: "B",
+      tracks: [
+        { durationMs: 714_000, position: "B1", title: "J.O.S." },
+        { durationMs: 480_000, position: "B2", title: "Flamingo" },
+      ],
     },
   ],
 };
@@ -188,6 +207,34 @@ describe("TurntablePlayer compound", () => {
       "data-turntable-layout-led-state",
       "off",
     );
+  });
+
+  it("derives the rendered vinyl side from the hub track title", () => {
+    const { rerender } = render(
+      <StubHubProvider speed={TurntableSpeed.Standby} spinState={VinylSpinState.Idle} trackTitle="J.O.S.">
+        <TurntablePlayer record={{ ...RECORD, vinylLayout: MULTI_SIDE_VINYL_LAYOUT }} swapKey="tp-test" />
+      </StubHubProvider>,
+    );
+
+    expect(screen.getByText("SIDE B")).toBeInTheDocument();
+
+    rerender(
+      <StubHubProvider speed={TurntableSpeed.Standby} spinState={VinylSpinState.Idle} trackTitle="The Sermon">
+        <TurntablePlayer record={{ ...RECORD, vinylLayout: MULTI_SIDE_VINYL_LAYOUT }} swapKey="tp-test" />
+      </StubHubProvider>,
+    );
+
+    expect(screen.getByText("SIDE A")).toBeInTheDocument();
+  });
+
+  it("keeps the homogeneous Side A fallback when the hub track has no layout match", () => {
+    render(
+      <StubHubProvider speed={TurntableSpeed.Standby} spinState={VinylSpinState.Idle} trackTitle="Unknown track">
+        <TurntablePlayer record={{ ...RECORD, vinylLayout: MULTI_SIDE_VINYL_LAYOUT }} swapKey="tp-test" />
+      </StubHubProvider>,
+    );
+
+    expect(screen.getByText("SIDE A")).toBeInTheDocument();
   });
 
   it("eases the knob indicator between the Standby and 33 angles", () => {
