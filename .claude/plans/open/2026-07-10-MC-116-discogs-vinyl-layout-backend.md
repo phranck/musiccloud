@@ -107,7 +107,7 @@ export interface VinylLayout { discogsReleaseId: string; sides: VinylSide[]; }
 
 - [x] `albumVinylLayouts`-pgTable im `album_*`-Muster: `id` (text PK), `albumId` (FK `albums.id`, `onDelete:"cascade"`), `discogsReleaseId text` (nullable), `layoutData jsonb` (nullable = Negativ-Cache), `fetchedAt timestamp{withTimezone}`, `uniqueIndex` auf `albumId`. TSDoc: `layoutData = null` bedeutet „geprüft, keine Vinyl-Pressung".
 - [x] `pnpm db:generate` → neue SQL-Migration reviewen (nur diese Tabelle). Ergebnis: `0072_burly_scarlet_spider.sql`.
-- [x] `pnpm db:migrate` → Migration `0072` angewandt. Hinweis: musiccloud hat kein separates lokales Postgres; `.env.local`/`ZEROPS_DB_URL` ist die (Zerops-)DB, gegen die dieses Projekt entwickelt. `db:migrate` lokal dagegen ist der etablierte Workflow. Tabelle `album_vinyl_layouts` existiert dort jetzt (leer). Nur bei destruktiven Eingriffen (DROP/TRUNCATE) rückfragen.
+- [x] `pnpm db:migrate` → Migration `0072` angewandt. Korrektur vom 2026-07-11: musiccloud besitzt eine separate lokale PostgreSQL-Instanz und lokale Migrationen müssen ausschließlich deren `DATABASE_URL` aus `apps/backend/.env.local` verwenden. Die damalige Nutzung einer Zerops-Admin-Verbindung war falsch und verursachte den Production-Owner `postgres`; der Owner wurde auf `db` repariert und der Migrationspfad anschließend abgesichert.
 - [x] Commit: `Feat: add album_vinyl_layouts table (MC-116)`.
 
 ## Task 7: Persist-Helfer (rohes SQL, Integrationstest)

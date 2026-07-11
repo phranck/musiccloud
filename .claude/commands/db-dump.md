@@ -9,11 +9,11 @@ Vollständigen Datenbankdump von der Zerops-Produktionsdatenbank ziehen und in d
 <quick_start>
 /db-dump
 
-Keine Argumente erforderlich. Alle Verbindungsparameter sind fest oder werden aus dem Projektmemory gelesen.
+Keine Argumente erforderlich. Die Produktionsverbindung wird aus der lokalen, gitignorierten `.env.local` gelesen.
 </quick_start>
 
 <connection_params>
-- **Zerops-Connection-String**: aus Projektmemory lesen (`~/.claude/projects/-Users-phranck-Sites-musiccloud-musiccloud/memory/MEMORY.md`, Abschnitt "Zerops" oder Eintrag `project_zerops_db.md`)
+- **Zerops-Admin-Connection-String**: `PRODUCTION_DATABASE_ADMIN_URL` aus der lokalen `.env.local`
 - **Zerops-Projekt-ID**: aus demselben Memory-Eintrag
 - **Lokal**: `postgresql://musiccloud:dev-password-local-only@localhost:5433/musiccloud`
 - **pg_dump**: `/opt/homebrew/Cellar/libpq/18.2/bin/pg_dump`
@@ -26,17 +26,18 @@ Keine Argumente erforderlich. Alle Verbindungsparameter sind fest oder werden au
 - On any error: stop immediately and output the full error message.
 - NEVER proceed to the next step if the current step failed.
 - Lokaler Postgres läuft im Docker-Container `musiccloud` auf Port 5433. Der Container muss laufen, bevor restored wird.
+- `PRODUCTION_DATABASE_ADMIN_URL` darf nur fuer die lesende Verbindungskontrolle und `pg_dump` verwendet werden. Niemals an Drizzle, `DATABASE_URL`, Backend-Start oder Migrationen durchreichen.
 </rules>
 
 <workflow>
 **Schritt 1: VPN-Verbindung prüfen**
 
-Lese den Zerops-Verbindungsstring und die Projekt-ID aus dem Projektmemory und weise sie den Variablen `ZEROPS_DB_URL` und `ZEROPS_PROJECT_ID` zu.
+Lade `PRODUCTION_DATABASE_ADMIN_URL` und `ZEROPS_PROJECT_ID` aus der lokalen `.env.local`, ohne ihre Werte auszugeben.
 
 Prüfe ob die VPN-Verbindung aktiv ist:
 
 ```bash
-/opt/homebrew/Cellar/libpq/18.2/bin/psql "$ZEROPS_DB_URL" -c "SELECT 1" 2>&1
+/opt/homebrew/Cellar/libpq/18.2/bin/psql "$PRODUCTION_DATABASE_ADMIN_URL" -c "SELECT 1" 2>&1
 ```
 
 Wenn der Test fehlschlägt, VPN aufbauen:
@@ -60,7 +61,7 @@ Wenn der Container nicht läuft, abbrechen mit Hinweis: lokaler Container `music
 ```bash
 DUMP_FILE="/tmp/musiccloud_zerops_$(date +%Y%m%d_%H%M%S).dump"
 /opt/homebrew/Cellar/libpq/18.2/bin/pg_dump \
-  "$ZEROPS_DB_URL" \
+  "$PRODUCTION_DATABASE_ADMIN_URL" \
   --format=custom \
   --no-owner \
   --no-privileges \
@@ -125,5 +126,5 @@ Der Skill ist erfolgreich abgeschlossen wenn:
 - **pg_dump schlägt fehl**: Vollständige Fehlermeldung ausgeben, Dump-Datei falls vorhanden löschen, abbrechen.
 - **pg_restore schlägt fehl mit Lock-Fehlern**: Backend-Dev-Server stoppen (Schritt 4 erneut ausführen), dann Schritt 5 wiederholen.
 - **pg_restore schlägt fehl mit anderen Fehlern**: Vollständige Fehlermeldung ausgeben. Hinweis: Warnungen über nicht existierende Objekte bei `--clean --if-exists` sind normal und kein Fehler.
-- **Memory-Eintrag fehlt**: Wenn `ZEROPS_DB_URL` oder `ZEROPS_PROJECT_ID` nicht im Projektmemory stehen, abbrechen mit Hinweis: User muss die Werte in `~/.claude/projects/-Users-phranck-Sites-musiccloud-musiccloud/memory/project_zerops_db.md` ablegen und in `MEMORY.md` indizieren.
+- **Lokale Env fehlt**: Wenn `PRODUCTION_DATABASE_ADMIN_URL` oder `ZEROPS_PROJECT_ID` in `.env.local` fehlt, abbrechen. Niemals ersatzweise `DATABASE_URL` umbiegen oder eine Verbindung aus Projektmemory in den Migrationspfad kopieren.
 </error_handling>
