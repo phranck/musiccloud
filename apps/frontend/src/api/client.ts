@@ -1,4 +1,5 @@
 import {
+  type ApiErrorResponse,
   DESIGN_TOKENS_DEFAULTS,
   type DesignTokens,
   ENDPOINTS,
@@ -10,6 +11,11 @@ import {
   parseDesignTokens,
   type SharePageResponse,
 } from "@musiccloud/shared";
+
+export type BackendFetchResult<T> =
+  | { kind: "success"; data: T }
+  | { kind: "not-found"; error: ApiErrorResponse; statusCode: 404 }
+  | { kind: "error"; error: ApiErrorResponse; statusCode: number };
 
 const BACKEND_URL: string = (() => {
   const value = (import.meta.env.BACKEND_URL as string | undefined)?.trim() || process.env.BACKEND_URL?.trim();
@@ -166,7 +172,7 @@ export async function fetchShareData(
   shortId: string,
   clientIp?: string,
   requestHeaders?: Headers,
-): Promise<SharePageResponse | null> {
+): Promise<BackendFetchResult<SharePageResponse>> {
   try {
     const res = await fetchWithTimeout(
       backendUrl(ENDPOINTS.v1.share(shortId)),
@@ -179,11 +185,43 @@ export async function fetchShareData(
       // bites them.
       20000,
     );
-    if (!res.ok) return null;
-    return res.json() as Promise<SharePageResponse>;
-  } catch {
-    return null;
+    if (!res.ok) return backendFailureResult(res);
+    return { kind: "success", data: (await res.json()) as SharePageResponse };
+  } catch (error) {
+    return transportFailureResult(error);
   }
+}
+
+async function backendFailureResult(response: Response): Promise<BackendFetchResult<never>> {
+  const payload = (await response.json().catch(() => null)) as Partial<ApiErrorResponse> | null;
+  const fallbackCode = response.status === 404 ? "MC-RES-0003" : "MC-SYS-0001";
+  const fallbackMessage =
+    response.status === 404
+      ? "The requested resource was not found. (MC-RES-0003)"
+      : "An unexpected server error occurred. (MC-SYS-0001)";
+  const error: ApiErrorResponse = {
+    error: typeof payload?.error === "string" ? payload.error : fallbackCode,
+    errorId: typeof payload?.errorId === "string" && payload.errorId ? payload.errorId : crypto.randomUUID(),
+    message: typeof payload?.message === "string" ? payload.message : fallbackMessage,
+    ...(payload?.context ? { context: payload.context } : {}),
+  };
+
+  return response.status === 404
+    ? { kind: "not-found", error, statusCode: 404 }
+    : { kind: "error", error, statusCode: response.status };
+}
+
+function transportFailureResult(error: unknown): BackendFetchResult<never> {
+  const timedOut = error instanceof Error && error.name === "AbortError";
+  const code = timedOut ? "MC-API-0005" : "MC-SYS-0002";
+  const message = timedOut
+    ? "The backend request timed out. (MC-API-0005)"
+    : "The backend could not be reached. (MC-SYS-0002)";
+  return {
+    kind: "error",
+    statusCode: timedOut ? 504 : 503,
+    error: { error: code, errorId: crypto.randomUUID(), message },
+  };
 }
 
 /** Forward a resolve request to the backend. */
@@ -372,14 +410,14 @@ export async function fetchPublicContentPage(
   slug: string,
   locale: Locale = "en",
   clientIp?: string,
-): Promise<PublicContentPage | null> {
+): Promise<BackendFetchResult<PublicContentPage>> {
   try {
     const url = `${backendUrl(ENDPOINTS.v1.content.detail(slug))}?locale=${locale}`;
     const res = await fetchWithTimeout(url, { headers: internalHeaders(forwardedForExtra(clientIp)) }, 5000);
-    if (!res.ok) return null;
-    return (await res.json()) as PublicContentPage;
-  } catch {
-    return null;
+    if (!res.ok) return backendFailureResult(res);
+    return { kind: "success", data: (await res.json()) as PublicContentPage };
+  } catch (error) {
+    return transportFailureResult(error);
   }
 }
 

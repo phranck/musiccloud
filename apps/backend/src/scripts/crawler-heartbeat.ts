@@ -35,6 +35,16 @@ main()
   .catch(async (err) => {
     log.error("Crawler", `Heartbeat crashed: ${err instanceof Error ? err.message : String(err)}`);
     if (err instanceof Error && err.stack) log.error("Crawler", err.stack);
-    await closeRepository().catch(() => {});
+    await closeRepository().catch((closeError) =>
+      log.deviation(
+        {
+          component: "Crawler",
+          errorCode: "MC-DB-0003",
+          operation: "crawler_repository_close",
+          outcome: "process_exit_after_close_failure",
+        },
+        closeError,
+      ),
+    );
     process.exit(1);
   });

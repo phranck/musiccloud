@@ -226,8 +226,17 @@ async function getAlbumById(albumId: string): Promise<NormalizedAlbum | null> {
       const tracksData: KkboxAlbumTracksResponse = await tracksResponse.json();
       tracks = tracksData.data ?? [];
     }
-  } catch {
+  } catch (error) {
     // Track listing is optional
+    log.deviation(
+      {
+        component: "KKBOX",
+        errorCode: "MC-API-0004",
+        operation: "album_tracklist_enrichment",
+        outcome: "tracklist_omitted",
+      },
+      error,
+    );
   }
 
   return mapAlbum(album, tracks);

@@ -29,7 +29,15 @@ export async function readCachedAlbumVinylLayout(
     if (!cached) return null;
     return (await repo.readAlbumVinylLayout(cached.albumId)) ?? null;
   } catch (error) {
-    log.debug("Resolve", "Cached vinyl-layout read failed:", error instanceof Error ? error.message : String(error));
+    log.deviation(
+      {
+        component: "VinylLayout",
+        errorCode: "MC-DB-0004",
+        operation: "vinyl_layout_cache_read",
+        outcome: "layout_omitted",
+      },
+      error,
+    );
     return null;
   }
 }
@@ -66,14 +74,26 @@ export async function refreshAlbumVinylLayout(
       try {
         await repo.deleteAlbumVinylLayoutPlaceholder(placeholderId);
       } catch (cleanupError) {
-        log.debug(
-          "Resolve",
-          "Vinyl-layout refresh placeholder cleanup failed:",
-          cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+        log.deviation(
+          {
+            component: "VinylLayout",
+            errorCode: "MC-DB-0004",
+            operation: "vinyl_layout_placeholder_cleanup",
+            outcome: "orphan_placeholder_possible",
+          },
+          cleanupError,
         );
       }
     }
-    log.debug("Resolve", "Vinyl-layout refresh failed:", error instanceof Error ? error.message : String(error));
+    log.deviation(
+      {
+        component: "VinylLayout",
+        errorCode: "MC-SYS-0001",
+        operation: "vinyl_layout_refresh",
+        outcome: cachedLayout ? "cached_fallback" : "layout_omitted",
+      },
+      error,
+    );
     return cachedLayout ?? null;
   }
 }
@@ -127,17 +147,25 @@ export async function resolveAlbumVinylLayout(
       try {
         await repo.deleteAlbumVinylLayoutPlaceholder(placeholderId);
       } catch (cleanupError) {
-        log.debug(
-          "Resolve",
-          "Track vinyl-layout placeholder cleanup failed:",
-          cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+        log.deviation(
+          {
+            component: "VinylLayout",
+            errorCode: "MC-DB-0004",
+            operation: "vinyl_layout_placeholder_cleanup",
+            outcome: "orphan_placeholder_possible",
+          },
+          cleanupError,
         );
       }
     }
-    log.debug(
-      "Resolve",
-      "Track vinyl-layout enrichment failed:",
-      error instanceof Error ? error.message : String(error),
+    log.deviation(
+      {
+        component: "VinylLayout",
+        errorCode: "MC-SYS-0001",
+        operation: "vinyl_layout_enrichment",
+        outcome: "layout_omitted",
+      },
+      error,
     );
     return null;
   }

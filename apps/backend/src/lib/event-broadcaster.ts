@@ -27,8 +27,18 @@ class EventBroadcaster<TEvent extends TypedEvent<string, object>> {
     for (const fn of this.listeners) {
       try {
         fn(event);
-      } catch {
+      } catch (error) {
         // A broken listener must not prevent delivery to other subscribers.
+        log.deviation(
+          {
+            component: "EventBroadcaster",
+            errorCode: "MC-SYS-0001",
+            eventType: event.type,
+            operation: "admin_event_delivery",
+            outcome: "remaining_listeners_continue",
+          },
+          error,
+        );
       }
     }
   }
@@ -40,3 +50,5 @@ class EventBroadcaster<TEvent extends TypedEvent<string, object>> {
 
 /** Singleton broadcaster for admin dashboard live events. */
 export const adminEventBroadcaster = new EventBroadcaster<AdminEvent>();
+
+import { log } from "./infra/logger.js";

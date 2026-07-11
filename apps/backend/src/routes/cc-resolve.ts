@@ -15,13 +15,12 @@ import type {
   CcArtistResolveSuccessResponse,
   CcResolveSuccessResponse,
   ResolveDisambiguationResponse,
-  ResolveErrorResponse,
 } from "@musiccloud/shared";
-import { ENDPOINTS, formatUserMessage, getErrorEntry } from "@musiccloud/shared";
+import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getCcRepository, getRepository } from "../db/index.js";
 import { requireEnvList } from "../lib/env.js";
-import { log } from "../lib/infra/logger.js";
+import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { runCcGenreBrowse, runCcGenreSearch } from "../services/cc/cc-genre.js";
@@ -95,54 +94,45 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
       if (!query && !selectedCandidate) {
         return reply.status(400).send(ccError("INVALID_URL", "The 'query' or 'selectedCandidate' field is required."));
       }
+      const origin = getOrigin(request.headers.origin);
 
-      try {
-        const origin = getOrigin(request.headers.origin);
-
-        // CC genre discovery. Detected by the `genre:` prefix, handled
-        // entirely from Jamendo (browse = `/radios`, search = `/tracks?tags=`).
-        // The CC path routes ALL queries, genre included — never the
-        // commercial genre endpoint. Non-committal: nothing is persisted here,
-        // the follow-up resolve fires when the user clicks a result.
-        if (query && isGenreBrowseQuery(query)) {
-          return reply.send(await runCcGenreBrowse());
-        }
-        if (query && isGenreSearchQuery(query)) {
-          try {
-            return reply.send(await runCcGenreSearch(query));
-          } catch (err) {
-            if (err instanceof GenreQueryParseError) {
-              return reply.status(400).send(ccError("INVALID_URL", err.message));
-            }
-            throw err;
-          }
-        }
-
-        if (selectedCandidate) {
-          const resolved = await resolveCcCandidate(selectedCandidate);
-          if (!resolved) {
-            return reply.status(404).send(ccError("TRACK_NOT_FOUND"));
-          }
-          switch (resolved.kind) {
-            case "album":
-              return reply.send(await persistCcAlbumAndRespond(resolved.album, resolved.tracks, origin));
-            case "artist":
-              return reply.send(await persistCcArtistAndRespond(resolved.artist, resolved.topTracks, origin));
-            default:
-              return reply.send(await persistCcTrackAndRespond(resolved.track, origin));
-          }
-        }
-
-        const { candidates } = await resolveCcTextSearch(query!);
-        const disambiguation: ResolveDisambiguationResponse = { status: "disambiguation", candidates };
-        return reply.send(disambiguation);
-      } catch (error) {
-        log.error("CcResolve", "Unexpected error:", error instanceof Error ? error.message : "Unknown error");
-        if (process.env.NODE_ENV !== "production" && error instanceof Error) {
-          log.error("CcResolve", "Stack:", error.stack);
-        }
-        return reply.status(500).send(ccError("NETWORK_ERROR"));
+      // CC genre discovery. Detected by the `genre:` prefix, handled
+      // entirely from Jamendo (browse = `/radios`, search = `/tracks?tags=`).
+      // The CC path routes ALL queries, genre included — never the
+      // commercial genre endpoint. Non-committal: nothing is persisted here,
+      // the follow-up resolve fires when the user clicks a result.
+      if (query && isGenreBrowseQuery(query)) {
+        return reply.send(await runCcGenreBrowse());
       }
+      if (query && isGenreSearchQuery(query)) {
+        try {
+          return reply.send(await runCcGenreSearch(query));
+        } catch (err) {
+          if (err instanceof GenreQueryParseError) {
+            return reply.status(400).send(ccError("INVALID_URL", err.message));
+          }
+          throw err;
+        }
+      }
+
+      if (selectedCandidate) {
+        const resolved = await resolveCcCandidate(selectedCandidate);
+        if (!resolved) {
+          return reply.status(404).send(ccError("TRACK_NOT_FOUND"));
+        }
+        switch (resolved.kind) {
+          case "album":
+            return reply.send(await persistCcAlbumAndRespond(resolved.album, resolved.tracks, origin));
+          case "artist":
+            return reply.send(await persistCcArtistAndRespond(resolved.artist, resolved.topTracks, origin));
+          default:
+            return reply.send(await persistCcTrackAndRespond(resolved.track, origin));
+        }
+      }
+
+      const { candidates } = await resolveCcTextSearch(query!);
+      const disambiguation: ResolveDisambiguationResponse = { status: "disambiguation", candidates };
+      return reply.send(disambiguation);
     },
   );
 }
@@ -167,9 +157,8 @@ function getOrigin(headerOrigin?: string): string {
  * @param overrideMessage - optional message override.
  * @returns the error response body.
  */
-function ccError(code: string, overrideMessage?: string): ResolveErrorResponse {
-  const entry = getErrorEntry(code);
-  return { error: entry.code, message: formatUserMessage(entry.code, undefined, overrideMessage) };
+function ccError(code: string, overrideMessage?: string) {
+  return createApiErrorResponse(code, { overrideMessage });
 }
 
 /**

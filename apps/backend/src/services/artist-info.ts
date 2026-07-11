@@ -78,7 +78,18 @@ export async function fetchArtistProfile(artistName: string): Promise<ArtistProf
     if (merged.imageUrl) {
       const source = pickSourceForField(partials, ARTIST_MERGE_STRATEGY, "imageUrl");
       if (source) {
-        cacheArtistImage(artistName, merged.imageUrl, source).catch(() => {});
+        cacheArtistImage(artistName, merged.imageUrl, source).catch((error) =>
+          log.deviation(
+            {
+              component: "ArtistInfo",
+              errorCode: "MC-DB-0004",
+              operation: "artist_image_cache_write",
+              outcome: "profile_without_cache_update",
+              source,
+            },
+            error,
+          ),
+        );
       }
     }
 

@@ -10,6 +10,7 @@
  */
 
 import type { ArtistInfoResponse, ArtistProfile, ArtistTopTrack, SimilarArtistTrack } from "@musiccloud/shared";
+import { log } from "../../lib/infra/logger.js";
 import { stratifiedSample } from "../genre-search/sampler.js";
 import { ccCandidateId } from "./cc-resolver.js";
 import { getCcArtistMusicInfo, getSimilarCcTracks } from "./jamendo/client.js";
@@ -108,7 +109,17 @@ export async function buildCcArtistInfo(
       artistName: track.artistName,
       track: toArtistTopTrack(track),
     }));
-  } catch {
+  } catch (error) {
+    log.deviation(
+      {
+        component: "CcArtistInfo",
+        errorCode: "MC-API-0004",
+        jamendoArtistId,
+        operation: "cc_similar_tracks",
+        outcome: "empty_similar_tracks",
+      },
+      error,
+    );
     similarArtistTracks = [];
   }
 
@@ -126,7 +137,17 @@ export async function buildCcArtistInfo(
           similarArtists: [],
         }
       : null;
-  } catch {
+  } catch (error) {
+    log.deviation(
+      {
+        component: "CcArtistInfo",
+        errorCode: "MC-API-0004",
+        jamendoArtistId,
+        operation: "cc_artist_profile",
+        outcome: "profile_omitted",
+      },
+      error,
+    );
     profile = null;
   }
 

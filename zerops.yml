@@ -34,6 +34,9 @@ zerops:
         # IP from X-Forwarded-For. "1" covers the Zerops ingress. If a
         # CDN (e.g. Cloudflare) is placed in front, bump to "2".
         TRUST_PROXY: "1"
+        # Required by the migration preflight. Remote migrations fail closed
+        # unless the connected PostgreSQL role is this exact non-superuser.
+        DB_MIGRATION_ROLE: "db"
         # Set these in Zerops Secrets:
         # DATABASE_URL: postgresql://db:password@postgresql:5432/musiccloud
         # JWT_SECRET: <random 64-char string>
@@ -57,8 +60,8 @@ zerops:
       initCommands:
         - "true"
       start: node apps/backend/dist/server.js
-      # Readiness probe: /health/db returns 503 with the missing-table
-      # list if a migration silently failed and a hot-path table is gone.
+      # Readiness probe: /health/db returns 503 when a required table,
+      # runtime privilege, expected owner, or latest migration hash is wrong.
       # Zerops marks the container un-ready and keeps it out of rotation
       # until the schema is consistent again.
       healthCheck:

@@ -436,8 +436,16 @@ export async function resolveArtistUrl(inputUrl: string): Promise<ArtistResoluti
             sourceArtist = { ...sourceArtist, genres: spotifyArtist.genres };
           }
         }
-      } catch {
-        // ignore - genres are optional enrichment
+      } catch (error) {
+        log.deviation(
+          {
+            component: "ArtistResolver",
+            errorCode: "MC-API-0004",
+            operation: "artist_genre_enrichment",
+            outcome: "genres_omitted",
+          },
+          error,
+        );
       }
     }
   }
@@ -509,8 +517,17 @@ export async function resolveArtistTextSearch(query: string): Promise<ArtistReso
           externalIds: collectArtistExternalIds(sourceArtist, links),
         };
       }
-    } catch {
-      // try next adapter
+    } catch (error) {
+      log.deviation(
+        {
+          adapterId: adapter.id,
+          component: "ArtistResolver",
+          errorCode: "MC-API-0004",
+          operation: "artist_text_search",
+          outcome: "next_adapter",
+        },
+        error,
+      );
     }
   }
 

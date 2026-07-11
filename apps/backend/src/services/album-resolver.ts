@@ -170,7 +170,15 @@ async function tryAlbumCache(lookup: { url?: string; upc?: string }): Promise<Al
 
     return { sourceAlbum: cached.album, links, albumId: cached.albumId, externalIds: [] };
   } catch (error) {
-    log.error("AlbumResolver", `Cache read failed: ${error instanceof Error ? error.message : error}`);
+    log.deviation(
+      {
+        component: "AlbumResolver",
+        errorCode: "MC-DB-0004",
+        operation: "album_cache_read",
+        outcome: "fresh_resolve_fallback",
+      },
+      error,
+    );
     return null;
   }
 }
@@ -232,7 +240,15 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
         })),
       );
     } catch (error) {
-      log.error("AlbumResolver", `Failed to persist gap-fill links: ${error instanceof Error ? error.message : error}`);
+      log.deviation(
+        {
+          component: "AlbumResolver",
+          errorCode: "MC-DB-0004",
+          operation: "album_gap_fill_persist",
+          outcome: "response_without_cache_update",
+        },
+        error,
+      );
     }
   }
 
@@ -274,9 +290,14 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
         });
       }
     } catch (error) {
-      log.error(
-        "AlbumResolver",
-        `Failed to persist album preview rows: ${error instanceof Error ? error.message : error}`,
+      log.deviation(
+        {
+          component: "AlbumResolver",
+          errorCode: "MC-DB-0004",
+          operation: "album_preview_persist",
+          outcome: "response_without_cache_update",
+        },
+        error,
       );
     }
   }
@@ -299,9 +320,14 @@ async function isAlbumPreviewRefreshNeeded(cached: AlbumResolutionResult): Promi
     const fresh = previews.find((p) => p.expiresAt === null || p.expiresAt.getTime() > now);
     return !fresh;
   } catch (error) {
-    log.debug(
-      "AlbumResolver",
-      `Album preview-refresh check failed, defaulting to refresh: ${error instanceof Error ? error.message : error}`,
+    log.deviation(
+      {
+        component: "AlbumResolver",
+        errorCode: "MC-DB-0004",
+        operation: "album_preview_refresh_check",
+        outcome: "forced_refresh",
+      },
+      error,
     );
     return true;
   }
@@ -392,9 +418,15 @@ async function inferAlbumViaIsrc(
       return { ...link, confidence, matchMethod: "isrc-inference" };
     }
   } catch (err) {
-    log.debug(
-      "AlbumResolver",
-      `[${adapter.id}] ISRC-inference follow-up search failed: ${err instanceof Error ? err.message : err}`,
+    log.deviation(
+      {
+        adapterId: adapter.id,
+        component: "AlbumResolver",
+        errorCode: "MC-API-0004",
+        operation: "album_isrc_followup_search",
+        outcome: "track_url_fallback",
+      },
+      err,
     );
   }
 
@@ -444,9 +476,15 @@ async function resolveAlbumOnService(
         };
       }
     } catch (error) {
-      log.debug(
-        "AlbumResolver",
-        `[${adapter.id}] UPC lookup failed: ${error instanceof Error ? error.message : error}`,
+      log.deviation(
+        {
+          adapterId: adapter.id,
+          component: "AlbumResolver",
+          errorCode: "MC-API-0004",
+          operation: "album_upc_lookup",
+          outcome: "next_strategy",
+        },
+        error,
       );
     }
   }
@@ -457,9 +495,15 @@ async function resolveAlbumOnService(
       const inferred = await inferAlbumViaIsrc(adapter, sourceAlbum);
       if (inferred) return inferred;
     } catch (error) {
-      log.debug(
-        "AlbumResolver",
-        `[${adapter.id}] ISRC inference failed: ${error instanceof Error ? error.message : error}`,
+      log.deviation(
+        {
+          adapterId: adapter.id,
+          component: "AlbumResolver",
+          errorCode: "MC-API-0004",
+          operation: "album_isrc_inference",
+          outcome: "text_search_fallback",
+        },
+        error,
       );
     }
   }
@@ -492,8 +536,17 @@ async function resolveAlbumViaSearch(
     try {
       const full = await adapter.getAlbum(album.sourceId);
       if (full.topTrackPreviewUrl) album = full;
-    } catch {
-      // ignore, use search result as-is
+    } catch (error) {
+      log.deviation(
+        {
+          adapterId: adapter.id,
+          component: "AlbumResolver",
+          errorCode: "MC-API-0004",
+          operation: "album_detail_enrichment",
+          outcome: "search_result_fallback",
+        },
+        error,
+      );
     }
   }
 
@@ -754,7 +807,18 @@ export async function resolveAlbumTextSearch(query: string): Promise<AlbumResolu
           externalIds: collectAlbumExternalIds(sourceAlbum, links),
         };
       }
-    } catch {}
+    } catch (error) {
+      log.deviation(
+        {
+          adapterId: adapter.id,
+          component: "AlbumResolver",
+          errorCode: "MC-API-0004",
+          operation: "album_text_search",
+          outcome: "next_adapter",
+        },
+        error,
+      );
+    }
   }
 
   throw new ResolveError("TRACK_NOT_FOUND", "No album found for the search query");

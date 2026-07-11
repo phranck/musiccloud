@@ -17,6 +17,7 @@
 import path from "node:path";
 import { Jimp, type JimpInstance, rgbaToInt } from "jimp";
 import type opentype from "opentype.js";
+import { log } from "../../lib/infra/logger.js";
 
 const SIZE = 512;
 const JPEG_QUALITY = 82;
@@ -412,8 +413,17 @@ export async function generateArtwork(
       const py = COVER_CENTER_Y - thumb.bitmap.height / 2;
       img.composite(coverShadow, Math.round(px) + COVER_SHADOW_OFFSET_X, Math.round(py) + COVER_SHADOW_OFFSET_Y);
       img.composite(thumb, Math.round(px), Math.round(py));
-    } catch {
+    } catch (error) {
       // Decode failure → keep tile without the thumb; not a fatal error.
+      log.deviation(
+        {
+          component: "GenreArtwork",
+          errorCode: "MC-SYS-0001",
+          operation: "decode_cover_thumbnail",
+          outcome: "tile_without_thumbnail",
+        },
+        error,
+      );
     }
   }
 

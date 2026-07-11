@@ -48,7 +48,7 @@
  * points at the file/function where the throw originates.
  */
 
-export type ErrorArea = "URL" | "API" | "AUTH" | "RES" | "DB" | "CFG" | "MAP";
+export type ErrorArea = "URL" | "API" | "AUTH" | "RES" | "DB" | "CFG" | "MAP" | "REQ" | "SYS";
 
 /**
  * Canonical error code. Narrow enough to distinguish areas in the type system,
@@ -120,6 +120,83 @@ export const LEGACY_TO_MC: Record<LegacyErrorCode, McErrorCode> = {
  * `SERVICE_DOWN`/`NETWORK_ERROR` fallbacks.
  */
 export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
+  "MC-REQ-0001": {
+    code: "MC-REQ-0001",
+    httpStatus: 400,
+    userMessage: "The request did not match the expected format.",
+    internalNote: "Generic request validation failure at the HTTP boundary.",
+    source: "apps/backend/src/lib/infra/api-error-handler.ts",
+  },
+  "MC-REQ-0002": {
+    code: "MC-REQ-0002",
+    httpStatus: 409,
+    userMessage: "The request conflicts with the current resource state.",
+    internalNote: "Generic HTTP conflict response.",
+    source: "apps/backend/src/lib/infra/api-error-handler.ts",
+  },
+  "MC-AUTH-0001": {
+    code: "MC-AUTH-0001",
+    httpStatus: 401,
+    userMessage: "Authentication is required or no longer valid.",
+    internalNote: "Generic unauthenticated request.",
+    source: "apps/backend/src/lib/infra/api-error-handler.ts",
+  },
+  "MC-AUTH-0002": {
+    code: "MC-AUTH-0002",
+    httpStatus: 403,
+    userMessage: "You do not have permission to perform this action.",
+    internalNote: "Generic authenticated-but-forbidden request.",
+    source: "apps/backend/src/lib/infra/api-error-handler.ts",
+  },
+  "MC-RES-0003": {
+    code: "MC-RES-0003",
+    httpStatus: 404,
+    userMessage: "The requested resource was not found.",
+    internalNote: "Generic resource lookup miss outside the resolver-specific codes.",
+    source: "apps/backend/src/lib/infra/api-error-handler.ts",
+  },
+  "MC-DB-0001": {
+    code: "MC-DB-0001",
+    httpStatus: 500,
+    userMessage: "The database permissions are invalid for this operation.",
+    internalNote: "PostgreSQL SQLSTATE 42501 (insufficient_privilege).",
+    source: "apps/backend/src/lib/infra/api-errors.ts classifyUnhandledError",
+  },
+  "MC-DB-0002": {
+    code: "MC-DB-0002",
+    httpStatus: 500,
+    userMessage: "The database schema is incomplete for this operation.",
+    internalNote: "PostgreSQL SQLSTATE 42P01 (undefined_table).",
+    source: "apps/backend/src/lib/infra/api-errors.ts classifyUnhandledError",
+  },
+  "MC-DB-0003": {
+    code: "MC-DB-0003",
+    httpStatus: 503,
+    userMessage: "The database is temporarily unavailable.",
+    internalNote: "PostgreSQL connection exception class 08.",
+    source: "apps/backend/src/lib/infra/api-errors.ts classifyUnhandledError",
+  },
+  "MC-DB-0004": {
+    code: "MC-DB-0004",
+    httpStatus: 500,
+    userMessage: "A database operation failed.",
+    internalNote: "Fallback for an unclassified PostgreSQL SQLSTATE.",
+    source: "apps/backend/src/lib/infra/api-errors.ts classifyUnhandledError",
+  },
+  "MC-SYS-0001": {
+    code: "MC-SYS-0001",
+    httpStatus: 500,
+    userMessage: "An unexpected server error occurred.",
+    internalNote: "Global fallback for an unhandled backend exception.",
+    source: "apps/backend/src/lib/infra/api-error-handler.ts",
+  },
+  "MC-SYS-0002": {
+    code: "MC-SYS-0002",
+    httpStatus: 503,
+    userMessage: "The backend could not be reached.",
+    internalNote: "The first-party frontend could not establish or complete its backend request.",
+    source: "apps/frontend/src/api/client.ts",
+  },
   // ─── URL parsing / detection ───────────────────────────────────────────────
   "MC-URL-0001": {
     code: "MC-URL-0001",
@@ -303,7 +380,7 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
 };
 
 /** Pattern that recognises any well-formed MC error code, even if not in the registry. */
-const MC_CODE_PATTERN = /^MC-(URL|API|AUTH|RES|DB|CFG|MAP)-\d{3,4}$/;
+const MC_CODE_PATTERN = /^MC-(URL|API|AUTH|RES|DB|CFG|MAP|REQ|SYS)-\d{3,4}$/;
 
 /**
  * Resolve a raw code (MC or legacy) to its registry entry.
@@ -351,7 +428,10 @@ function defaultHttpStatusForArea(area: ErrorArea): number {
     case "CFG":
     case "DB":
     case "MAP":
+    case "SYS":
       return 500;
+    case "REQ":
+      return 400;
   }
 }
 
@@ -371,6 +451,10 @@ function defaultMessageForArea(area: ErrorArea): string {
       return "A database error occurred.";
     case "MAP":
       return "An external service returned data we couldn't parse.";
+    case "REQ":
+      return "The request did not match the expected format.";
+    case "SYS":
+      return "An unexpected server error occurred.";
   }
 }
 

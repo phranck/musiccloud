@@ -75,7 +75,7 @@ export interface ResolveDisambiguationResponse {
   candidates: ApiDisambiguationCandidate[];
 }
 
-export interface ResolveErrorResponse {
+export interface ApiErrorResponse {
   /**
    * Canonical error code. During the Phase 2 sweep this is typically an MC
    * code (`MC-URL-0001`, …) but a handful of older call sites still emit
@@ -89,6 +89,8 @@ export interface ResolveErrorResponse {
    * (MC-RES-0001)".
    */
   message: string;
+  /** Globally unique incident reference shared by the UI and backend logs. */
+  errorId: string;
   /**
    * Optional structured values for localized clients. The backend still
    * renders `message` in English for public API callers; first-party UIs
@@ -96,6 +98,8 @@ export interface ResolveErrorResponse {
    */
   context?: Record<string, string | number>;
 }
+
+export type ResolveErrorResponse = ApiErrorResponse;
 
 export type ResolveResponse =
   | ResolveSuccessResponse

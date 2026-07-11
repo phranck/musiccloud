@@ -5,6 +5,8 @@ import type { APIRoute } from "astro";
 
 import { fetchPublicContentPage } from "@/api/client";
 
+const JSON_HEADERS = { "Content-Type": "application/json", "Cache-Control": "no-store" };
+
 /**
  * Browser-reachable proxy for `/api/v1/content/:slug` — used by the nav-click
  * interceptor to hydrate an overlay page without a full-route navigation.
@@ -12,18 +14,26 @@ import { fetchPublicContentPage } from "@/api/client";
 export const GET: APIRoute = async ({ params, request, cookies, clientAddress }) => {
   const slug = params.slug;
   if (typeof slug !== "string" || slug.length === 0) {
-    return new Response(null, { status: 400 });
+    return new Response(
+      JSON.stringify({
+        error: "MC-REQ-0001",
+        errorId: crypto.randomUUID(),
+        message: "The request is invalid. (MC-REQ-0001)",
+      }),
+      { status: 400, headers: JSON_HEADERS },
+    );
   }
   const q = new URL(request.url).searchParams.get("locale");
   const cookieVal = cookies.get("mc:locale")?.value;
   const locale: Locale = isLocale(q) ? q : isLocale(cookieVal) ? cookieVal : DEFAULT_LOCALE;
-  try {
-    const page = await fetchPublicContentPage(slug, locale, clientAddress);
-    if (!page) return new Response(null, { status: 404 });
-    return new Response(JSON.stringify(page), {
-      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
-    });
-  } catch {
-    return new Response(null, { status: 503 });
+  const result = await fetchPublicContentPage(slug, locale, clientAddress);
+  if (result.kind === "success") {
+    return new Response(JSON.stringify(result.data), { headers: JSON_HEADERS });
   }
+
+  if (result.kind === "error") {
+    return new Response(JSON.stringify(result.error), { status: result.statusCode, headers: JSON_HEADERS });
+  }
+
+  return new Response(JSON.stringify(result.error), { status: 404, headers: JSON_HEADERS });
 };

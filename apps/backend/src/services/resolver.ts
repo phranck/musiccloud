@@ -409,8 +409,17 @@ export async function expandShortLink(url: string): Promise<string> {
   try {
     const res = await fetchWithTimeout(url, { method: "HEAD", redirect: "follow" });
     if (res.url && res.url !== url) return res.url;
-  } catch {
+  } catch (error) {
     // Network failure – fall through so the caller can surface a meaningful error
+    log.deviation(
+      {
+        component: "Resolver",
+        errorCode: "MC-API-0004",
+        operation: "expand_short_link",
+        outcome: "original_url_fallback",
+      },
+      error,
+    );
   }
   return url;
 }
@@ -567,8 +576,18 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
           sourceTrack = { ...sourceTrack, artworkUrl: appleTrack.artworkUrl };
         }
       }
-    } catch {
+    } catch (error) {
       // Artwork fetch failed - continue with original (no artwork)
+      log.deviation(
+        {
+          adapterId: "apple-music",
+          component: "Resolver",
+          errorCode: "MC-API-0004",
+          operation: "track_artwork_enrichment",
+          outcome: "artwork_omitted",
+        },
+        error,
+      );
     }
   }
 

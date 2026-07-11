@@ -318,8 +318,18 @@ function mapTrack(data: QobuzTrack): NormalizedTrack {
   };
 }
 
-// Eagerly authenticate on import so the first user request doesn't pay the latency
-getAuthToken().catch(() => {});
+// Eagerly authenticate on import so the first user request doesn't pay the latency.
+getAuthToken().catch((error) =>
+  log.deviation(
+    {
+      component: "Qobuz",
+      errorCode: "MC-AUTH-2401",
+      operation: "qobuz_token_prewarm",
+      outcome: "lazy_request_retry",
+    },
+    error,
+  ),
+);
 
 // --- Adapter ---
 

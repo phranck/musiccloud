@@ -5,8 +5,10 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
 
 import { loadDatabaseConfig } from "./config.js";
+import { assertDatabaseReady, inspectMusiccloudDatabase } from "./database-readiness.js";
+import { assertSafeMigrationConnection } from "./migration-safety.js";
 
-function resolveMigrationsFolder(): string {
+export function resolveMigrationsFolder(): string {
   const candidates = [
     path.resolve(__dirname, "migrations", "postgres"),
     path.resolve(__dirname, "..", "db", "migrations", "postgres"),
@@ -23,33 +25,34 @@ function resolveMigrationsFolder(): string {
   throw new Error(`Drizzle migrations folder not found. Checked:\n${candidates.map((c) => `  ${c}`).join("\n")}`);
 }
 
-export async function runMigrations(): Promise<void> {
-  let migrationsFolder: string;
-  try {
-    migrationsFolder = resolveMigrationsFolder();
-  } catch (err) {
-    console.error("[DB] Migration folder resolution failed:", (err as Error).message);
-    console.error("[DB] cwd:", process.cwd());
-    console.error("[DB] __dirname:", __dirname);
-    return;
-  }
-
+export async function runMigrations(options: { ensureAdminOwner?: boolean } = {}): Promise<void> {
+  const migrationsFolder = resolveMigrationsFolder();
   const config = loadDatabaseConfig();
   const pool = new pg.Pool({ connectionString: config.url });
-  const db = drizzle(pool);
 
   try {
+    const identity = await assertSafeMigrationConnection(pool, config.url, process.env.DB_MIGRATION_ROLE?.trim());
+    console.log(
+      `[DB] Migration identity verified: database=${identity.currentDatabase} role=${identity.currentUser} host=${identity.connectionHost}`,
+    );
+
+    const db = drizzle(pool);
     console.log(`[DB] Running migrations from ${migrationsFolder}`);
     await migrate(db, { migrationsFolder });
 
-    // Ensure there is at least one owner (promote the first user if none exists)
-    const { rows } = await pool.query(`SELECT COUNT(*) AS c FROM admin_users WHERE role = 'owner'`);
-    if (Number(rows[0]?.c) === 0) {
-      await pool.query(
-        `UPDATE admin_users SET role = 'owner'
-         WHERE id = (SELECT id FROM admin_users ORDER BY created_at ASC LIMIT 1)`,
-      );
+    if (options.ensureAdminOwner !== false) {
+      // Ensure there is at least one owner (promote the first user if none exists)
+      const { rows } = await pool.query(`SELECT COUNT(*) AS c FROM admin_users WHERE role = 'owner'`);
+      if (Number(rows[0]?.c) === 0) {
+        await pool.query(
+          `UPDATE admin_users SET role = 'owner'
+           WHERE id = (SELECT id FROM admin_users ORDER BY created_at ASC LIMIT 1)`,
+        );
+      }
     }
+
+    const readiness = await inspectMusiccloudDatabase(pool, migrationsFolder, identity.currentUser);
+    assertDatabaseReady(readiness);
 
     console.log("[DB] All migrations applied successfully");
   } catch (err) {

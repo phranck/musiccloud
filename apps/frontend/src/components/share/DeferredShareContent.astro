@@ -20,9 +20,11 @@ import { SegmentedPageFullscreen } from "@/components/layout/SegmentedPageFullsc
 import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { CcSharePageShell } from "@/components/share/CcSharePageShell";
+import { ShareErrorShell } from "@/components/share/ShareErrorShell";
 import { SharePageShell } from "@/components/share/SharePageShell";
 import { getRequestLocale } from "@/i18n/locales";
 import { loadTranslations, makeT } from "@/i18n/server";
+import { resolveShortRouteResults } from "@/lib/share/short-route-result";
 import { buildCcSharePageProps, buildShareViewFromSharePageResponse, isCcSharePageResponse } from "@/lib/share/share-view";
 
 interface Props {
@@ -36,12 +38,24 @@ const translations = await loadTranslations(locale);
 const t = makeT(translations);
 
 const clientIp = Astro.clientAddress;
-const [contentPage, shareData] = await Promise.all([
+const [contentResult, shareResult] = await Promise.all([
   fetchPublicContentPage(shortId, locale, clientIp),
   fetchShareData(shortId, clientIp, Astro.request.headers),
 ]);
-const data = contentPage ? null : shareData;
-const notFound = !contentPage && !data;
+const routeResult = resolveShortRouteResults(contentResult, shareResult);
+const contentPage = routeResult.kind === "content" ? routeResult.data : null;
+const data = routeResult.kind === "share" ? routeResult.data : null;
+const notFound = routeResult.kind === "not-found";
+const routeError = routeResult.kind === "error" ? routeResult.error : null;
+const errorLabels = {
+  back: t("shareError.back"),
+  code: t("shareError.code"),
+  copied: t("shareError.copied"),
+  copy: t("shareError.copy"),
+  description: t("shareError.description"),
+  reference: t("shareError.reference"),
+  title: t("shareError.title"),
+};
 
 // Overlay-mode content pages render as "the landing page with an overlay open"
 // (see the overlay branch below); fetch the hero's live-example just like the
@@ -64,7 +78,9 @@ const artworkUrl = contentPage ? null : (ccPageProps?.artworkUrl ?? shareView?.a
 
 {notFound && <script is:inline>window.location.replace("/404");</script>}
 
-{!notFound && pageTitle && (
+{routeError && <ShareErrorShell client:load error={routeError} labels={errorLabels} />}
+
+{!notFound && !routeError && pageTitle && (
   <script is:inline define:vars={{ pageTitle, artworkUrl: artworkUrl ?? null }}>
     document.title = pageTitle;
     if (artworkUrl) {
@@ -77,7 +93,7 @@ const artworkUrl = contentPage ? null : (ccPageProps?.artworkUrl ?? shareView?.a
   </script>
 )}
 
-{!notFound && contentPage && contentPage.displayMode === "fullscreen" && (
+{!notFound && !routeError && contentPage && contentPage.displayMode === "fullscreen" && (
   <main id="main-content" class="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 pt-content-safe pb-12 animate-slide-up">
     {contentPage.showTitle && contentPage.pageType !== "segmented" && (
       <h1
@@ -105,7 +121,7 @@ const artworkUrl = contentPage ? null : (ccPageProps?.artworkUrl ?? shareView?.a
   </main>
 )}
 
-{!notFound && overlayMode && (
+{!notFound && !routeError && overlayMode && (
   <Fragment>
     {/* An overlay-mode content page IS the landing page with an overlay open.
         Render the same shell as index.astro so a direct load / reload / shared
@@ -121,7 +137,7 @@ const artworkUrl = contentPage ? null : (ccPageProps?.artworkUrl ?? shareView?.a
   </Fragment>
 )}
 
-{!notFound && !contentPage && ccPageProps && (
+{!notFound && !routeError && !contentPage && ccPageProps && (
   <CcSharePageShell
     client:load
     config={ccPageProps.config}
@@ -132,7 +148,7 @@ const artworkUrl = contentPage ? null : (ccPageProps?.artworkUrl ?? shareView?.a
   />
 )}
 
-{!notFound && !contentPage && shareView && shareConfig && (
+{!notFound && !routeError && !contentPage && shareView && shareConfig && (
   <SharePageShell
     client:load
     config={shareConfig}
@@ -146,6 +162,6 @@ const artworkUrl = contentPage ? null : (ccPageProps?.artworkUrl ?? shareView?.a
     current page is fullscreen content or a share page so nav-click-opened
     overlays still work. Rendered here because it depends on knowing
     whether contentPage is overlay-mode (which already has its own). */}
-{!notFound && (!contentPage || contentPage.displayMode === "fullscreen") && (
+{!notFound && !routeError && (!contentPage || contentPage.displayMode === "fullscreen") && (
   <PageOverlayIsland client:load initialPage={null} initialLocale={locale} />
 )}

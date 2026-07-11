@@ -24,11 +24,12 @@
  *   metadata and all resolved service links.
  */
 import type { ResolveErrorResponse, ResolveSuccessResponse } from "@musiccloud/shared";
-import { ENDPOINTS, formatUserMessage, getErrorEntry } from "@musiccloud/shared";
+import { ENDPOINTS, getErrorEntry } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
 import { STRUCTURED_SEARCH_GET_OPENAPI_NOTE, STRUCTURED_SEARCH_OPENAPI_SECTION } from "../docs/resolve-openapi.js";
 import { requireEnvList } from "../lib/env.js";
+import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { log } from "../lib/infra/logger.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
@@ -211,13 +212,7 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
           return reply.status(httpStatus).send(jsonError(error.code, error.message || undefined, error.context));
         }
 
-        log.error("ResolvePublicGet", "Unexpected error:", error instanceof Error ? error.message : "Unknown error");
-        // Stack traces stay out of production logs per the project security
-        // rules; they are invaluable locally but a disclosure risk in prod.
-        if (process.env.NODE_ENV !== "production" && error instanceof Error) {
-          log.error("ResolvePublicGet", "Stack:", error.stack);
-        }
-        return reply.status(500).send(jsonError("NETWORK_ERROR"));
+        throw error;
       }
     },
   );
@@ -256,12 +251,7 @@ function jsonError(
   overrideMessage?: string,
   context?: Record<string, string | number>,
 ): ResolveErrorResponse {
-  const entry = getErrorEntry(code);
-  return {
-    error: entry.code,
-    message: formatUserMessage(entry.code, context, overrideMessage),
-    ...(context ? { context } : {}),
-  };
+  return createApiErrorResponse(code, { context, overrideMessage });
 }
 
 /**

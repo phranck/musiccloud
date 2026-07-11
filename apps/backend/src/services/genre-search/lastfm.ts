@@ -46,6 +46,18 @@ const MAX_POOL = 50;
 const HOT_SPREAD_FACTOR = 3;
 const HOT_SPREAD_MIN = 30;
 
+function logLastfmDeviation(operation: string, outcome: string, error: unknown): void {
+  log.deviation(
+    {
+      component: "LastfmGenreSearch",
+      errorCode: "MC-API-0004",
+      operation,
+      outcome,
+    },
+    error,
+  );
+}
+
 function apiKey(): string {
   const key = process.env.LASTFM_API_KEY;
   if (!key) throw new Error("LASTFM_API_KEY not configured");
@@ -162,8 +174,8 @@ export async function getGenreCoverUrl(genre: string): Promise<string | null> {
       const url = pickImage(album.image);
       if (url) return url;
     }
-  } catch {
-    // fall through
+  } catch (error) {
+    logLastfmDeviation("genre_cover_lookup", "default_accent_fallback", error);
   }
   return null;
 }
@@ -352,8 +364,8 @@ export async function lastfmSearchByGenre(input: LastfmGenreSearchInput): Promis
           if (a.artworkUrl) {
             try {
               await cacheAlbumImage(a.artists[0], a.title, a.artworkUrl, "lastfm");
-            } catch {
-              // best-effort
+            } catch (error) {
+              logLastfmDeviation("album_artwork_cache_write", "response_without_cache_update", error);
             }
           }
         }
@@ -378,7 +390,9 @@ export async function lastfmSearchByGenre(input: LastfmGenreSearchInput): Promis
   // Write-through for tracks that got artwork (for future cache hits)
   for (const t of finalTracks) {
     if (t.artworkUrl) {
-      cacheTrackImage(t.artists[0], t.title, t.artworkUrl, "lastfm").catch(() => {});
+      cacheTrackImage(t.artists[0], t.title, t.artworkUrl, "lastfm").catch((error) =>
+        logLastfmDeviation("track_artwork_cache_write", "response_without_cache_update", error),
+      );
     }
   }
 
@@ -557,12 +571,14 @@ export async function getGenreBrowseGrid(): Promise<GenreTile[]> {
             if (url) {
               hasCover = true;
               genreCoverUrls.set(name, url);
-              cacheAlbumImage(album.artist.name, album.name, url, "lastfm").catch(() => {});
+              cacheAlbumImage(album.artist.name, album.name, url, "lastfm").catch((error) =>
+                logLastfmDeviation("browse_cover_cache_write", "tile_retained_without_cache_update", error),
+              );
               break;
             }
           }
-        } catch {
-          // Best-effort; tile will be dropped below
+        } catch (error) {
+          logLastfmDeviation("browse_cover_probe", "tile_dropped", error);
         }
         return {
           tile: {

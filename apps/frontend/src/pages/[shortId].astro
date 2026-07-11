@@ -13,7 +13,7 @@
  */
 export const prerender = false;
 
-
+import type { ApiErrorResponse, PublicContentPage, SharePageResponse } from "@musiccloud/shared";
 import { fetchPublicContentPage, fetchShareData } from "@/api/client";
 import DeferredFooter from "@/components/layout/DeferredFooter.astro";
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
@@ -22,12 +22,14 @@ import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { CcSharePageShell } from "@/components/share/CcSharePageShell";
 import DeferredShareContent from "@/components/share/DeferredShareContent.astro";
+import { ShareErrorShell } from "@/components/share/ShareErrorShell";
 import ShareLogoHeader from "@/components/share/ShareLogoHeader.astro";
 import ShareResultPlaceholder from "@/components/share/ShareResultPlaceholder.astro";
 import { ShareLayout } from "@/components/share/ShareLayout";
 import { getRequestLocale } from "@/i18n/locales";
 import { loadTranslations, makeT } from "@/i18n/server";
 import { isBot } from "@/lib/isBot";
+import { resolveShortRouteResults } from "@/lib/share/short-route-result";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import {
   buildCcSharePageProps,
@@ -55,21 +57,27 @@ const t = makeT(translations);
 
 // Bot path only: synchronous fetches + full derivation so OG meta lands
 // in <head>. Browsers skip this entirely — see DeferredShareContent.
-type ContentPage = Awaited<ReturnType<typeof fetchPublicContentPage>>;
-type ShareData = Awaited<ReturnType<typeof fetchShareData>>;
-type ShareDataNN = NonNullable<ShareData>;
-
-let contentPage: ContentPage = null;
-let data: ShareData = null;
+let contentPage: PublicContentPage | null = null;
+let data: SharePageResponse | null = null;
+let routeError: ApiErrorResponse | null = null;
 let isAlbum = false;
 let isArtist = false;
-let og: ShareDataNN["og"] | null = null;
+let og: SharePageResponse["og"] | null = null;
 let artworkUrl: string | undefined | null = null;
 let displayTitle = "";
 let artistDisplay = "";
 let shareView: ShareViewModel | null = null;
 let ccPageProps: CcSharePageProps | null = null;
 let pageTitle = "musiccloud";
+const errorLabels = {
+  back: t("shareError.back"),
+  code: t("shareError.code"),
+  copied: t("shareError.copied"),
+  copy: t("shareError.copy"),
+  description: t("shareError.description"),
+  reference: t("shareError.reference"),
+  title: t("shareError.title"),
+};
 
 if (treatAsBot) {
   const clientIp = Astro.clientAddress;
@@ -77,11 +85,20 @@ if (treatAsBot) {
     fetchPublicContentPage(shortId, locale, clientIp),
     fetchShareData(shortId, clientIp, Astro.request.headers),
   ]);
-  contentPage = cp;
-  data = cp ? null : sd;
+  const routeResult = resolveShortRouteResults(cp, sd);
 
-  if (!contentPage && !data) {
+  if (routeResult.kind === "not-found") {
     return Astro.redirect("/404", 302);
+  }
+
+  if (routeResult.kind === "error") {
+    Astro.response.status = routeResult.statusCode;
+    routeError = routeResult.error;
+    pageTitle = errorLabels.title;
+  } else if (routeResult.kind === "content") {
+    contentPage = routeResult.data;
+  } else {
+    data = routeResult.data;
   }
 
   if (data && isCcSharePageResponse(data)) {
@@ -156,6 +173,8 @@ if (treatAsBot) {
   <div class="min-h-dvh flex flex-col">
     {treatAsBot ? (
       <>
+        {routeError && <ShareErrorShell client:load error={routeError} labels={errorLabels} />}
+
         {contentPage && contentPage.displayMode === "fullscreen" && (
           <main id="main-content" class="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 pt-content-safe pb-12">
             {contentPage.showTitle && contentPage.pageType !== "segmented" && (
@@ -245,7 +264,7 @@ if (treatAsBot) {
       client-side without a full reload. Bot path needs it here (symmetric
       with the old layout); browser path gets it from DeferredShareContent
       once the island resolves. */}
-  {treatAsBot && (!contentPage || contentPage.displayMode === "fullscreen") && (
+  {treatAsBot && !routeError && (!contentPage || contentPage.displayMode === "fullscreen") && (
     <PageOverlayIsland client:load initialPage={null} initialLocale={locale} />
   )}
 </BaseLayout>

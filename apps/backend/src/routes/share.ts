@@ -135,8 +135,19 @@ export default async function shareRoutes(app: FastifyInstance) {
               artists: trackData.artists,
               title: albumName,
             });
-          } catch {
-            // Layout metadata is optional enhancement for an otherwise valid share page.
+          } catch (error) {
+            // Layout metadata is optional enhancement for an otherwise valid share page,
+            // but the deviation remains correlated with this request in production logs.
+            request.log.warn(
+              {
+                err: error,
+                errorCode: "MC-SYS-0001",
+                operation: "share_vinyl_layout_read",
+                outcome: "layout_omitted",
+                shortId,
+              },
+              "optional share vinyl layout failed",
+            );
           }
         }
         const response: SharePageResponse = {

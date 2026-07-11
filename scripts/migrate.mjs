@@ -1,51 +1,23 @@
 /**
- * Drizzle migration runner for Postgres.
+ * Local entry point for the guarded backend Drizzle migration runner.
  *
- * Uses Drizzle's migrator and its drizzle.__drizzle_migrations table.
- *
- * Usage: node scripts/migrate.mjs
- * Requires DATABASE_URL environment variable.
+ * Keeping this file as a thin launcher ensures `pnpm db:migrate` and the
+ * deployed backend execute the same connection-role safety policy.
  */
-
-import { createRequire } from "node:module";
-import { join, dirname } from "node:path";
+import { spawnSync } from "node:child_process";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const MIGRATIONS_DIR = join(__dirname, "..", "apps", "backend", "src", "db", "migrations", "postgres");
-const requireFromBackend = createRequire(new URL("../apps/backend/package.json", import.meta.url));
-const pg = requireFromBackend("pg");
-const { drizzle } = requireFromBackend("drizzle-orm/node-postgres");
-const { migrate: drizzleMigrate } = requireFromBackend("drizzle-orm/node-postgres/migrator");
+const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const result = spawnSync(
+  "pnpm",
+  ["--dir", "apps/backend", "exec", "tsx", "src/db/migrate-cli.ts"],
+  { cwd: projectRoot, env: process.env, stdio: "inherit" },
+);
 
-function shouldUseSsl(databaseUrl) {
-  const parsed = new URL(databaseUrl);
-  const sslMode = parsed.searchParams.get("sslmode") ?? process.env.PGSSLMODE;
-  if (sslMode === "disable") return false;
-  if (sslMode === "require" || sslMode === "prefer") return true;
-  return !["localhost", "127.0.0.1", "::1"].includes(parsed.hostname);
+if (result.error) {
+  console.error("Failed to launch the guarded migration runner:", result.error.message);
+  process.exitCode = 1;
+} else {
+  process.exitCode = result.status ?? 1;
 }
-
-async function migrate() {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    console.error("DATABASE_URL is required");
-    process.exit(1);
-  }
-
-  const client = new pg.Client({
-    connectionString: databaseUrl,
-    ssl: shouldUseSsl(databaseUrl) ? { rejectUnauthorized: false } : false,
-  });
-  await client.connect();
-
-  try {
-    const db = drizzle(client);
-    await drizzleMigrate(db, { migrationsFolder: MIGRATIONS_DIR });
-    console.log("Drizzle migrations applied.");
-  } finally {
-    await client.end();
-  }
-}
-
-migrate();

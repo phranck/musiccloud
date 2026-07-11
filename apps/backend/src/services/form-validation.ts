@@ -10,6 +10,7 @@
  */
 
 import type { FormField, FormRow } from "@musiccloud/shared";
+import { log } from "../lib/infra/logger.js";
 
 /** Field types that render content but never accept input — skipped entirely. */
 const DISPLAY_FIELD_TYPES = new Set<FormField["type"]>(["richtext", "headline", "separator", "paragraph", "button"]);
@@ -117,8 +118,18 @@ function validateStringValue(field: FormField, value: unknown): string | null {
   if (field.validation?.pattern && field.validation.pattern.length <= MAX_VALIDATION_PATTERN_LENGTH) {
     try {
       if (!new RegExp(field.validation.pattern).test(value)) return "does not match the expected format";
-    } catch {
+    } catch (error) {
       // Ignore an invalid admin-authored pattern rather than crashing validation.
+      log.deviation(
+        {
+          component: "FormValidation",
+          errorCode: "MC-SYS-0001",
+          fieldId: field.id,
+          operation: "compile_validation_pattern",
+          outcome: "pattern_ignored",
+        },
+        error,
+      );
     }
   }
 

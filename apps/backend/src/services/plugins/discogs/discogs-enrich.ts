@@ -8,6 +8,7 @@
 import type { Pool } from "pg";
 import { upsertAlbumVinylLayout } from "../../../db/adapters/postgres-albums.js";
 import { insertExternalIds } from "../../../db/adapters/postgres-shared.js";
+import { log } from "../../../lib/infra/logger.js";
 import { getMasterVinylVersions, getRelease, isDiscogsConfigured, searchVinylMaster } from "./discogs-client.js";
 import { normalizeReleaseToLayout, selectOriginalVinylVersion } from "./discogs-parse.js";
 
@@ -53,7 +54,17 @@ export async function enrichAlbumVinylLayout(
       { idType: "discogs_release", idValue: layout.discogsReleaseId, sourceService: "discogs" },
     ]);
     await upsertAlbumVinylLayout(pool, album.id, layout);
-  } catch {
+  } catch (error) {
     // A failed Discogs or persistence operation must remain retryable.
+    log.deviation(
+      {
+        albumId: album.id,
+        component: "Discogs",
+        errorCode: "MC-SYS-0001",
+        operation: "discogs_vinyl_layout_enrichment",
+        outcome: "retryable_without_negative_cache",
+      },
+      error,
+    );
   }
 }

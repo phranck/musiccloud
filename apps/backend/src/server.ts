@@ -8,8 +8,11 @@ import rateLimit from "@fastify/rate-limit";
 import sensible from "@fastify/sensible";
 import swagger from "@fastify/swagger";
 import Fastify from "fastify";
-import { getRepository } from "./db/index.js";
 import { runMigrations } from "./db/run-migrations.js";
+import {
+  closeRuntimeDatabaseReadinessPool,
+  getRuntimeDatabaseReadinessReport,
+} from "./db/runtime-database-readiness.js";
 import { finalizePublicOpenApiDocument } from "./docs/openapi-finalize.js";
 import {
   getScalarApiReferenceHtml,
@@ -19,6 +22,7 @@ import {
 } from "./docs/scalar-reference.js";
 import { assertRequiredBootEnv } from "./lib/boot-env.js";
 import { requireEnvList } from "./lib/env.js";
+import { registerApiErrorHandling } from "./lib/infra/api-error-handler.js";
 import authPlugin from "./plugins/auth.js";
 import adminAnalyticsRoutes from "./routes/admin-analytics.js";
 import { adminApiAccessRoutes } from "./routes/admin-api-access.js";
@@ -120,41 +124,18 @@ async function isUpstreamReachable(url: string): Promise<boolean> {
 }
 
 /**
- * Tables added by recent migrations whose absence would crash a request handler.
- * Extend this whenever a new migration adds a table referenced by request-time SELECTs.
- */
-const READINESS_EXPECTED_TABLES = [
-  "tracks",
-  "albums",
-  "artist_profiles",
-  "short_urls",
-  "album_short_urls",
-  "artist_short_urls",
-  "service_links",
-  "track_previews",
-  "album_previews",
-  "track_external_ids",
-  "album_external_ids",
-  "artist_external_ids",
-  "artist_images",
-];
-
-/**
- * Readiness check behind `GET /health/db`: confirms the database is
- * reachable and every hot-path table exists.
+ * Readiness check behind `GET /health/db`: confirms migrations, table
+ * existence, effective privileges and the configured remote owner role.
  *
  * @returns `{ ok: true }` when ready, else `{ ok: false, body }` carrying the 503 payload.
  */
 async function checkReadiness(): Promise<{ ok: true } | { ok: false; body: Record<string, unknown> }> {
   try {
-    const repo = await getRepository();
-    const missing = await repo.findMissingTables(READINESS_EXPECTED_TABLES);
-    if (missing.length > 0) {
-      return { ok: false, body: { status: "not_ready", missingTables: missing } };
-    }
+    const report = await getRuntimeDatabaseReadinessReport();
+    if (!report.ok) return { ok: false, body: { status: "not_ready", ...report } };
     return { ok: true };
-  } catch (err) {
-    return { ok: false, body: { status: "not_ready", error: (err as Error).message } };
+  } catch {
+    return { ok: false, body: { status: "not_ready", reason: "database_readiness_check_failed" } };
   }
 }
 
@@ -173,6 +154,7 @@ async function buildApp() {
       },
     },
   });
+  registerApiErrorHandling(app);
 
   // Security & utility plugins
   await app.register(cors, {
@@ -264,13 +246,18 @@ async function buildApp() {
     $id: "ErrorResponse",
     type: "object",
     description: "Standard error envelope returned by every v1 endpoint on a non-2xx response.",
-    required: ["error"],
+    required: ["error", "message", "errorId"],
     properties: {
       error: {
         type: "string",
         description: "Machine-readable canonical MC error code (e.g. MC-URL-0003, MC-API-0003, MC-RES-0001).",
       },
       message: { type: "string", description: "Human-readable error detail." },
+      errorId: {
+        type: "string",
+        format: "uuid",
+        description: "Unique incident reference included in the matching structured backend log entry.",
+      },
       context: {
         type: "object",
         additionalProperties: { anyOf: [{ type: "string" }, { type: "number" }] },
@@ -294,6 +281,7 @@ async function buildApp() {
     },
     example: {
       error: "MC-API-0003",
+      errorId: "7d33e012-685f-4f11-94da-c6bc72918d7b",
       message:
         "Too many requests. You can make 10 requests per 60 seconds. Please try again in 42 seconds. (MC-API-0003)",
       context: {
@@ -716,6 +704,7 @@ async function start() {
   for (const signal of signals) {
     process.on(signal, async () => {
       app.log.info(`Received ${signal}, shutting down gracefully...`);
+      await closeRuntimeDatabaseReadinessPool();
       await app.close();
       process.exit(0);
     });

@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import type { Pool } from "pg";
+import { log } from "../../lib/infra/logger.js";
 import {
   DEFAULT_TIER_COLOR,
   type Tier,
@@ -126,7 +127,17 @@ export class PostgresTierRepository implements TierRepository {
       await client.query("COMMIT");
       return toTier(rows[0]!);
     } catch (error) {
-      await client.query("ROLLBACK").catch(() => {});
+      await client.query("ROLLBACK").catch((rollbackError) =>
+        log.deviation(
+          {
+            component: "TierRepository",
+            errorCode: "MC-DB-0004",
+            operation: "tier_transaction_rollback",
+            outcome: "primary_error_rethrown_after_rollback_failure",
+          },
+          rollbackError,
+        ),
+      );
       throw error;
     } finally {
       client.release();

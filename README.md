@@ -42,6 +42,8 @@ sources alongside their D2 diagram sources.
 - [Crawler architecture](docs/crawler-architecture.md)
 - [Artist composition](docs/artist-composition-architecture.md)
 - [Zerops networking notes](architecture/zerops-networking.md)
+- [PostgreSQL migration safety](docs/postgres-migration-safety.md)
+- [Backend error observability](docs/backend-error-observability.md)
 
 ## Supported streaming services
 

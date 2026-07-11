@@ -55,8 +55,18 @@ model. When building or editing a screen, verify that **every** structural value
 (padding, gap, radius, inset) is token-derived and matches
 [`mockups/frontend-prototype.html`](mockups/frontend-prototype.html), the visual + settings reference.
 
+## PostgreSQL migration and error boundaries
+
+- Local commands use only the local PostgreSQL URL from `apps/backend/.env.local`. Never alias a production or administrative URL to `DATABASE_URL` for local testing or migrations.
+- Zerops migrations must pass `apps/backend/src/db/migration-safety.ts` before Drizzle runs. Remote roles must be non-superuser and exactly match `DB_MIGRATION_ROLE`.
+- Administrative ownership repairs are not migrations. They require explicit approval and before/after owner and privilege verification.
+- `/health/db` must verify required tables, effective runtime privileges and the current Drizzle migration hash. Do not reduce it to connectivity or table-existence checks.
+- Every backend error response must preserve stable `MC-*` code, safe message and unique `errorId` through frontend proxies and UI. Recoverable backend deviations must remain searchable in structured redacted logs.
+
 ## See also
 
 - [`docs/REACT_DOCTOR_PREVENTION.md`](docs/REACT_DOCTOR_PREVENTION.md) — React Doctor policy (run before/after React work).
 - [`apps/frontend/src/components/cards/cardGeometry.ts`](apps/frontend/src/components/cards/cardGeometry.ts) — the radius-cascade source of truth.
 - [`mockups/frontend-prototype.html`](mockups/frontend-prototype.html) — the tuned visual + settings reference for every screen.
+- [`docs/postgres-migration-safety.md`](docs/postgres-migration-safety.md) — connection roles, migration guard and readiness checks.
+- [`docs/backend-error-observability.md`](docs/backend-error-observability.md) — public error contract, UI propagation and log correlation.

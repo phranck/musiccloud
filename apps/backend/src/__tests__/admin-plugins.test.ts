@@ -126,7 +126,7 @@ describe("PATCH /api/admin/plugins/:id", () => {
       payload: { enabled: false },
     });
     expect(res.statusCode).toBe(400);
-    expect(res.json()).toMatchObject({ error: "INVALID_ID" });
+    expect(res.json()).toMatchObject({ error: "MC-REQ-0001", errorId: expect.any(String) });
   });
 
   it("rejects a non-boolean enabled (400)", async () => {
@@ -137,7 +137,7 @@ describe("PATCH /api/admin/plugins/:id", () => {
       payload: { enabled: "yes" },
     });
     expect(res.statusCode).toBe(400);
-    expect(res.json()).toMatchObject({ error: "INVALID_BODY" });
+    expect(res.json()).toMatchObject({ error: "MC-REQ-0001", errorId: expect.any(String) });
   });
 
   it("toggles a plugin off and the next GET reflects it", async () => {
