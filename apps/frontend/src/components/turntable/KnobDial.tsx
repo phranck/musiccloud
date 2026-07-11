@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
  */
 const SPEED_KNOB_STYLE = {
   background:
-    "radial-gradient(circle at 48% 48%, #252b35 0 56%, #0b0e13 57.5% 59%, #333944 60% 61.2%, #090b0f 62% 100%)",
+    "radial-gradient(circle at 50% 50%, #252b35 0 56%, #0b0e13 57.5% 59%, #333944 60% 61.2%, #090b0f 62% 100%)",
   boxShadow:
     "0 0 0 1px rgba(0,0,0,0.9), 0 1px 0 rgba(255,255,255,0.13), 0 3px 4px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.07), inset 0 -3px 5px rgba(0,0,0,0.32)",
 } satisfies CSSProperties;

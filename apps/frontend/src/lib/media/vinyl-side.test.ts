@@ -29,6 +29,20 @@ describe("sideForTrackTitle", () => {
     expect(sideForTrackTitle(theSermonLayout, "  the sermon ")?.label).toBe("A");
   });
 
+  it("matches an unambiguous Discogs title with a descriptive prefix", () => {
+    const layout: VinylLayout = {
+      discogsReleaseId: "30468416",
+      sides: [
+        {
+          label: "A",
+          tracks: [{ position: "A5", title: "Theme From Any Number Can Win", durationMs: 159_000 }],
+        },
+      ],
+    };
+
+    expect(sideForTrackTitle(layout, "Any Number Can Win")?.label).toBe("A");
+  });
+
   it("returns null when no matching track or layout is available", () => {
     expect(sideForTrackTitle(theSermonLayout, "Unknown track")).toBeNull();
     expect(sideForTrackTitle(null, "The Sermon")).toBeNull();

@@ -159,6 +159,7 @@ import { LocaleProvider } from "@/i18n/context";
 import { useT } from "@/i18n/localeContext";
 import { CardSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { detectRegion } from "@/lib/geo/detect-region";
+import { sideForTrackTitle } from "@/lib/media/vinyl-side";
 import { sameAlbum } from "@/lib/resolve/album-identity";
 import { preloadResolvedMedia } from "@/lib/resolve/preload-media";
 import { commercialTrackResolver, type TrackResolver } from "@/lib/resolve/track-resolver";
@@ -166,6 +167,7 @@ import type { ArtistInfoContext } from "@/lib/share/artist-info-client";
 import { replaceBrowserUrlWithShortUrl } from "@/lib/share/short-url";
 import {
   type MediaCardContentConfiguration,
+  MediaCardContentTypeValue,
   MediaKindValue,
   type ShareContentConfiguration,
 } from "@/lib/types/media-card";
@@ -244,6 +246,22 @@ function configIdentity(config: MediaCardContentConfiguration): string {
   const shareUrl = "shareUrl" in config ? config.shareUrl : "";
   const shortUrl = "shortUrl" in config ? config.shortUrl : "";
   return [config.type, config.title, config.artist, config.artworkUrl, shareUrl, shortUrl].join("::");
+}
+
+/**
+ * Formats the Discogs-derived side currently rendered by the turntable for the
+ * VFD status row. Album views fall back to Side A because they do not represent
+ * one selected track, matching the turntable's label and groove fallback.
+ */
+function vinylLayoutStatus(config: MediaCardContentConfiguration): string {
+  const fallsBackToFirstSide =
+    config.type === MediaCardContentTypeValue.Album ||
+    (config.type === MediaCardContentTypeValue.Share && !config.album);
+  const side =
+    sideForTrackTitle(config.vinylLayout, config.title) ??
+    (fallsBackToFirstSide ? (config.vinylLayout?.sides[0] ?? null) : null);
+
+  return side ? `SIDE ${side.label} · ${side.tracks.length} TRACKS` : "";
 }
 
 interface ShareLayoutProps {
@@ -535,7 +553,7 @@ function ShareLayoutInner({
   const playingStatus =
     config.mediaKind === MediaKindValue.Song ? t("audio.statusPlayingSong") : t("audio.statusPlaying");
   const pausedStatus = config.mediaKind === MediaKindValue.Song ? t("audio.statusPausedSong") : t("audio.statusPaused");
-  const vfdStatusLine = artistStatusLoading
+  const vfdStatus = artistStatusLoading
     ? t("artist.statusLoading")
     : resolveErrorVisible
       ? t("artist.statusResolveError")
@@ -550,6 +568,13 @@ function ShareLayoutInner({
               : artistReadyVisible
                 ? t("artist.statusReady")
                 : "";
+  const vfdStatusLine =
+    artistStatusLoading ||
+    resolveErrorVisible ||
+    artistLoadStatus === ArtistLoadStatus.Error ||
+    artistLoadStatus === ArtistLoadStatus.Empty
+      ? vfdStatus
+      : [vfdStatus, vinylLayoutStatus(currentConfig)].filter(Boolean).join(" · ");
   const enrichedConfig = useMemo(
     () => ({
       ...currentConfig,

@@ -1,7 +1,7 @@
 import type { VinylSide } from "@musiccloud/shared";
 import type { CSSProperties } from "react";
 import { useEffect, useId, useMemo, useRef } from "react";
-import { labelArcPath, vinylGrooveSpiralPath, vinylSideGroovePath } from "@/lib/media/vinyl-geometry.js";
+import { labelArcPath, vinylGrooveSpiralPath, vinylSideGrooveLayout } from "@/lib/media/vinyl-geometry.js";
 import { cn } from "@/lib/utils";
 import { LP_COAST_DURATION_MS, VinylSpinState, type VinylSpinState as VinylSpinStateValue } from "./VinylRecord.types";
 
@@ -68,7 +68,7 @@ const LABEL_TITLE_ARC_PATH = labelArcPath(LABEL_TITLE_ARC_RADIUS, LABEL_TITLE_AR
 const LABEL_LEGAL_ARC_PATH = labelArcPath(LABEL_LEGAL_ARC_RADIUS, LABEL_LEGAL_ARC_BASELINE);
 // Single continuous groove spiral (a real record has one spiral groove per side,
 // not concentric rings). Computed once at module load.
-const VINYL_GROOVE_TURNS = 45;
+const VINYL_GROOVE_TURNS = 72;
 const VINYL_GROOVE_INNER_RADIUS = 19;
 const VINYL_GROOVE_OUTER_RADIUS = 49.5;
 const VINYL_GROOVE_SPIRAL_PATH = vinylGrooveSpiralPath(
@@ -84,9 +84,16 @@ const VINYL_GROOVE_SPIRAL_PATH = vinylGrooveSpiralPath(
 // there. The groove has no external fonts or images, so the secure-static mode an
 // SVG carries inside an <img> imposes no constraint. Single quotes keep the data
 // URL compact: encodeURIComponent does not escape them.
-function vinylGrooveImageSrc(path: string) {
+function vinylGrooveImageSrc(path: string, darkBands: ReadonlyArray<{ radius: number; width: number }> = []) {
+  const darkBandSvg = darkBands
+    .map(
+      ({ radius, width }) =>
+        `<circle cx='50' cy='50' r='${radius.toFixed(1)}' fill='none' stroke='rgba(0,0,0,0.72)' stroke-width='${width.toFixed(1)}'/>`,
+    )
+    .join("");
   return `data:image/svg+xml,${encodeURIComponent(
     `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>` +
+      darkBandSvg +
       `<path d='${path}' fill='none' stroke='rgba(0,0,0,0.5)' stroke-width='0.34'/>` +
       `<path d='${path}' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='0.14'/>` +
       `</svg>`,
@@ -431,13 +438,12 @@ export function VinylRecord({
   const legalArcId = `${labelPathId}-legal`;
   const grooveImageSrc = useMemo(() => {
     if (!sideLayout) return VINYL_GROOVE_IMAGE_SRC;
-    return vinylGrooveImageSrc(
-      vinylSideGroovePath(sideLayout, {
-        innerRadius: VINYL_GROOVE_INNER_RADIUS,
-        outerRadius: VINYL_GROOVE_OUTER_RADIUS,
-        turns: VINYL_GROOVE_TURNS,
-      }),
-    );
+    const grooveLayout = vinylSideGrooveLayout(sideLayout, {
+      innerRadius: VINYL_GROOVE_INNER_RADIUS,
+      outerRadius: VINYL_GROOVE_OUTER_RADIUS,
+      turns: VINYL_GROOVE_TURNS,
+    });
+    return vinylGrooveImageSrc(grooveLayout.path, grooveLayout.darkBands);
   }, [sideLayout]);
   const sideLetter = sideLayout?.label ?? "A";
   const rotorRef = useRef<HTMLDivElement>(null);

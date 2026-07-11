@@ -71,7 +71,7 @@ describe("VinylRecord", () => {
     const grooves = container.querySelector("[data-vinyl-grooves='true']");
     expect(grooves?.tagName.toLowerCase()).toBe("img");
     expect(decodeURIComponent(grooves?.getAttribute("src") ?? "")).toContain("<path");
-    expect(decodeURIComponent(grooves?.getAttribute("src") ?? "")).toContain(vinylGrooveSpiralPath(45, 19, 49.5));
+    expect(decodeURIComponent(grooves?.getAttribute("src") ?? "")).toContain(vinylGrooveSpiralPath(72, 19, 49.5));
     expect(container.querySelector("[data-vinyl-reflection='true']")?.getAttribute("style")).toContain(
       "conic-gradient(from 292deg",
     );
@@ -110,7 +110,8 @@ describe("VinylRecord", () => {
 
     expect(screen.getByText("SIDE B")).toBeInTheDocument();
     expect(container.querySelector("[data-vinyl-label-side-letter='true']")).toHaveTextContent("B");
-    expect(grooveBitmap).toContain(vinylSideGroovePath(sideLayout, { innerRadius: 19, outerRadius: 49.5, turns: 45 }));
+    expect(grooveBitmap).toContain(vinylSideGroovePath(sideLayout, { innerRadius: 19, outerRadius: 49.5, turns: 72 }));
+    expect(grooveBitmap).toContain("stroke='rgba(0,0,0,0.72)' stroke-width='1.0'");
     expect(grooveBitmap).not.toContain(vinylGrooveSpiralPath(45, 19, 49.5));
   });
 

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ShareLayout } from "@/components/share/ShareLayout";
@@ -9,13 +9,20 @@ vi.mock("@/components/cards/SongInfo", () => ({
   SongInfo: ({
     shareMediaView,
     previewStatus,
+    statusLine,
     title,
   }: {
     shareMediaView?: string;
     previewStatus?: string | null;
+    statusLine?: string;
     title: string;
   }) => (
-    <div data-testid="song-info-props" data-media-view={shareMediaView} data-preview-status={previewStatus ?? "none"}>
+    <div
+      data-testid="song-info-props"
+      data-media-view={shareMediaView}
+      data-preview-status={previewStatus ?? "none"}
+      data-status-line={statusLine ?? ""}
+    >
       {title}
     </div>
   ),
@@ -118,6 +125,37 @@ afterEach(() => {
 });
 
 describe("ShareLayout media view toggle", () => {
+  it("shows the rendered Discogs side and its track count in the VFD status", async () => {
+    render(
+      <ShareLayout
+        config={{
+          ...SHARE_CONFIG,
+          vinylLayout: {
+            discogsReleaseId: "10013707",
+            sides: [
+              {
+                label: "A",
+                tracks: [
+                  { durationMs: 664000, position: "A1", title: "Moment Of Truth" },
+                  { durationMs: 322000, position: "A2", title: "Blue Train" },
+                ],
+              },
+            ],
+          },
+        }}
+        artistName="John Coltrane"
+        animated={false}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("song-info-props")).toHaveAttribute(
+        "data-status-line",
+        "ARTIST DATA READY · SIDE A · 2 TRACKS",
+      ),
+    );
+  });
+
   it("renders only the viewport-matching layout, never both", () => {
     renderShareLayout();
     // Desktop viewport (matchMedia min-width matches) → exactly one media card,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { labelArcPath, vinylGrooveSpiralPath, vinylSideGroovePath } from "./vinyl-geometry.js";
+import { labelArcPath, vinylGrooveSpiralPath, vinylSideDarkBands, vinylSideGroovePath } from "./vinyl-geometry.js";
 
 describe("vinyl geometry", () => {
   it("returns SVG paths for the record groove and label arc", () => {
@@ -7,7 +7,7 @@ describe("vinyl geometry", () => {
     expect(labelArcPath(44, 73)).toMatch(/^M /);
   });
 
-  it("maps track durations to one deterministic pause groove between two tracks", () => {
+  it("maps track durations to one deterministic pause groove with a radial gap between two tracks", () => {
     const side = {
       label: "B",
       tracks: [
@@ -23,11 +23,20 @@ describe("vinyl geometry", () => {
     const pauseRadius = 50 - Number(pauseSegments[0]?.split(" ")[1]);
     const trackOuterRadius = 48;
     const trackInnerRadius = 20.5;
-    const expectedPauseRadius = trackOuterRadius - (714_000 / 1_194_000) * (trackOuterRadius - trackInnerRadius);
+    const pauseBandWidth = 1;
+    const expectedPauseRadius =
+      trackOuterRadius -
+      (714_000 / 1_194_000) * (trackOuterRadius - trackInnerRadius - pauseBandWidth) -
+      pauseBandWidth / 2;
 
     expect(segments).toHaveLength(5);
     expect(pauseSegments).toHaveLength(1);
     expect(pauseRadius).toBeCloseTo(expectedPauseRadius, 1);
+    expect(vinylSideDarkBands(side, options)).toEqual([
+      { radius: 48.75, width: 1.5 },
+      { radius: expect.closeTo(expectedPauseRadius, 1), width: 1 },
+      { radius: 19.75, width: 1.5 },
+    ]);
     expect(segments[0]).toMatch(/ L /);
     expect(segments.at(-1)).toMatch(/ L /);
     expect(vinylSideGroovePath(side, options)).toBe(path);

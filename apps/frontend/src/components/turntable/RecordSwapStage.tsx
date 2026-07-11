@@ -16,6 +16,8 @@ import { cn } from "@/lib/utils";
 export type RecordLabel = Omit<VinylRecordProps, "spinState" | "className" | "sideLayout"> & {
   /** Persisted Discogs layout for the inserted record, if one is available. */
   vinylLayout?: VinylLayout | null;
+  /** Album-view side to show when playback has no individually selected track. */
+  defaultSideLayout?: VinylSide;
 };
 
 /**

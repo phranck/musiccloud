@@ -117,7 +117,7 @@ describe("RecordSwapStage", () => {
     const grooveBitmap = decodeURIComponent(
       container.querySelector("[data-vinyl-grooves='true']")?.getAttribute("src") ?? "",
     );
-    expect(grooveBitmap).toContain(vinylSideGroovePath(SIDE_B, { innerRadius: 19, outerRadius: 49.5, turns: 45 }));
+    expect(grooveBitmap).toContain(vinylSideGroovePath(SIDE_B, { innerRadius: 19, outerRadius: 49.5, turns: 72 }));
     expect(container.querySelector(".sr-only")).toHaveTextContent("SIDE B");
   });
 

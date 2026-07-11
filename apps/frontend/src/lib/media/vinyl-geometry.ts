@@ -3,6 +3,7 @@ import type { VinylSide } from "@musiccloud/shared";
 const SIDE_GROOVE_RUN_IN_BAND_WIDTH = 1.5;
 const SIDE_GROOVE_RUN_OUT_BAND_WIDTH = 1.5;
 const SIDE_GROOVE_SEGMENT_LENGTH = 1.6;
+const SIDE_GROOVE_PAUSE_BAND_WIDTH = 1;
 
 /**
  * The record radii available to a per-side groove path.
@@ -14,6 +15,22 @@ export interface VinylSideGroovePathOptions {
   outerRadius: number;
   /** Number of groove revolutions across the complete playable radius. */
   turns: number;
+}
+
+/** A dark, groove-free annular zone on a vinyl side. */
+export interface VinylSideDarkBand {
+  /** Centre radius of the annular zone in the 100×100 SVG viewBox. */
+  radius: number;
+  /** Radial width of the annular zone in viewBox units. */
+  width: number;
+}
+
+/** Complete geometry for one Discogs-derived vinyl side. */
+export interface VinylSideGrooveLayout {
+  /** Fine spiral and single locked pause-groove paths. */
+  path: string;
+  /** Darker, widely spaced lead-in, lead-out and pause zones. */
+  darkBands: VinylSideDarkBand[];
 }
 
 /**
@@ -120,7 +137,8 @@ function vinylPauseGroovePath(radius: number): string {
 /**
  * Builds a deterministic SVG groove path for one vinyl side. The returned path
  * is composed of ordered subpaths: run-in, one time-proportional subpath per
- * track, one circular pause subpath per track boundary, then run-out. This
+ * track, one circular pause groove centred in a radial gap per track boundary,
+ * then run-out. This
  * keeps every pause groove explicitly countable in the SVG data while the
  * audible track band maps its radii linearly to track durations.
  *
@@ -128,27 +146,63 @@ function vinylPauseGroovePath(radius: number): string {
  * @param options - The inner and outer record radii in the 100×100 SVG viewBox.
  * @returns The `d` attribute for a per-side SVG `<path>`.
  */
-export function vinylSideGroovePath(side: VinylSide, options: VinylSideGroovePathOptions): string {
+export function vinylSideGrooveLayout(side: VinylSide, options: VinylSideGroovePathOptions): VinylSideGrooveLayout {
   const { innerRadius, outerRadius, turns } = options;
   const turnsPerRadius = turns / (outerRadius - innerRadius);
   const trackOuterRadius = outerRadius - SIDE_GROOVE_RUN_IN_BAND_WIDTH;
   const trackInnerRadius = innerRadius + SIDE_GROOVE_RUN_OUT_BAND_WIDTH;
   const totalDurationMs = side.tracks.reduce((total, track) => total + track.durationMs, 0);
   const trackBandWidth = trackOuterRadius - trackInnerRadius;
+  const boundaryCount = Math.max(0, side.tracks.length - 1);
+  const pauseBandWidth = Math.min(
+    SIDE_GROOVE_PAUSE_BAND_WIDTH,
+    boundaryCount === 0 ? 0 : trackBandWidth / boundaryCount,
+  );
+  const playableTrackBandWidth = trackBandWidth - boundaryCount * pauseBandWidth;
   const paths = [vinylGrooveSegmentPath(outerRadius, trackOuterRadius, 0, turnsPerRadius)];
-  let elapsedDurationMs = 0;
+  const darkBands: VinylSideDarkBand[] = [
+    { radius: outerRadius - SIDE_GROOVE_RUN_IN_BAND_WIDTH / 2, width: SIDE_GROOVE_RUN_IN_BAND_WIDTH },
+  ];
+  let currentTrackOuterRadius = trackOuterRadius;
 
   for (const [index, track] of side.tracks.entries()) {
-    const trackStartRadius = trackOuterRadius - (elapsedDurationMs / totalDurationMs) * trackBandWidth;
-    elapsedDurationMs += track.durationMs;
-    const trackEndRadius = trackOuterRadius - (elapsedDurationMs / totalDurationMs) * trackBandWidth;
-    const startAngle = (outerRadius - trackStartRadius) * turnsPerRadius * 2 * Math.PI;
+    const trackWidth = (track.durationMs / totalDurationMs) * playableTrackBandWidth;
+    const trackEndRadius = currentTrackOuterRadius - trackWidth;
+    const startAngle = (outerRadius - currentTrackOuterRadius) * turnsPerRadius * 2 * Math.PI;
 
-    paths.push(vinylGrooveSegmentPath(trackStartRadius, trackEndRadius, startAngle, turnsPerRadius));
-    if (index < side.tracks.length - 1) paths.push(vinylPauseGroovePath(trackEndRadius));
+    paths.push(vinylGrooveSegmentPath(currentTrackOuterRadius, trackEndRadius, startAngle, turnsPerRadius));
+    if (index < side.tracks.length - 1) {
+      const pauseRadius = trackEndRadius - pauseBandWidth / 2;
+      paths.push(vinylPauseGroovePath(pauseRadius));
+      darkBands.push({ radius: pauseRadius, width: pauseBandWidth });
+      currentTrackOuterRadius = trackEndRadius - pauseBandWidth;
+    }
   }
 
   const runOutStartAngle = (outerRadius - trackInnerRadius) * turnsPerRadius * 2 * Math.PI;
   paths.push(vinylGrooveSegmentPath(trackInnerRadius, innerRadius, runOutStartAngle, turnsPerRadius));
-  return paths.join(" ");
+  darkBands.push({ radius: innerRadius + SIDE_GROOVE_RUN_OUT_BAND_WIDTH / 2, width: SIDE_GROOVE_RUN_OUT_BAND_WIDTH });
+  return { path: paths.join(" "), darkBands };
+}
+
+/**
+ * Builds the fine groove paths for a Discogs-derived vinyl side.
+ *
+ * @param side - The normalized Discogs side.
+ * @param options - The inner and outer record radii in the 100×100 SVG viewBox.
+ * @returns The SVG `d` attribute for the fine groove paths.
+ */
+export function vinylSideGroovePath(side: VinylSide, options: VinylSideGroovePathOptions): string {
+  return vinylSideGrooveLayout(side, options).path;
+}
+
+/**
+ * Builds the darker lead-in, lead-out and pause zones for a Discogs-derived side.
+ *
+ * @param side - The normalized Discogs side.
+ * @param options - The inner and outer record radii in the 100×100 SVG viewBox.
+ * @returns The annular zones that are deliberately more widely spaced than songs.
+ */
+export function vinylSideDarkBands(side: VinylSide, options: VinylSideGroovePathOptions): VinylSideDarkBand[] {
+  return vinylSideGrooveLayout(side, options).darkBands;
 }

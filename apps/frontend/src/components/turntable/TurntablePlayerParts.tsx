@@ -111,7 +111,7 @@ export function TurntablePlayerLed({ power }: TurntablePlayerLedProps) {
   return (
     <span
       aria-hidden="true"
-      className="absolute right-[6.2%] bottom-[6%] z-40 aspect-square w-[calc(2.1%_-_1px)] overflow-visible rounded-full transition-opacity duration-300"
+      className="absolute right-[6.2%] bottom-[6%] z-10 aspect-square w-[calc(2.1%_-_1px)] overflow-visible rounded-full transition-opacity duration-300"
       data-turntable-led="true"
       data-turntable-led-power={power}
       style={{ ...LED_STYLE, opacity: isOn ? 1 : LED_STANDBY_OPACITY }}
@@ -147,7 +147,7 @@ export function TurntablePlayerLayoutLed({ vinylLayout }: TurntablePlayerLayoutL
   return (
     <span
       aria-hidden="true"
-      className="absolute right-[9.6%] bottom-[6%] z-40 aspect-square w-[calc(2.1%_-_1px)] overflow-visible rounded-full transition-opacity duration-300"
+      className="absolute right-[9.6%] bottom-[6%] z-10 aspect-square w-[calc(2.1%_-_1px)] overflow-visible rounded-full transition-opacity duration-300"
       data-turntable-layout-led="true"
       data-turntable-layout-led-state={isLit ? "lit" : "off"}
       style={{ ...LAYOUT_LED_STYLE, opacity: isLit ? 1 : LED_STANDBY_OPACITY }}
@@ -425,8 +425,8 @@ export function HubPlatter({ record, swapKey }: HubPlatterProps) {
   const handleSettled = useCallback(() => {
     if (!isPlaying) togglePlay();
   }, [isPlaying, togglePlay]);
-  const { vinylLayout, ...vinylRecord } = record;
-  const sideLayout = sideForTrackTitle(vinylLayout, trackTitle) ?? undefined;
+  const { defaultSideLayout, vinylLayout, ...vinylRecord } = record;
+  const sideLayout = sideForTrackTitle(vinylLayout, trackTitle) ?? defaultSideLayout;
   return (
     <TurntablePlayerPlatter
       record={{ ...vinylRecord, sideLayout }}

@@ -97,14 +97,14 @@ Subsystem 2 von zwei. Ohne echte Layout-Daten (MC-116 kein Match) bleibt die LP 
 
 **Files:** Modify `RecordSwapStage.tsx`, `TurntablePlayerParts.tsx`, `MediaCardHead.tsx` + Tests.
 
-- [ ] `RecordLabel` umdefinieren zu `Omit<VinylRecordProps, "spinState"|"className"|"sideLayout"> & { vinylLayout?: VinylLayout }`; `MediaCardHead` gibt `content.vinylLayout` in den `record` weiter.
-- [ ] Failing Test: in der Turntable-Schicht wird aus `record.vinylLayout` + `TurntablePlayerContext.trackTitle` per `sideForTrackTitle` die `sideLayout` abgeleitet und an `VinylRecord` gereicht; ändert sich `trackTitle`, ändert sich die Seite; ohne `vinylLayout`/ohne Match → `sideLayout` bleibt `undefined` (homogen).
-- [ ] Rot → implementieren (Ableitung an der Stelle, wo der Context konsumiert wird; `sideLayout` an `VinylRecord`).
-- [ ] Grün. Commit: `Feat: derive current vinyl side in the turntable layer (MC-117)`.
+- [x] `RecordLabel` umdefinieren zu `Omit<VinylRecordProps, "spinState"|"className"|"sideLayout"> & { vinylLayout?: VinylLayout }`; `MediaCardHead` gibt `content.vinylLayout` in den `record` weiter.
+- [x] Failing Test: in der Turntable-Schicht wird aus `record.vinylLayout` + `TurntablePlayerContext.trackTitle` per `sideForTrackTitle` die `sideLayout` abgeleitet und an `VinylRecord` gereicht; ändert sich `trackTitle`, ändert sich die Seite; ohne `vinylLayout`/ohne Match → `sideLayout` bleibt `undefined` (homogen).
+- [x] Rot → implementieren (Ableitung an der Stelle, wo der Context konsumiert wird; `sideLayout` an `VinylRecord`).
+- [x] Grün. Commit: `Feat: derive current vinyl side in the turntable layer (MC-117)`.
 
 ## Task 7: Gates
 
-- [ ] `pnpm --filter @musiccloud/frontend test:run` grün; `pnpm --filter @musiccloud/frontend exec astro check` 0 Errors; `pnpm doctor:diff` 0 Issues; `biome check` sauber.
+- [x] `pnpm --filter @musiccloud/frontend test:run` grün; `pnpm --filter @musiccloud/frontend exec astro check` 0 Errors; `pnpm doctor:diff` 0 Issues; `biome check` sauber.
 - [ ] Commit: `Chore: finalize dynamic vinyl groove frontend (MC-117)`.
 
 ## Checkliste (Plan-Fortschritt)
@@ -114,6 +114,6 @@ Subsystem 2 von zwei. Ohne echte Layout-Daten (MC-116 kein Match) bleibt die LP 
 - [x] Task 3 — Track→Seite-Matcher
 - [x] Task 4 — VinylRecord konsumiert sideLayout
 - [x] Task 5 — vinylLayout ins View-Model
-- [ ] Task 6 — RecordLabel + Turntable-Verdrahtung
-- [ ] Task 7 — Gates
-- [ ] Alle Code-Referenzen re-verifiziert (Funktionen, Scripts, Pfade, Props, Package-Manager-Commands) vor erstem Edit
+- [x] Task 6 — RecordLabel + Turntable-Verdrahtung
+- [x] Task 7 — Gates
+- [x] Alle Code-Referenzen re-verifiziert (Funktionen, Scripts, Pfade, Props, Package-Manager-Commands) vor erstem Edit

@@ -15,7 +15,12 @@ import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import type { VfdScrollOutDirection } from "@/components/ui/VfdDisplay";
 import { Turntable } from "@/components/vinyl/Turntable";
 import { sideForTrackTitle } from "@/lib/media/vinyl-side.js";
-import { isShareableContent, isSharePageContent, type MediaCardContentConfiguration } from "@/lib/types/media-card";
+import {
+  isShareableContent,
+  isSharePageContent,
+  type MediaCardContentConfiguration,
+  MediaCardContentTypeValue,
+} from "@/lib/types/media-card";
 
 /** The label data carried by the turntable compound for its inserted record. */
 type VinylLabelRecord = RecordLabel;
@@ -32,6 +37,9 @@ type VinylLabelRecord = RecordLabel;
  * @returns The {@link VinylLabelRecord} for the deck.
  */
 function buildVinylLabelRecord(content: MediaCardContentConfiguration): VinylLabelRecord {
+  const isAlbumView =
+    content.type === MediaCardContentTypeValue.Album ||
+    (content.type === MediaCardContentTypeValue.Share && !content.album);
   return {
     labelArtworkUrl: content.artworkUrl,
     labelCatalogText: content.labelCatalogText,
@@ -39,6 +47,7 @@ function buildVinylLabelRecord(content: MediaCardContentConfiguration): VinylLab
     labelSubtitle: content.artist,
     labelTitle: content.labelAlbumTitle ?? content.album ?? content.title,
     labelYear: content.labelReleaseYear,
+    defaultSideLayout: isAlbumView ? content.vinylLayout?.sides[0] : undefined,
     vinylLayout: content.vinylLayout,
   };
 }
@@ -241,7 +250,7 @@ export function MediaCardHead({
               record={{
                 ...labelRecord,
                 className: "h-full w-full",
-                sideLayout: sideForTrackTitle(content.vinylLayout, content.title) ?? undefined,
+                sideLayout: sideForTrackTitle(content.vinylLayout, content.title) ?? labelRecord.defaultSideLayout,
               }}
               swapKey={swapKey}
             />

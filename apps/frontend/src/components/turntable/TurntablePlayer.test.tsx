@@ -15,6 +15,7 @@ import { TurntablePlayerProvider } from "@/components/turntable/TurntablePlayerP
 import { derivePower } from "@/components/turntable/turntableState";
 import { VinylSpinState, type VinylSpinState as VinylSpinStateValue } from "@/components/vinyl/VinylRecord.types";
 import { LocaleProvider } from "@/i18n/context";
+import { vinylSideGroovePath } from "@/lib/media/vinyl-geometry";
 
 const originalAnimate = HTMLElement.prototype.animate;
 
@@ -110,6 +111,19 @@ const MULTI_SIDE_VINYL_LAYOUT: VinylLayout = {
   ],
 };
 
+const ALBUM_SIDE_LAYOUT: VinylLayout = {
+  discogsReleaseId: "30468416",
+  sides: [
+    {
+      label: "A",
+      tracks: [
+        { durationMs: 260_000, position: "A1", title: "You Came A Long Way From St. Louis" },
+        { durationMs: 211_000, position: "A2", title: "The Ape Woman" },
+      ],
+    },
+  ],
+};
+
 describe("TurntablePlayer compound", () => {
   it("renders the LED, platter, control and static knob labels", () => {
     const { container } = render(
@@ -126,6 +140,7 @@ describe("TurntablePlayer compound", () => {
     expect(container.querySelector("[data-turntable-led='true']")).toBeInTheDocument();
     expect(container.querySelector("[data-turntable-speed-knob='true']")).toBeInTheDocument();
     expect(container.querySelector("[data-turntable-speed-indicator='true']")).toBeInTheDocument();
+    expect(knob(container).getAttribute("style")).toContain("circle at 50% 50%");
 
     // The static speed captions are part of the control cluster; "45" stays as a
     // permanent unlit deck print even though the deck runs only at 33.
@@ -195,6 +210,8 @@ describe("TurntablePlayer compound", () => {
     const powerLed = container.querySelector("[data-turntable-led='true']");
     expect(layoutLed).toHaveAttribute("data-turntable-layout-led-state", "lit");
     expect(layoutLed).toHaveClass("right-[9.6%]");
+    expect(layoutLed).toHaveClass("z-10");
+    expect(powerLed).toHaveClass("z-10");
     expect(layoutLed?.compareDocumentPosition(powerLed as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
 
     rerender(
@@ -235,6 +252,24 @@ describe("TurntablePlayer compound", () => {
     );
 
     expect(screen.getByText("SIDE A")).toBeInTheDocument();
+  });
+
+  it("uses the supplied album side when its preview has no selected Discogs track", () => {
+    const { container } = render(
+      <StubHubProvider speed={TurntableSpeed.Standby} spinState={VinylSpinState.Idle} trackTitle="Any Number Can Win">
+        <TurntablePlayer
+          record={{ ...RECORD, defaultSideLayout: ALBUM_SIDE_LAYOUT.sides[0], vinylLayout: ALBUM_SIDE_LAYOUT }}
+          swapKey="album-test"
+        />
+      </StubHubProvider>,
+    );
+
+    const grooveBitmap = decodeURIComponent(
+      container.querySelector("[data-vinyl-grooves='true']")?.getAttribute("src") ?? "",
+    );
+    expect(grooveBitmap).toContain(
+      vinylSideGroovePath(ALBUM_SIDE_LAYOUT.sides[0], { innerRadius: 19, outerRadius: 49.5, turns: 72 }),
+    );
   });
 
   it("eases the knob indicator between the Standby and 33 angles", () => {
