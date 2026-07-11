@@ -199,6 +199,34 @@ describe("TurntablePlayer compound", () => {
     );
   });
 
+  it("renders both indicators as domed pilot lamps with a bezel and glass highlight", () => {
+    const { container } = render(
+      <StubHubProvider speed={TurntableSpeed.Rpm33} spinState={VinylSpinState.Playing}>
+        <TurntablePlayer record={{ ...RECORD, vinylLayout: VINYL_LAYOUT }} swapKey="tp-test" />
+      </StubHubProvider>,
+    );
+
+    expect(container.querySelectorAll("[data-turntable-lamp-bezel='true']")).toHaveLength(2);
+    expect(container.querySelectorAll("[data-turntable-lamp-lens='true']")).toHaveLength(2);
+    expect(container.querySelectorAll("[data-turntable-lamp-highlight='true']")).toHaveLength(2);
+
+    expect(container.querySelector("[data-turntable-led='true']")).toHaveClass("w-[3.2%]", "right-[6.2%]");
+    expect(container.querySelector("[data-turntable-layout-led='true']")).toHaveClass("w-[3.2%]", "right-[10.9%]");
+
+    for (const lens of container.querySelectorAll<HTMLElement>("[data-turntable-lamp-lens='true']")) {
+      expect(lens.getAttribute("style")).toContain("inset");
+      expect(lens.getAttribute("style")).toContain("0 0 14px");
+      expect(lens.getAttribute("style")).toContain("0 0 22px");
+    }
+    for (const highlight of container.querySelectorAll<HTMLElement>("[data-turntable-lamp-highlight='true']")) {
+      expect(highlight.getAttribute("style")).toContain("at 24% 20%");
+    }
+    for (const bezel of container.querySelectorAll<HTMLElement>("[data-turntable-lamp-bezel='true']")) {
+      expect(bezel.getAttribute("style")).toContain("-1px -1px");
+      expect(bezel.getAttribute("style")).toContain("1px 2px");
+    }
+  });
+
   it("renders the Discogs layout LED from the record layout before the power LED", () => {
     const { container, rerender } = render(
       <StubHubProvider speed={TurntableSpeed.Standby} spinState={VinylSpinState.Idle}>
@@ -209,7 +237,7 @@ describe("TurntablePlayer compound", () => {
     const layoutLed = container.querySelector("[data-turntable-layout-led='true']");
     const powerLed = container.querySelector("[data-turntable-led='true']");
     expect(layoutLed).toHaveAttribute("data-turntable-layout-led-state", "lit");
-    expect(layoutLed).toHaveClass("right-[9.6%]");
+    expect(layoutLed).toHaveClass("right-[10.9%]");
     expect(layoutLed).toHaveClass("z-10");
     expect(powerLed).toHaveClass("z-10");
     expect(layoutLed?.compareDocumentPosition(powerLed as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
@@ -295,6 +323,51 @@ describe("TurntablePlayer compound", () => {
     expect(container.querySelector("[data-turntable-speed-indicator='true']")).toHaveStyle({
       transform: "translateY(-50%) rotate(150deg) translateZ(0)",
     });
+  });
+
+  it("gives the hub knob a clearly visible rotational transition", () => {
+    const { container } = render(
+      <StubHubProvider speed={TurntableSpeed.Rpm33} spinState={VinylSpinState.Playing}>
+        <TurntablePlayer.Control />
+      </StubHubProvider>,
+    );
+
+    expect(container.querySelector("[data-turntable-speed-indicator='true']")).toHaveStyle({
+      transition: "transform 480ms cubic-bezier(0.22, 0.61, 0.36, 1)",
+    });
+  });
+
+  it("adds a subtle concentric surface texture to the knob", () => {
+    const { container } = render(
+      <StubHubProvider speed={TurntableSpeed.Standby} spinState={VinylSpinState.Idle}>
+        <TurntablePlayer.Control />
+      </StubHubProvider>,
+    );
+
+    expect(knob(container).getAttribute("style")).toContain("repeating-radial-gradient");
+  });
+
+  it("keeps the brushed-metal reflection static on the record's light axis", () => {
+    const { container, rerender } = render(
+      <StubHubProvider speed={TurntableSpeed.Rpm33} spinState={VinylSpinState.Playing}>
+        <TurntablePlayer.Control />
+      </StubHubProvider>,
+    );
+
+    const playingReflection = container.querySelector<HTMLElement>("[data-turntable-knob-reflection='true']");
+    expect(playingReflection).toHaveStyle({ transform: "none", transition: "none" });
+    expect(playingReflection?.getAttribute("style")).toContain("from 292deg");
+
+    rerender(
+      <StubHubProvider speed={TurntableSpeed.Standby} spinState={VinylSpinState.Idle}>
+        <TurntablePlayer.Control />
+      </StubHubProvider>,
+    );
+
+    expect(container.querySelector("[data-turntable-knob-reflection='true']")).toHaveAttribute(
+      "style",
+      playingReflection?.getAttribute("style"),
+    );
   });
 
   it("forwards the hub spin state to the embedded vinyl record", () => {

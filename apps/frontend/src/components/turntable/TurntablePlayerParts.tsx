@@ -1,5 +1,5 @@
 import type { VinylLayout } from "@musiccloud/shared";
-import { type CSSProperties, type ReactNode, useCallback } from "react";
+import { type CSSProperties, type HTMLAttributes, type ReactNode, useCallback } from "react";
 import { KnobDial } from "@/components/turntable/KnobDial";
 import { type RecordLabel, RecordSwapStage } from "@/components/turntable/RecordSwapStage";
 import {
@@ -26,29 +26,41 @@ const PLATTER_STYLE = {
     "0 0 0 2px rgba(5,7,10,0.92), 0 0 0 4px rgba(71,78,90,0.52), 0 1px 0 rgba(255,255,255,0.12), inset 0 1px 1px rgba(255,255,255,0.08), inset 0 -2px 3px rgba(0,0,0,0.38)",
 } satisfies CSSProperties;
 
-const LED_STYLE = {
-  background: "radial-gradient(circle at 35% 30%, #f0ffd8 0 11%, #8dff8c 18%, #2fc956 52%, #0b4f26 100%)",
+/** Shared dark retaining ring around both classic domed pilot lamps. */
+const INDICATOR_LAMP_BEZEL_STYLE = {
   boxShadow:
-    "0 0 0 1px rgba(0,0,0,0.7), 0 0 4px rgba(104,255,122,0.24), 0 0 12px rgba(48,210,83,0.11), 0 0 22px rgba(48,210,83,0.06), inset 0 1px 1px rgba(255,255,255,0.58), inset 0 -1px 2px rgba(0,0,0,0.48)",
+    "0 0 0 1px rgba(0,0,0,0.92), 0 0 0 2px rgba(90,98,108,0.32), -1px -1px 0 rgba(255,255,255,0.17), 1px 2px 3px rgba(0,0,0,0.78), inset 0 0 0 1px rgba(255,255,255,0.13), inset 0 0 0 2px rgba(0,0,0,0.76)",
 } satisfies CSSProperties;
 
-const LED_GLOW_STYLE = {
+/** Glass specular aligned with the deck's shared upper-left light source. */
+const INDICATOR_LAMP_HIGHLIGHT_STYLE = {
   background:
-    "radial-gradient(circle, rgba(118,255,133,0.34) 0 12%, rgba(54,218,83,0.19) 26%, rgba(45,186,75,0.09) 43%, transparent 66%)",
-  filter: "blur(2px)",
+    "radial-gradient(ellipse at 24% 20%, rgba(255,255,255,0.92) 0 5%, rgba(255,255,255,0.42) 6% 11%, rgba(255,255,255,0.12) 14%, transparent 25%)",
 } satisfies CSSProperties;
 
-const LAYOUT_LED_STYLE = {
-  background: "radial-gradient(circle at 35% 30%, #fff1ce 0 11%, #ffc15a 18%, #f28a20 52%, #7d3608 100%)",
-  boxShadow:
-    "0 0 0 1px rgba(0,0,0,0.7), 0 0 4px rgba(255,169,64,0.24), 0 0 12px rgba(242,138,32,0.11), 0 0 22px rgba(242,138,32,0.06), inset 0 1px 1px rgba(255,255,255,0.58), inset 0 -1px 2px rgba(0,0,0,0.48)",
-} satisfies CSSProperties;
+const INDICATOR_LAMP_GLASS_SHADOW =
+  "inset 1px 1px 1px rgba(255,255,255,0.34), inset -1px -2px 2px rgba(0,0,0,0.82), inset 0 0 2px rgba(0,0,0,0.55)";
 
-const LAYOUT_LED_GLOW_STYLE = {
-  background:
-    "radial-gradient(circle, rgba(255,199,105,0.34) 0 12%, rgba(255,161,48,0.19) 26%, rgba(232,120,24,0.09) 43%, transparent 66%)",
-  filter: "blur(2px)",
-} satisfies CSSProperties;
+interface IndicatorLampPalette {
+  /** Coloured glass and concentrated emitter beneath it. */
+  lensBackground: string;
+  /** Compact coloured halo emitted only while the lamp is lit. */
+  litGlow: string;
+}
+
+const POWER_LAMP_PALETTE = {
+  lensBackground:
+    "radial-gradient(circle at 50% 58%, #d9ffe0 0 7%, #82f597 12%, #32c65b 32%, #0c7132 62%, #03160b 100%)",
+  litGlow:
+    "0 0 3px rgba(112,255,137,0.5), 0 0 8px rgba(48,210,83,0.22), 0 0 14px rgba(48,210,83,0.11), 0 0 22px rgba(48,210,83,0.04)",
+} satisfies IndicatorLampPalette;
+
+const LAYOUT_LAMP_PALETTE = {
+  lensBackground:
+    "radial-gradient(circle at 50% 58%, #fff2cd 0 7%, #ffc96b 12%, #ed8b29 32%, #8c3e0c 62%, #241004 100%)",
+  litGlow:
+    "0 0 3px rgba(255,198,104,0.52), 0 0 8px rgba(242,138,32,0.22), 0 0 14px rgba(242,138,32,0.11), 0 0 22px rgba(242,138,32,0.04)",
+} satisfies IndicatorLampPalette;
 
 const SPINDLE_STYLE = {
   background:
@@ -67,21 +79,54 @@ const SPINDLE_SHADOW_STYLE = {
   transform: "translate(-38%, -30%)",
 } satisfies CSSProperties;
 
-/**
- * Lamp opacity when the deck is stopped (`power === Standby`).
- *
- * Subtly dims the green lamp so a stopped deck reads as "off" without removing
- * the lamp. The `On` state keeps full opacity (the accepted lit optic, unchanged
- * byte-for-byte). Opacity-only so the dim composites on the GPU.
- */
-const LED_STANDBY_OPACITY = 0.32;
+/** Props for the shared physical pilot-lamp presentation. */
+interface TurntableIndicatorLampProps extends HTMLAttributes<HTMLSpanElement> {
+  /** Whether the emitter beneath the tinted glass is energised. */
+  isLit: boolean;
+  /** Colour-specific glass and compact halo values. */
+  palette: IndicatorLampPalette;
+}
 
 /**
- * Soft outer-glow opacity when stopped. Pushed lower than the lamp so the halo
- * around the dimmed lamp all but disappears, reinforcing the "off" read while
- * the `On` glow stays at its full optic.
+ * Classic domed equipment lamp shared by the power and Discogs indicators.
+ *
+ * The retaining bezel never fades. The glass keeps a dark colour tint while
+ * switched off; energising the lamp brightens the concentrated centre and adds
+ * only a compact halo. A fixed upper-left highlight and lower-right inset shade
+ * give the lens its physical dome under the deck's common light source.
  */
-const LED_GLOW_STANDBY_OPACITY = 0.12;
+function TurntableIndicatorLamp({ isLit, palette, className, ...props }: TurntableIndicatorLampProps) {
+  return (
+    <span
+      className={cn("absolute bottom-[6%] z-10 aspect-square w-[3.2%] overflow-visible rounded-full", className)}
+      {...props}
+    >
+      <span
+        aria-hidden="true"
+        className="absolute inset-0 rounded-full transition-[filter,box-shadow] duration-300"
+        data-turntable-lamp-lens="true"
+        style={{
+          background: palette.lensBackground,
+          boxShadow: isLit ? `${INDICATOR_LAMP_GLASS_SHADOW}, ${palette.litGlow}` : INDICATOR_LAMP_GLASS_SHADOW,
+          filter: isLit ? "saturate(1) brightness(1)" : "saturate(0.58) brightness(0.48)",
+        }}
+      >
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 rounded-full transition-opacity duration-300"
+          data-turntable-lamp-highlight="true"
+          style={{ ...INDICATOR_LAMP_HIGHLIGHT_STYLE, opacity: isLit ? 1 : 0.38 }}
+        />
+      </span>
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 rounded-full"
+        data-turntable-lamp-bezel="true"
+        style={INDICATOR_LAMP_BEZEL_STYLE}
+      />
+    </span>
+  );
+}
 
 /** Props for {@link TurntablePlayerLed}. */
 interface TurntablePlayerLedProps {
@@ -109,19 +154,14 @@ interface TurntablePlayerLedProps {
 export function TurntablePlayerLed({ power }: TurntablePlayerLedProps) {
   const isOn = power === TurntablePower.On;
   return (
-    <span
+    <TurntableIndicatorLamp
       aria-hidden="true"
-      className="absolute right-[6.2%] bottom-[6%] z-10 aspect-square w-[calc(2.1%_-_1px)] overflow-visible rounded-full transition-opacity duration-300"
+      className="right-[6.2%]"
       data-turntable-led="true"
       data-turntable-led-power={power}
-      style={{ ...LED_STYLE, opacity: isOn ? 1 : LED_STANDBY_OPACITY }}
-    >
-      <span
-        aria-hidden="true"
-        className="absolute left-1/2 top-1/2 -z-10 aspect-square w-[430%] -translate-x-1/2 -translate-y-1/2 rounded-full transition-opacity duration-300"
-        style={{ ...LED_GLOW_STYLE, opacity: isOn ? 1 : LED_GLOW_STANDBY_OPACITY }}
-      />
-    </span>
+      isLit={isOn}
+      palette={POWER_LAMP_PALETTE}
+    />
   );
 }
 
@@ -145,19 +185,14 @@ interface TurntablePlayerLayoutLedProps {
 export function TurntablePlayerLayoutLed({ vinylLayout }: TurntablePlayerLayoutLedProps) {
   const isLit = Boolean(vinylLayout);
   return (
-    <span
+    <TurntableIndicatorLamp
       aria-hidden="true"
-      className="absolute right-[9.6%] bottom-[6%] z-10 aspect-square w-[calc(2.1%_-_1px)] overflow-visible rounded-full transition-opacity duration-300"
+      className="right-[10.9%]"
       data-turntable-layout-led="true"
       data-turntable-layout-led-state={isLit ? "lit" : "off"}
-      style={{ ...LAYOUT_LED_STYLE, opacity: isLit ? 1 : LED_STANDBY_OPACITY }}
-    >
-      <span
-        aria-hidden="true"
-        className="absolute left-1/2 top-1/2 -z-10 aspect-square w-[430%] -translate-x-1/2 -translate-y-1/2 rounded-full transition-opacity duration-300"
-        style={{ ...LAYOUT_LED_GLOW_STYLE, opacity: isLit ? 1 : LED_GLOW_STANDBY_OPACITY }}
-      />
-    </span>
+      isLit={isLit}
+      palette={LAYOUT_LAMP_PALETTE}
+    />
   );
 }
 
