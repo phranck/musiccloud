@@ -43,6 +43,7 @@
  */
 import { ROUTE_TEMPLATES, type SharePageResponse } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
+import { getRepository } from "../db/index.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter, isInternalRequest } from "../lib/infra/rate-limiter.js";
 import { resolveAppleMusicStorefrontFromHeaders } from "../lib/platform/apple-music-storefront.js";
@@ -50,6 +51,7 @@ import { toCachedApiLinks } from "../lib/server/api-links.js";
 import { loadCcByShortId } from "../lib/server/cc-share-page.js";
 import { loadAlbumByShortId, loadArtistByShortId, loadByShortId } from "../lib/server/share-page.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
+import { readCachedAlbumVinylLayout } from "../services/track-vinyl-layout.js";
 
 export default async function shareRoutes(app: FastifyInstance) {
   app.get<{ Params: { shortId: string } }>(
@@ -125,6 +127,18 @@ export default async function shareRoutes(app: FastifyInstance) {
       ]);
 
       if (trackData) {
+        let vinylLayout = null;
+        const albumName = trackData.track.albumName ?? undefined;
+        if (albumName) {
+          try {
+            vinylLayout = await readCachedAlbumVinylLayout(await getRepository(), {
+              artists: trackData.artists,
+              title: albumName,
+            });
+          } catch {
+            // Layout metadata is optional enhancement for an otherwise valid share page.
+          }
+        }
         const response: SharePageResponse = {
           type: "track",
           og: {
@@ -145,6 +159,7 @@ export default async function shareRoutes(app: FastifyInstance) {
             isExplicit: trackData.track.isExplicit ?? undefined,
             previewUrl: trackData.track.previewUrl ?? undefined,
             previewRefreshable: trackData.previewRefreshable || undefined,
+            vinylLayout,
           },
           links: toCachedApiLinks(trackData.links),
           shortUrl: trackData.og.ogUrl,
@@ -155,6 +170,10 @@ export default async function shareRoutes(app: FastifyInstance) {
       }
 
       if (albumData) {
+        const sharedVinylLayout = await readCachedAlbumVinylLayout(await getRepository(), {
+          artists: albumData.artists,
+          title: albumData.album.title,
+        });
         const response: SharePageResponse = {
           type: "album",
           og: {
@@ -173,6 +192,7 @@ export default async function shareRoutes(app: FastifyInstance) {
             label: albumData.album.label ?? undefined,
             upc: albumData.album.upc ?? undefined,
             previewUrl: albumData.album.previewUrl ?? undefined,
+            vinylLayout: sharedVinylLayout ?? albumData.album.vinylLayout,
           },
           links: toCachedApiLinks(albumData.links),
           shortUrl: albumData.og.ogUrl,
@@ -205,9 +225,11 @@ export default async function shareRoutes(app: FastifyInstance) {
       }
 
       // CC entities carry no cross-service links; the loader already shapes the
-      // full cc-* SharePageResponse, so it is sent verbatim.
+      // full cc-* SharePageResponse, so it is sent verbatim. Disable client-side
+      // caching only while CC track and album opens intentionally refresh Discogs.
       if (ccData) {
-        reply.header("Cache-Control", "private, max-age=3600");
+        const refreshesDiscogs = ccData.type === "cc-track" || ccData.type === "cc-album";
+        reply.header("Cache-Control", refreshesDiscogs ? "no-store" : "private, max-age=3600");
         return reply.send(ccData);
       }
 

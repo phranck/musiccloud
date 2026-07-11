@@ -1,5 +1,7 @@
+import type { VinylSide } from "@musiccloud/shared";
 import type { CSSProperties } from "react";
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useMemo, useRef } from "react";
+import { labelArcPath, vinylGrooveSpiralPath, vinylSideGrooveLayout } from "@/lib/media/vinyl-geometry.js";
 import { cn } from "@/lib/utils";
 import { LP_COAST_DURATION_MS, VinylSpinState, type VinylSpinState as VinylSpinStateValue } from "./VinylRecord.types";
 
@@ -12,6 +14,7 @@ export interface VinylRecordProps {
   labelCatalogText?: string | null;
   /** Top-left rights imprint. Defaults to "GEMA"; the CC path passes the licence label. */
   labelRightsText?: string | null;
+  sideLayout?: VinylSide;
   spinState?: VinylSpinStateValue;
 }
 
@@ -65,7 +68,7 @@ const LABEL_TITLE_ARC_PATH = labelArcPath(LABEL_TITLE_ARC_RADIUS, LABEL_TITLE_AR
 const LABEL_LEGAL_ARC_PATH = labelArcPath(LABEL_LEGAL_ARC_RADIUS, LABEL_LEGAL_ARC_BASELINE);
 // Single continuous groove spiral (a real record has one spiral groove per side,
 // not concentric rings). Computed once at module load.
-const VINYL_GROOVE_TURNS = 45;
+const VINYL_GROOVE_TURNS = 72;
 const VINYL_GROOVE_INNER_RADIUS = 19;
 const VINYL_GROOVE_OUTER_RADIUS = 49.5;
 const VINYL_GROOVE_SPIRAL_PATH = vinylGrooveSpiralPath(
@@ -81,12 +84,22 @@ const VINYL_GROOVE_SPIRAL_PATH = vinylGrooveSpiralPath(
 // there. The groove has no external fonts or images, so the secure-static mode an
 // SVG carries inside an <img> imposes no constraint. Single quotes keep the data
 // URL compact: encodeURIComponent does not escape them.
-const VINYL_GROOVE_IMAGE_SRC = `data:image/svg+xml,${encodeURIComponent(
-  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>` +
-    `<path d='${VINYL_GROOVE_SPIRAL_PATH}' fill='none' stroke='rgba(0,0,0,0.5)' stroke-width='0.34'/>` +
-    `<path d='${VINYL_GROOVE_SPIRAL_PATH}' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='0.14'/>` +
-    `</svg>`,
-)}`;
+function vinylGrooveImageSrc(path: string, darkBands: ReadonlyArray<{ radius: number; width: number }> = []) {
+  const darkBandSvg = darkBands
+    .map(
+      ({ radius, width }) =>
+        `<circle cx='50' cy='50' r='${radius.toFixed(1)}' fill='none' stroke='rgba(0,0,0,0.72)' stroke-width='${width.toFixed(1)}'/>`,
+    )
+    .join("");
+  return `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>` +
+      darkBandSvg +
+      `<path d='${path}' fill='none' stroke='rgba(0,0,0,0.5)' stroke-width='0.34'/>` +
+      `<path d='${path}' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='0.14'/>` +
+      `</svg>`,
+  )}`;
+}
+const VINYL_GROOVE_IMAGE_SRC = vinylGrooveImageSrc(VINYL_GROOVE_SPIRAL_PATH);
 const LABEL_TITLE_ARC_LENGTH = labelArcLength(LABEL_TITLE_ARC_RADIUS, LABEL_TITLE_ARC_BASELINE);
 
 // Vinyl-label imprint typography. Iosevka Charon Mono is monospace: every glyph
@@ -247,19 +260,6 @@ function readRotationDegrees(element: HTMLElement): number {
   return rotationFromTransform(element.style.transform);
 }
 
-function labelArcPath(radius: number, baselineY: number) {
-  const verticalOffset = baselineY - 50;
-  const halfChord = Math.sqrt(Math.max(0, radius ** 2 - verticalOffset ** 2));
-  const startX = formatArcCoordinate(50 - halfChord);
-  const endX = formatArcCoordinate(50 + halfChord);
-
-  return `M ${startX} ${formatArcCoordinate(baselineY)} A ${radius} ${radius} 0 0 0 ${endX} ${formatArcCoordinate(baselineY)}`;
-}
-
-function formatArcCoordinate(value: number) {
-  return value.toFixed(1).replace(/\.0$/, "");
-}
-
 /**
  * Arc length (in viewBox units) of the circular baseline {@link labelArcPath}
  * produces for a given radius and baseline-Y. Used to fit imprint text to the
@@ -274,45 +274,6 @@ function labelArcLength(radius: number, baselineY: number) {
   const halfChord = Math.sqrt(Math.max(0, radius ** 2 - (baselineY - 50) ** 2));
   const centralAngle = 2 * Math.asin(Math.min(1, halfChord / radius));
   return radius * centralAngle;
-}
-
-/**
- * Builds an Archimedean spiral as an SVG path (`r = innerRadius + b·θ`), centred
- * on the 100×100 viewBox — one continuous groove from the outer edge inward, the
- * way a real record is cut, instead of separate concentric rings.
- *
- * Sampled at a constant **arc length** rather than a fixed number of points per
- * turn: a fixed per-turn count leaves visible polygon corners on the long outer
- * windings while over-sampling the short inner ones. Walking from the outer edge
- * inward with `cos(θ)`/`sin(θ)` and a decreasing angle makes the groove run
- * counter-clockwise from outside to inside (SVG's y-axis points down).
- *
- * @param turns - Number of revolutions between inner and outer radius.
- * @param innerRadius - Where the groove ends (near the label edge).
- * @param outerRadius - Where the groove starts (near the record rim).
- * @returns The `d` attribute for a `<path>`.
- */
-function vinylGrooveSpiralPath(turns: number, innerRadius: number, outerRadius: number): string {
-  // ~1.6 viewBox units between samples keeps the curve smooth at the displayed
-  // size while keeping the path string small (it ships in the DOM and is
-  // re-rasterised per frame on software-rendered Firefox). 1-decimal coordinates
-  // are precise enough at this scale and roughly halve the string length.
-  const segmentLength = 1.6;
-  const totalAngle = turns * 2 * Math.PI;
-  const growthPerRadian = (outerRadius - innerRadius) / totalAngle;
-  const points: string[] = [];
-  let theta = totalAngle;
-  let isFirst = true;
-  while (theta > 0) {
-    const radius = innerRadius + growthPerRadian * theta;
-    const x = 50 + radius * Math.cos(theta);
-    const y = 50 + radius * Math.sin(theta);
-    points.push(`${isFirst ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`);
-    isFirst = false;
-    theta -= segmentLength / radius;
-  }
-  points.push(`L ${(50 + innerRadius).toFixed(1)} 50`);
-  return points.join(" ");
 }
 
 /**
@@ -449,6 +410,7 @@ export function VinylRecord({
   labelSubtitle,
   labelTitle,
   labelYear,
+  sideLayout,
   spinState = VinylSpinState.Idle,
 }: VinylRecordProps) {
   const displayTitle = labelTitle ?? DEFAULT_LABEL_TITLE;
@@ -474,6 +436,16 @@ export function VinylRecord({
   const labelPathId = `vinyl${useId().replaceAll(":", "")}`;
   const titleArcId = `${labelPathId}-title`;
   const legalArcId = `${labelPathId}-legal`;
+  const grooveImageSrc = useMemo(() => {
+    if (!sideLayout) return VINYL_GROOVE_IMAGE_SRC;
+    const grooveLayout = vinylSideGrooveLayout(sideLayout, {
+      innerRadius: VINYL_GROOVE_INNER_RADIUS,
+      outerRadius: VINYL_GROOVE_OUTER_RADIUS,
+      turns: VINYL_GROOVE_TURNS,
+    });
+    return vinylGrooveImageSrc(grooveLayout.path, grooveLayout.darkBands);
+  }, [sideLayout]);
+  const sideLetter = sideLayout?.label ?? "A";
   const rotorRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<Animation | null>(null);
 
@@ -540,7 +512,7 @@ export function VinylRecord({
             className="pointer-events-none absolute inset-0 h-full w-full"
             data-vinyl-grooves="true"
             draggable={false}
-            src={VINYL_GROOVE_IMAGE_SRC}
+            src={grooveImageSrc}
           />
           <span aria-hidden="true" className="absolute inset-[2.8%] rounded-full" style={RECORD_DETAIL_STYLE} />
           <div
@@ -602,8 +574,8 @@ export function VinylRecord({
                 <tspan data-vinyl-label-side="true" fontSize="3.4" x="38" y="70">
                   SIDE
                 </tspan>
-                <tspan fontSize="5.4" letterSpacing="0" x="38" y="75">
-                  A
+                <tspan data-vinyl-label-side-letter="true" fontSize="5.4" letterSpacing="0" x="38" y="75">
+                  {sideLetter}
                 </tspan>
               </text>
               <text
@@ -663,7 +635,7 @@ export function VinylRecord({
                 </textPath>
               </text>
             </svg>
-            <span className="sr-only">SIDE A</span>
+            <span className="sr-only">SIDE {sideLetter}</span>
             <span className="sr-only">{labelYear ?? DEFAULT_LABEL_SPEED}</span>
             <div
               aria-hidden="true"

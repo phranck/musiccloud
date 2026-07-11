@@ -9,6 +9,7 @@ import type {
   CcTrackSharePageResponse,
   ResolveSuccessResponse,
   UnifiedResolveSuccessResponse,
+  VinylLayout,
 } from "@musiccloud/shared";
 import { buildMetaLine, ENDPOINTS, PLATFORM_CONFIG } from "@musiccloud/shared";
 import { catalogTextFromIds, labelAlbumTitleFrom, releaseYearFromDate } from "@/lib/media/lp-label";
@@ -112,6 +113,7 @@ export function parseResolveResponse(data: ResolveSuccessResponse): SongResult {
     isExplicit: data.track.isExplicit,
     artworkUrl: data.track.artworkUrl ?? "",
     previewUrl: data.track.previewUrl,
+    vinylLayout: data.track.vinylLayout ?? undefined,
     platforms,
     shareUrl: data.shortUrl,
   };
@@ -129,6 +131,7 @@ function parseAlbumResolveResponse(data: AlbumResolveSuccessResponse): AlbumResu
     label: data.album.label,
     upc: data.album.upc,
     previewUrl: data.album.previewUrl,
+    vinylLayout: data.album.vinylLayout ?? undefined,
     platforms,
     shareUrl: data.shortUrl,
   };
@@ -175,6 +178,7 @@ function parseCcResolveResponse(data: CcResolveSuccessResponse): CcTrackResult {
     releaseDate: data.track.releaseDate,
     durationMs: data.track.durationMs,
     artworkUrl: data.track.artworkUrl ?? "",
+    vinylLayout: data.track.vinylLayout ?? undefined,
     streamUrl: data.track.streamUrl,
     licenseCcurl: data.track.licenseCcurl,
     downloadUrl: data.track.downloadUrl,
@@ -206,6 +210,7 @@ function parseCcAlbumResolveResponse(data: CcAlbumResolveSuccessResponse): CcAlb
     artist: data.album.artistName,
     releaseDate: data.album.releaseDate,
     artworkUrl: data.album.artworkUrl ?? "",
+    vinylLayout: data.album.vinylLayout ?? undefined,
     jamendoUrl: data.album.shareUrl,
     shareUrl: data.shortUrl,
     artistInfo: data.artistInfo,
@@ -346,6 +351,7 @@ export function buildActiveConfig(
       labelAlbumTitle: labelAlbumTitleFrom(active.album, active.title),
       labelReleaseYear: releaseYearFromDate(active.releaseDate),
       labelCatalogText: catalogTextFromIds({ isrc: active.isrc }),
+      vinylLayout: active.vinylLayout,
       platforms: active.platforms,
       platformsLabel: t("results.listenOn"),
       platformsInfo,
@@ -388,6 +394,7 @@ export function buildActiveConfig(
     labelAlbumTitle: active.title,
     labelReleaseYear: year,
     labelCatalogText: catalogTextFromIds({ label: active.label, upc: active.upc }),
+    vinylLayout: active.vinylLayout,
     platforms: active.platforms,
     platformsLabel: t("results.openAlbumOn"),
     platformsInfo,
@@ -441,6 +448,7 @@ export function buildShareConfigFromActive(active: ActiveResult, t: TFunc): Shar
       labelAlbumTitle: active.title,
       labelReleaseYear: year,
       labelCatalogText: catalogTextFromIds({ label: active.label, upc: active.upc }),
+      vinylLayout: active.vinylLayout,
       platforms: active.platforms,
       platformsLabel: t(platformsLabelKey),
       platformsLabelKey,
@@ -463,6 +471,7 @@ export function buildShareConfigFromActive(active: ActiveResult, t: TFunc): Shar
     labelAlbumTitle: labelAlbumTitleFrom(active.album, active.title),
     labelReleaseYear: releaseYearFromDate(active.releaseDate),
     labelCatalogText: catalogTextFromIds({ isrc: active.isrc }),
+    vinylLayout: active.vinylLayout,
     platforms: active.platforms,
     platformsLabel: t(platformsLabelKey),
     platformsLabelKey,
@@ -617,6 +626,7 @@ function buildCcEntityHeaderConfig(opts: {
   labelReleaseYear?: string;
   labelCatalogText?: string;
   labelRightsText?: string;
+  vinylLayout?: VinylLayout;
   shortUrl: string;
 }): ShareContentConfiguration {
   return {
@@ -629,6 +639,7 @@ function buildCcEntityHeaderConfig(opts: {
     labelReleaseYear: opts.labelReleaseYear,
     labelCatalogText: opts.labelCatalogText,
     labelRightsText: opts.labelRightsText,
+    vinylLayout: opts.vinylLayout,
     platforms: [],
     platformsLabel: "",
     platformsLabelKey: "",
@@ -658,6 +669,7 @@ function ccTrackToShareConfig(cc: CcTrackResult): ShareContentConfiguration {
       labelReleaseYear: releaseYearFromDate(cc.releaseDate),
       // GEMA-free: licence goes in the top-left rights field; center stays empty.
       labelRightsText: ccLicenseLabel(cc.licenseCcurl),
+      vinylLayout: cc.vinylLayout,
       shortUrl: cc.shareUrl,
     }),
     album: cc.album,
@@ -712,6 +724,7 @@ export function ccResultToShareProps(ccActive: CcResult, t: TFunc): CcResultShar
         metaLine: ccActive.releaseDate?.slice(0, 4),
         labelAlbumTitle: ccActive.title,
         labelReleaseYear: releaseYearFromDate(ccActive.releaseDate),
+        vinylLayout: ccActive.vinylLayout,
         shortUrl: ccActive.shareUrl,
       }),
       artistName: ccActive.artist,
@@ -763,6 +776,7 @@ export function ccResponseToResult(
       releaseDate: track.releaseDate,
       durationMs: track.durationMs,
       artworkUrl: track.artworkUrl ?? "",
+      vinylLayout: track.vinylLayout ?? undefined,
       streamUrl: track.streamUrl,
       licenseCcurl: track.licenseCcurl,
       downloadUrl: track.downloadUrl,
@@ -785,6 +799,7 @@ export function ccResponseToResult(
       artist: album.artistName,
       releaseDate: album.releaseDate,
       artworkUrl: album.artworkUrl ?? "",
+      vinylLayout: album.vinylLayout ?? undefined,
       jamendoUrl: album.shareUrl,
       shareUrl: data.shortUrl,
       artistInfo: data.artistInfo,

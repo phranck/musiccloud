@@ -1,4 +1,4 @@
-import type { CcMusicInfo, CcTrackStats } from "@musiccloud/shared";
+import type { CcMusicInfo, CcTrackStats, VinylLayout } from "@musiccloud/shared";
 import type { PlatformLink } from "./platform";
 
 export type { PlatformLink };
@@ -52,6 +52,8 @@ export interface MediaCardContentConfiguration {
   /** LP paper-label rights field (top-left). Commercial defaults to "GEMA"; the
    *  Creative-Commons path sets the CC licence label, where "GEMA" is meaningless. */
   labelRightsText?: string;
+  /** Discogs-derived vinyl timing data for the displayed record, when available. */
+  vinylLayout?: VinylLayout;
   /** 30-second audio preview URL (Deezer or Spotify). Optional: mini-player shown only when set. */
   previewUrl?: string;
   /** True when `previewUrl` is absent but the backend can fetch a fresh URL

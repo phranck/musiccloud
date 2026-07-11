@@ -16,6 +16,8 @@
  * one endpoint for all three without the frontend probing fields.
  */
 
+import type { VinylLayout } from "./vinyl-layout.js";
+
 export interface ApiArtistCredit {
   artistEntityId: string;
   name: string;
@@ -38,6 +40,11 @@ export interface ApiTrack {
    *  Deezer URL on demand via the preview-refresh endpoint. Clients use
    *  this to decide whether to render the audio player in a loading state. */
   previewRefreshable?: boolean;
+  /**
+   * Discogs-derived vinyl layout for this track's containing album, or null
+   * when the track has no stable album identity or no suitable pressing.
+   */
+  vinylLayout: VinylLayout | null;
 }
 
 export interface ApiLink {
@@ -293,7 +300,8 @@ export interface CcResolveSuccessResponse {
   type: "cc-track";
   id: string;
   shortUrl: string;
-  track: ApiCcTrack;
+  /** The resolved track plus the Discogs lookup state of its containing album. */
+  track: ApiCcTrack & { vinylLayout: VinylLayout | null };
   /**
    * Right-column data for the shared share layout, built from Jamendo: the
    * track artist's popular tracks (`topTracks`) plus similar tracks
@@ -333,7 +341,8 @@ export interface CcAlbumResolveSuccessResponse {
   type: "cc-album";
   id: string;
   shortUrl: string;
-  album: ApiCcAlbum;
+  /** The resolved album plus its Discogs vinyl lookup state. */
+  album: ApiCcAlbum & { vinylLayout: VinylLayout | null };
   /** Right-column data: the album's tracks as `topTracks` plus similar tracks. See {@link CcResolveSuccessResponse.artistInfo}. */
   artistInfo: ArtistInfoResponse;
 }
@@ -378,12 +387,18 @@ export interface ApiAlbum {
   label?: string;
   upc?: string;
   previewUrl?: string;
+  /**
+   * Discogs-derived vinyl side and track timing data when it has been
+   * checked, or `null` when no suitable vinyl pressing exists.
+   */
+  vinylLayout?: VinylLayout | null;
 }
 
 export interface AlbumResolveSuccessResponse {
   id: string;
   shortUrl: string;
-  album: ApiAlbum;
+  /** Album resolve payloads always expose the vinyl lookup state. */
+  album: ApiAlbum & { vinylLayout: VinylLayout | null };
   links: ApiLink[];
 }
 
@@ -438,7 +453,8 @@ export interface CcTrackSharePageResponse {
   type: "cc-track";
   og: OgMeta;
   shortUrl: string;
-  track: ApiCcTrack;
+  /** The persisted track plus the cached Discogs layout of its containing album. */
+  track: ApiCcTrack & { vinylLayout: VinylLayout | null };
   /** Optional: loaded client-side (async) via `/api/cc/artist-info` so the share
    *  page renders the core card immediately. */
   artistInfo?: ArtistInfoResponse;
@@ -449,7 +465,8 @@ export interface CcAlbumSharePageResponse {
   type: "cc-album";
   og: OgMeta;
   shortUrl: string;
-  album: ApiCcAlbum;
+  /** The persisted album plus its cached Discogs vinyl layout state. */
+  album: ApiCcAlbum & { vinylLayout: VinylLayout | null };
   artistInfo: ArtistInfoResponse;
 }
 

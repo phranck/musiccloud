@@ -16,6 +16,10 @@ export interface MobileShareLayoutProps {
   config: MediaCardContentConfiguration;
   /** Translated label for the artist-info button. */
   label: string;
+  /** Accessible name for the clickable cover/turntable media surface. */
+  mediaViewToggleLabel: string;
+  /** Toggles between the cover and turntable media views. */
+  onMediaViewToggle: () => void;
   /** Opens the artist-info bottom sheet. */
   onOpenSheet: () => void;
   /** Reports the share-card preview player's status to the owner. */
@@ -40,6 +44,8 @@ export function MobileShareLayout({
   animated,
   config,
   label,
+  mediaViewToggleLabel,
+  onMediaViewToggle,
   onOpenSheet,
   onPreviewStatusChange,
   previewStatus,
@@ -50,6 +56,8 @@ export function MobileShareLayout({
       <SharePageCard
         config={config}
         animated={animated}
+        mediaViewToggleLabel={mediaViewToggleLabel}
+        onMediaViewToggle={onMediaViewToggle}
         onPreviewStatusChange={onPreviewStatusChange}
         previewStatus={previewStatus}
         shareMediaView={shareMediaView}

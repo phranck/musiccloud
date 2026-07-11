@@ -32,6 +32,7 @@ import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { toCachedApiLinks } from "../lib/server/api-links.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
+import { readCachedAlbumVinylLayout } from "../services/track-vinyl-layout.js";
 
 export default async function linkRoutes(app: FastifyInstance) {
   app.get<{ Params: { id: string } }>(
@@ -105,6 +106,10 @@ export default async function linkRoutes(app: FastifyInstance) {
         });
       }
 
+      const vinylLayout = data.track.albumName
+        ? await readCachedAlbumVinylLayout(repo, { artists: data.artists, title: data.track.albumName })
+        : null;
+
       reply.header("Cache-Control", "public, max-age=3600");
       return reply.send({
         id,
@@ -113,6 +118,7 @@ export default async function linkRoutes(app: FastifyInstance) {
           artists: data.artists,
           albumName: data.track.albumName,
           artworkUrl: data.track.artworkUrl,
+          vinylLayout,
         },
         links: toCachedApiLinks(data.links),
       });

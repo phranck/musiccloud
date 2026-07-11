@@ -7,20 +7,23 @@ import { recordSwapKey } from "@/components/cards/recordSwapKey";
 import { SongInfo } from "@/components/cards/SongInfo";
 import { ShareButton } from "@/components/share/ShareButton";
 import type { ShareMediaView } from "@/components/share/ShareMediaView.types";
+import type { RecordLabel } from "@/components/turntable/RecordSwapStage";
 import { TurntableAnalyzerSlot } from "@/components/turntable/TurntableAnalyzerSlot";
 import { TurntablePlayer } from "@/components/turntable/TurntablePlayer";
 import { TurntablePlayerProvider } from "@/components/turntable/TurntablePlayerProvider";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
 import type { VfdScrollOutDirection } from "@/components/ui/VfdDisplay";
 import { Turntable } from "@/components/vinyl/Turntable";
-import type { VinylRecordProps } from "@/components/vinyl/VinylRecord";
-import { isShareableContent, isSharePageContent, type MediaCardContentConfiguration } from "@/lib/types/media-card";
+import { sideForTrackTitle } from "@/lib/media/vinyl-side.js";
+import {
+  isShareableContent,
+  isSharePageContent,
+  type MediaCardContentConfiguration,
+  MediaCardContentTypeValue,
+} from "@/lib/types/media-card";
 
-/** The vinyl-label fields of {@link VinylRecordProps} (no spin/speed/class). */
-type VinylLabelRecord = Pick<
-  VinylRecordProps,
-  "labelArtworkUrl" | "labelTitle" | "labelSubtitle" | "labelYear" | "labelCatalogText" | "labelRightsText"
->;
+/** The label data carried by the turntable compound for its inserted record. */
+type VinylLabelRecord = RecordLabel;
 
 /**
  * Maps resolved media content to the vinyl-label imprint fields.
@@ -34,6 +37,9 @@ type VinylLabelRecord = Pick<
  * @returns The {@link VinylLabelRecord} for the deck.
  */
 function buildVinylLabelRecord(content: MediaCardContentConfiguration): VinylLabelRecord {
+  const isAlbumView =
+    content.type === MediaCardContentTypeValue.Album ||
+    (content.type === MediaCardContentTypeValue.Share && !content.album);
   return {
     labelArtworkUrl: content.artworkUrl,
     labelCatalogText: content.labelCatalogText,
@@ -41,6 +47,8 @@ function buildVinylLabelRecord(content: MediaCardContentConfiguration): VinylLab
     labelSubtitle: content.artist,
     labelTitle: content.labelAlbumTitle ?? content.album ?? content.title,
     labelYear: content.labelReleaseYear,
+    defaultSideLayout: isAlbumView ? content.vinylLayout?.sides[0] : undefined,
+    vinylLayout: content.vinylLayout,
   };
 }
 
@@ -57,6 +65,10 @@ interface MediaCardHeadProps {
   previewStatus?: AudioStatus | null;
   /** Share-only cover/turntable visual mode. Omitted outside ShareLayout. */
   shareMediaView?: ShareMediaView;
+  /** Accessible name for the clickable share media surface. */
+  mediaViewToggleLabel?: string;
+  /** Toggles the share-only cover/turntable visual mode. */
+  onMediaViewToggle?: () => void;
   /**
    * Pre-translated screen-reader announcement rendered as a polite live region
    * above the cover. Only the landing-page `MediaCard` supplies this; the share
@@ -75,6 +87,8 @@ interface MediaCardHeadProps {
 interface MediaCardHeadStageProps {
   content: MediaCardContentConfiguration;
   shareMediaView?: ShareMediaView;
+  mediaViewToggleLabel?: string;
+  onMediaViewToggle?: () => void;
   statusLine?: string;
   previewStatus?: AudioStatus | null;
   seekHint: { direction: VfdScrollOutDirection; nonce: number } | null;
@@ -98,6 +112,8 @@ interface MediaCardHeadStageProps {
 function MediaCardHeadStage({
   content,
   shareMediaView,
+  mediaViewToggleLabel,
+  onMediaViewToggle,
   statusLine,
   previewStatus,
   seekHint,
@@ -111,6 +127,8 @@ function MediaCardHeadStage({
       albumArtUrl={content.artworkUrl}
       isExplicit={content.isExplicit}
       metaOverride={content.metaLine}
+      mediaViewToggleLabel={mediaViewToggleLabel}
+      onMediaViewToggle={onMediaViewToggle}
       previewStatus={previewStatus}
       seekHint={seekHint}
       shareMediaView={shareMediaView}
@@ -158,6 +176,8 @@ export function MediaCardHead({
   animated = true,
   className,
   onPreviewStatusChange,
+  mediaViewToggleLabel,
+  onMediaViewToggle,
   previewStatus,
   shareMediaView,
   srAnnouncement,
@@ -210,6 +230,8 @@ export function MediaCardHead({
         >
           <MediaCardHeadStage
             content={content}
+            mediaViewToggleLabel={mediaViewToggleLabel}
+            onMediaViewToggle={onMediaViewToggle}
             shareMediaView={shareMediaView}
             statusLine={content.statusLine}
             previewStatus={previewStatus}
@@ -232,6 +254,8 @@ export function MediaCardHead({
       ) : (
         <MediaCardHeadStage
           content={content}
+          mediaViewToggleLabel={mediaViewToggleLabel}
+          onMediaViewToggle={onMediaViewToggle}
           shareMediaView={shareMediaView}
           statusLine={content.statusLine}
           previewStatus={previewStatus}
@@ -239,7 +263,11 @@ export function MediaCardHead({
           turntableStage={
             <Turntable
               className="h-full w-full"
-              record={{ ...labelRecord, className: "h-full w-full" }}
+              record={{
+                ...labelRecord,
+                className: "h-full w-full",
+                sideLayout: sideForTrackTitle(content.vinylLayout, content.title) ?? labelRecord.defaultSideLayout,
+              }}
               swapKey={swapKey}
             />
           }

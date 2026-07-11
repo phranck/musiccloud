@@ -159,6 +159,7 @@ import { LocaleProvider } from "@/i18n/context";
 import { useT } from "@/i18n/localeContext";
 import { CardSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { detectRegion } from "@/lib/geo/detect-region";
+import { sideForTrackTitle } from "@/lib/media/vinyl-side";
 import { sameAlbum } from "@/lib/resolve/album-identity";
 import { preloadResolvedMedia } from "@/lib/resolve/preload-media";
 import { commercialTrackResolver, type TrackResolver } from "@/lib/resolve/track-resolver";
@@ -166,6 +167,7 @@ import type { ArtistInfoContext } from "@/lib/share/artist-info-client";
 import { replaceBrowserUrlWithShortUrl } from "@/lib/share/short-url";
 import {
   type MediaCardContentConfiguration,
+  MediaCardContentTypeValue,
   MediaKindValue,
   type ShareContentConfiguration,
 } from "@/lib/types/media-card";
@@ -174,6 +176,7 @@ export type { ArtistInfoContext };
 
 const SHARE_MEDIA_VIEW_TOGGLE_KEY = "p";
 const SHARE_MEDIA_VIEW_STORAGE_KEY = "musiccloud:share-media-view";
+const SHARE_MEDIA_VIEW_TOGGLE_SELECTOR = "[data-media-view-toggle='true']";
 const SHARE_MEDIA_TOGGLE_TARGET_SELECTOR =
   "input, textarea, select, button, a[href], [contenteditable='true'], [contenteditable='']";
 
@@ -219,7 +222,9 @@ function nextShareMediaView(view: ShareMediaViewType): ShareMediaViewType {
 }
 
 function isShareMediaToggleTarget(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && Boolean(target.closest(SHARE_MEDIA_TOGGLE_TARGET_SELECTOR));
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.closest(SHARE_MEDIA_VIEW_TOGGLE_SELECTOR)) return false;
+  return Boolean(target.closest(SHARE_MEDIA_TOGGLE_TARGET_SELECTOR));
 }
 
 function shouldIgnoreShareMediaViewToggle(event: KeyboardEvent): boolean {
@@ -244,6 +249,22 @@ function configIdentity(config: MediaCardContentConfiguration): string {
   const shareUrl = "shareUrl" in config ? config.shareUrl : "";
   const shortUrl = "shortUrl" in config ? config.shortUrl : "";
   return [config.type, config.title, config.artist, config.artworkUrl, shareUrl, shortUrl].join("::");
+}
+
+/**
+ * Formats the Discogs-derived side currently rendered by the turntable for the
+ * VFD status row. Album views fall back to Side A because they do not represent
+ * one selected track, matching the turntable's label and groove fallback.
+ */
+function vinylLayoutStatus(config: MediaCardContentConfiguration): string {
+  const fallsBackToFirstSide =
+    config.type === MediaCardContentTypeValue.Album ||
+    (config.type === MediaCardContentTypeValue.Share && !config.album);
+  const side =
+    sideForTrackTitle(config.vinylLayout, config.title) ??
+    (fallsBackToFirstSide ? (config.vinylLayout?.sides[0] ?? null) : null);
+
+  return side ? `SIDE ${side.label} · ${side.tracks.length} TRACKS` : "";
 }
 
 interface ShareLayoutProps {
@@ -535,7 +556,7 @@ function ShareLayoutInner({
   const playingStatus =
     config.mediaKind === MediaKindValue.Song ? t("audio.statusPlayingSong") : t("audio.statusPlaying");
   const pausedStatus = config.mediaKind === MediaKindValue.Song ? t("audio.statusPausedSong") : t("audio.statusPaused");
-  const vfdStatusLine = artistStatusLoading
+  const vfdStatus = artistStatusLoading
     ? t("artist.statusLoading")
     : resolveErrorVisible
       ? t("artist.statusResolveError")
@@ -550,6 +571,13 @@ function ShareLayoutInner({
               : artistReadyVisible
                 ? t("artist.statusReady")
                 : "";
+  const vfdStatusLine =
+    artistStatusLoading ||
+    resolveErrorVisible ||
+    artistLoadStatus === ArtistLoadStatus.Error ||
+    artistLoadStatus === ArtistLoadStatus.Empty
+      ? vfdStatus
+      : [vfdStatus, vinylLayoutStatus(currentConfig)].filter(Boolean).join(" · ");
   const enrichedConfig = useMemo(
     () => ({
       ...currentConfig,
@@ -570,6 +598,7 @@ function ShareLayoutInner({
     dispatchUi({ type: ShareUiActionType.OpenSheet });
   }, []);
   const closeSheet = useCallback(() => dispatchUi({ type: ShareUiActionType.CloseSheet }), []);
+  const toggleMediaView = useCallback(() => dispatchUi({ type: ShareUiActionType.MediaViewToggled }), []);
   const handlePreviewStatusChange = useCallback(
     (status: AudioStatus | null) => dispatchUi({ type: ShareUiActionType.PreviewStatusChanged, status }),
     [],
@@ -609,7 +638,9 @@ function ShareLayoutInner({
           config={enrichedConfig}
           isLoading={isLoading}
           labels={artistLabels}
+          mediaViewToggleLabel={t("share.toggleMediaView")}
           onArtistResolveStart={handleArtistResolveStart}
+          onMediaViewToggle={toggleMediaView}
           onPreviewStatusChange={handlePreviewStatusChange}
           onTrackResolve={resolveTrack}
           previewStatus={previewStatus}
@@ -622,6 +653,8 @@ function ShareLayoutInner({
           animated={animated}
           config={enrichedConfig}
           label={t("artist.mobileButton")}
+          mediaViewToggleLabel={t("share.toggleMediaView")}
+          onMediaViewToggle={toggleMediaView}
           onOpenSheet={openSheet}
           onPreviewStatusChange={handlePreviewStatusChange}
           previewStatus={previewStatus}

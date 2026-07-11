@@ -69,6 +69,7 @@
   "share.copied": "Copied!",
   "share.copyError": "Copy failed",
   "share.nativeShare": "Share \"{title}\"",
+  "share.toggleMediaView": "Toggle cover and turntable view",
   "error.dialogTitle": "Search problem",
   "error.dismiss": "OK",
   "error.offline": "Looks like you're offline. Check your connection and try again.",

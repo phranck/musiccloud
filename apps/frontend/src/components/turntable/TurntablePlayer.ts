@@ -1,5 +1,6 @@
 import {
   HubControl,
+  HubLayoutLed,
   HubLed,
   HubPlatter,
   TurntablePlayerBrand,
@@ -16,6 +17,7 @@ import {
  * of the hub:
  * - `TurntablePlayer.Brand` — the decorative "music / cloud" wordmark, top-left (no hub).
  * - `TurntablePlayer.LED` — the power lamp (reads `power`).
+ * - `TurntablePlayer.LayoutLED` — the Discogs-layout lamp (reads the record layout).
  * - `TurntablePlayer.Platter` — the disc + spindle assembly (reads `spinState`).
  * - `TurntablePlayer.Control` — the speed cluster: the static captions plus the
  *   animated indicator knob, which points at the live play state. The deck is
@@ -31,6 +33,7 @@ import {
 export const TurntablePlayer = Object.assign(TurntablePlayerRoot, {
   Brand: TurntablePlayerBrand,
   LED: HubLed,
+  LayoutLED: HubLayoutLed,
   Platter: HubPlatter,
   Control: Object.assign(HubControl, {
     Knob: TurntablePlayerKnob,

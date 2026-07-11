@@ -46,6 +46,7 @@ import {
   parseStructuredSearchQuery,
   StructuredSearchQueryParseError,
 } from "../services/structured-search/index.js";
+import { resolveTrackVinylLayout } from "../services/track-vinyl-layout.js";
 
 /**
  * Whitelist for the `Origin` header used when building the user-facing short
@@ -346,6 +347,7 @@ async function persistAndRespond(result: ResolutionResult, origin: string): Prom
   // `${origin}/${shortId}` is the canonical share URL. The resolver of that
   // path lives on the frontend (Astro `/:shortId`), not in the backend.
   const shortUrl = `${origin}/${shortId}`;
+  const vinylLayout = await resolveTrackVinylLayout(repo, result.sourceTrack);
 
   return {
     id: trackId,
@@ -361,6 +363,7 @@ async function persistAndRespond(result: ResolutionResult, origin: string): Prom
       releaseDate: result.sourceTrack.releaseDate,
       isExplicit: result.sourceTrack.isExplicit,
       previewUrl,
+      vinylLayout,
     },
     links: toApiLinks(result.links, { stripTracking: true }),
   };

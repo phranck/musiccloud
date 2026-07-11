@@ -1,3 +1,4 @@
+import type { VinylLayout } from "@musiccloud/shared";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { type ReactNode, useMemo } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -14,6 +15,7 @@ import { TurntablePlayerProvider } from "@/components/turntable/TurntablePlayerP
 import { derivePower } from "@/components/turntable/turntableState";
 import { VinylSpinState, type VinylSpinState as VinylSpinStateValue } from "@/components/vinyl/VinylRecord.types";
 import { LocaleProvider } from "@/i18n/context";
+import { vinylSideGroovePath } from "@/lib/media/vinyl-geometry";
 
 const originalAnimate = HTMLElement.prototype.animate;
 
@@ -42,10 +44,12 @@ function noop() {}
 function StubHubProvider({
   speed,
   spinState,
+  trackTitle = "Blue Train",
   children,
 }: {
   speed: TurntableSpeedValue;
   spinState: VinylSpinStateValue;
+  trackTitle?: string;
   children: ReactNode;
 }) {
   const value = useMemo<TurntablePlayerContextValue>(
@@ -65,9 +69,9 @@ function StubHubProvider({
       timeText: "0:00",
       title: undefined,
       togglePlay: noop,
-      trackTitle: "Blue Train",
+      trackTitle,
     }),
-    [speed, spinState],
+    [speed, spinState, trackTitle],
   );
   return <TurntablePlayerContext.Provider value={value}>{children}</TurntablePlayerContext.Provider>;
 }
@@ -78,6 +82,46 @@ const RECORD = {
   labelSubtitle: "John Coltrane",
   labelTitle: "Blue Train",
   labelYear: "1958",
+};
+
+const VINYL_LAYOUT: VinylLayout = {
+  discogsReleaseId: "10013707",
+  sides: [
+    {
+      label: "A",
+      tracks: [{ durationMs: 240000, position: "A1", title: "Blue Train" }],
+    },
+  ],
+};
+
+const MULTI_SIDE_VINYL_LAYOUT: VinylLayout = {
+  discogsReleaseId: "10013707",
+  sides: [
+    {
+      label: "A",
+      tracks: [{ durationMs: 1_210_000, position: "A", title: "The Sermon" }],
+    },
+    {
+      label: "B",
+      tracks: [
+        { durationMs: 714_000, position: "B1", title: "J.O.S." },
+        { durationMs: 480_000, position: "B2", title: "Flamingo" },
+      ],
+    },
+  ],
+};
+
+const ALBUM_SIDE_LAYOUT: VinylLayout = {
+  discogsReleaseId: "30468416",
+  sides: [
+    {
+      label: "A",
+      tracks: [
+        { durationMs: 260_000, position: "A1", title: "You Came A Long Way From St. Louis" },
+        { durationMs: 211_000, position: "A2", title: "The Ape Woman" },
+      ],
+    },
+  ],
 };
 
 describe("TurntablePlayer compound", () => {
@@ -96,6 +140,7 @@ describe("TurntablePlayer compound", () => {
     expect(container.querySelector("[data-turntable-led='true']")).toBeInTheDocument();
     expect(container.querySelector("[data-turntable-speed-knob='true']")).toBeInTheDocument();
     expect(container.querySelector("[data-turntable-speed-indicator='true']")).toBeInTheDocument();
+    expect(knob(container).getAttribute("style")).toContain("circle at 50% 50%");
 
     // The static speed captions are part of the control cluster; "45" stays as a
     // permanent unlit deck print even though the deck runs only at 33.
@@ -154,6 +199,107 @@ describe("TurntablePlayer compound", () => {
     );
   });
 
+  it("renders both indicators as domed pilot lamps with a bezel and glass highlight", () => {
+    const { container } = render(
+      <StubHubProvider speed={TurntableSpeed.Rpm33} spinState={VinylSpinState.Playing}>
+        <TurntablePlayer record={{ ...RECORD, vinylLayout: VINYL_LAYOUT }} swapKey="tp-test" />
+      </StubHubProvider>,
+    );
+
+    expect(container.querySelectorAll("[data-turntable-lamp-bezel='true']")).toHaveLength(2);
+    expect(container.querySelectorAll("[data-turntable-lamp-lens='true']")).toHaveLength(2);
+    expect(container.querySelectorAll("[data-turntable-lamp-highlight='true']")).toHaveLength(2);
+
+    expect(container.querySelector("[data-turntable-led='true']")).toHaveClass("w-[3.2%]", "right-[6.2%]");
+    expect(container.querySelector("[data-turntable-layout-led='true']")).toHaveClass("w-[3.2%]", "right-[10.9%]");
+
+    for (const lens of container.querySelectorAll<HTMLElement>("[data-turntable-lamp-lens='true']")) {
+      expect(lens.getAttribute("style")).toContain("inset");
+      expect(lens.getAttribute("style")).toContain("0 0 14px");
+      expect(lens.getAttribute("style")).toContain("0 0 22px");
+    }
+    for (const highlight of container.querySelectorAll<HTMLElement>("[data-turntable-lamp-highlight='true']")) {
+      expect(highlight.getAttribute("style")).toContain("at 24% 20%");
+    }
+    for (const bezel of container.querySelectorAll<HTMLElement>("[data-turntable-lamp-bezel='true']")) {
+      expect(bezel.getAttribute("style")).toContain("-1px -1px");
+      expect(bezel.getAttribute("style")).toContain("1px 2px");
+    }
+  });
+
+  it("renders the Discogs layout LED from the record layout before the power LED", () => {
+    const { container, rerender } = render(
+      <StubHubProvider speed={TurntableSpeed.Standby} spinState={VinylSpinState.Idle}>
+        <TurntablePlayer record={{ ...RECORD, vinylLayout: VINYL_LAYOUT }} swapKey="tp-test" />
+      </StubHubProvider>,
+    );
+
+    const layoutLed = container.querySelector("[data-turntable-layout-led='true']");
+    const powerLed = container.querySelector("[data-turntable-led='true']");
+    expect(layoutLed).toHaveAttribute("data-turntable-layout-led-state", "lit");
+    expect(layoutLed).toHaveClass("right-[10.9%]");
+    expect(layoutLed).toHaveClass("z-10");
+    expect(powerLed).toHaveClass("z-10");
+    expect(layoutLed?.compareDocumentPosition(powerLed as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+
+    rerender(
+      <StubHubProvider speed={TurntableSpeed.Standby} spinState={VinylSpinState.Idle}>
+        <TurntablePlayer record={RECORD} swapKey="tp-test" />
+      </StubHubProvider>,
+    );
+
+    expect(container.querySelector("[data-turntable-layout-led='true']")).toHaveAttribute(
+      "data-turntable-layout-led-state",
+      "off",
+    );
+  });
+
+  it("derives the rendered vinyl side from the hub track title", () => {
+    const { rerender } = render(
+      <StubHubProvider speed={TurntableSpeed.Standby} spinState={VinylSpinState.Idle} trackTitle="J.O.S.">
+        <TurntablePlayer record={{ ...RECORD, vinylLayout: MULTI_SIDE_VINYL_LAYOUT }} swapKey="tp-test" />
+      </StubHubProvider>,
+    );
+
+    expect(screen.getByText("SIDE B")).toBeInTheDocument();
+
+    rerender(
+      <StubHubProvider speed={TurntableSpeed.Standby} spinState={VinylSpinState.Idle} trackTitle="The Sermon">
+        <TurntablePlayer record={{ ...RECORD, vinylLayout: MULTI_SIDE_VINYL_LAYOUT }} swapKey="tp-test" />
+      </StubHubProvider>,
+    );
+
+    expect(screen.getByText("SIDE A")).toBeInTheDocument();
+  });
+
+  it("keeps the homogeneous Side A fallback when the hub track has no layout match", () => {
+    render(
+      <StubHubProvider speed={TurntableSpeed.Standby} spinState={VinylSpinState.Idle} trackTitle="Unknown track">
+        <TurntablePlayer record={{ ...RECORD, vinylLayout: MULTI_SIDE_VINYL_LAYOUT }} swapKey="tp-test" />
+      </StubHubProvider>,
+    );
+
+    expect(screen.getByText("SIDE A")).toBeInTheDocument();
+  });
+
+  it("uses the supplied album side when its preview has no selected Discogs track", () => {
+    const { container } = render(
+      <StubHubProvider speed={TurntableSpeed.Standby} spinState={VinylSpinState.Idle} trackTitle="Any Number Can Win">
+        <TurntablePlayer
+          record={{ ...RECORD, defaultSideLayout: ALBUM_SIDE_LAYOUT.sides[0], vinylLayout: ALBUM_SIDE_LAYOUT }}
+          swapKey="album-test"
+        />
+      </StubHubProvider>,
+    );
+
+    const grooveBitmap = decodeURIComponent(
+      container.querySelector("[data-vinyl-grooves='true']")?.getAttribute("src") ?? "",
+    );
+    expect(grooveBitmap).toContain(
+      vinylSideGroovePath(ALBUM_SIDE_LAYOUT.sides[0], { innerRadius: 19, outerRadius: 49.5, turns: 72 }),
+    );
+  });
+
   it("eases the knob indicator between the Standby and 33 angles", () => {
     const { container, rerender } = render(
       <StubHubProvider speed={TurntableSpeed.Rpm33} spinState={VinylSpinState.Playing}>
@@ -161,10 +307,9 @@ describe("TurntablePlayer compound", () => {
       </StubHubProvider>,
     );
 
-    // Playing: the indicator points at the 33 caption (210deg) on a GPU layer.
-    expect(container.querySelector("[data-turntable-speed-indicator='true']")).toHaveStyle({
-      transform: "translateY(-50%) rotate(210deg) translateZ(0)",
-      transformOrigin: "0% 50%",
+    // Playing: the stable rotor points the indicator at the 33 caption (210deg).
+    expect(container.querySelector("[data-turntable-speed-rotor='true']")).toHaveStyle({
+      transform: "rotate(210deg) translateZ(0)",
     });
 
     rerender(
@@ -173,10 +318,73 @@ describe("TurntablePlayer compound", () => {
       </StubHubProvider>,
     );
 
-    // Stopped: the indicator rests at the STANDBY caption (150deg).
-    expect(container.querySelector("[data-turntable-speed-indicator='true']")).toHaveStyle({
-      transform: "translateY(-50%) rotate(150deg) translateZ(0)",
+    // Stopped: the rotor rests at the STANDBY caption (150deg).
+    expect(container.querySelector("[data-turntable-speed-rotor='true']")).toHaveStyle({
+      transform: "rotate(150deg) translateZ(0)",
     });
+  });
+
+  it("gives the hub knob a clearly visible rotational transition", () => {
+    const { container } = render(
+      <StubHubProvider speed={TurntableSpeed.Rpm33} spinState={VinylSpinState.Playing}>
+        <TurntablePlayer.Control />
+      </StubHubProvider>,
+    );
+
+    expect(container.querySelector("[data-turntable-speed-rotor='true']")).toHaveStyle({
+      transition: "transform 480ms cubic-bezier(0.22, 0.61, 0.36, 1)",
+    });
+  });
+
+  it("rotates a stable full-size carrier instead of rasterizing the thin indicator", () => {
+    const { container } = render(
+      <StubHubProvider speed={TurntableSpeed.Rpm33} spinState={VinylSpinState.Playing}>
+        <TurntablePlayer.Control />
+      </StubHubProvider>,
+    );
+
+    expect(container.querySelector("[data-turntable-speed-rotor='true']")).toHaveStyle({
+      backfaceVisibility: "hidden",
+      transform: "rotate(210deg) translateZ(0)",
+      transition: "transform 480ms cubic-bezier(0.22, 0.61, 0.36, 1)",
+    });
+    expect(container.querySelector("[data-turntable-speed-indicator='true']")).toHaveStyle({
+      transform: "translateY(-50%)",
+      transition: "none",
+    });
+  });
+
+  it("adds a subtle concentric surface texture to the knob", () => {
+    const { container } = render(
+      <StubHubProvider speed={TurntableSpeed.Standby} spinState={VinylSpinState.Idle}>
+        <TurntablePlayer.Control />
+      </StubHubProvider>,
+    );
+
+    expect(knob(container).getAttribute("style")).toContain("repeating-radial-gradient");
+  });
+
+  it("keeps the brushed-metal reflection static on the record's light axis", () => {
+    const { container, rerender } = render(
+      <StubHubProvider speed={TurntableSpeed.Rpm33} spinState={VinylSpinState.Playing}>
+        <TurntablePlayer.Control />
+      </StubHubProvider>,
+    );
+
+    const playingReflection = container.querySelector<HTMLElement>("[data-turntable-knob-reflection='true']");
+    expect(playingReflection).toHaveStyle({ transform: "none", transition: "none" });
+    expect(playingReflection?.getAttribute("style")).toContain("from 292deg");
+
+    rerender(
+      <StubHubProvider speed={TurntableSpeed.Standby} spinState={VinylSpinState.Idle}>
+        <TurntablePlayer.Control />
+      </StubHubProvider>,
+    );
+
+    expect(container.querySelector("[data-turntable-knob-reflection='true']")).toHaveAttribute(
+      "style",
+      playingReflection?.getAttribute("style"),
+    );
   });
 
   it("forwards the hub spin state to the embedded vinyl record", () => {
@@ -221,8 +429,8 @@ describe("TurntablePlayer compound", () => {
 
     expect(container.querySelector("[data-turntable-speed-knob='true']")).toBeInTheDocument();
     // Control.Knob is the static decorative knob: plain transform, no GPU layer hint.
-    expect(container.querySelector("[data-turntable-speed-indicator='true']")).toHaveStyle({
-      transform: "translateY(-50%) rotate(210deg)",
+    expect(container.querySelector("[data-turntable-speed-rotor='true']")).toHaveStyle({
+      transform: "rotate(210deg)",
     });
     expect(screen.getByText("33")).toBeInTheDocument();
     expect(screen.getByText("STANDBY")).toBeInTheDocument();
@@ -262,10 +470,10 @@ function knob(container: HTMLElement): HTMLElement {
   return node;
 }
 
-/** The knob's indicator line, whose transform reflects the active angle. */
-function indicator(container: HTMLElement): HTMLElement {
-  const node = container.querySelector<HTMLElement>("[data-turntable-speed-indicator='true']");
-  if (!node) throw new Error("indicator not found");
+/** The stable knob rotor whose transform reflects the active angle. */
+function rotor(container: HTMLElement): HTMLElement {
+  const node = container.querySelector<HTMLElement>("[data-turntable-speed-rotor='true']");
+  if (!node) throw new Error("rotor not found");
   return node;
 }
 
@@ -300,7 +508,7 @@ describe("TurntablePlayer deck reflects playback (display only)", () => {
     expect(dial).not.toHaveAttribute("tabindex");
     expect(dial).toHaveAttribute("aria-hidden", "true");
     // At rest the indicator points at the Standby caption angle.
-    expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(150deg) translateZ(0)" });
+    expect(rotor(container)).toHaveStyle({ transform: "rotate(150deg) translateZ(0)" });
     expect(ledPower(container)).toBe(TurntablePower.Standby);
   });
 
@@ -311,7 +519,7 @@ describe("TurntablePlayer deck reflects playback (display only)", () => {
     await act(async () => {});
 
     expect(playedAudioElements.length).toBe(1);
-    expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(210deg) translateZ(0)" });
+    expect(rotor(container)).toHaveStyle({ transform: "rotate(210deg) translateZ(0)" });
     expect(ledPower(container)).toBe(TurntablePower.On);
   });
 
@@ -326,7 +534,7 @@ describe("TurntablePlayer deck reflects playback (display only)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Pause preview" }));
     await act(async () => {});
 
-    expect(indicator(container)).toHaveStyle({ transform: "translateY(-50%) rotate(150deg) translateZ(0)" });
+    expect(rotor(container)).toHaveStyle({ transform: "rotate(150deg) translateZ(0)" });
     expect(ledPower(container)).toBe(TurntablePower.Standby);
   });
 });

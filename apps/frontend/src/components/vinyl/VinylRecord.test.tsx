@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { VinylRecord } from "@/components/vinyl/VinylRecord";
 import { VinylSpinState } from "@/components/vinyl/VinylRecord.types";
+import { vinylGrooveSpiralPath, vinylSideGroovePath } from "@/lib/media/vinyl-geometry";
 
 const originalAnimate = HTMLElement.prototype.animate;
 
@@ -51,7 +52,7 @@ describe("VinylRecord", () => {
     expect(screen.getByText("33 1/3 RPM")).toBeInTheDocument();
   });
 
-  it("renders the accepted mockup surface layers with label print in the lower third", () => {
+  it("renders the accepted mockup surface layers with a default homogeneous SIDE A print in the lower third", () => {
     const { container } = render(
       <VinylRecord
         className="h-24 w-24"
@@ -70,6 +71,7 @@ describe("VinylRecord", () => {
     const grooves = container.querySelector("[data-vinyl-grooves='true']");
     expect(grooves?.tagName.toLowerCase()).toBe("img");
     expect(decodeURIComponent(grooves?.getAttribute("src") ?? "")).toContain("<path");
+    expect(decodeURIComponent(grooves?.getAttribute("src") ?? "")).toContain(vinylGrooveSpiralPath(72, 19, 49.5));
     expect(container.querySelector("[data-vinyl-reflection='true']")?.getAttribute("style")).toContain(
       "conic-gradient(from 292deg",
     );
@@ -91,6 +93,26 @@ describe("VinylRecord", () => {
     expect(screen.getByText("STEREO")).toBeInTheDocument();
     expect(screen.getByText("GEMA")).toBeInTheDocument();
     expect(screen.getByText("DMM")).toBeInTheDocument();
+  });
+
+  it("renders the resolved SIDE B letter and its dynamic pause-groove bitmap", () => {
+    const sideLayout = {
+      label: "B",
+      tracks: [
+        { durationMs: 185_000, position: "B1", title: "First groove" },
+        { durationMs: 227_000, position: "B2", title: "Second groove" },
+      ],
+    };
+    const { container } = render(<VinylRecord className="h-24 w-24" sideLayout={sideLayout} />);
+
+    const grooves = container.querySelector("[data-vinyl-grooves='true']");
+    const grooveBitmap = decodeURIComponent(grooves?.getAttribute("src") ?? "");
+
+    expect(screen.getByText("SIDE B")).toBeInTheDocument();
+    expect(container.querySelector("[data-vinyl-label-side-letter='true']")).toHaveTextContent("B");
+    expect(grooveBitmap).toContain(vinylSideGroovePath(sideLayout, { innerRadius: 19, outerRadius: 49.5, turns: 72 }));
+    expect(grooveBitmap).toContain("stroke='rgba(0,0,0,0.72)' stroke-width='1.0'");
+    expect(grooveBitmap).not.toContain(vinylGrooveSpiralPath(45, 19, 49.5));
   });
 
   it("shrinks long lower label titles to fit the round print arc instead of clipping them", () => {

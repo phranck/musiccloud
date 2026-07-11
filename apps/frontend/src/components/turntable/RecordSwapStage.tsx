@@ -1,3 +1,4 @@
+import type { VinylLayout, VinylSide } from "@musiccloud/shared";
 import { type ReactNode, useEffect, useEffectEvent, useRef, useState } from "react";
 import { VinylRecord, type VinylRecordProps } from "@/components/vinyl/VinylRecord";
 import { VinylSpinState, type VinylSpinState as VinylSpinStateValue } from "@/components/vinyl/VinylRecord.types";
@@ -5,8 +6,19 @@ import { buildRecordSwapTimeline, type RecordSwapHandle } from "@/lib/motion/rec
 import { prefersReducedMotion } from "@/lib/motion/setup";
 import { cn } from "@/lib/utils";
 
-/** The vinyl-label fields of a record (no spin state, no class — the stage owns those). */
-export type RecordLabel = Omit<VinylRecordProps, "spinState" | "className">;
+/**
+ * The vinyl-label fields of a record (no spin state, class or resolved side).
+ *
+ * The whole persisted layout remains attached to the record through the
+ * turntable compound. The hub resolves its current side from the live track
+ * title immediately before rendering the presentational {@link VinylRecord}.
+ */
+export type RecordLabel = Omit<VinylRecordProps, "spinState" | "className" | "sideLayout"> & {
+  /** Persisted Discogs layout for the inserted record, if one is available. */
+  vinylLayout?: VinylLayout | null;
+  /** Album-view side to show when playback has no individually selected track. */
+  defaultSideLayout?: VinylSide;
+};
 
 /**
  * The stage's swap phases.
@@ -31,6 +43,8 @@ type SwapPhaseValue = (typeof SwapPhase)[keyof typeof SwapPhase];
 interface RecordSwapStageProps {
   /** The current record's vinyl-label fields (cover art, title, catalog, ...). */
   record: RecordLabel;
+  /** Resolved side for the live track on the inserted record. */
+  sideLayout?: VinylSide;
   /** Spin state applied to the settled record (during a swap the incoming is idle). */
   spinState: VinylSpinStateValue;
   /**
@@ -75,6 +89,8 @@ interface SwapState {
   currentKey: string;
   /** The outgoing disc's label fields during a swap, or `null` when at rest. */
   previous: RecordLabel | null;
+  /** Resolved side shown by the outgoing record at the time it left the platter. */
+  previousSideLayout?: VinylSide;
   /**
    * The outgoing disc's identity, used as the React key of the outgoing element.
    * Identity keys make the SAME `VinylRecord` instance carry from resting →
@@ -119,21 +135,38 @@ interface SwapState {
  *
  * @param props - {@link RecordSwapStageProps}.
  */
-export function RecordSwapStage({ record, spinState, swapKey, onSettled, children, className }: RecordSwapStageProps) {
+export function RecordSwapStage({
+  record,
+  sideLayout,
+  spinState,
+  swapKey,
+  onSettled,
+  children,
+  className,
+}: RecordSwapStageProps) {
   const [swap, setSwap] = useState<SwapState>({
     phase: SwapPhase.Idle,
     current: record,
     currentKey: swapKey,
     previous: null,
+    previousSideLayout: undefined,
     previousKey: null,
     generation: 0,
   });
   const previousSwapKeyRef = useRef(swapKey);
+  const currentSideLayoutRef = useRef(sideLayout);
   const incomingRef = useRef<HTMLDivElement>(null);
   const outgoingRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<RecordSwapHandle | null>(null);
   // Fires the latest onSettled without making it an effect dependency.
   const fireSettled = useEffectEvent(() => onSettled?.());
+
+  // Retain the live side independently from React state. A later record swap
+  // snapshots this value for the outgoing disc, rather than using the incoming
+  // track's side while it coasts and slides away.
+  useEffect(() => {
+    if (previousSwapKeyRef.current === swapKey) currentSideLayoutRef.current = sideLayout;
+  }, [sideLayout, swapKey]);
 
   // Detects a record-identity change and enters the swap, promoting the new record
   // into `current` while snapshotting the outgoing one into `previous`. Reduced
@@ -145,7 +178,9 @@ export function RecordSwapStage({ record, spinState, swapKey, onSettled, childre
     let cancelled = false;
     const startSwap = () => {
       if (cancelled) return;
+      const outgoingSideLayout = currentSideLayoutRef.current;
       previousSwapKeyRef.current = swapKey;
+      currentSideLayoutRef.current = sideLayout;
       if (prefersReducedMotion()) {
         // Instant swap: the new record simply becomes the resting disc.
         setSwap((state) => ({
@@ -153,6 +188,7 @@ export function RecordSwapStage({ record, spinState, swapKey, onSettled, childre
           current: record,
           currentKey: swapKey,
           previous: null,
+          previousSideLayout: undefined,
           previousKey: null,
           generation: state.generation + 1,
         }));
@@ -166,6 +202,7 @@ export function RecordSwapStage({ record, spinState, swapKey, onSettled, childre
         // interrupts an in-flight one keeps the already-visible outgoing (`previous`)
         // so the coasting disc never jumps and skipped middle records never flash.
         previous: state.previous ?? state.current,
+        previousSideLayout: state.previous ? state.previousSideLayout : outgoingSideLayout,
         previousKey: state.previousKey ?? state.currentKey,
         generation: state.generation + 1,
       }));
@@ -174,7 +211,7 @@ export function RecordSwapStage({ record, spinState, swapKey, onSettled, childre
     return () => {
       cancelled = true;
     };
-  }, [swapKey, record]);
+  }, [record, sideLayout, swapKey]);
 
   // Coast gate: once the deck's spin has wound down to idle, promote a pending
   // swap into the sliding phase so the arc animation runs. A deck that was
@@ -211,7 +248,7 @@ export function RecordSwapStage({ record, spinState, swapKey, onSettled, childre
     const unmountOutgoing = () => {
       setSwap((state) =>
         state.generation === settledGeneration
-          ? { ...state, phase: SwapPhase.Idle, previous: null, previousKey: null }
+          ? { ...state, phase: SwapPhase.Idle, previous: null, previousKey: null, previousSideLayout: undefined }
           : state,
       );
     };
@@ -234,6 +271,7 @@ export function RecordSwapStage({ record, spinState, swapKey, onSettled, childre
   }, [swap.phase, swap.generation, swap.previous]);
 
   const sliding = swap.phase === SwapPhase.Sliding;
+  const visibleCurrentSideLayout = previousSwapKeyRef.current === swapKey ? sideLayout : currentSideLayoutRef.current;
 
   return (
     <div className={cn("relative h-full w-full", className)}>
@@ -251,6 +289,7 @@ export function RecordSwapStage({ record, spinState, swapKey, onSettled, childre
           <VinylRecord
             {...swap.previous}
             className="h-full w-full"
+            sideLayout={swap.previousSideLayout}
             spinState={sliding ? VinylSpinState.Idle : spinState}
           />
         </div>
@@ -270,6 +309,7 @@ export function RecordSwapStage({ record, spinState, swapKey, onSettled, childre
           <VinylRecord
             {...swap.current}
             className="h-full w-full"
+            sideLayout={visibleCurrentSideLayout}
             spinState={sliding ? VinylSpinState.Idle : spinState}
           />
         </div>

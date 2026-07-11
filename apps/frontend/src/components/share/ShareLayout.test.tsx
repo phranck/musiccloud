@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ShareLayout } from "@/components/share/ShareLayout";
@@ -9,15 +9,30 @@ vi.mock("@/components/cards/SongInfo", () => ({
   SongInfo: ({
     shareMediaView,
     previewStatus,
+    statusLine,
     title,
+    mediaViewToggleLabel,
+    onMediaViewToggle,
   }: {
     shareMediaView?: string;
     previewStatus?: string | null;
+    statusLine?: string;
     title: string;
+    mediaViewToggleLabel?: string;
+    onMediaViewToggle?: () => void;
   }) => (
-    <div data-testid="song-info-props" data-media-view={shareMediaView} data-preview-status={previewStatus ?? "none"}>
+    <button
+      aria-label={mediaViewToggleLabel}
+      data-testid="song-info-props"
+      data-media-view-toggle="true"
+      data-media-view={shareMediaView}
+      data-preview-status={previewStatus ?? "none"}
+      data-status-line={statusLine ?? ""}
+      onClick={onMediaViewToggle}
+      type="button"
+    >
       {title}
-    </div>
+    </button>
   ),
 }));
 
@@ -118,6 +133,37 @@ afterEach(() => {
 });
 
 describe("ShareLayout media view toggle", () => {
+  it("shows the rendered Discogs side and its track count in the VFD status", async () => {
+    render(
+      <ShareLayout
+        config={{
+          ...SHARE_CONFIG,
+          vinylLayout: {
+            discogsReleaseId: "10013707",
+            sides: [
+              {
+                label: "A",
+                tracks: [
+                  { durationMs: 664000, position: "A1", title: "Moment Of Truth" },
+                  { durationMs: 322000, position: "A2", title: "Blue Train" },
+                ],
+              },
+            ],
+          },
+        }}
+        artistName="John Coltrane"
+        animated={false}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("song-info-props")).toHaveAttribute(
+        "data-status-line",
+        "ARTIST DATA READY · SIDE A · 2 TRACKS",
+      ),
+    );
+  });
+
   it("renders only the viewport-matching layout, never both", () => {
     renderShareLayout();
     // Desktop viewport (matchMedia min-width matches) → exactly one media card,
@@ -135,6 +181,27 @@ describe("ShareLayout media view toggle", () => {
 
     fireEvent.keyDown(window, { key: "P" });
     expectMediaView("cover");
+  });
+
+  it("toggles the active media view when the visible cover or turntable surface is clicked", () => {
+    renderShareLayout();
+
+    expectMediaView("cover");
+    fireEvent.click(screen.getByRole("button", { name: "Toggle cover and turntable view" }));
+    expectMediaView("turntable");
+
+    fireEvent.click(screen.getByRole("button", { name: "Toggle cover and turntable view" }));
+    expectMediaView("cover");
+  });
+
+  it("keeps the P shortcut active while the clickable media surface has focus", () => {
+    renderShareLayout();
+    const surface = screen.getByRole("button", { name: "Toggle cover and turntable view" });
+    surface.focus();
+
+    fireEvent.keyDown(surface, { key: "p" });
+
+    expectMediaView("turntable");
   });
 
   it("restores and persists the selected media view", () => {

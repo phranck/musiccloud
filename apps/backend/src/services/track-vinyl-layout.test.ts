@@ -1,0 +1,160 @@
+import type { VinylLayout } from "@musiccloud/shared";
+import { describe, expect, it, vi } from "vitest";
+import {
+  readCachedAlbumVinylLayout,
+  refreshAlbumVinylLayout,
+  resolveAlbumVinylLayout,
+  resolveTrackVinylLayout,
+} from "./track-vinyl-layout.js";
+
+const layout: VinylLayout = {
+  discogsReleaseId: "10013707",
+  sides: [{ label: "A", tracks: [{ position: "A1", title: "The Sermon!", durationMs: 1_210_000 }] }],
+};
+
+function createRepository() {
+  return {
+    findAlbumByVinylLayoutIdentity: vi.fn(),
+    ensureAlbumVinylLayoutIdentity: vi.fn(),
+    createAlbumVinylLayoutPlaceholder: vi.fn(),
+    deleteAlbumVinylLayoutPlaceholder: vi.fn(),
+    enrichAlbumVinylLayout: vi.fn(),
+    readAlbumVinylLayout: vi.fn(),
+  };
+}
+
+describe("resolveTrackVinylLayout", () => {
+  it("returns an existing identity cache without a Discogs request", async () => {
+    const repo = createRepository();
+    repo.findAlbumByVinylLayoutIdentity.mockResolvedValue({ albumId: "album-1" });
+    repo.readAlbumVinylLayout.mockResolvedValue(layout);
+
+    await expect(
+      resolveTrackVinylLayout(repo, { artists: ["Jimmy Smith"], albumName: "The Sermon!" }),
+    ).resolves.toEqual(layout);
+
+    expect(repo.enrichAlbumVinylLayout).not.toHaveBeenCalled();
+    expect(repo.createAlbumVinylLayoutPlaceholder).not.toHaveBeenCalled();
+  });
+
+  it("claims the artist-qualified album identity before enriching a cache miss", async () => {
+    const repo = createRepository();
+    repo.findAlbumByVinylLayoutIdentity.mockResolvedValue(null);
+    repo.createAlbumVinylLayoutPlaceholder.mockResolvedValue("album-1");
+    repo.ensureAlbumVinylLayoutIdentity.mockResolvedValue("album-1");
+    repo.readAlbumVinylLayout.mockResolvedValueOnce(undefined).mockResolvedValueOnce(layout);
+
+    await expect(
+      resolveTrackVinylLayout(repo, { artists: ["Jimmy Smith"], albumName: "The Sermon!" }),
+    ).resolves.toEqual(layout);
+
+    expect(repo.createAlbumVinylLayoutPlaceholder).toHaveBeenCalledWith("The Sermon!");
+    expect(repo.enrichAlbumVinylLayout).toHaveBeenCalledWith({
+      id: "album-1",
+      title: "The Sermon!",
+      artists: ["Jimmy Smith"],
+    });
+  });
+
+  it("never uses a title-only lookup when the primary artist is absent", async () => {
+    const repo = createRepository();
+
+    await expect(resolveTrackVinylLayout(repo, { artists: [], albumName: "The Sermon!" })).resolves.toBeNull();
+
+    expect(repo.findAlbumByVinylLayoutIdentity).not.toHaveBeenCalled();
+    expect(repo.createAlbumVinylLayoutPlaceholder).not.toHaveBeenCalled();
+  });
+
+  it("removes a concurrently losing placeholder after another resolve claims the identity", async () => {
+    const repo = createRepository();
+    repo.findAlbumByVinylLayoutIdentity.mockResolvedValue(null);
+    repo.createAlbumVinylLayoutPlaceholder.mockResolvedValue("losing-placeholder");
+    repo.ensureAlbumVinylLayoutIdentity.mockResolvedValue("winning-placeholder");
+    repo.readAlbumVinylLayout.mockResolvedValue(layout);
+
+    await expect(
+      resolveTrackVinylLayout(repo, { artists: ["Jimmy Smith"], albumName: "The Sermon!" }),
+    ).resolves.toEqual(layout);
+
+    expect(repo.deleteAlbumVinylLayoutPlaceholder).toHaveBeenCalledWith("losing-placeholder");
+    expect(repo.enrichAlbumVinylLayout).not.toHaveBeenCalled();
+  });
+
+  it("removes an unclaimed placeholder when the identity claim fails", async () => {
+    const repo = createRepository();
+    repo.findAlbumByVinylLayoutIdentity.mockResolvedValue(null);
+    repo.createAlbumVinylLayoutPlaceholder.mockResolvedValue("unclaimed-placeholder");
+    repo.ensureAlbumVinylLayoutIdentity.mockRejectedValue(new Error("database unavailable"));
+
+    await expect(
+      resolveTrackVinylLayout(repo, { artists: ["Jimmy Smith"], albumName: "The Sermon!" }),
+    ).resolves.toBeNull();
+
+    expect(repo.deleteAlbumVinylLayoutPlaceholder).toHaveBeenCalledWith("unclaimed-placeholder");
+  });
+});
+
+describe("resolveAlbumVinylLayout", () => {
+  it("shares the artist-qualified cache and enrichment flow with track resolves", async () => {
+    const repo = createRepository();
+    repo.findAlbumByVinylLayoutIdentity.mockResolvedValue(null);
+    repo.createAlbumVinylLayoutPlaceholder.mockResolvedValue("album-1");
+    repo.ensureAlbumVinylLayoutIdentity.mockResolvedValue("album-1");
+    repo.readAlbumVinylLayout.mockResolvedValueOnce(undefined).mockResolvedValueOnce(layout);
+
+    await expect(resolveAlbumVinylLayout(repo, { artists: ["Jimmy Smith"], title: "The Sermon!" })).resolves.toEqual(
+      layout,
+    );
+
+    expect(repo.enrichAlbumVinylLayout).toHaveBeenCalledWith({
+      id: "album-1",
+      title: "The Sermon!",
+      artists: ["Jimmy Smith"],
+    });
+  });
+});
+
+describe("readCachedAlbumVinylLayout", () => {
+  it("reads an existing artist-qualified layout without enriching or creating an album", async () => {
+    const repo = createRepository();
+    repo.findAlbumByVinylLayoutIdentity.mockResolvedValue({ albumId: "album-1" });
+    repo.readAlbumVinylLayout.mockResolvedValue(layout);
+
+    await expect(readCachedAlbumVinylLayout(repo, { artists: ["Jimmy Smith"], title: "The Sermon!" })).resolves.toEqual(
+      layout,
+    );
+
+    expect(repo.enrichAlbumVinylLayout).not.toHaveBeenCalled();
+    expect(repo.createAlbumVinylLayoutPlaceholder).not.toHaveBeenCalled();
+  });
+});
+
+describe("refreshAlbumVinylLayout", () => {
+  it("refreshes an existing cached layout through Discogs", async () => {
+    const repo = createRepository();
+    const refreshedLayout: VinylLayout = { ...layout, discogsReleaseId: "10013708" };
+    repo.findAlbumByVinylLayoutIdentity.mockResolvedValue({ albumId: "album-1" });
+    repo.readAlbumVinylLayout.mockResolvedValueOnce(layout).mockResolvedValueOnce(refreshedLayout);
+
+    await expect(refreshAlbumVinylLayout(repo, { artists: ["Jimmy Smith"], title: "The Sermon!" })).resolves.toEqual(
+      refreshedLayout,
+    );
+
+    expect(repo.enrichAlbumVinylLayout).toHaveBeenCalledWith({
+      id: "album-1",
+      title: "The Sermon!",
+      artists: ["Jimmy Smith"],
+    });
+  });
+
+  it("keeps the cached layout when the refresh fails", async () => {
+    const repo = createRepository();
+    repo.findAlbumByVinylLayoutIdentity.mockResolvedValue({ albumId: "album-1" });
+    repo.readAlbumVinylLayout.mockResolvedValue(layout);
+    repo.enrichAlbumVinylLayout.mockRejectedValue(new Error("Discogs unavailable"));
+
+    await expect(refreshAlbumVinylLayout(repo, { artists: ["Jimmy Smith"], title: "The Sermon!" })).resolves.toEqual(
+      layout,
+    );
+  });
+});

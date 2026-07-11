@@ -23,6 +23,10 @@ interface SongInfoProps {
   metaOverride?: string;
   /** Share-only cover/turntable visual mode. Stage 2.3 renders this. */
   shareMediaView?: ShareMediaViewType;
+  /** Accessible name for the clickable share-only media surface. */
+  mediaViewToggleLabel?: string;
+  /** Toggles the share-only cover/turntable view on click, Enter or Space. */
+  onMediaViewToggle?: () => void;
   /** Share-only playback status, forwarded by share media containers. */
   previewStatus?: AudioStatus | null;
   /**
@@ -67,6 +71,8 @@ export const SongInfo = memo(function SongInfo({
   metaOverride,
   seekHint,
   shareMediaView,
+  mediaViewToggleLabel,
+  onMediaViewToggle,
   statusLine = "READY",
   turntableStage,
 }: SongInfoProps) {
@@ -74,6 +80,7 @@ export const SongInfo = memo(function SongInfo({
   const detailLine = [album, isExplicit ? "E" : null].filter(Boolean).join(" · ");
   const mediaView = shareMediaView ?? ShareMediaView.Cover;
   const showTurntableStage = shareMediaView !== undefined;
+  const mediaViewInteractive = Boolean(mediaViewToggleLabel && onMediaViewToggle);
 
   const [artworkState, setArtworkState] = useState({
     currentUrl: albumArtUrl,
@@ -207,6 +214,15 @@ export const SongInfo = memo(function SongInfo({
                 <TftScreen.Sheen />
                 <TftScreen.Shadow />
               </TftScreen>
+              {mediaViewInteractive && (
+                <button
+                  aria-label={mediaViewToggleLabel}
+                  className="absolute inset-0 z-50 cursor-pointer touch-manipulation border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-white/50"
+                  data-media-view-toggle="true"
+                  onClick={onMediaViewToggle}
+                  type="button"
+                />
+              )}
             </div>
           </RecessedCard.Body>
         </RecessedCard>

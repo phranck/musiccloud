@@ -105,6 +105,8 @@ function createMockRepository(): TrackRepository {
     loadAlbumByShortId: vi.fn().mockResolvedValue(null),
     persistAlbumWithLinks: vi.fn().mockResolvedValue({ albumId: "aid1", shortId: "alb" }),
     addLinksToAlbum: vi.fn().mockResolvedValue(undefined),
+    readAlbumVinylLayout: vi.fn().mockResolvedValue(undefined),
+    enrichAlbumVinylLayout: vi.fn().mockResolvedValue(undefined),
     findTrackPreviews: vi.fn().mockResolvedValue([]),
     upsertTrackPreview: vi.fn().mockResolvedValue(undefined),
     findAlbumPreviews: vi.fn().mockResolvedValue([]),

@@ -1,6 +1,7 @@
-import type { FormConfig, FormConfigPayload } from "@musiccloud/shared";
+import type { FormConfig, FormConfigPayload, VinylLayout } from "@musiccloud/shared";
 import * as pgModule from "pg";
 import { log } from "../../lib/infra/logger.js";
+import { enrichAlbumVinylLayout as discogsEnrichAlbumVinylLayout } from "../../services/plugins/discogs/discogs-enrich.js";
 import type { NormalizedTrack } from "../../services/types.js";
 import type {
   AdminRepository,
@@ -120,14 +121,19 @@ import {
 import {
   addAlbumExternalIds as albumsAddAlbumExternalIds,
   addLinksToAlbum as albumsAddLinksToAlbum,
+  createAlbumVinylLayoutPlaceholder as albumsCreateAlbumVinylLayoutPlaceholder,
+  deleteAlbumVinylLayoutPlaceholder as albumsDeleteAlbumVinylLayoutPlaceholder,
+  ensureAlbumVinylLayoutIdentity as albumsEnsureAlbumVinylLayoutIdentity,
   findAlbumByExternalId as albumsFindAlbumByExternalId,
   findAlbumByUpc as albumsFindAlbumByUpc,
   findAlbumByUrl as albumsFindAlbumByUrl,
+  findAlbumByVinylLayoutIdentity as albumsFindAlbumByVinylLayoutIdentity,
   findAlbumPreviews as albumsFindAlbumPreviews,
   findExistingAlbumByUpc as albumsFindExistingAlbumByUpc,
   findExistingAlbumByUpcSync as albumsFindExistingAlbumByUpcSync,
   loadAlbumByShortId as albumsLoadAlbumByShortId,
   persistAlbumWithLinks as albumsPersistAlbumWithLinks,
+  readAlbumVinylLayout as albumsReadAlbumVinylLayout,
   upsertAlbumPreview as albumsUpsertAlbumPreview,
 } from "./postgres-albums.js";
 import {
@@ -541,6 +547,22 @@ export class PostgresAdapter
     return albumsFindAlbumByUpc(this.pool, upc);
   }
 
+  findAlbumByVinylLayoutIdentity(identityKey: string): Promise<{ albumId: string } | null> {
+    return albumsFindAlbumByVinylLayoutIdentity(this.pool, identityKey);
+  }
+
+  ensureAlbumVinylLayoutIdentity(identityKey: string, albumId: string): Promise<string> {
+    return albumsEnsureAlbumVinylLayoutIdentity(this.pool, identityKey, albumId);
+  }
+
+  createAlbumVinylLayoutPlaceholder(title: string): Promise<string> {
+    return albumsCreateAlbumVinylLayoutPlaceholder(this.pool, title);
+  }
+
+  deleteAlbumVinylLayoutPlaceholder(albumId: string): Promise<void> {
+    return albumsDeleteAlbumVinylLayoutPlaceholder(this.pool, albumId);
+  }
+
   findExistingAlbumByUpc(upc: string): Promise<{ albumId: string; shortId: string } | null> {
     return albumsFindExistingAlbumByUpc(this.pool, upc);
   }
@@ -562,6 +584,16 @@ export class PostgresAdapter
     links: Array<{ service: string; url: string; confidence: number; matchMethod: string; externalId?: string }>,
   ): Promise<void> {
     return albumsAddLinksToAlbum(this.pool, albumId, links);
+  }
+
+  /** Reads the persisted Discogs vinyl layout state for an album. */
+  readAlbumVinylLayout(albumId: string): Promise<VinylLayout | null | undefined> {
+    return albumsReadAlbumVinylLayout(this.pool, albumId);
+  }
+
+  /** Runs best-effort Discogs vinyl-layout enrichment for a persisted album. */
+  enrichAlbumVinylLayout(album: { id: string; title: string; artists: string[]; upc?: string | null }): Promise<void> {
+    return discogsEnrichAlbumVinylLayout(this.pool, album);
   }
 
   loadAlbumByShortId(shortId: string): Promise<SharePageAlbumResult | null> {
