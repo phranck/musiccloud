@@ -55,43 +55,43 @@ Subsystem 2 von zwei. Ohne echte Layout-Daten (MC-116 kein Match) bleibt die LP 
 
 **Files:** Create `apps/frontend/src/lib/media/vinyl-geometry.ts` + `.test.ts`; Modify `VinylRecord.tsx`.
 
-- [ ] Charakterisierungs-Test: `vinylGrooveSpiralPath(45, 19, 49.5)` und `labelArcPath(44, 73)` liefern einen nicht-leeren `d`-String, der mit `M ` beginnt (Verhalten unverändert).
-- [ ] `vinylGrooveSpiralPath` + `labelArcPath` (+ Hilfsfn `formatArcCoordinate`) 1:1 nach `vinyl-geometry.ts` verschieben, mit TSDoc; in `VinylRecord.tsx` importieren statt lokal definieren.
-- [ ] `pnpm --filter @musiccloud/frontend test:run` grün (bestehende VinylRecord-Tests + neuer Test).
-- [ ] Commit: `Refactor: extract vinyl geometry helpers to lib/media (MC-117)`.
+- [x] Charakterisierungs-Test: `vinylGrooveSpiralPath(45, 19, 49.5)` und `labelArcPath(44, 73)` liefern einen nicht-leeren `d`-String, der mit `M ` beginnt (Verhalten unverändert).
+- [x] `vinylGrooveSpiralPath` + `labelArcPath` (+ Hilfsfn `formatArcCoordinate`) 1:1 nach `vinyl-geometry.ts` verschieben, mit TSDoc; in `VinylRecord.tsx` importieren statt lokal definieren.
+- [x] `pnpm --filter @musiccloud/frontend test:run` grün (bestehende VinylRecord-Tests + neuer Test).
+- [x] Commit: `Refactor: extract vinyl geometry helpers to lib/media (MC-117)`.
 
 ## Task 2: Per-Seite-Rillen-Builder (TDD)
 
 **Files:** Modify `vinyl-geometry.ts` + `.test.ts`.
 
-- [ ] Failing Test `vinylSideGroovePath(side, opts)` mit The-Sermon!-Seite B (`tracks` mit `durationMs` 714000, 480000): der Builder setzt **eine** Pausenrille (Tracks−1) an der kumulierten Grenze (~714000/1194000 des Radius), plus je einen Einlauf- (außen) und Auslauf-Abschnitt (innen); Rückgabe ist ein deterministischer `d`-String. Test: Anzahl Pausen-Segmente == `tracks.length - 1`; Einlauf/Auslauf vorhanden; gleiche Eingabe → gleicher Output.
-- [ ] Failing Test: Seite mit **einem** Track → 0 Pausenrillen, nur Einlauf/Auslauf.
-- [ ] Rot → implementieren (kumulierte `durationMs`-Fraktionen → Radien zwischen `outerRadius` und `innerRadius`; Pausen-Land = kurzer glatter Abschnitt; feste Einlauf-/Auslauf-Bänder als Konstanten).
-- [ ] Grün. Commit: `Feat: build per-side vinyl groove path (MC-117)`.
+- [x] Failing Test `vinylSideGroovePath(side, opts)` mit The-Sermon!-Seite B (`tracks` mit `durationMs` 714000, 480000): der Builder setzt **eine** Pausenrille (Tracks−1) an der kumulierten Grenze (~714000/1194000 des Radius), plus je einen Einlauf- (außen) und Auslauf-Abschnitt (innen); Rückgabe ist ein deterministischer `d`-String. Test: Anzahl Pausen-Segmente == `tracks.length - 1`; Einlauf/Auslauf vorhanden; gleiche Eingabe → gleicher Output.
+- [x] Failing Test: Seite mit **einem** Track → 0 Pausenrillen, nur Einlauf/Auslauf.
+- [x] Rot → implementieren (kumulierte `durationMs`-Fraktionen → Radien zwischen `outerRadius` und `innerRadius`; Pausen-Land = kurzer glatter Abschnitt; feste Einlauf-/Auslauf-Bänder als Konstanten).
+- [x] Grün. Commit: `Feat: build per-side vinyl groove path (MC-117)`.
 
 ## Task 3: Track→Seite-Matcher (TDD, rein)
 
 **Files:** Create `apps/frontend/src/lib/media/vinyl-side.ts` + `.test.ts`.
 
-- [ ] Failing Test `sideForTrackTitle(layout, trackTitle)`: bei The-Sermon!-Layout liefert `"J.O.S."` die Seite B, `"The Sermon"` die Seite A; unbekannter Titel → `null`; `layout === null` → `null`; Groß/Klein + Whitespace normalisiert (`"  the sermon "` matcht `"The Sermon"`).
-- [ ] Rot → implementieren (normalisierter Titelvergleich über alle `sides[].tracks[]`).
-- [ ] Grün. Commit: `Feat: match currently-playing track to vinyl side (MC-117)`.
+- [x] Failing Test `sideForTrackTitle(layout, trackTitle)`: bei The-Sermon!-Layout liefert `"J.O.S."` die Seite B, `"The Sermon"` die Seite A; unbekannter Titel → `null`; `layout === null` → `null`; Groß/Klein + Whitespace normalisiert (`"  the sermon "` matcht `"The Sermon"`).
+- [x] Rot → implementieren (normalisierter Titelvergleich über alle `sides[].tracks[]`).
+- [x] Grün. Commit: `Feat: match currently-playing track to vinyl side (MC-117)`.
 
 ## Task 4: VinylRecord konsumiert sideLayout (TDD)
 
 **Files:** Modify `VinylRecord.tsx` + `VinylRecord.test.tsx`.
 
-- [ ] Failing Test: mit `sideLayout` (label `"B"`, zwei Tracks) rendert `VinylRecord` den Buchstaben **„B"** (statt „A") und nutzt `vinylSideGroovePath` für das Rillen-Bitmap; ohne `sideLayout` bleibt es „A" und homogen (`vinylGrooveSpiralPath`). Bestehenden „SIDE A"-Test auf den Default-Fall (kein `sideLayout`) umstellen.
-- [ ] Rot → implementieren: `sideLayout?: VinylSide` in `VinylRecordProps`; Bitmap per `useMemo` über `sideLayout` (dynamisch) bzw. Modul-Konstante (homogen); Buchstabe = `sideLayout?.label ?? "A"` (SVG-`tspan` + `sr-only`).
-- [ ] Grün. Commit: `Feat: render dynamic vinyl groove + side letter (MC-117)`.
+- [x] Failing Test: mit `sideLayout` (label `"B"`, zwei Tracks) rendert `VinylRecord` den Buchstaben **„B"** (statt „A") und nutzt `vinylSideGroovePath` für das Rillen-Bitmap; ohne `sideLayout` bleibt es „A" und homogen (`vinylGrooveSpiralPath`). Bestehenden „SIDE A"-Test auf den Default-Fall (kein `sideLayout`) umstellen.
+- [x] Rot → implementieren: `sideLayout?: VinylSide` in `VinylRecordProps`; Bitmap per `useMemo` über `sideLayout` (dynamisch) bzw. Modul-Konstante (homogen); Buchstabe = `sideLayout?.label ?? "A"` (SVG-`tspan` + `sr-only`).
+- [x] Grün. Commit: `Feat: render dynamic vinyl groove + side letter (MC-117)`.
 
 ## Task 5: vinylLayout ins View-Model (TDD)
 
 **Files:** Modify `media-card.ts`, `parsers.ts`, `share-view.ts` + zugehörige Tests.
 
-- [ ] Failing Test: eine Resolve-/Share-Response mit `album.vinylLayout` landet als `vinylLayout` in `MediaCardContentConfiguration`; fehlt es → `undefined` (kein Fehler).
-- [ ] Rot → implementieren: `vinylLayout?: VinylLayout` in `MediaCardContentConfiguration`; Durchreichen in `parseAlbumResolveResponse` und `buildShareViewFromSharePageResponse`.
-- [ ] Grün. Commit: `Feat: thread vinylLayout through the view-model (MC-117)`.
+- [x] Failing Test: eine Resolve-/Share-Response mit `album.vinylLayout` landet als `vinylLayout` in `MediaCardContentConfiguration`; fehlt es → `undefined` (kein Fehler). Der Vertrag deckt zusätzlich Track-Resolves und Track-Shares ab.
+- [x] Rot → implementiert: `vinylLayout?: VinylLayout` in `MediaCardContentConfiguration`; Durchreichen durch die Track-/Album-Resolve-Parser, beide Konfigurations-Builder und `buildShareViewFromSharePageResponse`.
+- [x] Grün. Commit: `Feat: thread vinylLayout through the view-model (MC-117)`.
 
 ## Task 6: RecordLabel + Turntable-Verdrahtung (TDD)
 
@@ -109,11 +109,11 @@ Subsystem 2 von zwei. Ohne echte Layout-Daten (MC-116 kein Match) bleibt die LP 
 
 ## Checkliste (Plan-Fortschritt)
 
-- [ ] Task 1 — Geometrie-Logik auslagern
-- [ ] Task 2 — Per-Seite-Rillen-Builder
-- [ ] Task 3 — Track→Seite-Matcher
-- [ ] Task 4 — VinylRecord konsumiert sideLayout
-- [ ] Task 5 — vinylLayout ins View-Model
+- [x] Task 1 — Geometrie-Logik auslagern
+- [x] Task 2 — Per-Seite-Rillen-Builder
+- [x] Task 3 — Track→Seite-Matcher
+- [x] Task 4 — VinylRecord konsumiert sideLayout
+- [x] Task 5 — vinylLayout ins View-Model
 - [ ] Task 6 — RecordLabel + Turntable-Verdrahtung
 - [ ] Task 7 — Gates
 - [ ] Alle Code-Referenzen re-verifiziert (Funktionen, Scripts, Pfade, Props, Package-Manager-Commands) vor erstem Edit

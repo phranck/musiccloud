@@ -33,6 +33,7 @@ describe("apiLinksToPlatformLinks", () => {
       track: {
         title: "Take on Me",
         artists: ["a-ha"],
+        vinylLayout: null,
       },
       links: [apiLink("apple-music", "apple-music", "https://music.apple.com/us/album/1")],
     } satisfies ResolveSuccessResponse);
@@ -52,6 +53,7 @@ describe("apiLinksToPlatformLinks", () => {
         track: {
           title: "Take on Me",
           artists: ["a-ha"],
+          vinylLayout: null,
         },
         links: [apiLink("youtube-music", "youtube-music", "https://music.youtube.com/watch?v=abc")],
         shortUrl: "https://musiccloud.io/aBc123x",

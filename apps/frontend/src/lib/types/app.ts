@@ -7,6 +7,7 @@ import type {
   CcMusicInfo,
   CcTrackStats,
   UnifiedResolveSuccessResponse,
+  VinylLayout,
 } from "@musiccloud/shared";
 import type { DisambiguationCandidate } from "./disambiguation";
 import type { PlatformLink } from "./platform";
@@ -129,6 +130,8 @@ export interface SongResult {
   isExplicit?: boolean;
   artworkUrl: string;
   previewUrl?: string;
+  /** Discogs-derived vinyl timing data for this track's containing album. */
+  vinylLayout?: VinylLayout;
   platforms: PlatformLink[];
   shareUrl: string;
 }
@@ -143,6 +146,8 @@ export interface AlbumResult {
   upc?: string;
   artworkUrl: string;
   previewUrl?: string;
+  /** Discogs-derived vinyl timing data for this album. */
+  vinylLayout?: VinylLayout;
   platforms: PlatformLink[];
   shareUrl: string;
 }

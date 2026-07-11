@@ -189,6 +189,7 @@ export function buildShareViewFromSharePageResponse(
       : isArtist
         ? undefined
         : catalogTextFromIds({ isrc: track?.isrc }),
+    vinylLayout: isAlbum ? (album?.vinylLayout ?? undefined) : (track?.vinylLayout ?? undefined),
     platforms: apiLinksToPlatformLinks(data.links),
     platformsLabel: t(platformsLabelKey),
     platformsLabelKey,
