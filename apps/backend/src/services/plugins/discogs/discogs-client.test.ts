@@ -59,6 +59,7 @@ const RELEASE_RESPONSE = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  fetchMock.mockReset();
   process.env.DISCOGS_TOKEN = "test-token";
   process.env.DISCOGS_MIN_REQUEST_INTERVAL_MS = "0";
 });
@@ -172,6 +173,28 @@ describe("getMasterVinylVersions", () => {
     expect(versions[1]).toEqual({ id: 22222222, released: "1997", format: "LP, Album, Reissue", country: "EU" });
   });
 
+  it("loads every versions page before returning the pressings", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({
+          pagination: { page: 1, pages: 2 },
+          versions: [{ id: 22222222, released: "1997", format: "LP, Album, Reissue", country: "EU" }],
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          pagination: { page: 2, pages: 2 },
+          versions: [{ id: 15815903, released: "1959", format: "LP, Album", country: "US" }],
+        }),
+      );
+
+    const versions = await getMasterVinylVersions(33100);
+
+    expect(versions.map((version) => version.id)).toEqual([22222222, 15815903]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1]?.[0]).toContain("page=2");
+  });
+
   it("returns [] when versions array is empty", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ versions: [] }));
     const versions = await getMasterVinylVersions(33100);
@@ -251,6 +274,32 @@ describe("rate guard interval fallback", () => {
       await vi.advanceTimersByTimeAsync(700);
       await secondCall;
       expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("spaces concurrent requests instead of releasing them in one burst", async () => {
+    vi.useFakeTimers({ now: 20_000_000_000_000 });
+    try {
+      process.env.DISCOGS_MIN_REQUEST_INTERVAL_MS = "1000";
+      const requestTimes: number[] = [];
+      fetchMock.mockImplementation(async () => {
+        requestTimes.push(Date.now());
+        return jsonResponse(RELEASE_RESPONSE);
+      });
+
+      const requests = [getRelease(1), getRelease(2), getRelease(3)];
+      await vi.advanceTimersByTimeAsync(0);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      await vi.advanceTimersByTimeAsync(1000);
+      await Promise.all(requests);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(requestTimes).toEqual([20_000_000_000_000, 20_000_000_001_000, 20_000_000_002_000]);
     } finally {
       vi.useRealTimers();
     }

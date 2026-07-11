@@ -170,6 +170,10 @@ export default async function shareRoutes(app: FastifyInstance) {
       }
 
       if (albumData) {
+        const sharedVinylLayout = await readCachedAlbumVinylLayout(await getRepository(), {
+          artists: albumData.artists,
+          title: albumData.album.title,
+        });
         const response: SharePageResponse = {
           type: "album",
           og: {
@@ -188,7 +192,7 @@ export default async function shareRoutes(app: FastifyInstance) {
             label: albumData.album.label ?? undefined,
             upc: albumData.album.upc ?? undefined,
             previewUrl: albumData.album.previewUrl ?? undefined,
-            vinylLayout: albumData.album.vinylLayout,
+            vinylLayout: sharedVinylLayout ?? albumData.album.vinylLayout,
           },
           links: toCachedApiLinks(albumData.links),
           shortUrl: albumData.og.ogUrl,

@@ -33,6 +33,9 @@ const DEFAULT_MIN_INTERVAL_MS = 1100;
 /** Timestamp (ms) of the last outgoing Discogs request in this process. */
 let lastRequestAt = 0;
 
+/** Serial queue that reserves one Discogs request slot at a time. */
+let rateGuardQueue: Promise<void> = Promise.resolve();
+
 /**
  * Resolves the effective minimum inter-request interval in milliseconds.
  *
@@ -60,15 +63,17 @@ function resolveMinInterval(): number {
  *
  * @returns A promise that resolves once the guard interval has elapsed.
  */
-async function rateGuard(): Promise<void> {
-  const minInterval = resolveMinInterval();
-
-  const now = Date.now();
-  const elapsed = now - lastRequestAt;
-  if (elapsed < minInterval) {
-    await new Promise<void>((resolve) => setTimeout(resolve, minInterval - elapsed));
-  }
-  lastRequestAt = Date.now();
+function rateGuard(): Promise<void> {
+  const guarded = rateGuardQueue.then(async () => {
+    const minInterval = resolveMinInterval();
+    const elapsed = Date.now() - lastRequestAt;
+    if (elapsed < minInterval) {
+      await new Promise<void>((resolve) => setTimeout(resolve, minInterval - elapsed));
+    }
+    lastRequestAt = Date.now();
+  });
+  rateGuardQueue = guarded.catch(() => undefined);
+  return guarded;
 }
 
 // ---------------------------------------------------------------------------
@@ -177,20 +182,27 @@ export async function searchVinylMaster(query: { artist: string; title: string }
  * @throws When the HTTP response is not OK or a network error occurs.
  */
 export async function getMasterVinylVersions(masterId: number): Promise<DiscogsMasterVersion[]> {
-  const data = await discogsGet<{
+  interface VersionsPage {
+    pagination?: { page: number; pages: number };
     versions: Array<{
       id: number;
       released: string;
       format: string;
       country?: string;
     }>;
-  }>(`/masters/${masterId}/versions?format=Vinyl`);
-
-  if (!data.versions || data.versions.length === 0) {
-    return [];
   }
 
-  return data.versions.map(
+  const versions: VersionsPage["versions"] = [];
+  let page = 1;
+  let pages = 1;
+  do {
+    const data = await discogsGet<VersionsPage>(`/masters/${masterId}/versions?format=Vinyl&per_page=100&page=${page}`);
+    versions.push(...(data.versions ?? []));
+    pages = data.pagination?.pages ?? page;
+    page += 1;
+  } while (page <= pages);
+
+  return versions.map(
     (v): DiscogsMasterVersion => ({
       id: v.id,
       released: v.released,

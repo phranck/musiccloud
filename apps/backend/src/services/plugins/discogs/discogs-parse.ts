@@ -41,7 +41,8 @@ export interface DiscogsMasterVersion {
  *
  * @param value - The raw duration string from the Discogs `tracklist[].duration` field.
  * @returns Total duration in milliseconds, or `null` when the value is
- *   empty, missing, or does not match the expected `M:SS` / `MM:SS` format.
+ *   empty, zero-length, has out-of-range seconds, or does not match the
+ *   expected `M:SS` / `MM:SS` format.
  */
 export function parseDiscogsDuration(value: string): number | null {
   const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
@@ -50,7 +51,8 @@ export function parseDiscogsDuration(value: string): number | null {
   }
   const minutes = Number.parseInt(match[1], 10);
   const seconds = Number.parseInt(match[2], 10);
-  return (minutes * 60 + seconds) * 1000;
+  const durationMs = (minutes * 60 + seconds) * 1000;
+  return seconds < 60 && durationMs > 0 ? durationMs : null;
 }
 
 /**
@@ -191,6 +193,7 @@ export interface DiscogsRelease {
  */
 export function normalizeReleaseToLayout(release: DiscogsRelease): VinylLayout | null {
   const tracks = release.tracklist.filter((t) => t.type_ === "track");
+  if (tracks.length === 0) return null;
 
   // Resolve all durations and side labels up front; bail on any null.
   const resolved: Array<{ position: string; title: string; durationMs: number; sideLabel: string }> = [];

@@ -148,6 +148,12 @@ function vinylPauseGroovePath(radius: number): string {
  */
 export function vinylSideGrooveLayout(side: VinylSide, options: VinylSideGroovePathOptions): VinylSideGrooveLayout {
   const { innerRadius, outerRadius, turns } = options;
+  const hasValidTiming =
+    side.tracks.length > 0 && side.tracks.every((track) => Number.isFinite(track.durationMs) && track.durationMs > 0);
+  if (!hasValidTiming) {
+    return { path: vinylGrooveSpiralPath(turns, innerRadius, outerRadius), darkBands: [] };
+  }
+
   const turnsPerRadius = turns / (outerRadius - innerRadius);
   const trackOuterRadius = outerRadius - SIDE_GROOVE_RUN_IN_BAND_WIDTH;
   const trackInnerRadius = innerRadius + SIDE_GROOVE_RUN_OUT_BAND_WIDTH;

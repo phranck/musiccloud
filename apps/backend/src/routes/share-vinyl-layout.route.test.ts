@@ -5,6 +5,7 @@ import { OPENAPI_SCHEMAS } from "../schemas/openapi-schemas.js";
 
 const enrichAlbumVinylLayout = vi.fn();
 const readAlbumVinylLayout = vi.fn();
+const findAlbumByVinylLayoutIdentity = vi.fn();
 const loadAlbumByShortId = vi.fn();
 const loadCcByShortId = vi.fn();
 
@@ -14,6 +15,7 @@ const repository = {
   loadArtistByShortId: vi.fn().mockResolvedValue(null),
   enrichAlbumVinylLayout,
   readAlbumVinylLayout,
+  findAlbumByVinylLayoutIdentity,
 };
 
 vi.mock("../db/index.js", () => ({
@@ -104,6 +106,21 @@ describe("GET /api/v1/share/:shortId album vinyl layout", () => {
     expect(response.json().album.vinylLayout).toBeNull();
     expect(enrichAlbumVinylLayout).not.toHaveBeenCalled();
     expect(readAlbumVinylLayout).not.toHaveBeenCalled();
+
+    await app.close();
+  });
+
+  it("reads the artist-qualified layout owner when it differs from the shared album row", async () => {
+    loadAlbumByShortId.mockResolvedValue(buildAlbumShareResult(null));
+    findAlbumByVinylLayoutIdentity.mockResolvedValue({ albumId: "layout-owner" });
+    readAlbumVinylLayout.mockResolvedValue(vinylLayout);
+    const app = buildApp();
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/share/album-short" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().album.vinylLayout).toEqual(vinylLayout);
+    expect(readAlbumVinylLayout).toHaveBeenCalledWith("layout-owner");
 
     await app.close();
   });

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { labelArcPath, vinylGrooveSpiralPath, vinylSideDarkBands, vinylSideGroovePath } from "./vinyl-geometry.js";
+import {
+  labelArcPath,
+  vinylGrooveSpiralPath,
+  vinylSideDarkBands,
+  vinylSideGrooveLayout,
+  vinylSideGroovePath,
+} from "./vinyl-geometry.js";
 
 describe("vinyl geometry", () => {
   it("returns SVG paths for the record groove and label arc", () => {
@@ -56,5 +62,18 @@ describe("vinyl geometry", () => {
     expect(segments.filter((segment) => segment.includes(" A "))).toHaveLength(0);
     expect(segments[0]).toMatch(/ L /);
     expect(segments.at(-1)).toMatch(/ L /);
+  });
+
+  it.each([
+    { label: "A", tracks: [] },
+    { label: "A", tracks: [{ position: "A1", title: "Silence", durationMs: 0 }] },
+  ])("falls back to finite homogeneous grooves for invalid side timing", (side) => {
+    const options = { innerRadius: 19, outerRadius: 49.5, turns: 45 };
+
+    const layout = vinylSideGrooveLayout(side, options);
+
+    expect(layout.path).toBe(vinylGrooveSpiralPath(options.turns, options.innerRadius, options.outerRadius));
+    expect(layout.path).not.toMatch(/NaN|Infinity/);
+    expect(layout.darkBands).toEqual([]);
   });
 });

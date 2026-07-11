@@ -31,6 +31,11 @@ describe("parseDiscogsDuration", () => {
   it('returns null for unparseable input "abc"', () => {
     expect(parseDiscogsDuration("abc")).toBeNull();
   });
+
+  it("returns null for zero-length and out-of-range seconds", () => {
+    expect(parseDiscogsDuration("0:00")).toBeNull();
+    expect(parseDiscogsDuration("3:60")).toBeNull();
+  });
 });
 
 // =============================================================================
@@ -144,6 +149,10 @@ describe("normalizeReleaseToLayout", () => {
       ],
     };
     expect(normalizeReleaseToLayout(release)).toBeNull();
+  });
+
+  it("returns null when the release has no real tracks", () => {
+    expect(normalizeReleaseToLayout({ id: 100, tracklist: [] })).toBeNull();
   });
 
   it("ignores non-track entries (headings) and builds layout from real tracks only", () => {
