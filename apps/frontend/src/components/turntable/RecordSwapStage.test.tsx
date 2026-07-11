@@ -1,7 +1,9 @@
+import type { VinylSide } from "@musiccloud/shared";
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RecordSwapStage } from "@/components/turntable/RecordSwapStage";
 import { VinylSpinState } from "@/components/vinyl/VinylRecord.types";
+import { vinylSideGroovePath } from "@/lib/media/vinyl-geometry.js";
 import { buildRecordSwapTimeline } from "@/lib/motion/recordSwap";
 import { prefersReducedMotion } from "@/lib/motion/setup";
 
@@ -42,6 +44,19 @@ function vinylCount(container: HTMLElement): number {
   return container.querySelectorAll("figure[data-spin-state]").length;
 }
 
+const SIDE_A: VinylSide = {
+  label: "A",
+  tracks: [{ durationMs: 240_000, position: "A1", title: "New record" }],
+};
+
+const SIDE_B: VinylSide = {
+  label: "B",
+  tracks: [
+    { durationMs: 714_000, position: "B1", title: "J.O.S." },
+    { durationMs: 480_000, position: "B2", title: "Flamingo" },
+  ],
+};
+
 describe("RecordSwapStage", () => {
   it("renders a single record and starts no swap initially", () => {
     const { container } = render(
@@ -76,6 +91,34 @@ describe("RecordSwapStage", () => {
     });
     expect(vinylCount(container)).toBe(2);
     expect(mockBuild).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the outgoing record's resolved side and groove while it coasts", () => {
+    const { container, rerender } = render(
+      <RecordSwapStage
+        record={{ labelTitle: "The Sermon!" }}
+        sideLayout={SIDE_B}
+        spinState={VinylSpinState.Playing}
+        swapKey="sermon"
+      />,
+    );
+
+    act(() => {
+      rerender(
+        <RecordSwapStage
+          record={{ labelTitle: "New album" }}
+          sideLayout={SIDE_A}
+          spinState={VinylSpinState.Playing}
+          swapKey="new-album"
+        />,
+      );
+    });
+
+    const grooveBitmap = decodeURIComponent(
+      container.querySelector("[data-vinyl-grooves='true']")?.getAttribute("src") ?? "",
+    );
+    expect(grooveBitmap).toContain(vinylSideGroovePath(SIDE_B, { innerRadius: 19, outerRadius: 49.5, turns: 45 }));
+    expect(container.querySelector(".sr-only")).toHaveTextContent("SIDE B");
   });
 
   it("slides immediately when the deck is already idle at swap time, then unmounts the outgoing on settle", () => {
