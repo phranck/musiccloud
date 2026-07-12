@@ -146,7 +146,7 @@ jobs:
                 developer=true ;;
             esac
             case "$file" in
-              apps/backend/*|apps/dashboard/*|packages/shared/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|zerops.yml|.github/workflows/ci.yml)
+              apps/dashboard/*|packages/shared/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|zerops.yml)
                 dashboard=true ;;
             esac
             case "$file" in
@@ -289,9 +289,11 @@ jobs:
           const local = JSON.parse(fs.readFileSync(".tmp/sdk/sdk-catalog.json", "utf8"));
           const remote = JSON.parse(fs.readFileSync(".tmp/existing-sdk/sdk-catalog.json", "utf8"));
 
-          // Existing SDK releases are immutable. A reused tag is only valid when
-          // the exact same source commit produced the exact same contract and assets.
-          for (const field of ["apiVersion", "openApiSha256", "generatorVersion", "sourceSha"]) {
+          // Existing SDK releases are immutable. A reused tag is valid when the
+          // public contract, generator version, and generated assets are equal.
+          // `sourceSha` remains provenance in the catalog but backend-only fixes
+          // must not require a new API version or duplicate SDK release.
+          for (const field of ["apiVersion", "openApiSha256", "generatorVersion"]) {
             if (local[field] !== remote[field]) {
               throw new Error(`Existing SDK release mismatch: ${field}`);
             }
@@ -353,7 +355,7 @@ jobs:
           ZEROPS_TOKEN: ${{ secrets.ZEROPS_TOKEN }}
         run: |
           zcli login "$ZEROPS_TOKEN"
-          zcli push --serviceId vftiwXaYQGCnnwEEaiGPYA
+          ./scripts/zerops-deploy.sh vftiwXaYQGCnnwEEaiGPYA
           # Zerops confirms the artifact deploy, not that the process has bound
           # its public port. Require the backend's runtime health boundary so a
           # crash during startup fails the deployment instead of reporting green.
@@ -393,7 +395,7 @@ jobs:
           ZEROPS_TOKEN: ${{ secrets.ZEROPS_TOKEN }}
         run: |
           zcli login "$ZEROPS_TOKEN"
-          zcli push --serviceId bMY4g66BRDOfq1AAi8Q85A
+          ./scripts/zerops-deploy.sh bMY4g66BRDOfq1AAi8Q85A
       - name: Announce deploy end
         if: always() && env.STATUS_TOKEN != ''
         env:
@@ -429,7 +431,7 @@ jobs:
           ZEROPS_TOKEN: ${{ secrets.ZEROPS_TOKEN }}
         run: |
           zcli login "$ZEROPS_TOKEN"
-          zcli push --serviceId snJHAWsxR32xetGASY33cQ
+          ./scripts/zerops-deploy.sh snJHAWsxR32xetGASY33cQ
       - name: Announce deploy end
         if: always() && env.STATUS_TOKEN != ''
         env:
@@ -465,7 +467,7 @@ jobs:
           ZEROPS_TOKEN: ${{ secrets.ZEROPS_TOKEN }}
         run: |
           zcli login "$ZEROPS_TOKEN"
-          zcli push --serviceId IF9Xp4YFRxuQKRQxmAWFBA
+          ./scripts/zerops-deploy.sh IF9Xp4YFRxuQKRQxmAWFBA
       - name: Announce deploy end
         if: always() && env.STATUS_TOKEN != ''
         env:

@@ -27,6 +27,33 @@ test("verifies the public backend health endpoint after a backend deploy", () =>
 
   assert.match(
     backendJob,
-    /zcli push --serviceId vftiwXaYQGCnnwEEaiGPYA[\s\S]*?curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 3 https:\/\/api\.musiccloud\.io\/health\/backend/,
+    /\.\/scripts\/zerops-deploy\.sh vftiwXaYQGCnnwEEaiGPYA[\s\S]*?curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 3 https:\/\/api\.musiccloud\.io\/health\/backend/,
   );
+});
+
+test("reuses an immutable SDK release when its OpenAPI contract is unchanged", () => {
+  const publishJob = workflow.slice(
+    workflow.indexOf("  publish-api-sdks:"),
+    workflow.indexOf("  deploy-backend:"),
+  );
+
+  assert.match(
+    publishJob,
+    /for \(const field of \["apiVersion", "openApiSha256", "generatorVersion"\]\)/,
+  );
+  assert.doesNotMatch(
+    publishJob,
+    /for \(const field of \[[^\]]*"sourceSha"[^\]]*\]\)/,
+  );
+});
+
+test("does not deploy the dashboard for backend-only or CI-only changes", () => {
+  const detectChangesJob = workflow.slice(
+    workflow.indexOf("  detect-changes:"),
+    workflow.indexOf("  validate-api-sdk-contract:"),
+  );
+  const dashboardCase =
+    detectChangesJob.match(/case "\$file" in\n(?:(?!case "\$file" in)[\s\S])*?dashboard=true ;;/)?.[0] ?? "";
+
+  assert.doesNotMatch(dashboardCase, /apps\/backend\/\*|\.github\/workflows\/ci\.yml/);
 });
