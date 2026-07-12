@@ -18,3 +18,15 @@ test("builds the shared package before every CI OpenAPI export", () => {
     );
   }
 });
+
+test("verifies the public backend health endpoint after a backend deploy", () => {
+  const backendJob = workflow.slice(
+    workflow.indexOf("  deploy-backend:"),
+    workflow.indexOf("  deploy-frontend:"),
+  );
+
+  assert.match(
+    backendJob,
+    /zcli push --serviceId vftiwXaYQGCnnwEEaiGPYA[\s\S]*?curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 3 https:\/\/api\.musiccloud\.io\/health\/backend/,
+  );
+});

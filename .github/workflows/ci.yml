@@ -354,6 +354,10 @@ jobs:
         run: |
           zcli login "$ZEROPS_TOKEN"
           zcli push --serviceId vftiwXaYQGCnnwEEaiGPYA
+          # Zerops confirms the artifact deploy, not that the process has bound
+          # its public port. Require the backend's runtime health boundary so a
+          # crash during startup fails the deployment instead of reporting green.
+          curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 3 https://api.musiccloud.io/health/backend
       - name: Announce deploy end
         if: always() && env.STATUS_TOKEN != ''
         env:

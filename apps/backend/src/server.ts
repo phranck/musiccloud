@@ -1,4 +1,3 @@
-import { pathToFileURL } from "node:url";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
@@ -72,6 +71,22 @@ import { warmAppleMusicToken } from "./services/plugins/apple-music/adapter.js";
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4000);
+
+/**
+ * Detects direct execution of the CommonJS bundle emitted by tsup.
+ *
+ * The Backend intentionally ships as CommonJS, where `import.meta.url` is
+ * empty after bundling. Comparing Node's current module to `require.main`
+ * starts `node dist/server.js` reliably while imports from tests, OpenAPI
+ * export scripts, and other modules remain side-effect free.
+ *
+ * @param currentModule - the current CommonJS module
+ * @param mainModule - Node's direct entry module, when one exists
+ * @returns whether the current module is the direct process entrypoint
+ */
+export function isDirectCommonJsEntrypoint(currentModule: NodeModule, mainModule: NodeModule | undefined): boolean {
+  return currentModule === mainModule;
+}
 
 // Parse TRUST_PROXY env var. Without this, `request.ip` behind a reverse
 // proxy (Cloudflare / zerops ingress) resolves to the proxy's address, so
@@ -622,11 +637,14 @@ async function start() {
   }
 }
 
-// Only auto-start when invoked as the entry point (`node dist/server.js` /
-// `tsup --onSuccess`). Skip when imported by tests, export scripts, or other
-// modules so buildApp can be used without spawning a real listener.
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  start();
+// Only auto-start when invoked as `node dist/server.js`. Skip imported test,
+// export, and helper modules so `buildApp` never creates an implicit listener.
+if (
+  typeof require !== "undefined" &&
+  typeof module !== "undefined" &&
+  isDirectCommonJsEntrypoint(module, require.main)
+) {
+  void start();
 }
 
 export { buildApp };
