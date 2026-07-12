@@ -10,6 +10,13 @@ import { test } from "node:test";
 const repoRoot = path.resolve(new URL("..", import.meta.url).pathname);
 const fixturePath = path.join(repoRoot, "scripts/fixtures/openapi-sdk-fixture.json");
 
+test("runs Docker generation with the invoking host ownership", async () => {
+  const generator = await readFile(path.join(repoRoot, "scripts/generate-sdk-release.mjs"), "utf8");
+
+  assert.match(generator, /const dockerUser = `\$\{process\.getuid\(\)\}:\$\{process\.getgid\(\)\}`;/);
+  assert.match(generator, /"--user",\s*dockerUser,/);
+});
+
 test("generates a release catalog and archives for every SDK target", async () => {
   const tempRoot = await mkdtemp(path.join(tmpdir(), "musiccloud-sdk-release-"));
   const contractDir = path.join(tempRoot, "contract");

@@ -128,9 +128,13 @@ async function run(command, args, options = {}) {
 }
 
 async function generateWithDocker(contractDir, generatedRoot, target) {
+  // Keep bind-mounted output writable by the Node process that adds metadata and archives it.
+  const dockerUser = `${process.getuid()}:${process.getgid()}`;
   await run("docker", [
     "run",
     "--rm",
+    "--user",
+    dockerUser,
     "-v",
     `${contractDir}:/local/contract:ro`,
     "-v",
