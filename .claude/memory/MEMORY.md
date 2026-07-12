@@ -1,5 +1,0 @@
-- [Migrations immer via Drizzle](feedback_migrations_always_drizzle.md) — Prod-Migrationen laufen IMMER via Drizzle-Migrator, bei Fehlschlag retry, nie parallele Pfade
-- [Instant first paint prioritaet](feedback_instant_first_paint.md) — Shell sofort flushen, Daten via server:defer; Bot-Split bei OG-Bedarf
-- [Spotify Feb 2026 Changes Doc](reference_spotify_feb2026_changes.md) — Offizielle Spotify-Restrictions-Doc; bei jeder Spotify-Beruehrung VOLLSTAENDIG inkl. verlinkter Seiten lesen
-- [Spotify Quota-Status musiccloud](project_spotify_quota_status.md) — Dev Mode (kein Extended Quota), Premium-Account vorhanden; alle Feb-2026 Restrictions treffen voll
-- [trustProxy + Rate-Limiter](project_trust_proxy_ratelimit.md) — TRUST_PROXY env var zwingend in Prod, sonst 429 fuer alle nach 2-3 Requests

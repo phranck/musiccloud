@@ -21,11 +21,6 @@ vite.config.d.ts
 # graphify knowledge-graph output (generated, reproducible via /graphify)
 graphify-out/
 
-# gource dev-history render dir: large local input assets (background audio,
-# avatars) and generated output (mp4/HLS), rendered via scripts/mkgource. The
-# tracked config lives in .gource.conf (a file, not this dir).
-.gource/
-
 # Astro
 .astro/
 
@@ -58,7 +53,15 @@ credentials.json
 service-account*.json
 GoogleService-Info.plist
 
-# Claude / agent / Serena / OpenSpec / notes (local only)
+# Local agent instructions, plans, memories, and specifications
+.agents/
+.claude/
+.codex/
+
+# Gource sources, configuration, scripts, and generated renders (local only)
+*gource*
+
+# Other local-only agent / editor state and notes
 .continue/
 .deepsec/
 .kiro/
@@ -71,12 +74,10 @@ openspec/
 papers/
 WHATS-NEXT.md
 
-# .claude / .codex are tracked (plans, runbooks, skills, architecture, project
-# knowledge), but local-only state and credentials must never be published:
-.claude/settings.local.json
-.claude/SESSION.md
-.codex/SESSION.md
-.claude/memory/*credential*
+# Local project references and visual design working files
+docs/
+mockups/
+architecture/
 
 # Generated plan overview dashboard (reproducible via the `plans` tool)
 /plans.html
