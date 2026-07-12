@@ -55,6 +55,25 @@ model. When building or editing a screen, verify that **every** structural value
 (padding, gap, radius, inset) is token-derived and matches
 [`mockups/frontend-prototype.html`](mockups/frontend-prototype.html), the visual + settings reference.
 
+## Developer Portal and Dashboard: compounds before local markup
+
+Across the complete Developer Portal and Developer Dashboard, reusable compound
+components are the default ownership boundary for repeated UI and layout
+patterns. Before adding local markup or CSS, inspect existing compounds and
+normalize any pattern that occurs in two or more places from the outer surface
+down to its meaningful inner slots.
+
+- Prefer explicit APIs such as `Component.Header`, `.Header.Addon`, `.Body`,
+  `.Section`, and `.Footer` over repeated wrapper markup or class bundles.
+- Keep domain-specific compounds on top of shared primitives instead of making
+  one universal component with unrelated variant props.
+- Reuse the same compound and token-derived geometry in the public portal and
+  developer dashboard whenever semantics match. Do not fork a second visual
+  recipe at a call site.
+- Document public compound APIs and invariants. Tests must exercise their
+  rendered structure so future call sites cannot silently reintroduce local
+  pattern duplication.
+
 ## PostgreSQL migration and error boundaries
 
 - Local commands use only the local PostgreSQL URL from `apps/backend/.env.local`. Never alias a production or administrative URL to `DATABASE_URL` for local testing or migrations.

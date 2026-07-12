@@ -84,9 +84,34 @@ describe("developer design system", () => {
   it("centers API section icons against the trimmed visible heading text", () => {
     const docs = readDeveloperFile("src/styles/docs.css");
 
+    expect(docs).toMatch(/\.api-content__chapter-header\s*\{[^}]*align-items:\s*center;/s);
+    expect(docs).toMatch(/\.api-content__chapter-header-title\s*\{[^}]*text-box:\s*trim-both cap alphabetic;/s);
     expect(docs).toMatch(
-      /\.api-reference-content-heading\[data-api-content-heading\]\s*>\s*span\s*\{[^}]*text-box:\s*trim-both cap alphabetic;/s,
+      /\.api-content__chapter-header-icon\s*>\s*\.mc-icon\s*\{[^}]*width:\s*100%;[^}]*height:\s*100%;/s,
     );
+  });
+
+  it("separates outer ContentCard entries with a dedicated spacing token", () => {
+    const docs = readDeveloperFile("src/styles/docs.css");
+
+    expect(docs).toContain("--mc-docs-entry-card-gap: var(--mc-space-7);");
+    expect(docs).toMatch(/\.api-content__entry\s*\{[^}]*margin-bottom:\s*var\(--mc-docs-entry-card-gap\);/s);
+  });
+
+  it("keeps nested documentation content shrinkable inside cards", () => {
+    const docs = readDeveloperFile("src/styles/docs.css");
+
+    expect(docs).toMatch(
+      /\.content-card__body-intro,[\s\S]*?\.content-card__section-body\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);/,
+    );
+    expect(docs).toMatch(
+      /\.content-panel-list,[\s\S]*?\.sdk-metadata-list\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);/,
+    );
+    expect(docs).toMatch(
+      /\.code-block,[\s\S]*?\.code-block__frame\s*\{[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;/,
+    );
+    expect(docs).toMatch(/\.openapi-markdown\s*\{[\s\S]*?overflow-wrap:\s*anywhere;/);
+    expect(docs).toMatch(/\.response-card__summary\s*\{[\s\S]*?display:\s*grid;[\s\S]*?block-size:\s*max-content;/);
   });
 
   it("reports raw style drift with path, line, and offending value", () => {

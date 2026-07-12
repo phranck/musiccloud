@@ -104,6 +104,38 @@ export function searchDocumentIndex(entries: DocumentSearchEntry[], rawQuery: st
 const excludedHighlightParent = (node: Node) =>
   node.parentElement?.closest("pre, [data-code-block], script, style, [data-api-search-ignore]") !== null;
 
+interface TextMatchRange {
+  end: number;
+  start: number;
+}
+
+const escapeRegularExpression = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+function addTextMatches(ranges: TextMatchRange[], value: string, pattern: RegExp): void {
+  for (const match of value.matchAll(pattern)) {
+    if (!match[0]) continue;
+    const start = match.index ?? 0;
+    const end = start + match[0].length;
+    if (ranges.some((range) => start < range.end && range.start < end)) continue;
+    ranges.push({ start, end });
+  }
+}
+
+/** Finds contiguous phrases before their individual terms so related words share one visual mark. */
+function textMatchRanges(value: string, rawQuery: string): TextMatchRange[] {
+  const queryTerms = rawQuery.trim().split(/\s+/).filter(Boolean);
+  if (!queryTerms.length) return [];
+
+  const ranges: TextMatchRange[] = [];
+  if (queryTerms.length > 1) {
+    addTextMatches(ranges, value, new RegExp(queryTerms.map(escapeRegularExpression).join("\\s+"), "giu"));
+  }
+  for (const term of [...new Set(queryTerms)]) {
+    addTextMatches(ranges, value, new RegExp(escapeRegularExpression(term), "giu"));
+  }
+  return ranges;
+}
+
 /** Removes the previous search mark without changing surrounding content nodes. */
 export function clearDocumentSearchHighlight(root: ParentNode = document): void {
   root.querySelectorAll<HTMLElement>("mark[data-api-search-highlight]").forEach((mark) => {
@@ -113,31 +145,30 @@ export function clearDocumentSearchHighlight(root: ParentNode = document): void 
   });
 }
 
-/** Marks only the first matching prose occurrence inside a selected result. */
-export function highlightDocumentSearchMatch(target: HTMLElement, rawQuery: string): HTMLElement | null {
+/** Marks every matching prose occurrence while keeping contiguous query phrases together. */
+export function highlightDocumentSearchMatches(target: HTMLElement, rawQuery: string): HTMLElement[] {
   clearDocumentSearchHighlight(target.ownerDocument);
-  const query = normalize(rawQuery);
-  const terms = query.split(" ").filter(Boolean);
   const walker = target.ownerDocument.createTreeWalker(target, NodeFilter.SHOW_TEXT);
-
+  const textNodes: Text[] = [];
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    if (excludedHighlightParent(node)) continue;
-    const value = node.textContent ?? "";
-    const normalizedValue = normalize(value);
-    const term = normalizedValue.includes(query)
-      ? query
-      : terms.find((candidate) => normalizedValue.includes(candidate));
-    if (!term) continue;
-    const start = normalizedValue.indexOf(term);
-    if (start < 0) continue;
-
-    const range = target.ownerDocument.createRange();
-    range.setStart(node, start);
-    range.setEnd(node, Math.min(value.length, start + term.length));
-    const mark = target.ownerDocument.createElement("mark");
-    mark.dataset.apiSearchHighlight = "true";
-    range.surroundContents(mark);
-    return mark;
+    if (!excludedHighlightParent(node)) textNodes.push(node as Text);
   }
-  return null;
+
+  const marks: HTMLElement[] = [];
+  for (const node of textNodes) {
+    const value = node.textContent ?? "";
+    const ranges = textMatchRanges(value, rawQuery).sort((left, right) => right.start - left.start);
+    const nodeMarks: HTMLElement[] = [];
+    for (const { start, end } of ranges) {
+      const range = target.ownerDocument.createRange();
+      range.setStart(node, start);
+      range.setEnd(node, end);
+      const mark = target.ownerDocument.createElement("mark");
+      mark.dataset.apiSearchHighlight = "true";
+      range.surroundContents(mark);
+      nodeMarks.unshift(mark);
+    }
+    marks.push(...nodeMarks);
+  }
+  return marks;
 }

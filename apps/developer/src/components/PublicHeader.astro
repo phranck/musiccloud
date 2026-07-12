@@ -14,7 +14,7 @@
  */
 import { AvatarMenu } from "@/components/portal/AvatarMenu";
 import Wordmark from "@/components/Wordmark.astro";
-import { MenuIcon, ProfileCircleIcon } from "@/lib/icons";
+import { LoginIcon, MenuIcon } from "@/lib/icons";
 import { PUBLIC_NAV_ITEMS, PUBLIC_SEARCH_COMMAND, type PublicNavigationId } from "@/lib/publicNavigation";
 import type { Account } from "@/lib/session";
 
@@ -58,7 +58,7 @@ const SearchIcon = PUBLIC_SEARCH_COMMAND.icon;
       {
         !account && (
           <a href="/login" class="public-navigation__link">
-            <ProfileCircleIcon className="public-navigation__item-icon" aria-hidden="true" />
+            <LoginIcon className="public-navigation__item-icon" aria-hidden="true" />
             <span class="public-navigation__label">Sign in</span>
           </a>
         )
@@ -100,7 +100,7 @@ const SearchIcon = PUBLIC_SEARCH_COMMAND.icon;
         {
           !account && (
             <a href="/login" class="public-navigation__link">
-              <ProfileCircleIcon className="public-navigation__item-icon" aria-hidden="true" />
+              <LoginIcon className="public-navigation__item-icon" aria-hidden="true" />
               <span class="public-navigation__label">Sign in</span>
             </a>
           )

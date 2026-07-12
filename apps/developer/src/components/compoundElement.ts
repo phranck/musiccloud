@@ -1,7 +1,20 @@
 import { type ComponentPropsWithoutRef, createElement } from "react";
 import { joinClassNames } from "@/components/docs/classNames";
 
-type CompoundElementTag = "article" | "div" | "footer" | "h3" | "header";
+type CompoundElementTag =
+  | "a"
+  | "article"
+  | "code"
+  | "dd"
+  | "div"
+  | "dt"
+  | "footer"
+  | "h2"
+  | "h3"
+  | "h4"
+  | "header"
+  | "section"
+  | "span";
 
 /**
  * Creates a stable semantic component for one compound-component slot.

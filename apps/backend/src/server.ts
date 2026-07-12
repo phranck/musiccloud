@@ -13,6 +13,11 @@ import {
   getRuntimeDatabaseReadinessReport,
 } from "./db/runtime-database-readiness.js";
 import { finalizePublicOpenApiDocument } from "./docs/openapi-finalize.js";
+import {
+  createPublicErrorResponseSchema,
+  publicErrorResponse,
+  publicHealthSuccessResponse,
+} from "./docs/public-response-schema.js";
 import { assertRequiredBootEnv } from "./lib/boot-env.js";
 import { requireEnvList } from "./lib/env.js";
 import { registerApiErrorHandling } from "./lib/infra/api-error-handler.js";
@@ -211,55 +216,7 @@ async function buildApp() {
   // `{ $ref: "ErrorResponse#" }` in route schemas. `@fastify/swagger`
   // picks this up automatically and re-publishes it under
   // `components.schemas.ErrorResponse` in the generated OpenAPI doc.
-  app.addSchema({
-    $id: "ErrorResponse",
-    type: "object",
-    description: "Standard error envelope returned by every v1 endpoint on a non-2xx response.",
-    required: ["error", "message", "errorId"],
-    properties: {
-      error: {
-        type: "string",
-        description: "Machine-readable canonical MC error code (e.g. MC-URL-0003, MC-API-0003, MC-RES-0001).",
-      },
-      message: { type: "string", description: "Human-readable error detail." },
-      errorId: {
-        type: "string",
-        format: "uuid",
-        description: "Unique incident reference included in the matching structured backend log entry.",
-      },
-      context: {
-        type: "object",
-        additionalProperties: { anyOf: [{ type: "string" }, { type: "number" }] },
-        description:
-          "Optional structured values for clients that localize errors themselves. For `MC-API-0003` rate-limit responses this currently contains `limit`, `windowSeconds`, and `retryAfterSeconds`.",
-        properties: {
-          limit: {
-            type: "number",
-            description: "Maximum number of allowed requests in the active rate-limit window. Current value: 10.",
-          },
-          windowSeconds: {
-            type: "number",
-            description: "Length of the active rate-limit window in seconds. Current value: 60.",
-          },
-          retryAfterSeconds: {
-            type: "number",
-            description: "Seconds until the client can retry after a `429 Too Many Requests` response.",
-          },
-        },
-      },
-    },
-    example: {
-      error: "MC-API-0003",
-      errorId: "7d33e012-685f-4f11-94da-c6bc72918d7b",
-      message:
-        "Too many requests. You can make 10 requests per 60 seconds. Please try again in 42 seconds. (MC-API-0003)",
-      context: {
-        limit: 10,
-        retryAfterSeconds: 42,
-        windowSeconds: 60,
-      },
-    },
-  });
+  app.addSchema(createPublicErrorResponseSchema());
 
   // Reusable response schemas for the public v1 API (Track, PlatformLink,
   // ResolveSuccess, SharePage, ArtistInfo, etc.). Registering them here
@@ -305,6 +262,7 @@ async function buildApp() {
         { name: "Links", description: "Link metadata" },
         { name: "Artist", description: "Artist info (Last.fm + Ticketmaster)" },
         { name: "CC", description: "Creative-Commons (Jamendo) resolve, audio, and metadata" },
+        { name: "Forms", description: "Submit published forms" },
         { name: "Services", description: "Active resolver plugins and examples" },
         { name: "Health", description: "Per-service liveness and readiness probes" },
       ],
@@ -382,6 +340,10 @@ async function buildApp() {
         tags: ["Health"],
         summary: "Email subsystem readiness",
         description: "Returns 200 when the email provider is configured and reachable, else 503.",
+        response: {
+          200: publicHealthSuccessResponse("The email provider is configured and reachable."),
+          503: publicErrorResponse("The email provider is unavailable or not configured."),
+        },
       },
     },
     async (_request, reply) => {
@@ -404,6 +366,10 @@ async function buildApp() {
         summary: "Developer portal liveness",
         description:
           "Returns 200 when the developer portal (developer.musiccloud.io) is reachable from the backend, else 503.",
+        response: {
+          200: publicHealthSuccessResponse("The Developer Portal is reachable from the backend."),
+          503: publicErrorResponse("The Developer Portal is unavailable from the backend."),
+        },
       },
     },
     async (_request, reply) => {
@@ -426,6 +392,10 @@ async function buildApp() {
         summary: "Dashboard liveness",
         description:
           "Returns 200 when the admin dashboard (dashboard.musiccloud.io) is reachable from the backend, else 503.",
+        response: {
+          200: publicHealthSuccessResponse("The admin dashboard is reachable from the backend."),
+          503: publicErrorResponse("The admin dashboard is unavailable from the backend."),
+        },
       },
     },
     async (_request, reply) => {
@@ -447,6 +417,10 @@ async function buildApp() {
         tags: ["Health"],
         summary: "Frontend liveness",
         description: "Returns 200 when the public site (musiccloud.io) is reachable from the backend, else 503.",
+        response: {
+          200: publicHealthSuccessResponse("The public site is reachable from the backend."),
+          503: publicErrorResponse("The public site is unavailable from the backend."),
+        },
       },
     },
     async (_request, reply) => {
@@ -468,6 +442,9 @@ async function buildApp() {
         tags: ["Health"],
         summary: "Backend liveness",
         description: "Returns 200 if the backend process is alive and serving requests.",
+        response: {
+          200: publicHealthSuccessResponse("The backend process is alive and serving requests."),
+        },
       },
     },
     async () => {
@@ -489,6 +466,10 @@ async function buildApp() {
         tags: ["Health"],
         summary: "Database readiness",
         description: "Returns 200 when the database is reachable and the schema is complete, else 503.",
+        response: {
+          200: publicHealthSuccessResponse("The database is reachable, migrated, and ready for the runtime role."),
+          503: publicErrorResponse("The database readiness contract is not satisfied."),
+        },
       },
     },
     async (_request, reply) => {

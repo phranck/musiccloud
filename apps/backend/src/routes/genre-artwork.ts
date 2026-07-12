@@ -15,6 +15,7 @@
 
 import { ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
+import { publicErrorResponse } from "../docs/public-response-schema.js";
 import { ensureArtwork, getCachedArtwork } from "../services/genre-artwork/index.js";
 import { getCachedGenreCoverUrl, getGenreCoverUrl } from "../services/genre-search/lastfm.js";
 
@@ -47,8 +48,12 @@ export default async function genreArtworkRoutes(app: FastifyInstance) {
           },
         },
         response: {
-          404: { $ref: "ErrorResponse#" },
-          400: { $ref: "ErrorResponse#" },
+          200: {
+            description: "Generated or cached genre artwork.",
+            type: "string",
+            format: "binary",
+          },
+          400: publicErrorResponse("The normalized genre key contains invalid characters."),
         },
       },
     },

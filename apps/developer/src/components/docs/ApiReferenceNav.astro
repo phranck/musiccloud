@@ -179,6 +179,8 @@ const SchemasIcon = apiReferenceStaticSectionIcons.schemas;
 </Sidebar>
 
 <script>
+  import { isManualScrollIntent, resolveScrollSpySelection } from "@/lib/api-scroll-spy";
+
   interface ApiSearchNavigationDetail {
     group?: string;
     targetId?: string;
@@ -328,26 +330,17 @@ const SchemasIcon = apiReferenceStaticSectionIcons.schemas;
     });
   });
 
-  document.querySelectorAll<HTMLElement>("[data-api-reference-smooth-scroll]").forEach((nav) => {
-    nav.addEventListener("click", (event) => {
-      const link = event.target instanceof Element ? event.target.closest("a[href^='#']") : null;
-      if (!(link instanceof HTMLAnchorElement)) return;
-
-      const target = document.querySelector(link.hash);
-      if (!(target instanceof HTMLElement)) return;
-
-      event.preventDefault();
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
-      history.pushState(null, "", link.hash);
-    });
-  });
-
   document.querySelectorAll<HTMLElement>("[data-api-reference-nav]").forEach((nav) => {
     const links = [...nav.querySelectorAll<HTMLAnchorElement>("[data-api-nav-link]")].filter((link) => link.hash);
     const targets = links
-      .map((link) => ({ link, target: document.querySelector(link.hash) }))
-      .filter((entry): entry is { link: HTMLAnchorElement; target: Element } => entry.target instanceof Element);
+      .map((link) => {
+        const target = document.querySelector(link.hash);
+        if (!(target instanceof HTMLElement)) return undefined;
+        return { link, target };
+      })
+      .filter((entry): entry is { link: HTMLAnchorElement; target: HTMLElement } => Boolean(entry));
     let activeLink: HTMLAnchorElement | undefined;
+    let programmaticNavigationLink: HTMLAnchorElement | undefined;
 
     const setActive = (nextActiveLink: HTMLAnchorElement, force = false) => {
       if (activeLink === nextActiveLink && !force) return;
@@ -363,28 +356,81 @@ const SchemasIcon = apiReferenceStaticSectionIcons.schemas;
       nextActiveLink.scrollIntoView({ block: "nearest" });
     };
 
+    nav.addEventListener("click", (event) => {
+      const link = event.target instanceof Element ? event.target.closest("a[href^='#']") : null;
+      if (!(link instanceof HTMLAnchorElement) || !links.includes(link)) return;
+
+      const navigationTarget = targets.find((entry) => entry.link === link);
+      if (!navigationTarget) return;
+
+      event.preventDefault();
+      // Keep explicit selection stable while native smooth scrolling crosses
+      // every intermediate document anchor.
+      programmaticNavigationLink = link;
+      setActive(link, true);
+      navigationTarget.target.scrollIntoView({ behavior: "smooth", block: "start" });
+      history.pushState(null, "", link.hash);
+    });
+
     /** Applies an explicit search selection without depending on scroll-spy geometry. */
     window.addEventListener("musiccloud:api-search-navigate", (event) => {
       const { group, targetId } = (event as CustomEvent<ApiSearchNavigationDetail>).detail ?? {};
       const exactMatch = targetId ? links.find((link) => link.hash === `#${targetId}`) : undefined;
       const chapterMatch = group ? links.find((link) => link.dataset.apiNavGroup === group) : undefined;
       const nextActiveLink = exactMatch ?? chapterMatch;
-      if (nextActiveLink) setActive(nextActiveLink, true);
+      if (nextActiveLink) {
+        programmaticNavigationLink = nextActiveLink;
+        setActive(nextActiveLink, true);
+      }
     });
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => Math.abs(a.boundingClientRect.top) - Math.abs(b.boundingClientRect.top))[0];
-        if (!visible) return;
+    let scrollSpyFrame: number | undefined;
 
-        const active = targets.find((entry) => entry.target === visible.target);
-        if (active) setActive(active.link);
-      },
-      { rootMargin: "-20% 0px -65% 0px", threshold: [0, 0.15, 0.5] },
-    );
+    /** Resolves CSS scroll margins to the shared viewport activation line. */
+    const scrollSpyActivationLine = () =>
+      Math.max(
+        0,
+        ...targets.map(({ target }) => Number.parseFloat(window.getComputedStyle(target).scrollMarginTop) || 0),
+      );
 
-    for (const { target } of targets) observer.observe(target);
+    /** Evaluates every ordered anchor together so observer callback timing cannot select a neighbor. */
+    const updateActiveFromScroll = () => {
+      scrollSpyFrame = undefined;
+      const selection = resolveScrollSpySelection(
+        targets.map(({ link, target }) => ({ top: target.getBoundingClientRect().top, value: link })),
+        scrollSpyActivationLine(),
+        programmaticNavigationLink,
+      );
+      if (selection.value) setActive(selection.value);
+      if (selection.pinnedTargetReached) programmaticNavigationLink = undefined;
+    };
+
+    /** Coalesces high-frequency scroll and resize events into one layout read per frame. */
+    const scheduleScrollSpyUpdate = () => {
+      if (scrollSpyFrame !== undefined) return;
+      scrollSpyFrame = window.requestAnimationFrame(updateActiveFromScroll);
+    };
+
+    window.addEventListener("scroll", scheduleScrollSpyUpdate, { passive: true });
+    window.addEventListener("resize", scheduleScrollSpyUpdate);
+
+    /** Direct input cancels the pin so manual scrolling remains responsive. */
+    const cancelProgrammaticNavigation = (event: Event) => {
+      const key = event instanceof KeyboardEvent ? event.key : undefined;
+      if (!isManualScrollIntent(event.type, key)) return;
+      programmaticNavigationLink = undefined;
+      scheduleScrollSpyUpdate();
+    };
+
+    window.addEventListener("wheel", cancelProgrammaticNavigation, { passive: true });
+    window.addEventListener("touchstart", cancelProgrammaticNavigation, { passive: true });
+    window.addEventListener("pointerdown", cancelProgrammaticNavigation, { passive: true });
+    window.addEventListener("keydown", cancelProgrammaticNavigation);
+    window.addEventListener("scrollend", () => {
+      if (!programmaticNavigationLink) return;
+      programmaticNavigationLink = undefined;
+      scheduleScrollSpyUpdate();
+    });
+    scheduleScrollSpyUpdate();
   });
 </script>

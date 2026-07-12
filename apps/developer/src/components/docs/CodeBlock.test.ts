@@ -47,14 +47,16 @@ describe("CodeBlock", () => {
     expect(css).toContain("height: var(--mc-size-control);");
   });
 
-  it("renders a frame-free copy control and an equally sized success icon", async () => {
+  it("renders one frame-free copy control that swaps to an equally sized success icon", async () => {
     const html = await renderCode("const value = 1", "typescript");
     const css = readFileSync(join(import.meta.dirname, "../../styles/docs.css"), "utf8");
 
     expect(html).toContain("data-copy-success");
+    expect(html).toContain("data-copy-icon");
     expect(html).toContain("code-block__copy-icon");
     expect(html).toContain("code-block__copy-success-icon");
     expect(html).not.toContain("code-block__copy button button--icon");
+    expect(html).toMatch(/<button[^>]*data-copy-code[\s\S]*data-copy-success/);
     expect(css).toMatch(/\.code-block__copy\s*\{[^}]*cursor:\s*pointer;/s);
     expect(css).toMatch(
       /\.code-block__copy-icon,[\s\S]*\.code-block__copy-success-icon\s*\{[^}]*width:\s*var\(--mc-size-icon-lg\);/s,

@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { createPublicErrorResponseSchema } from "../../docs/public-response-schema.js";
 import { registerApiErrorHandling } from "./api-error-handler.js";
 
 const apps: Array<ReturnType<typeof Fastify>> = [];
@@ -83,7 +84,8 @@ describe("backend registration", () => {
     expect(server.indexOf("registerApiErrorHandling(app)")).toBeLessThan(
       server.indexOf("await app.register(authRoutes)"),
     );
-    expect(server).toContain('required: ["error", "message", "errorId"]');
+    expect(server).toContain("app.addSchema(createPublicErrorResponseSchema())");
+    expect(createPublicErrorResponseSchema().required).toEqual(["error", "message", "errorId"]);
   });
 });
 

@@ -1,25 +1,26 @@
 ---
 /**
- * Generated API reference content.
+ * Generated API reference content composed from normalized chapter, entry,
+ * card, and panel compounds.
  *
- * This component is intentionally layout-only: `buildApiReference` and
- * `parseSdkCatalog` do all validation before data reaches here. Keeping this
- * focused makes the page testable with Astro's container API and lets the
- * route supply generated build inputs in production.
+ * `buildApiReference` and `parseSdkCatalog` validate all data before it reaches
+ * this layout-only component.
  */
-import ApiReferenceNav from "@/components/docs/ApiReferenceNav.astro";
+import { ApiContent } from "@/components/docs/ApiContent";
 import { ApiDocumentSearch } from "@/components/docs/ApiDocumentSearch";
+import ApiReferenceNav from "@/components/docs/ApiReferenceNav.astro";
 import CodeBlock from "@/components/docs/CodeBlock.astro";
+import { ContentCard } from "@/components/docs/ContentCard";
+import { ContentPanel } from "@/components/docs/ContentPanel";
 import EndpointOperation from "@/components/docs/EndpointOperation.astro";
-import SdkDownloadCard from "@/components/docs/SdkDownloadCard.astro";
 import SchemaSection from "@/components/docs/SchemaSection.astro";
 import ScrollToTopButton from "@/components/docs/ScrollToTopButton.astro";
+import SdkDownloadCard from "@/components/docs/SdkDownloadCard.astro";
 import {
   apiReferenceSectionLabel,
   apiReferenceStaticSectionIcons,
   iconForApiReferenceSection,
 } from "@/lib/api-reference-section-icons";
-import { ContentCard } from "@/components/docs/ContentCard";
 import type { ApiReference } from "@/lib/openapi-reference";
 import type { SdkCatalog } from "@/lib/sdk-catalog";
 
@@ -51,67 +52,79 @@ const integrationItems = [
   <div class="api-reference-layout">
     <ApiReferenceNav reference={reference} />
 
-    <div class="api-reference-content" data-api-search-root>
-      <section aria-labelledby="integration-guide">
-        <h2
+    <ApiContent data-api-search-root>
+      <ApiContent.Chapter aria-labelledby="integration-guide">
+        <ApiContent.Chapter.Header
           id="integration-guide"
-          class="api-reference-content-heading api-reference-content-heading--first text-section font-medium tracking-tight scroll-mt-8"
+          className="api-content__chapter-header--first"
           data-api-content-heading
         >
-          <IntegrationIcon aria-hidden="true" />
-          <span>Integration guide</span>
-        </h2>
-        <ContentCard className="mb-6">
-          <ContentCard.Header>
-            <ContentCard.Title>Integration essentials</ContentCard.Title>
-          </ContentCard.Header>
-          <ContentCard.Body>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
-              {
-                integrationItems.map(([title, body]) => {
-                  const targetId = `integration-${title.replace(/[^a-zA-Z0-9]+/g, "-").toLowerCase()}`;
-                  return (
-                  <article
-                    id={targetId}
-                    tabindex="-1"
-                    class="rounded-button border border-border px-4 py-3"
-                    data-api-search-entry
-                    data-api-search-group="Integration guide"
-                    data-api-search-title={title}
-                    data-api-search-addon="Guide"
-                    data-api-search-kind="chapter"
-                  >
-                    <h3 class="text-body font-medium text-fg mb-1">{title}</h3>
-                    <p class="text-body text-fg-muted">{body}</p>
-                  </article>
-                  );
-                })
-              }
-            </div>
-            <CodeBlock
-              label="Authenticated request"
-              language="bash"
-              code={`curl https://api.musiccloud.io/api/v1/resolve \\
+          <ApiContent.Chapter.Header.Icon>
+            <IntegrationIcon aria-hidden="true" />
+          </ApiContent.Chapter.Header.Icon>
+          <ApiContent.Chapter.Header.Title>Integration guide</ApiContent.Chapter.Header.Title>
+        </ApiContent.Chapter.Header>
+        <ApiContent.Chapter.Body>
+          <ContentCard>
+            <ContentCard.Header>
+              <ContentCard.Header.Title>Integration essentials</ContentCard.Header.Title>
+            </ContentCard.Header>
+            <ContentCard.Body>
+              <ContentCard.Body.Stack>
+                <div class="integration-panel-grid">
+                  {
+                    integrationItems.map(([title, body]) => {
+                      const targetId = `integration-${title.replace(/[^a-zA-Z0-9]+/g, "-").toLowerCase()}`;
+                      return (
+                        <ContentPanel
+                          id={targetId}
+                          tabIndex={-1}
+                          className="integration-panel"
+                          data-api-search-entry
+                          data-api-search-group="Integration guide"
+                          data-api-search-title={title}
+                          data-api-search-addon="Guide"
+                          data-api-search-kind="chapter"
+                        >
+                          <ContentPanel.Header>
+                            <ContentPanel.Header.Title>{title}</ContentPanel.Header.Title>
+                          </ContentPanel.Header>
+                          <ContentPanel.Content>
+                            <p class="text-body text-fg-muted">{body}</p>
+                          </ContentPanel.Content>
+                        </ContentPanel>
+                      );
+                    })
+                  }
+                </div>
+                <CodeBlock
+                  label="Authenticated request"
+                  language="bash"
+                  code={`curl https://api.musiccloud.io/api/v1/resolve \\
   -H "X-API-Key: mc_live_<prefix>_<secret>" \\
   -H "Content-Type: application/json"`}
-            />
-          </ContentCard.Body>
-        </ContentCard>
-      </section>
+                />
+              </ContentCard.Body.Stack>
+            </ContentCard.Body>
+          </ContentCard>
+        </ApiContent.Chapter.Body>
+      </ApiContent.Chapter>
 
-      <section class="mb-6" id="sdk-downloads">
-        <h2 class="api-reference-content-heading text-section font-medium tracking-tight mt-8 mb-5" data-api-content-heading>
-          <SdkIcon aria-hidden="true" />
-          <span>SDK downloads</span>
-        </h2>
-        <div class="grid grid-cols-1">
+      <ApiContent.Chapter aria-labelledby="sdk-downloads">
+        <ApiContent.Chapter.Header id="sdk-downloads" data-api-content-heading>
+          <ApiContent.Chapter.Header.Icon>
+            <SdkIcon aria-hidden="true" />
+          </ApiContent.Chapter.Header.Icon>
+          <ApiContent.Chapter.Header.Title>SDK downloads</ApiContent.Chapter.Header.Title>
+        </ApiContent.Chapter.Header>
+        <ApiContent.Chapter.Body>
           {
             catalog.assets.map((asset) => (
               <SdkDownloadCard asset={asset} apiVersion={catalog.apiVersion} generatorVersion={catalog.generatorVersion} />
             ))
           }
-        </div>
-      </section>
+        </ApiContent.Chapter.Body>
+      </ApiContent.Chapter>
 
       {
         reference.groups.map((group) => {
@@ -119,33 +132,35 @@ const integrationItems = [
           const sectionLabel = apiReferenceSectionLabel(group.name);
           const headingId = `group-${group.name.replace(/[^a-zA-Z0-9]+/g, "-").toLowerCase()}`;
           return (
-            <section aria-labelledby={headingId}>
-              <h2
-                id={headingId}
-                class="api-reference-content-heading text-section font-medium tracking-tight mt-8 mb-5"
-                data-api-content-heading
-              >
-                <SectionIcon aria-hidden="true" />
-                <span>{sectionLabel}</span>
-              </h2>
-              {group.operations.map((operation) => <EndpointOperation operation={operation} searchGroup={sectionLabel} />)}
-            </section>
+            <ApiContent.Chapter aria-labelledby={headingId}>
+              <ApiContent.Chapter.Header id={headingId} data-api-content-heading>
+                <ApiContent.Chapter.Header.Icon>
+                  <SectionIcon aria-hidden="true" />
+                </ApiContent.Chapter.Header.Icon>
+                <ApiContent.Chapter.Header.Title>{sectionLabel}</ApiContent.Chapter.Header.Title>
+              </ApiContent.Chapter.Header>
+              <ApiContent.Chapter.Body>
+                {group.operations.map((operation) => (
+                  <EndpointOperation operation={operation} searchGroup={sectionLabel} />
+                ))}
+              </ApiContent.Chapter.Body>
+            </ApiContent.Chapter>
           );
         })
       }
 
-      <section id="schemas" aria-labelledby="schemas-heading">
-        <h2
-          id="schemas-heading"
-          class="api-reference-content-heading text-section font-medium tracking-tight mt-8 mb-5"
-          data-api-content-heading
-        >
-          <SchemasIcon aria-hidden="true" />
-          <span>Schemas</span>
-        </h2>
-        {Object.values(reference.schemas).map((schema) => <SchemaSection schema={schema} />)}
-      </section>
-    </div>
+      <ApiContent.Chapter id="schemas" aria-labelledby="schemas-heading">
+        <ApiContent.Chapter.Header id="schemas-heading" data-api-content-heading>
+          <ApiContent.Chapter.Header.Icon>
+            <SchemasIcon aria-hidden="true" />
+          </ApiContent.Chapter.Header.Icon>
+          <ApiContent.Chapter.Header.Title>Schemas</ApiContent.Chapter.Header.Title>
+        </ApiContent.Chapter.Header>
+        <ApiContent.Chapter.Body>
+          {Object.values(reference.schemas).map((schema) => <SchemaSection schema={schema} />)}
+        </ApiContent.Chapter.Body>
+      </ApiContent.Chapter>
+    </ApiContent>
   </div>
   <ApiDocumentSearch client:load />
   <ScrollToTopButton />

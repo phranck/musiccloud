@@ -10,6 +10,7 @@
  */
 import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
+import { publicErrorResponse } from "../docs/public-response-schema.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter, isInternalRequest } from "../lib/infra/rate-limiter.js";
 import { buildCcTrackArtistInfo } from "../services/cc/cc-share-response.js";
@@ -31,6 +32,13 @@ export default async function ccArtistInfoRoutes(app: FastifyInstance) {
             artistName: { type: "string", minLength: 1, maxLength: 200 },
           },
           additionalProperties: false,
+        },
+        response: {
+          200: {
+            description: "Creative Commons artist metadata in the shared artist-info shape.",
+            $ref: "ArtistInfo#",
+          },
+          400: publicErrorResponse("The Jamendo artist id or artist name is missing or malformed."),
         },
       },
     },

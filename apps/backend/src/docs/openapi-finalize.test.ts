@@ -2,6 +2,43 @@ import { describe, expect, it } from "vitest";
 import { finalizePublicOpenApiDocument } from "./openapi-finalize.js";
 
 describe("finalizePublicOpenApiDocument", () => {
+  it("adds the global rate-limit response to every public HTTP operation", () => {
+    const doc = {
+      paths: {
+        "/a": {
+          parameters: [{ name: "tenant", in: "header" }],
+          get: { responses: { 200: { description: "OK" } } },
+          post: { responses: { 201: { description: "Created" } } },
+        },
+      },
+      components: {
+        schemas: { ErrorResponse: { type: "object" } },
+      },
+    };
+
+    const out = finalizePublicOpenApiDocument(doc);
+    const path = out.paths?.["/a"] as Record<string, { responses?: Record<string, unknown> }>;
+
+    expect(path.get?.responses).toHaveProperty("429");
+    expect(path.post?.responses).toHaveProperty("429");
+    expect(path.parameters).toEqual([{ name: "tenant", in: "header" }]);
+    expect(out.components?.schemas).toHaveProperty("ErrorResponse");
+  });
+
+  it("preserves a route-specific rate-limit response", () => {
+    const routeSpecific = { description: "Client quota exceeded" };
+    const out = finalizePublicOpenApiDocument({
+      paths: {
+        "/a": {
+          get: { responses: { 429: routeSpecific } },
+        },
+      },
+    });
+    const operation = (out.paths?.["/a"] as { get: { responses: Record<string, unknown> } }).get;
+
+    expect(operation.responses["429"]).toEqual(routeSpecific);
+  });
+
   it("prunes schemas not reachable from any path", () => {
     const doc = {
       paths: {
@@ -84,6 +121,7 @@ describe("finalizePublicOpenApiDocument", () => {
     expect(doc.tags.map((t) => t.name)).toEqual(["B", "A"]);
     expect(Object.keys(doc.paths)).toEqual(["/b", "/a"]);
     expect(Object.keys(doc.components.schemas)).toEqual(["Foo"]);
+    expect((doc.paths["/b"] as { get?: unknown }).get).toBeUndefined();
   });
 
   it("tolerates a document without tags, paths, or components", () => {

@@ -1,15 +1,17 @@
 ---
 /**
- * One generated OpenAPI operation with an external navigation heading and a
- * stable reference card for the technical route details.
+ * One generated OpenAPI operation composed from the normalized API content,
+ * endpoint card, nested section, and content-panel compounds.
  *
- * All examples and schemas are emitted as escaped text through `CodeBlock`;
- * this component never trusts OpenAPI prose as HTML.
+ * All examples and schemas remain escaped through `CodeBlock`; OpenAPI prose
+ * is rendered only by the centralized safe Markdown component.
  */
+import { ApiContent } from "@/components/docs/ApiContent";
 import CodeBlock from "@/components/docs/CodeBlock.astro";
-import { ContentCard } from "@/components/docs/ContentCard";
-import { EndpointDetail } from "@/components/docs/EndpointDetail";
+import { EndpointCard } from "@/components/docs/EndpointCard";
 import OpenApiMarkdown from "@/components/docs/OpenApiMarkdown.astro";
+import { ParameterCard } from "@/components/docs/ParameterCard";
+import { RequestBodyCard } from "@/components/docs/RequestBodyCard";
 import { ResponseCard } from "@/components/docs/ResponseCard";
 import { ResponseTone, type ResponseToneValue } from "@/components/docs/responseCard.types";
 import { apiReferenceOperationAnchor } from "@/lib/api-reference-anchor";
@@ -22,18 +24,16 @@ interface Props {
 }
 
 const { operation, searchGroup } = Astro.props;
-
 const anchor = apiReferenceOperationAnchor(operation.method, operation.path);
-
 const hasRequestBody = Boolean(operation.requestBody?.mediaTypes.length);
-const knownMethodTones = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"]);
-const methodTone = knownMethodTones.has(operation.method.toUpperCase()) ? operation.method.toLowerCase() : "default";
+
 const responseTone = (status: string): ResponseToneValue => {
   if (status.startsWith("2")) return ResponseTone.Success;
   if (status.startsWith("4")) return ResponseTone.ClientError;
   if (status.startsWith("5")) return ResponseTone.ServerError;
   return ResponseTone.Neutral;
 };
+
 const responseLabel = (status: string) => {
   if (status.startsWith("2")) return "Success response";
   if (status.startsWith("4")) return "Client error response";
@@ -42,7 +42,7 @@ const responseLabel = (status: string) => {
 };
 ---
 
-<div
+<ApiContent.Entry
   data-api-search-entry
   data-api-search-group={searchGroup}
   data-api-search-title={operation.navTitle}
@@ -50,122 +50,183 @@ const responseLabel = (status: string) => {
   data-api-search-kind="operation"
   data-api-search-target={anchor}
 >
-  <h3
-    id={anchor}
-    tabindex="-1"
-    class="api-reference-content-heading text-subsection font-medium tracking-tight mb-4 scroll-mt-8"
-    data-api-operation-title
-  >
+  <ApiContent.Entry.Title id={anchor} data-api-operation-title>
     {operation.navTitle}
-  </h3>
-  <ContentCard className="mb-6" aria-labelledby={anchor}>
-  <ContentCard.Header
-    className={`endpoint-operation__header endpoint-operation__header--${methodTone}`}
-    data-api-search-ignore
-  >
-    <div class="endpoint-operation__title">
-      <span class="endpoint-operation__method">{operation.method}</span>
-      <code class="endpoint-operation__path">{operation.path}</code>
-    </div>
-    <ContentCard.Header.Addon>
-      <span class="status-pill endpoint-operation__auth-status">
-        {operation.requiresApiKey ? "API key required" : "Public endpoint"}
-      </span>
-    </ContentCard.Header.Addon>
-  </ContentCard.Header>
-  <ContentCard.Body>
-    {operation.summary && <p class="text-body text-fg mb-2">{operation.summary}</p>}
-    {operation.description && <OpenApiMarkdown content={operation.description} className="text-body text-fg-muted mb-6" />}
-
-    <div class="grid grid-cols-1 gap-6">
-    {
-      operation.requiresApiKey && (
-        <EndpointDetail title="Authentication" icon={KeyIcon} variant="authentication">
-          <p class="text-body text-fg-muted">
-            Send <code class="font-mono text-code text-code-fg">X-API-Key</code> with a valid
-            <code class="font-mono text-code text-code-fg">mc_live_…</code> key.
-          </p>
-        </EndpointDetail>
-      )
-    }
-
-    {
-      operation.parameters.length > 0 && (
-        <EndpointDetail headingId={`${anchor}-parameters`} title="Parameters" icon={CodeIcon}>
-          <dl class="grid grid-cols-1 gap-3">
-            {operation.parameters.map((parameter) => (
-              <div class="endpoint-parameter">
-                <dt class="endpoint-parameter__meta">
-                  <code class="font-mono text-code text-code-fg">{parameter.name}</code>
-                  <span class="endpoint-parameter__location">{parameter.location}</span>
-                  {parameter.required && <span class="endpoint-parameter__required">Required</span>}
-                </dt>
-                {parameter.description && (
-                  <dd class="endpoint-parameter__description">
-                    <OpenApiMarkdown content={parameter.description} className="text-body text-fg-muted" />
-                  </dd>
-                )}
-              </div>
-            ))}
-          </dl>
-        </EndpointDetail>
-      )
-    }
-
-    {
-      hasRequestBody && (
-        <EndpointDetail headingId={`${anchor}-request-body`} title="Request body" icon={Send2Icon}>
-          <div class="grid grid-cols-1 gap-2">
-            {operation.requestBody?.mediaTypes.map((media) => (
-              <div class="endpoint-request-body">
-                <div class="flex flex-wrap items-center gap-3">
-                  <span class="endpoint-request-body__media">{media.mediaType}</span>
-                  {media.schemaRef && (
-                    <a class="content-link text-body text-fg" href={`#schema-${media.schemaRef}`}>
-                      {media.schemaRef}
-                    </a>
-                  )}
-                </div>
-                {media.example !== undefined && (
-                  <div class="mt-3">
-                    <CodeBlock label="Example" language="json" code={JSON.stringify(media.example, null, 2)} />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </EndpointDetail>
-      )
-    }
-
-    <EndpointDetail headingId={`${anchor}-responses`} title="Responses" icon={TickCircleIcon}>
-      <div class="grid grid-cols-1 gap-3">
+  </ApiContent.Entry.Title>
+  <ApiContent.Entry.Content>
+    <EndpointCard aria-labelledby={anchor}>
+      <EndpointCard.Header method={operation.method} data-api-search-ignore>
+        <EndpointCard.Header.Request>
+          <EndpointCard.Header.Request.Method>{operation.method}</EndpointCard.Header.Request.Method>
+          <EndpointCard.Header.Request.Path>{operation.path}</EndpointCard.Header.Request.Path>
+        </EndpointCard.Header.Request>
+        <EndpointCard.Header.Addon>
+          <EndpointCard.Header.Addon.Access>
+            {operation.requiresApiKey ? "API key required" : "Public endpoint"}
+          </EndpointCard.Header.Addon.Access>
+        </EndpointCard.Header.Addon>
+      </EndpointCard.Header>
+      <EndpointCard.Body>
         {
-          operation.responses.map((response) => {
-            const tone = responseTone(response.status);
-            return (
-            <ResponseCard tone={tone} aria-label={responseLabel(response.status)}>
-              <ResponseCard.Status status={response.status} tone={tone} />
-              <ResponseCard.Content>
-                <OpenApiMarkdown content={response.description} className="text-body text-fg-muted" />
-                {response.mediaTypes.map((media) => (
-                  <p class="endpoint-response__media">
-                    <span class="font-mono text-code text-code-fg">{media.mediaType}</span>
-                    {media.schemaRef && (
-                      <a class="content-link text-fg" href={`#schema-${media.schemaRef}`}>
-                        {media.schemaRef}
-                      </a>
-                    )}
-                  </p>
-                ))}
-              </ResponseCard.Content>
-            </ResponseCard>
-            );
-          })
+          (operation.summary || operation.description) && (
+            <EndpointCard.Body.Intro>
+              {operation.summary && <p class="text-body text-fg">{operation.summary}</p>}
+              {operation.description && (
+                <OpenApiMarkdown content={operation.description} className="text-body text-fg-muted" />
+              )}
+            </EndpointCard.Body.Intro>
+          )
         }
-      </div>
-    </EndpointDetail>
-    </div>
-  </ContentCard.Body>
-  </ContentCard>
-</div>
+
+        <EndpointCard.Body.Stack>
+          {
+            operation.requiresApiKey && (
+              <EndpointCard.Body.Section
+                className="content-card__section--authentication"
+                aria-labelledby={`${anchor}-authentication`}
+              >
+                <EndpointCard.Body.Section.Header>
+                  <EndpointCard.Body.Section.Header.Icon>
+                    <KeyIcon aria-hidden="true" />
+                  </EndpointCard.Body.Section.Header.Icon>
+                  <EndpointCard.Body.Section.Header.Title id={`${anchor}-authentication`}>
+                    Authentication
+                  </EndpointCard.Body.Section.Header.Title>
+                </EndpointCard.Body.Section.Header>
+                <EndpointCard.Body.Section.Body>
+                  <p class="text-body text-fg-muted">
+                    Send <code class="font-mono text-code text-code-fg">X-API-Key</code> with a valid
+                    <code class="font-mono text-code text-code-fg">mc_live_…</code> key.
+                  </p>
+                </EndpointCard.Body.Section.Body>
+              </EndpointCard.Body.Section>
+            )
+          }
+
+          {
+            operation.parameters.length > 0 && (
+              <EndpointCard.Body.Section aria-labelledby={`${anchor}-parameters`}>
+                <EndpointCard.Body.Section.Header>
+                  <EndpointCard.Body.Section.Header.Icon>
+                    <CodeIcon aria-hidden="true" />
+                  </EndpointCard.Body.Section.Header.Icon>
+                  <EndpointCard.Body.Section.Header.Title id={`${anchor}-parameters`}>
+                    Parameters
+                  </EndpointCard.Body.Section.Header.Title>
+                </EndpointCard.Body.Section.Header>
+                <EndpointCard.Body.Section.Body>
+                  <dl class="content-panel-list">
+                    {operation.parameters.map((parameter) => (
+                      <ParameterCard>
+                        <ParameterCard.Header>
+                          <ParameterCard.Header.Name>{parameter.name}</ParameterCard.Header.Name>
+                          <ParameterCard.Header.Location>{parameter.location}</ParameterCard.Header.Location>
+                          {parameter.required && (
+                            <ParameterCard.Header.Requirement>Required</ParameterCard.Header.Requirement>
+                          )}
+                        </ParameterCard.Header>
+                        {parameter.description && (
+                          <ParameterCard.Body>
+                            <OpenApiMarkdown content={parameter.description} className="text-body text-fg-muted" />
+                          </ParameterCard.Body>
+                        )}
+                      </ParameterCard>
+                    ))}
+                  </dl>
+                </EndpointCard.Body.Section.Body>
+              </EndpointCard.Body.Section>
+            )
+          }
+
+          {
+            hasRequestBody && (
+              <EndpointCard.Body.Section aria-labelledby={`${anchor}-request-body`}>
+                <EndpointCard.Body.Section.Header>
+                  <EndpointCard.Body.Section.Header.Icon>
+                    <Send2Icon aria-hidden="true" />
+                  </EndpointCard.Body.Section.Header.Icon>
+                  <EndpointCard.Body.Section.Header.Title id={`${anchor}-request-body`}>
+                    Request body
+                  </EndpointCard.Body.Section.Header.Title>
+                </EndpointCard.Body.Section.Header>
+                <EndpointCard.Body.Section.Body>
+                  <div class="content-panel-list">
+                    {operation.requestBody?.mediaTypes.map((media) => (
+                      <RequestBodyCard>
+                        <RequestBodyCard.Header>
+                          <RequestBodyCard.Header.MediaType>{media.mediaType}</RequestBodyCard.Header.MediaType>
+                          {media.schemaRef && (
+                            <RequestBodyCard.Header.SchemaLink href={`#schema-${media.schemaRef}`}>
+                              {media.schemaRef}
+                            </RequestBodyCard.Header.SchemaLink>
+                          )}
+                        </RequestBodyCard.Header>
+                        {media.example !== undefined && (
+                          <RequestBodyCard.Body>
+                            <RequestBodyCard.Body.Example>
+                              <CodeBlock
+                                label="Example"
+                                language="json"
+                                code={JSON.stringify(media.example, null, 2)}
+                              />
+                            </RequestBodyCard.Body.Example>
+                          </RequestBodyCard.Body>
+                        )}
+                      </RequestBodyCard>
+                    ))}
+                  </div>
+                </EndpointCard.Body.Section.Body>
+              </EndpointCard.Body.Section>
+            )
+          }
+
+          <EndpointCard.Body.Section aria-labelledby={`${anchor}-responses`}>
+            <EndpointCard.Body.Section.Header>
+              <EndpointCard.Body.Section.Header.Icon>
+                <TickCircleIcon aria-hidden="true" />
+              </EndpointCard.Body.Section.Header.Icon>
+              <EndpointCard.Body.Section.Header.Title id={`${anchor}-responses`}>
+                Responses
+              </EndpointCard.Body.Section.Header.Title>
+            </EndpointCard.Body.Section.Header>
+            <EndpointCard.Body.Section.Body>
+              <div class="content-panel-list">
+                {
+                  operation.responses.map((response) => {
+                    const tone = responseTone(response.status);
+                    return (
+                      <ResponseCard tone={tone} aria-label={responseLabel(response.status)}>
+                        <ResponseCard.Status status={response.status} tone={tone} />
+                        <ResponseCard.Content>
+                          <ResponseCard.Content.Summary>
+                            <OpenApiMarkdown content={response.description} className="text-body text-fg-muted" />
+                          </ResponseCard.Content.Summary>
+                          {response.mediaTypes.length > 0 && (
+                            <ResponseCard.Content.Meta>
+                              {response.mediaTypes.map((media) => (
+                                <div class="response-card__meta-row">
+                                  <ResponseCard.Content.Meta.MediaType>
+                                    {media.mediaType}
+                                  </ResponseCard.Content.Meta.MediaType>
+                                  {media.schemaRef && (
+                                    <ResponseCard.Content.Meta.SchemaLink href={`#schema-${media.schemaRef}`}>
+                                      {media.schemaRef}
+                                    </ResponseCard.Content.Meta.SchemaLink>
+                                  )}
+                                </div>
+                              ))}
+                            </ResponseCard.Content.Meta>
+                          )}
+                        </ResponseCard.Content>
+                      </ResponseCard>
+                    );
+                  })
+                }
+              </div>
+            </EndpointCard.Body.Section.Body>
+          </EndpointCard.Body.Section>
+        </EndpointCard.Body.Stack>
+      </EndpointCard.Body>
+    </EndpointCard>
+  </ApiContent.Entry.Content>
+</ApiContent.Entry>

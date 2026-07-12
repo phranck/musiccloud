@@ -59,7 +59,7 @@ describe("/docs/api content", () => {
     expect(html).toContain("api-scroll-top__icon size-6");
     expect(html).toContain("data-api-search-entry");
     expect(html).toContain('data-api-search-addon="POST /api/v1/resolve"');
-    expect(html).toMatch(/data-api-search-ignore="true"[^>]*endpoint-operation__header/);
+    expect(html).toMatch(/data-api-search-ignore="true"[^>]*endpoint-card__header/);
     expect(html).toContain("data-api-nav-link");
     expect(html).toContain("data-api-nav-count");
     expect(html).toContain("data-api-nav-summary");
@@ -71,7 +71,7 @@ describe("/docs/api content", () => {
     expect(html).not.toContain("api-reference-nav__toggle-down size-6");
     expect(html).toContain("data-api-reference-scroll-spy");
     expect(html).toContain("data-api-content-heading");
-    expect(html).toContain("text-section");
+    expect(html).toContain("api-content__chapter-header");
     expect(html).toContain("data-openapi-markdown");
     expect(html).toContain("response-card");
     expect(html).toContain("content-card__title");
@@ -80,6 +80,16 @@ describe("/docs/api content", () => {
     expect(html).not.toContain("documented response");
     expect(html).toContain("response-card__icon");
     expect(html).toContain("response-card__status");
+    expect(html).toContain("api-content__chapter");
+    expect(html).toContain("api-content__entry");
+    expect(html).toContain("content-panel");
+    expect(html).toContain("parameter-card");
+    expect(html).toContain("request-body-card");
+    expect(html).toContain("response-card__summary");
+    expect(html).toContain("response-card__meta");
+    expect(html).not.toContain("endpoint-detail");
+    expect(html).not.toContain("endpoint-parameter");
+    expect(html).not.toContain("endpoint-request-body");
     expect(html).toContain("api-reference-nav__content");
     expect(html).not.toContain("api-reference-nav__section py-3");
     expect(html).toContain("Search API reference");
@@ -121,11 +131,35 @@ describe("/docs/api content", () => {
     expect(content).not.toMatch(/<(?:IntegrationIcon|SdkIcon|SectionIcon|SchemasIcon)\s+className="size-6"/);
   });
 
+  it("keeps pure content headings out of the focus order", () => {
+    const headingComponents = ["EndpointOperation.astro", "SdkDownloadCard.astro", "SchemaSection.astro"];
+
+    for (const component of headingComponents) {
+      const source = readFileSync(join(rootDir, "components/docs", component), "utf8");
+
+      expect(source).not.toContain('tabindex="-1"');
+    }
+  });
+
+  it("uses the dedicated lighter token for active sidebar entries", () => {
+    const css = readFileSync(join(rootDir, "styles/docs.css"), "utf8");
+    const theme = readFileSync(join(rootDir, "../public/developer-theme.css"), "utf8");
+
+    expect(theme).toContain("--mc-color-sidebar-active: #2abef6;");
+    expect(css).toContain("--mc-docs-nav-active-color: var(--mc-color-sidebar-active);");
+    expect(css).toMatch(
+      /\[data-api-nav-link\]\[aria-current="true"\][\s\S]*color:\s*var\(--mc-docs-nav-active-color\);/,
+    );
+    expect(css).toMatch(
+      /\[data-api-nav-link\]\[aria-current="true"\],[\s\S]*?\[data-api-nav-link\]\[aria-current="true"\]:hover\s*\{[^}]*font-weight:\s*600;/,
+    );
+  });
+
   it("uses the monospace family for every structured request identifier", () => {
     const css = readFileSync(join(rootDir, "styles/docs.css"), "utf8");
 
     expect(css).toMatch(
-      /\.endpoint-operation__method,[\s\S]*\.endpoint-operation__path,[\s\S]*\.search-dialog__result-addon\s*\{[^}]*font-family:\s*var\(--font-mono\);/s,
+      /\.endpoint-card__method,[\s\S]*\.endpoint-card__path,[\s\S]*\.search-dialog__result-addon\s*\{[^}]*font-family:\s*var\(--font-mono\);/s,
     );
   });
 
@@ -171,7 +205,7 @@ describe("/docs/api content", () => {
     expect(controller).not.toContain("[data-api-search-trigger]");
     expect(controller).toContain('document.documentElement.dataset.apiSearchRequested === "true"');
     expect(controller).toContain("delete document.documentElement.dataset.apiSearchRequested;");
-    expect(controller).not.toContain("useEffectEvent");
+    expect(controller).toContain("useEffectEvent");
   });
 
   it("synchronizes a selected document-search result with the sidebar navigation", () => {
@@ -180,10 +214,32 @@ describe("/docs/api content", () => {
 
     expect(controller).toContain('new CustomEvent<ApiSearchNavigationDetail>("musiccloud:api-search-navigate"');
     expect(controller).toContain("detail: { group: result.group, targetId: result.targetId }");
+    expect(controller).toContain("highlightDocumentSearchMatches(searchEntry, selection.query)");
+    expect(controller).not.toContain("target.focus({ preventScroll: true });");
+    expect(controller).toContain("function SearchHighlightNotice");
+    expect(controller).toContain('event.key !== "Escape"');
+    expect(controller).not.toContain("SEARCH_HIGHLIGHT_DURATION_MS");
     expect(navigation).toContain('addEventListener("musiccloud:api-search-navigate"');
     expect(navigation).toContain(`link.hash === \`#\${targetId}\``);
     expect(navigation).toContain("link.dataset.apiNavGroup === group");
     expect(navigation).toContain("setActive(nextActiveLink, true);");
+  });
+
+  it("keeps a clicked sidebar item active while its content block is visible", () => {
+    const navigation = readFileSync(join(rootDir, "components/docs/ApiReferenceNav.astro"), "utf8");
+
+    expect(navigation).toContain(
+      'import { isManualScrollIntent, resolveScrollSpySelection } from "@/lib/api-scroll-spy";',
+    );
+    expect(navigation).toContain("setActive(link, true);");
+    expect(navigation).toContain("navigationTarget.target.scrollIntoView");
+    expect(navigation).toContain("resolveScrollSpySelection(");
+    expect(navigation).toContain("programmaticNavigationLink");
+    expect(navigation).toContain('addEventListener("scrollend"');
+    expect(navigation).toContain("isManualScrollIntent(event.type");
+    expect(navigation).toContain('addEventListener("scroll", scheduleScrollSpyUpdate');
+    expect(navigation).toContain("requestAnimationFrame(updateActiveFromScroll)");
+    expect(navigation).not.toContain("new IntersectionObserver(");
   });
 
   it("pins the search dialog below a tokenized top offset without widening it to the viewport", () => {
@@ -200,5 +256,16 @@ describe("/docs/api content", () => {
     expect(css).toMatch(
       /@media \(max-width: 40rem\)[\s\S]*--mc-docs-search-dialog-top:\s*max\(var\(--mc-space-5\), calc\(env\(safe-area-inset-top\) \+ var\(--mc-space-3\)\)\);/,
     );
+  });
+
+  it("uses a persistent, tokenized orange search-highlight treatment", () => {
+    const css = readFileSync(join(rootDir, "styles/docs.css"), "utf8");
+    const theme = readFileSync(join(rootDir, "../public/developer-theme.css"), "utf8");
+
+    expect(theme).toContain("--mc-color-search-highlight:");
+    expect(css).toContain("--mc-docs-search-highlight-color: var(--mc-color-search-highlight);");
+    expect(css).toContain(".api-search-highlight-notice");
+    expect(css).toContain("mark[data-api-search-highlight]");
+    expect(css).toContain("padding-block: var(--mc-docs-search-highlight-padding-block);");
   });
 });

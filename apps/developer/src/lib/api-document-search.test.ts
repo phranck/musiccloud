@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildDocumentSearchIndex,
   clearDocumentSearchHighlight,
-  highlightDocumentSearchMatch,
+  highlightDocumentSearchMatches,
   searchDocumentIndex,
 } from "./api-document-search";
 
@@ -41,23 +41,23 @@ describe("API document search", () => {
     expect(searchDocumentIndex(index, "apiV1ResolvePost")).toEqual([]);
   });
 
-  it("marks only the first matching prose occurrence and restores the DOM", () => {
+  it("marks every prose match while preserving contiguous query phrases", () => {
     document.body.innerHTML = `
       <section id="target">
-        <p>Missing, invalid, or revoked API key. Invalid keys return 401.</p>
-        <pre><code>invalid</code></pre>
+        <p>Track title metadata is available. A track can have an alternate title.</p>
+        <pre><code>track title</code></pre>
       </section>
     `;
     const target = document.getElementById("target") as HTMLElement;
 
-    const mark = highlightDocumentSearchMatch(target, "invalid");
+    const marks = highlightDocumentSearchMatches(target, "track title");
 
-    expect(mark?.textContent).toBe("invalid");
-    expect(target.querySelectorAll("mark[data-api-search-highlight]")).toHaveLength(1);
+    expect(marks.map((mark) => mark.textContent)).toEqual(["Track title", "track", "title"]);
+    expect(target.querySelectorAll("mark[data-api-search-highlight]")).toHaveLength(3);
     expect(target.querySelector("code mark")).toBeNull();
 
     clearDocumentSearchHighlight(document);
     expect(target.querySelector("mark")).toBeNull();
-    expect(target.textContent).toContain("Missing, invalid, or revoked API key");
+    expect(target.textContent).toContain("Track title metadata is available");
   });
 });

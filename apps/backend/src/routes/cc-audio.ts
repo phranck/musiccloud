@@ -25,6 +25,7 @@ import {
   swapStreamFormat,
 } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
+import { publicErrorResponse } from "../docs/public-response-schema.js";
 import { log } from "../lib/infra/logger.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter, isInternalRequest } from "../lib/infra/rate-limiter.js";
@@ -96,6 +97,21 @@ export default async function ccAudioRoutes(app: FastifyInstance) {
             format: { type: "string", description: "Jamendo delivery format (mp31 | mp32 | ogg | flac)." },
           },
           additionalProperties: false,
+        },
+        response: {
+          200: {
+            description: "Complete Creative Commons audio stream.",
+            type: "string",
+            format: "binary",
+          },
+          206: {
+            description: "Requested byte range of the Creative Commons audio stream.",
+            type: "string",
+            format: "binary",
+          },
+          400: publicErrorResponse("The Jamendo track id is malformed."),
+          404: publicErrorResponse("No Creative Commons track exists for this Jamendo id."),
+          502: publicErrorResponse("The upstream Jamendo audio stream is unavailable or returned no body."),
         },
       },
     },

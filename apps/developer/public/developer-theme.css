@@ -13,14 +13,17 @@
   --mc-color-border-strong: rgba(255, 255, 255, 0.16);
   --mc-color-accent: #28a8d8;
   --mc-color-accent-hover: #45bfe8;
+  --mc-color-sidebar-active: #2abef6;
   --mc-color-on-accent: #ffffff;
   --mc-color-gold: #d4a843;
   --mc-color-success: #4ade80;
   --mc-color-warning: #fbbf24;
+  --mc-color-search-highlight: #f97316;
   --mc-color-danger: #fb7185;
   --mc-color-info: #38bdf8;
   --mc-color-code-bg: rgba(0, 0, 0, 0.38);
   --mc-color-code-fg: #c2d2dc;
+  --mc-color-shadow: rgba(0, 0, 0, 0.28);
   --mc-color-request-get: #38bdf8;
   --mc-color-request-post: #4ade80;
   --mc-color-request-put: #fbbf24;

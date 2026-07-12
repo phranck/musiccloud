@@ -21,6 +21,7 @@
 
 import { ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
+import { publicErrorResponse } from "../docs/public-response-schema.js";
 import { getCcGenreCoverUrl, getCcGenres } from "../services/cc/jamendo/client.js";
 import { ensureArtwork, getCachedArtwork } from "../services/genre-artwork/index.js";
 
@@ -80,8 +81,12 @@ export default async function ccGenreArtworkRoutes(app: FastifyInstance) {
           },
         },
         response: {
-          404: { $ref: "ErrorResponse#" },
-          400: { $ref: "ErrorResponse#" },
+          200: {
+            description: "Generated or cached Creative Commons genre artwork.",
+            type: "string",
+            format: "binary",
+          },
+          400: publicErrorResponse("The normalized genre key contains invalid characters."),
         },
       },
     },

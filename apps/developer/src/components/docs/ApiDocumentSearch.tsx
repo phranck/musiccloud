@@ -4,7 +4,7 @@
  * The rendered API content remains the only search source. The controller
  * indexes marked prose nodes after opening, renders accessible grouped
  * results, and coordinates modal focus, keyboard navigation, smooth scrolling,
- * URL state, and temporary in-document highlighting.
+ * URL state, and persistent in-document highlighting.
  */
 
 import type { Icon } from "iconsax-react";
@@ -14,9 +14,11 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
+  useEffectEvent,
   useMemo,
   useReducer,
   useRef,
+  useState,
 } from "react";
 import { SearchDialog } from "@/components/docs/SearchDialog";
 import {
@@ -24,13 +26,12 @@ import {
   clearDocumentSearchHighlight,
   type DocumentSearchEntry,
   type DocumentSearchResult,
-  highlightDocumentSearchMatch,
+  highlightDocumentSearchMatches,
   searchDocumentIndex,
 } from "@/lib/api-document-search";
 import { BookIcon, CloseCircleIcon, CodeIcon, DiagramIcon, SearchNormal1Icon } from "@/lib/icons";
 
 const SEARCH_DIALOG_CLOSE_DURATION_MS = 180;
-const SEARCH_HIGHLIGHT_DURATION_MS = 3000;
 
 const SearchEntryKind = {
   Chapter: "chapter",
@@ -40,6 +41,7 @@ const SearchEntryKind = {
 } as const;
 
 interface PendingSelection {
+  query: string;
   result: DocumentSearchResult;
 }
 
@@ -133,15 +135,35 @@ function HighlightedText({ children, term }: { children: string; term: string })
   );
 }
 
+/** Persistent status affordance for clearing the current in-document search marks. */
+function SearchHighlightNotice({ count, onDismiss }: { count: number; onDismiss: () => void }) {
+  return (
+    <aside className="api-search-highlight-notice" role="status" aria-live="polite">
+      <span className="api-search-highlight-notice__text">
+        {count} search {count === 1 ? "match" : "matches"} highlighted
+      </span>
+      <kbd className="api-search-highlight-notice__keycap">Esc</kbd>
+      <button
+        type="button"
+        className="api-search-highlight-notice__dismiss"
+        aria-label="Clear search highlights"
+        title="Clear search highlights"
+        onClick={onDismiss}
+      >
+        <CloseCircleIcon className="size-5" aria-hidden="true" />
+      </button>
+    </aside>
+  );
+}
+
 /** Hydrated search dialog opened by the global public-navigation command. */
 export function ApiDocumentSearch() {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const pendingSelectionRef = useRef<PendingSelection | null>(null);
-  const highlightTimerRef = useRef<number | null>(null);
-  const highlightCleanupTimerRef = useRef<number | null>(null);
   const [state, dispatch] = useReducer(searchReducer, INITIAL_SEARCH_STATE);
+  const [highlightedMatchCount, setHighlightedMatchCount] = useState(0);
   const { activeIndex, closing, entries, open, query } = state;
 
   const groups = useMemo(() => searchDocumentIndex(entries, query), [entries, query]);
@@ -156,30 +178,24 @@ export function ApiDocumentSearch() {
     dispatch({ type: SearchActionType.Open, entries: buildDocumentSearchIndex(root) });
   }, []);
 
+  const dismissSearchHighlights = useCallback(() => {
+    clearDocumentSearchHighlight(document);
+    setHighlightedMatchCount(0);
+  }, []);
+  const dismissHighlightsFromEscape = useEffectEvent(dismissSearchHighlights);
+
   const navigateToSelection = useCallback((selection: PendingSelection) => {
     const target = document.getElementById(selection.result.targetId);
     if (!target) return;
-    if (highlightTimerRef.current !== null) window.clearTimeout(highlightTimerRef.current);
-    if (highlightCleanupTimerRef.current !== null) window.clearTimeout(highlightCleanupTimerRef.current);
     // Resolve the live content wrapper after the dialog closes. The indexed
     // element can become stale when browser navigation updates the document.
     const searchEntry = target.closest<HTMLElement>("[data-api-search-entry]") ?? target;
-    const mark = highlightDocumentSearchMatch(searchEntry, selection.result.matchedTerm);
-    target.focus({ preventScroll: true });
+    const marks = highlightDocumentSearchMatches(searchEntry, selection.query);
+    setHighlightedMatchCount(marks.length);
+    // The matched prose is the navigation affordance; focusing a heading adds an unrelated focus treatment.
     target.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
     window.history.pushState(null, "", `#${selection.result.targetId}`);
     synchronizeSidebarWithSearchSelection(selection.result);
-    if (mark) {
-      mark.dataset.apiSearchHighlightState = "visible";
-      highlightTimerRef.current = window.setTimeout(() => {
-        mark.dataset.apiSearchHighlightState = "leaving";
-        highlightCleanupTimerRef.current = window.setTimeout(() => {
-          clearDocumentSearchHighlight(document);
-          highlightCleanupTimerRef.current = null;
-        }, SEARCH_DIALOG_CLOSE_DURATION_MS);
-        highlightTimerRef.current = null;
-      }, SEARCH_HIGHLIGHT_DURATION_MS);
-    }
   }, []);
 
   const finishClose = useCallback(() => {
@@ -250,15 +266,18 @@ export function ApiDocumentSearch() {
     return () => window.clearTimeout(timer);
   }, [closing, finishClose]);
 
-  useEffect(
-    () => () => {
-      if (highlightTimerRef.current !== null) window.clearTimeout(highlightTimerRef.current);
-      if (highlightCleanupTimerRef.current !== null) window.clearTimeout(highlightCleanupTimerRef.current);
-    },
-    [],
-  );
+  useEffect(() => {
+    if (!highlightedMatchCount) return;
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Escape" || dialogRef.current?.open) return;
+      event.preventDefault();
+      dismissHighlightsFromEscape();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [highlightedMatchCount]);
 
-  const selectResult = (result: DocumentSearchResult) => closeDialog({ result });
+  const selectResult = (result: DocumentSearchResult) => closeDialog({ query, result });
 
   const onSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Escape") {
@@ -296,119 +315,124 @@ export function ApiDocumentSearch() {
 
   let resultOffset = 0;
   return (
-    <SearchDialog
-      ref={dialogRef}
-      aria-label="Search API reference"
-      data-api-search-dialog
-      data-state={closing ? "closing" : "open"}
-      onCancel={(event) => {
-        event.preventDefault();
-        closeDialog();
-      }}
-      onClick={onDialogClick}
-    >
-      <SearchDialog.Header>
-        <SearchDialog.Header.Title className="sr-only">Search API reference</SearchDialog.Header.Title>
-        <SearchDialog.Header.Search>
-          <SearchDialog.Header.Search.Icon>
-            <SearchNormal1Icon className="size-5" aria-hidden="true" />
-          </SearchDialog.Header.Search.Icon>
-          <SearchDialog.Header.Search.Input
-            ref={inputRef}
-            value={query}
-            role="combobox"
-            aria-autocomplete="list"
-            aria-controls="api-document-search-results"
-            aria-activedescendant={selectedResult ? optionId(selectedResult.targetId, selectedIndex) : undefined}
-            aria-expanded={open}
-            aria-label="Search API reference"
-            placeholder="Search the API reference"
-            autoComplete="off"
-            onChange={(event) => {
-              dispatch({ type: SearchActionType.Query, query: event.currentTarget.value });
-            }}
-            onKeyDown={onSearchKeyDown}
-          />
-          {query && (
-            <SearchDialog.Header.Search.Clear
-              aria-label="Clear search"
-              title="Clear search"
-              onClick={() => dispatch({ type: SearchActionType.Query, query: "" })}
-            >
-              <CloseCircleIcon className="size-5" aria-hidden="true" />
-            </SearchDialog.Header.Search.Clear>
+    <>
+      <SearchDialog
+        ref={dialogRef}
+        aria-label="Search API reference"
+        data-api-search-dialog
+        data-state={closing ? "closing" : "open"}
+        onCancel={(event) => {
+          event.preventDefault();
+          closeDialog();
+        }}
+        onClick={onDialogClick}
+      >
+        <SearchDialog.Header>
+          <SearchDialog.Header.Title className="sr-only">Search API reference</SearchDialog.Header.Title>
+          <SearchDialog.Header.Search>
+            <SearchDialog.Header.Search.Icon>
+              <SearchNormal1Icon className="size-5" aria-hidden="true" />
+            </SearchDialog.Header.Search.Icon>
+            <SearchDialog.Header.Search.Input
+              ref={inputRef}
+              value={query}
+              role="combobox"
+              aria-autocomplete="list"
+              aria-controls="api-document-search-results"
+              aria-activedescendant={selectedResult ? optionId(selectedResult.targetId, selectedIndex) : undefined}
+              aria-expanded={open}
+              aria-label="Search API reference"
+              placeholder="Search the API reference"
+              autoComplete="off"
+              onChange={(event) => {
+                dispatch({ type: SearchActionType.Query, query: event.currentTarget.value });
+              }}
+              onKeyDown={onSearchKeyDown}
+            />
+            {query && (
+              <SearchDialog.Header.Search.Clear
+                aria-label="Clear search"
+                title="Clear search"
+                onClick={() => dispatch({ type: SearchActionType.Query, query: "" })}
+              >
+                <CloseCircleIcon className="size-5" aria-hidden="true" />
+              </SearchDialog.Header.Search.Clear>
+            )}
+          </SearchDialog.Header.Search>
+          <SearchDialog.Header.Addon>
+            <SearchDialog.Header.Close aria-label="Close search" title="Close search" onClick={() => closeDialog()}>
+              <CloseCircleIcon className="size-6" aria-hidden="true" />
+            </SearchDialog.Header.Close>
+          </SearchDialog.Header.Addon>
+        </SearchDialog.Header>
+
+        <SearchDialog.Body>
+          <SearchDialog.Body.Status className="sr-only" aria-live="polite">
+            {query ? `${results.length} results` : "Search ready"}
+          </SearchDialog.Body.Status>
+          {query && results.length > 0 && (
+            <SearchDialog.Results id="api-document-search-results">
+              {groups.map((group) => {
+                const groupId = `api-search-group-${group.group.replace(/[^a-zA-Z0-9]+/g, "-").toLocaleLowerCase()}`;
+                const groupStart = resultOffset;
+                resultOffset += group.results.length;
+                return (
+                  <SearchDialog.Group key={group.group} aria-labelledby={groupId} role="group">
+                    <SearchDialog.Group.Header>
+                      <SearchDialog.Group.Header.Title id={groupId}>{group.group}</SearchDialog.Group.Header.Title>
+                      <SearchDialog.Group.Header.Addon>{group.results.length}</SearchDialog.Group.Header.Addon>
+                    </SearchDialog.Group.Header>
+                    <SearchDialog.Group.Items>
+                      {group.results.map((result, localIndex) => {
+                        const index = groupStart + localIndex;
+                        const active = index === selectedIndex;
+                        const ResultIcon = resultIcon(result.kind);
+                        return (
+                          <SearchDialog.Result
+                            key={`${result.group}:${result.targetId}`}
+                            id={optionId(result.targetId, index)}
+                            role="option"
+                            aria-selected={active}
+                            onMouseMove={() => dispatch({ type: SearchActionType.ActiveIndex, activeIndex: index })}
+                            onFocus={() => dispatch({ type: SearchActionType.ActiveIndex, activeIndex: index })}
+                            onClick={() => selectResult(result)}
+                          >
+                            <SearchDialog.Result.Icon>
+                              <ResultIcon className="size-5" aria-hidden={true} />
+                            </SearchDialog.Result.Icon>
+                            <SearchDialog.Result.Content>
+                              <SearchDialog.Result.Title>
+                                <HighlightedText term={query}>{result.title}</HighlightedText>
+                              </SearchDialog.Result.Title>
+                              <SearchDialog.Result.Snippet>
+                                <HighlightedText term={result.matchedTerm}>{result.snippet}</HighlightedText>
+                              </SearchDialog.Result.Snippet>
+                            </SearchDialog.Result.Content>
+                            {result.addon && <SearchDialog.Result.Addon>{result.addon}</SearchDialog.Result.Addon>}
+                          </SearchDialog.Result>
+                        );
+                      })}
+                    </SearchDialog.Group.Items>
+                  </SearchDialog.Group>
+                );
+              })}
+            </SearchDialog.Results>
           )}
-        </SearchDialog.Header.Search>
-        <SearchDialog.Header.Addon>
-          <SearchDialog.Header.Close aria-label="Close search" title="Close search" onClick={() => closeDialog()}>
-            <CloseCircleIcon className="size-6" aria-hidden="true" />
-          </SearchDialog.Header.Close>
-        </SearchDialog.Header.Addon>
-      </SearchDialog.Header>
+          {!query && <SearchDialog.Empty>Type to search the complete API reference.</SearchDialog.Empty>}
+          {query && results.length === 0 && <SearchDialog.Empty>No matching documentation found.</SearchDialog.Empty>}
+        </SearchDialog.Body>
 
-      <SearchDialog.Body>
-        <SearchDialog.Body.Status className="sr-only" aria-live="polite">
-          {query ? `${results.length} results` : "Search ready"}
-        </SearchDialog.Body.Status>
-        {query && results.length > 0 && (
-          <SearchDialog.Results id="api-document-search-results">
-            {groups.map((group) => {
-              const groupId = `api-search-group-${group.group.replace(/[^a-zA-Z0-9]+/g, "-").toLocaleLowerCase()}`;
-              const groupStart = resultOffset;
-              resultOffset += group.results.length;
-              return (
-                <SearchDialog.Group key={group.group} aria-labelledby={groupId} role="group">
-                  <SearchDialog.Group.Header>
-                    <SearchDialog.Group.Header.Title id={groupId}>{group.group}</SearchDialog.Group.Header.Title>
-                    <SearchDialog.Group.Header.Addon>{group.results.length}</SearchDialog.Group.Header.Addon>
-                  </SearchDialog.Group.Header>
-                  <SearchDialog.Group.Items>
-                    {group.results.map((result, localIndex) => {
-                      const index = groupStart + localIndex;
-                      const active = index === selectedIndex;
-                      const ResultIcon = resultIcon(result.kind);
-                      return (
-                        <SearchDialog.Result
-                          key={`${result.group}:${result.targetId}`}
-                          id={optionId(result.targetId, index)}
-                          role="option"
-                          aria-selected={active}
-                          onMouseMove={() => dispatch({ type: SearchActionType.ActiveIndex, activeIndex: index })}
-                          onFocus={() => dispatch({ type: SearchActionType.ActiveIndex, activeIndex: index })}
-                          onClick={() => selectResult(result)}
-                        >
-                          <SearchDialog.Result.Icon>
-                            <ResultIcon className="size-5" aria-hidden={true} />
-                          </SearchDialog.Result.Icon>
-                          <SearchDialog.Result.Content>
-                            <SearchDialog.Result.Title>
-                              <HighlightedText term={query}>{result.title}</HighlightedText>
-                            </SearchDialog.Result.Title>
-                            <SearchDialog.Result.Snippet>
-                              <HighlightedText term={result.matchedTerm}>{result.snippet}</HighlightedText>
-                            </SearchDialog.Result.Snippet>
-                          </SearchDialog.Result.Content>
-                          {result.addon && <SearchDialog.Result.Addon>{result.addon}</SearchDialog.Result.Addon>}
-                        </SearchDialog.Result>
-                      );
-                    })}
-                  </SearchDialog.Group.Items>
-                </SearchDialog.Group>
-              );
-            })}
-          </SearchDialog.Results>
-        )}
-        {!query && <SearchDialog.Empty>Type to search the complete API reference.</SearchDialog.Empty>}
-        {query && results.length === 0 && <SearchDialog.Empty>No matching documentation found.</SearchDialog.Empty>}
-      </SearchDialog.Body>
-
-      <SearchDialog.Footer>
-        <SearchDialog.Footer.Hints>
-          <SearchDialog.Footer.Hint>↑ ↓ Navigate</SearchDialog.Footer.Hint>
-          <SearchDialog.Footer.Hint>↵ Open</SearchDialog.Footer.Hint>
-          <SearchDialog.Footer.Hint>Esc Close</SearchDialog.Footer.Hint>
-        </SearchDialog.Footer.Hints>
-      </SearchDialog.Footer>
-    </SearchDialog>
+        <SearchDialog.Footer>
+          <SearchDialog.Footer.Hints>
+            <SearchDialog.Footer.Hint>↑ ↓ Navigate</SearchDialog.Footer.Hint>
+            <SearchDialog.Footer.Hint>↵ Open</SearchDialog.Footer.Hint>
+            <SearchDialog.Footer.Hint>Esc Close</SearchDialog.Footer.Hint>
+          </SearchDialog.Footer.Hints>
+        </SearchDialog.Footer>
+      </SearchDialog>
+      {highlightedMatchCount > 0 && (
+        <SearchHighlightNotice count={highlightedMatchCount} onDismiss={dismissSearchHighlights} />
+      )}
+    </>
   );
 }

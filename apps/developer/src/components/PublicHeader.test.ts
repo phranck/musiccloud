@@ -30,6 +30,22 @@ describe("PublicHeader", () => {
     expect(html).toMatch(/Pricing[\s\S]*?Search[\s\S]*?Sign in/);
   });
 
+  it("uses the requested Iconsax icons for the API, pricing, and sign-in entries", () => {
+    const header = readFileSync(join(import.meta.dirname, "PublicHeader.astro"), "utf8");
+    const navigation = readFileSync(join(import.meta.dirname, "../lib/publicNavigation.ts"), "utf8");
+    const icons = readFileSync(join(import.meta.dirname, "../lib/icons.tsx"), "utf8");
+
+    expect(navigation).toMatch(/\{ id: "api", href: "\/docs\/api", icon: DataIcon, label: "API reference" \}/);
+    expect(navigation).toMatch(/\{ id: "pricing", href: "\/pricing", icon: DollarSquareIcon, label: "Pricing" \}/);
+    expect(navigation).toMatch(/icon: SearchStatusIcon,[\s\S]*label: "Search"/);
+    expect(icons).toContain("DollarSquare,");
+    expect(icons).toContain("SearchStatus,");
+    expect(icons).toContain("export const DollarSquareIcon = bulk(DollarSquare);");
+    expect(icons).toContain("export const SearchStatusIcon = bulk(SearchStatus);");
+    expect(header).toContain('import { LoginIcon, MenuIcon } from "@/lib/icons";');
+    expect(header).toMatch(/<LoginIcon className="public-navigation__item-icon" aria-hidden="true" \/>/);
+  });
+
   it("keeps signed-in header controls inside the narrowest viewport", () => {
     const wordmark = readFileSync(join(import.meta.dirname, "Wordmark.astro"), "utf8");
     const css = readFileSync(join(import.meta.dirname, "../styles/components.css"), "utf8");

@@ -1,6 +1,6 @@
 /**
  * @file Finalizes the generated OpenAPI document before it is served at
- * `/docs/json` and rendered by the Scalar API reference.
+ * `/docs/json` and rendered by the Developer Portal API reference.
  *
  * `@fastify/swagger` produces a document straight from the route table. Two
  * properties of that raw output are wrong for a *public* reference and are
@@ -15,7 +15,14 @@
  * We keep only the schemas transitively reachable from a *visible* path, so a
  * hidden endpoint's models never appear.
  *
- * ## 2. Deterministic alphabetical ordering
+ * ## 2. Global rate-limit response completion
+ *
+ * The global Fastify rate limiter applies to every visible public operation,
+ * but repeating the same `429` schema in every route is brittle. The finalizer
+ * adds the canonical response where a route did not provide a more specific
+ * one, so future public endpoints inherit the truthful contract automatically.
+ *
+ * ## 3. Deterministic alphabetical ordering
  *
  * Scalar renders tag groups in `tags` order and operations in `paths` order.
  * The raw document lists both in route-registration order, which drifts as
@@ -40,6 +47,55 @@ export interface FinalizableOpenApiDocument {
 
 /** Stable, locale-aware comparator so ordering is deterministic across runs. */
 const byAlpha = (a: string, b: string): number => a.localeCompare(b);
+
+const HTTP_METHODS = new Set(["delete", "get", "head", "options", "patch", "post", "put", "trace"]);
+
+const GLOBAL_RATE_LIMIT_RESPONSE = {
+  description: "Global rate limit exceeded. Retry after the interval provided by the `Retry-After` header.",
+  content: {
+    "application/json": {
+      schema: { $ref: "#/components/schemas/ErrorResponse" },
+    },
+  },
+} as const;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/**
+ * Clones visible path items and completes each HTTP operation with the global
+ * `429` response. Existing route-specific responses take precedence.
+ */
+function completeGlobalRateLimitResponses(paths: Record<string, unknown>): Record<string, unknown> {
+  const completed: Record<string, unknown> = {};
+
+  for (const [route, pathItem] of Object.entries(paths)) {
+    if (!isRecord(pathItem)) {
+      completed[route] = pathItem;
+      continue;
+    }
+
+    const completedPathItem: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(pathItem)) {
+      if (!HTTP_METHODS.has(key.toLowerCase()) || !isRecord(value)) {
+        completedPathItem[key] = value;
+        continue;
+      }
+
+      const responses = isRecord(value.responses) ? value.responses : {};
+      completedPathItem[key] = {
+        ...value,
+        responses: {
+          429: GLOBAL_RATE_LIMIT_RESPONSE,
+          ...responses,
+        },
+      };
+    }
+    completed[route] = completedPathItem;
+  }
+
+  return completed;
+}
 
 /**
  * Recursively collects every schema name referenced via a `$ref` anywhere in
@@ -108,7 +164,7 @@ function reachableSchemaNames(paths: Record<string, unknown>, schemas: Record<st
  * @returns a new document safe to serve as the public reference
  */
 export function finalizePublicOpenApiDocument(doc: FinalizableOpenApiDocument): FinalizableOpenApiDocument {
-  const paths = doc.paths ?? {};
+  const paths = completeGlobalRateLimitResponses(doc.paths ?? {});
   const schemas = doc.components?.schemas ?? {};
 
   const reachable = reachableSchemaNames(paths, schemas);

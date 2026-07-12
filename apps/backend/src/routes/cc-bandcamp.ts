@@ -12,6 +12,7 @@
  */
 import { ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
+import { publicErrorResponse } from "../docs/public-response-schema.js";
 import { log } from "../lib/infra/logger.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter, isInternalRequest } from "../lib/infra/rate-limiter.js";
@@ -120,6 +121,17 @@ export default async function ccBandcampRoutes(app: FastifyInstance) {
             jamendoId: { type: "string", minLength: 1, maxLength: 32, pattern: "^[0-9]+$" },
           },
           additionalProperties: false,
+        },
+        response: {
+          200: {
+            description: "Bandcamp availability for the Creative Commons track.",
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              bandcampUrl: { type: "string", format: "uri" },
+            },
+          },
+          400: publicErrorResponse("The Jamendo track id is malformed."),
         },
       },
     },

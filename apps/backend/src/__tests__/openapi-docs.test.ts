@@ -14,6 +14,11 @@ afterAll(async () => {
 });
 
 describe("OpenAPI docs", () => {
+  const responseStatuses = (doc: { paths: Record<string, unknown> }, method: string, route: string): string[] => {
+    const path = doc.paths[route] as Record<string, { responses?: Record<string, unknown> }> | undefined;
+    return Object.keys(path?.[method.toLowerCase()]?.responses ?? {}).sort();
+  };
+
   it("redirects the retired backend reference to the Developer Portal", async () => {
     const res = await app.inject({ method: "GET", url: "/docs" });
 
@@ -46,6 +51,45 @@ describe("OpenAPI docs", () => {
 
     expect(res.statusCode).toBe(200);
     expect(Object.keys(doc.paths)).not.toContain("/api/auth/token");
+  });
+
+  it("documents every global rate-limit response and each explicit public response branch", async () => {
+    const res = await app.inject({ method: "GET", url: "/docs/json" });
+    const doc = res.json() as { paths: Record<string, unknown> };
+
+    expect(res.statusCode).toBe(200);
+
+    for (const [route, pathItem] of Object.entries(doc.paths)) {
+      for (const [method, operation] of Object.entries(pathItem as Record<string, unknown>)) {
+        if (!/^(get|post|put|patch|delete|options|head)$/.test(method)) continue;
+        expect(
+          (operation as { responses?: Record<string, unknown> }).responses,
+          `${method.toUpperCase()} ${route}`,
+        ).toHaveProperty("429");
+      }
+    }
+
+    const expected: Record<string, string[]> = {
+      "GET /api/v1/cc/artist-info": ["200", "400", "429"],
+      "GET /api/v1/cc/audio/{jamendoId}": ["200", "206", "400", "404", "429", "502"],
+      "GET /api/v1/cc/bandcamp/{jamendoId}": ["200", "400", "429"],
+      "GET /api/v1/cc/download/{jamendoId}": ["200", "400", "403", "404", "429", "502"],
+      "GET /api/v1/cc/genre-artwork/{genreKey}": ["200", "400", "429"],
+      "POST /api/v1/forms/{slug}/submit": ["200", "400", "404", "429"],
+      "GET /api/v1/genre-artwork/{genreKey}": ["200", "400", "429"],
+      "GET /api/v1/tiers": ["200", "429"],
+      "GET /health/backend": ["200", "429"],
+      "GET /health/dashboard": ["200", "429", "503"],
+      "GET /health/db": ["200", "429", "503"],
+      "GET /health/developer": ["200", "429", "503"],
+      "GET /health/email": ["200", "429", "503"],
+      "GET /health/frontend": ["200", "429", "503"],
+    };
+
+    for (const [operation, statuses] of Object.entries(expected)) {
+      const [method, route] = operation.split(" ", 2);
+      expect(responseStatuses(doc, method ?? "", route ?? ""), operation).toEqual(statuses);
+    }
   });
 
   it("documents structured search completely on resolve endpoints", async () => {

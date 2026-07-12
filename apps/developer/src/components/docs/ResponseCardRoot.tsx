@@ -8,5 +8,10 @@ interface ResponseCardRootProps extends ComponentPropsWithoutRef<"article"> {
 
 /** Renders the shared response surface with its semantic status tone. */
 export function ResponseCardRoot({ className, tone, ...props }: ResponseCardRootProps) {
-  return <article className={joinClassNames("response-card", `response-card--${tone}`, className)} {...props} />;
+  return (
+    <article
+      className={joinClassNames("content-panel", "response-card", `response-card--${tone}`, className)}
+      {...props}
+    />
+  );
 }

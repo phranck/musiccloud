@@ -12,6 +12,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminRepository } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
+import { createPublicErrorResponseSchema } from "../docs/public-response-schema.js";
+import { registerApiErrorHandling } from "../lib/infra/api-error-handler.js";
 import { executeSubmissionChain } from "../services/form-submission.js";
 import formsPublicRoutes, { FORM_SUBMIT_RATE_LIMIT } from "./forms-public.js";
 
@@ -55,6 +57,10 @@ beforeEach(async () => {
   repo = makeRepo();
   vi.mocked(getAdminRepository).mockResolvedValue(repo);
   app = Fastify();
+  // The route references the shared error schema and relies on the global
+  // normalizer, so this isolated Fastify host mirrors both production owners.
+  app.addSchema(createPublicErrorResponseSchema());
+  registerApiErrorHandling(app);
   await app.register(formsPublicRoutes);
   await app.ready();
 });

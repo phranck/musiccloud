@@ -32,7 +32,9 @@ import {
   Coin,
   Copy,
   CopySuccess,
+  Data,
   Diagram,
+  DollarSquare,
   Flash,
   Forbidden,
   Global,
@@ -42,6 +44,7 @@ import {
   Key,
   Like1,
   Link,
+  Login,
   Logout,
   Menu,
   Profile,
@@ -51,6 +54,7 @@ import {
   Refresh2,
   Scroll,
   SearchNormal1,
+  SearchStatus,
   Send2,
   ShieldTick,
   Sms,
@@ -98,7 +102,9 @@ export const CodeIcon = bulk(Code);
 export const CoinIcon = bulk(Coin);
 export const CopyIcon = bulk(Copy);
 export const CopySuccessIcon = bulk(CopySuccess);
+export const DataIcon = bulk(Data);
 export const DiagramIcon = bulk(Diagram);
+export const DollarSquareIcon = bulk(DollarSquare);
 export const FlashIcon = bulk(Flash);
 export const ForbiddenIcon = bulk(Forbidden);
 export const GlobalIcon = bulk(Global);
@@ -106,6 +112,7 @@ export const HealthIcon = bulk(Health);
 export const KeyIcon = bulk(Key);
 export const Like1Icon = bulk(Like1);
 export const LinkIcon = bulk(Link);
+export const LoginIcon = bulk(Login);
 export const LogoutIcon = bulk(Logout);
 export const MenuIcon = bulk(Menu);
 export const ProfileAddIcon = bulk(ProfileAdd);
@@ -115,6 +122,7 @@ export const Refresh2Icon = bulk(Refresh2);
 export const RefreshIcon = bulk(Refresh);
 export const ScrollIcon = bulk(Scroll);
 export const SearchNormal1Icon = bulk(SearchNormal1);
+export const SearchStatusIcon = bulk(SearchStatus);
 export const Send2Icon = bulk(Send2);
 export const ShieldTickIcon = bulk(ShieldTick);
 export const SmsIcon = bulk(Sms);
