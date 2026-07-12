@@ -128,8 +128,7 @@ export default async function resolveRoutes(app: FastifyInstance) {
           "  - Example: `genre: jazz|r&b, tracks: 20, vibe: mixed`.\n\n" +
           `**4. Structured search query** — ${STRUCTURED_SEARCH_OPENAPI_SECTION}\n\n` +
           `${STRUCTURED_SEARCH_POST_OPENAPI_NOTE}\n\n` +
-          "After any disambiguation response, send the picked candidate's id back as `selectedCandidate` to complete the resolve.\n\n" +
-          "For a deep architectural walkthrough of the resolver pipeline, see the resolver-flow PDF in the repo: [Deutsch](https://github.com/phranck/musiccloud/blob/main/docs/resolve-flow/de/resolve-flow.pdf) · [English](https://github.com/phranck/musiccloud/blob/main/docs/resolve-flow/en/resolve-flow.pdf).",
+          "After any disambiguation response, send the picked candidate's id back as `selectedCandidate` to complete the resolve.",
         security: [{ ApiKeyAuth: [] }],
         body: {
           type: "object",

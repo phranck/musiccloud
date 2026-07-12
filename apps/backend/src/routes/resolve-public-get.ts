@@ -79,8 +79,7 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
           `- **Structured search query** — ${STRUCTURED_SEARCH_OPENAPI_SECTION}\n\n` +
           `${STRUCTURED_SEARCH_GET_OPENAPI_NOTE}\n\n` +
           "Returns the resolved track (200) or 400 if the query is ambiguous, malformed, or cannot be resolved. Rate-limited per client IP.\n\n" +
-          "Note: `genre:` discovery queries are not supported on this endpoint — they require the authenticated POST endpoint because their response is a list, not a single resolved track.\n\n" +
-          "For a deep architectural walkthrough of the resolver pipeline, see the resolver-flow PDF in the repo: [Deutsch](https://github.com/phranck/musiccloud/blob/main/docs/resolve-flow/de/resolve-flow.pdf) · [English](https://github.com/phranck/musiccloud/blob/main/docs/resolve-flow/en/resolve-flow.pdf).",
+          "Note: `genre:` discovery queries are not supported on this endpoint — they require the authenticated POST endpoint because their response is a list, not a single resolved track.",
         querystring: {
           type: "object",
           required: ["query"],
