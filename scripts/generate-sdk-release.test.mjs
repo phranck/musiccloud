@@ -109,4 +109,6 @@ exec "${systemFind}" "$@"
   );
   assert.doesNotMatch(swiftUrlSession, /#if !os\(macOS\)\nimport MobileCoreServices/);
   assert.match(swiftUrlSession, /#if canImport\(MobileCoreServices\)\nimport MobileCoreServices/);
+  assert.match(swiftUrlSession, /#if canImport\(FoundationNetworking\)\nimport FoundationNetworking/);
+  assert.match(swiftUrlSession, /#if canImport\(MobileCoreServices\)\n\s*if let uti/);
 });

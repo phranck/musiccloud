@@ -169,7 +169,7 @@ async function generateFixtureSdk(generatedRoot, target) {
     await mkdir(infrastructureDir, { recursive: true });
     await writeFile(
       path.join(infrastructureDir, "URLSessionImplementations.swift"),
-      "#if !os(macOS)\nimport MobileCoreServices\n#endif\n",
+      "import Foundation\n#if !os(macOS)\nimport MobileCoreServices\n#endif\n\nfunc mimeType(for pathExtension: String) -> String {\n        if #available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *) {\n            return \"application/octet-stream\"\n        } else {\n            if let uti = UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, pathExtension as NSString, nil)?.takeRetainedValue(),\n                    let mimetype = UTTypeCopyPreferredTagWithClass(uti, kUTTagClassMIMEType)?.takeRetainedValue() {\n                return mimetype as String\n            }\n            return \"application/octet-stream\"\n        }\n}\n",
     );
   }
 }
@@ -184,13 +184,21 @@ async function patchSwiftLinuxCompatibility(generatedRoot, target) {
   );
   const source = await readFile(implementationPath, "utf8");
   const legacyImportGuard = "#if !os(macOS)\nimport MobileCoreServices\n#endif";
+  const foundationNetworkingImport = "#if canImport(FoundationNetworking)\nimport FoundationNetworking\n#endif";
+  const legacyMimeTypeFallback =
+    "        } else {\n            if let uti = UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, pathExtension as NSString, nil)?.takeRetainedValue(),\n                    let mimetype = UTTypeCopyPreferredTagWithClass(uti, kUTTagClassMIMEType)?.takeRetainedValue() {\n                return mimetype as String\n            }\n            return \"application/octet-stream\"\n        }";
+  const portableMimeTypeFallback =
+    "        } else {\n            #if canImport(MobileCoreServices)\n            if let uti = UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, pathExtension as NSString, nil)?.takeRetainedValue(),\n                    let mimetype = UTTypeCopyPreferredTagWithClass(uti, kUTTagClassMIMEType)?.takeRetainedValue() {\n                return mimetype as String\n            }\n            return \"application/octet-stream\"\n            #else\n            return \"application/octet-stream\"\n            #endif\n        }";
 
-  // OpenAPI Generator v7.22.0 treats Linux as non-macOS even though it lacks MobileCoreServices.
-  if (!source.includes(legacyImportGuard)) return;
-  await writeFile(
-    implementationPath,
-    source.replace(legacyImportGuard, "#if canImport(MobileCoreServices)\nimport MobileCoreServices\n#endif"),
-  );
+  // OpenAPI Generator v7.22.0 treats Linux as non-macOS and omits FoundationNetworking here.
+  const mobileCoreServicesGuard = "#if canImport(MobileCoreServices)\nimport MobileCoreServices\n#endif";
+  const withPortableMobileCoreServices = source.replace(legacyImportGuard, mobileCoreServicesGuard);
+  const withFoundationNetworking = withPortableMobileCoreServices.includes(foundationNetworkingImport)
+    ? withPortableMobileCoreServices
+    : withPortableMobileCoreServices.replace("import Foundation\n", `import Foundation\n${foundationNetworkingImport}\n`);
+  const patchedSource = withFoundationNetworking.replace(legacyMimeTypeFallback, portableMimeTypeFallback);
+
+  if (patchedSource !== source) await writeFile(implementationPath, patchedSource);
 }
 
 async function writeGeneratorConfig(generatedRoot, target) {
