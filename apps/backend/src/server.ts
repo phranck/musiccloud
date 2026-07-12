@@ -293,7 +293,7 @@ async function buildApp() {
           "Exceeding either quota returns `429 Too Many Requests` with `error: MC-API-0003`, an English `message`, structured `context`, and a `Retry-After` header. " +
           "The asset endpoint `GET /api/v1/genre-artwork/:genreKey` is exempt from this per-IP quota because the frontend loads artwork tiles in parallel; " +
           "it is still bounded by a global 300 requests/minute ceiling shared with all routes.",
-        version: "2.1.0",
+        version: "2.1.1",
       },
       servers: [{ url: "https://api.musiccloud.io", description: "Production" }],
       // Tag order here does not need to be alphabetical: the document is
