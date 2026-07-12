@@ -102,4 +102,11 @@ exec "${systemFind}" "$@"
   const swiftPackage = await readFile(path.join(outputDir, "generated/swift/Package.swift"), "utf8");
   assert.match(swiftPackage, /swift-tools-version:6\.0/);
   assert.match(swiftPackage, /swiftLanguageModes:\s*\[\.v6\]/);
+
+  const swiftUrlSession = await readFile(
+    path.join(outputDir, "generated/swift/Sources/MusiccloudApiClient/Infrastructure/URLSessionImplementations.swift"),
+    "utf8",
+  );
+  assert.doesNotMatch(swiftUrlSession, /#if !os\(macOS\)\nimport MobileCoreServices/);
+  assert.match(swiftUrlSession, /#if canImport\(MobileCoreServices\)\nimport MobileCoreServices/);
 });

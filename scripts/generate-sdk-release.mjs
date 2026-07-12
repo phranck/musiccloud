@@ -165,7 +165,32 @@ async function generateFixtureSdk(generatedRoot, target) {
       path.join(dir, "Package.swift"),
       "// swift-tools-version:6.0\n\nimport PackageDescription\n\nlet package = Package(name: \"MusiccloudApiClient\", swiftLanguageModes: [.v6])\n",
     );
+    const infrastructureDir = path.join(dir, "Sources/MusiccloudApiClient/Infrastructure");
+    await mkdir(infrastructureDir, { recursive: true });
+    await writeFile(
+      path.join(infrastructureDir, "URLSessionImplementations.swift"),
+      "#if !os(macOS)\nimport MobileCoreServices\n#endif\n",
+    );
   }
+}
+
+async function patchSwiftLinuxCompatibility(generatedRoot, target) {
+  if (target.language !== "swift") return;
+
+  const implementationPath = path.join(
+    generatedRoot,
+    target.language,
+    "Sources/MusiccloudApiClient/Infrastructure/URLSessionImplementations.swift",
+  );
+  const source = await readFile(implementationPath, "utf8");
+  const legacyImportGuard = "#if !os(macOS)\nimport MobileCoreServices\n#endif";
+
+  // OpenAPI Generator v7.22.0 treats Linux as non-macOS even though it lacks MobileCoreServices.
+  if (!source.includes(legacyImportGuard)) return;
+  await writeFile(
+    implementationPath,
+    source.replace(legacyImportGuard, "#if canImport(MobileCoreServices)\nimport MobileCoreServices\n#endif"),
+  );
 }
 
 async function writeGeneratorConfig(generatedRoot, target) {
@@ -304,6 +329,7 @@ async function main() {
     } else {
       await generateWithDocker(args.contractDir, generatedRoot, target);
     }
+    await patchSwiftLinuxCompatibility(generatedRoot, target);
     await writeGeneratorConfig(generatedRoot, target);
     await smokeBuild(generatedRoot, target);
 
