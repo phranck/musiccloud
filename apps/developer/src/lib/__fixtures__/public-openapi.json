@@ -1,0 +1,153 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "musiccloud Public API",
+    "version": "2.1.0"
+  },
+  "paths": {
+    "/api/v1/cc/resolve": {
+      "get": {
+        "operationId": "resolveCreativeCommons",
+        "tags": ["Creative Commons"],
+        "summary": "Resolve a Creative Commons track",
+        "description": "Find a shareable Creative Commons match.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Track or artist search query."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resolved Creative Commons track.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CcResolveSuccess" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resolve": {
+      "get": {
+        "operationId": "resolveTrackPublic",
+        "tags": ["Resolve"],
+        "x-nav-title": "Quick resolve",
+        "summary": "Resolve a streaming URL without an API key",
+        "description": "Public GET resolver for low-volume shortcut and curl usage.",
+        "parameters": [
+          {
+            "name": "url",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "uri" },
+            "description": "Source track URL."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resolved track links.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ResolveSuccess" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "resolveTrack",
+        "tags": ["Resolve"],
+        "x-nav-title": "Resolve link",
+        "summary": "Resolve a streaming URL",
+        "description": "Resolve a source URL across supported services.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "url",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string", "format": "uri" },
+            "description": "Source track URL."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ResolveRequest" },
+              "example": { "url": "https://open.spotify.com/track/example" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resolved track links.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ResolveSuccess" }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or revoked API key.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    },
+    "schemas": {
+      "CcResolveSuccess": {
+        "type": "object",
+        "description": "Creative Commons resolve response.",
+        "properties": {
+          "url": { "type": "string" }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Stable error envelope.",
+        "properties": {
+          "error": { "type": "string" },
+          "message": { "type": "string" },
+          "errorId": { "type": "string" }
+        }
+      },
+      "ResolveRequest": {
+        "type": "object",
+        "description": "Resolve request body.",
+        "properties": {
+          "url": { "type": "string", "format": "uri" }
+        }
+      },
+      "ResolveSuccess": {
+        "type": "object",
+        "description": "Successful resolve response.",
+        "properties": {
+          "links": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

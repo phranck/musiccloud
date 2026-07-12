@@ -9,35 +9,62 @@
  * carries no sign-up entry. Signed in, "Sign in" disappears and the account's
  * avatar (with the Dashboard/Logout menu, see `AvatarMenu`) sits at the far
  * right, after the nav links. The nav itself is identical in both states:
- * Docs, API reference and Pricing. Status lives in the footer only.
+ * Docs, API reference, Pricing and the global API Search command. Status
+ * lives in the footer only.
  */
 import { AvatarMenu } from "@/components/portal/AvatarMenu";
 import Wordmark from "@/components/Wordmark.astro";
+import { MenuIcon, ProfileCircleIcon } from "@/lib/icons";
+import { PUBLIC_NAV_ITEMS, PUBLIC_SEARCH_COMMAND, type PublicNavigationId } from "@/lib/publicNavigation";
 import type { Account } from "@/lib/session";
-
-/** Identifies which top-nav entry the current page is, for the active highlight. */
-export type PublicNavId = "docs" | "api" | "pricing";
 
 interface Props {
   /** The signed-in account (drives the avatar menu), or `null` when signed out. */
   account: Account | null;
   /** The nav entry to highlight as the current page, if any. */
-  active?: PublicNavId;
+  active?: PublicNavigationId;
 }
 
 const { account, active } = Astro.props;
 
 /** Nav link classes: the active page gets full-strength text. */
-const navClass = (id: PublicNavId) => (active === id ? "text-fg text-link" : "text-link");
+const navClass = (id: PublicNavigationId) =>
+  active === id ? "public-navigation__link public-navigation__link--active" : "public-navigation__link";
+const SearchIcon = PUBLIC_SEARCH_COMMAND.icon;
 ---
 
-<header class="flex items-center justify-between px-6 py-5 max-w-6xl mx-auto w-full">
+<header class="public-header developer-shell">
   <Wordmark />
-  <nav class="flex items-center gap-5 text-nav text-fg-muted">
-    <a href="/docs" class={navClass("docs")}>Docs</a>
-    <a href="/docs/api" class={navClass("api")}>API reference</a>
-    <a href="/pricing" class={navClass("pricing")}>Pricing</a>
-    {!account && <a href="/login" class="text-link">Sign in</a>}
+  <div class="public-header__actions">
+    <nav class="public-header__desktop" aria-label="Primary" data-public-navigation="desktop">
+      {
+        PUBLIC_NAV_ITEMS.map((item) => (
+          (() => {
+            const Icon = item.icon;
+            return (
+              <a href={item.href} aria-current={active === item.id ? "page" : undefined} class={navClass(item.id)}>
+                <Icon className="public-navigation__item-icon" aria-hidden="true" />
+                <span class="public-navigation__label">{item.label}</span>
+              </a>
+            );
+          })()
+        ))
+      }
+      <a href={PUBLIC_SEARCH_COMMAND.href} class="public-navigation__link" data-public-search-command>
+        <SearchIcon className="public-navigation__item-icon" aria-hidden="true" />
+        <span class="public-navigation__label">{PUBLIC_SEARCH_COMMAND.label}</span>
+        <kbd class="public-navigation__keycap">{PUBLIC_SEARCH_COMMAND.shortcut}</kbd>
+      </a>
+      {
+        !account && (
+          <a href="/login" class="public-navigation__link">
+            <ProfileCircleIcon className="public-navigation__item-icon" aria-hidden="true" />
+            <span class="public-navigation__label">Sign in</span>
+          </a>
+        )
+      }
+    </nav>
+
     {
       account && (
         <AvatarMenu
@@ -46,5 +73,73 @@ const navClass = (id: PublicNavId) => (active === id ? "text-fg text-link" : "te
         />
       )
     }
-  </nav>
+
+    <details class="public-header__mobile" data-public-navigation="mobile">
+      <summary class="button button--icon public-header__mobile-trigger" aria-label="Open navigation">
+        <MenuIcon className="size-6" aria-hidden="true" />
+      </summary>
+      <nav class="public-header__mobile-panel" aria-label="Mobile primary">
+        {
+          PUBLIC_NAV_ITEMS.map((item) => (
+            (() => {
+              const Icon = item.icon;
+              return (
+                <a href={item.href} aria-current={active === item.id ? "page" : undefined} class={navClass(item.id)}>
+                  <Icon className="public-navigation__item-icon" aria-hidden="true" />
+                  <span class="public-navigation__label">{item.label}</span>
+                </a>
+              );
+            })()
+          ))
+        }
+        <a href={PUBLIC_SEARCH_COMMAND.href} class="public-navigation__link" data-public-search-command>
+          <SearchIcon className="public-navigation__item-icon" aria-hidden="true" />
+          <span class="public-navigation__label">{PUBLIC_SEARCH_COMMAND.label}</span>
+          <kbd class="public-navigation__keycap">{PUBLIC_SEARCH_COMMAND.shortcut}</kbd>
+        </a>
+        {
+          !account && (
+            <a href="/login" class="public-navigation__link">
+              <ProfileCircleIcon className="public-navigation__item-icon" aria-hidden="true" />
+              <span class="public-navigation__label">Sign in</span>
+            </a>
+          )
+        }
+      </nav>
+    </details>
+  </div>
 </header>
+
+<script>
+  const searchHref = "/docs/api?search=1";
+  const isApiReference = () => window.location.pathname === "/docs/api";
+  const apiSearchWindow = window as Window & { musiccloudApiSearchOpen?: () => void };
+
+  /** Records API-page requests until the controller has hydrated, avoiding a
+      reload when a user invokes Search before the React island is ready. */
+  const requestApiSearch = () => {
+    if (isApiReference()) {
+      document.documentElement.dataset.apiSearchRequested = "true";
+      if (apiSearchWindow.musiccloudApiSearchOpen) {
+        apiSearchWindow.musiccloudApiSearchOpen();
+      } else if (document.documentElement.dataset.apiSearchReady === "true") {
+        window.dispatchEvent(new CustomEvent("musiccloud:api-search-open"));
+      }
+      return;
+    }
+    window.location.assign(searchHref);
+  };
+
+  document.addEventListener("click", (event) => {
+    const command = event.target instanceof Element ? event.target.closest("[data-public-search-command]") : null;
+    if (!command) return;
+    event.preventDefault();
+    requestApiSearch();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (!(event.metaKey || event.ctrlKey) || event.key.toLocaleLowerCase() !== "k") return;
+    event.preventDefault();
+    requestApiSearch();
+  });
+</script>

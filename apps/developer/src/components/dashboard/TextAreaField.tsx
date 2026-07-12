@@ -54,11 +54,9 @@ export function TextAreaField({
   const messageId = `${inputId}-message`;
   const hasError = Boolean(error);
 
-  const borderClass = hasError ? "border-red-400/70 focus:border-red-400" : "border-border focus:border-accent";
-
   return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={inputId} className="text-body font-medium text-fg">
+    <div className="field">
+      <label htmlFor={inputId} className="field__label text-body">
         {label}
       </label>
       <textarea
@@ -72,14 +70,14 @@ export function TextAreaField({
         maxLength={maxLength}
         aria-invalid={hasError}
         aria-describedby={error || hint ? messageId : undefined}
-        className={`w-full rounded-button border bg-surface px-3.5 py-2.5 text-body text-fg placeholder:text-fg-subtle outline-none transition-colors focus:ring-2 focus:ring-accent/30 resize-y ${borderClass}`}
+        className={`field__control text-body placeholder:text-fg-subtle resize-y${hasError ? " field__control--error" : ""}`}
       />
       {error ? (
-        <p id={messageId} className="text-body text-red-400">
+        <p id={messageId} className="field__message field__message--error">
           {error}
         </p>
       ) : hint ? (
-        <p id={messageId} className="text-body text-fg-muted">
+        <p id={messageId} className="field__message">
           {hint}
         </p>
       ) : null}

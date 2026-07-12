@@ -12,9 +12,10 @@
  * single source of truth for labels, links and the "coming soon" placeholders.
  */
 import { AvatarMenu } from "@/components/portal/AvatarMenu";
+import DashboardNavigation from "@/components/dashboard/DashboardNavigation.astro";
 import Wordmark from "@/components/Wordmark.astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
-import { DASHBOARD_NAV, type DashboardTabValue } from "@/lib/dashboardTabs";
+import type { DashboardTabValue } from "@/lib/dashboardTabs";
 import type { Account } from "@/lib/session";
 
 interface Props {
@@ -30,8 +31,8 @@ const { account, active, title } = Astro.props;
 ---
 
 <BaseLayout title={title}>
-<header class="border-b border-border">
-  <div class="max-w-6xl mx-auto w-full px-6 py-4 flex items-center justify-between gap-4">
+<header class="dashboard-header">
+  <div class="dashboard-header__inner developer-shell">
     <Wordmark />
 
     <AvatarMenu
@@ -42,42 +43,10 @@ const { account, active, title } = Astro.props;
   </div>
 </header>
 
-<div class="flex-1 max-w-6xl mx-auto w-full px-6 py-8 flex gap-8">
-  <aside class="w-52 shrink-0 hidden md:block">
-    <nav class="flex flex-col gap-1">
-      {
-        DASHBOARD_NAV.map((item) => {
-          const isActive = item.tab === active;
-          if (item.comingSoon || !item.href) {
-            return (
-              <span
-                class="flex items-center justify-between rounded-button px-3 py-2 text-body text-fg-subtle cursor-default select-none"
-                aria-disabled="true"
-              >
-                {item.label}
-                <span class="text-nav text-fg-subtle border border-border rounded-button px-1.5 py-0.5 leading-none">
-                  Soon
-                </span>
-              </span>
-            );
-          }
-          return (
-            <a
-              href={item.href}
-              aria-current={isActive ? "page" : undefined}
-              class={`rounded-button px-3 py-2 text-body transition-colors ${
-                isActive ? "bg-surface text-fg font-medium" : "text-fg-muted hover:text-fg"
-              }`}
-            >
-              {item.label}
-            </a>
-          );
-        })
-      }
-    </nav>
-  </aside>
+<div class="dashboard-shell developer-shell">
+  <DashboardNavigation active={active} />
 
-  <main class="flex-1 min-w-0">
+  <main class="dashboard-content">
     <slot />
   </main>
 </div>

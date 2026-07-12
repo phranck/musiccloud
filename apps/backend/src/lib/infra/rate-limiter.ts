@@ -208,7 +208,8 @@ export class DynamicRateLimiter {
 // does not bloat the Map for long, slack enough that cleanup itself is
 // background noise on the event loop.
 export const apiRateLimiter = new RateLimiter(10, 60_000);
-setInterval(() => apiRateLimiter.cleanup(), 5 * 60 * 1000);
+const apiRateLimiterCleanupTimer = setInterval(() => apiRateLimiter.cleanup(), 5 * 60 * 1000);
+apiRateLimiterCleanupTimer.unref();
 
 // Per-client quota buckets for token-authenticated public-API requests
 // (MC-088). Keyed by `api_clients.id`; the cap is the client's **effective**
@@ -221,13 +222,14 @@ setInterval(() => apiRateLimiter.cleanup(), 5 * 60 * 1000);
 // Same 5-minute cleanup cadence as the per-IP limiter.
 export const clientMinuteRateLimiter = new DynamicRateLimiter(60_000);
 export const clientDayRateLimiter = new DynamicRateLimiter(24 * 60 * 60 * 1000);
-setInterval(
+const clientRateLimiterCleanupTimer = setInterval(
   () => {
     clientMinuteRateLimiter.cleanup();
     clientDayRateLimiter.cleanup();
   },
   5 * 60 * 1000,
 );
+clientRateLimiterCleanupTimer.unref();
 
 /**
  * Explicit local/test escape hatch for migration and compatibility test

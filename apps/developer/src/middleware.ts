@@ -20,14 +20,19 @@ function comingSoonEnabled(): boolean {
 }
 
 /**
- * Global request gate. While {@link comingSoonEnabled} is true, EVERY request
- * (every path, every method, including asset and `/api/dev/*` BFF routes) is
- * answered with the self-contained maintenance page and no real portal handler
- * runs. This is a hard seal: there is no bypass, so no unfinished portal page
- * is reachable in production while the flag is on. `no-store` prevents a stale
- * maintenance page from being cached once the flag is later turned off.
+ * Global request gate. While {@link comingSoonEnabled} is true, every portal,
+ * BFF, and application-asset request is answered with the maintenance page.
+ * The canonical public theme is the sole exception because the maintenance
+ * response deliberately consumes the same runtime design tokens as the live
+ * portal. It contains CSS values only and cannot expose unfinished app code.
+ * `no-store` prevents a stale maintenance page from being cached once the flag
+ * is later turned off.
  */
-export const onRequest = defineMiddleware(async (_context, next) => {
+export const onRequest = defineMiddleware(async (context, next) => {
+  if (context.url.pathname === "/developer-theme.css") {
+    return next();
+  }
+
   if (comingSoonEnabled()) {
     return new Response(COMING_SOON_HTML, {
       status: 200,

@@ -35,13 +35,13 @@ const blobs = [
   { cx: 1330, cy: 660, rx: 260, ry: 220, grad: "violet", op: 0.3 },
 ];
 
-/** Core colour per blob gradient id. */
-const blobHex: Record<(typeof blobColors)[number], string> = {
-  green: "#33ff99",
-  cyan: "#2fffd6",
-  violet: "#b060ff",
-  magenta: "#ff5fc0",
-  blue: "#4d9bff",
+/** Canonical runtime colour token per blob gradient id. */
+const blobColor: Record<(typeof blobColors)[number], string> = {
+  green: "var(--mc-color-aurora-green)",
+  cyan: "var(--mc-color-aurora-cyan)",
+  violet: "var(--mc-color-aurora-violet)",
+  magenta: "var(--mc-color-aurora-magenta)",
+  blue: "var(--mc-color-aurora-blue)",
 };
 ---
 
@@ -61,9 +61,9 @@ const blobHex: Record<(typeof blobColors)[number], string> = {
       {
         blobColors.map((name) => (
           <radialGradient id={`mc-aurora-${name}`}>
-            <stop offset="0%" stop-color={blobHex[name]} stop-opacity="0.85" />
-            <stop offset="55%" stop-color={blobHex[name]} stop-opacity="0.18" />
-            <stop offset="100%" stop-color={blobHex[name]} stop-opacity="0" />
+            <stop offset="0%" stop-color={blobColor[name]} stop-opacity="0.85" />
+            <stop offset="55%" stop-color={blobColor[name]} stop-opacity="0.18" />
+            <stop offset="100%" stop-color={blobColor[name]} stop-opacity="0" />
           </radialGradient>
         ))
       }
@@ -95,11 +95,11 @@ const blobHex: Record<(typeof blobColors)[number], string> = {
      dark sky. Static — no animation. */
   .dev-aurora {
     position: absolute;
-    inset: -12%;
-    width: 124%;
-    height: 124%;
-    filter: blur(52px) saturate(1.15);
+    inset: var(--mc-background-aurora-inset);
+    width: var(--mc-background-aurora-size);
+    height: var(--mc-background-aurora-size);
+    filter: blur(var(--mc-background-aurora-blur)) saturate(var(--mc-background-aurora-saturation));
     mix-blend-mode: screen;
-    opacity: 0.4;
+    opacity: var(--mc-background-aurora-opacity);
   }
 </style>

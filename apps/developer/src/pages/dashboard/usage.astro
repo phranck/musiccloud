@@ -31,13 +31,13 @@ if (!account) return Astro.redirect("/login");
 
   {
     clients === null ? (
-      <p class="text-body text-red-400">Could not load your usage data. Reload the page to try again.</p>
+      <p class="field__message field__message--error">Could not load your usage data. Reload the page to try again.</p>
     ) : clients.length === 0 ? (
-      <section class="rounded-card border border-border bg-surface px-6 py-5">
+      <section class="surface-card px-6 py-5">
         <h2 class="text-body font-medium text-fg mb-1">Nothing to show yet</h2>
         <p class="text-body text-fg-muted">
           Usage appears here once you have an approved app.{" "}
-          <a href="/dashboard/api-access" class="text-fg text-link">
+          <a href="/dashboard/api-access" class="content-link text-fg">
             Request API access
           </a>{" "}
           to get started.
@@ -46,7 +46,7 @@ if (!account) return Astro.redirect("/login");
     ) : (
       <div class="flex flex-col gap-6">
         {clients.map((client) => (
-          <section class="rounded-card border border-border bg-surface px-6 py-5">
+          <section class="surface-card px-6 py-5">
             <div class="flex items-center justify-between gap-3 mb-4">
               <h2 class="text-body font-medium text-fg truncate">{client.appName}</h2>
               <StatusBadge status={client.status} />
@@ -82,8 +82,10 @@ if (!account) return Astro.redirect("/login");
     )
   }
 
-  <p class="text-body text-fg-subtle mt-6 flex items-center gap-2">
-    <DiagramIcon className="size-5" aria-hidden="true" />
+  <p class="icon-text-first-line text-body text-fg-subtle mt-6 gap-2">
+    <span class="icon-text-first-line__icon">
+      <DiagramIcon className="size-5" aria-hidden="true" />
+    </span>
     Detailed request analytics are coming later. This page will grow with them.
   </p>
 </DashboardLayout>

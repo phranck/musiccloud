@@ -47,7 +47,7 @@ export function VerifyView({ token }: VerifyViewProps) {
     return (
       <AuthStatus tone={AuthStatusTone.Success} title="Email verified">
         Your account is active. You can now{" "}
-        <a href="/login" className="text-fg text-link">
+        <a href="/login" className="content-link text-fg">
           sign in
         </a>
         .
@@ -59,7 +59,7 @@ export function VerifyView({ token }: VerifyViewProps) {
     return (
       <AuthStatus tone={AuthStatusTone.Error} title="Verification failed">
         This verification link is invalid or has expired. Try{" "}
-        <a href="/signup" className="text-fg text-link">
+        <a href="/signup" className="content-link text-fg">
           signing up
         </a>{" "}
         again to receive a new one.

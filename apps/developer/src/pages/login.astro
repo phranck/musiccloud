@@ -28,7 +28,7 @@ const oauthFailed = Astro.url.searchParams.get("error") === "oauth";
   <AuthCard title="Sign in">
     {
       oauthFailed && (
-        <div class="rounded-button border border-red-400/40 bg-surface px-3.5 py-2.5 text-body text-red-400 mb-5">
+        <div class="status-message status-message--danger mb-5">
           GitHub sign-in could not be completed. Please try again.
         </div>
       )
@@ -37,7 +37,7 @@ const oauthFailed = Astro.url.searchParams.get("error") === "oauth";
     <OrDivider />
     <LoginForm client:load />
     <Fragment slot="footer">
-      No account? <a href="/signup" class="text-fg text-link">Sign up</a>
+      No account? <a href="/signup" class="content-link text-fg">Sign up</a>
     </Fragment>
   </AuthCard>
 </BaseLayout>

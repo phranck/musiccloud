@@ -31,7 +31,7 @@ const { intent = "login" } = Astro.props;
 
 <a
   href={`/auth/github?intent=${intent}`}
-  class="inline-flex w-full items-center justify-center gap-2.5 rounded-button border border-border-strong bg-surface px-4 py-2.5 text-body font-medium text-fg transition-colors hover:border-fg-subtle"
+  class="button button--secondary w-full text-body"
 >
   <GithubLogoIcon weight="fill" className="size-5" aria-hidden="true" />
   Continue with GitHub

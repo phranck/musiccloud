@@ -169,8 +169,10 @@ export function SignupForm({ children, tier }: SignupFormProps) {
     <>
       {children}
       {tier && (
-        <p className="flex items-center gap-2 rounded-button border border-border bg-surface px-3 py-2 text-body text-fg-muted">
-          <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: tier.color }} aria-hidden="true" />
+        <p className="icon-text-first-line gap-2 rounded-button border border-border bg-surface px-3 py-2 text-body text-fg-muted">
+          <span className="icon-text-first-line__icon">
+            <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: tier.color }} aria-hidden="true" />
+          </span>
           Signing up for the <span className="text-fg font-medium">{tier.name}</span> tier.
         </p>
       )}

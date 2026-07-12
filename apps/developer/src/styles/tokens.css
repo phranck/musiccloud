@@ -1,0 +1,60 @@
+/* Tailwind's semantic namespace maps to the runtime theme shared by Astro and
+   the standalone maintenance response. Runtime values live in
+   public/developer-theme.css so they are not duplicated in compiled CSS. */
+@theme inline {
+  --color-sky-top: var(--mc-color-sky-top);
+  --color-sky-bottom: var(--mc-color-sky-bottom);
+  --color-fg: var(--mc-color-fg);
+  --color-fg-muted: var(--mc-color-fg-muted);
+  --color-fg-subtle: var(--mc-color-fg-subtle);
+  --color-surface: var(--mc-color-surface);
+  --color-surface-raised: var(--mc-color-surface-raised);
+  --color-surface-solid: var(--mc-color-surface-solid);
+  --color-border: var(--mc-color-border);
+  --color-border-strong: var(--mc-color-border-strong);
+  --color-accent: var(--mc-color-accent);
+  --color-accent-hover: var(--mc-color-accent-hover);
+  --color-on-accent: var(--mc-color-on-accent);
+  --color-gold: var(--mc-color-gold);
+  --color-success: var(--mc-color-success);
+  --color-warning: var(--mc-color-warning);
+  --color-danger: var(--mc-color-danger);
+  --color-info: var(--mc-color-info);
+  --color-code-bg: var(--mc-color-code-bg);
+  --color-code-fg: var(--mc-color-code-fg);
+  --color-request-get: var(--mc-color-request-get);
+  --color-request-post: var(--mc-color-request-post);
+  --color-request-put: var(--mc-color-request-put);
+  --color-request-patch: var(--mc-color-request-patch);
+  --color-request-delete: var(--mc-color-request-delete);
+  --color-request-options: var(--mc-color-request-options);
+  --color-request-head: var(--mc-color-request-head);
+
+  --gradient-logo-rainbow: var(--mc-gradient-logo-rainbow);
+  --gradient-logo-suffix: var(--mc-gradient-logo-suffix);
+
+  --radius-button: var(--mc-radius-control);
+  --radius-card: var(--mc-radius-card);
+  --radius-pill: var(--mc-radius-pill);
+  --radius-round: var(--mc-radius-round);
+
+  --font-sans: var(--mc-font-sans);
+  --font-condensed: var(--mc-font-condensed);
+  --font-logo: var(--mc-font-logo);
+  --font-mono: var(--mc-font-mono);
+
+  --text-nav: var(--mc-text-nav);
+  --text-logo: var(--mc-text-logo);
+  --text-wordmark: var(--mc-text-wordmark);
+  --text-body: var(--mc-text-body);
+  --text-code: var(--mc-text-code);
+  --text-card-title: var(--mc-text-card-title);
+  --text-subsection: var(--mc-text-subsection);
+  --text-section: var(--mc-text-section);
+  --text-lead: var(--mc-text-lead);
+  --text-hero: var(--mc-text-hero);
+
+  --space-content-card: var(--mc-space-content-card);
+  --space-content-card-header: var(--mc-space-content-card-header);
+  --space-content-card-row: var(--mc-space-content-card-row);
+}

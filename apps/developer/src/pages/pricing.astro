@@ -17,6 +17,8 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
 import { backendUrl } from "@/lib/api";
 import PublicFooter from "@/components/PublicFooter.astro";
 import { getDeveloperSession } from "@/lib/session";
+import { normalizeTierColor } from "@/lib/tierColor";
+import "../styles/pricing-material.css";
 
 interface TierDto {
   id: string;
@@ -108,15 +110,15 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
 >
   <PublicHeader account={account} active="pricing" />
 
-  <main class="flex-1 max-w-6xl mx-auto w-full px-6 pt-12 pb-20">
+  <main class="pricing-page developer-shell developer-page flex-1">
     {signupRequired && (
       <p class="rounded-card border border-border bg-surface px-5 py-3 text-body text-fg-muted mb-8">
         Choose a plan to create your account.
       </p>
     )}
-    <div class="flex items-center gap-3 mb-5">
-      <Like1Icon className="size-9 text-accent" aria-hidden="true" />
-      <h1 class="text-hero font-medium tracking-tight leading-none">Honest and upfront pricing</h1>
+    <div class="page-heading">
+      <Like1Icon className="page-heading__icon" aria-hidden="true" />
+      <h1 class="page-heading__title">Honest and upfront pricing</h1>
     </div>
     <p class="text-lead text-fg-muted mb-10">
       musiccloud's API is <span class="text-fg font-medium">free while we build it out</span>, and it won't stay
@@ -145,35 +147,37 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
         <div class="mb-5 flex items-center justify-between gap-4">
           <h2 class="text-card-title font-medium tracking-tight">Available tiers</h2>
           <div
-            class="billing-track relative grid grid-cols-2 border border-border-strong p-0.5 text-nav"
+            class="billing-track relative grid grid-cols-2 border border-border-strong text-nav"
             role="group"
             aria-label="Billing period"
           >
             <span class="billing-thumb" aria-hidden="true"></span>
-            <button type="button" class="billing-option rounded-button px-4 py-0.5 font-medium" data-mode="monthly" aria-pressed="true">
+            <button type="button" class="billing-option font-medium" data-mode="monthly" aria-pressed="true">
               Monthly
             </button>
-            <button type="button" class="billing-option rounded-button px-4 py-0.5 font-medium" data-mode="yearly" aria-pressed="false">
+            <button type="button" class="billing-option font-medium" data-mode="yearly" aria-pressed="false">
               Yearly
             </button>
           </div>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-flow-col lg:auto-cols-fr gap-x-4 gap-y-16 pt-12">
-          {tiers.map((tier, index) => (
+        <div class="grid grid-cols-1 lg:grid-flow-col lg:auto-cols-fr gap-x-4 gap-y-16 pt-12">
+          {tiers.map((tier, index) => {
+            const tierColor = normalizeTierColor(tier.color);
+            return (
             <div
-              class={`tier-card relative flex flex-col items-center gap-3 border border-border bg-surface pt-16 text-center${tier.enabled ? "" : " opacity-60"}`}
-              style={`--tier:${tier.color}${recommendedIndex >= 0 ? `;--depth:${Math.abs(index - recommendedIndex)}` : ""}`}
+              class={`tier-card relative flex flex-col items-center gap-3 border border-border bg-surface text-center${tier.enabled ? "" : " opacity-60"}`}
+              style={`--tier:${tierColor}${recommendedIndex >= 0 ? `;--depth:${Math.abs(index - recommendedIndex)}` : ""}`}
               data-recommended={recommendedIndex >= 0 && index === recommendedIndex ? "true" : undefined}
             >
               {recommendedIndex >= 0 && index === recommendedIndex && (
-                <span class="tier-badge absolute right-3 top-3">Recommended</span>
+                <span class="tier-badge">Recommended</span>
               )}
-              <span class="tier-medal absolute -top-10 left-1/2 flex size-20 -translate-x-1/2 rounded-full">
+              <span class="tier-medal">
                 <span class="tier-medal-face">
                   {tier.icon ? (
-                    <TierIcon name={tier.icon} className="size-10 text-white" />
+                    <TierIcon name={tier.icon} className="tier-icon size-10" />
                   ) : (
-                    <span class="relative text-3xl font-semibold text-white [filter:drop-shadow(0_1px_1.5px_rgba(0,0,0,0.4))]">
+                    <span class="tier-fallback-letter relative text-3xl font-semibold">
                       {tier.name.charAt(0)}
                     </span>
                   )}
@@ -199,10 +203,12 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
               {tier.attributionRequired && <p class="w-full text-left text-body text-fg-subtle">Attribution required</p>}
 
               {tier.features.length > 0 && (
-                <ul class="mx-auto flex w-full max-w-[15rem] flex-col gap-1.5 text-left text-body">
+                <ul class="pricing-feature-list mx-auto flex w-full flex-col gap-1.5 text-left text-body">
                   {tier.features.map((feature) => (
-                    <li class="flex items-center gap-2">
-                      <TickCircleIcon className="size-4 shrink-0" style={{ color: tier.color }} aria-hidden="true" />
+                    <li class="icon-text-first-line gap-2">
+                      <span class="icon-text-first-line__icon">
+                        <TickCircleIcon className="size-4" style={{ color: tierColor }} aria-hidden="true" />
+                      </span>
                       <span class="text-fg-muted">{feature}</span>
                     </li>
                   ))}
@@ -213,12 +219,12 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
                 {tier.price ? (
                   <RollingText>
                     <Fragment slot="monthly">
-                      <span class="text-3xl font-bold" style={`color:${tier.color}`}>{formatEuro(tier.price)}</span>
+                      <span class="text-3xl font-bold" style={`color:${tierColor}`}>{formatEuro(tier.price)}</span>
                       <span class="text-body text-fg-subtle"> / month</span>
                     </Fragment>
                     <Fragment slot="yearly">
                       {tier.priceYearly && <span class="text-body text-fg-subtle">only </span>}
-                      <span class="text-3xl font-bold" style={`color:${tier.color}`}>{formatEuro(tier.priceYearly ?? tier.price)}</span>
+                      <span class="text-3xl font-bold" style={`color:${tierColor}`}>{formatEuro(tier.priceYearly ?? tier.price)}</span>
                       <span class="text-body text-fg-subtle"> / {tier.priceYearly ? "year" : "month"}</span>
                     </Fragment>
                   </RollingText>
@@ -238,7 +244,8 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </section>
     )}
@@ -249,7 +256,7 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
         <p class="text-body text-fg-muted">
           Every approved app currently gets <span class="text-fg font-medium">60 requests per minute</span> and{" "}
           <span class="text-fg font-medium">10,000 requests per day</span>. Need more while it's free?{" "}
-          <a href="/dashboard/api-access" class="text-fg text-link">Tell us about your app</a>. Quotas are set per
+          <a href="/dashboard/api-access" class="content-link text-fg">Tell us about your app</a>. Quotas are set per
           app, not one-size-fits-all.
         </p>
       </section>
@@ -260,70 +267,6 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
   <PublicFooter />
 </BaseLayout>
 
-<style>
-  /* Billing switch: an accent thumb slides between the two equal-width
-     options (GPU transform only); the buttons themselves just swap their
-     text colour. Geometry derives from the container's 2px inner padding. */
-  /* Recessed track: an inset shadow sinks the pill into the surface, echoing
-     the medal's dished face — dark rim at the top, faint light at the foot. */
-  .billing-track {
-    --billing-radius: 0.75rem;
-    border-radius: var(--billing-radius);
-    background: rgba(0, 0, 0, 0.22);
-    box-shadow:
-      inset 0 1.5px 3px rgba(0, 0, 0, 0.55),
-      inset 0 -1px 1px rgba(255, 255, 255, 0.05);
-  }
-
-  /* Embossed thumb: a raised accent key with a top-lit bevel and drop shadow,
-     mirroring the medal's metallic material (gradient + inset bevel + lift). */
-  .billing-thumb {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: calc(50% - 2px);
-    height: calc(100% - 4px);
-    border-radius: calc(var(--billing-radius) - 2px);
-    background: linear-gradient(
-      to bottom,
-      color-mix(in srgb, var(--color-accent), white 20%),
-      var(--color-accent) 55%,
-      color-mix(in srgb, var(--color-accent), black 22%)
-    );
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, var(--color-accent), white 45%),
-      inset 0 -1px 1px color-mix(in srgb, var(--color-accent), black 30%),
-      0 1px 2px rgba(0, 0, 0, 0.45),
-      0 2px 4px rgba(0, 0, 0, 0.3);
-    transition: transform 0.25s ease;
-  }
-
-  [data-billing="yearly"] .billing-thumb {
-    transform: translateX(100%);
-  }
-
-  .billing-option {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    /* Barlow seats its glyphs low in the line box, so plain centering looks too
-       low; nudge the label up so it reads as optically centered — visual only,
-       the control's height is unchanged. */
-    transform: translateY(-2px);
-    color: var(--color-fg-muted);
-    transition: color 0.2s ease;
-    /* Recessed engraving: dark rim on the lit (top) edge, faint light on the
-       lower edge — no blur, so the label reads as stamped into the segment. */
-    text-shadow:
-      0 -1px 0 rgba(0, 0, 0, 0.4),
-      0 1px 0 rgba(255, 255, 255, 0.12);
-  }
-
-  .billing-option[aria-pressed="true"] {
-    color: var(--color-on-accent);
-  }
-</style>
 
 <script>
   const section = document.querySelector("[data-billing]");

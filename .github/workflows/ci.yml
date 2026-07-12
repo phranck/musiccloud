@@ -69,6 +69,7 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       developer: ${{ steps.filter.outputs.developer }}
       dashboard: ${{ steps.filter.outputs.dashboard }}
+      api_sdk: ${{ steps.filter.outputs.api_sdk }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -129,6 +130,7 @@ jobs:
           frontend=false
           developer=false
           dashboard=false
+          api_sdk=false
 
           for file in "${changed_files[@]}"; do
             case "$file" in
@@ -140,12 +142,16 @@ jobs:
                 frontend=true ;;
             esac
             case "$file" in
-              apps/developer/*|packages/shared/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|zerops.yml)
+              apps/backend/*|apps/developer/*|packages/shared/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|zerops.yml)
                 developer=true ;;
             esac
             case "$file" in
               apps/backend/*|apps/dashboard/*|packages/shared/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|zerops.yml|.github/workflows/ci.yml)
                 dashboard=true ;;
+            esac
+            case "$file" in
+              apps/backend/src/server.ts|apps/backend/src/routes/*|apps/backend/src/schemas/*|apps/backend/src/docs/*|apps/backend/src/openapi/*|apps/backend/src/scripts/export-public-openapi.ts|apps/developer/scripts/generate-api-reference.mjs|apps/developer/src/lib/openapi-reference.ts|apps/developer/src/lib/sdk-catalog.ts|scripts/generate-sdk-release.mjs|scripts/generate-sdk-release.test.mjs|scripts/fixtures/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|.github/workflows/ci.yml)
+                api_sdk=true ;;
             esac
           done
 
@@ -154,7 +160,163 @@ jobs:
             echo "frontend=$frontend"
             echo "developer=$developer"
             echo "dashboard=$dashboard"
+            echo "api_sdk=$api_sdk"
           } >> "$GITHUB_OUTPUT"
+
+  validate-api-sdk-contract:
+    name: Validate API SDK Contract
+    runs-on: ubuntu-latest
+    needs: typecheck
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Detect contract-relevant PR paths
+        id: api_sdk_changes
+        shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --prune --depth=1 origin "$BASE_REF"
+          mapfile -t changed_files < <(git diff --name-only "origin/$BASE_REF"...HEAD)
+
+          should_run=false
+          for file in "${changed_files[@]}"; do
+            case "$file" in
+              apps/backend/src/server.ts|apps/backend/src/routes/*|apps/backend/src/schemas/*|apps/backend/src/docs/*|apps/backend/src/openapi/*|apps/backend/src/scripts/export-public-openapi.ts|apps/developer/scripts/generate-api-reference.mjs|apps/developer/src/lib/openapi-reference.ts|apps/developer/src/lib/sdk-catalog.ts|scripts/generate-sdk-release.mjs|scripts/generate-sdk-release.test.mjs|scripts/fixtures/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|.github/workflows/ci.yml)
+                should_run=true ;;
+            esac
+          done
+
+          echo "should_run=$should_run" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v5
+        if: steps.api_sdk_changes.outputs.should_run == 'true'
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Prepare pnpm
+        if: steps.api_sdk_changes.outputs.should_run == 'true'
+        run: |
+          corepack enable pnpm
+          corepack prepare pnpm@10.33.1 --activate
+      - name: Install dependencies
+        if: steps.api_sdk_changes.outputs.should_run == 'true'
+        run: pnpm install --frozen-lockfile
+      - name: Confirm Docker is available for SDK generation
+        if: steps.api_sdk_changes.outputs.should_run == 'true'
+        run: docker --version
+      - name: Export public OpenAPI and run SDK fixture validation
+        if: steps.api_sdk_changes.outputs.should_run == 'true'
+        run: |
+          pnpm openapi:export
+          pnpm sdk:test
+
+  publish-api-sdks:
+    name: Publish API SDKs
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.api_sdk == 'true'
+    permissions:
+      contents: write
+    outputs:
+      api_version: ${{ steps.contract.outputs.api_version }}
+      openapi_sha256: ${{ steps.contract.outputs.openapi_sha256 }}
+      release_tag: ${{ steps.contract.outputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.0"
+      - name: Prepare pnpm
+        run: |
+          corepack enable pnpm
+          corepack prepare pnpm@10.33.1 --activate
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Confirm Docker is available for SDK generation
+        run: docker --version
+      - name: Generate release-ready SDK artifacts
+        run: |
+          pnpm openapi:export
+          pnpm sdk:generate
+      - name: Record contract outputs
+        id: contract
+        run: |
+          api_version=$(node -e 'const fs=require("node:fs"); const m=JSON.parse(fs.readFileSync(".tmp/openapi/openapi.metadata.json","utf8")); process.stdout.write(m.version)')
+          openapi_sha256=$(node -e 'const fs=require("node:fs"); const m=JSON.parse(fs.readFileSync(".tmp/openapi/openapi.metadata.json","utf8")); process.stdout.write(m.sha256)')
+          {
+            echo "api_version=$api_version"
+            echo "openapi_sha256=$openapi_sha256"
+            echo "release_tag=api-sdk-v$api_version"
+          } >> "$GITHUB_OUTPUT"
+      - name: Detect existing SDK release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.contract.outputs.release_tag }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Verify existing immutable SDK release
+        if: steps.release.outputs.exists == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.contract.outputs.release_tag }}
+        run: |
+          mkdir -p .tmp/existing-sdk
+          gh release download "$RELEASE_TAG" --dir .tmp/existing-sdk --clobber
+          node - <<'NODE'
+          const crypto = require("node:crypto");
+          const fs = require("node:fs");
+          const path = require("node:path");
+
+          const local = JSON.parse(fs.readFileSync(".tmp/sdk/sdk-catalog.json", "utf8"));
+          const remote = JSON.parse(fs.readFileSync(".tmp/existing-sdk/sdk-catalog.json", "utf8"));
+
+          // Existing SDK releases are immutable. A reused tag is only valid when
+          // the exact same source commit produced the exact same contract and assets.
+          for (const field of ["apiVersion", "openApiSha256", "generatorVersion", "sourceSha"]) {
+            if (local[field] !== remote[field]) {
+              throw new Error(`Existing SDK release mismatch: ${field}`);
+            }
+          }
+          if (JSON.stringify(local.assets) !== JSON.stringify(remote.assets)) {
+            throw new Error("Existing SDK release mismatch: asset catalog");
+          }
+          for (const asset of remote.assets) {
+            const archivePath = path.join(".tmp/existing-sdk", asset.archiveName);
+            const actual = crypto.createHash("sha256").update(fs.readFileSync(archivePath)).digest("hex");
+            if (actual !== asset.sha256) {
+              throw new Error(`Existing SDK release asset checksum mismatch: ${asset.archiveName}`);
+            }
+          }
+          NODE
+      - name: Create immutable SDK release
+        if: steps.release.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.contract.outputs.release_tag }}
+          API_VERSION: ${{ steps.contract.outputs.api_version }}
+          OPENAPI_SHA256: ${{ steps.contract.outputs.openapi_sha256 }}
+        run: |
+          gh release create "$RELEASE_TAG" \
+            .tmp/sdk/musiccloud-typescript-sdk-"$API_VERSION".zip \
+            .tmp/sdk/musiccloud-python-sdk-"$API_VERSION".zip \
+            .tmp/sdk/musiccloud-swift-sdk-"$API_VERSION".zip \
+            .tmp/sdk/sdk-catalog.json \
+            --title "musiccloud API SDKs v$API_VERSION" \
+            --notes "Generated from public OpenAPI $API_VERSION ($OPENAPI_SHA256)."
 
   deploy-backend:
     name: Deploy Backend
@@ -235,8 +397,8 @@ jobs:
   deploy-developer:
     name: Deploy Developer
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.developer == 'true'
+    needs: [detect-changes, publish-api-sdks]
+    if: always() && needs.detect-changes.outputs.developer == 'true' && (needs.publish-api-sdks.result == 'success' || needs.publish-api-sdks.result == 'skipped')
     env:
       STATUS_TOKEN: ${{ secrets.STATUS_DISPATCH_TOKEN }}
     steps:

@@ -47,6 +47,24 @@ const config = {
         files: ["package.json"],
         rules: ["deslop/unused-dev-dependency"],
       },
+      /**
+       * These files intentionally expose normalized compound component APIs.
+       * Object.assign keeps the requested namespace syntax while the private
+       * slot components remain implementation details in the same module.
+       */
+      {
+        files: ["src/components/docs/Sidebar.tsx"],
+        rules: ["react-doctor/only-export-components"],
+      },
+      {
+        files: ["src/components/docs/SearchDialog.tsx"],
+        rules: [
+          "react-doctor/only-export-components",
+          "react-doctor/no-multi-comp",
+          /** Rich results cannot be represented by a native select. */
+          "react-doctor/prefer-tag-over-role",
+        ],
+      },
     ],
   },
 } satisfies ReactDoctorConfig;

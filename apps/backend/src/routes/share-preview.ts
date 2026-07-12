@@ -48,7 +48,7 @@ export default async function sharePreviewRoutes(app: FastifyInstance) {
             type: "object",
             required: ["previewUrl"],
             properties: {
-              previewUrl: { type: ["string", "null"] },
+              previewUrl: { anyOf: [{ type: "string" }, { type: "null" }] },
             },
             additionalProperties: false,
           },

@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "VITE_CJS_IGNORE_WARNING=true vitest",
     "test:run": "VITE_CJS_IGNORE_WARNING=true vitest run",
+    "openapi:export": "tsx src/scripts/export-public-openapi.ts --out-dir ../../.tmp/openapi",
     "docs:adapter-runbooks": "node scripts/check-adapter-runbooks.mjs",
     "crawler:tick": "node dist/scripts/crawler-heartbeat.js",
     "backfill:cc": "tsx src/scripts/backfill-cc-cache.ts"
@@ -23,7 +24,6 @@
     "@fastify/sensible": "^6.0.4",
     "@fastify/swagger": "^9.7.0",
     "@musiccloud/shared": "workspace:*",
-    "@scalar/core": "0.3.45",
     "bcryptjs": "^3.0.3",
     "creem": "^1.5.3",
     "drizzle-orm": "^0.45.1",

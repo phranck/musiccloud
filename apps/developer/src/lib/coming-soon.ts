@@ -4,9 +4,9 @@
  *
  * Served by `src/middleware.ts` for EVERY request while the `COMING_SOON`
  * environment flag is on, so the unfinished portal is fully sealed off in
- * production. It is deliberately self-contained (inline CSS, fonts from the
- * Google Fonts CDN, no same-origin assets) so the middleware can answer every
- * route, including asset and API paths, without leaking any real portal page.
+ * production. Its only same-origin dependency is the public runtime theme;
+ * the middleware permits that CSS file while continuing to seal app and API
+ * routes.
  *
  * Styling mirrors `src/styles/global.css` (the night-mode tokens) and the
  * `Wordmark` component, so the maintenance page looks like the live portal.
@@ -30,8 +30,6 @@ export const COMING_SOON_HTML = `<!doctype html>
       content="Public API access and developer tools for musiccloud are on the way. Build music-sharing experiences on the musiccloud platform."
     />
     <link rel="canonical" href="https://developer.musiccloud.io/" />
-    <meta name="theme-color" content="#08090b" />
-
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="musiccloud" />
     <meta property="og:title" content="musiccloud for developers · coming soon" />
@@ -55,6 +53,7 @@ export const COMING_SOON_HTML = `<!doctype html>
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="/developer-theme.css" />
     <link
       href="https://fonts.googleapis.com/css2?family=Audiowide&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@400;500;600&display=swap"
       rel="stylesheet"
@@ -66,38 +65,6 @@ export const COMING_SOON_HTML = `<!doctype html>
       data-website-id="bb2ed9b3-7601-499e-97fa-c3c98a86a67b"
     ></script>
     <style>
-      :root {
-        --sky-top: #08090b;
-        --sky-bottom: #1a1c22;
-        --fg: #ececf1;
-        --fg-muted: #9fb0bc;
-        --fg-subtle: #67676f;
-        --surface: rgba(255, 255, 255, 0.045);
-        --border: rgba(255, 255, 255, 0.09);
-        --border-strong: rgba(255, 255, 255, 0.16);
-        --accent: #28a8d8;
-        --accent-hover: #45bfe8;
-
-        --rainbow: linear-gradient(
-          90deg,
-          #ff6699 0%,
-          #9966ff 14%,
-          #4d99ff 28%,
-          #00cce6 42%,
-          #00e6b3 57%,
-          #80e64d 71%,
-          #e6e64d 85%,
-          #ffb34d 100%
-        );
-        --suffix-fade: linear-gradient(90deg, var(--fg) 0%, var(--fg-subtle) 100%);
-
-        --font-sans: "Barlow", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-        --font-condensed: "Barlow Condensed", "Barlow", sans-serif;
-        --font-logo: "Audiowide", var(--font-sans);
-
-        --radius-button: 0.5rem;
-      }
-
       * {
         box-sizing: border-box;
       }
@@ -110,12 +77,16 @@ export const COMING_SOON_HTML = `<!doctype html>
 
       body {
         min-height: 100vh;
-        font-family: var(--font-sans);
-        color: var(--fg);
-        background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-bottom) 100%);
+        font-family: var(--mc-font-sans);
+        color: var(--mc-color-fg);
+        background: linear-gradient(180deg, var(--mc-color-sky-top) 0%, var(--mc-color-sky-bottom) 100%);
         background-image:
-          radial-gradient(120% 55% at 50% -8%, color-mix(in srgb, var(--accent), transparent 86%) 0%, transparent 60%),
-          linear-gradient(180deg, var(--sky-top) 0%, var(--sky-bottom) 100%);
+          radial-gradient(
+            120% 55% at 50% -8%,
+            color-mix(in srgb, var(--mc-color-accent), transparent 86%) 0%,
+            transparent 60%
+          ),
+          linear-gradient(180deg, var(--mc-color-sky-top) 0%, var(--mc-color-sky-bottom) 100%);
         background-attachment: fixed;
         display: flex;
         flex-direction: column;
@@ -123,14 +94,16 @@ export const COMING_SOON_HTML = `<!doctype html>
       }
 
       .shell {
+        --maintenance-title-size: 5.5rem;
+        --maintenance-copy-size: 1.25rem;
         flex: 1;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         text-align: center;
-        padding: 3rem 1.5rem;
-        gap: 2rem;
+        padding: var(--mc-space-page-top) var(--mc-space-page-inline);
+        gap: var(--mc-space-8);
       }
 
       .text-gradient {
@@ -142,54 +115,54 @@ export const COMING_SOON_HTML = `<!doctype html>
       .wordmark {
         display: inline-flex;
         align-items: baseline;
-        gap: 0.5rem;
-        font-size: clamp(1.6rem, 4vw, 2.1rem);
+        gap: var(--mc-space-2);
+        font-size: var(--mc-text-section);
         line-height: 1;
-        animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+        animation: rise var(--mc-motion-duration-entrance) var(--mc-motion-easing-emphasized) both;
       }
 
       .wordmark .brand {
-        font-family: var(--font-logo);
+        font-family: var(--mc-font-logo);
         font-weight: 400;
-        background-image: var(--rainbow);
+        background-image: var(--mc-gradient-logo-rainbow);
       }
 
       .wordmark .suffix {
-        font-family: var(--font-condensed);
+        font-family: var(--mc-font-condensed);
       }
 
       .wordmark .suffix .slash {
-        color: var(--fg);
+        color: var(--mc-color-fg);
         font-weight: 600;
       }
 
       .wordmark .suffix .word {
         font-weight: 400;
-        background-image: var(--suffix-fade);
+        background-image: var(--mc-gradient-logo-suffix);
       }
 
       .rule {
-        width: clamp(120px, 22vw, 220px);
+        width: min(13.75rem, 45vw);
         height: 2px;
         border-radius: 2px;
-        background-image: var(--rainbow);
+        background-image: var(--mc-gradient-logo-rainbow);
         opacity: 0.9;
-        animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.05s both;
+        animation: rise var(--mc-motion-duration-entrance) var(--mc-motion-easing-emphasized) 50ms both;
       }
 
       .hero {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 1.1rem;
-        animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+        gap: var(--mc-space-4);
+        animation: rise var(--mc-motion-duration-entrance) var(--mc-motion-easing-emphasized) 120ms both;
       }
 
       .hero h1 {
         margin: 0;
-        font-family: var(--font-condensed);
+        font-family: var(--mc-font-condensed);
         font-weight: 600;
-        font-size: clamp(2.75rem, 9vw, 5.5rem);
+        font-size: var(--maintenance-title-size);
         line-height: 0.95;
         letter-spacing: 0.01em;
       }
@@ -197,80 +170,80 @@ export const COMING_SOON_HTML = `<!doctype html>
       .hero p {
         margin: 0;
         max-width: 34rem;
-        font-size: clamp(1.05rem, 2.4vw, 1.25rem);
+        font-size: var(--maintenance-copy-size);
         line-height: 1.55;
-        color: var(--fg-muted);
+        color: var(--mc-color-fg-muted);
       }
 
       .actions {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.75rem;
+        gap: var(--mc-space-3);
         justify-content: center;
-        animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+        animation: rise var(--mc-motion-duration-entrance) var(--mc-motion-easing-emphasized) 200ms both;
       }
 
       .btn {
         display: inline-flex;
         align-items: center;
-        gap: 0.5rem;
-        padding: 0.7rem 1.15rem;
-        border-radius: var(--radius-button);
-        font-family: var(--font-condensed);
+        gap: var(--mc-space-2);
+        min-height: var(--mc-size-control);
+        padding: var(--mc-space-2) var(--mc-space-5);
+        border-radius: var(--mc-radius-control);
+        font-family: var(--mc-font-condensed);
         font-weight: 500;
         font-size: 1.05rem;
         letter-spacing: 0.01em;
-        border: 1px solid var(--border);
-        background: var(--surface);
-        color: var(--fg);
+        border: 1px solid var(--mc-color-border);
+        background: var(--mc-color-surface);
+        color: var(--mc-color-fg);
         text-decoration: none;
         transition:
-          border-color 0.15s ease,
-          background 0.15s ease,
-          transform 0.15s ease;
+          border-color var(--mc-motion-duration-normal) var(--mc-motion-easing-standard),
+          background var(--mc-motion-duration-normal) var(--mc-motion-easing-standard),
+          transform var(--mc-motion-duration-normal) var(--mc-motion-easing-standard);
       }
 
       .btn:hover {
-        border-color: var(--border-strong);
-        background: rgba(255, 255, 255, 0.07);
+        border-color: var(--mc-color-border-strong);
+        background: color-mix(in srgb, var(--mc-color-fg) 7%, transparent);
         transform: translateY(-1px);
       }
 
       .btn.primary {
-        border-color: color-mix(in srgb, var(--accent), transparent 45%);
-        background: color-mix(in srgb, var(--accent), transparent 82%);
-        color: var(--accent-hover);
+        border-color: color-mix(in srgb, var(--mc-color-accent), transparent 45%);
+        background: color-mix(in srgb, var(--mc-color-accent), transparent 82%);
+        color: var(--mc-color-accent-hover);
       }
 
       .btn.primary:hover {
-        border-color: var(--accent);
-        background: color-mix(in srgb, var(--accent), transparent 72%);
+        border-color: var(--mc-color-accent);
+        background: color-mix(in srgb, var(--mc-color-accent), transparent 72%);
       }
 
       .dot {
-        width: 8px;
-        height: 8px;
+        width: var(--mc-space-2);
+        height: var(--mc-space-2);
         border-radius: 50%;
-        background: #00e6b3;
-        box-shadow: 0 0 10px 1px color-mix(in srgb, #00e6b3, transparent 40%);
+        background: var(--mc-color-success);
+        box-shadow: 0 0 10px 1px color-mix(in srgb, var(--mc-color-success), transparent 40%);
       }
 
       footer {
-        padding: 1.5rem;
+        padding: var(--mc-space-6);
         text-align: center;
-        color: var(--fg-subtle);
+        color: var(--mc-color-fg-subtle);
         font-size: 0.9rem;
       }
 
       footer a {
-        color: var(--fg-muted);
+        color: var(--mc-color-fg-muted);
         text-decoration: none;
       }
 
       footer a:hover {
-        color: var(--fg);
-        text-decoration: underline;
-        text-underline-offset: 3px;
+        color: var(--mc-color-fg);
+        background: var(--mc-color-surface);
       }
 
       @keyframes rise {
@@ -287,6 +260,17 @@ export const COMING_SOON_HTML = `<!doctype html>
       @media (prefers-reduced-motion: reduce) {
         * {
           animation: none !important;
+        }
+      }
+
+      @media (max-width: 40rem) {
+        .shell {
+          --maintenance-title-size: 2.75rem;
+          --maintenance-copy-size: 1.05rem;
+        }
+
+        .wordmark {
+          font-size: var(--mc-text-card-title);
         }
       }
     </style>

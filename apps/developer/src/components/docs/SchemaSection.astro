@@ -1,0 +1,48 @@
+---
+/**
+ * Renders reachable OpenAPI schemas as escaped JSON.
+ *
+ * The schema object comes from the already validated reference model. Rendering
+ * it as JSON keeps the first implementation honest and avoids inventing a
+ * partial schema UI that could hide required fields or enum values.
+ */
+import CodeBlock from "@/components/docs/CodeBlock.astro";
+import OpenApiMarkdown from "@/components/docs/OpenApiMarkdown.astro";
+import { ContentCard } from "@/components/docs/ContentCard";
+import type { ApiSchema } from "@/lib/openapi-reference";
+
+interface Props {
+  schema: ApiSchema;
+}
+
+const { schema } = Astro.props;
+---
+
+<div
+  data-api-search-entry
+  data-api-search-group="Schemas"
+  data-api-search-title={schema.name}
+  data-api-search-addon="Schema"
+  data-api-search-kind="schema"
+  data-api-search-target={schema.anchor}
+>
+  <h3
+    id={schema.anchor}
+    tabindex="-1"
+    class="api-reference-content-heading text-subsection font-medium tracking-tight mb-4 scroll-mt-8"
+  >
+    {schema.name}
+  </h3>
+  <ContentCard className="mb-6" aria-labelledby={schema.anchor}>
+  <ContentCard.Header>
+    <ContentCard.Title>JSON schema</ContentCard.Title>
+  </ContentCard.Header>
+  <ContentCard.Body>
+    {schema.description && <OpenApiMarkdown content={schema.description} className="text-body text-fg-muted mb-4" />}
+    <CodeBlock language="json" code={JSON.stringify(schema.schema, null, 2)} />
+  </ContentCard.Body>
+  <ContentCard.Footer>
+    <span class="font-mono text-code text-fg-muted">{schema.name}</span>
+  </ContentCard.Footer>
+  </ContentCard>
+</div>

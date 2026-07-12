@@ -57,10 +57,10 @@ const steps = [
 >
   <PublicHeader account={account} active="docs" />
 
-  <main class="flex-1 max-w-6xl mx-auto w-full px-6 pt-12 pb-20">
-    <div class="flex items-center gap-3 mb-5">
-      <BookIcon className="size-9 text-accent" aria-hidden="true" />
-      <h1 class="text-hero font-medium tracking-tight leading-none">Documentation</h1>
+  <main class="developer-shell developer-page flex-1">
+    <div class="page-heading">
+      <BookIcon className="page-heading__icon" aria-hidden="true" />
+      <h1 class="page-heading__title">Documentation</h1>
     </div>
     <p class="text-lead text-fg-muted mb-10">
       The musiccloud API turns a single music link into every platform. Resolve a track or album from one
@@ -68,28 +68,34 @@ const steps = [
       Creative Commons catalogue. All of it runs over one REST API.
     </p>
 
-    <section class="rounded-card border border-border bg-surface px-7 py-7 mb-6">
+    <section class="surface-card px-7 py-7 mb-6">
       <h2 class="text-card-title font-medium tracking-tight mb-2">What you can build</h2>
       <p class="text-body text-fg-muted mb-5">
         One key gives you three capabilities, each a JSON REST endpoint:
       </p>
       <ul class="grid grid-cols-1 gap-3">
-        <li class="flex items-start gap-3">
-          <LinkIcon className="size-6 text-accent shrink-0 mt-0.5" aria-hidden="true" />
+        <li class="icon-text-first-line gap-3">
+          <span class="icon-text-first-line__icon">
+            <LinkIcon className="size-6 text-accent" aria-hidden="true" />
+          </span>
           <span class="text-body text-fg-muted">
             <span class="text-fg font-medium">Link resolve.</span> Match a track, album, or artist from one
             streaming service to the same release everywhere else.
           </span>
         </li>
-        <li class="flex items-start gap-3">
-          <BookIcon className="size-6 text-accent shrink-0 mt-0.5" aria-hidden="true" />
+        <li class="icon-text-first-line gap-3">
+          <span class="icon-text-first-line__icon">
+            <BookIcon className="size-6 text-accent" aria-hidden="true" />
+          </span>
           <span class="text-body text-fg-muted">
             <span class="text-fg font-medium">Artist info.</span> Top tracks, similar artists, and upcoming
             events for any matched artist.
           </span>
         </li>
-        <li class="flex items-start gap-3">
-          <KeyIcon className="size-6 text-accent shrink-0 mt-0.5" aria-hidden="true" />
+        <li class="icon-text-first-line gap-3">
+          <span class="icon-text-first-line__icon">
+            <KeyIcon className="size-6 text-accent" aria-hidden="true" />
+          </span>
           <span class="text-body text-fg-muted">
             <span class="text-fg font-medium">Creative Commons.</span> Search and resolve the free-to-use
             Jamendo catalogue for tracks you can use openly.
@@ -98,7 +104,7 @@ const steps = [
       </ul>
     </section>
 
-    <section class="rounded-card border border-border bg-surface px-7 py-7 mb-6">
+    <section class="surface-card px-7 py-7 mb-6">
       <h2 class="text-card-title font-medium tracking-tight mb-2">Getting started</h2>
       <p class="text-body text-fg-muted mb-6">Four steps take you from zero to your first call.</p>
       <ol class="grid grid-cols-1 gap-4">
@@ -111,8 +117,10 @@ const steps = [
                   {index + 1}
                 </span>
                 <div>
-                  <div class="flex items-center gap-2 mb-0.5">
-                    <Icon className="size-5 text-accent" aria-hidden="true" />
+                  <div class="icon-text-first-line gap-2 mb-0.5">
+                    <span class="icon-text-first-line__icon">
+                      <Icon className="size-5 text-accent" aria-hidden="true" />
+                    </span>
                     <h3 class="text-body font-medium text-fg">{step.title}</h3>
                   </div>
                   <p class="text-body text-fg-muted">{step.body}</p>
@@ -124,22 +132,22 @@ const steps = [
       </ol>
       <p class="text-body text-fg-subtle mt-6">
         The whole flow is self-service: request access, receive your key, and manage it, all from{" "}
-        <a href="/dashboard" class="text-fg text-link">your dashboard</a>. The API is free while we build it
-        out; see <a href="/pricing" class="text-fg text-link">pricing</a> for our written commitment.
+        <a href="/dashboard" class="content-link text-fg">your dashboard</a>. The API is free while we build it
+        out; see <a href="/pricing" class="content-link text-fg">pricing</a> for our written commitment.
       </p>
     </section>
 
     <div class="flex flex-wrap gap-3">
       <a
         href="/docs/api"
-        class="inline-flex items-center gap-2 rounded-button bg-accent text-on-accent px-5 py-2.5 text-body font-medium"
+        class="button button--primary text-body"
       >
         <BookIcon className="size-6" aria-hidden="true" />
-        API reference
+        Open generated API reference
       </a>
       <a
         href="/signup"
-        class="inline-flex items-center gap-2 rounded-button border border-border-strong px-5 py-2.5 text-body font-medium"
+        class="button button--secondary text-body"
       >
         <KeyIcon className="size-6" aria-hidden="true" />
         Create an account

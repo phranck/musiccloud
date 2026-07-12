@@ -7,9 +7,9 @@ import { SmsIcon, TickCircleIcon, Warning2Icon } from "@/lib/icons";
  * the visual lookup stays separate from the tone literal namespace.
  */
 const TONE_STYLE = {
-  [AuthStatusTone.Success]: { Icon: TickCircleIcon, iconClass: "text-accent" },
-  [AuthStatusTone.Info]: { Icon: SmsIcon, iconClass: "text-accent" },
-  [AuthStatusTone.Error]: { Icon: Warning2Icon, iconClass: "text-red-400" },
+  [AuthStatusTone.Success]: { Icon: TickCircleIcon, iconClass: "text-success" },
+  [AuthStatusTone.Info]: { Icon: SmsIcon, iconClass: "text-info" },
+  [AuthStatusTone.Error]: { Icon: Warning2Icon, iconClass: "text-danger" },
 } as const;
 
 /**

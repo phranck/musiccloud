@@ -21,9 +21,9 @@ interface Props {
 const { class: className } = Astro.props;
 ---
 
-<a href="/" class:list={["flex items-baseline gap-2", className]}>
+<a href="/" class:list={["wordmark flex items-baseline gap-2", className]}>
   <span class="text-gradient text-logo-rainbow text-wordmark font-normal">musiccloud</span>
-  <span class="text-wordmark font-condensed">
+  <span class="wordmark__context text-wordmark font-condensed">
     <span class="text-fg font-semibold">/</span>
     <span class="text-gradient text-logo-suffix font-normal">developer</span>
   </span>

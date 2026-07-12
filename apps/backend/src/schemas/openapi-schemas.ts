@@ -462,6 +462,126 @@ export const UnifiedResolveSuccessSchema = {
   oneOf: [{ $ref: "TrackResolveSuccess#" }, { $ref: "AlbumResolveSuccess#" }, { $ref: "ArtistResolveSuccess#" }],
 } as const;
 
+export const GenreTrackCandidateSchema = {
+  $id: "GenreTrackCandidate",
+  type: "object",
+  description: "Track row returned by a genre-search query.",
+  required: ["id", "title", "artists", "webUrl"],
+  additionalProperties: false,
+  properties: {
+    id: { type: "string" },
+    title: { type: "string" },
+    artists: { type: "array", items: { type: "string" } },
+    albumName: { type: "string" },
+    artworkUrl: { type: "string" },
+    durationMs: { type: "number" },
+    webUrl: { type: "string" },
+  },
+} as const;
+
+export const GenreAlbumCandidateSchema = {
+  $id: "GenreAlbumCandidate",
+  type: "object",
+  description: "Album row returned by a genre-search query.",
+  required: ["id", "title", "artists", "webUrl"],
+  additionalProperties: false,
+  properties: {
+    id: { type: "string" },
+    title: { type: "string" },
+    artists: { type: "array", items: { type: "string" } },
+    artworkUrl: { type: "string" },
+    webUrl: { type: "string" },
+  },
+} as const;
+
+export const GenreArtistCandidateSchema = {
+  $id: "GenreArtistCandidate",
+  type: "object",
+  description: "Artist row returned by a genre-search query.",
+  required: ["id", "name", "webUrl"],
+  additionalProperties: false,
+  properties: {
+    id: { type: "string" },
+    name: { type: "string" },
+    imageUrl: { type: "string" },
+    webUrl: { type: "string" },
+  },
+} as const;
+
+export const GenreTileSchema = {
+  $id: "GenreTile",
+  type: "object",
+  description: "A single genre tile in the browse grid.",
+  required: ["name", "displayName", "artworkUrl"],
+  additionalProperties: false,
+  properties: {
+    name: { type: "string" },
+    displayName: { type: "string" },
+    artworkUrl: { type: "string" },
+    accentColor: { type: "string" },
+  },
+} as const;
+
+export const GenreSearchResponseSchema = {
+  $id: "GenreSearchResponse",
+  type: "object",
+  description: "Genre-discovery response produced when a resolve query starts with `genre:`.",
+  required: ["status", "query", "results", "warnings"],
+  additionalProperties: false,
+  properties: {
+    status: { type: "string", enum: ["genre-search"] },
+    query: {
+      type: "object",
+      required: ["genres", "vibe", "tracks", "albums", "artists"],
+      additionalProperties: false,
+      properties: {
+        genres: { type: "array", items: { type: "string" } },
+        vibe: { type: "string", enum: ["hot", "mixed"] },
+        tracks: { anyOf: [{ type: "number" }, { type: "null" }] },
+        albums: { anyOf: [{ type: "number" }, { type: "null" }] },
+        artists: { anyOf: [{ type: "number" }, { type: "null" }] },
+      },
+    },
+    results: {
+      type: "object",
+      required: ["tracks", "albums", "artists"],
+      additionalProperties: false,
+      properties: {
+        tracks: { anyOf: [{ type: "array", items: { $ref: "GenreTrackCandidate#" } }, { type: "null" }] },
+        albums: { anyOf: [{ type: "array", items: { $ref: "GenreAlbumCandidate#" } }, { type: "null" }] },
+        artists: { anyOf: [{ type: "array", items: { $ref: "GenreArtistCandidate#" } }, { type: "null" }] },
+      },
+    },
+    warnings: { type: "array", items: { type: "string" } },
+  },
+} as const;
+
+export const GenreBrowseResponseSchema = {
+  $id: "GenreBrowseResponse",
+  type: "object",
+  description: "Genre browse-grid response produced when the query is exactly `genre:?`.",
+  required: ["status", "genres"],
+  additionalProperties: false,
+  properties: {
+    status: { type: "string", enum: ["genre-browse"] },
+    genres: { type: "array", items: { $ref: "GenreTile#" } },
+  },
+} as const;
+
+export const CcResolveSuccessSchema = {
+  $id: "CcResolveSuccess",
+  type: "object",
+  description:
+    "Resolved Creative Commons payload. The `type` discriminator selects `cc-track`, `cc-album`, or `cc-artist`; entity-specific Jamendo fields pass through as additional properties.",
+  required: ["type", "id", "shortUrl"],
+  additionalProperties: true,
+  properties: {
+    type: { type: "string", enum: ["cc-track", "cc-album", "cc-artist"] },
+    id: { type: "string" },
+    shortUrl: { type: "string" },
+  },
+} as const;
+
 export const OgMetaSchema = {
   $id: "OgMeta",
   type: "object",
@@ -981,6 +1101,13 @@ export const OPENAPI_SCHEMAS = [
   AlbumResolveSuccessSchema,
   ArtistResolveSuccessSchema,
   UnifiedResolveSuccessSchema,
+  GenreTrackCandidateSchema,
+  GenreAlbumCandidateSchema,
+  GenreArtistCandidateSchema,
+  GenreTileSchema,
+  GenreSearchResponseSchema,
+  GenreBrowseResponseSchema,
+  CcResolveSuccessSchema,
   SharePageSchema,
   ArtistTopTrackSchema,
   ArtistProfileSchema,

@@ -8,7 +8,7 @@
  * | Decorator              | Consumer                          | Credential                                  |
  * | ---------------------- | --------------------------------- | ------------------------------------------- |
  * | `authenticateInternal`  | Astro SSR frontend BFF proxy      | `X-API-Key` header matching `INTERNAL_API_KEY` |
- * | `authenticatePublic`    | Public API clients + frontend BFF | `X-API-Key` (internal key **or** issued `UUID v4` token) **or** `Authorization: Bearer <JWT>` |
+ * | `authenticatePublic`    | Public API clients + frontend BFF | `X-API-Key` (internal key **or** issued `mc_live_…` token) |
  * | `authenticateAdmin`     | Admin dashboard                   | `Authorization: Bearer <JWT>` with `role: "admin"` claim |
  * | `authenticateDeveloper` | developer.musiccloud.io portal    | `mc_dev_session` httpOnly cookie carrying a `kind: "developer"` JWT |
  *
@@ -60,10 +60,10 @@ declare module "fastify" {
   interface FastifyRequest {
     /**
      * The resolved API client, set by {@link FastifyInstance.authenticatePublic}
-     * when the request authenticated with an issued `UUID v4` token
+     * when the request authenticated with an issued `mc_live_…` token
      * (MC-088). Routes use it to skip the per-IP `apiRateLimiter` (the
      * request's identity is the client, which already carries its own
-     * per-client quota). Absent for BFF-key, Bearer-JWT, and anonymous
+     * per-client quota). Absent for BFF-key and anonymous
      * requests.
      */
     apiClient?: ApiClient;
@@ -116,12 +116,12 @@ async function authPlugin(app: FastifyInstance) {
   });
 
   /**
-   * Multi-credential authentication for public API endpoints.
+   * API-key authentication for public API endpoints.
    *
-   * Accepts one of three credentials, checked in this order:
+   * Accepts one of two credentials, checked in this order:
    * 1. **`X-API-Key`** matching `INTERNAL_API_KEY` — used by the frontend BFF
    *    proxy so it can hit the same public routes an external client would.
-   * 2. **`X-API-Key`** carrying an issued **`UUID v4` API-access token**
+   * 2. **`X-API-Key`** carrying an issued **`mc_live_…` API-access token**
    *    (MC-088). Validated by SHA-256 hash against `api_client_tokens`; the
    *    token and its owning client must both be `"active"`. On success the
    *    client is attached as `request.apiClient`, the token's `lastUsedAt`
@@ -130,17 +130,13 @@ async function authPlugin(app: FastifyInstance) {
    *    route in the `authenticatePublic` scope is covered without per-route
    *    wiring. Effective means per-key override ?? account tier limit ??
    *    conservative fallback (MC-100), resolved by the repository.
-   * 3. **`Authorization: Bearer <JWT>`** — for OAuth client-credentials
-   *    consumers. Verified via `request.jwtVerify()` (provided by
-   *    `@fastify/jwt`).
-   *
    * Response matrix:
    * - missing all credentials → `401 UNAUTHORIZED` ("Authentication required.")
-   * - `UUID v4` key unknown/revoked/rotated, or client suspended/revoked →
+   * - malformed, unknown, revoked, rotated, or stale UUID-shaped key; or
+   *   client suspended/revoked →
    *   `401 UNAUTHORIZED` (one shape for every miss, so existence is not leaked)
-   * - `UUID v4` key valid but per-client quota exhausted → `429` with the
+   * - valid key but per-client quota exhausted → `429` with the
    *   standard `MC-API-0003` envelope and `Retry-After`
-   * - Bearer token present but invalid/expired → `401 UNAUTHORIZED`
    * - any credential valid → pass-through (no reply sent)
    *
    * @param request - incoming request; `x-api-key` and `authorization` headers are read,
@@ -154,7 +150,7 @@ async function authPlugin(app: FastifyInstance) {
       return;
     }
 
-    // Issued developer token (UUID v4) — hash lookup + per-client quotas.
+    // Issued developer token — hash lookup + per-client quotas.
     if (typeof apiKey === "string" && looksLikeApiAccessToken(apiKey)) {
       const repo = await getApiAccessRepository();
       const resolved = await repo.findActiveApiClientByTokenHash(hashApiToken(apiKey));
@@ -181,17 +177,6 @@ async function authPlugin(app: FastifyInstance) {
         return sendRateLimitError(reply, dayCheck);
       }
       return;
-    }
-
-    // Check Bearer JWT
-    const authHeader = request.headers.authorization;
-    if (authHeader?.startsWith("Bearer ")) {
-      try {
-        await request.jwtVerify();
-        return;
-      } catch {
-        return reply.status(401).send({ error: "UNAUTHORIZED", message: "Invalid or expired token." });
-      }
     }
 
     return reply.status(401).send({ error: "UNAUTHORIZED", message: "Authentication required." });

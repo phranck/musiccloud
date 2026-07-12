@@ -16,41 +16,38 @@ afterAll(async () => {
 });
 
 describe("OpenAPI docs", () => {
-  it("serves Scalar API reference at /docs", async () => {
+  it("redirects the retired backend reference to the Developer Portal", async () => {
     const res = await app.inject({ method: "GET", url: "/docs" });
-    const html = res.body;
 
-    expect(res.statusCode).toBe(200);
-    expect(res.headers["cache-control"]).toBe("no-store");
-    expect(res.headers["content-security-policy"]).toContain("cdn.jsdelivr.net");
-    expect(res.headers["content-security-policy"]).toContain("https://api.musiccloud.io");
-    expect(html).toContain("Scalar.createApiReference");
-    expect(html).toContain('"url": "/docs/json"');
-    expect(html).toContain('"theme": "none"');
-    expect(html).toContain('"hideDarkModeToggle": false');
-    expect(html).toContain('"withDefaultFonts": false');
-    expect(html).toContain('@import url("/fonts/fonts.css")');
-    expect(html).toContain("--scalar-color-accent: #259dff");
-    expect(html).toContain("--lmaa-doc-header-height: 56px");
-    expect(html).toContain('content: "musiccloud API"');
-    expect(html).toContain("musiccloud.io");
-    expect(html).not.toContain("Redoc.init");
-    expect(html).not.toContain("redoc.standalone.js");
-    expect(html).not.toContain("swagger-ui");
+    expect(res.statusCode).toBe(308);
+    expect(res.headers.location).toBe("https://developer.musiccloud.io/docs/api");
   });
 
-  it("serves local docs fonts referenced by the lmaa Scalar CSS", async () => {
-    const css = await app.inject({ method: "GET", url: "/fonts/fonts.css" });
-    const font = await app.inject({ method: "GET", url: "/fonts/barlow-condensed-600.woff2" });
+  it("serves the finalized public contract with a bounded public cache policy", async () => {
+    const res = await app.inject({ method: "GET", url: "/docs/json" });
+    const doc = res.json() as {
+      info: { version: string; description: string };
+      paths: Record<string, unknown>;
+      components: { securitySchemes: Record<string, unknown> };
+    };
 
-    expect(css.statusCode).toBe(200);
-    expect(css.headers["cache-control"]).toBe("public, max-age=31536000, immutable");
-    expect(css.body).toContain('font-family: "Barlow Condensed"');
-    expect(css.body).toContain("/fonts/barlow-condensed-600.woff2");
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["cache-control"]).toBe("public, max-age=300");
+    expect(doc.info.version).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(Object.keys(doc.paths)).not.toContain("/api/dev/api-access/clients");
+    expect(doc.components.securitySchemes).toHaveProperty("ApiKeyAuth");
+    expect(doc.components.securitySchemes).not.toHaveProperty("BearerAuth");
+    expect(doc.info.description).toContain("X-API-Key: mc_live_");
+    expect(doc.info.description).not.toContain("/api/auth/token");
+    expect(doc.info.description).not.toContain("client_credentials");
+  });
 
-    expect(font.statusCode).toBe(200);
-    expect(font.headers["content-type"]).toBe("font/woff2");
-    expect(Buffer.byteLength(font.body)).toBeGreaterThan(0);
+  it("does not expose the retired OAuth token route in the public contract", async () => {
+    const res = await app.inject({ method: "GET", url: "/docs/json" });
+    const doc = res.json() as { paths: Record<string, unknown> };
+
+    expect(res.statusCode).toBe(200);
+    expect(Object.keys(doc.paths)).not.toContain("/api/auth/token");
   });
 
   it("documents structured search completely on resolve endpoints", async () => {

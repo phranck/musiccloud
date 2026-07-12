@@ -1,0 +1,438 @@
+@layer properties, theme, base, components, utilities;
+
+/* Pricing's metallic glass signature, isolated from shared portal recipes.
+   Every material value derives from canonical tokens or the validated --tier input. */
+@layer components {
+  .pricing-page {
+    --pricing-card-radius: 1.5rem;
+    --pricing-card-padding: calc(var(--pricing-card-radius) * 2 / 3);
+    --pricing-card-top-padding: 4rem;
+    --pricing-motion-duration: var(--mc-motion-duration-slow);
+    --pricing-roll-duration: 420ms;
+    --pricing-roll-easing: cubic-bezier(0.34, 1.25, 0.5, 1);
+    --pricing-billing-radius: var(--mc-radius-card);
+    --pricing-billing-inset: 2px;
+    --pricing-billing-duration: 250ms;
+    --pricing-feature-list-width: 15rem;
+    --pricing-medal-size: 5rem;
+    --pricing-medal-overhang: -2.5rem;
+    --pricing-shadow-65: color-mix(in srgb, var(--color-sky-top) 65%, transparent);
+    --pricing-shadow-60: color-mix(in srgb, var(--color-sky-top) 60%, transparent);
+    --pricing-shadow-55: color-mix(in srgb, var(--color-sky-top) 55%, transparent);
+    --pricing-shadow-45: color-mix(in srgb, var(--color-sky-top) 45%, transparent);
+    --pricing-shadow-40: color-mix(in srgb, var(--color-sky-top) 40%, transparent);
+    --pricing-shadow-35: color-mix(in srgb, var(--color-sky-top) 35%, transparent);
+    --pricing-shadow-30: color-mix(in srgb, var(--color-sky-top) 30%, transparent);
+    --pricing-shadow-28: color-mix(in srgb, var(--color-sky-top) 28%, transparent);
+    --pricing-shadow-22: color-mix(in srgb, var(--color-sky-top) 22%, transparent);
+    --pricing-highlight-60: color-mix(in srgb, var(--color-on-accent) 60%, transparent);
+    --pricing-highlight-50: color-mix(in srgb, var(--color-on-accent) 50%, transparent);
+    --pricing-highlight-24: color-mix(in srgb, var(--color-on-accent) 24%, transparent);
+    --pricing-highlight-22: color-mix(in srgb, var(--color-on-accent) 22%, transparent);
+    --pricing-highlight-14: color-mix(in srgb, var(--color-on-accent) 14%, transparent);
+    --pricing-highlight-12: color-mix(in srgb, var(--color-on-accent) 12%, transparent);
+    --pricing-highlight-05: color-mix(in srgb, var(--color-on-accent) 5%, transparent);
+  }
+
+  /* Tier card: a soft glow in the tier colour bleeds down from the top,
+     echoing the medal above. Painted as a background-image over the glassy
+     `bg-surface`, clipped by the card's border-radius (no overflow:hidden, so
+     the medal can still overhang the top edge). `--tier` is set inline per
+     card and inherited by the medal. */
+  .tier-card {
+    /* Single source of truth for the card's rounded geometry: only
+       --pricing-card-radius is authored. Everything else derives from it, so
+       changing this one value re-proportions the whole card:
+         - horizontal + bottom padding = radius * 2/3
+         - CTA radius (concentric) = radius - padding = radius / 3
+       The top padding is a dedicated feature token: it clears the medal
+       overhang, which scales with the medal rather than the card radius. */
+    position: relative;
+    isolation: isolate;
+    border-radius: var(--pricing-card-radius);
+    padding-inline: var(--pricing-card-padding);
+    padding-top: var(--pricing-card-top-padding);
+    padding-bottom: var(--pricing-card-padding);
+    background-image: radial-gradient(
+      110% 46% at 50% 0%,
+      color-mix(in srgb, var(--tier), transparent 80%) 0%,
+      transparent 62%
+    );
+    transition:
+      transform var(--pricing-motion-duration) var(--mc-motion-easing-standard),
+      box-shadow var(--pricing-motion-duration) var(--mc-motion-easing-standard),
+      opacity var(--pricing-motion-duration) var(--mc-motion-easing-standard);
+  }
+
+  /* Stronger top glow revealed on hover: a second tier-coloured wash that fades
+     in over the resting glow (opacity is animatable; background-image is not).
+     Sits above the card's own background but below its content (z-index: -1
+     within the card's isolation context). */
+  .tier-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background-image: radial-gradient(
+      120% 52% at 50% 0%,
+      color-mix(in srgb, var(--tier), transparent 66%) 0%,
+      transparent 66%
+    );
+    opacity: 0;
+    transition: opacity var(--pricing-motion-duration) var(--mc-motion-easing-standard);
+    pointer-events: none;
+  }
+
+  /* Lift and subtly enlarge on hover, with a soft drop shadow to sell the
+     raise. Transform only, so it stays on the GPU compositor. */
+  .tier-card:hover {
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 20px 45px -15px var(--pricing-shadow-65);
+  }
+
+  .tier-card:hover::before {
+    opacity: 1;
+  }
+
+  /* Recommended-tier highlight + depth (pricing page). When exactly one tier is
+     recommended, each card carries `--depth` = its distance from the recommended
+     card (0 = the recommended card). The recommended card also gets a
+     `data-recommended` attribute. When none is recommended no card has `--depth`
+     and the cards render flat, unchanged. GPU only: transform + opacity. */
+
+  /* Front-of-stack highlight: a tier-coloured elevation glow marks the
+     recommended card at every breakpoint. The depth recede below is lg-only, so
+     on stacked mobile this glow plus the badge are the whole highlight. */
+  .tier-card[data-recommended] {
+    box-shadow: 0 18px 40px -16px color-mix(in srgb, var(--tier), transparent 42%);
+  }
+
+  /* "Recommended" pill, top-right of the card, in the tier colour. */
+  .tier-badge {
+    position: absolute;
+    top: var(--mc-space-3);
+    right: var(--mc-space-3);
+    z-index: 1;
+    border-radius: var(--radius-pill);
+    padding: 0.2rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--color-on-accent);
+    background: var(--tier);
+    box-shadow: 0 2px 6px -1px color-mix(in srgb, var(--tier), transparent 40%);
+  }
+
+  /* Depth recede only on the lg row (below lg the cards stack, so there is no
+     "further back"). Each step out from the recommended card scales down, drops,
+     fades and sinks in z; the recommended card (`--depth: 0`) stays at the
+     front. Hover pulls any card fully forward regardless of its depth. */
+  @media (min-width: 64rem) {
+    .tier-card[style*="--depth"] {
+      transform: translateY(calc(var(--depth) * 0.55rem)) scale(calc(1 - var(--depth) * 0.055));
+      opacity: calc(1 - var(--depth) * 0.11);
+      z-index: calc(10 - var(--depth));
+    }
+
+    .tier-card[style*="--depth"]:hover {
+      transform: translateY(-6px) scale(1.03);
+      opacity: 1;
+      z-index: 20;
+    }
+  }
+
+  /* Inactive-tier notice box: its radius rides the same concentric cascade as
+     the card, so it stays parallel to the corners (card radius minus padding). */
+  .tier-notice {
+    border-radius: calc(var(--pricing-card-radius) - var(--pricing-card-padding));
+  }
+
+  /* Tier medal (pricing cards): a metallic, beveled badge in the tier colour.
+     `--tier` is set inline per card; every shade derives from it via
+     color-mix, so one hex drives the whole material. Two layers: the outer
+     ring (this element, the raised metal rim) and the recessed inner face
+     (.tier-medal-face) that holds the icon. */
+  .tier-medal {
+    position: absolute;
+    top: var(--pricing-medal-overhang);
+    left: 50%;
+    display: flex;
+    width: var(--pricing-medal-size);
+    height: var(--pricing-medal-size);
+    transform: translateX(-50%);
+    border-radius: var(--radius-round);
+    padding: var(--mc-space-1);
+    background: linear-gradient(
+      150deg,
+      color-mix(in srgb, var(--tier), var(--color-on-accent) 42%) 0%,
+      var(--tier) 46%,
+      color-mix(in srgb, var(--tier), var(--color-sky-top) 46%) 100%
+    );
+    box-shadow:
+      inset 0 1px 1px color-mix(in srgb, var(--tier), var(--color-on-accent) 75%),
+      inset 0 -2px 4px color-mix(in srgb, var(--tier), var(--color-sky-top) 55%),
+      0 9px 20px -5px var(--pricing-shadow-60),
+      0 2px 5px var(--pricing-shadow-45);
+  }
+
+  /* Recessed inner disc: darker dish that seats the icon, with its own bevel
+     and a soft specular sheen from the top-left. */
+  .tier-medal-face {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    border-radius: var(--radius-round);
+    background: linear-gradient(
+      150deg,
+      color-mix(in srgb, var(--tier), var(--color-on-accent) 14%) 0%,
+      color-mix(in srgb, var(--tier), var(--color-sky-top) 24%) 100%
+    );
+    box-shadow:
+      inset 0 2px 3px color-mix(in srgb, var(--tier), var(--color-sky-top) 48%),
+      inset 0 -1px 1px color-mix(in srgb, var(--tier), var(--color-on-accent) 32%);
+  }
+
+  /* Glassy finish: a broad convex top gloss (cabochon highlight) reading as
+     light through glass, plus a sharp specular glint upper-left. Both sit
+     above the icon so the medal looks like polished glass, not matte metal. */
+  .tier-medal-face::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      to bottom,
+      var(--pricing-highlight-50) 0%,
+      var(--pricing-highlight-14) 40%,
+      transparent 54%
+    );
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .tier-medal-face::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(38% 26% at 32% 20%, var(--pricing-highlight-60), transparent 62%);
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  /* The icon reads as embossed metal under the glass: full-strength var(--color-on-accent) with
+     a drop shadow, below the gloss. Overrides the dimmed Bulk layer. */
+  .tier-medal-face svg {
+    position: relative;
+    z-index: 1;
+    filter: drop-shadow(0 1px 1.5px var(--pricing-shadow-40));
+  }
+
+  .tier-medal-face .mc-icon path[opacity] {
+    opacity: 0.68;
+  }
+
+  /* Tier CTA button: shares the medal's material so the card's call-to-action
+     reads as the same raised, glassy metal in the tier colour, adapted from a
+     disc to a wide rounded pill. Same color-mix shading, bevel and gloss/glint
+     as .tier-medal; `--tier` is inherited from the card. */
+  .tier-cta {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    /* Concentric with the card: card radius minus the card's padding inset, so
+       the CTA's corners stay parallel to the card's rounded corners. */
+    border-radius: calc(var(--pricing-card-radius) - var(--pricing-card-padding));
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--tier), var(--color-on-accent) 16%) 0%,
+      var(--tier) 58%,
+      color-mix(in srgb, var(--tier), var(--color-sky-top) 20%) 100%
+    );
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--tier), var(--color-on-accent) 40%),
+      inset 0 -1px 1px color-mix(in srgb, var(--tier), var(--color-sky-top) 28%),
+      0 2px 6px -2px var(--pricing-shadow-40),
+      0 1px 2px var(--pricing-shadow-28);
+    transition:
+      transform var(--mc-motion-duration-normal) var(--mc-motion-easing-standard),
+      box-shadow var(--mc-motion-duration-normal) var(--mc-motion-easing-standard);
+  }
+
+  /* Shallow top sheen, a toned-down echo of .tier-medal-face::before: fades
+     out quickly so the button reads as lightly polished, not domed glass. */
+  .tier-cta::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      to bottom,
+      var(--pricing-highlight-24) 0%,
+      var(--pricing-highlight-05) 42%,
+      transparent 58%
+    );
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  /* Faint upper-left glint, a restrained version of .tier-medal-face::after. */
+  .tier-cta::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(60% 70% at 28% 10%, var(--pricing-highlight-22), transparent 62%);
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  /* The label reads as embossed metal beneath the sheen: var(--color-on-accent) with a soft
+     drop shadow, below the gloss layers so light glides over it. */
+  .tier-cta-label {
+    position: relative;
+    z-index: 1;
+    color: var(--color-on-accent);
+    text-shadow: 0 1px 2px var(--pricing-shadow-35);
+  }
+
+  /* Raised-metal interactivity: a small lift and slightly deeper shadow on
+     hover, pressing into a shallow recessed bevel on active. */
+  .tier-cta:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--tier), var(--color-on-accent) 46%),
+      inset 0 -1px 1px color-mix(in srgb, var(--tier), var(--color-sky-top) 28%),
+      0 4px 10px -3px var(--pricing-shadow-45),
+      0 1px 3px var(--pricing-shadow-30);
+  }
+
+  .tier-cta:active {
+    transform: translateY(0);
+    box-shadow:
+      inset 0 1px 2px color-mix(in srgb, var(--tier), var(--color-sky-top) 36%),
+      0 1px 3px var(--pricing-shadow-35);
+  }
+
+  /* RollingText (see RollingText.astro): two values stacked in one grid cell,
+     clipped, that roll vertically when an ancestor's data-billing flips.
+     Transform only (no fade) so both are briefly visible mid-roll, like an
+     odometer reel. The easing overshoots slightly for a mechanical snap. */
+  .rolling-text {
+    display: inline-grid;
+    justify-items: center;
+    overflow: hidden;
+    vertical-align: bottom;
+  }
+
+  .rolling-text-item {
+    grid-area: 1 / 1;
+    transition: transform var(--pricing-roll-duration) var(--pricing-roll-easing);
+  }
+
+  [data-billing="monthly"] .rolling-text-monthly {
+    transform: translateY(0);
+  }
+
+  [data-billing="yearly"] .rolling-text-monthly {
+    transform: translateY(-100%);
+  }
+
+  [data-billing="monthly"] .rolling-text-yearly {
+    transform: translateY(100%);
+  }
+
+  [data-billing="yearly"] .rolling-text-yearly {
+    transform: translateY(0);
+  }
+
+  /* Billing switch: an accent thumb slides between the two equal-width
+     options (GPU transform only); the buttons themselves just swap their
+     text colour. Geometry derives from the container's 2px inner padding. */
+  /* Recessed track: an inset shadow sinks the pill into the surface, echoing
+     the medal's dished face — dark rim at the top, faint light at the foot. */
+  .billing-track {
+    border-radius: var(--pricing-billing-radius);
+    padding: var(--pricing-billing-inset);
+    background: var(--pricing-shadow-22);
+    box-shadow:
+      inset 0 1.5px 3px var(--pricing-shadow-55),
+      inset 0 -1px 1px var(--pricing-highlight-05);
+  }
+
+  /* Embossed thumb: a raised accent key with a top-lit bevel and drop shadow,
+     mirroring the medal's metallic material (gradient + inset bevel + lift). */
+  .billing-thumb {
+    position: absolute;
+    top: var(--pricing-billing-inset);
+    left: var(--pricing-billing-inset);
+    width: calc(50% - var(--pricing-billing-inset));
+    height: calc(100% - (2 * var(--pricing-billing-inset)));
+    border-radius: calc(var(--pricing-billing-radius) - var(--pricing-billing-inset));
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--color-accent), var(--color-on-accent) 20%),
+      var(--color-accent) 55%,
+      color-mix(in srgb, var(--color-accent), var(--color-sky-top) 22%)
+    );
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--color-accent), var(--color-on-accent) 45%),
+      inset 0 -1px 1px color-mix(in srgb, var(--color-accent), var(--color-sky-top) 30%),
+      0 1px 2px var(--pricing-shadow-45),
+      0 2px 4px var(--pricing-shadow-30);
+    transition: transform var(--pricing-billing-duration) var(--mc-motion-easing-standard);
+  }
+
+  [data-billing="yearly"] .billing-thumb {
+    transform: translateX(100%);
+  }
+
+  .billing-option {
+    display: flex;
+    min-height: var(--mc-size-control);
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border-radius: calc(var(--pricing-billing-radius) - var(--pricing-billing-inset));
+    padding: var(--pricing-billing-inset) var(--mc-space-4);
+    /* Barlow seats its glyphs low in the line box, so plain centering looks too
+       low; nudge the label up so it reads as optically centered — visual only,
+       the control's height is unchanged. */
+    transform: translateY(calc(-1 * var(--pricing-billing-inset)));
+    color: var(--color-fg-muted);
+    transition: color var(--mc-motion-duration-normal) var(--mc-motion-easing-standard);
+    /* Recessed engraving: dark rim on the lit (top) edge, faint light on the
+       lower edge — no blur, so the label reads as stamped into the segment. */
+    text-shadow:
+      0 -1px 0 var(--pricing-shadow-40),
+      0 1px 0 var(--pricing-highlight-12);
+  }
+
+  .billing-option[aria-pressed="true"] {
+    color: var(--color-on-accent);
+  }
+
+  .tier-icon {
+    color: var(--tier);
+  }
+
+  .tier-fallback-letter {
+    color: var(--color-on-accent);
+    filter: drop-shadow(0 1px 1.5px var(--pricing-shadow-40));
+  }
+
+  .pricing-feature-list {
+    max-width: var(--pricing-feature-list-width);
+  }
+
+  @media (max-width: 63.999rem) {
+    .tier-card[style*="--depth"] {
+      transform: none;
+      opacity: 1;
+    }
+  }
+}

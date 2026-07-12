@@ -47,7 +47,7 @@ Use this after a coherent edit chunk, not only at the end. It scans changed file
 For commit preparation:
 
 ```bash
-pnpm doctor
+pnpm run doctor
 ```
 
 For editor integration experiments:
@@ -59,7 +59,7 @@ pnpm doctor:lsp
 For full validation before reporting React work as finished:
 
 ```bash
-pnpm doctor
+pnpm run doctor
 ```
 
 ## Agent Workflow

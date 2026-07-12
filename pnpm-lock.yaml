@@ -75,9 +75,6 @@ importers:
       '@musiccloud/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@scalar/core':
-        specifier: 0.3.45
-        version: 0.3.45
       bcryptjs:
         specifier: ^3.0.3
         version: 3.0.3
@@ -293,12 +290,18 @@ importers:
       iconsax-react:
         specifier: ^0.0.8
         version: 0.0.8(react@19.2.4)
+      marked:
+        specifier: 17.0.6
+        version: 17.0.6
       react:
         specifier: ^19.2.4
         version: 19.2.4
       react-dom:
         specifier: ^19.2.4
         version: 19.2.4(react@19.2.4)
+      shiki:
+        specifier: 3.23.0
+        version: 3.23.0
     devDependencies:
       '@astrojs/check':
         specifier: 0.9.9
@@ -321,6 +324,9 @@ importers:
       tailwindcss:
         specifier: ^4.2.1
         version: 4.2.2
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -3121,18 +3127,6 @@ packages:
     resolution: {integrity: sha512-Nd/SgG27WoA9e+/TdK74KnHz852TLa94ovOYySo/yMPuTmpckK/jIF2jSwS3g7ELSKXK13/cVdmg1Z/DaCWKxA==}
     cpu: [x64]
     os: [win32]
-
-  '@scalar/core@0.3.45':
-    resolution: {integrity: sha512-f3jyzColUUcu3eYfjslgNjG2JABuFU8WR3P7a9GevMpisW3skWUqVVffyC1P4w4i9TVRk9FUjYEtGeP10Rw9lQ==}
-    engines: {node: '>=20'}
-
-  '@scalar/helpers@0.2.18':
-    resolution: {integrity: sha512-w1d4tpNEVZ293oB2BAgLrS0kVPUtG3eByNmOCJA5eK9vcT4D3cmsGtWjUaaqit0BQCsBFHK51rasGvSWnApYTw==}
-    engines: {node: '>=20'}
-
-  '@scalar/types@0.6.10':
-    resolution: {integrity: sha512-fZkelRwcEeAhsn4c0wjYXWrzSzLaEyfxTn/eazXJ4XfCIsgJTQyK0FD8mnOBZJ2vEIbtT2E1mBKnCbDxrJIlxA==}
-    engines: {node: '>=20'}
 
   '@sentry-internal/server-utils@10.56.0':
     resolution: {integrity: sha512-6kuZI/vAjyVKMm1cTzc2pdUmVR4Px4etMG6wnCPyFnwEaGbUKQnTynUBFpTuo/q6Js6QBQvhLNoAnO4YsOfW4w==}
@@ -9339,19 +9333,6 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.60.2':
     optional: true
-
-  '@scalar/core@0.3.45':
-    dependencies:
-      '@scalar/types': 0.6.10
-
-  '@scalar/helpers@0.2.18': {}
-
-  '@scalar/types@0.6.10':
-    dependencies:
-      '@scalar/helpers': 0.2.18
-      nanoid: 5.1.7
-      type-fest: 5.6.0
-      zod: 4.3.6
 
   '@sentry-internal/server-utils@10.56.0':
     dependencies:

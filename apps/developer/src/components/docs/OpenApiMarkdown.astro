@@ -1,0 +1,18 @@
+---
+/**
+ * Styled, safe Markdown content for descriptions read from the OpenAPI file.
+ *
+ * The renderer escapes raw HTML before this component inserts the result with
+ * `set:html`, while this component owns only the readable document typography.
+ */
+import { renderOpenApiMarkdown } from "@/lib/openapi-markdown";
+
+interface Props {
+  content: string;
+  className?: string;
+}
+
+const { content, className } = Astro.props;
+---
+
+<div class:list={["openapi-markdown", className]} data-openapi-markdown set:html={renderOpenApiMarkdown(content)} />

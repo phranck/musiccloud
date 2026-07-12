@@ -17,7 +17,7 @@ const features = [
 <BaseLayout>
   <PublicHeader account={account} />
 
-  <main class="flex-1 max-w-6xl mx-auto w-full px-6 pt-14 pb-20">
+  <main class="developer-shell developer-page flex-1">
     <h1 class="text-hero font-medium tracking-tight leading-tight mb-5">Build with the musiccloud API</h1>
     <p class="text-lead text-fg-muted max-w-2xl mb-8">
       Resolve any music link, fetch artist info, and explore Creative Commons tracks. One REST API, one key.
@@ -25,14 +25,14 @@ const features = [
     <div class="flex gap-3 mb-12">
       <a
         href="/signup"
-        class="inline-flex items-center gap-2 rounded-button bg-accent text-on-accent px-5 py-2.5 text-body font-medium"
+        class="button button--primary text-body"
       >
         <KeyIcon className="size-6" aria-hidden="true" />
         Get an API key
       </a>
       <a
         href="/docs"
-        class="inline-flex items-center gap-2 rounded-button border border-border-strong px-5 py-2.5 text-body font-medium"
+        class="button button--secondary text-body"
       >
         <Book1Icon className="size-6" aria-hidden="true" />
         Read the docs
@@ -42,16 +42,18 @@ const features = [
     <pre
       class="rounded-card border border-border bg-code-bg p-5 text-code font-mono text-code-fg overflow-x-auto mb-10"><code><span class="text-fg-subtle"># Resolve a Spotify link to every platform</span>
 <span class="text-accent">curl</span> https://api.musiccloud.io/api/v1/resolve \
-  -H <span class="text-gold">"X-API-Key: 00000000-0000-4000-8000-000000000000"</span> -d <span class="text-gold">{`'{"url":"…"}'`}</span></code></pre>
+  -H <span class="text-gold">"X-API-Key: mc_live_example12345_replace_with_your_secret_value"</span> -d <span class="text-gold">{`'{"url":"…"}'`}</span></code></pre>
 
     <section class="grid grid-cols-1 sm:grid-cols-3 gap-4">
       {
         features.map((feature) => {
           const Icon = feature.Icon;
           return (
-            <article class="rounded-card border border-border bg-surface p-5">
-              <div class="flex items-center gap-2.5 mb-2">
-                <Icon className="size-7 text-accent" aria-hidden="true" />
+            <article class="surface-card p-5">
+              <div class="icon-text-first-line gap-2.5 mb-2">
+                <span class="icon-text-first-line__icon">
+                  <Icon className="size-7 text-accent" aria-hidden="true" />
+                </span>
                 <h2 class="text-card-title font-medium">{feature.title}</h2>
               </div>
               <p class="text-body text-fg-muted">{feature.body}</p>

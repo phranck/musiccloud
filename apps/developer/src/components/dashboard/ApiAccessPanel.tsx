@@ -114,10 +114,10 @@ export function ApiAccessPanel() {
     <div className="flex flex-col gap-6">
       <section>
         <h2 className="text-card-title font-medium tracking-tight mb-3">Request API access</h2>
-        <div className="rounded-card border border-border bg-surface px-6 py-5">
+        <div className="surface-card px-6 py-5">
           <p className="text-body text-fg-muted mb-4">
             Tell us about your app. Once a request is approved, the app and its API keys appear under{" "}
-            <a href="/dashboard/api-keys" className="text-fg text-link">
+            <a href="/dashboard/api-keys" className="content-link text-fg">
               API keys
             </a>
             .
@@ -147,7 +147,7 @@ export function ApiAccessPanel() {
               placeholder="500"
               hint="A rough estimate is fine. It helps us size your quota."
             />
-            {formError ? <p className="text-body text-red-400">{formError}</p> : null}
+            {formError ? <p className="field__message field__message--error">{formError}</p> : null}
             {phase === FormPhase.Success ? (
               <output className="text-body text-accent">
                 Request submitted. You will be notified once it has been reviewed.
@@ -165,10 +165,12 @@ export function ApiAccessPanel() {
 
       <section>
         <h2 className="text-card-title font-medium tracking-tight mb-3">Your requests</h2>
-        <div className="rounded-card border border-border bg-surface px-6 py-5">
+        <div className="surface-card px-6 py-5">
           {requests === null && !listError ? <p className="text-body text-fg-muted">Loading…</p> : null}
           {listError ? (
-            <p className="text-body text-red-400">Could not load your requests. Reload the page to try again.</p>
+            <p className="field__message field__message--error">
+              Could not load your requests. Reload the page to try again.
+            </p>
           ) : null}
           {requests !== null && requests.length === 0 ? (
             <p className="text-body text-fg-muted">No requests yet. Submit your first one above.</p>

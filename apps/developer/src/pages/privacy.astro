@@ -27,13 +27,13 @@ const account = await getDeveloperSession(Astro);
 >
   <PublicHeader account={account} />
 
-  <main class="flex-1 max-w-6xl mx-auto w-full px-6 pt-12 pb-20">
-    <div class="flex items-center gap-3 mb-5">
-      <ShieldTickIcon className="size-9 text-accent" aria-hidden="true" />
-      <h1 class="text-hero font-medium tracking-tight leading-none">Privacy Policy</h1>
+  <main class="developer-shell developer-page flex-1">
+    <div class="page-heading">
+      <ShieldTickIcon className="page-heading__icon" aria-hidden="true" />
+      <h1 class="page-heading__title">Privacy Policy</h1>
     </div>
 
-    <section class="rounded-card border border-border bg-surface px-7 py-7 mb-8">
+    <section class="surface-card px-7 py-7 mb-8">
       <p class="text-body text-fg-muted">
         The full Privacy Policy for the musiccloud developer portal and API is being finalised and will be
         published here before public API access opens. Until then, this page is a placeholder.

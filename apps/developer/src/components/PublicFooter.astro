@@ -11,18 +11,18 @@
 import { FOOTER_LINKS } from "@/lib/footerLinks";
 ---
 
-<footer class="border-t border-border">
-  <div class="max-w-6xl mx-auto w-full px-6 py-5 flex items-center justify-between text-body text-fg-muted">
+<footer class="public-footer">
+  <div class="public-footer__inner developer-shell">
     <span>© musiccloud</span>
-    <nav class="flex items-center gap-3">
+    <nav class="public-footer__navigation" aria-label="Footer">
       {
         FOOTER_LINKS.map((link) =>
           link.external ? (
-            <a href={link.href} target="_blank" rel="noopener noreferrer" class="text-link">
+            <a href={link.href} target="_blank" rel="noopener noreferrer" class="content-link">
               {link.label}
             </a>
           ) : (
-            <a href={link.href} class="text-link">
+            <a href={link.href} class="content-link">
               {link.label}
             </a>
           ),

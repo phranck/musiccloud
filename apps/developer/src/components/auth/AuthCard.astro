@@ -28,7 +28,7 @@ const hasFooter = Astro.slots.has("footer");
   <div class="w-full max-w-md">
     <Wordmark class="justify-center mb-8" />
 
-    <section class="rounded-card border border-border bg-surface px-7 py-8">
+    <section class="surface-card px-7 py-8">
       <h1 class="text-card-title font-medium tracking-tight mb-1">{title}</h1>
       {hasSubtitle && <p class="text-body text-fg-muted mb-6"><slot name="subtitle" /></p>}
       <div class={hasSubtitle ? "" : "mt-6"}>

@@ -6,6 +6,7 @@
   "scripts": {
     "check": "astro check",
     "dev": "node --env-file=.env.local ./node_modules/astro/astro.js dev",
+    "prebuild": "tsx scripts/generate-api-reference.mjs",
     "build": "astro build",
     "preview": "astro preview",
     "start": "node ./dist/server/entry.mjs",
@@ -23,8 +24,10 @@
     "@phosphor-icons/react": "^2.1.10",
     "astro": "5.17.3",
     "iconsax-react": "^0.0.8",
+    "marked": "17.0.6",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "shiki": "3.23.0"
   },
   "devDependencies": {
     "@astrojs/check": "0.9.9",
@@ -34,6 +37,7 @@
     "@vitejs/plugin-react": "^6.0.1",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4.2.1",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.5"
   }

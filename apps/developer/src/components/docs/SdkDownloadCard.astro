@@ -1,0 +1,81 @@
+---
+/**
+ * Validated SDK download details with an external content heading.
+ *
+ * Receives one asset from `parseSdkCatalog`, so this component can assume the
+ * language/generator/checksum/release URL combination already matched the
+ * current OpenAPI export.
+ */
+import CodeBlock from "@/components/docs/CodeBlock.astro";
+import { ContentCard } from "@/components/docs/ContentCard";
+import type { SdkAsset, SdkCatalog } from "@/lib/sdk-catalog";
+
+interface Props {
+  asset: SdkAsset;
+  apiVersion: string;
+  generatorVersion: SdkCatalog["generatorVersion"];
+}
+
+const { asset, apiVersion, generatorVersion } = Astro.props;
+const languageName = {
+  typescript: "TypeScript",
+  python: "Python",
+  swift: "Swift",
+}[asset.language];
+const codeLanguageByAsset = {
+  typescript: "typescript",
+  python: "python",
+  swift: "swift",
+} as const;
+const codeLanguage = codeLanguageByAsset[asset.language];
+
+const usage = [asset.quickstart.import, asset.quickstart.firstRequest].join("\n");
+const headingId = `sdk-${asset.language}`;
+---
+
+<div
+  data-api-search-entry
+  data-api-search-group="SDK downloads"
+  data-api-search-title={`Download ${languageName} SDK`}
+  data-api-search-addon="SDK"
+  data-api-search-kind="sdk"
+  data-api-search-target={headingId}
+>
+  <h3
+    id={headingId}
+    tabindex="-1"
+    class="api-reference-content-heading text-subsection font-medium tracking-tight mb-4 scroll-mt-8"
+  >
+    Download {languageName} SDK
+  </h3>
+  <ContentCard className="mb-6" aria-labelledby={headingId}>
+  <ContentCard.Body>
+    <p class="text-code text-fg-muted mb-4">{asset.generator} · API {apiVersion} · OpenAPI Generator {generatorVersion}</p>
+    <dl class="grid grid-cols-1 gap-2 text-body mb-4">
+      <div>
+        <dt class="text-fg-subtle">Archive</dt>
+        <dd class="font-mono text-code text-code-fg break-all">{asset.archiveName}</dd>
+      </div>
+      <div>
+        <dt class="text-fg-subtle">SHA-256</dt>
+        <dd><code class="font-mono text-code text-code-fg break-all">{asset.sha256}</code></dd>
+      </div>
+    </dl>
+    <div class="grid grid-cols-1 gap-4">
+      <CodeBlock label="Installation" language="bash" code={asset.quickstart.install} />
+      <CodeBlock label="Usage" language={codeLanguage} code={usage} />
+    </div>
+  </ContentCard.Body>
+  <ContentCard.Footer className="justify-end">
+    <a
+      href={asset.archiveUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      class="button button--content text-body"
+      data-sdk-download
+    >
+      Download
+    </a>
+  </ContentCard.Footer>
+  </ContentCard>
+</div>

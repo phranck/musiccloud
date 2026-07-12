@@ -1,0 +1,67 @@
+---
+/**
+ * Shared dashboard navigation rendered as a desktop rail and a horizontally
+ * scrollable mobile tab row from one canonical item list.
+ */
+import { DASHBOARD_NAV, type DashboardTabValue } from "@/lib/dashboardTabs";
+
+interface Props {
+  /** Current dashboard destination highlighted in both render modes. */
+  active: DashboardTabValue;
+}
+
+const { active } = Astro.props;
+---
+
+<aside class="dashboard-navigation dashboard-navigation--desktop" data-dashboard-navigation="desktop">
+  <nav class="dashboard-navigation__list" aria-label="Dashboard">
+    {
+      DASHBOARD_NAV.map((item) => {
+        const isActive = item.tab === active;
+        return item.comingSoon || !item.href ? (
+          <span class="dashboard-navigation__item dashboard-navigation__item--disabled" aria-disabled="true">
+            {item.label}
+            <span class="status-pill">Soon</span>
+          </span>
+        ) : (
+          <a
+            href={item.href}
+            aria-current={isActive ? "page" : undefined}
+            data-dashboard-active-tab={isActive ? "true" : undefined}
+            class:list={["dashboard-navigation__item", { "dashboard-navigation__item--active": isActive }]}
+          >
+            {item.label}
+          </a>
+        );
+      })
+    }
+  </nav>
+</aside>
+
+<nav class="dashboard-navigation dashboard-navigation--mobile" aria-label="Dashboard tabs" data-dashboard-navigation="mobile">
+  {
+    DASHBOARD_NAV.map((item) => {
+      const isActive = item.tab === active;
+      return item.comingSoon || !item.href ? (
+        <span class="dashboard-navigation__item dashboard-navigation__item--disabled" aria-disabled="true">
+          {item.label}
+        </span>
+      ) : (
+        <a
+          href={item.href}
+          aria-current={isActive ? "page" : undefined}
+          data-dashboard-active-tab={isActive ? "true" : undefined}
+          class:list={["dashboard-navigation__item", { "dashboard-navigation__item--active": isActive }]}
+        >
+          {item.label}
+        </a>
+      );
+    })
+  }
+</nav>
+
+<script>
+  document
+    .querySelector('[data-dashboard-navigation="mobile"] [data-dashboard-active-tab="true"]')
+    ?.scrollIntoView({ block: "nearest", inline: "center" });
+</script>

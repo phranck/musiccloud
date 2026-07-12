@@ -1,17 +1,6 @@
 import type { ReactNode } from "react";
-import { ButtonVariant, type ButtonVariantValue } from "@/lib/buttonVariant";
+import { ButtonVariant, type ButtonVariantValue, buttonVariantClass } from "@/lib/buttonVariant";
 import { RefreshIcon } from "@/lib/icons";
-
-/**
- * Per-variant Tailwind classes, keyed by the {@link ButtonVariant} members via
- * computed keys. Kept as a plain lookup (not a domain namespace) so styling and
- * the literal namespace stay separate.
- */
-const VARIANT_CLASS: Record<ButtonVariantValue, string> = {
-  [ButtonVariant.Primary]: "bg-accent text-on-accent hover:bg-accent-hover",
-  [ButtonVariant.Secondary]: "bg-surface text-fg border border-border-strong hover:border-fg-subtle",
-  [ButtonVariant.Danger]: "bg-red-400 text-on-accent hover:bg-red-500",
-};
 
 /**
  * Props for {@link SubmitButton}.
@@ -55,7 +44,7 @@ export function SubmitButton({
       type={type}
       onClick={onClick}
       disabled={loading}
-      className={`inline-flex w-full items-center justify-center gap-2 rounded-button px-4 py-2.5 text-body font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${VARIANT_CLASS[variant]}`}
+      className={`button w-full text-body ${buttonVariantClass(variant)}`}
     >
       {loading ? <RefreshIcon className="size-5 animate-spin" aria-hidden="true" /> : null}
       {children}

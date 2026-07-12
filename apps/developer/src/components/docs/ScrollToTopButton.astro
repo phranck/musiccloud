@@ -1,0 +1,114 @@
+---
+/**
+ * Viewport-fixed return control for the generated API document.
+ *
+ * Visibility follows the API intro through IntersectionObserver. Scrolling is
+ * intentionally local to this control so the rest of the portal keeps native
+ * scroll behavior and anchor navigation semantics.
+ */
+import { ArrowCircleUpIcon } from "@/lib/icons";
+---
+
+<button
+  type="button"
+  class="button button--icon button--content api-scroll-top"
+  aria-label="Back to top"
+  aria-hidden="true"
+  title="Back to top"
+  tabindex="-1"
+  data-api-scroll-top
+  data-visible="false"
+>
+  <ArrowCircleUpIcon className="api-scroll-top__icon size-6" aria-hidden="true" />
+</button>
+
+<script>
+  const scrollAnimations = new WeakMap<HTMLButtonElement, number>();
+
+  /** Converts the canonical CSS duration into milliseconds for requestAnimationFrame. */
+  const scrollDuration = () => {
+    const value = window
+      .getComputedStyle(document.documentElement)
+      .getPropertyValue("--mc-motion-duration-slow")
+      .trim();
+    const duration = Number.parseFloat(value);
+    if (!Number.isFinite(duration)) return 300;
+
+    return value.endsWith("ms") ? duration : duration * 1000;
+  };
+
+  /** Matches the design system's symmetric ease-in-out motion. */
+  const easeInOutCubic = (progress: number) =>
+    progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+  /** Cancels a programmatic scroll when the user starts another interaction. */
+  const cancelScroll = (button: HTMLButtonElement) => {
+    const frame = scrollAnimations.get(button);
+    if (frame === undefined) return;
+
+    window.cancelAnimationFrame(frame);
+    scrollAnimations.delete(button);
+  };
+
+  document.querySelectorAll<HTMLButtonElement>("[data-api-scroll-top]").forEach((button) => {
+    const intro = document.querySelector<HTMLElement>("[data-api-reference-intro]");
+    if (!intro) return;
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const setVisible = (visible: boolean) => {
+      button.dataset.visible = String(visible);
+      button.setAttribute("aria-hidden", String(!visible));
+      button.tabIndex = visible ? 0 : -1;
+    };
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry) return;
+      setVisible(!entry.isIntersecting && entry.boundingClientRect.bottom <= 0);
+    });
+    observer.observe(intro);
+
+    const animateToTop = () => {
+      cancelScroll(button);
+      const startY = window.scrollY;
+      if (reducedMotion.matches || startY <= 0) {
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+        return;
+      }
+
+      const duration = scrollDuration();
+      const startTime = window.performance.now();
+      const step = (now: number) => {
+        const progress = Math.min((now - startTime) / duration, 1);
+        window.scrollTo(0, Math.round(startY * (1 - easeInOutCubic(progress))));
+        if (progress >= 1) {
+          scrollAnimations.delete(button);
+          return;
+        }
+
+        scrollAnimations.set(button, window.requestAnimationFrame(step));
+      };
+
+      scrollAnimations.set(button, window.requestAnimationFrame(step));
+    };
+
+    button.addEventListener("click", animateToTop);
+    const cancelForUserInput = () => cancelScroll(button);
+    window.addEventListener("wheel", cancelForUserInput, { passive: true });
+    window.addEventListener("touchstart", cancelForUserInput, { passive: true });
+    window.addEventListener("pointerdown", cancelForUserInput, { passive: true });
+    window.addEventListener("keydown", cancelForUserInput);
+
+    document.addEventListener(
+      "astro:before-swap",
+      () => {
+        cancelScroll(button);
+        observer.disconnect();
+        window.removeEventListener("wheel", cancelForUserInput);
+        window.removeEventListener("touchstart", cancelForUserInput);
+        window.removeEventListener("pointerdown", cancelForUserInput);
+        window.removeEventListener("keydown", cancelForUserInput);
+      },
+      { once: true },
+    );
+  });
+</script>

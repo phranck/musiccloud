@@ -21,6 +21,8 @@
  */
 import {
   Add,
+  ArrowCircleDown,
+  ArrowCircleUp,
   Book,
   Book1,
   Category,
@@ -28,24 +30,27 @@ import {
   CloseCircle,
   Code,
   Coin,
-  CommandSquare,
   Copy,
+  CopySuccess,
   Diagram,
   Flash,
   Forbidden,
   Global,
+  Health,
   type Icon,
   type IconProps,
   Key,
   Like1,
   Link,
   Logout,
+  Menu,
   Profile,
   ProfileAdd,
   ProfileCircle,
   Refresh,
   Refresh2,
   Scroll,
+  SearchNormal1,
   Send2,
   ShieldTick,
   Sms,
@@ -82,6 +87,8 @@ function bulk(Base: Icon): Icon {
 }
 
 export const AddIcon = bulk(Add);
+export const ArrowCircleDownIcon = bulk(ArrowCircleDown);
+export const ArrowCircleUpIcon = bulk(ArrowCircleUp);
 export const Book1Icon = bulk(Book1);
 export const BookIcon = bulk(Book);
 export const CategoryIcon = bulk(Category);
@@ -89,22 +96,25 @@ export const CdIcon = bulk(Cd);
 export const CloseCircleIcon = bulk(CloseCircle);
 export const CodeIcon = bulk(Code);
 export const CoinIcon = bulk(Coin);
-export const CommandSquareIcon = bulk(CommandSquare);
 export const CopyIcon = bulk(Copy);
+export const CopySuccessIcon = bulk(CopySuccess);
 export const DiagramIcon = bulk(Diagram);
 export const FlashIcon = bulk(Flash);
 export const ForbiddenIcon = bulk(Forbidden);
 export const GlobalIcon = bulk(Global);
+export const HealthIcon = bulk(Health);
 export const KeyIcon = bulk(Key);
 export const Like1Icon = bulk(Like1);
 export const LinkIcon = bulk(Link);
 export const LogoutIcon = bulk(Logout);
+export const MenuIcon = bulk(Menu);
 export const ProfileAddIcon = bulk(ProfileAdd);
 export const ProfileCircleIcon = bulk(ProfileCircle);
 export const ProfileIcon = bulk(Profile);
 export const Refresh2Icon = bulk(Refresh2);
 export const RefreshIcon = bulk(Refresh);
 export const ScrollIcon = bulk(Scroll);
+export const SearchNormal1Icon = bulk(SearchNormal1);
 export const Send2Icon = bulk(Send2);
 export const ShieldTickIcon = bulk(ShieldTick);
 export const SmsIcon = bulk(Sms);

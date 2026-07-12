@@ -69,7 +69,7 @@ export function ResetForm({ token }: ResetFormProps) {
     return (
       <AuthStatus tone={AuthStatusTone.Success} title="Password updated">
         Your password has been changed. You can now{" "}
-        <a href="/login" className="text-fg text-link">
+        <a href="/login" className="content-link text-fg">
           sign in
         </a>
         .

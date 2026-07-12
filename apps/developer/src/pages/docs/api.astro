@@ -1,48 +1,22 @@
 ---
-/**
- * /docs/api: the developer-portal API reference page.
- *
- * Static, English-only preview of the musiccloud API's shape: base URL, API-key
- * header authentication, and JSON responses. It deliberately does NOT invent
- * endpoint signatures; the concrete endpoint list is published once public
- * access opens. Everything stated here (base URL, auth header, JSON contract)
- * is real and stable; anything still in flight is described as a preview.
- *
- * Styling mirrors /docs and the landing page: token-driven night-mode glass
- * sections, brand-blue accents, Iconsax TwoTone icons (`@/lib/icons`), and
- * the shared header/footer shell. Rendered server-side: the shared `PublicHeader`
- * resolves the developer session for the avatar menu. No `useT`/`useLocale`;
- * all copy is hard-coded EN.
- */
 import PublicHeader from "@/components/PublicHeader.astro";
+import ApiReferenceContent from "@/components/docs/ApiReferenceContent.astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import PublicFooter from "@/components/PublicFooter.astro";
-import { CodeIcon, CommandSquareIcon, GlobalIcon, KeyIcon } from "@/lib/icons";
+import openApiDocument from "@/generated/openapi.json";
+import openApiMetadata from "@/generated/openapi.metadata.json";
+import sdkCatalogJson from "@/generated/sdk-catalog.json";
+import { buildApiReference } from "@/lib/openapi-reference";
+import { parseSdkCatalog } from "@/lib/sdk-catalog";
 import { getDeveloperSession } from "@/lib/session";
+import "../../styles/docs.css";
 
 const account = await getDeveloperSession(Astro);
-
-/**
- * The three foundational concepts a caller needs before any endpoint exists:
- * where requests go, how they authenticate, and what they get back.
- */
-const concepts = [
-  {
-    Icon: GlobalIcon,
-    title: "Base URL",
-    body: "Every request goes to a single versioned base, so the path is stable as the API grows.",
-  },
-  {
-    Icon: KeyIcon,
-    title: "Authentication",
-    body: "Authenticate each request with your API key in a request header. No OAuth dance, no per-call tokens.",
-  },
-  {
-    Icon: CodeIcon,
-    title: "JSON responses",
-    body: "Requests and responses are JSON. Errors return a JSON body with a clear status code and message.",
-  },
-];
+const reference = buildApiReference(openApiDocument);
+const catalog = parseSdkCatalog(sdkCatalogJson, {
+  version: openApiMetadata.version,
+  sha256: openApiMetadata.sha256,
+});
 
 ---
 
@@ -52,59 +26,8 @@ const concepts = [
 >
   <PublicHeader account={account} active="api" />
 
-  <main class="flex-1 max-w-6xl mx-auto w-full px-6 pt-12 pb-20">
-    <div class="flex items-center gap-3 mb-5">
-      <CommandSquareIcon className="size-9 text-accent" aria-hidden="true" />
-      <h1 class="text-hero font-medium tracking-tight leading-none">API reference</h1>
-    </div>
-    <p class="text-lead text-fg-muted mb-10">
-      The full endpoint reference is published the moment public API access opens. Until then, here is the
-      shape every call shares: the base URL, how you authenticate, and what you get back.
-    </p>
-
-    <section class="grid grid-cols-1 gap-4 mb-6">
-      {
-        concepts.map((concept) => {
-          const Icon = concept.Icon;
-          return (
-            <article class="rounded-card border border-border bg-surface px-7 py-6">
-              <div class="flex items-center gap-2.5 mb-2">
-                <Icon className="size-7 text-accent" aria-hidden="true" />
-                <h2 class="text-card-title font-medium tracking-tight">{concept.title}</h2>
-              </div>
-              <p class="text-body text-fg-muted">{concept.body}</p>
-            </article>
-          );
-        })
-      }
-    </section>
-
-    <section class="rounded-card border border-border bg-surface px-7 py-7 mb-6">
-      <h2 class="text-card-title font-medium tracking-tight mb-2">A request at a glance</h2>
-      <p class="text-body text-fg-muted mb-5">
-        A call carries your API key in a header and sends a JSON body. This shows the shape; the published
-        reference will list each endpoint and its exact parameters.
-      </p>
-      <pre
-        class="rounded-card border border-border bg-code-bg p-5 text-code font-mono text-code-fg overflow-x-auto"><code><span class="text-fg-subtle"># Authenticate with your API key, send and receive JSON</span>
-<span class="text-accent">curl</span> https://api.musiccloud.io/api/v1/… \
-  -H <span class="text-gold">"X-API-Key: 00000000-0000-4000-8000-000000000000"</span> \
-  -H <span class="text-gold">"Content-Type: application/json"</span> \
-  -d <span class="text-gold">{`'{"url":"…"}'`}</span></code></pre>
-    </section>
-
-    <section class="rounded-card border border-border bg-surface px-7 py-7 mb-8">
-      <h2 class="text-card-title font-medium tracking-tight mb-2">What the API covers</h2>
-      <p class="text-body text-fg-muted">
-        Three capabilities are exposed: resolving a link across streaming services, fetching artist info
-        (top tracks, similar artists, events), and searching the free-to-use Creative Commons catalogue.
-        The reference describes each in full once access is open. Read the <a
-          href="/docs"
-          class="text-fg text-link">documentation overview</a
-        > for how to get your key.
-      </p>
-    </section>
-
+  <main class="developer-shell developer-page flex-1">
+    <ApiReferenceContent reference={reference} catalog={catalog} />
   </main>
 
   <PublicFooter />

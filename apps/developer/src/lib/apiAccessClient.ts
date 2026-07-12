@@ -50,7 +50,7 @@ export const ApiClientStatus = {
 /** An {@link ApiClientStatus} member value. */
 export type ApiClientStatusValue = (typeof ApiClientStatus)[keyof typeof ApiClientStatus];
 
-/** Lifecycle of an issued bearer token. */
+/** Lifecycle of an issued public API-key token. */
 export const ApiTokenStatus = {
   /** Valid for authentication. */
   Active: "active",
@@ -194,11 +194,11 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<ApiAcce
  * Formats a token's stored prefix for display, mirroring the backend's
  * `formatApiTokenForDisplay`.
  *
- * @param tokenPrefix - The token's non-secret `tokenPrefix` (first 8 hex chars of the UUID).
- * @returns e.g. `6121de17-...`.
+ * @param tokenPrefix - The token's non-secret 12-character `tokenPrefix`.
+ * @returns e.g. `mc_live_abc123def456_...`.
  */
 export function maskToken(tokenPrefix: string): string {
-  return `${tokenPrefix}-...`;
+  return `mc_live_${tokenPrefix}_...`;
 }
 
 /**

@@ -1,11 +1,10 @@
 /**
  * @file Tests for the `authenticatePublic` decorator's issued-token path
- * (MC-088): UUID v4 tokens presented as `X-API-Key` are hash-validated
+ * (MC-088): `mc_live_...` tokens presented as `X-API-Key` are hash-validated
  * against the API-access repository, attach `request.apiClient`, stamp
  * `lastUsedAt`, and are quota-checked per client against the **effective**
  * limits (per-key override ?? account tier ?? fallback, MC-100) centrally
- * in the auth hook. The pre-existing credentials
- * (internal BFF key, Bearer JWT) must keep working unchanged, and
+ * in the auth hook. The internal BFF key must keep working unchanged, and
  * token-authenticated callers must skip the strict per-IP `apiRateLimiter`
  * in routes registered inside the `authenticatePublic` scope.
  *
@@ -101,7 +100,7 @@ function makeToken(overrides: Partial<ApiClientToken> = {}): ApiClientToken {
 }
 
 /**
- * Mints a real UUID v4 token and wires the repo mock so exactly that
+ * Mints a real live API token and wires the repo mock so exactly that
  * token's hash resolves to the given client (any other hash misses) —
  * mirroring the DB lookup's behaviour without a pool.
  *
@@ -173,17 +172,17 @@ describe("authenticatePublic", () => {
     expect(mockApiAccessRepo.findActiveApiClientByTokenHash).not.toHaveBeenCalled();
   });
 
-  it("lets a valid Bearer JWT through", async () => {
+  it("rejects Bearer JWTs on public API routes", async () => {
     const app = await buildApp();
     const response = await app.inject({
       method: "GET",
       url: "/protected",
       headers: { authorization: `Bearer ${app.jwt.sign({ sub: "external-client" })}` },
     });
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(401);
   });
 
-  it("rejects an invalid Bearer JWT", async () => {
+  it("rejects invalid Bearer JWTs on public API routes", async () => {
     const app = await buildApp();
     const response = await app.inject({
       method: "GET",
@@ -193,7 +192,7 @@ describe("authenticatePublic", () => {
     expect(response.statusCode).toBe(401);
   });
 
-  it("authenticates a valid UUID v4 token, attaches apiClient, and stamps lastUsedAt", async () => {
+  it("authenticates a valid live API token, attaches apiClient, and stamps lastUsedAt", async () => {
     const app = await buildApp();
     const { raw, token } = issueToken(makeClient({ id: "client-valid" }));
 
@@ -204,7 +203,7 @@ describe("authenticatePublic", () => {
     expect(mockApiAccessRepo.touchApiClientTokenLastUsed).toHaveBeenCalledWith(token.id);
   });
 
-  it("rejects an unknown UUID v4 token with 401 and never stamps usage", async () => {
+  it("rejects an unknown live API token with 401 and never stamps usage", async () => {
     const app = await buildApp();
     // No issueToken wiring: every hash misses, standing in for unknown,
     // revoked, and rotated tokens as well as suspended/revoked clients —
@@ -212,10 +211,24 @@ describe("authenticatePublic", () => {
     const response = await app.inject({
       method: "GET",
       url: "/protected",
+      headers: { "x-api-key": "mc_live_abc123def456_abcdefghijklmnopqrstuvwxyzABCDEF0123456789-_" },
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(mockApiAccessRepo.touchApiClientTokenLastUsed).not.toHaveBeenCalled();
+  });
+
+  it("rejects stale UUID-shaped public API keys without a repository lookup", async () => {
+    const app = await buildApp();
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/protected",
       headers: { "x-api-key": "00000000-0000-4000-8000-000000000000" },
     });
 
     expect(response.statusCode).toBe(401);
+    expect(mockApiAccessRepo.findActiveApiClientByTokenHash).not.toHaveBeenCalled();
     expect(mockApiAccessRepo.touchApiClientTokenLastUsed).not.toHaveBeenCalled();
   });
 
@@ -280,9 +293,8 @@ describe("authenticatePublic", () => {
     }
   });
 
-  it("keeps the per-IP apiRateLimiter for Bearer-JWT callers", async () => {
+  it("keeps the per-IP apiRateLimiter for internal BFF callers", async () => {
     const app = await buildApp();
-    const bearer = `Bearer ${app.jwt.sign({ sub: "external-client" })}`;
     const url = ROUTE_TEMPLATES.v1.link.replace(":id", "tr_missing");
 
     // Own IP for bucket isolation from the bypass test above.
@@ -290,7 +302,7 @@ describe("authenticatePublic", () => {
       const response = await app.inject({
         method: "GET",
         url,
-        headers: { authorization: bearer },
+        headers: { "x-api-key": "internal-test-key" },
         remoteAddress: "10.60.0.2",
       });
       expect(response.statusCode).toBe(404);
@@ -298,7 +310,7 @@ describe("authenticatePublic", () => {
     const eleventh = await app.inject({
       method: "GET",
       url,
-      headers: { authorization: bearer },
+      headers: { "x-api-key": "internal-test-key" },
       remoteAddress: "10.60.0.2",
     });
     expect(eleventh.statusCode).toBe(429);

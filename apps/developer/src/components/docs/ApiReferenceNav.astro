@@ -1,0 +1,390 @@
+---
+/**
+ * Compact in-page navigation for generated endpoint groups and schemas.
+ *
+ * Endpoint paths stay out of the sidebar to keep the rail scannable. Native
+ * details/summary sections work without JavaScript; the small enhancement below
+ * persists each section's open state and smooth-scrolls anchor clicks.
+ */
+import { ArrowCircleDownIcon, ArrowCircleUpIcon } from "@/lib/icons";
+import { Sidebar, SidebarSectionItem } from "@/components/docs/Sidebar";
+import {
+  apiReferenceSectionLabel,
+  apiReferenceStaticSectionIcons,
+  iconForApiReferenceSection,
+} from "@/lib/api-reference-section-icons";
+import { apiReferenceOperationAnchor } from "@/lib/api-reference-anchor";
+import type { ApiReference } from "@/lib/openapi-reference";
+
+interface Props {
+  reference: ApiReference;
+}
+
+const { reference } = Astro.props;
+
+const groupKey = (name: string) => `api-reference:${name.replace(/[^a-zA-Z0-9]+/g, "-").toLowerCase()}`;
+const operationDescription = (operation: {
+  operationId?: string;
+  summary?: string;
+  method: string;
+  path: string;
+  navTitle: string;
+}) => operation.summary ?? operation.operationId ?? `${operation.method} ${operation.path}`;
+const operationSearchText = (operation: {
+  operationId?: string;
+  summary?: string;
+  method: string;
+  path: string;
+  navTitle: string;
+}) => `${operation.navTitle} ${operationDescription(operation)} ${operation.method} ${operation.path}`;
+
+const IntegrationIcon = apiReferenceStaticSectionIcons.integration;
+const SdkIcon = apiReferenceStaticSectionIcons.sdk;
+const SchemasIcon = apiReferenceStaticSectionIcons.schemas;
+---
+
+<Sidebar
+  className="api-reference-nav surface-card"
+  aria-label="API reference sections"
+  data-api-reference-smooth-scroll
+  data-api-reference-nav
+  data-api-reference-scroll-spy
+  data-api-nav-animated
+  data-api-nav-scroll-region
+>
+  <Sidebar.Header>
+    <h2 class="text-card-title font-semibold text-fg">Reference</h2>
+    <Sidebar.Header.Addon>
+      <button
+        type="button"
+        class="api-reference-nav__toggle-all"
+        aria-label="Expand all sections"
+        title="Expand all sections"
+        data-api-nav-toggle-all
+      >
+        <ArrowCircleDownIcon className="api-reference-nav__toggle-all-down" aria-hidden="true" />
+        <ArrowCircleUpIcon className="api-reference-nav__toggle-all-up" aria-hidden="true" />
+      </button>
+    </Sidebar.Header.Addon>
+  </Sidebar.Header>
+  <Sidebar.Body>
+    <Sidebar.Chapter
+      className="api-reference-nav__top-link api-reference-nav__link text-body"
+      href="#integration-guide"
+      data-api-nav-link
+      data-api-nav-group="Integration guide"
+    >
+      <IntegrationIcon className="api-reference-nav__section-icon size-5" aria-hidden="true" />
+      <span>Integration guide</span>
+    </Sidebar.Chapter>
+    <Sidebar.Chapter
+      className="api-reference-nav__top-link api-reference-nav__link text-body"
+      href="#sdk-downloads"
+      data-api-nav-link
+      data-api-nav-group="SDK downloads"
+    >
+      <SdkIcon className="api-reference-nav__section-icon size-5" aria-hidden="true" />
+      <span>SDK downloads</span>
+    </Sidebar.Chapter>
+    {
+      reference.groups.map((group) => {
+        const SectionIcon = iconForApiReferenceSection(group.name);
+        const sectionLabel = apiReferenceSectionLabel(group.name);
+        return (
+          <Sidebar.Section
+            className="api-reference-nav__section"
+            data-api-nav-section={groupKey(group.name)}
+            data-api-nav-search-text={`${group.name} ${sectionLabel} ${group.operations.map(operationSearchText).join(" ")}`}
+          >
+            <Sidebar.Section.Header
+              className="api-reference-nav__summary cursor-pointer text-code font-mono text-fg-muted"
+              data-api-nav-summary
+            >
+              <SectionIcon className="api-reference-nav__section-icon size-5" aria-hidden="true" />
+              <Sidebar.Section.Header.Title className="api-reference-nav__summary-title m-0 text-body font-semibold text-fg">
+                {sectionLabel}
+              </Sidebar.Section.Header.Title>
+              <Sidebar.Section.Header.Addons className="api-reference-nav__summary-addons">
+                <span class="api-reference-nav__count" data-api-nav-count>{group.operations.length}</span>
+                <span class="api-reference-nav__toggle" aria-hidden="true" data-api-nav-toggle>
+                  <ArrowCircleDownIcon className="api-reference-nav__toggle-down" />
+                  <ArrowCircleUpIcon className="api-reference-nav__toggle-up" />
+                </span>
+              </Sidebar.Section.Header.Addons>
+            </Sidebar.Section.Header>
+            <div class="api-reference-nav__content">
+              <Sidebar.Section.Items className="grid grid-cols-1 gap-1">
+                {group.operations.map((operation) => (
+                  <SidebarSectionItem
+                    className="api-reference-nav__link text-body truncate"
+                    href={`#${apiReferenceOperationAnchor(operation.method, operation.path)}`}
+                    title={operationDescription(operation)}
+                    aria-label={`${operation.navTitle}: ${operationDescription(operation)}`}
+                    data-api-nav-link
+                    data-api-nav-item
+                    data-api-nav-search-text={operationSearchText(operation)}
+                  >
+                    {operation.navTitle}
+                  </SidebarSectionItem>
+                ))}
+              </Sidebar.Section.Items>
+            </div>
+          </Sidebar.Section>
+        );
+      })
+    }
+    <Sidebar.Section
+      className="api-reference-nav__section"
+      data-api-nav-section={groupKey("Schemas")}
+      data-api-nav-search-text={`Schemas ${Object.values(reference.schemas)
+        .map((schema) => schema.name)
+        .join(" ")}`}
+    >
+      <Sidebar.Section.Header
+        className="api-reference-nav__summary cursor-pointer text-code font-mono text-fg-muted"
+        data-api-nav-summary
+      >
+        <SchemasIcon className="api-reference-nav__section-icon size-5" aria-hidden="true" />
+        <Sidebar.Section.Header.Title className="api-reference-nav__summary-title m-0 text-body font-semibold text-fg">
+          Schemas
+        </Sidebar.Section.Header.Title>
+        <Sidebar.Section.Header.Addons className="api-reference-nav__summary-addons">
+          <span class="api-reference-nav__count" data-api-nav-count>{Object.keys(reference.schemas).length}</span>
+          <span class="api-reference-nav__toggle" aria-hidden="true" data-api-nav-toggle>
+            <ArrowCircleDownIcon className="api-reference-nav__toggle-down" />
+            <ArrowCircleUpIcon className="api-reference-nav__toggle-up" />
+          </span>
+        </Sidebar.Section.Header.Addons>
+      </Sidebar.Section.Header>
+      <div class="api-reference-nav__content">
+        <Sidebar.Section.Items className="grid grid-cols-1 gap-1">
+          {
+            Object.values(reference.schemas).map((schema) => (
+              <SidebarSectionItem
+                className="api-reference-nav__link text-body truncate"
+                href={`#${schema.anchor}`}
+                title={schema.name}
+                data-api-nav-link
+                data-api-nav-item
+                data-api-nav-search-text={schema.name}
+              >
+                {schema.name}
+              </SidebarSectionItem>
+            ))
+          }
+        </Sidebar.Section.Items>
+      </div>
+    </Sidebar.Section>
+  </Sidebar.Body>
+</Sidebar>
+
+<script>
+  interface ApiSearchNavigationDetail {
+    group?: string;
+    targetId?: string;
+  }
+
+  const storageKey = (key: string) => `musiccloud:${key}:open`;
+  const sectionAnimations = new WeakMap<HTMLDetailsElement, Animation>();
+  const sectionStates = new WeakMap<HTMLDetailsElement, boolean>();
+
+  /** Returns the CSS-controlled duration so reduced-motion remains authoritative. */
+  const sectionTransitionDuration = (section: HTMLDetailsElement) =>
+    Number.parseFloat(window.getComputedStyle(section).getPropertyValue("--mc-docs-nav-transition-duration")) || 0;
+
+  /** Uses one quiet, symmetric easing curve for opening and closing disclosures. */
+  const sectionTransitionEasing = (section: HTMLDetailsElement) =>
+    window.getComputedStyle(section).getPropertyValue("--mc-docs-nav-transition-easing").trim() || "ease-in-out";
+
+  /** Keeps the bulk disclosure control aligned with the current section state. */
+  const updateToggleAllControl = (nav: HTMLElement) => {
+    const sections = [...nav.querySelectorAll<HTMLDetailsElement>("[data-api-nav-section]")];
+    const allExpanded = sections.length > 0 && sections.every((section) => sectionStates.get(section) ?? section.open);
+    const button = nav.querySelector<HTMLButtonElement>("[data-api-nav-toggle-all]");
+    if (!button) return;
+
+    const label = allExpanded ? "Collapse all sections" : "Expand all sections";
+    button.dataset.apiNavToggleAllState = allExpanded ? "collapse" : "expand";
+    button.setAttribute("aria-label", label);
+    button.setAttribute("title", label);
+  };
+
+  /**
+   * Animates a measured height instead of an interpolated grid track. This is
+   * interruptible, avoids timer-based closing, and keeps native details usable
+   * before JavaScript loads.
+   */
+  const setSectionOpen = (section: HTMLDetailsElement, expanded: boolean) => {
+    if ((sectionStates.get(section) ?? section.open) === expanded) return;
+    const content = section.querySelector<HTMLElement>(".api-reference-nav__content");
+    if (!content) return;
+
+    const previousAnimation = sectionAnimations.get(section);
+    previousAnimation?.commitStyles();
+    previousAnimation?.cancel();
+    sectionStates.set(section, expanded);
+    const nav = section.closest<HTMLElement>("[data-api-reference-nav]");
+    if (nav) updateToggleAllControl(nav);
+
+    const duration = sectionTransitionDuration(section);
+    const easing = sectionTransitionEasing(section);
+    const finishOpening = () => {
+      content.style.height = "auto";
+      content.style.opacity = "1";
+      sectionAnimations.delete(section);
+    };
+    const finishClosing = () => {
+      section.open = false;
+      content.style.removeProperty("height");
+      content.style.removeProperty("opacity");
+      sectionAnimations.delete(section);
+    };
+
+    if (expanded) {
+      section.open = true;
+      section.dataset.apiNavExpanded = "true";
+      content.style.height = "0px";
+      content.style.opacity = "0";
+
+      const targetHeight = content.scrollHeight;
+      if (!duration || typeof content.animate !== "function") {
+        finishOpening();
+        return;
+      }
+
+      const animation = content.animate(
+        [
+          { height: "0px", opacity: 0 },
+          { height: `${targetHeight}px`, opacity: 1 },
+        ],
+        { duration, easing, fill: "forwards" },
+      );
+      sectionAnimations.set(section, animation);
+      void animation.finished
+        .then(() => {
+          if (sectionAnimations.get(section) === animation) finishOpening();
+        })
+        .catch(() => undefined);
+      return;
+    }
+
+    section.dataset.apiNavExpanded = "false";
+    const startHeight = content.getBoundingClientRect().height;
+    content.style.height = `${startHeight}px`;
+    content.style.opacity = "1";
+    if (!duration || !startHeight || typeof content.animate !== "function") {
+      finishClosing();
+      return;
+    }
+
+    const animation = content.animate(
+      [
+        { height: `${startHeight}px`, opacity: 1 },
+        { height: "0px", opacity: 0 },
+      ],
+      { duration, easing, fill: "forwards" },
+    );
+    sectionAnimations.set(section, animation);
+    void animation.finished
+      .then(() => {
+        if (sectionAnimations.get(section) === animation) finishClosing();
+      })
+      .catch(() => undefined);
+  };
+
+  document.querySelectorAll<HTMLDetailsElement>("[data-api-nav-section]").forEach((section) => {
+    const key = section.dataset.apiNavSection;
+    if (!key) return;
+
+    const saved = window.localStorage.getItem(storageKey(key));
+    if (saved === "true") {
+      section.open = true;
+      section.dataset.apiNavExpanded = "true";
+    }
+    sectionStates.set(section, saved === "true");
+
+    section.querySelector("summary")?.addEventListener("click", (event) => {
+      event.preventDefault();
+      const expanded = section.dataset.apiNavExpanded !== "true";
+      setSectionOpen(section, expanded);
+      window.localStorage.setItem(storageKey(key), String(expanded));
+    });
+  });
+
+  document.querySelectorAll<HTMLElement>("[data-api-reference-nav]").forEach((nav) => {
+    updateToggleAllControl(nav);
+    const button = nav.querySelector<HTMLButtonElement>("[data-api-nav-toggle-all]");
+    if (!button) return;
+
+    button.addEventListener("click", () => {
+      const sections = [...nav.querySelectorAll<HTMLDetailsElement>("[data-api-nav-section]")];
+      const shouldExpand = sections.some((section) => !(sectionStates.get(section) ?? section.open));
+      for (const section of sections) {
+        setSectionOpen(section, shouldExpand);
+        const key = section.dataset.apiNavSection;
+        if (key) window.localStorage.setItem(storageKey(key), String(shouldExpand));
+      }
+      updateToggleAllControl(nav);
+    });
+  });
+
+  document.querySelectorAll<HTMLElement>("[data-api-reference-smooth-scroll]").forEach((nav) => {
+    nav.addEventListener("click", (event) => {
+      const link = event.target instanceof Element ? event.target.closest("a[href^='#']") : null;
+      if (!(link instanceof HTMLAnchorElement)) return;
+
+      const target = document.querySelector(link.hash);
+      if (!(target instanceof HTMLElement)) return;
+
+      event.preventDefault();
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      history.pushState(null, "", link.hash);
+    });
+  });
+
+  document.querySelectorAll<HTMLElement>("[data-api-reference-nav]").forEach((nav) => {
+    const links = [...nav.querySelectorAll<HTMLAnchorElement>("[data-api-nav-link]")].filter((link) => link.hash);
+    const targets = links
+      .map((link) => ({ link, target: document.querySelector(link.hash) }))
+      .filter((entry): entry is { link: HTMLAnchorElement; target: Element } => entry.target instanceof Element);
+    let activeLink: HTMLAnchorElement | undefined;
+
+    const setActive = (nextActiveLink: HTMLAnchorElement, force = false) => {
+      if (activeLink === nextActiveLink && !force) return;
+      activeLink = nextActiveLink;
+
+      for (const link of links) {
+        if (link === nextActiveLink) link.setAttribute("aria-current", "true");
+        else link.removeAttribute("aria-current");
+      }
+
+      const section = nextActiveLink.closest<HTMLDetailsElement>("[data-api-nav-section]");
+      if (section && section.dataset.apiNavExpanded !== "true") setSectionOpen(section, true);
+      nextActiveLink.scrollIntoView({ block: "nearest" });
+    };
+
+    /** Applies an explicit search selection without depending on scroll-spy geometry. */
+    window.addEventListener("musiccloud:api-search-navigate", (event) => {
+      const { group, targetId } = (event as CustomEvent<ApiSearchNavigationDetail>).detail ?? {};
+      const exactMatch = targetId ? links.find((link) => link.hash === `#${targetId}`) : undefined;
+      const chapterMatch = group ? links.find((link) => link.dataset.apiNavGroup === group) : undefined;
+      const nextActiveLink = exactMatch ?? chapterMatch;
+      if (nextActiveLink) setActive(nextActiveLink, true);
+    });
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => Math.abs(a.boundingClientRect.top) - Math.abs(b.boundingClientRect.top))[0];
+        if (!visible) return;
+
+        const active = targets.find((entry) => entry.target === visible.target);
+        if (active) setActive(active.link);
+      },
+      { rootMargin: "-20% 0px -65% 0px", threshold: [0, 0.15, 0.5] },
+    );
+
+    for (const { target } of targets) observer.observe(target);
+  });
+</script>

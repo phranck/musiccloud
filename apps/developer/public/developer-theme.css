@@ -1,0 +1,127 @@
+/* Canonical runtime values for every Developer Portal render path. Tailwind
+   maps these values to semantic utilities in src/styles/tokens.css. */
+:root {
+  --mc-color-sky-top: #08090b;
+  --mc-color-sky-bottom: #1a1c22;
+  --mc-color-fg: #ececf1;
+  --mc-color-fg-muted: #9fb0bc;
+  --mc-color-fg-subtle: #67676f;
+  --mc-color-surface: rgba(255, 255, 255, 0.045);
+  --mc-color-surface-raised: rgba(255, 255, 255, 0.055);
+  --mc-color-surface-solid: #14161c;
+  --mc-color-border: rgba(255, 255, 255, 0.09);
+  --mc-color-border-strong: rgba(255, 255, 255, 0.16);
+  --mc-color-accent: #28a8d8;
+  --mc-color-accent-hover: #45bfe8;
+  --mc-color-on-accent: #ffffff;
+  --mc-color-gold: #d4a843;
+  --mc-color-success: #4ade80;
+  --mc-color-warning: #fbbf24;
+  --mc-color-danger: #fb7185;
+  --mc-color-info: #38bdf8;
+  --mc-color-code-bg: rgba(0, 0, 0, 0.38);
+  --mc-color-code-fg: #c2d2dc;
+  --mc-color-request-get: #38bdf8;
+  --mc-color-request-post: #4ade80;
+  --mc-color-request-put: #fbbf24;
+  --mc-color-request-patch: #c084fc;
+  --mc-color-request-delete: #fb7185;
+  --mc-color-request-options: #a3a3a3;
+  --mc-color-request-head: #94a3b8;
+  --mc-color-aurora-green: #33ff99;
+  --mc-color-aurora-cyan: #2fffd6;
+  --mc-color-aurora-violet: #b060ff;
+  --mc-color-aurora-magenta: #ff5fc0;
+  --mc-color-aurora-blue: #4d9bff;
+
+  --mc-gradient-logo-rainbow: linear-gradient(
+    90deg,
+    #ff6699 0%,
+    #9966ff 14%,
+    #4d99ff 28%,
+    #00cce6 42%,
+    #00e6b3 57%,
+    #80e64d 71%,
+    #e6e64d 85%,
+    #ffb34d 100%
+  );
+  --mc-gradient-logo-suffix: linear-gradient(90deg, var(--mc-color-fg) 0%, var(--mc-color-fg-subtle) 100%);
+
+  --mc-radius-card: 0.75rem;
+  --mc-radius-control: 0.5rem;
+  --mc-radius-pill: 9999px;
+  --mc-radius-round: 50%;
+  --mc-size-control: 2.75rem;
+  --mc-size-control-compact: 2rem;
+  --mc-size-icon-sm: 1rem;
+  --mc-size-icon-md: 1.25rem;
+  --mc-size-icon-lg: 1.5rem;
+  --mc-size-icon-xl: 2.25rem;
+
+  --mc-space-1: 0.25rem;
+  --mc-space-2: 0.5rem;
+  --mc-space-3: 0.75rem;
+  --mc-space-4: 1rem;
+  --mc-space-5: 1.25rem;
+  --mc-space-6: 1.5rem;
+  --mc-space-7: 1.75rem;
+  --mc-space-8: 2rem;
+  --mc-space-page-inline: 1.5rem;
+  --mc-space-page-top: 3rem;
+  --mc-space-page-bottom: 5rem;
+  --mc-space-content-card: 1.75rem;
+  --mc-space-content-card-header: 1rem;
+  --mc-space-content-card-row: 0.75rem;
+  --mc-container-developer: 88rem;
+  --mc-dashboard-sidebar-width: 13rem;
+  --mc-dashboard-shell-gap: 2rem;
+
+  --mc-motion-duration-fast: 80ms;
+  --mc-motion-duration-normal: 160ms;
+  --mc-motion-duration-slow: 300ms;
+  --mc-motion-duration-entrance: 700ms;
+  --mc-motion-easing-standard: ease-in-out;
+  --mc-motion-easing-enter: ease-out;
+  --mc-motion-easing-emphasized: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --mc-background-aurora-inset: -12%;
+  --mc-background-aurora-size: 124%;
+  --mc-background-aurora-blur: 52px;
+  --mc-background-aurora-saturation: 1.15;
+  --mc-background-aurora-opacity: 0.4;
+
+  --mc-content-link-padding-inline: 0.25em;
+  --mc-content-link-padding-block: 0.08em;
+  --mc-content-link-radius: 0.25rem;
+
+  --mc-code-gutter-number-width: 2.5ch;
+  --mc-code-gutter-padding-inline: 0.75rem;
+  --mc-code-gutter-code-gap: 1rem;
+  --mc-code-padding-block: 1rem;
+  --mc-code-padding-inline: 1rem;
+  --mc-code-copy-clearance: 3.5rem;
+  --mc-code-line-height: 1.7;
+
+  --mc-font-sans: "Barlow", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --mc-font-condensed: "Barlow Condensed", "Barlow", sans-serif;
+  --mc-font-logo: "Audiowide", var(--mc-font-sans);
+  --mc-font-mono: "SF Mono", "Fira Code", ui-monospace, monospace;
+  --mc-text-nav: 1rem;
+  --mc-text-logo: 1.25rem;
+  --mc-text-wordmark: 1.5rem;
+  --mc-text-body: 1.125rem;
+  --mc-text-code: 0.9375rem;
+  --mc-text-card-title: 1.75rem;
+  --mc-text-subsection: 1.625rem;
+  --mc-text-section: 2.25rem;
+  --mc-text-lead: 1.5rem;
+  --mc-text-hero: 3.25rem;
+}
+
+@media (max-width: 40rem) {
+  :root {
+    --mc-space-page-inline: 0.75rem;
+    --mc-space-page-top: 2rem;
+    --mc-space-page-bottom: 3rem;
+  }
+}

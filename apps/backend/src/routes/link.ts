@@ -2,11 +2,10 @@
  * @file GET `/api/v1/link/:id` - metadata lookup for a previously resolved track.
  *
  * Registered inside the `authenticatePublic` scope in `server.ts`, so the
- * request is already credentialed (X-API-Key from the BFF proxy or a Bearer
- * JWT from an external API client) by the time this handler runs. The IP
+ * request is already credentialed with X-API-Key by the time this handler runs. The IP
  * rate limiter layered on top is intentional defense in depth: a leaked API
- * key or a stolen JWT would otherwise allow unbounded scraping against the
- * full catalog, and the rate limiter caps the blast radius.
+ * key would otherwise allow unbounded scraping against the full catalog,
+ * and the rate limiter caps the blast radius.
  *
  * Purpose contrasted with `routes/resolve.ts`: resolve performs the full
  * cross-service lookup and may talk to external adapters; this endpoint is
@@ -44,11 +43,11 @@ export default async function linkRoutes(app: FastifyInstance) {
         "x-codeSamples": buildCodeSamples({
           method: "GET",
           path: "/api/v1/link/tr_01HZ8N2B6P7Q8W9E3R4T5Y6U7I",
-          auth: "bearer",
+          auth: "apiKey",
         }),
         description:
           "Cache-friendly read against an already-persisted track. No external adapter calls. Use this when you already hold the track id (e.g. from a prior resolve) and want the track metadata plus public service links for rendering.",
-        security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
+        security: [{ ApiKeyAuth: [] }],
         params: {
           type: "object",
           required: ["id"],
@@ -74,7 +73,7 @@ export default async function linkRoutes(app: FastifyInstance) {
               links: { type: "array", items: { $ref: "PlatformLink#" } },
             },
           },
-          401: { description: "Missing or invalid API key / bearer token.", $ref: "ErrorResponse#" },
+          401: { description: "Missing, invalid, or revoked API key.", $ref: "ErrorResponse#" },
           404: { description: "No track exists for this id.", $ref: "ErrorResponse#" },
           429: {
             description:
@@ -85,7 +84,7 @@ export default async function linkRoutes(app: FastifyInstance) {
       },
     },
     async (request, reply) => {
-      // Per-IP limit for anonymous/BFF/JWT callers; token-authenticated clients
+      // Per-IP limit for internal BFF callers; token-authenticated clients
       // are quota-checked centrally in authenticatePublic (MC-088).
       if (!request.apiClient) {
         const rateLimit = apiRateLimiter.check(request.ip);

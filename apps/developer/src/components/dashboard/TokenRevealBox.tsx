@@ -52,11 +52,7 @@ export function TokenRevealBox({ rawToken, appName, onDismiss }: TokenRevealBoxP
   }, [rawToken]);
 
   return (
-    <output
-      ref={boxRef}
-      tabIndex={-1}
-      className="block rounded-card border border-accent/40 bg-surface px-5 py-4 outline-none"
-    >
+    <output ref={boxRef} tabIndex={-1} className="surface-card block px-5 py-4 outline-none">
       <div className="flex items-start justify-between gap-3 mb-2">
         <p className="text-body font-medium text-fg">
           New API key for <span className="text-accent">{appName}</span>
@@ -65,7 +61,7 @@ export function TokenRevealBox({ rawToken, appName, onDismiss }: TokenRevealBoxP
           type="button"
           onClick={onDismiss}
           aria-label="Dismiss. The key will not be shown again."
-          className="rounded-button p-1 text-fg-muted hover:text-fg transition-colors"
+          className="button button--icon text-fg-muted"
         >
           <CloseCircleIcon className="size-4" aria-hidden="true" />
         </button>
@@ -77,11 +73,7 @@ export function TokenRevealBox({ rawToken, appName, onDismiss }: TokenRevealBoxP
         <code className="flex-1 min-w-0 rounded-button border border-border bg-code-bg px-3 py-2 text-code font-mono text-code-fg overflow-x-auto whitespace-nowrap">
           {rawToken}
         </code>
-        <button
-          type="button"
-          onClick={onCopy}
-          className="inline-flex items-center gap-1.5 rounded-button border border-border-strong px-3 py-2 text-body font-medium text-fg hover:border-fg-subtle transition-colors shrink-0"
-        >
+        <button type="button" onClick={onCopy} className="button button--subtle text-body shrink-0">
           {copied ? (
             <TickCircleIcon className="size-4 text-accent" aria-hidden="true" />
           ) : (
@@ -91,7 +83,7 @@ export function TokenRevealBox({ rawToken, appName, onDismiss }: TokenRevealBoxP
         </button>
       </div>
       {copyError ? (
-        <p className="text-body text-red-400 mt-2">Copying failed. Select and copy the key manually.</p>
+        <p className="field__message field__message--error mt-2">Copying failed. Select and copy the key manually.</p>
       ) : null}
     </output>
   );

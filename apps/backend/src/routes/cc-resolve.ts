@@ -44,7 +44,7 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
       schema: {
         tags: ["Resolve"],
         summary: "Resolve a Creative-Commons free-text or structured query (Jamendo)",
-        security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
+        security: [{ ApiKeyAuth: [] }],
         body: {
           type: "object",
           description: "Exactly one of `query` or `selectedCandidate` must be present.",
@@ -61,16 +61,13 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
               'A CC disambiguation list, a resolved cc-track / cc-album / cc-artist, or a CC genre-discovery result (`status: "genre-browse"` / `status: "genre-search"`, sourced from Jamendo).',
             oneOf: [
               { $ref: "ResolveDisambiguation#" },
-              {
-                type: "object",
-                additionalProperties: true,
-                description:
-                  "Resolved cc-track / cc-album / cc-artist success payload or CC genre-browse/genre-search response.",
-              },
+              { $ref: "CcResolveSuccess#" },
+              { $ref: "GenreSearchResponse#" },
+              { $ref: "GenreBrowseResponse#" },
             ],
           },
           400: { description: "Malformed body or candidate id.", $ref: "ErrorResponse#" },
-          401: { description: "Missing or invalid API key / bearer token.", $ref: "ErrorResponse#" },
+          401: { description: "Missing, invalid, or revoked API key.", $ref: "ErrorResponse#" },
           404: { description: "The selected candidate could not be resolved.", $ref: "ErrorResponse#" },
           429: { description: "Rate limit exceeded for this client IP.", $ref: "ErrorResponse#" },
           500: { description: "Unexpected server error.", $ref: "ErrorResponse#" },
@@ -78,7 +75,7 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
       },
     },
     async (request, reply) => {
-      // Per-IP limit for anonymous/BFF/JWT callers; token-authenticated clients
+      // Per-IP limit for internal BFF callers; token-authenticated clients
       // are quota-checked centrally in authenticatePublic (MC-088).
       if (!request.apiClient) {
         const rateLimit = apiRateLimiter.check(request.ip);

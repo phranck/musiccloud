@@ -65,6 +65,7 @@ const fontFaceCss = FONTS.map(
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/developer-theme.css" />
     {FONTS.map(({ url }) => <link rel="preload" as="font" type="font/woff2" crossorigin href={url} />)}
     <style is:inline set:html={fontFaceCss}></style>
   </head>

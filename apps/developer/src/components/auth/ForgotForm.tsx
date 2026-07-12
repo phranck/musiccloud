@@ -47,7 +47,7 @@ export function ForgotForm() {
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
       {phase === FormPhase.Error ? (
-        <p className="text-body text-red-400">Could not reach the server. Please try again.</p>
+        <p className="field__message field__message--error">Could not reach the server. Please try again.</p>
       ) : null}
       <TextField
         name="email"

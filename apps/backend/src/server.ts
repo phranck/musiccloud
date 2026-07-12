@@ -1,5 +1,4 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
+import { pathToFileURL } from "node:url";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
@@ -14,12 +13,6 @@ import {
   getRuntimeDatabaseReadinessReport,
 } from "./db/runtime-database-readiness.js";
 import { finalizePublicOpenApiDocument } from "./docs/openapi-finalize.js";
-import {
-  getScalarApiReferenceHtml,
-  getScalarReferenceFontCss,
-  SCALAR_API_REFERENCE_CONTENT_SECURITY_POLICY,
-  SCALAR_REFERENCE_FONT_FILES,
-} from "./docs/scalar-reference.js";
 import { assertRequiredBootEnv } from "./lib/boot-env.js";
 import { requireEnvList } from "./lib/env.js";
 import { registerApiErrorHandling } from "./lib/infra/api-error-handler.js";
@@ -168,30 +161,6 @@ async function buildApp() {
     credentials: true,
   });
   await app.register(helmet, {
-    // Relaxed CSP so the Scalar API reference at /docs can load its
-    // bundle from jsDelivr and render its own inline styles/fonts.
-    // Normal API responses are JSON and unaffected.
-    //
-    // worker-src is set explicitly because ReDoc instantiates a Web
-    // Worker via `new Worker(URL.createObjectURL(blob))` from inlined
-    // bundle code. CSP3 has Workers fall back through child-src ->
-    // script-src -> default-src when worker-src is absent. iOS Safari
-    // falls back to default-src (only `'self'`), which blocks blob:
-    // Worker URLs and renders ReDoc as "The operation is insecure" with
-    // a `Worker@[native code]` stack trace; macOS Safari is more lenient
-    // and falls back to script-src instead, masking the issue. Listing
-    // worker-src explicitly fixes iOS without weakening other directives.
-    contentSecurityPolicy: {
-      directives: {
-        "default-src": ["'self'"],
-        "script-src": ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
-        "style-src": ["'self'", "'unsafe-inline'", "https:"],
-        "img-src": ["'self'", "data:", "https:"],
-        "font-src": ["'self'", "data:", "https:"],
-        "connect-src": ["'self'", "https:"],
-        "worker-src": ["'self'", "blob:"],
-      },
-    },
     // Only emit the HSTS header in production. In dev the backend speaks
     // HTTP on localhost:4000; Safari caches the HSTS response and then
     // upgrades every future request to https://, which fails with a TLS
@@ -312,22 +281,19 @@ async function buildApp() {
           "Public REST API for musiccloud.io. Resolve music URLs or text queries across 20+ streaming services and retrieve unified metadata.\n\n" +
           "## Authentication\n\n" +
           "Most endpoints require credentials. Endpoints declaring a `security` block (e.g. `POST /api/v1/resolve`, `GET /api/v1/link/:id`) " +
-          "accept either an `X-API-Key` header (a UUID v4 token issued via the developer portal at developer.musiccloud.io) or a `Bearer` JWT. " +
+          "accept an `X-API-Key` header containing a live API key in the form `mc_live_<prefix>_<secret>`. " +
+          "Send it as `X-API-Key: mc_live_<prefix>_<secret>`. " +
+          "Keys are issued in the developer portal at developer.musiccloud.io and are shown only once at creation or rotation. " +
+          "Do not expose keys in browser code.\n\n" +
           "Public read-only endpoints — `GET /api/v1/share/:shortId`, `GET /api/v1/share/:shortId/preview`, " +
           "`GET /api/v1/artist/...`, `GET /api/v1/genre-artwork/:genreKey`, `GET /health/db` — are reachable without credentials.\n\n" +
-          "**Getting a token (first-time integration):**\n\n" +
-          '1. `POST /api/auth/token` with `{ client_id, client_secret, grant_type: "client_credentials" }`.\n' +
-          "2. The response contains `access_token`, valid for 1 hour.\n" +
-          "3. Send subsequent requests with `Authorization: Bearer <access_token>`.\n" +
-          "4. Refresh by re-issuing the token call when it expires; there is no refresh-token flow.\n\n" +
-          "Without valid credentials, protected endpoints return `401 Unauthorized` and the client never reaches the resolver.\n\n" +
+          "Without a valid active key, protected endpoints return `401 Unauthorized` and the client never reaches the resolver.\n\n" +
           "## Rate limiting\n\n" +
-          "Anonymous calls to public endpoints (Resolve, Share, Auth, Link, Artist) are limited to **10 requests per 60 seconds per client IP**. " +
-          "Requests authenticated with an issued `X-API-Key` token are limited by **the client's own per-minute and per-day quota** instead of the per-IP limit. " +
+          "Requests authenticated with an issued `X-API-Key` token are limited by **the client's configured per-minute and per-day quota**. " +
           "Exceeding either quota returns `429 Too Many Requests` with `error: MC-API-0003`, an English `message`, structured `context`, and a `Retry-After` header. " +
           "The asset endpoint `GET /api/v1/genre-artwork/:genreKey` is exempt from this per-IP quota because the frontend loads artwork tiles in parallel; " +
           "it is still bounded by a global 300 requests/minute ceiling shared with all routes.",
-        version: "2.0.0",
+        version: "2.1.0",
       },
       servers: [{ url: "https://api.musiccloud.io", description: "Production" }],
       // Tag order here does not need to be alphabetical: the document is
@@ -340,13 +306,11 @@ async function buildApp() {
         { name: "Artist", description: "Artist info (Last.fm + Ticketmaster)" },
         { name: "CC", description: "Creative-Commons (Jamendo) resolve, audio, and metadata" },
         { name: "Services", description: "Active resolver plugins and examples" },
-        { name: "Auth", description: "OAuth client-credentials token endpoint" },
         { name: "Health", description: "Per-service liveness and readiness probes" },
       ],
       components: {
         securitySchemes: {
           ApiKeyAuth: { type: "apiKey", in: "header", name: "X-API-Key" },
-          BearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" },
         },
       },
     },
@@ -368,6 +332,7 @@ async function buildApp() {
       // appear in the published OpenAPI document.
       const isInternal =
         url.startsWith("/api/admin") ||
+        url.startsWith("/api/auth") ||
         url.startsWith("/api/dev") ||
         url.startsWith("/api/v1/content") ||
         url.startsWith("/api/v1/nav") ||
@@ -382,64 +347,27 @@ async function buildApp() {
     },
   });
 
-  // Expose the OpenAPI document so Scalar (and external consumers) can load
-  // it. Uses `app.swagger()` per-request so the spec always reflects the full
-  // route table after every plugin has registered, then finalizes it: orphan
-  // schemas from hidden routes are pruned and tags/paths/schemas are sorted
-  // alphabetically (see docs/openapi-finalize.ts).
+  // Expose the finalized public OpenAPI document for machines and the
+  // Developer Portal build. Uses `app.swagger()` per-request so the spec
+  // always reflects the full route table after every plugin has registered.
   app.get(
     "/docs/json",
     {
       schema: { hide: true },
     },
-    async () => finalizePublicOpenApiDocument(app.swagger()),
+    async (_request, reply) => {
+      reply.header("Cache-Control", "public, max-age=300");
+      return finalizePublicOpenApiDocument(app.swagger());
+    },
   );
 
-  // Scalar API Reference UI at /docs. We render the same CDN-backed HTML
-  // shell shape used by lmaa instead of registering a Fastify UI plugin:
-  // the backend is bundled into apps/backend/dist, so runtime file lookups
-  // inside UI plugins are fragile in the Zerops deploy artifact.
   app.get(
     "/docs",
     {
       schema: { hide: true },
     },
     async (_request, reply) => {
-      reply.header("Cache-Control", "no-store");
-      reply.header("Content-Security-Policy", SCALAR_API_REFERENCE_CONTENT_SECURITY_POLICY);
-      reply.type("text/html").send(getScalarApiReferenceHtml());
-    },
-  );
-
-  app.get(
-    "/fonts/fonts.css",
-    {
-      schema: { hide: true },
-    },
-    async (_request, reply) => {
-      reply.header("Cache-Control", "public, max-age=31536000, immutable");
-      reply.type("text/css; charset=utf-8").send(getScalarReferenceFontCss());
-    },
-  );
-
-  app.get<{ Params: { file: string } }>(
-    "/fonts/:file",
-    {
-      schema: { hide: true },
-    },
-    async (request, reply) => {
-      const contentType = SCALAR_REFERENCE_FONT_FILES.get(request.params.file);
-      if (!contentType) {
-        return reply.status(404).send({ error: "NOT_FOUND" });
-      }
-
-      try {
-        const font = await readDocsFont(request.params.file);
-        reply.header("Cache-Control", "public, max-age=31536000, immutable");
-        return reply.type(contentType).send(font);
-      } catch {
-        return reply.status(404).send({ error: "NOT_FOUND" });
-      }
+      return reply.redirect("https://developer.musiccloud.io/docs/api", 308);
     },
   );
 
@@ -648,7 +576,7 @@ async function buildApp() {
   // Public form submissions (MC-082): unauthenticated, per-route rate-limited.
   await app.register(formsPublicRoutes);
 
-  // Protected API routes (X-API-Key or Bearer JWT)
+  // Protected API routes (X-API-Key)
   await app.register(async function protectedRoutes(protectedApp) {
     protectedApp.addHook("preHandler", protectedApp.authenticatePublic);
 
@@ -680,20 +608,6 @@ async function buildApp() {
   });
 
   return app;
-}
-
-async function readDocsFont(file: string): Promise<Buffer> {
-  const candidates = [path.join(__dirname, "fonts", file), path.join(__dirname, "..", "assets", "fonts", file)];
-
-  let lastError: unknown;
-  for (const candidate of candidates) {
-    try {
-      return await readFile(candidate);
-    } catch (err) {
-      lastError = err;
-    }
-  }
-  throw lastError;
 }
 
 async function start() {
@@ -728,9 +642,9 @@ async function start() {
 }
 
 // Only auto-start when invoked as the entry point (`node dist/server.js` /
-// `tsup --onSuccess`). Skip when imported by tests or other modules so
-// buildApp can be unit-tested without spawning a real listener.
-if (process.env.VITEST !== "true") {
+// `tsup --onSuccess`). Skip when imported by tests, export scripts, or other
+// modules so buildApp can be used without spawning a real listener.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   start();
 }
 

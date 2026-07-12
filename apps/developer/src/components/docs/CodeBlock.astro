@@ -1,0 +1,65 @@
+---
+/**
+ * Highlighted code block used by the API reference components.
+ *
+ * Shiki escapes the supplied source while adding token spans. The surrounding
+ * copy control reads the rendered text back from the code node, so no raw source
+ * is stored in inline JavaScript.
+ */
+import { createHash } from "node:crypto";
+import { codeToHtml } from "shiki";
+import { CopyIcon, CopySuccessIcon } from "@/lib/icons";
+
+interface Props {
+  code: string;
+  label?: string;
+  language?: "bash" | "json" | "typescript" | "python" | "swift";
+}
+
+const { code, label, language = "bash" } = Astro.props;
+const blockId = `code-${createHash("sha256").update(`${label ?? ""}\n${language}\n${code}`).digest("hex").slice(0, 12)}`;
+const lineCount = code.split(/\r?\n/).length;
+const hasLineNumbers = language !== "bash";
+const hasVerticalOverflow = lineCount > 20;
+const highlighted = await codeToHtml(code, {
+  lang: language,
+  theme: "github-dark-dimmed",
+});
+---
+
+<div class="code-block" data-code-block>
+  {label && <p class="text-code text-fg-subtle mb-2">{label}</p>}
+  <div
+    class="code-block__surface"
+    data-code-line-numbers={hasLineNumbers || undefined}
+    data-code-vertical-scroll={hasVerticalOverflow || undefined}
+  >
+    <div class="code-block__actions" data-api-search-ignore>
+      <span class="code-block__copy-success" data-copy-success hidden aria-hidden="true">
+        <CopySuccessIcon className="code-block__copy-success-icon" aria-hidden="true" />
+      </span>
+      <button
+        type="button"
+        class="code-block__copy text-fg-muted"
+        aria-label="Copy code"
+        title="Copy code"
+        data-copy-code
+        data-copy-target={blockId}
+      >
+        <CopyIcon className="code-block__copy-icon" aria-hidden="true" />
+      </button>
+    </div>
+    <span class="sr-only" aria-live="polite" data-copy-status></span>
+    <div
+      id={blockId}
+      class="code-block__frame rounded-card border border-border bg-code-bg"
+      set:html={highlighted}
+    />
+  </div>
+</div>
+
+<script>
+  import { bindCodeCopyControls } from "@/lib/code-copy";
+
+  bindCodeCopyControls(document);
+</script>

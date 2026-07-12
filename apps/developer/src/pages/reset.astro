@@ -23,7 +23,7 @@ const token = Astro.url.searchParams.get("token");
       ) : (
         <p class="text-body text-fg-muted text-center py-2">
           This reset link is missing its token. Request a new one from the{" "}
-          <a href="/forgot" class="text-fg text-link">
+          <a href="/forgot" class="content-link text-fg">
             reset page
           </a>
           .
@@ -31,7 +31,7 @@ const token = Astro.url.searchParams.get("token");
       )
     }
     <Fragment slot="footer">
-      <a href="/login" class="text-fg text-link">Back to sign in</a>
+      <a href="/login" class="content-link text-fg">Back to sign in</a>
     </Fragment>
   </AuthCard>
 </BaseLayout>

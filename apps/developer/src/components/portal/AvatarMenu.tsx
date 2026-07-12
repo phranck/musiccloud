@@ -79,18 +79,12 @@ export function AvatarMenu({ account, showDashboard = true }: AvatarMenuProps) {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Account menu"
-        className="block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className="avatar-menu__trigger"
       >
         {account.avatarUrl ? (
-          <img
-            src={account.avatarUrl}
-            alt=""
-            width="36"
-            height="36"
-            className="size-9 rounded-full border border-border object-cover"
-          />
+          <img src={account.avatarUrl} alt="" width="36" height="36" className="avatar-menu__visual" />
         ) : (
-          <span className="inline-flex items-center justify-center size-9 rounded-full border border-border bg-surface text-body font-medium text-fg">
+          <span className="avatar-menu__visual">
             {initial || <ProfileIcon className="size-5 text-fg-muted" aria-hidden="true" />}
           </span>
         )}

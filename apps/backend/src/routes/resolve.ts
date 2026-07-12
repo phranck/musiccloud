@@ -2,9 +2,8 @@
  * @file POST `/api/v1/resolve` - full-feature authenticated resolve endpoint.
  *
  * Registered inside the `authenticatePublic` scope in `server.ts`, so the
- * request has already presented an X-API-Key (frontend BFF) or a Bearer
- * JWT (external API client). See `resolve-public-get.ts` for the
- * unauthenticated GET companion used by curl / Apple Shortcuts.
+ * request has already presented an X-API-Key. See `resolve-public-get.ts`
+ * for the unauthenticated GET companion used by curl / Apple Shortcuts.
  *
  * This POST endpoint carries two capabilities the GET endpoint does not:
  *
@@ -116,7 +115,7 @@ export default async function resolveRoutes(app: FastifyInstance) {
         "x-codeSamples": buildCodeSamples({
           method: "POST",
           path: "/api/v1/resolve",
-          auth: "bearer",
+          auth: "apiKey",
           body: { query: "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L" },
         }),
         description:
@@ -131,7 +130,7 @@ export default async function resolveRoutes(app: FastifyInstance) {
           `${STRUCTURED_SEARCH_POST_OPENAPI_NOTE}\n\n` +
           "After any disambiguation response, send the picked candidate's id back as `selectedCandidate` to complete the resolve.\n\n" +
           "For a deep architectural walkthrough of the resolver pipeline, see the resolver-flow PDF in the repo: [Deutsch](https://github.com/phranck/musiccloud/blob/main/docs/resolve-flow/de/resolve-flow.pdf) · [English](https://github.com/phranck/musiccloud/blob/main/docs/resolve-flow/en/resolve-flow.pdf).",
-        security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
+        security: [{ ApiKeyAuth: [] }],
         body: {
           type: "object",
           description:
@@ -172,18 +171,15 @@ export default async function resolveRoutes(app: FastifyInstance) {
             oneOf: [
               { $ref: "UnifiedResolveSuccess#" },
               { $ref: "ResolveDisambiguation#" },
-              {
-                type: "object",
-                additionalProperties: true,
-                description: "Genre-search or genre-browse response (see endpoint description).",
-              },
+              { $ref: "GenreSearchResponse#" },
+              { $ref: "GenreBrowseResponse#" },
             ],
           },
           400: {
             description: "Invalid URL, invalid genre query, invalid structured search query, or malformed body.",
             $ref: "ErrorResponse#",
           },
-          401: { description: "Missing or invalid API key / bearer token.", $ref: "ErrorResponse#" },
+          401: { description: "Missing, invalid, or revoked API key.", $ref: "ErrorResponse#" },
           404: { description: "URL is valid but the track/album/artist could not be found.", $ref: "ErrorResponse#" },
           408: { description: "Upstream service timed out before a match could be confirmed.", $ref: "ErrorResponse#" },
           429: {
@@ -200,7 +196,7 @@ export default async function resolveRoutes(app: FastifyInstance) {
       },
     },
     async (request, reply) => {
-      // Per-IP rate limiting for anonymous/BFF/JWT callers. Token-authenticated
+      // Per-IP rate limiting for internal BFF callers. Token-authenticated
       // clients (request.apiClient set by authenticatePublic) skip it: their
       // identity is the client, whose own per-minute/per-day quota was already
       // enforced centrally in the auth hook (MC-088).
