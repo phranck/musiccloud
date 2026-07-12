@@ -22,7 +22,7 @@
     "@fontsource/barlow-condensed": "^5.2.8",
     "@musiccloud/shared": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",
-    "astro": "5.17.3",
+    "astro": "6.4.6",
     "iconsax-react": "^0.0.8",
     "marked": "17.0.6",
     "react": "^19.2.4",
