@@ -82,6 +82,28 @@ down to its meaningful inner slots.
 - `/health/db` must verify required tables, effective runtime privileges and the current Drizzle migration hash. Do not reduce it to connectivity or table-existence checks.
 - Every backend error response must preserve stable `MC-*` code, safe message and unique `errorId` through frontend proxies and UI. Recoverable backend deviations must remain searchable in structured redacted logs.
 
+## Backend runtime and process health
+
+- The Backend production bundle is CommonJS. Direct-entry detection must use
+  `module === require.main`; never use `import.meta.url` unless the tsup output
+  format is explicitly migrated to ESM and its direct-execution tests change
+  with it.
+- Importing `buildApp()` must remain side-effect free. Tests, OpenAPI export,
+  and helper modules may not open an implicit listener.
+- PID liveness is not readiness. `./app` must require a listener owned by the
+  managed process tree plus a successful configured HTTP health probe for every
+  port-bearing application.
+- `./app` must launch managed roots through `scripts/start-detached.mjs` so they
+  run in an independent process group. `nohup` alone is not sufficient because
+  it does not detach the process from the invoking shell's lifecycle.
+- `./app start`, `restart`, and `status` must propagate unhealthy states through
+  non-zero exit codes. Do not suppress startup failures with `|| true`.
+- A Zerops artifact upload is not deployment success. Backend deployment must
+  retain its public post-deploy `/health/backend` check.
+- See [`apps/backend/RUNTIME_SAFETY.md`](apps/backend/RUNTIME_SAFETY.md) before
+  changing `app`, `app.config`, Backend bootstrap, tsup output format, or deploy
+  health checks.
+
 ## See also
 
 - [`docs/REACT_DOCTOR_PREVENTION.md`](docs/REACT_DOCTOR_PREVENTION.md) — React Doctor policy (run before/after React work).
@@ -89,3 +111,4 @@ down to its meaningful inner slots.
 - [`mockups/frontend-prototype.html`](mockups/frontend-prototype.html) — the tuned visual + settings reference for every screen.
 - [`docs/postgres-migration-safety.md`](docs/postgres-migration-safety.md) — connection roles, migration guard and readiness checks.
 - [`docs/backend-error-observability.md`](docs/backend-error-observability.md) — public error contract, UI propagation and log correlation.
+- [`apps/backend/RUNTIME_SAFETY.md`](apps/backend/RUNTIME_SAFETY.md) — Backend entrypoint, local supervision, and deploy health invariants.

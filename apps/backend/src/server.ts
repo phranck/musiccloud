@@ -79,6 +79,8 @@ const PORT = Number(process.env.PORT ?? 4000);
  * empty after bundling. Comparing Node's current module to `require.main`
  * starts `node dist/server.js` reliably while imports from tests, OpenAPI
  * export scripts, and other modules remain side-effect free.
+ * Do not replace this check with `import.meta.url` unless the tsup output and
+ * its direct-execution regression are migrated to ESM together.
  *
  * @param currentModule - the current CommonJS module
  * @param mainModule - Node's direct entry module, when one exists

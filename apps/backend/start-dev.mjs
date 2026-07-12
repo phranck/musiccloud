@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 // Dev-only startup script: loads .env.local and spawns the built server.
+// The surrounding tsup watcher can outlive this child, so external process
+// supervision must verify the owned listener and /health/backend rather than
+// treating the watcher's PID as Backend readiness.
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";

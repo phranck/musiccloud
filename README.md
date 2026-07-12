@@ -44,6 +44,7 @@ sources alongside their D2 diagram sources.
 - [Zerops networking notes](architecture/zerops-networking.md)
 - [PostgreSQL migration safety](docs/postgres-migration-safety.md)
 - [Backend error observability](docs/backend-error-observability.md)
+- [Backend runtime safety](apps/backend/RUNTIME_SAFETY.md)
 
 ## Supported streaming services
 

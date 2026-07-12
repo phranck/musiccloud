@@ -57,3 +57,15 @@ test("does not deploy the dashboard for backend-only or CI-only changes", () => 
 
   assert.doesNotMatch(dashboardCase, /apps\/backend\/\*|\.github\/workflows\/ci\.yml/);
 });
+
+test("runs local process-supervision regressions before workspace tests", () => {
+  const typecheckJob = workflow.slice(
+    workflow.indexOf("  typecheck:"),
+    workflow.indexOf("  detect-changes:"),
+  );
+
+  assert.match(
+    typecheckJob,
+    /- name: Local runtime supervision[\s\S]*?node --test app\.test\.mjs scripts\/ci-workflow\.test\.mjs scripts\/zerops-deploy\.test\.mjs[\s\S]*?- name: Workspace tests[\s\S]*?pnpm -r --if-present test:run/,
+  );
+});
