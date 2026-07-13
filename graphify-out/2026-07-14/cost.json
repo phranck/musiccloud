@@ -1,0 +1,76 @@
+{
+  "runs": [
+    {
+      "date": "2026-06-10T16:32:23.270863+00:00",
+      "input_tokens": 145115,
+      "output_tokens": 0,
+      "files": 858
+    },
+    {
+      "date": "2026-06-10T16:44:59.109033+00:00",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "files": 770
+    },
+    {
+      "date": "2026-06-10T19:45:49.163894+00:00",
+      "input_tokens": 57904,
+      "output_tokens": 0,
+      "files": 770
+    },
+    {
+      "date": "2026-06-11T19:17:40.017391+00:00",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "files": 780,
+      "note": "full AST rebuild, docs from cache, 0 LLM"
+    },
+    {
+      "date": "2026-06-11T19:27:04.634194+00:00",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "files": 741,
+      "note": "code-only rebuild (.graphifyignore excludes docs/pdf/infra)"
+    },
+    {
+      "date": "2026-06-13T09:45:35.243852+00:00",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "files": 776
+    },
+    {
+      "date": "2026-06-14T20:59:44.417680+00:00",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "files": 777
+    },
+    {
+      "date": "2026-06-17T22:45:47.360609+00:00",
+      "input_tokens": 49000,
+      "output_tokens": 12370,
+      "files": 89,
+      "note": "incremental update: 89 changed, 129 deleted, force=True after dedup-guard verification"
+    },
+    {
+      "date": "2026-07-07T16:52:17.801939+00:00",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "files": 555,
+      "mode": "update-ast-only"
+    },
+    {
+      "date": "2026-07-13T22:36:37.159825+00:00",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "files": 1294
+    },
+    {
+      "date": "2026-07-13T22:45:39.538797+00:00",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "files": 1294
+    }
+  ],
+  "total_input_tokens": 252019,
+  "total_output_tokens": 12370
+}

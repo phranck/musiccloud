@@ -94,19 +94,15 @@ down to its meaningful inner slots.
   with it.
 - Importing `buildApp()` must remain side-effect free. Tests, OpenAPI export,
   and helper modules may not open an implicit listener.
-- PID liveness is not readiness. `./app` must require a listener owned by the
-  managed process tree plus a successful configured HTTP health probe for every
-  port-bearing application.
-- `./app` must launch managed roots through `scripts/start-detached.mjs` so they
-  run in an independent process group. `nohup` alone is not sufficient because
-  it does not detach the process from the invoking shell's lifecycle.
-- `./app start`, `restart`, and `status` must propagate unhealthy states through
-  non-zero exit codes. Do not suppress startup failures with `|| true`.
+- PID liveness is not readiness. Runtime supervision must require a listener
+  owned by the managed process tree plus a successful configured HTTP health
+  probe for every port-bearing application.
+- Local development remains package-script based. Do not add a project-local
+  `app` runner or runner-specific configuration.
 - A Zerops artifact upload is not deployment success. Backend deployment must
   retain its public post-deploy `/health/backend` check.
 - See [`apps/backend/RUNTIME_SAFETY.md`](apps/backend/RUNTIME_SAFETY.md) before
-  changing `app`, `app.config`, Backend bootstrap, tsup output format, or deploy
-  health checks.
+  changing Backend bootstrap, tsup output format, or deploy health checks.
 
 ## See also
 

@@ -111,9 +111,6 @@ DerivedData/
 .tmp/sdk/
 apps/developer/src/generated/
 
-# Local app runner
-/.app/
-
 # Local DB-dump helper (machine-specific: Zerops project id + local DB creds)
 scripts/dbdump
 

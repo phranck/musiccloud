@@ -51,8 +51,8 @@ jobs:
         run: pnpm --filter @musiccloud/frontend check
       - name: Dashboard
         run: pnpm exec tsc --noEmit --project apps/dashboard/tsconfig.json
-      - name: Local runtime supervision
-        run: node --test app.test.mjs scripts/ci-workflow.test.mjs scripts/zerops-deploy.test.mjs
+      - name: Workflow and deployment contracts
+        run: node --test scripts/ci-workflow.test.mjs scripts/zerops-deploy.test.mjs
       - name: Workspace tests
         run: pnpm -r --if-present test:run
 

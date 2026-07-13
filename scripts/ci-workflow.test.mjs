@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
 const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
@@ -58,7 +58,7 @@ test("does not deploy the dashboard for backend-only or CI-only changes", () => 
   assert.doesNotMatch(dashboardCase, /apps\/backend\/\*|\.github\/workflows\/ci\.yml/);
 });
 
-test("runs local process-supervision regressions before workspace tests", () => {
+test("keeps CI independent from the removed project-local app runner", async () => {
   const typecheckJob = workflow.slice(
     workflow.indexOf("  typecheck:"),
     workflow.indexOf("  detect-changes:"),
@@ -66,6 +66,8 @@ test("runs local process-supervision regressions before workspace tests", () => 
 
   assert.match(
     typecheckJob,
-    /- name: Local runtime supervision[\s\S]*?node --test app\.test\.mjs scripts\/ci-workflow\.test\.mjs scripts\/zerops-deploy\.test\.mjs[\s\S]*?- name: Workspace tests[\s\S]*?pnpm -r --if-present test:run/,
+    /- name: Workflow and deployment contracts[\s\S]*?node --test scripts\/ci-workflow\.test\.mjs scripts\/zerops-deploy\.test\.mjs[\s\S]*?- name: Workspace tests[\s\S]*?pnpm -r --if-present test:run/,
   );
+  assert.doesNotMatch(typecheckJob, /\bapp(?:\.test\.mjs)?\b/);
+  await assert.rejects(access(new URL("../app", import.meta.url)));
 });
