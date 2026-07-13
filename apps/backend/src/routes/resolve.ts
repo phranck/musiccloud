@@ -276,11 +276,7 @@ export default async function resolveRoutes(app: FastifyInstance) {
           if (textResult.kind === "resolved" && textResult.result) {
             return reply.send(await persistTrackAndRespond(textResult.result, origin));
           }
-          const disambiguationBody: ResolveDisambiguationResponse = {
-            status: "disambiguation",
-            candidates: textResult.candidates ?? [],
-          };
-          return reply.send(disambiguationBody);
+          return reply.send(toDisambiguationResponse(textResult.candidates));
         }
 
         if (selectedCandidate) {
@@ -325,11 +321,7 @@ export default async function resolveRoutes(app: FastifyInstance) {
         // here would create a DB row we cannot safely associate with any of
         // the candidates; the commit happens in the Flow 1 follow-up when
         // the client tells us which candidate was picked.
-        const disambiguationBody: ResolveDisambiguationResponse = {
-          status: "disambiguation",
-          candidates: textResult.candidates ?? [],
-        };
-        return reply.send(disambiguationBody);
+        return reply.send(toDisambiguationResponse(textResult.candidates));
       } catch (error) {
         if (error instanceof ResolveError) {
           // httpStatus is `number` in the error registry; the schema declares
@@ -376,6 +368,25 @@ function jsonError(
   context?: Record<string, string | number>,
 ): ResolveErrorResponse {
   return createApiErrorResponse(code, { context, overrideMessage });
+}
+
+/**
+ * Maps resolver-internal candidates to the documented public API shape.
+ * Resolver ranking metadata must not leak into this strict response schema.
+ */
+function toDisambiguationResponse(
+  candidates: ResolveDisambiguationResponse["candidates"] | undefined,
+): ResolveDisambiguationResponse {
+  return {
+    status: "disambiguation",
+    candidates: (candidates ?? []).map(({ id, title, artists, albumName, artworkUrl }) => ({
+      id,
+      title,
+      artists,
+      ...(albumName === undefined ? {} : { albumName }),
+      ...(artworkUrl === undefined ? {} : { artworkUrl }),
+    })),
+  };
 }
 
 /**
