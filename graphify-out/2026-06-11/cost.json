@@ -1,0 +1,38 @@
+{
+  "runs": [
+    {
+      "date": "2026-06-10T16:32:23.270863+00:00",
+      "input_tokens": 145115,
+      "output_tokens": 0,
+      "files": 858
+    },
+    {
+      "date": "2026-06-10T16:44:59.109033+00:00",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "files": 770
+    },
+    {
+      "date": "2026-06-10T19:45:49.163894+00:00",
+      "input_tokens": 57904,
+      "output_tokens": 0,
+      "files": 770
+    },
+    {
+      "date": "2026-06-11T19:17:40.017391+00:00",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "files": 780,
+      "note": "full AST rebuild, docs from cache, 0 LLM"
+    },
+    {
+      "date": "2026-06-11T19:27:04.634194+00:00",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "files": 741,
+      "note": "code-only rebuild (.graphifyignore excludes docs/pdf/infra)"
+    }
+  ],
+  "total_input_tokens": 203019,
+  "total_output_tokens": 0
+}

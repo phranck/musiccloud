@@ -18,8 +18,7 @@ coverage/
 vite.config.js
 vite.config.d.ts
 
-# graphify knowledge-graph output (generated, reproducible via /graphify)
-graphify-out/
+# Graphify knowledge-graph output is versioned with the project.
 
 # Astro
 .astro/

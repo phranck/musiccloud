@@ -1,0 +1,1 @@
+{"nodes": [{"id": "users_phranck_sites_musiccloud_musiccloud_apps_backend_src_db_migrations_postgres_0005_remove_featured_tables_sql", "label": "0005_remove-featured-tables.sql", "file_type": "code", "source_file": "apps/backend/src/db/migrations/postgres/0005_remove-featured-tables.sql", "source_location": null}], "edges": []}

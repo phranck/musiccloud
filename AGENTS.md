@@ -3,6 +3,10 @@
 Read this before any UI / layout / styling change. These are non-negotiable project
 rules — apply them automatically on every change, not only when asked.
 
+## Git workflow
+
+- Before every push, update the Graphify index.
+
 ## Geometry: the radius cascade runs OUTSIDE-IN
 
 Only the **outermost** card radius is authored: the `cardRadius` design token →
