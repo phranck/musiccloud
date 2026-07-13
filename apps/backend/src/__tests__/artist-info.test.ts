@@ -188,6 +188,21 @@ describe("fetchArtistProfile", () => {
     expect(profile?.similarArtists).toEqual(["Justice", "Stardust"]);
   });
 
+  it("keeps five similar artists so the shared card can show a four-and-a-half-row viewport", async () => {
+    route({
+      lastfmInfo: {
+        artist: {
+          ...LASTFM_INFO.artist,
+          similar: { artist: ["One", "Two", "Three", "Four", "Five", "Six"].map((name) => ({ name })) },
+        },
+      },
+    });
+
+    const profile = await fetchArtistProfile("Daft Punk");
+
+    expect(profile?.similarArtists).toEqual(["One", "Two", "Three", "Four", "Five"]);
+  });
+
   it("stays non-null when Spotify throws — Deezer + Last.fm carry the profile", async () => {
     route({
       spotify: "throw",

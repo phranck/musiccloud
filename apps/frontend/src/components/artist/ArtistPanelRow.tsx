@@ -22,7 +22,8 @@ type ArtistPanelRowProps =
  * shared, token-driven row chrome. The single source of truth for row layout and
  * spacing across popular tracks, upcoming events and similar artists — the
  * content (artwork-or-not, text styling, duration-or-icon) is composed by the
- * caller as children.
+ * caller as children. `ArtistPanelList` and `ArtistTrackView` each own their
+ * single-column grouped corner geometry.
  *
  * Lay the children out as: optional leading visual, an `ArtistPanelRowText`
  * column, then an optional trailing element. Pair the row with `ArtistPanelList`,

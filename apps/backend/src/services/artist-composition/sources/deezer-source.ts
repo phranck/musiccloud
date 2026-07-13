@@ -18,7 +18,7 @@ export async function fetchDeezerArtistPartial(name: string): Promise<ArtistPart
 
   const [fans, topTracks] = await Promise.all([
     fetchDeezerFanCount(String(hit.id)),
-    fetchDeezerArtistTopTracks(hit.id, 3),
+    fetchDeezerArtistTopTracks(hit.id, 5),
   ]);
 
   return {

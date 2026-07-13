@@ -74,6 +74,9 @@ describe("fetchDeezerArtistPartial", () => {
     });
 
     const partial = await fetchDeezerArtistPartial("Slowdive");
+    const topTracksUrl = String(fetchWithTimeoutMock.mock.calls.find(([url]) => String(url).includes("/top"))?.[0]);
+
+    expect(topTracksUrl).toContain("limit=5");
     expect(partial).toMatchObject({
       __source: "deezer",
       imageUrl: SEARCH_HIT.picture_xl,

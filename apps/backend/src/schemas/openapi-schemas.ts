@@ -839,7 +839,7 @@ export const ArtistInfoSchema = {
     similarArtistTracks: {
       type: "array",
       items: { $ref: "SimilarArtistTrack#" },
-      description: "Top track for each of up to 3 similar artists. Only present when Last.fm is configured.",
+      description: "Top track for each of up to 5 similar artists. Only present when Last.fm is configured.",
     },
   },
   example: {

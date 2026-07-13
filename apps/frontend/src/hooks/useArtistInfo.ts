@@ -12,7 +12,7 @@ import {
  * Abort timeout for the commercial artist-info fetch, in milliseconds. The
  * backend blocks the response while it refetches stale cache sections from
  * upstream (Deezer top tracks, Last.fm/Spotify profile, Bandsintown events,
- * plus up to three similar-artist lookups), which under concurrent load
+ * plus up to five similar-artist lookups), which under concurrent load
  * routinely takes well over five seconds. The budget sits above that so a
  * slow-but-valid response still fills the artist column instead of aborting
  * it to an empty one (all four cards render `null` on no data).

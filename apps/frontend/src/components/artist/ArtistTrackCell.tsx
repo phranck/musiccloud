@@ -1,5 +1,5 @@
 import type { ArtistTopTrack } from "@musiccloud/shared";
-import type { MouseEvent } from "react";
+import type { CSSProperties, MouseEvent } from "react";
 import { ArtistPanelRow } from "@/components/artist/ArtistPanelRow";
 import { ArtistPanelRowText } from "@/components/artist/ArtistPanelRowText";
 import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
@@ -19,6 +19,12 @@ interface ArtistTrackCellProps {
   onTrackResolve?: ArtistPanelTrackResolveHandler;
   /** Optional callback fired right before resolving begins. */
   onResolveStart?: () => void;
+  /** Token-derived grouped-list corners for the raised row. */
+  rowStyle?: CSSProperties;
+  /** Token-derived base radius for the square artwork frame. */
+  artworkRadius?: string;
+  /** Per-corner grouped-list geometry for the artwork frame. */
+  artworkStyle?: CSSProperties;
 }
 
 /**
@@ -38,6 +44,9 @@ export function ArtistTrackCell({
   cardSignal = CardSignal.PopularTrack,
   onTrackResolve,
   onResolveStart,
+  rowStyle,
+  artworkRadius,
+  artworkStyle,
 }: ArtistTrackCellProps) {
   const subline = getTrackSubline(track, artistLabel);
   const { resolving, activate } = useTrackResolve(track, cardSignal, onTrackResolve, onResolveStart);
@@ -59,12 +68,15 @@ export function ArtistTrackCell({
       aria-busy={resolving}
       aria-disabled={resolving}
       aria-label={ariaLabel}
+      style={rowStyle}
     >
       <SlideArtwork
         active={resolving}
         artworkUrl={track.artworkUrl ?? undefined}
         sizeClass="w-12 h-12"
         imgDim={48}
+        radius={artworkRadius}
+        style={artworkStyle}
         decoding="sync"
       />
       <ArtistPanelRowText>

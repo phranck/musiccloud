@@ -41,11 +41,11 @@
  *
  * ## Similar-artist top-track enrichment
  *
- * For each of the top 3 similar artists (UI cap) we fetch their top track
+ * For each of the top 5 similar artists (UI cap) we fetch their top track
  * in parallel. Each lookup is wrapped in its own `try/catch` that returns
  * `{ track: null }` on failure, so one upstream hiccup cannot collapse the
- * whole response. The limit of 3 matches what the similar-artists carousel
- * renders.
+ * whole response. The limit of 5 supplies the shared card's four-and-a-half-row
+ * viewport with a scroll cue.
  *
  * ## shortId enrichment (not cached)
  *
@@ -258,7 +258,7 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
         }),
       );
 
-      const similarNames = (profile?.similarArtists ?? []).slice(0, 3);
+      const similarNames = (profile?.similarArtists ?? []).slice(0, 5);
       const similarArtistTracks: SimilarArtistTrack[] = await Promise.all(
         similarNames.map(async (name) => {
           try {

@@ -47,7 +47,7 @@ export async function fetchLastFmArtistInfo(name: string): Promise<LastFmArtistI
       bioSummary: extractBioSummary(artist.bio?.summary ?? null),
       scrobbles: artist.stats?.playcount ? parseInt(artist.stats.playcount, 10) : null,
       listeners: artist.stats?.listeners ? parseInt(artist.stats.listeners, 10) : null,
-      similarArtists: (artist.similar?.artist ?? []).slice(0, 3).map((a) => a.name),
+      similarArtists: (artist.similar?.artist ?? []).slice(0, 5).map((a) => a.name),
     };
   } catch (err) {
     log.debug("Last.fm", "artist.getInfo threw", err);

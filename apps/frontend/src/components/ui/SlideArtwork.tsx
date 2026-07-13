@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type CSSProperties, useState } from "react";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { CoverImage } from "@/components/ui/CoverImage";
 import { SlideArtworkKind, type SlideArtworkKind as SlideArtworkKindType } from "@/components/ui/SlideArtworkTypes";
@@ -22,6 +22,8 @@ interface SlideArtworkProps {
    * radius) so the tile never hardcodes a nested radius. Square tiles only.
    */
   radius?: string;
+  /** Per-corner artwork geometry, merged after the base radius. */
+  style?: CSSProperties;
   /**
    * `<img>` decoding hint forwarded to {@link CoverImage}. Defaults to `async`;
    * pass `sync` where a remount must not flash an empty frame (e.g. covers that
@@ -54,6 +56,7 @@ export function SlideArtwork({
   sizeClass,
   imgDim = 56,
   radius,
+  style,
   decoding = "async",
 }: SlideArtworkProps) {
   // Keep the disc in the DOM across the EXIT animation: when `active` flips
@@ -92,7 +95,7 @@ export function SlideArtwork({
       )}
       radius={borderRadius}
       borderWidth="1px"
-      style={{ "--neu-light": "hsl(0 0% 100% / 0.5)", "--neu-shadow": "hsl(0 0% 0% / 0.1)" } as React.CSSProperties}
+      style={{ "--neu-light": "hsl(0 0% 100% / 0.5)", "--neu-shadow": "hsl(0 0% 0% / 0.1)", ...style } as CSSProperties}
     >
       <RecessedCard.Body className="contents">
         {/* Spinning LP: mounted for the selected row AND through its exit glide.

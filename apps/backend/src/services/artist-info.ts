@@ -64,7 +64,7 @@ function mapCanonicalToArtistProfile(canonical: CanonicalArtist): ArtistProfile 
     followers: canonical.followers,
     bioSummary: canonical.bioSummary,
     scrobbles: canonical.scrobbles,
-    similarArtists: canonical.similarArtists.slice(0, 3),
+    similarArtists: canonical.similarArtists.slice(0, 5),
   };
 }
 

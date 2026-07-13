@@ -519,7 +519,7 @@ export interface ArtistProfile {
   // Last.fm enrichment (null if LASTFM_API_KEY not set)
   bioSummary: string | null;
   scrobbles: number | null;
-  similarArtists: string[]; // max 3 artist names
+  similarArtists: string[]; // max 5 artist names
 }
 
 export interface ArtistEvent {

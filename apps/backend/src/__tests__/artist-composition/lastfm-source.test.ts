@@ -75,6 +75,11 @@ describe("fetchLastFmArtistPartial", () => {
     routeLastFmCalls({ info: INFO_RESPONSE, tags: TAGS_RESPONSE, topTracks: TOP_TRACKS_RESPONSE });
 
     const partial = await fetchLastFmArtistPartial("Slowdive");
+    const topTracksUrl = String(
+      fetchWithTimeoutMock.mock.calls.find(([url]) => String(url).includes("method=artist.getTopTracks"))?.[0],
+    );
+
+    expect(topTracksUrl).toContain("limit=5");
     expect(partial).toMatchObject({
       __source: "lastfm",
       genres: ["shoegaze", "alt-rock"],

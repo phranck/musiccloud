@@ -18,7 +18,7 @@ export async function fetchLastFmArtistPartial(name: string): Promise<ArtistPart
   const [info, tags, topTracks] = await Promise.all([
     fetchLastFmArtistInfo(name),
     fetchLastFmTopTags(name),
-    fetchLastFmTopTracks(name, 3),
+    fetchLastFmTopTracks(name, 5),
   ]);
 
   if (!info && tags.length === 0 && topTracks.length === 0) return null;
