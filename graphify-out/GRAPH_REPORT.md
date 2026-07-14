@@ -1,12 +1,18 @@
-# Graph Report - .  (2026-07-14)
+# Graph Report - musiccloud  (2026-07-14)
 
 ## Corpus Check
-- Large corpus: 1291 files · ~691,089 words. Semantic extraction will be expensive (many Claude tokens). Consider running on a subfolder.
+- 1296 files · ~692,627 words
+- Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 9269 nodes · 18635 edges · 388 communities (355 shown, 33 thin omitted)
+- 9269 nodes · 18634 edges · 376 communities (347 shown, 29 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 75 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
+
+## Graph Freshness
+- Built from commit: `0f0b1148`
+- Run `git rev-parse HEAD` and compare to check if the graph is stale.
+- Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - [[_COMMUNITY_Share Signal|Share Signal]]
@@ -294,21 +300,15 @@
 - [[_COMMUNITY_Contents.json|Contents.json]]
 - [[_COMMUNITY_Contents.json|Contents.json]]
 - [[_COMMUNITY_Contents.json|Contents.json]]
-- [[_COMMUNITY_Backend Fetch Result|Backend Fetch Result]]
-- [[_COMMUNITY_resolve Track()|resolve Track()]]
 - [[_COMMUNITY_Date|Date]]
 - [[_COMMUNITY_Contents.json|Contents.json]]
 - [[_COMMUNITY_scripts|scripts]]
-- [[_COMMUNITY_Cc Share Result.tsx|Cc Share Result.tsx]]
-- [[_COMMUNITY_page Transitions.test.ts|page Transitions.test.ts]]
 - [[_COMMUNITY_Contents.json|Contents.json]]
 - [[_COMMUNITY_backend.json|backend.json]]
 - [[_COMMUNITY_dashboard.json|dashboard.json]]
 - [[_COMMUNITY_developer.json|developer.json]]
 - [[_COMMUNITY_frontend.json|frontend.json]]
 - [[_COMMUNITY_shared.json|shared.json]]
-- [[_COMMUNITY_api Links To Platform Links()|api Links To Platform Links()]]
-- [[_COMMUNITY_parsers.test.ts|parsers.test.ts]]
 - [[_COMMUNITY_preload-media.ts|preload-media.ts]]
 - [[_COMMUNITY_dev-status.mjs|dev-status.mjs]]
 - [[_COMMUNITY_album-resolver.test.ts|album-resolver.test.ts]]
@@ -316,7 +316,6 @@
 - [[_COMMUNITY_Bool|Bool]]
 - [[_COMMUNITY_String|String]]
 - [[_COMMUNITY_Bool|Bool]]
-- [[_COMMUNITY_day Night Mode.ts|day Night Mode.ts]]
 - [[_COMMUNITY_sdk-catalog.json|sdk-catalog.json]]
 - [[_COMMUNITY_openapi-markdown.ts|openapi-markdown.ts]]
 - [[_COMMUNITY_swap.test.ts|swap.test.ts]]
@@ -333,25 +332,20 @@
 - [[_COMMUNITY_package.json|package.json]]
 - [[_COMMUNITY_public-openapi.json|public-openapi.json]]
 - [[_COMMUNITY_in|in]]
-- [[_COMMUNITY_event-loop-lag.ts|event-loop-lag.ts]]
 - [[_COMMUNITY_pricing-style.test.ts|pricing-style.test.ts]]
 - [[_COMMUNITY_share-route-entrypoints.test.ts|share-route-entrypoints.test.ts]]
-- [[_COMMUNITY_Immediately Intersecting Observer|Immediately Intersecting Observer]]
 - [[_COMMUNITY_String|String]]
 - [[_COMMUNITY_Album Info|Album Info]]
 - [[_COMMUNITY_Artist Info|Artist Info]]
 - [[_COMMUNITY_Media Entry|Media Entry]]
-- [[_COMMUNITY_String|String]]
 - [[_COMMUNITY_App Shortcut|App Shortcut]]
 - [[_COMMUNITY_Contents.json|Contents.json]]
 - [[_COMMUNITY_start-dev.mjs|start-dev.mjs]]
-- [[_COMMUNITY_code-copy.ts|code-copy.ts]]
 - [[_COMMUNITY_coming-soon.ts|coming-soon.ts]]
 - [[_COMMUNITY_css Color.ts|css Color.ts]]
 - [[_COMMUNITY_copy-jimp-fonts.mjs|copy-jimp-fonts.mjs]]
 - [[_COMMUNITY_genre-search.test.ts|genre-search.test.ts]]
 - [[_COMMUNITY_UINotification Feedback Generator|UINotification Feedback Generator]]
-- [[_COMMUNITY_fetch Random Example()|fetch Random Example()]]
 - [[_COMMUNITY_String|String]]
 - [[_COMMUNITY_CGFloat|CGFloat]]
 - [[_COMMUNITY_Logo View.tsx|Logo View.tsx]]
@@ -391,17 +385,17 @@
   apps/backend/src/services/admin-segments.ts → packages/shared/src/locales.ts
 
 ## Import Cycles
-- 2-file cycle: `packages/dashboard-ui/src/primitives/ControlTrigger.tsx -> packages/dashboard-ui/src/primitives/ListboxPrimitives.ts -> packages/dashboard-ui/src/primitives/ControlTrigger.tsx`
 - 2-file cycle: `packages/dashboard-ui/src/primitives/ListboxOption.tsx -> packages/dashboard-ui/src/primitives/ListboxPrimitives.ts -> packages/dashboard-ui/src/primitives/ListboxOption.tsx`
+- 2-file cycle: `packages/dashboard-ui/src/primitives/ControlTrigger.tsx -> packages/dashboard-ui/src/primitives/ListboxPrimitives.ts -> packages/dashboard-ui/src/primitives/ControlTrigger.tsx`
 - 2-file cycle: `packages/dashboard-ui/src/primitives/ListboxPopover.tsx -> packages/dashboard-ui/src/primitives/ListboxPrimitives.ts -> packages/dashboard-ui/src/primitives/ListboxPopover.tsx`
-- 3-file cycle: `packages/dashboard-ui/src/primitives/ControlTrigger.tsx -> packages/dashboard-ui/src/primitives/listboxClasses.ts -> packages/dashboard-ui/src/primitives/ListboxPrimitives.ts -> packages/dashboard-ui/src/primitives/ControlTrigger.tsx`
 - 3-file cycle: `packages/dashboard-ui/src/primitives/ListboxOption.tsx -> packages/dashboard-ui/src/primitives/listboxClasses.ts -> packages/dashboard-ui/src/primitives/ListboxPrimitives.ts -> packages/dashboard-ui/src/primitives/ListboxOption.tsx`
+- 3-file cycle: `packages/dashboard-ui/src/primitives/ControlTrigger.tsx -> packages/dashboard-ui/src/primitives/listboxClasses.ts -> packages/dashboard-ui/src/primitives/ListboxPrimitives.ts -> packages/dashboard-ui/src/primitives/ControlTrigger.tsx`
 
-## Communities (388 total, 33 thin omitted)
+## Communities (376 total, 29 thin omitted)
 
 ### Community 0 - "Share Signal"
 Cohesion: 0.03
-Nodes (119): ShareSignal, AlertDialog(), AlertDialogProps, ArtistPanelRow(), ArtistPanelRowProps, embossedControlRadiusStyle, CcBandcampButton(), CcBandcampButtonProps (+111 more)
+Nodes (115): AlertDialog(), AlertDialogProps, animatedOuterEmbossedCardClassName(), embossedControlRadiusStyle, CcBandcampButton(), CcBandcampButtonProps, CcDownloadControl(), CcDownloadControlProps (+107 more)
 
 ### Community 1 - "de.json"
 Cohesion: 0.01
@@ -413,155 +407,155 @@ Nodes (159): a11y.clearSearch, a11y.close, a11y.footerNav, a11y.search, a11y.sea
 
 ### Community 3 - "Postgres Adapter"
 Cohesion: 0.02
-Nodes (17): PostgresAdapter, AdminUser, ContentPageCreateData, ContentPageMetaUpdate, ContentPageRow, EmailActionBindingDto, ApiAccessRequest, DeveloperIdentity (+9 more)
+Nodes (19): PostgresAdapter, AdminUser, BulkUpdatePagesPayload, ContentPageCreateData, ContentPageMetaUpdate, ContentPageRow, ContentPageSummaryRow, EmailActionBindingDto (+11 more)
 
 ### Community 4 - "Analytics Page.tsx"
 Cohesion: 0.03
-Nodes (79): AnalyticsPage(), AnalyticsSection, AnalyticsLoadingFallback(), ApiClientResponse, ApiClientsPage(), useClientColumns(), DeveloperAccountsPage(), STATUS_CLASS (+71 more)
+Nodes (67): AnalyticsSection, AnalyticsLoadingFallback(), SSEEvent, useAdminSSE(), Page, TableAction, TableState, useInfiniteAdminTable() (+59 more)
 
 ### Community 5 - "postgres.ts"
 Cohesion: 0.02
 Nodes (120): adminUsers, albumArtistCredits, albumExternalIds, albumImages, albumPreviews, albums, albumServiceLinks, albumShortUrls (+112 more)
 
 ### Community 6 - "Audio Status.ts"
-Cohesion: 0.05
-Nodes (77): AudioStatus, ArtworkImage(), ArtworkImageProps, animatedOuterEmbossedCardClassName(), CcInfoCard(), ccLicenseIconPath(), MediaCard(), MediaCardProps (+69 more)
+Cohesion: 0.04
+Nodes (86): ArtistCardLabels, AudioStatus, ArtworkImage(), ArtworkImageProps, MediaCard(), MediaCardProps, buildVinylLabelRecord(), MediaCardHead() (+78 more)
 
 ### Community 7 - "index.astro"
 Cohesion: 0.04
-Nodes (76): @/components/PublicFooter.astro, @/components/PublicHeader.astro, @/components/RollingText.astro, ICON_VARIANT, IconComponent, ICONS, TierIcon(), ApiAccessPanel() (+68 more)
+Nodes (57): @/components/auth/AuthCard.astro, hasFooter, hasSubtitle, @/components/auth/GitHubButton.astro, LoginForm(), @/components/auth/OrDivider.astro, SignupForm(), @/components/PublicFooter.astro (+49 more)
 
 ### Community 8 - "cc-artist-info.ts"
 Cohesion: 0.05
-Nodes (81): buildCcArtistInfo(), dedupeByArtist(), toArtistTopTrack(), deriveAlbumColumn(), deriveArtistColumn(), runCcGenreBrowse(), runCcGenreSearch(), toGenreArtistCandidate() (+73 more)
+Nodes (80): buildCcArtistInfo(), dedupeByArtist(), toArtistTopTrack(), deriveAlbumColumn(), deriveArtistColumn(), runCcGenreBrowse(), runCcGenreSearch(), toGenreArtistCandidate() (+72 more)
 
 ### Community 9 - "Auth Background.tsx"
-Cohesion: 0.04
-Nodes (68): AuthBackground(), generateStarfield(), seededRandom(), WaveParams, AuthContext, authMeQueryKey, authSetupQueryKey, AuthState (+60 more)
+Cohesion: 0.05
+Nodes (50): AdminRole, EditableAdminRole, CreateUserFormData, EMPTY_CREATE_USER_FORM, UpdateUserFormData, useAdminUsers(), useCreateUser(), useDeleteUser() (+42 more)
 
 ### Community 10 - "postgres.ts"
-Cohesion: 0.05
-Nodes (87): AlbumListRow, clearArtistCache(), countAllData(), deleteAlbums(), deleteArtists(), deleteTracks(), findMissingTables(), getRandomShortId() (+79 more)
+Cohesion: 0.06
+Nodes (64): AlbumListRow, clearArtistCache(), countAllData(), deleteAlbums(), deleteArtists(), deleteTracks(), findMissingTables(), getRandomShortId() (+56 more)
 
 ### Community 11 - "nav Signals.ts"
 Cohesion: 0.04
-Nodes (62): sendNavInteractionSignal(), isTrackingEnabled(), CardSignal, FooterSignal, genreSignal, humanizeKey(), infoPageSignal(), languageSignal() (+54 more)
+Nodes (58): sendNavInteractionSignal(), isTrackingEnabled(), FooterSignal, humanizeKey(), infoPageSignal(), languageSignal(), LocaleLabel, NavSignal (+50 more)
 
 ### Community 12 - ".activate Api Client Token()"
 Cohesion: 0.03
-Nodes (41): ApiAccessRepository, ApiClient, ApiClientToken, DeveloperAccount, ensureInstance(), getApiAccessRepository(), getDeveloperRepository(), clientDayRateLimiter (+33 more)
+Nodes (44): ApiAccessAuditEvent, ApiAccessRepository, ApiAccessRequest, ApiClient, ApiClientToken, DeveloperAccount, DeveloperEmailToken, DeveloperRepository (+36 more)
 
 ### Community 13 - "admin-email-templates.ts"
 Cohesion: 0.04
-Nodes (67): EmailTemplate, EmailTemplateBranding, EmailTemplateInput, AssetPickerActions(), AssetPickerActionsProps, AssetPickerControl(), AssetPickerControlProps, AssetPickerField() (+59 more)
+Nodes (65): EmailTemplate, EmailTemplateBranding, EmailTemplateInput, AssetPickerActions(), AssetPickerActionsProps, AssetPickerControl(), AssetPickerControlProps, AssetPickerField() (+57 more)
 
 ### Community 14 - "postgres-content-nav.ts"
-Cohesion: 0.03
-Nodes (47): listAdminNavItems(), listNavTranslations(), NavItemSqlRow, replaceAdminNavItems(), replaceNavItemTranslations(), AdminRepository, ContentPageTranslationRow, ContentPageTranslationUpsert (+39 more)
+Cohesion: 0.04
+Nodes (38): listAdminNavItems(), listNavTranslations(), NavItemSqlRow, replaceAdminNavItems(), replaceNavItemTranslations(), ContentPageTranslationRow, ContentPageTranslationUpsert, ContentStatus (+30 more)
 
 ### Community 15 - "Resolve Signal"
 Cohesion: 0.06
-Nodes (56): ResolveSignal, ArtistCardCloseButton(), ArtistCardCloseButtonProps, ArtistInfoCard(), ArtistInfoCardProps, ArtistInfoNoticeCard(), ArtistInfoNoticeCardProps, ArtistNoticeContent() (+48 more)
+Nodes (55): CardSignal, ArtistCardCloseButton(), ArtistCardCloseButtonProps, ArtistInfoCard(), ArtistInfoCardProps, ArtistInfoNoticeCard(), ArtistInfoNoticeCardProps, ArtistNoticeContent() (+47 more)
 
 ### Community 16 - "form-builder.ts"
-Cohesion: 0.04
-Nodes (59): FIELD_TYPE_ICON, FieldPalette(), FieldTypeIcon(), PaletteTileProps, fieldTypeLabel(), BuilderActiveDrag, BuilderDragOverlayContent(), BuilderHeaderActions() (+51 more)
+Cohesion: 0.05
+Nodes (46): FIELD_TYPE_ICON, FieldPalette(), FieldTypeIcon(), PaletteTileProps, fieldTypeLabel(), BuilderActiveDrag, BuilderDragOverlayContent(), BuilderHeaderActions() (+38 more)
 
 ### Community 17 - "Page Tree Content()"
-Cohesion: 0.05
-Nodes (58): PageTreeContent(), Props, SegmentManager(), ContentAction, contentReducer(), ContentState, dirtySlugs(), isContentDirty() (+50 more)
+Cohesion: 0.06
+Nodes (56): PageTreeContent(), Props, SegmentManager(), ContentAction, contentReducer(), ContentState, dirtySlugs(), isContentDirty() (+48 more)
 
 ### Community 18 - "filter Disabled Links()"
-Cohesion: 0.07
-Nodes (63): filterDisabledLinks(), getActiveAdapters(), getEnabledMap(), identifyService(), identifyServiceIncludingDisabled(), invalidateEnabledCache(), isPluginEnabled(), listPlugins() (+55 more)
+Cohesion: 0.11
+Nodes (44): filterDisabledLinks(), getActiveAdapters(), getEnabledMap(), identifyService(), identifyServiceIncludingDisabled(), isPluginEnabled(), calculateArtistNameConfidence(), fillMissingArtistServices() (+36 more)
 
 ### Community 19 - "close Runtime Database Readiness Pool()"
-Cohesion: 0.05
-Nodes (44): closeRuntimeDatabaseReadinessPool(), createPublicErrorResponseSchema(), publicErrorResponse(), publicHealthSuccessResponse(), coverFetchWaiters, ensureArtwork(), EnsuredArtwork, inflight (+36 more)
+Cohesion: 0.07
+Nodes (29): closeRuntimeDatabaseReadinessPool(), collectRefNames(), completeGlobalRateLimitResponses(), FinalizableOpenApiDocument, finalizePublicOpenApiDocument(), GLOBAL_RATE_LIMIT_RESPONSE, HTTP_METHODS, isRecord() (+21 more)
 
 ### Community 20 - "use I18n()"
-Cohesion: 0.04
-Nodes (52): useI18n(), AssetPicker(), AssetPickerProps, createDefaultBlock(), ADDABLE_BLOCK_TYPES, BLOCK_TYPE_ICON, BlockEditor(), BlockEditorProps (+44 more)
+Cohesion: 0.05
+Nodes (46): AnalyticsPage(), ContentEditorLoadingFallback(), useI18n(), AssetPicker(), AssetPickerProps, createDefaultBlock(), ADDABLE_BLOCK_TYPES, BLOCK_TYPE_ICON (+38 more)
 
 ### Community 21 - "class Names.ts"
 Cohesion: 0.04
-Nodes (66): joinClassNames(), ContentCard, EndpointCardAccess, EndpointCardMethod, EndpointCardPath, EndpointCardRequest, EndpointCardHeader(), EndpointCardHeaderAddon() (+58 more)
+Nodes (68): joinClassNames(), ContentCard, EndpointCardAccess, EndpointCardMethod, EndpointCardPath, EndpointCardRequest, EndpointCardHeader(), EndpointCardHeaderAddon() (+60 more)
 
 ### Community 22 - "Tier Dropdown.tsx"
 Cohesion: 0.04
-Nodes (51): TierDropdown(), TierDropdownProps, ICON_VARIANT, IconComponent, ICONS, TierIconGlyph(), TierIconPicker(), TierIconPickerProps (+43 more)
+Nodes (49): TierDropdown(), TierDropdownProps, ICON_VARIANT, IconComponent, ICONS, TierIconGlyph(), TierIconPicker(), TierIconPickerProps (+41 more)
 
 ### Community 23 - "parser.test.ts"
-Cohesion: 0.06
-Nodes (44): resolveCcTextSearch(), NoGenreSearchAdapterError, getDeezerPreviewExpiry(), getPreviewExpiry(), isExpiredDeezerPreviewUrl(), isExpiredPreviewUrl(), stripTrackingParams(), ALLOWED_ORIGINS (+36 more)
+Cohesion: 0.08
+Nodes (33): isGenreBrowseQuery(), isGenreSearchQuery(), NoGenreSearchAdapterError, getDeezerPreviewExpiry(), getPreviewExpiry(), isExpiredDeezerPreviewUrl(), isExpiredPreviewUrl(), stripTrackingParams() (+25 more)
 
 ### Community 24 - ".create Developer Email Token()"
-Cohesion: 0.06
-Nodes (35): DeveloperEmailToken, DeveloperRepository, requireEnv(), requireEnvList(), getCaller(), buildAccountResponse(), credentialRateLimiter, devAuthRoutes() (+27 more)
+Cohesion: 0.10
+Nodes (24): buildAccountResponse(), credentialRateLimiter, devGitHubRoutes(), githubExchangeRateLimiter, fixturePath, repoRoot, AuthProvider, clearedSessionCookieOptions() (+16 more)
 
 ### Community 25 - ".tiers()"
-Cohesion: 0.06
-Nodes (29): PostgresTierRepository, TierRow, toTier(), closeRepository(), getTierRepository(), Tier, TierCreateData, TierCreemProductMapping (+21 more)
+Cohesion: 0.08
+Nodes (24): PostgresTierRepository, TierRow, toTier(), getTierRepository(), Tier, TierCreateData, TierCreemProductMapping, TierRepository (+16 more)
 
 ### Community 26 - "Email Template Branding Overrides"
-Cohesion: 0.06
-Nodes (44): EmailTemplateBrandingOverrides, getAdminRepository(), isHexColor(), adminAuthRoutes(), LoginBody, SetupBody, CreateBindingBody, ToggleBindingBody (+36 more)
+Cohesion: 0.05
+Nodes (47): EmailTemplateBrandingOverrides, getAdminRepository(), isHexColor(), adminAuthRoutes(), LoginBody, SetupBody, CreateBindingBody, ToggleBindingBody (+39 more)
 
 ### Community 27 - "postgres-cc.ts"
-Cohesion: 0.05
-Nodes (44): findCcShortId(), getRandomCcShortId(), loadCcAlbumByShortId(), loadCcArtistByShortId(), loadCcTrackByShortId(), mintCcShortUrl(), persistCcAlbum(), persistCcArtist() (+36 more)
+Cohesion: 0.04
+Nodes (38): acquireCrawlLock(), completeCrawlTick(), CrawlRunSqlRow, CrawlStateSqlRow, finalizeCrawlRun(), findCrawlState(), insertCrawlRun(), listCrawlRuns() (+30 more)
 
 ### Community 28 - "Analytics Section.tsx"
 Cohesion: 0.05
 Nodes (52): AnalyticsSection(), CollapsibleList(), CollapsibleListProps, COUNTRY_NAME_TO_CODE, countryFlag(), dayMonthFormatters, DE_REGION_CODE_TO_NAME, formatDuration() (+44 more)
 
 ### Community 29 - "api.ts"
-Cohesion: 0.06
-Nodes (44): BodyCardContext, BodyCardContextValue, BodyCardProvider(), useBodyCard(), PageFooterContext, PageFooterContextValue, PageFooterProvider(), usePageFooterContext() (+36 more)
+Cohesion: 0.05
+Nodes (48): BodyCardContext, BodyCardContextValue, BodyCardProvider(), useBodyCard(), PageFooterContext, PageFooterContextValue, PageFooterProvider(), usePageFooterContext() (+40 more)
 
 ### Community 30 - "compound Element.ts"
 Cohesion: 0.04
-Nodes (51): CompoundElementTag, createCompoundElement(), SurfaceCard, SurfaceCardBody, SurfaceCardBodyProps, SurfaceCardFooter, SurfaceCardFooterProps, SurfaceCardHeader (+43 more)
+Nodes (61): CompoundElementTag, createCompoundElement(), SurfaceCard, SurfaceCardBody, SurfaceCardBodyProps, SurfaceCardFooter, SurfaceCardFooterProps, SurfaceCardHeader (+53 more)
 
 ### Community 31 - "Auth Status.tsx"
-Cohesion: 0.09
-Nodes (40): AuthStatus(), AuthStatusProps, TONE_STYLE, ForgotForm(), ResetFormProps, INITIAL_STATE, SignupFormProps, SignupState (+32 more)
+Cohesion: 0.07
+Nodes (46): AuthStatus(), AuthStatusProps, TONE_STYLE, ForgotForm(), ResetForm(), ResetFormProps, INITIAL_STATE, SignupFormProps (+38 more)
 
 ### Community 32 - ".get Email Branding()"
-Cohesion: 0.06
-Nodes (42): EmailBrandingDto, ESCAPE_MAP, escapeHtml(), NAMED_ENTITY_MAP, EmailMessage, formatAddress(), sendEmail(), Smtp2goResponse (+34 more)
+Cohesion: 0.08
+Nodes (34): assertRequiredBootEnv(), REQUIRED_BOOT_ENV, CreemConfig, getCreemConfig(), requireEnv(), triggerEmailAction(), TriggerEmailActionInput, EmailMessage (+26 more)
 
 ### Community 33 - "Service Link"
 Cohesion: 0.04
-Nodes (41): ServiceLink, MediaEntry, String, ClipboardMonitor, Color, String, Bool, MediaEntry (+33 more)
+Nodes (50): MediaEntry, ServiceLink, MediaEntry, String, Bool, MediaEntry, String, CGFloat (+42 more)
 
 ### Community 34 - "Dialog Context.tsx"
 Cohesion: 0.05
-Nodes (41): DialogContext, DialogContextValue, DialogHost(), DialogProvider(), DialogProviderProps, DialogState, DialogType, ShowErrorAlertRequest (+33 more)
+Nodes (49): genreSignal, DeferredResultReveal, useDeferredResultReveal(), useGenreSearchParam(), HeroFieldFlipOptions, useHeroFieldFlip(), INITIAL, ToastState (+41 more)
 
 ### Community 35 - "dedupe.ts"
 Cohesion: 0.07
 Nodes (31): isAlreadyIngested(), runHeartbeat(), runSourceTick(), ingestCandidate(), IngestStatus, getCrawlerSource(), listCrawlerSources(), SOURCES (+23 more)
 
 ### Community 36 - ".find Tracks By Text Search()"
-Cohesion: 0.06
-Nodes (36): albumCapabilities, appleMusicAdapter, AppleMusicAlbumAttributes, AppleMusicAlbumResource, AppleMusicArtistAttributes, AppleMusicArtistResource, appleMusicHttpError(), AppleMusicSongAttributes (+28 more)
+Cohesion: 0.04
+Nodes (54): albumCapabilities, appleMusicAdapter, AppleMusicAlbumAttributes, AppleMusicAlbumResource, AppleMusicArtistAttributes, AppleMusicArtistResource, appleMusicHttpError(), AppleMusicSongAttributes (+46 more)
 
 ### Community 37 - "Artist Profile Card.tsx"
-Cohesion: 0.06
-Nodes (34): ArtistProfile, ArtistProfileCard(), ArtistProfileCardProps, ArtistProfile, ArtistProfileMobileCard(), ArtistProfileMobileCardProps, ArtistProfileSection(), ArtistProfileSectionProps (+26 more)
+Cohesion: 0.11
+Nodes (11): ArtistProfile, ArtistProfileCard(), ArtistProfileCardProps, ArtistProfile, ArtistProfileMobileCard(), ArtistProfileMobileCardProps, ProfileSkeleton(), CollapsibleSection() (+3 more)
 
 ### Community 38 - "use Prefers Reduced Motion.ts"
-Cohesion: 0.08
-Nodes (37): usePrefersReducedMotion(), syncRenderStateLines(), lineKeyFor(), normalizeLine(), normalizeSections(), sameLinePresentation(), sameSections(), easeOutCubic() (+29 more)
+Cohesion: 0.11
+Nodes (26): MarqueeDirection, pruneUntouchedMarqueeStates(), shouldMarquee(), lineKeyFor(), normalizeLine(), normalizeSections(), stringLength(), NormalizedVfdLine (+18 more)
 
 ### Community 39 - "Dialog.tsx"
 Cohesion: 0.05
-Nodes (23): DialogFooterProps, DialogProps, AlertDialogProps, DialogFooterProps, DialogProps, ArtistPanelList(), ArtistPanelListProps, ArtistPanelRowText() (+15 more)
+Nodes (30): DialogFooterProps, DialogProps, AlertDialogProps, DialogFooterProps, DialogProps, ArtistPanelList(), ArtistPanelListProps, ArtistPanelRow() (+22 more)
 
 ### Community 40 - "page Localization.ts"
 Cohesion: 0.05
-Nodes (37): buildLocalizedPageTitle(), createPageTitleTranslationDraft(), PageTitleDrafts, PageTitleTranslation, PageTitleTranslationDraft, useAdminContentPage(), buildTabStates(), ContentBodyActionType (+29 more)
+Nodes (40): buildLocalizedPageTitle(), createPageTitleTranslationDraft(), PageTitleDrafts, PageTitleTranslation, PageTitleTranslationDraft, useAdminContentPage(), useDeleteContentPage(), buildTabStates() (+32 more)
 
 ### Community 41 - "package.json"
 Cohesion: 0.04
@@ -572,92 +566,92 @@ Cohesion: 0.04
 Nodes (48): devDependencies, @biomejs/biome, concurrently, drizzle-kit, react-doctor, react-doctor-config-strict, react-doctor-plugin-domain-literals, typescript (+40 more)
 
 ### Community 43 - "Translucent Card.tsx"
-Cohesion: 0.06
-Nodes (33): BODY_TAG, BodyProps, FOOTER_TAG, FooterProps, HEADER_TAG, HeaderProps, SegmentedControlProps, SEGMENTS_TAG (+25 more)
+Cohesion: 0.07
+Nodes (26): BODY_TAG, BodyProps, FOOTER_TAG, FooterProps, HEADER_TAG, HeaderProps, SegmentedControlProps, SEGMENTS_TAG (+18 more)
 
 ### Community 44 - "api.ts"
-Cohesion: 0.09
-Nodes (40): activateToken(), ApiAccessOverview, ApiAccessRequestResponse, ApiClientTokenResponse, approveApiAccessRequest(), createClientToken(), createTier(), deactivateToken() (+32 more)
+Cohesion: 0.05
+Nodes (67): ErrorBoundary, Props, State, I18nContext, I18nContextValue, resolveInitialLocale(), activateToken(), ApiAccessOverview (+59 more)
 
 ### Community 45 - "api.astro"
 Cohesion: 0.06
-Nodes (41): catalog, reference, @/generated/openapi.json, @/generated/openapi.metadata.json, sha256, version, @/generated/sdk-catalog.json, apiVersion (+33 more)
+Nodes (40): catalog, reference, @/generated/openapi.json, @/generated/openapi.metadata.json, sha256, version, @/generated/sdk-catalog.json, apiVersion (+32 more)
 
 ### Community 46 - "logger.ts"
-Cohesion: 0.07
-Nodes (35): DeviationLogContext, emit(), normalizeLegacyArgs(), printable(), redactString(), safeValue(), AdapterCapabilities, buildArtistSearchTerms() (+27 more)
+Cohesion: 0.08
+Nodes (29): serviceHttpError(), buildArtistSearchTerms(), buildSpotifyTrackSearchQueries(), capabilities, findAlbumByUpc(), findByIsrc(), getAlbum(), getArtist() (+21 more)
 
 ### Community 47 - "index.ts"
-Cohesion: 0.10
-Nodes (24): appleMusicPlugin, audiomackPlugin, audiusPlugin, bandcampPlugin, beatportPlugin, boomplayPlugin, bugsPlugin, deezerPlugin (+16 more)
+Cohesion: 0.08
+Nodes (29): appleMusicPlugin, audiomackPlugin, audiusPlugin, bandcampPlugin, beatportPlugin, boomplayPlugin, bugsPlugin, deezerPlugin (+21 more)
 
 ### Community 48 - "config.ts"
-Cohesion: 0.08
-Nodes (34): DatabaseConfig, env(), loadDatabaseConfig(), assertDatabaseReady(), buildMusiccloudReadinessExpectations(), DatabasePrivilege, DatabasePrivilegeExpectation, DatabaseReadinessExpectations (+26 more)
+Cohesion: 0.07
+Nodes (40): DatabaseConfig, env(), loadDatabaseConfig(), assertDatabaseReady(), buildMusiccloudReadinessExpectations(), DatabasePrivilege, DatabasePrivilegeExpectation, DatabaseReadinessExpectations (+32 more)
 
 ### Community 49 - "fetch.ts"
-Cohesion: 0.07
-Nodes (38): assertPublicUrl(), blockedV4, blockedV6, fetchWithTimeout(), ssrfBlockList, buildArtworkUrl(), extractFromJsonLd(), extractFromStore() (+30 more)
+Cohesion: 0.11
+Nodes (25): buildArtworkUrl(), extractFromJsonLd(), extractFromStore(), fetchAlbumByPath(), fetchCsrfToken(), getAlbum(), getCsrfToken(), getTrack() (+17 more)
 
 ### Community 50 - "postgres-albums.ts"
-Cohesion: 0.09
-Nodes (35): addAlbumExternalIds(), addLinksToAlbum(), AlbumRow, AlbumShareRow, AlbumWithLinkRow, buildCachedAlbumResult(), createAlbumVinylLayoutPlaceholder(), deleteAlbumVinylLayoutPlaceholder() (+27 more)
+Cohesion: 0.08
+Nodes (27): addAlbumExternalIds(), addLinksToAlbum(), AlbumRow, AlbumShareRow, AlbumWithLinkRow, buildCachedAlbumResult(), createAlbumVinylLayoutPlaceholder(), deleteAlbumVinylLayoutPlaceholder() (+19 more)
 
 ### Community 51 - "rate-limit-response.ts"
-Cohesion: 0.08
-Nodes (26): rateLimitContext(), sendRateLimitError(), apiRateLimiter, apiRateLimiterCleanupTimer, checkWindow(), cleanupWindows(), clientRateLimiterCleanupTimer, DynamicRateLimiter (+18 more)
+Cohesion: 0.05
+Nodes (45): buildCcTrackArtistInfo(), publicErrorResponse(), coverFetchWaiters, ensureArtwork(), EnsuredArtwork, inflight, clearAllArtworks(), getAccentColors() (+37 more)
 
 ### Community 52 - "Preview Signal"
 Cohesion: 0.06
-Nodes (29): PreviewSignal, AudioContextState, AudioKeyboardHandle, AudioPlayerProps, audioRegistry, BrowserAudioContextConstructor, handleAudioArrows(), handleAudioSpacebar() (+21 more)
+Nodes (27): AudioContextState, AudioKeyboardHandle, AudioPlayerProps, audioRegistry, BrowserAudioContextConstructor, handleAudioArrows(), handleAudioSpacebar(), MediaSessionAction (+19 more)
 
 ### Community 53 - "openapi-sdk-fixture.json"
 Cohesion: 0.05
 Nodes (43): content, description, post, in, name, type, schema, components (+35 more)
 
 ### Community 54 - "api.ts"
-Cohesion: 0.05
-Nodes (42): AlbumResolveSuccessResponse, ApiAlbum, ApiArtist, ApiArtistCredit, ApiCcAlbum, ApiCcArtist, ApiCcTrack, ApiDisambiguationCandidate (+34 more)
+Cohesion: 0.06
+Nodes (40): AlbumResolveSuccessResponse, ApiAlbum, ApiArtist, ApiArtistCredit, ApiCcAlbum, ApiCcArtist, ApiCcTrack, ApiDisambiguationCandidate (+32 more)
 
 ### Community 55 - "Display Signal"
-Cohesion: 0.09
-Nodes (34): DisplaySignal, clearSpectrumFrame(), frame, getSpectrumFrame(), isSpectrumActive(), publishSpectrumFrame(), SpectrumFrame, subscribers (+26 more)
+Cohesion: 0.08
+Nodes (38): DisplaySignal, clearSpectrumFrame(), frame, getSpectrumFrame(), isSpectrumActive(), publishSpectrumFrame(), SpectrumFrame, subscribers (+30 more)
 
 ### Community 56 - "artist-info.ts"
-Cohesion: 0.12
-Nodes (30): APPLE_MUSIC_STOREFRONT_FORWARD_HEADERS, appleMusicStorefrontExtra(), BACKEND_URL, backendFailureResult(), backendUrl(), fetchArtistInfo(), fetchCcArtistInfo(), fetchCcBandcamp() (+22 more)
+Cohesion: 0.07
+Nodes (49): APPLE_MUSIC_STOREFRONT_FORWARD_HEADERS, appleMusicStorefrontExtra(), BACKEND_URL, backendFailureResult(), BackendFetchResult, backendUrl(), fetchArtistInfo(), fetchCcArtistInfo() (+41 more)
 
 ### Community 57 - "adapter.ts"
 Cohesion: 0.07
-Nodes (31): ARTIST_URL_REGEX, buildSearchClause(), escapeLucene(), mapRecording(), mapRelease(), MbArtist, MbArtistCredit, MbArtistSearchResponse (+23 more)
+Nodes (30): ARTIST_URL_REGEX, buildSearchClause(), escapeLucene(), mapRecording(), mapRelease(), MbArtist, MbArtistCredit, MbArtistSearchResponse (+22 more)
 
 ### Community 58 - "adapter.ts"
 Cohesion: 0.09
-Nodes (26): bugsFetch(), fetchAlbumById(), fetchTrackById(), getAlbum(), getTrack(), searchAlbum(), searchBugsAlbumIds(), searchForTrackIds() (+18 more)
+Nodes (27): bugsFetch(), fetchAlbumById(), fetchTrackById(), getAlbum(), getTrack(), searchAlbum(), searchBugsAlbumIds(), searchForTrackIds() (+19 more)
 
 ### Community 59 - "@/components/docs/Api Reference Content.astro"
 Cohesion: 0.08
-Nodes (33): @/components/docs/ApiReferenceContent.astro, integrationItems, cancelProgrammaticNavigation(), scheduleScrollSpyUpdate(), scrollSpyActivationLine(), sectionTransitionDuration(), sectionTransitionEasing(), setActive() (+25 more)
+Nodes (32): @/components/docs/ApiReferenceContent.astro, integrationItems, cancelProgrammaticNavigation(), scheduleScrollSpyUpdate(), scrollSpyActivationLine(), sectionTransitionDuration(), sectionTransitionEasing(), setActive() (+24 more)
 
 ### Community 60 - "adapter.ts"
-Cohesion: 0.08
-Nodes (29): fetchAuthToken(), findAlbumByUpc(), findByIsrc(), getAlbum(), getAppId(), getAuthToken(), mapAlbum(), mapTrack() (+21 more)
+Cohesion: 0.09
+Nodes (27): fetchAuthToken(), findAlbumByUpc(), findByIsrc(), getAlbum(), getAppId(), getArtist(), getAuthToken(), getTrack() (+19 more)
 
 ### Community 61 - "postgres-artists.ts"
 Cohesion: 0.07
-Nodes (29): addArtistExternalIds(), addLinksToArtist(), ArtistCacheRowDb, ArtistGroupMembershipSqlRow, ArtistIdentityEventSqlRow, ArtistRow, ArtistWithLinkRow, buildCachedArtistResult() (+21 more)
+Nodes (49): persistAlbumWithLinks(), addArtistExternalIds(), addLinksToArtist(), ArtistCacheRowDb, ArtistGroupMembershipSqlRow, ArtistIdentityEventSqlRow, ArtistRow, ArtistWithLinkRow (+41 more)
 
 ### Community 62 - "Auth Provider()"
-Cohesion: 0.08
-Nodes (26): AuthProvider(), ErrorBoundary, Props, State, I18nContext, I18nContextValue, I18nProvider(), resolveInitialLocale() (+18 more)
+Cohesion: 0.06
+Nodes (43): @/components/PublicHeader.astro, TokenRevealBox(), TokenRevealBoxProps, @/components/docs/CodeBlock.astro, ArrowCircleDownIcon, ArrowCircleUpIcon, Book1Icon, BookIcon (+35 more)
 
 ### Community 63 - "map Db Row To Cc"
-Cohesion: 0.10
-Nodes (32): mapDbRowToCcAlbum(), mapDbRowToCcArtist(), mapDbRowToCcTrack(), COUNTRY_HEADER_CANDIDATES, extractAppleMusicStorefront(), firstHeaderValue(), headerValue(), normalizeStorefront() (+24 more)
+Cohesion: 0.12
+Nodes (28): COUNTRY_HEADER_CANDIDATES, extractAppleMusicStorefront(), firstHeaderValue(), headerValue(), normalizeStorefront(), resolveAppleMusicStorefrontFromHeaders(), rewriteAppleMusicUrlForStorefront(), storefrontFromAcceptLanguage() (+20 more)
 
 ### Community 64 - "Vfd Display()"
-Cohesion: 0.11
-Nodes (33): VfdDisplay(), blankColumnBuffer(), contentCanvasPixelColumns(), drawCanvasPixelColumns(), drawVfdCanvas(), glyphCellsToCanvasPixelColumns(), layoutStringCanvasPixelColumns(), lineCanvasColumns() (+25 more)
+Cohesion: 0.13
+Nodes (21): blankColumnBuffer(), contentCanvasPixelColumns(), glyphCellsToCanvasPixelColumns(), layoutStringCanvasPixelColumns(), lineCanvasColumns(), overlayMergedColumns(), pixelBarsToCanvasColumns(), scrolledCanvasPixelColumns() (+13 more)
 
 ### Community 65 - "overlay-stack.ts"
 Cohesion: 0.06
@@ -665,19 +659,19 @@ Nodes (24): emit(), EscHandler, listeners, OverlayLayer, registerOverlay(), stac
 
 ### Community 66 - "hierarchy.ts"
 Cohesion: 0.06
-Nodes (24): groupPagesByHierarchy(), PagesHierarchy, SegmentedBlock, defOf(), PageStatus, PageStatusBadge(), PageStatusIcon(), STATUS_DEFS (+16 more)
+Nodes (28): groupPagesByHierarchy(), PagesHierarchy, SegmentedBlock, defOf(), PageStatus, PageStatusBadge(), PageStatusIcon(), STATUS_DEFS (+20 more)
 
 ### Community 67 - "Any"
 Cohesion: 0.09
 Nodes (23): Any, Bool, ClipboardMonitor, Content, HistoryManager, ModelContainer, ModelContext, String (+15 more)
 
 ### Community 68 - "Background Scene.tsx"
-Cohesion: 0.08
-Nodes (23): MODE_OWNED_SKY_KEYS, NightSkyEventDetail, SKY_COLOR_KEYS, FAKE_OFFSCREEN, MediaStubEntry, sceneFactory, workerInstances, publishGlassDayness() (+15 more)
+Cohesion: 0.13
+Nodes (15): InitMessage, NightSkyDaynessMessage, NightSkyMessage, NightSkyMessageType, NightSkyWorkerEvent, NightSkyWorkerEventMessage, ReducedMotionMessage, ResizeMessage (+7 more)
 
 ### Community 69 - "Turntable Player.ts"
 Cohesion: 0.08
-Nodes (34): TurntablePlayer, brandLetters(), HubControl(), HubLayoutLed(), HubLayoutLedProps, HubLed(), HubPlatter(), HubPlatterProps (+26 more)
+Nodes (32): TurntablePlayer, brandLetters(), HubControl(), HubLayoutLed(), HubLayoutLedProps, HubPlatterProps, HubRecord, IndicatorLampPalette (+24 more)
 
 ### Community 70 - "Generic Vinyl Label.tsx"
 Cohesion: 0.07
@@ -688,36 +682,36 @@ Cohesion: 0.08
 Nodes (33): appleMusicFetch(), AppleAlbum, AppleAlbumAttributes, AppleArtwork, AppleChartBucket, AppleChartsResponse, AppleGenre, AppleGenreAttributes (+25 more)
 
 ### Community 73 - "Int"
-Cohesion: 0.06
-Nodes (29): Int, String, String, Int, String, Date, String, URL (+21 more)
+Cohesion: 0.11
+Nodes (17): Int, String, String, Int, String, Date, String, Codable (+9 more)
 
 ### Community 74 - "merge.ts"
-Cohesion: 0.11
-Nodes (25): ARRAY_FIELD_DEFAULTS, isMissing(), mergeArtistPartials(), pickSourceForField(), ARTIST, fetchWithTimeoutMock, ARTIST_MERGE_STRATEGY, ArtistPartial (+17 more)
+Cohesion: 0.03
+Nodes (94): FAN_RESPONSE, fetchWithTimeoutMock, SEARCH_HIT, TOP_TRACK, fetchWithTimeoutMock, INFO_RESPONSE, TAGS_RESPONSE, TOP_TRACKS_RESPONSE (+86 more)
 
 ### Community 75 - "Overlay Context.tsx"
-Cohesion: 0.08
-Nodes (21): OverlayAction, OverlayActionType, OverlayOpenDetail, OverlayProvider(), initialOverlayState(), OverlayState, OverlayAPI, OverlayCtx (+13 more)
+Cohesion: 0.10
+Nodes (17): OverlayAction, OverlayActionType, OverlayOpenDetail, OverlayProvider(), initialOverlayState(), OverlayState, OverlayAPI, OverlayCtx (+9 more)
 
 ### Community 76 - "adapter.ts"
-Cohesion: 0.11
-Nodes (30): buildDeezerQ(), DeezerAlbumResponse, DeezerAlbumSearchResponse, DeezerAlbumTrack, DeezerErrorResponse, deezerFetch(), DeezerSearchResponse, DeezerTrackResponse (+22 more)
+Cohesion: 0.12
+Nodes (26): buildDeezerQ(), DeezerAlbumResponse, DeezerAlbumSearchResponse, DeezerAlbumTrack, DeezerErrorResponse, deezerFetch(), DeezerSearchResponse, DeezerTrackResponse (+18 more)
 
 ### Community 77 - "Api Document Search.tsx"
 Cohesion: 0.09
-Nodes (27): ApiDocumentSearch(), ApiSearchNavigationDetail, ApiSearchWindow, INITIAL_SEARCH_STATE, optionId(), PendingSelection, SearchAction, SearchActionType (+19 more)
+Nodes (26): ApiDocumentSearch(), ApiSearchNavigationDetail, ApiSearchWindow, INITIAL_SEARCH_STATE, optionId(), PendingSelection, SearchAction, SearchActionType (+18 more)
 
 ### Community 78 - "upsert Album Vinyl Layout()"
 Cohesion: 0.12
 Nodes (28): upsertAlbumVinylLayout(), insertExternalIds(), buildHeaders(), discogsGet(), getMasterVinylVersions(), getRelease(), isDiscogsConfigured(), rateGuard() (+20 more)
 
 ### Community 79 - "postgres-content-pages.ts"
-Cohesion: 0.08
-Nodes (33): applyMetaInTx(), bulkUpdatePages(), contentPageSlugExists(), ContentPageSqlRow, ContentPageSummarySqlRow, ContentPageTranslationSqlRow, createContentPage(), deleteContentPage() (+25 more)
+Cohesion: 0.09
+Nodes (31): applyMetaInTx(), bulkUpdatePages(), contentPageSlugExists(), ContentPageSqlRow, ContentPageSummarySqlRow, ContentPageTranslationSqlRow, createContentPage(), deleteContentPage() (+23 more)
 
 ### Community 80 - "Share Logo Header.tsx"
-Cohesion: 0.08
-Nodes (26): ArtistAction, ArtistActionType, artistReducer(), ArtistState, hasArtistInfoContent(), ARTIST_DATA, baseProps, { fetchArtistInfoMock } (+18 more)
+Cohesion: 0.17
+Nodes (13): ArtistAction, ArtistActionType, artistReducer(), ArtistState, hasArtistInfoContent(), ARTIST_DATA, baseProps, { fetchArtistInfoMock } (+5 more)
 
 ### Community 81 - "Audio Player()"
 Cohesion: 0.11
@@ -729,15 +723,15 @@ Nodes (28): DashboardActionAriaBehavior, DashboardActionColorRole, DashboardActi
 
 ### Community 83 - "Api Keys Panel.tsx"
 Cohesion: 0.10
-Nodes (31): StatusBadge(), StatusBadgeProps, TONE_CLASS, AccessRequestStatus, AccessRequestStatusValue, ApiAccessResult, ApiClientDto, ApiClientStatus (+23 more)
+Nodes (32): StatusBadge(), StatusBadgeProps, TONE_CLASS, AccessRequestStatus, AccessRequestStatusValue, ApiAccessResult, ApiClientDto, ApiClientStatus (+24 more)
 
 ### Community 84 - "Content Card.test.tsx"
-Cohesion: 0.09
-Nodes (26): EndpointCard, anchor, hasRequestBody, @/components/docs/OpenApiMarkdown.astro, ResponseCard, ResponseCardContent, ResponseCardMediaType, ResponseCardMeta (+18 more)
+Cohesion: 0.12
+Nodes (14): shareRoutes(), ApiLinkOptions, normalizeUrl(), PUBLIC_MATCH_METHODS, PublicLinkSource, toCachedApiLinks(), createAlbumIdentityKey(), normalizeIdentityPart() (+6 more)
 
 ### Community 85 - "use Admin Nav.ts"
-Cohesion: 0.07
-Nodes (27): useAdminNav(), useSaveNav(), HierarchicalPagePickerProps, LOCALE_FLAG, NAV_TEXT, NavAddType, NavColumn(), NavColumnAddSectionProps (+19 more)
+Cohesion: 0.05
+Nodes (37): ApiStatusCode, deriveSlug(), FormBuilderListPage(), ImportFormData, NewFormDialog(), ImportConflictDialog(), ImportConflictDialogProps, useAdminNav() (+29 more)
 
 ### Community 86 - "openapi-schemas.ts"
 Cohesion: 0.06
@@ -745,26 +739,26 @@ Nodes (35): ActiveServiceSchema, AlbumResolveSuccessSchema, AlbumSchema, ArtistC
 
 ### Community 87 - "Search Signal"
 Cohesion: 0.09
-Nodes (26): SearchSignal, DisambiguationPanelProps, GenreSearchResultsProps, dispatchResolveError(), sendResolveFailedSignal(), UseAppStateResult, DeferredResultReveal, parseJamendoUrl() (+18 more)
+Nodes (26): store, freshStore(), DisambiguationPanelProps, dispatchResolveError(), sendResolveFailedSignal(), UseAppStateResult, createModeStore(), ModeStore (+18 more)
 
 ### Community 88 - "Content Editor Loading Fallback.tsx"
-Cohesion: 0.11
-Nodes (31): ContentEditorLoadingFallback(), AdminLayout, AlbumsPage, AnalyticsPage, ApiAccessRequestsPage, ApiClientsPage, ArtistsPage, ClientDetailPage (+23 more)
+Cohesion: 0.05
+Nodes (64): AuthBackground(), generateStarfield(), seededRandom(), WaveParams, AuthContext, authMeQueryKey, AuthProvider(), authSetupQueryKey (+56 more)
 
 ### Community 89 - "run Genre Browse()"
-Cohesion: 0.07
-Nodes (27): runGenreBrowse(), runGenreSearch(), apiKey(), dedupeBy(), fetchTopAlbums(), FORCED_DECADE_TAGS, GENRE_ALIASES, genreCoverUrls (+19 more)
+Cohesion: 0.08
+Nodes (25): runGenreBrowse(), runGenreSearch(), apiKey(), dedupeBy(), fetchTopAlbums(), FORCED_DECADE_TAGS, GENRE_ALIASES, genreCoverUrls (+17 more)
 
 ### Community 90 - "server.ts"
-Cohesion: 0.08
-Nodes (31): cache, loaders, loadTranslations(), makeT(), Translations, isBot(), errorLabels, locale (+23 more)
+Cohesion: 0.03
+Nodes (72): @/layouts/BaseLayout.astro, @/components/background/NightSkyBackground.astro, GenreBrowseGrid(), IntersectionObserverStub, LocaleProvider(), Translations, TRANSLATIONS_BY_LOCALE, LocaleContext (+64 more)
 
 ### Community 91 - "api-error-handler.ts"
-Cohesion: 0.11
-Nodes (30): internalErrors, logApiFailure(), normalizedRequests, canonicalPayloadCode(), classified(), ClassifiedApiError, classifyUnhandledError(), createApiErrorResponse() (+22 more)
+Cohesion: 0.12
+Nodes (28): logApiFailure(), canonicalPayloadCode(), classified(), ClassifiedApiError, classifyUnhandledError(), createApiErrorResponse(), ensureCodeSuffix(), ErrorPayload (+20 more)
 
 ### Community 92 - "postgres-api-access.ts"
-Cohesion: 0.09
+Cohesion: 0.10
 Nodes (29): activateApiClientToken(), ApiAccessAuditEventRow, ApiAccessRequestRow, ApiClientRow, ApiClientTokenRow, countPendingApiAccessRequests(), createApiAccessAuditEvent(), createApiAccessRequest() (+21 more)
 
 ### Community 93 - "biome.json"
@@ -781,7 +775,7 @@ Nodes (30): applyPillCase(), CardModifier, code(), ContentResult, escapeHtml(), 
 
 ### Community 96 - "Artist Match Result"
 Cohesion: 0.10
-Nodes (26): ArtistMatchResult, extractFromHtml(), extractMetaTag(), extractOgTag(), fetchAlbumByPath(), fetchClientId(), getAlbum(), getArtist() (+18 more)
+Nodes (25): extractFromHtml(), extractMetaTag(), extractOgTag(), fetchAlbumByPath(), fetchClientId(), getAlbum(), getArtist(), getClientId() (+17 more)
 
 ### Community 97 - "content.ts"
 Cohesion: 0.08
@@ -793,15 +787,15 @@ Nodes (28): MOCK_INCLUDED, MOCK_SEARCH_RESPONSE, MOCK_TIDAL_TRACK_RESOURCE, MOCK
 
 ### Community 99 - "adapter.ts"
 Cohesion: 0.11
-Nodes (27): BandcampAlbumJsonLd, BandcampEmbedData, bandcampFetch(), BandcampFuzzySearchResponse, BandcampJsonLd, BandcampSearchResult, BandcampTralbumData, decodeHtmlAttribute() (+19 more)
+Nodes (26): BandcampAlbumJsonLd, BandcampEmbedData, bandcampFetch(), BandcampFuzzySearchResponse, BandcampJsonLd, BandcampSearchResult, BandcampTralbumData, decodeHtmlAttribute() (+18 more)
 
 ### Community 100 - "any Of"
 Cohesion: 0.06
 Nodes (33): anyOf, additionalProperties, description, limit, properties, retryAfterSeconds, type, windowSeconds (+25 more)
 
 ### Community 101 - "adapter.ts"
-Cohesion: 0.11
-Nodes (27): findByIsrc(), getAlbum(), getAlbumById(), getArtist(), getTerritory(), getTrack(), KkboxAlbumResponse, KkboxAlbumSearchResponse (+19 more)
+Cohesion: 0.09
+Nodes (32): findByIsrc(), getAlbum(), getAlbumById(), getArtist(), getTerritory(), getTrack(), KkboxAlbumResponse, KkboxAlbumSearchResponse (+24 more)
 
 ### Community 102 - "postgres-content-email.ts"
 Cohesion: 0.09
@@ -820,8 +814,8 @@ Cohesion: 0.06
 Nodes (31): additionalProperties, description, example, properties, required, type, type, description (+23 more)
 
 ### Community 106 - "artist-images.ts"
-Cohesion: 0.11
-Nodes (25): albumImageKey(), cacheAlbumImage(), cacheArtistImage(), compositeKey(), getAlbumImages(), getArtistImages(), getPool(), getTrackImages() (+17 more)
+Cohesion: 0.17
+Nodes (22): albumImageKey(), cacheAlbumImage(), cacheArtistImage(), cacheTrackImage(), compositeKey(), getAlbumImages(), getArtistImages(), getPool() (+14 more)
 
 ### Community 107 - "Markdown Editor.tsx"
 Cohesion: 0.09
@@ -832,48 +826,48 @@ Cohesion: 0.11
 Nodes (21): anonymizeFormSubmissionsBySubject(), createFormConfig(), deleteFormConfig(), FormConfigSqlRow, getActiveFormConfigBySlug(), getFormConfigByName(), insertFormSubmission(), listFormConfigs() (+13 more)
 
 ### Community 109 - "fetch Navigation()"
-Cohesion: 0.08
-Nodes (26): fetchNavigation(), @/layouts/BaseLayout.astro, BackgroundScene(), @/components/background/NightSkyBackground.astro, getRequestLocale(), parseAcceptLanguage(), AppFooterIsland(), @/components/layout/DeferredFooter.astro (+18 more)
+Cohesion: 0.13
+Nodes (22): clearDeveloperPassword(), consumeDeveloperEmailToken(), createDeveloperAccount(), createDeveloperEmailToken(), createDeveloperIdentity(), deleteDeveloperAccount(), DeveloperAccountRow, DeveloperEmailTokenRow (+14 more)
 
 ### Community 110 - "Bool"
 Cohesion: 0.11
 Nodes (24): Bool, CGFloat, Color, Font, String, AnimatedSegmentControl, EnvironmentValues, Metrics (+16 more)
 
 ### Community 111 - "url.ts"
-Cohesion: 0.11
-Nodes (21): isMusicUrl(), MUSIC_URL_PATTERNS, BioLink, BioLinkKind, COMPOUND_SLDS, displayDomain(), resolveBioLink(), detectSocialChannel() (+13 more)
+Cohesion: 0.06
+Nodes (35): isMusicUrl(), MUSIC_URL_PATTERNS, ArtistProfileSection(), ArtistProfileSectionProps, looksLikeHtml(), BioLink, BioLinkKind, COMPOUND_SLDS (+27 more)
 
 ### Community 112 - "search By Genre()"
 Cohesion: 0.09
-Nodes (22): searchByGenre(), cacheKey(), cleanupTimer, dedupeBy(), DeezerChartAlbumRef, DeezerChartArtistRef, DeezerChartTrack, DeezerErrorResponse (+14 more)
+Nodes (23): searchByGenre(), cacheKey(), cleanupTimer, dedupeBy(), DeezerChartAlbumRef, DeezerChartArtistRef, DeezerChartTrack, DeezerErrorResponse (+15 more)
 
 ### Community 113 - "nullable"
-Cohesion: 0.08
-Nodes (30): nullable, type, properties, format, nullable, type, description, format (+22 more)
+Cohesion: 0.07
+Nodes (37): nullable, type, type, properties, format, nullable, type, description (+29 more)
 
 ### Community 114 - "items"
-Cohesion: 0.08
-Nodes (30): items, type, properties, description, items, maxItems, type, properties (+22 more)
+Cohesion: 0.12
+Nodes (17): additionalProperties, description, properties, required, type, query, results, warnings (+9 more)
 
 ### Community 115 - "deezer-source.test.ts"
-Cohesion: 0.12
-Nodes (18): FAN_RESPONSE, fetchWithTimeoutMock, SEARCH_HIT, TOP_TRACK, DeezerArtistResponse, fetchDeezerFanCount(), fetchDeezerArtistImage(), isDeezerSilhouette() (+10 more)
+Cohesion: 0.19
+Nodes (20): EmailBrandingDto, escapeHtml(), applyInlineStyles(), assetUrl(), buildBackgroundCss(), buildBlockRows(), buildDarkPageBackgroundCss(), buildEmailHtml() (+12 more)
 
 ### Community 116 - "description"
 Cohesion: 0.07
 Nodes (29): description, items, type, additionalProperties, description, properties, required, type (+21 more)
 
 ### Community 117 - "constants.ts"
-Cohesion: 0.17
-Nodes (18): MotionDuration, MotionEase, buildCoverSwapTimeline(), CoverSwapTimelineOptions, animatePageIn(), animatePageOut(), initPageTransitions(), killActiveTween() (+10 more)
+Cohesion: 0.08
+Nodes (27): activeTimelines, buildCollapseTimeline(), buildExpandTimeline(), CollapseElements, CollapseTimelineOptions, ExpandTimelineOptions, killActiveTimeline(), MotionDuration (+19 more)
 
 ### Community 118 - "audit-content-i18n.mjs"
 Cohesion: 0.09
 Nodes (23): args, backfillMissing(), buildReport(), countRows(), findMissing(), getCounts(), json, loadDatabaseUrl() (+15 more)
 
 ### Community 119 - "Bool"
-Cohesion: 0.12
-Nodes (17): Bool, String, Bool, HistoryManager, Int, String, Void, ClipboardMonitor (+9 more)
+Cohesion: 0.05
+Nodes (34): App, MusicCloudApp, ClipboardMonitor, HistoryManager, ModelContainer, String, URL, Bool (+26 more)
 
 ### Community 120 - "adapter.ts"
 Cohesion: 0.11
@@ -888,16 +882,16 @@ Cohesion: 0.16
 Nodes (24): getManagedUmamiActive(), getManagedUmamiMetrics(), getManagedUmamiPageviews(), getManagedUmamiRealtime(), getManagedUmamiStats(), normalizePeriod(), fetchToken(), getMetricFromCurrentShape() (+16 more)
 
 ### Community 123 - "Int"
-Cohesion: 0.09
-Nodes (24): Int, MediaEntry, MediaType, Hashable, ContentView, DropOverlay, IPadDetail, IPadSidebar (+16 more)
+Cohesion: 0.18
+Nodes (9): Int, MediaType, Hashable, TabSelection, albums, all, artists, settings (+1 more)
 
 ### Community 124 - "mc-query.tm Language.json"
 Cohesion: 0.07
 Nodes (26): name, name, 1, 2, match, name, match, name (+18 more)
 
 ### Community 125 - "Share Result.tsx"
-Cohesion: 0.13
-Nodes (24): ShareLayout, ShareResult(), ShareResultProps, ccResponseToResult(), CcResultShareProps, CcSharePageShellProps, ActiveShareSelection, buildActiveShareSelection() (+16 more)
+Cohesion: 0.07
+Nodes (58): dispatchCcResult(), CatalogLabelInput, catalogTextFromIds(), labelAlbumTitleFrom(), releaseYearFromDate(), apiLinksToPlatformLinks(), buildActiveConfig(), buildCcEntityHeaderConfig() (+50 more)
 
 ### Community 126 - "openapi-reference.ts"
 Cohesion: 0.15
@@ -905,39 +899,39 @@ Nodes (24): ApiMediaType, ApiOperation, ApiOperationGroup, ApiParameter, ApiRequ
 
 ### Community 127 - "artist Info Routes()"
 Cohesion: 0.17
-Nodes (24): artistInfoRoutes(), authRoutes(), linkRoutes(), randomExampleRoutes(), servicesPublicRoutes(), shareRoutes(), authHeaderName(), authHeaderValue() (+16 more)
+Nodes (24): apiRateLimiter, artistInfoRoutes(), authRoutes(), TokenRequestBody, randomExampleRoutes(), servicesPublicRoutes(), authHeaderName(), authHeaderValue() (+16 more)
 
 ### Community 128 - "email-actions.ts"
 Cohesion: 0.13
 Nodes (21): EmailActionKey, EmailActionMeta, getEmailActionMeta(), ALLOWED_URL_SCHEMES, EmailBlock, EmailBlockType, EmailBlockTypeValue, EmailButtonBlock (+13 more)
 
 ### Community 129 - "adapter.ts"
-Cohesion: 0.11
-Nodes (16): BoomplayAlbumJsonLd, boomplayFetch(), BoomplayJsonLd, fetchAlbumById(), fetchTrackById(), getAlbum(), getTrack(), mapJsonLd() (+8 more)
+Cohesion: 0.12
+Nodes (15): BoomplayAlbumJsonLd, boomplayFetch(), BoomplayJsonLd, fetchAlbumById(), fetchTrackById(), getAlbum(), getTrack(), mapJsonLd() (+7 more)
 
 ### Community 130 - "example"
-Cohesion: 0.09
-Nodes (26): example, additionalProperties, description, example, required, type, additionalProperties, description (+18 more)
+Cohesion: 0.12
+Nodes (21): example, example, additionalProperties, description, example, required, type, albumName (+13 more)
 
 ### Community 131 - "use Flip Animation.ts"
-Cohesion: 0.11
-Nodes (15): SNAPSHOT_RESIDUE_PROPERTIES, useFlipAnimation(), UseFlipAnimationResult, useSearchFieldReturn(), UseSearchFieldReturnOptions, UseSearchFieldReturnResult, animateFlipEnter(), animateFlipFrom() (+7 more)
+Cohesion: 0.08
+Nodes (23): SNAPSHOT_RESIDUE_PROPERTIES, useFlipAnimation(), UseFlipAnimationResult, useSearchFieldReturn(), UseSearchFieldReturnOptions, UseSearchFieldReturnResult, animateFlipEnter(), animateFlipFrom() (+15 more)
 
 ### Community 133 - "record Swap.ts"
 Cohesion: 0.11
 Nodes (20): animateReflectionCounter(), arcRotationDeg(), arcTransformKeyframes(), buildRecordSwapTimeline(), RecordSwapHandle, RecordSwapOptions, reflectionCounterKeyframes(), SWAP_TIMING (+12 more)
 
 ### Community 134 - "admin-nav.ts"
-Cohesion: 0.11
-Nodes (16): CONTENT_TAGS, NAV_TAGS, resolveRequestLocale(), getPublicContentPages(), getManagedNavItems(), getPublicNavItems(), isValidNavId(), NavResult (+8 more)
+Cohesion: 0.10
+Nodes (17): CONTENT_TAGS, NAV_TAGS, resolveRequestLocale(), getPublicContentPages(), getManagedNavItems(), getPublicNavItems(), isValidNavId(), NavResult (+9 more)
 
 ### Community 135 - "adapter.ts"
 Cohesion: 0.11
 Nodes (18): audiusFetch(), AudiusPlaylistDetailResponse, AudiusPlaylistResponse, AudiusPlaylistSearchResponse, AudiusSearchResponse, AudiusTrackDetailResponse, AudiusTrackResponse, fetchAlbumById() (+10 more)
 
 ### Community 136 - "properties"
-Cohesion: 0.08
-Nodes (25): properties, description, nullable, type, description, minimum, nullable, type (+17 more)
+Cohesion: 0.10
+Nodes (20): properties, description, nullable, type, description, minimum, nullable, type (+12 more)
 
 ### Community 137 - "use Email Actions.ts"
 Cohesion: 0.11
@@ -952,8 +946,8 @@ Cohesion: 0.10
 Nodes (17): Data, MediaEntry, AVAudioPlayer, NotificationManager, NotificationSound, sound1, sound10, sound11 (+9 more)
 
 ### Community 140 - "lastfm-source.test.ts"
-Cohesion: 0.12
-Nodes (16): fetchWithTimeoutMock, INFO_RESPONSE, TAGS_RESPONSE, TOP_TRACKS_RESPONSE, extractBioSummary(), fetchLastFmArtistInfo(), LastFmArtistInfoResponse, LastFmArtistInfoResult (+8 more)
+Cohesion: 0.10
+Nodes (21): items, additionalProperties, description, properties, required, type, description, items (+13 more)
 
 ### Community 141 - "dependencies"
 Cohesion: 0.08
@@ -964,16 +958,16 @@ Cohesion: 0.09
 Nodes (24): type, properties, type, additionalProperties, description, properties, required, type (+16 more)
 
 ### Community 143 - "index.ts"
-Cohesion: 0.09
-Nodes (17): resolveStreamUrl(), buildCcDownloadFilename(), JAMENDO_FORMAT_META, JAMENDO_FORMAT_ORDER, JamendoAudioFormat, sanitizeFilenameSegment(), swapStreamFormat(), CrawlerRunInfo (+9 more)
+Cohesion: 0.12
+Nodes (10): CrawlerRunInfo, CrawlerRunsPage, CrawlerSourceInfo, ERROR_STATUS_MAP, ErrorCode, USER_MESSAGES, TIER_ICONS, TierIconName (+2 more)
 
 ### Community 144 - "Resolve Response.swift"
 Cohesion: 0.09
 Nodes (19): CodingKeys, album, artist, links, shortUrl, track, ResolveResponse, String (+11 more)
 
 ### Community 145 - "@/components/auth/Auth Card.astro"
-Cohesion: 0.09
-Nodes (19): @/components/auth/AuthCard.astro, hasFooter, hasSubtitle, @/components/auth/GitHubButton.astro, LoginForm(), @/components/auth/OrDivider.astro, ResetForm(), SignupForm() (+11 more)
+Cohesion: 0.30
+Nodes (14): fillMissingAlbumServices(), identifyAlbumService(), inferAlbumViaIsrc(), isAlbumPreviewRefreshNeeded(), mapCachedAlbumLinks(), pickLabelFromLinks(), resolveAlbumAcrossServices(), resolveAlbumOnService() (+6 more)
 
 ### Community 146 - "day Night Policy.ts"
 Cohesion: 0.14
@@ -988,7 +982,7 @@ Cohesion: 0.09
 Nodes (23): additionalProperties, properties, required, type, description, type, format, type (+15 more)
 
 ### Community 149 - "adapter.ts"
-Cohesion: 0.14
+Cohesion: 0.13
 Nodes (16): AudiomackAlbumResult, AudiomackAlbumSearchResponse, audiomackFetch(), AudiomackSearchResponse, AudiomackSong, fetchAlbumPage(), fetchTrackPage(), getAlbum() (+8 more)
 
 ### Community 150 - "adapter.ts"
@@ -1000,16 +994,16 @@ Cohesion: 0.09
 Nodes (21): compilerOptions, declaration, declarationMap, esModuleInterop, forceConsistentCasingInFileNames, isolatedModules, jsx, lib (+13 more)
 
 ### Community 152 - "additional Properties"
-Cohesion: 0.09
-Nodes (22): additionalProperties, description, required, type, components, schemas, additionalProperties, description (+14 more)
+Cohesion: 0.12
+Nodes (17): additionalProperties, description, required, type, additionalProperties, description, required, type (+9 more)
 
 ### Community 153 - "adapter.ts"
-Cohesion: 0.14
-Nodes (17): artistImageUrl(), artworkUrl(), findByIsrc(), getApiKey(), getArtist(), getTrack(), mapTrack(), NapsterArtistResponse (+9 more)
+Cohesion: 0.11
+Nodes (21): artistImageUrl(), artworkUrl(), findByIsrc(), getApiKey(), getArtist(), getTrack(), mapTrack(), NapsterArtistResponse (+13 more)
 
 ### Community 154 - "Media Entry"
-Cohesion: 0.19
-Nodes (9): MediaEntry, ModelContainer, String, NSItemProvider, ShareViewController, UIActivityIndicatorView, UIImageView, UILabel (+1 more)
+Cohesion: 0.18
+Nodes (11): DialogContext, DialogContextValue, DialogHost(), DialogProvider(), DialogProviderProps, DialogState, DialogType, ShowErrorAlertRequest (+3 more)
 
 ### Community 155 - "Content Card.tsx"
 Cohesion: 0.10
@@ -1020,11 +1014,11 @@ Cohesion: 0.12
 Nodes (21): allOf, description, properties, $ref, properties, properties, description, type (+13 more)
 
 ### Community 157 - "Landing Logo Block.tsx"
-Cohesion: 0.12
-Nodes (13): LandingLogoBlock(), LandingLogoBlockProps, ShareResultFrame(), ShareResultFrameProps, ShareResultPlaceholder(), animateFadeIn(), animateSlideOutDown(), FADE_IN_FROM_VARS (+5 more)
+Cohesion: 0.18
+Nodes (10): ApiContent, ApiContentChapter, ApiContentChapterBody, ApiContentChapterHeader, ApiContentChapterHeaderIcon, ApiContentChapterHeaderTitle, ApiContentEntry, ApiContentEntryContent (+2 more)
 
 ### Community 158 - "adapter.ts"
-Cohesion: 0.15
+Cohesion: 0.14
 Nodes (15): getAlbum(), getAlbumByMid(), getTrack(), getTrackByMid(), mapQQAlbum(), mapSong(), QQMusicAlbum, QQMusicAlbumSearchResponse (+7 more)
 
 ### Community 159 - "vfd-display-glyphs.test.ts"
@@ -1036,8 +1030,8 @@ Cohesion: 0.10
 Nodes (17): Area, AREA_X_AXIS_TICK, AreaChart, Bar, BAR_RADIUS, BAR_X_AXIS_TICK, BAR_Y_AXIS_TICK, BarChart (+9 more)
 
 ### Community 161 - "Media Entry"
-Cohesion: 0.12
-Nodes (16): MediaEntry, MediaType, CaseIterable, GeneralSettingsView, NotificationSoundPicker, SettingsTab, about, settings (+8 more)
+Cohesion: 0.09
+Nodes (20): MediaEntry, MediaType, CaseIterable, GeneralSettingsView, NotificationSoundPicker, SettingsTab, about, settings (+12 more)
 
 ### Community 162 - "additional Properties"
 Cohesion: 0.12
@@ -1048,16 +1042,16 @@ Cohesion: 0.10
 Nodes (20): additionalProperties, description, example, properties, required, type, description, type (+12 more)
 
 ### Community 164 - "lp-label.ts"
-Cohesion: 0.25
-Nodes (18): CatalogLabelInput, catalogTextFromIds(), labelAlbumTitleFrom(), releaseYearFromDate(), buildActiveConfig(), buildCcEntityHeaderConfig(), buildCcShareConfig(), buildShareConfigFromActive() (+10 more)
+Cohesion: 0.24
+Nodes (7): ANCHOR_CLOSE, ANCHOR_OPEN, anchorText(), jamendoBioToHtml(), decodeHtmlEntities(), ESCAPE_MAP, NAMED_ENTITY_MAP
 
 ### Community 165 - "index.ts"
 Cohesion: 0.22
 Nodes (12): ControlTrigger(), ControlTriggerProps, controlTriggerSizeClass, listboxOptionSizeClass, ListboxOption(), ListboxOptionProps, ListboxPopover(), ListboxPopoverProps (+4 more)
 
 ### Community 166 - "admin-content.ts"
-Cohesion: 0.15
-Nodes (13): ContentCreateBody, ContentMetaBody, isOneOf(), isPlainObject(), validateCreateBody(), validateMetaBody(), validateSegmentsBody(), deleteManagedContentPage() (+5 more)
+Cohesion: 0.13
+Nodes (13): adminContentRoutes(), ContentCreateBody, ContentMetaBody, isOneOf(), isPlainObject(), validateCreateBody(), validateMetaBody(), validateSegmentsBody() (+5 more)
 
 ### Community 167 - "generate-sdk-release.mjs"
 Cohesion: 0.19
@@ -1084,8 +1078,8 @@ Cohesion: 0.23
 Nodes (10): ArtworkKind, CandidateRowContentProps, CoverImage(), CoverImageProps, SlideArtwork(), SlideArtworkProps, SlideArtworkKind, VinylDiscFormat (+2 more)
 
 ### Community 173 - "Music Cloud API.swift"
-Cohesion: 0.20
-Nodes (9): MusicCloudAPI, Data, Int, String, URL, JSONDecoder, JSONEncoder, ResolveError (+1 more)
+Cohesion: 0.28
+Nodes (7): MusicCloudAPI, Data, Int, String, URL, ResolveError, ResolveResponse
 
 ### Community 174 - "Content"
 Cohesion: 0.22
@@ -1100,20 +1094,20 @@ Cohesion: 0.11
 Nodes (17): compilerOptions, declaration, declarationMap, esModuleInterop, forceConsistentCasingInFileNames, isolatedModules, jsx, lib (+9 more)
 
 ### Community 177 - "youtube-topic.ts"
-Cohesion: 0.17
-Nodes (15): stripYouTubeTopicSuffix(), normalizeTitle(), artistCapabilities, capabilities, getBestThumbnail(), mapChannelToArtist(), mapVideoToTrack(), parseArtistFromTitle() (+7 more)
+Cohesion: 0.27
+Nodes (9): TftScreen, TftScreenCover(), TftScreenCoverProps, TftScreenGrid(), TftScreenRoot(), TftScreenRootProps, TftScreenShadow(), TftScreenSheen() (+1 more)
 
 ### Community 178 - "overlay-geometry.ts"
 Cohesion: 0.23
 Nodes (16): clamp(), clampAxisStart(), clampViewportRect(), getResizeHandleCursor(), getResizeHandleHitAreaStyle(), maxRectHeight(), maxRectWidth(), moveViewportRect() (+8 more)
 
 ### Community 179 - "vfd Analyzer Lines.ts"
-Cohesion: 0.20
-Nodes (16): buildPlayerLines(), compactSections(), isStereoSpectrumBands(), PLAYER_SPECTRUM_LEVEL_GLYPHS, playerAnalyzerCells(), PlayerSpectrumBands, PlayerStereoLevels, PlayerStereoPeakHold (+8 more)
+Cohesion: 0.17
+Nodes (18): buildPlayerLines(), compactSections(), isStereoSpectrumBands(), PLAYER_SPECTRUM_LEVEL_GLYPHS, playerAnalyzerCells(), PlayerSpectrumBands, PlayerStereoLevels, PlayerStereoPeakHold (+10 more)
 
 ### Community 180 - "dispatch Cc Result()"
-Cohesion: 0.15
-Nodes (14): dispatchCcResult(), CcResolveData, ccResolveDataToResult(), parseCcAlbumResolveResponse(), parseCcArtistResolveResponse(), parseCcResolveResponse(), ResolveApiError, resolveCcCandidate() (+6 more)
+Cohesion: 0.20
+Nodes (8): String, URL, DiagnosticsExporter, ExportError, unavailable, Error, OSLogEntryLog, TimeInterval
 
 ### Community 181 - "catalog.ts"
 Cohesion: 0.18
@@ -1160,16 +1154,16 @@ Cohesion: 0.23
 Nodes (11): applyDocumentationExportEnv(), assertPublicContract(), EXCLUDED_PATH_PREFIXES, exportPublicOpenApiContract(), PublicOpenApiDocument, PublicOpenApiExport, stableStringify(), stableValue() (+3 more)
 
 ### Community 192 - "Animated Platform Grid.tsx"
-Cohesion: 0.23
-Nodes (7): AnimatedPlatformGrid(), AnimatedPlatformGridProps, gridCornerStyle(), PlatformButton, ArtistResult, PlatformLink, visiblePlatformsInDisplayOrder()
+Cohesion: 0.18
+Nodes (4): AdminRepository, FormConfigWriteErrorReason, CreateFormBody, FORM
 
 ### Community 193 - "form-builder.ts"
 Cohesion: 0.13
 Nodes (14): ButtonAction, ButtonActionType, FieldType, FormConfig, FormConfigPayload, FormField, FormFieldValidation, FormRow (+6 more)
 
 ### Community 194 - "artist-info.test.ts"
-Cohesion: 0.13
-Nodes (10): AMBIGUOUS_LASTFM_INFO, DEEZER_FANS, DEEZER_SEARCH_HIT, DEEZER_TOP_TRACKS, fetchWithTimeoutMock, LASTFM_INFO, LASTFM_TAGS, LASTFM_TOP_TRACKS (+2 more)
+Cohesion: 0.22
+Nodes (9): resolveStreamUrl(), buildCcDownloadFilename(), JAMENDO_FORMAT_META, JAMENDO_FORMAT_ORDER, JamendoAudioFormat, sanitizeFilenameSegment(), swapStreamFormat(), ENDPOINTS (+1 more)
 
 ### Community 195 - "cc-share-page.test.ts"
 Cohesion: 0.13
@@ -1184,16 +1178,16 @@ Cohesion: 0.31
 Nodes (6): Data, URL, TelemetryClient, TelemetryError, httpStatus, TelemetryEvent
 
 ### Community 198 - "api.ts"
-Cohesion: 0.19
-Nodes (7): STRIPPED_RESPONSE_HEADERS, GET(), redirectWithCookies(), BACKEND_URL, backendUrl(), internalHeaders(), getOwnApiClients()
+Cohesion: 0.29
+Nodes (4): MODE_OWNED_SKY_KEYS, NightSkyEventDetail, SKY_COLOR_KEYS, publishGlassDayness()
 
 ### Community 199 - "package.json"
 Cohesion: 0.14
 Nodes (13): devDependencies, execa, pretty-format, tsup, tsx, @types/node, @types/opentype.js, @types/pg (+5 more)
 
 ### Community 200 - "Toast Context.tsx"
-Cohesion: 0.22
-Nodes (11): INITIAL, ToastAPI, ToastCtx, ToastProvider(), ToastState, loadToast(), Toast(), ToastProps (+3 more)
+Cohesion: 0.24
+Nodes (10): INITIAL, ToastAPI, ToastCtx, ToastProvider(), ToastState, Toast(), ToastProps, variantIcons (+2 more)
 
 ### Community 201 - "parser.ts"
 Cohesion: 0.19
@@ -1224,8 +1218,8 @@ Cohesion: 0.31
 Nodes (10): formatArcCoordinate(), labelArcPath(), vinylGrooveSegmentPath(), vinylGrooveSpiralPath(), vinylPauseGroovePath(), VinylSideDarkBand, vinylSideDarkBands(), vinylSideGrooveLayout (+2 more)
 
 ### Community 209 - "Player"
-Cohesion: 0.19
-Nodes (7): Player, TurntableAnalyzerSlot(), useTurntablePlayer(), useTurntableProgress(), HubProbe(), mockReducedMotion, playedAudioElements
+Cohesion: 0.16
+Nodes (9): Player, TurntableAnalyzerSlot(), useTurntablePlayer(), useTurntableProgress(), HubLed(), HubPlatter(), HubProbe(), mockReducedMotion (+1 more)
 
 ### Community 210 - "Segmented Control Primitive.tsx"
 Cohesion: 0.21
@@ -1260,20 +1254,20 @@ Cohesion: 0.23
 Nodes (9): DeezerGenre, DeezerGenreResponse, fetchGenres(), listSupportedGenres(), loadGenres(), normalize(), ResolvedGenre, resolveGenreName() (+1 more)
 
 ### Community 219 - "collapse.ts"
-Cohesion: 0.26
-Nodes (7): activeTimelines, buildCollapseTimeline(), buildExpandTimeline(), CollapseElements, CollapseTimelineOptions, ExpandTimelineOptions, killActiveTimeline()
+Cohesion: 0.25
+Nodes (4): DEEZER_HIT, fetchWithTimeoutMock, queryMock, SPOTIFY_HIT
 
 ### Community 220 - "localized-text.ts"
 Cohesion: 0.27
 Nodes (10): assignLocalizedMap(), assignLocalizedValue(), getLocalizedText(), isPlainObject(), LocalizedText, LocalizedTextConflict, LocalizedTextRead, NormalizedLocalizedText (+2 more)
 
 ### Community 221 - ".load Album By Short Id()"
-Cohesion: 0.22
-Nodes (7): TrackDetail, TrackUpdateData, PersistAlbumData, PersistTrackData, SharePageAlbumResult, PersistResolutionResult, ArtistCredit
+Cohesion: 0.53
+Nodes (5): MediaEntry, MediaFilter, FilteredHistory, FilterPicker, MenuBarView
 
 ### Community 222 - "App"
-Cohesion: 0.22
-Nodes (8): App, MusicCloudApp, ClipboardMonitor, HistoryManager, ModelContainer, String, URL, Scene
+Cohesion: 0.53
+Nodes (4): hasUnambiguousDescriptiveMatch(), normalizedTitle(), sideForTrackTitle(), theSermonLayout
 
 ### Community 223 - "Bool"
 Cohesion: 0.27
@@ -1296,8 +1290,8 @@ Cohesion: 0.18
 Nodes (11): devDependencies, @astrojs/check, jsdom, tailwindcss, @tailwindcss/vite, tsx, @types/react, @types/react-dom (+3 more)
 
 ### Community 228 - "openapi-finalize.ts"
-Cohesion: 0.27
-Nodes (8): collectRefNames(), completeGlobalRateLimitResponses(), FinalizableOpenApiDocument, finalizePublicOpenApiDocument(), GLOBAL_RATE_LIMIT_RESPONSE, HTTP_METHODS, isRecord(), reachableSchemaNames()
+Cohesion: 0.40
+Nodes (4): ClipboardMonitor, Color, String, HeaderRow
 
 ### Community 229 - "content"
 Cohesion: 0.20
@@ -1312,12 +1306,12 @@ Cohesion: 0.29
 Nodes (9): extractColorsFromBuffer(), AlbumColors, DynamicAccent, extractAccent(), hslToRgb(), HueBucket, rgbToHsl(), sampleAccentFromRgba() (+1 more)
 
 ### Community 232 - "headline.ts"
-Cohesion: 0.29
-Nodes (6): buildCountsText(), buildHeadline(), formatList(), QueryDetails, t, TFunc
+Cohesion: 0.21
+Nodes (9): GenreSearchResultsProps, buildCountsText(), buildHeadline(), formatList(), QueryDetails, t, TFunc, GenreSearchPayload (+1 more)
 
 ### Community 233 - "concurrency Gate.ts"
-Cohesion: 0.25
-Nodes (6): ConcurrencyGate, createConcurrencyGate(), artworkGate, LazyGenreArtwork(), LazyGenreArtworkProps, PUBLIC_DIR
+Cohesion: 0.16
+Nodes (7): ConcurrencyGate, createConcurrencyGate(), artworkGate, LazyGenreArtwork(), LazyGenreArtworkProps, ImmediatelyIntersectingObserver, PUBLIC_DIR
 
 ### Community 234 - "resolve-vinyl-layout.route.test.ts"
 Cohesion: 0.18
@@ -1359,10 +1353,6 @@ Nodes (5): DashboardActionStatus, DashboardActionButton(), DashboardActionButton
 Cohesion: 0.20
 Nodes (9): dependencies, deepsec, description, name, packageManager, private, type, version (+1 more)
 
-### Community 244 - "track-search.ts"
-Cohesion: 0.27
-Nodes (7): DeezerSearchTrackHit, DeezerSearchTrackResponse, DeezerTrackEnrichment, isPlausibleMatch(), searchDeezerTrackForArtist(), fetchWithTimeoutMock, HIT_ALICIA
-
 ### Community 245 - "scripts"
 Cohesion: 0.20
 Nodes (10): scripts, build, check, dev, prebuild, preview, start, test (+2 more)
@@ -1378,10 +1368,6 @@ Nodes (7): enrichAlbumVinylLayout, findAlbumByVinylLayoutIdentity, loadAlbumBySh
 ### Community 248 - "create Managed Content Page()"
 Cohesion: 0.31
 Nodes (10): createManagedContentPage(), emptyStatuses(), getManagedContentPage(), isOneOf(), loadSegmentsWithTranslations(), rowToPage(), rowToSummary(), updateManagedContentPageBody() (+2 more)
-
-### Community 249 - "fetch Cc Audio()"
-Cohesion: 0.28
-Nodes (7): fetchCcAudio(), fetchCcDownload(), GET(), PASSTHROUGH_HEADERS, GET(), PASSTHROUGH_HEADERS, parseJamendoAudioFormat()
 
 ### Community 250 - "History Manager"
 Cohesion: 0.31
@@ -1515,14 +1501,6 @@ Nodes (7): images, info, author, version, properties, preserves-vector-represent
 Cohesion: 0.25
 Nodes (7): images, info, author, version, properties, preserves-vector-representation, template-rendering-intent
 
-### Community 285 - "Backend Fetch Result"
-Cohesion: 0.38
-Nodes (5): BackendFetchResult, resolveShortRouteResults(), ShortRouteResult, backendError, notFound
-
-### Community 286 - "resolve Track()"
-Cohesion: 0.48
-Nodes (5): resolveTrack(), GET(), isUrl(), redirectTo(), POST()
-
 ### Community 287 - "Date"
 Cohesion: 0.43
 Nodes (4): Date, Int, String, TelemetryEvent
@@ -1534,10 +1512,6 @@ Nodes (6): images, info, author, version, properties, template-rendering-intent
 ### Community 289 - "scripts"
 Cohesion: 0.29
 Nodes (7): scripts, build, dev, preview, test, test:run, typecheck
-
-### Community 290 - "Cc Share Result.tsx"
-Cohesion: 0.33
-Nodes (6): CcShareResult(), CcShareResultProps, CcViewTFunc, ShareLayout, CC_ARTIST_LABEL_KEYS, CcResult
 
 ### Community 292 - "Contents.json"
 Cohesion: 0.29
@@ -1562,14 +1536,6 @@ Nodes (6): command, pid, processGroup, startedAt, startIdentity, version
 ### Community 297 - "shared.json"
 Cohesion: 0.29
 Nodes (6): command, pid, processGroup, startedAt, startIdentity, version
-
-### Community 298 - "api Links To Platform Links()"
-Cohesion: 0.43
-Nodes (5): apiLinksToPlatformLinks(), parseAlbumResolveResponse(), parseArtistResolveResponse(), parseResolveResponse(), parseUnifiedResolveResponse()
-
-### Community 299 - "parsers.test.ts"
-Cohesion: 0.29
-Nodes (5): CC_ARTIST_INFO, VINYL_LAYOUT, ActiveResultKind, AlbumResult, SongResult
 
 ### Community 300 - "preload-media.ts"
 Cohesion: 0.52
@@ -1599,17 +1565,13 @@ Nodes (3): String, URL, AboutView
 Cohesion: 0.33
 Nodes (5): Bool, BuildChannel, appStore, debug, testflight
 
-### Community 307 - "day Night Mode.ts"
-Cohesion: 0.40
-Nodes (4): store, createModeStore(), ModeStore, ModeStoreOptions
-
 ### Community 308 - "sdk-catalog.json"
 Cohesion: 0.33
 Nodes (5): apiVersion, assets, generatorVersion, openApiSha256, sourceSha
 
 ### Community 310 - "swap.test.ts"
-Cohesion: 0.47
-Nodes (3): appendBuffer(), buildSwapDom(), stubHeight()
+Cohesion: 0.23
+Nodes (10): activeTimelines, addHeightScaleTweens(), buildResizeTimeline(), buildSwapTimeline(), killActiveTimeline(), ResizeTimelineOptions, SwapTimelineOptions, appendBuffer() (+2 more)
 
 ### Community 311 - "package.json"
 Cohesion: 0.33
@@ -1620,16 +1582,24 @@ Cohesion: 0.33
 Nodes (5): info, author, version, properties, provides-namespace
 
 ### Community 313 - "Vfd Display.test.tsx"
-Cohesion: 0.47
-Nodes (3): drawResult, resolveCanvasColors(), resolveCssColor()
+Cohesion: 0.15
+Nodes (20): syncRenderStateLines(), drawResult, VfdDisplay(), drawCanvasPixelColumns(), drawVfdCanvas(), resolveCanvasColors(), resolveCssColor(), normalizePositiveInteger() (+12 more)
 
 ### Community 314 - "Contents.json"
 Cohesion: 0.40
 Nodes (4): colors, info, author, version
 
+### Community 315 - "Music Cloud APITests.swift"
+Cohesion: 0.24
+Nodes (3): MusicCloudAPITests, JSONDecoder, JSONEncoder
+
 ### Community 316 - "Contents.json"
 Cohesion: 0.40
 Nodes (4): images, info, author, version
+
+### Community 318 - "Mock Worker"
+Cohesion: 0.12
+Nodes (6): BackgroundScene(), FAKE_OFFSCREEN, MediaStubEntry, MockWorker, sceneFactory, workerInstances
 
 ### Community 319 - "package.json"
 Cohesion: 0.40
@@ -1646,10 +1616,6 @@ Nodes (4): info, title, version, openapi
 ### Community 323 - "in"
 Cohesion: 0.40
 Nodes (5): in, name, type, securitySchemes, ApiKeyAuth
-
-### Community 324 - "event-loop-lag.ts"
-Cohesion: 0.50
-Nodes (3): histogram, readEventLoopLagMs(), resetTimer
 
 ### Community 325 - "pricing-style.test.ts"
 Cohesion: 0.40
@@ -1671,10 +1637,6 @@ Nodes (3): AlbumInfo, String, AlbumItem
 Cohesion: 0.50
 Nodes (3): ArtistInfo, String, ArtistItem
 
-### Community 332 - "String"
-Cohesion: 0.50
-Nodes (3): String, TrackInfo, TrackItem
-
 ### Community 333 - "App Shortcut"
 Cohesion: 0.50
 Nodes (3): AppShortcut, AppShortcutsProvider, MusicCloudShortcutsProvider
@@ -1692,23 +1654,23 @@ Cohesion: 0.50
 Nodes (3): destFonts, here, srcFonts
 
 ## Knowledge Gaps
-- **3269 isolated node(s):** `name`, `version`, `private`, `description`, `type` (+3264 more)
+- **3268 isolated node(s):** `name`, `version`, `private`, `type`, `dev` (+3263 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **33 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **29 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `@/components/docs/CodeBlock.astro` connect `@/components/docs/Api Reference Content.astro` to `index.astro`, `config.ts`, `Content Card.test.tsx`, `shiki`, `compound Element.ts`?**
-  _High betweenness centrality (0.149) - this node is a cross-community bridge._
-- **Why does `Key()` connect `run Genre Browse()` to `apple Music Fetch()`, `Markdown Editor.tsx`, `search By Genre()`?**
-  _High betweenness centrality (0.109) - this node is a cross-community bridge._
-- **Why does `schemas` connect `additional Properties` to `additional Properties`, `additional Properties`, `example`, `any Of`, `additional Properties`, `additional Properties`, `type`, `nullable`, `additional Properties`, `description`?**
-  _High betweenness centrality (0.072) - this node is a cross-community bridge._
+- **Why does `@/components/docs/CodeBlock.astro` connect `Auth Provider()` to `index.astro`, `.create Developer Email Token()`, `shiki`, `@/components/docs/Api Reference Content.astro`, `compound Element.ts`?**
+  _High betweenness centrality (0.137) - this node is a cross-community bridge._
+- **Why does `Key()` connect `search By Genre()` to `apple Music Fetch()`, `run Genre Browse()`, `Markdown Editor.tsx`?**
+  _High betweenness centrality (0.127) - this node is a cross-community bridge._
+- **Why does `schemas` connect `additional Properties` to `additional Properties`, `additional Properties`, `example`, `any Of`, `additional Properties`, `additional Properties`, `lastfm-source.test.ts`, `type`, `nullable`, `items`, `additional Properties`, `description`?**
+  _High betweenness centrality (0.080) - this node is a cross-community bridge._
 - **What connects `name`, `version`, `private` to the rest of the system?**
-  _3269 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _3268 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Share Signal` be split into smaller, more focused modules?**
-  _Cohesion score 0.02774735304855787 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.02727987421383648 - nodes in this community are weakly interconnected._
 - **Should `de.json` be split into smaller, more focused modules?**
   _Cohesion score 0.0125 - nodes in this community are weakly interconnected._
 - **Should `en.json` be split into smaller, more focused modules?**

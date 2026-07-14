@@ -303,7 +303,7 @@ describe("VinylRecord", () => {
       />,
     );
 
-    const rotor = container.querySelector("[data-vinyl-rotor='true']");
+    const rotor = container.querySelector<HTMLElement>("[data-vinyl-rotor='true']");
     const surface = container.querySelector<HTMLElement>("[data-vinyl-single-centre-opening='true']");
     const adapter = container.querySelector<HTMLElement>("[data-vinyl-single-rpm-adapter='true']");
     const outerChamfer = container.querySelector<HTMLElement>("[data-vinyl-single-rpm-adapter-outer-chamfer='true']");
@@ -345,8 +345,8 @@ describe("VinylRecord", () => {
     );
 
     expect(container.querySelector("[data-vinyl-label-catalog='true']")).toHaveAttribute("y", "34");
-    expect(container.querySelector("[data-vinyl-label-side='true']")).toHaveAttribute("x", "24");
-    expect(container.querySelector("[data-vinyl-label-stereo='true']")).toHaveAttribute("x", "76");
+    expect(container.querySelector("[data-vinyl-label-side='true']")).toHaveAttribute("x", "18");
+    expect(container.querySelector("[data-vinyl-label-stereo='true']")).toHaveAttribute("x", "84");
   });
 
   it("renders the resolved SIDE B letter and its dynamic pause-groove bitmap", () => {

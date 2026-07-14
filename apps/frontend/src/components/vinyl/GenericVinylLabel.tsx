@@ -172,8 +172,8 @@ export function GenericVinylLabel({ hasSingleCentreOpening, idPrefix, sideLetter
           <VinylLabelPressingCopy
             catalogText="MC-GSP-001"
             catalogY={hasSingleCentreOpening ? 34 : 65}
-            lowerCopySideX={hasSingleCentreOpening ? 24 : 32}
-            lowerCopyStereoX={hasSingleCentreOpening ? 76 : 68}
+            lowerCopySideX={hasSingleCentreOpening ? 18 : 32}
+            lowerCopyStereoX={hasSingleCentreOpening ? 84 : 68}
             lowerCopyOffsetY={3}
             rightsText="GEMA"
             sideLetter={sideLetter}
