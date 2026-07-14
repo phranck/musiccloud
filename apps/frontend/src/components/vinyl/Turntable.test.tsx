@@ -47,6 +47,10 @@ describe("Turntable", () => {
       "data-spin-state",
       VinylSpinState.Playing,
     );
+    expect(within(turntable).getByLabelText("Vinyl record for Blue Train")).toHaveAttribute(
+      "data-vinyl-disc-format",
+      "lp",
+    );
     expect(container.querySelector("[data-turntable-platter='true']")).toBeInTheDocument();
     expect(container.querySelector("[data-turntable-speed-knob='true']")).toBeInTheDocument();
     expect(container.querySelector("[data-turntable-speed-rotor='true']")).toHaveStyle({
@@ -68,7 +72,7 @@ describe("Turntable", () => {
       />,
     );
 
-    expect(screen.getByText("SIDE B")).toBeInTheDocument();
+    expect(container.querySelector("[data-vinyl-label-side-letter='true']")).toHaveTextContent("B");
     expect(container.querySelector("[data-turntable-layout-led='true']")).toHaveAttribute(
       "data-turntable-layout-led-state",
       "lit",

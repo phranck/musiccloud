@@ -3,10 +3,23 @@ import type { CSSProperties } from "react";
 import { useEffect, useId, useMemo, useRef } from "react";
 import { labelArcPath, vinylGrooveSpiralPath, vinylSideGrooveLayout } from "@/lib/media/vinyl-geometry.js";
 import { cn } from "@/lib/utils";
-import { LP_COAST_DURATION_MS, VinylSpinState, type VinylSpinState as VinylSpinStateValue } from "./VinylRecord.types";
+import { GenericVinylLabel } from "./GenericVinylLabel";
+import { VinylLabelPressingCopy } from "./VinylLabelPressingCopy";
+import { VINYL_LABEL_TEXT_STYLE } from "./VinylLabelPressingCopy.styles";
+import {
+  LP_COAST_DURATION_MS,
+  VinylDiscFormat,
+  type VinylDiscFormat as VinylDiscFormatValue,
+  VinylLabelVariant,
+  type VinylLabelVariant as VinylLabelVariantValue,
+  VinylSpinState,
+  type VinylSpinState as VinylSpinStateValue,
+} from "./VinylRecord.types";
 
 export interface VinylRecordProps {
   className: string;
+  /** Physical disc body. LP is turntable-only; Single is compact-display-only. */
+  discFormat: VinylDiscFormatValue;
   labelArtworkUrl?: string | null;
   labelTitle?: string | null;
   labelSubtitle?: string | null;
@@ -14,6 +27,8 @@ export interface VinylRecordProps {
   labelCatalogText?: string | null;
   /** Top-left rights imprint. Defaults to "GEMA"; the CC path passes the licence label. */
   labelRightsText?: string | null;
+  /** Visual label recipe. Missing artwork resolves to Generic when omitted. */
+  labelVariant?: VinylLabelVariantValue;
   sideLayout?: VinylSide;
   spinState?: VinylSpinStateValue;
 }
@@ -27,7 +42,6 @@ const DEFAULT_LABEL_CATALOG_TEXT = "MC-4333";
 // Top-right technical imprint. "DMM" (Direct Metal Mastering) is a generic,
 // authentic vinyl mark, meaningful in both commercial and CC modes (unlike the
 // commercial-only label code it replaces).
-const LABEL_TECH_TEXT = "DMM";
 /**
  * One full rotor revolution at 33⅓ RPM, in milliseconds. The deck runs at a
  * single fixed speed, so this is the one and only revolution tempo.
@@ -66,8 +80,6 @@ const LABEL_LEGAL_ARC_RADIUS = 48;
 const LABEL_LEGAL_ARC_BASELINE = 89;
 const LABEL_TITLE_ARC_PATH = labelArcPath(LABEL_TITLE_ARC_RADIUS, LABEL_TITLE_ARC_BASELINE);
 const LABEL_LEGAL_ARC_PATH = labelArcPath(LABEL_LEGAL_ARC_RADIUS, LABEL_LEGAL_ARC_BASELINE);
-// Single continuous groove spiral (a real record has one spiral groove per side,
-// not concentric rings). Computed once at module load.
 const VINYL_GROOVE_TURNS = 72;
 const VINYL_GROOVE_INNER_RADIUS = 19;
 const VINYL_GROOVE_OUTER_RADIUS = 49.5;
@@ -76,6 +88,13 @@ const VINYL_GROOVE_SPIRAL_PATH = vinylGrooveSpiralPath(
   VINYL_GROOVE_INNER_RADIUS,
   VINYL_GROOVE_OUTER_RADIUS,
 );
+const VINYL_GROOVE_RADIAL_WIDTH = VINYL_GROOVE_OUTER_RADIUS - VINYL_GROOVE_INNER_RADIUS;
+// Three deliberately unequal generic tracks (26% / 43% / 31%) create two
+// pauses without changing the original 72-turn outside-in spiral itself.
+const VINYL_GENERIC_PAUSE_BANDS = [
+  { radius: VINYL_GROOVE_OUTER_RADIUS - VINYL_GROOVE_RADIAL_WIDTH * 0.26, width: 0.6 },
+  { radius: VINYL_GROOVE_OUTER_RADIUS - VINYL_GROOVE_RADIAL_WIDTH * 0.69, width: 0.6 },
+] as const;
 // The spiral ships as a rasterised SVG bitmap behind an <img>, not an inline
 // <svg>. A replaced element is rasterised once and cached as its own compositor
 // layer, so spinning the rotor is a pure GPU transform. An inline <svg> with this
@@ -84,11 +103,15 @@ const VINYL_GROOVE_SPIRAL_PATH = vinylGrooveSpiralPath(
 // there. The groove has no external fonts or images, so the secure-static mode an
 // SVG carries inside an <img> imposes no constraint. Single quotes keep the data
 // URL compact: encodeURIComponent does not escape them.
-function vinylGrooveImageSrc(path: string, darkBands: ReadonlyArray<{ radius: number; width: number }> = []) {
+function vinylGrooveImageSrc(
+  path: string,
+  darkBands: ReadonlyArray<{ radius: number; width: number }> = [],
+  darkBandStroke = "rgba(0,0,0,0.72)",
+) {
   const darkBandSvg = darkBands
     .map(
       ({ radius, width }) =>
-        `<circle cx='50' cy='50' r='${radius.toFixed(1)}' fill='none' stroke='rgba(0,0,0,0.72)' stroke-width='${width.toFixed(1)}'/>`,
+        `<circle cx='50' cy='50' r='${radius.toFixed(1)}' fill='none' stroke='${darkBandStroke}' stroke-width='${width.toFixed(1)}'/>`,
     )
     .join("");
   return `data:image/svg+xml,${encodeURIComponent(
@@ -99,14 +122,32 @@ function vinylGrooveImageSrc(path: string, darkBands: ReadonlyArray<{ radius: nu
       `</svg>`,
   )}`;
 }
-const VINYL_GROOVE_IMAGE_SRC = vinylGrooveImageSrc(VINYL_GROOVE_SPIRAL_PATH);
+const VINYL_GROOVE_IMAGE_SRC = vinylGrooveImageSrc(
+  VINYL_GROOVE_SPIRAL_PATH,
+  VINYL_GENERIC_PAUSE_BANDS,
+  "rgba(0,0,0,0.34)",
+);
 const LABEL_TITLE_ARC_LENGTH = labelArcLength(LABEL_TITLE_ARC_RADIUS, LABEL_TITLE_ARC_BASELINE);
+
+const VINYL_LABEL_INSET = {
+  [VinylDiscFormat.Lp]: "32%",
+  [VinylDiscFormat.Single]: "23%",
+} satisfies Record<VinylDiscFormatValue, string>;
+
+// The paper-label radii in the 100×100 physical-disc coordinate system. The
+// stationary reflection uses matching format-specific inner stops so it never
+// crosses either paper face.
+const VINYL_LABEL_RADIUS = {
+  [VinylDiscFormat.Lp]: 18,
+  [VinylDiscFormat.Single]: 27,
+} satisfies Record<VinylDiscFormatValue, number>;
+
+const DISCOGS_LABEL_INSET = "32%";
 
 // Vinyl-label imprint typography. Iosevka Charon Mono is monospace: every glyph
 // advances exactly 0.5em, so imprint text can be fitted to the available arc by
 // pure arithmetic (no DOM measurement, SSR-safe) instead of `textLength` /
 // `lengthAdjust`, which Safari and Firefox render inconsistently on `<textPath>`.
-const LABEL_FONT_FAMILY = '"Iosevka Charon Mono", ui-monospace, monospace';
 const LABEL_FONT_ADVANCE_EM = 0.5;
 // Letter-spacing expressed as a fraction of font-size so the tracking scales with
 // the type instead of looking proportionally wider as the title shrinks.
@@ -149,12 +190,65 @@ const RECORD_EDGE_STYLE = {
     "radial-gradient(circle at 50% 50%, transparent 0 68%, rgba(255, 255, 255, 0.035) 70%, transparent 72%), radial-gradient(circle at 50% 50%, transparent 0 92%, rgba(0, 0, 0, 0.28) 100%)",
 } satisfies CSSProperties;
 
-// Masked so the rainbow sheen is clipped to the bare grooves: the centre is
-// fully transparent out past the paper-label edge (the label sits at inset-32%,
-// ~25.5% of this gradient's farthest-corner radius), so the sheen never bleeds
-// over the label, and it fades out again before the record rim.
 const RECORD_REFLECTION_MASK =
   "radial-gradient(circle at 50% 50%, transparent 0 28%, rgba(0, 0, 0, 0.72) 31%, #000 78%, transparent 99%)";
+
+// CSS radial-gradient percentages are measured against the farthest corner,
+// whose radius is √(50² + 50²) in this square. Mapping the SVG pause radii to
+// that gradient keeps the stationary light/rainbow sheen cut out at exactly the
+// same two concentric bands as the rotating groove image.
+const REFLECTION_GRADIENT_RADIUS = Math.hypot(50, 50);
+
+function reflectionMaskStop(radius: number) {
+  return `${((radius / REFLECTION_GRADIENT_RADIUS) * 100).toFixed(1)}%`;
+}
+
+// The existing LP fade begins 2.5 / 5.5 gradient points outside its paper
+// edge. Applying the same physical clearance to the 27-unit Single label gives
+// 40.7% / 43.7%, clipping the stationary light and rainbow at its larger rim.
+function reflectionMaskInnerStops(discFormat: VinylDiscFormatValue) {
+  const labelEdge = (VINYL_LABEL_RADIUS[discFormat] / REFLECTION_GRADIENT_RADIUS) * 100;
+  return {
+    fadeStart: `${(labelEdge + 2.5).toFixed(1)}%`,
+    fadeEnd: `${(labelEdge + 5.5).toFixed(1)}%`,
+  };
+}
+
+const [OUTER_PAUSE_BAND, INNER_PAUSE_BAND] = VINYL_GENERIC_PAUSE_BANDS;
+const INNER_PAUSE_START = reflectionMaskStop(INNER_PAUSE_BAND.radius - INNER_PAUSE_BAND.width / 2);
+const INNER_PAUSE_END = reflectionMaskStop(INNER_PAUSE_BAND.radius + INNER_PAUSE_BAND.width / 2);
+const OUTER_PAUSE_START = reflectionMaskStop(OUTER_PAUSE_BAND.radius - OUTER_PAUSE_BAND.width / 2);
+const OUTER_PAUSE_END = reflectionMaskStop(OUTER_PAUSE_BAND.radius + OUTER_PAUSE_BAND.width / 2);
+function genericRecordReflectionMask(discFormat: VinylDiscFormatValue) {
+  const { fadeEnd, fadeStart } = reflectionMaskInnerStops(discFormat);
+  return (
+    "radial-gradient(circle at 50% 50%, transparent 0 " +
+    fadeStart +
+    ", rgba(0, 0, 0, 0.72) " +
+    fadeEnd +
+    ", " +
+    "rgba(0, 0, 0, 0.77) " +
+    INNER_PAUSE_START +
+    ", rgba(0, 0, 0, 0.5) " +
+    INNER_PAUSE_START +
+    " " +
+    INNER_PAUSE_END +
+    ", rgba(0, 0, 0, 0.78) " +
+    INNER_PAUSE_END +
+    ", rgba(0, 0, 0, 0.88) " +
+    OUTER_PAUSE_START +
+    ", rgba(0, 0, 0, 0.5) " +
+    OUTER_PAUSE_START +
+    " " +
+    OUTER_PAUSE_END +
+    ", rgba(0, 0, 0, 0.89) " +
+    OUTER_PAUSE_END +
+    ", #000 78%, transparent 99%)"
+  );
+}
+
+const GENERIC_RECORD_REFLECTION_MASK = genericRecordReflectionMask(VinylDiscFormat.Lp);
+const SINGLE_GENERIC_RECORD_REFLECTION_MASK = genericRecordReflectionMask(VinylDiscFormat.Single);
 
 const RECORD_REFLECTION_STYLE = {
   WebkitMaskImage: RECORD_REFLECTION_MASK,
@@ -162,6 +256,18 @@ const RECORD_REFLECTION_STYLE = {
     "conic-gradient(from 292deg at 50% 50%, transparent 0deg 8deg, rgba(255, 255, 255, 0.08) 15deg, rgba(255, 255, 255, 0.36) 30deg, rgba(255, 255, 255, 0.2) 45deg, rgba(255, 255, 255, 0.07) 63deg, transparent 82deg 184deg, rgba(255, 255, 255, 0.06) 194deg, rgba(255, 255, 255, 0.3) 214deg, rgba(255, 255, 255, 0.17) 232deg, rgba(255, 255, 255, 0.055) 252deg, transparent 274deg 360deg), conic-gradient(from 292deg at 50% 50%, transparent 0deg 11deg, rgba(255, 56, 82, 0.17) 17deg, rgba(255, 218, 76, 0.2) 24deg, rgba(86, 255, 182, 0.16) 31deg, rgba(74, 176, 255, 0.2) 39deg, rgba(164, 112, 255, 0.14) 48deg, transparent 66deg 190deg, rgba(255, 56, 82, 0.12) 200deg, rgba(255, 218, 76, 0.15) 208deg, rgba(86, 255, 182, 0.12) 217deg, rgba(74, 176, 255, 0.15) 226deg, rgba(164, 112, 255, 0.11) 236deg, transparent 258deg 360deg), radial-gradient(ellipse at 24% 20%, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.08) 26%, transparent 45%), radial-gradient(ellipse at 76% 71%, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.075) 25%, transparent 44%)",
   maskImage: RECORD_REFLECTION_MASK,
   opacity: 0.84,
+} satisfies CSSProperties;
+
+const GENERIC_RECORD_REFLECTION_STYLE = {
+  ...RECORD_REFLECTION_STYLE,
+  WebkitMaskImage: GENERIC_RECORD_REFLECTION_MASK,
+  maskImage: GENERIC_RECORD_REFLECTION_MASK,
+} satisfies CSSProperties;
+
+const SINGLE_GENERIC_RECORD_REFLECTION_STYLE = {
+  ...RECORD_REFLECTION_STYLE,
+  WebkitMaskImage: SINGLE_GENERIC_RECORD_REFLECTION_MASK,
+  maskImage: SINGLE_GENERIC_RECORD_REFLECTION_MASK,
 } satisfies CSSProperties;
 
 const GROUND_SHADOW_STYLE = {
@@ -187,19 +293,133 @@ const LABEL_PRINT_STYLE = {
   boxShadow: "0 1px 8px rgba(0, 0, 0, 0.34)",
 } satisfies CSSProperties;
 
-const LABEL_TEXT_STYLE = {
-  fontFamily: LABEL_FONT_FAMILY,
-} satisfies CSSProperties;
-
-const LABEL_STEREO_STYLE = {
-  fontFamily: '"Summer Favourite", var(--font-sans)',
-} satisfies CSSProperties;
-
 const CENTER_HOLE_STYLE = {
   background: "radial-gradient(circle at 50% 50%, #070708 0 44%, #3f4142 45% 63%, #070708 64% 100%)",
   boxShadow:
     "0 0 0 1px rgba(255, 255, 255, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.18), inset 0 -1px 2px rgba(0, 0, 0, 0.8)",
 } satisfies CSSProperties;
+
+// A 7-inch 45 RPM Single has a 1.5-inch centre opening. It is a real cut-out,
+// not a painted dark circle: the turntable beneath supplies the spindle or
+// adapter. Percentages are relative to the radial-gradient's farthest corner,
+// mapping the 10.8-unit physical radius to 15.2% in this 100×100 disc space.
+const SINGLE_CENTRE_OPENING_MASK = "radial-gradient(circle at 50% 50%, transparent 0 15.2%, #000 15.5% 100%)";
+
+const SINGLE_RECORD_SURFACE_STYLE = {
+  ...RECORD_SURFACE_STYLE,
+  WebkitMaskImage: SINGLE_CENTRE_OPENING_MASK,
+  maskImage: SINGLE_CENTRE_OPENING_MASK,
+} satisfies CSSProperties;
+
+const SINGLE_GROUND_SHADOW_STYLE = {
+  ...GROUND_SHADOW_STYLE,
+  WebkitMaskImage: SINGLE_CENTRE_OPENING_MASK,
+  maskImage: SINGLE_CENTRE_OPENING_MASK,
+} satisfies CSSProperties;
+
+// The 45 adapter rests over the Single's large 1.5-inch opening, but its own
+// spindle bore is much smaller. It remains a true cut-out: the turntable's pin,
+// not the artwork, occupies this hole.
+const SINGLE_RPM_ADAPTER_BORE_MASK = "radial-gradient(circle at 50% 50%, transparent 0 11.2%, #000 11.5% 100%)";
+
+// The rendered CNC reference has a broad outer bevel and a smaller recessed
+// turning face. The face is inset by 14%; 11.2 / 0.72 keeps its bore physically
+// concentric with the shell rather than making it grow with the face.
+const SINGLE_RPM_ADAPTER_FACE_BORE_MASK = "radial-gradient(circle at 50% 50%, transparent 0 15.5%, #000 15.8% 100%)";
+
+const SINGLE_RPM_ADAPTER_WHITE_REFLECTION =
+  "conic-gradient(from 292deg at 50% 50%, transparent 0deg 8deg, rgba(255, 255, 255, 0.08) 15deg, rgba(255, 255, 255, 0.58) 29deg, rgba(255, 255, 255, 0.2) 48deg, rgba(255, 255, 255, 0.04) 64deg, transparent 80deg 196deg, rgba(255, 255, 255, 0.15) 217deg, rgba(255, 255, 255, 0.05) 242deg, transparent 270deg 360deg)";
+const SINGLE_RPM_ADAPTER_RAINBOW_REFLECTION =
+  "conic-gradient(from 292deg at 50% 50%, transparent 0deg 12deg, rgba(255, 56, 82, 0.025) 21deg, rgba(255, 218, 76, 0.035) 30deg, rgba(86, 255, 182, 0.028) 39deg, rgba(74, 176, 255, 0.035) 48deg, rgba(164, 112, 255, 0.025) 58deg, transparent 76deg 204deg, rgba(255, 56, 82, 0.018) 214deg, rgba(255, 218, 76, 0.026) 223deg, rgba(86, 255, 182, 0.02) 232deg, rgba(74, 176, 255, 0.026) 241deg, rgba(164, 112, 255, 0.018) 250deg, transparent 270deg 360deg)";
+
+// This static lower body sits behind the rendered-reference bevel and recessed
+// face. It stays outside the rotor, so its lighting can never rotate with vinyl.
+const SINGLE_RPM_ADAPTER_STYLE = {
+  backgroundImage: "radial-gradient(circle at 50% 50%, #18262e 0, #0c1820 66%, #050d13 86%, #010407 100%)",
+  boxShadow: "0 3px 6px rgba(0, 0, 0, 0.86), 0 0 0 1px rgba(153, 180, 191, 0.18), inset 0 -3px 5px rgba(0, 4, 7, 0.9)",
+  WebkitMaskImage: SINGLE_RPM_ADAPTER_BORE_MASK,
+  maskImage: SINGLE_RPM_ADAPTER_BORE_MASK,
+} satisfies CSSProperties;
+
+// This ring is the actual 45° outside bevel. Its base is a directional plane,
+// not a radial colour ramp: the existing north-west light therefore lands on
+// one physical side of the phase while the opposite side falls into shadow.
+// The mask prevents the bright CNC finish from becoming a full washer surface
+// behind the recessed face. The fine radial pattern is texture only.
+const SINGLE_RPM_ADAPTER_OUTER_CHAMFER_STYLE = {
+  backgroundImage: `${SINGLE_RPM_ADAPTER_WHITE_REFLECTION}, ${SINGLE_RPM_ADAPTER_RAINBOW_REFLECTION}, repeating-radial-gradient(circle at 50% 50%, rgba(244, 250, 252, 0.09) 0 0.22%, rgba(18, 33, 41, 0.11) 0.3% 0.62%, transparent 0.7% 1.12%), linear-gradient(135deg, #eff5f4 0%, #c4d0d2 24%, #8198a0 57%, #405762 78%, #172b35 100%)`,
+  boxShadow:
+    "inset 0 1px 1px rgba(255, 255, 255, 0.38), inset 0 -2px 3px rgba(1, 7, 11, 0.54), 0 0 0 1px rgba(211, 229, 235, 0.2)",
+  WebkitMaskImage: "radial-gradient(circle at 50% 50%, transparent 0 50.5%, #000 51% 70.7%, transparent 71%)",
+  maskImage: "radial-gradient(circle at 50% 50%, transparent 0 50.5%, #000 51% 70.7%, transparent 71%)",
+} satisfies CSSProperties;
+
+const SINGLE_RPM_ADAPTER_FACE_STYLE = {
+  backgroundImage: `${SINGLE_RPM_ADAPTER_WHITE_REFLECTION}, ${SINGLE_RPM_ADAPTER_RAINBOW_REFLECTION}, repeating-radial-gradient(circle at 50% 50%, rgba(248, 252, 253, 0.07) 0 0.24%, rgba(15, 30, 38, 0.09) 0.34% 0.64%, transparent 0.74% 1.18%), linear-gradient(135deg, #d7e0df 0%, #b7c4c6 33%, #91a4aa 68%, #617681 100%)`,
+  boxShadow:
+    "0 3px 5px rgba(0, 0, 0, 0.82), 0 0 0 3px rgba(1, 9, 14, 0.72), inset 0 1px 1px rgba(255, 255, 255, 0.36), inset 0 -2px 3px rgba(7, 15, 20, 0.38)",
+  WebkitMaskImage: SINGLE_RPM_ADAPTER_FACE_BORE_MASK,
+  maskImage: SINGLE_RPM_ADAPTER_FACE_BORE_MASK,
+} satisfies CSSProperties;
+
+// A recessed face needs the inverse light direction of the outer bevel: its
+// upper-left edge falls into the cavity while its lower-right lip catches light.
+// This is a separate annular plane, not a shadow around the whole face.
+const SINGLE_RPM_ADAPTER_RECESSED_LIGHTING =
+  "linear-gradient(315deg, rgba(237, 247, 249, 0.88) 0%, rgba(145, 166, 173, 0.66) 35%, rgba(48, 70, 80, 0.72) 72%, rgba(9, 27, 36, 0.76) 100%)";
+
+const SINGLE_RPM_ADAPTER_RECESS_RIM_STYLE = {
+  backgroundImage: `repeating-radial-gradient(circle at 50% 50%, rgba(240, 248, 249, 0.09) 0 0.2%, rgba(17, 34, 42, 0.08) 0.3% 0.54%, transparent 0.64% 1.08%), ${SINGLE_RPM_ADAPTER_RECESSED_LIGHTING}`,
+  boxShadow: "inset 2px 2px 2px rgba(3, 14, 20, 0.56), inset -2px -2px 2px rgba(238, 248, 250, 0.62)",
+  WebkitMaskImage: "radial-gradient(circle at 50% 50%, transparent 0 64%, #000 65% 70.7%, transparent 71%)",
+  maskImage: "radial-gradient(circle at 50% 50%, transparent 0 64%, #000 65% 70.7%, transparent 71%)",
+} satisfies CSSProperties;
+
+const SINGLE_RPM_ADAPTER_INNER_CHAMFER_STYLE = {
+  backgroundImage: `repeating-radial-gradient(circle at 50% 50%, rgba(240, 248, 249, 0.09) 0 0.2%, rgba(17, 34, 42, 0.08) 0.3% 0.54%, transparent 0.64% 1.08%), ${SINGLE_RPM_ADAPTER_RECESSED_LIGHTING}`,
+  // Keep the recess's lower-right light direction, but lift it enough for the
+  // much narrower bore phase to retain a visible machined-metal highlight.
+  boxShadow: "inset 1px 1px 1px rgba(3, 15, 21, 0.56), inset -1px -1px 1px rgba(238, 248, 250, 0.82)",
+  WebkitMaskImage: "radial-gradient(circle at 50% 50%, transparent 0 15.5%, #000 15.8% 21.4%, transparent 21.7%)",
+  maskImage: "radial-gradient(circle at 50% 50%, transparent 0 15.5%, #000 15.8% 21.4%, transparent 21.7%)",
+} satisfies CSSProperties;
+
+function SingleRpmAdapter() {
+  return (
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute left-1/2 top-1/2 z-[35] aspect-square -translate-x-1/2 -translate-y-1/2 rounded-full"
+      data-vinyl-single-rpm-adapter="true"
+      style={{ ...SINGLE_RPM_ADAPTER_STYLE, width: "23.2%" }}
+    >
+      <span
+        aria-hidden="true"
+        className="absolute inset-0 rounded-full"
+        data-vinyl-single-rpm-adapter-outer-chamfer="true"
+        style={SINGLE_RPM_ADAPTER_OUTER_CHAMFER_STYLE}
+      />
+      <span
+        aria-hidden="true"
+        className="absolute rounded-full"
+        data-vinyl-single-rpm-adapter-face="true"
+        style={{ ...SINGLE_RPM_ADAPTER_FACE_STYLE, inset: "14%" }}
+      >
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 rounded-full"
+          data-vinyl-single-rpm-adapter-recess-rim="true"
+          style={SINGLE_RPM_ADAPTER_RECESS_RIM_STYLE}
+        />
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 rounded-full"
+          data-vinyl-single-rpm-adapter-inner-chamfer="true"
+          style={SINGLE_RPM_ADAPTER_INNER_CHAMFER_STYLE}
+        />
+      </span>
+    </span>
+  );
+}
 
 function vinylAriaLabel(labelTitle?: string | null) {
   return labelTitle ? `Vinyl record for ${labelTitle}` : "Vinyl record";
@@ -404,15 +624,21 @@ function startRotorAnimation(
 
 export function VinylRecord({
   className,
+  discFormat,
   labelArtworkUrl,
   labelCatalogText,
   labelRightsText,
   labelSubtitle,
   labelTitle,
   labelYear,
+  labelVariant,
   sideLayout,
   spinState = VinylSpinState.Idle,
 }: VinylRecordProps) {
+  const resolvedLabelVariant =
+    labelVariant ?? (labelArtworkUrl ? VinylLabelVariant.Standard : VinylLabelVariant.Generic);
+  const usesGenericLabel = resolvedLabelVariant === VinylLabelVariant.Generic;
+  const hasSingleCentreOpening = discFormat === VinylDiscFormat.Single;
   const displayTitle = labelTitle ?? DEFAULT_LABEL_TITLE;
   const displayRights = labelRightsText ?? DEFAULT_LABEL_RIGHTS_TEXT;
   // The center catalog field falls back to a placeholder only for commercial
@@ -446,6 +672,7 @@ export function VinylRecord({
     return vinylGrooveImageSrc(grooveLayout.path, grooveLayout.darkBands);
   }, [sideLayout]);
   const sideLetter = sideLayout?.label ?? "A";
+  const labelInset = sideLayout ? DISCOGS_LABEL_INSET : VINYL_LABEL_INSET[discFormat];
   const rotorRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<Animation | null>(null);
 
@@ -470,6 +697,8 @@ export function VinylRecord({
     <figure
       aria-label={vinylAriaLabel(labelTitle)}
       className={cn("relative m-0 aspect-square overflow-visible rounded-full transform-gpu", className)}
+      data-vinyl-disc-format={discFormat}
+      data-vinyl-label-variant={resolvedLabelVariant}
       data-spin-state={spinState}
       role="img"
     >
@@ -477,7 +706,7 @@ export function VinylRecord({
         aria-hidden="true"
         className="absolute inset-[1.5%] z-0 rounded-full"
         data-vinyl-ground-shadow="true"
-        style={GROUND_SHADOW_STYLE}
+        style={hasSingleCentreOpening ? SINGLE_GROUND_SHADOW_STYLE : GROUND_SHADOW_STYLE}
       />
       {/* The base record surface (radial shade, spindle ring, rim) stays STATIC:
           it is radially symmetric, so its rotation would be imperceptible, and
@@ -485,7 +714,8 @@ export function VinylRecord({
       <div
         className="relative z-10 h-full w-full overflow-hidden rounded-full"
         data-vinyl-surface="true"
-        style={RECORD_SURFACE_STYLE}
+        data-vinyl-single-centre-opening={hasSingleCentreOpening ? "true" : undefined}
+        style={hasSingleCentreOpening ? SINGLE_RECORD_SURFACE_STYLE : RECORD_SURFACE_STYLE}
       >
         <span aria-hidden="true" className="absolute inset-0 rounded-full" style={RECORD_EDGE_STYLE} />
         {/* The groove spiral and the label rotate together so the groove visibly
@@ -516,140 +746,123 @@ export function VinylRecord({
           />
           <span aria-hidden="true" className="absolute inset-[2.8%] rounded-full" style={RECORD_DETAIL_STYLE} />
           <div
-            className="absolute inset-[32%] z-20 overflow-hidden rounded-full"
+            className="absolute z-20 overflow-hidden rounded-full"
             data-vinyl-label="true"
-            style={LABEL_STYLE}
+            data-vinyl-label-variant={resolvedLabelVariant}
+            style={{ ...LABEL_STYLE, inset: labelInset }}
           >
-            {labelArtworkUrl ? (
-              <img
-                alt=""
-                className="absolute left-1/2 top-1/2 h-[112%] w-[112%] max-w-none -translate-x-1/2 -translate-y-1/2 object-cover"
-                data-vinyl-label-artwork="true"
-                draggable={false}
-                src={labelArtworkUrl}
+            {usesGenericLabel ? (
+              <GenericVinylLabel
+                hasSingleCentreOpening={hasSingleCentreOpening}
+                idPrefix={labelPathId}
+                sideLetter={sideLetter}
               />
-            ) : null}
-            {!labelArtworkUrl && <span aria-hidden="true" className="absolute inset-0 rounded-full bg-black/30" />}
-            <span aria-hidden="true" className="absolute inset-0 rounded-full" style={LABEL_TEXTURE_STYLE} />
-            <div
-              aria-hidden="true"
-              className="absolute right-0 bottom-0 left-0 z-20 h-[43%]"
-              data-vinyl-label-print="true"
-              style={LABEL_PRINT_STYLE}
-            />
-            <svg
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 z-30 h-full w-full"
-              data-vinyl-label-print-copy="true"
-              viewBox="0 0 100 100"
-            >
-              <defs>
-                <path d={LABEL_TITLE_ARC_PATH} data-vinyl-label-title-path="true" id={titleArcId} />
-                <path d={LABEL_LEGAL_ARC_PATH} data-vinyl-label-legal-path="true" id={legalArcId} />
-              </defs>
-              <text
-                fill="rgba(255, 255, 255, 0.68)"
-                fontSize="3.35"
-                fontWeight="400"
-                letterSpacing="0.5"
-                style={LABEL_TEXT_STYLE}
-              >
-                <tspan data-vinyl-label-gema="true" x="8" y="65">
-                  {displayRights}
-                </tspan>
-                <tspan data-vinyl-label-catalog="true" textAnchor="middle" x="50" y="65">
-                  {displayCatalog}
-                </tspan>
-                <tspan data-vinyl-label-tech="true" textAnchor="end" x="92" y="65">
-                  {LABEL_TECH_TEXT}
-                </tspan>
-              </text>
-              <text
-                fill="rgba(255, 255, 255, 0.82)"
-                fontWeight="700"
-                letterSpacing="0.6"
-                style={LABEL_TEXT_STYLE}
-                textAnchor="middle"
-              >
-                <tspan data-vinyl-label-side="true" fontSize="3.4" x="38" y="70">
-                  SIDE
-                </tspan>
-                <tspan data-vinyl-label-side-letter="true" fontSize="5.4" letterSpacing="0" x="38" y="75">
-                  {sideLetter}
-                </tspan>
-              </text>
-              <text
-                data-vinyl-label-stereo="true"
-                fill="rgba(255, 255, 255, 0.9)"
-                fontSize="8.4"
-                style={LABEL_STEREO_STYLE}
-                textAnchor="middle"
-                x="60"
-                y="74.5"
-              >
-                STEREO
-              </text>
-              <text
-                className="uppercase"
-                data-vinyl-label-title="true"
-                fill="rgba(255, 255, 255, 0.94)"
-                fontSize={titleFontSize}
-                fontWeight="700"
-                letterSpacing={titleFontSize * LABEL_TITLE_LETTER_SPACING_RATIO}
-                style={LABEL_TEXT_STYLE}
-              >
-                <textPath
-                  data-vinyl-label-title-arc="true"
-                  href={`#${titleArcId}`}
-                  startOffset="50%"
-                  textAnchor="middle"
+            ) : (
+              <>
+                {labelArtworkUrl ? (
+                  <img
+                    alt=""
+                    className="absolute left-1/2 top-1/2 h-[112%] w-[112%] max-w-none -translate-x-1/2 -translate-y-1/2 object-cover"
+                    data-vinyl-label-artwork="true"
+                    draggable={false}
+                    src={labelArtworkUrl}
+                  />
+                ) : null}
+                {!labelArtworkUrl && <span aria-hidden="true" className="absolute inset-0 rounded-full bg-black/30" />}
+                <span aria-hidden="true" className="absolute inset-0 rounded-full" style={LABEL_TEXTURE_STYLE} />
+                <div
+                  aria-hidden="true"
+                  className="absolute right-0 bottom-0 left-0 z-20 h-[43%]"
+                  data-vinyl-label-print="true"
+                  style={LABEL_PRINT_STYLE}
+                />
+                <svg
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 z-30 h-full w-full"
+                  data-vinyl-label-print-copy="true"
+                  viewBox="0 0 100 100"
                 >
-                  {displayTitle}
-                </textPath>
-              </text>
-              {labelSubtitle ? (
-                <text
-                  className="uppercase"
-                  data-vinyl-label-subtitle="true"
-                  fill="rgba(255, 255, 255, 0.66)"
-                  fontSize={subtitleFontSize}
-                  fontWeight="400"
-                  letterSpacing={subtitleFontSize * LABEL_SUBTITLE_LETTER_SPACING_RATIO}
-                  style={LABEL_TEXT_STYLE}
-                  textAnchor="middle"
-                  x="50"
-                  y="84"
-                >
-                  {labelSubtitle}
-                </text>
-              ) : null}
-              <text
-                fill="rgba(255, 255, 255, 0.58)"
-                fontSize={LABEL_LEGAL_FONT_SIZE}
-                fontWeight="300"
-                letterSpacing={LABEL_LEGAL_LETTER_SPACING}
-                style={LABEL_TEXT_STYLE}
-              >
-                <textPath href={`#${legalArcId}`} startOffset="50%" textAnchor="middle">
-                  {legalText}
-                </textPath>
-              </text>
-            </svg>
+                  <defs>
+                    <path d={LABEL_TITLE_ARC_PATH} data-vinyl-label-title-path="true" id={titleArcId} />
+                    <path d={LABEL_LEGAL_ARC_PATH} data-vinyl-label-legal-path="true" id={legalArcId} />
+                  </defs>
+                  <VinylLabelPressingCopy
+                    catalogText={displayCatalog}
+                    rightsText={displayRights}
+                    sideLetter={sideLetter}
+                  />
+                  <text
+                    className="uppercase"
+                    data-vinyl-label-title="true"
+                    fill="rgba(255, 255, 255, 0.94)"
+                    fontSize={titleFontSize}
+                    fontWeight="700"
+                    letterSpacing={titleFontSize * LABEL_TITLE_LETTER_SPACING_RATIO}
+                    style={VINYL_LABEL_TEXT_STYLE}
+                  >
+                    <textPath
+                      data-vinyl-label-title-arc="true"
+                      href={`#${titleArcId}`}
+                      startOffset="50%"
+                      textAnchor="middle"
+                    >
+                      {displayTitle}
+                    </textPath>
+                  </text>
+                  {labelSubtitle ? (
+                    <text
+                      className="uppercase"
+                      data-vinyl-label-subtitle="true"
+                      fill="rgba(255, 255, 255, 0.66)"
+                      fontSize={subtitleFontSize}
+                      fontWeight="400"
+                      letterSpacing={subtitleFontSize * LABEL_SUBTITLE_LETTER_SPACING_RATIO}
+                      style={VINYL_LABEL_TEXT_STYLE}
+                      textAnchor="middle"
+                      x="50"
+                      y="84"
+                    >
+                      {labelSubtitle}
+                    </text>
+                  ) : null}
+                  <text
+                    fill="rgba(255, 255, 255, 0.58)"
+                    fontSize={LABEL_LEGAL_FONT_SIZE}
+                    fontWeight="300"
+                    letterSpacing={LABEL_LEGAL_LETTER_SPACING}
+                    style={VINYL_LABEL_TEXT_STYLE}
+                  >
+                    <textPath href={`#${legalArcId}`} startOffset="50%" textAnchor="middle">
+                      {legalText}
+                    </textPath>
+                  </text>
+                </svg>
+              </>
+            )}
             <span className="sr-only">SIDE {sideLetter}</span>
             <span className="sr-only">{labelYear ?? DEFAULT_LABEL_SPEED}</span>
-            <div
-              aria-hidden="true"
-              className="absolute left-1/2 top-1/2 z-30 aspect-square w-[8%] -translate-x-1/2 -translate-y-1/2 rounded-full"
-              style={CENTER_HOLE_STYLE}
-            />
+            {!hasSingleCentreOpening ? (
+              <div
+                aria-hidden="true"
+                className="absolute left-1/2 top-1/2 z-30 aspect-square w-[8%] -translate-x-1/2 -translate-y-1/2 rounded-full"
+                style={CENTER_HOLE_STYLE}
+              />
+            ) : null}
           </div>
         </div>
       </div>
+      {hasSingleCentreOpening ? <SingleRpmAdapter /> : null}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 z-30 rounded-full"
         data-vinyl-reflection="true"
-        style={RECORD_REFLECTION_STYLE}
+        style={
+          sideLayout
+            ? RECORD_REFLECTION_STYLE
+            : discFormat === VinylDiscFormat.Single
+              ? SINGLE_GENERIC_RECORD_REFLECTION_STYLE
+              : GENERIC_RECORD_REFLECTION_STYLE
+        }
       />
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-40 rounded-full ring-1 ring-black/80" />
     </figure>

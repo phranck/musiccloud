@@ -4,7 +4,6 @@ import type { MouseEvent } from "react";
 import { DayNightSwitcher } from "@/components/navigation/DayNightSwitcher";
 import { HeaderNavMenu } from "@/components/navigation/HeaderNavMenu";
 import { LanguageSwitcher } from "@/components/navigation/LanguageSwitcher";
-import { ResolveModeIndicator } from "@/components/navigation/ResolveModeIndicator";
 import { isOverlayActive, OVERLAY_OPEN_EVENT } from "@/context/useOverlay";
 import { useIsClient } from "@/hooks/useIsClient";
 import { sendNavInteractionSignal } from "@/lib/analytics/navSignals";
@@ -66,10 +65,11 @@ export function PageHeader({ navItems = EMPTY_NAV_ITEMS }: PageHeaderProps) {
 
   return (
     <>
-      <div className={cn(barBase, "left-3 items-center gap-2 sm:left-4 sm:gap-3", reveal)}>
-        {navItems.length > 0 && <HeaderNavMenu navItems={navItems} onNavClick={handleNavClick} />}
-        <ResolveModeIndicator />
-      </div>
+      {navItems.length > 0 && (
+        <div className={cn(barBase, "left-3 items-center gap-2 sm:left-4 sm:gap-3", reveal)}>
+          <HeaderNavMenu navItems={navItems} onNavClick={handleNavClick} />
+        </div>
+      )}
       <div className={cn(barBase, "right-3 items-start gap-2 sm:right-4 sm:gap-3", reveal)}>
         <DayNightSwitcher />
         <LanguageSwitcher />

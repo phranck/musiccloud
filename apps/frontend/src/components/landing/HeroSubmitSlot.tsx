@@ -3,7 +3,7 @@ import { useState } from "react";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { usePrefersReducedMotion } from "@/components/ui/usePrefersReducedMotion";
 import { VinylRecord } from "@/components/vinyl/VinylRecord";
-import { VinylSpinState } from "@/components/vinyl/VinylRecord.types";
+import { VinylDiscFormat, VinylLabelVariant, VinylSpinState } from "@/components/vinyl/VinylRecord.types";
 import { useT } from "@/i18n/localeContext";
 import { InputState } from "@/lib/types/app";
 import { cn } from "@/lib/utils";
@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 /**
  * Phases of the animated submit slot. The slot mounts in {@link SubmitPhase.ButtonOut}
  * (the button is sliding out), advances to {@link SubmitPhase.DiscIn} when the
- * button-out animation ends, then to {@link SubmitPhase.Spinning} when the LP
+ * button-out animation ends, then to {@link SubmitPhase.Spinning} when the Single
  * has slid in. The disc exit is derived from `Spinning + requestDiscExit`, so it
  * waits for the entry to finish even when the result is already ready.
  */
@@ -72,13 +72,18 @@ function RestSubmitButton({ state, submitDisabled, compact, onSubmitClick }: Res
 }
 
 /**
- * Reduced-motion loading indicator: the spinning LP shown statically at the
+ * Reduced-motion loading indicator: the spinning Single shown statically at the
  * submit slot, at the full button size, with no slide.
  */
 function StaticDisc() {
   return (
     <div className="flex items-center justify-center flex-shrink-0 size-10 md:size-12 ml-0.5" aria-hidden="true">
-      <VinylRecord className="size-full" spinState={VinylSpinState.Playing} />
+      <VinylRecord
+        className="size-full"
+        discFormat={VinylDiscFormat.Single}
+        labelVariant={VinylLabelVariant.Generic}
+        spinState={VinylSpinState.Playing}
+      />
     </div>
   );
 }
@@ -90,7 +95,7 @@ interface AnimatedSubmitSlotProps {
 
 /**
  * The animated slot, mounted only while loading (a fresh mount per loading
- * session resets the phase). Button + LP fill the fixed slot absolutely and
+ * session resets the phase). Button + Single fill the fixed slot absolutely and
  * slide on `translateX`; the well's `overflow:hidden` clips a layer the instant
  * it leaves the slot, so each reads as sliding off the field's right edge. All
  * phase advances happen in `onAnimationEnd` handlers (events, never effects), and
@@ -135,7 +140,12 @@ function AnimatedSubmitSlot({ requestDiscExit, onLoadingExitComplete }: Animated
             else if (discExiting) onLoadingExitComplete?.();
           }}
         >
-          <VinylRecord className="size-full" spinState={VinylSpinState.Playing} />
+          <VinylRecord
+            className="size-full"
+            discFormat={VinylDiscFormat.Single}
+            labelVariant={VinylLabelVariant.Generic}
+            spinState={VinylSpinState.Playing}
+          />
         </div>
       )}
     </div>
@@ -145,7 +155,7 @@ function AnimatedSubmitSlot({ requestDiscExit, onLoadingExitComplete }: Animated
 /**
  * The hero input's trailing submit slot. At rest it is the interactive accent
  * submit button; while loading it plays the slide choreography (button out →
- * LP in → spin → LP out) and, when the parent asks via `requestDiscExit`,
+ * Single in → spin → Single out) and, when the parent asks via `requestDiscExit`,
  * slides the disc out and calls `onLoadingExitComplete` so the result can be
  * revealed. Under reduced motion it falls back to a static disc / button swap.
  */

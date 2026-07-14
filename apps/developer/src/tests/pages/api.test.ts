@@ -87,6 +87,10 @@ describe("/docs/api content", () => {
     expect(html).toContain("request-body-card");
     expect(html).toContain("response-card__summary");
     expect(html).toContain("response-card__meta");
+    expect(html).toContain("authentication-card");
+    expect(html).toContain("authentication-card__status");
+    expect(html).toContain("authentication-card__content");
+    expect(html).not.toContain("content-card__section--authentication");
     expect(html).not.toContain("endpoint-detail");
     expect(html).not.toContain("endpoint-parameter");
     expect(html).not.toContain("endpoint-request-body");

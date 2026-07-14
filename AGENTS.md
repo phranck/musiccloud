@@ -104,6 +104,45 @@ down to its meaningful inner slots.
 - See [`apps/backend/RUNTIME_SAFETY.md`](apps/backend/RUNTIME_SAFETY.md) before
   changing Backend bootstrap, tsup output format, or deploy health checks.
 
+## GitHub Project execution queue
+
+- The GitHub Project [`musiccloud`](https://github.com/users/phranck/projects/1)
+  is the canonical backlog and execution queue.
+- Moving an issue to `Ready` is explicit implementation authorization. On the
+  next implementation or resume turn, inspect `Ready` and begin the highest
+  priority queued issue without requesting a separate `Go`.
+- A `Ready` issue must be independently deliverable: it documents the problem,
+  current behavior, intended outcome, complete scope, explicit non-goals or
+  constraints, dependencies, acceptance criteria, and verification gates. It
+  must not depend on an unstated product decision.
+- Keep issue bodies current as constraints or verified implementation facts
+  change. Link an originating local plan to its GitHub issue so neither source
+  becomes an untracked duplicate of the other.
+- GitHub issue comments are part of the authoritative specification. Before
+  starting or resuming a `Ready` issue, read its current title, body, timeline,
+  and comments. Incorporate the user's clarifications and decisions into the
+  implementation, issue body, or an explicit decision comment as appropriate.
+- Reply to user questions in the issue where they were raised. Record resolved
+  ambiguities and material scope changes there so the pull request has a
+  complete, reviewable decision trail.
+- An agent cannot observe a project-state change outside an active turn. When
+  the user resumes or sends the next work instruction, query the project before
+  selecting new implementation work.
+
+## Issue branches and pull requests
+
+- Complete each GitHub issue on one dedicated feature branch, created from the
+  current `main`. Use the branch name `issue/<number>-<short-kebab-summary>`.
+- One issue produces one pull request unless the user explicitly groups issues.
+  The pull request body must include `Closes #<number>`, a concise change
+  summary, verification evidence, and any material residual risk.
+- Push the feature branch, create the pull request, and monitor its CI to a
+  successful conclusion before reporting completion. Follow the repository
+  push/CI recovery workflow if a check fails.
+- The user reviews, merges, and deletes the feature branch. Never merge the
+  pull request, delete its branch, or close its issue directly unless the user
+  explicitly instructs that action.
+
 ## See also
 
 - [`docs/REACT_DOCTOR_PREVENTION.md`](docs/REACT_DOCTOR_PREVENTION.md) — React Doctor policy (run before/after React work).

@@ -163,7 +163,9 @@ describe("LandingPage search-field return flip wiring", () => {
     await waitFor(() => {
       const heroVinyl = document.querySelector(".mc-hero-disc-in [data-spin-state='playing']");
       expect(heroVinyl).not.toBeNull();
-      expect(heroVinyl).toHaveTextContent("music cloud");
+      expect(heroVinyl).toHaveAttribute("data-vinyl-disc-format", "single");
+      expect(heroVinyl).toHaveAttribute("data-vinyl-label-variant", "generic");
+      expect(heroVinyl).toHaveTextContent("musiccloud");
     });
 
     // The result is held behind the hero's disc-exit choreography; drive it to

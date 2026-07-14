@@ -1,14 +1,16 @@
-import { MusicNoteIcon, UserIcon } from "@phosphor-icons/react";
-import { DEFAULT_COVER_FALLBACK_URL } from "@/components/ui/coverFallback";
+import { UserIcon } from "@phosphor-icons/react";
+import { useState } from "react";
 import { SlideArtworkKind, type SlideArtworkKind as SlideArtworkKindType } from "@/components/ui/SlideArtworkTypes";
+import { VinylRecord } from "@/components/vinyl/VinylRecord";
+import { VinylDiscFormat, VinylLabelVariant, VinylSpinState } from "@/components/vinyl/VinylRecord.types";
 
 /** Props for {@link CoverImage}. */
 interface CoverImageProps {
-  /** URL of the cover artwork. When missing, a placeholder icon is shown instead. */
+  /** URL of the cover artwork. Missing or failed square artwork renders the Generic Single. */
   artworkUrl?: string;
   /**
-   * Tile shape: `round` for artists (→ user icon placeholder), `square` for
-   * tracks/albums (→ music-note icon placeholder).
+   * Tile shape: `round` for artists (user icon fallback), `square` for
+   * tracks/albums (Generic Single fallback).
    */
   kind: SlideArtworkKindType;
   /** Pixel dimension for the `<img>` `width`/`height` attributes. */
@@ -21,8 +23,8 @@ interface CoverImageProps {
 
 /**
  * The inner cover leaf shared by the result-row tiles: an `<img>` that fills its
- * parent and falls back to {@link DEFAULT_COVER_FALLBACK_URL} on load error, or a
- * centered placeholder icon when no `artworkUrl` is given.
+ * parent. Missing or failed square cover artwork renders the compact Generic
+ * Single; missing round artist artwork keeps the centered user icon.
  *
  * Purely presentational and shell-agnostic: it knows nothing about the outer
  * frame (plain `div`, `RecessedCard`, disc/rim-shadow). The consumer wraps this
@@ -30,7 +32,9 @@ interface CoverImageProps {
  * because the surrounding interactive element is expected to carry the label.
  */
 export function CoverImage({ artworkUrl, kind, imgDim, iconSize = 24, decoding = "async" }: CoverImageProps) {
-  if (artworkUrl) {
+  const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
+
+  if (artworkUrl && artworkUrl !== failedArtworkUrl) {
     return (
       <img
         src={artworkUrl}
@@ -40,17 +44,31 @@ export function CoverImage({ artworkUrl, kind, imgDim, iconSize = 24, decoding =
         height={imgDim}
         loading="lazy"
         decoding={decoding}
-        onError={(e) => {
-          e.currentTarget.src = DEFAULT_COVER_FALLBACK_URL;
-        }}
+        onError={() => setFailedArtworkUrl(artworkUrl)}
       />
     );
   }
 
-  const FallbackIcon = kind === SlideArtworkKind.Round ? UserIcon : MusicNoteIcon;
+  if (kind === SlideArtworkKind.Square) {
+    return (
+      <div
+        aria-hidden="true"
+        className="flex h-full w-full items-center justify-center bg-surface-elevated"
+        data-cover-fallback-disc="true"
+      >
+        <VinylRecord
+          className="size-full"
+          discFormat={VinylDiscFormat.Single}
+          labelVariant={VinylLabelVariant.Generic}
+          spinState={VinylSpinState.Idle}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full flex items-center justify-center bg-surface-elevated">
-      <FallbackIcon size={iconSize} weight="duotone" className="text-text-muted" />
+      <UserIcon size={iconSize} weight="duotone" className="text-text-muted" />
     </div>
   );
 }

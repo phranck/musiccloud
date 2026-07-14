@@ -3,6 +3,7 @@
 @import "@fontsource/barlow/latin-600.css";
 @import "@fontsource/barlow/latin-700.css";
 @import "@fontsource/michroma/latin-400.css";
+@import "@fontsource/audiowide/latin-400.css";
 /* Iosevka Charon Mono — vinyl label imprint type. Monospace, weights 300/400/700
    (Roman). latin-ext is loaded on demand (unicode-range subsetting) so accented
    characters in international titles/artists render correctly. */
@@ -12,6 +13,9 @@
 @import "@fontsource/iosevka-charon-mono/latin-ext-300.css";
 @import "@fontsource/iosevka-charon-mono/latin-ext-400.css";
 @import "@fontsource/iosevka-charon-mono/latin-ext-700.css";
+@import "@fontsource/roboto-condensed/latin-400.css";
+@import "@fontsource/roboto-condensed/latin-500.css";
+@import "@fontsource/roboto-condensed/latin-700.css";
 
 /* Summer Favourite — display face used only for the "STEREO" mark on the vinyl
    label. Self-hosted and subset to A-Z (8 KB woff2) since it renders a single
@@ -23,6 +27,3 @@
   font-style: normal;
   font-display: swap;
 }
-@import "@fontsource/roboto-condensed/latin-400.css";
-@import "@fontsource/roboto-condensed/latin-500.css";
-@import "@fontsource/roboto-condensed/latin-700.css";

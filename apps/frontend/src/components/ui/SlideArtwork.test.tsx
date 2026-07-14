@@ -4,9 +4,9 @@ import { SlideArtwork } from "@/components/ui/SlideArtwork";
 
 /**
  * Two-phase loading swap of {@link SlideArtwork} (artist popular/similar rows,
- * disambiguation, genre search). On ENTER the spinning LP drops in while the
+ * disambiguation, genre search). On ENTER the spinning Single drops in while the
  * cover drops out; on EXIT — when the requested data has loaded and `active`
- * flips back off — the LP drops back out while the cover slides in, and the
+ * flips back off — the Single drops back out while the cover slides in, and the
  * disc is held in the DOM until its exit animation ends so the reverse glide
  * is never skipped.
  *
@@ -17,7 +17,7 @@ import { SlideArtwork } from "@/components/ui/SlideArtwork";
 
 /** The disc container, mounted only while it is sliding in or out. */
 const discEl = (c: HTMLElement) => c.querySelector(".mc-disc-drop-in, .mc-disc-drop-out");
-/** The cover layer that moves independently from the LP label image. */
+/** The cover layer that moves independently from the Single label image. */
 const coverEl = (c: HTMLElement) =>
   Array.from(c.querySelectorAll("div")).find(
     (el) => el.className.includes("bg-surface") && el.className.includes("will-change-transform"),
@@ -35,12 +35,23 @@ describe("SlideArtwork loading swap", () => {
     rerender(<SlideArtwork active={true} artworkUrl="/a.jpg" sizeClass="w-12 h-12" />);
     expect(discEl(container)?.className).toMatch(/mc-disc-drop-in/);
     expect(coverEl(container).className).toMatch(/mc-cover-drop-out/);
-    // The groove spiral is an <img> bitmap too, so target the LP cover label
-    // directly rather than the first <img> inside the spinning disc.
-    expect(container.querySelector("[data-spin-state='playing'] [data-vinyl-label-artwork='true']")).toHaveAttribute(
-      "src",
-      "/a.jpg",
+    expect(container.querySelector("[data-spin-state='playing']")).toHaveAttribute("data-vinyl-disc-format", "single");
+    expect(container.querySelector("[data-spin-state='playing']")).toHaveAttribute(
+      "data-vinyl-label-variant",
+      "generic",
     );
+    expect(container.querySelector("[data-spin-state='playing'] [data-vinyl-grooves='true']")).toHaveAttribute(
+      "src",
+      expect.stringMatching(/^data:image\/svg\+xml,/),
+    );
+  });
+
+  it("uses a static Generic Single as the compact no-cover fallback", () => {
+    const { container } = render(<SlideArtwork active={false} sizeClass="w-12 h-12" />);
+
+    const fallbackDisc = container.querySelector("[data-cover-fallback-disc='true'] [data-spin-state='idle']");
+    expect(fallbackDisc).toHaveAttribute("data-vinyl-disc-format", "single");
+    expect(fallbackDisc).toHaveAttribute("data-vinyl-label-variant", "generic");
   });
 
   it("ejects the disc and slides the cover back in on exit, then unmounts the disc after its animation ends", () => {

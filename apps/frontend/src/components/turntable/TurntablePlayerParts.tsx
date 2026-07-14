@@ -201,7 +201,7 @@ interface TurntablePlayerPlatterProps {
   /** Visual spin state forwarded to the resting record. */
   spinState: VinylSpinStateValue;
   /** The vinyl label/record props (artwork, title, catalog, ...). */
-  record: Omit<VinylRecordProps, "spinState">;
+  record: Omit<VinylRecordProps, "discFormat" | "spinState">;
   /** Identity of the current record; a change runs the arc swap (see {@link RecordSwapStage}). */
   swapKey: string;
   /**

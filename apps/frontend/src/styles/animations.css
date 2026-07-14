@@ -326,7 +326,7 @@ html[data-share-media-view="turntable"] .mc-share-media-screen .mc-share-media-s
 }
 
 /* Disambiguation row artwork swap (see SlideArtwork). On selection the cover
-   slides down out of its tile while the spinning LP drops in from the top, so
+   slides down out of its tile while the spinning Single drops in from the top, so
    it reads like a record slotting into a device. The disc is centred and the
    tile's `overflow:hidden` clips any overhang. */
 @keyframes mc-disc-drop-in {
@@ -356,7 +356,7 @@ html[data-share-media-view="turntable"] .mc-share-media-screen .mc-share-media-s
 
 /* Exit (the requested data finished loading): the symmetric reverse of the
    drop-in — the spinning disc drops back DOWN out of the tile while the cover
-   slides in from the top, reading like the LP being ejected and the artwork
+   slides in from the top, reading like the Single being ejected and the artwork
    returning. The disc's overhang is clipped by the tile's `overflow:hidden`,
    and the cover's brief jump from its dropped-out position to the top happens
    entirely outside the clipped tile, so only the downward eject is visible. */

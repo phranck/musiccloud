@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>musiccloud Generic Vinyl Label</title>
+    <style>
+      html,
+      body,
+      #root {
+        min-height: 100%;
+        margin: 0;
+      }
+
+      body {
+        display: grid;
+        min-height: 100vh;
+        place-items: center;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 50% 48%, rgba(42, 91, 119, 0.3), transparent 36%),
+          #07131d;
+      }
+
+      #root {
+        display: grid;
+        width: min(76vw, 76vh, 800px);
+        place-items: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import RefreshRuntime from "/@react-refresh";
+
+      RefreshRuntime.injectIntoGlobalHook(window);
+      window.$RefreshReg$ = () => {};
+      window.$RefreshSig$ = () => (type) => type;
+      window.__vite_plugin_react_preamble_installed__ = true;
+    </script>
+    <script type="module">
+      import "/src/styles/fonts.css";
+      import "/src/styles/global.css";
+      import React from "/@id/react";
+      import ReactDomClient from "/@id/react-dom/client";
+      import { VinylRecord } from "/src/components/vinyl/VinylRecord.tsx";
+
+      ReactDomClient.createRoot(document.querySelector("#root")).render(
+        React.createElement(VinylRecord, {
+          className: "w-full",
+          discFormat: "single",
+          labelTitle: "Generic Search Pressing",
+          labelVariant: "generic",
+        }),
+      );
+    </script>
+  </body>
+</html>

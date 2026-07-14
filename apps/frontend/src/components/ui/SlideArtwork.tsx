@@ -3,11 +3,11 @@ import { RecessedCard } from "@/components/cards/RecessedCard";
 import { CoverImage } from "@/components/ui/CoverImage";
 import { SlideArtworkKind, type SlideArtworkKind as SlideArtworkKindType } from "@/components/ui/SlideArtworkTypes";
 import { VinylRecord } from "@/components/vinyl/VinylRecord";
-import { VinylSpinState } from "@/components/vinyl/VinylRecord.types";
+import { VinylDiscFormat, VinylLabelVariant, VinylSpinState } from "@/components/vinyl/VinylRecord.types";
 import { cn } from "@/lib/utils";
 
 interface SlideArtworkProps {
-  /** Whether the spinning LP should slide in (only this row gets the LP). */
+  /** Whether the spinning Single should slide in (only this row gets the disc). */
   active: boolean;
   artworkUrl?: string;
   /** "round" for artists, "square" for tracks/albums. */
@@ -37,13 +37,13 @@ interface SlideArtworkProps {
  * image in ArtistInfoCard.
  *
  * Drives a two-phase loading swap around `active`:
- * - **Enter** (`active` → true): a spinning LP slides in from above
+ * - **Enter** (`active` → true): a spinning Single slides in from above
  *   (`mc-disc-drop-in`) while the cover slides down out of the tile
  *   (`mc-cover-drop-out`), reading as a record slotting into a device.
  * - **Exit** (`active` → false, i.e. the requested data has loaded): the disc
  *   slides back DOWN out of the tile (`mc-disc-drop-out`) while the cover
  *   slides in from above (`mc-cover-drop-in`) - the symmetric reverse, like
- *   the LP being ejected and the artwork returning. The disc stays mounted
+ *   the Single being ejected and the artwork returning. The disc stays mounted
  *   through the exit (`discMounted`) and only unmounts once its drop-out
  *   animation ends, so the reverse glide is never skipped.
  *
@@ -98,7 +98,7 @@ export function SlideArtwork({
       style={{ "--neu-light": "hsl(0 0% 100% / 0.5)", "--neu-shadow": "hsl(0 0% 0% / 0.1)", ...style } as CSSProperties}
     >
       <RecessedCard.Body className="contents">
-        {/* Spinning LP: mounted for the selected row AND through its exit glide.
+        {/* Spinning Single: mounted for the selected row AND through its exit glide.
             On enter it drops in from the top (mc-disc-drop-in); on exit it drops
             back down out of the tile (mc-disc-drop-out) and unmounts once that
             animation ends. Sized to the tile so the round disc settles centred
@@ -117,7 +117,12 @@ export function SlideArtwork({
               if (event.target === event.currentTarget && !active) setDiscMounted(false);
             }}
           >
-            <VinylRecord className="h-full w-full" labelArtworkUrl={artworkUrl} spinState={VinylSpinState.Playing} />
+            <VinylRecord
+              className="h-full w-full"
+              discFormat={VinylDiscFormat.Single}
+              labelVariant={VinylLabelVariant.Generic}
+              spinState={VinylSpinState.Playing}
+            />
           </div>
         )}
 

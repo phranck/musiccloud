@@ -1,7 +1,11 @@
 import type { VinylLayout, VinylSide } from "@musiccloud/shared";
 import { type ReactNode, useEffect, useEffectEvent, useRef, useState } from "react";
 import { VinylRecord, type VinylRecordProps } from "@/components/vinyl/VinylRecord";
-import { VinylSpinState, type VinylSpinState as VinylSpinStateValue } from "@/components/vinyl/VinylRecord.types";
+import {
+  VinylDiscFormat,
+  VinylSpinState,
+  type VinylSpinState as VinylSpinStateValue,
+} from "@/components/vinyl/VinylRecord.types";
 import { buildRecordSwapTimeline, type RecordSwapHandle } from "@/lib/motion/recordSwap";
 import { prefersReducedMotion } from "@/lib/motion/setup";
 import { cn } from "@/lib/utils";
@@ -13,7 +17,7 @@ import { cn } from "@/lib/utils";
  * turntable compound. The hub resolves its current side from the live track
  * title immediately before rendering the presentational {@link VinylRecord}.
  */
-export type RecordLabel = Omit<VinylRecordProps, "spinState" | "className" | "sideLayout"> & {
+export type RecordLabel = Omit<VinylRecordProps, "spinState" | "className" | "discFormat" | "sideLayout"> & {
   /** Persisted Discogs layout for the inserted record, if one is available. */
   vinylLayout?: VinylLayout | null;
   /** Album-view side to show when playback has no individually selected track. */
@@ -289,6 +293,7 @@ export function RecordSwapStage({
           <VinylRecord
             {...swap.previous}
             className="h-full w-full"
+            discFormat={VinylDiscFormat.Lp}
             sideLayout={swap.previousSideLayout}
             spinState={sliding ? VinylSpinState.Idle : spinState}
           />
@@ -309,6 +314,7 @@ export function RecordSwapStage({
           <VinylRecord
             {...swap.current}
             className="h-full w-full"
+            discFormat={VinylDiscFormat.Lp}
             sideLayout={visibleCurrentSideLayout}
             spinState={sliding ? VinylSpinState.Idle : spinState}
           />

@@ -452,20 +452,23 @@
     padding: var(--space-content-card-row);
   }
 
-  .response-card {
-    --response-color: var(--color-fg-muted);
+  .response-card,
+  .authentication-card {
+    --api-status-card-color: var(--color-fg-muted);
     padding: var(--space-content-card-row);
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
     align-items: start;
     gap: var(--mc-space-3);
-    border-color: color-mix(in srgb, var(--response-color) 28%, var(--color-border));
-    background: color-mix(in srgb, var(--response-color) 4%, var(--color-surface));
+    border-color: color-mix(in srgb, var(--api-status-card-color) 28%, var(--color-border));
+    background: color-mix(in srgb, var(--api-status-card-color) 4%, var(--color-surface));
   }
 
+  .response-card { --response-color: var(--color-fg-muted); --api-status-card-color: var(--response-color); }
   .response-card--success { --response-color: var(--color-request-post); }
   .response-card--client-error { --response-color: var(--color-request-put); }
   .response-card--server-error { --response-color: var(--color-request-delete); }
+  .authentication-card { --api-status-card-color: var(--color-info); }
 
   .response-card__status {
     display: inline-grid;
@@ -523,6 +526,41 @@
     align-items: center;
   }
 
+  .authentication-card__status {
+    display: inline-grid;
+    grid-template-columns: var(--mc-size-icon-lg) max-content;
+    align-items: center;
+    gap: var(--mc-space-2);
+    min-height: var(--mc-docs-response-line-size);
+  }
+
+  .authentication-card__icon {
+    display: inline-flex;
+    width: var(--mc-size-icon-lg);
+    height: var(--mc-size-icon-lg);
+    color: var(--api-status-card-color);
+  }
+
+  .authentication-card__icon > .mc-icon {
+    width: 100%;
+    height: 100%;
+  }
+
+  .authentication-card__title {
+    color: var(--api-status-card-color);
+    font-size: var(--text-lead);
+    font-weight: 600;
+    line-height: var(--mc-docs-response-line-height);
+  }
+
+  .authentication-card__content {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+    min-height: var(--mc-docs-response-line-size);
+    align-items: center;
+  }
+
   @media (max-width: 40rem) {
     .content-card__header,
     .content-card__body,
@@ -535,7 +573,8 @@
       grid-template-columns: 1fr;
     }
 
-    .response-card {
+    .response-card,
+    .authentication-card {
       grid-template-columns: 1fr;
       gap: var(--mc-space-2);
     }

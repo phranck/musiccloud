@@ -6,6 +6,20 @@ export const VinylSpinState = {
 
 export type VinylSpinState = (typeof VinylSpinState)[keyof typeof VinylSpinState];
 
+export const VinylDiscFormat = {
+  Lp: "lp",
+  Single: "single",
+} as const;
+
+export type VinylDiscFormat = (typeof VinylDiscFormat)[keyof typeof VinylDiscFormat];
+
+export const VinylLabelVariant = {
+  Standard: "standard",
+  Generic: "generic",
+} as const;
+
+export type VinylLabelVariant = (typeof VinylLabelVariant)[keyof typeof VinylLabelVariant];
+
 /**
  * Coast wind-down window in milliseconds, shared by the two halves of the same
  * effect so they cannot drift apart:

@@ -7,6 +7,7 @@
  * is rendered only by the centralized safe Markdown component.
  */
 import { ApiContent } from "@/components/docs/ApiContent";
+import { AuthenticationCard } from "@/components/docs/AuthenticationCard";
 import CodeBlock from "@/components/docs/CodeBlock.astro";
 import { EndpointCard } from "@/components/docs/EndpointCard";
 import OpenApiMarkdown from "@/components/docs/OpenApiMarkdown.astro";
@@ -81,25 +82,22 @@ const responseLabel = (status: string) => {
         <EndpointCard.Body.Stack>
           {
             operation.requiresApiKey && (
-              <EndpointCard.Body.Section
-                className="content-card__section--authentication"
-                aria-labelledby={`${anchor}-authentication`}
-              >
-                <EndpointCard.Body.Section.Header>
-                  <EndpointCard.Body.Section.Header.Icon>
+              <AuthenticationCard aria-labelledby={`${anchor}-authentication`}>
+                <AuthenticationCard.Status>
+                  <AuthenticationCard.Status.Icon>
                     <KeyIcon aria-hidden="true" />
-                  </EndpointCard.Body.Section.Header.Icon>
-                  <EndpointCard.Body.Section.Header.Title id={`${anchor}-authentication`}>
+                  </AuthenticationCard.Status.Icon>
+                  <AuthenticationCard.Status.Title id={`${anchor}-authentication`}>
                     Authentication
-                  </EndpointCard.Body.Section.Header.Title>
-                </EndpointCard.Body.Section.Header>
-                <EndpointCard.Body.Section.Body>
+                  </AuthenticationCard.Status.Title>
+                </AuthenticationCard.Status>
+                <AuthenticationCard.Content>
                   <p class="text-body text-fg-muted">
                     Send <code class="font-mono text-code text-code-fg">X-API-Key</code> with a valid
                     <code class="font-mono text-code text-code-fg">mc_live_…</code> key.
                   </p>
-                </EndpointCard.Body.Section.Body>
-              </EndpointCard.Body.Section>
+                </AuthenticationCard.Content>
+              </AuthenticationCard>
             )
           }
 
