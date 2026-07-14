@@ -5515,8 +5515,8 @@
     "semantic_hash": "f30455b28259b0f931e026634cab5d72"
   },
   "apps/frontend/src/components/vinyl/VinylRecord.test.tsx": {
-    "mtime": 1784054025.6377528,
-    "ast_hash": "e34b03dac716e215bb2f35f623074dfd",
+    "mtime": 1784054157.758477,
+    "ast_hash": "c0adf42640fed323c61763d56bf551c0",
     "semantic_hash": ""
   },
   "apps/frontend/src/components/vinyl/VinylRecord.tsx": {
@@ -7080,9 +7080,9 @@
     "semantic_hash": "0dfd8c663f27b924173a29c6300b6057"
   },
   "apps/frontend/src/components/vinyl/GenericVinylLabel.tsx": {
-    "mtime": 1784043631.8946626,
-    "ast_hash": "378d9bfd853fa809a0d61c917ea467be",
-    "semantic_hash": "378d9bfd853fa809a0d61c917ea467be"
+    "mtime": 1784054067.256285,
+    "ast_hash": "5544142a07e353051ecbbb25843b960d",
+    "semantic_hash": ""
   },
   "apps/frontend/src/components/vinyl/VinylLabelPressingCopy.styles.ts": {
     "mtime": 1784039039.6187909,
