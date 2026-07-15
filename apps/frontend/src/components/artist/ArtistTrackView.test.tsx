@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ArtistTrackView } from "@/components/artist/ArtistTrackView";
 
@@ -57,5 +57,23 @@ describe("ArtistTrackView grouped corners", () => {
       borderBottomLeftRadius: ARTWORK_OUTER,
       borderBottomRightRadius: ARTWORK_INNER,
     });
+  });
+
+  it("truncates long track text while retaining both full values in native tooltips", () => {
+    const title = "The Sidewinder (Remastered 1999/Rudy Van Gelder Edition)";
+    const subtitle = "The Sidewinder (The Rudy Van Gelder Edition)";
+    const longTrack = item(0);
+    longTrack.track.title = title;
+    longTrack.track.albumName = subtitle;
+
+    render(<ArtistTrackView items={[longTrack]} />);
+
+    const titleLine = screen.getByText(title);
+    const subtitleLine = screen.getByText(subtitle);
+
+    expect(titleLine).toHaveClass("truncate");
+    expect(titleLine).toHaveAttribute("title", title);
+    expect(subtitleLine).toHaveClass("truncate");
+    expect(subtitleLine).toHaveAttribute("title", subtitle);
   });
 });

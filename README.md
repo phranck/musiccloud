@@ -32,15 +32,15 @@ This repository is published for **transparency**. It is not intended as a self-
 
 ## Documentation
 
-All public documentation lives in [`docs/`](docs/). The detailed
-architecture write-ups are PDF documents typeset from LaTeX
-sources alongside their D2 diagram sources.
+Public documentation is versioned in [`docs/`](docs/) or alongside the
+backend code it describes. The Resolver Flow write-up is typeset from
+LaTeX sources alongside its diagram sources.
 
 - [Resolver Flow](docs/resolve-flow/) — architecture and data flow
   through the resolve layer. PDF: [Deutsch](docs/resolve-flow/de/resolve-flow.pdf) / [English](docs/resolve-flow/en/resolve-flow.pdf).
-- [Cache architecture](docs/cache-architecture.md)
+- [Cache architecture](apps/backend/docs/cache-architecture.md)
 - [Crawler architecture](docs/crawler-architecture.md)
-- [Artist composition](docs/artist-composition-architecture.md)
+- [Artist composition](apps/backend/docs/artist-composition-architecture.md)
 - [Zerops networking notes](architecture/zerops-networking.md)
 - [PostgreSQL migration safety](docs/postgres-migration-safety.md)
 - [Backend error observability](docs/backend-error-observability.md)

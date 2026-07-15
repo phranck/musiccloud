@@ -73,6 +73,7 @@ describe("VinylRecord", () => {
     expect(container.querySelector("svg[data-vinyl-generic-label='true']")).toBeInTheDocument();
     expect(container.querySelector("[data-vinyl-generic-clouds='true']")).toBeInTheDocument();
     expect(container.querySelector("[data-vinyl-generic-night-sky='true']")).toBeInTheDocument();
+    expect(container.querySelector("[data-vinyl-generic-gramophone='true']")).not.toBeInTheDocument();
     expect(container.querySelector("[data-vinyl-generic-cyan-ring='true']")).not.toBeInTheDocument();
     expect(container.querySelector("[data-vinyl-generic-wordmark='true']")).toHaveTextContent("musiccloud");
     expect(container.querySelector("[data-vinyl-generic-imprint='true']")).toHaveTextContent(
@@ -87,6 +88,12 @@ describe("VinylRecord", () => {
     expect(container.querySelector("[data-vinyl-generic-night-sky='true']")).toHaveAttribute("fill", "#030405");
     expect(container.querySelector("[data-vinyl-generic-stars='true']")).not.toBeInTheDocument();
     expect(container.querySelector("[data-vinyl-generic-catalog-star='true']")).not.toBeInTheDocument();
+    expect(container.querySelector("[data-vinyl-generic-paper-noise='true']")).toHaveAttribute("opacity", "0.14");
+    expect(container.querySelector("[data-vinyl-generic-paper-wear='true']")).not.toBeInTheDocument();
+    expect(container.querySelector("[data-vinyl-generic-paper-noise-turbulence='true']")).toHaveAttribute(
+      "baseFrequency",
+      "0.72",
+    );
     expect(container.querySelectorAll("[data-vinyl-generic-clouds='true'] ellipse")).toHaveLength(0);
     expect(container.querySelector("[data-vinyl-generic-cloud-layer='true']")).toHaveAttribute("opacity", "1");
     expect(container.querySelector("[data-vinyl-generic-cloud-noise='true']")).toHaveAttribute(
@@ -128,6 +135,20 @@ describe("VinylRecord", () => {
     );
     expect(container.querySelector("div[data-vinyl-reflection='true']")).toBeInTheDocument();
     expect(container.querySelector("[data-vinyl-label-print='true']")).not.toBeInTheDocument();
+  });
+
+  it("prints the supplied gramophone in the open upper Day area of the Generic LP", () => {
+    const { container } = render(
+      <VinylRecord className="h-24 w-24" discFormat="lp" labelVariant="generic" spinState={VinylSpinState.Idle} />,
+    );
+
+    const gramophone = container.querySelector("[data-vinyl-generic-gramophone='true']");
+
+    expect(gramophone).toHaveAttribute("href", "/img/vinyl/gramophone-free-svgrepo-com.svg");
+    expect(gramophone).toHaveAttribute("x", "36");
+    expect(gramophone).toHaveAttribute("y", "14");
+    expect(gramophone).toHaveAttribute("width", "28");
+    expect(gramophone).toHaveAttribute("height", "28");
   });
 
   it("renders the current year on the upper Day arc and keeps the lower wordmark alone", () => {
@@ -293,7 +314,7 @@ describe("VinylRecord", () => {
     );
   });
 
-  it("renders the rendered-reference CNC 45 RPM adapter with a directionally lit outer chamfer", () => {
+  it("renders the static turntable spindle beneath the 45 RPM adapter outside the rotating Single", () => {
     const { container } = render(
       <VinylRecord
         className="h-24 w-24"
@@ -306,37 +327,36 @@ describe("VinylRecord", () => {
     const rotor = container.querySelector<HTMLElement>("[data-vinyl-rotor='true']");
     const surface = container.querySelector<HTMLElement>("[data-vinyl-single-centre-opening='true']");
     const adapter = container.querySelector<HTMLElement>("[data-vinyl-single-rpm-adapter='true']");
-    const outerChamfer = container.querySelector<HTMLElement>("[data-vinyl-single-rpm-adapter-outer-chamfer='true']");
-    const face = container.querySelector<HTMLElement>("[data-vinyl-single-rpm-adapter-face='true']");
-    const recessRim = container.querySelector<HTMLElement>("[data-vinyl-single-rpm-adapter-recess-rim='true']");
-    const innerChamfer = container.querySelector<HTMLElement>("[data-vinyl-single-rpm-adapter-inner-chamfer='true']");
+    const adapterRender = container.querySelector<HTMLImageElement>("[data-vinyl-single-rpm-adapter-render='true']");
+    const spindle = container.querySelector<HTMLElement>("[data-vinyl-turntable-spindle='true']");
+    const spindleRender = container.querySelector<HTMLImageElement>("[data-vinyl-turntable-spindle-render='true']");
 
     expect(surface?.style.maskImage).toContain("transparent 0 15.2%, rgb(0, 0, 0) 15.5%");
     expect(adapter).toHaveStyle({ width: "23.2%" });
-    expect(adapter?.style.maskImage).toContain("transparent 0 11.2%, rgb(0, 0, 0) 11.5%");
-    expect(outerChamfer).toBeInTheDocument();
-    expect(outerChamfer?.style.backgroundImage).toContain("conic-gradient(from 292deg");
-    expect(outerChamfer?.style.backgroundImage).toContain("rgba(255, 255, 255, 0.58)");
-    expect(outerChamfer?.style.backgroundImage).toContain("linear-gradient(135deg");
-    expect(outerChamfer?.style.backgroundImage).not.toContain("#b9c7cc 53%");
-    expect(outerChamfer?.style.maskImage).toContain("transparent 0 50.5%");
-    expect(face).toHaveStyle({ inset: "14%" });
-    expect(face?.style.maskImage).toContain("transparent 0 15.5%, rgb(0, 0, 0) 15.8%");
-    expect(recessRim?.style.backgroundImage).toContain("linear-gradient(315deg");
-    expect(recessRim?.style.backgroundImage).toContain("rgba(9, 27, 36, 0.76)");
-    expect(recessRim?.style.maskImage).toContain("transparent 0 64%");
-    expect(innerChamfer).toBeInTheDocument();
-    expect(innerChamfer?.style.backgroundImage).toContain("linear-gradient(315deg");
-    expect(innerChamfer?.style.backgroundImage).toContain("rgba(237, 247, 249, 0.88)");
-    expect(innerChamfer?.style.backgroundImage).toContain("rgba(9, 27, 36, 0.76)");
-    expect(innerChamfer?.style.boxShadow).toContain("rgba(238, 248, 250, 0.82)");
-    expect(innerChamfer?.style.maskImage).toContain("transparent 0 15.5%, rgb(0, 0, 0) 15.8% 21.4%");
-    expect(adapter).toContainElement(outerChamfer);
-    expect(adapter).toContainElement(face);
-    expect(face).toContainElement(recessRim);
-    expect(face).toContainElement(innerChamfer);
+    expect(adapterRender).toHaveAttribute("src", "/img/vinyl/rpm-adapter-render.png");
+    expect(adapterRender).toHaveStyle({ transform: "scale(1.4)" });
+    expect(adapterRender?.style.maskImage).toContain("transparent 0 8.3%, rgb(0, 0, 0) 8.6%");
+    expect(adapter).toContainElement(adapterRender);
+    expect(spindle).toHaveStyle({ width: "3.7%" });
+    expect(spindleRender).toHaveAttribute("src", "/img/vinyl/lp-spindle-render.png");
+    expect(spindle).toContainElement(spindleRender);
     expect(rotor).not.toContainElement(adapter);
+    expect(rotor).not.toContainElement(spindle);
+    expect(adapter).not.toContainElement(spindle);
     expect(surface).toContainElement(rotor);
+  });
+
+  it("renders the same static turntable spindle through the LP centre hole", () => {
+    const { container } = render(
+      <VinylRecord className="h-24 w-24" discFormat="lp" labelVariant="generic" spinState={VinylSpinState.Playing} />,
+    );
+
+    const rotor = container.querySelector<HTMLElement>("[data-vinyl-rotor='true']");
+    const spindle = container.querySelector<HTMLElement>("[data-vinyl-turntable-spindle='true']");
+    const spindleRender = container.querySelector<HTMLImageElement>("[data-vinyl-turntable-spindle-render='true']");
+
+    expect(spindleRender).toHaveAttribute("src", "/img/vinyl/lp-spindle-render.png");
+    expect(rotor).not.toContainElement(spindle);
   });
 
   it("moves the Generic pressing copy clear of the Single's 45 RPM opening", () => {
@@ -344,9 +364,10 @@ describe("VinylRecord", () => {
       <VinylRecord className="h-24 w-24" discFormat="single" labelVariant="generic" spinState={VinylSpinState.Idle} />,
     );
 
-    expect(container.querySelector("[data-vinyl-label-catalog='true']")).toHaveAttribute("y", "34");
+    expect(container.querySelector("[data-vinyl-label-catalog='true']")).toHaveAttribute("y", "28");
     expect(container.querySelector("[data-vinyl-label-side='true']")).toHaveAttribute("x", "18");
-    expect(container.querySelector("[data-vinyl-label-stereo='true']")).toHaveAttribute("x", "84");
+    expect(container.querySelector("[data-vinyl-label-stereo='true']")).toHaveAttribute("x", "80");
+    expect(container.querySelector("[data-vinyl-label-stereo='true']")).toHaveAttribute("font-size", "9.4");
   });
 
   it("renders the resolved SIDE B letter and its dynamic pause-groove bitmap", () => {
@@ -590,6 +611,21 @@ describe("VinylRecord", () => {
     // The deck runs at a single fixed speed: one 1800 ms revolution, looped.
     expect(animate).toHaveBeenLastCalledWith(expect.anything(), {
       duration: 1800,
+      easing: "linear",
+      iterations: Infinity,
+    });
+  });
+
+  it("spins a 45 RPM Single once every 1⅓ seconds", () => {
+    const cancel = vi.fn();
+    const commitStyles = vi.fn();
+    const animate = vi.fn(() => ({ cancel, commitStyles })) as unknown as typeof HTMLElement.prototype.animate;
+    HTMLElement.prototype.animate = animate;
+
+    render(<VinylRecord className="h-24 w-24" discFormat="single" spinState={VinylSpinState.Playing} />);
+
+    expect(animate).toHaveBeenLastCalledWith(expect.anything(), {
+      duration: 4000 / 3,
       easing: "linear",
       iterations: Infinity,
     });

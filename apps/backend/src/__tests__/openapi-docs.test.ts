@@ -56,6 +56,56 @@ describe("OpenAPI docs", () => {
     expect(Object.keys(doc.paths)).not.toContain("/api/auth/token");
   });
 
+  it("gives every public operation parameter an actionable description", async () => {
+    const res = await app.inject({ method: "GET", url: "/docs/json" });
+    const doc = res.json() as { paths: Record<string, Record<string, unknown>> };
+    const descriptions: Record<string, string> = {};
+
+    expect(res.statusCode).toBe(200);
+
+    for (const [route, pathItem] of Object.entries(doc.paths)) {
+      for (const [method, operation] of Object.entries(pathItem)) {
+        if (!/^(get|post|put|patch|delete|options|head)$/.test(method)) continue;
+
+        const parameters =
+          (operation as { parameters?: Array<{ description?: string; in: string; name: string }> }).parameters ?? [];
+        for (const parameter of parameters) {
+          const context = `${method.toUpperCase()} ${route} ${parameter.in} parameter \`${parameter.name}\``;
+          const description = parameter.description?.trim() ?? "";
+
+          expect(description, context).not.toBe("");
+          expect(description.split(/\s+/).length, context).toBeGreaterThanOrEqual(4);
+          descriptions[`${method.toUpperCase()} ${route} ${parameter.in} ${parameter.name}`] = description;
+        }
+      }
+    }
+
+    expect(descriptions).toMatchObject({
+      "GET /api/v1/artist-info query shortId":
+        "Optional musiccloud track share code. Take the last path segment of `shortUrl` from a successful `POST /api/v1/resolve` track response; it supplies context for ambiguous artist names.",
+      "GET /api/v1/artist-info query artistEntityId":
+        "Reserved for future context-aware artist-info lookups. No public endpoint currently returns or uses it, so omit this parameter.",
+      "GET /api/v1/cc/artist-info query jamendoArtistId":
+        "Numeric Jamendo artist ID. Read `track.jamendoArtistId` from a `cc-track` result, or `artist.jamendoId` from a `cc-artist` result, of `POST /api/v1/cc/resolve`.",
+      "GET /api/v1/cc/artist-info query artistName":
+        "Jamendo display name for the same artist. Used as the artist-column label and for profile and similar-track lookups.",
+      "GET /api/v1/cc/audio/{jamendoId} path jamendoId":
+        "Numeric Jamendo track ID. Read `track.jamendoId` from a `cc-track` result or an item in `album.tracks` or `artist.topTracks` from `POST /api/v1/cc/resolve`.",
+      "GET /api/v1/cc/bandcamp/{jamendoId} path jamendoId":
+        "Numeric Jamendo track ID. Read `track.jamendoId` from a `cc-track` result or an item in `album.tracks` or `artist.topTracks` from `POST /api/v1/cc/resolve`.",
+      "GET /api/v1/cc/download/{jamendoId} path jamendoId":
+        "Numeric Jamendo track ID. Read `track.jamendoId` from a `cc-track` result or an item in `album.tracks` or `artist.topTracks` from `POST /api/v1/cc/resolve`.",
+      "POST /api/v1/forms/{slug}/submit path slug":
+        "URL-safe slug of the active published form that receives this submission.",
+      "GET /api/v1/link/{id} path id":
+        "Internal track ID from the top-level `id` field of a successful track response from `POST /api/v1/resolve`.",
+      "GET /api/v1/share/{shortId} path shortId":
+        "Public musiccloud share code: take the last path segment of `shortUrl` from a successful `POST /api/v1/resolve` or `POST /api/v1/cc/resolve` response.",
+      "GET /api/v1/share/{shortId}/preview path shortId":
+        "Track share code: take the last path segment of `shortUrl` from a successful track response to `POST /api/v1/resolve`. Album, artist, and CC share codes are not accepted.",
+    });
+  });
+
   it("documents every global rate-limit response and each explicit public response branch", async () => {
     const res = await app.inject({ method: "GET", url: "/docs/json" });
     const doc = res.json() as { paths: Record<string, unknown> };

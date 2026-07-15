@@ -56,7 +56,8 @@ export default async function linkRoutes(app: FastifyInstance) {
               type: "string",
               minLength: 1,
               maxLength: 64,
-              description: "Internal track id returned by a previous resolve.",
+              description:
+                "Internal track ID from the top-level `id` field of a successful track response from `POST /api/v1/resolve`.",
             },
           },
           additionalProperties: false,

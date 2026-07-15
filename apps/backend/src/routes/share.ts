@@ -75,7 +75,8 @@ export default async function shareRoutes(app: FastifyInstance) {
               minLength: 1,
               maxLength: 64,
               pattern: "^[A-Za-z0-9_-]+$",
-              description: "Short ID minted by a previous resolve call.",
+              description:
+                "Public musiccloud share code: take the last path segment of `shortUrl` from a successful `POST /api/v1/resolve` or `POST /api/v1/cc/resolve` response.",
             },
           },
           additionalProperties: false,

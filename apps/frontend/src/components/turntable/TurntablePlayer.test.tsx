@@ -137,6 +137,11 @@ describe("TurntablePlayer compound", () => {
     expect(container.querySelector("[data-turntable-platter='true']")).toBeInTheDocument();
     expect(container.querySelector("[data-turntable-spindle='true']")).toBeInTheDocument();
     expect(container.querySelector("[data-turntable-spindle-shadow='true']")).toBeInTheDocument();
+    expect(container.querySelector("[data-turntable-spindle-render='true']")).toHaveAttribute(
+      "src",
+      "/img/vinyl/lp-spindle-render.png",
+    );
+    expect(container.querySelector("[data-vinyl-turntable-spindle='true']")).not.toBeInTheDocument();
     expect(container.querySelector("[data-turntable-led='true']")).toBeInTheDocument();
     expect(container.querySelector("[data-turntable-speed-knob='true']")).toBeInTheDocument();
     expect(container.querySelector("[data-turntable-speed-indicator='true']")).toBeInTheDocument();

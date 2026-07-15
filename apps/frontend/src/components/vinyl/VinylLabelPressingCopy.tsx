@@ -9,6 +9,8 @@ interface VinylLabelPressingCopyProps {
   lowerCopySideX?: number;
   /** Optional Generic-label horizontal position for STEREO. */
   lowerCopyStereoX?: number;
+  /** Optional Generic-Single size adjustment for the STEREO pressing mark. */
+  lowerCopyStereoFontSize?: number;
   /** Optional Generic-label adjustment for SIDE and STEREO without moving the catalog row. */
   lowerCopyOffsetY?: number;
   rightsText: string;
@@ -31,6 +33,7 @@ export function VinylLabelPressingCopy({
   catalogY = 65,
   lowerCopySideX = 38,
   lowerCopyStereoX = 60,
+  lowerCopyStereoFontSize = 10.2,
   lowerCopyOffsetY = 0,
   rightsText,
   sideLetter,
@@ -75,7 +78,7 @@ export function VinylLabelPressingCopy({
         <text
           data-vinyl-label-stereo="true"
           fill="rgba(255, 255, 255, 0.9)"
-          fontSize="10.2"
+          fontSize={lowerCopyStereoFontSize}
           style={VINYL_LABEL_STEREO_STYLE}
           textAnchor="middle"
           x={lowerCopyStereoX}

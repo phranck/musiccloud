@@ -8,6 +8,15 @@ export interface SdkCatalogContract {
 }
 
 /**
+ * Local development may preview contract-documentation changes before the
+ * matching versioned SDK archives are released. Production callers must keep
+ * the default, strict fingerprint validation.
+ */
+export interface SdkCatalogValidationOptions {
+  allowStaleOpenApiFingerprint?: boolean;
+}
+
+/**
  * Release catalog consumed by the Developer Portal build.
  *
  * The shape is deliberately independent from GitHub's API responses so CI can
@@ -106,10 +115,14 @@ function parseAsset(value: unknown, apiVersion: string): SdkAsset {
 
 /**
  * Validates a downloaded or fixture-backed SDK catalog against the exact
- * OpenAPI bytes exported for this build. The portal build must fail here rather
- * than deploy docs for an API version whose SDK ZIPs were not published.
+ * OpenAPI bytes exported for this build. Production builds must fail here
+ * rather than deploy docs for an API version whose SDK ZIPs were not published.
  */
-export function parseSdkCatalog(value: unknown, contract: SdkCatalogContract): SdkCatalog {
+export function parseSdkCatalog(
+  value: unknown,
+  contract: SdkCatalogContract,
+  options: SdkCatalogValidationOptions = {},
+): SdkCatalog {
   if (!isRecord(value)) throw new Error("Invalid SDK catalog: root must be an object.");
   const apiVersion = requireString(value.apiVersion, "apiVersion");
   const openApiSha256 = requireString(value.openApiSha256, "openApiSha256");
@@ -119,7 +132,7 @@ export function parseSdkCatalog(value: unknown, contract: SdkCatalogContract): S
   if (apiVersion !== contract.version) {
     throw new Error("Invalid SDK catalog: API version does not match exported contract.");
   }
-  if (openApiSha256 !== contract.sha256) {
+  if (openApiSha256 !== contract.sha256 && !options.allowStaleOpenApiFingerprint) {
     throw new Error("Invalid SDK catalog: OpenAPI fingerprint does not match exported contract.");
   }
   assertSha256(openApiSha256, "openApiSha256");
@@ -136,7 +149,7 @@ export function parseSdkCatalog(value: unknown, contract: SdkCatalogContract): S
   const missing = REQUIRED_LANGUAGES.filter((language) => !seen.has(language));
   if (missing.length > 0) throw new Error(`Invalid SDK catalog: missing ${missing.join(", ")} asset.`);
 
-  const sortedAssets = [...assets].sort(
+  const sortedAssets = assets.toSorted(
     (a, b) => REQUIRED_LANGUAGES.indexOf(a.language) - REQUIRED_LANGUAGES.indexOf(b.language),
   );
   return {

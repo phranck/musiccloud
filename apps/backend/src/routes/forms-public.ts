@@ -38,7 +38,12 @@ export default async function formsPublicRoutes(app: FastifyInstance) {
           additionalProperties: false,
           required: ["slug"],
           properties: {
-            slug: { type: "string", minLength: 1, maxLength: 120 },
+            slug: {
+              type: "string",
+              minLength: 1,
+              maxLength: 120,
+              description: "URL-safe slug of the active published form that receives this submission.",
+            },
           },
         },
         body: {

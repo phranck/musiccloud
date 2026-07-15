@@ -251,8 +251,8 @@
 
   .content-card__section-icon {
     display: inline-flex;
-    width: var(--mc-size-icon-md);
-    height: var(--mc-size-icon-md);
+    width: var(--mc-size-icon-lg);
+    height: var(--mc-size-icon-lg);
     align-items: center;
     justify-content: center;
     flex: none;
@@ -267,8 +267,8 @@
   .content-card__section-title {
     min-width: 0;
     color: var(--color-fg);
-    font-size: var(--text-body);
-    font-weight: 600;
+    font-size: var(--text-lead);
+    font-weight: 400;
     line-height: 1.25;
   }
 

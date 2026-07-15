@@ -87,7 +87,14 @@ export default async function ccAudioRoutes(app: FastifyInstance) {
           type: "object",
           required: ["jamendoId"],
           properties: {
-            jamendoId: { type: "string", minLength: 1, maxLength: 32, pattern: "^[0-9]+$" },
+            jamendoId: {
+              type: "string",
+              minLength: 1,
+              maxLength: 32,
+              pattern: "^[0-9]+$",
+              description:
+                "Numeric Jamendo track ID. Read `track.jamendoId` from a `cc-track` result or an item in `album.tracks` or `artist.topTracks` from `POST /api/v1/cc/resolve`.",
+            },
           },
           additionalProperties: false,
         },

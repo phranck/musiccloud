@@ -10,6 +10,8 @@ import {
   useTurntablePlayer,
 } from "@/components/turntable/TurntablePlayerContext";
 import { derivePower, speedKnobAngle } from "@/components/turntable/turntableState";
+import { TurntableSpindle } from "@/components/vinyl/TurntableSpindle";
+import { TurntableSpindlePlacement } from "@/components/vinyl/TurntableSpindlePlacement";
 import type { VinylRecordProps } from "@/components/vinyl/VinylRecord";
 import type { VinylSpinState as VinylSpinStateValue } from "@/components/vinyl/VinylRecord.types";
 import { sideForTrackTitle } from "@/lib/media/vinyl-side.js";
@@ -61,13 +63,6 @@ const LAYOUT_LAMP_PALETTE = {
   litGlow:
     "0 0 3px rgba(255,198,104,0.52), 0 0 8px rgba(242,138,32,0.22), 0 0 14px rgba(242,138,32,0.11), 0 0 22px rgba(242,138,32,0.04)",
 } satisfies IndicatorLampPalette;
-
-const SPINDLE_STYLE = {
-  background:
-    "radial-gradient(circle at 34% 28%, #ffffff 0 9%, #dfe5ea 14% 25%, #8f979e 43%, #343a40 68%, #eef2f5 100%)",
-  boxShadow:
-    "0 0 0 1px rgba(0,0,0,0.76), 0 1px 2px rgba(0,0,0,0.48), inset 0 1px 1px rgba(255,255,255,0.72), inset 0 -1px 1px rgba(0,0,0,0.58)",
-} satisfies CSSProperties;
 
 // Soft contact shadow the raised spindle drops onto the record, offset toward
 // the lower-right so it falls away from the same light source the rainbow sheen
@@ -220,12 +215,11 @@ interface TurntablePlayerPlatterProps {
  * carries its own accessible name. All layers keep their original
  * `data-turntable-*` attributes so existing selectors and tests still match.
  *
- * The spindle + contact shadow are handed to {@link RecordSwapStage} as its
- * `centerpiece` rather than being a deck sibling: the stage draws them ABOVE the
+ * The spindle + contact shadow are handed to {@link RecordSwapStage} as children
+ * rather than being deck siblings: the stage draws them ABOVE the
  * resting record but BELOW a record mid-swap, so the chrome never floats over a
- * disc that has lifted off the spindle. Their widths are the deck-relative 2.15% /
- * 2.7% divided by the stage's 86% span (`≈ 2.5%` / `≈ 3.14%`), so the rendered size
- * on the deck is unchanged; both stay centred.
+ * disc that has lifted off the spindle. The shared static chrome render replaces
+ * the former CSS-gradient approximation; both remain centred in the stage.
  *
  * @param props - {@link TurntablePlayerPlatterProps}.
  */
@@ -258,12 +252,7 @@ export function TurntablePlayerPlatter({ spinState, record, swapKey, onSettled }
             data-turntable-spindle-shadow="true"
             style={SPINDLE_SHADOW_STYLE}
           />
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute left-1/2 top-1/2 aspect-square w-[2.5%] -translate-x-1/2 -translate-y-1/2 rounded-full"
-            data-turntable-spindle="true"
-            style={SPINDLE_STYLE}
-          />
+          <TurntableSpindle placement={TurntableSpindlePlacement.Deck} style={{ width: "3.7%" }} />
         </RecordSwapStage>
       </span>
     </>

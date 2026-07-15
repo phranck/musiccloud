@@ -39,6 +39,8 @@ export default async function sharePreviewRoutes(app: FastifyInstance) {
               minLength: 1,
               maxLength: 64,
               pattern: "^[A-Za-z0-9_-]+$",
+              description:
+                "Track share code: take the last path segment of `shortUrl` from a successful track response to `POST /api/v1/resolve`. Album, artist, and CC share codes are not accepted.",
             },
           },
           additionalProperties: false,

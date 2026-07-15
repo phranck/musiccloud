@@ -86,7 +86,11 @@ export function ArtistTrackCell({
         >
           {track.title}
         </p>
-        {subline && <p className="mc-txt-button-normal mt-0.5 break-words text-xs text-text-secondary">{subline}</p>}
+        {subline && (
+          <p className="mc-txt-button-normal mt-0.5 truncate text-xs text-text-secondary" title={subline}>
+            {subline}
+          </p>
+        )}
       </ArtistPanelRowText>
       {track.durationMs != null && (
         <span className="mc-txt-button-dimmed flex-none text-xs tabular-nums text-text-secondary">

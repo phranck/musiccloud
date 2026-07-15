@@ -74,9 +74,16 @@ papers/
 WHATS-NEXT.md
 
 # Local project references and visual design working files
-/docs/
+# Public README documentation remains tracked; all other local references stay ignored.
+/docs/*
+!/docs/backend-error-observability.md
+!/docs/crawler-architecture.md
+!/docs/postgres-migration-safety.md
+!/docs/resolve-flow/
+!/docs/resolve-flow/**
 mockups/
-architecture/
+/architecture/*
+!/architecture/zerops-networking.md
 
 # Generated plan overview dashboard (reproducible via the `plans` tool)
 /plans.html

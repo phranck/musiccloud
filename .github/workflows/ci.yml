@@ -52,7 +52,7 @@ jobs:
       - name: Dashboard
         run: pnpm exec tsc --noEmit --project apps/dashboard/tsconfig.json
       - name: Workflow and deployment contracts
-        run: node --test scripts/ci-workflow.test.mjs scripts/zerops-deploy.test.mjs
+        run: node --test scripts/ci-workflow.test.mjs scripts/zerops-deploy.test.mjs scripts/readme-links.test.mjs
       - name: Workspace tests
         run: pnpm -r --if-present test:run
 

@@ -3,9 +3,10 @@
 Read this before any UI / layout / styling change. These are non-negotiable project
 rules — apply them automatically on every change, not only when asked.
 
-## Git workflow
+## Graphify
 
-- Before every push, update the Graphify index.
+- Run Graphify only when the user explicitly requests it. Never update the
+  Graphify index automatically during analysis, commits, pushes, or checkouts.
 
 ## Geometry: the radius cascade runs OUTSIDE-IN
 

@@ -38,6 +38,15 @@ describe("parseSdkCatalog", () => {
     expect(() => parseSdkCatalog(catalog, contract)).toThrow("fingerprint");
   });
 
+  it("allows a stale fingerprint only when an explicit local preview option is set", () => {
+    const catalog = readCatalog();
+    catalog.openApiSha256 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+    expect(parseSdkCatalog(catalog, contract, { allowStaleOpenApiFingerprint: true }).openApiSha256).toBe(
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    );
+  });
+
   it("rejects duplicate language assets", () => {
     const catalog = readCatalog() as { assets: Array<Record<string, unknown>> };
     catalog.assets[1] = { ...catalog.assets[0] };

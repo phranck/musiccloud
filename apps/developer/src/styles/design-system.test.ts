@@ -98,6 +98,14 @@ describe("developer design system", () => {
     expect(docs).toMatch(/\.api-content__entry\s*\{[^}]*margin-bottom:\s*var\(--mc-docs-entry-card-gap\);/s);
   });
 
+  it("uses lead typography for API card section headings", () => {
+    const docs = readDeveloperFile("src/styles/docs.css");
+
+    expect(docs).toMatch(/\.content-card__section-title\s*\{[^}]*font-size:\s*var\(--text-lead\);/s);
+    expect(docs).toMatch(/\.content-card__section-title\s*\{[^}]*font-weight:\s*400;/s);
+    expect(docs).toMatch(/\.content-card__section-icon\s*\{[^}]*width:\s*var\(--mc-size-icon-lg\);[^}]*height:\s*var\(--mc-size-icon-lg\);/s);
+  });
+
   it("keeps nested documentation content shrinkable inside cards", () => {
     const docs = readDeveloperFile("src/styles/docs.css");
 

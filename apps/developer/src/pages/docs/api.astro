@@ -16,6 +16,10 @@ const reference = buildApiReference(openApiDocument);
 const catalog = parseSdkCatalog(sdkCatalogJson, {
   version: openApiMetadata.version,
   sha256: openApiMetadata.sha256,
+}, {
+  // A local dev server may preview OpenAPI documentation before its matching
+  // versioned SDK archives are published. Production builds remain strict.
+  allowStaleOpenApiFingerprint: import.meta.env.DEV,
 });
 
 ---

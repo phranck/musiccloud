@@ -117,13 +117,14 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
               minLength: 1,
               maxLength: 32,
               description:
-                "Optional musiccloud share short ID. Used only as lookup context for ambiguous artist names.",
+                "Optional musiccloud track share code. Take the last path segment of `shortUrl` from a successful `POST /api/v1/resolve` track response; it supplies context for ambiguous artist names.",
             },
             artistEntityId: {
               type: "string",
               minLength: 1,
               maxLength: 80,
-              description: "Optional normalized artist entity ID. Reserved for context-aware artist-info lookups.",
+              description:
+                "Reserved for future context-aware artist-info lookups. No public endpoint currently returns or uses it, so omit this parameter.",
             },
             refresh: {
               type: "string",

@@ -4,6 +4,8 @@ import { useEffect, useId, useMemo, useRef } from "react";
 import { labelArcPath, vinylGrooveSpiralPath, vinylSideGrooveLayout } from "@/lib/media/vinyl-geometry.js";
 import { cn } from "@/lib/utils";
 import { GenericVinylLabel } from "./GenericVinylLabel";
+import { TurntableSpindle } from "./TurntableSpindle";
+import { TurntableSpindlePlacement } from "./TurntableSpindlePlacement";
 import { VinylLabelPressingCopy } from "./VinylLabelPressingCopy";
 import { VINYL_LABEL_TEXT_STYLE } from "./VinylLabelPressingCopy.styles";
 import {
@@ -29,6 +31,8 @@ export interface VinylRecordProps {
   labelRightsText?: string | null;
   /** Visual label recipe. Missing artwork resolves to Generic when omitted. */
   labelVariant?: VinylLabelVariantValue;
+  /** Whether this isolated record owns a visible stationary turntable spindle. */
+  showTurntableSpindle?: boolean;
   sideLayout?: VinylSide;
   spinState?: VinylSpinStateValue;
 }
@@ -43,18 +47,25 @@ const DEFAULT_LABEL_CATALOG_TEXT = "MC-4333";
 // authentic vinyl mark, meaningful in both commercial and CC modes (unlike the
 // commercial-only label code it replaces).
 /**
- * One full rotor revolution at 33⅓ RPM, in milliseconds. The deck runs at a
- * single fixed speed, so this is the one and only revolution tempo.
+ * One full rotor revolution at the physical speed of each record format.
  */
 const LP_ROTATION_DURATION_MS = 1800;
+const SINGLE_ROTATION_DURATION_MS = 4000 / 3;
 const LP_COAST_DEGREES = 200;
 
-/** Looping playing-spin timing: one constant-tempo revolution, repeated forever. */
-const LP_PLAYING_TIMING = {
-  duration: LP_ROTATION_DURATION_MS,
-  easing: "linear",
-  iterations: Infinity,
-} satisfies KeyframeAnimationOptions;
+/** Looping playing-spin timing by physical format, repeated forever. */
+const PLAYING_ROTATION_TIMING = {
+  [VinylDiscFormat.Lp]: {
+    duration: LP_ROTATION_DURATION_MS,
+    easing: "linear",
+    iterations: Infinity,
+  },
+  [VinylDiscFormat.Single]: {
+    duration: SINGLE_ROTATION_DURATION_MS,
+    easing: "linear",
+    iterations: Infinity,
+  },
+} satisfies Record<VinylDiscFormatValue, KeyframeAnimationOptions>;
 const LP_COAST_TIMING = {
   duration: LP_COAST_DURATION_MS,
   // Decelerate easing whose initial slope (~2× the average) matches the playing
@@ -317,106 +328,32 @@ const SINGLE_GROUND_SHADOW_STYLE = {
   maskImage: SINGLE_CENTRE_OPENING_MASK,
 } satisfies CSSProperties;
 
-// The 45 adapter rests over the Single's large 1.5-inch opening, but its own
-// spindle bore is much smaller. It remains a true cut-out: the turntable's pin,
-// not the artwork, occupies this hole.
-const SINGLE_RPM_ADAPTER_BORE_MASK = "radial-gradient(circle at 50% 50%, transparent 0 11.2%, #000 11.5% 100%)";
-
-// The rendered CNC reference has a broad outer bevel and a smaller recessed
-// turning face. The face is inset by 14%; 11.2 / 0.72 keeps its bore physically
-// concentric with the shell rather than making it grow with the face.
-const SINGLE_RPM_ADAPTER_FACE_BORE_MASK = "radial-gradient(circle at 50% 50%, transparent 0 15.5%, #000 15.8% 100%)";
-
-const SINGLE_RPM_ADAPTER_WHITE_REFLECTION =
-  "conic-gradient(from 292deg at 50% 50%, transparent 0deg 8deg, rgba(255, 255, 255, 0.08) 15deg, rgba(255, 255, 255, 0.58) 29deg, rgba(255, 255, 255, 0.2) 48deg, rgba(255, 255, 255, 0.04) 64deg, transparent 80deg 196deg, rgba(255, 255, 255, 0.15) 217deg, rgba(255, 255, 255, 0.05) 242deg, transparent 270deg 360deg)";
-const SINGLE_RPM_ADAPTER_RAINBOW_REFLECTION =
-  "conic-gradient(from 292deg at 50% 50%, transparent 0deg 12deg, rgba(255, 56, 82, 0.025) 21deg, rgba(255, 218, 76, 0.035) 30deg, rgba(86, 255, 182, 0.028) 39deg, rgba(74, 176, 255, 0.035) 48deg, rgba(164, 112, 255, 0.025) 58deg, transparent 76deg 204deg, rgba(255, 56, 82, 0.018) 214deg, rgba(255, 218, 76, 0.026) 223deg, rgba(86, 255, 182, 0.02) 232deg, rgba(74, 176, 255, 0.026) 241deg, rgba(164, 112, 255, 0.018) 250deg, transparent 270deg 360deg)";
-
-// This static lower body sits behind the rendered-reference bevel and recessed
-// face. It stays outside the rotor, so its lighting can never rotate with vinyl.
-const SINGLE_RPM_ADAPTER_STYLE = {
-  backgroundImage: "radial-gradient(circle at 50% 50%, #18262e 0, #0c1820 66%, #050d13 86%, #010407 100%)",
-  boxShadow: "0 3px 6px rgba(0, 0, 0, 0.86), 0 0 0 1px rgba(153, 180, 191, 0.18), inset 0 -3px 5px rgba(0, 4, 7, 0.9)",
-  WebkitMaskImage: SINGLE_RPM_ADAPTER_BORE_MASK,
-  maskImage: SINGLE_RPM_ADAPTER_BORE_MASK,
-} satisfies CSSProperties;
-
-// This ring is the actual 45° outside bevel. Its base is a directional plane,
-// not a radial colour ramp: the existing north-west light therefore lands on
-// one physical side of the phase while the opposite side falls into shadow.
-// The mask prevents the bright CNC finish from becoming a full washer surface
-// behind the recessed face. The fine radial pattern is texture only.
-const SINGLE_RPM_ADAPTER_OUTER_CHAMFER_STYLE = {
-  backgroundImage: `${SINGLE_RPM_ADAPTER_WHITE_REFLECTION}, ${SINGLE_RPM_ADAPTER_RAINBOW_REFLECTION}, repeating-radial-gradient(circle at 50% 50%, rgba(244, 250, 252, 0.09) 0 0.22%, rgba(18, 33, 41, 0.11) 0.3% 0.62%, transparent 0.7% 1.12%), linear-gradient(135deg, #eff5f4 0%, #c4d0d2 24%, #8198a0 57%, #405762 78%, #172b35 100%)`,
-  boxShadow:
-    "inset 0 1px 1px rgba(255, 255, 255, 0.38), inset 0 -2px 3px rgba(1, 7, 11, 0.54), 0 0 0 1px rgba(211, 229, 235, 0.2)",
-  WebkitMaskImage: "radial-gradient(circle at 50% 50%, transparent 0 50.5%, #000 51% 70.7%, transparent 71%)",
-  maskImage: "radial-gradient(circle at 50% 50%, transparent 0 50.5%, #000 51% 70.7%, transparent 71%)",
-} satisfies CSSProperties;
-
-const SINGLE_RPM_ADAPTER_FACE_STYLE = {
-  backgroundImage: `${SINGLE_RPM_ADAPTER_WHITE_REFLECTION}, ${SINGLE_RPM_ADAPTER_RAINBOW_REFLECTION}, repeating-radial-gradient(circle at 50% 50%, rgba(248, 252, 253, 0.07) 0 0.24%, rgba(15, 30, 38, 0.09) 0.34% 0.64%, transparent 0.74% 1.18%), linear-gradient(135deg, #d7e0df 0%, #b7c4c6 33%, #91a4aa 68%, #617681 100%)`,
-  boxShadow:
-    "0 3px 5px rgba(0, 0, 0, 0.82), 0 0 0 3px rgba(1, 9, 14, 0.72), inset 0 1px 1px rgba(255, 255, 255, 0.36), inset 0 -2px 3px rgba(7, 15, 20, 0.38)",
-  WebkitMaskImage: SINGLE_RPM_ADAPTER_FACE_BORE_MASK,
-  maskImage: SINGLE_RPM_ADAPTER_FACE_BORE_MASK,
-} satisfies CSSProperties;
-
-// A recessed face needs the inverse light direction of the outer bevel: its
-// upper-left edge falls into the cavity while its lower-right lip catches light.
-// This is a separate annular plane, not a shadow around the whole face.
-const SINGLE_RPM_ADAPTER_RECESSED_LIGHTING =
-  "linear-gradient(315deg, rgba(237, 247, 249, 0.88) 0%, rgba(145, 166, 173, 0.66) 35%, rgba(48, 70, 80, 0.72) 72%, rgba(9, 27, 36, 0.76) 100%)";
-
-const SINGLE_RPM_ADAPTER_RECESS_RIM_STYLE = {
-  backgroundImage: `repeating-radial-gradient(circle at 50% 50%, rgba(240, 248, 249, 0.09) 0 0.2%, rgba(17, 34, 42, 0.08) 0.3% 0.54%, transparent 0.64% 1.08%), ${SINGLE_RPM_ADAPTER_RECESSED_LIGHTING}`,
-  boxShadow: "inset 2px 2px 2px rgba(3, 14, 20, 0.56), inset -2px -2px 2px rgba(238, 248, 250, 0.62)",
-  WebkitMaskImage: "radial-gradient(circle at 50% 50%, transparent 0 64%, #000 65% 70.7%, transparent 71%)",
-  maskImage: "radial-gradient(circle at 50% 50%, transparent 0 64%, #000 65% 70.7%, transparent 71%)",
-} satisfies CSSProperties;
-
-const SINGLE_RPM_ADAPTER_INNER_CHAMFER_STYLE = {
-  backgroundImage: `repeating-radial-gradient(circle at 50% 50%, rgba(240, 248, 249, 0.09) 0 0.2%, rgba(17, 34, 42, 0.08) 0.3% 0.54%, transparent 0.64% 1.08%), ${SINGLE_RPM_ADAPTER_RECESSED_LIGHTING}`,
-  // Keep the recess's lower-right light direction, but lift it enough for the
-  // much narrower bore phase to retain a visible machined-metal highlight.
-  boxShadow: "inset 1px 1px 1px rgba(3, 15, 21, 0.56), inset -1px -1px 1px rgba(238, 248, 250, 0.82)",
-  WebkitMaskImage: "radial-gradient(circle at 50% 50%, transparent 0 15.5%, #000 15.8% 21.4%, transparent 21.7%)",
-  maskImage: "radial-gradient(circle at 50% 50%, transparent 0 15.5%, #000 15.8% 21.4%, transparent 21.7%)",
-} satisfies CSSProperties;
+// This image is a static rendered reference, deliberately positioned outside
+// the rotor. Its baked highlights and rainbow accent remain fixed while the
+// Single and its paper label rotate underneath.
+const SINGLE_RPM_ADAPTER_RENDER_BORE_MASK = "radial-gradient(circle at 50% 50%, transparent 0 8.3%, #000 8.6% 100%)";
 
 function SingleRpmAdapter() {
   return (
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute left-1/2 top-1/2 z-[35] aspect-square -translate-x-1/2 -translate-y-1/2 rounded-full"
+      className="pointer-events-none absolute left-1/2 top-1/2 z-[35] aspect-square -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full"
       data-vinyl-single-rpm-adapter="true"
-      style={{ ...SINGLE_RPM_ADAPTER_STYLE, width: "23.2%" }}
+      style={{ width: "23.2%" }}
     >
-      <span
+      <img
+        alt=""
         aria-hidden="true"
-        className="absolute inset-0 rounded-full"
-        data-vinyl-single-rpm-adapter-outer-chamfer="true"
-        style={SINGLE_RPM_ADAPTER_OUTER_CHAMFER_STYLE}
+        className="absolute inset-0 h-full w-full max-w-none object-cover"
+        data-vinyl-single-rpm-adapter-render="true"
+        draggable={false}
+        src="/img/vinyl/rpm-adapter-render.png"
+        style={{
+          WebkitMaskImage: SINGLE_RPM_ADAPTER_RENDER_BORE_MASK,
+          maskImage: SINGLE_RPM_ADAPTER_RENDER_BORE_MASK,
+          transform: "scale(1.4)",
+        }}
       />
-      <span
-        aria-hidden="true"
-        className="absolute rounded-full"
-        data-vinyl-single-rpm-adapter-face="true"
-        style={{ ...SINGLE_RPM_ADAPTER_FACE_STYLE, inset: "14%" }}
-      >
-        <span
-          aria-hidden="true"
-          className="absolute inset-0 rounded-full"
-          data-vinyl-single-rpm-adapter-recess-rim="true"
-          style={SINGLE_RPM_ADAPTER_RECESS_RIM_STYLE}
-        />
-        <span
-          aria-hidden="true"
-          className="absolute inset-0 rounded-full"
-          data-vinyl-single-rpm-adapter-inner-chamfer="true"
-          style={SINGLE_RPM_ADAPTER_INNER_CHAMFER_STYLE}
-        />
-      </span>
     </span>
   );
 }
@@ -583,11 +520,13 @@ function preserveRotorRotationAndCancel(element: HTMLElement, animationRef: { cu
  * @param element - The rotor element carrying the spin transform.
  * @param animationRef - Mutable ref holding the active animation.
  * @param spinState - Target spin state.
+ * @param discFormat - Physical record format, which determines its playing RPM.
  */
 function startRotorAnimation(
   element: HTMLElement,
   animationRef: { current: Animation | null },
   spinState: VinylSpinStateValue,
+  discFormat: VinylDiscFormatValue,
 ) {
   if (typeof element.animate !== "function") return;
 
@@ -597,7 +536,7 @@ function startRotorAnimation(
     case VinylSpinState.Playing:
       animationRef.current = element.animate(
         [{ transform: rotateZ(currentRotation) }, { transform: rotateZ(currentRotation + 360) }],
-        LP_PLAYING_TIMING,
+        PLAYING_ROTATION_TIMING[discFormat],
       );
       return;
     case VinylSpinState.Coasting: {
@@ -632,6 +571,7 @@ export function VinylRecord({
   labelTitle,
   labelYear,
   labelVariant,
+  showTurntableSpindle = true,
   sideLayout,
   spinState = VinylSpinState.Idle,
 }: VinylRecordProps) {
@@ -680,12 +620,12 @@ export function VinylRecord({
     const rotor = rotorRef.current;
     if (!rotor) return;
 
-    startRotorAnimation(rotor, animationRef, spinState);
+    startRotorAnimation(rotor, animationRef, spinState, discFormat);
 
     return () => {
       preserveRotorRotationAndCancel(rotor, animationRef);
     };
-  }, [spinState]);
+  }, [discFormat, spinState]);
 
   return (
     // The vinyl is a composite image: role="img" + aria-label name the whole
@@ -851,6 +791,9 @@ export function VinylRecord({
           </div>
         </div>
       </div>
+      {showTurntableSpindle ? (
+        <TurntableSpindle className="z-[34]" placement={TurntableSpindlePlacement.Record} style={{ width: "3.7%" }} />
+      ) : null}
       {hasSingleCentreOpening ? <SingleRpmAdapter /> : null}
       <div
         aria-hidden="true"

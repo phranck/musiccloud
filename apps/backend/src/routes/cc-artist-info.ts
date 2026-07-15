@@ -28,8 +28,21 @@ export default async function ccArtistInfoRoutes(app: FastifyInstance) {
           type: "object",
           required: ["jamendoArtistId", "artistName"],
           properties: {
-            jamendoArtistId: { type: "string", minLength: 1, maxLength: 32, pattern: "^[0-9]+$" },
-            artistName: { type: "string", minLength: 1, maxLength: 200 },
+            jamendoArtistId: {
+              type: "string",
+              minLength: 1,
+              maxLength: 32,
+              pattern: "^[0-9]+$",
+              description:
+                "Numeric Jamendo artist ID. Read `track.jamendoArtistId` from a `cc-track` result, or `artist.jamendoId` from a `cc-artist` result, of `POST /api/v1/cc/resolve`.",
+            },
+            artistName: {
+              type: "string",
+              minLength: 1,
+              maxLength: 200,
+              description:
+                "Jamendo display name for the same artist. Used as the artist-column label and for profile and similar-track lookups.",
+            },
           },
           additionalProperties: false,
         },

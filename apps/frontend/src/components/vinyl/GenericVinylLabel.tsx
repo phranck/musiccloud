@@ -36,6 +36,7 @@ export function GenericVinylLabel({ hasSingleCentreOpening, idPrefix, sideLetter
   const skyId = `${idPrefix}-generic-sky`;
   const cloudId = `${idPrefix}-generic-clouds`;
   const grainId = `${idPrefix}-generic-grain`;
+  const paperNoiseId = `${idPrefix}-generic-paper-noise`;
   const copyrightPathId = `${idPrefix}-generic-copyright-path`;
   const wordmarkPathId = `${idPrefix}-generic-wordmark-path`;
   const imprintPathId = `${idPrefix}-generic-imprint-path`;
@@ -113,6 +114,23 @@ export function GenericVinylLabel({ hasSingleCentreOpening, idPrefix, sideLetter
                     0 0 0 0.13 0"
           />
         </filter>
+        <filter id={paperNoiseId} x="-3%" y="-3%" width="106%" height="106%">
+          <feTurbulence
+            data-vinyl-generic-paper-noise-turbulence="true"
+            baseFrequency="0.72"
+            numOctaves="1"
+            seed="43"
+            type="fractalNoise"
+            result="paperNoise"
+          />
+          <feColorMatrix in="paperNoise" type="saturate" values="0" result="monochromeNoise" />
+          <feComponentTransfer in="monochromeNoise">
+            <feFuncR type="table" tableValues="0.22 0.76" />
+            <feFuncG type="table" tableValues="0.2 0.72" />
+            <feFuncB type="table" tableValues="0.16 0.64" />
+            <feFuncA type="table" tableValues="0 0.9" />
+          </feComponentTransfer>
+        </filter>
         <linearGradient
           data-vinyl-generic-wordmark-gradient="true"
           id={wordmarkGradientId}
@@ -150,8 +168,26 @@ export function GenericVinylLabel({ hasSingleCentreOpening, idPrefix, sideLetter
             y="-3"
           />
         </g>
+        {!hasSingleCentreOpening ? (
+          <image
+            data-vinyl-generic-gramophone="true"
+            height="28"
+            href="/img/vinyl/gramophone-free-svgrepo-com.svg"
+            preserveAspectRatio="xMidYMid meet"
+            width="28"
+            x="36"
+            y="14"
+          />
+        ) : null}
 
         <rect data-vinyl-generic-night-sky="true" fill="#030405" height="50" width="100" y="50" />
+        <rect
+          data-vinyl-generic-paper-noise="true"
+          filter={`url(#${paperNoiseId})`}
+          height="100"
+          opacity="0.14"
+          width="100"
+        />
         <text
           data-vinyl-generic-copyright="true"
           fill="#000000"
@@ -171,9 +207,10 @@ export function GenericVinylLabel({ hasSingleCentreOpening, idPrefix, sideLetter
         <g data-vinyl-generic-pressing-copy="true" transform="translate(0 -8)">
           <VinylLabelPressingCopy
             catalogText="MC-GSP-001"
-            catalogY={hasSingleCentreOpening ? 34 : 65}
+            catalogY={hasSingleCentreOpening ? 28 : 65}
             lowerCopySideX={hasSingleCentreOpening ? 18 : 32}
-            lowerCopyStereoX={hasSingleCentreOpening ? 84 : 68}
+            lowerCopyStereoFontSize={hasSingleCentreOpening ? 9.4 : undefined}
+            lowerCopyStereoX={hasSingleCentreOpening ? 80 : 68}
             lowerCopyOffsetY={3}
             rightsText="GEMA"
             sideLetter={sideLetter}
