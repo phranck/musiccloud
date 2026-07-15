@@ -169,6 +169,49 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
     await app.close();
   });
 
+  it("normalizes a fresh YouTube timestamp for the unified track response", async () => {
+    vi.mocked(isAlbumUrl).mockReturnValue(false);
+    persistResolution.mockResolvedValue({
+      trackId: "youtube-track-id",
+      shortId: "youtube-short",
+      refreshedPreviewUrl: undefined,
+      artistCredits: [],
+    });
+    vi.mocked(resolveQuery).mockResolvedValue({
+      sourceTrack: {
+        title: "Our Song",
+        artists: ["Taylor Swift"],
+        sourceService: "youtube",
+        sourceId: "Jb2stN7kH28",
+        webUrl: "https://www.youtube.com/watch?v=Jb2stN7kH28",
+        releaseDate: "2009-06-17T00:49:50Z",
+      },
+      links: [
+        {
+          service: "youtube",
+          displayName: "YouTube",
+          url: "https://www.youtube.com/watch?v=Jb2stN7kH28",
+          confidence: 1,
+          matchMethod: "isrc",
+        },
+      ],
+      externalIds: [],
+    });
+    const app = buildApp();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/resolve",
+      headers: { origin: "http://localhost:3000" },
+      payload: { query: "https://youtu.be/Jb2stN7kH28?si=MU88B8DjtcBc-Ps5" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().track.releaseDate).toBe("2009-06-17");
+
+    await app.close();
+  });
+
   it("preserves vinylLayout through the AlbumResolveSuccess serializer", async () => {
     const app = buildAlbumSerializerApp();
 
@@ -179,6 +222,36 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json().album.vinylLayout).toEqual(vinylLayout);
+
+    await app.close();
+  });
+
+  it("normalizes a fresh album timestamp for the unified album response", async () => {
+    persistAlbumWithLinks.mockResolvedValue({
+      albumId: "persisted-album-id",
+      shortId: "album-short",
+      artistCredits: [],
+    });
+    enrichAlbumVinylLayout.mockResolvedValue(undefined);
+    readAlbumVinylLayout.mockResolvedValue(null);
+    vi.mocked(resolveAlbumUrl).mockResolvedValue({
+      ...albumResolution,
+      sourceAlbum: {
+        ...albumResolution.sourceAlbum,
+        releaseDate: "2014-10-27T00:00:00Z",
+      },
+    });
+    const app = buildApp();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/resolve",
+      headers: { origin: "http://localhost:3000" },
+      payload: { query: albumResolution.sourceAlbum.webUrl },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().album.releaseDate).toBe("2014-10-27");
 
     await app.close();
   });

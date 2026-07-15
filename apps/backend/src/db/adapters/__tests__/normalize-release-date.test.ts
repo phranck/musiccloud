@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeReleaseDate } from "../postgres-tracks.js";
+import { normalizeReleaseDate } from "../../../lib/release-date.js";
 
 /**
  * `tracks.release_date` is written from `normalizeReleaseDate` so the column only
@@ -25,6 +25,10 @@ describe("normalizeReleaseDate", () => {
 
   it("drops an unparseable value", () => {
     expect(normalizeReleaseDate("not a date")).toBeNull();
+  });
+
+  it("drops an ISO-shaped value that is not a real calendar date", () => {
+    expect(normalizeReleaseDate("2026-02-30T00:00:00Z")).toBeNull();
   });
 
   it("drops null / undefined / empty", () => {

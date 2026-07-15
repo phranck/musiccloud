@@ -20,6 +20,7 @@
 
 import type { Pool } from "pg";
 import { log } from "../../lib/infra/logger.js";
+import { normalizeReleaseDate } from "../../lib/release-date.js";
 import { generateShortId, generateTrackId } from "../../lib/short-id.js";
 import type { NormalizedTrack, TrackSource } from "../../services/types.js";
 import type {
@@ -77,30 +78,6 @@ export interface TrackWithLinkRow extends TrackRow {
   confidence: number | null;
   match_method: string | null;
   short_id: string | null;
-}
-
-/**
- * Normalizes a source track's release date to a strict `YYYY-MM-DD` before it is
- * written to `tracks.release_date`.
- *
- * Sources report wildly different formats: Spotify gives `YYYY-MM-DD`, YouTube
- * and SoundCloud an ISO-8601 timestamp (`2009-10-07T23:12:34Z`), Bandcamp an
- * RFC-2822 string (`15 Sep 2025 00:00:00 GMT`). The share response schema
- * validates `releaseDate` as `format: date`, so storing anything but a bare
- * `YYYY-MM-DD` risks a serialization failure downstream. Keep the ISO date prefix
- * as-is (no timezone math), parse other recognizable formats to their UTC date,
- * and drop anything without a usable date (e.g. a bare year).
- *
- * @param value - The raw release date from the source adapter.
- * @returns A `YYYY-MM-DD` string, or `null` when there is no usable date.
- */
-export function normalizeReleaseDate(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const isoPrefix = value.match(/^\d{4}-\d{2}-\d{2}/);
-  if (isoPrefix) return isoPrefix[0];
-  if (/^\d{4}$/.test(value.trim())) return null;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10);
 }
 
 // ============================================================================

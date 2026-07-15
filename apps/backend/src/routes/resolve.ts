@@ -66,6 +66,7 @@ import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { isAlbumUrl, isArtistUrl, isUrl, stripTrackingParams } from "../lib/platform/url.js";
 import { getPreviewExpiry } from "../lib/preview-url.js";
+import { normalizeReleaseDate } from "../lib/release-date.js";
 import { ResolveError } from "../lib/resolve/errors.js";
 import { toApiLinks } from "../lib/server/api-links.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
@@ -422,7 +423,7 @@ async function persistTrackAndRespond(
       artworkUrl: result.sourceTrack.artworkUrl,
       durationMs: result.sourceTrack.durationMs,
       isrc: result.sourceTrack.isrc,
-      releaseDate: result.sourceTrack.releaseDate,
+      releaseDate: normalizeReleaseDate(result.sourceTrack.releaseDate) ?? undefined,
       isExplicit: result.sourceTrack.isExplicit,
       previewUrl: refreshedPreviewUrl,
       vinylLayout,
@@ -547,7 +548,7 @@ async function persistAlbumAndRespond(
       title: result.sourceAlbum.title,
       artists: result.sourceAlbum.artists,
       artistCredits,
-      releaseDate: result.sourceAlbum.releaseDate,
+      releaseDate: normalizeReleaseDate(result.sourceAlbum.releaseDate) ?? undefined,
       totalTracks: result.sourceAlbum.totalTracks,
       artworkUrl: result.sourceAlbum.artworkUrl,
       label: result.sourceAlbum.label,
