@@ -13,6 +13,7 @@ const ApiContentChapter = createCompoundElement("section", "api-content__chapter
 const ApiContentChapterHeader = createCompoundElement("h2", "api-content__chapter-header");
 const ApiContentChapterHeaderIcon = createCompoundElement("span", "api-content__chapter-header-icon");
 const ApiContentChapterHeaderTitle = createCompoundElement("span", "api-content__chapter-header-title");
+const ApiContentChapterHeaderAddon = createCompoundElement("span", "api-content__chapter-header-addon");
 const ApiContentChapterBody = createCompoundElement("div", "api-content__chapter-body");
 const ApiContentEntry = createCompoundElement("div", "api-content__entry");
 const ApiContentEntryTitle = createCompoundElement("h3", "api-content__entry-title");
@@ -24,6 +25,7 @@ export const ApiContent = Object.assign(ApiContentRoot, {
     Header: Object.assign(ApiContentChapterHeader, {
       Icon: ApiContentChapterHeaderIcon,
       Title: ApiContentChapterHeaderTitle,
+      Addon: ApiContentChapterHeaderAddon,
     }),
     Body: ApiContentChapterBody,
   }),

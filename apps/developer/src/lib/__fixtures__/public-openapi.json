@@ -1,153 +1,4420 @@
 {
-  "openapi": "3.1.0",
-  "info": {
-    "title": "musiccloud Public API",
-    "version": "2.1.0"
-  },
-  "paths": {
-    "/api/v1/cc/resolve": {
-      "get": {
-        "operationId": "resolveCreativeCommons",
-        "tags": ["Creative Commons"],
-        "summary": "Resolve a Creative Commons track",
-        "description": "Find a shareable Creative Commons match.",
-        "security": [{ "ApiKeyAuth": [] }],
-        "parameters": [
-          {
-            "name": "query",
-            "in": "query",
-            "required": true,
-            "schema": { "type": "string" },
-            "description": "Track or artist search query."
+  "components": {
+    "schemas": {
+      "Album": {
+        "additionalProperties": false,
+        "description": "Album-level metadata, returned for album resolves and share pages.",
+        "example": {
+          "artistCredits": [
+            {
+              "artistEntityId": "artist_a_ha",
+              "name": "a-ha",
+              "position": 0,
+              "role": "main"
+            }
+          ],
+          "artists": ["a-ha"],
+          "artworkUrl": "https://i.scdn.co/image/ab67616d0000b273e58a0f7f1f2f8e4f6a3c8b2d",
+          "label": "Warner Records",
+          "previewUrl": "https://p.scdn.co/mp3-preview/7ae363b1bc5d7c6bd9cbca4d4f2ae6e3a8c7b0f5",
+          "releaseDate": "1985-06-01",
+          "title": "Hunting High and Low",
+          "totalTracks": 10,
+          "upc": "075993257228",
+          "vinylLayout": {
+            "discogsReleaseId": "249504",
+            "sides": [
+              {
+                "label": "A",
+                "tracks": [
+                  {
+                    "durationMs": 225280,
+                    "position": "A1",
+                    "title": "Take on Me"
+                  }
+                ]
+              }
+            ]
           }
-        ],
-        "responses": {
-          "200": {
-            "description": "Resolved Creative Commons track.",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/CcResolveSuccess" }
+        },
+        "properties": {
+          "artistCredits": {
+            "description": "Normalized artist entity credits in display order. The key is omitted when no normalized credits are available.",
+            "items": {
+              "$ref": "#/components/schemas/ArtistCredit"
+            },
+            "type": "array"
+          },
+          "artists": {
+            "description": "Credited album artists in source order.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "artworkUrl": {
+            "description": "Absolute album-artwork URL. The key is omitted when no artwork is available.",
+            "format": "uri",
+            "type": "string"
+          },
+          "label": {
+            "description": "Record-label name. The key is omitted when no label is available.",
+            "type": "string"
+          },
+          "previewUrl": {
+            "description": "Preview audio URL. The key is omitted when no usable preview is available.",
+            "format": "uri",
+            "type": "string"
+          },
+          "releaseDate": {
+            "description": "Original album release date in `YYYY-MM-DD` format. The key is omitted when unavailable.",
+            "format": "date",
+            "type": "string"
+          },
+          "title": {
+            "description": "Album title as reported by the origin service.",
+            "type": "string"
+          },
+          "totalTracks": {
+            "description": "Total number of tracks. The key is omitted when the source supplies no count.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "upc": {
+            "description": "Universal Product Code. The key is omitted when no `UPC` is available.",
+            "type": "string"
+          },
+          "vinylLayout": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VinylLayout"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The key is always included on public album response objects. Its value is the Discogs-derived vinyl layout, or `null` when no suitable pressing is available."
+          }
+        },
+        "required": ["title", "artists", "vinylLayout"],
+        "type": "object"
+      },
+      "AlbumResolveSuccess": {
+        "additionalProperties": false,
+        "description": "Successful album resolve: unified album metadata plus per-service deep-links.",
+        "example": {
+          "album": {
+            "artists": ["a-ha"],
+            "artworkUrl": "https://i.scdn.co/image/ab67616d0000b273e58a0f7f1f2f8e4f6a3c8b2d",
+            "label": "Warner Records",
+            "releaseDate": "1985-06-01",
+            "title": "Hunting High and Low",
+            "totalTracks": 10,
+            "upc": "075993257228",
+            "vinylLayout": {
+              "discogsReleaseId": "249504",
+              "sides": [
+                {
+                  "label": "A",
+                  "tracks": [
+                    {
+                      "durationMs": 225280,
+                      "position": "A1",
+                      "title": "Take on Me"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "id": "al_01HZ8P3C7Q8R9S0T1U2V3W4X5Y",
+          "links": [
+            {
+              "confidence": 1,
+              "displayName": "Spotify",
+              "matchMethod": "upc",
+              "service": "spotify",
+              "url": "https://open.spotify.com/album/7svV5BWuNkkZrOlxRjKyLK"
+            },
+            {
+              "confidence": 1,
+              "displayName": "Apple Music",
+              "matchMethod": "upc",
+              "service": "apple-music",
+              "url": "https://music.apple.com/us/album/hunting-high-and-low/1433036073"
+            }
+          ],
+          "shortUrl": "https://musiccloud.io/dEf456y",
+          "type": "album"
+        },
+        "properties": {
+          "album": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Album"
+              },
+              {
+                "required": ["vinylLayout"],
+                "type": "object"
+              }
+            ],
+            "description": "Resolved album metadata with a mandatory vinyl lookup state."
+          },
+          "id": {
+            "description": "Persisted musiccloud album ID for correlation. No public endpoint accepts it; use the final path segment of `shortUrl` with `GET /api/v1/share/{shortId}` to fetch the share payload.",
+            "type": "string"
+          },
+          "links": {
+            "description": "Cross-service deep-links for the resolved album.",
+            "items": {
+              "$ref": "#/components/schemas/PlatformLink"
+            },
+            "type": "array"
+          },
+          "shortUrl": {
+            "description": "Canonical musiccloud share URL for this resolved album.",
+            "format": "uri",
+            "type": "string"
+          },
+          "type": {
+            "description": "Discriminator: always `album` for this variant.",
+            "enum": ["album"],
+            "type": "string"
+          }
+        },
+        "required": ["type", "id", "shortUrl", "album", "links"],
+        "type": "object"
+      },
+      "Artist": {
+        "additionalProperties": false,
+        "description": "Minimal artist metadata used in artist resolves and share pages.",
+        "example": {
+          "genres": ["synth-pop", "new wave", "pop rock"],
+          "imageUrl": "https://i.scdn.co/image/ab6761610000e5eb6b3f4e4e2f8e4f6a3c8b2d0a",
+          "name": "a-ha"
+        },
+        "properties": {
+          "genres": {
+            "description": "Genre labels supplied by the source. The key is omitted when the source supplies no genre list.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "imageUrl": {
+            "description": "Absolute artist-image URL. The key is omitted when no image is available.",
+            "format": "uri",
+            "type": "string"
+          },
+          "name": {
+            "description": "Artist display name as reported by the origin service.",
+            "type": "string"
+          }
+        },
+        "required": ["name"],
+        "type": "object"
+      },
+      "ArtistCredit": {
+        "additionalProperties": false,
+        "description": "Normalized artist entity reference for one display credit. `artists` remains the compatibility display array.",
+        "example": {
+          "artistEntityId": "artist_a_ha",
+          "name": "a-ha",
+          "position": 0,
+          "role": "main"
+        },
+        "properties": {
+          "artistEntityId": {
+            "description": "Stable musiccloud artist-correlation ID. It links credits that refer to the same artist; no public request parameter currently accepts this value.",
+            "type": "string"
+          },
+          "name": {
+            "description": "Display credit exactly as stored for this track or album.",
+            "type": "string"
+          },
+          "position": {
+            "description": "Zero-based display order within the artist credits.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "role": {
+            "description": "Role of this artist in the credited work; use `main` for the primary performer.",
+            "enum": ["main", "featured", "remixer", "producer", "composer", "lyricist", "performer", "unknown"],
+            "type": "string"
+          }
+        },
+        "required": ["artistEntityId", "name", "role", "position"],
+        "type": "object"
+      },
+      "ArtistEvent": {
+        "additionalProperties": false,
+        "description": "Upcoming live event sourced from Bandsintown or Ticketmaster.",
+        "example": {
+          "city": "Oslo",
+          "country": "NO",
+          "date": "2026-07-18",
+          "source": "ticketmaster",
+          "ticketUrl": "https://www.ticketmaster.no/event/a-ha-oslo-spektrum-18-jul-2026",
+          "venueName": "Oslo Spektrum"
+        },
+        "properties": {
+          "city": {
+            "description": "City in which the event takes place.",
+            "type": "string"
+          },
+          "country": {
+            "description": "Country supplied by the event source. It may be an ISO `3166-1 alpha-2` code such as `NO` or a country name; clients must support both forms.",
+            "type": "string"
+          },
+          "date": {
+            "description": "Event date in `YYYY-MM-DD` format.",
+            "format": "date",
+            "type": "string"
+          },
+          "source": {
+            "description": "Provider identifier: `bandsintown` or `ticketmaster`.",
+            "enum": ["bandsintown", "ticketmaster"],
+            "type": "string"
+          },
+          "ticketUrl": {
+            "description": "The key is always included. Its value is the ticket or event-details URL, or `null` when the event source exposes none.",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "venueName": {
+            "description": "Venue name supplied by the event provider.",
+            "type": "string"
+          }
+        },
+        "required": ["date", "venueName", "city", "country", "ticketUrl", "source"],
+        "type": "object"
+      },
+      "ArtistInfo": {
+        "additionalProperties": false,
+        "description": "Commercial artist metadata with selected tracks, profile data, and upcoming events. Every top-level key is included so clients can distinguish an empty list or `null` profile from a missing field.",
+        "example": {
+          "artistName": "a-ha",
+          "events": [
+            {
+              "city": "Oslo",
+              "country": "NO",
+              "date": "2026-07-18",
+              "source": "ticketmaster",
+              "ticketUrl": "https://www.ticketmaster.no/event/a-ha-oslo-spektrum-18-jul-2026",
+              "venueName": "Oslo Spektrum"
+            }
+          ],
+          "profile": {
+            "bioSummary": "a-ha are a Norwegian synth-pop band formed in Oslo in 1982.",
+            "followers": 2840192,
+            "genres": ["synth-pop", "new wave", "pop rock"],
+            "imageUrl": "https://i.scdn.co/image/ab6761610000e5eb6b3f4e4e2f8e4f6a3c8b2d0a",
+            "popularity": 1840321,
+            "scrobbles": 128340921,
+            "similarArtists": ["Morten Harket", "Magne Furuholmen", "Savoy"]
+          },
+          "similarArtistTracks": [
+            {
+              "artistName": "Savoy",
+              "track": {
+                "albumName": "Mountains of Time",
+                "artists": ["Savoy"],
+                "artworkUrl": "https://e-cdns-images.dzcdn.net/images/cover/def456/500x500-000000-80-0-0.jpg",
+                "deezerUrl": "https://www.deezer.com/track/987654",
+                "durationMs": 218000,
+                "shortId": null,
+                "title": "Velvet"
               }
             }
+          ],
+          "topTracks": [
+            {
+              "albumName": "Hunting High and Low",
+              "artists": ["a-ha"],
+              "artworkUrl": "https://e-cdns-images.dzcdn.net/images/cover/abc123/500x500-000000-80-0-0.jpg",
+              "deezerUrl": "https://www.deezer.com/track/14408535",
+              "durationMs": 225280,
+              "shortId": "aBc123x",
+              "title": "Take on Me"
+            }
+          ]
+        },
+        "properties": {
+          "artistName": {
+            "description": "Artist display name actually used for the lookup after input normalization and optional `shortId` alias resolution.",
+            "type": "string"
+          },
+          "events": {
+            "description": "Up to `5` upcoming events. The key is always included; an empty array means no events were found.",
+            "items": {
+              "$ref": "#/components/schemas/ArtistEvent"
+            },
+            "maxItems": 5,
+            "type": "array"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArtistProfile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The key is always included. Its value is the assembled profile, or `null` when no metadata source returned an artist match. Inspect the profile's individual nullable fields and arrays rather than assuming every field is populated."
+          },
+          "similarArtistTracks": {
+            "description": "Top-track lookup for up to `5` related artists. The key is always included; an empty array means no related artists or tracks were found.",
+            "items": {
+              "$ref": "#/components/schemas/SimilarArtistTrack"
+            },
+            "maxItems": 5,
+            "type": "array"
+          },
+          "topTracks": {
+            "description": "Up to `5` selected top tracks. The key is always included; an empty array means no tracks were found.",
+            "items": {
+              "$ref": "#/components/schemas/ArtistTopTrack"
+            },
+            "maxItems": 5,
+            "type": "array"
           }
-        }
+        },
+        "required": ["artistName", "topTracks", "profile", "events", "similarArtistTracks"],
+        "type": "object"
+      },
+      "ArtistProfile": {
+        "additionalProperties": false,
+        "description": "Commercial artist profile assembled from available public metadata. An object can contain only `null` values and empty arrays when an artist match exists but individual profile fields are unavailable.",
+        "example": {
+          "bioSummary": "a-ha are a Norwegian synth-pop band formed in Oslo in 1982. The band was founded by Morten Harket, Magne Furuholmen and Paul Waaktaar-Savoy.",
+          "followers": 2840192,
+          "genres": ["synth-pop", "new wave", "pop rock"],
+          "imageUrl": "https://i.scdn.co/image/ab6761610000e5eb6b3f4e4e2f8e4f6a3c8b2d0a",
+          "popularity": 1840321,
+          "scrobbles": 128340921,
+          "similarArtists": ["Morten Harket", "Magne Furuholmen", "Savoy"]
+        },
+        "properties": {
+          "bioSummary": {
+            "description": "The key is always included. Its value is a short artist biography, or `null` when unavailable.",
+            "nullable": true,
+            "type": "string"
+          },
+          "followers": {
+            "description": "The key is always included. Its value is a non-negative fan or listener count, or `null` when unavailable.",
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "genres": {
+            "description": "Up to `3` genre labels; an empty array means none are available.",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 3,
+            "type": "array"
+          },
+          "imageUrl": {
+            "description": "The key is always included. Its value is the best available artist image URL, or `null` when unavailable.",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "popularity": {
+            "description": "The key is always included. Its value is a non-negative audience-reach count, or `null` when no source supplies one; it is not a `0`–`100` score.",
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "scrobbles": {
+            "description": "The key is always included. Its value is the aggregate play count, or `null` when unavailable.",
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "similarArtists": {
+            "description": "Up to `5` related artist names; an empty array means no related artists are available.",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5,
+            "type": "array"
+          }
+        },
+        "required": ["imageUrl", "genres", "popularity", "followers", "bioSummary", "scrobbles", "similarArtists"],
+        "type": "object"
+      },
+      "ArtistResolveSuccess": {
+        "additionalProperties": false,
+        "description": "Successful artist resolve: artist metadata plus per-service deep-links.",
+        "example": {
+          "artist": {
+            "genres": ["synth-pop", "new wave", "pop rock"],
+            "imageUrl": "https://i.scdn.co/image/ab6761610000e5eb6b3f4e4e2f8e4f6a3c8b2d0a",
+            "name": "a-ha"
+          },
+          "id": "ar_01HZ8Q4D8R9S0T1U2V3W4X5Y6Z",
+          "links": [
+            {
+              "confidence": 1,
+              "displayName": "Spotify",
+              "matchMethod": "search",
+              "service": "spotify",
+              "url": "https://open.spotify.com/artist/26dSoYclwsYLMAKD3tpOr4"
+            },
+            {
+              "confidence": 1,
+              "displayName": "Apple Music",
+              "matchMethod": "search",
+              "service": "apple-music",
+              "url": "https://music.apple.com/us/artist/a-ha/266892"
+            }
+          ],
+          "shortUrl": "https://musiccloud.io/gHi789z",
+          "type": "artist"
+        },
+        "properties": {
+          "artist": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Artist"
+              }
+            ],
+            "description": "Unified metadata for the resolved artist."
+          },
+          "id": {
+            "description": "Persisted musiccloud artist ID for correlation. No public endpoint accepts it; use the final path segment of `shortUrl` with `GET /api/v1/share/{shortId}` to fetch the share payload.",
+            "type": "string"
+          },
+          "links": {
+            "description": "Cross-service deep-links for the resolved artist.",
+            "items": {
+              "$ref": "#/components/schemas/PlatformLink"
+            },
+            "type": "array"
+          },
+          "shortUrl": {
+            "description": "Canonical musiccloud share URL for this resolved artist.",
+            "format": "uri",
+            "type": "string"
+          },
+          "type": {
+            "description": "Discriminator: always `artist` for this variant.",
+            "enum": ["artist"],
+            "type": "string"
+          }
+        },
+        "required": ["type", "id", "shortUrl", "artist", "links"],
+        "type": "object"
+      },
+      "ArtistTopTrack": {
+        "additionalProperties": false,
+        "description": "One of an artist's top commercial tracks, selected from the available artist metadata sources.",
+        "example": {
+          "albumName": "Hunting High and Low",
+          "artists": ["a-ha"],
+          "artworkUrl": "https://e-cdns-images.dzcdn.net/images/cover/abc123/500x500-000000-80-0-0.jpg",
+          "deezerUrl": "https://www.deezer.com/track/14408535",
+          "durationMs": 225280,
+          "shortId": "aBc123x",
+          "title": "Take on Me"
+        },
+        "properties": {
+          "albumName": {
+            "description": "The key is always included. Its value is the containing album title, or `null` when unavailable.",
+            "nullable": true,
+            "type": "string"
+          },
+          "artists": {
+            "description": "Top-track artist display names in source order.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "artworkUrl": {
+            "description": "The key is always included. Its value is the artwork URL, or `null` when unavailable.",
+            "format": "uri",
+            "nullable": true,
+            "type": "string"
+          },
+          "deezerUrl": {
+            "description": "Compatibility field containing a Deezer or Last.fm track URL. Send it as `query` to `POST /api/v1/resolve` for a full resolve; do not infer the provider from the key name.",
+            "format": "uri",
+            "type": "string"
+          },
+          "durationMs": {
+            "description": "The key is always included. Its value is the duration in milliseconds, or `null` when unavailable.",
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "shortId": {
+            "description": "The key is always included. Its value is a musiccloud share code accepted by `GET /api/v1/share/{shortId}`, or `null` when this top track has no persisted share.",
+            "nullable": true,
+            "type": "string"
+          },
+          "title": {
+            "description": "Top-track title.",
+            "type": "string"
+          }
+        },
+        "required": ["title", "artists", "albumName", "artworkUrl", "durationMs", "deezerUrl", "shortId"],
+        "type": "object"
+      },
+      "CcAlbum": {
+        "additionalProperties": false,
+        "description": "Creative Commons album metadata and its Jamendo track list.",
+        "properties": {
+          "artistName": {
+            "description": "Jamendo artist display name for the album.",
+            "type": "string"
+          },
+          "artworkUrl": {
+            "description": "Absolute Jamendo album-artwork URL. The key is omitted when no artwork is available.",
+            "format": "uri",
+            "type": "string"
+          },
+          "jamendoId": {
+            "description": "Numeric Jamendo album ID used to correlate this album with Jamendo. No public request parameter accepts the bare album ID; use the result's `shortUrl` to fetch the persisted share.",
+            "pattern": "^[0-9]+$",
+            "type": "string"
+          },
+          "name": {
+            "description": "Album title reported by Jamendo.",
+            "type": "string"
+          },
+          "releaseDate": {
+            "description": "Jamendo album release date in `YYYY-MM-DD` format. The key is omitted when unavailable.",
+            "format": "date",
+            "type": "string"
+          },
+          "shareUrl": {
+            "description": "Canonical Jamendo page for this album. The key is omitted when Jamendo supplies no page URL.",
+            "format": "uri",
+            "type": "string"
+          },
+          "tracks": {
+            "description": "Up to `50` album tracks in release order. Use each item's `jamendoId` with the CC audio or download endpoint.",
+            "items": {
+              "$ref": "#/components/schemas/CcTrack"
+            },
+            "maxItems": 50,
+            "type": "array"
+          },
+          "vinylLayout": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VinylLayout"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The key is always included on public `CcAlbum` objects. Its value is the Discogs-derived vinyl layout, or `null` when no suitable pressing is available."
+          },
+          "zipUrl": {
+            "description": "Full-album ZIP download URL. The key is omitted when Jamendo does not permit or expose it.",
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": ["jamendoId", "name", "artistName", "tracks", "vinylLayout"],
+        "type": "object"
+      },
+      "CcAlbumResolveSuccess": {
+        "additionalProperties": false,
+        "description": "Successful Creative Commons album resolve.",
+        "properties": {
+          "album": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CcAlbum"
+              },
+              {
+                "required": ["vinylLayout"],
+                "type": "object"
+              }
+            ],
+            "description": "Resolved Jamendo album with its vinyl-layout lookup state."
+          },
+          "artistInfo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CcArtistInfo"
+              }
+            ],
+            "description": "Jamendo-derived profile, album tracks, and related-artist tracks for the album artist."
+          },
+          "id": {
+            "description": "Persisted musiccloud CC-album ID for correlation. No public endpoint accepts it; use the final path segment of `shortUrl` with `GET /api/v1/share/{shortId}`.",
+            "type": "string"
+          },
+          "shortUrl": {
+            "description": "Canonical musiccloud share URL for this Creative Commons album.",
+            "format": "uri",
+            "type": "string"
+          },
+          "type": {
+            "description": "Discriminator: always `cc-album` for this response shape.",
+            "enum": ["cc-album"],
+            "type": "string"
+          }
+        },
+        "required": ["type", "id", "shortUrl", "album", "artistInfo"],
+        "type": "object"
+      },
+      "CcAlbumSharePageResponse": {
+        "additionalProperties": false,
+        "description": "Creative Commons share-page payload for one Jamendo album.",
+        "properties": {
+          "album": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CcAlbum"
+              },
+              {
+                "required": ["vinylLayout"],
+                "type": "object"
+              }
+            ],
+            "description": "Persisted Jamendo album with its vinyl-layout lookup state."
+          },
+          "artistInfo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CcArtistInfo"
+              }
+            ],
+            "description": "Jamendo-derived profile, album tracks, and related-artist tracks for the album artist."
+          },
+          "og": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OgMeta"
+              }
+            ],
+            "description": "Open-Graph metadata for rendering and social sharing."
+          },
+          "shortUrl": {
+            "description": "Canonical musiccloud share URL for this Creative Commons album.",
+            "format": "uri",
+            "type": "string"
+          },
+          "type": {
+            "description": "Discriminator: always `cc-album` for this response shape.",
+            "enum": ["cc-album"],
+            "type": "string"
+          }
+        },
+        "required": ["type", "og", "shortUrl", "album", "artistInfo"],
+        "type": "object"
+      },
+      "CcArtist": {
+        "additionalProperties": false,
+        "description": "Creative Commons artist metadata and the artist's popular Jamendo tracks.",
+        "properties": {
+          "imageUrl": {
+            "description": "Absolute Jamendo artist-image URL. The key is omitted when no image is available.",
+            "format": "uri",
+            "type": "string"
+          },
+          "jamendoId": {
+            "description": "Numeric Jamendo artist ID. Pass it as `jamendoArtistId` to `GET /api/v1/cc/artist-info` together with this artist's `name`.",
+            "pattern": "^[0-9]+$",
+            "type": "string"
+          },
+          "name": {
+            "description": "Artist display name reported by Jamendo.",
+            "type": "string"
+          },
+          "shareUrl": {
+            "description": "Canonical Jamendo page for this artist. The key is omitted when Jamendo supplies no page URL.",
+            "format": "uri",
+            "type": "string"
+          },
+          "topTracks": {
+            "description": "Up to `20` Creative Commons tracks in descending Jamendo popularity order.",
+            "items": {
+              "$ref": "#/components/schemas/CcTrack"
+            },
+            "maxItems": 20,
+            "type": "array"
+          },
+          "website": {
+            "description": "Artist-owned website. The key is omitted when Jamendo supplies none.",
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": ["jamendoId", "name", "topTracks"],
+        "type": "object"
+      },
+      "CcArtistInfo": {
+        "additionalProperties": false,
+        "description": "Creative Commons artist metadata derived from Jamendo. Every top-level key is included. `events` is always empty, while unavailable profile counters remain explicit `null` values.",
+        "example": {
+          "artistName": "Jamendo Artist",
+          "events": [],
+          "profile": null,
+          "similarArtistTracks": [],
+          "topTracks": [
+            {
+              "albumName": "Open Album",
+              "artists": ["Jamendo Artist"],
+              "artworkUrl": "https://usercontent.jamendo.com/example.jpg",
+              "deezerUrl": "jamendo:123456",
+              "durationMs": 210000,
+              "shortId": null,
+              "title": "Creative Commons Track"
+            }
+          ]
+        },
+        "properties": {
+          "artistName": {
+            "description": "Artist display label associated with the supplied Jamendo artist ID.",
+            "type": "string"
+          },
+          "events": {
+            "description": "The key is always included as an empty array because this CC response does not provide event data.",
+            "items": {
+              "$ref": "#/components/schemas/ArtistEvent"
+            },
+            "maxItems": 0,
+            "type": "array"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CcArtistProfile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The key is always included. Its value is the Jamendo profile, or `null` when no image, genre, or biography metadata can be returned."
+          },
+          "similarArtistTracks": {
+            "description": "Up to `12` tracks by distinct related artists, excluding the requested artist. The key is always included; an empty array means no related tracks could be returned.",
+            "items": {
+              "$ref": "#/components/schemas/CcSimilarArtistTrack"
+            },
+            "maxItems": 12,
+            "type": "array"
+          },
+          "topTracks": {
+            "description": "The key is always included. For `GET /api/v1/cc/artist-info` and `cc-artist` payloads it contains up to `20` tracks in descending Jamendo popularity order; for `cc-album` payloads it contains up to `50` album tracks in release order. An empty array means no tracks could be returned.",
+            "items": {
+              "$ref": "#/components/schemas/CcArtistTopTrack"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["artistName", "topTracks", "profile", "events", "similarArtistTracks"],
+        "type": "object"
+      },
+      "CcArtistProfile": {
+        "additionalProperties": false,
+        "description": "Jamendo artist profile with every compatibility key represented explicitly, including unavailable counters as `null`.",
+        "example": {
+          "bioSummary": null,
+          "followers": null,
+          "genres": ["ambient"],
+          "imageUrl": "https://usercontent.jamendo.com/example-artist.jpg",
+          "popularity": null,
+          "scrobbles": null,
+          "similarArtists": []
+        },
+        "properties": {
+          "bioSummary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The key is always included. Its value is the Jamendo biography, or `null` when unavailable."
+          },
+          "followers": {
+            "description": "The key is always included and its value is always `null`; Jamendo artist-info exposes no compatible follower count.",
+            "type": "null"
+          },
+          "genres": {
+            "description": "Up to `3` Jamendo genre labels; an empty array means none are available.",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 3,
+            "type": "array"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "format": "uri",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The key is always included. Its value is the Jamendo artist image URL, or `null` when unavailable."
+          },
+          "popularity": {
+            "description": "The key is always included and its value is always `null`; Jamendo artist-info exposes no compatible reach count.",
+            "type": "null"
+          },
+          "scrobbles": {
+            "description": "The key is always included and its value is always `null`; Jamendo exposes no compatible scrobble count.",
+            "type": "null"
+          },
+          "similarArtists": {
+            "description": "The key is always included as an empty array because this response carries related tracks separately.",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 0,
+            "type": "array"
+          }
+        },
+        "required": ["imageUrl", "genres", "popularity", "followers", "bioSummary", "scrobbles", "similarArtists"],
+        "type": "object"
+      },
+      "CcArtistResolveSuccess": {
+        "additionalProperties": false,
+        "description": "Successful Creative Commons artist resolve.",
+        "properties": {
+          "artist": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CcArtist"
+              }
+            ],
+            "description": "Resolved Jamendo artist and popular Creative Commons tracks."
+          },
+          "artistInfo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CcArtistInfo"
+              }
+            ],
+            "description": "Jamendo-derived profile, popular tracks, and related-artist tracks for the resolved artist."
+          },
+          "id": {
+            "description": "Persisted musiccloud CC-artist ID for correlation. No public endpoint accepts it; use the final path segment of `shortUrl` with `GET /api/v1/share/{shortId}`.",
+            "type": "string"
+          },
+          "shortUrl": {
+            "description": "Canonical musiccloud share URL for this Creative Commons artist.",
+            "format": "uri",
+            "type": "string"
+          },
+          "type": {
+            "description": "Discriminator: always `cc-artist` for this response shape.",
+            "enum": ["cc-artist"],
+            "type": "string"
+          }
+        },
+        "required": ["type", "id", "shortUrl", "artist", "artistInfo"],
+        "type": "object"
+      },
+      "CcArtistSharePageResponse": {
+        "additionalProperties": false,
+        "description": "Creative Commons share-page payload for one Jamendo artist.",
+        "properties": {
+          "artist": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CcArtist"
+              }
+            ],
+            "description": "Persisted Jamendo artist and the artist's popular Creative Commons tracks."
+          },
+          "artistInfo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CcArtistInfo"
+              }
+            ],
+            "description": "Jamendo-derived profile, popular tracks, and related-artist tracks for this artist."
+          },
+          "og": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OgMeta"
+              }
+            ],
+            "description": "Open-Graph metadata for rendering and social sharing."
+          },
+          "shortUrl": {
+            "description": "Canonical musiccloud share URL for this Creative Commons artist.",
+            "format": "uri",
+            "type": "string"
+          },
+          "type": {
+            "description": "Discriminator: always `cc-artist` for this response shape.",
+            "enum": ["cc-artist"],
+            "type": "string"
+          }
+        },
+        "required": ["type", "og", "shortUrl", "artist", "artistInfo"],
+        "type": "object"
+      },
+      "CcArtistTopTrack": {
+        "additionalProperties": false,
+        "description": "One Jamendo track returned as Creative Commons artist metadata.",
+        "example": {
+          "albumName": "Open Album",
+          "artists": ["Jamendo Artist"],
+          "artworkUrl": "https://usercontent.jamendo.com/example.jpg",
+          "deezerUrl": "jamendo:123456",
+          "durationMs": 210000,
+          "shortId": null,
+          "title": "Creative Commons Track"
+        },
+        "properties": {
+          "albumName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The key is always included. Its value is the album title, or `null` when Jamendo supplies none."
+          },
+          "artists": {
+            "description": "Jamendo artist display names in source order.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "artworkUrl": {
+            "anyOf": [
+              {
+                "format": "uri",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The key is always included. Its value is the artwork URL, or `null` when unavailable."
+          },
+          "deezerUrl": {
+            "description": "Compatibility field containing an opaque `jamendo:<trackId>` candidate token, not a URL. Pass it as `selectedCandidate` to `POST /api/v1/cc/resolve`.",
+            "pattern": "^jamendo:[0-9]+$",
+            "type": "string"
+          },
+          "durationMs": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The key is always included. Its value is the duration in milliseconds, or `null` when unavailable."
+          },
+          "shortId": {
+            "description": "The key is always included and its value is always `null`; this response does not perform share-code lookup for its track rows. Resolve `deezerUrl` through `POST /api/v1/cc/resolve` to obtain a share code.",
+            "type": "null"
+          },
+          "title": {
+            "description": "Jamendo track title.",
+            "type": "string"
+          }
+        },
+        "required": ["title", "artists", "albumName", "artworkUrl", "durationMs", "deezerUrl", "shortId"],
+        "type": "object"
+      },
+      "CcBandcampAvailabilityResponse": {
+        "additionalProperties": false,
+        "description": "Bandcamp availability for one Creative Commons track. `bandcampUrl` is omitted when no confident matching listing exists.",
+        "example": {
+          "bandcampUrl": "https://artist.bandcamp.com/track/take-on-me"
+        },
+        "properties": {
+          "bandcampUrl": {
+            "description": "Bandcamp track URL when a reliable listing is found. The key is omitted when the Jamendo ID is unknown or no safe match can be confirmed.",
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "CcGenreAlbumCandidate": {
+        "additionalProperties": false,
+        "description": "Creative-Commons album row returned by a genre-search query.",
+        "properties": {
+          "artists": {
+            "description": "Album artist display names in source order.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "artworkUrl": {
+            "description": "Artwork URL. The key is omitted when no artwork is available.",
+            "format": "uri",
+            "type": "string"
+          },
+          "id": {
+            "description": "Opaque Jamendo album candidate token. Pass it unchanged as `selectedCandidate` to `POST /api/v1/cc/resolve`.",
+            "pattern": "^jamendo-album:[0-9]+$",
+            "type": "string"
+          },
+          "title": {
+            "description": "Album title returned by the Creative Commons genre search. An empty string means the candidate has a Jamendo album ID but the track result supplied no album title.",
+            "type": "string"
+          },
+          "webUrl": {
+            "description": "Canonical Jamendo page. The key is omitted when the source supplies no page URL; it is not used for the follow-up resolve.",
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": ["id", "title", "artists"],
+        "type": "object"
+      },
+      "CcGenreArtistCandidate": {
+        "additionalProperties": false,
+        "description": "Creative-Commons artist row returned by a genre-search query.",
+        "properties": {
+          "id": {
+            "description": "Opaque Jamendo artist candidate token. Pass it unchanged as `selectedCandidate` to `POST /api/v1/cc/resolve`.",
+            "pattern": "^jamendo-artist:[0-9]+$",
+            "type": "string"
+          },
+          "imageUrl": {
+            "description": "Artist image URL. The key is omitted when no image is available.",
+            "format": "uri",
+            "type": "string"
+          },
+          "name": {
+            "description": "Artist display name returned by the Creative-Commons genre search.",
+            "type": "string"
+          },
+          "webUrl": {
+            "description": "Canonical Jamendo page. The key is omitted when the source supplies no page URL; it is not used for the follow-up resolve.",
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": ["id", "name"],
+        "type": "object"
+      },
+      "CcGenreBrowseResponse": {
+        "additionalProperties": false,
+        "description": "Creative-Commons genre browse response returned for the exact query `genre:?`.",
+        "properties": {
+          "genres": {
+            "description": "Selectable genres for a follow-up `genre:<name>` CC query.",
+            "items": {
+              "$ref": "#/components/schemas/CcGenreTile"
+            },
+            "type": "array"
+          },
+          "status": {
+            "description": "Always `genre-browse` for this response shape.",
+            "enum": ["genre-browse"],
+            "type": "string"
+          }
+        },
+        "required": ["status", "genres"],
+        "type": "object"
+      },
+      "CcGenreSearchResponse": {
+        "additionalProperties": false,
+        "description": "Creative-Commons genre results. Select a row by sending its `id` as `selectedCandidate` to `POST /api/v1/cc/resolve`.",
+        "properties": {
+          "query": {
+            "additionalProperties": false,
+            "description": "Normalized genre filters used for this search.",
+            "properties": {
+              "albums": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The key is always included. Its value is the requested album count, or `null` when albums were not requested."
+              },
+              "artists": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The key is always included. Its value is the requested artist count, or `null` when artists were not requested."
+              },
+              "genres": {
+                "description": "Requested normalized genre tags.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "tracks": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The key is always included. Its value is the requested track count, or `null` when tracks were not requested."
+              },
+              "vibe": {
+                "description": "Normalized ordering mode: `hot` selects the highest-ranked results, while `mixed` samples across the ranked result pool.",
+                "enum": ["hot", "mixed"],
+                "type": "string"
+              }
+            },
+            "required": ["genres", "vibe", "tracks", "albums", "artists"],
+            "type": "object"
+          },
+          "results": {
+            "additionalProperties": false,
+            "description": "Candidate lists grouped by requested resource type.",
+            "properties": {
+              "albums": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "$ref": "#/components/schemas/CcGenreAlbumCandidate"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The key is always included. Its value is the album-candidate array, or `null` when albums were not requested."
+              },
+              "artists": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "$ref": "#/components/schemas/CcGenreArtistCandidate"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The key is always included. Its value is the artist-candidate array, or `null` when artists were not requested."
+              },
+              "tracks": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "$ref": "#/components/schemas/CcGenreTrackCandidate"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The key is always included. Its value is the track-candidate array, or `null` when tracks were not requested."
+              }
+            },
+            "required": ["tracks", "albums", "artists"],
+            "type": "object"
+          },
+          "status": {
+            "description": "Always `genre-search` for this response shape.",
+            "enum": ["genre-search"],
+            "type": "string"
+          },
+          "warnings": {
+            "description": "Query-normalization notes; an empty array means no adjustment was needed.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["status", "query", "results", "warnings"],
+        "type": "object"
+      },
+      "CcGenreTile": {
+        "additionalProperties": false,
+        "description": "One selectable Creative-Commons genre tile.",
+        "properties": {
+          "artworkUrl": {
+            "description": "Root-relative public-site image path. Prefix it with `https://musiccloud.io`; do not resolve it against `https://api.musiccloud.io`.",
+            "type": "string"
+          },
+          "displayName": {
+            "description": "Human-readable genre label.",
+            "type": "string"
+          },
+          "name": {
+            "description": "Genre tag to use in a follow-up `genre:<name>` CC query.",
+            "type": "string"
+          }
+        },
+        "required": ["name", "displayName", "artworkUrl"],
+        "type": "object"
+      },
+      "CcGenreTrackCandidate": {
+        "additionalProperties": false,
+        "description": "Creative-Commons track row returned by a genre-search query.",
+        "properties": {
+          "albumName": {
+            "description": "Album title. The key is omitted when the source supplies no album name.",
+            "type": "string"
+          },
+          "artists": {
+            "description": "Track artist display names in source order.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "artworkUrl": {
+            "description": "Artwork URL. The key is omitted when no artwork is available.",
+            "format": "uri",
+            "type": "string"
+          },
+          "durationMs": {
+            "description": "Track duration in milliseconds. The key is omitted when unavailable.",
+            "minimum": 0,
+            "type": "number"
+          },
+          "id": {
+            "description": "Opaque Jamendo track candidate token. Pass it unchanged as `selectedCandidate` to `POST /api/v1/cc/resolve`.",
+            "pattern": "^jamendo:[0-9]+$",
+            "type": "string"
+          },
+          "title": {
+            "description": "Track title returned by the Creative-Commons genre search.",
+            "type": "string"
+          },
+          "webUrl": {
+            "description": "Canonical Jamendo page. The key is omitted when the source supplies no page URL; it is not used for the follow-up resolve.",
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": ["id", "title", "artists"],
+        "type": "object"
+      },
+      "CcMusicInfo": {
+        "additionalProperties": false,
+        "description": "Jamendo music classification for a Creative Commons track.",
+        "properties": {
+          "acousticElectric": {
+            "description": "Jamendo acoustic/electric classifier. Treat the value as source-defined rather than as a fixed enum. The key is omitted when no classifier is supplied.",
+            "type": "string"
+          },
+          "gender": {
+            "description": "Jamendo lead-vocal gender classifier. Treat the value as source-defined rather than as a fixed enum. The key is omitted when no classifier is supplied.",
+            "type": "string"
+          },
+          "genres": {
+            "description": "Jamendo genre tags for the track; an empty array means none were supplied.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "instruments": {
+            "description": "Jamendo instrument tags; an empty array means none were supplied.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "lang": {
+            "description": "Source-provided language code for the lyrics. Treat the value as source-defined rather than assuming one specific code standard. The key is omitted when unavailable.",
+            "type": "string"
+          },
+          "speed": {
+            "description": "Jamendo tempo classifier string. Treat it as source-defined rather than assuming a fixed enum. The key is omitted when unavailable.",
+            "type": "string"
+          },
+          "vartags": {
+            "description": "Jamendo mood and theme tags; an empty array means none were supplied.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "vocalInstrumental": {
+            "description": "Jamendo vocal/instrumental classifier, such as `vocal` or `instrumental`. Treat the value as source-defined. The key is omitted when no classifier is supplied.",
+            "type": "string"
+          }
+        },
+        "required": ["genres", "instruments", "vartags"],
+        "type": "object"
+      },
+      "CcResolveSuccess": {
+        "description": "Successful Creative Commons resolve, discriminated by `type` into track, album, or artist payloads.",
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CcTrackResolveSuccess"
+          },
+          {
+            "$ref": "#/components/schemas/CcAlbumResolveSuccess"
+          },
+          {
+            "$ref": "#/components/schemas/CcArtistResolveSuccess"
+          }
+        ]
+      },
+      "CcSimilarArtistTrack": {
+        "additionalProperties": false,
+        "description": "One related Jamendo artist and a resolvable Creative-Commons track by that artist.",
+        "properties": {
+          "artistName": {
+            "description": "Related Jamendo artist display name.",
+            "type": "string"
+          },
+          "track": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CcArtistTopTrack"
+              }
+            ],
+            "description": "Resolvable related track. The key and object are always included for every item in `similarArtistTracks`."
+          }
+        },
+        "required": ["artistName", "track"],
+        "type": "object"
+      },
+      "CcTrack": {
+        "additionalProperties": false,
+        "description": "Creative Commons track metadata, playback URLs, and Jamendo-specific attributes.",
+        "properties": {
+          "albumName": {
+            "description": "Containing album title. The key is omitted when Jamendo supplies no album name.",
+            "type": "string"
+          },
+          "artistName": {
+            "description": "Jamendo artist display name for this track.",
+            "type": "string"
+          },
+          "artworkUrl": {
+            "description": "Absolute Jamendo artwork URL. The key is omitted when no artwork is available.",
+            "format": "uri",
+            "type": "string"
+          },
+          "downloadAllowed": {
+            "description": "Whether the track can be downloaded. Only offer `GET /api/v1/cc/download/{jamendoId}` when this value is `true`; otherwise that endpoint returns `403`.",
+            "type": "boolean"
+          },
+          "downloadUrl": {
+            "description": "Direct Jamendo audio URL. The key is omitted when Jamendo supplies no URL. Use it only when `downloadAllowed` is `true`; prefer `GET /api/v1/cc/download/{jamendoId}` when a named attachment and an explicit `403` permission response are required.",
+            "format": "uri",
+            "type": "string"
+          },
+          "durationMs": {
+            "description": "Track duration in milliseconds. The key is omitted when Jamendo supplies no duration.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "jamendoArtistId": {
+            "description": "Numeric Jamendo artist ID. Pass it as `jamendoArtistId` to `GET /api/v1/cc/artist-info` together with this track's `artistName`.",
+            "pattern": "^[0-9]+$",
+            "type": "string"
+          },
+          "jamendoId": {
+            "description": "Numeric Jamendo track ID. Pass it as `{jamendoId}` to `GET /api/v1/cc/audio/{jamendoId}`, `GET /api/v1/cc/download/{jamendoId}`, or `GET /api/v1/cc/bandcamp/{jamendoId}`.",
+            "pattern": "^[0-9]+$",
+            "type": "string"
+          },
+          "licenseCcurl": {
+            "description": "Exact Creative Commons license URL governing this track. The key is omitted when Jamendo supplies no license URL.",
+            "format": "uri",
+            "type": "string"
+          },
+          "musicInfo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CcMusicInfo"
+              }
+            ],
+            "description": "Jamendo music classification. The key is omitted when the source supplies no classification object."
+          },
+          "proLicensing": {
+            "description": "Always `true` when included, indicating that Jamendo Pro offers commercial licensing. The key is omitted when commercial licensing is not advertised.",
+            "type": "boolean"
+          },
+          "proUrl": {
+            "description": "Jamendo Pro licensing page. The key is omitted when Jamendo supplies no commercial-licensing URL.",
+            "format": "uri",
+            "type": "string"
+          },
+          "releaseDate": {
+            "description": "Jamendo release date in `YYYY-MM-DD` format. The key is omitted when unavailable.",
+            "format": "date",
+            "type": "string"
+          },
+          "shareUrl": {
+            "description": "Canonical Jamendo page for this track. The key is omitted when Jamendo supplies no page URL.",
+            "format": "uri",
+            "type": "string"
+          },
+          "stats": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CcTrackStats"
+              }
+            ],
+            "description": "Jamendo engagement counters. The key is omitted when the source supplies no statistics object."
+          },
+          "streamUrl": {
+            "description": "Permanent full-track Jamendo audio URL. For browser playback, byte ranges, and an API-controlled media type, use `GET /api/v1/cc/audio/{jamendoId}` instead of depending on this source URL directly.",
+            "format": "uri",
+            "type": "string"
+          },
+          "title": {
+            "description": "Track title reported by Jamendo.",
+            "type": "string"
+          },
+          "vinylLayout": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VinylLayout"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Discogs vinyl-layout lookup state. The key is included only on the top-level track of a resolve or share response. The key is omitted from nested track lists."
+          },
+          "waveform": {
+            "description": "JSON-encoded string. Call `JSON.parse(waveform)` to obtain an object shaped as `{ peaks: number[] }`. The key is omitted when Jamendo supplies no waveform.",
+            "type": "string"
+          }
+        },
+        "required": ["jamendoId", "title", "artistName", "jamendoArtistId", "streamUrl", "downloadAllowed"],
+        "type": "object"
+      },
+      "CcTrackResolveSuccess": {
+        "additionalProperties": false,
+        "description": "Successful Creative Commons track resolve.",
+        "properties": {
+          "id": {
+            "description": "Persisted musiccloud CC-track ID for correlation. No public endpoint accepts it; use the final path segment of `shortUrl` with `GET /api/v1/share/{shortId}`.",
+            "type": "string"
+          },
+          "shortUrl": {
+            "description": "Canonical musiccloud share URL for this Creative Commons track.",
+            "format": "uri",
+            "type": "string"
+          },
+          "track": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CcTrack"
+              },
+              {
+                "required": ["vinylLayout"],
+                "type": "object"
+              }
+            ],
+            "description": "Resolved Jamendo track with its vinyl-layout lookup state."
+          },
+          "type": {
+            "description": "Discriminator: always `cc-track` for this response shape.",
+            "enum": ["cc-track"],
+            "type": "string"
+          }
+        },
+        "required": ["type", "id", "shortUrl", "track"],
+        "type": "object"
+      },
+      "CcTrackSharePageResponse": {
+        "additionalProperties": false,
+        "description": "Creative Commons share-page payload for one Jamendo track.",
+        "properties": {
+          "og": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OgMeta"
+              }
+            ],
+            "description": "Open-Graph metadata for rendering and social sharing."
+          },
+          "shortUrl": {
+            "description": "Canonical musiccloud share URL for this Creative Commons track.",
+            "format": "uri",
+            "type": "string"
+          },
+          "track": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CcTrack"
+              },
+              {
+                "required": ["vinylLayout"],
+                "type": "object"
+              }
+            ],
+            "description": "Persisted Jamendo track with its vinyl-layout lookup state."
+          },
+          "type": {
+            "description": "Discriminator: always `cc-track` for this response shape.",
+            "enum": ["cc-track"],
+            "type": "string"
+          }
+        },
+        "required": ["type", "og", "shortUrl", "track"],
+        "type": "object"
+      },
+      "CcTrackStats": {
+        "additionalProperties": false,
+        "description": "Jamendo engagement counters and user-rating data for a Creative Commons track.",
+        "properties": {
+          "avgNote": {
+            "description": "Source-provided average Jamendo rating. Interpret it together with `notes`; do not assume a fixed rating scale.",
+            "minimum": 0,
+            "type": "number"
+          },
+          "dislikes": {
+            "description": "Jamendo thumbs-down count.",
+            "minimum": 0,
+            "type": "number"
+          },
+          "downloads": {
+            "description": "Total Jamendo download count.",
+            "minimum": 0,
+            "type": "number"
+          },
+          "favorited": {
+            "description": "Number of Jamendo users who favorited the track.",
+            "minimum": 0,
+            "type": "number"
+          },
+          "likes": {
+            "description": "Jamendo thumbs-up count.",
+            "minimum": 0,
+            "type": "number"
+          },
+          "listens": {
+            "description": "Total Jamendo play count.",
+            "minimum": 0,
+            "type": "number"
+          },
+          "notes": {
+            "description": "Number of ratings contributing to `avgNote`.",
+            "minimum": 0,
+            "type": "number"
+          },
+          "playlisted": {
+            "description": "Number of Jamendo playlists that include the track.",
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": ["listens", "downloads", "playlisted", "favorited", "likes", "dislikes", "avgNote", "notes"],
+        "type": "object"
+      },
+      "CommercialAlbumSharePageResponse": {
+        "additionalProperties": false,
+        "description": "Commercial share-page payload for one resolved album.",
+        "properties": {
+          "album": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Album"
+              }
+            ],
+            "description": "Stored canonical album metadata."
+          },
+          "links": {
+            "description": "Stored cross-service deep-links for this album.",
+            "items": {
+              "$ref": "#/components/schemas/PlatformLink"
+            },
+            "type": "array"
+          },
+          "og": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OgMeta"
+              }
+            ],
+            "description": "Open-Graph metadata for rendering and social sharing."
+          },
+          "shortUrl": {
+            "description": "Canonical musiccloud share URL for this album.",
+            "format": "uri",
+            "type": "string"
+          },
+          "type": {
+            "description": "Always `album` for this response shape.",
+            "enum": ["album"],
+            "type": "string"
+          }
+        },
+        "required": ["type", "og", "album", "links", "shortUrl"],
+        "type": "object"
+      },
+      "CommercialArtistSharePageResponse": {
+        "additionalProperties": false,
+        "description": "Commercial share-page payload for one resolved artist.",
+        "properties": {
+          "artist": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Artist"
+              }
+            ],
+            "description": "Stored canonical artist metadata."
+          },
+          "links": {
+            "description": "Stored cross-service deep-links for this artist.",
+            "items": {
+              "$ref": "#/components/schemas/PlatformLink"
+            },
+            "type": "array"
+          },
+          "og": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OgMeta"
+              }
+            ],
+            "description": "Open-Graph metadata for rendering and social sharing."
+          },
+          "shortUrl": {
+            "description": "Canonical musiccloud share URL for this artist.",
+            "format": "uri",
+            "type": "string"
+          },
+          "type": {
+            "description": "Always `artist` for this response shape.",
+            "enum": ["artist"],
+            "type": "string"
+          }
+        },
+        "required": ["type", "og", "artist", "links", "shortUrl"],
+        "type": "object"
+      },
+      "CommercialTrackSharePageResponse": {
+        "additionalProperties": false,
+        "description": "Commercial share-page payload for one resolved track.",
+        "properties": {
+          "links": {
+            "description": "Stored cross-service deep-links for this track.",
+            "items": {
+              "$ref": "#/components/schemas/PlatformLink"
+            },
+            "type": "array"
+          },
+          "og": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OgMeta"
+              }
+            ],
+            "description": "Open-Graph metadata for rendering and social sharing."
+          },
+          "shortUrl": {
+            "description": "Canonical musiccloud share URL for this track.",
+            "format": "uri",
+            "type": "string"
+          },
+          "track": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Track"
+              }
+            ],
+            "description": "Stored canonical track metadata."
+          },
+          "type": {
+            "description": "Always `track` for this response shape.",
+            "enum": ["track"],
+            "type": "string"
+          }
+        },
+        "required": ["type", "og", "track", "links", "shortUrl"],
+        "type": "object"
+      },
+      "DisambiguationCandidate": {
+        "additionalProperties": false,
+        "description": "A possible match returned when the query was ambiguous and the caller must pick one.",
+        "example": {
+          "albumName": "Hunting High and Low",
+          "artists": ["a-ha"],
+          "artworkUrl": "https://i.scdn.co/image/ab67616d0000b273e58a0f7f1f2f8e4f6a3c8b2d",
+          "id": "spotify:2WfaOiMkCvy7F5fcp2zZ8L",
+          "title": "Take on Me"
+        },
+        "properties": {
+          "albumName": {
+            "description": "Candidate album title. The key is omitted when the search result supplies no album.",
+            "type": "string"
+          },
+          "artists": {
+            "description": "Candidate track artists in source order.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "artworkUrl": {
+            "description": "Candidate artwork URL. The key is omitted when the search result supplies no artwork.",
+            "format": "uri",
+            "type": "string"
+          },
+          "id": {
+            "description": "Opaque candidate ID returned only for this selection flow. Pass it unchanged as `selectedCandidate` to the same `POST /api/v1/resolve` or `POST /api/v1/cc/resolve` operation that produced the list.",
+            "type": "string"
+          },
+          "title": {
+            "description": "Candidate track title.",
+            "type": "string"
+          }
+        },
+        "required": ["id", "title", "artists"],
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "additionalProperties": false,
+        "description": "Standard public error envelope. Route-specific error schemas add documented fields such as form validation issues or readiness details.",
+        "example": {
+          "context": {
+            "limit": 10,
+            "retryAfterSeconds": 42,
+            "windowSeconds": 60
+          },
+          "error": "MC-API-0003",
+          "errorId": "7d33e012-685f-4f11-94da-c6bc72918d7b",
+          "message": "Too many requests. You can make 10 requests per 60 seconds. Please try again in 42 seconds. (MC-API-0003)"
+        },
+        "properties": {
+          "context": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "description": "Optional structured values associated with the error code. For `MC-API-0003`, the object can contain the active limit, window, and retry delay. The key is omitted when no structured values apply.",
+            "properties": {
+              "limit": {
+                "description": "Maximum requests allowed by the rate-limit rule that rejected this request. The key is omitted for non-rate-limit errors.",
+                "type": "number"
+              },
+              "retryAfterSeconds": {
+                "description": "Seconds until the client can retry after a `429 Too Many Requests` response. The key is omitted when no retry delay applies.",
+                "type": "number"
+              },
+              "windowSeconds": {
+                "description": "Length in seconds of the rate-limit window that rejected this request. The key is omitted for non-rate-limit errors.",
+                "type": "number"
+              }
+            },
+            "type": "object"
+          },
+          "error": {
+            "description": "Stable musiccloud error code for programmatic handling, for example `MC-URL-0003`, `MC-API-0003`, or `MC-RES-0001`.",
+            "type": "string"
+          },
+          "errorId": {
+            "description": "Unique incident identifier included in the matching backend log. Send it to musiccloud support when reporting the failure.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "message": {
+            "description": "Safe English failure detail. The final parenthesized value repeats the `error` code.",
+            "type": "string"
+          }
+        },
+        "required": ["error", "message", "errorId"],
+        "type": "object"
+      },
+      "GenreAlbumCandidate": {
+        "additionalProperties": false,
+        "description": "Album row returned by a genre-search query.",
+        "properties": {
+          "artists": {
+            "description": "Album artists in source order.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "artworkUrl": {
+            "description": "Artwork URL. The key is omitted when the search result supplies no artwork.",
+            "format": "uri",
+            "type": "string"
+          },
+          "id": {
+            "description": "Source identifier for correlating this row within the result. No public request accepts it; resolve the row by sending `webUrl` as `query` to `POST /api/v1/resolve`.",
+            "type": "string"
+          },
+          "title": {
+            "description": "Album title returned by the genre search.",
+            "type": "string"
+          },
+          "webUrl": {
+            "description": "Source URL accepted as `query` by `POST /api/v1/resolve`. Send it unchanged to persist the album and obtain `id`, `shortUrl`, metadata, and service links.",
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": ["id", "title", "artists", "webUrl"],
+        "type": "object"
+      },
+      "GenreArtistCandidate": {
+        "additionalProperties": false,
+        "description": "Artist row returned by a genre-search query.",
+        "properties": {
+          "id": {
+            "description": "Source identifier for correlating this row within the result. No public request accepts it; resolve the row by sending `webUrl` as `query` to `POST /api/v1/resolve`.",
+            "type": "string"
+          },
+          "imageUrl": {
+            "description": "Artist-image URL. The key is omitted when the search result supplies no image.",
+            "format": "uri",
+            "type": "string"
+          },
+          "name": {
+            "description": "Artist display name returned by the genre search.",
+            "type": "string"
+          },
+          "webUrl": {
+            "description": "Source URL accepted as `query` by `POST /api/v1/resolve`. Send it unchanged to persist the artist and obtain `id`, `shortUrl`, metadata, and service links.",
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": ["id", "name", "webUrl"],
+        "type": "object"
+      },
+      "GenreBrowseResponse": {
+        "additionalProperties": false,
+        "description": "Genre browse-grid response produced when the query is exactly `genre:?`.",
+        "properties": {
+          "genres": {
+            "description": "Popular genres available for a follow-up genre search.",
+            "items": {
+              "$ref": "#/components/schemas/GenreTile"
+            },
+            "type": "array"
+          },
+          "status": {
+            "description": "Always `genre-browse` for this response shape.",
+            "enum": ["genre-browse"],
+            "type": "string"
+          }
+        },
+        "required": ["status", "genres"],
+        "type": "object"
+      },
+      "GenreSearchResponse": {
+        "additionalProperties": false,
+        "description": "Genre-discovery response produced when a resolve query starts with `genre:`.",
+        "properties": {
+          "query": {
+            "additionalProperties": false,
+            "description": "Normalized genre-search filters that produced these results.",
+            "properties": {
+              "albums": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The key is always included. Its value is the requested album count, or `null` when albums were not requested."
+              },
+              "artists": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The key is always included. Its value is the requested artist count, or `null` when artists were not requested."
+              },
+              "genres": {
+                "description": "Requested normalized genre tags.",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "tracks": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The key is always included. Its value is the requested track count, or `null` when tracks were not requested."
+              },
+              "vibe": {
+                "description": "Normalized ordering mode: `hot` selects the highest-ranked results, while `mixed` samples across the ranked result pool.",
+                "enum": ["hot", "mixed"],
+                "type": "string"
+              }
+            },
+            "required": ["genres", "vibe", "tracks", "albums", "artists"],
+            "type": "object"
+          },
+          "results": {
+            "additionalProperties": false,
+            "description": "Result lists grouped by the entity type requested in the query.",
+            "properties": {
+              "albums": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "$ref": "#/components/schemas/GenreAlbumCandidate"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The key is always included. Its value is the album-candidate array, or `null` when albums were not requested."
+              },
+              "artists": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "$ref": "#/components/schemas/GenreArtistCandidate"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The key is always included. Its value is the artist-candidate array, or `null` when artists were not requested."
+              },
+              "tracks": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "$ref": "#/components/schemas/GenreTrackCandidate"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The key is always included. Its value is the track-candidate array, or `null` when tracks were not requested."
+              }
+            },
+            "required": ["tracks", "albums", "artists"],
+            "type": "object"
+          },
+          "status": {
+            "description": "Always `genre-search` for this response shape.",
+            "enum": ["genre-search"],
+            "type": "string"
+          },
+          "warnings": {
+            "description": "Non-fatal query-normalization notes; an empty array means no adjustments were made.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["status", "query", "results", "warnings"],
+        "type": "object"
+      },
+      "GenreTile": {
+        "additionalProperties": false,
+        "description": "A single genre tile in the browse grid.",
+        "properties": {
+          "accentColor": {
+            "description": "Dominant artwork color in `#RRGGBB` format. The key is omitted until a stable generated artwork has supplied a color.",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "type": "string"
+          },
+          "artworkUrl": {
+            "description": "Root-relative public-site image path. Prefix it with `https://musiccloud.io`; do not resolve it against `https://api.musiccloud.io`.",
+            "type": "string"
+          },
+          "displayName": {
+            "description": "Human-readable genre label suitable for display.",
+            "type": "string"
+          },
+          "name": {
+            "description": "Genre tag to use in a follow-up `genre:<name>` query.",
+            "type": "string"
+          }
+        },
+        "required": ["name", "displayName", "artworkUrl"],
+        "type": "object"
+      },
+      "GenreTrackCandidate": {
+        "additionalProperties": false,
+        "description": "Track row returned by a genre-search query.",
+        "properties": {
+          "albumName": {
+            "description": "Album title. The key is omitted when the search result supplies no album.",
+            "type": "string"
+          },
+          "artists": {
+            "description": "Track artists in source order.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "artworkUrl": {
+            "description": "Artwork URL. The key is omitted when the search result supplies no artwork.",
+            "format": "uri",
+            "type": "string"
+          },
+          "durationMs": {
+            "description": "Track duration in milliseconds. The key is omitted when unavailable.",
+            "minimum": 0,
+            "type": "number"
+          },
+          "id": {
+            "description": "Source identifier for correlating this row within the result. No public request accepts it; resolve the row by sending `webUrl` as `query` to `POST /api/v1/resolve`.",
+            "type": "string"
+          },
+          "title": {
+            "description": "Track title returned by the genre search.",
+            "type": "string"
+          },
+          "webUrl": {
+            "description": "Source URL accepted as `query` by `POST /api/v1/resolve`. Send it unchanged to persist the track and obtain `id`, `shortUrl`, metadata, and service links.",
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": ["id", "title", "artists", "webUrl"],
+        "type": "object"
+      },
+      "LinkMetadataResponse": {
+        "additionalProperties": false,
+        "description": "Stored track metadata and public service links for one previously resolved track.",
+        "example": {
+          "id": "tr_01HZ8N2B6P7Q8W9E3R4T5Y6U7I",
+          "links": [
+            {
+              "confidence": 1,
+              "displayName": "Spotify",
+              "matchMethod": "cache",
+              "service": "spotify",
+              "url": "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L"
+            }
+          ],
+          "track": {
+            "artists": ["a-ha"],
+            "title": "Take on Me",
+            "vinylLayout": null
+          }
+        },
+        "properties": {
+          "id": {
+            "description": "Persisted musiccloud track ID echoed from the request path. Obtain it from the top-level `id` of a successful track resolve.",
+            "type": "string"
+          },
+          "links": {
+            "description": "Available deep-links to the track on streaming services.",
+            "items": {
+              "$ref": "#/components/schemas/PlatformLink"
+            },
+            "type": "array"
+          },
+          "track": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Track"
+              }
+            ],
+            "description": "Stored canonical metadata for the resolved track."
+          }
+        },
+        "required": ["id", "track", "links"],
+        "type": "object"
+      },
+      "OgMeta": {
+        "additionalProperties": false,
+        "description": "Open Graph metadata for rendering a share page and its social preview.",
+        "example": {
+          "description": "Listen on Spotify, Apple Music, Deezer, YouTube Music and 16+ more services.",
+          "image": "https://i.scdn.co/image/ab67616d0000b273e58a0f7f1f2f8e4f6a3c8b2d",
+          "title": "a-ha — Take on Me",
+          "url": "https://musiccloud.io/aBc123x"
+        },
+        "properties": {
+          "description": {
+            "description": "Open-Graph description for the share page.",
+            "type": "string"
+          },
+          "image": {
+            "description": "Open-Graph image URL. The key is always included; a service fallback image is used when no artwork exists.",
+            "format": "uri",
+            "type": "string"
+          },
+          "title": {
+            "description": "Open-Graph title for the share page.",
+            "type": "string"
+          },
+          "url": {
+            "description": "Canonical public URL represented by these Open-Graph tags.",
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": ["title", "description", "image", "url"],
+        "type": "object"
+      },
+      "PlatformLink": {
+        "additionalProperties": false,
+        "description": "One streaming-service link for a resolved track/album/artist.",
+        "example": {
+          "confidence": 1,
+          "displayName": "Spotify",
+          "matchMethod": "isrc",
+          "service": "spotify",
+          "url": "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L"
+        },
+        "properties": {
+          "confidence": {
+            "description": "Match confidence in the inclusive range `0` to `1`. A value of `1` is an identity match; lower values are fuzzy matches.",
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "displayName": {
+            "description": "Human-friendly service name.",
+            "type": "string"
+          },
+          "matchMethod": {
+            "description": "How this link was located: `isrc` and `upc` are direct identifier matches, `isrc-inference` derives an ISRC match from related metadata, `search` is a text search, and `cache` means a previously stored link was returned.",
+            "enum": ["isrc", "search", "cache", "upc", "isrc-inference"],
+            "type": "string"
+          },
+          "service": {
+            "description": "Stable service identifier, for example `spotify`, `apple-music`, or `deezer`.",
+            "type": "string"
+          },
+          "url": {
+            "description": "Deep-link that opens the item on that service.",
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": ["service", "displayName", "url", "confidence", "matchMethod"],
+        "type": "object"
+      },
+      "ResolveDisambiguation": {
+        "additionalProperties": false,
+        "description": "Resolve could not pick one match; the caller must choose from `candidates`.",
+        "example": {
+          "candidates": [
+            {
+              "albumName": "Hunting High and Low",
+              "artists": ["a-ha"],
+              "artworkUrl": "https://i.scdn.co/image/ab67616d0000b273e58a0f7f1f2f8e4f6a3c8b2d",
+              "id": "spotify:2WfaOiMkCvy7F5fcp2zZ8L",
+              "title": "Take on Me"
+            },
+            {
+              "albumName": "MTV Unplugged — Summer Solstice",
+              "artists": ["a-ha"],
+              "artworkUrl": "https://i.scdn.co/image/ab67616d0000b27309d2e5cb5e5a8f6a3c8b2d0a",
+              "id": "spotify:4VqPOruhp5EdPBeR92t6lQ",
+              "title": "Take on Me (MTV Unplugged)"
+            }
+          ],
+          "status": "disambiguation"
+        },
+        "properties": {
+          "candidates": {
+            "description": "Candidate matches to present to the user for selection.",
+            "items": {
+              "$ref": "#/components/schemas/DisambiguationCandidate"
+            },
+            "type": "array"
+          },
+          "status": {
+            "description": "Always `disambiguation`; choose one item from `candidates` before resolving again.",
+            "enum": ["disambiguation"],
+            "type": "string"
+          }
+        },
+        "required": ["status", "candidates"],
+        "type": "object"
+      },
+      "ResolveSuccess": {
+        "additionalProperties": false,
+        "description": "Successful track resolve: unified metadata plus per-service deep-links.",
+        "example": {
+          "id": "tr_01HZ8N2B6P7Q8W9E3R4T5Y6U7I",
+          "links": [
+            {
+              "confidence": 1,
+              "displayName": "Spotify",
+              "matchMethod": "isrc",
+              "service": "spotify",
+              "url": "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L"
+            },
+            {
+              "confidence": 1,
+              "displayName": "Apple Music",
+              "matchMethod": "isrc",
+              "service": "apple-music",
+              "url": "https://music.apple.com/us/album/take-on-me/1433036073?i=1433036081"
+            },
+            {
+              "confidence": 1,
+              "displayName": "Deezer",
+              "matchMethod": "isrc",
+              "service": "deezer",
+              "url": "https://www.deezer.com/track/14408535"
+            },
+            {
+              "confidence": 0.92,
+              "displayName": "YouTube",
+              "matchMethod": "search",
+              "service": "youtube",
+              "url": "https://www.youtube.com/watch?v=djV11Xbc914"
+            }
+          ],
+          "shortUrl": "https://musiccloud.io/aBc123x",
+          "track": {
+            "albumName": "Hunting High and Low",
+            "artists": ["a-ha"],
+            "artworkUrl": "https://i.scdn.co/image/ab67616d0000b273e58a0f7f1f2f8e4f6a3c8b2d",
+            "durationMs": 225280,
+            "isExplicit": false,
+            "isrc": "GBAYE8500114",
+            "previewUrl": "https://p.scdn.co/mp3-preview/7ae363b1bc5d7c6bd9cbca4d4f2ae6e3a8c7b0f5",
+            "releaseDate": "1985-06-01",
+            "title": "Take on Me",
+            "vinylLayout": null
+          }
+        },
+        "properties": {
+          "id": {
+            "description": "Persisted musiccloud track ID. Pass this exact value as `{id}` to `GET /api/v1/link/{id}` to retrieve the stored metadata and service links again.",
+            "type": "string"
+          },
+          "links": {
+            "description": "Cross-service deep-links for the resolved track.",
+            "items": {
+              "$ref": "#/components/schemas/PlatformLink"
+            },
+            "type": "array"
+          },
+          "shortUrl": {
+            "description": "Canonical public share URL. Its final path segment is the `shortId` accepted by `GET /api/v1/share/{shortId}` and `GET /api/v1/share/{shortId}/preview`.",
+            "format": "uri",
+            "type": "string"
+          },
+          "track": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Track"
+              }
+            ],
+            "description": "Unified metadata for the resolved track."
+          }
+        },
+        "required": ["id", "shortUrl", "track", "links"],
+        "type": "object"
+      },
+      "SharePage": {
+        "description": "Unified share payload discriminated by `type`. Commercial `track`, `album`, and `artist` variants carry the matching entity, `links`, `og`, and `shortUrl`. `cc-track` carries only `track`, `og`, and `shortUrl`; `cc-album` and `cc-artist` additionally carry `artistInfo`. Creative Commons variants never carry `links`.",
+        "example": {
+          "links": [
+            {
+              "confidence": 1,
+              "displayName": "Spotify",
+              "matchMethod": "cache",
+              "service": "spotify",
+              "url": "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L"
+            },
+            {
+              "confidence": 1,
+              "displayName": "Apple Music",
+              "matchMethod": "cache",
+              "service": "apple-music",
+              "url": "https://music.apple.com/us/album/take-on-me/1433036073?i=1433036081"
+            }
+          ],
+          "og": {
+            "description": "Listen on Spotify, Apple Music, Deezer, YouTube Music and 16+ more services.",
+            "image": "https://i.scdn.co/image/ab67616d0000b273e58a0f7f1f2f8e4f6a3c8b2d",
+            "title": "a-ha — Take on Me",
+            "url": "https://musiccloud.io/aBc123x"
+          },
+          "shortUrl": "https://musiccloud.io/aBc123x",
+          "track": {
+            "albumName": "Hunting High and Low",
+            "artists": ["a-ha"],
+            "artworkUrl": "https://i.scdn.co/image/ab67616d0000b273e58a0f7f1f2f8e4f6a3c8b2d",
+            "durationMs": 225280,
+            "isExplicit": false,
+            "isrc": "GBAYE8500114",
+            "releaseDate": "1985-06-01",
+            "title": "Take on Me",
+            "vinylLayout": null
+          },
+          "type": "track"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/CommercialTrackSharePageResponse"
+          },
+          {
+            "$ref": "#/components/schemas/CommercialAlbumSharePageResponse"
+          },
+          {
+            "$ref": "#/components/schemas/CommercialArtistSharePageResponse"
+          },
+          {
+            "$ref": "#/components/schemas/CcTrackSharePageResponse"
+          },
+          {
+            "$ref": "#/components/schemas/CcAlbumSharePageResponse"
+          },
+          {
+            "$ref": "#/components/schemas/CcArtistSharePageResponse"
+          }
+        ]
+      },
+      "SharePreviewResponse": {
+        "additionalProperties": false,
+        "description": "Refreshed Deezer preview URL for a commercial track share.",
+        "example": {
+          "previewUrl": "https://cdn.example.com/previews/take-on-me.mp3"
+        },
+        "properties": {
+          "previewUrl": {
+            "anyOf": [
+              {
+                "format": "uri",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The key is always included. Its value is a currently usable preview URL, or `null` when no preview can be produced for the track."
+          }
+        },
+        "required": ["previewUrl"],
+        "type": "object"
+      },
+      "SimilarArtistTrack": {
+        "additionalProperties": false,
+        "description": "One related artist and that artist's selected top track. The object is always present in `similarArtistTracks`; its `track` value can be `null`.",
+        "example": {
+          "artistName": "Savoy",
+          "track": {
+            "albumName": "Mountains of Time",
+            "artists": ["Savoy"],
+            "artworkUrl": "https://e-cdns-images.dzcdn.net/images/cover/def456/500x500-000000-80-0-0.jpg",
+            "deezerUrl": "https://www.deezer.com/track/987654",
+            "durationMs": 218000,
+            "shortId": null,
+            "title": "Velvet"
+          }
+        },
+        "properties": {
+          "artistName": {
+            "description": "Similar artist's display name.",
+            "type": "string"
+          },
+          "track": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArtistTopTrack"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The key is always included. Its value is the related artist's selected top track, or `null` when no resolvable track is available."
+          }
+        },
+        "required": ["artistName", "track"],
+        "type": "object"
+      },
+      "Track": {
+        "additionalProperties": false,
+        "description": "Canonical track metadata returned across the public API.",
+        "example": {
+          "albumName": "Hunting High and Low",
+          "artistCredits": [
+            {
+              "artistEntityId": "artist_a_ha",
+              "name": "a-ha",
+              "position": 0,
+              "role": "main"
+            }
+          ],
+          "artists": ["a-ha"],
+          "artworkUrl": "https://i.scdn.co/image/ab67616d0000b273e58a0f7f1f2f8e4f6a3c8b2d",
+          "durationMs": 225280,
+          "isExplicit": false,
+          "isrc": "GBAYE8500114",
+          "previewUrl": "https://p.scdn.co/mp3-preview/7ae363b1bc5d7c6bd9cbca4d4f2ae6e3a8c7b0f5",
+          "releaseDate": "1985-06-01",
+          "title": "Take on Me",
+          "vinylLayout": null
+        },
+        "properties": {
+          "albumName": {
+            "description": "Containing album title. The key is omitted when no album title is available.",
+            "type": "string"
+          },
+          "artistCredits": {
+            "description": "Normalized artist entity credits in display order. The key is omitted when no normalized credits are stored for this track.",
+            "items": {
+              "$ref": "#/components/schemas/ArtistCredit"
+            },
+            "type": "array"
+          },
+          "artists": {
+            "description": "Credited artists, ordered as the origin service returns them (primary first).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "artworkUrl": {
+            "description": "Absolute artwork URL. The key is omitted when no artwork is available.",
+            "format": "uri",
+            "type": "string"
+          },
+          "durationMs": {
+            "description": "Track duration in milliseconds. The key is omitted when the duration is unavailable.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "isExplicit": {
+            "description": "Whether the track carries an explicit-content advisory. The key is omitted when the source gives no advisory state.",
+            "type": "boolean"
+          },
+          "isrc": {
+            "description": "International Standard Recording Code. The key is omitted when the source exposes no `ISRC`.",
+            "type": "string"
+          },
+          "previewRefreshable": {
+            "description": "Set to `true` when `previewUrl` is absent but `GET /api/v1/share/{shortId}/preview` can attempt a refresh. The key is omitted otherwise.",
+            "type": "boolean"
+          },
+          "previewUrl": {
+            "description": "Preview audio URL, typically an MP3 clip. The key is omitted when no usable preview is currently available.",
+            "format": "uri",
+            "type": "string"
+          },
+          "releaseDate": {
+            "description": "Original release date in `YYYY-MM-DD` format. The key is omitted when unavailable.",
+            "format": "date",
+            "type": "string"
+          },
+          "title": {
+            "description": "Track title as reported by the origin service.",
+            "type": "string"
+          },
+          "vinylLayout": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VinylLayout"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The key is always included on public track response objects. Its value is the Discogs-derived vinyl layout for the containing album, or `null` when no suitable pressing is available."
+          }
+        },
+        "required": ["title", "artists", "vinylLayout"],
+        "type": "object"
+      },
+      "TrackResolveSuccess": {
+        "additionalProperties": false,
+        "description": "Successful track resolve (type-discriminated variant used inside `UnifiedResolveSuccess`).",
+        "example": {
+          "id": "tr_01HZ8N2B6P7Q8W9E3R4T5Y6U7I",
+          "links": [
+            {
+              "confidence": 1,
+              "displayName": "Spotify",
+              "matchMethod": "isrc",
+              "service": "spotify",
+              "url": "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L"
+            },
+            {
+              "confidence": 1,
+              "displayName": "Apple Music",
+              "matchMethod": "isrc",
+              "service": "apple-music",
+              "url": "https://music.apple.com/us/album/take-on-me/1433036073?i=1433036081"
+            },
+            {
+              "confidence": 1,
+              "displayName": "Deezer",
+              "matchMethod": "isrc",
+              "service": "deezer",
+              "url": "https://www.deezer.com/track/14408535"
+            },
+            {
+              "confidence": 0.92,
+              "displayName": "YouTube",
+              "matchMethod": "search",
+              "service": "youtube",
+              "url": "https://www.youtube.com/watch?v=djV11Xbc914"
+            }
+          ],
+          "shortUrl": "https://musiccloud.io/aBc123x",
+          "track": {
+            "albumName": "Hunting High and Low",
+            "artists": ["a-ha"],
+            "artworkUrl": "https://i.scdn.co/image/ab67616d0000b273e58a0f7f1f2f8e4f6a3c8b2d",
+            "durationMs": 225280,
+            "isExplicit": false,
+            "isrc": "GBAYE8500114",
+            "previewUrl": "https://p.scdn.co/mp3-preview/7ae363b1bc5d7c6bd9cbca4d4f2ae6e3a8c7b0f5",
+            "releaseDate": "1985-06-01",
+            "title": "Take on Me",
+            "vinylLayout": null
+          },
+          "type": "track"
+        },
+        "properties": {
+          "id": {
+            "description": "Persisted musiccloud track ID accepted by `GET /api/v1/link/{id}`. It is distinct from the share code in the final path segment of `shortUrl`.",
+            "type": "string"
+          },
+          "links": {
+            "description": "Cross-service deep-links for the resolved track.",
+            "items": {
+              "$ref": "#/components/schemas/PlatformLink"
+            },
+            "type": "array"
+          },
+          "shortUrl": {
+            "description": "Canonical musiccloud share URL for this resolved track.",
+            "format": "uri",
+            "type": "string"
+          },
+          "track": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Track"
+              }
+            ],
+            "description": "Unified metadata for the resolved track."
+          },
+          "type": {
+            "description": "Discriminator: always `track` for this variant.",
+            "enum": ["track"],
+            "type": "string"
+          }
+        },
+        "required": ["type", "id", "shortUrl", "track", "links"],
+        "type": "object"
+      },
+      "UnifiedResolveSuccess": {
+        "description": "Successful resolve, one of three shapes discriminated by `type`. Use `type` to decide whether to read `track`, `album`, or `artist`.",
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/TrackResolveSuccess"
+          },
+          {
+            "$ref": "#/components/schemas/AlbumResolveSuccess"
+          },
+          {
+            "$ref": "#/components/schemas/ArtistResolveSuccess"
+          }
+        ]
+      },
+      "VinylLayout": {
+        "additionalProperties": false,
+        "description": "Discogs-derived side and track timing data for a matched vinyl release.",
+        "example": {
+          "discogsReleaseId": "249504",
+          "sides": [
+            {
+              "label": "A",
+              "tracks": [
+                {
+                  "durationMs": 225280,
+                  "position": "A1",
+                  "title": "Take on Me"
+                }
+              ]
+            }
+          ]
+        },
+        "properties": {
+          "discogsReleaseId": {
+            "description": "Numeric Discogs release ID used as the layout source. Append it to `https://www.discogs.com/release/` to link to that exact pressing.",
+            "type": "string"
+          },
+          "sides": {
+            "description": "Physical vinyl sides with their ordered tracks.",
+            "items": {
+              "$ref": "#/components/schemas/VinylSide"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["discogsReleaseId", "sides"],
+        "type": "object"
+      },
+      "VinylLayoutTrack": {
+        "additionalProperties": false,
+        "description": "One track on a physical vinyl side, including its Discogs position and duration.",
+        "example": {
+          "durationMs": 225280,
+          "position": "A1",
+          "title": "Take on Me"
+        },
+        "properties": {
+          "durationMs": {
+            "description": "Track duration in milliseconds for this vinyl pressing.",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "position": {
+            "description": "Discogs position string, for example `A1` or `B2`.",
+            "type": "string"
+          },
+          "title": {
+            "description": "Track title printed for this physical release.",
+            "type": "string"
+          }
+        },
+        "required": ["position", "title", "durationMs"],
+        "type": "object"
+      },
+      "VinylSide": {
+        "additionalProperties": false,
+        "description": "One physical vinyl side with its tracks in play order.",
+        "example": {
+          "label": "A",
+          "tracks": [
+            {
+              "durationMs": 225280,
+              "position": "A1",
+              "title": "Take on Me"
+            }
+          ]
+        },
+        "properties": {
+          "label": {
+            "description": "Physical side label, for example `A` or `B`.",
+            "type": "string"
+          },
+          "tracks": {
+            "description": "Tracks on this physical side in playback order.",
+            "items": {
+              "$ref": "#/components/schemas/VinylLayoutTrack"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["label", "tracks"],
+        "type": "object"
       }
     },
-    "/api/v1/resolve": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "in": "header",
+        "name": "X-API-Key",
+        "type": "apiKey"
+      }
+    }
+  },
+  "info": {
+    "description": "Public REST API for resolving music URLs and search queries, retrieving persisted shares, and consuming Creative-Commons media and metadata.\n\n## Authentication\n\nExactly three operations require an issued API key: `POST /api/v1/resolve`, `POST /api/v1/cc/resolve`, and `GET /api/v1/link/{id}`. Send the key as `X-API-Key: mc_live_<prefix>_<secret>`. All other operations in this reference are callable without an API key. Request API access at https://developer.musiccloud.io/dashboard/api-access, then create or rotate keys at https://developer.musiccloud.io/dashboard/api-keys. A key is shown only when created or rotated. Store it as a secret and never embed it in browser code. Missing, invalid, disabled, or revoked keys receive `401`.\n\n## Rate limiting\n\nThree independent rules can apply:\n\n1. The three API-key operations use the rolling `60`-second and rolling `24`-hour quotas assigned to that API client.\n2. Public data operations `GET /api/v1/resolve`, `GET /api/v1/share/{shortId}`, `GET /api/v1/share/{shortId}/preview`, `GET /api/v1/artist-info`, `GET /api/v1/cc/artist-info`, `GET /api/v1/cc/audio/{jamendoId}`, `GET /api/v1/cc/download/{jamendoId}`, and `GET /api/v1/cc/bandcamp/{jamendoId}` allow `10` requests in a rolling `60`-second window per client IP.\n3. Every route is also protected by a global ceiling of `300` requests in a rolling `60`-second window per client IP.\n\nA rejected request returns `429 Too Many Requests`, the `ErrorResponse` JSON body, and `Retry-After`. When available, `context.limit`, `context.windowSeconds`, and `context.retryAfterSeconds` describe the rule that rejected the request.",
+    "title": "musiccloud API",
+    "version": "2.1.3"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/api/v1/artist-info": {
       "get": {
-        "operationId": "resolveTrackPublic",
-        "tags": ["Resolve"],
-        "x-nav-title": "Quick resolve",
-        "summary": "Resolve a streaming URL without an API key",
-        "description": "Public GET resolver for low-volume shortcut and curl usage.",
+        "description": "Returns commercial artist details in one stable object: up to `5` top tracks, an assembled profile or `null`, up to `5` upcoming events, and up to `5` related-artist track lookups. Every top-level key is included; unavailable lists are empty. When `region` is supplied, matching events are sorted first.",
         "parameters": [
           {
-            "name": "url",
+            "description": "Artist display name to look up. Leading and trailing whitespace is ignored, and a trailing YouTube auto-channel suffix ` - Topic` is removed before matching. Use the spelling returned in track or artist metadata when available.",
             "in": "query",
+            "name": "name",
             "required": true,
-            "schema": { "type": "string", "format": "uri" },
-            "description": "Source track URL."
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Country preference for event ordering. Supply a two-letter ISO `3166-1 alpha-2` code such as `NO`; matching is case-insensitive. Only the first two characters are used. Matching events are placed first and each group is ordered by `date`.\n\n**Default**: no country is prioritized and events remain in ascending date order.",
+            "in": "query",
+            "name": "region",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional musiccloud track share code. Take the last path segment of `shortUrl` from a successful track response from `POST /api/v1/resolve` or `GET /api/v1/resolve`. When the share's stored service links identify an alternate artist known to musiccloud, that name replaces `name` for this lookup. Otherwise `name` is used unchanged after normalization.\n\n**Default**: the supplied `name` is used directly, with no persisted-resolution context.",
+            "in": "query",
+            "name": "shortId",
+            "required": false,
+            "schema": {
+              "maxLength": 32,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Set to `profile` to fetch profile metadata again before responding, even when the stored profile snapshot is younger than `183` days. This does not force a refresh of top tracks or events: those sections are fetched again only when their stored snapshots are at least `7` days and `24` hours old, respectively.\n\n**Default**: profile metadata is fetched when no stored snapshot exists or its snapshot is at least `183` days old.",
+            "in": "query",
+            "name": "refresh",
+            "required": false,
+            "schema": {
+              "enum": ["profile"],
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Resolved track links.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ResolveSuccess" }
+                "schema": {
+                  "$ref": "#/components/schemas/ArtistInfo"
+                }
+              }
+            },
+            "description": "`ArtistInfo` containing up to `5` selected top tracks, a nullable profile, up to `5` upcoming events, and related-artist track lookups."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or empty `name` query parameter."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "This client IP exceeded `10` requests in a rolling `60`-second window.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying the request.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
               }
             }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected server error. Use `errorId` from the response when reporting the failure."
           }
-        }
-      },
-      "post": {
-        "operationId": "resolveTrack",
-        "tags": ["Resolve"],
-        "x-nav-title": "Resolve link",
-        "summary": "Resolve a streaming URL",
-        "description": "Resolve a source URL across supported services.",
-        "security": [{ "ApiKeyAuth": [] }],
+        },
+        "summary": "Aggregated artist info (top tracks, profile, events)",
+        "tags": ["Artist"],
+        "x-codeSamples": [
+          {
+            "label": "cURL",
+            "lang": "Shell",
+            "source": "curl \"https://api.musiccloud.io/api/v1/artist-info?name=a-ha&region=NO\""
+          },
+          {
+            "label": "Bash",
+            "lang": "Shell",
+            "source": "#!/usr/bin/env bash\nset -euo pipefail\n\nBASE_URL=\"https://api.musiccloud.io\"\n\nresponse=$(curl -sS \"$BASE_URL/api/v1/artist-info?name=a-ha&region=NO\")\n\necho \"$response\" | jq ."
+          },
+          {
+            "lang": "JavaScript",
+            "source": "const response = await fetch(\"https://api.musiccloud.io/api/v1/artist-info?name=a-ha&region=NO\");\nconst data = await response.json();"
+          },
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.get(\"https://api.musiccloud.io/api/v1/artist-info?name=a-ha&region=NO\")\ndata = response.json()"
+          },
+          {
+            "lang": "PHP",
+            "source": "<?php\n\n$ch = curl_init(\"https://api.musiccloud.io/api/v1/artist-info?name=a-ha&region=NO\");\ncurl_setopt($ch, CURLOPT_RETURNTRANSFER, true);\n\n$response = curl_exec($ch);\ncurl_close($ch);\n$data = json_decode($response, true);"
+          },
+          {
+            "lang": "Ruby",
+            "source": "require \"net/http\"\nrequire \"json\"\n\nuri = URI(\"https://api.musiccloud.io/api/v1/artist-info?name=a-ha&region=NO\")\nhttp = Net::HTTP.new(uri.host, uri.port)\nhttp.use_ssl = uri.scheme == \"https\"\n\nrequest = Net::HTTP::Get.new(uri.request_uri)\n\nresponse = http.request(request)\ndata = JSON.parse(response.body)"
+          },
+          {
+            "lang": "Swift",
+            "source": "import Foundation\n\nlet url = URL(string: \"https://api.musiccloud.io/api/v1/artist-info?name=a-ha&region=NO\")!\nvar request = URLRequest(url: url)\nrequest.httpMethod = \"GET\"\n\nlet (data, _) = try await URLSession.shared.data(for: request)\nlet json = try JSONSerialization.jsonObject(with: data)"
+          }
+        ]
+      }
+    },
+    "/api/v1/cc/artist-info": {
+      "get": {
+        "description": "Returns `CcArtistInfo` for one Jamendo artist: up to `20` popular tracks in descending popularity order, a profile or `null`, up to `12` tracks by related artists, and an always-empty `events` array. Candidate values in `topTracks[].deezerUrl` and `similarArtistTracks[].track.deezerUrl` are opaque `jamendo:<trackId>` tokens, not URLs. Pass one unchanged as `selectedCandidate` to `POST /api/v1/cc/resolve` to persist and resolve that track.",
         "parameters": [
           {
-            "name": "url",
+            "description": "Numeric Jamendo artist ID. Read `track.jamendoArtistId`, `album.tracks[].jamendoArtistId`, or `artist.jamendoId` from a successful `POST /api/v1/cc/resolve` or `GET /api/v1/share/{shortId}` response.",
             "in": "query",
+            "name": "jamendoArtistId",
             "required": true,
-            "schema": { "type": "string", "format": "uri" },
-            "description": "Source track URL."
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/ResolveRequest" },
-              "example": { "url": "https://open.spotify.com/track/example" }
+            "schema": {
+              "maxLength": 32,
+              "minLength": 1,
+              "pattern": "^[0-9]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Display label for the artist identified by `jamendoArtistId`. Read it from `track.artistName`, `album.artistName`, or `artist.name` in the same response as the ID. The ID, not this name, controls which Jamendo artist, profile, and tracks are fetched; the supplied string is returned as `artistName`.",
+            "in": "query",
+            "name": "artistName",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
             }
           }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CcArtistInfo"
+                }
+              }
+            },
+            "description": "`CcArtistInfo` derived from the requested Jamendo artist."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`jamendoArtistId` is not numeric, or `artistName` is missing or empty."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "This client IP exceeded `10` requests in a rolling `60`-second window.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying the request.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected server error. Use `errorId` from the response when reporting the failure."
+          }
+        },
+        "summary": "Get Creative Commons artist details and related tracks",
+        "tags": ["CC"]
+      }
+    },
+    "/api/v1/cc/audio/{jamendoId}": {
+      "get": {
+        "description": "Returns the selected full-track representation as raw audio bytes, not JSON. For ordinary browser playback, point an `<audio>` element directly at the endpoint:\n\n```html\n<audio controls src=\"https://api.musiccloud.io/api/v1/cc/audio/123456?format=mp32\"></audio>\n```\n\nFor `fetch`, consume `response.body` as a byte stream or call `response.blob()`; do not call `response.json()`. A `Blob` is available only after the complete response has been buffered, so use streaming or a direct `<audio>` URL for long tracks.\n\n**Formats.** `format=mp31` selects MP3 at `96 kbps`; `format=mp32` selects MP3 at approximately `256 kbps`; `format=ogg` selects Ogg Vorbis; and `format=flac` selects lossless FLAC. The default is `mp32`. The response `Content-Type` identifies the actual representation.\n\n**Seeking and resumable reads.** Send a valid HTTP range such as `Range: bytes=0-1048575` or `Range: bytes=-1048576`. A satisfiable range returns `206` and `Content-Range`; a complete representation returns `200`. `Accept-Ranges` is always `bytes`. `Content-Length` and `Cache-Control` are included only when supplied for the selected representation.",
+        "parameters": [
+          {
+            "description": "Jamendo delivery format: `mp31` (MP3 96 kbps), `mp32` (MP3 about 256 kbps), `ogg`, or `flac`. Invalid values also fall back to `mp32`.\n\n**Default**: `mp32`.",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "mp32",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Numeric Jamendo track ID. Read `track.jamendoId`, `album.tracks[].jamendoId`, or `artist.topTracks[].jamendoId` from a successful `POST /api/v1/cc/resolve` or `GET /api/v1/share/{shortId}` response.",
+            "in": "path",
+            "name": "jamendoId",
+            "required": true,
+            "schema": {
+              "maxLength": 32,
+              "minLength": 1,
+              "pattern": "^[0-9]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Optional HTTP byte range, for example `bytes=0-1048575`. Omit it for the complete stream.",
+            "in": "header",
+            "name": "range",
+            "required": false,
+            "schema": {
+              "pattern": "^bytes=(?:[0-9]+-[0-9]*|-[0-9]+)$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "audio/flac": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "audio/mpeg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "audio/ogg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Complete full raw audio stream when no byte range was requested.",
+            "headers": {
+              "Accept-Ranges": {
+                "description": "Always `bytes`.",
+                "schema": {
+                  "enum": ["bytes"],
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "Cache policy for the selected audio representation. The header is omitted when no policy is available.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Length": {
+                "description": "Complete representation size in bytes. The header is omitted when the size is unavailable.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "206": {
+            "content": {
+              "audio/flac": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "audio/mpeg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "audio/ogg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Requested raw-audio byte range. `Content-Range` identifies the delivered segment.",
+            "headers": {
+              "Accept-Ranges": {
+                "description": "Always `bytes`.",
+                "schema": {
+                  "enum": ["bytes"],
+                  "type": "string"
+                }
+              },
+              "Cache-Control": {
+                "description": "Cache policy for the selected audio representation. The header is omitted when no policy is available.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Length": {
+                "description": "Delivered range size in bytes. The header is omitted when the size is unavailable.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "Content-Range": {
+                "description": "Delivered byte interval and complete size, for example `bytes 0-1048575/7340032`.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`jamendoId` is not numeric or `Range` does not use a supported single-byte-range syntax."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Creative Commons track exists for this `jamendoId`."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "This client IP exceeded `10` requests in a rolling `60`-second window.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying the request.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected server error. Use `errorId` from the response when reporting the failure."
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The upstream Jamendo audio stream is unavailable or returned no body."
+          }
+        },
+        "summary": "Stream a full Creative Commons track",
+        "tags": ["CC"]
+      }
+    },
+    "/api/v1/cc/bandcamp/{jamendoId}": {
+      "get": {
+        "description": "Returns `bandcampUrl` when the Jamendo track has a sufficiently reliable matching Bandcamp listing. Returns an empty object when the Jamendo ID is unknown or no safe match can be confirmed. Treat an omitted key as unavailable and do not construct a Bandcamp URL yourself.",
+        "parameters": [
+          {
+            "description": "Numeric Jamendo track ID. Read `track.jamendoId`, `album.tracks[].jamendoId`, or `artist.topTracks[].jamendoId` from a successful `POST /api/v1/cc/resolve` or `GET /api/v1/share/{shortId}` response.",
+            "in": "path",
+            "name": "jamendoId",
+            "required": true,
+            "schema": {
+              "maxLength": 32,
+              "minLength": 1,
+              "pattern": "^[0-9]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CcBandcampAvailabilityResponse"
+                }
+              }
+            },
+            "description": "Bandcamp availability for the Creative Commons track."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`jamendoId` is not numeric."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "This client IP exceeded `10` requests in a rolling `60`-second window.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying the request.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected server error. Use `errorId` from the response when reporting the failure."
+          }
+        },
+        "summary": "Whether a CC track is also available on Bandcamp",
+        "tags": ["CC"]
+      }
+    },
+    "/api/v1/cc/download/{jamendoId}": {
+      "get": {
+        "description": "Returns a complete Creative Commons track as a downloadable attachment. `Content-Disposition` provides an ASCII fallback and a UTF-8 filename following `Artist_Album_NN_Title.ext`; unavailable album and track-position segments are omitted. `format=mp31` selects MP3 at `96 kbps`, `format=mp32` selects MP3 at approximately `256 kbps`, `format=ogg` selects Ogg Vorbis, and `format=flac` selects lossless FLAC. The default is `mp32`. Check `track.downloadAllowed` before offering this action; the endpoint returns `403` when downloads are not permitted.",
+        "parameters": [
+          {
+            "description": "Jamendo delivery format: `mp31` (MP3 96 kbps), `mp32` (MP3 about 256 kbps), `ogg`, or `flac`. Invalid values also fall back to `mp32`.\n\n**Default**: `mp32`.",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "mp32",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Numeric Jamendo track ID. Read `track.jamendoId`, `album.tracks[].jamendoId`, or `artist.topTracks[].jamendoId` from a successful `POST /api/v1/cc/resolve` or `GET /api/v1/share/{shortId}` response.",
+            "in": "path",
+            "name": "jamendoId",
+            "required": true,
+            "schema": {
+              "maxLength": 32,
+              "minLength": 1,
+              "pattern": "^[0-9]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "audio/flac": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "audio/mpeg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "audio/ogg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Complete Creative Commons audio file served as an attachment.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Always `no-store`.",
+                "schema": {
+                  "enum": ["no-store"],
+                  "type": "string"
+                }
+              },
+              "Content-Disposition": {
+                "description": "Attachment filename in ASCII `filename=` and UTF-8 `filename*=` forms, for example `Artist_Album_01_Title.mp3`.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Length": {
+                "description": "Complete audio-file size in bytes. The header is omitted when the size is unavailable.",
+                "schema": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`jamendoId` is not numeric."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The track's Creative Commons terms do not permit downloads."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No Creative Commons track exists for this `jamendoId`."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "This client IP exceeded `10` requests in a rolling `60`-second window.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying the request.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected server error. Use `errorId` from the response when reporting the failure."
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The upstream Jamendo audio file is unavailable or returned no body."
+          }
+        },
+        "summary": "Download a CC track as a correctly named audio file",
+        "tags": ["CC"]
+      }
+    },
+    "/api/v1/cc/genre-artwork/{genreKey}": {
+      "get": {
+        "description": "Returns a `512×512` JPEG derived only from Creative Commons source artwork. A stable generated image is served with `Cache-Control: public, max-age=31536000, immutable`. If source artwork is temporarily unavailable, the endpoint still returns a fallback JPEG with `Cache-Control: no-store`, allowing a later request to retry generation. This route is subject only to the global limit of `300` requests in a rolling `60`-second window per client IP.",
+        "parameters": [
+          {
+            "description": "Genre name from `CcGenreBrowseResponse.genres[].name`. URL-encode it when inserting it into the path; the endpoint lowercases and normalizes whitespace before validation.",
+            "in": "path",
+            "name": "genreKey",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Generated, cached, or transient fallback Creative Commons genre artwork as raw JPEG bytes.",
+            "headers": {
+              "Cache-Control": {
+                "description": "`public, max-age=31536000, immutable` for a stable image, or `no-store` for a transient fallback.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The normalized genre key contains invalid characters."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Global rate limit exceeded. Retry after the interval provided by the `Retry-After` header.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying the request.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected server error. Use `errorId` from the response when reporting the failure."
+          }
+        },
+        "summary": "Procedurally generated Creative-Commons genre artwork",
+        "tags": ["Artwork"]
+      }
+    },
+    "/api/v1/cc/resolve": {
+      "post": {
+        "description": "Use `query` for Creative-Commons free text, a `title:`/`artist:`/`album:` structured search, or `genre:` discovery. Pasted streaming-service URLs are not accepted. A text search returns `ResolveDisambiguation`; choose one row and send its opaque `candidates[].id` back as `selectedCandidate`. A CC genre result already returns candidate IDs in `results.*[].id`; pass one unchanged as `selectedCandidate` to receive a persisted `cc-track`, `cc-album`, or `cc-artist` response.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "example1": {
+                  "value": {
+                    "query": "ambient piano"
+                  }
+                },
+                "example2": {
+                  "value": {
+                    "selectedCandidate": "jamendo:123456"
+                  }
+                }
+              },
+              "schema": {
+                "additionalProperties": false,
+                "description": "Exactly one of `query` or `selectedCandidate` must be present. Supplying both is rejected with `400`.",
+                "oneOf": [
+                  {
+                    "required": ["query"]
+                  },
+                  {
+                    "required": ["selectedCandidate"]
+                  }
+                ],
+                "properties": {
+                  "query": {
+                    "description": "Creative-Commons free text, structured search beginning with `title:`, `artist:`, or `album:`, or a `genre:` discovery query. Streaming-service URLs are not accepted.",
+                    "example": "ambient piano",
+                    "maxLength": 500,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "selectedCandidate": {
+                    "description": "Opaque candidate token returned as `candidates[].id` or `results.*[].id` by this endpoint. Pass it unchanged; prefixes such as `jamendo:`, `jamendo-album:`, and `jamendo-artist:` identify the response variant.",
+                    "example": "jamendo:123456",
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "description": "Exactly one of `query` or `selectedCandidate` must be present. Supplying both is rejected with `400`.",
+          "required": true
         },
         "responses": {
           "200": {
-            "description": "Resolved track links.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ResolveSuccess" }
+                "schema": {
+                  "description": "A `ResolveDisambiguation` selection list, a persisted `cc-track`, `cc-album`, or `cc-artist`, or a genre-discovery result with `status` equal to `genre-browse` or `genre-search`.",
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ResolveDisambiguation"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CcResolveSuccess"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CcGenreSearchResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CcGenreBrowseResponse"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "A `ResolveDisambiguation` selection list, a persisted `cc-track`, `cc-album`, or `cc-artist`, or a genre-discovery result with `status` equal to `genre-browse` or `genre-search`."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The body does not contain exactly one usable `query` or `selectedCandidate`, the query syntax is invalid, or the candidate token has an unsupported format."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid, or revoked API key."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The selected candidate could not be resolved."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The issued API key exceeded its assigned rolling `60`-second or rolling `24`-hour quota. Inspect `context` and `Retry-After` before retrying.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying the request.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected server error. Use `errorId` from the response when reporting the failure."
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Resolve a Creative-Commons free-text or structured query (Jamendo)",
+        "tags": ["Resolve"]
+      }
+    },
+    "/api/v1/genre-artwork/{genreKey}": {
+      "get": {
+        "description": "Returns a `512×512` JPEG for a normalized genre. A stable generated image is served with `Cache-Control: public, max-age=31536000, immutable`. If source artwork is temporarily unavailable, the endpoint still returns a fallback JPEG with `Cache-Control: no-store`, allowing a later request to retry generation. This route is subject only to the global limit of `300` requests in a rolling `60`-second window per client IP.",
+        "parameters": [
+          {
+            "description": "Genre name from `GenreBrowseResponse.genres[].name`. URL-encode it when inserting it into the path; the endpoint lowercases and normalizes whitespace before validation.",
+            "in": "path",
+            "name": "genreKey",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Generated, cached, or transient fallback genre artwork as raw JPEG bytes.",
+            "headers": {
+              "Cache-Control": {
+                "description": "`public, max-age=31536000, immutable` for a stable image, or `no-store` for a transient fallback.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The normalized genre key contains invalid characters."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Global rate limit exceeded. Retry after the interval provided by the `Retry-After` header.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying the request.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected server error. Use `errorId` from the response when reporting the failure."
+          }
+        },
+        "summary": "Procedurally generated genre artwork",
+        "tags": ["Artwork"]
+      }
+    },
+    "/api/v1/link/{id}": {
+      "get": {
+        "description": "Returns stored metadata and service links for a track that has already been resolved. Use it when you have the top-level `id` from a successful track response and do not need to run another resolve. Because this operation reads stored links, each `links[]` item has `matchMethod` equal to `cache` and `confidence` equal to `1`; these values do not reproduce the original resolve's matching score.",
+        "parameters": [
+          {
+            "description": "Persisted musiccloud track ID from the top-level `id` field of a successful track response from `POST /api/v1/resolve` or `GET /api/v1/resolve` with `format=json`.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkMetadataResponse"
+                }
+              }
+            },
+            "description": "`LinkMetadataResponse` with stored track metadata and service links.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Always `public, max-age=3600`.",
+                "schema": {
+                  "enum": ["public, max-age=3600"],
+                  "type": "string"
+                }
               }
             }
           },
           "401": {
-            "description": "Missing, invalid, or revoked API key.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid, or revoked API key."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No track exists for this `id`."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The issued API key exceeded its assigned rolling `60`-second or rolling `24`-hour quota. Inspect `context` and `Retry-After` before retrying.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying the request.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
               }
             }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected server error. Use `errorId` from the response when reporting the failure."
           }
-        }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Fetch link metadata for a previously-resolved track",
+        "tags": ["Links"],
+        "x-codeSamples": [
+          {
+            "label": "cURL",
+            "lang": "Shell",
+            "source": "curl \"https://api.musiccloud.io/api/v1/link/tr_01HZ8N2B6P7Q8W9E3R4T5Y6U7I\" \\\n  -H \"X-API-Key: <api-key>\""
+          },
+          {
+            "label": "Bash",
+            "lang": "Shell",
+            "source": "#!/usr/bin/env bash\nset -euo pipefail\n\nBASE_URL=\"https://api.musiccloud.io\"\nTOKEN=\"<api-key>\"\n\nresponse=$(curl -sS \"$BASE_URL/api/v1/link/tr_01HZ8N2B6P7Q8W9E3R4T5Y6U7I\" \\\n  -H \"X-API-Key: $TOKEN\")\n\necho \"$response\" | jq ."
+          },
+          {
+            "lang": "JavaScript",
+            "source": "const response = await fetch(\"https://api.musiccloud.io/api/v1/link/tr_01HZ8N2B6P7Q8W9E3R4T5Y6U7I\", {\n  headers: {\n      \"X-API-Key\": \"<api-key>\"\n  },\n});\nconst data = await response.json();"
+          },
+          {
+            "lang": "Python",
+            "source": "import requests\n\nheaders = {\n    \"X-API-Key\": \"<api-key>\",\n}\nresponse = requests.get(\"https://api.musiccloud.io/api/v1/link/tr_01HZ8N2B6P7Q8W9E3R4T5Y6U7I\", headers=headers)\ndata = response.json()"
+          },
+          {
+            "lang": "PHP",
+            "source": "<?php\n\n$ch = curl_init(\"https://api.musiccloud.io/api/v1/link/tr_01HZ8N2B6P7Q8W9E3R4T5Y6U7I\");\ncurl_setopt($ch, CURLOPT_HTTPHEADER, [\"X-API-Key: <api-key>\"]);\ncurl_setopt($ch, CURLOPT_RETURNTRANSFER, true);\n\n$response = curl_exec($ch);\ncurl_close($ch);\n$data = json_decode($response, true);"
+          },
+          {
+            "lang": "Ruby",
+            "source": "require \"net/http\"\nrequire \"json\"\n\nuri = URI(\"https://api.musiccloud.io/api/v1/link/tr_01HZ8N2B6P7Q8W9E3R4T5Y6U7I\")\nhttp = Net::HTTP.new(uri.host, uri.port)\nhttp.use_ssl = uri.scheme == \"https\"\n\nrequest = Net::HTTP::Get.new(uri.request_uri)\nrequest[\"X-API-Key\"] = \"<api-key>\"\n\nresponse = http.request(request)\ndata = JSON.parse(response.body)"
+          },
+          {
+            "lang": "Swift",
+            "source": "import Foundation\n\nlet url = URL(string: \"https://api.musiccloud.io/api/v1/link/tr_01HZ8N2B6P7Q8W9E3R4T5Y6U7I\")!\nvar request = URLRequest(url: url)\nrequest.httpMethod = \"GET\"\nrequest.setValue(\"<api-key>\", forHTTPHeaderField: \"X-API-Key\")\n\nlet (data, _) = try await URLSession.shared.data(for: request)\nlet json = try JSONSerialization.jsonObject(with: data)"
+          }
+        ]
+      }
+    },
+    "/api/v1/resolve": {
+      "get": {
+        "description": "Unauthenticated one-request companion to `POST /api/v1/resolve`, suitable for command-line tools, shortcuts, and other clients that do not need an interactive candidate-selection round. Accepts:\n\n- **Streaming-service URL** (e.g. `https://open.spotify.com/track/...`)\n- **Free-text query** (e.g. `bohemian rhapsody queen`)\n- **Structured search query** — starts with `title:`, `artist:`, or `album:` and resolves tracks only. Use it when the caller knows individual fields and wants more precise adapter-side matching than plain free text.\n\nSupported fields:\n- `title:` — track title. At least one of `title` or `artist` is required.\n- `artist:` — artist name. At least one of `title` or `artist` is required.\n- `album:` — optional album title. Refines a track match and cannot be used alone.\n- `count:` — optional integer from `1` to `10`. Caps the disambiguation candidate list.\n\nSyntax rules:\n- Field names are case-insensitive.\n- Fields are separated by commas. A missing comma before the next known field is tolerated, e.g. `title: foo artist: bar`.\n- Values may contain spaces. Commas are field separators and are not escaped.\n- Duplicate fields, empty values, unknown fields, `count` outside `1`–`10`, and `count` without `title` or `artist` return `400`.\n- `genre:`, `tracks:`, `albums:`, `artists:`, and `vibe:` are rejected here. Use the `genre:` query shape instead.\n\nExamples:\n- `title: The Killing Moon, artist: Echo & The Bunnymen`\n- `artist: Radiohead`\n- `title: Karma Police, artist: Radiohead, album: OK Computer, count: 5`\n\n`GET` has no `selectedCandidate` parameter. Ambiguous structured searches therefore return `400`; use `POST /api/v1/resolve` when the caller must present candidates and submit a selection. A successful `GET` resolve is persisted just like a successful `POST` resolve.\n\nA successful request persists the resolved track and returns either `ResolveSuccess` or its canonical share URL. Malformed input, ambiguous text, or text with no unambiguous match returns `400`. A valid streaming-service URL whose item cannot be found returns `404`.\n\n`genre:` discovery queries are not supported because they return candidate lists. Send those queries to `POST /api/v1/resolve`.",
+        "parameters": [
+          {
+            "description": "Streaming-service URL, free-text query, or structured search query (e.g. `title: Bohemian Rhapsody, artist: Queen`).",
+            "examples": {
+              "bohemian rhapsody queen": {
+                "value": "bohemian rhapsody queen"
+              },
+              "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L": {
+                "value": "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L"
+              },
+              "title: Karma Police, artist: Radiohead, album: OK Computer, count: 5": {
+                "value": "title: Karma Police, artist: Radiohead, album: OK Computer, count: 5"
+              }
+            },
+            "in": "query",
+            "name": "query",
+            "required": true,
+            "schema": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "description": "`json` returns the full response; `text` returns the short URL as plain text.\n\n**Default**: `json`.",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "json",
+              "enum": ["json", "text"],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolveSuccess"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "description": "Canonical musiccloud share URL for the resolved track.",
+                  "format": "uri",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "With `format=json` or no format, returns `ResolveSuccess`. With `format=text`, returns only the canonical share URL as UTF-8 plain text."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The query is missing or malformed, or a text search did not produce one unambiguous match."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The query is a valid streaming-service URL, but the referenced track could not be found."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Upstream service timed out."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "This client IP exceeded `10` requests in a rolling `60`-second window.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying the request.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected server error. Use `errorId` from the response when reporting the failure."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Required upstream service is unavailable."
+          }
+        },
+        "summary": "Resolve a music URL or query (unauthenticated, GET)",
+        "tags": ["Resolve"],
+        "x-codeSamples": [
+          {
+            "label": "cURL",
+            "lang": "Shell",
+            "source": "curl \"https://api.musiccloud.io/api/v1/resolve?query=https%3A%2F%2Fopen.spotify.com%2Ftrack%2F2WfaOiMkCvy7F5fcp2zZ8L\""
+          },
+          {
+            "label": "Bash",
+            "lang": "Shell",
+            "source": "#!/usr/bin/env bash\nset -euo pipefail\n\nBASE_URL=\"https://api.musiccloud.io\"\n\nresponse=$(curl -sS \"$BASE_URL/api/v1/resolve?query=https%3A%2F%2Fopen.spotify.com%2Ftrack%2F2WfaOiMkCvy7F5fcp2zZ8L\")\n\necho \"$response\" | jq ."
+          },
+          {
+            "lang": "JavaScript",
+            "source": "const response = await fetch(\"https://api.musiccloud.io/api/v1/resolve?query=https%3A%2F%2Fopen.spotify.com%2Ftrack%2F2WfaOiMkCvy7F5fcp2zZ8L\");\nconst data = await response.json();"
+          },
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.get(\"https://api.musiccloud.io/api/v1/resolve?query=https%3A%2F%2Fopen.spotify.com%2Ftrack%2F2WfaOiMkCvy7F5fcp2zZ8L\")\ndata = response.json()"
+          },
+          {
+            "lang": "PHP",
+            "source": "<?php\n\n$ch = curl_init(\"https://api.musiccloud.io/api/v1/resolve?query=https%3A%2F%2Fopen.spotify.com%2Ftrack%2F2WfaOiMkCvy7F5fcp2zZ8L\");\ncurl_setopt($ch, CURLOPT_RETURNTRANSFER, true);\n\n$response = curl_exec($ch);\ncurl_close($ch);\n$data = json_decode($response, true);"
+          },
+          {
+            "lang": "Ruby",
+            "source": "require \"net/http\"\nrequire \"json\"\n\nuri = URI(\"https://api.musiccloud.io/api/v1/resolve?query=https%3A%2F%2Fopen.spotify.com%2Ftrack%2F2WfaOiMkCvy7F5fcp2zZ8L\")\nhttp = Net::HTTP.new(uri.host, uri.port)\nhttp.use_ssl = uri.scheme == \"https\"\n\nrequest = Net::HTTP::Get.new(uri.request_uri)\n\nresponse = http.request(request)\ndata = JSON.parse(response.body)"
+          },
+          {
+            "lang": "Swift",
+            "source": "import Foundation\n\nlet url = URL(string: \"https://api.musiccloud.io/api/v1/resolve?query=https%3A%2F%2Fopen.spotify.com%2Ftrack%2F2WfaOiMkCvy7F5fcp2zZ8L\")!\nvar request = URLRequest(url: url)\nrequest.httpMethod = \"GET\"\n\nlet (data, _) = try await URLSession.shared.data(for: request)\nlet json = try JSONSerialization.jsonObject(with: data)"
+          }
+        ]
+      },
+      "post": {
+        "description": "Accepts four query shapes. Pick the one that matches what the user knows:\n\n**1. Streaming-service URL** — e.g. `https://open.spotify.com/track/...`, `https://music.apple.com/...`. Returns unified cross-service metadata. Use when the user already has a link.\n\n**2. Free-text query** — any string that is not a URL and does not start with a structured prefix. Returns a resolved match or a disambiguation list (follow up with `selectedCandidate` to pick one). Use when the user only knows roughly what they want.\n\n**3. Genre-discovery query** — starts with `genre:`. Two sub-modes:\n  - `genre: ?` → browse grid of popular genres (no other fields allowed).\n  - `genre: <name>[|<name>...]<, modifier>*` → discovery results. Modifiers: `tracks`/`albums`/`artists` (`1`–`50` each, default `10` of each when none is specified), `count` (`1`–`50`, sets all three to the same value, mutually exclusive with per-type modifiers), `vibe` (`hot` for the highest-ranked results, `mixed` for a stratified sample across the ranked pool). `|` inside a value means OR.\n  - Example: `genre: jazz|r&b, tracks: 20, vibe: mixed`.\n\n**4. Structured search query** — starts with `title:`, `artist:`, or `album:` and resolves tracks only. Use it when the caller knows individual fields and wants more precise adapter-side matching than plain free text.\n\nSupported fields:\n- `title:` — track title. At least one of `title` or `artist` is required.\n- `artist:` — artist name. At least one of `title` or `artist` is required.\n- `album:` — optional album title. Refines a track match and cannot be used alone.\n- `count:` — optional integer from `1` to `10`. Caps the disambiguation candidate list.\n\nSyntax rules:\n- Field names are case-insensitive.\n- Fields are separated by commas. A missing comma before the next known field is tolerated, e.g. `title: foo artist: bar`.\n- Values may contain spaces. Commas are field separators and are not escaped.\n- Duplicate fields, empty values, unknown fields, `count` outside `1`–`10`, and `count` without `title` or `artist` return `400`.\n- `genre:`, `tracks:`, `albums:`, `artists:`, and `vibe:` are rejected here. Use the `genre:` query shape instead.\n\nExamples:\n- `title: The Killing Moon, artist: Echo & The Bunnymen`\n- `artist: Radiohead`\n- `title: Karma Police, artist: Radiohead, album: OK Computer, count: 5`\n\n`POST` can return `ResolveDisambiguation` for structured searches. Send the chosen `candidates[].id` back as `selectedCandidate` to the same endpoint to complete and persist the resolve.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {
+                "example1": {
+                  "value": {
+                    "query": "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L"
+                  }
+                },
+                "example2": {
+                  "value": {
+                    "query": "title: Karma Police, artist: Radiohead, album: OK Computer, count: 5"
+                  }
+                },
+                "example3": {
+                  "value": {
+                    "selectedCandidate": "spotify:2WfaOiMkCvy7F5fcp2zZ8L"
+                  }
+                }
+              },
+              "schema": {
+                "additionalProperties": false,
+                "description": "Exactly one of `query` or `selectedCandidate` must be present. `query` is a URL or search string; `selectedCandidate` completes a prior disambiguation round.",
+                "oneOf": [
+                  {
+                    "required": ["query"]
+                  },
+                  {
+                    "required": ["selectedCandidate"]
+                  }
+                ],
+                "properties": {
+                  "query": {
+                    "description": "Streaming-service URL, free-text query, genre-discovery query, or structured search query.",
+                    "example": "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L",
+                    "maxLength": 500,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "selectedCandidate": {
+                    "description": "Opaque `candidates[].id` value from a previous `ResolveDisambiguation` response. Pass it unchanged and omit `query`.",
+                    "example": "spotify:2WfaOiMkCvy7F5fcp2zZ8L",
+                    "maxLength": 200,
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "description": "Exactly one of `query` or `selectedCandidate` must be present. `query` is a URL or search string; `selectedCandidate` completes a prior disambiguation round.",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "A persisted `UnifiedResolveSuccess` selected by `type`, a `ResolveDisambiguation` list with `status` equal to `disambiguation`, or a genre result with `status` equal to `genre-search` or `genre-browse`.",
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/UnifiedResolveSuccess"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ResolveDisambiguation"
+                    },
+                    {
+                      "$ref": "#/components/schemas/GenreSearchResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/GenreBrowseResponse"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": "A persisted `UnifiedResolveSuccess` selected by `type`, a `ResolveDisambiguation` list with `status` equal to `disambiguation`, or a genre result with `status` equal to `genre-search` or `genre-browse`."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid URL, invalid genre query, invalid structured search query, or malformed body."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid, or revoked API key."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "URL is valid but the track/album/artist could not be found."
+          },
+          "408": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Upstream service timed out before a match could be confirmed."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The issued API key exceeded its assigned rolling `60`-second or rolling `24`-hour quota. Inspect `context` and `Retry-After` before retrying.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying the request.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected server error. Use `errorId` from the response when reporting the failure."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A service needed to resolve this request is currently unavailable. Retry after a delay; if the response repeats, report its `errorId`."
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "summary": "Resolve a music URL, free-text query, genre-discovery query, or structured search query",
+        "tags": ["Resolve"],
+        "x-codeSamples": [
+          {
+            "label": "cURL",
+            "lang": "Shell",
+            "source": "curl -X POST \"https://api.musiccloud.io/api/v1/resolve\" \\\n  -H \"X-API-Key: <api-key>\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n  \"query\": \"https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L\"\n}'"
+          },
+          {
+            "label": "Bash",
+            "lang": "Shell",
+            "source": "#!/usr/bin/env bash\nset -euo pipefail\n\nBASE_URL=\"https://api.musiccloud.io\"\nTOKEN=\"<api-key>\"\n\nresponse=$(curl -sS -X POST \"$BASE_URL/api/v1/resolve\" \\\n  -H \"X-API-Key: $TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n  \"query\": \"https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L\"\n}')\n\necho \"$response\" | jq ."
+          },
+          {
+            "lang": "JavaScript",
+            "source": "const response = await fetch(\"https://api.musiccloud.io/api/v1/resolve\", {\n  method: \"POST\",\n  headers: {\n      \"X-API-Key\": \"<api-key>\",\n      \"Content-Type\": \"application/json\"\n  },\n  body: JSON.stringify({\n    \"query\": \"https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L\"\n  }),\n});\nconst data = await response.json();"
+          },
+          {
+            "lang": "Python",
+            "source": "import requests\n\nheaders = {\n    \"X-API-Key\": \"<api-key>\",\n}\nresponse = requests.post(\"https://api.musiccloud.io/api/v1/resolve\", headers=headers, json={\"query\": \"https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L\"})\ndata = response.json()"
+          },
+          {
+            "lang": "PHP",
+            "source": "<?php\n\n$ch = curl_init(\"https://api.musiccloud.io/api/v1/resolve\");\ncurl_setopt($ch, CURLOPT_CUSTOMREQUEST, \"POST\");\ncurl_setopt($ch, CURLOPT_HTTPHEADER, [\"X-API-Key: <api-key>\", \"Content-Type: application/json\"]);\ncurl_setopt($ch, CURLOPT_POSTFIELDS, '{\"query\":\"https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L\"}');\ncurl_setopt($ch, CURLOPT_RETURNTRANSFER, true);\n\n$response = curl_exec($ch);\ncurl_close($ch);\n$data = json_decode($response, true);"
+          },
+          {
+            "lang": "Ruby",
+            "source": "require \"net/http\"\nrequire \"json\"\n\nuri = URI(\"https://api.musiccloud.io/api/v1/resolve\")\nhttp = Net::HTTP.new(uri.host, uri.port)\nhttp.use_ssl = uri.scheme == \"https\"\n\nrequest = Net::HTTP::Post.new(uri.request_uri)\nrequest[\"X-API-Key\"] = \"<api-key>\"\nrequest[\"Content-Type\"] = \"application/json\"\nrequest.body = \"{\\\"query\\\":\\\"https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L\\\"}\"\n\nresponse = http.request(request)\ndata = JSON.parse(response.body)"
+          },
+          {
+            "lang": "Swift",
+            "source": "import Foundation\n\nlet url = URL(string: \"https://api.musiccloud.io/api/v1/resolve\")!\nvar request = URLRequest(url: url)\nrequest.httpMethod = \"POST\"\nrequest.setValue(\"<api-key>\", forHTTPHeaderField: \"X-API-Key\")\nrequest.setValue(\"application/json\", forHTTPHeaderField: \"Content-Type\")\nrequest.httpBody = try JSONSerialization.data(withJSONObject: [\"query\": \"https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L\"])\n\nlet (data, _) = try await URLSession.shared.data(for: request)\nlet json = try JSONSerialization.jsonObject(with: data)"
+          }
+        ]
+      }
+    },
+    "/api/v1/share/{shortId}": {
+      "get": {
+        "description": "Returns one of six exact share variants selected by `type`: commercial `track`, `album`, or `artist`, and Creative Commons `cc-track`, `cc-album`, or `cc-artist`. Commercial variants contain the matching entity plus `links`. `cc-track` contains only `track`, `og`, and `shortUrl`; `cc-album` and `cc-artist` additionally contain `artistInfo`. Creative Commons variants never contain `links`. Read `type` before accessing the variant-specific entity key.",
+        "parameters": [
+          {
+            "description": "Public musiccloud share code: take the last path segment of `shortUrl` from a successful `POST /api/v1/resolve`, `GET /api/v1/resolve`, or `POST /api/v1/cc/resolve` response.",
+            "in": "path",
+            "name": "shortId",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharePage"
+                }
+              }
+            },
+            "description": "`SharePage`, discriminated by `type` into the exact commercial or Creative-Commons resource shape.",
+            "headers": {
+              "Cache-Control": {
+                "description": "`private, max-age=3600` for commercial `track`, `album`, and `artist` plus `cc-artist`; `no-store` for `cc-track` and `cc-album`.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "`shortId` failed validation (empty, too long, or contains disallowed characters)."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No commercial or Creative-Commons track, album, or artist exists for this share code."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "This client IP exceeded `10` requests in a rolling `60`-second window.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying the request.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected server error. Use `errorId` from the response when reporting the failure."
+          }
+        },
+        "summary": "Fetch a previously-resolved share",
+        "tags": ["Share"],
+        "x-codeSamples": [
+          {
+            "label": "cURL",
+            "lang": "Shell",
+            "source": "curl \"https://api.musiccloud.io/api/v1/share/aBc123x\""
+          },
+          {
+            "label": "Bash",
+            "lang": "Shell",
+            "source": "#!/usr/bin/env bash\nset -euo pipefail\n\nBASE_URL=\"https://api.musiccloud.io\"\n\nresponse=$(curl -sS \"$BASE_URL/api/v1/share/aBc123x\")\n\necho \"$response\" | jq ."
+          },
+          {
+            "lang": "JavaScript",
+            "source": "const response = await fetch(\"https://api.musiccloud.io/api/v1/share/aBc123x\");\nconst data = await response.json();"
+          },
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.get(\"https://api.musiccloud.io/api/v1/share/aBc123x\")\ndata = response.json()"
+          },
+          {
+            "lang": "PHP",
+            "source": "<?php\n\n$ch = curl_init(\"https://api.musiccloud.io/api/v1/share/aBc123x\");\ncurl_setopt($ch, CURLOPT_RETURNTRANSFER, true);\n\n$response = curl_exec($ch);\ncurl_close($ch);\n$data = json_decode($response, true);"
+          },
+          {
+            "lang": "Ruby",
+            "source": "require \"net/http\"\nrequire \"json\"\n\nuri = URI(\"https://api.musiccloud.io/api/v1/share/aBc123x\")\nhttp = Net::HTTP.new(uri.host, uri.port)\nhttp.use_ssl = uri.scheme == \"https\"\n\nrequest = Net::HTTP::Get.new(uri.request_uri)\n\nresponse = http.request(request)\ndata = JSON.parse(response.body)"
+          },
+          {
+            "lang": "Swift",
+            "source": "import Foundation\n\nlet url = URL(string: \"https://api.musiccloud.io/api/v1/share/aBc123x\")!\nvar request = URLRequest(url: url)\nrequest.httpMethod = \"GET\"\n\nlet (data, _) = try await URLSession.shared.data(for: request)\nlet json = try JSONSerialization.jsonObject(with: data)"
+          }
+        ]
+      }
+    },
+    "/api/v1/share/{shortId}/preview": {
+      "get": {
+        "description": "Returns a currently usable audio-preview URL for a commercial track share. The key `previewUrl` is always included: its value is a URL when one is available, or `null` when the track has no source identifier or no preview can be obtained. This endpoint does not accept album, artist, or Creative-Commons share codes.",
+        "parameters": [
+          {
+            "description": "Track share code: take the last path segment of `shortUrl` from a successful track response from `POST /api/v1/resolve` or `GET /api/v1/resolve`. Album, artist, and Creative Commons share codes are not accepted.",
+            "in": "path",
+            "name": "shortId",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharePreviewResponse"
+                }
+              }
+            },
+            "description": "Fresh preview URL for the commercial track share, or `null` when no preview is available."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No commercial track exists for this share code."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "This client IP exceeded `10` requests in a rolling `60`-second window.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying the request.",
+                "schema": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected server error. Use `errorId` from the response when reporting the failure."
+          }
+        },
+        "summary": "Refresh the audio preview URL for a share",
+        "tags": ["Share"]
       }
     }
   },
-  "components": {
-    "securitySchemes": {
-      "ApiKeyAuth": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "X-API-Key"
-      }
-    },
-    "schemas": {
-      "CcResolveSuccess": {
-        "type": "object",
-        "description": "Creative Commons resolve response.",
-        "properties": {
-          "url": { "type": "string" }
-        }
-      },
-      "ErrorResponse": {
-        "type": "object",
-        "description": "Stable error envelope.",
-        "properties": {
-          "error": { "type": "string" },
-          "message": { "type": "string" },
-          "errorId": { "type": "string" }
-        }
-      },
-      "ResolveRequest": {
-        "type": "object",
-        "description": "Resolve request body.",
-        "properties": {
-          "url": { "type": "string", "format": "uri" }
-        }
-      },
-      "ResolveSuccess": {
-        "type": "object",
-        "description": "Successful resolve response.",
-        "properties": {
-          "links": {
-            "type": "array",
-            "items": { "type": "string" }
-          }
-        }
-      }
+  "servers": [
+    {
+      "description": "Production",
+      "url": "https://api.musiccloud.io"
     }
-  }
+  ],
+  "tags": [
+    {
+      "description": "Commercial and Creative-Commons artist metadata",
+      "name": "Artist"
+    },
+    {
+      "description": "Generated JPEG artwork for commercial and Creative-Commons genres",
+      "name": "Artwork"
+    },
+    {
+      "description": "Creative-Commons (Jamendo) resolve, audio, and metadata",
+      "name": "CC"
+    },
+    {
+      "description": "Link metadata",
+      "name": "Links"
+    },
+    {
+      "description": "Resolve music URLs or text queries",
+      "name": "Resolve"
+    },
+    {
+      "description": "Fetch previously-resolved shares",
+      "name": "Share"
+    }
+  ]
 }

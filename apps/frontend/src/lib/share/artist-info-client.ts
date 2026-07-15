@@ -2,13 +2,13 @@ import { type ArtistInfoResponse, ENDPOINTS } from "@musiccloud/shared";
 
 /**
  * Identifying context passed alongside an artist name when fetching artist
- * info. Narrows the lookup to a specific resolved entity so the backend can
- * disambiguate same-named artists.
+ * info. `shortId` narrows the backend lookup; `artistEntityId` remains local
+ * identity context so the UI can detect a changed artist credit.
  *
  * @property shortId - The share page's short id, when the artist column is
  *   rendered inside a known share page.
- * @property artistEntityId - The resolved artist entity id, when known from a
- *   prior resolve.
+ * @property artistEntityId - Local correlation id. It is not sent to the
+ *   artist-info endpoint because that endpoint does not accept entity ids.
  */
 export interface ArtistInfoContext {
   shortId?: string;
@@ -19,7 +19,7 @@ export interface ArtistInfoContext {
  * Fetches the commercial artist-info payload for a given artist.
  *
  * Assembles the query string for `ENDPOINTS.frontend.artistInfo` (name plus the
- * optional `region`, `shortId`, and `artistEntityId` narrowing params), issues
+ * optional `region` and `shortId` narrowing params), issues
  * the GET request, and casts the JSON body to {@link ArtistInfoResponse}.
  * Throws `HTTP <status>` on a non-OK response; an aborted request rejects with
  * the underlying `AbortError`. The caller owns the {@link AbortSignal} (and thus
@@ -41,7 +41,6 @@ export async function fetchArtistInfo(
   const params = new URLSearchParams({ name: artistName });
   if (userRegion) params.set("region", userRegion);
   if (context.shortId) params.set("shortId", context.shortId);
-  if (context.artistEntityId) params.set("artistEntityId", context.artistEntityId);
   const res = await fetch(`${ENDPOINTS.frontend.artistInfo}?${params.toString()}`, { signal });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as ArtistInfoResponse;

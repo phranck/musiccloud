@@ -13,41 +13,58 @@ function readFixture(name: string): unknown {
 describe("buildApiReference", () => {
   it("builds a stable display model from the public OpenAPI document", () => {
     const reference = buildApiReference(readFixture("public-openapi.json"));
+    const resolveGroup = reference.groups.find((group) => group.name === "Resolve");
+    const quickResolve = resolveGroup?.operations.find(
+      (operation) => operation.method === "GET" && operation.path === "/api/v1/resolve",
+    );
+    const resolve = resolveGroup?.operations.find(
+      (operation) => operation.method === "POST" && operation.path === "/api/v1/resolve",
+    );
 
-    expect(reference.version).toBe("2.1.0");
+    expect(reference.version).toBe("2.1.3");
     expect(reference.auth).toEqual({ headerName: "X-API-Key", scheme: "ApiKeyAuth" });
-    expect(reference.groups.map((group) => group.name)).toEqual(["Creative Commons", "Resolve"]);
-    expect(reference.groups[1]).toMatchObject({
-      name: "Resolve",
-      operations: [
+    expect(reference.groups.map((group) => group.name)).toEqual([
+      "Artist",
+      "Artwork",
+      "CC",
+      "Links",
+      "Resolve",
+      "Share",
+    ]);
+    expect(quickResolve).toMatchObject({
+      method: "GET",
+      path: "/api/v1/resolve",
+      navTitle: "Quick resolve",
+      summary: "Resolve a music URL or query (unauthenticated, GET)",
+      requiresApiKey: false,
+    });
+    expect(resolve).toMatchObject({
+      method: "POST",
+      path: "/api/v1/resolve",
+      navTitle: "Resolve link",
+      summary: "Resolve a music URL, free-text query, genre-discovery query, or structured search query",
+      requiresApiKey: true,
+    });
+    expect(quickResolve?.parameters).toContainEqual({
+      name: "query",
+      location: "query",
+      required: true,
+      description:
+        "Streaming-service URL, free-text query, or structured search query (e.g. `title: Bohemian Rhapsody, artist: Queen`).",
+      schema: { type: "string", minLength: 1, maxLength: 500 },
+    });
+    expect(resolve?.requestBody).toMatchObject({
+      required: true,
+      mediaTypes: [
         {
-          method: "GET",
-          path: "/api/v1/resolve",
-          navTitle: "Quick resolve",
-          summary: "Resolve a streaming URL without an API key",
-          requiresApiKey: false,
-        },
-        {
-          method: "POST",
-          path: "/api/v1/resolve",
-          navTitle: "Resolve link",
-          summary: "Resolve a streaming URL",
-          requiresApiKey: true,
+          mediaType: "application/json",
+          schema: {
+            oneOf: [{ required: ["query"] }, { required: ["selectedCandidate"] }],
+          },
         },
       ],
     });
-    expect(reference.groups[1]?.operations[1]?.parameters).toContainEqual({
-      name: "url",
-      location: "query",
-      required: true,
-      description: "Source track URL.",
-      schema: { type: "string", format: "uri" },
-    });
-    expect(reference.groups[1]?.operations[1]?.requestBody).toMatchObject({
-      required: true,
-      mediaTypes: [{ mediaType: "application/json", schemaRef: "ResolveRequest" }],
-    });
-    expect(reference.groups[1]?.operations[1]?.responses).toContainEqual({
+    expect(resolve?.responses).toContainEqual({
       status: "401",
       description: "Missing, invalid, or revoked API key.",
       mediaTypes: [{ mediaType: "application/json", schemaRef: "ErrorResponse" }],
@@ -62,8 +79,98 @@ describe("buildApiReference", () => {
     delete fixture.paths["/api/v1/resolve"].post["x-nav-title"];
 
     const reference = buildApiReference(fixture);
+    const resolve = reference.groups
+      .find((group) => group.name === "Resolve")
+      ?.operations.find((operation) => operation.method === "POST" && operation.path === "/api/v1/resolve");
 
-    expect(reference.groups[1]?.operations[1]?.navTitle).toBe("Resolve link");
+    expect(resolve?.navTitle).toBe("Resolve link");
+  });
+
+  it("preserves every top-level composed response schema for response-object links", () => {
+    const fixture = readFixture("public-openapi.json") as {
+      paths: {
+        "/api/v1/resolve": {
+          post: { responses: { "200": { content: { "application/json": { schema: unknown } } } } };
+        };
+      };
+    };
+    fixture.paths["/api/v1/resolve"].post.responses["200"].content["application/json"].schema = {
+      oneOf: [{ $ref: "#/components/schemas/ResolveSuccess" }, { $ref: "#/components/schemas/CcResolveSuccess" }],
+    };
+
+    const reference = buildApiReference(fixture);
+    const resolveOperation = reference.groups
+      .find((group) => group.name === "Resolve")
+      ?.operations.find((operation) => operation.method === "POST" && operation.path === "/api/v1/resolve");
+    const successResponse = resolveOperation?.responses.find((response) => response.status === "200");
+
+    expect(successResponse).toMatchObject({
+      status: "200",
+      mediaTypes: [
+        {
+          mediaType: "application/json",
+          schemaRefs: ["ResolveSuccess", "CcResolveSuccess"],
+          schema: {
+            oneOf: [{ $ref: "#/components/schemas/ResolveSuccess" }, { $ref: "#/components/schemas/CcResolveSuccess" }],
+          },
+        },
+      ],
+    });
+  });
+
+  it("builds nested field documentation for response schemas", () => {
+    const fixture = readFixture("public-openapi.json") as {
+      components: { schemas: Record<string, unknown> };
+      paths: {
+        "/api/v1/resolve": {
+          post: { responses: { "200": { content: { "application/json": { schema: unknown } } } } };
+        };
+      };
+    };
+    fixture.components.schemas.DocumentedChild = {
+      type: "object",
+      required: ["label"],
+      properties: {
+        label: { type: "string", description: "Human-readable child label." },
+      },
+    };
+    fixture.components.schemas.DocumentedResponse = {
+      type: "object",
+      required: ["payload"],
+      properties: {
+        payload: { $ref: "#/components/schemas/DocumentedChild", description: "Nested response payload." },
+        cursor: { type: "string", nullable: true, description: "Optional cursor for a later page." },
+      },
+    };
+    fixture.paths["/api/v1/resolve"].post.responses["200"].content["application/json"].schema = {
+      $ref: "#/components/schemas/DocumentedResponse",
+    };
+
+    const reference = buildApiReference(fixture);
+
+    expect(reference.schemas.DocumentedResponse).toMatchObject({
+      fields: [
+        {
+          path: "payload",
+          type: "DocumentedChild",
+          required: true,
+          description: "Nested response payload.",
+          schemaRef: "DocumentedChild",
+        },
+        {
+          path: "label",
+          type: "string",
+          required: true,
+          description: "Human-readable child label.",
+        },
+        {
+          path: "cursor",
+          type: "string | null",
+          required: false,
+          description: "Optional cursor for a later page.",
+        },
+      ],
+    });
   });
 
   it("rejects a document without info.version", () => {

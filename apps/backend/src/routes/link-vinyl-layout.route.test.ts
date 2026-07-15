@@ -62,4 +62,22 @@ describe("GET /api/v1/link/:id vinyl layout", () => {
 
     await app.close();
   });
+
+  it("omits nullable database fields that are optional in the public Track schema", async () => {
+    loadByTrackId.mockResolvedValueOnce({
+      track: { title: "The Sermon!", albumName: null, artworkUrl: null },
+      artists: ["Jimmy Smith"],
+      links: [],
+    });
+    findAlbumByVinylLayoutIdentity.mockResolvedValueOnce(null);
+    const app = buildApp();
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/link/track-1" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().track).not.toHaveProperty("albumName");
+    expect(response.json().track).not.toHaveProperty("artworkUrl");
+
+    await app.close();
+  });
 });

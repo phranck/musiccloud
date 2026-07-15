@@ -433,12 +433,11 @@ export async function fetchArtistInfo(
   name: string,
   region: string | undefined,
   clientIp?: string,
-  context?: { shortId?: string; artistEntityId?: string; refresh?: "profile" },
+  context?: { shortId?: string; refresh?: "profile" },
 ): Promise<Response> {
   const params = new URLSearchParams({ name });
   if (region) params.set("region", region);
   if (context?.shortId) params.set("shortId", context.shortId);
-  if (context?.artistEntityId) params.set("artistEntityId", context.artistEntityId);
   if (context?.refresh) params.set("refresh", context.refresh);
   return fetchWithTimeout(
     `${backendUrl(ENDPOINTS.v1.artistInfo)}?${params.toString()}`,

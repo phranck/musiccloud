@@ -55,7 +55,7 @@ export default async function ccDownloadRoutes(app: FastifyInstance) {
         tags: ["CC"],
         summary: "Download a CC track as a correctly named audio file",
         description:
-          "Re-serves a Creative-Commons track's audio from our own origin as an attachment with a Content-Disposition filename (Artist_Album_NN_Title.ext), so the browser saves a properly named audio file instead of Jamendo's cross-origin download page. The optional `?format=` query selects the delivery format (mp31 | mp32 | ogg | flac); an invalid or absent value falls back to mp32.",
+          "Returns a complete Creative Commons track as a downloadable attachment. `Content-Disposition` provides an ASCII fallback and a UTF-8 filename following `Artist_Album_NN_Title.ext`; unavailable album and track-position segments are omitted. `format=mp31` selects MP3 at `96 kbps`, `format=mp32` selects MP3 at approximately `256 kbps`, `format=ogg` selects Ogg Vorbis, and `format=flac` selects lossless FLAC. The default is `mp32`. Check `track.downloadAllowed` before offering this action; the endpoint returns `403` when downloads are not permitted.",
         params: {
           type: "object",
           required: ["jamendoId"],
@@ -66,7 +66,7 @@ export default async function ccDownloadRoutes(app: FastifyInstance) {
               maxLength: 32,
               pattern: "^[0-9]+$",
               description:
-                "Numeric Jamendo track ID. Read `track.jamendoId` from a `cc-track` result or an item in `album.tracks` or `artist.topTracks` from `POST /api/v1/cc/resolve`.",
+                "Numeric Jamendo track ID. Read `track.jamendoId`, `album.tracks[].jamendoId`, or `artist.topTracks[].jamendoId` from a successful `POST /api/v1/cc/resolve` or `GET /api/v1/share/{shortId}` response.",
             },
           },
           additionalProperties: false,
@@ -74,20 +74,42 @@ export default async function ccDownloadRoutes(app: FastifyInstance) {
         querystring: {
           type: "object",
           properties: {
-            format: { type: "string", description: "Jamendo delivery format (mp31 | mp32 | ogg | flac)." },
+            format: {
+              type: "string",
+              default: "mp32",
+              description:
+                "Jamendo delivery format: `mp31` (MP3 96 kbps), `mp32` (MP3 about 256 kbps), `ogg`, or `flac`. Invalid values also fall back to `mp32`.\n\n**Default**: `mp32`.",
+            },
           },
           additionalProperties: false,
         },
         response: {
           200: {
             description: "Complete Creative Commons audio file served as an attachment.",
-            type: "string",
-            format: "binary",
+            headers: {
+              "Content-Disposition": {
+                type: "string",
+                description:
+                  "Attachment filename in ASCII `filename=` and UTF-8 `filename*=` forms, for example `Artist_Album_01_Title.mp3`.",
+              },
+              "Content-Length": {
+                type: "integer",
+                minimum: 0,
+                description: "Complete audio-file size in bytes. The header is omitted when the size is unavailable.",
+              },
+              "Cache-Control": { type: "string", enum: ["no-store"], description: "Always `no-store`." },
+            },
+            content: {
+              "audio/mpeg": { schema: { type: "string", format: "binary" } },
+              "audio/ogg": { schema: { type: "string", format: "binary" } },
+              "audio/flac": { schema: { type: "string", format: "binary" } },
+            },
           },
-          400: publicErrorResponse("The Jamendo track id is malformed."),
+          400: publicErrorResponse("`jamendoId` is not numeric."),
           403: publicErrorResponse("The track's Creative Commons terms do not permit downloads."),
-          404: publicErrorResponse("No Creative Commons track exists for this Jamendo id."),
+          404: publicErrorResponse("No Creative Commons track exists for this `jamendoId`."),
           502: publicErrorResponse("The upstream Jamendo audio file is unavailable or returned no body."),
+          429: publicErrorResponse("This client IP exceeded `10` requests in a rolling `60`-second window."),
         },
       },
     },

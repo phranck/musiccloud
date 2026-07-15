@@ -88,7 +88,7 @@ describe("GET /api/v1/share/:shortId album vinyl layout", () => {
 
     const response = await app.inject({ method: "GET", url: "/api/v1/share/album-short" });
 
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode, response.body).toBe(200);
     expect(response.json().album.vinylLayout).toEqual(vinylLayout);
     expect(enrichAlbumVinylLayout).not.toHaveBeenCalled();
     expect(readAlbumVinylLayout).not.toHaveBeenCalled();
@@ -102,7 +102,7 @@ describe("GET /api/v1/share/:shortId album vinyl layout", () => {
 
     const response = await app.inject({ method: "GET", url: "/api/v1/share/album-short" });
 
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode, response.body).toBe(200);
     expect(response.json().album.vinylLayout).toBeNull();
     expect(enrichAlbumVinylLayout).not.toHaveBeenCalled();
     expect(readAlbumVinylLayout).not.toHaveBeenCalled();
@@ -118,7 +118,7 @@ describe("GET /api/v1/share/:shortId album vinyl layout", () => {
 
     const response = await app.inject({ method: "GET", url: "/api/v1/share/album-short" });
 
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode, response.body).toBe(200);
     expect(response.json().album.vinylLayout).toEqual(vinylLayout);
     expect(readAlbumVinylLayout).toHaveBeenCalledWith("layout-owner");
 
@@ -146,13 +146,21 @@ describe("GET /api/v1/share/:shortId CC refresh caching", () => {
         url: "https://musiccloud.io/V0onz",
       },
       shortUrl: "https://musiccloud.io/V0onz",
-      track: { title: "Moments", artistName: "Madpix", vinylLayout },
+      track: {
+        jamendoId: "123456",
+        title: "Moments",
+        artistName: "Madpix",
+        jamendoArtistId: "654321",
+        streamUrl: "https://usercontent.jamendo.com/track.mp3",
+        downloadAllowed: true,
+        vinylLayout,
+      },
     });
     const app = buildApp();
 
     const response = await app.inject({ method: "GET", url: "/api/v1/share/V0onz" });
 
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode, response.body).toBe(200);
     expect(response.headers["cache-control"]).toBe("no-store");
 
     await app.close();
@@ -169,14 +177,14 @@ describe("GET /api/v1/share/:shortId CC refresh caching", () => {
         url: "https://musiccloud.io/N3VoA",
       },
       shortUrl: "https://musiccloud.io/N3VoA",
-      artist: { name: "Madpix", topTracks: [] },
-      artistInfo: { artistName: "Madpix", topTracks: [], profile: null, events: [] },
+      artist: { jamendoId: "654321", name: "Madpix", topTracks: [] },
+      artistInfo: { artistName: "Madpix", topTracks: [], profile: null, events: [], similarArtistTracks: [] },
     });
     const app = buildApp();
 
     const response = await app.inject({ method: "GET", url: "/api/v1/share/N3VoA" });
 
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode, response.body).toBe(200);
     expect(response.headers["cache-control"]).toBe("private, max-age=3600");
 
     await app.close();

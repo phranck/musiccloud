@@ -67,24 +67,32 @@ export default async function ccGenreArtworkRoutes(app: FastifyInstance) {
     ROUTE_TEMPLATES.v1.ccGenreArtwork,
     {
       schema: {
-        tags: ["Services"],
+        tags: ["Artwork"],
         summary: "Procedurally generated Creative-Commons genre artwork",
         description:
-          "Returns a 512×512 JPEG rendered on the fly from a representative Jamendo album cover, with the genre name baked into the upper-left. Deterministic per genre, cached permanently after first generation. 100% Jamendo-sourced — the CC path never touches Last.fm. " +
-          "**Exempt from the 10 requests per 60 seconds per-IP quota** that applies to other public endpoints — the frontend loads tiles in parallel from a Browse grid. " +
-          "The global 300 requests/minute ceiling still applies.",
+          "Returns a `512×512` JPEG derived only from Creative Commons source artwork. A stable generated image is served with `Cache-Control: public, max-age=31536000, immutable`. If source artwork is temporarily unavailable, the endpoint still returns a fallback JPEG with `Cache-Control: no-store`, allowing a later request to retry generation. This route is subject only to the global limit of `300` requests in a rolling `60`-second window per client IP.",
         params: {
           type: "object",
           required: ["genreKey"],
           properties: {
-            genreKey: { type: "string", description: "Normalised genre name (lowercase)." },
+            genreKey: {
+              type: "string",
+              description:
+                "Genre name from `CcGenreBrowseResponse.genres[].name`. URL-encode it when inserting it into the path; the endpoint lowercases and normalizes whitespace before validation.",
+            },
           },
         },
         response: {
           200: {
-            description: "Generated or cached Creative Commons genre artwork.",
-            type: "string",
-            format: "binary",
+            description: "Generated, cached, or transient fallback Creative Commons genre artwork as raw JPEG bytes.",
+            headers: {
+              "Cache-Control": {
+                type: "string",
+                description:
+                  "`public, max-age=31536000, immutable` for a stable image, or `no-store` for a transient fallback.",
+              },
+            },
+            content: { "image/jpeg": { schema: { type: "string", format: "binary" } } },
           },
           400: publicErrorResponse("The normalized genre key contains invalid characters."),
         },

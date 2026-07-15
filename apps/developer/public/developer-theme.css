@@ -23,6 +23,8 @@
   --mc-color-info: #38bdf8;
   --mc-color-code-bg: rgba(0, 0, 0, 0.38);
   --mc-color-code-fg: #c2d2dc;
+  --mc-color-inline-code-bg: color-mix(in srgb, var(--mc-color-request-patch) 20%, transparent);
+  --mc-color-inline-code-fg: color-mix(in srgb, var(--mc-color-fg) 78%, var(--mc-color-request-patch));
   --mc-color-shadow: rgba(0, 0, 0, 0.28);
   --mc-color-request-get: #38bdf8;
   --mc-color-request-post: #4ade80;
@@ -72,8 +74,8 @@
   --mc-space-page-inline: 1.5rem;
   --mc-space-page-top: 3rem;
   --mc-space-page-bottom: 5rem;
-  --mc-space-content-card: 1.75rem;
-  --mc-space-content-card-header: 1rem;
+  --mc-space-content-card: 0.625rem;
+  --mc-space-content-card-header: 0.625rem;
   --mc-space-content-card-row: 0.75rem;
   --mc-container-developer: 88rem;
   --mc-dashboard-sidebar-width: 13rem;

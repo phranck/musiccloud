@@ -73,13 +73,13 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
           query: { query: "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L" },
         }),
         description:
-          "Unauthenticated companion to POST `/api/v1/resolve`, designed for scripting consumers (Apple Shortcuts, curl, bookmarklets). Accepts:\n\n" +
+          "Unauthenticated one-request companion to `POST /api/v1/resolve`, suitable for command-line tools, shortcuts, and other clients that do not need an interactive candidate-selection round. Accepts:\n\n" +
           "- **Streaming-service URL** (e.g. `https://open.spotify.com/track/...`)\n" +
           "- **Free-text query** (e.g. `bohemian rhapsody queen`)\n" +
           `- **Structured search query** — ${STRUCTURED_SEARCH_OPENAPI_SECTION}\n\n` +
           `${STRUCTURED_SEARCH_GET_OPENAPI_NOTE}\n\n` +
-          "Returns the resolved track (200) or 400 if the query is ambiguous, malformed, or cannot be resolved. Rate-limited per client IP.\n\n" +
-          "Note: `genre:` discovery queries are not supported on this endpoint — they require the authenticated POST endpoint because their response is a list, not a single resolved track.",
+          "A successful request persists the resolved track and returns either `ResolveSuccess` or its canonical share URL. Malformed input, ambiguous text, or text with no unambiguous match returns `400`. A valid streaming-service URL whose item cannot be found returns `404`.\n\n" +
+          "`genre:` discovery queries are not supported because they return candidate lists. Send those queries to `POST /api/v1/resolve`.",
         querystring: {
           type: "object",
           required: ["query"],
@@ -100,7 +100,8 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
               type: "string",
               enum: ["json", "text"],
               default: "json",
-              description: "`json` returns the full response; `text` returns the short URL as plain text.",
+              description:
+                "`json` returns the full response; `text` returns the short URL as plain text.\n\n**Default**: `json`.",
             },
           },
           additionalProperties: false,
@@ -108,17 +109,35 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
         response: {
           200: {
             description:
-              "Resolved track payload (when `format=json`, default); plain-text short URL (when `format=text`). Only the JSON shape is modelled here — `format=text` returns `text/plain`.",
-            $ref: "ResolveSuccess#",
+              "With `format=json` or no format, returns `ResolveSuccess`. With `format=text`, returns only the canonical share URL as UTF-8 plain text.",
+            content: {
+              "application/json": { schema: { $ref: "ResolveSuccess#" } },
+              "text/plain": {
+                schema: {
+                  type: "string",
+                  format: "uri",
+                  description: "Canonical musiccloud share URL for the resolved track.",
+                },
+              },
+            },
           },
-          400: { description: "Missing, malformed, or ambiguous query.", $ref: "ErrorResponse#" },
-          404: { description: "Query is valid but no track could be found.", $ref: "ErrorResponse#" },
-          408: { description: "Upstream service timed out.", $ref: "ErrorResponse#" },
-          429: {
-            description: "Rate limit exceeded for this client IP (10 requests per 60 seconds).",
+          400: {
+            description: "The query is missing or malformed, or a text search did not produce one unambiguous match.",
             $ref: "ErrorResponse#",
           },
-          500: { description: "Unexpected server error.", $ref: "ErrorResponse#" },
+          404: {
+            description: "The query is a valid streaming-service URL, but the referenced track could not be found.",
+            $ref: "ErrorResponse#",
+          },
+          408: { description: "Upstream service timed out.", $ref: "ErrorResponse#" },
+          429: {
+            description: "This client IP exceeded `10` requests in a rolling `60`-second window.",
+            $ref: "ErrorResponse#",
+          },
+          500: {
+            description: "Unexpected server error. Use `errorId` from the response when reporting the failure.",
+            $ref: "ErrorResponse#",
+          },
           503: { description: "Required upstream service is unavailable.", $ref: "ErrorResponse#" },
         },
       },

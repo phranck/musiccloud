@@ -113,7 +113,7 @@ export default async function ccBandcampRoutes(app: FastifyInstance) {
         tags: ["CC"],
         summary: "Whether a CC track is also available on Bandcamp",
         description:
-          "Fuzzy-searches Bandcamp for the CC track (full Jamendo title, confidence-scored ≥ 0.6). Returns { bandcampUrl } with the Bandcamp track URL when a confident match survives the variant guard, otherwise {}. Async + cached (incl. negative hits) so the share page loads it after the core card renders without paying the scrape on the hot path.",
+          "Returns `bandcampUrl` when the Jamendo track has a sufficiently reliable matching Bandcamp listing. Returns an empty object when the Jamendo ID is unknown or no safe match can be confirmed. Treat an omitted key as unavailable and do not construct a Bandcamp URL yourself.",
         params: {
           type: "object",
           required: ["jamendoId"],
@@ -124,7 +124,7 @@ export default async function ccBandcampRoutes(app: FastifyInstance) {
               maxLength: 32,
               pattern: "^[0-9]+$",
               description:
-                "Numeric Jamendo track ID. Read `track.jamendoId` from a `cc-track` result or an item in `album.tracks` or `artist.topTracks` from `POST /api/v1/cc/resolve`.",
+                "Numeric Jamendo track ID. Read `track.jamendoId`, `album.tracks[].jamendoId`, or `artist.topTracks[].jamendoId` from a successful `POST /api/v1/cc/resolve` or `GET /api/v1/share/{shortId}` response.",
             },
           },
           additionalProperties: false,
@@ -132,13 +132,10 @@ export default async function ccBandcampRoutes(app: FastifyInstance) {
         response: {
           200: {
             description: "Bandcamp availability for the Creative Commons track.",
-            type: "object",
-            additionalProperties: false,
-            properties: {
-              bandcampUrl: { type: "string", format: "uri" },
-            },
+            $ref: "CcBandcampAvailabilityResponse#",
           },
-          400: publicErrorResponse("The Jamendo track id is malformed."),
+          400: publicErrorResponse("`jamendoId` is not numeric."),
+          429: publicErrorResponse("This client IP exceeded `10` requests in a rolling `60`-second window."),
         },
       },
     },

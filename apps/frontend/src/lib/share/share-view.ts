@@ -146,9 +146,9 @@ export function buildShareViewFromSharePageResponse(
   }
   const isAlbum = data.type === "album";
   const isArtist = data.type === "artist";
-  const track = data.track ?? null;
-  const album = data.album ?? null;
-  const artist = data.artist ?? null;
+  const track = data.type === "track" ? data.track : null;
+  const album = data.type === "album" ? data.album : null;
+  const artist = data.type === "artist" ? data.artist : null;
   const shortId = routeShortId || shortIdFromShortUrl(data.shortUrl);
 
   const artistDisplay = isArtist ? "" : isAlbum ? (album?.artists.join(", ") ?? "") : (track?.artists.join(", ") ?? "");
@@ -210,19 +210,31 @@ export function buildShareViewFromSharePageResponse(
 }
 
 export function buildShareViewFromResolvedResponse(data: UnifiedResolveSuccessResponse, t: TFunc): ShareViewModel {
-  const shareData: SharePageResponse = {
-    type: data.type,
-    og: {
-      title: "",
-      description: "",
-      url: data.shortUrl,
-    },
-    track: data.type === "track" ? data.track : undefined,
-    album: data.type === "album" ? data.album : undefined,
-    artist: data.type === "artist" ? data.artist : undefined,
+  const common = {
     links: data.links,
     shortUrl: data.shortUrl,
   };
+  const shareData: SharePageResponse =
+    data.type === "track"
+      ? {
+          ...common,
+          type: data.type,
+          og: { title: "", description: "", image: data.track.artworkUrl ?? "", url: data.shortUrl },
+          track: data.track,
+        }
+      : data.type === "album"
+        ? {
+            ...common,
+            type: data.type,
+            og: { title: "", description: "", image: data.album.artworkUrl ?? "", url: data.shortUrl },
+            album: data.album,
+          }
+        : {
+            ...common,
+            type: data.type,
+            og: { title: "", description: "", image: data.artist.imageUrl ?? "", url: data.shortUrl },
+            artist: data.artist,
+          };
   return buildShareViewFromSharePageResponse(shareData, shortIdFromShortUrl(data.shortUrl) ?? "", t);
 }
 

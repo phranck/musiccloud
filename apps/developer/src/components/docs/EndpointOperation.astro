@@ -15,9 +15,9 @@ import { ParameterCard } from "@/components/docs/ParameterCard";
 import { RequestBodyCard } from "@/components/docs/RequestBodyCard";
 import { ResponseCard } from "@/components/docs/ResponseCard";
 import { ResponseTone, type ResponseToneValue } from "@/components/docs/responseCard.types";
-import { apiReferenceOperationAnchor } from "@/lib/api-reference-anchor";
+import { apiReferenceOperationAnchor, apiReferenceSchemaAnchor } from "@/lib/api-reference-anchor";
 import { CodeIcon, KeyIcon, Send2Icon, TickCircleIcon } from "@/lib/icons";
-import type { ApiOperation } from "@/lib/openapi-reference";
+import type { ApiMediaType, ApiOperation } from "@/lib/openapi-reference";
 
 interface Props {
   operation: ApiOperation;
@@ -26,6 +26,7 @@ interface Props {
 
 const { operation, searchGroup } = Astro.props;
 const anchor = apiReferenceOperationAnchor(operation.method, operation.path);
+const titleId = `${anchor}-title`;
 const hasRequestBody = Boolean(operation.requestBody?.mediaTypes.length);
 
 const responseTone = (status: string): ResponseToneValue => {
@@ -41,6 +42,8 @@ const responseLabel = (status: string) => {
   if (status.startsWith("5")) return "Server error response";
   return "Response";
 };
+
+const responseSchemaRefs = (media: ApiMediaType): string[] => media.schemaRefs ?? (media.schemaRef ? [media.schemaRef] : []);
 ---
 
 <ApiContent.Entry
@@ -51,11 +54,11 @@ const responseLabel = (status: string) => {
   data-api-search-kind="operation"
   data-api-search-target={anchor}
 >
-  <ApiContent.Entry.Title id={anchor} data-api-operation-title>
+  <ApiContent.Entry.Title id={titleId} data-api-operation-title>
     {operation.navTitle}
   </ApiContent.Entry.Title>
   <ApiContent.Entry.Content>
-    <EndpointCard aria-labelledby={anchor}>
+    <EndpointCard id={anchor} aria-labelledby={titleId} data-api-nav-anchor>
       <EndpointCard.Header method={operation.method} data-api-search-ignore>
         <EndpointCard.Header.Request>
           <EndpointCard.Header.Request.Method>{operation.method}</EndpointCard.Header.Request.Method>
@@ -154,7 +157,7 @@ const responseLabel = (status: string) => {
                         <RequestBodyCard.Header>
                           <RequestBodyCard.Header.MediaType>{media.mediaType}</RequestBodyCard.Header.MediaType>
                           {media.schemaRef && (
-                            <RequestBodyCard.Header.SchemaLink href={`#schema-${media.schemaRef}`}>
+                            <RequestBodyCard.Header.SchemaLink href={`#${apiReferenceSchemaAnchor(media.schemaRef)}`}>
                               {media.schemaRef}
                             </RequestBodyCard.Header.SchemaLink>
                           )}
@@ -202,16 +205,22 @@ const responseLabel = (status: string) => {
                           {response.mediaTypes.length > 0 && (
                             <ResponseCard.Content.Meta>
                               {response.mediaTypes.map((media) => (
-                                <div class="response-card__meta-row">
-                                  <ResponseCard.Content.Meta.MediaType>
-                                    {media.mediaType}
-                                  </ResponseCard.Content.Meta.MediaType>
-                                  {media.schemaRef && (
-                                    <ResponseCard.Content.Meta.SchemaLink href={`#schema-${media.schemaRef}`}>
-                                      {media.schemaRef}
-                                    </ResponseCard.Content.Meta.SchemaLink>
-                                  )}
-                                </div>
+                                <ResponseCard.Content.Meta.Row>
+                                  <ResponseCard.Content.Meta.Item>
+                                    <ResponseCard.Content.Meta.Label>Content-Type:</ResponseCard.Content.Meta.Label>
+                                    <ResponseCard.Content.Meta.MediaType>
+                                      {media.mediaType}
+                                    </ResponseCard.Content.Meta.MediaType>
+                                  </ResponseCard.Content.Meta.Item>
+                                  {responseSchemaRefs(media).map((schemaRef) => (
+                                    <ResponseCard.Content.Meta.Item>
+                                      <ResponseCard.Content.Meta.Label>Response Object:</ResponseCard.Content.Meta.Label>
+                                      <ResponseCard.Content.Meta.SchemaLink href={`#${apiReferenceSchemaAnchor(schemaRef)}`}>
+                                        <ResponseCard.Content.Meta.SchemaName>{schemaRef}</ResponseCard.Content.Meta.SchemaName>
+                                      </ResponseCard.Content.Meta.SchemaLink>
+                                    </ResponseCard.Content.Meta.Item>
+                                  ))}
+                                </ResponseCard.Content.Meta.Row>
                               ))}
                             </ResponseCard.Content.Meta>
                           )}

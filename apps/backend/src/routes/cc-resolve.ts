@@ -44,33 +44,62 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
       schema: {
         tags: ["Resolve"],
         summary: "Resolve a Creative-Commons free-text or structured query (Jamendo)",
+        description:
+          "Use `query` for Creative-Commons free text, a `title:`/`artist:`/`album:` structured search, or `genre:` discovery. Pasted streaming-service URLs are not accepted. A text search returns `ResolveDisambiguation`; choose one row and send its opaque `candidates[].id` back as `selectedCandidate`. A CC genre result already returns candidate IDs in `results.*[].id`; pass one unchanged as `selectedCandidate` to receive a persisted `cc-track`, `cc-album`, or `cc-artist` response.",
         security: [{ ApiKeyAuth: [] }],
         body: {
           type: "object",
-          description: "Exactly one of `query` or `selectedCandidate` must be present.",
+          description:
+            "Exactly one of `query` or `selectedCandidate` must be present. Supplying both is rejected with `400`.",
           properties: {
-            query: { type: "string", minLength: 1, maxLength: 500 },
-            selectedCandidate: { type: "string", minLength: 1, maxLength: 200 },
+            query: {
+              type: "string",
+              minLength: 1,
+              maxLength: 500,
+              description:
+                "Creative-Commons free text, structured search beginning with `title:`, `artist:`, or `album:`, or a `genre:` discovery query. Streaming-service URLs are not accepted.",
+              examples: ["ambient piano", "artist: Madpix, title: Moments", "genre: ambient, tracks: 10"],
+            },
+            selectedCandidate: {
+              type: "string",
+              minLength: 1,
+              maxLength: 200,
+              description:
+                "Opaque candidate token returned as `candidates[].id` or `results.*[].id` by this endpoint. Pass it unchanged; prefixes such as `jamendo:`, `jamendo-album:`, and `jamendo-artist:` identify the response variant.",
+              example: "jamendo:123456",
+            },
           },
-          anyOf: [{ required: ["query"] }, { required: ["selectedCandidate"] }],
+          oneOf: [{ required: ["query"] }, { required: ["selectedCandidate"] }],
           additionalProperties: false,
+          examples: [{ query: "ambient piano" }, { selectedCandidate: "jamendo:123456" }],
         },
         response: {
           200: {
             description:
-              'A CC disambiguation list, a resolved cc-track / cc-album / cc-artist, or a CC genre-discovery result (`status: "genre-browse"` / `status: "genre-search"`, sourced from Jamendo).',
+              "A `ResolveDisambiguation` selection list, a persisted `cc-track`, `cc-album`, or `cc-artist`, or a genre-discovery result with `status` equal to `genre-browse` or `genre-search`.",
             oneOf: [
               { $ref: "ResolveDisambiguation#" },
               { $ref: "CcResolveSuccess#" },
-              { $ref: "GenreSearchResponse#" },
-              { $ref: "GenreBrowseResponse#" },
+              { $ref: "CcGenreSearchResponse#" },
+              { $ref: "CcGenreBrowseResponse#" },
             ],
           },
-          400: { description: "Malformed body or candidate id.", $ref: "ErrorResponse#" },
+          400: {
+            description:
+              "The body does not contain exactly one usable `query` or `selectedCandidate`, the query syntax is invalid, or the candidate token has an unsupported format.",
+            $ref: "ErrorResponse#",
+          },
           401: { description: "Missing, invalid, or revoked API key.", $ref: "ErrorResponse#" },
           404: { description: "The selected candidate could not be resolved.", $ref: "ErrorResponse#" },
-          429: { description: "Rate limit exceeded for this client IP.", $ref: "ErrorResponse#" },
-          500: { description: "Unexpected server error.", $ref: "ErrorResponse#" },
+          429: {
+            description:
+              "The issued API key exceeded its assigned rolling `60`-second or rolling `24`-hour quota. Inspect `context` and `Retry-After` before retrying.",
+            $ref: "ErrorResponse#",
+          },
+          500: {
+            description: "Unexpected server error. Use `errorId` from the response when reporting the failure.",
+            $ref: "ErrorResponse#",
+          },
         },
       },
     },

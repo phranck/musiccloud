@@ -84,18 +84,6 @@ export const NavManagerPage = lazy(() =>
   })),
 );
 
-export const FormBuilderListPage = lazy(() =>
-  import("@/features/templates/form-builder/FormBuilderListPage").then((m) => ({
-    default: m.FormBuilderListPage,
-  })),
-);
-
-export const FormBuilderEditPage = lazy(() =>
-  import("@/features/templates/form-builder/FormBuilderEditPage").then((m) => ({
-    default: m.FormBuilderEditPage,
-  })),
-);
-
 export const EmailTemplateListPage = lazy(() =>
   import("@/features/templates/email-templates/EmailTemplateListPage").then((m) => ({
     default: m.EmailTemplateListPage,

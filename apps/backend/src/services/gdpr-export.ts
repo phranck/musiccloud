@@ -1,16 +1,20 @@
 /**
  * @file GDPR personal-data export (MC-085, Art. 15/20): assembles everything
  * stored about a subject into one versioned JSON package — the developer
- * account (without secrets), its auth identities, API-access requests/clients
- * with token METADATA (never hashes), and form submissions attributable via
- * the GDPR anchor columns. Account-less subjects (e.g. contact-form
- * submitters) get only the submission section.
+ * account (without secrets), its auth identities, and API-access
+ * requests/clients with token METADATA (never hashes). An account-less
+ * subject produces a minimal package containing only the normalized subject.
  */
 
-import type { FormSubmissionDto, PersonalDataSubject } from "../db/admin-repository.js";
 import type { ApiAccessRequest, ApiClient, ApiClientToken } from "../db/api-access-repository.js";
 import type { DeveloperAccount, DeveloperIdentity } from "../db/developer-repository.js";
-import { getAdminRepository, getApiAccessRepository, getDeveloperRepository } from "../db/index.js";
+import { getApiAccessRepository, getDeveloperRepository } from "../db/index.js";
+
+/** The person a GDPR access or portability request is about. */
+export interface PersonalDataSubject {
+  developerAccountId?: string;
+  email: string;
+}
 
 /** A client plus its issued tokens' metadata, as included in the export. */
 export interface ExportedApiClient extends ApiClient {
@@ -29,7 +33,6 @@ export interface PersonalDataExport {
     requests: ApiAccessRequest[];
     clients: ExportedApiClient[];
   };
-  formSubmissions: FormSubmissionDto[];
 }
 
 /**
@@ -41,14 +44,10 @@ export interface PersonalDataExport {
  * @returns The versioned export package.
  */
 export async function buildPersonalDataExport(subject: PersonalDataSubject): Promise<PersonalDataExport> {
-  const adminRepo = await getAdminRepository();
-  const formSubmissions = await adminRepo.listFormSubmissionsBySubject(subject);
-
   const pkg: PersonalDataExport = {
     version: 1,
     exportedAt: new Date().toISOString(),
     subject,
-    formSubmissions,
   };
 
   if (!subject.developerAccountId) return pkg;

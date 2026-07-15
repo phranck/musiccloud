@@ -1,40 +1,27 @@
 /**
- * @file GDPR erasure (MC-085, Art. 17). Erasure is anonymisation for stored
- * form submissions (their `submitter_email` is nulled; the data itself stays)
- * plus, for account subjects, deletion of the developer account — the DB
- * cascade then clears identities, email tokens, and API-access
- * requests/clients, while `form_submissions.developer_account_id` is nulled
- * by its `SET NULL` foreign key.
+ * @file GDPR erasure (MC-085, Art. 17). Authenticated self-service deletion
+ * removes the developer account. Database cascades clear its identities,
+ * email tokens, API-access requests and clients.
  */
 
-import type { PersonalDataSubject } from "../db/admin-repository.js";
-import { getAdminRepository, getDeveloperRepository } from "../db/index.js";
+import { getDeveloperRepository } from "../db/index.js";
 
 /** What an erasure run actually removed. */
 export interface EraseResult {
-  /** How many stored submissions lost their personal attribution. */
-  anonymizedSubmissions: number;
-  /** Whether a developer account row was deleted (account subjects only). */
+  /** Whether the explicitly identified developer account row was deleted. */
   accountDeleted: boolean;
 }
 
 /**
- * Erases the subject's personal data: always anonymises their submissions;
- * deletes the developer account when the subject carries one. Callers own the
- * authorization decision (self-service danger zone vs. admin request).
+ * Erases an authenticated developer account. The caller owns the
+ * authorization decision and must pass the account id from the verified
+ * self-service session.
  *
- * @param subject - Account holder (both fields) or account-less submitter.
- * @returns Counts of what was erased.
+ * @param developerAccountId - Authenticated account identifier to delete.
+ * @returns Whether the account row existed and was deleted.
  */
-export async function erasePersonalData(subject: PersonalDataSubject): Promise<EraseResult> {
-  const adminRepo = await getAdminRepository();
-  const { anonymized } = await adminRepo.anonymizeFormSubmissionsBySubject(subject);
-
-  let accountDeleted = false;
-  if (subject.developerAccountId) {
-    const developerRepo = await getDeveloperRepository();
-    accountDeleted = await developerRepo.deleteDeveloperAccount(subject.developerAccountId);
-  }
-
-  return { anonymizedSubmissions: anonymized, accountDeleted };
+export async function erasePersonalData(developerAccountId: string): Promise<EraseResult> {
+  const developerRepo = await getDeveloperRepository();
+  const accountDeleted = await developerRepo.deleteDeveloperAccount(developerAccountId);
+  return { accountDeleted };
 }

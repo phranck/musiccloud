@@ -1,4 +1,4 @@
-import type { FormConfig, FormConfigPayload, VinylLayout } from "@musiccloud/shared";
+import type { VinylLayout } from "@musiccloud/shared";
 import * as pgModule from "pg";
 import { log } from "../../lib/infra/logger.js";
 import { enrichAlbumVinylLayout as discogsEnrichAlbumVinylLayout } from "../../services/plugins/discogs/discogs-enrich.js";
@@ -21,10 +21,6 @@ import type {
   EmailBrandingDto,
   EmailTemplateRow,
   EmailTemplateWriteData,
-  FormConfigCreateData,
-  FormConfigWriteResult,
-  FormSubmissionDto,
-  FormSubmissionInsertData,
   ListResult,
   NavId,
   NavItemReplaceInput,
@@ -33,7 +29,6 @@ import type {
   PageSegmentInputRow,
   PageSegmentRow,
   PageSegmentTranslationRow,
-  PersonalDataSubject,
   TrackListItem,
 } from "../admin-repository.js";
 import type {
@@ -262,18 +257,6 @@ import {
   updateDeveloperAccount as developerUpdateAccount,
   updateDeveloperLastLogin as developerUpdateLastLogin,
 } from "./postgres-developer.js";
-import {
-  anonymizeFormSubmissionsBySubject as formsAnonymizeFormSubmissionsBySubject,
-  createFormConfig as formsCreateFormConfig,
-  deleteFormConfig as formsDeleteFormConfig,
-  getActiveFormConfigBySlug as formsGetActiveFormConfigBySlug,
-  getFormConfigByName as formsGetFormConfigByName,
-  insertFormSubmission as formsInsertFormSubmission,
-  listFormConfigs as formsListFormConfigs,
-  listFormSubmissionsBySubject as formsListFormSubmissionsBySubject,
-  saveFormConfigPayload as formsSaveFormConfigPayload,
-  setFormConfigActive as formsSetFormConfigActive,
-} from "./postgres-forms.js";
 import { insertAppTelemetryEvent } from "./postgres-telemetry.js";
 import { PostgresTierRepository } from "./postgres-tiers.js";
 import {
@@ -915,50 +898,6 @@ export class PostgresAdapter
 
   deleteEmailActionBinding(id: string): Promise<boolean> {
     return contentEmailDeleteEmailActionBinding(this.pool, id);
-  }
-
-  // ============================================================================
-  // FORM BUILDER (AdminRepository, MC-082)
-  // ============================================================================
-
-  listFormConfigs(): Promise<FormConfig[]> {
-    return formsListFormConfigs(this.pool);
-  }
-
-  getFormConfigByName(name: string): Promise<FormConfig | null> {
-    return formsGetFormConfigByName(this.pool, name);
-  }
-
-  getActiveFormConfigBySlug(slug: string): Promise<FormConfig | null> {
-    return formsGetActiveFormConfigBySlug(this.pool, slug);
-  }
-
-  createFormConfig(data: FormConfigCreateData): Promise<FormConfigWriteResult> {
-    return formsCreateFormConfig(this.pool, data);
-  }
-
-  saveFormConfigPayload(name: string, payload: FormConfigPayload): Promise<FormConfigWriteResult> {
-    return formsSaveFormConfigPayload(this.pool, name, payload);
-  }
-
-  setFormConfigActive(name: string, isActive: boolean): Promise<FormConfig | null> {
-    return formsSetFormConfigActive(this.pool, name, isActive);
-  }
-
-  deleteFormConfig(name: string): Promise<boolean> {
-    return formsDeleteFormConfig(this.pool, name);
-  }
-
-  insertFormSubmission(data: FormSubmissionInsertData): Promise<{ id: number }> {
-    return formsInsertFormSubmission(this.pool, data);
-  }
-
-  listFormSubmissionsBySubject(subject: PersonalDataSubject): Promise<FormSubmissionDto[]> {
-    return formsListFormSubmissionsBySubject(this.pool, subject);
-  }
-
-  anonymizeFormSubmissionsBySubject(subject: PersonalDataSubject): Promise<{ anonymized: number }> {
-    return formsAnonymizeFormSubmissionsBySubject(this.pool, subject);
   }
 
   // ============================================================================

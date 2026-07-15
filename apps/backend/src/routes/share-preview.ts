@@ -29,7 +29,7 @@ export default async function sharePreviewRoutes(app: FastifyInstance) {
         tags: ["Share"],
         summary: "Refresh the audio preview URL for a share",
         description:
-          "Looks the track up by short ID, refreshes its Deezer preview URL via ISRC if missing or expired, persists the refreshed URL, and returns it. Returns `previewUrl: null` when no preview can be produced (no ISRC or Deezer unavailable).",
+          "Returns a currently usable audio-preview URL for a commercial track share. The key `previewUrl` is always included: its value is a URL when one is available, or `null` when the track has no source identifier or no preview can be obtained. This endpoint does not accept album, artist, or Creative-Commons share codes.",
         params: {
           type: "object",
           required: ["shortId"],
@@ -40,23 +40,22 @@ export default async function sharePreviewRoutes(app: FastifyInstance) {
               maxLength: 64,
               pattern: "^[A-Za-z0-9_-]+$",
               description:
-                "Track share code: take the last path segment of `shortUrl` from a successful track response to `POST /api/v1/resolve`. Album, artist, and CC share codes are not accepted.",
+                "Track share code: take the last path segment of `shortUrl` from a successful track response from `POST /api/v1/resolve` or `GET /api/v1/resolve`. Album, artist, and Creative Commons share codes are not accepted.",
             },
           },
           additionalProperties: false,
         },
         response: {
           200: {
-            type: "object",
-            required: ["previewUrl"],
-            properties: {
-              previewUrl: { anyOf: [{ type: "string" }, { type: "null" }] },
-            },
-            additionalProperties: false,
+            description: "Fresh preview URL for the commercial track share, or `null` when no preview is available.",
+            $ref: "SharePreviewResponse#",
           },
-          404: { $ref: "ErrorResponse#" },
+          404: {
+            description: "No commercial track exists for this share code.",
+            $ref: "ErrorResponse#",
+          },
           429: {
-            description: "Rate limit exceeded for this client IP (10 requests per 60 seconds).",
+            description: "This client IP exceeded `10` requests in a rolling `60`-second window.",
             $ref: "ErrorResponse#",
           },
         },

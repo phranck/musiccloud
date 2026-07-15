@@ -16,7 +16,6 @@ export const GET: APIRoute = async ({ url, clientAddress }) => {
   const name = url.searchParams.get("name") ?? "";
   const region = url.searchParams.get("region") ?? "";
   const shortId = url.searchParams.get("shortId") ?? "";
-  const artistEntityId = url.searchParams.get("artistEntityId") ?? "";
   const refresh = url.searchParams.get("refresh") === "profile" ? "profile" : undefined;
 
   if (!name.trim()) {
@@ -28,7 +27,6 @@ export const GET: APIRoute = async ({ url, clientAddress }) => {
 
   const res = await fetchArtistInfo(name, region || undefined, clientAddress, {
     shortId: shortId || undefined,
-    artistEntityId: artistEntityId || undefined,
     refresh,
   });
 

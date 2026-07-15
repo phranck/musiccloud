@@ -5,6 +5,8 @@
  * routes are already grouped, media types expose resolved local schema names,
  * and schema anchors are stable for in-page navigation.
  */
+import { apiReferenceSchemaAnchor } from "./api-reference-anchor";
+
 export interface ApiReference {
   version: string;
   title: string;
@@ -57,7 +59,10 @@ export interface ApiResponse {
 
 export interface ApiMediaType {
   mediaType: string;
+  /** Direct top-level schema reference, used by request bodies and simple responses. */
   schemaRef?: string;
+  /** Named top-level variants of a composed response schema, in OpenAPI order. */
+  schemaRefs?: string[];
   schema?: unknown;
   example?: unknown;
 }
@@ -66,10 +71,43 @@ export interface ApiSchema {
   name: string;
   anchor: string;
   description?: string;
+  /** Human-readable fields, flattened one object level for the schema card. */
+  fields: ApiSchemaField[];
+  /** Named top-level `oneOf`/`anyOf`/`allOf` response variants. */
+  variants: ApiSchemaVariant[];
   schema: Record<string, unknown>;
 }
 
+export interface ApiSchemaField {
+  /** Local field name. Visual nesting conveys its parent object or array. */
+  path: string;
+  /** Visual nesting level, starting at zero for a schema's direct properties. */
+  depth: number;
+  /** Concise JSON type label, including nullable and referenced schema types. */
+  type: string;
+  /** Whether the containing object requires this field. */
+  required: boolean;
+  /** Field description authored in the OpenAPI contract, when present. */
+  description?: string;
+  /** Linked component-schema name when the field has a named object type. */
+  schemaRef?: string;
+}
+
+export interface ApiSchemaVariant {
+  name: string;
+  anchor: string;
+}
+
 const HTTP_METHODS = new Set(["get", "put", "post", "delete", "patch", "options", "head", "trace"]);
+const PublicApiKeySecurityScheme = {
+  Scheme: "ApiKeyAuth",
+  Type: "apiKey",
+  Location: "header",
+  HeaderName: "X-API-Key",
+} as const;
+const OpenApiSchemaType = {
+  Array: "array",
+} as const;
 
 /**
  * Purpose-written labels for the reference rail. They deliberately live in
@@ -85,7 +123,6 @@ const CURATED_NAVIGATION_TITLES: Record<string, string> = {
   "GET /api/v1/cc/genre-artwork/{genreKey}": "Creative Commons genre artwork",
   "GET /api/v1/cc/random-example": "Creative Commons example",
   "POST /api/v1/cc/resolve": "Creative Commons resolve",
-  "POST /api/v1/forms/{slug}/submit": "Submit form",
   "GET /api/v1/genre-artwork/{genreKey}": "Genre artwork",
   "GET /api/v1/link/{id}": "Link metadata",
   "GET /api/v1/resolve": "Quick resolve",
@@ -152,15 +189,6 @@ function buildNavigationTitle(operation: Record<string, unknown>, method: string
   return `${method.toUpperCase()} ${path}`;
 }
 
-function schemaAnchor(name: string): string {
-  const slug = name
-    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
-    .replace(/[^a-zA-Z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .toLowerCase();
-  return `schema-${slug}`;
-}
-
 function extractLocalSchemaRef(schema: unknown, schemas: Record<string, unknown>): string | undefined {
   if (!isRecord(schema)) return undefined;
   const ref = stringValue(schema.$ref);
@@ -174,6 +202,121 @@ function extractLocalSchemaRef(schema: unknown, schemas: Record<string, unknown>
     throw new Error(`Unknown OpenAPI schema reference: ${name}.`);
   }
   return name;
+}
+
+/**
+ * Returns the named response objects at the root of a response shape. Nested
+ * property references are deliberately excluded: they describe fields of one
+ * response object, not alternative response payloads.
+ */
+function extractTopLevelSchemaRefs(schema: unknown, schemas: Record<string, unknown>): string[] {
+  const directReference = extractLocalSchemaRef(schema, schemas);
+  if (directReference) return [directReference];
+  if (!isRecord(schema)) return [];
+
+  const references = new Set<string>();
+  for (const keyword of ["oneOf", "anyOf", "allOf"]) {
+    const variants = schema[keyword];
+    if (!Array.isArray(variants)) continue;
+    for (const variant of variants) {
+      const reference = extractLocalSchemaRef(variant, schemas);
+      if (reference) references.add(reference);
+    }
+  }
+  return [...references];
+}
+
+function extractSchemaTypeReference(schema: unknown, schemas: Record<string, unknown>): string | undefined {
+  const directReference = extractLocalSchemaRef(schema, schemas);
+  if (directReference) return directReference;
+  if (!isRecord(schema)) return undefined;
+
+  for (const keyword of ["oneOf", "anyOf", "allOf"]) {
+    const variants = schema[keyword];
+    if (!Array.isArray(variants)) continue;
+    for (const variant of variants) {
+      const reference = extractLocalSchemaRef(variant, schemas);
+      if (reference) return reference;
+    }
+  }
+  return undefined;
+}
+
+function schemaTypeLabel(schema: unknown, schemas: Record<string, unknown>): string {
+  if (!isRecord(schema)) return "unknown";
+
+  const typeReference = extractSchemaTypeReference(schema, schemas);
+  let baseType: string;
+  if (typeReference) {
+    baseType = typeReference;
+  } else if (schema.type === OpenApiSchemaType.Array) {
+    baseType = `${schemaTypeLabel(schema.items, schemas)}[]`;
+  } else if (typeof schema.type === "string") {
+    baseType = schema.type;
+  } else {
+    const typeVariants = ["oneOf", "anyOf", "allOf"].flatMap((keyword) => {
+      const variants = schema[keyword];
+      if (!Array.isArray(variants)) return [];
+      return variants.map((variant) => schemaTypeLabel(variant, schemas));
+    });
+    baseType = typeVariants.length > 0 ? [...new Set(typeVariants)].join(" | ") : "object";
+  }
+
+  return schema.nullable === true && !baseType.includes("null") ? `${baseType} | null` : baseType;
+}
+
+function collectSchemaFields(schema: Record<string, unknown>, schemas: Record<string, unknown>): ApiSchemaField[] {
+  const fields: ApiSchemaField[] = [];
+  const activeReferences = new Set<string>();
+
+  const visit = (value: unknown, parentPath: string, depth: number): void => {
+    const reference = extractLocalSchemaRef(value, schemas);
+    if (reference) {
+      if (activeReferences.has(reference)) return;
+      activeReferences.add(reference);
+      visit(schemas[reference], parentPath, depth);
+      activeReferences.delete(reference);
+      return;
+    }
+    if (!isRecord(value)) return;
+
+    const properties = value.properties;
+    if (isRecord(properties)) {
+      const requiredProperties = new Set(
+        Array.isArray(value.required)
+          ? value.required.filter((property): property is string => typeof property === "string")
+          : [],
+      );
+      for (const [propertyName, propertySchema] of Object.entries(properties)) {
+        const nestedPath = parentPath ? `${parentPath}.${propertyName}` : propertyName;
+        const schemaReference = extractSchemaTypeReference(propertySchema, schemas);
+        fields.push({
+          path: propertyName,
+          depth,
+          type: schemaTypeLabel(propertySchema, schemas),
+          required: requiredProperties.has(propertyName),
+          ...(isRecord(propertySchema) && stringValue(propertySchema.description)
+            ? { description: stringValue(propertySchema.description) }
+            : {}),
+          ...(schemaReference ? { schemaRef: schemaReference } : {}),
+        });
+
+        // One visible nested level makes common response payloads scannable
+        // without duplicating every component schema throughout the document.
+        if (depth === 0) visit(propertySchema, nestedPath, depth + 1);
+      }
+    }
+
+    if (value.items !== undefined && depth === 0) visit(value.items, `${parentPath}[]`, depth + 1);
+    for (const keyword of ["allOf"]) {
+      const variants = value[keyword];
+      if (!Array.isArray(variants)) continue;
+      for (const variant of variants) visit(variant, parentPath, depth);
+    }
+  };
+
+  visit(schema, "", 0);
+  return fields;
 }
 
 function assertKnownSchemaRefs(value: unknown, schemas: Record<string, unknown>): void {
@@ -195,10 +338,12 @@ function buildMediaTypes(content: unknown, schemas: Record<string, unknown>): Ap
       if (!isRecord(mediaObject)) return { mediaType };
       const schema = mediaObject.schema;
       const schemaRef = extractLocalSchemaRef(schema, schemas);
+      const schemaRefs = extractTopLevelSchemaRefs(schema, schemas);
       if (!schemaRef) assertKnownSchemaRefs(schema, schemas);
       return {
         mediaType,
         ...(schemaRef ? { schemaRef } : schema ? { schema } : {}),
+        ...(!schemaRef && schemaRefs.length > 0 ? { schemaRefs } : {}),
         ...(mediaObject.example !== undefined ? { example: mediaObject.example } : {}),
       };
     });
@@ -263,8 +408,13 @@ function buildSchemas(value: unknown): Record<string, ApiSchema> {
     if (!isRecord(schema)) throw new Error(`Invalid OpenAPI document: schema ${name} must be an object.`);
     schemas[name] = {
       name,
-      anchor: schemaAnchor(name),
+      anchor: apiReferenceSchemaAnchor(name),
       ...(stringValue(schema.description) ? { description: stringValue(schema.description) } : {}),
+      fields: collectSchemaFields(schema, value),
+      variants: extractTopLevelSchemaRefs(schema, value).map((variant) => ({
+        name: variant,
+        anchor: apiReferenceSchemaAnchor(variant),
+      })),
       schema,
     };
   }
@@ -289,9 +439,9 @@ export function buildApiReference(document: unknown): ApiReference {
   const apiKeyAuth = securitySchemes.ApiKeyAuth;
   if (
     !isRecord(apiKeyAuth) ||
-    apiKeyAuth.type !== "apiKey" ||
-    apiKeyAuth.in !== "header" ||
-    apiKeyAuth.name !== "X-API-Key"
+    apiKeyAuth.type !== PublicApiKeySecurityScheme.Type ||
+    apiKeyAuth.in !== PublicApiKeySecurityScheme.Location ||
+    apiKeyAuth.name !== PublicApiKeySecurityScheme.HeaderName
   ) {
     throw new Error("Invalid OpenAPI document: ApiKeyAuth must be an X-API-Key header scheme.");
   }
@@ -344,7 +494,10 @@ export function buildApiReference(document: unknown): ApiReference {
   return {
     version,
     title,
-    auth: { scheme: "ApiKeyAuth", headerName: "X-API-Key" },
+    auth: {
+      scheme: PublicApiKeySecurityScheme.Scheme,
+      headerName: PublicApiKeySecurityScheme.HeaderName,
+    },
     groups,
     schemas,
   };

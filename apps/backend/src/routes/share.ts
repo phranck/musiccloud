@@ -65,7 +65,7 @@ export default async function shareRoutes(app: FastifyInstance) {
           path: "/api/v1/share/aBc123x",
         }),
         description:
-          "Returns the unified share-page payload for the given short ID. Looks up tracks, albums, and artists in a single namespace and returns the first match. Feeds SSR and OG meta tags on the frontend share page.",
+          "Returns one of six exact share variants selected by `type`: commercial `track`, `album`, or `artist`, and Creative Commons `cc-track`, `cc-album`, or `cc-artist`. Commercial variants contain the matching entity plus `links`. `cc-track` contains only `track`, `og`, and `shortUrl`; `cc-album` and `cc-artist` additionally contain `artistInfo`. Creative Commons variants never contain `links`. Read `type` before accessing the variant-specific entity key.",
         params: {
           type: "object",
           required: ["shortId"],
@@ -76,7 +76,7 @@ export default async function shareRoutes(app: FastifyInstance) {
               maxLength: 64,
               pattern: "^[A-Za-z0-9_-]+$",
               description:
-                "Public musiccloud share code: take the last path segment of `shortUrl` from a successful `POST /api/v1/resolve` or `POST /api/v1/cc/resolve` response.",
+                "Public musiccloud share code: take the last path segment of `shortUrl` from a successful `POST /api/v1/resolve`, `GET /api/v1/resolve`, or `POST /api/v1/cc/resolve` response.",
             },
           },
           additionalProperties: false,
@@ -84,7 +84,14 @@ export default async function shareRoutes(app: FastifyInstance) {
         response: {
           200: {
             description:
-              "Type-discriminated share payload (track / album / artist) with OG meta, details, per-service links, and short URL.",
+              "`SharePage`, discriminated by `type` into the exact commercial or Creative-Commons resource shape.",
+            headers: {
+              "Cache-Control": {
+                type: "string",
+                description:
+                  "`private, max-age=3600` for commercial `track`, `album`, and `artist` plus `cc-artist`; `no-store` for `cc-track` and `cc-album`.",
+              },
+            },
             $ref: "SharePage#",
           },
           400: {
@@ -92,11 +99,11 @@ export default async function shareRoutes(app: FastifyInstance) {
             $ref: "ErrorResponse#",
           },
           404: {
-            description: "No track, album, or artist exists for this short ID.",
+            description: "No commercial or Creative-Commons track, album, or artist exists for this share code.",
             $ref: "ErrorResponse#",
           },
           429: {
-            description: "Rate limit exceeded for this client IP (10 requests per 60 seconds).",
+            description: "This client IP exceeded `10` requests in a rolling `60`-second window.",
             $ref: "ErrorResponse#",
           },
         },

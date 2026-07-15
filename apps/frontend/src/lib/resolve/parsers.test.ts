@@ -1,4 +1,4 @@
-import type { ArtistInfoResponse, VinylLayout } from "@musiccloud/shared";
+import type { CcArtistInfoResponse, VinylLayout } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
 import { buildShareViewFromSharePageResponse } from "@/lib/share/share-view";
 import { ActiveResultKind, type AlbumResult, type SongResult } from "@/lib/types/app";
@@ -23,11 +23,12 @@ const VINYL_LAYOUT: VinylLayout = {
   ],
 };
 
-const CC_ARTIST_INFO: ArtistInfoResponse = {
+const CC_ARTIST_INFO: CcArtistInfoResponse = {
   artistName: "Jimmy Smith",
   topTracks: [],
   profile: null,
   events: [],
+  similarArtistTracks: [],
 };
 
 describe("media-card LP label fields", () => {
@@ -68,7 +69,7 @@ describe("media-card LP label fields", () => {
   it("preserves cached CC track and album layouts through the persistent share parser", () => {
     const track = ccResponseToResult({
       type: "cc-track",
-      og: { title: "", description: "", url: "https://musiccloud.local/cc-track" },
+      og: { title: "", description: "", image: "", url: "https://musiccloud.local/cc-track" },
       shortUrl: "https://musiccloud.local/cc-track",
       track: {
         jamendoId: "track-1",
@@ -83,7 +84,7 @@ describe("media-card LP label fields", () => {
     });
     const album = ccResponseToResult({
       type: "cc-album",
-      og: { title: "", description: "", url: "https://musiccloud.local/cc-album" },
+      og: { title: "", description: "", image: "", url: "https://musiccloud.local/cc-album" },
       shortUrl: "https://musiccloud.local/cc-album",
       album: {
         jamendoId: "album-1",
@@ -188,7 +189,7 @@ describe("media-card LP label fields", () => {
     const view = buildShareViewFromSharePageResponse(
       {
         type: "track",
-        og: { title: "", description: "", url: "https://musiccloud.local/s/track" },
+        og: { title: "", description: "", image: "", url: "https://musiccloud.local/s/track" },
         shortUrl: "https://musiccloud.local/s/track",
         links: [],
         track: {
@@ -217,7 +218,7 @@ describe("media-card LP label fields", () => {
     const trackView = buildShareViewFromSharePageResponse(
       {
         type: "track",
-        og: { title: "", description: "", url: "https://musiccloud.local/s/track" },
+        og: { title: "", description: "", image: "", url: "https://musiccloud.local/s/track" },
         shortUrl: "https://musiccloud.local/s/track",
         links: [],
         track: {
@@ -233,7 +234,7 @@ describe("media-card LP label fields", () => {
     const albumView = buildShareViewFromSharePageResponse(
       {
         type: "album",
-        og: { title: "", description: "", url: "https://musiccloud.local/s/album" },
+        og: { title: "", description: "", image: "", url: "https://musiccloud.local/s/album" },
         shortUrl: "https://musiccloud.local/s/album",
         links: [],
         album: {
@@ -254,7 +255,7 @@ describe("media-card LP label fields", () => {
     const view = buildShareViewFromSharePageResponse(
       {
         type: "track",
-        og: { title: "", description: "", url: "https://musiccloud.local/s/track" },
+        og: { title: "", description: "", image: "", url: "https://musiccloud.local/s/track" },
         shortUrl: "https://musiccloud.local/s/track",
         links: [],
         track: {

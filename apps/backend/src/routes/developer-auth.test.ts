@@ -49,7 +49,7 @@ vi.mock("../services/email-actions.js", () => ({
 }));
 
 vi.mock("../services/gdpr-erase.js", () => ({
-  erasePersonalData: vi.fn(async () => ({ anonymizedSubmissions: 0, accountDeleted: true })),
+  erasePersonalData: vi.fn(async () => ({ accountDeleted: true })),
 }));
 
 vi.mock("../services/gdpr-export.js", () => ({
@@ -57,7 +57,6 @@ vi.mock("../services/gdpr-export.js", () => ({
     version: 1,
     exportedAt: "2026-07-04T00:00:00.000Z",
     subject: { developerAccountId: "dev-acc-1", email: "dev@example.com" },
-    formSubmissions: [],
   })),
 }));
 
@@ -728,10 +727,7 @@ describe("POST /api/dev/auth/delete-account", () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.json().ok).toBe(true);
-    expect(vi.mocked(erasePersonalData)).toHaveBeenCalledWith({
-      developerAccountId: "dev-acc-1",
-      email: "dev@example.com",
-    });
+    expect(vi.mocked(erasePersonalData)).toHaveBeenCalledWith("dev-acc-1");
     const setCookie = findSessionSetCookie(res.headers["set-cookie"]);
     expect(setCookie).toBeDefined();
     expect(setCookie).toMatch(new RegExp(`^${SESSION_COOKIE_NAME}=;`));
@@ -782,10 +778,7 @@ describe("POST /api/dev/auth/delete-account", () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.json().ok).toBe(true);
-    expect(vi.mocked(erasePersonalData)).toHaveBeenCalledWith({
-      developerAccountId: "dev-acc-1",
-      email: "dev@example.com",
-    });
+    expect(vi.mocked(erasePersonalData)).toHaveBeenCalledWith("dev-acc-1");
   });
 
   it("returns 401 without a session cookie", async () => {

@@ -80,4 +80,20 @@ describe("POST /api/v1/resolve disambiguation", () => {
 
     await app.close();
   });
+
+  it("rejects a body that supplies both a query and a selected candidate", async () => {
+    const app = buildApp();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/resolve",
+      headers: { origin: "http://localhost:3000" },
+      payload: { query: "take on me a-ha", selectedCandidate: "spotify:2WfaOiMkCvy7F5fcp2zZ8L" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(resolveTextSearchWithDisambiguation).not.toHaveBeenCalled();
+
+    await app.close();
+  });
 });

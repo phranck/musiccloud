@@ -9,7 +9,7 @@
  * artists" is realised as similar TRACKS by other artists.
  */
 
-import type { ArtistInfoResponse, ArtistProfile, ArtistTopTrack, SimilarArtistTrack } from "@musiccloud/shared";
+import type { CcArtistInfoResponse, CcArtistProfile, CcArtistTopTrack, CcSimilarArtistTrack } from "@musiccloud/shared";
 import { log } from "../../lib/infra/logger.js";
 import { stratifiedSample } from "../genre-search/sampler.js";
 import { ccCandidateId } from "./cc-resolver.js";
@@ -37,7 +37,7 @@ const CC_SIMILAR_POOL_SIZE = CC_SIMILAR_TRACKS_LIMIT * 5;
  * @param track - A CC track from the column or the similar list.
  * @returns The track in the shape the shared artist column renders.
  */
-function toArtistTopTrack(track: CcTrack): ArtistTopTrack {
+function toArtistTopTrack(track: CcTrack): CcArtistTopTrack {
   return {
     title: track.title,
     artists: [track.artistName],
@@ -98,10 +98,10 @@ export async function buildCcArtistInfo(
   artistName: string,
   jamendoArtistId: string,
   columnTracks: CcTrack[],
-): Promise<ArtistInfoResponse> {
+): Promise<CcArtistInfoResponse> {
   const seed = columnTracks[0];
 
-  let similarArtistTracks: SimilarArtistTrack[] = [];
+  let similarArtistTracks: CcSimilarArtistTrack[] = [];
   try {
     const similarPool = seed ? await getSimilarCcTracks(seed.jamendoId, CC_SIMILAR_POOL_SIZE) : [];
     const candidates = dedupeByArtist(similarPool.filter((track) => track.jamendoArtistId !== seed?.jamendoArtistId));
@@ -123,7 +123,7 @@ export async function buildCcArtistInfo(
     similarArtistTracks = [];
   }
 
-  let profile: ArtistProfile | null = null;
+  let profile: CcArtistProfile | null = null;
   try {
     const musicInfo = await getCcArtistMusicInfo(jamendoArtistId);
     profile = musicInfo

@@ -1,4 +1,4 @@
-import type { FormConfigPayload, VinylLayout } from "@musiccloud/shared";
+import type { VinylLayout } from "@musiccloud/shared";
 import { sql } from "drizzle-orm";
 import {
   boolean,
@@ -1104,55 +1104,6 @@ export const emailActionBindings = pgTable(
 
 export type EmailActionBindingRow = typeof emailActionBindings.$inferSelect;
 export type EmailActionBindingInsert = typeof emailActionBindings.$inferInsert;
-
-/**
- * Admin-built forms (MC-082, ported from lmaa.space): the whole field grid
- * plus submission chain lives as one `FormConfigPayload` JSON in `config`;
- * `name` is the stable admin-facing identifier, `slug` the public URL path
- * the form is served under (both unique).
- */
-export const formConfigs = pgTable("form_configs", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull().unique(),
-  slug: text("slug").unique(),
-  config: jsonb("config").$type<FormConfigPayload>().notNull(),
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
-
-export type FormConfigRow = typeof formConfigs.$inferSelect;
-export type FormConfigInsert = typeof formConfigs.$inferInsert;
-
-/**
- * Generic form submissions stored by the submission chain's `store` step.
- * `submitter_email` and `developer_account_id` are nullable GDPR anchors
- * (MC-082): they let a future export/erase service find every submission a
- * person is connected to, whether or not they hold an account.
- */
-export const formSubmissions = pgTable(
-  "form_submissions",
-  {
-    id: serial("id").primaryKey(),
-    formConfigId: integer("form_config_id")
-      .notNull()
-      .references(() => formConfigs.id, { onDelete: "cascade" }),
-    data: jsonb("data").$type<Record<string, unknown>>().notNull(),
-    submitterEmail: text("submitter_email"),
-    developerAccountId: text("developer_account_id").references(() => developerAccounts.id, {
-      onDelete: "set null",
-    }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [
-    index("idx_form_submissions_form").on(table.formConfigId),
-    index("idx_form_submissions_submitter_email").on(table.submitterEmail),
-    index("idx_form_submissions_developer_account").on(table.developerAccountId),
-  ],
-);
-
-export type FormSubmissionRow = typeof formSubmissions.$inferSelect;
-export type FormSubmissionInsert = typeof formSubmissions.$inferInsert;
 
 // Managed content pages. Created and edited via the dashboard pages
 // editor; rendered server-side by the Astro frontend at `/:slug`.

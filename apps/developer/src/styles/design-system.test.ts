@@ -47,6 +47,96 @@ describe("developer design system", () => {
     expect(fallback).not.toContain("--sky-top:");
   });
 
+  it("uses compact 10px padding for ContentCard bodies and headers", () => {
+    const theme = readDeveloperFile("public/developer-theme.css");
+
+    expect(theme).toContain("--mc-space-content-card: 0.625rem;");
+    expect(theme).toContain("--mc-space-content-card-header: 0.625rem;");
+  });
+
+  it("derives the enlarged API card radius outside-in", () => {
+    const docs = readDeveloperFile("src/styles/docs.css");
+
+    expect(docs).toContain("--mc-docs-content-card-radius: calc(var(--radius-card) + var(--mc-space-1));");
+    expect(docs).toContain("calc(var(--mc-docs-content-card-radius) - var(--mc-docs-content-panel-inset))");
+    expect(docs).toContain("calc(var(--mc-docs-content-panel-radius) - var(--mc-space-1) - var(--mc-docs-space-xs))");
+    expect(docs).toContain("--mc-docs-schema-toggle-radius-trim: 1px;");
+    expect(docs).toContain(
+      "calc(var(--mc-docs-content-panel-radius) - var(--mc-space-1) - var(--mc-docs-schema-toggle-radius-trim))",
+    );
+    expect(docs).toMatch(/\.content-card\s*\{[^}]*border-radius:\s*var\(--mc-docs-content-card-radius\);/s);
+  });
+
+  it("uses the approved Accent mist treatment for inline OpenAPI code", () => {
+    const theme = readDeveloperFile("public/developer-theme.css");
+    const docs = readDeveloperFile("src/styles/docs.css");
+
+    expect(theme).toContain("--mc-color-inline-code-bg:");
+    expect(theme).toContain("--mc-color-inline-code-fg:");
+    expect(docs).toContain("--mc-docs-inline-code-radius:");
+    expect(docs).toContain("--mc-docs-inline-code-padding-block-start:");
+    expect(docs).toMatch(
+      /\.openapi-markdown code\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*var\(--mc-docs-inline-code-radius\);[^}]*background:\s*var\(--mc-color-inline-code-bg\);[^}]*padding:\s*var\(--mc-docs-inline-code-padding-block-start\) var\(--mc-space-1\) var\(--mc-docs-space-xs\);[^}]*color:\s*var\(--mc-color-inline-code-fg\);/s,
+    );
+    expect(docs).toMatch(
+      /\.schema-card__field-value-type,\s*\.schema-card__field-presence-badge\s*\{[^}]*border-radius:\s*var\(--mc-docs-inline-code-radius\);/s,
+    );
+    expect(docs).toMatch(
+      /\.schema-card__field-value-type\s*\{[^}]*padding:\s*var\(--mc-docs-space-xs\) var\(--mc-docs-space-sm\) calc\(var\(--mc-docs-space-xs\) \+ 1px\);/s,
+    );
+    expect(docs).toMatch(
+      /\.schema-card__field-presence-badge\s*\{[^}]*padding:\s*var\(--mc-docs-space-xs\) var\(--mc-docs-space-sm\) calc\(var\(--mc-docs-space-xs\) \+ 1px\);/s,
+    );
+    expect(docs).toMatch(/\.openapi-markdown pre code\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;/s);
+  });
+
+  it("distinguishes included and optional response keys without reusing request-required styling", () => {
+    const docs = readDeveloperFile("src/styles/docs.css");
+
+    expect(docs).toMatch(
+      /\.schema-card__field-presence-badge\[data-key-presence="included"\]\s*\{[^}]*color:\s*var\(--color-success\);[^}]*background:\s*color-mix\(in srgb, var\(--color-success\) 12%, transparent\);/s,
+    );
+    expect(docs).toMatch(
+      /\.schema-card__field-presence-badge\[data-key-presence="optional"\]\s*\{[^}]*color:\s*var\(--color-warning\);[^}]*background:\s*color-mix\(in srgb, var\(--color-warning\) 12%, transparent\);/s,
+    );
+  });
+
+  it("provides a reusable segmented control with API-schema-specific compact geometry", () => {
+    const components = readDeveloperFile("src/styles/components.css");
+    const docs = readDeveloperFile("src/styles/docs.css");
+
+    expect(components).toMatch(
+      /\.segmented-control\s*\{[^}]*border-radius:\s*var\(--segmented-control-radius, var\(--radius-button\)\);[^}]*padding:\s*var\(--segmented-control-inset, var\(--mc-space-1\)\);/s,
+    );
+    expect(components).toMatch(
+      /\.segmented-control__item\s*\{[^}]*min-height:\s*var\(--segmented-control-item-min-height, var\(--mc-size-control-compact\)\);[^}]*border-radius:\s*var\(--segmented-control-item-radius, var\(--radius-button\)\);/s,
+    );
+    expect(docs).toMatch(
+      /\.schema-card\s*\{[^}]*--segmented-control-radius:\s*var\(--mc-docs-schema-toggle-radius\);[^}]*--segmented-control-item-radius:\s*var\(--mc-docs-schema-toggle-tab-radius\);/s,
+    );
+    expect(docs).toContain(
+      "--mc-docs-schema-toggle-radius: max(0px, calc(var(--mc-docs-content-panel-radius) - var(--mc-space-1) - var(--mc-docs-schema-toggle-radius-trim)));",
+    );
+  });
+
+  it("keeps a softer token-derived separator below the key-documentation table heading only", () => {
+    const docs = readDeveloperFile("src/styles/docs.css");
+
+    expect(docs).toContain(
+      "--mc-docs-schema-field-separator: color-mix(in srgb, var(--color-border) 68%, transparent);",
+    );
+    expect(docs).toMatch(
+      /\.schema-card__field-heading\s*\{[^}]*border-bottom:\s*1px solid var\(--mc-docs-schema-field-separator\);/s,
+    );
+    expect(docs).toMatch(
+      /\.schema-card__field-heading\s*\{[^}]*border-top:\s*1px solid var\(--mc-docs-schema-field-separator\);/s,
+    );
+    expect(docs).not.toMatch(
+      /\.schema-card__field-name,[\s\S]*\.schema-card__field-description\s*\{[^}]*border-bottom:/s,
+    );
+    expect(docs).not.toContain(".schema-card__field-body > .schema-card__field:last-child > *");
+  });
+
   it("keeps the global stylesheet as an ordered import entry point", () => {
     const globalCss = readDeveloperFile("src/styles/global.css");
 
@@ -103,7 +193,18 @@ describe("developer design system", () => {
 
     expect(docs).toMatch(/\.content-card__section-title\s*\{[^}]*font-size:\s*var\(--text-lead\);/s);
     expect(docs).toMatch(/\.content-card__section-title\s*\{[^}]*font-weight:\s*400;/s);
-    expect(docs).toMatch(/\.content-card__section-icon\s*\{[^}]*width:\s*var\(--mc-size-icon-lg\);[^}]*height:\s*var\(--mc-size-icon-lg\);/s);
+    expect(docs).toMatch(
+      /\.content-card__section-icon\s*\{[^}]*width:\s*var\(--mc-size-icon-lg\);[^}]*height:\s*var\(--mc-size-icon-lg\);/s,
+    );
+  });
+
+  it("keeps required parameter badges in a dedicated trailing header column", () => {
+    const docs = readDeveloperFile("src/styles/docs.css");
+
+    expect(docs).toMatch(
+      /\.parameter-card__header\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*max-content max-content minmax\(0, 1fr\) max-content;/s,
+    );
+    expect(docs).toMatch(/\.parameter-card__requirement\s*\{[^}]*grid-column:\s*4;/s);
   });
 
   it("keeps nested documentation content shrinkable inside cards", () => {

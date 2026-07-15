@@ -9,37 +9,46 @@ export function createPublicErrorResponseSchema() {
   return {
     $id: "ErrorResponse",
     type: "object",
-    additionalProperties: true,
-    description: "Standard error envelope returned by every v1 endpoint on a non-2xx response.",
+    additionalProperties: false,
+    description:
+      "Standard public error envelope. Route-specific error schemas add documented fields such as form validation issues or readiness details.",
     required: ["error", "message", "errorId"],
     properties: {
       error: {
         type: "string",
-        description: "Machine-readable canonical MC error code (e.g. MC-URL-0003, MC-API-0003, MC-RES-0001).",
+        description:
+          "Stable musiccloud error code for programmatic handling, for example `MC-URL-0003`, `MC-API-0003`, or `MC-RES-0001`.",
       },
-      message: { type: "string", description: "Human-readable error detail." },
+      message: {
+        type: "string",
+        description: "Safe English failure detail. The final parenthesized value repeats the `error` code.",
+      },
       errorId: {
         type: "string",
         format: "uuid",
-        description: "Unique incident reference included in the matching structured backend log entry.",
+        description:
+          "Unique incident identifier included in the matching backend log. Send it to musiccloud support when reporting the failure.",
       },
       context: {
         type: "object",
         additionalProperties: { anyOf: [{ type: "string" }, { type: "number" }] },
         description:
-          "Optional structured values for clients that localize errors themselves. For `MC-API-0003` rate-limit responses this currently contains `limit`, `windowSeconds`, and `retryAfterSeconds`.",
+          "Optional structured values associated with the error code. For `MC-API-0003`, the object can contain the active limit, window, and retry delay. The key is omitted when no structured values apply.",
         properties: {
           limit: {
             type: "number",
-            description: "Maximum number of allowed requests in the active rate-limit window. Current value: 10.",
+            description:
+              "Maximum requests allowed by the rate-limit rule that rejected this request. The key is omitted for non-rate-limit errors.",
           },
           windowSeconds: {
             type: "number",
-            description: "Length of the active rate-limit window in seconds. Current value: 60.",
+            description:
+              "Length in seconds of the rate-limit window that rejected this request. The key is omitted for non-rate-limit errors.",
           },
           retryAfterSeconds: {
             type: "number",
-            description: "Seconds until the client can retry after a `429 Too Many Requests` response.",
+            description:
+              "Seconds until the client can retry after a `429 Too Many Requests` response. The key is omitted when no retry delay applies.",
           },
         },
       },
@@ -79,11 +88,14 @@ export function publicErrorResponse(description: string) {
 export function publicHealthSuccessResponse(description: string) {
   return {
     description,
-    type: "object",
-    additionalProperties: false,
-    required: ["status"],
-    properties: {
-      status: { type: "string", enum: ["ok"] },
-    },
+    $ref: "HealthStatusResponse#",
+  } as const;
+}
+
+/** Creates a documented readiness-failure response with the safe public envelope. */
+export function publicHealthUnavailableResponse(description: string) {
+  return {
+    description,
+    $ref: "HealthUnavailableResponse#",
   } as const;
 }

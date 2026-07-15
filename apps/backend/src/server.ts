@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
@@ -5,7 +6,8 @@ import jwt from "@fastify/jwt";
 import rateLimit from "@fastify/rate-limit";
 import sensible from "@fastify/sensible";
 import swagger from "@fastify/swagger";
-import Fastify from "fastify";
+import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import Fastify, { type FastifyLoggerOptions } from "fastify";
 import { runMigrations } from "./db/run-migrations.js";
 import {
   closeRuntimeDatabaseReadinessPool,
@@ -14,12 +16,13 @@ import {
 import { finalizePublicOpenApiDocument } from "./docs/openapi-finalize.js";
 import {
   createPublicErrorResponseSchema,
-  publicErrorResponse,
   publicHealthSuccessResponse,
+  publicHealthUnavailableResponse,
 } from "./docs/public-response-schema.js";
 import { assertRequiredBootEnv } from "./lib/boot-env.js";
 import { requireEnvList } from "./lib/env.js";
-import { registerApiErrorHandling } from "./lib/infra/api-error-handler.js";
+import { registerApiErrorHandling, setApiFailureDiagnostic } from "./lib/infra/api-error-handler.js";
+import { createApiErrorResponse, sanitizeErrorForLog } from "./lib/infra/api-errors.js";
 import authPlugin from "./plugins/auth.js";
 import adminAnalyticsRoutes from "./routes/admin-analytics.js";
 import { adminApiAccessRoutes } from "./routes/admin-api-access.js";
@@ -31,7 +34,6 @@ import adminEmailActionsRoutes from "./routes/admin-email-actions.js";
 import adminEmailAssetsRoutes from "./routes/admin-email-assets.js";
 import adminEmailBrandingRoutes from "./routes/admin-email-branding.js";
 import adminEmailTemplateRoutes from "./routes/admin-email-templates.js";
-import adminFormsRoutes from "./routes/admin-forms.js";
 import adminGdprRoutes from "./routes/admin-gdpr.js";
 import adminNavRoutes from "./routes/admin-nav.js";
 import adminPluginsRoutes from "./routes/admin-plugins.js";
@@ -51,7 +53,6 @@ import { devApiAccessRoutes } from "./routes/dev-api-access.js";
 import { devAuthRoutes } from "./routes/developer-auth.js";
 import { devGitHubRoutes } from "./routes/developer-github.js";
 import emailAssetServeRoutes from "./routes/email-assets.js";
-import formsPublicRoutes from "./routes/forms-public.js";
 import genreArtworkRoutes from "./routes/genre-artwork.js";
 import linkRoutes from "./routes/link.js";
 import publicContentNavRoutes from "./routes/public-content-nav.js";
@@ -71,6 +72,26 @@ import { warmAppleMusicToken } from "./services/plugins/apple-music/adapter.js";
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 4000);
+
+/**
+ * Exact route set exported as the external REST contract. Runtime routes not
+ * listed here remain callable for first-party applications and monitoring but
+ * are hidden from `/docs/json` by default.
+ */
+const PUBLIC_OPENAPI_PATHS = new Set<string>([
+  ENDPOINTS.v1.artistInfo,
+  ENDPOINTS.v1.ccArtistInfo,
+  ROUTE_TEMPLATES.v1.ccAudio,
+  ROUTE_TEMPLATES.v1.ccBandcamp,
+  ROUTE_TEMPLATES.v1.ccDownload,
+  ROUTE_TEMPLATES.v1.ccGenreArtwork,
+  ENDPOINTS.v1.ccResolve,
+  ROUTE_TEMPLATES.v1.genreArtwork,
+  ROUTE_TEMPLATES.v1.link,
+  ENDPOINTS.v1.resolve,
+  ROUTE_TEMPLATES.v1.share,
+  ROUTE_TEMPLATES.v1.sharePreview,
+]);
 
 /**
  * Detects direct execution of the CommonJS bundle emitted by tsup.
@@ -138,26 +159,18 @@ async function isUpstreamReachable(url: string): Promise<boolean> {
   }
 }
 
-/**
- * Readiness check behind `GET /health/db`: confirms migrations, table
- * existence, effective privileges and the configured remote owner role.
- *
- * @returns `{ ok: true }` when ready, else `{ ok: false, body }` carrying the 503 payload.
- */
-async function checkReadiness(): Promise<{ ok: true } | { ok: false; body: Record<string, unknown> }> {
-  try {
-    const report = await getRuntimeDatabaseReadinessReport();
-    if (!report.ok) return { ok: false, body: { status: "not_ready", ...report } };
-    return { ok: true };
-  } catch {
-    return { ok: false, body: { status: "not_ready", reason: "database_readiness_check_failed" } };
-  }
+interface BuildAppOptions {
+  databaseReadiness?: typeof getRuntimeDatabaseReadinessReport;
+  logger?: false | FastifyLoggerOptions;
 }
 
-async function buildApp() {
+async function buildApp(options: BuildAppOptions = {}) {
+  const databaseReadiness = options.databaseReadiness ?? getRuntimeDatabaseReadinessReport;
   const app = Fastify({
     // Silence log noise under vitest — integration tests stay quiet.
-    logger: process.env.VITEST === "true" ? false : { level: process.env.NODE_ENV === "production" ? "info" : "debug" },
+    logger:
+      options.logger ??
+      (process.env.VITEST === "true" ? false : { level: process.env.NODE_ENV === "production" ? "info" : "debug" }),
     trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
     ajv: {
       // AJV strict mode rejects the OpenAPI-native `example` annotation we
@@ -252,21 +265,15 @@ async function buildApp() {
       info: {
         title: "musiccloud API",
         description:
-          "Public REST API for musiccloud.io. Resolve music URLs or text queries across 20+ streaming services and retrieve unified metadata.\n\n" +
+          "Public REST API for resolving music URLs and search queries, retrieving persisted shares, and consuming Creative-Commons media and metadata.\n\n" +
           "## Authentication\n\n" +
-          "Most endpoints require credentials. Endpoints declaring a `security` block (e.g. `POST /api/v1/resolve`, `GET /api/v1/link/:id`) " +
-          "accept an `X-API-Key` header containing a live API key in the form `mc_live_<prefix>_<secret>`. " +
-          "Send it as `X-API-Key: mc_live_<prefix>_<secret>`. " +
-          "Keys are issued in the developer portal at developer.musiccloud.io and are shown only once at creation or rotation. " +
-          "Do not expose keys in browser code.\n\n" +
-          "Public read-only endpoints — `GET /api/v1/share/:shortId`, `GET /api/v1/share/:shortId/preview`, " +
-          "`GET /api/v1/artist/...`, `GET /api/v1/genre-artwork/:genreKey`, `GET /health/db` — are reachable without credentials.\n\n" +
-          "Without a valid active key, protected endpoints return `401 Unauthorized` and the client never reaches the resolver.\n\n" +
+          "Exactly three operations require an issued API key: `POST /api/v1/resolve`, `POST /api/v1/cc/resolve`, and `GET /api/v1/link/{id}`. Send the key as `X-API-Key: mc_live_<prefix>_<secret>`. All other operations in this reference are callable without an API key. Request API access at https://developer.musiccloud.io/dashboard/api-access, then create or rotate keys at https://developer.musiccloud.io/dashboard/api-keys. A key is shown only when created or rotated. Store it as a secret and never embed it in browser code. Missing, invalid, disabled, or revoked keys receive `401`.\n\n" +
           "## Rate limiting\n\n" +
-          "Requests authenticated with an issued `X-API-Key` token are limited by **the client's configured per-minute and per-day quota**. " +
-          "Exceeding either quota returns `429 Too Many Requests` with `error: MC-API-0003`, an English `message`, structured `context`, and a `Retry-After` header. " +
-          "The asset endpoint `GET /api/v1/genre-artwork/:genreKey` is exempt from this per-IP quota because the frontend loads artwork tiles in parallel; " +
-          "it is still bounded by a global 300 requests/minute ceiling shared with all routes.",
+          "Three independent rules can apply:\n\n" +
+          "1. The three API-key operations use the rolling `60`-second and rolling `24`-hour quotas assigned to that API client.\n" +
+          "2. Public data operations `GET /api/v1/resolve`, `GET /api/v1/share/{shortId}`, `GET /api/v1/share/{shortId}/preview`, `GET /api/v1/artist-info`, `GET /api/v1/cc/artist-info`, `GET /api/v1/cc/audio/{jamendoId}`, `GET /api/v1/cc/download/{jamendoId}`, and `GET /api/v1/cc/bandcamp/{jamendoId}` allow `10` requests in a rolling `60`-second window per client IP.\n" +
+          "3. Every route is also protected by a global ceiling of `300` requests in a rolling `60`-second window per client IP.\n\n" +
+          "A rejected request returns `429 Too Many Requests`, the `ErrorResponse` JSON body, and `Retry-After`. When available, `context.limit`, `context.windowSeconds`, and `context.retryAfterSeconds` describe the rule that rejected the request.",
         version: "2.1.3",
       },
       servers: [{ url: "https://api.musiccloud.io", description: "Production" }],
@@ -274,14 +281,12 @@ async function buildApp() {
       // sorted in finalizePublicOpenApiDocument before it is served, so groups
       // always render alphabetically regardless of this list's order.
       tags: [
+        { name: "Artwork", description: "Generated JPEG artwork for commercial and Creative-Commons genres" },
         { name: "Resolve", description: "Resolve music URLs or text queries" },
         { name: "Share", description: "Fetch previously-resolved shares" },
         { name: "Links", description: "Link metadata" },
-        { name: "Artist", description: "Artist info (Last.fm + Ticketmaster)" },
+        { name: "Artist", description: "Commercial and Creative-Commons artist metadata" },
         { name: "CC", description: "Creative-Commons (Jamendo) resolve, audio, and metadata" },
-        { name: "Forms", description: "Submit published forms" },
-        { name: "Services", description: "Active resolver plugins and examples" },
-        { name: "Health", description: "Per-service liveness and readiness probes" },
       ],
       components: {
         securitySchemes: {
@@ -295,27 +300,7 @@ async function buildApp() {
       buildLocalReference: (json, _baseUri, _fragment, i) => (typeof json.$id === "string" ? json.$id : `def-${i}`),
     },
     transform: ({ schema, url }) => {
-      // Hide admin endpoints, the developer-portal account API, and internal
-      // helpers (SSR-only routes, frontend-marquee data, Apple Testflight
-      // ingest, landing-page teaser). The public API reference covers Health,
-      // Resolve, Share, Auth, Link, Artist, and Genre-Artwork — everything
-      // else is reachable but not advertised to external consumers.
-      //
-      // `/api/dev/*` is the developer.musiccloud.io account system (signup,
-      // login, password reset, GitHub OAuth). It is a separate first-party
-      // surface, not part of the public REST contract, so it must never
-      // appear in the published OpenAPI document.
-      const isInternal =
-        url.startsWith("/api/admin") ||
-        url.startsWith("/api/auth") ||
-        url.startsWith("/api/dev") ||
-        url.startsWith("/api/v1/content") ||
-        url.startsWith("/api/v1/nav") ||
-        url.startsWith("/api/v1/site-settings") ||
-        url.startsWith("/api/v1/services") ||
-        url.startsWith("/api/v1/random") ||
-        url.startsWith("/api/v1/telemetry");
-      if (isInternal) {
+      if (!PUBLIC_OPENAPI_PATHS.has(url)) {
         return { schema: { ...schema, hide: true }, url };
       }
       return { schema, url };
@@ -356,10 +341,10 @@ async function buildApp() {
       schema: {
         tags: ["Health"],
         summary: "Email subsystem readiness",
-        description: "Returns 200 when the email provider is configured and reachable, else 503.",
+        description: "Returns `200` when the email delivery subsystem is ready, otherwise `503`.",
         response: {
-          200: publicHealthSuccessResponse("The email provider is configured and reachable."),
-          503: publicErrorResponse("The email provider is unavailable or not configured."),
+          200: publicHealthSuccessResponse("The email delivery subsystem is ready."),
+          503: publicHealthUnavailableResponse("The email delivery subsystem is not ready."),
         },
       },
     },
@@ -382,10 +367,14 @@ async function buildApp() {
         tags: ["Health"],
         summary: "Developer portal liveness",
         description:
-          "Returns 200 when the developer portal (developer.musiccloud.io) is reachable from the backend, else 503.",
+          "Returns `200` when `https://developer.musiccloud.io` answers the probe without a server error before the timeout; otherwise returns `503`.",
         response: {
-          200: publicHealthSuccessResponse("The Developer Portal is reachable from the backend."),
-          503: publicErrorResponse("The Developer Portal is unavailable from the backend."),
+          200: publicHealthSuccessResponse(
+            "`https://developer.musiccloud.io` answered the probe with an HTTP status below `500`.",
+          ),
+          503: publicHealthUnavailableResponse(
+            "`https://developer.musiccloud.io` did not answer successfully before the probe timeout.",
+          ),
         },
       },
     },
@@ -408,10 +397,14 @@ async function buildApp() {
         tags: ["Health"],
         summary: "Dashboard liveness",
         description:
-          "Returns 200 when the admin dashboard (dashboard.musiccloud.io) is reachable from the backend, else 503.",
+          "Returns `200` when `https://dashboard.musiccloud.io` answers the probe without a server error before the timeout; otherwise returns `503`.",
         response: {
-          200: publicHealthSuccessResponse("The admin dashboard is reachable from the backend."),
-          503: publicErrorResponse("The admin dashboard is unavailable from the backend."),
+          200: publicHealthSuccessResponse(
+            "`https://dashboard.musiccloud.io` answered the probe with an HTTP status below `500`.",
+          ),
+          503: publicHealthUnavailableResponse(
+            "`https://dashboard.musiccloud.io` did not answer successfully before the probe timeout.",
+          ),
         },
       },
     },
@@ -433,10 +426,15 @@ async function buildApp() {
       schema: {
         tags: ["Health"],
         summary: "Frontend liveness",
-        description: "Returns 200 when the public site (musiccloud.io) is reachable from the backend, else 503.",
+        description:
+          "Returns `200` when `https://musiccloud.io` answers the probe without a server error before the timeout; otherwise returns `503`.",
         response: {
-          200: publicHealthSuccessResponse("The public site is reachable from the backend."),
-          503: publicErrorResponse("The public site is unavailable from the backend."),
+          200: publicHealthSuccessResponse(
+            "`https://musiccloud.io` answered the probe with an HTTP status below `500`.",
+          ),
+          503: publicHealthUnavailableResponse(
+            "`https://musiccloud.io` did not answer successfully before the probe timeout.",
+          ),
         },
       },
     },
@@ -458,7 +456,7 @@ async function buildApp() {
       schema: {
         tags: ["Health"],
         summary: "Backend liveness",
-        description: "Returns 200 if the backend process is alive and serving requests.",
+        description: 'Returns `200` with `{ "status": "ok" }` when the API process is accepting HTTP requests.',
         response: {
           200: publicHealthSuccessResponse("The backend process is alive and serving requests."),
         },
@@ -475,24 +473,50 @@ async function buildApp() {
   // created (Apr 2026 outage: track_previews missing → all share URLs returned
   // 500). Returns 503 with the missing-table list so Zerops (this is the
   // container healthCheck in zerops.yml) and external monitoring can mark the
-  // container un-ready. Powers the "Database" service on the status page.
+  // container un-ready. The response remains a safe public error envelope;
+  // operators retrieve the detailed checks from the correlated `errorId` log.
+  // Powers the "Database" service on the status page.
   app.get(
     "/health/db",
     {
       schema: {
         tags: ["Health"],
         summary: "Database readiness",
-        description: "Returns 200 when the database is reachable and the schema is complete, else 503.",
+        description:
+          "Returns `200` only when the database is reachable, all required tables and migration hashes exist, the runtime role has its required CRUD privileges, and table ownership matches the expected application role. Returns a safe `503` error envelope otherwise; operators can correlate its `errorId` with the detailed backend diagnostic.",
         response: {
           200: publicHealthSuccessResponse("The database is reachable, migrated, and ready for the runtime role."),
-          503: publicErrorResponse("The database readiness contract is not satisfied."),
+          503: publicHealthUnavailableResponse(
+            "The database readiness contract is not satisfied. The response exposes only the stable error envelope and correlation ID.",
+          ),
         },
       },
     },
-    async (_request, reply) => {
-      const result = await checkReadiness();
-      if (result.ok) return { status: "ok" };
-      return reply.status(503).send(result.body);
+    async (request, reply) => {
+      const errorId = randomUUID();
+      try {
+        const report = await databaseReadiness();
+        if (report.ok) return { status: "ok" };
+
+        setApiFailureDiagnostic(request, {
+          operation: "database_readiness",
+          outcome: "not_ready",
+          report,
+        });
+      } catch (error) {
+        setApiFailureDiagnostic(request, {
+          cause: sanitizeErrorForLog(error, process.env.NODE_ENV !== "production"),
+          operation: "database_readiness",
+          outcome: "check_failed",
+        });
+      }
+
+      return reply.status(503).send(
+        createApiErrorResponse("MC-API-0001", {
+          errorId,
+          overrideMessage: "Database readiness could not be confirmed. Please try again later.",
+        }),
+      );
     },
   );
 
@@ -571,9 +595,6 @@ async function buildApp() {
   // Apple-client telemetry ingest (public, no auth, Testflight-only caller)
   await app.register(telemetryAppErrorRoutes);
 
-  // Public form submissions (MC-082): unauthenticated, per-route rate-limited.
-  await app.register(formsPublicRoutes);
-
   // Protected API routes (X-API-Key)
   await app.register(async function protectedRoutes(protectedApp) {
     protectedApp.addHook("preHandler", protectedApp.authenticatePublic);
@@ -592,7 +613,6 @@ async function buildApp() {
     await adminApp.register(adminContentRoutes);
     await adminApp.register(adminDataRoutes);
     await adminApp.register(adminEmailActionsRoutes);
-    await adminApp.register(adminFormsRoutes);
     await adminApp.register(adminGdprRoutes);
     await adminApp.register(adminEmailAssetsRoutes);
     await adminApp.register(adminEmailBrandingRoutes);

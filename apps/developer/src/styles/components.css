@@ -485,6 +485,47 @@
     opacity: 0.5;
   }
 
+  /* Reusable segmented control. Call sites can override its compact geometry
+     through the documented --segmented-control-* variables without rebuilding
+     the shared interaction surface. */
+  .segmented-control {
+    display: inline-flex;
+    min-width: 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--segmented-control-radius, var(--radius-button));
+    padding: var(--segmented-control-inset, var(--mc-space-1));
+    background: var(--color-code-bg);
+  }
+
+  .segmented-control__item {
+    min-height: var(--segmented-control-item-min-height, var(--mc-size-control-compact));
+    border: 0;
+    border-radius: var(--segmented-control-item-radius, var(--radius-button));
+    padding-inline: var(--segmented-control-item-padding-inline, var(--mc-space-3));
+    color: var(--color-fg-muted);
+    background: transparent;
+    font-size: var(--text-code);
+    cursor: pointer;
+    transition:
+      color var(--mc-motion-duration-fast) var(--mc-motion-easing-standard),
+      background-color var(--mc-motion-duration-fast) var(--mc-motion-easing-standard);
+  }
+
+  .segmented-control__item:hover,
+  .segmented-control__item:focus-visible {
+    color: var(--color-fg);
+  }
+
+  .segmented-control__item[aria-selected="true"] {
+    color: var(--color-fg);
+    background: color-mix(in srgb, var(--color-accent) 16%, var(--color-surface-raised));
+  }
+
+  .segmented-control__item:focus-visible {
+    outline: 1px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+
   .field {
     display: grid;
     gap: var(--mc-space-2);

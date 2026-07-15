@@ -10,6 +10,16 @@ import {
 
 const normalizedRequests = new WeakSet<FastifyRequest>();
 const internalErrors = new WeakMap<FastifyRequest, unknown>();
+const internalDiagnostics = new WeakMap<FastifyRequest, Record<string, unknown>>();
+
+/**
+ * Attaches route-specific operational diagnostics to the request's single
+ * canonical failure log. These details never become part of the public error
+ * response and must already be safe for structured logging.
+ */
+export function setApiFailureDiagnostic(request: FastifyRequest, diagnostic: Record<string, unknown>): void {
+  internalDiagnostics.set(request, diagnostic);
+}
 
 export function registerApiErrorHandling(app: FastifyInstance): void {
   app.setErrorHandler((error, request, reply) => {
@@ -52,6 +62,7 @@ function logApiFailure(
 ): void {
   const fields = {
     ...(internalError ? { cause: sanitizeErrorForLog(internalError, process.env.NODE_ENV !== "production") } : {}),
+    ...(internalDiagnostics.has(request) ? { diagnostic: internalDiagnostics.get(request) } : {}),
     errorCode: String(response.error),
     errorId: String(response.errorId),
     method: request.method,
@@ -67,6 +78,7 @@ function logApiFailure(
   } else {
     request.log.warn(fields, "request rejected");
   }
+  internalDiagnostics.delete(request);
 }
 
 function existingErrorId(payload: unknown): string | undefined {

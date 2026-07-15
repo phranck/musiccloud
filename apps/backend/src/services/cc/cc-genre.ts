@@ -33,12 +33,12 @@
  */
 
 import type {
-  ApiGenreAlbumCandidate,
-  ApiGenreArtistCandidate,
-  ApiGenreTile,
-  ApiGenreTrackCandidate,
-  ResolveGenreBrowseResponse,
-  ResolveGenreSearchResponse,
+  ApiCcGenreAlbumCandidate,
+  ApiCcGenreArtistCandidate,
+  ApiCcGenreTile,
+  ApiCcGenreTrackCandidate,
+  ResolveCcGenreBrowseResponse,
+  ResolveCcGenreSearchResponse,
 } from "@musiccloud/shared";
 import { parseGenreQuery } from "../genre-search/index.js";
 import { ccAlbumCandidateId, ccArtistCandidateId, ccCandidateId } from "./cc-resolver.js";
@@ -69,14 +69,14 @@ const CC_ARTWORK_VERSION = 5;
  * (`/api/cc/genre-artwork/:genreKey`), which serves a procedurally generated
  * tile: a representative Jamendo album cover with the genre name baked into the
  * upper-left — identical font, size, and margins to the commercial tiles. The
- * `?v=` query is a cache-bust keyed on {@link CC_ARTWORK_VERSION}. No
- * `accentColor` is emitted — that field is a commercial-path optimisation
- * derived from generated artwork the CC browse response does not pre-compute.
+ * `?v=` query is a cache-bust keyed on {@link CC_ARTWORK_VERSION}. Creative
+ * Commons genre tiles do not expose `accentColor` because this path does not
+ * produce an equivalent color value.
  *
  * @param genre - A Jamendo genre from `getCcGenres`.
  * @returns The wire-format genre tile.
  */
-function toGenreTile(genre: CcGenre): ApiGenreTile {
+function toGenreTile(genre: CcGenre): ApiCcGenreTile {
   return {
     name: genre.name,
     displayName: genre.displayName,
@@ -94,7 +94,7 @@ function toGenreTile(genre: CcGenre): ApiGenreTile {
  * @param track - A mapped Jamendo CC track.
  * @returns The wire-format track candidate.
  */
-function toGenreTrackCandidate(track: CcTrack): ApiGenreTrackCandidate {
+function toGenreTrackCandidate(track: CcTrack): ApiCcGenreTrackCandidate {
   return {
     id: ccCandidateId(track.jamendoId),
     title: track.title,
@@ -102,7 +102,7 @@ function toGenreTrackCandidate(track: CcTrack): ApiGenreTrackCandidate {
     albumName: track.albumName,
     artworkUrl: track.artworkUrl,
     durationMs: track.durationMs,
-    webUrl: track.shareUrl ?? "",
+    ...(track.shareUrl ? { webUrl: track.shareUrl } : {}),
   };
 }
 
@@ -117,9 +117,9 @@ function toGenreTrackCandidate(track: CcTrack): ApiGenreTrackCandidate {
  * @param limit - Maximum album rows to emit.
  * @returns Up to `limit` distinct album candidates, in track order.
  */
-function deriveAlbumColumn(tracks: CcTrack[], limit: number): ApiGenreAlbumCandidate[] {
+function deriveAlbumColumn(tracks: CcTrack[], limit: number): ApiCcGenreAlbumCandidate[] {
   const seen = new Set<string>();
-  const out: ApiGenreAlbumCandidate[] = [];
+  const out: ApiCcGenreAlbumCandidate[] = [];
   for (const track of tracks) {
     if (!track.jamendoAlbumId || seen.has(track.jamendoAlbumId)) {
       continue;
@@ -130,7 +130,6 @@ function deriveAlbumColumn(tracks: CcTrack[], limit: number): ApiGenreAlbumCandi
       title: track.albumName ?? "",
       artists: [track.artistName],
       artworkUrl: track.artworkUrl,
-      webUrl: "",
     });
     if (out.length >= limit) {
       break;
@@ -152,12 +151,12 @@ function toGenreArtistCandidate(
   jamendoArtistId: string,
   name: string,
   enriched: CcArtist | undefined,
-): ApiGenreArtistCandidate {
+): ApiCcGenreArtistCandidate {
   return {
     id: ccArtistCandidateId(jamendoArtistId),
     name,
     imageUrl: enriched?.imageUrl,
-    webUrl: enriched?.shareUrl ?? "",
+    ...(enriched?.shareUrl ? { webUrl: enriched.shareUrl } : {}),
   };
 }
 
@@ -171,7 +170,7 @@ function toGenreArtistCandidate(
  * @param limit - Maximum artist rows to emit.
  * @returns Up to `limit` distinct artist candidates, in track order.
  */
-async function deriveArtistColumn(tracks: CcTrack[], limit: number): Promise<ApiGenreArtistCandidate[]> {
+async function deriveArtistColumn(tracks: CcTrack[], limit: number): Promise<ApiCcGenreArtistCandidate[]> {
   const orderedIds: string[] = [];
   const names = new Map<string, string>();
   for (const track of tracks) {
@@ -196,7 +195,7 @@ async function deriveArtistColumn(tracks: CcTrack[], limit: number): Promise<Api
  * @returns A `genre-browse` response whose tiles are Jamendo genres.
  * @throws Error on missing Jamendo client id or API failure.
  */
-export async function runCcGenreBrowse(): Promise<ResolveGenreBrowseResponse> {
+export async function runCcGenreBrowse(): Promise<ResolveCcGenreBrowseResponse> {
   const genres = await getCcGenres();
   return { status: "genre-browse", genres: genres.map(toGenreTile) };
 }
@@ -217,7 +216,7 @@ export async function runCcGenreBrowse(): Promise<ResolveGenreBrowseResponse> {
  * @throws {GenreQueryParseError} on syntactically invalid input.
  * @throws Error on missing Jamendo client id or API failure.
  */
-export async function runCcGenreSearch(query: string): Promise<ResolveGenreSearchResponse> {
+export async function runCcGenreSearch(query: string): Promise<ResolveCcGenreSearchResponse> {
   const parsed = parseGenreQuery(query);
   const wantTracks = parsed.tracks;
   const wantAlbums = parsed.albums;

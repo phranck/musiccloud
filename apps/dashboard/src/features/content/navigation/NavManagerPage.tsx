@@ -49,7 +49,6 @@ import { useI18n } from "@/context/I18nContext";
 import { groupPagesByHierarchy } from "@/features/content/hierarchy";
 import { useContentPages } from "@/features/content/hooks/useAdminContent";
 import { useAdminNav, useSaveNav } from "@/features/content/hooks/useAdminNav";
-import { useFormConfigs } from "@/features/templates/hooks/useFormConfig";
 
 const NAV_TEXT = {
   de: {
@@ -73,14 +72,12 @@ const NAV_TEXT = {
     typePage: "Seite",
     typeUrl: "URL",
     choosePage: "Seite wählen…",
-    choosePageOrForm: "Seite oder Formular wählen…",
     add: "Hinzufügen",
     urlPlaceholder: "https://… oder /pfad",
     labelPlaceholder: "Label",
     newTab: "Neuer Tab",
     sameTab: "Selber Tab",
     errorSaving: "Fehler beim Speichern",
-    forms: "Formulare",
   },
   en: {
     pageTitle: "Navigations",
@@ -103,14 +100,12 @@ const NAV_TEXT = {
     typePage: "Page",
     typeUrl: "URL",
     choosePage: "Select page…",
-    choosePageOrForm: "Select page or form…",
     add: "Add",
     urlPlaceholder: "https://… or /path",
     labelPlaceholder: "Label",
     newTab: "New tab",
     sameTab: "Same tab",
     errorSaving: "Error while saving",
-    forms: "Forms",
   },
 } as const;
 
@@ -126,7 +121,6 @@ type NavTarget = (typeof NavTarget)[keyof typeof NavTarget];
 const NavAddType = {
   Page: "page",
   Url: "url",
-  Form: "form",
 } as const;
 
 type NavAddType = (typeof NavAddType)[keyof typeof NavAddType];
@@ -277,7 +271,6 @@ function NavColumn({ navId, onDirtyChange, ref }: NavColumnProps) {
   const staticRoutes = text.staticRoutes;
   const { data: serverItems = [], isLoading } = useAdminNav(navId);
   const { data: allPages = [] } = useContentPages();
-  const { data: allForms = [] } = useFormConfigs();
   const saveNav = useSaveNav(navId);
 
   interface NavColumnState {
@@ -383,29 +376,6 @@ function NavColumn({ navId, onDirtyChange, ref }: NavColumnProps) {
 
   function handleAddPage() {
     if (!addPageSlug) return;
-    // Check if it's a form slug (prefixed with "form:")
-    if (addPageSlug.startsWith("form:")) {
-      const formSlug = addPageSlug.slice(5);
-      const form = allForms.find((f) => f.slug === formSlug);
-      if (!form?.slug) return;
-      const url = `/${form.slug}`;
-      if (items.some((i) => i.url === url)) return;
-      setItems((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          pageSlug: null,
-          pageTitle: form.name,
-          url,
-          target: NavTarget.SameTab,
-          label: "",
-          translations: {},
-        },
-      ]);
-      dispatch({ addPageSlug: "" });
-      setDirty(true);
-      return;
-    }
     const page = allPages.find((p) => p.slug === addPageSlug);
     if (!page) return;
     if (items.some((i) => i.pageSlug === addPageSlug)) return;
@@ -504,7 +474,6 @@ function NavColumn({ navId, onDirtyChange, ref }: NavColumnProps) {
     if (item.url) usedUrls.add(item.url);
   }
   const availableStatics = staticRoutes.filter((r) => !usedUrls.has(r.url));
-  const availableForms = allForms.filter((f) => f.slug && !usedUrls.has(`/${f.slug}`));
   // Group all pages by segmented hierarchy so the dropdown mirrors the
   // sidebar/pages-overview structure. Every page stays selectable; the user
   // owns the decision whether to re-add a page that's already in the nav.
@@ -556,7 +525,6 @@ function NavColumn({ navId, onDirtyChange, ref }: NavColumnProps) {
         addUrl={addUrl}
         addLabel={addLabel}
         pagesGrouped={pagesGrouped}
-        availableForms={availableForms}
         availableStatics={availableStatics}
         text={text}
         onTypeChange={(type) => dispatch({ addType: type })}
@@ -585,7 +553,6 @@ interface NavColumnAddSectionProps {
   addUrl: string;
   addLabel: string;
   pagesGrouped: PagesGrouped;
-  availableForms: { name: string; slug: string | null }[];
   availableStatics: { label: string; url: string }[];
   text: NavText;
   onTypeChange: (type: NavAddType) => void;
@@ -603,7 +570,6 @@ function NavColumnAddSection({
   addUrl,
   addLabel,
   pagesGrouped,
-  availableForms,
   availableStatics,
   text,
   onTypeChange,
@@ -617,8 +583,8 @@ function NavColumnAddSection({
   return (
     <div className="border-t border-[var(--ds-border)] pt-3 space-y-3">
       <SegmentSwitch
-        aria-label={text.choosePageOrForm}
-        value={addType === NavAddType.Form ? NavAddType.Page : addType}
+        aria-label={text.choosePage}
+        value={addType}
         onChange={(value) => onTypeChange(value as NavAddType)}
         options={[
           { value: NavAddType.Page, label: text.typePage },
@@ -633,9 +599,7 @@ function NavColumnAddSection({
             value={addPageSlug}
             onChange={onPageSlugChange}
             pagesGrouped={pagesGrouped}
-            forms={availableForms}
-            placeholder={text.choosePageOrForm}
-            formsLabel={text.forms}
+            placeholder={text.choosePage}
           />
           <DashboardActionButton
             action={DashboardActionId.Create}
@@ -703,9 +667,7 @@ interface HierarchicalPagePickerProps {
   value: string;
   onChange: (value: string) => void;
   pagesGrouped: PagesGrouped;
-  forms: { name: string; slug: string | null }[];
   placeholder: string;
-  formsLabel: string;
 }
 
 interface PageRowProps {
@@ -738,14 +700,7 @@ function PageRow({ depth, onPick, pageType, selected, slug, title }: PageRowProp
 // Custom dropdown that visually indents segmented children via real CSS
 // padding (native <select> ignores leading whitespace and has no built-in
 // way to mark hierarchy). Every item is selectable.
-function HierarchicalPagePicker({
-  value,
-  onChange,
-  pagesGrouped,
-  forms,
-  placeholder,
-  formsLabel,
-}: HierarchicalPagePickerProps) {
+function HierarchicalPagePicker({ value, onChange, pagesGrouped, placeholder }: HierarchicalPagePickerProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -767,11 +722,6 @@ function HierarchicalPagePicker({
 
   const selectedLabel = (() => {
     if (!value) return placeholder;
-    if (value.startsWith("form:")) {
-      const slug = value.slice("form:".length);
-      const f = forms.find((ff) => ff.slug === slug);
-      return f?.slug ? `${f.name} (/${f.slug})` : placeholder;
-    }
     for (const p of pagesGrouped.orphans) {
       if (p.slug === value) return `${p.title} (/${p.slug})`;
     }
@@ -831,27 +781,6 @@ function HierarchicalPagePicker({
               ))}
             </Fragment>
           ))}
-          {forms.length > 0 && (
-            <>
-              <div className="px-2 pt-2 pb-1 text-[10px] uppercase tracking-wider text-[var(--ds-text-muted)] border-t border-[var(--ds-border)] mt-1">
-                {formsLabel}
-              </div>
-              {forms.map(
-                (f) =>
-                  f.slug && (
-                    <ListboxOption
-                      key={f.slug}
-                      onClick={() => pick(`form:${f.slug}`)}
-                      selected={value === `form:${f.slug}`}
-                      className="text-xs"
-                      controlSize="compact"
-                    >
-                      {f.name} <span className="text-[var(--ds-text-muted)] font-mono">/{f.slug}</span>
-                    </ListboxOption>
-                  ),
-              )}
-            </>
-          )}
         </div>
       )}
     </div>

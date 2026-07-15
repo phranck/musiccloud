@@ -1,0 +1,12 @@
+title = "musiccloud gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "OpenAPI SHA-256 fingerprints are public contract integrity metadata."
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = ['''"openApiSha256"\s*:\s*"[0-9a-f]{64}"''']
+paths = ['''^apps/developer/src/(generated/sdk-catalog|lib/__fixtures__/sdk-catalog)\.json$''']

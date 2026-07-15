@@ -46,7 +46,7 @@ export default async function linkRoutes(app: FastifyInstance) {
           auth: "apiKey",
         }),
         description:
-          "Cache-friendly read against an already-persisted track. No external adapter calls. Use this when you already hold the track id (e.g. from a prior resolve) and want the track metadata plus public service links for rendering.",
+          "Returns stored metadata and service links for a track that has already been resolved. Use it when you have the top-level `id` from a successful track response and do not need to run another resolve. Because this operation reads stored links, each `links[]` item has `matchMethod` equal to `cache` and `confidence` equal to `1`; these values do not reproduce the original resolve's matching score.",
         security: [{ ApiKeyAuth: [] }],
         params: {
           type: "object",
@@ -57,28 +57,28 @@ export default async function linkRoutes(app: FastifyInstance) {
               minLength: 1,
               maxLength: 64,
               description:
-                "Internal track ID from the top-level `id` field of a successful track response from `POST /api/v1/resolve`.",
+                "Persisted musiccloud track ID from the top-level `id` field of a successful track response from `POST /api/v1/resolve` or `GET /api/v1/resolve` with `format=json`.",
             },
           },
           additionalProperties: false,
         },
         response: {
           200: {
-            description: "Track core metadata and resolved service links (same shape as a successful resolve).",
-            type: "object",
-            required: ["id", "track", "links"],
-            additionalProperties: false,
-            properties: {
-              id: { type: "string", description: "The internal track id echoed back." },
-              track: { $ref: "Track#" },
-              links: { type: "array", items: { $ref: "PlatformLink#" } },
+            description: "`LinkMetadataResponse` with stored track metadata and service links.",
+            headers: {
+              "Cache-Control": {
+                type: "string",
+                enum: ["public, max-age=3600"],
+                description: "Always `public, max-age=3600`.",
+              },
             },
+            $ref: "LinkMetadataResponse#",
           },
           401: { description: "Missing, invalid, or revoked API key.", $ref: "ErrorResponse#" },
-          404: { description: "No track exists for this id.", $ref: "ErrorResponse#" },
+          404: { description: "No track exists for this `id`.", $ref: "ErrorResponse#" },
           429: {
             description:
-              "Rate limit exceeded — per client IP (10 requests per 60 seconds) for anonymous callers, or the client's own per-minute/per-day quota for API-key-authenticated callers.",
+              "The issued API key exceeded its assigned rolling `60`-second or rolling `24`-hour quota. Inspect `context` and `Retry-After` before retrying.",
             $ref: "ErrorResponse#",
           },
         },
@@ -116,8 +116,8 @@ export default async function linkRoutes(app: FastifyInstance) {
         track: {
           title: data.track.title,
           artists: data.artists,
-          albumName: data.track.albumName,
-          artworkUrl: data.track.artworkUrl,
+          ...(data.track.albumName == null ? {} : { albumName: data.track.albumName }),
+          ...(data.track.artworkUrl == null ? {} : { artworkUrl: data.track.artworkUrl }),
           vinylLayout,
         },
         links: toCachedApiLinks(data.links),

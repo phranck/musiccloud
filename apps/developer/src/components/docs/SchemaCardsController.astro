@@ -1,0 +1,105 @@
+---
+/** One page-level client controller for schema-card tabs, expansion, and bulk state. */
+---
+
+<script>
+  const SchemaCardControllerEvent = {
+    ExpansionChange: "musiccloud:schema-card-expansion-change",
+  } as const;
+
+  function persistSchemaCardExpansion(storageKey: string | undefined, expanded: boolean) {
+    if (!storageKey) return;
+    try {
+      localStorage.setItem(storageKey, expanded ? "expanded" : "collapsed");
+    } catch {
+      // Storage is optional, for example when privacy settings disable it.
+    }
+  }
+
+  function setSchemaCardExpanded(card: HTMLElement, expanded: boolean, persist = false) {
+    card.dataset.schemaCardExpanded = String(expanded);
+    card.querySelector<HTMLButtonElement>("[data-schema-card-collapse-toggle]")?.setAttribute("aria-expanded", String(expanded));
+
+    const content = card.querySelector<HTMLElement>("[data-schema-card-content]");
+    content?.setAttribute("aria-hidden", String(!expanded));
+    if (content) content.inert = !expanded;
+
+    if (persist) persistSchemaCardExpansion(card.dataset.schemaCardStorageKey, expanded);
+    card.dispatchEvent(new Event(SchemaCardControllerEvent.ExpansionChange, { bubbles: true }));
+  }
+
+  function bindSchemaCard(card: HTMLElement) {
+    if (card.dataset.schemaCardBound === "true") return;
+    card.dataset.schemaCardBound = "true";
+
+    const tabs = Array.from(card.querySelectorAll<HTMLButtonElement>("[data-schema-view-tab]"));
+    const panels = Array.from(card.querySelectorAll<HTMLElement>("[data-schema-view-panel]"));
+    const collapseToggle = card.querySelector<HTMLButtonElement>("[data-schema-card-collapse-toggle]");
+    const storageKey = card.dataset.schemaCardStorageKey;
+
+    let expanded = false;
+    if (storageKey) {
+      try {
+        expanded = localStorage.getItem(storageKey) === "expanded";
+      } catch {
+        expanded = false;
+      }
+    }
+    setSchemaCardExpanded(card, expanded);
+
+    collapseToggle?.addEventListener("click", () => {
+      setSchemaCardExpanded(card, card.dataset.schemaCardExpanded !== "true", true);
+    });
+
+    const select = (view: string, focus = false) => {
+      card.dataset.schemaView = view;
+      for (const tab of tabs) {
+        const selected = tab.dataset.schemaViewTab === view;
+        tab.setAttribute("aria-selected", String(selected));
+        tab.tabIndex = selected ? 0 : -1;
+        if (selected && focus) tab.focus();
+      }
+      for (const panel of panels) panel.hidden = panel.dataset.schemaViewPanel !== view;
+    };
+
+    for (const tab of tabs) {
+      tab.addEventListener("click", () => select(tab.dataset.schemaViewTab ?? "fields"));
+      tab.addEventListener("keydown", (event) => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        event.preventDefault();
+        const currentIndex = tabs.indexOf(tab);
+        const nextIndex =
+          event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? tabs.length - 1
+              : (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+        const nextTab = tabs[nextIndex];
+        if (nextTab) select(nextTab.dataset.schemaViewTab ?? "fields", true);
+      });
+    }
+  }
+
+  function updateSchemaCardBulkControls() {
+    const cards = Array.from(document.querySelectorAll<HTMLElement>("[data-schema-card]"));
+    const allExpanded = cards.length > 0 && cards.every((card) => card.dataset.schemaCardExpanded === "true");
+
+    for (const button of document.querySelectorAll<HTMLButtonElement>("[data-schema-card-toggle-all]")) {
+      button.dataset.schemaCardsAllExpanded = String(allExpanded);
+      button.setAttribute("aria-label", allExpanded ? "Collapse all schema cards" : "Expand all schema cards");
+      button.title = allExpanded ? "Collapse all schema cards" : "Expand all schema cards";
+    }
+  }
+
+  for (const card of document.querySelectorAll<HTMLElement>("[data-schema-card]")) bindSchemaCard(card);
+
+  document.addEventListener(SchemaCardControllerEvent.ExpansionChange, updateSchemaCardBulkControls);
+  for (const button of document.querySelectorAll<HTMLButtonElement>("[data-schema-card-toggle-all]")) {
+    button.addEventListener("click", () => {
+      const cards = Array.from(document.querySelectorAll<HTMLElement>("[data-schema-card]"));
+      const shouldExpand = cards.some((card) => card.dataset.schemaCardExpanded !== "true");
+      for (const card of cards) setSchemaCardExpanded(card, shouldExpand, true);
+    });
+  }
+  updateSchemaCardBulkControls();
+</script>

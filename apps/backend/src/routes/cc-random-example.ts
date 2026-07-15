@@ -22,21 +22,15 @@ export default async function ccRandomExampleRoutes(app: FastifyInstance) {
       schema: {
         tags: ["CC"],
         summary: "Random CC example share ID",
-        description:
-          "Returns one randomly-picked Creative-Commons track short ID. Used by the landing page's live-example link in CC mode.",
+        description: "Returns one randomly selected existing Creative-Commons track share code.",
         response: {
           200: {
-            description: "A short ID that can be appended to the site root to reach a CC share page.",
-            type: "object",
-            required: ["shortId"],
-            properties: {
-              shortId: { type: "string", description: "CC track short ID." },
-            },
-            additionalProperties: false,
-            example: { shortId: "aBc123x" },
+            description:
+              "`CcRandomExampleResponse`. Pass its `shortId` to `GET /api/v1/share/{shortId}` or append it to `https://musiccloud.io/` to open the public share page.",
+            $ref: "CcRandomExampleResponse#",
           },
           404: {
-            description: "No CC tracks have been shared yet (empty CC namespace).",
+            description: "No persisted Creative Commons track share is currently available.",
             $ref: "ErrorResponse#",
           },
         },

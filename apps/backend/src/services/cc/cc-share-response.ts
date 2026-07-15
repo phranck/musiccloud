@@ -3,14 +3,14 @@
  *
  * The live resolve route ({@link file://./../../routes/cc-resolve.ts}) and the
  * persistent share-page loader both need the same projection: the wire-format CC
- * entity plus the right-column {@link ArtistInfoResponse} (the artist's popular
+ * entity plus the related {@link CcArtistInfoResponse} (the artist's popular
  * tracks + similar tracks, built live from Jamendo). They differ only in the
  * wrapper field — the resolve response carries the DB `id`, the share-page
  * response carries `og` meta — so the expensive, shared core lives here and each
  * caller wraps it into its own response shape. Keeping it in one place means the
  * share page and the live view always render from identical data.
  */
-import type { ApiCcAlbum, ApiCcArtist, ApiCcTrack, ArtistInfoResponse } from "@musiccloud/shared";
+import type { ApiCcAlbum, ApiCcArtist, ApiCcTrack, CcArtistInfoResponse } from "@musiccloud/shared";
 import type { CcAlbumShareRow, CcArtistShareRow, CcTrackShareRow, PersistCcTrackData } from "../../db/repository.js";
 import { buildCcArtistInfo } from "./cc-artist-info.js";
 import { getCcArtistTopTracks } from "./jamendo/client.js";
@@ -161,16 +161,19 @@ export function ccTrackToPersistData(track: CcTrack): PersistCcTrackData {
  *
  * @param artistName - The track artist's name (column header context).
  * @param jamendoArtistId - The Jamendo artist id whose column to build.
- * @returns The {@link ArtistInfoResponse} for the shared artist column.
+ * @returns The {@link CcArtistInfoResponse} for the shared artist metadata.
  */
-export async function buildCcTrackArtistInfo(artistName: string, jamendoArtistId: string): Promise<ArtistInfoResponse> {
+export async function buildCcTrackArtistInfo(
+  artistName: string,
+  jamendoArtistId: string,
+): Promise<CcArtistInfoResponse> {
   return buildCcArtistInfo(artistName, jamendoArtistId, await getCcArtistTopTracks(jamendoArtistId));
 }
 
 /** The shared core of a CC-album share payload: the wire album (with its tracks) + its right column. */
 export interface CcAlbumPayload {
   album: ApiCcAlbum;
-  artistInfo: ArtistInfoResponse;
+  artistInfo: CcArtistInfoResponse;
 }
 
 /**
@@ -180,7 +183,7 @@ export interface CcAlbumPayload {
  *
  * @param album - The resolved CC album.
  * @param tracks - The album's tracks in release order.
- * @returns The wire album and its {@link ArtistInfoResponse}.
+ * @returns The wire album and its {@link CcArtistInfoResponse}.
  */
 export async function buildCcAlbumPayload(album: CcAlbum, tracks: CcTrack[]): Promise<CcAlbumPayload> {
   const apiAlbum: ApiCcAlbum = {
@@ -200,7 +203,7 @@ export async function buildCcAlbumPayload(album: CcAlbum, tracks: CcTrack[]): Pr
 /** The shared core of a CC-artist share payload: the wire artist (with its top tracks) + its right column. */
 export interface CcArtistPayload {
   artist: ApiCcArtist;
-  artistInfo: ArtistInfoResponse;
+  artistInfo: CcArtistInfoResponse;
 }
 
 /**
@@ -210,7 +213,7 @@ export interface CcArtistPayload {
  *
  * @param artist - The resolved CC artist.
  * @param topTracks - The artist's most-popular tracks, descending.
- * @returns The wire artist and its {@link ArtistInfoResponse}.
+ * @returns The wire artist and its {@link CcArtistInfoResponse}.
  */
 export async function buildCcArtistPayload(artist: CcArtist, topTracks: CcTrack[]): Promise<CcArtistPayload> {
   const apiArtist: ApiCcArtist = {

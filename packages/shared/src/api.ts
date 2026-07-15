@@ -174,14 +174,13 @@ export interface ResolveGenreSearchResponse {
 export interface ApiGenreTile {
   /** Tag name as used in `genre:<name>` queries. */
   name: string;
-  /** Capitalised display name for the UI. */
+  /** Human-readable display name. */
   displayName: string;
-  /** Procedurally generated artwork URL — the Astro frontend proxy path `/api/genre-artwork/<name>` with a `?v=<version>` cache-bust query; the proxy forwards to the backend's v1 route, which generates and caches the image on first hit. */
+  /** Root-relative musiccloud.io path for the generated genre artwork. */
   artworkUrl: string;
   /**
-   * Dominant accent hex derived from the genre's top album cover. Present
-   * only when the artwork has already been generated; the frontend can use
-   * it for hover/border/glow before the JPEG finishes loading.
+   * Dominant `#RRGGBB` accent derived from the genre artwork. Present only
+   * when the artwork has already been generated.
    */
   accentColor?: string;
 }
@@ -193,6 +192,48 @@ export interface ApiGenreTile {
 export interface ResolveGenreBrowseResponse {
   status: "genre-browse";
   genres: ApiGenreTile[];
+}
+
+/** Track candidate returned by the Creative-Commons genre resolver. */
+export interface ApiCcGenreTrackCandidate extends Omit<ApiGenreTrackCandidate, "webUrl"> {
+  /** Jamendo candidate token accepted as `selectedCandidate` by `POST /api/v1/cc/resolve`. */
+  id: string;
+  /** Canonical Jamendo page when the source supplies one. */
+  webUrl?: string;
+}
+
+/** Album candidate returned by the Creative-Commons genre resolver. */
+export interface ApiCcGenreAlbumCandidate extends Omit<ApiGenreAlbumCandidate, "webUrl"> {
+  /** Jamendo candidate token accepted as `selectedCandidate` by `POST /api/v1/cc/resolve`. */
+  id: string;
+  /** Canonical Jamendo page when the source supplies one. */
+  webUrl?: string;
+}
+
+/** Artist candidate returned by the Creative-Commons genre resolver. */
+export interface ApiCcGenreArtistCandidate extends Omit<ApiGenreArtistCandidate, "webUrl"> {
+  /** Jamendo candidate token accepted as `selectedCandidate` by `POST /api/v1/cc/resolve`. */
+  id: string;
+  /** Canonical Jamendo page when the source supplies one. */
+  webUrl?: string;
+}
+
+/** Creative-Commons genre-search response. Candidate `id` values drive the follow-up resolve. */
+export interface ResolveCcGenreSearchResponse extends Omit<ResolveGenreSearchResponse, "results"> {
+  results: {
+    tracks: ApiCcGenreTrackCandidate[] | null;
+    albums: ApiCcGenreAlbumCandidate[] | null;
+    artists: ApiCcGenreArtistCandidate[] | null;
+  };
+}
+
+/** Creative-Commons genre tile. CC browse responses do not expose `accentColor`. */
+export type ApiCcGenreTile = Omit<ApiGenreTile, "accentColor">;
+
+/** Creative-Commons genre-browse response. */
+export interface ResolveCcGenreBrowseResponse {
+  status: "genre-browse";
+  genres: ApiCcGenreTile[];
 }
 
 // ─── Unified Resolve Response ─────────────────────────────────────────────────
@@ -306,15 +347,6 @@ export interface CcResolveSuccessResponse {
   shortUrl: string;
   /** The resolved track plus the Discogs lookup state of its containing album. */
   track: ApiCcTrack & { vinylLayout: VinylLayout | null };
-  /**
-   * Right-column data for the shared share layout, built from Jamendo: the
-   * track artist's popular tracks (`topTracks`) plus similar tracks
-   * (`similarArtistTracks`). `profile` is null and `events` empty — Jamendo has
-   * neither — so those cards self-hide. Lets a CC result reuse the commercial
-   * artist column verbatim. Optional: the CC live view loads this client-side
-   * (async, via `/api/cc/artist-info`), so the resolve response omits it.
-   */
-  artistInfo?: ArtistInfoResponse;
 }
 
 /**
@@ -347,8 +379,8 @@ export interface CcAlbumResolveSuccessResponse {
   shortUrl: string;
   /** The resolved album plus its Discogs vinyl lookup state. */
   album: ApiCcAlbum & { vinylLayout: VinylLayout | null };
-  /** Right-column data: the album's tracks as `topTracks` plus similar tracks. See {@link CcResolveSuccessResponse.artistInfo}. */
-  artistInfo: ArtistInfoResponse;
+  /** Album tracks, artist profile metadata, and related-artist tracks. */
+  artistInfo: CcArtistInfoResponse;
 }
 
 /**
@@ -375,8 +407,8 @@ export interface CcArtistResolveSuccessResponse {
   id: string;
   shortUrl: string;
   artist: ApiCcArtist;
-  /** Right-column data: the artist's top tracks as `topTracks` plus similar tracks. See {@link CcResolveSuccessResponse.artistInfo}. */
-  artistInfo: ArtistInfoResponse;
+  /** Popular tracks, artist profile metadata, and related-artist tracks. */
+  artistInfo: CcArtistInfoResponse;
 }
 
 // ─── Album API Types ──────────────────────────────────────────────────────────
@@ -427,7 +459,7 @@ export interface ArtistResolveSuccessResponse {
 export interface OgMeta {
   title: string;
   description: string;
-  image?: string;
+  image: string;
   url: string;
 }
 
@@ -436,22 +468,37 @@ export interface OgMeta {
  * artist with its per-service links. Exactly one of `track`/`album`/`artist` is
  * present, selected by the `type` discriminant.
  */
-export interface CommercialSharePageResponse {
-  type: "track" | "album" | "artist";
+interface CommercialSharePageResponseBase {
   og: OgMeta;
-  track?: ApiTrack;
-  album?: ApiAlbum;
-  artist?: ApiArtist;
   links: ApiLink[];
   shortUrl: string;
 }
 
+export interface CommercialTrackSharePageResponse extends CommercialSharePageResponseBase {
+  type: "track";
+  track: ApiTrack;
+}
+
+export interface CommercialAlbumSharePageResponse extends CommercialSharePageResponseBase {
+  type: "album";
+  album: ApiAlbum;
+}
+
+export interface CommercialArtistSharePageResponse extends CommercialSharePageResponseBase {
+  type: "artist";
+  artist: ApiArtist;
+}
+
+export type CommercialSharePageResponse =
+  | CommercialTrackSharePageResponse
+  | CommercialAlbumSharePageResponse
+  | CommercialArtistSharePageResponse;
+
 /**
- * The Creative-Commons (Jamendo) share-page payload for a CC track. Carries the
- * full CC entity ({@link ApiCcTrack}) plus the right-column
- * {@link ArtistInfoResponse} instead of cross-service links, mirroring
- * {@link CcResolveSuccessResponse} so the persistent share page and the live
- * resolve render through the exact same `ShareLayout`.
+ * The Creative-Commons (Jamendo) share-page payload for a CC track. It carries
+ * the full CC entity ({@link ApiCcTrack}) and no cross-service links or embedded
+ * artist-info object. Call `GET /api/v1/cc/artist-info` separately when that
+ * enrichment is needed.
  */
 export interface CcTrackSharePageResponse {
   type: "cc-track";
@@ -459,9 +506,6 @@ export interface CcTrackSharePageResponse {
   shortUrl: string;
   /** The persisted track plus the cached Discogs layout of its containing album. */
   track: ApiCcTrack & { vinylLayout: VinylLayout | null };
-  /** Optional: loaded client-side (async) via `/api/cc/artist-info` so the share
-   *  page renders the core card immediately. */
-  artistInfo?: ArtistInfoResponse;
 }
 
 /** The Creative-Commons share-page payload for a CC album. See {@link CcTrackSharePageResponse}. */
@@ -471,7 +515,7 @@ export interface CcAlbumSharePageResponse {
   shortUrl: string;
   /** The persisted album plus its cached Discogs vinyl layout state. */
   album: ApiCcAlbum & { vinylLayout: VinylLayout | null };
-  artistInfo: ArtistInfoResponse;
+  artistInfo: CcArtistInfoResponse;
 }
 
 /** The Creative-Commons share-page payload for a CC artist. See {@link CcTrackSharePageResponse}. */
@@ -480,13 +524,13 @@ export interface CcArtistSharePageResponse {
   og: OgMeta;
   shortUrl: string;
   artist: ApiCcArtist;
-  artistInfo: ArtistInfoResponse;
+  artistInfo: CcArtistInfoResponse;
 }
 
 /**
  * Unified share-page payload returned by `GET /api/v1/share/:shortId`,
- * discriminated by `type`. Commercial entities carry cross-service `links`; CC
- * entities carry the Jamendo entity plus the right-column `artistInfo`.
+ * discriminated by `type`. Commercial entities carry cross-service `links`.
+ * CC album and artist variants carry `artistInfo`; the CC track variant does not.
  */
 export type SharePageResponse =
   | CommercialSharePageResponse
@@ -516,7 +560,7 @@ export interface ArtistProfile {
   // returned a value.
   popularity: number | null;
   followers: number | null;
-  // Last.fm enrichment (null if LASTFM_API_KEY not set)
+  // Biography and aggregate play count. Both are null when no source returned a value.
   bioSummary: string | null;
   scrobbles: number | null;
   similarArtists: string[]; // max 5 artist names
@@ -526,7 +570,7 @@ export interface ArtistEvent {
   date: string; // "YYYY-MM-DD"
   venueName: string;
   city: string;
-  country: string; // ISO country code
+  country: string; // ISO 3166-1 alpha-2 code or provider-supplied country name
   ticketUrl: string | null;
   source: "bandsintown" | "ticketmaster";
 }
@@ -538,8 +582,36 @@ export interface SimilarArtistTrack {
 
 export interface ArtistInfoResponse {
   artistName: string;
-  topTracks: ArtistTopTrack[]; // empty if Deezer unavailable
+  topTracks: ArtistTopTrack[];
   profile: ArtistProfile | null; // null if no source returned data
-  events: ArtistEvent[]; // empty if no keys or no upcoming events
-  similarArtistTracks?: SimilarArtistTrack[]; // top track per similar artist
+  events: ArtistEvent[];
+  similarArtistTracks: SimilarArtistTrack[];
+}
+
+/** CC top-track shape. `deezerUrl` carries the Jamendo candidate token for compatibility. */
+export interface CcArtistTopTrack extends Omit<ArtistTopTrack, "shortId"> {
+  deezerUrl: string;
+  shortId: null;
+}
+
+/** CC profile shape. Provider counters are unavailable and therefore always `null`. */
+export interface CcArtistProfile extends ArtistProfile {
+  popularity: null;
+  followers: null;
+  scrobbles: null;
+  similarArtists: [];
+}
+
+export interface CcSimilarArtistTrack {
+  artistName: string;
+  track: CcArtistTopTrack;
+}
+
+/** Artist details derived only from the public Creative-Commons source. */
+export interface CcArtistInfoResponse {
+  artistName: string;
+  topTracks: CcArtistTopTrack[];
+  profile: CcArtistProfile | null;
+  events: [];
+  similarArtistTracks: CcSimilarArtistTrack[];
 }

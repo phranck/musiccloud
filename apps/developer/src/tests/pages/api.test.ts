@@ -20,8 +20,8 @@ describe("/docs/api content", () => {
   it("renders generated endpoint, schema, manifest, auth, and SDK facts", async () => {
     const reference = buildApiReference(readFixture("public-openapi.json"));
     const catalog = parseSdkCatalog(readFixture("sdk-catalog.json"), {
-      version: "2.1.0",
-      sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      version: "2.1.3",
+      sha256: "dae988d7a81f2a41f918fb2c22a2bd4156d9e5d41284a559313f643532e482a6",
     });
     const container = await AstroContainer.create({ renderers: await loadRenderers([getContainerRenderer()]) });
 
@@ -87,6 +87,11 @@ describe("/docs/api content", () => {
     expect(html).toContain("request-body-card");
     expect(html).toContain("response-card__summary");
     expect(html).toContain("response-card__meta");
+    expect(html).toContain('<span class="response-card__meta-label">Content-Type:</span>');
+    expect(html).toContain('<code class="response-card__media-type">application/json</code>');
+    expect(html).toContain('<span class="response-card__meta-label">Response Object:</span>');
+    expect(html).toContain('href="#schema-error-response"');
+    expect(html).toContain('<code class="response-card__schema-name">ErrorResponse</code>');
     expect(html).toContain("authentication-card");
     expect(html).toContain("authentication-card__status");
     expect(html).toContain("authentication-card__content");
@@ -114,9 +119,43 @@ describe("/docs/api content", () => {
     expect(html).toContain("SHA-256");
     expect(html).not.toContain("Raw OpenAPI JSON");
     expect(html).toContain("schema-resolve-success");
-    expect(html).toContain("Resolve a streaming URL");
+    expect(html).toContain('href="#schema-resolve-success"');
+    expect(html).not.toContain('href="#schema-ResolveSuccess"');
+    expect(html).toContain("Key documentation");
+    expect(html).toContain('role="tablist"');
+    expect(html).toContain("JSON schema");
+    expect(html).toContain("Resolve a music URL, free-text query, genre-discovery query, or structured search query");
     expect(html).not.toContain('<span class="font-mono text-code text-accent">POST</span> /api/v1/resolve');
     expect(html).not.toContain("Scalar.createApiReference");
+  });
+
+  it("renders every composed successful response object as a schema link", async () => {
+    const fixture = readFixture("public-openapi.json") as {
+      paths: {
+        "/api/v1/resolve": {
+          post: { responses: { "200": { content: { "application/json": { schema: unknown } } } } };
+        };
+      };
+    };
+    fixture.paths["/api/v1/resolve"].post.responses["200"].content["application/json"].schema = {
+      oneOf: [{ $ref: "#/components/schemas/ResolveSuccess" }, { $ref: "#/components/schemas/CcResolveSuccess" }],
+    };
+    const reference = buildApiReference(fixture);
+    const catalog = parseSdkCatalog(readFixture("sdk-catalog.json"), {
+      version: "2.1.3",
+      sha256: "dae988d7a81f2a41f918fb2c22a2bd4156d9e5d41284a559313f643532e482a6",
+    });
+    const container = await AstroContainer.create({ renderers: await loadRenderers([getContainerRenderer()]) });
+
+    const html = await container.renderToString(ApiReferenceContent, {
+      props: { reference, catalog },
+    });
+
+    expect(html).toContain('<span class="response-card__meta-label">Response Object:</span>');
+    expect(html).toContain('<code class="response-card__schema-name">ResolveSuccess</code>');
+    expect(html).toContain('<code class="response-card__schema-name">CcResolveSuccess</code>');
+    expect(html).toContain('href="#schema-resolve-success"');
+    expect(html).toContain('href="#schema-cc-resolve-success"');
   });
 
   it("uses the same ease-in-out curve for every sidebar chevron transition", () => {
@@ -135,14 +174,215 @@ describe("/docs/api content", () => {
     expect(content).not.toMatch(/<(?:IntegrationIcon|SdkIcon|SectionIcon|SchemasIcon)\s+className="size-6"/);
   });
 
+  it("renders a bulk schema-card control in the Schemas chapter header", () => {
+    const compound = readFileSync(join(rootDir, "components/docs/ApiContent.tsx"), "utf8");
+    const content = readFileSync(join(rootDir, "components/docs/ApiReferenceContent.astro"), "utf8");
+
+    expect(compound).toContain("Addon: ApiContentChapterHeaderAddon");
+    expect(content).toContain("data-schema-card-toggle-all");
+    expect(content).toContain('aria-label="Expand all schema cards"');
+    expect(content).toContain('data-schema-cards-all-expanded="false"');
+    expect(content).toContain(
+      '<ArrowCircleDownIcon className="api-content__chapter-toggle-down" aria-hidden="true" />',
+    );
+    expect(content).toContain('<ArrowCircleUpIcon className="api-content__chapter-toggle-up" aria-hidden="true" />');
+  });
+
+  it("centralizes individual and bulk schema-card expansion state", () => {
+    const controllerPath = join(rootDir, "components/docs/SchemaCardsController.astro");
+
+    expect(existsSync(controllerPath)).toBe(true);
+    if (!existsSync(controllerPath)) return;
+
+    const controller = readFileSync(controllerPath, "utf8");
+    const schemaSection = readFileSync(join(rootDir, "components/docs/SchemaSection.astro"), "utf8");
+
+    expect(controller).toContain(
+      "function setSchemaCardExpanded(card: HTMLElement, expanded: boolean, persist = false)",
+    );
+    expect(controller).toContain('localStorage.setItem(storageKey, expanded ? "expanded" : "collapsed")');
+    expect(controller).toContain(
+      'const shouldExpand = cards.some((card) => card.dataset.schemaCardExpanded !== "true")',
+    );
+    expect(controller).toContain("setSchemaCardExpanded(card, shouldExpand, true)");
+    expect(controller).toContain(
+      'button.setAttribute("aria-label", allExpanded ? "Collapse all schema cards" : "Expand all schema cards")',
+    );
+    expect(schemaSection).not.toContain("function bindSchemaCard");
+  });
+
+  it("renders schema cards collapsed until an expanded state was explicitly persisted", () => {
+    const content = readFileSync(join(rootDir, "components/docs/ApiReferenceContent.astro"), "utf8");
+    const schemaSection = readFileSync(join(rootDir, "components/docs/SchemaSection.astro"), "utf8");
+    const controller = readFileSync(join(rootDir, "components/docs/SchemaCardsController.astro"), "utf8");
+
+    expect(content).toContain('aria-label="Expand all schema cards"');
+    expect(content).toContain('data-schema-cards-all-expanded="false"');
+    expect(schemaSection).toContain('data-schema-card-expanded="false"');
+    expect(schemaSection).toContain('aria-expanded="false"');
+    expect(schemaSection).toContain('data-schema-card-content aria-hidden="true"');
+    expect(controller).toContain("let expanded = false;");
+    expect(controller).toContain('expanded = localStorage.getItem(storageKey) === "expanded";');
+  });
+
+  it("uses the shared sidebar chevron recipe for the bulk schema-card control", () => {
+    const css = readFileSync(join(rootDir, "styles/docs.css"), "utf8");
+
+    expect(css).toMatch(
+      /\.api-content__chapter-toggle\s*\{[^}]*width:\s*var\(--mc-docs-nav-toggle-size\);[^}]*height:\s*var\(--mc-docs-nav-toggle-size\);[^}]*color:\s*var\(--color-fg-muted\);/s,
+    );
+    expect(css).toMatch(
+      /\.api-content__chapter-toggle \.mc-icon path\[opacity\][^}]*opacity:\s*var\(--mc-docs-nav-toggle-secondary-opacity\);/s,
+    );
+    expect(css).toMatch(
+      /\[data-schema-cards-all-expanded="true"\]\s+\.api-content__chapter-toggle-down\s*\{[^}]*opacity:\s*0;/s,
+    );
+    expect(css).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.api-content__chapter-toggle > \.mc-icon,[\s\S]*\.schema-card__header-chevron > \.mc-icon\s*\{[^}]*transition:\s*none;/s,
+    );
+  });
+
   it("keeps pure content headings out of the focus order", () => {
-    const headingComponents = ["EndpointOperation.astro", "SdkDownloadCard.astro", "SchemaSection.astro"];
+    const headingComponents = ["EndpointOperation.astro", "SdkDownloadCard.astro"];
 
     for (const component of headingComponents) {
       const source = readFileSync(join(rootDir, "components/docs", component), "utf8");
 
       expect(source).not.toContain('tabindex="-1"');
     }
+  });
+
+  it("uses roving tab focus for each schema-card view switch", () => {
+    const source = readFileSync(join(rootDir, "components/docs/SchemaSection.astro"), "utf8");
+    const controller = readFileSync(join(rootDir, "components/docs/SchemaCardsController.astro"), "utf8");
+
+    expect(source).toContain('role="tablist"');
+    expect(source).toContain('role="tab"');
+    expect(source).toContain("tabIndex={-1}");
+    expect(controller).toContain('tab.addEventListener("keydown"');
+  });
+
+  it("renders schema field descriptions through the shared OpenAPI Markdown renderer", () => {
+    const source = readFileSync(join(rootDir, "components/docs/SchemaSection.astro"), "utf8");
+
+    expect(source).toContain('<OpenApiMarkdown content={field.description} className="text-body text-fg-muted" />');
+  });
+
+  it("uses the schema name as the card H3 instead of repeating it above the card", () => {
+    const source = readFileSync(join(rootDir, "components/docs/SchemaSection.astro"), "utf8");
+    const css = readFileSync(join(rootDir, "styles/docs.css"), "utf8");
+
+    expect(source).not.toContain("<ApiContent.Entry.Title");
+    expect(source).toContain("<SchemaCard.Header.Title id={schemaHeadingId}>{schema.name}</SchemaCard.Header.Title>");
+    expect(css).toMatch(/\.schema-card__title\s*\{[^}]*font-size:\s*var\(--text-card-title\);/s);
+  });
+
+  it("does not repeat the response object name in a schema-card footer", () => {
+    const section = readFileSync(join(rootDir, "components/docs/SchemaSection.astro"), "utf8");
+    const card = readFileSync(join(rootDir, "components/docs/SchemaCard.tsx"), "utf8");
+
+    expect(section).not.toContain("<SchemaCard.Footer");
+    expect(card).not.toContain("SchemaCardFooter");
+  });
+
+  it("keeps the schema view switch compact", () => {
+    const css = readFileSync(join(rootDir, "styles/docs.css"), "utf8");
+    const components = readFileSync(join(rootDir, "styles/components.css"), "utf8");
+
+    expect(css).toContain("--mc-docs-schema-toggle-inset: var(--mc-docs-space-xs);");
+    expect(css).toContain(
+      "--mc-docs-schema-toggle-tab-height: calc(var(--mc-size-control-compact) - var(--mc-space-1));",
+    );
+    expect(components).toMatch(
+      /\.segmented-control__item\s*\{[^}]*min-height:\s*var\(--segmented-control-item-min-height, var\(--mc-size-control-compact\)\);/s,
+    );
+  });
+
+  it("uses the shared segmented-control compound for schema documentation views", () => {
+    const section = readFileSync(join(rootDir, "components/docs/SchemaSection.astro"), "utf8");
+    const card = readFileSync(join(rootDir, "components/docs/SchemaCard.tsx"), "utf8");
+    const segmentedControlPath = join(rootDir, "components/SegmentedControl.tsx");
+
+    expect(existsSync(segmentedControlPath)).toBe(true);
+    if (!existsSync(segmentedControlPath)) return;
+
+    const segmentedControl = readFileSync(segmentedControlPath, "utf8");
+    expect(segmentedControl).toContain('createCompoundElement("div", "segmented-control")');
+    expect(segmentedControl).toContain('createCompoundElement("button", "segmented-control__item")');
+    expect(section).toContain('import { SegmentedControl } from "@/components/SegmentedControl";');
+    expect(section).toContain('<SegmentedControl role="tablist"');
+    expect(section).toContain("<SegmentedControl.Item");
+    expect(card).not.toContain("SchemaCardViewToggle");
+  });
+
+  it("labels response schema field presence independently from nullable value types", () => {
+    const source = readFileSync(join(rootDir, "components/docs/SchemaSection.astro"), "utf8");
+
+    expect(source).toContain(
+      '<SchemaCard.Body.Fields.Header.Cell scope="col">Key</SchemaCard.Body.Fields.Header.Cell>',
+    );
+    expect(source).toContain(
+      '<SchemaCard.Body.Fields.Header.Cell scope="col">Value Type</SchemaCard.Body.Fields.Header.Cell>',
+    );
+    expect(source).toContain(
+      '<SchemaCard.Body.Fields.Header.Cell scope="col">Key Presence</SchemaCard.Body.Fields.Header.Cell>',
+    );
+    expect(source).toContain(
+      '<SchemaCard.Body.Fields.Field.Presence.Badge data-key-presence={field.required ? "included" : "optional"}>',
+    );
+    expect(source).toContain('{field.required ? "included" : "optional"}');
+  });
+
+  it("provides persistent animated schema-card expansion from the complete header", () => {
+    const source = readFileSync(join(rootDir, "components/docs/SchemaSection.astro"), "utf8");
+    const controllerPath = join(rootDir, "components/docs/SchemaCardsController.astro");
+    const css = readFileSync(join(rootDir, "styles/docs.css"), "utf8");
+
+    expect(existsSync(controllerPath)).toBe(true);
+    if (!existsSync(controllerPath)) return;
+    const controller = readFileSync(controllerPath, "utf8");
+
+    expect(source).toContain("data-schema-card-collapse-toggle");
+    expect(source).toContain("data-schema-card-storage-key");
+    expect(controller).toContain("localStorage.getItem(storageKey)");
+    expect(controller).toContain("localStorage.setItem(storageKey");
+    expect(controller).toContain("card.dataset.schemaCardExpanded");
+    expect(css).toMatch(
+      /\.schema-card__collapsible\s*\{[\s\S]*grid-template-rows:\s*1fr;[\s\S]*transition:\s*grid-template-rows/s,
+    );
+    expect(css).toMatch(
+      /\.schema-card\[data-schema-card-expanded="false"\]\s+\.schema-card__collapsible\s*\{[^}]*grid-template-rows:\s*0fr;/s,
+    );
+    expect(source).toContain('ArrowCircleDownIcon className="schema-card__header-chevron-down"');
+    expect(source).toContain('ArrowCircleUpIcon className="schema-card__header-chevron-up"');
+    expect(css).toMatch(/\.schema-card__header-chevron\s*>\s*\.mc-icon\s*\{[\s\S]*transition:[\s\S]*transform/s);
+    const schemaChevronRule = css.match(/\.schema-card__header-chevron\s*\{(?<body>[\s\S]*?)\n {2}\}/)?.groups?.body;
+
+    expect(schemaChevronRule).toContain("width: var(--mc-docs-nav-toggle-size);");
+    expect(schemaChevronRule).toContain("height: var(--mc-docs-nav-toggle-size);");
+    expect(schemaChevronRule).toContain("color: var(--color-fg-muted);");
+    expect(css).toMatch(
+      /\.api-reference-nav__toggle \.mc-icon path\[opacity\],[\s\S]*\.api-reference-nav__toggle-all \.mc-icon path\[opacity\],[\s\S]*\.schema-card__header-chevron \.mc-icon path\[opacity\]\s*\{[^}]*opacity:\s*var\(--mc-docs-nav-toggle-secondary-opacity\);/s,
+    );
+    expect(css).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.schema-card__collapsible,[\s\S]*\.schema-card__collapsible-content,[\s\S]*\.schema-card__header-chevron > \.mc-icon\s*\{[^}]*transition:\s*none;/s,
+    );
+  });
+
+  it("uses a semantic table to align schema field metadata and descriptions", () => {
+    const css = readFileSync(join(rootDir, "styles/docs.css"), "utf8");
+    const fieldNameRule = css.match(/\.schema-card__field-name\s*\{(?<body>[\s\S]*?)\n {2}\}/)?.groups?.body;
+
+    expect(css).toMatch(
+      /\.schema-card__field-table\s*\{[\s\S]*border-collapse:\s*collapse;[\s\S]*table-layout:\s*auto;/,
+    );
+    expect(css).toMatch(
+      /\.schema-card__field-heading,[\s\S]*\.schema-card__field-name,[\s\S]*\.schema-card__field-value,[\s\S]*\.schema-card__field-presence,[\s\S]*\.schema-card__field-description\s*\{[\s\S]*vertical-align:\s*top;/,
+    );
+    expect(fieldNameRule).toContain("white-space: nowrap;");
+    expect(fieldNameRule).not.toContain("overflow-wrap");
+    expect(fieldNameRule).toContain("color: var(--color-fg);");
+    expect(css).not.toMatch(/\.schema-card__field\[data-depth="1"\][\s\S]*background-image:/);
   });
 
   it("uses the dedicated lighter token for active sidebar entries", () => {
@@ -172,9 +412,12 @@ describe("/docs/api content", () => {
     const operation = readFileSync(join(rootDir, "components/docs/EndpointOperation.astro"), "utf8");
 
     expect(navigation).toContain('import { apiReferenceOperationAnchor } from "@/lib/api-reference-anchor";');
-    expect(operation).toContain('import { apiReferenceOperationAnchor } from "@/lib/api-reference-anchor";');
+    expect(operation).toContain(
+      'import { apiReferenceOperationAnchor, apiReferenceSchemaAnchor } from "@/lib/api-reference-anchor";',
+    );
     expect(navigation).toContain("apiReferenceOperationAnchor(operation.method, operation.path)");
     expect(operation).toContain("apiReferenceOperationAnchor(operation.method, operation.path)");
+    expect(operation).toContain("apiReferenceSchemaAnchor(schemaRef)");
   });
 
   it("defines a responsive, reduced-motion-aware scroll-to-top controller", () => {
@@ -231,6 +474,9 @@ describe("/docs/api content", () => {
 
   it("keeps a clicked sidebar item active while its content block is visible", () => {
     const navigation = readFileSync(join(rootDir, "components/docs/ApiReferenceNav.astro"), "utf8");
+    const endpoint = readFileSync(join(rootDir, "components/docs/EndpointOperation.astro"), "utf8");
+    const schema = readFileSync(join(rootDir, "components/docs/SchemaSection.astro"), "utf8");
+    const css = readFileSync(join(rootDir, "styles/docs.css"), "utf8");
 
     expect(navigation).toContain(
       'import { isManualScrollIntent, resolveScrollSpySelection } from "@/lib/api-scroll-spy";',
@@ -244,6 +490,13 @@ describe("/docs/api content", () => {
     expect(navigation).toContain('addEventListener("scroll", scheduleScrollSpyUpdate');
     expect(navigation).toContain("requestAnimationFrame(updateActiveFromScroll)");
     expect(navigation).not.toContain("new IntersectionObserver(");
+    expect(endpoint).toContain("<EndpointCard id={anchor} aria-labelledby={titleId} data-api-nav-anchor>");
+    expect(schema).toMatch(
+      /<SchemaCard[\s\S]*id=\{schema\.anchor\}[\s\S]*aria-labelledby=\{schemaHeadingId\}[\s\S]*data-api-nav-anchor/s,
+    );
+    expect(css).toMatch(
+      /@media \(min-width: 64rem\)[\s\S]*\[data-api-nav-anchor\]\s*\{[^}]*scroll-margin-top:\s*var\(--mc-docs-nav-sticky-offset\);/s,
+    );
   });
 
   it("pins the search dialog below a tokenized top offset without widening it to the viewport", () => {

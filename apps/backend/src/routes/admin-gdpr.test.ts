@@ -1,10 +1,8 @@
 /**
  * @file Route tests for the admin GDPR tooling (MC-085): export a subject's
- * personal-data package by email, and erase (anonymise) an account-less
- * subject's data by email — a developer account behind the address yields
- * `409 ACCOUNT_EXISTS` (account deletion stays owner-only in the danger
- * zone). GDPR services, the developer repo and the owner/admin guard are
- * mocked; route validation and status mapping are under test.
+ * personal-data package by email. Account-less erasure is deliberately absent;
+ * developer-account deletion remains owner-only in the portal danger zone.
+ * The export service, developer repo and owner/admin guard are mocked.
  */
 
 import { ENDPOINTS } from "@musiccloud/shared";
@@ -13,7 +11,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getDeveloperRepository } from "../db/index.js";
 import { requireOwnerOrAdmin } from "../lib/admin-caller.js";
-import { erasePersonalData } from "../services/gdpr-erase.js";
 import { buildPersonalDataExport } from "../services/gdpr-export.js";
 import adminGdprRoutes from "./admin-gdpr.js";
 
@@ -30,12 +27,7 @@ vi.mock("../services/gdpr-export.js", () => ({
     version: 1,
     exportedAt: "2026-07-04T00:00:00.000Z",
     subject: { email: "person@example.com" },
-    formSubmissions: [],
   })),
-}));
-
-vi.mock("../services/gdpr-erase.js", () => ({
-  erasePersonalData: vi.fn(async () => ({ anonymizedSubmissions: 3, accountDeleted: false })),
 }));
 
 const developerRepo = {
@@ -99,34 +91,13 @@ describe("GET /api/admin/gdpr/export", () => {
 });
 
 describe("POST /api/admin/gdpr/erase", () => {
-  it("anonymises an account-less subject's data", async () => {
+  it("is not registered", async () => {
     const res = await app.inject({
       method: "POST",
-      url: ENDPOINTS.admin.gdpr.erase,
+      url: "/api/admin/gdpr/erase",
       payload: { email: "person@example.com" },
     });
 
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ anonymizedSubmissions: 3, accountDeleted: false });
-    expect(vi.mocked(erasePersonalData)).toHaveBeenCalledWith({ email: "person@example.com" });
-  });
-
-  it("refuses with 409 ACCOUNT_EXISTS when a developer account owns the address", async () => {
-    developerRepo.findDeveloperAccountByEmail.mockResolvedValueOnce({ id: "dev-acc-1" } as never);
-
-    const res = await app.inject({
-      method: "POST",
-      url: ENDPOINTS.admin.gdpr.erase,
-      payload: { email: "person@example.com" },
-    });
-
-    expect(res.statusCode).toBe(409);
-    expect(res.json().error).toBe("ACCOUNT_EXISTS");
-    expect(vi.mocked(erasePersonalData)).not.toHaveBeenCalled();
-  });
-
-  it("rejects a missing email with 400", async () => {
-    const res = await app.inject({ method: "POST", url: ENDPOINTS.admin.gdpr.erase, payload: {} });
-    expect(res.statusCode).toBe(400);
+    expect(res.statusCode).toBe(404);
   });
 });

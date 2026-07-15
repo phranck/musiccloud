@@ -48,6 +48,7 @@ describe("apiLinksToPlatformLinks", () => {
         og: {
           title: "a-ha - Take on Me",
           description: "Listen on musiccloud",
+          image: "https://musiccloud.io/aBc123x.jpg",
           url: "https://musiccloud.io/aBc123x",
         },
         track: {

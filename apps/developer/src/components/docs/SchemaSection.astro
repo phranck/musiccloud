@@ -2,8 +2,11 @@
 /** Renders one reachable OpenAPI schema through normalized entry/card compounds. */
 import { ApiContent } from "@/components/docs/ApiContent";
 import CodeBlock from "@/components/docs/CodeBlock.astro";
-import { ContentCard } from "@/components/docs/ContentCard";
 import OpenApiMarkdown from "@/components/docs/OpenApiMarkdown.astro";
+import { SchemaCard } from "@/components/docs/SchemaCard";
+import { SegmentedControl } from "@/components/SegmentedControl";
+import { apiReferenceSchemaAnchor } from "@/lib/api-reference-anchor";
+import { ArrowCircleDownIcon, ArrowCircleUpIcon } from "@/lib/icons";
 import type { ApiSchema } from "@/lib/openapi-reference";
 
 interface Props {
@@ -11,6 +14,11 @@ interface Props {
 }
 
 const { schema } = Astro.props;
+const schemaCardId = `${schema.anchor}-card`;
+const fieldsPanelId = `${schemaCardId}-fields`;
+const jsonPanelId = `${schemaCardId}-json`;
+const collapsibleContentId = `${schemaCardId}-content`;
+const schemaHeadingId = `${schema.anchor}-heading`;
 ---
 
 <ApiContent.Entry
@@ -21,21 +29,131 @@ const { schema } = Astro.props;
   data-api-search-kind="schema"
   data-api-search-target={schema.anchor}
 >
-  <ApiContent.Entry.Title id={schema.anchor}>{schema.name}</ApiContent.Entry.Title>
   <ApiContent.Entry.Content>
-    <ContentCard aria-labelledby={schema.anchor}>
-      <ContentCard.Header>
-        <ContentCard.Header.Title>JSON schema</ContentCard.Header.Title>
-      </ContentCard.Header>
-      <ContentCard.Body>
-        <ContentCard.Body.Stack>
-          {schema.description && <OpenApiMarkdown content={schema.description} className="text-body text-fg-muted" />}
-          <CodeBlock language="json" code={JSON.stringify(schema.schema, null, 2)} />
-        </ContentCard.Body.Stack>
-      </ContentCard.Body>
-      <ContentCard.Footer>
-        <span class="font-mono text-code text-fg-muted">{schema.name}</span>
-      </ContentCard.Footer>
-    </ContentCard>
+    <SchemaCard
+      id={schema.anchor}
+      aria-labelledby={schemaHeadingId}
+      data-api-nav-anchor
+      data-schema-card
+      data-schema-view="fields"
+      data-schema-card-expanded="false"
+      data-schema-card-storage-key={`musiccloud.api-reference.schema-card.${schema.anchor}`}
+    >
+      <SchemaCard.Header>
+        <SchemaCard.Header.Toggle
+          type="button"
+          aria-label={`Toggle ${schema.name} schema documentation`}
+          aria-expanded="false"
+          aria-controls={collapsibleContentId}
+          data-schema-card-collapse-toggle
+        />
+        <SchemaCard.Header.Title id={schemaHeadingId}>{schema.name}</SchemaCard.Header.Title>
+        <SchemaCard.Header.Addon>
+          <SegmentedControl role="tablist" aria-label={`Schema view for ${schema.name}`}>
+            <SegmentedControl.Item
+              type="button"
+              role="tab"
+              id={`${fieldsPanelId}-tab`}
+              aria-controls={fieldsPanelId}
+              aria-selected="true"
+              tabIndex={0}
+              data-schema-view-tab="fields"
+            >
+              Key documentation
+            </SegmentedControl.Item>
+            <SegmentedControl.Item
+              type="button"
+              role="tab"
+              id={`${jsonPanelId}-tab`}
+              aria-controls={jsonPanelId}
+              aria-selected="false"
+              tabIndex={-1}
+              data-schema-view-tab="json"
+            >
+              JSON schema
+            </SegmentedControl.Item>
+          </SegmentedControl>
+            <SchemaCard.Header.Chevron aria-hidden="true">
+              <ArrowCircleDownIcon className="schema-card__header-chevron-down" />
+              <ArrowCircleUpIcon className="schema-card__header-chevron-up" />
+            </SchemaCard.Header.Chevron>
+          </SchemaCard.Header.Addon>
+        </SchemaCard.Header>
+      <SchemaCard.Collapsible id={collapsibleContentId} data-schema-card-content aria-hidden="true" inert>
+        <SchemaCard.Collapsible.Content>
+          <SchemaCard.Body>
+            {schema.description && <SchemaCard.Body.Description><OpenApiMarkdown content={schema.description} className="text-body text-fg-muted" /></SchemaCard.Body.Description>}
+            <SchemaCard.Body.Panel
+              id={fieldsPanelId}
+              role="tabpanel"
+              aria-labelledby={`${fieldsPanelId}-tab`}
+              data-schema-view-panel="fields"
+            >
+              {schema.fields.length > 0 && (
+                <SchemaCard.Body.Fields>
+                  <SchemaCard.Body.Fields.Header>
+                    <SchemaCard.Body.Fields.Header.Row>
+                      <SchemaCard.Body.Fields.Header.Cell scope="col">Key</SchemaCard.Body.Fields.Header.Cell>
+                      <SchemaCard.Body.Fields.Header.Cell scope="col">Key Presence</SchemaCard.Body.Fields.Header.Cell>
+                      <SchemaCard.Body.Fields.Header.Cell scope="col">Value Type</SchemaCard.Body.Fields.Header.Cell>
+                      <SchemaCard.Body.Fields.Header.Cell scope="col">Description</SchemaCard.Body.Fields.Header.Cell>
+                    </SchemaCard.Body.Fields.Header.Row>
+                  </SchemaCard.Body.Fields.Header>
+                  <SchemaCard.Body.Fields.Body>
+                    {schema.fields.map((field) => (
+                      <SchemaCard.Body.Fields.Field data-depth={field.depth}>
+                        <SchemaCard.Body.Fields.Field.Name>
+                          {field.schemaRef ? (
+                            <a class="content-link" href={`#${apiReferenceSchemaAnchor(field.schemaRef)}`}>{field.path}</a>
+                          ) : (
+                            <code>{field.path}</code>
+                          )}
+                        </SchemaCard.Body.Fields.Field.Name>
+                        <SchemaCard.Body.Fields.Field.Presence>
+                          <SchemaCard.Body.Fields.Field.Presence.Badge data-key-presence={field.required ? "included" : "optional"}>
+                            {field.required ? "included" : "optional"}
+                          </SchemaCard.Body.Fields.Field.Presence.Badge>
+                        </SchemaCard.Body.Fields.Field.Presence>
+                        <SchemaCard.Body.Fields.Field.Value>
+                          <SchemaCard.Body.Fields.Field.Value.Type>{field.type}</SchemaCard.Body.Fields.Field.Value.Type>
+                        </SchemaCard.Body.Fields.Field.Value>
+                        <SchemaCard.Body.Fields.Field.Description>
+                          {field.description ? (
+                            <OpenApiMarkdown content={field.description} className="text-body text-fg-muted" />
+                          ) : (
+                            "No field description is available in this schema."
+                          )}
+                        </SchemaCard.Body.Fields.Field.Description>
+                      </SchemaCard.Body.Fields.Field>
+                    ))}
+                  </SchemaCard.Body.Fields.Body>
+                </SchemaCard.Body.Fields>
+              )}
+              {schema.variants.length > 0 && (
+                <SchemaCard.Body.Variants>
+                  <SchemaCard.Body.Variants.Title>Response variants</SchemaCard.Body.Variants.Title>
+                  <SchemaCard.Body.Variants.List>
+                    {schema.variants.map((variant) => (
+                      <SchemaCard.Body.Variants.List.Item>
+                        <a class="content-link" href={`#${variant.anchor}`}>{variant.name}</a>
+                      </SchemaCard.Body.Variants.List.Item>
+                    ))}
+                  </SchemaCard.Body.Variants.List>
+                </SchemaCard.Body.Variants>
+              )}
+            </SchemaCard.Body.Panel>
+            <SchemaCard.Body.Panel
+              id={jsonPanelId}
+              role="tabpanel"
+              aria-labelledby={`${jsonPanelId}-tab`}
+              data-schema-view-panel="json"
+              hidden
+            >
+              <CodeBlock language="json" code={JSON.stringify(schema.schema, null, 2)} />
+            </SchemaCard.Body.Panel>
+          </SchemaCard.Body>
+        </SchemaCard.Collapsible.Content>
+      </SchemaCard.Collapsible>
+    </SchemaCard>
   </ApiContent.Entry.Content>
 </ApiContent.Entry>

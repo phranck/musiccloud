@@ -56,11 +56,17 @@ describe("Sidebar", () => {
     expect(css).toContain("--mc-docs-nav-toggle-secondary-opacity: 0.3;");
     expect(css).toMatch(/\.api-reference-nav__toggle\s*\{[^}]*width:\s*var\(--mc-docs-nav-toggle-size\);/s);
     expect(css).toMatch(/\.api-reference-nav__toggle-all\s*\{[^}]*width:\s*var\(--mc-docs-nav-toggle-size\);/s);
+    expect(css).toMatch(
+      /\.api-reference-nav__count\s*\{[^}]*height:\s*var\(--mc-docs-nav-toggle-size\);[^}]*place-items:\s*center;[^}]*padding:\s*0 var\(--mc-docs-space-sm\);/s,
+    );
     expect(css).toMatch(/\.api-reference-nav__toggle svg\s*\{[^}]*width:\s*var\(--mc-docs-nav-toggle-size\);/s);
     expect(css).toMatch(/\.api-reference-nav__toggle-all svg\s*\{[^}]*width:\s*var\(--mc-docs-nav-toggle-size\);/s);
+    expect(css).toMatch(
+      /@media \(max-width: 63\.999rem\)[\s\S]*\.api-reference-nav__count\s*\{[^}]*height:\s*var\(--mc-size-control\);/s,
+    );
     expect(navigation).not.toMatch(/api-reference-nav__toggle(?:-all)?-(?:up|down) size-6/);
     expect(css).toMatch(
-      /\.api-reference-nav__toggle \.mc-icon path\[opacity\],[^}]*\.api-reference-nav__toggle-all \.mc-icon path\[opacity\]\s*\{[^}]*opacity:\s*var\(--mc-docs-nav-toggle-secondary-opacity\);/s,
+      /\.api-reference-nav__toggle \.mc-icon path\[opacity\],[^}]*\.api-reference-nav__toggle-all \.mc-icon path\[opacity\],[^}]*\.schema-card__header-chevron \.mc-icon path\[opacity\]\s*\{[^}]*opacity:\s*var\(--mc-docs-nav-toggle-secondary-opacity\);/s,
     );
     expect(css).toContain(".api-reference-nav__toggle-all,\n    .api-reference-nav__toggle {");
   });

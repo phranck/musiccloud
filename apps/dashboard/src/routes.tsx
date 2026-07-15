@@ -25,8 +25,6 @@ import {
   EmailBrandingPage,
   EmailTemplateEditPage,
   EmailTemplateListPage,
-  FormBuilderEditPage,
-  FormBuilderListPage,
   InvitePage,
   LoginPage,
   NavManagerPage,
@@ -66,8 +64,6 @@ export const routes = createRoutesFromElements(
 
         <Route element={<RequireNonModerator />}>
           <Route path="analytics" element={lazyFallback(<AnalyticsPage />)} />
-          <Route path="forms" element={lazyFallback(<FormBuilderListPage />)} />
-          <Route path="forms/:name" element={lazyFallback(<FormBuilderEditPage />)} />
           <Route path="email-templates" element={lazyFallback(<EmailTemplateListPage />)} />
           <Route path="email-templates/new" element={lazyFallback(<EmailTemplateEditPage />)} />
           <Route path="email-templates/:id" element={lazyFallback(<EmailTemplateEditPage />)} />

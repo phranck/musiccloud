@@ -116,10 +116,6 @@ export const ENDPOINTS = {
       /** POST: ingest an app-side error event from the Apple client (Testflight). */
       appError: "/api/v1/telemetry/app-error",
     },
-    forms: {
-      /** POST `/api/v1/forms/:slug/submit`: public submission of an ACTIVE admin-built form (rate-limited). */
-      submit: (slug: string) => `/api/v1/forms/${encodeURIComponent(slug)}/submit`,
-    },
     /** GET `/api/v1/tiers`: public tier list for the Developer Portal pricing page. */
     tiers: "/api/v1/tiers",
   },
@@ -299,17 +295,6 @@ export const ENDPOINTS = {
     gdpr: {
       /** GET `?email=`: a subject's personal-data package (GDPR Art. 15/20) — also covers account-less submitters. */
       export: "/api/admin/gdpr/export",
-      /** POST: erase a subject's data by email. Body: { email }. 409 when a developer account exists (owner must use the danger zone). */
-      erase: "/api/admin/gdpr/erase",
-    },
-
-    forms: {
-      /** GET: list all form configs / POST: create an empty form. Body: { name, slug }. */
-      list: "/api/admin/forms",
-      /** GET: one form / PUT: save payload / PATCH: toggle isActive / DELETE: remove. */
-      detail: (name: string) => `/api/admin/forms/${encodeURIComponent(name)}`,
-      /** POST: import a form config (create or overwrite). */
-      import: "/api/admin/forms/import",
     },
 
     navigations: {
@@ -478,8 +463,6 @@ export const ROUTE_TEMPLATES = {
     ccBandcamp: "/api/v1/cc/bandcamp/:jamendoId",
     nav: "/api/v1/nav/:navId",
     contentDetail: "/api/v1/content/:slug",
-    /** Route template for ENDPOINTS.v1.forms.submit (public form submission). */
-    formsSubmit: "/api/v1/forms/:slug/submit",
   },
   admin: {
     users: {
@@ -521,7 +504,6 @@ export const ROUTE_TEMPLATES = {
     },
     emailAssets: { detail: "/api/admin/email-assets/:id" },
     emailActions: { binding: "/api/admin/email-actions/bindings/:id" },
-    forms: { detail: "/api/admin/forms/:name" },
     invite: {
       state: "/api/admin/invite/:token",
     },

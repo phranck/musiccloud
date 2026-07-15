@@ -95,7 +95,7 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
           query: { name: "a-ha", region: "NO" },
         }),
         description:
-          "Combines Deezer top tracks, Spotify/Last.fm profile, and Bandsintown/Ticketmaster tour dates into a single card payload. Sections refresh on independent TTLs. When `region` is set, matching events bubble to the top of the events list.",
+          "Returns commercial artist details in one stable object: up to `5` top tracks, an assembled profile or `null`, up to `5` upcoming events, and up to `5` related-artist track lookups. Every top-level key is included; unavailable lists are empty. When `region` is supplied, matching events are sorted first.",
         querystring: {
           type: "object",
           required: ["name"],
@@ -105,31 +105,25 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
               minLength: 1,
               maxLength: 200,
               description:
-                "Artist name (free text). Used both as the cache key (lowercased) and as the upstream search input.",
+                "Artist display name to look up. Leading and trailing whitespace is ignored, and a trailing YouTube auto-channel suffix ` - Topic` is removed before matching. Use the spelling returned in track or artist metadata when available.",
             },
             region: {
               type: "string",
               description:
-                "ISO country code (2-letter, case-insensitive). When present, events in this country are sorted first.",
+                "Country preference for event ordering. Supply a two-letter ISO `3166-1 alpha-2` code such as `NO`; matching is case-insensitive. Only the first two characters are used. Matching events are placed first and each group is ordered by `date`.\n\n**Default**: no country is prioritized and events remain in ascending date order.",
             },
             shortId: {
               type: "string",
               minLength: 1,
               maxLength: 32,
               description:
-                "Optional musiccloud track share code. Take the last path segment of `shortUrl` from a successful `POST /api/v1/resolve` track response; it supplies context for ambiguous artist names.",
-            },
-            artistEntityId: {
-              type: "string",
-              minLength: 1,
-              maxLength: 80,
-              description:
-                "Reserved for future context-aware artist-info lookups. No public endpoint currently returns or uses it, so omit this parameter.",
+                "Optional musiccloud track share code. Take the last path segment of `shortUrl` from a successful track response from `POST /api/v1/resolve` or `GET /api/v1/resolve`. When the share's stored service links identify an alternate artist known to musiccloud, that name replaces `name` for this lookup. Otherwise `name` is used unchanged after normalization.\n\n**Default**: the supplied `name` is used directly, with no persisted-resolution context.",
             },
             refresh: {
               type: "string",
               enum: ["profile"],
-              description: "Explicitly refresh a stable cache section. Currently only `profile` is supported.",
+              description:
+                "Set to `profile` to fetch profile metadata again before responding, even when the stored profile snapshot is younger than `183` days. This does not force a refresh of top tracks or events: those sections are fetched again only when their stored snapshots are at least `7` days and `24` hours old, respectively.\n\n**Default**: profile metadata is fetched when no stored snapshot exists or its snapshot is at least `183` days old.",
             },
           },
           additionalProperties: false,
@@ -137,12 +131,12 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
         response: {
           200: {
             description:
-              "Aggregated artist details: Deezer top tracks, Spotify/Last.fm profile (nullable when Spotify isn't configured), upcoming events, and optional similar-artist top tracks.",
+              "`ArtistInfo` containing up to `5` selected top tracks, a nullable profile, up to `5` upcoming events, and related-artist track lookups.",
             $ref: "ArtistInfo#",
           },
           400: { description: "Missing or empty `name` query parameter.", $ref: "ErrorResponse#" },
           429: {
-            description: "Rate limit exceeded for this client IP (10 requests per 60 seconds).",
+            description: "This client IP exceeded `10` requests in a rolling `60`-second window.",
             $ref: "ErrorResponse#",
           },
         },
@@ -160,7 +154,6 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
         name: string;
         region?: string;
         shortId?: string;
-        artistEntityId?: string;
         refresh?: "profile";
       };
 

@@ -21,6 +21,8 @@ describe("finalizePublicOpenApiDocument", () => {
 
     expect(path.get?.responses).toHaveProperty("429");
     expect(path.post?.responses).toHaveProperty("429");
+    expect(path.get?.responses).toHaveProperty("500");
+    expect(path.post?.responses).toHaveProperty("500");
     expect(path.parameters).toEqual([{ name: "tenant", in: "header" }]);
     expect(out.components?.schemas).toHaveProperty("ErrorResponse");
   });
@@ -36,7 +38,43 @@ describe("finalizePublicOpenApiDocument", () => {
     });
     const operation = (out.paths?.["/a"] as { get: { responses: Record<string, unknown> } }).get;
 
-    expect(operation.responses["429"]).toEqual(routeSpecific);
+    expect(operation.responses["429"]).toEqual({
+      ...routeSpecific,
+      headers: {
+        "Retry-After": {
+          description: "Seconds to wait before retrying the request.",
+          schema: { type: "integer", minimum: 1 },
+        },
+      },
+    });
+  });
+
+  it("preserves route-specific responses while adding standard error metadata", () => {
+    const routeSpecific500 = { description: "Upstream provider failed" };
+    const routeSpecific429 = {
+      description: "Form quota exceeded",
+      headers: { "X-RateLimit-Limit": { schema: { type: "integer" } } },
+    };
+    const out = finalizePublicOpenApiDocument({
+      paths: {
+        "/a": {
+          post: { responses: { 429: routeSpecific429, 500: routeSpecific500 } },
+        },
+      },
+    });
+    const responses = (out.paths?.["/a"] as { post: { responses: Record<string, unknown> } }).post.responses;
+
+    expect(responses["500"]).toEqual(routeSpecific500);
+    expect(responses["429"]).toEqual({
+      ...routeSpecific429,
+      headers: {
+        ...routeSpecific429.headers,
+        "Retry-After": {
+          description: "Seconds to wait before retrying the request.",
+          schema: { type: "integer", minimum: 1 },
+        },
+      },
+    });
   });
 
   it("prunes schemas not reachable from any path", () => {

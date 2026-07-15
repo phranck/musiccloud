@@ -2,8 +2,7 @@
  * @file Sequential import queue with conflict handling. Items are imported
  * one at a time; a 409 pauses the queue and surfaces a conflict the UI
  * resolves via overwrite / rename / skip, any other error is counted as a
- * failure and the queue continues. Shared by the email-template and
- * form-builder import flows.
+ * failure and the queue continues. Used by the email-template import flow.
  */
 
 import { useCallback, useState } from "react";

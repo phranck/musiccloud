@@ -14,8 +14,10 @@ import { ContentCard } from "@/components/docs/ContentCard";
 import { ContentPanel } from "@/components/docs/ContentPanel";
 import EndpointOperation from "@/components/docs/EndpointOperation.astro";
 import SchemaSection from "@/components/docs/SchemaSection.astro";
+import SchemaCardsController from "@/components/docs/SchemaCardsController.astro";
 import ScrollToTopButton from "@/components/docs/ScrollToTopButton.astro";
 import SdkDownloadCard from "@/components/docs/SdkDownloadCard.astro";
+import { ArrowCircleDownIcon, ArrowCircleUpIcon } from "@/lib/icons";
 import {
   apiReferenceSectionLabel,
   apiReferenceStaticSectionIcons,
@@ -155,6 +157,19 @@ const integrationItems = [
             <SchemasIcon aria-hidden="true" />
           </ApiContent.Chapter.Header.Icon>
           <ApiContent.Chapter.Header.Title>Schemas</ApiContent.Chapter.Header.Title>
+          <ApiContent.Chapter.Header.Addon>
+            <button
+              type="button"
+              class="api-content__chapter-toggle"
+              aria-label="Expand all schema cards"
+              title="Expand all schema cards"
+              data-schema-card-toggle-all
+              data-schema-cards-all-expanded="false"
+            >
+              <ArrowCircleDownIcon className="api-content__chapter-toggle-down" aria-hidden="true" />
+              <ArrowCircleUpIcon className="api-content__chapter-toggle-up" aria-hidden="true" />
+            </button>
+          </ApiContent.Chapter.Header.Addon>
         </ApiContent.Chapter.Header>
         <ApiContent.Chapter.Body>
           {Object.values(reference.schemas).map((schema) => <SchemaSection schema={schema} />)}
@@ -162,6 +177,7 @@ const integrationItems = [
       </ApiContent.Chapter>
     </ApiContent>
   </div>
+  <SchemaCardsController />
   <ApiDocumentSearch client:load />
   <ScrollToTopButton />
 </div>

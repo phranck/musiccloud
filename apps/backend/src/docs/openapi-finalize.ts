@@ -59,6 +59,20 @@ const GLOBAL_RATE_LIMIT_RESPONSE = {
   },
 } as const;
 
+const RETRY_AFTER_HEADER = {
+  description: "Seconds to wait before retrying the request.",
+  schema: { type: "integer", minimum: 1 },
+} as const;
+
+const UNEXPECTED_ERROR_RESPONSE = {
+  description: "Unexpected server error. Use `errorId` from the response when reporting the failure.",
+  content: {
+    "application/json": {
+      schema: { $ref: "#/components/schemas/ErrorResponse" },
+    },
+  },
+} as const;
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -83,11 +97,22 @@ function completeGlobalRateLimitResponses(paths: Record<string, unknown>): Recor
       }
 
       const responses = isRecord(value.responses) ? value.responses : {};
+      const routeRateLimitResponse: Record<string, unknown> = isRecord(responses["429"])
+        ? responses["429"]
+        : { ...GLOBAL_RATE_LIMIT_RESPONSE };
+      const routeRateLimitHeaders = isRecord(routeRateLimitResponse.headers) ? routeRateLimitResponse.headers : {};
       completedPathItem[key] = {
         ...value,
         responses: {
-          429: GLOBAL_RATE_LIMIT_RESPONSE,
           ...responses,
+          429: {
+            ...routeRateLimitResponse,
+            headers: {
+              ...routeRateLimitHeaders,
+              "Retry-After": RETRY_AFTER_HEADER,
+            },
+          },
+          ...(responses["500"] === undefined ? { 500: UNEXPECTED_ERROR_RESPONSE } : {}),
         },
       };
     }

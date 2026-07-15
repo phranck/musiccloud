@@ -125,11 +125,10 @@ export default async function resolveRoutes(app: FastifyInstance) {
           "**2. Free-text query** — any string that is not a URL and does not start with a structured prefix. Returns a resolved match or a disambiguation list (follow up with `selectedCandidate` to pick one). Use when the user only knows roughly what they want.\n\n" +
           "**3. Genre-discovery query** — starts with `genre:`. Two sub-modes:\n" +
           "  - `genre: ?` → browse grid of popular genres (no other fields allowed).\n" +
-          "  - `genre: <name>[|<name>...]<, modifier>*` → discovery results. Modifiers: `tracks`/`albums`/`artists` (1–50 each, default 10 of each when none specified), `count` (1–50, sets all three to the same value, mutually exclusive with per-type modifiers), `vibe` (`hot` for top-N, `mixed` for stratified random sample). `|` inside a value is OR.\n" +
+          "  - `genre: <name>[|<name>...]<, modifier>*` → discovery results. Modifiers: `tracks`/`albums`/`artists` (`1`–`50` each, default `10` of each when none is specified), `count` (`1`–`50`, sets all three to the same value, mutually exclusive with per-type modifiers), `vibe` (`hot` for the highest-ranked results, `mixed` for a stratified sample across the ranked pool). `|` inside a value means OR.\n" +
           "  - Example: `genre: jazz|r&b, tracks: 20, vibe: mixed`.\n\n" +
           `**4. Structured search query** — ${STRUCTURED_SEARCH_OPENAPI_SECTION}\n\n` +
-          `${STRUCTURED_SEARCH_POST_OPENAPI_NOTE}\n\n` +
-          "After any disambiguation response, send the picked candidate's id back as `selectedCandidate` to complete the resolve.",
+          `${STRUCTURED_SEARCH_POST_OPENAPI_NOTE}`,
         security: [{ ApiKeyAuth: [] }],
         body: {
           type: "object",
@@ -152,11 +151,12 @@ export default async function resolveRoutes(app: FastifyInstance) {
               type: "string",
               minLength: 1,
               maxLength: 200,
-              description: "Identifier of a candidate returned by a previous disambiguation response.",
+              description:
+                "Opaque `candidates[].id` value from a previous `ResolveDisambiguation` response. Pass it unchanged and omit `query`.",
               example: "spotify:2WfaOiMkCvy7F5fcp2zZ8L",
             },
           },
-          anyOf: [{ required: ["query"] }, { required: ["selectedCandidate"] }],
+          oneOf: [{ required: ["query"] }, { required: ["selectedCandidate"] }],
           additionalProperties: false,
           examples: [
             { query: "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L" },
@@ -167,7 +167,7 @@ export default async function resolveRoutes(app: FastifyInstance) {
         response: {
           200: {
             description:
-              'Success. Either a resolved track/album/artist (`UnifiedResolveSuccess`, discriminated by `type`), a disambiguation list (`ResolveDisambiguation`, `status: "disambiguation"`), or a genre-discovery result (`status: "genre-search"` / `status: "genre-browse"` — see description).',
+              "A persisted `UnifiedResolveSuccess` selected by `type`, a `ResolveDisambiguation` list with `status` equal to `disambiguation`, or a genre result with `status` equal to `genre-search` or `genre-browse`.",
             oneOf: [
               { $ref: "UnifiedResolveSuccess#" },
               { $ref: "ResolveDisambiguation#" },
@@ -184,12 +184,16 @@ export default async function resolveRoutes(app: FastifyInstance) {
           408: { description: "Upstream service timed out before a match could be confirmed.", $ref: "ErrorResponse#" },
           429: {
             description:
-              "Rate limit exceeded — per client IP (10 requests per 60 seconds) for anonymous callers, or the client's own per-minute/per-day quota for API-key-authenticated callers.",
+              "The issued API key exceeded its assigned rolling `60`-second or rolling `24`-hour quota. Inspect `context` and `Retry-After` before retrying.",
             $ref: "ErrorResponse#",
           },
-          500: { description: "Unexpected server error.", $ref: "ErrorResponse#" },
+          500: {
+            description: "Unexpected server error. Use `errorId` from the response when reporting the failure.",
+            $ref: "ErrorResponse#",
+          },
           503: {
-            description: "Required upstream service (e.g. the Deezer genre adapter) is unavailable.",
+            description:
+              "A service needed to resolve this request is currently unavailable. Retry after a delay; if the response repeats, report its `errorId`.",
             $ref: "ErrorResponse#",
           },
         },

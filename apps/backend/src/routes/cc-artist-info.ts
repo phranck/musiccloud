@@ -21,9 +21,9 @@ export default async function ccArtistInfoRoutes(app: FastifyInstance) {
     {
       schema: {
         tags: ["CC"],
-        summary: "CC artist column (Jamendo popular + similar tracks + profile)",
+        summary: "Get Creative Commons artist details and related tracks",
         description:
-          "Returns the Creative-Commons artist column (popular tracks, similar tracks, profile) for a Jamendo artist, in the shared ArtistInfoResponse shape. Loaded async by the CC share page so the core card renders immediately.",
+          "Returns `CcArtistInfo` for one Jamendo artist: up to `20` popular tracks in descending popularity order, a profile or `null`, up to `12` tracks by related artists, and an always-empty `events` array. Candidate values in `topTracks[].deezerUrl` and `similarArtistTracks[].track.deezerUrl` are opaque `jamendo:<trackId>` tokens, not URLs. Pass one unchanged as `selectedCandidate` to `POST /api/v1/cc/resolve` to persist and resolve that track.",
         querystring: {
           type: "object",
           required: ["jamendoArtistId", "artistName"],
@@ -34,24 +34,25 @@ export default async function ccArtistInfoRoutes(app: FastifyInstance) {
               maxLength: 32,
               pattern: "^[0-9]+$",
               description:
-                "Numeric Jamendo artist ID. Read `track.jamendoArtistId` from a `cc-track` result, or `artist.jamendoId` from a `cc-artist` result, of `POST /api/v1/cc/resolve`.",
+                "Numeric Jamendo artist ID. Read `track.jamendoArtistId`, `album.tracks[].jamendoArtistId`, or `artist.jamendoId` from a successful `POST /api/v1/cc/resolve` or `GET /api/v1/share/{shortId}` response.",
             },
             artistName: {
               type: "string",
               minLength: 1,
               maxLength: 200,
               description:
-                "Jamendo display name for the same artist. Used as the artist-column label and for profile and similar-track lookups.",
+                "Display label for the artist identified by `jamendoArtistId`. Read it from `track.artistName`, `album.artistName`, or `artist.name` in the same response as the ID. The ID, not this name, controls which Jamendo artist, profile, and tracks are fetched; the supplied string is returned as `artistName`.",
             },
           },
           additionalProperties: false,
         },
         response: {
           200: {
-            description: "Creative Commons artist metadata in the shared artist-info shape.",
-            $ref: "ArtistInfo#",
+            description: "`CcArtistInfo` derived from the requested Jamendo artist.",
+            $ref: "CcArtistInfo#",
           },
-          400: publicErrorResponse("The Jamendo artist id or artist name is missing or malformed."),
+          400: publicErrorResponse("`jamendoArtistId` is not numeric, or `artistName` is missing or empty."),
+          429: publicErrorResponse("This client IP exceeded `10` requests in a rolling `60`-second window."),
         },
       },
     },

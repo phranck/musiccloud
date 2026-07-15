@@ -50,11 +50,7 @@ import type { DashboardMessages } from "@/i18n/messages";
 import type { AdminRole } from "@/shared/types/admin";
 
 const ROLE_RANK: Record<AdminRole, number> = { owner: 2, admin: 1, moderator: 0 };
-const SIDEBAR_GROUP_STORAGE_KEYS = [
-  "sidebar-pages-open",
-  "sidebar-forms-open",
-  "sidebar-email-templates-open",
-] as const;
+const SIDEBAR_GROUP_STORAGE_KEYS = ["sidebar-pages-open", "sidebar-email-templates-open"] as const;
 
 interface SidebarProps {
   username?: string;
@@ -393,34 +389,6 @@ function PagesGroup({
         lockDefaultType={parentSlug !== undefined}
       />
     </>
-  );
-}
-
-function FormsGroup({
-  onItemClick,
-  open,
-  onOpenChange,
-}: {
-  onItemClick?: () => void;
-  open: boolean;
-  onOpenChange?: (open: boolean) => void;
-}) {
-  const { messages } = useI18n();
-  const s = messages.layout.sidebar;
-
-  return (
-    <CollapsibleSidebarGroup
-      routeMatch="/forms/*"
-      storageKey="sidebar-forms-open"
-      icon={<NotebookIcon weight="duotone" className="w-4 h-4" />}
-      label={s.formBuilder}
-      open={open}
-      onOpenChange={onOpenChange}
-    >
-      <NavLink to="/forms" end onClick={onItemClick} className={sidebarGroupItemClass}>
-        {s.formsOverview}
-      </NavLink>
-    </CollapsibleSidebarGroup>
   );
 }
 
@@ -783,11 +751,6 @@ export function Sidebar({
                 title={s.sectionTemplates}
               />
               <DashboardSection.Body className="!gap-0.5 !p-2">
-                <FormsGroup
-                  onItemClick={onItemClick}
-                  open={groupStatus["sidebar-forms-open"] ?? false}
-                  onOpenChange={(open) => handleGroupOpenChange("sidebar-forms-open", open)}
-                />
                 <EmailTemplatesGroup
                   onItemClick={onItemClick}
                   open={groupStatus["sidebar-email-templates-open"] ?? false}

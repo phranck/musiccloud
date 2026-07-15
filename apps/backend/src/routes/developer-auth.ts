@@ -458,8 +458,8 @@ export async function devAuthRoutes(app: FastifyInstance) {
   /**
    * GET /api/dev/auth/export
    * The caller's complete personal-data package (GDPR Art. 15/20) as a JSON
-   * attachment: account (without secrets), auth identities, API-access
-   * requests/clients with token metadata, and attributable form submissions.
+   * attachment: account (without secrets), auth identities, and API-access
+   * requests/clients with token metadata.
    */
   app.get(ENDPOINTS.dev.auth.export, { preHandler: app.authenticateDeveloper }, async (request, reply) => {
     const account = request.developerAccount!;
@@ -507,10 +507,9 @@ export async function devAuthRoutes(app: FastifyInstance) {
       request.log.error({ err: error }, "failed to send account-deleted notification");
     }
 
-    // GDPR-complete erasure (MC-085): anonymises the account's form
-    // submissions, then deletes the account (DB cascade clears identities,
-    // email tokens and API-access data).
-    await erasePersonalData({ developerAccountId: account.id, email: account.email });
+    // GDPR-complete erasure (MC-085): delete the authenticated account; DB
+    // cascades clear identities, email tokens and API-access data.
+    await erasePersonalData(account.id);
     reply.clearCookie(SESSION_COOKIE_NAME, clearedSessionCookieOptions());
 
     app.log.info("[Developer] Account deleted");

@@ -4,17 +4,27 @@ import { joinClassNames } from "@/components/docs/classNames";
 type CompoundElementTag =
   | "a"
   | "article"
+  | "button"
   | "code"
   | "dd"
   | "div"
   | "dt"
+  | "dl"
   | "footer"
   | "h2"
   | "h3"
   | "h4"
   | "header"
   | "section"
-  | "span";
+  | "span"
+  | "table"
+  | "tbody"
+  | "td"
+  | "th"
+  | "thead"
+  | "tr"
+  | "li"
+  | "ul";
 
 /**
  * Creates a stable semantic component for one compound-component slot.
