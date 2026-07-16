@@ -76,6 +76,76 @@ describe("marked custom code renderer", () => {
     expect(out).toMatch(/<pre data-card-style="embossed" data-card-padding="0\.5rem" data-card-radius="12px">/);
   });
 
+  it.each([
+    {
+      name: "a double-quoted event handler in padding",
+      info: 'nonexistent-lang recessed padding=0.75rem"onmouseover="alert(1)',
+      unsafeFragment: "onmouseover",
+      omittedAttribute: "data-card-padding",
+    },
+    {
+      name: "a single-quoted event handler in radius",
+      info: "nonexistent-lang recessed radius=12px'onfocus='alert(1)",
+      unsafeFragment: "onfocus",
+      omittedAttribute: "data-card-radius",
+    },
+    {
+      name: "an element payload in padding",
+      info: "nonexistent-lang recessed padding=<img/src=x/onerror=alert(1)>",
+      unsafeFragment: "onerror",
+      omittedAttribute: "data-card-padding",
+    },
+  ])("omits invalid geometry containing $name", async ({ info, unsafeFragment, omittedAttribute }) => {
+    const out = (await marked.parse(`\`\`\`${info}\n<button>readable</button>\n\`\`\``, { async: true })) as string;
+
+    expect(out).toContain('<pre data-card-style="recessed"><code class="language-nonexistent-lang">');
+    expect(out).not.toContain(omittedAttribute);
+    expect(out).not.toContain(unsafeFragment);
+    expect(out).not.toContain("<button>");
+    expect(out).toContain("&lt;button&gt;readable&lt;/button&gt;");
+  });
+
+  it("omits invalid CSS functions and expressions instead of rewriting them", async () => {
+    const out = (await marked.parse(
+      "```js recessed padding=url(javascript:alert(1)) radius=calc(1rem+1px)\nconst safe = true;\n```",
+      { async: true },
+    )) as string;
+
+    expect(out).toContain('<pre data-card-style="recessed"><code class="language-js">');
+    expect(out).not.toContain("data-card-padding");
+    expect(out).not.toContain("data-card-radius");
+    expect(out).not.toContain("javascript:");
+    expect(out).not.toContain("calc(");
+    expect(out).toContain("const");
+    expect(out).toContain("safe");
+  });
+
+  it.each([
+    ['js"onclick="alert(1)', "onclick"],
+    ["js'onclick='alert(1)", "onclick"],
+    ["<img/src=x/onerror=alert(1)>", "onerror"],
+    ["javascript:alert(1)", "javascript:"],
+  ])("omits an invalid language token %s", async (language, unsafeFragment) => {
+    const out = (await marked.parse(`\`\`\`${language}\n<span>readable</span>\n\`\`\``, { async: true })) as string;
+
+    expect(out).toContain('<pre data-card-style="recessed"><code>');
+    expect(out).not.toContain('class="language-');
+    expect(out).not.toContain(unsafeFragment);
+    expect(out).not.toContain("<span>readable</span>");
+    expect(out).toContain("&lt;span&gt;readable&lt;/span&gt;");
+  });
+
+  it.each([
+    "js",
+    "typescript",
+    "TEXT",
+    "nonexistent-lang",
+    "mc-query",
+  ])("preserves the valid language token %s", async (language) => {
+    const out = (await marked.parse(`\`\`\`${language}\nplain\n\`\`\``, { async: true })) as string;
+    expect(out).toContain(`class="language-${language}"`);
+  });
+
   it("default-recessed wraps an empty (no-lang, no-modifier) fenced block", async () => {
     const out = (await marked.parse("```\nplain text\n```", { async: true })) as string;
     expect(out).toMatch(/<pre data-card-style="recessed">/);
