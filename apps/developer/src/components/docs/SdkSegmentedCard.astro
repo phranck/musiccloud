@@ -93,19 +93,21 @@ const downloadLabel = (asset: SdkAsset) => `Download ${languageName[asset.langua
                 data-api-search-target={headingId}
               >
                 <SegmentedCard.Body.Panel.Stack>
-                  <p class="text-code text-fg-muted">
-                    {asset.generator} · API {apiVersion} · OpenAPI Generator {generatorVersion}
-                  </p>
-                  <dl class="sdk-metadata-list text-body">
-                    <div>
-                      <dt class="text-fg-subtle">Archive</dt>
-                      <dd class="font-mono text-code text-code-fg break-all">{asset.archiveName}</dd>
-                    </div>
-                    <div>
-                      <dt class="text-fg-subtle">SHA-256</dt>
-                      <dd><code class="font-mono text-code text-code-fg break-all">{asset.sha256}</code></dd>
-                    </div>
-                  </dl>
+                  <SegmentedCard.Body.Panel.Copy>
+                    <p class="text-code text-fg-muted">
+                      {asset.generator} · API {apiVersion} · OpenAPI Generator {generatorVersion}
+                    </p>
+                    <dl class="sdk-metadata-list text-body">
+                      <div>
+                        <dt class="text-fg-muted">Archive</dt>
+                        <dd class="font-mono text-code text-code-fg break-all">{asset.archiveName}</dd>
+                      </div>
+                      <div>
+                        <dt class="text-fg-muted">SHA-256</dt>
+                        <dd><code class="font-mono text-code text-code-fg break-all">{asset.sha256}</code></dd>
+                      </div>
+                    </dl>
+                  </SegmentedCard.Body.Panel.Copy>
                   <div class="sdk-example-list">
                     <CodeBlock label="Installation" language="bash" code={asset.quickstart.install} />
                     <CodeBlock label="Usage" language={codeLanguageByAsset[asset.language]} code={usage} />
@@ -124,7 +126,7 @@ const downloadLabel = (asset: SdkAsset) => `Download ${languageName[asset.langua
               href={initialAsset.archiveUrl}
               target="_blank"
               rel="noopener noreferrer"
-              class="button button--content text-body"
+              class="button button--content sdk-segmented-card__download"
               aria-label={downloadLabel(initialAsset)}
               data-sdk-download
             >

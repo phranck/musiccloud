@@ -21,6 +21,7 @@ import {
   useState,
 } from "react";
 import { SearchDialog } from "@/components/docs/SearchDialog";
+import { KeyCap } from "@/components/KeyCap";
 import {
   buildDocumentSearchIndex,
   clearDocumentSearchHighlight,
@@ -143,7 +144,7 @@ function SearchHighlightNotice({ count, onDismiss }: { count: number; onDismiss:
       <span className="api-search-highlight-notice__text">
         {count} search {count === 1 ? "match" : "matches"} highlighted
       </span>
-      <kbd className="api-search-highlight-notice__keycap">Esc</kbd>
+      <KeyCap shortcut="Esc" />
       <button
         type="button"
         className="api-search-highlight-notice__dismiss"
@@ -426,9 +427,9 @@ export function ApiDocumentSearch() {
 
         <SearchDialog.Footer>
           <SearchDialog.Footer.Hints>
-            <SearchDialog.Footer.Hint>↑ ↓ Navigate</SearchDialog.Footer.Hint>
-            <SearchDialog.Footer.Hint>↵ Open</SearchDialog.Footer.Hint>
-            <SearchDialog.Footer.Hint>Esc Close</SearchDialog.Footer.Hint>
+            <SearchDialog.Footer.Hint><KeyCap shortcut="↑↓" />Navigate</SearchDialog.Footer.Hint>
+            <SearchDialog.Footer.Hint><KeyCap shortcut="↵" />Open</SearchDialog.Footer.Hint>
+            <SearchDialog.Footer.Hint><KeyCap shortcut="Esc" />Close</SearchDialog.Footer.Hint>
           </SearchDialog.Footer.Hints>
         </SearchDialog.Footer>
       </SearchDialog>

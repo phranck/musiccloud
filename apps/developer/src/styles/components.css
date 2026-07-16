@@ -79,6 +79,33 @@
     height: var(--mc-size-text-icon);
   }
 
+  /* One semantic shortcut can contain several independently legible keys.
+     The square surface deliberately contrasts with its parent, whether used
+     inside transparent navigation or an already-raised card. */
+  .keycap {
+    --mc-keycap-size: calc(1em + var(--mc-space-2));
+
+    display: inline-flex;
+    align-items: center;
+    gap: var(--mc-space-1);
+    color: var(--color-fg-subtle);
+    font-family: var(--font-mono);
+    font-size: var(--text-code);
+    line-height: 1;
+    vertical-align: middle;
+  }
+
+  .keycap__key {
+    display: inline-grid;
+    width: var(--mc-keycap-size);
+    aspect-ratio: 1;
+    place-items: center;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-control);
+    color: inherit;
+    background: var(--color-surface-raised);
+  }
+
   .public-header {
     /*
      * Align header content with the tangent point of ordinary card corners.
@@ -138,16 +165,6 @@
 
   .public-navigation__label {
     min-width: 0;
-  }
-
-  .public-navigation__keycap {
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-button);
-    padding: var(--mc-space-1) var(--mc-space-2);
-    color: var(--color-fg-subtle);
-    font-family: var(--font-mono);
-    font-size: var(--text-code);
-    line-height: 1;
   }
 
   /* Every navigation state shares one compact visual surface while the link

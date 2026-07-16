@@ -47,7 +47,27 @@ describe("developer design system", () => {
     expect(fallback).not.toContain("--sky-top:");
   });
 
-  it("keeps compact ContentCard block padding while insetting inline content by the inner card radius", () => {
+  it("uses three blue and two yellow blobs for the static portal aurora", () => {
+    const background = readDeveloperFile("src/components/DeveloperBackground.astro");
+    const theme = readDeveloperFile("public/developer-theme.css");
+
+    expect(background).toContain('const blobColors = ["blue", "yellow"] as const;');
+    expect((background.match(/grad: "blue"/g) ?? []).length).toBe(3);
+    expect((background.match(/grad: "yellow"/g) ?? []).length).toBe(2);
+    expect(background).toContain('{ cx: 520, cy: 760, rx: 410, ry: 300, grad: "yellow", op: 0.38 }');
+    expect(background).toContain('{ cx: 1190, cy: 710, rx: 390, ry: 290, grad: "blue", op: 0.34 }');
+    expect(background).toContain('<stop offset="42%" stop-color={blobColor[name]} stop-opacity="0.38" />');
+    expect(background).toContain('<stop offset="72%" stop-color={blobColor[name]} stop-opacity="0.1" />');
+    expect(theme).toContain("--mc-color-aurora-blue: #005383;");
+    expect(theme).toContain("--mc-color-aurora-yellow: #f4d20096;");
+    expect(theme).toContain("--mc-color-sky-top: #04111b;");
+    expect(theme).toContain("--mc-color-sky-mid: #04111b;");
+    expect(theme).toContain("--mc-color-sky-bottom: #04111b;");
+    expect(theme).toContain("--mc-background-aurora-blur: 44px;");
+    expect(theme).toContain("--mc-background-aurora-opacity: 0.46;");
+  });
+
+  it("keeps ContentCard surfaces concentric while limiting the inner-radius inset to copy slots", () => {
     const theme = readDeveloperFile("public/developer-theme.css");
     const docs = readDeveloperFile("src/styles/docs.css");
 
@@ -55,14 +75,62 @@ describe("developer design system", () => {
     expect(theme).toContain("--mc-space-content-card-header: 0.625rem;");
     expect(docs).toContain("--mc-docs-content-card-copy-inset: calc(var(--mc-docs-content-card-radius) / 2);");
     expect(docs).toMatch(
-      /--mc-docs-content-card-padding-inline:\s*calc\(\s*var\(--space-content-card\) \+ var\(--mc-docs-content-card-copy-inset\)\s*\);/,
+      /\.content-card__header,[\s\S]*?\.content-card__footer\s*\{[^}]*padding:\s*var\(--space-content-card-header\);/,
+    );
+    expect(docs).toMatch(/\.content-card__body\s*\{[^}]*padding:\s*var\(--space-content-card\);/s);
+    expect(docs).toMatch(
+      /\.content-card__body-intro,[\s\S]*?\.content-card__copy\s*\{[^}]*padding-inline:\s*var\(--mc-docs-content-card-copy-inset\);/s,
+    );
+  });
+
+  it("keeps every Card surface at 10px while insetting only SDK copy", () => {
+    const docs = readDeveloperFile("src/styles/docs.css");
+    const sdkCard = readDeveloperFile("src/components/docs/SdkSegmentedCard.astro");
+
+    expect(docs).not.toMatch(
+      /\.content-card__body-stack\s*\{[^}]*padding-inline:/s,
     );
     expect(docs).toMatch(
-      /\.content-card__header,[\s\S]*?\.content-card__footer\s*\{[^}]*padding:\s*var\(--space-content-card-header\) var\(--mc-docs-content-card-padding-inline\);/,
+      /\.content-card__copy\s*\{[^}]*gap:\s*var\(--mc-space-6\);[^}]*padding-inline:\s*var\(--mc-docs-content-card-copy-inset\);/s,
     );
+    expect(sdkCard).toContain("<SegmentedCard.Body.Panel.Copy>");
+  });
+
+  it("insets and brightens CodeBlock labels without moving their code surfaces", () => {
+    const codeBlock = readDeveloperFile("src/components/docs/CodeBlock.astro");
+    const docs = readDeveloperFile("src/styles/docs.css");
+
+    expect(codeBlock).toContain('class="code-block__label text-code');
     expect(docs).toMatch(
-      /\.content-card__body\s*\{[^}]*padding:\s*var\(--space-content-card\) var\(--mc-docs-content-card-padding-inline\);/s,
+      /\.code-block__label\s*\{[^}]*padding-inline:\s*var\(--mc-docs-content-card-copy-inset\);[^}]*color:\s*var\(--color-fg-muted\);/s,
     );
+  });
+
+  it("uses the readable muted tone for SDK metadata labels", () => {
+    const sdkCard = readDeveloperFile("src/components/docs/SdkSegmentedCard.astro");
+
+    expect(sdkCard).toContain('<dt class="text-fg-muted">Archive</dt>');
+    expect(sdkCard).toContain('<dt class="text-fg-muted">SHA-256</dt>');
+  });
+
+  it("uses the shared square key-cap compound for every portal keyboard hint", () => {
+    const components = readDeveloperFile("src/styles/components.css");
+    const header = readDeveloperFile("src/components/PublicHeader.astro");
+    const search = readDeveloperFile("src/components/docs/ApiDocumentSearch.tsx");
+
+    expect(components).toMatch(
+      /\.keycap__key\s*\{[^}]*aspect-ratio:\s*1;[^}]*background:\s*var\(--color-surface-raised\);/s,
+    );
+    expect(header).toContain('<KeyCap shortcut={PUBLIC_SEARCH_COMMAND.shortcut} />');
+    expect(search).toContain('<KeyCap shortcut="Esc" />');
+  });
+
+  it("keeps KeyCap as a Fast Refresh-safe, single-pass component export", () => {
+    const keyCap = readDeveloperFile("src/components/KeyCap.tsx");
+
+    expect(keyCap).toContain("export function KeyCap");
+    expect(keyCap).not.toContain("Object.assign");
+    expect(keyCap).not.toContain(".filter(");
   });
 
   it("uses the 16px portal card radius and keeps API cards cascade-safe", () => {
@@ -303,6 +371,16 @@ describe("developer design system", () => {
       /\.button\s*\{[^}]*min-height:\s*var\(--button-min-height, var\(--mc-size-control\)\);/s,
     );
     expect(docs).toMatch(/\.content-card__footer\s*\{[^}]*--button-min-height:\s*var\(--mc-size-control-compact\);/s);
+  });
+
+  it("keeps the SDK download label slightly smaller and optically centered", () => {
+    const docs = readDeveloperFile("src/styles/docs.css");
+    const sdkCard = readDeveloperFile("src/components/docs/SdkSegmentedCard.astro");
+
+    expect(sdkCard).toContain('class="button button--content sdk-segmented-card__download"');
+    expect(docs).toMatch(
+      /\.sdk-segmented-card__download\s*\{[^}]*font-size:\s*var\(--mc-docs-sdk-download-font-size\);[^}]*line-height:\s*1;/s,
+    );
   });
 
   it("keeps every Developer Portal button label at regular weight", () => {

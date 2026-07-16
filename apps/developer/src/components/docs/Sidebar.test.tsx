@@ -46,7 +46,7 @@ describe("Sidebar", () => {
 
     expect(css).toMatch(/\[data-api-nav-scroll-region\]\.api-reference-nav\s*\{[^}]*overflow-y:\s*auto;/s);
     expect(css).toMatch(
-      /\.sidebar__header\s*\{[^}]*position:\s*sticky;[^}]*top:\s*-1px;[^}]*background-color:\s*var\(--color-surface-solid\);[^}]*background-image:\s*linear-gradient\(var\(--mc-docs-card-chrome\), var\(--mc-docs-card-chrome\)\);/s,
+      /\.sidebar__header\s*\{[^}]*position:\s*sticky;[^}]*top:\s*-1px;[^}]*background:\s*var\(--mc-docs-card-chrome\);/s,
     );
     expect(css).toContain("--mc-docs-nav-padding: var(--mc-docs-space-md);");
     expect(css).toMatch(
