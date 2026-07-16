@@ -30,6 +30,7 @@ import {
   searchDocumentIndex,
 } from "@/lib/api-document-search";
 import { BookIcon, CloseCircleIcon, CodeIcon, DiagramIcon, SearchNormal1Icon } from "@/lib/icons";
+import { activateSdkSegmentedPanel } from "@/lib/sdk-segmented-card";
 
 const SEARCH_DIALOG_CLOSE_DURATION_MS = 180;
 
@@ -185,6 +186,7 @@ export function ApiDocumentSearch() {
   const dismissHighlightsFromEscape = useEffectEvent(dismissSearchHighlights);
 
   const navigateToSelection = useCallback((selection: PendingSelection) => {
+    activateSdkSegmentedPanel(document, selection.result.targetId);
     const target = document.getElementById(selection.result.targetId);
     if (!target) return;
     // Resolve the live content wrapper after the dialog closes. The indexed
@@ -398,7 +400,7 @@ export function ApiDocumentSearch() {
                             onClick={() => selectResult(result)}
                           >
                             <SearchDialog.Result.Icon>
-                              <ResultIcon className="size-5" aria-hidden={true} />
+                              <ResultIcon aria-hidden={true} />
                             </SearchDialog.Result.Icon>
                             <SearchDialog.Result.Content>
                               <SearchDialog.Result.Title>

@@ -118,6 +118,14 @@ describe("/docs/api content", () => {
     expect(html).toContain("Download TypeScript SDK");
     expect(html).toContain("Download Python SDK");
     expect(html).toContain("Download Swift SDK");
+    expect(html.match(/data-sdk-segmented-card/g)).toHaveLength(1);
+    expect(html).toContain('role="tablist" aria-label="SDK language"');
+    expect(html).toContain('data-sdk-tab="typescript"');
+    expect(html).toContain('data-sdk-tab="python"');
+    expect(html).toContain('data-sdk-tab="swift"');
+    expect(html).toContain('id="sdk-typescript"');
+    expect(html).toContain('id="sdk-python"');
+    expect(html).toContain('id="sdk-swift"');
     expect(html).toContain("data-sdk-download");
     expect(html).toContain("Installation");
     expect(html).toContain("Usage");
@@ -252,7 +260,7 @@ describe("/docs/api content", () => {
   });
 
   it("keeps pure content headings out of the focus order", () => {
-    const headingComponents = ["EndpointOperation.astro", "SdkDownloadCard.astro"];
+    const headingComponents = ["EndpointOperation.astro", "SdkSegmentedCard.astro"];
 
     for (const component of headingComponents) {
       const source = readFileSync(join(rootDir, "components/docs", component), "utf8");
@@ -283,7 +291,8 @@ describe("/docs/api content", () => {
 
     expect(source).not.toContain("<ApiContent.Entry.Title");
     expect(source).toContain("<SchemaCard.Header.Title id={schemaHeadingId}>{schema.name}</SchemaCard.Header.Title>");
-    expect(css).toMatch(/\.schema-card__title\s*\{[^}]*font-size:\s*var\(--text-card-title\);/s);
+    expect(css).toMatch(/\.content-card__title\s*\{[^}]*font-size:\s*var\(--text-card-title\);/s);
+    expect(css).not.toMatch(/\.schema-card__title\s*\{[^}]*font-size:/s);
   });
 
   it("does not repeat the response object name in a schema-card footer", () => {
@@ -304,6 +313,37 @@ describe("/docs/api content", () => {
     );
     expect(components).toMatch(
       /\.segmented-control__item\s*\{[^}]*min-height:\s*var\(--segmented-control-item-min-height, var\(--mc-size-control-compact\)\);/s,
+    );
+  });
+
+  it("extends the shared segmented switch with circular icons and a reduced-motion-aware sliding selection", () => {
+    const components = readFileSync(join(rootDir, "styles/components.css"), "utf8");
+    const segmentedControl = readFileSync(join(rootDir, "components/SegmentedControl.tsx"), "utf8");
+
+    expect(segmentedControl).toContain('createCompoundElement("span", "segmented-control__item-icon")');
+    expect(components).toMatch(/\.segmented-control__item-icon\s*\{[^}]*border-radius:\s*var\(--radius-round\);/s);
+    expect(components).toMatch(
+      /\.segmented-control::before\s*\{[^}]*transform:\s*translate3d\(var\(--segmented-control-indicator-x/s,
+    );
+    expect(components).toMatch(
+      /\.segmented-control\[data-segmented-control-indicator-ready="true"\]::before\s*\{[^}]*opacity:\s*1;/s,
+    );
+    expect(components).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.segmented-control::before\s*\{[^}]*transition:\s*none;/s,
+    );
+  });
+
+  it("animates SegmentedCard body height with shared motion tokens", () => {
+    const css = readFileSync(join(rootDir, "styles/docs.css"), "utf8");
+
+    expect(css).toMatch(
+      /\.segmented-card\s*\{[^}]*--segmented-card-transition-duration:\s*var\(--mc-motion-duration-normal\);[^}]*--segmented-card-transition-easing:\s*var\(--mc-motion-easing-standard\);/s,
+    );
+    expect(css).toMatch(
+      /\.segmented-card\[data-segmented-card-animating="true"\]\s+\.segmented-card__body\s*\{[^}]*overflow:\s*clip;/s,
+    );
+    expect(css).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.segmented-card\s*\{[^}]*--segmented-card-transition-duration:\s*0ms;/s,
     );
   });
 

@@ -1,42 +1,26 @@
-import { type ComponentPropsWithoutRef, createElement } from "react";
+import { type ComponentPropsWithoutRef, createElement, type ElementType } from "react";
 import { joinClassNames } from "@/components/docs/classNames";
 
-type CompoundElementTag =
-  | "a"
-  | "article"
-  | "button"
-  | "code"
-  | "dd"
-  | "div"
-  | "dt"
-  | "dl"
-  | "footer"
-  | "h2"
-  | "h3"
-  | "h4"
-  | "header"
-  | "section"
-  | "span"
-  | "table"
-  | "tbody"
-  | "td"
-  | "th"
-  | "thead"
-  | "tr"
-  | "li"
-  | "ul";
+type DataAttributes = {
+  [attribute: `data-${string}`]: unknown;
+};
 
 /**
- * Creates a stable semantic component for one compound-component slot.
+ * Creates a stable component adapter for one compound-component slot.
  * Shared class composition stays centralized while every caller retains the
- * native element's complete prop and accessibility surface.
+ * wrapped element or component's complete prop and accessibility surface.
  */
-export function createCompoundElement<Tag extends CompoundElementTag>(tag: Tag, baseClassName: string) {
-  type Props = ComponentPropsWithoutRef<Tag> & { className?: string };
+export function createCompoundElement<Element extends ElementType>(
+  element: Element,
+  baseClassName: string,
+  defaultProps?: Partial<ComponentPropsWithoutRef<Element>> & DataAttributes,
+) {
+  type Props = ComponentPropsWithoutRef<Element> & { className?: string };
 
   const CompoundElement = ({ className, ...props }: Props) =>
-    createElement(tag, { ...props, className: joinClassNames(baseClassName, className) });
+    createElement(element, { ...defaultProps, ...props, className: joinClassNames(baseClassName, className) });
 
-  CompoundElement.displayName = `CompoundElement(${tag}.${baseClassName})`;
+  const elementName = typeof element === "string" ? element : element.displayName || element.name || "Component";
+  CompoundElement.displayName = `CompoundElement(${elementName}.${baseClassName})`;
   return CompoundElement;
 }

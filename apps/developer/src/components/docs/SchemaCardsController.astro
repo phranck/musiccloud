@@ -3,6 +3,8 @@
 ---
 
 <script>
+  import { bindSegmentedControlIndicators } from "@/lib/segmented-control";
+
   const SchemaCardControllerEvent = {
     ExpansionChange: "musiccloud:schema-card-expansion-change",
   } as const;
@@ -92,6 +94,7 @@
   }
 
   for (const card of document.querySelectorAll<HTMLElement>("[data-schema-card]")) bindSchemaCard(card);
+  bindSegmentedControlIndicators(document);
 
   document.addEventListener(SchemaCardControllerEvent.ExpansionChange, updateSchemaCardBulkControls);
   for (const button of document.querySelectorAll<HTMLButtonElement>("[data-schema-card-toggle-all]")) {

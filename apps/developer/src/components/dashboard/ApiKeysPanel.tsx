@@ -101,14 +101,14 @@ export function ApiKeysPanel() {
         <TokenRevealBox rawToken={reveal.rawToken} appName={reveal.appName} onDismiss={onDismissReveal} />
       ) : null}
       {actionError ? (
-        <p className="field__message field__message--error" role="alert">
+        <p className="card-content-inset field__message field__message--error" role="alert">
           {actionError}
         </p>
       ) : null}
 
-      {clients === null && !listError ? <p className="text-body text-fg-muted">Loading…</p> : null}
+      {clients === null && !listError ? <p className="card-content-inset text-body text-fg-muted">Loading…</p> : null}
       {listError ? (
-        <p className="field__message field__message--error">
+        <p className="card-content-inset field__message field__message--error">
           Could not load your API clients. Reload the page to try again.
         </p>
       ) : null}
@@ -212,7 +212,7 @@ export function ApiKeysPanel() {
             ) : (
               <p className="icon-text-first-line text-nav text-fg-subtle gap-1.5">
                 <span className="icon-text-first-line__icon">
-                  <KeyIcon className="size-4" aria-hidden="true" />
+                  <KeyIcon aria-hidden="true" />
                 </span>
                 Key management is unavailable while this client is {client.status}.
               </p>

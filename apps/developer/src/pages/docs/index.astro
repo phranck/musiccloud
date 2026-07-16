@@ -62,7 +62,7 @@ const steps = [
       <BookIcon className="page-heading__icon" aria-hidden="true" />
       <h1 class="page-heading__title">Documentation</h1>
     </div>
-    <p class="text-lead text-fg-muted mb-10">
+    <p class="card-content-inset text-lead text-fg-muted mb-10">
       The musiccloud API turns a single music link into every platform. Resolve a track or album from one
       streaming service to its matches across the others, pull rich artist info, and explore a free-to-use
       Creative Commons catalogue. All of it runs over one REST API.
@@ -74,29 +74,29 @@ const steps = [
         One key gives you three capabilities, each a JSON REST endpoint:
       </p>
       <ul class="grid grid-cols-1 gap-3">
-        <li class="icon-text-first-line gap-3">
+        <li class="icon-text-first-line gap-3 text-body">
           <span class="icon-text-first-line__icon">
-            <LinkIcon className="size-6 text-accent" aria-hidden="true" />
+            <LinkIcon aria-hidden="true" />
           </span>
-          <span class="text-body text-fg-muted">
+          <span class="text-fg-muted">
             <span class="text-fg font-medium">Link resolve.</span> Match a track, album, or artist from one
             streaming service to the same release everywhere else.
           </span>
         </li>
-        <li class="icon-text-first-line gap-3">
+        <li class="icon-text-first-line gap-3 text-body">
           <span class="icon-text-first-line__icon">
-            <BookIcon className="size-6 text-accent" aria-hidden="true" />
+            <BookIcon aria-hidden="true" />
           </span>
-          <span class="text-body text-fg-muted">
+          <span class="text-fg-muted">
             <span class="text-fg font-medium">Artist info.</span> Top tracks, similar artists, and upcoming
             events for any matched artist.
           </span>
         </li>
-        <li class="icon-text-first-line gap-3">
+        <li class="icon-text-first-line gap-3 text-body">
           <span class="icon-text-first-line__icon">
-            <KeyIcon className="size-6 text-accent" aria-hidden="true" />
+            <KeyIcon aria-hidden="true" />
           </span>
-          <span class="text-body text-fg-muted">
+          <span class="text-fg-muted">
             <span class="text-fg font-medium">Creative Commons.</span> Search and resolve the free-to-use
             Jamendo catalogue for tracks you can use openly.
           </span>
@@ -117,11 +117,11 @@ const steps = [
                   {index + 1}
                 </span>
                 <div>
-                  <div class="icon-text-first-line gap-2 mb-0.5">
+                  <div class="icon-text-first-line gap-2 mb-0.5 text-body">
                     <span class="icon-text-first-line__icon">
-                      <Icon className="size-5 text-accent" aria-hidden="true" />
+                      <Icon aria-hidden="true" />
                     </span>
-                    <h3 class="text-body font-medium text-fg">{step.title}</h3>
+                    <h3 class="font-medium text-fg">{step.title}</h3>
                   </div>
                   <p class="text-body text-fg-muted">{step.body}</p>
                 </div>
@@ -137,22 +137,6 @@ const steps = [
       </p>
     </section>
 
-    <div class="flex flex-wrap gap-3">
-      <a
-        href="/docs/api"
-        class="button button--primary text-body"
-      >
-        <BookIcon className="size-6" aria-hidden="true" />
-        Open generated API reference
-      </a>
-      <a
-        href="/signup"
-        class="button button--secondary text-body"
-      >
-        <KeyIcon className="size-6" aria-hidden="true" />
-        Create an account
-      </a>
-    </div>
   </main>
 
   <PublicFooter />

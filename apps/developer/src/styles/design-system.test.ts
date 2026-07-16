@@ -160,15 +160,92 @@ describe("developer design system", () => {
   });
 
   it("centers text-leading icons on the first rendered line", () => {
+    const theme = readDeveloperFile("public/developer-theme.css");
     const components = readDeveloperFile("src/styles/components.css");
+    const docs = readDeveloperFile("src/styles/docs.css");
+    const home = readDeveloperFile("src/pages/index.astro");
+    const docsLanding = readDeveloperFile("src/pages/docs/index.astro");
+    const pricing = readDeveloperFile("src/pages/pricing.astro");
+    const usage = readDeveloperFile("src/pages/dashboard/usage.astro");
+    const apiKeys = readDeveloperFile("src/components/dashboard/ApiKeysPanel.tsx");
+    const apiSearch = readDeveloperFile("src/components/docs/ApiDocumentSearch.tsx");
     const searchDialog = readDeveloperFile("src/components/docs/SearchDialog.tsx");
 
-    expect(components).toMatch(/\.page-heading\s*\{[^}]*align-items:\s*flex-start;/s);
-    expect(components).toMatch(/\.page-heading__icon\s*\{[^}]*margin-block-start:\s*calc\(/s);
+    expect(theme).toContain("--mc-size-text-icon: 1.2cap;");
     expect(components).toMatch(
-      /\.icon-text-first-line__icon\s*\{[^}]*height:\s*1lh;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;/s,
+      /\.page-heading\s*\{[^}]*align-items:\s*flex-start;[^}]*font-size:\s*var\(--text-hero\);[^}]*line-height:\s*1;/s,
     );
+    expect(components).toMatch(
+      /\.page-heading__icon\s*\{[^}]*width:\s*var\(--mc-size-text-icon\);[^}]*height:\s*var\(--mc-size-text-icon\);[^}]*margin-block-start:\s*calc\(\(1cap - var\(--mc-size-text-icon\)\) \/ 2\);/s,
+    );
+    expect(components).toMatch(/\.page-heading__title\s*\{[^}]*text-box:\s*trim-both cap alphabetic;/s);
+    expect(components).toMatch(
+      /\.icon-text-first-line__icon\s*\{[^}]*width:\s*var\(--mc-size-text-icon\);[^}]*height:\s*1lh;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;/s,
+    );
+    expect(components).toMatch(
+      /\.icon-text-first-line__icon > \.mc-icon,[\s\S]*?\.icon-text-first-line__icon > svg\s*\{[^}]*width:\s*var\(--mc-size-text-icon\);[^}]*height:\s*var\(--mc-size-text-icon\);/s,
+    );
+    expect(docs).toMatch(
+      /\.content-card__section-header\s*\{[^}]*font-size:\s*var\(--text-lead\);[^}]*line-height:\s*1\.25;/s,
+    );
+    expect(docs).toMatch(
+      /\.content-card__section-icon\s*\{[^}]*width:\s*var\(--mc-size-text-icon\);[^}]*height:\s*1lh;[^}]*align-items:\s*center;/s,
+    );
+    expect(docs).toMatch(
+      /\.search-dialog__result\s*\{[^}]*grid-template-columns:\s*var\(--mc-size-text-icon\) minmax\(0, 1fr\) max-content;[^}]*font-size:\s*var\(--text-body\);/s,
+    );
+    expect(home).not.toMatch(/<Icon className="size-7 text-accent"/);
+    expect(docsLanding).not.toMatch(/<(?:LinkIcon|BookIcon|KeyIcon|Icon) className="size-[56] text-accent"/);
+    expect(pricing).not.toMatch(/<TickCircleIcon className="(?:pricing-commitment-icon )?size-4/);
+    expect(usage).not.toMatch(/<DiagramIcon className="size-5"/);
+    expect(apiKeys).not.toMatch(/<KeyIcon className="size-4"/);
+    expect(apiSearch).not.toMatch(/<ResultIcon className="size-5"/);
     expect(searchDialog).toContain("search-dialog__result-icon icon-text-first-line__icon");
+  });
+
+  it("inherits the adjacent text color for icons that lead text or headings", () => {
+    const components = readDeveloperFile("src/styles/components.css");
+    const docs = readDeveloperFile("src/styles/docs.css");
+    const home = readDeveloperFile("src/pages/index.astro");
+    const docsLanding = readDeveloperFile("src/pages/docs/index.astro");
+    const pricing = readDeveloperFile("src/pages/pricing.astro");
+    const tokenReveal = readDeveloperFile("src/components/dashboard/TokenRevealBox.tsx");
+
+    expect(components).toMatch(/\.page-heading\s*\{[^}]*color:\s*var\(--color-fg\);/s);
+    expect(components).toMatch(/\.page-heading__icon\s*\{[^}]*color:\s*inherit;/s);
+    expect(components).toMatch(/\.icon-text-first-line__icon\s*\{[^}]*color:\s*currentColor;/s);
+    expect(docs).toMatch(/\.content-card__section-header\s*\{[^}]*color:\s*var\(--color-fg\);/s);
+    expect(docs).toMatch(/\.content-card__section-icon\s*\{[^}]*color:\s*inherit;/s);
+    expect(docs).toMatch(/\.search-dialog__result-icon\s*\{[^}]*color:\s*var\(--color-fg\);/s);
+    expect(home).not.toMatch(/<Icon className="text-accent"/);
+    expect(docsLanding).not.toMatch(/<(?:LinkIcon|BookIcon|KeyIcon|Icon) className="text-accent"/);
+    expect(pricing).not.toMatch(/<TickCircleIcon className="text-accent"/);
+    expect(pricing).not.toMatch(/<TickCircleIcon style=\{\{ color: tierColor \}\}/);
+    expect(tokenReveal).not.toMatch(/<TickCircleIcon className="size-4 text-accent"/);
+  });
+
+  it("insets portal-level headings and text by half the non-tier card radius", () => {
+    const components = readDeveloperFile("src/styles/components.css");
+    const docs = readDeveloperFile("src/styles/docs.css");
+    const home = readDeveloperFile("src/pages/index.astro");
+    const pricing = readDeveloperFile("src/pages/pricing.astro");
+    const dashboard = readDeveloperFile("src/pages/dashboard/index.astro");
+
+    expect(components).toMatch(
+      /\.developer-page,[\s\S]*\.dashboard-content\s*\{[^}]*--mc-card-content-inset:\s*calc\(var\(--radius-card\) \/ 2\);/s,
+    );
+    expect(components).toMatch(
+      /\.card-content-inset,[\s\S]*\.page-heading\s*\{[^}]*padding-inline:\s*var\(--mc-card-content-inset\);/s,
+    );
+    expect(docs).toContain("--mc-card-content-inset: calc(var(--mc-docs-content-card-radius) / 2);");
+    expect(docs).toMatch(/\.api-content__chapter-header\s*\{[^}]*padding-inline:\s*var\(--mc-card-content-inset\);/s);
+    expect(home).toMatch(/<h1 class="[^"]*card-content-inset[^"]*"/);
+    expect(home).toMatch(/<p class="[^"]*card-content-inset[^"]*"/);
+    expect(pricing).toMatch(/<p class="[^"]*card-content-inset[^"]*text-lead[^"]*"/);
+    expect(pricing).toMatch(/<h2 class="[^"]*card-content-inset[^"]*">Our commitment<\/h2>/);
+    expect(pricing).not.toMatch(/tier-card[^>]*card-content-inset|card-content-inset[^>]*tier-card/);
+    expect(dashboard).toMatch(/<h1 class="[^"]*card-content-inset[^"]*"/);
+    expect(dashboard).toMatch(/<p class="[^"]*card-content-inset[^"]*">Here is your developer account/);
   });
 
   it("centers API section icons against the trimmed visible heading text", () => {
@@ -191,11 +268,21 @@ describe("developer design system", () => {
   it("uses lead typography for API card section headings", () => {
     const docs = readDeveloperFile("src/styles/docs.css");
 
-    expect(docs).toMatch(/\.content-card__section-title\s*\{[^}]*font-size:\s*var\(--text-lead\);/s);
+    expect(docs).toMatch(/\.content-card__section-title\s*\{[^}]*font-size:\s*inherit;/s);
     expect(docs).toMatch(/\.content-card__section-title\s*\{[^}]*font-weight:\s*400;/s);
     expect(docs).toMatch(
-      /\.content-card__section-icon\s*\{[^}]*width:\s*var\(--mc-size-icon-lg\);[^}]*height:\s*var\(--mc-size-icon-lg\);/s,
+      /\.content-card__section-icon\s*\{[^}]*width:\s*var\(--mc-size-text-icon\);[^}]*height:\s*1lh;/s,
     );
+  });
+
+  it("uses compact shared button geometry inside ContentCard footers", () => {
+    const components = readDeveloperFile("src/styles/components.css");
+    const docs = readDeveloperFile("src/styles/docs.css");
+
+    expect(components).toMatch(
+      /\.button\s*\{[^}]*min-height:\s*var\(--button-min-height, var\(--mc-size-control\)\);/s,
+    );
+    expect(docs).toMatch(/\.content-card__footer\s*\{[^}]*--button-min-height:\s*var\(--mc-size-control-compact\);/s);
   });
 
   it("keeps required parameter badges in a dedicated trailing header column", () => {

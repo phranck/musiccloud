@@ -28,6 +28,32 @@ describe("pricing material ownership", () => {
     expect(page).not.toContain("sm:grid-cols-2");
   });
 
+  it("splits the written commitment into two shared cards side by side", () => {
+    const page = readFileSync(pricingPagePath, "utf8");
+    const css = readFileSync(pricingCssPath, "utf8");
+
+    expect(page).toContain('import { SurfaceCard } from "@/components/SurfaceCard";');
+    expect(page).toContain("const commitmentGroups = [");
+    expect(page).toContain('class="pricing-commitment-grid"');
+    expect(page).toContain('<SurfaceCard className="pricing-commitment-card"');
+    expect(page).toContain("<SurfaceCard.Body>");
+    expect(page).not.toContain('<ul class="rounded-card border border-border bg-surface px-7 py-7');
+    expect(css).toMatch(
+      /\.pricing-commitment-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);[^}]*gap:\s*var\(--mc-space-4\);/s,
+    );
+    expect(css).toMatch(
+      /@media \(max-width: 47\.999rem\)[\s\S]*\.pricing-commitment-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/s,
+    );
+  });
+
+  it("renders every commitment title and explanation on separate lines", () => {
+    const page = readFileSync(pricingPagePath, "utf8");
+
+    expect(page).toContain('<span class="pricing-commitment-copy text-fg-muted">');
+    expect(page).toContain('<strong class="pricing-commitment-title text-fg">{commitment.title}</strong>');
+    expect(page).toContain('<span class="pricing-commitment-body">{commitment.body}</span>');
+  });
+
   it("accepts only six- or eight-digit tier hex colors", async () => {
     expect(existsSync(tierColorPath)).toBe(true);
     if (!existsSync(tierColorPath)) return;

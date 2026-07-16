@@ -84,7 +84,7 @@ export function DeleteAccountSection({ hasPassword }: DeleteAccountSectionProps)
 
   return (
     <section>
-      <h2 className="text-card-title font-medium tracking-tight text-danger mb-3">Danger zone</h2>
+      <h2 className="card-content-inset text-card-title font-medium tracking-tight text-danger mb-3">Danger zone</h2>
       <div className="surface-card surface-card--danger px-6 py-5">
         <p className="text-body text-fg-muted mb-4">
           Deleting your account permanently removes your profile, API clients and tokens. This cannot be undone.

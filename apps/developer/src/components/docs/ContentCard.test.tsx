@@ -102,7 +102,12 @@ describe("API content cards", () => {
           <SchemaCard.Header.Title>Key documentation</SchemaCard.Header.Title>
           <SchemaCard.Header.Addon>
             <SegmentedControl role="tablist">
-              <SegmentedControl.Item role="tab">Key documentation</SegmentedControl.Item>
+              <SegmentedControl.Item role="tab">
+                <SegmentedControl.Item.Icon>
+                  <img src="/icons/languages/typescript.svg" alt="" />
+                </SegmentedControl.Item.Icon>
+                <SegmentedControl.Item.Label>Key documentation</SegmentedControl.Item.Label>
+              </SegmentedControl.Item>
             </SegmentedControl>
             <SchemaCard.Header.Chevron aria-hidden="true">Chevron</SchemaCard.Header.Chevron>
           </SchemaCard.Header.Addon>
@@ -156,7 +161,9 @@ describe("API content cards", () => {
     expect(html).toContain('id="schema-content" class="schema-card__collapsible"');
     expect(html).toContain('class="schema-card__collapsible-content"');
     expect(html).toContain('role="tablist" class="segmented-control"');
-    expect(html).toContain('role="tab" class="segmented-control__item">Key documentation</button>');
+    expect(html).toContain(
+      'role="tab" class="segmented-control__item"><span class="segmented-control__item-icon"><img src="/icons/languages/typescript.svg" alt=""/></span><span class="segmented-control__item-label">Key documentation</span></button>',
+    );
     expect(html).toContain('<table class="schema-card__field-table">');
     expect(html).toContain('<th scope="col" class="schema-card__field-heading">Key</th>');
     expect(html).toContain('<th scope="col" class="schema-card__field-heading">Key Presence</th>');

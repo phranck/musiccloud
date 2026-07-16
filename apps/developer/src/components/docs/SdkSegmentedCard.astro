@@ -1,0 +1,144 @@
+---
+/**
+ * SDK-specific composition of the fully normalized SegmentedCard compound.
+ * All SDK facts remain catalog-driven; the browser controller only changes
+ * which already-rendered, validated panel is active.
+ */
+import { ApiContent } from "@/components/docs/ApiContent";
+import CodeBlock from "@/components/docs/CodeBlock.astro";
+import { SegmentedCard } from "@/components/docs/SegmentedCard";
+import type { SdkAsset, SdkCatalog } from "@/lib/sdk-catalog";
+
+interface Props {
+  assets: SdkCatalog["assets"];
+  apiVersion: string;
+  generatorVersion: SdkCatalog["generatorVersion"];
+}
+
+const { assets, apiVersion, generatorVersion } = Astro.props;
+const initialAsset = assets[0];
+
+const languageName = {
+  typescript: "TypeScript",
+  python: "Python",
+  swift: "Swift",
+} as const;
+const codeLanguageByAsset = {
+  typescript: "typescript",
+  python: "python",
+  swift: "swift",
+} as const;
+
+const assetId = (asset: SdkAsset) => `sdk-${asset.language}`;
+const tabId = (asset: SdkAsset) => `${assetId(asset)}-tab`;
+const downloadLabel = (asset: SdkAsset) => `Download ${languageName[asset.language]} SDK`;
+---
+
+<ApiContent.Entry className="sdk-segmented-card-entry">
+  <ApiContent.Entry.Content>
+    <SegmentedCard
+      className="sdk-segmented-card"
+      aria-labelledby="sdk-downloads-card-title"
+      data-sdk-segmented-card
+      data-api-nav-anchor
+    >
+      <SegmentedCard.Header>
+        <SegmentedCard.Header.Title id="sdk-downloads-card-title">Download an SDK</SegmentedCard.Header.Title>
+        <SegmentedCard.Header.Segments role="tablist" aria-label="SDK language">
+          {
+            assets.map((asset, index) => (
+              <SegmentedCard.Header.Segments.Item
+                type="button"
+                role="tab"
+                id={tabId(asset)}
+                aria-controls={assetId(asset)}
+                aria-selected={index === 0 ? "true" : "false"}
+                tabIndex={index === 0 ? 0 : -1}
+                data-sdk-tab={asset.language}
+              >
+                <SegmentedCard.Header.Segments.Item.Icon aria-hidden="true">
+                  <img src={`/icons/languages/${asset.language}.svg`} alt="" />
+                </SegmentedCard.Header.Segments.Item.Icon>
+                <SegmentedCard.Header.Segments.Item.Label>
+                  {languageName[asset.language]}
+                </SegmentedCard.Header.Segments.Item.Label>
+              </SegmentedCard.Header.Segments.Item>
+            ))
+          }
+        </SegmentedCard.Header.Segments>
+      </SegmentedCard.Header>
+
+      <SegmentedCard.Body>
+        {
+          assets.map((asset, index) => {
+            const headingId = assetId(asset);
+            const usage = [asset.quickstart.import, asset.quickstart.firstRequest].join("\n");
+            const active = index === 0;
+            return (
+              <SegmentedCard.Body.Panel
+                id={headingId}
+                role="tabpanel"
+                aria-labelledby={tabId(asset)}
+                aria-hidden={active ? "false" : "true"}
+                hidden={!active}
+                inert={!active}
+                data-sdk-panel={asset.language}
+                data-sdk-download-url={asset.archiveUrl}
+                data-sdk-download-label={downloadLabel(asset)}
+                data-api-search-entry
+                data-api-search-group="SDK downloads"
+                data-api-search-title={downloadLabel(asset)}
+                data-api-search-addon="SDK"
+                data-api-search-kind="sdk"
+                data-api-search-target={headingId}
+              >
+                <SegmentedCard.Body.Panel.Stack>
+                  <p class="text-code text-fg-muted">
+                    {asset.generator} · API {apiVersion} · OpenAPI Generator {generatorVersion}
+                  </p>
+                  <dl class="sdk-metadata-list text-body">
+                    <div>
+                      <dt class="text-fg-subtle">Archive</dt>
+                      <dd class="font-mono text-code text-code-fg break-all">{asset.archiveName}</dd>
+                    </div>
+                    <div>
+                      <dt class="text-fg-subtle">SHA-256</dt>
+                      <dd><code class="font-mono text-code text-code-fg break-all">{asset.sha256}</code></dd>
+                    </div>
+                  </dl>
+                  <div class="sdk-example-list">
+                    <CodeBlock label="Installation" language="bash" code={asset.quickstart.install} />
+                    <CodeBlock label="Usage" language={codeLanguageByAsset[asset.language]} code={usage} />
+                  </div>
+                </SegmentedCard.Body.Panel.Stack>
+              </SegmentedCard.Body.Panel>
+            );
+          })
+        }
+      </SegmentedCard.Body>
+
+      {
+        initialAsset && (
+          <SegmentedCard.Footer className="justify-end">
+            <a
+              href={initialAsset.archiveUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="button button--content text-body"
+              aria-label={downloadLabel(initialAsset)}
+              data-sdk-download
+            >
+              Download
+            </a>
+          </SegmentedCard.Footer>
+        )
+      }
+    </SegmentedCard>
+  </ApiContent.Entry.Content>
+</ApiContent.Entry>
+
+<script>
+  import { bindSdkSegmentedCards } from "@/lib/sdk-segmented-card";
+
+  bindSdkSegmentedCards(document);
+</script>

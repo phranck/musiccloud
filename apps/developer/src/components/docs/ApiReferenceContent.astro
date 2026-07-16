@@ -16,7 +16,7 @@ import EndpointOperation from "@/components/docs/EndpointOperation.astro";
 import SchemaSection from "@/components/docs/SchemaSection.astro";
 import SchemaCardsController from "@/components/docs/SchemaCardsController.astro";
 import ScrollToTopButton from "@/components/docs/ScrollToTopButton.astro";
-import SdkDownloadCard from "@/components/docs/SdkDownloadCard.astro";
+import SdkSegmentedCard from "@/components/docs/SdkSegmentedCard.astro";
 import { ArrowCircleDownIcon, ArrowCircleUpIcon } from "@/lib/icons";
 import {
   apiReferenceSectionLabel,
@@ -46,7 +46,7 @@ const integrationItems = [
 ---
 
 <div class="api-reference-shell">
-  <div class="mb-8" data-api-reference-intro>
+  <div class="card-content-inset mb-8" data-api-reference-intro>
     <h1 class="text-hero font-medium tracking-tight leading-none mb-3">API reference</h1>
     <p class="text-lead text-fg-muted">Generated from the public OpenAPI contract for version {reference.version}.</p>
   </div>
@@ -120,11 +120,11 @@ const integrationItems = [
           <ApiContent.Chapter.Header.Title>SDK downloads</ApiContent.Chapter.Header.Title>
         </ApiContent.Chapter.Header>
         <ApiContent.Chapter.Body>
-          {
-            catalog.assets.map((asset) => (
-              <SdkDownloadCard asset={asset} apiVersion={catalog.apiVersion} generatorVersion={catalog.generatorVersion} />
-            ))
-          }
+          <SdkSegmentedCard
+            assets={catalog.assets}
+            apiVersion={catalog.apiVersion}
+            generatorVersion={catalog.generatorVersion}
+          />
         </ApiContent.Chapter.Body>
       </ApiContent.Chapter>
 
