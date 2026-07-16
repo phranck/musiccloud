@@ -570,10 +570,12 @@ function SidebarAnalyticsSection({ onItemClick, s }: { onItemClick?: () => void;
 }
 
 function SidebarDeveloperSection({
+  isOwner,
   onItemClick,
   pendingRequests,
   s,
 }: {
+  isOwner: boolean;
   onItemClick?: () => void;
   pendingRequests?: number;
   s: SidebarLabels;
@@ -620,6 +622,17 @@ function SidebarDeveloperSection({
               />
             )}
           </NavLink>
+          {isOwner && (
+            <NavLink to="/developer/settings" onClick={onItemClick} className="contents">
+              {({ isActive }) => (
+                <DashboardSection.Item
+                  icon={<GearIcon weight="duotone" className="w-4 h-4" />}
+                  label={s.settings}
+                  active={isActive}
+                />
+              )}
+            </NavLink>
+          )}
         </DashboardSection.Body>
       </DashboardSection>
     </div>
@@ -640,6 +653,7 @@ export function Sidebar({
   const { messages } = useI18n();
   const s = messages.layout.sidebar;
   const isAdmin = role !== undefined && ROLE_RANK[role] >= ROLE_RANK.admin;
+  const isOwner = role !== undefined && ROLE_RANK[role] === ROLE_RANK.owner;
   const { data: stats } = useAdminStats();
 
   const [groupStatus, setGroupStatus] = useState<Record<string, boolean>>(() =>
@@ -774,7 +788,12 @@ export function Sidebar({
 
         {/* Developer */}
         {isAdmin && (
-          <SidebarDeveloperSection onItemClick={onItemClick} pendingRequests={stats?.pendingApiAccessRequests} s={s} />
+          <SidebarDeveloperSection
+            isOwner={isOwner}
+            onItemClick={onItemClick}
+            pendingRequests={stats?.pendingApiAccessRequests}
+            s={s}
+          />
         )}
 
         {/* System */}

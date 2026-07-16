@@ -52,6 +52,10 @@ import ccResolveRoutes from "./routes/cc-resolve.js";
 import { devApiAccessRoutes } from "./routes/dev-api-access.js";
 import { devAuthRoutes } from "./routes/developer-auth.js";
 import { devGitHubRoutes } from "./routes/developer-github.js";
+import {
+  developerPortalAvailabilityAdminRoutes,
+  developerPortalAvailabilityInternalRoutes,
+} from "./routes/developer-portal-availability.js";
 import emailAssetServeRoutes from "./routes/email-assets.js";
 import genreArtworkRoutes from "./routes/genre-artwork.js";
 import linkRoutes from "./routes/link.js";
@@ -274,7 +278,7 @@ async function buildApp(options: BuildAppOptions = {}) {
           "2. Public data operations `GET /api/v1/resolve`, `GET /api/v1/share/{shortId}`, `GET /api/v1/share/{shortId}/preview`, `GET /api/v1/artist-info`, `GET /api/v1/cc/artist-info`, `GET /api/v1/cc/audio/{jamendoId}`, `GET /api/v1/cc/download/{jamendoId}`, and `GET /api/v1/cc/bandcamp/{jamendoId}` allow `10` requests in a rolling `60`-second window per client IP.\n" +
           "3. Every route is also protected by a global ceiling of `300` requests in a rolling `60`-second window per client IP.\n\n" +
           "A rejected request returns `429 Too Many Requests`, the `ErrorResponse` JSON body, and `Retry-After`. When available, `context.limit`, `context.windowSeconds`, and `context.retryAfterSeconds` describe the rule that rejected the request.",
-        version: "2.1.3",
+        version: "2.1.4",
       },
       servers: [{ url: "https://api.musiccloud.io", description: "Production" }],
       // Tag order here does not need to be alphabetical: the document is
@@ -546,6 +550,13 @@ async function buildApp(options: BuildAppOptions = {}) {
     await devApp.register(devApiAccessRoutes);
   });
 
+  // Internal service-to-service routes. The Developer Portal uses this
+  // narrow endpoint to read its availability state without direct DB access.
+  await app.register(async function internalRoutes(internalApp) {
+    internalApp.addHook("preHandler", internalApp.authenticateInternal);
+    await internalApp.register(developerPortalAvailabilityInternalRoutes);
+  });
+
   // Share endpoint (public, no auth - used for SSR)
   await app.register(shareRoutes);
   await app.register(sharePreviewRoutes);
@@ -623,6 +634,7 @@ async function buildApp(options: BuildAppOptions = {}) {
     await adminApp.register(siteSettingsAdminRoutes);
     await adminApp.register(adminPluginsRoutes);
     await adminApp.register(adminCrawlerRoutes);
+    await adminApp.register(developerPortalAvailabilityAdminRoutes);
   });
 
   return app;

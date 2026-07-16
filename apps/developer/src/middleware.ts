@@ -1,40 +1,40 @@
 import { defineMiddleware } from "astro:middleware";
 
-import { COMING_SOON_HTML } from "./lib/coming-soon";
+import { PortalGateMode, renderPortalGateHtml } from "./lib/coming-soon";
+import { getPortalAvailability } from "./lib/portal-availability";
 
-/**
- * Whether the portal is sealed behind the "coming soon" maintenance page.
- *
- * Driven by the runtime `COMING_SOON` environment variable (read from
- * `process.env` so it can be toggled in Zerops without a rebuild). Any of
- * `true` / `1` / `yes` / `on` (case-insensitive) enables it; unset or anything
- * else leaves the real portal serving. Kept off locally so development of the
- * real flow sees the actual pages. In production the flag is set to `"true"`
- * on the `developer` service in `zerops.yml`; flip it there to open the portal.
- *
- * @returns true when every request should receive the maintenance page.
- */
-function comingSoonEnabled(): boolean {
-  const value = process.env.COMING_SOON?.trim().toLowerCase();
-  return value === "true" || value === "1" || value === "yes" || value === "on";
+const ALWAYS_REACHABLE_PATHS = new Set(["/docs/api", "/developer-theme.css", "/favicon.svg"]);
+
+function isAlwaysReachable(pathname: string): boolean {
+  return ALWAYS_REACHABLE_PATHS.has(pathname) || pathname.startsWith("/_astro/");
 }
 
 /**
- * Global request gate. While {@link comingSoonEnabled} is true, every portal,
- * BFF, and application-asset request is answered with the maintenance page.
- * The canonical public theme is the sole exception because the maintenance
- * response deliberately consumes the same runtime design tokens as the live
- * portal. It contains CSS values only and cannot expose unfinished app code.
- * `no-store` prevents a stale maintenance page from being cached once the flag
- * is later turned off.
+ * Global request gate. The API reference and its built assets remain available
+ * in every state. All other routes fail closed to Coming Soon if the internal
+ * state cannot be read. Maintenance deliberately preserves the original URL
+ * and uses 503 so browsers, caches, and monitors understand it is temporary.
  */
 export const onRequest = defineMiddleware(async (context, next) => {
-  if (context.url.pathname === "/developer-theme.css") {
+  if (isAlwaysReachable(context.url.pathname)) {
     return next();
   }
 
-  if (comingSoonEnabled()) {
-    return new Response(COMING_SOON_HTML, {
+  const availability = await getPortalAvailability();
+
+  if (availability?.maintenance) {
+    return new Response(renderPortalGateHtml(PortalGateMode.Maintenance), {
+      status: 503,
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "cache-control": "no-store",
+        "retry-after": "300",
+      },
+    });
+  }
+
+  if (!availability?.public) {
+    return new Response(renderPortalGateHtml(PortalGateMode.ComingSoon), {
       status: 200,
       headers: {
         "content-type": "text/html; charset=utf-8",

@@ -51,6 +51,7 @@ export interface DashboardMessages {
       clientsAndTokens: string;
       developerAccounts: string;
       tiers: string;
+      settings: string;
       overview: string;
       tracks: string;
       albums: string;
@@ -225,6 +226,14 @@ export interface DashboardMessages {
     featureMoveDown: string;
     featureRemove: string;
     featureMaxReached: string;
+    settingsTitle: string;
+    availabilityTitle: string;
+    availabilityDescription: string;
+    portalPublicLabel: string;
+    portalPublicDescription: string;
+    maintenanceLabel: string;
+    maintenanceDescription: string;
+    apiReferenceNotice: string;
   };
   music: {
     columns: {
@@ -667,6 +676,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         clientsAndTokens: "API Keys",
         developerAccounts: "Developer Accounts",
         tiers: "Tiers",
+        settings: "Einstellungen",
         services: "Services",
         design: "Design",
         actions: "Aktionen",
@@ -831,6 +841,14 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       featureMoveDown: "Nach unten",
       featureRemove: "Entfernen",
       featureMaxReached: "Maximal 12 Features erlaubt.",
+      settingsTitle: "Developer-Einstellungen",
+      availabilityTitle: "Portal-Verfügbarkeit",
+      availabilityDescription: "Lege fest, ob das Developer Portal öffentlich erreichbar ist.",
+      portalPublicLabel: "Developer Portal",
+      portalPublicDescription: "Macht das Developer Portal öffentlich erreichbar.",
+      maintenanceLabel: "Wartung",
+      maintenanceDescription: "Schließt das Portal vorübergehend für Wartungsarbeiten.",
+      apiReferenceNotice: "Die API-Referenz bleibt immer erreichbar.",
     },
     music: {
       columns: {
@@ -1276,6 +1294,7 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         clientsAndTokens: "API Keys",
         developerAccounts: "Developer Accounts",
         tiers: "Tiers",
+        settings: "Settings",
         services: "Services",
         design: "Design",
         actions: "Actions",
@@ -1440,6 +1459,14 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       featureMoveDown: "Move down",
       featureRemove: "Remove",
       featureMaxReached: "Maximum of 12 features allowed.",
+      settingsTitle: "Developer Settings",
+      availabilityTitle: "Portal availability",
+      availabilityDescription: "Control whether the Developer Portal is publicly available.",
+      portalPublicLabel: "Developer Portal",
+      portalPublicDescription: "Makes the Developer Portal publicly available.",
+      maintenanceLabel: "Maintenance",
+      maintenanceDescription: "Temporarily closes the portal for maintenance.",
+      apiReferenceNotice: "The API reference remains available at all times.",
     },
     music: {
       columns: {

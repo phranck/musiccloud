@@ -126,6 +126,14 @@ export const ENDPOINTS = {
     token: "/api/auth/token",
   },
 
+  /** `/api/internal/...`: service-to-service endpoints authenticated with the internal API key. */
+  internal: {
+    developer: {
+      /** GET: the persisted availability state consumed by the Developer Portal middleware. */
+      portalAvailability: "/api/internal/developer/portal-availability",
+    },
+  },
+
   /**
    * Astro-frontend proxy routes. The public site exposes a short-form
    * `/api/<name>` layer that the React islands call; the corresponding
@@ -344,6 +352,8 @@ export const ENDPOINTS = {
     },
 
     developer: {
+      /** GET / PATCH: Owner-managed availability state for the Developer Portal. */
+      portalAvailability: "/api/admin/developer/portal-availability",
       apiAccess: {
         /** GET: overview — pending requests + active clients. Query: `?status=` filters requests. */
         overview: "/api/admin/developer/api-access",
