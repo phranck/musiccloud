@@ -52,7 +52,7 @@
   );
   --mc-gradient-logo-suffix: linear-gradient(90deg, var(--mc-color-fg) 0%, var(--mc-color-fg-subtle) 100%);
 
-  --mc-radius-card: 0.75rem;
+  --mc-radius-card: 1rem;
   --mc-radius-control: 0.5rem;
   --mc-radius-pill: 9999px;
   --mc-radius-round: 50%;

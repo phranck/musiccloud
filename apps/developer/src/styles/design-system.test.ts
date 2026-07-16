@@ -54,17 +54,21 @@ describe("developer design system", () => {
     expect(theme).toContain("--mc-space-content-card-header: 0.625rem;");
   });
 
-  it("derives the enlarged API card radius outside-in", () => {
+  it("uses the 16px portal card radius and keeps API cards cascade-safe", () => {
+    const theme = readDeveloperFile("public/developer-theme.css");
     const docs = readDeveloperFile("src/styles/docs.css");
 
-    expect(docs).toContain("--mc-docs-content-card-radius: calc(var(--radius-card) + var(--mc-space-1));");
+    expect(theme).toContain("--mc-radius-card: 1rem;");
+    expect(docs).toContain("--mc-docs-content-card-radius: var(--radius-card);");
     expect(docs).toContain("calc(var(--mc-docs-content-card-radius) - var(--mc-docs-content-panel-inset))");
     expect(docs).toContain("calc(var(--mc-docs-content-panel-radius) - var(--mc-space-1) - var(--mc-docs-space-xs))");
     expect(docs).toContain("--mc-docs-schema-toggle-radius-trim: 1px;");
     expect(docs).toContain(
       "calc(var(--mc-docs-content-panel-radius) - var(--mc-space-1) - var(--mc-docs-schema-toggle-radius-trim))",
     );
-    expect(docs).toMatch(/\.content-card\s*\{[^}]*border-radius:\s*var\(--mc-docs-content-card-radius\);/s);
+    expect(docs).toMatch(
+      /\.surface-card\.content-card\s*\{[^}]*border-radius:\s*var\(--mc-docs-content-card-radius\);/s,
+    );
   });
 
   it("uses the approved Accent mist treatment for inline OpenAPI code", () => {
@@ -268,6 +272,7 @@ describe("developer design system", () => {
   it("uses lead typography for API card section headings", () => {
     const docs = readDeveloperFile("src/styles/docs.css");
 
+    expect(docs).toMatch(/\.content-card__section-header\s*\{[^}]*align-items:\s*center;/s);
     expect(docs).toMatch(/\.content-card__section-title\s*\{[^}]*font-size:\s*inherit;/s);
     expect(docs).toMatch(/\.content-card__section-title\s*\{[^}]*font-weight:\s*400;/s);
     expect(docs).toMatch(
@@ -289,7 +294,7 @@ describe("developer design system", () => {
     const docs = readDeveloperFile("src/styles/docs.css");
 
     expect(docs).toMatch(
-      /\.parameter-card__header\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*max-content max-content minmax\(0, 1fr\) max-content;/s,
+      /\.parameter-card__header\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*max-content max-content minmax\(0, 1fr\) max-content;[^}]*align-items:\s*start;/s,
     );
     expect(docs).toMatch(/\.parameter-card__requirement\s*\{[^}]*grid-column:\s*4;/s);
   });
