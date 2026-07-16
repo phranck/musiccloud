@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>musiccloud Generic Vinyl Label</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      html,
+      body {
+        min-height: 100%;
+        margin: 0;
+      }
+
+      body {
+        display: grid;
+        min-height: 100vh;
+        overflow: hidden;
+        place-items: center;
+        background:
+          radial-gradient(circle at 50% 48%, rgba(42, 91, 119, 0.3), transparent 36%),
+          #07131d;
+      }
+
+      .preview-layout {
+        display: grid;
+        grid-template-rows: minmax(0, 1fr) auto;
+        align-items: center;
+        justify-items: center;
+        width: min(94vw, 980px);
+        min-height: min(96vh, 1000px);
+        gap: clamp(0.5rem, 1.3vh, 1rem);
+      }
+
+      #root {
+        display: grid;
+        width: min(76vw, 68vh, 800px);
+        min-height: 0;
+        place-items: center;
+      }
+
+      .preview-controls {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        box-sizing: border-box;
+        max-width: calc(100vw - 2rem);
+        padding: 0.45rem 0.55rem;
+        border: 1px solid rgba(117, 179, 210, 0.36);
+        border-radius: 999px;
+        background: rgba(6, 20, 31, 0.78);
+        box-shadow:
+          0 0.45rem 1.4rem rgba(0, 0, 0, 0.35),
+          inset 0 1px rgba(211, 239, 255, 0.1);
+        color: #d8ebf5;
+        font-family: "Iosevka Charon Mono", "SFMono-Regular", Consolas, monospace;
+        font-size: clamp(0.62rem, 1.2vw, 0.72rem);
+        letter-spacing: 0.055em;
+        text-transform: uppercase;
+      }
+
+      .preview-format-switch {
+        display: flex;
+        gap: 0.18rem;
+      }
+
+      .preview-format-switch button {
+        appearance: none;
+        padding: 0.45rem 0.55rem;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        background: transparent;
+        color: rgba(216, 235, 245, 0.67);
+        cursor: pointer;
+        font: inherit;
+        letter-spacing: inherit;
+        text-transform: inherit;
+        transition:
+          background-color 160ms ease,
+          border-color 160ms ease,
+          color 160ms ease;
+      }
+
+      .preview-format-switch button:hover,
+      .preview-format-switch button:focus-visible {
+        border-color: rgba(120, 222, 255, 0.52);
+        color: #f1fbff;
+        outline: none;
+      }
+
+      .preview-format-switch button[aria-pressed="true"] {
+        border-color: rgba(90, 203, 244, 0.68);
+        background: linear-gradient(135deg, rgba(36, 119, 157, 0.88), rgba(20, 68, 101, 0.9));
+        box-shadow: inset 0 1px rgba(228, 250, 255, 0.24);
+        color: #f5fcff;
+      }
+
+      .preview-rotation-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.48rem;
+        padding-left: 0.15rem;
+        border-left: 1px solid rgba(132, 191, 218, 0.28);
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .preview-rotation-switch input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+
+      .preview-switch-indicator {
+        position: relative;
+        display: inline-block;
+        width: 1.9rem;
+        height: 1.05rem;
+        border: 1px solid rgba(146, 193, 214, 0.48);
+        border-radius: 999px;
+        background: rgba(9, 35, 51, 0.86);
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.48);
+        transition:
+          background-color 160ms ease,
+          border-color 160ms ease;
+      }
+
+      .preview-switch-indicator::after {
+        position: absolute;
+        top: 0.15rem;
+        left: 0.16rem;
+        width: 0.69rem;
+        height: 0.69rem;
+        border-radius: 50%;
+        background: linear-gradient(145deg, #cadde5, #698294);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+        content: "";
+        transition: transform 160ms ease;
+      }
+
+      .preview-rotation-switch input:checked + .preview-switch-indicator {
+        border-color: rgba(105, 225, 255, 0.78);
+        background: linear-gradient(135deg, #1d8ebb, #15536f);
+      }
+
+      .preview-rotation-switch input:checked + .preview-switch-indicator::after {
+        transform: translateX(0.8rem);
+      }
+
+      .preview-rotation-switch input:focus-visible + .preview-switch-indicator {
+        outline: 2px solid #7ee4ff;
+        outline-offset: 2px;
+      }
+
+      @media (max-width: 460px) {
+        .preview-layout {
+          width: 100vw;
+          min-height: 100vh;
+        }
+
+        #root {
+          width: min(92vw, 67vh);
+        }
+
+        .preview-controls {
+          gap: 0.25rem;
+          padding: 0.35rem;
+          font-size: 0.56rem;
+        }
+
+        .preview-format-switch button {
+          padding: 0.4rem;
+        }
+
+        .preview-rotation-switch {
+          gap: 0.3rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="preview-layout">
+      <div id="root"></div>
+      <div aria-label="Vorschau-Einstellungen" class="preview-controls" role="group">
+        <div aria-label="Plattenformat" class="preview-format-switch" role="group">
+          <button aria-pressed="false" data-vinyl-preview-format="lp" type="button">LP · 33⅓ RPM</button>
+          <button aria-pressed="true" data-vinyl-preview-format="single" type="button">Single · 45 RPM</button>
+        </div>
+        <label class="preview-rotation-switch">
+          <input aria-label="Rotation aktiv" checked data-vinyl-preview-rotation="true" type="checkbox" />
+          <span aria-hidden="true" class="preview-switch-indicator"></span>
+          Rotation
+        </label>
+      </div>
+    </main>
+    <script type="module">
+      import RefreshRuntime from "/@react-refresh";
+
+      RefreshRuntime.injectIntoGlobalHook(window);
+      window.$RefreshReg$ = () => {};
+      window.$RefreshSig$ = () => (type) => type;
+      window.__vite_plugin_react_preamble_installed__ = true;
+    </script>
+    <script type="module">
+      import "/src/styles/fonts.css";
+      import "/src/styles/global.css";
+      import React from "/@id/react";
+      import ReactDomClient from "/@id/react-dom/client";
+      import { VinylRecord } from "/src/components/vinyl/VinylRecord.tsx";
+      import { VinylDiscFormat, VinylSpinState } from "/src/components/vinyl/VinylRecord.types.ts";
+
+      const rootElement = document.querySelector("#root");
+      const rotationControl = document.querySelector("[data-vinyl-preview-rotation='true']");
+      const formatControls = [...document.querySelectorAll("[data-vinyl-preview-format]")];
+      const root = ReactDomClient.createRoot(rootElement);
+      let activeFormat = VinylDiscFormat.Single;
+      let rotationActive = rotationControl.checked;
+
+      function renderPreview() {
+        root.render(
+          React.createElement(VinylRecord, {
+            className: "w-full",
+            discFormat: activeFormat,
+            labelTitle: "Generic Search Pressing",
+            labelVariant: "generic",
+            spinState: rotationActive ? VinylSpinState.Playing : VinylSpinState.Idle,
+          }),
+        );
+
+        for (const control of formatControls) {
+          const isActive = control.dataset.vinylPreviewFormat === activeFormat;
+          control.setAttribute("aria-pressed", String(isActive));
+        }
+      }
+
+      for (const control of formatControls) {
+        control.addEventListener("click", () => {
+          activeFormat =
+            control.dataset.vinylPreviewFormat === VinylDiscFormat.Lp
+              ? VinylDiscFormat.Lp
+              : VinylDiscFormat.Single;
+          renderPreview();
+        });
+      }
+
+      rotationControl.addEventListener("change", () => {
+        rotationActive = rotationControl.checked;
+        renderPreview();
+      });
+
+      renderPreview();
+    </script>
+  </body>
+</html>

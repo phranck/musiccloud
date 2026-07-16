@@ -30,6 +30,12 @@ import mcQueryGrammar from "./grammars/mc-query.tmLanguage.json" with { type: "j
 const KNOWN_CARD_MODIFIERS = new Set(["recessed", "embossed"] as const);
 type CardModifier = "recessed" | "embossed";
 
+/**
+ * Parses code-fence metadata into the backend/frontend wire contract. Optional
+ * geometry is retained only when it matches the shared safe CSS-length grammar,
+ * and only the first non-modifier candidate can become a validated language.
+ * Invalid optional values remain null so the renderer omits their attributes.
+ */
 function parseInfostring(raw: string): {
   lang: string | null;
   modifier: CardModifier | null;
@@ -41,11 +47,19 @@ function parseInfostring(raw: string): {
   let lang: string | null = null;
   let padding: string | null = null;
   let radius: string | null = null;
+  let sawLanguageCandidate = false;
   for (const t of tokens) {
     if (KNOWN_CARD_MODIFIERS.has(t as CardModifier)) modifier = t as CardModifier;
-    else if (t.startsWith("padding=")) padding = t.slice("padding=".length);
-    else if (t.startsWith("radius=")) radius = t.slice("radius=".length);
-    else if (lang === null) lang = t;
+    else if (t.startsWith("padding=")) {
+      const value = t.slice("padding=".length);
+      padding = isSafeCssLength(value) ? value : null;
+    } else if (t.startsWith("radius=")) {
+      const value = t.slice("radius=".length);
+      radius = isSafeCssLength(value) ? value : null;
+    } else if (!sawLanguageCandidate) {
+      sawLanguageCandidate = true;
+      lang = isSafeLanguageToken(t) ? t : null;
+    }
   }
   return { lang, modifier, padding, radius };
 }
@@ -59,6 +73,7 @@ function escapeHtmlAttribute(s: string): string {
 }
 
 const CSS_LENGTH_PATTERN = /^(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em|ch)$/;
+const LANGUAGE_TOKEN_PATTERN = /^[A-Za-z][A-Za-z0-9_-]*$/;
 const FIELDS_DEFAULT_LABEL_WIDTH = "max-content";
 const FIELDS_DEFAULT_GAP = "1.1rem";
 const INLINE_OPTION_TOKEN_PATTERN = /^([A-Za-z][\w-]*)=([^\s=]+)$/;
@@ -94,6 +109,10 @@ function isInlineOptionToken(token: string): boolean {
 
 function isSafeCssLength(value: string): boolean {
   return CSS_LENGTH_PATTERN.test(value);
+}
+
+function isSafeLanguageToken(value: string): boolean {
+  return LANGUAGE_TOKEN_PATTERN.test(value);
 }
 
 function parseFieldsLayout(raw: string | undefined): FieldsLayout {
@@ -198,12 +217,15 @@ marked.use({
       const parsed = parseInfostring(rawLang ?? "");
       // Default: every fenced code block is recessed-wrapped. Authors opt
       // into a different look with `embossed`, or override padding/radius via
-      // padding=/radius= modifiers. There is no "no-card" code fence.
+      // validated padding=/radius= modifiers. Invalid optional geometry and
+      // language tokens are omitted; the frontend supplies geometry defaults.
+      // There is no "no-card" code fence. Every dynamic double-quoted wire
+      // attribute is encoded as a complete attribute value.
       const modifier = parsed.modifier ?? "recessed";
-      const styleAttr = ` data-card-style="${modifier}"`;
-      const paddingAttr = parsed.padding ? ` data-card-padding="${escapeHtml(parsed.padding)}"` : "";
-      const radiusAttr = parsed.radius ? ` data-card-radius="${escapeHtml(parsed.radius)}"` : "";
-      const langClass = parsed.lang ? ` class="language-${escapeHtml(parsed.lang)}"` : "";
+      const styleAttr = ` data-card-style="${escapeHtmlAttribute(modifier)}"`;
+      const paddingAttr = parsed.padding ? ` data-card-padding="${escapeHtmlAttribute(parsed.padding)}"` : "";
+      const radiusAttr = parsed.radius ? ` data-card-radius="${escapeHtmlAttribute(parsed.radius)}"` : "";
+      const langClass = parsed.lang ? ` class="${escapeHtmlAttribute(`language-${parsed.lang}`)}"` : "";
       // `text` is already shiki-highlighted HTML or escaped fallback.
       return `<pre${styleAttr}${paddingAttr}${radiusAttr}><code${langClass}>${text}</code></pre>\n`;
     },

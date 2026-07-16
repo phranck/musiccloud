@@ -27,8 +27,11 @@ const CardStyle = {
 
 /**
  * Default geometry applied to a card-wrapped `<pre>` when the backend marker
- * omits `data-card-padding` / `data-card-radius`. Mirrors the previous inline
- * fallbacks so wrapped code blocks keep their exact spacing.
+ * omits `data-card-padding` / `data-card-radius`. The backend emits these
+ * optional markers only for validated CSS lengths and uses a safe identifier
+ * token for the accompanying `language-*` class; invalid values are omitted.
+ * These frontend defaults therefore remain authoritative for omitted geometry
+ * and preserve the previous wrapped-code spacing.
  */
 const DEFAULT_CARD_PADDING = "0.75rem";
 const DEFAULT_CARD_RADIUS = "0.75rem";
