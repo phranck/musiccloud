@@ -140,12 +140,6 @@ zerops:
         HOST: "::"
         PORT: "3002"
         BACKEND_URL: http://backend:4000
-        # Maintenance gate: while "true", the middleware seals EVERY route behind
-        # the coming-soon page. MUST live here, not GUI-only: Zerops re-applies
-        # this file's env on every deploy and wipes any GUI-only variable that is
-        # not declared here. Flip to "false" (or remove) and redeploy to open the
-        # real portal once the redesigned signup/signin flow ships.
-        COMING_SOON: "true"
         # Set in Zerops Secrets (later sub-projects):
         # INTERNAL_API_KEY: <same key as backend>
       start: node apps/developer/dist/server/entry.mjs

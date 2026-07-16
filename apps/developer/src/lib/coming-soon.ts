@@ -1,41 +1,76 @@
 /**
- * @file The developer-portal "coming soon" maintenance page, as a single
- * self-contained HTML string.
+ * @file Self-contained Developer Portal availability pages.
  *
- * Served by `src/middleware.ts` for EVERY request while the `COMING_SOON`
- * environment flag is on, so the unfinished portal is fully sealed off in
- * production. Its only same-origin dependency is the public runtime theme;
- * the middleware permits that CSS file while continuing to seal app and API
- * routes.
+ * Served by `src/middleware.ts` when the persisted portal state is closed or
+ * in maintenance. Its only same-origin dependency is the public runtime theme.
  *
  * Styling mirrors `src/styles/global.css` (the night-mode tokens) and the
  * `Wordmark` component, so the maintenance page looks like the live portal.
  */
 
 /**
- * The complete maintenance page. Ships full SEO metadata (description,
+ * The availability pages ship full SEO metadata (description,
  * canonical, Open Graph, Twitter card) so shared links render a rich preview
  * and the page is indexable. The `og:image` is hosted on the frontend origin
  * (`musiccloud.io/img`) because this service seals its own asset routes behind
  * the maintenance gate. Umami tracks visits under the developer-portal website id.
  */
-export const COMING_SOON_HTML = `<!doctype html>
+export const PortalGateMode = {
+  ComingSoon: "comingSoon",
+  Maintenance: "maintenance",
+} as const;
+
+export type PortalGateMode = (typeof PortalGateMode)[keyof typeof PortalGateMode];
+
+interface PortalGateCopy {
+  description: string;
+  heading: string;
+  metaTitle: string;
+  statusLabel: string;
+}
+
+const GATE_COPY: Record<PortalGateMode, PortalGateCopy> = {
+  [PortalGateMode.ComingSoon]: {
+    metaTitle: "musiccloud for developers · coming soon",
+    description:
+      "Public API access and developer tools for musiccloud are on the way. Build music-sharing experiences on the musiccloud platform.",
+    heading: "coming soon",
+    statusLabel: "System status",
+  },
+  [PortalGateMode.Maintenance]: {
+    metaTitle: "musiccloud for developers · maintenance",
+    description:
+      "The musiccloud Developer Portal is temporarily unavailable for maintenance. The API reference remains available.",
+    heading: "maintenance",
+    statusLabel: "System status",
+  },
+};
+
+/** Renders the common availability page for the requested portal state. */
+export function renderPortalGateHtml(mode: PortalGateMode): string {
+  const copy = GATE_COPY[mode];
+  const bodyCopy =
+    mode === PortalGateMode.Maintenance
+      ? "The Developer Portal is temporarily closed for maintenance. The API reference remains available while we complete this work."
+      : "Public API access and developer tools for musiccloud are on the way. We are putting the finishing touches on the platform and will open the doors shortly.";
+
+  return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>musiccloud for developers · coming soon</title>
+    <title>${copy.metaTitle}</title>
     <meta
       name="description"
-      content="Public API access and developer tools for musiccloud are on the way. Build music-sharing experiences on the musiccloud platform."
+      content="${copy.description}"
     />
     <link rel="canonical" href="https://developer.musiccloud.io/" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="musiccloud" />
-    <meta property="og:title" content="musiccloud for developers · coming soon" />
+    <meta property="og:title" content="${copy.metaTitle}" />
     <meta
       property="og:description"
-      content="Public API access and developer tools for musiccloud are on the way. Build music-sharing experiences on the musiccloud platform."
+      content="${copy.description}"
     />
     <meta property="og:url" content="https://developer.musiccloud.io/" />
     <meta property="og:image" content="https://musiccloud.io/img/developer-og.png" />
@@ -44,10 +79,10 @@ export const COMING_SOON_HTML = `<!doctype html>
     <meta property="og:image:alt" content="musiccloud / developer" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="musiccloud for developers · coming soon" />
+    <meta name="twitter:title" content="${copy.metaTitle}" />
     <meta
       name="twitter:description"
-      content="Public API access and developer tools for musiccloud are on the way. Build music-sharing experiences on the musiccloud platform."
+      content="${copy.description}"
     />
     <meta name="twitter:image" content="https://musiccloud.io/img/developer-og.png" />
 
@@ -285,15 +320,13 @@ export const COMING_SOON_HTML = `<!doctype html>
       <div class="rule"></div>
 
       <div class="hero">
-        <h1>coming soon</h1>
-        <p>
-          Public API access and developer tools for musiccloud are on the way. We are putting the finishing touches on
-          the platform and will open the doors shortly.
-        </p>
+        <h1>${copy.heading}</h1>
+        <p>${bodyCopy}</p>
       </div>
 
       <div class="actions">
-        <a class="btn primary" href="https://status.musiccloud.io"><span class="dot"></span> System status</a>
+        <a class="btn primary" href="/docs/api">View API reference</a>
+        <a class="btn" href="https://status.musiccloud.io"><span class="dot"></span> ${copy.statusLabel}</a>
         <a class="btn" href="https://musiccloud.io">Back to musiccloud</a>
       </div>
     </main>
@@ -302,3 +335,4 @@ export const COMING_SOON_HTML = `<!doctype html>
   </body>
 </html>
 `;
+}

@@ -10,6 +10,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 
 import type { AdminUser } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
+import { createApiErrorResponse } from "./infra/api-errors.js";
 
 /**
  * Resolves the requesting admin's full DB record from the JWT `sub` claim.
@@ -35,6 +36,22 @@ export async function requireOwnerOrAdmin(request: FastifyRequest, reply: Fastif
   const caller = await getAdminCaller(request);
   if (!caller || (caller.role !== "owner" && caller.role !== "admin")) {
     await reply.status(403).send({ error: "FORBIDDEN", message: "Owner or admin role required." });
+    return null;
+  }
+  return caller;
+}
+
+/**
+ * Resolves the caller and rejects the request with 403 unless they are the
+ * sole `owner` role. Use this for operational controls whose effect reaches
+ * beyond ordinary dashboard administration.
+ *
+ * @returns The owner's DB record, or `null` if a 403 reply was already sent.
+ */
+export async function requireOwner(request: FastifyRequest, reply: FastifyReply): Promise<AdminUser | null> {
+  const caller = await getAdminCaller(request);
+  if (!caller || caller.role !== "owner") {
+    await reply.status(403).send(createApiErrorResponse("MC-AUTH-0002", { overrideMessage: "Owner role required." }));
     return null;
   }
   return caller;

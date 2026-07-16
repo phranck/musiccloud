@@ -21,6 +21,7 @@ import {
   DesignSettingsPage,
   DeveloperAccountsPage,
   DeveloperDetailPage,
+  DeveloperSettingsPage,
   EmailActionsPage,
   EmailBrandingPage,
   EmailTemplateEditPage,
@@ -60,6 +61,7 @@ export const routes = createRoutesFromElements(
 
         <Route element={<RequireOwner />}>
           <Route path="users" element={lazyFallback(<UsersPage />)} />
+          <Route path="developer/settings" element={lazyFallback(<DeveloperSettingsPage />)} />
         </Route>
 
         <Route element={<RequireNonModerator />}>

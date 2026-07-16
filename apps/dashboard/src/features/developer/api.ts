@@ -1,6 +1,21 @@
 import { ENDPOINTS } from "@musiccloud/shared";
 import { api } from "@/lib/api";
 
+export interface DeveloperPortalAvailability {
+  maintenance: boolean;
+  public: boolean;
+}
+
+export function fetchDeveloperPortalAvailability(): Promise<DeveloperPortalAvailability> {
+  return api.get<DeveloperPortalAvailability>(ENDPOINTS.admin.developer.portalAvailability);
+}
+
+export function updateDeveloperPortalAvailability(
+  next: DeveloperPortalAvailability,
+): Promise<DeveloperPortalAvailability> {
+  return api.patch<DeveloperPortalAvailability>(ENDPOINTS.admin.developer.portalAvailability, next);
+}
+
 export interface ApiAccessRequestResponse {
   id: string;
   developerAccountId: string;
