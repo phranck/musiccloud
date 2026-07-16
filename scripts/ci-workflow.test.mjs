@@ -84,6 +84,48 @@ test("does not deploy the dashboard for backend-only or CI-only changes", () => 
   assert.doesNotMatch(dashboardCase, /apps\/backend\/\*|\.github\/workflows\/ci\.yml/);
 });
 
+test("validates only affected workspaces after early path detection", () => {
+  const validationDetectionJob = workflow.slice(
+    workflow.indexOf("  detect-validation-changes:"),
+    workflow.indexOf("  lint:"),
+  );
+  const typecheckJob = workflow.slice(
+    workflow.indexOf("  typecheck:"),
+    workflow.indexOf("  detect-changes:"),
+  );
+
+  assert.match(validationDetectionJob, /if: always\(\)/);
+  assert.match(validationDetectionJob, /github\.event\.pull_request\.base\.sha/);
+  assert.match(validationDetectionJob, /PUSH_BEFORE_SHA: \$\{\{ github\.event\.before \}\}/);
+  assert.match(validationDetectionJob, /shared=true/);
+  assert.match(validationDetectionJob, /dashboard_ui=true/);
+  assert.match(typecheckJob, /needs: detect-validation-changes/);
+  assert.doesNotMatch(typecheckJob, /needs: lint/);
+  assert.match(typecheckJob, /outputs\.backend == 'true'/);
+  assert.match(typecheckJob, /outputs\.frontend == 'true'/);
+  assert.match(typecheckJob, /outputs\.developer == 'true'/);
+  assert.match(typecheckJob, /outputs\.dashboard == 'true'/);
+  assert.match(typecheckJob, /outputs\.dashboard_ui == 'true'/);
+  assert.match(typecheckJob, /node --test scripts\/ci-workflow\.test\.mjs scripts\/zerops-deploy\.test\.mjs scripts\/readme-links\.test\.mjs/);
+  assert.match(typecheckJob, /needs\.detect-validation-changes\.outputs\.shared == 'true'/);
+});
+
+test("restores the pnpm store before every dependency installation", () => {
+  const installJobs = [
+    workflow.slice(workflow.indexOf("  lint:"), workflow.indexOf("  typecheck:")),
+    workflow.slice(workflow.indexOf("  typecheck:"), workflow.indexOf("  detect-changes:")),
+    workflow.slice(workflow.indexOf("  validate-api-sdk-contract:"), workflow.indexOf("  publish-api-sdks:")),
+    workflow.slice(workflow.indexOf("  publish-api-sdks:"), workflow.indexOf("  deploy-backend:")),
+  ];
+
+  for (const job of installJobs) {
+    assert.match(
+      job,
+      /- name: Restore pnpm store[\s\S]*?uses: actions\/cache@v4[\s\S]*?path: ~\/\.local\/share\/pnpm\/store[\s\S]*?pnpm install --frozen-lockfile/,
+    );
+  }
+});
+
 test("keeps CI independent from the removed project-local app runner", async () => {
   const typecheckJob = workflow.slice(
     workflow.indexOf("  typecheck:"),
@@ -92,7 +134,7 @@ test("keeps CI independent from the removed project-local app runner", async () 
 
   assert.match(
     typecheckJob,
-    /- name: Workflow and deployment contracts[\s\S]*?node --test scripts\/ci-workflow\.test\.mjs scripts\/zerops-deploy\.test\.mjs[\s\S]*?- name: Workspace tests[\s\S]*?pnpm -r --if-present test:run/,
+    /- name: Workflow and deployment contracts[\s\S]*?node --test scripts\/ci-workflow\.test\.mjs scripts\/zerops-deploy\.test\.mjs scripts\/readme-links\.test\.mjs/,
   );
   assert.doesNotMatch(typecheckJob, /\bapp(?:\.test\.mjs)?\b/);
   await assert.rejects(access(new URL("../app", import.meta.url)));

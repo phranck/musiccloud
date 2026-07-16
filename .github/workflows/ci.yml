@@ -21,6 +21,107 @@ permissions:
   contents: read
 
 jobs:
+  detect-validation-changes:
+    name: Detect Validation Changes
+    runs-on: ubuntu-latest
+    if: always()
+    outputs:
+      shared: ${{ steps.filter.outputs.shared }}
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      developer: ${{ steps.filter.outputs.developer }}
+      dashboard: ${{ steps.filter.outputs.dashboard }}
+      dashboard_ui: ${{ steps.filter.outputs.dashboard_ui }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Detect changed validation paths
+        id: filter
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.sha }}
+          PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          head_sha="$HEAD_SHA"
+          base_sha="$PULL_REQUEST_BASE_SHA"
+          if [[ -z "$base_sha" ]]; then
+            base_sha="$PUSH_BEFORE_SHA"
+          fi
+
+          use_full_tree=false
+          if [[ -z "$base_sha" || "$base_sha" == "0000000000000000000000000000000000000000" ]]; then
+            use_full_tree=true
+          elif ! git cat-file -e "${base_sha}^{commit}" 2>/dev/null; then
+            use_full_tree=true
+          fi
+
+          if [[ "$use_full_tree" == true ]]; then
+            mapfile -t changed_files < <(git ls-tree -r --name-only "$head_sha")
+          else
+            mapfile -t changed_files < <(git diff --name-only "$base_sha" "$head_sha")
+          fi
+
+          all=false
+          shared=false
+          backend=false
+          frontend=false
+          developer=false
+          dashboard=false
+          dashboard_ui=false
+
+          for file in "${changed_files[@]}"; do
+            case "$file" in
+              .github/workflows/ci.yml|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|tsconfig*.json)
+                all=true ;;
+              packages/shared/*)
+                shared=true
+                backend=true
+                frontend=true
+                developer=true
+                dashboard=true ;;
+              apps/backend/*)
+                backend=true
+                developer=true ;;
+              apps/frontend/*)
+                frontend=true ;;
+              apps/developer/*)
+                developer=true ;;
+              apps/dashboard/*)
+                dashboard=true ;;
+              packages/dashboard-ui/*)
+                dashboard_ui=true
+                dashboard=true ;;
+            esac
+          done
+
+          if [[ "$all" == true ]]; then
+            shared=true
+            backend=true
+            frontend=true
+            developer=true
+            dashboard=true
+            dashboard_ui=true
+          fi
+
+          # Every application that imports @musiccloud/shared needs its current
+          # declaration output before TypeScript or Astro resolves it.
+          if [[ "$backend" == true || "$frontend" == true || "$developer" == true || "$dashboard" == true ]]; then
+            shared=true
+          fi
+
+          {
+            echo "shared=$shared"
+            echo "backend=$backend"
+            echo "frontend=$frontend"
+            echo "developer=$developer"
+            echo "dashboard=$dashboard"
+            echo "dashboard_ui=$dashboard_ui"
+          } >> "$GITHUB_OUTPUT"
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -32,13 +133,19 @@ jobs:
           package-manager-cache: false
       - run: corepack enable pnpm
       - run: corepack prepare pnpm@10.33.1 --activate
+      - name: Restore pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
 
   typecheck:
-    name: Typecheck
+    name: Validate affected workspaces
     runs-on: ubuntu-latest
-    needs: lint
+    needs: detect-validation-changes
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -47,25 +154,56 @@ jobs:
           package-manager-cache: false
       - run: corepack enable pnpm
       - run: corepack prepare pnpm@10.33.1 --activate
+      - name: Restore pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @musiccloud/shared build
+      - name: Build shared package
+        if: needs.detect-validation-changes.outputs.shared == 'true'
+        run: pnpm --filter @musiccloud/shared build
       - name: Shared
+        if: needs.detect-validation-changes.outputs.shared == 'true'
         run: pnpm exec tsc --noEmit --project packages/shared/tsconfig.json
       - name: Backend
+        if: needs.detect-validation-changes.outputs.backend == 'true'
         run: pnpm exec tsc --noEmit --project apps/backend/tsconfig.json
       - name: Frontend
+        if: needs.detect-validation-changes.outputs.frontend == 'true'
         run: pnpm --filter @musiccloud/frontend check
+      - name: Developer
+        if: needs.detect-validation-changes.outputs.developer == 'true'
+        run: pnpm --filter @musiccloud/developer typecheck
+      - name: Dashboard UI
+        if: needs.detect-validation-changes.outputs.dashboard_ui == 'true'
+        run: pnpm --filter @musiccloud/dashboard-ui typecheck
       - name: Dashboard
-        run: pnpm exec tsc --noEmit --project apps/dashboard/tsconfig.json
+        if: needs.detect-validation-changes.outputs.dashboard == 'true'
+        run: pnpm --filter @musiccloud/dashboard typecheck
       - name: Workflow and deployment contracts
         run: node --test scripts/ci-workflow.test.mjs scripts/zerops-deploy.test.mjs scripts/readme-links.test.mjs
-      - name: Workspace tests
-        run: pnpm -r --if-present test:run
+      - name: Shared tests
+        if: needs.detect-validation-changes.outputs.shared == 'true'
+        run: pnpm --filter @musiccloud/shared test:run
+      - name: Backend tests
+        if: needs.detect-validation-changes.outputs.backend == 'true'
+        run: pnpm --filter @musiccloud/backend test:run
+      - name: Frontend tests
+        if: needs.detect-validation-changes.outputs.frontend == 'true'
+        run: pnpm --filter @musiccloud/frontend test:run
+      - name: Developer tests
+        if: needs.detect-validation-changes.outputs.developer == 'true'
+        run: pnpm --filter @musiccloud/developer test:run
+      - name: Dashboard tests
+        if: needs.detect-validation-changes.outputs.dashboard == 'true'
+        run: pnpm --filter @musiccloud/dashboard test:run
 
   detect-changes:
     name: Detect Changes
     runs-on: ubuntu-latest
-    needs: typecheck
+    needs: [lint, typecheck]
     if: github.event_name == 'push'
     # `contents: read` for the checkout, `actions: read` so `gh run list` can
     # look up the last successful run of this workflow (the diff base below).
@@ -174,7 +312,7 @@ jobs:
   validate-api-sdk-contract:
     name: Validate API SDK Contract
     runs-on: ubuntu-latest
-    needs: typecheck
+    needs: [lint, typecheck]
     if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v5
@@ -209,6 +347,13 @@ jobs:
         run: |
           corepack enable pnpm
           corepack prepare pnpm@10.33.1 --activate
+      - name: Restore pnpm store
+        if: steps.api_sdk_changes.outputs.should_run == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
       - name: Install dependencies
         if: steps.api_sdk_changes.outputs.should_run == 'true'
         run: pnpm install --frozen-lockfile
@@ -250,6 +395,12 @@ jobs:
         run: |
           corepack enable pnpm
           corepack prepare pnpm@10.33.1 --activate
+      - name: Restore pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build shared package
