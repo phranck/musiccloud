@@ -4,6 +4,32 @@ import test from "node:test";
 
 const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
 
+test("uses read-only GITHUB_TOKEN permissions with two scoped job exceptions", () => {
+  const workflowPrelude = workflow.slice(0, workflow.indexOf("\njobs:\n"));
+  const detectChangesJob = workflow.slice(
+    workflow.indexOf("  detect-changes:"),
+    workflow.indexOf("  validate-api-sdk-contract:"),
+  );
+  const publishJob = workflow.slice(
+    workflow.indexOf("  publish-api-sdks:"),
+    workflow.indexOf("  deploy-backend:"),
+  );
+  const deployJobs = workflow.slice(workflow.indexOf("  deploy-backend:"));
+  const jobLevelPermissionBlocks = workflow.match(/^    permissions:\n(?:^      [a-z-]+: (?:read|write)\n?)+/gm) ?? [];
+  const contentsWritePermissions = workflow.match(/^\s+contents: write$/gm) ?? [];
+
+  assert.match(workflowPrelude, /\npermissions:\n  contents: read\n$/);
+  assert.equal(jobLevelPermissionBlocks.length, 2);
+  assert.match(detectChangesJob, /permissions:\n      contents: read\n      actions: read\n/);
+  assert.doesNotMatch(detectChangesJob, /^      [a-z-]+: write$/m);
+  assert.match(publishJob, /permissions:\n      contents: write\n    outputs:/);
+  assert.equal(contentsWritePermissions.length, 1);
+  assert.doesNotMatch(deployJobs, /^    permissions:/m);
+  assert.doesNotMatch(deployJobs, /\$\{\{ github\.token \}\}/);
+  assert.match(deployJobs, /STATUS_TOKEN: \$\{\{ secrets\.STATUS_DISPATCH_TOKEN \}\}/);
+  assert.match(deployJobs, /ZEROPS_TOKEN: \$\{\{ secrets\.ZEROPS_TOKEN \}\}/);
+});
+
 test("builds the shared package before every CI OpenAPI export", () => {
   const validationJob = workflow.slice(
     workflow.indexOf("  validate-api-sdk-contract:"),
