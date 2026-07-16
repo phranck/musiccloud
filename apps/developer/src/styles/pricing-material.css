@@ -54,6 +54,10 @@
     gap: var(--mc-space-3);
   }
 
+  .pricing-commitment-icon {
+    --mc-size-text-icon: var(--mc-size-icon-lg);
+  }
+
   .pricing-commitment-copy,
   .pricing-commitment-title,
   .pricing-commitment-body {
