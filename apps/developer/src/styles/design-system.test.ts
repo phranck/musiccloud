@@ -47,11 +47,22 @@ describe("developer design system", () => {
     expect(fallback).not.toContain("--sky-top:");
   });
 
-  it("uses compact 10px padding for ContentCard bodies and headers", () => {
+  it("keeps compact ContentCard block padding while insetting inline content by the inner card radius", () => {
     const theme = readDeveloperFile("public/developer-theme.css");
+    const docs = readDeveloperFile("src/styles/docs.css");
 
     expect(theme).toContain("--mc-space-content-card: 0.625rem;");
     expect(theme).toContain("--mc-space-content-card-header: 0.625rem;");
+    expect(docs).toContain("--mc-docs-content-card-copy-inset: calc(var(--mc-docs-content-card-radius) / 2);");
+    expect(docs).toMatch(
+      /--mc-docs-content-card-padding-inline:\s*calc\(\s*var\(--space-content-card\) \+ var\(--mc-docs-content-card-copy-inset\)\s*\);/,
+    );
+    expect(docs).toMatch(
+      /\.content-card__header,[\s\S]*?\.content-card__footer\s*\{[^}]*padding:\s*var\(--space-content-card-header\) var\(--mc-docs-content-card-padding-inline\);/,
+    );
+    expect(docs).toMatch(
+      /\.content-card__body\s*\{[^}]*padding:\s*var\(--space-content-card\) var\(--mc-docs-content-card-padding-inline\);/s,
+    );
   });
 
   it("uses the 16px portal card radius and keeps API cards cascade-safe", () => {
@@ -242,6 +253,9 @@ describe("developer design system", () => {
     expect(components).toMatch(
       /\.card-content-inset,[\s\S]*\.page-heading\s*\{[^}]*padding-inline:\s*var\(--mc-card-content-inset\);/s,
     );
+    expect(components).toMatch(
+      /\.public-header\s*\{[^}]*--mc-public-header-card-content-inset:\s*calc\(var\(--radius-card\) \/ 2\);[^}]*--mc-public-header-padding-inline:\s*calc\(\s*var\(--mc-space-page-inline\) \+ var\(--mc-public-header-card-content-inset\)\s*\);[^}]*padding:\s*var\(--mc-space-5\) var\(--mc-public-header-padding-inline\);/s,
+    );
     expect(docs).toContain("--mc-card-content-inset: calc(var(--mc-docs-content-card-radius) / 2);");
     expect(docs).toMatch(/\.api-content__chapter-header\s*\{[^}]*padding-inline:\s*var\(--mc-card-content-inset\);/s);
     expect(home).toMatch(/<h1 class="[^"]*card-content-inset[^"]*"/);
@@ -289,6 +303,16 @@ describe("developer design system", () => {
       /\.button\s*\{[^}]*min-height:\s*var\(--button-min-height, var\(--mc-size-control\)\);/s,
     );
     expect(docs).toMatch(/\.content-card__footer\s*\{[^}]*--button-min-height:\s*var\(--mc-size-control-compact\);/s);
+  });
+
+  it("keeps every Developer Portal button label at regular weight", () => {
+    const components = readDeveloperFile("src/styles/components.css");
+    const pricing = readDeveloperFile("src/pages/pricing.astro");
+
+    expect(components).toMatch(/\.button\s*\{[^}]*font-family:\s*var\(--font-sans\);/s);
+    expect(components).toMatch(/\.button\s*\{[^}]*font-weight:\s*400;/s);
+    expect(pricing).not.toMatch(/<button[^>]*class="[^"]*font-(?:medium|semibold|bold)[^"]*"/);
+    expect(pricing).not.toMatch(/class="tier-cta[^"]*font-(?:medium|semibold|bold)[^"]*"/);
   });
 
   it("keeps required parameter badges in a dedicated trailing header column", () => {

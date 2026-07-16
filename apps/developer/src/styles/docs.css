@@ -29,6 +29,13 @@
     --mc-docs-markdown-flow-gap: 0.875rem;
     --mc-docs-inline-code-scale: 0.9em;
     --mc-docs-content-card-radius: var(--radius-card);
+    /* Keep compact vertical card rhythm while aligning all ContentCard copy
+       with the tangent point of its own corners. SegmentedCard composes
+       ContentCard, so its headers, panels, and footer inherit this once. */
+    --mc-docs-content-card-copy-inset: calc(var(--mc-docs-content-card-radius) / 2);
+    --mc-docs-content-card-padding-inline: calc(
+      var(--space-content-card) + var(--mc-docs-content-card-copy-inset)
+    );
     --mc-docs-content-panel-inset: var(--mc-space-1);
     --mc-docs-content-panel-radius: max(
       0px,
@@ -267,7 +274,7 @@
     align-items: center;
     gap: var(--space-content-card-row);
     min-height: var(--mc-docs-header-min-height);
-    padding: var(--space-content-card-header) var(--space-content-card);
+    padding: var(--space-content-card-header) var(--mc-docs-content-card-padding-inline);
     background: var(--mc-docs-card-chrome);
   }
 
@@ -295,7 +302,7 @@
   }
 
   .content-card__body {
-    padding: var(--space-content-card);
+    padding: var(--space-content-card) var(--mc-docs-content-card-padding-inline);
   }
 
   .content-card__body-intro,
@@ -941,7 +948,7 @@
     .content-card__header,
     .content-card__body,
     .content-card__footer {
-      padding-inline: var(--space-content-card-header);
+      padding-inline: var(--mc-docs-content-card-padding-inline);
     }
 
     .integration-panel-grid,
