@@ -14,6 +14,12 @@ concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Every job starts with checkout-only repository access. The job-level blocks
+# below replace this baseline only for Actions metadata lookup or SDK release
+# publication.
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: Lint
@@ -170,8 +176,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: typecheck
     if: github.event_name == 'pull_request'
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v5
         with:
@@ -225,6 +229,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: detect-changes
     if: needs.detect-changes.outputs.api_sdk == 'true'
+    # Creating or reusing the immutable SDK release is the workflow's only
+    # repository mutation, so this is the sole `contents: write` exception.
     permissions:
       contents: write
     outputs:
@@ -327,6 +333,9 @@ jobs:
             --title "musiccloud API SDKs v$API_VERSION" \
             --notes "Generated from public OpenAPI $API_VERSION ($OPENAPI_SHA256)."
 
+  # All deploy jobs inherit `contents: read`. Zerops mutations and status
+  # dispatches authenticate only through their explicit ZEROPS_TOKEN and
+  # fine-grained STATUS_DISPATCH_TOKEN secrets, never an elevated GITHUB_TOKEN.
   deploy-backend:
     name: Deploy Backend
     runs-on: ubuntu-latest
