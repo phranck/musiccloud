@@ -26,7 +26,7 @@
     --mc-docs-space-md: 0.625rem;
     --mc-docs-markdown-flow-gap: 0.875rem;
     --mc-docs-inline-code-scale: 0.9em;
-    --mc-docs-content-card-radius: calc(var(--radius-card) + var(--mc-space-1));
+    --mc-docs-content-card-radius: var(--radius-card);
     --mc-docs-content-panel-inset: var(--mc-space-1);
     --mc-docs-content-panel-radius: max(
       0px,
@@ -251,7 +251,7 @@
 
   /* ContentCard is the API reference's outer radius. Every recessed surface
      below it derives from this token, preserving concentric card geometry. */
-  .content-card {
+  .surface-card.content-card {
     overflow: hidden;
     border: 1px solid var(--color-border);
     border-radius: var(--mc-docs-content-card-radius);
@@ -321,7 +321,7 @@
 
   .content-card__section-header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: var(--mc-space-2);
     min-width: 0;
     color: var(--color-fg);
@@ -757,7 +757,7 @@
   .parameter-card__header {
     display: grid;
     grid-template-columns: max-content max-content minmax(0, 1fr) max-content;
-    align-items: center;
+    align-items: start;
     gap: var(--mc-space-2);
     padding: var(--space-content-card-row);
     background: var(--color-code-bg);
