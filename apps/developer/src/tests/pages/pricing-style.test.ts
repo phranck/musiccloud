@@ -54,6 +54,15 @@ describe("pricing material ownership", () => {
     expect(page).toContain('<span class="pricing-commitment-body">{commitment.body}</span>');
   });
 
+  it("keeps commitment markers large and optically centered", () => {
+    const page = readFileSync(pricingPagePath, "utf8");
+    const css = readFileSync(pricingCssPath, "utf8");
+
+    expect(page).toContain('class="icon-text-first-line__icon pricing-commitment-icon"');
+    expect(css).toMatch(/\.pricing-commitment-icon\s*\{[^}]*--mc-size-text-icon:\s*var\(--mc-size-icon-lg\);/s);
+    expect(css).toMatch(/\.pricing-commitment-icon\s*\{[^}]*transform:\s*translateY\(1px\);/s);
+  });
+
   it("accepts only six- or eight-digit tier hex colors", async () => {
     expect(existsSync(tierColorPath)).toBe(true);
     if (!existsSync(tierColorPath)) return;
