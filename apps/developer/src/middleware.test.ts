@@ -65,7 +65,7 @@ describe("Developer Portal availability middleware", () => {
   it("keeps the API reference and its required assets reachable in every portal state", async () => {
     mocks.getPortalAvailability.mockResolvedValue({ public: false, maintenance: true });
 
-    for (const pathname of ["/docs/api", "/_astro/docs.js", "/developer-theme.css", "/favicon.svg"]) {
+    for (const pathname of ["/docs/api", "/docs/api/", "/_astro/docs.js", "/developer-theme.css", "/favicon.svg"]) {
       const { next, response } = await request(pathname);
       expect(next).toHaveBeenCalledOnce();
       expect(response.status).toBe(200);

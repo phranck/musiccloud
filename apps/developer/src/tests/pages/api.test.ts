@@ -17,6 +17,15 @@ function readFixture(name: string): unknown {
 }
 
 describe("/docs/api content", () => {
+  it("pre-renders the API reference without a request-time session lookup", () => {
+    const page = readFileSync(join(rootDir, "pages/docs/api.astro"), "utf8");
+
+    expect(page).toContain("export const prerender = true;");
+    expect(page).not.toContain('import { getDeveloperSession } from "@/lib/session";');
+    expect(page).not.toContain("getDeveloperSession(Astro)");
+    expect(page).toContain('<PublicHeader account={null} active="api" />');
+  });
+
   it("renders generated endpoint, schema, manifest, auth, and SDK facts", async () => {
     const reference = buildApiReference(readFixture("public-openapi.json"));
     const catalog = parseSdkCatalog(readFixture("sdk-catalog.json"), {

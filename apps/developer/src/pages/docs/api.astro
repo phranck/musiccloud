@@ -1,4 +1,6 @@
 ---
+export const prerender = true;
+
 import PublicHeader from "@/components/PublicHeader.astro";
 import ApiReferenceContent from "@/components/docs/ApiReferenceContent.astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
@@ -8,10 +10,8 @@ import openApiMetadata from "@/generated/openapi.metadata.json";
 import sdkCatalogJson from "@/generated/sdk-catalog.json";
 import { buildApiReference } from "@/lib/openapi-reference";
 import { parseSdkCatalog } from "@/lib/sdk-catalog";
-import { getDeveloperSession } from "@/lib/session";
 import "../../styles/docs.css";
 
-const account = await getDeveloperSession(Astro);
 const reference = buildApiReference(openApiDocument);
 const catalog = parseSdkCatalog(sdkCatalogJson, {
   version: openApiMetadata.version,
@@ -28,7 +28,7 @@ const catalog = parseSdkCatalog(sdkCatalogJson, {
   title="API reference · musiccloud for developers"
   description="The musiccloud API at a glance: base URL, API-key authentication, and JSON responses."
 >
-  <PublicHeader account={account} active="api" />
+  <PublicHeader account={null} active="api" />
 
   <main class="developer-shell developer-page flex-1">
     <ApiReferenceContent reference={reference} catalog={catalog} />
