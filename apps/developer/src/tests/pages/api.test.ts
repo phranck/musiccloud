@@ -29,8 +29,8 @@ describe("/docs/api content", () => {
   it("renders generated endpoint, schema, manifest, auth, and SDK facts", async () => {
     const reference = buildApiReference(readFixture("public-openapi.json"));
     const catalog = parseSdkCatalog(readFixture("sdk-catalog.json"), {
-      version: "2.1.4",
-      sha256: "9976d8dbfb21e7c3178e2ac4d249fdbef5d174cdad20c07aaaea0f4ae4f15939",
+      version: "2.1.5",
+      sha256: "62c930477b631bbf1017e81895cb8ca64130f089041adc9e88f608271d6d710b",
     });
     const container = await AstroContainer.create({ renderers: await loadRenderers([getContainerRenderer()]) });
 
@@ -159,8 +159,8 @@ describe("/docs/api content", () => {
     };
     const reference = buildApiReference(fixture);
     const catalog = parseSdkCatalog(readFixture("sdk-catalog.json"), {
-      version: "2.1.4",
-      sha256: "9976d8dbfb21e7c3178e2ac4d249fdbef5d174cdad20c07aaaea0f4ae4f15939",
+      version: "2.1.5",
+      sha256: "62c930477b631bbf1017e81895cb8ca64130f089041adc9e88f608271d6d710b",
     });
     const container = await AstroContainer.create({ renderers: await loadRenderers([getContainerRenderer()]) });
 

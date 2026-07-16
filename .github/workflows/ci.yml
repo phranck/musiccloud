@@ -175,7 +175,7 @@ jobs:
         run: pnpm --filter @musiccloud/frontend check
       - name: Generate developer API reference
         if: needs.detect-validation-changes.outputs.developer == 'true'
-        run: pnpm --filter @musiccloud/developer run prebuild
+        run: SDK_CATALOG_FILE=${{ github.workspace }}/apps/developer/src/lib/__fixtures__/sdk-catalog.json pnpm --filter @musiccloud/developer run prebuild
       - name: Developer
         if: needs.detect-validation-changes.outputs.developer == 'true'
         run: pnpm --filter @musiccloud/developer typecheck

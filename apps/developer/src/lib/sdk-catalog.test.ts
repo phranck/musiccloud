@@ -6,8 +6,8 @@ import { parseSdkCatalog } from "./sdk-catalog";
 
 const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), "__fixtures__");
 const contract = {
-  version: "2.1.4",
-  sha256: "9976d8dbfb21e7c3178e2ac4d249fdbef5d174cdad20c07aaaea0f4ae4f15939",
+  version: "2.1.5",
+  sha256: "62c930477b631bbf1017e81895cb8ca64130f089041adc9e88f608271d6d710b",
 };
 
 function readCatalog(): Record<string, unknown> {
@@ -18,7 +18,7 @@ describe("parseSdkCatalog", () => {
   it("accepts the explicit release catalog shape", () => {
     const catalog = parseSdkCatalog(readCatalog(), contract);
 
-    expect(catalog.apiVersion).toBe("2.1.4");
+    expect(catalog.apiVersion).toBe("2.1.5");
     expect(catalog.generatorVersion).toBe("7.22.0");
     expect(catalog.assets.map((asset) => asset.language)).toEqual(["typescript", "python", "swift"]);
     expect(catalog.assets.find((asset) => asset.language === "swift")?.generator).toBe("swift6");
@@ -70,7 +70,7 @@ describe("parseSdkCatalog", () => {
 
   it("rejects untrusted release URLs", () => {
     const catalog = readCatalog() as { assets: Array<Record<string, unknown>> };
-    catalog.assets[0]!.archiveUrl = "https://example.com/musiccloud-typescript-sdk-2.1.4.zip";
+    catalog.assets[0]!.archiveUrl = "https://example.com/musiccloud-typescript-sdk-2.1.5.zip";
 
     expect(() => parseSdkCatalog(catalog, contract)).toThrow("release URL");
   });
