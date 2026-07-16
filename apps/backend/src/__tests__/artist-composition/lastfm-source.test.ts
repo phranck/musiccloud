@@ -86,7 +86,7 @@ describe("fetchLastFmArtistPartial", () => {
       popularity: 1234567,
       followers: 1234567,
       scrobbles: 987654321,
-      bioSummary: "Test bio",
+      bioSummary: "Test bio read more",
       similarArtists: ["My Bloody Valentine", "Ride"],
       topTracks: [{ title: "Alison", artists: ["Slowdive"] }],
     });
