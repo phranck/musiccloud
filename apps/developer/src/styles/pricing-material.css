@@ -417,7 +417,7 @@
   }
 
   .tier-icon {
-    color: var(--tier);
+    color: var(--color-on-accent);
   }
 
   .tier-fallback-letter {
