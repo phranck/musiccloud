@@ -1189,7 +1189,7 @@
   [data-api-nav-link][aria-current="true"]:hover {
     color: var(--mc-docs-nav-active-color);
     background: var(--color-surface);
-    font-weight: 600;
+    font-weight: 400;
     text-decoration: none;
   }
 
@@ -1269,11 +1269,11 @@
     max-height: calc(100dvh - var(--mc-docs-search-dialog-top) - var(--mc-docs-search-dialog-viewport-gap));
     margin: 0 auto;
     overflow: hidden;
-    border: 1px solid var(--color-border-strong);
+    border: 1px solid var(--color-border);
     border-radius: var(--radius-card);
     padding: 0;
     color: var(--color-fg);
-    background: var(--color-surface-solid);
+    background: var(--color-surface);
     box-shadow: 0 var(--mc-space-5) var(--mc-space-8) color-mix(in srgb, var(--color-sky-top) 72%, transparent);
   }
 
@@ -1391,6 +1391,7 @@
     flex: 1;
     flex-direction: column;
     overflow: hidden;
+    background: var(--color-surface);
   }
 
   .search-dialog__results {

@@ -72,4 +72,21 @@ describe("SearchDialog", () => {
       /\.search-dialog__header-search-input::-webkit-search-cancel-button\s*\{[^}]*display:\s*none;/s,
     );
   });
+
+  it("uses the ContentCard palette for its border and three surface layers", () => {
+    const css = readFileSync(join(import.meta.dirname, "../../styles/docs.css"), "utf8");
+
+    expect(css).toMatch(
+      /\.search-dialog\.surface-card\s*\{[^}]*border:\s*1px solid var\(--color-border\);[^}]*background:\s*var\(--color-surface\);/s,
+    );
+    expect(css).toMatch(
+      /\.search-dialog__body\s*\{[^}]*background:\s*var\(--color-surface\);/s,
+    );
+    expect(css).toMatch(
+      /\.search-dialog__header\s*\{[^}]*border-bottom:\s*1px solid var\(--color-border\);[^}]*background:\s*var\(--mc-docs-card-chrome\);/s,
+    );
+    expect(css).toMatch(
+      /\.search-dialog__footer\s*\{[^}]*border-top:\s*1px solid var\(--color-border\);[^}]*background:\s*var\(--mc-docs-card-chrome\);/s,
+    );
+  });
 });

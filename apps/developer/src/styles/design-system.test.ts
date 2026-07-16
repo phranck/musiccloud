@@ -117,9 +117,16 @@ describe("developer design system", () => {
     const components = readDeveloperFile("src/styles/components.css");
     const header = readDeveloperFile("src/components/PublicHeader.astro");
     const search = readDeveloperFile("src/components/docs/ApiDocumentSearch.tsx");
+    const theme = readDeveloperFile("public/developer-theme.css");
+    const tokens = readDeveloperFile("src/styles/tokens.css");
 
+    expect(theme).toContain("--mc-radius-keycap: 0.3125rem;");
+    expect(tokens).toContain("--radius-keycap: var(--mc-radius-keycap);");
     expect(components).toMatch(
-      /\.keycap__key\s*\{[^}]*aspect-ratio:\s*1;[^}]*background:\s*var\(--color-surface-raised\);/s,
+      /\.keycap\s*\{[^}]*--mc-keycap-size:\s*calc\(1em \+ var\(--mc-space-1\)\);[^}]*--mc-keycap-radius:\s*var\(--radius-keycap\);[^}]*--mc-keycap-surface:\s*color-mix\(in srgb, var\(--color-surface-raised\) 92%, var\(--color-fg\) 8%\);[^}]*color:\s*var\(--color-fg-muted\);/s,
+    );
+    expect(components).toMatch(
+      /\.keycap__key\s*\{[^}]*aspect-ratio:\s*1;[^}]*border:\s*0;[^}]*border-radius:\s*var\(--mc-keycap-radius\);[^}]*background:\s*var\(--mc-keycap-surface\);/s,
     );
     expect(header).toContain('<KeyCap shortcut={PUBLIC_SEARCH_COMMAND.shortcut} />');
     expect(search).toContain('<KeyCap shortcut="Esc" />');
@@ -391,6 +398,14 @@ describe("developer design system", () => {
     expect(components).toMatch(/\.button\s*\{[^}]*font-weight:\s*400;/s);
     expect(pricing).not.toMatch(/<button[^>]*class="[^"]*font-(?:medium|semibold|bold)[^"]*"/);
     expect(pricing).not.toMatch(/class="tier-cta[^"]*font-(?:medium|semibold|bold)[^"]*"/);
+  });
+
+  it("keeps the selected API sidebar item at regular weight", () => {
+    const docs = readDeveloperFile("src/styles/docs.css");
+
+    expect(docs).toMatch(
+      /\[data-api-nav-link\]\[aria-current="true"\],[\s\S]*?\[data-api-nav-link\]\[aria-current="true"\]:hover\s*\{[^}]*font-weight:\s*400;/s,
+    );
   });
 
   it("keeps required parameter badges in a dedicated trailing header column", () => {

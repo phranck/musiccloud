@@ -434,7 +434,7 @@ describe("/docs/api content", () => {
     expect(css).not.toMatch(/\.schema-card__field\[data-depth="1"\][\s\S]*background-image:/);
   });
 
-  it("uses the dedicated lighter token for active sidebar entries", () => {
+  it("uses the dedicated lighter color at regular weight for active sidebar entries", () => {
     const css = readFileSync(join(rootDir, "styles/docs.css"), "utf8");
     const theme = readFileSync(join(rootDir, "../public/developer-theme.css"), "utf8");
 
@@ -444,7 +444,7 @@ describe("/docs/api content", () => {
       /\[data-api-nav-link\]\[aria-current="true"\][\s\S]*color:\s*var\(--mc-docs-nav-active-color\);/,
     );
     expect(css).toMatch(
-      /\[data-api-nav-link\]\[aria-current="true"\],[\s\S]*?\[data-api-nav-link\]\[aria-current="true"\]:hover\s*\{[^}]*font-weight:\s*600;/,
+      /\[data-api-nav-link\]\[aria-current="true"\],[\s\S]*?\[data-api-nav-link\]\[aria-current="true"\]:hover\s*\{[^}]*font-weight:\s*400;/,
     );
   });
 
