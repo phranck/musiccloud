@@ -3,10 +3,13 @@ import { defineMiddleware } from "astro:middleware";
 import { PortalGateMode, renderPortalGateHtml } from "./lib/coming-soon";
 import { getPortalAvailability } from "./lib/portal-availability";
 
-const ALWAYS_REACHABLE_PATHS = new Set(["/docs/api", "/developer-theme.css", "/favicon.svg"]);
+const API_REFERENCE_PATH = "/docs/api";
+const ALWAYS_REACHABLE_PATHS = new Set([API_REFERENCE_PATH, "/developer-theme.css", "/favicon.svg"]);
 
 function isAlwaysReachable(pathname: string): boolean {
-  return ALWAYS_REACHABLE_PATHS.has(pathname) || pathname.startsWith("/_astro/");
+  return (
+    ALWAYS_REACHABLE_PATHS.has(pathname) || pathname === `${API_REFERENCE_PATH}/` || pathname.startsWith("/_astro/")
+  );
 }
 
 /**
