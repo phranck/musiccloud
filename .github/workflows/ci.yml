@@ -173,6 +173,9 @@ jobs:
       - name: Frontend
         if: needs.detect-validation-changes.outputs.frontend == 'true'
         run: pnpm --filter @musiccloud/frontend check
+      - name: Generate developer API reference
+        if: needs.detect-validation-changes.outputs.developer == 'true'
+        run: pnpm --filter @musiccloud/developer run prebuild
       - name: Developer
         if: needs.detect-validation-changes.outputs.developer == 'true'
         run: pnpm --filter @musiccloud/developer typecheck

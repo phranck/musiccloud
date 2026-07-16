@@ -104,6 +104,10 @@ test("validates only affected workspaces after early path detection", () => {
   assert.match(typecheckJob, /outputs\.backend == 'true'/);
   assert.match(typecheckJob, /outputs\.frontend == 'true'/);
   assert.match(typecheckJob, /outputs\.developer == 'true'/);
+  assert.match(
+    typecheckJob,
+    /- name: Generate developer API reference[\s\S]*?pnpm --filter @musiccloud\/developer run prebuild[\s\S]*?- name: Developer[\s\S]*?pnpm --filter @musiccloud\/developer typecheck/,
+  );
   assert.match(typecheckJob, /outputs\.dashboard == 'true'/);
   assert.match(typecheckJob, /outputs\.dashboard_ui == 'true'/);
   assert.match(typecheckJob, /node --test scripts\/ci-workflow\.test\.mjs scripts\/zerops-deploy\.test\.mjs scripts\/readme-links\.test\.mjs/);
