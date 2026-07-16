@@ -130,7 +130,7 @@ async function buildApp(): Promise<FastifyInstance> {
   await app.register(jwt, { secret: "test-auth-plugin-secret" });
   await app.register(cookie);
   await app.register(authPlugin);
-  for (const $id of ["ErrorResponse", "Track", "PlatformLink"]) {
+  for (const $id of ["ErrorResponse", "Track", "PlatformLink", "LinkMetadataResponse"]) {
     app.addSchema({ $id, type: "object", additionalProperties: true });
   }
   await app.register(async function protectedRoutes(scope) {

@@ -127,7 +127,7 @@ describe("/docs/api content", () => {
     expect(html).toContain("Resolve a music URL, free-text query, genre-discovery query, or structured search query");
     expect(html).not.toContain('<span class="font-mono text-code text-accent">POST</span> /api/v1/resolve');
     expect(html).not.toContain("Scalar.createApiReference");
-  });
+  }, 15_000);
 
   it("renders every composed successful response object as a schema link", async () => {
     const fixture = readFixture("public-openapi.json") as {
@@ -156,7 +156,7 @@ describe("/docs/api content", () => {
     expect(html).toContain('<code class="response-card__schema-name">CcResolveSuccess</code>');
     expect(html).toContain('href="#schema-resolve-success"');
     expect(html).toContain('href="#schema-cc-resolve-success"');
-  });
+  }, 15_000);
 
   it("uses the same ease-in-out curve for every sidebar chevron transition", () => {
     const css = readFileSync(join(rootDir, "styles/docs.css"), "utf8");

@@ -131,14 +131,12 @@ describe("runCcGenreSearch", () => {
         title: "Album One",
         artists: ["Artist One"],
         artworkUrl: "https://usercontent.jamendo.com/a.jpg",
-        webUrl: "",
       },
       {
         id: "jamendo-album:al2",
         title: "Album Two",
         artists: ["Artist Two"],
         artworkUrl: "https://usercontent.jamendo.com/a.jpg",
-        webUrl: "",
       },
     ]);
 
