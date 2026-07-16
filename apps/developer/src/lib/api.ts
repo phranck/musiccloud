@@ -19,14 +19,14 @@
  */
 
 /**
- * Backend base URL, resolved once at module load.
+ * Backend base URL, resolved only when a backend call is requested.
  *
  * Reads `import.meta.env.BACKEND_URL` first (baked at build time / present in
  * dev), then falls back to `process.env.BACKEND_URL` (runtime container env).
- * Throws if neither is set so a misconfigured deployment fails fast rather than
- * silently proxying to nowhere.
+ * Deferring the check keeps statically prerendered public routes independent of
+ * runtime-only container environment variables.
  */
-const BACKEND_URL: string = (() => {
+function backendBaseUrl(): string {
   const value = (import.meta.env.BACKEND_URL as string | undefined)?.trim() || process.env.BACKEND_URL?.trim();
   if (!value) {
     throw new Error(
@@ -34,7 +34,7 @@ const BACKEND_URL: string = (() => {
     );
   }
   return value;
-})();
+}
 
 /**
  * Shared secret for the backend's internal API surface. Empty when unset, in
@@ -52,7 +52,7 @@ export const INTERNAL_API_KEY: string =
  * @returns The fully qualified backend URL.
  */
 export function backendUrl(path: string): string {
-  return `${BACKEND_URL}${path}`;
+  return `${backendBaseUrl()}${path}`;
 }
 
 /**
