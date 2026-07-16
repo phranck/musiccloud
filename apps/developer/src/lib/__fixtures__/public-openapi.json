@@ -841,7 +841,8 @@
           },
           "followers": {
             "description": "The key is always included and its value is always `null`; Jamendo artist-info exposes no compatible follower count.",
-            "type": "null"
+            "nullable": true,
+            "type": "integer"
           },
           "genres": {
             "description": "Up to `3` Jamendo genre labels; an empty array means none are available.",
@@ -865,11 +866,13 @@
           },
           "popularity": {
             "description": "The key is always included and its value is always `null`; Jamendo artist-info exposes no compatible reach count.",
-            "type": "null"
+            "nullable": true,
+            "type": "integer"
           },
           "scrobbles": {
             "description": "The key is always included and its value is always `null`; Jamendo exposes no compatible scrobble count.",
-            "type": "null"
+            "nullable": true,
+            "type": "integer"
           },
           "similarArtists": {
             "description": "The key is always included as an empty array because this response carries related tracks separately.",
@@ -1025,7 +1028,8 @@
           },
           "shortId": {
             "description": "The key is always included and its value is always `null`; this response does not perform share-code lookup for its track rows. Resolve `deezerUrl` through `POST /api/v1/cc/resolve` to obtain a share code.",
-            "type": "null"
+            "nullable": true,
+            "type": "string"
           },
           "title": {
             "description": "Jamendo track title.",
