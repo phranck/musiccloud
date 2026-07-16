@@ -176,6 +176,7 @@ describe("developer design system", () => {
     const searchDialog = readDeveloperFile("src/components/docs/SearchDialog.tsx");
 
     expect(theme).toContain("--mc-size-text-icon: 1.2cap;");
+    expect(docs).toContain("--mc-docs-section-icon-size: calc(var(--mc-size-text-icon) + 2px);");
     expect(components).toMatch(
       /\.page-heading\s*\{[^}]*align-items:\s*flex-start;[^}]*font-size:\s*var\(--text-hero\);[^}]*line-height:\s*1;/s,
     );
@@ -193,7 +194,7 @@ describe("developer design system", () => {
       /\.content-card__section-header\s*\{[^}]*font-size:\s*var\(--text-lead\);[^}]*line-height:\s*1\.25;/s,
     );
     expect(docs).toMatch(
-      /\.content-card__section-icon\s*\{[^}]*width:\s*var\(--mc-size-text-icon\);[^}]*height:\s*1lh;[^}]*align-items:\s*center;/s,
+      /\.content-card__section-icon\s*\{[^}]*width:\s*var\(--mc-docs-section-icon-size\);[^}]*height:\s*1lh;[^}]*align-items:\s*center;/s,
     );
     expect(docs).toMatch(
       /\.search-dialog__result\s*\{[^}]*grid-template-columns:\s*var\(--mc-size-text-icon\) minmax\(0, 1fr\) max-content;[^}]*font-size:\s*var\(--text-body\);/s,
@@ -276,7 +277,7 @@ describe("developer design system", () => {
     expect(docs).toMatch(/\.content-card__section-title\s*\{[^}]*font-size:\s*inherit;/s);
     expect(docs).toMatch(/\.content-card__section-title\s*\{[^}]*font-weight:\s*400;/s);
     expect(docs).toMatch(
-      /\.content-card__section-icon\s*\{[^}]*width:\s*var\(--mc-size-text-icon\);[^}]*height:\s*1lh;/s,
+      /\.content-card__section-icon\s*\{[^}]*width:\s*var\(--mc-docs-section-icon-size\);[^}]*height:\s*1lh;/s,
     );
   });
 
@@ -295,6 +296,15 @@ describe("developer design system", () => {
 
     expect(docs).toMatch(
       /\.parameter-card__header\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*max-content max-content minmax\(0, 1fr\) max-content;[^}]*align-items:\s*start;/s,
+    );
+    expect(docs).toMatch(
+      /\.api-reference-shell\s*\{[^}]*--mc-docs-parameter-chip-padding-block-start:\s*max\(0px, calc\(var\(--mc-docs-space-xs\) - 1px\)\);[^}]*--mc-docs-parameter-chip-padding-block-end:\s*var\(--mc-docs-space-xs\);/s,
+    );
+    expect(docs).toMatch(
+      /\.parameter-card__location,\s*\.parameter-card__requirement\s*\{[^}]*align-self:\s*start;[^}]*padding:\s*var\(--mc-docs-parameter-chip-padding-block-start\)\s+var\(--mc-docs-space-sm\)\s+var\(--mc-docs-parameter-chip-padding-block-end\);[^}]*transform:\s*translateY\(\s*calc\(\s*\(var\(--mc-docs-parameter-chip-padding-block-start\) \+ var\(--mc-docs-parameter-chip-padding-block-end\)\) \* -0\.5\s*\)\s*\);/s,
+    );
+    expect(docs).toMatch(
+      /\.parameter-card__location\s*\{[^}]*box-shadow:\s*inset 0 0 0 1px var\(--color-border\);[^}]*background:\s*var\(--color-surface-raised\);/s,
     );
     expect(docs).toMatch(/\.parameter-card__requirement\s*\{[^}]*grid-column:\s*4;/s);
   });

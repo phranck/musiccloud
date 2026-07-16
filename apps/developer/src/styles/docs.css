@@ -24,6 +24,8 @@
     --mc-docs-space-xs: 0.125rem;
     --mc-docs-space-sm: 0.375rem;
     --mc-docs-space-md: 0.625rem;
+    --mc-docs-parameter-chip-padding-block-start: max(0px, calc(var(--mc-docs-space-xs) - 1px));
+    --mc-docs-parameter-chip-padding-block-end: var(--mc-docs-space-xs);
     --mc-docs-markdown-flow-gap: 0.875rem;
     --mc-docs-inline-code-scale: 0.9em;
     --mc-docs-content-card-radius: var(--radius-card);
@@ -38,6 +40,7 @@
     );
     --mc-docs-inline-code-padding-block-start: max(0px, calc(var(--mc-docs-space-xs) - 1px));
     --mc-docs-heading-icon-scale: 1em;
+    --mc-docs-section-icon-size: calc(var(--mc-size-text-icon) + 2px);
     --mc-docs-response-line-height: 1.25;
     --mc-docs-response-line-size: calc(var(--text-lead) * var(--mc-docs-response-line-height));
     --mc-docs-card-chrome: color-mix(in srgb, var(--color-surface) 88%, var(--color-code-bg) 12%);
@@ -331,7 +334,7 @@
 
   .content-card__section-icon {
     display: inline-flex;
-    width: var(--mc-size-text-icon);
+    width: var(--mc-docs-section-icon-size);
     height: 1lh;
     align-items: center;
     justify-content: center;
@@ -340,8 +343,8 @@
   }
 
   .content-card__section-icon > .mc-icon {
-    width: var(--mc-size-text-icon);
-    height: var(--mc-size-text-icon);
+    width: var(--mc-docs-section-icon-size);
+    height: var(--mc-docs-section-icon-size);
   }
 
   .content-card__section-title {
@@ -772,17 +775,25 @@
     font-size: var(--text-code);
   }
 
-  .parameter-card__location,
-  .parameter-card__requirement {
-    border-radius: var(--radius-button);
-    padding: var(--mc-docs-space-xs) var(--mc-docs-space-sm);
-    font-size: var(--text-code);
-  }
+.parameter-card__location,
+.parameter-card__requirement {
+  align-self: start;
+  border-radius: var(--radius-button);
+  padding: var(--mc-docs-parameter-chip-padding-block-start) var(--mc-docs-space-sm)
+    var(--mc-docs-parameter-chip-padding-block-end);
+  font-size: var(--text-code);
+  transform: translateY(
+    calc(
+      (var(--mc-docs-parameter-chip-padding-block-start) + var(--mc-docs-parameter-chip-padding-block-end)) * -0.5
+    )
+  );
+}
 
-  .parameter-card__location {
-    border: 1px solid var(--color-border);
-    color: var(--color-fg-muted);
-  }
+.parameter-card__location {
+  box-shadow: inset 0 0 0 1px var(--color-border);
+  color: var(--color-fg-muted);
+  background: var(--color-surface-raised);
+}
 
   .parameter-card__requirement {
     grid-column: 4;
