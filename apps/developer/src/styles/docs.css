@@ -56,8 +56,18 @@
     --mc-docs-schema-toggle-radius: max(0px, calc(var(--mc-docs-content-panel-radius) - var(--mc-space-1) - var(--mc-docs-schema-toggle-radius-trim)));
     --mc-docs-schema-toggle-tab-radius: max(0px, calc(var(--mc-docs-schema-toggle-radius) - var(--mc-docs-schema-toggle-inset)));
     --mc-docs-schema-toggle-tab-height: calc(var(--mc-size-control-compact) - var(--mc-space-1));
+    --mc-docs-sdk-selector-inset: var(--mc-docs-space-xs);
+    --mc-docs-sdk-selector-radius: max(
+      0px,
+      calc(var(--mc-docs-content-card-radius) - var(--mc-space-1) - var(--mc-docs-space-xs))
+    );
+    --mc-docs-sdk-selector-item-radius: max(
+      0px,
+      calc(var(--mc-docs-sdk-selector-radius) - var(--mc-docs-sdk-selector-inset))
+    );
     --mc-docs-schema-field-indent: var(--mc-space-5);
     --mc-docs-schema-field-separator: color-mix(in srgb, var(--color-border) 68%, transparent);
+    --mc-card-content-inset: calc(var(--mc-docs-content-card-radius) / 2);
   }
 
   .api-reference-layout {
@@ -82,7 +92,7 @@
     gap: var(--mc-docs-space-md);
     margin-top: var(--mc-docs-section-heading-top);
     margin-bottom: var(--mc-docs-section-heading-bottom);
-    padding-inline: calc(var(--mc-docs-content-card-radius) / 2);
+    padding-inline: var(--mc-card-content-inset);
     color: var(--color-fg);
     font-size: var(--text-section);
     font-weight: 500;
@@ -179,7 +189,7 @@
   }
 
   .api-content__entry-title {
-    padding-inline: calc(var(--mc-docs-content-card-radius) / 2);
+    padding-inline: var(--mc-card-content-inset);
     color: var(--color-fg);
     font-size: var(--text-subsection);
     font-weight: 500;
@@ -265,7 +275,7 @@
 
   .content-card__title {
     color: var(--color-fg);
-    font-size: var(--text-body);
+    font-size: var(--text-card-title);
     font-weight: 600;
     line-height: 1.25;
   }
@@ -311,32 +321,35 @@
 
   .content-card__section-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--mc-space-2);
     min-width: 0;
+    color: var(--color-fg);
+    font-size: var(--text-lead);
+    line-height: 1.25;
   }
 
   .content-card__section-icon {
     display: inline-flex;
-    width: var(--mc-size-icon-lg);
-    height: var(--mc-size-icon-lg);
+    width: var(--mc-size-text-icon);
+    height: 1lh;
     align-items: center;
     justify-content: center;
     flex: none;
-    color: var(--color-fg-muted);
+    color: inherit;
   }
 
   .content-card__section-icon > .mc-icon {
-    width: 100%;
-    height: 100%;
+    width: var(--mc-size-text-icon);
+    height: var(--mc-size-text-icon);
   }
 
   .content-card__section-title {
     min-width: 0;
-    color: var(--color-fg);
-    font-size: var(--text-lead);
+    color: inherit;
+    font-size: inherit;
     font-weight: 400;
-    line-height: 1.25;
+    line-height: inherit;
   }
 
   .content-card__section-addon {
@@ -352,10 +365,48 @@
   }
 
   .content-card__footer {
+    --button-min-height: var(--mc-size-control-compact);
     justify-content: space-between;
     border-top: 1px solid var(--color-border);
     color: var(--color-fg-muted);
     font-size: var(--text-code);
+  }
+
+  /* The SDK selector keeps one ContentCard surface while each tab supplies a
+     complete panel. Its selector is a recessed control derived from the same
+     card radius cascade as every other documentation control. */
+  .segmented-card {
+    --segmented-card-transition-duration: var(--mc-motion-duration-normal);
+    --segmented-card-transition-easing: var(--mc-motion-easing-standard);
+  }
+
+  .segmented-card[data-segmented-card-animating="true"] .segmented-card__body {
+    overflow: clip;
+  }
+
+  .sdk-segmented-card .segmented-control {
+    --segmented-control-inset: var(--mc-docs-sdk-selector-inset);
+    --segmented-control-radius: var(--mc-docs-sdk-selector-radius);
+    --segmented-control-item-radius: var(--mc-docs-sdk-selector-item-radius);
+  }
+
+  .sdk-segmented-card .segmented-card__header {
+    align-items: center;
+  }
+
+  .sdk-segmented-card .segmented-card__segments {
+    min-width: 0;
+    max-width: 100%;
+    margin-left: auto;
+    overflow-x: auto;
+  }
+
+  .sdk-segmented-card .segmented-control__item {
+    white-space: nowrap;
+  }
+
+  .sdk-segmented-card .segmented-card__panel {
+    scroll-margin-top: var(--mc-space-8);
   }
 
   .schema-card {
@@ -389,7 +440,6 @@
   .schema-card__title {
     position: relative;
     z-index: 1;
-    font-size: var(--text-card-title);
     pointer-events: none;
   }
 
@@ -1151,6 +1201,10 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .segmented-card {
+      --segmented-card-transition-duration: 0ms;
+    }
+
     .api-reference-nav__section {
       --mc-docs-nav-transition-duration: 0ms;
     }
@@ -1360,7 +1414,7 @@
 
   .search-dialog__result {
     display: grid;
-    grid-template-columns: var(--mc-size-icon-lg) minmax(0, 1fr) max-content;
+    grid-template-columns: var(--mc-size-text-icon) minmax(0, 1fr) max-content;
     align-items: start;
     gap: var(--mc-space-3);
     width: 100%;
@@ -1371,6 +1425,7 @@
     color: var(--color-fg-muted);
     background: transparent;
     cursor: pointer;
+    font-size: var(--text-body);
     text-align: left;
     transition:
       color var(--mc-motion-duration-fast) var(--mc-motion-easing-standard),
@@ -1388,7 +1443,7 @@
   }
 
   .search-dialog__result-icon {
-    color: var(--color-accent);
+    color: var(--color-fg);
   }
 
   .search-dialog__result-content {
@@ -1399,7 +1454,7 @@
 
   .search-dialog__result-title {
     color: var(--color-fg);
-    font-size: var(--text-body);
+    font-size: inherit;
     font-weight: 600;
   }
 
@@ -1569,7 +1624,7 @@
     }
 
     .search-dialog__result {
-      grid-template-columns: var(--mc-size-icon-lg) minmax(0, 1fr);
+      grid-template-columns: var(--mc-size-text-icon) minmax(0, 1fr);
     }
 
     .search-dialog__result-addon {

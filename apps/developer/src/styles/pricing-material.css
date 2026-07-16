@@ -34,6 +34,32 @@
     --pricing-highlight-05: color-mix(in srgb, var(--color-on-accent) 5%, transparent);
   }
 
+  .pricing-commitment-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--mc-space-4);
+  }
+
+  .pricing-commitment-card,
+  .pricing-commitment-card .surface-card__body {
+    height: 100%;
+  }
+
+  .pricing-commitment-list {
+    display: grid;
+    gap: var(--mc-space-4);
+  }
+
+  .pricing-commitment-item {
+    gap: var(--mc-space-3);
+  }
+
+  .pricing-commitment-copy,
+  .pricing-commitment-title,
+  .pricing-commitment-body {
+    display: block;
+  }
+
   /* Tier card: a soft glow in the tier colour bleeds down from the top,
      echoing the medal above. Painted as a background-image over the glassy
      `bg-surface`, clipped by the card's border-radius (no overflow:hidden, so
@@ -433,6 +459,12 @@
     .tier-card[style*="--depth"] {
       transform: none;
       opacity: 1;
+    }
+  }
+
+  @media (max-width: 47.999rem) {
+    .pricing-commitment-grid {
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 }

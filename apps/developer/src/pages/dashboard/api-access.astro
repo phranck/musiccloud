@@ -20,7 +20,7 @@ if (!account) return Astro.redirect("/login");
 ---
 
 <DashboardLayout account={account} active={DashboardTab.ApiAccess} title="API access · musiccloud for developers">
-  <h1 class="text-hero font-medium tracking-tight mb-1">API access</h1>
-  <p class="text-body text-fg-muted mb-7">Request access for your app and follow the review status.</p>
+  <h1 class="card-content-inset text-hero font-medium tracking-tight mb-1">API access</h1>
+  <p class="card-content-inset text-body text-fg-muted mb-7">Request access for your app and follow the review status.</p>
   <ApiAccessPanel client:load />
 </DashboardLayout>

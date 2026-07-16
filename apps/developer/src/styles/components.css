@@ -10,9 +10,21 @@
     margin-inline: auto;
   }
 
+  /* Portal-level copy aligns with the tangent point of ordinary card corners.
+     Tier cards own a separate geometry and deliberately never consume this. */
+  .developer-page,
+  .dashboard-content {
+    --mc-card-content-inset: calc(var(--radius-card) / 2);
+  }
+
   /* Shared public-page spacing keeps every route aligned to the same shell. */
   .developer-page {
     padding: var(--mc-space-page-top) var(--mc-space-page-inline) var(--mc-space-page-bottom);
+  }
+
+  .card-content-inset,
+  .page-heading {
+    padding-inline: var(--mc-card-content-inset);
   }
 
   .page-heading {
@@ -21,23 +33,27 @@
     align-items: flex-start;
     gap: var(--mc-space-3);
     margin-bottom: var(--mc-space-5);
+    color: var(--color-fg);
+    font-size: var(--text-hero);
+    line-height: 1;
   }
 
   .page-heading__icon {
-    width: var(--mc-size-icon-xl);
-    height: var(--mc-size-icon-xl);
+    width: var(--mc-size-text-icon);
+    height: var(--mc-size-text-icon);
     flex: none;
-    margin-block-start: calc((var(--text-hero) - var(--mc-size-icon-xl)) / 2);
-    color: var(--color-accent);
+    margin-block-start: calc((1cap - var(--mc-size-text-icon)) / 2);
+    color: inherit;
   }
 
   .page-heading__title {
     min-width: 0;
-    color: var(--color-fg);
-    font-size: var(--text-hero);
+    color: inherit;
+    font-size: inherit;
     font-weight: 500;
-    line-height: 1;
+    line-height: inherit;
     overflow-wrap: anywhere;
+    text-box: trim-both cap alphabetic;
   }
 
   /* Multiline icon/text rows keep the icon centered on the first text line,
@@ -49,10 +65,18 @@
 
   .icon-text-first-line__icon {
     display: inline-flex;
+    width: var(--mc-size-text-icon);
     height: 1lh;
     align-items: center;
     justify-content: center;
     flex: none;
+    color: currentColor;
+  }
+
+  .icon-text-first-line__icon > .mc-icon,
+  .icon-text-first-line__icon > svg {
+    width: var(--mc-size-text-icon);
+    height: var(--mc-size-text-icon);
   }
 
   .public-header {
@@ -423,7 +447,7 @@
      semantic colour treatment. */
   .button {
     display: inline-flex;
-    min-height: var(--mc-size-control);
+    min-height: var(--button-min-height, var(--mc-size-control));
     align-items: center;
     justify-content: center;
     gap: var(--mc-space-2);
@@ -489,6 +513,8 @@
      through the documented --segmented-control-* variables without rebuilding
      the shared interaction surface. */
   .segmented-control {
+    position: relative;
+    isolation: isolate;
     display: inline-flex;
     min-width: 0;
     border: 1px solid var(--color-border);
@@ -497,7 +523,37 @@
     background: var(--color-code-bg);
   }
 
+  .segmented-control::before {
+    position: absolute;
+    z-index: 0;
+    top: 0;
+    left: 0;
+    width: var(--segmented-control-indicator-width, 0px);
+    height: var(--segmented-control-indicator-height, 0px);
+    border-radius: var(--segmented-control-item-radius, var(--radius-button));
+    background: color-mix(in srgb, var(--color-accent) 16%, var(--color-surface-raised));
+    content: "";
+    opacity: 0;
+    pointer-events: none;
+    transform: translate3d(var(--segmented-control-indicator-x, 0px), var(--segmented-control-indicator-y, 0px), 0);
+    transition:
+      transform var(--mc-motion-duration-normal) var(--mc-motion-easing-standard),
+      width var(--mc-motion-duration-normal) var(--mc-motion-easing-standard),
+      height var(--mc-motion-duration-normal) var(--mc-motion-easing-standard),
+      opacity var(--mc-motion-duration-fast) var(--mc-motion-easing-standard);
+  }
+
+  .segmented-control[data-segmented-control-indicator-ready="true"]::before {
+    opacity: 1;
+  }
+
   .segmented-control__item {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--segmented-control-item-gap, var(--mc-space-2));
     min-height: var(--segmented-control-item-min-height, var(--mc-size-control-compact));
     border: 0;
     border-radius: var(--segmented-control-item-radius, var(--radius-button));
@@ -521,9 +577,38 @@
     background: color-mix(in srgb, var(--color-accent) 16%, var(--color-surface-raised));
   }
 
+  .segmented-control[data-segmented-control-indicator-ready="true"] .segmented-control__item[aria-selected="true"] {
+    background: transparent;
+  }
+
+  .segmented-control__item-icon {
+    display: inline-flex;
+    width: var(--segmented-control-item-icon-size, var(--mc-size-icon-md));
+    height: var(--segmented-control-item-icon-size, var(--mc-size-icon-md));
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    overflow: hidden;
+    border-radius: var(--radius-round);
+    background: var(--segmented-control-item-icon-background, var(--color-surface-raised));
+  }
+
+  .segmented-control__item-icon > img,
+  .segmented-control__item-icon > svg {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
   .segmented-control__item:focus-visible {
     outline: 1px solid var(--color-accent);
     outline-offset: 1px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .segmented-control::before {
+      transition: none;
+    }
   }
 
   .field {

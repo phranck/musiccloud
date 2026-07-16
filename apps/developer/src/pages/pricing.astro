@@ -11,6 +11,7 @@
  */
 import PublicHeader from "@/components/PublicHeader.astro";
 import RollingText from "@/components/RollingText.astro";
+import { SurfaceCard } from "@/components/SurfaceCard";
 import { TierIcon } from "@/components/TierIcon";
 import { CoinIcon, Like1Icon, TickCircleIcon } from "@/lib/icons";
 import BaseLayout from "@/layouts/BaseLayout.astro";
@@ -82,6 +83,10 @@ const commitments = [
     body: "We won't degrade the free experience to push you to pay.",
   },
 ];
+const commitmentGroups = [
+  { label: "Free-tier commitment", items: commitments.slice(0, 2) },
+  { label: "Fair-pricing commitment", items: commitments.slice(2) },
+];
 
 const account = await getDeveloperSession(Astro);
 
@@ -120,32 +125,43 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
       <Like1Icon className="page-heading__icon" aria-hidden="true" />
       <h1 class="page-heading__title">Honest and upfront pricing</h1>
     </div>
-    <p class="text-lead text-fg-muted mb-10">
+    <p class="card-content-inset text-lead text-fg-muted mb-10">
       musiccloud's API is <span class="text-fg font-medium">free while we build it out</span>, and it won't stay
       free forever. Running it has real costs, and paid tiers for high-volume and commercial use are planned.
       Here is what you can count on.
     </p>
 
     <section class="mb-6">
-      <h2 class="text-card-title font-medium tracking-tight mb-5">Our commitment</h2>
-      <ul class="rounded-card border border-border bg-surface px-7 py-7 grid grid-cols-1 gap-4">
+      <h2 class="card-content-inset text-card-title font-medium tracking-tight mb-5">Our commitment</h2>
+      <div class="pricing-commitment-grid">
         {
-          commitments.map((commitment) => (
-            <li class="flex items-start gap-3">
-              <TickCircleIcon className="size-6 text-accent shrink-0 mt-0.5" aria-hidden="true" />
-              <span class="text-body text-fg-muted">
-                <span class="text-fg font-medium">{commitment.title}</span> {commitment.body}
-              </span>
-            </li>
+          commitmentGroups.map((group) => (
+            <SurfaceCard className="pricing-commitment-card" aria-label={group.label}>
+              <SurfaceCard.Body>
+                <ul class="pricing-commitment-list">
+                  {group.items.map((commitment) => (
+                    <li class="icon-text-first-line pricing-commitment-item text-body">
+                      <span class="icon-text-first-line__icon">
+                        <TickCircleIcon aria-hidden="true" />
+                      </span>
+                      <span class="pricing-commitment-copy text-fg-muted">
+                        <strong class="pricing-commitment-title text-fg">{commitment.title}</strong>
+                        <span class="pricing-commitment-body">{commitment.body}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </SurfaceCard.Body>
+            </SurfaceCard>
           ))
         }
-      </ul>
+      </div>
     </section>
 
     {tiers.length > 0 && (
       <section class="mb-8" data-billing="monthly">
         <div class="mb-5 flex items-center justify-between gap-4">
-          <h2 class="text-card-title font-medium tracking-tight">Available tiers</h2>
+          <h2 class="card-content-inset text-card-title font-medium tracking-tight">Available tiers</h2>
           <div
             class="billing-track relative grid grid-cols-2 border border-border-strong text-nav"
             role="group"
@@ -205,11 +221,11 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
               {tier.features.length > 0 && (
                 <ul class="pricing-feature-list mx-auto flex w-full flex-col gap-1.5 text-left text-body">
                   {tier.features.map((feature) => (
-                    <li class="icon-text-first-line gap-2">
+                    <li class="icon-text-first-line gap-2 text-fg-muted">
                       <span class="icon-text-first-line__icon">
-                        <TickCircleIcon className="size-4" style={{ color: tierColor }} aria-hidden="true" />
+                        <TickCircleIcon aria-hidden="true" />
                       </span>
-                      <span class="text-fg-muted">{feature}</span>
+                      <span>{feature}</span>
                     </li>
                   ))}
                 </ul>

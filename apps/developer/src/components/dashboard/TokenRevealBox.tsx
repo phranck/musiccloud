@@ -75,7 +75,7 @@ export function TokenRevealBox({ rawToken, appName, onDismiss }: TokenRevealBoxP
         </code>
         <button type="button" onClick={onCopy} className="button button--subtle text-body shrink-0">
           {copied ? (
-            <TickCircleIcon className="size-4 text-accent" aria-hidden="true" />
+            <TickCircleIcon className="size-4" aria-hidden="true" />
           ) : (
             <CopyIcon className="size-4" aria-hidden="true" />
           )}

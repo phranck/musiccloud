@@ -8,7 +8,12 @@ import { createCompoundElement } from "@/components/compoundElement";
 
 const SegmentedControlRoot = createCompoundElement("div", "segmented-control");
 const SegmentedControlItem = createCompoundElement("button", "segmented-control__item");
+const SegmentedControlItemIcon = createCompoundElement("span", "segmented-control__item-icon");
+const SegmentedControlItemLabel = createCompoundElement("span", "segmented-control__item-label");
 
 export const SegmentedControl = Object.assign(SegmentedControlRoot, {
-  Item: SegmentedControlItem,
+  Item: Object.assign(SegmentedControlItem, {
+    Icon: SegmentedControlItemIcon,
+    Label: SegmentedControlItemLabel,
+  }),
 });

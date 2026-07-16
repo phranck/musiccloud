@@ -113,7 +113,7 @@ export function ApiAccessPanel() {
   return (
     <div className="flex flex-col gap-6">
       <section>
-        <h2 className="text-card-title font-medium tracking-tight mb-3">Request API access</h2>
+        <h2 className="card-content-inset text-card-title font-medium tracking-tight mb-3">Request API access</h2>
         <div className="surface-card px-6 py-5">
           <p className="text-body text-fg-muted mb-4">
             Tell us about your app. Once a request is approved, the app and its API keys appear under{" "}
@@ -164,7 +164,7 @@ export function ApiAccessPanel() {
       </section>
 
       <section>
-        <h2 className="text-card-title font-medium tracking-tight mb-3">Your requests</h2>
+        <h2 className="card-content-inset text-card-title font-medium tracking-tight mb-3">Your requests</h2>
         <div className="surface-card px-6 py-5">
           {requests === null && !listError ? <p className="text-body text-fg-muted">Loading…</p> : null}
           {listError ? (

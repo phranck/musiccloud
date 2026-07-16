@@ -20,8 +20,8 @@ if (!account) return Astro.redirect("/login");
 ---
 
 <DashboardLayout account={account} active={DashboardTab.ApiKeys} title="API keys · musiccloud for developers">
-  <h1 class="text-hero font-medium tracking-tight mb-1">API keys</h1>
-  <p class="text-body text-fg-muted mb-7">
+  <h1 class="card-content-inset text-hero font-medium tracking-tight mb-1">API keys</h1>
+  <p class="card-content-inset text-body text-fg-muted mb-7">
     Your approved apps and their keys. A key is shown in full exactly once, when it is created.
   </p>
   <ApiKeysPanel client:load />

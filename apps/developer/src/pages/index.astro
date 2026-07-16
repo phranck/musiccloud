@@ -18,8 +18,8 @@ const features = [
   <PublicHeader account={account} />
 
   <main class="developer-shell developer-page flex-1">
-    <h1 class="text-hero font-medium tracking-tight leading-tight mb-5">Build with the musiccloud API</h1>
-    <p class="text-lead text-fg-muted max-w-2xl mb-8">
+    <h1 class="card-content-inset text-hero font-medium tracking-tight leading-tight mb-5">Build with the musiccloud API</h1>
+    <p class="card-content-inset text-lead text-fg-muted max-w-2xl mb-8">
       Resolve any music link, fetch artist info, and explore Creative Commons tracks. One REST API, one key.
     </p>
     <div class="flex gap-3 mb-12">
@@ -50,11 +50,11 @@ const features = [
           const Icon = feature.Icon;
           return (
             <article class="surface-card p-5">
-              <div class="icon-text-first-line gap-2.5 mb-2">
+              <div class="icon-text-first-line text-card-title gap-2.5 mb-2">
                 <span class="icon-text-first-line__icon">
-                  <Icon className="size-7 text-accent" aria-hidden="true" />
+                  <Icon aria-hidden="true" />
                 </span>
-                <h2 class="text-card-title font-medium">{feature.title}</h2>
+                <h2 class="font-medium">{feature.title}</h2>
               </div>
               <p class="text-body text-fg-muted">{feature.body}</p>
             </article>
