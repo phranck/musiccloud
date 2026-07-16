@@ -111,4 +111,8 @@ exec "${systemFind}" "$@"
   assert.match(swiftUrlSession, /#if canImport\(MobileCoreServices\)\nimport MobileCoreServices/);
   assert.match(swiftUrlSession, /#if canImport\(FoundationNetworking\)\nimport FoundationNetworking/);
   assert.match(swiftUrlSession, /#if canImport\(MobileCoreServices\)\n\s*if let uti/);
+
+  const typescriptModels = await readFile(path.join(outputDir, "generated/typescript/src/models/index.ts"), "utf8");
+  assert.doesNotMatch(typescriptModels, /:\s*Null;/);
+  assert.match(typescriptModels, /alwaysNull:\s*null;/);
 });

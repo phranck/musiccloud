@@ -2144,7 +2144,8 @@ export const CcArtistTopTrackSchema = {
         "Compatibility field containing an opaque `jamendo:<trackId>` candidate token, not a URL. Pass it as `selectedCandidate` to `POST /api/v1/cc/resolve`.",
     },
     shortId: {
-      type: "null",
+      type: "string",
+      nullable: true,
       description:
         "The key is always included and its value is always `null`; this response does not perform share-code lookup for its track rows. Resolve `deezerUrl` through `POST /api/v1/cc/resolve` to obtain a share code.",
     },
@@ -2179,12 +2180,14 @@ export const CcArtistProfileSchema = {
       description: "Up to `3` Jamendo genre labels; an empty array means none are available.",
     },
     popularity: {
-      type: "null",
+      type: "integer",
+      nullable: true,
       description:
         "The key is always included and its value is always `null`; Jamendo artist-info exposes no compatible reach count.",
     },
     followers: {
-      type: "null",
+      type: "integer",
+      nullable: true,
       description:
         "The key is always included and its value is always `null`; Jamendo artist-info exposes no compatible follower count.",
     },
@@ -2193,7 +2196,8 @@ export const CcArtistProfileSchema = {
       description: "The key is always included. Its value is the Jamendo biography, or `null` when unavailable.",
     },
     scrobbles: {
-      type: "null",
+      type: "integer",
+      nullable: true,
       description:
         "The key is always included and its value is always `null`; Jamendo exposes no compatible scrobble count.",
     },

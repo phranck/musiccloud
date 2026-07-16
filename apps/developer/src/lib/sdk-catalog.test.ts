@@ -7,7 +7,7 @@ import { parseSdkCatalog } from "./sdk-catalog";
 const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), "__fixtures__");
 const contract = {
   version: "2.1.4",
-  sha256: "9ea887aa29d6f312f5789c745f66563222cab3ea89b13cdc656dc9b23676bcce",
+  sha256: "9976d8dbfb21e7c3178e2ac4d249fdbef5d174cdad20c07aaaea0f4ae4f15939",
 };
 
 function readCatalog(): Record<string, unknown> {

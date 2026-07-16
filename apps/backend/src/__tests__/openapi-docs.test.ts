@@ -182,7 +182,10 @@ describe("OpenAPI docs", () => {
     const doc = res.json() as {
       info: { version: string; description: string };
       paths: Record<string, unknown>;
-      components: { securitySchemes: Record<string, unknown> };
+      components: {
+        schemas: Record<string, { properties: Record<string, unknown> }>;
+        securitySchemes: Record<string, unknown>;
+      };
     };
 
     expect(res.statusCode).toBe(200);
@@ -194,6 +197,18 @@ describe("OpenAPI docs", () => {
     expect(Object.keys(doc.paths)).not.toContain("/api/dev/api-access/clients");
     expect(doc.components.securitySchemes).toHaveProperty("ApiKeyAuth");
     expect(doc.components.securitySchemes).not.toHaveProperty("BearerAuth");
+    expect(doc.components.schemas.CcArtistProfile.properties.followers).toEqual({
+      type: "integer",
+      nullable: true,
+      description:
+        "The key is always included and its value is always `null`; Jamendo artist-info exposes no compatible follower count.",
+    });
+    expect(doc.components.schemas.CcArtistTopTrack.properties.shortId).toEqual({
+      type: "string",
+      nullable: true,
+      description:
+        "The key is always included and its value is always `null`; this response does not perform share-code lookup for its track rows. Resolve `deezerUrl` through `POST /api/v1/cc/resolve` to obtain a share code.",
+    });
     expect(doc.info.description).toContain("X-API-Key: mc_live_");
     expect(doc.info.description).not.toContain("/api/auth/token");
     expect(doc.info.description).not.toContain("client_credentials");
