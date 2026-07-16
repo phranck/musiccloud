@@ -23,7 +23,7 @@ describe("pricing material ownership", () => {
     expect(css.match(/--pricing-card-radius:/g)).toHaveLength(1);
     expect(css.match(/--pricing-card-padding:/g)).toHaveLength(1);
     expect(css).not.toContain("pt-16");
-    expect(css).toMatch(/\.billing-option\s*\{[^}]*min-height:\s*var\(--mc-size-control\);/s);
+    expect(css).toMatch(/\.billing-option\s*\{[^}]*min-height:\s*var\(--mc-size-control-compact\);/s);
     expect(css).toMatch(/\.tier-icon\s*\{[^}]*color:\s*var\(--color-on-accent\);/s);
     expect(page).not.toContain("sm:grid-cols-2");
   });

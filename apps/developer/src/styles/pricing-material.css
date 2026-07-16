@@ -393,7 +393,7 @@
 
   .billing-option {
     display: flex;
-    min-height: var(--mc-size-control);
+    min-height: var(--mc-size-control-compact);
     align-items: center;
     justify-content: center;
     position: relative;
