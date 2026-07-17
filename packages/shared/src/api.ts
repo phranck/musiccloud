@@ -474,25 +474,22 @@ interface CommercialSharePageResponseBase {
   shortUrl: string;
 }
 
-export interface CommercialTrackSharePageResponse extends CommercialSharePageResponseBase {
+export interface TrackSharePageResponse extends CommercialSharePageResponseBase {
   type: "track";
   track: ApiTrack;
 }
 
-export interface CommercialAlbumSharePageResponse extends CommercialSharePageResponseBase {
+export interface AlbumSharePageResponse extends CommercialSharePageResponseBase {
   type: "album";
   album: ApiAlbum;
 }
 
-export interface CommercialArtistSharePageResponse extends CommercialSharePageResponseBase {
+export interface ArtistSharePageResponse extends CommercialSharePageResponseBase {
   type: "artist";
   artist: ApiArtist;
 }
 
-export type CommercialSharePageResponse =
-  | CommercialTrackSharePageResponse
-  | CommercialAlbumSharePageResponse
-  | CommercialArtistSharePageResponse;
+export type CommercialSharePageResponse = TrackSharePageResponse | AlbumSharePageResponse | ArtistSharePageResponse;
 
 /**
  * The Creative-Commons (Jamendo) share-page payload for a CC track. It carries

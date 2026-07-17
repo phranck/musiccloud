@@ -1651,8 +1651,8 @@ export const OgMetaSchema = {
   },
 } as const;
 
-export const CommercialTrackSharePageResponseSchema = {
-  $id: "CommercialTrackSharePageResponse",
+export const TrackSharePageResponseSchema = {
+  $id: "TrackSharePageResponse",
   type: "object",
   description: "Commercial share-page payload for one resolved track.",
   required: ["type", "og", "track", "links", "shortUrl"],
@@ -1670,8 +1670,8 @@ export const CommercialTrackSharePageResponseSchema = {
   },
 } as const;
 
-export const CommercialAlbumSharePageResponseSchema = {
-  $id: "CommercialAlbumSharePageResponse",
+export const AlbumSharePageResponseSchema = {
+  $id: "AlbumSharePageResponse",
   type: "object",
   description: "Commercial share-page payload for one resolved album.",
   required: ["type", "og", "album", "links", "shortUrl"],
@@ -1689,8 +1689,8 @@ export const CommercialAlbumSharePageResponseSchema = {
   },
 } as const;
 
-export const CommercialArtistSharePageResponseSchema = {
-  $id: "CommercialArtistSharePageResponse",
+export const ArtistSharePageResponseSchema = {
+  $id: "ArtistSharePageResponse",
   type: "object",
   description: "Commercial share-page payload for one resolved artist.",
   required: ["type", "og", "artist", "links", "shortUrl"],
@@ -1796,9 +1796,9 @@ export const SharePageSchema = {
   description:
     "Unified share payload discriminated by `type`. Commercial `track`, `album`, and `artist` variants carry the matching entity, `links`, `og`, and `shortUrl`. `cc-track` carries only `track`, `og`, and `shortUrl`; `cc-album` and `cc-artist` additionally carry `artistInfo`. Creative Commons variants never carry `links`.",
   oneOf: [
-    { $ref: "CommercialTrackSharePageResponse#" },
-    { $ref: "CommercialAlbumSharePageResponse#" },
-    { $ref: "CommercialArtistSharePageResponse#" },
+    { $ref: "TrackSharePageResponse#" },
+    { $ref: "AlbumSharePageResponse#" },
+    { $ref: "ArtistSharePageResponse#" },
     { $ref: "CcTrackSharePageResponse#" },
     { $ref: "CcAlbumSharePageResponse#" },
     { $ref: "CcArtistSharePageResponse#" },
@@ -2539,9 +2539,9 @@ export const OPENAPI_SCHEMAS = [
   CcAlbumResolveSuccessSchema,
   CcArtistResolveSuccessSchema,
   CcResolveSuccessSchema,
-  CommercialTrackSharePageResponseSchema,
-  CommercialAlbumSharePageResponseSchema,
-  CommercialArtistSharePageResponseSchema,
+  TrackSharePageResponseSchema,
+  AlbumSharePageResponseSchema,
+  ArtistSharePageResponseSchema,
   CcTrackSharePageResponseSchema,
   CcAlbumSharePageResponseSchema,
   CcArtistSharePageResponseSchema,

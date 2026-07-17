@@ -1633,7 +1633,7 @@
         "required": ["listens", "downloads", "playlisted", "favorited", "likes", "dislikes", "avgNote", "notes"],
         "type": "object"
       },
-      "CommercialAlbumSharePageResponse": {
+      "AlbumSharePageResponse": {
         "additionalProperties": false,
         "description": "Commercial share-page payload for one resolved album.",
         "properties": {
@@ -1674,7 +1674,7 @@
         "required": ["type", "og", "album", "links", "shortUrl"],
         "type": "object"
       },
-      "CommercialArtistSharePageResponse": {
+      "ArtistSharePageResponse": {
         "additionalProperties": false,
         "description": "Commercial share-page payload for one resolved artist.",
         "properties": {
@@ -1715,7 +1715,7 @@
         "required": ["type", "og", "artist", "links", "shortUrl"],
         "type": "object"
       },
-      "CommercialTrackSharePageResponse": {
+      "TrackSharePageResponse": {
         "additionalProperties": false,
         "description": "Commercial share-page payload for one resolved track.",
         "properties": {
@@ -2396,13 +2396,13 @@
         },
         "oneOf": [
           {
-            "$ref": "#/components/schemas/CommercialTrackSharePageResponse"
+            "$ref": "#/components/schemas/TrackSharePageResponse"
           },
           {
-            "$ref": "#/components/schemas/CommercialAlbumSharePageResponse"
+            "$ref": "#/components/schemas/AlbumSharePageResponse"
           },
           {
-            "$ref": "#/components/schemas/CommercialArtistSharePageResponse"
+            "$ref": "#/components/schemas/ArtistSharePageResponse"
           },
           {
             "$ref": "#/components/schemas/CcTrackSharePageResponse"

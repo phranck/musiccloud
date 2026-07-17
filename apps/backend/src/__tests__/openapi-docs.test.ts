@@ -746,10 +746,20 @@ describe("OpenAPI docs", () => {
     }
 
     expect(doc.components.schemas).toHaveProperty("CcArtistInfo");
-    expect(doc.components.schemas).toHaveProperty("CommercialTrackSharePageResponse");
-    expect(doc.components.schemas).toHaveProperty("CommercialAlbumSharePageResponse");
-    expect(doc.components.schemas).toHaveProperty("CommercialArtistSharePageResponse");
+    expect(doc.components.schemas).toHaveProperty("TrackSharePageResponse");
+    expect(doc.components.schemas).toHaveProperty("AlbumSharePageResponse");
+    expect(doc.components.schemas).toHaveProperty("ArtistSharePageResponse");
+    expect(doc.components.schemas).not.toHaveProperty("CommercialTrackSharePageResponse");
+    expect(doc.components.schemas).not.toHaveProperty("CommercialAlbumSharePageResponse");
+    expect(doc.components.schemas).not.toHaveProperty("CommercialArtistSharePageResponse");
     expect(doc.components.schemas.SharePage?.oneOf).toHaveLength(6);
+    expect(doc.components.schemas.SharePage?.oneOf).toEqual(
+      expect.arrayContaining([
+        { $ref: "#/components/schemas/TrackSharePageResponse" },
+        { $ref: "#/components/schemas/AlbumSharePageResponse" },
+        { $ref: "#/components/schemas/ArtistSharePageResponse" },
+      ]),
+    );
     expect(doc.components.schemas.Album?.required).toContain("vinylLayout");
     expect(doc.components.schemas.CcAlbum?.required).toContain("vinylLayout");
     expect(doc.components.schemas.CcGenreTile?.properties as OpenApiSchema | undefined).not.toHaveProperty(
