@@ -5,16 +5,10 @@ import type { EmailBrandingDto, EmailTemplateBrandingOverrides } from "../db/adm
 import { escapeHtml } from "../lib/html.js";
 
 /**
- * A dedicated `Marked` instance, NOT the package's shared default export.
- * `admin-content.ts` calls `marked.use({..., async: true, ...})` on that
- * default export to add its own footnote handling — since `marked.use()`
- * mutates process-wide singleton state, using the default export here would
- * make `.parse()` return a `Promise<string>` instead of a `string` for every
- * caller in the process, this one included, with no way to opt back out
- * (`marked.parse(text, {async: false})` on a polluted singleton throws:
- * "The async option was set to true by an extension"). A separate instance
- * keeps this file's markdown parsing genuinely synchronous regardless of
- * what other modules configure on the shared singleton.
+ * A dedicated `Marked` instance, separate from the context-specific editorial
+ * renderers. Email rendering is synchronous, while editorial extensions may
+ * be asynchronous. Keeping this instance local prevents either registry from
+ * changing the other's parser options or output contract.
  */
 const emailMarked = new Marked({ breaks: true, gfm: true });
 
@@ -72,9 +66,8 @@ function applyInlineStyles(html: string): string {
 
 /**
  * Parses markdown to HTML using the module-local {@link emailMarked}
- * instance (never the package's shared default export — see its own doc
- * comment for why). `{ async: false }` selects the overload that returns a
- * plain `string`.
+ * instance. `{ async: false }` selects the overload that returns a plain
+ * `string`.
  */
 function parseMarkdown(text: string): string {
   const html = emailMarked.parse(text, { async: false });
