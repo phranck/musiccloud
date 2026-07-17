@@ -50,7 +50,6 @@ const SchemasIcon = apiReferenceStaticSectionIcons.schemas;
   data-api-reference-nav
   data-api-reference-scroll-spy
   data-api-nav-animated
-  data-api-nav-scroll-region
 >
   <Sidebar.Header>
     <Sidebar.Header.Title className="text-card-title font-semibold text-fg">Reference</Sidebar.Header.Title>
@@ -67,7 +66,7 @@ const SchemasIcon = apiReferenceStaticSectionIcons.schemas;
       </button>
     </Sidebar.Header.Addon>
   </Sidebar.Header>
-  <Sidebar.Body>
+  <Sidebar.Body data-api-nav-scroll-region>
     <Sidebar.Chapter
       className="api-reference-nav__top-link api-reference-nav__link text-body"
       href="#integration-guide"
@@ -212,8 +211,8 @@ const SchemasIcon = apiReferenceStaticSectionIcons.schemas;
   };
 
   /** Keeps the header shadow tied to the rail's own scroll position. */
-  const updateSidebarHeaderScrollState = (nav: HTMLElement) => {
-    nav.dataset.apiNavScrolled = String(nav.scrollTop > 0);
+  const updateSidebarHeaderScrollState = (nav: HTMLElement, scrollRegion: HTMLElement) => {
+    nav.dataset.apiNavScrolled = String(scrollRegion.scrollTop > 0);
   };
 
   /**
@@ -319,8 +318,11 @@ const SchemasIcon = apiReferenceStaticSectionIcons.schemas;
   });
 
   document.querySelectorAll<HTMLElement>("[data-api-reference-nav]").forEach((nav) => {
-    updateSidebarHeaderScrollState(nav);
-    nav.addEventListener("scroll", () => updateSidebarHeaderScrollState(nav), { passive: true });
+    const scrollRegion = nav.querySelector<HTMLElement>("[data-api-nav-scroll-region]");
+    if (scrollRegion) {
+      updateSidebarHeaderScrollState(nav, scrollRegion);
+      scrollRegion.addEventListener("scroll", () => updateSidebarHeaderScrollState(nav, scrollRegion), { passive: true });
+    }
     updateToggleAllControl(nav);
     const button = nav.querySelector<HTMLButtonElement>("[data-api-nav-toggle-all]");
     if (!button) return;

@@ -137,13 +137,17 @@ describe("developer design system", () => {
     );
   });
 
-  it("keeps the sticky API sidebar header opaque on its dedicated surface", () => {
+  it("keeps the sticky API sidebar header frosted on its dedicated surface", () => {
     const theme = readDeveloperFile("public/developer-theme.css");
     const docs = readDeveloperFile("src/styles/docs.css");
 
     expect(theme).toContain("--mc-color-sidebar-header: #1b2530;");
-    expect(docs).toContain("--mc-docs-sidebar-header-surface: var(--mc-color-sidebar-header);");
-    expect(docs).toMatch(/\.sidebar__header\s*\{[^}]*background:\s*var\(--mc-docs-sidebar-header-surface\);/s);
+    expect(docs).toContain(
+      "--mc-docs-sidebar-header-surface: color-mix(in srgb, var(--mc-color-sidebar-header) 56%, transparent);",
+    );
+    expect(docs).toMatch(
+      /\.sidebar__header\s*\{[^}]*background:\s*var\(--mc-docs-sidebar-header-surface\);[^}]*-webkit-backdrop-filter:\s*blur\(var\(--mc-space-4\)\) saturate\(1\.15\);[^}]*backdrop-filter:\s*blur\(var\(--mc-space-4\)\) saturate\(1\.15\);/s,
+    );
     expect(docs).toMatch(
       /\.sidebar__header-title\s*\{[^}]*padding-inline-start:\s*var\(--mc-docs-content-card-copy-inset\);/s,
     );

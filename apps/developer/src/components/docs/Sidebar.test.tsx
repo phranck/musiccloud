@@ -41,20 +41,24 @@ describe("Sidebar", () => {
     expect(html).toContain('<li class="sidebar__section-item"><a href="#quick-resolve">Quick resolve</a></li>');
   });
 
-  it("keeps the complete desktop sidebar as the explicit scroll region", () => {
+  it("keeps the body as the explicit scroll region beneath the frosted header", () => {
     const css = readFileSync(join(import.meta.dirname, "../../styles/docs.css"), "utf8");
     const navigation = readFileSync(join(import.meta.dirname, "ApiReferenceNav.astro"), "utf8");
 
-    expect(css).toMatch(/\[data-api-nav-scroll-region\]\.api-reference-nav\s*\{[^}]*overflow-y:\s*auto;/s);
+    expect(navigation).toMatch(/<Sidebar\.Body\s+data-api-nav-scroll-region>/);
+    expect(css).toMatch(/\.api-reference-nav\s*\{[^}]*display:\s*grid;[^}]*grid-template-areas:\s*"stack";/s);
     expect(css).toMatch(
-      /\.sidebar__header\s*\{[^}]*position:\s*sticky;[^}]*top:\s*-1px;[^}]*background:\s*var\(--mc-docs-sidebar-header-surface\);/s,
+      /\[data-api-nav-scroll-region\]\.sidebar__body\s*\{[^}]*grid-area:\s*stack;[^}]*overflow-y:\s*auto;/s,
     );
     expect(css).toMatch(
-      /\[data-api-nav-scroll-region\]\[data-api-nav-scrolled="true"\] \.sidebar__header\s*\{[^}]*box-shadow:\s*0 var\(--mc-space-2\) var\(--mc-space-4\)\s*color-mix\(in srgb, var\(--color-sky-top\) 56%, transparent\);/s,
+      /\.sidebar__header\s*\{[^}]*position:\s*relative;[^}]*z-index:\s*3;[^}]*grid-area:\s*stack;[^}]*background:\s*var\(--mc-docs-sidebar-header-surface\);[^}]*-webkit-backdrop-filter:\s*blur\(var\(--mc-space-4\)\) saturate\(1\.15\);[^}]*backdrop-filter:\s*blur\(var\(--mc-space-4\)\) saturate\(1\.15\);/s,
     );
-    expect(navigation).toContain("nav.dataset.apiNavScrolled = String(nav.scrollTop > 0);");
+    expect(css).toMatch(
+      /\.api-reference-nav\[data-api-nav-scrolled="true"\] \.sidebar__header\s*\{[^}]*box-shadow:\s*0 var\(--mc-space-2\) var\(--mc-space-4\)\s*color-mix\(in srgb, var\(--color-sky-top\) 56%, transparent\);/s,
+    );
+    expect(navigation).toContain("nav.dataset.apiNavScrolled = String(scrollRegion.scrollTop > 0);");
     expect(navigation).toContain(
-      'nav.addEventListener("scroll", () => updateSidebarHeaderScrollState(nav), { passive: true });',
+      'scrollRegion.addEventListener("scroll", () => updateSidebarHeaderScrollState(nav, scrollRegion), { passive: true });',
     );
     expect(css).toContain("--mc-docs-nav-padding: var(--mc-docs-space-md);");
     expect(css).toMatch(
@@ -79,7 +83,7 @@ describe("Sidebar", () => {
     expect(css).toContain(".api-reference-nav__toggle-all,\n    .api-reference-nav__toggle {");
     expect(css).toContain("--mc-docs-nav-bottom-fade-height: var(--mc-space-3);");
     expect(css).toMatch(
-      /\[data-api-nav-scroll-region\]\.api-reference-nav\s*\{[^}]*mask-image:\s*linear-gradient\(\s*to bottom,\s*var\(--mc-color-mask-opaque\) 0 calc\(100% - var\(--mc-docs-nav-bottom-fade-height\)\),\s*color-mix\(in srgb, var\(--mc-color-mask-opaque\) 80%, transparent\)\s*\);/s,
+      /\[data-api-nav-scroll-region\]\.sidebar__body\s*\{[^}]*mask-image:\s*linear-gradient\(\s*to bottom,\s*var\(--mc-color-mask-opaque\) 0 calc\(100% - var\(--mc-docs-nav-bottom-fade-height\)\),\s*color-mix\(in srgb, var\(--mc-color-mask-opaque\) 80%, transparent\)\s*\);/s,
     );
   });
 
