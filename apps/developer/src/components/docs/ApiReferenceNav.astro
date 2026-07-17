@@ -53,7 +53,7 @@ const SchemasIcon = apiReferenceStaticSectionIcons.schemas;
   data-api-nav-scroll-region
 >
   <Sidebar.Header>
-    <h2 class="text-card-title font-semibold text-fg">Reference</h2>
+    <Sidebar.Header.Title className="text-card-title font-semibold text-fg">Reference</Sidebar.Header.Title>
     <Sidebar.Header.Addon>
       <button
         type="button"
@@ -211,6 +211,11 @@ const SchemasIcon = apiReferenceStaticSectionIcons.schemas;
     button.setAttribute("title", label);
   };
 
+  /** Keeps the header shadow tied to the rail's own scroll position. */
+  const updateSidebarHeaderScrollState = (nav: HTMLElement) => {
+    nav.dataset.apiNavScrolled = String(nav.scrollTop > 0);
+  };
+
   /**
    * Animates a measured height instead of an interpolated grid track. This is
    * interruptible, avoids timer-based closing, and keeps native details usable
@@ -314,6 +319,8 @@ const SchemasIcon = apiReferenceStaticSectionIcons.schemas;
   });
 
   document.querySelectorAll<HTMLElement>("[data-api-reference-nav]").forEach((nav) => {
+    updateSidebarHeaderScrollState(nav);
+    nav.addEventListener("scroll", () => updateSidebarHeaderScrollState(nav), { passive: true });
     updateToggleAllControl(nav);
     const button = nav.querySelector<HTMLButtonElement>("[data-api-nav-toggle-all]");
     if (!button) return;

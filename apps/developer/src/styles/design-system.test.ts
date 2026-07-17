@@ -87,13 +87,30 @@ describe("developer design system", () => {
     const docs = readDeveloperFile("src/styles/docs.css");
     const sdkCard = readDeveloperFile("src/components/docs/SdkSegmentedCard.astro");
 
-    expect(docs).not.toMatch(
-      /\.content-card__body-stack\s*\{[^}]*padding-inline:/s,
-    );
+    expect(docs).not.toMatch(/\.content-card__body-stack\s*\{[^}]*padding-inline:/s);
     expect(docs).toMatch(
       /\.content-card__copy\s*\{[^}]*gap:\s*var\(--mc-space-6\);[^}]*padding-inline:\s*var\(--mc-docs-content-card-copy-inset\);/s,
     );
     expect(sdkCard).toContain("<SegmentedCard.Body.Panel.Copy>");
+  });
+
+  it("keeps every Portal card borderless without header or footer separators", () => {
+    const components = readDeveloperFile("src/styles/components.css");
+    const docs = readDeveloperFile("src/styles/docs.css");
+    const pricing = readDeveloperFile("src/pages/pricing.astro");
+
+    expect(components).not.toMatch(/\.surface-card\s*\{[^}]*\bborder\s*:/s);
+    expect(components).not.toMatch(/\.surface-card__header\s*\{[^}]*border-bottom:/s);
+    expect(components).not.toMatch(/\.surface-card__footer\s*\{[^}]*border-top:/s);
+    expect(docs).not.toMatch(/\.surface-card\.content-card\s*\{[^}]*\bborder\s*:/s);
+    expect(docs).not.toMatch(/\.content-card__header\s*\{[^}]*border-bottom:/s);
+    expect(docs).not.toMatch(/\.content-card__footer\s*\{[^}]*border-top:/s);
+    expect(docs).not.toMatch(/\.content-panel\s*\{[^}]*\bborder\s*:/s);
+    expect(docs).not.toMatch(/\.request-body-card__body\s*\{[^}]*border-top:/s);
+    expect(docs).not.toMatch(/\.search-dialog\.surface-card\s*\{[^}]*\bborder\s*:/s);
+    expect(docs).not.toMatch(/\.search-dialog__header\s*\{[^}]*border-bottom:/s);
+    expect(docs).not.toMatch(/\.search-dialog__footer\s*\{[^}]*border-top:/s);
+    expect(pricing).not.toMatch(/tier-card[^"`]*\bborder\b/);
   });
 
   it("insets and brightens CodeBlock labels without moving their code surfaces", () => {
@@ -103,6 +120,32 @@ describe("developer design system", () => {
     expect(codeBlock).toContain('class="code-block__label text-code');
     expect(docs).toMatch(
       /\.code-block__label\s*\{[^}]*padding-inline:\s*var\(--mc-docs-content-card-copy-inset\);[^}]*color:\s*var\(--color-fg-muted\);/s,
+    );
+  });
+
+  it("keeps CodeBlock surfaces and their line-number gutters subtly translucent", () => {
+    const docs = readDeveloperFile("src/styles/docs.css");
+
+    expect(docs).toContain("--mc-docs-code-surface: color-mix(in srgb, var(--color-code-bg) 84%, transparent);");
+    expect(docs).toContain(
+      "--mc-docs-code-gutter-surface: color-mix(in srgb, var(--mc-docs-code-surface) 88%, var(--color-surface-raised) 12%);",
+    );
+    expect(docs).toMatch(/\.openapi-markdown pre\s*\{[^}]*background:\s*var\(--mc-docs-code-surface\);/s);
+    expect(docs).toMatch(/\.code-block__frame\s*\{[^}]*background:\s*var\(--mc-docs-code-surface\);/s);
+    expect(docs).toMatch(
+      /\[data-code-line-numbers\] \.code-block__frame pre\.shiki\s*\{[^}]*var\(--mc-docs-code-gutter-surface\) 0 var\(--code-line-number-column-width\)/s,
+    );
+  });
+
+  it("keeps the sticky API sidebar header opaque on its dedicated surface", () => {
+    const theme = readDeveloperFile("public/developer-theme.css");
+    const docs = readDeveloperFile("src/styles/docs.css");
+
+    expect(theme).toContain("--mc-color-sidebar-header: #1b2530;");
+    expect(docs).toContain("--mc-docs-sidebar-header-surface: var(--mc-color-sidebar-header);");
+    expect(docs).toMatch(/\.sidebar__header\s*\{[^}]*background:\s*var\(--mc-docs-sidebar-header-surface\);/s);
+    expect(docs).toMatch(
+      /\.sidebar__header-title\s*\{[^}]*padding-inline-start:\s*var\(--mc-docs-content-card-copy-inset\);/s,
     );
   });
 
@@ -128,7 +171,7 @@ describe("developer design system", () => {
     expect(components).toMatch(
       /\.keycap__key\s*\{[^}]*aspect-ratio:\s*1;[^}]*border:\s*0;[^}]*border-radius:\s*var\(--mc-keycap-radius\);[^}]*background:\s*var\(--mc-keycap-surface\);/s,
     );
-    expect(header).toContain('<KeyCap shortcut={PUBLIC_SEARCH_COMMAND.shortcut} />');
+    expect(header).toContain("<KeyCap shortcut={PUBLIC_SEARCH_COMMAND.shortcut} />");
     expect(search).toContain('<KeyCap shortcut="Esc" />');
   });
 
@@ -329,7 +372,10 @@ describe("developer design system", () => {
       /\.card-content-inset,[\s\S]*\.page-heading\s*\{[^}]*padding-inline:\s*var\(--mc-card-content-inset\);/s,
     );
     expect(components).toMatch(
-      /\.public-header\s*\{[^}]*--mc-public-header-card-content-inset:\s*calc\(var\(--radius-card\) \/ 2\);[^}]*--mc-public-header-padding-inline:\s*calc\(\s*var\(--mc-space-page-inline\) \+ var\(--mc-public-header-card-content-inset\)\s*\);[^}]*padding:\s*var\(--mc-space-5\) var\(--mc-public-header-padding-inline\);/s,
+      /\.public-header\s*\{[^}]*--mc-public-header-card-content-inset:\s*calc\(var\(--radius-card\) \/ 2\);[^}]*--mc-public-header-padding-inline:\s*calc\(\s*var\(--mc-space-page-inline\) \+ var\(--mc-public-header-card-content-inset\)\s*\);/s,
+    );
+    expect(components).toMatch(
+      /\.public-header__inner\s*\{[^}]*padding:\s*var\(--mc-space-5\) var\(--mc-public-header-padding-inline\);/s,
     );
     expect(docs).toContain("--mc-card-content-inset: calc(var(--mc-docs-content-card-radius) / 2);");
     expect(docs).toMatch(/\.api-content__chapter-header\s*\{[^}]*padding-inline:\s*var\(--mc-card-content-inset\);/s);

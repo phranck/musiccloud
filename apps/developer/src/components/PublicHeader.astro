@@ -34,7 +34,8 @@ const navClass = (id: PublicNavigationId) =>
 const SearchIcon = PUBLIC_SEARCH_COMMAND.icon;
 ---
 
-<header class="public-header developer-shell">
+<div class="public-header">
+<header class="public-header__inner developer-shell">
   <Wordmark />
   <div class="public-header__actions">
     <nav class="public-header__desktop" aria-label="Primary" data-public-navigation="desktop">
@@ -110,6 +111,7 @@ const SearchIcon = PUBLIC_SEARCH_COMMAND.icon;
     </details>
   </div>
 </header>
+</div>
 
 <script>
   const searchHref = "/docs/api?search=1";

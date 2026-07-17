@@ -62,8 +62,8 @@ export const ContentCard = Object.assign(ContentCardRoot, {
 });
 
 export type {
-  ContentCardFooterProps,
   ContentCardCopyProps,
+  ContentCardFooterProps,
   ContentCardHeaderAddonProps,
   ContentCardHeaderProps,
   ContentCardProps,

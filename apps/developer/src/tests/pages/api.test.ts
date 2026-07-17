@@ -456,6 +456,17 @@ describe("/docs/api content", () => {
     );
   });
 
+  it("doubles only the leading inset of endpoint method headers", () => {
+    const css = readFileSync(join(rootDir, "styles/docs.css"), "utf8");
+
+    expect(css).toContain(
+      "--mc-docs-endpoint-card-header-padding-inline-start: calc(var(--space-content-card-header) * 1.7);",
+    );
+    expect(css).toMatch(
+      /\.endpoint-card__header\s*\{[^}]*padding-inline-start:\s*var\(--mc-docs-endpoint-card-header-padding-inline-start\);/s,
+    );
+  });
+
   it("derives navigation and content operation anchors from one shared helper", () => {
     const navigation = readFileSync(join(rootDir, "components/docs/ApiReferenceNav.astro"), "utf8");
     const operation = readFileSync(join(rootDir, "components/docs/EndpointOperation.astro"), "utf8");

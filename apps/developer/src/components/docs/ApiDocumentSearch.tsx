@@ -427,9 +427,18 @@ export function ApiDocumentSearch() {
 
         <SearchDialog.Footer>
           <SearchDialog.Footer.Hints>
-            <SearchDialog.Footer.Hint><KeyCap shortcut="↑↓" />Navigate</SearchDialog.Footer.Hint>
-            <SearchDialog.Footer.Hint><KeyCap shortcut="↵" />Open</SearchDialog.Footer.Hint>
-            <SearchDialog.Footer.Hint><KeyCap shortcut="Esc" />Close</SearchDialog.Footer.Hint>
+            <SearchDialog.Footer.Hint>
+              <KeyCap shortcut="↑↓" />
+              Navigate
+            </SearchDialog.Footer.Hint>
+            <SearchDialog.Footer.Hint>
+              <KeyCap shortcut="↵" />
+              Open
+            </SearchDialog.Footer.Hint>
+            <SearchDialog.Footer.Hint>
+              <KeyCap shortcut="Esc" />
+              Close
+            </SearchDialog.Footer.Hint>
           </SearchDialog.Footer.Hints>
         </SearchDialog.Footer>
       </SearchDialog>

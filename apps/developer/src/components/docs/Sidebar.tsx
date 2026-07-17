@@ -12,6 +12,7 @@ import { joinClassNames } from "@/components/docs/classNames";
 
 type SidebarProps = ComponentPropsWithoutRef<"nav">;
 type SidebarHeaderProps = ComponentPropsWithoutRef<"header">;
+type SidebarHeaderTitleProps = ComponentPropsWithoutRef<"h2">;
 type SidebarHeaderAddonProps = ComponentPropsWithoutRef<"div">;
 type SidebarBodyProps = ComponentPropsWithoutRef<"div">;
 type SidebarSectionProps = ComponentPropsWithoutRef<"details">;
@@ -36,6 +37,7 @@ function slot<Tag extends keyof JSX.IntrinsicElements>(tag: Tag, baseClassName: 
 
 const SidebarRoot = slot("nav", "sidebar");
 const SidebarHeader = slot("header", "sidebar__header");
+const SidebarHeaderTitle = slot("h2", "sidebar__header-title");
 const SidebarHeaderAddon = slot("div", "sidebar__header-addon");
 const SidebarBody = slot("div", "sidebar__body");
 const SidebarSection = slot("details", "sidebar__section");
@@ -68,6 +70,7 @@ export function SidebarSectionItem({ children, itemClassName, className, ...prop
 export const Sidebar = Object.assign(SidebarRoot, {
   Header: Object.assign(SidebarHeader, {
     Addon: SidebarHeaderAddon,
+    Title: SidebarHeaderTitle,
   }),
   Body: SidebarBody,
   Chapter: SidebarChapter,
@@ -85,6 +88,7 @@ export type {
   SidebarChapterProps,
   SidebarHeaderAddonProps,
   SidebarHeaderProps,
+  SidebarHeaderTitleProps,
   SidebarProps,
   SidebarSectionHeaderAddonsProps,
   SidebarSectionHeaderProps,
