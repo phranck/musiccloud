@@ -33,6 +33,14 @@ function collectFiles(directory: string): string[] {
 }
 
 describe("developer design system", () => {
+  it("suppresses visible native focus rings across the Developer Portal", () => {
+    const base = readDeveloperFile("src/styles/base.css");
+
+    expect(base).toMatch(
+      /:focus,\s*:focus-visible\s*\{[^}]*outline:\s*0 !important;[^}]*outline-offset:\s*0 !important;[^}]*box-shadow:\s*none !important;/s,
+    );
+  });
+
   it("loads one canonical runtime theme in the app and coming-soon fallback", () => {
     const theme = readDeveloperFile("public/developer-theme.css");
     const layout = readDeveloperFile("src/layouts/BaseLayout.astro");
@@ -107,10 +115,24 @@ describe("developer design system", () => {
     expect(docs).not.toMatch(/\.content-card__footer\s*\{[^}]*border-top:/s);
     expect(docs).not.toMatch(/\.content-panel\s*\{[^}]*\bborder\s*:/s);
     expect(docs).not.toMatch(/\.request-body-card__body\s*\{[^}]*border-top:/s);
-    expect(docs).not.toMatch(/\.search-dialog\.surface-card\s*\{[^}]*\bborder\s*:/s);
-    expect(docs).not.toMatch(/\.search-dialog__header\s*\{[^}]*border-bottom:/s);
-    expect(docs).not.toMatch(/\.search-dialog__footer\s*\{[^}]*border-top:/s);
+    expect(docs).not.toMatch(/\.api-dialog\.surface-card\s*\{[^}]*\bborder\s*:/s);
+    expect(docs).not.toMatch(/\.api-dialog__header\s*\{[^}]*border-bottom:/s);
+    expect(docs).not.toMatch(/\.api-dialog__footer\s*\{[^}]*border-top:/s);
     expect(pricing).not.toMatch(/tier-card[^"`]*\bborder\b/);
+  });
+
+  it("uses one subtly brighter chrome token for every card header and footer", () => {
+    const theme = readDeveloperFile("public/developer-theme.css");
+    const tokens = readDeveloperFile("src/styles/tokens.css");
+    const components = readDeveloperFile("src/styles/components.css");
+    const docs = readDeveloperFile("src/styles/docs.css");
+
+    expect(theme).toContain("--mc-color-card-chrome: rgba(255, 255, 255, 0.07);");
+    expect(tokens).toContain("--color-card-chrome: var(--mc-color-card-chrome);");
+    expect(components).toMatch(
+      /\.surface-card__header,[\s\S]*?\.surface-card__footer\s*\{[^}]*background:\s*var\(--color-card-chrome\);/s,
+    );
+    expect(docs).toContain("--mc-docs-card-chrome: var(--color-card-chrome);");
   });
 
   it("insets and brightens CodeBlock labels without moving their code surfaces", () => {
@@ -134,6 +156,16 @@ describe("developer design system", () => {
     expect(docs).toMatch(/\.code-block__frame\s*\{[^}]*background:\s*var\(--mc-docs-code-surface\);/s);
     expect(docs).toMatch(
       /\[data-code-line-numbers\] \.code-block__frame pre\.shiki\s*\{[^}]*var\(--mc-docs-code-gutter-surface\) 0 var\(--code-line-number-column-width\)/s,
+    );
+  });
+
+  it("gives the OpenAPI-contract loading spinner its own clear vertical breathing room", () => {
+    const docs = readDeveloperFile("src/styles/docs.css");
+
+    expect(docs).toMatch(/\.openapi-contract-dialog__loading\s*\{[^}]*padding-block:\s*var\(--mc-space-8\);/s);
+    expect(docs).toContain("--mc-docs-contract-dialog-header-block-size: calc(");
+    expect(docs).toMatch(
+      /--mc-docs-contract-dialog-loading-height:\s*calc\(\s*var\(--mc-docs-contract-dialog-header-block-size\)\s*\+\s*var\(--space-content-card\)\s*\+\s*var\(--space-content-card\)\s*\+\s*var\(--mc-size-icon-lg\)\s*\+\s*var\(--mc-space-8\)\s*\+\s*var\(--mc-space-8\)\s*\);/s,
     );
   });
 

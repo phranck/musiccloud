@@ -55,7 +55,7 @@ describe("SearchDialog", () => {
     );
 
     expect(html).toMatch(
-      /<dialog[^>]*open=""[^>]*aria-label="Search API reference"[^>]*class="search-dialog surface-card">/,
+      /<dialog[^>]*open=""[^>]*aria-label="Search API reference"[^>]*class="api-dialog surface-card search-dialog">/,
     );
     expect(html).toContain('role="combobox"');
     expect(html).toContain('role="listbox"');
@@ -67,7 +67,7 @@ describe("SearchDialog", () => {
   it("keeps the surface-card dialog horizontally centered at every viewport size", () => {
     const css = readFileSync(join(import.meta.dirname, "../../styles/docs.css"), "utf8");
 
-    expect(css).toMatch(/\.search-dialog\.surface-card\s*\{[^}]*margin:\s*0 auto;/s);
+    expect(css).toMatch(/\.api-dialog\.surface-card\s*\{[^}]*margin:\s*0 auto;/s);
     expect(css).toMatch(
       /\.search-dialog__header-search-input::-webkit-search-cancel-button\s*\{[^}]*display:\s*none;/s,
     );
@@ -76,10 +76,10 @@ describe("SearchDialog", () => {
   it("uses the ContentCard backgrounds without adding card boundaries", () => {
     const css = readFileSync(join(import.meta.dirname, "../../styles/docs.css"), "utf8");
 
-    expect(css).toMatch(/\.search-dialog\.surface-card\s*\{[^}]*background:\s*var\(--color-surface\);/s);
-    expect(css).toMatch(/\.search-dialog__body\s*\{[^}]*background:\s*var\(--color-surface\);/s);
-    expect(css).toMatch(/\.search-dialog__header\s*\{[^}]*background:\s*var\(--mc-docs-card-chrome\);/s);
-    expect(css).toMatch(/\.search-dialog__footer\s*\{[^}]*background:\s*var\(--mc-docs-card-chrome\);/s);
+    expect(css).toMatch(/\.api-dialog\.surface-card\s*\{[^}]*background:\s*var\(--color-surface\);/s);
+    expect(css).toMatch(/\.api-dialog__body\s*\{[^}]*background:\s*var\(--color-surface\);/s);
+    expect(css).toMatch(/\.api-dialog__header\s*\{[^}]*background:\s*var\(--mc-docs-card-chrome\);/s);
+    expect(css).toMatch(/\.api-dialog__footer\s*\{[^}]*background:\s*var\(--mc-docs-card-chrome\);/s);
   });
 
   it("separates result groups while keeping the search field slightly raised", () => {

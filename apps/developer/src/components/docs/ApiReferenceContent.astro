@@ -8,6 +8,7 @@
  */
 import { ApiContent } from "@/components/docs/ApiContent";
 import { ApiDocumentSearch } from "@/components/docs/ApiDocumentSearch";
+import { OpenApiContractDialog } from "@/components/docs/OpenApiContractDialog";
 import ApiReferenceNav from "@/components/docs/ApiReferenceNav.astro";
 import CodeBlock from "@/components/docs/CodeBlock.astro";
 import { ContentCard } from "@/components/docs/ContentCard";
@@ -17,7 +18,7 @@ import SchemaSection from "@/components/docs/SchemaSection.astro";
 import SchemaCardsController from "@/components/docs/SchemaCardsController.astro";
 import ScrollToTopButton from "@/components/docs/ScrollToTopButton.astro";
 import SdkSegmentedCard from "@/components/docs/SdkSegmentedCard.astro";
-import { ArrowCircleDownIcon, ArrowCircleUpIcon } from "@/lib/icons";
+import { ArrowCircleDownIcon, ArrowCircleUpIcon, CloseCircleIcon, CodeIcon } from "@/lib/icons";
 import {
   apiReferenceSectionLabel,
   apiReferenceStaticSectionIcons,
@@ -29,9 +30,10 @@ import type { SdkCatalog } from "@/lib/sdk-catalog";
 interface Props {
   reference: ApiReference;
   catalog: SdkCatalog;
+  contract: unknown;
 }
 
-const { reference, catalog } = Astro.props;
+const { reference, catalog, contract } = Astro.props;
 const IntegrationIcon = apiReferenceStaticSectionIcons.integration;
 const SdkIcon = apiReferenceStaticSectionIcons.sdk;
 const SchemasIcon = apiReferenceStaticSectionIcons.schemas;
@@ -43,6 +45,8 @@ const integrationItems = [
   ["Limits", "Validated clients are limited by their configured minute and day quotas."],
   ["Versioning", `This page is generated from public API version ${reference.version}.`],
 ] as const;
+const openApiContractUrl = "https://api.musiccloud.io/docs/json";
+const openApiContractSource = JSON.stringify(contract, null, 2) ?? "{}";
 ---
 
 <div class="api-reference-shell">
@@ -98,17 +102,82 @@ const integrationItems = [
                       );
                     })
                   }
+                  <ContentPanel
+                    id="integration-openapi-contract"
+                    tabIndex={-1}
+                    className="integration-panel"
+                    data-api-search-entry
+                    data-api-search-group="Integration guide"
+                    data-api-search-title="OpenAPI contract"
+                    data-api-search-addon="Guide"
+                    data-api-search-kind="chapter"
+                  >
+                    <ContentPanel.Header>
+                      <ContentPanel.Header.Title>OpenAPI contract</ContentPanel.Header.Title>
+                    </ContentPanel.Header>
+                    <ContentPanel.Content>
+                      <div class="integration-panel__stack">
+                        <p class="text-body text-fg-muted">
+                          The public OpenAPI contract is available at <a href={openApiContractUrl} target="_blank" rel="noopener noreferrer" class="content-link text-fg">{openApiContractUrl}</a>.
+                        </p>
+                        <OpenApiContractDialog.Trigger
+                          aria-controls="openapi-contract-dialog"
+                          aria-haspopup="dialog"
+                          data-openapi-contract-trigger
+                        >
+                          <CodeIcon className="size-5" aria-hidden="true" />
+                          View OpenAPI contract
+                        </OpenApiContractDialog.Trigger>
+                      </div>
+                    </ContentPanel.Content>
+                  </ContentPanel>
                 </div>
                 <CodeBlock
                   label="Authenticated request"
                   language="bash"
-                  code={`curl https://api.musiccloud.io/api/v1/resolve \\
-  -H "X-API-Key: mc_live_<prefix>_<secret>" \\
+                  code={`# Requires MUSICCLOUD_API_KEY to be set in your shell environment.
+curl https://api.musiccloud.io/api/v1/resolve \\
+  -H "X-API-Key: \${MUSICCLOUD_API_KEY}" \\
   -H "Content-Type: application/json"`}
                 />
               </ContentCard.Body.Stack>
             </ContentCard.Body>
           </ContentCard>
+          <OpenApiContractDialog
+            id="openapi-contract-dialog"
+            aria-labelledby="openapi-contract-dialog-title"
+            data-openapi-contract-dialog
+            data-openapi-contract-source="openapi-contract-source"
+            data-openapi-contract-state="loading"
+            data-api-search-ignore
+          >
+            <OpenApiContractDialog.Header>
+              <OpenApiContractDialog.Header.Title id="openapi-contract-dialog-title">
+                Public OpenAPI contract, v{reference.version}
+              </OpenApiContractDialog.Header.Title>
+              <OpenApiContractDialog.Header.Addon>
+                <OpenApiContractDialog.Header.Close
+                  aria-label="Close OpenAPI contract"
+                  title="Close OpenAPI contract"
+                  data-openapi-contract-close
+                >
+                  <CloseCircleIcon className="openapi-contract-dialog__close-icon" aria-hidden="true" />
+                </OpenApiContractDialog.Header.Close>
+              </OpenApiContractDialog.Header.Addon>
+            </OpenApiContractDialog.Header>
+            <OpenApiContractDialog.Body>
+              <div class="openapi-contract-dialog__loading" role="status" data-openapi-contract-loading>
+                <span class="openapi-contract-dialog__loading-spinner" aria-hidden="true"></span>
+                <span class="sr-only">Loading OpenAPI contract</span>
+              </div>
+              <CodeBlock
+                code={openApiContractSource}
+                language="json"
+                fillAvailableHeight
+                deferredSourceId="openapi-contract-source"
+              />
+            </OpenApiContractDialog.Body>
+          </OpenApiContractDialog>
         </ApiContent.Chapter.Body>
       </ApiContent.Chapter>
 
@@ -178,6 +247,11 @@ const integrationItems = [
     </ApiContent>
   </div>
   <SchemaCardsController />
+  <script>
+    import { bindOpenApiContractDialog } from "@/lib/openapi-contract-dialog";
+
+    bindOpenApiContractDialog(document);
+  </script>
   <ApiDocumentSearch client:load />
   <ScrollToTopButton />
 </div>
