@@ -12,6 +12,7 @@ import type {
 } from "@musiccloud/shared";
 import {
   CONTENT_CARD_STYLES,
+  ContentContext,
   DEFAULT_LOCALE,
   isLocale,
   LOCALES,
@@ -20,349 +21,6 @@ import {
   PAGE_TITLE_ALIGNMENTS,
   PAGE_TYPES,
 } from "@musiccloud/shared";
-import type { Token, Tokens } from "marked";
-import { marked } from "marked";
-import markedFootnote from "marked-footnote";
-import { markedHighlight } from "marked-highlight";
-import { type BundledLanguage, type BundledTheme, createHighlighter, type HighlighterGeneric } from "shiki";
-import mcQueryGrammar from "./grammars/mc-query.tmLanguage.json" with { type: "json" };
-
-const KNOWN_CARD_MODIFIERS = new Set(["recessed", "embossed"] as const);
-type CardModifier = "recessed" | "embossed";
-
-/**
- * Parses code-fence metadata into the backend/frontend wire contract. Optional
- * geometry is retained only when it matches the shared safe CSS-length grammar,
- * and only the first non-modifier candidate can become a validated language.
- * Invalid optional values remain null so the renderer omits their attributes.
- */
-function parseInfostring(raw: string): {
-  lang: string | null;
-  modifier: CardModifier | null;
-  padding: string | null;
-  radius: string | null;
-} {
-  const tokens = raw.trim().split(/\s+/).filter(Boolean);
-  let modifier: CardModifier | null = null;
-  let lang: string | null = null;
-  let padding: string | null = null;
-  let radius: string | null = null;
-  let sawLanguageCandidate = false;
-  for (const t of tokens) {
-    if (KNOWN_CARD_MODIFIERS.has(t as CardModifier)) modifier = t as CardModifier;
-    else if (t.startsWith("padding=")) {
-      const value = t.slice("padding=".length);
-      padding = isSafeCssLength(value) ? value : null;
-    } else if (t.startsWith("radius=")) {
-      const value = t.slice("radius=".length);
-      radius = isSafeCssLength(value) ? value : null;
-    } else if (!sawLanguageCandidate) {
-      sawLanguageCandidate = true;
-      lang = isSafeLanguageToken(t) ? t : null;
-    }
-  }
-  return { lang, modifier, padding, radius };
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function escapeHtmlAttribute(s: string): string {
-  return escapeHtml(s).replace(/"/g, "&quot;");
-}
-
-const CSS_LENGTH_PATTERN = /^(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em|ch)$/;
-const LANGUAGE_TOKEN_PATTERN = /^[A-Za-z][A-Za-z0-9_-]*$/;
-const FIELDS_DEFAULT_LABEL_WIDTH = "max-content";
-const FIELDS_DEFAULT_GAP = "1.1rem";
-const INLINE_OPTION_TOKEN_PATTERN = /^([A-Za-z][\w-]*)=([^\s=]+)$/;
-
-interface FieldsLayout {
-  labelWidth: string;
-  gap: string;
-}
-
-interface McFieldsRow {
-  label: string;
-  tokens: Token[];
-}
-
-interface McFieldsToken extends Tokens.Generic {
-  type: "mcFields";
-  rows: McFieldsRow[];
-  layout: FieldsLayout;
-}
-
-function parseInlineOptions(raw: string | undefined): Array<[name: string, value: string]> {
-  const options: Array<[name: string, value: string]> = [];
-  for (const option of (raw ?? "").trim().split(/\s+/).filter(Boolean)) {
-    const match = option.match(INLINE_OPTION_TOKEN_PATTERN);
-    if (match) options.push([match[1], match[2]]);
-  }
-  return options;
-}
-
-function isInlineOptionToken(token: string): boolean {
-  return INLINE_OPTION_TOKEN_PATTERN.test(token);
-}
-
-function isSafeCssLength(value: string): boolean {
-  return CSS_LENGTH_PATTERN.test(value);
-}
-
-function isSafeLanguageToken(value: string): boolean {
-  return LANGUAGE_TOKEN_PATTERN.test(value);
-}
-
-function parseFieldsLayout(raw: string | undefined): FieldsLayout {
-  const layout: FieldsLayout = {
-    labelWidth: FIELDS_DEFAULT_LABEL_WIDTH,
-    gap: FIELDS_DEFAULT_GAP,
-  };
-
-  for (const [name, value] of parseInlineOptions(raw)) {
-    if (name === "labelWidth") {
-      layout.labelWidth =
-        value === "auto" ? FIELDS_DEFAULT_LABEL_WIDTH : isSafeCssLength(value) ? value : layout.labelWidth;
-    } else if (name === "gap" && isSafeCssLength(value)) {
-      layout.gap = value;
-    }
-  }
-
-  return layout;
-}
-
-function renderFieldsStyle(layout: FieldsLayout): string {
-  return `display:grid;grid-template-columns:${layout.labelWidth} minmax(0, 1fr);column-gap:${layout.gap};`;
-}
-
-function highlightPlainText(code: string): string {
-  return code
-    .split("\n")
-    .map((line) => {
-      const leading = line.match(/^\s*/)?.[0] ?? "";
-      const rest = line.slice(leading.length);
-      if (rest.startsWith("#") || rest.startsWith("//")) {
-        return `${leading}<span style="color:#9A9AA0;font-style:italic">${escapeHtml(rest)}</span>`;
-      }
-      return escapeHtml(line);
-    })
-    .join("\n");
-}
-
-// Module-level singleton: createHighlighter is expensive (loads WASM, parses
-// grammars), so we create one instance lazily on first highlight call and
-// reuse it for the lifetime of the process. The explicit langs list registers
-// every language we want highlightable — anything outside the list throws in
-// codeToHtml and falls into the catch-block below (graceful plain-text
-// fallback). The custom mcQueryGrammar is registered alongside bundled langs;
-// at runtime `lang` is derived from the fence info-string (a plain string),
-// so the singleton's generic type stays at BundledLanguage and we accept that
-// the custom "mc-query" identifier is only known at runtime.
-let highlighterPromise: Promise<HighlighterGeneric<BundledLanguage, BundledTheme>> | undefined;
-function getHighlighter(): Promise<HighlighterGeneric<BundledLanguage, BundledTheme>> {
-  highlighterPromise ??= createHighlighter({
-    themes: ["vitesse-dark"],
-    langs: [
-      "javascript",
-      "typescript",
-      "ts",
-      "js",
-      "tsx",
-      "jsx",
-      "python",
-      "swift",
-      "bash",
-      "json",
-      "css",
-      "html",
-      mcQueryGrammar,
-    ],
-  });
-  return highlighterPromise;
-}
-
-marked.use(markedFootnote(), { gfm: true });
-
-marked.use(
-  markedHighlight({
-    async: true,
-    async highlight(code, infostring) {
-      // marked passes the FULL fence info-string as `lang` (e.g.
-      // "text recessed padding=0.75rem"). We must parse out the real
-      // language before deciding the highlight path; otherwise both
-      // the `text` intercept and Shiki miss.
-      const { lang } = parseInfostring(infostring ?? "");
-      if (!lang) return escapeHtml(code);
-      if (lang.toLowerCase() === "text") return highlightPlainText(code);
-      try {
-        const hl = await getHighlighter();
-        const html = hl.codeToHtml(code, { lang, theme: "vitesse-dark" });
-        // Shiki returns full <pre><code>...wrapper. Extract inner of <code>...</code>.
-        const m = html.match(/<code[^>]*>([\s\S]*?)<\/code>/);
-        return m ? m[1] : escapeHtml(code);
-      } catch {
-        // Unknown language (not in singleton's lang-list): shiki throws; fall
-        // back to escaped plain text.
-        return escapeHtml(code);
-      }
-    },
-  }),
-);
-
-marked.use({
-  renderer: {
-    code({ text, lang: rawLang }: Tokens.Code): string {
-      const parsed = parseInfostring(rawLang ?? "");
-      // Default: every fenced code block is recessed-wrapped. Authors opt
-      // into a different look with `embossed`, or override padding/radius via
-      // validated padding=/radius= modifiers. Invalid optional geometry and
-      // language tokens are omitted; the frontend supplies geometry defaults.
-      // There is no "no-card" code fence. Every dynamic double-quoted wire
-      // attribute is encoded as a complete attribute value.
-      const modifier = parsed.modifier ?? "recessed";
-      const styleAttr = ` data-card-style="${escapeHtmlAttribute(modifier)}"`;
-      const paddingAttr = parsed.padding ? ` data-card-padding="${escapeHtmlAttribute(parsed.padding)}"` : "";
-      const radiusAttr = parsed.radius ? ` data-card-radius="${escapeHtmlAttribute(parsed.radius)}"` : "";
-      const langClass = parsed.lang ? ` class="${escapeHtmlAttribute(`language-${parsed.lang}`)}"` : "";
-      // `text` is already shiki-highlighted HTML or escaped fallback.
-      return `<pre${styleAttr}${paddingAttr}${radiusAttr}><code${langClass}>${text}</code></pre>\n`;
-    },
-  },
-});
-
-// Inline marked extensions for [[pill:...]] pills and {{kbd}} hints.
-const PILL_TONES = new Set(["alert", "info", "neutral", "success"] as const);
-const PILL_CASES = new Set(["none", "upper", "lower"] as const);
-type PillTone = "alert" | "info" | "neutral" | "success";
-type PillCase = "none" | "upper" | "lower";
-
-interface McPillToken extends Tokens.Generic {
-  type: "mcPill";
-  text: string;
-  tone: PillTone;
-  textCase: PillCase;
-}
-
-function parsePillBody(raw: string): { text: string; options: string | undefined } {
-  const tokens = raw.trim().split(/\s+/).filter(Boolean);
-  if (tokens.length === 0) return { text: "", options: undefined };
-
-  let optionStart = tokens.length;
-  while (optionStart > 1 && isInlineOptionToken(tokens[optionStart - 1])) {
-    optionStart -= 1;
-  }
-
-  const text = tokens.slice(0, optionStart).join(" ");
-  const options = tokens.slice(optionStart).join(" ");
-  return { text, options: options || undefined };
-}
-
-function parsePillOptions(raw: string | undefined): { tone: PillTone; textCase: PillCase } {
-  let tone: PillTone = "neutral";
-  let textCase: PillCase = "none";
-
-  for (const [name, value] of parseInlineOptions(raw)) {
-    if (name === "tone" && PILL_TONES.has(value as PillTone)) {
-      tone = value as PillTone;
-    } else if (name === "case" && PILL_CASES.has(value as PillCase)) {
-      textCase = value as PillCase;
-    }
-  }
-
-  return { tone, textCase };
-}
-
-function applyPillCase(text: string, textCase: PillCase): string {
-  if (textCase === "upper") return text.toUpperCase();
-  if (textCase === "lower") return text.toLowerCase();
-  return text;
-}
-
-marked.use({
-  extensions: [
-    {
-      name: "mcFields",
-      level: "block",
-      start(src: string) {
-        return src.match(/^:::fields/m)?.index;
-      },
-      tokenizer(src: string) {
-        const match = src.match(/^:::fields(?:[ \t]+([^\r\n]*))?\r?\n([\s\S]*?)\r?\n:::[ \t]*(?:\r?\n|$)/);
-        if (!match) return;
-
-        const rows = match[2]
-          .split(/\r?\n/)
-          .map((line): McFieldsRow | null => {
-            const row = line.match(/^\s*([^:]+):\s*(.*)$/);
-            if (!row) return null;
-            const label = row[1].trim();
-            const value = row[2].trim();
-            if (!label) return null;
-            return {
-              label,
-              tokens: this.lexer.inline(value) as Token[],
-            };
-          })
-          .filter((row): row is McFieldsRow => row !== null);
-
-        return {
-          type: "mcFields",
-          raw: match[0],
-          rows,
-          layout: parseFieldsLayout(match[1]),
-        } satisfies McFieldsToken;
-      },
-      renderer(token) {
-        const fields = token as McFieldsToken;
-        const rows = fields.rows
-          .map((row) => {
-            const label = escapeHtml(row.label);
-            const content = this.parser.parseInline(row.tokens);
-            return `<dt>${label}:</dt><dd>${content}</dd>`;
-          })
-          .join("");
-        return `<dl class="mc-fields" style="${escapeHtmlAttribute(renderFieldsStyle(fields.layout))}">${rows}</dl>\n`;
-      },
-    },
-    {
-      name: "mcPill",
-      level: "inline",
-      start(src: string) {
-        return src.match(/\[\[pill:/)?.index;
-      },
-      tokenizer(src: string) {
-        const m = src.match(/^\[\[pill:([^\]]+)\]\]/);
-        if (!m) return;
-        const { text, options } = parsePillBody(m[1]);
-        if (!text) return;
-        return { type: "mcPill", raw: m[0], text, ...parsePillOptions(options) } satisfies McPillToken;
-      },
-      renderer(token) {
-        const pill = token as McPillToken;
-        return `<span class="mc-pill mc-pill-${pill.tone}">${escapeHtml(applyPillCase(pill.text, pill.textCase))}</span>`;
-      },
-    },
-    {
-      name: "mcKbd",
-      level: "inline",
-      start(src: string) {
-        return src.match(/\{\{/)?.index;
-      },
-      tokenizer(src: string) {
-        const m = src.match(/^\{\{([^}]+)\}\}/);
-        if (m) return { type: "mcKbd", raw: m[0], text: m[1] };
-      },
-      renderer(token) {
-        // Author-supplied content; escape to prevent HTML injection via {{...}}.
-        const text: string = token.text;
-        return `<kbd class="mc-kbd">${escapeHtml(text)}</kbd>`;
-      },
-    },
-  ],
-});
-
 import type {
   AdminRepository,
   ContentPageMetaUpdate,
@@ -373,6 +31,7 @@ import type {
 } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
 import { getPageTranslationsWithStatus } from "./admin-translations.js";
+import { renderMarkdown } from "./markdown/renderer.js";
 
 const SLUG_PATTERN = /^[a-z0-9-]+$/;
 const SLUG_MAX_LEN = 100;
@@ -388,27 +47,7 @@ function isOneOf<T extends readonly string[]>(list: T, v: unknown): v is T[numbe
 }
 
 async function renderBody(content: string | null | undefined): Promise<string> {
-  // Two layers of defence against the marked tokenizer crash
-  // ("Cannot read properties of undefined (reading 'filter')") that the
-  // markedHighlight async pipeline triggers on certain inputs (empty
-  // string, whitespace-only, or other edge cases — regression introduced
-  // when Shiki was wired in via markedHighlight). The crash propagates
-  // out of renderBody as HTTP 500 which the frontend converts to a 404
-  // for the entire page, even when only one segment's content is the
-  // offender.
-  //
-  // 1. Skip parsing entirely for falsy / whitespace-only content — the
-  //    fast path also matches the user's intent (no content → no HTML).
-  // 2. If a non-trivial payload still trips the tokenizer, escape it
-  //    raw and surface a server log so the bug is visible without
-  //    nuking the page.
-  if (!content || !content.trim()) return "";
-  try {
-    return (await marked.parse(content, { async: true })) as string;
-  } catch (err) {
-    console.error("[renderBody] marked.parse threw, falling back to escaped text:", err);
-    return `<pre>${content.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>`;
-  }
+  return renderMarkdown(content ?? "", ContentContext.Frontend);
 }
 
 function segmentRowToDto(row: PageSegmentRow): PageSegment {
@@ -714,10 +353,9 @@ export async function getPublicContentPage(slug: string, locale: Locale): Promis
     }
   }
 
-  // Render segments SEQUENTIALLY, not in parallel. The marked singleton
-  // (mutated by markedFootnote + markedHighlight + custom renderer) is
-  // not concurrency-safe: parallel `marked.parse` calls on the same
-  // instance corrupt the tokenizer's shared state and throw
+  // Render segments SEQUENTIALLY, not in parallel. Each concrete context
+  // owns one cached Marked instance, and parallel parses on that same
+  // instance can corrupt the tokenizer's shared state and throw
   // "Cannot read properties of undefined (reading 'filter')". Reproducer
   // and root-cause analysis lived in marked-isolate.test.ts.
   const segments: PublicPageSegment[] = [];

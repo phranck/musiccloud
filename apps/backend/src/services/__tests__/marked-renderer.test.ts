@@ -1,9 +1,12 @@
+import { ContentContext } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
+import { renderMarkdown } from "../markdown/renderer.js";
 
-// admin-content.ts side-effects: marked.use(...) which sets up the custom code renderer.
-import "../admin-content.js";
-
-import { marked } from "marked";
+const marked = {
+  parse(markdown: string, _options?: { async?: boolean }) {
+    return renderMarkdown(markdown, ContentContext.Frontend);
+  },
+};
 
 describe("marked custom code renderer", () => {
   it("default-recessed wraps plain ```js block", async () => {
