@@ -87,10 +87,7 @@ export function bindOpenApiContractDialog(root: Document): () => void {
       const appendHighlightChunk = () => {
         if (session !== renderSession) return;
 
-        const lineChunk = progressiveHighlighter.lines.slice(
-          nextLineIndex,
-          nextLineIndex + HIGHLIGHT_CHUNK_LINE_COUNT,
-        );
+        const lineChunk = progressiveHighlighter.lines.slice(nextLineIndex, nextLineIndex + HIGHLIGHT_CHUNK_LINE_COUNT);
         const chunk = root.createElement("template");
         chunk.innerHTML = lineChunk.join("\n");
         progressiveHighlighter.code.append(chunk.content);

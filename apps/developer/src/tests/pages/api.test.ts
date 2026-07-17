@@ -133,8 +133,8 @@ describe("/docs/api content", () => {
     expect(html).toContain("MUSICCLOUD_API_KEY");
     const content = readFileSync(join(rootDir, "components/docs/ApiReferenceContent.astro"), "utf8");
     expect(content).toContain("# Requires MUSICCLOUD_API_KEY to be set in your shell environment.");
-    expect(content).toContain('X-API-Key: \\${MUSICCLOUD_API_KEY}');
-    expect(content).not.toContain('mc_live_<prefix>_<secret>');
+    expect(content).toContain(String.raw`X-API-Key: \${MUSICCLOUD_API_KEY}`);
+    expect(content).not.toContain("mc_live_<prefix>_<secret>");
     expect(html).toContain("apiV1ResolvePost");
     expect(html).toContain("api_v1_resolve_post");
     expect(html).toContain("ResolveAPI");

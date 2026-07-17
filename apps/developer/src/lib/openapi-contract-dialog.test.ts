@@ -30,9 +30,8 @@ describe("OpenAPI contract dialog", () => {
 
   it("opens a loading dialog, then reveals the fully rendered contract", async () => {
     vi.useFakeTimers();
-    vi.stubGlobal(
-      "requestAnimationFrame",
-      (callback: FrameRequestCallback) => window.setTimeout(() => callback(performance.now()), 16),
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) =>
+      window.setTimeout(() => callback(performance.now()), 16),
     );
     const highlighted = `<pre class="shiki"><code><span class="line">{</span>\n<span class="line">  &quot;openapi&quot;: &quot;3.1.0&quot;</span>\n<span class="line">}</span></code></pre>`;
     const deferredSource = JSON.stringify(highlighted).replace(/</g, "\\u003c");

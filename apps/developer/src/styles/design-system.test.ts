@@ -162,9 +162,7 @@ describe("developer design system", () => {
   it("gives the OpenAPI-contract loading spinner its own clear vertical breathing room", () => {
     const docs = readDeveloperFile("src/styles/docs.css");
 
-    expect(docs).toMatch(
-      /\.openapi-contract-dialog__loading\s*\{[^}]*padding-block:\s*var\(--mc-space-8\);/s,
-    );
+    expect(docs).toMatch(/\.openapi-contract-dialog__loading\s*\{[^}]*padding-block:\s*var\(--mc-space-8\);/s);
     expect(docs).toContain("--mc-docs-contract-dialog-header-block-size: calc(");
     expect(docs).toMatch(
       /--mc-docs-contract-dialog-loading-height:\s*calc\(\s*var\(--mc-docs-contract-dialog-header-block-size\)\s*\+\s*var\(--space-content-card\)\s*\+\s*var\(--space-content-card\)\s*\+\s*var\(--mc-size-icon-lg\)\s*\+\s*var\(--mc-space-8\)\s*\+\s*var\(--mc-space-8\)\s*\);/s,

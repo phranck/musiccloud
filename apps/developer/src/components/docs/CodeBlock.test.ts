@@ -55,7 +55,9 @@ describe("CodeBlock", () => {
 
   it("keeps build-time syntax highlighting inert until a dialog opens", async () => {
     const html = await renderCode('{\n  "openapi": "3.1.0"\n}', "json", true, true, "contract-code-source");
-    const deferredSource = html.match(/<script id="contract-code-source" type="application\/json">([\s\S]*?)<\/script>/)?.[1];
+    const deferredSource = html.match(
+      /<script id="contract-code-source" type="application\/json">([\s\S]*?)<\/script>/,
+    )?.[1];
 
     expect(html).toContain('id="contract-code-source"');
     expect(html).toContain('data-code-deferred-source="contract-code-source"');
