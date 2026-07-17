@@ -1,17 +1,17 @@
 {
-  "apiVersion": "2.1.5",
-  "openApiSha256": "75f72cd7b454f577d5d530ac9fc7d682e5410e580a3558f5a73041493279d28c",
-  "sourceSha": "afe6209d1c8ba8f405abea36cc86c1b73a3a6211",
+  "apiVersion": "2.1.6",
+  "openApiSha256": "35644ffb3bd28eb1b046cf905818d881319f7e4aeb28f51ea2aa812dc486dab8",
+  "sourceSha": "02f1aea7a3839a19bf53533d64819d6f57d3f16d",
   "generatorVersion": "7.22.0",
   "assets": [
     {
       "language": "typescript",
       "generator": "typescript-fetch",
-      "archiveName": "musiccloud-typescript-sdk-2.1.5.zip",
-      "archiveUrl": "https://github.com/phranck/musiccloud/releases/download/api-sdk-v2.1.5/musiccloud-typescript-sdk-2.1.5.zip",
-      "sha256": "7e0fe43e3710e17848bfa1710fc97b5a37671f797a8d3f72152f0cfb3ebb732d",
+      "archiveName": "musiccloud-typescript-sdk-2.1.6.zip",
+      "archiveUrl": "https://github.com/phranck/musiccloud/releases/download/api-sdk-v2.1.6/musiccloud-typescript-sdk-2.1.6.zip",
+      "sha256": "e289ee1ba33ab07fa30db2a5ef0ec69ab24a2e7498aebe798c40b73510cf294e",
       "quickstart": {
-        "install": "npm install ./musiccloud-typescript-sdk-2.1.5.zip",
+        "install": "npm install ./musiccloud-typescript-sdk-2.1.6.zip",
         "import": "import { Configuration, ResolveApi } from '@musiccloud/api-client';\n\nconst api = new ResolveApi(\n  new Configuration({ apiKey: process.env.MUSICCLOUD_API_KEY }),\n);",
         "firstRequest": "const result = await api.apiV1ResolvePost({\n  apiV1ResolvePostRequest: {\n    query: 'https://open.spotify.com/track/example',\n  },\n});\n\nconsole.log(result);"
       }
@@ -19,11 +19,11 @@
     {
       "language": "python",
       "generator": "python",
-      "archiveName": "musiccloud-python-sdk-2.1.5.zip",
-      "archiveUrl": "https://github.com/phranck/musiccloud/releases/download/api-sdk-v2.1.5/musiccloud-python-sdk-2.1.5.zip",
-      "sha256": "961eb14f6c9df766f078557f53e44127686a41ba508c34ed95362e2262ff5d0f",
+      "archiveName": "musiccloud-python-sdk-2.1.6.zip",
+      "archiveUrl": "https://github.com/phranck/musiccloud/releases/download/api-sdk-v2.1.6/musiccloud-python-sdk-2.1.6.zip",
+      "sha256": "f78b6a76908578ca7dab56d59a5a5e61c94ff2d132480ed5ebd46b2415744415",
       "quickstart": {
-        "install": "pip install ./musiccloud-python-sdk-2.1.5.zip",
+        "install": "pip install ./musiccloud-python-sdk-2.1.6.zip",
         "import": "import os\nimport musiccloud_api_client\n\nconfiguration = musiccloud_api_client.Configuration()\nconfiguration.api_key['ApiKeyAuth'] = os.environ['MUSICCLOUD_API_KEY']",
         "firstRequest": "with musiccloud_api_client.ApiClient(configuration) as client:\n    api = musiccloud_api_client.ResolveApi(client)\n    result = api.api_v1_resolve_post(\n        musiccloud_api_client.ApiV1ResolvePostRequest(\n            query='https://open.spotify.com/track/example',\n        ),\n    )\n    print(result)"
       }
@@ -31,11 +31,11 @@
     {
       "language": "swift",
       "generator": "swift6",
-      "archiveName": "musiccloud-swift-sdk-2.1.5.zip",
-      "archiveUrl": "https://github.com/phranck/musiccloud/releases/download/api-sdk-v2.1.5/musiccloud-swift-sdk-2.1.5.zip",
-      "sha256": "749855bd65d3266cc42f329091d088e5a5de4c4058edfe89fdb1fe2f18a9813d",
+      "archiveName": "musiccloud-swift-sdk-2.1.6.zip",
+      "archiveUrl": "https://github.com/phranck/musiccloud/releases/download/api-sdk-v2.1.6/musiccloud-swift-sdk-2.1.6.zip",
+      "sha256": "564bc74ddd06dc468d2a41adfb248e24af389feb33ec502b28b16077118a7211",
       "quickstart": {
-        "install": "unzip musiccloud-swift-sdk-2.1.5.zip",
+        "install": "unzip musiccloud-swift-sdk-2.1.6.zip",
         "import": "import Foundation\nimport MusiccloudApiClient\n\nenum ConfigurationError: LocalizedError {\n  case missingApiKey\n\n  var errorDescription: String? {\n    \"MUSICCLOUD_API_KEY is required.\"\n  }\n}\n\nfunc musiccloudApiKey() throws -> String {\n  guard\n    let apiKey = ProcessInfo.processInfo.environment[\"MUSICCLOUD_API_KEY\"],\n    !apiKey.isEmpty\n  else {\n    throw ConfigurationError.missingApiKey\n  }\n  return apiKey\n}\n\nlet configuration = MusiccloudApiClientAPIConfiguration(\n  customHeaders: [\"X-API-Key\": try musiccloudApiKey()]\n)",
         "firstRequest": "let request = ApiV1ResolvePostRequest(\n  query: \"https://open.spotify.com/track/example\"\n)\nlet result = try await ResolveAPI.apiV1ResolvePost(\n  apiV1ResolvePostRequest: request,\n  apiConfiguration: configuration\n)\nprint(result)"
       }
