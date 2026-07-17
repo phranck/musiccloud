@@ -3,7 +3,6 @@ import {
   CaretCircleDoubleDownIcon,
   CaretCircleDoubleUpIcon,
   CaretDownIcon,
-  ChartBarIcon,
   ClipboardTextIcon,
   CopyIcon,
   EnvelopeOpenIcon,
@@ -545,30 +544,6 @@ function SidebarMusicSection({
   );
 }
 
-function SidebarAnalyticsSection({ onItemClick, s }: { onItemClick?: () => void; s: SidebarLabels }) {
-  return (
-    <div className="mt-3">
-      <DashboardSection>
-        <DashboardSection.Header
-          icon={<ChartBarIcon weight="duotone" className="w-4 h-4" />}
-          title={s.sectionAnalytics}
-        />
-        <DashboardSection.Body className="!gap-0.5 !p-2">
-          <NavLink to="/analytics" onClick={onItemClick} className="contents">
-            {({ isActive }) => (
-              <DashboardSection.Item
-                icon={<ChartBarIcon weight="duotone" className="w-4 h-4" />}
-                label={s.analytics}
-                active={isActive}
-              />
-            )}
-          </NavLink>
-        </DashboardSection.Body>
-      </DashboardSection>
-    </div>
-  );
-}
-
 function SidebarDeveloperSection({
   isOwner,
   onItemClick,
@@ -783,8 +758,6 @@ export function Sidebar({
             </DashboardSection>
           </div>
         )}
-
-        {isAdmin && <SidebarAnalyticsSection onItemClick={onItemClick} s={s} />}
 
         {/* Developer */}
         {isAdmin && (

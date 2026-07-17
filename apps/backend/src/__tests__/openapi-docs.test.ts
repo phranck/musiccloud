@@ -717,6 +717,20 @@ describe("OpenAPI docs", () => {
     }
   });
 
+  it("does not register the retired admin analytics endpoints", async () => {
+    for (const path of [
+      "/api/admin/analytics/stats",
+      "/api/admin/analytics/pageviews",
+      "/api/admin/analytics/metrics",
+      "/api/admin/analytics/active",
+      "/api/admin/analytics/realtime",
+    ]) {
+      const response = await app.inject({ method: "GET", url: path });
+
+      expect(response.statusCode, path).toBe(404);
+    }
+  });
+
   it("models every successful public response with its exact runtime variant", async () => {
     const res = await app.inject({ method: "GET", url: "/docs/json" });
     const doc = res.json() as {

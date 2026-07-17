@@ -58,7 +58,6 @@ export default defineConfig(({ command }) => ({
             nodeModuleGroup("codemirror-theme", "@codemirror/theme-one-dark", 75),
             nodeModuleGroup("lezer", "@lezer", 70),
             nodeModuleGroup("dnd-kit", "@dnd-kit", 60),
-            nodeModuleGroup("recharts", "recharts", 60),
           ],
         },
       },

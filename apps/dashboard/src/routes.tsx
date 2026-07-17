@@ -11,7 +11,6 @@ import { RootLayout } from "@/RootLayout";
 import {
   AdminLayout,
   AlbumsPage,
-  AnalyticsPage,
   ApiAccessRequestsPage,
   ApiClientsPage,
   ArtistsPage,
@@ -65,7 +64,6 @@ export const routes = createRoutesFromElements(
         </Route>
 
         <Route element={<RequireNonModerator />}>
-          <Route path="analytics" element={lazyFallback(<AnalyticsPage />)} />
           <Route path="email-templates" element={lazyFallback(<EmailTemplateListPage />)} />
           <Route path="email-templates/new" element={lazyFallback(<EmailTemplateEditPage />)} />
           <Route path="email-templates/:id" element={lazyFallback(<EmailTemplateEditPage />)} />
