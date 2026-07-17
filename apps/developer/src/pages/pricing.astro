@@ -168,10 +168,10 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
             aria-label="Billing period"
           >
             <span class="billing-thumb" aria-hidden="true"></span>
-            <button type="button" class="billing-option font-medium" data-mode="monthly" aria-pressed="true">
+            <button type="button" class="billing-option" data-mode="monthly" aria-pressed="true">
               Monthly
             </button>
-            <button type="button" class="billing-option font-medium" data-mode="yearly" aria-pressed="false">
+            <button type="button" class="billing-option" data-mode="yearly" aria-pressed="false">
               Yearly
             </button>
           </div>
@@ -181,7 +181,7 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
             const tierColor = normalizeTierColor(tier.color);
             return (
             <div
-              class={`tier-card relative flex flex-col items-center gap-3 border border-border bg-surface text-center${tier.enabled ? "" : " opacity-60"}`}
+              class={`tier-card relative flex flex-col items-center gap-3 bg-surface text-center${tier.enabled ? "" : " opacity-60"}`}
               style={`--tier:${tierColor}${recommendedIndex >= 0 ? `;--depth:${Math.abs(index - recommendedIndex)}` : ""}`}
               data-recommended={recommendedIndex >= 0 && index === recommendedIndex ? "true" : undefined}
             >
@@ -253,7 +253,7 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
                 {tier.enabled && (
                   <a
                     href={`/signup?tier=${tier.id}`}
-                    class="tier-cta inline-flex w-full justify-center px-5 py-2.5 text-body font-bold"
+                    class="tier-cta inline-flex w-full justify-center px-5 py-2.5 text-body"
                   >
                     <span class="tier-cta-label">{tier.buttonLabel || "I want this"}</span>
                   </a>

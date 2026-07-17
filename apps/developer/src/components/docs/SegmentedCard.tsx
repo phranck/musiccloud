@@ -10,7 +10,8 @@
  * - `Header.Segments.Item` and its Icon/Label slots are direct aliases of the
  *   shared SegmentedControl item compound.
  * - `Body.Panel` owns the native section used as a tabpanel.
- * - `Body.Panel.Stack` reuses ContentCard body flow geometry.
+ * - `Body.Panel.Stack` owns card-surface flow; `Body.Panel.Copy` adds the
+ *   text-only half-radius inset without moving nested cards.
  */
 import { createCompoundElement } from "@/components/compoundElement";
 import { ContentCard } from "@/components/docs/ContentCard";
@@ -24,6 +25,7 @@ const SegmentedCardBody = createCompoundElement(ContentCard.Body, "segmented-car
   "data-segmented-card-body": true,
 });
 const SegmentedCardPanel = createCompoundElement("section", "segmented-card__panel");
+const SegmentedCardPanelCopy = createCompoundElement(ContentCard.Body.Copy, "segmented-card__panel-copy");
 const SegmentedCardPanelStack = createCompoundElement(ContentCard.Body.Stack, "segmented-card__panel-stack");
 const SegmentedCardFooter = createCompoundElement(ContentCard.Footer, "segmented-card__footer");
 
@@ -31,6 +33,7 @@ const SegmentedCardSegmentsCompound = Object.assign(SegmentedCardSegments, {
   Item: SegmentedControl.Item,
 });
 const SegmentedCardPanelCompound = Object.assign(SegmentedCardPanel, {
+  Copy: SegmentedCardPanelCopy,
   Stack: SegmentedCardPanelStack,
 });
 

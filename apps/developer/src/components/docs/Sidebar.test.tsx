@@ -9,7 +9,7 @@ describe("Sidebar", () => {
     const html = renderToStaticMarkup(
       <Sidebar aria-label="API reference sections">
         <Sidebar.Header>
-          <h2>Reference</h2>
+          <Sidebar.Header.Title>Reference</Sidebar.Header.Title>
           <Sidebar.Header.Addon>Toggle</Sidebar.Header.Addon>
         </Sidebar.Header>
         <Sidebar.Body>
@@ -29,6 +29,7 @@ describe("Sidebar", () => {
 
     expect(html).toMatch(/<nav[^>]*aria-label="API reference sections"[^>]*class="sidebar"/);
     expect(html).toContain('<header class="sidebar__header">');
+    expect(html).toContain('<h2 class="sidebar__header-title">Reference</h2>');
     expect(html).toContain('<div class="sidebar__header-addon">Toggle</div>');
     expect(html).toContain('<div class="sidebar__body">');
     expect(html).toMatch(/<a[^>]*href="#integration-guide"[^>]*class="sidebar__chapter">Integration guide<\/a>/);
@@ -46,7 +47,14 @@ describe("Sidebar", () => {
 
     expect(css).toMatch(/\[data-api-nav-scroll-region\]\.api-reference-nav\s*\{[^}]*overflow-y:\s*auto;/s);
     expect(css).toMatch(
-      /\.sidebar__header\s*\{[^}]*position:\s*sticky;[^}]*top:\s*-1px;[^}]*background-color:\s*var\(--color-surface-solid\);[^}]*background-image:\s*linear-gradient\(var\(--mc-docs-card-chrome\), var\(--mc-docs-card-chrome\)\);/s,
+      /\.sidebar__header\s*\{[^}]*position:\s*sticky;[^}]*top:\s*-1px;[^}]*background:\s*var\(--mc-docs-sidebar-header-surface\);/s,
+    );
+    expect(css).toMatch(
+      /\[data-api-nav-scroll-region\]\[data-api-nav-scrolled="true"\] \.sidebar__header\s*\{[^}]*box-shadow:\s*0 var\(--mc-space-2\) var\(--mc-space-4\)\s*color-mix\(in srgb, var\(--color-sky-top\) 56%, transparent\);/s,
+    );
+    expect(navigation).toContain("nav.dataset.apiNavScrolled = String(nav.scrollTop > 0);");
+    expect(navigation).toContain(
+      'nav.addEventListener("scroll", () => updateSidebarHeaderScrollState(nav), { passive: true });',
     );
     expect(css).toContain("--mc-docs-nav-padding: var(--mc-docs-space-md);");
     expect(css).toMatch(
@@ -69,6 +77,21 @@ describe("Sidebar", () => {
       /\.api-reference-nav__toggle \.mc-icon path\[opacity\],[^}]*\.api-reference-nav__toggle-all \.mc-icon path\[opacity\],[^}]*\.schema-card__header-chevron \.mc-icon path\[opacity\]\s*\{[^}]*opacity:\s*var\(--mc-docs-nav-toggle-secondary-opacity\);/s,
     );
     expect(css).toContain(".api-reference-nav__toggle-all,\n    .api-reference-nav__toggle {");
+    expect(css).toContain("--mc-docs-nav-bottom-fade-height: var(--mc-space-3);");
+    expect(css).toMatch(
+      /\[data-api-nav-scroll-region\]\.api-reference-nav\s*\{[^}]*mask-image:\s*linear-gradient\(\s*to bottom,\s*var\(--mc-color-mask-opaque\) 0 calc\(100% - var\(--mc-docs-nav-bottom-fade-height\)\),\s*color-mix\(in srgb, var\(--mc-color-mask-opaque\) 80%, transparent\)\s*\);/s,
+    );
+  });
+
+  it("keeps the API rail below the sticky public navigation", () => {
+    const css = readFileSync(join(import.meta.dirname, "../../styles/docs.css"), "utf8");
+
+    expect(css).toMatch(
+      /--mc-docs-public-header-block-size:\s*calc\(\s*var\(--mc-size-control\) \+ var\(--mc-space-5\) \+ var\(--mc-space-5\)\s*\);/s,
+    );
+    expect(css).toMatch(
+      /--mc-docs-nav-sticky-offset:\s*calc\(\s*var\(--mc-docs-public-header-block-size\) \+ var\(--mc-space-4\)\s*\);/s,
+    );
   });
 
   it("separates the chapter cluster from the first collapsible section", () => {

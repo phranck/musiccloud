@@ -17,6 +17,7 @@ describe("API content cards", () => {
         </ContentCard.Header>
         <ContentCard.Body>
           <ContentCard.Body.Intro>Intro</ContentCard.Body.Intro>
+          <ContentCard.Body.Copy>Copy</ContentCard.Body.Copy>
           <ContentCard.Body.Stack>
             <ContentCard.Body.Section>
               <ContentCard.Body.Section.Header>
@@ -34,6 +35,7 @@ describe("API content cards", () => {
 
     expect(html).toContain('<h3 class="content-card__title">Title</h3>');
     expect(html).toContain('<div class="content-card__body-intro">Intro</div>');
+    expect(html).toContain('<div class="content-card__copy">Copy</div>');
     expect(html).toContain('<div class="content-card__body-stack">');
     expect(html).toContain('<section class="content-card__section">');
     expect(html).toContain('<header class="content-card__section-header">');

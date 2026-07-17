@@ -11,6 +11,7 @@ import { createCompoundElement } from "@/components/compoundElement";
 
 type ContentCardProps = ComponentPropsWithoutRef<"article">;
 type ContentCardSectionProps = ComponentPropsWithoutRef<"div">;
+type ContentCardCopyProps = ComponentPropsWithoutRef<"div">;
 type ContentCardHeaderProps = ComponentPropsWithoutRef<"header">;
 type ContentCardFooterProps = ComponentPropsWithoutRef<"footer">;
 type ContentCardTitleProps = ComponentPropsWithoutRef<"h3">;
@@ -22,6 +23,7 @@ const ContentCardHeaderAddon = createCompoundElement("div", "content-card__heade
 const ContentCardTitle = createCompoundElement("h3", "content-card__title");
 const ContentCardBody = createCompoundElement("div", "content-card__body");
 const ContentCardBodyIntro = createCompoundElement("div", "content-card__body-intro");
+const ContentCardBodyCopy = createCompoundElement("div", "content-card__copy");
 const ContentCardBodyStack = createCompoundElement("div", "content-card__body-stack");
 const ContentCardSection = createCompoundElement("section", "content-card__section");
 const ContentCardSectionHeader = createCompoundElement("header", "content-card__section-header");
@@ -44,6 +46,8 @@ export const ContentCard = Object.assign(ContentCardRoot, {
   }),
   Body: Object.assign(ContentCardBody, {
     Intro: ContentCardBodyIntro,
+    /** Applies the card's copy-only inset without shifting nested surfaces. */
+    Copy: ContentCardBodyCopy,
     Stack: ContentCardBodyStack,
     Section: Object.assign(ContentCardSection, {
       Header: Object.assign(ContentCardSectionHeader, {
@@ -58,6 +62,7 @@ export const ContentCard = Object.assign(ContentCardRoot, {
 });
 
 export type {
+  ContentCardCopyProps,
   ContentCardFooterProps,
   ContentCardHeaderAddonProps,
   ContentCardHeaderProps,

@@ -29,7 +29,7 @@ const highlighted = await codeToHtml(code, {
 ---
 
 <div class="code-block" data-code-block>
-  {label && <p class="text-code text-fg-subtle mb-2">{label}</p>}
+  {label && <p class="code-block__label text-code mb-2">{label}</p>}
   <div
     class="code-block__surface"
     data-code-line-numbers={hasLineNumbers || undefined}

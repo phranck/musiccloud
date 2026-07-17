@@ -1,8 +1,9 @@
 /* Canonical runtime values for every Developer Portal render path. Tailwind
    maps these values to semantic utilities in src/styles/tokens.css. */
 :root {
-  --mc-color-sky-top: #08090b;
-  --mc-color-sky-bottom: #1a1c22;
+  --mc-color-sky-top: #04111b;
+  --mc-color-sky-mid: #04111b;
+  --mc-color-sky-bottom: #04111b;
   --mc-color-fg: #ececf1;
   --mc-color-fg-muted: #9fb0bc;
   --mc-color-fg-subtle: #67676f;
@@ -14,6 +15,9 @@
   --mc-color-accent: #28a8d8;
   --mc-color-accent-hover: #45bfe8;
   --mc-color-sidebar-active: #2abef6;
+  --mc-color-sidebar-header: #1b2530;
+  --mc-color-public-header: #051926;
+  --mc-color-mask-opaque: #000;
   --mc-color-on-accent: #ffffff;
   --mc-color-gold: #d4a843;
   --mc-color-success: #4ade80;
@@ -33,11 +37,8 @@
   --mc-color-request-delete: #fb7185;
   --mc-color-request-options: #a3a3a3;
   --mc-color-request-head: #94a3b8;
-  --mc-color-aurora-green: #33ff99;
-  --mc-color-aurora-cyan: #2fffd6;
-  --mc-color-aurora-violet: #b060ff;
-  --mc-color-aurora-magenta: #ff5fc0;
-  --mc-color-aurora-blue: #4d9bff;
+  --mc-color-aurora-blue: #005383;
+  --mc-color-aurora-yellow: #f4d20096;
 
   --mc-gradient-logo-rainbow: linear-gradient(
     90deg,
@@ -54,6 +55,7 @@
 
   --mc-radius-card: 1rem;
   --mc-radius-control: 0.5rem;
+  --mc-radius-keycap: 0.3125rem;
   --mc-radius-pill: 9999px;
   --mc-radius-round: 50%;
   --mc-size-control: 2.75rem;
@@ -92,9 +94,9 @@
 
   --mc-background-aurora-inset: -12%;
   --mc-background-aurora-size: 124%;
-  --mc-background-aurora-blur: 52px;
+  --mc-background-aurora-blur: 44px;
   --mc-background-aurora-saturation: 1.15;
-  --mc-background-aurora-opacity: 0.4;
+  --mc-background-aurora-opacity: 0.46;
 
   --mc-content-link-padding-inline: 0.25em;
   --mc-content-link-padding-block: 0.08em;

@@ -1,11 +1,8 @@
 ---
 /**
- * Background for the developer site: a fixed near-black vertical gradient
- * (sky-top to sky-bottom) overlaid with a STATIC aurora — soft, blurry colour
- * clouds in aurora green (dominant) with cyan, violet, magenta and blue
- * accents, scattered across the whole area and glowing additively
- * (`mix-blend-mode: screen`) on the dark backdrop. No animation, no WebGL:
- * just blurred SVG blobs.
+ * Background for the developer site: a fixed dark gradient overlaid with a
+ * STATIC aurora. Three blue and two yellow clouds overlap through additive
+ * screen blending. No animation or WebGL: just blurred SVG blobs.
  *
  * Each blob is an ellipse filled with a radial colour gradient (bright core
  * fading to transparent); a heavy blur melts them into diffuse clouds. Sizes,
@@ -13,42 +10,34 @@
  * natural, scattered aurora rather than a repeating pattern.
  */
 
-/** Aurora blob colours (radial-gradient ids), green-weighted. */
-const blobColors = ["green", "cyan", "violet", "magenta", "blue"] as const;
+/** Aurora blob colours (radial-gradient ids), constrained to the approved pair. */
+const blobColors = ["blue", "yellow"] as const;
 
 /**
  * Scattered aurora clouds. `cx`/`cy` place each blob across the 1440x900
  * viewBox, `rx`/`ry` size it, `grad` picks a colour, `op` its opacity.
- * Deliberately spread over the whole plane with varied sizes and opacities.
+ * The oversized ellipses intentionally overlap so their blurred edges blend
+ * into a continuous cloudy field instead of isolated light spots.
  */
 const blobs = [
-  { cx: 160, cy: 130, rx: 260, ry: 200, grad: "green", op: 0.48 },
-  { cx: 560, cy: 60, rx: 300, ry: 210, grad: "cyan", op: 0.36 },
-  { cx: 1020, cy: 150, rx: 280, ry: 210, grad: "violet", op: 0.4 },
-  { cx: 1360, cy: 310, rx: 260, ry: 220, grad: "green", op: 0.34 },
-  { cx: 300, cy: 430, rx: 330, ry: 250, grad: "green", op: 0.44 },
-  { cx: 790, cy: 360, rx: 350, ry: 260, grad: "blue", op: 0.28 },
-  { cx: 1190, cy: 540, rx: 300, ry: 230, grad: "green", op: 0.4 },
-  { cx: 80, cy: 700, rx: 280, ry: 210, grad: "magenta", op: 0.3 },
-  { cx: 520, cy: 800, rx: 330, ry: 240, grad: "cyan", op: 0.34 },
-  { cx: 950, cy: 730, rx: 300, ry: 240, grad: "green", op: 0.42 },
-  { cx: 1330, cy: 660, rx: 260, ry: 220, grad: "violet", op: 0.3 },
+  { cx: 210, cy: 170, rx: 390, ry: 290, grad: "blue", op: 0.46 },
+  { cx: 890, cy: 270, rx: 430, ry: 310, grad: "blue", op: 0.4 },
+  { cx: 520, cy: 760, rx: 410, ry: 300, grad: "yellow", op: 0.38 },
+  { cx: 1290, cy: 130, rx: 350, ry: 270, grad: "yellow", op: 0.36 },
+  { cx: 1190, cy: 710, rx: 390, ry: 290, grad: "blue", op: 0.34 },
 ];
 
 /** Canonical runtime colour token per blob gradient id. */
 const blobColor: Record<(typeof blobColors)[number], string> = {
-  green: "var(--mc-color-aurora-green)",
-  cyan: "var(--mc-color-aurora-cyan)",
-  violet: "var(--mc-color-aurora-violet)",
-  magenta: "var(--mc-color-aurora-magenta)",
   blue: "var(--mc-color-aurora-blue)",
+  yellow: "var(--mc-color-aurora-yellow)",
 };
 ---
 
 <div class="dev-bg fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
   <div
     class="dev-bg-gradient absolute inset-0"
-    style="background: linear-gradient(180deg, var(--color-sky-top) 0%, var(--color-sky-bottom) 100%);"
+    style="background: linear-gradient(180deg, var(--color-sky-top) 0%, var(--mc-color-sky-mid) 52%, var(--color-sky-bottom) 100%);"
   >
   </div>
   <svg
@@ -61,8 +50,9 @@ const blobColor: Record<(typeof blobColors)[number], string> = {
       {
         blobColors.map((name) => (
           <radialGradient id={`mc-aurora-${name}`}>
-            <stop offset="0%" stop-color={blobColor[name]} stop-opacity="0.85" />
-            <stop offset="55%" stop-color={blobColor[name]} stop-opacity="0.18" />
+            <stop offset="0%" stop-color={blobColor[name]} stop-opacity="0.92" />
+            <stop offset="42%" stop-color={blobColor[name]} stop-opacity="0.38" />
+            <stop offset="72%" stop-color={blobColor[name]} stop-opacity="0.1" />
             <stop offset="100%" stop-color={blobColor[name]} stop-opacity="0" />
           </radialGradient>
         ))
