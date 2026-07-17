@@ -1,9 +1,9 @@
 /* Canonical runtime values for every Developer Portal render path. Tailwind
    maps these values to semantic utilities in src/styles/tokens.css. */
 :root {
-  --mc-color-sky-top: #04111b;
-  --mc-color-sky-mid: #04111b;
-  --mc-color-sky-bottom: #04111b;
+  --mc-color-sky-top: #0d1b28;
+  --mc-color-sky-mid: #0d1b28;
+  --mc-color-sky-bottom: #0d1b28;
   --mc-color-fg: #ececf1;
   --mc-color-fg-muted: #9fb0bc;
   --mc-color-fg-subtle: #67676f;
@@ -16,7 +16,7 @@
   --mc-color-accent-hover: #45bfe8;
   --mc-color-sidebar-active: #2abef6;
   --mc-color-sidebar-header: #1b2530;
-  --mc-color-public-header: #051926;
+  --mc-color-public-header: #0c1925;
   --mc-color-mask-opaque: #000;
   --mc-color-on-accent: #ffffff;
   --mc-color-gold: #d4a843;
@@ -37,7 +37,7 @@
   --mc-color-request-delete: #fb7185;
   --mc-color-request-options: #a3a3a3;
   --mc-color-request-head: #94a3b8;
-  --mc-color-aurora-blue: #005383;
+  --mc-color-aurora-blue: #1e3f36;
   --mc-color-aurora-yellow: #f4d20096;
 
   --mc-gradient-logo-rainbow: linear-gradient(

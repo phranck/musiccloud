@@ -88,7 +88,7 @@ describe("PublicHeader", () => {
     expect(css).toMatch(
       /\.public-header\s*\{[^}]*--mc-public-header-surface:\s*var\(--mc-color-public-header\);[^}]*position:\s*sticky;[^}]*top:\s*0;[^}]*z-index:\s*20;[^}]*background:\s*color-mix\(in srgb, var\(--mc-public-header-surface\) 72%, transparent\);[^}]*backdrop-filter:\s*blur\(var\(--mc-space-4\)\);/s,
     );
-    expect(theme).toContain("--mc-color-public-header: #051926;");
+    expect(theme).toContain("--mc-color-public-header: #0c1925;");
     expect(css).toMatch(
       /\.public-header__inner\s*\{[^}]*padding:\s*var\(--mc-space-5\) var\(--mc-public-header-padding-inline\);/s,
     );

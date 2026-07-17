@@ -58,11 +58,11 @@ describe("developer design system", () => {
     expect(background).toContain('{ cx: 1190, cy: 710, rx: 390, ry: 290, grad: "blue", op: 0.34 }');
     expect(background).toContain('<stop offset="42%" stop-color={blobColor[name]} stop-opacity="0.38" />');
     expect(background).toContain('<stop offset="72%" stop-color={blobColor[name]} stop-opacity="0.1" />');
-    expect(theme).toContain("--mc-color-aurora-blue: #005383;");
+    expect(theme).toContain("--mc-color-aurora-blue: #1e3f36;");
     expect(theme).toContain("--mc-color-aurora-yellow: #f4d20096;");
-    expect(theme).toContain("--mc-color-sky-top: #04111b;");
-    expect(theme).toContain("--mc-color-sky-mid: #04111b;");
-    expect(theme).toContain("--mc-color-sky-bottom: #04111b;");
+    expect(theme).toContain("--mc-color-sky-top: #0d1b28;");
+    expect(theme).toContain("--mc-color-sky-mid: #0d1b28;");
+    expect(theme).toContain("--mc-color-sky-bottom: #0d1b28;");
     expect(theme).toContain("--mc-background-aurora-blur: 44px;");
     expect(theme).toContain("--mc-background-aurora-opacity: 0.46;");
   });
@@ -137,13 +137,17 @@ describe("developer design system", () => {
     );
   });
 
-  it("keeps the sticky API sidebar header opaque on its dedicated surface", () => {
+  it("keeps the sticky API sidebar header frosted on its dedicated surface", () => {
     const theme = readDeveloperFile("public/developer-theme.css");
     const docs = readDeveloperFile("src/styles/docs.css");
 
     expect(theme).toContain("--mc-color-sidebar-header: #1b2530;");
-    expect(docs).toContain("--mc-docs-sidebar-header-surface: var(--mc-color-sidebar-header);");
-    expect(docs).toMatch(/\.sidebar__header\s*\{[^}]*background:\s*var\(--mc-docs-sidebar-header-surface\);/s);
+    expect(docs).toContain(
+      "--mc-docs-sidebar-header-surface: color-mix(in srgb, var(--mc-color-sidebar-header) 56%, transparent);",
+    );
+    expect(docs).toMatch(
+      /\.sidebar__header\s*\{[^}]*background:\s*var\(--mc-docs-sidebar-header-surface\);[^}]*-webkit-backdrop-filter:\s*blur\(var\(--mc-space-4\)\) saturate\(1\.15\);[^}]*backdrop-filter:\s*blur\(var\(--mc-space-4\)\) saturate\(1\.15\);/s,
+    );
     expect(docs).toMatch(
       /\.sidebar__header-title\s*\{[^}]*padding-inline-start:\s*var\(--mc-docs-content-card-copy-inset\);/s,
     );

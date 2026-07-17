@@ -28,6 +28,7 @@
     --mc-docs-section-heading-bottom: var(--mc-space-5);
     --mc-docs-entry-card-gap: var(--mc-space-7);
     --mc-docs-header-min-height: var(--mc-size-control);
+    --mc-docs-sidebar-header-block-size: var(--mc-docs-header-min-height);
     --mc-docs-parameter-name-width: 10rem;
     --mc-docs-endpoint-card-header-padding-inline-start: calc(var(--space-content-card-header) * 1.7);
     --mc-docs-space-xs: 0.125rem;
@@ -56,7 +57,7 @@
     --mc-docs-response-line-height: 1.25;
     --mc-docs-response-line-size: calc(var(--text-lead) * var(--mc-docs-response-line-height));
     --mc-docs-card-chrome: color-mix(in srgb, var(--color-surface) 88%, var(--color-code-bg) 12%);
-    --mc-docs-sidebar-header-surface: var(--mc-color-sidebar-header);
+    --mc-docs-sidebar-header-surface: color-mix(in srgb, var(--mc-color-sidebar-header) 56%, transparent);
     /* Code keeps its visual contrast while letting the card material show through.
        The gutter derives from that same translucent surface so both remain one unit. */
     --mc-docs-code-surface: color-mix(in srgb, var(--color-code-bg) 84%, transparent);
@@ -66,6 +67,8 @@
     --mc-docs-search-dialog-top: calc(var(--mc-space-8) + var(--mc-space-6));
     --mc-docs-search-dialog-viewport-gap: var(--mc-space-5);
     --mc-docs-search-dialog-offset: var(--mc-space-3);
+    --mc-docs-search-dialog-group-header-surface: color-mix(in srgb, var(--mc-docs-card-chrome) 84%, var(--color-code-bg) 16%);
+    --mc-docs-search-dialog-input-surface: color-mix(in srgb, var(--color-code-bg) 82%, var(--color-surface-raised) 18%);
     --mc-docs-search-highlight-color: var(--mc-color-search-highlight);
     --mc-docs-search-highlight-padding-inline: var(--mc-space-2);
     --mc-docs-search-highlight-padding-block: var(--mc-docs-space-xs);
@@ -99,6 +102,9 @@
   }
 
   .api-reference-nav {
+    display: grid;
+    grid-template-areas: "stack";
+    position: relative;
     overflow-x: hidden;
     padding: 0;
   }
@@ -223,17 +229,20 @@
   }
 
   .sidebar__header {
-    position: sticky;
-    /* Once sticky, extend beneath the translucent outer border so scrolled
-       labels cannot show through its top edge. */
-    top: -1px;
+    /* The header and the scrolling body intentionally overlap. This gives
+       Safari actual scrolling content to sample for the glass backdrop. */
+    position: relative;
     z-index: 3;
+    grid-area: stack;
+    align-self: start;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: var(--mc-space-3);
     padding: var(--space-content-card-header) var(--mc-docs-nav-padding);
     background: var(--mc-docs-sidebar-header-surface);
+    -webkit-backdrop-filter: blur(var(--mc-space-4)) saturate(1.15);
+    backdrop-filter: blur(var(--mc-space-4)) saturate(1.15);
   }
 
   .sidebar__header-addon {
@@ -247,7 +256,7 @@
     padding-inline-start: var(--mc-docs-content-card-copy-inset);
   }
 
-  [data-api-nav-scroll-region][data-api-nav-scrolled="true"] .sidebar__header {
+  .api-reference-nav[data-api-nav-scrolled="true"] .sidebar__header {
     box-shadow: 0 var(--mc-space-2) var(--mc-space-4)
       color-mix(in srgb, var(--color-sky-top) 56%, transparent);
   }
@@ -1172,10 +1181,14 @@
   /* Keep a desktop sticky rail clear of the viewport edge while long, open
      section lists scroll inside the rail instead of extending below it. */
   @media (min-width: 64rem) {
-    [data-api-nav-scroll-region].api-reference-nav {
-      /* The rail is sticky at 1rem from the top and deliberately leaves a
-         larger 4rem breathing space below the viewport. */
+    [data-api-nav-scroll-region].sidebar__body {
+      /* The body overlaps the header, then offsets its first row by the
+         header's block size. The header can therefore frost the actual list
+         instead of the sidebar card's opaque parent surface. */
+      grid-area: stack;
+      min-height: 0;
       max-height: calc(100dvh - var(--mc-docs-nav-viewport-clearance));
+      padding-block-start: calc(var(--mc-docs-sidebar-header-block-size) + var(--mc-space-3));
       overflow-y: auto;
       overscroll-behavior-y: contain;
       scrollbar-gutter: stable;
@@ -1344,7 +1357,7 @@
     border-radius: var(--radius-button);
     padding-inline: var(--mc-space-3) var(--mc-space-2);
     color: var(--color-fg-muted);
-    background: var(--color-code-bg);
+    background: var(--mc-docs-search-dialog-input-surface);
   }
 
   .search-dialog__header-search:focus-within {
@@ -1434,7 +1447,7 @@
     gap: var(--mc-space-3);
     padding: var(--mc-space-2) var(--space-content-card-header);
     color: var(--color-fg-muted);
-    background: var(--mc-docs-card-chrome);
+    background: var(--mc-docs-search-dialog-group-header-surface);
   }
 
   .search-dialog__group-header-title {
