@@ -24,7 +24,6 @@ import { requireEnvList } from "./lib/env.js";
 import { registerApiErrorHandling, setApiFailureDiagnostic } from "./lib/infra/api-error-handler.js";
 import { createApiErrorResponse, sanitizeErrorForLog } from "./lib/infra/api-errors.js";
 import authPlugin from "./plugins/auth.js";
-import adminAnalyticsRoutes from "./routes/admin-analytics.js";
 import { adminApiAccessRoutes } from "./routes/admin-api-access.js";
 import adminAuthRoutes from "./routes/admin-auth.js";
 import adminContentRoutes from "./routes/admin-content.js";
@@ -618,7 +617,6 @@ async function buildApp(options: BuildAppOptions = {}) {
   // Admin-protected API routes (Bearer JWT with role: "admin")
   await app.register(async function adminRoutes(adminApp) {
     adminApp.addHook("preHandler", adminApp.authenticateAdmin);
-    await adminApp.register(adminAnalyticsRoutes);
     await adminApp.register(adminApiAccessRoutes);
     await adminApp.register(adminTiersRoutes);
     await adminApp.register(adminContentRoutes);

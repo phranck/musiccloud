@@ -8,4 +8,10 @@ describe("Dashboard route retirement", () => {
 
     expect(matches.some((match) => match.route.path === "forms")).toBe(false);
   });
+
+  it("has no dedicated Analytics route", () => {
+    const matches = matchRoutes(routes, "/analytics") ?? [];
+
+    expect(matches.some((match) => match.route.path === "analytics")).toBe(false);
+  });
 });

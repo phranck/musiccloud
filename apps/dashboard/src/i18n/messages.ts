@@ -43,8 +43,6 @@ export interface DashboardMessages {
       sectionMusic: string;
       sectionContent: string;
       sectionTemplates: string;
-      sectionAnalytics: string;
-      analytics: string;
       sectionSystem: string;
       sectionDeveloper: string;
       apiAccessRequests: string;
@@ -548,55 +546,6 @@ export interface DashboardMessages {
     assignTemplateNoOptions: string;
     bindErrorFallback: string;
   };
-  analytics: {
-    title: string;
-    noData: string;
-    noRealtimeData: string;
-    unknown: string;
-    direct: string;
-    home: string;
-    visitors: string;
-    pageviews: string;
-    bounceRate: string;
-    averageDuration: string;
-    showAllRows: string;
-    showLessRows: string;
-    realtime: {
-      title: string;
-      active5m: string;
-      pageviews30m: string;
-      updatedEvery30s: string;
-    };
-    traffic: string;
-    topPages: string;
-    events: string;
-    sources: string;
-    environment: string;
-    location: string;
-    countries: string;
-    regions: string;
-    cities: string;
-    country: string;
-    region: string;
-    city: string;
-    browser: string;
-    os: string;
-    devices: string;
-    device: string;
-    percentColumn: string;
-    umamiNotConfigured: string;
-    periods: {
-      today: string;
-      d7: string;
-      d30: string;
-      d60: string;
-      d90: string;
-    };
-    durationUnits: {
-      secondsShort: string;
-      minutesShort: string;
-    };
-  };
   errors: {
     boundary: {
       title: string;
@@ -656,8 +605,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         sectionMusic: "Musik",
         sectionContent: "Inhalte",
         sectionTemplates: "Vorlagen",
-        sectionAnalytics: "Analyse",
-        analytics: "Statistiken",
         sectionSystem: "System",
         overview: "\u00dcbersicht",
         tracks: "Tracks",
@@ -1168,55 +1115,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       assignTemplateNoOptions: "Keine weiteren Vorlagen verfügbar",
       bindErrorFallback: "Vorlage konnte nicht zugeordnet werden",
     },
-    analytics: {
-      title: "Analytics",
-      noData: "Keine Daten",
-      noRealtimeData: "Keine Realtime-Daten",
-      unknown: "(Unbekannt)",
-      direct: "(Direkt)",
-      home: "Startseite",
-      visitors: "Besucher",
-      pageviews: "Seitenaufrufe",
-      bounceRate: "Absprungrate",
-      averageDuration: "\u00d8 Verweildauer",
-      showAllRows: "Alle anzeigen",
-      showLessRows: "Weniger anzeigen",
-      realtime: {
-        title: "Live",
-        active5m: "aktiv (5 min)",
-        pageviews30m: "Aufrufe (30 min)",
-        updatedEvery30s: "aktualisiert alle 30 s",
-      },
-      traffic: "Traffic",
-      topPages: "Top Seiten",
-      events: "Events",
-      sources: "Quellen",
-      environment: "Environment",
-      location: "Location",
-      countries: "L\u00e4nder",
-      regions: "Regionen",
-      cities: "St\u00e4dte",
-      country: "Land",
-      region: "Region",
-      city: "Stadt",
-      browser: "Browser",
-      os: "OS",
-      devices: "Ger\u00e4te",
-      device: "Ger\u00e4t",
-      percentColumn: "%",
-      umamiNotConfigured: "Umami nicht konfiguriert (UMAMI_URL, UMAMI_USERNAME, UMAMI_PASSWORD, UMAMI_WEBSITE_ID).",
-      periods: {
-        today: "Heute",
-        d7: "7 Tage",
-        d30: "30 Tage",
-        d60: "60 Tage",
-        d90: "90 Tage",
-      },
-      durationUnits: {
-        secondsShort: "s",
-        minutesShort: "m",
-      },
-    },
     errors: {
       boundary: {
         title: "Etwas ist schiefgelaufen",
@@ -1274,8 +1172,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         sectionMusic: "Music",
         sectionContent: "Content",
         sectionTemplates: "Templates",
-        sectionAnalytics: "Analytics",
-        analytics: "Statistics",
         sectionSystem: "System",
         overview: "Overview",
         tracks: "Tracks",
@@ -1785,55 +1681,6 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
       assignTemplateAction: "Bind",
       assignTemplateNoOptions: "No further templates available",
       bindErrorFallback: "Could not bind template",
-    },
-    analytics: {
-      title: "Analytics",
-      noData: "No data",
-      noRealtimeData: "No realtime data",
-      unknown: "(Unknown)",
-      direct: "(Direct)",
-      home: "Home",
-      visitors: "Visitors",
-      pageviews: "Pageviews",
-      bounceRate: "Bounce Rate",
-      averageDuration: "Avg. Duration",
-      showAllRows: "Show all",
-      showLessRows: "Show less",
-      realtime: {
-        title: "Live",
-        active5m: "active (5 min)",
-        pageviews30m: "views (30 min)",
-        updatedEvery30s: "updated every 30s",
-      },
-      traffic: "Traffic",
-      topPages: "Top Pages",
-      events: "Events",
-      sources: "Sources",
-      environment: "Environment",
-      location: "Location",
-      countries: "Countries",
-      regions: "Regions",
-      cities: "Cities",
-      country: "Country",
-      region: "Region",
-      city: "City",
-      browser: "Browser",
-      os: "OS",
-      devices: "Devices",
-      device: "Device",
-      percentColumn: "%",
-      umamiNotConfigured: "Umami not configured (UMAMI_URL, UMAMI_USERNAME, UMAMI_PASSWORD, UMAMI_WEBSITE_ID).",
-      periods: {
-        today: "Today",
-        d7: "7 Days",
-        d30: "30 Days",
-        d60: "60 Days",
-        d90: "90 Days",
-      },
-      durationUnits: {
-        secondsShort: "s",
-        minutesShort: "m",
-      },
     },
     errors: {
       boundary: {
