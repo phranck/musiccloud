@@ -50,10 +50,9 @@ const SchemasIcon = apiReferenceStaticSectionIcons.schemas;
   data-api-reference-nav
   data-api-reference-scroll-spy
   data-api-nav-animated
-  data-api-nav-scroll-region
 >
   <Sidebar.Header>
-    <h2 class="text-card-title font-semibold text-fg">Reference</h2>
+    <Sidebar.Header.Title className="text-card-title font-semibold text-fg">Reference</Sidebar.Header.Title>
     <Sidebar.Header.Addon>
       <button
         type="button"
@@ -67,7 +66,7 @@ const SchemasIcon = apiReferenceStaticSectionIcons.schemas;
       </button>
     </Sidebar.Header.Addon>
   </Sidebar.Header>
-  <Sidebar.Body>
+  <Sidebar.Body data-api-nav-scroll-region>
     <Sidebar.Chapter
       className="api-reference-nav__top-link api-reference-nav__link text-body"
       href="#integration-guide"
@@ -211,6 +210,11 @@ const SchemasIcon = apiReferenceStaticSectionIcons.schemas;
     button.setAttribute("title", label);
   };
 
+  /** Keeps the header shadow tied to the rail's own scroll position. */
+  const updateSidebarHeaderScrollState = (nav: HTMLElement, scrollRegion: HTMLElement) => {
+    nav.dataset.apiNavScrolled = String(scrollRegion.scrollTop > 0);
+  };
+
   /**
    * Animates a measured height instead of an interpolated grid track. This is
    * interruptible, avoids timer-based closing, and keeps native details usable
@@ -314,6 +318,11 @@ const SchemasIcon = apiReferenceStaticSectionIcons.schemas;
   });
 
   document.querySelectorAll<HTMLElement>("[data-api-reference-nav]").forEach((nav) => {
+    const scrollRegion = nav.querySelector<HTMLElement>("[data-api-nav-scroll-region]");
+    if (scrollRegion) {
+      updateSidebarHeaderScrollState(nav, scrollRegion);
+      scrollRegion.addEventListener("scroll", () => updateSidebarHeaderScrollState(nav, scrollRegion), { passive: true });
+    }
     updateToggleAllControl(nav);
     const button = nav.querySelector<HTMLButtonElement>("[data-api-nav-toggle-all]");
     if (!button) return;

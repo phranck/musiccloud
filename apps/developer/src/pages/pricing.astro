@@ -181,7 +181,7 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
             const tierColor = normalizeTierColor(tier.color);
             return (
             <div
-              class={`tier-card relative flex flex-col items-center gap-3 border border-border bg-surface text-center${tier.enabled ? "" : " opacity-60"}`}
+              class={`tier-card relative flex flex-col items-center gap-3 bg-surface text-center${tier.enabled ? "" : " opacity-60"}`}
               style={`--tier:${tierColor}${recommendedIndex >= 0 ? `;--depth:${Math.abs(index - recommendedIndex)}` : ""}`}
               data-recommended={recommendedIndex >= 0 && index === recommendedIndex ? "true" : undefined}
             >

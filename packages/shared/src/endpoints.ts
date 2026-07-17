@@ -325,19 +325,6 @@ export const ENDPOINTS = {
       },
     },
 
-    analytics: {
-      /** GET: overall stats summary (visitors, pageviews, bounce, duration). */
-      stats: "/api/admin/analytics/stats",
-      /** GET: pageviews timeline. */
-      pageviews: "/api/admin/analytics/pageviews",
-      /** GET: top metric (url / referrer / country / browser / etc.). Type via ?type=… */
-      metrics: "/api/admin/analytics/metrics",
-      /** GET: currently active visitors count. */
-      active: "/api/admin/analytics/active",
-      /** GET: realtime active visitors + top pages. */
-      realtime: "/api/admin/analytics/realtime",
-    },
-
     crawler: {
       /** GET: list all crawler sources joined with registered metadata. */
       sources: "/api/admin/crawler/sources",

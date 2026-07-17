@@ -33,6 +33,14 @@ function collectFiles(directory: string): string[] {
 }
 
 describe("developer design system", () => {
+  it("suppresses visible native focus rings across the Developer Portal", () => {
+    const base = readDeveloperFile("src/styles/base.css");
+
+    expect(base).toMatch(
+      /:focus,\s*:focus-visible\s*\{[^}]*outline:\s*0 !important;[^}]*outline-offset:\s*0 !important;[^}]*box-shadow:\s*none !important;/s,
+    );
+  });
+
   it("loads one canonical runtime theme in the app and coming-soon fallback", () => {
     const theme = readDeveloperFile("public/developer-theme.css");
     const layout = readDeveloperFile("src/layouts/BaseLayout.astro");
@@ -47,7 +55,27 @@ describe("developer design system", () => {
     expect(fallback).not.toContain("--sky-top:");
   });
 
-  it("keeps compact ContentCard block padding while insetting inline content by the inner card radius", () => {
+  it("uses three blue and two yellow blobs for the static portal aurora", () => {
+    const background = readDeveloperFile("src/components/DeveloperBackground.astro");
+    const theme = readDeveloperFile("public/developer-theme.css");
+
+    expect(background).toContain('const blobColors = ["blue", "yellow"] as const;');
+    expect((background.match(/grad: "blue"/g) ?? []).length).toBe(3);
+    expect((background.match(/grad: "yellow"/g) ?? []).length).toBe(2);
+    expect(background).toContain('{ cx: 520, cy: 760, rx: 410, ry: 300, grad: "yellow", op: 0.38 }');
+    expect(background).toContain('{ cx: 1190, cy: 710, rx: 390, ry: 290, grad: "blue", op: 0.34 }');
+    expect(background).toContain('<stop offset="42%" stop-color={blobColor[name]} stop-opacity="0.38" />');
+    expect(background).toContain('<stop offset="72%" stop-color={blobColor[name]} stop-opacity="0.1" />');
+    expect(theme).toContain("--mc-color-aurora-blue: #1e3f36;");
+    expect(theme).toContain("--mc-color-aurora-yellow: #f4d20096;");
+    expect(theme).toContain("--mc-color-sky-top: #0d1b28;");
+    expect(theme).toContain("--mc-color-sky-mid: #0d1b28;");
+    expect(theme).toContain("--mc-color-sky-bottom: #0d1b28;");
+    expect(theme).toContain("--mc-background-aurora-blur: 44px;");
+    expect(theme).toContain("--mc-background-aurora-opacity: 0.46;");
+  });
+
+  it("keeps ContentCard surfaces concentric while limiting the inner-radius inset to copy slots", () => {
     const theme = readDeveloperFile("public/developer-theme.css");
     const docs = readDeveloperFile("src/styles/docs.css");
 
@@ -55,14 +83,140 @@ describe("developer design system", () => {
     expect(theme).toContain("--mc-space-content-card-header: 0.625rem;");
     expect(docs).toContain("--mc-docs-content-card-copy-inset: calc(var(--mc-docs-content-card-radius) / 2);");
     expect(docs).toMatch(
-      /--mc-docs-content-card-padding-inline:\s*calc\(\s*var\(--space-content-card\) \+ var\(--mc-docs-content-card-copy-inset\)\s*\);/,
+      /\.content-card__header,[\s\S]*?\.content-card__footer\s*\{[^}]*padding:\s*var\(--space-content-card-header\);/,
+    );
+    expect(docs).toMatch(/\.content-card__body\s*\{[^}]*padding:\s*var\(--space-content-card\);/s);
+    expect(docs).toMatch(
+      /\.content-card__body-intro,[\s\S]*?\.content-card__copy\s*\{[^}]*padding-inline:\s*var\(--mc-docs-content-card-copy-inset\);/s,
+    );
+  });
+
+  it("keeps every Card surface at 10px while insetting only SDK copy", () => {
+    const docs = readDeveloperFile("src/styles/docs.css");
+    const sdkCard = readDeveloperFile("src/components/docs/SdkSegmentedCard.astro");
+
+    expect(docs).not.toMatch(/\.content-card__body-stack\s*\{[^}]*padding-inline:/s);
+    expect(docs).toMatch(
+      /\.content-card__copy\s*\{[^}]*gap:\s*var\(--mc-space-6\);[^}]*padding-inline:\s*var\(--mc-docs-content-card-copy-inset\);/s,
+    );
+    expect(sdkCard).toContain("<SegmentedCard.Body.Panel.Copy>");
+  });
+
+  it("keeps every Portal card borderless without header or footer separators", () => {
+    const components = readDeveloperFile("src/styles/components.css");
+    const docs = readDeveloperFile("src/styles/docs.css");
+    const pricing = readDeveloperFile("src/pages/pricing.astro");
+
+    expect(components).not.toMatch(/\.surface-card\s*\{[^}]*\bborder\s*:/s);
+    expect(components).not.toMatch(/\.surface-card__header\s*\{[^}]*border-bottom:/s);
+    expect(components).not.toMatch(/\.surface-card__footer\s*\{[^}]*border-top:/s);
+    expect(docs).not.toMatch(/\.surface-card\.content-card\s*\{[^}]*\bborder\s*:/s);
+    expect(docs).not.toMatch(/\.content-card__header\s*\{[^}]*border-bottom:/s);
+    expect(docs).not.toMatch(/\.content-card__footer\s*\{[^}]*border-top:/s);
+    expect(docs).not.toMatch(/\.content-panel\s*\{[^}]*\bborder\s*:/s);
+    expect(docs).not.toMatch(/\.request-body-card__body\s*\{[^}]*border-top:/s);
+    expect(docs).not.toMatch(/\.api-dialog\.surface-card\s*\{[^}]*\bborder\s*:/s);
+    expect(docs).not.toMatch(/\.api-dialog__header\s*\{[^}]*border-bottom:/s);
+    expect(docs).not.toMatch(/\.api-dialog__footer\s*\{[^}]*border-top:/s);
+    expect(pricing).not.toMatch(/tier-card[^"`]*\bborder\b/);
+  });
+
+  it("uses one subtly brighter chrome token for every card header and footer", () => {
+    const theme = readDeveloperFile("public/developer-theme.css");
+    const tokens = readDeveloperFile("src/styles/tokens.css");
+    const components = readDeveloperFile("src/styles/components.css");
+    const docs = readDeveloperFile("src/styles/docs.css");
+
+    expect(theme).toContain("--mc-color-card-chrome: rgba(255, 255, 255, 0.07);");
+    expect(tokens).toContain("--color-card-chrome: var(--mc-color-card-chrome);");
+    expect(components).toMatch(
+      /\.surface-card__header,[\s\S]*?\.surface-card__footer\s*\{[^}]*background:\s*var\(--color-card-chrome\);/s,
+    );
+    expect(docs).toContain("--mc-docs-card-chrome: var(--color-card-chrome);");
+  });
+
+  it("insets and brightens CodeBlock labels without moving their code surfaces", () => {
+    const codeBlock = readDeveloperFile("src/components/docs/CodeBlock.astro");
+    const docs = readDeveloperFile("src/styles/docs.css");
+
+    expect(codeBlock).toContain('class="code-block__label text-code');
+    expect(docs).toMatch(
+      /\.code-block__label\s*\{[^}]*padding-inline:\s*var\(--mc-docs-content-card-copy-inset\);[^}]*color:\s*var\(--color-fg-muted\);/s,
+    );
+  });
+
+  it("keeps CodeBlock surfaces and their line-number gutters subtly translucent", () => {
+    const docs = readDeveloperFile("src/styles/docs.css");
+
+    expect(docs).toContain("--mc-docs-code-surface: color-mix(in srgb, var(--color-code-bg) 84%, transparent);");
+    expect(docs).toContain(
+      "--mc-docs-code-gutter-surface: color-mix(in srgb, var(--mc-docs-code-surface) 88%, var(--color-surface-raised) 12%);",
+    );
+    expect(docs).toMatch(/\.openapi-markdown pre\s*\{[^}]*background:\s*var\(--mc-docs-code-surface\);/s);
+    expect(docs).toMatch(/\.code-block__frame\s*\{[^}]*background:\s*var\(--mc-docs-code-surface\);/s);
+    expect(docs).toMatch(
+      /\[data-code-line-numbers\] \.code-block__frame pre\.shiki\s*\{[^}]*var\(--mc-docs-code-gutter-surface\) 0 var\(--code-line-number-column-width\)/s,
+    );
+  });
+
+  it("gives the OpenAPI-contract loading spinner its own clear vertical breathing room", () => {
+    const docs = readDeveloperFile("src/styles/docs.css");
+
+    expect(docs).toMatch(/\.openapi-contract-dialog__loading\s*\{[^}]*padding-block:\s*var\(--mc-space-8\);/s);
+    expect(docs).toContain("--mc-docs-contract-dialog-header-block-size: calc(");
+    expect(docs).toMatch(
+      /--mc-docs-contract-dialog-loading-height:\s*calc\(\s*var\(--mc-docs-contract-dialog-header-block-size\)\s*\+\s*var\(--space-content-card\)\s*\+\s*var\(--space-content-card\)\s*\+\s*var\(--mc-size-icon-lg\)\s*\+\s*var\(--mc-space-8\)\s*\+\s*var\(--mc-space-8\)\s*\);/s,
+    );
+  });
+
+  it("keeps the sticky API sidebar header frosted on its dedicated surface", () => {
+    const theme = readDeveloperFile("public/developer-theme.css");
+    const docs = readDeveloperFile("src/styles/docs.css");
+
+    expect(theme).toContain("--mc-color-sidebar-header: #1b2530;");
+    expect(docs).toContain(
+      "--mc-docs-sidebar-header-surface: color-mix(in srgb, var(--mc-color-sidebar-header) 56%, transparent);",
     );
     expect(docs).toMatch(
-      /\.content-card__header,[\s\S]*?\.content-card__footer\s*\{[^}]*padding:\s*var\(--space-content-card-header\) var\(--mc-docs-content-card-padding-inline\);/,
+      /\.sidebar__header\s*\{[^}]*background:\s*var\(--mc-docs-sidebar-header-surface\);[^}]*-webkit-backdrop-filter:\s*blur\(var\(--mc-space-4\)\) saturate\(1\.15\);[^}]*backdrop-filter:\s*blur\(var\(--mc-space-4\)\) saturate\(1\.15\);/s,
     );
     expect(docs).toMatch(
-      /\.content-card__body\s*\{[^}]*padding:\s*var\(--space-content-card\) var\(--mc-docs-content-card-padding-inline\);/s,
+      /\.sidebar__header-title\s*\{[^}]*padding-inline-start:\s*var\(--mc-docs-content-card-copy-inset\);/s,
     );
+  });
+
+  it("uses the readable muted tone for SDK metadata labels", () => {
+    const sdkCard = readDeveloperFile("src/components/docs/SdkSegmentedCard.astro");
+
+    expect(sdkCard).toContain('<dt class="text-fg-muted">Archive</dt>');
+    expect(sdkCard).toContain('<dt class="text-fg-muted">SHA-256</dt>');
+  });
+
+  it("uses the shared square key-cap compound for every portal keyboard hint", () => {
+    const components = readDeveloperFile("src/styles/components.css");
+    const header = readDeveloperFile("src/components/PublicHeader.astro");
+    const search = readDeveloperFile("src/components/docs/ApiDocumentSearch.tsx");
+    const theme = readDeveloperFile("public/developer-theme.css");
+    const tokens = readDeveloperFile("src/styles/tokens.css");
+
+    expect(theme).toContain("--mc-radius-keycap: 0.3125rem;");
+    expect(tokens).toContain("--radius-keycap: var(--mc-radius-keycap);");
+    expect(components).toMatch(
+      /\.keycap\s*\{[^}]*--mc-keycap-size:\s*calc\(1em \+ var\(--mc-space-1\)\);[^}]*--mc-keycap-radius:\s*var\(--radius-keycap\);[^}]*--mc-keycap-surface:\s*color-mix\(in srgb, var\(--color-surface-raised\) 92%, var\(--color-fg\) 8%\);[^}]*color:\s*var\(--color-fg-muted\);/s,
+    );
+    expect(components).toMatch(
+      /\.keycap__key\s*\{[^}]*aspect-ratio:\s*1;[^}]*border:\s*0;[^}]*border-radius:\s*var\(--mc-keycap-radius\);[^}]*background:\s*var\(--mc-keycap-surface\);/s,
+    );
+    expect(header).toContain("<KeyCap shortcut={PUBLIC_SEARCH_COMMAND.shortcut} />");
+    expect(search).toContain('<KeyCap shortcut="Esc" />');
+  });
+
+  it("keeps KeyCap as a Fast Refresh-safe, single-pass component export", () => {
+    const keyCap = readDeveloperFile("src/components/KeyCap.tsx");
+
+    expect(keyCap).toContain("export function KeyCap");
+    expect(keyCap).not.toContain("Object.assign");
+    expect(keyCap).not.toContain(".filter(");
   });
 
   it("uses the 16px portal card radius and keeps API cards cascade-safe", () => {
@@ -254,7 +408,10 @@ describe("developer design system", () => {
       /\.card-content-inset,[\s\S]*\.page-heading\s*\{[^}]*padding-inline:\s*var\(--mc-card-content-inset\);/s,
     );
     expect(components).toMatch(
-      /\.public-header\s*\{[^}]*--mc-public-header-card-content-inset:\s*calc\(var\(--radius-card\) \/ 2\);[^}]*--mc-public-header-padding-inline:\s*calc\(\s*var\(--mc-space-page-inline\) \+ var\(--mc-public-header-card-content-inset\)\s*\);[^}]*padding:\s*var\(--mc-space-5\) var\(--mc-public-header-padding-inline\);/s,
+      /\.public-header\s*\{[^}]*--mc-public-header-card-content-inset:\s*calc\(var\(--radius-card\) \/ 2\);[^}]*--mc-public-header-padding-inline:\s*calc\(\s*var\(--mc-space-page-inline\) \+ var\(--mc-public-header-card-content-inset\)\s*\);/s,
+    );
+    expect(components).toMatch(
+      /\.public-header__inner\s*\{[^}]*padding:\s*var\(--mc-space-5\) var\(--mc-public-header-padding-inline\);/s,
     );
     expect(docs).toContain("--mc-card-content-inset: calc(var(--mc-docs-content-card-radius) / 2);");
     expect(docs).toMatch(/\.api-content__chapter-header\s*\{[^}]*padding-inline:\s*var\(--mc-card-content-inset\);/s);
@@ -305,6 +462,16 @@ describe("developer design system", () => {
     expect(docs).toMatch(/\.content-card__footer\s*\{[^}]*--button-min-height:\s*var\(--mc-size-control-compact\);/s);
   });
 
+  it("keeps the SDK download label slightly smaller and optically centered", () => {
+    const docs = readDeveloperFile("src/styles/docs.css");
+    const sdkCard = readDeveloperFile("src/components/docs/SdkSegmentedCard.astro");
+
+    expect(sdkCard).toContain('class="button button--content sdk-segmented-card__download"');
+    expect(docs).toMatch(
+      /\.sdk-segmented-card__download\s*\{[^}]*font-size:\s*var\(--mc-docs-sdk-download-font-size\);[^}]*line-height:\s*1;/s,
+    );
+  });
+
   it("keeps every Developer Portal button label at regular weight", () => {
     const components = readDeveloperFile("src/styles/components.css");
     const pricing = readDeveloperFile("src/pages/pricing.astro");
@@ -313,6 +480,14 @@ describe("developer design system", () => {
     expect(components).toMatch(/\.button\s*\{[^}]*font-weight:\s*400;/s);
     expect(pricing).not.toMatch(/<button[^>]*class="[^"]*font-(?:medium|semibold|bold)[^"]*"/);
     expect(pricing).not.toMatch(/class="tier-cta[^"]*font-(?:medium|semibold|bold)[^"]*"/);
+  });
+
+  it("keeps the selected API sidebar item at regular weight", () => {
+    const docs = readDeveloperFile("src/styles/docs.css");
+
+    expect(docs).toMatch(
+      /\[data-api-nav-link\]\[aria-current="true"\],[\s\S]*?\[data-api-nav-link\]\[aria-current="true"\]:hover\s*\{[^}]*font-weight:\s*400;/s,
+    );
   });
 
   it("keeps required parameter badges in a dedicated trailing header column", () => {

@@ -27,15 +27,16 @@ describe("/docs/api content", () => {
   });
 
   it("renders generated endpoint, schema, manifest, auth, and SDK facts", async () => {
-    const reference = buildApiReference(readFixture("public-openapi.json"));
+    const contract = readFixture("public-openapi.json");
+    const reference = buildApiReference(contract);
     const catalog = parseSdkCatalog(readFixture("sdk-catalog.json"), {
-      version: "2.1.5",
-      sha256: "62c930477b631bbf1017e81895cb8ca64130f089041adc9e88f608271d6d710b",
+      version: "2.1.6",
+      sha256: "35644ffb3bd28eb1b046cf905818d881319f7e4aeb28f51ea2aa812dc486dab8",
     });
     const container = await AstroContainer.create({ renderers: await loadRenderers([getContainerRenderer()]) });
 
     const html = await container.renderToString(ApiReferenceContent, {
-      props: { reference, catalog },
+      props: { reference, catalog, contract },
     });
 
     expect(html).toContain("API reference");
@@ -130,11 +131,24 @@ describe("/docs/api content", () => {
     expect(html).toContain("Installation");
     expect(html).toContain("Usage");
     expect(html).toContain("MUSICCLOUD_API_KEY");
+    const content = readFileSync(join(rootDir, "components/docs/ApiReferenceContent.astro"), "utf8");
+    expect(content).toContain("# Requires MUSICCLOUD_API_KEY to be set in your shell environment.");
+    expect(content).toContain(String.raw`X-API-Key: \${MUSICCLOUD_API_KEY}`);
+    expect(content).not.toContain("mc_live_<prefix>_<secret>");
     expect(html).toContain("apiV1ResolvePost");
     expect(html).toContain("api_v1_resolve_post");
     expect(html).toContain("ResolveAPI");
     expect(html).toContain("SHA-256");
-    expect(html).not.toContain("Raw OpenAPI JSON");
+    expect(html).toContain("OpenAPI contract");
+    expect(html).toContain("Public OpenAPI contract, v2.1.6");
+    expect(html).toContain("https://api.musiccloud.io/docs/json");
+    expect(html).toContain("data-openapi-contract-trigger");
+    expect(html).toContain("data-openapi-contract-dialog");
+    expect(html).toContain("data-openapi-contract-source");
+    expect(html).toContain('data-openapi-contract-state="loading"');
+    expect(html).toContain("data-openapi-contract-loading");
+    expect(html).toContain("Loading OpenAPI contract");
+    expect(html).toContain("data-code-fill-available");
     expect(html).toContain("schema-resolve-success");
     expect(html).toContain('href="#schema-resolve-success"');
     expect(html).not.toContain('href="#schema-ResolveSuccess"');
@@ -159,8 +173,8 @@ describe("/docs/api content", () => {
     };
     const reference = buildApiReference(fixture);
     const catalog = parseSdkCatalog(readFixture("sdk-catalog.json"), {
-      version: "2.1.5",
-      sha256: "62c930477b631bbf1017e81895cb8ca64130f089041adc9e88f608271d6d710b",
+      version: "2.1.6",
+      sha256: "35644ffb3bd28eb1b046cf905818d881319f7e4aeb28f51ea2aa812dc486dab8",
     });
     const container = await AstroContainer.create({ renderers: await loadRenderers([getContainerRenderer()]) });
 
@@ -434,7 +448,7 @@ describe("/docs/api content", () => {
     expect(css).not.toMatch(/\.schema-card__field\[data-depth="1"\][\s\S]*background-image:/);
   });
 
-  it("uses the dedicated lighter token for active sidebar entries", () => {
+  it("uses the dedicated lighter color at regular weight for active sidebar entries", () => {
     const css = readFileSync(join(rootDir, "styles/docs.css"), "utf8");
     const theme = readFileSync(join(rootDir, "../public/developer-theme.css"), "utf8");
 
@@ -444,7 +458,7 @@ describe("/docs/api content", () => {
       /\[data-api-nav-link\]\[aria-current="true"\][\s\S]*color:\s*var\(--mc-docs-nav-active-color\);/,
     );
     expect(css).toMatch(
-      /\[data-api-nav-link\]\[aria-current="true"\],[\s\S]*?\[data-api-nav-link\]\[aria-current="true"\]:hover\s*\{[^}]*font-weight:\s*600;/,
+      /\[data-api-nav-link\]\[aria-current="true"\],[\s\S]*?\[data-api-nav-link\]\[aria-current="true"\]:hover\s*\{[^}]*font-weight:\s*400;/,
     );
   });
 
@@ -453,6 +467,17 @@ describe("/docs/api content", () => {
 
     expect(css).toMatch(
       /\.endpoint-card__method,[\s\S]*\.endpoint-card__path,[\s\S]*\.search-dialog__result-addon\s*\{[^}]*font-family:\s*var\(--font-mono\);/s,
+    );
+  });
+
+  it("doubles only the leading inset of endpoint method headers", () => {
+    const css = readFileSync(join(rootDir, "styles/docs.css"), "utf8");
+
+    expect(css).toContain(
+      "--mc-docs-endpoint-card-header-padding-inline-start: calc(var(--space-content-card-header) * 1.7);",
+    );
+    expect(css).toMatch(
+      /\.endpoint-card__header\s*\{[^}]*padding-inline-start:\s*var\(--mc-docs-endpoint-card-header-padding-inline-start\);/s,
     );
   });
 
@@ -557,7 +582,7 @@ describe("/docs/api content", () => {
       /\.api-reference-shell\s*\{[^}]*--mc-docs-search-dialog-top:\s*calc\(var\(--mc-space-8\) \+ var\(--mc-space-6\)\);/s,
     );
     expect(css).toMatch(
-      /\.search-dialog\.surface-card\s*\{[^}]*position:\s*fixed;[^}]*top:\s*var\(--mc-docs-search-dialog-top\);[^}]*inset-inline:\s*0;[^}]*width:\s*min\([^;]+var\(--mc-docs-search-dialog-max-width\)\);[^}]*max-height:\s*calc\(100dvh - var\(--mc-docs-search-dialog-top\) - var\(--mc-docs-search-dialog-viewport-gap\)\);[^}]*margin:\s*0 auto;/s,
+      /\.api-dialog\.surface-card\s*\{[^}]*position:\s*fixed;[^}]*top:\s*var\(--mc-docs-search-dialog-top\);[^}]*inset-inline:\s*0;[^}]*width:\s*min\([^;]+var\(--mc-docs-search-dialog-max-width\)\);[^}]*max-height:\s*calc\(100dvh - var\(--mc-docs-search-dialog-top\) - var\(--mc-docs-search-dialog-viewport-gap\)\);[^}]*margin:\s*0 auto;/s,
     );
     expect(css).toMatch(
       /@media \(max-width: 40rem\)[\s\S]*--mc-docs-search-dialog-top:\s*max\(var\(--mc-space-5\), calc\(env\(safe-area-inset-top\) \+ var\(--mc-space-3\)\)\);/,

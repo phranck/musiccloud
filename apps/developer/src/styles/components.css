@@ -79,6 +79,35 @@
     height: var(--mc-size-text-icon);
   }
 
+  /* One semantic shortcut can contain several independently legible keys.
+     The square surface deliberately contrasts with its parent, whether used
+     inside transparent navigation or an already-raised card. */
+  .keycap {
+    --mc-keycap-size: calc(1em + var(--mc-space-1));
+    --mc-keycap-radius: var(--radius-keycap);
+    --mc-keycap-surface: color-mix(in srgb, var(--color-surface-raised) 92%, var(--color-fg) 8%);
+
+    display: inline-flex;
+    align-items: center;
+    gap: var(--mc-space-1);
+    color: var(--color-fg-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-code);
+    line-height: 1;
+    vertical-align: middle;
+  }
+
+  .keycap__key {
+    display: inline-grid;
+    width: var(--mc-keycap-size);
+    aspect-ratio: 1;
+    place-items: center;
+    border: 0;
+    border-radius: var(--mc-keycap-radius);
+    color: inherit;
+    background: var(--mc-keycap-surface);
+  }
+
   .public-header {
     /*
      * Align header content with the tangent point of ordinary card corners.
@@ -90,9 +119,20 @@
     --mc-public-header-padding-inline: calc(
       var(--mc-space-page-inline) + var(--mc-public-header-card-content-inset)
     );
+    --mc-public-header-surface: var(--mc-color-public-header);
 
-    position: relative;
+    /* The full-width layer stays above document scroll. Its translucent sky
+       wash and blur let content pass beneath without hiding the aurora. */
+    position: sticky;
+    top: 0;
     z-index: 20;
+    width: 100%;
+    background: color-mix(in srgb, var(--mc-public-header-surface) 72%, transparent);
+    -webkit-backdrop-filter: blur(var(--mc-space-4));
+    backdrop-filter: blur(var(--mc-space-4));
+  }
+
+  .public-header__inner {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -138,16 +178,6 @@
 
   .public-navigation__label {
     min-width: 0;
-  }
-
-  .public-navigation__keycap {
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-button);
-    padding: var(--mc-space-1) var(--mc-space-2);
-    color: var(--color-fg-subtle);
-    font-family: var(--font-mono);
-    font-size: var(--text-code);
-    line-height: 1;
   }
 
   /* Every navigation state shares one compact visual surface while the link
@@ -286,7 +316,7 @@
   }
 
   @media (max-width: 24rem) {
-    .public-header,
+    .public-header__inner,
     .dashboard-header__inner {
       gap: var(--mc-space-2);
     }
@@ -305,7 +335,6 @@
      header/body/footer markup without redefining this outer geometry. */
   .surface-card {
     overflow: hidden;
-    border: 1px solid var(--color-border);
     border-radius: var(--radius-card);
     background: var(--color-surface);
   }
@@ -318,19 +347,7 @@
 
   .surface-card__header,
   .surface-card__footer {
-    background: var(--color-surface-raised);
-  }
-
-  .surface-card__header {
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .surface-card__footer {
-    border-top: 1px solid var(--color-border);
-  }
-
-  .surface-card--danger {
-    border-color: color-mix(in srgb, var(--color-danger) 40%, var(--color-border));
+    background: var(--color-card-chrome);
   }
 
   .dashboard-header {

@@ -15,6 +15,8 @@ describe("PublicHeader", () => {
 
     expect(html).toContain('data-public-navigation="desktop"');
     expect(html).toContain('data-public-navigation="mobile"');
+    expect(html).toMatch(/<div[^>]*class="public-header"/);
+    expect(html).toMatch(/<header[^>]*class="public-header__inner developer-shell"/);
     expect(html).toContain("<details");
     expect(html).toContain('aria-label="Open navigation"');
     expect(html).toContain("button--icon");
@@ -76,6 +78,19 @@ describe("PublicHeader", () => {
 
     expect(css).toMatch(
       /@media \(max-width: 56rem\)[\s\S]*\.public-header__desktop\s*\{\s*display:\s*none;[\s\S]*\.public-header__mobile\s*\{\s*display:\s*block;/,
+    );
+  });
+
+  it("keeps the public navigation sticky above scrolling content with a frosted backdrop", () => {
+    const css = readFileSync(join(import.meta.dirname, "../styles/components.css"), "utf8");
+    const theme = readFileSync(join(import.meta.dirname, "../../public/developer-theme.css"), "utf8");
+
+    expect(css).toMatch(
+      /\.public-header\s*\{[^}]*--mc-public-header-surface:\s*var\(--mc-color-public-header\);[^}]*position:\s*sticky;[^}]*top:\s*0;[^}]*z-index:\s*20;[^}]*background:\s*color-mix\(in srgb, var\(--mc-public-header-surface\) 72%, transparent\);[^}]*backdrop-filter:\s*blur\(var\(--mc-space-4\)\);/s,
+    );
+    expect(theme).toContain("--mc-color-public-header: #0c1925;");
+    expect(css).toMatch(
+      /\.public-header__inner\s*\{[^}]*padding:\s*var\(--mc-space-5\) var\(--mc-public-header-padding-inline\);/s,
     );
   });
 

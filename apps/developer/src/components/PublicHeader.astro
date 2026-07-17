@@ -13,6 +13,7 @@
  * lives in the footer only.
  */
 import { AvatarMenu } from "@/components/portal/AvatarMenu";
+import { KeyCap } from "@/components/KeyCap";
 import Wordmark from "@/components/Wordmark.astro";
 import { LoginIcon, MenuIcon } from "@/lib/icons";
 import { PUBLIC_NAV_ITEMS, PUBLIC_SEARCH_COMMAND, type PublicNavigationId } from "@/lib/publicNavigation";
@@ -33,7 +34,8 @@ const navClass = (id: PublicNavigationId) =>
 const SearchIcon = PUBLIC_SEARCH_COMMAND.icon;
 ---
 
-<header class="public-header developer-shell">
+<div class="public-header">
+<header class="public-header__inner developer-shell">
   <Wordmark />
   <div class="public-header__actions">
     <nav class="public-header__desktop" aria-label="Primary" data-public-navigation="desktop">
@@ -53,7 +55,7 @@ const SearchIcon = PUBLIC_SEARCH_COMMAND.icon;
       <a href={PUBLIC_SEARCH_COMMAND.href} class="public-navigation__link" data-public-search-command>
         <SearchIcon className="public-navigation__item-icon" aria-hidden="true" />
         <span class="public-navigation__label">{PUBLIC_SEARCH_COMMAND.label}</span>
-        <kbd class="public-navigation__keycap">{PUBLIC_SEARCH_COMMAND.shortcut}</kbd>
+        <KeyCap shortcut={PUBLIC_SEARCH_COMMAND.shortcut} />
       </a>
       {
         !account && (
@@ -95,7 +97,7 @@ const SearchIcon = PUBLIC_SEARCH_COMMAND.icon;
         <a href={PUBLIC_SEARCH_COMMAND.href} class="public-navigation__link" data-public-search-command>
           <SearchIcon className="public-navigation__item-icon" aria-hidden="true" />
           <span class="public-navigation__label">{PUBLIC_SEARCH_COMMAND.label}</span>
-          <kbd class="public-navigation__keycap">{PUBLIC_SEARCH_COMMAND.shortcut}</kbd>
+          <KeyCap shortcut={PUBLIC_SEARCH_COMMAND.shortcut} />
         </a>
         {
           !account && (
@@ -109,6 +111,7 @@ const SearchIcon = PUBLIC_SEARCH_COMMAND.icon;
     </details>
   </div>
 </header>
+</div>
 
 <script>
   const searchHref = "/docs/api?search=1";

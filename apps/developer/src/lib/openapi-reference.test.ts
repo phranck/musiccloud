@@ -21,7 +21,7 @@ describe("buildApiReference", () => {
       (operation) => operation.method === "POST" && operation.path === "/api/v1/resolve",
     );
 
-    expect(reference.version).toBe("2.1.5");
+    expect(reference.version).toBe("2.1.6");
     expect(reference.auth).toEqual({ headerName: "X-API-Key", scheme: "ApiKeyAuth" });
     expect(reference.groups.map((group) => group.name)).toEqual([
       "Artist",
@@ -116,6 +116,24 @@ describe("buildApiReference", () => {
         },
       ],
     });
+  });
+
+  it("exposes the renamed commercial share-page schemas as stable portal anchors", () => {
+    const reference = buildApiReference(readFixture("public-openapi.json"));
+
+    expect(reference.schemas.TrackSharePageResponse.anchor).toBe("schema-track-share-page-response");
+    expect(reference.schemas.AlbumSharePageResponse.anchor).toBe("schema-album-share-page-response");
+    expect(reference.schemas.ArtistSharePageResponse.anchor).toBe("schema-artist-share-page-response");
+    expect(reference.schemas.SharePage.variants).toEqual(
+      expect.arrayContaining([
+        { name: "TrackSharePageResponse", anchor: "schema-track-share-page-response" },
+        { name: "AlbumSharePageResponse", anchor: "schema-album-share-page-response" },
+        { name: "ArtistSharePageResponse", anchor: "schema-artist-share-page-response" },
+      ]),
+    );
+    expect(reference.schemas).not.toHaveProperty("CommercialTrackSharePageResponse");
+    expect(reference.schemas).not.toHaveProperty("CommercialAlbumSharePageResponse");
+    expect(reference.schemas).not.toHaveProperty("CommercialArtistSharePageResponse");
   });
 
   it("builds nested field documentation for response schemas", () => {

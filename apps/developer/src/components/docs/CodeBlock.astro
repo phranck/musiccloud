@@ -15,21 +15,43 @@ interface Props {
   code: string;
   label?: string;
   language?: "bash" | "json" | "typescript" | "python" | "swift";
+  /** Allows a parent compound to reserve the remaining viewport height for the scrollable code frame. */
+  fillAvailableHeight?: boolean;
+  /** Avoids syntax-token DOM when an already formatted document is too large to render safely. */
+  syntaxHighlight?: boolean;
+  /** Holds build-time highlighted markup inert until a dialog controller inserts it. */
+  deferredSourceId?: string;
 }
 
-const { code, label, language = "bash" } = Astro.props;
+const {
+  code,
+  label,
+  language = "bash",
+  fillAvailableHeight = false,
+  syntaxHighlight = true,
+  deferredSourceId,
+} = Astro.props;
 const blockId = `code-${createHash("sha256").update(`${label ?? ""}\n${language}\n${code}`).digest("hex").slice(0, 12)}`;
 const lineCount = code.split(/\r?\n/).length;
-const hasLineNumbers = language !== "bash";
+const hasLineNumbers = syntaxHighlight && language !== "bash";
 const hasVerticalOverflow = lineCount > 20;
-const highlighted = await codeToHtml(code, {
-  lang: language,
-  theme: "github-dark-dimmed",
-});
+const highlighted = syntaxHighlight
+  ? await codeToHtml(code, {
+      lang: language,
+      theme: "github-dark-dimmed",
+    })
+  : null;
+const deferredHighlightedSource =
+  deferredSourceId && highlighted ? JSON.stringify(highlighted).replace(/</g, "\\u003c") : undefined;
 ---
 
-<div class="code-block" data-code-block>
-  {label && <p class="text-code text-fg-subtle mb-2">{label}</p>}
+<div
+  class="code-block"
+  data-code-block
+  data-code-fill-available={fillAvailableHeight || undefined}
+  data-code-deferred-source={deferredSourceId}
+>
+  {label && <p class="code-block__label text-code mb-2">{label}</p>}
   <div
     class="code-block__surface"
     data-code-line-numbers={hasLineNumbers || undefined}
@@ -52,8 +74,19 @@ const highlighted = await codeToHtml(code, {
     </div>
     <span class="sr-only" aria-live="polite" data-copy-status></span>
     <ContentPanel id={blockId} className="code-block__frame">
-      <Fragment set:html={highlighted} />
+      {
+        deferredSourceId ? null : highlighted ? (
+          <Fragment set:html={highlighted} />
+        ) : (
+          <pre class="shiki" tabindex="0"><code>{code}</code></pre>
+        )
+      }
     </ContentPanel>
+    {
+      deferredHighlightedSource && (
+        <script id={deferredSourceId} type="application/json" is:inline set:html={deferredHighlightedSource}></script>
+      )
+    }
   </div>
 </div>
 

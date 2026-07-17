@@ -12,6 +12,7 @@ import {
   createElement,
   type JSX,
 } from "react";
+import { ApiDialog } from "@/components/docs/ApiDialog";
 import { joinClassNames } from "@/components/docs/classNames";
 
 /** Creates a class-bound search-dialog slot with native prop passthrough. */
@@ -24,15 +25,18 @@ function slot<Tag extends keyof JSX.IntrinsicElements>(tag: Tag, baseClassName: 
 }
 
 function SearchDialogRoot({ className, ...props }: ComponentPropsWithRef<"dialog">) {
-  return <dialog {...props} className={joinClassNames("search-dialog surface-card", className)} />;
+  return <ApiDialog {...props} className={joinClassNames("search-dialog", className)} />;
 }
 
-const SearchDialogHeader = slot("header", "search-dialog__header");
-const SearchDialogHeaderTitle = slot("h2", "search-dialog__header-title");
+function SearchDialogHeader({ className, ...props }: ComponentPropsWithRef<"header">) {
+  return <ApiDialog.Header {...props} className={className} />;
+}
+
+const SearchDialogHeaderTitle = ApiDialog.Header.Title;
 const SearchDialogHeaderSearch = slot("div", "search-dialog__header-search");
 const SearchDialogHeaderSearchIcon = slot("span", "search-dialog__header-search-icon");
-const SearchDialogHeaderAddon = slot("div", "search-dialog__header-addon");
-const SearchDialogBody = slot("div", "search-dialog__body");
+const SearchDialogHeaderAddon = ApiDialog.Header.Addon;
+const SearchDialogBody = ApiDialog.Body;
 const SearchDialogBodyStatus = slot("p", "search-dialog__status");
 const SearchDialogGroup = slot("section", "search-dialog__group");
 const SearchDialogGroupHeader = slot("header", "search-dialog__group-header");
@@ -45,7 +49,7 @@ const SearchDialogResultTitle = slot("span", "search-dialog__result-title");
 const SearchDialogResultSnippet = slot("span", "search-dialog__result-snippet");
 const SearchDialogResultAddon = slot("span", "search-dialog__result-addon");
 const SearchDialogEmpty = slot("div", "search-dialog__empty");
-const SearchDialogFooter = slot("footer", "search-dialog__footer");
+const SearchDialogFooter = ApiDialog.Footer;
 const SearchDialogFooterHints = slot("div", "search-dialog__footer-hints");
 const SearchDialogFooterHint = slot("span", "search-dialog__footer-hint");
 
@@ -60,7 +64,7 @@ function SearchDialogHeaderSearchClear({ className, ...props }: ButtonHTMLAttrib
 }
 
 function SearchDialogHeaderClose({ className, ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button {...props} type="button" className={joinClassNames("search-dialog__header-close", className)} />;
+  return <ApiDialog.Header.Close {...props} className={joinClassNames("search-dialog__header-close", className)} />;
 }
 
 function SearchDialogResults({ className, ...props }: ComponentPropsWithoutRef<"div">) {

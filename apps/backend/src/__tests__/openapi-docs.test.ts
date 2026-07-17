@@ -192,7 +192,7 @@ describe("OpenAPI docs", () => {
     expect(res.headers["cache-control"]).toBe("public, max-age=300");
     // Every immutable SDK release is keyed by the public contract version.
     // Keep this assertion explicit so a contract change cannot reuse a tag.
-    expect(doc.info.version).toBe("2.1.5");
+    expect(doc.info.version).toBe("2.1.6");
     expect(doc.info.version).toMatch(/^\d+\.\d+\.\d+$/);
     expect(Object.keys(doc.paths)).not.toContain("/api/dev/api-access/clients");
     expect(doc.components.securitySchemes).toHaveProperty("ApiKeyAuth");
@@ -717,6 +717,20 @@ describe("OpenAPI docs", () => {
     }
   });
 
+  it("does not register the retired admin analytics endpoints", async () => {
+    for (const path of [
+      "/api/admin/analytics/stats",
+      "/api/admin/analytics/pageviews",
+      "/api/admin/analytics/metrics",
+      "/api/admin/analytics/active",
+      "/api/admin/analytics/realtime",
+    ]) {
+      const response = await app.inject({ method: "GET", url: path });
+
+      expect(response.statusCode, path).toBe(404);
+    }
+  });
+
   it("models every successful public response with its exact runtime variant", async () => {
     const res = await app.inject({ method: "GET", url: "/docs/json" });
     const doc = res.json() as {
@@ -746,10 +760,20 @@ describe("OpenAPI docs", () => {
     }
 
     expect(doc.components.schemas).toHaveProperty("CcArtistInfo");
-    expect(doc.components.schemas).toHaveProperty("CommercialTrackSharePageResponse");
-    expect(doc.components.schemas).toHaveProperty("CommercialAlbumSharePageResponse");
-    expect(doc.components.schemas).toHaveProperty("CommercialArtistSharePageResponse");
+    expect(doc.components.schemas).toHaveProperty("TrackSharePageResponse");
+    expect(doc.components.schemas).toHaveProperty("AlbumSharePageResponse");
+    expect(doc.components.schemas).toHaveProperty("ArtistSharePageResponse");
+    expect(doc.components.schemas).not.toHaveProperty("CommercialTrackSharePageResponse");
+    expect(doc.components.schemas).not.toHaveProperty("CommercialAlbumSharePageResponse");
+    expect(doc.components.schemas).not.toHaveProperty("CommercialArtistSharePageResponse");
     expect(doc.components.schemas.SharePage?.oneOf).toHaveLength(6);
+    expect(doc.components.schemas.SharePage?.oneOf).toEqual(
+      expect.arrayContaining([
+        { $ref: "#/components/schemas/TrackSharePageResponse" },
+        { $ref: "#/components/schemas/AlbumSharePageResponse" },
+        { $ref: "#/components/schemas/ArtistSharePageResponse" },
+      ]),
+    );
     expect(doc.components.schemas.Album?.required).toContain("vinylLayout");
     expect(doc.components.schemas.CcAlbum?.required).toContain("vinylLayout");
     expect(doc.components.schemas.CcGenreTile?.properties as OpenApiSchema | undefined).not.toHaveProperty(

@@ -7,9 +7,17 @@
     --mc-docs-sidebar-width: 20rem;
     --mc-docs-layout-gap: var(--mc-space-6);
     --mc-docs-nav-padding: var(--mc-docs-space-md);
+    --mc-docs-nav-bottom-fade-height: var(--mc-space-3);
     --mc-docs-nav-toggle-size: var(--mc-space-7);
     --mc-docs-nav-toggle-secondary-opacity: 0.3;
-    --mc-docs-nav-sticky-offset: var(--mc-space-4);
+    /* The rail clears the sticky public header and keeps a deliberate visual
+       gap, so page scrolling never allows the two navigation surfaces to touch. */
+    --mc-docs-public-header-block-size: calc(
+      var(--mc-size-control) + var(--mc-space-5) + var(--mc-space-5)
+    );
+    --mc-docs-nav-sticky-offset: calc(
+      var(--mc-docs-public-header-block-size) + var(--mc-space-4)
+    );
     --mc-docs-nav-viewport-gap: 4rem;
     --mc-docs-nav-viewport-clearance: calc(
       var(--mc-docs-nav-sticky-offset) + var(--mc-docs-nav-viewport-gap)
@@ -20,7 +28,9 @@
     --mc-docs-section-heading-bottom: var(--mc-space-5);
     --mc-docs-entry-card-gap: var(--mc-space-7);
     --mc-docs-header-min-height: var(--mc-size-control);
+    --mc-docs-sidebar-header-block-size: var(--mc-docs-header-min-height);
     --mc-docs-parameter-name-width: 10rem;
+    --mc-docs-endpoint-card-header-padding-inline-start: calc(var(--space-content-card-header) * 1.7);
     --mc-docs-space-xs: 0.125rem;
     --mc-docs-space-sm: 0.375rem;
     --mc-docs-space-md: 0.625rem;
@@ -29,13 +39,9 @@
     --mc-docs-markdown-flow-gap: 0.875rem;
     --mc-docs-inline-code-scale: 0.9em;
     --mc-docs-content-card-radius: var(--radius-card);
-    /* Keep compact vertical card rhythm while aligning all ContentCard copy
-       with the tangent point of its own corners. SegmentedCard composes
-       ContentCard, so its headers, panels, and footer inherit this once. */
+    /* Copy aligns with the tangent point of its own corners, while surface
+       padding remains uniform so nested cards stay concentric. */
     --mc-docs-content-card-copy-inset: calc(var(--mc-docs-content-card-radius) / 2);
-    --mc-docs-content-card-padding-inline: calc(
-      var(--space-content-card) + var(--mc-docs-content-card-copy-inset)
-    );
     --mc-docs-content-panel-inset: var(--mc-space-1);
     --mc-docs-content-panel-radius: max(
       0px,
@@ -50,12 +56,32 @@
     --mc-docs-section-icon-size: calc(var(--mc-size-text-icon) + 2px);
     --mc-docs-response-line-height: 1.25;
     --mc-docs-response-line-size: calc(var(--text-lead) * var(--mc-docs-response-line-height));
-    --mc-docs-card-chrome: color-mix(in srgb, var(--color-surface) 88%, var(--color-code-bg) 12%);
+    --mc-docs-card-chrome: var(--color-card-chrome);
+    --mc-docs-sidebar-header-surface: color-mix(in srgb, var(--mc-color-sidebar-header) 56%, transparent);
+    /* Code keeps its visual contrast while letting the card material show through.
+       The gutter derives from that same translucent surface so both remain one unit. */
+    --mc-docs-code-surface: color-mix(in srgb, var(--color-code-bg) 84%, transparent);
+    --mc-docs-code-gutter-surface: color-mix(in srgb, var(--mc-docs-code-surface) 88%, var(--color-surface-raised) 12%);
     --mc-docs-search-dialog-max-width: 48rem;
     --mc-docs-search-dialog-min-height: 20rem;
     --mc-docs-search-dialog-top: calc(var(--mc-space-8) + var(--mc-space-6));
     --mc-docs-search-dialog-viewport-gap: var(--mc-space-5);
     --mc-docs-search-dialog-offset: var(--mc-space-3);
+    --mc-docs-search-dialog-group-header-surface: color-mix(in srgb, var(--mc-docs-card-chrome) 84%, var(--color-code-bg) 16%);
+    --mc-docs-search-dialog-input-surface: color-mix(in srgb, var(--color-code-bg) 82%, var(--color-surface-raised) 18%);
+    --mc-docs-contract-dialog-max-width: 72rem;
+    --mc-docs-contract-dialog-viewport-gap: var(--mc-space-5);
+    --mc-docs-contract-dialog-close-icon-size: calc(var(--mc-size-icon-lg) + 2px);
+    /* The loading dialog has no footer or scrollable code frame. Its height
+       must still include the real title line and every nested body inset so
+       the spinner's lower breathing room cannot be clipped by the card. */
+    --mc-docs-contract-dialog-header-block-size: calc(
+      var(--text-card-title) * 1.25 + var(--space-content-card-header) + var(--space-content-card-header)
+    );
+    --mc-docs-contract-dialog-loading-height: calc(
+      var(--mc-docs-contract-dialog-header-block-size) + var(--space-content-card) + var(--space-content-card) +
+        var(--mc-size-icon-lg) + var(--mc-space-8) + var(--mc-space-8)
+    );
     --mc-docs-search-highlight-color: var(--mc-color-search-highlight);
     --mc-docs-search-highlight-padding-inline: var(--mc-space-2);
     --mc-docs-search-highlight-padding-block: var(--mc-docs-space-xs);
@@ -75,6 +101,7 @@
       0px,
       calc(var(--mc-docs-sdk-selector-radius) - var(--mc-docs-sdk-selector-inset))
     );
+    --mc-docs-sdk-download-font-size: calc(var(--text-body) - var(--mc-docs-space-xs));
     --mc-docs-schema-field-indent: var(--mc-space-5);
     --mc-docs-schema-field-separator: color-mix(in srgb, var(--color-border) 68%, transparent);
     --mc-card-content-inset: calc(var(--mc-docs-content-card-radius) / 2);
@@ -88,6 +115,9 @@
   }
 
   .api-reference-nav {
+    display: grid;
+    grid-template-areas: "stack";
+    position: relative;
     overflow-x: hidden;
     padding: 0;
   }
@@ -212,25 +242,36 @@
   }
 
   .sidebar__header {
-    position: sticky;
-    /* Once sticky, extend beneath the translucent outer border so scrolled
-       labels cannot show through its top edge. */
-    top: -1px;
+    /* The header and the scrolling body intentionally overlap. This gives
+       Safari actual scrolling content to sample for the glass backdrop. */
+    position: relative;
     z-index: 3;
+    grid-area: stack;
+    align-self: start;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: var(--mc-space-3);
-    border-bottom: 1px solid var(--mc-docs-schema-field-separator);
     padding: var(--space-content-card-header) var(--mc-docs-nav-padding);
-    background-color: var(--color-surface-solid);
-    background-image: linear-gradient(var(--mc-docs-card-chrome), var(--mc-docs-card-chrome));
+    background: var(--mc-docs-sidebar-header-surface);
+    -webkit-backdrop-filter: blur(var(--mc-space-4)) saturate(1.15);
+    backdrop-filter: blur(var(--mc-space-4)) saturate(1.15);
   }
 
   .sidebar__header-addon {
     display: flex;
     align-items: center;
     justify-content: flex-end;
+  }
+
+  .sidebar__header-title {
+    min-width: 0;
+    padding-inline-start: var(--mc-docs-content-card-copy-inset);
+  }
+
+  .api-reference-nav[data-api-nav-scrolled="true"] .sidebar__header {
+    box-shadow: 0 var(--mc-space-2) var(--mc-space-4)
+      color-mix(in srgb, var(--color-sky-top) 56%, transparent);
   }
 
   .sidebar__body {
@@ -263,7 +304,6 @@
      below it derives from this token, preserving concentric card geometry. */
   .surface-card.content-card {
     overflow: hidden;
-    border: 1px solid var(--color-border);
     border-radius: var(--mc-docs-content-card-radius);
     background: var(--color-surface);
   }
@@ -274,7 +314,7 @@
     align-items: center;
     gap: var(--space-content-card-row);
     min-height: var(--mc-docs-header-min-height);
-    padding: var(--space-content-card-header) var(--mc-docs-content-card-padding-inline);
+    padding: var(--space-content-card-header);
     background: var(--mc-docs-card-chrome);
   }
 
@@ -284,6 +324,7 @@
   }
 
   .content-card__title {
+    padding-inline-start: var(--mc-docs-content-card-copy-inset);
     color: var(--color-fg);
     font-size: var(--text-card-title);
     font-weight: 600;
@@ -297,15 +338,12 @@
     margin-left: auto;
   }
 
-  .content-card__header {
-    border-bottom: 1px solid var(--color-border);
-  }
-
   .content-card__body {
-    padding: var(--space-content-card) var(--mc-docs-content-card-padding-inline);
+    padding: var(--space-content-card);
   }
 
   .content-card__body-intro,
+  .content-card__copy,
   .content-card__body-stack,
   .content-card__section,
   .content-card__section-body {
@@ -319,6 +357,12 @@
   .content-card__body-intro {
     gap: var(--mc-space-2);
     margin-bottom: var(--mc-space-6);
+    padding-inline: var(--mc-docs-content-card-copy-inset);
+  }
+
+  .content-card__copy {
+    gap: var(--mc-space-6);
+    padding-inline: var(--mc-docs-content-card-copy-inset);
   }
 
   .content-card__body-stack {
@@ -334,6 +378,7 @@
     align-items: center;
     gap: var(--mc-space-2);
     min-width: 0;
+    padding-inline: var(--mc-docs-content-card-copy-inset);
     color: var(--color-fg);
     font-size: var(--text-lead);
     line-height: 1.25;
@@ -377,7 +422,6 @@
   .content-card__footer {
     --button-min-height: var(--mc-size-control-compact);
     justify-content: space-between;
-    border-top: 1px solid var(--color-border);
     color: var(--color-fg-muted);
     font-size: var(--text-code);
   }
@@ -417,6 +461,12 @@
 
   .sdk-segmented-card .segmented-card__panel {
     scroll-margin-top: var(--mc-space-8);
+  }
+
+  .sdk-segmented-card__download {
+    align-self: center;
+    font-size: var(--mc-docs-sdk-download-font-size);
+    line-height: 1;
   }
 
   .schema-card {
@@ -648,7 +698,6 @@
 
   .schema-card__variants-item {
     min-width: 0;
-    border: 1px solid var(--color-border);
     border-radius: var(--mc-docs-content-panel-radius);
     padding: var(--mc-space-3);
     background: color-mix(in srgb, var(--color-surface-raised) 72%, transparent);
@@ -658,7 +707,6 @@
   .content-panel {
     min-width: 0;
     overflow: hidden;
-    border: 1px solid var(--color-border);
     border-radius: var(--mc-docs-content-panel-radius);
     background: color-mix(in srgb, var(--color-surface-raised) 72%, transparent);
   }
@@ -705,6 +753,16 @@
     padding: 0 var(--mc-space-4) var(--mc-space-3);
   }
 
+  .integration-panel__stack {
+    display: grid;
+    gap: var(--mc-space-3);
+  }
+
+  .openapi-contract-dialog__trigger {
+    --button-min-height: var(--mc-size-control-compact);
+    justify-self: end;
+  }
+
   .sdk-metadata-list {
     gap: var(--mc-space-2);
   }
@@ -715,8 +773,8 @@
 
   .endpoint-card__header {
     --request-method-color: var(--color-fg-muted);
+    padding-inline-start: var(--mc-docs-endpoint-card-header-padding-inline-start);
     background: color-mix(in srgb, var(--request-method-color) 12%, var(--color-surface));
-    border-bottom-color: color-mix(in srgb, var(--request-method-color) 36%, var(--color-border));
   }
 
   .endpoint-card__method {
@@ -821,7 +879,6 @@
   }
 
   .request-body-card__body {
-    border-top: 1px solid var(--color-border);
     padding: var(--space-content-card-row);
   }
 
@@ -833,7 +890,6 @@
     grid-template-columns: max-content minmax(0, 1fr);
     align-items: start;
     gap: var(--mc-space-3);
-    border-color: color-mix(in srgb, var(--api-status-card-color) 28%, var(--color-border));
     background: color-mix(in srgb, var(--api-status-card-color) 4%, var(--color-surface));
   }
 
@@ -945,12 +1001,6 @@
   }
 
   @media (max-width: 40rem) {
-    .content-card__header,
-    .content-card__body,
-    .content-card__footer {
-      padding-inline: var(--mc-docs-content-card-padding-inline);
-    }
-
     .integration-panel-grid,
     .parameter-card {
       grid-template-columns: 1fr;
@@ -1154,14 +1204,28 @@
   /* Keep a desktop sticky rail clear of the viewport edge while long, open
      section lists scroll inside the rail instead of extending below it. */
   @media (min-width: 64rem) {
-    [data-api-nav-scroll-region].api-reference-nav {
-      /* The rail is sticky at 1rem from the top and deliberately leaves a
-         larger 4rem breathing space below the viewport. */
+    [data-api-nav-scroll-region].sidebar__body {
+      /* The body overlaps the header, then offsets its first row by the
+         header's block size. The header can therefore frost the actual list
+         instead of the sidebar card's opaque parent surface. */
+      grid-area: stack;
+      min-height: 0;
       max-height: calc(100dvh - var(--mc-docs-nav-viewport-clearance));
+      padding-block-start: calc(var(--mc-docs-sidebar-header-block-size) + var(--mc-space-3));
       overflow-y: auto;
       overscroll-behavior-y: contain;
       scrollbar-gutter: stable;
       scroll-padding-bottom: var(--mc-docs-nav-viewport-gap);
+      -webkit-mask-image: linear-gradient(
+        to bottom,
+        var(--mc-color-mask-opaque) 0 calc(100% - var(--mc-docs-nav-bottom-fade-height)),
+        color-mix(in srgb, var(--mc-color-mask-opaque) 80%, transparent)
+      );
+      mask-image: linear-gradient(
+        to bottom,
+        var(--mc-color-mask-opaque) 0 calc(100% - var(--mc-docs-nav-bottom-fade-height)),
+        color-mix(in srgb, var(--mc-color-mask-opaque) 80%, transparent)
+      );
     }
   }
 
@@ -1184,7 +1248,7 @@
   [data-api-nav-link][aria-current="true"]:hover {
     color: var(--mc-docs-nav-active-color);
     background: var(--color-surface);
-    font-weight: 600;
+    font-weight: 400;
     text-decoration: none;
   }
 
@@ -1239,22 +1303,27 @@
       transition: none;
     }
 
-    .search-dialog,
-    .search-dialog::backdrop,
+    .api-dialog,
+    .api-dialog::backdrop,
     .api-search-highlight-notice,
     mark[data-api-search-highlight],
-    .code-block__copy-success {
+    .code-block__copy-success,
+    .openapi-contract-dialog__loading-spinner {
       animation: none;
     }
 
     .api-scroll-top {
       transition: none;
     }
+
+    .openapi-contract-dialog.surface-card {
+      transition: none;
+    }
   }
 
   /* Native modal search palette. The dialog itself is the surface card so no
      decorative card is nested inside another card. */
-  .search-dialog.surface-card {
+  .api-dialog.surface-card {
     position: fixed;
     top: var(--mc-docs-search-dialog-top);
     inset-inline: 0;
@@ -1264,20 +1333,19 @@
     max-height: calc(100dvh - var(--mc-docs-search-dialog-top) - var(--mc-docs-search-dialog-viewport-gap));
     margin: 0 auto;
     overflow: hidden;
-    border: 1px solid var(--color-border-strong);
     border-radius: var(--radius-card);
     padding: 0;
     color: var(--color-fg);
-    background: var(--color-surface-solid);
+    background: var(--color-surface);
     box-shadow: 0 var(--mc-space-5) var(--mc-space-8) color-mix(in srgb, var(--color-sky-top) 72%, transparent);
   }
 
-  .search-dialog[open] {
+  .api-dialog[open] {
     display: flex;
     flex-direction: column;
   }
 
-  .search-dialog::backdrop {
+  .api-dialog::backdrop {
     background: color-mix(in srgb, var(--color-sky-top) 72%, transparent);
     backdrop-filter: blur(var(--mc-space-2));
   }
@@ -1298,12 +1366,11 @@
     animation: api-search-backdrop-out var(--mc-motion-duration-normal) var(--mc-motion-easing-standard) both;
   }
 
-  .search-dialog__header {
+  .api-dialog__header {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: var(--mc-space-3);
-    border-bottom: 1px solid var(--color-border);
     padding: var(--space-content-card-header);
     background: var(--mc-docs-card-chrome);
   }
@@ -1318,7 +1385,7 @@
     border-radius: var(--radius-button);
     padding-inline: var(--mc-space-3) var(--mc-space-2);
     color: var(--color-fg-muted);
-    background: var(--color-code-bg);
+    background: var(--mc-docs-search-dialog-input-surface);
   }
 
   .search-dialog__header-search:focus-within {
@@ -1375,17 +1442,18 @@
     color: var(--color-accent);
   }
 
-  .search-dialog__header-addon {
+  .api-dialog__header-addon {
     display: flex;
     align-items: center;
   }
 
-  .search-dialog__body {
+  .api-dialog__body {
     display: flex;
     min-height: 0;
     flex: 1;
     flex-direction: column;
     overflow: hidden;
+    background: var(--color-surface);
   }
 
   .search-dialog__results {
@@ -1407,7 +1475,7 @@
     gap: var(--mc-space-3);
     padding: var(--mc-space-2) var(--space-content-card-header);
     color: var(--color-fg-muted);
-    background: var(--mc-docs-card-chrome);
+    background: var(--mc-docs-search-dialog-group-header-surface);
   }
 
   .search-dialog__group-header-title {
@@ -1508,8 +1576,7 @@
     text-align: center;
   }
 
-  .search-dialog__footer {
-    border-top: 1px solid var(--color-border);
+  .api-dialog__footer {
     padding: var(--mc-space-2) var(--space-content-card-header);
     color: var(--color-fg-subtle);
     background: var(--mc-docs-card-chrome);
@@ -1523,6 +1590,9 @@
   }
 
   .search-dialog__footer-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--mc-space-2);
     font-family: var(--font-mono);
     font-size: var(--text-code);
   }
@@ -1561,16 +1631,6 @@
     min-width: 0;
     font-size: var(--text-code);
     font-weight: 600;
-  }
-
-  .api-search-highlight-notice__keycap {
-    border: 1px solid var(--color-border-strong);
-    border-radius: var(--mc-content-link-radius);
-    padding: var(--mc-docs-space-xs) var(--mc-space-1);
-    color: var(--color-fg-muted);
-    font-family: var(--font-mono);
-    font-size: var(--text-code);
-    line-height: 1;
   }
 
   .api-search-highlight-notice__dismiss {
@@ -1630,13 +1690,13 @@
       --mc-docs-search-dialog-top: max(var(--mc-space-5), calc(env(safe-area-inset-top) + var(--mc-space-3)));
     }
 
-    .search-dialog.surface-card {
+    .api-dialog.surface-card {
       width: calc(100vw - var(--mc-space-2) - var(--mc-space-2));
       min-height: min(var(--mc-docs-search-dialog-min-height), calc(100dvh - var(--mc-space-4)));
       max-height: calc(100dvh - var(--mc-docs-search-dialog-top) - var(--mc-docs-search-dialog-viewport-gap));
     }
 
-    .search-dialog__header {
+    .api-dialog__header {
       gap: var(--mc-space-2);
       padding: var(--mc-space-2);
     }
@@ -1649,9 +1709,88 @@
       grid-column: 2;
     }
 
-    .search-dialog__footer {
+    .api-dialog__footer {
       display: none;
     }
+  }
+
+  /* The contract viewer uses the shared dialog frame, but reserves the
+     available viewport height for a single scrollable CodeBlock frame. Its
+     insets stay tokenized so narrow and tall browser windows remain usable. */
+  .openapi-contract-dialog.surface-card {
+    top: var(--mc-docs-contract-dialog-viewport-gap);
+    width: min(
+      calc(100vw - var(--mc-space-page-inline) - var(--mc-space-page-inline)),
+      var(--mc-docs-contract-dialog-max-width)
+    );
+    height: calc(
+      100dvh - var(--mc-docs-contract-dialog-viewport-gap) - var(--mc-docs-contract-dialog-viewport-gap)
+    );
+    min-height: 0;
+    max-height: none;
+    transition: height var(--mc-motion-duration-slow) var(--mc-motion-easing-standard);
+  }
+
+  .openapi-contract-dialog[data-openapi-contract-state="loading"] {
+    height: var(--mc-docs-contract-dialog-loading-height);
+  }
+
+  .openapi-contract-dialog__header-title {
+    padding-inline-start: var(--mc-docs-content-card-copy-inset);
+    color: var(--color-fg);
+    font-size: var(--text-card-title);
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  .openapi-contract-dialog__close {
+    flex: none;
+    border: 0;
+    outline: 0;
+    box-shadow: none;
+  }
+
+  .openapi-contract-dialog__close:focus-visible {
+    outline: 0;
+    box-shadow: none;
+  }
+
+  .openapi-contract-dialog__close-icon {
+    width: var(--mc-docs-contract-dialog-close-icon-size);
+    height: var(--mc-docs-contract-dialog-close-icon-size);
+  }
+
+  .openapi-contract-dialog .api-dialog__body {
+    padding: var(--space-content-card);
+  }
+
+  .openapi-contract-dialog__loading {
+    display: none;
+    padding-block: var(--mc-space-8);
+  }
+
+  .openapi-contract-dialog[data-openapi-contract-state="loading"] .api-dialog__body {
+    display: grid;
+    flex: none;
+    place-items: center;
+  }
+
+  .openapi-contract-dialog[data-openapi-contract-state="loading"] [data-code-block] {
+    display: none;
+  }
+
+  .openapi-contract-dialog[data-openapi-contract-state="loading"] .openapi-contract-dialog__loading {
+    display: grid;
+    place-items: center;
+  }
+
+  .openapi-contract-dialog__loading-spinner {
+    width: var(--mc-size-icon-lg);
+    height: var(--mc-size-icon-lg);
+    border: var(--mc-docs-space-xs) solid color-mix(in srgb, var(--color-fg) 36%, transparent);
+    border-top-color: var(--color-fg);
+    border-radius: var(--radius-round);
+    animation: openapi-contract-spinner var(--mc-motion-duration-slow) linear infinite;
   }
 
   .openapi-markdown {
@@ -1699,7 +1838,7 @@
     overflow-x: auto;
     border: 1px solid var(--color-border);
     border-radius: var(--mc-docs-content-panel-radius);
-    background: var(--color-code-bg);
+    background: var(--mc-docs-code-surface);
     padding: var(--mc-space-3);
   }
 
@@ -1716,6 +1855,11 @@
   .code-block__frame {
     min-width: 0;
     max-width: 100%;
+  }
+
+  .code-block__label {
+    padding-inline: var(--mc-docs-content-card-copy-inset);
+    color: var(--color-fg-muted);
   }
 
   .code-block__surface {
@@ -1775,13 +1919,28 @@
 
   .code-block__frame {
     overflow: auto;
-    background: var(--color-code-bg);
+    background: var(--mc-docs-code-surface);
     font-size: var(--text-code);
     line-height: var(--mc-code-line-height);
   }
 
   [data-code-vertical-scroll] .code-block__frame {
     max-block-size: calc(20lh + var(--mc-code-padding-block) + var(--mc-code-padding-block));
+  }
+
+  /* Consumers such as the OpenAPI-contract dialog can hand the remaining
+     viewport height to CodeBlock without changing the frame that owns code
+     scrolling, line numbers, and copy behaviour. */
+  .code-block[data-code-fill-available],
+  .code-block[data-code-fill-available] .code-block__surface,
+  .code-block[data-code-fill-available] .code-block__frame {
+    display: flex;
+    min-block-size: 0;
+    flex: 1;
+  }
+
+  .code-block[data-code-fill-available] .code-block__frame {
+    max-block-size: none;
   }
 
   .code-block__frame pre.shiki {
@@ -1805,7 +1964,7 @@
     padding-left: var(--mc-code-gutter-padding-inline);
     background: linear-gradient(
       to right,
-      color-mix(in srgb, var(--color-code-bg) 88%, var(--color-fg-subtle) 12%) 0 var(--code-line-number-column-width),
+      var(--mc-docs-code-gutter-surface) 0 var(--code-line-number-column-width),
       var(--color-border) var(--code-line-number-column-width) calc(var(--code-line-number-column-width) + 1px),
       transparent calc(var(--code-line-number-column-width) + 1px)
     ) !important;
@@ -1877,5 +2036,9 @@
   @keyframes code-copy-success {
     from { opacity: 0; transform: scale(0.84); }
     to { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes openapi-contract-spinner {
+    to { transform: rotate(1turn); }
   }
 }

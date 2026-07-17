@@ -60,12 +60,6 @@ export const UsersPage = lazy(() =>
   })),
 );
 
-export const AnalyticsPage = lazy(() =>
-  import("@/features/analytics/AnalyticsPage").then((m) => ({
-    default: m.AnalyticsPage,
-  })),
-);
-
 export const PagesListPage = lazy(() =>
   import("@/features/content/pages/PagesListPage").then((m) => ({
     default: m.PagesListPage,

@@ -19,6 +19,7 @@ describe("SegmentedCard", () => {
         </SegmentedCard.Header>
         <SegmentedCard.Body>
           <SegmentedCard.Body.Panel id="sdk-typescript" role="tabpanel">
+            <SegmentedCard.Body.Panel.Copy>SDK copy</SegmentedCard.Body.Panel.Copy>
             <SegmentedCard.Body.Panel.Stack>SDK details</SegmentedCard.Body.Panel.Stack>
           </SegmentedCard.Body.Panel>
         </SegmentedCard.Body>
@@ -34,6 +35,7 @@ describe("SegmentedCard", () => {
     expect(html).toContain('class="segmented-control__item-label">TypeScript</span>');
     expect(html).toContain('data-segmented-card-body="true" class="content-card__body segmented-card__body"');
     expect(html).toMatch(/id="sdk-typescript"[^>]*role="tabpanel"[^>]*class="segmented-card__panel"/);
+    expect(html).toContain('class="content-card__copy segmented-card__panel-copy">SDK copy</div>');
     expect(html).toContain('class="content-card__body-stack segmented-card__panel-stack">SDK details</div>');
     expect(html).toContain('class="content-card__footer segmented-card__footer">Download</footer>');
   });
