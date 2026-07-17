@@ -1,7 +1,7 @@
 {
   "apiVersion": "2.1.5",
-  "openApiSha256": "62c930477b631bbf1017e81895cb8ca64130f089041adc9e88f608271d6d710b",
-  "sourceSha": "547e0557f9d6ca6ee43c568f2b769534d2563a64",
+  "openApiSha256": "75f72cd7b454f577d5d530ac9fc7d682e5410e580a3558f5a73041493279d28c",
+  "sourceSha": "afe6209d1c8ba8f405abea36cc86c1b73a3a6211",
   "generatorVersion": "7.22.0",
   "assets": [
     {
@@ -9,7 +9,7 @@
       "generator": "typescript-fetch",
       "archiveName": "musiccloud-typescript-sdk-2.1.5.zip",
       "archiveUrl": "https://github.com/phranck/musiccloud/releases/download/api-sdk-v2.1.5/musiccloud-typescript-sdk-2.1.5.zip",
-      "sha256": "de1499096903f2f0a91f973e5005fb15053781746d660c4a2ea5180be242a3a2",
+      "sha256": "7e0fe43e3710e17848bfa1710fc97b5a37671f797a8d3f72152f0cfb3ebb732d",
       "quickstart": {
         "install": "npm install ./musiccloud-typescript-sdk-2.1.5.zip",
         "import": "import { Configuration, ResolveApi } from '@musiccloud/api-client';\n\nconst api = new ResolveApi(\n  new Configuration({ apiKey: process.env.MUSICCLOUD_API_KEY }),\n);",
@@ -21,7 +21,7 @@
       "generator": "python",
       "archiveName": "musiccloud-python-sdk-2.1.5.zip",
       "archiveUrl": "https://github.com/phranck/musiccloud/releases/download/api-sdk-v2.1.5/musiccloud-python-sdk-2.1.5.zip",
-      "sha256": "753f5773b6e915649ea5698b8c851e52c2e63ed8e63484783c038b652d1198e7",
+      "sha256": "961eb14f6c9df766f078557f53e44127686a41ba508c34ed95362e2262ff5d0f",
       "quickstart": {
         "install": "pip install ./musiccloud-python-sdk-2.1.5.zip",
         "import": "import os\nimport musiccloud_api_client\n\nconfiguration = musiccloud_api_client.Configuration()\nconfiguration.api_key['ApiKeyAuth'] = os.environ['MUSICCLOUD_API_KEY']",
@@ -33,7 +33,7 @@
       "generator": "swift6",
       "archiveName": "musiccloud-swift-sdk-2.1.5.zip",
       "archiveUrl": "https://github.com/phranck/musiccloud/releases/download/api-sdk-v2.1.5/musiccloud-swift-sdk-2.1.5.zip",
-      "sha256": "676a1322e0b119eaa7de65893789e864182977aca61d657ba4379cd6f1272585",
+      "sha256": "749855bd65d3266cc42f329091d088e5a5de4c4058edfe89fdb1fe2f18a9813d",
       "quickstart": {
         "install": "unzip musiccloud-swift-sdk-2.1.5.zip",
         "import": "import Foundation\nimport MusiccloudApiClient\n\nenum ConfigurationError: LocalizedError {\n  case missingApiKey\n\n  var errorDescription: String? {\n    \"MUSICCLOUD_API_KEY is required.\"\n  }\n}\n\nfunc musiccloudApiKey() throws -> String {\n  guard\n    let apiKey = ProcessInfo.processInfo.environment[\"MUSICCLOUD_API_KEY\"],\n    !apiKey.isEmpty\n  else {\n    throw ConfigurationError.missingApiKey\n  }\n  return apiKey\n}\n\nlet configuration = MusiccloudApiClientAPIConfiguration(\n  customHeaders: [\"X-API-Key\": try musiccloudApiKey()]\n)",
