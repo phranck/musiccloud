@@ -60,9 +60,9 @@ describe("developer design system", () => {
     expect(background).toContain('<stop offset="72%" stop-color={blobColor[name]} stop-opacity="0.1" />');
     expect(theme).toContain("--mc-color-aurora-blue: #1e3f36;");
     expect(theme).toContain("--mc-color-aurora-yellow: #f4d20096;");
-    expect(theme).toContain("--mc-color-sky-top: #070e15;");
-    expect(theme).toContain("--mc-color-sky-mid: #070e15;");
-    expect(theme).toContain("--mc-color-sky-bottom: #070e15;");
+    expect(theme).toContain("--mc-color-sky-top: #0d1b28;");
+    expect(theme).toContain("--mc-color-sky-mid: #0d1b28;");
+    expect(theme).toContain("--mc-color-sky-bottom: #0d1b28;");
     expect(theme).toContain("--mc-background-aurora-blur: 44px;");
     expect(theme).toContain("--mc-background-aurora-opacity: 0.46;");
   });
