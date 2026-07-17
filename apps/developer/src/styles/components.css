@@ -347,7 +347,7 @@
 
   .surface-card__header,
   .surface-card__footer {
-    background: var(--color-surface-raised);
+    background: var(--color-card-chrome);
   }
 
   .dashboard-header {

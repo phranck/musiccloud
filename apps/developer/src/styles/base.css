@@ -21,9 +21,14 @@
     text-box: trim-both cap alphabetic;
   }
 
+  /* The Developer Portal deliberately has no visible browser focus ring.
+     Components may still communicate their active state with their own border
+     or surface treatments, without reintroducing a global outline. */
+  :focus,
   :focus-visible {
-    outline: 2px solid var(--color-accent);
-    outline-offset: 2px;
+    outline: 0 !important;
+    outline-offset: 0 !important;
+    box-shadow: none !important;
   }
 
   @media (prefers-reduced-motion: reduce) {

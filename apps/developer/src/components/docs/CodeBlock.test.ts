@@ -6,9 +6,17 @@ import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it } from "vitest";
 import CodeBlock from "./CodeBlock.astro";
 
-async function renderCode(code: string, language: "bash" | "json" | "typescript" | "python" | "swift") {
+async function renderCode(
+  code: string,
+  language: "bash" | "json" | "typescript" | "python" | "swift",
+  fillAvailableHeight = false,
+  syntaxHighlight = true,
+  deferredSourceId?: string,
+) {
   const container = await AstroContainer.create({ renderers: await loadRenderers([getContainerRenderer()]) });
-  return container.renderToString(CodeBlock, { props: { code, language } });
+  return container.renderToString(CodeBlock, {
+    props: { code, language, fillAvailableHeight, syntaxHighlight, deferredSourceId },
+  });
 }
 
 describe("CodeBlock", () => {
@@ -29,6 +37,31 @@ describe("CodeBlock", () => {
     expect(await renderCode(twentyLines, "bash")).not.toContain("data-code-vertical-scroll");
     expect(await renderCode(twentyOneLines, "bash")).toContain("data-code-vertical-scroll");
     expect(await renderCode(twentyOneLines, "typescript")).toContain("data-code-vertical-scroll");
+  });
+
+  it("can fill a parent dialog while keeping the code frame as its scroll surface", async () => {
+    const html = await renderCode('{\n  "openapi": "3.1.0"\n}', "json", true);
+
+    expect(html).toContain("data-code-fill-available");
+  });
+
+  it("keeps an already formatted large document as escaped source instead of expanding it into syntax-token DOM", async () => {
+    const html = await renderCode('{\n  "openapi": "3.1.0"\n}', "json", true, false);
+
+    expect(html).toContain("&quot;openapi&quot;");
+    expect(html).not.toContain('class="line"');
+    expect(html).not.toContain("data-code-line-numbers");
+  });
+
+  it("keeps build-time syntax highlighting inert until a dialog opens", async () => {
+    const html = await renderCode('{\n  "openapi": "3.1.0"\n}', "json", true, true, "contract-code-source");
+    const deferredSource = html.match(/<script id="contract-code-source" type="application\/json">([\s\S]*?)<\/script>/)?.[1];
+
+    expect(html).toContain('id="contract-code-source"');
+    expect(html).toContain('data-code-deferred-source="contract-code-source"');
+    expect(html).toContain("data-code-line-numbers");
+    expect(deferredSource).toBeDefined();
+    expect(JSON.parse(deferredSource!)).toContain('class="shiki');
   });
 
   it("keeps documentation icon controls at the mobile touch-target size", () => {

@@ -9,6 +9,7 @@
   --color-fg-subtle: var(--mc-color-fg-subtle);
   --color-surface: var(--mc-color-surface);
   --color-surface-raised: var(--mc-color-surface-raised);
+  --color-card-chrome: var(--mc-color-card-chrome);
   --color-surface-solid: var(--mc-color-surface-solid);
   --color-border: var(--mc-color-border);
   --color-border-strong: var(--mc-color-border-strong);
