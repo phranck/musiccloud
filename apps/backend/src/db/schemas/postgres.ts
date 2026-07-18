@@ -1107,16 +1107,18 @@ export type EmailActionBindingInsert = typeof emailActionBindings.$inferInsert;
 
 // Managed content pages. Created and edited via the dashboard pages
 // editor; rendered server-side by the Astro frontend at `/:slug`.
-// `slug` is the natural primary key — it doubles as the public URL.
+// `slug` remains the legacy primary key during the additive identity transition.
 /**
- * Managed content pages rendered by the public Astro frontend.
- * Uses `slug` as both primary key and public URL, with layout/display fields
- * and audit pointers for dashboard edits.
+ * Managed content pages rendered by public surfaces.
+ * Adds a stable identity and context mask while retaining the slug primary key
+ * for existing translation, navigation and segment foreign keys.
  */
 export const contentPages = pgTable(
   "content_pages",
   {
     slug: text("slug").primaryKey(),
+    id: text("id").notNull().default(sql`gen_random_uuid()::text`).unique(),
+    contextMask: integer("context_mask").notNull().default(1),
     title: text("title").notNull(),
     content: text("content").notNull().default(""),
     status: text("status").notNull().default("draft"),
@@ -1136,11 +1138,40 @@ export const contentPages = pgTable(
   (table) => [
     index("idx_content_pages_status_title").on(table.status, table.title),
     index("idx_content_pages_position_created").on(table.position, table.createdAt.desc()),
+    check("chk_content_pages_context_mask", sql`${table.contextMask} IN (1, 2, 3)`),
   ],
 );
 
 export type ContentPageRow = typeof contentPages.$inferSelect;
 export type ContentPageInsert = typeof contentPages.$inferInsert;
+
+/**
+ * Context-specific publication metadata for managed content pages.
+ * Paths are unique inside a context, while the same canonical path may be
+ * claimed once in each public surface.
+ */
+export const contentPagePublications = pgTable(
+  "content_page_publications",
+  {
+    pageId: text("page_id")
+      .notNull()
+      .references(() => contentPages.id, { onDelete: "cascade" }),
+    context: integer("context").notNull(),
+    path: text("path").notNull(),
+    status: text("status").notNull().default("draft"),
+    templateKey: text("template_key").notNull(),
+  },
+  (table) => [
+    primaryKey({ name: "pk_content_page_publications", columns: [table.pageId, table.context] }),
+    uniqueIndex("uq_content_page_publications_context_path").on(table.context, table.path),
+    index("idx_content_page_publications_page").on(table.pageId),
+    check("chk_content_page_publications_context", sql`${table.context} IN (1, 2)`),
+    check("chk_content_page_publications_status", sql`${table.status} IN ('draft', 'published', 'hidden')`),
+  ],
+);
+
+export type ContentPagePublicationRow = typeof contentPagePublications.$inferSelect;
+export type ContentPagePublicationInsert = typeof contentPagePublications.$inferInsert;
 
 // Ordered segment list for pages with `page_type = 'segmented'`.
 // Each segment references another content page (must be `page_type = 'default'`).

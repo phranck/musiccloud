@@ -1,10 +1,13 @@
 import type {
   ContentCardStyle,
+  ContentContextMask,
+  ContentPublication,
   EmailBlock,
   OverlayWidth,
   PageDisplayMode,
   PageTitleAlignment,
   PageType,
+  SingleContentContext,
 } from "@musiccloud/shared";
 import type { ArtistCredit } from "../services/types.js";
 
@@ -207,7 +210,10 @@ export type ContentStatus = "draft" | "published" | "hidden";
 
 /** Content page summary row shape returned or accepted by the database repository layer. */
 export interface ContentPageSummaryRow {
+  id?: string;
   slug: string;
+  contextMask?: ContentContextMask;
+  publications?: ContentPublicationRow[];
   title: string;
   status: ContentStatus;
   showTitle: boolean;
@@ -254,6 +260,8 @@ export interface ContentPageTranslationUpsert {
 export interface ContentPageCreateData {
   slug: string;
   title: string;
+  contextMask?: ContentContextMask;
+  publications?: ContentPublication[];
   status?: ContentStatus;
   pageType?: PageType;
   createdBy: string | null;
@@ -261,6 +269,8 @@ export interface ContentPageCreateData {
 
 /** Content page meta update data shape returned or accepted by the database repository layer. */
 export interface ContentPageMetaUpdate {
+  contextMask?: ContentContextMask;
+  publications?: ContentPublication[];
   title?: string;
   slug?: string;
   status?: ContentStatus;
@@ -271,6 +281,15 @@ export interface ContentPageMetaUpdate {
   overlayWidth?: OverlayWidth;
   contentCardStyle?: ContentCardStyle;
   updatedBy: string | null;
+}
+
+/** Persisted context-specific publication row. */
+export interface ContentPublicationRow {
+  pageId: string;
+  context: SingleContentContext;
+  path: string;
+  status: ContentStatus;
+  templateKey: string;
 }
 
 /** Page segment row shape returned or accepted by the database repository layer. */
@@ -744,6 +763,8 @@ export interface AdminRepository {
    * @returns The matching record, or `null` when no row matches.
    */
   getContentPageBySlug(slug: string): Promise<ContentPageRow | null>;
+  /** Gets a content page by its stable identity. */
+  getContentPageById(id: string): Promise<ContentPageRow | null>;
   /**
    * Handles content page slug exists.
    *
@@ -805,6 +826,12 @@ export interface AdminRepository {
    * @returns The matching record, or `null` when no row matches.
    */
   getPublishedContentPageBySlug(slug: string): Promise<ContentPageRow | null>;
+  /** Lists every context publication assigned to a stable page identity. */
+  listContentPublications(pageId: string): Promise<ContentPublicationRow[]>;
+  /** Resolves one published page by canonical path inside a content context. */
+  getPublishedContentPageByPath(context: SingleContentContext, path: string): Promise<ContentPageRow | null>;
+  /** Atomically replaces the context publications assigned to a page. */
+  replaceContentPublications(pageId: string, publications: ContentPublication[]): Promise<ContentPublicationRow[]>;
 
   // Navigation items
   /**

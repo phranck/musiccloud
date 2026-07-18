@@ -1,7 +1,26 @@
 import { describe, expect, it } from "vitest";
-import type { ContentPage, NavItem, PageSegment, PageTranslation, TranslationStatus } from "../content.js";
+import type {
+  ContentPage,
+  ContentPublication,
+  NavItem,
+  PageSegment,
+  PageTranslation,
+  TranslationStatus,
+} from "../content.js";
+import { ContentContext } from "../content-context.js";
 
 describe("content translation types", () => {
+  it("ContentPublication identifies a context-specific page publication", () => {
+    const publication: ContentPublication = {
+      context: ContentContext.Frontend,
+      path: "/privacy",
+      status: "published",
+      templateKey: "frontend-default",
+    };
+
+    expect(publication.context).toBe(ContentContext.Frontend);
+  });
+
   it("PageTranslation shape compiles with required fields", () => {
     const t: PageTranslation = {
       locale: "de",
@@ -46,7 +65,17 @@ describe("content translation types", () => {
   it("ContentPage exposes translations + status", () => {
     const statuses: Record<string, TranslationStatus> = { en: "ready", de: "stale" };
     const p: ContentPage = {
+      id: "page-about",
       slug: "about",
+      contextMask: ContentContext.Frontend,
+      publications: [
+        {
+          context: ContentContext.Frontend,
+          path: "/about",
+          status: "published",
+          templateKey: "frontend-default",
+        },
+      ],
       title: "About",
       status: "published",
       showTitle: true,
@@ -63,6 +92,7 @@ describe("content translation types", () => {
       content: "",
       segments: [],
       translations: [],
+      markdownValidation: { ok: true, errors: [] },
     };
     expect(p.translations).toEqual([]);
   });

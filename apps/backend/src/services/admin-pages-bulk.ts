@@ -1,11 +1,17 @@
 // apps/backend/src/services/admin-pages-bulk.ts
-import type { ContentPageSummary, PagesBulkErrorDetail, PagesBulkRequest } from "@musiccloud/shared";
-import { isLocale, PAGE_TYPES } from "@musiccloud/shared";
+import type {
+  ContentPageSummary,
+  ContentPublication,
+  PagesBulkErrorDetail,
+  PagesBulkRequest,
+} from "@musiccloud/shared";
+import { ContentContext, isLocale, PAGE_TYPES } from "@musiccloud/shared";
 
 import type { ContentPageMetaUpdate } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
 
-import { getManagedContentPages } from "./admin-content.js";
+import { getManagedContentPages, normalizeAndValidateContentPublications } from "./admin-content.js";
+import { normalizeEditorialPath } from "./editorial-path.js";
 
 export type BulkResult =
   | { ok: true; data: ContentPageSummary[] }
@@ -23,8 +29,11 @@ export async function bulkUpdatePages(payload: PagesBulkRequest, opts: BulkUpdat
   // Snapshot existing slugs+pageTypes for cross-checks
   const existingPages = await repo.listContentPageSummaries();
   const bySlug = new Map(existingPages.map((p) => [p.slug, p]));
+  const detailedPages = await Promise.all(existingPages.map((page) => repo.getContentPageBySlug(page.slug)));
+  const detailsBySlug = new Map(detailedPages.filter((page) => page !== null).map((page) => [page.slug, page]));
 
   const errors: PagesBulkErrorDetail[] = [];
+  const normalizedPublications = new Map<number, ContentPublication[]>();
 
   // 1) pages: meta + content
   (payload.pages ?? []).forEach((entry, idx) => {
@@ -42,6 +51,49 @@ export async function bulkUpdatePages(payload: PagesBulkRequest, opts: BulkUpdat
     }
     if (entry.meta?.pageType !== undefined && !PAGE_TYPES.includes(entry.meta.pageType)) {
       errors.push({ section: "pages", index: idx, message: "invalid pageType" });
+    }
+    const current = detailsBySlug.get(entry.slug);
+    if (
+      current &&
+      (entry.meta?.slug !== undefined ||
+        entry.meta?.status !== undefined ||
+        entry.meta?.contextMask !== undefined ||
+        entry.meta?.publications !== undefined ||
+        entry.content !== undefined)
+    ) {
+      const contextMask = entry.meta?.contextMask ?? current.contextMask ?? ContentContext.Frontend;
+      const renamesLegacyPath = entry.meta?.slug !== undefined && entry.meta.slug !== entry.slug;
+      const publications =
+        entry.meta?.publications ??
+        (current.publications && current.publications.length > 0
+          ? current.publications.map(({ pageId: _pageId, ...publication }) => publication)
+          : [
+              {
+                context: ContentContext.Frontend,
+                path: normalizeEditorialPath(current.slug),
+                status: current.status,
+                templateKey: "frontend-default",
+              },
+            ]
+        ).map((publication) => {
+          const renamed =
+            renamesLegacyPath && publication.path === normalizeEditorialPath(current.slug)
+              ? { ...publication, path: normalizeEditorialPath(entry.meta!.slug!) }
+              : publication;
+          return entry.meta?.status !== undefined && renamed.context === ContentContext.Frontend
+            ? { ...renamed, status: entry.meta.status }
+            : renamed;
+        });
+      const validation = normalizeAndValidateContentPublications(
+        contextMask,
+        publications,
+        entry.content ?? current.content,
+      );
+      if (typeof validation === "string") {
+        errors.push({ section: "pages", index: idx, message: validation });
+      } else {
+        normalizedPublications.set(idx, validation);
+      }
     }
   });
 
@@ -105,11 +157,16 @@ export async function bulkUpdatePages(payload: PagesBulkRequest, opts: BulkUpdat
   if (errors.length > 0) return { ok: false, code: "INVALID_INPUT", details: errors };
 
   await repo.bulkUpdatePages({
-    pages: (payload.pages ?? []).map((p) => ({
+    pages: (payload.pages ?? []).map((p, index) => ({
       slug: p.slug,
-      meta: p.meta
-        ? ({ ...(p.meta as ContentPageMetaUpdate), updatedBy: opts.updatedBy } as ContentPageMetaUpdate)
-        : undefined,
+      meta:
+        p.meta || normalizedPublications.has(index)
+          ? ({
+              ...(p.meta as ContentPageMetaUpdate | undefined),
+              ...(normalizedPublications.has(index) ? { publications: normalizedPublications.get(index) } : {}),
+              updatedBy: opts.updatedBy,
+            } as ContentPageMetaUpdate)
+          : undefined,
       content: p.content,
     })),
     segments: (payload.segments ?? []).map((s) => ({

@@ -1,4 +1,4 @@
-import type { VinylLayout } from "@musiccloud/shared";
+import type { ContentPublication, SingleContentContext, VinylLayout } from "@musiccloud/shared";
 import * as pgModule from "pg";
 import { log } from "../../lib/infra/logger.js";
 import { enrichAlbumVinylLayout as discogsEnrichAlbumVinylLayout } from "../../services/plugins/discogs/discogs-enrich.js";
@@ -16,6 +16,7 @@ import type {
   ContentPageSummaryRow,
   ContentPageTranslationRow,
   ContentPageTranslationUpsert,
+  ContentPublicationRow,
   EmailActionBindingDto,
   EmailAssetDto,
   EmailBrandingDto,
@@ -210,16 +211,20 @@ import {
   deletePageTranslation as contentPagesDeletePageTranslation,
   deleteSegmentsForOwner as contentPagesDeleteSegmentsForOwner,
   getAdminUsernamesByIds as contentPagesGetAdminUsernamesByIds,
+  getContentPageById as contentPagesGetContentPageById,
   getContentPageBySlug as contentPagesGetContentPageBySlug,
   getContentPagesBySlugs as contentPagesGetContentPagesBySlugs,
   getPageTranslation as contentPagesGetPageTranslation,
+  getPublishedContentPageByPath as contentPagesGetPublishedContentPageByPath,
   getPublishedContentPageBySlug as contentPagesGetPublishedContentPageBySlug,
   getPublishedContentPagesBySlugs as contentPagesGetPublishedContentPagesBySlugs,
   listContentPageSummaries as contentPagesListContentPageSummaries,
+  listContentPublications as contentPagesListContentPublications,
   listPageTranslations as contentPagesListPageTranslations,
   listPublishedContentPages as contentPagesListPublishedContentPages,
   listSegmentsForOwner as contentPagesListSegmentsForOwner,
   listSegmentTranslationsForOwner as contentPagesListSegmentTranslationsForOwner,
+  replaceContentPublications as contentPagesReplaceContentPublications,
   replaceSegmentsForOwner as contentPagesReplaceSegmentsForOwner,
   replaceSegmentTranslations as contentPagesReplaceSegmentTranslations,
   setContentPageContentUpdatedAt as contentPagesSetContentPageContentUpdatedAt,
@@ -912,6 +917,10 @@ export class PostgresAdapter
     return contentPagesGetContentPageBySlug(this.pool, slug);
   }
 
+  getContentPageById(id: string): Promise<ContentPageRow | null> {
+    return contentPagesGetContentPageById(this.pool, id);
+  }
+
   contentPageSlugExists(slug: string): Promise<boolean> {
     return contentPagesContentPageSlugExists(this.pool, slug);
   }
@@ -942,6 +951,18 @@ export class PostgresAdapter
 
   getPublishedContentPageBySlug(slug: string): Promise<ContentPageRow | null> {
     return contentPagesGetPublishedContentPageBySlug(this.pool, slug);
+  }
+
+  listContentPublications(pageId: string): Promise<ContentPublicationRow[]> {
+    return contentPagesListContentPublications(this.pool, pageId);
+  }
+
+  getPublishedContentPageByPath(context: SingleContentContext, path: string): Promise<ContentPageRow | null> {
+    return contentPagesGetPublishedContentPageByPath(this.pool, context, path);
+  }
+
+  replaceContentPublications(pageId: string, publications: ContentPublication[]): Promise<ContentPublicationRow[]> {
+    return contentPagesReplaceContentPublications(this.pool, pageId, publications);
   }
 
   getContentPagesBySlugs(slugs: string[]): Promise<ContentPageRow[]> {

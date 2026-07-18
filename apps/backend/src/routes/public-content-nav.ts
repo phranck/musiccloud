@@ -4,6 +4,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 
 import { getPublicContentPage, getPublicContentPages } from "../services/admin-content.js";
 import { getPublicNavItems, isValidNavId } from "../services/admin-nav.js";
+import { normalizeEditorialPath } from "../services/editorial-path.js";
 
 /**
  * Resolve the request locale via 4-step fallback:
@@ -214,7 +215,16 @@ export default async function publicContentNavRoutes(app: FastifyInstance) {
     },
     async (request, reply) => {
       const locale = resolveRequestLocale(request);
-      const page = await getPublicContentPage(request.params.slug, locale);
+      let path: string;
+      try {
+        path = normalizeEditorialPath(request.params.slug);
+      } catch (error) {
+        return reply.status(400).send({
+          error: "INVALID_INPUT",
+          message: error instanceof Error ? error.message : "Content path is invalid",
+        });
+      }
+      const page = await getPublicContentPage(path, locale);
       if (!page) return reply.status(404).send({ error: "NOT_FOUND", message: "Content page not found" });
       reply.header("Cache-Control", CONTENT_CACHE);
       reply.header("Vary", "Accept-Language, Cookie");

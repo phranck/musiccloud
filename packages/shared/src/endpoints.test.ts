@@ -6,4 +6,8 @@ describe("endpoint catalog", () => {
     expect(ENDPOINTS.frontend.umami).toBe("/api/mc");
     expect(ENDPOINTS.admin).not.toHaveProperty("analytics");
   });
+
+  it("exposes the contextual publications endpoint for stable page identities", () => {
+    expect(ENDPOINTS.admin.pages.publications("page-123")).toBe("/api/admin/pages/page-123/publications");
+  });
 });
