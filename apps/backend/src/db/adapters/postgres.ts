@@ -16,6 +16,8 @@ import type {
   ContentPageSummaryRow,
   ContentPageTranslationRow,
   ContentPageTranslationUpsert,
+  ContentPublicationCutoverInput,
+  ContentPublicationCutoverResult,
   ContentPublicationRow,
   EmailActionBindingDto,
   EmailAssetDto,
@@ -208,6 +210,7 @@ import {
   replaceNavigationConfiguration as contentNavReplaceNavigationConfiguration,
 } from "./postgres-content-nav.js";
 import {
+  applyContentPublicationCutover as contentPagesApplyContentPublicationCutover,
   bulkUpdatePages as contentPagesBulkUpdatePages,
   contentPageSlugExists as contentPagesContentPageSlugExists,
   createContentPage as contentPagesCreateContentPage,
@@ -967,6 +970,10 @@ export class PostgresAdapter
 
   replaceContentPublications(pageId: string, publications: ContentPublication[]): Promise<ContentPublicationRow[]> {
     return contentPagesReplaceContentPublications(this.pool, pageId, publications);
+  }
+
+  applyContentPublicationCutover(entries: ContentPublicationCutoverInput[]): Promise<ContentPublicationCutoverResult> {
+    return contentPagesApplyContentPublicationCutover(this.pool, entries);
   }
 
   getContentPagesBySlugs(slugs: string[]): Promise<ContentPageRow[]> {

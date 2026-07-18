@@ -61,14 +61,28 @@ export const MUSICCLOUD_READINESS_TABLES = [
   "artist_images",
   "album_vinyl_layouts",
   "album_vinyl_layout_identities",
+  "content_pages",
+  "content_page_publications",
+  "page_segments",
+  "content_page_translations",
+  "page_segment_translations",
   "nav_items",
   "nav_item_translations",
   "navigation_item_placements",
 ] as const;
 
 const VINYL_WRITE_TABLES = ["album_vinyl_layouts", "album_vinyl_layout_identities"] as const;
-const NAVIGATION_WRITE_TABLES = ["nav_items", "nav_item_translations", "navigation_item_placements"] as const;
-const RUNTIME_WRITE_TABLES = [...VINYL_WRITE_TABLES, ...NAVIGATION_WRITE_TABLES] as const;
+const CONTEXTUAL_EDITORIAL_WRITE_TABLES = [
+  "content_pages",
+  "content_page_publications",
+  "page_segments",
+  "content_page_translations",
+  "page_segment_translations",
+  "nav_items",
+  "nav_item_translations",
+  "navigation_item_placements",
+] as const;
+const RUNTIME_WRITE_TABLES = [...VINYL_WRITE_TABLES, ...CONTEXTUAL_EDITORIAL_WRITE_TABLES] as const;
 
 export function buildMusiccloudReadinessExpectations(
   latestMigrationHash: string,
@@ -83,7 +97,10 @@ export function buildMusiccloudReadinessExpectations(
         (["INSERT", "UPDATE", "DELETE"] as const).map((privilege) => ({ privilege, table })),
       ),
     ],
-    sequencePrivileges: [{ sequence: "nav_items_id_seq", privilege: "USAGE" }],
+    sequencePrivileges: [
+      { sequence: "nav_items_id_seq", privilege: "USAGE" },
+      { sequence: "page_segments_id_seq", privilege: "USAGE" },
+    ],
   };
 }
 

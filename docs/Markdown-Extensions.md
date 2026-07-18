@@ -38,3 +38,9 @@ Validation inspects parsed token types, not raw substring matches. Extension-lik
 `validateMarkdownForContexts(markdown, contextMask)` checks all contexts enabled for a page. A failure identifies only the extension and its allowed context mask; it never includes unpublished page content. Invalid masks fail before parsing.
 
 Tests register a Developer Portal-only `tiers` extension to verify the context boundary. This is test-only coverage and does not introduce product Tiers syntax.
+
+## Contextual publication cutover
+
+Privacy and Terms keep one stable Page identity and one canonical editorial title/body across Frontend and Developer Portal publications. The cutover adds only the contextual publication metadata for `/privacy` and `/terms`; it does not copy or fork their Markdown.
+
+The complete `/docs` namespace, including every `/docs/**` descendant, is system-owned. Docs pages, API references, search targets, OpenAPI output, SDK output, and repository or generated artifacts are never editorial backfill sources.

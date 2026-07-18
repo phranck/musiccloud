@@ -186,6 +186,31 @@ describe("buildMusiccloudReadinessExpectations", () => {
     }
     expect(result.sequencePrivileges).toContainEqual({ sequence: "nav_items_id_seq", privilege: "USAGE" });
   });
+
+  it("requires CRUD access and serial sequence usage for the complete contextual editorial model", () => {
+    const result = buildMusiccloudReadinessExpectations("latest-hash", "db");
+
+    for (const table of [
+      "content_pages",
+      "content_page_publications",
+      "page_segments",
+      "content_page_translations",
+      "page_segment_translations",
+      "nav_items",
+      "nav_item_translations",
+      "navigation_item_placements",
+    ]) {
+      for (const privilege of ["SELECT", "INSERT", "UPDATE", "DELETE"]) {
+        expect(result.privileges).toContainEqual({ table, privilege });
+      }
+    }
+    expect(result.sequencePrivileges).toEqual(
+      expect.arrayContaining([
+        { sequence: "nav_items_id_seq", privilege: "USAGE" },
+        { sequence: "page_segments_id_seq", privilege: "USAGE" },
+      ]),
+    );
+  });
 });
 
 describe("readLatestDrizzleMigrationHash", () => {

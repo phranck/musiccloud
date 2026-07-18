@@ -297,6 +297,50 @@ export interface ContentPublicationRow {
   templateKey: string;
 }
 
+/** Canonical Page fields used only when the Terms identity is absent at cutover preflight. */
+export interface ContentPublicationCutoverPageCreate {
+  title: string;
+  content: string;
+  contextMask: ContentContextMask;
+  status: ContentStatus;
+  showTitle: boolean;
+  titleAlignment: PageTitleAlignment;
+  pageType: PageType;
+  displayMode: PageDisplayMode;
+  overlayWidth: OverlayWidth;
+  contentCardStyle: ContentCardStyle;
+}
+
+/** One expected existing Page or one Page whose continued absence authorizes creation. */
+export interface ContentPublicationCutoverInput {
+  sourceSlug: "privacy" | "terms";
+  expectedPage:
+    | { kind: "existing"; pageId: string; fingerprint: string }
+    | { kind: "absent"; fingerprint: string; create: ContentPublicationCutoverPageCreate };
+  prerequisitePublications: ContentPublication[];
+  publications: ContentPublication[];
+}
+
+/** Writes committed by one atomic Page/publication cutover transaction. */
+export interface ContentPublicationCutoverResult {
+  createdPages: Array<{
+    sourceSlug: ContentPublicationCutoverInput["sourceSlug"];
+    pageId: string;
+    fingerprint: string;
+  }>;
+  publications: ContentPublicationRow[];
+}
+
+/** Safe typed signal for a closed cutover input or locked-state conflict. */
+export class ContentPublicationCutoverConflictError extends Error {
+  readonly code = "MC-CONTENT-PUBLICATION-CUTOVER-CONFLICT" as const;
+
+  constructor() {
+    super("Content publication cutover conflict");
+    this.name = "ContentPublicationCutoverConflictError";
+  }
+}
+
 /** Page segment row shape returned or accepted by the database repository layer. */
 export interface PageSegmentRow {
   id: number;
@@ -860,6 +904,13 @@ export interface AdminRepository {
   getPublishedContentPageByPath(context: SingleContentContext, path: string): Promise<ContentPageRow | null>;
   /** Atomically replaces the context publications assigned to a page. */
   replaceContentPublications(pageId: string, publications: ContentPublication[]): Promise<ContentPublicationRow[]>;
+  /**
+   * Atomically revalidates and inserts a closed set of missing contextual publications.
+   * Existing publication rows are never replaced or deleted; exact targets are no-ops.
+   *
+   * @returns Only the Page identities and publication rows inserted by this transaction.
+   */
+  applyContentPublicationCutover(entries: ContentPublicationCutoverInput[]): Promise<ContentPublicationCutoverResult>;
 
   // Navigation items
   /**
