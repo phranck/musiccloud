@@ -15,4 +15,16 @@ describe("endpoint catalog", () => {
     expect(ENDPOINTS.admin.navigations.configuration).toBe("/api/admin/nav");
     expect(ENDPOINTS.admin.navigations.detail("header")).toBe("/api/admin/nav/header");
   });
+
+  it("exposes narrow internal Developer Portal editorial reads", () => {
+    expect(ENDPOINTS.internal.developer.editorial.page("/company/about")).toBe(
+      "/api/internal/developer/editorial/page?path=%2Fcompany%2Fabout",
+    );
+    expect(ENDPOINTS.internal.developer.editorial.navigation("main")).toBe(
+      "/api/internal/developer/editorial/navigation/main",
+    );
+    expect(ENDPOINTS.internal.developer.editorial.navigation("footer")).toBe(
+      "/api/internal/developer/editorial/navigation/footer",
+    );
+  });
 });

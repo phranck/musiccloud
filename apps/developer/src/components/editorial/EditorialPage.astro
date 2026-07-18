@@ -1,0 +1,48 @@
+---
+/** Shared Developer Portal shell for one published managed editorial Page. */
+import type { DeveloperPortalEditorialPage } from "@musiccloud/shared";
+import PublicFooter from "@/components/PublicFooter.astro";
+import PublicHeader from "@/components/PublicHeader.astro";
+import { SurfaceCard } from "@/components/SurfaceCard";
+import { ScrollIcon } from "@/lib/icons";
+import { getDeveloperSession } from "@/lib/session";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import "@/styles/editorial.css";
+import EditorialMarkdown from "./EditorialMarkdown.astro";
+
+interface Props {
+  page: DeveloperPortalEditorialPage;
+}
+
+const { page } = Astro.props;
+const account = await getDeveloperSession(Astro);
+---
+
+<BaseLayout title={`${page.title} · musiccloud for developers`} description={page.title}>
+  <PublicHeader account={account} />
+
+  <main
+    class="developer-shell developer-page editorial-page flex-1"
+    data-template-key={page.templateKey}
+    data-display-mode={page.displayMode}
+  >
+    {
+      page.showTitle ? (
+        <div class:list={["page-heading", `editorial-page__heading--${page.titleAlignment}`]}>
+          <ScrollIcon className="page-heading__icon" aria-hidden="true" />
+          <h1 class="page-heading__title">{page.title}</h1>
+        </div>
+      ) : (
+        <h1 class="sr-only">{page.title}</h1>
+      )
+    }
+
+    <SurfaceCard data-content-card-style={page.contentCardStyle}>
+      <SurfaceCard.Body>
+        <EditorialMarkdown html={page.contentHtml} />
+      </SurfaceCard.Body>
+    </SurfaceCard>
+  </main>
+
+  <PublicFooter />
+</BaseLayout>

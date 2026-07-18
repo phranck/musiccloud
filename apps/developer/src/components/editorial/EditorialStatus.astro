@@ -1,0 +1,22 @@
+---
+/** Reusable safe status surface for managed and system-owned public route failures. */
+import { SurfaceCard } from "@/components/SurfaceCard";
+import "@/styles/editorial.css";
+
+interface Props {
+  title: string;
+  message: string;
+  code?: string;
+  errorId?: string;
+}
+
+const { title, message, code, errorId } = Astro.props;
+---
+
+<SurfaceCard>
+  <SurfaceCard.Body className="editorial-status">
+    <h1 class="text-section text-fg">{title}</h1>
+    <p class="text-body text-fg-muted">{message}</p>
+    {code && errorId && <p class="text-code text-fg-subtle">{code} · {errorId}</p>}
+  </SurfaceCard.Body>
+</SurfaceCard>

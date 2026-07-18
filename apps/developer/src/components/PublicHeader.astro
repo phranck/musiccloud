@@ -13,10 +13,13 @@
  * lives in the footer only.
  */
 import { AvatarMenu } from "@/components/portal/AvatarMenu";
-import { KeyCap } from "@/components/KeyCap";
+import PublicNavigationItems from "@/components/PublicNavigationItems.astro";
 import Wordmark from "@/components/Wordmark.astro";
-import { LoginIcon, MenuIcon } from "@/lib/icons";
-import { PUBLIC_NAV_ITEMS, PUBLIC_SEARCH_COMMAND, type PublicNavigationId } from "@/lib/publicNavigation";
+import type { DeveloperPortalNavigationItem } from "@musiccloud/shared";
+import { NavigationArea } from "@musiccloud/shared";
+import { MenuIcon } from "@/lib/icons";
+import { getDeveloperPortalNavigation } from "@/lib/editorial";
+import type { PublicNavigationId } from "@/lib/publicNavigation";
 import type { Account } from "@/lib/session";
 
 interface Props {
@@ -24,14 +27,12 @@ interface Props {
   account: Account | null;
   /** The nav entry to highlight as the current page, if any. */
   active?: PublicNavigationId;
+  /** Explicit managed data for isolated rendering; normal SSR loads Main. */
+  navigation?: readonly DeveloperPortalNavigationItem[];
 }
 
-const { account, active } = Astro.props;
-
-/** Nav link classes: the active page gets full-strength text. */
-const navClass = (id: PublicNavigationId) =>
-  active === id ? "public-navigation__link public-navigation__link--active" : "public-navigation__link";
-const SearchIcon = PUBLIC_SEARCH_COMMAND.icon;
+const { account, active, navigation: suppliedNavigation } = Astro.props;
+const navigation = suppliedNavigation ?? (await getDeveloperPortalNavigation(NavigationArea.Main));
 ---
 
 <div class="public-header">
@@ -39,32 +40,7 @@ const SearchIcon = PUBLIC_SEARCH_COMMAND.icon;
   <Wordmark />
   <div class="public-header__actions">
     <nav class="public-header__desktop" aria-label="Primary" data-public-navigation="desktop">
-      {
-        PUBLIC_NAV_ITEMS.map((item) => (
-          (() => {
-            const Icon = item.icon;
-            return (
-              <a href={item.href} aria-current={active === item.id ? "page" : undefined} class={navClass(item.id)}>
-                <Icon className="public-navigation__item-icon" aria-hidden="true" />
-                <span class="public-navigation__label">{item.label}</span>
-              </a>
-            );
-          })()
-        ))
-      }
-      <a href={PUBLIC_SEARCH_COMMAND.href} class="public-navigation__link" data-public-search-command>
-        <SearchIcon className="public-navigation__item-icon" aria-hidden="true" />
-        <span class="public-navigation__label">{PUBLIC_SEARCH_COMMAND.label}</span>
-        <KeyCap shortcut={PUBLIC_SEARCH_COMMAND.shortcut} />
-      </a>
-      {
-        !account && (
-          <a href="/login" class="public-navigation__link">
-            <LoginIcon className="public-navigation__item-icon" aria-hidden="true" />
-            <span class="public-navigation__label">Sign in</span>
-          </a>
-        )
-      }
+      <PublicNavigationItems navigation={navigation} active={active} showLogin={!account} />
     </nav>
 
     {
@@ -81,32 +57,7 @@ const SearchIcon = PUBLIC_SEARCH_COMMAND.icon;
         <MenuIcon className="size-6" aria-hidden="true" />
       </summary>
       <nav class="public-header__mobile-panel" aria-label="Mobile primary">
-        {
-          PUBLIC_NAV_ITEMS.map((item) => (
-            (() => {
-              const Icon = item.icon;
-              return (
-                <a href={item.href} aria-current={active === item.id ? "page" : undefined} class={navClass(item.id)}>
-                  <Icon className="public-navigation__item-icon" aria-hidden="true" />
-                  <span class="public-navigation__label">{item.label}</span>
-                </a>
-              );
-            })()
-          ))
-        }
-        <a href={PUBLIC_SEARCH_COMMAND.href} class="public-navigation__link" data-public-search-command>
-          <SearchIcon className="public-navigation__item-icon" aria-hidden="true" />
-          <span class="public-navigation__label">{PUBLIC_SEARCH_COMMAND.label}</span>
-          <KeyCap shortcut={PUBLIC_SEARCH_COMMAND.shortcut} />
-        </a>
-        {
-          !account && (
-            <a href="/login" class="public-navigation__link">
-              <LoginIcon className="public-navigation__item-icon" aria-hidden="true" />
-              <span class="public-navigation__label">Sign in</span>
-            </a>
-          )
-        }
+        <PublicNavigationItems navigation={navigation} active={active} showLogin={!account} />
       </nav>
     </details>
   </div>

@@ -194,7 +194,7 @@ describe("developer design system", () => {
 
   it("uses the shared square key-cap compound for every portal keyboard hint", () => {
     const components = readDeveloperFile("src/styles/components.css");
-    const header = readDeveloperFile("src/components/PublicHeader.astro");
+    const navigationItems = readDeveloperFile("src/components/PublicNavigationItems.astro");
     const search = readDeveloperFile("src/components/docs/ApiDocumentSearch.tsx");
     const theme = readDeveloperFile("public/developer-theme.css");
     const tokens = readDeveloperFile("src/styles/tokens.css");
@@ -207,7 +207,7 @@ describe("developer design system", () => {
     expect(components).toMatch(
       /\.keycap__key\s*\{[^}]*aspect-ratio:\s*1;[^}]*border:\s*0;[^}]*border-radius:\s*var\(--mc-keycap-radius\);[^}]*background:\s*var\(--mc-keycap-surface\);/s,
     );
-    expect(header).toContain("<KeyCap shortcut={PUBLIC_SEARCH_COMMAND.shortcut} />");
+    expect(navigationItems).toContain("<KeyCap shortcut={PUBLIC_SEARCH_COMMAND.shortcut} />");
     expect(search).toContain('<KeyCap shortcut="Esc" />');
   });
 
@@ -321,7 +321,12 @@ describe("developer design system", () => {
 
   it("declares the canonical cascade order before every component layer", () => {
     const layerOrder = "@layer properties, theme, base, components, utilities;";
-    const componentStyles = ["src/styles/components.css", "src/styles/docs.css", "src/styles/pricing-material.css"];
+    const componentStyles = [
+      "src/styles/components.css",
+      "src/styles/docs.css",
+      "src/styles/editorial.css",
+      "src/styles/pricing-material.css",
+    ];
 
     for (const path of componentStyles) {
       expect(readDeveloperFile(path).startsWith(`${layerOrder}\n`), path).toBe(true);

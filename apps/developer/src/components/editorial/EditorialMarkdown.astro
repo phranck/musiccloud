@@ -1,0 +1,10 @@
+---
+/** Single injection boundary for Backend-sanitized Developer Portal Markdown HTML. */
+interface Props {
+  html: string;
+}
+
+const { html } = Astro.props;
+---
+
+<div class="editorial-markdown text-body text-fg-muted" set:html={html}></div>

@@ -1,0 +1,20 @@
+---
+/** System-owned not-found boundary for future and unknown documentation routes. */
+import PublicFooter from "@/components/PublicFooter.astro";
+import PublicHeader from "@/components/PublicHeader.astro";
+import EditorialStatus from "@/components/editorial/EditorialStatus.astro";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+
+Astro.response.status = 404;
+---
+
+<BaseLayout
+  title="Documentation page not found · musiccloud for developers"
+  description="The requested system documentation page was not found."
+>
+  <PublicHeader account={null} active="docs" />
+  <main class="developer-shell developer-page flex-1">
+    <EditorialStatus title="Documentation page not found" message="This documentation route does not exist." />
+  </main>
+  <PublicFooter />
+</BaseLayout>

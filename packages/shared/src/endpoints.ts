@@ -131,6 +131,12 @@ export const ENDPOINTS = {
     developer: {
       /** GET: the persisted availability state consumed by the Developer Portal middleware. */
       portalAvailability: "/api/internal/developer/portal-availability",
+      editorial: {
+        /** GET: one published Developer Portal editorial Page by normalized path. */
+        page: (path: string) => `/api/internal/developer/editorial/page?path=${encodeURIComponent(path)}`,
+        /** GET: one Developer Portal navigation area, fixed server-side to the Portal context. */
+        navigation: (area: "main" | "footer") => `/api/internal/developer/editorial/navigation/${area}`,
+      },
     },
   },
 
@@ -448,6 +454,13 @@ export const ENDPOINTS = {
 // -----------------------------------------------------------------------------
 
 export const ROUTE_TEMPLATES = {
+  internal: {
+    developer: {
+      editorial: {
+        navigation: "/api/internal/developer/editorial/navigation/:area",
+      },
+    },
+  },
   v1: {
     share: "/api/v1/share/:shortId",
     sharePreview: "/api/v1/share/:shortId/preview",

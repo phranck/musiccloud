@@ -57,6 +57,7 @@ import {
 } from "./routes/developer-portal-availability.js";
 import emailAssetServeRoutes from "./routes/email-assets.js";
 import genreArtworkRoutes from "./routes/genre-artwork.js";
+import { internalEditorialRoutes } from "./routes/internal-editorial.js";
 import linkRoutes from "./routes/link.js";
 import publicContentNavRoutes from "./routes/public-content-nav.js";
 import publicTiersRoutes from "./routes/public-tiers.js";
@@ -554,6 +555,7 @@ async function buildApp(options: BuildAppOptions = {}) {
   await app.register(async function internalRoutes(internalApp) {
     internalApp.addHook("preHandler", internalApp.authenticateInternal);
     await internalApp.register(developerPortalAvailabilityInternalRoutes);
+    await internalApp.register(internalEditorialRoutes);
   });
 
   // Share endpoint (public, no auth - used for SSR)
