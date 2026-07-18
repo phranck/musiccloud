@@ -1,10 +1,20 @@
-import type { ContentPageSummary, PageSegmentSummary } from "@musiccloud/shared";
+import { ContentContext, type ContentPageSummary, type PageSegmentSummary } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
 
 import { groupPagesByHierarchy } from "../hierarchy";
 
 function page(overrides: Partial<ContentPageSummary> & { slug: string }): ContentPageSummary {
   return {
+    id: `page-${overrides.slug}`,
+    contextMask: ContentContext.Frontend,
+    publications: [
+      {
+        context: ContentContext.Frontend,
+        path: `/${overrides.slug}`,
+        status: overrides.status ?? "draft",
+        templateKey: "frontend-default",
+      },
+    ],
     title: overrides.slug,
     status: "draft",
     showTitle: true,

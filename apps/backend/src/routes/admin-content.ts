@@ -1,4 +1,6 @@
 import {
+  type ContentContextMask,
+  type ContentPublication,
   ENDPOINTS,
   isLocale,
   OVERLAY_WIDTHS,
@@ -33,12 +35,13 @@ function getCallerId(request: FastifyRequest): string | null {
 }
 
 function statusCodeForError(
-  code: "NOT_FOUND" | "SLUG_TAKEN" | "INVALID_INPUT" | "TARGET_NOT_FOUND" | "TARGET_NOT_DEFAULT",
+  code: "NOT_FOUND" | "SLUG_TAKEN" | "PATH_TAKEN" | "INVALID_INPUT" | "TARGET_NOT_FOUND" | "TARGET_NOT_DEFAULT",
 ): number {
   switch (code) {
     case "NOT_FOUND":
       return 404;
     case "SLUG_TAKEN":
+    case "PATH_TAKEN":
       return 409;
     case "INVALID_INPUT":
     case "TARGET_NOT_FOUND":
@@ -50,11 +53,15 @@ function statusCodeForError(
 interface ContentCreateBody {
   slug: string;
   title: string;
+  contextMask?: ContentContextMask;
+  publications?: ContentPublication[];
   status?: "draft" | "published" | "hidden";
   pageType?: PageType;
 }
 
 interface ContentMetaBody {
+  contextMask?: ContentContextMask;
+  publications?: ContentPublication[];
   title?: string;
   slug?: string;
   status?: "draft" | "published" | "hidden";
@@ -78,6 +85,9 @@ function validateCreateBody(body: unknown): ContentCreateBody | string {
   if (typeof body.slug !== "string") return "slug must be string";
   if (typeof body.title !== "string") return "title must be string";
   const out: ContentCreateBody = { slug: body.slug, title: body.title };
+  const contextual = validateContextualFields(body);
+  if (typeof contextual === "string") return contextual;
+  Object.assign(out, contextual);
   if (body.status !== undefined) {
     if (body.status !== "draft" && body.status !== "published" && body.status !== "hidden") {
       return "status must be draft, published, or hidden";
@@ -94,6 +104,9 @@ function validateCreateBody(body: unknown): ContentCreateBody | string {
 function validateMetaBody(body: unknown): ContentMetaBody | string {
   if (!isPlainObject(body)) return "body must be an object";
   const out: ContentMetaBody = {};
+  const contextual = validateContextualFields(body);
+  if (typeof contextual === "string") return contextual;
+  Object.assign(out, contextual);
   if (body.title !== undefined) {
     if (typeof body.title !== "string") return "title must be string";
     out.title = body.title;
@@ -127,6 +140,38 @@ function validateMetaBody(body: unknown): ContentMetaBody | string {
   if (body.overlayWidth !== undefined) {
     if (!isOneOf(OVERLAY_WIDTHS, body.overlayWidth)) return "overlayWidth invalid";
     out.overlayWidth = body.overlayWidth;
+  }
+  return out;
+}
+
+function validateContextualFields(
+  body: Record<string, unknown>,
+): Pick<ContentMetaBody, "contextMask" | "publications"> | string {
+  const out: Pick<ContentMetaBody, "contextMask" | "publications"> = {};
+  if (body.contextMask !== undefined) {
+    if (typeof body.contextMask !== "number" || !Number.isInteger(body.contextMask))
+      return "contextMask must be integer";
+    out.contextMask = body.contextMask;
+  }
+  if (body.publications !== undefined) {
+    if (!Array.isArray(body.publications)) return "publications must be an array";
+    const publications: ContentPublication[] = [];
+    for (const raw of body.publications) {
+      if (!isPlainObject(raw)) return "publication must be an object";
+      if (typeof raw.context !== "number") return "publication.context must be number";
+      if (typeof raw.path !== "string") return "publication.path must be string";
+      if (raw.status !== "draft" && raw.status !== "published" && raw.status !== "hidden") {
+        return "publication.status invalid";
+      }
+      if (typeof raw.templateKey !== "string") return "publication.templateKey must be string";
+      publications.push({
+        context: raw.context as ContentPublication["context"],
+        path: raw.path,
+        status: raw.status,
+        templateKey: raw.templateKey,
+      });
+    }
+    out.publications = publications;
   }
   return out;
 }
@@ -215,6 +260,31 @@ export default async function adminContentRoutes(app: FastifyInstance) {
       return reply.status(statusCodeForError(result.code)).send({ error: result.code, message: result.message });
     return reply.status(204).send();
   });
+
+  // PUT /api/admin/pages/:id/publications — replace contextual publication state
+  app.put<{ Params: { id: string }; Body: unknown }>(
+    ROUTE_TEMPLATES.admin.pages.publications,
+    async (request, reply) => {
+      if (!isPlainObject(request.body)) {
+        return reply.status(400).send({ error: "INVALID_INPUT", message: "body must be an object" });
+      }
+      const contextual = validateContextualFields(request.body);
+      if (typeof contextual === "string" || contextual.contextMask === undefined || !contextual.publications) {
+        return reply.status(400).send({
+          error: "INVALID_INPUT",
+          message: typeof contextual === "string" ? contextual : "contextMask and publications are required",
+        });
+      }
+      const result = await updateManagedContentPageMeta(request.params.id, {
+        ...contextual,
+        updatedBy: getCallerId(request),
+      });
+      if (!result.ok) {
+        return reply.status(statusCodeForError(result.code)).send({ error: result.code, message: result.message });
+      }
+      return result.data;
+    },
+  );
 
   // PUT /api/admin/pages/bulk — atomic multi-section page update
   app.put(ROUTE_TEMPLATES.admin.pages.bulk, async (request, reply) => {

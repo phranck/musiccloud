@@ -1,3 +1,5 @@
+import { ContentContext } from "@musiccloud/shared";
+import type { MarkedExtension } from "marked";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
@@ -6,13 +8,21 @@ import type {
   ContentPageTranslationRow,
   PageSegmentRow,
 } from "../db/admin-repository.js";
-import { updateManagedContentPageMeta } from "../services/admin-content.js";
+import {
+  createManagedContentPage,
+  normalizeAndValidateContentPublications,
+  updateManagedContentPageMeta,
+} from "../services/admin-content.js";
+import { createMarkdownExtensionRegistry } from "../services/markdown/extension-registry.js";
 
 // ---------------------------------------------------------------------------
 // In-memory repo state
 // ---------------------------------------------------------------------------
 const pages = new Map<string, ContentPageRow>();
 const segmentsByOwner = new Map<string, PageSegmentRow[]>();
+const replacedPublications = vi.fn();
+let createError: unknown;
+let updateError: unknown;
 
 function makePage(overrides: Partial<ContentPageRow> = {}): ContentPageRow {
   return {
@@ -36,13 +46,31 @@ function makePage(overrides: Partial<ContentPageRow> = {}): ContentPageRow {
 }
 
 const repo: Partial<AdminRepository> = {
+  async getContentPageById(id: string) {
+    return [...pages.values()].find((candidate) => candidate.id === id) ?? null;
+  },
   async getContentPageBySlug(slug: string) {
     return pages.get(slug) ?? null;
   },
   async contentPageSlugExists(slug: string) {
     return pages.has(slug);
   },
+  async createContentPage(data) {
+    if (createError) throw createError;
+    const created = makePage({
+      ...data,
+      id: `page-${data.slug}`,
+      content: "",
+      status: data.status ?? "draft",
+      pageType: data.pageType ?? "default",
+      contextMask: data.contextMask,
+      publications: data.publications?.map((publication) => ({ pageId: `page-${data.slug}`, ...publication })),
+    });
+    pages.set(created.slug, created);
+    return created;
+  },
   async updateContentPageMeta(slug: string, data) {
+    if (updateError) throw updateError;
     const existing = pages.get(slug);
     if (!existing) return null;
     const updated: ContentPageRow = { ...existing, ...data, updatedAt: new Date() };
@@ -64,6 +92,10 @@ const repo: Partial<AdminRepository> = {
   async setContentPageContentUpdatedAt() {
     // no-op
   },
+  async replaceContentPublications(pageId, publications) {
+    replacedPublications(pageId, publications);
+    return publications.map((publication) => ({ pageId, ...publication }));
+  },
 };
 
 vi.mock("../db/index.js", () => ({ getAdminRepository: async () => repo }));
@@ -80,9 +112,149 @@ vi.mock("../services/admin-translations.js", () => ({
 
 describe("updateManagedContentPageMeta", () => {
   beforeEach(() => {
+    replacedPublications.mockReset();
+    createError = undefined;
+    updateError = undefined;
     pages.clear();
-    pages.set("test-page", makePage({ slug: "test-page" }));
+    pages.set("test-page", makePage({ id: "page-test", slug: "test-page" }));
     pages.set("card-style-test", makePage({ slug: "card-style-test", title: "x" }));
+  });
+
+  it("rejects reserved Developer Portal publications before persistence", async () => {
+    const result = await updateManagedContentPageMeta("page-test", {
+      contextMask: ContentContext.Frontend | ContentContext.DeveloperPortal,
+      publications: [
+        {
+          context: ContentContext.Frontend,
+          path: "/test-page",
+          status: "draft",
+          templateKey: "frontend-default",
+        },
+        {
+          context: ContentContext.DeveloperPortal,
+          path: "/docs/crawler-architecture",
+          status: "draft",
+          templateKey: "developer-default",
+        },
+      ],
+      updatedBy: null,
+    });
+
+    expect(result).toMatchObject({ ok: false, code: "INVALID_INPUT" });
+    expect(replacedPublications).not.toHaveBeenCalled();
+  });
+
+  it("normalizes publications and resolves the page through its stable id", async () => {
+    const result = await updateManagedContentPageMeta("page-test", {
+      contextMask: ContentContext.Frontend,
+      publications: [
+        {
+          context: ContentContext.Frontend,
+          path: "//privacy/",
+          status: "draft",
+          templateKey: "frontend-default",
+        },
+      ],
+      updatedBy: null,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(replacedPublications).toHaveBeenCalledWith("page-test", [expect.objectContaining({ path: "/privacy" })]);
+  });
+
+  it("treats an empty additive publication list as a legacy Frontend page", async () => {
+    pages.set("test-page", makePage({ id: "page-test", slug: "test-page", status: "draft", publications: [] }));
+
+    const result = await updateManagedContentPageMeta("page-test", {
+      status: "published",
+      updatedBy: null,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(replacedPublications).toHaveBeenCalledWith("page-test", [
+      expect.objectContaining({ path: "/test-page", status: "published" }),
+    ]);
+  });
+
+  it("maps a create-time context path collision to PATH_TAKEN", async () => {
+    createError = { code: "23505" };
+
+    const result = await createManagedContentPage({
+      slug: "new-page",
+      title: "New Page",
+      publications: [
+        {
+          context: ContentContext.Frontend,
+          path: "/privacy",
+          status: "draft",
+          templateKey: "frontend-default",
+        },
+      ],
+      createdBy: null,
+    });
+
+    expect(result).toMatchObject({ ok: false, code: "PATH_TAKEN" });
+  });
+
+  it("maps an atomic update-time context path collision to PATH_TAKEN", async () => {
+    updateError = { code: "23505" };
+
+    const result = await updateManagedContentPageMeta("page-test", {
+      publications: [
+        {
+          context: ContentContext.Frontend,
+          path: "/privacy",
+          status: "draft",
+          templateKey: "frontend-default",
+        },
+      ],
+      updatedBy: null,
+    });
+
+    expect(result).toMatchObject({ ok: false, code: "PATH_TAKEN" });
+  });
+
+  it("rejects publication when Markdown extensions are unavailable in an enabled context", async () => {
+    const tiersExtension: MarkedExtension = {
+      extensions: [
+        {
+          name: "tiers",
+          level: "block",
+          tokenizer(source) {
+            const match = source.match(/^:::tiers\r?\n([\s\S]*?)\r?\n:::/);
+            if (match) return { type: "tiers", raw: match[0], text: match[1] };
+          },
+          renderer(token) {
+            return `<section>${token.text}</section>`;
+          },
+        },
+      ],
+    };
+    const registry = createMarkdownExtensionRegistry([
+      {
+        name: "tiers",
+        allowedContextMask: ContentContext.DeveloperPortal,
+        createMarkedExtension: () => tiersExtension,
+        tokenTypes: ["tiers"],
+      },
+    ]);
+
+    const result = normalizeAndValidateContentPublications(
+      ContentContext.Frontend,
+      [
+        {
+          context: ContentContext.Frontend,
+          path: "/markdown-page",
+          status: "published",
+          templateKey: "frontend-default",
+        },
+      ],
+      ":::tiers\nPlans\n:::",
+      registry,
+    );
+
+    expect(result).toContain("tiers");
+    expect(replacedPublications).not.toHaveBeenCalled();
   });
 
   it("rejects invalid contentCardStyle", async () => {

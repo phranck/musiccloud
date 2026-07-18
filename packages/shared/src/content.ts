@@ -3,6 +3,7 @@
  * backend service layer, dashboard editor, and Astro frontend renderer.
  */
 
+import type { ContentContextMask, SingleContentContext } from "./content-context.js";
 import type { Locale } from "./locales.js";
 
 export type NavId = "header" | "footer";
@@ -31,6 +32,21 @@ export type OverlayWidth = "small" | "regular" | "big";
 export type PageTitleAlignment = "left" | "center" | "right";
 
 export type TranslationStatus = "missing" | "stale" | "ready";
+
+export interface ContentPublication {
+  context: SingleContentContext;
+  path: string;
+  status: ContentStatus;
+  templateKey: string;
+}
+
+export interface ContentMarkdownValidation {
+  ok: boolean;
+  errors: Array<{
+    extension: string;
+    allowedContextMask: ContentContextMask;
+  }>;
+}
 
 export interface PageTranslation {
   locale: Locale;
@@ -99,7 +115,10 @@ export interface PageSegmentSummary {
 }
 
 export interface ContentPageSummary {
+  id: string;
   slug: string;
+  contextMask: ContentContextMask;
+  publications: ContentPublication[];
   title: string;
   status: ContentStatus;
   showTitle: boolean;
@@ -120,6 +139,8 @@ export interface ContentPage extends ContentPageSummary {
   content: string;
   segments: PageSegment[];
   translations: PageTranslation[];
+  /** Additive compatibility field; new admin responses always include it. */
+  markdownValidation?: ContentMarkdownValidation;
 }
 
 export interface PublicPageSegment {
@@ -148,6 +169,8 @@ export interface PublicContentPage {
 export interface PagesBulkPagesEntry {
   slug: string;
   meta?: Partial<{
+    contextMask: ContentContextMask;
+    publications: ContentPublication[];
     title: string;
     slug: string;
     status: ContentStatus;

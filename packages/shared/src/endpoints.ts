@@ -313,8 +313,10 @@ export const ENDPOINTS = {
     pages: {
       /** GET: list all content pages (admin) / POST: create. */
       list: "/api/admin/pages",
-      /** GET / PATCH / DELETE: single content page by slug. */
-      detail: (slug: string) => `/api/admin/pages/${slug}`,
+      /** GET / PATCH / DELETE: single content page by stable id. */
+      detail: (id: string) => `/api/admin/pages/${id}`,
+      /** PUT: replace all context-specific publications for a page. */
+      publications: (id: string) => `/api/admin/pages/${id}/publications`,
       /** PUT: atomic save of pages, segments, page translations, and top-level order. */
       bulk: "/api/admin/pages/bulk",
       translations: {
@@ -509,6 +511,7 @@ export const ROUTE_TEMPLATES = {
     },
     pages: {
       detail: "/api/admin/pages/:slug",
+      publications: "/api/admin/pages/:id/publications",
       /** Route template for ENDPOINTS.admin.pages.bulk. */
       bulk: "/api/admin/pages/bulk",
       /** Route template for ENDPOINTS.admin.pages.translations.list. */

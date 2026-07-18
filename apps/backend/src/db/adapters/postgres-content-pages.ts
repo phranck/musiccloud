@@ -21,8 +21,19 @@
  *   - Admin user CRUD (see `postgres-admin-users.ts`).
  */
 
-import type { ContentCardStyle, OverlayWidth, PageDisplayMode, PageTitleAlignment, PageType } from "@musiccloud/shared";
+import type {
+  ContentCardStyle,
+  ContentContextMask,
+  ContentPublication,
+  OverlayWidth,
+  PageDisplayMode,
+  PageTitleAlignment,
+  PageType,
+  SingleContentContext,
+} from "@musiccloud/shared";
+import { ContentContext } from "@musiccloud/shared";
 import type { Pool, PoolClient } from "pg";
+import { isReservedDeveloperPortalPath, normalizeEditorialPath } from "../../services/editorial-path.js";
 import type {
   BulkUpdatePagesPayload,
   ContentPageCreateData,
@@ -31,6 +42,7 @@ import type {
   ContentPageSummaryRow,
   ContentPageTranslationRow,
   ContentPageTranslationUpsert,
+  ContentPublicationRow,
   ContentStatus,
   PageSegmentInputRow,
   PageSegmentRow,
@@ -44,15 +56,32 @@ import type {
 // any new column added to `content_pages`.
 
 const CONTENT_SUMMARY_COLUMNS =
-  "slug, title, status, show_title, title_alignment, page_type, display_mode, overlay_width, content_card_style, created_by, updated_by, created_at, updated_at";
-const CONTENT_COLUMNS = `slug, title, content, status, show_title, title_alignment, page_type, display_mode, overlay_width, content_card_style, created_by, updated_by, created_at, updated_at, content_updated_at`;
+  "content_pages.id AS id, content_pages.slug AS slug, content_pages.context_mask AS context_mask, content_pages.title AS title, content_pages.status AS status, content_pages.show_title AS show_title, content_pages.title_alignment AS title_alignment, content_pages.page_type AS page_type, content_pages.display_mode AS display_mode, content_pages.overlay_width AS overlay_width, content_pages.content_card_style AS content_card_style, content_pages.created_by AS created_by, content_pages.updated_by AS updated_by, content_pages.created_at AS created_at, content_pages.updated_at AS updated_at";
+const CONTENT_COLUMNS = `${CONTENT_SUMMARY_COLUMNS}, content_pages.content AS content, content_pages.content_updated_at AS content_updated_at`;
+const CONTENT_PUBLICATIONS_COLUMN = `COALESCE(
+  (SELECT json_agg(
+     json_build_object(
+       'pageId', cpp.page_id,
+       'context', cpp.context,
+       'path', cpp.path,
+       'status', cpp.status,
+       'templateKey', cpp.template_key
+     ) ORDER BY cpp.context
+   )
+   FROM content_page_publications cpp
+   WHERE cpp.page_id = content_pages.id),
+  '[]'::json
+) AS publications`;
 
 // ============================================================================
 // ROW TYPES
 // ============================================================================
 
 interface ContentPageSummarySqlRow {
+  id: string;
   slug: string;
+  context_mask: number;
+  publications?: ContentPublicationRow[];
   title: string;
   status: string;
   show_title: boolean;
@@ -89,7 +118,10 @@ interface ContentPageTranslationSqlRow {
 
 function rowToContentPageSummary(row: ContentPageSummarySqlRow): ContentPageSummaryRow {
   return {
+    id: row.id,
     slug: row.slug,
+    contextMask: row.context_mask as ContentContextMask,
+    publications: row.publications ?? [],
     title: row.title,
     status: row.status as ContentStatus,
     showTitle: row.show_title,
@@ -145,6 +177,7 @@ function resolveSlugAfterRename(p: { slug: string; meta?: ContentPageMetaUpdate 
 export async function listContentPageSummaries(pool: Pool): Promise<ContentPageSummaryRow[]> {
   const result = await pool.query(
     `SELECT ${CONTENT_SUMMARY_COLUMNS},
+            ${CONTENT_PUBLICATIONS_COLUMN},
             COALESCE(
               json_agg(
                 json_build_object('position', ps.position, 'label', ps.label, 'targetSlug', ps.target_slug)
@@ -170,10 +203,21 @@ export async function listContentPageSummaries(pool: Pool): Promise<ContentPageS
  */
 export async function getContentPageBySlug(pool: Pool, slug: string): Promise<ContentPageRow | null> {
   const result = await pool.query(
-    `SELECT ${CONTENT_COLUMNS}
+    `SELECT ${CONTENT_COLUMNS}, ${CONTENT_PUBLICATIONS_COLUMN}
      FROM content_pages
      WHERE slug = $1`,
     [slug],
+  );
+  return result.rows.length > 0 ? rowToContentPage(result.rows[0]) : null;
+}
+
+/** Loads a full admin page by its stable identity. */
+export async function getContentPageById(pool: Pool, id: string): Promise<ContentPageRow | null> {
+  const result = await pool.query(
+    `SELECT ${CONTENT_COLUMNS}, ${CONTENT_PUBLICATIONS_COLUMN}
+     FROM content_pages
+     WHERE id = $1`,
+    [id],
   );
   return result.rows.length > 0 ? rowToContentPage(result.rows[0]) : null;
 }
@@ -224,7 +268,22 @@ export async function getAdminUsernamesByIds(pool: Pool, ids: string[]): Promise
  */
 export async function listPublishedContentPages(pool: Pool): Promise<Array<{ slug: string; title: string }>> {
   const result = await pool.query<{ slug: string; title: string }>(
-    `SELECT slug, title FROM content_pages WHERE status = 'published' ORDER BY title ASC`,
+    `SELECT content_pages.slug, content_pages.title
+       FROM content_pages
+      WHERE EXISTS (
+              SELECT 1 FROM content_page_publications publication
+               WHERE publication.page_id = content_pages.id
+                 AND publication.context = 1
+                 AND publication.status = 'published'
+            )
+         OR (
+              content_pages.status = 'published'
+              AND NOT EXISTS (
+                SELECT 1 FROM content_page_publications publication
+                 WHERE publication.page_id = content_pages.id
+              )
+            )
+      ORDER BY content_pages.title ASC`,
   );
   return result.rows;
 }
@@ -238,9 +297,14 @@ export async function listPublishedContentPages(pool: Pool): Promise<Array<{ slu
  */
 export async function getPublishedContentPageBySlug(pool: Pool, slug: string): Promise<ContentPageRow | null> {
   const result = await pool.query(
-    `SELECT ${CONTENT_COLUMNS}
+    `SELECT ${CONTENT_COLUMNS}, ${CONTENT_PUBLICATIONS_COLUMN}
      FROM content_pages
-     WHERE slug = $1 AND status = 'published'`,
+     WHERE slug = $1
+       AND status = 'published'
+       AND NOT EXISTS (
+         SELECT 1 FROM content_page_publications publication
+          WHERE publication.page_id = content_pages.id
+       )`,
     [slug],
   );
   return result.rows.length > 0 ? rowToContentPage(result.rows[0]) : null;
@@ -256,7 +320,7 @@ export async function getPublishedContentPageBySlug(pool: Pool, slug: string): P
 export async function getContentPagesBySlugs(pool: Pool, slugs: string[]): Promise<ContentPageRow[]> {
   if (slugs.length === 0) return [];
   const result = await pool.query(
-    `SELECT ${CONTENT_COLUMNS}
+    `SELECT ${CONTENT_COLUMNS}, ${CONTENT_PUBLICATIONS_COLUMN}
      FROM content_pages
      WHERE slug = ANY($1)`,
     [slugs],
@@ -274,12 +338,134 @@ export async function getContentPagesBySlugs(pool: Pool, slugs: string[]): Promi
 export async function getPublishedContentPagesBySlugs(pool: Pool, slugs: string[]): Promise<ContentPageRow[]> {
   if (slugs.length === 0) return [];
   const result = await pool.query(
-    `SELECT ${CONTENT_COLUMNS}
+    `SELECT ${CONTENT_COLUMNS}, ${CONTENT_PUBLICATIONS_COLUMN}
      FROM content_pages
-     WHERE slug = ANY($1) AND status = 'published'`,
+     WHERE slug = ANY($1)
+       AND (
+         EXISTS (
+           SELECT 1 FROM content_page_publications publication
+            WHERE publication.page_id = content_pages.id
+              AND publication.context = 1
+              AND publication.status = 'published'
+         )
+         OR (
+           status = 'published'
+           AND NOT EXISTS (
+             SELECT 1 FROM content_page_publications publication
+              WHERE publication.page_id = content_pages.id
+           )
+         )
+       )`,
     [slugs],
   );
   return result.rows.map(rowToContentPage);
+}
+
+// ============================================================================
+// CONTENT PUBLICATIONS
+// ============================================================================
+
+interface ContentPublicationSqlRow {
+  page_id: string;
+  context: number;
+  path: string;
+  status: string;
+  template_key: string;
+}
+
+function rowToContentPublication(row: ContentPublicationSqlRow): ContentPublicationRow {
+  return {
+    pageId: row.page_id,
+    context: row.context as SingleContentContext,
+    path: row.path,
+    status: row.status as ContentStatus,
+    templateKey: row.template_key,
+  };
+}
+
+async function replaceContentPublicationsWithTarget(
+  target: Pool | PoolClient,
+  pageId: string,
+  publications: ContentPublication[],
+): Promise<ContentPublicationRow[]> {
+  const contextMask = publications.reduce((mask, publication) => mask | publication.context, 0);
+  await target.query(`UPDATE content_pages SET context_mask = $2 WHERE id = $1`, [pageId, contextMask]);
+  await target.query(`DELETE FROM content_page_publications WHERE page_id = $1`, [pageId]);
+  const rows: ContentPublicationRow[] = [];
+  for (const publication of publications) {
+    const result = await target.query<ContentPublicationSqlRow>(
+      `INSERT INTO content_page_publications (page_id, context, path, status, template_key)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING page_id, context, path, status, template_key`,
+      [pageId, publication.context, publication.path, publication.status, publication.templateKey],
+    );
+    rows.push(rowToContentPublication(result.rows[0]));
+  }
+  return rows.sort((a, b) => a.context - b.context);
+}
+
+/** Lists every context publication for a stable page identity. */
+export async function listContentPublications(pool: Pool, pageId: string): Promise<ContentPublicationRow[]> {
+  const result = await pool.query<ContentPublicationSqlRow>(
+    `SELECT page_id, context, path, status, template_key
+       FROM content_page_publications
+      WHERE page_id = $1
+      ORDER BY context ASC`,
+    [pageId],
+  );
+  return result.rows.map(rowToContentPublication);
+}
+
+/** Resolves one published page by context and canonical path. */
+export async function getPublishedContentPageByPath(
+  pool: Pool,
+  context: SingleContentContext,
+  path: string,
+): Promise<ContentPageRow | null> {
+  const normalizedPath = normalizeEditorialPath(path);
+  if (context === ContentContext.DeveloperPortal && isReservedDeveloperPortalPath(normalizedPath)) return null;
+
+  const result = await pool.query(
+    `SELECT ${CONTENT_COLUMNS}, ${CONTENT_PUBLICATIONS_COLUMN}
+       FROM content_pages
+       JOIN content_page_publications publication ON publication.page_id = content_pages.id
+      WHERE publication.context = $1
+        AND publication.path = $2
+        AND publication.status = 'published'`,
+    [context, normalizedPath],
+  );
+  return result.rows.length > 0 ? rowToContentPage(result.rows[0]) : null;
+}
+
+/**
+ * Replaces all publication rows and their owning page's context mask in one
+ * transaction. Supplying a client composes the replacement into a caller's
+ * existing transaction.
+ */
+export async function replaceContentPublications(
+  pool: Pool,
+  pageId: string,
+  publications: ContentPublication[],
+  client?: PoolClient,
+): Promise<ContentPublicationRow[]> {
+  if (publications.length === 0) {
+    throw new Error("At least one content publication is required");
+  }
+
+  if (client) return replaceContentPublicationsWithTarget(client, pageId, publications);
+
+  const transactionClient = await pool.connect();
+  try {
+    await transactionClient.query("BEGIN");
+    const rows = await replaceContentPublicationsWithTarget(transactionClient, pageId, publications);
+    await transactionClient.query("COMMIT");
+    return rows;
+  } catch (error) {
+    await transactionClient.query("ROLLBACK");
+    throw error;
+  } finally {
+    transactionClient.release();
+  }
 }
 
 // ============================================================================
@@ -295,13 +481,35 @@ export async function getPublishedContentPagesBySlugs(pool: Pool, slugs: string[
  * @returns The persisted row.
  */
 export async function createContentPage(pool: Pool, data: ContentPageCreateData): Promise<ContentPageRow> {
-  const result = await pool.query(
-    `INSERT INTO content_pages (slug, title, status, page_type, created_by)
-     VALUES ($1, $2, $3, $4, $5)
-     RETURNING ${CONTENT_COLUMNS}`,
-    [data.slug, data.title, data.status ?? "draft", data.pageType ?? "default", data.createdBy],
-  );
-  return rowToContentPage(result.rows[0]);
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query(
+      `INSERT INTO content_pages (slug, title, context_mask, status, page_type, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING ${CONTENT_COLUMNS}`,
+      [
+        data.slug,
+        data.title,
+        data.contextMask ?? 1,
+        data.status ?? "draft",
+        data.pageType ?? "default",
+        data.createdBy,
+      ],
+    );
+    const row = rowToContentPage(result.rows[0]);
+    if (data.publications) {
+      row.publications = await replaceContentPublicationsWithTarget(client, row.id!, data.publications);
+      row.contextMask = data.contextMask ?? 1;
+    }
+    await client.query("COMMIT");
+    return row;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /**
@@ -321,6 +529,30 @@ export async function updateContentPageMeta(
   slug: string,
   data: ContentPageMetaUpdate,
 ): Promise<ContentPageRow | null> {
+  if (data.publications) {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const row = await updateContentPageMeta(client as unknown as Pool, slug, {
+        ...data,
+        publications: undefined,
+      });
+      if (!row) {
+        await client.query("ROLLBACK");
+        return null;
+      }
+      row.publications = await replaceContentPublicationsWithTarget(client, row.id!, data.publications);
+      row.contextMask = data.contextMask ?? row.contextMask;
+      await client.query("COMMIT");
+      return row;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   const setClauses: string[] = [];
   const values: unknown[] = [];
   let paramIndex = 1;
@@ -336,6 +568,10 @@ export async function updateContentPageMeta(
   if (data.status !== undefined) {
     setClauses.push(`status = $${paramIndex++}`);
     values.push(data.status);
+  }
+  if (data.contextMask !== undefined) {
+    setClauses.push(`context_mask = $${paramIndex++}`);
+    values.push(data.contextMask);
   }
   if (data.showTitle !== undefined) {
     setClauses.push(`show_title = $${paramIndex++}`);
@@ -575,6 +811,10 @@ async function applyMetaInTx(client: PoolClient, slug: string, meta: ContentPage
     setClauses.push(`status = $${p++}`);
     values.push(meta.status);
   }
+  if (meta.contextMask !== undefined) {
+    setClauses.push(`context_mask = $${p++}`);
+    values.push(meta.contextMask);
+  }
   if (meta.showTitle !== undefined) {
     setClauses.push(`show_title = $${p++}`);
     values.push(meta.showTitle);
@@ -603,10 +843,20 @@ async function applyMetaInTx(client: PoolClient, slug: string, meta: ContentPage
     setClauses.push(`updated_by = $${p++}`);
     values.push(meta.updatedBy);
   }
-  if (setClauses.length === 0) return;
-  setClauses.push(`updated_at = NOW()`);
-  values.push(slug);
-  await client.query(`UPDATE content_pages SET ${setClauses.join(", ")} WHERE slug = $${p}`, values);
+  if (setClauses.length === 0 && !meta.publications) return;
+  if (setClauses.length > 0) {
+    setClauses.push(`updated_at = NOW()`);
+    values.push(slug);
+    await client.query(`UPDATE content_pages SET ${setClauses.join(", ")} WHERE slug = $${p}`, values);
+  }
+  if (meta.publications) {
+    const page = await client.query<{ id: string }>(`SELECT id FROM content_pages WHERE slug = $1`, [
+      meta.slug ?? slug,
+    ]);
+    if (page.rows[0]) {
+      await replaceContentPublicationsWithTarget(client, page.rows[0].id, meta.publications);
+    }
+  }
   if (meta.pageType === "default") {
     await client.query(`DELETE FROM page_segments WHERE owner_slug = $1`, [meta.slug ?? slug]);
   }

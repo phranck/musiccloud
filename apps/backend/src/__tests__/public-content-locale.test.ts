@@ -1,3 +1,4 @@
+import { ContentContext } from "@musiccloud/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   AdminRepository,
@@ -14,8 +15,30 @@ let navTranslations: NavItemTranslationRow[] = [];
 let pageTranslationsBySlug: Map<string, ContentPageTranslationRow[]> = new Map();
 
 const baseRepo: Partial<AdminRepository> = {
-  async getPublishedContentPageBySlug() {
-    return page;
+  async getContentPageBySlug(slug: string) {
+    return page?.slug === slug ? page : null;
+  },
+  async getPublishedContentPageByPath(context, path) {
+    return page?.publications?.some(
+      (publication) =>
+        publication.context === context && publication.path === path && publication.status === "published",
+    )
+      ? page
+      : null;
+  },
+  async getPublishedContentPageBySlug(slug: string) {
+    return page?.slug === slug && page.status === "published" && (page.publications?.length ?? 0) === 0 ? page : null;
+  },
+  async listPublishedContentPages() {
+    if (!page) return [];
+    const publications = page.publications ?? [];
+    const isPublished =
+      publications.length > 0
+        ? publications.some(
+            (publication) => publication.context === ContentContext.Frontend && publication.status === "published",
+          )
+        : page.status === "published";
+    return isPublished ? [{ slug: page.slug, title: page.title }] : [];
   },
   async listPageTranslations(slug: string) {
     return pageTranslationsBySlug.get(slug) ?? translations;
@@ -128,6 +151,67 @@ describe("getPublicContentPage locale fallback", () => {
     const r = await getPublicContentPage("about", "en");
     expect(r?.title).toBe("About");
     expect(r?.content).toBe("EN body");
+  });
+
+  it("keeps the legacy slug list and detail APIs consistent when the Frontend path differs", async () => {
+    page = mkPage({
+      id: "page-privacy",
+      slug: "privacy",
+      contextMask: ContentContext.Frontend,
+      publications: [
+        {
+          pageId: "page-privacy",
+          context: ContentContext.Frontend,
+          path: "/legal",
+          status: "published",
+          templateKey: "frontend-default",
+        },
+      ],
+    });
+    const { getPublicContentPage, getPublicContentPages } = await import("../services/admin-content.js");
+
+    await expect(getPublicContentPages()).resolves.toEqual([{ slug: "privacy", title: "About" }]);
+    await expect(getPublicContentPage("privacy", "en")).resolves.toMatchObject({ slug: "privacy" });
+  });
+
+  it("does not expose a Developer Portal-only publication through the legacy Frontend slug", async () => {
+    page = mkPage({
+      id: "page-privacy",
+      slug: "privacy",
+      contextMask: ContentContext.DeveloperPortal,
+      publications: [
+        {
+          pageId: "page-privacy",
+          context: ContentContext.DeveloperPortal,
+          path: "/privacy",
+          status: "published",
+          templateKey: "developer-default",
+        },
+      ],
+    });
+    const { getPublicContentPage } = await import("../services/admin-content.js");
+
+    await expect(getPublicContentPage("privacy", "en")).resolves.toBeNull();
+  });
+
+  it("does not expose a draft Frontend publication through the legacy Frontend slug", async () => {
+    page = mkPage({
+      id: "page-privacy",
+      slug: "privacy",
+      contextMask: ContentContext.Frontend,
+      publications: [
+        {
+          pageId: "page-privacy",
+          context: ContentContext.Frontend,
+          path: "/legal",
+          status: "draft",
+          templateKey: "frontend-default",
+        },
+      ],
+    });
+    const { getPublicContentPage } = await import("../services/admin-content.js");
+
+    await expect(getPublicContentPage("privacy", "en")).resolves.toBeNull();
   });
 });
 
