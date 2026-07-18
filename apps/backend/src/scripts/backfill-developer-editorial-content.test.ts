@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import { ContentContext, PageType, type ContentPublication } from "@musiccloud/shared";
 import { describe, expect, it, vi } from "vitest";
@@ -7,6 +7,8 @@ import type {
   AdminRepository,
   ContentPageRow,
   ContentPageSummaryRow,
+  ContentPublicationCutoverInput,
+  ContentPublicationCutoverResult,
   ContentPublicationRow,
 } from "../db/admin-repository.js";
 import {
@@ -18,6 +20,8 @@ import {
 } from "./backfill-developer-editorial-content.js";
 
 const FIXED_DATE = new Date("2026-07-18T08:00:00.000Z");
+const TERMS_PLACEHOLDER =
+  "The full Terms of Service for the musiccloud developer portal and API are being finalised and will be published here before public API access opens. Until then, this page is a placeholder.";
 
 function publication(
   pageId: string,
@@ -80,9 +84,7 @@ function fingerprint(title: string, content: string): string {
 
 class InMemoryEditorialRepository {
   readonly sourceReads: string[] = [];
-  readonly atomicApplies: Array<
-    Array<{ sourceSlug: string; pageId: string; publication: ContentPublication }>
-  > = [];
+  readonly atomicApplies: ContentPublicationCutoverInput[][] = [];
   readonly writes: ContentPublicationRow[] = [];
   readonly createContentPage = vi.fn();
   readonly replaceContentPublications = vi.fn(async () => {
@@ -115,40 +117,82 @@ class InMemoryEditorialRepository {
   }
 
   async applyContentPublicationCutover(
-    entries: Array<{ sourceSlug: string; pageId: string; publication: ContentPublication }>,
-  ): Promise<ContentPublicationRow[]> {
-    this.atomicApplies.push(entries.map((entry) => ({ ...entry, publication: { ...entry.publication } })));
-    const staged = this.pages.map((entry) => ({
-      page: entry,
+    entries: ContentPublicationCutoverInput[],
+  ): Promise<ContentPublicationCutoverResult> {
+    this.atomicApplies.push(
+      entries.map((entry) => ({
+        ...entry,
+        expectedPage:
+          entry.expectedPage.kind === "existing"
+            ? { ...entry.expectedPage }
+            : { ...entry.expectedPage, create: { ...entry.expectedPage.create } },
+        publications: entry.publications.map((publication) => ({ ...publication })),
+      })),
+    );
+    const staged: ContentPageRow[] = this.pages.map((entry) => ({
+      ...entry,
       publications: (entry.publications ?? []).map((publication) => ({ ...publication })),
     }));
+    const createdPages: ContentPublicationCutoverResult["createdPages"] = [];
     const inserted: ContentPublicationRow[] = [];
     for (const entry of entries) {
-      const target = staged.find(({ page: candidate }) => candidate.id === entry.pageId);
-      if (!target || target.page.slug !== entry.sourceSlug) throw new Error("Cutover identity conflict");
-      const current = target.publications.find(
-        (publication) => publication.context === entry.publication.context,
-      );
-      if (current) {
+      let target: ContentPageRow | undefined;
+      if (entry.expectedPage.kind === "existing") {
+        const expectedPage = entry.expectedPage;
+        target = staged.find((candidate) => candidate.id === expectedPage.pageId);
         if (
-          current.path !== entry.publication.path ||
-          current.status !== entry.publication.status ||
-          current.templateKey !== entry.publication.templateKey
+          !target ||
+          target.slug !== entry.sourceSlug ||
+          fingerprint(target.title, target.content) !== expectedPage.fingerprint
         ) {
-          throw new Error("Cutover publication conflict");
+          throw new Error("Cutover identity conflict");
         }
-        continue;
+      } else {
+        if (staged.some((candidate) => candidate.slug === entry.sourceSlug)) {
+          throw new Error("Cutover absence conflict");
+        }
+        const pageId = randomUUID();
+        target = {
+          id: pageId,
+          slug: entry.sourceSlug,
+          ...entry.expectedPage.create,
+          publications: [],
+          createdBy: null,
+          updatedBy: null,
+          createdAt: FIXED_DATE,
+          updatedAt: null,
+          contentUpdatedAt: FIXED_DATE,
+        };
+        staged.push(target);
+        createdPages.push({
+          sourceSlug: entry.sourceSlug,
+          pageId,
+          fingerprint: entry.expectedPage.fingerprint,
+        });
       }
-      const row = { pageId: entry.pageId, ...entry.publication };
-      target.publications.push(row);
-      inserted.push(row);
+
+      for (const desired of entry.publications) {
+        const current = target.publications?.find((publication) => publication.context === desired.context);
+        if (current) {
+          if (
+            current.path !== desired.path ||
+            current.status !== desired.status ||
+            current.templateKey !== desired.templateKey
+          ) {
+            throw new Error("Cutover publication conflict");
+          }
+          continue;
+        }
+        const row = { pageId: target.id!, ...desired };
+        target.publications ??= [];
+        target.publications.push(row);
+        target.contextMask = (target.contextMask ?? 0) | desired.context;
+        inserted.push(row);
+      }
     }
-    for (const { page: target, publications } of staged) {
-      target.publications = publications;
-      target.contextMask = publications.reduce((mask, entry) => mask | entry.context, 0);
-    }
+    this.pages.splice(0, this.pages.length, ...staged);
     this.writes.push(...inserted);
-    return inserted;
+    return { createdPages, publications: inserted };
   }
 }
 
@@ -202,6 +246,131 @@ describe("DEVELOPER_EDITORIAL_CUTOVER_MAPPING", () => {
 });
 
 describe("backfillDeveloperEditorialContent", () => {
+  it("plans one canonical Terms Page and both Terms publications when Terms is absent", async () => {
+    const { fake, repo } = repository([page()]);
+
+    const result = await backfillDeveloperEditorialContent(repo, { dryRun: true });
+
+    expect(result.counts).toEqual({
+      pages: 1,
+      publications: 1,
+      mappings: 3,
+      plannedPageCreates: 1,
+      plannedPublicationWrites: 3,
+      plannedWrites: 4,
+      conflicts: 0,
+      pageCreates: 0,
+      publicationWrites: 0,
+      writes: 0,
+    });
+    expect(result.pagePlans).toEqual([
+      {
+        sourceSlug: "privacy",
+        pageId: "page-privacy-stable",
+        fingerprint: fingerprint("Privacy Policy", "Canonical privacy body"),
+        outcome: "existing",
+      },
+      {
+        sourceSlug: "terms",
+        pageId: null,
+        fingerprint: fingerprint("Terms of Service", TERMS_PLACEHOLDER),
+        outcome: "create",
+      },
+    ]);
+    expect(result.mappings).toEqual([
+      expect.objectContaining({
+        sourceSlug: "privacy",
+        pageId: "page-privacy-stable",
+        context: ContentContext.DeveloperPortal,
+        outcome: "add",
+      }),
+      expect.objectContaining({
+        sourceSlug: "terms",
+        pageId: null,
+        context: ContentContext.Frontend,
+        outcome: "add",
+      }),
+      expect.objectContaining({
+        sourceSlug: "terms",
+        pageId: null,
+        context: ContentContext.DeveloperPortal,
+        outcome: "add",
+      }),
+    ]);
+    expect(result.conflicts).toEqual([]);
+    expect(result.createdPages).toEqual([]);
+    expect(result.writes).toEqual([]);
+    expect(fake.sourceReads).toEqual(["page-privacy-stable"]);
+    expect(fake.atomicApplies).toEqual([]);
+
+    const output = formatDeveloperEditorialCutoverReport(result);
+    expect(output).not.toContain(TERMS_PLACEHOLDER);
+  });
+
+  it("atomically creates the exact canonical Terms Page and publishes it in both contexts", async () => {
+    const pages = [page()];
+    const { fake, repo } = repository(pages);
+
+    const result = await backfillDeveloperEditorialContent(repo, { dryRun: false });
+
+    expect(result.counts).toMatchObject({
+      plannedPageCreates: 1,
+      plannedPublicationWrites: 3,
+      pageCreates: 1,
+      publicationWrites: 3,
+      writes: 4,
+    });
+    expect(result.createdPages).toEqual([
+      {
+        sourceSlug: "terms",
+        pageId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+        fingerprint: fingerprint("Terms of Service", TERMS_PLACEHOLDER),
+      },
+    ]);
+    expect(pages).toHaveLength(2);
+    expect(pages[1]).toMatchObject({
+      id: result.createdPages[0]!.pageId,
+      slug: "terms",
+      contextMask: ContentContext.Frontend | ContentContext.DeveloperPortal,
+      title: "Terms of Service",
+      content: TERMS_PLACEHOLDER,
+      status: "published",
+      showTitle: true,
+      titleAlignment: "left",
+      pageType: PageType.Default,
+      displayMode: "fullscreen",
+      overlayWidth: "regular",
+      contentCardStyle: "default",
+      createdBy: null,
+      updatedBy: null,
+      publications: [
+        publication(result.createdPages[0]!.pageId, ContentContext.Frontend, "/terms"),
+        publication(result.createdPages[0]!.pageId, ContentContext.DeveloperPortal, "/terms"),
+      ],
+    });
+    expect(result.writes).toEqual([
+      { pageId: "page-privacy-stable", context: ContentContext.DeveloperPortal, path: "/privacy" },
+      { pageId: result.createdPages[0]!.pageId, context: ContentContext.Frontend, path: "/terms" },
+      { pageId: result.createdPages[0]!.pageId, context: ContentContext.DeveloperPortal, path: "/terms" },
+    ]);
+    expect(fake.replaceContentPublications).not.toHaveBeenCalled();
+    expect(fake.createContentPage).not.toHaveBeenCalled();
+    expect(fake.updateContentPageBody).not.toHaveBeenCalled();
+    expect(fake.updateContentPageMeta).not.toHaveBeenCalled();
+
+    const second = await backfillDeveloperEditorialContent(repo, { dryRun: false });
+    expect(second.counts).toMatchObject({
+      plannedPageCreates: 0,
+      plannedPublicationWrites: 0,
+      pageCreates: 0,
+      publicationWrites: 0,
+      writes: 0,
+    });
+    expect(second.createdPages).toEqual([]);
+    expect(second.writes).toEqual([]);
+    expect(pages).toHaveLength(2);
+  });
+
   it("reports deterministic dry-run fingerprints and current-versus-desired publications without writes", async () => {
     const pages = canonicalPages();
     const { fake, repo } = repository(pages);
@@ -211,9 +380,13 @@ describe("backfillDeveloperEditorialContent", () => {
     expect(result.counts).toEqual({
       pages: 2,
       publications: 2,
-      mappings: 2,
+      mappings: 3,
+      plannedPageCreates: 0,
+      plannedPublicationWrites: 2,
       plannedWrites: 2,
       conflicts: 0,
+      pageCreates: 0,
+      publicationWrites: 0,
       writes: 0,
     });
     expect(result.mappings).toEqual([
@@ -221,6 +394,7 @@ describe("backfillDeveloperEditorialContent", () => {
         sourceSlug: "privacy",
         pageId: "page-privacy-stable",
         fingerprint: fingerprint("Privacy Policy", "Canonical privacy body"),
+        context: ContentContext.DeveloperPortal,
         currentPublication: null,
         desiredPublication: {
           context: ContentContext.DeveloperPortal,
@@ -234,6 +408,26 @@ describe("backfillDeveloperEditorialContent", () => {
         sourceSlug: "terms",
         pageId: "page-terms-stable",
         fingerprint: fingerprint("Terms of Service", "Canonical terms body"),
+        context: ContentContext.Frontend,
+        currentPublication: {
+          context: ContentContext.Frontend,
+          path: "/terms",
+          status: "published",
+          templateKey: "frontend-default",
+        },
+        desiredPublication: {
+          context: ContentContext.Frontend,
+          path: "/terms",
+          status: "published",
+          templateKey: "frontend-default",
+        },
+        outcome: "unchanged",
+      },
+      {
+        sourceSlug: "terms",
+        pageId: "page-terms-stable",
+        fingerprint: fingerprint("Terms of Service", "Canonical terms body"),
+        context: ContentContext.DeveloperPortal,
         currentPublication: null,
         desiredPublication: {
           context: ContentContext.DeveloperPortal,
@@ -245,6 +439,7 @@ describe("backfillDeveloperEditorialContent", () => {
       },
     ]);
     expect(result.conflicts).toEqual([]);
+    expect(result.createdPages).toEqual([]);
     expect(result.writes).toEqual([]);
     expect(fake.sourceReads).toEqual(["page-privacy-stable", "page-terms-stable"]);
     expect(fake.writes).toEqual([]);
@@ -269,28 +464,46 @@ describe("backfillDeveloperEditorialContent", () => {
       { pageId: "page-terms-stable", context: ContentContext.DeveloperPortal, path: "/terms" },
     ]);
     expect(second.counts).toMatchObject({ plannedWrites: 0, conflicts: 0, writes: 0 });
-    expect(second.mappings.map((entry) => entry.outcome)).toEqual(["unchanged", "unchanged"]);
+    expect(second.mappings.map((entry) => entry.outcome)).toEqual(["unchanged", "unchanged", "unchanged"]);
     expect(fake.atomicApplies).toHaveLength(2);
     expect(fake.atomicApplies[0]).toEqual([
       {
         sourceSlug: "privacy",
-        pageId: "page-privacy-stable",
-        publication: {
-          context: ContentContext.DeveloperPortal,
-          path: "/privacy",
-          status: "published",
-          templateKey: "developer-default",
+        expectedPage: {
+          kind: "existing",
+          pageId: "page-privacy-stable",
+          fingerprint: fingerprint("Privacy Policy", "Canonical privacy body"),
         },
+        publications: [
+          {
+            context: ContentContext.DeveloperPortal,
+            path: "/privacy",
+            status: "published",
+            templateKey: "developer-default",
+          },
+        ],
       },
       {
         sourceSlug: "terms",
-        pageId: "page-terms-stable",
-        publication: {
-          context: ContentContext.DeveloperPortal,
-          path: "/terms",
-          status: "published",
-          templateKey: "developer-default",
+        expectedPage: {
+          kind: "existing",
+          pageId: "page-terms-stable",
+          fingerprint: fingerprint("Terms of Service", "Canonical terms body"),
         },
+        publications: [
+          {
+            context: ContentContext.Frontend,
+            path: "/terms",
+            status: "published",
+            templateKey: "frontend-default",
+          },
+          {
+            context: ContentContext.DeveloperPortal,
+            path: "/terms",
+            status: "published",
+            templateKey: "developer-default",
+          },
+        ],
       },
     ]);
     expect(fake.writes.map((entry) => entry.pageId)).toEqual(["page-privacy-stable", "page-terms-stable"]);
@@ -339,7 +552,7 @@ describe("backfillDeveloperEditorialContent", () => {
     });
   });
 
-  it("reports missing and ambiguous canonical source identities and aborts before writes", async () => {
+  it("reports an ambiguous Privacy identity while still planning the absent Terms bootstrap", async () => {
     const pages = [
       page({ id: "privacy-a" }),
       page({ id: "privacy-b", publications: [publication("privacy-b", ContentContext.Frontend, "/other")] }),
@@ -348,11 +561,93 @@ describe("backfillDeveloperEditorialContent", () => {
 
     const dryRun = await backfillDeveloperEditorialContent(repo, { dryRun: true });
 
-    expect(dryRun.conflicts.map((entry) => entry.code)).toEqual(["ambiguous-source", "missing-source"]);
-    expect(dryRun.counts).toMatchObject({ plannedWrites: 0, conflicts: 2, writes: 0 });
+    expect(dryRun.conflicts.map((entry) => entry.code)).toEqual(["ambiguous-source"]);
+    expect(dryRun.counts).toMatchObject({
+      plannedPageCreates: 1,
+      plannedPublicationWrites: 2,
+      plannedWrites: 3,
+      conflicts: 1,
+      writes: 0,
+    });
     await expect(backfillDeveloperEditorialContent(repo, { dryRun: false })).rejects.toThrow(
       "Developer editorial cutover conflicts detected",
     );
+    expect(fake.writes).toEqual([]);
+  });
+
+  it("treats a missing Privacy identity as a conflict and performs no writes", async () => {
+    const terms = canonicalPages()[1]!;
+    const { fake, repo } = repository([terms]);
+
+    const dryRun = await backfillDeveloperEditorialContent(repo, { dryRun: true });
+
+    expect(dryRun.conflicts.map((entry) => entry.code)).toEqual(["missing-source"]);
+    expect(dryRun.pagePlans).toContainEqual({
+      sourceSlug: "privacy",
+      pageId: null,
+      fingerprint: null,
+      outcome: "conflict",
+    });
+    await expect(backfillDeveloperEditorialContent(repo, { dryRun: false })).rejects.toThrow(
+      "Developer editorial cutover conflicts detected",
+    );
+    expect(fake.atomicApplies).toEqual([]);
+    expect(fake.writes).toEqual([]);
+  });
+
+  it("treats a publication owner mismatch as a direct conflict with no repository apply", async () => {
+    const pages = canonicalPages();
+    pages[1]!.publications![0]!.pageId = "different-owner";
+    const { fake, repo } = repository(pages);
+
+    const dryRun = await backfillDeveloperEditorialContent(repo, { dryRun: true });
+
+    expect(dryRun.conflicts.map((entry) => entry.code)).toContain("publication-owner-mismatch");
+    await expect(backfillDeveloperEditorialContent(repo, { dryRun: false })).rejects.toThrow(
+      "Developer editorial cutover conflicts detected",
+    );
+    expect(fake.atomicApplies).toEqual([]);
+    expect(fake.writes).toEqual([]);
+  });
+
+  it("treats an invalid publication path as a direct conflict with no repository apply", async () => {
+    const pages = canonicalPages();
+    pages.push(
+      page({
+        id: "invalid-path-owner",
+        slug: "invalid-path-owner",
+        publications: [
+          publication("invalid-path-owner", ContentContext.Frontend, "/invalid%2fseparator"),
+        ],
+      }),
+    );
+    const { fake, repo } = repository(pages);
+
+    const dryRun = await backfillDeveloperEditorialContent(repo, { dryRun: true });
+
+    expect(dryRun.conflicts.map((entry) => entry.code)).toContain("invalid-publication-path");
+    await expect(backfillDeveloperEditorialContent(repo, { dryRun: false })).rejects.toThrow(
+      "Developer editorial cutover conflicts detected",
+    );
+    expect(fake.atomicApplies).toEqual([]);
+    expect(fake.writes).toEqual([]);
+  });
+
+  it("treats a source identity mismatch as a direct conflict with no repository apply", async () => {
+    const pages = canonicalPages();
+    const { fake, repo } = repository(pages);
+    vi.spyOn(fake, "getContentPageById").mockImplementation(async (id) => {
+      const source = pages.find((entry) => entry.id === id);
+      return source ? { ...source, slug: id === "page-privacy-stable" ? "privacy-renamed" : source.slug } : null;
+    });
+
+    const dryRun = await backfillDeveloperEditorialContent(repo, { dryRun: true });
+
+    expect(dryRun.conflicts.map((entry) => entry.code)).toContain("source-identity-mismatch");
+    await expect(backfillDeveloperEditorialContent(repo, { dryRun: false })).rejects.toThrow(
+      "Developer editorial cutover conflicts detected",
+    );
+    expect(fake.atomicApplies).toEqual([]);
     expect(fake.writes).toEqual([]);
   });
 

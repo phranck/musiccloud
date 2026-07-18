@@ -297,11 +297,33 @@ export interface ContentPublicationRow {
   templateKey: string;
 }
 
-/** One expected stable Page identity and desired insert-only contextual publication. */
+/** Canonical Page fields used only when the Terms identity is absent at cutover preflight. */
+export interface ContentPublicationCutoverPageCreate {
+  title: string;
+  content: string;
+  contextMask: ContentContextMask;
+  status: ContentStatus;
+  showTitle: boolean;
+  titleAlignment: PageTitleAlignment;
+  pageType: PageType;
+  displayMode: PageDisplayMode;
+  overlayWidth: OverlayWidth;
+  contentCardStyle: ContentCardStyle;
+}
+
+/** One expected existing Page or one Page whose continued absence authorizes creation. */
 export interface ContentPublicationCutoverInput {
   sourceSlug: string;
-  pageId: string;
-  publication: ContentPublication;
+  expectedPage:
+    | { kind: "existing"; pageId: string; fingerprint: string }
+    | { kind: "absent"; fingerprint: string; create: ContentPublicationCutoverPageCreate };
+  publications: ContentPublication[];
+}
+
+/** Writes committed by one atomic Page/publication cutover transaction. */
+export interface ContentPublicationCutoverResult {
+  createdPages: Array<{ sourceSlug: string; pageId: string; fingerprint: string }>;
+  publications: ContentPublicationRow[];
 }
 
 /** Page segment row shape returned or accepted by the database repository layer. */
@@ -871,9 +893,9 @@ export interface AdminRepository {
    * Atomically revalidates and inserts a closed set of missing contextual publications.
    * Existing publication rows are never replaced or deleted; exact targets are no-ops.
    *
-   * @returns Only the publication rows inserted by this transaction.
+   * @returns Only the Page identities and publication rows inserted by this transaction.
    */
-  applyContentPublicationCutover(entries: ContentPublicationCutoverInput[]): Promise<ContentPublicationRow[]>;
+  applyContentPublicationCutover(entries: ContentPublicationCutoverInput[]): Promise<ContentPublicationCutoverResult>;
 
   // Navigation items
   /**

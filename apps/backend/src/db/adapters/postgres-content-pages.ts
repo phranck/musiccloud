@@ -21,6 +21,8 @@
  *   - Admin user CRUD (see `postgres-admin-users.ts`).
  */
 
+import { randomUUID } from "node:crypto";
+
 import type {
   ContentCardStyle,
   ContentContextMask,
@@ -43,12 +45,14 @@ import type {
   ContentPageTranslationRow,
   ContentPageTranslationUpsert,
   ContentPublicationCutoverInput,
+  ContentPublicationCutoverResult,
   ContentPublicationRow,
   ContentStatus,
   PageSegmentInputRow,
   PageSegmentRow,
   PageSegmentTranslationRow,
 } from "../admin-repository.js";
+import { fingerprintContentPage, isCanonicalTermsBootstrapPage } from "../content-publication-cutover.js";
 
 // ============================================================================
 // SHARED COLUMN LISTS
@@ -478,7 +482,7 @@ export async function replaceContentPublications(
 export async function applyContentPublicationCutover(
   pool: Pool,
   entries: ContentPublicationCutoverInput[],
-): Promise<ContentPublicationRow[]> {
+): Promise<ContentPublicationCutoverResult> {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -486,27 +490,48 @@ export async function applyContentPublicationCutover(
     await client.query("LOCK TABLE content_page_publications IN SHARE ROW EXCLUSIVE MODE");
 
     assertUniqueCutoverInputs(entries);
-    const pageResult = await client.query<{ id: string; slug: string }>(
-      `SELECT id, slug
+    const existingPageIds = entries.flatMap((entry) =>
+      entry.expectedPage.kind === "existing" ? [entry.expectedPage.pageId] : [],
+    );
+    const pageResult = await client.query<{ id: string; slug: string; title: string; content: string }>(
+      `SELECT id, slug, title, content
          FROM content_pages
         WHERE id = ANY($1::text[])
            OR slug = ANY($2::text[])
         ORDER BY id
         FOR UPDATE`,
-      [entries.map((entry) => entry.pageId), entries.map((entry) => entry.sourceSlug)],
+      [existingPageIds, entries.map((entry) => entry.sourceSlug)],
     );
+    const resolvedPageIds = new Map<string, string>();
     for (const entry of entries) {
-      const rowsById = pageResult.rows.filter((row) => row.id === entry.pageId);
       const rowsBySlug = pageResult.rows.filter((row) => row.slug === entry.sourceSlug);
-      if (
-        rowsById.length !== 1 ||
-        rowsBySlug.length !== 1 ||
-        rowsById[0]!.slug !== entry.sourceSlug ||
-        rowsBySlug[0]!.id !== entry.pageId
-      ) {
-        throw cutoverConflict(`Page identity ${entry.sourceSlug}`);
+      if (entry.expectedPage.kind === "absent") {
+        if (entry.sourceSlug !== "terms" || rowsBySlug.length !== 0) {
+          throw cutoverConflict(`Page absence ${entry.sourceSlug}`);
+        }
+        if (
+          !isCanonicalTermsBootstrapPage(entry.expectedPage.create) ||
+          fingerprintContentPage(entry.expectedPage.create) !== entry.expectedPage.fingerprint
+        ) {
+          throw cutoverConflict(`Page create fingerprint ${entry.sourceSlug}`);
+        }
+      } else {
+        const expectedPage = entry.expectedPage;
+        const rowsById = pageResult.rows.filter((row) => row.id === expectedPage.pageId);
+        if (
+          rowsById.length !== 1 ||
+          rowsBySlug.length !== 1 ||
+          rowsById[0]!.slug !== entry.sourceSlug ||
+          rowsBySlug[0]!.id !== expectedPage.pageId ||
+          fingerprintContentPage(rowsById[0]!) !== expectedPage.fingerprint
+        ) {
+          throw cutoverConflict(`Page identity or content ${entry.sourceSlug}`);
+        }
+        resolvedPageIds.set(entry.sourceSlug, expectedPage.pageId);
       }
-      assertCanonicalDesiredPublication(entry);
+      for (const publication of entry.publications) {
+        assertCanonicalDesiredPublication(entry.sourceSlug, publication);
+      }
     }
 
     const publicationResult = await client.query<ContentPublicationSqlRow>(
@@ -516,45 +541,85 @@ export async function applyContentPublicationCutover(
         FOR UPDATE`,
     );
     const claims = indexLockedPublicationClaims(publicationResult.rows);
-    const pending: ContentPublicationCutoverInput[] = [];
+    const pending: Array<{ sourceSlug: string; publication: ContentPublication }> = [];
     for (const entry of entries) {
-      const desired = entry.publication;
-      const current = publicationResult.rows.filter(
-        (row) => row.page_id === entry.pageId && row.context === desired.context,
+      const expectedPageId = entry.expectedPage.kind === "existing" ? entry.expectedPage.pageId : undefined;
+      for (const desired of entry.publications) {
+        const current = expectedPageId
+          ? publicationResult.rows.filter((row) => row.page_id === expectedPageId && row.context === desired.context)
+          : [];
+        const otherRouteOwners = (claims.get(canonicalRouteKey(desired.context, desired.path)) ?? []).filter(
+          (claim) => claim.page_id !== expectedPageId,
+        );
+        if (otherRouteOwners.length > 0) {
+          throw cutoverConflict(`route ${desired.path}`);
+        }
+        if (current.length === 0) {
+          pending.push({ sourceSlug: entry.sourceSlug, publication: desired });
+          continue;
+        }
+        if (current.length !== 1 || !sameLockedPublication(current[0]!, desired)) {
+          throw cutoverConflict(`target publication ${entry.sourceSlug}`);
+        }
+      }
+    }
+
+    const createdPages: ContentPublicationCutoverResult["createdPages"] = [];
+    for (const entry of entries) {
+      if (entry.expectedPage.kind !== "absent") continue;
+      const pageId = randomUUID();
+      const create = entry.expectedPage.create;
+      await client.query<{ id: string }>(
+        `INSERT INTO content_pages
+           (id, slug, context_mask, title, content, status, show_title, title_alignment,
+            page_type, display_mode, overlay_width, content_card_style)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         RETURNING id`,
+        [
+          pageId,
+          entry.sourceSlug,
+          create.contextMask,
+          create.title,
+          create.content,
+          create.status,
+          create.showTitle,
+          create.titleAlignment,
+          create.pageType,
+          create.displayMode,
+          create.overlayWidth,
+          create.contentCardStyle,
+        ],
       );
-      const otherRouteOwners = (claims.get(canonicalRouteKey(desired.context, desired.path)) ?? []).filter(
-        (claim) => claim.page_id !== entry.pageId,
-      );
-      if (otherRouteOwners.length > 0) {
-        throw cutoverConflict(`route ${desired.path}`);
-      }
-      if (current.length === 0) {
-        pending.push(entry);
-        continue;
-      }
-      if (current.length !== 1 || !sameLockedPublication(current[0]!, desired)) {
-        throw cutoverConflict(`target publication ${entry.sourceSlug}`);
-      }
+      resolvedPageIds.set(entry.sourceSlug, pageId);
+      createdPages.push({
+        sourceSlug: entry.sourceSlug,
+        pageId,
+        fingerprint: entry.expectedPage.fingerprint,
+      });
     }
 
     const inserted: ContentPublicationRow[] = [];
     for (const entry of pending) {
+      const pageId = resolvedPageIds.get(entry.sourceSlug);
+      if (!pageId) throw cutoverConflict(`unresolved Page ${entry.sourceSlug}`);
       const desired = entry.publication;
       const result = await client.query<ContentPublicationSqlRow>(
         `INSERT INTO content_page_publications (page_id, context, path, status, template_key)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING page_id, context, path, status, template_key`,
-        [entry.pageId, desired.context, desired.path, desired.status, desired.templateKey],
+        [pageId, desired.context, desired.path, desired.status, desired.templateKey],
       );
-      await client.query(`UPDATE content_pages SET context_mask = context_mask | $2 WHERE id = $1`, [
-        entry.pageId,
-        desired.context,
-      ]);
+      if (!createdPages.some((created) => created.pageId === pageId)) {
+        await client.query(`UPDATE content_pages SET context_mask = context_mask | $2 WHERE id = $1`, [
+          pageId,
+          desired.context,
+        ]);
+      }
       inserted.push(rowToContentPublication(result.rows[0]!));
     }
 
     await client.query("COMMIT");
-    return inserted;
+    return { createdPages, publications: inserted };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
@@ -568,24 +633,30 @@ function assertUniqueCutoverInputs(entries: ContentPublicationCutoverInput[]): v
   const sourceSlugs = new Set<string>();
   const routes = new Set<string>();
   for (const entry of entries) {
-    const route = canonicalRouteKey(entry.publication.context, normalizeEditorialPath(entry.publication.path));
-    if (pageIds.has(entry.pageId) || sourceSlugs.has(entry.sourceSlug) || routes.has(route)) {
+    const pageId = entry.expectedPage.kind === "existing" ? entry.expectedPage.pageId : null;
+    if ((pageId !== null && pageIds.has(pageId)) || sourceSlugs.has(entry.sourceSlug)) {
       throw cutoverConflict("duplicate input");
     }
-    pageIds.add(entry.pageId);
+    if (pageId !== null) pageIds.add(pageId);
     sourceSlugs.add(entry.sourceSlug);
-    routes.add(route);
+    const contexts = new Set<SingleContentContext>();
+    for (const publication of entry.publications) {
+      const route = canonicalRouteKey(publication.context, normalizeEditorialPath(publication.path));
+      if (contexts.has(publication.context) || routes.has(route)) throw cutoverConflict("duplicate input");
+      contexts.add(publication.context);
+      routes.add(route);
+    }
   }
 }
 
-function assertCanonicalDesiredPublication(entry: ContentPublicationCutoverInput): void {
+function assertCanonicalDesiredPublication(sourceSlug: string, publication: ContentPublication): void {
   let normalizedPath: string;
   try {
-    normalizedPath = normalizeEditorialPath(entry.publication.path);
+    normalizedPath = normalizeEditorialPath(publication.path);
   } catch {
-    throw cutoverConflict(`invalid desired path for ${entry.sourceSlug}`);
+    throw cutoverConflict(`invalid desired path for ${sourceSlug}`);
   }
-  if (normalizedPath !== entry.publication.path || isDocsNamespace(normalizedPath)) {
+  if (normalizedPath !== publication.path || isDocsNamespace(normalizedPath)) {
     throw cutoverConflict(`reserved or non-canonical desired path ${normalizedPath}`);
   }
 }

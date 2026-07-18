@@ -17,6 +17,7 @@ import type {
   ContentPageTranslationRow,
   ContentPageTranslationUpsert,
   ContentPublicationCutoverInput,
+  ContentPublicationCutoverResult,
   ContentPublicationRow,
   EmailActionBindingDto,
   EmailAssetDto,
@@ -971,7 +972,7 @@ export class PostgresAdapter
     return contentPagesReplaceContentPublications(this.pool, pageId, publications);
   }
 
-  applyContentPublicationCutover(entries: ContentPublicationCutoverInput[]): Promise<ContentPublicationRow[]> {
+  applyContentPublicationCutover(entries: ContentPublicationCutoverInput[]): Promise<ContentPublicationCutoverResult> {
     return contentPagesApplyContentPublicationCutover(this.pool, entries);
   }
 

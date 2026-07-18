@@ -1,13 +1,12 @@
-import { createHash } from "node:crypto";
-
 import { ContentContext, type ContentPublication, type SingleContentContext } from "@musiccloud/shared";
 
 import type {
   AdminRepository,
-  ContentPageRow,
+  ContentPageSummaryRow,
   ContentPublicationCutoverInput,
   ContentPublicationRow,
 } from "../db/admin-repository.js";
+import { fingerprintContentPage, TERMS_BOOTSTRAP_PAGE } from "../db/content-publication-cutover.js";
 import { closeRepository, getAdminRepository } from "../db/index.js";
 import { isReservedDeveloperPortalPath, normalizeEditorialPath } from "../services/editorial-path.js";
 
@@ -36,6 +35,28 @@ export const DEVELOPER_EDITORIAL_CUTOVER_MAPPING: readonly DeveloperEditorialCut
   }),
 ]);
 
+export { TERMS_BOOTSTRAP_PAGE } from "../db/content-publication-cutover.js";
+
+interface ContentCutoverMapping {
+  readonly sourceSlug: DeveloperEditorialCutoverMapping["sourceSlug"];
+  readonly context: SingleContentContext;
+  readonly path: DeveloperEditorialCutoverMapping["path"];
+  readonly status: "published";
+  readonly templateKey: "frontend-default" | "developer-default";
+}
+
+const CONTENT_CUTOVER_MAPPING: readonly ContentCutoverMapping[] = Object.freeze([
+  DEVELOPER_EDITORIAL_CUTOVER_MAPPING[0]!,
+  Object.freeze({
+    sourceSlug: "terms",
+    context: ContentContext.Frontend,
+    path: "/terms",
+    status: "published",
+    templateKey: "frontend-default",
+  }),
+  DEVELOPER_EDITORIAL_CUTOVER_MAPPING[1]!,
+]);
+
 export type DeveloperEditorialCutoverConflictCode =
   | "ambiguous-source"
   | "canonical-duplicate-claim"
@@ -59,14 +80,28 @@ export interface DeveloperEditorialCutoverMappingReport {
   sourceSlug: DeveloperEditorialCutoverMapping["sourceSlug"];
   pageId: string | null;
   fingerprint: string | null;
+  context: SingleContentContext;
   currentPublication: ContentPublication | null;
   desiredPublication: ContentPublication;
   outcome: "add" | "conflict" | "unchanged";
 }
 
+export interface DeveloperEditorialCutoverPagePlan {
+  sourceSlug: DeveloperEditorialCutoverMapping["sourceSlug"];
+  pageId: string | null;
+  fingerprint: string | null;
+  outcome: "conflict" | "create" | "existing";
+}
+
+export interface DeveloperEditorialCutoverCreatedPage {
+  sourceSlug: "terms";
+  pageId: string;
+  fingerprint: string;
+}
+
 export interface DeveloperEditorialCutoverWrite {
   pageId: string;
-  context: typeof ContentContext.DeveloperPortal;
+  context: SingleContentContext;
   path: DeveloperEditorialCutoverMapping["path"];
 }
 
@@ -76,12 +111,18 @@ export interface DeveloperEditorialCutoverReport {
     pages: number;
     publications: number;
     mappings: number;
+    plannedPageCreates: number;
+    plannedPublicationWrites: number;
     plannedWrites: number;
     conflicts: number;
+    pageCreates: number;
+    publicationWrites: number;
     writes: number;
   };
+  pagePlans: DeveloperEditorialCutoverPagePlan[];
   mappings: DeveloperEditorialCutoverMappingReport[];
   conflicts: DeveloperEditorialCutoverConflict[];
+  createdPages: DeveloperEditorialCutoverCreatedPage[];
   writes: DeveloperEditorialCutoverWrite[];
 }
 
@@ -89,6 +130,14 @@ interface NormalizedPublicationClaim {
   ownerPageId: string;
   publication: ContentPublicationRow;
   normalizedPath: string;
+}
+
+interface ResolvedCutoverPage {
+  summary: ContentPageSummaryRow | null;
+  pageId: string | null;
+  fingerprint: string | null;
+  outcome: DeveloperEditorialCutoverPagePlan["outcome"];
+  expectedPage: ContentPublicationCutoverInput["expectedPage"] | null;
 }
 
 export class DeveloperEditorialCutoverConflictError extends Error {
@@ -161,32 +210,44 @@ export async function backfillDeveloperEditorialContent(
     });
   }
 
-  const mappingReports: DeveloperEditorialCutoverMappingReport[] = [];
-  const cutoverEntries: ContentPublicationCutoverInput[] = [];
-  let plannedWriteCount = 0;
-  for (const mapping of DEVELOPER_EDITORIAL_CUTOVER_MAPPING) {
-    const desiredPublication = toDesiredPublication(mapping);
-    const sourceCandidates = pages.filter((page) => page.slug === mapping.sourceSlug);
-    if (sourceCandidates.length === 0) {
-      conflicts.push({
-        code: "missing-source",
-        context: mapping.context,
-        pageIds: [],
-        path: mapping.path,
-        sourceSlug: mapping.sourceSlug,
+  const resolvedPages = new Map<DeveloperEditorialCutoverMapping["sourceSlug"], ResolvedCutoverPage>();
+  const pagePlans: DeveloperEditorialCutoverPagePlan[] = [];
+  for (const sourceSlug of ["privacy", "terms"] as const) {
+    const sourceCandidates = pages.filter((page) => page.slug === sourceSlug);
+    if (sourceCandidates.length === 0 && sourceSlug === "terms") {
+      const fingerprint = fingerprintContentPage(TERMS_BOOTSTRAP_PAGE);
+      const expectedPage: ContentPublicationCutoverInput["expectedPage"] = {
+        kind: "absent",
+        fingerprint,
+        create: TERMS_BOOTSTRAP_PAGE,
+      };
+      resolvedPages.set(sourceSlug, {
+        summary: null,
+        pageId: null,
+        fingerprint,
+        outcome: "create",
+        expectedPage,
       });
-      mappingReports.push(unresolvedMappingReport(mapping, desiredPublication));
+      pagePlans.push({ sourceSlug, pageId: null, fingerprint, outcome: "create" });
       continue;
     }
-    if (sourceCandidates.length > 1) {
+
+    if (sourceCandidates.length !== 1) {
       conflicts.push({
-        code: "ambiguous-source",
-        context: mapping.context,
+        code: sourceCandidates.length === 0 ? "missing-source" : "ambiguous-source",
+        context: ContentContext.DeveloperPortal,
         pageIds: sourceCandidates.flatMap((page) => (page.id ? [page.id] : [])).sort(),
-        path: mapping.path,
-        sourceSlug: mapping.sourceSlug,
+        path: `/${sourceSlug}`,
+        sourceSlug,
       });
-      mappingReports.push(unresolvedMappingReport(mapping, desiredPublication));
+      resolvedPages.set(sourceSlug, {
+        summary: null,
+        pageId: null,
+        fingerprint: null,
+        outcome: "conflict",
+        expectedPage: null,
+      });
+      pagePlans.push({ sourceSlug, pageId: null, fingerprint: null, outcome: "conflict" });
       continue;
     }
 
@@ -195,33 +256,64 @@ export async function backfillDeveloperEditorialContent(
     if (!pageId) {
       conflicts.push({
         code: "missing-source",
-        context: mapping.context,
+        context: ContentContext.DeveloperPortal,
         pageIds: [],
-        path: mapping.path,
-        sourceSlug: mapping.sourceSlug,
+        path: `/${sourceSlug}`,
+        sourceSlug,
       });
-      mappingReports.push(unresolvedMappingReport(mapping, desiredPublication));
+      resolvedPages.set(sourceSlug, {
+        summary: sourceSummary,
+        pageId: null,
+        fingerprint: null,
+        outcome: "conflict",
+        expectedPage: null,
+      });
+      pagePlans.push({ sourceSlug, pageId: null, fingerprint: null, outcome: "conflict" });
       continue;
     }
 
     const sourcePage = await repo.getContentPageById(pageId);
-    if (!sourcePage || sourcePage.id !== pageId || sourcePage.slug !== mapping.sourceSlug) {
+    if (!sourcePage || sourcePage.id !== pageId || sourcePage.slug !== sourceSlug) {
       conflicts.push({
         code: "source-identity-mismatch",
-        context: mapping.context,
+        context: ContentContext.DeveloperPortal,
         pageIds: [pageId],
-        path: mapping.path,
-        sourceSlug: mapping.sourceSlug,
+        path: `/${sourceSlug}`,
+        sourceSlug,
       });
-      mappingReports.push({
-        ...unresolvedMappingReport(mapping, desiredPublication),
+      resolvedPages.set(sourceSlug, {
+        summary: sourceSummary,
         pageId,
+        fingerprint: null,
+        outcome: "conflict",
+        expectedPage: null,
       });
+      pagePlans.push({ sourceSlug, pageId, fingerprint: null, outcome: "conflict" });
       continue;
     }
 
-    const fingerprint = fingerprintPage(sourcePage);
-    const targetPublications = (sourceSummary.publications ?? []).filter(
+    const fingerprint = fingerprintContentPage(sourcePage);
+    resolvedPages.set(sourceSlug, {
+      summary: sourceSummary,
+      pageId,
+      fingerprint,
+      outcome: "existing",
+      expectedPage: { kind: "existing", pageId, fingerprint },
+    });
+    pagePlans.push({ sourceSlug, pageId, fingerprint, outcome: "existing" });
+  }
+
+  const mappingReports: DeveloperEditorialCutoverMappingReport[] = [];
+  let plannedPublicationWriteCount = 0;
+  for (const mapping of CONTENT_CUTOVER_MAPPING) {
+    const desiredPublication = toDesiredPublication(mapping);
+    const resolvedPage = resolvedPages.get(mapping.sourceSlug)!;
+    if (!resolvedPage.expectedPage) {
+      mappingReports.push(unresolvedMappingReport(mapping, desiredPublication));
+      continue;
+    }
+
+    const targetPublications = (resolvedPage.summary?.publications ?? []).filter(
       (publication) => publication.context === mapping.context,
     );
     const currentPublication = targetPublications[0] ? withoutPageId(targetPublications[0]) : null;
@@ -234,7 +326,7 @@ export async function backfillDeveloperEditorialContent(
       conflicts.push({
         code: "target-publication-mismatch",
         context: mapping.context,
-        pageIds: [pageId],
+        pageIds: resolvedPage.pageId ? [resolvedPage.pageId] : [],
         path: mapping.path,
         sourceSlug: mapping.sourceSlug,
       });
@@ -245,7 +337,7 @@ export async function backfillDeveloperEditorialContent(
 
     const otherRouteOwners = (claimsByCanonicalRoute.get(canonicalRouteKey(mapping.context, mapping.path)) ?? [])
       .map((claim) => claim.ownerPageId)
-      .filter((ownerId) => ownerId !== pageId);
+      .filter((ownerId) => ownerId !== resolvedPage.pageId);
     if (otherRouteOwners.length > 0) {
       conflicts.push({
         code: "target-route-claimed",
@@ -257,37 +349,51 @@ export async function backfillDeveloperEditorialContent(
       outcome = "conflict";
     }
 
-    cutoverEntries.push({
-      sourceSlug: mapping.sourceSlug,
-      pageId,
-      publication: desiredPublication,
-    });
-    if (outcome === "add") {
-      plannedWriteCount++;
-    }
+    if (outcome === "add") plannedPublicationWriteCount++;
     mappingReports.push({
       sourceSlug: mapping.sourceSlug,
-      pageId,
-      fingerprint,
+      pageId: resolvedPage.pageId,
+      fingerprint: resolvedPage.fingerprint,
+      context: mapping.context,
       currentPublication,
       desiredPublication,
       outcome,
     });
   }
 
+  const cutoverEntries: ContentPublicationCutoverInput[] = [];
+  for (const sourceSlug of ["privacy", "terms"] as const) {
+    const resolvedPage = resolvedPages.get(sourceSlug)!;
+    if (!resolvedPage.expectedPage) continue;
+    cutoverEntries.push({
+      sourceSlug,
+      expectedPage: resolvedPage.expectedPage,
+      publications: CONTENT_CUTOVER_MAPPING.filter((mapping) => mapping.sourceSlug === sourceSlug).map(
+        toDesiredPublication,
+      ),
+    });
+  }
+
   conflicts.sort(compareConflicts);
+  const plannedPageCreateCount = pagePlans.filter((plan) => plan.outcome === "create").length;
   const report: DeveloperEditorialCutoverReport = {
     dryRun: options.dryRun,
     counts: {
       pages: pages.length,
       publications: pages.reduce((count, page) => count + (page.publications?.length ?? 0), 0),
-      mappings: DEVELOPER_EDITORIAL_CUTOVER_MAPPING.length,
-      plannedWrites: plannedWriteCount,
+      mappings: CONTENT_CUTOVER_MAPPING.length,
+      plannedPageCreates: plannedPageCreateCount,
+      plannedPublicationWrites: plannedPublicationWriteCount,
+      plannedWrites: plannedPageCreateCount + plannedPublicationWriteCount,
       conflicts: conflicts.length,
+      pageCreates: 0,
+      publicationWrites: 0,
       writes: 0,
     },
+    pagePlans,
     mappings: mappingReports,
     conflicts,
+    createdPages: [],
     writes: [],
   };
 
@@ -298,36 +404,54 @@ export async function backfillDeveloperEditorialContent(
   if (options.dryRun) return report;
 
   const inserted = await repo.applyContentPublicationCutover(cutoverEntries);
-  for (const row of inserted) {
-    const entry = cutoverEntries.find(
-      (candidate) => candidate.pageId === row.pageId && candidate.publication.context === row.context,
-    );
-    if (!entry) throw new Error("Cutover repository returned an unexpected publication");
+  for (const created of inserted.createdPages) {
+    if (created.sourceSlug !== "terms") throw new Error("Cutover repository created an unexpected Page");
+    report.createdPages.push({ ...created, sourceSlug: "terms" });
+    for (const mapping of report.mappings) {
+      if (mapping.sourceSlug === created.sourceSlug) mapping.pageId = created.pageId;
+    }
+  }
+  for (const row of inserted.publications) {
+    const entry = cutoverEntries.find((candidate) => {
+      const expectedPageId =
+        candidate.expectedPage.kind === "existing"
+          ? candidate.expectedPage.pageId
+          : inserted.createdPages.find((created) => created.sourceSlug === candidate.sourceSlug)?.pageId;
+      return (
+        expectedPageId === row.pageId &&
+        candidate.publications.some((publication) => publication.context === row.context)
+      );
+    });
+    const publication = entry?.publications.find((candidate) => candidate.context === row.context);
+    if (!entry || !publication) throw new Error("Cutover repository returned an unexpected publication");
     report.writes.push({
       pageId: row.pageId,
-      context: ContentContext.DeveloperPortal,
-      path: entry.publication.path as DeveloperEditorialCutoverMapping["path"],
+      context: row.context,
+      path: publication.path as DeveloperEditorialCutoverMapping["path"],
     });
   }
-  report.counts.writes = report.writes.length;
+  report.counts.pageCreates = report.createdPages.length;
+  report.counts.publicationWrites = report.writes.length;
+  report.counts.writes = report.counts.pageCreates + report.counts.publicationWrites;
   return report;
 }
 
 function unresolvedMappingReport(
-  mapping: DeveloperEditorialCutoverMapping,
+  mapping: ContentCutoverMapping,
   desiredPublication: ContentPublication,
 ): DeveloperEditorialCutoverMappingReport {
   return {
     sourceSlug: mapping.sourceSlug,
     pageId: null,
     fingerprint: null,
+    context: mapping.context,
     currentPublication: null,
     desiredPublication,
     outcome: "conflict",
   };
 }
 
-function toDesiredPublication(mapping: DeveloperEditorialCutoverMapping): ContentPublication {
+function toDesiredPublication(mapping: ContentCutoverMapping): ContentPublication {
   return {
     context: mapping.context,
     path: normalizeEditorialPath(mapping.path),
@@ -352,10 +476,6 @@ function samePublication(current: ContentPublicationRow, desired: ContentPublica
     current.status === desired.status &&
     current.templateKey === desired.templateKey
   );
-}
-
-function fingerprintPage(page: ContentPageRow): string {
-  return createHash("sha256").update(JSON.stringify({ title: page.title, content: page.content })).digest("hex");
 }
 
 function canonicalRouteKey(context: SingleContentContext, path: string): string {
