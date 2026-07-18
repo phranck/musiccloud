@@ -1204,27 +1204,28 @@ export const pageSegments = pgTable(
 export type PageSegmentRow = typeof pageSegments.$inferSelect;
 export type PageSegmentInsert = typeof pageSegments.$inferInsert;
 
-// Header / footer navigation items. Replaced atomically per `nav_id` by
-// the admin nav editor. Items can either point at an internal content
-// page (FK to `content_pages.slug`, cascades on delete) or carry an
-// arbitrary URL (relative path or external https://). `position` is
-// recomputed sequentially on every save.
 /**
- * Header and footer navigation items managed by the dashboard.
- * Rows are replaced atomically per nav id and can target either content pages
- * or arbitrary URLs.
+ * Semantic navigation entries shared across product contexts and areas.
+ * Entries target a stable content-page identity, a configured URL, or a
+ * protected system key. Legacy nav id, page slug, and position columns remain
+ * populated until all older Frontend consumers have moved to placements.
  */
 export const navItems = pgTable(
   "nav_items",
   {
     id: serial("id").primaryKey(),
     navId: text("nav_id").notNull(),
+    targetKind: text("target_kind").notNull().default("url"),
+    pageId: text("page_id").references(() => contentPages.id, { onDelete: "restrict" }),
     pageSlug: text("page_slug").references(() => contentPages.slug, {
       onDelete: "cascade",
       onUpdate: "cascade",
     }),
     url: text("url"),
+    systemKey: text("system_key"),
     target: text("target").notNull().default("_self"),
+    contextMask: integer("context_mask").notNull().default(1),
+    areaMask: integer("area_mask").notNull().default(1),
     position: integer("position").notNull().default(0),
     label: text("label"),
     labelUpdatedAt: timestamp("label_updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1232,11 +1233,52 @@ export const navItems = pgTable(
   (table) => [
     index("idx_nav_items_nav").on(table.navId),
     index("idx_nav_items_nav_position").on(table.navId, table.position),
+    index("idx_nav_items_page_id").on(table.pageId),
+    uniqueIndex("uq_nav_items_system_key").on(table.systemKey).where(sql`${table.systemKey} IS NOT NULL`),
+    check("chk_nav_items_target_kind", sql`${table.targetKind} IN ('page', 'url', 'system')`),
+    check(
+      "chk_nav_items_system_key",
+      sql`${table.systemKey} IS NULL OR ${table.systemKey} IN ('docs', 'api-reference', 'search')`,
+    ),
+    check("chk_nav_items_context_mask", sql`${table.contextMask} IN (1, 2, 3)`),
+    check("chk_nav_items_area_mask", sql`${table.areaMask} IN (1, 2, 3)`),
+    check("chk_nav_items_system_context", sql`${table.targetKind} <> 'system' OR ${table.contextMask} = 2`),
+    check(
+      "chk_nav_items_system_target_shape",
+      sql`(${table.targetKind} = 'system' AND ${table.systemKey} IS NOT NULL AND ${table.pageId} IS NULL AND ${table.url} IS NULL AND ${table.target} = '_self') OR (${table.targetKind} <> 'system' AND ${table.systemKey} IS NULL)`,
+    ),
   ],
 );
 
 export type NavItemRow = typeof navItems.$inferSelect;
 export type NavItemInsert = typeof navItems.$inferInsert;
+
+/** Independent ordering for every active navigation Context x Area pair. */
+export const navigationItemPlacements = pgTable(
+  "navigation_item_placements",
+  {
+    navItemId: integer("nav_item_id")
+      .notNull()
+      .references(() => navItems.id, { onDelete: "cascade" }),
+    context: integer("context").notNull(),
+    area: integer("area").notNull(),
+    position: integer("position").notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "pk_navigation_item_placements",
+      columns: [table.navItemId, table.context, table.area],
+    }),
+    uniqueIndex("uq_navigation_item_placements_list_position").on(table.context, table.area, table.position),
+    index("idx_navigation_item_placements_item").on(table.navItemId),
+    check("chk_navigation_item_placements_context", sql`${table.context} IN (1, 2)`),
+    check("chk_navigation_item_placements_area", sql`${table.area} IN (1, 2)`),
+    check("chk_navigation_item_placements_position", sql`${table.position} >= 0`),
+  ],
+);
+
+export type NavigationItemPlacementRow = typeof navigationItemPlacements.$inferSelect;
+export type NavigationItemPlacementInsert = typeof navigationItemPlacements.$inferInsert;
 
 // Error/telemetry events posted by the Apple client (Testflight only).
 // No foreign keys — entries must survive user/install churn so we can still

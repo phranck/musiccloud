@@ -27,6 +27,8 @@ import type {
   NavItemReplaceInput,
   NavItemRow,
   NavItemTranslationRow,
+  NavigationConfigurationEntryRow,
+  NavigationConfigurationReplaceInput,
   PageSegmentInputRow,
   PageSegmentRow,
   PageSegmentTranslationRow,
@@ -199,9 +201,11 @@ import {
 } from "./postgres-content-email.js";
 import {
   listAdminNavItems as contentNavListAdminNavItems,
+  listNavigationConfiguration as contentNavListNavigationConfiguration,
   listNavTranslations as contentNavListNavTranslations,
   replaceAdminNavItems as contentNavReplaceAdminNavItems,
   replaceNavItemTranslations as contentNavReplaceNavItemTranslations,
+  replaceNavigationConfiguration as contentNavReplaceNavigationConfiguration,
 } from "./postgres-content-nav.js";
 import {
   bulkUpdatePages as contentPagesBulkUpdatePages,
@@ -1030,6 +1034,16 @@ export class PostgresAdapter
 
   replaceAdminNavItems(navId: NavId, items: NavItemReplaceInput[]): Promise<NavItemRow[]> {
     return contentNavReplaceAdminNavItems(this.pool, navId, items);
+  }
+
+  listNavigationConfiguration(): Promise<NavigationConfigurationEntryRow[]> {
+    return contentNavListNavigationConfiguration(this.pool);
+  }
+
+  replaceNavigationConfiguration(
+    entries: NavigationConfigurationReplaceInput[],
+  ): Promise<NavigationConfigurationEntryRow[]> {
+    return contentNavReplaceNavigationConfiguration(this.pool, entries);
   }
 
   listNavTranslations(navId: NavId): Promise<NavItemTranslationRow[]> {

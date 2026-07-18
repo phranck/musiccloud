@@ -5,15 +5,23 @@ export interface DatabasePrivilegeExpectation {
   privilege: DatabasePrivilege;
 }
 
+export interface DatabaseSequencePrivilegeExpectation {
+  sequence: string;
+  privilege: "USAGE";
+}
+
 export interface DatabaseReadinessExpectations {
   expectedMigrationHashes: string[];
   expectedOwner?: string;
   privileges: DatabasePrivilegeExpectation[];
+  sequencePrivileges?: DatabaseSequencePrivilegeExpectation[];
 }
 
 export interface DatabaseReadinessReport {
   insufficientPrivileges: DatabasePrivilegeExpectation[];
+  insufficientSequencePrivileges: DatabaseSequencePrivilegeExpectation[];
   missingMigrationHashes: string[];
+  missingSequences: string[];
   missingTables: string[];
   ok: boolean;
   ownerMismatches: Array<{ actualOwner: string; expectedOwner: string; table: string }>;
@@ -29,6 +37,12 @@ interface PrivilegeRow {
   privilege: DatabasePrivilege;
   table_exists: boolean;
   table_name: string;
+}
+
+interface SequencePrivilegeRow {
+  allowed: boolean;
+  sequence_exists: boolean;
+  sequence_name: string;
 }
 
 export const MUSICCLOUD_READINESS_TABLES = [
@@ -47,9 +61,14 @@ export const MUSICCLOUD_READINESS_TABLES = [
   "artist_images",
   "album_vinyl_layouts",
   "album_vinyl_layout_identities",
+  "nav_items",
+  "nav_item_translations",
+  "navigation_item_placements",
 ] as const;
 
 const VINYL_WRITE_TABLES = ["album_vinyl_layouts", "album_vinyl_layout_identities"] as const;
+const NAVIGATION_WRITE_TABLES = ["nav_items", "nav_item_translations", "navigation_item_placements"] as const;
+const RUNTIME_WRITE_TABLES = [...VINYL_WRITE_TABLES, ...NAVIGATION_WRITE_TABLES] as const;
 
 export function buildMusiccloudReadinessExpectations(
   latestMigrationHash: string,
@@ -60,10 +79,11 @@ export function buildMusiccloudReadinessExpectations(
     expectedOwner,
     privileges: [
       ...MUSICCLOUD_READINESS_TABLES.map((table) => ({ privilege: "SELECT" as const, table })),
-      ...VINYL_WRITE_TABLES.flatMap((table) =>
+      ...RUNTIME_WRITE_TABLES.flatMap((table) =>
         (["INSERT", "UPDATE", "DELETE"] as const).map((privilege) => ({ privilege, table })),
       ),
     ],
+    sequencePrivileges: [{ sequence: "nav_items_id_seq", privilege: "USAGE" }],
   };
 }
 
@@ -104,6 +124,38 @@ export async function inspectDatabaseReadiness(
     .filter((row) => row.table_exists && !row.allowed)
     .map((row) => ({ privilege: row.privilege, table: row.table_name }));
 
+  const sequenceExpectations = expectations.sequencePrivileges ?? [];
+  let missingSequences: string[] = [];
+  let insufficientSequencePrivileges: DatabaseSequencePrivilegeExpectation[] = [];
+  if (sequenceExpectations.length > 0) {
+    const sequenceResult = await client.query(
+      `
+        WITH expected(sequence_name, privilege) AS (
+          SELECT * FROM unnest($1::text[], $2::text[])
+        )
+        SELECT expected.sequence_name,
+               target.oid IS NOT NULL AS sequence_exists,
+               CASE
+                 WHEN target.oid IS NULL THEN false
+                 ELSE has_sequence_privilege(current_user, target.oid, expected.privilege)
+               END AS allowed
+        FROM expected
+        LEFT JOIN pg_namespace namespace ON namespace.nspname = 'public'
+        LEFT JOIN pg_class target
+          ON target.relnamespace = namespace.oid
+         AND target.relname = expected.sequence_name
+         AND target.relkind = 'S'
+        ORDER BY expected.sequence_name, expected.privilege
+      `,
+      [sequenceExpectations.map((item) => item.sequence), sequenceExpectations.map((item) => item.privilege)],
+    );
+    const sequenceRows = sequenceResult.rows as unknown as SequencePrivilegeRow[];
+    missingSequences = [...new Set(sequenceRows.filter((row) => !row.sequence_exists).map((row) => row.sequence_name))];
+    insufficientSequencePrivileges = sequenceRows
+      .filter((row) => row.sequence_exists && !row.allowed)
+      .map((row) => ({ privilege: "USAGE", sequence: row.sequence_name }));
+  }
+
   const ownerMismatches: DatabaseReadinessReport["ownerMismatches"] = [];
   if (expectations.expectedOwner) {
     const seen = new Set<string>();
@@ -132,11 +184,15 @@ export async function inspectDatabaseReadiness(
 
   return {
     insufficientPrivileges,
+    insufficientSequencePrivileges,
     missingMigrationHashes,
+    missingSequences,
     missingTables,
     ok:
       missingTables.length === 0 &&
+      missingSequences.length === 0 &&
       insufficientPrivileges.length === 0 &&
+      insufficientSequencePrivileges.length === 0 &&
       ownerMismatches.length === 0 &&
       missingMigrationHashes.length === 0,
     ownerMismatches,
@@ -157,7 +213,9 @@ export function assertDatabaseReady(report: DatabaseReadinessReport): void {
 
   const reasons = [
     ...report.missingTables.map((table) => `missing table ${table}`),
+    ...report.missingSequences.map((sequence) => `missing sequence ${sequence}`),
     ...report.insufficientPrivileges.map((item) => `missing ${item.privilege} privilege on ${item.table}`),
+    ...report.insufficientSequencePrivileges.map((item) => `missing ${item.privilege} privilege on ${item.sequence}`),
     ...report.ownerMismatches.map(
       (item) => `owner mismatch on ${item.table}: expected ${item.expectedOwner}, got ${item.actualOwner}`,
     ),

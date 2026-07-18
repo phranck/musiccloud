@@ -10,4 +10,9 @@ describe("endpoint catalog", () => {
   it("exposes the contextual publications endpoint for stable page identities", () => {
     expect(ENDPOINTS.admin.pages.publications("page-123")).toBe("/api/admin/pages/page-123/publications");
   });
+
+  it("exposes the atomic navigation configuration endpoint", () => {
+    expect(ENDPOINTS.admin.navigations.configuration).toBe("/api/admin/nav");
+    expect(ENDPOINTS.admin.navigations.detail("header")).toBe("/api/admin/nav/header");
+  });
 });

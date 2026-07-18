@@ -6,7 +6,9 @@ import { buildApp } from "../server.js";
 
 const FAILED_REPORT: DatabaseReadinessReport = {
   insufficientPrivileges: [{ privilege: "SELECT", table: "private_catalog" }],
+  insufficientSequencePrivileges: [{ privilege: "USAGE", sequence: "private_sequence" }],
   missingMigrationHashes: ["sensitive-migration-hash"],
+  missingSequences: ["private_missing_sequence"],
   missingTables: ["private_missing_table"],
   ok: false,
   ownerMismatches: [{ actualOwner: "unexpected_role", expectedOwner: "runtime_role", table: "private_owned_table" }],

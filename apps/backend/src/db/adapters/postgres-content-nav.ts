@@ -3,9 +3,11 @@
  * per-locale translations (`nav_item_translations`).
  *
  * Scope:
- *   - List items for one navigation surface (`primary`, `footer`, ...).
- *   - Atomic replace of an entire nav list (delete-all + insert in tx).
- *   - List / replace per-item translations.
+ *   - Read and atomically replace the complete semantic configuration,
+ *     concrete Context x Area placements, and translations.
+ *   - Preserve legacy Frontend header/footer reads and writes during the
+ *     additive migration period.
+ *   - List / replace per-item translations for legacy consumers.
  *
  * Excludes:
  *   - Content page content / metadata (see `postgres-content-pages.ts`).
@@ -13,9 +15,27 @@
  *     `postgres-content-pages.ts`).
  */
 
-import type { OverlayWidth, PageDisplayMode, PageType } from "@musiccloud/shared";
-import type { Pool } from "pg";
-import type { NavId, NavItemReplaceInput, NavItemRow, NavItemTranslationRow, NavTarget } from "../admin-repository.js";
+import {
+  ContentContext,
+  NavigationArea,
+  type NavigationAreaMask,
+  type NavigationPlacement,
+  type NavigationSystemKey,
+  type NavigationTargetKind,
+  type OverlayWidth,
+  type PageDisplayMode,
+  type PageType,
+} from "@musiccloud/shared";
+import type { Pool, PoolClient } from "pg";
+import type {
+  NavId,
+  NavItemReplaceInput,
+  NavItemRow,
+  NavItemTranslationRow,
+  NavigationConfigurationEntryRow,
+  NavigationConfigurationReplaceInput,
+  NavTarget,
+} from "../admin-repository.js";
 
 // ============================================================================
 // ROW TYPES
@@ -34,6 +54,34 @@ interface NavItemSqlRow {
   page_type: string | null;
   display_mode: string | null;
   overlay_width: string | null;
+}
+
+interface NavigationConfigurationSqlRow {
+  id: number;
+  target_kind: string;
+  page_id: string | null;
+  page_slug: string | null;
+  page_title: string | null;
+  url: string | null;
+  system_key: string | null;
+  target: string;
+  label: string | null;
+  context_mask: number;
+  area_mask: number;
+  label_updated_at: Date;
+}
+
+interface NavigationPlacementSqlRow {
+  nav_item_id: number;
+  context: number;
+  area: number;
+  position: number;
+}
+
+interface NavigationTranslationSqlRow {
+  nav_item_id: number;
+  locale: string;
+  label: string;
 }
 
 // ============================================================================
@@ -62,6 +110,56 @@ function rowToNavItem(row: NavItemSqlRow): NavItemRow {
   };
 }
 
+function legacyPlacement(navId: NavId): {
+  context: typeof ContentContext.Frontend;
+  area: typeof NavigationArea.Main | typeof NavigationArea.Footer;
+} {
+  return {
+    context: ContentContext.Frontend,
+    area: navId === "header" ? NavigationArea.Main : NavigationArea.Footer,
+  };
+}
+
+function legacyProjection(placements: NavigationPlacement[]): { navId: NavId; position: number } {
+  const preferred =
+    placements.find(
+      (placement) => placement.context === ContentContext.Frontend && placement.area === NavigationArea.Main,
+    ) ??
+    placements.find(
+      (placement) => placement.context === ContentContext.Frontend && placement.area === NavigationArea.Footer,
+    ) ??
+    placements.find((placement) => placement.area === NavigationArea.Main) ??
+    placements[0];
+
+  return {
+    navId: preferred?.area === NavigationArea.Footer ? "footer" : "header",
+    position: preferred?.position ?? 0,
+  };
+}
+
+function rowToNavigationConfigurationEntry(
+  row: NavigationConfigurationSqlRow,
+  placements: NavigationPlacement[],
+  translations: Partial<Record<string, string>>,
+): NavigationConfigurationEntryRow {
+  return {
+    id: row.id,
+    targetKind: row.target_kind as NavigationTargetKind,
+    pageId: row.page_id,
+    pageSlug: row.page_slug,
+    pageTitle: row.page_title,
+    url: row.url,
+    systemKey: row.system_key as NavigationSystemKey | null,
+    target: row.target as NavTarget,
+    label: row.label,
+    contextMask: row.context_mask as NavigationConfigurationEntryRow["contextMask"],
+    areaMask: row.area_mask as NavigationAreaMask,
+    labelUpdatedAt: row.label_updated_at,
+    placements,
+    translations,
+  };
+}
+
 // ============================================================================
 // NAV ITEMS
 // ============================================================================
@@ -76,17 +174,158 @@ function rowToNavItem(row: NavItemSqlRow): NavItemRow {
  * @returns Items ordered by `position` ascending, then `id`.
  */
 export async function listAdminNavItems(pool: Pool, navId: NavId): Promise<NavItemRow[]> {
+  const placement = legacyPlacement(navId);
   const result = await pool.query(
-    `SELECT n.id, n.nav_id, n.page_slug, n.url, n.target, n.position, n.label, n.label_updated_at,
+    `WITH placement_state AS (
+       SELECT EXISTS (SELECT 1 FROM navigation_item_placements) AS configured
+     )
+     SELECT n.id, $3::text AS nav_id, COALESCE(p.slug, n.page_slug) AS page_slug,
+            n.url, n.target, COALESCE(np.position, n.position) AS position, n.label, n.label_updated_at,
             p.title AS page_title,
             p.page_type, p.display_mode, p.overlay_width
      FROM nav_items n
-     LEFT JOIN content_pages p ON p.slug = n.page_slug
-     WHERE n.nav_id = $1
-     ORDER BY n.position ASC, n.id ASC`,
-    [navId],
+     CROSS JOIN placement_state state
+     LEFT JOIN navigation_item_placements np
+       ON np.nav_item_id = n.id AND np.context = $1 AND np.area = $2
+     LEFT JOIN content_pages p ON p.id = n.page_id OR (n.page_id IS NULL AND p.slug = n.page_slug)
+     WHERE (state.configured AND np.nav_item_id IS NOT NULL)
+        OR (NOT state.configured AND n.nav_id = $3)
+     ORDER BY COALESCE(np.position, n.position) ASC, n.id ASC`,
+    [placement.context, placement.area, navId],
   );
   return result.rows.map(rowToNavItem);
+}
+
+async function readNavigationConfiguration(
+  client: Pick<PoolClient, "query">,
+): Promise<NavigationConfigurationEntryRow[]> {
+  const entryResult = await client.query<NavigationConfigurationSqlRow>(
+    `SELECT n.id, n.target_kind, n.page_id, COALESCE(p.slug, n.page_slug) AS page_slug,
+              p.title AS page_title, n.url, n.system_key, n.target, n.label,
+              n.context_mask, n.area_mask, n.label_updated_at
+       FROM nav_items n
+       LEFT JOIN content_pages p ON p.id = n.page_id OR (n.page_id IS NULL AND p.slug = n.page_slug)
+       ORDER BY n.id`,
+  );
+  const placementResult = await client.query<NavigationPlacementSqlRow>(
+    `SELECT nav_item_id, context, area, position
+       FROM navigation_item_placements
+       ORDER BY nav_item_id, context, area`,
+  );
+  const translationResult = await client.query<NavigationTranslationSqlRow>(
+    `SELECT nav_item_id, locale, label
+       FROM nav_item_translations
+       ORDER BY nav_item_id, locale`,
+  );
+
+  const placementsByItem = new Map<number, NavigationPlacement[]>();
+  for (const row of placementResult.rows) {
+    const placements = placementsByItem.get(row.nav_item_id) ?? [];
+    placements.push({
+      context: row.context as NavigationPlacement["context"],
+      area: row.area as NavigationPlacement["area"],
+      position: row.position,
+    });
+    placementsByItem.set(row.nav_item_id, placements);
+  }
+
+  const translationsByItem = new Map<number, Partial<Record<string, string>>>();
+  for (const row of translationResult.rows) {
+    const translations = translationsByItem.get(row.nav_item_id) ?? {};
+    translations[row.locale] = row.label;
+    translationsByItem.set(row.nav_item_id, translations);
+  }
+
+  return entryResult.rows.map((row) =>
+    rowToNavigationConfigurationEntry(row, placementsByItem.get(row.id) ?? [], translationsByItem.get(row.id) ?? {}),
+  );
+}
+
+/** Lists the complete semantic navigation configuration. */
+export async function listNavigationConfiguration(pool: Pool): Promise<NavigationConfigurationEntryRow[]> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+    const entries = await readNavigationConfiguration(client);
+    await client.query("COMMIT");
+    return entries;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/** Atomically replaces semantic entries, concrete placements, and translations. */
+export async function replaceNavigationConfiguration(
+  pool: Pool,
+  entries: NavigationConfigurationReplaceInput[],
+): Promise<NavigationConfigurationEntryRow[]> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(`DELETE FROM nav_items`);
+
+    for (const entry of entries) {
+      const projection = legacyProjection(entry.placements);
+      const inserted = await client.query<{ id: number; label_updated_at: Date }>(
+        `INSERT INTO nav_items (
+           nav_id, target_kind, page_id, page_slug, url, system_key, target,
+           position, label, context_mask, area_mask
+         )
+         VALUES (
+           $1, $2, $3,
+           CASE WHEN $2 = 'page' THEN (SELECT slug FROM content_pages WHERE id = $3) ELSE NULL END,
+           $4, $5, $6, $7, $8, $9, $10
+         )
+         RETURNING id, label_updated_at`,
+        [
+          projection.navId,
+          entry.targetKind,
+          entry.pageId,
+          entry.url,
+          entry.systemKey,
+          entry.target,
+          projection.position,
+          entry.label,
+          entry.contextMask,
+          entry.areaMask,
+        ],
+      );
+      const insertedItem = inserted.rows[0];
+      if (!insertedItem) throw new Error("Navigation item insert did not return a row");
+      const navItemId = insertedItem.id;
+
+      for (const placement of entry.placements) {
+        await client.query(
+          `INSERT INTO navigation_item_placements (nav_item_id, context, area, position)
+           VALUES ($1, $2, $3, $4)`,
+          [navItemId, placement.context, placement.area, placement.position],
+        );
+      }
+
+      for (const [locale, label] of Object.entries(entry.translations ?? {}).sort(([left], [right]) =>
+        left.localeCompare(right),
+      )) {
+        if (label === undefined) continue;
+        await client.query(
+          `INSERT INTO nav_item_translations (nav_item_id, locale, label, source_updated_at)
+           VALUES ($1, $2, $3, $4)`,
+          [navItemId, locale, label, insertedItem.label_updated_at],
+        );
+      }
+    }
+
+    const persisted = await readNavigationConfiguration(client);
+    await client.query("COMMIT");
+    return persisted;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 /**
@@ -146,6 +385,7 @@ export async function replaceAdminNavItems(
  *   `navItemId` if a nested structure is needed.
  */
 export async function listNavTranslations(pool: Pool, navId: NavId): Promise<NavItemTranslationRow[]> {
+  const placement = legacyPlacement(navId);
   const result = await pool.query<{
     nav_item_id: number;
     locale: string;
@@ -153,12 +393,19 @@ export async function listNavTranslations(pool: Pool, navId: NavId): Promise<Nav
     source_updated_at: Date | null;
     updated_at: Date;
   }>(
-    `SELECT nit.nav_item_id, nit.locale, nit.label, nit.source_updated_at, nit.updated_at
+    `WITH placement_state AS (
+       SELECT EXISTS (SELECT 1 FROM navigation_item_placements) AS configured
+     )
+     SELECT nit.nav_item_id, nit.locale, nit.label, nit.source_updated_at, nit.updated_at
      FROM nav_item_translations nit
      JOIN nav_items ni ON ni.id = nit.nav_item_id
-     WHERE ni.nav_id = $1
+     CROSS JOIN placement_state state
+     LEFT JOIN navigation_item_placements np
+       ON np.nav_item_id = ni.id AND np.context = $1 AND np.area = $2
+     WHERE (state.configured AND np.nav_item_id IS NOT NULL)
+        OR (NOT state.configured AND ni.nav_id = $3)
      ORDER BY nit.nav_item_id, nit.locale`,
-    [navId],
+    [placement.context, placement.area, navId],
   );
   return result.rows.map((r) => ({
     navItemId: r.nav_item_id,
