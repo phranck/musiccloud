@@ -9,10 +9,6 @@ CREATE TABLE "content_page_publications" (
 	CONSTRAINT "chk_content_page_publications_status" CHECK ("content_page_publications"."status" IN ('draft', 'published', 'hidden'))
 );
 --> statement-breakpoint
-ALTER TABLE "content_pages" ADD COLUMN "id" text DEFAULT gen_random_uuid()::text NOT NULL;--> statement-breakpoint
-ALTER TABLE "content_pages" ADD COLUMN "context_mask" integer DEFAULT 1 NOT NULL;--> statement-breakpoint
 ALTER TABLE "content_page_publications" ADD CONSTRAINT "content_page_publications_page_id_content_pages_id_fk" FOREIGN KEY ("page_id") REFERENCES "public"."content_pages"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "uq_content_page_publications_context_path" ON "content_page_publications" USING btree ("context","path");--> statement-breakpoint
-CREATE INDEX "idx_content_page_publications_page" ON "content_page_publications" USING btree ("page_id");--> statement-breakpoint
-ALTER TABLE "content_pages" ADD CONSTRAINT "content_pages_id_unique" UNIQUE("id");--> statement-breakpoint
-ALTER TABLE "content_pages" ADD CONSTRAINT "chk_content_pages_context_mask" CHECK ("content_pages"."context_mask" IN (1, 2, 3));
+CREATE INDEX "idx_content_page_publications_page" ON "content_page_publications" USING btree ("page_id");

@@ -132,7 +132,7 @@ describe("updateManagedContentPageMeta", () => {
         },
         {
           context: ContentContext.DeveloperPortal,
-          path: "/dashboard/keys",
+          path: "/docs/crawler-architecture",
           status: "draft",
           templateKey: "developer-default",
         },

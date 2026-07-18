@@ -1,6 +1,6 @@
 {
-  "id": "1c5a0d74-b032-42d3-94d3-ab422acab3b6",
-  "prevId": "dbc6efb9-9065-470b-bee3-c652d86241e6",
+  "id": "25199819-9970-4ae9-a023-9240f0122812",
+  "prevId": "1c5a0d74-b032-42d3-94d3-ab422acab3b6",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -4376,6 +4376,118 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.content_page_publications": {
+      "name": "content_page_publications",
+      "schema": "",
+      "columns": {
+        "page_id": {
+          "name": "page_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "context": {
+          "name": "context",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "path": {
+          "name": "path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "template_key": {
+          "name": "template_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "uq_content_page_publications_context_path": {
+          "name": "uq_content_page_publications_context_path",
+          "columns": [
+            {
+              "expression": "context",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "path",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_content_page_publications_page": {
+          "name": "idx_content_page_publications_page",
+          "columns": [
+            {
+              "expression": "page_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "content_page_publications_page_id_content_pages_id_fk": {
+          "name": "content_page_publications_page_id_content_pages_id_fk",
+          "tableFrom": "content_page_publications",
+          "tableTo": "content_pages",
+          "columnsFrom": [
+            "page_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "pk_content_page_publications": {
+          "name": "pk_content_page_publications",
+          "columns": [
+            "page_id",
+            "context"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "chk_content_page_publications_context": {
+          "name": "chk_content_page_publications_context",
+          "value": "\"content_page_publications\".\"context\" IN (1, 2)"
+        },
+        "chk_content_page_publications_status": {
+          "name": "chk_content_page_publications_status",
+          "value": "\"content_page_publications\".\"status\" IN ('draft', 'published', 'hidden')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.content_page_translations": {

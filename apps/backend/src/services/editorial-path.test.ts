@@ -19,6 +19,10 @@ describe("normalizeEditorialPath", () => {
 
 describe("isReservedDeveloperPortalPath", () => {
   it.each([
+    "/docs",
+    "/docs/",
+    "/docs/crawler-architecture",
+    "/docs/sdks/swift",
     "/docs/api",
     "/docs/api/openapi",
     "/login",
@@ -30,7 +34,12 @@ describe("isReservedDeveloperPortalPath", () => {
     expect(isReservedDeveloperPortalPath(path)).toBe(true);
   });
 
-  it.each(["/docs", "/docs/crawler-architecture", "/privacy", "/dashboarding"])("allows editorial path %s", (path) => {
+  it.each([
+    "/documentation",
+    "/docsmith",
+    "/privacy",
+    "/dashboarding",
+  ])("allows unrelated editorial path %s", (path) => {
     expect(isReservedDeveloperPortalPath(path)).toBe(false);
   });
 });

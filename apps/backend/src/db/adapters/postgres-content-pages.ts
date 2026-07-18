@@ -31,7 +31,9 @@ import type {
   PageType,
   SingleContentContext,
 } from "@musiccloud/shared";
+import { ContentContext } from "@musiccloud/shared";
 import type { Pool, PoolClient } from "pg";
+import { isReservedDeveloperPortalPath, normalizeEditorialPath } from "../../services/editorial-path.js";
 import type {
   BulkUpdatePagesPayload,
   ContentPageCreateData,
@@ -420,6 +422,9 @@ export async function getPublishedContentPageByPath(
   context: SingleContentContext,
   path: string,
 ): Promise<ContentPageRow | null> {
+  const normalizedPath = normalizeEditorialPath(path);
+  if (context === ContentContext.DeveloperPortal && isReservedDeveloperPortalPath(normalizedPath)) return null;
+
   const result = await pool.query(
     `SELECT ${CONTENT_COLUMNS}, ${CONTENT_PUBLICATIONS_COLUMN}
        FROM content_pages
@@ -427,7 +432,7 @@ export async function getPublishedContentPageByPath(
       WHERE publication.context = $1
         AND publication.path = $2
         AND publication.status = 'published'`,
-    [context, path],
+    [context, normalizedPath],
   );
   return result.rows.length > 0 ? rowToContentPage(result.rows[0]) : null;
 }

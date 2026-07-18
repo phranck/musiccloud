@@ -1,4 +1,4 @@
-const RESERVED_DEVELOPER_PORTAL_PREFIXES = ["/docs/api", "/login", "/signup", "/auth", "/api", "/dashboard"];
+const RESERVED_DEVELOPER_PORTAL_PREFIXES = ["/docs", "/login", "/signup", "/auth", "/api", "/dashboard"];
 
 export function normalizeEditorialPath(path: string): string {
   const candidate = path.trim();

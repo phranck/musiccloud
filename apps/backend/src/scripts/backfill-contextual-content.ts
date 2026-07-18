@@ -1,7 +1,7 @@
 import { ContentContext, type ContentPublication, PageType } from "@musiccloud/shared";
 import type { AdminRepository, ContentPageSummaryRow } from "../db/admin-repository.js";
 import { closeRepository, getAdminRepository } from "../db/index.js";
-import { normalizeEditorialPath } from "../services/editorial-path.js";
+import { isReservedDeveloperPortalPath, normalizeEditorialPath } from "../services/editorial-path.js";
 
 export interface ContextualContentBackfillResult {
   pages: number;
@@ -34,10 +34,15 @@ export async function backfillContextualContent(
 
   for (const page of pages) {
     for (const publication of page.publications ?? []) {
-      registerClaim(
-        `${publication.context}:${normalizeEditorialPath(publication.path)}`,
-        page.id ?? publication.pageId,
-      );
+      const normalizedPath = normalizeEditorialPath(publication.path);
+      if (
+        publication.context === ContentContext.DeveloperPortal &&
+        isReservedDeveloperPortalPath(normalizedPath)
+      ) {
+        conflicts++;
+        continue;
+      }
+      registerClaim(`${publication.context}:${normalizedPath}`, page.id ?? publication.pageId);
     }
   }
 

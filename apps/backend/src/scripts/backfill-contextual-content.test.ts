@@ -171,6 +171,63 @@ describe("backfillContextualContent", () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
+  it("reports an existing Developer Portal /docs publication as a dry-run conflict", async () => {
+    const replace = vi.fn();
+    const repo = {
+      listContentPageSummaries: async () => [
+        page({
+          id: "page-docs",
+          slug: "documentation",
+          contextMask: ContentContext.DeveloperPortal,
+          publications: [
+            {
+              pageId: "page-docs",
+              context: ContentContext.DeveloperPortal,
+              path: "/docs/crawler-architecture",
+              status: "published",
+              templateKey: "developer-default",
+            },
+          ],
+        }),
+      ],
+      replaceContentPublications: replace,
+    } as unknown as AdminRepository;
+
+    await expect(backfillContextualContent(repo, { dryRun: true })).resolves.toEqual({
+      pages: 1,
+      publications: 1,
+      conflicts: 1,
+      writes: 0,
+    });
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("aborts apply before writes for an existing Developer Portal /docs publication", async () => {
+    const replace = vi.fn();
+    const repo = {
+      listContentPageSummaries: async () => [
+        page({
+          id: "page-docs",
+          slug: "documentation",
+          contextMask: ContentContext.DeveloperPortal,
+          publications: [
+            {
+              pageId: "page-docs",
+              context: ContentContext.DeveloperPortal,
+              path: "/docs",
+              status: "draft",
+              templateKey: "developer-default",
+            },
+          ],
+        }),
+      ],
+      replaceContentPublications: replace,
+    } as unknown as AdminRepository;
+
+    await expect(backfillContextualContent(repo, { dryRun: false })).rejects.toThrow("conflict");
+    expect(replace).not.toHaveBeenCalled();
+  });
+
   it.each([
     [PageType.Default, "frontend-default"],
     [PageType.Segmented, "frontend-segmented"],
