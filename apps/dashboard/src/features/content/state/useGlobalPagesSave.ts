@@ -7,7 +7,7 @@ import {
 } from "@musiccloud/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
-
+import { isEditableContentPage } from "@/features/content/editorialPageOwnership";
 import { api } from "@/lib/api";
 import type { ApiRequestError } from "@/shared/utils/api-error";
 
@@ -27,6 +27,8 @@ export interface UseGlobalPagesSaveResult {
   discard: () => void;
   status: SaveStatus;
   errorDetails: PagesBulkErrorDetail[] | null;
+  errorMessage: string | null;
+  errorId: string | null;
   dirtyCount: number;
 }
 
@@ -35,14 +37,19 @@ export function useGlobalPagesSave(): UseGlobalPagesSaveResult {
   const qc = useQueryClient();
   const [status, setStatus] = useState<SaveStatus>(GlobalPagesSaveStatus.Idle);
   const [errorDetails, setErrorDetails] = useState<PagesBulkErrorDetail[] | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorId, setErrorId] = useState<string | null>(null);
 
   const save = useCallback(async () => {
     if (editor.dirty.size() === 0) return;
     setStatus(GlobalPagesSaveStatus.Saving);
     setErrorDetails(null);
+    setErrorMessage(null);
+    setErrorId(null);
     const body: PagesBulkRequest = buildBulkPayload({
       meta: editor.meta,
       content: editor.content,
+      publications: editor.publications,
       segments: editor.segments,
       translations: editor.translations,
       sidebar: editor.sidebar,
@@ -55,10 +62,19 @@ export function useGlobalPagesSave(): UseGlobalPagesSaveResult {
       // initial==current after the next user-driven hydrate cycle. For
       // now we accept that translations remain dirty until a separate
       // refetch lands them.
-      const pages = json.pages;
+      const pages = json.pages.filter(isEditableContentPage);
       editor.dispatch.meta({
         type: "hydrate",
         entries: pages.map((p) => ({ slug: p.slug, meta: pickMeta(p) })),
+      });
+      editor.dispatch.publications({
+        type: "hydrate",
+        entries: pages.map((page) => ({
+          slug: page.slug,
+          pageId: page.id,
+          contextMask: page.contextMask,
+          publications: page.publications,
+        })),
       });
       editor.dispatch.sidebar({
         type: "hydrate",
@@ -74,13 +90,23 @@ export function useGlobalPagesSave(): UseGlobalPagesSaveResult {
       const apiErr = e as ApiRequestError;
       const details = (apiErr.details ?? null) as PagesBulkErrorDetail[] | null;
       setErrorDetails(details);
+      setErrorMessage(apiErr.responseMessage ?? apiErr.message);
+      setErrorId(apiErr.errorId ?? null);
       setStatus(GlobalPagesSaveStatus.Error);
     }
   }, [editor, qc]);
 
   const discard = useCallback(() => editor.resetAll(), [editor]);
 
-  return { save, discard, status, errorDetails, dirtyCount: editor.dirty.groupCount() };
+  return {
+    save,
+    discard,
+    status,
+    errorDetails,
+    errorMessage,
+    errorId,
+    dirtyCount: editor.dirty.groupCount(),
+  };
 }
 
 type MetaFields = Parameters<typeof buildBulkPayload>[0]["meta"]["pages"][string]["initial"];

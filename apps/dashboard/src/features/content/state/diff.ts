@@ -3,6 +3,8 @@ import type { ContentState } from "./slices/contentSlice";
 import { dirtySlugs as dirtyContentSlugs } from "./slices/contentSlice";
 import type { MetaState } from "./slices/metaSlice";
 import { dirtySlugs as dirtyMetaSlugs } from "./slices/metaSlice";
+import type { PublicationsState } from "./slices/publicationsSlice";
+import { publicationDirtySlugs } from "./slices/publicationsSlice";
 import type { SegmentsState } from "./slices/segmentsSlice";
 import { dirtyOwners, toBulkSegmentsInput } from "./slices/segmentsSlice";
 import type { SidebarState } from "./slices/sidebarSlice";
@@ -12,6 +14,7 @@ import type { TranslationsState } from "./slices/translationsSlice";
 export interface SliceBundle {
   meta: MetaState;
   content: ContentState;
+  publications?: PublicationsState;
   segments: SegmentsState;
   translations: TranslationsState;
   sidebar: SidebarState;
@@ -24,7 +27,8 @@ export function buildBulkPayload(b: SliceBundle): PagesBulkRequest {
 
   const dirtyMeta = new Set(dirtyMetaSlugs(b.meta));
   const dirtyContent = new Set(dirtyContentSlugs(b.content));
-  const allPageSlugs = new Set<string>([...dirtyMeta, ...dirtyContent]);
+  const dirtyPublications = new Set(b.publications ? publicationDirtySlugs(b.publications) : []);
+  const allPageSlugs = new Set<string>([...dirtyMeta, ...dirtyContent, ...dirtyPublications]);
   if (allPageSlugs.size > 0) {
     out.pages = [];
     for (const slug of allPageSlugs) {
@@ -39,6 +43,14 @@ export function buildBulkPayload(b: SliceBundle): PagesBulkRequest {
       }
       if (dirtyContent.has(slug)) {
         entry.content = b.content.pages[slug].current;
+      }
+      if (dirtyPublications.has(slug)) {
+        const publicationState = b.publications!.pages[slug].current;
+        entry.meta = {
+          ...(entry.meta ?? {}),
+          contextMask: publicationState.contextMask,
+          publications: publicationState.publications,
+        };
       }
       out.pages.push(entry);
     }

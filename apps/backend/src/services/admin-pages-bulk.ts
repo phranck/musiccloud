@@ -10,7 +10,11 @@ import { ContentContext, isLocale, PAGE_TYPES } from "@musiccloud/shared";
 import type { ContentPageMetaUpdate } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
 
-import { getManagedContentPages, normalizeAndValidateContentPublications } from "./admin-content.js";
+import {
+  contentContextRemovalNavigationError,
+  getManagedContentPages,
+  normalizeAndValidateContentPublications,
+} from "./admin-content.js";
 import { normalizeEditorialPath } from "./editorial-path.js";
 
 export type BulkResult =
@@ -34,12 +38,15 @@ export async function bulkUpdatePages(payload: PagesBulkRequest, opts: BulkUpdat
 
   const errors: PagesBulkErrorDetail[] = [];
   const normalizedPublications = new Map<number, ContentPublication[]>();
+  let navigationEntries: Awaited<ReturnType<typeof repo.listNavigationConfiguration>> | undefined;
 
   // 1) pages: meta + content
-  (payload.pages ?? []).forEach((entry, idx) => {
+  const pageEntries = payload.pages ?? [];
+  for (let idx = 0; idx < pageEntries.length; idx++) {
+    const entry = pageEntries[idx]!;
     if (!bySlug.has(entry.slug)) {
       errors.push({ section: "pages", index: idx, message: `unknown page '${entry.slug}'` });
-      return;
+      continue;
     }
     if (entry.meta?.slug !== undefined && entry.meta.slug !== entry.slug) {
       if (!SLUG_RE.test(entry.meta.slug)) {
@@ -62,6 +69,23 @@ export async function bulkUpdatePages(payload: PagesBulkRequest, opts: BulkUpdat
         entry.content !== undefined)
     ) {
       const contextMask = entry.meta?.contextMask ?? current.contextMask ?? ContentContext.Frontend;
+      const currentContextMask = current.contextMask ?? ContentContext.Frontend;
+      if ((currentContextMask & ~contextMask) !== 0 && current.id) {
+        navigationEntries ??= await repo.listNavigationConfiguration();
+        const navigationError = contentContextRemovalNavigationError(
+          navigationEntries,
+          current.id,
+          currentContextMask,
+          contextMask,
+        );
+        if (navigationError) {
+          errors.push({
+            section: "pages",
+            index: idx,
+            message: navigationError,
+          });
+        }
+      }
       const renamesLegacyPath = entry.meta?.slug !== undefined && entry.meta.slug !== entry.slug;
       const publications =
         entry.meta?.publications ??
@@ -95,7 +119,7 @@ export async function bulkUpdatePages(payload: PagesBulkRequest, opts: BulkUpdat
         normalizedPublications.set(idx, validation);
       }
     }
-  });
+  }
 
   // 2) segments: target validation
   (payload.segments ?? []).forEach((entry, idx) => {

@@ -17,7 +17,7 @@ import {
   DashboardActionStatus,
   DashboardButtonVariant,
 } from "@musiccloud/dashboard-ui";
-import { DEFAULT_LOCALE, LOCALES, PageType, type TranslationStatus } from "@musiccloud/shared";
+import { ContentContext, DEFAULT_LOCALE, LOCALES, PageType, type TranslationStatus } from "@musiccloud/shared";
 import type { Icon } from "@phosphor-icons/react";
 import {
   CheckCircleIcon,
@@ -36,6 +36,7 @@ import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { Dialog, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import type { ColumnDef, DataTableRowProps } from "@/components/ui/Table";
 import { DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
@@ -160,6 +161,24 @@ function SortableHierarchicalRow({ row, className, children }: DataTableRowProps
   );
 }
 
+interface HierarchicalPagesTableProps {
+  columns: ColumnDef<HierarchicalPage>[];
+  pages: HierarchicalPage[];
+  sortable?: boolean;
+}
+
+function HierarchicalPagesTable({ columns, pages, sortable = false }: HierarchicalPagesTableProps) {
+  return (
+    <DataTable
+      columns={columns}
+      data={pages}
+      getRowKey={(page) => page.slug}
+      stickyHeader
+      RowComponent={sortable ? SortableHierarchicalRow : undefined}
+    />
+  );
+}
+
 function formatDate(isoDate: string | null, locale: string): string {
   if (!isoDate) return "—";
   const date = new Date(isoDate);
@@ -175,11 +194,13 @@ function formatDate(isoDate: string | null, locale: string): string {
 interface PagesListState {
   showCreate: boolean;
   deleteTarget: { slug: string; title: string } | null;
+  contextFilter: "all" | "frontend" | "developer-portal";
 }
 
 const initialState: PagesListState = {
   showCreate: false,
   deleteTarget: null,
+  contextFilter: "all",
 };
 
 function usePagesListPage() {
@@ -195,7 +216,7 @@ function usePagesListPage() {
     (prev: PagesListState, action: Partial<PagesListState>): PagesListState => ({ ...prev, ...action }),
     initialState,
   );
-  const { showCreate, deleteTarget } = state;
+  const { showCreate, deleteTarget, contextFilter } = state;
 
   const handleDeleteRequest = useCallback((pageSlug: string, pageTitle: string) => {
     dispatch({ deleteTarget: { slug: pageSlug, title: pageTitle } });
@@ -213,6 +234,13 @@ function usePagesListPage() {
     for (const p of pages) m.set(p.slug, p);
     return m;
   }, [pages]);
+
+  const visibleContextMask =
+    contextFilter === "frontend"
+      ? ContentContext.Frontend
+      : contextFilter === "developer-portal"
+        ? ContentContext.DeveloperPortal
+        : null;
 
   // Apply optimistic order from sidebar/segments slices so dragged rows stay
   // in their dropped position until the user saves or discards. The Sidebar
@@ -250,8 +278,22 @@ function usePagesListPage() {
       if (out.some((r) => r.slug === orphan.slug)) continue;
       out.push({ ...orphan, depth: 0 });
     }
-    return out;
-  }, [pages, editor.sidebar.current, editor.segments.byOwner, bySlug]);
+    if (visibleContextMask === null) return out;
+    const visibleSlugs = new Set<string>();
+    for (const page of pages) {
+      if ((page.contextMask & visibleContextMask) === visibleContextMask) visibleSlugs.add(page.slug);
+    }
+    const visibleRows: HierarchicalPage[] = [];
+    for (const page of out) {
+      if (!visibleSlugs.has(page.slug)) continue;
+      visibleRows.push(
+        page.depth === 1 && page.parentSlug && !visibleSlugs.has(page.parentSlug)
+          ? { ...page, depth: 0 as const, parentSlug: undefined }
+          : page,
+      );
+    }
+    return visibleRows;
+  }, [pages, editor.sidebar.current, editor.segments.byOwner, bySlug, visibleContextMask]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -400,6 +442,18 @@ function usePagesListPage() {
               >
                 {page.title}
               </button>
+              <div className="flex flex-wrap gap-1">
+                {(page.contextMask & ContentContext.Frontend) === ContentContext.Frontend && (
+                  <span className="rounded-control bg-[var(--ds-surface-hover)] px-1.5 py-0.5 text-[0.625rem] font-medium text-[var(--ds-text-muted)]">
+                    {text.contexts.frontend}
+                  </span>
+                )}
+                {(page.contextMask & ContentContext.DeveloperPortal) === ContentContext.DeveloperPortal && (
+                  <span className="rounded-control bg-[var(--ds-surface-hover)] px-1.5 py-0.5 text-[0.625rem] font-medium text-[var(--ds-text-muted)]">
+                    {text.contexts.developerPortal}
+                  </span>
+                )}
+              </div>
             </div>
           );
         },
@@ -407,7 +461,25 @@ function usePagesListPage() {
       {
         id: "slug",
         header: text.table.slug,
-        cell: (page) => <span className="font-mono text-xs text-[var(--ds-text-muted)]">/{page.slug}</span>,
+        cell: (page) => (
+          <div className="flex flex-col gap-1">
+            {page.publications.map((publication) => (
+              <span key={publication.context} className="flex items-center gap-1.5 text-xs text-[var(--ds-text-muted)]">
+                <span
+                  className="min-w-6 font-medium"
+                  title={
+                    publication.context === ContentContext.Frontend
+                      ? text.contexts.frontend
+                      : text.contexts.developerPortal
+                  }
+                >
+                  {publication.context === ContentContext.Frontend ? "F" : "DP"}
+                </span>
+                <span className="font-mono">{publication.path}</span>
+              </span>
+            ))}
+          </div>
+        ),
       },
       {
         id: "type",
@@ -421,7 +493,25 @@ function usePagesListPage() {
       {
         id: "status",
         header: text.table.status,
-        cell: (page) => <PageStatusBadge status={page.status} />,
+        cell: (page) => (
+          <div className="flex flex-col items-start gap-1">
+            {page.publications.map((publication) => (
+              <span key={publication.context} className="flex items-center gap-1.5">
+                <span
+                  className="min-w-6 text-xs font-medium text-[var(--ds-text-muted)]"
+                  title={
+                    publication.context === ContentContext.Frontend
+                      ? text.contexts.frontend
+                      : text.contexts.developerPortal
+                  }
+                >
+                  {publication.context === ContentContext.Frontend ? "F" : "DP"}
+                </span>
+                <PageStatusBadge status={publication.status} />
+              </span>
+            ))}
+          </div>
+        ),
       },
       {
         id: "createdBy",
@@ -499,6 +589,20 @@ function usePagesListPage() {
       </PageHeader>
 
       <PageBody>
+        <div className="flex items-center justify-between gap-3 pb-3">
+          <span className="text-xs font-semibold text-[var(--ds-text-subtle)] uppercase tracking-wider">
+            {text.contexts.label}
+          </span>
+          <SegmentedControl
+            value={contextFilter}
+            options={[
+              { value: "all", label: text.contexts.all },
+              { value: "frontend", label: text.contexts.frontend },
+              { value: "developer-portal", label: text.contexts.developerPortal },
+            ]}
+            onChange={(value) => dispatch({ contextFilter: value })}
+          />
+        </div>
         {isLoading && (
           <div className="flex items-center justify-center h-32 text-[var(--ds-text-muted)] text-sm">
             {text.loadPages}
@@ -514,19 +618,26 @@ function usePagesListPage() {
           />
         )}
 
-        {!isLoading && pages.length > 0 && (
-          <div className="-mx-3 -mt-3">
-            <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragEnd={handleDragEnd}>
-              <SortableContext items={hierarchicalPages.map(sortableIdFor)} strategy={() => null}>
-                <DataTable
-                  columns={columns}
-                  data={hierarchicalPages}
-                  getRowKey={(page) => page.slug}
-                  stickyHeader
-                  RowComponent={SortableHierarchicalRow}
-                />
-              </SortableContext>
-            </DndContext>
+        {!isLoading && pages.length > 0 && hierarchicalPages.length === 0 && (
+          <ContentUnavailableView
+            className="flex-1 min-h-0"
+            icon={<FileIcon weight="duotone" aria-hidden />}
+            title={text.emptyPages}
+            subtitle={text.emptyPagesHint}
+          />
+        )}
+
+        {!isLoading && hierarchicalPages.length > 0 && (
+          <div className="-mx-3">
+            {contextFilter === "all" ? (
+              <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragEnd={handleDragEnd}>
+                <SortableContext items={hierarchicalPages.map(sortableIdFor)} strategy={() => null}>
+                  <HierarchicalPagesTable columns={columns} pages={hierarchicalPages} sortable />
+                </SortableContext>
+              </DndContext>
+            ) : (
+              <HierarchicalPagesTable columns={columns} pages={hierarchicalPages} />
+            )}
           </div>
         )}
       </PageBody>

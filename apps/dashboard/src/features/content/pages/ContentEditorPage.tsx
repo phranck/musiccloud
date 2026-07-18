@@ -9,15 +9,22 @@ import {
 } from "@musiccloud/dashboard-ui";
 import type {
   ContentPage,
-  ContentStatus,
   Locale,
   PageTitleAlignment as PageTitleAlignmentValue,
+  SingleContentContext,
 } from "@musiccloud/shared";
-import { DEFAULT_LOCALE, getLocalizedText, LOCALES } from "@musiccloud/shared";
-import { EyeIcon, MarkdownLogoIcon, MinusCircleIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
+import { ContentContext, DEFAULT_LOCALE, getLocalizedText, LOCALES } from "@musiccloud/shared";
+import {
+  EyeIcon,
+  FileLockIcon,
+  MarkdownLogoIcon,
+  MinusCircleIcon,
+  PlusCircleIcon,
+  TrashIcon,
+} from "@phosphor-icons/react";
 import { lazy, Suspense, useCallback, useEffect, useReducer, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-
+import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { Dialog, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
@@ -25,17 +32,24 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { SaveNotification, useSaveNotification } from "@/components/ui/SaveNotification";
 import { useI18n } from "@/context/I18nContext";
-import { useAdminContentPage, useDeleteContentPage } from "@/features/content/hooks/useAdminContent";
+import {
+  SystemOwnedContentPageError,
+  useAdminContentPage,
+  useAdminNavigationConfiguration,
+  useDeleteContentPage,
+} from "@/features/content/hooks/useAdminContent";
 import { buildLocalizedPageTitle, createPageTitleTranslationDraft } from "@/features/content/pageLocalization";
 import { LanguageTabs } from "@/features/content/pages/LanguageTabs";
-import { PageDisplaySettings } from "@/features/content/pages/PageDisplaySettings";
+import { PagePublishingEditor } from "@/features/content/pages/PagePublishingEditor";
 import { PageTitleAlignment } from "@/features/content/pages/PageTitleAlignment";
 import { SegmentManager } from "@/features/content/pages/SegmentManager";
 import { useDeleteTranslation } from "@/features/content/pages/usePageTranslations";
+import { buildPublicationPreviews } from "@/features/content/publicationDrafts";
 import { usePagesEditor } from "@/features/content/state/PagesEditorContext";
 import { isContentDirty } from "@/features/content/state/slices/contentSlice";
 import type { MetaFields } from "@/features/content/state/slices/metaSlice";
 import { isMetaFieldDirty } from "@/features/content/state/slices/metaSlice";
+import { PublicationsActionType } from "@/features/content/state/slices/publicationsSlice";
 import { isTranslationDirty } from "@/features/content/state/slices/translationsSlice";
 import { FormLabel } from "@/shared/ui/FormPrimitives";
 
@@ -47,7 +61,8 @@ const FONT_SIZE_KEY = "content-editor-source-font-size";
 const FONT_SIZE_MIN = 10;
 const FONT_SIZE_MAX = 24;
 const FONT_SIZE_DEFAULT = 13;
-const FRONTEND_PREVIEW_BASE_URL = import.meta.env.DEV ? "http://localhost:3000" : "https://musiccloud.io";
+const FRONTEND_PREVIEW_BASE_URL = import.meta.env.DEV ? "http://localhost:3001" : "https://musiccloud.io";
+const DEVELOPER_PREVIEW_BASE_URL = import.meta.env.DEV ? "http://localhost:3100" : "https://developer.musiccloud.io";
 
 function loadFontSize(): number {
   const stored = localStorage.getItem(FONT_SIZE_KEY);
@@ -108,12 +123,6 @@ const ContentTranslationsActionType = {
 const ContentSegmentsActionType = {
   HydrateOwner: "hydrate-owner",
 } as const;
-
-const ContentEditorPageStatus = {
-  Draft: "draft",
-  Published: "published",
-  Hidden: "hidden",
-} as const satisfies Record<string, ContentStatus>;
 
 const TranslationStatus = {
   Missing: "missing",
@@ -178,12 +187,11 @@ interface EditorHeaderActionsProps {
     decreaseFontSize: string;
     increaseFontSize: string;
     deletePage: string;
-    preview: string;
   };
   onDecreaseFont: () => void;
   onIncreaseFont: () => void;
   onOpenDelete: () => void;
-  onPreview: () => void;
+  previews: Array<{ context: SingleContentContext; label: string; url: string }>;
 }
 
 function EditorHeaderActions({
@@ -194,7 +202,7 @@ function EditorHeaderActions({
   onDecreaseFont,
   onIncreaseFont,
   onOpenDelete,
-  onPreview,
+  previews,
 }: EditorHeaderActionsProps) {
   return (
     <div className="flex items-center gap-3">
@@ -229,15 +237,18 @@ function EditorHeaderActions({
         </DashboardIconButton>
       </div>
 
-      <DashboardActionButton
-        action={DashboardActionId.Copy}
-        icon={<EyeIcon weight="duotone" className="size-3.5" />}
-        label={editorMessages.preview}
-        onClick={onPreview}
-        size="action"
-        type="button"
-        variant={DashboardButtonVariant.Neutral}
-      />
+      {previews.map((preview) => (
+        <DashboardActionButton
+          key={preview.context}
+          action={DashboardActionId.Copy}
+          icon={<EyeIcon weight="duotone" className="size-3.5" />}
+          label={preview.label}
+          onClick={() => window.open(preview.url, "_blank")}
+          size="action"
+          type="button"
+          variant={DashboardButtonVariant.Neutral}
+        />
+      ))}
 
       <DashboardActionButton
         action={DashboardActionId.Delete}
@@ -266,7 +277,7 @@ interface ContentEditorHeaderProps {
   onDecreaseFont: () => void;
   onIncreaseFont: () => void;
   onOpenDelete: () => void;
-  onPreview: () => void;
+  previews: EditorHeaderActionsProps["previews"];
 }
 
 function ContentEditorHeader({
@@ -280,7 +291,7 @@ function ContentEditorHeader({
   onDecreaseFont,
   onIncreaseFont,
   onOpenDelete,
-  onPreview,
+  previews,
 }: ContentEditorHeaderProps) {
   return (
     <PageHeader title={title} renderLeading={() => <HeaderBackButton label={backLabel} onClick={onBack} />}>
@@ -293,7 +304,7 @@ function ContentEditorHeader({
         onDecreaseFont={onDecreaseFont}
         onIncreaseFont={onIncreaseFont}
         onOpenDelete={onOpenDelete}
-        onPreview={onPreview}
+        previews={previews}
       />
     </PageHeader>
   );
@@ -306,16 +317,10 @@ interface EditorMetadataBarProps {
   editSlugValue: string;
   editorMessages: {
     slugLabel: string;
-    statusLabel: string;
     showTitleLabel: string;
     createdBy: string;
     updatedBy: string;
     updatedAt: string;
-  };
-  statusLabels: {
-    draft: string;
-    published: string;
-    hidden: string;
   };
   locale: string;
   common: {
@@ -327,7 +332,6 @@ interface EditorMetadataBarProps {
   onSlugBlur: (value: string) => void;
   onSaveSlug: () => void;
   onCancelSlug: () => void;
-  onStatusChange: (value: string) => void;
   onShowTitleChange: (value: boolean) => void;
   onTitleAlignmentChange: (value: PageTitleAlignmentValue) => void;
 }
@@ -351,7 +355,6 @@ function EditorMetadataBar({
   editingSlug,
   editSlugValue,
   editorMessages,
-  statusLabels,
   locale,
   common,
   onStartEditSlug,
@@ -359,7 +362,6 @@ function EditorMetadataBar({
   onSlugBlur,
   onSaveSlug,
   onCancelSlug,
-  onStatusChange,
   onShowTitleChange,
   onTitleAlignmentChange,
 }: EditorMetadataBarProps) {
@@ -399,19 +401,6 @@ function EditorMetadataBar({
             /{page.slug}
           </button>
         )}
-      </div>
-
-      <div className="flex items-center gap-2">
-        <span className="font-medium">{editorMessages.statusLabel}:</span>
-        <select
-          value={page.status}
-          onChange={(e) => onStatusChange(e.target.value)}
-          className="text-xs bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded px-1.5 py-0.5 text-[var(--ds-text)] focus:outline-none cursor-pointer"
-        >
-          <option value={ContentEditorPageStatus.Draft}>{statusLabels.draft}</option>
-          <option value={ContentEditorPageStatus.Published}>{statusLabels.published}</option>
-          <option value={ContentEditorPageStatus.Hidden}>{statusLabels.hidden}</option>
-        </select>
       </div>
 
       <label className="flex items-center gap-1.5 cursor-pointer">
@@ -659,6 +648,17 @@ function hydrateEditorSlices(
     type: ContentBodyActionType.Hydrate,
     entries: [{ slug: page.slug, content: page.content }],
   });
+  dispatch.publications({
+    type: PublicationsActionType.Hydrate,
+    entries: [
+      {
+        slug: page.slug,
+        pageId: page.id,
+        contextMask: page.contextMask,
+        publications: page.publications,
+      },
+    ],
+  });
   dispatch.translations({
     type: ContentTranslationsActionType.Hydrate,
     entries: (page.translations ?? []).map((translation) => ({
@@ -738,7 +738,8 @@ export function ContentEditorPage() {
   const pageMessages = messages.content.pages;
   const { slug = "" } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { data: page, isLoading } = useAdminContentPage(slug);
+  const { data: page, isLoading, isError: isPageError, error: pageError } = useAdminContentPage(slug);
+  const { data: navigationConfiguration } = useAdminNavigationConfiguration();
   const deletePage = useDeleteContentPage();
   const deleteTranslation = useDeleteTranslation(slug);
   const { phase: savedPhase } = useSaveNotification();
@@ -758,6 +759,19 @@ export function ContentEditorPage() {
 
   usePageEditorHydration(page, editor);
 
+  useEffect(() => {
+    if (!page || !navigationConfiguration) return;
+    let navigationContextMask = 0;
+    for (const entry of navigationConfiguration.entries) {
+      if (entry.pageId === page.id) navigationContextMask |= entry.contextMask;
+    }
+    editor.dispatch.publications({
+      type: PublicationsActionType.SetNavigationDependencies,
+      slug: page.slug,
+      contextMask: navigationContextMask,
+    });
+  }, [editor.dispatch, navigationConfiguration, page]);
+
   // ---------------------------------------------------------------------------
   // Slice readers — reflect live edits, fall back to server data on first paint.
   // ---------------------------------------------------------------------------
@@ -766,6 +780,9 @@ export function ContentEditorPage() {
   const contentCurrent = page ? (editor.content.pages[page.slug]?.current ?? page.content) : "";
   const translationCurrent = (loc: Locale) =>
     page ? editor.translations.byPage[page.slug]?.[loc]?.current : undefined;
+  const publicationPage = page ? editor.publications.pages[page.slug] : undefined;
+  const publicationCurrent =
+    publicationPage?.current ?? (page ? { contextMask: page.contextMask, publications: page.publications } : null);
 
   const setMeta = useCallback(
     <K extends keyof MetaFields>(field: K, value: MetaFields[K]) => {
@@ -884,6 +901,37 @@ export function ContentEditorPage() {
   // Page-header title falls back to the base when a translation has no title yet.
   const headerTitle = displayTitle || activeTitle.fallback || baseTitle;
 
+  const previews = buildPublicationPreviews(
+    publicationCurrent?.publications ?? [],
+    {
+      [ContentContext.Frontend]: `${pageMessages.contexts.frontend} ${editorMessages.preview}`,
+      [ContentContext.DeveloperPortal]: `${pageMessages.contexts.developerPortal} ${editorMessages.preview}`,
+    },
+    {
+      [ContentContext.Frontend]: FRONTEND_PREVIEW_BASE_URL,
+      [ContentContext.DeveloperPortal]: DEVELOPER_PREVIEW_BASE_URL,
+    },
+  );
+
+  if (isPageError) {
+    const systemOwned = pageError instanceof SystemOwnedContentPageError;
+    return (
+      <PageLayout>
+        <PageHeader
+          title={pageMessages.title}
+          renderLeading={() => <HeaderBackButton label={pageMessages.title} onClick={() => navigate("/pages")} />}
+        />
+        <PageBody>
+          <ContentUnavailableView
+            icon={<FileLockIcon weight="duotone" aria-hidden />}
+            title={systemOwned ? pageMessages.docsReserved : common.unknownError}
+            subtitle={pageError instanceof Error ? pageError.message : undefined}
+          />
+        </PageBody>
+      </PageLayout>
+    );
+  }
+
   return (
     <PageLayout>
       <ContentEditorHeader
@@ -897,9 +945,7 @@ export function ContentEditorPage() {
         onDecreaseFont={() => changeFontSize(-1)}
         onIncreaseFont={() => changeFontSize(+1)}
         onOpenDelete={() => dispatch({ type: EditorActionType.SetConfirmDelete, value: true })}
-        onPreview={() => {
-          window.open(`${FRONTEND_PREVIEW_BASE_URL}/${slug}`, "_blank");
-        }}
+        previews={previews}
       />
 
       {page && metaCurrent && (
@@ -909,7 +955,6 @@ export function ContentEditorPage() {
           editingSlug={state.editingSlug}
           editSlugValue={state.editSlugValue}
           editorMessages={editorMessages}
-          statusLabels={pageMessages.status}
           locale={locale}
           common={common}
           onStartEditSlug={() => {
@@ -920,24 +965,12 @@ export function ContentEditorPage() {
           onSlugBlur={(value) => dispatch({ type: EditorActionType.SetEditSlugValue, value: slugify(value) })}
           onSaveSlug={handleSlugSave}
           onCancelSlug={() => dispatch({ type: EditorActionType.SetEditingSlug, value: false })}
-          onStatusChange={(value) => setMeta("status", value as ContentStatus)}
           onShowTitleChange={(value) => setMeta("showTitle", value)}
           onTitleAlignmentChange={(value) => setMeta("titleAlignment", value)}
         />
       )}
 
-      {page && metaCurrent && (
-        <PageDisplaySettings
-          displayMode={metaCurrent.displayMode}
-          overlayWidth={metaCurrent.overlayWidth}
-          contentCardStyle={metaCurrent.contentCardStyle}
-          onChange={(patch) => {
-            if (patch.displayMode !== undefined) setMeta("displayMode", patch.displayMode);
-            if (patch.overlayWidth !== undefined) setMeta("overlayWidth", patch.overlayWidth);
-            if (patch.contentCardStyle !== undefined) setMeta("contentCardStyle", patch.contentCardStyle);
-          }}
-        />
-      )}
+      {page && metaCurrent && <PagePublishingEditor page={page} meta={metaCurrent} onMetaChange={setMeta} />}
 
       {/* Locale tabs define the localization context for the page title,
           SegmentManager, and markdown content below. */}
