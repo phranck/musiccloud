@@ -1,0 +1,43 @@
+---
+import PublicFooter from "@/components/PublicFooter.astro";
+import PublicHeader from "@/components/PublicHeader.astro";
+import EditorialPage from "@/components/editorial/EditorialPage.astro";
+import EditorialStatus from "@/components/editorial/EditorialStatus.astro";
+import { fetchEditorialPage, isManagedEditorialPath } from "@/lib/editorial";
+import { getDeveloperSession } from "@/lib/session";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+
+const managedPath = isManagedEditorialPath(Astro.url.pathname);
+const result = managedPath ? await fetchEditorialPage(Astro.url.pathname) : { status: "not-found" as const };
+if (result.status === "not-found") Astro.response.status = 404;
+if (result.status === "failure") Astro.response.status = 503;
+const account = result.status === "success" ? null : await getDeveloperSession(Astro);
+---
+
+{
+  result.status === "success" ? (
+    <EditorialPage page={result.data} />
+  ) : (
+    <BaseLayout
+      title={result.status === "not-found" ? "Page not found · musiccloud for developers" : "Content unavailable · musiccloud for developers"}
+      description={result.status === "not-found" ? "The requested page was not found." : "Developer content is temporarily unavailable."}
+    >
+      <PublicHeader account={account} />
+      <main class="developer-shell developer-page flex-1">
+        {
+          result.status === "not-found" ? (
+            <EditorialStatus title="Page not found" message="The requested editorial page is not published." />
+          ) : (
+            <EditorialStatus
+              title="Content temporarily unavailable"
+              message={result.error.message}
+              code={result.error.code}
+              errorId={result.error.errorId}
+            />
+          )
+        }
+      </main>
+      <PublicFooter />
+    </BaseLayout>
+  )
+}

@@ -112,6 +112,8 @@
   --mc-code-padding-inline: 1rem;
   --mc-code-copy-clearance: 3.5rem;
   --mc-code-line-height: 1.7;
+  --mc-editorial-line-height: 1.6;
+  --mc-editorial-heading-line-height: 1.25;
 
   --mc-font-sans: "Barlow", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --mc-font-condensed: "Barlow Condensed", "Barlow", sans-serif;

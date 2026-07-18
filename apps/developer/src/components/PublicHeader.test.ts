@@ -2,6 +2,7 @@ import { loadRenderers } from "astro:container";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { getContainerRenderer } from "@astrojs/react";
+import { NavigationSystemKey, NavigationTargetKind } from "@musiccloud/shared";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it } from "vitest";
 import PublicHeader from "./PublicHeader.astro";
@@ -34,6 +35,7 @@ describe("PublicHeader", () => {
 
   it("uses the requested Iconsax icons for the API, pricing, and sign-in entries", () => {
     const header = readFileSync(join(import.meta.dirname, "PublicHeader.astro"), "utf8");
+    const items = readFileSync(join(import.meta.dirname, "PublicNavigationItems.astro"), "utf8");
     const navigation = readFileSync(join(import.meta.dirname, "../lib/publicNavigation.ts"), "utf8");
     const icons = readFileSync(join(import.meta.dirname, "../lib/icons.tsx"), "utf8");
 
@@ -44,8 +46,9 @@ describe("PublicHeader", () => {
     expect(icons).toContain("SearchStatus,");
     expect(icons).toContain("export const DollarSquareIcon = bulk(DollarSquare);");
     expect(icons).toContain("export const SearchStatusIcon = bulk(SearchStatus);");
-    expect(header).toContain('import { LoginIcon, MenuIcon } from "@/lib/icons";');
-    expect(header).toMatch(/<LoginIcon className="public-navigation__item-icon" aria-hidden="true" \/>/);
+    expect(header).toContain('import PublicNavigationItems from "@/components/PublicNavigationItems.astro";');
+    expect(items).toContain('import { LoginIcon } from "@/lib/icons";');
+    expect(items).toMatch(/<LoginIcon className="public-navigation__item-icon" aria-hidden="true" \/>/);
   });
 
   it("keeps signed-in header controls inside the narrowest viewport", () => {
@@ -101,5 +104,39 @@ describe("PublicHeader", () => {
       /if \(isApiReference\(\)\) \{[\s\S]*document\.documentElement\.dataset\.apiSearchRequested = "true";[\s\S]*apiSearchWindow\.musiccloudApiSearchOpen\(\);[\s\S]*window\.dispatchEvent\(new CustomEvent\("musiccloud:api-search-open"\)\);[\s\S]*return;/,
     );
     expect(header).toMatch(/\}\s*window\.location\.assign\(searchHref\);/);
+  });
+
+  it("renders managed entries and preserves the protected Search command", async () => {
+    const container = await AstroContainer.create({ renderers: await loadRenderers([getContainerRenderer()]) });
+    const html = await container.renderToString(PublicHeader, {
+      props: {
+        account: null,
+        navigation: [
+          {
+            id: "managed-page",
+            label: "Company",
+            href: "/company",
+            target: "_self",
+            targetKind: NavigationTargetKind.Page,
+            systemKey: null,
+            behavior: "navigate",
+          },
+          {
+            id: "managed-search",
+            label: "Find API",
+            href: "/docs/api?search=1",
+            target: "_self",
+            targetKind: NavigationTargetKind.System,
+            systemKey: NavigationSystemKey.Search,
+            behavior: "open-api-search",
+          },
+        ],
+      },
+    });
+
+    expect(html.match(/>\s*Company\s*</g)).toHaveLength(2);
+    expect(html.match(/>\s*Find API\s*</g)).toHaveLength(2);
+    expect(html.match(/data-public-search-command/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(html).not.toContain(">Pricing<");
   });
 });

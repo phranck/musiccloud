@@ -256,6 +256,39 @@ export interface PublicContentPage {
   segments: PublicPageSegment[];
 }
 
+/** Published editorial Page rendered by the public Developer Portal SSR shell. */
+export interface DeveloperPortalEditorialPage {
+  id: string;
+  path: string;
+  title: string;
+  showTitle: boolean;
+  titleAlignment: PageTitleAlignment;
+  pageType: PageType;
+  displayMode: PageDisplayMode;
+  overlayWidth: OverlayWidth;
+  contentCardStyle: ContentCardStyle;
+  templateKey: string;
+  /** Sanitized HTML produced by the context-aware Backend Markdown renderer. */
+  contentHtml: string;
+}
+
+/** One public Developer Portal navigation destination resolved for SSR. */
+export interface DeveloperPortalNavigationItem {
+  id: string;
+  label: string;
+  href: string;
+  target: NavTarget;
+  targetKind: NavigationTargetKind;
+  systemKey: NavigationSystemKey | null;
+  behavior: NavigationSystemBehavior;
+}
+
+/** One independently ordered Developer Portal Main or Footer projection. */
+export interface DeveloperPortalNavigation {
+  area: SingleNavigationArea;
+  items: DeveloperPortalNavigationItem[];
+}
+
 export interface PagesBulkPagesEntry {
   slug: string;
   meta?: Partial<{

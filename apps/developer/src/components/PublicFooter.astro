@@ -8,7 +8,17 @@
  * muted foreground (not the darker subtle tone) so it stays comfortably
  * legible over the night-sky gradient.
  */
-import { FOOTER_LINKS } from "@/lib/footerLinks";
+import type { DeveloperPortalNavigationItem } from "@musiccloud/shared";
+import { NavigationArea } from "@musiccloud/shared";
+import { getDeveloperPortalNavigation } from "@/lib/editorial";
+
+interface Props {
+  /** Explicit managed data for isolated rendering; normal SSR loads Footer. */
+  navigation?: readonly DeveloperPortalNavigationItem[];
+}
+
+const { navigation: suppliedNavigation } = Astro.props;
+const navigation = suppliedNavigation ?? (await getDeveloperPortalNavigation(NavigationArea.Footer));
 ---
 
 <footer class="public-footer">
@@ -16,17 +26,20 @@ import { FOOTER_LINKS } from "@/lib/footerLinks";
     <span>© musiccloud</span>
     <nav class="public-footer__navigation" aria-label="Footer">
       {
-        FOOTER_LINKS.map((link) =>
-          link.external ? (
-            <a href={link.href} target="_blank" rel="noopener noreferrer" class="content-link">
+        navigation.map((link) => {
+          const isExternal = link.target === "_blank";
+          return (
+            <a
+              href={link.href}
+              target={isExternal ? "_blank" : undefined}
+              rel={isExternal ? "noopener noreferrer" : undefined}
+              class="content-link"
+              data-public-search-command={link.behavior === "open-api-search" ? "true" : undefined}
+            >
               {link.label}
             </a>
-          ) : (
-            <a href={link.href} class="content-link">
-              {link.label}
-            </a>
-          ),
-        )
+          );
+        })
       }
     </nav>
   </div>

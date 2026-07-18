@@ -1,0 +1,59 @@
+---
+/** Shared managed navigation-entry renderer for desktop and mobile Header lists. */
+import type { DeveloperPortalNavigationItem } from "@musiccloud/shared";
+import { LoginIcon } from "@/lib/icons";
+import { KeyCap } from "@/components/KeyCap";
+import {
+  PUBLIC_SEARCH_COMMAND,
+  publicNavigationIcon,
+  publicNavigationId,
+  type PublicNavigationId,
+} from "@/lib/publicNavigation";
+
+interface Props {
+  active?: PublicNavigationId;
+  navigation: readonly DeveloperPortalNavigationItem[];
+  showLogin: boolean;
+}
+
+const { active, navigation, showLogin } = Astro.props;
+const isActive = (item: DeveloperPortalNavigationItem) => {
+  if (active) return active === publicNavigationId(item);
+  if (!item.href.startsWith("/")) return false;
+  return new URL(item.href, Astro.url).pathname === Astro.url.pathname;
+};
+const navClass = (item: DeveloperPortalNavigationItem) =>
+  isActive(item)
+    ? "public-navigation__link public-navigation__link--active"
+    : "public-navigation__link";
+---
+
+{
+  navigation.map((item) => {
+    const Icon = publicNavigationIcon(item);
+    const isSearch = item.behavior === "open-api-search";
+    const isExternal = item.target === "_blank";
+    return (
+      <a
+        href={item.href}
+        target={isExternal ? "_blank" : undefined}
+        rel={isExternal ? "noopener noreferrer" : undefined}
+        aria-current={isActive(item) ? "page" : undefined}
+        class={navClass(item)}
+        data-public-search-command={isSearch ? "true" : undefined}
+      >
+        <Icon className="public-navigation__item-icon" aria-hidden="true" />
+        <span class="public-navigation__label">{item.label}</span>
+        {isSearch && <KeyCap shortcut={PUBLIC_SEARCH_COMMAND.shortcut} />}
+      </a>
+    );
+  })
+}
+{
+  showLogin && (
+    <a href="/login" class="public-navigation__link">
+      <LoginIcon className="public-navigation__item-icon" aria-hidden="true" />
+      <span class="public-navigation__label">Sign in</span>
+    </a>
+  )
+}
