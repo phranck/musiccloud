@@ -3,11 +3,18 @@ import type {
   ContentPage,
   ContentPublication,
   NavItem,
+  NavigationConfigurationInput,
   PageSegment,
   PageTranslation,
   TranslationStatus,
 } from "../content.js";
-import { ContentContext } from "../content-context.js";
+import {
+  isNavigationSystemKey,
+  NAVIGATION_SYSTEM_TARGETS,
+  NavigationSystemKey,
+  NavigationTargetKind,
+} from "../content.js";
+import { ContentContext, NavigationArea } from "../content-context.js";
 
 describe("content translation types", () => {
   it("ContentPublication identifies a context-specific page publication", () => {
@@ -95,5 +102,54 @@ describe("content translation types", () => {
       markdownValidation: { ok: true, errors: [] },
     };
     expect(p.translations).toEqual([]);
+  });
+
+  it("exposes immutable canonical semantics for protected navigation targets", () => {
+    expect(NAVIGATION_SYSTEM_TARGETS).toEqual({
+      docs: {
+        key: "docs",
+        canonicalRoute: "/docs",
+        behavior: "navigate",
+        target: "_self",
+      },
+      "api-reference": {
+        key: "api-reference",
+        canonicalRoute: "/docs/api",
+        behavior: "navigate",
+        target: "_self",
+      },
+      search: {
+        key: "search",
+        canonicalRoute: "/docs/api?search=1",
+        behavior: "open-api-search",
+        target: "_self",
+      },
+    });
+    expect(isNavigationSystemKey("docs")).toBe(true);
+    expect(isNavigationSystemKey("__proto__")).toBe(false);
+  });
+
+  it("types a complete contextual navigation configuration", () => {
+    const configuration: NavigationConfigurationInput = {
+      entries: [
+        {
+          targetKind: NavigationTargetKind.System,
+          pageId: null,
+          url: null,
+          systemKey: NavigationSystemKey.Docs,
+          target: "_self",
+          label: "Docs",
+          contextMask: ContentContext.DeveloperPortal,
+          areaMask: NavigationArea.Main | NavigationArea.Footer,
+          placements: [
+            { context: ContentContext.DeveloperPortal, area: NavigationArea.Main, position: 0 },
+            { context: ContentContext.DeveloperPortal, area: NavigationArea.Footer, position: 2 },
+          ],
+          translations: {},
+        },
+      ],
+    };
+
+    expect(configuration.entries[0]?.systemKey).toBe("docs");
   });
 });

@@ -3,7 +3,12 @@
  * backend service layer, dashboard editor, and Astro frontend renderer.
  */
 
-import type { ContentContextMask, SingleContentContext } from "./content-context.js";
+import type {
+  ContentContextMask,
+  NavigationAreaMask,
+  SingleContentContext,
+  SingleNavigationArea,
+} from "./content-context.js";
 import type { Locale } from "./locales.js";
 
 export type NavId = "header" | "footer";
@@ -13,6 +18,91 @@ export const NavTarget = {
 } as const;
 
 export type NavTarget = (typeof NavTarget)[keyof typeof NavTarget];
+
+export const NavigationTargetKind = {
+  Page: "page",
+  Url: "url",
+  System: "system",
+} as const;
+
+export type NavigationTargetKind = (typeof NavigationTargetKind)[keyof typeof NavigationTargetKind];
+
+export const NavigationSystemKey = {
+  Docs: "docs",
+  ApiReference: "api-reference",
+  Search: "search",
+} as const;
+
+export type NavigationSystemKey = (typeof NavigationSystemKey)[keyof typeof NavigationSystemKey];
+export type NavigationSystemBehavior = "navigate" | "open-api-search";
+
+export interface NavigationSystemTargetDescriptor {
+  readonly key: NavigationSystemKey;
+  readonly canonicalRoute: string;
+  readonly behavior: NavigationSystemBehavior;
+  readonly target: typeof NavTarget.Self;
+}
+
+export const NAVIGATION_SYSTEM_TARGETS: Readonly<Record<NavigationSystemKey, NavigationSystemTargetDescriptor>> =
+  Object.freeze({
+    [NavigationSystemKey.Docs]: Object.freeze({
+      key: NavigationSystemKey.Docs,
+      canonicalRoute: "/docs",
+      behavior: "navigate",
+      target: NavTarget.Self,
+    }),
+    [NavigationSystemKey.ApiReference]: Object.freeze({
+      key: NavigationSystemKey.ApiReference,
+      canonicalRoute: "/docs/api",
+      behavior: "navigate",
+      target: NavTarget.Self,
+    }),
+    [NavigationSystemKey.Search]: Object.freeze({
+      key: NavigationSystemKey.Search,
+      canonicalRoute: "/docs/api?search=1",
+      behavior: "open-api-search",
+      target: NavTarget.Self,
+    }),
+  });
+
+export function isNavigationSystemKey(value: unknown): value is NavigationSystemKey {
+  return typeof value === "string" && Object.hasOwn(NAVIGATION_SYSTEM_TARGETS, value);
+}
+
+export interface NavigationPlacement {
+  context: SingleContentContext;
+  area: SingleNavigationArea;
+  position: number;
+}
+
+export interface NavigationEntryInput {
+  targetKind: NavigationTargetKind;
+  pageId: string | null;
+  url: string | null;
+  systemKey: NavigationSystemKey | null;
+  target: NavTarget;
+  label: string | null;
+  contextMask: ContentContextMask;
+  areaMask: NavigationAreaMask;
+  placements: NavigationPlacement[];
+  translations?: Partial<Record<Locale, string>>;
+}
+
+export interface NavigationConfigurationInput {
+  entries: NavigationEntryInput[];
+}
+
+export interface NavigationEntry extends NavigationEntryInput {
+  id: number;
+  pageSlug: string | null;
+  pageTitle: string | null;
+  canonicalRoute: string | null;
+  behavior: NavigationSystemBehavior | null;
+}
+
+export interface NavigationConfiguration {
+  entries: NavigationEntry[];
+}
 
 export type ContentStatus = "draft" | "published" | "hidden";
 export const PageType = {

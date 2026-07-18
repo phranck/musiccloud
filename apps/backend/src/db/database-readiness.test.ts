@@ -48,7 +48,9 @@ describe("inspectDatabaseReadiness", () => {
 
     await expect(inspectDatabaseReadiness({ query }, expectations)).resolves.toEqual({
       insufficientPrivileges: [],
+      insufficientSequencePrivileges: [],
       missingMigrationHashes: [],
+      missingSequences: [],
       missingTables: [],
       ok: true,
       ownerMismatches: [],
@@ -83,7 +85,9 @@ describe("inspectDatabaseReadiness", () => {
 
     expect(report).toEqual({
       insufficientPrivileges: [],
+      insufficientSequencePrivileges: [],
       missingMigrationHashes: ["latest-hash"],
+      missingSequences: [],
       missingTables: ["album_vinyl_layouts"],
       ok: false,
       ownerMismatches: [{ actualOwner: "postgres", expectedOwner: "db", table: "albums" }],
@@ -124,6 +128,39 @@ describe("inspectDatabaseReadiness", () => {
       ok: false,
     });
   });
+
+  it("reports missing sequence USAGE separately from table privileges", async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({
+        rows: [{ allowed: true, owner: "db", privilege: "SELECT", table_exists: true, table_name: "albums" }],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            allowed: false,
+            sequence_exists: true,
+            sequence_name: "nav_items_id_seq",
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ hash: "latest-hash" }] });
+
+    await expect(
+      inspectDatabaseReadiness(
+        { query },
+        {
+          expectedMigrationHashes: ["latest-hash"],
+          privileges: [{ table: "albums", privilege: "SELECT" }],
+          sequencePrivileges: [{ sequence: "nav_items_id_seq", privilege: "USAGE" }],
+        },
+      ),
+    ).resolves.toMatchObject({
+      insufficientSequencePrivileges: [{ sequence: "nav_items_id_seq", privilege: "USAGE" }],
+      missingSequences: [],
+      ok: false,
+    });
+  });
 });
 
 describe("buildMusiccloudReadinessExpectations", () => {
@@ -137,6 +174,17 @@ describe("buildMusiccloudReadinessExpectations", () => {
         expect(result.privileges).toContainEqual({ table, privilege });
       }
     }
+  });
+
+  it("requires CRUD access for the complete navigation write model", () => {
+    const result = buildMusiccloudReadinessExpectations("latest-hash", "db");
+
+    for (const table of ["nav_items", "nav_item_translations", "navigation_item_placements"]) {
+      for (const privilege of ["SELECT", "INSERT", "UPDATE", "DELETE"]) {
+        expect(result.privileges).toContainEqual({ table, privilege });
+      }
+    }
+    expect(result.sequencePrivileges).toContainEqual({ sequence: "nav_items_id_seq", privilege: "USAGE" });
   });
 });
 

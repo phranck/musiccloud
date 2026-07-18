@@ -1,11 +1,36 @@
-import { ContentContext, type ContentPublication, PageType } from "@musiccloud/shared";
-import type { AdminRepository, ContentPageSummaryRow } from "../db/admin-repository.js";
+import {
+  ContentContext,
+  DEFAULT_LOCALE,
+  expectedNavigationPlacements,
+  hasAllContextBits,
+  isLocale,
+  isNavigationSystemKey,
+  isSafeConfiguredUrl,
+  isValidContentContextMask,
+  isValidNavigationAreaMask,
+  NAVIGATION_SYSTEM_TARGETS,
+  NavigationArea,
+  NavigationSystemKey,
+  NavigationTargetKind,
+  type ContentPublication,
+  type Locale,
+  type NavigationPlacement,
+  PageType,
+} from "@musiccloud/shared";
+import type {
+  AdminRepository,
+  ContentPageSummaryRow,
+  NavigationConfigurationEntryRow,
+  NavigationConfigurationReplaceInput,
+} from "../db/admin-repository.js";
 import { closeRepository, getAdminRepository } from "../db/index.js";
 import { isReservedDeveloperPortalPath, normalizeEditorialPath } from "../services/editorial-path.js";
 
 export interface ContextualContentBackfillResult {
   pages: number;
   publications: number;
+  navigationEntries: number;
+  navigationPlacements: number;
   conflicts: number;
   writes: number;
 }
@@ -13,6 +38,14 @@ export interface ContextualContentBackfillResult {
 interface BackfillAction {
   pageId: string;
   publications: ContentPublication[];
+}
+
+interface NavigationBackfillPlan {
+  entries: NavigationConfigurationReplaceInput[];
+  entryCount: number;
+  placementCount: number;
+  conflicts: number;
+  write: boolean;
 }
 
 export async function backfillContextualContent(
@@ -36,8 +69,8 @@ export async function backfillContextualContent(
     for (const publication of page.publications ?? []) {
       const normalizedPath = normalizeEditorialPath(publication.path);
       if (
-        publication.context === ContentContext.DeveloperPortal &&
-        isReservedDeveloperPortalPath(normalizedPath)
+        isDocsUrl(normalizedPath) ||
+        (publication.context === ContentContext.DeveloperPortal && isReservedDeveloperPortalPath(normalizedPath))
       ) {
         conflicts++;
         continue;
@@ -61,6 +94,10 @@ export async function backfillContextualContent(
       continue;
     }
     if (!existingFrontend) {
+      if (isDocsUrl(desired.path)) {
+        conflicts++;
+        continue;
+      }
       if (!registerClaim(`${ContentContext.Frontend}:${desired.path}`, pageId)) continue;
       actions.push({
         pageId,
@@ -74,9 +111,17 @@ export async function backfillContextualContent(
     }
   }
 
+  const navigationPlan =
+    typeof repo.listNavigationConfiguration === "function"
+      ? await planNavigationBackfill(repo, pages)
+      : { entries: [], entryCount: 0, placementCount: 0, conflicts: 0, write: false };
+  conflicts += navigationPlan.conflicts;
+
   const result: ContextualContentBackfillResult = {
     pages: pages.length,
     publications: pages.length,
+    navigationEntries: navigationPlan.entryCount,
+    navigationPlacements: navigationPlan.placementCount,
     conflicts,
     writes: 0,
   };
@@ -90,7 +135,233 @@ export async function backfillContextualContent(
     await repo.replaceContentPublications(action.pageId, action.publications);
     result.writes++;
   }
+  if (navigationPlan.write) {
+    await repo.replaceNavigationConfiguration(navigationPlan.entries);
+    result.writes++;
+  }
   return result;
+}
+
+async function planNavigationBackfill(
+  repo: AdminRepository,
+  pages: ContentPageSummaryRow[],
+): Promise<NavigationBackfillPlan> {
+  const existing = await repo.listNavigationConfiguration();
+  const hasPlacements = existing.some((entry) => entry.placements.length > 0);
+  if (hasPlacements) return validateExistingNavigation(existing, pages);
+
+  const [header, footer, headerTranslations, footerTranslations] = await Promise.all([
+    repo.listAdminNavItems("header"),
+    repo.listAdminNavItems("footer"),
+    repo.listNavTranslations("header"),
+    repo.listNavTranslations("footer"),
+  ]);
+  const pagesBySlug = new Map(pages.map((page) => [page.slug, page]));
+  const translationsByItemId = new Map<number, Partial<Record<Locale, string>>>();
+  for (const translation of [...headerTranslations, ...footerTranslations]) {
+    if (!isLocale(translation.locale) || translation.locale === DEFAULT_LOCALE) continue;
+    const translations = translationsByItemId.get(translation.navItemId) ?? {};
+    translations[translation.locale] = translation.label;
+    translationsByItemId.set(translation.navItemId, translations);
+  }
+
+  let conflicts = 0;
+  const positions = new Set<string>();
+  const entries: NavigationConfigurationReplaceInput[] = [];
+  for (const [navId, rows] of [
+    ["header", header],
+    ["footer", footer],
+  ] as const) {
+    const area = navId === "header" ? NavigationArea.Main : NavigationArea.Footer;
+    for (const row of rows) {
+      const positionKey = `${ContentContext.Frontend}:${area}:${row.position}`;
+      if (positions.has(positionKey)) conflicts++;
+      positions.add(positionKey);
+
+      const placement: NavigationPlacement = {
+        context: ContentContext.Frontend,
+        area,
+        position: row.position,
+      };
+      if (row.pageSlug) {
+        const page = pagesBySlug.get(row.pageSlug);
+        if (!page?.id || !page.contextMask || !hasAllContextBits(page.contextMask, ContentContext.Frontend)) {
+          conflicts++;
+          continue;
+        }
+        if (pageClaimsDocsNamespace(page)) {
+          conflicts++;
+          continue;
+        }
+        if (row.url !== null) conflicts++;
+        entries.push({
+          targetKind: NavigationTargetKind.Page,
+          pageId: page.id,
+          url: null,
+          systemKey: null,
+          target: row.target,
+          label: row.label,
+          contextMask: ContentContext.Frontend,
+          areaMask: area,
+          placements: [placement],
+          translations: translationsByItemId.get(row.id) ?? {},
+        });
+        continue;
+      }
+
+      if (!row.url || !isSafeConfiguredUrl(row.url, { allowRelative: true, allowMailto: true }) || isDocsUrl(row.url)) {
+        conflicts++;
+        continue;
+      }
+      entries.push({
+        targetKind: NavigationTargetKind.Url,
+        pageId: null,
+        url: row.url,
+        systemKey: null,
+        target: row.target,
+        label: row.label,
+        contextMask: ContentContext.Frontend,
+        areaMask: area,
+        placements: [placement],
+        translations: translationsByItemId.get(row.id) ?? {},
+      });
+    }
+  }
+
+  const systemLabels: Record<NavigationSystemKey, string> = {
+    [NavigationSystemKey.Docs]: "Docs",
+    [NavigationSystemKey.ApiReference]: "API reference",
+    [NavigationSystemKey.Search]: "Search",
+  };
+  for (const [position, systemKey] of [
+    NavigationSystemKey.Docs,
+    NavigationSystemKey.ApiReference,
+    NavigationSystemKey.Search,
+  ].entries()) {
+    entries.push({
+      targetKind: NavigationTargetKind.System,
+      pageId: null,
+      url: null,
+      systemKey,
+      target: NAVIGATION_SYSTEM_TARGETS[systemKey].target,
+      label: systemLabels[systemKey],
+      contextMask: ContentContext.DeveloperPortal,
+      areaMask: NavigationArea.Main,
+      placements: [{ context: ContentContext.DeveloperPortal, area: NavigationArea.Main, position }],
+      translations: {},
+    });
+  }
+
+  return {
+    entries,
+    entryCount: entries.length,
+    placementCount: entries.reduce((count, entry) => count + entry.placements.length, 0),
+    conflicts,
+    write: conflicts === 0,
+  };
+}
+
+function validateExistingNavigation(
+  existing: NavigationConfigurationEntryRow[],
+  pages: ContentPageSummaryRow[],
+): NavigationBackfillPlan {
+  const pagesById = new Map(pages.filter((page) => page.id).map((page) => [page.id!, page]));
+  const positions = new Set<string>();
+  const systemKeys = new Set<NavigationSystemKey>();
+  let conflicts = 0;
+
+  for (const entry of existing) {
+    if (!isValidContentContextMask(entry.contextMask) || !isValidNavigationAreaMask(entry.areaMask)) {
+      conflicts++;
+      continue;
+    }
+    const expected = new Set(
+      expectedNavigationPlacements(entry.contextMask, entry.areaMask).map(
+        (placement) => `${placement.context}:${placement.area}`,
+      ),
+    );
+    const actual = new Set(entry.placements.map((placement) => `${placement.context}:${placement.area}`));
+    if (
+      entry.placements.length !== expected.size ||
+      actual.size !== expected.size ||
+      [...expected].some((key) => !actual.has(key))
+    ) {
+      conflicts++;
+    }
+    for (const placement of entry.placements) {
+      const key = `${placement.context}:${placement.area}:${placement.position}`;
+      if (!Number.isInteger(placement.position) || placement.position < 0 || positions.has(key)) conflicts++;
+      positions.add(key);
+    }
+
+    if (entry.targetKind === NavigationTargetKind.System) {
+      if (
+        !isNavigationSystemKey(entry.systemKey) ||
+        entry.pageId !== null ||
+        entry.url !== null ||
+        entry.target !== NAVIGATION_SYSTEM_TARGETS[entry.systemKey]?.target ||
+        entry.contextMask !== ContentContext.DeveloperPortal ||
+        systemKeys.has(entry.systemKey)
+      ) {
+        conflicts++;
+        continue;
+      }
+      systemKeys.add(entry.systemKey);
+      continue;
+    }
+
+    if (entry.systemKey !== null) conflicts++;
+    if (entry.targetKind === NavigationTargetKind.Page) {
+      const page = entry.pageId ? pagesById.get(entry.pageId) : undefined;
+      if (
+        !page?.contextMask ||
+        !hasAllContextBits(page.contextMask, entry.contextMask) ||
+        entry.url !== null ||
+        pageClaimsDocsNamespace(page)
+      ) {
+        conflicts++;
+      }
+    } else if (
+      entry.targetKind !== NavigationTargetKind.Url ||
+      entry.pageId !== null ||
+      !entry.url ||
+      !isSafeConfiguredUrl(entry.url, { allowRelative: true, allowMailto: true }) ||
+      isDocsUrl(entry.url)
+    ) {
+      conflicts++;
+    }
+  }
+
+  for (const key of [NavigationSystemKey.Docs, NavigationSystemKey.ApiReference, NavigationSystemKey.Search]) {
+    if (!systemKeys.has(key)) conflicts++;
+  }
+
+  return {
+    entries: existing.map(({ id: _id, pageSlug: _pageSlug, pageTitle: _pageTitle, labelUpdatedAt: _at, ...entry }) =>
+      entry,
+    ),
+    entryCount: existing.length,
+    placementCount: existing.reduce((count, entry) => count + entry.placements.length, 0),
+    conflicts,
+    write: false,
+  };
+}
+
+function isDocsUrl(url: string): boolean {
+  if (!url.startsWith("/")) return false;
+  try {
+    const path = normalizeEditorialPath(new URL(url, "https://navigation.invalid").pathname);
+    return path === "/docs" || path.startsWith("/docs/");
+  } catch {
+    return true;
+  }
+}
+
+function pageClaimsDocsNamespace(page: ContentPageSummaryRow): boolean {
+  return (
+    (page.publications ?? []).some((publication) => isDocsUrl(publication.path)) ||
+    isDocsUrl(legacyFrontendPublication(page).path)
+  );
 }
 
 function legacyFrontendPublication(page: ContentPageSummaryRow): ContentPublication {
@@ -115,7 +386,7 @@ function samePublication(
 }
 
 export function formatBackfillSummary(result: ContextualContentBackfillResult): string {
-  return `pages=${result.pages} publications=${result.publications} conflicts=${result.conflicts} writes=${result.writes}`;
+  return `pages=${result.pages} publications=${result.publications} navigationEntries=${result.navigationEntries} navigationPlacements=${result.navigationPlacements} conflicts=${result.conflicts} writes=${result.writes}`;
 }
 
 async function main(): Promise<void> {

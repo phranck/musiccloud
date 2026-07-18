@@ -3,6 +3,11 @@ import type {
   ContentContextMask,
   ContentPublication,
   EmailBlock,
+  NavigationAreaMask,
+  NavigationEntryInput,
+  NavigationPlacement,
+  NavigationSystemKey,
+  NavigationTargetKind,
   OverlayWidth,
   PageDisplayMode,
   PageTitleAlignment,
@@ -373,6 +378,29 @@ export interface NavItemReplaceInput {
   url?: string | null;
   label?: string | null;
   target?: NavTarget;
+}
+
+/** Contextual navigation row returned by the atomic configuration repository. */
+export interface NavigationConfigurationEntryRow extends NavigationEntryInput {
+  id: number;
+  pageSlug: string | null;
+  pageTitle: string | null;
+  labelUpdatedAt: Date;
+  placements: NavigationPlacement[];
+}
+
+/** Fully validated contextual navigation entry accepted by persistence. */
+export interface NavigationConfigurationReplaceInput {
+  targetKind: NavigationTargetKind;
+  pageId: string | null;
+  url: string | null;
+  systemKey: NavigationSystemKey | null;
+  target: NavTarget;
+  label: string | null;
+  contextMask: ContentContextMask;
+  areaMask: NavigationAreaMask;
+  placements: NavigationPlacement[];
+  translations?: Partial<Record<string, string>>;
 }
 
 /**
@@ -850,6 +878,12 @@ export interface AdminRepository {
    * @returns The matching rows.
    */
   replaceAdminNavItems(navId: NavId, items: NavItemReplaceInput[]): Promise<NavItemRow[]>;
+  /** Lists the complete contextual navigation configuration. */
+  listNavigationConfiguration(): Promise<NavigationConfigurationEntryRow[]>;
+  /** Atomically replaces entries, placements, and label translations. */
+  replaceNavigationConfiguration(
+    entries: NavigationConfigurationReplaceInput[],
+  ): Promise<NavigationConfigurationEntryRow[]>;
 
   // Page segments (for content_pages with page_type = 'segmented')
   /**

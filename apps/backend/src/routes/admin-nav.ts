@@ -1,13 +1,29 @@
-import { isLocale, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import { ENDPOINTS, isLocale, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 
-import { getManagedNavItems, isValidNavId, replaceManagedNavItems } from "../services/admin-nav.js";
+import {
+  getManagedNavItems,
+  getManagedNavigationConfiguration,
+  isValidNavId,
+  replaceManagedNavItems,
+  replaceManagedNavigationConfiguration,
+} from "../services/admin-nav.js";
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === "object" && !Array.isArray(v);
 }
 
 export default async function adminNavRoutes(app: FastifyInstance) {
+  // GET /api/admin/nav
+  app.get(ENDPOINTS.admin.navigations.configuration, async () => getManagedNavigationConfiguration());
+
+  // PUT /api/admin/nav
+  app.put(ENDPOINTS.admin.navigations.configuration, async (request, reply) => {
+    const result = await replaceManagedNavigationConfiguration(request.body);
+    if (!result.ok) return reply.status(400).send({ error: result.code, message: result.message });
+    return result.data;
+  });
+
   // GET /api/admin/nav/:navId
   app.get<{ Params: { navId: string } }>(ROUTE_TEMPLATES.admin.navigations.detail, async (request, reply) => {
     const { navId } = request.params;

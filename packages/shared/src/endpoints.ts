@@ -306,6 +306,8 @@ export const ENDPOINTS = {
     },
 
     navigations: {
+      /** GET / PUT: complete contextual navigation configuration. */
+      configuration: "/api/admin/nav",
       /** GET / PUT: managed navigation items for "header" or "footer". */
       detail: (navId: "header" | "footer") => `/api/admin/nav/${navId}`,
     },
