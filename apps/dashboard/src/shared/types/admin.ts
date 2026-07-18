@@ -1,13 +1,11 @@
 import type { AdminRole } from "../constants/domain";
 
 export type { AdminRole };
-export type AdminLocale = "de" | "en";
 
 export interface AdminUser {
   id: string;
   username: string;
   email?: string;
-  locale: AdminLocale;
   role: AdminRole;
   isOwner: boolean;
   firstName?: string | null;

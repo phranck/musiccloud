@@ -8,7 +8,7 @@ import {
 import { CopyIcon, PersonIcon, PlusCircleIcon, UserCheckIcon, UserPlusIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { useAuth } from "@/features/auth/AuthContext";
 import { getSegmentedStorageKey } from "@/lib/segmented-storage";
 import { AdminRole } from "@/shared/constants/domain";
@@ -25,7 +25,7 @@ interface UserCreateCardProps {
 }
 
 export function UserCreateCard({ onClose, onCreated }: UserCreateCardProps) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const { user } = useAuth();
   const common = messages.common;
   const usersMessages = messages.users;

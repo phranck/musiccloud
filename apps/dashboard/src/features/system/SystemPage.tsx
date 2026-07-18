@@ -8,7 +8,7 @@ import {
 import { ENDPOINTS } from "@musiccloud/shared";
 import { useEffect, useState } from "react";
 
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { api } from "@/lib/api";
 
 interface ClearResult {
@@ -38,7 +38,7 @@ function CacheAction<T = ClearResult>({
   /** Turn the API response into the success message. Defaults to `${messages.system.entriesDeleted}` using `{count}` from `(result as ClearResult).deleted`. */
   formatSuccess?: (result: T) => string;
 }) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const [state, setState] = useState<ActionState>(ActionState.Idle);
   const [message, setMessage] = useState("");
 
@@ -92,7 +92,7 @@ function CacheAction<T = ClearResult>({
 // ---------------------------------------------------------------------------
 
 function TrackingToggle() {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const m = messages.system;
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
@@ -164,7 +164,7 @@ function albumsLabel(n: number) {
 }
 
 function DangerZone() {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const m = messages.system;
   const [phase, setPhase] = useState<DangerPhase>(DangerPhase.Idle);
   const [counts, setCounts] = useState<{ tracks: number; albums: number } | null>(null);
@@ -308,7 +308,7 @@ function DangerZone() {
 // ---------------------------------------------------------------------------
 
 export function SystemPage() {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const m = messages.system;
 
   return (

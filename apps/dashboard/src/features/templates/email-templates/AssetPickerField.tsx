@@ -3,7 +3,7 @@ import { ImageIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { AssetPicker } from "@/features/templates/email-templates/AssetPicker";
 
 interface AssetPickerPreviewProps {
@@ -41,7 +41,7 @@ interface AssetPickerActionsProps {
  * belong right-aligned in the card footer.
  */
 export function AssetPickerActions({ assetId, onAssetChange }: AssetPickerActionsProps) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const m = messages.emailTemplates;
   const [pickerOpen, setPickerOpen] = useState(false);
 

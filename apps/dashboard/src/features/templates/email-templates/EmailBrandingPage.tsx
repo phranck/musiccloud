@@ -5,7 +5,7 @@ import { lazy, type ReactNode, Suspense, useRef, useState } from "react";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SaveNotification, useSaveNotification } from "@/components/ui/SaveNotification";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import {
   AssetPickerActions,
   AssetPickerField,
@@ -72,7 +72,7 @@ const FOOTER_TEXT_EDITOR_HEIGHT_STORAGE_KEY = "musiccloud.emailBranding.footerTe
  * delta) means "remove image" (an asset id set to `null`) reliably clears it.
  */
 export function EmailBrandingPage() {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const m = messages.emailTemplates;
   const common = messages.common;
 
@@ -254,7 +254,7 @@ function BackgroundEditor({
   onAssetChange,
   swatches,
 }: BackgroundEditorProps) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const m = messages.emailTemplates;
 
   return (

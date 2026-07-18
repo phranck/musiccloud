@@ -23,8 +23,9 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { Toolbar } from "@/components/ui/Toolbar";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
+import { formatEnglishDate } from "@/lib/format";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { Dialog } from "@/shared/ui/Dialog";
 
@@ -50,12 +51,12 @@ function releaseYear(date: string | null): string {
 }
 
 function formatDate(ts: number): string {
-  return new Date(ts).toLocaleDateString(undefined, { dateStyle: "medium" });
+  return formatEnglishDate(ts, { dateStyle: "medium" });
 }
 
 type AlbumTable = ReturnType<typeof useInfiniteAdminTable<AlbumListItem>>;
-type AlbumMessages = ReturnType<typeof useI18n>["messages"]["music"]["albums"];
-type MusicColumnMessages = ReturnType<typeof useI18n>["messages"]["music"]["columns"];
+type AlbumMessages = (typeof dashboardCopy)["music"]["albums"];
+type MusicColumnMessages = (typeof dashboardCopy)["music"]["columns"];
 
 function useAlbumColumns(table: AlbumTable, ma: AlbumMessages, mc: MusicColumnMessages): ColumnDef<AlbumListItem>[] {
   return useMemo<ColumnDef<AlbumListItem>[]>(
@@ -177,7 +178,7 @@ function useAlbumColumns(table: AlbumTable, ma: AlbumMessages, mc: MusicColumnMe
 }
 
 export function AlbumsPage() {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const ma = messages.music.albums;
   const m = messages.music.table;
   const [confirmOpen, setConfirmOpen] = useState(false);

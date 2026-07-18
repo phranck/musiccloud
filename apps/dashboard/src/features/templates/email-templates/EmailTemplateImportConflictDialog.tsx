@@ -2,7 +2,7 @@ import { DashboardActionButton, DashboardActionId, DashboardButtonVariant } from
 import { DownloadIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { Dialog, dialogHeaderIconClass } from "@/shared/ui/Dialog";
 
 interface EmailTemplateImportConflictDialogProps {
@@ -24,7 +24,7 @@ export function EmailTemplateImportConflictDialog({
   onRename,
   onCancel,
 }: EmailTemplateImportConflictDialogProps) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const m = messages.emailTemplates;
   const ie = messages.common.importExport;
   const [showRename, setShowRename] = useState(false);

@@ -4,7 +4,7 @@ import { RowsIcon } from "@phosphor-icons/react";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { NumberCircleIcon } from "@/components/ui/NumberCircleIcon";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { usePagesEditor } from "@/features/content/state/PagesEditorContext";
 import { normalizeSegmentEntry, SegmentsActionType } from "@/features/content/state/slices/segmentsSlice";
 
@@ -14,7 +14,7 @@ interface Props {
 }
 
 export function SegmentManager({ page, activeLocale }: Props) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const text = messages.content.pages.segments;
   const editor = usePagesEditor();
 

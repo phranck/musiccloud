@@ -1,7 +1,7 @@
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 
 export function ContentEditorLoadingFallback() {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   return (
     <div className="flex-1 flex items-center justify-center">
       <div className="text-center">

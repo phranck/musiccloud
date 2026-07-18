@@ -5,7 +5,7 @@ import { DashboardSection } from "@/components/ui/DashboardSection";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import {
   type DeveloperPortalAvailability,
   fetchDeveloperPortalAvailability,
@@ -38,7 +38,7 @@ function AvailabilitySettingRow({ checked, description, disabled, label, onChang
 
 /** Owner-only controls for the availability state of the public Developer Portal. */
 export function DeveloperSettingsPage() {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const dm = messages.developer;
   const queryClient = useQueryClient();
   const availabilityQuery = useQuery({

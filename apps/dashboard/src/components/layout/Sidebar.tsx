@@ -34,7 +34,8 @@ import { SidebarFooter } from "@/components/layout/SidebarFooter";
 import { SidebarHeader } from "@/components/layout/SidebarHeader";
 import { sidebarGroupItemClass } from "@/components/layout/sidebarGroupItemClass";
 import { DashboardSection } from "@/components/ui/DashboardSection";
-import { useI18n } from "@/context/I18nContext";
+import type { DashboardCopy } from "@/copy/dashboard";
+import { dashboardCopy } from "@/copy/dashboard";
 import { groupPagesByHierarchy } from "@/features/content/hierarchy";
 import { useContentPages } from "@/features/content/hooks/useAdminContent";
 import { PageStatusIcon } from "@/features/content/PageStatus";
@@ -45,7 +46,6 @@ import { isMetaDirty } from "@/features/content/state/slices/metaSlice";
 import { SegmentsActionType } from "@/features/content/state/slices/segmentsSlice";
 import { useAdminStats } from "@/features/overview/hooks/useAdminStats";
 import { useCreateEmailTemplate, useEmailTemplates } from "@/features/templates/hooks/useEmailTemplates";
-import type { DashboardMessages } from "@/i18n/messages";
 import type { AdminRole } from "@/shared/types/admin";
 
 const ROLE_RANK: Record<AdminRole, number> = { owner: 2, admin: 1, moderator: 0 };
@@ -69,7 +69,7 @@ const TREE_ROW_PADDING: Record<TreeDepth, number> = { 1: 28, 2: 56 };
 const TREE_STUB_W = 18;
 const TREE_TOP_EXTRA = 28;
 const TREE_ROW_GAP = 2;
-type SidebarLabels = DashboardMessages["layout"]["sidebar"];
+type SidebarLabels = DashboardCopy["layout"]["sidebar"];
 
 interface PageTreeRowProps {
   depth: TreeDepth;
@@ -185,7 +185,7 @@ function PagesGroup({
   open: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const s = messages.layout.sidebar;
   const text = messages.content.pages;
   const { data: pages } = useContentPages();
@@ -400,7 +400,7 @@ function EmailTemplatesGroup({
   open: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const common = messages.common;
   const s = messages.layout.sidebar;
   const { data: templates } = useEmailTemplates();
@@ -625,7 +625,7 @@ export function Sidebar({
   onEditProfile,
   bare,
 }: SidebarProps) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const s = messages.layout.sidebar;
   const isAdmin = role !== undefined && ROLE_RANK[role] >= ROLE_RANK.admin;
   const isOwner = role !== undefined && ROLE_RANK[role] === ROLE_RANK.owner;

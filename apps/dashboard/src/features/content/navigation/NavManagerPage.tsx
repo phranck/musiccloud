@@ -45,7 +45,7 @@ import { Dropdown } from "@/components/ui/Dropdown";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SaveNotification, useSaveNotification } from "@/components/ui/SaveNotification";
 import { SegmentSwitch } from "@/components/ui/SegmentSwitch";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { useContentPages } from "@/features/content/hooks/useAdminContent";
 import { useAdminNavigationConfiguration, useSaveNavigationConfiguration } from "@/features/content/hooks/useAdminNav";
 import { NavigationMaskControl } from "@/features/content/navigation/NavigationMaskControl";
@@ -56,60 +56,9 @@ import {
 import { NavigationMaskKind } from "@/features/content/navigation/navigation.constants";
 import type { ApiRequestError } from "@/shared/utils/api-error";
 
-const NAV_TEXT = {
-  de: {
-    pageTitle: "Navigationen",
-    dragTitle: "Verschieben",
-    labelOverrideTitle: "Label-Override (leer = Standard)",
-    remove: "Entfernen",
-    load: "Lade…",
-    noEntries: "Keine Einträge",
-    typePage: "Seite",
-    typeUrl: "URL",
-    pageTarget: "Seitenziel",
-    choosePage: "Seite wählen…",
-    add: "Hinzufügen",
-    addItem: "Navigationseintrag hinzufügen",
-    itemType: "Navigationseintragstyp",
-    urlPlaceholder: "https://… oder /pfad",
-    labelPlaceholder: "Label",
-    systemTarget: "Systemziel",
-    context: "Kontexte",
-    area: "Bereiche",
-    translations: "Übersetzungen",
-    docsOwned: "Dokumentationsrouten gehören dem System.",
-    invalidUrl: "Gib eine sichere URL oder einen relativen Pfad ein.",
-    errorLoading: "Navigation konnte nicht geladen werden",
-    errorSaving: "Fehler beim Speichern",
-  },
-  en: {
-    pageTitle: "Navigations",
-    dragTitle: "Drag",
-    labelOverrideTitle: "Label override (empty = default)",
-    remove: "Remove",
-    load: "Loading…",
-    noEntries: "No entries",
-    typePage: "Page",
-    typeUrl: "URL",
-    pageTarget: "Page target",
-    choosePage: "Select page…",
-    add: "Add",
-    addItem: "Add navigation item",
-    itemType: "Navigation item type",
-    urlPlaceholder: "https://… or /path",
-    labelPlaceholder: "Label",
-    systemTarget: "System target",
-    context: "Contexts",
-    area: "Areas",
-    translations: "Translations",
-    docsOwned: "Documentation routes are system-owned.",
-    invalidUrl: "Enter a safe URL or relative path.",
-    errorLoading: "Unable to load navigation",
-    errorSaving: "Error while saving",
-  },
-} as const;
+const NAV_TEXT = dashboardCopy.content.navigation;
 
-type NavText = (typeof NAV_TEXT)[keyof typeof NAV_TEXT];
+type NavText = typeof NAV_TEXT;
 
 const NavigationAddType = {
   Page: "page",
@@ -929,8 +878,8 @@ function NavigationEditor({ common, initialConfiguration, pages, text }: Navigat
  * independent position.
  */
 export function NavManagerPage() {
-  const { locale, messages } = useI18n();
-  const text = NAV_TEXT[locale];
+  const messages = dashboardCopy;
+  const text = NAV_TEXT;
   const common = messages.common;
   const {
     data: serverConfiguration,

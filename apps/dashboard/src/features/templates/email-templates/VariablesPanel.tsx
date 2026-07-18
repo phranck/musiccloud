@@ -1,6 +1,6 @@
 import type { EmailBlock, EmailVariableMeta } from "@musiccloud/shared";
 
-import type { useI18n } from "@/context/I18nContext";
+import type { DashboardCopy } from "@/copy/dashboard";
 import {
   type BoundActionVariables,
   buildVariablesPanelModel,
@@ -8,7 +8,7 @@ import {
 } from "@/features/templates/email-templates/variablesPanelModel";
 
 /** This feature's i18n message block (mirrors `EmailTemplateEditPage`'s `labels` prop convention). */
-type EmailTemplatesLabels = ReturnType<typeof useI18n>["messages"]["emailTemplates"];
+type EmailTemplatesLabels = DashboardCopy["emailTemplates"];
 
 export interface VariablesPanelProps {
   /** The template's subject line (scanned for used placeholders). */

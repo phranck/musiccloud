@@ -3,7 +3,7 @@ import { lazy, type ReactNode, Suspense, useState } from "react";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { SegmentSwitch } from "@/components/ui/SegmentSwitch";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { AssetPickerControl } from "@/features/templates/email-templates/AssetPickerField";
 import { GradientColorFields } from "@/features/templates/email-templates/GradientColorFields";
 import type { GradientSwatch } from "@/features/templates/email-templates/gradientSwatches";
@@ -44,7 +44,7 @@ interface TemplateBrandingSectionProps {
  * its local mode + open state reset when switching templates.
  */
 export function TemplateBrandingSection({ branding, onChange, global, swatches }: TemplateBrandingSectionProps) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const m = messages.emailTemplates;
   const [open, setOpen] = useState(false);
 
@@ -192,7 +192,7 @@ interface OverrideGroupProps {
  * selected it shows the "inherits global branding" note instead.
  */
 function OverrideGroup({ title, overridden, onModeChange, children }: OverrideGroupProps) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const m = messages.emailTemplates;
 
   return (

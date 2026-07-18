@@ -8,7 +8,7 @@ import {
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { AuthBackground } from "@/features/auth/AuthBackground";
 import { useAuth } from "@/features/auth/AuthContext";
 import { AuthLogo } from "@/features/auth/AuthLogo";
@@ -52,7 +52,7 @@ function useAutofillSwap(ids: string[], setters: Record<string, (v: string) => v
 const FIELD_IDS = ["username", "password"];
 
 export function LoginPage() {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const loginMessages = messages.auth.login;
   const { login } = useAuth();
   const navigate = useNavigate();

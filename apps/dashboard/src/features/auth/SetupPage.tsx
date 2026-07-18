@@ -8,14 +8,14 @@ import { ENDPOINTS } from "@musiccloud/shared";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { AuthBackground } from "@/features/auth/AuthBackground";
 import { useAuth } from "@/features/auth/AuthContext";
 import { AuthLogo } from "@/features/auth/AuthLogo";
 import { api } from "@/lib/api";
 
 export function SetupPage() {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const loginMessages = messages.auth.login;
   const setupMessages = messages.auth.setup;
   const { refresh } = useAuth();

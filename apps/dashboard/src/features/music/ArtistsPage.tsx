@@ -23,9 +23,10 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { Toolbar } from "@/components/ui/Toolbar";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
 import { RefreshArtistButton } from "@/features/music/RefreshArtistButton";
+import { formatEnglishDate } from "@/lib/format";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { Dialog } from "@/shared/ui/Dialog";
 
@@ -43,12 +44,12 @@ interface ArtistListItem {
 const SHARE_BASE = import.meta.env.VITE_SHARE_BASE_URL ?? "https://musiccloud.io";
 
 function formatDate(ts: number): string {
-  return new Date(ts).toLocaleDateString(undefined, { dateStyle: "medium" });
+  return formatEnglishDate(ts, { dateStyle: "medium" });
 }
 
 type ArtistTable = ReturnType<typeof useInfiniteAdminTable<ArtistListItem>>;
-type ArtistMessages = ReturnType<typeof useI18n>["messages"]["music"]["artists"];
-type MusicColumnMessages = ReturnType<typeof useI18n>["messages"]["music"]["columns"];
+type ArtistMessages = (typeof dashboardCopy)["music"]["artists"];
+type MusicColumnMessages = (typeof dashboardCopy)["music"]["columns"];
 
 function useArtistColumns(
   table: ArtistTable,
@@ -175,7 +176,7 @@ function useArtistColumns(
 }
 
 export function ArtistsPage() {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const ma = messages.music.artists;
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);

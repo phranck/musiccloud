@@ -31,7 +31,7 @@ import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { SaveNotification, useSaveNotification } from "@/components/ui/SaveNotification";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import {
   SystemOwnedContentPageError,
   useAdminContentPage,
@@ -51,6 +51,7 @@ import type { MetaFields } from "@/features/content/state/slices/metaSlice";
 import { isMetaFieldDirty } from "@/features/content/state/slices/metaSlice";
 import { PublicationsActionType } from "@/features/content/state/slices/publicationsSlice";
 import { isTranslationDirty } from "@/features/content/state/slices/translationsSlice";
+import { formatEnglishDate } from "@/lib/format";
 import { FormLabel } from "@/shared/ui/FormPrimitives";
 
 const MarkdownEditor = lazy(() =>
@@ -322,7 +323,6 @@ interface EditorMetadataBarProps {
     updatedBy: string;
     updatedAt: string;
   };
-  locale: string;
   common: {
     cancel: string;
     ok: string;
@@ -336,11 +336,11 @@ interface EditorMetadataBarProps {
   onTitleAlignmentChange: (value: PageTitleAlignmentValue) => void;
 }
 
-function formatDateTime(iso: string | null, locale: string): string {
+function formatDateTime(iso: string | null): string {
   if (!iso) return "—";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString(locale === DEFAULT_LOCALE ? "en-US" : "de-DE", {
+  return formatEnglishDate(d, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -355,7 +355,6 @@ function EditorMetadataBar({
   editingSlug,
   editSlugValue,
   editorMessages,
-  locale,
   common,
   onStartEditSlug,
   onSlugValueChange,
@@ -428,8 +427,7 @@ function EditorMetadataBar({
           </div>
           {page.updatedAt && (
             <div>
-              {editorMessages.updatedAt}{" "}
-              <span className="text-[var(--ds-text)]">{formatDateTime(page.updatedAt, locale)}</span>
+              {editorMessages.updatedAt} <span className="text-[var(--ds-text)]">{formatDateTime(page.updatedAt)}</span>
             </div>
           )}
         </div>
@@ -732,7 +730,7 @@ function buildTabStates(page: ContentPage | undefined, editor: ReturnType<typeof
  * @returns Full editor route component.
  */
 export function ContentEditorPage() {
-  const { messages, locale } = useI18n();
+  const messages = dashboardCopy;
   const common = messages.common;
   const editorMessages = messages.content.editor;
   const pageMessages = messages.content.pages;
@@ -955,7 +953,6 @@ export function ContentEditorPage() {
           editingSlug={state.editingSlug}
           editSlugValue={state.editSlugValue}
           editorMessages={editorMessages}
-          locale={locale}
           common={common}
           onStartEditSlug={() => {
             dispatch({ type: EditorActionType.SetEditSlugValue, value: metaCurrent.slug });

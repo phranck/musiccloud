@@ -6,7 +6,7 @@ import { DashboardSection } from "@/components/ui/DashboardSection";
 import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { ApiTokenStatus } from "@/features/developer/domain";
 import {
   useActivateToken,
@@ -53,7 +53,7 @@ function parseLimitInput(value: string): number | null {
  */
 export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { messages, locale } = useI18n();
+  const messages = dashboardCopy;
   const dm = messages.developer;
   const navigate = useNavigate();
   const { data, isLoading } = useApiAccessOverview();
@@ -99,7 +99,7 @@ export function ClientDetailPage() {
           )}
         />
         <div className="flex items-center justify-center py-12">
-          <p className="text-sm text-[var(--ds-text-muted)]">Client nicht gefunden.</p>
+          <p className="text-sm text-[var(--ds-text-muted)]">Client not found.</p>
         </div>
       </PageLayout>
     );
@@ -189,9 +189,7 @@ export function ClientDetailPage() {
               <div className={labelClass}>
                 {dm.clientsTokensLabel}
                 {(activeToken || revokedToken) && (
-                  <span className="font-normal">
-                    , erstellt: {formatDate((activeToken ?? revokedToken)!.createdAt, locale)}
-                  </span>
+                  <span className="font-normal">, created: {formatDate((activeToken ?? revokedToken)!.createdAt)}</span>
                 )}
               </div>
               {activeToken ? (

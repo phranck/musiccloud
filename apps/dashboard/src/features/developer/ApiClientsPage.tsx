@@ -12,10 +12,13 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
 import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import type { ApiClientResponse } from "@/features/developer/api";
 import { ApiClientStatus, ApiTokenStatus } from "@/features/developer/domain";
 import { useApiAccessOverview } from "@/features/developer/hooks/useDeveloperData";
+
+const messages = dashboardCopy;
+const dm = messages.developer;
 
 /**
  * Builds the memoized column definitions for the API clients table.
@@ -30,8 +33,8 @@ import { useApiAccessOverview } from "@/features/developer/hooks/useDeveloperDat
  * @returns Stable column definitions, re-created only when a dependency changes.
  */
 function useClientColumns(
-  dm: ReturnType<typeof useI18n>["messages"]["developer"],
-  common: ReturnType<typeof useI18n>["messages"]["common"],
+  dm: (typeof dashboardCopy)["developer"],
+  common: (typeof dashboardCopy)["common"],
   navigate: ReturnType<typeof useNavigate>,
 ): ColumnDef<ApiClientResponse>[] {
   return useMemo<ColumnDef<ApiClientResponse>[]>(
@@ -141,8 +144,6 @@ function useClientColumns(
  * app name, developer email and the formatted traffic values.
  */
 export function ApiClientsPage() {
-  const { messages } = useI18n();
-  const dm = messages.developer;
   const { data, isLoading } = useApiAccessOverview();
   const navigate = useNavigate();
   const columns = useClientColumns(dm, messages.common, navigate);
@@ -164,7 +165,7 @@ export function ApiClientsPage() {
           .includes(q)
       );
     });
-  }, [clients, search, dm]);
+  }, [clients, search]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {

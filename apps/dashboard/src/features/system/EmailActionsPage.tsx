@@ -9,7 +9,7 @@ import { useMemo, useRef, useState } from "react";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import type { EmailActionBinding, EmailActionWithBindings } from "@/features/templates/hooks/useEmailActions";
 import {
   useCreateBinding,
@@ -41,7 +41,7 @@ import { formInputClass } from "@/shared/ui/FormPrimitives";
  * currently only defines `adminInviteSent`.
  */
 export function EmailActionsPage() {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const m = messages.emailActions;
   const common = messages.common;
 
@@ -98,7 +98,7 @@ export function EmailActionsPage() {
 }
 
 /** This page's i18n message block, reused as a prop type by every sub-component below (mirrors `EmailTemplateEditPage`'s `labels` prop convention). */
-type EmailActionsLabels = ReturnType<typeof useI18n>["messages"]["emailActions"];
+type EmailActionsLabels = (typeof dashboardCopy)["emailActions"];
 
 /** The subset of `EmailTemplate` this page ever needs: enough to list and pick a template by id, never its body/blocks. */
 type TemplateOption = { id: number; name: string };
@@ -255,7 +255,7 @@ interface BoundTemplateRowProps {
 
 /** One bound-template row: name (or `fallbackName` if the template was since deleted), an enable/disable toggle, and a remove button. */
 function BoundTemplateRow({ binding, templateName, fallbackName, onToggle, onRemove }: BoundTemplateRowProps) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
 
   return (
     <div className="flex items-center gap-3 rounded-control border border-[var(--ds-border)] bg-[var(--ds-surface-inset)] px-3 py-2">

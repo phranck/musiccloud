@@ -8,17 +8,16 @@ import {
 import { DownloadIcon, TrashIcon, TrayArrowUpIcon, UserCircleIcon } from "@phosphor-icons/react";
 import md5 from "blueimp-md5";
 import { type ChangeEvent, type Reducer, type RefObject, useEffect, useReducer, useRef } from "react";
-import { LanguageToggle } from "@/components/ui/LanguageToggle";
 import { SaveNotification, useSaveNotification } from "@/components/ui/SaveNotification";
-import { useI18n } from "@/context/I18nContext";
+import type { DashboardCopy } from "@/copy/dashboard";
+import { dashboardCopy } from "@/copy/dashboard";
 import { useAuth } from "@/features/auth/AuthContext";
-import type { DashboardMessages } from "@/i18n/messages";
 import { useKeyboardSave } from "@/lib/useKeyboardSave";
 import { AdminRole, type EditableAdminRole } from "@/shared/constants/domain";
-import type { AdminLocale, AdminUser } from "@/shared/types/admin";
+import type { AdminUser } from "@/shared/types/admin";
 import { AlertDialog } from "@/shared/ui/AlertDialog";
 import { dialogHeaderIconClass } from "@/shared/ui/Dialog";
-import { FormLabel, FormLabelText, formInputClass } from "@/shared/ui/FormPrimitives";
+import { FormLabel, formInputClass } from "@/shared/ui/FormPrimitives";
 import { OverlayCard } from "@/shared/ui/OverlayCard";
 
 import {
@@ -50,7 +49,6 @@ interface UserEditDraftState {
   password: string;
   firstName: string;
   lastName: string;
-  locale: AdminLocale;
   role: EditableRole;
   logoutConfirm: boolean;
   initialLogoutConfirm: boolean;
@@ -62,7 +60,6 @@ type UserEditField = "username" | "email" | "password" | "firstName" | "lastName
 
 const UserEditDraftActionType = {
   SetField: "setField",
-  SetLocale: "setLocale",
   SetRole: "setRole",
   SetLogoutConfirm: "setLogoutConfirm",
   SetAvatar: "setAvatar",
@@ -70,13 +67,12 @@ const UserEditDraftActionType = {
 
 type UserEditDraftAction =
   | { type: typeof UserEditDraftActionType.SetField; field: UserEditField; value: string }
-  | { type: typeof UserEditDraftActionType.SetLocale; value: AdminLocale }
   | { type: typeof UserEditDraftActionType.SetRole; value: EditableRole }
   | { type: typeof UserEditDraftActionType.SetLogoutConfirm; value: boolean }
   | { type: typeof UserEditDraftActionType.SetAvatar; value: AvatarState };
 
 interface UserEditCardFormProps {
-  common: DashboardMessages["common"];
+  common: DashboardCopy["common"];
   logoutConfirmLabel: string;
   me: AdminUser | null;
   onClose: () => void;
@@ -85,7 +81,7 @@ interface UserEditCardFormProps {
   savedPhase: ReturnType<typeof useSaveNotification>["phase"];
   showSaved: ReturnType<typeof useSaveNotification>["show"];
   user: AdminUser;
-  usersMessages: DashboardMessages["users"];
+  usersMessages: DashboardCopy["users"];
 }
 
 const EMPTY_AVATAR_STATE: AvatarState = {
@@ -99,8 +95,6 @@ const userEditDraftReducer: Reducer<UserEditDraftState, UserEditDraftAction> = (
   switch (action.type) {
     case UserEditDraftActionType.SetField:
       return { ...state, [action.field]: action.value };
-    case UserEditDraftActionType.SetLocale:
-      return { ...state, locale: action.value };
     case UserEditDraftActionType.SetRole:
       return { ...state, role: action.value };
     case UserEditDraftActionType.SetLogoutConfirm:
@@ -120,7 +114,6 @@ function createInitialDraft(user: AdminUser): UserEditDraftState {
     password: "",
     firstName: user.firstName ?? "",
     lastName: user.lastName ?? "",
-    locale: user.locale,
     role: user.role === AdminRole.Moderator ? AdminRole.Moderator : AdminRole.Admin,
     logoutConfirm,
     initialLogoutConfirm: logoutConfirm,
@@ -144,7 +137,7 @@ function UserAvatarEditor({
   onFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
   onRemoveAvatar: () => void;
   onUseGravatar: () => void;
-  usersMessages: DashboardMessages["users"];
+  usersMessages: DashboardCopy["users"];
 }) {
   return (
     <div className="flex flex-col items-center gap-3 shrink-0">
@@ -213,7 +206,6 @@ function UserProfileFields({
   logoutConfirmLabel,
   me,
   onFieldChange,
-  onLocaleChange,
   onLogoutConfirmChange,
   onRoleChange,
   userId,
@@ -224,11 +216,10 @@ function UserProfileFields({
   logoutConfirmLabel: string;
   me: AdminUser | null;
   onFieldChange: (field: UserEditField, value: string) => void;
-  onLocaleChange: (value: AdminLocale) => void;
   onLogoutConfirmChange: (value: boolean) => void;
   onRoleChange: (value: EditableRole) => void;
   userId: string;
-  usersMessages: DashboardMessages["users"];
+  usersMessages: DashboardCopy["users"];
 }) {
   return (
     <div className="flex-1 space-y-3 min-w-0">
@@ -295,12 +286,6 @@ function UserProfileFields({
       {me?.id === userId && (
         <>
           <div>
-            <FormLabelText>{usersMessages.editCard.language}</FormLabelText>
-            <div className="inline-block">
-              <LanguageToggle value={draft.locale} onChange={onLocaleChange} />
-            </div>
-          </div>
-          <div>
             <FormLabel htmlFor="user-edit-session-timeout">{usersMessages.editCard.sessionTimeout}</FormLabel>
             <DashboardInput
               id="user-edit-session-timeout"
@@ -362,7 +347,6 @@ function UserEditCardForm({
     draft.password.trim() !== "" ||
     draft.firstName !== (user.firstName ?? "") ||
     draft.lastName !== (user.lastName ?? "") ||
-    draft.locale !== user.locale ||
     roleChanged ||
     draft.avatar.pendingFile !== null ||
     draft.avatar.pendingGravatarUrl !== null ||
@@ -417,7 +401,6 @@ function UserEditCardForm({
     if (draft.password.trim()) profileChanges.password = draft.password;
     if (draft.firstName !== (user.firstName ?? "")) profileChanges.firstName = draft.firstName;
     if (draft.lastName !== (user.lastName ?? "")) profileChanges.lastName = draft.lastName;
-    if (draft.locale !== user.locale) profileChanges.locale = draft.locale;
     if (roleChanged) profileChanges.role = draft.role;
     if (me?.id === user.id && draft.sessionTimeoutMinutes !== savedSessionTimeout) {
       profileChanges.sessionTimeoutMinutes =
@@ -485,7 +468,6 @@ function UserEditCardForm({
             logoutConfirmLabel={logoutConfirmLabel}
             me={me}
             onFieldChange={(field, value) => dispatch({ type: UserEditDraftActionType.SetField, field, value })}
-            onLocaleChange={(value) => dispatch({ type: UserEditDraftActionType.SetLocale, value })}
             onLogoutConfirmChange={(value) => dispatch({ type: UserEditDraftActionType.SetLogoutConfirm, value })}
             onRoleChange={(value) => dispatch({ type: UserEditDraftActionType.SetRole, value })}
             userId={user.id}
@@ -535,7 +517,7 @@ function UserEditCardForm({
 }
 
 export function UserEditCard({ userId, onClose, onSaved }: UserEditCardProps) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const common = messages.common;
   const usersMessages = messages.users;
   const { user: me, refresh } = useAuth();

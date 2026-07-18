@@ -1,8 +1,7 @@
 import type { ErrorInfo, ReactNode } from "react";
 import { Component } from "react";
 
-import { resolveInitialLocale } from "@/context/I18nContext";
-import { DASHBOARD_MESSAGES } from "@/i18n/messages";
+import { dashboardCopy } from "@/copy/dashboard";
 
 interface Props {
   children: ReactNode;
@@ -30,8 +29,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
-      const locale = resolveInitialLocale();
-      const boundaryMessages = DASHBOARD_MESSAGES[locale].errors.boundary;
+      const boundaryMessages = dashboardCopy.errors.boundary;
 
       return (
         <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">

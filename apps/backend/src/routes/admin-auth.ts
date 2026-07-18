@@ -75,7 +75,6 @@ interface LoginBody {
  * Fields coerced here, not in the DB layer:
  * - `email` goes from DB `null` to wire-level `undefined` (tells the
  *   frontend to omit the field rather than render an empty value).
- * - `locale` falls back to `"de"` when the DB row predates the column.
  * - `createdAt`/`lastLoginAt` become ISO strings for JSON-safe transport.
  *
  * @param user - row as returned by the admin repository
@@ -88,7 +87,6 @@ function buildUserResponse(user: AdminUser) {
     email: user.email ?? undefined,
     role: user.role as "owner" | "admin" | "moderator",
     isOwner: user.role === "owner",
-    locale: (user.locale || "de") as "de" | "en",
     firstName: user.firstName,
     lastName: user.lastName,
     avatarUrl: user.avatarUrl,
@@ -144,7 +142,7 @@ async function adminAuthRoutes(app: FastifyInstance) {
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
-    await repo.createAdminUser({ id: nanoid(), username, passwordHash, role: "owner", locale: "de" });
+    await repo.createAdminUser({ id: nanoid(), username, passwordHash, role: "owner" });
 
     app.log.info("[Admin] First admin user created");
     return reply.status(201).send({ message: "Admin user created." });

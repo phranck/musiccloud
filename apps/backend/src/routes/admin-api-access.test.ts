@@ -88,7 +88,6 @@ function makeAdmin(overrides: Partial<AdminUser> = {}): AdminUser {
     firstName: null,
     lastName: null,
     avatarUrl: null,
-    locale: "en",
     sessionTimeoutMinutes: null,
     createdAt: 1_699_000_000_000,
     lastLoginAt: null,

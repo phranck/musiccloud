@@ -3,7 +3,7 @@ import { ENDPOINTS, parseDesignTokens } from "@musiccloud/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { api } from "@/lib/api";
 
 /** React Query key for the admin site-settings record. */
@@ -43,7 +43,7 @@ interface DraftValidation {
  * a successful save clears the draft back to the (refetched) server truth.
  */
 export function DesignSettingsPage() {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const m = messages.design;
   const queryClient = useQueryClient();
 

@@ -2,7 +2,7 @@ import { DashboardActionButton, DashboardActionId, DashboardActionStatus } from 
 import { CheckCircleIcon, ImagesIcon, TrayArrowUpIcon } from "@phosphor-icons/react";
 import { type ChangeEvent, useRef } from "react";
 
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { useEmailAssets, useUploadEmailAsset } from "@/features/templates/hooks/useEmailAssets";
 import { Dialog, dialogHeaderIconClass } from "@/shared/ui/Dialog";
 
@@ -30,7 +30,7 @@ interface AssetPickerProps {
  * parent field stores the chosen id.
  */
 export function AssetPicker({ open, selectedAssetId, onSelect, onClose }: AssetPickerProps) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const m = messages.emailTemplates;
   const { data: assets, isLoading } = useEmailAssets();
   const uploadMutation = useUploadEmailAsset();

@@ -16,13 +16,6 @@ const mocks = vi.hoisted(() => ({
   saveConfiguration: vi.fn(),
 }));
 
-vi.mock("@/context/I18nContext", () => ({
-  useI18n: () => ({
-    locale: "en",
-    messages: { common: { save: "Save", saved: "Saved", saving: "Saving…" } },
-  }),
-}));
-
 vi.mock("@/components/ui/PageHeader", () => ({
   PageHeader: ({ title, children }: { title: string; children: React.ReactNode }) => (
     <header>

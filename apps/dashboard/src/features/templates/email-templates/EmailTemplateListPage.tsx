@@ -21,7 +21,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { EmailTemplateImportConflictDialog } from "@/features/templates/email-templates/EmailTemplateImportConflictDialog";
 import { exportEmailTemplateAll, exportEmailTemplateSingle } from "@/features/templates/hooks/emailTemplateExport";
 import {
@@ -31,18 +31,19 @@ import {
   useEmailTemplates,
   useImportEmailTemplate,
 } from "@/features/templates/hooks/useEmailTemplates";
+import { formatEnglishDate } from "@/lib/format";
 import { useImportQueue } from "@/lib/hooks/useImportQueue";
 import { Dialog, dialogHeaderIconClass } from "@/shared/ui/Dialog";
 
 type ImportTemplateData = EmailTemplateInput;
+const messages = dashboardCopy;
+const m = messages.emailTemplates;
+const common = messages.common;
 
 /**
  * List page showing all email templates with create, delete, import and export actions.
  */
 export function EmailTemplateListPage() {
-  const { messages, locale } = useI18n();
-  const m = messages.emailTemplates;
-  const common = messages.common;
   const navigate = useNavigate();
   const { data: templates = [], isLoading } = useEmailTemplates();
   const deleteMutation = useDeleteEmailTemplate();
@@ -134,7 +135,7 @@ export function EmailTemplateListPage() {
         sortKey: (tpl) => tpl.createdAt,
         cell: (tpl) => (
           <span className="whitespace-nowrap text-xs text-[var(--ds-text-muted)]">
-            {new Date(tpl.createdAt).toLocaleDateString(locale, {
+            {formatEnglishDate(tpl.createdAt, {
               day: "2-digit",
               month: "2-digit",
               year: "numeric",
@@ -168,7 +169,7 @@ export function EmailTemplateListPage() {
         ),
       },
     ],
-    [m, common, locale, navigate, deleteMutation.isPending],
+    [navigate, deleteMutation.isPending],
   );
 
   return (

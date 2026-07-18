@@ -8,12 +8,11 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
 import { type ColumnDef, DataTable, type DataTableRowProps } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import type { ApiAccessRequestResponse } from "@/features/developer/api";
 import { ApiAccessRequestStatus } from "@/features/developer/domain";
 import { useApiAccessOverview } from "@/features/developer/hooks/useDeveloperData";
 import { formatDate } from "@/features/developer/lib";
-import type { DashboardLocale } from "@/i18n/messages";
 
 function ClickableRow({
   className,
@@ -36,10 +35,9 @@ function ClickableRow({
 }
 
 function useRequestColumns(
-  dm: ReturnType<typeof useI18n>["messages"]["developer"],
-  common: ReturnType<typeof useI18n>["messages"]["common"],
+  dm: (typeof dashboardCopy)["developer"],
+  common: (typeof dashboardCopy)["common"],
   navigate: ReturnType<typeof useNavigate>,
-  locale: DashboardLocale,
 ): ColumnDef<ApiAccessRequestResponse>[] {
   return useMemo<ColumnDef<ApiAccessRequestResponse>[]>(
     () => [
@@ -70,7 +68,11 @@ function useRequestColumns(
         className: "w-32",
         headerClassName: "whitespace-nowrap",
         sortKey: (r) => r.estimatedRequestsPerDay,
-        cell: (r) => <span>~{r.estimatedRequestsPerDay} / Tag</span>,
+        cell: (r) => (
+          <span>
+            ~{r.estimatedRequestsPerDay} {dm.perDay}
+          </span>
+        ),
       },
       {
         id: "submittedAt",
@@ -78,9 +80,7 @@ function useRequestColumns(
         className: "w-36",
         headerClassName: "whitespace-nowrap",
         sortKey: (r) => r.submittedAt,
-        cell: (r) => (
-          <span className="text-[var(--ds-text-muted)] whitespace-nowrap">{formatDate(r.submittedAt, locale)}</span>
-        ),
+        cell: (r) => <span className="text-[var(--ds-text-muted)] whitespace-nowrap">{formatDate(r.submittedAt)}</span>,
       },
       {
         id: "actions",
@@ -96,17 +96,17 @@ function useRequestColumns(
         ),
       },
     ],
-    [dm, common, navigate, locale],
+    [dm, common, navigate],
   );
 }
 
 export function ApiAccessRequestsPage() {
-  const { messages, locale } = useI18n();
+  const messages = dashboardCopy;
   const dm = messages.developer;
   const { data, isLoading } = useApiAccessOverview(ApiAccessRequestStatus.Pending);
 
   const navigate = useNavigate();
-  const columns = useRequestColumns(dm, messages.common, navigate, locale);
+  const columns = useRequestColumns(dm, messages.common, navigate);
 
   const requests = data?.requests ?? [];
 
