@@ -35,9 +35,9 @@ import { useI18n } from "@/context/I18nContext";
 import {
   SystemOwnedContentPageError,
   useAdminContentPage,
-  useAdminNavigationConfiguration,
   useDeleteContentPage,
 } from "@/features/content/hooks/useAdminContent";
+import { useAdminNavigationConfiguration } from "@/features/content/hooks/useAdminNav";
 import { buildLocalizedPageTitle, createPageTitleTranslationDraft } from "@/features/content/pageLocalization";
 import { LanguageTabs } from "@/features/content/pages/LanguageTabs";
 import { PagePublishingEditor } from "@/features/content/pages/PagePublishingEditor";

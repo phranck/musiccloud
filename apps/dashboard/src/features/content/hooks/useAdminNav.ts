@@ -1,22 +1,29 @@
-import { ENDPOINTS, type NavId, type NavItem, type NavItemInput } from "@musiccloud/shared";
+import { ENDPOINTS, type NavigationConfiguration, type NavigationConfigurationInput } from "@musiccloud/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 
-export function useAdminNav(navId: NavId) {
+const NAVIGATION_CONFIGURATION_QUERY_KEY = ["admin-navigation-configuration"] as const;
+
+/** Fetches the one canonical contextual navigation configuration. */
+export function useAdminNavigationConfiguration() {
   return useQuery({
-    queryKey: ["admin-nav", navId],
-    queryFn: () => api.get<NavItem[]>(ENDPOINTS.admin.navigations.detail(navId)),
+    queryKey: NAVIGATION_CONFIGURATION_QUERY_KEY,
+    queryFn: () => api.get<NavigationConfiguration>(ENDPOINTS.admin.navigations.configuration),
   });
 }
 
-export function useSaveNav(navId: NavId) {
-  const qc = useQueryClient();
+/** Replaces every contextual navigation entry and placement atomically. */
+export function useSaveNavigationConfiguration() {
+  const queryClient = useQueryClient();
+
   return useMutation({
-    mutationFn: (items: NavItemInput[]) => api.put<NavItem[]>(ENDPOINTS.admin.navigations.detail(navId), { items }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["admin-nav", navId] });
-      qc.invalidateQueries({ queryKey: ["nav", navId] });
+    mutationFn: (configuration: NavigationConfigurationInput) =>
+      api.put<NavigationConfiguration>(ENDPOINTS.admin.navigations.configuration, configuration),
+    onSuccess: (configuration) => {
+      queryClient.setQueryData(NAVIGATION_CONFIGURATION_QUERY_KEY, configuration);
+      queryClient.invalidateQueries({ queryKey: ["admin-nav"] });
+      queryClient.invalidateQueries({ queryKey: ["nav"] });
     },
   });
 }

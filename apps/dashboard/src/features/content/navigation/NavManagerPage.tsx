@@ -1,248 +1,452 @@
+import { arrayMove } from "@dnd-kit/sortable";
 import {
-  closestCenter,
-  DndContext,
-  type DragEndEvent,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import {
-  ControlTrigger,
   DashboardActionButton,
   DashboardActionId,
   DashboardActionStatus,
-  DashboardButtonVariant,
-  DashboardIconButton,
   DashboardInput,
-  ListboxOption,
   SaveActionButton,
 } from "@musiccloud/dashboard-ui";
-import type { NavId } from "@musiccloud/shared";
-import { DEFAULT_LOCALE, LOCALES, type Locale } from "@musiccloud/shared";
+import {
+  ContentContext,
+  type ContentContextMask,
+  type ContentPageSummary,
+  DEFAULT_LOCALE,
+  expectedNavigationPlacements,
+  hasAllContextBits,
+  isSafeConfiguredUrl,
+  KNOWN_CONTENT_CONTEXT_MASK,
+  LOCALES,
+  type Locale,
+  NAVIGATION_SYSTEM_TARGETS,
+  NavigationArea,
+  type NavigationAreaMask,
+  type NavigationConfiguration,
+  type NavigationConfigurationInput,
+  type NavigationEntry,
+  type NavigationPlacement,
+  NavigationTargetKind,
+  NavTarget,
+} from "@musiccloud/shared";
 import {
   BrowsersIcon,
   CaretDownIcon,
   CaretUpIcon,
-  FileDashedIcon,
   FileMdIcon,
-  ListIcon,
+  LinkIcon,
+  LockKeyIcon,
   PlusCircleIcon,
   SquareHalfBottomIcon,
   XCircleIcon,
 } from "@phosphor-icons/react";
-import { Fragment, type Ref, useCallback, useEffect, useImperativeHandle, useReducer, useRef, useState } from "react";
+import { useCallback, useReducer, useRef } from "react";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
+import { Dropdown } from "@/components/ui/Dropdown";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SaveNotification, useSaveNotification } from "@/components/ui/SaveNotification";
 import { SegmentSwitch } from "@/components/ui/SegmentSwitch";
 import { useI18n } from "@/context/I18nContext";
-import { groupPagesByHierarchy } from "@/features/content/hierarchy";
 import { useContentPages } from "@/features/content/hooks/useAdminContent";
-import { useAdminNav, useSaveNav } from "@/features/content/hooks/useAdminNav";
+import { useAdminNavigationConfiguration, useSaveNavigationConfiguration } from "@/features/content/hooks/useAdminNav";
+import { NavigationMaskControl } from "@/features/content/navigation/NavigationMaskControl";
+import {
+  NavigationPlacementList,
+  NavigationPlacementListItem,
+} from "@/features/content/navigation/NavigationPlacementList";
+import { NavigationMaskKind } from "@/features/content/navigation/navigation.constants";
+import type { ApiRequestError } from "@/shared/utils/api-error";
 
 const NAV_TEXT = {
   de: {
     pageTitle: "Navigationen",
-    headerNav: "Header-Navigation",
-    footerNav: "Footer-Navigation",
-    staticRoutes: [
-      { label: "Startseite", url: "/" },
-      { label: "Shop vorschlagen", url: "/suggestion" },
-      { label: "Suche", url: "/search" },
-    ],
     dragTitle: "Verschieben",
     labelOverrideTitle: "Label-Override (leer = Standard)",
-    openNewTab: "Öffnet in neuem Tab",
-    openSameTab: "Öffnet im selben Tab",
     remove: "Entfernen",
-    save: "Speichern",
-    saving: "Speichert…",
     load: "Lade…",
     noEntries: "Keine Einträge",
     typePage: "Seite",
     typeUrl: "URL",
+    pageTarget: "Seitenziel",
     choosePage: "Seite wählen…",
     add: "Hinzufügen",
+    addItem: "Navigationseintrag hinzufügen",
+    itemType: "Navigationseintragstyp",
     urlPlaceholder: "https://… oder /pfad",
     labelPlaceholder: "Label",
-    newTab: "Neuer Tab",
-    sameTab: "Selber Tab",
+    systemTarget: "Systemziel",
+    context: "Kontexte",
+    area: "Bereiche",
+    translations: "Übersetzungen",
+    docsOwned: "Dokumentationsrouten gehören dem System.",
+    invalidUrl: "Gib eine sichere URL oder einen relativen Pfad ein.",
+    errorLoading: "Navigation konnte nicht geladen werden",
     errorSaving: "Fehler beim Speichern",
   },
   en: {
     pageTitle: "Navigations",
-    headerNav: "Header navigation",
-    footerNav: "Footer navigation",
-    staticRoutes: [
-      { label: "Home", url: "/" },
-      { label: "Suggest shop", url: "/suggestion" },
-      { label: "Search", url: "/search" },
-    ],
     dragTitle: "Drag",
     labelOverrideTitle: "Label override (empty = default)",
-    openNewTab: "Opens in new tab",
-    openSameTab: "Opens in same tab",
     remove: "Remove",
-    save: "Save",
-    saving: "Saving…",
     load: "Loading…",
     noEntries: "No entries",
     typePage: "Page",
     typeUrl: "URL",
+    pageTarget: "Page target",
     choosePage: "Select page…",
     add: "Add",
+    addItem: "Add navigation item",
+    itemType: "Navigation item type",
     urlPlaceholder: "https://… or /path",
     labelPlaceholder: "Label",
-    newTab: "New tab",
-    sameTab: "Same tab",
+    systemTarget: "System target",
+    context: "Contexts",
+    area: "Areas",
+    translations: "Translations",
+    docsOwned: "Documentation routes are system-owned.",
+    invalidUrl: "Enter a safe URL or relative path.",
+    errorLoading: "Unable to load navigation",
     errorSaving: "Error while saving",
   },
 } as const;
 
 type NavText = (typeof NAV_TEXT)[keyof typeof NAV_TEXT];
 
-const NavTarget = {
-  SameTab: "_self",
-  NewTab: "_blank",
-} as const;
-
-type NavTarget = (typeof NavTarget)[keyof typeof NavTarget];
-
-const NavAddType = {
+const NavigationAddType = {
   Page: "page",
   Url: "url",
 } as const;
 
-type NavAddType = (typeof NavAddType)[keyof typeof NavAddType];
+type NavigationAddType = (typeof NavigationAddType)[keyof typeof NavigationAddType];
 
-const PageType = {
-  Segmented: "segmented",
-  Default: "default",
+const PlacementViewIcon = {
+  Main: "main",
+  Footer: "footer",
 } as const;
 
-type PageType = (typeof PageType)[keyof typeof PageType];
-
-interface NavItemState {
-  id: number;
-  pageSlug: string | null;
-  pageTitle: string | null;
-  url: string | null;
-  target: NavTarget;
-  label: string;
-  translations: Partial<Record<Locale, string>>;
+interface SaveError {
+  message: string;
+  errorId: string | null;
 }
 
-const NON_DEFAULT_LOCALES = LOCALES.filter((l): l is Locale => l !== DEFAULT_LOCALE);
-const LOCALE_FLAG: Record<string, string> = { de: "🇩🇪" };
+interface PlacementView {
+  title: "Frontend Main" | "Frontend Footer" | "Developer Portal Main" | "Developer Portal Footer";
+  context: typeof ContentContext.Frontend | typeof ContentContext.DeveloperPortal;
+  area: typeof NavigationArea.Main | typeof NavigationArea.Footer;
+  icon: (typeof PlacementViewIcon)[keyof typeof PlacementViewIcon];
+}
 
-function SortableNavItem({
-  item,
-  expanded,
-  onRemove,
-  onLabelChange,
-  onTranslationChange,
-  onToggleExpanded,
-  text,
-}: {
-  item: NavItemState;
-  expanded: boolean;
-  onRemove: (id: number) => void;
-  onLabelChange: (id: number, label: string) => void;
-  onTranslationChange: (id: number, locale: Locale, value: string) => void;
-  onToggleExpanded: (id: number) => void;
-  text: NavText;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: item.id,
+const PLACEMENT_VIEWS: readonly PlacementView[] = [
+  {
+    title: "Frontend Main",
+    context: ContentContext.Frontend,
+    area: NavigationArea.Main,
+    icon: PlacementViewIcon.Main,
+  },
+  {
+    title: "Frontend Footer",
+    context: ContentContext.Frontend,
+    area: NavigationArea.Footer,
+    icon: PlacementViewIcon.Footer,
+  },
+  {
+    title: "Developer Portal Main",
+    context: ContentContext.DeveloperPortal,
+    area: NavigationArea.Main,
+    icon: PlacementViewIcon.Main,
+  },
+  {
+    title: "Developer Portal Footer",
+    context: ContentContext.DeveloperPortal,
+    area: NavigationArea.Footer,
+    icon: PlacementViewIcon.Footer,
+  },
+] as const;
+
+const NON_DEFAULT_LOCALES = LOCALES.filter((locale): locale is Locale => locale !== DEFAULT_LOCALE);
+const LOCALE_FLAG: Record<string, string> = { de: "🇩🇪" };
+const NEW_NAVIGATION_URL_ERROR_ID = "navigation-new-url-error";
+
+function cloneEntries(configuration: NavigationConfiguration): NavigationEntry[] {
+  return configuration.entries.map((entry) => ({
+    ...entry,
+    placements: entry.placements.map((placement) => ({ ...placement })),
+    translations: { ...entry.translations },
+  }));
+}
+
+function placementFor(entry: NavigationEntry, context: PlacementView["context"], area: PlacementView["area"]) {
+  return entry.placements.find((placement) => placement.context === context && placement.area === area);
+}
+
+function entriesForPlacement(
+  entries: NavigationEntry[],
+  context: PlacementView["context"],
+  area: PlacementView["area"],
+) {
+  return entries
+    .filter((entry) => placementFor(entry, context, area))
+    .sort((left, right) => placementFor(left, context, area)!.position - placementFor(right, context, area)!.position);
+}
+
+function entryLabel(entry: NavigationEntry): string {
+  return entry.label || entry.pageTitle || entry.url || entry.systemKey || `Navigation item ${entry.id}`;
+}
+
+function nextPlacementPosition(
+  entries: NavigationEntry[],
+  context: NavigationPlacement["context"],
+  area: NavigationPlacement["area"],
+): number {
+  return (
+    entries.reduce((maximum, entry) => {
+      const placement = entry.placements.find((candidate) => candidate.context === context && candidate.area === area);
+      return placement ? Math.max(maximum, placement.position) : maximum;
+    }, -1) + 1
+  );
+}
+
+function placementsForNewEntry(
+  entries: NavigationEntry[],
+  contextMask: ContentContextMask,
+  areaMask: NavigationAreaMask,
+): NavigationPlacement[] {
+  return expectedNavigationPlacements(contextMask, areaMask).map(({ context, area }) => ({
+    context,
+    area,
+    position: nextPlacementPosition(entries, context, area),
+  }));
+}
+
+function reconcileEntryMasks(
+  entries: NavigationEntry[],
+  entryId: number,
+  contextMask: ContentContextMask,
+  areaMask: NavigationAreaMask,
+): NavigationEntry[] {
+  const current = entries.find((entry) => entry.id === entryId);
+  if (!current) return entries;
+
+  const existing = new Map(
+    current.placements.map((placement) => [`${placement.context}:${placement.area}`, placement] as const),
+  );
+  const placements = expectedNavigationPlacements(contextMask, areaMask).map(({ context, area }) => {
+    const retained = existing.get(`${context}:${area}`);
+    return retained ? { ...retained } : { context, area, position: nextPlacementPosition(entries, context, area) };
   });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
+  return entries.map((entry) => (entry.id === entryId ? { ...entry, contextMask, areaMask, placements } : entry));
+}
+
+export function moveNavigationPlacement(
+  entries: NavigationEntry[],
+  context: PlacementView["context"],
+  area: PlacementView["area"],
+  activeId: number,
+  overId: number,
+): NavigationEntry[] {
+  const ordered = entriesForPlacement(entries, context, area);
+  const oldIndex = ordered.findIndex((entry) => entry.id === activeId);
+  const newIndex = ordered.findIndex((entry) => entry.id === overId);
+  if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return entries;
+
+  const positions = new Map(arrayMove(ordered, oldIndex, newIndex).map((entry, position) => [entry.id, position]));
+  return entries.map((entry) => ({
+    ...entry,
+    placements: entry.placements.map((placement) =>
+      placement.context === context && placement.area === area && positions.has(entry.id)
+        ? { ...placement, position: positions.get(entry.id)! }
+        : placement,
+    ),
+  }));
+}
+
+function toConfigurationInput(entries: NavigationEntry[]): NavigationConfigurationInput {
+  return {
+    entries: entries.map((entry) => ({
+      targetKind: entry.targetKind,
+      pageId: entry.pageId,
+      url: entry.url,
+      systemKey: entry.systemKey,
+      target: entry.target,
+      label: entry.label,
+      contextMask: entry.contextMask,
+      areaMask: entry.areaMask,
+      placements: entry.placements.map((placement) => ({ ...placement })),
+      ...(Object.keys(entry.translations ?? {}).length > 0 ? { translations: { ...entry.translations } } : {}),
+    })),
   };
+}
 
-  const displayUrl = item.url ?? (item.pageSlug ? `/${item.pageSlug}` : "");
+function isSystemOwnedDocsUrl(value: string): boolean {
+  const candidate = value.trim();
+  if (!candidate.startsWith("/")) return false;
+  if (/%(?:2f|5c)/i.test(candidate) || candidate.includes("\\")) {
+    return candidate.toLowerCase().startsWith("/docs");
+  }
 
-  const translationPlaceholder = item.pageSlug
-    ? `Uses linked page title: ${item.pageTitle ?? item.pageSlug}`
-    : item.label || "";
+  try {
+    const path = new URL(candidate, "https://navigation.invalid").pathname;
+    const normalized = `/${decodeURIComponent(path).split("/").filter(Boolean).join("/")}`;
+    return normalized === "/docs" || normalized.startsWith("/docs/");
+  } catch {
+    return candidate.toLowerCase().startsWith("/docs");
+  }
+}
 
+function errorDetails(error: unknown, fallback: string): SaveError {
+  if (!(error instanceof Error)) return { message: fallback, errorId: null };
+  const requestError = error as ApiRequestError;
+  return { message: error.message || fallback, errorId: requestError.errorId ?? null };
+}
+
+function NavigationErrorAlert({ error }: { error: SaveError }) {
   return (
     <div
-      ref={setNodeRef}
-      style={style}
-      className="grid grid-cols-[auto_minmax(0,1fr)_minmax(10rem,11rem)_auto] items-center gap-3 rounded-control border border-[var(--ds-border)] bg-[var(--ds-surface)] p-3"
+      className="mb-[var(--ds-space-sm)] rounded-control border border-[var(--ds-danger-border)] bg-[var(--ds-danger-bg)] px-[var(--ds-space-sm)] py-[var(--ds-space-xs)] text-sm text-[var(--ds-danger-text)]"
+      role="alert"
     >
-      <DashboardIconButton
-        type="button"
-        {...attributes}
-        {...listeners}
-        className="touch-none cursor-grab active:cursor-grabbing"
-        title={text.dragTitle}
-        aria-label={text.dragTitle}
-        variant={DashboardButtonVariant.Ghost}
-      >
-        <ListIcon weight="bold" className="size-4" />
-      </DashboardIconButton>
+      <p>{error.message}</p>
+      {error.errorId && <code className="mt-[var(--ds-space-xs)] block text-xs">{error.errorId}</code>}
+    </div>
+  );
+}
 
-      <div className="min-w-0 overflow-hidden">
-        <div className="text-sm font-medium text-[var(--ds-text)] truncate">{item.pageTitle ?? item.url}</div>
-        <div className="text-xs text-[var(--ds-text-muted)] font-mono">{displayUrl}</div>
+interface NavigationEntryEditorProps {
+  area: PlacementView["area"];
+  context: PlacementView["context"];
+  entry: NavigationEntry;
+  pages: ContentPageSummary[];
+  text: NavText;
+  expanded: boolean;
+  onAreaMaskChange: (entryId: number, areaMask: NavigationAreaMask) => void;
+  onContextMaskChange: (entryId: number, contextMask: ContentContextMask) => void;
+  onLabelChange: (entryId: number, label: string) => void;
+  onRemove: (entryId: number) => void;
+  onToggleExpanded: (entryId: number) => void;
+  onTranslationChange: (entryId: number, locale: Locale, value: string) => void;
+}
+
+function NavigationEntryEditor({
+  area,
+  context,
+  entry,
+  pages,
+  text,
+  expanded,
+  onAreaMaskChange,
+  onContextMaskChange,
+  onLabelChange,
+  onRemove,
+  onToggleExpanded,
+  onTranslationChange,
+}: NavigationEntryEditorProps) {
+  const systemTarget = entry.systemKey ? NAVIGATION_SYSTEM_TARGETS[entry.systemKey] : null;
+  const page = entry.pageId ? pages.find((candidate) => candidate.id === entry.pageId) : null;
+  const pagePath = page?.publications.find((publication) => publication.context === context)?.path;
+  const displayTarget =
+    systemTarget?.canonicalRoute ?? pagePath ?? entry.url ?? (entry.pageSlug ? `/${entry.pageSlug}` : "");
+  const incompatibleContextMask =
+    entry.targetKind === NavigationTargetKind.Page && page ? KNOWN_CONTENT_CONTEXT_MASK & ~page.contextMask : 0;
+  const systemOwned = entry.targetKind === NavigationTargetKind.System;
+  const translationPlaceholder = entry.pageTitle ?? entry.label ?? entry.url ?? entry.systemKey ?? "";
+  const translationsId = `navigation-entry-${entry.id}-${context}-${area}-translations`;
+
+  return (
+    <div className="min-w-0 space-y-[var(--ds-space-sm)]">
+      <div className="grid grid-cols-1 items-start gap-[var(--ds-space-sm)] xl:grid-cols-[minmax(0,1fr)_minmax(10rem,12rem)_auto]">
+        <div className="min-w-0 overflow-hidden">
+          <div className="flex items-center gap-[var(--ds-space-xs)]">
+            {systemOwned ? (
+              <span className="inline-flex items-center gap-[var(--ds-space-xs)] rounded-control bg-[var(--ds-surface-hover)] p-[var(--ds-space-xs)] text-xs font-medium text-[var(--ds-text-muted)]">
+                <LockKeyIcon className="size-3.5" weight="duotone" />
+                {text.systemTarget}
+              </span>
+            ) : entry.targetKind === NavigationTargetKind.Page ? (
+              <FileMdIcon className="size-4 shrink-0 text-[var(--ds-text-muted)]" weight="duotone" />
+            ) : (
+              <LinkIcon className="size-4 shrink-0 text-[var(--ds-text-muted)]" weight="duotone" />
+            )}
+            <span className="truncate text-sm font-medium text-[var(--ds-text)]">
+              {entry.pageTitle ?? entry.url ?? entry.systemKey}
+            </span>
+          </div>
+          <div className="mt-[var(--ds-space-xs)] truncate font-mono text-xs text-[var(--ds-text-muted)]">
+            {displayTarget}
+          </div>
+        </div>
+
+        <DashboardInput
+          type="text"
+          name={`navigation-entry-${entry.id}-label`}
+          value={entry.label ?? ""}
+          onChange={(event) => onLabelChange(entry.id, event.target.value)}
+          placeholder={entry.pageTitle ?? entry.url ?? entry.systemKey ?? ""}
+          className="min-w-0 text-xs"
+          title={text.labelOverrideTitle}
+        />
+
+        {!systemOwned && (
+          <DashboardActionButton
+            action={DashboardActionId.Remove}
+            icon={<XCircleIcon weight="duotone" className="size-3.5" />}
+            iconOnly
+            label={text.remove}
+            onClick={() => onRemove(entry.id)}
+            size="action"
+            title={text.remove}
+            type="button"
+          />
+        )}
       </div>
 
-      <DashboardInput
-        type="text"
-        value={item.label}
-        onChange={(e) => onLabelChange(item.id, e.target.value)}
-        placeholder={item.pageTitle ?? item.url ?? ""}
-        className="w-44 min-w-0 text-xs"
-        title={text.labelOverrideTitle}
-      />
+      <div className="grid grid-cols-1 gap-[var(--ds-space-sm)] xl:grid-cols-2">
+        <div className="space-y-[var(--ds-space-xs)]">
+          <div className="text-xs font-semibold uppercase tracking-wider text-[var(--ds-text-subtle)]">
+            {text.context}
+          </div>
+          <NavigationMaskControl
+            aria-label={`${entryLabel(entry)}: ${text.context}`}
+            disabledMask={systemOwned ? KNOWN_CONTENT_CONTEXT_MASK : incompatibleContextMask}
+            kind={NavigationMaskKind.Context}
+            value={entry.contextMask}
+            onChange={(value) => onContextMaskChange(entry.id, value)}
+          />
+        </div>
+        <div className="space-y-[var(--ds-space-xs)]">
+          <div className="text-xs font-semibold uppercase tracking-wider text-[var(--ds-text-subtle)]">{text.area}</div>
+          <NavigationMaskControl
+            aria-label={`${entryLabel(entry)}: ${text.area}`}
+            kind={NavigationMaskKind.Area}
+            value={entry.areaMask}
+            onChange={(value) => onAreaMaskChange(entry.id, value)}
+          />
+        </div>
+      </div>
 
-      <DashboardActionButton
-        action={DashboardActionId.Remove}
-        icon={<XCircleIcon weight="duotone" className="size-3.5" />}
-        iconOnly
-        label={text.remove}
-        onClick={() => onRemove(item.id)}
-        size="action"
-        title={text.remove}
-        type="button"
-      />
-
-      {/* Translations expandable */}
-      <div className="col-span-4 w-full">
+      <div>
         <button
           type="button"
-          onClick={() => onToggleExpanded(item.id)}
-          className="flex items-center gap-1 text-xs text-[var(--ds-text-muted)] hover:text-[var(--ds-text)] select-none"
+          aria-controls={translationsId}
+          aria-expanded={expanded}
+          onClick={() => onToggleExpanded(entry.id)}
+          className="flex items-center gap-[var(--ds-space-xs)] text-xs text-[var(--ds-text-muted)] hover:text-[var(--ds-text)]"
         >
-          {expanded ? <CaretUpIcon className="w-3 h-3" /> : <CaretDownIcon className="w-3 h-3" />}
-          <span className="uppercase tracking-wide font-medium">Translations</span>
+          {expanded ? <CaretUpIcon className="size-3" /> : <CaretDownIcon className="size-3" />}
+          <span className="font-medium uppercase tracking-wide">{text.translations}</span>
         </button>
         {expanded && (
-          <div className="mt-2 flex flex-col gap-1.5">
+          <div id={translationsId} className="mt-[var(--ds-space-xs)] flex flex-col gap-[var(--ds-space-xs)]">
             {NON_DEFAULT_LOCALES.map((locale) => (
-              <div key={locale} className="flex items-center gap-2">
-                <span className="w-10 shrink-0 text-[10px] font-semibold uppercase text-[var(--ds-text-subtle)] tracking-widest">
+              <div key={locale} className="flex items-center gap-[var(--ds-space-xs)]">
+                <span className="w-10 shrink-0 text-[10px] font-semibold uppercase tracking-widest text-[var(--ds-text-subtle)]">
                   {LOCALE_FLAG[locale] ?? ""} {locale.toUpperCase()}
                 </span>
                 <DashboardInput
                   type="text"
-                  value={item.translations[locale] ?? ""}
+                  name={`navigation-entry-${entry.id}-translation-${locale}`}
+                  value={entry.translations?.[locale] ?? ""}
                   placeholder={translationPlaceholder}
-                  onChange={(e) => onTranslationChange(item.id, locale, e.target.value)}
+                  onChange={(event) => onTranslationChange(entry.id, locale, event.target.value)}
                   className="flex-1 text-xs"
                 />
               </div>
@@ -254,567 +458,390 @@ function SortableNavItem({
   );
 }
 
-export interface NavColumnHandle {
-  save: () => Promise<boolean>;
-  hasDirty: () => boolean;
+interface AddNavigationItemProps {
+  entries: NavigationEntry[];
+  nextId: () => number;
+  onAdd: (entry: NavigationEntry) => void;
+  pages: ContentPageSummary[];
+  text: NavText;
 }
 
-interface NavColumnProps {
-  navId: NavId;
-  onDirtyChange?: (dirty: boolean) => void;
-  ref?: Ref<NavColumnHandle>;
+interface AddNavigationItemState {
+  type: NavigationAddType;
+  contextMask: ContentContextMask;
+  areaMask: NavigationAreaMask;
+  pageId: string;
+  url: string;
+  label: string;
 }
 
-function NavColumn({ navId, onDirtyChange, ref }: NavColumnProps) {
-  const { locale } = useI18n();
-  const text = NAV_TEXT[locale];
-  const staticRoutes = text.staticRoutes;
-  const { data: serverItems = [], isLoading } = useAdminNav(navId);
-  const { data: allPages = [] } = useContentPages();
-  const saveNav = useSaveNav(navId);
+const INITIAL_ADD_ITEM_STATE: AddNavigationItemState = {
+  type: NavigationAddType.Page,
+  contextMask: ContentContext.Frontend,
+  areaMask: NavigationArea.Main,
+  pageId: "",
+  url: "",
+  label: "",
+};
 
-  interface NavColumnState {
-    items: NavItemState[];
-    dirty: boolean;
-    saveError: string | null;
-    addType: NavAddType;
-    addPageSlug: string;
-    addUrl: string;
-    addLabel: string;
-    addTarget: NavTarget;
-  }
+function addNavigationItemReducer(
+  state: AddNavigationItemState,
+  action: Partial<AddNavigationItemState>,
+): AddNavigationItemState {
+  return { ...state, ...action };
+}
 
-  const [state, dispatch] = useReducer(
-    (prev: NavColumnState, action: Partial<NavColumnState>): NavColumnState => ({ ...prev, ...action }),
-    {
-      items: [],
-      dirty: false,
-      saveError: null,
-      addType: NavAddType.Page,
-      addPageSlug: "",
-      addUrl: "",
-      addLabel: "",
-      addTarget: NavTarget.SameTab,
-    },
-  );
-  const { items, dirty, saveError, addType, addPageSlug, addUrl, addLabel, addTarget } = state;
+function AddNavigationItem({ entries, nextId, onAdd, pages, text }: AddNavigationItemProps) {
+  const [state, dispatch] = useReducer(addNavigationItemReducer, INITIAL_ADD_ITEM_STATE);
+  const { type, contextMask, areaMask, pageId, url, label } = state;
 
-  const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
+  const compatiblePages = pages.filter((page) => hasAllContextBits(page.contextMask, contextMask));
+  const trimmedUrl = url.trim();
+  const docsOwned = type === NavigationAddType.Url && isSystemOwnedDocsUrl(trimmedUrl);
+  const invalidUrl =
+    type === NavigationAddType.Url &&
+    trimmedUrl.length > 0 &&
+    !docsOwned &&
+    !isSafeConfiguredUrl(trimmedUrl, { allowRelative: true, allowMailto: true });
+  const canAdd =
+    type === NavigationAddType.Page ? pageId.length > 0 : trimmedUrl.length > 0 && !docsOwned && !invalidUrl;
 
-  const setItems = (updater: NavItemState[] | ((prev: NavItemState[]) => NavItemState[])) => {
-    dispatch({ items: typeof updater === "function" ? updater(items) : updater });
-  };
-
-  const setDirty = useCallback(
-    (nextDirty: boolean) => {
-      dispatch({ dirty: nextDirty });
-      onDirtyChange?.(nextDirty);
-    },
-    [onDirtyChange],
-  );
-
-  useEffect(() => {
+  function handleContextMaskChange(value: ContentContextMask) {
+    const selectedPage = pages.find((page) => page.id === pageId);
     dispatch({
-      items: serverItems.map((si) => ({
-        id: si.id,
-        pageSlug: si.pageSlug ?? null,
-        pageTitle: si.pageTitle ?? null,
-        url: si.url ?? null,
-        target: (si.target as NavTarget) ?? NavTarget.SameTab,
-        label: si.label ?? "",
-        translations: si.translations ?? {},
-      })),
-      dirty: false,
+      contextMask: value,
+      ...(selectedPage && !hasAllContextBits(selectedPage.contextMask, value) ? { pageId: "" } : {}),
     });
-  }, [serverItems]);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    setItems((prev) => {
-      const oldIndex = prev.findIndex((i) => i.id === active.id);
-      const newIndex = prev.findIndex((i) => i.id === over.id);
-      return arrayMove(prev, oldIndex, newIndex);
-    });
-    setDirty(true);
   }
 
-  function handleRemove(id: number) {
-    setItems((prev) => prev.filter((i) => i.id !== id));
-    setDirty(true);
+  function reset() {
+    dispatch({ pageId: "", url: "", label: "" });
   }
 
-  function handleLabelChange(id: number, label: string) {
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, label } : i)));
-    setDirty(true);
-  }
-
-  function handleTranslationChange(id: number, locale: Locale, value: string) {
-    setItems((prev) =>
-      prev.map((i) => {
-        if (i.id !== id) return i;
-        const next = { ...i.translations };
-        if (value.trim().length === 0) {
-          delete next[locale];
-        } else {
-          next[locale] = value;
-        }
-        return { ...i, translations: next };
-      }),
-    );
-    setDirty(true);
-  }
-
-  function handleToggleExpanded(id: number) {
-    setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }));
-  }
-
-  function handleAddPage() {
-    if (!addPageSlug) return;
-    const page = allPages.find((p) => p.slug === addPageSlug);
-    if (!page) return;
-    if (items.some((i) => i.pageSlug === addPageSlug)) return;
-    setItems((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
+  function handleAdd() {
+    if (!canAdd) return;
+    const placements = placementsForNewEntry(entries, contextMask, areaMask);
+    if (type === NavigationAddType.Page) {
+      const page = compatiblePages.find((candidate) => candidate.id === pageId);
+      if (!page) return;
+      onAdd({
+        id: nextId(),
+        targetKind: NavigationTargetKind.Page,
+        pageId: page.id,
         pageSlug: page.slug,
         pageTitle: page.title,
         url: null,
-        target: NavTarget.SameTab,
-        label: "",
+        systemKey: null,
+        target: NavTarget.Self,
+        label: label.trim() || null,
+        contextMask,
+        areaMask,
+        placements,
         translations: {},
-      },
-    ]);
-    dispatch({ addPageSlug: "" });
-    setDirty(true);
-  }
-
-  function handleAddUrl() {
-    const trimmed = addUrl.trim();
-    if (!trimmed) return;
-
-    // Check for static route shortcut
-    const staticRoute = staticRoutes.find((r) => r.url === trimmed);
-    const derivedLabel = addLabel.trim() || staticRoute?.label || "";
-
-    setItems((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
+        canonicalRoute: null,
+        behavior: null,
+      });
+    } else {
+      onAdd({
+        id: nextId(),
+        targetKind: NavigationTargetKind.Url,
+        pageId: null,
         pageSlug: null,
-        pageTitle: derivedLabel || trimmed,
-        url: trimmed,
-        target: addTarget,
-        label: derivedLabel,
+        pageTitle: null,
+        url: trimmedUrl,
+        systemKey: null,
+        target: NavTarget.Self,
+        label: label.trim() || null,
+        contextMask,
+        areaMask,
+        placements,
         translations: {},
-      },
-    ]);
-    dispatch({ addUrl: "", addLabel: "", addTarget: NavTarget.SameTab });
-    setDirty(true);
-  }
-
-  function handleAddStatic(route: { label: string; url: string }) {
-    if (items.some((i) => i.url === route.url)) return;
-    setItems((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        pageSlug: null,
-        pageTitle: route.label,
-        url: route.url,
-        target: NavTarget.SameTab,
-        label: "",
-        translations: {},
-      },
-    ]);
-    setDirty(true);
-  }
-
-  const handleSave = useCallback(async (): Promise<boolean> => {
-    if (!dirty) return true;
-    dispatch({ saveError: null });
-    try {
-      await saveNav.mutateAsync(
-        items.map((i) => {
-          const base = {
-            pageSlug: i.pageSlug ?? undefined,
-            url: i.url ?? undefined,
-            label: i.label || null,
-            target: i.target,
-          };
-          const tx = Object.entries(i.translations).filter(([, v]) => typeof v === "string" && v.trim().length > 0);
-          return tx.length > 0 ? { ...base, translations: Object.fromEntries(tx) } : base;
-        }),
-      );
-      setDirty(false);
-      return true;
-    } catch (err) {
-      dispatch({ saveError: err instanceof Error ? err.message : text.errorSaving });
-      return false;
+        canonicalRoute: null,
+        behavior: null,
+      });
     }
-  }, [dirty, items, saveNav, setDirty, text.errorSaving]);
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      save: handleSave,
-      hasDirty: () => dirty,
-    }),
-    [dirty, handleSave],
-  );
-
-  const usedUrls = new Set<string>();
-  for (const item of items) {
-    if (item.url) usedUrls.add(item.url);
+    reset();
   }
-  const availableStatics = staticRoutes.filter((r) => !usedUrls.has(r.url));
-  // Group all pages by segmented hierarchy so the dropdown mirrors the
-  // sidebar/pages-overview structure. Every page stays selectable; the user
-  // owns the decision whether to re-add a page that's already in the nav.
-  const pagesGrouped = (() => {
-    const { segmentedBlocks, orphanDefaults } = groupPagesByHierarchy(allPages);
-    const orphans = orphanDefaults.map((p) => ({ slug: p.slug, title: p.title }));
-    const blocks = segmentedBlocks.map(({ parent, children }) => ({
-      parent: { slug: parent.slug, title: parent.title },
-      children: children.map((c) => ({ slug: c.slug, title: c.title })),
-    }));
-    return { orphans, blocks };
-  })();
 
   return (
-    <div className="flex flex-col gap-4">
-      {saveError && <p className="text-xs text-red-500">{saveError}</p>}
-
-      {isLoading ? (
-        <div className="text-xs text-[var(--ds-text-muted)]">{text.load}</div>
-      ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-2">
-              {items.length === 0 && (
-                <div className="text-xs text-[var(--ds-text-muted)] py-4 text-center border border-dashed border-[var(--ds-border)] rounded-control">
-                  {text.noEntries}
-                </div>
-              )}
-              {items.map((item) => (
-                <SortableNavItem
-                  key={item.id}
-                  item={item}
-                  expanded={!!expandedRows[item.id]}
-                  onRemove={handleRemove}
-                  onLabelChange={handleLabelChange}
-                  onTranslationChange={handleTranslationChange}
-                  onToggleExpanded={handleToggleExpanded}
-                  text={text}
-                />
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
-      )}
-
-      <NavColumnAddSection
-        addType={addType}
-        addPageSlug={addPageSlug}
-        addUrl={addUrl}
-        addLabel={addLabel}
-        pagesGrouped={pagesGrouped}
-        availableStatics={availableStatics}
-        text={text}
-        onTypeChange={(type) => dispatch({ addType: type })}
-        onPageSlugChange={(slug) => dispatch({ addPageSlug: slug })}
-        onUrlChange={(url) => dispatch({ addUrl: url })}
-        onLabelChange={(label) => dispatch({ addLabel: label })}
-        onAddPage={handleAddPage}
-        onAddUrl={handleAddUrl}
-        onAddStatic={handleAddStatic}
-      />
-    </div>
-  );
-}
-
-interface PagesGrouped {
-  orphans: { slug: string; title: string }[];
-  blocks: {
-    parent: { slug: string; title: string };
-    children: { slug: string; title: string }[];
-  }[];
-}
-
-interface NavColumnAddSectionProps {
-  addType: NavAddType;
-  addPageSlug: string;
-  addUrl: string;
-  addLabel: string;
-  pagesGrouped: PagesGrouped;
-  availableStatics: { label: string; url: string }[];
-  text: NavText;
-  onTypeChange: (type: NavAddType) => void;
-  onPageSlugChange: (slug: string) => void;
-  onUrlChange: (url: string) => void;
-  onLabelChange: (label: string) => void;
-  onAddPage: () => void;
-  onAddUrl: () => void;
-  onAddStatic: (route: { label: string; url: string }) => void;
-}
-
-function NavColumnAddSection({
-  addType,
-  addPageSlug,
-  addUrl,
-  addLabel,
-  pagesGrouped,
-  availableStatics,
-  text,
-  onTypeChange,
-  onPageSlugChange,
-  onUrlChange,
-  onLabelChange,
-  onAddPage,
-  onAddUrl,
-  onAddStatic,
-}: NavColumnAddSectionProps) {
-  return (
-    <div className="border-t border-[var(--ds-border)] pt-3 space-y-3">
+    <fieldset className="m-0 space-y-[var(--ds-space-sm)] border-0 p-0" aria-label={text.addItem}>
       <SegmentSwitch
-        aria-label={text.choosePage}
-        value={addType}
-        onChange={(value) => onTypeChange(value as NavAddType)}
+        aria-label={text.itemType}
+        value={type}
+        onChange={(value) => dispatch({ type: value })}
         options={[
-          { value: NavAddType.Page, label: text.typePage },
-          { value: NavAddType.Url, label: text.typeUrl },
+          { value: NavigationAddType.Page, label: text.typePage },
+          { value: NavigationAddType.Url, label: text.typeUrl },
         ]}
         size="sm"
       />
 
-      {addType === NavAddType.Page ? (
-        <div className="flex items-center gap-2">
-          <HierarchicalPagePicker
-            value={addPageSlug}
-            onChange={onPageSlugChange}
-            pagesGrouped={pagesGrouped}
-            placeholder={text.choosePage}
-          />
-          <DashboardActionButton
-            action={DashboardActionId.Create}
-            disabled={!addPageSlug}
-            icon={<PlusCircleIcon weight="duotone" className="size-4" />}
-            iconOnly
-            label={text.add}
-            onClick={onAddPage}
-            size="action"
-            title={text.add}
-            type="button"
-          />
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {/* Static route shortcuts */}
-          {availableStatics.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {availableStatics.map((r) => (
-                <button
-                  key={r.url}
-                  type="button"
-                  onClick={() => onAddStatic(r)}
-                  className="px-2 py-1 text-xs bg-[var(--ds-surface-hover)] hover:bg-[var(--ds-nav-hover-bg)] text-[var(--ds-text-muted)] hover:text-[var(--ds-text)] rounded border border-[var(--ds-border)] font-mono"
-                >
-                  {r.url}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="flex items-center gap-2">
-            <DashboardInput
-              type="text"
-              value={addUrl}
-              onChange={(e) => onUrlChange(e.target.value)}
-              placeholder={text.urlPlaceholder}
-              className="min-w-0 flex-1 font-mono text-xs"
-            />
-            <DashboardInput
-              type="text"
-              value={addLabel}
-              onChange={(e) => onLabelChange(e.target.value)}
-              placeholder={text.labelPlaceholder}
-              className="w-24 text-xs"
-            />
-            <DashboardActionButton
-              action={DashboardActionId.Create}
-              disabled={!addUrl.trim()}
-              icon={<PlusCircleIcon weight="duotone" className="size-4" />}
-              iconOnly
-              label={text.add}
-              onClick={onAddUrl}
-              size="action"
-              title={text.add}
-              type="button"
-            />
+      <div className="grid grid-cols-1 gap-[var(--ds-space-sm)] md:grid-cols-2">
+        <div className="space-y-[var(--ds-space-xs)]">
+          <div className="text-xs font-semibold uppercase tracking-wider text-[var(--ds-text-subtle)]">
+            {text.context}
           </div>
+          <NavigationMaskControl
+            aria-label={`${text.addItem}: ${text.context}`}
+            kind={NavigationMaskKind.Context}
+            value={contextMask}
+            onChange={handleContextMaskChange}
+          />
         </div>
-      )}
-    </div>
-  );
-}
+        <div className="space-y-[var(--ds-space-xs)]">
+          <div className="text-xs font-semibold uppercase tracking-wider text-[var(--ds-text-subtle)]">{text.area}</div>
+          <NavigationMaskControl
+            aria-label={`${text.addItem}: ${text.area}`}
+            kind={NavigationMaskKind.Area}
+            value={areaMask}
+            onChange={(value) => dispatch({ areaMask: value })}
+          />
+        </div>
+      </div>
 
-interface HierarchicalPagePickerProps {
-  value: string;
-  onChange: (value: string) => void;
-  pagesGrouped: PagesGrouped;
-  placeholder: string;
-}
-
-interface PageRowProps {
-  depth: 0 | 1;
-  onPick: (value: string) => void;
-  pageType: PageType;
-  selected: boolean;
-  slug: string;
-  title: string;
-}
-
-function PageRow({ depth, onPick, pageType, selected, slug, title }: PageRowProps) {
-  const Icon = pageType === PageType.Segmented ? FileDashedIcon : FileMdIcon;
-  return (
-    <ListboxOption
-      onClick={() => onPick(slug)}
-      selected={selected}
-      className="text-xs"
-      controlSize="compact"
-      style={{ paddingLeft: 8 + depth * 20, paddingRight: 8 }}
-    >
-      <Icon weight="duotone" className="w-4 h-4 shrink-0 text-[var(--ds-text-muted)]" />
-      <span className="truncate">
-        {title} <span className="text-[var(--ds-text-muted)] font-mono">/{slug}</span>
-      </span>
-    </ListboxOption>
-  );
-}
-
-// Custom dropdown that visually indents segmented children via real CSS
-// padding (native <select> ignores leading whitespace and has no built-in
-// way to mark hierarchy). Every item is selectable.
-function HierarchicalPagePicker({ value, onChange, pagesGrouped, placeholder }: HierarchicalPagePickerProps) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    function escHandler(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", handler);
-    document.addEventListener("keydown", escHandler);
-    return () => {
-      document.removeEventListener("mousedown", handler);
-      document.removeEventListener("keydown", escHandler);
-    };
-  }, [open]);
-
-  const selectedLabel = (() => {
-    if (!value) return placeholder;
-    for (const p of pagesGrouped.orphans) {
-      if (p.slug === value) return `${p.title} (/${p.slug})`;
-    }
-    for (const b of pagesGrouped.blocks) {
-      if (b.parent.slug === value) return `${b.parent.title} (/${b.parent.slug})`;
-      for (const c of b.children) {
-        if (c.slug === value) return `${c.title} (/${c.slug})`;
-      }
-    }
-    return placeholder;
-  })();
-
-  function pick(v: string) {
-    onChange(v);
-    setOpen(false);
-  }
-
-  return (
-    <div ref={ref} className="relative flex-1">
-      <ControlTrigger controlSize="compact" open={open} onClick={() => setOpen((o) => !o)} className="justify-between">
-        <span className={value ? "text-[var(--ds-text)]" : "text-[var(--ds-text-muted)]"}>{selectedLabel}</span>
-        <CaretDownIcon weight="duotone" className="w-3 h-3 shrink-0 text-[var(--ds-text-muted)]" />
-      </ControlTrigger>
-      {open && (
-        <div className="absolute z-20 mt-1 w-full bg-[var(--ds-bg-elevated,var(--ds-surface))] border border-[var(--ds-border)] rounded-control shadow-lg max-h-80 overflow-auto py-1">
-          {pagesGrouped.orphans.map((p) => (
-            <PageRow
-              key={p.slug}
-              slug={p.slug}
-              title={p.title}
-              depth={0}
-              pageType={PageType.Default}
-              selected={value === p.slug}
-              onPick={pick}
+      <div className="grid grid-cols-1 items-end gap-[var(--ds-space-xs)] md:grid-cols-[minmax(0,1fr)_minmax(8rem,12rem)_auto]">
+        {type === NavigationAddType.Page ? (
+          <Dropdown
+            aria-label={text.pageTarget}
+            value={pageId}
+            onChange={(value) => dispatch({ pageId: value })}
+            options={compatiblePages.map((page) => ({ value: page.id, label: page.title }))}
+            placeholder={text.choosePage}
+            size="sm"
+          />
+        ) : (
+          <div>
+            <DashboardInput
+              type="text"
+              name="navigation-new-url"
+              aria-describedby={docsOwned || invalidUrl ? NEW_NAVIGATION_URL_ERROR_ID : undefined}
+              aria-invalid={docsOwned || invalidUrl || undefined}
+              value={url}
+              onChange={(event) => dispatch({ url: event.target.value })}
+              placeholder={text.urlPlaceholder}
+              className="w-full min-w-0 font-mono text-xs"
             />
-          ))}
-          {pagesGrouped.blocks.map((b) => (
-            <Fragment key={b.parent.slug}>
-              <PageRow
-                slug={b.parent.slug}
-                title={b.parent.title}
-                depth={0}
-                pageType={PageType.Segmented}
-                selected={value === b.parent.slug}
-                onPick={pick}
-              />
-              {b.children.map((c) => (
-                <PageRow
-                  key={c.slug}
-                  slug={c.slug}
-                  title={c.title}
-                  depth={1}
-                  pageType={PageType.Default}
-                  selected={value === c.slug}
-                  onPick={pick}
-                />
-              ))}
-            </Fragment>
-          ))}
-        </div>
-      )}
-    </div>
+            {docsOwned && (
+              <p
+                id={NEW_NAVIGATION_URL_ERROR_ID}
+                className="mt-[var(--ds-space-xs)] text-xs text-[var(--ds-danger-text)]"
+              >
+                {text.docsOwned}
+              </p>
+            )}
+            {invalidUrl && (
+              <p
+                id={NEW_NAVIGATION_URL_ERROR_ID}
+                className="mt-[var(--ds-space-xs)] text-xs text-[var(--ds-danger-text)]"
+              >
+                {text.invalidUrl}
+              </p>
+            )}
+          </div>
+        )}
+        <DashboardInput
+          type="text"
+          name="navigation-new-label"
+          value={label}
+          onChange={(event) => dispatch({ label: event.target.value })}
+          placeholder={text.labelPlaceholder}
+          className="min-w-0 text-xs"
+        />
+        <DashboardActionButton
+          action={DashboardActionId.Create}
+          disabled={!canAdd}
+          icon={<PlusCircleIcon weight="duotone" className="size-4" />}
+          iconOnly
+          label={text.add}
+          onClick={handleAdd}
+          size="action"
+          title={text.add}
+          type="button"
+        />
+      </div>
+    </fieldset>
   );
 }
 
-/**
- * Navigation management page for header/footer link sets.
- *
- * @returns Nav manager route component.
- */
-export function NavManagerPage() {
-  const { locale, messages } = useI18n();
-  const common = messages.common;
-  const text = NAV_TEXT[locale];
+interface NavigationEditorState {
+  sourceConfiguration: NavigationConfiguration;
+  entries: NavigationEntry[];
+  revision: number;
+  dirty: boolean;
+  isSaving: boolean;
+  saveError: SaveError | null;
+  expandedRows: Record<number, boolean>;
+}
 
-  const headerRef = useRef<NavColumnHandle>(null);
-  const footerRef = useRef<NavColumnHandle>(null);
-  const [headerDirty, setHeaderDirty] = useState(false);
-  const [footerDirty, setFooterDirty] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+const NavigationEditorActionType = {
+  Update: "update",
+  SaveStarted: "save-started",
+  SaveSucceeded: "save-succeeded",
+  SaveFailed: "save-failed",
+  SyncConfiguration: "sync-configuration",
+  ToggleExpanded: "toggle-expanded",
+} as const;
+
+type NavigationEditorAction =
+  | {
+      type: typeof NavigationEditorActionType.Update;
+      updater: (entries: NavigationEntry[]) => NavigationEntry[];
+    }
+  | { type: typeof NavigationEditorActionType.SaveStarted }
+  | {
+      type: typeof NavigationEditorActionType.SaveSucceeded;
+      configuration: NavigationConfiguration;
+      savedRevision: number;
+    }
+  | { type: typeof NavigationEditorActionType.SaveFailed; error: SaveError }
+  | { type: typeof NavigationEditorActionType.SyncConfiguration; configuration: NavigationConfiguration }
+  | { type: typeof NavigationEditorActionType.ToggleExpanded; entryId: number };
+
+function createNavigationEditorState(configuration: NavigationConfiguration): NavigationEditorState {
+  return {
+    sourceConfiguration: configuration,
+    entries: cloneEntries(configuration),
+    revision: 0,
+    dirty: false,
+    isSaving: false,
+    saveError: null,
+    expandedRows: {},
+  };
+}
+
+function navigationEditorReducer(state: NavigationEditorState, action: NavigationEditorAction): NavigationEditorState {
+  switch (action.type) {
+    case NavigationEditorActionType.Update:
+      return {
+        ...state,
+        entries: action.updater(state.entries),
+        revision: state.revision + 1,
+        dirty: true,
+        saveError: null,
+      };
+    case NavigationEditorActionType.SaveStarted:
+      return { ...state, isSaving: true, saveError: null };
+    case NavigationEditorActionType.SaveSucceeded:
+      if (state.revision !== action.savedRevision) {
+        return {
+          ...state,
+          sourceConfiguration: action.configuration,
+          isSaving: false,
+          saveError: null,
+        };
+      }
+      return {
+        ...state,
+        sourceConfiguration: action.configuration,
+        entries: cloneEntries(action.configuration),
+        dirty: false,
+        isSaving: false,
+        saveError: null,
+      };
+    case NavigationEditorActionType.SaveFailed:
+      return { ...state, isSaving: false, saveError: action.error };
+    case NavigationEditorActionType.SyncConfiguration:
+      if (state.sourceConfiguration === action.configuration) return state;
+      // A local dirty draft wins over background refetches. Advancing only
+      // the observed source keeps later clean refetches from replacing it.
+      return state.dirty
+        ? { ...state, sourceConfiguration: action.configuration }
+        : {
+            ...state,
+            sourceConfiguration: action.configuration,
+            entries: cloneEntries(action.configuration),
+            saveError: null,
+          };
+    case NavigationEditorActionType.ToggleExpanded:
+      return {
+        ...state,
+        expandedRows: { ...state.expandedRows, [action.entryId]: !state.expandedRows[action.entryId] },
+      };
+  }
+}
+
+interface NavigationEditorProps {
+  common: { save: string; saved: string; saving: string };
+  initialConfiguration: NavigationConfiguration;
+  pages: ContentPageSummary[];
+  text: NavText;
+}
+
+function NavigationEditor({ common, initialConfiguration, pages, text }: NavigationEditorProps) {
+  const saveConfiguration = useSaveNavigationConfiguration();
+  const [state, dispatch] = useReducer(navigationEditorReducer, initialConfiguration, createNavigationEditorState);
+  const { entries, dirty, isSaving, saveError, expandedRows, sourceConfiguration } = state;
+  const draftRevision = useRef(0);
+  const temporaryId = useRef(-1);
   const { phase: savedPhase, show: showSaved } = useSaveNotification();
 
-  const isDirty = headerDirty || footerDirty;
+  if (sourceConfiguration !== initialConfiguration) {
+    dispatch({ type: NavigationEditorActionType.SyncConfiguration, configuration: initialConfiguration });
+  }
+
+  const updateEntries = useCallback((updater: (current: NavigationEntry[]) => NavigationEntry[]) => {
+    draftRevision.current += 1;
+    dispatch({ type: NavigationEditorActionType.Update, updater });
+  }, []);
+
+  function handleContextMaskChange(entryId: number, contextMask: ContentContextMask) {
+    const entry = entries.find((candidate) => candidate.id === entryId);
+    if (!entry || entry.targetKind === NavigationTargetKind.System) return;
+    const page = entry.pageId ? pages.find((candidate) => candidate.id === entry.pageId) : null;
+    if (page && !hasAllContextBits(page.contextMask, contextMask)) return;
+    updateEntries((current) => reconcileEntryMasks(current, entryId, contextMask, entry.areaMask));
+  }
+
+  function handleAreaMaskChange(entryId: number, areaMask: NavigationAreaMask) {
+    const entry = entries.find((candidate) => candidate.id === entryId);
+    if (!entry) return;
+    updateEntries((current) => reconcileEntryMasks(current, entryId, entry.contextMask, areaMask));
+  }
+
+  function handleLabelChange(entryId: number, label: string) {
+    updateEntries((current) =>
+      current.map((entry) => (entry.id === entryId ? { ...entry, label: label || null } : entry)),
+    );
+  }
+
+  function handleTranslationChange(entryId: number, locale: Locale, value: string) {
+    updateEntries((current) =>
+      current.map((entry) => {
+        if (entry.id !== entryId) return entry;
+        const translations = { ...entry.translations };
+        if (value.trim()) translations[locale] = value;
+        else delete translations[locale];
+        return { ...entry, translations };
+      }),
+    );
+  }
+
+  function handleRemove(entryId: number) {
+    const entry = entries.find((candidate) => candidate.id === entryId);
+    if (!entry || entry.targetKind === NavigationTargetKind.System) return;
+    updateEntries((current) => current.filter((candidate) => candidate.id !== entryId));
+  }
+
+  function handleMove(
+    context: PlacementView["context"],
+    area: PlacementView["area"],
+    activeId: number,
+    overId: number,
+  ) {
+    updateEntries((current) => moveNavigationPlacement(current, context, area, activeId, overId));
+  }
 
   async function handleSave() {
-    if (!isDirty || isSaving) return;
-    setIsSaving(true);
-    const [headerOk, footerOk] = await Promise.all([
-      headerRef.current?.save() ?? Promise.resolve(true),
-      footerRef.current?.save() ?? Promise.resolve(true),
-    ]);
-    setIsSaving(false);
-    if (headerOk && footerOk) showSaved();
+    if (!dirty || isSaving) return;
+    const savedRevision = draftRevision.current;
+    dispatch({ type: NavigationEditorActionType.SaveStarted });
+    try {
+      const saved = await saveConfiguration.mutateAsync(toConfigurationInput(entries));
+      dispatch({ type: NavigationEditorActionType.SaveSucceeded, configuration: saved, savedRevision });
+      if (draftRevision.current === savedRevision) showSaved();
+    } catch (error) {
+      dispatch({ type: NavigationEditorActionType.SaveFailed, error: errorDetails(error, text.errorSaving) });
+    }
   }
 
   return (
@@ -823,30 +850,120 @@ export function NavManagerPage() {
         <SaveNotification phase={savedPhase} label={common.saved} />
         <SaveActionButton
           onClick={handleSave}
-          disabled={!isDirty || isSaving}
+          disabled={!dirty || isSaving}
           busyLabel={common.saving}
           label={common.save}
           status={isSaving ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
         />
       </PageHeader>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      {saveError && <NavigationErrorAlert error={saveError} />}
+
+      <div className="flex flex-col gap-[var(--ds-space-sm)]">
+        <div className="grid grid-cols-1 gap-[var(--ds-space-sm)] xl:grid-cols-2">
+          {PLACEMENT_VIEWS.map((view) => {
+            const placementEntries = entriesForPlacement(entries, view.context, view.area);
+            const Icon = view.icon === PlacementViewIcon.Main ? BrowsersIcon : SquareHalfBottomIcon;
+            return (
+              <DashboardSection key={view.title}>
+                <DashboardSection.Header icon={<Icon weight="duotone" className="size-4" />} title={view.title} />
+                <DashboardSection.Body>
+                  <NavigationPlacementList
+                    title={view.title}
+                    emptyLabel={text.noEntries}
+                    itemIds={placementEntries.map((entry) => entry.id)}
+                    onMove={(activeId, overId) => handleMove(view.context, view.area, activeId, overId)}
+                  >
+                    {placementEntries.map((entry) => (
+                      <NavigationPlacementListItem
+                        key={entry.id}
+                        dragLabel={text.dragTitle}
+                        id={entry.id}
+                        label={entryLabel(entry)}
+                      >
+                        <NavigationEntryEditor
+                          area={view.area}
+                          context={view.context}
+                          entry={entry}
+                          pages={pages}
+                          text={text}
+                          expanded={!!expandedRows[entry.id]}
+                          onAreaMaskChange={handleAreaMaskChange}
+                          onContextMaskChange={handleContextMaskChange}
+                          onLabelChange={handleLabelChange}
+                          onRemove={handleRemove}
+                          onToggleExpanded={(entryId) =>
+                            dispatch({ type: NavigationEditorActionType.ToggleExpanded, entryId })
+                          }
+                          onTranslationChange={handleTranslationChange}
+                        />
+                      </NavigationPlacementListItem>
+                    ))}
+                  </NavigationPlacementList>
+                </DashboardSection.Body>
+              </DashboardSection>
+            );
+          })}
+        </div>
+
         <DashboardSection>
-          <DashboardSection.Header icon={<BrowsersIcon weight="duotone" className="size-4" />} title={text.headerNav} />
+          <DashboardSection.Header icon={<PlusCircleIcon weight="duotone" className="size-4" />} title={text.addItem} />
           <DashboardSection.Body>
-            <NavColumn ref={headerRef} navId="header" onDirtyChange={setHeaderDirty} />
-          </DashboardSection.Body>
-        </DashboardSection>
-        <DashboardSection>
-          <DashboardSection.Header
-            icon={<SquareHalfBottomIcon weight="duotone" className="size-4" />}
-            title={text.footerNav}
-          />
-          <DashboardSection.Body>
-            <NavColumn ref={footerRef} navId="footer" onDirtyChange={setFooterDirty} />
+            <AddNavigationItem
+              entries={entries}
+              nextId={() => temporaryId.current--}
+              onAdd={(entry) => updateEntries((current) => [...current, entry])}
+              pages={pages}
+              text={text}
+            />
           </DashboardSection.Body>
         </DashboardSection>
       </div>
     </>
   );
+}
+
+/**
+ * One contextual Navigation Editor with four projections over a shared draft.
+ * Semantic fields are edited once while each concrete placement owns its
+ * independent position.
+ */
+export function NavManagerPage() {
+  const { locale, messages } = useI18n();
+  const text = NAV_TEXT[locale];
+  const common = messages.common;
+  const {
+    data: serverConfiguration,
+    error: configurationError,
+    isError: configurationIsError,
+    isLoading: configurationIsLoading,
+  } = useAdminNavigationConfiguration();
+  const { data: pages, error: pagesError, isError: pagesIsError, isLoading: pagesIsLoading } = useContentPages();
+
+  const loadError =
+    configurationIsError && !serverConfiguration
+      ? errorDetails(configurationError, text.errorLoading)
+      : pagesIsError && !pages
+        ? errorDetails(pagesError, text.errorLoading)
+        : null;
+
+  if (loadError) {
+    return (
+      <>
+        <PageHeader title={text.pageTitle} />
+        <NavigationErrorAlert error={loadError} />
+      </>
+    );
+  }
+
+  if (configurationIsLoading || pagesIsLoading || !serverConfiguration || !pages) {
+    return (
+      <>
+        <PageHeader title={text.pageTitle} />
+        <div className="text-xs text-[var(--ds-text-muted)]">{text.load}</div>
+      </>
+    );
+  }
+
+  return <NavigationEditor common={common} initialConfiguration={serverConfiguration} pages={pages} text={text} />;
 }
