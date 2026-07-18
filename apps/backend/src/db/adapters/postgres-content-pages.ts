@@ -52,7 +52,14 @@ import type {
   PageSegmentRow,
   PageSegmentTranslationRow,
 } from "../admin-repository.js";
-import { fingerprintContentPage, isCanonicalTermsBootstrapPage } from "../content-publication-cutover.js";
+import {
+  fingerprintContentPage,
+  isCanonicalTermsBootstrapPage,
+  PRIVACY_DEVELOPER_PUBLICATION,
+  PRIVACY_FRONTEND_PREREQUISITE,
+  TERMS_DEVELOPER_PUBLICATION,
+  TERMS_FRONTEND_PUBLICATION,
+} from "../content-publication-cutover.js";
 
 // ============================================================================
 // SHARED COLUMN LISTS
@@ -489,6 +496,7 @@ export async function applyContentPublicationCutover(
     await client.query("LOCK TABLE content_pages IN SHARE ROW EXCLUSIVE MODE");
     await client.query("LOCK TABLE content_page_publications IN SHARE ROW EXCLUSIVE MODE");
 
+    assertClosedCutoverInputs(entries);
     assertUniqueCutoverInputs(entries);
     const existingPageIds = entries.flatMap((entry) =>
       entry.expectedPage.kind === "existing" ? [entry.expectedPage.pageId] : [],
@@ -541,6 +549,19 @@ export async function applyContentPublicationCutover(
         FOR UPDATE`,
     );
     const claims = indexLockedPublicationClaims(publicationResult.rows);
+    for (const entry of entries) {
+      const expectedPageId = entry.expectedPage.kind === "existing" ? entry.expectedPage.pageId : undefined;
+      for (const prerequisite of entry.prerequisitePublications) {
+        const current = expectedPageId
+          ? publicationResult.rows.filter(
+              (row) => row.page_id === expectedPageId && row.context === prerequisite.context,
+            )
+          : [];
+        if (current.length !== 1 || !sameLockedPublication(current[0]!, prerequisite)) {
+          throw cutoverConflict(`prerequisite publication ${entry.sourceSlug}`);
+        }
+      }
+    }
     const pending: Array<{ sourceSlug: string; publication: ContentPublication }> = [];
     for (const entry of entries) {
       const expectedPageId = entry.expectedPage.kind === "existing" ? entry.expectedPage.pageId : undefined;
@@ -647,6 +668,54 @@ function assertUniqueCutoverInputs(entries: ContentPublicationCutoverInput[]): v
       routes.add(route);
     }
   }
+}
+
+function assertClosedCutoverInputs(entries: ContentPublicationCutoverInput[]): void {
+  const privacyEntries = entries.filter((entry) => entry.sourceSlug === "privacy");
+  const termsEntries = entries.filter((entry) => entry.sourceSlug === "terms");
+  if (entries.length !== 2 || privacyEntries.length !== 1 || termsEntries.length !== 1) {
+    throw cutoverConflict("closed input identities");
+  }
+
+  const privacy = privacyEntries[0]!;
+  if (
+    privacy.expectedPage.kind !== "existing" ||
+    !hasExactPublicationSet(privacy.prerequisitePublications, [PRIVACY_FRONTEND_PREREQUISITE]) ||
+    !hasExactPublicationSet(privacy.publications, [PRIVACY_DEVELOPER_PUBLICATION])
+  ) {
+    throw cutoverConflict("closed Privacy contract");
+  }
+
+  const terms = termsEntries[0]!;
+  if (
+    (terms.expectedPage.kind !== "existing" && terms.expectedPage.kind !== "absent") ||
+    !hasExactPublicationSet(terms.prerequisitePublications, []) ||
+    !hasExactPublicationSet(terms.publications, [TERMS_FRONTEND_PUBLICATION, TERMS_DEVELOPER_PUBLICATION])
+  ) {
+    throw cutoverConflict("closed Terms contract");
+  }
+}
+
+function hasExactPublicationSet(actual: unknown, expected: readonly Readonly<ContentPublication>[]): boolean {
+  if (!Array.isArray(actual) || actual.length !== expected.length) return false;
+  const unmatched = [...actual];
+  return expected.every((publication) => {
+    const index = unmatched.findIndex((candidate) => samePublicationValue(candidate, publication));
+    if (index === -1) return false;
+    unmatched.splice(index, 1);
+    return true;
+  });
+}
+
+function samePublicationValue(actual: unknown, expected: Readonly<ContentPublication>): boolean {
+  if (typeof actual !== "object" || actual === null) return false;
+  const publication = actual as Partial<ContentPublication>;
+  return (
+    publication.context === expected.context &&
+    publication.path === expected.path &&
+    publication.status === expected.status &&
+    publication.templateKey === expected.templateKey
+  );
 }
 
 function assertCanonicalDesiredPublication(sourceSlug: string, publication: ContentPublication): void {

@@ -313,16 +313,21 @@ export interface ContentPublicationCutoverPageCreate {
 
 /** One expected existing Page or one Page whose continued absence authorizes creation. */
 export interface ContentPublicationCutoverInput {
-  sourceSlug: string;
+  sourceSlug: "privacy" | "terms";
   expectedPage:
     | { kind: "existing"; pageId: string; fingerprint: string }
     | { kind: "absent"; fingerprint: string; create: ContentPublicationCutoverPageCreate };
+  prerequisitePublications: ContentPublication[];
   publications: ContentPublication[];
 }
 
 /** Writes committed by one atomic Page/publication cutover transaction. */
 export interface ContentPublicationCutoverResult {
-  createdPages: Array<{ sourceSlug: string; pageId: string; fingerprint: string }>;
+  createdPages: Array<{
+    sourceSlug: ContentPublicationCutoverInput["sourceSlug"];
+    pageId: string;
+    fingerprint: string;
+  }>;
   publications: ContentPublicationRow[];
 }
 

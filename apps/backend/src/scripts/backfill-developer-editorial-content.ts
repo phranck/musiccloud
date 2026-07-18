@@ -6,7 +6,14 @@ import type {
   ContentPublicationCutoverInput,
   ContentPublicationRow,
 } from "../db/admin-repository.js";
-import { fingerprintContentPage, TERMS_BOOTSTRAP_PAGE } from "../db/content-publication-cutover.js";
+import {
+  fingerprintContentPage,
+  PRIVACY_DEVELOPER_PUBLICATION,
+  PRIVACY_FRONTEND_PREREQUISITE,
+  TERMS_DEVELOPER_PUBLICATION,
+  TERMS_BOOTSTRAP_PAGE,
+  TERMS_FRONTEND_PUBLICATION,
+} from "../db/content-publication-cutover.js";
 import { closeRepository, getAdminRepository } from "../db/index.js";
 import { isReservedDeveloperPortalPath, normalizeEditorialPath } from "../services/editorial-path.js";
 
@@ -21,17 +28,11 @@ export interface DeveloperEditorialCutoverMapping {
 export const DEVELOPER_EDITORIAL_CUTOVER_MAPPING: readonly DeveloperEditorialCutoverMapping[] = Object.freeze([
   Object.freeze({
     sourceSlug: "privacy",
-    context: ContentContext.DeveloperPortal,
-    path: "/privacy",
-    status: "published",
-    templateKey: "developer-default",
+    ...PRIVACY_DEVELOPER_PUBLICATION,
   }),
   Object.freeze({
     sourceSlug: "terms",
-    context: ContentContext.DeveloperPortal,
-    path: "/terms",
-    status: "published",
-    templateKey: "developer-default",
+    ...TERMS_DEVELOPER_PUBLICATION,
   }),
 ]);
 
@@ -49,10 +50,7 @@ const CONTENT_CUTOVER_MAPPING: readonly ContentCutoverMapping[] = Object.freeze(
   DEVELOPER_EDITORIAL_CUTOVER_MAPPING[0]!,
   Object.freeze({
     sourceSlug: "terms",
-    context: ContentContext.Frontend,
-    path: "/terms",
-    status: "published",
-    templateKey: "frontend-default",
+    ...TERMS_FRONTEND_PUBLICATION,
   }),
   DEVELOPER_EDITORIAL_CUTOVER_MAPPING[1]!,
 ]);
@@ -62,6 +60,7 @@ export type DeveloperEditorialCutoverConflictCode =
   | "canonical-duplicate-claim"
   | "invalid-publication-path"
   | "missing-source"
+  | "privacy-frontend-prerequisite-mismatch"
   | "publication-owner-mismatch"
   | "reserved-developer-path"
   | "source-identity-mismatch"
@@ -303,6 +302,25 @@ export async function backfillDeveloperEditorialContent(
     pagePlans.push({ sourceSlug, pageId, fingerprint, outcome: "existing" });
   }
 
+  const resolvedPrivacyPage = resolvedPages.get("privacy")!;
+  if (resolvedPrivacyPage.expectedPage && resolvedPrivacyPage.pageId) {
+    const privacyFrontendPublications = (resolvedPrivacyPage.summary?.publications ?? []).filter(
+      (publication) => publication.context === ContentContext.Frontend,
+    );
+    if (
+      privacyFrontendPublications.length !== 1 ||
+      !samePublication(privacyFrontendPublications[0]!, PRIVACY_FRONTEND_PREREQUISITE)
+    ) {
+      conflicts.push({
+        code: "privacy-frontend-prerequisite-mismatch",
+        context: ContentContext.Frontend,
+        pageIds: [resolvedPrivacyPage.pageId],
+        path: PRIVACY_FRONTEND_PREREQUISITE.path,
+        sourceSlug: "privacy",
+      });
+    }
+  }
+
   const mappingReports: DeveloperEditorialCutoverMappingReport[] = [];
   let plannedPublicationWriteCount = 0;
   for (const mapping of CONTENT_CUTOVER_MAPPING) {
@@ -368,6 +386,7 @@ export async function backfillDeveloperEditorialContent(
     cutoverEntries.push({
       sourceSlug,
       expectedPage: resolvedPage.expectedPage,
+      prerequisitePublications: sourceSlug === "privacy" ? [{ ...PRIVACY_FRONTEND_PREREQUISITE }] : [],
       publications: CONTENT_CUTOVER_MAPPING.filter((mapping) => mapping.sourceSlug === sourceSlug).map(
         toDesiredPublication,
       ),

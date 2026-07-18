@@ -126,6 +126,7 @@ class InMemoryEditorialRepository {
           entry.expectedPage.kind === "existing"
             ? { ...entry.expectedPage }
             : { ...entry.expectedPage, create: { ...entry.expectedPage.create } },
+        prerequisitePublications: entry.prerequisitePublications.map((publication) => ({ ...publication })),
         publications: entry.publications.map((publication) => ({ ...publication })),
       })),
     );
@@ -169,6 +170,20 @@ class InMemoryEditorialRepository {
           pageId,
           fingerprint: entry.expectedPage.fingerprint,
         });
+      }
+
+      for (const prerequisite of entry.prerequisitePublications) {
+        const current = (target.publications ?? []).filter(
+          (publication) => publication.context === prerequisite.context,
+        );
+        if (
+          current.length !== 1 ||
+          current[0]!.path !== prerequisite.path ||
+          current[0]!.status !== prerequisite.status ||
+          current[0]!.templateKey !== prerequisite.templateKey
+        ) {
+          throw new Error("Cutover prerequisite conflict");
+        }
       }
 
       for (const desired of entry.publications) {
@@ -474,6 +489,14 @@ describe("backfillDeveloperEditorialContent", () => {
           pageId: "page-privacy-stable",
           fingerprint: fingerprint("Privacy Policy", "Canonical privacy body"),
         },
+        prerequisitePublications: [
+          {
+            context: ContentContext.Frontend,
+            path: "/privacy",
+            status: "published",
+            templateKey: "frontend-default",
+          },
+        ],
         publications: [
           {
             context: ContentContext.DeveloperPortal,
@@ -490,6 +513,7 @@ describe("backfillDeveloperEditorialContent", () => {
           pageId: "page-terms-stable",
           fingerprint: fingerprint("Terms of Service", "Canonical terms body"),
         },
+        prerequisitePublications: [],
         publications: [
           {
             context: ContentContext.Frontend,
@@ -588,6 +612,46 @@ describe("backfillDeveloperEditorialContent", () => {
       fingerprint: null,
       outcome: "conflict",
     });
+    await expect(backfillDeveloperEditorialContent(repo, { dryRun: false })).rejects.toThrow(
+      "Developer editorial cutover conflicts detected",
+    );
+    expect(fake.atomicApplies).toEqual([]);
+    expect(fake.writes).toEqual([]);
+  });
+
+  it.each([
+    ["missing", []],
+    [
+      "mismatching",
+      [
+        publication("page-privacy-stable", ContentContext.Frontend, "/privacy", {
+          status: "draft",
+        }),
+      ],
+    ],
+    [
+      "duplicate",
+      [
+        publication("page-privacy-stable", ContentContext.Frontend, "/privacy"),
+        publication("page-privacy-stable", ContentContext.Frontend, "/privacy"),
+      ],
+    ],
+  ])("rejects a %s Privacy Frontend prerequisite without writes", async (_case, privacyPublications) => {
+    const pages = canonicalPages();
+    pages[0]!.publications = privacyPublications;
+    const { fake, repo } = repository(pages);
+
+    const dryRun = await backfillDeveloperEditorialContent(repo, { dryRun: true });
+
+    expect(dryRun.conflicts).toContainEqual(
+      expect.objectContaining({
+        code: "privacy-frontend-prerequisite-mismatch",
+        context: ContentContext.Frontend,
+        pageIds: ["page-privacy-stable"],
+        path: "/privacy",
+        sourceSlug: "privacy",
+      }),
+    );
     await expect(backfillDeveloperEditorialContent(repo, { dryRun: false })).rejects.toThrow(
       "Developer editorial cutover conflicts detected",
     );

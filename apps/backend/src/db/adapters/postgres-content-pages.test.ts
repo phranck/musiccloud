@@ -21,6 +21,14 @@ const CUTOVER_INPUTS: ContentPublicationCutoverInput[] = [
       pageId: "page-privacy-stable",
       fingerprint: fingerprint("Privacy Policy", "Canonical privacy body"),
     },
+    prerequisitePublications: [
+      {
+        context: ContentContext.Frontend,
+        path: "/privacy",
+        status: "published",
+        templateKey: "frontend-default",
+      },
+    ],
     publications: [
       {
         context: ContentContext.DeveloperPortal,
@@ -37,6 +45,7 @@ const CUTOVER_INPUTS: ContentPublicationCutoverInput[] = [
       pageId: "page-terms-stable",
       fingerprint: fingerprint("Terms of Service", "Canonical terms body"),
     },
+    prerequisitePublications: [],
     publications: [
       {
         context: ContentContext.Frontend,
@@ -74,9 +83,88 @@ const BOOTSTRAP_INPUTS: ContentPublicationCutoverInput[] = [
         contentCardStyle: "default",
       },
     },
+    prerequisitePublications: [],
     publications: CUTOVER_INPUTS[1]!.publications,
   },
 ];
+
+function cloneCutoverInputs(): ContentPublicationCutoverInput[] {
+  return CUTOVER_INPUTS.map((entry) => ({
+    ...entry,
+    expectedPage:
+      entry.expectedPage.kind === "existing"
+        ? { ...entry.expectedPage }
+        : { ...entry.expectedPage, create: { ...entry.expectedPage.create } },
+    prerequisitePublications: entry.prerequisitePublications.map((publication) => ({ ...publication })),
+    publications: entry.publications.map((publication) => ({ ...publication })),
+  }));
+}
+
+function invalidRuntimeContractCases(): Array<[string, ContentPublicationCutoverInput[]]> {
+  const cases: Array<[string, ContentPublicationCutoverInput[]]> = [];
+  const mutate = (label: string, mutation: (entries: ContentPublicationCutoverInput[]) => void): void => {
+    const entries = cloneCutoverInputs();
+    mutation(entries);
+    cases.push([label, entries]);
+  };
+
+  mutate("an arbitrary slug", (entries) => {
+    (entries[0] as { sourceSlug: string }).sourceSlug = "pricing";
+  });
+  mutate("a missing Privacy entry", (entries) => {
+    entries.splice(0, 1);
+  });
+  mutate("a missing Terms entry", (entries) => {
+    entries.splice(1, 1);
+  });
+  mutate("an absent Privacy Page", (entries) => {
+    entries[0]!.expectedPage = BOOTSTRAP_INPUTS[1]!.expectedPage;
+  });
+  mutate("empty Terms publications", (entries) => {
+    entries[1]!.publications = [];
+  });
+  mutate("partial Terms publications", (entries) => {
+    entries[1]!.publications = entries[1]!.publications.slice(0, 1);
+  });
+  mutate("extra Terms publications", (entries) => {
+    entries[1]!.publications.push({
+      context: ContentContext.Frontend,
+      path: "/terms-extra",
+      status: "published",
+      templateKey: "frontend-default",
+    });
+  });
+  mutate("a missing Privacy prerequisite", (entries) => {
+    entries[0]!.prerequisitePublications = [];
+  });
+  mutate("a mismatching Privacy prerequisite", (entries) => {
+    entries[0]!.prerequisitePublications[0]!.status = "draft";
+  });
+  mutate("an extra Privacy prerequisite", (entries) => {
+    entries[0]!.prerequisitePublications.push({
+      context: ContentContext.DeveloperPortal,
+      path: "/privacy",
+      status: "published",
+      templateKey: "developer-default",
+    });
+  });
+  mutate("missing Privacy writes", (entries) => {
+    entries[0]!.publications = [];
+  });
+  mutate("a mismatching Privacy write", (entries) => {
+    entries[0]!.publications[0]!.templateKey = "frontend-default";
+  });
+  mutate("extra Privacy writes", (entries) => {
+    entries[0]!.publications.push({
+      context: ContentContext.Frontend,
+      path: "/privacy",
+      status: "published",
+      templateKey: "frontend-default",
+    });
+  });
+
+  return cases;
+}
 
 interface SqlPublicationRow {
   page_id: string;
@@ -181,6 +269,25 @@ describe("getPublishedContentPageByPath", () => {
 });
 
 describe("applyContentPublicationCutover", () => {
+  it.each(
+    invalidRuntimeContractCases(),
+  )("rejects %s as an out-of-contract direct call before the first write", async (_case, entries) => {
+    const { calls, pool } = createCutoverPool({
+      publications: [
+        publicationRow("page-privacy-stable", ContentContext.Frontend, "/privacy"),
+        publicationRow("page-terms-stable", ContentContext.Frontend, "/terms"),
+      ],
+    });
+
+    await expect(applyContentPublicationCutover(pool, entries)).rejects.toThrow(/conflict/i);
+
+    expect(calls[0]?.sql).toBe("BEGIN");
+    expect(calls.some(({ sql }) => sql.includes("LOCK TABLE content_page_publications"))).toBe(true);
+    expect(calls.filter(({ sql }) => sql.includes("INSERT INTO content_pages"))).toHaveLength(0);
+    expect(calls.filter(({ sql }) => sql.includes("INSERT INTO content_page_publications"))).toHaveLength(0);
+    expect(calls.some(({ sql }) => sql === "ROLLBACK")).toBe(true);
+  });
+
   it("creates the exact missing Terms Page and all publications in the locked transaction", async () => {
     const { calls, pool } = createCutoverPool({
       pages: [pageRow("page-privacy-stable", "privacy")],
@@ -272,6 +379,7 @@ describe("applyContentPublicationCutover", () => {
 
     expect(calls.filter(({ sql }) => sql.includes("INSERT INTO content_pages"))).toHaveLength(0);
     expect(calls.filter(({ sql }) => sql.includes("INSERT INTO content_page_publications"))).toHaveLength(0);
+    expect(calls.some(({ sql }) => /\bDELETE\b|\bUPDATE content_page_publications\b/.test(sql))).toBe(false);
     expect(calls.some(({ sql }) => sql === "ROLLBACK")).toBe(true);
   });
 
@@ -290,6 +398,37 @@ describe("applyContentPublicationCutover", () => {
 
     expect(calls.filter(({ sql }) => sql.includes("INSERT INTO content_pages"))).toHaveLength(0);
     expect(calls.filter(({ sql }) => sql.includes("INSERT INTO content_page_publications"))).toHaveLength(0);
+    expect(calls.some(({ sql }) => sql === "ROLLBACK")).toBe(true);
+  });
+
+  it.each([
+    ["missing", []],
+    [
+      "mismatching",
+      [
+        {
+          ...publicationRow("page-privacy-stable", ContentContext.Frontend, "/privacy"),
+          status: "draft",
+        },
+      ],
+    ],
+    [
+      "duplicate",
+      [
+        publicationRow("page-privacy-stable", ContentContext.Frontend, "/privacy"),
+        publicationRow("page-privacy-stable", ContentContext.Frontend, "/privacy"),
+      ],
+    ],
+  ])("rolls back a %s locked Privacy Frontend prerequisite before writes", async (_case, privacyRows) => {
+    const { calls, pool } = createCutoverPool({
+      publications: [...privacyRows, publicationRow("page-terms-stable", ContentContext.Frontend, "/terms")],
+    });
+
+    await expect(applyContentPublicationCutover(pool, CUTOVER_INPUTS)).rejects.toThrow(/conflict/i);
+
+    expect(calls.filter(({ sql }) => sql.includes("INSERT INTO content_pages"))).toHaveLength(0);
+    expect(calls.filter(({ sql }) => sql.includes("INSERT INTO content_page_publications"))).toHaveLength(0);
+    expect(calls.some(({ sql }) => /\bDELETE\b|\bUPDATE content_page_publications\b/.test(sql))).toBe(false);
     expect(calls.some(({ sql }) => sql === "ROLLBACK")).toBe(true);
   });
 
