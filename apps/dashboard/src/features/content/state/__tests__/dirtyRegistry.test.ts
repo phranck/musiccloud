@@ -23,6 +23,7 @@ describe("dirtyRegistry", () => {
     const r = createDirtyRegistry();
     r.add("content:info");
     r.add("meta:info");
+    r.add("publications:info");
     r.add("segments:help");
     r.add("sidebar");
     r.add("translations:info");

@@ -8,6 +8,13 @@ import {
   contentReducer,
 } from "./slices/contentSlice";
 import { type MetaAction, type MetaState, dirtySlugs as metaDirtySlugs, metaReducer } from "./slices/metaSlice";
+import {
+  createInitialPublicationsState,
+  type PublicationsAction,
+  type PublicationsState,
+  publicationDirtySlugs,
+  publicationsReducer,
+} from "./slices/publicationsSlice";
 import { dirtyOwners, type SegmentsAction, type SegmentsState, segmentsReducer } from "./slices/segmentsSlice";
 import { type SidebarAction, type SidebarState, isDirty as sidebarDirty, sidebarReducer } from "./slices/sidebarSlice";
 import {
@@ -20,12 +27,14 @@ import {
 interface PagesEditorContextValue {
   meta: MetaState;
   content: ContentState;
+  publications: PublicationsState;
   segments: SegmentsState;
   translations: TranslationsState;
   sidebar: SidebarState;
   dispatch: {
     meta: (a: MetaAction) => void;
     content: (a: ContentAction) => void;
+    publications: (a: PublicationsAction) => void;
     segments: (a: SegmentsAction) => void;
     translations: (a: TranslationsAction) => void;
     sidebar: (a: SidebarAction) => void;
@@ -39,6 +48,11 @@ const Ctx = createContext<PagesEditorContextValue | null>(null);
 export function PagesEditorProvider({ children }: { children: ReactNode }) {
   const [meta, dispatchMeta] = useReducer(metaReducer, { pages: {} });
   const [content, dispatchContent] = useReducer(contentReducer, { pages: {} });
+  const [publications, dispatchPublications] = useReducer(
+    publicationsReducer,
+    undefined,
+    createInitialPublicationsState,
+  );
   const [segments, dispatchSegments] = useReducer(segmentsReducer, { byOwner: {} });
   const [translations, dispatchTranslations] = useReducer(translationsReducer, { byPage: {} });
   const [sidebar, dispatchSidebar] = useReducer(sidebarReducer, { initial: [], current: [] });
@@ -49,13 +63,15 @@ export function PagesEditorProvider({ children }: { children: ReactNode }) {
     if (sidebarDirty(sidebar)) dirty.add("sidebar");
     for (const s of metaDirtySlugs(meta)) dirty.add(`meta:${s}` as SliceKey);
     for (const s of contentDirtySlugs(content)) dirty.add(`content:${s}` as SliceKey);
+    for (const s of publicationDirtySlugs(publications)) dirty.add(`publications:${s}` as SliceKey);
     for (const o of dirtyOwners(segments)) dirty.add(`segments:${o}` as SliceKey);
     for (const { slug } of dirtyEntries(translations)) dirty.add(`translations:${slug}` as SliceKey);
-  }, [dirty, meta, content, segments, translations, sidebar]);
+  }, [dirty, meta, content, publications, segments, translations, sidebar]);
 
   const resetAll = useCallback(() => {
     dispatchMeta({ type: "reset" });
     dispatchContent({ type: "reset" });
+    dispatchPublications({ type: "reset" });
     dispatchSegments({ type: "reset" });
     dispatchTranslations({ type: "reset" });
     dispatchSidebar({ type: "reset" });
@@ -69,6 +85,7 @@ export function PagesEditorProvider({ children }: { children: ReactNode }) {
     () => ({
       meta: dispatchMeta,
       content: dispatchContent,
+      publications: dispatchPublications,
       segments: dispatchSegments,
       translations: dispatchTranslations,
       sidebar: dispatchSidebar,
@@ -80,6 +97,7 @@ export function PagesEditorProvider({ children }: { children: ReactNode }) {
     () => ({
       meta,
       content,
+      publications,
       segments,
       translations,
       sidebar,
@@ -87,7 +105,7 @@ export function PagesEditorProvider({ children }: { children: ReactNode }) {
       dirty,
       resetAll,
     }),
-    [meta, content, segments, translations, sidebar, resetAll, dispatchBag, dirty],
+    [meta, content, publications, segments, translations, sidebar, resetAll, dispatchBag, dirty],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

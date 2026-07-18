@@ -2,6 +2,7 @@ export type SliceKey =
   | "sidebar"
   | `meta:${string}`
   | `content:${string}`
+  | `publications:${string}`
   | `segments:${string}`
   | `translations:${string}`
   | `segment-translations:${string}`;
@@ -10,7 +11,7 @@ export type ResourceGroup = "pages" | "segments" | "translations" | "sidebar";
 
 function groupOf(key: SliceKey): ResourceGroup {
   if (key === "sidebar") return "sidebar";
-  if (key.startsWith("meta:") || key.startsWith("content:")) return "pages";
+  if (key.startsWith("meta:") || key.startsWith("content:") || key.startsWith("publications:")) return "pages";
   if (key.startsWith("segments:")) return "segments";
   return "translations";
 }

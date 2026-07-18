@@ -23,6 +23,7 @@ const segmentsByOwner = new Map<string, PageSegmentRow[]>();
 const replacedPublications = vi.fn();
 let createError: unknown;
 let updateError: unknown;
+let navigationEntries: Awaited<ReturnType<AdminRepository["listNavigationConfiguration"]>> = [];
 
 function makePage(overrides: Partial<ContentPageRow> = {}): ContentPageRow {
   return {
@@ -96,6 +97,9 @@ const repo: Partial<AdminRepository> = {
     replacedPublications(pageId, publications);
     return publications.map((publication) => ({ pageId, ...publication }));
   },
+  async listNavigationConfiguration() {
+    return navigationEntries;
+  },
 };
 
 vi.mock("../db/index.js", () => ({ getAdminRepository: async () => repo }));
@@ -115,6 +119,7 @@ describe("updateManagedContentPageMeta", () => {
     replacedPublications.mockReset();
     createError = undefined;
     updateError = undefined;
+    navigationEntries = [];
     pages.clear();
     pages.set("test-page", makePage({ id: "page-test", slug: "test-page" }));
     pages.set("card-style-test", makePage({ slug: "card-style-test", title: "x" }));
@@ -141,6 +146,69 @@ describe("updateManagedContentPageMeta", () => {
     });
 
     expect(result).toMatchObject({ ok: false, code: "INVALID_INPUT" });
+    expect(replacedPublications).not.toHaveBeenCalled();
+  });
+
+  it("rejects context removal while navigation still depends on it", async () => {
+    pages.set(
+      "test-page",
+      makePage({
+        id: "page-test",
+        contextMask: ContentContext.Frontend | ContentContext.DeveloperPortal,
+        publications: [
+          {
+            pageId: "page-test",
+            context: ContentContext.Frontend,
+            path: "/test-page",
+            status: "draft",
+            templateKey: "frontend-default",
+          },
+          {
+            pageId: "page-test",
+            context: ContentContext.DeveloperPortal,
+            path: "/test-page",
+            status: "draft",
+            templateKey: "developer-default",
+          },
+        ],
+      }),
+    );
+    navigationEntries = [
+      {
+        id: 3,
+        targetKind: "page",
+        pageId: "page-test",
+        pageSlug: "test-page",
+        pageTitle: "Test Page",
+        url: null,
+        systemKey: null,
+        target: "_self",
+        label: null,
+        contextMask: ContentContext.DeveloperPortal,
+        areaMask: 1,
+        placements: [{ context: ContentContext.DeveloperPortal, area: 1, position: 0 }],
+        translations: {},
+      },
+    ];
+
+    const result = await updateManagedContentPageMeta("page-test", {
+      contextMask: ContentContext.Frontend,
+      publications: [
+        {
+          context: ContentContext.Frontend,
+          path: "/test-page",
+          status: "draft",
+          templateKey: "frontend-default",
+        },
+      ],
+      updatedBy: null,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      code: "INVALID_INPUT",
+      message: "Remove this page from Developer Portal navigation before disabling that context",
+    });
     expect(replacedPublications).not.toHaveBeenCalled();
   });
 

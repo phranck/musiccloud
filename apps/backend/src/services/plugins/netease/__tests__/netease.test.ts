@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { fetchWithTimeout } from "../../../../lib/infra/fetch";
 import { neteaseAdapter } from "../adapter";
 
+vi.mock("../../../../lib/infra/fetch", () => ({ fetchWithTimeout: vi.fn() }));
+
 afterEach(() => {
-  vi.restoreAllMocks();
+  vi.resetAllMocks();
 });
 
 describe("NetEase: detectUrl", () => {
@@ -44,7 +47,7 @@ describe("NetEase: getTrack", () => {
       code: 200,
     };
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify(mockResponse), { status: 200 }));
+    vi.mocked(fetchWithTimeout).mockResolvedValueOnce(new Response(JSON.stringify(mockResponse), { status: 200 }));
 
     const track = await neteaseAdapter.getTrack("123456");
     expect(track.sourceService).toBe("netease");
@@ -55,7 +58,7 @@ describe("NetEase: getTrack", () => {
   });
 
   it("should throw on 404", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
+    vi.mocked(fetchWithTimeout).mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
     await expect(neteaseAdapter.getTrack("invalid")).rejects.toThrow("Track not found");
   });
 });
@@ -78,7 +81,7 @@ describe("NetEase: searchTrack", () => {
       code: 200,
     };
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify(mockSearch), { status: 200 }));
+    vi.mocked(fetchWithTimeout).mockResolvedValueOnce(new Response(JSON.stringify(mockSearch), { status: 200 }));
 
     const result = await neteaseAdapter.searchTrack({ title: "Take on Me", artist: "a-ha" });
     expect(result.found).toBe(true);
@@ -87,7 +90,7 @@ describe("NetEase: searchTrack", () => {
   });
 
   it("should return not found for empty results", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+    vi.mocked(fetchWithTimeout).mockResolvedValueOnce(
       new Response(JSON.stringify({ result: { songs: [], songCount: 0 } }), { status: 200 }),
     );
 

@@ -30,6 +30,7 @@ import type {
   ContentPageRow,
   ContentPageSummaryRow,
   ContentPageTranslationRow,
+  NavigationConfigurationEntryRow,
   PageSegmentRow,
 } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
@@ -130,6 +131,23 @@ function pagePublications(page: Pick<ContentPageSummaryRow, "slug" | "status" | 
   return page.publications && page.publications.length > 0
     ? page.publications.map(({ pageId: _pageId, ...publication }) => publication)
     : legacyFrontendPublication(page.slug, page.status);
+}
+
+export function contentContextRemovalNavigationError(
+  entries: ReadonlyArray<Pick<NavigationConfigurationEntryRow, "pageId" | "contextMask">>,
+  pageId: string,
+  currentContextMask: ContentContextMask,
+  nextContextMask: ContentContextMask,
+): string | null {
+  const removedContextMask = currentContextMask & ~nextContextMask;
+  if (removedContextMask === 0) return null;
+  const dependency = entries.find((entry) => entry.pageId === pageId && (entry.contextMask & removedContextMask) !== 0);
+  if (!dependency) return null;
+  const contextLabel =
+    (dependency.contextMask & ContentContext.DeveloperPortal & removedContextMask) !== 0
+      ? "Developer Portal"
+      : "Frontend";
+  return `Remove this page from ${contextLabel} navigation before disabling that context`;
 }
 
 export function normalizeAndValidateContentPublications(
@@ -338,6 +356,16 @@ export async function updateManagedContentPageMeta(
     data.contextMask !== undefined || data.publications !== undefined || data.status !== undefined || renamesLegacyPath;
   let normalizedPublications: ContentPublication[] | undefined;
   const contextMask = data.contextMask ?? existing.contextMask ?? ContentContext.Frontend;
+  const currentContextMask = existing.contextMask ?? ContentContext.Frontend;
+  if (existing.id && (currentContextMask & ~contextMask) !== 0) {
+    const navigationError = contentContextRemovalNavigationError(
+      await repo.listNavigationConfiguration(),
+      existing.id,
+      currentContextMask,
+      contextMask,
+    );
+    if (navigationError) return { ok: false, code: "INVALID_INPUT", message: navigationError };
+  }
   if (contextualUpdate) {
     const validation = normalizeAndValidateContentPublications(
       contextMask,

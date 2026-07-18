@@ -427,6 +427,23 @@ export interface DashboardMessages {
       emptyPages: string;
       emptyPagesHint: string;
       deletePageTitle: string;
+      contextRequired: string;
+      docsReserved: string;
+      contexts: {
+        label: string;
+        all: string;
+        frontend: string;
+        developerPortal: string;
+      };
+      publication: {
+        frontendTitle: string;
+        developerPortalTitle: string;
+        path: string;
+        status: string;
+        template: string;
+        markdownInvalid: string;
+        navigationDependency: string;
+      };
       display: {
         displayMode: string;
         fullscreen: string;
@@ -995,6 +1012,23 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         emptyPages: "Keine Seiten vorhanden",
         emptyPagesHint: "Erstelle eine neue Seite.",
         deletePageTitle: "Seite l\u00f6schen",
+        contextRequired: "W\u00e4hle mindestens einen Kontext.",
+        docsReserved: "Der vollst\u00e4ndige /docs-Namensraum ist systemverwaltet.",
+        contexts: {
+          label: "Kontexte",
+          all: "Alle",
+          frontend: "Frontend",
+          developerPortal: "Developer Portal",
+        },
+        publication: {
+          frontendTitle: "Frontend-Ver\u00f6ffentlichung",
+          developerPortalTitle: "Developer-Portal-Ver\u00f6ffentlichung",
+          path: "Pfad",
+          status: "Status",
+          template: "Template",
+          markdownInvalid: "Behebe die kontext\u00fcbergreifenden Markdown-Fehler vor der Ver\u00f6ffentlichung.",
+          navigationDependency: "Entferne die Seite zuerst aus der Navigation dieses Kontexts.",
+        },
         display: {
           displayMode: "Darstellung",
           fullscreen: "Vollbild",
@@ -1562,6 +1596,23 @@ export const DASHBOARD_MESSAGES: Record<DashboardLocale, DashboardMessages> = {
         emptyPages: "No pages yet",
         emptyPagesHint: "Create a new page.",
         deletePageTitle: "Delete Page",
+        contextRequired: "Select at least one context.",
+        docsReserved: "The complete /docs namespace is system-owned.",
+        contexts: {
+          label: "Contexts",
+          all: "All",
+          frontend: "Frontend",
+          developerPortal: "Developer Portal",
+        },
+        publication: {
+          frontendTitle: "Frontend publication",
+          developerPortalTitle: "Developer Portal publication",
+          path: "Path",
+          status: "Status",
+          template: "Template",
+          markdownInvalid: "Fix cross-context Markdown errors before publishing.",
+          navigationDependency: "Remove the page from navigation in this context first.",
+        },
         display: {
           displayMode: "Display",
           fullscreen: "Fullscreen",

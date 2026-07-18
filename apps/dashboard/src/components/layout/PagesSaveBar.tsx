@@ -11,7 +11,7 @@ import { Dialog } from "@/shared/ui/Dialog";
 
 export function PagesSaveBar() {
   const editor = usePagesEditor();
-  const { save, discard, status, errorDetails } = useGlobalPagesSave();
+  const { save, discard, status, errorDetails, errorMessage, errorId } = useGlobalPagesSave();
   const dirtyCount = useSyncExternalStore(
     useCallback((cb) => editor.dirty.subscribe(cb), [editor.dirty]),
     () => editor.dirty.groupCount(),
@@ -43,6 +43,12 @@ export function PagesSaveBar() {
       {errorDetails && errorDetails.length > 0 && (
         <span className="text-xs text-[var(--ds-danger-text)]">
           {errorDetails.length === 1 ? "1 Fehler" : `${errorDetails.length} Fehler`}
+        </span>
+      )}
+      {errorMessage && (
+        <span role="alert" className="max-w-72 text-xs text-[var(--ds-danger-text)]">
+          {errorMessage}
+          {errorId ? ` Error ID: ${errorId}` : ""}
         </span>
       )}
       <Dialog open={confirmDiscardOpen} title="Änderungen verwerfen?" onClose={() => setConfirmDiscardOpen(false)}>

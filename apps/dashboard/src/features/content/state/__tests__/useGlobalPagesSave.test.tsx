@@ -1,3 +1,4 @@
+import { ContentContext } from "@musiccloud/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -24,7 +25,23 @@ function makeWrapper() {
 const SNAPSHOT = {
   pages: [
     {
+      id: "page-info",
       slug: "info",
+      contextMask: ContentContext.Frontend | ContentContext.DeveloperPortal,
+      publications: [
+        {
+          context: ContentContext.Frontend,
+          path: "/info",
+          status: "published" as const,
+          templateKey: "frontend-default",
+        },
+        {
+          context: ContentContext.DeveloperPortal,
+          path: "/company/info",
+          status: "draft" as const,
+          templateKey: "developer-default",
+        },
+      ],
       title: "Information v2",
       status: "published" as const,
       showTitle: true,
@@ -41,6 +58,24 @@ const SNAPSHOT = {
       position: 0,
     },
   ],
+};
+
+const DOCS_PAGE = {
+  ...SNAPSHOT.pages[0],
+  id: "page-docs-authentication",
+  slug: "docs-authentication",
+  contextMask: ContentContext.DeveloperPortal,
+  publications: [
+    {
+      context: ContentContext.DeveloperPortal,
+      path: "/docs/authentication",
+      status: "published" as const,
+      templateKey: "developer-default",
+    },
+  ],
+  title: "Authentication",
+  pageType: "default" as const,
+  position: 1,
 };
 
 describe("useGlobalPagesSave", () => {
@@ -81,6 +116,7 @@ describe("useGlobalPagesSave", () => {
     const apiErr = Object.assign(new Error("INVALID_INPUT"), {
       status: 400,
       responseMessage: "INVALID_INPUT",
+      errorId: "error-reserved-docs",
       details: [{ section: "pages", index: 0, message: "bad slug" }],
     }) as ApiRequestError;
     const putSpy = vi.spyOn(api, "put").mockRejectedValue(apiErr);
@@ -111,7 +147,168 @@ describe("useGlobalPagesSave", () => {
     });
     expect(result.current.editor.dirty.size()).toBeGreaterThan(0);
     expect(result.current.save.errorDetails).toEqual([{ section: "pages", index: 0, message: "bad slug" }]);
+    expect(result.current.save.errorMessage).toBe("INVALID_INPUT");
+    expect(result.current.save.errorId).toBe("error-reserved-docs");
     expect(result.current.save.status).toBe("error");
+    putSpy.mockRestore();
+  });
+
+  it("saves publication changes and rehydrates them from the server response", async () => {
+    const putSpy = vi.spyOn(api, "put").mockResolvedValue(SNAPSHOT);
+    const { result } = renderHook(
+      () => {
+        const editor = usePagesEditor();
+        const save = useGlobalPagesSave();
+        return { editor, save };
+      },
+      { wrapper: makeWrapper() },
+    );
+    act(() => {
+      result.current.editor.dispatch.publications({
+        type: "hydrate",
+        entries: [
+          {
+            slug: "info",
+            pageId: "page-info",
+            contextMask: ContentContext.Frontend,
+            publications: [
+              {
+                context: ContentContext.Frontend,
+                path: "/info",
+                status: "published",
+                templateKey: "frontend-default",
+              },
+            ],
+          },
+        ],
+      });
+    });
+    act(() => {
+      result.current.editor.dispatch.publications({
+        type: "toggle-context",
+        slug: "info",
+        context: ContentContext.DeveloperPortal,
+        enabled: true,
+      });
+    });
+
+    await act(async () => {
+      await result.current.save.save();
+    });
+
+    expect(putSpy).toHaveBeenCalledWith(
+      "/api/admin/pages/bulk",
+      expect.objectContaining({
+        pages: [
+          expect.objectContaining({
+            slug: "info",
+            meta: expect.objectContaining({
+              contextMask: ContentContext.Frontend | ContentContext.DeveloperPortal,
+            }),
+          }),
+        ],
+      }),
+    );
+    expect(result.current.editor.publications.pages.info.current.publications[1]?.path).toBe("/company/info");
+    expect(result.current.editor.dirty.size()).toBe(0);
+    putSpy.mockRestore();
+  });
+
+  it("never rehydrates system-owned Docs from a successful bulk snapshot", async () => {
+    const putSpy = vi.spyOn(api, "put").mockResolvedValue({ pages: [...SNAPSHOT.pages, DOCS_PAGE] });
+    const { result } = renderHook(
+      () => {
+        const editor = usePagesEditor();
+        const save = useGlobalPagesSave();
+        return { editor, save };
+      },
+      { wrapper: makeWrapper() },
+    );
+    act(() => {
+      result.current.editor.dispatch.meta({
+        type: "hydrate",
+        entries: [{ slug: "info", meta: makeMeta({ title: "Information" }) }],
+      });
+      result.current.editor.dispatch.meta({
+        type: "set-field",
+        slug: "info",
+        field: "title",
+        value: "Information v2",
+      });
+    });
+
+    await act(async () => {
+      await result.current.save.save();
+    });
+
+    expect(result.current.editor.meta.pages["docs-authentication"]).toBeUndefined();
+    expect(result.current.editor.publications.pages["docs-authentication"]).toBeUndefined();
+    putSpy.mockRestore();
+  });
+
+  it("preserves a reserved Docs publication draft and surfaces its backend errorId", async () => {
+    const apiError = Object.assign(
+      new Error("Developer Portal path '/docs/authentication' is reserved (MC-REQ-0001)"),
+      {
+        status: 400,
+        responseMessage: "Developer Portal path '/docs/authentication' is reserved (MC-REQ-0001)",
+        errorId: "reserved-docs-error-id",
+        details: [
+          {
+            section: "pages",
+            index: 0,
+            message: "Developer Portal path '/docs/authentication' is reserved",
+          },
+        ],
+      },
+    ) as ApiRequestError;
+    const putSpy = vi.spyOn(api, "put").mockRejectedValue(apiError);
+    const { result } = renderHook(
+      () => {
+        const editor = usePagesEditor();
+        const save = useGlobalPagesSave();
+        return { editor, save };
+      },
+      { wrapper: makeWrapper() },
+    );
+    act(() => {
+      result.current.editor.dispatch.publications({
+        type: "hydrate",
+        entries: [
+          {
+            slug: "privacy",
+            pageId: "page-privacy",
+            contextMask: ContentContext.DeveloperPortal,
+            publications: [
+              {
+                context: ContentContext.DeveloperPortal,
+                path: "/privacy",
+                status: "draft",
+                templateKey: "developer-default",
+              },
+            ],
+          },
+        ],
+      });
+    });
+    act(() => {
+      result.current.editor.dispatch.publications({
+        type: "set-field",
+        slug: "privacy",
+        context: ContentContext.DeveloperPortal,
+        field: "path",
+        value: "/docs/authentication",
+      });
+    });
+
+    await act(async () => {
+      await result.current.save.save();
+    });
+
+    expect(result.current.editor.publications.pages.privacy.current.publications[0]?.path).toBe("/docs/authentication");
+    expect(result.current.editor.dirty.size()).toBeGreaterThan(0);
+    expect(result.current.save.errorId).toBe("reserved-docs-error-id");
+    expect(result.current.save.errorMessage).toContain("reserved");
     putSpy.mockRestore();
   });
 

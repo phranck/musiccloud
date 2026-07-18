@@ -4,15 +4,19 @@ import {
   DashboardActionStatus,
   DashboardButtonVariant,
 } from "@musiccloud/dashboard-ui";
-import { type ContentPage, PageType } from "@musiccloud/shared";
+import { ContentContext, type ContentContextMask, type ContentPage, PageType } from "@musiccloud/shared";
 import { PlusCircleIcon } from "@phosphor-icons/react";
 import { useReducer } from "react";
 
 import { Dialog, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
 import { useI18n } from "@/context/I18nContext";
+import { isSystemOwnedDocsPath } from "@/features/content/editorialPageOwnership";
 import { useCreateContentPage } from "@/features/content/hooks/useAdminContent";
+import { PageContextControl } from "@/features/content/pages/PageContextControl";
+import { createPublicationDrafts } from "@/features/content/publicationDrafts";
 import { FormLabel, FormLabelText, formInputClass } from "@/shared/ui/FormPrimitives";
+import type { ApiRequestError } from "@/shared/utils/api-error";
 
 interface Props {
   open: boolean;
@@ -27,10 +31,18 @@ interface State {
   slug: string;
   slugManual: boolean;
   pageType: PageType;
+  contextMask: ContentContextMask;
   error: string | null;
 }
 
-const INITIAL: State = { title: "", slug: "", slugManual: false, pageType: PageType.Default, error: null };
+const INITIAL: State = {
+  title: "",
+  slug: "",
+  slugManual: false,
+  pageType: PageType.Default,
+  contextMask: ContentContext.Frontend,
+  error: null,
+};
 
 function slugify(str: string): string {
   return str
@@ -53,7 +65,10 @@ export function CreatePageDialog({ open, onClose, onCreated, lockDefaultType }: 
     (prev: State, action: Partial<State>): State => ({ ...prev, ...action }),
     INITIAL,
   );
-  const { title, slug, slugManual, pageType, error } = state;
+  const { title, slug, slugManual, pageType, contextMask, error } = state;
+  const docsReserved =
+    (contextMask & ContentContext.DeveloperPortal) === ContentContext.DeveloperPortal &&
+    isSystemOwnedDocsPath(`/${slug}`);
 
   function reset() {
     dispatch({ ...INITIAL });
@@ -80,12 +95,16 @@ export function CreatePageDialog({ open, onClose, onCreated, lockDefaultType }: 
         slug,
         title,
         pageType: lockDefaultType ? PageType.Default : pageType,
+        contextMask,
+        publications: createPublicationDrafts(slug, contextMask),
       });
       reset();
       onClose();
       onCreated?.(page);
     } catch (err) {
-      dispatch({ error: err instanceof Error ? err.message : (text.createError ?? "") });
+      const apiError = err as ApiRequestError;
+      const message = err instanceof Error ? err.message : text.createError;
+      dispatch({ error: apiError.errorId ? `${message} Error ID: ${apiError.errorId}` : message });
     }
   }
 
@@ -143,6 +162,18 @@ export function CreatePageDialog({ open, onClose, onCreated, lockDefaultType }: 
               />
             </div>
           )}
+          <div>
+            <FormLabelText>{text.contexts.label}</FormLabelText>
+            <PageContextControl
+              value={contextMask}
+              labels={{
+                [ContentContext.Frontend]: text.contexts.frontend,
+                [ContentContext.DeveloperPortal]: text.contexts.developerPortal,
+              }}
+              validationMessage={docsReserved ? text.docsReserved : null}
+              onChange={(value) => dispatch({ contextMask: value })}
+            />
+          </div>
           {error && <p className="text-xs text-red-500">{error}</p>}
         </div>
         <Dialog.Footer>
@@ -158,7 +189,7 @@ export function CreatePageDialog({ open, onClose, onCreated, lockDefaultType }: 
           <DashboardActionButton
             action={DashboardActionId.Create}
             busyLabel={text.creating}
-            disabled={!slug || !title}
+            disabled={!slug || !title || contextMask === 0 || docsReserved}
             icon={false}
             label={text.create}
             status={createPage.isPending ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}

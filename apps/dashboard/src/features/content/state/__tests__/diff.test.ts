@@ -1,6 +1,12 @@
+import { ContentContext } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
 import { buildBulkPayload } from "../diff";
 import type { MetaState } from "../slices/metaSlice";
+import {
+  createInitialPublicationsState,
+  PublicationsActionType,
+  publicationsReducer,
+} from "../slices/publicationsSlice";
 
 type MetaFields = MetaState["pages"][string]["initial"];
 
@@ -50,6 +56,65 @@ describe("buildBulkPayload", () => {
       sidebar: { initial: [], current: [] },
     });
     expect(p.pages).toEqual([{ slug: "info", meta: { title: "B" }, content: "# new" }]);
+  });
+
+  it("includes dirty contextual publications in the page meta payload", () => {
+    const hydrated = publicationsReducer(createInitialPublicationsState(), {
+      type: PublicationsActionType.Hydrate,
+      entries: [
+        {
+          slug: "privacy",
+          pageId: "page-privacy",
+          contextMask: ContentContext.Frontend,
+          publications: [
+            {
+              context: ContentContext.Frontend,
+              path: "/privacy",
+              status: "published",
+              templateKey: "frontend-default",
+            },
+          ],
+        },
+      ],
+    });
+    const publications = publicationsReducer(hydrated, {
+      type: PublicationsActionType.ToggleContext,
+      slug: "privacy",
+      context: ContentContext.DeveloperPortal,
+      enabled: true,
+    });
+
+    const payload = buildBulkPayload({
+      meta: { pages: {} },
+      content: { pages: {} },
+      publications,
+      segments: { byOwner: {} },
+      translations: { byPage: {} },
+      sidebar: { initial: [], current: [] },
+    });
+
+    expect(payload.pages).toEqual([
+      {
+        slug: "privacy",
+        meta: {
+          contextMask: ContentContext.Frontend | ContentContext.DeveloperPortal,
+          publications: [
+            {
+              context: ContentContext.Frontend,
+              path: "/privacy",
+              status: "published",
+              templateKey: "frontend-default",
+            },
+            {
+              context: ContentContext.DeveloperPortal,
+              path: "/privacy",
+              status: "draft",
+              templateKey: "developer-default",
+            },
+          ],
+        },
+      },
+    ]);
   });
 
   it("emits topLevelOrder only when sidebar dirty", () => {

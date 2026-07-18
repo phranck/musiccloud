@@ -154,4 +154,91 @@ describe("bulkUpdatePages contextual publications", () => {
     });
     expect(bulkUpdate).not.toHaveBeenCalled();
   });
+
+  it("rejects context removal while contextual navigation still targets the page", async () => {
+    const bulkUpdate = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(getAdminRepository).mockResolvedValue({
+      listContentPageSummaries: vi.fn().mockResolvedValue([
+        {
+          id: "page-1",
+          slug: "privacy",
+          title: "Privacy",
+          status: "draft",
+          pageType: "default",
+          position: 0,
+          contextMask: ContentContext.Frontend | ContentContext.DeveloperPortal,
+        },
+      ]),
+      getContentPageBySlug: vi.fn().mockResolvedValue({
+        id: "page-1",
+        slug: "privacy",
+        title: "Privacy",
+        content: "# Privacy",
+        status: "draft",
+        pageType: "default",
+        position: 0,
+        contextMask: ContentContext.Frontend | ContentContext.DeveloperPortal,
+        publications: [
+          {
+            pageId: "page-1",
+            context: ContentContext.Frontend,
+            path: "/privacy",
+            status: "draft",
+            templateKey: "frontend-default",
+          },
+          {
+            pageId: "page-1",
+            context: ContentContext.DeveloperPortal,
+            path: "/privacy",
+            status: "draft",
+            templateKey: "developer-default",
+          },
+        ],
+      }),
+      listNavigationConfiguration: vi.fn().mockResolvedValue([
+        {
+          id: 4,
+          pageId: "page-1",
+          contextMask: ContentContext.DeveloperPortal,
+          placements: [{ context: ContentContext.DeveloperPortal, area: 1, position: 0 }],
+        },
+      ]),
+      bulkUpdatePages: bulkUpdate,
+    } as never);
+
+    const result = await bulkUpdatePages(
+      {
+        pages: [
+          {
+            slug: "privacy",
+            meta: {
+              contextMask: ContentContext.Frontend,
+              publications: [
+                {
+                  context: ContentContext.Frontend,
+                  path: "/privacy",
+                  status: "draft",
+                  templateKey: "frontend-default",
+                },
+              ],
+            },
+          },
+        ],
+      },
+      { updatedBy: "admin-1" },
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      code: "INVALID_INPUT",
+      details: [
+        {
+          section: "pages",
+          index: 0,
+          message: "Remove this page from Developer Portal navigation before disabling that context",
+        },
+      ],
+    });
+    expect(bulkUpdate).not.toHaveBeenCalled();
+  });
 });
