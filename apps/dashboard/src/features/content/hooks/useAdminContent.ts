@@ -4,7 +4,6 @@ import {
   type ContentPageSummary,
   type ContentPublication,
   ENDPOINTS,
-  type NavigationConfiguration,
   type PageType,
 } from "@musiccloud/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -63,12 +62,5 @@ export function useDeleteContentPage() {
   return useMutation({
     mutationFn: (slug: string) => api.delete(ENDPOINTS.admin.pages.detail(slug)),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["content-pages"] }),
-  });
-}
-
-export function useAdminNavigationConfiguration() {
-  return useQuery({
-    queryKey: ["admin-navigation-configuration"],
-    queryFn: () => api.get<NavigationConfiguration>(ENDPOINTS.admin.navigations.configuration),
   });
 }
