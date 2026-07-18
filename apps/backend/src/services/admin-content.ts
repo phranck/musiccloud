@@ -468,13 +468,23 @@ export async function getPublicContentPages(): Promise<Array<{ slug: string; tit
   return repo.listPublishedContentPages();
 }
 
+function isPublishedForLegacyFrontendSlug(row: ContentPageRow): boolean {
+  const publications = row.publications ?? [];
+  if (publications.length === 0) return row.status === "published";
+  return publications.some(
+    (publication) => publication.context === ContentContext.Frontend && publication.status === "published",
+  );
+}
+
 export async function getPublicContentPage(slug: string, locale: Locale): Promise<PublicContentPage | null> {
   const repo = await getAdminRepository();
   const path = normalizeEditorialPath(slug);
   const legacySlug = path.slice(1);
-  const row =
-    (await repo.getPublishedContentPageByPath?.(ContentContext.Frontend, path)) ??
-    (await repo.getPublishedContentPageBySlug(legacySlug));
+  let row = await repo.getPublishedContentPageByPath(ContentContext.Frontend, path);
+  if (!row) {
+    const legacyCandidate = await repo.getContentPageBySlug(legacySlug);
+    row = legacyCandidate && isPublishedForLegacyFrontendSlug(legacyCandidate) ? legacyCandidate : null;
+  }
   if (!row) return null;
 
   // Resolve title + content from translation when locale is non-default and a translation row exists.

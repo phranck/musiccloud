@@ -1,4 +1,4 @@
-import { ContentContext, type ContentPublication } from "@musiccloud/shared";
+import { ContentContext, type ContentPublication, PageType } from "@musiccloud/shared";
 import type { AdminRepository, ContentPageSummaryRow } from "../db/admin-repository.js";
 import { closeRepository, getAdminRepository } from "../db/index.js";
 import { normalizeEditorialPath } from "../services/editorial-path.js";
@@ -21,14 +21,27 @@ export async function backfillContextualContent(
 ): Promise<ContextualContentBackfillResult> {
   const pages = await repo.listContentPageSummaries();
   const claims = new Map<string, string>();
+  let conflicts = 0;
+
+  const registerClaim = (key: string, pageId: string): boolean => {
+    if (claims.has(key)) {
+      conflicts++;
+      return false;
+    }
+    claims.set(key, pageId);
+    return true;
+  };
+
   for (const page of pages) {
     for (const publication of page.publications ?? []) {
-      claims.set(`${publication.context}:${normalizeEditorialPath(publication.path)}`, publication.pageId);
+      registerClaim(
+        `${publication.context}:${normalizeEditorialPath(publication.path)}`,
+        page.id ?? publication.pageId,
+      );
     }
   }
 
   const actions: BackfillAction[] = [];
-  let conflicts = 0;
   for (const page of pages) {
     const pageId = page.id;
     if (!pageId) {
@@ -38,12 +51,12 @@ export async function backfillContextualContent(
     const desired = legacyFrontendPublication(page);
     const existing = page.publications ?? [];
     const existingFrontend = existing.find((publication) => publication.context === ContentContext.Frontend);
-    const claimant = claims.get(`${ContentContext.Frontend}:${desired.path}`);
-    if ((claimant && claimant !== pageId) || (existingFrontend && !samePublication(existingFrontend, desired))) {
+    if (existingFrontend && !samePublication(existingFrontend, desired)) {
       conflicts++;
       continue;
     }
     if (!existingFrontend) {
+      if (!registerClaim(`${ContentContext.Frontend}:${desired.path}`, pageId)) continue;
       actions.push({
         pageId,
         publications: [
@@ -80,7 +93,7 @@ function legacyFrontendPublication(page: ContentPageSummaryRow): ContentPublicat
     context: ContentContext.Frontend,
     path: normalizeEditorialPath(page.slug),
     status: page.status,
-    templateKey: "frontend-default",
+    templateKey: page.pageType === PageType.Segmented ? "frontend-segmented" : "frontend-default",
   };
 }
 

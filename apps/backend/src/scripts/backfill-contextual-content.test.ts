@@ -1,4 +1,4 @@
-import { ContentContext } from "@musiccloud/shared";
+import { ContentContext, PageType } from "@musiccloud/shared";
 import { describe, expect, it, vi } from "vitest";
 import type { AdminRepository, ContentPageSummaryRow } from "../db/admin-repository.js";
 import { backfillContextualContent, formatBackfillSummary } from "./backfill-contextual-content.js";
@@ -13,7 +13,7 @@ function page(overrides: Partial<ContentPageSummaryRow> = {}): ContentPageSummar
     status: "published",
     showTitle: true,
     titleAlignment: "left",
-    pageType: "default",
+    pageType: PageType.Default,
     displayMode: "fullscreen",
     overlayWidth: "regular",
     contentCardStyle: "recessed",
@@ -82,5 +82,107 @@ describe("backfillContextualContent", () => {
 
     await expect(backfillContextualContent(repo, { dryRun: false })).rejects.toThrow("conflict");
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("preflights colliding planned Frontend claims before the first write", async () => {
+    const replace = vi.fn();
+    const repo = {
+      listContentPageSummaries: async () => [
+        page({ id: "page-a", slug: "privacy" }),
+        page({ id: "page-b", slug: "/privacy/" }),
+      ],
+      replaceContentPublications: replace,
+    } as unknown as AdminRepository;
+
+    await expect(backfillContextualContent(repo, { dryRun: false })).rejects.toThrow("conflict");
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("preflights canonically duplicate existing claims before the first write", async () => {
+    const replace = vi.fn();
+    const repo = {
+      listContentPageSummaries: async () => [
+        page({
+          id: "page-a",
+          slug: "alpha",
+          contextMask: ContentContext.DeveloperPortal,
+          publications: [
+            {
+              pageId: "page-a",
+              context: ContentContext.DeveloperPortal,
+              path: "/guide",
+              status: "draft",
+              templateKey: "developer-default",
+            },
+          ],
+        }),
+        page({
+          id: "page-b",
+          slug: "beta",
+          contextMask: ContentContext.DeveloperPortal,
+          publications: [
+            {
+              pageId: "page-b",
+              context: ContentContext.DeveloperPortal,
+              path: "//guide/",
+              status: "draft",
+              templateKey: "developer-default",
+            },
+          ],
+        }),
+      ],
+      replaceContentPublications: replace,
+    } as unknown as AdminRepository;
+
+    await expect(backfillContextualContent(repo, { dryRun: false })).rejects.toThrow("conflict");
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("preflights duplicate existing claims owned by the same page", async () => {
+    const replace = vi.fn();
+    const repo = {
+      listContentPageSummaries: async () => [
+        page({
+          id: "page-a",
+          slug: "alpha",
+          contextMask: ContentContext.DeveloperPortal,
+          publications: [
+            {
+              pageId: "page-a",
+              context: ContentContext.DeveloperPortal,
+              path: "/guide",
+              status: "draft",
+              templateKey: "developer-default",
+            },
+            {
+              pageId: "page-a",
+              context: ContentContext.DeveloperPortal,
+              path: "//guide/",
+              status: "draft",
+              templateKey: "developer-default",
+            },
+          ],
+        }),
+      ],
+      replaceContentPublications: replace,
+    } as unknown as AdminRepository;
+
+    await expect(backfillContextualContent(repo, { dryRun: false })).rejects.toThrow("conflict");
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [PageType.Default, "frontend-default"],
+    [PageType.Segmented, "frontend-segmented"],
+  ])("derives the %s presentation as %s", async (pageType, templateKey) => {
+    const replace = vi.fn().mockResolvedValue([]);
+    const repo = {
+      listContentPageSummaries: async () => [page({ pageType })],
+      replaceContentPublications: replace,
+    } as unknown as AdminRepository;
+
+    await backfillContextualContent(repo, { dryRun: false });
+
+    expect(replace).toHaveBeenCalledWith("page-privacy", [expect.objectContaining({ templateKey })]);
   });
 });
