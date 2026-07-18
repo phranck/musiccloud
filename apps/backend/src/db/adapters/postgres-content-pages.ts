@@ -36,21 +36,22 @@ import type {
 import { ContentContext } from "@musiccloud/shared";
 import type { Pool, PoolClient } from "pg";
 import { isReservedDeveloperPortalPath, normalizeEditorialPath } from "../../services/editorial-path.js";
-import type {
-  BulkUpdatePagesPayload,
-  ContentPageCreateData,
-  ContentPageMetaUpdate,
-  ContentPageRow,
-  ContentPageSummaryRow,
-  ContentPageTranslationRow,
-  ContentPageTranslationUpsert,
-  ContentPublicationCutoverInput,
-  ContentPublicationCutoverResult,
-  ContentPublicationRow,
-  ContentStatus,
-  PageSegmentInputRow,
-  PageSegmentRow,
-  PageSegmentTranslationRow,
+import {
+  type BulkUpdatePagesPayload,
+  type ContentPageCreateData,
+  type ContentPageMetaUpdate,
+  type ContentPageRow,
+  type ContentPageSummaryRow,
+  type ContentPageTranslationRow,
+  type ContentPageTranslationUpsert,
+  ContentPublicationCutoverConflictError,
+  type ContentPublicationCutoverInput,
+  type ContentPublicationCutoverResult,
+  type ContentPublicationRow,
+  type ContentStatus,
+  type PageSegmentInputRow,
+  type PageSegmentRow,
+  type PageSegmentTranslationRow,
 } from "../admin-repository.js";
 import {
   fingerprintContentPage,
@@ -498,17 +499,17 @@ export async function applyContentPublicationCutover(
 
     assertClosedCutoverInputs(entries);
     assertUniqueCutoverInputs(entries);
-    const existingPageIds = entries.flatMap((entry) =>
-      entry.expectedPage.kind === "existing" ? [entry.expectedPage.pageId] : [],
-    );
-    const pageResult = await client.query<{ id: string; slug: string; title: string; content: string }>(
-      `SELECT id, slug, title, content
+    const pageResult = await client.query<{
+      id: string;
+      slug: string;
+      context_mask: number;
+      title: string;
+      content: string;
+    }>(
+      `SELECT id, slug, context_mask, title, content
          FROM content_pages
-        WHERE id = ANY($1::text[])
-           OR slug = ANY($2::text[])
         ORDER BY id
         FOR UPDATE`,
-      [existingPageIds, entries.map((entry) => entry.sourceSlug)],
     );
     const resolvedPageIds = new Map<string, string>();
     for (const entry of entries) {
@@ -548,6 +549,12 @@ export async function applyContentPublicationCutover(
         ORDER BY context, path, page_id
         FOR UPDATE`,
     );
+    for (const lockedPage of pageResult.rows) {
+      const lockedPublications = publicationResult.rows.filter((publication) => publication.page_id === lockedPage.id);
+      if (lockedPage.context_mask !== publicationContextMask(lockedPublications)) {
+        throw cutoverConflict(`context mask ${lockedPage.slug}`);
+      }
+    }
     const claims = indexLockedPublicationClaims(publicationResult.rows);
     for (const entry of entries) {
       const expectedPageId = entry.expectedPage.kind === "existing" ? entry.expectedPage.pageId : undefined;
@@ -725,7 +732,10 @@ function assertCanonicalDesiredPublication(sourceSlug: string, publication: Cont
   } catch {
     throw cutoverConflict(`invalid desired path for ${sourceSlug}`);
   }
-  if (normalizedPath !== publication.path || isDocsNamespace(normalizedPath)) {
+  if (
+    normalizedPath !== publication.path ||
+    (publication.context === ContentContext.DeveloperPortal && isDocsNamespace(normalizedPath))
+  ) {
     throw cutoverConflict(`reserved or non-canonical desired path ${normalizedPath}`);
   }
 }
@@ -739,7 +749,7 @@ function indexLockedPublicationClaims(rows: ContentPublicationSqlRow[]): Map<str
     } catch {
       throw cutoverConflict(`invalid existing path for Page ${row.page_id}`);
     }
-    if (isDocsNamespace(normalizedPath)) {
+    if (row.context === ContentContext.DeveloperPortal && isDocsNamespace(normalizedPath)) {
       throw cutoverConflict(`reserved docs claim ${normalizedPath}`);
     }
     const key = canonicalRouteKey(row.context as SingleContentContext, normalizedPath);
@@ -766,12 +776,16 @@ function canonicalRouteKey(context: SingleContentContext, path: string): string 
   return `${context}:${path}`;
 }
 
+function publicationContextMask(publications: ReadonlyArray<{ context: number }>): number {
+  return publications.reduce((mask, publication) => mask | publication.context, 0);
+}
+
 function isDocsNamespace(path: string): boolean {
   return isReservedDeveloperPortalPath(path) && (path === "/docs" || path.startsWith("/docs/"));
 }
 
-function cutoverConflict(reason: string): Error {
-  return new Error(`Content publication cutover conflict: ${reason}`);
+function cutoverConflict(_reason: string): ContentPublicationCutoverConflictError {
+  return new ContentPublicationCutoverConflictError();
 }
 
 // ============================================================================

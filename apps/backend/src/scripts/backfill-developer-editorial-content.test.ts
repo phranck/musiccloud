@@ -1,6 +1,12 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import { ContentContext, PageType, type ContentPublication } from "@musiccloud/shared";
+import {
+  ContentContext,
+  NavigationArea,
+  NavigationTargetKind,
+  PageType,
+  type ContentPublication,
+} from "@musiccloud/shared";
 import { describe, expect, it, vi } from "vitest";
 
 import type {
@@ -10,10 +16,13 @@ import type {
   ContentPublicationCutoverInput,
   ContentPublicationCutoverResult,
   ContentPublicationRow,
+  NavigationConfigurationEntryRow,
 } from "../db/admin-repository.js";
+import { ContentPublicationCutoverConflictError } from "../db/admin-repository.js";
 import {
   DEVELOPER_EDITORIAL_CUTOVER_MAPPING,
   backfillDeveloperEditorialContent,
+  DeveloperEditorialCutoverConflictError,
   formatDeveloperEditorialCutoverReport,
   isDirectCommonJsCutoverEntrypoint,
   isDirectTsxCutoverEntrypoint,
@@ -82,6 +91,10 @@ function fingerprint(title: string, content: string): string {
   return createHash("sha256").update(JSON.stringify({ title, content })).digest("hex");
 }
 
+function publicationContextMask(publications: ReadonlyArray<Pick<ContentPublication, "context">>): number {
+  return publications.reduce((mask, publication) => mask | publication.context, 0);
+}
+
 class InMemoryEditorialRepository {
   readonly sourceReads: string[] = [];
   readonly atomicApplies: ContentPublicationCutoverInput[][] = [];
@@ -92,11 +105,17 @@ class InMemoryEditorialRepository {
   });
   readonly updateContentPageBody = vi.fn();
   readonly updateContentPageMeta = vi.fn();
+  readonly replaceNavigationConfiguration = vi.fn(async () => {
+    throw new Error("Navigation writes are forbidden during editorial cutover");
+  });
   readonly replaceSegmentsForOwner = vi.fn();
   readonly replaceSegmentTranslations = vi.fn();
   readonly upsertPageTranslation = vi.fn();
 
-  constructor(readonly pages: ContentPageRow[]) {}
+  constructor(
+    readonly pages: ContentPageRow[],
+    readonly navigationEntries: NavigationConfigurationEntryRow[] = [],
+  ) {}
 
   async listContentPageSummaries(): Promise<ContentPageSummaryRow[]> {
     return this.pages.map(({ content: _content, contentUpdatedAt: _contentUpdatedAt, ...summary }) => ({
@@ -114,6 +133,14 @@ class InMemoryEditorialRepository {
           publications: found.publications?.map((entry) => ({ ...entry })),
         }
       : null;
+  }
+
+  async listNavigationConfiguration(): Promise<NavigationConfigurationEntryRow[]> {
+    return this.navigationEntries.map((entry) => ({
+      ...entry,
+      placements: entry.placements.map((placement) => ({ ...placement })),
+      translations: { ...entry.translations },
+    }));
   }
 
   async applyContentPublicationCutover(
@@ -146,11 +173,14 @@ class InMemoryEditorialRepository {
           target.slug !== entry.sourceSlug ||
           fingerprint(target.title, target.content) !== expectedPage.fingerprint
         ) {
-          throw new Error("Cutover identity conflict");
+          throw new ContentPublicationCutoverConflictError();
+        }
+        if (target.contextMask !== publicationContextMask(target.publications ?? [])) {
+          throw new ContentPublicationCutoverConflictError();
         }
       } else {
         if (staged.some((candidate) => candidate.slug === entry.sourceSlug)) {
-          throw new Error("Cutover absence conflict");
+          throw new ContentPublicationCutoverConflictError();
         }
         const pageId = randomUUID();
         target = {
@@ -182,7 +212,7 @@ class InMemoryEditorialRepository {
           current[0]!.status !== prerequisite.status ||
           current[0]!.templateKey !== prerequisite.templateKey
         ) {
-          throw new Error("Cutover prerequisite conflict");
+          throw new ContentPublicationCutoverConflictError();
         }
       }
 
@@ -194,7 +224,7 @@ class InMemoryEditorialRepository {
             current.status !== desired.status ||
             current.templateKey !== desired.templateKey
           ) {
-            throw new Error("Cutover publication conflict");
+            throw new ContentPublicationCutoverConflictError();
           }
           continue;
         }
@@ -204,6 +234,9 @@ class InMemoryEditorialRepository {
         target.contextMask = (target.contextMask ?? 0) | desired.context;
         inserted.push(row);
       }
+      if (target.contextMask !== publicationContextMask(target.publications ?? [])) {
+        throw new ContentPublicationCutoverConflictError();
+      }
     }
     this.pages.splice(0, this.pages.length, ...staged);
     this.writes.push(...inserted);
@@ -211,9 +244,52 @@ class InMemoryEditorialRepository {
   }
 }
 
-function repository(pages: ContentPageRow[]): { fake: InMemoryEditorialRepository; repo: AdminRepository } {
-  const fake = new InMemoryEditorialRepository(pages);
+function repository(
+  pages: ContentPageRow[],
+  navigationEntries: NavigationConfigurationEntryRow[] = [],
+): { fake: InMemoryEditorialRepository; repo: AdminRepository } {
+  const fake = new InMemoryEditorialRepository(pages, navigationEntries);
   return { fake, repo: fake as unknown as AdminRepository };
+}
+
+function navigationConfiguration(): NavigationConfigurationEntryRow[] {
+  return [
+    {
+      id: 1,
+      targetKind: NavigationTargetKind.Url,
+      pageId: null,
+      pageSlug: null,
+      pageTitle: null,
+      url: "/about",
+      systemKey: null,
+      target: "_self",
+      label: "About",
+      contextMask: ContentContext.Frontend,
+      areaMask: NavigationArea.Main | NavigationArea.Footer,
+      placements: [
+        { context: ContentContext.Frontend, area: NavigationArea.Main, position: 0 },
+        { context: ContentContext.Frontend, area: NavigationArea.Footer, position: 0 },
+      ],
+      translations: { de: "Über uns" },
+      labelUpdatedAt: FIXED_DATE,
+    },
+    {
+      id: 2,
+      targetKind: NavigationTargetKind.System,
+      pageId: null,
+      pageSlug: null,
+      pageTitle: null,
+      url: null,
+      systemKey: "docs",
+      target: "_self",
+      label: "Docs",
+      contextMask: ContentContext.DeveloperPortal,
+      areaMask: NavigationArea.Main,
+      placements: [{ context: ContentContext.DeveloperPortal, area: NavigationArea.Main, position: 0 }],
+      translations: {},
+      labelUpdatedAt: FIXED_DATE,
+    },
+  ];
 }
 
 describe("DEVELOPER_EDITORIAL_CUTOVER_MAPPING", () => {
@@ -269,6 +345,8 @@ describe("backfillDeveloperEditorialContent", () => {
     expect(result.counts).toEqual({
       pages: 1,
       publications: 1,
+      navigationEntries: 0,
+      navigationPlacements: 0,
       mappings: 3,
       plannedPageCreates: 1,
       plannedPublicationWrites: 3,
@@ -395,6 +473,8 @@ describe("backfillDeveloperEditorialContent", () => {
     expect(result.counts).toEqual({
       pages: 2,
       publications: 2,
+      navigationEntries: 0,
+      navigationPlacements: 0,
       mappings: 3,
       plannedPageCreates: 0,
       plannedPublicationWrites: 2,
@@ -659,6 +739,42 @@ describe("backfillDeveloperEditorialContent", () => {
     expect(fake.writes).toEqual([]);
   });
 
+  it.each([
+    [
+      "missing an existing publication bit",
+      ContentContext.Frontend,
+      [
+        publication("page-privacy-stable", ContentContext.Frontend, "/privacy"),
+        publication("page-privacy-stable", ContentContext.DeveloperPortal, "/privacy"),
+      ],
+    ],
+    [
+      "containing an extra bit",
+      ContentContext.Frontend | ContentContext.DeveloperPortal,
+      [publication("page-privacy-stable", ContentContext.Frontend, "/privacy")],
+    ],
+  ])("rejects a context mask %s before apply", async (_case, contextMask, publications) => {
+    const pages = canonicalPages();
+    pages[0]!.contextMask = contextMask;
+    pages[0]!.publications = publications;
+    const { fake, repo } = repository(pages);
+
+    const dryRun = await backfillDeveloperEditorialContent(repo, { dryRun: true });
+
+    expect(dryRun.conflicts).toContainEqual({
+      code: "context-mask-mismatch",
+      context: null,
+      pageIds: ["page-privacy-stable"],
+      path: null,
+      sourceSlug: "privacy",
+    });
+    await expect(backfillDeveloperEditorialContent(repo, { dryRun: false })).rejects.toThrow(
+      "Developer editorial cutover conflicts detected",
+    );
+    expect(fake.atomicApplies).toEqual([]);
+    expect(fake.writes).toEqual([]);
+  });
+
   it("treats a publication owner mismatch as a direct conflict with no repository apply", async () => {
     const pages = canonicalPages();
     pages[1]!.publications![0]!.pageId = "different-owner";
@@ -720,10 +836,12 @@ describe("backfillDeveloperEditorialContent", () => {
     pages[0]!.publications!.push(
       publication("page-privacy-stable", ContentContext.DeveloperPortal, "//privacy/"),
     );
+    pages[0]!.contextMask = ContentContext.Frontend | ContentContext.DeveloperPortal;
     pages.push(
       page({
         id: "route-owner",
         slug: "elsewhere",
+        contextMask: ContentContext.DeveloperPortal,
         publications: [publication("route-owner", ContentContext.DeveloperPortal, "//terms/")],
       }),
       page({
@@ -753,18 +871,21 @@ describe("backfillDeveloperEditorialContent", () => {
       page({
         id: "page-docs-root",
         slug: "docs",
+        contextMask: ContentContext.DeveloperPortal,
         content: "Docs root source",
         publications: [publication("page-docs-root", ContentContext.DeveloperPortal, "/docs")],
       }),
       page({
         id: "page-docs-guide",
         slug: "docs-guide",
+        contextMask: ContentContext.DeveloperPortal,
         content: "Docs guide source",
         publications: [publication("page-docs-guide", ContentContext.DeveloperPortal, "/docs/guides/install")],
       }),
       page({
         id: "page-docs-api",
         slug: "docs-api",
+        contextMask: ContentContext.DeveloperPortal,
         content: "API artifact source",
         publications: [publication("page-docs-api", ContentContext.DeveloperPortal, "//docs/api/reference/")],
       }),
@@ -790,6 +911,91 @@ describe("backfillDeveloperEditorialContent", () => {
       "Developer editorial cutover conflicts detected",
     );
     expect(fake.writes).toEqual([]);
+  });
+
+  it("allows an unrelated Frontend /docs publication without reading or writing its Page", async () => {
+    const pages = [
+      ...canonicalPages(),
+      page({
+        id: "page-frontend-docs",
+        slug: "docs",
+        content: "Frontend docs landing body",
+        publications: [publication("page-frontend-docs", ContentContext.Frontend, "/docs")],
+      }),
+    ];
+    const { fake, repo } = repository(pages);
+
+    const result = await backfillDeveloperEditorialContent(repo, { dryRun: true });
+
+    expect(result.conflicts).toEqual([]);
+    expect(result.counts).toMatchObject({ plannedWrites: 2, conflicts: 0, writes: 0 });
+    expect(fake.sourceReads).toEqual(["page-privacy-stable", "page-terms-stable"]);
+    expect(fake.atomicApplies).toEqual([]);
+    expect(fake.writes).toEqual([]);
+  });
+
+  it("maps a typed locked repository conflict to a safe stable report conflict", async () => {
+    const pages = canonicalPages();
+    const { fake, repo } = repository(pages);
+    const getContentPageById = fake.getContentPageById.bind(fake);
+    let sourceReadCount = 0;
+    vi.spyOn(fake, "getContentPageById").mockImplementation(async (id) => {
+      const result = await getContentPageById(id);
+      sourceReadCount++;
+      if (sourceReadCount === 2) {
+        pages[0]!.contextMask = ContentContext.Frontend | ContentContext.DeveloperPortal;
+      }
+      return result;
+    });
+
+    const error = await backfillDeveloperEditorialContent(repo, { dryRun: false }).catch(
+      (caught: unknown) => caught,
+    );
+
+    expect(error).toBeInstanceOf(DeveloperEditorialCutoverConflictError);
+    const report = (error as DeveloperEditorialCutoverConflictError).report;
+    expect(report.conflicts).toEqual([
+      {
+        code: "locked-revalidation-conflict",
+        context: null,
+        pageIds: [],
+        path: null,
+        sourceSlug: null,
+      },
+    ]);
+    expect(report.counts).toMatchObject({ conflicts: 1, pageCreates: 0, publicationWrites: 0, writes: 0 });
+    expect(JSON.parse(formatDeveloperEditorialCutoverReport(report))).toMatchObject({
+      conflicts: [{ code: "locked-revalidation-conflict" }],
+    });
+    expect(formatDeveloperEditorialCutoverReport(report)).not.toMatch(
+      /Canonical privacy body|Canonical terms body|DATABASE_URL|password|credential/i,
+    );
+    expect(fake.writes).toEqual([]);
+  });
+
+  it("keeps a generic repository infrastructure failure generic", async () => {
+    const { fake, repo } = repository(canonicalPages());
+    const infrastructureError = new Error("simulated database timeout");
+    vi.spyOn(fake, "applyContentPublicationCutover").mockRejectedValueOnce(infrastructureError);
+
+    await expect(backfillDeveloperEditorialContent(repo, { dryRun: false })).rejects.toBe(infrastructureError);
+  });
+
+  it("reports read-only navigation entry and placement counts without navigation writes", async () => {
+    const { fake, repo } = repository(canonicalPages(), navigationConfiguration());
+    const listNavigationConfiguration = vi.spyOn(fake, "listNavigationConfiguration");
+
+    const result = await backfillDeveloperEditorialContent(repo, { dryRun: false });
+
+    expect(result.counts).toMatchObject({
+      navigationEntries: 2,
+      navigationPlacements: 3,
+      conflicts: 0,
+      publicationWrites: 2,
+      writes: 2,
+    });
+    expect(listNavigationConfiguration).toHaveBeenCalledOnce();
+    expect(fake.replaceNavigationConfiguration).not.toHaveBeenCalled();
   });
 });
 

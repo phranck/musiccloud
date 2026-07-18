@@ -177,14 +177,16 @@ interface SqlPublicationRow {
 interface SqlPageRow {
   id: string;
   slug: string;
+  context_mask: number;
   title: string;
   content: string;
 }
 
-function pageRow(id: string, slug: "privacy" | "terms"): SqlPageRow {
+function pageRow(id: string, slug: string, contextMask: number = ContentContext.Frontend): SqlPageRow {
   return {
     id,
     slug,
+    context_mask: contextMask,
     title: slug === "privacy" ? "Privacy Policy" : "Terms of Service",
     content: `Canonical ${slug} body`,
   };
@@ -269,6 +271,26 @@ describe("getPublishedContentPageByPath", () => {
 });
 
 describe("applyContentPublicationCutover", () => {
+  it("returns a typed, stable, safely structured conflict for locked revalidation failures", async () => {
+    const { pool } = createCutoverPool({
+      publications: [
+        publicationRow("page-privacy-stable", ContentContext.Frontend, "/privacy"),
+        publicationRow("page-terms-stable", ContentContext.Frontend, "/terms"),
+        publicationRow("concurrent-owner", ContentContext.DeveloperPortal, "/terms"),
+      ],
+    });
+
+    const error = await applyContentPublicationCutover(pool, CUTOVER_INPUTS).catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({
+      name: "ContentPublicationCutoverConflictError",
+      code: "MC-CONTENT-PUBLICATION-CUTOVER-CONFLICT",
+      message: "Content publication cutover conflict",
+    });
+    expect(error).not.toHaveProperty("reason");
+    expect(JSON.stringify(error)).not.toMatch(/concurrent-owner|\/terms|Canonical terms body/);
+  });
+
   it.each(
     invalidRuntimeContractCases(),
   )("rejects %s as an out-of-contract direct call before the first write", async (_case, entries) => {
@@ -402,6 +424,57 @@ describe("applyContentPublicationCutover", () => {
   });
 
   it.each([
+    [
+      "missing an existing publication bit",
+      ContentContext.Frontend,
+      [
+        publicationRow("page-privacy-stable", ContentContext.Frontend, "/privacy"),
+        publicationRow("page-privacy-stable", ContentContext.DeveloperPortal, "/privacy"),
+      ],
+    ],
+    [
+      "containing an extra bit",
+      ContentContext.Frontend | ContentContext.DeveloperPortal,
+      [publicationRow("page-privacy-stable", ContentContext.Frontend, "/privacy")],
+    ],
+  ])("rolls back a locked context mask %s before the first DML", async (_case, contextMask, privacyRows) => {
+    const { calls, pool } = createCutoverPool({
+      pages: [pageRow("page-privacy-stable", "privacy", contextMask), pageRow("page-terms-stable", "terms")],
+      publications: [...privacyRows, publicationRow("page-terms-stable", ContentContext.Frontend, "/terms")],
+    });
+
+    await expect(applyContentPublicationCutover(pool, CUTOVER_INPUTS)).rejects.toThrow(/conflict/i);
+
+    const pageSelect = calls.find(({ sql }) => sql.includes("FROM content_pages") && sql.includes("FOR UPDATE"));
+    expect(pageSelect?.sql).toContain("context_mask");
+    expect(calls.some(({ sql }) => /^(INSERT|UPDATE|DELETE)\b/.test(sql.trimStart()))).toBe(false);
+    expect(calls.some(({ sql }) => sql === "ROLLBACK")).toBe(true);
+  });
+
+  it("rolls back an unrelated existing Page context-mask drift before the first DML", async () => {
+    const { calls, pool } = createCutoverPool({
+      pages: [
+        pageRow("page-privacy-stable", "privacy"),
+        pageRow("page-terms-stable", "terms"),
+        pageRow("page-pricing-stable", "pricing", ContentContext.Frontend | ContentContext.DeveloperPortal),
+      ],
+      publications: [
+        publicationRow("page-privacy-stable", ContentContext.Frontend, "/privacy"),
+        publicationRow("page-terms-stable", ContentContext.Frontend, "/terms"),
+        publicationRow("page-pricing-stable", ContentContext.Frontend, "/pricing"),
+      ],
+    });
+
+    await expect(applyContentPublicationCutover(pool, CUTOVER_INPUTS)).rejects.toThrow(/conflict/i);
+
+    const pageSelect = calls.find(({ sql }) => sql.includes("FROM content_pages") && sql.includes("FOR UPDATE"));
+    expect(pageSelect?.sql).toContain("context_mask");
+    expect(pageSelect?.sql).not.toContain("WHERE id = ANY");
+    expect(calls.some(({ sql }) => /^(INSERT|UPDATE|DELETE)\b/.test(sql.trimStart()))).toBe(false);
+    expect(calls.some(({ sql }) => sql === "ROLLBACK")).toBe(true);
+  });
+
+  it.each([
     ["missing", []],
     [
       "mismatching",
@@ -497,7 +570,10 @@ describe("applyContentPublicationCutover", () => {
       },
     ];
     const { calls, pool } = createCutoverPool({
-      pages: [pageRow("page-privacy-stable", "privacy"), existingTerms],
+      pages: [
+        pageRow("page-privacy-stable", "privacy"),
+        { ...existingTerms, context_mask: ContentContext.DeveloperPortal },
+      ],
       publications: [
         publicationRow("page-privacy-stable", ContentContext.Frontend, "/privacy"),
         publicationRow("page-terms-stable", ContentContext.DeveloperPortal, "/terms"),
@@ -555,6 +631,12 @@ describe("applyContentPublicationCutover", () => {
       true,
     );
     expect(calls.filter(({ sql }) => sql.includes("INSERT INTO content_page_publications"))).toHaveLength(2);
+    expect(
+      calls.filter(({ sql }) => sql.includes("UPDATE content_pages SET context_mask = context_mask | $2")),
+    ).toEqual([
+      expect.objectContaining({ params: ["page-privacy-stable", ContentContext.DeveloperPortal] }),
+      expect.objectContaining({ params: ["page-terms-stable", ContentContext.DeveloperPortal] }),
+    ]);
     expect(calls.some(({ sql }) => /\bDELETE\b/.test(sql))).toBe(false);
     expect(calls.at(-1)?.sql).toBe("COMMIT");
   });
@@ -605,6 +687,29 @@ describe("applyContentPublicationCutover", () => {
     expect(calls.some(({ sql }) => sql === "ROLLBACK")).toBe(true);
   });
 
+  it("allows an unrelated Frontend /docs claim under lock", async () => {
+    const { calls, pool } = createCutoverPool({
+      publications: [
+        publicationRow("page-privacy-stable", ContentContext.Frontend, "/privacy"),
+        publicationRow("page-terms-stable", ContentContext.Frontend, "/terms"),
+        publicationRow("frontend-docs-owner", ContentContext.Frontend, "/docs"),
+      ],
+    });
+
+    await expect(applyContentPublicationCutover(pool, CUTOVER_INPUTS)).resolves.toMatchObject({
+      createdPages: [],
+      publications: [
+        expect.objectContaining({ pageId: "page-privacy-stable", context: ContentContext.DeveloperPortal }),
+        expect.objectContaining({ pageId: "page-terms-stable", context: ContentContext.DeveloperPortal }),
+      ],
+    });
+    expect(calls.filter(({ sql }) => sql.includes("INSERT INTO content_page_publications"))).toHaveLength(2);
+    expect(
+      calls.some(({ sql, params }) => sql.includes("frontend-docs-owner") || params?.includes("frontend-docs-owner")),
+    ).toBe(false);
+    expect(calls.at(-1)?.sql).toBe("COMMIT");
+  });
+
   it("rolls back the entire transaction when the second insert fails", async () => {
     const { calls, pool } = createCutoverPool({
       publications: [
@@ -624,6 +729,10 @@ describe("applyContentPublicationCutover", () => {
 
   it("treats exact locked target publications as an idempotent no-op", async () => {
     const { calls, pool } = createCutoverPool({
+      pages: [
+        pageRow("page-privacy-stable", "privacy", ContentContext.Frontend | ContentContext.DeveloperPortal),
+        pageRow("page-terms-stable", "terms", ContentContext.Frontend | ContentContext.DeveloperPortal),
+      ],
       publications: [
         publicationRow("page-privacy-stable", ContentContext.Frontend, "/privacy"),
         publicationRow("page-privacy-stable", ContentContext.DeveloperPortal, "/privacy"),
@@ -644,6 +753,10 @@ describe("applyContentPublicationCutover", () => {
     const mismatchingPrivacy = publicationRow("page-privacy-stable", ContentContext.DeveloperPortal, "/privacy");
     mismatchingPrivacy.status = "draft";
     const { calls, pool } = createCutoverPool({
+      pages: [
+        pageRow("page-privacy-stable", "privacy", ContentContext.Frontend | ContentContext.DeveloperPortal),
+        pageRow("page-terms-stable", "terms"),
+      ],
       publications: [
         publicationRow("page-privacy-stable", ContentContext.Frontend, "/privacy"),
         mismatchingPrivacy,

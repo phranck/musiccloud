@@ -4,8 +4,10 @@ import type {
   AdminRepository,
   ContentPageSummaryRow,
   ContentPublicationCutoverInput,
+  ContentPublicationCutoverResult,
   ContentPublicationRow,
 } from "../db/admin-repository.js";
+import { ContentPublicationCutoverConflictError } from "../db/admin-repository.js";
 import {
   fingerprintContentPage,
   PRIVACY_DEVELOPER_PUBLICATION,
@@ -58,11 +60,13 @@ const CONTENT_CUTOVER_MAPPING: readonly ContentCutoverMapping[] = Object.freeze(
 export type DeveloperEditorialCutoverConflictCode =
   | "ambiguous-source"
   | "canonical-duplicate-claim"
+  | "context-mask-mismatch"
   | "invalid-publication-path"
   | "missing-source"
   | "privacy-frontend-prerequisite-mismatch"
   | "publication-owner-mismatch"
   | "reserved-developer-path"
+  | "locked-revalidation-conflict"
   | "source-identity-mismatch"
   | "target-publication-mismatch"
   | "target-route-claimed";
@@ -109,6 +113,8 @@ export interface DeveloperEditorialCutoverReport {
   counts: {
     pages: number;
     publications: number;
+    navigationEntries: number;
+    navigationPlacements: number;
     mappings: number;
     plannedPageCreates: number;
     plannedPublicationWrites: number;
@@ -151,11 +157,21 @@ export async function backfillDeveloperEditorialContent(
   options: { dryRun: boolean },
 ): Promise<DeveloperEditorialCutoverReport> {
   const pages = await repo.listContentPageSummaries();
+  const navigationEntries = await repo.listNavigationConfiguration();
   const conflicts: DeveloperEditorialCutoverConflict[] = [];
   const claimsByCanonicalRoute = new Map<string, NormalizedPublicationClaim[]>();
 
   for (const page of pages) {
     const ownerPageId = page.id;
+    if (page.contextMask !== publicationContextMask(page.publications ?? [])) {
+      conflicts.push({
+        code: "context-mask-mismatch",
+        context: null,
+        pageIds: ownerPageId ? [ownerPageId] : [],
+        path: null,
+        sourceSlug: page.slug,
+      });
+    }
     for (const publication of page.publications ?? []) {
       if (!ownerPageId || publication.pageId !== ownerPageId) {
         conflicts.push({
@@ -186,7 +202,7 @@ export async function backfillDeveloperEditorialContent(
       routeClaims.push({ ownerPageId: ownerPageId ?? publication.pageId, publication, normalizedPath });
       claimsByCanonicalRoute.set(routeKey, routeClaims);
 
-      if (isDocsNamespace(normalizedPath)) {
+      if (publication.context === ContentContext.DeveloperPortal && isDocsNamespace(normalizedPath)) {
         conflicts.push({
           code: "reserved-developer-path",
           context: publication.context,
@@ -400,6 +416,8 @@ export async function backfillDeveloperEditorialContent(
     counts: {
       pages: pages.length,
       publications: pages.reduce((count, page) => count + (page.publications?.length ?? 0), 0),
+      navigationEntries: navigationEntries.length,
+      navigationPlacements: navigationEntries.reduce((count, entry) => count + entry.placements.length, 0),
       mappings: CONTENT_CUTOVER_MAPPING.length,
       plannedPageCreates: plannedPageCreateCount,
       plannedPublicationWrites: plannedPublicationWriteCount,
@@ -422,7 +440,22 @@ export async function backfillDeveloperEditorialContent(
   }
   if (options.dryRun) return report;
 
-  const inserted = await repo.applyContentPublicationCutover(cutoverEntries);
+  let inserted: ContentPublicationCutoverResult;
+  try {
+    inserted = await repo.applyContentPublicationCutover(cutoverEntries);
+  } catch (error) {
+    if (!(error instanceof ContentPublicationCutoverConflictError)) throw error;
+    report.conflicts.push({
+      code: "locked-revalidation-conflict",
+      context: null,
+      pageIds: [],
+      path: null,
+      sourceSlug: null,
+    });
+    report.conflicts.sort(compareConflicts);
+    report.counts.conflicts = report.conflicts.length;
+    throw new DeveloperEditorialCutoverConflictError(report);
+  }
   for (const created of inserted.createdPages) {
     if (created.sourceSlug !== "terms") throw new Error("Cutover repository created an unexpected Page");
     report.createdPages.push({ ...created, sourceSlug: "terms" });
@@ -499,6 +532,10 @@ function samePublication(current: ContentPublicationRow, desired: ContentPublica
 
 function canonicalRouteKey(context: SingleContentContext, path: string): string {
   return `${context}:${path}`;
+}
+
+function publicationContextMask(publications: ReadonlyArray<Pick<ContentPublication, "context">>): number {
+  return publications.reduce((mask, publication) => mask | publication.context, 0);
 }
 
 function isDocsNamespace(path: string): boolean {

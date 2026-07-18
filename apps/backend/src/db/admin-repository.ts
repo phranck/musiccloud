@@ -331,6 +331,16 @@ export interface ContentPublicationCutoverResult {
   publications: ContentPublicationRow[];
 }
 
+/** Safe typed signal for a closed cutover input or locked-state conflict. */
+export class ContentPublicationCutoverConflictError extends Error {
+  readonly code = "MC-CONTENT-PUBLICATION-CUTOVER-CONFLICT" as const;
+
+  constructor() {
+    super("Content publication cutover conflict");
+    this.name = "ContentPublicationCutoverConflictError";
+  }
+}
+
 /** Page segment row shape returned or accepted by the database repository layer. */
 export interface PageSegmentRow {
   id: number;
