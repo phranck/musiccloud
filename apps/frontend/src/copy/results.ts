@@ -1,0 +1,15 @@
+export const resultsCopy = {
+  listenOn: "Listen on",
+  viewArtistOn: "View on",
+  openAlbumOn: "Open on",
+  albumTracks: (count: number) => `${count} tracks`,
+  foundAlbum: (title: string, artist: string) => `Found album ${title} by ${artist}`,
+  onlyAvailable: (service: string) => `Only available on ${service}.`,
+  foundOnTwoPlatforms: "Found on 2 platforms.",
+  notFound: "We couldn't find this song on other platforms.",
+  foundArtist: (name: string) => `Found artist ${name}`,
+  found: (title: string, artist: string) => `Found ${title} by ${artist}`,
+  modeCommercial: "Commercial",
+  modeCreativeCommons: "Creative Commons",
+  modeLabel: "Search mode",
+} as const;

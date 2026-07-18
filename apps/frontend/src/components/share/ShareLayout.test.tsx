@@ -80,7 +80,6 @@ const SHARE_CONFIG: ShareContentConfiguration = {
   artworkUrl: "/covers/blue-train.jpg",
   platforms: [],
   platformsLabel: "Platforms",
-  platformsLabelKey: "share.platforms",
   previewUrl: "/preview.mp3",
   shortUrl: "https://musiccloud.local/s/blue",
   shortId: "blue",

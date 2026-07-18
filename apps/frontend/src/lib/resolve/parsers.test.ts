@@ -8,10 +8,10 @@ import {
   ccResolveDataToResult,
   ccResponseToResult,
   ccResultToShareProps,
+  formatResolveErrorMessage,
+  parseResolveError,
   parseUnifiedResolveResponse,
 } from "./parsers";
-
-const t = (key: string, vars?: Record<string, string>) => (vars?.count ? `${key}:${vars.count}` : key);
 
 const VINYL_LAYOUT: VinylLayout = {
   discogsReleaseId: "10013707",
@@ -62,8 +62,8 @@ describe("media-card LP label fields", () => {
       artistInfo: CC_ARTIST_INFO,
     });
 
-    expect(ccResultToShareProps(track, t).config.vinylLayout).toEqual(VINYL_LAYOUT);
-    expect(ccResultToShareProps(album, t).config.vinylLayout).toEqual(VINYL_LAYOUT);
+    expect(ccResultToShareProps(track).config.vinylLayout).toEqual(VINYL_LAYOUT);
+    expect(ccResultToShareProps(album).config.vinylLayout).toEqual(VINYL_LAYOUT);
   });
 
   it("preserves cached CC track and album layouts through the persistent share parser", () => {
@@ -96,8 +96,8 @@ describe("media-card LP label fields", () => {
       artistInfo: CC_ARTIST_INFO,
     });
 
-    expect(ccResultToShareProps(track, t).config.vinylLayout).toEqual(VINYL_LAYOUT);
-    expect(ccResultToShareProps(album, t).config.vinylLayout).toEqual(VINYL_LAYOUT);
+    expect(ccResultToShareProps(track).config.vinylLayout).toEqual(VINYL_LAYOUT);
+    expect(ccResultToShareProps(album).config.vinylLayout).toEqual(VINYL_LAYOUT);
   });
 
   it("preserves a resolve vinyl layout from track and album payloads through the view model", () => {
@@ -125,10 +125,10 @@ describe("media-card LP label fields", () => {
       },
     });
 
-    expect(buildActiveConfig(track, t).vinylLayout).toEqual(VINYL_LAYOUT);
-    expect(buildActiveConfig(album, t).vinylLayout).toEqual(VINYL_LAYOUT);
-    expect(buildShareConfigFromActive(track, t).vinylLayout).toEqual(VINYL_LAYOUT);
-    expect(buildShareConfigFromActive(album, t).vinylLayout).toEqual(VINYL_LAYOUT);
+    expect(buildActiveConfig(track).vinylLayout).toEqual(VINYL_LAYOUT);
+    expect(buildActiveConfig(album).vinylLayout).toEqual(VINYL_LAYOUT);
+    expect(buildShareConfigFromActive(track).vinylLayout).toEqual(VINYL_LAYOUT);
+    expect(buildShareConfigFromActive(album).vinylLayout).toEqual(VINYL_LAYOUT);
   });
 
   it("keeps the vinyl layout optional when a resolve payload has no layout", () => {
@@ -144,8 +144,8 @@ describe("media-card LP label fields", () => {
       },
     });
 
-    expect(buildActiveConfig(active, t).vinylLayout).toBeUndefined();
-    expect(buildShareConfigFromActive(active, t).vinylLayout).toBeUndefined();
+    expect(buildActiveConfig(active).vinylLayout).toBeUndefined();
+    expect(buildShareConfigFromActive(active).vinylLayout).toBeUndefined();
   });
 
   it("populates structured label fields for active song and album configs", () => {
@@ -173,12 +173,12 @@ describe("media-card LP label fields", () => {
       shareUrl: "https://musiccloud.local/s/blue",
     };
 
-    expect(buildActiveConfig(song, t)).toMatchObject({
+    expect(buildActiveConfig(song)).toMatchObject({
       labelAlbumTitle: "Kind of Blue",
       labelCatalogText: "ISRC USSM15900001",
       labelReleaseYear: "1959",
     });
-    expect(buildShareConfigFromActive(album, t)).toMatchObject({
+    expect(buildShareConfigFromActive(album)).toMatchObject({
       labelAlbumTitle: "Blue Train",
       labelCatalogText: "UPC 724349534428",
       labelReleaseYear: "1958",
@@ -204,7 +204,6 @@ describe("media-card LP label fields", () => {
         },
       } as Parameters<typeof buildShareViewFromSharePageResponse>[0],
       "track",
-      t,
     );
 
     expect(view.config).toMatchObject({
@@ -229,7 +228,6 @@ describe("media-card LP label fields", () => {
         },
       } as Parameters<typeof buildShareViewFromSharePageResponse>[0],
       "track",
-      t,
     );
     const albumView = buildShareViewFromSharePageResponse(
       {
@@ -244,7 +242,6 @@ describe("media-card LP label fields", () => {
         },
       } as Parameters<typeof buildShareViewFromSharePageResponse>[0],
       "album",
-      t,
     );
 
     expect(trackView.config.vinylLayout).toEqual(VINYL_LAYOUT);
@@ -265,9 +262,35 @@ describe("media-card LP label fields", () => {
         },
       } as Parameters<typeof buildShareViewFromSharePageResponse>[0],
       "track",
-      t,
     );
 
     expect(view.config.vinylLayout).toBeUndefined();
+  });
+});
+
+describe("English resolve errors", () => {
+  it("maps network and timeout failures without translation keys", () => {
+    expect(formatResolveErrorMessage(parseResolveError(new TypeError("Failed to fetch")))).toBe(
+      "Looks like you're offline. Check your connection and try again.",
+    );
+
+    const timeout = new Error("aborted");
+    timeout.name = "AbortError";
+    expect(formatResolveErrorMessage(parseResolveError(timeout))).toBe(
+      "This is taking longer than usual. Please try again.",
+    );
+  });
+
+  it("preserves known and unknown backend error codes", () => {
+    expect(
+      formatResolveErrorMessage({
+        kind: "backend",
+        code: "MC-API-0003",
+        context: { limit: "10", windowSeconds: "60", retryAfterSeconds: "5" },
+      }),
+    ).toContain("(MC-API-0003)");
+    expect(formatResolveErrorMessage({ kind: "backend", code: "MC-API-3999" })).toBe(
+      "Something went wrong. Please try again. (MC-API-3999)",
+    );
   });
 });

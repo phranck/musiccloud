@@ -10,21 +10,9 @@
  */
 import { fetchNavigation } from "@/api/client";
 import { AppFooterIsland } from "@/components/layout/AppFooterIsland";
-import { getRequestLocale, type Locale } from "@/i18n/locales";
-
-interface Props {
-  /** Page-resolved locale; falls back to cookie + Accept-Language. Passed
-      explicitly because a server:defer sub-request may not carry the original
-      Accept-Language header, which would desync the footer from the page. */
-  locale?: Locale;
-}
-
-const { locale: localeProp } = Astro.props;
-const locale =
-  localeProp ?? getRequestLocale(Astro.cookies.get("mc:locale")?.value, Astro.request.headers.get("accept-language"));
-const footerNav = await fetchNavigation("footer", locale);
+const footerNav = await fetchNavigation("footer");
 ---
 
 <div class="animate-slide-up-in">
-  <AppFooterIsland client:idle navItems={footerNav} initialLocale={locale} />
+  <AppFooterIsland client:idle navItems={footerNav} />
 </div>

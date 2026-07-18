@@ -2,7 +2,6 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DayNightMode, getDayNightMode, setDayNightMode } from "@/components/background/dayNightMode";
 import { DayNightSwitcher } from "@/components/navigation/DayNightSwitcher";
-import { LocaleProvider } from "@/i18n/context";
 import { SkySignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { createLocalStorageMock } from "@/test/localStorageMock";
 
@@ -15,7 +14,7 @@ import { createLocalStorageMock } from "@/test/localStorageMock";
  * reaction lives in BackgroundScene.test.tsx.
  *
  * Each segment is icon-only, so its accessible name comes from the segment's
- * `aria-label` (the translated mode label) and is queried via `getByRole`.
+ * `aria-label` (the English mode label) and is queried via `getByRole`.
  */
 
 vi.mock("@/lib/analytics/umami", async (importOriginal) => {
@@ -24,11 +23,7 @@ vi.mock("@/lib/analytics/umami", async (importOriginal) => {
 });
 
 function renderSwitcher() {
-  return render(
-    <LocaleProvider initialLocale="en">
-      <DayNightSwitcher />
-    </LocaleProvider>,
-  );
+  return render(<DayNightSwitcher />);
 }
 
 beforeEach(() => {

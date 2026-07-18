@@ -4,7 +4,6 @@ import {
   type DesignTokens,
   ENDPOINTS,
   type JamendoAudioFormat,
-  type Locale,
   type NavId,
   type NavItem,
   type PublicContentPage,
@@ -82,8 +81,9 @@ const APPLE_MUSIC_STOREFRONT_FORWARD_HEADERS = [
  * an internal Astro SSR request unless the BFF forwards it. We intentionally
  * keep this allow-list tiny: Accept-Language helps local/dev and direct
  * browser traffic (`de-AT` -> `at`), while the country headers cover common
- * CDN/proxy deployments. Cookies, auth headers and arbitrary browser headers
- * must not be copied into backend-internal calls.
+ * CDN/proxy deployments. This value selects the Apple Music storefront only;
+ * it never selects UI copy. Cookies, auth headers, and arbitrary browser
+ * headers must not be copied into backend-internal calls.
  */
 function appleMusicStorefrontExtra(requestHeaders?: Headers): Record<string, string> | undefined {
   if (!requestHeaders) return undefined;
@@ -394,10 +394,9 @@ export async function fetchDesignTokens(): Promise<DesignTokens> {
 }
 
 /** Fetch the public navigation items for header or footer. SSR-safe; returns [] on failure. */
-export async function fetchNavigation(navId: NavId, locale: Locale = "en"): Promise<NavItem[]> {
+export async function fetchNavigation(navId: NavId): Promise<NavItem[]> {
   try {
-    const url = `${backendUrl(ENDPOINTS.v1.nav(navId))}?locale=${locale}`;
-    const res = await fetchWithTimeout(url, { headers: internalHeaders() }, 5000);
+    const res = await fetchWithTimeout(backendUrl(ENDPOINTS.v1.nav(navId)), { headers: internalHeaders() }, 5000);
     if (!res.ok) return [];
     return (await res.json()) as NavItem[];
   } catch {
@@ -408,12 +407,14 @@ export async function fetchNavigation(navId: NavId, locale: Locale = "en"): Prom
 /** Fetch a single published content page by slug, with server-rendered HTML. */
 export async function fetchPublicContentPage(
   slug: string,
-  locale: Locale = "en",
   clientIp?: string,
 ): Promise<BackendFetchResult<PublicContentPage>> {
   try {
-    const url = `${backendUrl(ENDPOINTS.v1.content.detail(slug))}?locale=${locale}`;
-    const res = await fetchWithTimeout(url, { headers: internalHeaders(forwardedForExtra(clientIp)) }, 5000);
+    const res = await fetchWithTimeout(
+      backendUrl(ENDPOINTS.v1.content.detail(slug)),
+      { headers: internalHeaders(forwardedForExtra(clientIp)) },
+      5000,
+    );
     if (!res.ok) return backendFailureResult(res);
     return { kind: "success", data: (await res.json()) as PublicContentPage };
   } catch (error) {

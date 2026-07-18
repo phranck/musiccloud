@@ -4,7 +4,8 @@ import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { HeroSubmitSlot } from "@/components/landing/HeroSubmitSlot";
-import { useT } from "@/i18n/localeContext";
+import { commonCopy } from "@/copy/common";
+import { landingCopy } from "@/copy/landing";
 import { isMusicUrl } from "@/lib/platform/url";
 import { parseJamendoUrl } from "@/lib/resolve/jamendoUrl";
 import { InputState } from "@/lib/types/app";
@@ -55,7 +56,6 @@ export function HeroInput({
   requestDiscExit = false,
   onLoadingExitComplete,
 }: HeroInputProps) {
-  const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
   const autoSubmitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -170,7 +170,7 @@ export function HeroInput({
             onKeyDown={handleKeyDown}
             onFocus={() => onFocus?.()}
             onBlur={() => onBlur?.()}
-            placeholder={t("hero.placeholder")}
+            placeholder={landingCopy.heroPlaceholder}
             readOnly={state === InputState.Loading || state === InputState.Success}
             className={cn(
               // Fill the field and shrink for the trailing button (`flex-auto w-full
@@ -184,7 +184,7 @@ export function HeroInput({
               state === InputState.Loading && "opacity-50",
             )}
             style={{ touchAction: "manipulation" }}
-            aria-label={t("a11y.searchInput")}
+            aria-label={commonCopy.a11y.searchInput}
             autoComplete="off"
           />
 
@@ -197,7 +197,7 @@ export function HeroInput({
                 "text-text-muted hover:text-text-primary",
                 "transition-colors duration-150",
               )}
-              aria-label={t("a11y.clearSearch")}
+              aria-label={commonCopy.a11y.clearSearch}
             >
               <XCircleIcon size={24} weight="duotone" />
             </button>

@@ -60,7 +60,6 @@ describe("apiLinksToPlatformLinks", () => {
         shortUrl: "https://musiccloud.io/aBc123x",
       } satisfies SharePageResponse,
       "aBc123x",
-      (key) => key,
     );
 
     expect(view.config.platforms).toMatchObject([{ platform: "youtube-music", displayName: "YouTube Music" }]);

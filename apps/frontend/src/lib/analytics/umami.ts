@@ -111,11 +111,6 @@ export const GenreSignal = {
   Overview: "Genre: Overview",
 } as const;
 
-const LocaleLabel: Record<string, string> = {
-  en: "English",
-  de: "German",
-};
-
 /**
  * Title-cases an underscore- or hyphen-separated key. Used by every dynamic
  * generator that turns a backend slug (`acid_house`, `apple_music`) into a
@@ -132,15 +127,6 @@ function humanizeKey(key: string): string {
 /** `serviceSignal("apple_music")` → `"Service: Apple Music"`. */
 export function serviceSignal(serviceKey: string): string {
   return `Service: ${humanizeKey(serviceKey)}`;
-}
-
-/**
- * `languageSignal("de")` → `"Language: German"`. Locales not in the small
- * known map fall back to humanized form so a future locale addition does
- * not silently break tracking.
- */
-export function languageSignal(locale: string): string {
-  return `Language: ${LocaleLabel[locale] ?? humanizeKey(locale)}`;
 }
 
 /**

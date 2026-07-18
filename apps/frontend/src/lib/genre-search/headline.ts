@@ -1,40 +1,23 @@
-import type { Locale } from "@/i18n/locales";
+import { discoveryCopy } from "@/copy/discovery";
 import type { GenreSearchPayload } from "@/lib/types/app";
 
 /** The parsed query shape the headline is built from. */
 export type QueryDetails = GenreSearchPayload["queryDetails"];
 
 /**
- * The translation function the headline builder needs: a key plus optional
- * interpolation vars, returning the localized string.
- */
-export type TFunc = (key: string, vars?: Record<string, string>) => string;
-
-/**
- * Builds the locale-aware natural-language headline that summarizes a parsed
+ * Builds the English natural-language headline that summarizes a parsed
  * genre-search query, e.g.
  *
  *   en:  "10 tracks, albums and artists in jazz"
  *        "20 tracks and 10 albums in jazz or rock — a mixed selection"
- *   de:  "10 Tracks, Alben und Künstler aus Jazz"
- *        "20 Tracks und 10 Alben aus Jazz oder Rock – bunt gemischt"
- *
- * Pure: all wording comes through `t`; only the casing of genre names is
- * locale-specific (see {@link formatGenre}).
- *
  * @param q - The parsed query details (genres, vibe, per-type counts).
- * @param t - The translation function.
- * @param locale - The active locale, used for genre-name casing.
  * @returns The assembled headline string.
  */
-export function buildHeadline(q: QueryDetails, t: TFunc, locale: Locale): string {
-  const genreText = formatList(
-    q.genres.map((g) => formatGenre(g, locale)),
-    t("genreSearch.summary.or"),
-  );
-  const countsText = buildCountsText(q, t);
-  const key = q.vibe === "mixed" ? "genreSearch.summary.mixed" : "genreSearch.summary.hot";
-  return t(key, { counts: countsText, genres: genreText });
+export function buildHeadline(q: QueryDetails): string {
+  const copy = discoveryCopy.genreSearch.summary;
+  const genreText = formatList(q.genres.map(formatGenre), copy.or);
+  const countsText = buildCountsText(q);
+  return q.vibe === "mixed" ? copy.mixed(countsText, genreText) : copy.hot(countsText, genreText);
 }
 
 /**
@@ -42,35 +25,27 @@ export function buildHeadline(q: QueryDetails, t: TFunc, locale: Locale): string
  * requested type shares the same count, collapses to a single "N of all types"
  * phrase instead of repeating the number per type.
  */
-function buildCountsText(q: QueryDetails, t: TFunc): string {
+function buildCountsText(q: QueryDetails): string {
+  const copy = discoveryCopy.genreSearch.summary;
   const hasT = q.tracks !== null;
   const hasA = q.albums !== null;
   const hasAr = q.artists !== null;
   const allEqual = hasT && hasA && hasAr && q.tracks === q.albums && q.albums === q.artists;
 
   if (allEqual) {
-    return `${q.tracks} ${t("genreSearch.summary.allTypes")}`;
+    return `${q.tracks} ${copy.allTypes}`;
   }
 
   const parts: string[] = [];
-  if (hasT) parts.push(`${q.tracks} ${t(q.tracks === 1 ? "genreSearch.summary.track" : "genreSearch.summary.tracks")}`);
-  if (hasA) parts.push(`${q.albums} ${t(q.albums === 1 ? "genreSearch.summary.album" : "genreSearch.summary.albums")}`);
-  if (hasAr)
-    parts.push(`${q.artists} ${t(q.artists === 1 ? "genreSearch.summary.artist" : "genreSearch.summary.artists")}`);
+  if (hasT) parts.push(`${q.tracks} ${q.tracks === 1 ? copy.track : copy.tracks}`);
+  if (hasA) parts.push(`${q.albums} ${q.albums === 1 ? copy.album : copy.albums}`);
+  if (hasAr) parts.push(`${q.artists} ${q.artists === 1 ? copy.artist : copy.artists}`);
 
-  return formatList(parts, t("genreSearch.summary.and"));
+  return formatList(parts, copy.and);
 }
 
-/**
- * Casing-normalizes a genre name for running text. German treats genre names as
- * substantives (title-cased); most other languages keep them lowercase.
- */
-function formatGenre(raw: string, locale: Locale): string {
-  // Languages where nouns are routinely capitalised in running text.
-  const titleCaseLocales: Locale[] = ["de"];
-  if (titleCaseLocales.includes(locale)) {
-    return raw.replace(/(^|\s|&|\/)([a-z])/g, (_m, sep, ch) => sep + ch.toUpperCase());
-  }
+/** Casing-normalizes a genre name for English running text. */
+function formatGenre(raw: string): string {
   return raw.toLowerCase();
 }
 

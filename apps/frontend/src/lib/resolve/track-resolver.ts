@@ -10,9 +10,6 @@ import { buildShareViewFromResolvedResponse } from "@/lib/share/share-view";
 import { type ActiveResult, ActiveResultKind } from "@/lib/types/app";
 import { type MediaCardContentConfiguration, MediaCardContentTypeValue } from "@/lib/types/media-card";
 
-/** Translation function shape forwarded to the config builders. */
-type TFunc = (key: string, vars?: Record<string, string>) => string;
-
 /**
  * The in-place share update a resolver produces — exactly the inputs the
  * ShareLayout `Resolved` reducer action consumes, plus the short URL for the
@@ -46,14 +43,12 @@ interface ResolvedShareUpdate {
  * The context ShareLayout hands a resolver on each artist-column row click.
  *
  * @property signal - Abort signal for cancellation / timeout (owned by ShareLayout).
- * @property t - Translation function for the config builders.
  * @property configType - The current config's discriminant. The commercial
  *   resolver needs it to pick the share-page vs landing-result config shape; the
  *   CC resolver ignores it.
  */
 interface TrackResolveContext {
   signal: AbortSignal;
-  t: TFunc;
   configType: MediaCardContentConfiguration["type"];
 }
 
@@ -80,10 +75,10 @@ function resultArtistName(active: ActiveResult): string {
  * resolve endpoint, then builds the share-page config (persistent `/:shortId`)
  * or the landing-result config depending on the current config shape.
  */
-export const commercialTrackResolver: TrackResolver = async (candidate, { signal, t, configType }) => {
+export const commercialTrackResolver: TrackResolver = async (candidate, { signal, configType }) => {
   const resolved = await resolveTrackQuery(candidate, signal);
   if (configType === MediaCardContentTypeValue.Share) {
-    const next = buildShareViewFromResolvedResponse(resolved, t);
+    const next = buildShareViewFromResolvedResponse(resolved);
     return {
       shortUrl: resolved.shortUrl,
       config: next.config,
@@ -93,7 +88,7 @@ export const commercialTrackResolver: TrackResolver = async (candidate, { signal
     };
   }
   const active = parseUnifiedResolveResponse(resolved);
-  return { shortUrl: resolved.shortUrl, config: buildActiveConfig(active, t), artistName: resultArtistName(active) };
+  return { shortUrl: resolved.shortUrl, config: buildActiveConfig(active), artistName: resultArtistName(active) };
 };
 
 /**
@@ -102,9 +97,9 @@ export const commercialTrackResolver: TrackResolver = async (candidate, { signal
  * `ccJamendoArtistId`). The artist column loads async from
  * `config.ccJamendoArtistId`, so no narrowing context is returned.
  */
-export const ccTrackResolver: TrackResolver = async (candidate, { signal, t }) => {
+export const ccTrackResolver: TrackResolver = async (candidate, { signal }) => {
   const data = await resolveCcCandidate(candidate, signal);
-  const { config, artistName } = ccResultToShareProps(ccResolveDataToResult(data), t);
+  const { config, artistName } = ccResultToShareProps(ccResolveDataToResult(data));
   const pageTitle = config.artist ? `${config.title} by ${config.artist} - musiccloud` : `${config.title} - musiccloud`;
   return { shortUrl: config.shortUrl, config, artistName, pageTitle };
 };

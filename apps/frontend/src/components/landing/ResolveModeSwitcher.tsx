@@ -4,13 +4,30 @@ import { faCopyright } from "@fortawesome/free-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useSyncExternalStore } from "react";
 import { EmbossedSegmentedControl, type Segment } from "@/components/ui/EmbossedSegmentedControl";
-import { useT } from "@/i18n/localeContext";
+import { resultsCopy } from "@/copy/results";
 import { getResolveMode, setResolveMode, subscribeResolveMode } from "@/lib/resolve/resolveMode";
 import { ResolveMode } from "@/lib/types/app";
 
 // Disable Font Awesome's automatic CSS injection — icons are sized via Tailwind,
 // and auto-injected styles cause SSR/Astro-island hydration artefacts.
 config.autoAddCss = false;
+
+const RESOLVE_MODE_SEGMENTS: Segment<ResolveMode>[] = [
+  {
+    key: ResolveMode.Commercial,
+    label: "",
+    ariaLabel: resultsCopy.modeCommercial,
+    title: resultsCopy.modeCommercial,
+    icon: <FontAwesomeIcon icon={faCopyright} className="size-5" aria-hidden />,
+  },
+  {
+    key: ResolveMode.Cc,
+    label: "",
+    ariaLabel: resultsCopy.modeCreativeCommons,
+    title: resultsCopy.modeCreativeCommons,
+    icon: <FontAwesomeIcon icon={faCreativeCommons} className="size-5" aria-hidden />,
+  },
+];
 
 /**
  * Applies a resolve-mode selection and returns focus to the hero input, so the
@@ -39,31 +56,13 @@ function selectResolveMode(next: ResolveMode): void {
  * scope on the fieldset — a clear day+night mode anchor.
  */
 export function ResolveModeSwitcher() {
-  const t = useT();
   const mode = useSyncExternalStore(subscribeResolveMode, getResolveMode, () => ResolveMode.Commercial);
-
-  const segments: Segment<ResolveMode>[] = [
-    {
-      key: ResolveMode.Commercial,
-      label: "",
-      ariaLabel: t("results.modeCommercial"),
-      title: t("results.modeCommercial"),
-      icon: <FontAwesomeIcon icon={faCopyright} className="size-5" aria-hidden />,
-    },
-    {
-      key: ResolveMode.Cc,
-      label: "",
-      ariaLabel: t("results.modeCc"),
-      title: t("results.modeCc"),
-      icon: <FontAwesomeIcon icon={faCreativeCommons} className="size-5" aria-hidden />,
-    },
-  ];
 
   return (
     <fieldset className="mc-mode-switch m-0 min-w-0 border-0 p-0" data-resolve-mode={mode}>
-      <legend className="sr-only">{t("results.modeLabel")}</legend>
+      <legend className="sr-only">{resultsCopy.modeLabel}</legend>
       <EmbossedSegmentedControl
-        segments={segments}
+        segments={RESOLVE_MODE_SEGMENTS}
         value={mode}
         onChange={selectResolveMode}
         indicatorClassName="mc-glass-seg-indicator mc-mode-seg-indicator"

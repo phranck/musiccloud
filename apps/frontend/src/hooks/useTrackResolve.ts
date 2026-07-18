@@ -2,7 +2,7 @@ import type { ArtistTopTrack } from "@musiccloud/shared";
 import { useCallback, useState } from "react";
 import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
 import { useToastSafe } from "@/context/ToastContext";
-import { useT } from "@/i18n/localeContext";
+import { commonCopy } from "@/copy/common";
 import { ResolveSignal, sendMusicSignal } from "@/lib/analytics/umami";
 
 /**
@@ -28,7 +28,6 @@ export function useTrackResolve(
   onTrackResolve?: ArtistPanelTrackResolveHandler,
   onResolveStart?: () => void,
 ): { resolving: boolean; activate: () => Promise<void> } {
-  const t = useT();
   const toast = useToastSafe();
   const [resolving, setResolving] = useState(false);
 
@@ -49,9 +48,9 @@ export function useTrackResolve(
       sendMusicSignal(err instanceof Error ? ResolveSignal.FailedClient : ResolveSignal.FailedUnknown);
       setResolving(false);
       if (import.meta.env.DEV) console.warn("[useTrackResolve] resolve failed:", err);
-      toast?.show(t("error.generic"), "error");
+      toast?.show(commonCopy.error.generic, "error");
     }
-  }, [cardSignal, onResolveStart, onTrackResolve, resolving, track, toast, t]);
+  }, [cardSignal, onResolveStart, onTrackResolve, resolving, track, toast]);
 
   return { resolving, activate };
 }

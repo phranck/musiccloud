@@ -4,8 +4,8 @@ import { ArtistNoticeWell } from "@/components/artist/ArtistNoticeWell";
 import { ArtistProfileCard } from "@/components/artist/ArtistProfileCard";
 import type { ArtistInfoStatus } from "@/components/artist/artistPanelTypes";
 import { SectionCardFooterText } from "@/components/cards/SectionCardFooterText";
+import { artistCopy } from "@/copy/artist";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
-import { useT } from "@/i18n/localeContext";
 
 interface ArtistProfileDesktopCardProps {
   /** Card title, supplied by the presentation owner (never hardcoded here). */
@@ -19,8 +19,7 @@ interface ArtistProfileDesktopCardProps {
 
 /**
  * Desktop artist-info card: the artist's profile (image, genres, bio). Self-hides
- * on an empty profile; shows a notice on an error. Keeps `useT` for the error
- * message and the "provided by" footer credit — both content, not the title.
+ * on an empty profile; shows a notice on an error.
  */
 export function ArtistProfileDesktopCard({
   title,
@@ -29,7 +28,6 @@ export function ArtistProfileDesktopCard({
   isLoading,
   status,
 }: ArtistProfileDesktopCardProps) {
-  const t = useT();
   const skeletonAllowed = useSkeletonAllowed();
   const effectiveStatus: ArtistInfoStatus = status ?? (isLoading ? "loading" : data ? "ready" : "empty");
 
@@ -50,7 +48,7 @@ export function ArtistProfileDesktopCard({
     return (
       <ArtistCardShell title={title}>
         <div className="px-3 pt-0 pb-3">
-          <ArtistNoticeWell message={t("artist.error")} />
+          <ArtistNoticeWell message={artistCopy.error} />
         </div>
       </ArtistCardShell>
     );

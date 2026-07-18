@@ -5,8 +5,8 @@ import { buildEventsSwapKey } from "@/components/artist/artistSwapKeys";
 import { EventsSkeleton } from "@/components/artist/EventsSkeleton";
 import { UpcomingEventsSection } from "@/components/artist/UpcomingEventsSection";
 import { SectionCardFooterText } from "@/components/cards/SectionCardFooterText";
+import { artistCopy } from "@/copy/artist";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
-import { useLocale, useT } from "@/i18n/localeContext";
 
 interface EventsCardProps {
   /** Card title, supplied by the presentation owner (never hardcoded here). */
@@ -18,12 +18,8 @@ interface EventsCardProps {
 
 /**
  * Desktop upcoming-events card. Self-hides once loading settles with no events.
- * Keeps `useT` for the "events provided by" footer credit, which is content —
- * not the card title.
  */
 export function EventsCard({ title, data, isLoading, userRegion }: EventsCardProps) {
-  const t = useT();
-  const { locale } = useLocale();
   const skeletonAllowed = useSkeletonAllowed();
   const showInitialSkeleton = isLoading && !data;
   const isRefreshing = isLoading && !!data;
@@ -40,7 +36,7 @@ export function EventsCard({ title, data, isLoading, userRegion }: EventsCardPro
 
   const footer =
     !showInitialSkeleton && data && data.events.length > 0 ? (
-      <SectionCardFooterText>{t("artist.eventsProvidedBy")}</SectionCardFooterText>
+      <SectionCardFooterText>{artistCopy.eventsProvidedBy}</SectionCardFooterText>
     ) : undefined;
 
   return (
@@ -52,7 +48,7 @@ export function EventsCard({ title, data, isLoading, userRegion }: EventsCardPro
           hasContent={!!data && data.events.length > 0}
           swapKey={buildEventsSwapKey(data)}
         >
-          <UpcomingEventsSection events={data?.events ?? []} userRegion={userRegion} locale={locale} />
+          <UpcomingEventsSection events={data?.events ?? []} userRegion={userRegion} />
         </ArtistSectionWell>
       </div>
     </ArtistCardShell>

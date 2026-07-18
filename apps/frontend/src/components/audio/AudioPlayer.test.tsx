@@ -1,7 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AudioPlayer } from "@/components/audio/AudioPlayer";
-import { LocaleProvider } from "@/i18n/context";
 
 afterEach(() => {
   cleanup();
@@ -18,13 +17,11 @@ describe("AudioPlayer playback intent", () => {
     vi.spyOn(window.HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
 
     render(
-      <LocaleProvider initialLocale="en">
-        <AudioPlayer
-          previewUrl="/preview.mp3"
-          trackTitle="Blue Train"
-          onPlaybackIntent={() => callOrder.push("intent")}
-        />
-      </LocaleProvider>,
+      <AudioPlayer
+        previewUrl="/preview.mp3"
+        trackTitle="Blue Train"
+        onPlaybackIntent={() => callOrder.push("intent")}
+      />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Play preview" }));

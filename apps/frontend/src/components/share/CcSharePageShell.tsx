@@ -16,9 +16,8 @@ interface CcSharePageShellProps {
   /** Pre-built Jamendo artist column — set for cc-album/cc-artist, **unset for
    *  cc-track** (loaded async via `config.ccJamendoArtistId`). */
   artistInfo?: ArtistInfoResponse;
-  /** CC section-title overrides as i18n keys (see `CC_ARTIST_LABEL_KEYS`). */
+  /** CC section-title overrides (see `CC_ARTIST_LABELS`). */
   labels: { similar: string; profileProvidedBy: string };
-  initialLocale?: string;
 }
 
 /**
@@ -31,7 +30,7 @@ interface CcSharePageShellProps {
  * (the same generic mechanism the commercial page uses), so the card swaps
  * without a navigation or re-mount.
  */
-export function CcSharePageShell({ config, artistName, artistInfo, labels, initialLocale }: CcSharePageShellProps) {
+export function CcSharePageShell({ config, artistName, artistInfo, labels }: CcSharePageShellProps) {
   const navigated = useRef(false);
 
   const navigateHome = useCallback(() => {
@@ -69,7 +68,6 @@ export function CcSharePageShell({ config, artistName, artistInfo, labels, initi
           skipArtistFetch={!config.ccJamendoArtistId}
           labels={labels}
           trackResolver={ccTrackResolver}
-          initialLocale={initialLocale}
         />
       </div>
     </main>

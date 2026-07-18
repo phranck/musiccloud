@@ -6,14 +6,14 @@ import { ArtistPanelRowText } from "@/components/artist/ArtistPanelRowText";
 import { useRowCappedViewport } from "@/components/artist/useRowCappedViewport";
 import { raisedControlRadius } from "@/components/cards/cardGeometry";
 import { CardSignal, sendMusicSignal } from "@/lib/analytics/umami";
+import { formatEnglishDate } from "@/lib/format";
 
 interface UpcomingEventsSectionProps {
   events: ArtistEvent[];
   userRegion: string;
-  locale: string;
 }
 
-export function UpcomingEventsSection({ events, userRegion, locale }: UpcomingEventsSectionProps) {
+export function UpcomingEventsSection({ events, userRegion }: UpcomingEventsSectionProps) {
   const cappedRef = useRowCappedViewport<HTMLDivElement>(4.5);
 
   return (
@@ -33,7 +33,7 @@ export function UpcomingEventsSection({ events, userRegion, locale }: UpcomingEv
             >
               <ArtistPanelRowText>
                 <p className={`text-sm font-medium tabular-nums ${isLocal ? "text-accent" : "text-text-secondary"}`}>
-                  {formatEventDate(event.date, locale)}
+                  {formatEventDate(event.date)}
                   {isLocal && " \u2605"}
                 </p>
                 <p className="text-sm text-text-primary break-words">
@@ -53,9 +53,9 @@ export function UpcomingEventsSection({ events, userRegion, locale }: UpcomingEv
   );
 }
 
-function formatEventDate(iso: string, locale: string): string {
+function formatEventDate(iso: string): string {
   try {
-    return new Date(`${iso}T00:00:00`).toLocaleDateString(locale || "en", { month: "short", day: "numeric" });
+    return formatEnglishDate(`${iso}T00:00:00`, { month: "short", day: "numeric" });
   } catch {
     return iso;
   }

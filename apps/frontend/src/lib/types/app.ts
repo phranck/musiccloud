@@ -44,11 +44,11 @@ export interface GenreSearchPayload {
   warnings: string[];
 }
 
-export interface ResolveUiError {
-  key: string;
-  code?: string;
-  context?: Record<string, string>;
-}
+export type ResolveUiError =
+  | { kind: "offline" }
+  | { kind: "timeout" }
+  | { kind: "generic" }
+  | { kind: "backend"; code: string; context?: Record<string, string> };
 
 export const InputState = {
   Idle: "idle",

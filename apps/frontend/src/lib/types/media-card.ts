@@ -30,7 +30,7 @@ export type MediaKindType = (typeof MediaKindValue)[keyof typeof MediaKindValue]
 
 /**
  * Base configuration shared by all three content types.
- * All translatable strings must be pre-computed by the caller.
+ * All user-facing strings are English copy pre-computed by the caller.
  */
 export interface MediaCardContentConfiguration {
   type: MediaCardContentType;
@@ -74,11 +74,11 @@ export interface MediaCardContentConfiguration {
    *  commercial `ServicesCard` — so an in-place CC resolve swaps it automatically. */
   ccInfoContent?: CcTrackContentConfiguration;
   platforms: PlatformLink[];
-  /** Pre-translated label above the platform grid */
+  /** English label above the platform grid */
   platformsLabel: string;
-  /** Optional pre-translated availability note below the platform grid */
+  /** Optional English availability note below the platform grid */
   platformsInfo?: string;
-  /** Optional one-line status for the fourth VFD row. Pre-translated by caller. */
+  /** Optional one-line status for the fourth VFD row. */
   statusLine?: string;
 }
 
@@ -116,13 +116,9 @@ export interface ArtistContentConfiguration extends MediaCardContentConfiguratio
  * Share page (`/[shortId]`).
  * No ShareButton, no sr-announcement.
  * Plain data fields are fully JSON-serializable (from Astro SSR).
- * `platformsLabelKey` is the i18n key for the platforms label so the
- * client-side LocaleProvider can re-translate it after a locale change.
- * `platformsLabel` (from base) serves as SSR-rendered fallback to avoid flash.
  */
 export interface ShareContentConfiguration extends MediaCardContentConfiguration {
   type: typeof MediaCardContentTypeValue.Share;
-  platformsLabelKey: string;
   /** The short URL for this share page. */
   shortUrl: string;
 }
@@ -155,7 +151,7 @@ export interface CcTrackContentConfiguration {
   /** LP paper-label rights field (top-left). Commercial defaults to "GEMA"; the
    *  Creative-Commons path sets the CC licence label, where "GEMA" is meaningless. */
   labelRightsText?: string;
-  /** Pre-translated screen-reader announcement for the result. */
+  /** English screen-reader announcement for the result. */
   srAnnouncement?: string;
   /** musiccloud short URL for the "Copy link" share action. */
   shortUrl: string;

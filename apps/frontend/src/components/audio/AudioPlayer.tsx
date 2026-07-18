@@ -14,7 +14,7 @@ import {
 } from "@/components/audio/spectrumStore";
 import { Player } from "@/components/playback/Player";
 import { VfdScrollOutDirection } from "@/components/ui/VfdDisplay";
-import { useT } from "@/i18n/localeContext";
+import { audioCopy } from "@/copy/audio";
 import { PreviewSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { prefersReducedMotion, setupMotion } from "@/lib/motion/setup";
 import { type MediaKindType, MediaKindValue } from "@/lib/types/media-card";
@@ -522,7 +522,6 @@ export function useAudioController({
   onStatusChange,
   onSeekHint,
 }: AudioPlayerProps) {
-  const t = useT();
   const initialPhase: PlayerState = previewUrl
     ? { phase: PlayerPhase.Idle, duration: 30 }
     : { phase: PlayerPhase.Loading };
@@ -1422,25 +1421,25 @@ export function useAudioController({
       : 30;
 
   const isSong = mediaKind === MediaKindValue.Song;
-  const unavailableText = isSong ? t("audio.songUnavailable") : t("audio.previewUnavailable");
+  const unavailableText = isSong ? audioCopy.songUnavailable : audioCopy.previewUnavailable;
 
   const timeText = isLoading
-    ? t("audio.previewLoading")
+    ? audioCopy.previewLoading
     : isUnavailable
       ? unavailableText
       : formatTime(state.phase === PlayerPhase.Idle ? duration : currentTime);
 
   const ariaLabel = isLoading
-    ? t("audio.previewLoading")
+    ? audioCopy.previewLoading
     : isUnavailable
       ? unavailableText
       : isPlaying
         ? isSong
-          ? "Pause song"
-          : "Pause preview"
+          ? audioCopy.pauseSong
+          : audioCopy.pausePreview
         : isSong
-          ? "Play song"
-          : "Play preview";
+          ? audioCopy.playSong
+          : audioCopy.playPreview;
 
   return {
     ariaLabel,
@@ -1448,13 +1447,13 @@ export function useAudioController({
     isLoading,
     isPlaying,
     isUnavailable,
-    mediaLabel: isSong ? "Song" : "Preview",
+    mediaLabel: isSong ? audioCopy.songLabel : audioCopy.previewLabel,
     progressRatio,
     seekBy,
     seekToNearEnd,
     seekToStart,
     timeText,
-    title: isLoading ? t("audio.previewLoading") : isUnavailable ? unavailableText : undefined,
+    title: isLoading ? audioCopy.previewLoading : isUnavailable ? unavailableText : undefined,
     togglePlay,
     trackTitle,
   };

@@ -7,28 +7,33 @@ import {
   subscribeDayNightMode,
 } from "@/components/background/dayNightMode";
 import { VerticalSegmentedControl } from "@/components/ui/VerticalSegmentedControl";
-import { useT } from "@/i18n/localeContext";
+import { commonCopy } from "@/copy/common";
 import { SkySignal, sendMusicSignal } from "@/lib/analytics/umami";
 
-/** Display metadata per mode: segment icon, i18n label key, analytics signal. */
-const MODE_META: Record<DayNightMode, { icon: Icon; labelKey: string; helpKey: string; signal: string }> = {
-  [DayNightMode.Day]: { icon: SunIcon, labelKey: "dayNight.day", helpKey: "dayNight.day.help", signal: SkySignal.Day },
+/** Display metadata per mode: segment icon, accessible copy, analytics signal. */
+const MODE_META: Record<DayNightMode, { icon: Icon; label: string; help: string; signal: string }> = {
+  [DayNightMode.Day]: {
+    icon: SunIcon,
+    label: commonCopy.dayNight.day,
+    help: commonCopy.dayNight.dayHelp,
+    signal: SkySignal.Day,
+  },
   [DayNightMode.Night]: {
     icon: MoonIcon,
-    labelKey: "dayNight.night",
-    helpKey: "dayNight.night.help",
+    label: commonCopy.dayNight.night,
+    help: commonCopy.dayNight.nightHelp,
     signal: SkySignal.Night,
   },
   [DayNightMode.System]: {
     icon: MonitorIcon,
-    labelKey: "dayNight.system",
-    helpKey: "dayNight.system.help",
+    label: commonCopy.dayNight.system,
+    help: commonCopy.dayNight.systemHelp,
     signal: SkySignal.System,
   },
   [DayNightMode.Automatic]: {
     icon: SunHorizonIcon,
-    labelKey: "dayNight.automatic",
-    helpKey: "dayNight.automatic.help",
+    label: commonCopy.dayNight.automatic,
+    help: commonCopy.dayNight.automaticHelp,
     signal: SkySignal.Automatic,
   },
 };
@@ -59,11 +64,10 @@ const serverModeSnapshot = () => DayNightMode.Night;
  * The mode binds via `useSyncExternalStore`: SSR renders the Night default,
  * the client snapshot reads the shared store, and React reconciles the
  * stored mode right after hydration. The analytics signal fires only on
- * actual mode CHANGES, mirroring the LanguageSwitcher.
+ * actual mode changes.
  */
 export function DayNightSwitcher() {
   const mode = useSyncExternalStore(subscribeDayNightMode, getDayNightMode, serverModeSnapshot);
-  const t = useT();
 
   const handleChange = (next: DayNightMode) => {
     if (next !== mode) sendMusicSignal(MODE_META[next].signal);
@@ -76,15 +80,15 @@ export function DayNightSwitcher() {
     return {
       key: entry,
       label: "",
-      ariaLabel: t(meta.labelKey),
-      title: t(meta.helpKey),
+      ariaLabel: meta.label,
+      title: meta.help,
       icon: <EntryIcon weight="duotone" className="size-[18px]" aria-hidden="true" />,
     };
   });
 
   return (
     <fieldset className="m-0 min-w-0 border-0 p-0">
-      <legend className="sr-only">{t("dayNight.label")}</legend>
+      <legend className="sr-only">{commonCopy.dayNight.label}</legend>
       <VerticalSegmentedControl segments={segments} value={mode} onChange={handleChange} />
     </fieldset>
   );

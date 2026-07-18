@@ -9,6 +9,8 @@ import {
   type SharePageResponse,
   type UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
+import { artistCopy } from "@/copy/artist";
+import { resultsCopy } from "@/copy/results";
 import { catalogTextFromIds, labelAlbumTitleFrom, releaseYearFromDate } from "@/lib/media/lp-label";
 import { apiLinksToPlatformLinks } from "@/lib/platform/api-links";
 import { buildShareConfigFromActive, ccResponseToResult, ccResultToShareProps } from "@/lib/resolve/parsers";
@@ -37,21 +39,20 @@ export interface CcSharePageProps {
   /** Pre-built artist column — set for cc-album/cc-artist, **unset for cc-track**
    *  (which loads it async via `config.ccJamendoArtistId`). */
   artistInfo?: ArtistInfoResponse;
-  /** Artist-column title overrides as i18n keys (see {@link CC_ARTIST_LABEL_KEYS}). */
+  /** English artist-column title overrides for Creative Commons entities. */
   labels: { similar: string; profileProvidedBy: string };
   pageTitle: string;
   artworkUrl?: string | null;
 }
 
 /**
- * The artist-column title overrides for CC entities, given as i18n KEYS (not
- * translated text) so {@link ShareLayout} can translate them reactively and the
- * titles re-localize on a language switch. CC shows "Similar Tracks" (not
- * "Similar Artists") and credits Jamendo as the data source.
+ * The English artist-column title overrides for CC entities. CC shows
+ * "Similar Tracks" (not "Similar Artists") and credits Jamendo as the data
+ * source.
  */
-export const CC_ARTIST_LABEL_KEYS: { similar: string; profileProvidedBy: string } = {
-  similar: "artist.similarTracks",
-  profileProvidedBy: "artist.profileProvidedByJamendo",
+export const CC_ARTIST_LABELS: { similar: string; profileProvidedBy: string } = {
+  similar: artistCopy.similarTracks,
+  profileProvidedBy: artistCopy.profileProvidedByJamendo,
 };
 
 /**
@@ -60,23 +61,20 @@ export const CC_ARTIST_LABEL_KEYS: { similar: string; profileProvidedBy: string 
  * Runs server-side in the share-page routes so the client shell only renders.
  *
  * @param data - A CC share-page response.
- * @param t - Translation function for labels + announcements.
  * @returns The render inputs for the CC share page.
  */
-export function buildCcSharePageProps(data: CcSharePageResponse, t: TFunc): CcSharePageProps {
+export function buildCcSharePageProps(data: CcSharePageResponse): CcSharePageProps {
   const result = ccResponseToResult(data);
-  const { config, artistName } = ccResultToShareProps(result, t);
+  const { config, artistName } = ccResultToShareProps(result);
   return {
     config,
     artistName,
     artistInfo: result.artistInfo,
-    labels: CC_ARTIST_LABEL_KEYS,
+    labels: CC_ARTIST_LABELS,
     pageTitle: data.og.title,
     artworkUrl: config.artworkUrl,
   };
 }
-
-type TFunc = (key: string, vars?: Record<string, string>) => string;
 
 export interface ShareArtistInfoContext {
   shortId?: string;
@@ -110,18 +108,17 @@ function shortIdFromShortUrl(shortUrl: string): string | undefined {
   return shortId || undefined;
 }
 
-function resolvePlatformsLabelKey(isArtist: boolean, isAlbum: boolean): string {
-  if (isArtist) return "results.viewArtistOn";
-  if (isAlbum) return "results.openAlbumOn";
-  return "results.listenOn";
+function resolvePlatformsLabel(isArtist: boolean, isAlbum: boolean): string {
+  if (isArtist) return resultsCopy.viewArtistOn;
+  if (isAlbum) return resultsCopy.openAlbumOn;
+  return resultsCopy.listenOn;
 }
 
-function buildAlbumMetaLine(album: ApiAlbum, t: TFunc): string | undefined {
+function buildAlbumMetaLine(album: ApiAlbum): string | undefined {
   const year = album.releaseDate?.slice(0, 4);
   return (
-    [album.totalTracks ? t("results.albumTracks", { count: String(album.totalTracks) }) : null, year]
-      .filter(Boolean)
-      .join(" \u00B7 ") || undefined
+    [album.totalTracks ? resultsCopy.albumTracks(album.totalTracks) : null, year].filter(Boolean).join(" \u00B7 ") ||
+    undefined
   );
 }
 
@@ -133,11 +130,7 @@ function buildArtistInfoContext(
   return { shortId, artistEntityId: mainArtistCredit?.artistEntityId };
 }
 
-export function buildShareViewFromSharePageResponse(
-  data: SharePageResponse,
-  routeShortId: string,
-  t: TFunc,
-): ShareViewModel {
+export function buildShareViewFromSharePageResponse(data: SharePageResponse, routeShortId: string): ShareViewModel {
   // CC share pages render through a dedicated path (added in a later slice); this
   // builder handles only the commercial track/album/artist response. The guard
   // also narrows `data` to CommercialSharePageResponse for the rest of the body.
@@ -154,7 +147,7 @@ export function buildShareViewFromSharePageResponse(
   const artistDisplay = isArtist ? "" : isAlbum ? (album?.artists.join(", ") ?? "") : (track?.artists.join(", ") ?? "");
   const displayTitle = isArtist ? (artist?.name ?? "") : isAlbum ? (album?.title ?? "") : (track?.title ?? "");
   const artworkUrl = isArtist ? artist?.imageUrl : isAlbum ? album?.artworkUrl : track?.artworkUrl;
-  const platformsLabelKey = resolvePlatformsLabelKey(isArtist, isAlbum);
+  const platformsLabel = resolvePlatformsLabel(isArtist, isAlbum);
   const artistCredits = isAlbum ? album?.artistCredits : isArtist ? undefined : track?.artistCredits;
 
   const config: ShareContentConfiguration = {
@@ -170,7 +163,7 @@ export function buildShareViewFromSharePageResponse(
     metaLine: isArtist
       ? artist?.genres?.join(", ") || undefined
       : isAlbum && album
-        ? buildAlbumMetaLine(album, t)
+        ? buildAlbumMetaLine(album)
         : track
           ? buildMetaLine({ durationMs: track.durationMs, releaseDate: track.releaseDate }) || undefined
           : undefined,
@@ -191,8 +184,7 @@ export function buildShareViewFromSharePageResponse(
         : catalogTextFromIds({ isrc: track?.isrc }),
     vinylLayout: isAlbum ? (album?.vinylLayout ?? undefined) : (track?.vinylLayout ?? undefined),
     platforms: apiLinksToPlatformLinks(data.links),
-    platformsLabel: t(platformsLabelKey),
-    platformsLabelKey,
+    platformsLabel,
     shortUrl: data.shortUrl,
   };
 
@@ -209,7 +201,7 @@ export function buildShareViewFromSharePageResponse(
   };
 }
 
-export function buildShareViewFromResolvedResponse(data: UnifiedResolveSuccessResponse, t: TFunc): ShareViewModel {
+export function buildShareViewFromResolvedResponse(data: UnifiedResolveSuccessResponse): ShareViewModel {
   const common = {
     links: data.links,
     shortUrl: data.shortUrl,
@@ -235,7 +227,7 @@ export function buildShareViewFromResolvedResponse(data: UnifiedResolveSuccessRe
             og: { title: "", description: "", image: data.artist.imageUrl ?? "", url: data.shortUrl },
             artist: data.artist,
           };
-  return buildShareViewFromSharePageResponse(shareData, shortIdFromShortUrl(data.shortUrl) ?? "", t);
+  return buildShareViewFromSharePageResponse(shareData, shortIdFromShortUrl(data.shortUrl) ?? "");
 }
 
 /**
@@ -266,16 +258,14 @@ export interface ActiveShareSelection {
  *
  * @param resolved - The resolved success response, or `null`.
  * @param active - The lighter active result, or `null`.
- * @param t - Translation function (forwarded to the config builders).
  * @returns The {@link ActiveShareSelection} for the landing page.
  */
 export function buildActiveShareSelection(
   resolved: UnifiedResolveSuccessResponse | null,
   active: ActiveResult | null,
-  t: TFunc,
 ): ActiveShareSelection {
-  const activeShareView = resolved ? buildShareViewFromResolvedResponse(resolved, t) : null;
-  const activeShareConfig = activeShareView?.config ?? (active ? buildShareConfigFromActive(active, t) : null);
+  const activeShareView = resolved ? buildShareViewFromResolvedResponse(resolved) : null;
+  const activeShareConfig = activeShareView?.config ?? (active ? buildShareConfigFromActive(active) : null);
   const activeArtistName =
     activeShareView?.artistName ??
     (active ? (active.kind === ActiveResultKind.Artist ? active.name : active.artist) : "");

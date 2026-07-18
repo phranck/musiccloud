@@ -11,7 +11,7 @@ import {
 } from "react";
 import { AlertDialog } from "@/components/ui/AlertDialog";
 import { dialogTransitionMs } from "@/components/ui/dialogGeometry";
-import { useT } from "@/i18n/localeContext";
+import { commonCopy } from "@/copy/common";
 
 export const DialogType = {
   ErrorAlert: "error-alert",
@@ -121,8 +121,6 @@ export function useDialog() {
 }
 
 function DialogHost({ dialog, visible, onClose }: { dialog: DialogState; visible: boolean; onClose: () => void }) {
-  const t = useT();
-
   if (!dialog) return null;
 
   switch (dialog.type) {
@@ -131,9 +129,9 @@ function DialogHost({ dialog, visible, onClose }: { dialog: DialogState; visible
         <AlertDialog
           open
           visible={visible}
-          title={t("error.dialogTitle")}
+          title={commonCopy.error.dialogTitle}
           message={dialog.message}
-          closeLabel={t("error.dismiss")}
+          closeLabel={commonCopy.error.dismiss}
           onClose={onClose}
         />
       );

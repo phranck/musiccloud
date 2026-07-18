@@ -4,7 +4,7 @@ import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
-import { useT } from "@/i18n/localeContext";
+import { creativeCommonsCopy } from "@/copy/creative-commons";
 import { lookupCcBandcampUrl } from "@/lib/cc/bandcamp";
 
 interface CcBandcampButtonProps {
@@ -27,7 +27,6 @@ interface CcBandcampButtonProps {
  * @param jamendoId - The Jamendo track id to look up.
  */
 export function CcBandcampButton({ jamendoId }: CcBandcampButtonProps) {
-  const t = useT();
   const [bandcampUrl, setBandcampUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -51,11 +50,11 @@ export function CcBandcampButton({ jamendoId }: CcBandcampButtonProps) {
           href={bandcampUrl}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label={`${t("cc.buyBandcamp")} (${t("cc.opensInNewWindow")})`}
+          aria-label={`${creativeCommonsCopy.buyBandcamp} (${creativeCommonsCopy.opensInNewWindow})`}
           className="flex w-full items-center justify-center gap-2.5 px-3 py-2.5 text-sm font-medium text-text-primary no-underline"
         >
           <PlatformIcon platform={Service.BandCamp} className="size-5 flex-shrink-0" />
-          <span className="truncate leading-none">{t("cc.buyBandcamp")}</span>
+          <span className="truncate leading-none">{creativeCommonsCopy.buyBandcamp}</span>
         </EmbossedButton>
       </RecessedCard.Body>
     </RecessedCard>

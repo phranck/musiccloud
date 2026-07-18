@@ -151,12 +151,13 @@ import { MobileShareLayout } from "@/components/share/MobileShareLayout";
 import { ShareBackLink } from "@/components/share/ShareBackLink";
 import { ShareMediaView, type ShareMediaView as ShareMediaViewType } from "@/components/share/ShareMediaView.types";
 import { ToastProvider } from "@/context/ToastContext";
+import { artistCopy } from "@/copy/artist";
+import { audioCopy } from "@/copy/audio";
+import { shareCopy } from "@/copy/share";
 import { ArtistLoadStatus, useArtistInfo } from "@/hooks/useArtistInfo";
 import { useIsClient } from "@/hooks/useIsClient";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useOverlayEscape } from "@/hooks/useOverlayEscape";
-import { LocaleProvider } from "@/i18n/context";
-import { useT } from "@/i18n/localeContext";
 import { CardSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { detectRegion } from "@/lib/geo/detect-region";
 import { sideForTrackTitle } from "@/lib/media/vinyl-side";
@@ -165,12 +166,7 @@ import { preloadResolvedMedia } from "@/lib/resolve/preload-media";
 import { commercialTrackResolver, type TrackResolver } from "@/lib/resolve/track-resolver";
 import type { ArtistInfoContext } from "@/lib/share/artist-info-client";
 import { replaceBrowserUrlWithShortUrl } from "@/lib/share/short-url";
-import {
-  type MediaCardContentConfiguration,
-  MediaCardContentTypeValue,
-  MediaKindValue,
-  type ShareContentConfiguration,
-} from "@/lib/types/media-card";
+import { type MediaCardContentConfiguration, MediaCardContentTypeValue, MediaKindValue } from "@/lib/types/media-card";
 
 export type { ArtistInfoContext };
 
@@ -234,7 +230,7 @@ function shouldIgnoreShareMediaViewToggle(event: KeyboardEvent): boolean {
 }
 
 function normalizeArtistName(name: string): string {
-  return name.trim().toLocaleLowerCase();
+  return name.trim().toLowerCase();
 }
 
 function artistInfoContextFromConfig(config: MediaCardContentConfiguration): ArtistInfoContext {
@@ -272,7 +268,6 @@ interface ShareLayoutProps {
   artistName: string;
   artistInfoContext?: ArtistInfoContext;
   animated?: boolean;
-  initialLocale?: string;
   /**
    * Optional back action. When present, a subtle "back" link is rendered
    * above the share cards so users who arrived here from a list view
@@ -280,7 +275,7 @@ interface ShareLayoutProps {
    * without losing it.
    */
   onBack?: () => void;
-  /** Translated label for the back link. Required if `onBack` is given. */
+  /** English label for the back link. Required if `onBack` is given. */
   backLabel?: string;
   /**
    * Pre-supplied artist-column data. When `skipArtistFetch` is set, ShareLayout
@@ -298,22 +293,18 @@ interface ShareLayoutProps {
    */
   trackResolver?: TrackResolver;
   /**
-   * Per-title overrides for the artist-column sections, given as **i18n keys**
-   * (not translated text). Commercial omits this and gets the default keys; the
-   * CC path overrides individual titles (e.g. `artist.similarTracks`).
-   * ShareLayout translates them via `t()`, so titles re-localize when the user
-   * switches language.
+   * English overrides for individual artist-column titles. Commercial omits
+   * this and gets the shared defaults; the CC path overrides the wording that
+   * differs for Jamendo data.
    */
   labels?: Partial<ArtistCardLabels>;
 }
 
-export function ShareLayout({ initialLocale, ...props }: ShareLayoutProps) {
+export function ShareLayout(props: ShareLayoutProps) {
   return (
-    <LocaleProvider initialLocale={initialLocale as import("@/i18n/locales").Locale | undefined}>
-      <ToastProvider>
-        <ShareLayoutInner {...props} />
-      </ToastProvider>
-    </LocaleProvider>
+    <ToastProvider>
+      <ShareLayoutInner {...props} />
+    </ToastProvider>
   );
 }
 
@@ -324,8 +315,8 @@ export function ShareLayout({ initialLocale, ...props }: ShareLayoutProps) {
  * and the different-album data gate (preload the new cover + audio before swapping
  * so the outgoing record keeps playing until the swap can commit).
  *
- * @param params - Current config/artist context, the injected resolver, the
- *   translator, and the share-UI dispatch.
+ * @param params - Current config/artist context, the injected resolver, and the
+ *   share-UI dispatch.
  * @returns The `resolveTrack(track)` handler for artist-column row clicks.
  */
 function useTrackResolver(params: {
@@ -333,10 +324,9 @@ function useTrackResolver(params: {
   currentArtistName: string;
   currentArtistContext: ArtistInfoContext;
   trackResolver: TrackResolver;
-  t: (key: string, vars?: Record<string, string>) => string;
   dispatchUi: Dispatch<ShareUiAction>;
 }) {
-  const { currentConfig, currentArtistName, currentArtistContext, trackResolver, t, dispatchUi } = params;
+  const { currentConfig, currentArtistName, currentArtistContext, trackResolver, dispatchUi } = params;
   // Race hardening for overlapping selections (e.g. a similar-artist click quickly
   // followed by a same-album popular-track click): the token tags each resolve so a
   // stale resolve/preload can never dispatch, and the shared AbortController cancels
@@ -358,7 +348,6 @@ function useTrackResolver(params: {
       try {
         const update = await trackResolver(track.deezerUrl, {
           signal: controller.signal,
-          t,
           configType: currentConfig.type,
         });
 
@@ -411,7 +400,7 @@ function useTrackResolver(params: {
         clearTimeout(timeout);
       }
     },
-    [currentArtistContext, currentArtistName, currentConfig, dispatchUi, t, trackResolver],
+    [currentArtistContext, currentArtistName, currentConfig, dispatchUi, trackResolver],
   );
 }
 
@@ -427,21 +416,17 @@ function ShareLayoutInner({
   trackResolver = commercialTrackResolver,
   labels,
 }: ShareLayoutProps) {
-  const t = useT();
-  // Section titles. The `labels` prop carries i18n KEY overrides (the CC caller
-  // overrides `similar`/`profileProvidedBy`); translation happens here, reactive
-  // to `t`, so titles re-localize on a language switch instead of staying frozen
-  // at the value baked when the page was built. Memoized per resolved value so
-  // the object identity stays stable for the GSAP/render path.
+  // Section titles. CC callers can override the wording that differs for
+  // Jamendo data. Memoize so the object identity stays stable for the GSAP path.
   const artistLabels = useMemo<ArtistCardLabels>(
     () => ({
-      profile: t(labels?.profile ?? "artist.infoTitle"),
-      popularTracks: t(labels?.popularTracks ?? "artist.popularTracks"),
-      events: t(labels?.events ?? "artist.upcomingEvents"),
-      similar: t(labels?.similar ?? "artist.similarArtists"),
-      profileProvidedBy: t(labels?.profileProvidedBy ?? "artist.profileProvidedBy"),
+      profile: labels?.profile ?? artistCopy.infoTitle,
+      popularTracks: labels?.popularTracks ?? artistCopy.popularTracks,
+      events: labels?.events ?? artistCopy.upcomingEvents,
+      similar: labels?.similar ?? artistCopy.similarArtists,
+      profileProvidedBy: labels?.profileProvidedBy ?? artistCopy.profileProvidedBy,
     }),
-    [t, labels?.profile, labels?.popularTracks, labels?.events, labels?.similar, labels?.profileProvidedBy],
+    [labels?.profile, labels?.popularTracks, labels?.events, labels?.similar, labels?.profileProvidedBy],
   );
   // `detectRegion` reads the browser timezone once; memoize so it runs a single
   // time per mount.
@@ -554,22 +539,22 @@ function ShareLayoutInner({
   }, [resolveErrorVisible]);
 
   const playingStatus =
-    config.mediaKind === MediaKindValue.Song ? t("audio.statusPlayingSong") : t("audio.statusPlaying");
-  const pausedStatus = config.mediaKind === MediaKindValue.Song ? t("audio.statusPausedSong") : t("audio.statusPaused");
+    config.mediaKind === MediaKindValue.Song ? audioCopy.statusPlayingSong : audioCopy.statusPlaying;
+  const pausedStatus = config.mediaKind === MediaKindValue.Song ? audioCopy.statusPausedSong : audioCopy.statusPaused;
   const vfdStatus = artistStatusLoading
-    ? t("artist.statusLoading")
+    ? artistCopy.statusLoading
     : resolveErrorVisible
-      ? t("artist.statusResolveError")
+      ? artistCopy.statusResolveError
       : artistLoadStatus === ArtistLoadStatus.Error
-        ? t("artist.statusError", { code: artistErrorCode ?? "ERR" })
+        ? artistCopy.statusError(artistErrorCode ?? "ERR")
         : artistLoadStatus === ArtistLoadStatus.Empty
-          ? t("artist.statusEmpty")
+          ? artistCopy.statusEmpty
           : previewStatus === AudioStatus.Playing
             ? playingStatus
             : previewStatus === AudioStatus.Paused
               ? pausedStatus
               : artistReadyVisible
-                ? t("artist.statusReady")
+                ? artistCopy.statusReady
                 : "";
   const vfdStatusLine =
     artistStatusLoading ||
@@ -581,16 +566,13 @@ function ShareLayoutInner({
   const enrichedConfig = useMemo(
     () => ({
       ...currentConfig,
-      ...("platformsLabelKey" in currentConfig
-        ? { platformsLabel: t((currentConfig as ShareContentConfiguration).platformsLabelKey) }
-        : {}),
       // Fourth VFD row in SongInfo. Status is orchestrated here because the
       // signals live in different subtrees: artist-row resolve clicks, artist
       // info fetch state, and the preview player. VfdDisplay stays reusable
-      // and only receives plain translated text.
+      // and only receives plain English text.
       statusLine: vfdStatusLine,
     }),
-    [currentConfig, t, vfdStatusLine],
+    [currentConfig, vfdStatusLine],
   );
 
   const openSheet = useCallback(() => {
@@ -623,7 +605,6 @@ function ShareLayoutInner({
     currentArtistName,
     currentArtistContext,
     trackResolver,
-    t,
     dispatchUi,
   });
 
@@ -638,7 +619,7 @@ function ShareLayoutInner({
           config={enrichedConfig}
           isLoading={isLoading}
           labels={artistLabels}
-          mediaViewToggleLabel={t("share.toggleMediaView")}
+          mediaViewToggleLabel={shareCopy.toggleMediaView}
           onArtistResolveStart={handleArtistResolveStart}
           onMediaViewToggle={toggleMediaView}
           onPreviewStatusChange={handlePreviewStatusChange}
@@ -652,8 +633,8 @@ function ShareLayoutInner({
         <MobileShareLayout
           animated={animated}
           config={enrichedConfig}
-          label={t("artist.mobileButton")}
-          mediaViewToggleLabel={t("share.toggleMediaView")}
+          label={artistCopy.mobileButton}
+          mediaViewToggleLabel={shareCopy.toggleMediaView}
           onMediaViewToggle={toggleMediaView}
           onOpenSheet={openSheet}
           onPreviewStatusChange={handlePreviewStatusChange}
@@ -667,7 +648,7 @@ function ShareLayoutInner({
           <MobileArtistSheet
             artistData={artistData}
             artistLoadStatus={artistLoadStatus}
-            closeLabel={t("artist.closeInfo")}
+            closeLabel={artistCopy.closeInfo}
             isLoading={isLoading}
             labels={artistLabels}
             onArtistResolveStart={handleArtistResolveStart}

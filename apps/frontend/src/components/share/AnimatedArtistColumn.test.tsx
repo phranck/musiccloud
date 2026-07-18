@@ -8,7 +8,6 @@ import type {
   ArtistPanelTrackResolveHandler,
 } from "@/components/artist/artistPanelTypes";
 import { AnimatedArtistColumn } from "@/components/share/AnimatedArtistColumn";
-import { LocaleProvider } from "@/i18n/context";
 
 /**
  * Flip-wiring contract of `AnimatedArtistColumn` on top of the
@@ -66,21 +65,19 @@ const TEST_LABELS: ArtistCardLabels = {
   profileProvidedBy: "Artist data provided by Spotify, Deezer & Last.fm",
 };
 
-/** Builds the column element wrapped in the locale provider its cards require. */
+/** Builds the artist column for a specific load state. */
 function columnElement(artistData: ArtistInfoResponse | null, artistLoadStatus: ArtistInfoStatus, isLoading: boolean) {
   return (
-    <LocaleProvider initialLocale="en">
-      <AnimatedArtistColumn
-        artistData={artistData}
-        artistLoadStatus={artistLoadStatus}
-        isLoading={isLoading}
-        onArtistResolveStart={noop}
-        labels={TEST_LABELS}
-        onTrackResolve={noopResolve}
-        userRegion=""
-        widthPx={512}
-      />
-    </LocaleProvider>
+    <AnimatedArtistColumn
+      artistData={artistData}
+      artistLoadStatus={artistLoadStatus}
+      isLoading={isLoading}
+      onArtistResolveStart={noop}
+      labels={TEST_LABELS}
+      onTrackResolve={noopResolve}
+      userRegion=""
+      widthPx={512}
+    />
   );
 }
 
@@ -129,7 +126,7 @@ describe("AnimatedArtistColumn flip wiring", () => {
 });
 
 describe("AnimatedArtistColumn error state", () => {
-  // The flat `artist.error` value from the en translations the LocaleProvider loads.
+  // The shared English artist error copy.
   const ARTIST_ERROR_MESSAGE = "Artist data could not be loaded.";
 
   it("renders a single notice instead of four blank cards on a failed first load", () => {

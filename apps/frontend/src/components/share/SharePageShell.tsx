@@ -9,10 +9,9 @@ interface SharePageShellProps {
   config: ShareContentConfiguration;
   artistName: string;
   artistInfoContext?: ArtistInfoContext;
-  initialLocale?: string;
 }
 
-export function SharePageShell({ config, artistName, artistInfoContext, initialLocale }: SharePageShellProps) {
+export function SharePageShell({ config, artistName, artistInfoContext }: SharePageShellProps) {
   const navigated = useRef(false);
 
   const navigateHome = useCallback(() => {
@@ -45,12 +44,7 @@ export function SharePageShell({ config, artistName, artistInfoContext, initialL
           share enter plays from parse — before hydration. A GSAP entrance
           would delay it and double-play after hydration. */}
       <div className="w-full animate-fade-in">
-        <ShareLayout
-          config={config}
-          artistName={artistName}
-          artistInfoContext={artistInfoContext}
-          initialLocale={initialLocale}
-        />
+        <ShareLayout config={config} artistName={artistName} artistInfoContext={artistInfoContext} />
       </div>
     </main>
   );

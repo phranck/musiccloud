@@ -8,7 +8,6 @@ import {
   type UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
 import { type Dispatch, useCallback, useReducer } from "react";
-import { useT } from "@/i18n/localeContext";
 import { CardSignal, GenreSignal, ResolveSignal, SearchSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { parseJamendoUrl } from "@/lib/resolve/jamendoUrl";
 import {
@@ -71,7 +70,6 @@ interface UseAppStateResult {
  *     and handles `cc-track` responses via `RESOLVE_CC_SUCCESS`.
  */
 export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppStateResult {
-  const t = useT();
   const initialState: ReducerState = { screen: { type: "idle" }, stack: [] };
   const [{ screen, stack }, dispatch] = useReducer(appReducer, initialState);
 
@@ -93,7 +91,7 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
   const genreSearchPayload = isGenreSearching ? screen.payload : null;
   const selectedGenreResultId = screen.type === "genre-search_loading" ? screen.selectedId : null;
   const canGoBack = stack.length > 0;
-  const errorMessage = screen.type === "error" ? formatResolveErrorMessage(t, screen.error) : undefined;
+  const errorMessage = screen.type === "error" ? formatResolveErrorMessage(screen.error) : undefined;
   const showCompact = !!(
     (screen.type === "loading" && screen.compact) ||
     active ||

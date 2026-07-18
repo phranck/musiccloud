@@ -7,7 +7,7 @@ import {
 } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
-import { useT } from "@/i18n/localeContext";
+import { shareCopy } from "@/copy/share";
 import { ShareSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +28,6 @@ interface ShareButtonProps {
 type ShareState = (typeof ShareButtonState)[keyof typeof ShareButtonState];
 
 export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProps) {
-  const t = useT();
   const [state, setState] = useState<ShareState>(ShareButtonState.Idle);
 
   const handleCopy = useCallback(async () => {
@@ -73,7 +72,7 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
               type="button"
               onClick={handleNativeShare}
               className="flex size-full min-h-0 items-center justify-center px-0 py-0"
-              aria-label={songTitle ? t("share.nativeShare", { title: songTitle }) : t("share.shareLink")}
+              aria-label={songTitle ? shareCopy.nativeShare(songTitle) : shareCopy.shareLink}
             >
               <ShareNetworkIcon size={24} weight="duotone" className="text-white" />
             </EmbossedButton>
@@ -87,7 +86,7 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
             as="button"
             type="button"
             onClick={handleCopy}
-            aria-label={t("share.copyLink")}
+            aria-label={shareCopy.copyLink}
             className={cn(
               "flex h-full min-h-0 w-full items-center justify-center gap-2 py-0",
               "text-sm font-medium text-text-primary",
@@ -99,19 +98,19 @@ export function ShareButton({ shareUrl, songTitle, artistName }: ShareButtonProp
             {state === ShareButtonState.Idle && (
               <>
                 <LinkSimpleIcon size={20} weight="duotone" />
-                {t("share.shareLink")}
+                {shareCopy.shareLink}
               </>
             )}
             {state === ShareButtonState.Copied && (
               <>
                 <CheckIcon size={20} weight="duotone" />
-                {t("share.copied")}
+                {shareCopy.copied}
               </>
             )}
             {state === ShareButtonState.Error && (
               <>
                 <WarningIcon size={20} weight="duotone" />
-                {t("share.copyError")}
+                {shareCopy.copyError}
               </>
             )}
           </EmbossedButton>

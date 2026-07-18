@@ -22,15 +22,14 @@ import { ShareResultPlaceholder } from "@/components/landing/ShareResultPlacehol
 import { AppFooter } from "@/components/layout/AppFooter";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { DialogProvider } from "@/context/DialogContext";
+import { discoveryCopy } from "@/copy/discovery";
+import { landingCopy } from "@/copy/landing";
 import { useAppState } from "@/hooks/useAppState";
 import { useDeferredResultReveal } from "@/hooks/useDeferredResultReveal";
 import { useGenreSearchParam } from "@/hooks/useGenreSearchParam";
 import { useHeroFieldFlip } from "@/hooks/useHeroFieldFlip";
 import { useSearchFieldReturn } from "@/hooks/useSearchFieldReturn";
 import { useToast } from "@/hooks/useToast";
-import { LocaleProvider } from "@/i18n/context";
-import { useT } from "@/i18n/localeContext";
-import type { Locale } from "@/i18n/locales";
 import { genreSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import {
   loadDisambiguationPanel,
@@ -58,8 +57,6 @@ interface LandingPageProps {
   /** CC track short id for the live-example link in Creative-Commons mode. */
   ccExampleShortId?: string | null;
   footerNav?: NavItem[];
-  /** Server-resolved locale, so SSR and client hydration agree (no mismatch). */
-  initialLocale?: Locale;
   /**
    * Whether to render the in-page footer. The homepage renders it; routes that
    * already provide their own footer (e.g. the `/[shortId]` content-overlay
@@ -86,8 +83,6 @@ function LandingPageInner({
   footerNav = EMPTY_NAV_ITEMS,
   showFooter = true,
 }: LandingPageProps) {
-  const t = useT();
-
   // Resolve mode (commercial | cc) from the shared persistent store. SSR and the
   // pre-init client snapshot both fall back to the commercial default so first
   // paint and hydration agree; the stored mode reconciles right after hydration.
@@ -226,7 +221,7 @@ function LandingPageInner({
     return () => window.cancelAnimationFrame(frame);
   }, [state.type]);
 
-  const { activeShareView, activeShareConfig, activeArtistName } = buildActiveShareSelection(resolved, active, t);
+  const { activeShareView, activeShareConfig, activeArtistName } = buildActiveShareSelection(resolved, active);
   const isSharePageView = !!(activeShareConfig && active && !discExitPending);
 
   // Creative-Commons result: a self-contained state branch (no `active`,
@@ -256,14 +251,13 @@ function LandingPageInner({
               resultsPanelRef={resultsPanelRef}
               canGoBack={canGoBack}
               handleBack={handleBack}
-              t={t}
             />
           ) : activeShareConfig && active && !isFieldReturnStaging && !discExitPending ? (
             <ShareResult
               activeArtistName={activeArtistName}
               activeShareConfig={activeShareConfig}
               artistInfoContext={activeShareView?.artistInfoContext}
-              backLabel={t("genreSearch.backToResults")}
+              backLabel={discoveryCopy.genreSearch.backToResults}
               canGoBack={canGoBack}
               handleBack={handleBack}
               onClearSlideOutComplete={handleClearSlideOutComplete}
@@ -299,8 +293,8 @@ function LandingPageInner({
                 <div className="mt-4 flex justify-center" data-resolve-mode={mode}>
                   <LiveExampleTeaser
                     exampleShortId={activeExampleShortId}
-                    label={t("landing.exampleLink")}
-                    teaser={t("landing.exampleTeaser")}
+                    label={landingCopy.exampleLink}
+                    teaser={landingCopy.exampleTeaser}
                     visible={
                       state.type !== AppStateType.Loading &&
                       !discExitPending &&
@@ -379,21 +373,18 @@ export function LandingPage({
   exampleShortId = null,
   ccExampleShortId = null,
   footerNav = EMPTY_NAV_ITEMS,
-  initialLocale,
   showFooter = true,
 }: LandingPageProps = {}) {
   return (
     <ErrorBoundary>
-      <LocaleProvider initialLocale={initialLocale}>
-        <DialogProvider>
-          <LandingPageInner
-            exampleShortId={exampleShortId}
-            ccExampleShortId={ccExampleShortId}
-            footerNav={footerNav}
-            showFooter={showFooter}
-          />
-        </DialogProvider>
-      </LocaleProvider>
+      <DialogProvider>
+        <LandingPageInner
+          exampleShortId={exampleShortId}
+          ccExampleShortId={ccExampleShortId}
+          footerNav={footerNav}
+          showFooter={showFooter}
+        />
+      </DialogProvider>
     </ErrorBoundary>
   );
 }
