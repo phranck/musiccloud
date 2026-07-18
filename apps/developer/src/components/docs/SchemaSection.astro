@@ -89,6 +89,11 @@ const schemaHeadingId = `${schema.anchor}-heading`;
               aria-labelledby={`${fieldsPanelId}-tab`}
               data-schema-view-panel="fields"
             >
+              <SchemaCard.Body.Description>
+                <p class="text-body text-fg-muted">
+                  Keys are presented for scanning only: id, other identity and relationship keys, discriminator keys, then the remaining contract order. This display order does not define JSON wire order.
+                </p>
+              </SchemaCard.Body.Description>
               {schema.fields.length > 0 && (
                 <SchemaCard.Body.Fields>
                   <SchemaCard.Body.Fields.Header>

@@ -153,6 +153,12 @@ describe("/docs/api content", () => {
     expect(html).toContain('href="#schema-resolve-success"');
     expect(html).not.toContain('href="#schema-ResolveSuccess"');
     expect(html).toContain("Key documentation");
+    expect(html).toContain(
+      "Keys are presented for scanning only: id, other identity and relationship keys, discriminator keys, then the remaining contract order. This display order does not define JSON wire order.",
+    );
+    for (const field of reference.schemas.ResolveSuccess.fields) {
+      expect(html).toContain(`>${field.path}</`);
+    }
     expect(html).toContain('role="tablist"');
     expect(html).toContain("JSON schema");
     expect(html).toContain("Resolve a music URL, free-text query, genre-discovery query, or structured search query");

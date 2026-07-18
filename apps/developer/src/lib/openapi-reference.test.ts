@@ -191,6 +191,92 @@ describe("buildApiReference", () => {
     });
   });
 
+  it("orders top-level schema fields for reading while preserving source order inside each group", () => {
+    const fixture = readFixture("public-openapi.json") as {
+      components: { schemas: Record<string, unknown> };
+    };
+    fixture.components.schemas.OrderedFields = {
+      type: "object",
+      properties: {
+        displayName: { type: "string" },
+        ownerId: { type: "string" },
+        type: { type: "string" },
+        id: { type: "string" },
+        artistId: { type: "string" },
+        sourceType: { type: "string" },
+        kind: { type: "string" },
+        description: { type: "string" },
+      },
+    };
+
+    const reference = buildApiReference(fixture);
+
+    expect(reference.schemas.OrderedFields.fields.map((field) => field.path)).toEqual([
+      "id",
+      "ownerId",
+      "artistId",
+      "type",
+      "sourceType",
+      "kind",
+      "displayName",
+      "description",
+    ]);
+  });
+
+  it("applies the same reading order to nested object fields", () => {
+    const fixture = readFixture("public-openapi.json") as {
+      components: { schemas: Record<string, unknown> };
+    };
+    fixture.components.schemas.NestedOrderedFields = {
+      type: "object",
+      properties: {
+        payload: {
+          type: "object",
+          properties: {
+            label: { type: "string" },
+            ownerId: { type: "string" },
+            kind: { type: "string" },
+            id: { type: "string" },
+            albumId: { type: "string" },
+            mediaType: { type: "string" },
+            note: { type: "string" },
+          },
+        },
+      },
+    };
+
+    const reference = buildApiReference(fixture);
+
+    expect(reference.schemas.NestedOrderedFields.fields.map(({ path, depth }) => ({ path, depth }))).toEqual([
+      { path: "payload", depth: 0 },
+      { path: "id", depth: 1 },
+      { path: "ownerId", depth: 1 },
+      { path: "albumId", depth: 1 },
+      { path: "kind", depth: 1 },
+      { path: "mediaType", depth: 1 },
+      { path: "label", depth: 1 },
+      { path: "note", depth: 1 },
+    ]);
+  });
+
+  it("retains source order when a schema has no identity or discriminator fields", () => {
+    const fixture = readFixture("public-openapi.json") as {
+      components: { schemas: Record<string, unknown> };
+    };
+    fixture.components.schemas.SourceOrderedFields = {
+      type: "object",
+      properties: {
+        zeta: { type: "string" },
+        alpha: { type: "string" },
+        note: { type: "string" },
+      },
+    };
+
+    const reference = buildApiReference(fixture);
+
+    expect(reference.schemas.SourceOrderedFields.fields.map((field) => field.path)).toEqual(["zeta", "alpha", "note"]);
+  });
+
   it("rejects a document without info.version", () => {
     const fixture = readFixture("public-openapi.json") as { info: Record<string, unknown> };
     delete fixture.info.version;
