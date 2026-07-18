@@ -42,6 +42,7 @@ import type {
   ContentPageSummaryRow,
   ContentPageTranslationRow,
   ContentPageTranslationUpsert,
+  ContentPublicationCutoverInput,
   ContentPublicationRow,
   ContentStatus,
   PageSegmentInputRow,
@@ -466,6 +467,171 @@ export async function replaceContentPublications(
   } finally {
     transactionClient.release();
   }
+}
+
+/**
+ * Adds a closed publication cutover in one transaction without replacing any
+ * existing publication row. Broad table locks are intentional for this
+ * one-time administrative operation: they prevent Page-identity and route
+ * claim phantoms while the complete publication set is revalidated.
+ */
+export async function applyContentPublicationCutover(
+  pool: Pool,
+  entries: ContentPublicationCutoverInput[],
+): Promise<ContentPublicationRow[]> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("LOCK TABLE content_pages IN SHARE ROW EXCLUSIVE MODE");
+    await client.query("LOCK TABLE content_page_publications IN SHARE ROW EXCLUSIVE MODE");
+
+    assertUniqueCutoverInputs(entries);
+    const pageResult = await client.query<{ id: string; slug: string }>(
+      `SELECT id, slug
+         FROM content_pages
+        WHERE id = ANY($1::text[])
+           OR slug = ANY($2::text[])
+        ORDER BY id
+        FOR UPDATE`,
+      [entries.map((entry) => entry.pageId), entries.map((entry) => entry.sourceSlug)],
+    );
+    for (const entry of entries) {
+      const rowsById = pageResult.rows.filter((row) => row.id === entry.pageId);
+      const rowsBySlug = pageResult.rows.filter((row) => row.slug === entry.sourceSlug);
+      if (
+        rowsById.length !== 1 ||
+        rowsBySlug.length !== 1 ||
+        rowsById[0]!.slug !== entry.sourceSlug ||
+        rowsBySlug[0]!.id !== entry.pageId
+      ) {
+        throw cutoverConflict(`Page identity ${entry.sourceSlug}`);
+      }
+      assertCanonicalDesiredPublication(entry);
+    }
+
+    const publicationResult = await client.query<ContentPublicationSqlRow>(
+      `SELECT page_id, context, path, status, template_key
+         FROM content_page_publications
+        ORDER BY context, path, page_id
+        FOR UPDATE`,
+    );
+    const claims = indexLockedPublicationClaims(publicationResult.rows);
+    const pending: ContentPublicationCutoverInput[] = [];
+    for (const entry of entries) {
+      const desired = entry.publication;
+      const current = publicationResult.rows.filter(
+        (row) => row.page_id === entry.pageId && row.context === desired.context,
+      );
+      const otherRouteOwners = (claims.get(canonicalRouteKey(desired.context, desired.path)) ?? []).filter(
+        (claim) => claim.page_id !== entry.pageId,
+      );
+      if (otherRouteOwners.length > 0) {
+        throw cutoverConflict(`route ${desired.path}`);
+      }
+      if (current.length === 0) {
+        pending.push(entry);
+        continue;
+      }
+      if (current.length !== 1 || !sameLockedPublication(current[0]!, desired)) {
+        throw cutoverConflict(`target publication ${entry.sourceSlug}`);
+      }
+    }
+
+    const inserted: ContentPublicationRow[] = [];
+    for (const entry of pending) {
+      const desired = entry.publication;
+      const result = await client.query<ContentPublicationSqlRow>(
+        `INSERT INTO content_page_publications (page_id, context, path, status, template_key)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING page_id, context, path, status, template_key`,
+        [entry.pageId, desired.context, desired.path, desired.status, desired.templateKey],
+      );
+      await client.query(`UPDATE content_pages SET context_mask = context_mask | $2 WHERE id = $1`, [
+        entry.pageId,
+        desired.context,
+      ]);
+      inserted.push(rowToContentPublication(result.rows[0]!));
+    }
+
+    await client.query("COMMIT");
+    return inserted;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+function assertUniqueCutoverInputs(entries: ContentPublicationCutoverInput[]): void {
+  const pageIds = new Set<string>();
+  const sourceSlugs = new Set<string>();
+  const routes = new Set<string>();
+  for (const entry of entries) {
+    const route = canonicalRouteKey(entry.publication.context, normalizeEditorialPath(entry.publication.path));
+    if (pageIds.has(entry.pageId) || sourceSlugs.has(entry.sourceSlug) || routes.has(route)) {
+      throw cutoverConflict("duplicate input");
+    }
+    pageIds.add(entry.pageId);
+    sourceSlugs.add(entry.sourceSlug);
+    routes.add(route);
+  }
+}
+
+function assertCanonicalDesiredPublication(entry: ContentPublicationCutoverInput): void {
+  let normalizedPath: string;
+  try {
+    normalizedPath = normalizeEditorialPath(entry.publication.path);
+  } catch {
+    throw cutoverConflict(`invalid desired path for ${entry.sourceSlug}`);
+  }
+  if (normalizedPath !== entry.publication.path || isDocsNamespace(normalizedPath)) {
+    throw cutoverConflict(`reserved or non-canonical desired path ${normalizedPath}`);
+  }
+}
+
+function indexLockedPublicationClaims(rows: ContentPublicationSqlRow[]): Map<string, ContentPublicationSqlRow[]> {
+  const claims = new Map<string, ContentPublicationSqlRow[]>();
+  for (const row of rows) {
+    let normalizedPath: string;
+    try {
+      normalizedPath = normalizeEditorialPath(row.path);
+    } catch {
+      throw cutoverConflict(`invalid existing path for Page ${row.page_id}`);
+    }
+    if (isDocsNamespace(normalizedPath)) {
+      throw cutoverConflict(`reserved docs claim ${normalizedPath}`);
+    }
+    const key = canonicalRouteKey(row.context as SingleContentContext, normalizedPath);
+    const existing = claims.get(key) ?? [];
+    existing.push(row);
+    claims.set(key, existing);
+  }
+  for (const [key, routeClaims] of claims) {
+    if (routeClaims.length > 1) throw cutoverConflict(`canonical duplicate ${key}`);
+  }
+  return claims;
+}
+
+function sameLockedPublication(row: ContentPublicationSqlRow, desired: ContentPublication): boolean {
+  return (
+    row.context === desired.context &&
+    row.path === desired.path &&
+    row.status === desired.status &&
+    row.template_key === desired.templateKey
+  );
+}
+
+function canonicalRouteKey(context: SingleContentContext, path: string): string {
+  return `${context}:${path}`;
+}
+
+function isDocsNamespace(path: string): boolean {
+  return isReservedDeveloperPortalPath(path) && (path === "/docs" || path.startsWith("/docs/"));
+}
+
+function cutoverConflict(reason: string): Error {
+  return new Error(`Content publication cutover conflict: ${reason}`);
 }
 
 // ============================================================================

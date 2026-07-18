@@ -5,6 +5,7 @@ import { ContentContext, type ContentPublication, type SingleContentContext } fr
 import type {
   AdminRepository,
   ContentPageRow,
+  ContentPublicationCutoverInput,
   ContentPublicationRow,
 } from "../db/admin-repository.js";
 import { closeRepository, getAdminRepository } from "../db/index.js";
@@ -84,12 +85,6 @@ export interface DeveloperEditorialCutoverReport {
   writes: DeveloperEditorialCutoverWrite[];
 }
 
-interface PlannedWrite {
-  pageId: string;
-  path: DeveloperEditorialCutoverMapping["path"];
-  publications: ContentPublication[];
-}
-
 interface NormalizedPublicationClaim {
   ownerPageId: string;
   publication: ContentPublicationRow;
@@ -167,7 +162,8 @@ export async function backfillDeveloperEditorialContent(
   }
 
   const mappingReports: DeveloperEditorialCutoverMappingReport[] = [];
-  const plannedWrites: PlannedWrite[] = [];
+  const cutoverEntries: ContentPublicationCutoverInput[] = [];
+  let plannedWriteCount = 0;
   for (const mapping of DEVELOPER_EDITORIAL_CUTOVER_MAPPING) {
     const desiredPublication = toDesiredPublication(mapping);
     const sourceCandidates = pages.filter((page) => page.slug === mapping.sourceSlug);
@@ -261,12 +257,13 @@ export async function backfillDeveloperEditorialContent(
       outcome = "conflict";
     }
 
+    cutoverEntries.push({
+      sourceSlug: mapping.sourceSlug,
+      pageId,
+      publication: desiredPublication,
+    });
     if (outcome === "add") {
-      plannedWrites.push({
-        pageId,
-        path: mapping.path,
-        publications: [...(sourceSummary.publications ?? []).map(withoutPageId), desiredPublication],
-      });
+      plannedWriteCount++;
     }
     mappingReports.push({
       sourceSlug: mapping.sourceSlug,
@@ -285,7 +282,7 @@ export async function backfillDeveloperEditorialContent(
       pages: pages.length,
       publications: pages.reduce((count, page) => count + (page.publications?.length ?? 0), 0),
       mappings: DEVELOPER_EDITORIAL_CUTOVER_MAPPING.length,
-      plannedWrites: plannedWrites.length,
+      plannedWrites: plannedWriteCount,
       conflicts: conflicts.length,
       writes: 0,
     },
@@ -300,12 +297,16 @@ export async function backfillDeveloperEditorialContent(
   }
   if (options.dryRun) return report;
 
-  for (const write of plannedWrites) {
-    await repo.replaceContentPublications(write.pageId, write.publications);
+  const inserted = await repo.applyContentPublicationCutover(cutoverEntries);
+  for (const row of inserted) {
+    const entry = cutoverEntries.find(
+      (candidate) => candidate.pageId === row.pageId && candidate.publication.context === row.context,
+    );
+    if (!entry) throw new Error("Cutover repository returned an unexpected publication");
     report.writes.push({
-      pageId: write.pageId,
+      pageId: row.pageId,
       context: ContentContext.DeveloperPortal,
-      path: write.path,
+      path: entry.publication.path as DeveloperEditorialCutoverMapping["path"],
     });
   }
   report.counts.writes = report.writes.length;
@@ -345,15 +346,9 @@ function withoutPageId(publication: ContentPublicationRow): ContentPublication {
 }
 
 function samePublication(current: ContentPublicationRow, desired: ContentPublication): boolean {
-  let normalizedPath: string;
-  try {
-    normalizedPath = normalizeEditorialPath(current.path);
-  } catch {
-    return false;
-  }
   return (
     current.context === desired.context &&
-    normalizedPath === desired.path &&
+    current.path === desired.path &&
     current.status === desired.status &&
     current.templateKey === desired.templateKey
   );
@@ -384,6 +379,22 @@ export function formatDeveloperEditorialCutoverReport(report: DeveloperEditorial
   return JSON.stringify(report, null, 2);
 }
 
+/** Detects direct execution of a compiled CommonJS cutover CLI. */
+export function isDirectCommonJsCutoverEntrypoint(
+  currentModule: NodeModule | undefined,
+  mainModule: NodeModule | undefined,
+): boolean {
+  return currentModule !== undefined && currentModule === mainModule;
+}
+
+/** Detects direct source execution through `tsx` without relying on `import.meta.url`. */
+export function isDirectTsxCutoverEntrypoint(argvEntry: string | undefined): boolean {
+  if (!argvEntry) return false;
+  const normalizedEntry = argvEntry.replaceAll("\\", "/");
+  const sourceName = "backfill-developer-editorial-content.ts";
+  return normalizedEntry === sourceName || normalizedEntry.endsWith(`/${sourceName}`);
+}
+
 function parseDryRun(argv: string[]): boolean {
   const dryRun = argv.includes("--dry-run");
   const apply = argv.includes("--apply");
@@ -402,7 +413,12 @@ async function main(): Promise<void> {
   }
 }
 
-if (process.argv[1]?.endsWith("backfill-developer-editorial-content.ts")) {
+const currentCommonJsModule = typeof module !== "undefined" ? module : undefined;
+const mainCommonJsModule = typeof require !== "undefined" ? require.main : undefined;
+if (
+  isDirectCommonJsCutoverEntrypoint(currentCommonJsModule, mainCommonJsModule) ||
+  isDirectTsxCutoverEntrypoint(process.argv[1])
+) {
   void main().catch((error: unknown) => {
     if (error instanceof DeveloperEditorialCutoverConflictError) {
       console.error(formatDeveloperEditorialCutoverReport(error.report));

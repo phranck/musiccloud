@@ -13,6 +13,8 @@ import {
   DEVELOPER_EDITORIAL_CUTOVER_MAPPING,
   backfillDeveloperEditorialContent,
   formatDeveloperEditorialCutoverReport,
+  isDirectCommonJsCutoverEntrypoint,
+  isDirectTsxCutoverEntrypoint,
 } from "./backfill-developer-editorial-content.js";
 
 const FIXED_DATE = new Date("2026-07-18T08:00:00.000Z");
@@ -78,8 +80,14 @@ function fingerprint(title: string, content: string): string {
 
 class InMemoryEditorialRepository {
   readonly sourceReads: string[] = [];
-  readonly writes: Array<{ pageId: string; publications: ContentPublication[] }> = [];
+  readonly atomicApplies: Array<
+    Array<{ sourceSlug: string; pageId: string; publication: ContentPublication }>
+  > = [];
+  readonly writes: ContentPublicationRow[] = [];
   readonly createContentPage = vi.fn();
+  readonly replaceContentPublications = vi.fn(async () => {
+    throw new Error("Destructive publication replacement is forbidden during cutover");
+  });
   readonly updateContentPageBody = vi.fn();
   readonly updateContentPageMeta = vi.fn();
   readonly replaceSegmentsForOwner = vi.fn();
@@ -106,16 +114,41 @@ class InMemoryEditorialRepository {
       : null;
   }
 
-  async replaceContentPublications(
-    pageId: string,
-    publications: ContentPublication[],
+  async applyContentPublicationCutover(
+    entries: Array<{ sourceSlug: string; pageId: string; publication: ContentPublication }>,
   ): Promise<ContentPublicationRow[]> {
-    this.writes.push({ pageId, publications: publications.map((entry) => ({ ...entry })) });
-    const found = this.pages.find((entry) => entry.id === pageId);
-    if (!found) throw new Error(`Unknown test page: ${pageId}`);
-    found.publications = publications.map((entry) => ({ pageId, ...entry }));
-    found.contextMask = publications.reduce((mask, entry) => mask | entry.context, 0);
-    return found.publications;
+    this.atomicApplies.push(entries.map((entry) => ({ ...entry, publication: { ...entry.publication } })));
+    const staged = this.pages.map((entry) => ({
+      page: entry,
+      publications: (entry.publications ?? []).map((publication) => ({ ...publication })),
+    }));
+    const inserted: ContentPublicationRow[] = [];
+    for (const entry of entries) {
+      const target = staged.find(({ page: candidate }) => candidate.id === entry.pageId);
+      if (!target || target.page.slug !== entry.sourceSlug) throw new Error("Cutover identity conflict");
+      const current = target.publications.find(
+        (publication) => publication.context === entry.publication.context,
+      );
+      if (current) {
+        if (
+          current.path !== entry.publication.path ||
+          current.status !== entry.publication.status ||
+          current.templateKey !== entry.publication.templateKey
+        ) {
+          throw new Error("Cutover publication conflict");
+        }
+        continue;
+      }
+      const row = { pageId: entry.pageId, ...entry.publication };
+      target.publications.push(row);
+      inserted.push(row);
+    }
+    for (const { page: target, publications } of staged) {
+      target.publications = publications;
+      target.contextMask = publications.reduce((mask, entry) => mask | entry.context, 0);
+    }
+    this.writes.push(...inserted);
+    return inserted;
   }
 }
 
@@ -237,7 +270,31 @@ describe("backfillDeveloperEditorialContent", () => {
     ]);
     expect(second.counts).toMatchObject({ plannedWrites: 0, conflicts: 0, writes: 0 });
     expect(second.mappings.map((entry) => entry.outcome)).toEqual(["unchanged", "unchanged"]);
+    expect(fake.atomicApplies).toHaveLength(2);
+    expect(fake.atomicApplies[0]).toEqual([
+      {
+        sourceSlug: "privacy",
+        pageId: "page-privacy-stable",
+        publication: {
+          context: ContentContext.DeveloperPortal,
+          path: "/privacy",
+          status: "published",
+          templateKey: "developer-default",
+        },
+      },
+      {
+        sourceSlug: "terms",
+        pageId: "page-terms-stable",
+        publication: {
+          context: ContentContext.DeveloperPortal,
+          path: "/terms",
+          status: "published",
+          templateKey: "developer-default",
+        },
+      },
+    ]);
     expect(fake.writes.map((entry) => entry.pageId)).toEqual(["page-privacy-stable", "page-terms-stable"]);
+    expect(fake.replaceContentPublications).not.toHaveBeenCalled();
     expect(pages.map(({ id, title, content }) => ({ id, title, content }))).toEqual(originalContent);
     for (const storedPage of pages) {
       expect(storedPage.publications).toHaveLength(2);
@@ -267,6 +324,7 @@ describe("backfillDeveloperEditorialContent", () => {
 
     expect(fake.sourceReads).toEqual(["page-privacy-stable", "page-terms-stable"]);
     expect(fake.writes.map((entry) => entry.pageId)).toEqual(["page-privacy-stable", "page-terms-stable"]);
+    expect(fake.replaceContentPublications).not.toHaveBeenCalled();
     expect(fake.createContentPage).not.toHaveBeenCalled();
     expect(fake.updateContentPageBody).not.toHaveBeenCalled();
     expect(fake.updateContentPageMeta).not.toHaveBeenCalled();
@@ -301,7 +359,7 @@ describe("backfillDeveloperEditorialContent", () => {
   it("detects mismatching target metadata, conflicting route claims, and canonical duplicate claims before writes", async () => {
     const pages = canonicalPages();
     pages[0]!.publications!.push(
-      publication("page-privacy-stable", ContentContext.DeveloperPortal, "/privacy", { status: "draft" }),
+      publication("page-privacy-stable", ContentContext.DeveloperPortal, "//privacy/"),
     );
     pages.push(
       page({
@@ -373,5 +431,34 @@ describe("backfillDeveloperEditorialContent", () => {
       "Developer editorial cutover conflicts detected",
     );
     expect(fake.writes).toEqual([]);
+  });
+});
+
+describe("developer editorial cutover CLI entrypoint", () => {
+  it("uses module identity for compiled CommonJS direct execution", () => {
+    const entrypoint = {} as NodeModule;
+
+    expect(isDirectCommonJsCutoverEntrypoint(entrypoint, entrypoint)).toBe(true);
+    expect(isDirectCommonJsCutoverEntrypoint(entrypoint, {} as NodeModule)).toBe(false);
+    expect(isDirectCommonJsCutoverEntrypoint(undefined, entrypoint)).toBe(false);
+    expect(isDirectCommonJsCutoverEntrypoint(undefined, undefined)).toBe(false);
+  });
+
+  it("recognizes only the exact TypeScript source path used by tsx", () => {
+    expect(
+      isDirectTsxCutoverEntrypoint("/workspace/apps/backend/src/scripts/backfill-developer-editorial-content.ts"),
+    ).toBe(true);
+    expect(
+      isDirectTsxCutoverEntrypoint(
+        "C:\\workspace\\apps\\backend\\src\\scripts\\backfill-developer-editorial-content.ts",
+      ),
+    ).toBe(true);
+    expect(
+      isDirectTsxCutoverEntrypoint(
+        "/workspace/apps/backend/src/scripts/backfill-developer-editorial-content.js",
+      ),
+    ).toBe(false);
+    expect(isDirectTsxCutoverEntrypoint("/workspace/apps/backend/src/scripts/import-cutover.ts")).toBe(false);
+    expect(isDirectTsxCutoverEntrypoint(undefined)).toBe(false);
   });
 });

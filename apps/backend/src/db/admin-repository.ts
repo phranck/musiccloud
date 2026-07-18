@@ -297,6 +297,13 @@ export interface ContentPublicationRow {
   templateKey: string;
 }
 
+/** One expected stable Page identity and desired insert-only contextual publication. */
+export interface ContentPublicationCutoverInput {
+  sourceSlug: string;
+  pageId: string;
+  publication: ContentPublication;
+}
+
 /** Page segment row shape returned or accepted by the database repository layer. */
 export interface PageSegmentRow {
   id: number;
@@ -860,6 +867,13 @@ export interface AdminRepository {
   getPublishedContentPageByPath(context: SingleContentContext, path: string): Promise<ContentPageRow | null>;
   /** Atomically replaces the context publications assigned to a page. */
   replaceContentPublications(pageId: string, publications: ContentPublication[]): Promise<ContentPublicationRow[]>;
+  /**
+   * Atomically revalidates and inserts a closed set of missing contextual publications.
+   * Existing publication rows are never replaced or deleted; exact targets are no-ops.
+   *
+   * @returns Only the publication rows inserted by this transaction.
+   */
+  applyContentPublicationCutover(entries: ContentPublicationCutoverInput[]): Promise<ContentPublicationRow[]>;
 
   // Navigation items
   /**
