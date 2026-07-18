@@ -56,7 +56,6 @@ import {
   SearchNormal1,
   SearchStatus,
   Send2,
-  ShieldTick,
   Sms,
   TickCircle,
   Warning2,
@@ -124,7 +123,6 @@ export const ScrollIcon = bulk(Scroll);
 export const SearchNormal1Icon = bulk(SearchNormal1);
 export const SearchStatusIcon = bulk(SearchStatus);
 export const Send2Icon = bulk(Send2);
-export const ShieldTickIcon = bulk(ShieldTick);
 export const SmsIcon = bulk(Sms);
 export const TickCircleIcon = bulk(TickCircle);
 export const Warning2Icon = bulk(Warning2);
