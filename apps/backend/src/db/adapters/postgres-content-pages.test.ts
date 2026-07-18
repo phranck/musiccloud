@@ -206,16 +206,36 @@ function createCutoverPool(options: {
   pages?: SqlPageRow[];
   publications: SqlPublicationRow[];
   failInsertAt?: number;
-}): { calls: Array<{ sql: string; params: unknown[] | undefined }>; pool: Pool } {
+}): {
+  calls: Array<{ sql: string; params: unknown[] | undefined }>;
+  pool: Pool;
+  targetPageReads: string[];
+} {
   const calls: Array<{ sql: string; params: unknown[] | undefined }> = [];
+  const targetPageReads: string[] = [];
   let insertCount = 0;
   const client = {
     query: vi.fn(async (sql: string, params?: unknown[]) => {
       calls.push({ sql, params });
       if (sql.includes("FROM content_pages") && sql.includes("FOR UPDATE")) {
-        return {
-          rows: options.pages ?? [pageRow("page-privacy-stable", "privacy"), pageRow("page-terms-stable", "terms")],
-        };
+        const pages = options.pages ?? [
+          pageRow("page-privacy-stable", "privacy"),
+          pageRow("page-terms-stable", "terms"),
+        ];
+        if (!sql.includes("title")) {
+          return {
+            rows: pages.map(({ id, slug, context_mask }) => ({ id, slug, context_mask })),
+          };
+        }
+
+        const expectedIds = Array.isArray(params?.[0]) ? (params[0] as string[]) : null;
+        const expectedSlugs = Array.isArray(params?.[1]) ? (params[1] as string[]) : null;
+        const rows =
+          expectedIds && expectedSlugs
+            ? pages.filter((page) => expectedIds.includes(page.id) || expectedSlugs.includes(page.slug))
+            : pages;
+        targetPageReads.push(...rows.map(({ id }) => id));
+        return { rows };
       }
       if (sql.includes("FROM content_page_publications") && sql.includes("FOR UPDATE")) {
         return { rows: options.publications };
@@ -245,6 +265,7 @@ function createCutoverPool(options: {
   return {
     calls,
     pool: { connect: vi.fn().mockResolvedValue(client) } as unknown as Pool,
+    targetPageReads,
   };
 }
 
@@ -688,7 +709,13 @@ describe("applyContentPublicationCutover", () => {
   });
 
   it("allows an unrelated Frontend /docs claim under lock", async () => {
-    const { calls, pool } = createCutoverPool({
+    const frontendDocsPage = {
+      ...pageRow("frontend-docs-owner", "docs"),
+      title: "Frontend Documentation",
+      content: "Frontend docs body must remain unread",
+    };
+    const { calls, pool, targetPageReads } = createCutoverPool({
+      pages: [pageRow("page-privacy-stable", "privacy"), pageRow("page-terms-stable", "terms"), frontendDocsPage],
       publications: [
         publicationRow("page-privacy-stable", ContentContext.Frontend, "/privacy"),
         publicationRow("page-terms-stable", ContentContext.Frontend, "/terms"),
@@ -703,6 +730,21 @@ describe("applyContentPublicationCutover", () => {
         expect.objectContaining({ pageId: "page-terms-stable", context: ContentContext.DeveloperPortal }),
       ],
     });
+    const pageSelects = calls.filter(({ sql }) => sql.includes("FROM content_pages") && sql.includes("FOR UPDATE"));
+    const metadataSelect = pageSelects.find(({ sql }) => sql.includes("context_mask"));
+    const targetSelect = pageSelects.find(({ sql }) => sql.includes("title"));
+    expect(pageSelects).toHaveLength(2);
+    expect(metadataSelect?.sql).toMatch(/SELECT\s+id,\s*slug,\s*context_mask/);
+    expect(metadataSelect?.sql).not.toContain("title");
+    expect(metadataSelect?.sql).not.toMatch(/\bcontent\b/);
+    expect(targetSelect?.sql).toMatch(/SELECT\s+id,\s*slug,\s*title,\s*content/);
+    expect(targetSelect?.sql).toMatch(/WHERE id = ANY\(\$1::text\[\]\)\s+OR slug = ANY\(\$2::text\[\]\)/);
+    expect(targetSelect?.params).toEqual([
+      ["page-privacy-stable", "page-terms-stable"],
+      ["privacy", "terms"],
+    ]);
+    expect(targetPageReads).toEqual(["page-privacy-stable", "page-terms-stable"]);
+    expect(targetPageReads).not.toContain(frontendDocsPage.id);
     expect(calls.filter(({ sql }) => sql.includes("INSERT INTO content_page_publications"))).toHaveLength(2);
     expect(
       calls.some(({ sql, params }) => sql.includes("frontend-docs-owner") || params?.includes("frontend-docs-owner")),

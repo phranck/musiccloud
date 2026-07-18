@@ -499,21 +499,37 @@ export async function applyContentPublicationCutover(
 
     assertClosedCutoverInputs(entries);
     assertUniqueCutoverInputs(entries);
-    const pageResult = await client.query<{
+    const pageMetadataResult = await client.query<{
       id: string;
       slug: string;
       context_mask: number;
-      title: string;
-      content: string;
     }>(
-      `SELECT id, slug, context_mask, title, content
+      `SELECT id, slug, context_mask
          FROM content_pages
         ORDER BY id
         FOR UPDATE`,
     );
+    const expectedPageIds = entries.flatMap((entry) =>
+      entry.expectedPage.kind === "existing" ? [entry.expectedPage.pageId] : [],
+    );
+    const sourceSlugs = entries.map((entry) => entry.sourceSlug);
+    const targetPageResult = await client.query<{
+      id: string;
+      slug: string;
+      title: string;
+      content: string;
+    }>(
+      `SELECT id, slug, title, content
+         FROM content_pages
+        WHERE id = ANY($1::text[])
+           OR slug = ANY($2::text[])
+        ORDER BY id
+        FOR UPDATE`,
+      [expectedPageIds, sourceSlugs],
+    );
     const resolvedPageIds = new Map<string, string>();
     for (const entry of entries) {
-      const rowsBySlug = pageResult.rows.filter((row) => row.slug === entry.sourceSlug);
+      const rowsBySlug = targetPageResult.rows.filter((row) => row.slug === entry.sourceSlug);
       if (entry.expectedPage.kind === "absent") {
         if (entry.sourceSlug !== "terms" || rowsBySlug.length !== 0) {
           throw cutoverConflict(`Page absence ${entry.sourceSlug}`);
@@ -526,7 +542,7 @@ export async function applyContentPublicationCutover(
         }
       } else {
         const expectedPage = entry.expectedPage;
-        const rowsById = pageResult.rows.filter((row) => row.id === expectedPage.pageId);
+        const rowsById = targetPageResult.rows.filter((row) => row.id === expectedPage.pageId);
         if (
           rowsById.length !== 1 ||
           rowsBySlug.length !== 1 ||
@@ -549,7 +565,7 @@ export async function applyContentPublicationCutover(
         ORDER BY context, path, page_id
         FOR UPDATE`,
     );
-    for (const lockedPage of pageResult.rows) {
+    for (const lockedPage of pageMetadataResult.rows) {
       const lockedPublications = publicationResult.rows.filter((publication) => publication.page_id === lockedPage.id);
       if (lockedPage.context_mask !== publicationContextMask(lockedPublications)) {
         throw cutoverConflict(`context mask ${lockedPage.slug}`);
