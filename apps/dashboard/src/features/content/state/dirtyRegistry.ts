@@ -3,17 +3,14 @@ export type SliceKey =
   | `meta:${string}`
   | `content:${string}`
   | `publications:${string}`
-  | `segments:${string}`
-  | `translations:${string}`
-  | `segment-translations:${string}`;
+  | `segments:${string}`;
 
-export type ResourceGroup = "pages" | "segments" | "translations" | "sidebar";
+export type ResourceGroup = "pages" | "segments" | "sidebar";
 
 function groupOf(key: SliceKey): ResourceGroup {
   if (key === "sidebar") return "sidebar";
   if (key.startsWith("meta:") || key.startsWith("content:") || key.startsWith("publications:")) return "pages";
-  if (key.startsWith("segments:")) return "segments";
-  return "translations";
+  return "segments";
 }
 
 export interface DirtyRegistry {

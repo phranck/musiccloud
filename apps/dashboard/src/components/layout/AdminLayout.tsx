@@ -237,7 +237,7 @@ function PagesEditorBindings() {
 /**
  * Hydrates the segments slice once content-pages data lands. Lives at the
  * AdminLayout level so that any consumer (PagesListPage's DnD, SegmentManager's
- * label/translation edits, future bulk surfaces) can rely on byOwner being
+ * label edits and future bulk surfaces) can rely on byOwner being
  * populated regardless of which route is active.
  */
 function PagesSlicesHydrate() {

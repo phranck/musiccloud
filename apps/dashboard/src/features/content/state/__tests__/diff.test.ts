@@ -16,7 +16,6 @@ describe("buildBulkPayload", () => {
       meta: { pages: {} },
       content: { pages: {} },
       segments: { byOwner: {} },
-      translations: { byPage: {} },
       sidebar: { initial: [], current: [] },
     });
     expect(p).toEqual({});
@@ -34,7 +33,6 @@ describe("buildBulkPayload", () => {
       },
       content: { pages: {} },
       segments: { byOwner: {} },
-      translations: { byPage: {} },
       sidebar: { initial: [], current: [] },
     });
     expect(p.pages).toEqual([{ slug: "info", meta: { title: "B" } }]);
@@ -52,7 +50,6 @@ describe("buildBulkPayload", () => {
       },
       content: { pages: { info: { initial: "# old", current: "# new" } } },
       segments: { byOwner: {} },
-      translations: { byPage: {} },
       sidebar: { initial: [], current: [] },
     });
     expect(p.pages).toEqual([{ slug: "info", meta: { title: "B" }, content: "# new" }]);
@@ -89,7 +86,6 @@ describe("buildBulkPayload", () => {
       content: { pages: {} },
       publications,
       segments: { byOwner: {} },
-      translations: { byPage: {} },
       sidebar: { initial: [], current: [] },
     });
 
@@ -122,7 +118,6 @@ describe("buildBulkPayload", () => {
       meta: { pages: {} },
       content: { pages: {} },
       segments: { byOwner: {} },
-      translations: { byPage: {} },
       sidebar: { initial: ["a", "b"], current: ["a", "b"] },
     });
     expect(clean.topLevelOrder).toBeUndefined();
@@ -130,7 +125,6 @@ describe("buildBulkPayload", () => {
       meta: { pages: {} },
       content: { pages: {} },
       segments: { byOwner: {} },
-      translations: { byPage: {} },
       sidebar: { initial: ["a", "b"], current: ["b", "a"] },
     });
     expect(dirty.topLevelOrder).toEqual(["b", "a"]);
@@ -143,19 +137,18 @@ describe("buildBulkPayload", () => {
       segments: {
         byOwner: {
           info: {
-            initial: [{ position: 0, label: { en: "A" }, targetSlug: "a" }],
+            initial: [{ position: 0, label: "A", targetSlug: "a" }],
             current: [
-              { position: 0, label: { en: "A" }, targetSlug: "a" },
-              { position: 1, label: { en: "B", de: "B DE" }, targetSlug: "b" },
+              { position: 0, label: "A", targetSlug: "a" },
+              { position: 1, label: "B", targetSlug: "b" },
             ],
           },
           help: {
-            initial: [{ position: 0, label: { en: "X" }, targetSlug: "x" }],
-            current: [{ position: 0, label: { en: "X" }, targetSlug: "x" }],
+            initial: [{ position: 0, label: "X", targetSlug: "x" }],
+            current: [{ position: 0, label: "X", targetSlug: "x" }],
           },
         },
       },
-      translations: { byPage: {} },
       sidebar: { initial: [], current: [] },
     });
     expect(p.segments).toHaveLength(1);
@@ -165,87 +158,26 @@ describe("buildBulkPayload", () => {
       position: 1,
       label: "B",
       targetSlug: "b",
-      translations: { de: "B DE" },
     });
   });
 
-  it("emits pageTranslations for each dirty (slug, locale)", () => {
-    const p = buildBulkPayload({
-      meta: { pages: {} },
-      content: { pages: {} },
-      segments: { byOwner: {} },
-      translations: {
-        byPage: {
-          info: {
-            de: { initial: { title: "A" }, current: { title: "A2" } },
-            fr: { initial: { title: "B" }, current: { title: "B" } },
-          },
-        },
-      },
-      sidebar: { initial: [], current: [] },
-    });
-    expect(p.pageTranslations).toEqual([expect.objectContaining({ slug: "info", locale: "de", title: "A2" })]);
-  });
-
-  it("keeps explicit empty segment translations in the payload", () => {
+  it("emits only canonical segment fields", () => {
     const p = buildBulkPayload({
       meta: { pages: {} },
       content: { pages: {} },
       segments: {
         byOwner: {
           info: {
-            initial: [{ position: 0, label: { en: "A", de: "Alt" }, targetSlug: "a" }],
-            current: [{ position: 0, label: { en: "A", de: "" }, targetSlug: "a" }],
+            initial: [{ position: 0, label: "A", targetSlug: "a" }],
+            current: [{ position: 0, label: "B", targetSlug: "a" }],
           },
         },
       },
-      translations: { byPage: {} },
-      sidebar: { initial: [], current: [] },
-    });
-
-    expect(p.segments![0].segments[0]).toEqual({
-      position: 0,
-      label: "A",
-      targetSlug: "a",
-      translations: { de: "" },
-    });
-  });
-
-  it("omits segment translations when no non-default locale is loaded", () => {
-    const p = buildBulkPayload({
-      meta: { pages: {} },
-      content: { pages: {} },
-      segments: {
-        byOwner: {
-          info: {
-            initial: [{ position: 0, label: { en: "A" }, targetSlug: "a" }],
-            current: [{ position: 0, label: { en: "B" }, targetSlug: "a" }],
-          },
-        },
-      },
-      translations: { byPage: {} },
       sidebar: { initial: [], current: [] },
     });
 
     expect(p.segments![0].segments[0]).toEqual({ position: 0, label: "B", targetSlug: "a" });
-  });
-
-  it("does not emit slug or page meta for non-default title edits", () => {
-    const p = buildBulkPayload({
-      meta: { pages: {} },
-      content: { pages: {} },
-      segments: { byOwner: {} },
-      translations: {
-        byPage: {
-          info: {
-            de: { initial: { title: "Artists" }, current: { title: "Kuenstler" } },
-          },
-        },
-      },
-      sidebar: { initial: [], current: [] },
-    });
-
-    expect(p.pages).toBeUndefined();
-    expect(p.pageTranslations).toEqual([{ slug: "info", locale: "de", title: "Kuenstler" }]);
+    expect(p).not.toHaveProperty("pageTranslations");
+    expect(p.segments![0].segments[0]).not.toHaveProperty("translations");
   });
 });
