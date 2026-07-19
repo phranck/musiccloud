@@ -28,6 +28,7 @@ import { generateShortId } from "../../lib/short-id.js";
 import { isAlreadyIngested } from "./dedupe.js";
 import { ingestCandidate } from "./ingest.js";
 import { getCrawlerSource, listCrawlerSources } from "./registry.js";
+import { validateCrawlerSourceExecution } from "./types.js";
 
 /** Stale-detection window for `acquireCrawlLock`. Prior heartbeat crashes
  *  or mid-run kills leave `running_since` non-null; a tick older than this
@@ -103,9 +104,11 @@ async function runSourceTick(state: CrawlStateRecord): Promise<void> {
   let fetchError: string | undefined;
 
   try {
-    const result = await source.fetch(state.config, state.cursor ?? null);
+    const config = validateCrawlerSourceExecution(source, state.config);
+    const result = await source.fetch(config, state.cursor ?? null);
     nextCursor = result.nextCursor;
-    discovered = result.candidates.length;
+    skipped = result.skipped ?? 0;
+    discovered = result.candidates.length + skipped;
 
     for (const candidate of result.candidates) {
       if (await isAlreadyIngested(candidate)) {

@@ -17,7 +17,12 @@
  * sleep 250 ms between genre calls — well under the soft cap and still
  * runs all 11 genres in under 3 seconds per tick.
  */
-import type { Candidate, CrawlerSource, CrawlerSourceFetchResult } from "../types.js";
+import {
+  type Candidate,
+  type CrawlerSource,
+  CrawlerSourceConfigurationError,
+  type CrawlerSourceFetchResult,
+} from "../types.js";
 
 interface DeezerChartTrackResponse {
   data?: Array<{
@@ -28,19 +33,50 @@ interface DeezerChartTrackResponse {
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+const DEFAULT_CONFIG = {
+  genres: [0, 132, 116, 152, 113, 165, 153, 144, 75, 84, 464],
+  limit: 100,
+} as const;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseDeezerChartsConfig(config: unknown): { genres: number[]; limit: number } {
+  if (!isRecord(config)) throw new CrawlerSourceConfigurationError("Crawler source configuration is invalid.");
+  if (Object.keys(config).some((key) => key !== "genres" && key !== "limit")) {
+    throw new CrawlerSourceConfigurationError("Crawler source configuration is invalid.");
+  }
+
+  // Keep the historic direct-fetch fallback. Fresh persisted rows receive
+  // DEFAULT_CONFIG during seeding, while an older empty config still means
+  // the global chart only.
+  const genres = config.genres ?? [0];
+  const limit = config.limit ?? DEFAULT_CONFIG.limit;
+  if (
+    !Array.isArray(genres) ||
+    !genres.every((genre) => typeof genre === "number" && Number.isInteger(genre) && genre >= 0) ||
+    typeof limit !== "number" ||
+    !Number.isInteger(limit) ||
+    limit < 1
+  ) {
+    throw new CrawlerSourceConfigurationError("Crawler source configuration is invalid.");
+  }
+
+  return { genres: [...genres], limit };
+}
+
 export const deezerChartsSource: CrawlerSource = {
   id: "deezer-charts",
   displayName: "Deezer Charts",
   defaultIntervalMinutes: 360,
   defaultEnabled: true,
-  defaultConfig: {
-    genres: [0, 132, 116, 152, 113, 165, 153, 144, 75, 84, 464],
-    limit: 100,
-  },
+  defaultConfig: DEFAULT_CONFIG,
+  parseConfig: parseDeezerChartsConfig,
+  assertAvailable: () => undefined,
 
   async fetch(config: Record<string, unknown>): Promise<CrawlerSourceFetchResult> {
-    const genres = (config.genres as number[] | undefined) ?? [0];
-    const limit = (config.limit as number | undefined) ?? 100;
+    const { genres, limit } = parseDeezerChartsConfig(config);
 
     const candidates: Candidate[] = [];
     for (const genreId of genres) {

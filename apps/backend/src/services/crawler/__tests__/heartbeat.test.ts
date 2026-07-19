@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CrawlStateRecord, TrackRepository } from "../../../db/repository.js";
-import type { CrawlerSource } from "../types.js";
+import { type CrawlerSource, CrawlerSourceConfigurationError } from "../types.js";
 
 const mockRepo = {
   seedCrawlState: vi.fn(),
@@ -23,12 +23,17 @@ vi.mock("../ingest.js", () => ({
   ingestCandidate: vi.fn(),
 }));
 
+const parseConfigMock = vi.fn((config: unknown) => config as Record<string, unknown>);
+const assertAvailableMock = vi.fn();
+
 const mockSource: CrawlerSource = {
   id: "test-source",
   displayName: "Test Source",
   defaultIntervalMinutes: 360,
   defaultEnabled: true,
   defaultConfig: {},
+  parseConfig: parseConfigMock,
+  assertAvailable: assertAvailableMock,
   fetch: vi.fn(),
 };
 
@@ -66,6 +71,9 @@ beforeEach(() => {
   mockRepo.completeCrawlTick.mockResolvedValue(undefined);
   vi.mocked(isAlreadyIngested).mockResolvedValue(false);
   vi.mocked(ingestCandidate).mockResolvedValue("ingested");
+  parseConfigMock.mockReset();
+  parseConfigMock.mockImplementation((config: unknown) => config as Record<string, unknown>);
+  assertAvailableMock.mockReset();
   (mockSource.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ candidates: [], nextCursor: null });
 });
 
@@ -154,9 +162,44 @@ describe("runHeartbeat: successful tick", () => {
     // A per-candidate error does NOT make the whole tick fail.
     expect(mockRepo.completeCrawlTick).toHaveBeenCalledWith("test-source", expect.objectContaining({ success: true }));
   });
+
+  it("includes source-level malformed or duplicate drops in discovered and skipped counters", async () => {
+    mockRepo.listDueCrawlState.mockResolvedValueOnce([baseStateRow]);
+    (mockSource.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      candidates: [{ kind: "search", title: "Track", artist: "Artist" }],
+      skipped: 2,
+      nextCursor: null,
+    });
+
+    await runHeartbeat();
+
+    expect(mockRepo.finalizeCrawlRun).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ status: "success", discovered: 3, ingested: 1, skipped: 2, errors: 0 }),
+    );
+  });
 });
 
 describe("runHeartbeat: source-fetch failure", () => {
+  it("turns source configuration or availability failures into a normal failed run", async () => {
+    mockRepo.listDueCrawlState.mockResolvedValueOnce([baseStateRow]);
+    parseConfigMock.mockImplementationOnce(() => {
+      throw new CrawlerSourceConfigurationError("Crawler source configuration is incomplete.");
+    });
+
+    await runHeartbeat();
+
+    expect(mockSource.fetch).not.toHaveBeenCalled();
+    expect(mockRepo.finalizeCrawlRun).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ status: "error", notes: "Crawler source configuration is incomplete." }),
+    );
+    expect(mockRepo.completeCrawlTick).toHaveBeenCalledWith(
+      "test-source",
+      expect.objectContaining({ success: false, errorMessage: "Crawler source configuration is incomplete." }),
+    );
+  });
+
   it("records crawl_runs.status=error and propagates errorMessage to completeCrawlTick", async () => {
     mockRepo.listDueCrawlState.mockResolvedValueOnce([baseStateRow]);
     (mockSource.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("Deezer 503"));
