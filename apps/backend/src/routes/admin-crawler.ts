@@ -27,7 +27,9 @@ import {
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
 import type { CrawlRunRecord, CrawlStateRecord } from "../db/repository.js";
+import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { getCrawlerSource, listCrawlerSources } from "../services/crawler/registry.js";
+import { CrawlerSourceConfigurationError, validateCrawlerSourceExecution } from "../services/crawler/types.js";
 
 function rowToSourceInfo(row: CrawlStateRecord): CrawlerSourceInfo {
   return {
@@ -86,6 +88,18 @@ interface SourcePatchBody {
   cursor?: unknown;
 }
 
+function invalidRequest(message: string) {
+  return createApiErrorResponse("MC-REQ-0001", { overrideMessage: message });
+}
+
+function missingSource() {
+  return createApiErrorResponse("MC-RES-0003", { overrideMessage: "Crawler source was not found." });
+}
+
+function configErrorPayload(error: CrawlerSourceConfigurationError) {
+  return invalidRequest(error.message);
+}
+
 export default async function adminCrawlerRoutes(app: FastifyInstance) {
   app.get(ENDPOINTS.admin.crawler.sources, async () => {
     return listAllSources();
@@ -95,16 +109,22 @@ export default async function adminCrawlerRoutes(app: FastifyInstance) {
     ROUTE_TEMPLATES.admin.crawler.sourceDetail,
     async (request, reply) => {
       const { id } = request.params;
-      if (!getCrawlerSource(id)) {
-        return reply.status(404).send({ error: "NOT_FOUND", message: `Unknown crawler source: ${id}` });
+      const source = getCrawlerSource(id);
+      if (!source) {
+        return reply.status(404).send(missingSource());
       }
 
       const body = request.body ?? {};
       const patch: Parameters<Awaited<ReturnType<typeof getRepository>>["updateCrawlState"]>[1] = {};
+      const repo = await getRepository();
+      const existing = await repo.findCrawlState(id);
+      if (!existing) {
+        return reply.status(404).send(missingSource());
+      }
 
       if (body.enabled !== undefined) {
         if (typeof body.enabled !== "boolean") {
-          return reply.status(400).send({ error: "INVALID_BODY", message: "`enabled` must be boolean." });
+          return reply.status(400).send(invalidRequest("Invalid crawler source request."));
         }
         patch.enabled = body.enabled;
       }
@@ -114,27 +134,32 @@ export default async function adminCrawlerRoutes(app: FastifyInstance) {
           body.intervalMinutes < 1 ||
           !Number.isFinite(body.intervalMinutes)
         ) {
-          return reply
-            .status(400)
-            .send({ error: "INVALID_BODY", message: "`intervalMinutes` must be a positive number." });
+          return reply.status(400).send(invalidRequest("Invalid crawler source request."));
         }
         patch.intervalMinutes = Math.floor(body.intervalMinutes);
       }
-      if (body.config !== undefined) {
-        if (typeof body.config !== "object" || body.config === null || Array.isArray(body.config)) {
-          return reply.status(400).send({ error: "INVALID_BODY", message: "`config` must be an object." });
+      try {
+        if (body.config !== undefined) {
+          patch.config = source.parseConfig(body.config);
         }
-        patch.config = body.config as Record<string, unknown>;
+        const effectiveEnabled = patch.enabled ?? existing.enabled;
+        if (effectiveEnabled) {
+          const normalizedConfig = validateCrawlerSourceExecution(source, patch.config ?? existing.config);
+          if (patch.enabled === true || patch.config !== undefined) patch.config = normalizedConfig;
+        }
+      } catch (error) {
+        if (error instanceof CrawlerSourceConfigurationError) {
+          return reply.status(400).send(configErrorPayload(error));
+        }
+        throw error;
       }
       if (body.cursor !== undefined) {
         // cursor accepts any JSON-serialisable value, including null.
         patch.cursor = body.cursor;
       }
-
-      const repo = await getRepository();
       const updated = await repo.updateCrawlState(id, patch);
       if (!updated) {
-        return reply.status(404).send({ error: "NOT_FOUND", message: `Source row not found: ${id}` });
+        return reply.status(404).send(missingSource());
       }
       return rowToSourceInfo(updated);
     },
@@ -142,13 +167,26 @@ export default async function adminCrawlerRoutes(app: FastifyInstance) {
 
   app.post<{ Params: { id: string } }>(ROUTE_TEMPLATES.admin.crawler.sourceRunNow, async (request, reply) => {
     const { id } = request.params;
-    if (!getCrawlerSource(id)) {
-      return reply.status(404).send({ error: "NOT_FOUND", message: `Unknown crawler source: ${id}` });
+    const source = getCrawlerSource(id);
+    if (!source) {
+      return reply.status(404).send(missingSource());
     }
     const repo = await getRepository();
+    const existing = await repo.findCrawlState(id);
+    if (!existing) {
+      return reply.status(404).send(missingSource());
+    }
+    try {
+      validateCrawlerSourceExecution(source, existing.config);
+    } catch (error) {
+      if (error instanceof CrawlerSourceConfigurationError) {
+        return reply.status(400).send(configErrorPayload(error));
+      }
+      throw error;
+    }
     const updated = await repo.updateCrawlState(id, { nextRunAt: new Date() });
     if (!updated) {
-      return reply.status(404).send({ error: "NOT_FOUND", message: `Source row not found: ${id}` });
+      return reply.status(404).send(missingSource());
     }
     return rowToSourceInfo(updated);
   });
@@ -156,12 +194,12 @@ export default async function adminCrawlerRoutes(app: FastifyInstance) {
   app.post<{ Params: { id: string } }>(ROUTE_TEMPLATES.admin.crawler.sourceReleaseLock, async (request, reply) => {
     const { id } = request.params;
     if (!getCrawlerSource(id)) {
-      return reply.status(404).send({ error: "NOT_FOUND", message: `Unknown crawler source: ${id}` });
+      return reply.status(404).send(missingSource());
     }
     const repo = await getRepository();
     const updated = await repo.updateCrawlState(id, { runningSince: null });
     if (!updated) {
-      return reply.status(404).send({ error: "NOT_FOUND", message: `Source row not found: ${id}` });
+      return reply.status(404).send(missingSource());
     }
     return rowToSourceInfo(updated);
   });
@@ -173,9 +211,7 @@ export default async function adminCrawlerRoutes(app: FastifyInstance) {
       const page = pageStr ? Math.max(1, parseInt(pageStr, 10)) : 1;
       const limit = limitStr ? Math.min(200, Math.max(1, parseInt(limitStr, 10))) : 50;
       if (!Number.isFinite(page) || !Number.isFinite(limit)) {
-        return reply
-          .status(400)
-          .send({ error: "INVALID_QUERY", message: "`page` and `limit` must be positive integers." });
+        return reply.status(400).send(invalidRequest("Invalid crawler source request."));
       }
 
       const repo = await getRepository();
