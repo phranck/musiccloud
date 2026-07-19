@@ -179,6 +179,16 @@ describe("appleMusicChartsSource.fetch", () => {
   it.each([
     ["HTTP failure", () => jsonResponse({ message: "Authorization: Bearer top-secret" }, 503)],
     ["timeout", () => Promise.reject(new Error("Bearer top-secret"))],
+    [
+      "JSON failure",
+      () =>
+        ({
+          ok: true,
+          status: 200,
+          json: () => Promise.reject(new Error("Bearer top-secret")),
+          headers: new Headers(),
+        }) as unknown as Response,
+    ],
     ["malformed chart response", () => jsonResponse({ results: { songs: {} } })],
   ])("fails the complete source fetch safely on %s", async (_label, response) => {
     appleMusicFetchMock.mockImplementationOnce(response);
