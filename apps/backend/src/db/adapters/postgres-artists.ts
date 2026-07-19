@@ -51,7 +51,6 @@ import {
   ensureArtistEntityForName,
   ensureArtistEntityName,
   insertExternalIds,
-  msToDate,
   safeParseArray,
   safeParseJson,
 } from "./postgres-shared.js";
@@ -638,6 +637,9 @@ export async function saveArtistCache(pool: Pool, data: ArtistCacheData): Promis
   const hasProfile = Object.hasOwn(data, "profile");
   const hasTopTracks = Object.hasOwn(data, "topTracks");
   const hasEvents = Object.hasOwn(data, "events");
+  const profileUpdatedAt = hasProfile ? new Date(data.profileUpdatedAt ?? now.getTime()) : null;
+  const tracksUpdatedAt = hasTopTracks ? new Date(data.tracksUpdatedAt ?? now.getTime()) : null;
+  const eventsUpdatedAt = hasEvents ? new Date(data.eventsUpdatedAt ?? now.getTime()) : null;
 
   await pool.query(
     `INSERT INTO artist_cache (
@@ -647,12 +649,12 @@ export async function saveArtistCache(pool: Pool, data: ArtistCacheData): Promis
     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     ON CONFLICT (id) DO UPDATE SET
       artist_name = EXCLUDED.artist_name,
-      profile = CASE WHEN $11 THEN EXCLUDED.profile ELSE artist_cache.profile END,
-      top_tracks = CASE WHEN $12 THEN EXCLUDED.top_tracks ELSE artist_cache.top_tracks END,
-      events = CASE WHEN $13 THEN EXCLUDED.events ELSE artist_cache.events END,
-      profile_updated_at = CASE WHEN $11 THEN EXCLUDED.profile_updated_at ELSE artist_cache.profile_updated_at END,
-      tracks_updated_at = CASE WHEN $12 THEN EXCLUDED.tracks_updated_at ELSE artist_cache.tracks_updated_at END,
-      events_updated_at = CASE WHEN $13 THEN EXCLUDED.events_updated_at ELSE artist_cache.events_updated_at END,
+      profile = CASE WHEN $11 AND (artist_cache.profile_updated_at IS NULL OR artist_cache.profile_updated_at <= EXCLUDED.profile_updated_at) THEN EXCLUDED.profile ELSE artist_cache.profile END,
+      top_tracks = CASE WHEN $12 AND (artist_cache.tracks_updated_at IS NULL OR artist_cache.tracks_updated_at <= EXCLUDED.tracks_updated_at) THEN EXCLUDED.top_tracks ELSE artist_cache.top_tracks END,
+      events = CASE WHEN $13 AND (artist_cache.events_updated_at IS NULL OR artist_cache.events_updated_at <= EXCLUDED.events_updated_at) THEN EXCLUDED.events ELSE artist_cache.events END,
+      profile_updated_at = CASE WHEN $11 AND (artist_cache.profile_updated_at IS NULL OR artist_cache.profile_updated_at <= EXCLUDED.profile_updated_at) THEN EXCLUDED.profile_updated_at ELSE artist_cache.profile_updated_at END,
+      tracks_updated_at = CASE WHEN $12 AND (artist_cache.tracks_updated_at IS NULL OR artist_cache.tracks_updated_at <= EXCLUDED.tracks_updated_at) THEN EXCLUDED.tracks_updated_at ELSE artist_cache.tracks_updated_at END,
+      events_updated_at = CASE WHEN $13 AND (artist_cache.events_updated_at IS NULL OR artist_cache.events_updated_at <= EXCLUDED.events_updated_at) THEN EXCLUDED.events_updated_at ELSE artist_cache.events_updated_at END,
       updated_at = EXCLUDED.updated_at`,
     [
       id,
@@ -660,9 +662,9 @@ export async function saveArtistCache(pool: Pool, data: ArtistCacheData): Promis
       hasProfile && data.profile ? JSON.stringify(data.profile) : null,
       hasTopTracks && data.topTracks ? JSON.stringify(data.topTracks) : null,
       hasEvents && data.events ? JSON.stringify(data.events) : null,
-      data.profileUpdatedAt ? msToDate(data.profileUpdatedAt) : null,
-      data.tracksUpdatedAt ? msToDate(data.tracksUpdatedAt) : null,
-      data.eventsUpdatedAt ? msToDate(data.eventsUpdatedAt) : null,
+      profileUpdatedAt,
+      tracksUpdatedAt,
+      eventsUpdatedAt,
       now,
       now,
       hasProfile,
