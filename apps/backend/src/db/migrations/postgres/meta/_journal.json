@@ -575,6 +575,13 @@
       "when": 1784489028000,
       "tag": "0081_unusual_squirrel_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1784494802007,
+      "tag": "0082_chubby_maverick",
+      "breakpoints": true
     }
   ]
 }

@@ -66,10 +66,7 @@ export const MUSICCLOUD_READINESS_TABLES = [
   "content_pages",
   "content_page_publications",
   "page_segments",
-  "content_page_translations",
-  "page_segment_translations",
   "nav_items",
-  "nav_item_translations",
   "navigation_item_placements",
   "developer_accounts",
   "developer_subscriptions",
@@ -88,10 +85,7 @@ const CONTEXTUAL_EDITORIAL_WRITE_TABLES = [
   "content_pages",
   "content_page_publications",
   "page_segments",
-  "content_page_translations",
-  "page_segment_translations",
   "nav_items",
-  "nav_item_translations",
   "navigation_item_placements",
 ] as const;
 const DEVELOPER_API_WRITE_TABLES = [

@@ -19,7 +19,6 @@
     "lint": "biome check apps packages",
     "lint:fix": "biome check --write apps packages",
     "format": "biome format --write apps packages",
-    "audit:content-i18n": "node scripts/audit-content-i18n.mjs",
     "docs:landingpage": "node scripts/generate-landingpage-structure.mjs",
     "openapi:export": "pnpm --filter @musiccloud/backend run openapi:export",
     "sdk:generate": "node scripts/generate-sdk-release.mjs --contract-dir .tmp/openapi --out-dir .tmp/sdk --source-sha $(git rev-parse HEAD)",

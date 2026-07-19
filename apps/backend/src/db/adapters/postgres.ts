@@ -660,7 +660,6 @@ export class PostgresAdapter
     passwordHash: string;
     email?: string;
     role?: string;
-    locale?: string;
     inviteTokenHash?: string;
     inviteExpiresAt?: Date;
   }): Promise<void> {
@@ -688,7 +687,6 @@ export class PostgresAdapter
       firstName: string | null;
       lastName: string | null;
       avatarUrl: string | null;
-      locale: string;
       role: string;
       sessionTimeoutMinutes: number | null;
     }>,
