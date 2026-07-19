@@ -1,4 +1,6 @@
 import type {
+  AdminArtistListItem,
+  ArtistProfileRefreshOutcome,
   ContentCardStyle,
   ContentContextMask,
   ContentPublication,
@@ -62,16 +64,21 @@ export interface AlbumListItem {
   shortId: string | null;
 }
 
-/** Artist list item shape returned or accepted by the database repository layer. */
-export interface ArtistListItem {
+/** Shared artist list row enriched with profile-cache observability. */
+export type ArtistListItem = AdminArtistListItem;
+
+/** Internal persistence shape for one Dashboard-triggered profile refresh attempt. */
+export interface ArtistProfileRefreshEvent {
   id: string;
-  name: string;
-  imageUrl: string | null;
-  genres: string[];
-  sourceService: string | null;
-  linkCount: number;
-  createdAt: number;
-  shortId: string | null;
+  actorAdminId: string;
+  artistEntityId: string;
+  trigger: "manual";
+  occurredAt: Date;
+  completedAt: Date | null;
+  outcome: ArtistProfileRefreshOutcome;
+  errorCode: string | null;
+  errorId: string | null;
+  cause: string | null;
 }
 
 /** Artist entity list item shape returned or accepted by the database repository layer. */
@@ -616,6 +623,27 @@ export interface AdminRepository {
    * @throws If the shortId is unknown.
    */
   invalidateArtistCache(shortId: string): Promise<{ ok: true }>;
+
+  /** Inserts the sole audit row for an accepted manual artist profile refresh. */
+  beginArtistProfileRefresh(data: {
+    actorAdminId: string;
+    artistEntityId: string;
+    occurredAt: Date;
+  }): Promise<ArtistProfileRefreshEvent>;
+
+  /** Transitions a refreshing audit row to succeeded exactly once. */
+  completeArtistProfileRefresh(id: string, completedAt: Date): Promise<ArtistProfileRefreshEvent>;
+
+  /** Transitions a refreshing audit row to failed with safe redacted metadata. */
+  failArtistProfileRefresh(
+    id: string,
+    data: {
+      completedAt: Date;
+      errorCode: string;
+      errorId: string;
+      cause: string;
+    },
+  ): Promise<ArtistProfileRefreshEvent>;
 
   /**
    * Bulk version of the above — stales every track/album/artist row. Shares

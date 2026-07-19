@@ -9,6 +9,7 @@ import type {
   AlbumListItem,
   ArtistEntityListItem,
   ArtistListItem,
+  ArtistProfileRefreshEvent,
   BulkUpdatePagesPayload,
   ContentPageCreateData,
   ContentPageMetaUpdate,
@@ -167,6 +168,11 @@ import {
   updateApiClient as apiAccessUpdateClient,
   updateDeveloperProject as apiAccessUpdateDeveloperProject,
 } from "./postgres-api-access.js";
+import {
+  beginArtistProfileRefresh as artistProfileRefreshBegin,
+  completeArtistProfileRefresh as artistProfileRefreshComplete,
+  failArtistProfileRefresh as artistProfileRefreshFail,
+} from "./postgres-artist-profile-refresh.js";
 import {
   addArtistExternalIds as artistsAddArtistExternalIds,
   addLinksToArtist as artistsAddLinksToArtist,
@@ -787,6 +793,30 @@ export class PostgresAdapter
 
   invalidateArtistCache(shortId: string): Promise<{ ok: true }> {
     return adminCatalogInvalidateArtistCache(this.pool, shortId);
+  }
+
+  beginArtistProfileRefresh(data: {
+    actorAdminId: string;
+    artistEntityId: string;
+    occurredAt: Date;
+  }): Promise<ArtistProfileRefreshEvent> {
+    return artistProfileRefreshBegin(this.pool, data);
+  }
+
+  completeArtistProfileRefresh(id: string, completedAt: Date): Promise<ArtistProfileRefreshEvent> {
+    return artistProfileRefreshComplete(this.pool, id, completedAt);
+  }
+
+  failArtistProfileRefresh(
+    id: string,
+    data: {
+      completedAt: Date;
+      errorCode: string;
+      errorId: string;
+      cause: string;
+    },
+  ): Promise<ArtistProfileRefreshEvent> {
+    return artistProfileRefreshFail(this.pool, id, data);
   }
 
   invalidateAllCaches(): Promise<{ tracks: number; albums: number; artists: number }> {

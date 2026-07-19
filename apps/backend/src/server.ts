@@ -25,6 +25,7 @@ import { registerApiErrorHandling, setApiFailureDiagnostic } from "./lib/infra/a
 import { createApiErrorResponse, sanitizeErrorForLog } from "./lib/infra/api-errors.js";
 import authPlugin from "./plugins/auth.js";
 import { adminApiAccessRoutes } from "./routes/admin-api-access.js";
+import adminArtistProfileRoutes from "./routes/admin-artist-profile.js";
 import adminAuthRoutes from "./routes/admin-auth.js";
 import adminContentRoutes from "./routes/admin-content.js";
 import adminCrawlerRoutes from "./routes/admin-crawler.js";
@@ -626,6 +627,7 @@ async function buildApp(options: BuildAppOptions = {}) {
   await app.register(async function adminRoutes(adminApp) {
     adminApp.addHook("preHandler", adminApp.authenticateAdmin);
     await adminApp.register(adminApiAccessRoutes);
+    await adminApp.register(adminArtistProfileRoutes);
     await adminApp.register(adminTiersRoutes);
     await adminApp.register(adminContentRoutes);
     await adminApp.register(adminDataRoutes);

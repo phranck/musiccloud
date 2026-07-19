@@ -1,4 +1,5 @@
 export * from "./api.js";
+export * from "./artist-profile-cache.js";
 export * from "./audio-format.js";
 export * from "./color.js";
 export * from "./content.js";

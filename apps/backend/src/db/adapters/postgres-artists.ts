@@ -26,6 +26,7 @@
  *     tracks + albums (see `postgres-shared.ts`).
  */
 
+import type { ArtistProfileProvider } from "@musiccloud/shared";
 import type { Pool } from "pg";
 import { CACHE_TTL_MS } from "../../lib/config.js";
 import { generateShortId } from "../../lib/short-id.js";
@@ -95,6 +96,7 @@ interface ArtistCacheRowDb {
   artist_name: string;
   top_tracks: string | null;
   profile: string | null;
+  profile_providers: string[] | null;
   events: string | null;
   tracks_updated_at: Date | null;
   profile_updated_at: Date | null;
@@ -542,7 +544,7 @@ export async function addArtistExternalIds(pool: Pool, artistId: string, records
  */
 export async function findArtistCache(pool: Pool, identity: ArtistCacheIdentity): Promise<ArtistCacheRow | null> {
   const result = await pool.query(
-    `SELECT artist_name, profile, top_tracks, events,
+    `SELECT artist_name, profile, profile_providers, top_tracks, events,
             profile_updated_at, tracks_updated_at, events_updated_at
      FROM artist_cache WHERE id = $1`,
     [artistCacheId(identity)],
@@ -554,6 +556,7 @@ export async function findArtistCache(pool: Pool, identity: ArtistCacheIdentity)
   return {
     artistName: row.artist_name,
     profile: safeParseJson(row.profile, null),
+    profileProviders: (row.profile_providers ?? []).filter(isArtistProfileProvider),
     topTracks: safeParseJson(row.top_tracks, []),
     events: safeParseJson(row.events, []),
     profileUpdatedAt: row.profile_updated_at ? dateToMs(row.profile_updated_at) : 0,
@@ -643,23 +646,25 @@ export async function saveArtistCache(pool: Pool, data: ArtistCacheData): Promis
 
   await pool.query(
     `INSERT INTO artist_cache (
-      id, artist_name, profile, top_tracks, events,
+      id, artist_name, profile, profile_providers, top_tracks, events,
       profile_updated_at, tracks_updated_at, events_updated_at,
       created_at, updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     ON CONFLICT (id) DO UPDATE SET
       artist_name = EXCLUDED.artist_name,
-      profile = CASE WHEN $11 AND (artist_cache.profile_updated_at IS NULL OR artist_cache.profile_updated_at <= EXCLUDED.profile_updated_at) THEN EXCLUDED.profile ELSE artist_cache.profile END,
-      top_tracks = CASE WHEN $12 AND (artist_cache.tracks_updated_at IS NULL OR artist_cache.tracks_updated_at <= EXCLUDED.tracks_updated_at) THEN EXCLUDED.top_tracks ELSE artist_cache.top_tracks END,
-      events = CASE WHEN $13 AND (artist_cache.events_updated_at IS NULL OR artist_cache.events_updated_at <= EXCLUDED.events_updated_at) THEN EXCLUDED.events ELSE artist_cache.events END,
-      profile_updated_at = CASE WHEN $11 AND (artist_cache.profile_updated_at IS NULL OR artist_cache.profile_updated_at <= EXCLUDED.profile_updated_at) THEN EXCLUDED.profile_updated_at ELSE artist_cache.profile_updated_at END,
-      tracks_updated_at = CASE WHEN $12 AND (artist_cache.tracks_updated_at IS NULL OR artist_cache.tracks_updated_at <= EXCLUDED.tracks_updated_at) THEN EXCLUDED.tracks_updated_at ELSE artist_cache.tracks_updated_at END,
-      events_updated_at = CASE WHEN $13 AND (artist_cache.events_updated_at IS NULL OR artist_cache.events_updated_at <= EXCLUDED.events_updated_at) THEN EXCLUDED.events_updated_at ELSE artist_cache.events_updated_at END,
+      profile = CASE WHEN $12 AND (artist_cache.profile_updated_at IS NULL OR artist_cache.profile_updated_at <= EXCLUDED.profile_updated_at) THEN EXCLUDED.profile ELSE artist_cache.profile END,
+      profile_providers = CASE WHEN $12 AND (artist_cache.profile_updated_at IS NULL OR artist_cache.profile_updated_at <= EXCLUDED.profile_updated_at) THEN EXCLUDED.profile_providers ELSE artist_cache.profile_providers END,
+      top_tracks = CASE WHEN $13 AND (artist_cache.tracks_updated_at IS NULL OR artist_cache.tracks_updated_at <= EXCLUDED.tracks_updated_at) THEN EXCLUDED.top_tracks ELSE artist_cache.top_tracks END,
+      events = CASE WHEN $14 AND (artist_cache.events_updated_at IS NULL OR artist_cache.events_updated_at <= EXCLUDED.events_updated_at) THEN EXCLUDED.events ELSE artist_cache.events END,
+      profile_updated_at = CASE WHEN $12 AND (artist_cache.profile_updated_at IS NULL OR artist_cache.profile_updated_at <= EXCLUDED.profile_updated_at) THEN EXCLUDED.profile_updated_at ELSE artist_cache.profile_updated_at END,
+      tracks_updated_at = CASE WHEN $13 AND (artist_cache.tracks_updated_at IS NULL OR artist_cache.tracks_updated_at <= EXCLUDED.tracks_updated_at) THEN EXCLUDED.tracks_updated_at ELSE artist_cache.tracks_updated_at END,
+      events_updated_at = CASE WHEN $14 AND (artist_cache.events_updated_at IS NULL OR artist_cache.events_updated_at <= EXCLUDED.events_updated_at) THEN EXCLUDED.events_updated_at ELSE artist_cache.events_updated_at END,
       updated_at = EXCLUDED.updated_at`,
     [
       id,
       data.artistName,
       hasProfile && data.profile ? JSON.stringify(data.profile) : null,
+      hasProfile ? (data.profileProviders ?? []) : [],
       hasTopTracks && data.topTracks ? JSON.stringify(data.topTracks) : null,
       hasEvents && data.events ? JSON.stringify(data.events) : null,
       profileUpdatedAt,
@@ -672,6 +677,10 @@ export async function saveArtistCache(pool: Pool, data: ArtistCacheData): Promis
       hasEvents,
     ],
   );
+}
+
+function isArtistProfileProvider(value: string): value is ArtistProfileProvider {
+  return value === "spotify" || value === "deezer" || value === "lastfm";
 }
 
 /**

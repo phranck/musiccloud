@@ -58,7 +58,7 @@
  * after the cache entry was written, and the card should show the
  * short-link immediately once the resolve exists.
  */
-import { type ArtistInfoResponse, ENDPOINTS, type SimilarArtistTrack } from "@musiccloud/shared";
+import { ARTIST_PROFILE_TTL_MS, type ArtistInfoResponse, ENDPOINTS, type SimilarArtistTrack } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
@@ -72,8 +72,6 @@ import { sanitizeArtistProfile } from "../services/artist-bio-sanitizer.js";
 import { ArtistInfoSection, artistInfoRefreshCoordinator } from "../services/artist-info-cache.js";
 
 const TTL_TRACKS_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-const TTL_PROFILE_DAYS = Math.round(365 / 2);
-const TTL_PROFILE_MS = TTL_PROFILE_DAYS * 24 * 60 * 60 * 1000; // 183 days
 const TTL_EVENTS_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 /**
@@ -222,7 +220,7 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
       const hasProfile = Boolean(cached && cached.profileUpdatedAt > 0);
       const hasEvents = Boolean(cached && cached.eventsUpdatedAt > 0);
       const staleTracks = hasTracks && now - cached!.tracksUpdatedAt > TTL_TRACKS_MS;
-      const staleProfile = hasProfile && now - cached!.profileUpdatedAt > TTL_PROFILE_MS;
+      const staleProfile = hasProfile && now - cached!.profileUpdatedAt > ARTIST_PROFILE_TTL_MS;
       const staleEvents = hasEvents && now - cached!.eventsUpdatedAt > TTL_EVENTS_MS;
       const synchronousRefreshes: Promise<void>[] = [];
 

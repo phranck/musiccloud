@@ -234,6 +234,9 @@ export const ENDPOINTS = {
       list: "/api/admin/artists",
       /** POST: mark this artist's cached resolution as stale. */
       invalidateCache: (shortId: string) => `/api/admin/artists/${shortId}/invalidate-cache`,
+      /** POST: synchronously refresh only the normalized entity's artist profile cache. */
+      refreshProfile: (artistEntityId: string) =>
+        `/api/admin/artists/${encodeURIComponent(artistEntityId)}/profile/refresh`,
     },
 
     artistEntities: {
@@ -493,6 +496,7 @@ export const ROUTE_TEMPLATES = {
     },
     artists: {
       invalidateCache: "/api/admin/artists/:shortId/invalidate-cache",
+      refreshProfile: "/api/admin/artists/:artistEntityId/profile/refresh",
     },
     plugins: {
       detail: "/api/admin/plugins/:id",

@@ -33,4 +33,11 @@ describe("endpoint catalog", () => {
       "/api/internal/developer/editorial/navigation/footer",
     );
   });
+
+  it("exposes the canonical artist profile refresh endpoint", () => {
+    expect(ENDPOINTS.admin.artists.refreshProfile("entity/with spaces")).toBe(
+      "/api/admin/artists/entity%2Fwith%20spaces/profile/refresh",
+    );
+    expect(ROUTE_TEMPLATES.admin.artists.refreshProfile).toBe("/api/admin/artists/:artistEntityId/profile/refresh");
+  });
 });

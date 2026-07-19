@@ -49,6 +49,8 @@ export const MUSICCLOUD_READINESS_TABLES = [
   "tracks",
   "albums",
   "artist_profiles",
+  "artist_cache",
+  "artist_profile_refresh_events",
   "short_urls",
   "album_short_urls",
   "artist_short_urls",
@@ -101,10 +103,12 @@ const DEVELOPER_API_WRITE_TABLES = [
   "api_access_audit_events",
   "api_usage_events",
 ] as const;
+const ARTIST_PROFILE_WRITE_TABLES = ["artist_cache", "artist_profile_refresh_events"] as const;
 const RUNTIME_WRITE_TABLES = [
   ...VINYL_WRITE_TABLES,
   ...CONTEXTUAL_EDITORIAL_WRITE_TABLES,
   ...DEVELOPER_API_WRITE_TABLES,
+  ...ARTIST_PROFILE_WRITE_TABLES,
 ] as const;
 
 export function buildMusiccloudReadinessExpectations(

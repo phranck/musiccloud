@@ -193,13 +193,21 @@ export interface PersistArtistData {
 
 // ─── Artist Cache Types ───────────────────────────────────────────────────────
 
-import type { ArtistEvent, ArtistProfile, ArtistTopTrack, CcMusicInfo, CcTrackStats } from "@musiccloud/shared";
+import type {
+  ArtistEvent,
+  ArtistProfile,
+  ArtistProfileProvider,
+  ArtistTopTrack,
+  CcMusicInfo,
+  CcTrackStats,
+} from "@musiccloud/shared";
 
 /** Artist cache row shape returned or accepted by the database repository layer. */
 export interface ArtistCacheRow {
   artistName: string;
   topTracks: ArtistTopTrack[];
   profile: ArtistProfile | null;
+  profileProviders: ArtistProfileProvider[];
   events: ArtistEvent[];
   tracksUpdatedAt: number;
   profileUpdatedAt: number;
@@ -217,6 +225,8 @@ export interface ArtistCacheData {
   artistName: string;
   topTracks?: ArtistTopTrack[];
   profile?: ArtistProfile | null;
+  /** Providers that supplied fields to `profile`; written with that section only. */
+  profileProviders?: ArtistProfileProvider[];
   events?: ArtistEvent[];
   profileUpdatedAt?: number;
   tracksUpdatedAt?: number;
