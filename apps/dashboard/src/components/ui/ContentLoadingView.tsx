@@ -1,5 +1,5 @@
 import { SpinnerGap as SpinnerGapIcon } from "@phosphor-icons/react";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 
 interface ContentLoadingViewProps {
   /**
@@ -32,7 +32,7 @@ interface ContentLoadingViewProps {
  * @returns A centered loading view filling the available area.
  */
 export function ContentLoadingView({ title, subtitle, className }: ContentLoadingViewProps) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const label = title ?? messages.common.loading;
 
   return (

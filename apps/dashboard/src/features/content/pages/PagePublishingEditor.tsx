@@ -2,7 +2,7 @@ import { ContentContext, type ContentPage, type SingleContentContext } from "@mu
 import { EyeIcon } from "@phosphor-icons/react";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { PageContextControl } from "@/features/content/pages/PageContextControl";
 import { PageDisplaySettings } from "@/features/content/pages/PageDisplaySettings";
 import { PagePublicationSettings } from "@/features/content/pages/PagePublicationSettings";
@@ -17,7 +17,7 @@ interface PagePublishingEditorProps {
 }
 
 export function PagePublishingEditor({ page, meta, onMetaChange }: PagePublishingEditorProps) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const pageMessages = messages.content.pages;
   const editor = usePagesEditor();
   const publicationPage = editor.publications.pages[page.slug];

@@ -6,7 +6,7 @@ import {
 } from "@musiccloud/dashboard-ui";
 import { SignOutIcon, UserCircleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { UserAvatar } from "@/features/system/UserAvatar";
 import type { AdminRole } from "@/shared/types/admin";
 import { Dialog, dialogHeaderIconClass } from "@/shared/ui/Dialog";
@@ -32,7 +32,7 @@ export function FooterUserInfo({
   onLogout,
   onEditProfile,
 }: FooterUserInfoProps) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const s = messages.layout.sidebar;
   const displayName = [firstName, lastName].filter(Boolean).join(" ") || username;
   const roleLabel: Record<AdminRole, string> = {

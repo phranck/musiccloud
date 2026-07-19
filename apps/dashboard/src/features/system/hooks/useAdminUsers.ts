@@ -44,7 +44,6 @@ interface UpdateUserFormData {
   password?: string;
   firstName?: string;
   lastName?: string;
-  locale?: "de" | "en";
   role?: "admin" | "moderator";
   sessionTimeoutMinutes?: number | null;
 }

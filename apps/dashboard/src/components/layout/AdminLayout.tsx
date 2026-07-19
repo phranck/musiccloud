@@ -8,9 +8,9 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { FooterUserInfo } from "@/components/layout/SidebarFooter";
 import { Card } from "@/components/ui/Card";
 import { BodyCardProvider, useBodyCard } from "@/context/BodyCardContext";
-import { useI18n } from "@/context/I18nContext";
 import { PageFooterProvider, usePageFooterContext } from "@/context/PageFooterContext";
 import { PageHeaderProvider, usePageHeaderContext } from "@/context/PageHeaderContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useContentPages } from "@/features/content/hooks/useAdminContent";
 import { PagesEditorProvider, usePagesEditor } from "@/features/content/state/PagesEditorContext";
@@ -81,7 +81,7 @@ function useSidebarWidth() {
 
 function AdminLayoutInner() {
   const { user, logout } = useAuth();
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editingOwnProfile, setEditingOwnProfile] = useState(false);

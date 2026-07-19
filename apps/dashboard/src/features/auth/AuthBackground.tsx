@@ -1,7 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useRef } from "react";
 
-import { LanguageToggle } from "@/components/ui/LanguageToggle";
-
 function seededRandom(seed: number): () => number {
   let s = seed;
   return () => {
@@ -139,10 +137,6 @@ export function AuthBackground({ children }: { children: ReactNode }) {
           className="absolute rounded-full blur-[170px] will-change-transform w-[55vw] h-[55vw] bottom-[-10%] left-[30%]"
           style={{ backgroundColor: "oklch(0.50 0.12 200 / 0.08)" }}
         />
-      </div>
-
-      <div className="absolute top-4 right-4 z-20">
-        <LanguageToggle />
       </div>
 
       <div className="relative z-10 w-full flex items-center justify-center">{children}</div>

@@ -5,11 +5,14 @@ import {
   DashboardButtonVariant,
 } from "@musiccloud/dashboard-ui";
 import { useCallback, useState, useSyncExternalStore } from "react";
+import { dashboardCopy } from "@/copy/dashboard";
 import { usePagesEditor } from "@/features/content/state/PagesEditorContext";
 import { GlobalPagesSaveStatus, useGlobalPagesSave } from "@/features/content/state/useGlobalPagesSave";
 import { Dialog } from "@/shared/ui/Dialog";
 
 export function PagesSaveBar() {
+  const messages = dashboardCopy;
+  const text = messages.layout.pagesSaveBar;
   const editor = usePagesEditor();
   const { save, discard, status, errorDetails, errorMessage, errorId } = useGlobalPagesSave();
   const dirtyCount = useSyncExternalStore(
@@ -26,8 +29,8 @@ export function PagesSaveBar() {
     <div className="flex items-center gap-2">
       <DashboardActionButton
         action={DashboardActionId.Save}
-        busyLabel="Speichert…"
-        label={`Speichern (${dirtyCount})`}
+        busyLabel={text.saving}
+        label={text.save.replace("{count}", String(dirtyCount))}
         onClick={() => void save()}
         status={isSaving ? DashboardActionStatus.Busy : DashboardActionStatus.Idle}
         type="button"
@@ -35,14 +38,14 @@ export function PagesSaveBar() {
       />
       <DashboardActionButton
         action={DashboardActionId.Restore}
-        label="Verwerfen"
+        label={text.discard}
         onClick={() => setConfirmDiscardOpen(true)}
         type="button"
         variant={DashboardButtonVariant.Ghost}
       />
       {errorDetails && errorDetails.length > 0 && (
         <span className="text-xs text-[var(--ds-danger-text)]">
-          {errorDetails.length === 1 ? "1 Fehler" : `${errorDetails.length} Fehler`}
+          {errorDetails.length === 1 ? text.error : text.errors.replace("{count}", String(errorDetails.length))}
         </span>
       )}
       {errorMessage && (
@@ -51,17 +54,15 @@ export function PagesSaveBar() {
           {errorId ? ` Error ID: ${errorId}` : ""}
         </span>
       )}
-      <Dialog open={confirmDiscardOpen} title="Änderungen verwerfen?" onClose={() => setConfirmDiscardOpen(false)}>
+      <Dialog open={confirmDiscardOpen} title={text.discardTitle} onClose={() => setConfirmDiscardOpen(false)}>
         <div className="bg-[var(--ds-surface)] px-6 py-4">
-          <p className="text-sm text-[var(--ds-text-muted)]">
-            Alle nicht gespeicherten Änderungen gehen verloren. Diese Aktion kann nicht rückgängig gemacht werden.
-          </p>
+          <p className="text-sm text-[var(--ds-text-muted)]">{text.discardDescription}</p>
         </div>
         <Dialog.Footer>
           <DashboardActionButton
             action={DashboardActionId.Cancel}
             icon={false}
-            label="Abbrechen"
+            label={messages.common.cancel}
             onClick={() => setConfirmDiscardOpen(false)}
             type="button"
             variant={DashboardButtonVariant.Neutral}
@@ -69,7 +70,7 @@ export function PagesSaveBar() {
           <DashboardActionButton
             action={DashboardActionId.Delete}
             icon={false}
-            label="Verwerfen"
+            label={text.discard}
             onClick={() => {
               discard();
               setConfirmDiscardOpen(false);

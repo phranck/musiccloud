@@ -13,7 +13,7 @@ import { useNavigate, useParams } from "react-router";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { BlockEditor } from "@/features/templates/email-templates/BlockEditor";
 import { EmailPreview } from "@/features/templates/email-templates/EmailPreview";
 import { collectGradientSwatches, type GradientSwatch } from "@/features/templates/email-templates/gradientSwatches";
@@ -68,7 +68,7 @@ const EMPTY_TEMPLATE_BRANDING: EmailTemplateBranding = {
  * Route: `/email-templates/new` or `/email-templates/:id`
  */
 export function EmailTemplateEditPage() {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const m = messages.emailTemplates;
   const navigate = useNavigate();
   const { id: idParam } = useParams<{ id?: string }>();
@@ -376,7 +376,7 @@ function EmailTemplateMetaBar({ name, isSystemTemplate, labels, onNameChange }: 
 
 interface EmailTemplateEditorGridProps {
   form: TemplateFormFields;
-  labels: ReturnType<typeof useI18n>["messages"]["emailTemplates"];
+  labels: (typeof dashboardCopy)["emailTemplates"];
   onFieldChange: <K extends keyof TemplateFormFields>(key: K, value: TemplateFormFields[K]) => void;
   global: EmailBranding | undefined;
   swatches: GradientSwatch[];

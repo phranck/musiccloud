@@ -6,7 +6,7 @@ import { DashboardSection } from "@/components/ui/DashboardSection";
 import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { TierDropdown } from "@/features/developer/components/TierDropdown";
 import { DeveloperAccountStatus } from "@/features/developer/domain";
 import {
@@ -42,7 +42,7 @@ interface AccountDraft {
  */
 export function DeveloperDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const dm = messages.developer;
   const navigate = useNavigate();
   const { data: account, isLoading } = useDeveloperAccount(id!);

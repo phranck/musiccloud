@@ -8,7 +8,7 @@ import {
 import { ENDPOINTS } from "@musiccloud/shared";
 import { useEffect, useReducer, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { AuthBackground } from "@/features/auth/AuthBackground";
 import { useAuth } from "@/features/auth/AuthContext";
 import { AuthLogo } from "@/features/auth/AuthLogo";
@@ -66,7 +66,7 @@ export function InvitePage() {
   const { token } = useParams();
   const navigate = useNavigate();
   const { refresh } = useAuth();
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const common = messages.common;
   const inviteMessages = messages.auth.invite;
 

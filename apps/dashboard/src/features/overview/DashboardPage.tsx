@@ -1,11 +1,11 @@
 import { DashboardInfoCard } from "@/components/ui/DashboardInfoCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { useAdminStats } from "@/features/overview/hooks/useAdminStats";
 
 export function DashboardPage() {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const dm = messages.dashboard;
   const { data: stats, isLoading } = useAdminStats();
 

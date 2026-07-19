@@ -8,12 +8,11 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
 import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import type { DeveloperAccountResponse } from "@/features/developer/api";
 import { DeveloperAccountStatus } from "@/features/developer/domain";
 import { useDeveloperAccounts } from "@/features/developer/hooks/useDeveloperData";
 import { formatDate } from "@/features/developer/lib";
-import type { DashboardLocale } from "@/i18n/messages";
 
 const STATUS_CLASS: Record<string, string> = {
   [DeveloperAccountStatus.Active]: "bg-emerald-500/10 text-emerald-400",
@@ -21,9 +20,8 @@ const STATUS_CLASS: Record<string, string> = {
 };
 
 function useAccountColumns(
-  dm: ReturnType<typeof useI18n>["messages"]["developer"],
-  common: ReturnType<typeof useI18n>["messages"]["common"],
-  locale: DashboardLocale,
+  dm: (typeof dashboardCopy)["developer"],
+  common: (typeof dashboardCopy)["common"],
   navigate: ReturnType<typeof useNavigate>,
 ): ColumnDef<DeveloperAccountResponse>[] {
   return useMemo<ColumnDef<DeveloperAccountResponse>[]>(
@@ -94,9 +92,7 @@ function useAccountColumns(
         className: "w-36",
         headerClassName: "whitespace-nowrap",
         sortKey: (a) => a.createdAt,
-        cell: (a) => (
-          <span className="text-[var(--ds-text-muted)] whitespace-nowrap">{formatDate(a.createdAt, locale)}</span>
-        ),
+        cell: (a) => <span className="text-[var(--ds-text-muted)] whitespace-nowrap">{formatDate(a.createdAt)}</span>,
       },
       {
         id: "actions",
@@ -112,16 +108,16 @@ function useAccountColumns(
         ),
       },
     ],
-    [dm, common, locale, navigate],
+    [dm, common, navigate],
   );
 }
 
 export function DeveloperAccountsPage() {
-  const { messages, locale } = useI18n();
+  const messages = dashboardCopy;
   const dm = messages.developer;
   const { data, isLoading } = useDeveloperAccounts();
   const navigate = useNavigate();
-  const columns = useAccountColumns(dm, messages.common, locale, navigate);
+  const columns = useAccountColumns(dm, messages.common, navigate);
   const accounts = data?.accounts ?? [];
 
   return (

@@ -26,7 +26,6 @@ export interface AdminUser {
   firstName: string | null;
   lastName: string | null;
   avatarUrl: string | null;
-  locale: string;
   sessionTimeoutMinutes: number | null;
   createdAt: number;
   lastLoginAt: number | null;
@@ -487,7 +486,6 @@ export interface AdminRepository {
     passwordHash: string;
     email?: string;
     role?: string;
-    locale?: string;
     inviteTokenHash?: string;
     inviteExpiresAt?: Date;
   }): Promise<void>;
@@ -520,7 +518,6 @@ export interface AdminRepository {
       firstName: string | null;
       lastName: string | null;
       avatarUrl: string | null;
-      locale: string;
       role: string;
       sessionTimeoutMinutes: number | null;
     }>,

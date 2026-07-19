@@ -8,7 +8,7 @@ import {
 } from "@musiccloud/shared";
 
 import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { FormLabelText } from "@/shared/ui/FormPrimitives";
 
 interface Props {
@@ -25,7 +25,7 @@ interface Props {
 }
 
 export function PageDisplaySettings({ displayMode, overlayWidth, contentCardStyle, onChange }: Props) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const labels = messages.content.pages.display;
   const modeLabels: Record<PageDisplayMode, string> = {
     fullscreen: labels.fullscreen,

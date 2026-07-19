@@ -6,7 +6,7 @@
  *   - Lookup by id or username for authentication.
  *   - Creation with optional invite-token, last-login bookkeeping.
  *   - Listing + count for the admin dashboard.
- *   - Partial updates (profile, role, locale, session timeout).
+ *   - Partial updates (profile, role, session timeout).
  *   - Hard delete.
  *   - Pending-invite queries (token still present, not yet expired).
  *   - Accept-invite (set password, clear token).
@@ -43,7 +43,6 @@ interface AdminUserRow {
   first_name: string | null;
   last_name: string | null;
   avatar_url: string | null;
-  locale: string;
   invite_token_hash: string | null;
   invite_expires_at: Date | null;
   session_timeout_minutes: number | null;
@@ -69,7 +68,6 @@ function rowToAdminUser(row: AdminUserRow): AdminUser {
     firstName: row.first_name,
     lastName: row.last_name,
     avatarUrl: row.avatar_url,
-    locale: row.locale,
     sessionTimeoutMinutes: row.session_timeout_minutes,
     createdAt: dateToMs(row.created_at),
     lastLoginAt: row.last_login_at ? dateToMs(row.last_login_at) : null,
@@ -90,7 +88,7 @@ function rowToAdminUser(row: AdminUserRow): AdminUser {
 export async function findAdminById(pool: Pool, id: string): Promise<AdminUser | null> {
   const result = await pool.query(
     `SELECT id, username, password_hash, email, role, first_name, last_name,
-            avatar_url, locale, invite_token_hash, invite_expires_at,
+            avatar_url, invite_token_hash, invite_expires_at,
             session_timeout_minutes, created_at, last_login_at
      FROM admin_users WHERE id = $1`,
     [id],
@@ -110,7 +108,7 @@ export async function findAdminById(pool: Pool, id: string): Promise<AdminUser |
 export async function findAdminByUsername(pool: Pool, username: string): Promise<AdminUser | null> {
   const result = await pool.query(
     `SELECT id, username, password_hash, email, role, first_name, last_name,
-            avatar_url, locale, invite_token_hash, invite_expires_at,
+            avatar_url, invite_token_hash, invite_expires_at,
             session_timeout_minutes, created_at, last_login_at
      FROM admin_users WHERE username = $1`,
     [username],
@@ -141,7 +139,7 @@ export async function countAdmins(pool: Pool): Promise<number> {
 export async function listAdminUsers(pool: Pool): Promise<AdminUser[]> {
   const result = await pool.query(
     `SELECT id, username, password_hash, email, role, first_name, last_name,
-            avatar_url, locale, invite_token_hash, invite_expires_at,
+            avatar_url, invite_token_hash, invite_expires_at,
             session_timeout_minutes, created_at, last_login_at
      FROM admin_users
      ORDER BY created_at ASC`,
@@ -186,10 +184,10 @@ export async function listPendingInvites(pool: Pool): Promise<
 
 /**
  * Inserts a new admin user, optionally including an invite token hash and
- * expiry. Defaults: `role = "admin"`, `locale = "de"`.
+ * expiry. The retained database locale column uses its schema default.
  *
  * @param pool - Postgres connection pool.
- * @param data - User payload. `email`, `role`, `locale`, `inviteTokenHash`
+ * @param data - User payload. `email`, `role`, `inviteTokenHash`
  *   and `inviteExpiresAt` are optional.
  */
 export async function createAdminUser(
@@ -200,7 +198,6 @@ export async function createAdminUser(
     passwordHash: string;
     email?: string;
     role?: string;
-    locale?: string;
     inviteTokenHash?: string;
     inviteExpiresAt?: Date;
   },
@@ -208,16 +205,15 @@ export async function createAdminUser(
   const now = new Date();
 
   await pool.query(
-    `INSERT INTO admin_users (id, username, password_hash, email, role, locale,
+    `INSERT INTO admin_users (id, username, password_hash, email, role,
                               invite_token_hash, invite_expires_at, created_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
     [
       data.id,
       data.username,
       data.passwordHash,
       data.email ?? null,
       data.role ?? "admin",
-      data.locale ?? "de",
       data.inviteTokenHash ?? null,
       data.inviteExpiresAt ?? null,
       now,
@@ -255,7 +251,6 @@ export async function updateAdminUser(
     firstName: string | null;
     lastName: string | null;
     avatarUrl: string | null;
-    locale: string;
     role: string;
     sessionTimeoutMinutes: number | null;
   }>,
@@ -267,7 +262,6 @@ export async function updateAdminUser(
     firstName: "first_name",
     lastName: "last_name",
     avatarUrl: "avatar_url",
-    locale: "locale",
     role: "role",
     sessionTimeoutMinutes: "session_timeout_minutes",
   };
@@ -292,7 +286,7 @@ export async function updateAdminUser(
     `UPDATE admin_users SET ${setClauses.join(", ")}
      WHERE id = $${paramIndex}
      RETURNING id, username, password_hash, email, role, first_name, last_name,
-               avatar_url, locale, invite_token_hash, invite_expires_at,
+               avatar_url, invite_token_hash, invite_expires_at,
                session_timeout_minutes, created_at, last_login_at`,
     values,
   );
@@ -337,7 +331,7 @@ export async function acceptInvite(pool: Pool, id: string, passwordHash: string)
          invite_expires_at = NULL
      WHERE id = $2 AND invite_token_hash IS NOT NULL AND invite_expires_at > NOW()
      RETURNING id, username, password_hash, email, role, first_name, last_name,
-               avatar_url, locale, invite_token_hash, invite_expires_at,
+               avatar_url, invite_token_hash, invite_expires_at,
                session_timeout_minutes, created_at, last_login_at`,
     [passwordHash, id],
   );

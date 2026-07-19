@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { ColorSchemeSegmentedControl } from "@/components/ui/ColorSchemeSegmentedControl";
 import { DashboardSection } from "@/components/ui/DashboardSection";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { api } from "@/lib/api";
 import type { EmailTemplateBranding } from "@/shared/contracts/admin-email-templates";
 
@@ -34,7 +34,7 @@ function loadColorScheme(): "light" | "dark" {
  * always identical to what recipients receive.
  */
 export function EmailPreview({ blocks, branding }: EmailPreviewProps) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const m = messages.emailTemplates;
   const [colorScheme, setColorScheme] = useState<"light" | "dark">(loadColorScheme);
   const [srcDoc, setSrcDoc] = useState("");

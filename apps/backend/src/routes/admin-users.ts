@@ -168,7 +168,6 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     if (body.password !== undefined) updates.passwordHash = await bcrypt.hash(body.password as string, 12);
     if (body.firstName !== undefined) updates.firstName = body.firstName;
     if (body.lastName !== undefined) updates.lastName = body.lastName;
-    if (body.locale !== undefined) updates.locale = body.locale;
     if (body.sessionTimeoutMinutes !== undefined)
       updates.sessionTimeoutMinutes = body.sessionTimeoutMinutes as number | null;
 
@@ -332,7 +331,6 @@ function toResponse(user: AdminUser) {
     id: user.id,
     username: user.username,
     email: user.email ?? undefined,
-    locale: user.locale as "de" | "en",
     role: user.role as "owner" | "admin" | "moderator",
     isOwner: user.role === "owner",
     firstName: user.firstName,

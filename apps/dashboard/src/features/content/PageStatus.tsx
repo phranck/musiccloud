@@ -1,6 +1,6 @@
 import { CheckCircleIcon, CircleIcon, EyeSlashIcon, type Icon } from "@phosphor-icons/react";
 
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 
 interface StatusDef {
   icon: Icon;
@@ -45,7 +45,7 @@ export function PageStatusIcon({ status }: { status: string }) {
 export function PageStatusBadge({ status }: { status: string }) {
   const def = defOf(status);
   const StatusIcon = def.icon;
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const labels = messages.content.pages.status;
   const label =
     status === PageStatus.Published ? labels.published : status === PageStatus.Hidden ? labels.hidden : labels.draft;

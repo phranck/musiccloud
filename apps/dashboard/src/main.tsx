@@ -7,8 +7,8 @@ import { createBrowserRouter, RouterProvider } from "react-router";
 import "virtual:uno.css";
 import "./index.css";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { I18nProvider } from "./context/I18nContext";
 import { AuthProvider } from "./features/auth/AuthContext";
+import { clearLegacyDashboardLocalePreference } from "./lib/legacy-locale-cleanup";
 import { KeyboardSaveProvider } from "./lib/useKeyboardSave";
 import { routes } from "./routes";
 
@@ -29,6 +29,7 @@ const router = createBrowserRouter(routes);
 
 const rootEl = document.getElementById("root");
 if (!rootEl) throw new Error("Root element not found");
+clearLegacyDashboardLocalePreference();
 createRoot(rootEl).render(
   <StrictMode>
     <ErrorBoundary>
@@ -44,11 +45,9 @@ createRoot(rootEl).render(
           }}
         >
           <AuthProvider>
-            <I18nProvider>
-              <KeyboardSaveProvider>
-                <RouterProvider router={router} />
-              </KeyboardSaveProvider>
-            </I18nProvider>
+            <KeyboardSaveProvider>
+              <RouterProvider router={router} />
+            </KeyboardSaveProvider>
           </AuthProvider>
         </IconContext.Provider>
         <ReactQueryDevtools initialIsOpen={false} />

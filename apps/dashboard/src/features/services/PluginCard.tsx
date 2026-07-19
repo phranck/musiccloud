@@ -2,7 +2,7 @@ import { DashboardButton, DashboardButtonVariant } from "@musiccloud/dashboard-u
 import { PLATFORM_CONFIG, type PluginInfo } from "@musiccloud/shared";
 import type { ReactNode } from "react";
 
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 
 interface PluginCardProps {
   plugin: PluginInfo;
@@ -36,7 +36,7 @@ function Badge({ label, tone }: { label: string; tone: BadgeTone }) {
 }
 
 export function PluginCard({ plugin, onToggle, disabled }: PluginCardProps) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const s = messages.services;
   const color = PLATFORM_CONFIG[plugin.id]?.color ?? "#888";
 

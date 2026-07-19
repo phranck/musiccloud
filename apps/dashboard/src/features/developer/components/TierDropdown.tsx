@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { useTiers } from "@/features/developer/hooks/useDeveloperData";
 
 /**
@@ -9,6 +9,7 @@ import { useTiers } from "@/features/developer/hooks/useDeveloperData";
  * value at the component boundary and back in `onChange`.
  */
 const NO_TIER_VALUE = "";
+const dm = dashboardCopy.developer;
 
 interface TierDropdownProps {
   /** Currently assigned tier id, or `null` when the account has no tier. */
@@ -47,8 +48,6 @@ function TierColorSwatch({ color }: { color: string }) {
  * @param onChange - Receives the picked tier id, or `null` for "no tier".
  */
 export function TierDropdown({ value, onChange, "aria-label": ariaLabel }: TierDropdownProps) {
-  const { messages } = useI18n();
-  const dm = messages.developer;
   const { data: tiers } = useTiers();
 
   const options = useMemo<DropdownOption[]>(() => {
@@ -68,7 +67,7 @@ export function TierDropdown({ value, onChange, "aria-label": ariaLabel }: TierD
       }
     }
     return opts;
-  }, [tiers, value, dm]);
+  }, [tiers, value]);
 
   return (
     <Dropdown

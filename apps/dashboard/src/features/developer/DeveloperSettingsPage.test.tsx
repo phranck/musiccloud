@@ -15,24 +15,6 @@ vi.mock("./api", async (importOriginal) => ({
 
 vi.mock("@/components/ui/PageHeader", () => ({ PageHeader: () => null }));
 
-vi.mock("@/context/I18nContext", () => ({
-  useI18n: () => ({
-    messages: {
-      common: { loading: "Loading", saveError: "Could not save" },
-      developer: {
-        settingsTitle: "Developer Settings",
-        availabilityTitle: "Portal availability",
-        availabilityDescription: "Control who can access the Developer Portal.",
-        portalPublicLabel: "Developer Portal",
-        portalPublicDescription: "Make the Developer Portal public.",
-        maintenanceLabel: "Maintenance",
-        maintenanceDescription: "Temporarily close the portal for maintenance.",
-        apiReferenceNotice: "API reference remains available.",
-      },
-    },
-  }),
-}));
-
 import { DeveloperSettingsPage } from "./DeveloperSettingsPage";
 
 function renderPage() {

@@ -3,7 +3,7 @@ import { ArrowsClockwise as ArrowsClockwiseIcon, Check as CheckIcon } from "@pho
 import { useState } from "react";
 
 import { TableActionButton } from "@/components/ui/TableActionButton";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { api } from "@/lib/api";
 
 interface RefreshArtistButtonProps {
@@ -28,7 +28,7 @@ interface RefreshArtistButtonProps {
  * is no cache entry to refresh.
  */
 export function RefreshArtistButton({ shortId }: RefreshArtistButtonProps) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const ma = messages.music.artists;
   const [busy, setBusy] = useState(false);
   const [confirmed, setConfirmed] = useState(false);

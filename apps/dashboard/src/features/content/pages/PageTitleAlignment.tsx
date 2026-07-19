@@ -1,6 +1,6 @@
 import type { PageTitleAlignment as PageTitleAlignmentValue } from "@musiccloud/shared";
 
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 
 interface Props {
   value: PageTitleAlignmentValue;
@@ -13,7 +13,7 @@ interface Props {
  * editor metadata bar. Drives `content_pages.title_alignment`.
  */
 export function PageTitleAlignment({ value, onChange, className }: Props) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const common = messages.common;
   return (
     <div className={`flex items-center gap-2${className ? ` ${className}` : ""}`}>

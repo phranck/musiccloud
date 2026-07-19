@@ -13,8 +13,9 @@ import { useNavigate, useParams } from "react-router";
 
 import { EditorPageShell } from "@/components/ui/EditorPageShell";
 import { EditorToolbarButton } from "@/components/ui/EditorToolbarButton";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { api } from "@/lib/api";
+import { formatEnglishDate } from "@/lib/format";
 import { useKeyboardSave } from "@/lib/useKeyboardSave";
 import { PlatformIcon } from "@/shared/ui/PlatformIcon";
 
@@ -51,6 +52,9 @@ function sortServiceDisplayOrder(services: readonly string[]) {
 }
 
 const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
+const messages = dashboardCopy;
+const m = messages.music.trackEdit;
+const common = messages.common;
 
 const LoadPhase = {
   Loading: "loading",
@@ -168,9 +172,6 @@ function saveReducer(state: SaveState, action: SaveAction): SaveState {
 export function TrackEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { messages } = useI18n();
-  const m = messages.music.trackEdit;
-  const common = messages.common;
 
   const [load, loadDispatch] = useReducer(loadReducer, { phase: LoadPhase.Loading, track: null });
   const [form, formDispatch] = useReducer(formReducer, emptyForm);
@@ -216,7 +217,7 @@ export function TrackEditPage() {
     } catch {
       saveDispatch({ type: SaveActionType.Error, error: common.saveError });
     }
-  }, [id, save.saving, form, common.saveError]);
+  }, [id, save.saving, form]);
 
   useKeyboardSave(handleSave);
 
@@ -318,7 +319,7 @@ export function TrackEditPage() {
               </div>
             )}
             <span className="text-xs text-[var(--ds-text-muted)]">
-              {m.createdAt}: {new Date(track.createdAt).toLocaleDateString(undefined, { dateStyle: "medium" })}
+              {m.createdAt}: {formatEnglishDate(track.createdAt, { dateStyle: "medium" })}
             </span>
           </div>
         </div>

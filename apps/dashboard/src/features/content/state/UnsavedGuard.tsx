@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { useBlocker } from "react-router";
 
 import { Dialog } from "@/components/ui/Dialog";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 
 import { usePagesEditor } from "./PagesEditorContext";
 import { GlobalPagesSaveStatus, useGlobalPagesSave } from "./useGlobalPagesSave";
@@ -27,7 +27,7 @@ const BlockerState = {
 export function UnsavedGuard() {
   const editor = usePagesEditor();
   const { save, status } = useGlobalPagesSave();
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const t = messages.unsavedGuard;
 
   const blocker = useBlocker(

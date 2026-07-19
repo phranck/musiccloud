@@ -6,16 +6,17 @@ import { DashboardSection } from "@/components/ui/DashboardSection";
 import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { ApiAccessRequestStatus } from "@/features/developer/domain";
 import { useApiAccessOverview, useApproveRequest, useRejectRequest } from "@/features/developer/hooks/useDeveloperData";
+import { formatDate } from "@/features/developer/lib";
 import { Dialog } from "@/shared/ui/Dialog";
 
 const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 
 export function RequestDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const dm = messages.developer;
   const navigate = useNavigate();
   const { data, isLoading } = useApiAccessOverview();
@@ -72,7 +73,7 @@ export function RequestDetailPage() {
           renderLeading={() => <HeaderBackButton label={dm.detailBackLabel} onClick={handleBack} />}
         />
         <div className="flex items-center justify-center py-12">
-          <p className="text-sm text-[var(--ds-text-muted)]">Request nicht gefunden.</p>
+          <p className="text-sm text-[var(--ds-text-muted)]">Request not found.</p>
         </div>
       </PageLayout>
     );
@@ -98,9 +99,7 @@ export function RequestDetailPage() {
                 </div>
                 <div>
                   <div className={labelClass}>{dm.colSubmitted}</div>
-                  <div className="text-sm text-[var(--ds-text-muted)]">
-                    {new Date(request.submittedAt).toLocaleDateString("de-AT")}
-                  </div>
+                  <div className="text-sm text-[var(--ds-text-muted)]">{formatDate(request.submittedAt)}</div>
                 </div>
                 <div>
                   <div className={labelClass}>{dm.colTraffic}</div>

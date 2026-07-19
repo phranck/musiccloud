@@ -35,7 +35,7 @@ import {
   XCircleIcon,
 } from "@phosphor-icons/react";
 import { type ChangeEvent, lazy, Suspense, useRef, useState } from "react";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { createDefaultBlock } from "@/features/templates/email-templates/blockDefaults";
 import { useUploadEmailAsset } from "@/features/templates/hooks/useEmailAssets";
 
@@ -88,7 +88,7 @@ export interface BlockEditorProps {
  * (`EmailTemplateEditPage`) owns `blocks` as part of its form state.
  */
 export function BlockEditor({ blocks, onChange, registerMarkdownInsert }: BlockEditorProps) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const m = messages.emailTemplates;
 
   const sensors = useSensors(
@@ -300,7 +300,7 @@ function TextBlockForm({
   onChange: (block: EmailBlock) => void;
   registerMarkdownInsert?: (insert: (text: string) => void) => void;
 }) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   return (
     <Suspense fallback={<div className={`${MARKDOWN_EDITOR_FALLBACK_HEIGHT} animate-pulse bg-[var(--ds-input-bg)]`} />}>
       <MarkdownEditor
@@ -324,7 +324,7 @@ function ButtonBlockForm({
   block: Extract<EmailBlock, { type: typeof EmailBlockType.Button }>;
   onChange: (block: EmailBlock) => void;
 }) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const m = messages.emailTemplates;
   return (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -354,7 +354,7 @@ function ImageBlockForm({
   block: Extract<EmailBlock, { type: typeof EmailBlockType.Image }>;
   onChange: (block: EmailBlock) => void;
 }) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const m = messages.emailTemplates;
   const uploadMutation = useUploadEmailAsset();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -423,7 +423,7 @@ function SpacerBlockForm({
   block: Extract<EmailBlock, { type: typeof EmailBlockType.Spacer }>;
   onChange: (block: EmailBlock) => void;
 }) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const m = messages.emailTemplates;
   return (
     <DashboardInput

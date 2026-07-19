@@ -1,6 +1,6 @@
 import { DashboardInput } from "@musiccloud/dashboard-ui";
 
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import type { GradientSwatch } from "@/features/templates/email-templates/gradientSwatches";
 
 interface GradientColorFieldsProps {
@@ -21,7 +21,7 @@ interface GradientColorFieldsProps {
  * gradients already in use elsewhere ({@link collectGradientSwatches}).
  */
 export function GradientColorFields({ top, bottom, onChange, swatches }: GradientColorFieldsProps) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const m = messages.emailTemplates;
 
   return (

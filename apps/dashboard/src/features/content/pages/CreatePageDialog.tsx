@@ -10,7 +10,7 @@ import { useReducer } from "react";
 
 import { Dialog, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { isSystemOwnedDocsPath } from "@/features/content/editorialPageOwnership";
 import { useCreateContentPage } from "@/features/content/hooks/useAdminContent";
 import { PageContextControl } from "@/features/content/pages/PageContextControl";
@@ -56,7 +56,7 @@ function slugify(str: string): string {
 }
 
 export function CreatePageDialog({ open, onClose, onCreated, lockDefaultType }: Props) {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const text = messages.content.pages;
   const common = messages.common;
   const createPage = useCreateContentPage();

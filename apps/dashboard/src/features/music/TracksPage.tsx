@@ -25,8 +25,9 @@ import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { Toolbar } from "@/components/ui/Toolbar";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
+import { formatEnglishDate } from "@/lib/format";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { Dialog } from "@/shared/ui/Dialog";
 
@@ -46,12 +47,12 @@ interface TrackListItem {
 const SHARE_BASE = import.meta.env.VITE_SHARE_BASE_URL ?? "https://musiccloud.io";
 
 function formatDate(ts: number): string {
-  return new Date(ts).toLocaleDateString(undefined, { dateStyle: "medium" });
+  return formatEnglishDate(ts, { dateStyle: "medium" });
 }
 
 type TrackTable = ReturnType<typeof useInfiniteAdminTable<TrackListItem>>;
-type MusicColumnMessages = ReturnType<typeof useI18n>["messages"]["music"]["columns"];
-type CommonMessages = ReturnType<typeof useI18n>["messages"]["common"];
+type MusicColumnMessages = (typeof dashboardCopy)["music"]["columns"];
+type CommonMessages = (typeof dashboardCopy)["common"];
 
 function useTrackColumns(
   table: TrackTable,
@@ -181,7 +182,7 @@ function useTrackColumns(
 
 export function TracksPage() {
   const navigate = useNavigate();
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const mt = messages.music.tracks;
   const m = messages.music.table;
   const [confirmOpen, setConfirmOpen] = useState(false);

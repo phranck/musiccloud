@@ -40,7 +40,7 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import type { ColumnDef, DataTableRowProps } from "@/components/ui/Table";
 import { DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { groupPagesByHierarchy } from "@/features/content/hierarchy";
 import {
   type ContentPageSummary,
@@ -52,6 +52,10 @@ import { CreatePageDialog } from "@/features/content/pages/CreatePageDialog";
 import { usePagesEditor } from "@/features/content/state/PagesEditorContext";
 import { SegmentsActionType } from "@/features/content/state/slices/segmentsSlice";
 import { SidebarActionType } from "@/features/content/state/slices/sidebarSlice";
+import { formatEnglishDate } from "@/lib/format";
+
+const text = dashboardCopy.content.pages;
+const common = dashboardCopy.common;
 
 const TRANSLATION_ICON: Record<TranslationStatus, Icon> = {
   ready: CheckCircleIcon,
@@ -63,11 +67,6 @@ const TRANSLATION_COLOR: Record<TranslationStatus, string> = {
   ready: "text-emerald-500",
   stale: "text-amber-500",
   missing: "text-[var(--ds-text-muted)] opacity-60",
-};
-
-const DATE_LOCALE_BY_APP_LOCALE: Partial<Record<string, string>> = {
-  [DEFAULT_LOCALE]: "en-US",
-  [LOCALES[1]]: "de-DE",
 };
 
 type ContentPage = ContentPageSummary;
@@ -179,12 +178,11 @@ function HierarchicalPagesTable({ columns, pages, sortable = false }: Hierarchic
   );
 }
 
-function formatDate(isoDate: string | null, locale: string): string {
+function formatDate(isoDate: string | null): string {
   if (!isoDate) return "—";
   const date = new Date(isoDate);
   if (Number.isNaN(date.getTime())) return "—";
-  const dateLocale = DATE_LOCALE_BY_APP_LOCALE[locale] ?? DATE_LOCALE_BY_APP_LOCALE[DEFAULT_LOCALE];
-  return date.toLocaleDateString(dateLocale, {
+  return formatEnglishDate(date, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -204,9 +202,6 @@ const initialState: PagesListState = {
 };
 
 function usePagesListPage() {
-  const { locale, messages } = useI18n();
-  const text = messages.content.pages;
-  const common = messages.common;
   const { data: pages = [], isLoading } = useContentPages();
   const deletePage = useDeleteContentPage();
   const navigate = useNavigate();
@@ -522,9 +517,7 @@ function usePagesListPage() {
         id: "updatedAt",
         header: text.table.updatedAt,
         sortKey: (page) => page.updatedAt ?? "",
-        cell: (page) => (
-          <span className="text-xs text-[var(--ds-text-muted)]">{formatDate(page.updatedAt, locale)}</span>
-        ),
+        cell: (page) => <span className="text-xs text-[var(--ds-text-muted)]">{formatDate(page.updatedAt)}</span>,
       },
       {
         id: "translations",
@@ -570,7 +563,7 @@ function usePagesListPage() {
         ),
       },
     ],
-    [text, common, locale, navigate, deletePage.isPending, handleDeleteRequest],
+    [navigate, deletePage.isPending, handleDeleteRequest],
   );
 
   return (

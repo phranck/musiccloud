@@ -20,7 +20,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
 import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import type { TierResponse } from "@/features/developer/api";
 import { TierIconGlyph, TierIconPicker } from "@/features/developer/components/TierIconPicker";
 import { useCreateTier, useDeleteTier, useTiers, useUpdateTier } from "@/features/developer/hooks/useDeveloperData";
@@ -206,7 +206,7 @@ interface TierFeatureBulletsEditorProps {
   /** Invoked with a new copy of the list whenever the user makes a change. */
   onChange: (features: FormFeatureBullet[]) => void;
   /** Localized labels for the editor controls. */
-  dm: ReturnType<typeof useI18n>["messages"]["developer"];
+  dm: (typeof dashboardCopy)["developer"];
 }
 
 /**
@@ -328,8 +328,8 @@ interface TierFormDialogProps {
   editingTier: TierResponse | null;
   form: TierFormData;
   errors: Partial<Record<keyof TierFormData, string>>;
-  dm: ReturnType<typeof useI18n>["messages"]["developer"];
-  cm: ReturnType<typeof useI18n>["messages"]["common"];
+  dm: (typeof dashboardCopy)["developer"];
+  cm: (typeof dashboardCopy)["common"];
   onClose: () => void;
   onFormChange: (patch: Partial<TierFormData>) => void;
   onSave: () => void;
@@ -597,8 +597,8 @@ function TierDeleteConfirmDialog({
   onDelete,
 }: {
   open: boolean;
-  dm: ReturnType<typeof useI18n>["messages"]["developer"];
-  cm: ReturnType<typeof useI18n>["messages"]["common"];
+  dm: (typeof dashboardCopy)["developer"];
+  cm: (typeof dashboardCopy)["common"];
   onClose: () => void;
   onDelete: () => void;
 }) {
@@ -649,8 +649,8 @@ function TierDeleteConfirmDialog({
  * @returns Stable column definitions, re-created only when a dependency changes.
  */
 function useTierColumns(
-  dm: ReturnType<typeof useI18n>["messages"]["developer"],
-  cm: ReturnType<typeof useI18n>["messages"]["common"],
+  dm: (typeof dashboardCopy)["developer"],
+  cm: (typeof dashboardCopy)["common"],
   onEdit: (tier: TierResponse) => void,
   onDelete: (id: string) => void,
 ): ColumnDef<TierResponse>[] {
@@ -775,7 +775,7 @@ function useTierColumns(
  * state ({@link ContentUnavailableView}) or the populated table.
  */
 export function TierEditorPage() {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const dm = messages.developer;
   const cm = messages.common;
   const { data: tiers, isLoading } = useTiers();

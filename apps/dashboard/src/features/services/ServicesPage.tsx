@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { usePlugins, useTogglePlugin } from "@/features/services/hooks/usePlugins";
 import { PluginCard } from "@/features/services/PluginCard";
 
@@ -14,7 +14,7 @@ function sortPluginsByDisplayName(plugins: readonly PluginInfo[]) {
 }
 
 export function ServicesPage() {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const s = messages.services;
   const { data, isLoading, error } = usePlugins();
   const toggle = useTogglePlugin();

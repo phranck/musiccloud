@@ -11,7 +11,7 @@ import { ItemCard } from "@/components/ui/Card";
 import { ContentLoadingView } from "@/components/ui/ContentLoadingView";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
-import { useI18n } from "@/context/I18nContext";
+import { dashboardCopy } from "@/copy/dashboard";
 import { useAuth } from "@/features/auth/AuthContext";
 import { useAdminUsers, useDeleteUser } from "@/features/system/hooks/useAdminUsers";
 import { AdminRole } from "@/shared/constants/domain";
@@ -22,7 +22,7 @@ import { UserCreateCard } from "./UserCreateCard";
 import { UserEditCard } from "./UserEditCard";
 
 export function UsersPage() {
-  const { messages } = useI18n();
+  const messages = dashboardCopy;
   const common = messages.common;
   const usersMessages = messages.users;
   const { user: me } = useAuth();

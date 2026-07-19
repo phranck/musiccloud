@@ -10,37 +10,6 @@ vi.mock("@/features/content/hooks/useAdminContent", () => ({
   useCreateContentPage: () => mutation,
 }));
 
-vi.mock("@/context/I18nContext", () => ({
-  useI18n: () => ({
-    messages: {
-      common: { cancel: "Cancel" },
-      content: {
-        pages: {
-          createTitle: "Create Page",
-          fieldTitle: "Title",
-          fieldSlug: "Slug",
-          fieldPageType: "Page type",
-          pageTypeDefault: "Default",
-          pageTypeSegmented: "Segmented",
-          titlePlaceholder: "Page title",
-          slugPlaceholder: "page-slug",
-          create: "Create",
-          creating: "Creating",
-          createError: "Error creating",
-          contextRequired: "Select at least one context.",
-          docsReserved: "The complete /docs namespace is system-owned.",
-          contexts: {
-            label: "Contexts",
-            all: "All",
-            frontend: "Frontend",
-            developerPortal: "Developer Portal",
-          },
-        },
-      },
-    },
-  }),
-}));
-
 describe("CreatePageDialog", () => {
   beforeEach(() => {
     mutation.mutateAsync.mockReset();
