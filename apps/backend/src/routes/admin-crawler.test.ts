@@ -52,6 +52,12 @@ vi.mock("../db/index.js", () => ({
 import { buildApp } from "../server.js";
 
 const originalApiKey = process.env.LASTFM_API_KEY;
+const originalAppleMusicEnvironment = {
+  token: process.env.APPLE_MUSIC_TOKEN,
+  keyId: process.env.APPLE_MUSIC_KEY_ID,
+  teamId: process.env.APPLE_MUSIC_TEAM_ID,
+  privateKey: process.env.APPLE_MUSIC_PRIVATE_KEY,
+};
 let app: FastifyInstance;
 let adminToken: string;
 
@@ -73,11 +79,23 @@ afterAll(async () => {
   await app.close();
   if (originalApiKey === undefined) delete process.env.LASTFM_API_KEY;
   else process.env.LASTFM_API_KEY = originalApiKey;
+  if (originalAppleMusicEnvironment.token === undefined) delete process.env.APPLE_MUSIC_TOKEN;
+  else process.env.APPLE_MUSIC_TOKEN = originalAppleMusicEnvironment.token;
+  if (originalAppleMusicEnvironment.keyId === undefined) delete process.env.APPLE_MUSIC_KEY_ID;
+  else process.env.APPLE_MUSIC_KEY_ID = originalAppleMusicEnvironment.keyId;
+  if (originalAppleMusicEnvironment.teamId === undefined) delete process.env.APPLE_MUSIC_TEAM_ID;
+  else process.env.APPLE_MUSIC_TEAM_ID = originalAppleMusicEnvironment.teamId;
+  if (originalAppleMusicEnvironment.privateKey === undefined) delete process.env.APPLE_MUSIC_PRIVATE_KEY;
+  else process.env.APPLE_MUSIC_PRIVATE_KEY = originalAppleMusicEnvironment.privateKey;
 });
 
 beforeEach(() => {
   crawlState.clear();
   delete process.env.LASTFM_API_KEY;
+  delete process.env.APPLE_MUSIC_TOKEN;
+  delete process.env.APPLE_MUSIC_KEY_ID;
+  delete process.env.APPLE_MUSIC_TEAM_ID;
+  delete process.env.APPLE_MUSIC_PRIVATE_KEY;
   vi.clearAllMocks();
   updateCrawlStateMock.mockImplementation(async (source: string, patch: Record<string, unknown>) => {
     const current = crawlState.get(source);
@@ -118,9 +136,84 @@ describe("GET /api/admin/crawler/sources", () => {
       ]),
     );
   });
+
+  it("seeds and returns the disabled Apple Music Charts source with exact defaults", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/admin/crawler/sources",
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: "apple-music-charts",
+          displayName: "Apple Music Charts",
+          enabled: false,
+          intervalMinutes: 360,
+          config: { storefront: "us", chart: "most-played", type: "songs", limit: 100 },
+        }),
+      ]),
+    );
+  });
 });
 
 describe("PATCH /api/admin/crawler/sources/:id", () => {
+  it("rejects Apple Music enablement without a usable credential profile before persisting", async () => {
+    await listSources();
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/admin/crawler/sources/apple-music-charts",
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { enabled: true },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ error: "MC-REQ-0001", errorId: expect.any(String) });
+    expect(response.body).not.toMatch(/apple|token|private|key/i);
+    expect(updateCrawlStateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid Apple Music key profile before persisting or catalog network work", async () => {
+    await listSources();
+    process.env.APPLE_MUSIC_KEY_ID = "test-key-id";
+    process.env.APPLE_MUSIC_TEAM_ID = "test-team-id";
+    process.env.APPLE_MUSIC_PRIVATE_KEY = "invalid-private-key";
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/admin/crawler/sources/apple-music-charts",
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { enabled: true },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ error: "MC-REQ-0001", errorId: expect.any(String) });
+    expect(response.body).not.toMatch(/apple|token|private|key/i);
+    expect(updateCrawlStateMock).not.toHaveBeenCalled();
+  });
+
+  it("normalizes valid Apple Music configuration before enabling with a static token", async () => {
+    await listSources();
+    process.env.APPLE_MUSIC_TOKEN = "test-static-token";
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/api/admin/crawler/sources/apple-music-charts",
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { enabled: true, config: { storefront: "AT", limit: 12 } },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      source: "apple-music-charts",
+      enabled: true,
+      config: { storefront: "at", chart: "most-played", type: "songs", limit: 12 },
+    });
+  });
+
   it("rejects malformed Last.fm configuration with a canonical safe error before persisting", async () => {
     await listSources();
 
@@ -178,6 +271,21 @@ describe("PATCH /api/admin/crawler/sources/:id", () => {
 });
 
 describe("POST /api/admin/crawler/sources/:id/run-now", () => {
+  it("schedules an executable Apple Music source immediately", async () => {
+    await listSources();
+    process.env.APPLE_MUSIC_TOKEN = "test-static-token";
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/admin/crawler/sources/apple-music-charts/run-now",
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ source: "apple-music-charts", enabled: false });
+    expect(updateCrawlStateMock).toHaveBeenCalledWith("apple-music-charts", { nextRunAt: expect.any(Date) });
+  });
+
   it("rejects a Last.fm source that cannot execute before changing its schedule", async () => {
     await listSources();
     const current = crawlState.get("lastfm-tags");

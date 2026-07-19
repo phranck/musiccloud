@@ -11,6 +11,7 @@
  * answer "what should I tick?" with a list lookup.
  */
 
+import { appleMusicChartsSource } from "./sources/apple-music-charts.js";
 import { deezerChartsSource } from "./sources/deezer-charts.js";
 import { lastfmTagsSource } from "./sources/lastfm-tags.js";
 import type { CrawlerSource } from "./types.js";
@@ -20,7 +21,7 @@ import type { CrawlerSource } from "./types.js";
  * source whose `crawl_state.next_run_at` has elapsed (and `enabled = true`,
  * and `running_since IS NULL`). Adding a new source: import it, append it.
  */
-export const SOURCES: readonly CrawlerSource[] = [deezerChartsSource, lastfmTagsSource];
+export const SOURCES: readonly CrawlerSource[] = [deezerChartsSource, lastfmTagsSource, appleMusicChartsSource];
 
 /**
  * Lookup by id. Returns `null` when no source with that id is registered;

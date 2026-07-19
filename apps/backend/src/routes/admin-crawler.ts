@@ -144,7 +144,7 @@ export default async function adminCrawlerRoutes(app: FastifyInstance) {
         }
         const effectiveEnabled = patch.enabled ?? existing.enabled;
         if (effectiveEnabled) {
-          const normalizedConfig = validateCrawlerSourceExecution(source, patch.config ?? existing.config);
+          const normalizedConfig = await validateCrawlerSourceExecution(source, patch.config ?? existing.config);
           if (patch.enabled === true || patch.config !== undefined) patch.config = normalizedConfig;
         }
       } catch (error) {
@@ -177,7 +177,7 @@ export default async function adminCrawlerRoutes(app: FastifyInstance) {
       return reply.status(404).send(missingSource());
     }
     try {
-      validateCrawlerSourceExecution(source, existing.config);
+      await validateCrawlerSourceExecution(source, existing.config);
     } catch (error) {
       if (error instanceof CrawlerSourceConfigurationError) {
         return reply.status(400).send(configErrorPayload(error));

@@ -4,7 +4,7 @@
 
 A backend subsystem that proactively grows the canonical entity database by
 ticking a per-minute cron job, fetching candidate tracks from registered
-sources (Deezer Charts, Last.fm Tag Tops, later Apple Music Charts), and
+sources (Deezer Charts, Last.fm Tag Tops, Apple Music Charts), and
 running each candidate through the existing resolver pipeline. Goal:
 cross-service ID density (`*_external_ids`, MusicBrainz canonicalisation,
 preview URLs) keeps growing independently of user load.
@@ -24,7 +24,8 @@ services/crawler/
 ├── heartbeat.ts                   # tick orchestration
 └── sources/
     ├── deezer-charts.ts           # URL candidates from configured charts
-    └── lastfm-tags.ts              # search candidates from configured tags
+    ├── lastfm-tags.ts              # search candidates from configured tags
+    └── apple-music-charts.ts       # URL candidates from one Apple storefront chart
 
 scripts/crawler-heartbeat.ts       # cron entry point (bundled via tsup)
 routes/admin-crawler.ts            # 5 admin endpoints
@@ -49,7 +50,7 @@ Zerops cron (* * * * *)
           - repo.acquireCrawlLock(source, 30min)
               skip if held and not stale
           - repo.insertCrawlRun({status: 'running'})
-          - source.parseConfig(config) + source.assertAvailable(config)
+          - source.parseConfig(config) + await source.assertAvailable(config)
           - source.fetch(config, cursor) -> { candidates, nextCursor }
           - for each candidate:
               - dedupe.isAlreadyIngested(c) -> skip if true
@@ -78,7 +79,7 @@ export const fooSource: CrawlerSource = {
   parseConfig(config) {                  // source-owned normalize + validation
     return normalizedConfig;
   },
-  assertAvailable(config) {              // source-owned runtime prerequisites
+  async assertAvailable(config) {        // source-owned runtime prerequisites
     // throw only safe configuration errors
   },
   async fetch(config, cursor) {
@@ -105,7 +106,8 @@ Two candidate shapes:
 
 `parseConfig` is deliberately source-owned rather than a generic admin JSON
 schema: each source controls its defaults, accepted keys, normalization, and
-bounds. `assertAvailable` checks only runtime prerequisites. The shared
+bounds. `assertAvailable` checks only runtime prerequisites and may await a
+local credential preflight. The shared
 execution gate is used by admin enablement, `run-now`, and the heartbeat, so
 no path can start a source with invalid configuration or missing prerequisites.
 Sources must throw safe configuration errors from those methods. They are
@@ -141,6 +143,37 @@ The source normalizes and deduplicates artist/title pairs across all tags in a
 single run before they reach the shared resolver ingest path. Any HTTP,
 timeout, JSON, or Last.fm API error fails the complete fetch rather than
 silently treating a partial source response as success.
+
+### Apple Music Charts configuration
+
+`apple-music-charts` is seeded as disabled with a `360`-minute interval and
+this exact configuration:
+
+```json
+{ "storefront": "us", "chart": "most-played", "type": "songs", "limit": 100 }
+```
+
+`storefront` is normalized to one lowercase two-letter Apple storefront code.
+The first source version accepts only `chart: "most-played"` and
+`type: "songs"`; `limit` is an integer from 1 through 100. One run fetches one
+storefront only. Album, playlist, editorial, city, daily, and multi-storefront
+ingestion are intentionally outside this source.
+
+Enablement, run-now, and the heartbeat require an existing usable Apple Music
+developer-token profile: either `APPLE_MUSIC_TOKEN` or the existing
+`APPLE_MUSIC_KEY_ID`, `APPLE_MUSIC_TEAM_ID`, and `APPLE_MUSIC_PRIVATE_KEY`
+profile. The common preflight validates static-token availability or signed JWT
+generation before catalog HTTP work. Missing or malformed profiles return a
+safe canonical admin error or create a safe failed run; no credential value,
+token, JWT, private key, Authorization header, or connection detail is recorded
+in run notes or structured logs.
+
+The source reuses the adapter's authenticated five-second request boundary for
+`/catalog/{storefront}/charts`. A non-2xx response, token/signing error,
+timeout, JSON failure, or malformed chart payload fails the full run. Individual
+song rows without a valid Apple Music URL are counted as skipped, while valid
+song URLs with an optional ISRC continue. Repeated URLs or ISRCs are removed
+within the source before shared crawler dedupe and ingest.
 
 ## Registry pattern
 
@@ -324,6 +357,26 @@ The API normalizes the stored tag values. A missing tag, duplicate tag,
 out-of-range limit, or unavailable runtime prerequisite returns `400` with a
 canonical `MC-REQ-0001` response and `errorId`; it does not schedule a run or
 change existing source state.
+
+### Configure and enable Apple Music Charts
+
+First make one existing Apple Music credential profile available to the backend
+runtime. The source remains disabled after deployment even when credentials are
+present. Then explicitly configure and enable its one storefront chart:
+
+```bash
+curl -X PATCH \
+  -H "Authorization: Bearer $ADMIN_JWT" \
+  -H "Content-Type: application/json" \
+  -d '{"enabled":true,"config":{"storefront":"at","chart":"most-played","type":"songs","limit":100}}' \
+  https://admin.musiccloud.io/api/admin/crawler/sources/apple-music-charts
+```
+
+Use the existing run-now endpoint only after that gate succeeds. A failed full
+source run increments `consecutive_errors`; five consecutive failures disable
+the source automatically. Correct the runtime credential profile or config,
+explicitly enable it again, then schedule run-now. A successful recovery tick
+resets the consecutive-failure counter through the existing heartbeat path.
 
 ### Inspect run history
 
