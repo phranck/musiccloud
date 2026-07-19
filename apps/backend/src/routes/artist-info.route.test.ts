@@ -242,12 +242,70 @@ describe("GET /api/v1/artist-info entity identity", () => {
     await vi.waitFor(() => expect(mocks.findShortIdsByTrackUrls).toHaveBeenCalled());
     const response = await responsePromise;
     expect(response.statusCode).toBe(200);
+    expect(response.headers["cache-control"]).toBe("private, max-age=60");
     expect(response.json()).toMatchObject({ profile: PROFILE });
     expect(mocks.saveArtistCache).not.toHaveBeenCalled();
 
     pendingProfile.resolve(PROFILE);
     await vi.waitFor(() =>
       expect(mocks.saveArtistCache).toHaveBeenCalledWith(expect.objectContaining({ profile: PROFILE })),
+    );
+  });
+
+  it("shares a stale profile refresh across concurrent requests", async () => {
+    const pendingProfile = deferred<typeof PROFILE>();
+    mocks.findArtistCache.mockResolvedValue({
+      ...freshCache("Canonical Artist"),
+      profile: PROFILE,
+      profileUpdatedAt: Date.now() - 184 * 24 * 60 * 60 * 1000,
+    });
+    mocks.fetchArtistProfile.mockReturnValue(pendingProfile.promise);
+    const app = await buildApp();
+
+    const first = app.inject({ method: "GET", url: "/api/v1/artist-info?artistEntityId=artist-entity-1" });
+    const second = app.inject({ method: "GET", url: "/api/v1/artist-info?artistEntityId=artist-entity-1" });
+
+    await vi.waitFor(() => expect(mocks.findShortIdsByTrackUrls).toHaveBeenCalledTimes(2));
+    expect(mocks.fetchArtistProfile).toHaveBeenCalledTimes(1);
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      expect.objectContaining({ statusCode: 200 }),
+      expect.objectContaining({ statusCode: 200 }),
+    ]);
+
+    pendingProfile.resolve(PROFILE);
+    await vi.waitFor(() => expect(mocks.saveArtistCache).toHaveBeenCalledTimes(1));
+  });
+
+  it("shares a stale similar artist track refresh across concurrent requests", async () => {
+    const pendingTracks = deferred<[]>();
+    const rootCache = {
+      ...freshCache("Canonical Artist"),
+      profile: { ...PROFILE, similarArtists: ["Related Artist"] },
+    };
+    const similarCache = {
+      ...freshCache("Related Artist"),
+      tracksUpdatedAt: Date.now() - 8 * 24 * 60 * 60 * 1000,
+    };
+    mocks.findArtistCache.mockImplementation(async (identity) => (identity.kind === "name" ? similarCache : rootCache));
+    mocks.fetchArtistTopTracks.mockReturnValue(pendingTracks.promise);
+    const app = await buildApp();
+
+    const first = app.inject({ method: "GET", url: "/api/v1/artist-info?artistEntityId=artist-entity-1" });
+    const second = app.inject({ method: "GET", url: "/api/v1/artist-info?artistEntityId=artist-entity-1" });
+
+    await vi.waitFor(() => expect(mocks.findShortIdsByTrackUrls).toHaveBeenCalledTimes(2));
+    expect(mocks.fetchArtistTopTracks).toHaveBeenCalledTimes(1);
+    expect(mocks.fetchArtistTopTracks).toHaveBeenCalledWith("Related Artist");
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      expect.objectContaining({ statusCode: 200 }),
+      expect.objectContaining({ statusCode: 200 }),
+    ]);
+
+    pendingTracks.resolve([]);
+    await vi.waitFor(() =>
+      expect(mocks.saveArtistCache).toHaveBeenCalledWith(
+        expect.objectContaining({ artistName: "Related Artist", topTracks: [] }),
+      ),
     );
   });
 

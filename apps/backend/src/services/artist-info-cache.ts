@@ -10,6 +10,7 @@ export const ArtistInfoSection = {
 } as const;
 
 export type ArtistInfoSection = (typeof ArtistInfoSection)[keyof typeof ArtistInfoSection];
+type ArtistInfoSectionValue = ArtistProfile | ArtistTopTrack[] | ArtistEvent[] | null;
 
 type ArtistInfoCacheRepository = Pick<TrackRepository, "saveArtistCache">;
 
@@ -36,7 +37,7 @@ function cacheIdentityKey(identity: ArtistCacheIdentity): string {
 function sectionCacheData(
   section: ArtistInfoSection,
   input: RefreshInput,
-  value: ArtistProfile | ArtistTopTrack[] | ArtistEvent[] | null,
+  value: ArtistInfoSectionValue,
 ): ArtistCacheData {
   const base = { identity: input.identity, artistName: input.artistName };
   if (section === ArtistInfoSection.Profile) {
@@ -54,25 +55,39 @@ function sectionCacheData(
  * instance owns live in-process single-flight state.
  */
 export function createArtistInfoRefreshCoordinator(dependencies: ArtistInfoRefreshDependencies) {
-  const inFlight = new Map<string, Promise<void>>();
+  const inFlight = new Map<string, Promise<ArtistInfoSectionValue>>();
+  const scheduled = new Map<string, Promise<void>>();
 
-  async function refresh(
-    section: ArtistInfoSection,
-    input: RefreshInput,
-  ): Promise<ArtistProfile | ArtistTopTrack[] | ArtistEvent[] | null> {
-    const value =
-      section === ArtistInfoSection.Profile
-        ? await dependencies.fetchArtistProfile(input.artistName)
-        : section === ArtistInfoSection.TopTracks
-          ? await dependencies.fetchArtistTopTracks(input.artistName)
-          : await dependencies.fetchArtistEvents(input.artistName);
-    await input.repo.saveArtistCache(sectionCacheData(section, input, value));
-    return value;
+  function refresh(section: ArtistInfoSection, input: RefreshInput): Promise<ArtistInfoSectionValue> {
+    const key = `${cacheIdentityKey(input.identity)}:${section}`;
+    const existing = inFlight.get(key);
+    if (existing) return existing;
+
+    const task = (async () => {
+      const value =
+        section === ArtistInfoSection.Profile
+          ? await dependencies.fetchArtistProfile(input.artistName)
+          : section === ArtistInfoSection.TopTracks
+            ? await dependencies.fetchArtistTopTracks(input.artistName)
+            : await dependencies.fetchArtistEvents(input.artistName);
+      await input.repo.saveArtistCache(sectionCacheData(section, input, value));
+      return value;
+    })();
+    inFlight.set(key, task);
+    void task.then(
+      () => {
+        if (inFlight.get(key) === task) inFlight.delete(key);
+      },
+      () => {
+        if (inFlight.get(key) === task) inFlight.delete(key);
+      },
+    );
+    return task;
   }
 
   function schedule(section: ArtistInfoSection, input: RefreshInput): Promise<void> {
     const key = `${cacheIdentityKey(input.identity)}:${section}`;
-    const existing = inFlight.get(key);
+    const existing = scheduled.get(key);
     if (existing) return existing;
 
     let task: Promise<void>;
@@ -92,9 +107,9 @@ export function createArtistInfoRefreshCoordinator(dependencies: ArtistInfoRefre
         );
       })
       .finally(() => {
-        if (inFlight.get(key) === task) inFlight.delete(key);
+        if (scheduled.get(key) === task) scheduled.delete(key);
       });
-    inFlight.set(key, task);
+    scheduled.set(key, task);
     return task;
   }
 

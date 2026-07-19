@@ -59,6 +59,26 @@ describe("artist-info refresh coordination", () => {
     expect(fetchProfile).toHaveBeenCalledTimes(2);
   });
 
+  it("shares one required section refresh across concurrent cold callers", async () => {
+    const pendingTracks = deferred<ArtistTopTrack[]>();
+    const fetchArtistTopTracks = vi.fn(() => pendingTracks.promise);
+    const saveArtistCache = vi.fn<(...args: [ArtistCacheData]) => Promise<void>>().mockResolvedValue(undefined);
+    const coordinator = createArtistInfoRefreshCoordinator({
+      fetchArtistProfile: vi.fn<(...args: [string]) => Promise<ArtistProfile | null>>(),
+      fetchArtistTopTracks,
+      fetchArtistEvents: vi.fn<(...args: [string]) => Promise<ArtistEvent[]>>(),
+      logDeviation: vi.fn(),
+    });
+
+    const first = coordinator.refresh("topTracks", { repo: { saveArtistCache }, ...refreshInput() });
+    const second = coordinator.refresh("topTracks", { repo: { saveArtistCache }, ...refreshInput() });
+
+    expect(fetchArtistTopTracks).toHaveBeenCalledTimes(1);
+    pendingTracks.resolve([]);
+    await expect(Promise.all([first, second])).resolves.toEqual([[], []]);
+    expect(saveArtistCache).toHaveBeenCalledTimes(1);
+  });
+
   it("runs different sections and artists independently", async () => {
     const fetchProfile = vi.fn<(...args: [string]) => Promise<ArtistProfile | null>>().mockResolvedValue(PROFILE);
     const fetchArtistTopTracks = vi.fn<(...args: [string]) => Promise<ArtistTopTrack[]>>().mockResolvedValue([]);
