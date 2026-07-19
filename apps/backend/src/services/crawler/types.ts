@@ -65,10 +65,7 @@ export interface CrawlerSource {
 }
 
 /** Shared execution gate for admin enable/run-now paths and the heartbeat. */
-export function validateCrawlerSourceExecution(
-  source: CrawlerSource,
-  config: unknown,
-): Record<string, unknown> {
+export function validateCrawlerSourceExecution(source: CrawlerSource, config: unknown): Record<string, unknown> {
   const normalizedConfig = source.parseConfig(config);
   source.assertAvailable(normalizedConfig);
   return normalizedConfig;

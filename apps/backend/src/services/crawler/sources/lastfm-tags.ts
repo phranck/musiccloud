@@ -9,9 +9,9 @@
 import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
 import { log } from "../../../lib/infra/logger.js";
 import {
-  CrawlerSourceConfigurationError,
   type Candidate,
   type CrawlerSource,
+  CrawlerSourceConfigurationError,
   type CrawlerSourceFetchResult,
 } from "../types.js";
 
@@ -81,7 +81,12 @@ function assertLastfmTagsAvailable(config: LastfmTagConfig): void {
 }
 
 function asSearchCandidate(value: unknown): Extract<Candidate, { kind: "search" }> | null {
-  if (!isRecord(value) || typeof value.name !== "string" || !isRecord(value.artist) || typeof value.artist.name !== "string") {
+  if (
+    !isRecord(value) ||
+    typeof value.name !== "string" ||
+    !isRecord(value.artist) ||
+    typeof value.artist.name !== "string"
+  ) {
     return null;
   }
   const title = normalizeWhitespace(value.name);

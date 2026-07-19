@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CrawlStateRecord, TrackRepository } from "../../../db/repository.js";
-import { CrawlerSourceConfigurationError, type CrawlerSource } from "../types.js";
+import { type CrawlerSource, CrawlerSourceConfigurationError } from "../types.js";
 
 const mockRepo = {
   seedCrawlState: vi.fn(),

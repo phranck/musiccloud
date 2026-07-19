@@ -11,29 +11,31 @@ function cloneRow(row: CrawlStateRecord): CrawlStateRecord {
 }
 
 const mockRepo = {
-  seedCrawlState: vi.fn(async (seed: {
-    source: string;
-    displayName: string;
-    defaultEnabled: boolean;
-    defaultIntervalMinutes: number;
-    defaultConfig: Record<string, unknown>;
-  }) => {
-    if (crawlState.has(seed.source)) return;
-    crawlState.set(seed.source, {
-      source: seed.source,
-      displayName: seed.displayName,
-      enabled: seed.defaultEnabled,
-      intervalMinutes: seed.defaultIntervalMinutes,
-      nextRunAt: new Date("2026-07-19T00:00:00.000Z"),
-      lastRunAt: null,
-      cursor: null,
-      config: { ...seed.defaultConfig },
-      runningSince: null,
-      errorCount: 0,
-      lastError: null,
-      consecutiveErrors: 0,
-    });
-  }),
+  seedCrawlState: vi.fn(
+    async (seed: {
+      source: string;
+      displayName: string;
+      defaultEnabled: boolean;
+      defaultIntervalMinutes: number;
+      defaultConfig: Record<string, unknown>;
+    }) => {
+      if (crawlState.has(seed.source)) return;
+      crawlState.set(seed.source, {
+        source: seed.source,
+        displayName: seed.displayName,
+        enabled: seed.defaultEnabled,
+        intervalMinutes: seed.defaultIntervalMinutes,
+        nextRunAt: new Date("2026-07-19T00:00:00.000Z"),
+        lastRunAt: null,
+        cursor: null,
+        config: { ...seed.defaultConfig },
+        runningSince: null,
+        errorCount: 0,
+        lastError: null,
+        consecutiveErrors: 0,
+      });
+    },
+  ),
   listCrawlState: vi.fn(async () => [...crawlState.values()].map(cloneRow)),
   findCrawlState: vi.fn(async (source: string) => {
     const row = crawlState.get(source);

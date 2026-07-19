@@ -18,9 +18,9 @@
  * runs all 11 genres in under 3 seconds per tick.
  */
 import {
-  CrawlerSourceConfigurationError,
   type Candidate,
   type CrawlerSource,
+  CrawlerSourceConfigurationError,
   type CrawlerSourceFetchResult,
 } from "../types.js";
 
