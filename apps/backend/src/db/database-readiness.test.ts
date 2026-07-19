@@ -179,7 +179,7 @@ describe("buildMusiccloudReadinessExpectations", () => {
   it("requires CRUD access for the complete navigation write model", () => {
     const result = buildMusiccloudReadinessExpectations("latest-hash", "db");
 
-    for (const table of ["nav_items", "nav_item_translations", "navigation_item_placements"]) {
+    for (const table of ["nav_items", "navigation_item_placements"]) {
       for (const privilege of ["SELECT", "INSERT", "UPDATE", "DELETE"]) {
         expect(result.privileges).toContainEqual({ table, privilege });
       }
@@ -194,15 +194,15 @@ describe("buildMusiccloudReadinessExpectations", () => {
       "content_pages",
       "content_page_publications",
       "page_segments",
-      "content_page_translations",
-      "page_segment_translations",
       "nav_items",
-      "nav_item_translations",
       "navigation_item_placements",
     ]) {
       for (const privilege of ["SELECT", "INSERT", "UPDATE", "DELETE"]) {
         expect(result.privileges).toContainEqual({ table, privilege });
       }
+    }
+    for (const retiredTable of ["content_page_translations", "page_segment_translations", "nav_item_translations"]) {
+      expect(result.privileges.some(({ table }) => table === retiredTable)).toBe(false);
     }
     expect(result.sequencePrivileges).toEqual(
       expect.arrayContaining([

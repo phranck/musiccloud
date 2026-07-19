@@ -184,7 +184,7 @@ export async function listPendingInvites(pool: Pool): Promise<
 
 /**
  * Inserts a new admin user, optionally including an invite token hash and
- * expiry. The retained database locale column uses its schema default.
+ * expiry.
  *
  * @param pool - Postgres connection pool.
  * @param data - User payload. `email`, `role`, `inviteTokenHash`

@@ -869,7 +869,7 @@ export const artistShortUrls = pgTable(
 
 /**
  * Dashboard administrator accounts and invite state.
- * Stores authentication hashes, profile fields, locale, role and optional
+ * Stores authentication hashes, profile fields, role and optional
  * session timeout configuration for admin-only routes.
  */
 export const adminUsers = pgTable("admin_users", {
@@ -881,7 +881,6 @@ export const adminUsers = pgTable("admin_users", {
   firstName: text("first_name"),
   lastName: text("last_name"),
   avatarUrl: text("avatar_url"),
-  locale: text("locale").notNull().default("de"),
   inviteTokenHash: text("invite_token_hash"),
   inviteExpiresAt: timestamp("invite_expires_at", { withTimezone: true }),
   sessionTimeoutMinutes: integer("session_timeout_minutes"),
@@ -1352,78 +1351,6 @@ export const appTelemetryEvents = pgTable(
 
 export type AppTelemetryEventRow = typeof appTelemetryEvents.$inferSelect;
 export type AppTelemetryEventInsert = typeof appTelemetryEvents.$inferInsert;
-
-// Per-locale translations of a content page. Parent row in `content_pages`
-// holds the default-locale (en) source of truth + fallback. Missing rows
-// trigger fallback at render time.
-/**
- * Per-locale translations for managed content pages.
- * The parent `contentPages` row remains the default-locale source of truth and
- * missing locales fall back at render time.
- */
-export const contentPageTranslations = pgTable(
-  "content_page_translations",
-  {
-    slug: text("slug")
-      .notNull()
-      .references(() => contentPages.slug, { onDelete: "cascade", onUpdate: "cascade" }),
-    locale: text("locale").notNull(),
-    title: text("title").notNull(),
-    content: text("content").notNull().default(""),
-    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedBy: text("updated_by").references(() => adminUsers.id, { onDelete: "set null" }),
-  },
-  (table) => [primaryKey({ name: "pk_content_page_translations", columns: [table.slug, table.locale] })],
-);
-
-export type ContentPageTranslationRow = typeof contentPageTranslations.$inferSelect;
-export type ContentPageTranslationInsert = typeof contentPageTranslations.$inferInsert;
-
-// Per-locale translation of a page segment's tab label.
-/**
- * Per-locale translations for segmented-page tab labels.
- * Composite primary key keeps one translated label per segment and locale.
- */
-export const pageSegmentTranslations = pgTable(
-  "page_segment_translations",
-  {
-    segmentId: integer("segment_id")
-      .notNull()
-      .references(() => pageSegments.id, { onDelete: "cascade" }),
-    locale: text("locale").notNull(),
-    label: text("label").notNull(),
-    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [primaryKey({ name: "pk_page_segment_translations", columns: [table.segmentId, table.locale] })],
-);
-
-export type PageSegmentTranslationRow = typeof pageSegmentTranslations.$inferSelect;
-export type PageSegmentTranslationInsert = typeof pageSegmentTranslations.$inferInsert;
-
-// Per-locale translation of a navigation item's custom label.
-/**
- * Per-locale translations for navigation item labels.
- * Composite primary key keeps one translated label per navigation item and
- * locale.
- */
-export const navItemTranslations = pgTable(
-  "nav_item_translations",
-  {
-    navItemId: integer("nav_item_id")
-      .notNull()
-      .references(() => navItems.id, { onDelete: "cascade" }),
-    locale: text("locale").notNull(),
-    label: text("label").notNull(),
-    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [primaryKey({ name: "pk_nav_item_translations", columns: [table.navItemId, table.locale] })],
-);
-
-export type NavItemTranslationRow = typeof navItemTranslations.$inferSelect;
-export type NavItemTranslationInsert = typeof navItemTranslations.$inferInsert;
 
 // Per-source crawler state. Populated lazily on heartbeat tick via
 // idempotent ON CONFLICT DO NOTHING upsert from the in-memory registry —

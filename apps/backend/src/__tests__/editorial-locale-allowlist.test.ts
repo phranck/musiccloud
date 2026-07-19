@@ -35,19 +35,16 @@ function pathFromRoot(path: string): string {
 
 const localeFieldAllowlist = new Map<string, string>([
   ["apps/backend/src/db/adapters/postgres-artists.ts", "artist identity names, texts, events and memberships"],
-  ["apps/backend/src/db/adapters/postgres.ts", "artist identity data and the retained admin profile preference"],
+  ["apps/backend/src/db/adapters/postgres.ts", "artist identity data"],
   ["apps/backend/src/db/repository.ts", "artist identity data and native app telemetry"],
-  [
-    "apps/backend/src/db/schemas/postgres.ts",
-    "artist/place data, admin preference, telemetry and dormant legacy tables",
-  ],
+  ["apps/backend/src/db/schemas/postgres.ts", "artist/place data and native app telemetry"],
   ["apps/backend/src/routes/telemetry-app-error.ts", "native app telemetry input"],
   ["apps/backend/src/services/telemetry-app.ts", "native app telemetry persistence"],
   ["apps/Apple/App/Shared/Diagnostics/TelemetryEvent.swift", "native app telemetry capture"],
 ]);
 
 describe("editorial locale removal architecture", () => {
-  it("keeps translation-table access outside runtime code", async () => {
+  it("does not retain translation-table storage in runtime code or scripts", async () => {
     const files = [...(await sourceFiles(backendSourceRoot)), ...(await sourceFiles(scriptsRoot))];
     const tableNames = [
       "content_page_translations",
@@ -57,16 +54,11 @@ describe("editorial locale removal architecture", () => {
       "pageSegmentTranslations",
       "navItemTranslations",
     ];
-    const allowed = new Set([
-      "apps/backend/src/db/database-readiness.ts",
-      "apps/backend/src/db/schemas/postgres.ts",
-      "scripts/audit-content-i18n.mjs",
-    ]);
     const violations: string[] = [];
 
     for (const path of files) {
       const source = await readFile(path, "utf8");
-      if (tableNames.some((table) => source.includes(table)) && !allowed.has(pathFromRoot(path))) {
+      if (tableNames.some((table) => source.includes(table))) {
         violations.push(pathFromRoot(path));
       }
     }

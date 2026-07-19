@@ -9,6 +9,13 @@ describe("PostgreSQL schema", () => {
     expect(postgresSchema).not.toHaveProperty("formSubmissions");
   });
 
+  it("does not retain editorial localization storage", () => {
+    expect(postgresSchema).not.toHaveProperty("contentPageTranslations");
+    expect(postgresSchema).not.toHaveProperty("pageSegmentTranslations");
+    expect(postgresSchema).not.toHaveProperty("navItemTranslations");
+    expect(postgresSchema.adminUsers).not.toHaveProperty("locale");
+  });
+
   it("adds stable identity and context ownership to content pages", () => {
     expect(postgresSchema.contentPages.id.name).toBe("id");
     expect(postgresSchema.contentPages.id.notNull).toBe(true);
