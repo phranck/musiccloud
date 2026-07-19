@@ -1,4 +1,5 @@
 import type {
+  AdminArtistListItem,
   ArtistProfileRefreshOutcome,
   ContentCardStyle,
   ContentContextMask,
@@ -63,17 +64,8 @@ export interface AlbumListItem {
   shortId: string | null;
 }
 
-/** Artist list item shape returned or accepted by the database repository layer. */
-export interface ArtistListItem {
-  id: string;
-  name: string;
-  imageUrl: string | null;
-  genres: string[];
-  sourceService: string | null;
-  linkCount: number;
-  createdAt: number;
-  shortId: string | null;
-}
+/** Shared artist list row enriched with profile-cache observability. */
+export type ArtistListItem = AdminArtistListItem;
 
 /** Internal persistence shape for one Dashboard-triggered profile refresh attempt. */
 export interface ArtistProfileRefreshEvent {

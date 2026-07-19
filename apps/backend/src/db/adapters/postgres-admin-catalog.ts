@@ -25,6 +25,11 @@
  *     `postgres-tracks.ts`, `postgres-albums.ts`, `postgres-artists.ts`).
  */
 
+import {
+  type ArtistProfileManualRefreshSummary,
+  type ArtistProfileProvider,
+  classifyArtistProfileCacheStatus,
+} from "@musiccloud/shared";
 import type { Pool } from "pg";
 import { adminEventBroadcaster } from "../../lib/event-broadcaster.js";
 import { log } from "../../lib/infra/logger.js";
@@ -430,10 +435,27 @@ export async function listArtists(
   const query = `SELECT
     ar.artist_entity_id AS id, ar.artist_entity_id, ${ARTIST_NAME_SELECT}, ar.image_url, ar.genres, ar.source_service, ar.created_at,
     asu.id as short_id,
-    (SELECT COUNT(*) FROM artist_service_links asl WHERE asl.artist_entity_id = ar.artist_entity_id) as link_count
+    (SELECT COUNT(*) FROM artist_service_links asl WHERE asl.artist_entity_id = ar.artist_entity_id) as link_count,
+    ac.profile IS NOT NULL AS profile_cache_present,
+    ac.profile_updated_at,
+    ac.profile_providers,
+    latest_refresh.trigger AS refresh_trigger,
+    latest_refresh.occurred_at AS refresh_occurred_at,
+    latest_refresh.completed_at AS refresh_completed_at,
+    latest_refresh.outcome AS refresh_outcome,
+    latest_refresh.error_code AS refresh_error_code,
+    latest_refresh.error_id AS refresh_error_id
   FROM artist_profiles ar
   ${ARTIST_NAME_LATERAL_JOIN}
   LEFT JOIN artist_short_urls asu ON ar.artist_entity_id = asu.artist_entity_id
+  LEFT JOIN artist_cache ac ON ac.id = 'artistEntity:' || ar.artist_entity_id
+  LEFT JOIN LATERAL (
+    SELECT trigger, occurred_at, completed_at, outcome, error_code, error_id
+    FROM artist_profile_refresh_events
+    WHERE artist_entity_id = ar.artist_entity_id
+    ORDER BY occurred_at DESC, id DESC
+    LIMIT 1
+  ) latest_refresh ON TRUE
   ${whereClause}
   ORDER BY ${orderExpr} ${dir}
   LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}`;
@@ -443,20 +465,55 @@ export async function listArtists(
   interface ArtistListRow extends ArtistRow {
     short_id: string | null;
     link_count: string;
+    profile_cache_present: boolean;
+    profile_updated_at: Date | null;
+    profile_providers: string[] | null;
+    refresh_trigger: "manual" | null;
+    refresh_occurred_at: Date | null;
+    refresh_completed_at: Date | null;
+    refresh_outcome: "refreshing" | "succeeded" | "failed" | null;
+    refresh_error_code: string | null;
+    refresh_error_id: string | null;
   }
 
-  const items = (rows.rows as ArtistListRow[]).map((r) => ({
-    id: r.id,
-    name: r.name,
-    imageUrl: r.image_url ?? null,
-    genres: safeParseArray(r.genres ?? "[]"),
-    sourceService: r.source_service ?? null,
-    linkCount: parseInt(r.link_count, 10),
-    createdAt: dateToMs(r.created_at),
-    shortId: r.short_id ?? null,
-  }));
+  const items = (rows.rows as ArtistListRow[]).map((r) => {
+    const latestManualRefresh: ArtistProfileManualRefreshSummary | null =
+      r.refresh_trigger === "manual" && r.refresh_occurred_at && r.refresh_outcome
+        ? {
+            trigger: "manual",
+            occurredAt: new Date(r.refresh_occurred_at).toISOString(),
+            completedAt: r.refresh_completed_at ? new Date(r.refresh_completed_at).toISOString() : null,
+            outcome: r.refresh_outcome,
+            errorCode: r.refresh_error_code,
+            errorId: r.refresh_error_id,
+          }
+        : null;
+    return {
+      id: r.id,
+      artistEntityId: r.artist_entity_id,
+      name: r.name,
+      imageUrl: r.image_url ?? null,
+      genres: safeParseArray(r.genres ?? "[]"),
+      sourceService: r.source_service ?? null,
+      linkCount: parseInt(r.link_count, 10),
+      createdAt: dateToMs(r.created_at),
+      shortId: r.short_id ?? null,
+      profileCache: classifyArtistProfileCacheStatus({
+        profileUpdatedAt:
+          r.profile_cache_present && r.profile_updated_at ? new Date(r.profile_updated_at).toISOString() : null,
+        profileProviders: r.profile_cache_present
+          ? (r.profile_providers ?? []).filter(isArtistProfileProvider)
+          : [],
+        latestManualRefresh,
+      }),
+    };
+  });
 
   return { items, total, page, limit };
+}
+
+function isArtistProfileProvider(value: string): value is ArtistProfileProvider {
+  return value === "spotify" || value === "deezer" || value === "lastfm";
 }
 
 /**
