@@ -101,6 +101,7 @@ export function composeArtistProfileSnapshot(
         (source): source is ArtistProfileProvider => source === "spotify" || source === "deezer" || source === "lastfm",
       ),
   );
+  if (selectedProviders.size === 0) return null;
 
   return {
     profile,

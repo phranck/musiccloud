@@ -78,6 +78,17 @@ describe("artist profile provenance", () => {
     expect(snapshot?.providers).toEqual(["deezer"]);
   });
 
+  it("returns null when partials contain no usable stored profile field", () => {
+    const partials: ArtistPartial[] = [
+      {
+        __source: "lastfm",
+        topTracks: [],
+      },
+    ];
+
+    expect(composeArtistProfileSnapshot(partials, "Empty Artist")).toBeNull();
+  });
+
   it("returns null when no provider produced a partial", () => {
     expect(composeArtistProfileSnapshot([null, null, null], "Artist Three")).toBeNull();
   });
