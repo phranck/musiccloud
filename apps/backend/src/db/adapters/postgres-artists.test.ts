@@ -41,4 +41,20 @@ describe("artist-info entity repository helpers", () => {
 
     expect(query.mock.calls[0]?.[1]?.[0]).toBe("artistEntity:artist-entity-1");
   });
+
+  it("timestamps supplied sections and rejects an older section write", async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    const pool = { query } as unknown as Pool;
+
+    await saveArtistCache(pool, {
+      identity: { kind: "entity", artistEntityId: "artist-entity-1" },
+      artistName: "Canonical Artist",
+      profile: null,
+      profileUpdatedAt: 1_000,
+    });
+
+    const [sql, params] = query.mock.calls[0] ?? [];
+    expect(sql).toContain("profile_updated_at <= EXCLUDED.profile_updated_at");
+    expect(params?.[5]).toEqual(new Date(1_000));
+  });
 });

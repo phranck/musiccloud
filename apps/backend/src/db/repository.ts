@@ -400,6 +400,13 @@ export interface TrackRepository {
    */
   findShortIdByTrackUrl(url: string): Promise<string | null>;
   /**
+   * Finds short IDs for a set of source track URLs in one query.
+   *
+   * @param urls - Source URLs recorded against tracks.
+   * @returns A map containing only URLs with an assigned short ID.
+   */
+  findShortIdsByTrackUrls(urls: string[]): Promise<Map<string, string>>;
+  /**
    * Finds track by ISRC.
    *
    * @param isrc - The `isrc` value.

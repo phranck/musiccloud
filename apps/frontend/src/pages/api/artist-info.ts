@@ -40,8 +40,12 @@ export const GET: APIRoute = async ({ url, clientAddress }) => {
     refresh,
   });
 
+  const headers = new Headers({ "Content-Type": res.headers.get("Content-Type") ?? "application/json" });
+  const cacheControl = res.headers.get("Cache-Control");
+  if (cacheControl) headers.set("Cache-Control", cacheControl);
+
   return new Response(res.body, {
     status: res.status,
-    headers: { "Content-Type": "application/json" },
+    headers,
   });
 };

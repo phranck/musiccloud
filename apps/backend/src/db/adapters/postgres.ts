@@ -279,6 +279,7 @@ import {
   findExistingByIsrc as tracksFindExistingByIsrc,
   findExistingByIsrcSync as tracksFindExistingByIsrcSync,
   findShortIdByTrackUrl as tracksFindShortIdByTrackUrl,
+  findShortIdsByTrackUrls as tracksFindShortIdsByTrackUrls,
   findTrackByExternalId as tracksFindTrackByExternalId,
   findTrackByIsrc as tracksFindTrackByIsrc,
   findTrackByUrl as tracksFindTrackByUrl,
@@ -401,6 +402,10 @@ export class PostgresAdapter
 
   findShortIdByTrackUrl(url: string): Promise<string | null> {
     return tracksFindShortIdByTrackUrl(this.pool, url);
+  }
+
+  findShortIdsByTrackUrls(urls: string[]): Promise<Map<string, string>> {
+    return tracksFindShortIdsByTrackUrls(this.pool, urls);
   }
 
   findExistingByIsrc(isrc: string): Promise<{ trackId: string; shortId: string } | null> {
