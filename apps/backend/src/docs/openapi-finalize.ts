@@ -32,6 +32,8 @@
  * The function is pure: it returns a new document and does not mutate input.
  */
 
+import { PUBLIC_ERROR_CODE_CATALOG, type PublicErrorCodeEntry } from "@musiccloud/shared";
+
 /**
  * Minimal structural view of the parts of an OpenAPI 3 document this module
  * reads or reorders. Everything else passes through untouched via the spread.
@@ -43,6 +45,8 @@ export interface FinalizableOpenApiDocument {
   paths?: Record<string, unknown>;
   /** Components bag; only `schemas` is inspected and pruned. */
   components?: { schemas?: Record<string, unknown> };
+  /** SDK-safe error code catalog derived from the shared registry. */
+  "x-musiccloud-error-codes"?: readonly PublicErrorCodeEntry[];
 }
 
 /** Stable, locale-aware comparator so ordering is deterministic across runs. */
@@ -208,6 +212,7 @@ export function finalizePublicOpenApiDocument(doc: FinalizableOpenApiDocument): 
 
   return {
     ...doc,
+    "x-musiccloud-error-codes": PUBLIC_ERROR_CODE_CATALOG,
     tags: sortedTags,
     paths: sortedPaths,
     components: { ...doc.components, schemas: prunedSchemas },

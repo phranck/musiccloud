@@ -380,7 +380,7 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
 };
 
 /** Pattern that recognises any well-formed MC error code, even if not in the registry. */
-const MC_CODE_PATTERN = /^MC-(URL|API|AUTH|RES|DB|CFG|MAP|REQ|SYS)-\d{3,4}$/;
+export const MC_ERROR_CODE_PATTERN = /^MC-(URL|API|AUTH|RES|DB|CFG|MAP|REQ|SYS)-\d{3,4}$/;
 
 /**
  * Resolve a raw code (MC or legacy) to its registry entry.
@@ -403,7 +403,7 @@ export function getErrorEntry(code: string): ErrorCodeEntry {
   if (code in LEGACY_TO_MC) {
     return ERROR_CODE_REGISTRY[LEGACY_TO_MC[code as LegacyErrorCode]];
   }
-  if (MC_CODE_PATTERN.test(code)) {
+  if (MC_ERROR_CODE_PATTERN.test(code)) {
     const area = code.split("-")[1] as ErrorArea;
     return {
       code: code as McErrorCode,

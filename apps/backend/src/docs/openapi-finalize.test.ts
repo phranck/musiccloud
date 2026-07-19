@@ -1,3 +1,4 @@
+import { PUBLIC_ERROR_CODE_CATALOG } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
 import { finalizePublicOpenApiDocument } from "./openapi-finalize.js";
 
@@ -167,6 +168,7 @@ describe("finalizePublicOpenApiDocument", () => {
       tags: undefined,
       paths: {},
       components: { schemas: {} },
+      "x-musiccloud-error-codes": PUBLIC_ERROR_CODE_CATALOG,
     });
   });
 });
