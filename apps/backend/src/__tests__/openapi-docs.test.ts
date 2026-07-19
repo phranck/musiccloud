@@ -192,7 +192,10 @@ describe("OpenAPI docs", () => {
     expect(res.headers["cache-control"]).toBe("public, max-age=300");
     // Every immutable SDK release is keyed by the public contract version.
     // Keep this assertion explicit so a contract change cannot reuse a tag.
-    expect(doc.info.version).toBe("2.1.6");
+    expect(doc.info.version).toBe("2.1.7");
+    expect(doc.info.description).toContain("Developer Project");
+    expect(doc.info.description).toContain("Registrations under one project share those quotas");
+    expect(doc.components.securitySchemes.ApiKeyAuth.description).toContain("shared by all registrations");
     expect(doc.info.version).toMatch(/^\d+\.\d+\.\d+$/);
     expect(Object.keys(doc.paths)).not.toContain("/api/dev/api-access/clients");
     expect(doc.components.securitySchemes).toHaveProperty("ApiKeyAuth");

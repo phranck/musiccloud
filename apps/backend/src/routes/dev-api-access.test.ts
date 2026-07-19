@@ -23,7 +23,7 @@ import { EmailAction, EmailRecipientKind, ENDPOINTS, ROUTE_TEMPLATES } from "@mu
 import Fastify, { type FastifyInstance } from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ApiAccessRequest, ApiClient, ApiClientToken } from "../db/api-access-repository.js";
+import type { ApiAccessRequest, ApiClient, ApiClientToken, DeveloperProject } from "../db/api-access-repository.js";
 import type { DeveloperAccount } from "../db/developer-repository.js";
 
 vi.stubEnv("DISABLE_RATE_LIMIT", "true");
@@ -37,6 +37,10 @@ const mockDeveloperRepo = {
 };
 
 const mockRepo = {
+  createDeveloperProject: vi.fn(),
+  findDeveloperProjectById: vi.fn(),
+  listDeveloperProjectsByAccount: vi.fn().mockResolvedValue([]),
+  updateDeveloperProject: vi.fn(),
   createApiAccessRequest: vi.fn(),
   findApiAccessRequestById: vi.fn(),
   listApiAccessRequestsByDeveloperAccount: vi.fn().mockResolvedValue([]),
@@ -45,6 +49,7 @@ const mockRepo = {
   createApiClient: vi.fn(),
   findApiClientById: vi.fn(),
   listApiClientsByDeveloperAccount: vi.fn().mockResolvedValue([]),
+  listApiClientsByProject: vi.fn().mockResolvedValue([]),
   listApiClients: vi.fn(),
   updateApiClient: vi.fn(),
   createApiClientToken: vi.fn(),
@@ -101,6 +106,7 @@ function makeRequest(overrides: Partial<ApiAccessRequest> = {}): ApiAccessReques
   return {
     id: "req-1",
     developerAccountId: "dev-1",
+    projectId: null,
     contactEmail: "dev@example.com",
     appName: "App",
     appDescription: "Desc",
@@ -125,6 +131,14 @@ function makeClient(overrides: Partial<ApiClient> = {}): ApiClient {
     id: "client-1",
     requestId: "req-1",
     developerAccountId: "dev-1",
+    projectId: "project-1",
+    publicClientId: "mc_client_1",
+    registrationType: "development",
+    capabilities: ["legacy_api_key"],
+    projectDisplayName: "App project",
+    projectStatus: "active",
+    projectRequestsPerMinute: null,
+    projectRequestsPerDay: null,
     appName: "App",
     contactEmail: "dev@example.com",
     description: "Desc",
@@ -140,6 +154,29 @@ function makeClient(overrides: Partial<ApiClient> = {}): ApiClient {
     effectiveRequestsPerDay: 10000,
     createdAt: 1_700_000_000_000,
     updatedAt: 1_700_000_000_000,
+    createdByAdminId: null,
+    ...overrides,
+  };
+}
+
+function makeProject(overrides: Partial<DeveloperProject> = {}): DeveloperProject {
+  return {
+    id: "project-1",
+    developerAccountId: "dev-1",
+    displayName: "App project",
+    status: "active",
+    requestsPerMinute: null,
+    requestsPerDay: null,
+    tierId: "tier-free",
+    tierName: "Free",
+    tierRequestsPerMinute: 60,
+    tierRequestsPerDay: 10000,
+    effectiveRequestsPerMinute: 60,
+    effectiveRequestsPerDay: 10000,
+    createdAt: 1_700_000_000_000,
+    updatedAt: 1_700_000_000_000,
+    suspendedAt: null,
+    deletedAt: null,
     createdByAdminId: null,
     ...overrides,
   };
@@ -197,10 +234,113 @@ beforeEach(() => {
   mockRepo.listApiClientTokensByClient.mockResolvedValue([]);
   mockRepo.listApiAccessRequestsByDeveloperAccount.mockResolvedValue([]);
   mockRepo.listApiClientsByDeveloperAccount.mockResolvedValue([]);
+  mockRepo.listDeveloperProjectsByAccount.mockResolvedValue([]);
+  mockRepo.listApiClientsByProject.mockResolvedValue([]);
   mockRepo.createApiAccessAuditEvent.mockResolvedValue({});
 });
 
 describe("devApiAccessRoutes", () => {
+  describe("project aggregate", () => {
+    it("creates and lists independent caller-owned projects", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.createDeveloperProject.mockResolvedValue(makeProject());
+      mockRepo.listDeveloperProjectsByAccount.mockResolvedValue([
+        makeProject(),
+        makeProject({ id: "project-2", displayName: "Second app", tierId: "tier-pro", tierName: "Pro" }),
+      ]);
+
+      const created = await app.inject({
+        method: "POST",
+        url: ENDPOINTS.dev.apiAccess.projects,
+        payload: { displayName: "App project" },
+      });
+      const listed = await app.inject({ method: "GET", url: ENDPOINTS.dev.apiAccess.projects });
+
+      expect(created.statusCode).toBe(201);
+      for (const secretField of ["rawToken", "tokenHash", "tokens", "publicClientId", "creemSubscriptionId"]) {
+        expect(created.json().project).not.toHaveProperty(secretField);
+      }
+      expect(mockRepo.createDeveloperProject).toHaveBeenCalledWith(
+        expect.objectContaining({ developerAccountId: "dev-1", displayName: "App project" }),
+      );
+      expect(listed.statusCode).toBe(200);
+      expect(listed.json().projects).toHaveLength(2);
+      expect(mockRepo.listDeveloperProjectsByAccount).toHaveBeenCalledWith("dev-1");
+      expect(mockRepo.createApiAccessAuditEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ projectId: "project-1", eventType: "project_created" }),
+      );
+    });
+
+    it("does not expose a project owned by another account", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject({ developerAccountId: "dev-2" }));
+
+      const response = await app.inject({
+        method: "GET",
+        url: ROUTE_TEMPLATES.dev.apiAccess.projectDetail.replace(":id", "project-1"),
+      });
+
+      expect(response.statusCode).toBe(404);
+    });
+
+    it("creates typed registrations only below an owned active project", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject());
+      mockRepo.createApiClient.mockResolvedValue(
+        makeClient({ registrationType: "confidential", publicClientId: "mc_client_distinct" }),
+      );
+
+      const response = await app.inject({
+        method: "POST",
+        url: ROUTE_TEMPLATES.dev.apiAccess.projectRegistrations.replace(":id", "project-1"),
+        payload: { name: "Production", registrationType: "confidential", capabilities: ["client_credentials"] },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(response.json().registration).toMatchObject({
+        projectId: "project-1",
+        publicClientId: "mc_client_distinct",
+        registrationType: "confidential",
+      });
+      expect(mockRepo.createApiClient).toHaveBeenCalledWith(
+        expect.objectContaining({
+          developerAccountId: "dev-1",
+          projectId: "project-1",
+          registrationType: "confidential",
+          capabilities: ["client_credentials"],
+        }),
+      );
+    });
+
+    it("rejects non-array registration capabilities before persistence", async () => {
+      const app = await buildApp("dev-1");
+
+      const response = await app.inject({
+        method: "POST",
+        url: ROUTE_TEMPLATES.dev.apiAccess.projectRegistrations.replace(":id", "project-1"),
+        payload: { name: "Production", registrationType: "confidential", capabilities: "client_credentials" },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(mockRepo.findDeveloperProjectById).not.toHaveBeenCalled();
+      expect(mockRepo.createApiClient).not.toHaveBeenCalled();
+    });
+
+    it("rejects registration creation below a suspended project", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject({ status: "suspended" }));
+
+      const response = await app.inject({
+        method: "POST",
+        url: ROUTE_TEMPLATES.dev.apiAccess.projectRegistrations.replace(":id", "project-1"),
+        payload: { name: "Production", registrationType: "public" },
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(mockRepo.createApiClient).not.toHaveBeenCalled();
+    });
+  });
+
   describe("POST requestsCreate", () => {
     it("rejects a payload missing all fields with 400", async () => {
       const app = await buildApp();
@@ -321,7 +461,12 @@ describe("devApiAccessRoutes", () => {
       expect(body.token.tokenHash).toBeUndefined();
       expect(Object.keys(body.token)).not.toContain("tokenHash");
       expect(mockRepo.createApiAccessAuditEvent).toHaveBeenCalledWith(
-        expect.objectContaining({ clientId: "client-1", eventType: "token_created", actorDeveloperAccountId: "dev-1" }),
+        expect.objectContaining({
+          projectId: "project-1",
+          clientId: "client-1",
+          eventType: "token_created",
+          actorDeveloperAccountId: "dev-1",
+        }),
       );
     });
 
@@ -335,6 +480,21 @@ describe("devApiAccessRoutes", () => {
       });
 
       expect(response.statusCode).toBe(404);
+      expect(mockRepo.createApiClientToken).not.toHaveBeenCalled();
+    });
+
+    it("rejects token creation while the owning project is suspended", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findApiClientById.mockResolvedValue(
+        makeClient({ developerAccountId: "dev-1", projectStatus: "suspended" }),
+      );
+
+      const response = await app.inject({
+        method: "POST",
+        url: ROUTE_TEMPLATES.dev.apiAccess.clientCreateToken.replace(":id", "client-1"),
+      });
+
+      expect(response.statusCode).toBe(409);
       expect(mockRepo.createApiClientToken).not.toHaveBeenCalled();
     });
 
@@ -369,6 +529,7 @@ describe("devApiAccessRoutes", () => {
       expect(body.token.rawToken).toBeUndefined();
       expect(mockRepo.createApiAccessAuditEvent).toHaveBeenCalledWith(
         expect.objectContaining({
+          projectId: "project-1",
           clientId: "client-1",
           tokenId: "token-1",
           eventType: "token_revoked",
@@ -450,6 +611,7 @@ describe("devApiAccessRoutes", () => {
       expect(body.token.tokenHash).toBeUndefined();
       expect(mockRepo.createApiAccessAuditEvent).toHaveBeenCalledWith(
         expect.objectContaining({
+          projectId: "project-1",
           clientId: "client-1",
           tokenId: "token-2",
           eventType: "token_rotated",
@@ -472,6 +634,22 @@ describe("devApiAccessRoutes", () => {
       });
 
       expect(response.statusCode).toBe(404);
+      expect(mockRepo.rotateApiClientToken).not.toHaveBeenCalled();
+    });
+
+    it("rejects token rotation while the owning project is suspended", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findApiClientTokenById.mockResolvedValue(makeToken({ id: "token-1" }));
+      mockRepo.findApiClientById.mockResolvedValue(
+        makeClient({ developerAccountId: "dev-1", projectStatus: "suspended" }),
+      );
+
+      const response = await app.inject({
+        method: "POST",
+        url: ROUTE_TEMPLATES.dev.apiAccess.tokenRotate.replace(":id", "token-1"),
+      });
+
+      expect(response.statusCode).toBe(409);
       expect(mockRepo.rotateApiClientToken).not.toHaveBeenCalled();
     });
 

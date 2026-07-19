@@ -19,6 +19,7 @@ export function updateDeveloperPortalAvailability(
 export interface ApiAccessRequestResponse {
   id: string;
   developerAccountId: string;
+  projectId: string | null;
   contactEmail: string;
   appName: string;
   appDescription: string;
@@ -43,17 +44,25 @@ export interface ApiClientTokenResponse {
 
 export interface ApiClientResponse {
   id: string;
-  requestId: string;
+  requestId: string | null;
   developerAccountId: string;
+  projectId: string;
+  publicClientId: string;
+  registrationType: "development" | "confidential" | "public";
+  capabilities: string[];
+  projectDisplayName: string;
+  projectStatus: string;
+  projectRequestsPerMinute: number | null;
+  projectRequestsPerDay: number | null;
   appName: string;
   contactEmail: string;
   description: string;
   status: string;
-  /** Per-key override, or `null` when the client inherits the account tier's limit. */
+  /** Optional registration cap. It can narrow, never widen, the project limit. */
   requestsPerMinute: number | null;
-  /** Per-key override, or `null` when the client inherits the account tier's limit. */
+  /** Optional daily registration cap, or `null` when the project limit applies. */
   requestsPerDay: number | null;
-  /** Display name of the owning account's tier, or `null` when unassigned. */
+  /** Display name of the selected project tier, or `null` when unassigned. */
   tierName: string | null;
   /** The tier's per-minute limit (what applies when the override is cleared), or `null` when unassigned. */
   tierRequestsPerMinute: number | null;
@@ -66,6 +75,26 @@ export interface ApiClientResponse {
   createdAt: string;
   updatedAt: string;
   tokens: ApiClientTokenResponse[];
+}
+
+export interface DeveloperProjectResponse {
+  id: string;
+  developerAccountId: string;
+  displayName: string;
+  status: "active" | "suspended" | "deleted";
+  requestsPerMinute: number | null;
+  requestsPerDay: number | null;
+  tierId: string | null;
+  tierName: string | null;
+  tierRequestsPerMinute: number | null;
+  tierRequestsPerDay: number | null;
+  effectiveRequestsPerMinute: number;
+  effectiveRequestsPerDay: number;
+  createdAt: string;
+  updatedAt: string;
+  suspendedAt: string | null;
+  deletedAt: string | null;
+  createdByAdminId: string | null;
 }
 
 export interface ApiAccessOverview {
@@ -135,11 +164,32 @@ export function createClientToken(id: string): Promise<{ token: ApiClientTokenRe
   );
 }
 
-export function updateApiClient(
+export function fetchDeveloperProjects(accountId: string): Promise<{ projects: DeveloperProjectResponse[] }> {
+  return api.get<{ projects: DeveloperProjectResponse[] }>(
+    ENDPOINTS.admin.developer.apiAccess.accountProjects(accountId),
+  );
+}
+
+export function updateDeveloperProject(
   id: string,
-  body: { status?: string; requestsPerMinute?: number | null; requestsPerDay?: number | null },
-): Promise<{ client: ApiClientResponse }> {
-  return api.patch<{ client: ApiClientResponse }>(ENDPOINTS.admin.developer.apiAccess.clientUpdate(id), body);
+  body: {
+    displayName?: string;
+    status?: "active" | "suspended" | "deleted";
+    requestsPerMinute?: number | null;
+    requestsPerDay?: number | null;
+  },
+): Promise<{ project: DeveloperProjectResponse }> {
+  return api.patch<{ project: DeveloperProjectResponse }>(ENDPOINTS.admin.developer.apiAccess.projectDetail(id), body);
+}
+
+export function updateDeveloperProjectSubscription(
+  id: string,
+  body: { tierId: string | null; status?: string; interval?: string | null },
+): Promise<{ subscription: { projectId: string; tierId: string | null; status: string } }> {
+  return api.put<{ subscription: { projectId: string; tierId: string | null; status: string } }>(
+    ENDPOINTS.admin.developer.apiAccess.projectSubscription(id),
+    body,
+  );
 }
 
 export function activateToken(id: string): Promise<{ token: ApiClientTokenResponse }> {

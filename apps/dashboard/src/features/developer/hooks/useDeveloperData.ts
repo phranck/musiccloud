@@ -15,8 +15,8 @@ import {
   fetchTiers,
   rejectApiAccessRequest,
   type TierResponse,
-  updateApiClient,
   updateDeveloperAccount,
+  updateDeveloperProject,
   updateTier,
 } from "@/features/developer/api";
 
@@ -122,11 +122,19 @@ export function useDeactivateToken() {
   });
 }
 
-export function useUpdateClient() {
+export function useUpdateDeveloperProject() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: string; requestsPerMinute?: number | null; requestsPerDay?: number | null }) =>
-      updateApiClient(id, body),
+    mutationFn: ({
+      id,
+      ...body
+    }: {
+      id: string;
+      displayName?: string;
+      status?: "active" | "suspended" | "deleted";
+      requestsPerMinute?: number | null;
+      requestsPerDay?: number | null;
+    }) => updateDeveloperProject(id, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["developer"] });
     },

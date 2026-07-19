@@ -8,6 +8,7 @@ import {
   type ApiTokenDto,
   ApiTokenStatus,
   createClientToken,
+  DeveloperProjectStatus,
   listApiClients,
   maskToken,
   revokeClientToken,
@@ -109,12 +110,12 @@ export function ApiKeysPanel() {
       {clients === null && !listError ? <p className="card-content-inset text-body text-fg-muted">Loading…</p> : null}
       {listError ? (
         <p className="card-content-inset field__message field__message--error">
-          Could not load your API clients. Reload the page to try again.
+          Could not load your client registrations. Reload the page to try again.
         </p>
       ) : null}
       {clients !== null && clients.length === 0 ? (
         <section className="surface-card px-6 py-5">
-          <h2 className="text-body font-medium text-fg mb-1">No API clients yet</h2>
+          <h2 className="text-body font-medium text-fg mb-1">No client registrations yet</h2>
           <p className="text-body text-fg-muted">
             Clients appear here once an access request has been approved.{" "}
             <a href="/dashboard/api-access" className="content-link text-fg">
@@ -126,12 +127,20 @@ export function ApiKeysPanel() {
       ) : null}
 
       {(clients ?? []).map((client) => {
-        const clientActive = client.status === ApiClientStatus.Active;
+        const clientActive =
+          client.status === ApiClientStatus.Active && client.projectStatus === DeveloperProjectStatus.Active;
+        const displayedStatus =
+          client.projectStatus === DeveloperProjectStatus.Active ? client.status : client.projectStatus;
         return (
           <section key={client.id} className="surface-card px-6 py-5">
             <div className="flex items-center justify-between gap-3 mb-1">
-              <h2 className="text-body font-medium text-fg truncate">{client.appName}</h2>
-              <StatusBadge status={client.status} />
+              <div className="min-w-0">
+                <h2 className="text-body font-medium text-fg truncate">{client.projectDisplayName}</h2>
+                <p className="text-nav text-fg-subtle truncate">
+                  {client.appName} · {client.registrationType} · {client.publicClientId}
+                </p>
+              </div>
+              <StatusBadge status={displayedStatus} />
             </div>
             <p className="text-nav text-fg-subtle mb-4">
               {client.requestsPerMinute} requests/minute · {client.requestsPerDay.toLocaleString("en-US")} requests/day

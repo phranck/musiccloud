@@ -30,8 +30,8 @@ describe("/docs/api content", () => {
     const contract = readFixture("public-openapi.json");
     const reference = buildApiReference(contract);
     const catalog = parseSdkCatalog(readFixture("sdk-catalog.json"), {
-      version: "2.1.6",
-      sha256: "35644ffb3bd28eb1b046cf905818d881319f7e4aeb28f51ea2aa812dc486dab8",
+      version: "2.1.7",
+      sha256: "cfd3aaff3c532009c4a4a629a3f91161501ae9b18591506cb53eaf2efda3628c",
     });
     const container = await AstroContainer.create({ renderers: await loadRenderers([getContainerRenderer()]) });
 
@@ -44,6 +44,8 @@ describe("/docs/api content", () => {
     expect(html).toContain("/api/v1/resolve");
     expect(html).toContain("Authentication");
     expect(html).toContain("X-API-Key");
+    expect(html).toContain("Developer Project&#39;s minute and day quotas");
+    expect(html).toContain("registration caps can only narrow them");
     expect(html).toContain("data-copy-code");
     expect(html).toContain("code-block__copy");
     expect(html).toContain("data-code-line-numbers");
@@ -140,7 +142,7 @@ describe("/docs/api content", () => {
     expect(html).toContain("ResolveAPI");
     expect(html).toContain("SHA-256");
     expect(html).toContain("OpenAPI contract");
-    expect(html).toContain("Public OpenAPI contract, v2.1.6");
+    expect(html).toContain("Public OpenAPI contract, v2.1.7");
     expect(html).toContain("https://api.musiccloud.io/docs/json");
     expect(html).toContain("data-openapi-contract-trigger");
     expect(html).toContain("data-openapi-contract-dialog");
@@ -179,8 +181,8 @@ describe("/docs/api content", () => {
     };
     const reference = buildApiReference(fixture);
     const catalog = parseSdkCatalog(readFixture("sdk-catalog.json"), {
-      version: "2.1.6",
-      sha256: "35644ffb3bd28eb1b046cf905818d881319f7e4aeb28f51ea2aa812dc486dab8",
+      version: "2.1.7",
+      sha256: "cfd3aaff3c532009c4a4a629a3f91161501ae9b18591506cb53eaf2efda3628c",
     });
     const container = await AstroContainer.create({ renderers: await loadRenderers([getContainerRenderer()]) });
 

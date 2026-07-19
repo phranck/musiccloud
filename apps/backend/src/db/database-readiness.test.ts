@@ -211,6 +211,24 @@ describe("buildMusiccloudReadinessExpectations", () => {
       ]),
     );
   });
+
+  it("requires CRUD access for project ownership, registrations, audit, and usage", () => {
+    const result = buildMusiccloudReadinessExpectations("latest-hash", "db");
+
+    for (const table of [
+      "developer_projects",
+      "developer_project_subscriptions",
+      "api_access_requests",
+      "api_clients",
+      "api_client_tokens",
+      "api_access_audit_events",
+      "api_usage_events",
+    ]) {
+      for (const privilege of ["SELECT", "INSERT", "UPDATE", "DELETE"]) {
+        expect(result.privileges).toContainEqual({ table, privilege });
+      }
+    }
+  });
 });
 
 describe("readLatestDrizzleMigrationHash", () => {

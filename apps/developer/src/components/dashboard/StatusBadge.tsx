@@ -1,4 +1,4 @@
-import { AccessRequestStatus, ApiClientStatus, ApiTokenStatus } from "@/lib/apiAccessClient";
+import { AccessRequestStatus, ApiClientStatus, ApiTokenStatus, DeveloperProjectStatus } from "@/lib/apiAccessClient";
 
 /**
  * Visual tone classes per known status value, computed-keyed by the domain
@@ -14,6 +14,7 @@ const TONE_CLASS: Record<string, string> = {
   [ApiClientStatus.Active]: "status-pill--success",
   [ApiClientStatus.Suspended]: "status-pill--warning",
   [ApiClientStatus.Revoked]: "status-pill--danger",
+  [DeveloperProjectStatus.Deleted]: "status-pill--danger",
   [ApiTokenStatus.Rotated]: "",
 };
 

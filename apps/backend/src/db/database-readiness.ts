@@ -69,6 +69,16 @@ export const MUSICCLOUD_READINESS_TABLES = [
   "nav_items",
   "nav_item_translations",
   "navigation_item_placements",
+  "developer_accounts",
+  "developer_subscriptions",
+  "developer_projects",
+  "developer_project_subscriptions",
+  "api_access_requests",
+  "api_clients",
+  "api_client_tokens",
+  "api_access_audit_events",
+  "api_usage_events",
+  "tiers",
 ] as const;
 
 const VINYL_WRITE_TABLES = ["album_vinyl_layouts", "album_vinyl_layout_identities"] as const;
@@ -82,7 +92,20 @@ const CONTEXTUAL_EDITORIAL_WRITE_TABLES = [
   "nav_item_translations",
   "navigation_item_placements",
 ] as const;
-const RUNTIME_WRITE_TABLES = [...VINYL_WRITE_TABLES, ...CONTEXTUAL_EDITORIAL_WRITE_TABLES] as const;
+const DEVELOPER_API_WRITE_TABLES = [
+  "developer_projects",
+  "developer_project_subscriptions",
+  "api_access_requests",
+  "api_clients",
+  "api_client_tokens",
+  "api_access_audit_events",
+  "api_usage_events",
+] as const;
+const RUNTIME_WRITE_TABLES = [
+  ...VINYL_WRITE_TABLES,
+  ...CONTEXTUAL_EDITORIAL_WRITE_TABLES,
+  ...DEVELOPER_API_WRITE_TABLES,
+] as const;
 
 export function buildMusiccloudReadinessExpectations(
   latestMigrationHash: string,

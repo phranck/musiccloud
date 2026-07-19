@@ -6,6 +6,7 @@ import pg from "pg";
 
 import { loadDatabaseConfig } from "./config.js";
 import { assertDatabaseReady, inspectMusiccloudDatabase } from "./database-readiness.js";
+import { backfillDeveloperProjects } from "./developer-project-backfill.js";
 import { assertSafeMigrationConnection } from "./migration-safety.js";
 
 export function resolveMigrationsFolder(): string {
@@ -39,6 +40,11 @@ export async function runMigrations(options: { ensureAdminOwner?: boolean } = {}
     const db = drizzle(pool);
     console.log(`[DB] Running migrations from ${migrationsFolder}`);
     await migrate(db, { migrationsFolder });
+
+    const projectBackfill = await backfillDeveloperProjects(pool);
+    console.log(
+      `[DB] Developer project ownership verified: clientProjects=${projectBackfill.clientProjectsInserted} accountProjects=${projectBackfill.accountProjectsInserted}`,
+    );
 
     if (options.ensureAdminOwner !== false) {
       // Ensure there is at least one owner (promote the first user if none exists)

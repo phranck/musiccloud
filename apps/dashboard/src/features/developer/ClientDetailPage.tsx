@@ -13,17 +13,16 @@ import {
   useApiAccessOverview,
   useCreateToken,
   useDeactivateToken,
-  useUpdateClient,
+  useUpdateDeveloperProject,
 } from "@/features/developer/hooks/useDeveloperData";
 import { formatDate } from "@/features/developer/lib";
 
 const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 
 /**
- * Rate-limit overrides as edited by the admin, kept separate from the loaded
- * client so unsaved edits survive re-renders without a sync effect. Values
- * are raw input strings: an empty field means "no override — inherit the
- * account tier's limit" and is submitted as `null` (MC-100).
+ * Project rate-limit overrides as edited by the admin, kept separate from
+ * the loaded registration so unsaved edits survive re-renders without a
+ * sync effect. Empty fields inherit the selected project tier.
  */
 interface RateLimitDraft {
   min: string;
@@ -40,12 +39,12 @@ function parseLimitInput(value: string): number | null {
 }
 
 /**
- * Admin detail page for a single API client.
+ * Admin detail page for a single API registration.
  *
- * Lets the admin set per-key rate-limit overrides (empty fields inherit the
- * owning account's tier limits — the placeholders show what applies), and
- * manage its token lifecycle (create, deactivate, reactivate). A client with
- * at least one override is marked "Custom". A freshly created token is
+ * Lets the admin set the owning project's quota overrides (empty fields use
+ * the project tier shown by the placeholders) and manage the registration's
+ * token lifecycle (create, deactivate, reactivate). A project with at least
+ * one override is marked "Custom". A freshly created token is
  * revealed exactly once in a copyable banner.
  *
  * Rate-limit inputs use a draft state that falls back to the loaded client
@@ -60,7 +59,7 @@ export function ClientDetailPage() {
   const createToken = useCreateToken();
   const activateToken = useActivateToken();
   const deactivateToken = useDeactivateToken();
-  const updateClient = useUpdateClient();
+  const updateProject = useUpdateDeveloperProject();
   const [copied, setCopied] = useState(false);
   const [limitsDraft, setLimitsDraft] = useState<RateLimitDraft | null>(null);
   const [saved, setSaved] = useState(false);
@@ -109,14 +108,19 @@ export function ClientDetailPage() {
   const revokedToken = client.tokens.find((t) => t.status === ApiTokenStatus.Revoked) ?? null;
 
   const limits = limitsDraft ?? {
-    min: client.requestsPerMinute?.toString() ?? "",
-    day: client.requestsPerDay?.toString() ?? "",
+    min: client.projectRequestsPerMinute?.toString() ?? "",
+    day: client.projectRequestsPerDay?.toString() ?? "",
   };
-  const hasOverride = client.requestsPerMinute != null || client.requestsPerDay != null;
+  const hasOverride = client.projectRequestsPerMinute != null || client.projectRequestsPerDay != null;
 
   function handleSave() {
-    updateClient.mutate(
-      { id: id!, requestsPerMinute: parseLimitInput(limits.min), requestsPerDay: parseLimitInput(limits.day) },
+    if (!client) return;
+    updateProject.mutate(
+      {
+        id: client.projectId,
+        requestsPerMinute: parseLimitInput(limits.min),
+        requestsPerDay: parseLimitInput(limits.day),
+      },
       {
         onSuccess: () => {
           setSaved(true);
@@ -151,6 +155,10 @@ export function ClientDetailPage() {
           }
         />
         <DashboardSection.Body>
+          <p className="mb-4 text-sm text-[var(--ds-text-muted)]">
+            Project: <span className="text-[var(--ds-text)]">{client.projectDisplayName}</span> · Registration:{" "}
+            {client.registrationType} · Client ID: {client.publicClientId}
+          </p>
           <div className="flex gap-6 items-start">
             <div className="space-y-3">
               <div className="flex items-end gap-4">
@@ -249,7 +257,7 @@ export function ClientDetailPage() {
             action={DashboardActionId.Save}
             label={saved ? messages.common.saved : messages.common.save}
             onClick={handleSave}
-            disabled={updateClient.isPending}
+            disabled={updateProject.isPending}
             type="button"
           />
         </DashboardSection.Footer>
