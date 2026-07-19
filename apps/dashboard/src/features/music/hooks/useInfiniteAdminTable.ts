@@ -193,6 +193,17 @@ export function useInfiniteAdminTable<T extends { id: string }>(options: UseInfi
     [endpoint, searchQuery, sortBy, sortDir],
   );
 
+  const refreshSilently = useCallback(async () => {
+    const params = new URLSearchParams();
+    params.set("page", "1");
+    params.set("limit", String(PAGE_SIZE));
+    if (searchQuery) params.set("q", searchQuery);
+    if (sortBy) params.set("sortBy", sortBy);
+    if (sortDir) params.set("sortDir", sortDir);
+    const data = await api.get<Page<T>>(`${endpoint}?${params}`);
+    dispatch({ type: "FIRST_PAGE", items: data.items, total: data.total });
+  }, [endpoint, searchQuery, sortBy, sortDir]);
+
   const loadMore = useCallback(() => {
     const s = stateRef.current;
     if (s.tag !== "ready" || !s.hasMore) return;
@@ -333,6 +344,7 @@ export function useInfiniteAdminTable<T extends { id: string }>(options: UseInfi
     toggleRow,
     deletingIds,
     deleteSelected,
+    refreshSilently,
 
     sentinelRef,
     scrollContainerRef,
