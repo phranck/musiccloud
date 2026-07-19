@@ -6,7 +6,7 @@ import {
   DashboardButtonVariant,
   DashboardInput,
 } from "@musiccloud/dashboard-ui";
-import { ENDPOINTS } from "@musiccloud/shared";
+import { type AdminArtistListItem, ENDPOINTS } from "@musiccloud/shared";
 import {
   MagnifyingGlass as MagnifyingGlassIcon,
   MicrophoneStage as MicrophoneStageIcon,
@@ -24,22 +24,13 @@ import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { dashboardCopy } from "@/copy/dashboard";
+import { ArtistProfileCacheStatus } from "@/features/music/ArtistProfileCacheStatus";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
 import { ReResolveArtistButton } from "@/features/music/ReResolveArtistButton";
+import { RefreshArtistProfileButton } from "@/features/music/RefreshArtistProfileButton";
 import { formatEnglishDate } from "@/lib/format";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { Dialog } from "@/shared/ui/Dialog";
-
-interface ArtistListItem {
-  id: string;
-  name: string;
-  imageUrl: string | null;
-  genres: string[];
-  sourceService: string | null;
-  linkCount: number;
-  createdAt: number;
-  shortId: string | null;
-}
 
 const SHARE_BASE = import.meta.env.VITE_SHARE_BASE_URL ?? "https://musiccloud.io";
 
@@ -47,7 +38,7 @@ function formatDate(ts: number): string {
   return formatEnglishDate(ts, { dateStyle: "medium" });
 }
 
-type ArtistTable = ReturnType<typeof useInfiniteAdminTable<ArtistListItem>>;
+type ArtistTable = ReturnType<typeof useInfiniteAdminTable<AdminArtistListItem>>;
 type ArtistMessages = (typeof dashboardCopy)["music"]["artists"];
 type MusicColumnMessages = (typeof dashboardCopy)["music"]["columns"];
 
@@ -55,8 +46,8 @@ function useArtistColumns(
   table: ArtistTable,
   ma: ArtistMessages,
   mc: MusicColumnMessages,
-): ColumnDef<ArtistListItem>[] {
-  return useMemo<ColumnDef<ArtistListItem>[]>(
+): ColumnDef<AdminArtistListItem>[] {
+  return useMemo<ColumnDef<AdminArtistListItem>[]>(
     () => [
       ...(table.editMode
         ? [
@@ -64,10 +55,10 @@ function useArtistColumns(
               id: "select",
               className: "w-10",
               header: <Checkbox checked={table.allSelected} onChange={table.toggleAll} />,
-              cell: (artist: ArtistListItem) => (
+              cell: (artist: AdminArtistListItem) => (
                 <Checkbox checked={table.selectedIds.has(artist.id)} onChange={() => table.toggleRow(artist.id)} />
               ),
-            } satisfies ColumnDef<ArtistListItem>,
+            } satisfies ColumnDef<AdminArtistListItem>,
           ]
         : []),
       {
@@ -153,6 +144,11 @@ function useArtistColumns(
         ),
       },
       {
+        id: "profileCache",
+        header: ma.colProfileCache,
+        cell: (artist) => <ArtistProfileCacheStatus status={artist.profileCache} />,
+      },
+      {
         id: "createdAt",
         header: mc.added,
         className: "w-36",
@@ -163,15 +159,27 @@ function useArtistColumns(
       },
       {
         id: "actions",
-        className: "w-40",
         cell: (artist) => (
-          <div className="flex gap-2 justify-end">
+          <div className="flex flex-wrap gap-2 justify-end">
             <ReResolveArtistButton shortId={artist.shortId} />
+            <RefreshArtistProfileButton
+              artistEntityId={artist.artistEntityId}
+              refreshSilently={table.refreshSilently}
+            />
           </div>
         ),
       },
     ],
-    [ma, mc, table.editMode, table.allSelected, table.selectedIds, table.toggleAll, table.toggleRow],
+    [
+      ma,
+      mc,
+      table.editMode,
+      table.allSelected,
+      table.selectedIds,
+      table.toggleAll,
+      table.toggleRow,
+      table.refreshSilently,
+    ],
   );
 }
 
@@ -182,11 +190,11 @@ export function ArtistsPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const table = useInfiniteAdminTable<ArtistListItem>({
+  const table = useInfiniteAdminTable<AdminArtistListItem>({
     endpoint: ENDPOINTS.admin.artists.list,
     deleteEndpoint: ENDPOINTS.admin.artists.list,
     sseEventType: "artist-added",
-    sseToItem: (data) => data as unknown as ArtistListItem,
+    sseToItem: (data) => data as unknown as AdminArtistListItem,
   });
 
   const columns = useArtistColumns(table, ma, messages.music.columns);
