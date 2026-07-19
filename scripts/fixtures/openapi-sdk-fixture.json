@@ -27,6 +27,36 @@
                 "schema": { "$ref": "#/components/schemas/ResolveResponse" }
               }
             }
+          },
+          "400": {
+            "description": "Invalid request.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited.",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": { "type": "integer", "minimum": 0 }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
           }
         }
       }
@@ -55,6 +85,25 @@
           "links": {
             "type": "array",
             "items": { "type": "string", "format": "uri" }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["error", "message", "errorId"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "pattern": "^MC-(URL|API|AUTH|RES|DB|CFG|MAP|REQ|SYS)-\\d{3,4}$"
+          },
+          "message": { "type": "string" },
+          "errorId": { "type": "string", "format": "uuid" },
+          "context": {
+            "type": "object",
+            "additionalProperties": {
+              "oneOf": [{ "type": "string" }, { "type": "number" }]
+            }
           }
         }
       }
