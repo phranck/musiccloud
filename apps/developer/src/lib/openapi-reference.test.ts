@@ -21,7 +21,7 @@ describe("buildApiReference", () => {
       (operation) => operation.method === "POST" && operation.path === "/api/v1/resolve",
     );
 
-    expect(reference.version).toBe("2.1.7");
+    expect(reference.version).toBe("2.1.8");
     expect(reference.auth).toEqual({ headerName: "X-API-Key", scheme: "ApiKeyAuth" });
     expect(reference.groups.map((group) => group.name)).toEqual([
       "Artist",

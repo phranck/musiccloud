@@ -30,8 +30,8 @@ describe("/docs/api content", () => {
     const contract = readFixture("public-openapi.json");
     const reference = buildApiReference(contract);
     const catalog = parseSdkCatalog(readFixture("sdk-catalog.json"), {
-      version: "2.1.7",
-      sha256: "cfd3aaff3c532009c4a4a629a3f91161501ae9b18591506cb53eaf2efda3628c",
+      version: "2.1.8",
+      sha256: "1579f3cbe4ea6158d878dda7dd98ffb6184d53c169269aaa0022319b71377582",
     });
     const container = await AstroContainer.create({ renderers: await loadRenderers([getContainerRenderer()]) });
 
@@ -142,7 +142,7 @@ describe("/docs/api content", () => {
     expect(html).toContain("ResolveAPI");
     expect(html).toContain("SHA-256");
     expect(html).toContain("OpenAPI contract");
-    expect(html).toContain("Public OpenAPI contract, v2.1.7");
+    expect(html).toContain("Public OpenAPI contract, v2.1.8");
     expect(html).toContain("https://api.musiccloud.io/docs/json");
     expect(html).toContain("data-openapi-contract-trigger");
     expect(html).toContain("data-openapi-contract-dialog");
@@ -181,8 +181,8 @@ describe("/docs/api content", () => {
     };
     const reference = buildApiReference(fixture);
     const catalog = parseSdkCatalog(readFixture("sdk-catalog.json"), {
-      version: "2.1.7",
-      sha256: "cfd3aaff3c532009c4a4a629a3f91161501ae9b18591506cb53eaf2efda3628c",
+      version: "2.1.8",
+      sha256: "1579f3cbe4ea6158d878dda7dd98ffb6184d53c169269aaa0022319b71377582",
     });
     const container = await AstroContainer.create({ renderers: await loadRenderers([getContainerRenderer()]) });
 

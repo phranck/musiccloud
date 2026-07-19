@@ -185,6 +185,47 @@
         "required": ["type", "id", "shortUrl", "album", "links"],
         "type": "object"
       },
+      "AlbumSharePageResponse": {
+        "additionalProperties": false,
+        "description": "Commercial share-page payload for one resolved album.",
+        "properties": {
+          "album": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Album"
+              }
+            ],
+            "description": "Stored canonical album metadata."
+          },
+          "links": {
+            "description": "Stored cross-service deep-links for this album.",
+            "items": {
+              "$ref": "#/components/schemas/PlatformLink"
+            },
+            "type": "array"
+          },
+          "og": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OgMeta"
+              }
+            ],
+            "description": "Open-Graph metadata for rendering and social sharing."
+          },
+          "shortUrl": {
+            "description": "Canonical musiccloud share URL for this album.",
+            "format": "uri",
+            "type": "string"
+          },
+          "type": {
+            "description": "Always `album` for this response shape.",
+            "enum": ["album"],
+            "type": "string"
+          }
+        },
+        "required": ["type", "og", "album", "links", "shortUrl"],
+        "type": "object"
+      },
       "Artist": {
         "additionalProperties": false,
         "description": "Minimal artist metadata used in artist resolves and share pages.",
@@ -507,6 +548,47 @@
           }
         },
         "required": ["type", "id", "shortUrl", "artist", "links"],
+        "type": "object"
+      },
+      "ArtistSharePageResponse": {
+        "additionalProperties": false,
+        "description": "Commercial share-page payload for one resolved artist.",
+        "properties": {
+          "artist": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Artist"
+              }
+            ],
+            "description": "Stored canonical artist metadata."
+          },
+          "links": {
+            "description": "Stored cross-service deep-links for this artist.",
+            "items": {
+              "$ref": "#/components/schemas/PlatformLink"
+            },
+            "type": "array"
+          },
+          "og": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OgMeta"
+              }
+            ],
+            "description": "Open-Graph metadata for rendering and social sharing."
+          },
+          "shortUrl": {
+            "description": "Canonical musiccloud share URL for this artist.",
+            "format": "uri",
+            "type": "string"
+          },
+          "type": {
+            "description": "Always `artist` for this response shape.",
+            "enum": ["artist"],
+            "type": "string"
+          }
+        },
+        "required": ["type", "og", "artist", "links", "shortUrl"],
         "type": "object"
       },
       "ArtistTopTrack": {
@@ -1633,129 +1715,6 @@
         "required": ["listens", "downloads", "playlisted", "favorited", "likes", "dislikes", "avgNote", "notes"],
         "type": "object"
       },
-      "AlbumSharePageResponse": {
-        "additionalProperties": false,
-        "description": "Commercial share-page payload for one resolved album.",
-        "properties": {
-          "album": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Album"
-              }
-            ],
-            "description": "Stored canonical album metadata."
-          },
-          "links": {
-            "description": "Stored cross-service deep-links for this album.",
-            "items": {
-              "$ref": "#/components/schemas/PlatformLink"
-            },
-            "type": "array"
-          },
-          "og": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/OgMeta"
-              }
-            ],
-            "description": "Open-Graph metadata for rendering and social sharing."
-          },
-          "shortUrl": {
-            "description": "Canonical musiccloud share URL for this album.",
-            "format": "uri",
-            "type": "string"
-          },
-          "type": {
-            "description": "Always `album` for this response shape.",
-            "enum": ["album"],
-            "type": "string"
-          }
-        },
-        "required": ["type", "og", "album", "links", "shortUrl"],
-        "type": "object"
-      },
-      "ArtistSharePageResponse": {
-        "additionalProperties": false,
-        "description": "Commercial share-page payload for one resolved artist.",
-        "properties": {
-          "artist": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Artist"
-              }
-            ],
-            "description": "Stored canonical artist metadata."
-          },
-          "links": {
-            "description": "Stored cross-service deep-links for this artist.",
-            "items": {
-              "$ref": "#/components/schemas/PlatformLink"
-            },
-            "type": "array"
-          },
-          "og": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/OgMeta"
-              }
-            ],
-            "description": "Open-Graph metadata for rendering and social sharing."
-          },
-          "shortUrl": {
-            "description": "Canonical musiccloud share URL for this artist.",
-            "format": "uri",
-            "type": "string"
-          },
-          "type": {
-            "description": "Always `artist` for this response shape.",
-            "enum": ["artist"],
-            "type": "string"
-          }
-        },
-        "required": ["type", "og", "artist", "links", "shortUrl"],
-        "type": "object"
-      },
-      "TrackSharePageResponse": {
-        "additionalProperties": false,
-        "description": "Commercial share-page payload for one resolved track.",
-        "properties": {
-          "links": {
-            "description": "Stored cross-service deep-links for this track.",
-            "items": {
-              "$ref": "#/components/schemas/PlatformLink"
-            },
-            "type": "array"
-          },
-          "og": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/OgMeta"
-              }
-            ],
-            "description": "Open-Graph metadata for rendering and social sharing."
-          },
-          "shortUrl": {
-            "description": "Canonical musiccloud share URL for this track.",
-            "format": "uri",
-            "type": "string"
-          },
-          "track": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Track"
-              }
-            ],
-            "description": "Stored canonical track metadata."
-          },
-          "type": {
-            "description": "Always `track` for this response shape.",
-            "enum": ["track"],
-            "type": "string"
-          }
-        },
-        "required": ["type", "og", "track", "links", "shortUrl"],
-        "type": "object"
-      },
       "DisambiguationCandidate": {
         "additionalProperties": false,
         "description": "A possible match returned when the query was ambiguous and the caller must pick one.",
@@ -2650,6 +2609,47 @@
         "required": ["type", "id", "shortUrl", "track", "links"],
         "type": "object"
       },
+      "TrackSharePageResponse": {
+        "additionalProperties": false,
+        "description": "Commercial share-page payload for one resolved track.",
+        "properties": {
+          "links": {
+            "description": "Stored cross-service deep-links for this track.",
+            "items": {
+              "$ref": "#/components/schemas/PlatformLink"
+            },
+            "type": "array"
+          },
+          "og": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OgMeta"
+              }
+            ],
+            "description": "Open-Graph metadata for rendering and social sharing."
+          },
+          "shortUrl": {
+            "description": "Canonical musiccloud share URL for this track.",
+            "format": "uri",
+            "type": "string"
+          },
+          "track": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Track"
+              }
+            ],
+            "description": "Stored canonical track metadata."
+          },
+          "type": {
+            "description": "Always `track` for this response shape.",
+            "enum": ["track"],
+            "type": "string"
+          }
+        },
+        "required": ["type", "og", "track", "links", "shortUrl"],
+        "type": "object"
+      },
       "UnifiedResolveSuccess": {
         "description": "Successful resolve, one of three shapes discriminated by `type`. Use `type` to decide whether to read `track`, `album`, or `artist`.",
         "oneOf": [
@@ -2766,7 +2766,7 @@
   "info": {
     "description": "Public REST API for resolving music URLs and search queries, retrieving persisted shares, and consuming Creative-Commons media and metadata.\n\n## Authentication\n\nExactly three operations require a key issued to a client registration: `POST /api/v1/resolve`, `POST /api/v1/cc/resolve`, and `GET /api/v1/link/{id}`. A Developer Project owns its subscription and shared quota and may contain separate development, confidential, and public registrations. Send a registration key as `X-API-Key: mc_live_<prefix>_<secret>`. All other operations in this reference are callable without a key. Manage projects and registrations at https://developer.musiccloud.io/dashboard/api-access, then create or rotate registration keys at https://developer.musiccloud.io/dashboard/api-keys. A key is shown only when created or rotated. Store it as a secret and never embed it in browser code. Missing, invalid, suspended, or revoked project, registration, or key credentials receive `401`.\n\n## Rate limiting\n\nThree independent rules can apply:\n\n1. The three API-key operations use the rolling `60`-second and rolling `24`-hour quotas owned by the Developer Project. Registrations under one project share those quotas; an optional registration cap can only narrow them.\n2. Public data operations `GET /api/v1/resolve`, `GET /api/v1/share/{shortId}`, `GET /api/v1/share/{shortId}/preview`, `GET /api/v1/artist-info`, `GET /api/v1/cc/artist-info`, `GET /api/v1/cc/audio/{jamendoId}`, `GET /api/v1/cc/download/{jamendoId}`, and `GET /api/v1/cc/bandcamp/{jamendoId}` allow `10` requests in a rolling `60`-second window per client IP.\n3. Every route is also protected by a global ceiling of `300` requests in a rolling `60`-second window per client IP.\n\nA rejected request returns `429 Too Many Requests`, the `ErrorResponse` JSON body, and `Retry-After`. When available, `context.limit`, `context.windowSeconds`, and `context.retryAfterSeconds` describe the rule that rejected the request.",
     "title": "musiccloud API",
-    "version": "2.1.7"
+    "version": "2.1.8"
   },
   "openapi": "3.0.3",
   "paths": {
@@ -2775,13 +2775,25 @@
         "description": "Returns commercial artist details in one stable object: up to `5` top tracks, an assembled profile or `null`, up to `5` upcoming events, and up to `5` related-artist track lookups. Every top-level key is included; unavailable lists are empty. When `region` is supplied, matching events are sorted first.",
         "parameters": [
           {
-            "description": "Artist display name to look up. Leading and trailing whitespace is ignored, and a trailing YouTube auto-channel suffix ` - Topic` is removed before matching. Use the spelling returned in track or artist metadata when available.",
+            "description": "Compatibility artist display name to look up when `artistEntityId` is not available. Leading and trailing whitespace is ignored, and a trailing YouTube auto-channel suffix ` - Topic` is removed before matching. Use the spelling returned in track or artist metadata when available.",
             "in": "query",
             "name": "name",
-            "required": true,
+            "required": false,
             "schema": {
               "maxLength": 200,
               "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Normalized musiccloud artist entity ID from an `artistCredits[].artistEntityId` field in a successful track or album response. When supplied, this exact entity selects the persisted canonical artist name, its isolated enrichment cache, and the upstream lookup. It takes precedence over both `name` and `shortId`. Unknown entity IDs return `404`.",
+            "in": "query",
+            "name": "artistEntityId",
+            "required": false,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9_-]+$",
               "type": "string"
             }
           },
@@ -2795,7 +2807,7 @@
             }
           },
           {
-            "description": "Optional musiccloud track share code. Take the last path segment of `shortUrl` from a successful track response from `POST /api/v1/resolve` or `GET /api/v1/resolve`. When the share's stored service links identify an alternate artist known to musiccloud, that name replaces `name` for this lookup. Otherwise `name` is used unchanged after normalization.\n\n**Default**: the supplied `name` is used directly, with no persisted-resolution context.",
+            "description": "Optional musiccloud track share code. Take the last path segment of `shortUrl` from a successful track response from `POST /api/v1/resolve` or `GET /api/v1/resolve`. Without `artistEntityId`, a stored alternate artist can replace `name` for this lookup. With `artistEntityId`, this compatibility alias is ignored.\n\n**Default**: the supplied `name` is used directly, with no persisted-resolution context.",
             "in": "query",
             "name": "shortId",
             "required": false,
@@ -2835,7 +2847,17 @@
                 }
               }
             },
-            "description": "Missing or empty `name` query parameter."
+            "description": "Missing or malformed artist identity query parameter."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The supplied normalized artist entity does not exist or has no usable stored name."
           },
           "429": {
             "content": {
