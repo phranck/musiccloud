@@ -160,7 +160,7 @@ function useArtistColumns(
       {
         id: "actions",
         cell: (artist) => (
-          <div className="flex flex-wrap gap-2 justify-end">
+          <div className="flex flex-wrap justify-end gap-[var(--ds-space-xs)]">
             <ReResolveArtistButton shortId={artist.shortId} />
             <RefreshArtistProfileButton
               artistEntityId={artist.artistEntityId}

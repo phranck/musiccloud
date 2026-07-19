@@ -45,7 +45,7 @@ export function ReResolveArtistButton({ shortId }: ReResolveArtistButtonProps) {
       title={labels.reResolveTooltip}
       icon={
         confirmed ? (
-          <CheckIcon weight="bold" className="size-3 text-green-500" />
+          <CheckIcon weight="bold" className="size-3 text-[var(--ds-success-text)]" />
         ) : (
           <ArrowsClockwiseIcon weight="duotone" className={`size-3 ${busy ? "animate-spin" : ""}`} />
         )

@@ -54,14 +54,14 @@ export function RefreshArtistProfileButton({ artistEntityId, refreshSilently }: 
   }
 
   return (
-    <div className="flex flex-col items-end gap-0.5">
+    <div className="flex flex-col items-end gap-[var(--ds-space-xs)]">
       <TableActionButton
         onClick={handleClick}
         disabled={busy}
         title={labels.profileRefreshTooltip}
         icon={
           confirmed ? (
-            <CheckIcon weight="bold" className="size-3 text-green-500" />
+            <CheckIcon weight="bold" className="size-3 text-[var(--ds-success-text)]" />
           ) : (
             <ArrowsClockwiseIcon weight="duotone" className={`size-3 ${busy ? "animate-spin" : ""}`} />
           )
@@ -69,7 +69,7 @@ export function RefreshArtistProfileButton({ artistEntityId, refreshSilently }: 
         label={confirmed ? labels.profileRefreshConfirm : labels.profileRefreshLabel}
       />
       {error && (
-        <span role="alert" className="max-w-64 text-right text-xs text-[var(--ds-danger-text)]">
+        <span role="alert" className="text-right text-xs text-[var(--ds-danger-text)]">
           {error.message}
           {error.errorId ? ` ${labels.profileErrorIdLabel}: ${error.errorId}` : ""}
         </span>

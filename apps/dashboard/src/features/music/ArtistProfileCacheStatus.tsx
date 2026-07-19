@@ -21,11 +21,11 @@ const PROFILE_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
 });
 
 const STATE_CLASS: Record<ArtistProfileCacheState, string> = {
-  [ArtistProfileCacheStateValue.Fresh]: "text-green-500",
-  [ArtistProfileCacheStateValue.Stale]: "text-amber-500",
+  [ArtistProfileCacheStateValue.Fresh]: "text-[var(--ds-success-text)]",
+  [ArtistProfileCacheStateValue.Stale]: "text-[var(--ds-warning-text)]",
   [ArtistProfileCacheStateValue.Missing]: "text-[var(--ds-text-muted)]",
-  [ArtistProfileCacheStateValue.Refreshing]: "text-sky-500",
-  [ArtistProfileCacheStateValue.Failed]: "text-red-500",
+  [ArtistProfileCacheStateValue.Refreshing]: "text-[var(--ds-info-text)]",
+  [ArtistProfileCacheStateValue.Failed]: "text-[var(--ds-danger-text)]",
 };
 
 const PROVIDER_LABEL: Record<ArtistProfileProvider, string> = {
@@ -43,7 +43,7 @@ export function ArtistProfileCacheStatus({ status, className = "", ...rest }: Ar
   const labels = dashboardCopy.music.artists;
   const providers = status.providers.map((provider) => PROVIDER_LABEL[provider]).join(", ");
   return (
-    <div className={`flex flex-col gap-0.5 text-xs ${className}`} {...rest}>
+    <div className={`flex flex-col gap-[var(--ds-space-xs)] text-xs ${className}`} {...rest}>
       <span className={`font-medium ${STATE_CLASS[status.state]}`}>{labels.profileStates[status.state]}</span>
       <span className="text-[var(--ds-text-muted)]">{providers || labels.profileProvidersEmpty}</span>
       {status.profileUpdatedAt && status.ageMs !== null && (
