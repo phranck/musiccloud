@@ -98,10 +98,7 @@ describe("Apple Music authenticated request boundary", () => {
     await assertAppleMusicDeveloperToken();
     await appleMusicFetch("/catalog/at/charts?types=songs");
 
-    expect(importPKCS8Mock).toHaveBeenCalledWith(
-      normalizedTestPrivateKey,
-      "ES256",
-    );
+    expect(importPKCS8Mock).toHaveBeenCalledWith(normalizedTestPrivateKey, "ES256");
     expect(signMock).toHaveBeenCalledTimes(1);
     expect(fetchWithTimeoutMock).toHaveBeenCalledWith(
       "https://api.music.apple.com/v1/catalog/at/charts?types=songs",
