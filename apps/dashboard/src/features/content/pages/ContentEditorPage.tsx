@@ -9,11 +9,10 @@ import {
 } from "@musiccloud/dashboard-ui";
 import type {
   ContentPage,
-  Locale,
   PageTitleAlignment as PageTitleAlignmentValue,
   SingleContentContext,
 } from "@musiccloud/shared";
-import { ContentContext, DEFAULT_LOCALE, getLocalizedText, LOCALES } from "@musiccloud/shared";
+import { ContentContext } from "@musiccloud/shared";
 import {
   EyeIcon,
   FileLockIcon,
@@ -22,7 +21,7 @@ import {
   PlusCircleIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
-import { lazy, Suspense, useCallback, useEffect, useReducer, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useReducer } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { DashboardSection } from "@/components/ui/DashboardSection";
@@ -38,19 +37,13 @@ import {
   useDeleteContentPage,
 } from "@/features/content/hooks/useAdminContent";
 import { useAdminNavigationConfiguration } from "@/features/content/hooks/useAdminNav";
-import { buildLocalizedPageTitle, createPageTitleTranslationDraft } from "@/features/content/pageLocalization";
-import { LanguageTabs } from "@/features/content/pages/LanguageTabs";
 import { PagePublishingEditor } from "@/features/content/pages/PagePublishingEditor";
 import { PageTitleAlignment } from "@/features/content/pages/PageTitleAlignment";
 import { SegmentManager } from "@/features/content/pages/SegmentManager";
-import { useDeleteTranslation } from "@/features/content/pages/usePageTranslations";
 import { buildPublicationPreviews } from "@/features/content/publicationDrafts";
 import { usePagesEditor } from "@/features/content/state/PagesEditorContext";
-import { isContentDirty } from "@/features/content/state/slices/contentSlice";
 import type { MetaFields } from "@/features/content/state/slices/metaSlice";
-import { isMetaFieldDirty } from "@/features/content/state/slices/metaSlice";
 import { PublicationsActionType } from "@/features/content/state/slices/publicationsSlice";
-import { isTranslationDirty } from "@/features/content/state/slices/translationsSlice";
 import { formatEnglishDate } from "@/lib/format";
 import { FormLabel } from "@/shared/ui/FormPrimitives";
 
@@ -115,18 +108,8 @@ const ContentBodyActionType = {
   Set: "set",
 } as const;
 
-const ContentTranslationsActionType = {
-  Hydrate: "hydrate",
-  SetField: "set-field",
-  AddLocale: "add-locale",
-} as const;
-
 const ContentSegmentsActionType = {
   HydrateOwner: "hydrate-owner",
-} as const;
-
-const TranslationStatus = {
-  Missing: "missing",
 } as const;
 
 type EditorAction =
@@ -438,56 +421,28 @@ function EditorMetadataBar({
   );
 }
 
-interface PageTitleLocalizationFieldProps {
+interface PageTitleFieldProps {
   label: string;
-  locale: Locale;
   value: string;
-  fallback: string;
   placeholder: string;
-  deletePending?: boolean;
-  showDeleteTranslation?: boolean;
   onChange: (value: string) => void;
-  onDeleteTranslation?: () => void;
 }
 
-function PageTitleLocalizationField({
-  label,
-  locale,
-  value,
-  fallback,
-  placeholder,
-  deletePending = false,
-  showDeleteTranslation = false,
-  onChange,
-  onDeleteTranslation,
-}: PageTitleLocalizationFieldProps) {
-  const localeLabel = locale.toUpperCase();
-  const inputId = `content-page-title-${locale}`;
+function PageTitleField({ label, value, placeholder, onChange }: PageTitleFieldProps) {
+  const inputId = "content-page-title";
 
   return (
     <div className="bg-[var(--ds-surface)] px-3 pt-2 pb-3">
       <div className="flex flex-col gap-1.5">
         <FormLabel htmlFor={inputId}>{label}</FormLabel>
-        <div className="flex items-center gap-2">
-          <DashboardInput
-            id={inputId}
-            type="text"
-            aria-label={`${label} ${localeLabel}`}
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
-            placeholder={fallback || placeholder}
-          />
-          {showDeleteTranslation && onDeleteTranslation && (
-            <DashboardActionButton
-              action={DashboardActionId.Delete}
-              disabled={deletePending}
-              iconClassName="size-3"
-              label="Delete translation"
-              onClick={onDeleteTranslation}
-              type="button"
-            />
-          )}
-        </div>
+        <DashboardInput
+          id={inputId}
+          type="text"
+          aria-label={label}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+        />
       </div>
     </div>
   );
@@ -496,28 +451,22 @@ function PageTitleLocalizationField({
 interface EditorContentSurfaceProps {
   page: ContentPage;
   slug: string;
-  activeLocale: Locale;
-  hasActiveTranslation: boolean;
   headerTitle: string;
   currentContent: string;
   sourceFontSize: number;
   isLoading: boolean;
   loadingLabel: string;
-  onCreateTranslation: () => void;
   onMarkdownChange: (markdown: string) => void;
 }
 
 function EditorContentSurface({
   page,
   slug,
-  activeLocale,
-  hasActiveTranslation,
   headerTitle,
   currentContent,
   sourceFontSize,
   isLoading,
   loadingLabel,
-  onCreateTranslation,
   onMarkdownChange,
 }: EditorContentSurfaceProps) {
   if (page.pageType === "segmented") {
@@ -528,7 +477,7 @@ function EditorContentSurface({
             {loadingLabel}
           </div>
         )}
-        <SegmentManager page={page} activeLocale={activeLocale} />
+        <SegmentManager page={page} />
       </PageBody>
     );
   }
@@ -545,28 +494,9 @@ function EditorContentSurface({
             {loadingLabel}
           </div>
         )}
-        {!hasActiveTranslation ? (
-          <div className="flex flex-col items-center justify-center h-48 gap-3">
-            <p className="text-sm text-[var(--ds-text-muted)]">No {activeLocale.toUpperCase()} translation yet.</p>
-            <DashboardActionButton
-              action={DashboardActionId.Create}
-              label={`Create translation from ${DEFAULT_LOCALE.toUpperCase()}`}
-              onClick={onCreateTranslation}
-              size="control"
-              type="button"
-            />
-          </div>
-        ) : (
-          <Suspense fallback={<div className="h-64 bg-[var(--ds-input-bg)] animate-pulse" />}>
-            <MarkdownEditor
-              key={`${slug}-${activeLocale}`}
-              value={currentContent}
-              onChange={onMarkdownChange}
-              height="100%"
-              showHints
-            />
-          </Suspense>
-        )}
+        <Suspense fallback={<div className="h-64 bg-[var(--ds-input-bg)] animate-pulse" />}>
+          <MarkdownEditor key={slug} value={currentContent} onChange={onMarkdownChange} height="100%" showHints />
+        </Suspense>
       </PageBody>
     </DashboardSection>
   );
@@ -625,12 +555,12 @@ function DeletePageDialog({ open, title, pending, messages, common, onClose, onD
 }
 
 // ---------------------------------------------------------------------------
-// Editor hydration + locale tab helpers
+// Editor hydration
 // ---------------------------------------------------------------------------
 
 /**
- * Hydrates the shared pages-editor slices (meta, content, translations and —
- * for segmented pages — segments) from a loaded page record. No-op while the
+ * Hydrates the shared pages-editor slices (meta, content and, for segmented
+ * pages, segments) from a loaded page record. No-op while the
  * page query is still pending.
  *
  * @param page - The loaded content page, or undefined while the query is pending.
@@ -657,15 +587,6 @@ function hydrateEditorSlices(
       },
     ],
   });
-  dispatch.translations({
-    type: ContentTranslationsActionType.Hydrate,
-    entries: (page.translations ?? []).map((translation) => ({
-      slug: page.slug,
-      locale: translation.locale,
-      title: translation.title,
-      content: translation.content,
-    })),
-  });
   if (page.pageType === "segmented") {
     dispatch.segments({
       type: ContentSegmentsActionType.HydrateOwner,
@@ -674,7 +595,6 @@ function hydrateEditorSlices(
         position: segment.position,
         label: segment.label,
         targetSlug: segment.targetSlug,
-        translations: segment.translations,
       })),
     });
   }
@@ -692,32 +612,6 @@ function usePageEditorHydration(page: ContentPage | undefined, editor: ReturnTyp
   useEffect(() => {
     hydrateEditorSlices(page, dispatch);
   }, [page, dispatch]);
-}
-
-/**
- * Derives the per-locale tab states (translation status + dirty flag) for the
- * language tabs from the loaded page and the live editor slices.
- *
- * @param page - The loaded content page, or undefined while pending.
- * @param editor - The pages-editor context providing the dirty state.
- * @returns One `{ status, dirty }` record per configured locale.
- */
-function buildTabStates(page: ContentPage | undefined, editor: ReturnType<typeof usePagesEditor>) {
-  const statuses = page?.translationStatus ?? ({} as ContentPage["translationStatus"]);
-
-  return Object.fromEntries(
-    LOCALES.map((loc) => [
-      loc,
-      {
-        status: statuses[loc] ?? TranslationStatus.Missing,
-        dirty: page
-          ? loc === DEFAULT_LOCALE
-            ? isMetaFieldDirty(editor.meta, page.slug, "title") || isContentDirty(editor.content, page.slug)
-            : isTranslationDirty(editor.translations, page.slug, loc)
-          : false,
-      },
-    ]),
-  ) as Record<Locale, { status: ContentPage["translationStatus"][Locale]; dirty: boolean }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -739,20 +633,15 @@ export function ContentEditorPage() {
   const { data: page, isLoading, isError: isPageError, error: pageError } = useAdminContentPage(slug);
   const { data: navigationConfiguration } = useAdminNavigationConfiguration();
   const deletePage = useDeleteContentPage();
-  const deleteTranslation = useDeleteTranslation(slug);
   const { phase: savedPhase } = useSaveNotification();
   const editor = usePagesEditor();
 
   const [state, dispatch] = useReducer(editorReducer, undefined, createInitialEditorState);
 
-  // Active locale tab
-  const [activeLocale, setActiveLocale] = useState<Locale>(DEFAULT_LOCALE);
-
-  // Reset transient UI state and locale tab when navigating to a different slug.
+  // Reset transient UI state when navigating to a different slug.
   useEffect(() => {
     void slug;
     dispatch({ type: EditorActionType.ResetForSlug });
-    setActiveLocale(DEFAULT_LOCALE);
   }, [slug]);
 
   usePageEditorHydration(page, editor);
@@ -776,8 +665,6 @@ export function ContentEditorPage() {
 
   const metaCurrent = page ? (editor.meta.pages[page.slug]?.current ?? page) : null;
   const contentCurrent = page ? (editor.content.pages[page.slug]?.current ?? page.content) : "";
-  const translationCurrent = (loc: Locale) =>
-    page ? editor.translations.byPage[page.slug]?.[loc]?.current : undefined;
   const publicationPage = page ? editor.publications.pages[page.slug] : undefined;
   const publicationCurrent =
     publicationPage?.current ?? (page ? { contextMask: page.contextMask, publications: page.publications } : null);
@@ -793,23 +680,12 @@ export function ContentEditorPage() {
   const handleMarkdownChange = useCallback(
     (markdown: string) => {
       if (!page) return;
-      if (activeLocale === DEFAULT_LOCALE) {
-        editor.dispatch.content({ type: ContentBodyActionType.Set, slug: page.slug, value: markdown });
-      } else {
-        editor.dispatch.translations({
-          type: ContentTranslationsActionType.SetField,
-          slug: page.slug,
-          locale: activeLocale,
-          field: "content",
-          value: markdown,
-        });
-      }
+      editor.dispatch.content({ type: ContentBodyActionType.Set, slug: page.slug, value: markdown });
     },
-    [activeLocale, page, editor.dispatch],
+    [page, editor.dispatch],
   );
 
-  const currentContent =
-    activeLocale === DEFAULT_LOCALE ? contentCurrent : (translationCurrent(activeLocale)?.content ?? "");
+  const currentContent = contentCurrent;
 
   const changeFontSize = (delta: number) => {
     const next = Math.min(FONT_SIZE_MAX, Math.max(FONT_SIZE_MIN, state.sourceFontSize + delta));
@@ -819,28 +695,7 @@ export function ContentEditorPage() {
 
   function handleTitleChange(value: string) {
     if (!page) return;
-    if (activeLocale === DEFAULT_LOCALE) {
-      setMeta("title", value);
-    } else if (translationCurrent(activeLocale) !== undefined) {
-      editor.dispatch.translations({
-        type: ContentTranslationsActionType.SetField,
-        slug: page.slug,
-        locale: activeLocale,
-        field: "title",
-        value,
-      });
-    } else {
-      editor.dispatch.translations({
-        type: ContentTranslationsActionType.AddLocale,
-        slug: page.slug,
-        locale: activeLocale,
-        fields: createPageTitleTranslationDraft({
-          title: value,
-          content: contentCurrent || page.content,
-          pageType: page.pageType,
-        }),
-      });
-    }
+    setMeta("title", value);
   }
 
   function handleSlugSave() {
@@ -851,53 +706,9 @@ export function ContentEditorPage() {
     // later task (see plan T22 drift-note about useGlobalPagesSave).
   }
 
-  // ---------------------------------------------------------------------------
-  // Locale tab helpers
-  // ---------------------------------------------------------------------------
-
-  const tabStates = buildTabStates(page, editor);
-
-  function handleCreateTranslation() {
-    if (!page) return;
-    editor.dispatch.translations({
-      type: ContentTranslationsActionType.AddLocale,
-      slug: page.slug,
-      locale: activeLocale,
-      fields: createPageTitleTranslationDraft({
-        title: activeTitle.value || activeTitle.fallback || metaCurrent?.title || page.title,
-        content: contentCurrent || page.content,
-        pageType: page.pageType,
-      }),
-    });
-  }
-
-  function handleDeleteTranslation() {
-    if (!window.confirm(`Delete ${activeLocale.toUpperCase()} translation?`)) return;
-    deleteTranslation.mutate(activeLocale, {
-      onSuccess: () => {
-        // Slice will re-hydrate from refreshed page query without the locale.
-        setActiveLocale(DEFAULT_LOCALE);
-      },
-    });
-  }
-
-  function handleTabSelect(loc: Locale) {
-    setActiveLocale(loc);
-  }
-
   const baseTitle = metaCurrent?.title ?? slug;
-  const localizedTitle = page
-    ? buildLocalizedPageTitle(baseTitle, page.translations, editor.translations.byPage[page.slug])
-    : {};
-  const activeTitle = getLocalizedText(localizedTitle, activeLocale, DEFAULT_LOCALE);
-
-  const activeTranslation = activeLocale === DEFAULT_LOCALE ? undefined : translationCurrent(activeLocale);
-  const hasActiveTranslation = activeLocale === DEFAULT_LOCALE || activeTranslation !== undefined;
-
-  // The editable page-title field follows the active locale tab.
-  const displayTitle = activeTitle.value;
-  // Page-header title falls back to the base when a translation has no title yet.
-  const headerTitle = displayTitle || activeTitle.fallback || baseTitle;
+  const displayTitle = baseTitle;
+  const headerTitle = baseTitle;
 
   const previews = buildPublicationPreviews(
     publicationCurrent?.publications ?? [],
@@ -969,25 +780,12 @@ export function ContentEditorPage() {
 
       {page && metaCurrent && <PagePublishingEditor page={page} meta={metaCurrent} onMetaChange={setMeta} />}
 
-      {/* Locale tabs define the localization context for the page title,
-          SegmentManager, and markdown content below. */}
       {page && (
-        <div className="px-3 pt-3">
-          <LanguageTabs active={activeLocale} states={tabStates} onSelect={handleTabSelect} />
-        </div>
-      )}
-
-      {page && (
-        <PageTitleLocalizationField
+        <PageTitleField
           label={editorMessages.pageTitleLabel}
-          locale={activeLocale}
           value={displayTitle}
-          fallback={activeTitle.fallback}
           placeholder={pageMessages.titlePlaceholder}
-          deletePending={deleteTranslation.isPending}
-          showDeleteTranslation={activeLocale !== DEFAULT_LOCALE && activeTranslation !== undefined}
           onChange={handleTitleChange}
-          onDeleteTranslation={handleDeleteTranslation}
         />
       )}
 
@@ -995,14 +793,11 @@ export function ContentEditorPage() {
         <EditorContentSurface
           page={page}
           slug={slug}
-          activeLocale={activeLocale}
-          hasActiveTranslation={hasActiveTranslation}
           headerTitle={headerTitle}
           currentContent={currentContent}
           sourceFontSize={state.sourceFontSize}
           isLoading={isLoading}
           loadingLabel={editorMessages.loadingContent}
-          onCreateTranslation={handleCreateTranslation}
           onMarkdownChange={handleMarkdownChange}
         />
       )}
