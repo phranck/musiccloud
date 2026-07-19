@@ -18,9 +18,22 @@ export type Candidate = { kind: "url"; url: string; isrc?: string } | { kind: "s
 
 export interface CrawlerSourceFetchResult {
   candidates: Candidate[];
+  /** Source-level drops such as malformed upstream rows or duplicate search
+   * candidates. The heartbeat includes these in the run's skipped counter. */
+  skipped?: number;
   /** Opaque per-source pagination state. `null` for sources that always
    *  refetch the full chart (Deezer, Last.fm, Apple Music in this MVP). */
   nextCursor: unknown | null;
+}
+
+/** Safe, source-owned validation failure. Its message is suitable for the
+ * canonical admin error envelope and crawler run notes, so it must never
+ * contain configuration values, credential names, or credential values. */
+export class CrawlerSourceConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CrawlerSourceConfigurationError";
+  }
 }
 
 /**
@@ -39,10 +52,24 @@ export interface CrawlerSource {
   defaultConfig: Record<string, unknown>;
   /** Whether the source ticks on a fresh install. Operator can flip later. */
   defaultEnabled: boolean;
+  /** Normalizes and validates source-owned persisted JSON before use. */
+  parseConfig(config: unknown): Record<string, unknown>;
+  /** Verifies source-specific runtime prerequisites without exposing secrets. */
+  assertAvailable(config: Record<string, unknown>): void;
   /**
    * Fetch one page of candidates. The heartbeat passes the live `config`
    * and `cursor` from `crawl_state`; the implementation returns the
    * candidates plus the next cursor (or `null` to restart from scratch).
    */
   fetch(config: Record<string, unknown>, cursor: unknown | null): Promise<CrawlerSourceFetchResult>;
+}
+
+/** Shared execution gate for admin enable/run-now paths and the heartbeat. */
+export function validateCrawlerSourceExecution(
+  source: CrawlerSource,
+  config: unknown,
+): Record<string, unknown> {
+  const normalizedConfig = source.parseConfig(config);
+  source.assertAvailable(normalizedConfig);
+  return normalizedConfig;
 }
