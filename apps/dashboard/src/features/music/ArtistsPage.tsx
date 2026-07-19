@@ -25,7 +25,7 @@ import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { dashboardCopy } from "@/copy/dashboard";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
-import { RefreshArtistButton } from "@/features/music/RefreshArtistButton";
+import { ReResolveArtistButton } from "@/features/music/ReResolveArtistButton";
 import { formatEnglishDate } from "@/lib/format";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { Dialog } from "@/shared/ui/Dialog";
@@ -166,7 +166,7 @@ function useArtistColumns(
         className: "w-40",
         cell: (artist) => (
           <div className="flex gap-2 justify-end">
-            <RefreshArtistButton shortId={artist.shortId} />
+            <ReResolveArtistButton shortId={artist.shortId} />
           </div>
         ),
       },
