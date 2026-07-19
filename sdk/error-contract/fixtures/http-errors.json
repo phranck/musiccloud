@@ -1,0 +1,142 @@
+{
+  "apiErrors": [
+    {
+      "name": "bad-request",
+      "status": 400,
+      "headers": { "content-type": "application/json" },
+      "body": {
+        "error": "MC-REQ-0001",
+        "message": "The request did not match the expected format. (MC-REQ-0001)",
+        "errorId": "10000000-0000-4000-8000-000000000001"
+      }
+    },
+    {
+      "name": "unauthorized",
+      "status": 401,
+      "headers": { "Content-Type": "application/json" },
+      "body": {
+        "error": "MC-AUTH-0001",
+        "message": "Authentication is required or no longer valid. (MC-AUTH-0001)",
+        "errorId": "10000000-0000-4000-8000-000000000002"
+      }
+    },
+    {
+      "name": "forbidden",
+      "status": 403,
+      "headers": { "content-type": "application/json" },
+      "body": {
+        "error": "MC-AUTH-0002",
+        "message": "You do not have permission to perform this action. (MC-AUTH-0002)",
+        "errorId": "10000000-0000-4000-8000-000000000003"
+      }
+    },
+    {
+      "name": "not-found",
+      "status": 404,
+      "headers": { "content-type": "application/json" },
+      "body": {
+        "error": "MC-RES-0003",
+        "message": "The requested resource was not found. (MC-RES-0003)",
+        "errorId": "10000000-0000-4000-8000-000000000004"
+      }
+    },
+    {
+      "name": "conflict",
+      "status": 409,
+      "headers": { "content-type": "application/json" },
+      "body": {
+        "error": "MC-REQ-0002",
+        "message": "The request conflicts with the current resource state. (MC-REQ-0002)",
+        "errorId": "10000000-0000-4000-8000-000000000005"
+      }
+    },
+    {
+      "name": "rate-limit",
+      "status": 429,
+      "headers": {
+        "content-type": "application/json",
+        "Retry-After": "42",
+        "X-RateLimit-Limit": "10",
+        "X-RateLimit-Remaining": "0",
+        "Authorization": "Bearer fixture-secret",
+        "DPoP": "fixture-proof",
+        "X-API-Key": "fixture-key"
+      },
+      "body": {
+        "error": "MC-API-0003",
+        "message": "Too many requests. Please try again in 42 seconds. (MC-API-0003)",
+        "errorId": "10000000-0000-4000-8000-000000000006",
+        "context": {
+          "limit": 10,
+          "windowSeconds": 60,
+          "retryAfterSeconds": 42
+        }
+      }
+    },
+    {
+      "name": "server-error",
+      "status": 500,
+      "headers": { "content-type": "application/json" },
+      "body": {
+        "error": "MC-SYS-0001",
+        "message": "An unexpected server error occurred. (MC-SYS-0001)",
+        "errorId": "10000000-0000-4000-8000-000000000007"
+      }
+    },
+    {
+      "name": "future-code",
+      "status": 503,
+      "headers": { "content-type": "application/json" },
+      "body": {
+        "error": "MC-API-3999",
+        "message": "A future upstream failure occurred. (MC-API-3999)",
+        "errorId": "10000000-0000-4000-8000-000000000008",
+        "context": { "provider": "future-service" }
+      }
+    }
+  ],
+  "protocolErrors": [
+    {
+      "name": "empty-body",
+      "status": 500,
+      "headers": { "content-type": "application/json" },
+      "body": "",
+      "reason": "empty-body"
+    },
+    {
+      "name": "malformed-json",
+      "status": 502,
+      "headers": { "content-type": "application/json" },
+      "body": "{\"Authorization\":\"Bearer fixture-secret\"",
+      "reason": "invalid-json"
+    },
+    {
+      "name": "non-json",
+      "status": 503,
+      "headers": { "content-type": "text/html" },
+      "body": "<html>fixture-secret</html>",
+      "reason": "unexpected-content-type"
+    },
+    {
+      "name": "invalid-envelope",
+      "status": 500,
+      "headers": { "content-type": "application/json" },
+      "body": "{\"error\":\"INTERNAL_ERROR\",\"message\":\"unsafe\",\"errorId\":\"not-a-uuid\"}",
+      "reason": "invalid-envelope"
+    },
+    {
+      "name": "non-finite-context",
+      "status": 500,
+      "headers": { "content-type": "application/json" },
+      "body": "{\"error\":\"MC-SYS-0001\",\"message\":\"unsafe\",\"errorId\":\"10000000-0000-4000-8000-000000000009\",\"context\":{\"value\":NaN}}",
+      "reason": "invalid-json"
+    },
+    {
+      "name": "array-context",
+      "status": 500,
+      "headers": { "content-type": "application/json" },
+      "body": "{\"error\":\"MC-SYS-0001\",\"message\":\"unsafe\",\"errorId\":\"10000000-0000-4000-8000-000000000010\",\"context\":[]}",
+      "reason": "invalid-envelope"
+    }
+  ]
+}

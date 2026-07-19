@@ -12,6 +12,8 @@ dist/
 build/
 .build/
 coverage/
+__pycache__/
+*.py[cod]
 *.lcov
 *.tgz
 *.tsbuildinfo
