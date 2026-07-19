@@ -36,7 +36,6 @@
  */
 
 import type { JamendoAudioFormat } from "./audio-format.js";
-import type { Locale } from "./locales.js";
 
 // -----------------------------------------------------------------------------
 // Concrete paths used by call sites (frontend / dashboard / backend handlers)
@@ -325,14 +324,8 @@ export const ENDPOINTS = {
       detail: (id: string) => `/api/admin/pages/${id}`,
       /** PUT: replace all context-specific publications for a page. */
       publications: (id: string) => `/api/admin/pages/${id}/publications`,
-      /** PUT: atomic save of pages, segments, page translations, and top-level order. */
+      /** PUT: atomic save of pages, segments, and top-level order. */
       bulk: "/api/admin/pages/bulk",
-      translations: {
-        /** GET: list all translations (including default-locale) for a page + per-locale status. */
-        list: (slug: string) => `/api/admin/pages/${slug}/translations`,
-        /** GET: one translation / PUT: upsert {title, content} / DELETE: remove. */
-        detail: (slug: string, locale: Locale) => `/api/admin/pages/${slug}/translations/${locale}`,
-      },
     },
 
     crawler: {
@@ -544,10 +537,6 @@ export const ROUTE_TEMPLATES = {
       publications: "/api/admin/pages/:id/publications",
       /** Route template for ENDPOINTS.admin.pages.bulk. */
       bulk: "/api/admin/pages/bulk",
-      /** Route template for ENDPOINTS.admin.pages.translations.list. */
-      translationsList: "/api/admin/pages/:slug/translations",
-      /** Route template for ENDPOINTS.admin.pages.translations.detail. */
-      translationsDetail: "/api/admin/pages/:slug/translations/:locale",
     },
   },
   dev: {

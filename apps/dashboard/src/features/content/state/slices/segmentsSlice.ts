@@ -1,16 +1,8 @@
-import {
-  DEFAULT_LOCALE,
-  getLocalizedText,
-  type Locale,
-  type LocalizedText,
-  normalizeLocalizedText,
-  type PageSegmentInput,
-  setLocalizedText,
-} from "@musiccloud/shared";
+import type { PageSegmentInput } from "@musiccloud/shared";
 
 export interface SegmentEntry {
   position: number;
-  label: LocalizedText;
+  label: string;
   targetSlug: string;
 }
 
@@ -20,9 +12,8 @@ export interface SegmentsState {
 
 export interface SegmentEntryInput {
   position: number;
-  label: string | LocalizedText;
+  label: string;
   targetSlug: string;
-  translations?: Partial<Record<string, string>>;
 }
 
 export const SegmentsActionType = {
@@ -43,7 +34,7 @@ export type SegmentsAction =
   | { type: typeof SegmentsActionType.Move; target: string; from: string; to: string; position: number }
   | { type: typeof SegmentsActionType.Add; owner: string; target: string; position: number; label?: string }
   | { type: typeof SegmentsActionType.Remove; owner: string; target: string }
-  | { type: typeof SegmentsActionType.SetLabel; owner: string; target: string; locale: Locale; label: string }
+  | { type: typeof SegmentsActionType.SetLabel; owner: string; target: string; label: string }
   | { type: typeof SegmentsActionType.Reset };
 
 function reposition(arr: SegmentEntry[]): SegmentEntry[] {
@@ -53,7 +44,7 @@ function reposition(arr: SegmentEntry[]): SegmentEntry[] {
 export function normalizeSegmentEntry(entry: SegmentEntryInput): SegmentEntry {
   return {
     position: entry.position,
-    label: normalizeLocalizedText(entry.label, { translations: entry.translations }).value,
+    label: entry.label,
     targetSlug: entry.targetSlug,
   };
 }
@@ -109,7 +100,7 @@ export function segmentsReducer(state: SegmentsState, action: SegmentsAction): S
       const next = entry.current.slice();
       next.splice(action.position, 0, {
         position: action.position,
-        label: { [DEFAULT_LOCALE]: action.label ?? action.target },
+        label: action.label ?? action.target,
         targetSlug: action.target,
       });
       return { byOwner: { ...state.byOwner, [action.owner]: { ...entry, current: reposition(next) } } };
@@ -135,11 +126,7 @@ export function segmentsReducer(state: SegmentsState, action: SegmentsAction): S
           ...state.byOwner,
           [action.owner]: {
             ...entry,
-            current: entry.current.map((s) =>
-              s.targetSlug === action.target
-                ? { ...s, label: setLocalizedText(s.label, action.locale, action.label) }
-                : s,
-            ),
+            current: entry.current.map((s) => (s.targetSlug === action.target ? { ...s, label: action.label } : s)),
           },
         },
       };
@@ -163,31 +150,16 @@ function sameSegments(a: SegmentEntry[], b: SegmentEntry[]): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     if (a[i].position !== b[i].position) return false;
-    if (!sameLocalizedText(a[i].label, b[i].label)) return false;
+    if (a[i].label !== b[i].label) return false;
     if (a[i].targetSlug !== b[i].targetSlug) return false;
   }
   return true;
 }
 
-function sameLocalizedText(a: LocalizedText, b: LocalizedText): boolean {
-  const locales = new Set([...Object.keys(a), ...Object.keys(b)]);
-  for (const locale of locales) {
-    if (a[locale as Locale] !== b[locale as Locale]) return false;
-  }
-  return true;
-}
-
 export function toBulkSegmentsInput(s: SegmentsState["byOwner"][string]["current"]): PageSegmentInput[] {
-  return s.map((e) => {
-    const defaultLabel = getLocalizedText(e.label, DEFAULT_LOCALE, DEFAULT_LOCALE).value;
-    const translations = Object.fromEntries(
-      Object.entries(e.label).filter(([locale, label]) => locale !== DEFAULT_LOCALE && typeof label === "string"),
-    );
-    return {
-      position: e.position,
-      label: defaultLabel,
-      targetSlug: e.targetSlug,
-      ...(Object.keys(translations).length > 0 ? { translations } : {}),
-    };
-  });
+  return s.map((entry) => ({
+    position: entry.position,
+    label: entry.label,
+    targetSlug: entry.targetSlug,
+  }));
 }

@@ -10,13 +10,10 @@ import {
   ContentContext,
   type ContentContextMask,
   type ContentPageSummary,
-  DEFAULT_LOCALE,
   expectedNavigationPlacements,
   hasAllContextBits,
   isSafeConfiguredUrl,
   KNOWN_CONTENT_CONTEXT_MASK,
-  LOCALES,
-  type Locale,
   NAVIGATION_SYSTEM_TARGETS,
   NavigationArea,
   type NavigationAreaMask,
@@ -29,8 +26,6 @@ import {
 } from "@musiccloud/shared";
 import {
   BrowsersIcon,
-  CaretDownIcon,
-  CaretUpIcon,
   FileMdIcon,
   LinkIcon,
   LockKeyIcon,
@@ -111,15 +106,12 @@ const PLACEMENT_VIEWS: readonly PlacementView[] = [
   },
 ] as const;
 
-const NON_DEFAULT_LOCALES = LOCALES.filter((locale): locale is Locale => locale !== DEFAULT_LOCALE);
-const LOCALE_FLAG: Record<string, string> = { de: "🇩🇪" };
 const NEW_NAVIGATION_URL_ERROR_ID = "navigation-new-url-error";
 
 function cloneEntries(configuration: NavigationConfiguration): NavigationEntry[] {
   return configuration.entries.map((entry) => ({
     ...entry,
     placements: entry.placements.map((placement) => ({ ...placement })),
-    translations: { ...entry.translations },
   }));
 }
 
@@ -221,7 +213,6 @@ function toConfigurationInput(entries: NavigationEntry[]): NavigationConfigurati
       contextMask: entry.contextMask,
       areaMask: entry.areaMask,
       placements: entry.placements.map((placement) => ({ ...placement })),
-      ...(Object.keys(entry.translations ?? {}).length > 0 ? { translations: { ...entry.translations } } : {}),
     })),
   };
 }
@@ -261,33 +252,25 @@ function NavigationErrorAlert({ error }: { error: SaveError }) {
 }
 
 interface NavigationEntryEditorProps {
-  area: PlacementView["area"];
   context: PlacementView["context"];
   entry: NavigationEntry;
   pages: ContentPageSummary[];
   text: NavText;
-  expanded: boolean;
   onAreaMaskChange: (entryId: number, areaMask: NavigationAreaMask) => void;
   onContextMaskChange: (entryId: number, contextMask: ContentContextMask) => void;
   onLabelChange: (entryId: number, label: string) => void;
   onRemove: (entryId: number) => void;
-  onToggleExpanded: (entryId: number) => void;
-  onTranslationChange: (entryId: number, locale: Locale, value: string) => void;
 }
 
 function NavigationEntryEditor({
-  area,
   context,
   entry,
   pages,
   text,
-  expanded,
   onAreaMaskChange,
   onContextMaskChange,
   onLabelChange,
   onRemove,
-  onToggleExpanded,
-  onTranslationChange,
 }: NavigationEntryEditorProps) {
   const systemTarget = entry.systemKey ? NAVIGATION_SYSTEM_TARGETS[entry.systemKey] : null;
   const page = entry.pageId ? pages.find((candidate) => candidate.id === entry.pageId) : null;
@@ -297,8 +280,6 @@ function NavigationEntryEditor({
   const incompatibleContextMask =
     entry.targetKind === NavigationTargetKind.Page && page ? KNOWN_CONTENT_CONTEXT_MASK & ~page.contextMask : 0;
   const systemOwned = entry.targetKind === NavigationTargetKind.System;
-  const translationPlaceholder = entry.pageTitle ?? entry.label ?? entry.url ?? entry.systemKey ?? "";
-  const translationsId = `navigation-entry-${entry.id}-${context}-${area}-translations`;
 
   return (
     <div className="min-w-0 space-y-[var(--ds-space-sm)]">
@@ -370,38 +351,6 @@ function NavigationEntryEditor({
             onChange={(value) => onAreaMaskChange(entry.id, value)}
           />
         </div>
-      </div>
-
-      <div>
-        <button
-          type="button"
-          aria-controls={translationsId}
-          aria-expanded={expanded}
-          onClick={() => onToggleExpanded(entry.id)}
-          className="flex items-center gap-[var(--ds-space-xs)] text-xs text-[var(--ds-text-muted)] hover:text-[var(--ds-text)]"
-        >
-          {expanded ? <CaretUpIcon className="size-3" /> : <CaretDownIcon className="size-3" />}
-          <span className="font-medium uppercase tracking-wide">{text.translations}</span>
-        </button>
-        {expanded && (
-          <div id={translationsId} className="mt-[var(--ds-space-xs)] flex flex-col gap-[var(--ds-space-xs)]">
-            {NON_DEFAULT_LOCALES.map((locale) => (
-              <div key={locale} className="flex items-center gap-[var(--ds-space-xs)]">
-                <span className="w-10 shrink-0 text-[10px] font-semibold uppercase tracking-widest text-[var(--ds-text-subtle)]">
-                  {LOCALE_FLAG[locale] ?? ""} {locale.toUpperCase()}
-                </span>
-                <DashboardInput
-                  type="text"
-                  name={`navigation-entry-${entry.id}-translation-${locale}`}
-                  value={entry.translations?.[locale] ?? ""}
-                  placeholder={translationPlaceholder}
-                  onChange={(event) => onTranslationChange(entry.id, locale, event.target.value)}
-                  className="flex-1 text-xs"
-                />
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -486,7 +435,6 @@ function AddNavigationItem({ entries, nextId, onAdd, pages, text }: AddNavigatio
         contextMask,
         areaMask,
         placements,
-        translations: {},
         canonicalRoute: null,
         behavior: null,
       });
@@ -504,7 +452,6 @@ function AddNavigationItem({ entries, nextId, onAdd, pages, text }: AddNavigatio
         contextMask,
         areaMask,
         placements,
-        translations: {},
         canonicalRoute: null,
         behavior: null,
       });
@@ -619,7 +566,6 @@ interface NavigationEditorState {
   dirty: boolean;
   isSaving: boolean;
   saveError: SaveError | null;
-  expandedRows: Record<number, boolean>;
 }
 
 const NavigationEditorActionType = {
@@ -628,7 +574,6 @@ const NavigationEditorActionType = {
   SaveSucceeded: "save-succeeded",
   SaveFailed: "save-failed",
   SyncConfiguration: "sync-configuration",
-  ToggleExpanded: "toggle-expanded",
 } as const;
 
 type NavigationEditorAction =
@@ -643,8 +588,7 @@ type NavigationEditorAction =
       savedRevision: number;
     }
   | { type: typeof NavigationEditorActionType.SaveFailed; error: SaveError }
-  | { type: typeof NavigationEditorActionType.SyncConfiguration; configuration: NavigationConfiguration }
-  | { type: typeof NavigationEditorActionType.ToggleExpanded; entryId: number };
+  | { type: typeof NavigationEditorActionType.SyncConfiguration; configuration: NavigationConfiguration };
 
 function createNavigationEditorState(configuration: NavigationConfiguration): NavigationEditorState {
   return {
@@ -654,7 +598,6 @@ function createNavigationEditorState(configuration: NavigationConfiguration): Na
     dirty: false,
     isSaving: false,
     saveError: null,
-    expandedRows: {},
   };
 }
 
@@ -701,11 +644,6 @@ function navigationEditorReducer(state: NavigationEditorState, action: Navigatio
             entries: cloneEntries(action.configuration),
             saveError: null,
           };
-    case NavigationEditorActionType.ToggleExpanded:
-      return {
-        ...state,
-        expandedRows: { ...state.expandedRows, [action.entryId]: !state.expandedRows[action.entryId] },
-      };
   }
 }
 
@@ -719,7 +657,7 @@ interface NavigationEditorProps {
 function NavigationEditor({ common, initialConfiguration, pages, text }: NavigationEditorProps) {
   const saveConfiguration = useSaveNavigationConfiguration();
   const [state, dispatch] = useReducer(navigationEditorReducer, initialConfiguration, createNavigationEditorState);
-  const { entries, dirty, isSaving, saveError, expandedRows, sourceConfiguration } = state;
+  const { entries, dirty, isSaving, saveError, sourceConfiguration } = state;
   const draftRevision = useRef(0);
   const temporaryId = useRef(-1);
   const { phase: savedPhase, show: showSaved } = useSaveNotification();
@@ -750,18 +688,6 @@ function NavigationEditor({ common, initialConfiguration, pages, text }: Navigat
   function handleLabelChange(entryId: number, label: string) {
     updateEntries((current) =>
       current.map((entry) => (entry.id === entryId ? { ...entry, label: label || null } : entry)),
-    );
-  }
-
-  function handleTranslationChange(entryId: number, locale: Locale, value: string) {
-    updateEntries((current) =>
-      current.map((entry) => {
-        if (entry.id !== entryId) return entry;
-        const translations = { ...entry.translations };
-        if (value.trim()) translations[locale] = value;
-        else delete translations[locale];
-        return { ...entry, translations };
-      }),
     );
   }
 
@@ -831,20 +757,14 @@ function NavigationEditor({ common, initialConfiguration, pages, text }: Navigat
                         label={entryLabel(entry)}
                       >
                         <NavigationEntryEditor
-                          area={view.area}
                           context={view.context}
                           entry={entry}
                           pages={pages}
                           text={text}
-                          expanded={!!expandedRows[entry.id]}
                           onAreaMaskChange={handleAreaMaskChange}
                           onContextMaskChange={handleContextMaskChange}
                           onLabelChange={handleLabelChange}
                           onRemove={handleRemove}
-                          onToggleExpanded={(entryId) =>
-                            dispatch({ type: NavigationEditorActionType.ToggleExpanded, entryId })
-                          }
-                          onTranslationChange={handleTranslationChange}
                         />
                       </NavigationPlacementListItem>
                     ))}

@@ -2,7 +2,6 @@ import {
   type ContentContextMask,
   type ContentPublication,
   ENDPOINTS,
-  isLocale,
   OVERLAY_WIDTHS,
   type OverlayWidth,
   PAGE_DISPLAY_MODES,
@@ -27,7 +26,6 @@ import {
 } from "../services/admin-content.js";
 import { bulkUpdatePages } from "../services/admin-pages-bulk.js";
 import { replaceSegments } from "../services/admin-segments.js";
-import { registerAdminPageTranslationRoutes } from "./admin-page-translations.js";
 
 function getCallerId(request: FastifyRequest): string | null {
   const payload = request.user as { sub?: string } | undefined;
@@ -185,18 +183,7 @@ function validateSegmentsBody(body: unknown): PageSegmentInput[] | string {
     if (typeof raw.label !== "string") return "label must be string";
     if (typeof raw.targetSlug !== "string") return "targetSlug must be string";
     if (typeof raw.position !== "number") return "position must be number";
-    const segment: PageSegmentInput = { label: raw.label, targetSlug: raw.targetSlug, position: raw.position };
-    if (raw.translations !== undefined) {
-      if (!isPlainObject(raw.translations)) return `segment ${i}.translations must be an object`;
-      const translations: Partial<Record<string, string>> = {};
-      for (const [key, val] of Object.entries(raw.translations)) {
-        if (!isLocale(key)) return `segment ${i}.translations: unknown locale '${key}'`;
-        if (typeof val !== "string") return `segment ${i}.translations: values must be strings`;
-        translations[key] = val;
-      }
-      segment.translations = translations as PageSegmentInput["translations"];
-    }
-    out.push(segment);
+    out.push({ label: raw.label, targetSlug: raw.targetSlug, position: raw.position });
   }
   return out;
 }
@@ -310,6 +297,4 @@ export default async function adminContentRoutes(app: FastifyInstance) {
       return result.data;
     },
   );
-
-  registerAdminPageTranslationRoutes(app);
 }

@@ -27,7 +27,6 @@ function page(overrides: Partial<ContentPageSummary> & { slug: string }): Conten
     updatedByUsername: null,
     createdAt: "2026-05-01T00:00:00Z",
     updatedAt: null,
-    translationStatus: { de: "missing" } as ContentPageSummary["translationStatus"],
     ...overrides,
   };
 }

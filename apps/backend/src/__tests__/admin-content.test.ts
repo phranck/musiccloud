@@ -2,12 +2,7 @@ import { ContentContext } from "@musiccloud/shared";
 import type { MarkedExtension } from "marked";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type {
-  AdminRepository,
-  ContentPageRow,
-  ContentPageTranslationRow,
-  PageSegmentRow,
-} from "../db/admin-repository.js";
+import type { AdminRepository, ContentPageRow, PageSegmentRow } from "../db/admin-repository.js";
 import {
   createManagedContentPage,
   normalizeAndValidateContentPublications,
@@ -84,9 +79,6 @@ const repo: Partial<AdminRepository> = {
   async listSegmentsForOwner(ownerSlug: string) {
     return segmentsByOwner.get(ownerSlug) ?? [];
   },
-  async listSegmentTranslationsForOwner() {
-    return [];
-  },
   async deleteSegmentsForOwner() {
     // no-op
   },
@@ -103,12 +95,6 @@ const repo: Partial<AdminRepository> = {
 };
 
 vi.mock("../db/index.js", () => ({ getAdminRepository: async () => repo }));
-vi.mock("../services/admin-translations.js", () => ({
-  getPageTranslationsWithStatus: async () => ({
-    statuses: { en: "ready", de: "missing" },
-    translations: [] as ContentPageTranslationRow[],
-  }),
-}));
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -187,7 +173,6 @@ describe("updateManagedContentPageMeta", () => {
         contextMask: ContentContext.DeveloperPortal,
         areaMask: 1,
         placements: [{ context: ContentContext.DeveloperPortal, area: 1, position: 0 }],
-        translations: {},
       },
     ];
 

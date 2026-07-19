@@ -26,8 +26,7 @@ describe("dirtyRegistry", () => {
     r.add("publications:info");
     r.add("segments:help");
     r.add("sidebar");
-    r.add("translations:info");
-    expect(r.groupCount()).toBe(4); // pages, segments, sidebar, translations
+    expect(r.groupCount()).toBe(3); // pages, segments, sidebar
   });
 
   it("clear()", () => {
