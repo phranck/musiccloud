@@ -14,6 +14,8 @@ import type {
   ContentPageMetaUpdate,
   ContentPageRow,
   ContentPageSummaryRow,
+  ContentPageTranslationRow,
+  ContentPageTranslationUpsert,
   ContentPublicationCutoverInput,
   ContentPublicationCutoverResult,
   ContentPublicationRow,
@@ -26,10 +28,12 @@ import type {
   NavId,
   NavItemReplaceInput,
   NavItemRow,
+  NavItemTranslationRow,
   NavigationConfigurationEntryRow,
   NavigationConfigurationReplaceInput,
   PageSegmentInputRow,
   PageSegmentRow,
+  PageSegmentTranslationRow,
   TrackListItem,
 } from "../admin-repository.js";
 import type {
@@ -211,7 +215,9 @@ import {
 import {
   listAdminNavItems as contentNavListAdminNavItems,
   listNavigationConfiguration as contentNavListNavigationConfiguration,
+  listNavTranslations as contentNavListNavTranslations,
   replaceAdminNavItems as contentNavReplaceAdminNavItems,
+  replaceNavItemTranslations as contentNavReplaceNavItemTranslations,
   replaceNavigationConfiguration as contentNavReplaceNavigationConfiguration,
 } from "./postgres-content-nav.js";
 import {
@@ -220,23 +226,29 @@ import {
   contentPageSlugExists as contentPagesContentPageSlugExists,
   createContentPage as contentPagesCreateContentPage,
   deleteContentPage as contentPagesDeleteContentPage,
+  deletePageTranslation as contentPagesDeletePageTranslation,
   deleteSegmentsForOwner as contentPagesDeleteSegmentsForOwner,
   getAdminUsernamesByIds as contentPagesGetAdminUsernamesByIds,
   getContentPageById as contentPagesGetContentPageById,
   getContentPageBySlug as contentPagesGetContentPageBySlug,
   getContentPagesBySlugs as contentPagesGetContentPagesBySlugs,
+  getPageTranslation as contentPagesGetPageTranslation,
   getPublishedContentPageByPath as contentPagesGetPublishedContentPageByPath,
   getPublishedContentPageBySlug as contentPagesGetPublishedContentPageBySlug,
   getPublishedContentPagesBySlugs as contentPagesGetPublishedContentPagesBySlugs,
   listContentPageSummaries as contentPagesListContentPageSummaries,
   listContentPublications as contentPagesListContentPublications,
+  listPageTranslations as contentPagesListPageTranslations,
   listPublishedContentPages as contentPagesListPublishedContentPages,
   listSegmentsForOwner as contentPagesListSegmentsForOwner,
+  listSegmentTranslationsForOwner as contentPagesListSegmentTranslationsForOwner,
   replaceContentPublications as contentPagesReplaceContentPublications,
   replaceSegmentsForOwner as contentPagesReplaceSegmentsForOwner,
+  replaceSegmentTranslations as contentPagesReplaceSegmentTranslations,
   setContentPageContentUpdatedAt as contentPagesSetContentPageContentUpdatedAt,
   updateContentPageBody as contentPagesUpdateContentPageBody,
   updateContentPageMeta as contentPagesUpdateContentPageMeta,
+  upsertPageTranslation as contentPagesUpsertPageTranslation,
 } from "./postgres-content-pages.js";
 import {
   acquireCrawlLock as crawlAcquireCrawlLock,
@@ -912,7 +924,7 @@ export class PostgresAdapter
   }
 
   // ============================================================================
-  // CONTENT PAGES + SEGMENTS (AdminRepository)
+  // CONTENT PAGES + PAGE TRANSLATIONS + SEGMENTS (AdminRepository)
   // ============================================================================
 
   listContentPageSummaries(): Promise<ContentPageSummaryRow[]> {
@@ -987,6 +999,22 @@ export class PostgresAdapter
     return contentPagesBulkUpdatePages(this.pool, payload);
   }
 
+  listPageTranslations(slug: string): Promise<ContentPageTranslationRow[]> {
+    return contentPagesListPageTranslations(this.pool, slug);
+  }
+
+  getPageTranslation(slug: string, locale: string): Promise<ContentPageTranslationRow | null> {
+    return contentPagesGetPageTranslation(this.pool, slug, locale);
+  }
+
+  upsertPageTranslation(input: ContentPageTranslationUpsert): Promise<ContentPageTranslationRow> {
+    return contentPagesUpsertPageTranslation(this.pool, input);
+  }
+
+  deletePageTranslation(slug: string, locale: string): Promise<boolean> {
+    return contentPagesDeletePageTranslation(this.pool, slug, locale);
+  }
+
   setContentPageContentUpdatedAt(slug: string, when: Date): Promise<void> {
     return contentPagesSetContentPageContentUpdatedAt(this.pool, slug, when);
   }
@@ -1003,8 +1031,19 @@ export class PostgresAdapter
     return contentPagesReplaceSegmentsForOwner(this.pool, ownerSlug, segments);
   }
 
+  listSegmentTranslationsForOwner(ownerSlug: string): Promise<PageSegmentTranslationRow[]> {
+    return contentPagesListSegmentTranslationsForOwner(this.pool, ownerSlug);
+  }
+
+  replaceSegmentTranslations(
+    segmentId: number,
+    translations: { locale: string; label: string; sourceUpdatedAt: Date | null }[],
+  ): Promise<void> {
+    return contentPagesReplaceSegmentTranslations(this.pool, segmentId, translations);
+  }
+
   // ============================================================================
-  // NAVIGATION ITEMS (AdminRepository)
+  // NAVIGATION ITEMS + NAV TRANSLATIONS (AdminRepository)
   // ============================================================================
 
   listAdminNavItems(navId: NavId): Promise<NavItemRow[]> {
@@ -1023,6 +1062,17 @@ export class PostgresAdapter
     entries: NavigationConfigurationReplaceInput[],
   ): Promise<NavigationConfigurationEntryRow[]> {
     return contentNavReplaceNavigationConfiguration(this.pool, entries);
+  }
+
+  listNavTranslations(navId: NavId): Promise<NavItemTranslationRow[]> {
+    return contentNavListNavTranslations(this.pool, navId);
+  }
+
+  replaceNavItemTranslations(
+    navItemId: number,
+    translations: { locale: string; label: string; sourceUpdatedAt: Date | null }[],
+  ): Promise<void> {
+    return contentNavReplaceNavItemTranslations(this.pool, navItemId, translations);
   }
 
   // ============================================================================

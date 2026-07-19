@@ -4,15 +4,21 @@ import type {
   ContentPageSummary,
   ContentPublication,
   ContentStatus,
+  Locale,
   PageSegment,
+  PageTranslation,
   PageType,
   PublicContentPage,
   PublicPageSegment,
+  TranslationStatus,
 } from "@musiccloud/shared";
 import {
   CONTENT_CARD_STYLES,
   ContentContext,
+  DEFAULT_LOCALE,
+  isLocale,
   isValidContentContextMask,
+  LOCALES,
   OVERLAY_WIDTHS,
   PAGE_DISPLAY_MODES,
   PAGE_TITLE_ALIGNMENTS,
@@ -23,10 +29,12 @@ import type {
   ContentPageMetaUpdate,
   ContentPageRow,
   ContentPageSummaryRow,
+  ContentPageTranslationRow,
   NavigationConfigurationEntryRow,
   PageSegmentRow,
 } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
+import { getPageTranslationsWithStatus } from "./admin-translations.js";
 import { isReservedDeveloperPortalPath, normalizeEditorialPath } from "./editorial-path.js";
 import { MARKDOWN_EXTENSION_REGISTRY, type MarkdownExtensionRegistry } from "./markdown/extension-registry.js";
 import { renderMarkdown } from "./markdown/renderer.js";
@@ -59,11 +67,33 @@ function segmentRowToDto(row: PageSegmentRow): PageSegment {
   return { id: row.id, position: row.position, label: row.label, targetSlug: row.targetSlug };
 }
 
-async function loadSegments(repo: AdminRepository, ownerSlug: string): Promise<PageSegment[]> {
-  return (await repo.listSegmentsForOwner(ownerSlug)).map(segmentRowToDto);
+async function loadSegmentsWithTranslations(repo: AdminRepository, ownerSlug: string): Promise<PageSegment[]> {
+  const [rows, translationRows] = await Promise.all([
+    repo.listSegmentsForOwner(ownerSlug),
+    repo.listSegmentTranslationsForOwner(ownerSlug),
+  ]);
+  const translationsBySegmentId = new Map<number, Partial<Record<Locale, string>>>();
+  for (const t of translationRows) {
+    if (!isLocale(t.locale) || t.locale === DEFAULT_LOCALE) continue;
+    let map = translationsBySegmentId.get(t.segmentId);
+    if (!map) {
+      map = {};
+      translationsBySegmentId.set(t.segmentId, map);
+    }
+    map[t.locale] = t.label;
+  }
+  return rows.map((r) => {
+    const dto = segmentRowToDto(r);
+    const tx = translationsBySegmentId.get(r.id);
+    return tx ? { ...dto, translations: tx } : dto;
+  });
 }
 
-function rowToSummary(row: ContentPageSummaryRow, usernames: Map<string, string>): ContentPageSummary {
+function rowToSummary(
+  row: ContentPageSummaryRow,
+  usernames: Map<string, string>,
+  statuses: Record<Locale, TranslationStatus>,
+): ContentPageSummary {
   return {
     id: row.id ?? row.slug,
     slug: row.slug,
@@ -81,6 +111,7 @@ function rowToSummary(row: ContentPageSummaryRow, usernames: Map<string, string>
     updatedByUsername: row.updatedBy ? (usernames.get(row.updatedBy) ?? null) : null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt ? row.updatedAt.toISOString() : null,
+    translationStatus: statuses,
     ...(row.segments !== undefined && { segments: row.segments }),
   };
 }
@@ -171,22 +202,49 @@ async function getContentPageByIdentity(repo: AdminRepository, identity: string)
   return (await repo.getContentPageById(identity)) ?? repo.getContentPageBySlug(identity);
 }
 
-function rowToPage(row: ContentPageRow, usernames: Map<string, string>, segments: PageSegment[]): ContentPage {
+function rowToPage(
+  row: ContentPageRow,
+  usernames: Map<string, string>,
+  segments: PageSegment[],
+  statuses: Record<Locale, TranslationStatus>,
+  translationRows: ContentPageTranslationRow[],
+): ContentPage {
+  const translations: PageTranslation[] = translationRows
+    .filter((t) => t.locale !== DEFAULT_LOCALE)
+    .map((t) => ({
+      locale: t.locale as Locale,
+      title: t.title,
+      content: t.content,
+      isStale: statuses[t.locale as Locale] === "stale",
+      sourceUpdatedAt: t.sourceUpdatedAt ? t.sourceUpdatedAt.toISOString() : null,
+      updatedAt: t.updatedAt.toISOString(),
+    }));
   const contextMask = row.contextMask ?? ContentContext.Frontend;
   return {
-    ...rowToSummary(row, usernames),
+    ...rowToSummary(row, usernames, statuses),
     content: row.content,
     segments,
+    translations,
     markdownValidation: validateMarkdownForContexts(row.content, contextMask),
   };
+}
+
+function emptyStatuses(): Record<Locale, TranslationStatus> {
+  return Object.fromEntries(LOCALES.map((l) => [l, l === DEFAULT_LOCALE ? "ready" : "missing"])) as Record<
+    Locale,
+    TranslationStatus
+  >;
 }
 
 export async function getManagedContentPages(): Promise<ContentPageSummary[]> {
   const repo = await getAdminRepository();
   const rows = await repo.listContentPageSummaries();
   const userIds = rows.flatMap((r) => [r.createdBy, r.updatedBy]).filter((id): id is string => id !== null);
-  const usernames = await repo.getAdminUsernamesByIds(userIds);
-  return rows.map((row) => rowToSummary(row, usernames));
+  const [usernames, translationResults] = await Promise.all([
+    repo.getAdminUsernamesByIds(userIds),
+    Promise.all(rows.map((r) => getPageTranslationsWithStatus(r.slug))),
+  ]);
+  return rows.map((row, i) => rowToSummary(row, usernames, translationResults[i]?.statuses ?? emptyStatuses()));
 }
 
 export async function getManagedContentPage(identity: string): Promise<ContentResult<ContentPage>> {
@@ -194,11 +252,14 @@ export async function getManagedContentPage(identity: string): Promise<ContentRe
   const row = await getContentPageByIdentity(repo, identity);
   if (!row) return { ok: false, code: "NOT_FOUND", message: "Content page not found" };
   const userIds = [row.createdBy, row.updatedBy].filter((id): id is string => id !== null);
-  const [usernames, segments] = await Promise.all([
+  const [usernames, translationData, segments] = await Promise.all([
     repo.getAdminUsernamesByIds(userIds),
-    row.pageType === "segmented" ? loadSegments(repo, row.slug) : Promise.resolve([]),
+    getPageTranslationsWithStatus(row.slug),
+    row.pageType === "segmented" ? loadSegmentsWithTranslations(repo, row.slug) : Promise.resolve([]),
   ]);
-  return { ok: true, data: rowToPage(row, usernames, segments) };
+  if (!translationData) throw new Error(`invariant violated: translations missing for confirmed page: ${row.slug}`);
+  const { statuses, translations: translationRows } = translationData;
+  return { ok: true, data: rowToPage(row, usernames, segments, statuses, translationRows) };
 }
 
 export async function createManagedContentPage(data: {
@@ -248,7 +309,7 @@ export async function createManagedContentPage(data: {
     throw error;
   }
   const usernames = data.createdBy ? await repo.getAdminUsernamesByIds([data.createdBy]) : new Map();
-  return { ok: true, data: rowToPage(row, usernames, []) };
+  return { ok: true, data: rowToPage(row, usernames, [], emptyStatuses(), []) };
 }
 
 export async function updateManagedContentPageMeta(
@@ -359,17 +420,21 @@ export async function updateManagedContentPageMeta(
   if (existing?.pageType === "segmented" && row.pageType === "default") {
     await repo.deleteSegmentsForOwner(row.slug);
   }
-  // Bump content_updated_at when the canonical title changes.
+  // Bump content_updated_at when title changes (title is part of translatable content).
   if (data.title !== undefined && existing && data.title !== existing.title) {
     await repo.setContentPageContentUpdatedAt(row.slug, new Date());
   }
   const effectiveSlug = row.slug;
   const userIds = [row.createdBy, row.updatedBy].filter((id): id is string => id !== null);
-  const [usernames, segments] = await Promise.all([
+  const [usernames, translationData, segments] = await Promise.all([
     repo.getAdminUsernamesByIds(userIds),
-    row.pageType === "segmented" ? loadSegments(repo, effectiveSlug) : Promise.resolve([]),
+    getPageTranslationsWithStatus(effectiveSlug),
+    row.pageType === "segmented" ? loadSegmentsWithTranslations(repo, effectiveSlug) : Promise.resolve([]),
   ]);
-  return { ok: true, data: rowToPage(row, usernames, segments) };
+  if (!translationData)
+    throw new Error(`invariant violated: translations missing for confirmed page: ${effectiveSlug}`);
+  const { statuses, translations: translationRows } = translationData;
+  return { ok: true, data: rowToPage(row, usernames, segments, statuses, translationRows) };
 }
 
 export async function updateManagedContentPageBody(
@@ -404,11 +469,15 @@ export async function updateManagedContentPageBody(
     await repo.setContentPageContentUpdatedAt(existing.slug, new Date());
   }
   const userIds = [row.createdBy, row.updatedBy].filter((id): id is string => id !== null);
-  const [usernames, segments] = await Promise.all([
+  const [usernames, translationData, segments] = await Promise.all([
     repo.getAdminUsernamesByIds(userIds),
-    row.pageType === "segmented" ? loadSegments(repo, row.slug) : Promise.resolve([]),
+    getPageTranslationsWithStatus(existing.slug),
+    row.pageType === "segmented" ? loadSegmentsWithTranslations(repo, row.slug) : Promise.resolve([]),
   ]);
-  return { ok: true, data: rowToPage(row, usernames, segments) };
+  if (!translationData)
+    throw new Error(`invariant violated: translations missing for confirmed page: ${existing.slug}`);
+  const { statuses, translations: translationRows } = translationData;
+  return { ok: true, data: rowToPage(row, usernames, segments, statuses, translationRows) };
 }
 
 export async function deleteManagedContentPage(identity: string): Promise<ContentResult<{ slug: string }>> {
@@ -435,7 +504,7 @@ function isPublishedForLegacyFrontendSlug(row: ContentPageRow): boolean {
   );
 }
 
-export async function getPublicContentPage(slug: string): Promise<PublicContentPage | null> {
+export async function getPublicContentPage(slug: string, locale: Locale): Promise<PublicContentPage | null> {
   const repo = await getAdminRepository();
   const path = normalizeEditorialPath(slug);
   const legacySlug = path.slice(1);
@@ -446,17 +515,30 @@ export async function getPublicContentPage(slug: string): Promise<PublicContentP
   }
   if (!row) return null;
 
+  // Resolve title + content from translation when locale is non-default and a translation row exists.
+  let resolvedTitle = row.title;
+  let resolvedContent = row.content;
+
+  if (locale !== DEFAULT_LOCALE) {
+    const translations = await repo.listPageTranslations(row.slug);
+    const tx = translations.find((t) => t.locale === locale);
+    if (tx) {
+      resolvedTitle = tx.title;
+      resolvedContent = tx.content;
+    }
+  }
+
   const base = {
     slug: row.slug,
-    title: row.title,
+    title: resolvedTitle,
     showTitle: row.showTitle,
     titleAlignment: row.titleAlignment,
     pageType: row.pageType,
     displayMode: row.displayMode,
     overlayWidth: row.overlayWidth,
     contentCardStyle: row.contentCardStyle,
-    content: row.content,
-    contentHtml: await renderBody(row.content),
+    content: resolvedContent,
+    contentHtml: await renderBody(resolvedContent),
   };
 
   if (row.pageType !== "segmented") {
@@ -466,9 +548,30 @@ export async function getPublicContentPage(slug: string): Promise<PublicContentP
   const segmentRows = await repo.listSegmentsForOwner(row.slug);
   if (segmentRows.length === 0) return { ...base, segments: [] };
 
+  // Resolve per-segment labels from translations when locale is non-default.
+  const segmentTranslationsBySegmentId = new Map<number, string>();
+  if (locale !== DEFAULT_LOCALE) {
+    const segTxRows = await repo.listSegmentTranslationsForOwner(row.slug);
+    for (const t of segTxRows) {
+      if (t.locale === locale) {
+        segmentTranslationsBySegmentId.set(t.segmentId, t.label);
+      }
+    }
+  }
+
   const targetSlugs = Array.from(new Set(segmentRows.map((s) => s.targetSlug)));
   const targets = await repo.getPublishedContentPagesBySlugs(targetSlugs);
   const bySlug = new Map(targets.map((t) => [t.slug, t]));
+
+  // Load target-page translations for non-default locale.
+  const targetTranslations = new Map<string, ContentPageTranslationRow>();
+  if (locale !== DEFAULT_LOCALE) {
+    for (const targetSlug of targetSlugs) {
+      const txRows = await repo.listPageTranslations(targetSlug);
+      const tx = txRows.find((t) => t.locale === locale);
+      if (tx) targetTranslations.set(targetSlug, tx);
+    }
+  }
 
   // Render segments SEQUENTIALLY, not in parallel. Each concrete context
   // owns one cached Marked instance, and parallel parses on that same
@@ -479,13 +582,17 @@ export async function getPublicContentPage(slug: string): Promise<PublicContentP
   for (const s of segmentRows) {
     if (!bySlug.has(s.targetSlug)) continue;
     const t = bySlug.get(s.targetSlug)!;
+    const tx = targetTranslations.get(s.targetSlug);
+    const resolvedSegLabel = segmentTranslationsBySegmentId.get(s.id) ?? s.label;
+    const resolvedSegTitle = tx ? tx.title : t.title;
+    const resolvedSegContent = tx ? tx.content : t.content;
     segments.push({
-      label: s.label,
+      label: resolvedSegLabel,
       targetSlug: s.targetSlug,
-      title: t.title,
+      title: resolvedSegTitle,
       showTitle: t.showTitle,
-      content: t.content,
-      contentHtml: await renderBody(t.content),
+      content: resolvedSegContent,
+      contentHtml: await renderBody(resolvedSegContent),
     });
   }
 

@@ -239,6 +239,27 @@ export interface ContentPageRow extends ContentPageSummaryRow {
   contentUpdatedAt: Date;
 }
 
+/** Content page translation row shape returned or accepted by the database repository layer. */
+export interface ContentPageTranslationRow {
+  slug: string;
+  locale: string;
+  title: string;
+  content: string;
+  sourceUpdatedAt: Date | null;
+  updatedAt: Date;
+  updatedBy: string | null;
+}
+
+/** Content page translation upsert data shape returned or accepted by the database repository layer. */
+export interface ContentPageTranslationUpsert {
+  slug: string;
+  locale: string;
+  title: string;
+  content: string;
+  sourceUpdatedAt: Date | null;
+  updatedBy: string | null;
+}
+
 /** Content page create payload shape returned or accepted by the database repository layer. */
 export interface ContentPageCreateData {
   slug: string;
@@ -329,17 +350,34 @@ export interface PageSegmentRow {
   labelUpdatedAt: Date;
 }
 
+/** Page segment translation row shape returned or accepted by the database repository layer. */
+export interface PageSegmentTranslationRow {
+  segmentId: number;
+  locale: string;
+  label: string;
+  sourceUpdatedAt: Date | null;
+  updatedAt: Date;
+}
+
 /** Page segment input row shape returned or accepted by the database repository layer. */
 export interface PageSegmentInputRow {
   position: number;
   label: string;
   targetSlug: string;
+  translations?: Partial<Record<string, string>>;
 }
 
 /** Bulk update pages payload data shape returned or accepted by the database repository layer. */
 export interface BulkUpdatePagesPayload {
   pages: Array<{ slug: string; meta?: ContentPageMetaUpdate; content?: string }>;
   segments: Array<{ ownerSlug: string; segments: PageSegmentInputRow[] }>;
+  pageTranslations: Array<{
+    slug: string;
+    locale: string;
+    title?: string;
+    content?: string;
+    updatedBy?: string | null;
+  }>;
   topLevelOrder: string[];
 }
 
@@ -366,6 +404,15 @@ export interface NavItemRow {
   pageDisplayMode: PageDisplayMode | null;
   pageOverlayWidth: OverlayWidth | null;
   labelUpdatedAt: Date;
+}
+
+/** Nav item translation row shape returned or accepted by the database repository layer. */
+export interface NavItemTranslationRow {
+  navItemId: number;
+  locale: string;
+  label: string;
+  sourceUpdatedAt: Date | null;
+  updatedAt: Date;
 }
 
 /** Nav item replace input data shape returned or accepted by the database repository layer. */
@@ -396,6 +443,7 @@ export interface NavigationConfigurationReplaceInput {
   contextMask: ContentContextMask;
   areaMask: NavigationAreaMask;
   placements: NavigationPlacement[];
+  translations?: Partial<Record<string, string>>;
 }
 
 /**
@@ -880,7 +928,7 @@ export interface AdminRepository {
   replaceAdminNavItems(navId: NavId, items: NavItemReplaceInput[]): Promise<NavItemRow[]>;
   /** Lists the complete contextual navigation configuration. */
   listNavigationConfiguration(): Promise<NavigationConfigurationEntryRow[]>;
-  /** Atomically replaces entries and placements. */
+  /** Atomically replaces entries, placements, and label translations. */
   replaceNavigationConfiguration(
     entries: NavigationConfigurationReplaceInput[],
   ): Promise<NavigationConfigurationEntryRow[]>;
@@ -932,6 +980,37 @@ export interface AdminRepository {
    */
   getPublishedContentPagesBySlugs(slugs: string[]): Promise<ContentPageRow[]>;
 
+  // Page translations (content_page_translations)
+  /**
+   * Lists page translations.
+   *
+   * @param slug - The `slug` value.
+   * @returns The matching rows.
+   */
+  listPageTranslations(slug: string): Promise<ContentPageTranslationRow[]>;
+  /**
+   * Gets page translation.
+   *
+   * @param slug - The `slug` value.
+   * @param locale - The `locale` value.
+   * @returns The matching record, or `null` when no row matches.
+   */
+  getPageTranslation(slug: string, locale: string): Promise<ContentPageTranslationRow | null>;
+  /**
+   * Upserts page translation.
+   *
+   * @param input - The `input` value.
+   * @returns The requested repository result.
+   */
+  upsertPageTranslation(input: ContentPageTranslationUpsert): Promise<ContentPageTranslationRow>;
+  /**
+   * Deletes page translation.
+   *
+   * @param slug - The `slug` value.
+   * @param locale - The `locale` value.
+   * @returns Whether the requested row exists or mutation succeeded.
+   */
+  deletePageTranslation(slug: string, locale: string): Promise<boolean>;
   /** Bump content_pages.content_updated_at (and updated_at) for a given slug. */
   /**
    * Sets content page content updated at.
@@ -941,4 +1020,44 @@ export interface AdminRepository {
    * @returns A promise that resolves when the operation completes.
    */
   setContentPageContentUpdatedAt(slug: string, when: Date): Promise<void>;
+
+  // Segment translations (page_segment_translations)
+  /**
+   * Lists segment translations for owner.
+   *
+   * @param ownerSlug - The `ownerSlug` value.
+   * @returns The matching rows.
+   */
+  listSegmentTranslationsForOwner(ownerSlug: string): Promise<PageSegmentTranslationRow[]>;
+  /**
+   * Replaces segment translations.
+   *
+   * @param segmentId - The `segmentId` value.
+   * @param translations - The `translations` value.
+   * @returns A promise that resolves when the operation completes.
+   */
+  replaceSegmentTranslations(
+    segmentId: number,
+    translations: { locale: string; label: string; sourceUpdatedAt: Date | null }[],
+  ): Promise<void>;
+
+  // Nav item translations (nav_item_translations)
+  /**
+   * Lists nav translations.
+   *
+   * @param navId - The `navId` value.
+   * @returns The matching rows.
+   */
+  listNavTranslations(navId: NavId): Promise<NavItemTranslationRow[]>;
+  /**
+   * Replaces nav item translations.
+   *
+   * @param navItemId - The `navItemId` value.
+   * @param translations - The `translations` value.
+   * @returns A promise that resolves when the operation completes.
+   */
+  replaceNavItemTranslations(
+    navItemId: number,
+    translations: { locale: string; label: string; sourceUpdatedAt: Date | null }[],
+  ): Promise<void>;
 }

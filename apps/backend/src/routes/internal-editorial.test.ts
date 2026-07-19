@@ -81,6 +81,7 @@ function systemEntry(
     areaMask: area,
     labelUpdatedAt: new Date("2026-07-18T00:00:00Z"),
     placements: [{ context: ContentContext.DeveloperPortal, area, position }],
+    translations: {},
   };
 }
 
@@ -141,6 +142,7 @@ describe("internal Developer Portal editorial routes", () => {
             position: 0,
           },
         ],
+        translations: {},
       },
     ]);
   });

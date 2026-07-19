@@ -9,6 +9,7 @@ import type {
   SingleContentContext,
   SingleNavigationArea,
 } from "./content-context.js";
+import type { Locale } from "./locales.js";
 
 export type NavId = "header" | "footer";
 export const NavTarget = {
@@ -84,6 +85,7 @@ export interface NavigationEntryInput {
   contextMask: ContentContextMask;
   areaMask: NavigationAreaMask;
   placements: NavigationPlacement[];
+  translations?: Partial<Record<Locale, string>>;
 }
 
 export interface NavigationConfigurationInput {
@@ -119,6 +121,8 @@ export type PageDisplayMode = (typeof PageDisplayMode)[keyof typeof PageDisplayM
 export type OverlayWidth = "small" | "regular" | "big";
 export type PageTitleAlignment = "left" | "center" | "right";
 
+export type TranslationStatus = "missing" | "stale" | "ready";
+
 export interface ContentPublication {
   context: SingleContentContext;
   path: string;
@@ -132,6 +136,15 @@ export interface ContentMarkdownValidation {
     extension: string;
     allowedContextMask: ContentContextMask;
   }>;
+}
+
+export interface PageTranslation {
+  locale: Locale;
+  title: string;
+  content: string;
+  isStale: boolean;
+  sourceUpdatedAt: string | null;
+  updatedAt: string;
 }
 
 export const PAGE_TITLE_ALIGNMENTS: readonly PageTitleAlignment[] = ["left", "center", "right"] as const;
@@ -159,6 +172,7 @@ export interface NavItem {
   pageType: PageType | null;
   pageDisplayMode: PageDisplayMode | null;
   pageOverlayWidth: OverlayWidth | null;
+  translations?: Partial<Record<Locale, string>>;
 }
 
 export interface NavItemInput {
@@ -166,6 +180,7 @@ export interface NavItemInput {
   url?: string | null;
   label?: string | null;
   target?: NavTarget;
+  translations?: Partial<Record<Locale, string>>;
 }
 
 export interface PageSegment {
@@ -173,12 +188,14 @@ export interface PageSegment {
   position: number;
   label: string;
   targetSlug: string;
+  translations?: Partial<Record<Locale, string>>;
 }
 
 export interface PageSegmentInput {
   position: number;
   label: string;
   targetSlug: string;
+  translations?: Partial<Record<Locale, string>>;
 }
 
 export interface PageSegmentSummary {
@@ -205,11 +222,13 @@ export interface ContentPageSummary {
   createdAt: string;
   updatedAt: string | null;
   segments?: PageSegmentSummary[];
+  translationStatus: Record<Locale, TranslationStatus>;
 }
 
 export interface ContentPage extends ContentPageSummary {
   content: string;
   segments: PageSegment[];
+  translations: PageTranslation[];
   /** Additive compatibility field; new admin responses always include it. */
   markdownValidation?: ContentMarkdownValidation;
 }
@@ -293,9 +312,17 @@ export interface PagesBulkSegmentsEntry {
   segments: PageSegmentInput[];
 }
 
+export interface PagesBulkPageTranslationEntry {
+  slug: string;
+  locale: Locale;
+  title?: string;
+  content?: string;
+}
+
 export interface PagesBulkRequest {
   pages?: PagesBulkPagesEntry[];
   segments?: PagesBulkSegmentsEntry[];
+  pageTranslations?: PagesBulkPageTranslationEntry[];
   topLevelOrder?: string[];
 }
 
@@ -304,7 +331,7 @@ export interface PagesBulkResponse {
 }
 
 export type PagesBulkErrorDetail = {
-  section: "pages" | "segments" | "topLevelOrder";
+  section: "pages" | "segments" | "pageTranslations" | "topLevelOrder";
   index: number;
   message: string;
 };

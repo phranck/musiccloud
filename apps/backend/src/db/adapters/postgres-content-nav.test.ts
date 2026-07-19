@@ -30,7 +30,7 @@ function navigationRow() {
 }
 
 describe("contextual navigation Postgres repository", () => {
-  it("reads canonical entries and placements as one configuration", async () => {
+  it("reads entries, placements, and translations as one configuration", async () => {
     const query = vi
       .fn()
       .mockResolvedValueOnce(result())
@@ -39,6 +39,15 @@ describe("contextual navigation Postgres repository", () => {
         result([
           { nav_item_id: 41, context: ContentContext.DeveloperPortal, area: NavigationArea.Main, position: 2 },
           { nav_item_id: 41, context: ContentContext.DeveloperPortal, area: NavigationArea.Footer, position: 0 },
+        ]),
+      )
+      .mockResolvedValueOnce(
+        result([
+          {
+            nav_item_id: 41,
+            locale: "de",
+            label: "Dokumentation",
+          },
         ]),
       )
       .mockResolvedValueOnce(result());
@@ -63,6 +72,7 @@ describe("contextual navigation Postgres repository", () => {
           { context: ContentContext.DeveloperPortal, area: NavigationArea.Main, position: 2 },
           { context: ContentContext.DeveloperPortal, area: NavigationArea.Footer, position: 0 },
         ],
+        translations: { de: "Dokumentation" },
       },
     ]);
     expect(query.mock.calls[0]?.[0]).toContain("REPEATABLE READ READ ONLY");
@@ -85,6 +95,9 @@ describe("contextual navigation Postgres repository", () => {
             { nav_item_id: 41, context: ContentContext.DeveloperPortal, area: NavigationArea.Footer, position: 0 },
           ]);
         }
+        if (sql.includes("SELECT nav_item_id, locale, label")) {
+          return result([{ nav_item_id: 41, locale: "de", label: "Dokumentation" }]);
+        }
         return result();
       }),
       release: vi.fn(),
@@ -105,6 +118,7 @@ describe("contextual navigation Postgres repository", () => {
           { context: ContentContext.DeveloperPortal, area: NavigationArea.Main, position: 2 },
           { context: ContentContext.DeveloperPortal, area: NavigationArea.Footer, position: 0 },
         ],
+        translations: { de: "Dokumentation" },
       },
     ]);
 
@@ -116,12 +130,19 @@ describe("contextual navigation Postgres repository", () => {
           { context: ContentContext.DeveloperPortal, area: NavigationArea.Main, position: 2 },
           { context: ContentContext.DeveloperPortal, area: NavigationArea.Footer, position: 0 },
         ],
+        translations: { de: "Dokumentation" },
       }),
     ]);
     expect(calls[0]?.sql).toBe("BEGIN");
     expect(calls.some((call) => call.sql.includes("DELETE FROM nav_items"))).toBe(true);
     expect(calls.filter((call) => call.sql.includes("INSERT INTO navigation_item_placements"))).toHaveLength(2);
-    expect(calls.some((call) => call.sql.includes("nav_item_translations"))).toBe(false);
+    expect(calls.filter((call) => call.sql.includes("INSERT INTO nav_item_translations"))).toHaveLength(1);
+    expect(calls.find((call) => call.sql.includes("INSERT INTO nav_item_translations"))?.params).toEqual([
+      41,
+      "de",
+      "Dokumentation",
+      new Date("2026-07-18T08:00:00.000Z"),
+    ]);
     expect(calls.at(-1)?.sql).toBe("COMMIT");
     expect(pool.connect).toHaveBeenCalledOnce();
     expect(client.release).toHaveBeenCalledOnce();
@@ -154,6 +175,7 @@ describe("contextual navigation Postgres repository", () => {
           contextMask: ContentContext.Frontend,
           areaMask: NavigationArea.Main,
           placements: [{ context: ContentContext.Frontend, area: NavigationArea.Main, position: 0 }],
+          translations: {},
         },
       ]),
     ).rejects.toThrow("snapshot failed");
@@ -188,6 +210,7 @@ describe("contextual navigation Postgres repository", () => {
           contextMask: ContentContext.Frontend,
           areaMask: NavigationArea.Main,
           placements: [{ context: ContentContext.Frontend, area: NavigationArea.Main, position: 0 }],
+          translations: {},
         },
       ]),
     ).rejects.toThrow("placement failed");

@@ -11,6 +11,8 @@ export * from "./email-variables.js";
 export * from "./endpoints.js";
 export * from "./error-codes.js";
 export * from "./errors.js";
+export * from "./locales.js";
+export * from "./localized-text.js";
 export * from "./overlay-geometry.js";
 export * from "./platform.js";
 export * from "./plugins.js";
