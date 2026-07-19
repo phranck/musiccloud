@@ -234,6 +234,29 @@ export async function findShortIdByTrackUrl(pool: Pool, url: string): Promise<st
 }
 
 /**
+ * Resolves short IDs for source URLs in one typed set query. Input URLs are
+ * deduplicated before the query so callers can combine primary and related
+ * artist tracks without reintroducing per-row database work.
+ *
+ * @param pool - Postgres connection pool.
+ * @param urls - Source URLs recorded against tracks.
+ * @returns A map containing only URLs with an assigned short ID.
+ */
+export async function findShortIdsByTrackUrls(pool: Pool, urls: string[]): Promise<Map<string, string>> {
+  const uniqueUrls = [...new Set(urls.filter((url) => url.trim().length > 0))];
+  if (uniqueUrls.length === 0) return new Map();
+
+  const result = await pool.query<{ source_url: string; short_id: string }>(
+    `SELECT t.source_url, su.id AS short_id
+     FROM tracks t
+     JOIN short_urls su ON su.track_id = t.id
+     WHERE t.source_url = ANY($1::text[])`,
+    [uniqueUrls],
+  );
+  return new Map(result.rows.map((row) => [row.source_url, row.short_id]));
+}
+
+/**
  * Cheap existence check: returns the track-id and short-id for a given
  * ISRC, used by persistence callers to dedup before insert.
  *

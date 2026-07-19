@@ -69,7 +69,7 @@ import { apiRateLimiter, isInternalRequest } from "../lib/infra/rate-limiter.js"
 import { stripYouTubeTopicSuffix } from "../lib/youtube-topic.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 import { sanitizeArtistProfile } from "../services/artist-bio-sanitizer.js";
-import { fetchArtistEvents, fetchArtistProfile, fetchArtistTopTracks } from "../services/artist-info.js";
+import { ArtistInfoSection, artistInfoRefreshCoordinator } from "../services/artist-info-cache.js";
 
 const TTL_TRACKS_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const TTL_PROFILE_DAYS = Math.round(365 / 2);
@@ -167,6 +167,7 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
           return sendRateLimitError(reply, rateLimit);
         }
       }
+      reply.header("Cache-Control", "private, max-age=60");
 
       const query = request.query as {
         name?: string;
@@ -209,48 +210,59 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
       let topTracks = cached?.topTracks ?? [];
       let profile = sanitizeArtistProfile(cached?.profile ?? null);
       let events = cached?.events ?? [];
+      const explicitProfileRefresh = query.refresh === "profile";
+      const refreshInput = {
+        repo,
+        identity: cacheIdentity,
+        artistName: lookupName,
+        requestId: request.id,
+        startedAt: now,
+      };
+      const hasTracks = Boolean(cached && cached.tracksUpdatedAt > 0);
+      const hasProfile = Boolean(cached && cached.profileUpdatedAt > 0);
+      const hasEvents = Boolean(cached && cached.eventsUpdatedAt > 0);
+      const staleTracks = hasTracks && now - cached!.tracksUpdatedAt > TTL_TRACKS_MS;
+      const staleProfile = hasProfile && now - cached!.profileUpdatedAt > TTL_PROFILE_MS;
+      const staleEvents = hasEvents && now - cached!.eventsUpdatedAt > TTL_EVENTS_MS;
+      const synchronousRefreshes: Promise<void>[] = [];
 
-      const needsTracks = !cached || now - cached.tracksUpdatedAt > TTL_TRACKS_MS;
-      const needsProfile = query.refresh === "profile" || !cached || now - cached.profileUpdatedAt > TTL_PROFILE_MS;
-      const needsEvents = !cached || now - cached.eventsUpdatedAt > TTL_EVENTS_MS;
-
-      // Only the stale sections are refetched, and they run in parallel.
-      // `saveArtistCache` takes a partial so each section writes
-      // independently without clobbering the other two.
-      const fetches: Promise<void>[] = [];
-
-      if (needsTracks) {
-        fetches.push(
-          fetchArtistTopTracks(lookupName).then(async (tracks) => {
-            topTracks = tracks;
-            await repo.saveArtistCache({ identity: cacheIdentity, artistName: lookupName, topTracks: tracks });
+      if (explicitProfileRefresh || !hasProfile) {
+        synchronousRefreshes.push(
+          artistInfoRefreshCoordinator.refresh(ArtistInfoSection.Profile, refreshInput).then((value) => {
+            profile = sanitizeArtistProfile(value as typeof profile);
           }),
         );
+      } else if (staleProfile) {
+        void artistInfoRefreshCoordinator.schedule(ArtistInfoSection.Profile, refreshInput);
       }
 
-      if (needsProfile) {
-        fetches.push(
-          fetchArtistProfile(lookupName).then(async (p) => {
-            profile = sanitizeArtistProfile(p);
-            await repo.saveArtistCache({ identity: cacheIdentity, artistName: lookupName, profile });
-          }),
-        );
+      if (!explicitProfileRefresh) {
+        if (!hasTracks) {
+          synchronousRefreshes.push(
+            artistInfoRefreshCoordinator.refresh(ArtistInfoSection.TopTracks, refreshInput).then((value) => {
+              topTracks = value as typeof topTracks;
+            }),
+          );
+        } else if (staleTracks) {
+          void artistInfoRefreshCoordinator.schedule(ArtistInfoSection.TopTracks, refreshInput);
+        }
+
+        if (!hasEvents) {
+          synchronousRefreshes.push(
+            artistInfoRefreshCoordinator.refresh(ArtistInfoSection.Events, refreshInput).then((value) => {
+              events = value as typeof events;
+            }),
+          );
+        } else if (staleEvents) {
+          void artistInfoRefreshCoordinator.schedule(ArtistInfoSection.Events, refreshInput);
+        }
       }
 
-      if (needsEvents) {
-        fetches.push(
-          fetchArtistEvents(lookupName).then(async (ev) => {
-            events = ev;
-            await repo.saveArtistCache({ identity: cacheIdentity, artistName: lookupName, events: ev });
-          }),
-        );
-      }
-
-      if (fetches.length > 0) {
-        log.debug("ArtistInfo", `Fetching fresh data for "${lookupName}" (region: ${region || "none"})`);
-        await Promise.all(fetches);
+      if (synchronousRefreshes.length > 0) {
+        log.debug("ArtistInfo", `Fetching required data for "${lookupName}" (region: ${region || "none"})`);
+        await Promise.all(synchronousRefreshes);
       } else {
-        log.debug("ArtistInfo", `Cache hit for "${lookupName}"`);
+        log.debug("ArtistInfo", `Serving cached data for "${lookupName}"`);
       }
       const afterFetchesAt = Date.now();
 
@@ -272,13 +284,6 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
           })
         : completeEvents;
 
-      const enrichedTracks = await Promise.all(
-        topTracks.map(async (track) => {
-          const shortId = await repo.findShortIdByTrackUrl(track.deezerUrl);
-          return { ...track, shortId };
-        }),
-      );
-
       const similarNames = (profile?.similarArtists ?? []).slice(0, 5);
       const similarArtistTracks: SimilarArtistTrack[] = await Promise.all(
         similarNames.map(async (name) => {
@@ -287,25 +292,43 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
             const similarCacheIdentity = { kind: "name" as const, artistName: normalizedName };
             const similarCached = await repo.findArtistCache(similarCacheIdentity);
             let tracks = similarCached?.topTracks ?? [];
-            if (!similarCached || now - similarCached.tracksUpdatedAt > TTL_TRACKS_MS) {
-              tracks = await fetchArtistTopTracks(name);
-              await repo.saveArtistCache({
-                identity: similarCacheIdentity,
-                artistName: name,
-                topTracks: tracks,
-              });
+            const hasSimilarTracks = Boolean(similarCached && similarCached.tracksUpdatedAt > 0);
+            const staleSimilarTracks = hasSimilarTracks && now - similarCached!.tracksUpdatedAt > TTL_TRACKS_MS;
+            const similarRefreshInput = {
+              repo,
+              identity: similarCacheIdentity,
+              artistName: name,
+              requestId: request.id,
+              startedAt: now,
+            };
+            if (!explicitProfileRefresh && !hasSimilarTracks) {
+              tracks = (await artistInfoRefreshCoordinator.refresh(
+                ArtistInfoSection.TopTracks,
+                similarRefreshInput,
+              )) as typeof tracks;
+            } else if (!explicitProfileRefresh && staleSimilarTracks) {
+              void artistInfoRefreshCoordinator.schedule(ArtistInfoSection.TopTracks, similarRefreshInput);
             }
             const topTrack = tracks[0] ?? null;
-            if (topTrack) {
-              const shortId = await repo.findShortIdByTrackUrl(topTrack.deezerUrl);
-              return { artistName: name, track: { ...topTrack, shortId } };
-            }
-            return { artistName: name, track: null };
+            return { artistName: name, track: topTrack };
           } catch {
             return { artistName: name, track: null };
           }
         }),
       );
+
+      const shortIdsByTrackUrl = await repo.findShortIdsByTrackUrls([
+        ...topTracks.map((track) => track.deezerUrl),
+        ...similarArtistTracks.flatMap((item) => (item.track ? [item.track.deezerUrl] : [])),
+      ]);
+      const enrichedTracks = topTracks.map((track) => ({
+        ...track,
+        shortId: shortIdsByTrackUrl.get(track.deezerUrl) ?? null,
+      }));
+      const enrichedSimilarArtistTracks = similarArtistTracks.map((item) => ({
+        ...item,
+        track: item.track ? { ...item.track, shortId: shortIdsByTrackUrl.get(item.track.deezerUrl) ?? null } : null,
+      }));
 
       const afterEnrichAt = Date.now();
 
@@ -314,7 +337,7 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
         topTracks: enrichedTracks,
         profile,
         events: sortedEvents,
-        similarArtistTracks,
+        similarArtistTracks: enrichedSimilarArtistTracks,
       };
 
       // Slow-path breadcrumb: only the multi-second tail is logged, segmented so
@@ -332,9 +355,9 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
             cacheReadMs: now - afterAliasAt,
             fetchesMs: afterFetchesAt - now,
             enrichMs: afterEnrichAt - afterFetchesAt,
-            coldTracks: needsTracks,
-            coldProfile: needsProfile,
-            coldEvents: needsEvents,
+            coldTracks: !hasTracks,
+            coldProfile: !hasProfile,
+            coldEvents: !hasEvents,
             eventLoopLagMeanMs: Math.round(lag.mean),
             eventLoopLagMaxMs: Math.round(lag.max),
           },
