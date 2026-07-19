@@ -87,6 +87,7 @@ export function createArtistInfoRefreshCoordinator(dependencies: ArtistInfoRefre
           : section === ArtistInfoSection.TopTracks
             ? await dependencies.fetchArtistTopTracks(input.artistName)
             : await dependencies.fetchArtistEvents(input.artistName);
+      if (section === ArtistInfoSection.Profile && value === null) return null;
       await input.repo.saveArtistCache(sectionCacheData(section, input, value));
       return sectionPublicValue(section, value);
     })();

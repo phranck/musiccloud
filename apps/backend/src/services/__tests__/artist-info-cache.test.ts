@@ -100,6 +100,21 @@ describe("artist-info refresh coordination", () => {
     );
   });
 
+  it("does not overwrite the last-good profile when providers return no usable profile", async () => {
+    const saveArtistCache = vi.fn<(...args: [ArtistCacheData]) => Promise<void>>().mockResolvedValue(undefined);
+    const coordinator = createArtistInfoRefreshCoordinator({
+      fetchArtistProfileSnapshot: vi.fn().mockResolvedValue(null),
+      fetchArtistTopTracks: vi.fn<(...args: [string]) => Promise<ArtistTopTrack[]>>(),
+      fetchArtistEvents: vi.fn<(...args: [string]) => Promise<ArtistEvent[]>>(),
+      logDeviation: vi.fn(),
+    });
+
+    await expect(
+      coordinator.refresh("profile", { repo: { saveArtistCache }, ...refreshInput() }),
+    ).resolves.toBeNull();
+    expect(saveArtistCache).not.toHaveBeenCalled();
+  });
+
   it("runs different sections and artists independently", async () => {
     const fetchProfile = vi
       .fn<(...args: [string]) => Promise<ArtistProfileSnapshot | null>>()
