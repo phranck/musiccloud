@@ -265,6 +265,25 @@ function schemaTypeLabel(schema: unknown, schemas: Record<string, unknown>): str
   return schema.nullable === true && !baseType.includes("null") ? `${baseType} | null` : baseType;
 }
 
+function schemaPropertiesInReadingOrder(properties: Record<string, unknown>): Array<[string, unknown]> {
+  const priorityGroups: Array<Array<[string, unknown]>> = [[], [], [], []];
+
+  for (const entry of Object.entries(properties)) {
+    const [propertyName] = entry;
+    const priority =
+      propertyName === "id"
+        ? 0
+        : propertyName.endsWith("Id")
+          ? 1
+          : propertyName === "type" || propertyName === "kind" || propertyName.endsWith("Type")
+            ? 2
+            : 3;
+    priorityGroups[priority]?.push(entry);
+  }
+
+  return priorityGroups.flat();
+}
+
 function collectSchemaFields(schema: Record<string, unknown>, schemas: Record<string, unknown>): ApiSchemaField[] {
   const fields: ApiSchemaField[] = [];
   const activeReferences = new Set<string>();
@@ -287,7 +306,7 @@ function collectSchemaFields(schema: Record<string, unknown>, schemas: Record<st
           ? value.required.filter((property): property is string => typeof property === "string")
           : [],
       );
-      for (const [propertyName, propertySchema] of Object.entries(properties)) {
+      for (const [propertyName, propertySchema] of schemaPropertiesInReadingOrder(properties)) {
         const nestedPath = parentPath ? `${parentPath}.${propertyName}` : propertyName;
         const schemaReference = extractSchemaTypeReference(propertySchema, schemas);
         fields.push({
