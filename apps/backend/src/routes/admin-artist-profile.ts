@@ -3,10 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { getAdminCaller } from "../lib/admin-caller.js";
 import { setApiFailureDiagnostic } from "../lib/infra/api-error-handler.js";
 import { createApiErrorResponse, sanitizeErrorForLog } from "../lib/infra/api-errors.js";
-import {
-  AdminArtistProfileRefreshError,
-  refreshAdminArtistProfile,
-} from "../services/admin-artist-profile-refresh.js";
+import { AdminArtistProfileRefreshError, refreshAdminArtistProfile } from "../services/admin-artist-profile-refresh.js";
 
 export default async function adminArtistProfileRoutes(app: FastifyInstance) {
   app.post<{ Params: { artistEntityId: string } }>(

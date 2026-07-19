@@ -1,4 +1,4 @@
-import { ENDPOINTS, type ArtistProfileRefreshResponse } from "@musiccloud/shared";
+import { type ArtistProfileRefreshResponse, ENDPOINTS } from "@musiccloud/shared";
 import { ArrowsClockwise as ArrowsClockwiseIcon, Check as CheckIcon } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 
@@ -17,10 +17,7 @@ interface VisibleError {
   errorId: string | null;
 }
 
-export function RefreshArtistProfileButton({
-  artistEntityId,
-  refreshSilently,
-}: RefreshArtistProfileButtonProps) {
+export function RefreshArtistProfileButton({ artistEntityId, refreshSilently }: RefreshArtistProfileButtonProps) {
   const labels = dashboardCopy.music.artists;
   const [busy, setBusy] = useState(false);
   const [confirmed, setConfirmed] = useState(false);

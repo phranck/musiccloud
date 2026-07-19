@@ -55,9 +55,7 @@ describe("ArtistProfileCacheStatus", () => {
 
   it("omits profile details when the cache is missing", () => {
     render(
-      <ArtistProfileCacheStatus
-        status={status("missing", { profileUpdatedAt: null, ageMs: null, providers: [] })}
-      />,
+      <ArtistProfileCacheStatus status={status("missing", { profileUpdatedAt: null, ageMs: null, providers: [] })} />,
     );
 
     expect(screen.queryByText(/^Age:/)).toBeNull();

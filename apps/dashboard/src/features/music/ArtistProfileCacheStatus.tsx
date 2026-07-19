@@ -39,11 +39,7 @@ interface ArtistProfileCacheStatusProps extends ComponentPropsWithoutRef<"div"> 
 }
 
 /** Compact table-cell presentation for cache state and safe audit metadata. */
-export function ArtistProfileCacheStatus({
-  status,
-  className = "",
-  ...rest
-}: ArtistProfileCacheStatusProps) {
+export function ArtistProfileCacheStatus({ status, className = "", ...rest }: ArtistProfileCacheStatusProps) {
   const labels = dashboardCopy.music.artists;
   const providers = status.providers.map((provider) => PROVIDER_LABEL[provider]).join(", ");
   return (

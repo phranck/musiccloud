@@ -5,14 +5,10 @@ import {
   type ArtistProfileRefreshResponse,
   classifyArtistProfileCacheStatus,
 } from "@musiccloud/shared";
-import { getAdminRepository, getRepository } from "../db/index.js";
 import type { ArtistProfileRefreshEvent } from "../db/admin-repository.js";
+import { getAdminRepository, getRepository } from "../db/index.js";
 import type { ArtistCacheIdentity, ArtistCacheRow, ArtistInfoEntity } from "../db/repository.js";
-import {
-  classifyUnhandledError,
-  createApiErrorResponse,
-  sanitizeErrorForLog,
-} from "../lib/infra/api-errors.js";
+import { classifyUnhandledError, createApiErrorResponse, sanitizeErrorForLog } from "../lib/infra/api-errors.js";
 import { log } from "../lib/infra/logger.js";
 import { ArtistInfoSection, artistInfoRefreshCoordinator } from "./artist-info-cache.js";
 
@@ -104,10 +100,7 @@ export function createAdminArtistProfileRefreshService(dependencies: AdminArtist
       const manualRefresh = toManualRefreshSummary(completedEvent);
       return {
         artistEntityId: artist.artistEntityId,
-        profileCache: classifyArtistProfileCacheStatus(
-          cacheStatusInput(cache, manualRefresh),
-          dependencies.now(),
-        ),
+        profileCache: classifyArtistProfileCacheStatus(cacheStatusInput(cache, manualRefresh), dependencies.now()),
         manualRefresh,
       };
     } catch (error) {
@@ -181,10 +174,7 @@ function toManualRefreshSummary(event: ArtistProfileRefreshEvent): ArtistProfile
   };
 }
 
-function cacheStatusInput(
-  cache: ArtistCacheRow | null,
-  latestManualRefresh: ArtistProfileManualRefreshSummary,
-) {
+function cacheStatusInput(cache: ArtistCacheRow | null, latestManualRefresh: ArtistProfileManualRefreshSummary) {
   const hasProfile = cache?.profile !== null && cache?.profile !== undefined;
   return {
     profileUpdatedAt:

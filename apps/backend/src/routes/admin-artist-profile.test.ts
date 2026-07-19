@@ -1,14 +1,11 @@
-import { ENDPOINTS, type ArtistProfileRefreshResponse } from "@musiccloud/shared";
+import { type ArtistProfileRefreshResponse, ENDPOINTS } from "@musiccloud/shared";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AdminUser } from "../db/admin-repository.js";
 import { getAdminCaller } from "../lib/admin-caller.js";
 import { registerApiErrorHandling } from "../lib/infra/api-error-handler.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
-import {
-  AdminArtistProfileRefreshError,
-  refreshAdminArtistProfile,
-} from "../services/admin-artist-profile-refresh.js";
+import { AdminArtistProfileRefreshError, refreshAdminArtistProfile } from "../services/admin-artist-profile-refresh.js";
 import adminArtistProfileRoutes from "./admin-artist-profile.js";
 
 vi.mock("../lib/admin-caller.js", () => ({

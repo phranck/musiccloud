@@ -5,10 +5,7 @@ import { listArtists } from "./postgres-admin-catalog.js";
 const FRESH_AT = new Date();
 const STALE_AT = new Date("2000-01-01T00:00:00.000Z");
 
-function artistRow(
-  id: string,
-  overrides: Record<string, unknown> = {},
-): Record<string, unknown> {
+function artistRow(id: string, overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id,
     artist_entity_id: id,

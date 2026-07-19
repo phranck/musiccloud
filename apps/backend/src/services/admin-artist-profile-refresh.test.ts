@@ -54,9 +54,7 @@ function dependencies() {
     findArtistCache: vi.fn().mockResolvedValue(cache()),
     refreshProfile: vi.fn().mockResolvedValue(PROFILE),
     beginArtistProfileRefresh: vi.fn().mockResolvedValue(event()),
-    completeArtistProfileRefresh: vi
-      .fn()
-      .mockResolvedValue(event({ completedAt: COMPLETED_AT, outcome: "succeeded" })),
+    completeArtistProfileRefresh: vi.fn().mockResolvedValue(event({ completedAt: COMPLETED_AT, outcome: "succeeded" })),
     failArtistProfileRefresh: vi.fn(),
     now: vi.fn().mockReturnValueOnce(STARTED_AT).mockReturnValue(COMPLETED_AT),
     logDeviation: vi.fn(),

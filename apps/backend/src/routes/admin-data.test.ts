@@ -1,4 +1,4 @@
-import { ENDPOINTS, type AdminArtistListItem } from "@musiccloud/shared";
+import { type AdminArtistListItem, ENDPOINTS } from "@musiccloud/shared";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getAdminRepository } from "../db/index.js";
@@ -72,9 +72,11 @@ describe("GET /api/admin/artists", () => {
   });
 
   it("preserves canonical database errors when the projection fails", async () => {
-    mockAdminRepository.listArtists.mockRejectedValueOnce(Object.assign(new Error("database unavailable"), {
-      code: "08006",
-    }));
+    mockAdminRepository.listArtists.mockRejectedValueOnce(
+      Object.assign(new Error("database unavailable"), {
+        code: "08006",
+      }),
+    );
 
     const response = await app.inject({ method: "GET", url: ENDPOINTS.admin.artists.list });
 

@@ -109,9 +109,7 @@ describe("artist-info refresh coordination", () => {
       logDeviation: vi.fn(),
     });
 
-    await expect(
-      coordinator.refresh("profile", { repo: { saveArtistCache }, ...refreshInput() }),
-    ).resolves.toBeNull();
+    await expect(coordinator.refresh("profile", { repo: { saveArtistCache }, ...refreshInput() })).resolves.toBeNull();
     expect(saveArtistCache).not.toHaveBeenCalled();
   });
 

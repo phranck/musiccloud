@@ -501,9 +501,7 @@ export async function listArtists(
       profileCache: classifyArtistProfileCacheStatus({
         profileUpdatedAt:
           r.profile_cache_present && r.profile_updated_at ? new Date(r.profile_updated_at).toISOString() : null,
-        profileProviders: r.profile_cache_present
-          ? (r.profile_providers ?? []).filter(isArtistProfileProvider)
-          : [],
+        profileProviders: r.profile_cache_present ? (r.profile_providers ?? []).filter(isArtistProfileProvider) : [],
         latestManualRefresh,
       }),
     };

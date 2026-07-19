@@ -22,7 +22,11 @@ vi.mock("@/components/ui/Table", () => ({
   }) => (
     <div data-testid="artist-table">
       {data.map((row) => (
-        <div key={row.id}>{columns.map((column) => <div key={column.id}>{column.cell(row) as never}</div>)}</div>
+        <div key={row.id}>
+          {columns.map((column) => (
+            <div key={column.id}>{column.cell(row) as never}</div>
+          ))}
+        </div>
       ))}
     </div>
   ),

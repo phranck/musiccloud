@@ -121,11 +121,6 @@ import {
   updateLastLogin as adminUsersUpdateLastLogin,
 } from "./postgres-admin-users.js";
 import {
-  beginArtistProfileRefresh as artistProfileRefreshBegin,
-  completeArtistProfileRefresh as artistProfileRefreshComplete,
-  failArtistProfileRefresh as artistProfileRefreshFail,
-} from "./postgres-artist-profile-refresh.js";
-import {
   addAlbumExternalIds as albumsAddAlbumExternalIds,
   addLinksToAlbum as albumsAddLinksToAlbum,
   createAlbumVinylLayoutPlaceholder as albumsCreateAlbumVinylLayoutPlaceholder,
@@ -173,6 +168,11 @@ import {
   updateApiClient as apiAccessUpdateClient,
   updateDeveloperProject as apiAccessUpdateDeveloperProject,
 } from "./postgres-api-access.js";
+import {
+  beginArtistProfileRefresh as artistProfileRefreshBegin,
+  completeArtistProfileRefresh as artistProfileRefreshComplete,
+  failArtistProfileRefresh as artistProfileRefreshFail,
+} from "./postgres-artist-profile-refresh.js";
 import {
   addArtistExternalIds as artistsAddArtistExternalIds,
   addLinksToArtist as artistsAddLinksToArtist,
