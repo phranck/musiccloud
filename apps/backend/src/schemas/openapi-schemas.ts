@@ -2424,7 +2424,12 @@ export const NavItemSchema = {
     pageTitle: { type: "string", nullable: true },
     url: { type: "string", nullable: true, format: "uri", description: "Set when the item is an external link." },
     target: { type: "string", enum: ["_self", "_blank"] },
-    label: { type: "string", nullable: true, description: "Override label; falls back to pageTitle when null." },
+    label: {
+      type: "string",
+      nullable: true,
+      description:
+        "Resolved display label: the custom label when present, otherwise the linked pageTitle; null only for an unlabeled non-page target.",
+    },
     position: { type: "integer", minimum: 0, description: "Sort order (ascending)." },
     pageType: {
       type: "string",
@@ -2450,7 +2455,7 @@ export const NavItemSchema = {
     pageTitle: "About musiccloud",
     url: null,
     target: "_self",
-    label: null,
+    label: "About musiccloud",
     position: 0,
     pageType: "default",
     pageDisplayMode: "fullscreen",

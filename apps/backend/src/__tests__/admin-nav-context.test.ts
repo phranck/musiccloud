@@ -18,7 +18,6 @@ function urlEntry(overrides: Record<string, unknown> = {}) {
     contextMask: ContentContext.Frontend,
     areaMask: NavigationArea.Main,
     placements: [placement(ContentContext.Frontend, NavigationArea.Main)],
-    translations: {},
     ...overrides,
   };
 }
@@ -38,7 +37,6 @@ function systemEntry(
     contextMask: ContentContext.DeveloperPortal,
     areaMask,
     placements,
-    translations: {},
   };
 }
 
@@ -279,7 +277,7 @@ describe("contextual navigation validation", () => {
     });
   });
 
-  it("stores the default label separately from non-default translations", async () => {
+  it("persists only the canonical label", async () => {
     const { replaceNavigationConfiguration, service } = await loadService();
     const url = urlEntry({ translations: { en: "About", de: "Über uns" } });
     const entries = [url, ...completeSystemEntries()];
@@ -289,9 +287,8 @@ describe("contextual navigation validation", () => {
     });
 
     expect(result.ok).toBe(true);
-    expect(replaceNavigationConfiguration).toHaveBeenCalledWith([
-      expect.objectContaining({ label: "About", translations: { de: "Über uns" } }),
-      ...entries.slice(1),
-    ]);
+    const persisted = replaceNavigationConfiguration.mock.calls[0]![0];
+    expect(persisted[0]).toMatchObject({ label: "About" });
+    expect(persisted[0]).not.toHaveProperty("translations");
   });
 });
