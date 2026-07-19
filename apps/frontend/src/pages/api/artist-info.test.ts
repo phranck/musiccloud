@@ -36,4 +36,19 @@ describe("GET /api/artist-info", () => {
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({ error: "MC-REQ-0001", errorId: expect.any(String) });
   });
+
+  it("forwards the backend cache policy unchanged", async () => {
+    fetchArtistInfoMock.mockResolvedValue(
+      new Response(JSON.stringify({ artistName: "Canonical Artist" }), {
+        headers: { "Cache-Control": "private, max-age=60", "Content-Type": "application/json" },
+      }),
+    );
+
+    const response = await GET({
+      url: new URL("https://musiccloud.test/api/artist-info?artistEntityId=artist-entity-1"),
+      clientAddress: "203.0.113.10",
+    } as Parameters<typeof GET>[0]);
+
+    expect(response.headers.get("Cache-Control")).toBe("private, max-age=60");
+  });
 });
