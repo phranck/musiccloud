@@ -237,8 +237,8 @@ jobs:
 
           head_sha="$HEAD_SHA"
 
-          # Diff base is the head SHA of the last SUCCESSFUL run of this workflow
-          # on main, not github.event.before. A push that fails before its deploy
+          # Diff base is the head SHA of the last SUCCESSFUL push run of this
+          # workflow on main, not github.event.before. A push that fails before its deploy
           # jobs (e.g. at lint) must not "consume" its file changes: with
           # github.event.before the next green push would diff only against the
           # failed push and never re-evaluate the stranded paths, silently
@@ -248,6 +248,7 @@ jobs:
           before_sha=$(gh run list \
             --workflow ci.yml \
             --branch main \
+            --event push \
             --status success \
             --limit 1 \
             --json headSha \

@@ -84,6 +84,15 @@ test("does not deploy the dashboard for backend-only or CI-only changes", () => 
   assert.doesNotMatch(dashboardCase, /apps\/backend\/\*|\.github\/workflows\/ci\.yml/);
 });
 
+test("uses successful push runs as the deployment diff base", () => {
+  const detectChangesJob = workflow.slice(
+    workflow.indexOf("  detect-changes:"),
+    workflow.indexOf("  validate-api-sdk-contract:"),
+  );
+
+  assert.match(detectChangesJob, /--event push/);
+});
+
 test("validates only affected workspaces after early path detection", () => {
   const validationDetectionJob = workflow.slice(
     workflow.indexOf("  detect-validation-changes:"),
