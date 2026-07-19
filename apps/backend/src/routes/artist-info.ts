@@ -26,11 +26,13 @@
  *
  * ## Cache key normalization
  *
- * The artist name is lowercased for the cache key (`"Radiohead"` and
- * `"radiohead"` must hit the same entry). The untouched `rawName` is still
- * sent to the upstream APIs because some of them are case-sensitive in
- * search. `region` is uppercased and truncated to 2 chars to coerce free
- * user input (e.g. `"Germany"`, `"de"`) into a clean ISO country code.
+ * Legacy name lookups use a lowercased cache key (`"Radiohead"` and
+ * `"radiohead"` must hit the same entry). Explicit normalized artist-entity
+ * requests use an entity cache namespace instead, so identically named people
+ * or groups cannot share enrichment data. The selected stored display name is
+ * sent to upstream APIs. `region` is uppercased and truncated to 2 chars to
+ * coerce free user input (e.g. `"Germany"`, `"de"`) into a clean ISO country
+ * code.
  *
  * ## Region-local events first
  *
@@ -59,6 +61,7 @@
 import { type ArtistInfoResponse, ENDPOINTS, type SimilarArtistTrack } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
+import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { readEventLoopLagMs } from "../lib/infra/event-loop-lag.js";
 import { log } from "../lib/infra/logger.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
@@ -98,14 +101,22 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
           "Returns commercial artist details in one stable object: up to `5` top tracks, an assembled profile or `null`, up to `5` upcoming events, and up to `5` related-artist track lookups. Every top-level key is included; unavailable lists are empty. When `region` is supplied, matching events are sorted first.",
         querystring: {
           type: "object",
-          required: ["name"],
+          anyOf: [{ required: ["name"] }, { required: ["artistEntityId"] }],
           properties: {
             name: {
               type: "string",
               minLength: 1,
               maxLength: 200,
               description:
-                "Artist display name to look up. Leading and trailing whitespace is ignored, and a trailing YouTube auto-channel suffix ` - Topic` is removed before matching. Use the spelling returned in track or artist metadata when available.",
+                "Compatibility artist display name to look up when `artistEntityId` is not available. Leading and trailing whitespace is ignored, and a trailing YouTube auto-channel suffix ` - Topic` is removed before matching. Use the spelling returned in track or artist metadata when available.",
+            },
+            artistEntityId: {
+              type: "string",
+              minLength: 1,
+              maxLength: 64,
+              pattern: "^[A-Za-z0-9_-]+$",
+              description:
+                "Normalized musiccloud artist entity ID from an `artistCredits[].artistEntityId` field in a successful track or album response. When supplied, this exact entity selects the persisted canonical artist name, its isolated enrichment cache, and the upstream lookup. It takes precedence over both `name` and `shortId`. Unknown entity IDs return `404`.",
             },
             region: {
               type: "string",
@@ -117,7 +128,7 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
               minLength: 1,
               maxLength: 32,
               description:
-                "Optional musiccloud track share code. Take the last path segment of `shortUrl` from a successful track response from `POST /api/v1/resolve` or `GET /api/v1/resolve`. When the share's stored service links identify an alternate artist known to musiccloud, that name replaces `name` for this lookup. Otherwise `name` is used unchanged after normalization.\n\n**Default**: the supplied `name` is used directly, with no persisted-resolution context.",
+                "Optional musiccloud track share code. Take the last path segment of `shortUrl` from a successful track response from `POST /api/v1/resolve` or `GET /api/v1/resolve`. Without `artistEntityId`, a stored alternate artist can replace `name` for this lookup. With `artistEntityId`, this compatibility alias is ignored.\n\n**Default**: the supplied `name` is used directly, with no persisted-resolution context.",
             },
             refresh: {
               type: "string",
@@ -134,7 +145,14 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
               "`ArtistInfo` containing up to `5` selected top tracks, a nullable profile, up to `5` upcoming events, and related-artist track lookups.",
             $ref: "ArtistInfo#",
           },
-          400: { description: "Missing or empty `name` query parameter.", $ref: "ErrorResponse#" },
+          400: {
+            description: "Missing or malformed artist identity query parameter.",
+            $ref: "ErrorResponse#",
+          },
+          404: {
+            description: "The supplied normalized artist entity does not exist or has no usable stored name.",
+            $ref: "ErrorResponse#",
+          },
           429: {
             description: "This client IP exceeded `10` requests in a rolling `60`-second window.",
             $ref: "ErrorResponse#",
@@ -151,7 +169,8 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
       }
 
       const query = request.query as {
-        name: string;
+        name?: string;
+        artistEntityId?: string;
         region?: string;
         shortId?: string;
         refresh?: "profile";
@@ -161,9 +180,10 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
       // so cached rows written before the YouTube-adapter fix (which now
       // strips at resolve time) still produce clean cache keys and clean
       // upstream search queries. See `lib/youtube-topic.ts` for context.
-      const rawName = stripYouTubeTopicSuffix(query.name.trim());
-      if (!rawName) {
-        return reply.status(400).send({ error: "INVALID_REQUEST", message: "Query param 'name' is required." });
+      const rawName = query.name ? stripYouTubeTopicSuffix(query.name.trim()) : "";
+      const artistEntityId = query.artistEntityId?.trim();
+      if (!rawName && !artistEntityId) {
+        return reply.status(400).send(createApiErrorResponse("MC-REQ-0001"));
       }
 
       const region = (query.region ?? "").toUpperCase().slice(0, 2);
@@ -172,11 +192,18 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
       // after the cache read) doubles as the after-cache mark.
       const startedAt = Date.now();
       const repo = await getRepository();
-      const contextAlias = query.shortId ? await repo.findArtistInfoAliasByShortId(query.shortId, rawName) : null;
+      const entity = artistEntityId ? await repo.findArtistInfoEntity(artistEntityId) : null;
+      if (artistEntityId && !entity) {
+        return reply.status(404).send(createApiErrorResponse("MC-RES-0003"));
+      }
+      const contextAlias =
+        !entity && query.shortId ? await repo.findArtistInfoAliasByShortId(query.shortId, rawName) : null;
       const afterAliasAt = Date.now();
-      const lookupName = contextAlias ?? rawName;
-      const artistName = lookupName.toLowerCase();
-      const cached = await repo.findArtistCache(artistName);
+      const lookupName = entity?.artistName ?? contextAlias ?? rawName;
+      const cacheIdentity = entity
+        ? { kind: "entity" as const, artistEntityId: entity.artistEntityId }
+        : { kind: "name" as const, artistName: lookupName.toLowerCase() };
+      const cached = await repo.findArtistCache(cacheIdentity);
       const now = Date.now();
 
       let topTracks = cached?.topTracks ?? [];
@@ -196,7 +223,7 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
         fetches.push(
           fetchArtistTopTracks(lookupName).then(async (tracks) => {
             topTracks = tracks;
-            await repo.saveArtistCache({ artistName, topTracks: tracks });
+            await repo.saveArtistCache({ identity: cacheIdentity, artistName: lookupName, topTracks: tracks });
           }),
         );
       }
@@ -205,7 +232,7 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
         fetches.push(
           fetchArtistProfile(lookupName).then(async (p) => {
             profile = sanitizeArtistProfile(p);
-            await repo.saveArtistCache({ artistName, profile });
+            await repo.saveArtistCache({ identity: cacheIdentity, artistName: lookupName, profile });
           }),
         );
       }
@@ -214,7 +241,7 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
         fetches.push(
           fetchArtistEvents(lookupName).then(async (ev) => {
             events = ev;
-            await repo.saveArtistCache({ artistName, events: ev });
+            await repo.saveArtistCache({ identity: cacheIdentity, artistName: lookupName, events: ev });
           }),
         );
       }
@@ -257,11 +284,16 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
         similarNames.map(async (name) => {
           try {
             const normalizedName = name.toLowerCase();
-            const similarCached = await repo.findArtistCache(normalizedName);
+            const similarCacheIdentity = { kind: "name" as const, artistName: normalizedName };
+            const similarCached = await repo.findArtistCache(similarCacheIdentity);
             let tracks = similarCached?.topTracks ?? [];
             if (!similarCached || now - similarCached.tracksUpdatedAt > TTL_TRACKS_MS) {
               tracks = await fetchArtistTopTracks(name);
-              await repo.saveArtistCache({ artistName: normalizedName, topTracks: tracks });
+              await repo.saveArtistCache({
+                identity: similarCacheIdentity,
+                artistName: name,
+                topTracks: tracks,
+              });
             }
             const topTrack = tracks[0] ?? null;
             if (topTrack) {
@@ -294,7 +326,7 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
         const lag = readEventLoopLagMs();
         request.log.info(
           {
-            artist: artistName,
+            artist: lookupName,
             totalMs,
             aliasMs: afterAliasAt - startedAt,
             cacheReadMs: now - afterAliasAt,

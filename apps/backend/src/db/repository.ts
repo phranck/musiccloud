@@ -206,15 +206,27 @@ export interface ArtistCacheRow {
   eventsUpdatedAt: number;
 }
 
+/** Stable identity used to address an artist-info cache record. */
+export type ArtistCacheIdentity = { kind: "entity"; artistEntityId: string } | { kind: "name"; artistName: string };
+
 /** Artist cache payload shape returned or accepted by the database repository layer. */
 export interface ArtistCacheData {
-  artistName: string; // normalized (lowercase + trimmed)
+  /** Stable cache identity. Name identities preserve the legacy key format. */
+  identity: ArtistCacheIdentity;
+  /** Display name used by the response and upstream artist services. */
+  artistName: string;
   topTracks?: ArtistTopTrack[];
   profile?: ArtistProfile | null;
   events?: ArtistEvent[];
   profileUpdatedAt?: number;
   tracksUpdatedAt?: number;
   eventsUpdatedAt?: number;
+}
+
+/** Exact normalized artist identity used by the artist-info route. */
+export interface ArtistInfoEntity {
+  artistEntityId: string;
+  artistName: string;
 }
 
 // ─── Normalized Artist Identity Types ────────────────────────────────────────
@@ -705,10 +717,11 @@ export interface TrackRepository {
   /**
    * Finds artist cache.
    *
-   * @param artistName - The `artistName` value.
+   * @param identity - The cache identity. Name identities keep the legacy
+   * cache namespace; entity identities use a separate namespace.
    * @returns The matching record, or `null` when no row matches.
    */
-  findArtistCache(artistName: string): Promise<ArtistCacheRow | null>;
+  findArtistCache(identity: ArtistCacheIdentity): Promise<ArtistCacheRow | null>;
   /**
    * Finds artist info alias by short ID.
    *
@@ -724,6 +737,15 @@ export interface TrackRepository {
    * @returns A promise that resolves when the operation completes.
    */
   saveArtistCache(data: ArtistCacheData): Promise<void>;
+
+  /**
+   * Finds an exact normalized artist entity and its preferred stored name.
+   *
+   * @param artistEntityId - The normalized artist entity identifier.
+   * @returns The entity's canonical lookup identity, or `null` when it is
+   * unknown or has no usable stored name.
+   */
+  findArtistInfoEntity(artistEntityId: string): Promise<ArtistInfoEntity | null>;
 
   // Normalized artist identity reads (migration 0029)
   /**

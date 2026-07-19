@@ -278,7 +278,7 @@ async function buildApp(options: BuildAppOptions = {}) {
           "2. Public data operations `GET /api/v1/resolve`, `GET /api/v1/share/{shortId}`, `GET /api/v1/share/{shortId}/preview`, `GET /api/v1/artist-info`, `GET /api/v1/cc/artist-info`, `GET /api/v1/cc/audio/{jamendoId}`, `GET /api/v1/cc/download/{jamendoId}`, and `GET /api/v1/cc/bandcamp/{jamendoId}` allow `10` requests in a rolling `60`-second window per client IP.\n" +
           "3. Every route is also protected by a global ceiling of `300` requests in a rolling `60`-second window per client IP.\n\n" +
           "A rejected request returns `429 Too Many Requests`, the `ErrorResponse` JSON body, and `Retry-After`. When available, `context.limit`, `context.windowSeconds`, and `context.retryAfterSeconds` describe the rule that rejected the request.",
-        version: "2.1.7",
+        version: "2.1.8",
       },
       servers: [{ url: "https://api.musiccloud.io", description: "Production" }],
       // Tag order here does not need to be alphabetical: the document is

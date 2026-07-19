@@ -424,7 +424,8 @@ export async function fetchPublicContentPage(
 
 /**
  * Fetch artist-info aggregate (multi-source fan count / Last.fm plays / similar
- * artists). Returns the raw `Response` so the Astro proxy at
+ * artists). `artistEntityId` selects an exact normalized artist identity when
+ * available. Returns the raw `Response` so the Astro proxy at
  * `pages/api/artist-info.ts` can stream the JSON body straight through
  * with the upstream status. The backend route is rate-limited by the
  * shared `apiRateLimiter` bucket; passing `clientIp` keeps the bucket
@@ -434,11 +435,13 @@ export async function fetchArtistInfo(
   name: string,
   region: string | undefined,
   clientIp?: string,
-  context?: { shortId?: string; refresh?: "profile" },
+  context?: { artistEntityId?: string; shortId?: string; refresh?: "profile" },
 ): Promise<Response> {
-  const params = new URLSearchParams({ name });
+  const params = new URLSearchParams();
+  if (name) params.set("name", name);
   if (region) params.set("region", region);
   if (context?.shortId) params.set("shortId", context.shortId);
+  if (context?.artistEntityId) params.set("artistEntityId", context.artistEntityId);
   if (context?.refresh) params.set("refresh", context.refresh);
   return fetchWithTimeout(
     `${backendUrl(ENDPOINTS.v1.artistInfo)}?${params.toString()}`,

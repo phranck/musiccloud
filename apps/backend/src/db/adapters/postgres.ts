@@ -51,11 +51,13 @@ import type {
 import type {
   AppTelemetryEventInput,
   ArtistCacheData,
+  ArtistCacheIdentity,
   ArtistCacheRow,
   ArtistCredit,
   ArtistGroupMembershipRecord,
   ArtistIdentityEventRecord,
   ArtistIdentityEventType,
+  ArtistInfoEntity,
   CachedAlbumResult,
   CachedArtistResult,
   CachedTrackResult,
@@ -174,6 +176,7 @@ import {
   findArtistCache as artistsFindArtistCache,
   findArtistEntityIdByIdentifier as artistsFindArtistEntityIdByIdentifier,
   findArtistInfoAliasByShortId as artistsFindArtistInfoAliasByShortId,
+  findArtistInfoEntity as artistsFindArtistInfoEntity,
   listArtistGroupMembers as artistsListArtistGroupMembers,
   listArtistIdentityEventsByDay as artistsListArtistIdentityEventsByDay,
   listArtistMemberships as artistsListArtistMemberships,
@@ -479,8 +482,8 @@ export class PostgresAdapter
   // ARTIST CACHE QUERIES (TrackRepository)
   // ============================================================================
 
-  findArtistCache(artistName: string): Promise<ArtistCacheRow | null> {
-    return artistsFindArtistCache(this.pool, artistName);
+  findArtistCache(identity: ArtistCacheIdentity): Promise<ArtistCacheRow | null> {
+    return artistsFindArtistCache(this.pool, identity);
   }
 
   findArtistInfoAliasByShortId(shortId: string, artistName: string): Promise<string | null> {
@@ -489,6 +492,10 @@ export class PostgresAdapter
 
   saveArtistCache(data: ArtistCacheData): Promise<void> {
     return artistsSaveArtistCache(this.pool, data);
+  }
+
+  findArtistInfoEntity(artistEntityId: string): Promise<ArtistInfoEntity | null> {
+    return artistsFindArtistInfoEntity(this.pool, artistEntityId);
   }
 
   listArtistIdentityEventsByDay(params: {

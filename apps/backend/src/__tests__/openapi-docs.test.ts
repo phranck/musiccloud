@@ -192,7 +192,7 @@ describe("OpenAPI docs", () => {
     expect(res.headers["cache-control"]).toBe("public, max-age=300");
     // Every immutable SDK release is keyed by the public contract version.
     // Keep this assertion explicit so a contract change cannot reuse a tag.
-    expect(doc.info.version).toBe("2.1.7");
+    expect(doc.info.version).toBe("2.1.8");
     expect(doc.info.description).toContain("Developer Project");
     expect(doc.info.description).toContain("Registrations under one project share those quotas");
     expect(doc.components.securitySchemes.ApiKeyAuth.description).toContain("shared by all registrations");
@@ -304,7 +304,9 @@ describe("OpenAPI docs", () => {
 
     expect(descriptions).toMatchObject({
       "GET /api/v1/artist-info query shortId":
-        "Optional musiccloud track share code. Take the last path segment of `shortUrl` from a successful track response from `POST /api/v1/resolve` or `GET /api/v1/resolve`. When the share's stored service links identify an alternate artist known to musiccloud, that name replaces `name` for this lookup. Otherwise `name` is used unchanged after normalization.\n\n**Default**: the supplied `name` is used directly, with no persisted-resolution context.",
+        "Optional musiccloud track share code. Take the last path segment of `shortUrl` from a successful track response from `POST /api/v1/resolve` or `GET /api/v1/resolve`. Without `artistEntityId`, a stored alternate artist can replace `name` for this lookup. With `artistEntityId`, this compatibility alias is ignored.\n\n**Default**: the supplied `name` is used directly, with no persisted-resolution context.",
+      "GET /api/v1/artist-info query artistEntityId":
+        "Normalized musiccloud artist entity ID from an `artistCredits[].artistEntityId` field in a successful track or album response. When supplied, this exact entity selects the persisted canonical artist name, its isolated enrichment cache, and the upstream lookup. It takes precedence over both `name` and `shortId`. Unknown entity IDs return `404`.",
       "GET /api/v1/cc/artist-info query jamendoArtistId":
         "Numeric Jamendo artist ID. Read `track.jamendoArtistId`, `album.tracks[].jamendoArtistId`, or `artist.jamendoId` from a successful `POST /api/v1/cc/resolve` or `GET /api/v1/share/{shortId}` response.",
       "GET /api/v1/cc/artist-info query artistName":
