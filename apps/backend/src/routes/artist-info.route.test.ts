@@ -103,6 +103,35 @@ describe("GET /api/v1/artist-info entity identity", () => {
     expect(mocks.findArtistInfoAliasByShortId).not.toHaveBeenCalled();
   });
 
+  it("rejects a malformed entity id with the canonical 400 envelope", async () => {
+    const app = await buildApp();
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/artist-info?artistEntityId=not%20a%20valid%20id",
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ error: "MC-REQ-0001", errorId: expect.any(String) });
+    expect(mocks.findArtistInfoEntity).not.toHaveBeenCalled();
+  });
+
+  it("retains the legacy short-id alias path when no entity id is supplied", async () => {
+    mocks.findArtistInfoAliasByShortId.mockResolvedValueOnce("Alias Artist");
+    mocks.findArtistCache.mockResolvedValueOnce(freshCache("Alias Artist"));
+    const app = await buildApp();
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/artist-info?name=Requested%20Artist&shortId=share1",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ artistName: "Alias Artist" });
+    expect(mocks.findArtistInfoAliasByShortId).toHaveBeenCalledWith("share1", "Requested Artist");
+    expect(mocks.findArtistCache).toHaveBeenCalledWith({ kind: "name", artistName: "alias artist" });
+  });
+
   it("requires either a non-empty name or a non-empty artist entity id", async () => {
     const app = await buildApp();
 
