@@ -4,7 +4,7 @@
 
 A backend subsystem that proactively grows the canonical entity database by
 ticking a per-minute cron job, fetching candidate tracks from registered
-sources (Deezer Charts, later Last.fm Tag Tops + Apple Music Charts), and
+sources (Deezer Charts, Last.fm Tag Tops, later Apple Music Charts), and
 running each candidate through the existing resolver pipeline. Goal:
 cross-service ID density (`*_external_ids`, MusicBrainz canonicalisation,
 preview URLs) keeps growing independently of user load.
@@ -23,7 +23,8 @@ services/crawler/
 ├── ingest.ts                      # wraps services/persist-resolution.ts
 ├── heartbeat.ts                   # tick orchestration
 └── sources/
-    └── deezer-charts.ts           # one source per file
+    ├── deezer-charts.ts           # URL candidates from configured charts
+    └── lastfm-tags.ts              # search candidates from configured tags
 
 scripts/crawler-heartbeat.ts       # cron entry point (bundled via tsup)
 routes/admin-crawler.ts            # 5 admin endpoints
@@ -48,6 +49,7 @@ Zerops cron (* * * * *)
           - repo.acquireCrawlLock(source, 30min)
               skip if held and not stale
           - repo.insertCrawlRun({status: 'running'})
+          - source.parseConfig(config) + source.assertAvailable(config)
           - source.fetch(config, cursor) -> { candidates, nextCursor }
           - for each candidate:
               - dedupe.isAlreadyIngested(c) -> skip if true
@@ -73,6 +75,12 @@ export const fooSource: CrawlerSource = {
   defaultIntervalMinutes: 360,
   defaultEnabled: true,
   defaultConfig: { ... },               // initial JSON blob; admin can edit at runtime
+  parseConfig(config) {                  // source-owned normalize + validation
+    return normalizedConfig;
+  },
+  assertAvailable(config) {              // source-owned runtime prerequisites
+    // throw only safe configuration errors
+  },
   async fetch(config, cursor) {
     // ... call upstream API
     return {
@@ -80,6 +88,7 @@ export const fooSource: CrawlerSource = {
         { kind: "url", url: "...", isrc: "..." },     // OR
         { kind: "search", title: "...", artist: "..." },
       ],
+      skipped: 0,                         // malformed or duplicate upstream rows
       nextCursor: null,                  // opaque; passed back next tick
     };
   },
@@ -93,6 +102,45 @@ Two candidate shapes:
 - `kind: "search"` — Last.fm. Goes through
   `resolveTextSearchWithDisambiguation`. Pre-dedupe is impossible (no
   stable ID); the resolver-cache absorbs duplicates one layer down.
+
+`parseConfig` is deliberately source-owned rather than a generic admin JSON
+schema: each source controls its defaults, accepted keys, normalization, and
+bounds. `assertAvailable` checks only runtime prerequisites. The shared
+execution gate is used by admin enablement, `run-now`, and the heartbeat, so
+no path can start a source with invalid configuration or missing prerequisites.
+Sources must throw safe configuration errors from those methods. They are
+returned as canonical `MC-REQ-0001` responses by admin routes and become normal
+failed runs in the heartbeat, with no credential names or values in run notes
+or logs.
+
+### Last.fm Tag Tops configuration
+
+`lastfm-tags` is seeded as disabled with a `360`-minute interval and this
+configuration:
+
+```json
+{ "tags": [], "limit": 50 }
+```
+
+`tags` may contain 1 through 20 unique values when the source is enabled or
+run. Values are trimmed, whitespace-normalized, lower-cased, non-empty, and
+at most 100 characters. `limit` is an integer from 1 through 100 and applies
+to every tag. The empty default remains valid only while the source is
+disabled, so a fresh deployment cannot accidentally start discovery.
+
+Execution also requires `LASTFM_API_KEY` in the backend runtime. Missing
+credentials produce the same safe configuration response or failed-run note;
+they never expose the credential name or value in public API responses or
+logs. The source requests tags serially with a 250 ms gap, which keeps its
+maximum configured twenty-tag run to roughly four upstream requests per
+second. Every request uses the common 5-second timeout and SSRF-protected
+outbound fetch helper.
+
+`tag.getTopTracks` rows with no usable artist/title are counted as skipped.
+The source normalizes and deduplicates artist/title pairs across all tags in a
+single run before they reach the shared resolver ingest path. Any HTTP,
+timeout, JSON, or Last.fm API error fails the complete fetch rather than
+silently treating a partial source response as success.
 
 ## Registry pattern
 
@@ -173,8 +221,8 @@ preHandler).
 | Method | Path                                                  | Effect                                                                                |
 | ------ | ----------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | GET    | `/api/admin/crawler/sources`                          | List `CrawlerSourceInfo[]`. Re-seeds registry-known sources on entry (idempotent).    |
-| PATCH  | `/api/admin/crawler/sources/:id`                      | Mutate `enabled`, `intervalMinutes`, `config`, `cursor`. Validates source registered. |
-| POST   | `/api/admin/crawler/sources/:id/run-now`              | Sets `next_run_at = NOW()`. Heartbeat picks it up next minute.                        |
+| PATCH  | `/api/admin/crawler/sources/:id`                      | Mutate `enabled`, `intervalMinutes`, `config`, `cursor`. Source-owned config validation runs before persistence; enabling also checks availability. |
+| POST   | `/api/admin/crawler/sources/:id/run-now`              | Validates stored config and availability, then sets `next_run_at = NOW()`. Heartbeat picks it up next minute. |
 | POST   | `/api/admin/crawler/sources/:id/release-lock`         | Clears a stuck `running_since`. Used when a previous tick crashed.                    |
 | GET    | `/api/admin/crawler/runs?source=&page=&limit=`        | Paginated `CrawlerRunsPage`.                                                          |
 
@@ -259,6 +307,24 @@ curl -X PATCH \
 
 The next tick reads the new config from `crawl_state.config`.
 
+### Configure and enable Last.fm Tag Tops
+
+Set tags and enable the source in one request after `LASTFM_API_KEY` is
+available to the backend runtime:
+
+```bash
+curl -X PATCH \
+  -H "Authorization: Bearer $ADMIN_JWT" \
+  -H "Content-Type: application/json" \
+  -d '{"enabled":true,"config":{"tags":["rock","dream pop"],"limit":50}}' \
+  https://admin.musiccloud.io/api/admin/crawler/sources/lastfm-tags
+```
+
+The API normalizes the stored tag values. A missing tag, duplicate tag,
+out-of-range limit, or unavailable runtime prerequisite returns `400` with a
+canonical `MC-REQ-0001` response and `errorId`; it does not schedule a run or
+change existing source state.
+
 ### Inspect run history
 
 ```bash
@@ -306,7 +372,8 @@ trigger a `run-now`.
 - **Per-candidate errors** (network, parse, persist): logged with a
   `[Crawler:<source>]` prefix, counted into `crawl_runs.errors`,
   the tick continues with the next candidate.
-- **Per-source fetch failure** (HTTP 5xx, network exception): logged,
+- **Per-source fetch failure** (invalid execution configuration, unavailable
+  prerequisite, HTTP/API failure, timeout, network exception): logged safely,
   `crawl_runs.status = 'error'`, `crawl_state.consecutive_errors` ++.
   Auto-disable kicks in at 5; manual `enabled=true` re-arms the source.
 - **Stale lock** (`running_since` older than 30 minutes): treated as a
@@ -331,6 +398,8 @@ Unit tests live next to the code:
   registry / repo / dedupe / ingest fully mocked.
 - `services/crawler/sources/__tests__/<id>.test.ts` — per-source
   fetch-mock + candidate-parser assertions.
+- `routes/admin-crawler.test.ts` — source seeding, config normalization,
+  enablement/run-now gates, canonical errors, and run-history contract.
 
 Integration tests (skipped without `DATABASE_URL`):
 
