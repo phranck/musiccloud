@@ -109,8 +109,6 @@ class InMemoryEditorialRepository {
     throw new Error("Navigation writes are forbidden during editorial cutover");
   });
   readonly replaceSegmentsForOwner = vi.fn();
-  readonly replaceSegmentTranslations = vi.fn();
-  readonly upsertPageTranslation = vi.fn();
 
   constructor(
     readonly pages: ContentPageRow[],
@@ -139,7 +137,6 @@ class InMemoryEditorialRepository {
     return this.navigationEntries.map((entry) => ({
       ...entry,
       placements: entry.placements.map((placement) => ({ ...placement })),
-      translations: { ...entry.translations },
     }));
   }
 
@@ -270,7 +267,6 @@ function navigationConfiguration(): NavigationConfigurationEntryRow[] {
         { context: ContentContext.Frontend, area: NavigationArea.Main, position: 0 },
         { context: ContentContext.Frontend, area: NavigationArea.Footer, position: 0 },
       ],
-      translations: { de: "Über uns" },
       labelUpdatedAt: FIXED_DATE,
     },
     {
@@ -286,7 +282,6 @@ function navigationConfiguration(): NavigationConfigurationEntryRow[] {
       contextMask: ContentContext.DeveloperPortal,
       areaMask: NavigationArea.Main,
       placements: [{ context: ContentContext.DeveloperPortal, area: NavigationArea.Main, position: 0 }],
-      translations: {},
       labelUpdatedAt: FIXED_DATE,
     },
   ];
@@ -624,7 +619,7 @@ describe("backfillDeveloperEditorialContent", () => {
     }
   });
 
-  it("reads canonical title and content but never invokes content, identity, translation, or segment writes", async () => {
+  it("reads canonical title and content but never invokes content, identity, or segment writes", async () => {
     const pages = [
       ...canonicalPages(),
       page({
@@ -646,8 +641,6 @@ describe("backfillDeveloperEditorialContent", () => {
     expect(fake.updateContentPageBody).not.toHaveBeenCalled();
     expect(fake.updateContentPageMeta).not.toHaveBeenCalled();
     expect(fake.replaceSegmentsForOwner).not.toHaveBeenCalled();
-    expect(fake.replaceSegmentTranslations).not.toHaveBeenCalled();
-    expect(fake.upsertPageTranslation).not.toHaveBeenCalled();
     expect(pages[2]).toMatchObject({
       id: "page-pricing-stable",
       title: "Pricing",

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type {
   ContentPage,
@@ -5,8 +6,6 @@ import type {
   NavItem,
   NavigationConfigurationInput,
   PageSegment,
-  PageTranslation,
-  TranslationStatus,
 } from "../content.js";
 import {
   isNavigationSystemKey,
@@ -15,8 +14,9 @@ import {
   NavigationTargetKind,
 } from "../content.js";
 import { ContentContext, NavigationArea } from "../content-context.js";
+import * as sharedExports from "../index.js";
 
-describe("content translation types", () => {
+describe("canonical editorial content types", () => {
   it("ContentPublication identifies a context-specific page publication", () => {
     const publication: ContentPublication = {
       context: ContentContext.Frontend,
@@ -28,30 +28,18 @@ describe("content translation types", () => {
     expect(publication.context).toBe(ContentContext.Frontend);
   });
 
-  it("PageTranslation shape compiles with required fields", () => {
-    const t: PageTranslation = {
-      locale: "de",
-      title: "Titel",
-      content: "# Inhalt",
-      isStale: false,
-      sourceUpdatedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    expect(t.locale).toBe("de");
-  });
-
-  it("PageSegment carries translations map", () => {
+  it("PageSegment carries one canonical label", () => {
     const s: PageSegment = {
       id: 1,
       position: 0,
       label: "Overview",
       targetSlug: "about",
-      translations: { de: "Übersicht" },
     };
-    expect(s.translations?.de).toBe("Übersicht");
+    expect(s.label).toBe("Overview");
+    expect(s).not.toHaveProperty("translations");
   });
 
-  it("NavItem carries translations map", () => {
+  it("NavItem carries one optional canonical label", () => {
     const n: NavItem = {
       id: 1,
       navId: "header",
@@ -64,13 +52,12 @@ describe("content translation types", () => {
       pageType: null,
       pageDisplayMode: null,
       pageOverlayWidth: null,
-      translations: { de: "Start" },
     };
-    expect(n.translations?.de).toBe("Start");
+    expect(n.label).toBe("Home");
+    expect(n).not.toHaveProperty("translations");
   });
 
-  it("ContentPage exposes translations + status", () => {
-    const statuses: Record<string, TranslationStatus> = { en: "ready", de: "stale" };
+  it("ContentPage exposes only canonical title and content", () => {
     const p: ContentPage = {
       id: "page-about",
       slug: "about",
@@ -95,13 +82,41 @@ describe("content translation types", () => {
       updatedByUsername: null,
       createdAt: new Date().toISOString(),
       updatedAt: null,
-      translationStatus: statuses as ContentPage["translationStatus"],
       content: "",
       segments: [],
-      translations: [],
       markdownValidation: { ok: true, errors: [] },
     };
-    expect(p.translations).toEqual([]);
+    expect(p.title).toBe("About");
+    expect(p.content).toBe("");
+    expect(p).not.toHaveProperty("translationStatus");
+    expect(p).not.toHaveProperty("translations");
+  });
+
+  it("does not expose editorial locale or translation contracts", () => {
+    for (const name of [
+      "Locale",
+      "LOCALES",
+      "DEFAULT_LOCALE",
+      "PageTranslation",
+      "TranslationStatus",
+      "LocalizedText",
+      "normalizeLocalizedText",
+      "getLocalizedText",
+      "setLocalizedText",
+    ]) {
+      expect(sharedExports).not.toHaveProperty(name);
+    }
+
+    const contentSource = readFileSync(new URL("../content.ts", import.meta.url), "utf8");
+    for (const forbidden of [
+      "PageTranslation",
+      "TranslationStatus",
+      "PagesBulkPageTranslationEntry",
+      "pageTranslations",
+      "translations?:",
+    ]) {
+      expect(contentSource).not.toContain(forbidden);
+    }
   });
 
   it("exposes immutable canonical semantics for protected navigation targets", () => {
@@ -145,7 +160,6 @@ describe("content translation types", () => {
             { context: ContentContext.DeveloperPortal, area: NavigationArea.Main, position: 0 },
             { context: ContentContext.DeveloperPortal, area: NavigationArea.Footer, position: 2 },
           ],
-          translations: {},
         },
       ],
     };

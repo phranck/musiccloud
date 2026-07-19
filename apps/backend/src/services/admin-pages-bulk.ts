@@ -5,7 +5,7 @@ import type {
   PagesBulkErrorDetail,
   PagesBulkRequest,
 } from "@musiccloud/shared";
-import { ContentContext, isLocale, PAGE_TYPES } from "@musiccloud/shared";
+import { ContentContext, PAGE_TYPES } from "@musiccloud/shared";
 
 import type { ContentPageMetaUpdate } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
@@ -153,20 +153,7 @@ export async function bulkUpdatePages(payload: PagesBulkRequest, opts: BulkUpdat
     });
   });
 
-  // 3) pageTranslations
-  (payload.pageTranslations ?? []).forEach((entry, idx) => {
-    if (!bySlug.has(entry.slug)) {
-      errors.push({ section: "pageTranslations", index: idx, message: `unknown page '${entry.slug}'` });
-    }
-    if (!isLocale(entry.locale)) {
-      errors.push({ section: "pageTranslations", index: idx, message: "invalid locale" });
-    }
-    if (entry.title === undefined || entry.title === null || entry.title === "") {
-      errors.push({ section: "pageTranslations", index: idx, message: "title is required" });
-    }
-  });
-
-  // 4) topLevelOrder
+  // 3) topLevelOrder
   if (payload.topLevelOrder) {
     payload.topLevelOrder.forEach((slug, idx) => {
       const p = bySlug.get(slug);
@@ -202,19 +189,14 @@ export async function bulkUpdatePages(payload: PagesBulkRequest, opts: BulkUpdat
           position: i,
           label: seg.label.trim(),
           targetSlug: seg.targetSlug,
-          ...(seg.translations ? { translations: seg.translations } : {}),
         })),
-    })),
-    pageTranslations: (payload.pageTranslations ?? []).map((t) => ({
-      ...t,
-      updatedBy: opts.updatedBy,
     })),
     topLevelOrder: payload.topLevelOrder ?? [],
   });
 
   // The adapter returns ContentPageSummaryRow[] (DB rows). The route contract
-  // requires ContentPageSummary[] (with username resolution + translationStatus
-  // shape). Reuse the existing read-side service to produce the correct DTOs.
+  // requires ContentPageSummary[] with username resolution. Reuse the existing
+  // read-side service to produce the correct DTOs.
   const data = await getManagedContentPages();
   return { ok: true, data };
 }
