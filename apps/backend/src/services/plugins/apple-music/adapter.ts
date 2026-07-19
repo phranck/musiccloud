@@ -274,11 +274,20 @@ async function getDevToken(): Promise<string> {
 export async function warmAppleMusicToken(): Promise<void> {
   if (!appleMusicAdapter.isAvailable()) return;
   try {
-    await getDevToken();
+    await assertAppleMusicDeveloperToken();
     console.log("[Apple Music] Developer token pre-warmed");
   } catch (e) {
     console.error("[Apple Music] Token pre-warm failed:", (e as Error).message);
   }
+}
+
+/**
+ * Verifies that the configured static or signed developer-token profile is
+ * usable without making a catalog request. Crawler enablement uses this so a
+ * malformed key cannot defer discovery until after network work begins.
+ */
+export async function assertAppleMusicDeveloperToken(): Promise<void> {
+  await getDevToken();
 }
 
 /**

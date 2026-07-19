@@ -104,7 +104,7 @@ async function runSourceTick(state: CrawlStateRecord): Promise<void> {
   let fetchError: string | undefined;
 
   try {
-    const config = validateCrawlerSourceExecution(source, state.config);
+    const config = await validateCrawlerSourceExecution(source, state.config);
     const result = await source.fetch(config, state.cursor ?? null);
     nextCursor = result.nextCursor;
     skipped = result.skipped ?? 0;

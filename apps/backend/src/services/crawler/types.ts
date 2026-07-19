@@ -55,7 +55,7 @@ export interface CrawlerSource {
   /** Normalizes and validates source-owned persisted JSON before use. */
   parseConfig(config: unknown): Record<string, unknown>;
   /** Verifies source-specific runtime prerequisites without exposing secrets. */
-  assertAvailable(config: Record<string, unknown>): void;
+  assertAvailable(config: Record<string, unknown>): void | Promise<void>;
   /**
    * Fetch one page of candidates. The heartbeat passes the live `config`
    * and `cursor` from `crawl_state`; the implementation returns the
@@ -65,8 +65,11 @@ export interface CrawlerSource {
 }
 
 /** Shared execution gate for admin enable/run-now paths and the heartbeat. */
-export function validateCrawlerSourceExecution(source: CrawlerSource, config: unknown): Record<string, unknown> {
+export async function validateCrawlerSourceExecution(
+  source: CrawlerSource,
+  config: unknown,
+): Promise<Record<string, unknown>> {
   const normalizedConfig = source.parseConfig(config);
-  source.assertAvailable(normalizedConfig);
+  await source.assertAvailable(normalizedConfig);
   return normalizedConfig;
 }
