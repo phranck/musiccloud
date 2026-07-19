@@ -3,7 +3,6 @@ import { ArtistProfileSection } from "@/components/artist/ArtistProfileSection";
 import { ProfileSkeleton } from "@/components/artist/ProfileSkeleton";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SmoothSwap } from "@/components/ui/SmoothSwap";
-import { useT } from "@/i18n/localeContext";
 
 type ArtistProfile = ArtistInfoResponse["profile"];
 
@@ -13,7 +12,6 @@ interface ArtistProfileCardProps {
 }
 
 export function ArtistProfileCard({ profile, showInitialSkeleton }: ArtistProfileCardProps) {
-  const t = useT();
   const profileSwapKey = profile
     ? [profile.imageUrl, profile.genres.join("|"), profile.bioSummary ?? ""].join("::")
     : "profile-empty";
@@ -25,7 +23,7 @@ export function ArtistProfileCard({ profile, showInitialSkeleton }: ArtistProfil
           <ProfileSkeleton />
         ) : profile ? (
           <SmoothSwap swapKey={profileSwapKey}>
-            <ArtistProfileSection profile={profile} t={t} />
+            <ArtistProfileSection profile={profile} />
           </SmoothSwap>
         ) : null}
       </RecessedCard.Body>

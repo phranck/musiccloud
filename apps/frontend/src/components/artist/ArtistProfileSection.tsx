@@ -2,13 +2,13 @@ import type { ArtistProfile } from "@musiccloud/shared";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
 import { TftScreen } from "@/components/ui/TftScreen";
+import { artistCopy } from "@/copy/artist";
 import { formatCount } from "@/lib/format/count";
 import { linkify } from "@/lib/linkify";
 import { cn } from "@/lib/utils";
 
 interface ArtistProfileSectionProps {
   profile: ArtistProfile;
-  t: (key: string) => string;
 }
 
 /** Prose styling for the bio's `<p>`/`<br>` markup rendered via {@link MarkdownHtml}. */
@@ -20,7 +20,7 @@ function looksLikeHtml(value: string): boolean {
   return /<\w+[^>]*>/.test(value);
 }
 
-export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) {
+export function ArtistProfileSection({ profile }: ArtistProfileSectionProps) {
   const hasStats = profile.followers != null || profile.scrobbles != null;
 
   return (
@@ -61,16 +61,16 @@ export function ArtistProfileSection({ profile, t }: ArtistProfileSectionProps) 
         <p className="mc-txt-recessed-normal text-sm text-text-secondary">
           {profile.followers != null && (
             <>
-              {formatCount(profile.followers)} {t("artist.fanCount")}
+              {formatCount(profile.followers)} {artistCopy.fanCount}
             </>
           )}
-          {profile.scrobbles != null && ` · ${formatCount(profile.scrobbles)} ${t("artist.lastfmPlays")}`}
+          {profile.scrobbles != null && ` · ${formatCount(profile.scrobbles)} ${artistCopy.lastfmPlays}`}
         </p>
       )}
 
       {profile.similarArtists.length > 0 && (
         <p className="mc-txt-recessed-normal text-sm text-text-secondary mt-1">
-          {t("artist.similar")}: {profile.similarArtists.join(" · ")}
+          {artistCopy.similar}: {profile.similarArtists.join(" · ")}
         </p>
       )}
 

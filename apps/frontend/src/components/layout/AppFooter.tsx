@@ -1,7 +1,7 @@
 import { type NavItem, NavTarget } from "@musiccloud/shared";
 import type { MouseEvent } from "react";
 
-import { useT } from "@/i18n/localeContext";
+import { commonCopy } from "@/copy/common";
 import { sendNavInteractionSignal } from "@/lib/analytics/navSignals";
 import { FooterSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { navHref, navLabel } from "@/lib/nav";
@@ -25,10 +25,8 @@ function handleFooterNavClick(event: MouseEvent<HTMLAnchorElement>, item: NavIte
 /**
  * Application footer: copyright + admin-managed centre nav + "made by LAYERED" link.
  * Used on all pages (landing page via LandingPage.tsx, share page via Astro SSR).
- * Must be rendered inside a LocaleProvider (or via AppFooterIsland for standalone use).
  */
 export function AppFooter({ navItems = EMPTY_NAV_ITEMS }: AppFooterProps) {
-  const t = useT();
   const currentYear = new Date().getFullYear();
   const yearDisplay = currentYear > START_YEAR ? `${START_YEAR} – ${currentYear}` : `${START_YEAR}`;
 
@@ -38,7 +36,10 @@ export function AppFooter({ navItems = EMPTY_NAV_ITEMS }: AppFooterProps) {
       style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
     >
       <span className="text-left">&copy; {yearDisplay} musiccloud</span>
-      <nav aria-label={t("a11y.footerNav")} className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+      <nav
+        aria-label={commonCopy.a11y.footerNavigation}
+        className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1"
+      >
         {navItems.map((item) => (
           <a
             key={item.id}
@@ -53,7 +54,7 @@ export function AppFooter({ navItems = EMPTY_NAV_ITEMS }: AppFooterProps) {
         ))}
       </nav>
       <span className="text-right">
-        {t("footer.madeBy")}{" "}
+        {commonCopy.footer.madeBy}{" "}
         <a
           href="https://layered.work"
           target="_blank"

@@ -2,7 +2,6 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useTurntablePlayer } from "@/components/turntable/TurntablePlayerContext";
 import { TurntablePlayerProvider } from "@/components/turntable/TurntablePlayerProvider";
-import { LocaleProvider } from "@/i18n/context";
 import { prefersReducedMotion } from "@/lib/motion/setup";
 
 // Keep the real setup module (GSAP registration is harmless in jsdom) but make the
@@ -40,11 +39,9 @@ function HubProbe() {
 
 function renderHub() {
   return render(
-    <LocaleProvider initialLocale="en">
-      <TurntablePlayerProvider previewUrl="/preview.mp3" trackTitle="Blue Train">
-        <HubProbe />
-      </TurntablePlayerProvider>
-    </LocaleProvider>,
+    <TurntablePlayerProvider previewUrl="/preview.mp3" trackTitle="Blue Train">
+      <HubProbe />
+    </TurntablePlayerProvider>,
   );
 }
 
@@ -55,11 +52,9 @@ function renderHub() {
  */
 function tree(previewUrl: string, trackTitle: string, recordSwapKey?: string) {
   return (
-    <LocaleProvider initialLocale="en">
-      <TurntablePlayerProvider previewUrl={previewUrl} trackTitle={trackTitle} recordSwapKey={recordSwapKey}>
-        <HubProbe />
-      </TurntablePlayerProvider>
-    </LocaleProvider>
+    <TurntablePlayerProvider previewUrl={previewUrl} trackTitle={trackTitle} recordSwapKey={recordSwapKey}>
+      <HubProbe />
+    </TurntablePlayerProvider>
   );
 }
 

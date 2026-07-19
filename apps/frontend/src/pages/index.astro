@@ -4,10 +4,8 @@ import { fetchCcRandomExample, fetchNavigation, fetchRandomExample } from "@/api
 import { LandingPage } from "@/components/landing/LandingPage";
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
 import BaseLayout from "@/layouts/BaseLayout.astro";
-import { getRequestLocale } from "@/i18n/locales";
 
-const locale = getRequestLocale(Astro.cookies.get("mc:locale")?.value, Astro.request.headers.get("accept-language"));
-const footerNav = await fetchNavigation("footer", locale);
+const footerNav = await fetchNavigation("footer");
 const [randomExample, ccRandomExample] = await Promise.all([fetchRandomExample(), fetchCcRandomExample()]);
 const exampleShortId = randomExample?.shortId ?? null;
 const ccExampleShortId = ccRandomExample?.shortId ?? null;
@@ -17,7 +15,6 @@ const ccExampleShortId = ccRandomExample?.shortId ?? null;
   title="musiccloud - Share music across every platform"
   description="Paste a Spotify, Apple Music, or YouTube link and get a universal share link that works everywhere."
   canonicalUrl="https://musiccloud.io"
-  lang={locale}
 >
   <Fragment slot="head">
     <meta name="title" content="musiccloud - Share music across every platform" />
@@ -65,13 +62,13 @@ const ccExampleShortId = ccRandomExample?.shortId ?? null;
   </script>
 
   <div class="min-h-dvh flex flex-col">
-    <LandingPage client:idle footerNav={footerNav} exampleShortId={exampleShortId} ccExampleShortId={ccExampleShortId} initialLocale={locale} />
+    <LandingPage client:idle footerNav={footerNav} exampleShortId={exampleShortId} ccExampleShortId={ccExampleShortId} />
   </div>
 
   <!-- Mounted with null initialPage so nav clicks on overlay-mode pages
        open client-side (no full reload). OverlayProvider advertises its
        presence via window.__mcOverlayActive for PageHeader.handleNavClick. -->
-  <PageOverlayIsland client:load initialPage={null} initialLocale={locale} />
+  <PageOverlayIsland client:load initialPage={null} />
 
   <!-- SSR fallback for no-JS -->
   <noscript>

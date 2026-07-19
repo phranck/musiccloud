@@ -14,7 +14,6 @@ import {
 import { TurntablePlayerProvider } from "@/components/turntable/TurntablePlayerProvider";
 import { derivePower } from "@/components/turntable/turntableState";
 import { VinylSpinState, type VinylSpinState as VinylSpinStateValue } from "@/components/vinyl/VinylRecord.types";
-import { LocaleProvider } from "@/i18n/context";
 import { vinylSideGroovePath } from "@/lib/media/vinyl-geometry";
 
 const originalAnimate = HTMLElement.prototype.animate;
@@ -459,12 +458,10 @@ const playedAudioElements: HTMLAudioElement[] = [];
 /** Renders the hub deck plus the analyzer remote (its playbutton) under one provider. */
 function renderHubDeck() {
   return render(
-    <LocaleProvider initialLocale="en">
-      <TurntablePlayerProvider previewUrl="/preview.mp3" trackTitle="Blue Train">
-        <TurntablePlayer record={RECORD} swapKey="tp-test" />
-        <TurntableAnalyzerSlot />
-      </TurntablePlayerProvider>
-    </LocaleProvider>,
+    <TurntablePlayerProvider previewUrl="/preview.mp3" trackTitle="Blue Train">
+      <TurntablePlayer record={RECORD} swapKey="tp-test" />
+      <TurntableAnalyzerSlot />
+    </TurntablePlayerProvider>,
   );
 }
 

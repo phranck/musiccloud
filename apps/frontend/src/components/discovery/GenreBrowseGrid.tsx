@@ -3,7 +3,7 @@ import { RecessedCard } from "@/components/cards/RecessedCard";
 import { GenrePanelShell } from "@/components/discovery/GenrePanelShell";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { LazyGenreArtwork } from "@/components/ui/LazyGenreArtwork";
-import { useT } from "@/i18n/localeContext";
+import { discoveryCopy } from "@/copy/discovery";
 import { safeCssColor } from "@/lib/platform/cssColor";
 
 /** Per-index `animation-delay` step of the tile entrance in milliseconds. */
@@ -37,12 +37,10 @@ interface GenreBrowseGridProps {
  * `styles/animations.css`).
  */
 export function GenreBrowseGrid({ genres, onSelect }: GenreBrowseGridProps) {
-  const t = useT();
-
   return (
     <GenrePanelShell
-      title={t("genreBrowse.title")}
-      subtitle={t("genreBrowse.subtitle")}
+      title={discoveryCopy.genreBrowse.title}
+      subtitle={discoveryCopy.genreBrowse.subtitle}
       maxWidthClass="md:max-w-5xl"
       bodyClassName="flex flex-col"
     >
@@ -69,7 +67,7 @@ export function GenreBrowseGrid({ genres, onSelect }: GenreBrowseGridProps) {
                   type="button"
                   onClick={() => onSelect(genre.name)}
                   className="w-full h-full rounded-xl p-0 overflow-hidden"
-                  aria-label={`Search ${genre.displayName}`}
+                  aria-label={discoveryCopy.genreBrowse.search(genre.displayName)}
                 >
                   <LazyGenreArtwork url={genre.artworkUrl} />
                 </EmbossedButton>

@@ -3,7 +3,6 @@ import { render } from "@testing-library/react";
 import gsap from "gsap";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GenreBrowseGrid } from "@/components/discovery/GenreBrowseGrid";
-import { LocaleProvider } from "@/i18n/context";
 
 /**
  * Entrance-wiring contract of `GenreBrowseGrid`. The tile entrance is
@@ -53,11 +52,7 @@ afterEach(() => {
 
 describe("GenreBrowseGrid tile entrance", () => {
   it("renders tiles with the CSS slide-up entrance and capped per-index delays, without GSAP tweens", () => {
-    const { container } = render(
-      <LocaleProvider initialLocale="en">
-        <GenreBrowseGrid genres={buildGenres(PAST_CAP_INDEX + 1)} onSelect={() => {}} />
-      </LocaleProvider>,
-    );
+    const { container } = render(<GenreBrowseGrid genres={buildGenres(PAST_CAP_INDEX + 1)} onSelect={() => {}} />);
 
     const tiles = Array.from(container.querySelectorAll(".animate-slide-up")) as HTMLElement[];
     expect(tiles).toHaveLength(PAST_CAP_INDEX + 1);

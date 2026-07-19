@@ -15,8 +15,8 @@ import { toPopularTrackItems, toSimilarTrackItems } from "@/components/artist/ar
 import { EventsCard } from "@/components/artist/EventsCard";
 import { SimilarArtistsSkeleton } from "@/components/artist/SimilarArtistsSkeleton";
 import { TracksSkeleton } from "@/components/artist/TracksSkeleton";
+import { artistCopy } from "@/copy/artist";
 import { ArtistLoadStatus } from "@/hooks/useArtistInfo";
-import { useT } from "@/i18n/localeContext";
 import { CardSignal } from "@/lib/analytics/umami";
 import { animateFlipFrom, type CapturedFlipState, captureFlipState } from "@/lib/motion/flip";
 
@@ -122,7 +122,6 @@ export function AnimatedArtistColumn({
   // Resolve the loading presentation once for the track cards: first load shows
   // the skeleton, a refetch with data on screen blurs + spins (mirrors the cards'
   // former internal derivation, now hoisted so they stay pure presentation).
-  const t = useT();
   const showInitialSkeleton = isLoading && !artistData;
   const isRefreshing = isLoading && !!artistData;
   // A failed first load (error with no prior data) would otherwise render four
@@ -136,7 +135,7 @@ export function AnimatedArtistColumn({
       {showErrorNotice ? (
         <ArtistCardShell title={labels.popularTracks}>
           <div className="px-3 pt-0 pb-3">
-            <ArtistNoticeWell message={t("artist.error")} />
+            <ArtistNoticeWell message={artistCopy.error} />
           </div>
         </ArtistCardShell>
       ) : (

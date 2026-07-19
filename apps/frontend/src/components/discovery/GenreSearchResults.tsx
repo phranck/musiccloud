@@ -6,7 +6,7 @@ import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
 import { GenreColumn } from "@/components/ui/GenreColumn";
 import { GenreRowButton } from "@/components/ui/GenreRowButton";
 import { SlideArtworkKind } from "@/components/ui/SlideArtworkTypes";
-import { useLocale, useT } from "@/i18n/localeContext";
+import { discoveryCopy } from "@/copy/discovery";
 import { buildHeadline } from "@/lib/genre-search/headline";
 import type { GenreSearchPayload, GenreSearchResults as GenreSearchResultsData } from "@/lib/types/app";
 import { cn } from "@/lib/utils";
@@ -66,9 +66,7 @@ export function GenreSearchResults({
   loading = false,
   ref,
 }: GenreSearchResultsProps) {
-  const t = useT();
-  const { locale } = useLocale();
-  const headline = buildHeadline(queryDetails, t, locale);
+  const headline = buildHeadline(queryDetails);
 
   const hasAny =
     (results.tracks && results.tracks.length > 0) ||
@@ -84,8 +82,9 @@ export function GenreSearchResults({
   // node reference (the `jsx-no-jsx-as-prop` perf rule wants memoized JSX rather
   // than a freshly allocated element on every render).
   const leadingAddOn = useMemo(
-    () => (onBack ? <NavigationBackButton onClick={onBack} label={t("genreSearch.backToBrowse")} /> : undefined),
-    [onBack, t],
+    () =>
+      onBack ? <NavigationBackButton onClick={onBack} label={discoveryCopy.genreSearch.backToBrowse} /> : undefined,
+    [onBack],
   );
 
   const footer = useMemo(() => {
@@ -106,18 +105,18 @@ export function GenreSearchResults({
 
         {onCancel && (
           <div className="text-center mt-4 flex-shrink-0">
-            <CancelButton onClick={onCancel}>{t("genreSearch.cancel")}</CancelButton>
+            <CancelButton onClick={onCancel}>{discoveryCopy.genreSearch.cancel}</CancelButton>
           </div>
         )}
       </>
     );
-  }, [warnings, onCancel, t]);
+  }, [warnings, onCancel]);
 
   return (
     <GenrePanelShell
       ref={ref}
       title={headline}
-      subtitle={t("genreSearch.subtitle")}
+      subtitle={discoveryCopy.genreSearch.subtitle}
       maxWidthClass={cn(
         columnCount === 1 && "md:max-w-sm",
         columnCount === 2 && "md:max-w-2xl",
@@ -127,7 +126,7 @@ export function GenreSearchResults({
       footer={footer}
     >
       {!hasAny ? (
-        <p className="text-center text-sm text-text-muted py-8">{t("genreSearch.empty")}</p>
+        <p className="text-center text-sm text-text-muted py-8">{discoveryCopy.genreSearch.empty}</p>
       ) : (
         <div
           className={cn(
@@ -137,7 +136,7 @@ export function GenreSearchResults({
           )}
         >
           {results.tracks && (
-            <GenreColumn label={t("genreSearch.tracks", { count: String(results.tracks.length) })}>
+            <GenreColumn label={discoveryCopy.genreSearch.tracks(results.tracks.length)}>
               {results.tracks.map((track, i) => {
                 const isSelected = loading && selectedId === track.id;
                 return (
@@ -148,8 +147,8 @@ export function GenreSearchResults({
                     disabled={loading}
                     ariaLabel={
                       isSelected
-                        ? t("genreSearch.loading")
-                        : t("genreSearch.resolveTrack", { title: track.title, artists: track.artists.join(", ") })
+                        ? discoveryCopy.genreSearch.loading
+                        : discoveryCopy.genreSearch.resolveTrack(track.title, track.artists.join(", "))
                     }
                   >
                     <CandidateRowContent
@@ -168,7 +167,7 @@ export function GenreSearchResults({
           )}
 
           {results.albums && (
-            <GenreColumn label={t("genreSearch.albums", { count: String(results.albums.length) })}>
+            <GenreColumn label={discoveryCopy.genreSearch.albums(results.albums.length)}>
               {results.albums.map((album, i) => {
                 const isSelected = loading && selectedId === album.id;
                 return (
@@ -179,8 +178,8 @@ export function GenreSearchResults({
                     disabled={loading}
                     ariaLabel={
                       isSelected
-                        ? t("genreSearch.loading")
-                        : `Resolve album "${album.title}" by ${album.artists.join(", ")}`
+                        ? discoveryCopy.genreSearch.loading
+                        : discoveryCopy.genreSearch.resolveAlbum(album.title, album.artists.join(", "))
                     }
                   >
                     <CandidateRowContent
@@ -198,7 +197,7 @@ export function GenreSearchResults({
           )}
 
           {results.artists && (
-            <GenreColumn label={t("genreSearch.artists", { count: String(results.artists.length) })}>
+            <GenreColumn label={discoveryCopy.genreSearch.artists(results.artists.length)}>
               {results.artists.map((artist, i) => {
                 const isSelected = loading && selectedId === artist.id;
                 return (
@@ -207,7 +206,11 @@ export function GenreSearchResults({
                     index={i}
                     onClick={() => onSelect(artist.webUrl, artist.id)}
                     disabled={loading}
-                    ariaLabel={isSelected ? t("genreSearch.loading") : `Resolve artist ${artist.name}`}
+                    ariaLabel={
+                      isSelected
+                        ? discoveryCopy.genreSearch.loading
+                        : discoveryCopy.genreSearch.resolveArtist(artist.name)
+                    }
                   >
                     <CandidateRowContent
                       compact

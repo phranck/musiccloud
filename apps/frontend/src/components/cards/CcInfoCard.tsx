@@ -5,7 +5,7 @@ import { outerEmbossedCardClassName, recessedControlInsetClassName } from "@/com
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SectionCardShell } from "@/components/cards/SectionCardShell";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
-import { useT } from "@/i18n/localeContext";
+import { creativeCommonsCopy } from "@/copy/creative-commons";
 import type { CcTrackContentConfiguration } from "@/lib/types/media-card";
 import { cn } from "@/lib/utils";
 
@@ -87,16 +87,15 @@ interface CcInfoCardProps {
  * @param animated - When true, plays the shared zoom-in entrance.
  */
 export function CcInfoCard({ content, className, animated = false }: CcInfoCardProps) {
-  const t = useT();
   const licenseLabel = content.licenseLabel;
   const iconPath = ccLicenseIconPath(content.licenseCcurl);
-  const licenseAlt = licenseLabel ?? t("cc.licenseUnknown");
+  const licenseAlt = licenseLabel ?? creativeCommonsCopy.licenseUnknown;
   const showDownload = content.downloadAllowed && !!content.downloadUrl;
   const showJamendo = !!content.jamendoUrl;
 
   return (
     <SectionCardShell
-      title={t("cc.sectionTitle")}
+      title={creativeCommonsCopy.sectionTitle}
       animated={animated}
       className={cn(outerEmbossedCardClassName, className)}
     >
@@ -149,7 +148,10 @@ export function CcInfoCard({ content, className, animated = false }: CcInfoCardP
               <CcBandcampButton key={content.jamendoTrackId} jamendoId={content.jamendoTrackId} />
             )}
             {showDownload && content.jamendoTrackId && (
-              <CcDownloadControl jamendoId={content.jamendoTrackId} formatAriaLabel={t("cc.downloadFormat")} />
+              <CcDownloadControl
+                jamendoId={content.jamendoTrackId}
+                formatAriaLabel={creativeCommonsCopy.downloadFormat}
+              />
             )}
             {showJamendo && (
               <RecessedCard className={recessedControlInsetClassName}>
@@ -158,7 +160,7 @@ export function CcInfoCard({ content, className, animated = false }: CcInfoCardP
                     href={content.jamendoUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    aria-label={`${t("cc.openOnJamendo")} (${t("cc.opensInNewWindow")})`}
+                    aria-label={`${creativeCommonsCopy.openOnJamendo} (${creativeCommonsCopy.opensInNewWindow})`}
                     className="flex w-full items-center justify-center gap-2.5 px-3 py-2.5 text-sm font-medium text-text-primary no-underline"
                   >
                     <span
@@ -166,7 +168,7 @@ export function CcInfoCard({ content, className, animated = false }: CcInfoCardP
                       className="size-5 flex-shrink-0 bg-current"
                       style={JAMENDO_ICON_MASK_STYLE}
                     />
-                    <span className="truncate leading-none">{t("cc.openOnJamendo")}</span>
+                    <span className="truncate leading-none">{creativeCommonsCopy.openOnJamendo}</span>
                   </EmbossedButton>
                 </RecessedCard.Body>
               </RecessedCard>

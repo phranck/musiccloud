@@ -41,11 +41,7 @@ describe("UpcomingEventsSection viewport", () => {
 
   it("caps more than four events at four and a half rows", () => {
     const { container } = render(
-      <UpcomingEventsSection
-        events={Array.from({ length: 5 }, (_, index) => event(index))}
-        userRegion="AT"
-        locale="en"
-      />,
+      <UpcomingEventsSection events={Array.from({ length: 5 }, (_, index) => event(index))} userRegion="AT" />,
     );
 
     expect(container.querySelector(".overflow-y-auto")).toHaveStyle({ maxHeight: "360px" });

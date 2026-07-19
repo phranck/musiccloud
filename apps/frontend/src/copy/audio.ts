@@ -1,0 +1,16 @@
+export const audioCopy = {
+  previewUnavailable: "Preview unavailable",
+  previewLoading: "Loading...",
+  previewAnalyzerToggleTooltip: "Toggle analyzer (D) or click the display",
+  pauseSong: "Pause song",
+  pausePreview: "Pause preview",
+  playSong: "Play song",
+  playPreview: "Play preview",
+  songLabel: "Song",
+  previewLabel: "Preview",
+  statusPlaying: "♫ PREVIEW PLAYING",
+  songUnavailable: "Song unavailable",
+  statusPlayingSong: "♫ SONG PLAYING",
+  statusPausedSong: "♫ SONG PAUSED",
+  statusPaused: "♫ PREVIEW PAUSED",
+} as const;

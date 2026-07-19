@@ -11,8 +11,8 @@ import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { FadeInOnMount } from "@/components/ui/FadeInOnMount";
 import { PagedListFooter } from "@/components/ui/PagedListFooter";
 import { PanelHeadline } from "@/components/ui/PanelHeadline";
+import { discoveryCopy } from "@/copy/discovery";
 import { usePagedList } from "@/hooks/usePagedList";
-import { useT } from "@/i18n/localeContext";
 import { animateSlideUp, killEntranceTweens } from "@/lib/motion/entrances";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
 import { cn } from "@/lib/utils";
@@ -43,8 +43,6 @@ export function DisambiguationPanel({
   selectedId,
   loading = false,
 }: DisambiguationPanelProps) {
-  const t = useT();
-
   const [animatingId, setAnimatingId] = useState<string | null>(null);
 
   // Reset to the first page when a new candidate set arrives (new search), not
@@ -197,12 +195,15 @@ export function DisambiguationPanel({
           {isAnimating || isLoadingSelected ? (
             <FadeInOnMount>
               <PanelHeadline
-                title={t("disambiguation.resolving.title")}
-                subtitle={t("disambiguation.resolving.subtitle")}
+                title={discoveryCopy.disambiguation.resolving.title}
+                subtitle={discoveryCopy.disambiguation.resolving.subtitle}
               />
             </FadeInOnMount>
           ) : (
-            <PanelHeadline title={t("disambiguation.title")} subtitle={t("disambiguation.subtitle")} />
+            <PanelHeadline
+              title={discoveryCopy.disambiguation.title}
+              subtitle={discoveryCopy.disambiguation.subtitle}
+            />
           )}
         </EmbossedCard.Header>
 
@@ -241,7 +242,7 @@ export function DisambiguationPanel({
                         )}
                         aria-label={
                           isThisSelected
-                            ? t("disambiguation.loading")
+                            ? discoveryCopy.disambiguation.loading
                             : `Select "${candidate.title}" by ${candidate.artists.join(", ")}`
                         }
                       >
@@ -272,14 +273,14 @@ export function DisambiguationPanel({
                 onPrevious={goPrevious}
                 onNext={goNext}
               />
-              <CancelButton onClick={onCancel}>{t("disambiguation.cancel")}</CancelButton>
+              <CancelButton onClick={onCancel}>{discoveryCopy.disambiguation.cancel}</CancelButton>
             </div>
           )}
 
           <p className="sr-only" aria-live="polite">
             {isAnimating || loading
-              ? t("disambiguation.loading")
-              : t("disambiguation.found", { count: String(candidates.length) })}
+              ? discoveryCopy.disambiguation.loading
+              : discoveryCopy.disambiguation.found(candidates.length)}
           </p>
         </EmbossedCard.Footer>
       </EmbossedCard>

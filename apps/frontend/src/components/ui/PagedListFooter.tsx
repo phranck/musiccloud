@@ -1,5 +1,5 @@
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
-import { useT } from "@/i18n/localeContext";
+import { commonCopy } from "@/copy/common";
 
 interface PagedListFooterProps {
   /** Total page count; the footer renders nothing when this is `<= 1`. */
@@ -23,7 +23,6 @@ const PAGER_BUTTON_CLASS = "flex min-h-10 items-center justify-center px-3 py-0 
  * buttons, each disabled at its respective end of the range.
  */
 export function PagedListFooter({ pageCount, canGoPrevious, canGoNext, onPrevious, onNext }: PagedListFooterProps) {
-  const t = useT();
   if (pageCount <= 1) return null;
 
   return (
@@ -35,10 +34,10 @@ export function PagedListFooter({ pageCount, canGoPrevious, canGoNext, onPreviou
         disabled={!canGoPrevious}
         className={PAGER_BUTTON_CLASS}
       >
-        {t("pager.previous")}
+        {commonCopy.pager.previous}
       </EmbossedButton>
       <EmbossedButton as="button" type="button" onClick={onNext} disabled={!canGoNext} className={PAGER_BUTTON_CLASS}>
-        {t("pager.next")}
+        {commonCopy.pager.next}
       </EmbossedButton>
     </div>
   );

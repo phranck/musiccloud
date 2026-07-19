@@ -1,6 +1,5 @@
 export const prerender = false;
 
-import { DEFAULT_LOCALE, isLocale, type Locale } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 
 import { fetchPublicContentPage } from "@/api/client";
@@ -11,7 +10,7 @@ const JSON_HEADERS = { "Content-Type": "application/json", "Cache-Control": "no-
  * Browser-reachable proxy for `/api/v1/content/:slug` — used by the nav-click
  * interceptor to hydrate an overlay page without a full-route navigation.
  */
-export const GET: APIRoute = async ({ params, request, cookies, clientAddress }) => {
+export const GET: APIRoute = async ({ params, clientAddress }) => {
   const slug = params.slug;
   if (typeof slug !== "string" || slug.length === 0) {
     return new Response(
@@ -23,10 +22,7 @@ export const GET: APIRoute = async ({ params, request, cookies, clientAddress })
       { status: 400, headers: JSON_HEADERS },
     );
   }
-  const q = new URL(request.url).searchParams.get("locale");
-  const cookieVal = cookies.get("mc:locale")?.value;
-  const locale: Locale = isLocale(q) ? q : isLocale(cookieVal) ? cookieVal : DEFAULT_LOCALE;
-  const result = await fetchPublicContentPage(slug, locale, clientAddress);
+  const result = await fetchPublicContentPage(slug, clientAddress);
   if (result.kind === "success") {
     return new Response(JSON.stringify(result.data), { headers: JSON_HEADERS });
   }

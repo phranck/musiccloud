@@ -3,8 +3,8 @@ import { XCircleIcon } from "@phosphor-icons/react";
 import { TranslucentCard } from "@/components/cards/TranslucentCard";
 import { MD_TRANSLUCENT } from "@/components/layout/overlayContentProseClassMaps";
 import { MarkdownHtml } from "@/components/markdown/MarkdownHtml";
+import { commonCopy } from "@/copy/common";
 import { useSegmented } from "@/hooks/useSegmented";
-import { useT } from "@/i18n/localeContext";
 import { cn } from "@/lib/utils";
 
 interface TranslucentOverlayContentProps {
@@ -30,7 +30,6 @@ export function TranslucentOverlayContent({
   frameInteractionsDisabled = false,
 }: TranslucentOverlayContentProps) {
   const segmented = useSegmented(page, { syncHash: true });
-  const t = useT();
 
   return (
     <TranslucentCard className="h-full">
@@ -48,7 +47,7 @@ export function TranslucentOverlayContent({
         <button
           type="button"
           onClick={onClose}
-          aria-label={t("a11y.close")}
+          aria-label={commonCopy.a11y.close}
           className="absolute top-1 right-1 p-1.5 text-white/30 hover:text-white/70 transition-colors duration-150 rounded-lg focus:outline-none"
         >
           <XCircleIcon size={24} weight="duotone" />

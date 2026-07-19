@@ -26,8 +26,8 @@ import { fullWidthEmbossedCardClassName } from "@/components/cards/cardGeometry"
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { sectionCardFooterTextClassName } from "@/components/cards/sectionCardChromeStyles";
 import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
+import { artistCopy } from "@/copy/artist";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
-import { useLocale, useT } from "@/i18n/localeContext";
 import { CardSignal } from "@/lib/analytics/umami";
 import { cn } from "@/lib/utils";
 
@@ -63,8 +63,6 @@ export function ArtistInfoCard({
   onTrackResolve,
   onResolveStart,
 }: ArtistInfoCardProps) {
-  const t = useT();
-  const { locale } = useLocale();
   const skeletonAllowed = useSkeletonAllowed();
 
   const popularItems = toPopularTrackItems(data);
@@ -79,7 +77,7 @@ export function ArtistInfoCard({
     return (
       <ArtistInfoNoticeCard
         onClose={onClose}
-        message={effectiveStatus === "error" ? t("artist.error") : t("artist.empty")}
+        message={effectiveStatus === "error" ? artistCopy.error : artistCopy.empty}
       />
     );
   }
@@ -105,7 +103,7 @@ export function ArtistInfoCard({
   const showSimilar = showInitialSkeleton || similarItems.length > 0;
   // All sections empty after load -> keep the card shell and explain the empty state.
   if (!isLoading && !showProfile && !showTracks && !showEvents && !showSimilar) {
-    return <ArtistInfoNoticeCard onClose={onClose} message={t("artist.empty")} />;
+    return <ArtistInfoNoticeCard onClose={onClose} message={artistCopy.empty} />;
   }
 
   return (
@@ -153,10 +151,10 @@ export function ArtistInfoCard({
               hasContent={!!data && data.events.length > 0}
               swapKey={buildEventsSwapKey(data)}
             >
-              <UpcomingEventsSection events={data?.events ?? []} userRegion={userRegion} locale={locale} />
+              <UpcomingEventsSection events={data?.events ?? []} userRegion={userRegion} />
             </ArtistSectionWell>
             {!showInitialSkeleton && data && data.events.length > 0 && (
-              <p className={cn(sectionCardFooterTextClassName, "mt-2 px-2")}>{t("artist.eventsProvidedBy")}</p>
+              <p className={cn(sectionCardFooterTextClassName, "mt-2 px-2")}>{artistCopy.eventsProvidedBy}</p>
             )}
           </CollapsibleSection>
 

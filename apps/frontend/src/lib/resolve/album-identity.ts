@@ -17,10 +17,10 @@ export type AlbumIdentityInput = Pick<
  * normalization used in `ShareLayout` so both sides agree on "same artist".
  *
  * @param value - The raw field value.
- * @returns The trimmed, locale-lowercased value.
+ * @returns The trimmed, lowercased value.
  */
 function normalize(value: string): string {
-  return value.trim().toLocaleLowerCase();
+  return value.trim().toLowerCase();
 }
 
 /**

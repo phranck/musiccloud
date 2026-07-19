@@ -6,7 +6,7 @@ import { raisedControlRadius, recessedControlInsetClassName } from "@/components
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { useDismissableLayer } from "@/components/ui/useDismissableLayer";
-import { useT } from "@/i18n/localeContext";
+import { creativeCommonsCopy } from "@/copy/creative-commons";
 import { cn } from "@/lib/utils";
 
 /** Short display labels for the download-format selector. Technical codec names
@@ -74,7 +74,6 @@ interface CcDownloadControlProps {
  * @param formatAriaLabel - Accessible name for the format dropdown.
  */
 export function CcDownloadControl({ jamendoId, formatAriaLabel }: CcDownloadControlProps) {
-  const t = useT();
   const [format, setFormat] = useState<JamendoAudioFormat>(DEFAULT_STREAM_FORMAT);
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<MenuPosition | null>(null);
@@ -110,7 +109,7 @@ export function CcDownloadControl({ jamendoId, formatAriaLabel }: CcDownloadCont
             className="flex w-full items-center justify-center gap-2.5 px-3 py-2.5 text-sm font-medium text-text-primary no-underline"
           >
             <DownloadSimpleIcon weight="duotone" className="size-5 flex-shrink-0" aria-hidden="true" />
-            <span className="truncate leading-none">{t("cc.download")}</span>
+            <span className="truncate leading-none">{creativeCommonsCopy.download}</span>
           </EmbossedButton>
         </RecessedCard.Body>
       </RecessedCard>

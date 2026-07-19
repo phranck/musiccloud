@@ -12,6 +12,9 @@ import type {
   VinylLayout,
 } from "@musiccloud/shared";
 import { buildMetaLine, ENDPOINTS, PLATFORM_CONFIG } from "@musiccloud/shared";
+import { commonCopy } from "@/copy/common";
+import { contentErrorMessage } from "@/copy/content";
+import { resultsCopy } from "@/copy/results";
 import { catalogTextFromIds, labelAlbumTitleFrom, releaseYearFromDate } from "@/lib/media/lp-label";
 import { apiLinksToPlatformLinks } from "@/lib/platform/api-links";
 import { pathFromShortUrl } from "@/lib/share/short-url";
@@ -271,35 +274,28 @@ export class ResolveApiError extends Error {
 }
 
 export function parseResolveError(err: unknown): ResolveUiError {
-  if (err instanceof TypeError && err.message.includes("Failed to fetch")) return { key: "error.offline" };
-  if (err instanceof Error && err.name === "AbortError") return { key: "error.timeout" };
+  if (err instanceof TypeError && err.message.includes("Failed to fetch")) return { kind: "offline" };
+  if (err instanceof Error && err.name === "AbortError") return { kind: "timeout" };
   if (err instanceof ResolveApiError) {
     return {
-      key: `errorCodes.${err.code}`,
+      kind: "backend",
       code: err.code,
       context: err.context,
     };
   }
-  if (err instanceof Error && err.message.startsWith("error.")) return { key: err.message };
-  return { key: "error.generic" };
+  return { kind: "generic" };
 }
 
-export function formatResolveErrorMessage(
-  t: (key: string, vars?: Record<string, string>) => string,
-  error: ResolveUiError,
-): string {
-  const vars = { ...(error.context ?? {}), ...(error.code ? { code: error.code } : {}) };
-  const localized = t(error.key, vars);
-  if (localized !== error.key) return localized;
-  if (error.code) return t("error.genericWithCode", { code: error.code });
-  return t("error.generic");
+export function formatResolveErrorMessage(error: ResolveUiError): string {
+  if (error.kind === "offline") return commonCopy.error.offline;
+  if (error.kind === "timeout") return commonCopy.error.timeout;
+  if (error.kind === "backend") return contentErrorMessage(error.code, error.context);
+  return commonCopy.error.generic;
 }
 
 // ---------------------------------------------------------------------------
 // Display configuration builders
 // ---------------------------------------------------------------------------
-
-type TFunc = (key: string, vars?: Record<string, string>) => string;
 
 /**
  * Extracts the leading short-id segment from a musiccloud short URL.
@@ -316,27 +312,26 @@ function shortIdFromShortUrl(shortUrl: string): string | undefined {
   return shortId || undefined;
 }
 
-function getPlatformsInfo(platforms: PlatformLink[], t: TFunc): string | undefined {
+function getPlatformsInfo(platforms: PlatformLink[]): string | undefined {
   const count = platforms.length;
-  if (count === 0) return t("results.notFound");
-  if (count === 2) return t("results.foundOn2");
+  if (count === 0) return resultsCopy.notFound;
+  if (count === 2) return resultsCopy.foundOnTwoPlatforms;
   if (count === 1) {
     const name = platforms[0].displayName ?? PLATFORM_CONFIG[platforms[0].platform]?.label ?? platforms[0].platform;
-    return t("results.onlyAvailable", { service: name });
+    return resultsCopy.onlyAvailable(name);
   }
   return undefined;
 }
 
 export function buildActiveConfig(
   active: ActiveResult,
-  t: TFunc,
 ): SongContentConfiguration | AlbumContentConfiguration | ArtistContentConfiguration {
   // CcTrackResult has no platforms — it is rendered via buildCcShareConfig (Task 4).
   // This guard keeps the union exhaustive; callers must not pass a CcTrackResult here.
   if (active.kind === ActiveResultKind.CcSong) {
     throw new Error("buildActiveConfig does not handle CcTrackResult — use buildCcShareConfig");
   }
-  const platformsInfo = getPlatformsInfo(active.platforms, t);
+  const platformsInfo = getPlatformsInfo(active.platforms);
 
   if (active.kind === "song") {
     return {
@@ -353,10 +348,10 @@ export function buildActiveConfig(
       labelCatalogText: catalogTextFromIds({ isrc: active.isrc }),
       vinylLayout: active.vinylLayout,
       platforms: active.platforms,
-      platformsLabel: t("results.listenOn"),
+      platformsLabel: resultsCopy.listenOn,
       platformsInfo,
       shareUrl: active.shareUrl,
-      srAnnouncement: t("results.found", { title: active.title, artist: active.artist }),
+      srAnnouncement: resultsCopy.found(active.title, active.artist),
     };
   }
 
@@ -371,18 +366,17 @@ export function buildActiveConfig(
       metaLine: genreLine || undefined,
       labelAlbumTitle: active.name,
       platforms: active.platforms,
-      platformsLabel: t("results.viewArtistOn"),
+      platformsLabel: resultsCopy.viewArtistOn,
       platformsInfo,
       shareUrl: active.shareUrl,
-      srAnnouncement: t("results.foundArtist", { name: active.name }),
+      srAnnouncement: resultsCopy.foundArtist(active.name),
     };
   }
 
   const year = active.releaseDate?.slice(0, 4);
-  const metaParts = [
-    active.totalTracks ? t("results.albumTracks", { count: String(active.totalTracks) }) : null,
-    year,
-  ].filter(Boolean) as string[];
+  const metaParts = [active.totalTracks ? resultsCopy.albumTracks(active.totalTracks) : null, year].filter(
+    Boolean,
+  ) as string[];
 
   return {
     type: "album",
@@ -396,24 +390,23 @@ export function buildActiveConfig(
     labelCatalogText: catalogTextFromIds({ label: active.label, upc: active.upc }),
     vinylLayout: active.vinylLayout,
     platforms: active.platforms,
-    platformsLabel: t("results.openAlbumOn"),
+    platformsLabel: resultsCopy.openAlbumOn,
     platformsInfo,
     shareUrl: active.shareUrl,
-    srAnnouncement: t("results.foundAlbum", { title: active.title, artist: active.artist }),
+    srAnnouncement: resultsCopy.foundAlbum(active.title, active.artist),
   };
 }
 
-export function buildShareConfigFromActive(active: ActiveResult, t: TFunc): ShareContentConfiguration {
+export function buildShareConfigFromActive(active: ActiveResult): ShareContentConfiguration {
   // CcTrackResult has no platforms — it is rendered via buildCcShareConfig (Task 4).
   // This guard keeps the union exhaustive; callers must not pass a CcTrackResult here.
   if (active.kind === ActiveResultKind.CcSong) {
     throw new Error("buildShareConfigFromActive does not handle CcTrackResult — use buildCcShareConfig");
   }
-  const platformsInfo = getPlatformsInfo(active.platforms, t);
+  const platformsInfo = getPlatformsInfo(active.platforms);
   const shortId = shortIdFromShortUrl(active.shareUrl);
 
   if (active.kind === "artist") {
-    const platformsLabelKey = "results.viewArtistOn";
     return {
       type: "share",
       title: active.name,
@@ -422,8 +415,7 @@ export function buildShareConfigFromActive(active: ActiveResult, t: TFunc): Shar
       metaLine: active.genres?.join(", ") || undefined,
       labelAlbumTitle: active.name,
       platforms: active.platforms,
-      platformsLabel: t(platformsLabelKey),
-      platformsLabelKey,
+      platformsLabel: resultsCopy.viewArtistOn,
       platformsInfo,
       shortUrl: active.shareUrl,
       shortId,
@@ -431,12 +423,10 @@ export function buildShareConfigFromActive(active: ActiveResult, t: TFunc): Shar
   }
 
   if (active.kind === "album") {
-    const platformsLabelKey = "results.openAlbumOn";
     const year = active.releaseDate?.slice(0, 4);
-    const metaParts = [
-      active.totalTracks ? t("results.albumTracks", { count: String(active.totalTracks) }) : null,
-      year,
-    ].filter(Boolean) as string[];
+    const metaParts = [active.totalTracks ? resultsCopy.albumTracks(active.totalTracks) : null, year].filter(
+      Boolean,
+    ) as string[];
 
     return {
       type: "share",
@@ -450,15 +440,13 @@ export function buildShareConfigFromActive(active: ActiveResult, t: TFunc): Shar
       labelCatalogText: catalogTextFromIds({ label: active.label, upc: active.upc }),
       vinylLayout: active.vinylLayout,
       platforms: active.platforms,
-      platformsLabel: t(platformsLabelKey),
-      platformsLabelKey,
+      platformsLabel: resultsCopy.openAlbumOn,
       platformsInfo,
       shortUrl: active.shareUrl,
       shortId,
     };
   }
 
-  const platformsLabelKey = "results.listenOn";
   return {
     type: "share",
     title: active.title,
@@ -473,8 +461,7 @@ export function buildShareConfigFromActive(active: ActiveResult, t: TFunc): Shar
     labelCatalogText: catalogTextFromIds({ isrc: active.isrc }),
     vinylLayout: active.vinylLayout,
     platforms: active.platforms,
-    platformsLabel: t(platformsLabelKey),
-    platformsLabelKey,
+    platformsLabel: resultsCopy.listenOn,
     platformsInfo,
     shortUrl: active.shareUrl,
     shortId,
@@ -553,10 +540,9 @@ function ccLicenseLabel(url: string | undefined): string | undefined {
  * stays in the config for the deed link and as the verbatim fallback.
  *
  * @param cc - The resolved CC track from app state.
- * @param t - Translation function for pre-computed UI strings.
  * @returns A fully populated `CcTrackContentConfiguration`.
  */
-function buildCcShareConfig(cc: CcTrackResult, t: TFunc): CcTrackContentConfiguration {
+function buildCcShareConfig(cc: CcTrackResult): CcTrackContentConfiguration {
   const shortId = shortIdFromShortUrl(cc.shareUrl);
   return {
     type: "cc-track",
@@ -570,7 +556,7 @@ function buildCcShareConfig(cc: CcTrackResult, t: TFunc): CcTrackContentConfigur
     // CC tracks are GEMA-free: show the licence in the top-left rights field
     // (replacing "GEMA") and leave the center catalog field empty (no ISRC).
     labelRightsText: ccLicenseLabel(cc.licenseCcurl),
-    srAnnouncement: t("results.found", { title: cc.title, artist: cc.artist }),
+    srAnnouncement: resultsCopy.found(cc.title, cc.artist),
     shortUrl: cc.shareUrl,
     shortId,
     streamUrl: cc.streamUrl,
@@ -642,7 +628,6 @@ function buildCcEntityHeaderConfig(opts: {
     vinylLayout: opts.vinylLayout,
     platforms: [],
     platformsLabel: "",
-    platformsLabelKey: "",
     shortUrl: opts.shortUrl,
   };
 }
@@ -711,10 +696,9 @@ export interface CcResultShareProps {
  * the config through an in-place resolve.
  *
  * @param ccActive - The resolved CC entity from app state.
- * @param t - Translation function (forwarded to {@link buildCcShareConfig}).
  * @returns The `config` and `artistName` for ShareLayout.
  */
-export function ccResultToShareProps(ccActive: CcResult, t: TFunc): CcResultShareProps {
+export function ccResultToShareProps(ccActive: CcResult): CcResultShareProps {
   if (ccActive.kind === ActiveResultKind.CcAlbum) {
     return {
       config: buildCcEntityHeaderConfig({
@@ -743,7 +727,7 @@ export function ccResultToShareProps(ccActive: CcResult, t: TFunc): CcResultShar
     };
   }
   return {
-    config: { ...ccTrackToShareConfig(ccActive), ccInfoContent: buildCcShareConfig(ccActive, t) },
+    config: { ...ccTrackToShareConfig(ccActive), ccInfoContent: buildCcShareConfig(ccActive) },
     artistName: ccActive.artist,
   };
 }

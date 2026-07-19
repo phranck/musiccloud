@@ -4,7 +4,7 @@ function normalizedTitle(title: string | null | undefined): string | null {
   const normalized = title
     ?.normalize("NFKD")
     .replace(/\p{M}/gu, "")
-    .toLocaleLowerCase()
+    .toLowerCase()
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim()
     .replace(/\s+/g, " ");

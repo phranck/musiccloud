@@ -93,4 +93,36 @@ describe("fetchPublicContentPage", () => {
       statusCode: 503,
     });
   });
+
+  it("requests editorial content without a locale parameter", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ slug: "about" }), {
+        headers: { "Content-Type": "application/json" },
+        status: 200,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { fetchPublicContentPage } = await import("./client");
+
+    await fetchPublicContentPage("about");
+
+    expect(fetchMock).toHaveBeenCalledWith("https://backend.test/api/v1/content/about", expect.any(Object));
+  });
+});
+
+describe("fetchNavigation", () => {
+  it("requests editorial navigation without a locale parameter", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify([]), {
+        headers: { "Content-Type": "application/json" },
+        status: 200,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { fetchNavigation } = await import("./client");
+
+    await fetchNavigation("header");
+
+    expect(fetchMock).toHaveBeenCalledWith("https://backend.test/api/v1/nav/header", expect.any(Object));
+  });
 });

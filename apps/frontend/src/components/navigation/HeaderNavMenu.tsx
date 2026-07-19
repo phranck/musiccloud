@@ -5,7 +5,7 @@ import { type MouseEvent, useCallback, useId, useRef, useState } from "react";
 import { raisedControlRadius, recessedSurfaceRadius } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { useDismissableLayer } from "@/components/ui/useDismissableLayer";
-import { useT } from "@/i18n/localeContext";
+import { commonCopy } from "@/copy/common";
 import { navHref, navLabel } from "@/lib/nav";
 
 interface HeaderNavMenuProps {
@@ -38,7 +38,6 @@ const RAISED_RADIUS_STYLE = {
  * chosen.
  */
 export function HeaderNavMenu({ navItems, onNavClick }: HeaderNavMenuProps) {
-  const t = useT();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const menuId = useId();
@@ -56,7 +55,7 @@ export function HeaderNavMenu({ navItems, onNavClick }: HeaderNavMenuProps) {
             onClick={() => setOpen((prev) => !prev)}
             aria-expanded={open}
             aria-controls={menuId}
-            aria-label={t("nav.menu")}
+            aria-label={commonCopy.navigation.menu}
             style={RAISED_RADIUS_STYLE}
             className="embossed-gradient-border mc-glass-nav-indicator mc-txt-nav-bright relative z-10 flex size-[34px] cursor-pointer items-center justify-center overflow-hidden rounded-lg border-none focus-visible:outline-2 focus-visible:outline-white/40 focus-visible:outline-offset-2"
           >
@@ -74,7 +73,7 @@ export function HeaderNavMenu({ navItems, onNavClick }: HeaderNavMenuProps) {
         <div className="absolute left-0 top-full z-50 mt-2">
           <nav
             id={menuId}
-            aria-label={t("nav.menu")}
+            aria-label={commonCopy.navigation.menu}
             style={RAISED_RADIUS_STYLE}
             className="recessed-gradient-border mc-glass-nav-track flex min-w-[10rem] origin-top animate-menu-drop-in flex-col gap-0.5 overflow-hidden p-1"
           >

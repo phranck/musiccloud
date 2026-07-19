@@ -21,7 +21,7 @@ export interface OverlayAPI {
  * `OverlayContext.tsx` — so React Fast Refresh can hot-swap the provider
  * during dev HMR. A file that mixes a component export with context/hook
  * exports is not a valid Fast Refresh boundary: Vite invalidates it on every
- * edit. Mirrors the `i18n/localeContext.ts` split. Production is unaffected
+ * edit. Production is unaffected
  * (no Fast Refresh there).
  */
 export const OverlayCtx = createContext<OverlayAPI | null>(null);

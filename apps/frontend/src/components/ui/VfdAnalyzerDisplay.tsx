@@ -19,7 +19,7 @@ import {
   type PlayerLineParams,
   playerVfdCellCountForContentWidth,
 } from "@/components/ui/vfdAnalyzerLines";
-import { useT } from "@/i18n/localeContext";
+import { audioCopy } from "@/copy/audio";
 import { cn } from "@/lib/utils";
 
 /**
@@ -70,7 +70,6 @@ export function VfdAnalyzerDisplay({
   ariaLabel,
   className,
 }: VfdAnalyzerDisplayProps) {
-  const t = useT();
   const analyzerMode = useAnalyzerMode();
   const wrapperRef = useRef<HTMLButtonElement | null>(null);
   const vfdControllerRef = useRef<VfdDisplayHandle | null>(null);
@@ -151,7 +150,7 @@ export function VfdAnalyzerDisplay({
     return () => observer.disconnect();
   }, []);
 
-  const wrapperTitle = t("audio.previewAnalyzerToggleTooltip");
+  const wrapperTitle = audioCopy.previewAnalyzerToggleTooltip;
   const handleDisplayClick = useCallback((event: ReactMouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     toggleAnalyzerMode();

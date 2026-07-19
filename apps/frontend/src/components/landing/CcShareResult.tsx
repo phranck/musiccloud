@@ -1,15 +1,14 @@
 import { lazy, type MouseEvent, type RefObject } from "react";
 import { ShareResultFrame } from "@/components/landing/ShareResultFrame";
+import { discoveryCopy } from "@/copy/discovery";
 import { loadShareLayout } from "@/lib/preload/resultRuntime";
 import { ccResultToShareProps } from "@/lib/resolve/parsers";
 import { ccTrackResolver } from "@/lib/resolve/track-resolver";
-import { CC_ARTIST_LABEL_KEYS } from "@/lib/share/share-view";
+import { CC_ARTIST_LABELS } from "@/lib/share/share-view";
 import type { CcResult } from "@/lib/types/app";
 
 // Lazy-loaded share UI — only pulled into the bundle when a result is shown.
 const ShareLayout = lazy(loadShareLayout);
-
-type CcViewTFunc = (key: string, vars?: Record<string, string>) => string;
 
 interface CcShareResultProps {
   ccActive: CcResult;
@@ -17,7 +16,6 @@ interface CcShareResultProps {
   resultsPanelRef: RefObject<HTMLDivElement | null>;
   canGoBack: boolean;
   handleBack: () => void;
-  t: CcViewTFunc;
 }
 
 /**
@@ -34,7 +32,6 @@ interface CcShareResultProps {
  * @param resultsPanelRef - Focus target so keyboard users land on the result.
  * @param canGoBack - Whether a genre-search screen is on the navigation stack.
  * @param handleBack - Pops the navigation stack back to the genre-search results.
- * @param t - Translation function.
  */
 export function CcShareResult({
   ccActive,
@@ -42,9 +39,8 @@ export function CcShareResult({
   resultsPanelRef,
   canGoBack,
   handleBack,
-  t,
 }: CcShareResultProps) {
-  const { config, artistName } = ccResultToShareProps(ccActive, t);
+  const { config, artistName } = ccResultToShareProps(ccActive);
   return (
     <ShareResultFrame resultsPanelRef={resultsPanelRef} handleShareLogoClick={handleShareLogoClick}>
       <ShareLayout
@@ -52,10 +48,10 @@ export function CcShareResult({
         artistName={artistName}
         artistData={ccActive.artistInfo}
         skipArtistFetch={!config.ccJamendoArtistId}
-        labels={CC_ARTIST_LABEL_KEYS}
+        labels={CC_ARTIST_LABELS}
         trackResolver={ccTrackResolver}
         onBack={canGoBack ? handleBack : undefined}
-        backLabel={canGoBack ? t("genreSearch.backToResults") : undefined}
+        backLabel={canGoBack ? discoveryCopy.genreSearch.backToResults : undefined}
       />
     </ShareResultFrame>
   );
