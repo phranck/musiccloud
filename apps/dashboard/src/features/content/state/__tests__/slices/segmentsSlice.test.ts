@@ -5,12 +5,12 @@ describe("segmentsSlice", () => {
   const seed = {
     byOwner: {
       info: {
-        initial: [{ position: 0, label: "Help", targetSlug: "help" }],
-        current: [{ position: 0, label: "Help", targetSlug: "help" }],
+        initial: [{ position: 0, label: { en: "Help" }, targetSlug: "help" }],
+        current: [{ position: 0, label: { en: "Help" }, targetSlug: "help" }],
       },
       help: {
-        initial: [{ position: 0, label: "Privacy", targetSlug: "privacy" }],
-        current: [{ position: 0, label: "Privacy", targetSlug: "privacy" }],
+        initial: [{ position: 0, label: { en: "Privacy" }, targetSlug: "privacy" }],
+        current: [{ position: 0, label: { en: "Privacy" }, targetSlug: "privacy" }],
       },
     },
   };
@@ -22,12 +22,12 @@ describe("segmentsSlice", () => {
         info: {
           ...seed.byOwner.info,
           current: [
-            { position: 0, label: "Help", targetSlug: "help" },
-            { position: 1, label: "Privacy", targetSlug: "privacy" },
+            { position: 0, label: { en: "Help" }, targetSlug: "help" },
+            { position: 1, label: { en: "Privacy" }, targetSlug: "privacy" },
           ],
           initial: [
-            { position: 0, label: "Help", targetSlug: "help" },
-            { position: 1, label: "Privacy", targetSlug: "privacy" },
+            { position: 0, label: { en: "Help" }, targetSlug: "help" },
+            { position: 1, label: { en: "Privacy" }, targetSlug: "privacy" },
           ],
         },
       },
@@ -62,7 +62,7 @@ describe("segmentsSlice", () => {
     expect(dirtyOwners(s2)).toEqual([]);
   });
 
-  it("hydrates the canonical segment label", () => {
+  it("hydrates legacy segment translations into localized labels", () => {
     const s = segmentsReducer(
       { byOwner: {} },
       {
@@ -70,23 +70,24 @@ describe("segmentsSlice", () => {
         entries: [
           {
             ownerSlug: "info",
-            segments: [{ position: 0, label: "Genre", targetSlug: "genre" }],
+            segments: [{ position: 0, label: "Genre", targetSlug: "genre", translations: { de: "Musikrichtung" } }],
           },
         ],
       },
     );
 
-    expect(s.byOwner.info.current[0].label).toBe("Genre");
+    expect(s.byOwner.info.current[0].label).toEqual({ en: "Genre", de: "Musikrichtung" });
   });
 
-  it("sets the canonical label", () => {
+  it("sets one localized label without removing other locales", () => {
     const s1 = segmentsReducer(seed, {
       type: "set-label",
       owner: "info",
       target: "help",
-      label: "Support",
+      locale: "de",
+      label: "Hilfe",
     });
 
-    expect(s1.byOwner.info.current[0].label).toBe("Support");
+    expect(s1.byOwner.info.current[0].label).toEqual({ en: "Help", de: "Hilfe" });
   });
 });

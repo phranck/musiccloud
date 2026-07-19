@@ -54,6 +54,7 @@ const SNAPSHOT = {
       updatedByUsername: null,
       createdAt: "2026-05-03T00:00:00Z",
       updatedAt: null,
+      translationStatus: {} as Record<string, never>,
       position: 0,
     },
   ],

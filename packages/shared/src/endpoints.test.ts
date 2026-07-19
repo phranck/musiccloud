@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ENDPOINTS, ROUTE_TEMPLATES } from "./endpoints.js";
+import { ENDPOINTS } from "./endpoints.js";
 
 describe("endpoint catalog", () => {
   it("keeps the public Umami proxy while omitting retired admin analytics endpoints", () => {
@@ -14,12 +14,6 @@ describe("endpoint catalog", () => {
   it("exposes the atomic navigation configuration endpoint", () => {
     expect(ENDPOINTS.admin.navigations.configuration).toBe("/api/admin/nav");
     expect(ENDPOINTS.admin.navigations.detail("header")).toBe("/api/admin/nav/header");
-  });
-
-  it("does not expose editorial translation routes", () => {
-    expect(ENDPOINTS.admin.pages).not.toHaveProperty("translations");
-    expect(ROUTE_TEMPLATES.admin.pages).not.toHaveProperty("translationsList");
-    expect(ROUTE_TEMPLATES.admin.pages).not.toHaveProperty("translationsDetail");
   });
 
   it("exposes narrow internal Developer Portal editorial reads", () => {

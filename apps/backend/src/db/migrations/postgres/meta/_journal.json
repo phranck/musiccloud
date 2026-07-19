@@ -568,13 +568,6 @@
       "when": 1784417212285,
       "tag": "0080_hard_boomerang",
       "breakpoints": true
-    },
-    {
-      "idx": 81,
-      "version": "7",
-      "when": 1784458797566,
-      "tag": "0081_past_quentin_quire",
-      "breakpoints": true
     }
   ]
 }

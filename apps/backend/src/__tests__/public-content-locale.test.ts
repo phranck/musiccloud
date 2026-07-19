@@ -1,9 +1,18 @@
 import { ContentContext } from "@musiccloud/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AdminRepository, ContentPageRow, NavItemRow } from "../db/admin-repository.js";
+import type {
+  AdminRepository,
+  ContentPageRow,
+  ContentPageTranslationRow,
+  NavItemRow,
+  NavItemTranslationRow,
+} from "../db/admin-repository.js";
 
 let page: ContentPageRow | null = null;
+let translations: ContentPageTranslationRow[] = [];
 let navRows: NavItemRow[] = [];
+let navTranslations: NavItemTranslationRow[] = [];
+let pageTranslationsBySlug: Map<string, ContentPageTranslationRow[]> = new Map();
 
 const baseRepo: Partial<AdminRepository> = {
   async getContentPageBySlug(slug: string) {
@@ -31,14 +40,23 @@ const baseRepo: Partial<AdminRepository> = {
         : page.status === "published";
     return isPublished ? [{ slug: page.slug, title: page.title }] : [];
   },
+  async listPageTranslations(slug: string) {
+    return pageTranslationsBySlug.get(slug) ?? translations;
+  },
   async listSegmentsForOwner() {
     return [];
   },
   async getPublishedContentPagesBySlugs() {
     return [];
   },
+  async listSegmentTranslationsForOwner() {
+    return [];
+  },
   async listAdminNavItems() {
     return navRows;
+  },
+  async listNavTranslations() {
+    return navTranslations;
   },
 };
 
@@ -82,15 +100,55 @@ function mkNavRow(overrides: Partial<NavItemRow> = {}): NavItemRow {
   };
 }
 
-describe("getPublicContentPage canonical editorial content", () => {
+describe("getPublicContentPage locale fallback", () => {
   beforeEach(() => {
     page = null;
+    translations = [];
+    pageTranslationsBySlug = new Map();
   });
 
-  it("returns the canonical title and content", async () => {
+  it("returns en content when no translation exists", async () => {
     page = mkPage();
     const { getPublicContentPage } = await import("../services/admin-content.js");
-    const r = await getPublicContentPage("about");
+    const r = await getPublicContentPage("about", "de");
+    expect(r?.title).toBe("About");
+    expect(r?.content).toBe("EN body");
+  });
+
+  it("returns de content when a translation exists", async () => {
+    page = mkPage();
+    translations = [
+      {
+        slug: "about",
+        locale: "de",
+        title: "Über uns",
+        content: "DE body",
+        sourceUpdatedAt: new Date(),
+        updatedAt: new Date(),
+        updatedBy: null,
+      },
+    ];
+    const { getPublicContentPage } = await import("../services/admin-content.js");
+    const r = await getPublicContentPage("about", "de");
+    expect(r?.title).toBe("Über uns");
+    expect(r?.content).toBe("DE body");
+  });
+
+  it("defaults to en when requested locale is already default", async () => {
+    page = mkPage();
+    translations = [
+      {
+        slug: "about",
+        locale: "de",
+        title: "Über uns",
+        content: "DE body",
+        sourceUpdatedAt: new Date(),
+        updatedAt: new Date(),
+        updatedBy: null,
+      },
+    ];
+    const { getPublicContentPage } = await import("../services/admin-content.js");
+    const r = await getPublicContentPage("about", "en");
     expect(r?.title).toBe("About");
     expect(r?.content).toBe("EN body");
   });
@@ -113,7 +171,7 @@ describe("getPublicContentPage canonical editorial content", () => {
     const { getPublicContentPage, getPublicContentPages } = await import("../services/admin-content.js");
 
     await expect(getPublicContentPages()).resolves.toEqual([{ slug: "privacy", title: "About" }]);
-    await expect(getPublicContentPage("privacy")).resolves.toMatchObject({ slug: "privacy" });
+    await expect(getPublicContentPage("privacy", "en")).resolves.toMatchObject({ slug: "privacy" });
   });
 
   it("does not expose a Developer Portal-only publication through the legacy Frontend slug", async () => {
@@ -133,7 +191,7 @@ describe("getPublicContentPage canonical editorial content", () => {
     });
     const { getPublicContentPage } = await import("../services/admin-content.js");
 
-    await expect(getPublicContentPage("privacy")).resolves.toBeNull();
+    await expect(getPublicContentPage("privacy", "en")).resolves.toBeNull();
   });
 
   it("does not expose a draft Frontend publication through the legacy Frontend slug", async () => {
@@ -153,26 +211,60 @@ describe("getPublicContentPage canonical editorial content", () => {
     });
     const { getPublicContentPage } = await import("../services/admin-content.js");
 
-    await expect(getPublicContentPage("privacy")).resolves.toBeNull();
+    await expect(getPublicContentPage("privacy", "en")).resolves.toBeNull();
   });
 });
 
-describe("getPublicNavItems canonical editorial labels", () => {
+describe("getPublicNavItems locale fallback", () => {
   beforeEach(() => {
+    translations = [];
     navRows = [];
+    navTranslations = [];
+    pageTranslationsBySlug = new Map();
   });
 
-  it("returns the canonical custom label", async () => {
+  it("returns default label when no nav translation exists for locale", async () => {
     navRows = [mkNavRow({ label: "Home", pageSlug: null })];
     const { getPublicNavItems } = await import("../services/admin-nav.js");
-    const result = await getPublicNavItems("header");
+    const result = await getPublicNavItems("header", "de");
     expect(result[0]?.label).toBe("Home");
   });
 
-  it("falls back to the canonical linked-page title when no custom label exists", async () => {
-    navRows = [mkNavRow({ id: 2, label: null, pageSlug: "about", pageTitle: "About" })];
+  it("returns translated nav label when nav translation exists for locale", async () => {
+    navRows = [mkNavRow({ id: 1, label: "Home", pageSlug: null })];
+    navTranslations = [
+      { navItemId: 1, locale: "de", label: "Startseite", sourceUpdatedAt: new Date(), updatedAt: new Date() },
+    ];
     const { getPublicNavItems } = await import("../services/admin-nav.js");
-    const result = await getPublicNavItems("header");
+    const result = await getPublicNavItems("header", "de");
+    expect(result[0]?.label).toBe("Startseite");
+  });
+
+  it("falls back to linked page translation title when nav has no custom label and a translation exists", async () => {
+    navRows = [mkNavRow({ id: 2, label: null, pageSlug: "about", pageTitle: "About" })];
+    navTranslations = [];
+    pageTranslationsBySlug.set("about", [
+      {
+        slug: "about",
+        locale: "de",
+        title: "Über uns",
+        content: "DE body",
+        sourceUpdatedAt: new Date(),
+        updatedAt: new Date(),
+        updatedBy: null,
+      },
+    ]);
+    const { getPublicNavItems } = await import("../services/admin-nav.js");
+    const result = await getPublicNavItems("header", "de");
+    expect(result[0]?.label).toBe("Über uns");
+    expect(result[0]?.pageTitle).toBe("Über uns");
+  });
+
+  it("falls back to default locale title when linked page translation is missing", async () => {
+    navRows = [mkNavRow({ id: 3, label: null, pageSlug: "about", pageTitle: "About" })];
+    navTranslations = [];
+    const { getPublicNavItems } = await import("../services/admin-nav.js");
+    const result = await getPublicNavItems("header", "de");
     expect(result[0]?.label).toBe("About");
     expect(result[0]?.pageTitle).toBe("About");
   });

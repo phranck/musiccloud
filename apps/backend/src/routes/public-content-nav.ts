@@ -1,9 +1,48 @@
-import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
-import type { FastifyInstance } from "fastify";
+import type { Locale } from "@musiccloud/shared";
+import { DEFAULT_LOCALE, ENDPOINTS, isLocale, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 
 import { getPublicContentPage, getPublicContentPages } from "../services/admin-content.js";
 import { getPublicNavItems, isValidNavId } from "../services/admin-nav.js";
 import { normalizeEditorialPath } from "../services/editorial-path.js";
+
+/**
+ * Resolve the request locale via 4-step fallback:
+ * 1. `?locale=` query param (if valid Locale)
+ * 2. `mc:locale` cookie (if valid Locale)
+ * 3. First token of `Accept-Language` header (if valid Locale)
+ * 4. DEFAULT_LOCALE
+ */
+function resolveRequestLocale(request: FastifyRequest<{ Querystring: { locale?: string } }>): Locale {
+  // 1. Query param
+  const q = request.query.locale;
+  if (q && isLocale(q)) return q;
+
+  // 2. Cookie — parse from raw Cookie header (no @fastify/cookie plugin required)
+  const rawCookie = request.headers.cookie;
+  if (rawCookie) {
+    for (const part of rawCookie.split(";")) {
+      const eqIdx = part.indexOf("=");
+      if (eqIdx === -1) continue;
+      const name = part.slice(0, eqIdx).trim();
+      if (name === "mc:locale") {
+        const val = part.slice(eqIdx + 1).trim();
+        if (isLocale(val)) return val;
+        break;
+      }
+    }
+  }
+
+  // 3. Accept-Language header
+  const acceptLang = request.headers["accept-language"];
+  if (acceptLang) {
+    const first = acceptLang.split(",")[0]?.split(";")[0]?.trim();
+    const tag = first?.split("-")[0]?.toLowerCase();
+    if (tag && isLocale(tag)) return tag;
+  }
+
+  return DEFAULT_LOCALE;
+}
 
 const NAV_CACHE = "public, max-age=300, stale-while-revalidate=3600";
 const CONTENT_CACHE = "public, max-age=3600, stale-while-revalidate=86400";
@@ -17,7 +56,7 @@ const CONTENT_TAGS = ["Content"];
  * CDN-friendliness: nav refreshes every 5 minutes, content pages every hour.
  */
 export default async function publicContentNavRoutes(app: FastifyInstance) {
-  app.get<{ Params: { navId: string } }>(
+  app.get<{ Params: { navId: string }; Querystring: { locale?: string } }>(
     ROUTE_TEMPLATES.v1.nav,
     {
       schema: {
@@ -36,6 +75,15 @@ export default async function publicContentNavRoutes(app: FastifyInstance) {
             },
           },
         },
+        querystring: {
+          type: "object",
+          properties: {
+            locale: {
+              type: "string",
+              description: "Preferred locale (e.g. `de`). Falls back through cookie → Accept-Language → default.",
+            },
+          },
+        },
         response: {
           200: {
             description: "Ordered nav items for the requested bar. Empty array when nothing is configured.",
@@ -49,7 +97,7 @@ export default async function publicContentNavRoutes(app: FastifyInstance) {
                 pageTitle: "About musiccloud",
                 url: null,
                 target: "_self",
-                label: "About musiccloud",
+                label: null,
                 position: 0,
               },
               {
@@ -59,7 +107,7 @@ export default async function publicContentNavRoutes(app: FastifyInstance) {
                 pageTitle: "Privacy Policy",
                 url: null,
                 target: "_self",
-                label: "Privacy Policy",
+                label: null,
                 position: 1,
               },
               {
@@ -86,8 +134,10 @@ export default async function publicContentNavRoutes(app: FastifyInstance) {
       if (!isValidNavId(navId)) {
         return reply.status(400).send({ error: "INVALID_INPUT", message: 'navId must be "header" or "footer"' });
       }
+      const locale = resolveRequestLocale(request);
       reply.header("Cache-Control", NAV_CACHE);
-      return getPublicNavItems(navId);
+      reply.header("Vary", "Accept-Language, Cookie");
+      return getPublicNavItems(navId, locale);
     },
   );
 
@@ -127,7 +177,7 @@ export default async function publicContentNavRoutes(app: FastifyInstance) {
     },
   );
 
-  app.get<{ Params: { slug: string } }>(
+  app.get<{ Params: { slug: string }; Querystring: { locale?: string } }>(
     ROUTE_TEMPLATES.v1.contentDetail,
     {
       schema: {
@@ -140,6 +190,15 @@ export default async function publicContentNavRoutes(app: FastifyInstance) {
           required: ["slug"],
           properties: {
             slug: { type: "string", description: "URL-safe identifier (e.g. `about`, `privacy`)." },
+          },
+        },
+        querystring: {
+          type: "object",
+          properties: {
+            locale: {
+              type: "string",
+              description: "Preferred locale (e.g. `de`). Falls back through cookie → Accept-Language → default.",
+            },
           },
         },
         response: {
@@ -155,6 +214,7 @@ export default async function publicContentNavRoutes(app: FastifyInstance) {
       },
     },
     async (request, reply) => {
+      const locale = resolveRequestLocale(request);
       let path: string;
       try {
         path = normalizeEditorialPath(request.params.slug);
@@ -164,9 +224,10 @@ export default async function publicContentNavRoutes(app: FastifyInstance) {
           message: error instanceof Error ? error.message : "Content path is invalid",
         });
       }
-      const page = await getPublicContentPage(path);
+      const page = await getPublicContentPage(path, locale);
       if (!page) return reply.status(404).send({ error: "NOT_FOUND", message: "Content page not found" });
       reply.header("Cache-Control", CONTENT_CACHE);
+      reply.header("Vary", "Accept-Language, Cookie");
       return page;
     },
   );

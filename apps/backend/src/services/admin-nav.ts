@@ -1,11 +1,14 @@
 import {
   ContentContext,
+  DEFAULT_LOCALE,
   expectedNavigationPlacements,
   hasAllContextBits,
+  isLocale,
   isNavigationSystemKey,
   isSafeConfiguredUrl,
   isValidContentContextMask,
   isValidNavigationAreaMask,
+  type Locale,
   NAVIGATION_SYSTEM_TARGETS,
   type NavId,
   type NavItem,
@@ -33,7 +36,7 @@ export type NavResult<T> = { ok: true; data: T } | { ok: false; code: "INVALID_I
 
 const VALID_NAV_IDS: NavId[] = ["header", "footer"];
 
-type ValidatedLegacyNavItem = NavItemReplaceInput;
+type ValidatedLegacyNavItem = NavItemReplaceInput & { translations?: Partial<Record<Locale, string>> };
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -73,6 +76,7 @@ function rowToNavigationEntry(row: NavigationConfigurationEntryRow): NavigationE
     contextMask: row.contextMask,
     areaMask: row.areaMask,
     placements: row.placements,
+    translations: row.translations,
     canonicalRoute: systemTarget?.canonicalRoute ?? null,
     behavior: systemTarget?.behavior ?? null,
   };
@@ -94,6 +98,17 @@ function navigationMasks(placements: NavigationPlacement[]): {
   };
 }
 
+function normalizedLegacyTranslations(
+  translations: Partial<Record<Locale, string>> | undefined,
+): Partial<Record<Locale, string>> {
+  return Object.fromEntries(
+    Object.entries(translations ?? {}).filter(
+      ([locale, label]) =>
+        isLocale(locale) && locale !== DEFAULT_LOCALE && typeof label === "string" && label.length > 0,
+    ),
+  ) as Partial<Record<Locale, string>>;
+}
+
 function toConfigurationInput(
   row: NavigationConfigurationEntryRow,
   placements: NavigationPlacement[],
@@ -109,6 +124,7 @@ function toConfigurationInput(
     contextMask,
     areaMask,
     placements,
+    translations: row.translations,
   };
 }
 
@@ -177,6 +193,7 @@ async function replaceContextualLegacySlice(
         placements,
         target: item.target ?? "_self",
         label: item.label ?? null,
+        translations: normalizedLegacyTranslations(item.translations),
       };
       continue;
     }
@@ -191,15 +208,38 @@ async function replaceContextualLegacySlice(
       contextMask: ContentContext.Frontend,
       areaMask: area,
       placements: [placement],
+      translations: normalizedLegacyTranslations(item.translations),
     });
   }
 
   await repo.replaceNavigationConfiguration(nextEntries);
   const rows = await repo.listAdminNavItems(navId);
+  const translationRows = await repo.listNavTranslations(navId);
+  const translationsByItemId = new Map<number, Partial<Record<Locale, string>>>();
+  for (const translation of translationRows) {
+    if (!isLocale(translation.locale)) continue;
+    const translations = translationsByItemId.get(translation.navItemId) ?? {};
+    translations[translation.locale] = translation.label;
+    translationsByItemId.set(translation.navItemId, translations);
+  }
   return {
     ok: true,
-    data: rows.map(rowToNavItem),
+    data: rows.map((row) => rowToNavItem(row, translationsByItemId.get(row.id))),
   };
+}
+
+function parseTranslations(value: unknown, entryIndex: number): Partial<Record<Locale, string>> | NavResult<never> {
+  if (value === undefined) return {};
+  if (!isPlainObject(value)) return invalid(`entries[${entryIndex}].translations must be an object`);
+  const translations: Partial<Record<Locale, string>> = {};
+  for (const [locale, label] of Object.entries(value)) {
+    if (!isLocale(locale) || typeof label !== "string" || label.length === 0 || label.length > 100) {
+      return invalid(`entries[${entryIndex}].translations contains an invalid label`);
+    }
+    if (locale === DEFAULT_LOCALE) continue;
+    translations[locale] = label;
+  }
+  return translations;
 }
 
 function parsePlacements(
@@ -270,6 +310,9 @@ async function validateNavigationEntry(
 
   const placements = parsePlacements(raw.placements, contextMask, areaMask, entryIndex);
   if (!Array.isArray(placements)) return placements;
+  const translations = parseTranslations(raw.translations, entryIndex);
+  if ("ok" in translations) return translations;
+
   let pageId: string | null = null;
   let url: string | null = null;
   let systemKey: NavigationEntryInput["systemKey"] = null;
@@ -321,6 +364,7 @@ async function validateNavigationEntry(
     contextMask,
     areaMask,
     placements,
+    translations,
   };
 }
 
@@ -363,20 +407,24 @@ export async function replaceManagedNavigationConfiguration(
   return { ok: true, data: { entries: persisted.map(rowToNavigationEntry) } };
 }
 
-function rowToNavItem(row: NavItemRow): NavItem {
-  return {
+function rowToNavItem(row: NavItemRow, translations?: Partial<Record<Locale, string>>): NavItem {
+  const item: NavItem = {
     id: row.id,
     navId: row.navId,
     pageSlug: row.pageSlug,
     pageTitle: row.pageTitle,
     url: row.url,
     target: row.target,
-    label: row.label ?? row.pageTitle,
+    label: row.label,
     position: row.position,
     pageType: row.pageType,
     pageDisplayMode: row.pageDisplayMode,
     pageOverlayWidth: row.pageOverlayWidth,
   };
+  if (translations && Object.keys(translations).length > 0) {
+    item.translations = translations;
+  }
+  return item;
 }
 
 export function isValidNavId(value: string): value is NavId {
@@ -386,7 +434,18 @@ export function isValidNavId(value: string): value is NavId {
 export async function getManagedNavItems(navId: NavId): Promise<NavItem[]> {
   const repo = await getAdminRepository();
   const rows = await repo.listAdminNavItems(navId);
-  return rows.map(rowToNavItem);
+  const translationRows = await repo.listNavTranslations(navId);
+  const translationsByItemId = new Map<number, Partial<Record<Locale, string>>>();
+  for (const t of translationRows) {
+    if (!isLocale(t.locale)) continue;
+    let map = translationsByItemId.get(t.navItemId);
+    if (!map) {
+      map = {};
+      translationsByItemId.set(t.navItemId, map);
+    }
+    map[t.locale] = t.label;
+  }
+  return rows.map((r) => rowToNavItem(r, translationsByItemId.get(r.id)));
 }
 
 export async function replaceManagedNavItems(navId: NavId, items: unknown): Promise<NavResult<NavItem[]>> {
@@ -434,7 +493,7 @@ export async function replaceManagedNavItems(navId: NavId, items: unknown): Prom
       label = r.label.length > 0 ? r.label : null;
     }
 
-    validated.push({ pageSlug, url, target, label });
+    validated.push({ pageSlug, url, target, label, translations: r.translations });
   }
 
   const repo = await getAdminRepository();
@@ -444,16 +503,84 @@ export async function replaceManagedNavItems(navId: NavId, items: unknown): Prom
   }
   const rows = await repo.replaceAdminNavItems(navId, validated);
 
+  for (let i = 0; i < rows.length; i++) {
+    const persisted = rows[i]!;
+    const input = validated[i]!;
+    const translations = Object.entries(input.translations ?? {})
+      .filter(
+        ([locale, label]) =>
+          isLocale(locale) && locale !== DEFAULT_LOCALE && typeof label === "string" && label.length > 0,
+      )
+      .map(([locale, label]) => ({
+        locale,
+        label: label as string,
+        sourceUpdatedAt: persisted.labelUpdatedAt,
+      }));
+    await repo.replaceNavItemTranslations(persisted.id, translations);
+  }
+
+  const translationRows = await repo.listNavTranslations(navId);
+  const translationsByItemId = new Map<number, Partial<Record<Locale, string>>>();
+  for (const t of translationRows) {
+    if (!isLocale(t.locale)) continue;
+    let map = translationsByItemId.get(t.navItemId);
+    if (!map) {
+      map = {};
+      translationsByItemId.set(t.navItemId, map);
+    }
+    map[t.locale] = t.label;
+  }
+
   return {
     ok: true,
-    data: rows.map(rowToNavItem),
+    data: rows.map((r) => rowToNavItem(r, translationsByItemId.get(r.id))),
   };
 }
 
 // -- Public read --------------------------------------------------------------
 
-export async function getPublicNavItems(navId: NavId): Promise<NavItem[]> {
+export async function getPublicNavItems(navId: NavId, locale: Locale): Promise<NavItem[]> {
   const repo = await getAdminRepository();
   const rows = await repo.listAdminNavItems(navId);
-  return rows.map(rowToNavItem);
+
+  if (locale === DEFAULT_LOCALE) {
+    return rows.map((r) => rowToNavItem(r));
+  }
+
+  // Load nav-item translations once for the whole nav.
+  const navTxRows = await repo.listNavTranslations(navId);
+  const navTxByItemId = new Map<number, string>();
+  for (const t of navTxRows) {
+    if (t.locale === locale) {
+      navTxByItemId.set(t.navItemId, t.label);
+    }
+  }
+
+  // Load page translations for all linked pages (one query per page slug; nav is small).
+  const pageSlugs = Array.from(new Set(rows.map((r) => r.pageSlug).filter((s): s is string => s !== null)));
+  const pageTxBySlug = new Map<string, string>();
+  for (const pageSlug of pageSlugs) {
+    const txRows = await repo.listPageTranslations(pageSlug);
+    const tx = txRows.find((t) => t.locale === locale);
+    if (tx) pageTxBySlug.set(pageSlug, tx.title);
+  }
+
+  return rows.map((r) => {
+    const item = rowToNavItem(r);
+
+    // Resolve the translated page title.
+    const resolvedPageTitle = r.pageSlug ? (pageTxBySlug.get(r.pageSlug) ?? r.pageTitle) : r.pageTitle;
+
+    // Resolve label via 4-step priority chain:
+    // 1. nav_item_translations label for the requested locale
+    // 2. Nav row's default-locale label (when non-null)
+    // 3. Linked page's translated title
+    // 4. Linked page's default-locale title
+    const navTxLabel = navTxByItemId.get(r.id);
+    const resolvedLabel = navTxLabel ?? r.label ?? resolvedPageTitle ?? null;
+
+    item.label = resolvedLabel;
+    item.pageTitle = resolvedPageTitle;
+    return item;
+  });
 }

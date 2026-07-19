@@ -1,4 +1,5 @@
 import type { ContentPage } from "@musiccloud/shared";
+import { DEFAULT_LOCALE, getLocalizedText, type Locale } from "@musiccloud/shared";
 import { RowsIcon } from "@phosphor-icons/react";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
@@ -9,9 +10,10 @@ import { normalizeSegmentEntry, SegmentsActionType } from "@/features/content/st
 
 interface Props {
   page: ContentPage;
+  activeLocale: Locale;
 }
 
-export function SegmentManager({ page }: Props) {
+export function SegmentManager({ page, activeLocale }: Props) {
   const messages = dashboardCopy;
   const text = messages.content.pages.segments;
   const editor = usePagesEditor();
@@ -28,6 +30,7 @@ export function SegmentManager({ page }: Props) {
         position: i,
         label: s.label,
         targetSlug: s.targetSlug,
+        translations: s.translations,
       }),
     );
 
@@ -53,16 +56,19 @@ export function SegmentManager({ page }: Props) {
                 <input
                   aria-label={text.labelPlaceholder}
                   type="text"
-                  value={segment.label}
+                  value={getLocalizedText(segment.label, activeLocale, DEFAULT_LOCALE).value}
                   onChange={(e) =>
                     editor.dispatch.segments({
                       type: SegmentsActionType.SetLabel,
                       owner: page.slug,
                       target: segment.targetSlug,
+                      locale: activeLocale,
                       label: e.target.value,
                     })
                   }
-                  placeholder={text.labelPlaceholder}
+                  placeholder={
+                    getLocalizedText(segment.label, activeLocale, DEFAULT_LOCALE).fallback || text.labelPlaceholder
+                  }
                   className="flex-1 min-w-[140px] h-7 px-2 text-xs bg-[var(--ds-input-bg)] border border-[var(--ds-border)] rounded text-[var(--ds-text)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
                 />
                 <span className="text-xs text-[var(--ds-text-muted)] font-mono">/{segment.targetSlug}</span>

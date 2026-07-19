@@ -19,6 +19,7 @@ const configuration = {
       contextMask: ContentContext.DeveloperPortal,
       areaMask: NavigationArea.Main,
       placements: [{ context: ContentContext.DeveloperPortal, area: NavigationArea.Main, position: 0 }],
+      translations: {},
       canonicalRoute: "/docs",
       behavior: "navigate",
     },

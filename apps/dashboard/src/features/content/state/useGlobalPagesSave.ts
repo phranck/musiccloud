@@ -51,11 +51,17 @@ export function useGlobalPagesSave(): UseGlobalPagesSaveResult {
       content: editor.content,
       publications: editor.publications,
       segments: editor.segments,
+      translations: editor.translations,
       sidebar: editor.sidebar,
     });
     try {
       const json = await api.put<PagesBulkResponse>(ENDPOINTS.admin.pages.bulk, body);
-      // Re-hydrate editor slices from the canonical server snapshot.
+      // Re-hydrate slices from server snapshot. Translations are not in
+      // the bulk response yet (see plan §"Bulk-Endpoint Schema") so they
+      // stay client-side; their dirty entries get cleared because their
+      // initial==current after the next user-driven hydrate cycle. For
+      // now we accept that translations remain dirty until a separate
+      // refetch lands them.
       const pages = json.pages.filter(isEditableContentPage);
       editor.dispatch.meta({
         type: "hydrate",

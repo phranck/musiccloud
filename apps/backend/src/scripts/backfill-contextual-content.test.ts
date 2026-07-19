@@ -339,6 +339,18 @@ describe("backfillContextualContent", () => {
         navId === "header"
           ? [navItem({ pageSlug: "privacy", url: null, label: "Privacy" })]
           : [navItem({ id: 11, navId: "footer", url: "https://status.musiccloud.io", label: "Status" })],
+      listNavTranslations: async (navId: "header" | "footer") =>
+        navId === "header"
+          ? [
+              {
+                navItemId: 10,
+                locale: "de",
+                label: "Datenschutz",
+                sourceUpdatedAt: null,
+                updatedAt: new Date("2026-07-18T08:00:00.000Z"),
+              },
+            ]
+          : [],
       replaceNavigationConfiguration,
     } as unknown as AdminRepository;
 
@@ -357,6 +369,7 @@ describe("backfillContextualContent", () => {
       pageId: "page-privacy",
       contextMask: ContentContext.Frontend,
       areaMask: NavigationArea.Main,
+      translations: { de: "Datenschutz" },
     });
     expect(written.slice(-3)).toEqual([
       expect.objectContaining({ systemKey: "docs", label: "Docs", placements: [expect.objectContaining({ position: 0 })] }),
@@ -390,6 +403,7 @@ describe("backfillContextualContent", () => {
       listNavigationConfiguration: async () => [],
       listAdminNavItems: async (navId: "header" | "footer") =>
         navId === "header" ? [navItem({ url: "/docs", label: "Forged docs" })] : [],
+      listNavTranslations: async () => [],
       replaceNavigationConfiguration,
     } as unknown as AdminRepository;
 
@@ -406,6 +420,7 @@ describe("backfillContextualContent", () => {
       listNavigationConfiguration: async () => [],
       listAdminNavItems: async (navId: "header" | "footer") =>
         navId === "header" ? [navItem({ pageSlug: "missing", url: null })] : [],
+      listNavTranslations: async () => [],
       replaceNavigationConfiguration,
     } as unknown as AdminRepository;
 

@@ -9,12 +9,14 @@ import type { SegmentsState } from "./slices/segmentsSlice";
 import { dirtyOwners, toBulkSegmentsInput } from "./slices/segmentsSlice";
 import type { SidebarState } from "./slices/sidebarSlice";
 import { isDirty as sidebarDirty } from "./slices/sidebarSlice";
+import type { TranslationsState } from "./slices/translationsSlice";
 
 export interface SliceBundle {
   meta: MetaState;
   content: ContentState;
   publications?: PublicationsState;
   segments: SegmentsState;
+  translations: TranslationsState;
   sidebar: SidebarState;
 }
 
@@ -61,6 +63,17 @@ export function buildBulkPayload(b: SliceBundle): PagesBulkRequest {
       segments: toBulkSegmentsInput(b.segments.byOwner[owner].current),
     }));
   }
+
+  // translations
+  const trEntries: NonNullable<PagesBulkRequest["pageTranslations"]> = [];
+  for (const [slug, locales] of Object.entries(b.translations.byPage)) {
+    for (const [locale, v] of Object.entries(locales)) {
+      if (v.initial.title !== v.current.title || v.initial.content !== v.current.content) {
+        trEntries.push({ slug, locale: locale as never, ...v.current });
+      }
+    }
+  }
+  if (trEntries.length > 0) out.pageTranslations = trEntries;
 
   if (sidebarDirty(b.sidebar)) out.topLevelOrder = b.sidebar.current;
 

@@ -17,8 +17,19 @@ import {
   DashboardActionStatus,
   DashboardButtonVariant,
 } from "@musiccloud/dashboard-ui";
-import { ContentContext, PageType } from "@musiccloud/shared";
-import { FileDashedIcon, FileIcon, FileMdIcon, PencilLineIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
+import { ContentContext, DEFAULT_LOCALE, LOCALES, PageType, type TranslationStatus } from "@musiccloud/shared";
+import type { Icon } from "@phosphor-icons/react";
+import {
+  CheckCircleIcon,
+  FileDashedIcon,
+  FileIcon,
+  FileMdIcon,
+  PencilLineIcon,
+  PlusCircleIcon,
+  QuestionIcon,
+  TrashIcon,
+  WarningIcon,
+} from "@phosphor-icons/react";
 import { useCallback, useMemo, useReducer } from "react";
 import { useNavigate } from "react-router";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
@@ -45,6 +56,18 @@ import { formatEnglishDate } from "@/lib/format";
 
 const text = dashboardCopy.content.pages;
 const common = dashboardCopy.common;
+
+const TRANSLATION_ICON: Record<TranslationStatus, Icon> = {
+  ready: CheckCircleIcon,
+  stale: WarningIcon,
+  missing: QuestionIcon,
+};
+
+const TRANSLATION_COLOR: Record<TranslationStatus, string> = {
+  ready: "text-emerald-500",
+  stale: "text-amber-500",
+  missing: "text-[var(--ds-text-muted)] opacity-60",
+};
 
 type ContentPage = ContentPageSummary;
 
@@ -495,6 +518,29 @@ function usePagesListPage() {
         header: text.table.updatedAt,
         sortKey: (page) => page.updatedAt ?? "",
         cell: (page) => <span className="text-xs text-[var(--ds-text-muted)]">{formatDate(page.updatedAt)}</span>,
+      },
+      {
+        id: "translations",
+        header: text.table.translations,
+        cell: (page) => (
+          <div className="flex gap-1.5 flex-wrap">
+            {LOCALES.map((locale) => {
+              if (locale === DEFAULT_LOCALE) return null;
+              const s: TranslationStatus = page.translationStatus?.[locale] ?? "missing";
+              const StatusIcon = TRANSLATION_ICON[s];
+              return (
+                <span
+                  key={locale}
+                  title={`${locale.toUpperCase()}: ${s}`}
+                  className="inline-flex items-center gap-1 text-xs font-mono"
+                >
+                  <span>{locale.toUpperCase()}</span>
+                  <StatusIcon size={14} weight="duotone" className={TRANSLATION_COLOR[s]} />
+                </span>
+              );
+            })}
+          </div>
+        ),
       },
       {
         id: "actions",

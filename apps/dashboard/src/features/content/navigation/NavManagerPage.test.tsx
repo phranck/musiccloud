@@ -52,6 +52,7 @@ function pageSummary(overrides: Pick<ContentPageSummary, "id" | "slug" | "title"
     updatedByUsername: null,
     createdAt: "2026-07-18T00:00:00.000Z",
     updatedAt: null,
+    translationStatus: { en: "ready", de: "missing" },
   };
 }
 
@@ -97,6 +98,7 @@ const configuration: NavigationConfiguration = {
       contextMask: ContentContext.Frontend,
       areaMask: NavigationArea.Main,
       placements: [{ context: ContentContext.Frontend, area: NavigationArea.Main, position: 0 }],
+      translations: {},
       canonicalRoute: null,
       behavior: null,
     },
@@ -118,6 +120,7 @@ const configuration: NavigationConfiguration = {
         { context: ContentContext.DeveloperPortal, area: NavigationArea.Main, position: 2 },
         { context: ContentContext.DeveloperPortal, area: NavigationArea.Footer, position: 1 },
       ],
+      translations: {},
       canonicalRoute: null,
       behavior: null,
     },
@@ -137,6 +140,7 @@ const configuration: NavigationConfiguration = {
         { context: ContentContext.Frontend, area: NavigationArea.Footer, position: 1 },
         { context: ContentContext.DeveloperPortal, area: NavigationArea.Footer, position: 0 },
       ],
+      translations: {},
       canonicalRoute: null,
       behavior: null,
     },
@@ -156,6 +160,7 @@ const configuration: NavigationConfiguration = {
         { context: ContentContext.DeveloperPortal, area: NavigationArea.Main, position: 0 },
         { context: ContentContext.DeveloperPortal, area: NavigationArea.Footer, position: 2 },
       ],
+      translations: {},
       canonicalRoute: "/docs",
       behavior: "navigate",
     },
@@ -172,6 +177,7 @@ const configuration: NavigationConfiguration = {
       contextMask: ContentContext.DeveloperPortal,
       areaMask: NavigationArea.Main,
       placements: [{ context: ContentContext.DeveloperPortal, area: NavigationArea.Main, position: 1 }],
+      translations: {},
       canonicalRoute: "/docs/api",
       behavior: "navigate",
     },
@@ -188,6 +194,7 @@ const configuration: NavigationConfiguration = {
       contextMask: ContentContext.DeveloperPortal,
       areaMask: NavigationArea.Footer,
       placements: [{ context: ContentContext.DeveloperPortal, area: NavigationArea.Footer, position: 3 }],
+      translations: {},
       canonicalRoute: "/docs/api?search=1",
       behavior: "open-api-search",
     },
@@ -254,7 +261,11 @@ describe("NavManagerPage", () => {
       true,
     );
 
-    expect(within(docsRow).queryByRole("button", { name: "Translations" })).toBeNull();
+    const translations = within(docsRow).getByRole("button", { name: "Translations" });
+    expect(translations.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(translations);
+    expect(translations.getAttribute("aria-expanded")).toBe("true");
+    expect(document.getElementById(translations.getAttribute("aria-controls")!)).toBeTruthy();
   });
 
   it("reorders only the selected concrete placement list", () => {

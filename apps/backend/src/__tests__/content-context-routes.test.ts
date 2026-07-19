@@ -8,7 +8,6 @@ import { NavItemSchema, PublicContentPageSchema, PublicPageSegmentSchema } from 
 
 const mocks = vi.hoisted(() => ({
   getPublicContentPage: vi.fn(),
-  getPublicNavItems: vi.fn(),
   updateManagedContentPageMeta: vi.fn(),
 }));
 
@@ -24,12 +23,13 @@ vi.mock("../services/admin-content.js", () => ({
 }));
 
 vi.mock("../services/admin-nav.js", () => ({
-  getPublicNavItems: mocks.getPublicNavItems,
+  getPublicNavItems: vi.fn().mockResolvedValue([]),
   isValidNavId: vi.fn().mockReturnValue(true),
 }));
 
 vi.mock("../services/admin-pages-bulk.js", () => ({ bulkUpdatePages: vi.fn() }));
 vi.mock("../services/admin-segments.js", () => ({ replaceSegments: vi.fn() }));
+vi.mock("../routes/admin-page-translations.js", () => ({ registerAdminPageTranslationRoutes: vi.fn() }));
 
 const adminContentRoutes = (await import("../routes/admin-content.js")).default;
 const publicContentNavRoutes = (await import("../routes/public-content-nav.js")).default;
@@ -71,7 +71,6 @@ function recordsFor(logLines: string[], errorId: string): Array<Record<string, u
 describe("contextual content route error contract", () => {
   beforeEach(() => {
     mocks.getPublicContentPage.mockReset().mockResolvedValue(null);
-    mocks.getPublicNavItems.mockReset().mockResolvedValue([]);
     mocks.updateManagedContentPageMeta.mockReset();
   });
 
@@ -176,35 +175,5 @@ describe("contextual content route error contract", () => {
         statusCode: 404,
       }),
     ]);
-  });
-
-  it("ignores legacy locale input for canonical public Page and Navigation reads", async () => {
-    const app = await createApp([]);
-    mocks.getPublicContentPage.mockResolvedValue({
-      slug: "privacy",
-      title: "Privacy",
-      showTitle: true,
-      titleAlignment: "left",
-      pageType: "default",
-      displayMode: "fullscreen",
-      overlayWidth: "regular",
-      contentCardStyle: "default",
-      content: "Canonical body",
-      contentHtml: "<p>Canonical body</p>",
-      segments: [],
-    });
-    mocks.getPublicNavItems.mockResolvedValue([]);
-
-    const headers = { cookie: "mc:locale=de", "accept-language": "fr-FR,fr;q=0.9" };
-    const page = await app.inject({ method: "GET", url: "/api/v1/content/privacy?locale=de", headers });
-    const nav = await app.inject({ method: "GET", url: "/api/v1/nav/header?locale=de", headers });
-
-    expect(page.statusCode).toBe(200);
-    expect(page.json()).toMatchObject({ title: "Privacy", content: "Canonical body" });
-    expect(page.headers.vary).toBeUndefined();
-    expect(nav.statusCode).toBe(200);
-    expect(nav.headers.vary).toBeUndefined();
-    expect(mocks.getPublicContentPage).toHaveBeenCalledWith("/privacy");
-    expect(mocks.getPublicNavItems).toHaveBeenCalledWith("header");
   });
 });
