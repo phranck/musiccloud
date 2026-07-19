@@ -9,7 +9,13 @@
  */
 import { EmailAction, ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
-import type { ApiAccessRequest, ApiClient, ApiClientToken } from "../db/api-access-repository.js";
+import type {
+  ApiAccessRequest,
+  ApiClient,
+  ApiClientToken,
+  DeveloperProject,
+  DeveloperProjectSubscription,
+} from "../db/api-access-repository.js";
 import type { DeveloperAccount } from "../db/developer-repository.js";
 import { getApiAccessRepository, getDeveloperRepository, getTierRepository } from "../db/index.js";
 import { requireOwnerOrAdmin } from "../lib/admin-caller.js";
@@ -27,6 +33,7 @@ function toRequestResponse(request: ApiAccessRequest) {
   return {
     id: request.id,
     developerAccountId: request.developerAccountId,
+    projectId: request.projectId,
     contactEmail: request.contactEmail,
     appName: request.appName,
     appDescription: request.appDescription,
@@ -44,6 +51,14 @@ function toClientResponse(client: ApiClient, tokens: ApiClientToken[]) {
     id: client.id,
     requestId: client.requestId,
     developerAccountId: client.developerAccountId,
+    projectId: client.projectId,
+    publicClientId: client.publicClientId,
+    registrationType: client.registrationType,
+    capabilities: client.capabilities,
+    projectDisplayName: client.projectDisplayName,
+    projectStatus: client.projectStatus,
+    projectRequestsPerMinute: client.projectRequestsPerMinute,
+    projectRequestsPerDay: client.projectRequestsPerDay,
     appName: client.appName,
     contactEmail: client.contactEmail,
     description: client.description,
@@ -58,6 +73,37 @@ function toClientResponse(client: ApiClient, tokens: ApiClientToken[]) {
     createdAt: new Date(client.createdAt).toISOString(),
     updatedAt: new Date(client.updatedAt).toISOString(),
     tokens: tokens.map(toTokenResponse),
+  };
+}
+
+function toProjectResponse(project: DeveloperProject) {
+  return {
+    id: project.id,
+    developerAccountId: project.developerAccountId,
+    displayName: project.displayName,
+    status: project.status,
+    requestsPerMinute: project.requestsPerMinute,
+    requestsPerDay: project.requestsPerDay,
+    tierId: project.tierId,
+    tierName: project.tierName,
+    tierRequestsPerMinute: project.tierRequestsPerMinute,
+    tierRequestsPerDay: project.tierRequestsPerDay,
+    effectiveRequestsPerMinute: project.effectiveRequestsPerMinute,
+    effectiveRequestsPerDay: project.effectiveRequestsPerDay,
+    createdAt: new Date(project.createdAt).toISOString(),
+    updatedAt: new Date(project.updatedAt).toISOString(),
+    suspendedAt: project.suspendedAt ? new Date(project.suspendedAt).toISOString() : null,
+    deletedAt: project.deletedAt ? new Date(project.deletedAt).toISOString() : null,
+    createdByAdminId: project.createdByAdminId,
+  };
+}
+
+function toProjectSubscriptionResponse(subscription: DeveloperProjectSubscription) {
+  return {
+    ...subscription,
+    currentPeriodEnd: subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toISOString() : null,
+    createdAt: new Date(subscription.createdAt).toISOString(),
+    updatedAt: new Date(subscription.updatedAt).toISOString(),
   };
 }
 
@@ -127,6 +173,145 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
     });
   });
 
+  app.get(ROUTE_TEMPLATES.admin.developer.apiAccess.accountProjects, async (request, reply) => {
+    if (!(await requireOwnerOrAdmin(request, reply))) return;
+    const { accountId } = request.params as { accountId: string };
+    const repo = await getApiAccessRepository();
+    const projects = await repo.listDeveloperProjectsByAccount(accountId);
+    return reply.send({ projects: projects.map(toProjectResponse) });
+  });
+
+  app.get(ROUTE_TEMPLATES.admin.developer.apiAccess.projectDetail, async (request, reply) => {
+    if (!(await requireOwnerOrAdmin(request, reply))) return;
+    const { id } = request.params as { id: string };
+    const repo = await getApiAccessRepository();
+    const project = await repo.findDeveloperProjectById(id);
+    if (!project) return reply.status(404).send({ error: "NOT_FOUND", message: "Project not found." });
+    const [subscription, registrations] = await Promise.all([
+      repo.findDeveloperProjectSubscription(id),
+      repo.listApiClientsByProject(id),
+    ]);
+    return reply.send({
+      project: toProjectResponse(project),
+      subscription: subscription ? toProjectSubscriptionResponse(subscription) : null,
+      registrations: await Promise.all(
+        registrations.map(async (registration) =>
+          toClientResponse(registration, await repo.listApiClientTokensByClient(registration.id)),
+        ),
+      ),
+    });
+  });
+
+  app.patch(ROUTE_TEMPLATES.admin.developer.apiAccess.projectDetail, async (request, reply) => {
+    const caller = await requireOwnerOrAdmin(request, reply);
+    if (!caller) return;
+    const { id } = request.params as { id: string };
+    const body = request.body as {
+      displayName?: string;
+      status?: "active" | "suspended" | "deleted";
+      requestsPerMinute?: number | null;
+      requestsPerDay?: number | null;
+    } | null;
+    if (body?.status && !["active", "suspended", "deleted"].includes(body.status)) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid project status." });
+    }
+    if (typeof body?.requestsPerMinute === "number" && body.requestsPerMinute < 1) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "requestsPerMinute must be > 0." });
+    }
+    if (typeof body?.requestsPerDay === "number" && body.requestsPerDay < 1) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "requestsPerDay must be > 0." });
+    }
+    const repo = await getApiAccessRepository();
+    const existing = await repo.findDeveloperProjectById(id);
+    if (!existing) return reply.status(404).send({ error: "NOT_FOUND", message: "Project not found." });
+    const updated = await repo.updateDeveloperProject(id, {
+      displayName: body?.displayName?.trim(),
+      status: body?.status,
+      requestsPerMinute: body?.requestsPerMinute,
+      requestsPerDay: body?.requestsPerDay,
+    });
+    await repo.createApiAccessAuditEvent({
+      projectId: id,
+      eventType: "project_updated",
+      actorAdminId: caller.id,
+      eventData: body ?? {},
+    });
+    return reply.send({ project: toProjectResponse(updated!) });
+  });
+
+  app.put(ROUTE_TEMPLATES.admin.developer.apiAccess.projectSubscription, async (request, reply) => {
+    const caller = await requireOwnerOrAdmin(request, reply);
+    if (!caller) return;
+    const { id } = request.params as { id: string };
+    const body = request.body as {
+      tierId?: string | null;
+      status?: string;
+      interval?: string | null;
+      currentPeriodEnd?: string | null;
+      cancelAtPeriodEnd?: boolean;
+    } | null;
+    if (body?.tierId === undefined) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "tierId is required." });
+    }
+    if (
+      body.status !== undefined &&
+      !["active", "trialing", "paused", "past_due", "expired", "canceled", "scheduled_cancel"].includes(body.status)
+    ) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid subscription status." });
+    }
+    if (body.interval !== undefined && body.interval !== null && !["month", "year"].includes(body.interval)) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid subscription interval." });
+    }
+    if (body.cancelAtPeriodEnd !== undefined && typeof body.cancelAtPeriodEnd !== "boolean") {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "cancelAtPeriodEnd must be boolean." });
+    }
+    if (
+      body.currentPeriodEnd !== undefined &&
+      body.currentPeriodEnd !== null &&
+      typeof body.currentPeriodEnd !== "string"
+    ) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "currentPeriodEnd must be an ISO date." });
+    }
+    const repo = await getApiAccessRepository();
+    const project = await repo.findDeveloperProjectById(id);
+    if (!project) return reply.status(404).send({ error: "NOT_FOUND", message: "Project not found." });
+    if (body.tierId !== null) {
+      const tiers = await (await getTierRepository()).listTiers();
+      const tier = tiers.find((candidate) => candidate.id === body.tierId);
+      if (!tier) return reply.status(400).send({ error: "INVALID_REQUEST", message: "Unknown tier." });
+      if (!tier.enabled) {
+        return reply.status(400).send({ error: "INVALID_REQUEST", message: "Tier is disabled." });
+      }
+    }
+    const parsedCurrentPeriodEnd =
+      body.currentPeriodEnd === undefined || body.currentPeriodEnd === null
+        ? body.currentPeriodEnd
+        : Date.parse(body.currentPeriodEnd);
+    if (typeof parsedCurrentPeriodEnd === "number" && Number.isNaN(parsedCurrentPeriodEnd)) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "currentPeriodEnd must be an ISO date." });
+    }
+    const subscription = await repo.setDeveloperProjectSubscription({
+      projectId: id,
+      tierId: body.tierId,
+      ...(body.status !== undefined ? { status: body.status } : {}),
+      ...(body.interval !== undefined ? { interval: body.interval } : {}),
+      ...(parsedCurrentPeriodEnd !== undefined ? { currentPeriodEnd: parsedCurrentPeriodEnd } : {}),
+      ...(body.cancelAtPeriodEnd !== undefined ? { cancelAtPeriodEnd: body.cancelAtPeriodEnd } : {}),
+    });
+    await repo.createApiAccessAuditEvent({
+      projectId: id,
+      eventType: "project_subscription_updated",
+      actorAdminId: caller.id,
+      eventData: {
+        tierId: body.tierId,
+        status: body.status,
+        interval: body.interval,
+        cancelAtPeriodEnd: body.cancelAtPeriodEnd,
+      },
+    });
+    return reply.send({ subscription: toProjectSubscriptionResponse(subscription) });
+  });
+
   app.get("/api/admin/developer/accounts", async (request, reply) => {
     if (!(await requireOwnerOrAdmin(request, reply))) return;
     const devRepo = await getDeveloperRepository();
@@ -189,7 +374,7 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
     });
     if (!updated) return reply.status(404).send({ error: "NOT_FOUND", message: "Developer account not found." });
 
-    // When an account is suspended, also suspend their API clients
+    // Account suspension invalidates every API registration owned by that account.
     if (body?.status === "suspended") {
       const apiRepo = await getApiAccessRepository();
       const clients = await apiRepo.listApiClientsByDeveloperAccount(id);
@@ -232,21 +417,45 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "Request already reviewed." });
     }
 
+    const project = found.projectId
+      ? await repo.findDeveloperProjectById(found.projectId)
+      : await repo.createDeveloperProject({
+          developerAccountId: found.developerAccountId,
+          displayName: found.appName,
+          requestsPerMinute: body?.requestsPerMinute,
+          requestsPerDay: body?.requestsPerDay,
+          tierId: (await (await getDeveloperRepository()).findDeveloperAccountById(found.developerAccountId))?.tierId,
+          createdByAdminId: caller.id,
+        });
+    if (!project || project.developerAccountId !== found.developerAccountId) {
+      return reply.status(409).send({ error: "PROJECT_OWNERSHIP_MISMATCH", message: "Project ownership mismatch." });
+    }
     const reviewed = await repo.reviewApiAccessRequest(id, {
       status: "approved",
       reviewedByAdminId: caller.id,
+      projectId: project.id,
     });
     const client = await repo.createApiClient({
       requestId: id,
       developerAccountId: found.developerAccountId,
+      projectId: project.id,
+      registrationType: "development",
+      capabilities: ["legacy_api_key"],
       appName: found.appName,
       contactEmail: found.contactEmail,
       description: found.appDescription,
-      requestsPerMinute: body?.requestsPerMinute,
-      requestsPerDay: body?.requestsPerDay,
       createdByAdminId: caller.id,
     });
+    if (!found.projectId) {
+      await repo.createApiAccessAuditEvent({
+        projectId: project.id,
+        eventType: "project_created",
+        actorAdminId: caller.id,
+        eventData: { sourceRequestId: id },
+      });
+    }
     await repo.createApiAccessAuditEvent({
+      projectId: project.id,
       requestId: id,
       clientId: client.id,
       eventType: "request_approved",
@@ -277,7 +486,12 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
       reviewedByAdminId: caller.id,
       reviewNote: body.reviewNote.trim(),
     });
-    await repo.createApiAccessAuditEvent({ requestId: id, eventType: "request_rejected", actorAdminId: caller.id });
+    await repo.createApiAccessAuditEvent({
+      projectId: found.projectId,
+      requestId: id,
+      eventType: "request_rejected",
+      actorAdminId: caller.id,
+    });
     await notifyDeveloper(request.log, found.developerAccountId, EmailAction.DeveloperApiAccessRejected, {
       appName: found.appName,
       reviewNote: body.reviewNote.trim(),
@@ -307,8 +521,8 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
     if (body?.status && !["active", "suspended", "revoked"].includes(body.status)) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid status." });
     }
-    // `null` clears a per-key override (the client inherits the tier limit
-    // again); numeric overrides must stay positive.
+    // `null` clears a registration cap so it inherits the project limit;
+    // numeric caps must stay positive.
     if (typeof body?.requestsPerMinute === "number" && body.requestsPerMinute < 1) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "requestsPerMinute must be > 0." });
     }
@@ -323,6 +537,7 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
     });
     if (!updated) return reply.status(404).send({ error: "NOT_FOUND", message: "Client not found." });
     await repo.createApiAccessAuditEvent({
+      projectId: updated.projectId,
       clientId: id,
       eventType: "client_updated",
       actorAdminId: caller.id,
@@ -346,6 +561,7 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
       rawToken: generated.raw,
     });
     await repo.createApiAccessAuditEvent({
+      projectId: client.projectId,
       clientId: id,
       tokenId: token.id,
       eventType: "token_created",
@@ -364,7 +580,9 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
     const repo = await getApiAccessRepository();
     const token = await repo.activateApiClientToken(id);
     if (!token) return reply.status(404).send({ error: "NOT_FOUND", message: "Revoked token not found." });
+    const client = await repo.findApiClientById(token.clientId);
     await repo.createApiAccessAuditEvent({
+      projectId: client?.projectId ?? null,
       clientId: token.clientId,
       tokenId: id,
       eventType: "token_activated",
@@ -380,7 +598,9 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
     const repo = await getApiAccessRepository();
     const token = await repo.revokeApiClientToken(id);
     if (!token) return reply.status(404).send({ error: "NOT_FOUND", message: "Token not found." });
+    const client = await repo.findApiClientById(token.clientId);
     await repo.createApiAccessAuditEvent({
+      projectId: client?.projectId ?? null,
       clientId: token.clientId,
       tokenId: id,
       eventType: "token_deactivated",

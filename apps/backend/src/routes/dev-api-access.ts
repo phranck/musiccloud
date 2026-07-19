@@ -9,7 +9,7 @@
  */
 import { EmailAction, ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import type { ApiAccessRequest, ApiClient, ApiClientToken } from "../db/api-access-repository.js";
+import type { ApiAccessRequest, ApiClient, ApiClientToken, DeveloperProject } from "../db/api-access-repository.js";
 import { getApiAccessRepository } from "../db/index.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { RateLimiter } from "../lib/infra/rate-limiter.js";
@@ -32,6 +32,7 @@ async function throttleTokenMutation(request: FastifyRequest, reply: FastifyRepl
 function toRequestResponse(request: ApiAccessRequest) {
   return {
     id: request.id,
+    projectId: request.projectId,
     appName: request.appName,
     appDescription: request.appDescription,
     estimatedRequestsPerDay: request.estimatedRequestsPerDay,
@@ -45,17 +46,51 @@ function toRequestResponse(request: ApiAccessRequest) {
 function toClientResponse(client: ApiClient, tokens: ApiClientToken[]) {
   return {
     id: client.id,
+    projectId: client.projectId,
+    publicClientId: client.publicClientId,
+    registrationType: client.registrationType,
+    capabilities: client.capabilities,
+    projectDisplayName: client.projectDisplayName,
+    projectStatus: client.projectStatus,
     appName: client.appName,
     description: client.description,
     status: client.status,
-    // The portal always shows what actually applies: the effective limits
-    // (per-key override ?? account tier ?? fallback, MC-100). The raw
-    // override values are an admin-dashboard concern.
+    // The portal always shows what actually applies: project limits narrowed
+    // by an optional registration cap. Raw overrides are an admin concern.
     requestsPerMinute: client.effectiveRequestsPerMinute,
     requestsPerDay: client.effectiveRequestsPerDay,
     createdAt: new Date(client.createdAt).toISOString(),
     tokens: tokens.map(toTokenResponse),
   };
+}
+
+function toProjectResponse(project: DeveloperProject) {
+  return {
+    id: project.id,
+    displayName: project.displayName,
+    status: project.status,
+    subscription: {
+      tierId: project.tierId,
+      tierName: project.tierName,
+    },
+    quota: {
+      requestsPerMinute: project.effectiveRequestsPerMinute,
+      requestsPerDay: project.effectiveRequestsPerDay,
+      overrideRequestsPerMinute: project.requestsPerMinute,
+      overrideRequestsPerDay: project.requestsPerDay,
+    },
+    createdAt: new Date(project.createdAt).toISOString(),
+    updatedAt: new Date(project.updatedAt).toISOString(),
+  };
+}
+
+async function loadOwnedProject(
+  repo: Awaited<ReturnType<typeof getApiAccessRepository>>,
+  projectId: string,
+  developerAccountId: string,
+): Promise<DeveloperProject | null> {
+  const project = await repo.findDeveloperProjectById(projectId);
+  return project?.developerAccountId === developerAccountId ? project : null;
 }
 
 /** Never includes `tokenHash` — the create/rotate handlers add the one-time raw token separately. */
@@ -87,12 +122,145 @@ async function loadOwnedClientForToken(
   return { token, client };
 }
 
+/** Keeps credential issuance and rotation aligned with project/registration lifecycle. */
+function rejectInactiveCredentialOwner(client: ApiClient, reply: FastifyReply): FastifyReply | null {
+  if (client.projectStatus !== "active") {
+    return reply.status(409).send({ error: "PROJECT_INACTIVE", message: "Project is not active." });
+  }
+  if (client.status !== "active") {
+    return reply.status(409).send({ error: "REGISTRATION_INACTIVE", message: "Registration is not active." });
+  }
+  return null;
+}
+
 /**
  * Registers the developer self-service API-access routes. Must be
  * registered inside a scope whose `preHandler` is `authenticateDeveloper`
  * (see `server.ts`), so `request.developerAccountId` is always set here.
  */
 export async function devApiAccessRoutes(app: FastifyInstance) {
+  app.get(ENDPOINTS.dev.apiAccess.projects, async (request, reply) => {
+    const repo = await getApiAccessRepository();
+    const projects = await repo.listDeveloperProjectsByAccount(request.developerAccountId!);
+    return reply.send({ projects: projects.map(toProjectResponse) });
+  });
+
+  app.post(ENDPOINTS.dev.apiAccess.projects, async (request, reply) => {
+    const body = request.body as { displayName?: string } | null;
+    const displayName = body?.displayName?.trim() ?? "";
+    if (!displayName || displayName.length > MAX_APP_NAME_LENGTH) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "displayName is required (max 200 chars)." });
+    }
+    const repo = await getApiAccessRepository();
+    const project = await repo.createDeveloperProject({
+      developerAccountId: request.developerAccountId!,
+      displayName,
+      tierId: request.developerAccount?.tierId ?? null,
+    });
+    await repo.createApiAccessAuditEvent({
+      projectId: project.id,
+      eventType: "project_created",
+      actorDeveloperAccountId: request.developerAccountId!,
+      eventData: { displayName },
+    });
+    return reply.status(201).send({ project: toProjectResponse(project) });
+  });
+
+  app.get(ROUTE_TEMPLATES.dev.apiAccess.projectDetail, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const repo = await getApiAccessRepository();
+    const project = await loadOwnedProject(repo, id, request.developerAccountId!);
+    if (!project) return reply.status(404).send({ error: "NOT_FOUND", message: "Project not found." });
+    const registrations = await repo.listApiClientsByProject(project.id);
+    return reply.send({
+      project: toProjectResponse(project),
+      registrations: await Promise.all(
+        registrations.map(async (registration) =>
+          toClientResponse(registration, await repo.listApiClientTokensByClient(registration.id)),
+        ),
+      ),
+    });
+  });
+
+  app.patch(ROUTE_TEMPLATES.dev.apiAccess.projectDetail, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as { displayName?: string; status?: "active" | "suspended" | "deleted" } | null;
+    if (body?.status && !["active", "suspended", "deleted"].includes(body.status)) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid project status." });
+    }
+    const displayName = body?.displayName?.trim();
+    if (body?.displayName !== undefined && (!displayName || displayName.length > MAX_APP_NAME_LENGTH)) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "displayName must contain 1 to 200 chars." });
+    }
+    const repo = await getApiAccessRepository();
+    const project = await loadOwnedProject(repo, id, request.developerAccountId!);
+    if (!project) return reply.status(404).send({ error: "NOT_FOUND", message: "Project not found." });
+    const updated = await repo.updateDeveloperProject(id, { displayName, status: body?.status });
+    await repo.createApiAccessAuditEvent({
+      projectId: id,
+      eventType: body?.status ? `project_${body.status}` : "project_updated",
+      actorDeveloperAccountId: request.developerAccountId!,
+      eventData: { displayName, status: body?.status },
+    });
+    return reply.send({ project: toProjectResponse(updated!) });
+  });
+
+  app.get(ROUTE_TEMPLATES.dev.apiAccess.projectRegistrations, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const repo = await getApiAccessRepository();
+    const project = await loadOwnedProject(repo, id, request.developerAccountId!);
+    if (!project) return reply.status(404).send({ error: "NOT_FOUND", message: "Project not found." });
+    const registrations = await repo.listApiClientsByProject(id);
+    return reply.send({ registrations: registrations.map((registration) => toClientResponse(registration, [])) });
+  });
+
+  app.post(ROUTE_TEMPLATES.dev.apiAccess.projectRegistrations, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as {
+      name?: string;
+      description?: string;
+      registrationType?: "development" | "confidential" | "public";
+      capabilities?: string[];
+    } | null;
+    const name = body?.name?.trim() ?? "";
+    if (!name || name.length > MAX_APP_NAME_LENGTH) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "name is required (max 200 chars)." });
+    }
+    const registrationType = body?.registrationType ?? "development";
+    if (!["development", "confidential", "public"].includes(registrationType)) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid registrationType." });
+    }
+    if (
+      body?.capabilities !== undefined &&
+      (!Array.isArray(body.capabilities) || !body.capabilities.every((capability) => typeof capability === "string"))
+    ) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "capabilities must contain strings." });
+    }
+    const repo = await getApiAccessRepository();
+    const project = await loadOwnedProject(repo, id, request.developerAccountId!);
+    if (!project) return reply.status(404).send({ error: "NOT_FOUND", message: "Project not found." });
+    if (project.status !== "active") {
+      return reply.status(409).send({ error: "PROJECT_INACTIVE", message: "Project is not active." });
+    }
+    const registration = await repo.createApiClient({
+      developerAccountId: request.developerAccountId!,
+      projectId: project.id,
+      registrationType,
+      capabilities: body?.capabilities ?? [],
+      appName: name,
+      contactEmail: request.developerAccount!.email,
+      description: body?.description?.trim() ?? "",
+    });
+    await repo.createApiAccessAuditEvent({
+      projectId: project.id,
+      clientId: registration.id,
+      eventType: "registration_created",
+      actorDeveloperAccountId: request.developerAccountId!,
+      eventData: { registrationType, publicClientId: registration.publicClientId },
+    });
+    return reply.status(201).send({ registration: toClientResponse(registration, []) });
+  });
+
   app.post(ENDPOINTS.dev.apiAccess.requestsCreate, async (request, reply) => {
     const body = request.body as {
       appName?: string;
@@ -157,6 +325,8 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
       if (!client || client.developerAccountId !== request.developerAccountId) {
         return reply.status(404).send({ error: "NOT_FOUND", message: "Client not found." });
       }
+      const lifecycleRejection = rejectInactiveCredentialOwner(client, reply);
+      if (lifecycleRejection) return lifecycleRejection;
       const generated = generateApiToken();
       const token = await repo.createApiClientToken({
         clientId: id,
@@ -165,6 +335,7 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
         rawToken: generated.raw,
       });
       await repo.createApiAccessAuditEvent({
+        projectId: client.projectId,
         clientId: id,
         tokenId: token.id,
         eventType: "token_created",
@@ -184,6 +355,7 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
     if (!owned) return reply.status(404).send({ error: "NOT_FOUND", message: "Token not found." });
     const token = await repo.revokeApiClientToken(id);
     await repo.createApiAccessAuditEvent({
+      projectId: owned.client.projectId,
       clientId: owned.client.id,
       tokenId: id,
       eventType: "token_revoked",
@@ -197,6 +369,8 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
     const repo = await getApiAccessRepository();
     const owned = await loadOwnedClientForToken(repo, id, request.developerAccountId!);
     if (!owned) return reply.status(404).send({ error: "NOT_FOUND", message: "Token not found." });
+    const lifecycleRejection = rejectInactiveCredentialOwner(owned.client, reply);
+    if (lifecycleRejection) return lifecycleRejection;
     const generated = generateApiToken();
     const rotated = await repo.rotateApiClientToken(id, {
       newTokenPrefix: generated.prefix,
@@ -204,6 +378,7 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
     });
     if (!rotated) return reply.status(404).send({ error: "NOT_FOUND", message: "Active token not found." });
     await repo.createApiAccessAuditEvent({
+      projectId: owned.client.projectId,
       clientId: owned.client.id,
       tokenId: rotated.newToken.id,
       eventType: "token_rotated",

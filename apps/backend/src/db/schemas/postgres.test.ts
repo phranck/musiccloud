@@ -63,4 +63,51 @@ describe("PostgreSQL schema", () => {
       config.uniqueConstraints.length + config.indexes.filter((index) => index.config.unique).length,
     ).toBeGreaterThan(0);
   });
+
+  it("exports the developer project aggregate and project-owned subscription", () => {
+    expect(postgresSchema.developerProjects.developerAccountId.name).toBe("developer_account_id");
+    expect(postgresSchema.developerProjects.displayName.name).toBe("display_name");
+    expect(postgresSchema.developerProjects.status.name).toBe("status");
+    expect(postgresSchema.developerProjects.requestsPerMinute.name).toBe("requests_per_minute");
+    expect(postgresSchema.developerProjects.requestsPerDay.name).toBe("requests_per_day");
+
+    const projectConfig = getTableConfig(postgresSchema.developerProjects);
+    expect(projectConfig.checks.map((constraint) => constraint.name)).toEqual(
+      expect.arrayContaining([
+        "chk_developer_projects_status",
+        "chk_developer_projects_requests_per_minute",
+        "chk_developer_projects_requests_per_day",
+      ]),
+    );
+
+    expect(postgresSchema.developerProjectSubscriptions.projectId.name).toBe("project_id");
+    expect(postgresSchema.developerProjectSubscriptions.tierId.name).toBe("tier_id");
+    const subscriptionConfig = getTableConfig(postgresSchema.developerProjectSubscriptions);
+    expect(
+      subscriptionConfig.uniqueConstraints.length +
+        subscriptionConfig.indexes.filter((index) => index.config.unique).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("models API clients as project-owned typed registrations", () => {
+    expect(postgresSchema.apiClients.projectId.name).toBe("project_id");
+    expect(postgresSchema.apiClients.publicClientId.name).toBe("public_client_id");
+    expect(postgresSchema.apiClients.registrationType.name).toBe("registration_type");
+    expect(postgresSchema.apiClients.capabilities.name).toBe("capabilities");
+
+    const config = getTableConfig(postgresSchema.apiClients);
+    expect(config.checks.map((constraint) => constraint.name)).toContain("chk_api_clients_registration_type");
+    expect(
+      config.uniqueConstraints.length + config.indexes.filter((index) => index.config.unique).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("attributes API usage and lifecycle audit events to projects", () => {
+    expect(postgresSchema.apiUsageEvents.projectId.name).toBe("project_id");
+    expect(postgresSchema.apiUsageEvents.registrationId.name).toBe("registration_id");
+    expect(postgresSchema.apiUsageEvents.tokenId.name).toBe("token_id");
+    expect(postgresSchema.apiUsageEvents.endpointTemplate.name).toBe("endpoint_template");
+    expect(postgresSchema.apiAccessAuditEvents.projectId.name).toBe("project_id");
+    expect(postgresSchema.apiAccessRequests.projectId.name).toBe("project_id");
+  });
 });

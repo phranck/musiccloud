@@ -129,15 +129,14 @@ export class RateLimiter {
 
 /**
  * Sliding-window limiter with a fixed window but a **per-call request cap**,
- * for quotas that vary by caller — the public-API per-client limits
- * (`api_clients.requestsPerMinute` / `requestsPerDay`) are admin-editable
- * per client, so the cap cannot live in the constructor like
+ * for quotas that vary by caller. Public-API project quotas and optional
+ * registration caps are resolved per request, so the cap cannot live in the constructor like
  * {@link RateLimiter}'s.
  *
- * One instance per window length; the caller passes the client's own cap on
+ * One instance per window length; the caller passes the bucket's resolved cap on
  * every `check`. Memory note: a key holds up to `maxRequests` timestamps, so
  * the day-window instance can hold up to `requestsPerDay` entries per active
- * client. Fine at the current scale (single-digit clients); the deferred
+ * project or registration. Fine at the current scale; the deferred
  * usage-analytics phase replaces this with persistent counting if that ever
  * changes.
  */
@@ -211,21 +210,20 @@ export const apiRateLimiter = new RateLimiter(10, 60_000);
 const apiRateLimiterCleanupTimer = setInterval(() => apiRateLimiter.cleanup(), 5 * 60 * 1000);
 apiRateLimiterCleanupTimer.unref();
 
-// Per-client quota buckets for token-authenticated public-API requests
-// (MC-088). Keyed by `api_clients.id`; the cap is the client's **effective**
-// limit (per-key override ?? account tier ?? fallback, MC-100) passed on
-// every check, so tier reassignments and admin edits take effect
-// immediately. Enforced centrally in `authenticatePublic` (plugins/auth.ts)
-// — token-authenticated requests skip the per-IP `apiRateLimiter` above
-// (their identity is the client, not the IP; see the `request.apiClient`
-// guard in resolve/cc-resolve/link routes).
-// Same 5-minute cleanup cadence as the per-IP limiter.
-export const clientMinuteRateLimiter = new DynamicRateLimiter(60_000);
-export const clientDayRateLimiter = new DynamicRateLimiter(24 * 60 * 60 * 1000);
+// Project quota buckets for token-authenticated public-API requests. All
+// registrations under one project share these commercial quota buckets.
+// Separate registration buckets below enforce optional narrower operational
+// caps without turning a registration into the subscription owner.
+export const projectMinuteRateLimiter = new DynamicRateLimiter(60_000);
+export const projectDayRateLimiter = new DynamicRateLimiter(24 * 60 * 60 * 1000);
+export const registrationMinuteRateLimiter = new DynamicRateLimiter(60_000);
+export const registrationDayRateLimiter = new DynamicRateLimiter(24 * 60 * 60 * 1000);
 const clientRateLimiterCleanupTimer = setInterval(
   () => {
-    clientMinuteRateLimiter.cleanup();
-    clientDayRateLimiter.cleanup();
+    projectMinuteRateLimiter.cleanup();
+    projectDayRateLimiter.cleanup();
+    registrationMinuteRateLimiter.cleanup();
+    registrationDayRateLimiter.cleanup();
   },
   5 * 60 * 1000,
 );

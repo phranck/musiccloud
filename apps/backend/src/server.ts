@@ -271,14 +271,14 @@ async function buildApp(options: BuildAppOptions = {}) {
         description:
           "Public REST API for resolving music URLs and search queries, retrieving persisted shares, and consuming Creative-Commons media and metadata.\n\n" +
           "## Authentication\n\n" +
-          "Exactly three operations require an issued API key: `POST /api/v1/resolve`, `POST /api/v1/cc/resolve`, and `GET /api/v1/link/{id}`. Send the key as `X-API-Key: mc_live_<prefix>_<secret>`. All other operations in this reference are callable without an API key. Request API access at https://developer.musiccloud.io/dashboard/api-access, then create or rotate keys at https://developer.musiccloud.io/dashboard/api-keys. A key is shown only when created or rotated. Store it as a secret and never embed it in browser code. Missing, invalid, disabled, or revoked keys receive `401`.\n\n" +
+          "Exactly three operations require a key issued to a client registration: `POST /api/v1/resolve`, `POST /api/v1/cc/resolve`, and `GET /api/v1/link/{id}`. A Developer Project owns its subscription and shared quota and may contain separate development, confidential, and public registrations. Send a registration key as `X-API-Key: mc_live_<prefix>_<secret>`. All other operations in this reference are callable without a key. Manage projects and registrations at https://developer.musiccloud.io/dashboard/api-access, then create or rotate registration keys at https://developer.musiccloud.io/dashboard/api-keys. A key is shown only when created or rotated. Store it as a secret and never embed it in browser code. Missing, invalid, suspended, or revoked project, registration, or key credentials receive `401`.\n\n" +
           "## Rate limiting\n\n" +
           "Three independent rules can apply:\n\n" +
-          "1. The three API-key operations use the rolling `60`-second and rolling `24`-hour quotas assigned to that API client.\n" +
+          "1. The three API-key operations use the rolling `60`-second and rolling `24`-hour quotas owned by the Developer Project. Registrations under one project share those quotas; an optional registration cap can only narrow them.\n" +
           "2. Public data operations `GET /api/v1/resolve`, `GET /api/v1/share/{shortId}`, `GET /api/v1/share/{shortId}/preview`, `GET /api/v1/artist-info`, `GET /api/v1/cc/artist-info`, `GET /api/v1/cc/audio/{jamendoId}`, `GET /api/v1/cc/download/{jamendoId}`, and `GET /api/v1/cc/bandcamp/{jamendoId}` allow `10` requests in a rolling `60`-second window per client IP.\n" +
           "3. Every route is also protected by a global ceiling of `300` requests in a rolling `60`-second window per client IP.\n\n" +
           "A rejected request returns `429 Too Many Requests`, the `ErrorResponse` JSON body, and `Retry-After`. When available, `context.limit`, `context.windowSeconds`, and `context.retryAfterSeconds` describe the rule that rejected the request.",
-        version: "2.1.6",
+        version: "2.1.7",
       },
       servers: [{ url: "https://api.musiccloud.io", description: "Production" }],
       // Tag order here does not need to be alphabetical: the document is
@@ -294,7 +294,13 @@ async function buildApp(options: BuildAppOptions = {}) {
       ],
       components: {
         securitySchemes: {
-          ApiKeyAuth: { type: "apiKey", in: "header", name: "X-API-Key" },
+          ApiKeyAuth: {
+            type: "apiKey",
+            in: "header",
+            name: "X-API-Key",
+            description:
+              "Registration credential for a Developer Project. Project quotas are shared by all registrations; registration caps may only narrow them.",
+          },
         },
       },
     },

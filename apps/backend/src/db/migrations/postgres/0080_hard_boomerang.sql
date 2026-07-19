@@ -1,0 +1,1 @@
+DROP INDEX "uq_api_usage_events_request";

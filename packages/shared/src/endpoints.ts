@@ -371,6 +371,12 @@ export const ENDPOINTS = {
         tokenActivate: (id: string) => `/api/admin/developer/api-access/tokens/${id}/activate`,
         /** POST: deactivate (revoke) a token — stops API access. */
         tokenDeactivate: (id: string) => `/api/admin/developer/api-access/tokens/${id}/deactivate`,
+        /** GET: all projects owned by one developer account. */
+        accountProjects: (accountId: string) => `/api/admin/developer/api-access/accounts/${accountId}/projects`,
+        /** GET / PATCH: project lifecycle and administrative quota overrides. */
+        projectDetail: (id: string) => `/api/admin/developer/api-access/projects/${id}`,
+        /** PUT: replace the selected project subscription/tier. */
+        projectSubscription: (id: string) => `/api/admin/developer/api-access/projects/${id}/subscription`,
       },
       /** GET: list all developer accounts with client counts. */
       accounts: "/api/admin/developer/accounts",
@@ -437,6 +443,12 @@ export const ENDPOINTS = {
       requestsList: "/api/dev/api-access/requests",
       /** GET: list the caller's own clients, including their tokens (never the hash). */
       clientsList: "/api/dev/api-access/clients",
+      /** GET / POST: list or create independently subscribed projects owned by the caller. */
+      projects: "/api/dev/api-access/projects",
+      /** GET / PATCH: one caller-owned project. */
+      projectDetail: (id: string) => `/api/dev/api-access/projects/${id}`,
+      /** GET / POST: registrations owned by one caller-owned project. */
+      projectRegistrations: (id: string) => `/api/dev/api-access/projects/${id}/registrations`,
       /** POST: create a new token for one of the caller's own clients. Returns the raw token once. */
       clientCreateToken: (id: string) => `/api/dev/api-access/clients/${id}/tokens`,
       /** POST: revoke one of the caller's own tokens. */
@@ -507,6 +519,9 @@ export const ROUTE_TEMPLATES = {
         clientCreateToken: "/api/admin/developer/api-access/clients/:id/tokens",
         tokenActivate: "/api/admin/developer/api-access/tokens/:id/activate",
         tokenDeactivate: "/api/admin/developer/api-access/tokens/:id/deactivate",
+        accountProjects: "/api/admin/developer/api-access/accounts/:accountId/projects",
+        projectDetail: "/api/admin/developer/api-access/projects/:id",
+        projectSubscription: "/api/admin/developer/api-access/projects/:id/subscription",
       },
       accounts: "/api/admin/developer/accounts",
       accountDetail: "/api/admin/developer/accounts/:id",
@@ -537,6 +552,8 @@ export const ROUTE_TEMPLATES = {
   },
   dev: {
     apiAccess: {
+      projectDetail: "/api/dev/api-access/projects/:id",
+      projectRegistrations: "/api/dev/api-access/projects/:id/registrations",
       clientCreateToken: "/api/dev/api-access/clients/:id/tokens",
       tokenRevoke: "/api/dev/api-access/tokens/:id/revoke",
       tokenRotate: "/api/dev/api-access/tokens/:id/rotate",

@@ -42,11 +42,17 @@
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
-import type { ApiClient } from "../db/api-access-repository.js";
+import type { ApiClient, DeveloperProject } from "../db/api-access-repository.js";
 import type { DeveloperAccount } from "../db/developer-repository.js";
 import { getApiAccessRepository, getDeveloperRepository } from "../db/index.js";
+import { sanitizeErrorForLog } from "../lib/infra/api-errors.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
-import { clientDayRateLimiter, clientMinuteRateLimiter } from "../lib/infra/rate-limiter.js";
+import {
+  projectDayRateLimiter,
+  projectMinuteRateLimiter,
+  registrationDayRateLimiter,
+  registrationMinuteRateLimiter,
+} from "../lib/infra/rate-limiter.js";
 import { hashApiToken, looksLikeApiAccessToken } from "../services/api-access-token.js";
 import { SESSION_COOKIE_NAME, SessionKind } from "../services/developer-auth.js";
 
@@ -59,14 +65,20 @@ declare module "fastify" {
   }
   interface FastifyRequest {
     /**
-     * The resolved API client, set by {@link FastifyInstance.authenticatePublic}
+     * The resolved API registration, set by {@link FastifyInstance.authenticatePublic}
      * when the request authenticated with an issued `mc_live_…` token
      * (MC-088). Routes use it to skip the per-IP `apiRateLimiter` (the
-     * request's identity is the client, which already carries its own
-     * per-client quota). Absent for BFF-key and anonymous
+     * request has already passed the project quota and any narrower
+     * registration cap). Absent for BFF-key and anonymous
      * requests.
      */
     apiClient?: ApiClient;
+    /** Project aggregate resolved together with an issued registration token. */
+    apiProject?: DeveloperProject;
+    /** Registration-owned token id used for safe project usage attribution. */
+    apiClientTokenId?: string;
+    /** Local monotonic-enough start timestamp for the completed-request usage event. */
+    apiUsageStartedAt?: number;
     /**
      * Id of the authenticated developer account, set by
      * {@link FastifyInstance.authenticateDeveloper} after a valid
@@ -86,6 +98,41 @@ declare module "fastify" {
 
 async function authPlugin(app: FastifyInstance) {
   const internalApiKey = process.env.INTERNAL_API_KEY;
+
+  app.addHook("onResponse", async (request, reply) => {
+    if (!request.apiProject || !request.apiClient || !request.apiClientTokenId) return;
+    try {
+      const repo = await getApiAccessRepository();
+      await repo.createApiUsageEvent({
+        requestId: request.id,
+        projectId: request.apiProject.id,
+        registrationId: request.apiClient.id,
+        tokenId: request.apiClientTokenId,
+        method: request.method,
+        endpointTemplate: request.routeOptions.url ?? request.url.split("?")[0] ?? "unknown",
+        statusCode: reply.statusCode,
+        durationMs: Math.max(0, Date.now() - (request.apiUsageStartedAt ?? Date.now())),
+      });
+    } catch (error) {
+      request.log.warn(
+        {
+          cause: sanitizeErrorForLog(error, process.env.NODE_ENV !== "production"),
+          component: "PublicApiAuth",
+          errorCode: "MC-SYS-0001",
+          operation: "createApiUsageEvent",
+          outcome: "usage_not_recorded",
+          projectId: request.apiProject.id,
+          registrationId: request.apiClient.id,
+          requestId: request.id,
+          method: request.method,
+          route: request.routeOptions.url ?? request.url.split("?")[0] ?? "unknown",
+          statusCode: reply.statusCode,
+          result: "usage_not_recorded",
+        },
+        "Failed to persist API usage event",
+      );
+    }
+  });
 
   /**
    * API-key authentication for internal BFF traffic.
@@ -123,19 +170,19 @@ async function authPlugin(app: FastifyInstance) {
    *    proxy so it can hit the same public routes an external client would.
    * 2. **`X-API-Key`** carrying an issued **`mc_live_…` API-access token**
    *    (MC-088). Validated by SHA-256 hash against `api_client_tokens`; the
-   *    token and its owning client must both be `"active"`. On success the
-   *    client is attached as `request.apiClient`, the token's `lastUsedAt`
-   *    is stamped fire-and-forget, and the client's **effective**
-   *    per-minute/per-day quotas are enforced here — centrally, so every
+   *    project, registration, and token must all be `"active"`. On success
+   *    the registration is attached as `request.apiClient`, the token's
+   *    `lastUsedAt` is stamped fire-and-forget, and project quotas plus any
+   *    narrower registration caps are enforced here, so every
    *    route in the `authenticatePublic` scope is covered without per-route
-   *    wiring. Effective means per-key override ?? account tier limit ??
-   *    conservative fallback (MC-100), resolved by the repository.
+   *    wiring. Project limits resolve from project override, project tier,
+   *    then conservative fallback. Registration caps can only narrow them.
    * Response matrix:
    * - missing all credentials → `401 UNAUTHORIZED` ("Authentication required.")
    * - malformed, unknown, revoked, rotated, or stale UUID-shaped key; or
-   *   client suspended/revoked →
+   *   project or registration suspended/revoked →
    *   `401 UNAUTHORIZED` (one shape for every miss, so existence is not leaked)
-   * - valid key but per-client quota exhausted → `429` with the
+   * - valid key but project quota or registration cap exhausted → `429` with the
    *   standard `MC-API-0003` envelope and `Retry-After`
    * - any credential valid → pass-through (no reply sent)
    *
@@ -150,7 +197,7 @@ async function authPlugin(app: FastifyInstance) {
       return;
     }
 
-    // Issued developer token — hash lookup + per-client quotas.
+    // Issued developer token: hash lookup plus project and registration limits.
     if (typeof apiKey === "string" && looksLikeApiAccessToken(apiKey)) {
       const repo = await getApiAccessRepository();
       const resolved = await repo.findActiveApiClientByTokenHash(hashApiToken(apiKey));
@@ -158,24 +205,47 @@ async function authPlugin(app: FastifyInstance) {
         return reply.status(401).send({ error: "UNAUTHORIZED", message: "Invalid or revoked API key." });
       }
 
+      request.apiProject = resolved.project;
       request.apiClient = resolved.client;
+      request.apiClientTokenId = resolved.token.id;
+      request.apiUsageStartedAt = Date.now();
 
       // Usage stamp is fire-and-forget: the auth hot path must not block on
       // (or fail because of) a bookkeeping write. Quota checks below still
       // count this request even when it ends up 429 — a blocked request is
       // still usage.
-      repo.touchApiClientTokenLastUsed(resolved.token.id).catch((err) => {
-        request.log.warn({ err }, "Failed to stamp api_client_tokens.last_used_at");
+      repo.touchApiClientTokenLastUsed(resolved.token.id).catch((error) => {
+        request.log.warn(
+          {
+            cause: sanitizeErrorForLog(error, process.env.NODE_ENV !== "production"),
+            component: "PublicApiAuth",
+            errorCode: "MC-DB-0004",
+            operation: "touchApiClientTokenLastUsed",
+            outcome: "last_used_not_recorded",
+            projectId: resolved.project.id,
+            registrationId: resolved.client.id,
+            requestId: request.id,
+            method: request.method,
+            route: request.routeOptions.url ?? request.url.split("?")[0] ?? "unknown",
+          },
+          "Failed to stamp API registration token usage",
+        );
       });
 
-      const minuteCheck = clientMinuteRateLimiter.check(resolved.client.id, resolved.client.effectiveRequestsPerMinute);
-      if (minuteCheck.limited) {
-        return sendRateLimitError(reply, minuteCheck);
+      const quotaChecks = [
+        projectMinuteRateLimiter.check(resolved.project.id, resolved.project.effectiveRequestsPerMinute),
+        projectDayRateLimiter.check(resolved.project.id, resolved.project.effectiveRequestsPerDay),
+      ];
+      if (resolved.client.effectiveRequestsPerMinute < resolved.project.effectiveRequestsPerMinute) {
+        quotaChecks.push(
+          registrationMinuteRateLimiter.check(resolved.client.id, resolved.client.effectiveRequestsPerMinute),
+        );
       }
-      const dayCheck = clientDayRateLimiter.check(resolved.client.id, resolved.client.effectiveRequestsPerDay);
-      if (dayCheck.limited) {
-        return sendRateLimitError(reply, dayCheck);
+      if (resolved.client.effectiveRequestsPerDay < resolved.project.effectiveRequestsPerDay) {
+        quotaChecks.push(registrationDayRateLimiter.check(resolved.client.id, resolved.client.effectiveRequestsPerDay));
       }
+      const limitedCheck = quotaChecks.find((check) => check.limited);
+      if (limitedCheck) return sendRateLimitError(reply, limitedCheck);
       return;
     }
 

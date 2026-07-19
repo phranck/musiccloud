@@ -58,8 +58,15 @@ function useClientColumns(
         id: "appName",
         header: dm.colApp,
         headerClassName: "whitespace-nowrap",
-        sortKey: (c) => c.appName.toLowerCase(),
-        cell: (c) => <span className="font-medium text-[var(--ds-text)]">{c.appName}</span>,
+        sortKey: (c) => `${c.projectDisplayName} ${c.appName}`.toLowerCase(),
+        cell: (c) => (
+          <span className="flex flex-col">
+            <span className="font-medium text-[var(--ds-text)]">{c.projectDisplayName}</span>
+            <span className="text-xs text-[var(--ds-text-muted)]">
+              {c.appName} · {c.registrationType} · {c.publicClientId}
+            </span>
+          </span>
+        ),
       },
       {
         id: "contactEmail",
@@ -85,7 +92,7 @@ function useClientColumns(
               {dm.perMinute} &middot; {c.effectiveRequestsPerDay}
               {dm.perDay}
             </span>
-            {(c.requestsPerMinute != null || c.requestsPerDay != null) && (
+            {(c.projectRequestsPerMinute != null || c.projectRequestsPerDay != null) && (
               <span className="rounded bg-violet-500/10 px-1.5 py-0.5 text-xs font-semibold text-violet-400">
                 {dm.clientCustomBadge}
               </span>
@@ -158,6 +165,9 @@ export function ApiClientsPage() {
       return (
         prefix.toLowerCase().includes(q) ||
         c.appName.toLowerCase().includes(q) ||
+        c.projectDisplayName.toLowerCase().includes(q) ||
+        c.publicClientId.toLowerCase().includes(q) ||
+        c.registrationType.toLowerCase().includes(q) ||
         c.contactEmail.toLowerCase().includes(q) ||
         `${c.effectiveRequestsPerMinute}${dm.perMinute} ${c.effectiveRequestsPerDay}${dm.perDay}`
           .toLowerCase()

@@ -42,7 +42,10 @@ const integrationItems = [
   ["Authentication", "Send X-API-Key with your mc_live key. Never expose that key in browser code."],
   ["Requests", "Use JSON request bodies and read JSON responses from the versioned api.musiccloud.io base URL."],
   ["Errors", "Every backend error includes a stable code, safe message, and errorId for support correlation."],
-  ["Limits", "Validated clients are limited by their configured minute and day quotas."],
+  [
+    "Limits",
+    "Authenticated requests share the Developer Project's minute and day quotas; registration caps can only narrow them.",
+  ],
   ["Versioning", `This page is generated from public API version ${reference.version}.`],
 ] as const;
 const openApiContractUrl = "https://api.musiccloud.io/docs/json";

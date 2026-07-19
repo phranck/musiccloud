@@ -42,6 +42,9 @@ import type {
   ApiAccessRequest,
   ApiClient,
   ApiClientToken,
+  ApiUsageEvent,
+  DeveloperProject,
+  DeveloperProjectSubscription,
 } from "../api-access-repository.js";
 import type {
   DeveloperAccount,
@@ -142,21 +145,29 @@ import {
   createApiAccessAuditEvent as apiAccessCreateAuditEvent,
   createApiClient as apiAccessCreateClient,
   createApiClientToken as apiAccessCreateClientToken,
+  createDeveloperProject as apiAccessCreateDeveloperProject,
   createApiAccessRequest as apiAccessCreateRequest,
+  createApiUsageEvent as apiAccessCreateUsageEvent,
   findActiveApiClientByTokenHash as apiAccessFindActiveClientByTokenHash,
   findApiClientById as apiAccessFindClientById,
   findApiClientTokenById as apiAccessFindClientTokenById,
+  findDeveloperProjectById as apiAccessFindDeveloperProjectById,
+  findDeveloperProjectSubscription as apiAccessFindDeveloperProjectSubscription,
   findApiAccessRequestById as apiAccessFindRequestById,
   listApiClients as apiAccessListClients,
   listApiClientsByDeveloperAccount as apiAccessListClientsByDeveloperAccount,
+  listApiClientsByProject as apiAccessListClientsByProject,
   listApiClientTokensByClient as apiAccessListClientTokensByClient,
+  listDeveloperProjectsByAccount as apiAccessListDeveloperProjectsByAccount,
   listApiAccessRequests as apiAccessListRequests,
   listApiAccessRequestsByDeveloperAccount as apiAccessListRequestsByDeveloperAccount,
   reviewApiAccessRequest as apiAccessReviewRequest,
   revokeApiClientToken as apiAccessRevokeClientToken,
   rotateApiClientToken as apiAccessRotateClientToken,
+  setDeveloperProjectSubscription as apiAccessSetDeveloperProjectSubscription,
   touchApiClientTokenLastUsed as apiAccessTouchClientTokenLastUsed,
   updateApiClient as apiAccessUpdateClient,
+  updateDeveloperProject as apiAccessUpdateDeveloperProject,
 } from "./postgres-api-access.js";
 import {
   addArtistExternalIds as artistsAddArtistExternalIds,
@@ -1210,12 +1221,61 @@ export class PostgresAdapter
   // API ACCESS (ApiAccessRepository) — migration 0048
   // ============================================================================
 
+  createDeveloperProject(data: {
+    developerAccountId: string;
+    displayName: string;
+    requestsPerMinute?: number | null;
+    requestsPerDay?: number | null;
+    tierId?: string | null;
+    createdByAdminId?: string | null;
+  }): Promise<DeveloperProject> {
+    return apiAccessCreateDeveloperProject(this.pool, data);
+  }
+
+  findDeveloperProjectById(id: string): Promise<DeveloperProject | null> {
+    return apiAccessFindDeveloperProjectById(this.pool, id);
+  }
+
+  listDeveloperProjectsByAccount(developerAccountId: string): Promise<DeveloperProject[]> {
+    return apiAccessListDeveloperProjectsByAccount(this.pool, developerAccountId);
+  }
+
+  updateDeveloperProject(
+    id: string,
+    data: {
+      displayName?: string;
+      status?: "active" | "suspended" | "deleted";
+      requestsPerMinute?: number | null;
+      requestsPerDay?: number | null;
+    },
+  ): Promise<DeveloperProject | null> {
+    return apiAccessUpdateDeveloperProject(this.pool, id, data);
+  }
+
+  setDeveloperProjectSubscription(data: {
+    projectId: string;
+    tierId: string | null;
+    creemSubscriptionId?: string | null;
+    creemCustomerId?: string | null;
+    status?: string;
+    interval?: string | null;
+    currentPeriodEnd?: number | null;
+    cancelAtPeriodEnd?: boolean;
+  }): Promise<DeveloperProjectSubscription> {
+    return apiAccessSetDeveloperProjectSubscription(this.pool, data);
+  }
+
+  findDeveloperProjectSubscription(projectId: string): Promise<DeveloperProjectSubscription | null> {
+    return apiAccessFindDeveloperProjectSubscription(this.pool, projectId);
+  }
+
   countPendingApiAccessRequests(): Promise<number> {
     return apiAccessCountPending(this.pool);
   }
 
   createApiAccessRequest(data: {
     developerAccountId: string;
+    projectId?: string | null;
     contactEmail: string;
     appName: string;
     appDescription: string;
@@ -1238,7 +1298,12 @@ export class PostgresAdapter
 
   reviewApiAccessRequest(
     id: string,
-    data: { status: "approved" | "rejected"; reviewedByAdminId: string; reviewNote?: string | null },
+    data: {
+      status: "approved" | "rejected";
+      reviewedByAdminId: string;
+      reviewNote?: string | null;
+      projectId?: string | null;
+    },
   ): Promise<ApiAccessRequest | null> {
     return apiAccessReviewRequest(this.pool, id, data);
   }
@@ -1246,6 +1311,9 @@ export class PostgresAdapter
   createApiClient(data: {
     requestId?: string | null;
     developerAccountId: string;
+    projectId?: string | null;
+    registrationType?: "development" | "confidential" | "public";
+    capabilities?: string[];
     appName: string;
     contactEmail: string;
     description: string;
@@ -1262,6 +1330,10 @@ export class PostgresAdapter
 
   listApiClientsByDeveloperAccount(developerAccountId: string): Promise<ApiClient[]> {
     return apiAccessListClientsByDeveloperAccount(this.pool, developerAccountId);
+  }
+
+  listApiClientsByProject(projectId: string): Promise<ApiClient[]> {
+    return apiAccessListClientsByProject(this.pool, projectId);
   }
 
   listApiClients(status?: string): Promise<ApiClient[]> {
@@ -1293,7 +1365,9 @@ export class PostgresAdapter
     return apiAccessFindClientTokenById(this.pool, id);
   }
 
-  findActiveApiClientByTokenHash(tokenHash: string): Promise<{ client: ApiClient; token: ApiClientToken } | null> {
+  findActiveApiClientByTokenHash(
+    tokenHash: string,
+  ): Promise<{ project: DeveloperProject; client: ApiClient; token: ApiClientToken } | null> {
     return apiAccessFindActiveClientByTokenHash(this.pool, tokenHash);
   }
 
@@ -1317,6 +1391,7 @@ export class PostgresAdapter
   }
 
   createApiAccessAuditEvent(data: {
+    projectId?: string | null;
     clientId?: string | null;
     requestId?: string | null;
     tokenId?: string | null;
@@ -1326,6 +1401,19 @@ export class PostgresAdapter
     eventData?: Record<string, unknown>;
   }): Promise<ApiAccessAuditEvent> {
     return apiAccessCreateAuditEvent(this.pool, data);
+  }
+
+  createApiUsageEvent(data: {
+    requestId: string;
+    projectId: string;
+    registrationId: string;
+    tokenId?: string | null;
+    method: string;
+    endpointTemplate: string;
+    statusCode: number;
+    durationMs: number;
+  }): Promise<ApiUsageEvent> {
+    return apiAccessCreateUsageEvent(this.pool, data);
   }
 
   // ============================================================================

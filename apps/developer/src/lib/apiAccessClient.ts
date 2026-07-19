@@ -50,6 +50,20 @@ export const ApiClientStatus = {
 /** An {@link ApiClientStatus} member value. */
 export type ApiClientStatusValue = (typeof ApiClientStatus)[keyof typeof ApiClientStatus];
 
+export const DeveloperProjectStatus = {
+  Active: "active",
+  Suspended: "suspended",
+  Deleted: "deleted",
+} as const;
+
+export const ClientRegistrationType = {
+  Development: "development",
+  Confidential: "confidential",
+  Public: "public",
+} as const;
+
+export type ClientRegistrationTypeValue = (typeof ClientRegistrationType)[keyof typeof ClientRegistrationType];
+
 /** Lifecycle of an issued public API-key token. */
 export const ApiTokenStatus = {
   /** Valid for authentication. */
@@ -70,6 +84,8 @@ export type ApiTokenStatusValue = (typeof ApiTokenStatus)[keyof typeof ApiTokenS
 export interface AccessRequestDto {
   /** Stable request id. */
   id: string;
+  /** Project receiving the approved registration, or `null` while pending. */
+  projectId: string | null;
   /** Name of the app access was requested for. */
   appName: string;
   /** Free-text description of the app. */
@@ -111,6 +127,17 @@ export interface ApiTokenDto {
 export interface ApiClientDto {
   /** Stable client id. */
   id: string;
+  /** Owning project aggregate. */
+  projectId: string;
+  /** Public OAuth/client identifier, distinct from the internal row id. */
+  publicClientId: string;
+  /** Registration type describing how the client can protect credentials. */
+  registrationType: ClientRegistrationTypeValue;
+  /** Explicit authentication capabilities enabled for this registration. */
+  capabilities: string[];
+  /** Display name and lifecycle of the owning project. */
+  projectDisplayName: string;
+  projectStatus: string;
   /** Name of the app. */
   appName: string;
   /** Free-text description. */
@@ -125,6 +152,21 @@ export interface ApiClientDto {
   createdAt: string;
   /** The client's tokens, newest first. */
   tokens: ApiTokenDto[];
+}
+
+export interface DeveloperProjectDto {
+  id: string;
+  displayName: string;
+  status: string;
+  subscription: { tierId: string | null; tierName: string | null };
+  quota: {
+    requestsPerMinute: number;
+    requestsPerDay: number;
+    overrideRequestsPerMinute: number | null;
+    overrideRequestsPerDay: number | null;
+  };
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
@@ -230,6 +272,53 @@ export function submitAccessRequest(body: {
  */
 export function listApiClients(signal?: AbortSignal): Promise<ApiAccessResult<{ clients: ApiClientDto[] }>> {
   return requestJson(ENDPOINTS.dev.apiAccess.clientsList, { signal });
+}
+
+export function listDeveloperProjects(
+  signal?: AbortSignal,
+): Promise<ApiAccessResult<{ projects: DeveloperProjectDto[] }>> {
+  return requestJson(ENDPOINTS.dev.apiAccess.projects, { signal });
+}
+
+export function createDeveloperProject(
+  displayName: string,
+): Promise<ApiAccessResult<{ project: DeveloperProjectDto }>> {
+  return requestJson(ENDPOINTS.dev.apiAccess.projects, {
+    method: "POST",
+    body: JSON.stringify({ displayName }),
+  });
+}
+
+export function getDeveloperProject(
+  projectId: string,
+  signal?: AbortSignal,
+): Promise<ApiAccessResult<{ project: DeveloperProjectDto; registrations: ApiClientDto[] }>> {
+  return requestJson(ENDPOINTS.dev.apiAccess.projectDetail(projectId), { signal });
+}
+
+export function updateDeveloperProject(
+  projectId: string,
+  body: { displayName?: string; status?: string },
+): Promise<ApiAccessResult<{ project: DeveloperProjectDto }>> {
+  return requestJson(ENDPOINTS.dev.apiAccess.projectDetail(projectId), {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export function createClientRegistration(
+  projectId: string,
+  body: {
+    name: string;
+    description?: string;
+    registrationType: ClientRegistrationTypeValue;
+    capabilities?: string[];
+  },
+): Promise<ApiAccessResult<{ registration: ApiClientDto }>> {
+  return requestJson(ENDPOINTS.dev.apiAccess.projectRegistrations(projectId), {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
 
 /**

@@ -1753,6 +1753,87 @@ export type DeveloperSubscriptionRow = typeof developerSubscriptions.$inferSelec
 export type DeveloperSubscriptionInsert = typeof developerSubscriptions.$inferInsert;
 
 /**
+ * Developer-owned API project. Projects are the aggregate boundary for
+ * subscriptions, quota overrides, client registrations, and usage. The
+ * account remains the owner while project lifecycle changes only affect
+ * credentials registered under that project.
+ */
+export const developerProjects = pgTable(
+  "developer_projects",
+  {
+    id: text("id").primaryKey(),
+    developerAccountId: text("developer_account_id")
+      .notNull()
+      .references(() => developerAccounts.id, { onDelete: "cascade" }),
+    displayName: text("display_name").notNull(),
+    status: text("status").notNull().default("active"),
+    requestsPerMinute: integer("requests_per_minute"),
+    requestsPerDay: integer("requests_per_day"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    suspendedAt: timestamp("suspended_at", { withTimezone: true }),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdByAdminId: text("created_by_admin_id").references(() => adminUsers.id, { onDelete: "set null" }),
+  },
+  (table) => [
+    index("idx_developer_projects_account_status").on(table.developerAccountId, table.status),
+    check("chk_developer_projects_status", sql`${table.status} IN ('active', 'suspended', 'deleted')`),
+    check(
+      "chk_developer_projects_requests_per_minute",
+      sql`${table.requestsPerMinute} IS NULL OR ${table.requestsPerMinute} > 0`,
+    ),
+    check(
+      "chk_developer_projects_requests_per_day",
+      sql`${table.requestsPerDay} IS NULL OR ${table.requestsPerDay} > 0`,
+    ),
+  ],
+);
+
+export type DeveloperProjectRow = typeof developerProjects.$inferSelect;
+export type DeveloperProjectInsert = typeof developerProjects.$inferInsert;
+
+/**
+ * Billing and tariff state for one project. A project has at most one row;
+ * `tierId` may be null while legacy accounts are backfilled or when a project
+ * intentionally relies on the conservative fallback limits.
+ */
+export const developerProjectSubscriptions = pgTable(
+  "developer_project_subscriptions",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => developerProjects.id, { onDelete: "cascade" }),
+    tierId: text("tier_id").references(() => tiers.id, { onDelete: "restrict" }),
+    creemSubscriptionId: text("creem_subscription_id"),
+    creemCustomerId: text("creem_customer_id"),
+    status: text("status").notNull().default("active"),
+    interval: text("interval"),
+    currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_developer_project_subscriptions_project").on(table.projectId),
+    uniqueIndex("uq_developer_project_subscriptions_creem_id")
+      .on(table.creemSubscriptionId)
+      .where(sql`${table.creemSubscriptionId} IS NOT NULL`),
+    check(
+      "chk_developer_project_subscriptions_status",
+      sql`${table.status} IN ('active', 'trialing', 'paused', 'past_due', 'expired', 'canceled', 'scheduled_cancel')`,
+    ),
+    check(
+      "chk_developer_project_subscriptions_interval",
+      sql`${table.interval} IS NULL OR ${table.interval} IN ('month', 'year')`,
+    ),
+  ],
+);
+
+export type DeveloperProjectSubscriptionRow = typeof developerProjectSubscriptions.$inferSelect;
+export type DeveloperProjectSubscriptionInsert = typeof developerProjectSubscriptions.$inferInsert;
+
+/**
  * Maps each internal tier and billing interval to its Creem product id. Creem
  * products carry no metadata field, so the tier-to-product association cannot
  * live at Creem and lives here instead. Creem stays the source of truth for
@@ -1797,6 +1878,7 @@ export const apiAccessRequests = pgTable(
     developerAccountId: text("developer_account_id")
       .notNull()
       .references(() => developerAccounts.id, { onDelete: "cascade" }),
+    projectId: text("project_id").references(() => developerProjects.id, { onDelete: "set null" }),
     contactEmail: text("contact_email").notNull(),
     appName: text("app_name").notNull(),
     appDescription: text("app_description").notNull(),
@@ -1810,6 +1892,7 @@ export const apiAccessRequests = pgTable(
   (table) => [
     index("idx_api_access_requests_status_submitted").on(table.status, table.submittedAt),
     index("idx_api_access_requests_developer_account").on(table.developerAccountId),
+    index("idx_api_access_requests_project").on(table.projectId),
     check("chk_api_access_requests_status", sql`${table.status} IN ('pending', 'approved', 'rejected', 'archived')`),
     check("chk_api_access_requests_estimated_requests", sql`${table.estimatedRequestsPerDay} > 0`),
   ],
@@ -1834,6 +1917,12 @@ export const apiClients = pgTable(
     developerAccountId: text("developer_account_id")
       .notNull()
       .references(() => developerAccounts.id, { onDelete: "cascade" }),
+    projectId: text("project_id").references(() => developerProjects.id, { onDelete: "set null" }),
+    publicClientId: text("public_client_id")
+      .notNull()
+      .default(sql`'mc_client_' || replace(gen_random_uuid()::text, '-', '')`),
+    registrationType: text("registration_type").notNull().default("development"),
+    capabilities: jsonb("capabilities").notNull().default(["legacy_api_key"]),
     appName: text("app_name").notNull(),
     contactEmail: text("contact_email").notNull(),
     description: text("description").notNull(),
@@ -1847,7 +1936,13 @@ export const apiClients = pgTable(
   (table) => [
     index("idx_api_clients_status").on(table.status),
     index("idx_api_clients_developer_account").on(table.developerAccountId),
+    index("idx_api_clients_project_status").on(table.projectId, table.status),
+    uniqueIndex("uq_api_clients_public_client_id").on(table.publicClientId),
     check("chk_api_clients_status", sql`${table.status} IN ('active', 'suspended', 'revoked')`),
+    check(
+      "chk_api_clients_registration_type",
+      sql`${table.registrationType} IN ('development', 'confidential', 'public')`,
+    ),
     check(
       "chk_api_clients_requests_per_minute",
       sql`${table.requestsPerMinute} IS NULL OR ${table.requestsPerMinute} > 0`,
@@ -1896,6 +1991,40 @@ export type ApiClientTokenRow = typeof apiClientTokens.$inferSelect;
 export type ApiClientTokenInsert = typeof apiClientTokens.$inferInsert;
 
 /**
+ * Project-scoped usage attribution for completed token-authenticated API
+ * requests. Only stable routing and timing metadata is retained; request
+ * bodies, credentials, and authorization headers are never stored.
+ */
+export const apiUsageEvents = pgTable(
+  "api_usage_events",
+  {
+    id: text("id").primaryKey(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+    requestId: text("request_id").notNull(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => developerProjects.id, { onDelete: "cascade" }),
+    registrationId: text("registration_id")
+      .notNull()
+      .references(() => apiClients.id, { onDelete: "cascade" }),
+    tokenId: text("token_id").references(() => apiClientTokens.id, { onDelete: "set null" }),
+    method: text("method").notNull(),
+    endpointTemplate: text("endpoint_template").notNull(),
+    statusCode: integer("status_code").notNull(),
+    durationMs: integer("duration_ms").notNull(),
+  },
+  (table) => [
+    index("idx_api_usage_events_project_occurred").on(table.projectId, table.occurredAt),
+    index("idx_api_usage_events_registration_occurred").on(table.registrationId, table.occurredAt),
+    check("chk_api_usage_events_status_code", sql`${table.statusCode} BETWEEN 100 AND 599`),
+    check("chk_api_usage_events_duration_ms", sql`${table.durationMs} >= 0`),
+  ],
+);
+
+export type ApiUsageEventRow = typeof apiUsageEvents.$inferSelect;
+export type ApiUsageEventInsert = typeof apiUsageEvents.$inferInsert;
+
+/**
  * Audit trail for every mutating action on requests/clients/tokens.
  * `actorAdminId` is set for admin-initiated actions, `actorDeveloperAccountId`
  * for developer self-service actions — exactly one of the two is set (never
@@ -1905,6 +2034,7 @@ export const apiAccessAuditEvents = pgTable(
   "api_access_audit_events",
   {
     id: text("id").primaryKey(),
+    projectId: text("project_id").references(() => developerProjects.id, { onDelete: "set null" }),
     clientId: text("client_id").references(() => apiClients.id, { onDelete: "set null" }),
     requestId: text("request_id").references(() => apiAccessRequests.id, { onDelete: "set null" }),
     tokenId: text("token_id").references(() => apiClientTokens.id, { onDelete: "set null" }),
