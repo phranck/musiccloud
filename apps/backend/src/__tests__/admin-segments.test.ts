@@ -1,22 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type {
-  AdminRepository,
-  ContentPageRow,
-  PageSegmentInputRow,
-  PageSegmentRow,
-  PageSegmentTranslationRow,
-} from "../db/admin-repository.js";
+import type { AdminRepository, ContentPageRow, PageSegmentInputRow, PageSegmentRow } from "../db/admin-repository.js";
 import { replaceSegments } from "../services/admin-segments.js";
 
 const pages = new Map<string, ContentPageRow>();
 let segmentsByOwner = new Map<string, PageSegmentRow[]>();
-let segmentTranslationsByOwner = new Map<string, PageSegmentTranslationRow[]>();
 let lastReplace: { ownerSlug: string; inputs: PageSegmentInputRow[] } | null = null;
-let replaceTranslationCalls: {
-  segmentId: number;
-  translations: { locale: string; label: string; sourceUpdatedAt: Date | null }[];
-}[] = [];
 
 function makePage(overrides: Partial<ContentPageRow> = {}): ContentPageRow {
   return {
@@ -59,12 +48,6 @@ const repo: Partial<AdminRepository> = {
     segmentsByOwner.set(ownerSlug, rows);
     return rows;
   },
-  async replaceSegmentTranslations(segmentId, translations) {
-    replaceTranslationCalls.push({ segmentId, translations: [...translations] });
-  },
-  async listSegmentTranslationsForOwner(ownerSlug) {
-    return segmentTranslationsByOwner.get(ownerSlug) ?? [];
-  },
 };
 
 vi.mock("../db/index.js", () => ({
@@ -75,9 +58,7 @@ describe("replaceSegments", () => {
   beforeEach(() => {
     pages.clear();
     segmentsByOwner = new Map();
-    segmentTranslationsByOwner = new Map();
     lastReplace = null;
-    replaceTranslationCalls = [];
 
     pages.set("owner-slug", makePage({ slug: "owner-slug", pageType: "segmented" }));
     pages.set("default-a", makePage({ slug: "default-a", pageType: "default" }));
@@ -143,60 +124,5 @@ describe("replaceSegments", () => {
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.data[0].label).toBe("Trimmed");
     expect(lastReplace?.inputs[0].label).toBe("Trimmed");
-  });
-
-  it("persists per-segment translations via repo.replaceSegmentTranslations", async () => {
-    pages.set("owner", makePage({ slug: "owner", pageType: "segmented" }));
-    pages.set("child", makePage({ slug: "child", pageType: "default" }));
-    const calls: {
-      segmentId: number;
-      translations: { locale: string; label: string; sourceUpdatedAt: Date | null }[];
-    }[] = [];
-    const scopedRepo: Partial<AdminRepository> = {
-      ...repo,
-      async replaceSegmentTranslations(segmentId, translations) {
-        calls.push({ segmentId, translations: [...translations] });
-      },
-      async listSegmentTranslationsForOwner() {
-        return [];
-      },
-    };
-    vi.doMock("../db/index.js", () => ({ getAdminRepository: async () => scopedRepo }));
-    vi.resetModules();
-    const { replaceSegments: replaceSegmentsFresh } = await import("../services/admin-segments.js");
-
-    await replaceSegmentsFresh("owner", [
-      { position: 0, label: "Child", targetSlug: "child", translations: { de: "Kind" } },
-    ]);
-    expect(calls.length).toBe(1);
-    expect(calls[0]!.translations).toEqual([{ locale: "de", label: "Kind", sourceUpdatedAt: expect.any(Date) }]);
-  });
-
-  it("preserves existing translations when replacement input omits translations", async () => {
-    const sourceUpdatedAt = new Date("2024-02-02T00:00:00Z");
-    segmentsByOwner.set("owner-slug", [
-      {
-        id: 42,
-        ownerSlug: "owner-slug",
-        targetSlug: "default-a",
-        position: 0,
-        label: "Default A",
-        labelUpdatedAt: new Date("2024-01-01T00:00:00Z"),
-      },
-    ]);
-    segmentTranslationsByOwner.set("owner-slug", [
-      {
-        segmentId: 42,
-        locale: "de",
-        label: "Deutsch A",
-        sourceUpdatedAt,
-        updatedAt: new Date("2024-02-03T00:00:00Z"),
-      },
-    ]);
-
-    const result = await replaceSegments("owner-slug", [{ position: 0, label: "Default A", targetSlug: "default-a" }]);
-
-    expect(result.ok).toBe(true);
-    expect(replaceTranslationCalls[0]!.translations).toEqual([{ locale: "de", label: "Deutsch A", sourceUpdatedAt }]);
   });
 });

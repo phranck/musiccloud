@@ -1,18 +1,14 @@
 /**
- * Navigation domain: site navigation items (`nav_items`) plus their
- * per-locale translations (`nav_item_translations`).
+ * Navigation domain: canonical site navigation items (`nav_items`).
  *
  * Scope:
  *   - Read and atomically replace the complete semantic configuration,
- *     concrete Context x Area placements, and translations.
+ *     concrete Context x Area placements.
  *   - Preserve legacy Frontend header/footer reads and writes during the
  *     additive migration period.
- *   - List / replace per-item translations for legacy consumers.
  *
  * Excludes:
  *   - Content page content / metadata (see `postgres-content-pages.ts`).
- *   - Page-segment translations (handled with segments in
- *     `postgres-content-pages.ts`).
  */
 
 import {
@@ -31,7 +27,6 @@ import type {
   NavId,
   NavItemReplaceInput,
   NavItemRow,
-  NavItemTranslationRow,
   NavigationConfigurationEntryRow,
   NavigationConfigurationReplaceInput,
   NavTarget,
@@ -76,12 +71,6 @@ interface NavigationPlacementSqlRow {
   context: number;
   area: number;
   position: number;
-}
-
-interface NavigationTranslationSqlRow {
-  nav_item_id: number;
-  locale: string;
-  label: string;
 }
 
 // ============================================================================
@@ -140,7 +129,6 @@ function legacyProjection(placements: NavigationPlacement[]): { navId: NavId; po
 function rowToNavigationConfigurationEntry(
   row: NavigationConfigurationSqlRow,
   placements: NavigationPlacement[],
-  translations: Partial<Record<string, string>>,
 ): NavigationConfigurationEntryRow {
   return {
     id: row.id,
@@ -156,7 +144,6 @@ function rowToNavigationConfigurationEntry(
     areaMask: row.area_mask as NavigationAreaMask,
     labelUpdatedAt: row.label_updated_at,
     placements,
-    translations,
   };
 }
 
@@ -212,12 +199,6 @@ async function readNavigationConfiguration(
        FROM navigation_item_placements
        ORDER BY nav_item_id, context, area`,
   );
-  const translationResult = await client.query<NavigationTranslationSqlRow>(
-    `SELECT nav_item_id, locale, label
-       FROM nav_item_translations
-       ORDER BY nav_item_id, locale`,
-  );
-
   const placementsByItem = new Map<number, NavigationPlacement[]>();
   for (const row of placementResult.rows) {
     const placements = placementsByItem.get(row.nav_item_id) ?? [];
@@ -229,16 +210,7 @@ async function readNavigationConfiguration(
     placementsByItem.set(row.nav_item_id, placements);
   }
 
-  const translationsByItem = new Map<number, Partial<Record<string, string>>>();
-  for (const row of translationResult.rows) {
-    const translations = translationsByItem.get(row.nav_item_id) ?? {};
-    translations[row.locale] = row.label;
-    translationsByItem.set(row.nav_item_id, translations);
-  }
-
-  return entryResult.rows.map((row) =>
-    rowToNavigationConfigurationEntry(row, placementsByItem.get(row.id) ?? [], translationsByItem.get(row.id) ?? {}),
-  );
+  return entryResult.rows.map((row) => rowToNavigationConfigurationEntry(row, placementsByItem.get(row.id) ?? []));
 }
 
 /** Lists the complete semantic navigation configuration. */
@@ -257,7 +229,7 @@ export async function listNavigationConfiguration(pool: Pool): Promise<Navigatio
   }
 }
 
-/** Atomically replaces semantic entries, concrete placements, and translations. */
+/** Atomically replaces semantic entries and concrete placements. */
 export async function replaceNavigationConfiguration(
   pool: Pool,
   entries: NavigationConfigurationReplaceInput[],
@@ -269,7 +241,7 @@ export async function replaceNavigationConfiguration(
 
     for (const entry of entries) {
       const projection = legacyProjection(entry.placements);
-      const inserted = await client.query<{ id: number; label_updated_at: Date }>(
+      const inserted = await client.query<{ id: number }>(
         `INSERT INTO nav_items (
            nav_id, target_kind, page_id, page_slug, url, system_key, target,
            position, label, context_mask, area_mask
@@ -304,17 +276,6 @@ export async function replaceNavigationConfiguration(
           [navItemId, placement.context, placement.area, placement.position],
         );
       }
-
-      for (const [locale, label] of Object.entries(entry.translations ?? {}).sort(([left], [right]) =>
-        left.localeCompare(right),
-      )) {
-        if (label === undefined) continue;
-        await client.query(
-          `INSERT INTO nav_item_translations (nav_item_id, locale, label, source_updated_at)
-           VALUES ($1, $2, $3, $4)`,
-          [navItemId, locale, label, insertedItem.label_updated_at],
-        );
-      }
     }
 
     const persisted = await readNavigationConfiguration(client);
@@ -336,8 +297,7 @@ export async function replaceNavigationConfiguration(
  * columns.
  *
  * @remarks Defaults `target = "_self"`. `pageSlug`, `url`, and `label`
- *   may be `null` (e.g. external URL with separate label set via
- *   translations).
+ *   may be `null`.
  *
  * @param pool - Postgres connection pool.
  * @param navId - The navigation surface to replace.
@@ -369,84 +329,4 @@ export async function replaceAdminNavItems(
     client.release();
   }
   return listAdminNavItems(pool, navId);
-}
-
-// ============================================================================
-// NAV ITEM TRANSLATIONS
-// ============================================================================
-
-/**
- * Lists every translation row for items belonging to one navigation
- * surface, ordered by `nav_item_id` then `locale`.
- *
- * @param pool - Postgres connection pool.
- * @param navId - The navigation surface key.
- * @returns Flat list of translations; the caller groups by
- *   `navItemId` if a nested structure is needed.
- */
-export async function listNavTranslations(pool: Pool, navId: NavId): Promise<NavItemTranslationRow[]> {
-  const placement = legacyPlacement(navId);
-  const result = await pool.query<{
-    nav_item_id: number;
-    locale: string;
-    label: string;
-    source_updated_at: Date | null;
-    updated_at: Date;
-  }>(
-    `WITH placement_state AS (
-       SELECT EXISTS (SELECT 1 FROM navigation_item_placements) AS configured
-     )
-     SELECT nit.nav_item_id, nit.locale, nit.label, nit.source_updated_at, nit.updated_at
-     FROM nav_item_translations nit
-     JOIN nav_items ni ON ni.id = nit.nav_item_id
-     CROSS JOIN placement_state state
-     LEFT JOIN navigation_item_placements np
-       ON np.nav_item_id = ni.id AND np.context = $1 AND np.area = $2
-     WHERE (state.configured AND np.nav_item_id IS NOT NULL)
-        OR (NOT state.configured AND ni.nav_id = $3)
-     ORDER BY nit.nav_item_id, nit.locale`,
-    [placement.context, placement.area, navId],
-  );
-  return result.rows.map((r) => ({
-    navItemId: r.nav_item_id,
-    locale: r.locale,
-    label: r.label,
-    sourceUpdatedAt: r.source_updated_at,
-    updatedAt: r.updated_at,
-  }));
-}
-
-/**
- * Replaces every translation row for one nav item: delete-all + insert
- * in a single transaction.
- *
- * @param pool - Postgres connection pool.
- * @param navItemId - The nav item's id.
- * @param translations - The new translation list. Each entry needs
- *   `locale`, `label` and an optional `sourceUpdatedAt` audit
- *   timestamp.
- */
-export async function replaceNavItemTranslations(
-  pool: Pool,
-  navItemId: number,
-  translations: { locale: string; label: string; sourceUpdatedAt: Date | null }[],
-): Promise<void> {
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    await client.query(`DELETE FROM nav_item_translations WHERE nav_item_id = $1`, [navItemId]);
-    for (const t of translations) {
-      await client.query(
-        `INSERT INTO nav_item_translations (nav_item_id, locale, label, source_updated_at)
-         VALUES ($1, $2, $3, $4)`,
-        [navItemId, t.locale, t.label, t.sourceUpdatedAt],
-      );
-    }
-    await client.query("COMMIT");
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
-  } finally {
-    client.release();
-  }
 }

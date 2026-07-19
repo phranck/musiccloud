@@ -85,7 +85,7 @@ describe("PUT /admin/pages/bulk", () => {
     expect(arg.topLevelOrder).toEqual(["info", "help"]);
   });
 
-  it("full mixed payload: forwards all four sections + opts.updatedBy", async () => {
+  it("full mixed payload: forwards all canonical sections + opts.updatedBy", async () => {
     vi.mocked(bulk.bulkUpdatePages).mockResolvedValue({ ok: true, data: [summary] });
     const app = buildTestApp();
     const res = await app.inject({
@@ -94,7 +94,6 @@ describe("PUT /admin/pages/bulk", () => {
       payload: {
         pages: [{ slug: "info", meta: { title: "Info v2" }, content: "# Info v2" }],
         segments: [{ ownerSlug: "info", segments: [{ position: 0, label: "Privacy", targetSlug: "privacy" }] }],
-        pageTranslations: [{ slug: "info", locale: "de", title: "Information" }],
         topLevelOrder: ["info", "help"],
       },
     });
@@ -102,7 +101,6 @@ describe("PUT /admin/pages/bulk", () => {
     const [body, opts] = vi.mocked(bulk.bulkUpdatePages).mock.calls[0]!;
     expect(body.pages).toHaveLength(1);
     expect(body.segments).toHaveLength(1);
-    expect(body.pageTranslations).toHaveLength(1);
     expect(body.topLevelOrder).toEqual(["info", "help"]);
     expect(opts).toEqual({ updatedBy: "admin-1" });
   });
@@ -122,19 +120,19 @@ describe("PUT /admin/pages/bulk", () => {
     vi.mocked(bulk.bulkUpdatePages).mockResolvedValue({
       ok: false,
       code: "INVALID_INPUT",
-      details: [{ section: "pageTranslations", index: 0, message: "invalid locale" }],
+      details: [{ section: "pages", index: 0, message: "invalid title" }],
     });
     const app = buildTestApp();
     const res = await app.inject({
       method: "PUT",
       url: route,
-      payload: { pageTranslations: [{ slug: "info", locale: "xx", title: "x" }] },
+      payload: { pages: [{ slug: "info", meta: { title: 42 } }] },
     });
     expect(res.statusCode).toBe(400);
     const body = res.json();
     expect(body.error).toBe("INVALID_INPUT");
     expect(body.details).toHaveLength(1);
-    expect(body.details[0].section).toBe("pageTranslations");
+    expect(body.details[0].section).toBe("pages");
   });
 
   it("empty payload → 200 noop", async () => {

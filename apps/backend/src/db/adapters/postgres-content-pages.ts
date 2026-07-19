@@ -1,6 +1,5 @@
 /**
- * Content pages domain: editorial pages plus their per-locale
- * translations, layout segments and segment translations.
+ * Content pages domain: canonical editorial pages and layout segments.
  *
  * Scope:
  *   - Page CRUD for the admin editor: summaries / lookup / create /
@@ -8,15 +7,12 @@
  *     reads.
  *   - Bulk update flow (`bulkUpdatePages`) used by the dashboard's
  *     drag-and-drop reorder / inline edit. Runs page metas, content,
- *     position, segments and translations in one transaction.
- *   - Per-page translation lifecycle: list / get / upsert / delete
- *     plus a content-update-at stamp helper.
- *   - Page segments (sub-page layout entries) and their translations.
+ *     position and segments in one transaction.
+ *   - Page segments (sub-page layout entries).
  *   - Admin-username batch lookup used to project page audit columns.
  *
  * Excludes:
- *   - Navigation items + their translations (see
- *     `postgres-content-nav.ts`).
+ *   - Navigation items (see `postgres-content-nav.ts`).
  *   - Email templates (see `postgres-content-email.ts`).
  *   - Admin user CRUD (see `postgres-admin-users.ts`).
  */
@@ -42,8 +38,6 @@ import {
   type ContentPageMetaUpdate,
   type ContentPageRow,
   type ContentPageSummaryRow,
-  type ContentPageTranslationRow,
-  type ContentPageTranslationUpsert,
   ContentPublicationCutoverConflictError,
   type ContentPublicationCutoverInput,
   type ContentPublicationCutoverResult,
@@ -51,7 +45,6 @@ import {
   type ContentStatus,
   type PageSegmentInputRow,
   type PageSegmentRow,
-  type PageSegmentTranslationRow,
 } from "../admin-repository.js";
 import {
   fingerprintContentPage,
@@ -115,16 +108,6 @@ interface ContentPageSqlRow extends ContentPageSummarySqlRow {
   content_updated_at: Date;
 }
 
-interface ContentPageTranslationSqlRow {
-  slug: string;
-  locale: string;
-  title: string;
-  content: string;
-  source_updated_at: Date | null;
-  updated_at: Date;
-  updated_by: string | null;
-}
-
 // ============================================================================
 // MAPPERS
 // ============================================================================
@@ -155,23 +138,11 @@ function rowToContentPage(row: ContentPageSqlRow): ContentPageRow {
   return { ...rowToContentPageSummary(row), content: row.content, contentUpdatedAt: row.content_updated_at };
 }
 
-function rowToContentPageTranslation(row: ContentPageTranslationSqlRow): ContentPageTranslationRow {
-  return {
-    slug: row.slug,
-    locale: row.locale,
-    title: row.title,
-    content: row.content,
-    sourceUpdatedAt: row.source_updated_at,
-    updatedAt: row.updated_at,
-    updatedBy: row.updated_by,
-  };
-}
-
 /**
  * Resolves the slug that subsequent UPDATEs in the same transaction
  * should target after a slug rename: the meta UPDATE runs first, so
  * `meta.slug` (when present) is already the new key for the
- * content / translation / segment rows.
+ * content and segment rows.
  */
 function resolveSlugAfterRename(p: { slug: string; meta?: ContentPageMetaUpdate }): string {
   return p.meta?.slug ?? p.slug;
@@ -997,8 +968,7 @@ export async function deleteContentPage(pool: Pool, slug: string): Promise<boole
 /**
  * Applies the dashboard's "save all changes" payload in one
  * transaction: page meta + body, top-level reorder, segment
- * replacement per owner (preserving translations for unchanged
- * targets), and page-translation upserts.
+ * replacement per owner.
  *
  * @remarks Returns an empty array intentionally. The service layer
  *   re-fetches via {@link listContentPageSummaries} immediately after,
@@ -1036,82 +1006,17 @@ export async function bulkUpdatePages(pool: Pool, payload: BulkUpdatePagesPayloa
       await client.query(`UPDATE content_pages SET position = $2 WHERE slug = $1`, [payload.topLevelOrder[i], i]);
     }
 
-    // 3) segments per owner — DELETE + INSERT (+ translations UPSERT)
+    // 3) segments per owner — DELETE + INSERT
     for (const entry of payload.segments) {
-      const preservedTranslationRows = await client.query<{
-        target_slug: string;
-        locale: string;
-        label: string;
-        source_updated_at: Date | null;
-      }>(
-        `SELECT ps.target_slug, pst.locale, pst.label, pst.source_updated_at
-           FROM page_segments ps
-           JOIN page_segment_translations pst ON pst.segment_id = ps.id
-          WHERE ps.owner_slug = $1`,
-        [entry.ownerSlug],
-      );
-      const preservedTranslations = new Map<
-        string,
-        { locale: string; label: string; sourceUpdatedAt: Date | null }[]
-      >();
-      for (const row of preservedTranslationRows.rows) {
-        const entries = preservedTranslations.get(row.target_slug) ?? [];
-        entries.push({ locale: row.locale, label: row.label, sourceUpdatedAt: row.source_updated_at });
-        preservedTranslations.set(row.target_slug, entries);
-      }
-
       await client.query(`DELETE FROM page_segments WHERE owner_slug = $1`, [entry.ownerSlug]);
-      const idRows: { rows: { id: number; label_updated_at: Date }[] } = { rows: [] };
       for (const s of entry.segments) {
-        const inserted = await client.query<{ id: number; label_updated_at: Date }>(
+        await client.query(
           `INSERT INTO page_segments (owner_slug, target_slug, position, label, label_updated_at)
            VALUES ($1, $2, $3, $4, NOW())
-           RETURNING id, label_updated_at`,
+           RETURNING id`,
           [entry.ownerSlug, s.targetSlug, s.position, s.label],
         );
-        idRows.rows.push(inserted.rows[0]);
       }
-      for (let i = 0; i < entry.segments.length; i++) {
-        const persisted = idRows.rows[i];
-        const input = entry.segments[i];
-        const translations =
-          input.translations === undefined
-            ? (preservedTranslations.get(input.targetSlug) ?? [])
-            : Object.entries(input.translations)
-                .filter(([, label]) => typeof label === "string" && label.length > 0)
-                .map(([locale, label]) => ({
-                  locale,
-                  label,
-                  sourceUpdatedAt: persisted.label_updated_at,
-                }));
-        for (const { locale, label, sourceUpdatedAt } of translations) {
-          if (typeof label !== "string" || label.length === 0) continue;
-          await client.query(
-            `INSERT INTO page_segment_translations (segment_id, locale, label, source_updated_at)
-             VALUES ($1, $2, $3, $4)
-             ON CONFLICT (segment_id, locale)
-             DO UPDATE SET label = EXCLUDED.label, source_updated_at = EXCLUDED.source_updated_at`,
-            [persisted.id, locale, label, sourceUpdatedAt],
-          );
-        }
-      }
-    }
-
-    // 4) page translations (UPSERT) — stamp updated_by + source_updated_at to
-    // match the per-resource upsertPageTranslation audit semantics.
-    for (const t of payload.pageTranslations) {
-      await client.query(
-        `INSERT INTO content_page_translations
-           (slug, locale, title, content, updated_at, updated_by, source_updated_at)
-         VALUES ($1, $2, $3, $4, NOW(), $5, NOW())
-         ON CONFLICT (slug, locale)
-         DO UPDATE SET title = EXCLUDED.title,
-                       content = EXCLUDED.content,
-                       updated_at = EXCLUDED.updated_at,
-                       updated_by = EXCLUDED.updated_by,
-                       source_updated_at = EXCLUDED.source_updated_at`,
-        [t.slug, t.locale, t.title ?? null, t.content ?? null, t.updatedBy ?? null],
-      );
     }
 
     await client.query("COMMIT");
@@ -1198,92 +1103,9 @@ async function applyMetaInTx(client: PoolClient, slug: string, meta: ContentPage
   }
 }
 
-// ============================================================================
-// PAGE TRANSLATIONS
-// ============================================================================
-
-/**
- * Lists every translation row for one page, ordered by locale.
- */
-export async function listPageTranslations(pool: Pool, slug: string): Promise<ContentPageTranslationRow[]> {
-  const result = await pool.query<ContentPageTranslationSqlRow>(
-    `SELECT slug, locale, title, content, source_updated_at, updated_at, updated_by
-     FROM content_page_translations
-     WHERE slug = $1
-     ORDER BY locale ASC`,
-    [slug],
-  );
-  return result.rows.map(rowToContentPageTranslation);
-}
-
-/**
- * Loads one translation row by (slug, locale).
- *
- * @returns The translation, or `null` if no row matches.
- */
-export async function getPageTranslation(
-  pool: Pool,
-  slug: string,
-  locale: string,
-): Promise<ContentPageTranslationRow | null> {
-  const result = await pool.query<ContentPageTranslationSqlRow>(
-    `SELECT slug, locale, title, content, source_updated_at, updated_at, updated_by
-     FROM content_page_translations
-     WHERE slug = $1 AND locale = $2
-     LIMIT 1`,
-    [slug, locale],
-  );
-  return result.rows.length > 0 ? rowToContentPageTranslation(result.rows[0]) : null;
-}
-
-/**
- * Inserts or updates a translation row (ON CONFLICT on the (slug,
- * locale) primary key). Stamps `updated_at = NOW()` server-side via
- * the JS `Date`.
- *
- * @param pool - Postgres connection pool.
- * @param input - The translation payload including audit fields.
- * @returns The persisted row.
- */
-export async function upsertPageTranslation(
-  pool: Pool,
-  input: ContentPageTranslationUpsert,
-): Promise<ContentPageTranslationRow> {
-  const now = new Date();
-  const result = await pool.query<ContentPageTranslationSqlRow>(
-    `INSERT INTO content_page_translations
-       (slug, locale, title, content, source_updated_at, updated_at, updated_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     ON CONFLICT ON CONSTRAINT pk_content_page_translations
-     DO UPDATE SET
-       title = EXCLUDED.title,
-       content = EXCLUDED.content,
-       source_updated_at = EXCLUDED.source_updated_at,
-       updated_at = EXCLUDED.updated_at,
-       updated_by = EXCLUDED.updated_by
-     RETURNING slug, locale, title, content, source_updated_at, updated_at, updated_by`,
-    [input.slug, input.locale, input.title, input.content, input.sourceUpdatedAt, now, input.updatedBy],
-  );
-  return rowToContentPageTranslation(result.rows[0]);
-}
-
-/**
- * Deletes one translation row.
- *
- * @returns `true` when a row was removed.
- */
-export async function deletePageTranslation(pool: Pool, slug: string, locale: string): Promise<boolean> {
-  const result = await pool.query(
-    `DELETE FROM content_page_translations WHERE slug = $1 AND locale = $2 RETURNING slug`,
-    [slug, locale],
-  );
-  return (result.rowCount ?? 0) > 0;
-}
-
 /**
  * Bumps `content_updated_at` (and `updated_at`) on a page to mark the
- * source content as having changed. Used after segment / translation
- * mutations that don't otherwise touch the page row.
+ * canonical content as having changed.
  */
 export async function setContentPageContentUpdatedAt(pool: Pool, slug: string, when: Date): Promise<void> {
   await pool.query(`UPDATE content_pages SET content_updated_at = $1, updated_at = $1 WHERE slug = $2`, [when, slug]);
@@ -1361,70 +1183,6 @@ export async function replaceSegmentsForOwner(
     }
     await client.query("COMMIT");
     return rows.sort((a, b) => a.position - b.position);
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
-  } finally {
-    client.release();
-  }
-}
-
-// ============================================================================
-// SEGMENT TRANSLATIONS
-// ============================================================================
-
-/**
- * Lists every segment translation for one owner page (joined via
- * `page_segments.owner_slug`).
- */
-export async function listSegmentTranslationsForOwner(
-  pool: Pool,
-  ownerSlug: string,
-): Promise<PageSegmentTranslationRow[]> {
-  const result = await pool.query<{
-    segment_id: number;
-    locale: string;
-    label: string;
-    source_updated_at: Date | null;
-    updated_at: Date;
-  }>(
-    `SELECT pst.segment_id, pst.locale, pst.label, pst.source_updated_at, pst.updated_at
-     FROM page_segment_translations pst
-     JOIN page_segments ps ON ps.id = pst.segment_id
-     WHERE ps.owner_slug = $1
-     ORDER BY pst.segment_id, pst.locale`,
-    [ownerSlug],
-  );
-  return result.rows.map((r) => ({
-    segmentId: r.segment_id,
-    locale: r.locale,
-    label: r.label,
-    sourceUpdatedAt: r.source_updated_at,
-    updatedAt: r.updated_at,
-  }));
-}
-
-/**
- * Atomically replaces every translation row for one segment
- * (delete-all + insert in tx).
- */
-export async function replaceSegmentTranslations(
-  pool: Pool,
-  segmentId: number,
-  translations: { locale: string; label: string; sourceUpdatedAt: Date | null }[],
-): Promise<void> {
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    await client.query(`DELETE FROM page_segment_translations WHERE segment_id = $1`, [segmentId]);
-    for (const t of translations) {
-      await client.query(
-        `INSERT INTO page_segment_translations (segment_id, locale, label, source_updated_at)
-         VALUES ($1, $2, $3, $4)`,
-        [segmentId, t.locale, t.label, t.sourceUpdatedAt],
-      );
-    }
-    await client.query("COMMIT");
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;

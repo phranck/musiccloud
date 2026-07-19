@@ -1,9 +1,7 @@
 import {
   ContentContext,
-  DEFAULT_LOCALE,
   expectedNavigationPlacements,
   hasAllContextBits,
-  isLocale,
   isNavigationSystemKey,
   isSafeConfiguredUrl,
   isValidContentContextMask,
@@ -13,7 +11,6 @@ import {
   NavigationSystemKey,
   NavigationTargetKind,
   type ContentPublication,
-  type Locale,
   type NavigationPlacement,
   PageType,
 } from "@musiccloud/shared";
@@ -150,20 +147,11 @@ async function planNavigationBackfill(
   const hasPlacements = existing.some((entry) => entry.placements.length > 0);
   if (hasPlacements) return validateExistingNavigation(existing, pages);
 
-  const [header, footer, headerTranslations, footerTranslations] = await Promise.all([
+  const [header, footer] = await Promise.all([
     repo.listAdminNavItems("header"),
     repo.listAdminNavItems("footer"),
-    repo.listNavTranslations("header"),
-    repo.listNavTranslations("footer"),
   ]);
   const pagesBySlug = new Map(pages.map((page) => [page.slug, page]));
-  const translationsByItemId = new Map<number, Partial<Record<Locale, string>>>();
-  for (const translation of [...headerTranslations, ...footerTranslations]) {
-    if (!isLocale(translation.locale) || translation.locale === DEFAULT_LOCALE) continue;
-    const translations = translationsByItemId.get(translation.navItemId) ?? {};
-    translations[translation.locale] = translation.label;
-    translationsByItemId.set(translation.navItemId, translations);
-  }
 
   let conflicts = 0;
   const positions = new Set<string>();
@@ -204,7 +192,6 @@ async function planNavigationBackfill(
           contextMask: ContentContext.Frontend,
           areaMask: area,
           placements: [placement],
-          translations: translationsByItemId.get(row.id) ?? {},
         });
         continue;
       }
@@ -223,7 +210,6 @@ async function planNavigationBackfill(
         contextMask: ContentContext.Frontend,
         areaMask: area,
         placements: [placement],
-        translations: translationsByItemId.get(row.id) ?? {},
       });
     }
   }
@@ -248,7 +234,6 @@ async function planNavigationBackfill(
       contextMask: ContentContext.DeveloperPortal,
       areaMask: NavigationArea.Main,
       placements: [{ context: ContentContext.DeveloperPortal, area: NavigationArea.Main, position }],
-      translations: {},
     });
   }
 
