@@ -17,6 +17,16 @@ describe("PostgreSQL schema", () => {
     expect(postgresSchema.contentPages.contextMask.notNull).toBe(true);
   });
 
+  it("keeps dormant editorial translation storage detached from canonical CRUD", () => {
+    for (const table of [
+      postgresSchema.contentPageTranslations,
+      postgresSchema.pageSegmentTranslations,
+      postgresSchema.navItemTranslations,
+    ]) {
+      expect(getTableConfig(table).foreignKeys).toEqual([]);
+    }
+  });
+
   it("exports context-specific content publications", () => {
     expect(postgresSchema.contentPagePublications.pageId.name).toBe("page_id");
     expect(postgresSchema.contentPagePublications.context.name).toBe("context");

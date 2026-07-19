@@ -1111,7 +1111,7 @@ export type EmailActionBindingInsert = typeof emailActionBindings.$inferInsert;
 /**
  * Managed content pages rendered by public surfaces.
  * Adds a stable identity and context mask while retaining the slug primary key
- * for existing translation, navigation and segment foreign keys.
+ * for canonical navigation and segment ownership during the identity transition.
  */
 export const contentPages = pgTable(
   "content_pages",
@@ -1318,26 +1318,22 @@ export const appTelemetryEvents = pgTable(
 export type AppTelemetryEventRow = typeof appTelemetryEvents.$inferSelect;
 export type AppTelemetryEventInsert = typeof appTelemetryEvents.$inferInsert;
 
-// Per-locale translations of a content page. Parent row in `content_pages`
-// holds the default-locale (en) source of truth + fallback. Missing rows
-// trigger fallback at render time.
 /**
- * Per-locale translations for managed content pages.
- * The parent `contentPages` row remains the default-locale source of truth and
- * missing locales fall back at render time.
+ * Dormant legacy translations for managed content pages.
+ * Runtime editorial reads and writes use only the canonical `contentPages`
+ * fields. This table remains temporarily for schema history and audit only,
+ * detached from runtime-owned rows so their CRUD cannot mutate it indirectly.
  */
 export const contentPageTranslations = pgTable(
   "content_page_translations",
   {
-    slug: text("slug")
-      .notNull()
-      .references(() => contentPages.slug, { onDelete: "cascade", onUpdate: "cascade" }),
+    slug: text("slug").notNull(),
     locale: text("locale").notNull(),
     title: text("title").notNull(),
     content: text("content").notNull().default(""),
     sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedBy: text("updated_by").references(() => adminUsers.id, { onDelete: "set null" }),
+    updatedBy: text("updated_by"),
   },
   (table) => [primaryKey({ name: "pk_content_page_translations", columns: [table.slug, table.locale] })],
 );
@@ -1345,17 +1341,15 @@ export const contentPageTranslations = pgTable(
 export type ContentPageTranslationRow = typeof contentPageTranslations.$inferSelect;
 export type ContentPageTranslationInsert = typeof contentPageTranslations.$inferInsert;
 
-// Per-locale translation of a page segment's tab label.
 /**
- * Per-locale translations for segmented-page tab labels.
- * Composite primary key keeps one translated label per segment and locale.
+ * Dormant legacy translations for segmented-page labels.
+ * Runtime editorial reads and writes use only `pageSegments.label`; this
+ * table is detached so segment replacement cannot cascade into it.
  */
 export const pageSegmentTranslations = pgTable(
   "page_segment_translations",
   {
-    segmentId: integer("segment_id")
-      .notNull()
-      .references(() => pageSegments.id, { onDelete: "cascade" }),
+    segmentId: integer("segment_id").notNull(),
     locale: text("locale").notNull(),
     label: text("label").notNull(),
     sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
@@ -1367,18 +1361,16 @@ export const pageSegmentTranslations = pgTable(
 export type PageSegmentTranslationRow = typeof pageSegmentTranslations.$inferSelect;
 export type PageSegmentTranslationInsert = typeof pageSegmentTranslations.$inferInsert;
 
-// Per-locale translation of a navigation item's custom label.
 /**
- * Per-locale translations for navigation item labels.
- * Composite primary key keeps one translated label per navigation item and
- * locale.
+ * Dormant legacy translations for navigation labels.
+ * Runtime editorial reads and writes use only `navItems.label`, with the
+ * linked Page title as response fallback where applicable. This table is
+ * detached so navigation replacement cannot cascade into it.
  */
 export const navItemTranslations = pgTable(
   "nav_item_translations",
   {
-    navItemId: integer("nav_item_id")
-      .notNull()
-      .references(() => navItems.id, { onDelete: "cascade" }),
+    navItemId: integer("nav_item_id").notNull(),
     locale: text("locale").notNull(),
     label: text("label").notNull(),
     sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
