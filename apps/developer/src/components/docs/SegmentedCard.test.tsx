@@ -10,9 +10,7 @@ describe("SegmentedCard", () => {
           <SegmentedCard.Header.Title>Download an SDK</SegmentedCard.Header.Title>
           <SegmentedCard.Header.Segments role="tablist" aria-label="SDK language">
             <SegmentedCard.Header.Segments.Item role="tab" aria-selected="true">
-              <SegmentedCard.Header.Segments.Item.Icon>
-                <img src="/icons/languages/typescript.svg" alt="" />
-              </SegmentedCard.Header.Segments.Item.Icon>
+              <SegmentedCard.Header.Segments.Item.Icon data-sdk-language-icon="typescript" />
               <SegmentedCard.Header.Segments.Item.Label>TypeScript</SegmentedCard.Header.Segments.Item.Label>
             </SegmentedCard.Header.Segments.Item>
           </SegmentedCard.Header.Segments>

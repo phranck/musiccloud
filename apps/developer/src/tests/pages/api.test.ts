@@ -126,6 +126,11 @@ describe("/docs/api content", () => {
     expect(html).toContain('data-sdk-tab="typescript"');
     expect(html).toContain('data-sdk-tab="python"');
     expect(html).toContain('data-sdk-tab="swift"');
+    expect(html).toContain('data-sdk-language-icon="typescript"');
+    expect(html).toContain('data-sdk-language-icon="python"');
+    expect(html).toContain('data-sdk-language-icon="swift"');
+    expect(html).not.toContain('src="https://cdn.simpleicons.org/');
+    expect(html).not.toContain('src="/icons/languages/');
     expect(html).toContain('id="sdk-typescript"');
     expect(html).toContain('id="sdk-python"');
     expect(html).toContain('id="sdk-swift"');
@@ -338,12 +343,25 @@ describe("/docs/api content", () => {
     );
   });
 
-  it("extends the shared segmented switch with circular icons and a reduced-motion-aware sliding selection", () => {
+  it("keeps SDK language icons unrounded and synchronized with their tab text color", () => {
+    const css = readFileSync(join(rootDir, "styles/docs.css"), "utf8");
     const components = readFileSync(join(rootDir, "styles/components.css"), "utf8");
     const segmentedControl = readFileSync(join(rootDir, "components/SegmentedControl.tsx"), "utf8");
 
     expect(segmentedControl).toContain('createCompoundElement("span", "segmented-control__item-icon")');
-    expect(components).toMatch(/\.segmented-control__item-icon\s*\{[^}]*border-radius:\s*var\(--radius-round\);/s);
+    expect(components).toMatch(
+      /\.segmented-control__item-icon\s*\{[^}]*border-radius:\s*var\(--segmented-control-item-icon-radius, var\(--radius-round\)\);/s,
+    );
+    expect(css).toContain("--mc-docs-sdk-icon-radius: 0px;");
+    expect(css).toMatch(
+      /\.sdk-segmented-card \.segmented-control\s*\{[^}]*--segmented-control-item-icon-radius:\s*var\(--mc-docs-sdk-icon-radius\);[^}]*--segmented-control-item-icon-background:\s*currentColor;/s,
+    );
+    expect(css).toMatch(
+      /\.sdk-segmented-card \.segmented-control__item-icon\s*\{[^}]*-webkit-mask:\s*var\(--sdk-language-icon-mask\) center \/ contain no-repeat;[^}]*mask:\s*var\(--sdk-language-icon-mask\) center \/ contain no-repeat;/s,
+    );
+    expect(css).toContain('url("https://cdn.simpleicons.org/typescript")');
+    expect(css).toContain('url("https://cdn.simpleicons.org/python")');
+    expect(css).toContain('url("https://cdn.simpleicons.org/swift")');
     expect(components).toMatch(
       /\.segmented-control::before\s*\{[^}]*transform:\s*translate3d\(var\(--segmented-control-indicator-x/s,
     );

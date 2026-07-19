@@ -101,6 +101,7 @@
       0px,
       calc(var(--mc-docs-sdk-selector-radius) - var(--mc-docs-sdk-selector-inset))
     );
+    --mc-docs-sdk-icon-radius: 0px;
     --mc-docs-sdk-download-font-size: calc(var(--text-body) - var(--mc-docs-space-xs));
     --mc-docs-schema-field-indent: var(--mc-space-5);
     --mc-docs-schema-field-separator: color-mix(in srgb, var(--color-border) 68%, transparent);
@@ -442,6 +443,25 @@
     --segmented-control-inset: var(--mc-docs-sdk-selector-inset);
     --segmented-control-radius: var(--mc-docs-sdk-selector-radius);
     --segmented-control-item-radius: var(--mc-docs-sdk-selector-item-radius);
+    --segmented-control-item-icon-radius: var(--mc-docs-sdk-icon-radius);
+    --segmented-control-item-icon-background: currentColor;
+  }
+
+  [data-sdk-language-icon="typescript"] {
+    --sdk-language-icon-mask: url("https://cdn.simpleicons.org/typescript");
+  }
+
+  [data-sdk-language-icon="python"] {
+    --sdk-language-icon-mask: url("https://cdn.simpleicons.org/python");
+  }
+
+  [data-sdk-language-icon="swift"] {
+    --sdk-language-icon-mask: url("https://cdn.simpleicons.org/swift");
+  }
+
+  .sdk-segmented-card .segmented-control__item-icon {
+    -webkit-mask: var(--sdk-language-icon-mask) center / contain no-repeat;
+    mask: var(--sdk-language-icon-mask) center / contain no-repeat;
   }
 
   .sdk-segmented-card .segmented-card__header {

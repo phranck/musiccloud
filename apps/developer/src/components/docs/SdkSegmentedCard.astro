@@ -56,9 +56,10 @@ const downloadLabel = (asset: SdkAsset) => `Download ${languageName[asset.langua
                 tabIndex={index === 0 ? 0 : -1}
                 data-sdk-tab={asset.language}
               >
-                <SegmentedCard.Header.Segments.Item.Icon aria-hidden="true">
-                  <img src={`/icons/languages/${asset.language}.svg`} alt="" />
-                </SegmentedCard.Header.Segments.Item.Icon>
+                <SegmentedCard.Header.Segments.Item.Icon
+                  aria-hidden="true"
+                  data-sdk-language-icon={asset.language}
+                />
                 <SegmentedCard.Header.Segments.Item.Label>
                   {languageName[asset.language]}
                 </SegmentedCard.Header.Segments.Item.Label>

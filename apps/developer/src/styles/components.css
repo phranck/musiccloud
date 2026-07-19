@@ -617,7 +617,7 @@
     justify-content: center;
     flex: none;
     overflow: hidden;
-    border-radius: var(--radius-round);
+    border-radius: var(--segmented-control-item-icon-radius, var(--radius-round));
     background: var(--segmented-control-item-icon-background, var(--color-surface-raised));
   }
 
