@@ -229,6 +229,16 @@ describe("buildMusiccloudReadinessExpectations", () => {
       }
     }
   });
+
+  it("requires CRUD access for artist profile cache refresh persistence", () => {
+    const result = buildMusiccloudReadinessExpectations("latest-hash", "db");
+
+    for (const table of ["artist_cache", "artist_profile_refresh_events"]) {
+      for (const privilege of ["SELECT", "INSERT", "UPDATE", "DELETE"]) {
+        expect(result.privileges).toContainEqual({ table, privilege });
+      }
+    }
+  });
 });
 
 describe("readLatestDrizzleMigrationHash", () => {

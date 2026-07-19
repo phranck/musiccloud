@@ -110,4 +110,29 @@ describe("PostgreSQL schema", () => {
     expect(postgresSchema.apiAccessAuditEvents.projectId.name).toBe("project_id");
     expect(postgresSchema.apiAccessRequests.projectId.name).toBe("project_id");
   });
+
+  it("stores artist profile provenance and audited manual refresh attempts", () => {
+    expect(postgresSchema.artistCache.profileProviders.name).toBe("profile_providers");
+    expect(postgresSchema.artistCache.profileProviders.notNull).toBe(true);
+    expect(postgresSchema.artistProfileRefreshEvents.actorAdminId.name).toBe("actor_admin_id");
+    expect(postgresSchema.artistProfileRefreshEvents.artistEntityId.name).toBe("artist_entity_id");
+    expect(postgresSchema.artistProfileRefreshEvents.trigger.name).toBe("trigger");
+    expect(postgresSchema.artistProfileRefreshEvents.outcome.name).toBe("outcome");
+    expect(postgresSchema.artistProfileRefreshEvents.errorCode.name).toBe("error_code");
+    expect(postgresSchema.artistProfileRefreshEvents.errorId.name).toBe("error_id");
+
+    const config = getTableConfig(postgresSchema.artistProfileRefreshEvents);
+    expect(config.checks.map((constraint) => constraint.name)).toEqual(
+      expect.arrayContaining([
+        "chk_artist_profile_refresh_events_trigger",
+        "chk_artist_profile_refresh_events_outcome",
+      ]),
+    );
+    expect(config.indexes.map((index) => index.config.name)).toEqual(
+      expect.arrayContaining([
+        "idx_artist_profile_refresh_events_entity_occurred",
+        "idx_artist_profile_refresh_events_actor_occurred",
+      ]),
+    );
+  });
 });

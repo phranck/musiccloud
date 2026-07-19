@@ -12,7 +12,7 @@
  * is a different data domain (event listings, not artist identity).
  */
 
-import type { ArtistEvent, ArtistProfile, ArtistTopTrack } from "@musiccloud/shared";
+import type { ArtistEvent, ArtistProfile, ArtistProfileProvider, ArtistTopTrack } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../lib/infra/fetch.js";
 import { log } from "../lib/infra/logger.js";
 import { sanitizeArtistProfile } from "./artist-bio-sanitizer.js";
@@ -68,17 +68,53 @@ function mapCanonicalToArtistProfile(canonical: CanonicalArtist): ArtistProfile 
   };
 }
 
-export async function fetchArtistProfile(artistName: string): Promise<ArtistProfile | null> {
+export interface ArtistProfileSnapshot {
+  profile: ArtistProfile;
+  providers: ArtistProfileProvider[];
+}
+
+const PROFILE_FIELDS = [
+  "imageUrl",
+  "genres",
+  "popularity",
+  "followers",
+  "bioSummary",
+  "scrobbles",
+  "similarArtists",
+] as const satisfies ReadonlyArray<keyof CanonicalArtist>;
+
+const PROFILE_PROVIDER_ORDER: ArtistProfileProvider[] = ["spotify", "deezer", "lastfm"];
+
+export function composeArtistProfileSnapshot(
+  partials: Array<ArtistPartial | null>,
+  artistName: string,
+): ArtistProfileSnapshot | null {
+  if (partials.every((partial) => partial === null)) return null;
+
+  const merged = mergeArtistPartials(partials, ARTIST_MERGE_STRATEGY, artistName);
+  const selectedProviders = new Set(
+    PROFILE_FIELDS.map((field) => pickSourceForField(partials, ARTIST_MERGE_STRATEGY, field)).filter(
+      (source): source is ArtistProfileProvider => source === "spotify" || source === "deezer" || source === "lastfm",
+    ),
+  );
+  const profile = mapCanonicalToArtistProfile(merged);
+
+  return {
+    profile: sanitizeArtistProfile(profile) ?? profile,
+    providers: PROFILE_PROVIDER_ORDER.filter((provider) => selectedProviders.has(provider)),
+  };
+}
+
+export async function fetchArtistProfileSnapshot(artistName: string): Promise<ArtistProfileSnapshot | null> {
   try {
     const partials = await gatherArtistPartials(artistName);
-    if (partials.every((p) => p === null)) return null;
+    const snapshot = composeArtistProfileSnapshot(partials, artistName);
+    if (!snapshot) return null;
 
-    const merged = mergeArtistPartials(partials, ARTIST_MERGE_STRATEGY, artistName);
-
-    if (merged.imageUrl) {
+    if (snapshot.profile.imageUrl) {
       const source = pickSourceForField(partials, ARTIST_MERGE_STRATEGY, "imageUrl");
       if (source) {
-        cacheArtistImage(artistName, merged.imageUrl, source).catch((error) =>
+        cacheArtistImage(artistName, snapshot.profile.imageUrl, source).catch((error) =>
           log.deviation(
             {
               component: "ArtistInfo",
@@ -93,11 +129,15 @@ export async function fetchArtistProfile(artistName: string): Promise<ArtistProf
       }
     }
 
-    return sanitizeArtistProfile(mapCanonicalToArtistProfile(merged));
+    return snapshot;
   } catch (err) {
-    log.debug("ArtistInfo", "fetchArtistProfile error:", err instanceof Error ? err.message : String(err));
+    log.debug("ArtistInfo", "fetchArtistProfileSnapshot error:", err instanceof Error ? err.message : String(err));
     return null;
   }
+}
+
+export async function fetchArtistProfile(artistName: string): Promise<ArtistProfile | null> {
+  return (await fetchArtistProfileSnapshot(artistName))?.profile ?? null;
 }
 
 export async function fetchArtistTopTracks(artistName: string): Promise<ArtistTopTrack[]> {

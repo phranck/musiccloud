@@ -1,6 +1,7 @@
 import type { ArtistEvent, ArtistProfile, ArtistTopTrack } from "@musiccloud/shared";
 import { describe, expect, it, vi } from "vitest";
 import type { ArtistCacheData, ArtistCacheIdentity } from "../../db/repository.js";
+import type { ArtistProfileSnapshot } from "../artist-info.js";
 import { createArtistInfoRefreshCoordinator } from "../artist-info-cache.js";
 
 const PROFILE: ArtistProfile = {
@@ -11,6 +12,11 @@ const PROFILE: ArtistProfile = {
   bioSummary: "A profile",
   scrobbles: null,
   similarArtists: [],
+};
+
+const PROFILE_SNAPSHOT: ArtistProfileSnapshot = {
+  profile: PROFILE,
+  providers: ["spotify", "lastfm"],
 };
 
 function deferred<T>() {
@@ -29,11 +35,11 @@ function refreshInput(identity: ArtistCacheIdentity = { kind: "entity", artistEn
 
 describe("artist-info refresh coordination", () => {
   it("shares one stale profile refresh and releases the key after it settles", async () => {
-    const pendingProfile = deferred<ArtistProfile | null>();
+    const pendingProfile = deferred<ArtistProfileSnapshot | null>();
     const fetchProfile = vi.fn(() => pendingProfile.promise);
     const saveArtistCache = vi.fn<(...args: [ArtistCacheData]) => Promise<void>>().mockResolvedValue(undefined);
     const coordinator = createArtistInfoRefreshCoordinator({
-      fetchArtistProfile: fetchProfile,
+      fetchArtistProfileSnapshot: fetchProfile,
       fetchArtistTopTracks: vi.fn<(...args: [string]) => Promise<ArtistTopTrack[]>>(),
       fetchArtistEvents: vi.fn<(...args: [string]) => Promise<ArtistEvent[]>>(),
       logDeviation: vi.fn(),
@@ -45,13 +51,14 @@ describe("artist-info refresh coordination", () => {
     expect(first).toBe(second);
     expect(fetchProfile).toHaveBeenCalledTimes(1);
 
-    pendingProfile.resolve(PROFILE);
+    pendingProfile.resolve(PROFILE_SNAPSHOT);
     await first;
 
     expect(saveArtistCache).toHaveBeenCalledWith({
       identity: { kind: "entity", artistEntityId: "artist-1" },
       artistName: "Artist One",
       profile: PROFILE,
+      profileProviders: ["spotify", "lastfm"],
       profileUpdatedAt: 1_000,
     });
 
@@ -64,7 +71,7 @@ describe("artist-info refresh coordination", () => {
     const fetchArtistTopTracks = vi.fn(() => pendingTracks.promise);
     const saveArtistCache = vi.fn<(...args: [ArtistCacheData]) => Promise<void>>().mockResolvedValue(undefined);
     const coordinator = createArtistInfoRefreshCoordinator({
-      fetchArtistProfile: vi.fn<(...args: [string]) => Promise<ArtistProfile | null>>(),
+      fetchArtistProfileSnapshot: vi.fn<(...args: [string]) => Promise<ArtistProfileSnapshot | null>>(),
       fetchArtistTopTracks,
       fetchArtistEvents: vi.fn<(...args: [string]) => Promise<ArtistEvent[]>>(),
       logDeviation: vi.fn(),
@@ -79,12 +86,28 @@ describe("artist-info refresh coordination", () => {
     expect(saveArtistCache).toHaveBeenCalledTimes(1);
   });
 
+  it("returns the public profile value while persisting its provider snapshot", async () => {
+    const saveArtistCache = vi.fn<(...args: [ArtistCacheData]) => Promise<void>>().mockResolvedValue(undefined);
+    const coordinator = createArtistInfoRefreshCoordinator({
+      fetchArtistProfileSnapshot: vi.fn().mockResolvedValue(PROFILE_SNAPSHOT),
+      fetchArtistTopTracks: vi.fn<(...args: [string]) => Promise<ArtistTopTrack[]>>(),
+      fetchArtistEvents: vi.fn<(...args: [string]) => Promise<ArtistEvent[]>>(),
+      logDeviation: vi.fn(),
+    });
+
+    await expect(coordinator.refresh("profile", { repo: { saveArtistCache }, ...refreshInput() })).resolves.toEqual(
+      PROFILE,
+    );
+  });
+
   it("runs different sections and artists independently", async () => {
-    const fetchProfile = vi.fn<(...args: [string]) => Promise<ArtistProfile | null>>().mockResolvedValue(PROFILE);
+    const fetchProfile = vi
+      .fn<(...args: [string]) => Promise<ArtistProfileSnapshot | null>>()
+      .mockResolvedValue(PROFILE_SNAPSHOT);
     const fetchArtistTopTracks = vi.fn<(...args: [string]) => Promise<ArtistTopTrack[]>>().mockResolvedValue([]);
     const saveArtistCache = vi.fn<(...args: [ArtistCacheData]) => Promise<void>>().mockResolvedValue(undefined);
     const coordinator = createArtistInfoRefreshCoordinator({
-      fetchArtistProfile: fetchProfile,
+      fetchArtistProfileSnapshot: fetchProfile,
       fetchArtistTopTracks,
       fetchArtistEvents: vi.fn<(...args: [string]) => Promise<ArtistEvent[]>>(),
       logDeviation: vi.fn(),
@@ -107,7 +130,9 @@ describe("artist-info refresh coordination", () => {
     const cause = new Error("upstream token=private");
     const logDeviation = vi.fn();
     const coordinator = createArtistInfoRefreshCoordinator({
-      fetchArtistProfile: vi.fn<(...args: [string]) => Promise<ArtistProfile | null>>().mockRejectedValue(cause),
+      fetchArtistProfileSnapshot: vi
+        .fn<(...args: [string]) => Promise<ArtistProfileSnapshot | null>>()
+        .mockRejectedValue(cause),
       fetchArtistTopTracks: vi.fn<(...args: [string]) => Promise<ArtistTopTrack[]>>(),
       fetchArtistEvents: vi.fn<(...args: [string]) => Promise<ArtistEvent[]>>(),
       logDeviation,

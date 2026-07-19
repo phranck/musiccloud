@@ -1,7 +1,12 @@
 import type { ArtistEvent, ArtistProfile, ArtistTopTrack } from "@musiccloud/shared";
 import type { ArtistCacheData, ArtistCacheIdentity, TrackRepository } from "../db/repository.js";
 import { log } from "../lib/infra/logger.js";
-import { fetchArtistEvents, fetchArtistProfile, fetchArtistTopTracks } from "./artist-info.js";
+import {
+  type ArtistProfileSnapshot,
+  fetchArtistEvents,
+  fetchArtistProfileSnapshot,
+  fetchArtistTopTracks,
+} from "./artist-info.js";
 
 export const ArtistInfoSection = {
   Profile: "profile",
@@ -11,6 +16,7 @@ export const ArtistInfoSection = {
 
 export type ArtistInfoSection = (typeof ArtistInfoSection)[keyof typeof ArtistInfoSection];
 type ArtistInfoSectionValue = ArtistProfile | ArtistTopTrack[] | ArtistEvent[] | null;
+type ArtistInfoSectionFetchValue = ArtistProfileSnapshot | ArtistTopTrack[] | ArtistEvent[] | null;
 
 type ArtistInfoCacheRepository = Pick<TrackRepository, "saveArtistCache">;
 
@@ -24,7 +30,7 @@ interface RefreshInput {
 }
 
 interface ArtistInfoRefreshDependencies {
-  fetchArtistProfile: (artistName: string) => Promise<ArtistProfile | null>;
+  fetchArtistProfileSnapshot: (artistName: string) => Promise<ArtistProfileSnapshot | null>;
   fetchArtistTopTracks: (artistName: string) => Promise<ArtistTopTrack[]>;
   fetchArtistEvents: (artistName: string) => Promise<ArtistEvent[]>;
   logDeviation: typeof log.deviation;
@@ -37,16 +43,27 @@ function cacheIdentityKey(identity: ArtistCacheIdentity): string {
 function sectionCacheData(
   section: ArtistInfoSection,
   input: RefreshInput,
-  value: ArtistInfoSectionValue,
+  value: ArtistInfoSectionFetchValue,
 ): ArtistCacheData {
   const base = { identity: input.identity, artistName: input.artistName };
   if (section === ArtistInfoSection.Profile) {
-    return { ...base, profile: value as ArtistProfile | null, profileUpdatedAt: input.startedAt };
+    const snapshot = value as ArtistProfileSnapshot | null;
+    return {
+      ...base,
+      profile: snapshot?.profile ?? null,
+      profileProviders: snapshot?.providers ?? [],
+      profileUpdatedAt: input.startedAt,
+    };
   }
   if (section === ArtistInfoSection.TopTracks) {
     return { ...base, topTracks: value as ArtistTopTrack[], tracksUpdatedAt: input.startedAt };
   }
   return { ...base, events: value as ArtistEvent[], eventsUpdatedAt: input.startedAt };
+}
+
+function sectionPublicValue(section: ArtistInfoSection, value: ArtistInfoSectionFetchValue): ArtistInfoSectionValue {
+  if (section === ArtistInfoSection.Profile) return (value as ArtistProfileSnapshot | null)?.profile ?? null;
+  return value as ArtistTopTrack[] | ArtistEvent[];
 }
 
 /**
@@ -66,12 +83,12 @@ export function createArtistInfoRefreshCoordinator(dependencies: ArtistInfoRefre
     const task = (async () => {
       const value =
         section === ArtistInfoSection.Profile
-          ? await dependencies.fetchArtistProfile(input.artistName)
+          ? await dependencies.fetchArtistProfileSnapshot(input.artistName)
           : section === ArtistInfoSection.TopTracks
             ? await dependencies.fetchArtistTopTracks(input.artistName)
             : await dependencies.fetchArtistEvents(input.artistName);
       await input.repo.saveArtistCache(sectionCacheData(section, input, value));
-      return value;
+      return sectionPublicValue(section, value);
     })();
     inFlight.set(key, task);
     void task.then(
@@ -117,7 +134,7 @@ export function createArtistInfoRefreshCoordinator(dependencies: ArtistInfoRefre
 }
 
 export const artistInfoRefreshCoordinator = createArtistInfoRefreshCoordinator({
-  fetchArtistProfile,
+  fetchArtistProfileSnapshot,
   fetchArtistTopTracks,
   fetchArtistEvents,
   logDeviation: log.deviation,
