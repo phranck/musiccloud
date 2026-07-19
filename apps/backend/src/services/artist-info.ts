@@ -92,17 +92,27 @@ export function composeArtistProfileSnapshot(
   if (partials.every((partial) => partial === null)) return null;
 
   const merged = mergeArtistPartials(partials, ARTIST_MERGE_STRATEGY, artistName);
+  const composedProfile = mapCanonicalToArtistProfile(merged);
+  const profile = sanitizeArtistProfile(composedProfile) ?? composedProfile;
   const selectedProviders = new Set(
-    PROFILE_FIELDS.map((field) => pickSourceForField(partials, ARTIST_MERGE_STRATEGY, field)).filter(
-      (source): source is ArtistProfileProvider => source === "spotify" || source === "deezer" || source === "lastfm",
-    ),
+    PROFILE_FIELDS.filter((field) => isUsableProfileValue(profile[field]))
+      .map((field) => pickSourceForField(partials, ARTIST_MERGE_STRATEGY, field))
+      .filter(
+        (source): source is ArtistProfileProvider => source === "spotify" || source === "deezer" || source === "lastfm",
+      ),
   );
-  const profile = mapCanonicalToArtistProfile(merged);
 
   return {
-    profile: sanitizeArtistProfile(profile) ?? profile,
+    profile,
     providers: PROFILE_PROVIDER_ORDER.filter((provider) => selectedProviders.has(provider)),
   };
+}
+
+function isUsableProfileValue(value: ArtistProfile[keyof ArtistProfile]): boolean {
+  if (value === null || value === undefined) return false;
+  if (typeof value === "string") return value.trim().length > 0;
+  if (Array.isArray(value)) return value.length > 0;
+  return true;
 }
 
 export async function fetchArtistProfileSnapshot(artistName: string): Promise<ArtistProfileSnapshot | null> {

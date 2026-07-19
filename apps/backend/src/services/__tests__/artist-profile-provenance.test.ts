@@ -53,6 +53,31 @@ describe("artist profile provenance", () => {
     expect(composeArtistProfileSnapshot(partials, "Artist Two")?.providers).toEqual(["deezer"]);
   });
 
+  it("omits providers whose selected fields are removed by profile sanitization", () => {
+    const partials: ArtistPartial[] = [
+      {
+        __source: "deezer",
+        imageUrl: "https://deezer.test/image.jpg",
+      },
+      {
+        __source: "lastfm",
+        bioSummary: "There are at least 3 artists with this name.",
+        scrobbles: 9_000,
+        similarArtists: ["Wrong Artist"],
+      },
+    ];
+
+    const snapshot = composeArtistProfileSnapshot(partials, "Ambiguous Artist");
+
+    expect(snapshot?.profile).toMatchObject({
+      imageUrl: "https://deezer.test/image.jpg",
+      bioSummary: null,
+      scrobbles: null,
+      similarArtists: [],
+    });
+    expect(snapshot?.providers).toEqual(["deezer"]);
+  });
+
   it("returns null when no provider produced a partial", () => {
     expect(composeArtistProfileSnapshot([null, null, null], "Artist Three")).toBeNull();
   });
