@@ -5,7 +5,8 @@ import { fetchArtistInfo } from "@/api/client";
 export const prerender = false;
 
 /**
- * Proxy GET /api/artist-info?name=&region= → backend /api/v1/artist-info.
+ * Proxy GET /api/artist-info?name=&artistEntityId=&region= → backend
+ * /api/v1/artist-info.
  *
  * Forwards the user's IP via `X-Forwarded-For` so the backend's per-IP
  * rate limiter (`apiRateLimiter`, shared 10 requests per 60 seconds bucket)
@@ -14,19 +15,28 @@ export const prerender = false;
  */
 export const GET: APIRoute = async ({ url, clientAddress }) => {
   const name = url.searchParams.get("name") ?? "";
+  const artistEntityId = url.searchParams.get("artistEntityId") ?? "";
   const region = url.searchParams.get("region") ?? "";
   const shortId = url.searchParams.get("shortId") ?? "";
   const refresh = url.searchParams.get("refresh") === "profile" ? "profile" : undefined;
 
-  if (!name.trim()) {
-    return new Response(JSON.stringify({ error: "INVALID_REQUEST", message: "'name' is required." }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+  if (!name.trim() && !artistEntityId.trim()) {
+    return new Response(
+      JSON.stringify({
+        error: "MC-REQ-0001",
+        errorId: crypto.randomUUID(),
+        message: "The request is invalid. (MC-REQ-0001)",
+      }),
+      {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 
   const res = await fetchArtistInfo(name, region || undefined, clientAddress, {
     shortId: shortId || undefined,
+    artistEntityId: artistEntityId || undefined,
     refresh,
   });
 

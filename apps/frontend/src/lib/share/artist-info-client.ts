@@ -2,13 +2,14 @@ import { type ArtistInfoResponse, ENDPOINTS } from "@musiccloud/shared";
 
 /**
  * Identifying context passed alongside an artist name when fetching artist
- * info. `shortId` narrows the backend lookup; `artistEntityId` remains local
- * identity context so the UI can detect a changed artist credit.
+ * info. `artistEntityId` selects the exact normalized backend identity;
+ * `shortId` remains a compatibility narrowing context when no entity id is
+ * available.
  *
  * @property shortId - The share page's short id, when the artist column is
  *   rendered inside a known share page.
- * @property artistEntityId - Local correlation id. It is not sent to the
- *   artist-info endpoint because that endpoint does not accept entity ids.
+ * @property artistEntityId - Exact normalized artist identity forwarded to the
+ *   artist-info endpoint. It takes precedence over `shortId` server-side.
  */
 export interface ArtistInfoContext {
   shortId?: string;
@@ -18,8 +19,8 @@ export interface ArtistInfoContext {
 /**
  * Fetches the commercial artist-info payload for a given artist.
  *
- * Assembles the query string for `ENDPOINTS.frontend.artistInfo` (name plus the
- * optional `region` and `shortId` narrowing params), issues
+ * Assembles the query string for `ENDPOINTS.frontend.artistInfo` (an artist
+ * name or exact entity id plus optional `region` and `shortId` context), issues
  * the GET request, and casts the JSON body to {@link ArtistInfoResponse}.
  * Throws `HTTP <status>` on a non-OK response; an aborted request rejects with
  * the underlying `AbortError`. The caller owns the {@link AbortSignal} (and thus
@@ -38,9 +39,11 @@ export async function fetchArtistInfo(
   context: ArtistInfoContext,
   signal: AbortSignal,
 ): Promise<ArtistInfoResponse> {
-  const params = new URLSearchParams({ name: artistName });
+  const params = new URLSearchParams();
+  if (artistName) params.set("name", artistName);
   if (userRegion) params.set("region", userRegion);
   if (context.shortId) params.set("shortId", context.shortId);
+  if (context.artistEntityId) params.set("artistEntityId", context.artistEntityId);
   const res = await fetch(`${ENDPOINTS.frontend.artistInfo}?${params.toString()}`, { signal });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as ArtistInfoResponse;
