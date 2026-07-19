@@ -9,8 +9,9 @@
  *     and short-URL assignment.
  *   - External-id ingestion (migration `0019`) against the canonical
  *     `artist_entities.id`.
- *   - JSON cache (profile / top-tracks / events) keyed by display name,
- *     plus cross-artist alias resolution from cached top-tracks.
+ *   - JSON cache (profile / top-tracks / events) keyed by either a legacy
+ *     display name or an explicit normalized artist entity, plus cross-artist
+ *     alias resolution from cached top-tracks.
  *   - Identity-event timeline (birth / death / formed / disbanded) used
  *     by the "today in music" feature.
  *   - Group-membership lookups in either direction (group ↔ members).
@@ -31,10 +32,12 @@ import { generateShortId } from "../../lib/short-id.js";
 import type { NormalizedArtist, TrackSource } from "../../services/types.js";
 import type {
   ArtistCacheData,
+  ArtistCacheIdentity,
   ArtistCacheRow,
   ArtistGroupMembershipRecord,
   ArtistIdentityEventRecord,
   ArtistIdentityEventType,
+  ArtistInfoEntity,
   CachedArtistResult,
   ExternalIdRecord,
   PersistArtistData,
@@ -97,6 +100,11 @@ interface ArtistCacheRowDb {
   tracks_updated_at: Date | null;
   profile_updated_at: Date | null;
   events_updated_at: Date | null;
+}
+
+interface ArtistInfoEntityRow {
+  artist_entity_id: string;
+  artist_name: string;
 }
 
 interface ArtistIdentityEventSqlRow {
@@ -204,6 +212,49 @@ export async function findArtistByName(pool: Pool, name: string): Promise<Cached
 
   if (result.rows.length === 0) return null;
   return buildCachedArtistResult(result.rows as ArtistWithLinkRow[]);
+}
+
+/**
+ * Resolves one normalized artist entity to its preferred persisted display
+ * name. The query deliberately starts at `artist_entities`, rather than
+ * `artist_profiles`: track and album credits may refer to a valid entity
+ * before a commercial artist profile was persisted for it.
+ *
+ * Its name ordering matches {@link ARTIST_NAME_LATERAL_JOIN}: locale-less
+ * canonical names win, followed by any canonical name, credit names, and
+ * other stored variants. An entity without a usable name is not a meaningful
+ * upstream artist lookup and is therefore returned as `null`.
+ *
+ * @param pool - Postgres connection pool.
+ * @param artistEntityId - Exact normalized entity identifier.
+ * @returns The entity and its preferred name, or `null` when not usable.
+ */
+export async function findArtistInfoEntity(pool: Pool, artistEntityId: string): Promise<ArtistInfoEntity | null> {
+  const result = await pool.query<ArtistInfoEntityRow>(
+    `SELECT ae.id AS artist_entity_id, artist_name.name AS artist_name
+     FROM artist_entities ae
+     JOIN LATERAL (
+       SELECT n.name
+       FROM artist_entity_names n
+       WHERE n.artist_entity_id = ae.id
+       ORDER BY
+         CASE
+           WHEN n.name_type = 'canonical' AND n.locale IS NULL THEN 0
+           WHEN n.name_type = 'canonical' THEN 1
+           WHEN n.name_type = 'credit' THEN 2
+           WHEN n.locale IS NULL THEN 3
+           ELSE 4
+         END,
+         n.created_at ASC
+       LIMIT 1
+     ) artist_name ON TRUE
+     WHERE ae.id = $1
+     LIMIT 1`,
+    [artistEntityId],
+  );
+
+  const row = result.rows[0];
+  return row ? { artistEntityId: row.artist_entity_id, artistName: row.artist_name } : null;
 }
 
 // ============================================================================
@@ -478,7 +529,7 @@ export async function addArtistExternalIds(pool: Pool, artistId: string, records
 
 /**
  * Returns the cached profile / top-tracks / events JSON blobs for a
- * given artist name, or null when nothing is cached.
+ * given name or normalized entity, or null when nothing is cached.
  *
  * The three blobs and their per-field timestamps are partial: a row may
  * have only `profile` populated, only `top_tracks`, etc., depending on
@@ -486,15 +537,16 @@ export async function addArtistExternalIds(pool: Pool, artistId: string, records
  * `0` when their corresponding blob has not been written yet.
  *
  * @param pool - Postgres connection pool.
- * @param artistName - Cache key (display name).
+ * @param identity - Cache identity. Entity identities use a namespace that is
+ * disjoint from legacy name-keyed records.
  * @returns Parsed cache row, or null.
  */
-export async function findArtistCache(pool: Pool, artistName: string): Promise<ArtistCacheRow | null> {
+export async function findArtistCache(pool: Pool, identity: ArtistCacheIdentity): Promise<ArtistCacheRow | null> {
   const result = await pool.query(
     `SELECT artist_name, profile, top_tracks, events,
             profile_updated_at, tracks_updated_at, events_updated_at
      FROM artist_cache WHERE id = $1`,
-    [`artist-${artistName}`],
+    [artistCacheId(identity)],
   );
 
   if (result.rows.length === 0) return null;
@@ -582,7 +634,7 @@ export async function findArtistInfoAliasByShortId(
  */
 export async function saveArtistCache(pool: Pool, data: ArtistCacheData): Promise<void> {
   const now = new Date();
-  const id = `artist-${data.artistName}`;
+  const id = artistCacheId(data.identity);
   const hasProfile = Object.hasOwn(data, "profile");
   const hasTopTracks = Object.hasOwn(data, "topTracks");
   const hasEvents = Object.hasOwn(data, "events");
@@ -618,6 +670,17 @@ export async function saveArtistCache(pool: Pool, data: ArtistCacheData): Promis
       hasEvents,
     ],
   );
+}
+
+/**
+ * Maps a typed artist-info cache identity to its primary key.
+ *
+ * Legacy cache rows retain their historical `artist-${name}` key. Entity rows
+ * use `artistEntity:` rather than another `artist-` prefix, making both
+ * namespaces structurally disjoint even when a display name resembles an id.
+ */
+function artistCacheId(identity: ArtistCacheIdentity): string {
+  return identity.kind === "entity" ? `artistEntity:${identity.artistEntityId}` : `artist-${identity.artistName}`;
 }
 
 /**
