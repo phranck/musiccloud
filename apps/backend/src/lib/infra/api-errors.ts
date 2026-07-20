@@ -4,6 +4,7 @@ import {
   formatUserMessage,
   getErrorEntry,
   LEGACY_TO_MC,
+  MC_ERROR_CODE_PATTERN,
   type McErrorCode,
 } from "@musiccloud/shared";
 
@@ -15,7 +16,6 @@ export interface ClassifiedApiError {
 
 type ErrorPayload = Record<string, unknown>;
 
-const MC_CODE_PATTERN = /^MC-(URL|API|AUTH|RES|DB|CFG|MAP|REQ|SYS)-\d{3,4}$/;
 const POSTGRES_SQLSTATE_PATTERN = /^[0-9A-Z]{5}$/;
 
 export function classifyUnhandledError(error: unknown): ClassifiedApiError {
@@ -94,7 +94,7 @@ function classified(code: McErrorCode, statusCode: number): ClassifiedApiError {
 }
 
 function canonicalPayloadCode(rawError: string | undefined, statusCode: number): McErrorCode {
-  if (rawError && (MC_CODE_PATTERN.test(rawError) || rawError in LEGACY_TO_MC)) {
+  if (rawError && (MC_ERROR_CODE_PATTERN.test(rawError) || rawError in LEGACY_TO_MC)) {
     return getErrorEntry(rawError).code;
   }
   if (statusCode === 401) return "MC-AUTH-0001";
@@ -115,7 +115,7 @@ function ensureCodeSuffix(message: string, code: McErrorCode): string {
 }
 
 function isMachineCode(value: string): boolean {
-  return MC_CODE_PATTERN.test(value) || value in LEGACY_TO_MC || /^[A-Z][A-Z0-9_]+$/.test(value);
+  return MC_ERROR_CODE_PATTERN.test(value) || value in LEGACY_TO_MC || /^[A-Z][A-Z0-9_]+$/.test(value);
 }
 
 function postgresSqlState(error: unknown): string | undefined {

@@ -17,6 +17,15 @@ test("runs Docker generation with the invoking host ownership", async () => {
   assert.match(generator, /"--user",\s*dockerUser,/);
 });
 
+test("keeps shared typed-error examples aligned with generated method names", async () => {
+  const readme = await readFile(path.join(repoRoot, "sdk/error-contract/README.md"), "utf8");
+
+  assert.match(readme, /api\.apiV1ResolvePost\(/);
+  assert.match(readme, /api\.api_v1_resolve_post\(/);
+  assert.match(readme, /ResolveAPI\.apiV1ResolvePost\(/);
+  assert.doesNotMatch(readme, /api\.resolveTrack\(|api\.resolve_track\(|ResolveAPI\.resolveTrack\(/);
+});
+
 test("generates a release catalog and archives for every SDK target", async () => {
   const tempRoot = await mkdtemp(path.join(tmpdir(), "musiccloud-sdk-release-"));
   const contractDir = path.join(tempRoot, "contract");
@@ -115,4 +124,68 @@ exec "${systemFind}" "$@"
   const typescriptModels = await readFile(path.join(outputDir, "generated/typescript/src/models/index.ts"), "utf8");
   assert.doesNotMatch(typescriptModels, /:\s*Null;/);
   assert.match(typescriptModels, /alwaysNull:\s*null;/);
+
+  const typescriptErrors = await readFile(
+    path.join(outputDir, "generated/typescript/src/musiccloud-errors.ts"),
+    "utf8",
+  );
+  const typescriptRuntime = await readFile(path.join(outputDir, "generated/typescript/src/runtime.ts"), "utf8");
+  const typescriptIndex = await readFile(path.join(outputDir, "generated/typescript/src/index.ts"), "utf8");
+  assert.match(typescriptErrors, /class MusiccloudApiError/);
+  assert.match(typescriptRuntime, /throw await musiccloudErrorFromResponse\(response\)/);
+  assert.match(typescriptRuntime, /throw classifyMusiccloudTransportError\(e\)/);
+  assert.match(typescriptIndex, /export \* from ['"]\.\/musiccloud-errors['"]/);
+
+  const pythonErrors = await readFile(
+    path.join(outputDir, "generated/python/musiccloud_api_client/musiccloud_errors.py"),
+    "utf8",
+  );
+  const pythonClient = await readFile(
+    path.join(outputDir, "generated/python/musiccloud_api_client/api_client.py"),
+    "utf8",
+  );
+  const pythonRest = await readFile(path.join(outputDir, "generated/python/musiccloud_api_client/rest.py"), "utf8");
+  const pythonInit = await readFile(
+    path.join(outputDir, "generated/python/musiccloud_api_client/__init__.py"),
+    "utf8",
+  );
+  assert.match(pythonErrors, /class MusiccloudApiError/);
+  assert.match(pythonClient, /raise parse_musiccloud_error_response\(/);
+  assert.match(pythonRest, /raise classify_musiccloud_transport_error\(e\)/);
+  assert.match(pythonRest, /except Exception as e:\n\s+raise classify_musiccloud_transport_error\(e\)/);
+  assert.match(pythonInit, /from musiccloud_api_client\.musiccloud_errors import/);
+
+  const swiftErrors = await readFile(
+    path.join(outputDir, "generated/swift/Sources/MusiccloudApiClient/Infrastructure/MusiccloudErrors.swift"),
+    "utf8",
+  );
+  const swiftModels = await readFile(
+    path.join(outputDir, "generated/swift/Sources/MusiccloudApiClient/Infrastructure/Models.swift"),
+    "utf8",
+  );
+  assert.match(swiftErrors, /public enum MusiccloudError/);
+  assert.match(swiftModels, /public typealias ErrorResponse = MusiccloudError/);
+
+  for (const [language, expectedType] of [
+    ["typescript", "MusiccloudApiError"],
+    ["python", "MusiccloudApiError"],
+    ["swift", "MusiccloudError.api"],
+  ]) {
+    const readme = await readFile(path.join(outputDir, `generated/${language}/README.md`), "utf8");
+    assert.match(readme, /Typed error handling/);
+    assert.match(readme, new RegExp(expectedType.replace(".", "\\.")));
+    assert.match(readme, /Unhandled/);
+    assert.match(readme, /report/);
+    assert.doesNotMatch(readme, /\x1b/);
+  }
+
+  const typescriptReadme = await readFile(path.join(outputDir, "generated/typescript/README.md"), "utf8");
+  const pythonReadme = await readFile(path.join(outputDir, "generated/python/README.md"), "utf8");
+  const swiftReadme = await readFile(path.join(outputDir, "generated/swift/README.md"), "utf8");
+  assert.match(typescriptReadme, /api\.apiV1ResolvePost\(/);
+  assert.doesNotMatch(typescriptReadme, /api\.resolveTrack\(/);
+  assert.match(pythonReadme, /api\.api_v1_resolve_post\(/);
+  assert.doesNotMatch(pythonReadme, /api\.resolve_track\(/);
+  assert.match(swiftReadme, /ResolveAPI\.apiV1ResolvePost\(/);
+  assert.doesNotMatch(swiftReadme, /ResolveAPI\.resolveTrack\(/);
 });

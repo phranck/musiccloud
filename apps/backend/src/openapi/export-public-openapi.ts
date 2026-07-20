@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { PublicErrorCodeEntry } from "@musiccloud/shared";
 
 export interface PublicOpenApiDocument {
   openapi: string;
@@ -9,6 +10,7 @@ export interface PublicOpenApiDocument {
     schemas?: Record<string, unknown>;
   };
   tags?: Array<{ name: string; description?: string }>;
+  "x-musiccloud-error-codes"?: readonly PublicErrorCodeEntry[];
 }
 
 export interface PublicOpenApiExport {

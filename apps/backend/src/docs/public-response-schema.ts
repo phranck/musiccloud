@@ -1,3 +1,5 @@
+import { MC_ERROR_CODE_PATTERN } from "@musiccloud/shared";
+
 /**
  * Creates the canonical public API error envelope schema.
  *
@@ -16,6 +18,7 @@ export function createPublicErrorResponseSchema() {
     properties: {
       error: {
         type: "string",
+        pattern: MC_ERROR_CODE_PATTERN.source,
         description:
           "Stable musiccloud error code for programmatic handling, for example `MC-URL-0003`, `MC-API-0003`, or `MC-RES-0001`.",
       },

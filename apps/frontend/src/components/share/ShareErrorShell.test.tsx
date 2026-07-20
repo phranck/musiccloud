@@ -1,9 +1,10 @@
+import type { ApiErrorResponse } from "@musiccloud/shared";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ShareErrorShell } from "./ShareErrorShell";
 
-const error = {
+const error: ApiErrorResponse = {
   error: "MC-DB-0001",
   errorId: "1bc8fa27-a606-44c4-b8a5-1f2067e41246",
   message: "The database permissions are invalid for this operation. (MC-DB-0001)",

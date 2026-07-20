@@ -45,6 +45,29 @@ test("builds the shared package before every CI OpenAPI export", () => {
   }
 });
 
+test("runs the five-language SDK error contract when its sources change", () => {
+  const validationJob = workflow.slice(
+    workflow.indexOf("  validate-api-sdk-contract:"),
+    workflow.indexOf("  publish-api-sdks:"),
+  );
+  const detectChangesJob = workflow.slice(
+    workflow.indexOf("  detect-changes:"),
+    workflow.indexOf("  validate-api-sdk-contract:"),
+  );
+
+  assert.match(validationJob, /sdk\/error-contract\/\*/);
+  assert.match(validationJob, /packages\/shared\/src\/error-codes\.ts/);
+  assert.match(validationJob, /packages\/shared\/src\/public-error-catalog\.ts/);
+  assert.match(validationJob, /uses: actions\/setup-go@v6/);
+  assert.match(validationJob, /uses: swift-actions\/setup-swift@v2/);
+  assert.match(validationJob, /pnpm openapi:export[\s\S]*?pnpm sdk:generate[\s\S]*?pnpm sdk:test/);
+  assert.match(validationJob, /pnpm sdk:generated-roundtrip:test/);
+  assert.match(validationJob, /pnpm sdk:error-contract:test/);
+  assert.match(detectChangesJob, /sdk\/error-contract\/\*/);
+  assert.match(detectChangesJob, /packages\/shared\/src\/error-codes\.ts/);
+  assert.match(detectChangesJob, /packages\/shared\/src\/public-error-catalog\.ts/);
+});
+
 test("verifies the public backend health endpoint after a backend deploy", () => {
   const backendJob = workflow.slice(
     workflow.indexOf("  deploy-backend:"),

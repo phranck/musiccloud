@@ -1,7 +1,8 @@
+import { MC_ERROR_CODE_PATTERN, PUBLIC_ERROR_CODE_CATALOG } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildApp } from "../server.js";
-import { exportPublicOpenApiContract, stableStringify } from "./export-public-openapi.js";
+import { exportPublicOpenApiContract, type PublicOpenApiDocument, stableStringify } from "./export-public-openapi.js";
 
 let app: FastifyInstance;
 
@@ -61,5 +62,18 @@ describe("exportPublicOpenApiContract", () => {
     const exported = await exportPublicOpenApiContract();
 
     expect(findArrayTypePaths(exported.document)).toEqual([]);
+  });
+
+  it("exports the canonical public error catalog and code pattern", async () => {
+    const exported = await exportPublicOpenApiContract();
+    const document = exported.document as PublicOpenApiDocument & {
+      "x-musiccloud-error-codes"?: unknown;
+    };
+    const errorSchema = document.components?.schemas?.ErrorResponse as {
+      properties?: { error?: { pattern?: string } };
+    };
+
+    expect(document["x-musiccloud-error-codes"]).toEqual(PUBLIC_ERROR_CODE_CATALOG);
+    expect(errorSchema.properties?.error?.pattern).toBe(MC_ERROR_CODE_PATTERN.source);
   });
 });

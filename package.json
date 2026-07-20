@@ -23,6 +23,8 @@
     "openapi:export": "pnpm --filter @musiccloud/backend run openapi:export",
     "sdk:generate": "node scripts/generate-sdk-release.mjs --contract-dir .tmp/openapi --out-dir .tmp/sdk --source-sha $(git rev-parse HEAD)",
     "sdk:test": "node --test scripts/generate-sdk-release.test.mjs scripts/ci-workflow.test.mjs",
+    "sdk:generated-roundtrip:test": "node scripts/test-generated-sdk-roundtrip.mjs .tmp/sdk/generated/typescript",
+    "sdk:error-contract:test": "node scripts/test-sdk-error-contract.mjs",
     "db:generate": "drizzle-kit generate --config=drizzle.config.postgres.ts",
     "db:migrate": "node scripts/migrate.mjs",
     "db:studio": "drizzle-kit studio --config=drizzle.config.postgres.ts",

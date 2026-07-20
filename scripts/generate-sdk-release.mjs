@@ -1,14 +1,74 @@
 #!/usr/bin/env node
 import crypto from "node:crypto";
 import { execFile } from "node:child_process";
-import { mkdir, readFile, readdir, rename, rm, stat, utimes, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, rename, rm, stat, utimes, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
 
 const execFileAsync = promisify(execFile);
 const GENERATOR_VERSION = "7.22.0";
 const GENERATOR_IMAGE = `openapitools/openapi-generator-cli:v${GENERATOR_VERSION}`;
 const FIXTURE_MODE = process.env.MUSICCLOUD_SDK_GENERATOR_FIXTURE === "true";
+const REPOSITORY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const ERROR_CONTRACT_ROOT = path.join(REPOSITORY_ROOT, "sdk/error-contract");
+
+const ERROR_HANDLING_DOCS = {
+  typescript: `## Typed error handling
+
+\`MusiccloudApiError\` preserves the public code, safe message, error ID, HTTP status, context, and retry metadata. \`MusiccloudProtocolError\` and \`MusiccloudTransportError\` remain separate failure types.
+
+\`\`\`ts
+import { MusiccloudApiError, MusiccloudErrorCode } from "@musiccloud/api-client";
+
+try {
+  await api.apiV1ResolvePost({ apiV1ResolvePostRequest: request });
+} catch (error) {
+  if (error instanceof MusiccloudApiError) {
+    if (error.code === MusiccloudErrorCode.rateLimited) {
+      console.warn(error.retryAfterSeconds, error.errorId);
+    } else {
+      console.error(\`Unhandled \${error.code}; report \${error.errorId}\`);
+    }
+  }
+}
+\`\`\`
+`,
+  python: `## Typed error handling
+
+\`MusiccloudApiError\` preserves the public code, safe message, error ID, HTTP status, context, and retry metadata. \`MusiccloudProtocolError\` and \`MusiccloudTransportError\` remain separate failure types.
+
+\`\`\`python
+from musiccloud_api_client import MusiccloudApiError, MusiccloudErrorCode
+
+try:
+    api.api_v1_resolve_post(resolve_request)
+except MusiccloudApiError as error:
+    if error.code == MusiccloudErrorCode.RATE_LIMITED:
+        print(error.retry_after_seconds, error.error_id)
+    else:
+        print(f"Unhandled {error.code}; report {error.error_id}")
+\`\`\`
+`,
+  swift: `## Typed error handling
+
+Generated calls throw \`MusiccloudError.api\`, \`.protocolFailure\`, or \`.transportFailure\`. API errors preserve the public code, safe message, error ID, HTTP status, context, and retry metadata.
+
+\`\`\`swift
+import MusiccloudApiClient
+
+do {
+    _ = try await ResolveAPI.apiV1ResolvePost(apiV1ResolvePostRequest: request)
+} catch MusiccloudError.api(let error) {
+    if error.code == MusiccloudErrorCode.rateLimited {
+        print(error.retryAfterSeconds as Any, error.errorId)
+    } else {
+        print("Unhandled \\(error.code); report \\(error.errorId)")
+    }
+}
+\`\`\`
+`,
+};
 
 /** Local smoke-build directories that must never ship in downloadable SDKs. */
 const ARCHIVE_EXCLUDED_DIRECTORIES = new Set([
@@ -167,6 +227,57 @@ async function generateFixtureSdk(generatedRoot, target) {
       path.join(modelsDir, "index.ts"),
       "export interface FixtureNullableModel {\n  alwaysNull: Null;\n}\n",
     );
+    await writeFile(path.join(dir, "src/index.ts"), "export * from './runtime';\nexport * from './models/index';\n");
+    await writeFile(
+      path.join(dir, "src/runtime.ts"),
+      "export async function fixtureRequest(response: Response): Promise<Response> {\n" +
+        "  throw new ResponseError(response, 'Response returned an error code');\n" +
+        "}\n\n" +
+        "export function fixtureFetch(e: Error): never {\n" +
+        "  throw new FetchError(e, 'The request failed and the interceptors did not return an alternative response');\n" +
+        "}\n\n" +
+        "export class ResponseError extends Error { constructor(public response: Response, message: string) { super(message); } }\n" +
+        "export class FetchError extends Error { constructor(public cause: Error, message: string) { super(message); } }\n",
+    );
+  }
+  if (target.language === "python") {
+    const packageDir = path.join(dir, "musiccloud_api_client");
+    await mkdir(packageDir, { recursive: true });
+    await writeFile(path.join(packageDir, "__init__.py"), '__all__ = ["ApiClient"]\n');
+    await writeFile(
+      path.join(packageDir, "api_client.py"),
+      "class ApiException(Exception):\n" +
+        "    @classmethod\n" +
+        "    def from_response(cls, **kwargs):\n" +
+        "        return cls()\n\n" +
+        "def deserialize_error(response_data, response_text, return_data):\n" +
+        "    if not 200 <= response_data.status <= 299:\n" +
+        "        raise ApiException.from_response(\n" +
+        "            http_resp=response_data,\n" +
+        "            body=response_text,\n" +
+        "            data=return_data,\n" +
+        "        )\n",
+    );
+    await writeFile(
+      path.join(packageDir, "rest.py"),
+      "import urllib3\n\n" +
+        "class ApiException(Exception):\n" +
+        "    pass\n\n" +
+        "class RESTResponse:\n" +
+        "    def __init__(self, response):\n" +
+        "        self.response = response\n" +
+        "        self.data = None\n\n" +
+        "    def read(self):\n" +
+        "        if self.data is None:\n" +
+        "            self.data = self.response.data\n" +
+        "        return self.data\n\n" +
+        "def request(pool_manager):\n" +
+        "    try:\n" +
+        "        return pool_manager.request()\n" +
+        "    except urllib3.exceptions.SSLError as e:\n" +
+        "            msg = \"\\n\".join([type(e).__name__, str(e)])\n" +
+        "            raise ApiException(status=0, reason=msg)\n",
+    );
   }
   if (target.language === "swift") {
     await writeFile(
@@ -176,10 +287,169 @@ async function generateFixtureSdk(generatedRoot, target) {
     const infrastructureDir = path.join(dir, "Sources/MusiccloudApiClient/Infrastructure");
     await mkdir(infrastructureDir, { recursive: true });
     await writeFile(
+      path.join(infrastructureDir, "Models.swift"),
+      "import Foundation\n\npublic enum ErrorResponse: Error, Sendable {\n    case error(Int, Data?, URLResponse?, Error)\n}\n",
+    );
+    await writeFile(
       path.join(infrastructureDir, "URLSessionImplementations.swift"),
       "import Foundation\n#if !os(macOS)\nimport MobileCoreServices\n#endif\n\nfunc mimeType(for pathExtension: String) -> String {\n        if #available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *) {\n            return \"application/octet-stream\"\n        } else {\n            if let uti = UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, pathExtension as NSString, nil)?.takeRetainedValue(),\n                    let mimetype = UTTypeCopyPreferredTagWithClass(uti, kUTTagClassMIMEType)?.takeRetainedValue() {\n                return mimetype as String\n            }\n            return \"application/octet-stream\"\n        }\n}\n",
     );
   }
+}
+
+function replaceRequired(source, search, replacement, label) {
+  if (!source.includes(search)) {
+    throw new Error(`SDK error integration failed: generator output changed (${label}).`);
+  }
+  return source.replace(search, replacement);
+}
+
+async function installTypeScriptErrorRuntime(generatedRoot, target) {
+  if (target.language !== "typescript") return;
+  const sourceDir = path.join(generatedRoot, target.language, "src");
+  await copyFile(
+    path.join(ERROR_CONTRACT_ROOT, "typescript/musiccloud-errors.ts"),
+    path.join(sourceDir, "musiccloud-errors.ts"),
+  );
+
+  const runtimePath = path.join(sourceDir, "runtime.ts");
+  const runtime = await readFile(runtimePath, "utf8");
+  const importLine =
+    'import { classifyMusiccloudTransportError, musiccloudErrorFromResponse } from "./musiccloud-errors";\n';
+  const withHttpErrors = replaceRequired(
+    runtime,
+    "throw new ResponseError(response, 'Response returned an error code');",
+    "throw await musiccloudErrorFromResponse(response);",
+    "typescript HTTP response",
+  );
+  const withTransportErrors = replaceRequired(
+    withHttpErrors,
+    "throw new FetchError(e, 'The request failed and the interceptors did not return an alternative response');",
+    "throw classifyMusiccloudTransportError(e);",
+    "typescript transport response",
+  );
+  await writeFile(runtimePath, `${importLine}${withTransportErrors}`);
+
+  const indexPath = path.join(sourceDir, "index.ts");
+  const index = await readFile(indexPath, "utf8");
+  await writeFile(indexPath, `${index.trimEnd()}\nexport * from './musiccloud-errors';\n`);
+}
+
+async function installPythonErrorRuntime(generatedRoot, target) {
+  if (target.language !== "python") return;
+  const packageDir = path.join(generatedRoot, target.language, "musiccloud_api_client");
+  await copyFile(
+    path.join(ERROR_CONTRACT_ROOT, "python/musiccloud_errors.py"),
+    path.join(packageDir, "musiccloud_errors.py"),
+  );
+
+  const apiClientPath = path.join(packageDir, "api_client.py");
+  const apiClient = await readFile(apiClientPath, "utf8");
+  const generatedRaise =
+    "raise ApiException.from_response(\n" +
+    "                    http_resp=response_data,\n" +
+    "                    body=response_text,\n" +
+    "                    data=return_data,\n" +
+    "                )";
+  const fixtureRaise =
+    "raise ApiException.from_response(\n" +
+    "            http_resp=response_data,\n" +
+    "            body=response_text,\n" +
+    "            data=return_data,\n" +
+    "        )";
+  const replacement =
+    "raise parse_musiccloud_error_response(\n" +
+    "                    response_data.status,\n" +
+    "                    response_data.headers,\n" +
+    "                    response_data.data.decode(\"utf-8\", errors=\"replace\"),\n" +
+    "                )";
+  const matchedRaise = apiClient.includes(generatedRaise) ? generatedRaise : fixtureRaise;
+  const withTypedRaise = replaceRequired(apiClient, matchedRaise, replacement, "python HTTP response");
+  await writeFile(
+    apiClientPath,
+    `from musiccloud_api_client.musiccloud_errors import parse_musiccloud_error_response\n${withTypedRaise}`,
+  );
+
+  const restPath = path.join(packageDir, "rest.py");
+  const rest = await readFile(restPath, "utf8");
+  const generatedTransport =
+    "except urllib3.exceptions.SSLError as e:\n" +
+    "            msg = \"\\n\".join([type(e).__name__, str(e)])\n" +
+    "            raise ApiException(status=0, reason=msg)";
+  const withTransport = replaceRequired(
+    rest,
+    generatedTransport,
+    "except urllib3.exceptions.HTTPError as e:\n            raise classify_musiccloud_transport_error(e) from None",
+    "python transport response",
+  );
+  const generatedRead =
+    "    def read(self):\n" +
+    "        if self.data is None:\n" +
+    "            self.data = self.response.data\n" +
+    "        return self.data";
+  const typedRead =
+    "    def read(self):\n" +
+    "        try:\n" +
+    "            if self.data is None:\n" +
+    "                self.data = self.response.data\n" +
+    "            return self.data\n" +
+    "        except Exception as e:\n" +
+    "            raise classify_musiccloud_transport_error(e) from None";
+  const withReadTransport = replaceRequired(
+    withTransport,
+    generatedRead,
+    typedRead,
+    "python response body transport",
+  );
+  await writeFile(
+    restPath,
+    `from musiccloud_api_client.musiccloud_errors import classify_musiccloud_transport_error\n${withReadTransport}`,
+  );
+
+  const initPath = path.join(packageDir, "__init__.py");
+  const init = await readFile(initPath, "utf8");
+  await writeFile(
+    initPath,
+    `${init.trimEnd()}\n\nfrom musiccloud_api_client.musiccloud_errors import (\n` +
+      "    MusiccloudApiError,\n" +
+      "    MusiccloudErrorCode,\n" +
+      "    MusiccloudProtocolError,\n" +
+      "    MusiccloudTransportError,\n" +
+      ")\n" +
+      '__all__.extend(["MusiccloudApiError", "MusiccloudErrorCode", "MusiccloudProtocolError", "MusiccloudTransportError"])\n',
+  );
+}
+
+async function installSwiftErrorRuntime(generatedRoot, target) {
+  if (target.language !== "swift") return;
+  const infrastructureDir = path.join(generatedRoot, target.language, "Sources/MusiccloudApiClient/Infrastructure");
+  await copyFile(
+    path.join(ERROR_CONTRACT_ROOT, "swift/Sources/MusiccloudErrors/MusiccloudErrors.swift"),
+    path.join(infrastructureDir, "MusiccloudErrors.swift"),
+  );
+
+  const modelsPath = path.join(infrastructureDir, "Models.swift");
+  const models = await readFile(modelsPath, "utf8");
+  const generatedError = "public enum ErrorResponse: Error, Sendable {\n    case error(Int, Data?, URLResponse?, Error)\n}";
+  const patchedModels = replaceRequired(
+    models,
+    generatedError,
+    "public typealias ErrorResponse = MusiccloudError",
+    "swift error response",
+  );
+  await writeFile(modelsPath, patchedModels);
+}
+
+async function installErrorRuntime(generatedRoot, target) {
+  await installTypeScriptErrorRuntime(generatedRoot, target);
+  await installPythonErrorRuntime(generatedRoot, target);
+  await installSwiftErrorRuntime(generatedRoot, target);
+}
+
+async function appendErrorHandlingDocs(generatedRoot, target) {
+  const readmePath = path.join(generatedRoot, target.language, "README.md");
+  const readme = await readFile(readmePath, "utf8");
+  await writeFile(readmePath, `${readme.trimEnd()}\n\n${ERROR_HANDLING_DOCS[target.language]}`);
 }
 
 /**
@@ -368,6 +638,8 @@ async function main() {
     }
     await patchTypeScriptNullLiterals(generatedRoot, target);
     await patchSwiftLinuxCompatibility(generatedRoot, target);
+    await installErrorRuntime(generatedRoot, target);
+    await appendErrorHandlingDocs(generatedRoot, target);
     await writeGeneratorConfig(generatedRoot, target);
     await smokeBuild(generatedRoot, target);
 

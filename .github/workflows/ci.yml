@@ -299,7 +299,7 @@ jobs:
                 dashboard=true ;;
             esac
             case "$file" in
-              apps/backend/src/server.ts|apps/backend/src/routes/*|apps/backend/src/schemas/*|apps/backend/src/docs/*|apps/backend/src/openapi/*|apps/backend/src/scripts/export-public-openapi.ts|apps/developer/scripts/generate-api-reference.mjs|apps/developer/src/lib/openapi-reference.ts|apps/developer/src/lib/sdk-catalog.ts|scripts/generate-sdk-release.mjs|scripts/generate-sdk-release.test.mjs|scripts/fixtures/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|.github/workflows/ci.yml)
+              apps/backend/src/server.ts|apps/backend/src/routes/*|apps/backend/src/schemas/*|apps/backend/src/docs/*|apps/backend/src/openapi/*|apps/backend/src/scripts/export-public-openapi.ts|apps/developer/scripts/generate-api-reference.mjs|apps/developer/src/lib/openapi-reference.ts|apps/developer/src/lib/sdk-catalog.ts|packages/shared/src/api.ts|packages/shared/src/error-codes.ts|packages/shared/src/public-error-catalog.ts|sdk/error-contract/*|scripts/generate-sdk-release.mjs|scripts/generate-sdk-release.test.mjs|scripts/test-generated-sdk-roundtrip.mjs|scripts/test-sdk-error-contract.mjs|scripts/fixtures/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|.github/workflows/ci.yml)
                 api_sdk=true ;;
             esac
           done
@@ -334,7 +334,7 @@ jobs:
           should_run=false
           for file in "${changed_files[@]}"; do
             case "$file" in
-              apps/backend/src/server.ts|apps/backend/src/routes/*|apps/backend/src/schemas/*|apps/backend/src/docs/*|apps/backend/src/openapi/*|apps/backend/src/scripts/export-public-openapi.ts|apps/developer/scripts/generate-api-reference.mjs|apps/developer/src/lib/openapi-reference.ts|apps/developer/src/lib/sdk-catalog.ts|scripts/generate-sdk-release.mjs|scripts/generate-sdk-release.test.mjs|scripts/fixtures/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|.github/workflows/ci.yml)
+              apps/backend/src/server.ts|apps/backend/src/routes/*|apps/backend/src/schemas/*|apps/backend/src/docs/*|apps/backend/src/openapi/*|apps/backend/src/scripts/export-public-openapi.ts|apps/developer/scripts/generate-api-reference.mjs|apps/developer/src/lib/openapi-reference.ts|apps/developer/src/lib/sdk-catalog.ts|packages/shared/src/api.ts|packages/shared/src/error-codes.ts|packages/shared/src/public-error-catalog.ts|sdk/error-contract/*|scripts/generate-sdk-release.mjs|scripts/generate-sdk-release.test.mjs|scripts/test-generated-sdk-roundtrip.mjs|scripts/test-sdk-error-contract.mjs|scripts/fixtures/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|.github/workflows/ci.yml)
                 should_run=true ;;
             esac
           done
@@ -345,6 +345,14 @@ jobs:
         with:
           node-version: 22
           package-manager-cache: false
+      - uses: actions/setup-go@v6
+        if: steps.api_sdk_changes.outputs.should_run == 'true'
+        with:
+          go-version: '1.22.x'
+      - uses: swift-actions/setup-swift@v2
+        if: steps.api_sdk_changes.outputs.should_run == 'true'
+        with:
+          swift-version: '6.0'
       - name: Prepare pnpm
         if: steps.api_sdk_changes.outputs.should_run == 'true'
         run: |
@@ -366,11 +374,14 @@ jobs:
       - name: Confirm Docker is available for SDK generation
         if: steps.api_sdk_changes.outputs.should_run == 'true'
         run: docker --version
-      - name: Export public OpenAPI and run SDK fixture validation
+      - name: Export public OpenAPI and validate SDK contracts
         if: steps.api_sdk_changes.outputs.should_run == 'true'
         run: |
           pnpm openapi:export
+          pnpm sdk:generate
+          pnpm sdk:generated-roundtrip:test
           pnpm sdk:test
+          pnpm sdk:error-contract:test
 
   publish-api-sdks:
     name: Publish API SDKs
