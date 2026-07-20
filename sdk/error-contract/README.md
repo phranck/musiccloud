@@ -10,7 +10,7 @@ Known programmatic branches have language-native constants and helpers. Future w
 import { MusiccloudApiError, MusiccloudErrorCode } from "@musiccloud/api-client";
 
 try {
-  await api.apiV1ResolvePost({ apiV1ResolvePostRequest: request });
+  await api.resolve({ resolveRequest: request });
 } catch (error) {
   if (error instanceof MusiccloudApiError) {
     if (error.code === MusiccloudErrorCode.rateLimited) {
@@ -28,7 +28,7 @@ try {
 from musiccloud_api_client import MusiccloudApiError, MusiccloudErrorCode
 
 try:
-    api.api_v1_resolve_post(resolve_request)
+    api.resolve(resolve_request)
 except MusiccloudApiError as error:
     if error.code == MusiccloudErrorCode.RATE_LIMITED:
         print(error.retry_after_seconds, error.error_id)
@@ -42,7 +42,7 @@ except MusiccloudApiError as error:
 import MusiccloudApiClient
 
 do {
-    _ = try await ResolveAPI.apiV1ResolvePost(apiV1ResolvePostRequest: request)
+    _ = try await ResolveAPI.resolve(resolveRequest: request)
 } catch MusiccloudError.api(let error) {
     if error.code == MusiccloudErrorCode.rateLimited {
         print(error.retryAfterSeconds as Any, error.errorId)
@@ -56,7 +56,7 @@ do {
 
 ```php
 try {
-    $api->resolveTrack($request);
+    $client->resolver()->resolve($request);
 } catch (MusiccloudApiError $error) {
     if ($error->errorCode === MusiccloudErrorCode::RATE_LIMITED) {
         printf("retry=%s errorId=%s\n", $error->retryAfterSeconds(), $error->errorId);
@@ -69,7 +69,7 @@ try {
 ## Go
 
 ```go
-result, err := client.ResolveTrack(ctx, request)
+result, err := client.Resolver.Resolve(ctx, request)
 var apiErr *musicclouderrors.APIError
 if errors.As(err, &apiErr) {
     if errors.Is(err, &musicclouderrors.APIError{Code: musicclouderrors.ErrorCodeRateLimited}) {

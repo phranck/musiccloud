@@ -38,13 +38,16 @@ describe("parseSdkCatalog", () => {
     expect(() => parseSdkCatalog(catalog, contract)).toThrow("fingerprint");
   });
 
-  it("allows a stale fingerprint only when an explicit local preview option is set", () => {
-    const catalog = readCatalog();
-    catalog.openApiSha256 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+  it("allows a stale release only when an explicit local preview option is set", () => {
+    const previewContract = {
+      version: "2.1.10",
+      sha256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    };
 
-    expect(parseSdkCatalog(catalog, contract, { allowStaleOpenApiFingerprint: true }).openApiSha256).toBe(
-      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-    );
+    expect(parseSdkCatalog(readCatalog(), previewContract, { allowStaleContract: true })).toMatchObject({
+      apiVersion: "2.1.9",
+      openApiSha256: contract.sha256,
+    });
   });
 
   it("rejects duplicate language assets", () => {

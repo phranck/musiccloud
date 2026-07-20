@@ -1,0 +1,47 @@
+{
+  "$schema": "../schema/language-profile.schema.json",
+  "schemaVersion": 1,
+  "language": "python",
+  "generator": {
+    "adapterId": "openapi-python-client-0-29",
+    "config": {
+      "project_name_override": "musiccloud-sdk",
+      "package_name_override": "musiccloud",
+      "package_version_override": "0.1.0",
+      "generate_all_tags": false,
+      "literal_enums": true,
+      "use_path_prefixes_for_title_model_names": false,
+      "content_type_overrides": {
+        "audio/flac": "application/octet-stream",
+        "audio/mpeg": "application/octet-stream",
+        "audio/ogg": "application/octet-stream",
+        "image/jpeg": "application/octet-stream"
+      },
+      "post_hooks": []
+    }
+  },
+  "naming": {
+    "methodCase": "snake_case",
+    "propertyCase": "snake_case",
+    "typeCase": "PascalCase",
+    "initialisms": ["API", "CC", "ID", "URL"],
+    "reservedWordStrategy": "Use generator-safe suffixes internally and explicit facade keyword names.",
+    "resourceGrouping": "Expose resource objects as MusicCloud client attributes."
+  },
+  "publicSurface": {
+    "facade": "MusicCloud",
+    "rawGeneratorNamespaceExported": false,
+    "transportInjection": "Constructor accepts an httpx-compatible client or transport."
+  },
+  "runtime": {
+    "baseline": "CPython 3.11 through 3.14",
+    "nativeGates": ["python -m pip install .", "python -m compileall musiccloud", "python -c 'import musiccloud'"],
+    "quickstartGate": "Typecheck and run synchronous plus asynchronous keyword-argument quickstarts."
+  },
+  "errorContract": {
+    "path": "sdk/error-contract/python",
+    "apiFields": ["code", "message", "errorId", "status", "context", "retry"],
+    "preserveUnknownCodes": true,
+    "failureKinds": ["api", "protocol", "transport"]
+  }
+}

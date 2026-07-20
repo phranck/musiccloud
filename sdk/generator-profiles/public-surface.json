@@ -1,0 +1,217 @@
+{
+  "$schema": "./schema/public-surface.schema.json",
+  "schemaVersion": 1,
+  "operations": [
+    {
+      "operationId": "retrieveArtistInfo",
+      "method": "GET",
+      "path": "/api/v1/artist-info",
+      "public": {
+        "typescript": "artists.retrieveInfo",
+        "python": "artists.retrieve_info",
+        "swift": "artistInfo",
+        "php": "artists.retrieveInfo",
+        "go": "Artists.GetInfo"
+      }
+    },
+    {
+      "operationId": "retrieveCcArtistInfo",
+      "method": "GET",
+      "path": "/api/v1/cc/artist-info",
+      "public": {
+        "typescript": "creativeCommons.artists.retrieveInfo",
+        "python": "creative_commons.artists.retrieve_info",
+        "swift": "creativeCommonsArtistInfo",
+        "php": "creativeCommons.artists.retrieveInfo",
+        "go": "CCArtists.GetInfo"
+      }
+    },
+    {
+      "operationId": "streamCcAudio",
+      "method": "GET",
+      "path": "/api/v1/cc/audio/{jamendoId}",
+      "public": {
+        "typescript": "creativeCommons.audio.stream",
+        "python": "creative_commons.audio.stream",
+        "swift": "creativeCommonsAudio",
+        "php": "creativeCommons.audio.stream",
+        "go": "CCAudio.Stream"
+      },
+      "parameters": {
+        "jamendoId": {
+          "swift": { "localName": "jamendoID", "externalLabel": "for" },
+          "go": { "localName": "jamendoID" }
+        }
+      }
+    },
+    {
+      "operationId": "retrieveCcBandcampAvailability",
+      "method": "GET",
+      "path": "/api/v1/cc/bandcamp/{jamendoId}",
+      "public": {
+        "typescript": "creativeCommons.tracks.retrieveBandcampAvailability",
+        "python": "creative_commons.tracks.retrieve_bandcamp_availability",
+        "swift": "creativeCommonsBandcampAvailability",
+        "php": "creativeCommons.tracks.retrieveBandcampAvailability",
+        "go": "CCTracks.GetBandcampAvailability"
+      },
+      "parameters": {
+        "jamendoId": {
+          "swift": { "localName": "jamendoID", "externalLabel": "for" },
+          "go": { "localName": "jamendoID" }
+        }
+      }
+    },
+    {
+      "operationId": "downloadCcAudio",
+      "method": "GET",
+      "path": "/api/v1/cc/download/{jamendoId}",
+      "public": {
+        "typescript": "creativeCommons.audio.download",
+        "python": "creative_commons.audio.download",
+        "swift": "downloadCreativeCommonsAudio",
+        "php": "creativeCommons.audio.download",
+        "go": "CCAudio.Download"
+      },
+      "parameters": {
+        "jamendoId": {
+          "swift": { "localName": "jamendoID", "externalLabel": "for" },
+          "go": { "localName": "jamendoID" }
+        }
+      }
+    },
+    {
+      "operationId": "retrieveCcGenreArtwork",
+      "method": "GET",
+      "path": "/api/v1/cc/genre-artwork/{genreKey}",
+      "public": {
+        "typescript": "creativeCommons.genres.retrieveArtwork",
+        "python": "creative_commons.genres.retrieve_artwork",
+        "swift": "creativeCommonsGenreArtwork",
+        "php": "creativeCommons.genres.retrieveArtwork",
+        "go": "CCGenres.GetArtwork"
+      },
+      "parameters": {
+        "genreKey": {
+          "swift": { "localName": "genreKey", "externalLabel": "for" }
+        }
+      }
+    },
+    {
+      "operationId": "resolveCc",
+      "method": "POST",
+      "path": "/api/v1/cc/resolve",
+      "public": {
+        "typescript": "creativeCommons.resolve.request",
+        "python": "creative_commons.resolve.request",
+        "swift": "resolveCreativeCommons",
+        "php": "creativeCommons.resolve.request",
+        "go": "CC.Resolve"
+      }
+    },
+    {
+      "operationId": "retrieveGenreArtwork",
+      "method": "GET",
+      "path": "/api/v1/genre-artwork/{genreKey}",
+      "public": {
+        "typescript": "genres.retrieveArtwork",
+        "python": "genres.retrieve_artwork",
+        "swift": "genreArtwork",
+        "php": "genres.retrieveArtwork",
+        "go": "Genres.GetArtwork"
+      },
+      "parameters": {
+        "genreKey": {
+          "swift": { "localName": "genreKey", "externalLabel": "for" }
+        }
+      }
+    },
+    {
+      "operationId": "retrieveLinkMetadata",
+      "method": "GET",
+      "path": "/api/v1/link/{id}",
+      "public": {
+        "typescript": "links.retrieveMetadata",
+        "python": "links.retrieve_metadata",
+        "swift": "linkMetadata",
+        "php": "links.retrieveMetadata",
+        "go": "Links.GetMetadata"
+      },
+      "parameters": {
+        "id": {
+          "typescript": { "localName": "id" },
+          "python": { "localName": "id" },
+          "swift": { "localName": "id", "externalLabel": "for" },
+          "php": { "localName": "id" },
+          "go": { "localName": "id" }
+        }
+      }
+    },
+    {
+      "operationId": "resolvePublicQuery",
+      "method": "GET",
+      "path": "/api/v1/resolve",
+      "public": {
+        "typescript": "resolver.resolvePublic",
+        "python": "resolver.resolve_public",
+        "swift": "resolvePublicQuery",
+        "php": "resolver.resolvePublic",
+        "go": "Resolver.ResolvePublic"
+      }
+    },
+    {
+      "operationId": "resolve",
+      "method": "POST",
+      "path": "/api/v1/resolve",
+      "public": {
+        "typescript": "resolver.resolve",
+        "python": "resolver.resolve",
+        "swift": "resolve",
+        "php": "resolver.resolve",
+        "go": "Resolver.Resolve"
+      }
+    },
+    {
+      "operationId": "retrieveShare",
+      "method": "GET",
+      "path": "/api/v1/share/{shortId}",
+      "public": {
+        "typescript": "shares.retrieve",
+        "python": "shares.retrieve",
+        "swift": "share",
+        "php": "shares.retrieve",
+        "go": "Shares.Get"
+      },
+      "parameters": {
+        "shortId": {
+          "typescript": { "localName": "shortId" },
+          "python": { "localName": "short_id" },
+          "swift": { "localName": "shortID", "externalLabel": "for" },
+          "php": { "localName": "shortId" },
+          "go": { "localName": "shortID" }
+        }
+      }
+    },
+    {
+      "operationId": "refreshSharePreview",
+      "method": "GET",
+      "path": "/api/v1/share/{shortId}/preview",
+      "public": {
+        "typescript": "shares.refreshPreview",
+        "python": "shares.refresh_preview",
+        "swift": "sharePreview",
+        "php": "shares.refreshPreview",
+        "go": "Shares.RefreshPreview"
+      },
+      "parameters": {
+        "shortId": {
+          "typescript": { "localName": "shortId" },
+          "python": { "localName": "short_id" },
+          "swift": { "localName": "shortID", "externalLabel": "for" },
+          "php": { "localName": "shortId" },
+          "go": { "localName": "shortID" }
+        }
+      }
+    }
+  ]
+}

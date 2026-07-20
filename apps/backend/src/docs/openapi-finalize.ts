@@ -33,6 +33,7 @@
  */
 
 import { PUBLIC_ERROR_CODE_CATALOG, type PublicErrorCodeEntry } from "@musiccloud/shared";
+import publicOperationProfiles from "./public-operation-profiles.json";
 
 /**
  * Minimal structural view of the parts of an OpenAPI 3 document this module
@@ -79,6 +80,44 @@ const UNEXPECTED_ERROR_RESPONSE = {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
+
+const operationIdByRoute = new Map(
+  publicOperationProfiles.operations.map((profile) => [
+    `${profile.method.toUpperCase()} ${profile.path}`,
+    profile.operationId,
+  ]),
+);
+
+/**
+ * Applies the version-controlled semantic IDs used as the stable naming input
+ * for every SDK generator. Unmapped operations remain visible so the export
+ * assertion can reject incomplete profile coverage instead of inventing a
+ * method name from the HTTP path.
+ */
+function applyPublicOperationIds(paths: Record<string, unknown>): Record<string, unknown> {
+  const profiled: Record<string, unknown> = {};
+
+  for (const [route, pathItem] of Object.entries(paths)) {
+    if (!isRecord(pathItem)) {
+      profiled[route] = pathItem;
+      continue;
+    }
+
+    const profiledPathItem: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(pathItem)) {
+      if (!HTTP_METHODS.has(key.toLowerCase()) || !isRecord(value)) {
+        profiledPathItem[key] = value;
+        continue;
+      }
+
+      const operationId = operationIdByRoute.get(`${key.toUpperCase()} ${route}`);
+      profiledPathItem[key] = operationId ? { ...value, operationId } : value;
+    }
+    profiled[route] = profiledPathItem;
+  }
+
+  return profiled;
+}
 
 /**
  * Clones visible path items and completes each HTTP operation with the global
@@ -193,7 +232,7 @@ function reachableSchemaNames(paths: Record<string, unknown>, schemas: Record<st
  * @returns a new document safe to serve as the public reference
  */
 export function finalizePublicOpenApiDocument(doc: FinalizableOpenApiDocument): FinalizableOpenApiDocument {
-  const paths = completeGlobalRateLimitResponses(doc.paths ?? {});
+  const paths = applyPublicOperationIds(completeGlobalRateLimitResponses(doc.paths ?? {}));
   const schemas = doc.components?.schemas ?? {};
 
   const reachable = reachableSchemaNames(paths, schemas);

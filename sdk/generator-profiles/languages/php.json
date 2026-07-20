@@ -1,0 +1,40 @@
+{
+  "$schema": "../schema/language-profile.schema.json",
+  "schemaVersion": 1,
+  "language": "php",
+  "generator": {
+    "adapterId": "jane-openapi-7-12",
+    "config": {
+      "input": ".tmp/openapi/openapi.json",
+      "namespace": "MusicCloud\\Generated",
+      "directory": ".tmp/sdk-candidates/php/generated",
+      "strict": true,
+      "use-fixer": false,
+      "reference": true
+    }
+  },
+  "naming": {
+    "methodCase": "camelCase",
+    "propertyCase": "camelCase",
+    "typeCase": "PascalCase",
+    "initialisms": ["API", "CC", "ID", "URL"],
+    "reservedWordStrategy": "Keep generated suffixes internal and expose explicit resource service methods.",
+    "resourceGrouping": "Expose resource services through methods on MusicCloudClient."
+  },
+  "publicSurface": {
+    "facade": "MusicCloudClient",
+    "rawGeneratorNamespaceExported": false,
+    "transportInjection": "Constructor accepts PSR-18 client plus PSR-17 factories."
+  },
+  "runtime": {
+    "baseline": "PHP 8.1 through 8.5 with Composer 2",
+    "nativeGates": ["composer validate --strict", "composer install --no-interaction", "php -l"],
+    "quickstartGate": "Run the PSR-18 resource-service quickstart against a controlled client."
+  },
+  "errorContract": {
+    "path": "sdk/error-contract/php",
+    "apiFields": ["code", "message", "errorId", "status", "context", "retry"],
+    "preserveUnknownCodes": true,
+    "failureKinds": ["api", "protocol", "transport"]
+  }
+}

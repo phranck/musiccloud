@@ -32,6 +32,8 @@ const EXCLUDED_PATH_PREFIXES = [
   "/api/v1/telemetry",
 ] as const;
 
+const HTTP_METHODS = new Set(["delete", "get", "head", "options", "patch", "post", "put", "trace"]);
+
 function stableValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stableValue);
   if (value && typeof value === "object") {
@@ -50,6 +52,29 @@ function stableValue(value: unknown): unknown {
  */
 export function stableStringify(value: unknown): string {
   return `${JSON.stringify(stableValue(value), null, 2)}\n`;
+}
+
+export function assertStablePublicOperationIds(document: PublicOpenApiDocument): void {
+  const operationIds = new Set<string>();
+
+  for (const [route, pathItem] of Object.entries(document.paths ?? {})) {
+    if (!pathItem || typeof pathItem !== "object" || Array.isArray(pathItem)) continue;
+    for (const [method, rawOperation] of Object.entries(pathItem as Record<string, unknown>)) {
+      if (!HTTP_METHODS.has(method.toLowerCase())) continue;
+      const operation =
+        rawOperation && typeof rawOperation === "object" && !Array.isArray(rawOperation)
+          ? (rawOperation as Record<string, unknown>)
+          : {};
+      const operationId = typeof operation.operationId === "string" ? operation.operationId.trim() : "";
+      if (!operationId) {
+        throw new Error(`OpenAPI export failed: missing operationId (${method.toUpperCase()} ${route}).`);
+      }
+      if (operationIds.has(operationId)) {
+        throw new Error(`OpenAPI export failed: duplicate operationId (${operationId}).`);
+      }
+      operationIds.add(operationId);
+    }
+  }
 }
 
 function assertPublicContract(document: PublicOpenApiDocument): void {
@@ -71,6 +96,8 @@ function assertPublicContract(document: PublicOpenApiDocument): void {
   if (securitySchemes.BearerAuth) {
     throw new Error("OpenAPI export failed: BearerAuth must not be published.");
   }
+
+  assertStablePublicOperationIds(document);
 }
 
 function applyDocumentationExportEnv(): void {

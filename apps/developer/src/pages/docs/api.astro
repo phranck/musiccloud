@@ -19,7 +19,7 @@ const catalog = parseSdkCatalog(sdkCatalogJson, {
 }, {
   // A local dev server may preview OpenAPI documentation before its matching
   // versioned SDK archives are published. Production builds remain strict.
-  allowStaleOpenApiFingerprint: import.meta.env.DEV,
+  allowStaleContract: import.meta.env.DEV,
 });
 
 ---

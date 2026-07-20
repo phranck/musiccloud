@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "operations": [
+    {
+      "method": "GET",
+      "path": "/api/v1/artist-info",
+      "operationId": "retrieveArtistInfo"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/cc/artist-info",
+      "operationId": "retrieveCcArtistInfo"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/cc/audio/{jamendoId}",
+      "operationId": "streamCcAudio"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/cc/bandcamp/{jamendoId}",
+      "operationId": "retrieveCcBandcampAvailability"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/cc/download/{jamendoId}",
+      "operationId": "downloadCcAudio"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/cc/genre-artwork/{genreKey}",
+      "operationId": "retrieveCcGenreArtwork"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/cc/resolve",
+      "operationId": "resolveCc"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/genre-artwork/{genreKey}",
+      "operationId": "retrieveGenreArtwork"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/link/{id}",
+      "operationId": "retrieveLinkMetadata"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/resolve",
+      "operationId": "resolvePublicQuery"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/resolve",
+      "operationId": "resolve"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/share/{shortId}",
+      "operationId": "retrieveShare"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/share/{shortId}/preview",
+      "operationId": "refreshSharePreview"
+    }
+  ]
+}

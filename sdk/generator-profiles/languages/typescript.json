@@ -1,0 +1,46 @@
+{
+  "$schema": "../schema/language-profile.schema.json",
+  "schemaVersion": 1,
+  "language": "typescript",
+  "generator": {
+    "adapterId": "hey-api-0-99",
+    "config": {
+      "input": ".tmp/openapi/openapi.json",
+      "output": ".tmp/sdk-candidates/typescript/generated",
+      "plugins": [
+        "@hey-api/client-fetch",
+        "@hey-api/typescript",
+        {
+          "name": "@hey-api/sdk",
+          "operations": {
+            "strategy": "byTags"
+          }
+        }
+      ]
+    }
+  },
+  "naming": {
+    "methodCase": "camelCase",
+    "propertyCase": "camelCase",
+    "typeCase": "PascalCase",
+    "initialisms": ["API", "CC", "ID", "URL"],
+    "reservedWordStrategy": "Suffix generated transport identifiers; facade names are explicit.",
+    "resourceGrouping": "Expose resource objects as MusicCloudClient properties."
+  },
+  "publicSurface": {
+    "facade": "MusicCloudClient",
+    "rawGeneratorNamespaceExported": false,
+    "transportInjection": "Constructor options accept a Fetch-compatible implementation."
+  },
+  "runtime": {
+    "baseline": "Node.js 22.18 with TypeScript 5.9",
+    "nativeGates": ["pnpm --package=@hey-api/openapi-ts@0.99.0 --package=typescript@5.9.3 dlx openapi-ts -f sdk/generator-profiles/harnesses/typescript/openapi-ts.config.mjs", "pnpm exec tsc -p .tmp/sdk-candidates/typescript/tsconfig.json"],
+    "quickstartGate": "Compile and run the typed Promise quickstart against the controlled protocol fixture."
+  },
+  "errorContract": {
+    "path": "sdk/error-contract/typescript",
+    "apiFields": ["code", "message", "errorId", "status", "context", "retry"],
+    "preserveUnknownCodes": true,
+    "failureKinds": ["api", "protocol", "transport"]
+  }
+}

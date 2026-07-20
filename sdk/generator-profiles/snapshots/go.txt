@@ -1,0 +1,13 @@
+downloadCcAudio -> CCAudio.Download
+refreshSharePreview -> Shares.RefreshPreview
+resolve -> Resolver.Resolve
+resolveCc -> CC.Resolve
+resolvePublicQuery -> Resolver.ResolvePublic
+retrieveArtistInfo -> Artists.GetInfo
+retrieveCcArtistInfo -> CCArtists.GetInfo
+retrieveCcBandcampAvailability -> CCTracks.GetBandcampAvailability
+retrieveCcGenreArtwork -> CCGenres.GetArtwork
+retrieveGenreArtwork -> Genres.GetArtwork
+retrieveLinkMetadata -> Links.GetMetadata
+retrieveShare -> Shares.Get
+streamCcAudio -> CCAudio.Stream

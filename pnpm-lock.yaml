@@ -11,6 +11,9 @@ importers:
       '@biomejs/biome':
         specifier: 2.4.8
         version: 2.4.8
+      ajv:
+        specifier: 8.18.0
+        version: 8.18.0
       concurrently:
         specifier: ^9.1.0
         version: 9.2.1

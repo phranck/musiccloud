@@ -22,7 +22,7 @@ const ERROR_HANDLING_DOCS = {
 import { MusiccloudApiError, MusiccloudErrorCode } from "@musiccloud/api-client";
 
 try {
-  await api.apiV1ResolvePost({ apiV1ResolvePostRequest: request });
+  await api.resolve({ resolveRequest: request });
 } catch (error) {
   if (error instanceof MusiccloudApiError) {
     if (error.code === MusiccloudErrorCode.rateLimited) {
@@ -42,7 +42,7 @@ try {
 from musiccloud_api_client import MusiccloudApiError, MusiccloudErrorCode
 
 try:
-    api.api_v1_resolve_post(resolve_request)
+    api.resolve(resolve_request)
 except MusiccloudApiError as error:
     if error.code == MusiccloudErrorCode.RATE_LIMITED:
         print(error.retry_after_seconds, error.error_id)
@@ -58,7 +58,7 @@ Generated calls throw \`MusiccloudError.api\`, \`.protocolFailure\`, or \`.trans
 import MusiccloudApiClient
 
 do {
-    _ = try await ResolveAPI.apiV1ResolvePost(apiV1ResolvePostRequest: request)
+    _ = try await ResolveAPI.resolve(resolveRequest: request)
 } catch MusiccloudError.api(let error) {
     if error.code == MusiccloudErrorCode.rateLimited {
         print(error.retryAfterSeconds as Any, error.errorId)
@@ -97,7 +97,7 @@ const TARGETS = [
       import:
         "import { Configuration, ResolveApi } from '@musiccloud/api-client';\n\nconst api = new ResolveApi(\n  new Configuration({ apiKey: process.env.MUSICCLOUD_API_KEY }),\n);",
       firstRequest:
-        "const result = await api.apiV1ResolvePost({\n  apiV1ResolvePostRequest: {\n    query: 'https://open.spotify.com/track/example',\n  },\n});\n\nconsole.log(result);",
+        "const result = await api.resolve({\n  resolveRequest: {\n    query: 'https://open.spotify.com/track/example',\n  },\n});\n\nconsole.log(result);",
     },
   },
   {
@@ -109,7 +109,7 @@ const TARGETS = [
       import:
         "import os\nimport musiccloud_api_client\n\nconfiguration = musiccloud_api_client.Configuration()\nconfiguration.api_key['ApiKeyAuth'] = os.environ['MUSICCLOUD_API_KEY']",
       firstRequest:
-        "with musiccloud_api_client.ApiClient(configuration) as client:\n    api = musiccloud_api_client.ResolveApi(client)\n    result = api.api_v1_resolve_post(\n        musiccloud_api_client.ApiV1ResolvePostRequest(\n            query='https://open.spotify.com/track/example',\n        ),\n    )\n    print(result)",
+        "with musiccloud_api_client.ApiClient(configuration) as client:\n    api = musiccloud_api_client.ResolveApi(client)\n    result = api.resolve(\n        musiccloud_api_client.ResolveRequest(\n            query='https://open.spotify.com/track/example',\n        ),\n    )\n    print(result)",
     },
   },
   {
@@ -121,7 +121,7 @@ const TARGETS = [
       import:
         "import Foundation\nimport MusiccloudApiClient\n\nenum ConfigurationError: LocalizedError {\n  case missingApiKey\n\n  var errorDescription: String? {\n    \"MUSICCLOUD_API_KEY is required.\"\n  }\n}\n\nfunc musiccloudApiKey() throws -> String {\n  guard\n    let apiKey = ProcessInfo.processInfo.environment[\"MUSICCLOUD_API_KEY\"],\n    !apiKey.isEmpty\n  else {\n    throw ConfigurationError.missingApiKey\n  }\n  return apiKey\n}\n\nlet configuration = MusiccloudApiClientAPIConfiguration(\n  customHeaders: [\"X-API-Key\": try musiccloudApiKey()]\n)",
       firstRequest:
-        "let request = ApiV1ResolvePostRequest(\n  query: \"https://open.spotify.com/track/example\"\n)\nlet result = try await ResolveAPI.apiV1ResolvePost(\n  apiV1ResolvePostRequest: request,\n  apiConfiguration: configuration\n)\nprint(result)",
+        "let request = ResolveRequest(\n  query: \"https://open.spotify.com/track/example\"\n)\nlet result = try await ResolveAPI.resolve(\n  resolveRequest: request,\n  apiConfiguration: configuration\n)\nprint(result)",
     },
   },
 ];

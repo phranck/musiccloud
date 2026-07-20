@@ -1,0 +1,20 @@
+generate:
+  - types
+  - client
+accessModifier: internal
+namingStrategy: idiomatic
+filter:
+  operations:
+    - retrieveArtistInfo
+    - retrieveCcArtistInfo
+    - streamCcAudio
+    - retrieveCcBandcampAvailability
+    - downloadCcAudio
+    - retrieveCcGenreArtwork
+    - resolveCc
+    - retrieveGenreArtwork
+    - retrieveLinkMetadata
+    - resolvePublicQuery
+    - resolve
+    - retrieveShare
+    - refreshSharePreview

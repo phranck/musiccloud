@@ -1,0 +1,37 @@
+{
+  "$schema": "../schema/language-profile.schema.json",
+  "schemaVersion": 1,
+  "language": "go",
+  "generator": {
+    "adapterId": "ogen-1-23",
+    "config": {
+      "target": ".tmp/sdk-candidates/go/internal/generated",
+      "package": "generated",
+      "clean": true
+    }
+  },
+  "naming": {
+    "methodCase": "PascalCase",
+    "propertyCase": "PascalCase",
+    "typeCase": "PascalCase",
+    "initialisms": ["API", "CC", "ID", "URL"],
+    "reservedWordStrategy": "Use generator-safe internal identifiers and explicit exported facade symbols.",
+    "resourceGrouping": "Expose service fields on Client and context.Context as the first method argument."
+  },
+  "publicSurface": {
+    "facade": "Client",
+    "rawGeneratorNamespaceExported": false,
+    "transportInjection": "NewClient accepts options that inject an http.RoundTripper."
+  },
+  "runtime": {
+    "baseline": "Go 1.25",
+    "nativeGates": ["go test ./...", "go vet ./..."],
+    "quickstartGate": "Compile and run context-first service usage against an httptest server."
+  },
+  "errorContract": {
+    "path": "sdk/error-contract/go",
+    "apiFields": ["code", "message", "errorId", "status", "context", "retry"],
+    "preserveUnknownCodes": true,
+    "failureKinds": ["api", "protocol", "transport"]
+  }
+}
