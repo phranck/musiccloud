@@ -10,21 +10,18 @@ test("uses read-only GITHUB_TOKEN permissions with two scoped job exceptions", (
     workflow.indexOf("  detect-changes:"),
     workflow.indexOf("  validate-api-sdk-contract:"),
   );
-  const publishJob = workflow.slice(
-    workflow.indexOf("  publish-api-sdks:"),
-    workflow.indexOf("  deploy-backend:"),
-  );
+  const publishJob = workflow.slice(workflow.indexOf("  publish-api-sdks:"), workflow.indexOf("  deploy-backend:"));
   const deployJobs = workflow.slice(workflow.indexOf("  deploy-backend:"));
-  const jobLevelPermissionBlocks = workflow.match(/^    permissions:\n(?:^      [a-z-]+: (?:read|write)\n?)+/gm) ?? [];
+  const jobLevelPermissionBlocks = workflow.match(/^ {4}permissions:\n(?:^ {6}[a-z-]+: (?:read|write)\n?)+/gm) ?? [];
   const contentsWritePermissions = workflow.match(/^\s+contents: write$/gm) ?? [];
 
-  assert.match(workflowPrelude, /\npermissions:\n  contents: read\n$/);
+  assert.match(workflowPrelude, /\npermissions:\n {2}contents: read\n$/);
   assert.equal(jobLevelPermissionBlocks.length, 2);
-  assert.match(detectChangesJob, /permissions:\n      contents: read\n      actions: read\n/);
-  assert.doesNotMatch(detectChangesJob, /^      [a-z-]+: write$/m);
-  assert.match(publishJob, /permissions:\n      contents: write\n    outputs:/);
+  assert.match(detectChangesJob, /permissions:\n {6}contents: read\n {6}actions: read\n/);
+  assert.doesNotMatch(detectChangesJob, /^ {6}[a-z-]+: write$/m);
+  assert.match(publishJob, /permissions:\n {6}contents: write\n {4}outputs:/);
   assert.equal(contentsWritePermissions.length, 1);
-  assert.doesNotMatch(deployJobs, /^    permissions:/m);
+  assert.doesNotMatch(deployJobs, /^ {4}permissions:/m);
   assert.doesNotMatch(deployJobs, /\$\{\{ github\.token \}\}/);
   assert.match(deployJobs, /STATUS_TOKEN: \$\{\{ secrets\.STATUS_DISPATCH_TOKEN \}\}/);
   assert.match(deployJobs, /ZEROPS_TOKEN: \$\{\{ secrets\.ZEROPS_TOKEN \}\}/);
@@ -83,13 +80,11 @@ test("validates generator profiles when their owned inputs change", () => {
   assert.match(validationJob, /pnpm openapi:export[\s\S]*?pnpm sdk:profiles:validate/);
   assert.match(detectChangesJob, /sdk\/generator-profiles\/\*/);
   assert.match(detectChangesJob, /scripts\/prepare-sdk-generator-contract\.mjs/);
+  assert.match(detectChangesJob, /scripts\/sdk-orchestrator\/\*/);
 });
 
 test("verifies the public backend health endpoint after a backend deploy", () => {
-  const backendJob = workflow.slice(
-    workflow.indexOf("  deploy-backend:"),
-    workflow.indexOf("  deploy-frontend:"),
-  );
+  const backendJob = workflow.slice(workflow.indexOf("  deploy-backend:"), workflow.indexOf("  deploy-frontend:"));
 
   assert.match(
     backendJob,
@@ -97,20 +92,35 @@ test("verifies the public backend health endpoint after a backend deploy", () =>
   );
 });
 
-test("reuses an immutable SDK release when its OpenAPI contract is unchanged", () => {
-  const publishJob = workflow.slice(
-    workflow.indexOf("  publish-api-sdks:"),
-    workflow.indexOf("  deploy-backend:"),
-  );
+test("reuses an immutable shared-SDK release when its complete catalog identity is unchanged", () => {
+  const publishJob = workflow.slice(workflow.indexOf("  publish-api-sdks:"), workflow.indexOf("  deploy-backend:"));
 
   assert.match(
     publishJob,
-    /for \(const field of \["apiVersion", "openApiSha256", "generatorVersion"\]\)/,
+    /for \(const field of \["schemaVersion", "sdkVersion", "releaseTag", "apiVersion", "openApiSha256"\]\)/,
   );
-  assert.doesNotMatch(
+  assert.doesNotMatch(publishJob, /for \(const field of \[[^\]]*"sourceSha"[^\]]*\]\)/);
+  assert.match(publishJob, /release_tag=\$sdk_release_tag/);
+  assert.match(
     publishJob,
-    /for \(const field of \[[^\]]*"sourceSha"[^\]]*\]\)/,
+    /pnpm sdk:generate[\s\S]*?pnpm sdk:generated-roundtrip:test[\s\S]*?- name: Record contract outputs/,
   );
+  assert.match(publishJob, /mapfile -t sdk_assets/);
+  assert.match(publishJob, /asset\.archiveName/);
+  assert.doesNotMatch(publishJob, /musiccloud-typescript-sdk-"\$API_VERSION"/);
+});
+
+test("uses the declared Go and Swift baselines for five-target generation", () => {
+  const validationJob = workflow.slice(
+    workflow.indexOf("  validate-api-sdk-contract:"),
+    workflow.indexOf("  publish-api-sdks:"),
+  );
+  const publishJob = workflow.slice(workflow.indexOf("  publish-api-sdks:"), workflow.indexOf("  deploy-backend:"));
+
+  for (const job of [validationJob, publishJob]) {
+    assert.match(job, /uses: actions\/setup-go@v6[\s\S]*?go-version: ['"]1\.25\.x['"]/);
+    assert.match(job, /uses: swift-actions\/setup-swift@v2[\s\S]*?swift-version: ['"]6\.1['"]/);
+  }
 });
 
 test("does not deploy the dashboard for backend-only or CI-only changes", () => {
@@ -129,10 +139,7 @@ test("validates only affected workspaces after early path detection", () => {
     workflow.indexOf("  detect-validation-changes:"),
     workflow.indexOf("  lint:"),
   );
-  const typecheckJob = workflow.slice(
-    workflow.indexOf("  typecheck:"),
-    workflow.indexOf("  detect-changes:"),
-  );
+  const typecheckJob = workflow.slice(workflow.indexOf("  typecheck:"), workflow.indexOf("  detect-changes:"));
 
   assert.match(validationDetectionJob, /if: always\(\)/);
   assert.match(validationDetectionJob, /github\.event\.pull_request\.base\.sha/);
@@ -150,7 +157,10 @@ test("validates only affected workspaces after early path detection", () => {
   );
   assert.match(typecheckJob, /outputs\.dashboard == 'true'/);
   assert.match(typecheckJob, /outputs\.dashboard_ui == 'true'/);
-  assert.match(typecheckJob, /node --test scripts\/ci-workflow\.test\.mjs scripts\/zerops-deploy\.test\.mjs scripts\/readme-links\.test\.mjs/);
+  assert.match(
+    typecheckJob,
+    /node --test scripts\/ci-workflow\.test\.mjs scripts\/zerops-deploy\.test\.mjs scripts\/readme-links\.test\.mjs/,
+  );
   assert.match(typecheckJob, /needs\.detect-validation-changes\.outputs\.shared == 'true'/);
 });
 
@@ -171,10 +181,7 @@ test("restores the pnpm store before every dependency installation", () => {
 });
 
 test("keeps CI independent from the removed project-local app runner", async () => {
-  const typecheckJob = workflow.slice(
-    workflow.indexOf("  typecheck:"),
-    workflow.indexOf("  detect-changes:"),
-  );
+  const typecheckJob = workflow.slice(workflow.indexOf("  typecheck:"), workflow.indexOf("  detect-changes:"));
 
   assert.match(
     typecheckJob,

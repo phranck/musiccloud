@@ -45,17 +45,23 @@ async function readContractMetadata() {
   return { version: metadata.version, sha256: metadata.sha256 };
 }
 
-async function loadCatalog(contract) {
+async function loadCatalog() {
   const catalogFile = process.env.SDK_CATALOG_FILE;
   if (catalogFile) {
     return JSON.parse(await readFile(path.resolve(catalogFile), "utf8"));
   }
 
-  // Production builds consume the versioned release asset; local development
+  const manifest = JSON.parse(
+    await readFile(path.join(repoRoot, "sdk/generator-profiles/candidate-manifest.json"), "utf8"),
+  );
+  if (!manifest?.release?.sdkVersion || manifest.release.tag !== `sdk-v${manifest.release.sdkVersion}`) {
+    throw new Error("SDK candidate manifest has no valid shared release version.");
+  }
+  // Production builds consume the SDK-versioned release asset; local development
   // can override it with SDK_CATALOG_URL, but validation remains mandatory.
   const catalogUrl =
     process.env.SDK_CATALOG_URL ??
-    `https://github.com/phranck/musiccloud/releases/download/api-sdk-v${contract.version}/${catalogFileName}`;
+    `https://github.com/phranck/musiccloud/releases/download/${manifest.release.tag}/${catalogFileName}`;
   const response = await fetch(catalogUrl);
   if (!response.ok) {
     throw new Error(`Could not download SDK catalog from ${catalogUrl}: HTTP ${response.status}`);
@@ -66,7 +72,7 @@ async function loadCatalog(contract) {
 async function main() {
   await exportOpenApi();
   const contract = await readContractMetadata();
-  const catalog = parseSdkCatalog(await loadCatalog(contract), contract, {
+  const catalog = parseSdkCatalog(await loadCatalog(), contract, {
     allowStaleContract: process.env.SDK_CATALOG_ALLOW_STALE_CONTRACT === "true",
   });
   await writeAtomic(path.join(generatedDir, catalogFileName), `${JSON.stringify(catalog, null, 2)}\n`);

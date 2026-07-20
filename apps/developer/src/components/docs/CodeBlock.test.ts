@@ -8,7 +8,7 @@ import CodeBlock from "./CodeBlock.astro";
 
 async function renderCode(
   code: string,
-  language: "bash" | "json" | "typescript" | "python" | "swift",
+  language: "bash" | "json" | "typescript" | "python" | "swift" | "php" | "go",
   fillAvailableHeight = false,
   syntaxHighlight = true,
   deferredSourceId?: string,
@@ -20,7 +20,14 @@ async function renderCode(
 }
 
 describe("CodeBlock", () => {
-  it.each(["json", "typescript", "python", "swift"] as const)("always numbers %s source", async (language) => {
+  it.each([
+    "json",
+    "typescript",
+    "python",
+    "swift",
+    "php",
+    "go",
+  ] as const)("always numbers %s source", async (language) => {
     expect(await renderCode("let value = 1", language)).toContain("data-code-line-numbers");
   });
 

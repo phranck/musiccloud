@@ -38,6 +38,13 @@ describe("/docs/api content", () => {
     const html = await container.renderToString(ApiReferenceContent, {
       props: { reference, catalog, contract },
     });
+    const renderedText = html
+      .replace(/<[^>]+>/g, "")
+      .replaceAll("&gt;", ">")
+      .replaceAll("&lt;", "<")
+      .replaceAll("&#39;", "'")
+      .replaceAll("&quot;", '"')
+      .replaceAll("&amp;", "&");
 
     expect(html).toContain("API reference");
     expect(html).toContain("POST");
@@ -121,14 +128,20 @@ describe("/docs/api content", () => {
     expect(html).toContain("Download TypeScript SDK");
     expect(html).toContain("Download Python SDK");
     expect(html).toContain("Download Swift SDK");
+    expect(html).toContain("Download PHP SDK");
+    expect(html).toContain("Download Go SDK");
     expect(html.match(/data-sdk-segmented-card/g)).toHaveLength(1);
     expect(html).toContain('role="tablist" aria-label="SDK language"');
     expect(html).toContain('data-sdk-tab="typescript"');
     expect(html).toContain('data-sdk-tab="python"');
     expect(html).toContain('data-sdk-tab="swift"');
+    expect(html).toContain('data-sdk-tab="php"');
+    expect(html).toContain('data-sdk-tab="go"');
     expect(html).toContain('id="sdk-typescript"');
     expect(html).toContain('id="sdk-python"');
     expect(html).toContain('id="sdk-swift"');
+    expect(html).toContain('id="sdk-php"');
+    expect(html).toContain('id="sdk-go"');
     expect(html).toContain("data-sdk-download");
     expect(html).toContain("Installation");
     expect(html).toContain("Usage");
@@ -137,9 +150,14 @@ describe("/docs/api content", () => {
     expect(content).toContain("# Requires MUSICCLOUD_API_KEY to be set in your shell environment.");
     expect(content).toContain(String.raw`X-API-Key: \${MUSICCLOUD_API_KEY}`);
     expect(content).not.toContain("mc_live_<prefix>_<secret>");
-    expect(html).toContain("apiV1ResolvePost");
-    expect(html).toContain("api_v1_resolve_post");
-    expect(html).toContain("ResolveAPI");
+    expect(renderedText).toContain("@musiccloud/sdk");
+    expect(renderedText).toContain("from musiccloud import MusicCloud");
+    expect(renderedText).toContain("import MusicCloudSDK");
+    expect(renderedText).toContain("vendor/autoload.php");
+    expect(renderedText).toContain("github.com/phranck/musiccloud/sdk/go");
+    expect(html).toContain("Hey API 0.99.0");
+    expect(html).toContain("ogen 1.23.0");
+    expect(html).toContain("SDK 0.1.0");
     expect(html).toContain("SHA-256");
     expect(html).toContain("OpenAPI contract");
     expect(html).toContain("Public OpenAPI contract, v2.1.9");
