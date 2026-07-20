@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://musiccloud.io/schemas/sdk-public-surface-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "operations"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["operationId", "method", "path", "public"],
+        "properties": {
+          "operationId": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
+          "method": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+          "path": { "type": "string", "pattern": "^/api/v1/" },
+          "public": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["typescript", "python", "swift", "php", "go"],
+            "properties": {
+              "typescript": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*(\\.[a-z][A-Za-z0-9]*)+$" },
+              "python": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" },
+              "swift": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
+              "php": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*(\\.[a-z][A-Za-z0-9]*)+$" },
+              "go": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]*(\\.[A-Z][A-Za-z0-9]*)+$" }
+            }
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "typescript": { "$ref": "#/definitions/localName" },
+                "python": { "$ref": "#/definitions/localName" },
+                "swift": { "$ref": "#/definitions/swiftParameter" },
+                "php": { "$ref": "#/definitions/localName" },
+                "go": { "$ref": "#/definitions/localName" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "localName": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["localName"],
+      "properties": {
+        "localName": { "type": "string", "minLength": 1 }
+      }
+    },
+    "swiftParameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["localName", "externalLabel"],
+      "properties": {
+        "localName": { "type": "string", "minLength": 1 },
+        "externalLabel": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

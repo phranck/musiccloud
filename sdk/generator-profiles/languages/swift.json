@@ -1,0 +1,54 @@
+{
+  "$schema": "../schema/language-profile.schema.json",
+  "schemaVersion": 1,
+  "language": "swift",
+  "generator": {
+    "adapterId": "swift-openapi-generator-1-13",
+    "config": {
+      "generate": ["types", "client"],
+      "accessModifier": "internal",
+      "namingStrategy": "idiomatic",
+      "filter": {
+        "operations": [
+          "retrieveArtistInfo",
+          "retrieveCcArtistInfo",
+          "streamCcAudio",
+          "retrieveCcBandcampAvailability",
+          "downloadCcAudio",
+          "retrieveCcGenreArtwork",
+          "resolveCc",
+          "retrieveGenreArtwork",
+          "retrieveLinkMetadata",
+          "resolvePublicQuery",
+          "resolve",
+          "retrieveShare",
+          "refreshSharePreview"
+        ]
+      }
+    }
+  },
+  "naming": {
+    "methodCase": "camelCase",
+    "propertyCase": "camelCase",
+    "typeCase": "PascalCase",
+    "initialisms": ["API", "CC", "ID", "URL"],
+    "reservedWordStrategy": "Use backticks only in the generated layer; facade signatures use descriptive names.",
+    "resourceGrouping": "Expose async throwing methods on MusicCloudClient with meaningful argument labels."
+  },
+  "publicSurface": {
+    "facade": "MusicCloudClient",
+    "rawGeneratorNamespaceExported": false,
+    "transportInjection": "Initializer accepts any OpenAPIRuntime ClientTransport."
+  },
+  "runtime": {
+    "baseline": "Swift 6.1 with Swift Package Manager",
+    "nativeGates": ["swift build", "swift test"],
+    "quickstartGate": "Compile and run async throws usage against an injected controlled transport."
+  },
+  "errorContract": {
+    "path": "sdk/error-contract/swift",
+    "apiFields": ["code", "message", "errorId", "status", "context", "retry"],
+    "preserveUnknownCodes": true,
+    "failureKinds": ["api", "protocol", "transport"]
+  }
+}

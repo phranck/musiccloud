@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://musiccloud.io/schemas/sdk-language-profile-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "language", "generator", "naming", "publicSurface", "runtime", "errorContract"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "language": { "enum": ["typescript", "python", "swift", "php", "go"] },
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapterId", "config"],
+      "properties": {
+        "adapterId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "config": { "type": "object" }
+      }
+    },
+    "naming": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["methodCase", "propertyCase", "typeCase", "initialisms", "reservedWordStrategy", "resourceGrouping"],
+      "properties": {
+        "methodCase": { "enum": ["camelCase", "snake_case", "PascalCase"] },
+        "propertyCase": { "enum": ["camelCase", "snake_case", "PascalCase"] },
+        "typeCase": { "const": "PascalCase" },
+        "initialisms": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["API", "CC", "ID", "URL"] }
+        },
+        "reservedWordStrategy": { "type": "string", "minLength": 1 },
+        "resourceGrouping": { "type": "string", "minLength": 1 }
+      }
+    },
+    "publicSurface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["facade", "rawGeneratorNamespaceExported", "transportInjection"],
+      "properties": {
+        "facade": { "type": "string", "minLength": 1 },
+        "rawGeneratorNamespaceExported": { "const": false },
+        "transportInjection": { "type": "string", "minLength": 1 }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseline", "nativeGates", "quickstartGate"],
+      "properties": {
+        "baseline": { "type": "string", "minLength": 1 },
+        "nativeGates": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "quickstartGate": { "type": "string", "minLength": 1 }
+      }
+    },
+    "errorContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "apiFields", "preserveUnknownCodes", "failureKinds"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^sdk/error-contract/(typescript|python|swift|php|go)$" },
+        "apiFields": {
+          "const": ["code", "message", "errorId", "status", "context", "retry"]
+        },
+        "preserveUnknownCodes": { "const": true },
+        "failureKinds": {
+          "const": ["api", "protocol", "transport"]
+        }
+      }
+    }
+  }
+}

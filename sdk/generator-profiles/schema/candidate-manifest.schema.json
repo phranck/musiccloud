@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://musiccloud.io/schemas/sdk-candidate-manifest-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "release", "contract", "inputs", "targets"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sdkVersion", "tag", "atomic", "publish"],
+      "properties": {
+        "sdkVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+        "tag": { "type": "string", "pattern": "^sdk-v\\d+\\.\\d+\\.\\d+$" },
+        "atomic": { "const": true },
+        "publish": { "const": false }
+      }
+    },
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "sha256", "openApiPath"],
+      "properties": {
+        "version": { "const": "2.1.10" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "openApiPath": { "const": ".tmp/openapi/openapi.json" }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["matrix", "surface", "profilesRoot", "operationProfiles", "harnessesRoot", "contractAdapter", "defectFixture"],
+      "properties": {
+        "matrix": { "const": "sdk/generator-profiles/generator-matrix.json" },
+        "surface": { "const": "sdk/generator-profiles/public-surface.json" },
+        "profilesRoot": { "const": "sdk/generator-profiles/languages" },
+        "operationProfiles": { "const": "apps/backend/src/docs/public-operation-profiles.json" },
+        "harnessesRoot": { "const": "sdk/generator-profiles/harnesses" },
+        "contractAdapter": { "const": "scripts/prepare-sdk-generator-contract.mjs" },
+        "defectFixture": { "const": "scripts/fixtures/sdk-generator-contract-defects.json" }
+      }
+    },
+    "targets": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "language",
+          "profile",
+          "selectedAdapterId",
+          "output",
+          "errorContract",
+          "stability",
+          "nativeGates",
+          "goldenSnapshot",
+          "goldenUsage"
+        ],
+        "properties": {
+          "language": { "enum": ["typescript", "python", "swift", "php", "go"] },
+          "profile": { "type": "string", "pattern": "^sdk/generator-profiles/languages/.+\\.json$" },
+          "selectedAdapterId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+          "output": { "type": "string", "pattern": "^\\.tmp/sdk-candidates/" },
+          "errorContract": { "type": "string", "pattern": "^sdk/error-contract/(typescript|python|swift|php|go)$" },
+          "stability": { "enum": ["preview", "stable"] },
+          "nativeGates": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "goldenSnapshot": { "type": "string", "pattern": "^sdk/generator-profiles/snapshots/.+\\.txt$" },
+          "goldenUsage": { "type": "string", "pattern": "^sdk/generator-profiles/usage/.+" }
+        }
+      }
+    }
+  }
+}

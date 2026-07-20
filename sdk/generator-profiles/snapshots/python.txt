@@ -1,0 +1,13 @@
+downloadCcAudio -> creative_commons.audio.download
+refreshSharePreview -> shares.refresh_preview
+resolve -> resolver.resolve
+resolveCc -> creative_commons.resolve.request
+resolvePublicQuery -> resolver.resolve_public
+retrieveArtistInfo -> artists.retrieve_info
+retrieveCcArtistInfo -> creative_commons.artists.retrieve_info
+retrieveCcBandcampAvailability -> creative_commons.tracks.retrieve_bandcamp_availability
+retrieveCcGenreArtwork -> creative_commons.genres.retrieve_artwork
+retrieveGenreArtwork -> genres.retrieve_artwork
+retrieveLinkMetadata -> links.retrieve_metadata
+retrieveShare -> shares.retrieve
+streamCcAudio -> creative_commons.audio.stream

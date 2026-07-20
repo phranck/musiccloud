@@ -1,0 +1,81 @@
+{
+  "$schema": "./schema/candidate-manifest.schema.json",
+  "schemaVersion": 1,
+  "release": {
+    "sdkVersion": "0.1.0",
+    "tag": "sdk-v0.1.0",
+    "atomic": true,
+    "publish": false
+  },
+  "contract": {
+    "version": "2.1.10",
+    "sha256": "1813049b6d9390fb88413b1880c35f6dcef720f9f3fce04e99ae994242214699",
+    "openApiPath": ".tmp/openapi/openapi.json"
+  },
+  "inputs": {
+    "matrix": "sdk/generator-profiles/generator-matrix.json",
+    "surface": "sdk/generator-profiles/public-surface.json",
+    "profilesRoot": "sdk/generator-profiles/languages",
+    "operationProfiles": "apps/backend/src/docs/public-operation-profiles.json",
+    "harnessesRoot": "sdk/generator-profiles/harnesses",
+    "contractAdapter": "scripts/prepare-sdk-generator-contract.mjs",
+    "defectFixture": "scripts/fixtures/sdk-generator-contract-defects.json"
+  },
+  "targets": [
+    {
+      "language": "typescript",
+      "profile": "sdk/generator-profiles/languages/typescript.json",
+      "selectedAdapterId": "hey-api-0-99",
+      "output": ".tmp/sdk-candidates/typescript",
+      "errorContract": "sdk/error-contract/typescript",
+      "stability": "preview",
+      "nativeGates": ["pnpm exec tsc -p .tmp/sdk-candidates/typescript/tsconfig.json"],
+      "goldenSnapshot": "sdk/generator-profiles/snapshots/typescript.txt",
+      "goldenUsage": "sdk/generator-profiles/usage/typescript.ts"
+    },
+    {
+      "language": "python",
+      "profile": "sdk/generator-profiles/languages/python.json",
+      "selectedAdapterId": "openapi-python-client-0-29",
+      "output": ".tmp/sdk-candidates/python",
+      "errorContract": "sdk/error-contract/python",
+      "stability": "preview",
+      "nativeGates": ["python -m pip install .tmp/sdk-candidates/python/package", "python -m compileall .tmp/sdk-candidates/python/package/musiccloud", "python -c 'import musiccloud'"],
+      "goldenSnapshot": "sdk/generator-profiles/snapshots/python.txt",
+      "goldenUsage": "sdk/generator-profiles/usage/python.py"
+    },
+    {
+      "language": "swift",
+      "profile": "sdk/generator-profiles/languages/swift.json",
+      "selectedAdapterId": "swift-openapi-generator-1-13",
+      "output": ".tmp/sdk-candidates/swift",
+      "errorContract": "sdk/error-contract/swift",
+      "stability": "preview",
+      "nativeGates": ["swift build --package-path .tmp/sdk-candidates/swift", "swiftc -typecheck sdk/generator-profiles/usage/swift.swift"],
+      "goldenSnapshot": "sdk/generator-profiles/snapshots/swift.txt",
+      "goldenUsage": "sdk/generator-profiles/usage/swift.swift"
+    },
+    {
+      "language": "php",
+      "profile": "sdk/generator-profiles/languages/php.json",
+      "selectedAdapterId": "jane-openapi-7-12",
+      "output": ".tmp/sdk-candidates/php",
+      "errorContract": "sdk/error-contract/php",
+      "stability": "preview",
+      "nativeGates": ["composer validate --strict", "php -l sdk/generator-profiles/usage/php.php"],
+      "goldenSnapshot": "sdk/generator-profiles/snapshots/php.txt",
+      "goldenUsage": "sdk/generator-profiles/usage/php.php"
+    },
+    {
+      "language": "go",
+      "profile": "sdk/generator-profiles/languages/go.json",
+      "selectedAdapterId": "ogen-1-23",
+      "output": ".tmp/sdk-candidates/go",
+      "errorContract": "sdk/error-contract/go",
+      "stability": "preview",
+      "nativeGates": ["go test ./...", "go vet ./..."],
+      "goldenSnapshot": "sdk/generator-profiles/snapshots/go.txt",
+      "goldenUsage": "sdk/generator-profiles/usage/go/usage.go"
+    }
+  ]
+}

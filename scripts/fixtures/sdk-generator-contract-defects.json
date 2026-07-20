@@ -1,0 +1,132 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Generator defect fixture",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/binary/{id}": {
+      "get": {
+        "operationId": "streamBinary",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "range",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Binary response",
+            "content": {
+              "audio/mpeg": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/resolve": {
+      "post": {
+        "operationId": "resolve",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "query": { "type": "string" },
+                  "selectedCandidate": { "type": "string" }
+                },
+                "oneOf": [
+                  { "required": ["query"] },
+                  { "required": ["selectedCandidate"] }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/NestedSuccess" },
+                    { "$ref": "#/components/schemas/DirectSuccess" }
+                  ]
+                }
+              },
+              "text/plain": {
+                "schema": { "type": "string", "format": "uri" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    },
+    "schemas": {
+      "NullableString": {
+        "anyOf": [
+          { "type": "string" },
+          { "type": "null" }
+        ]
+      },
+      "NullableReference": {
+        "anyOf": [
+          { "$ref": "#/components/schemas/NullableString" },
+          { "type": "null" }
+        ]
+      },
+      "LegacyNullable": {
+        "type": "integer",
+        "nullable": true
+      },
+      "BaseWithRequiredOverlay": {
+        "type": "object",
+        "properties": {
+          "value": { "type": "string" }
+        }
+      },
+      "RequiredOverlay": {
+        "allOf": [
+          { "$ref": "#/components/schemas/BaseWithRequiredOverlay" },
+          { "type": "object", "required": ["value"] }
+        ]
+      },
+      "NestedSuccess": {
+        "oneOf": [
+          { "$ref": "#/components/schemas/FirstSuccess" },
+          { "$ref": "#/components/schemas/SecondSuccess" }
+        ]
+      },
+      "FirstSuccess": {
+        "type": "object",
+        "properties": { "first": { "type": "string" } },
+        "required": ["first"]
+      },
+      "SecondSuccess": {
+        "type": "object",
+        "properties": { "second": { "type": "string" } },
+        "required": ["second"]
+      },
+      "DirectSuccess": {
+        "type": "object",
+        "properties": { "direct": { "type": "string" } },
+        "required": ["direct"]
+      }
+    }
+  }
+}
