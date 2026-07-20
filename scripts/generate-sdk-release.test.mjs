@@ -20,10 +20,10 @@ test("runs Docker generation with the invoking host ownership", async () => {
 test("keeps shared typed-error examples aligned with generated method names", async () => {
   const readme = await readFile(path.join(repoRoot, "sdk/error-contract/README.md"), "utf8");
 
-  assert.match(readme, /api\.apiV1ResolvePost\(/);
-  assert.match(readme, /api\.api_v1_resolve_post\(/);
-  assert.match(readme, /ResolveAPI\.apiV1ResolvePost\(/);
-  assert.doesNotMatch(readme, /api\.resolveTrack\(|api\.resolve_track\(|ResolveAPI\.resolveTrack\(/);
+  assert.match(readme, /api\.resolve\(\{ resolveRequest: request \}\)/);
+  assert.match(readme, /api\.resolve\(resolve_request\)/);
+  assert.match(readme, /ResolveAPI\.resolve\(resolveRequest: request\)/);
+  assert.doesNotMatch(readme, /apiV1ResolvePost|api_v1_resolve_post/);
 });
 
 test("generates a release catalog and archives for every SDK target", async () => {
@@ -182,10 +182,10 @@ exec "${systemFind}" "$@"
   const typescriptReadme = await readFile(path.join(outputDir, "generated/typescript/README.md"), "utf8");
   const pythonReadme = await readFile(path.join(outputDir, "generated/python/README.md"), "utf8");
   const swiftReadme = await readFile(path.join(outputDir, "generated/swift/README.md"), "utf8");
-  assert.match(typescriptReadme, /api\.apiV1ResolvePost\(/);
-  assert.doesNotMatch(typescriptReadme, /api\.resolveTrack\(/);
-  assert.match(pythonReadme, /api\.api_v1_resolve_post\(/);
-  assert.doesNotMatch(pythonReadme, /api\.resolve_track\(/);
-  assert.match(swiftReadme, /ResolveAPI\.apiV1ResolvePost\(/);
-  assert.doesNotMatch(swiftReadme, /ResolveAPI\.resolveTrack\(/);
+  assert.match(typescriptReadme, /api\.resolve\(/);
+  assert.doesNotMatch(typescriptReadme, /api\.apiV1ResolvePost\(/);
+  assert.match(pythonReadme, /api\.resolve\(/);
+  assert.doesNotMatch(pythonReadme, /api\.api_v1_resolve_post\(/);
+  assert.match(swiftReadme, /ResolveAPI\.resolve\(/);
+  assert.doesNotMatch(swiftReadme, /ResolveAPI\.apiV1ResolvePost\(/);
 });

@@ -84,8 +84,8 @@ async function callFixture(fixtureName) {
   );
   let captured;
   try {
-    await api.apiV1ResolvePost({
-      apiV1ResolvePostRequest: { query: `fixture-${fixtureName}` },
+    await api.resolve({
+      resolveRequest: { query: `fixture-${fixtureName}` },
     });
   } catch (error) {
     captured = error;
@@ -127,8 +127,8 @@ try {
 const unavailableApi = new ResolveApi(new Configuration({ basePath }));
 let transport;
 try {
-  await unavailableApi.apiV1ResolvePost({
-    apiV1ResolvePostRequest: { query: "fixture-transport" },
+  await unavailableApi.resolve({
+    resolveRequest: { query: "fixture-transport" },
   });
 } catch (error) {
   transport = error;
