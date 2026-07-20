@@ -146,7 +146,7 @@ test("validates only affected workspaces after early path detection", () => {
   assert.match(typecheckJob, /outputs\.developer == 'true'/);
   assert.match(
     typecheckJob,
-    /- name: Generate developer API reference[\s\S]*?SDK_CATALOG_FILE=\$\{\{ github\.workspace \}\}\/apps\/developer\/src\/lib\/__fixtures__\/sdk-catalog\.json[\s\S]*?pnpm --filter @musiccloud\/developer run prebuild[\s\S]*?- name: Developer[\s\S]*?pnpm --filter @musiccloud\/developer typecheck/,
+    /- name: Generate developer API reference[\s\S]*?SDK_CATALOG_FILE=\$\{\{ github\.workspace \}\}\/apps\/developer\/src\/lib\/__fixtures__\/sdk-catalog\.json SDK_CATALOG_ALLOW_STALE_CONTRACT=true[\s\S]*?pnpm --filter @musiccloud\/developer run prebuild[\s\S]*?- name: Developer[\s\S]*?pnpm --filter @musiccloud\/developer typecheck/,
   );
   assert.match(typecheckJob, /outputs\.dashboard == 'true'/);
   assert.match(typecheckJob, /outputs\.dashboard_ui == 'true'/);

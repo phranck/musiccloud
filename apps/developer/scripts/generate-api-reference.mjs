@@ -66,7 +66,9 @@ async function loadCatalog(contract) {
 async function main() {
   await exportOpenApi();
   const contract = await readContractMetadata();
-  const catalog = parseSdkCatalog(await loadCatalog(contract), contract);
+  const catalog = parseSdkCatalog(await loadCatalog(contract), contract, {
+    allowStaleContract: process.env.SDK_CATALOG_ALLOW_STALE_CONTRACT === "true",
+  });
   await writeAtomic(path.join(generatedDir, catalogFileName), `${JSON.stringify(catalog, null, 2)}\n`);
 }
 

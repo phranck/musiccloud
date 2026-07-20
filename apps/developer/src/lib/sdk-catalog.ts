@@ -10,10 +10,10 @@ export interface SdkCatalogContract {
 /**
  * Local development may preview contract-documentation changes before the
  * matching versioned SDK archives are released. Production callers must keep
- * the default, strict fingerprint validation.
+ * the default, strict contract validation.
  */
 export interface SdkCatalogValidationOptions {
-  allowStaleOpenApiFingerprint?: boolean;
+  allowStaleContract?: boolean;
 }
 
 /**
@@ -129,10 +129,10 @@ export function parseSdkCatalog(
   const sourceSha = requireString(value.sourceSha, "sourceSha");
   const generatorVersion = requireString(value.generatorVersion, "generatorVersion");
 
-  if (apiVersion !== contract.version) {
+  if (apiVersion !== contract.version && !options.allowStaleContract) {
     throw new Error("Invalid SDK catalog: API version does not match exported contract.");
   }
-  if (openApiSha256 !== contract.sha256 && !options.allowStaleOpenApiFingerprint) {
+  if (openApiSha256 !== contract.sha256 && !options.allowStaleContract) {
     throw new Error("Invalid SDK catalog: OpenAPI fingerprint does not match exported contract.");
   }
   assertSha256(openApiSha256, "openApiSha256");
