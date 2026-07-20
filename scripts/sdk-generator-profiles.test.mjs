@@ -3,10 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import {
-  loadSdkGeneratorProfiles,
-  validateSdkGeneratorProfiles,
-} from "./validate-sdk-generator-profiles.mjs";
+import { loadSdkGeneratorProfiles, validateSdkGeneratorProfiles } from "./validate-sdk-generator-profiles.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const profilesRoot = path.join(repoRoot, "sdk/generator-profiles");
@@ -27,10 +24,7 @@ test("requires one selected and one isolated comparison adapter per language", a
     (adapter) => adapter.role !== "selected",
   );
 
-  assert.throws(
-    () => validateSdkGeneratorProfiles(profiles),
-    /typescript must define exactly one selected adapter/,
-  );
+  assert.throws(() => validateSdkGeneratorProfiles(profiles), /typescript must define exactly one selected adapter/);
 });
 
 test("rejects surface drift from the canonical operation profile", async () => {
@@ -46,9 +40,7 @@ test("rejects surface drift from the canonical operation profile", async () => {
 test("preserves the approved share call shapes and Swift request naming", async () => {
   const profiles = await loadSdkGeneratorProfiles(profilesRoot);
   const share = profiles.surface.operations.find((operation) => operation.operationId === "retrieveShare");
-  const preview = profiles.surface.operations.find(
-    (operation) => operation.operationId === "refreshSharePreview",
-  );
+  const preview = profiles.surface.operations.find((operation) => operation.operationId === "refreshSharePreview");
 
   assert.deepEqual(share.public, {
     typescript: "shares.retrieve",
@@ -85,6 +77,31 @@ test("keeps one atomic SDK version and the typed error handoff for all five targ
   }
 });
 
+test("declares release, package, runtime, documentation, and quickstart metadata per target", async () => {
+  const profiles = await loadSdkGeneratorProfiles(profilesRoot);
+
+  for (const target of profiles.manifest.targets) {
+    const selectedAdapter = profiles.matrix.languages
+      .find((entry) => entry.language === target.language)
+      .adapters.find((adapter) => adapter.role === "selected");
+
+    assert.equal(target.targetId, `${target.language}-sdk`);
+    assert.equal(target.runtime.name, selectedAdapter.runtime.name);
+    assert.equal(target.runtime.constraint, selectedAdapter.runtime.constraint);
+    assert.match(target.displayName, /\S/);
+    assert.match(target.package.name, /\S/);
+    assert.match(target.package.module, /\S/);
+    assert.match(target.package.channel, /^(npm|pypi|swift-package|composer|go-module)$/);
+    assert.match(target.artifact.archiveBaseName, new RegExp(`^musiccloud-${target.language}-sdk$`));
+    assert.equal(target.artifact.repository, "https://github.com/phranck/musiccloud");
+    assert.ok(target.artifact.documentation.includes("README.md"));
+    assert.deepEqual(target.artifact.manpages, []);
+    assert.match(target.quickstart.install, /<version>/);
+    assert.match(target.quickstart.import, /\S/);
+    assert.match(target.quickstart.firstRequest, /\S/);
+  }
+});
+
 test("declares every adapter and harness input handed to the release orchestrator", async () => {
   const profiles = await loadSdkGeneratorProfiles(profilesRoot);
 
@@ -103,10 +120,7 @@ test("schemas reject unknown properties instead of accepting configuration typos
   const profiles = structuredClone(await loadSdkGeneratorProfiles(profilesRoot));
   profiles.languages.typescript.generator.unknownOption = true;
 
-  assert.throws(
-    () => validateSdkGeneratorProfiles(profiles),
-    /language profile typescript does not match its schema/,
-  );
+  assert.throws(() => validateSdkGeneratorProfiles(profiles), /language profile typescript does not match its schema/);
 });
 
 test("normalizes every binary media type through the Python generator's supported bytes source", async () => {
@@ -157,6 +171,7 @@ test("ships native golden usage contracts for the approved share call shapes", a
 
   for (const target of profiles.manifest.targets) {
     const usage = await readFile(path.join(repoRoot, target.goldenUsage), "utf8");
-    for (const call of expectedCalls[target.language]) assert.match(usage, new RegExp(call.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    for (const call of expectedCalls[target.language])
+      assert.match(usage, new RegExp(call.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
 });

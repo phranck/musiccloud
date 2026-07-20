@@ -299,7 +299,7 @@ jobs:
                 dashboard=true ;;
             esac
             case "$file" in
-              apps/backend/src/server.ts|apps/backend/src/routes/*|apps/backend/src/schemas/*|apps/backend/src/docs/*|apps/backend/src/openapi/*|apps/backend/src/scripts/export-public-openapi.ts|apps/developer/scripts/generate-api-reference.mjs|apps/developer/src/lib/openapi-reference.ts|apps/developer/src/lib/sdk-catalog.ts|packages/shared/src/api.ts|packages/shared/src/error-codes.ts|packages/shared/src/public-error-catalog.ts|sdk/error-contract/*|sdk/generator-profiles/*|scripts/generate-sdk-release.mjs|scripts/generate-sdk-release.test.mjs|scripts/test-generated-sdk-roundtrip.mjs|scripts/test-sdk-error-contract.mjs|scripts/prepare-sdk-generator-contract.mjs|scripts/prepare-sdk-generator-contract.test.mjs|scripts/validate-sdk-generator-profiles.mjs|scripts/sdk-generator-profiles.test.mjs|scripts/fixtures/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|.github/workflows/ci.yml)
+              apps/backend/src/server.ts|apps/backend/src/routes/*|apps/backend/src/schemas/*|apps/backend/src/docs/*|apps/backend/src/openapi/*|apps/backend/src/scripts/export-public-openapi.ts|apps/developer/scripts/generate-api-reference.mjs|apps/developer/src/components/docs/SdkSegmentedCard.astro|apps/developer/src/lib/openapi-reference.ts|apps/developer/src/lib/sdk-catalog.ts|packages/shared/src/api.ts|packages/shared/src/error-codes.ts|packages/shared/src/public-error-catalog.ts|sdk/error-contract/*|sdk/generator-profiles/*|scripts/sdk-orchestrator/*|scripts/sdk-orchestrator.test.mjs|scripts/generate-sdk-release.mjs|scripts/generate-sdk-release.test.mjs|scripts/test-generated-sdk-roundtrip.mjs|scripts/test-sdk-error-contract.mjs|scripts/prepare-sdk-generator-contract.mjs|scripts/prepare-sdk-generator-contract.test.mjs|scripts/validate-sdk-generator-profiles.mjs|scripts/sdk-generator-profiles.test.mjs|scripts/fixtures/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|.github/workflows/ci.yml)
                 api_sdk=true ;;
             esac
           done
@@ -334,7 +334,7 @@ jobs:
           should_run=false
           for file in "${changed_files[@]}"; do
             case "$file" in
-              apps/backend/src/server.ts|apps/backend/src/routes/*|apps/backend/src/schemas/*|apps/backend/src/docs/*|apps/backend/src/openapi/*|apps/backend/src/scripts/export-public-openapi.ts|apps/developer/scripts/generate-api-reference.mjs|apps/developer/src/lib/openapi-reference.ts|apps/developer/src/lib/sdk-catalog.ts|packages/shared/src/api.ts|packages/shared/src/error-codes.ts|packages/shared/src/public-error-catalog.ts|sdk/error-contract/*|sdk/generator-profiles/*|scripts/generate-sdk-release.mjs|scripts/generate-sdk-release.test.mjs|scripts/test-generated-sdk-roundtrip.mjs|scripts/test-sdk-error-contract.mjs|scripts/prepare-sdk-generator-contract.mjs|scripts/prepare-sdk-generator-contract.test.mjs|scripts/validate-sdk-generator-profiles.mjs|scripts/sdk-generator-profiles.test.mjs|scripts/fixtures/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|.github/workflows/ci.yml)
+              apps/backend/src/server.ts|apps/backend/src/routes/*|apps/backend/src/schemas/*|apps/backend/src/docs/*|apps/backend/src/openapi/*|apps/backend/src/scripts/export-public-openapi.ts|apps/developer/scripts/generate-api-reference.mjs|apps/developer/src/components/docs/SdkSegmentedCard.astro|apps/developer/src/lib/openapi-reference.ts|apps/developer/src/lib/sdk-catalog.ts|packages/shared/src/api.ts|packages/shared/src/error-codes.ts|packages/shared/src/public-error-catalog.ts|sdk/error-contract/*|sdk/generator-profiles/*|scripts/sdk-orchestrator/*|scripts/sdk-orchestrator.test.mjs|scripts/generate-sdk-release.mjs|scripts/generate-sdk-release.test.mjs|scripts/test-generated-sdk-roundtrip.mjs|scripts/test-sdk-error-contract.mjs|scripts/prepare-sdk-generator-contract.mjs|scripts/prepare-sdk-generator-contract.test.mjs|scripts/validate-sdk-generator-profiles.mjs|scripts/sdk-generator-profiles.test.mjs|scripts/fixtures/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|.github/workflows/ci.yml)
                 should_run=true ;;
             esac
           done
@@ -348,11 +348,11 @@ jobs:
       - uses: actions/setup-go@v6
         if: steps.api_sdk_changes.outputs.should_run == 'true'
         with:
-          go-version: '1.22.x'
+          go-version: '1.25.x'
       - uses: swift-actions/setup-swift@v2
         if: steps.api_sdk_changes.outputs.should_run == 'true'
         with:
-          swift-version: '6.0'
+          swift-version: '6.1'
       - name: Prepare pnpm
         if: steps.api_sdk_changes.outputs.should_run == 'true'
         run: |
@@ -394,6 +394,7 @@ jobs:
     permissions:
       contents: write
     outputs:
+      sdk_version: ${{ steps.contract.outputs.sdk_version }}
       api_version: ${{ steps.contract.outputs.api_version }}
       openapi_sha256: ${{ steps.contract.outputs.openapi_sha256 }}
       release_tag: ${{ steps.contract.outputs.release_tag }}
@@ -403,9 +404,12 @@ jobs:
         with:
           node-version: 22
           package-manager-cache: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.x'
       - uses: swift-actions/setup-swift@v2
         with:
-          swift-version: "6.0"
+          swift-version: "6.1"
       - name: Prepare pnpm
         run: |
           corepack enable pnpm
@@ -426,15 +430,19 @@ jobs:
         run: |
           pnpm openapi:export
           pnpm sdk:generate
+          pnpm sdk:generated-roundtrip:test
       - name: Record contract outputs
         id: contract
         run: |
-          api_version=$(node -e 'const fs=require("node:fs"); const m=JSON.parse(fs.readFileSync(".tmp/openapi/openapi.metadata.json","utf8")); process.stdout.write(m.version)')
-          openapi_sha256=$(node -e 'const fs=require("node:fs"); const m=JSON.parse(fs.readFileSync(".tmp/openapi/openapi.metadata.json","utf8")); process.stdout.write(m.sha256)')
+          sdk_version=$(node -e 'const fs=require("node:fs"); const c=JSON.parse(fs.readFileSync(".tmp/sdk/sdk-catalog.json","utf8")); process.stdout.write(c.sdkVersion)')
+          sdk_release_tag=$(node -e 'const fs=require("node:fs"); const c=JSON.parse(fs.readFileSync(".tmp/sdk/sdk-catalog.json","utf8")); process.stdout.write(c.releaseTag)')
+          api_version=$(node -e 'const fs=require("node:fs"); const c=JSON.parse(fs.readFileSync(".tmp/sdk/sdk-catalog.json","utf8")); process.stdout.write(c.apiVersion)')
+          openapi_sha256=$(node -e 'const fs=require("node:fs"); const c=JSON.parse(fs.readFileSync(".tmp/sdk/sdk-catalog.json","utf8")); process.stdout.write(c.openApiSha256)')
           {
+            echo "sdk_version=$sdk_version"
             echo "api_version=$api_version"
             echo "openapi_sha256=$openapi_sha256"
-            echo "release_tag=api-sdk-v$api_version"
+            echo "release_tag=$sdk_release_tag"
           } >> "$GITHUB_OUTPUT"
       - name: Detect existing SDK release
         id: release
@@ -464,10 +472,10 @@ jobs:
           const remote = JSON.parse(fs.readFileSync(".tmp/existing-sdk/sdk-catalog.json", "utf8"));
 
           // Existing SDK releases are immutable. A reused tag is valid when the
-          // public contract, generator version, and generated assets are equal.
+          // release identity, public contract, and generated assets are equal.
           // `sourceSha` remains provenance in the catalog but backend-only fixes
-          // must not require a new API version or duplicate SDK release.
-          for (const field of ["apiVersion", "openApiSha256", "generatorVersion"]) {
+          // must not require a new SDK version or duplicate SDK release.
+          for (const field of ["schemaVersion", "sdkVersion", "releaseTag", "apiVersion", "openApiSha256"]) {
             if (local[field] !== remote[field]) {
               throw new Error(`Existing SDK release mismatch: ${field}`);
             }
@@ -488,15 +496,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.contract.outputs.release_tag }}
+          SDK_VERSION: ${{ steps.contract.outputs.sdk_version }}
           API_VERSION: ${{ steps.contract.outputs.api_version }}
           OPENAPI_SHA256: ${{ steps.contract.outputs.openapi_sha256 }}
         run: |
+          mapfile -t sdk_assets < <(node -e 'const fs=require("node:fs"); const c=JSON.parse(fs.readFileSync(".tmp/sdk/sdk-catalog.json","utf8")); for (const asset of c.assets) console.log(`.tmp/sdk/${asset.archiveName}`)')
+          if [[ "${#sdk_assets[@]}" -ne 5 ]]; then
+            echo "Expected five SDK assets, found ${#sdk_assets[@]}" >&2
+            exit 1
+          fi
           gh release create "$RELEASE_TAG" \
-            .tmp/sdk/musiccloud-typescript-sdk-"$API_VERSION".zip \
-            .tmp/sdk/musiccloud-python-sdk-"$API_VERSION".zip \
-            .tmp/sdk/musiccloud-swift-sdk-"$API_VERSION".zip \
+            "${sdk_assets[@]}" \
             .tmp/sdk/sdk-catalog.json \
-            --title "musiccloud API SDKs v$API_VERSION" \
+            --title "musiccloud SDKs v$SDK_VERSION" \
             --notes "Generated from public OpenAPI $API_VERSION ($OPENAPI_SHA256)."
 
   # All deploy jobs inherit `contents: read`. Zerops mutations and status

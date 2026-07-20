@@ -23,7 +23,7 @@
       "additionalProperties": false,
       "required": ["version", "sha256", "openApiPath"],
       "properties": {
-        "version": { "const": "2.1.10" },
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
         "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
         "openApiPath": { "const": ".tmp/openapi/openapi.json" }
       }
@@ -31,7 +31,15 @@
     "inputs": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["matrix", "surface", "profilesRoot", "operationProfiles", "harnessesRoot", "contractAdapter", "defectFixture"],
+      "required": [
+        "matrix",
+        "surface",
+        "profilesRoot",
+        "operationProfiles",
+        "harnessesRoot",
+        "contractAdapter",
+        "defectFixture"
+      ],
       "properties": {
         "matrix": { "const": "sdk/generator-profiles/generator-matrix.json" },
         "surface": { "const": "sdk/generator-profiles/public-surface.json" },
@@ -51,22 +59,77 @@
         "additionalProperties": false,
         "required": [
           "language",
+          "targetId",
+          "displayName",
           "profile",
           "selectedAdapterId",
           "output",
           "errorContract",
           "stability",
+          "package",
+          "runtime",
+          "artifact",
+          "quickstart",
           "nativeGates",
           "goldenSnapshot",
           "goldenUsage"
         ],
         "properties": {
           "language": { "enum": ["typescript", "python", "swift", "php", "go"] },
+          "targetId": { "type": "string", "pattern": "^(typescript|python|swift|php|go)-sdk$" },
+          "displayName": { "type": "string", "minLength": 1 },
           "profile": { "type": "string", "pattern": "^sdk/generator-profiles/languages/.+\\.json$" },
           "selectedAdapterId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
           "output": { "type": "string", "pattern": "^\\.tmp/sdk-candidates/" },
           "errorContract": { "type": "string", "pattern": "^sdk/error-contract/(typescript|python|swift|php|go)$" },
           "stability": { "enum": ["preview", "stable"] },
+          "package": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "module", "channel"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "module": { "type": "string", "minLength": 1 },
+              "channel": { "enum": ["npm", "pypi", "swift-package", "composer", "go-module"] }
+            }
+          },
+          "runtime": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "constraint"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "constraint": { "type": "string", "minLength": 1 }
+            }
+          },
+          "artifact": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["archiveBaseName", "repository", "documentation", "manpages"],
+            "properties": {
+              "archiveBaseName": { "type": "string", "pattern": "^musiccloud-(typescript|python|swift|php|go)-sdk$" },
+              "repository": { "const": "https://github.com/phranck/musiccloud" },
+              "documentation": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "type": "string", "minLength": 1 }
+              },
+              "manpages": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 }
+              }
+            }
+          },
+          "quickstart": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["install", "import", "firstRequest"],
+            "properties": {
+              "install": { "type": "string", "pattern": "<version>" },
+              "import": { "type": "string", "minLength": 1 },
+              "firstRequest": { "type": "string", "minLength": 1 }
+            }
+          },
           "nativeGates": {
             "type": "array",
             "minItems": 1,

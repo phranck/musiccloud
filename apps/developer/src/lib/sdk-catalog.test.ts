@@ -18,10 +18,15 @@ describe("parseSdkCatalog", () => {
   it("accepts the explicit release catalog shape", () => {
     const catalog = parseSdkCatalog(readCatalog(), contract);
 
+    expect(catalog.schemaVersion).toBe(2);
+    expect(catalog.sdkVersion).toBe("0.1.0");
+    expect(catalog.releaseTag).toBe("sdk-v0.1.0");
     expect(catalog.apiVersion).toBe("2.1.9");
-    expect(catalog.generatorVersion).toBe("7.22.0");
-    expect(catalog.assets.map((asset) => asset.language)).toEqual(["typescript", "python", "swift"]);
-    expect(catalog.assets.find((asset) => asset.language === "swift")?.generator).toBe("swift6");
+    expect(catalog.assets.map((asset) => asset.language)).toEqual(["typescript", "python", "swift", "php", "go"]);
+    expect(catalog.assets.find((asset) => asset.language === "swift")?.generator.id).toBe(
+      "swift-openapi-generator-1-13",
+    );
+    expect(catalog.assets.every((asset) => /^[a-f0-9]{64}$/.test(asset.inputRevision))).toBe(true);
   });
 
   it("rejects a catalog for another API version", () => {
@@ -71,6 +76,13 @@ describe("parseSdkCatalog", () => {
     expect(() => parseSdkCatalog(catalog, contract)).toThrow("sha256");
   });
 
+  it("rejects an invalid config or template revision", () => {
+    const catalog = readCatalog() as { assets: Array<Record<string, unknown>> };
+    catalog.assets[0]!.inputRevision = "not-a-sha";
+
+    expect(() => parseSdkCatalog(catalog, contract)).toThrow("inputRevision");
+  });
+
   it("rejects untrusted release URLs", () => {
     const catalog = readCatalog() as { assets: Array<Record<string, unknown>> };
     catalog.assets[0]!.archiveUrl = "https://example.com/musiccloud-typescript-sdk-2.1.9.zip";
@@ -80,8 +92,22 @@ describe("parseSdkCatalog", () => {
 
   it("rejects an unexpected generator target", () => {
     const catalog = readCatalog() as { assets: Array<Record<string, unknown>> };
-    catalog.assets[0]!.generator = "typescript-axios";
+    (catalog.assets[0]!.generator as Record<string, unknown>).id = "typescript-axios";
 
     expect(() => parseSdkCatalog(catalog, contract)).toThrow("generator");
+  });
+
+  it("rejects a release tag that is not derived from the shared SDK version", () => {
+    const catalog = readCatalog();
+    catalog.releaseTag = "sdk-v0.2.0";
+
+    expect(() => parseSdkCatalog(catalog, contract)).toThrow("release tag");
+  });
+
+  it("rejects runtime metadata that disagrees with generator provenance", () => {
+    const catalog = readCatalog() as { assets: Array<Record<string, unknown>> };
+    (catalog.assets[0]!.runtime as Record<string, unknown>).constraint = ">=99";
+
+    expect(() => parseSdkCatalog(catalog, contract)).toThrow("runtime");
   });
 });

@@ -12,17 +12,15 @@ async function readJson(filePath) {
   return JSON.parse(await readFile(filePath, "utf8"));
 }
 
-function schemaError(ajv, label) {
-  return `${label} does not match its schema: ${ajv.errorsText(ajv.errors, { separator: "; " })}`;
+function schemaError(ajv, errors, label) {
+  return `${label} does not match its schema: ${ajv.errorsText(errors, { separator: "; " })}`;
 }
 
 /**
  * Loads the complete profile graph so callers validate one coherent snapshot
  * rather than independently parsing files that may disagree.
  */
-export async function loadSdkGeneratorProfiles(
-  profilesRoot = path.join(repoRoot, "sdk/generator-profiles"),
-) {
+export async function loadSdkGeneratorProfiles(profilesRoot = path.join(repoRoot, "sdk/generator-profiles")) {
   const schemaRoot = path.join(profilesRoot, "schema");
   const languageEntries = await Promise.all(
     LANGUAGES.map(async (language) => [
@@ -43,9 +41,7 @@ export async function loadSdkGeneratorProfiles(
     languages: Object.fromEntries(languageEntries),
     surface: await readJson(path.join(profilesRoot, "public-surface.json")),
     manifest: await readJson(path.join(profilesRoot, "candidate-manifest.json")),
-    operationProfiles: await readJson(
-      path.join(repoRoot, "apps/backend/src/docs/public-operation-profiles.json"),
-    ),
+    operationProfiles: await readJson(path.join(repoRoot, "apps/backend/src/docs/public-operation-profiles.json")),
   };
 }
 
@@ -73,18 +69,18 @@ export function validateSdkGeneratorProfiles(profiles) {
   };
 
   if (!validators.matrix(profiles.matrix)) {
-    throw new Error(schemaError(ajv, "generator matrix"));
+    throw new Error(schemaError(ajv, validators.matrix.errors, "generator matrix"));
   }
   for (const language of LANGUAGES) {
     if (!validators.language(profiles.languages[language])) {
-      throw new Error(schemaError(ajv, `language profile ${language}`));
+      throw new Error(schemaError(ajv, validators.language.errors, `language profile ${language}`));
     }
   }
   if (!validators.surface(profiles.surface)) {
-    throw new Error(schemaError(ajv, "public surface"));
+    throw new Error(schemaError(ajv, validators.surface.errors, "public surface"));
   }
   if (!validators.manifest(profiles.manifest)) {
-    throw new Error(schemaError(ajv, "candidate manifest"));
+    throw new Error(schemaError(ajv, validators.manifest.errors, "candidate manifest"));
   }
 
   assertEqualSets(
@@ -94,6 +90,7 @@ export function validateSdkGeneratorProfiles(profiles) {
   );
 
   const selectedByLanguage = new Map();
+  const selectedMetadataByLanguage = new Map();
   for (const entry of profiles.matrix.languages) {
     const selected = entry.adapters.filter((adapter) => adapter.role === "selected");
     if (selected.length !== 1) {
@@ -106,20 +103,19 @@ export function validateSdkGeneratorProfiles(profiles) {
       );
     }
     selectedByLanguage.set(entry.language, selected[0].id);
+    selectedMetadataByLanguage.set(entry.language, selected[0]);
   }
 
-  const canonical = profiles.operationProfiles.operations.map((operation) =>
-    `${operation.method} ${operation.path} ${operation.operationId}`
+  const canonical = profiles.operationProfiles.operations.map(
+    (operation) => `${operation.method} ${operation.path} ${operation.operationId}`,
   );
-  const surface = profiles.surface.operations.map((operation) =>
-    `${operation.method} ${operation.path} ${operation.operationId}`
+  const surface = profiles.surface.operations.map(
+    (operation) => `${operation.method} ${operation.path} ${operation.operationId}`,
   );
-  assertEqualSets(
-    surface,
-    canonical,
-    "public surface must cover every canonical operation exactly once.",
-  );
-  if (new Set(profiles.operationProfiles.operations.map((operation) => operation.operationId)).size !== canonical.length) {
+  assertEqualSets(surface, canonical, "public surface must cover every canonical operation exactly once.");
+  if (
+    new Set(profiles.operationProfiles.operations.map((operation) => operation.operationId)).size !== canonical.length
+  ) {
     throw new Error("canonical operation IDs must be unique.");
   }
 
@@ -150,6 +146,19 @@ export function validateSdkGeneratorProfiles(profiles) {
     }
     if (target.errorContract !== profiles.languages[target.language].errorContract.path) {
       throw new Error(`candidate manifest ${target.language} error contract does not match its profile.`);
+    }
+    const selectedAdapter = selectedMetadataByLanguage.get(target.language);
+    if (
+      target.runtime.name !== selectedAdapter.runtime.name ||
+      target.runtime.constraint !== selectedAdapter.runtime.constraint
+    ) {
+      throw new Error(`candidate manifest ${target.language} runtime does not match the selected adapter.`);
+    }
+    if (target.artifact.archiveBaseName !== `musiccloud-${target.language}-sdk`) {
+      throw new Error(`candidate manifest ${target.language} archive name is not canonical.`);
+    }
+    if (target.targetId !== `${target.language}-sdk`) {
+      throw new Error(`candidate manifest ${target.language} target ID is not canonical.`);
     }
   }
   if (profiles.manifest.release.tag !== `sdk-v${profiles.manifest.release.sdkVersion}`) {
@@ -187,8 +196,8 @@ async function validateFrozenContract(profiles, contractDir) {
       actualOperations.push(`${method.toUpperCase()} ${route} ${operation.operationId ?? ""}`);
     }
   }
-  const canonical = profiles.operationProfiles.operations.map((operation) =>
-    `${operation.method} ${operation.path} ${operation.operationId}`
+  const canonical = profiles.operationProfiles.operations.map(
+    (operation) => `${operation.method} ${operation.path} ${operation.operationId}`,
   );
   assertEqualSets(
     actualOperations,
@@ -198,9 +207,7 @@ async function validateFrozenContract(profiles, contractDir) {
 }
 
 async function validateOwnedPaths(profiles) {
-  await Promise.all(
-    Object.values(profiles.manifest.inputs).map((inputPath) => access(path.join(repoRoot, inputPath))),
-  );
+  await Promise.all(Object.values(profiles.manifest.inputs).map((inputPath) => access(path.join(repoRoot, inputPath))));
   for (const target of profiles.manifest.targets) {
     await Promise.all([
       access(path.join(repoRoot, target.profile)),

@@ -12,26 +12,30 @@ import type { SdkAsset, SdkCatalog } from "@/lib/sdk-catalog";
 interface Props {
   assets: SdkCatalog["assets"];
   apiVersion: string;
-  generatorVersion: SdkCatalog["generatorVersion"];
+  sdkVersion: string;
 }
 
-const { assets, apiVersion, generatorVersion } = Astro.props;
+const { assets, apiVersion, sdkVersion } = Astro.props;
 const initialAsset = assets[0];
 
-const languageName = {
-  typescript: "TypeScript",
-  python: "Python",
-  swift: "Swift",
-} as const;
 const codeLanguageByAsset = {
   typescript: "typescript",
   python: "python",
   swift: "swift",
+  php: "php",
+  go: "go",
+} as const;
+const localLanguageIcon = {
+  typescript: "/icons/languages/typescript.svg",
+  python: "/icons/languages/python.svg",
+  swift: "/icons/languages/swift.svg",
+  php: null,
+  go: null,
 } as const;
 
 const assetId = (asset: SdkAsset) => `sdk-${asset.language}`;
 const tabId = (asset: SdkAsset) => `${assetId(asset)}-tab`;
-const downloadLabel = (asset: SdkAsset) => `Download ${languageName[asset.language]} SDK`;
+const downloadLabel = (asset: SdkAsset) => `Download ${asset.displayName} SDK`;
 ---
 
 <ApiContent.Entry className="sdk-segmented-card-entry">
@@ -57,10 +61,20 @@ const downloadLabel = (asset: SdkAsset) => `Download ${languageName[asset.langua
                 data-sdk-tab={asset.language}
               >
                 <SegmentedCard.Header.Segments.Item.Icon aria-hidden="true">
-                  <img src={`/icons/languages/${asset.language}.svg`} alt="" />
+                  {
+                    localLanguageIcon[asset.language] ? (
+                      <img src={localLanguageIcon[asset.language]} alt="" />
+                    ) : (
+                      <svg viewBox="0 0 24 24" role="presentation">
+                        <text x="12" y="15" text-anchor="middle" fill="currentColor" font-size="8" font-weight="700">
+                          {asset.language === "php" ? "PHP" : "Go"}
+                        </text>
+                      </svg>
+                    )
+                  }
                 </SegmentedCard.Header.Segments.Item.Icon>
                 <SegmentedCard.Header.Segments.Item.Label>
-                  {languageName[asset.language]}
+                  {asset.displayName}
                 </SegmentedCard.Header.Segments.Item.Label>
               </SegmentedCard.Header.Segments.Item>
             ))
@@ -95,7 +109,7 @@ const downloadLabel = (asset: SdkAsset) => `Download ${languageName[asset.langua
                 <SegmentedCard.Body.Panel.Stack>
                   <SegmentedCard.Body.Panel.Copy>
                     <p class="text-code text-fg-muted">
-                      {asset.generator} · API {apiVersion} · OpenAPI Generator {generatorVersion}
+                      {asset.generator.name} {asset.generator.version} · SDK {sdkVersion} · API {apiVersion} · {asset.stability}
                     </p>
                     <dl class="sdk-metadata-list text-body">
                       <div>
