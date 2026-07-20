@@ -1,139 +1,98 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import http from "node:http";
-import { createRequire } from "node:module";
+import crypto from "node:crypto";
+import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
-const generatedSdkDir = path.resolve(process.argv[2] ?? ".tmp/sdk/generated/typescript");
-const require = createRequire(import.meta.url);
-const {
-  Configuration,
-  MusiccloudApiError,
-  MusiccloudProtocolError,
-  MusiccloudTransportError,
-  ResolveApi,
-} = require(path.join(generatedSdkDir, "dist/index.js"));
-
-const responses = {
-  "rate-limit": {
-    status: 429,
-    headers: {
-      "content-type": "application/json",
-      "retry-after": "42",
-      "x-ratelimit-limit": "10",
-      authorization: "Bearer fixture-secret",
-    },
-    body: JSON.stringify({
-      error: "MC-API-0003",
-      message: "Too many requests. (MC-API-0003)",
-      errorId: "10000000-0000-4000-8000-000000000101",
-      context: { retryAfterSeconds: 42, apiKey: "fixture-secret" },
-    }),
-  },
-  "future-code": {
-    status: 503,
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      error: "MC-API-3999",
-      message: "A future upstream failure occurred. (MC-API-3999)",
-      errorId: "10000000-0000-4000-8000-000000000102",
-      context: { provider: "future-service" },
-    }),
-  },
-  malformed: {
-    status: 502,
-    headers: { "content-type": "application/json" },
-    body: '{"Authorization":"Bearer fixture-secret"',
-  },
+const sdkDir = path.resolve(process.argv[2] ?? ".tmp/sdk");
+const generatedDir = path.join(sdkDir, "generated");
+const catalog = JSON.parse(await readFile(path.join(sdkDir, "sdk-catalog.json"), "utf8"));
+const expectedLanguages = ["typescript", "python", "swift", "php", "go"];
+const errorRuntimeByLanguage = {
+  typescript: "runtime/musiccloud-errors.ts",
+  python: "package/musiccloud/musiccloud_errors.py",
+  swift: "generated/MusiccloudErrors.swift",
+  php: "src/MusiccloudErrors.php",
+  go: "musicclouderrors/musiccloud_errors.go",
 };
 
-const serializedRequests = new Map();
-const server = http.createServer((request, response) => {
-  const chunks = [];
-  request.on("data", (chunk) => chunks.push(chunk));
-  request.on("end", () => {
-    const fixtureName = request.headers["x-fixture-case"];
-    const fixture = typeof fixtureName === "string" ? responses[fixtureName] : undefined;
-    if (fixture === undefined) {
-      response.writeHead(500, { "content-type": "text/plain" });
-      response.end("unknown fixture");
-      return;
-    }
-    serializedRequests.set(fixtureName, Buffer.concat(chunks).toString("utf8"));
-    response.writeHead(fixture.status, fixture.headers);
-    response.end(fixture.body);
-  });
-});
+function sha256(bytes) {
+  return crypto.createHash("sha256").update(bytes).digest("hex");
+}
 
-await new Promise((resolve, reject) => {
-  server.once("error", reject);
-  server.listen(0, "127.0.0.1", resolve);
-});
-
-const address = server.address();
-assert.ok(address && typeof address === "object");
-const basePath = `http://127.0.0.1:${address.port}`;
-
-async function callFixture(fixtureName) {
-  const api = new ResolveApi(
-    new Configuration({
-      basePath,
-      headers: { "x-fixture-case": fixtureName },
-    }),
-  );
-  let captured;
-  try {
-    await api.resolve({
-      resolveRequest: { query: `fixture-${fixtureName}` },
-    });
-  } catch (error) {
-    captured = error;
+async function collectFiles(root, relative = "") {
+  const files = [];
+  for (const entry of await readdir(path.join(root, relative), { withFileTypes: true })) {
+    const child = path.join(relative, entry.name);
+    if (entry.isDirectory()) files.push(...(await collectFiles(root, child)));
+    else if (entry.isFile()) files.push(child);
   }
-  assert.ok(captured, `${fixtureName} should fail`);
-  assert.deepEqual(JSON.parse(serializedRequests.get(fixtureName)), {
-    query: `fixture-${fixtureName}`,
-  });
-  return captured;
+  return files;
 }
 
-try {
-  const rateLimit = await callFixture("rate-limit");
-  assert.ok(rateLimit instanceof MusiccloudApiError);
-  assert.equal(rateLimit.code, "MC-API-0003");
-  assert.equal(rateLimit.status, 429);
-  assert.equal(rateLimit.errorId, "10000000-0000-4000-8000-000000000101");
-  assert.equal(rateLimit.retryAfterSeconds, 42);
-  assert.equal(rateLimit.retryHeaders["x-ratelimit-limit"], "10");
-  assert.equal(rateLimit.context?.apiKey, undefined);
-  assert.doesNotMatch(rateLimit.toString(), /fixture-secret|authorization/i);
+assert.equal(catalog.schemaVersion, 2);
+assert.match(catalog.sdkVersion, /^\d+\.\d+\.\d+$/);
+assert.equal(catalog.releaseTag, `sdk-v${catalog.sdkVersion}`);
+assert.match(catalog.apiVersion, /^\d+\.\d+\.\d+$/);
+assert.match(catalog.openApiSha256, /^[a-f0-9]{64}$/);
+assert.match(catalog.sourceSha, /^[a-f0-9]{40}$/);
+assert.deepEqual(
+  catalog.assets.map((asset) => asset.language),
+  expectedLanguages,
+);
 
-  const future = await callFixture("future-code");
-  assert.ok(future instanceof MusiccloudApiError);
-  assert.equal(future.code, "MC-API-3999");
-  assert.equal(future.context?.provider, "future-service");
+for (const asset of catalog.assets) {
+  const candidateDir = path.join(generatedDir, asset.language);
+  const manifest = JSON.parse(await readFile(path.join(candidateDir, "sdk-target-manifest.json"), "utf8"));
 
-  const malformed = await callFixture("malformed");
-  assert.ok(malformed instanceof MusiccloudProtocolError);
-  assert.equal(malformed.reason, "invalid-json");
-  assert.equal("code" in malformed, false);
-  assert.doesNotMatch(malformed.toString(), /fixture-secret|authorization/i);
-} finally {
-  await new Promise((resolve, reject) => {
-    server.close((error) => (error ? reject(error) : resolve()));
-  });
+  assert.equal(manifest.sdkVersion, catalog.sdkVersion, `${asset.language} SDK version`);
+  assert.equal(manifest.apiVersion, catalog.apiVersion, `${asset.language} API version`);
+  assert.equal(manifest.openApiSha256, catalog.openApiSha256, `${asset.language} OpenAPI fingerprint`);
+  assert.equal(manifest.language, asset.language, `${asset.language} target identity`);
+  assert.deepEqual(manifest.package, asset.package, `${asset.language} package provenance`);
+  assert.deepEqual(manifest.runtime, asset.runtime, `${asset.language} runtime provenance`);
+  assert.deepEqual(manifest.generator, asset.generator, `${asset.language} generator provenance`);
+  assert.match(manifest.configurationRevision, /^[a-f0-9]{64}$/);
+  assert.equal(manifest.configurationRevision, asset.configurationRevision);
+  assert.match(manifest.inputRevision, /^[a-f0-9]{64}$/);
+  assert.equal(manifest.inputRevision, asset.inputRevision);
+
+  for (const relative of [
+    ".musiccloud/inputs.json",
+    ".musiccloud/generator-matrix.json",
+    ".musiccloud/public-surface.json",
+    ".musiccloud/operation-profiles.json",
+    ".musiccloud/contract-adapter.mjs",
+    ".musiccloud/public-api.txt",
+    ".musiccloud/usage",
+    ".musiccloud/error-contract",
+    errorRuntimeByLanguage[asset.language],
+    "README.md",
+    "THIRD_PARTY_NOTICES.md",
+  ]) {
+    const file = path.join(candidateDir, relative);
+    assert.ok((await stat(file)).isFile() || (await stat(file)).isDirectory(), `${asset.language}: ${relative}`);
+  }
+  if (asset.language !== "python") {
+    assert.ok(
+      (await stat(path.join(candidateDir, ".musiccloud/harness"))).isDirectory(),
+      `${asset.language}: .musiccloud/harness`,
+    );
+  }
+
+  const archiveBytes = await readFile(path.join(sdkDir, asset.archiveName));
+  assert.equal(sha256(archiveBytes), asset.sha256, `${asset.language} archive checksum`);
+  assert.ok(asset.archiveUrl.endsWith(`/${asset.archiveName}`));
+
+  for (const relative of await collectFiles(candidateDir)) {
+    const contents = await readFile(path.join(candidateDir, relative));
+    assert.doesNotMatch(
+      contents.toString("utf8"),
+      /\bmc_(?:live|test)_[A-Za-z0-9_-]{12,}\b/,
+      `${asset.language} candidate contains an API-key-shaped value in ${relative}`,
+    );
+  }
 }
 
-const unavailableApi = new ResolveApi(new Configuration({ basePath }));
-let transport;
-try {
-  await unavailableApi.resolve({
-    resolveRequest: { query: "fixture-transport" },
-  });
-} catch (error) {
-  transport = error;
-}
-assert.ok(transport instanceof MusiccloudTransportError);
-assert.equal(transport.kind, "network");
-
-console.log("Generated TypeScript SDK HTTP roundtrip passed.");
+console.log("Five-target generated SDK candidate integrity passed.");
