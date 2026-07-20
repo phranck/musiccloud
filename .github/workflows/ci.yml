@@ -299,7 +299,7 @@ jobs:
                 dashboard=true ;;
             esac
             case "$file" in
-              apps/backend/src/server.ts|apps/backend/src/routes/*|apps/backend/src/schemas/*|apps/backend/src/docs/*|apps/backend/src/openapi/*|apps/backend/src/scripts/export-public-openapi.ts|apps/developer/scripts/generate-api-reference.mjs|apps/developer/src/lib/openapi-reference.ts|apps/developer/src/lib/sdk-catalog.ts|packages/shared/src/api.ts|packages/shared/src/error-codes.ts|packages/shared/src/public-error-catalog.ts|sdk/error-contract/*|scripts/generate-sdk-release.mjs|scripts/generate-sdk-release.test.mjs|scripts/test-generated-sdk-roundtrip.mjs|scripts/test-sdk-error-contract.mjs|scripts/fixtures/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|.github/workflows/ci.yml)
+              apps/backend/src/server.ts|apps/backend/src/routes/*|apps/backend/src/schemas/*|apps/backend/src/docs/*|apps/backend/src/openapi/*|apps/backend/src/scripts/export-public-openapi.ts|apps/developer/scripts/generate-api-reference.mjs|apps/developer/src/lib/openapi-reference.ts|apps/developer/src/lib/sdk-catalog.ts|packages/shared/src/api.ts|packages/shared/src/error-codes.ts|packages/shared/src/public-error-catalog.ts|sdk/error-contract/*|sdk/generator-profiles/*|scripts/generate-sdk-release.mjs|scripts/generate-sdk-release.test.mjs|scripts/test-generated-sdk-roundtrip.mjs|scripts/test-sdk-error-contract.mjs|scripts/prepare-sdk-generator-contract.mjs|scripts/prepare-sdk-generator-contract.test.mjs|scripts/validate-sdk-generator-profiles.mjs|scripts/sdk-generator-profiles.test.mjs|scripts/fixtures/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|.github/workflows/ci.yml)
                 api_sdk=true ;;
             esac
           done
@@ -334,7 +334,7 @@ jobs:
           should_run=false
           for file in "${changed_files[@]}"; do
             case "$file" in
-              apps/backend/src/server.ts|apps/backend/src/routes/*|apps/backend/src/schemas/*|apps/backend/src/docs/*|apps/backend/src/openapi/*|apps/backend/src/scripts/export-public-openapi.ts|apps/developer/scripts/generate-api-reference.mjs|apps/developer/src/lib/openapi-reference.ts|apps/developer/src/lib/sdk-catalog.ts|packages/shared/src/api.ts|packages/shared/src/error-codes.ts|packages/shared/src/public-error-catalog.ts|sdk/error-contract/*|scripts/generate-sdk-release.mjs|scripts/generate-sdk-release.test.mjs|scripts/test-generated-sdk-roundtrip.mjs|scripts/test-sdk-error-contract.mjs|scripts/fixtures/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|.github/workflows/ci.yml)
+              apps/backend/src/server.ts|apps/backend/src/routes/*|apps/backend/src/schemas/*|apps/backend/src/docs/*|apps/backend/src/openapi/*|apps/backend/src/scripts/export-public-openapi.ts|apps/developer/scripts/generate-api-reference.mjs|apps/developer/src/lib/openapi-reference.ts|apps/developer/src/lib/sdk-catalog.ts|packages/shared/src/api.ts|packages/shared/src/error-codes.ts|packages/shared/src/public-error-catalog.ts|sdk/error-contract/*|sdk/generator-profiles/*|scripts/generate-sdk-release.mjs|scripts/generate-sdk-release.test.mjs|scripts/test-generated-sdk-roundtrip.mjs|scripts/test-sdk-error-contract.mjs|scripts/prepare-sdk-generator-contract.mjs|scripts/prepare-sdk-generator-contract.test.mjs|scripts/validate-sdk-generator-profiles.mjs|scripts/sdk-generator-profiles.test.mjs|scripts/fixtures/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|.github/workflows/ci.yml)
                 should_run=true ;;
             esac
           done
@@ -378,6 +378,7 @@ jobs:
         if: steps.api_sdk_changes.outputs.should_run == 'true'
         run: |
           pnpm openapi:export
+          pnpm sdk:profiles:validate
           pnpm sdk:generate
           pnpm sdk:generated-roundtrip:test
           pnpm sdk:test
