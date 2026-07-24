@@ -86,7 +86,7 @@ const downloadLabel = (asset: SdkAsset) => `Download ${asset.displayName} SDK`;
         {
           assets.map((asset, index) => {
             const headingId = assetId(asset);
-            const usage = [asset.quickstart.import, asset.quickstart.firstRequest].join("\n");
+            const usage = [asset.quickstart.import, asset.quickstart.firstRequest].join("\n\n");
             const active = index === 0;
             return (
               <SegmentedCard.Body.Panel
