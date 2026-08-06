@@ -11,6 +11,37 @@ export const prerender = false;
  */
 const STRIPPED_RESPONSE_HEADERS = new Set(["content-encoding", "content-length"]);
 
+/** The only backend namespace this proxy is allowed to reach. */
+const BFF_PREFIX = "/api/dev/";
+
+/**
+ * Resolves the backend URL for a wildcard tail, refusing anything that leaves
+ * {@link BFF_PREFIX}.
+ *
+ * The tail is concatenated into a URL, and URL parsing resolves dot segments
+ * afterwards. Without this check `../v1/resolve` would resolve to
+ * `/api/v1/resolve`, and the caller would reach a route guarded by
+ * `authenticatePublic` carrying the internal key this proxy attaches. That key
+ * counts as full authentication there, so the caller would be using a
+ * credential it does not hold.
+ *
+ * Checking the resolved pathname rather than looking for `..` in the tail
+ * catches the percent-encoded spellings too, because URL parsing normalises
+ * those before this sees them.
+ *
+ * @param path - The wildcard tail from the route, without a leading slash.
+ * @returns The backend URL, or `null` when it would leave the namespace.
+ */
+function resolveBackendTarget(path: string): URL | null {
+  let target: URL;
+  try {
+    target = new URL(backendUrl(`${BFF_PREFIX}${path}`));
+  } catch {
+    return null;
+  }
+  return target.pathname.startsWith(BFF_PREFIX) ? target : null;
+}
+
 /**
  * BFF proxy for the developer portal. Forwards every `/api/dev/*` request to the
  * backend (`BACKEND_URL`), injecting the internal API key and the real client
@@ -20,11 +51,16 @@ const STRIPPED_RESPONSE_HEADERS = new Set(["content-encoding", "content-length"]
  *
  * ## Auth surface
  *
- * The backend's `/api/dev/*` routes are public (registered with no auth
- * preHandler in `apps/backend/src/server.ts`); the session is the httpOnly
- * `mc_dev_session` cookie carried by this proxy, not the internal key. We attach
- * `X-API-Key` regardless because it is ignored on a public route and keeps the
- * proxy forward-compatible if the backend later guards these paths.
+ * The backend splits this namespace: the sign-up, login, verify and reset
+ * routes are registered without a guard, whilst the API-access routes sit
+ * behind `authenticateDeveloper` (see `devProtectedRoutes` in
+ * `apps/backend/src/server.ts`). Either way the credential that matters is the
+ * httpOnly `mc_dev_session` cookie this proxy carries, not the internal key.
+ *
+ * `X-API-Key` is attached regardless, which keeps the proxy working if the
+ * backend later guards these paths. That is also why the target is confined to
+ * `/api/dev/` first: the key is full authentication on the routes behind
+ * `authenticatePublic`, so it must never travel to a path the caller chose.
  *
  * ## Cookie relay
  *
@@ -42,8 +78,15 @@ const STRIPPED_RESPONSE_HEADERS = new Set(["content-encoding", "content-length"]
  * @returns The backend's response, streamed back with status + headers intact.
  */
 export const ALL: APIRoute = async ({ params, request, clientAddress }) => {
-  const path = params.path ?? "";
-  const target = backendUrl(`/api/dev/${path}`);
+  // Resolved before any credential is attached, so a target outside the
+  // namespace never gets one.
+  const target = resolveBackendTarget(params.path ?? "");
+  if (!target) {
+    return new Response(JSON.stringify({ error: "NOT_FOUND", message: "Unknown proxy path." }), {
+      status: 404,
+      headers: { "content-type": "application/json; charset=utf-8" },
+    });
+  }
 
   const headers = new Headers();
   if (INTERNAL_API_KEY) headers.set("X-API-Key", INTERNAL_API_KEY);
