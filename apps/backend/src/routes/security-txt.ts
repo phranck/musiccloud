@@ -35,10 +35,7 @@ export default async function securityTxtRoutes(app: FastifyInstance) {
       try {
         body = readFileSync(SECURITY_TXT_PATH, "utf8");
       } catch (error) {
-        app.log.error(
-          { err: error, path: SECURITY_TXT_PATH },
-          "security.txt is missing from the deployment",
-        );
+        app.log.error({ err: error, path: SECURITY_TXT_PATH }, "security.txt is missing from the deployment");
         return reply.code(404).send();
       }
 
