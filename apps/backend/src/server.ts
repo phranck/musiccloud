@@ -218,15 +218,24 @@ async function buildApp(options: BuildAppOptions = {}) {
   // production (see `parseTrustProxy` above). Prior incident: without
   // trust-proxy every client behind the Zerops ingress shared one bucket
   // and the limit tripped for everyone after a few total requests.
+  // No allowList. An exemption decided here would be decided from the raw URL,
+  // before anything has authenticated, so it would apply to every caller
+  // including one presenting no credentials at all. Routes that need a
+  // different ceiling declare it themselves via `config.rateLimit`, which is
+  // matched against the resolved route rather than a string prefix. The admin
+  // SSE stream is the one that does, in routes/admin-sse.ts.
   await app.register(rateLimit, {
     max: 300,
     timeWindow: "1 minute",
-    allowList: (request) => {
-      // Admin SSE streams are long-lived and polled heavily by the dashboard;
-      // the event buses fan out to every connected client so a pure request
-      // counter would throttle legitimate multi-tab admins.
-      return request.url.startsWith("/api/admin/events");
-    },
+  });
+
+  // A request that matches no route has no route hooks either, so the limiter
+  // above never sees it and unmatched paths are unbounded. Giving the
+  // not-found handler the limiter as a preHandler closes that: a caller
+  // walking the URL space is counted like everyone else. The body stays the
+  // shape `registerApiErrorHandling` normalises every error response into.
+  app.setNotFoundHandler({ preHandler: app.rateLimit() }, async (_request, reply) => {
+    return reply.status(404).send({ error: "NOT_FOUND", message: "Route not found." });
   });
 
   // JWT plugin (used by auth routes and public API auth)
