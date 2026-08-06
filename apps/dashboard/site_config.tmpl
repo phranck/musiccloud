@@ -3,6 +3,26 @@ server {
     root {{.DocumentRoot}};
     index index.html;
 
+    # Browser-boundary headers for the admin dashboard, the one private surface.
+    # Values come from `buildSecurityHeaders(SurfaceExposure.Private)` in
+    # packages/shared/src/security-headers.ts, which is the source of truth the
+    # two Astro apps read directly; nginx cannot, so they are written out here
+    # and a test asserts the two stay identical.
+    #
+    # The enforced policy carries only directives that cannot stop a resource
+    # loading. The loading directives are Report-Only until the inline scripts
+    # and styles they would refuse have been given nonces or hashes.
+    #
+    # nginx does not merge add_header across levels: a location declaring its
+    # own add_header replaces this whole set rather than adding to it.
+    add_header Content-Security-Policy "base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'none'" always;
+    add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; img-src 'self' data: https:; media-src 'self' https:; worker-src 'self' blob:; upgrade-insecure-requests; base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'none'" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()" always;
+    add_header Cross-Origin-Opener-Policy "same-origin" always;
+
     # SSE endpoint – disable buffering and set a long read timeout
     location /api/admin/events {
         proxy_pass http://backend:4000;
