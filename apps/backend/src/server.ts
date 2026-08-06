@@ -66,6 +66,7 @@ import randomExampleRoutes from "./routes/random-example.js";
 import resolveRoutes from "./routes/resolve.js";
 import resolvePublicGetRoutes from "./routes/resolve-public-get.js";
 import servicesPublicRoutes from "./routes/services-public.js";
+import securityTxtRoutes from "./routes/security-txt.js";
 import shareRoutes from "./routes/share.js";
 import sharePreviewRoutes from "./routes/share-preview.js";
 import { siteSettingsAdminRoutes, siteSettingsPublicRoutes } from "./routes/site-settings.js";
@@ -564,6 +565,10 @@ async function buildApp(options: BuildAppOptions = {}) {
     await internalApp.register(developerPortalAvailabilityInternalRoutes);
     await internalApp.register(internalEditorialRoutes);
   });
+
+  // Security contact (public, no auth - RFC 9116 requires it to be reachable
+  // without credentials, and researchers read it before contacting anyone)
+  await app.register(securityTxtRoutes);
 
   // Share endpoint (public, no auth - used for SSR)
   await app.register(shareRoutes);

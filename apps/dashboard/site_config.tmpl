@@ -3,6 +3,11 @@ server {
     root {{.DocumentRoot}};
     index index.html;
 
+    # RFC 9116 section 3 requires /.well-known/security.txt to be served as
+    # text/plain with the charset parameter set to utf-8. Nginx omits the
+    # parameter unless asked, and this applies to every text type it serves.
+    charset utf-8;
+
     # SSE endpoint – disable buffering and set a long read timeout
     location /api/admin/events {
         proxy_pass http://backend:4000;
