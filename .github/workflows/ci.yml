@@ -6,10 +6,10 @@ on:
   pull_request:
 
 # PR runs cancel on a new push: only checks run there, so an abort is free and
-# saves a CI slot. `main` runs serialize instead (cancel-in-progress: false) —
-# every main push deploys, and cancelling an in-flight run could abort a Zerops
-# deploy mid-push. Queuing lets the newest run land last, on the complete tree,
-# with no overtaking between back-to-back merges.
+# saves a CI slot. `main` runs serialize instead (cancel-in-progress: false),
+# because every main push deploys and cancelling an in-flight run could abort a
+# Zerops deploy mid-push. Queuing lets the newest run land last, on the complete
+# tree, with no overtaking between back-to-back merges.
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -675,8 +675,15 @@ jobs:
   deploy-dashboard:
     name: Deploy Dashboard
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.dashboard == 'true'
+    # nginx resolves the `backend` upstream once, when it loads its config, and
+    # keeps the result. A dashboard container that starts while the backend is
+    # still being replaced therefore caches an address that is about to
+    # disappear, and answers every /api/ request with 502 or a timeout until it
+    # is restarted. Waiting for the backend job, which ends with its own health
+    # probe, removes that window. A skipped backend counts as satisfied so a
+    # dashboard-only change still deploys.
+    needs: [detect-changes, deploy-backend]
+    if: always() && needs.detect-changes.outputs.dashboard == 'true' && (needs.deploy-backend.result == 'success' || needs.deploy-backend.result == 'skipped')
     env:
       STATUS_TOKEN: ${{ secrets.STATUS_DISPATCH_TOKEN }}
     steps:

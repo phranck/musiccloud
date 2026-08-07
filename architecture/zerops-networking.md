@@ -57,6 +57,20 @@ curl -s -o /dev/null -D - \
 
 A healthy run answers `HTTP/2 200` with `ttfb` in the low tens of milliseconds. A `ttfb` in the seconds whilst the backend log reports a `responseTime` of a few milliseconds for the same request is the IPv6 fallback pattern described above.
 
+## The dashboard caches the backend's address
+
+nginx resolves the `backend` upstream in `apps/dashboard/site_config.tmpl` once, when it loads the file, and keeps that address for the life of the process. It does not re-resolve per request.
+
+That makes the dashboard sensitive to the backend being replaced under it. When the backend container gets a new internal address, the dashboard goes on sending `/api/` traffic to the old one and answers `502` or times out, whilst static delivery keeps working and the container keeps reporting itself healthy. The failure therefore looks like the backend is down when the backend is fine, and `api.musiccloud.io` answering normally is what tells the two apart.
+
+Observed on 7 August 2026: the dashboard deploy finished 51 seconds before the backend deploy, and every `/api/` path through `dashboard.musiccloud.io` failed from then on. The frontend, which resolves per request from Node, was unaffected throughout.
+
+Two consequences to keep in mind:
+
+The deploy workflow orders `deploy-dashboard` after `deploy-backend` so a shared deploy cannot reopen that window. A backend restart outside a deploy is not covered by that, and needs the dashboard restarted with it.
+
+Resolving per request would remove the problem entirely, but it needs a `resolver` directive with a literal DNS address, and Zerops does not document one. Until that address is known, ordering plus a deliberate restart is the arrangement.
+
 ## Deployment note
 
 Backend, frontend and dashboard can deploy from the same monorepo workflow. If dashboard login suddenly becomes slow after a deploy, compare the dashboard nginx access log with the backend's `responseTime` for the same request before changing React auth flow or SQL queries. Static `/login` HTML and dashboard assets can be fast while proxied `/api/...` calls are delayed by the internal service hop.

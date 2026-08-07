@@ -8,6 +8,14 @@ server {
     # parameter unless asked, and this applies to every text type it serves.
     charset utf-8;
 
+    # `backend` below is resolved once, when nginx loads this file, and the
+    # result is kept for the life of the process. If the backend container is
+    # replaced afterwards, every proxied request here fails with 502 or a
+    # timeout until this container restarts, whilst static delivery carries on
+    # looking healthy. The deploy workflow therefore orders this service after
+    # the backend, and a backend restart outside a deploy needs this service
+    # restarted with it. See architecture/zerops-networking.md.
+
     # Browser-boundary headers for the admin dashboard, the one private surface.
     # Values come from `buildSecurityHeaders(SurfaceExposure.Private)` in
     # packages/shared/src/security-headers.ts, which is the source of truth the
