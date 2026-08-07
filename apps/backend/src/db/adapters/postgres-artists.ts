@@ -29,7 +29,6 @@
 import type { ArtistProfileProvider } from "@musiccloud/shared";
 import type { Pool } from "pg";
 import { CACHE_TTL_MS } from "../../lib/config.js";
-import { generateShortId } from "../../lib/short-id.js";
 import type { NormalizedArtist, TrackSource } from "../../services/types.js";
 import type {
   ArtistCacheData,
@@ -55,6 +54,7 @@ import {
   safeParseArray,
   safeParseJson,
 } from "./postgres-shared.js";
+import { mintShortUrl } from "./short-url.js";
 
 // ============================================================================
 // ROW TYPES
@@ -375,7 +375,6 @@ export async function persistArtistWithLinks(
       }
     }
 
-    const shortId = existingShortId ?? generateShortId();
     const artistEntityId =
       existingArtistEntityId ?? (await ensureArtistEntityForName(client, data.sourceArtist.name, now));
     await ensureArtistEntityName(client, artistEntityId, data.sourceArtist.name, now);
@@ -423,13 +422,7 @@ export async function persistArtistWithLinks(
       );
     }
 
-    if (!existingShortId) {
-      await client.query(
-        `INSERT INTO artist_short_urls (id, artist_entity_id, created_at) VALUES ($1, $2, $3)
-         ON CONFLICT DO NOTHING`,
-        [shortId, artistEntityId, now],
-      );
-    }
+    const shortId = existingShortId ?? (await mintShortUrl(client, "artist_short_urls", artistEntityId, now));
 
     await client.query("COMMIT");
     return { artistId: artistEntityId, shortId };

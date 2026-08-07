@@ -8,7 +8,28 @@ server {
     # parameter unless asked, and this applies to every text type it serves.
     charset utf-8;
 
-    # SSE endpoint – disable buffering and set a long read timeout
+    # Browser-boundary headers for the admin dashboard, the one private surface.
+    # Values come from `buildSecurityHeaders(SurfaceExposure.Private)` in
+    # packages/shared/src/security-headers.ts, which is the source of truth the
+    # two Astro apps read directly; nginx cannot, so they are written out here
+    # and a test asserts the two stay identical.
+    #
+    # The enforced policy carries only directives that cannot stop a resource
+    # loading. The loading directives are Report-Only until the inline scripts
+    # and styles they would refuse have been given nonces or hashes.
+    #
+    # nginx does not merge add_header across levels: a location declaring its
+    # own add_header replaces this whole set rather than adding to it.
+    add_header Content-Security-Policy "base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'none'" always;
+    add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; img-src 'self' data: https:; media-src 'self' https:; worker-src 'self' blob:; upgrade-insecure-requests; base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'none'" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()" always;
+    add_header Cross-Origin-Opener-Policy "same-origin" always;
+
+    # SSE endpoint. Buffering is off and the read timeout is long, because these
+    # streams stay open.
     location /api/admin/events {
         proxy_pass http://backend:4000;
         proxy_http_version 1.1;
@@ -21,26 +42,12 @@ server {
         chunked_transfer_encoding on;
     }
 
-    # Auth proxy diagnostics: expose upstream timings so client-side probes
-    # can distinguish Nginx/backend connect delays from backend handler latency.
-    # Keep this scoped to auth endpoints; do not expose upstream internals on
-    # every public API response. See architecture/zerops-networking.md.
-    location /api/admin/auth/ {
-        proxy_pass http://backend:4000;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        client_max_body_size 10m;
-        proxy_request_buffering off;
-        add_header X-MC-Request-Time $request_time always;
-        add_header X-MC-Upstream-Addr $upstream_addr always;
-        add_header X-MC-Upstream-Status $upstream_status always;
-        add_header X-MC-Upstream-Connect-Time $upstream_connect_time always;
-        add_header X-MC-Upstream-Header-Time $upstream_header_time always;
-        add_header X-MC-Upstream-Response-Time $upstream_response_time always;
-    }
-
+    # Auth requests are proxied by the generic /api/ block below. They carry no
+    # upstream diagnostics, because this path is reachable without credentials:
+    # $upstream_addr would publish the internal backend address, and a
+    # server-measured response time is a login timing oracle free of network
+    # noise. Diagnose from the backend's structured logs, which carry the
+    # request id and the handler duration. See architecture/zerops-networking.md.
     location /api/ {
         proxy_pass http://backend:4000;
         proxy_http_version 1.1;

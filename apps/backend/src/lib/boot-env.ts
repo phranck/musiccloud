@@ -12,6 +12,18 @@ import { requireEnv } from "./env.js";
 const REQUIRED_BOOT_ENV = ["JAMENDO_CLIENT_ID"] as const;
 
 /**
+ * Environment variables required in production only.
+ *
+ * - `INTERNAL_API_KEY` is the shared secret between the SSR proxies and the
+ *   backend, and it guards the internal service-to-service routes. Leaving it
+ *   unset is deliberately allowed locally, where there is nothing to protect
+ *   and demanding it would only add friction. In production its absence would
+ *   mean an open boundary, which is a state the process must not reach, so the
+ *   boot fails instead.
+ */
+const REQUIRED_PRODUCTION_ENV = ["INTERNAL_API_KEY"] as const;
+
+/**
  * Asserts that every {@link REQUIRED_BOOT_ENV} variable is set, throwing on the
  * first one that is missing or empty.
  *
@@ -38,6 +50,12 @@ const REQUIRED_BOOT_ENV = ["JAMENDO_CLIENT_ID"] as const;
 export function assertRequiredBootEnv(): void {
   for (const name of REQUIRED_BOOT_ENV) {
     requireEnv(name);
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    for (const name of REQUIRED_PRODUCTION_ENV) {
+      requireEnv(name);
+    }
   }
 
   // Creem is optional: omitting CREEM_API_KEY is valid in CI and in dev

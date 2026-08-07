@@ -17,6 +17,7 @@ export * from "./platform.js";
 export * from "./plugins.js";
 export * from "./public-error-catalog.js";
 export * from "./safe-url.js";
+export * from "./security-headers.js";
 export * from "./services.js";
 export * from "./tier-icons.js";
 export * from "./utils.js";

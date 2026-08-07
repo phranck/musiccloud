@@ -18,14 +18,16 @@
  *
  * ## Origin detection
  *
- * `x-forwarded-host` is read to reconstruct the user-facing origin when
- * the backend runs behind an ingress (Zerops). Without this, the OG URLs
- * embedded in the response would point at the internal backend host the
- * crawler can never reach. The header is not whitelisted here because
- * this endpoint is internal to our own frontend call path: trusting the
- * header is acceptable at the trust boundary the ingress already enforces.
- * Local dev leaves `origin` undefined and lets the loader fall back to
- * its own default.
+ * The OG and share URLs are built on `getPublicOrigin()`, which reads
+ * `PUBLIC_URL` from the environment. A share URL always lives on the public
+ * site, whichever host answered the request, so the value follows from
+ * configuration rather than from the request.
+ *
+ * It must not come from `X-Forwarded-Host`. This route is registered
+ * unauthenticated and is part of the documented public API, so that header is
+ * attacker input. It is also the wrong value: the ingress sets it to the host
+ * actually addressed, which for a direct API call is `api.musiccloud.io`
+ * rather than the public site.
  *
  * ## Apple Music storefront guard
  *
@@ -47,6 +49,7 @@ import { getRepository } from "../db/index.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter, isInternalRequest } from "../lib/infra/rate-limiter.js";
 import { resolveAppleMusicStorefrontFromHeaders } from "../lib/platform/apple-music-storefront.js";
+import { getPublicOrigin } from "../lib/public-origin.js";
 import { toCachedApiLinks } from "../lib/server/api-links.js";
 import { loadCcByShortId } from "../lib/server/cc-share-page.js";
 import { loadAlbumByShortId, loadArtistByShortId, loadByShortId } from "../lib/server/share-page.js";
@@ -119,7 +122,7 @@ export default async function shareRoutes(app: FastifyInstance) {
 
       const { shortId } = request.params;
 
-      const origin = request.headers["x-forwarded-host"] ? `https://${request.headers["x-forwarded-host"]}` : undefined;
+      const origin = getPublicOrigin();
       const appleMusicStorefront = resolveAppleMusicStorefrontFromHeaders(request.headers);
 
       // Short IDs are unique across all three entity tables, so we fire
