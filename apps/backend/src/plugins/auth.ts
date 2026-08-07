@@ -55,6 +55,7 @@ import {
   registrationDayRateLimiter,
   registrationMinuteRateLimiter,
 } from "../lib/infra/rate-limiter.js";
+import { secretsMatch } from "../lib/infra/secret-compare.js";
 import { hashApiToken, looksLikeApiAccessToken } from "../services/api-access-token.js";
 import { SESSION_COOKIE_NAME, SessionKind } from "../services/developer-auth.js";
 
@@ -180,7 +181,7 @@ async function authPlugin(app: FastifyInstance) {
     }
 
     const apiKey = request.headers["x-api-key"];
-    if (apiKey !== internalApiKey) {
+    if (!secretsMatch(apiKey, internalApiKey)) {
       return reply.status(401).send({ error: "UNAUTHORIZED", message: "Invalid or missing API key." });
     }
   });
@@ -216,7 +217,7 @@ async function authPlugin(app: FastifyInstance) {
   app.decorate("authenticatePublic", async (request: FastifyRequest, reply: FastifyReply) => {
     // Check X-API-Key first (internal)
     const apiKey = request.headers["x-api-key"];
-    if (apiKey && internalApiKey && apiKey === internalApiKey) {
+    if (secretsMatch(apiKey, internalApiKey)) {
       return;
     }
 
