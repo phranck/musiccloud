@@ -21,7 +21,7 @@
 import type { Pool } from "pg";
 import { log } from "../../lib/infra/logger.js";
 import { normalizeReleaseDate } from "../../lib/release-date.js";
-import { generateShortId, generateTrackId } from "../../lib/short-id.js";
+import { generateTrackId } from "../../lib/short-id.js";
 import type { NormalizedTrack, TrackSource } from "../../services/types.js";
 import type {
   ArtistCredit,
@@ -40,6 +40,7 @@ import {
   safeParseArtistCredits,
   TRACK_ARTIST_FIELDS_SELECT,
 } from "./postgres-shared.js";
+import { mintShortUrl } from "./short-url.js";
 
 // ============================================================================
 // ROW TYPES
@@ -420,7 +421,6 @@ export async function persistTrackWithLinks(
     }
 
     const trackId = existingTrackId ?? generateTrackId();
-    const shortId = existingShortId ?? generateShortId();
 
     if (existingTrackId) {
       await client.query(
@@ -495,13 +495,7 @@ export async function persistTrackWithLinks(
       );
     }
 
-    if (!existingShortId) {
-      await client.query(
-        `INSERT INTO short_urls (id, track_id, created_at) VALUES ($1, $2, $3)
-         ON CONFLICT DO NOTHING`,
-        [shortId, trackId, now],
-      );
-    }
+    const shortId = existingShortId ?? (await mintShortUrl(client, "short_urls", trackId, now));
 
     await client.query("COMMIT");
     return { trackId, shortId, artistCredits };
