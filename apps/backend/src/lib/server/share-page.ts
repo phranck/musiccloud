@@ -4,6 +4,7 @@ import type { ArtistCredit } from "../../db/repository.js";
 import { deezerAdapter } from "../../services/plugins/deezer/adapter.js";
 import { rewriteAppleMusicUrlForStorefront } from "../platform/apple-music-storefront.js";
 import { isExpiredDeezerPreviewUrl } from "../preview-url.js";
+import { getPublicOrigin } from "../public-origin.js";
 import { generateAlbumOGMeta, generateOGMeta, type OGMeta } from "./og.js";
 
 export interface SharePageData {
@@ -202,7 +203,7 @@ export async function loadArtistByShortId(
   const links = rewriteLinksForAppleMusicStorefront(data.links, appleMusicStorefront);
   const availablePlatforms: ServiceId[] = links.map((l) => l.service).filter(isValidServiceId);
 
-  const baseUrl = origin ?? "https://musiccloud.io";
+  const baseUrl = origin ?? getPublicOrigin();
   const og: OGMeta = {
     pageTitle: `${data.artist.name} - musiccloud`,
     ogTitle: `${data.artist.name} - musiccloud`,

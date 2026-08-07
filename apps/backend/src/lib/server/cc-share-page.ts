@@ -18,6 +18,7 @@
  * temporarily force a fresh Discogs vinyl-layout lookup; failures remain
  * non-fatal and fall back to the prior persisted layout.
  */
+
 import type {
   CcAlbumSharePageResponse,
   CcArtistSharePageResponse,
@@ -34,9 +35,8 @@ import {
   toApiCcTrack,
 } from "../../services/cc/cc-share-response.js";
 import { refreshAlbumVinylLayout } from "../../services/track-vinyl-layout.js";
+import { getPublicOrigin } from "../public-origin.js";
 import { generateAlbumOGMeta, generateOGMeta, type OGMeta } from "./og.js";
-
-const DEFAULT_ORIGIN = "https://musiccloud.io";
 
 /** Any CC variant of the share-page response. */
 type CcSharePageResponse = CcTrackSharePageResponse | CcAlbumSharePageResponse | CcArtistSharePageResponse;
@@ -70,7 +70,7 @@ export async function loadCcByShortId(shortId: string, origin?: string): Promise
   const lookup = await repo.findCcShortId(shortId);
   if (!lookup) return null;
 
-  const shortUrl = `${origin ?? DEFAULT_ORIGIN}/${shortId}`;
+  const shortUrl = `${origin ?? getPublicOrigin()}/${shortId}`;
 
   switch (lookup.kind) {
     case "cc-track": {
@@ -133,7 +133,7 @@ export async function loadCcByShortId(shortId: string, origin?: string): Promise
       const og: OgMeta = {
         title: `${artist.name} - musiccloud`,
         description: `Listen to ${artist.name} on musiccloud`,
-        image: artist.imageUrl ?? `${origin ?? DEFAULT_ORIGIN}/og/default.jpg`,
+        image: artist.imageUrl ?? `${origin ?? getPublicOrigin()}/og/default.jpg`,
         url: shortUrl,
       };
       return { type: "cc-artist", og, shortUrl, artist: apiArtist, artistInfo };
