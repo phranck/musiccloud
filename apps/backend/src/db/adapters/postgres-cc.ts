@@ -6,7 +6,7 @@
  */
 
 import type { Pool, PoolClient } from "pg";
-import { generateShortId, generateTrackId } from "../../lib/short-id.js";
+import { generateTrackId } from "../../lib/short-id.js";
 import type {
   CcAlbumShareRow,
   CcArtistShareRow,
@@ -16,37 +16,7 @@ import type {
   PersistCcArtistData,
   PersistCcTrackData,
 } from "../repository.js";
-
-/**
- * Eagerly mints (or reuses) the canonical short code for a CC entity. Idempotent:
- * the `INSERT … ON CONFLICT (<fkColumn>) DO NOTHING` keeps any existing code, then
- * the code is read back so it never changes across re-resolves.
- *
- * `table` and `fkColumn` are trusted internal identifiers (never user input), so
- * interpolating them into the SQL is safe.
- *
- * @param client - Active transaction client.
- * @param table - Short-url table, e.g. `"cc_album_short_urls"`.
- * @param fkColumn - Entity FK column, e.g. `"cc_album_id"`.
- * @param entityId - Internal id of the owning entity.
- * @param now - Shared transaction timestamp.
- * @returns The stable short code.
- */
-async function mintCcShortUrl(
-  client: PoolClient,
-  table: string,
-  fkColumn: string,
-  entityId: string,
-  now: Date,
-): Promise<string> {
-  await client.query(
-    `INSERT INTO ${table} (id, ${fkColumn}, created_at) VALUES ($1, $2, $3)
-     ON CONFLICT (${fkColumn}) DO NOTHING`,
-    [generateShortId(), entityId, now],
-  );
-  const result = await client.query(`SELECT id FROM ${table} WHERE ${fkColumn} = $1`, [entityId]);
-  return result.rows[0].id as string;
-}
+import { mintShortUrl } from "./short-url.js";
 
 /**
  * Upserts a CC artist by its Jamendo id and returns the internal id.
@@ -268,7 +238,7 @@ export async function persistCcTrack(
 
     const ccTrackId = await upsertCcTrackRow(client, data, ccArtistId, ccAlbumId, now);
 
-    const shortId = await mintCcShortUrl(client, "cc_short_urls", "cc_track_id", ccTrackId, now);
+    const shortId = await mintShortUrl(client, "cc_short_urls", ccTrackId, now);
 
     await client.query("COMMIT");
     return { ccTrackId, shortId };
@@ -323,7 +293,7 @@ export async function persistCcAlbum(
       await upsertCcTrackRow(client, track, ccArtistId, ccAlbumId, now);
     }
 
-    const shortId = await mintCcShortUrl(client, "cc_album_short_urls", "cc_album_id", ccAlbumId, now);
+    const shortId = await mintShortUrl(client, "cc_album_short_urls", ccAlbumId, now);
 
     await client.query("COMMIT");
     return { ccAlbumId, shortId };
@@ -374,7 +344,7 @@ export async function persistCcArtist(
       await upsertCcTrackRow(client, track, ccArtistId, null, now);
     }
 
-    const shortId = await mintCcShortUrl(client, "cc_artist_short_urls", "cc_artist_id", ccArtistId, now);
+    const shortId = await mintShortUrl(client, "cc_artist_short_urls", ccArtistId, now);
 
     await client.query("COMMIT");
     return { ccArtistId, shortId };

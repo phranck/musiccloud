@@ -77,8 +77,26 @@ async function streamSse<TEvent extends TypedEvent<string, object>>(
   unsubscribe();
 }
 
+/**
+ * Requests per minute per IP allowed on the SSE stream.
+ *
+ * Above the global ceiling rather than exempt from it. One dashboard tab opens
+ * one connection and holds it, but `EventSource` reconnects on its own after
+ * any network interruption, and an admin with several tabs on a flaky link can
+ * produce a burst that a stricter figure would cut off mid-session.
+ *
+ * A ceiling still applies, because the previous arrangement exempted the path
+ * in the global limiter's allow-list, which is evaluated before authentication
+ * and therefore exempted unauthenticated callers too.
+ */
+const SSE_REQUESTS_PER_MINUTE = 120;
+
 export default async function adminSseRoutes(app: FastifyInstance) {
-  app.get(ENDPOINTS.admin.events, async (request, reply) => {
-    await streamSse(request, reply, adminEventBroadcaster);
-  });
+  app.get(
+    ENDPOINTS.admin.events,
+    { config: { rateLimit: { max: SSE_REQUESTS_PER_MINUTE, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      await streamSse(request, reply, adminEventBroadcaster);
+    },
+  );
 }

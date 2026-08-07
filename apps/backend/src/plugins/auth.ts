@@ -35,10 +35,12 @@
  *
  * ## Environment
  *
- * - `INTERNAL_API_KEY` — shared secret between the frontend proxy and
- *   backend. If unset, `authenticateInternal` logs a warning and lets
- *   requests through (developer ergonomics). In production this variable
- *   **must** be set; otherwise the BFF boundary is effectively open.
+ * - `INTERNAL_API_KEY` is the shared secret between the frontend proxy and the
+ *   backend. In production it is required: `assertRequiredBootEnv` fails the
+ *   boot when it is missing, and `authenticateInternal` rejects rather than
+ *   passing through should the process reach that state anyway. Outside
+ *   production an unset key lets requests through with a warning, because there
+ *   is nothing to protect locally and demanding it would only add friction.
  */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import fp from "fastify-plugin";
@@ -143,17 +145,38 @@ async function authPlugin(app: FastifyInstance) {
    * attaches `X-API-Key: <INTERNAL_API_KEY>`, and this handler rejects any
    * request whose header does not match the configured secret.
    *
-   * **Fallback when `INTERNAL_API_KEY` is unset:** the handler emits a warn
-   * log and lets the request through. This keeps local development frictionless
-   * but means production deployments **must** set the variable — otherwise the
-   * internal boundary is not enforced.
+   * **When `INTERNAL_API_KEY` is unset** the behaviour depends on the
+   * environment. Outside production the handler emits a warn log and lets the
+   * request through, which keeps local development frictionless. In production
+   * it logs an error and rejects, so a misconfiguration cannot silently open
+   * the boundary. That branch is unreachable in a healthy deployment, because
+   * `assertRequiredBootEnv` refuses to start without the key.
    *
    * @param request - incoming Fastify request; `x-api-key` header is read
-   * @param reply   - responds with `401 UNAUTHORIZED` on key mismatch
+   * @param reply   - responds with `401 UNAUTHORIZED` on key mismatch, and on a
+   *   missing key in production
    */
   app.decorate("authenticateInternal", async (request: FastifyRequest, reply: FastifyReply) => {
     if (!internalApiKey) {
-      app.log.warn("INTERNAL_API_KEY not set, skipping auth check");
+      // `assertRequiredBootEnv` refuses to start a production process without
+      // the key, so reaching this branch there would mean the boot check was
+      // circumvented. The boundary closes rather than trusting that it was not.
+      if (process.env.NODE_ENV === "production") {
+        app.log.error(
+          {
+            component: "InternalAuth",
+            errorCode: "MC-SYS-0001",
+            operation: "authenticateInternal",
+            outcome: "rejected_unconfigured",
+            route: request.routeOptions.url ?? request.url.split("?")[0] ?? "unknown",
+            requestId: request.id,
+          },
+          "INTERNAL_API_KEY is not set in production; refusing the request",
+        );
+        return reply.status(401).send({ error: "UNAUTHORIZED", message: "Invalid or missing API key." });
+      }
+
+      app.log.warn("INTERNAL_API_KEY not set, skipping auth check (development only)");
       return;
     }
 

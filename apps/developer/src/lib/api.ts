@@ -8,14 +8,17 @@
  *
  * ## Auth note for `/api/dev/*`
  *
- * The developer auth + GitHub OAuth routes are registered at the backend's
- * **root scope with no auth preHandler** (`apps/backend/src/server.ts`: the
- * `devAuthRoutes` / `devGitHubRoutes` registrations are commented "no auth
- * required"). The session is the httpOnly `mc_dev_session` cookie, not the
- * internal key. The BFF still attaches `X-API-Key` because it is harmless on a
- * public route and keeps the proxy uniform with the main frontend, should the
- * backend ever tighten `/api/dev/*` behind `authenticateInternal`, the proxy
- * already satisfies it.
+ * The backend splits this namespace. `devAuthRoutes` and `devGitHubRoutes` are
+ * registered at the root scope with no auth preHandler, whilst the API-access
+ * routes sit inside `devProtectedRoutes` behind `authenticateDeveloper`. In
+ * both cases the credential that decides the request is the httpOnly
+ * `mc_dev_session` cookie, not the internal key.
+ *
+ * The BFF attaches `X-API-Key` anyway, so the proxy stays uniform with the main
+ * frontend and keeps working if `/api/dev/*` is ever put behind
+ * `authenticateInternal`. Because that key is full authentication on the routes
+ * behind `authenticatePublic`, the proxy confines its target to `/api/dev/`
+ * before attaching it.
  */
 
 /**
