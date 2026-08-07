@@ -530,6 +530,13 @@ jobs:
       STATUS_TOKEN: ${{ secrets.STATUS_DISPATCH_TOKEN }}
     steps:
       - uses: actions/checkout@v5
+      - name: Add security.txt
+        uses: phranck/security-txt-action@v1
+        with:
+          host: api.musiccloud.io
+          output: apps/backend/public/.well-known
+          signing-key: ${{ secrets.SECURITY_TXT_SIGNING_KEY }}
+          signing-passphrase: ${{ secrets.SECURITY_TXT_SIGNING_PASSPHRASE }}
       - name: Announce deploy start
         if: env.STATUS_TOKEN != ''
         # A status-page banner is a convenience, a deploy is not. Without this
@@ -576,6 +583,13 @@ jobs:
       STATUS_TOKEN: ${{ secrets.STATUS_DISPATCH_TOKEN }}
     steps:
       - uses: actions/checkout@v5
+      - name: Add security.txt
+        uses: phranck/security-txt-action@v1
+        with:
+          host: musiccloud.io
+          output: apps/frontend/public/.well-known
+          signing-key: ${{ secrets.SECURITY_TXT_SIGNING_KEY }}
+          signing-passphrase: ${{ secrets.SECURITY_TXT_SIGNING_PASSPHRASE }}
       - name: Announce deploy start
         if: env.STATUS_TOKEN != ''
         # A status-page banner is a convenience, a deploy is not. Without this
@@ -618,6 +632,13 @@ jobs:
       STATUS_TOKEN: ${{ secrets.STATUS_DISPATCH_TOKEN }}
     steps:
       - uses: actions/checkout@v5
+      - name: Add security.txt
+        uses: phranck/security-txt-action@v1
+        with:
+          host: developer.musiccloud.io
+          output: apps/developer/public/.well-known
+          signing-key: ${{ secrets.SECURITY_TXT_SIGNING_KEY }}
+          signing-passphrase: ${{ secrets.SECURITY_TXT_SIGNING_PASSPHRASE }}
       - name: Announce deploy start
         if: env.STATUS_TOKEN != ''
         # A status-page banner is a convenience, a deploy is not. Without this
@@ -667,6 +688,13 @@ jobs:
       STATUS_TOKEN: ${{ secrets.STATUS_DISPATCH_TOKEN }}
     steps:
       - uses: actions/checkout@v5
+      - name: Add security.txt
+        uses: phranck/security-txt-action@v1
+        with:
+          host: dashboard.musiccloud.io
+          output: apps/dashboard/public/.well-known
+          signing-key: ${{ secrets.SECURITY_TXT_SIGNING_KEY }}
+          signing-passphrase: ${{ secrets.SECURITY_TXT_SIGNING_PASSPHRASE }}
       - name: Announce deploy start
         if: env.STATUS_TOKEN != ''
         # A status-page banner is a convenience, a deploy is not. Without this

@@ -3,6 +3,11 @@ server {
     root {{.DocumentRoot}};
     index index.html;
 
+    # RFC 9116 section 3 requires /.well-known/security.txt to be served as
+    # text/plain with the charset parameter set to utf-8. Nginx omits the
+    # parameter unless asked, and this applies to every text type it serves.
+    charset utf-8;
+
     # `backend` below is resolved once, when nginx loads this file, and the
     # result is kept for the life of the process. If the backend container is
     # replaced afterwards, every proxied request here fails with 502 or a
