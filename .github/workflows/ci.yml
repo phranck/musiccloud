@@ -522,13 +522,19 @@ jobs:
     # Auto-announces the deploy on status.musiccloud.io (MC-062): a repository_dispatch
     # opens a maintenance banner before the push and closes it after. Guarded by
     # env.STATUS_TOKEN so it stays inert if the STATUS_DISPATCH_TOKEN secret
-    # (fine-grained PAT with contents:write on the status repo) is absent.
+    # (fine-grained PAT with contents:write on the status repo) is absent, and by
+    # continue-on-error on the two steps so a token that is present but rejected
+    # cannot hold up the deploy either. The banner is a convenience; the deploy
+    # is not.
     env:
       STATUS_TOKEN: ${{ secrets.STATUS_DISPATCH_TOKEN }}
     steps:
       - uses: actions/checkout@v5
       - name: Announce deploy start
         if: env.STATUS_TOKEN != ''
+        # A status-page banner is a convenience, a deploy is not. Without this
+        # a rejected token stops the job before Zerops is ever contacted.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ env.STATUS_TOKEN }}
         run: |
@@ -551,6 +557,9 @@ jobs:
           curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 3 https://api.musiccloud.io/health/backend
       - name: Announce deploy end
         if: always() && env.STATUS_TOKEN != ''
+        # A status-page banner is a convenience, a deploy is not. Without this
+        # a rejected token stops the job before Zerops is ever contacted.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ env.STATUS_TOKEN }}
         run: |
@@ -569,6 +578,9 @@ jobs:
       - uses: actions/checkout@v5
       - name: Announce deploy start
         if: env.STATUS_TOKEN != ''
+        # A status-page banner is a convenience, a deploy is not. Without this
+        # a rejected token stops the job before Zerops is ever contacted.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ env.STATUS_TOKEN }}
         run: |
@@ -587,6 +599,9 @@ jobs:
           ./scripts/zerops-deploy.sh bMY4g66BRDOfq1AAi8Q85A
       - name: Announce deploy end
         if: always() && env.STATUS_TOKEN != ''
+        # A status-page banner is a convenience, a deploy is not. Without this
+        # a rejected token stops the job before Zerops is ever contacted.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ env.STATUS_TOKEN }}
         run: |
@@ -605,6 +620,9 @@ jobs:
       - uses: actions/checkout@v5
       - name: Announce deploy start
         if: env.STATUS_TOKEN != ''
+        # A status-page banner is a convenience, a deploy is not. Without this
+        # a rejected token stops the job before Zerops is ever contacted.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ env.STATUS_TOKEN }}
         run: |
@@ -623,6 +641,9 @@ jobs:
           ./scripts/zerops-deploy.sh snJHAWsxR32xetGASY33cQ
       - name: Announce deploy end
         if: always() && env.STATUS_TOKEN != ''
+        # A status-page banner is a convenience, a deploy is not. Without this
+        # a rejected token stops the job before Zerops is ever contacted.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ env.STATUS_TOKEN }}
         run: |
@@ -641,6 +662,9 @@ jobs:
       - uses: actions/checkout@v5
       - name: Announce deploy start
         if: env.STATUS_TOKEN != ''
+        # A status-page banner is a convenience, a deploy is not. Without this
+        # a rejected token stops the job before Zerops is ever contacted.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ env.STATUS_TOKEN }}
         run: |
@@ -659,6 +683,9 @@ jobs:
           ./scripts/zerops-deploy.sh IF9Xp4YFRxuQKRQxmAWFBA
       - name: Announce deploy end
         if: always() && env.STATUS_TOKEN != ''
+        # A status-page banner is a convenience, a deploy is not. Without this
+        # a rejected token stops the job before Zerops is ever contacted.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ env.STATUS_TOKEN }}
         run: |
