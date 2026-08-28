@@ -12,19 +12,18 @@ import {
   MagnifyingGlass as MagnifyingGlassIcon,
   PencilSimple as PencilSimpleIcon,
   PencilSimpleSlash as PencilSimpleSlashIcon,
-  SpinnerGap as SpinnerGapIcon,
   Trash as TrashIcon,
   XCircle as XCircleIcon,
 } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
-import { ContentLoadingView } from "@/components/ui/ContentLoadingView";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
+import type { ColumnDef } from "@/components/ui/DataTable";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
-import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { dashboardCopy } from "@/copy/dashboard";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
+import { InfiniteAdminTable } from "@/features/music/InfiniteAdminTable";
 import { formatEnglishDate } from "@/lib/format";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { Dialog } from "@/shared/ui/Dialog";
@@ -280,49 +279,16 @@ export function AlbumsPage() {
       <PageHeader title={ma.title}>{searchField}</PageHeader>
 
       <PageBody>
-        {table.isInitialLoading && <ContentLoadingView className="flex-1 min-h-0" />}
-
-        {table.isError && <p className="text-sm text-[var(--ds-danger-text)] p-4">{table.errorMessage}</p>}
-
-        {!table.isInitialLoading && !table.isError && table.items.length === 0 && (
-          <ContentUnavailableView
-            icon={<DiscIcon weight="duotone" aria-hidden />}
-            title={ma.noAlbums}
-            subtitle={table.searchInput ? ma.searchPlaceholder : undefined}
-            className="flex-1 min-h-0"
-          />
-        )}
-
-        {!table.isInitialLoading && !table.isError && table.items.length > 0 && (
-          <div
-            ref={table.scrollContainerRef}
-            className={`-mx-3 -mt-3 min-h-0 flex-1 transition-opacity duration-200 ${
-              table.isRefreshing ? "opacity-50" : "opacity-100"
-            }`}
-          >
-            <DataTable
-              columns={columns}
-              data={table.items}
-              getRowKey={(a) => a.id}
-              getRowClassName={(a) =>
-                [
-                  table.selectedIds.has(a.id) ? "bg-[var(--ds-accent-subtle)]" : "",
-                  table.deletingIds.has(a.id) ? "opacity-0 transition-opacity duration-300" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")
-              }
-              stickyHeader
-              defaultSort={{ id: "createdAt", dir: "desc" }}
+        <InfiniteAdminTable table={table} columns={columns} defaultSort={{ id: "createdAt", dir: "desc" }}>
+          <InfiniteAdminTable.Empty>
+            <ContentUnavailableView
+              icon={<DiscIcon weight="duotone" aria-hidden />}
+              title={ma.noAlbums}
+              subtitle={table.searchInput ? ma.searchPlaceholder : undefined}
+              className="flex-1 min-h-0"
             />
-            <div ref={table.sentinelRef} className="h-px" />
-            {table.isLoadingMore && (
-              <div className="flex justify-center py-4">
-                <SpinnerGapIcon className="w-5 h-5 animate-spin text-[var(--ds-text-muted)]" />
-              </div>
-            )}
-          </div>
-        )}
+          </InfiniteAdminTable.Empty>
+        </InfiniteAdminTable>
       </PageBody>
 
       {toolbarContent}
