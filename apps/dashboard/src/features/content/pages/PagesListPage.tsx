@@ -22,12 +22,12 @@ import { FileDashedIcon, FileIcon, FileMdIcon, PencilLineIcon, PlusCircleIcon, T
 import { useCallback, useMemo, useReducer } from "react";
 import { useNavigate } from "react-router";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
+import type { ColumnDef, DataTableRowProps } from "@/components/ui/DataTable";
+import { DataTable } from "@/components/ui/DataTable";
 import { Dialog, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
-import type { ColumnDef, DataTableRowProps } from "@/components/ui/Table";
-import { DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { dashboardCopy } from "@/copy/dashboard";
 import { groupPagesByHierarchy } from "@/features/content/hierarchy";
@@ -149,9 +149,13 @@ function HierarchicalPagesTable({ columns, pages, sortable = false }: Hierarchic
       columns={columns}
       data={pages}
       getRowKey={(page) => page.slug}
-      stickyHeader
       RowComponent={sortable ? SortableHierarchicalRow : undefined}
-    />
+    >
+      <DataTable.Viewport>
+        <DataTable.Head sticky />
+        <DataTable.Rows />
+      </DataTable.Viewport>
+    </DataTable>
   );
 }
 

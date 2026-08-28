@@ -147,7 +147,6 @@ export function useInfiniteAdminTable<T extends { id: string }>(options: UseInfi
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
 
@@ -347,6 +346,8 @@ export function useInfiniteAdminTable<T extends { id: string }>(options: UseInfi
     refreshSilently,
 
     sentinelRef,
-    scrollContainerRef,
   };
 }
+
+/** What {@link useInfiniteAdminTable} hands back to the page that renders the list. */
+export type InfiniteAdminTable<T extends { id: string }> = ReturnType<typeof useInfiniteAdminTable<T>>;

@@ -46,6 +46,35 @@ describe("assertRequiredBootEnv (MC-110)", () => {
     expect(() => assertRequiredBootEnv()).toThrow("Creem config invalid");
   });
 
+  it("refuses to boot a production process without INTERNAL_API_KEY", async () => {
+    // Without the key the internal service-to-service boundary would be open,
+    // so the process must not reach a serving state at all.
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("INTERNAL_API_KEY", "");
+
+    const { assertRequiredBootEnv } = await import("./boot-env.js");
+
+    expect(() => assertRequiredBootEnv()).toThrow(/INTERNAL_API_KEY/);
+  });
+
+  it("boots a production process once INTERNAL_API_KEY is set", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("INTERNAL_API_KEY", "configured-key");
+
+    const { assertRequiredBootEnv } = await import("./boot-env.js");
+
+    expect(() => assertRequiredBootEnv()).not.toThrow();
+  });
+
+  it("does not require INTERNAL_API_KEY outside production", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("INTERNAL_API_KEY", "");
+
+    const { assertRequiredBootEnv } = await import("./boot-env.js");
+
+    expect(() => assertRequiredBootEnv()).not.toThrow();
+  });
+
   it("does NOT call getCreemConfig when CREEM_API_KEY is absent", async () => {
     // Ensure CREEM_API_KEY is not set.
     vi.unstubAllEnvs();

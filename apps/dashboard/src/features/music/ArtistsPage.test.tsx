@@ -12,26 +12,6 @@ vi.mock("@/features/music/hooks/useInfiniteAdminTable", () => ({
   useInfiniteAdminTable: mocks.useInfiniteAdminTable,
 }));
 
-vi.mock("@/components/ui/Table", () => ({
-  DataTable: ({
-    columns,
-    data,
-  }: {
-    columns: Array<{ id: string; cell: (row: unknown) => unknown }>;
-    data: Array<{ id: string }>;
-  }) => (
-    <div data-testid="artist-table">
-      {data.map((row) => (
-        <div key={row.id}>
-          {columns.map((column) => (
-            <div key={column.id}>{column.cell(row) as never}</div>
-          ))}
-        </div>
-      ))}
-    </div>
-  ),
-}));
-
 import { ArtistsPage } from "@/features/music/ArtistsPage";
 
 const ARTIST: AdminArtistListItem = {
@@ -78,7 +58,6 @@ function tableValue() {
     deleteSelected: vi.fn(),
     refreshSilently: vi.fn().mockResolvedValue(undefined),
     sentinelRef: { current: null },
-    scrollContainerRef: { current: null },
   };
 }
 
@@ -108,8 +87,9 @@ describe("ArtistsPage profile cache controls", () => {
 
     expect(refreshProfile.disabled).toBe(true);
     expect(reResolve.disabled).toBe(false);
-    expect(screen.getByTestId("artist-table")).not.toBeNull();
-    expect(screen.getByTestId("artist-table").parentElement?.className).toContain("opacity-100");
+    const table = document.querySelector("table");
+    expect(table).not.toBeNull();
+    expect(table?.parentElement?.className).toContain("opacity-100");
 
     resolveRefresh();
     await waitFor(() => expect(refreshProfile.disabled).toBe(false));
