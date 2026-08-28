@@ -17,9 +17,9 @@ import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
+import { type ColumnDef, DataTable } from "@/components/ui/DataTable";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
-import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { dashboardCopy } from "@/copy/dashboard";
 import { EmailTemplateImportConflictDialog } from "@/features/templates/email-templates/EmailTemplateImportConflictDialog";
@@ -221,9 +221,12 @@ export function EmailTemplateListPage() {
         )}
 
         {!isLoading && templates.length > 0 && (
-          <div className="-mx-3 -mt-3">
-            <DataTable columns={columns} data={templates} getRowKey={(tpl) => tpl.id} stickyHeader />
-          </div>
+          <DataTable columns={columns} data={templates} getRowKey={(tpl) => tpl.id}>
+            <DataTable.Viewport className="-mx-3 -mt-3">
+              <DataTable.Head sticky />
+              <DataTable.Rows />
+            </DataTable.Viewport>
+          </DataTable>
         )}
       </PageBody>
 
