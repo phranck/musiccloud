@@ -10,12 +10,33 @@ import type {
 } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-function Table({ className = "", ...props }: HTMLAttributes<HTMLTableElement>) {
-  return (
-    <div className="w-full overflow-x-auto">
-      <table className={`w-full table-fixed border-collapse text-sm ${className}`} {...props} />
-    </div>
-  );
+interface TableProps extends HTMLAttributes<HTMLTableElement> {
+  /**
+   * Whether the caller renders a sticky header. When set, the table is not
+   * wrapped in a scroll box of its own, so an enclosing scroll container owns
+   * both axes.
+   */
+  stickyHeader?: boolean;
+}
+
+/**
+ * Renders the table, optionally inside its own horizontal scroll box.
+ *
+ * A box with `overflow-x: auto` computes `overflow-y` to `auto` as well, which
+ * makes it the scroll port a sticky `<thead>` anchors to. That box grows with
+ * the table and therefore never scrolls vertically, so a header anchored to it
+ * travels with the rows instead of staying put. With `stickyHeader` the box is
+ * omitted and the surrounding scroll container carries both axes, which is what
+ * holds the header in place.
+ *
+ * @param className - Additional classes for the table element.
+ * @param stickyHeader - Whether the caller renders a sticky header.
+ */
+
+function Table({ className = "", stickyHeader = false, ...props }: TableProps) {
+  const table = <table className={`w-full table-fixed border-collapse text-sm ${className}`} {...props} />;
+  if (stickyHeader) return table;
+  return <div className="w-full overflow-x-auto">{table}</div>;
 }
 
 function TableHead({ className = "", ...props }: HTMLAttributes<HTMLTableSectionElement>) {
@@ -288,7 +309,7 @@ function DataTableContent<T>({
   );
 
   return (
-    <Table>
+    <Table stickyHeader={stickyHeader}>
       <TableHead className={stickyHeader ? "sticky top-0 z-10 shadow-[0_1px_0_var(--ds-border)]" : ""}>
         <TableRow className="hover:bg-transparent">
           {columns.map((col, index) => (

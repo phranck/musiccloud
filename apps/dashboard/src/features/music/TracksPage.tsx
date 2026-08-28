@@ -300,7 +300,7 @@ export function TracksPage() {
         {!table.isInitialLoading && !table.isError && table.items.length > 0 && (
           <div
             ref={table.scrollContainerRef}
-            className={`-mx-3 -mt-3 min-h-0 flex-1 overflow-y-auto transition-opacity duration-200 ${
+            className={`-mx-3 -mt-3 min-h-0 flex-1 transition-opacity duration-200 ${
               table.isRefreshing ? "opacity-50" : "opacity-100"
             }`}
           >
