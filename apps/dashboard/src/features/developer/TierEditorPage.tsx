@@ -14,11 +14,11 @@ import { useCallback, useMemo, useReducer } from "react";
 import { ContentLoadingView } from "@/components/ui/ContentLoadingView";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { DashboardSection } from "@/components/ui/DashboardSection";
+import { type ColumnDef, DataTable, DataTableScroll } from "@/components/ui/DataTable";
 import { Dialog, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { LabeledSwitch } from "@/components/ui/LabeledSwitch";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
-import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { TierResponse } from "@/features/developer/api";
@@ -845,15 +845,17 @@ export function TierEditorPage() {
         <DashboardSection className="overflow-hidden flex-1 min-h-0 flex flex-col">
           <DashboardSection.Header icon={<StackIcon weight="duotone" className="size-4" />} title={dm.tiersTitle} />
           <DashboardSection.Body flush>
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              <DataTable
-                columns={columns}
-                data={tierList}
-                getRowKey={(t) => t.id}
-                stickyHeader
-                defaultSort={{ id: "sortOrder", dir: "asc" }}
-              />
-            </div>
+            <DataTable
+              columns={columns}
+              data={tierList}
+              getRowKey={(t) => t.id}
+              defaultSort={{ id: "sortOrder", dir: "asc" }}
+            >
+              <DataTable.Viewport scroll={DataTableScroll.Self}>
+                <DataTable.Head sticky />
+                <DataTable.Rows />
+              </DataTable.Viewport>
+            </DataTable>
           </DashboardSection.Body>
         </DashboardSection>
       )}
