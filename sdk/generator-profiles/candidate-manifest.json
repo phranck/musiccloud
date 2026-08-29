@@ -2,8 +2,8 @@
   "$schema": "./schema/candidate-manifest.schema.json",
   "schemaVersion": 1,
   "release": {
-    "sdkVersion": "0.1.0",
-    "tag": "sdk-v0.1.0",
+    "sdkVersion": "0.1.1",
+    "tag": "sdk-v0.1.1",
     "atomic": true,
     "publish": false
   },
