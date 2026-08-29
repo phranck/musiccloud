@@ -211,16 +211,69 @@ async function backendFailureResult(response: Response): Promise<BackendFetchRes
     : { kind: "error", error, statusCode: response.status };
 }
 
+/**
+ * Plain reasons for the transport failures Node reports by a stable code.
+ *
+ * Only codes whose meaning is unambiguous appear here, because the text is
+ * shown to a visitor and a guess is worse than saying nothing. None of them
+ * discloses anything internal: they describe the shape of the failure, not the
+ * address, the port, or the certificate involved.
+ */
+const TRANSPORT_FAILURE_REASONS: Record<string, string> = {
+  ECONNREFUSED: "The service refused the connection.",
+  ECONNRESET: "The connection was closed before the response arrived.",
+  ENOTFOUND: "The service address could not be resolved.",
+  EAI_AGAIN: "The service address could not be resolved.",
+  EHOSTUNREACH: "The service could not be reached over the network.",
+  ENETUNREACH: "The service could not be reached over the network.",
+  ETIMEDOUT: "The connection timed out.",
+  EPIPE: "The connection broke while the request was in flight.",
+  CERT_HAS_EXPIRED: "The service presented an expired certificate.",
+  DEPTH_ZERO_SELF_SIGNED_CERT: "The service presented a certificate that could not be verified.",
+  UNABLE_TO_VERIFY_LEAF_SIGNATURE: "The service presented a certificate that could not be verified.",
+};
+
+/**
+ * Reads the stable failure code Node attaches to a rejected fetch.
+ *
+ * `fetch` rejects with a `TypeError: fetch failed` whose `cause` carries the
+ * underlying system error, so the reason is one level down rather than in the
+ * message.
+ */
+function transportFailureCode(error: unknown): string | undefined {
+  const cause = (error as { cause?: unknown })?.cause;
+  const code = (cause as { code?: unknown })?.code;
+  return typeof code === "string" ? code : undefined;
+}
+
 function transportFailureResult(error: unknown): BackendFetchResult<never> {
   const timedOut = error instanceof Error && error.name === "AbortError";
+  const failureCode = transportFailureCode(error);
+  const reason = failureCode ? TRANSPORT_FAILURE_REASONS[failureCode] : undefined;
   const code = timedOut ? "MC-API-0005" : "MC-SYS-0002";
+  const errorId = crypto.randomUUID();
   const message = timedOut
     ? "The backend request timed out. (MC-API-0005)"
-    : "The backend could not be reached. (MC-SYS-0002)";
+    : `The backend could not be reached.${reason ? ` ${reason}` : ""} (MC-SYS-0002)`;
+
+  // Without this the id shown to the visitor exists only on their screen, so a
+  // reported incident has nothing to look up. The cause is logged here and only
+  // its recognised shape reaches the message.
+  console.error(
+    JSON.stringify({
+      component: "BackendClient",
+      errorCode: code,
+      errorId,
+      operation: "backend_request",
+      outcome: timedOut ? "timed_out" : "transport_failed",
+      cause: failureCode ?? (error instanceof Error ? error.name : "unknown"),
+    }),
+  );
+
   return {
     kind: "error",
     statusCode: timedOut ? 504 : 503,
-    error: { error: code, errorId: crypto.randomUUID(), message },
+    error: { error: code, errorId, message },
   };
 }
 

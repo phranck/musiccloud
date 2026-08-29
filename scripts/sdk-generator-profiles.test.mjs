@@ -14,8 +14,9 @@ test("validates the checked-in five-language generator inputs", async () => {
 
   assert.deepEqual(result.languages, ["typescript", "python", "swift", "php", "go"]);
   assert.equal(result.operationCount, 13);
-  assert.equal(result.contract.version, "2.1.10");
-  assert.equal(result.contract.sha256, "1813049b6d9390fb88413b1880c35f6dcef720f9f3fce04e99ae994242214699");
+  const manifest = JSON.parse(await readFile("sdk/generator-profiles/candidate-manifest.json", "utf8"));
+  assert.equal(result.contract.version, manifest.contract.version);
+  assert.equal(result.contract.sha256, manifest.contract.sha256);
 });
 
 test("requires one selected and one isolated comparison adapter per language", async () => {

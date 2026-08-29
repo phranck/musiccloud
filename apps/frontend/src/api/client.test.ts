@@ -126,3 +126,60 @@ describe("fetchNavigation", () => {
     expect(fetchMock).toHaveBeenCalledWith("https://backend.test/api/v1/nav/header", expect.any(Object));
   });
 });
+
+describe("transport failures", () => {
+  /**
+   * Node rejects a failed fetch with `TypeError: fetch failed` and puts the
+   * system error one level down in `cause`, which is where the reason has to be
+   * read from.
+   */
+  function transportError(code: string): Error {
+    const error = new TypeError("fetch failed");
+    (error as { cause?: unknown }).cause = Object.assign(new Error(code), { code });
+    return error;
+  }
+
+  it("names a recognised cause in the message shown to the visitor", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(transportError("ECONNREFUSED")));
+    vi.stubGlobal("console", { ...console, error: vi.fn() });
+    const { fetchShareData } = await import("./client");
+
+    const result = await fetchShareData("abc");
+
+    if (result.kind === "success") throw new Error("expected a transport failure");
+    expect(result.error.message).toBe(
+      "The backend could not be reached. The service refused the connection. (MC-SYS-0002)",
+    );
+  });
+
+  it("says nothing beyond the generic message for an unrecognised cause", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(transportError("ESOMETHINGNEW")));
+    vi.stubGlobal("console", { ...console, error: vi.fn() });
+    const { fetchShareData } = await import("./client");
+
+    const result = await fetchShareData("abc");
+
+    if (result.kind === "success") throw new Error("expected a transport failure");
+    expect(result.error.message).toBe("The backend could not be reached. (MC-SYS-0002)");
+  });
+
+  /**
+   * The id on the visitor's screen is only worth quoting if it also exists in a
+   * log line, together with the cause that never reaches them.
+   */
+  it("logs the incident id together with the cause", async () => {
+    const errorLog = vi.fn();
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(transportError("ENOTFOUND")));
+    vi.stubGlobal("console", { ...console, error: errorLog });
+    const { fetchShareData } = await import("./client");
+
+    const result = await fetchShareData("abc");
+
+    if (result.kind === "success") throw new Error("expected a transport failure");
+    expect(errorLog).toHaveBeenCalledTimes(1);
+    const logged = JSON.parse(String(errorLog.mock.calls[0]?.[0]));
+    expect(logged.errorId).toBe(result.error.errorId);
+    expect(logged.cause).toBe("ENOTFOUND");
+    expect(logged.errorCode).toBe("MC-SYS-0002");
+  });
+});

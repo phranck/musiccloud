@@ -81,6 +81,24 @@ function throttleJamendo<T>(task: () => Promise<T>): Promise<T> {
 }
 
 /**
+ * Signals that Jamendo could not answer: the connection failed, it replied with
+ * a non-OK status, or its envelope reported a failure.
+ *
+ * Typed so callers can tell a third party being unavailable from this service
+ * being broken, without matching on message text. A missing client id is not
+ * one of these, because that is our own misconfiguration.
+ */
+export class JamendoUnavailableError extends Error {
+  constructor(
+    message: string,
+    readonly cause?: unknown,
+  ) {
+    super(message);
+    this.name = "JamendoUnavailableError";
+  }
+}
+
+/**
  * Low-level GET against a Jamendo endpoint. Adds `client_id`, `format=json`
  * and every provided param, then validates the response envelope. Every call
  * is funnelled through {@link throttleJamendo} so the CC path stays under
@@ -90,7 +108,9 @@ function throttleJamendo<T>(task: () => Promise<T>): Promise<T> {
  * @param path - Endpoint path below the API base, e.g. `/tracks`.
  * @param params - Query params; `undefined`/empty values are skipped.
  * @returns The parsed `results` array.
- * @throws Error on transport failure, non-OK HTTP, or `status === "failed"`.
+ * @throws {@link JamendoUnavailableError} on transport failure, non-OK HTTP,
+ *   or an envelope reporting failure. Other errors indicate our own fault, such
+ *   as a missing client id.
  */
 export async function jamendoFetch<T>(path: string, params: Record<string, string | number | undefined>): Promise<T[]> {
   return throttleJamendo(async () => {
@@ -102,13 +122,18 @@ export async function jamendoFetch<T>(path: string, params: Record<string, strin
       url.searchParams.set(key, String(value));
     }
 
-    const response = await fetch(url);
+    let response: Response;
+    try {
+      response = await fetch(url);
+    } catch (error) {
+      throw new JamendoUnavailableError("Jamendo could not be reached", error);
+    }
     if (!response.ok) {
-      throw new Error(`Jamendo request failed: HTTP ${response.status}`);
+      throw new JamendoUnavailableError(`Jamendo request failed: HTTP ${response.status}`);
     }
     const body = (await response.json()) as JamendoEnvelope<T>;
     if (body.headers.status !== "success") {
-      throw new Error(`Jamendo API error: ${body.headers.error_message ?? body.headers.code}`);
+      throw new JamendoUnavailableError(`Jamendo API error: ${body.headers.error_message ?? body.headers.code}`);
     }
     return body.results;
   });
