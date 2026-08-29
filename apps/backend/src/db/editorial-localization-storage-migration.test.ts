@@ -11,17 +11,33 @@ interface DrizzleSnapshot {
 }
 
 describe("editorial localization storage migration", () => {
-  it("drops the retired tables and admin locale from the latest Drizzle snapshot", async () => {
+  /**
+   * The SQL assertion looks for the migration that performs the drop rather
+   * than assuming it is the newest one, so an unrelated migration added later
+   * does not fail this. The snapshot assertion always reads the newest
+   * snapshot, because that is the state the schema is actually in.
+   */
+  it("drops the retired tables and admin locale, and keeps them out of the current snapshot", async () => {
     const migrationsRoot = resolve(process.cwd(), "src/db/migrations/postgres");
     const journal = JSON.parse(await readFile(resolve(migrationsRoot, "meta/_journal.json"), "utf8")) as DrizzleJournal;
     const latest = [...journal.entries].sort((left, right) => right.idx - left.idx)[0];
     expect(latest).toBeDefined();
 
-    const sql = await readFile(resolve(migrationsRoot, `${latest?.tag}.sql`), "utf8");
-    expect(sql).toContain('DROP TABLE "content_page_translations" CASCADE;');
-    expect(sql).toContain('DROP TABLE "page_segment_translations" CASCADE;');
-    expect(sql).toContain('DROP TABLE "nav_item_translations" CASCADE;');
-    expect(sql).toContain('ALTER TABLE "admin_users" DROP COLUMN "locale";');
+    const statements = [
+      'DROP TABLE "content_page_translations" CASCADE;',
+      'DROP TABLE "page_segment_translations" CASCADE;',
+      'DROP TABLE "nav_item_translations" CASCADE;',
+      'ALTER TABLE "admin_users" DROP COLUMN "locale";',
+    ];
+    const migrations = await Promise.all(
+      journal.entries.map((entry) => readFile(resolve(migrationsRoot, `${entry.tag}.sql`), "utf8")),
+    );
+    for (const statement of statements) {
+      expect(
+        migrations.some((sql) => sql.includes(statement)),
+        `no migration contains ${statement}`,
+      ).toBe(true);
+    }
 
     const snapshot = JSON.parse(
       await readFile(resolve(migrationsRoot, `meta/${String(latest?.idx).padStart(4, "0")}_snapshot.json`), "utf8"),

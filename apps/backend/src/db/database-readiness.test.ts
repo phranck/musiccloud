@@ -16,8 +16,8 @@ const expectations = {
   expectedOwner: "db",
   privileges: [
     { table: "albums", privilege: "SELECT" as const },
-    { table: "album_vinyl_layouts", privilege: "SELECT" as const },
-    { table: "album_vinyl_layouts", privilege: "INSERT" as const },
+    { table: "vinyl_layouts", privilege: "SELECT" as const },
+    { table: "vinyl_layouts", privilege: "INSERT" as const },
   ],
 };
 
@@ -33,14 +33,14 @@ describe("inspectDatabaseReadiness", () => {
             owner: "db",
             privilege: "SELECT",
             table_exists: true,
-            table_name: "album_vinyl_layouts",
+            table_name: "vinyl_layouts",
           },
           {
             allowed: true,
             owner: "db",
             privilege: "INSERT",
             table_exists: true,
-            table_name: "album_vinyl_layouts",
+            table_name: "vinyl_layouts",
           },
         ],
       })
@@ -68,14 +68,14 @@ describe("inspectDatabaseReadiness", () => {
             owner: null,
             privilege: "SELECT",
             table_exists: false,
-            table_name: "album_vinyl_layouts",
+            table_name: "vinyl_layouts",
           },
           {
             allowed: false,
             owner: null,
             privilege: "INSERT",
             table_exists: false,
-            table_name: "album_vinyl_layouts",
+            table_name: "vinyl_layouts",
           },
         ],
       })
@@ -88,7 +88,7 @@ describe("inspectDatabaseReadiness", () => {
       insufficientSequencePrivileges: [],
       missingMigrationHashes: ["latest-hash"],
       missingSequences: [],
-      missingTables: ["album_vinyl_layouts"],
+      missingTables: ["vinyl_layouts"],
       ok: false,
       ownerMismatches: [{ actualOwner: "postgres", expectedOwner: "db", table: "albums" }],
     });
@@ -106,14 +106,14 @@ describe("inspectDatabaseReadiness", () => {
             owner: "db",
             privilege: "SELECT",
             table_exists: true,
-            table_name: "album_vinyl_layouts",
+            table_name: "vinyl_layouts",
           },
           {
             allowed: false,
             owner: "db",
             privilege: "INSERT",
             table_exists: true,
-            table_name: "album_vinyl_layouts",
+            table_name: "vinyl_layouts",
           },
         ],
       })
@@ -121,8 +121,8 @@ describe("inspectDatabaseReadiness", () => {
 
     await expect(inspectDatabaseReadiness({ query }, expectations)).resolves.toMatchObject({
       insufficientPrivileges: [
-        { privilege: "SELECT", table: "album_vinyl_layouts" },
-        { privilege: "INSERT", table: "album_vinyl_layouts" },
+        { privilege: "SELECT", table: "vinyl_layouts" },
+        { privilege: "INSERT", table: "vinyl_layouts" },
       ],
       missingTables: [],
       ok: false,
@@ -169,7 +169,7 @@ describe("buildMusiccloudReadinessExpectations", () => {
 
     expect(result.expectedMigrationHashes).toEqual(["latest-hash"]);
     expect(result.expectedOwner).toBe("db");
-    for (const table of ["album_vinyl_layouts", "album_vinyl_layout_identities"]) {
+    for (const table of ["vinyl_layouts", "vinyl_layouts"]) {
       for (const privilege of ["SELECT", "INSERT", "UPDATE", "DELETE"]) {
         expect(result.privileges).toContainEqual({ table, privilege });
       }

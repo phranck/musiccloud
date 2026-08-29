@@ -1,20 +1,19 @@
 import type { VinylLayout } from "@musiccloud/shared";
 import * as pgModule from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { generateTrackId } from "../../../lib/short-id.js";
-import { readAlbumVinylLayout, upsertAlbumVinylLayout } from "../postgres-albums.js";
+import { readVinylLayout, upsertVinylLayout } from "../postgres-albums.js";
 
 /**
- * Exercises the positive, negative, and absent states of the persisted
- * Discogs vinyl-layout cache against a live Postgres database.
+ * Exercises the positive, negative, and absent states of the Discogs vinyl
+ * layout cache against a live Postgres database.
  *
- * The fixture inserts one isolated album and deletes only that album and its
- * layout row after the test.
+ * The cache is keyed by album identity and owns no album row, so the fixture
+ * inserts nothing but its own cache entries and removes exactly those.
  */
-describe.skipIf(!process.env.DATABASE_URL)("album vinyl layouts (integration)", () => {
+describe.skipIf(!process.env.DATABASE_URL)("vinyl layouts (integration)", () => {
   let pool: pgModule.Pool;
-  const albumId = generateTrackId();
-  const uncheckedAlbumId = generateTrackId();
+  const checkedIdentity = "mc-116 fixture artist::checked release";
+  const uncheckedIdentity = "mc-116 fixture artist::unchecked release";
   const layout: VinylLayout = {
     discogsReleaseId: "15815903",
     sides: [
@@ -25,29 +24,24 @@ describe.skipIf(!process.env.DATABASE_URL)("album vinyl layouts (integration)", 
     ],
   };
 
-  beforeAll(async () => {
+  beforeAll(() => {
     pool = new pgModule.Pool({ connectionString: process.env.DATABASE_URL });
-    const now = new Date();
-    await pool.query(
-      `INSERT INTO albums (id, title, created_at, updated_at)
-       VALUES ($1, $2, $3, $4)`,
-      [albumId, "MC-116 vinyl layout integration fixture", now, now],
-    );
   });
 
   afterAll(async () => {
-    await pool.query("DELETE FROM album_vinyl_layouts WHERE album_id = $1", [albumId]);
-    await pool.query("DELETE FROM albums WHERE id = $1", [albumId]);
+    await pool.query("DELETE FROM vinyl_layouts WHERE identity_key = ANY($1::text[])", [
+      [checkedIdentity, uncheckedIdentity],
+    ]);
     await pool.end();
   });
 
-  it("round-trips layouts, replaces them with a negative cache, and distinguishes an absent row", async () => {
-    await upsertAlbumVinylLayout(pool, albumId, layout);
-    await expect(readAlbumVinylLayout(pool, albumId)).resolves.toEqual(layout);
+  it("round-trips a positive layout, a negative cache, and an unchecked identity", async () => {
+    await upsertVinylLayout(pool, checkedIdentity, layout);
+    await expect(readVinylLayout(pool, checkedIdentity)).resolves.toEqual(layout);
 
-    await upsertAlbumVinylLayout(pool, albumId, null);
-    await expect(readAlbumVinylLayout(pool, albumId)).resolves.toBeNull();
+    await upsertVinylLayout(pool, checkedIdentity, null);
+    await expect(readVinylLayout(pool, checkedIdentity)).resolves.toBeNull();
 
-    await expect(readAlbumVinylLayout(pool, uncheckedAlbumId)).resolves.toBeUndefined();
+    await expect(readVinylLayout(pool, uncheckedIdentity)).resolves.toBeUndefined();
   });
 });

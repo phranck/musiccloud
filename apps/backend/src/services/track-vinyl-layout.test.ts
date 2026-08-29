@@ -14,45 +14,52 @@ const layout: VinylLayout = {
 
 function createRepository() {
   return {
-    findAlbumByVinylLayoutIdentity: vi.fn(),
-    ensureAlbumVinylLayoutIdentity: vi.fn(),
-    createAlbumVinylLayoutPlaceholder: vi.fn(),
-    deleteAlbumVinylLayoutPlaceholder: vi.fn(),
-    enrichAlbumVinylLayout: vi.fn(),
-    readAlbumVinylLayout: vi.fn(),
+    readVinylLayout: vi.fn(),
+    enrichVinylLayout: vi.fn(),
   };
 }
 
 describe("resolveTrackVinylLayout", () => {
-  it("returns an existing identity cache without a Discogs request", async () => {
+  it("returns a cached layout without a Discogs request", async () => {
     const repo = createRepository();
-    repo.findAlbumByVinylLayoutIdentity.mockResolvedValue({ albumId: "album-1" });
-    repo.readAlbumVinylLayout.mockResolvedValue(layout);
+    repo.readVinylLayout.mockResolvedValue(layout);
 
     await expect(
       resolveTrackVinylLayout(repo, { artists: ["Jimmy Smith"], albumName: "The Sermon!" }),
     ).resolves.toEqual(layout);
 
-    expect(repo.enrichAlbumVinylLayout).not.toHaveBeenCalled();
-    expect(repo.createAlbumVinylLayoutPlaceholder).not.toHaveBeenCalled();
+    expect(repo.enrichVinylLayout).not.toHaveBeenCalled();
   });
 
-  it("claims the artist-qualified album identity before enriching a cache miss", async () => {
+  /**
+   * A stored `null` means Discogs was already asked and holds no vinyl
+   * pressing. Asking again on every resolve is what the negative cache exists
+   * to prevent.
+   */
+  it("respects a negative cache instead of asking Discogs again", async () => {
     const repo = createRepository();
-    repo.findAlbumByVinylLayoutIdentity.mockResolvedValue(null);
-    repo.createAlbumVinylLayoutPlaceholder.mockResolvedValue("album-1");
-    repo.ensureAlbumVinylLayoutIdentity.mockResolvedValue("album-1");
-    repo.readAlbumVinylLayout.mockResolvedValueOnce(undefined).mockResolvedValueOnce(layout);
+    repo.readVinylLayout.mockResolvedValue(null);
+
+    await expect(
+      resolveTrackVinylLayout(repo, { artists: ["Jimmy Smith"], albumName: "The Sermon!" }),
+    ).resolves.toBeNull();
+
+    expect(repo.enrichVinylLayout).not.toHaveBeenCalled();
+  });
+
+  it("enriches an identity that has never been checked", async () => {
+    const repo = createRepository();
+    repo.readVinylLayout.mockResolvedValueOnce(undefined).mockResolvedValueOnce(layout);
 
     await expect(
       resolveTrackVinylLayout(repo, { artists: ["Jimmy Smith"], albumName: "The Sermon!" }),
     ).resolves.toEqual(layout);
 
-    expect(repo.createAlbumVinylLayoutPlaceholder).toHaveBeenCalledWith("The Sermon!");
-    expect(repo.enrichAlbumVinylLayout).toHaveBeenCalledWith({
-      id: "album-1",
+    expect(repo.enrichVinylLayout).toHaveBeenCalledWith({
+      identityKey: "jimmy smith::the sermon",
       title: "The Sermon!",
       artists: ["Jimmy Smith"],
+      albumId: undefined,
     });
   });
 
@@ -61,71 +68,83 @@ describe("resolveTrackVinylLayout", () => {
 
     await expect(resolveTrackVinylLayout(repo, { artists: [], albumName: "The Sermon!" })).resolves.toBeNull();
 
-    expect(repo.findAlbumByVinylLayoutIdentity).not.toHaveBeenCalled();
-    expect(repo.createAlbumVinylLayoutPlaceholder).not.toHaveBeenCalled();
+    expect(repo.readVinylLayout).not.toHaveBeenCalled();
+    expect(repo.enrichVinylLayout).not.toHaveBeenCalled();
   });
 
-  it("removes a concurrently losing placeholder after another resolve claims the identity", async () => {
+  it("returns null when the track carries no album name", async () => {
     const repo = createRepository();
-    repo.findAlbumByVinylLayoutIdentity.mockResolvedValue(null);
-    repo.createAlbumVinylLayoutPlaceholder.mockResolvedValue("losing-placeholder");
-    repo.ensureAlbumVinylLayoutIdentity.mockResolvedValue("winning-placeholder");
-    repo.readAlbumVinylLayout.mockResolvedValue(layout);
 
-    await expect(
-      resolveTrackVinylLayout(repo, { artists: ["Jimmy Smith"], albumName: "The Sermon!" }),
-    ).resolves.toEqual(layout);
+    await expect(resolveTrackVinylLayout(repo, { artists: ["Jimmy Smith"] })).resolves.toBeNull();
 
-    expect(repo.deleteAlbumVinylLayoutPlaceholder).toHaveBeenCalledWith("losing-placeholder");
-    expect(repo.enrichAlbumVinylLayout).not.toHaveBeenCalled();
+    expect(repo.readVinylLayout).not.toHaveBeenCalled();
   });
 
-  it("removes an unclaimed placeholder when the identity claim fails", async () => {
+  it("keeps a failure non-fatal for the resolve", async () => {
     const repo = createRepository();
-    repo.findAlbumByVinylLayoutIdentity.mockResolvedValue(null);
-    repo.createAlbumVinylLayoutPlaceholder.mockResolvedValue("unclaimed-placeholder");
-    repo.ensureAlbumVinylLayoutIdentity.mockRejectedValue(new Error("database unavailable"));
+    repo.readVinylLayout.mockRejectedValue(new Error("database unavailable"));
 
     await expect(
       resolveTrackVinylLayout(repo, { artists: ["Jimmy Smith"], albumName: "The Sermon!" }),
     ).resolves.toBeNull();
-
-    expect(repo.deleteAlbumVinylLayoutPlaceholder).toHaveBeenCalledWith("unclaimed-placeholder");
   });
 });
 
 describe("resolveAlbumVinylLayout", () => {
-  it("shares the artist-qualified cache and enrichment flow with track resolves", async () => {
+  it("shares the identity cache and enrichment flow with track resolves", async () => {
     const repo = createRepository();
-    repo.findAlbumByVinylLayoutIdentity.mockResolvedValue(null);
-    repo.createAlbumVinylLayoutPlaceholder.mockResolvedValue("album-1");
-    repo.ensureAlbumVinylLayoutIdentity.mockResolvedValue("album-1");
-    repo.readAlbumVinylLayout.mockResolvedValueOnce(undefined).mockResolvedValueOnce(layout);
+    repo.readVinylLayout.mockResolvedValueOnce(undefined).mockResolvedValueOnce(layout);
 
     await expect(resolveAlbumVinylLayout(repo, { artists: ["Jimmy Smith"], title: "The Sermon!" })).resolves.toEqual(
       layout,
     );
 
-    expect(repo.enrichAlbumVinylLayout).toHaveBeenCalledWith({
-      id: "album-1",
+    expect(repo.enrichVinylLayout).toHaveBeenCalledWith({
+      identityKey: "jimmy smith::the sermon",
       title: "The Sermon!",
       artists: ["Jimmy Smith"],
+      albumId: undefined,
     });
+  });
+
+  /**
+   * The layout belongs to the identity, but the Discogs release id is recorded
+   * against a catalogue album where one exists, so the album has to reach the
+   * enrichment step.
+   */
+  it("passes the catalogue album through when the caller has one", async () => {
+    const repo = createRepository();
+    repo.readVinylLayout.mockResolvedValueOnce(undefined).mockResolvedValueOnce(layout);
+
+    await resolveAlbumVinylLayout(repo, {
+      artists: ["Jimmy Smith"],
+      title: "The Sermon!",
+      albumId: "album-1",
+    });
+
+    expect(repo.enrichVinylLayout).toHaveBeenCalledWith(expect.objectContaining({ albumId: "album-1" }));
   });
 });
 
 describe("readCachedAlbumVinylLayout", () => {
-  it("reads an existing artist-qualified layout without enriching or creating an album", async () => {
+  it("reads an existing layout without enriching", async () => {
     const repo = createRepository();
-    repo.findAlbumByVinylLayoutIdentity.mockResolvedValue({ albumId: "album-1" });
-    repo.readAlbumVinylLayout.mockResolvedValue(layout);
+    repo.readVinylLayout.mockResolvedValue(layout);
 
     await expect(readCachedAlbumVinylLayout(repo, { artists: ["Jimmy Smith"], title: "The Sermon!" })).resolves.toEqual(
       layout,
     );
 
-    expect(repo.enrichAlbumVinylLayout).not.toHaveBeenCalled();
-    expect(repo.createAlbumVinylLayoutPlaceholder).not.toHaveBeenCalled();
+    expect(repo.enrichVinylLayout).not.toHaveBeenCalled();
+  });
+
+  it("reports an unchecked identity as no layout rather than as an error", async () => {
+    const repo = createRepository();
+    repo.readVinylLayout.mockResolvedValue(undefined);
+
+    await expect(
+      readCachedAlbumVinylLayout(repo, { artists: ["Jimmy Smith"], title: "The Sermon!" }),
+    ).resolves.toBeNull();
   });
 });
 
@@ -133,25 +152,24 @@ describe("refreshAlbumVinylLayout", () => {
   it("refreshes an existing cached layout through Discogs", async () => {
     const repo = createRepository();
     const refreshedLayout: VinylLayout = { ...layout, discogsReleaseId: "10013708" };
-    repo.findAlbumByVinylLayoutIdentity.mockResolvedValue({ albumId: "album-1" });
-    repo.readAlbumVinylLayout.mockResolvedValueOnce(layout).mockResolvedValueOnce(refreshedLayout);
+    repo.readVinylLayout.mockResolvedValueOnce(layout).mockResolvedValueOnce(refreshedLayout);
 
     await expect(refreshAlbumVinylLayout(repo, { artists: ["Jimmy Smith"], title: "The Sermon!" })).resolves.toEqual(
       refreshedLayout,
     );
 
-    expect(repo.enrichAlbumVinylLayout).toHaveBeenCalledWith({
-      id: "album-1",
+    expect(repo.enrichVinylLayout).toHaveBeenCalledWith({
+      identityKey: "jimmy smith::the sermon",
       title: "The Sermon!",
       artists: ["Jimmy Smith"],
+      albumId: undefined,
     });
   });
 
   it("keeps the cached layout when the refresh fails", async () => {
     const repo = createRepository();
-    repo.findAlbumByVinylLayoutIdentity.mockResolvedValue({ albumId: "album-1" });
-    repo.readAlbumVinylLayout.mockResolvedValue(layout);
-    repo.enrichAlbumVinylLayout.mockRejectedValue(new Error("Discogs unavailable"));
+    repo.readVinylLayout.mockResolvedValue(layout);
+    repo.enrichVinylLayout.mockRejectedValue(new Error("Discogs unavailable"));
 
     await expect(refreshAlbumVinylLayout(repo, { artists: ["Jimmy Smith"], title: "The Sermon!" })).resolves.toEqual(
       layout,

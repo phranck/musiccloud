@@ -2,24 +2,32 @@ import type { VinylLayout } from "@musiccloud/shared";
 import * as pgModule from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { generateShortId, generateTrackId } from "../../../lib/short-id.js";
-import { loadAlbumByShortId, upsertAlbumVinylLayout } from "../postgres-albums.js";
+import { createAlbumIdentityKey } from "../../../services/album-identity.js";
+import { loadAlbumByShortId, upsertVinylLayout } from "../postgres-albums.js";
 
 /**
- * Exercises the positive, negative, and absent vinyl-layout states returned
- * by the album short-id share projection against a live Postgres database.
+ * Exercises the positive, negative, and absent vinyl-layout states returned by
+ * the album short-id share projection against a live Postgres database.
  *
- * Every fixture owns a unique album and short id. Cleanup removes only those
- * rows and their vinyl-layout cache entries.
+ * The layout is keyed by album identity rather than by album id, so each
+ * fixture carries an artist credit: without a primary artist there is no
+ * identity and therefore no cache entry to find. Cleanup removes only the rows
+ * these fixtures created.
  */
 describe.skipIf(!process.env.DATABASE_URL)("album share vinyl layouts (integration)", () => {
   let pool: pgModule.Pool;
-  const positiveAlbumId = generateTrackId();
-  const negativeAlbumId = generateTrackId();
-  const absentAlbumId = generateTrackId();
-  const positiveShortId = generateShortId();
-  const negativeShortId = generateShortId();
-  const absentShortId = generateShortId();
-  const albumIds = [positiveAlbumId, negativeAlbumId, absentAlbumId];
+  const artist = "MC-116 Fixture Artist";
+  const fixtures = [
+    { albumId: generateTrackId(), shortId: generateShortId(), title: "MC-116 positive share fixture" },
+    { albumId: generateTrackId(), shortId: generateShortId(), title: "MC-116 negative share fixture" },
+    { albumId: generateTrackId(), shortId: generateShortId(), title: "MC-116 absent share fixture" },
+  ] as const;
+  const [positive, negative, absent] = fixtures;
+  const identityKeyFor = (title: string) => {
+    const key = createAlbumIdentityKey({ artists: [artist], title });
+    if (!key) throw new Error(`fixture title yields no identity: ${title}`);
+    return key;
+  };
   const layout: VinylLayout = {
     discogsReleaseId: "15815903",
     sides: [{ label: "A", tracks: [{ position: "A1", title: "The Sermon", durationMs: 1_210_000 }] }],
@@ -28,53 +36,55 @@ describe.skipIf(!process.env.DATABASE_URL)("album share vinyl layouts (integrati
   beforeAll(async () => {
     pool = new pgModule.Pool({ connectionString: process.env.DATABASE_URL });
     const now = new Date();
-    const fixtures = [
-      { albumId: positiveAlbumId, shortId: positiveShortId, title: "MC-116 positive share fixture" },
-      { albumId: negativeAlbumId, shortId: negativeShortId, title: "MC-116 negative share fixture" },
-      { albumId: absentAlbumId, shortId: absentShortId, title: "MC-116 absent share fixture" },
-    ];
 
     for (const fixture of fixtures) {
+      await pool.query(`INSERT INTO albums (id, title, created_at, updated_at) VALUES ($1, $2, $3, $4)`, [
+        fixture.albumId,
+        fixture.title,
+        now,
+        now,
+      ]);
+      await pool.query(`INSERT INTO album_short_urls (id, album_id, created_at) VALUES ($1, $2, $3)`, [
+        fixture.shortId,
+        fixture.albumId,
+        now,
+      ]);
       await pool.query(
-        `INSERT INTO albums (id, title, created_at, updated_at)
-         VALUES ($1, $2, $3, $4)`,
-        [fixture.albumId, fixture.title, now, now],
-      );
-      await pool.query(
-        `INSERT INTO album_short_urls (id, album_id, created_at)
-         VALUES ($1, $2, $3)`,
-        [fixture.shortId, fixture.albumId, now],
+        `INSERT INTO album_artist_credits (id, album_id, credit_name, credit_role, credit_position, created_at)
+         VALUES ($1, $2, $3, 'main', 0, $4)`,
+        [generateTrackId(), fixture.albumId, artist, now],
       );
     }
   });
 
   afterAll(async () => {
-    for (const albumId of albumIds) {
-      await pool.query("DELETE FROM album_vinyl_layouts WHERE album_id = $1", [albumId]);
-      await pool.query("DELETE FROM album_short_urls WHERE album_id = $1", [albumId]);
-      await pool.query("DELETE FROM albums WHERE id = $1", [albumId]);
+    for (const fixture of fixtures) {
+      await pool.query("DELETE FROM vinyl_layouts WHERE identity_key = $1", [identityKeyFor(fixture.title)]);
+      await pool.query("DELETE FROM album_artist_credits WHERE album_id = $1", [fixture.albumId]);
+      await pool.query("DELETE FROM album_short_urls WHERE album_id = $1", [fixture.albumId]);
+      await pool.query("DELETE FROM albums WHERE id = $1", [fixture.albumId]);
     }
     await pool.end();
   });
 
   it("reads a complete positive layout through the album short id", async () => {
-    await upsertAlbumVinylLayout(pool, positiveAlbumId, layout);
+    await upsertVinylLayout(pool, identityKeyFor(positive.title), layout);
 
-    const result = await loadAlbumByShortId(pool, positiveShortId);
+    const result = await loadAlbumByShortId(pool, positive.shortId);
 
     expect(result?.album.vinylLayout).toEqual(layout);
   });
 
   it("returns an explicit negative cache through the album short id as null", async () => {
-    await upsertAlbumVinylLayout(pool, negativeAlbumId, null);
+    await upsertVinylLayout(pool, identityKeyFor(negative.title), null);
 
-    const result = await loadAlbumByShortId(pool, negativeShortId);
+    const result = await loadAlbumByShortId(pool, negative.shortId);
 
     expect(result?.album.vinylLayout).toBeNull();
   });
 
-  it("returns an album without a vinyl-layout row as null", async () => {
-    const result = await loadAlbumByShortId(pool, absentShortId);
+  it("returns an album whose identity has never been checked as null", async () => {
+    const result = await loadAlbumByShortId(pool, absent.shortId);
 
     expect(result?.album.vinylLayout).toBeNull();
   });
