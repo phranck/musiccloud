@@ -21,9 +21,9 @@
 import type { VinylLayout } from "@musiccloud/shared";
 import type { Pool } from "pg";
 import { generateTrackId } from "../../lib/short-id.js";
+import { createAlbumIdentityKey } from "../../services/album-identity.js";
 import type { NormalizedAlbum, TrackSource } from "../../services/types.js";
 import type {
-  AlbumVinylLayoutIdentityResult,
   ArtistCredit,
   CachedAlbumResult,
   ExternalIdRecord,
@@ -81,9 +81,7 @@ export interface AlbumWithLinkRow extends AlbumRow {
 }
 
 /** Raw album share projection including the persisted vinyl-cache state. */
-export interface AlbumShareRow extends AlbumWithLinkRow {
-  vinyl_layout: VinylLayout | null;
-}
+export interface AlbumShareRow extends AlbumWithLinkRow {}
 
 // ============================================================================
 // RESOLUTION
@@ -152,66 +150,6 @@ export async function findAlbumByUpc(pool: Pool, upc: string): Promise<CachedAlb
   }
 
   return findAlbumByExternalId(pool, "upc", upc);
-}
-
-/**
- * Looks up an album cache entry by its normalized primary-artist + title key.
- * This is intentionally not a title query: unrelated artists can release
- * albums with the same title and must never share a Discogs layout.
- */
-export async function findAlbumByVinylLayoutIdentity(
-  pool: Pool,
-  identityKey: string,
-): Promise<AlbumVinylLayoutIdentityResult | null> {
-  const result = await pool.query(
-    `SELECT album_id FROM album_vinyl_layout_identities WHERE identity_key = $1 LIMIT 1`,
-    [identityKey],
-  );
-  return result.rows.length > 0 ? { albumId: result.rows[0].album_id as string } : null;
-}
-
-/**
- * Atomically installs the first album as a shared layout-cache owner. Later
- * resolves receive that existing owner instead of changing canonical album
- * identity or overwriting a checked layout.
- */
-export async function ensureAlbumVinylLayoutIdentity(
-  pool: Pool,
-  identityKey: string,
-  albumId: string,
-): Promise<string> {
-  const result = await pool.query(
-    `INSERT INTO album_vinyl_layout_identities (identity_key, album_id, created_at)
-     VALUES ($1, $2, $3)
-     ON CONFLICT (identity_key) DO UPDATE SET identity_key = EXCLUDED.identity_key
-     RETURNING album_id`,
-    [identityKey, albumId, new Date()],
-  );
-  return result.rows[0].album_id as string;
-}
-
-/** Creates a minimal cache owner without artist credits, links, or a short URL. */
-export async function createAlbumVinylLayoutPlaceholder(pool: Pool, title: string): Promise<string> {
-  const albumId = generateTrackId();
-  const now = new Date();
-  await pool.query(`INSERT INTO albums (id, title, created_at, updated_at) VALUES ($1, $2, $3, $4)`, [
-    albumId,
-    title,
-    now,
-    now,
-  ]);
-  return albumId;
-}
-
-/** Deletes only a still-unclaimed, layout-free placeholder. */
-export async function deleteAlbumVinylLayoutPlaceholder(pool: Pool, albumId: string): Promise<void> {
-  await pool.query(
-    `DELETE FROM albums a
-     WHERE a.id = $1
-       AND NOT EXISTS (SELECT 1 FROM album_vinyl_layout_identities i WHERE i.album_id = a.id)
-       AND NOT EXISTS (SELECT 1 FROM album_vinyl_layouts l WHERE l.album_id = a.id)`,
-    [albumId],
-  );
 }
 
 /**
@@ -455,37 +393,38 @@ export async function addLinksToAlbum(
 }
 
 /**
- * Inserts or replaces the cached Discogs vinyl layout for an album.
+ * Writes the Discogs layout cache for an album identity.
  *
- * A `null` layout records a negative cache entry, meaning the album was
- * checked but has no suitable vinyl pressing.
+ * A `null` layout records a negative cache entry, meaning Discogs was asked
+ * for this identity and holds no suitable vinyl pressing.
  *
  * @param pool - Postgres connection pool.
- * @param albumId - Album whose layout cache is written.
+ * @param identityKey - Artist-qualified album identity, as produced by
+ *   `createAlbumIdentityKey`.
  * @param layout - Normalized Discogs layout, or `null` for a negative cache.
  */
-export async function upsertAlbumVinylLayout(pool: Pool, albumId: string, layout: VinylLayout | null): Promise<void> {
+export async function upsertVinylLayout(pool: Pool, identityKey: string, layout: VinylLayout | null): Promise<void> {
   await pool.query(
-    `INSERT INTO album_vinyl_layouts (id, album_id, discogs_release_id, layout_data, fetched_at)
-     VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (album_id) DO UPDATE SET
+    `INSERT INTO vinyl_layouts (identity_key, discogs_release_id, layout_data, fetched_at)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (identity_key) DO UPDATE SET
        discogs_release_id = EXCLUDED.discogs_release_id,
        layout_data = EXCLUDED.layout_data,
        fetched_at = EXCLUDED.fetched_at`,
-    [generateTrackId(), albumId, layout?.discogsReleaseId ?? null, layout, new Date()],
+    [identityKey, layout?.discogsReleaseId ?? null, layout, new Date()],
   );
 }
 
 /**
- * Reads an album's cached Discogs vinyl layout.
+ * Reads the cached Discogs layout for an album identity.
  *
  * @param pool - Postgres connection pool.
- * @param albumId - Album whose layout cache is read.
+ * @param identityKey - Artist-qualified album identity.
  * @returns The positive layout, `null` for a negative cache, or `undefined`
- * when the album has never been checked.
+ * when this identity has never been checked.
  */
-export async function readAlbumVinylLayout(pool: Pool, albumId: string): Promise<VinylLayout | null | undefined> {
-  const result = await pool.query(`SELECT layout_data FROM album_vinyl_layouts WHERE album_id = $1`, [albumId]);
+export async function readVinylLayout(pool: Pool, identityKey: string): Promise<VinylLayout | null | undefined> {
+  const result = await pool.query(`SELECT layout_data FROM vinyl_layouts WHERE identity_key = $1`, [identityKey]);
   if (result.rows.length === 0) return undefined;
   return result.rows[0].layout_data as VinylLayout | null;
 }
@@ -616,13 +555,11 @@ export async function loadAlbumByShortId(pool: Pool, shortId: string): Promise<S
       a.id, a.title, ${ALBUM_ARTIST_FIELDS_SELECT}, a.release_date, a.total_tracks,
       a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
       (SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY (ap.service = 'deezer') DESC, ap.observed_at DESC LIMIT 1) AS preview_url,
-      avl.layout_data AS vinyl_layout,
       asl.url as link_url, asl.service,
       asu.id as short_id
     FROM albums a
     JOIN album_short_urls asu ON a.id = asu.album_id
     LEFT JOIN album_service_links asl ON a.id = asl.album_id
-    LEFT JOIN album_vinyl_layouts avl ON a.id = avl.album_id
     WHERE asu.id = $1`,
     [shortId],
   );
@@ -634,8 +571,14 @@ export async function loadAlbumByShortId(pool: Pool, shortId: string): Promise<S
   const artistCredits = safeParseArtistCredits(firstRow.artist_credits);
   const artistDisplay = artists.length > 0 ? artists[0] : "Unknown Artist";
 
+  // The layout is keyed by the identity rather than by this album, so it is
+  // read once the artists and title are known. That is also what lets a share
+  // page reach an entry another row happened to fill first.
+  const identityKey = createAlbumIdentityKey({ artists, title: firstRow.title });
+  const vinylLayout = identityKey ? ((await readVinylLayout(pool, identityKey)) ?? null) : null;
+
   return {
-    album: rowToAlbum(firstRow),
+    album: rowToAlbum(firstRow, vinylLayout),
     artists,
     artistCredits,
     links: (result.rows as AlbumWithLinkRow[])
@@ -698,8 +641,11 @@ export function buildCachedAlbumResult(rows: AlbumWithLinkRow[]): CachedAlbumRes
  * {@link loadAlbumByShortId}.
  *
  * @param row - Raw album row.
+ * @param vinylLayout - The cached layout for this album's identity, which is
+ *   read separately because the identity is normalised in TypeScript rather
+ *   than derivable in SQL.
  */
-export function rowToAlbum(row: AlbumShareRow): SharePageAlbumResult["album"] {
+export function rowToAlbum(row: AlbumShareRow, vinylLayout: VinylLayout | null): SharePageAlbumResult["album"] {
   return {
     title: row.title,
     artworkUrl: row.artwork_url,
@@ -708,7 +654,7 @@ export function rowToAlbum(row: AlbumShareRow): SharePageAlbumResult["album"] {
     label: row.label,
     upc: row.upc,
     previewUrl: row.preview_url ?? null,
-    vinylLayout: row.vinyl_layout ?? null,
+    vinylLayout,
   };
 }
 

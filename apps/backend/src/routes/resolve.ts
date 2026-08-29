@@ -515,32 +515,21 @@ async function persistAlbumAndRespond(
     artists: result.sourceAlbum.artists,
     title: result.sourceAlbum.title,
   });
-  let layoutAlbumId = albumId;
-  if (albumIdentity) {
-    try {
-      layoutAlbumId = await repo.ensureAlbumVinylLayoutIdentity(albumIdentity, albumId);
-    } catch (err) {
-      log.debug(
-        "Resolve",
-        "Album vinyl-layout identity persist failed:",
-        err instanceof Error ? err.message : String(err),
-      );
-    }
-  }
 
-  if (!result.albumId) {
+  if (albumIdentity && !result.albumId) {
     try {
-      await repo.enrichAlbumVinylLayout({
-        id: layoutAlbumId,
+      await repo.enrichVinylLayout({
+        identityKey: albumIdentity,
         title: result.sourceAlbum.title,
         artists: result.sourceAlbum.artists,
+        albumId,
         upc: result.sourceAlbum.upc,
       });
     } catch (err) {
       log.debug("Resolve", "Album vinyl-layout enrichment failed:", err instanceof Error ? err.message : String(err));
     }
   }
-  const vinylLayout = await repo.readAlbumVinylLayout(layoutAlbumId);
+  const vinylLayout = albumIdentity ? await repo.readVinylLayout(albumIdentity) : undefined;
 
   const shortUrl = `${origin}/${shortId}`;
 

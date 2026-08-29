@@ -1,7 +1,7 @@
 import type { VinylLayout } from "@musiccloud/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { upsertAlbumVinylLayout } from "../../../db/adapters/postgres-albums.js";
+import { upsertVinylLayout } from "../../../db/adapters/postgres-albums.js";
 import { insertExternalIds } from "../../../db/adapters/postgres-shared.js";
 import { getMasterVinylVersions, getRelease, isDiscogsConfigured, searchVinylMaster } from "./discogs-client.js";
 
@@ -13,14 +13,14 @@ vi.mock("./discogs-client.js", () => ({
 }));
 
 vi.mock("../../../db/adapters/postgres-albums.js", () => ({
-  upsertAlbumVinylLayout: vi.fn(),
+  upsertVinylLayout: vi.fn(),
 }));
 
 vi.mock("../../../db/adapters/postgres-shared.js", () => ({
   insertExternalIds: vi.fn(),
 }));
 
-import { enrichAlbumVinylLayout } from "./discogs-enrich.js";
+import { enrichVinylLayout } from "./discogs-enrich.js";
 
 const clientMocks = {
   getMasterVinylVersions: vi.mocked(getMasterVinylVersions),
@@ -31,12 +31,13 @@ const clientMocks = {
 
 const persistenceMocks = {
   insertExternalIds: vi.mocked(insertExternalIds),
-  upsertAlbumVinylLayout: vi.mocked(upsertAlbumVinylLayout),
+  upsertVinylLayout: vi.mocked(upsertVinylLayout),
 };
 
 const pool = {} as Pool;
 const album = {
-  id: "album-123",
+  identityKey: "jimmy smith::the sermon",
+  albumId: "album-123",
   title: "The Sermon!",
   artists: ["Jimmy Smith"],
   upc: "123456789012",
@@ -62,7 +63,7 @@ afterEach(() => {
   delete process.env.DISCOGS_TOKEN;
 });
 
-describe("enrichAlbumVinylLayout", () => {
+describe("enrichVinylLayout", () => {
   it("persists a complete vinyl layout and its Discogs release provenance", async () => {
     clientMocks.searchVinylMaster.mockResolvedValue(33100);
     clientMocks.getMasterVinylVersions.mockResolvedValue([{ id: 15815903, released: "1959", format: "LP, Album" }]);
@@ -71,22 +72,26 @@ describe("enrichAlbumVinylLayout", () => {
       tracklist: [{ position: "A", type_: "track", title: "The Sermon", duration: "20:10" }],
     });
 
-    await enrichAlbumVinylLayout(pool, album);
+    await enrichVinylLayout(pool, album);
 
     expect(clientMocks.searchVinylMaster).toHaveBeenCalledWith({ artist: "Jimmy Smith", title: "The Sermon!" });
-    expect(persistenceMocks.upsertAlbumVinylLayout).toHaveBeenCalledWith(pool, album.id, completeLayout);
-    expect(persistenceMocks.insertExternalIds).toHaveBeenCalledWith(pool, "album_external_ids", "album_id", album.id, [
-      { idType: "discogs_release", idValue: "15815903", sourceService: "discogs" },
-    ]);
+    expect(persistenceMocks.upsertVinylLayout).toHaveBeenCalledWith(pool, album.identityKey, completeLayout);
+    expect(persistenceMocks.insertExternalIds).toHaveBeenCalledWith(
+      pool,
+      "album_external_ids",
+      "album_id",
+      album.albumId,
+      [{ idType: "discogs_release", idValue: "15815903", sourceService: "discogs" }],
+    );
   });
 
   it("persists a negative cache when no original vinyl version exists", async () => {
     clientMocks.searchVinylMaster.mockResolvedValue(33100);
     clientMocks.getMasterVinylVersions.mockResolvedValue([]);
 
-    await enrichAlbumVinylLayout(pool, album);
+    await enrichVinylLayout(pool, album);
 
-    expect(persistenceMocks.upsertAlbumVinylLayout).toHaveBeenCalledWith(pool, album.id, null);
+    expect(persistenceMocks.upsertVinylLayout).toHaveBeenCalledWith(pool, album.identityKey, null);
     expect(clientMocks.getRelease).not.toHaveBeenCalled();
     expect(persistenceMocks.insertExternalIds).not.toHaveBeenCalled();
   });
@@ -99,9 +104,9 @@ describe("enrichAlbumVinylLayout", () => {
       tracklist: [{ position: "A", type_: "track", title: "The Sermon", duration: "" }],
     });
 
-    await enrichAlbumVinylLayout(pool, album);
+    await enrichVinylLayout(pool, album);
 
-    expect(persistenceMocks.upsertAlbumVinylLayout).not.toHaveBeenCalled();
+    expect(persistenceMocks.upsertVinylLayout).not.toHaveBeenCalled();
     expect(persistenceMocks.insertExternalIds).not.toHaveBeenCalled();
   });
 
@@ -114,27 +119,27 @@ describe("enrichAlbumVinylLayout", () => {
     });
     persistenceMocks.insertExternalIds.mockRejectedValue(new Error("database unavailable"));
 
-    await enrichAlbumVinylLayout(pool, album);
+    await enrichVinylLayout(pool, album);
 
-    expect(persistenceMocks.upsertAlbumVinylLayout).not.toHaveBeenCalled();
+    expect(persistenceMocks.upsertVinylLayout).not.toHaveBeenCalled();
   });
 
   it("does not persist when the Discogs client fails transiently", async () => {
     clientMocks.searchVinylMaster.mockRejectedValue(new Error("rate limited"));
 
-    await enrichAlbumVinylLayout(pool, album);
+    await enrichVinylLayout(pool, album);
 
-    expect(persistenceMocks.upsertAlbumVinylLayout).not.toHaveBeenCalled();
+    expect(persistenceMocks.upsertVinylLayout).not.toHaveBeenCalled();
     expect(persistenceMocks.insertExternalIds).not.toHaveBeenCalled();
   });
 
   it("does nothing when DISCOGS_TOKEN is absent", async () => {
     delete process.env.DISCOGS_TOKEN;
 
-    await enrichAlbumVinylLayout(pool, album);
+    await enrichVinylLayout(pool, album);
 
     expect(clientMocks.searchVinylMaster).not.toHaveBeenCalled();
-    expect(persistenceMocks.upsertAlbumVinylLayout).not.toHaveBeenCalled();
+    expect(persistenceMocks.upsertVinylLayout).not.toHaveBeenCalled();
     expect(persistenceMocks.insertExternalIds).not.toHaveBeenCalled();
   });
 });

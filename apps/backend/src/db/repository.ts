@@ -99,11 +99,6 @@ export interface CachedAlbumResult {
   }>;
 }
 
-/** Minimal lookup result for an artist-qualified vinyl-layout cache identity. */
-export interface AlbumVinylLayoutIdentityResult {
-  albumId: string;
-}
-
 /** Minimal share-page data for albums */
 export interface SharePageAlbumResult {
   album: {
@@ -499,13 +494,6 @@ export interface TrackRepository {
    */
   findAlbumByUpc(upc: string): Promise<CachedAlbumResult | null>;
   /** Finds the album owning the artist-qualified shared vinyl-layout cache. */
-  findAlbumByVinylLayoutIdentity(identityKey: string): Promise<AlbumVinylLayoutIdentityResult | null>;
-  /** Atomically links an identity to its first owning layout cache and returns that owner. */
-  ensureAlbumVinylLayoutIdentity(identityKey: string, albumId: string): Promise<string>;
-  /** Creates a minimal, non-catalogue owner for a track-originated layout cache. */
-  createAlbumVinylLayoutPlaceholder(title: string): Promise<string>;
-  /** Removes an unclaimed placeholder created by a concurrent losing resolve. */
-  deleteAlbumVinylLayoutPlaceholder(albumId: string): Promise<void>;
   /**
    * Finds existing album by UPC.
    *
@@ -557,14 +545,20 @@ export interface TrackRepository {
    * @returns The positive layout, `null` for a negative cache, or `undefined`
    * when the album has not been checked.
    */
-  readAlbumVinylLayout(albumId: string): Promise<VinylLayout | null | undefined>;
+  readVinylLayout(identityKey: string): Promise<VinylLayout | null | undefined>;
   /**
    * Best-effort Discogs vinyl-layout enrichment for a persisted album.
    *
    * @param album - Persisted album metadata used for the Discogs lookup.
    * @returns A promise that resolves after enrichment or a no-op.
    */
-  enrichAlbumVinylLayout(album: { id: string; title: string; artists: string[]; upc?: string | null }): Promise<void>;
+  enrichVinylLayout(album: {
+    identityKey: string;
+    title: string;
+    artists: string[];
+    albumId?: string;
+    upc?: string | null;
+  }): Promise<void>;
 
   // Artist: Read operations
   /**

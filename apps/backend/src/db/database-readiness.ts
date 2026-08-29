@@ -61,8 +61,7 @@ export const MUSICCLOUD_READINESS_TABLES = [
   "album_external_ids",
   "artist_external_ids",
   "artist_images",
-  "album_vinyl_layouts",
-  "album_vinyl_layout_identities",
+  "vinyl_layouts",
   "content_pages",
   "content_page_publications",
   "page_segments",
@@ -80,7 +79,7 @@ export const MUSICCLOUD_READINESS_TABLES = [
   "tiers",
 ] as const;
 
-const VINYL_WRITE_TABLES = ["album_vinyl_layouts", "album_vinyl_layout_identities"] as const;
+const VINYL_WRITE_TABLES = ["vinyl_layouts"] as const;
 const CONTEXTUAL_EDITORIAL_WRITE_TABLES = [
   "content_pages",
   "content_page_publications",

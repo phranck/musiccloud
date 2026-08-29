@@ -4,11 +4,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OPENAPI_SCHEMAS } from "../schemas/openapi-schemas.js";
 
 const loadByTrackId = vi.fn();
-const findAlbumByVinylLayoutIdentity = vi.fn();
-const readAlbumVinylLayout = vi.fn();
+const readVinylLayout = vi.fn();
 
 vi.mock("../db/index.js", () => ({
-  getRepository: async () => ({ loadByTrackId, findAlbumByVinylLayoutIdentity, readAlbumVinylLayout }),
+  getRepository: async () => ({ loadByTrackId, readVinylLayout }),
 }));
 
 vi.mock("../lib/infra/rate-limiter.js", () => ({
@@ -47,8 +46,7 @@ describe("GET /api/v1/link/:id vinyl layout", () => {
       artists: ["Jimmy Smith"],
       links: [],
     });
-    findAlbumByVinylLayoutIdentity.mockResolvedValue({ albumId: "layout-owner" });
-    readAlbumVinylLayout.mockResolvedValue(vinylLayout);
+    readVinylLayout.mockResolvedValue(vinylLayout);
   });
 
   it("returns the cached album layout through the real Track response schema", async () => {
@@ -58,7 +56,7 @@ describe("GET /api/v1/link/:id vinyl layout", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json().track.vinylLayout).toEqual(vinylLayout);
-    expect(findAlbumByVinylLayoutIdentity).toHaveBeenCalledWith("jimmy smith::the sermon");
+    expect(readVinylLayout).toHaveBeenCalledWith("jimmy smith::the sermon");
 
     await app.close();
   });
@@ -69,7 +67,7 @@ describe("GET /api/v1/link/:id vinyl layout", () => {
       artists: ["Jimmy Smith"],
       links: [],
     });
-    findAlbumByVinylLayoutIdentity.mockResolvedValueOnce(null);
+    readVinylLayout.mockResolvedValueOnce(undefined);
     const app = buildApp();
 
     const response = await app.inject({ method: "GET", url: "/api/v1/link/track-1" });
