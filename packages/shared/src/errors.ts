@@ -1,19 +1,18 @@
 /**
  * Legacy coarse error codes.
  *
- * This file predates `./error-codes.ts`: the MC code registry is the
- * current system, this union is the legacy shim. Both live side-by-side
- * because:
+ * This union predates `./error-codes.ts`, which holds the current registry
+ * with the HTTP status and user message per canonical code. Route handlers and
+ * the URL validator still throw these coarse strings, and `LEGACY_TO_MC` maps
+ * every one of them to an MC code, so a wire response carries the legacy code
+ * in `error` and the canonical code in `message`.
  *
- * 1. Route handlers and the URL validator still emit these string codes
- *    directly. Migrating them to MC codes is tracked as ongoing work.
- * 2. `LEGACY_TO_MC` in `./error-codes.ts` maps every code here to a
- *    canonical MC code, so wire responses always carry both (legacy code
- *    in `error`, MC code appended to `message`).
+ * The union is all that is left here. The status and message tables that used
+ * to sit beside it were a second answer to a question `ERROR_CODE_REGISTRY`
+ * already answers, and nothing read them.
  *
- * When adding a new error, prefer an entry in `ERROR_CODE_REGISTRY` over
- * extending this union. Only keep the legacy form if another subsystem
- * reads the coarse code directly.
+ * A new error belongs in `ERROR_CODE_REGISTRY`. Extend this union only when
+ * another subsystem reads the coarse code directly.
  */
 
 export type ErrorCode =
@@ -31,37 +30,3 @@ export type ErrorCode =
   | "RATE_LIMITED"
   | "NETWORK_ERROR"
   | "TIMEOUT";
-
-export const ERROR_STATUS_MAP: Record<ErrorCode, number> = {
-  UNSUPPORTED_SERVICE: 400,
-  NOT_MUSIC_LINK: 400,
-  INVALID_URL: 400,
-  PLAYLIST_NOT_SUPPORTED: 400,
-  PODCAST_NOT_SUPPORTED: 400,
-  ALBUM_NOT_SUPPORTED: 400,
-  SERVICE_DISABLED: 503,
-  TRACK_NOT_FOUND: 404,
-  NO_MATCHES: 404,
-  SERVICE_DOWN: 503,
-  ALL_DOWN: 503,
-  RATE_LIMITED: 429,
-  NETWORK_ERROR: 500,
-  TIMEOUT: 408,
-};
-
-export const USER_MESSAGES: Record<ErrorCode, string> = {
-  UNSUPPORTED_SERVICE: "This platform isn't supported. Try a link from Spotify, Apple Music, or YouTube.",
-  NOT_MUSIC_LINK: "This doesn't look like a music link. Try pasting a link from Spotify, Apple Music, or YouTube.",
-  INVALID_URL: "Hmm, that doesn't look right. Try pasting a link from a streaming service.",
-  PLAYLIST_NOT_SUPPORTED: "We support single tracks right now. Try pasting a link to a specific song.",
-  PODCAST_NOT_SUPPORTED: "We only support music tracks at the moment.",
-  ALBUM_NOT_SUPPORTED: "Try pasting a link to a specific song from this album.",
-  SERVICE_DISABLED: "This service is currently disabled. Please try a link from another service.",
-  TRACK_NOT_FOUND: "This track doesn't seem to be available anymore.",
-  NO_MATCHES: "We couldn't find this song on other platforms. It might be exclusive to the source.",
-  SERVICE_DOWN: "One or more services are temporarily unavailable. We're showing what we found.",
-  ALL_DOWN: "We're having some technical difficulties. Please try again in a few minutes.",
-  RATE_LIMITED: "You're sending too many requests. Please wait a moment and try again.",
-  NETWORK_ERROR: "Looks like you're offline. Check your connection and try again.",
-  TIMEOUT: "This is taking longer than usual. Please try again.",
-};
