@@ -19,8 +19,8 @@ describe("parseSdkCatalog", () => {
     const catalog = parseSdkCatalog(readCatalog(), contract);
 
     expect(catalog.schemaVersion).toBe(2);
-    expect(catalog.sdkVersion).toBe("0.1.1");
-    expect(catalog.releaseTag).toBe("sdk-v0.1.1");
+    expect(catalog.sdkVersion).toBe("0.1.2");
+    expect(catalog.releaseTag).toBe("sdk-v0.1.2");
     expect(catalog.apiVersion).toBe("2.1.9");
     expect(catalog.assets.map((asset) => asset.language)).toEqual(["typescript", "python", "swift", "php", "go"]);
     expect(catalog.assets.find((asset) => asset.language === "swift")?.generator.id).toBe(

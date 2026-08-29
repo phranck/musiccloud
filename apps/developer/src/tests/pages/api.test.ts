@@ -157,7 +157,7 @@ describe("/docs/api content", () => {
     expect(renderedText).toContain("github.com/phranck/musiccloud/sdk/go");
     expect(html).toContain("Hey API 0.99.0");
     expect(html).toContain("ogen 1.23.0");
-    expect(html).toContain("SDK 0.1.1");
+    expect(html).toContain("SDK 0.1.2");
     expect(html).toContain("SHA-256");
     expect(html).toContain("OpenAPI contract");
     expect(html).toContain("Public OpenAPI contract, v2.1.9");
