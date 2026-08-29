@@ -582,6 +582,20 @@
       "when": 1784494802007,
       "tag": "0082_chubby_maverick",
       "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1787987996131,
+      "tag": "0083_solid_stranger",
+      "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1787988004508,
+      "tag": "0084_move_vinyl_layouts_to_identity",
+      "breakpoints": true
     }
   ]
 }
