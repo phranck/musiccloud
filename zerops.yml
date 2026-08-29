@@ -23,7 +23,9 @@ zerops:
         # dashboard nginx to hit IPv6 502 fallbacks before reaching IPv4.
         # See architecture/zerops-networking.md before changing this.
         HOST: "::"
-        PORT: "4000"
+        # PORT is reserved by Zerops and rejected in envVariables, so the port
+        # is set on the process in the start command below. The value matches
+        # the port declared under run.ports.
         NODE_ENV: production
         ALLOWED_ORIGINS: "https://musiccloud.io,https://dashboard.musiccloud.io"
         CORS_ORIGIN: "https://musiccloud.io,https://dashboard.musiccloud.io"
@@ -60,7 +62,7 @@ zerops:
         # EMAIL_FROM_NAME: <display name for outgoing emails, e.g. musiccloud>
       initCommands:
         - "true"
-      start: node apps/backend/dist/server.js
+      start: sh -c 'PORT=4000 exec node apps/backend/dist/server.js'
       # Readiness probe: /health/db returns 503 when a required table,
       # runtime privilege, expected owner, or latest migration hash is wrong.
       # Zerops marks the container un-ready and keeps it out of rotation
@@ -107,11 +109,13 @@ zerops:
         # ingress failures before IPv4 fallback.
         # See architecture/zerops-networking.md before changing this.
         HOST: "::"
-        PORT: "3000"
+        # PORT is reserved by Zerops and rejected in envVariables, so the port
+        # is set on the process in the start command below. The value matches
+        # the port declared under run.ports.
         BACKEND_URL: http://backend:4000
         # Set in Zerops Secrets:
         # INTERNAL_API_KEY: <same key as backend>
-      start: node apps/frontend/dist/server/entry.mjs
+      start: sh -c 'PORT=3000 exec node apps/frontend/dist/server/entry.mjs'
 
   - setup: developer
     build:
@@ -139,11 +143,13 @@ zerops:
           httpSupport: true
       envVariables:
         HOST: "::"
-        PORT: "3002"
+        # PORT is reserved by Zerops and rejected in envVariables, so the port
+        # is set on the process in the start command below. The value matches
+        # the port declared under run.ports.
         BACKEND_URL: http://backend:4000
         # Set in Zerops Secrets (later sub-projects):
         # INTERNAL_API_KEY: <same key as backend>
-      start: node apps/developer/dist/server/entry.mjs
+      start: sh -c 'PORT=3002 exec node apps/developer/dist/server/entry.mjs'
 
   - setup: dashboard
     build:
