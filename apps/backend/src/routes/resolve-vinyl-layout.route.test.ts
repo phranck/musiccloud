@@ -4,19 +4,15 @@ import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { OPENAPI_SCHEMAS } from "../schemas/openapi-schemas.js";
 
 const persistAlbumWithLinks = vi.fn();
-const enrichAlbumVinylLayout = vi.fn();
-const readAlbumVinylLayout = vi.fn();
-const findAlbumByVinylLayoutIdentity = vi.fn();
-const ensureAlbumVinylLayoutIdentity = vi.fn((_identityKey: string, albumId: string) => Promise.resolve(albumId));
+const enrichVinylLayout = vi.fn();
+const readVinylLayout = vi.fn();
 const persistResolution = vi.fn();
 
 vi.mock("../db/index.js", () => ({
   getRepository: vi.fn().mockResolvedValue({
     persistAlbumWithLinks,
-    enrichAlbumVinylLayout,
-    readAlbumVinylLayout,
-    findAlbumByVinylLayoutIdentity,
-    ensureAlbumVinylLayoutIdentity,
+    enrichVinylLayout,
+    readVinylLayout,
     upsertAlbumPreview: vi.fn(),
     addAlbumExternalIds: vi.fn(),
   }),
@@ -140,8 +136,7 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
       refreshedPreviewUrl: undefined,
       artistCredits: [],
     });
-    findAlbumByVinylLayoutIdentity.mockResolvedValue({ albumId: "persisted-album-id" });
-    readAlbumVinylLayout.mockResolvedValue(vinylLayout);
+    readVinylLayout.mockResolvedValue(vinylLayout);
     vi.mocked(resolveQuery).mockResolvedValue({
       sourceTrack: {
         title: "The Sermon!",
@@ -165,7 +160,7 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json().track.vinylLayout).toEqual(vinylLayout);
-    expect(findAlbumByVinylLayoutIdentity).toHaveBeenCalledWith("jimmy smith::the sermon");
+    expect(readVinylLayout).toHaveBeenCalledWith("jimmy smith::the sermon");
     await app.close();
   });
 
@@ -232,8 +227,8 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
       shortId: "album-short",
       artistCredits: [],
     });
-    enrichAlbumVinylLayout.mockResolvedValue(undefined);
-    readAlbumVinylLayout.mockResolvedValue(null);
+    enrichVinylLayout.mockResolvedValue(undefined);
+    readVinylLayout.mockResolvedValue(null);
     vi.mocked(resolveAlbumUrl).mockResolvedValue({
       ...albumResolution,
       sourceAlbum: {
@@ -262,8 +257,8 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
       shortId: "album-short",
       artistCredits: [],
     });
-    enrichAlbumVinylLayout.mockResolvedValue(undefined);
-    readAlbumVinylLayout.mockResolvedValue(vinylLayout);
+    enrichVinylLayout.mockResolvedValue(undefined);
+    readVinylLayout.mockResolvedValue(vinylLayout);
     vi.mocked(resolveAlbumUrl).mockResolvedValue(albumResolution);
     const app = buildApp();
 
@@ -275,18 +270,19 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(enrichAlbumVinylLayout).toHaveBeenCalledWith({
-      id: "persisted-album-id",
+    expect(enrichVinylLayout).toHaveBeenCalledWith({
+      identityKey: "jimmy smith::the sermon",
       title: "The Sermon!",
       artists: ["Jimmy Smith"],
+      albumId: "persisted-album-id",
       upc: "094635000000",
     });
-    expect(readAlbumVinylLayout).toHaveBeenCalledWith("persisted-album-id");
+    expect(readVinylLayout).toHaveBeenCalledWith("jimmy smith::the sermon");
     expect(persistAlbumWithLinks.mock.invocationCallOrder[0]).toBeLessThan(
-      enrichAlbumVinylLayout.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+      enrichVinylLayout.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
     );
-    expect(enrichAlbumVinylLayout.mock.invocationCallOrder[0]).toBeLessThan(
-      readAlbumVinylLayout.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    expect(enrichVinylLayout.mock.invocationCallOrder[0]).toBeLessThan(
+      readVinylLayout.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
     );
     expect(response.json().album.vinylLayout).toEqual(vinylLayout);
 
@@ -299,8 +295,8 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
       shortId: "album-short",
       artistCredits: [],
     });
-    enrichAlbumVinylLayout.mockRejectedValue(new Error("Discogs unavailable"));
-    readAlbumVinylLayout.mockResolvedValue(undefined);
+    enrichVinylLayout.mockRejectedValue(new Error("Discogs unavailable"));
+    readVinylLayout.mockResolvedValue(undefined);
     vi.mocked(resolveAlbumUrl).mockResolvedValue(albumResolution);
     const app = buildApp();
 
@@ -312,18 +308,19 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(enrichAlbumVinylLayout).toHaveBeenCalledWith({
-      id: "persisted-album-id",
+    expect(enrichVinylLayout).toHaveBeenCalledWith({
+      identityKey: "jimmy smith::the sermon",
       title: "The Sermon!",
       artists: ["Jimmy Smith"],
+      albumId: "persisted-album-id",
       upc: "094635000000",
     });
-    expect(readAlbumVinylLayout).toHaveBeenCalledWith("persisted-album-id");
+    expect(readVinylLayout).toHaveBeenCalledWith("jimmy smith::the sermon");
     expect(persistAlbumWithLinks.mock.invocationCallOrder[0]).toBeLessThan(
-      enrichAlbumVinylLayout.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+      enrichVinylLayout.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
     );
-    expect(enrichAlbumVinylLayout.mock.invocationCallOrder[0]).toBeLessThan(
-      readAlbumVinylLayout.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    expect(enrichVinylLayout.mock.invocationCallOrder[0]).toBeLessThan(
+      readVinylLayout.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
     );
     expect(response.json().album.vinylLayout).toBeNull();
 
@@ -336,7 +333,7 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
       shortId: "album-short",
       artistCredits: [],
     });
-    readAlbumVinylLayout.mockResolvedValue(vinylLayout);
+    readVinylLayout.mockResolvedValue(vinylLayout);
     vi.mocked(resolveAlbumUrl).mockResolvedValue({ ...albumResolution, albumId: "cached-album-id" });
     const app = buildApp();
 
@@ -348,9 +345,9 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(enrichAlbumVinylLayout).not.toHaveBeenCalled();
-    expect(readAlbumVinylLayout).toHaveBeenCalledWith("persisted-album-id");
-    expect(readAlbumVinylLayout).not.toHaveBeenCalledWith("cached-album-id");
+    expect(enrichVinylLayout).not.toHaveBeenCalled();
+    expect(readVinylLayout).toHaveBeenCalledWith("jimmy smith::the sermon");
+    expect(readVinylLayout).not.toHaveBeenCalledWith("cached-album-id");
     expect(response.json().album.vinylLayout).toEqual(vinylLayout);
 
     await app.close();
@@ -362,7 +359,7 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
       shortId: "album-short",
       artistCredits: [],
     });
-    readAlbumVinylLayout.mockResolvedValue(null);
+    readVinylLayout.mockResolvedValue(null);
     vi.mocked(resolveAlbumUrl).mockResolvedValue({ ...albumResolution, albumId: "cached-album-id" });
     const app = buildApp();
 
@@ -374,9 +371,9 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(enrichAlbumVinylLayout).not.toHaveBeenCalled();
-    expect(readAlbumVinylLayout).toHaveBeenCalledWith("persisted-album-id");
-    expect(readAlbumVinylLayout).not.toHaveBeenCalledWith("cached-album-id");
+    expect(enrichVinylLayout).not.toHaveBeenCalled();
+    expect(readVinylLayout).toHaveBeenCalledWith("jimmy smith::the sermon");
+    expect(readVinylLayout).not.toHaveBeenCalledWith("cached-album-id");
     expect(response.json().album.vinylLayout).toBeNull();
 
     await app.close();
