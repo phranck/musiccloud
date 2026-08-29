@@ -18,10 +18,14 @@ const fixtureSourceSha = "0123456789abcdef0123456789abcdef01234567";
  * keep checking that the catalog follows the manifest, which is the part that
  * can actually be wrong.
  */
-const expectedRelease = JSON.parse(
+const expectedManifest = JSON.parse(
   await readFile(new URL("../sdk/generator-profiles/candidate-manifest.json", import.meta.url), "utf8"),
-).release;
+);
+const expectedRelease = expectedManifest.release;
 const expectedSdkVersion = expectedRelease.sdkVersion;
+// The fixture contract mirrors the manifest, so a published API version bump
+// does not turn these into a rewrite of literals.
+const expectedContractVersion = expectedManifest.contract.version;
 const expectedReleaseTag = expectedRelease.tag;
 
 test("registers one explicit selected-generator adapter per language", () => {
@@ -61,13 +65,13 @@ test("keeps deterministic package metadata replacements idempotent and drift-sen
 async function createFixture() {
   const root = await mkdtemp(path.join(tmpdir(), "musiccloud-sdk-orchestrator-"));
   const contractDir = path.join(root, "contract");
-  const openApi = `${JSON.stringify({ openapi: "3.1.0", info: { title: "fixture", version: "2.1.10" }, paths: {} }, null, 2)}\n`;
+  const openApi = `${JSON.stringify({ openapi: "3.1.0", info: { title: "fixture", version: expectedContractVersion }, paths: {} }, null, 2)}\n`;
   const sha256 = crypto.createHash("sha256").update(openApi).digest("hex");
   await mkdir(contractDir, { recursive: true });
   await writeFile(path.join(contractDir, "openapi.json"), openApi);
   await writeFile(
     path.join(contractDir, "openapi.metadata.json"),
-    `${JSON.stringify({ version: "2.1.10", sha256 }, null, 2)}\n`,
+    `${JSON.stringify({ version: expectedContractVersion, sha256 }, null, 2)}\n`,
   );
   const profiles = structuredClone(await loadSdkGeneratorProfiles());
   profiles.manifest.contract.sha256 = sha256;
@@ -102,7 +106,7 @@ test("resolves one exact five-target release manifest from the selected adapters
 
   assert.equal(release.sdkVersion, expectedSdkVersion);
   assert.equal(release.releaseTag, expectedReleaseTag);
-  assert.equal(release.apiVersion, "2.1.10");
+  assert.equal(release.apiVersion, expectedContractVersion);
   assert.notEqual(release.sdkVersion, release.apiVersion);
   assert.deepEqual(
     release.targets.map((target) => target.language),

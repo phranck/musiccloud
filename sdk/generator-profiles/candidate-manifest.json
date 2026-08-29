@@ -8,8 +8,8 @@
     "publish": false
   },
   "contract": {
-    "version": "2.1.10",
-    "sha256": "1813049b6d9390fb88413b1880c35f6dcef720f9f3fce04e99ae994242214699",
+    "version": "2.1.11",
+    "sha256": "b044c480a32c39ba1ef1901fc999bb0ace395ce3e08708332f3166e3a3739d3d",
     "openApiPath": ".tmp/openapi/openapi.json"
   },
   "inputs": {
