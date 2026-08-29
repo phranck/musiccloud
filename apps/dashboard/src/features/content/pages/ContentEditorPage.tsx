@@ -59,6 +59,7 @@ const FRONTEND_PREVIEW_BASE_URL = import.meta.env.DEV ? "http://localhost:3001" 
 const DEVELOPER_PREVIEW_BASE_URL = import.meta.env.DEV ? "http://localhost:3100" : "https://developer.musiccloud.io";
 
 function loadFontSize(): number {
+  if (typeof localStorage === "undefined") return FONT_SIZE_DEFAULT;
   const stored = localStorage.getItem(FONT_SIZE_KEY);
   const parsed = stored ? Number(stored) : Number.NaN;
   return Number.isNaN(parsed) ? FONT_SIZE_DEFAULT : Math.min(FONT_SIZE_MAX, Math.max(FONT_SIZE_MIN, parsed));
@@ -689,7 +690,7 @@ export function ContentEditorPage() {
 
   const changeFontSize = (delta: number) => {
     const next = Math.min(FONT_SIZE_MAX, Math.max(FONT_SIZE_MIN, state.sourceFontSize + delta));
-    localStorage.setItem(FONT_SIZE_KEY, String(next));
+    if (typeof localStorage !== "undefined") localStorage.setItem(FONT_SIZE_KEY, String(next));
     dispatch({ type: EditorActionType.SetSourceFontSize, value: next });
   };
 

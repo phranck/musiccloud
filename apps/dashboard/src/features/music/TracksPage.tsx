@@ -12,21 +12,20 @@ import {
   MusicNotes as MusicNotesIcon,
   PencilSimple as PencilSimpleIcon,
   PencilSimpleSlash as PencilSimpleSlashIcon,
-  SpinnerGap as SpinnerGapIcon,
   Trash as TrashIcon,
   XCircle as XCircleIcon,
 } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { ContentLoadingView } from "@/components/ui/ContentLoadingView";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
+import type { ColumnDef } from "@/components/ui/DataTable";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
-import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { dashboardCopy } from "@/copy/dashboard";
 import { useInfiniteAdminTable } from "@/features/music/hooks/useInfiniteAdminTable";
+import { InfiniteAdminTable } from "@/features/music/InfiniteAdminTable";
 import { formatEnglishDate } from "@/lib/format";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { Dialog } from "@/shared/ui/Dialog";
@@ -284,49 +283,16 @@ export function TracksPage() {
       <PageHeader title={mt.title}>{searchField}</PageHeader>
 
       <PageBody>
-        {table.isInitialLoading && <ContentLoadingView className="flex-1 min-h-0" />}
-
-        {table.isError && <p className="text-sm text-[var(--ds-danger-text)] p-4">{table.errorMessage}</p>}
-
-        {!table.isInitialLoading && !table.isError && table.items.length === 0 && (
-          <ContentUnavailableView
-            icon={<MusicNotesIcon weight="duotone" aria-hidden />}
-            title={mt.noTracks}
-            subtitle={table.searchInput ? mt.searchPlaceholder : undefined}
-            className="flex-1 min-h-0"
-          />
-        )}
-
-        {!table.isInitialLoading && !table.isError && table.items.length > 0 && (
-          <div
-            ref={table.scrollContainerRef}
-            className={`-mx-3 -mt-3 min-h-0 flex-1 overflow-y-auto transition-opacity duration-200 ${
-              table.isRefreshing ? "opacity-50" : "opacity-100"
-            }`}
-          >
-            <DataTable
-              columns={columns}
-              data={table.items}
-              getRowKey={(t) => t.id}
-              getRowClassName={(t) =>
-                [
-                  table.selectedIds.has(t.id) ? "bg-[var(--ds-accent-subtle)]" : "",
-                  table.deletingIds.has(t.id) ? "opacity-0 transition-opacity duration-300" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")
-              }
-              stickyHeader
-              defaultSort={{ id: "createdAt", dir: "desc" }}
+        <InfiniteAdminTable table={table} columns={columns} defaultSort={{ id: "createdAt", dir: "desc" }}>
+          <InfiniteAdminTable.Empty>
+            <ContentUnavailableView
+              icon={<MusicNotesIcon weight="duotone" aria-hidden />}
+              title={mt.noTracks}
+              subtitle={table.searchInput ? mt.searchPlaceholder : undefined}
+              className="flex-1 min-h-0"
             />
-            <div ref={table.sentinelRef} className="h-px" />
-            {table.isLoadingMore && (
-              <div className="flex justify-center py-4">
-                <SpinnerGapIcon className="w-5 h-5 animate-spin text-[var(--ds-text-muted)]" />
-              </div>
-            )}
-          </div>
-        )}
+          </InfiniteAdminTable.Empty>
+        </InfiniteAdminTable>
       </PageBody>
 
       {toolbarContent}

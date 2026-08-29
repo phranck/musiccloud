@@ -8,9 +8,9 @@ import { useNavigate } from "react-router";
 import { ContentLoadingView } from "@/components/ui/ContentLoadingView";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { DashboardSection } from "@/components/ui/DashboardSection";
+import { type ColumnDef, DataTable, DataTableScroll } from "@/components/ui/DataTable";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
-import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { ApiClientResponse } from "@/features/developer/api";
@@ -207,23 +207,24 @@ export function ApiClientsPage() {
         <DashboardSection className="overflow-hidden flex-1 min-h-0 flex flex-col">
           <DashboardSection.Header icon={<CodeIcon weight="duotone" className="size-4" />} title={dm.clientsTitle} />
           <DashboardSection.Body flush>
-            {filteredClients.length === 0 ? (
-              <div className="flex items-center justify-center py-12">
-                <p className="text-sm text-[var(--ds-text-muted)]">
-                  {dm.clientsSearchNoResults.replace("{q}", search)}
-                </p>
-              </div>
-            ) : (
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                <DataTable
-                  columns={columns}
-                  data={filteredClients}
-                  getRowKey={(c) => c.id}
-                  stickyHeader
-                  defaultSort={{ id: "appName", dir: "asc" }}
-                />
-              </div>
-            )}
+            <DataTable
+              columns={columns}
+              data={filteredClients}
+              getRowKey={(c) => c.id}
+              defaultSort={{ id: "appName", dir: "asc" }}
+            >
+              <DataTable.Empty>
+                <div className="flex items-center justify-center py-12">
+                  <p className="text-sm text-[var(--ds-text-muted)]">
+                    {dm.clientsSearchNoResults.replace("{q}", search)}
+                  </p>
+                </div>
+              </DataTable.Empty>
+              <DataTable.Viewport scroll={DataTableScroll.Self}>
+                <DataTable.Head sticky />
+                <DataTable.Rows />
+              </DataTable.Viewport>
+            </DataTable>
           </DashboardSection.Body>
         </DashboardSection>
       )}

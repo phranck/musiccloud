@@ -4,9 +4,9 @@ import { useNavigate } from "react-router";
 import { ContentLoadingView } from "@/components/ui/ContentLoadingView";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { DashboardSection } from "@/components/ui/DashboardSection";
+import { type ColumnDef, DataTable, DataTableScroll } from "@/components/ui/DataTable";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
-import { type ColumnDef, DataTable } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { DeveloperAccountResponse } from "@/features/developer/api";
@@ -142,15 +142,17 @@ export function DeveloperAccountsPage() {
             title={dm.accountsTitle}
           />
           <DashboardSection.Body flush>
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              <DataTable
-                columns={columns}
-                data={accounts}
-                getRowKey={(a) => a.id}
-                stickyHeader
-                defaultSort={{ id: "createdAt", dir: "desc" }}
-              />
-            </div>
+            <DataTable
+              columns={columns}
+              data={accounts}
+              getRowKey={(a) => a.id}
+              defaultSort={{ id: "createdAt", dir: "desc" }}
+            >
+              <DataTable.Viewport scroll={DataTableScroll.Self}>
+                <DataTable.Head sticky />
+                <DataTable.Rows />
+              </DataTable.Viewport>
+            </DataTable>
           </DashboardSection.Body>
         </DashboardSection>
       )}

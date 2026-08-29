@@ -4,9 +4,9 @@ import { useNavigate } from "react-router";
 import { ContentLoadingView } from "@/components/ui/ContentLoadingView";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { DashboardSection } from "@/components/ui/DashboardSection";
+import { type ColumnDef, DataTable, type DataTableRowProps, DataTableScroll } from "@/components/ui/DataTable";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
-import { type ColumnDef, DataTable, type DataTableRowProps } from "@/components/ui/Table";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { ApiAccessRequestResponse } from "@/features/developer/api";
@@ -139,16 +139,18 @@ export function ApiAccessRequestsPage() {
             title={dm.requestsTitle}
           />
           <DashboardSection.Body flush>
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              <DataTable
-                columns={columns}
-                data={requests}
-                getRowKey={(r) => r.id}
-                RowComponent={RowComponent}
-                stickyHeader
-                defaultSort={{ id: "submittedAt", dir: "desc" }}
-              />
-            </div>
+            <DataTable
+              columns={columns}
+              data={requests}
+              getRowKey={(r) => r.id}
+              RowComponent={RowComponent}
+              defaultSort={{ id: "submittedAt", dir: "desc" }}
+            >
+              <DataTable.Viewport scroll={DataTableScroll.Self}>
+                <DataTable.Head sticky />
+                <DataTable.Rows />
+              </DataTable.Viewport>
+            </DataTable>
           </DashboardSection.Body>
         </DashboardSection>
       )}

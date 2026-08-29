@@ -6,10 +6,10 @@ on:
   pull_request:
 
 # PR runs cancel on a new push: only checks run there, so an abort is free and
-# saves a CI slot. `main` runs serialize instead (cancel-in-progress: false) —
-# every main push deploys, and cancelling an in-flight run could abort a Zerops
-# deploy mid-push. Queuing lets the newest run land last, on the complete tree,
-# with no overtaking between back-to-back merges.
+# saves a CI slot. `main` runs serialize instead (cancel-in-progress: false),
+# because every main push deploys and cancelling an in-flight run could abort a
+# Zerops deploy mid-push. Queuing lets the newest run land last, on the complete
+# tree, with no overtaking between back-to-back merges.
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -522,13 +522,26 @@ jobs:
     # Auto-announces the deploy on status.musiccloud.io (MC-062): a repository_dispatch
     # opens a maintenance banner before the push and closes it after. Guarded by
     # env.STATUS_TOKEN so it stays inert if the STATUS_DISPATCH_TOKEN secret
-    # (fine-grained PAT with contents:write on the status repo) is absent.
+    # (fine-grained PAT with contents:write on the status repo) is absent, and by
+    # continue-on-error on the two steps so a token that is present but rejected
+    # cannot hold up the deploy either. The banner is a convenience; the deploy
+    # is not.
     env:
       STATUS_TOKEN: ${{ secrets.STATUS_DISPATCH_TOKEN }}
     steps:
       - uses: actions/checkout@v5
+      - name: Add security.txt
+        uses: phranck/security-txt-action@v1
+        with:
+          host: api.musiccloud.io
+          output: apps/backend/public/.well-known
+          signing-key: ${{ secrets.SECURITY_TXT_SIGNING_KEY }}
+          signing-passphrase: ${{ secrets.SECURITY_TXT_SIGNING_PASSPHRASE }}
       - name: Announce deploy start
         if: env.STATUS_TOKEN != ''
+        # A status-page banner is a convenience, a deploy is not. Without this
+        # a rejected token stops the job before Zerops is ever contacted.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ env.STATUS_TOKEN }}
         run: |
@@ -551,6 +564,9 @@ jobs:
           curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 3 https://api.musiccloud.io/health/backend
       - name: Announce deploy end
         if: always() && env.STATUS_TOKEN != ''
+        # A status-page banner is a convenience, a deploy is not. Without this
+        # a rejected token stops the job before Zerops is ever contacted.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ env.STATUS_TOKEN }}
         run: |
@@ -567,8 +583,18 @@ jobs:
       STATUS_TOKEN: ${{ secrets.STATUS_DISPATCH_TOKEN }}
     steps:
       - uses: actions/checkout@v5
+      - name: Add security.txt
+        uses: phranck/security-txt-action@v1
+        with:
+          host: musiccloud.io
+          output: apps/frontend/public/.well-known
+          signing-key: ${{ secrets.SECURITY_TXT_SIGNING_KEY }}
+          signing-passphrase: ${{ secrets.SECURITY_TXT_SIGNING_PASSPHRASE }}
       - name: Announce deploy start
         if: env.STATUS_TOKEN != ''
+        # A status-page banner is a convenience, a deploy is not. Without this
+        # a rejected token stops the job before Zerops is ever contacted.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ env.STATUS_TOKEN }}
         run: |
@@ -587,6 +613,9 @@ jobs:
           ./scripts/zerops-deploy.sh bMY4g66BRDOfq1AAi8Q85A
       - name: Announce deploy end
         if: always() && env.STATUS_TOKEN != ''
+        # A status-page banner is a convenience, a deploy is not. Without this
+        # a rejected token stops the job before Zerops is ever contacted.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ env.STATUS_TOKEN }}
         run: |
@@ -603,8 +632,18 @@ jobs:
       STATUS_TOKEN: ${{ secrets.STATUS_DISPATCH_TOKEN }}
     steps:
       - uses: actions/checkout@v5
+      - name: Add security.txt
+        uses: phranck/security-txt-action@v1
+        with:
+          host: developer.musiccloud.io
+          output: apps/developer/public/.well-known
+          signing-key: ${{ secrets.SECURITY_TXT_SIGNING_KEY }}
+          signing-passphrase: ${{ secrets.SECURITY_TXT_SIGNING_PASSPHRASE }}
       - name: Announce deploy start
         if: env.STATUS_TOKEN != ''
+        # A status-page banner is a convenience, a deploy is not. Without this
+        # a rejected token stops the job before Zerops is ever contacted.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ env.STATUS_TOKEN }}
         run: |
@@ -623,6 +662,9 @@ jobs:
           ./scripts/zerops-deploy.sh snJHAWsxR32xetGASY33cQ
       - name: Announce deploy end
         if: always() && env.STATUS_TOKEN != ''
+        # A status-page banner is a convenience, a deploy is not. Without this
+        # a rejected token stops the job before Zerops is ever contacted.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ env.STATUS_TOKEN }}
         run: |
@@ -633,14 +675,31 @@ jobs:
   deploy-dashboard:
     name: Deploy Dashboard
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.dashboard == 'true'
+    # nginx resolves the `backend` upstream once, when it loads its config, and
+    # keeps the result. A dashboard container that starts while the backend is
+    # still being replaced therefore caches an address that is about to
+    # disappear, and answers every /api/ request with 502 or a timeout until it
+    # is restarted. Waiting for the backend job, which ends with its own health
+    # probe, removes that window. A skipped backend counts as satisfied so a
+    # dashboard-only change still deploys.
+    needs: [detect-changes, deploy-backend]
+    if: always() && needs.detect-changes.outputs.dashboard == 'true' && (needs.deploy-backend.result == 'success' || needs.deploy-backend.result == 'skipped')
     env:
       STATUS_TOKEN: ${{ secrets.STATUS_DISPATCH_TOKEN }}
     steps:
       - uses: actions/checkout@v5
+      - name: Add security.txt
+        uses: phranck/security-txt-action@v1
+        with:
+          host: dashboard.musiccloud.io
+          output: apps/dashboard/public/.well-known
+          signing-key: ${{ secrets.SECURITY_TXT_SIGNING_KEY }}
+          signing-passphrase: ${{ secrets.SECURITY_TXT_SIGNING_PASSPHRASE }}
       - name: Announce deploy start
         if: env.STATUS_TOKEN != ''
+        # A status-page banner is a convenience, a deploy is not. Without this
+        # a rejected token stops the job before Zerops is ever contacted.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ env.STATUS_TOKEN }}
         run: |
@@ -659,6 +718,9 @@ jobs:
           ./scripts/zerops-deploy.sh IF9Xp4YFRxuQKRQxmAWFBA
       - name: Announce deploy end
         if: always() && env.STATUS_TOKEN != ''
+        # A status-page banner is a convenience, a deploy is not. Without this
+        # a rejected token stops the job before Zerops is ever contacted.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ env.STATUS_TOKEN }}
         run: |

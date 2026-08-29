@@ -20,7 +20,7 @@
 
 import type { VinylLayout } from "@musiccloud/shared";
 import type { Pool } from "pg";
-import { generateShortId, generateTrackId } from "../../lib/short-id.js";
+import { generateTrackId } from "../../lib/short-id.js";
 import type { NormalizedAlbum, TrackSource } from "../../services/types.js";
 import type {
   AlbumVinylLayoutIdentityResult,
@@ -40,6 +40,7 @@ import {
   safeParseArray,
   safeParseArtistCredits,
 } from "./postgres-shared.js";
+import { mintShortUrl } from "./short-url.js";
 
 // ============================================================================
 // ROW TYPES
@@ -318,7 +319,6 @@ export async function persistAlbumWithLinks(
     }
 
     const albumId = existingAlbumId ?? generateTrackId();
-    const shortId = existingShortId ?? generateShortId();
 
     if (existingAlbumId) {
       await client.query(
@@ -389,13 +389,7 @@ export async function persistAlbumWithLinks(
       );
     }
 
-    if (!existingShortId) {
-      await client.query(
-        `INSERT INTO album_short_urls (id, album_id, created_at) VALUES ($1, $2, $3)
-         ON CONFLICT DO NOTHING`,
-        [shortId, albumId, now],
-      );
-    }
+    const shortId = existingShortId ?? (await mintShortUrl(client, "album_short_urls", albumId, now));
 
     await client.query("COMMIT");
     return { albumId, shortId, artistCredits };

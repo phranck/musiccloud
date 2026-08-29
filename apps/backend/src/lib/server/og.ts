@@ -1,4 +1,5 @@
 import { PLATFORM_CONFIG, type ServiceId } from "@musiccloud/shared";
+import { getPublicOrigin } from "../public-origin.js";
 
 interface OGMetaInput {
   title: string;
@@ -47,7 +48,7 @@ export function generateAlbumOGMeta(input: AlbumOGMetaInput): OGMeta {
     albumArtUrl,
     shortId,
     availablePlatforms,
-    origin = "https://musiccloud.io",
+    origin = getPublicOrigin(),
   } = input;
 
   const year = releaseDate?.slice(0, 4);
@@ -88,7 +89,7 @@ export function generateAlbumOGMeta(input: AlbumOGMetaInput): OGMeta {
 }
 
 export function generateOGMeta(input: OGMetaInput): OGMeta {
-  const { title, artist, album, albumArtUrl, shortId, availablePlatforms, origin = "https://musiccloud.io" } = input;
+  const { title, artist, album, albumArtUrl, shortId, availablePlatforms, origin = getPublicOrigin() } = input;
 
   // og:title - "{title} - {artist}" truncated to 60 chars
   const fullTitle = `${title} - ${artist}`;
