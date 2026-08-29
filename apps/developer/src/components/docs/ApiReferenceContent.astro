@@ -17,7 +17,6 @@ import EndpointOperation from "@/components/docs/EndpointOperation.astro";
 import SchemaSection from "@/components/docs/SchemaSection.astro";
 import SchemaCardsController from "@/components/docs/SchemaCardsController.astro";
 import ScrollToTopButton from "@/components/docs/ScrollToTopButton.astro";
-import SdkSegmentedCard from "@/components/docs/SdkSegmentedCard.astro";
 import { ArrowCircleDownIcon, ArrowCircleUpIcon, CloseCircleIcon, CodeIcon } from "@/lib/icons";
 import {
   apiReferenceSectionLabel,
@@ -25,17 +24,14 @@ import {
   iconForApiReferenceSection,
 } from "@/lib/api-reference-section-icons";
 import type { ApiReference } from "@/lib/openapi-reference";
-import type { SdkCatalog } from "@/lib/sdk-catalog";
 
 interface Props {
   reference: ApiReference;
-  catalog: SdkCatalog;
   contract: unknown;
 }
 
-const { reference, catalog, contract } = Astro.props;
+const { reference, contract } = Astro.props;
 const IntegrationIcon = apiReferenceStaticSectionIcons.integration;
-const SdkIcon = apiReferenceStaticSectionIcons.sdk;
 const SchemasIcon = apiReferenceStaticSectionIcons.schemas;
 
 const integrationItems = [
@@ -184,21 +180,6 @@ curl https://api.musiccloud.io/api/v1/resolve \\
         </ApiContent.Chapter.Body>
       </ApiContent.Chapter>
 
-      <ApiContent.Chapter aria-labelledby="sdk-downloads">
-        <ApiContent.Chapter.Header id="sdk-downloads" data-api-content-heading>
-          <ApiContent.Chapter.Header.Icon>
-            <SdkIcon aria-hidden="true" />
-          </ApiContent.Chapter.Header.Icon>
-          <ApiContent.Chapter.Header.Title>SDK downloads</ApiContent.Chapter.Header.Title>
-        </ApiContent.Chapter.Header>
-        <ApiContent.Chapter.Body>
-          <SdkSegmentedCard
-            assets={catalog.assets}
-            apiVersion={catalog.apiVersion}
-            sdkVersion={catalog.sdkVersion}
-          />
-        </ApiContent.Chapter.Body>
-      </ApiContent.Chapter>
 
       {
         reference.groups.map((group) => {

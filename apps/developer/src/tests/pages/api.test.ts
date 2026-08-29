@@ -7,7 +7,6 @@ import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it } from "vitest";
 import ApiReferenceContent from "../../components/docs/ApiReferenceContent.astro";
 import { buildApiReference } from "../../lib/openapi-reference";
-import { parseSdkCatalog } from "../../lib/sdk-catalog";
 
 const rootDir = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const fixturesDir = join(rootDir, "lib/__fixtures__");
@@ -26,25 +25,14 @@ describe("/docs/api content", () => {
     expect(page).toContain('<PublicHeader account={null} active="api" />');
   });
 
-  it("renders generated endpoint, schema, manifest, auth, and SDK facts", async () => {
+  it("renders generated endpoint, schema, manifest and auth facts", async () => {
     const contract = readFixture("public-openapi.json");
     const reference = buildApiReference(contract);
-    const catalog = parseSdkCatalog(readFixture("sdk-catalog.json"), {
-      version: "2.1.9",
-      sha256: "7fb873dd462e18bd9cbcb81a8318959260eeda389eaea901dfacc4681ead309f",
-    });
     const container = await AstroContainer.create({ renderers: await loadRenderers([getContainerRenderer()]) });
 
     const html = await container.renderToString(ApiReferenceContent, {
-      props: { reference, catalog, contract },
+      props: { reference, contract },
     });
-    const renderedText = html
-      .replace(/<[^>]+>/g, "")
-      .replaceAll("&gt;", ">")
-      .replaceAll("&lt;", "<")
-      .replaceAll("&#39;", "'")
-      .replaceAll("&quot;", '"')
-      .replaceAll("&amp;", "&");
 
     expect(html).toContain("API reference");
     expect(html).toContain("POST");
@@ -125,40 +113,11 @@ describe("/docs/api content", () => {
     expect(html).toContain("Resolve link");
     expect(html).toMatch(/<h3[^>]*data-api-operation-title[^>]*>[\s\S]*?Quick resolve[\s\S]*?<\/h3>/);
     expect(html).toContain("shiki");
-    expect(html).toContain("Download TypeScript SDK");
-    expect(html).toContain("Download Python SDK");
-    expect(html).toContain("Download Swift SDK");
-    expect(html).toContain("Download PHP SDK");
-    expect(html).toContain("Download Go SDK");
-    expect(html.match(/data-sdk-segmented-card/g)).toHaveLength(1);
-    expect(html).toContain('role="tablist" aria-label="SDK language"');
-    expect(html).toContain('data-sdk-tab="typescript"');
-    expect(html).toContain('data-sdk-tab="python"');
-    expect(html).toContain('data-sdk-tab="swift"');
-    expect(html).toContain('data-sdk-tab="php"');
-    expect(html).toContain('data-sdk-tab="go"');
-    expect(html).toContain('id="sdk-typescript"');
-    expect(html).toContain('id="sdk-python"');
-    expect(html).toContain('id="sdk-swift"');
-    expect(html).toContain('id="sdk-php"');
-    expect(html).toContain('id="sdk-go"');
-    expect(html).toContain("data-sdk-download");
-    expect(html).toContain("Installation");
-    expect(html).toContain("Usage");
     expect(html).toContain("MUSICCLOUD_API_KEY");
     const content = readFileSync(join(rootDir, "components/docs/ApiReferenceContent.astro"), "utf8");
     expect(content).toContain("# Requires MUSICCLOUD_API_KEY to be set in your shell environment.");
     expect(content).toContain(String.raw`X-API-Key: \${MUSICCLOUD_API_KEY}`);
     expect(content).not.toContain("mc_live_<prefix>_<secret>");
-    expect(renderedText).toContain("@musiccloud/sdk");
-    expect(renderedText).toContain("from musiccloud import MusicCloud");
-    expect(renderedText).toContain("import MusicCloudSDK");
-    expect(renderedText).toContain("vendor/autoload.php");
-    expect(renderedText).toContain("github.com/phranck/musiccloud/sdk/go");
-    expect(html).toContain("Hey API 0.99.0");
-    expect(html).toContain("ogen 1.23.0");
-    expect(html).toContain("SDK 0.1.2");
-    expect(html).toContain("SHA-256");
     expect(html).toContain("OpenAPI contract");
     expect(html).toContain("Public OpenAPI contract, v2.1.9");
     expect(html).toContain("https://api.musiccloud.io/docs/json");
@@ -198,14 +157,10 @@ describe("/docs/api content", () => {
       oneOf: [{ $ref: "#/components/schemas/ResolveSuccess" }, { $ref: "#/components/schemas/CcResolveSuccess" }],
     };
     const reference = buildApiReference(fixture);
-    const catalog = parseSdkCatalog(readFixture("sdk-catalog.json"), {
-      version: "2.1.9",
-      sha256: "7fb873dd462e18bd9cbcb81a8318959260eeda389eaea901dfacc4681ead309f",
-    });
     const container = await AstroContainer.create({ renderers: await loadRenderers([getContainerRenderer()]) });
 
     const html = await container.renderToString(ApiReferenceContent, {
-      props: { reference, catalog },
+      props: { reference },
     });
 
     expect(html).toContain('<span class="response-card__meta-label">Response Object:</span>');
@@ -228,7 +183,7 @@ describe("/docs/api content", () => {
     const content = readFileSync(join(rootDir, "components/docs/ApiReferenceContent.astro"), "utf8");
 
     expect(css).toContain("--mc-docs-heading-icon-scale: 1em;");
-    expect(content).not.toMatch(/<(?:IntegrationIcon|SdkIcon|SectionIcon|SchemasIcon)\s+className="size-6"/);
+    expect(content).not.toMatch(/<(?:IntegrationIcon|SectionIcon|SchemasIcon)\s+className="size-6"/);
   });
 
   it("renders a bulk schema-card control in the Schemas chapter header", () => {
@@ -300,7 +255,7 @@ describe("/docs/api content", () => {
   });
 
   it("keeps pure content headings out of the focus order", () => {
-    const headingComponents = ["EndpointOperation.astro", "SdkSegmentedCard.astro"];
+    const headingComponents = ["EndpointOperation.astro"];
 
     for (const component of headingComponents) {
       const source = readFileSync(join(rootDir, "components/docs", component), "utf8");
@@ -370,20 +325,6 @@ describe("/docs/api content", () => {
     );
     expect(components).toMatch(
       /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.segmented-control::before\s*\{[^}]*transition:\s*none;/s,
-    );
-  });
-
-  it("animates SegmentedCard body height with shared motion tokens", () => {
-    const css = readFileSync(join(rootDir, "styles/docs.css"), "utf8");
-
-    expect(css).toMatch(
-      /\.segmented-card\s*\{[^}]*--segmented-card-transition-duration:\s*var\(--mc-motion-duration-normal\);[^}]*--segmented-card-transition-easing:\s*var\(--mc-motion-easing-standard\);/s,
-    );
-    expect(css).toMatch(
-      /\.segmented-card\[data-segmented-card-animating="true"\]\s+\.segmented-card__body\s*\{[^}]*overflow:\s*clip;/s,
-    );
-    expect(css).toMatch(
-      /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.segmented-card\s*\{[^}]*--segmented-card-transition-duration:\s*0ms;/s,
     );
   });
 

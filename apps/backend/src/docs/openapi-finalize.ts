@@ -46,7 +46,7 @@ export interface FinalizableOpenApiDocument {
   paths?: Record<string, unknown>;
   /** Components bag; only `schemas` is inspected and pruned. */
   components?: { schemas?: Record<string, unknown> };
-  /** SDK-safe error code catalog derived from the shared registry. */
+  /** Error code catalog derived from the shared registry. */
   "x-musiccloud-error-codes"?: readonly PublicErrorCodeEntry[];
 }
 
@@ -90,7 +90,7 @@ const operationIdByRoute = new Map(
 
 /**
  * Applies the version-controlled semantic IDs used as the stable naming input
- * for every SDK generator. Unmapped operations remain visible so the export
+ * for every consumer. Unmapped operations remain visible so the export
  * assertion can reject incomplete profile coverage instead of inventing a
  * method name from the HTTP path.
  */
