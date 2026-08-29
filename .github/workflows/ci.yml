@@ -611,6 +611,11 @@ jobs:
         run: |
           zcli login "$ZEROPS_TOKEN"
           ./scripts/zerops-deploy.sh bMY4g66BRDOfq1AAi8Q85A
+          # Zerops confirms the artifact deploy, not that the process has bound
+          # its public port. Require the public host to answer so a service that
+          # starts on the wrong port fails the deployment instead of reporting
+          # green while the previous build keeps serving.
+          curl --fail --silent --show-error --output /dev/null --retry 10 --retry-all-errors --retry-delay 3 https://musiccloud.io/
       - name: Announce deploy end
         if: always() && env.STATUS_TOKEN != ''
         # A status-page banner is a convenience, a deploy is not. Without this
@@ -660,6 +665,11 @@ jobs:
         run: |
           zcli login "$ZEROPS_TOKEN"
           ./scripts/zerops-deploy.sh snJHAWsxR32xetGASY33cQ
+          # Zerops confirms the artifact deploy, not that the process has bound
+          # its public port. Require the public host to answer so a service that
+          # starts on the wrong port fails the deployment instead of reporting
+          # green while the previous build keeps serving.
+          curl --fail --silent --show-error --output /dev/null --retry 10 --retry-all-errors --retry-delay 3 https://developer.musiccloud.io/
       - name: Announce deploy end
         if: always() && env.STATUS_TOKEN != ''
         # A status-page banner is a convenience, a deploy is not. Without this
@@ -716,6 +726,11 @@ jobs:
         run: |
           zcli login "$ZEROPS_TOKEN"
           ./scripts/zerops-deploy.sh IF9Xp4YFRxuQKRQxmAWFBA
+          # Zerops confirms the artifact deploy, not that the process has bound
+          # its public port. Require the public host to answer so a service that
+          # starts on the wrong port fails the deployment instead of reporting
+          # green while the previous build keeps serving.
+          curl --fail --silent --show-error --output /dev/null --retry 10 --retry-all-errors --retry-delay 3 https://dashboard.musiccloud.io/
       - name: Announce deploy end
         if: always() && env.STATUS_TOKEN != ''
         # A status-page banner is a convenience, a deploy is not. Without this
