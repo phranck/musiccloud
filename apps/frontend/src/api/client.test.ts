@@ -146,8 +146,8 @@ describe("transport failures", () => {
 
     const result = await fetchShareData("abc");
 
-    expect(result.kind).toBe("error");
-    expect(result.error?.message).toBe(
+    if (result.kind === "success") throw new Error("expected a transport failure");
+    expect(result.error.message).toBe(
       "The backend could not be reached. The service refused the connection. (MC-SYS-0002)",
     );
   });
@@ -159,7 +159,8 @@ describe("transport failures", () => {
 
     const result = await fetchShareData("abc");
 
-    expect(result.error?.message).toBe("The backend could not be reached. (MC-SYS-0002)");
+    if (result.kind === "success") throw new Error("expected a transport failure");
+    expect(result.error.message).toBe("The backend could not be reached. (MC-SYS-0002)");
   });
 
   /**
@@ -174,9 +175,10 @@ describe("transport failures", () => {
 
     const result = await fetchShareData("abc");
 
+    if (result.kind === "success") throw new Error("expected a transport failure");
     expect(errorLog).toHaveBeenCalledTimes(1);
     const logged = JSON.parse(String(errorLog.mock.calls[0]?.[0]));
-    expect(logged.errorId).toBe(result.error?.errorId);
+    expect(logged.errorId).toBe(result.error.errorId);
     expect(logged.cause).toBe("ENOTFOUND");
     expect(logged.errorCode).toBe("MC-SYS-0002");
   });
