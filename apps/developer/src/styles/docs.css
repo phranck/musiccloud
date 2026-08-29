@@ -429,45 +429,13 @@
   /* The SDK selector keeps one ContentCard surface while each tab supplies a
      complete panel. Its selector is a recessed control derived from the same
      card radius cascade as every other documentation control. */
-  .segmented-card {
-    --segmented-card-transition-duration: var(--mc-motion-duration-normal);
-    --segmented-card-transition-easing: var(--mc-motion-easing-standard);
-  }
 
-  .segmented-card[data-segmented-card-animating="true"] .segmented-card__body {
-    overflow: clip;
-  }
 
-  .sdk-segmented-card .segmented-control {
-    --segmented-control-inset: var(--mc-docs-sdk-selector-inset);
-    --segmented-control-radius: var(--mc-docs-sdk-selector-radius);
-    --segmented-control-item-radius: var(--mc-docs-sdk-selector-item-radius);
-  }
 
-  .sdk-segmented-card .segmented-card__header {
-    align-items: center;
-  }
 
-  .sdk-segmented-card .segmented-card__segments {
-    min-width: 0;
-    max-width: 100%;
-    margin-left: auto;
-    overflow-x: auto;
-  }
 
-  .sdk-segmented-card .segmented-control__item {
-    white-space: nowrap;
-  }
 
-  .sdk-segmented-card .segmented-card__panel {
-    scroll-margin-top: var(--mc-space-8);
-  }
 
-  .sdk-segmented-card__download {
-    align-self: center;
-    font-size: var(--mc-docs-sdk-download-font-size);
-    line-height: 1;
-  }
 
   .schema-card {
     --segmented-control-inset: var(--mc-docs-schema-toggle-inset);
@@ -1283,9 +1251,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .segmented-card {
-      --segmented-card-transition-duration: 0ms;
-    }
 
     .api-reference-nav__section {
       --mc-docs-nav-transition-duration: 0ms;

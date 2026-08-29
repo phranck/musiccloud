@@ -48,7 +48,7 @@ function stableValue(value: unknown): unknown {
 
 /**
  * Produces deterministic JSON bytes for fingerprinting and release artifacts.
- * OpenAPI route registration order must not affect the SDK release hash.
+ * OpenAPI route registration order must not affect the exported document.
  */
 export function stableStringify(value: unknown): string {
   return `${JSON.stringify(stableValue(value), null, 2)}\n`;

@@ -91,15 +91,13 @@ describe("developer design system", () => {
     );
   });
 
-  it("keeps every Card surface at 10px while insetting only SDK copy", () => {
+  it("keeps every Card surface at 10px while insetting only its copy", () => {
     const docs = readDeveloperFile("src/styles/docs.css");
-    const sdkCard = readDeveloperFile("src/components/docs/SdkSegmentedCard.astro");
 
     expect(docs).not.toMatch(/\.content-card__body-stack\s*\{[^}]*padding-inline:/s);
     expect(docs).toMatch(
       /\.content-card__copy\s*\{[^}]*gap:\s*var\(--mc-space-6\);[^}]*padding-inline:\s*var\(--mc-docs-content-card-copy-inset\);/s,
     );
-    expect(sdkCard).toContain("<SegmentedCard.Body.Panel.Copy>");
   });
 
   it("keeps every Portal card borderless without header or footer separators", () => {
@@ -183,13 +181,6 @@ describe("developer design system", () => {
     expect(docs).toMatch(
       /\.sidebar__header-title\s*\{[^}]*padding-inline-start:\s*var\(--mc-docs-content-card-copy-inset\);/s,
     );
-  });
-
-  it("uses the readable muted tone for SDK metadata labels", () => {
-    const sdkCard = readDeveloperFile("src/components/docs/SdkSegmentedCard.astro");
-
-    expect(sdkCard).toContain('<dt class="text-fg-muted">Archive</dt>');
-    expect(sdkCard).toContain('<dt class="text-fg-muted">SHA-256</dt>');
   });
 
   it("uses the shared square key-cap compound for every portal keyboard hint", () => {
@@ -465,16 +456,6 @@ describe("developer design system", () => {
       /\.button\s*\{[^}]*min-height:\s*var\(--button-min-height, var\(--mc-size-control\)\);/s,
     );
     expect(docs).toMatch(/\.content-card__footer\s*\{[^}]*--button-min-height:\s*var\(--mc-size-control-compact\);/s);
-  });
-
-  it("keeps the SDK download label slightly smaller and optically centered", () => {
-    const docs = readDeveloperFile("src/styles/docs.css");
-    const sdkCard = readDeveloperFile("src/components/docs/SdkSegmentedCard.astro");
-
-    expect(sdkCard).toContain('class="button button--content sdk-segmented-card__download"');
-    expect(docs).toMatch(
-      /\.sdk-segmented-card__download\s*\{[^}]*font-size:\s*var\(--mc-docs-sdk-download-font-size\);[^}]*line-height:\s*1;/s,
-    );
   });
 
   it("keeps every Developer Portal button label at regular weight", () => {

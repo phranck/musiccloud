@@ -4,142 +4,74 @@ import test from "node:test";
 
 const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
 
-test("uses read-only GITHUB_TOKEN permissions with two scoped job exceptions", () => {
+/**
+ * Slices one job out of the workflow by name. Using the next job's own header
+ * as the end marker keeps these assertions from being rewritten every time an
+ * unrelated job is added or removed between them.
+ */
+function job(name) {
+  const start = workflow.indexOf(`  ${name}:`);
+  assert.notEqual(start, -1, `workflow has no job named ${name}`);
+  const next = workflow.slice(start + 1).search(/^ {2}[a-z][a-z0-9-]*:$/m);
+  return next === -1 ? workflow.slice(start) : workflow.slice(start, start + 1 + next);
+}
+
+test("uses read-only GITHUB_TOKEN permissions with one scoped job exception", () => {
   const workflowPrelude = workflow.slice(0, workflow.indexOf("\njobs:\n"));
-  const detectChangesJob = workflow.slice(
-    workflow.indexOf("  detect-changes:"),
-    workflow.indexOf("  validate-api-sdk-contract:"),
-  );
-  const publishJob = workflow.slice(workflow.indexOf("  publish-api-sdks:"), workflow.indexOf("  deploy-backend:"));
+  const detectChangesJob = job("detect-changes");
   const deployJobs = workflow.slice(workflow.indexOf("  deploy-backend:"));
   const jobLevelPermissionBlocks = workflow.match(/^ {4}permissions:\n(?:^ {6}[a-z-]+: (?:read|write)\n?)+/gm) ?? [];
-  const contentsWritePermissions = workflow.match(/^\s+contents: write$/gm) ?? [];
 
   assert.match(workflowPrelude, /\npermissions:\n {2}contents: read\n$/);
-  assert.equal(jobLevelPermissionBlocks.length, 2);
+  assert.equal(jobLevelPermissionBlocks.length, 1);
   assert.match(detectChangesJob, /permissions:\n {6}contents: read\n {6}actions: read\n/);
   assert.doesNotMatch(detectChangesJob, /^ {6}[a-z-]+: write$/m);
-  assert.match(publishJob, /permissions:\n {6}contents: write\n {4}outputs:/);
-  assert.equal(contentsWritePermissions.length, 1);
+  // Nothing writes to the repository any more, so no job may ask for it.
+  assert.equal((workflow.match(/^\s+contents: write$/gm) ?? []).length, 0);
   assert.doesNotMatch(deployJobs, /^ {4}permissions:/m);
   assert.doesNotMatch(deployJobs, /\$\{\{ github\.token \}\}/);
   assert.match(deployJobs, /STATUS_TOKEN: \$\{\{ secrets\.STATUS_DISPATCH_TOKEN \}\}/);
   assert.match(deployJobs, /ZEROPS_TOKEN: \$\{\{ secrets\.ZEROPS_TOKEN \}\}/);
 });
 
-test("builds the shared package before every CI OpenAPI export", () => {
-  const validationJob = workflow.slice(
-    workflow.indexOf("  validate-api-sdk-contract:"),
-    workflow.indexOf("  publish-api-sdks:"),
-  );
-  const publishJob = workflow.slice(workflow.indexOf("  publish-api-sdks:"));
-
-  for (const job of [validationJob, publishJob]) {
-    assert.match(
-      job,
-      /- name: Install dependencies[\s\S]*?- name: Build shared package[\s\S]*?pnpm --filter @musiccloud\/shared build[\s\S]*?pnpm openapi:export/,
-    );
-  }
-});
-
-test("runs the five-language SDK error contract when its sources change", () => {
-  const validationJob = workflow.slice(
-    workflow.indexOf("  validate-api-sdk-contract:"),
-    workflow.indexOf("  publish-api-sdks:"),
-  );
-  const detectChangesJob = workflow.slice(
-    workflow.indexOf("  detect-changes:"),
-    workflow.indexOf("  validate-api-sdk-contract:"),
-  );
-
-  assert.match(validationJob, /sdk\/error-contract\/\*/);
-  assert.match(validationJob, /packages\/shared\/src\/error-codes\.ts/);
-  assert.match(validationJob, /packages\/shared\/src\/public-error-catalog\.ts/);
-  assert.match(validationJob, /uses: actions\/setup-go@v6/);
-  assert.match(validationJob, /uses: swift-actions\/setup-swift@v2/);
-  assert.match(validationJob, /pnpm openapi:export[\s\S]*?pnpm sdk:generate[\s\S]*?pnpm sdk:test/);
-  assert.match(validationJob, /pnpm sdk:generated-roundtrip:test/);
-  assert.match(validationJob, /pnpm sdk:error-contract:test/);
-  assert.match(detectChangesJob, /sdk\/error-contract\/\*/);
-  assert.match(detectChangesJob, /packages\/shared\/src\/error-codes\.ts/);
-  assert.match(detectChangesJob, /packages\/shared\/src\/public-error-catalog\.ts/);
-});
-
-test("validates generator profiles when their owned inputs change", () => {
-  const validationJob = workflow.slice(
-    workflow.indexOf("  validate-api-sdk-contract:"),
-    workflow.indexOf("  publish-api-sdks:"),
-  );
-  const detectChangesJob = workflow.slice(
-    workflow.indexOf("  detect-changes:"),
-    workflow.indexOf("  validate-api-sdk-contract:"),
-  );
-
-  assert.match(validationJob, /sdk\/generator-profiles\/\*/);
-  assert.match(validationJob, /scripts\/validate-sdk-generator-profiles\.mjs/);
-  assert.match(validationJob, /pnpm openapi:export[\s\S]*?pnpm sdk:profiles:validate/);
-  assert.match(detectChangesJob, /sdk\/generator-profiles\/\*/);
-  assert.match(detectChangesJob, /scripts\/prepare-sdk-generator-contract\.mjs/);
-  assert.match(detectChangesJob, /scripts\/sdk-orchestrator\/\*/);
+test("carries no SDK generation", () => {
+  assert.doesNotMatch(workflow, /sdk/i);
 });
 
 test("verifies the public backend health endpoint after a backend deploy", () => {
-  const backendJob = workflow.slice(workflow.indexOf("  deploy-backend:"), workflow.indexOf("  deploy-frontend:"));
-
   assert.match(
-    backendJob,
+    job("deploy-backend"),
     /\.\/scripts\/zerops-deploy\.sh vftiwXaYQGCnnwEEaiGPYA[\s\S]*?curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 3 https:\/\/api\.musiccloud\.io\/health\/backend/,
   );
 });
 
-test("reuses an immutable shared-SDK release when its complete catalog identity is unchanged", () => {
-  const publishJob = workflow.slice(workflow.indexOf("  publish-api-sdks:"), workflow.indexOf("  deploy-backend:"));
-
-  assert.match(
-    publishJob,
-    /for \(const field of \["schemaVersion", "sdkVersion", "releaseTag", "apiVersion", "openApiSha256"\]\)/,
-  );
-  assert.doesNotMatch(publishJob, /for \(const field of \[[^\]]*"sourceSha"[^\]]*\]\)/);
-  assert.match(publishJob, /release_tag=\$sdk_release_tag/);
-  assert.match(
-    publishJob,
-    /pnpm sdk:generate[\s\S]*?pnpm sdk:generated-roundtrip:test[\s\S]*?- name: Record contract outputs/,
-  );
-  assert.match(publishJob, /mapfile -t sdk_assets/);
-  assert.match(publishJob, /asset\.archiveName/);
-  assert.doesNotMatch(publishJob, /musiccloud-typescript-sdk-"\$API_VERSION"/);
-});
-
-test("uses the declared Go and Swift baselines for five-target generation", () => {
-  const validationJob = workflow.slice(
-    workflow.indexOf("  validate-api-sdk-contract:"),
-    workflow.indexOf("  publish-api-sdks:"),
-  );
-  const publishJob = workflow.slice(workflow.indexOf("  publish-api-sdks:"), workflow.indexOf("  deploy-backend:"));
-
-  for (const job of [validationJob, publishJob]) {
-    assert.match(job, /uses: actions\/setup-go@v6[\s\S]*?go-version: ['"]1\.25\.x['"]/);
-    assert.match(job, /uses: swift-actions\/setup-swift@v2[\s\S]*?swift-version: ['"]6\.1['"]/);
+test("probes every deployed host, because Zerops confirms the artifact and not the process", () => {
+  for (const [name, host] of [
+    ["deploy-frontend", "https://musiccloud.io/"],
+    ["deploy-developer", "https://developer.musiccloud.io/"],
+    ["deploy-dashboard", "https://dashboard.musiccloud.io/"],
+  ]) {
+    assert.match(job(name), new RegExp(`curl --fail[^\\n]*${host.replace(/[/.]/g, "\\$&")}`), name);
   }
 });
 
+test("deploys the developer site without waiting on anything but its own change detection", () => {
+  const developerJob = job("deploy-developer");
+
+  assert.match(developerJob, /needs: detect-changes/);
+  assert.match(developerJob, /if: needs\.detect-changes\.outputs\.developer == 'true'/);
+});
+
 test("does not deploy the dashboard for backend-only or CI-only changes", () => {
-  const detectChangesJob = workflow.slice(
-    workflow.indexOf("  detect-changes:"),
-    workflow.indexOf("  validate-api-sdk-contract:"),
-  );
   const dashboardCase =
-    detectChangesJob.match(/case "\$file" in\n(?:(?!case "\$file" in)[\s\S])*?dashboard=true ;;/)?.[0] ?? "";
+    job("detect-changes").match(/case "\$file" in\n(?:(?!case "\$file" in)[\s\S])*?dashboard=true ;;/)?.[0] ?? "";
 
   assert.doesNotMatch(dashboardCase, /apps\/backend\/\*|\.github\/workflows\/ci\.yml/);
 });
 
 test("validates only affected workspaces after early path detection", () => {
-  const validationDetectionJob = workflow.slice(
-    workflow.indexOf("  detect-validation-changes:"),
-    workflow.indexOf("  lint:"),
-  );
-  const typecheckJob = workflow.slice(workflow.indexOf("  typecheck:"), workflow.indexOf("  detect-changes:"));
+  const validationDetectionJob = job("detect-validation-changes");
+  const typecheckJob = job("typecheck");
 
   assert.match(validationDetectionJob, /if: always\(\)/);
   assert.match(validationDetectionJob, /github\.event\.pull_request\.base\.sha/);
@@ -151,10 +83,13 @@ test("validates only affected workspaces after early path detection", () => {
   assert.match(typecheckJob, /outputs\.backend == 'true'/);
   assert.match(typecheckJob, /outputs\.frontend == 'true'/);
   assert.match(typecheckJob, /outputs\.developer == 'true'/);
+  // The portal's API reference is generated from the exported contract, which
+  // needs the shared package built first.
   assert.match(
     typecheckJob,
-    /- name: Generate developer API reference[\s\S]*?SDK_CATALOG_FILE=\$\{\{ github\.workspace \}\}\/apps\/developer\/src\/lib\/__fixtures__\/sdk-catalog\.json SDK_CATALOG_ALLOW_STALE_CONTRACT=true[\s\S]*?pnpm --filter @musiccloud\/developer run prebuild[\s\S]*?- name: Developer[\s\S]*?pnpm --filter @musiccloud\/developer typecheck/,
+    /- name: Generate developer API reference[\s\S]*?pnpm --filter @musiccloud\/developer run prebuild[\s\S]*?- name: Developer[\s\S]*?pnpm --filter @musiccloud\/developer typecheck/,
   );
+  assert.match(typecheckJob, /- name: Build shared package[\s\S]*?- name: Generate developer API reference/);
   assert.match(typecheckJob, /outputs\.dashboard == 'true'/);
   assert.match(typecheckJob, /outputs\.dashboard_ui == 'true'/);
   assert.match(
@@ -165,23 +100,17 @@ test("validates only affected workspaces after early path detection", () => {
 });
 
 test("restores the pnpm store before every dependency installation", () => {
-  const installJobs = [
-    workflow.slice(workflow.indexOf("  lint:"), workflow.indexOf("  typecheck:")),
-    workflow.slice(workflow.indexOf("  typecheck:"), workflow.indexOf("  detect-changes:")),
-    workflow.slice(workflow.indexOf("  validate-api-sdk-contract:"), workflow.indexOf("  publish-api-sdks:")),
-    workflow.slice(workflow.indexOf("  publish-api-sdks:"), workflow.indexOf("  deploy-backend:")),
-  ];
-
-  for (const job of installJobs) {
+  for (const name of ["lint", "typecheck"]) {
     assert.match(
-      job,
+      job(name),
       /- name: Restore pnpm store[\s\S]*?uses: actions\/cache@v4[\s\S]*?path: ~\/\.local\/share\/pnpm\/store[\s\S]*?pnpm install --frozen-lockfile/,
+      name,
     );
   }
 });
 
 test("keeps CI independent from the removed project-local app runner", async () => {
-  const typecheckJob = workflow.slice(workflow.indexOf("  typecheck:"), workflow.indexOf("  detect-changes:"));
+  const typecheckJob = job("typecheck");
 
   assert.match(
     typecheckJob,

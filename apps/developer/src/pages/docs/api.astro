@@ -6,21 +6,10 @@ import ApiReferenceContent from "@/components/docs/ApiReferenceContent.astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import PublicFooter from "@/components/PublicFooter.astro";
 import openApiDocument from "@/generated/openapi.json";
-import openApiMetadata from "@/generated/openapi.metadata.json";
-import sdkCatalogJson from "@/generated/sdk-catalog.json";
 import { buildApiReference } from "@/lib/openapi-reference";
-import { parseSdkCatalog } from "@/lib/sdk-catalog";
 import "../../styles/docs.css";
 
 const reference = buildApiReference(openApiDocument);
-const catalog = parseSdkCatalog(sdkCatalogJson, {
-  version: openApiMetadata.version,
-  sha256: openApiMetadata.sha256,
-}, {
-  // A local dev server may preview OpenAPI documentation before its matching
-  // versioned SDK archives are published. Production builds remain strict.
-  allowStaleContract: import.meta.env.DEV,
-});
 
 ---
 
@@ -31,7 +20,7 @@ const catalog = parseSdkCatalog(sdkCatalogJson, {
   <PublicHeader account={null} active="api" />
 
   <main class="developer-shell developer-page flex-1">
-    <ApiReferenceContent reference={reference} catalog={catalog} contract={openApiDocument} />
+    <ApiReferenceContent reference={reference} contract={openApiDocument} />
   </main>
 
   <PublicFooter />
