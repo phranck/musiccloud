@@ -11,9 +11,12 @@
 import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { publicErrorResponse } from "../docs/public-response-schema.js";
+import { createApiErrorResponse } from "../lib/infra/api-errors.js";
+import { log } from "../lib/infra/logger.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter, isInternalRequest } from "../lib/infra/rate-limiter.js";
 import { buildCcTrackArtistInfo } from "../services/cc/cc-share-response.js";
+import { JamendoUnavailableError } from "../services/cc/jamendo/client.js";
 
 export default async function ccArtistInfoRoutes(app: FastifyInstance) {
   app.get<{ Querystring: { jamendoArtistId?: string; artistName?: string } }>(
@@ -53,6 +56,9 @@ export default async function ccArtistInfoRoutes(app: FastifyInstance) {
           },
           400: publicErrorResponse("`jamendoArtistId` is not numeric, or `artistName` is missing or empty."),
           429: publicErrorResponse("This client IP exceeded `10` requests in a rolling `60`-second window."),
+          503: publicErrorResponse(
+            "Jamendo could not be reached, so the column has no data to return. The response carries `MC-API-0001`; retrying is worthwhile.",
+          ),
         },
       },
     },
@@ -71,8 +77,29 @@ export default async function ccArtistInfoRoutes(app: FastifyInstance) {
           .send({ error: "BAD_REQUEST", message: "jamendoArtistId and artistName are required." });
       }
 
-      const artistInfo = await buildCcTrackArtistInfo(artistName, jamendoArtistId);
-      return reply.send(artistInfo);
+      try {
+        const artistInfo = await buildCcTrackArtistInfo(artistName, jamendoArtistId);
+        return reply.send(artistInfo);
+      } catch (error) {
+        // Jamendo being unreachable is not this service failing, and the column
+        // it feeds is enrichment. A transient status lets the client retry and
+        // fall back quietly instead of showing a server error.
+        if (!(error instanceof JamendoUnavailableError)) throw error;
+
+        const body = createApiErrorResponse("MC-API-0001");
+        log.deviation(
+          {
+            component: "CcArtistInfo",
+            errorCode: body.error,
+            errorId: body.errorId,
+            operation: "cc_artist_info",
+            outcome: "column_omitted",
+            route: ENDPOINTS.v1.ccArtistInfo,
+          },
+          error,
+        );
+        return reply.status(503).send(body);
+      }
     },
   );
 }

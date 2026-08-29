@@ -46,6 +46,41 @@ async function artistInfoApiError(response: Response): Promise<ArtistInfoApiErro
 }
 
 /**
+ * Issues an artist-info request and turns anything other than a success into
+ * the shared error contract.
+ *
+ * Retries exactly once for a transport failure or a 502, 503 or 504 before
+ * consuming the body. Every other response becomes an
+ * {@link ArtistInfoApiError} carrying the backend's code, error id and message,
+ * so a caller can tell an upstream outage from a genuine failure. Aborts and
+ * JSON decoding failures are not retried.
+ *
+ * Both the commercial and the CC column go through here, so they cannot drift
+ * into reporting the same conditions differently.
+ *
+ * @param url - The fully built request URL.
+ * @param signal - Abort signal the caller uses to cancel or time out.
+ * @returns The parsed artist-info response.
+ */
+async function requestArtistInfo(url: string, signal: AbortSignal): Promise<ArtistInfoResponse> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    let response: Response;
+    try {
+      response = await fetch(url, { signal });
+    } catch (error) {
+      if (attempt === 0 && !isAbortError(error)) continue;
+      throw error;
+    }
+
+    if (response.ok) return (await response.json()) as ArtistInfoResponse;
+    if (attempt === 0 && isTransientStatus(response.status)) continue;
+    throw await artistInfoApiError(response);
+  }
+
+  throw new Error("Artist Info request exhausted unexpectedly.");
+}
+
+/**
  * Fetches the commercial artist-info payload for a given artist.
  *
  * Assembles the query string for `ENDPOINTS.frontend.artistInfo` (an artist
@@ -74,29 +109,19 @@ export async function fetchArtistInfo(
   if (userRegion) params.set("region", userRegion);
   if (context.shortId) params.set("shortId", context.shortId);
   if (context.artistEntityId) params.set("artistEntityId", context.artistEntityId);
-  const url = `${ENDPOINTS.frontend.artistInfo}?${params.toString()}`;
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    let response: Response;
-    try {
-      response = await fetch(url, { signal });
-    } catch (error) {
-      if (attempt === 0 && !isAbortError(error)) continue;
-      throw error;
-    }
-
-    if (response.ok) return (await response.json()) as ArtistInfoResponse;
-    if (attempt === 0 && isTransientStatus(response.status)) continue;
-    throw await artistInfoApiError(response);
-  }
-
-  throw new Error("Artist Info request exhausted unexpectedly.");
+  return requestArtistInfo(`${ENDPOINTS.frontend.artistInfo}?${params.toString()}`, signal);
 }
 
 /**
- * Fetches the CC artist-column payload for a Jamendo artist. Same shape and error
- * semantics as {@link fetchArtistInfo}, but hits `/api/cc/artist-info` (Jamendo
- * top + similar tracks + profile). The CC share page / live result load this
- * async after the core card renders; the caller owns the {@link AbortSignal}.
+ * Fetches the CC artist-column payload for a Jamendo artist. Same shape and
+ * error contract as {@link fetchArtistInfo}, but hits `/api/cc/artist-info`
+ * (Jamendo top + similar tracks + profile). The CC share page and live result
+ * load this after the core card renders; the caller owns the
+ * {@link AbortSignal}.
+ *
+ * A Jamendo outage arrives here as a 503 carrying `MC-API-0001`, which the
+ * shared request path retries once and then reports as an
+ * {@link ArtistInfoApiError} rather than as a bare status code.
  *
  * @param jamendoArtistId - The Jamendo artist id whose column to fetch.
  * @param artistName - The artist name (column header context).
@@ -109,9 +134,7 @@ export async function fetchCcArtistInfo(
   signal: AbortSignal,
 ): Promise<ArtistInfoResponse> {
   const params = new URLSearchParams({ jamendoArtistId, artistName });
-  const res = await fetch(`${ENDPOINTS.frontend.ccArtistInfo}?${params.toString()}`, { signal });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()) as ArtistInfoResponse;
+  return requestArtistInfo(`${ENDPOINTS.frontend.ccArtistInfo}?${params.toString()}`, signal);
 }
 
 /**

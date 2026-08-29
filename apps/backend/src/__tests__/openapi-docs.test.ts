@@ -440,7 +440,7 @@ describe("OpenAPI docs", () => {
     }
 
     const expected: Record<string, string[]> = {
-      "GET /api/v1/cc/artist-info": ["200", "400", "429", "500"],
+      "GET /api/v1/cc/artist-info": ["200", "400", "429", "500", "503"],
       "GET /api/v1/cc/audio/{jamendoId}": ["200", "206", "400", "404", "429", "500", "502"],
       "GET /api/v1/cc/bandcamp/{jamendoId}": ["200", "400", "429", "500"],
       "GET /api/v1/cc/download/{jamendoId}": ["200", "400", "403", "404", "429", "500", "502"],

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { artistFetchErrorCode, fetchArtistInfo } from "./artist-info-client";
+import { artistFetchErrorCode, fetchArtistInfo, fetchCcArtistInfo } from "./artist-info-client";
 
 const ARTIST_INFO = {
   artistName: "Canonical Artist",
@@ -99,5 +99,54 @@ describe("fetchArtistInfo", () => {
     fetchMock.mockReset().mockResolvedValue(new Response("not json"));
     await expect(fetchArtistInfo("Canonical Artist", "", {}, new AbortController().signal)).rejects.toThrow();
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("fetchCcArtistInfo", () => {
+  /**
+   * A Jamendo outage arrives as 503 with MC-API-0001. Reporting it as a bare
+   * status code is what put "HTTP 500" on screen, so the CC path has to yield
+   * the same canonical error the commercial one does.
+   */
+  it("reports an upstream outage with the canonical code rather than a status string", async () => {
+    const body = JSON.stringify({
+      error: "MC-API-0001",
+      errorId: "incident-1",
+      message: "A required upstream service is unavailable. (MC-API-0001)",
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(body, { status: 503 }))
+      .mockResolvedValueOnce(new Response(body, { status: 503 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const failure = await fetchCcArtistInfo("104", "Tryad", new AbortController().signal).catch(
+      (error: unknown) => error,
+    );
+
+    expect(artistFetchErrorCode(failure)).toBe("MC-API-0001");
+    expect((failure as { errorId?: string }).errorId).toBe("incident-1");
+  });
+
+  it("retries a transient status once before giving up", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("", { status: 503 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(ARTIST_INFO)));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchCcArtistInfo("104", "Tryad", new AbortController().signal)).resolves.toEqual(ARTIST_INFO);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("sends the artist id and name the column was asked for", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(ARTIST_INFO)));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await fetchCcArtistInfo("104", "Tryad", new AbortController().signal);
+
+    const requested = String(fetchMock.mock.calls[0]?.[0]);
+    expect(requested).toContain("jamendoArtistId=104");
+    expect(requested).toContain("artistName=Tryad");
   });
 });
