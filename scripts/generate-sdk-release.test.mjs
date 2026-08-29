@@ -9,6 +9,18 @@ import { test } from "node:test";
 const repoRoot = path.resolve(new URL("..", import.meta.url).pathname);
 const generatorScript = path.join(repoRoot, "scripts/generate-sdk-release.mjs");
 const languages = ["typescript", "python", "swift", "php", "go"];
+
+/**
+ * The SDK version under test comes from the manifest rather than being
+ * repeated here. A release bump then touches one file, and these assertions
+ * keep checking that the catalog follows the manifest, which is the part that
+ * can actually be wrong.
+ */
+const expectedRelease = JSON.parse(
+  await readFile(path.join(repoRoot, "sdk/generator-profiles/candidate-manifest.json"), "utf8"),
+).release;
+const expectedSdkVersion = expectedRelease.sdkVersion;
+const expectedReleaseTag = expectedRelease.tag;
 const fixtureRoot = await mkdtemp(path.join(tmpdir(), "musiccloud-sdk-cli-fixture-"));
 const contractDir = path.join(fixtureRoot, "contract");
 const profilesRoot = path.join(fixtureRoot, "profiles");
@@ -43,7 +55,7 @@ function runGenerator(outDir, extraArgs = [], extraEnv = {}) {
       "--source-sha",
       "0123456789abcdef0123456789abcdef01234567",
       "--release-base-url",
-      "https://github.com/phranck/musiccloud/releases/download/sdk-v0.1.0",
+      `https://github.com/phranck/musiccloud/releases/download/${expectedReleaseTag}`,
       "--profiles-root",
       profilesRoot,
       ...extraArgs,
@@ -68,15 +80,15 @@ test("CLI fixture emits the five-target Catalog v2 and SDK-versioned archives", 
 
   const catalog = JSON.parse(await readFile(path.join(outDir, "sdk-catalog.json"), "utf8"));
   assert.equal(catalog.schemaVersion, 2);
-  assert.equal(catalog.sdkVersion, "0.1.0");
-  assert.equal(catalog.releaseTag, "sdk-v0.1.0");
+  assert.equal(catalog.sdkVersion, expectedSdkVersion);
+  assert.equal(catalog.releaseTag, expectedReleaseTag);
   assert.equal(catalog.apiVersion, "2.1.0");
   assert.deepEqual(
     catalog.assets.map((asset) => asset.language),
     languages,
   );
   for (const asset of catalog.assets) {
-    assert.equal(asset.archiveName, `musiccloud-${asset.language}-sdk-0.1.0.zip`);
+    assert.equal(asset.archiveName, `musiccloud-${asset.language}-sdk-${expectedSdkVersion}.zip`);
     assert.equal(asset.stability, "preview");
     assert.equal(asset.generator.id.length > 0, true);
     assert.equal(asset.generator.version.length > 0, true);
