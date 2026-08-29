@@ -47,9 +47,10 @@ export function ShareErrorShell({ error, labels }: ShareErrorShellProps) {
             {/*
               The recessed padding token is 3px, sized for lists whose rows
               bring their own insets. This box holds running text straight
-              against the edge, so it takes the card inset instead.
+              against the edge, so it takes twice the card inset: it reads as a
+              surface of its own rather than as a hairline around the text.
             */}
-            <RecessedCard padding="var(--mc-pad-card,0.75rem)">
+            <RecessedCard padding="calc(var(--mc-pad-card,0.75rem) * 2)">
               <RecessedCard.Body className="flex flex-col gap-[var(--mc-gap-rowitem,0.75rem)]">
                 <p className="text-sm leading-relaxed text-text-primary">{error.message}</p>
                 <dl className="grid gap-[var(--mc-gap-list,0.1875rem)] text-sm">
