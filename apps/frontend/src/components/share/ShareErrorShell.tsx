@@ -44,7 +44,12 @@ export function ShareErrorShell({ error, labels }: ShareErrorShellProps) {
           </EmbossedCard.Header>
           <EmbossedCard.Body className="flex flex-col gap-[var(--mc-gap-cards,1.5rem)]">
             <p className="text-center text-sm leading-relaxed text-text-secondary">{labels.description}</p>
-            <RecessedCard>
+            {/*
+              The recessed padding token is 3px, sized for lists whose rows
+              bring their own insets. This box holds running text straight
+              against the edge, so it takes the card inset instead.
+            */}
+            <RecessedCard padding="var(--mc-pad-card,0.75rem)">
               <RecessedCard.Body className="flex flex-col gap-[var(--mc-gap-rowitem,0.75rem)]">
                 <p className="text-sm leading-relaxed text-text-primary">{error.message}</p>
                 <dl className="grid gap-[var(--mc-gap-list,0.1875rem)] text-sm">
