@@ -2,8 +2,8 @@
   "$schema": "./schema/candidate-manifest.schema.json",
   "schemaVersion": 1,
   "release": {
-    "sdkVersion": "0.1.0",
-    "tag": "sdk-v0.1.0",
+    "sdkVersion": "0.1.1",
+    "tag": "sdk-v0.1.1",
     "atomic": true,
     "publish": false
   },
@@ -48,8 +48,8 @@
       },
       "quickstart": {
         "install": "unzip musiccloud-typescript-sdk-<version>.zip",
-        "import": "import { MusicCloudClient } from '@musiccloud/sdk';\n\nconst client = new MusicCloudClient();",
-        "firstRequest": "const share = await client.shares.retrieve(shortId);"
+        "import": "import { MusicCloudClient } from '@musiccloud/sdk';\nimport { MusiccloudApiError } from '@musiccloud/sdk/errors';\n\nconst client = new MusicCloudClient();",
+        "firstRequest": "try {\n  const share = await client.shares.retrieve(shortId);\n  const preview = await client.shares.refreshPreview(shortId);\n  console.log(share, preview);\n} catch (error) {\n  if (!(error instanceof MusiccloudApiError)) throw error;\n  console.error(`${error.code} (status ${error.status}), errorId ${error.errorId}`);\n  if (error.isRetryable && error.retryAfterSeconds !== undefined) {\n    console.error(`retry-after: ${error.retryAfterSeconds}s`);\n  }\n}"
       },
       "nativeGates": ["pnpm exec tsc -p .tmp/sdk-candidates/typescript/tsconfig.json"],
       "goldenSnapshot": "sdk/generator-profiles/snapshots/typescript.txt",
@@ -81,8 +81,8 @@
       },
       "quickstart": {
         "install": "unzip musiccloud-python-sdk-<version>.zip",
-        "import": "from musiccloud import MusicCloud\n\nclient = MusicCloud()",
-        "firstRequest": "share = client.shares.retrieve(short_id)"
+        "import": "from musiccloud import MusicCloud, MusiccloudApiError\n\nclient = MusicCloud()",
+        "firstRequest": "try:\n    share = client.shares.retrieve(short_id)\n    preview = client.shares.refresh_preview(short_id)\n    print(share, preview)\nexcept MusiccloudApiError as error:\n    print(f\"{error.code} (status {error.status}), errorId {error.error_id}\")\n    if error.is_retryable and error.retry_after_seconds is not None:\n        print(f\"retry-after: {error.retry_after_seconds}s\")"
       },
       "nativeGates": [
         "python -m pip install .tmp/sdk-candidates/python/package",
@@ -119,7 +119,7 @@
       "quickstart": {
         "install": "unzip musiccloud-swift-sdk-<version>.zip",
         "import": "import MusicCloudSDK\n\nlet client = MusicCloudClient()",
-        "firstRequest": "let share = try await client.share(for: shortID)"
+        "firstRequest": "do {\n    let share = try await client.share(for: shortID)\n    let preview = try await client.sharePreview(for: shortID)\n    print(share, preview)\n} catch let error as MusiccloudAPIError {\n    print(\"\\(error.code) (status \\(error.status)), errorId \\(error.errorId)\")\n    if error.isRetryable, let retryAfter = error.retryAfterSeconds {\n        print(\"retry-after: \\(retryAfter)s\")\n    }\n}"
       },
       "nativeGates": [
         "swift build --package-path .tmp/sdk-candidates/swift",
@@ -154,8 +154,8 @@
       },
       "quickstart": {
         "install": "unzip musiccloud-php-sdk-<version>.zip",
-        "import": "require_once __DIR__ . '/vendor/autoload.php';\n\n$client = new MusicCloudClient();",
-        "firstRequest": "$share = $client->shares()->retrieve($shortId);"
+        "import": "require_once __DIR__ . '/vendor/autoload.php';\n\nuse Musiccloud\\MusiccloudApiError;\n\n$client = new MusicCloudClient();",
+        "firstRequest": "try {\n    $share = $client->shares()->retrieve($shortId);\n    $preview = $client->shares()->refreshPreview($shortId);\n    var_dump($share, $preview);\n} catch (MusiccloudApiError $error) {\n    printf(\"%s (status %d), errorId %s\\n\", $error->errorCode, $error->status, $error->errorId);\n    if ($error->isRetryable() && $error->retryAfterSeconds() !== null) {\n        printf(\"retry-after: %ss\\n\", $error->retryAfterSeconds());\n    }\n}"
       },
       "nativeGates": ["composer validate --strict", "php -l sdk/generator-profiles/usage/php.php"],
       "goldenSnapshot": "sdk/generator-profiles/snapshots/php.txt",
@@ -187,8 +187,8 @@
       },
       "quickstart": {
         "install": "unzip musiccloud-go-sdk-<version>.zip",
-        "import": "import musiccloud \"github.com/phranck/musiccloud/sdk/go\"\n\nclient := musiccloud.NewClient()",
-        "firstRequest": "share, err := client.Shares.Get(ctx, shortID)"
+        "import": "import (\n    \"context\"\n    \"errors\"\n    \"fmt\"\n\n    musiccloud \"github.com/phranck/musiccloud/sdk/go\"\n    \"github.com/phranck/musiccloud/sdk/go/musicclouderrors\"\n)\n\nclient := musiccloud.NewClient()",
+        "firstRequest": "share, err := client.Shares.Get(context.Background(), shortID)\nif err != nil {\n    var apiErr *musicclouderrors.APIError\n    if errors.As(err, &apiErr) {\n        fmt.Printf(\"%s (status %d), errorId %s, retryable %t\\n\", apiErr.Code, apiErr.Status, apiErr.ErrorID, apiErr.IsRetryable())\n    }\n    return err\n}\nfmt.Println(share)"
       },
       "nativeGates": ["go test ./...", "go vet ./..."],
       "goldenSnapshot": "sdk/generator-profiles/snapshots/go.txt",

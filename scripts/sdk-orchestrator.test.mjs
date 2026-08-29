@@ -12,6 +12,18 @@ import { loadSdkGeneratorProfiles } from "./validate-sdk-generator-profiles.mjs"
 const profileLanguages = ["typescript", "python", "swift", "php", "go"];
 const fixtureSourceSha = "0123456789abcdef0123456789abcdef01234567";
 
+/**
+ * The SDK version under test comes from the manifest rather than being
+ * repeated here. A release bump then touches one file, and these assertions
+ * keep checking that the catalog follows the manifest, which is the part that
+ * can actually be wrong.
+ */
+const expectedRelease = JSON.parse(
+  await readFile(new URL("../sdk/generator-profiles/candidate-manifest.json", import.meta.url), "utf8"),
+).release;
+const expectedSdkVersion = expectedRelease.sdkVersion;
+const expectedReleaseTag = expectedRelease.tag;
+
 test("registers one explicit selected-generator adapter per language", () => {
   const adapters = createSdkAdapters();
 
@@ -88,8 +100,8 @@ test("resolves one exact five-target release manifest from the selected adapters
   const profiles = await loadSdkGeneratorProfiles();
   const release = resolveReleaseManifest(profiles);
 
-  assert.equal(release.sdkVersion, "0.1.0");
-  assert.equal(release.releaseTag, "sdk-v0.1.0");
+  assert.equal(release.sdkVersion, expectedSdkVersion);
+  assert.equal(release.releaseTag, expectedReleaseTag);
   assert.equal(release.apiVersion, "2.1.10");
   assert.notEqual(release.sdkVersion, release.apiVersion);
   assert.deepEqual(
@@ -129,20 +141,20 @@ test("promotes all five targets and Catalog v2 only after every adapter succeeds
     contractDir: fixture.contractDir,
     outDir,
     sourceSha: fixtureSourceSha,
-    releaseBaseUrl: "https://github.com/phranck/musiccloud/releases/download/sdk-v0.1.0",
+    releaseBaseUrl: `https://github.com/phranck/musiccloud/releases/download/${expectedReleaseTag}`,
     profiles: fixture.profiles,
     adapters: fixtureAdapters(),
   });
 
   assert.equal(catalog.schemaVersion, 2);
-  assert.equal(catalog.sdkVersion, "0.1.0");
-  assert.equal(catalog.releaseTag, "sdk-v0.1.0");
+  assert.equal(catalog.sdkVersion, expectedSdkVersion);
+  assert.equal(catalog.releaseTag, expectedReleaseTag);
   assert.deepEqual(
     catalog.assets.map((asset) => asset.language),
     profileLanguages,
   );
   for (const asset of catalog.assets) {
-    assert.equal(asset.archiveName, `musiccloud-${asset.language}-sdk-0.1.0.zip`);
+    assert.equal(asset.archiveName, `musiccloud-${asset.language}-sdk-${expectedSdkVersion}.zip`);
     assert.match(asset.sha256, /^[a-f0-9]{64}$/);
     assert.match(asset.configurationRevision, /^[a-f0-9]{64}$/);
     assert.match(asset.inputRevision, /^[a-f0-9]{64}$/);
@@ -221,7 +233,7 @@ test("produces byte-identical archives and catalog content for identical inputs"
   const options = {
     contractDir: fixture.contractDir,
     sourceSha: fixtureSourceSha,
-    releaseBaseUrl: "https://github.com/phranck/musiccloud/releases/download/sdk-v0.1.0",
+    releaseBaseUrl: `https://github.com/phranck/musiccloud/releases/download/${expectedReleaseTag}`,
     profiles: fixture.profiles,
     adapters: fixtureAdapters(),
   };
