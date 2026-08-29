@@ -40,6 +40,8 @@ const mockRepo = {
   createDeveloperProject: vi.fn(),
   findDeveloperProjectById: vi.fn(),
   listDeveloperProjectsByAccount: vi.fn().mockResolvedValue([]),
+  countActiveDeveloperProjectsByAccount: vi.fn().mockResolvedValue(0),
+  countActiveApiClientsByProject: vi.fn().mockResolvedValue(0),
   updateDeveloperProject: vi.fn(),
   createApiAccessRequest: vi.fn(),
   findApiAccessRequestById: vi.fn(),
@@ -70,7 +72,12 @@ vi.mock("../services/email-actions.js", () => ({
 }));
 
 import { triggerEmailAction } from "../services/email-actions.js";
-import { devApiAccessRoutes } from "./dev-api-access.js";
+import {
+  CREATIONS_PER_MINUTE_PER_ACCOUNT,
+  devApiAccessRoutes,
+  MAX_PROJECTS_PER_ACCOUNT,
+  MAX_REGISTRATIONS_PER_PROJECT,
+} from "./dev-api-access.js";
 
 /**
  * Builds a complete {@link DeveloperAccount} DTO for stamping onto
@@ -236,6 +243,8 @@ beforeEach(() => {
   mockRepo.listApiClientsByDeveloperAccount.mockResolvedValue([]);
   mockRepo.listDeveloperProjectsByAccount.mockResolvedValue([]);
   mockRepo.listApiClientsByProject.mockResolvedValue([]);
+  mockRepo.countActiveDeveloperProjectsByAccount.mockResolvedValue(0);
+  mockRepo.countActiveApiClientsByProject.mockResolvedValue(0);
   mockRepo.createApiAccessAuditEvent.mockResolvedValue({});
 });
 
@@ -338,6 +347,129 @@ describe("devApiAccessRoutes", () => {
 
       expect(response.statusCode).toBe(409);
       expect(mockRepo.createApiClient).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("creation bounds", () => {
+    it("refuses a project once the account already holds the ceiling", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.countActiveDeveloperProjectsByAccount.mockResolvedValue(MAX_PROJECTS_PER_ACCOUNT);
+
+      const response = await app.inject({
+        method: "POST",
+        url: ENDPOINTS.dev.apiAccess.projects,
+        payload: { displayName: "One too many" },
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json().error).toBe("MC-REQ-0003");
+      expect(response.json().errorId).toBeTruthy();
+      expect(response.json().context).toEqual({ limit: MAX_PROJECTS_PER_ACCOUNT });
+      expect(mockRepo.countActiveDeveloperProjectsByAccount).toHaveBeenCalledWith("dev-1");
+      expect(mockRepo.createDeveloperProject).not.toHaveBeenCalled();
+    });
+
+    it("creates a project while the account stays below the ceiling", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.countActiveDeveloperProjectsByAccount.mockResolvedValue(MAX_PROJECTS_PER_ACCOUNT - 1);
+      mockRepo.createDeveloperProject.mockResolvedValue(makeProject());
+
+      const response = await app.inject({
+        method: "POST",
+        url: ENDPOINTS.dev.apiAccess.projects,
+        payload: { displayName: "Still room" },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(mockRepo.createDeveloperProject).toHaveBeenCalledTimes(1);
+    });
+
+    it("refuses a registration once the project already holds the ceiling", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject());
+      mockRepo.countActiveApiClientsByProject.mockResolvedValue(MAX_REGISTRATIONS_PER_PROJECT);
+
+      const response = await app.inject({
+        method: "POST",
+        url: ROUTE_TEMPLATES.dev.apiAccess.projectRegistrations.replace(":id", "project-1"),
+        payload: { name: "One too many" },
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json().error).toBe("MC-REQ-0004");
+      expect(response.json().errorId).toBeTruthy();
+      expect(response.json().context).toEqual({ limit: MAX_REGISTRATIONS_PER_PROJECT });
+      expect(mockRepo.countActiveApiClientsByProject).toHaveBeenCalledWith("project-1");
+      expect(mockRepo.createApiClient).not.toHaveBeenCalled();
+    });
+
+    it("creates a registration while the project stays below the ceiling", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject());
+      mockRepo.countActiveApiClientsByProject.mockResolvedValue(MAX_REGISTRATIONS_PER_PROJECT - 1);
+      mockRepo.createApiClient.mockResolvedValue(makeClient());
+
+      const response = await app.inject({
+        method: "POST",
+        url: ROUTE_TEMPLATES.dev.apiAccess.projectRegistrations.replace(":id", "project-1"),
+        payload: { name: "Still room" },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(mockRepo.createApiClient).toHaveBeenCalledTimes(1);
+    });
+
+    it("throttles creation per account once the minute's budget is spent", async () => {
+      // The rest of the suite runs with the limiter disabled; this test is the
+      // one that needs it live, and the account id is its own so the shared
+      // bucket carries no count from anywhere else.
+      vi.stubEnv("DISABLE_RATE_LIMIT", "false");
+      const app = await buildApp("dev-throttle");
+      mockRepo.createDeveloperProject.mockResolvedValue(makeProject());
+
+      const responses = [];
+      for (let attempt = 0; attempt <= CREATIONS_PER_MINUTE_PER_ACCOUNT; attempt++) {
+        responses.push(
+          await app.inject({
+            method: "POST",
+            url: ENDPOINTS.dev.apiAccess.projects,
+            payload: { displayName: `Project ${attempt}` },
+          }),
+        );
+      }
+      vi.stubEnv("DISABLE_RATE_LIMIT", "true");
+
+      const refused = responses.at(-1)!;
+      expect(responses.slice(0, CREATIONS_PER_MINUTE_PER_ACCOUNT).map((one) => one.statusCode)).toEqual(
+        Array(CREATIONS_PER_MINUTE_PER_ACCOUNT).fill(201),
+      );
+      expect(refused.statusCode).toBe(429);
+      expect(refused.json().error).toBe("MC-API-0003");
+      expect(refused.headers["retry-after"]).toBeTruthy();
+      expect(mockRepo.createDeveloperProject).toHaveBeenCalledTimes(CREATIONS_PER_MINUTE_PER_ACCOUNT);
+    });
+
+    it("keeps the token budget out of the creation budget", async () => {
+      vi.stubEnv("DISABLE_RATE_LIMIT", "false");
+      const app = await buildApp("dev-separate-buckets");
+      mockRepo.createDeveloperProject.mockResolvedValue(makeProject());
+      mockRepo.findApiClientById.mockResolvedValue(makeClient({ developerAccountId: "dev-separate-buckets" }));
+      mockRepo.createApiClientToken.mockResolvedValue(makeToken());
+
+      for (let attempt = 0; attempt <= CREATIONS_PER_MINUTE_PER_ACCOUNT; attempt++) {
+        await app.inject({
+          method: "POST",
+          url: ENDPOINTS.dev.apiAccess.projects,
+          payload: { displayName: `Project ${attempt}` },
+        });
+      }
+      const tokenResponse = await app.inject({
+        method: "POST",
+        url: ROUTE_TEMPLATES.dev.apiAccess.clientCreateToken.replace(":id", "client-1"),
+      });
+      vi.stubEnv("DISABLE_RATE_LIMIT", "true");
+
+      expect(tokenResponse.statusCode).toBe(201);
     });
   });
 

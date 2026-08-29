@@ -134,6 +134,21 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     internalNote: "Generic HTTP conflict response.",
     source: "apps/backend/src/lib/infra/api-error-handler.ts",
   },
+  "MC-REQ-0003": {
+    code: "MC-REQ-0003",
+    httpStatus: 409,
+    userMessage: "You already hold {limit} projects, which is the maximum. Delete one before creating another.",
+    internalNote: "Per-account ceiling on developer projects that are not deleted.",
+    source: "apps/backend/src/routes/dev-api-access.ts project creation",
+  },
+  "MC-REQ-0004": {
+    code: "MC-REQ-0004",
+    httpStatus: 409,
+    userMessage:
+      "This project already holds {limit} registrations, which is the maximum. Revoke one before creating another.",
+    internalNote: "Per-project ceiling on registrations that are not revoked.",
+    source: "apps/backend/src/routes/dev-api-access.ts registration creation",
+  },
   "MC-AUTH-0001": {
     code: "MC-AUTH-0001",
     httpStatus: 401,
