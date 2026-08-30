@@ -158,6 +158,11 @@ export const dashboardCopy = {
     clientsEmpty: "No API keys",
     clientsEmptyHint: "Approved API access requests appear here with their key.",
     clientTrafficLabel: "Configured volume",
+    limitsTitle: "Self-service limits",
+    limitsDescription:
+      "How far a developer can go without asking. Lowering a limit never removes what an account already holds; it only stops the next one being created.",
+    maxProjectsLabel: "Projects per developer",
+    maxProjectsDescription: "The most projects one developer account may hold at once.",
     colTechnicalContact: "Technical contact",
     technicalContactNone: "None set",
     technicalContactUnverified: "Unverified",

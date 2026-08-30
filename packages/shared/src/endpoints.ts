@@ -374,6 +374,11 @@ export const ENDPOINTS = {
         /** PUT: replace the selected project subscription/tier. */
         projectSubscription: (id: string) => `/api/admin/developer/api-access/projects/${id}/subscription`,
       },
+      /**
+       * GET / PATCH: the bounds on the open self-service creation path.
+       * Body: `{ maxProjectsPerAccount }`.
+       */
+      limits: "/api/admin/developer/limits",
       /** GET: list all developer accounts with client counts. */
       accounts: "/api/admin/developer/accounts",
       /** GET: single developer account / PATCH: update. */
