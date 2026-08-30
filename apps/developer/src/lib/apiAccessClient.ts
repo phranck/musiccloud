@@ -50,11 +50,18 @@ export const ApiClientStatus = {
 /** An {@link ApiClientStatus} member value. */
 export type ApiClientStatusValue = (typeof ApiClientStatus)[keyof typeof ApiClientStatus];
 
+/** Lifecycle of a Developer Project, matching what the project route admits. */
 export const DeveloperProjectStatus = {
+  /** Live: its registrations can hold working credentials. */
   Active: "active",
+  /** Temporarily stopped; reversible. */
   Suspended: "suspended",
+  /** Soft-deleted: the row survives for the audit trail, the project does not. */
   Deleted: "deleted",
 } as const;
+
+/** A {@link DeveloperProjectStatus} member value. */
+export type DeveloperProjectStatusValue = (typeof DeveloperProjectStatus)[keyof typeof DeveloperProjectStatus];
 
 export const ClientRegistrationType = {
   Development: "development",
@@ -180,6 +187,8 @@ export interface DeveloperProjectDto {
  * @property code - The backend `error` machine code on failure, if present.
  * @property message - The backend `message`, if present.
  * @property retryAfterSeconds - On a `429`, the backend's suggested wait.
+ * @property errorId - The backend's unique id for the failed request, which is
+ *   what connects what a developer sees to the one log line that explains it.
  */
 export interface ApiAccessResult<T> {
   ok: boolean;
@@ -188,6 +197,7 @@ export interface ApiAccessResult<T> {
   code?: string;
   message?: string;
   retryAfterSeconds?: number;
+  errorId?: string;
 }
 
 /**
@@ -220,6 +230,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<ApiAcce
     const errorBody = (body ?? {}) as {
       error?: string;
       message?: string;
+      errorId?: string;
       context?: { retryAfterSeconds?: number };
     };
     return {
@@ -227,6 +238,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<ApiAcce
       status: res.status,
       code: errorBody.error,
       message: errorBody.message,
+      errorId: errorBody.errorId,
       retryAfterSeconds: errorBody.context?.retryAfterSeconds,
     };
   } catch {
