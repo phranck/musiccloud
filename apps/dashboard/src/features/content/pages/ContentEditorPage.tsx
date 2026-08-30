@@ -483,8 +483,13 @@ function EditorContentSurface({
     );
   }
 
+  // The editor is what the rest of the page is arranged around, so it takes the
+  // height the other rows leave rather than the height its document happens to
+  // need. Everything below this point already carries `flex-1 min-h-0`; the
+  // section itself did not, so `height: 100%` on the editor resolved against a
+  // box that grew with its content.
   return (
-    <DashboardSection>
+    <DashboardSection className="flex min-h-0 flex-1 flex-col">
       <DashboardSection.Header icon={<MarkdownLogoIcon weight="duotone" className="size-4" />} title={headerTitle} />
       <PageBody
         className="overflow-hidden"

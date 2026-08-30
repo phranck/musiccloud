@@ -163,7 +163,14 @@ function AdminLayoutInner() {
         </div>
       ) : (
         <Card className="overflow-auto flex flex-col min-h-0 shadow-sm">
-          <div className="p-3 min-h-full shrink-0 flex flex-col">
+          {/* A definite height, not a minimum. Every page is built from
+              PageLayout and PageBody, which fill their frame with `flex-1
+              min-h-0`, and a percentage height only resolves against a parent
+              whose own height is settled. With a minimum here the frame stayed
+              open-ended, so a page sized itself to its longest content instead
+              and anything asking to fill grew with it. The card keeps the
+              scroll for pages whose rows genuinely exceed the frame. */}
+          <div className="p-3 h-full shrink-0 flex flex-col">
             <Outlet />
           </div>
         </Card>

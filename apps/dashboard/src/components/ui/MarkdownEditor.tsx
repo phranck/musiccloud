@@ -854,8 +854,12 @@ export function MarkdownEditor({
       ? { height }
       : undefined;
 
-  const isFlexCol = resizable && showHints;
   const hasBoundedHeight = resizable || Boolean(height);
+  // A bounded editor is a column: the code area takes what is left and scrolls
+  // inside itself, and the hints bar keeps its own line under it. Without the
+  // column the code area has no height to fill, so it grows with the document
+  // and the bound it was given means nothing.
+  const isFlexCol = hasBoundedHeight && showHints;
   const editorContainerClassName = hasBoundedHeight ? "h-full min-h-0" : undefined;
   const frameClassName = bare
     ? "bg-[var(--ds-input-bg)]"
