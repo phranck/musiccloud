@@ -213,7 +213,7 @@ export interface DeveloperRepository {
 
   /**
    * Permanently deletes a developer account. All owned rows in
-   * `developer_identities`, `developer_email_tokens`, `api_access_requests`
+   * `developer_identities`, `developer_email_tokens`, `developer_projects`
    * and `api_clients` (and, transitively, their tokens and audit events)
    * cascade-delete via `ON DELETE CASCADE`, so this single call is sufficient
    * to remove the account's entire footprint.

@@ -37,7 +37,6 @@ function makeRepos() {
     ]),
   };
   const apiAccessRepo = {
-    listApiAccessRequestsByDeveloperAccount: vi.fn(async () => [{ id: "req-1", appName: "My App" }]),
     listApiClientsByDeveloperAccount: vi.fn(async () => [{ id: "client-1", appName: "My App" }]),
     // `token_raw` is dropped and `tokenHash` is stripped by the builder, but
     // both are set here so the test still fails if either one ever travels.
@@ -72,7 +71,6 @@ describe("buildPersonalDataExport", () => {
     expect(pkg.account).toMatchObject({ id: "dev-acc-1", email: "dev@example.com", displayName: "Dev Jane" });
     expect(pkg.account).not.toHaveProperty("passwordHash");
     expect(pkg.identities).toHaveLength(1);
-    expect(pkg.apiAccess?.requests).toHaveLength(1);
     expect(pkg.apiAccess?.clients[0]).toMatchObject({ id: "client-1" });
     expect(pkg.apiAccess?.clients[0]?.tokens[0]).toMatchObject({ tokenPrefix: "mc_abc" });
     expect(pkg).not.toHaveProperty("formSubmissions");

@@ -534,8 +534,8 @@ export async function devAuthRoutes(app: FastifyInstance) {
   /**
    * GET /api/dev/auth/export
    * The caller's complete personal-data package (GDPR Art. 15/20) as a JSON
-   * attachment: account (without secrets), auth identities, and API-access
-   * requests/clients with token metadata.
+   * attachment: account (without secrets), auth identities, and the caller's
+   * registrations with token metadata.
    */
   app.get(ENDPOINTS.dev.auth.export, { preHandler: app.authenticateDeveloper }, async (request, reply) => {
     const account = request.developerAccount!;
