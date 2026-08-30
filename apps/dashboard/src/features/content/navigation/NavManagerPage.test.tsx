@@ -391,6 +391,20 @@ describe("NavManagerPage", () => {
     expect((screen.getByRole("button", { name: "Save" }) as HTMLButtonElement).disabled).toBe(false);
   });
 
+  it("saves on the keyboard shortcut once there is something to save", async () => {
+    renderPage();
+
+    fireEvent.keyDown(window, { key: "s", metaKey: true });
+    expect(mocks.saveConfiguration).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getAllByDisplayValue("Privacy")[0]!, { target: { value: "Privacy policy" } });
+    await act(async () => {
+      fireEvent.keyDown(window, { key: "s", metaKey: true });
+    });
+
+    expect(mocks.saveConfiguration).toHaveBeenCalledTimes(1);
+  });
+
   it("retains edits made while an atomic save is in flight", async () => {
     let resolveSave!: (value: NavigationConfiguration) => void;
     mocks.saveConfiguration.mockReturnValue(
