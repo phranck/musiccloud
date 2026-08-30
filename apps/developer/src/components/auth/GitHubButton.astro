@@ -1,9 +1,17 @@
 ---
 /**
- * GitHubButton is the full-width "Continue with GitHub" link that starts the
- * server-side OAuth flow at `/auth/github`. Styled as the secondary, neutral
- * glassy surface with a hairline border (not brand-blue), so the
- * email/password primary action stays dominant.
+ * GitHubButton is the "Continue with GitHub" link that starts the server-side
+ * OAuth flow at `/auth/github`.
+ *
+ * GitHub publishes no button of its own, only the mark and the rules for it:
+ * it is shown unaltered, in white or black, on a background that keeps it
+ * legible. This uses the portal's own button recipe with the mark in white,
+ * which satisfies both that and the portal's own rule that nothing is filled
+ * with a solid colour.
+ *
+ * The card body lays its children out in a single grid column, which stretches
+ * them, so the button states `justify-self-start` to keep its label width. That
+ * is placement at the call site, not a change to the button recipe.
  *
  * The Phosphor `GithubLogoIcon` renders as a static SSR SVG; no client
  * directive is needed because it carries no interactivity. It deliberately
@@ -29,10 +37,7 @@ interface Props {
 const { intent = "login" } = Astro.props;
 ---
 
-<a
-  href={`/auth/github?intent=${intent}`}
-  class="button button--secondary w-full text-body"
->
-  <GithubLogoIcon weight="fill" className="size-5" aria-hidden="true" />
+<a href={`/auth/github?intent=${intent}`} class="button button--secondary justify-self-start text-body">
+  <GithubLogoIcon weight="fill" className="size-5 text-fg" aria-hidden="true" />
   Continue with GitHub
 </a>

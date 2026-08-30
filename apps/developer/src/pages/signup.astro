@@ -71,11 +71,12 @@ if (!selectedTier) return Astro.redirect("/pricing");
       <OrDivider />
     </SignupForm>
     <Fragment slot="footer">
-      By creating an account you agree to our{" "}
-      <a href="/terms" class="content-link text-fg-muted">Terms</a> and{" "}
-      <a href="/privacy" class="content-link text-fg-muted">Privacy Policy</a>.
-      <br />
       Already have an account? <a href="/login" class="content-link text-fg">Sign in</a>
+      <br />
+      By creating an account you agree to our
+      <br />
+      <a href="/terms" class="content-link text-fg">Terms</a> and{" "}
+      <a href="/privacy" class="content-link text-fg">Privacy Policy</a>
     </Fragment>
   </AuthCard>
 </BaseLayout>
