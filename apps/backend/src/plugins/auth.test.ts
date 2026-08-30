@@ -59,7 +59,6 @@ import authPlugin from "./auth.js";
 function makeClient(overrides: Partial<ApiClient> = {}): ApiClient {
   return {
     id: "client-1",
-    requestId: null,
     developerAccountId: "dev-1",
     projectId: "project-1",
     publicClientId: "mc_client_1",

@@ -74,7 +74,6 @@ export type { AdminRepository, AdminUser } from "./admin-repository.js";
 export type {
   ApiAccessAuditEvent,
   ApiAccessRepository,
-  ApiAccessRequest,
   ApiClient,
   ApiClientToken,
 } from "./api-access-repository.js";

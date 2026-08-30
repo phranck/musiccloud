@@ -36,7 +36,6 @@ import type {
 import type {
   ApiAccessAuditEvent,
   ApiAccessRepository,
-  ApiAccessRequest,
   ApiClient,
   ApiClientToken,
   ApiUsageEvent,
@@ -138,27 +137,21 @@ import {
   activateApiClientToken as apiAccessActivateClientToken,
   countActiveApiClientsByProject as apiAccessCountActiveClientsByProject,
   countDeveloperProjectsAgainstCeiling as apiAccessCountActiveProjectsByAccount,
-  countPendingApiAccessRequests as apiAccessCountPending,
   createApiAccessAuditEvent as apiAccessCreateAuditEvent,
   createApiClient as apiAccessCreateClient,
   createApiClientToken as apiAccessCreateClientToken,
   createDeveloperProject as apiAccessCreateDeveloperProject,
-  createApiAccessRequest as apiAccessCreateRequest,
   createApiUsageEvent as apiAccessCreateUsageEvent,
   findActiveApiClientByTokenHash as apiAccessFindActiveClientByTokenHash,
   findApiClientById as apiAccessFindClientById,
   findApiClientTokenById as apiAccessFindClientTokenById,
   findDeveloperProjectById as apiAccessFindDeveloperProjectById,
   findDeveloperProjectSubscription as apiAccessFindDeveloperProjectSubscription,
-  findApiAccessRequestById as apiAccessFindRequestById,
   listApiClients as apiAccessListClients,
   listApiClientsByDeveloperAccount as apiAccessListClientsByDeveloperAccount,
   listApiClientsByProject as apiAccessListClientsByProject,
   listApiClientTokensByClient as apiAccessListClientTokensByClient,
   listDeveloperProjectsByAccount as apiAccessListDeveloperProjectsByAccount,
-  listApiAccessRequests as apiAccessListRequests,
-  listApiAccessRequestsByDeveloperAccount as apiAccessListRequestsByDeveloperAccount,
-  reviewApiAccessRequest as apiAccessReviewRequest,
   revokeApiClientToken as apiAccessRevokeClientToken,
   rotateApiClientToken as apiAccessRotateClientToken,
   setDeveloperProjectSubscription as apiAccessSetDeveloperProjectSubscription,
@@ -1252,47 +1245,7 @@ export class PostgresAdapter
     return apiAccessFindDeveloperProjectSubscription(this.pool, projectId);
   }
 
-  countPendingApiAccessRequests(): Promise<number> {
-    return apiAccessCountPending(this.pool);
-  }
-
-  createApiAccessRequest(data: {
-    developerAccountId: string;
-    projectId?: string | null;
-    contactEmail: string;
-    appName: string;
-    appDescription: string;
-    estimatedRequestsPerDay: number;
-  }): Promise<ApiAccessRequest> {
-    return apiAccessCreateRequest(this.pool, data);
-  }
-
-  findApiAccessRequestById(id: string): Promise<ApiAccessRequest | null> {
-    return apiAccessFindRequestById(this.pool, id);
-  }
-
-  listApiAccessRequestsByDeveloperAccount(developerAccountId: string): Promise<ApiAccessRequest[]> {
-    return apiAccessListRequestsByDeveloperAccount(this.pool, developerAccountId);
-  }
-
-  listApiAccessRequests(status?: string): Promise<ApiAccessRequest[]> {
-    return apiAccessListRequests(this.pool, status);
-  }
-
-  reviewApiAccessRequest(
-    id: string,
-    data: {
-      status: "approved" | "rejected";
-      reviewedByAdminId: string;
-      reviewNote?: string | null;
-      projectId?: string | null;
-    },
-  ): Promise<ApiAccessRequest | null> {
-    return apiAccessReviewRequest(this.pool, id, data);
-  }
-
   createApiClient(data: {
-    requestId?: string | null;
     developerAccountId: string;
     projectId?: string | null;
     registrationType?: "development" | "confidential" | "public";
@@ -1380,7 +1333,6 @@ export class PostgresAdapter
   createApiAccessAuditEvent(data: {
     projectId?: string | null;
     clientId?: string | null;
-    requestId?: string | null;
     tokenId?: string | null;
     eventType: string;
     actorAdminId?: string | null;
