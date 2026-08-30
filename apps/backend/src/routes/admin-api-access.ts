@@ -142,11 +142,11 @@ function toAccountResponse(
   };
 }
 
+/** Never includes `tokenHash` or the token itself. The create handler adds the one-time raw token to its own response. */
 function toTokenResponse(token: ApiClientToken) {
   return {
     id: token.id,
     tokenPrefix: token.tokenPrefix,
-    rawToken: token.rawToken,
     status: token.status,
     createdAt: new Date(token.createdAt).toISOString(),
     lastUsedAt: token.lastUsedAt ? new Date(token.lastUsedAt).toISOString() : null,
@@ -558,7 +558,6 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
       clientId: id,
       tokenPrefix: generated.prefix,
       tokenHash: generated.hash,
-      rawToken: generated.raw,
     });
     await repo.createApiAccessAuditEvent({
       projectId: client.projectId,

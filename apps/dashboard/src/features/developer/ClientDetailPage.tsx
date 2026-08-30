@@ -61,6 +61,10 @@ export function ClientDetailPage() {
   const deactivateToken = useDeactivateToken();
   const updateProject = useUpdateDeveloperProject();
   const [copied, setCopied] = useState(false);
+  // The issued token exists only in the response that created it, so this is
+  // the one place it can be read. Leaving the page loses it, which is what
+  // makes it a secret.
+  const [revealedToken, setRevealedToken] = useState<string | null>(null);
   const [limitsDraft, setLimitsDraft] = useState<RateLimitDraft | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -203,12 +207,12 @@ export function ClientDetailPage() {
               {activeToken ? (
                 <div className="flex items-start gap-2">
                   <code className="max-w-xs text-sm text-[var(--ds-accent)] break-all">
-                    {activeToken.rawToken ?? activeToken.tokenPrefix}
+                    {revealedToken ?? activeToken.tokenPrefix}
                   </code>
-                  {activeToken.rawToken && (
+                  {revealedToken && (
                     <button
                       type="button"
-                      onClick={() => handleCopy(activeToken.rawToken!)}
+                      onClick={() => handleCopy(revealedToken)}
                       aria-label={copied ? messages.common.copied : dm.tokenRevealCopy}
                       title={copied ? messages.common.copied : dm.tokenRevealCopy}
                       className="shrink-0 text-[var(--ds-text-muted)] hover:text-[var(--ds-accent)] transition-colors"
@@ -219,7 +223,7 @@ export function ClientDetailPage() {
                 </div>
               ) : revokedToken ? (
                 <code className="block max-w-xs text-sm text-[var(--ds-text-muted)] break-all">
-                  {revokedToken.rawToken ?? revokedToken.tokenPrefix}
+                  {revokedToken.tokenPrefix}
                 </code>
               ) : (
                 <p className="text-sm text-[var(--ds-text-muted)]">{dm.clientsNoTokens}</p>
@@ -248,7 +252,9 @@ export function ClientDetailPage() {
             <DashboardActionButton
               action={DashboardActionId.Create}
               label={dm.clientsCreateToken}
-              onClick={() => createToken.mutate(client.id)}
+              onClick={() =>
+                createToken.mutate(client.id, { onSuccess: (result) => setRevealedToken(result.token.rawToken) })
+              }
               disabled={createToken.isPending}
               type="button"
             />

@@ -112,7 +112,6 @@ interface ApiClientTokenRow {
   client_id: string;
   token_prefix: string;
   token_hash: string;
-  token_raw: string | null;
   status: string;
   created_at: Date;
   last_used_at: Date | null;
@@ -202,7 +201,7 @@ const CLIENT_JOIN_SELECT = `SELECT c.id, c.request_id, c.developer_account_id, c
      FROM api_clients c
      LEFT JOIN developer_projects p ON p.id = c.project_id
      ${GRANTING_SUBSCRIPTION_JOIN}`;
-const TOKEN_COLUMNS = `id, client_id, token_prefix, token_hash, token_raw, status, created_at, last_used_at,
+const TOKEN_COLUMNS = `id, client_id, token_prefix, token_hash, status, created_at, last_used_at,
             revoked_at, rotated_from_token_id`;
 const AUDIT_COLUMNS = `id, project_id, client_id, request_id, token_id, event_type, actor_admin_id,
             actor_developer_account_id, occurred_at, event_data`;
@@ -342,7 +341,6 @@ function rowToApiClientToken(row: ApiClientTokenRow): ApiClientToken {
     clientId: row.client_id,
     tokenPrefix: row.token_prefix,
     tokenHash: row.token_hash,
-    rawToken: row.token_raw,
     status: row.status,
     createdAt: dateToMs(row.created_at),
     lastUsedAt: row.last_used_at ? dateToMs(row.last_used_at) : null,
@@ -810,22 +808,30 @@ export async function updateApiClient(
 // TOKENS
 // ============================================================================
 
+/**
+ * Persists a newly issued token. Only its hash and its display prefix are
+ * written; the token itself never reaches the database, so the response that
+ * issues it is the one and only place it exists.
+ *
+ * @param pool - The Postgres pool.
+ * @param data - The owning registration, the display prefix, the hash, and the token this one replaces.
+ * @returns The stored token row.
+ */
 export async function createApiClientToken(
   pool: Pool,
   data: {
     clientId: string;
     tokenPrefix: string;
     tokenHash: string;
-    rawToken: string;
     rotatedFromTokenId?: string | null;
   },
 ): Promise<ApiClientToken> {
   const now = new Date();
   const result = await pool.query(
-    `INSERT INTO api_client_tokens (id, client_id, token_prefix, token_hash, token_raw, created_at, rotated_from_token_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO api_client_tokens (id, client_id, token_prefix, token_hash, created_at, rotated_from_token_id)
+     VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING ${TOKEN_COLUMNS}`,
-    [nanoid(), data.clientId, data.tokenPrefix, data.tokenHash, data.rawToken, now, data.rotatedFromTokenId ?? null],
+    [nanoid(), data.clientId, data.tokenPrefix, data.tokenHash, now, data.rotatedFromTokenId ?? null],
   );
   return rowToApiClientToken(result.rows[0] as ApiClientTokenRow);
 }

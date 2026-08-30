@@ -373,6 +373,35 @@ describe("adminApiAccessRoutes", () => {
       expect(response.json()).toEqual({ requests: [], clients: [] });
     });
 
+    it("never serves a token value back to an administrator", async () => {
+      const { app, token } = await buildApp("owner");
+      mockRepo.listApiAccessRequests.mockResolvedValue([]);
+      mockRepo.listApiClients.mockResolvedValue([makeClient()]);
+      // The extra field stands for the `token_raw` column this change drops:
+      // if anything in the response path still reads it, it shows up below.
+      mockRepo.listApiClientTokensByClient.mockResolvedValue([
+        { ...makeToken(), rawToken: "mc_live_mcpat_abc_thesecretitself" } as unknown as ApiClientToken,
+      ]);
+
+      const response = await app.inject({
+        method: "GET",
+        url: ENDPOINTS.admin.developer.apiAccess.overview,
+        headers: { authorization: `Bearer ${token}` },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).not.toContain("thesecretitself");
+      expect(response.body).not.toContain("deadbeef");
+      expect(Object.keys(response.json().clients[0].tokens[0]).sort()).toEqual([
+        "createdAt",
+        "id",
+        "lastUsedAt",
+        "revokedAt",
+        "status",
+        "tokenPrefix",
+      ]);
+    });
+
     it("passes the status query through to listApiAccessRequests", async () => {
       const { app, token } = await buildApp("admin");
       mockRepo.listApiAccessRequests.mockResolvedValue([]);

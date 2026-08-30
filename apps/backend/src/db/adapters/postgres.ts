@@ -1337,7 +1337,6 @@ export class PostgresAdapter
     clientId: string;
     tokenPrefix: string;
     tokenHash: string;
-    rawToken: string;
     rotatedFromTokenId?: string | null;
   }): Promise<ApiClientToken> {
     return apiAccessCreateClientToken(this.pool, data);

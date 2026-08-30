@@ -31,11 +31,14 @@ export interface ApiAccessRequestResponse {
   reviewNote: string | null;
 }
 
+/**
+ * A token as the API describes it. The token itself is never part of this
+ * shape: it exists once, in the response that issues it, and is not stored
+ * anywhere afterwards.
+ */
 export interface ApiClientTokenResponse {
   id: string;
   tokenPrefix: string;
-  /** The full plaintext token. Present for created tokens (stored as `token_raw`), `null` for rotated ones. */
-  rawToken: string | null;
   status: string;
   createdAt: string;
   lastUsedAt: string | null;
