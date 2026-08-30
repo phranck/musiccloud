@@ -11,10 +11,11 @@
  * Submitting the form does not create a session; the developer must verify by
  * email and then sign in.
  *
- * A `?tier=<id>` query param (the pricing page's Subscribe flow, MC-101) is
- * required: missing, disabled, or non-assignable tiers redirect to /pricing.
- * Only the free tier (`tier_free`) is selectable until billing lands; this
- * mirrors the backend's `resolveSignupTierId` invariant.
+ * A `?tier=<id>` query param names the plan the pricing page's Subscribe flow
+ * chose. Arriving without one is an ordinary sign-up, so the page runs on the
+ * plan a developer may take, which is what the backend's `resolveSignupTierId`
+ * would assign anyway. A named plan that cannot be taken, and an unreachable
+ * catalogue, both go to /pricing, because that is where the reason stands.
  */
 import AuthCard from "@/components/auth/AuthCard.astro";
 import { ProfileAddIcon } from "@/lib/icons";
@@ -24,6 +25,7 @@ import { SignupForm } from "@/components/auth/SignupForm";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { backendUrl } from "@/lib/api";
 import { getDeveloperSession } from "@/lib/session";
+import { type SignupCatalogueTier, type SignupTier, selectSignupTier } from "@/lib/signupTier";
 import { ENDPOINTS } from "@musiccloud/shared";
 
 export const prerender = false;
@@ -31,34 +33,19 @@ export const prerender = false;
 const account = await getDeveloperSession(Astro);
 if (account) return Astro.redirect("/dashboard");
 
-interface SelectedTier {
-  id: string;
-  name: string;
-  color: string;
-}
-
 const tierParam = Astro.url.searchParams.get("tier");
 
-// Gate: a tier param must be present, resolve to an enabled tier, and be
-// assignable in this phase. Only tier_free is assignable until billing lands;
-// this mirrors the backend's resolveSignupTierId invariant. On any failure
-// (missing param, disabled/unknown tier, unreachable backend) we redirect to
-// /pricing rather than rendering a tier-less signup form.
-let selectedTier: SelectedTier | null = null;
-if (tierParam) {
-  try {
-    const res = await fetch(backendUrl(ENDPOINTS.v1.tiers));
-    if (res.ok) {
-      const tiers = (await res.json()) as (SelectedTier & { enabled: boolean })[];
-      const tier = tiers.find((t) => t.id === tierParam && t.enabled);
-      // Only the free tier is assignable until paid billing lands.
-      if (tier && tier.id === "tier_free") {
-        selectedTier = { id: tier.id, name: tier.name, color: tier.color };
-      }
-    }
-  } catch {
-    // The backend is unreachable. Fail safe: redirect to /pricing below.
+// Which plan a developer may take is the backend's answer, published on the
+// catalogue as selfServiceAssignable. selectSignupTier reads it; nothing here
+// works it out again.
+let selectedTier: SignupTier | null = null;
+try {
+  const res = await fetch(backendUrl(ENDPOINTS.v1.tiers));
+  if (res.ok) {
+    selectedTier = selectSignupTier((await res.json()) as SignupCatalogueTier[], tierParam);
   }
+} catch {
+  // The backend is unreachable. Fail safe: redirect to /pricing below.
 }
 
 if (!selectedTier) return Astro.redirect("/pricing");
