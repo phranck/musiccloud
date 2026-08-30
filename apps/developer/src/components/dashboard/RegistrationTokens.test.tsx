@@ -20,6 +20,7 @@ function render(tokens: ApiTokenDto[], registrationActive = true) {
     <RegistrationTokens
       registrationId="client-1"
       registrationName="My Music App"
+      publicClientId="mc_client_1"
       tokens={tokens}
       registrationActive={registrationActive}
     />,

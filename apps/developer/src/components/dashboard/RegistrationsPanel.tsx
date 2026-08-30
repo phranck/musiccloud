@@ -227,6 +227,7 @@ export function RegistrationsPanel({ projectId }: RegistrationsPanelProps) {
                   <RegistrationTokens
                     registrationId={registration.id}
                     registrationName={registration.appName}
+                    publicClientId={registration.publicClientId}
                     tokens={registration.tokens}
                     registrationActive={isActive}
                   />
