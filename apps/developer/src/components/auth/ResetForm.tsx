@@ -3,6 +3,7 @@ import { type ChangeEvent, type SyntheticEvent, useCallback, useState } from "re
 import { AuthStatus } from "@/components/auth/AuthStatus";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
+import { ContentCard } from "@/components/docs/ContentCard";
 import { postAuth } from "@/lib/authClient";
 import { authErrorLabel } from "@/lib/authErrors";
 import { AuthStatusTone } from "@/lib/authStatusTone";
@@ -78,26 +79,32 @@ export function ResetForm({ token }: ResetFormProps) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-      <TextField
-        name="password"
-        label="New password"
-        type="password"
-        value={password}
-        onChange={onPassword}
-        autoComplete="new-password"
-        hint={`${PASSWORD_MIN_LENGTH}–${PASSWORD_MAX_LENGTH} characters.`}
-      />
-      <TextField
-        name="confirm"
-        label="Confirm password"
-        type="password"
-        value={confirm}
-        onChange={onConfirm}
-        autoComplete="new-password"
-        error={error ?? undefined}
-      />
-      <SubmitButton loading={phase === FormPhase.Submitting}>Update password</SubmitButton>
+    <form onSubmit={onSubmit} noValidate>
+      <ContentCard.Body>
+        <ContentCard.Body.Copy>
+          <TextField
+            name="password"
+            label="New password"
+            type="password"
+            value={password}
+            onChange={onPassword}
+            autoComplete="new-password"
+            hint={`${PASSWORD_MIN_LENGTH}–${PASSWORD_MAX_LENGTH} characters.`}
+          />
+          <TextField
+            name="confirm"
+            label="Confirm password"
+            type="password"
+            value={confirm}
+            onChange={onConfirm}
+            autoComplete="new-password"
+            error={error ?? undefined}
+          />
+        </ContentCard.Body.Copy>
+      </ContentCard.Body>
+      <ContentCard.Footer>
+        <SubmitButton loading={phase === FormPhase.Submitting}>Update password</SubmitButton>
+      </ContentCard.Footer>
     </form>
   );
 }

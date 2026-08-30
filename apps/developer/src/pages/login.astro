@@ -10,6 +10,7 @@
  * footer link to signup.
  */
 import AuthCard from "@/components/auth/AuthCard.astro";
+import { LoginIcon } from "@/lib/icons";
 import GitHubButton from "@/components/auth/GitHubButton.astro";
 import { LoginForm } from "@/components/auth/LoginForm";
 import OrDivider from "@/components/auth/OrDivider.astro";
@@ -25,17 +26,18 @@ const oauthFailed = Astro.url.searchParams.get("error") === "oauth";
 ---
 
 <BaseLayout title="Sign in · musiccloud for developers">
-  <AuthCard title="Sign in">
-    {
-      oauthFailed && (
-        <div class="status-message status-message--danger mb-5">
-          GitHub sign-in could not be completed. Please try again.
-        </div>
-      )
-    }
-    <GitHubButton intent="login" />
-    <OrDivider />
-    <LoginForm client:load />
+  <AuthCard title="Sign in" icon={LoginIcon}>
+    <LoginForm client:load>
+      {
+        oauthFailed && (
+          <div class="status-message status-message--danger">
+            GitHub sign-in could not be completed. Please try again.
+          </div>
+        )
+      }
+      <GitHubButton intent="login" />
+      <OrDivider />
+    </LoginForm>
     <Fragment slot="footer">
       No account? <a href="/signup" class="content-link text-fg">Sign up</a>
     </Fragment>

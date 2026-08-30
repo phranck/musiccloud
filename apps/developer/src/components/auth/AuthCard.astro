@@ -1,40 +1,50 @@
 ---
 /**
- * AuthCard is the glassy, centred card shell shared by every developer-portal
- * auth screen (login, signup, verify, forgot, reset).
+ * AuthCard is the centred card shell shared by every developer-portal auth
+ * screen (login, signup, verify, forgot, reset).
  *
  * Layout: a max-width column centred in the viewport, the shared `Wordmark`
- * (the rainbow brand mark, centred here) on top, a title heading, an optional
- * subtitle via the `subtitle` slot, the default slot for the form body, and a
+ * (the rainbow brand mark, centred here) on top, then the card itself, and a
  * `footer` slot for secondary links (e.g. "No account? Sign up").
  *
- * All geometry is token-driven: the card uses `--radius-card` (the outermost
- * radius) and a hairline `--color-border`; inner controls derive their own
- * `--radius-button`. No ad-hoc radii or colours.
+ * The card interior belongs to whatever fills the default slot, because the
+ * form has to span both the body and the footer for its submit to sit at the
+ * card's bottom right.
+ *
+ * The card is `ContentCard`, the one the API reference uses, so an auth screen
+ * carries the same header bar, the same inset and the same corner geometry as
+ * every other surface in the portal. `.api-reference-shell` is what declares
+ * the tokens those rules read, so the column opts into it the way the
+ * dashboard shell does.
  */
+import { ContentCard } from "@/components/docs/ContentCard";
 import Wordmark from "@/components/Wordmark.astro";
+import "../../styles/docs.css";
 
 interface Props {
-  /** Heading shown at the top of the card (smaller than the landing hero). */
+  /** Heading shown in the card's header bar. */
   title: string;
+  /** The symbol shown beside the title, as every card header carries one. */
+  icon: (props: { "aria-hidden"?: "true" }) => unknown;
 }
 
-const { title } = Astro.props;
-const hasSubtitle = Astro.slots.has("subtitle");
+const { title, icon: Icon } = Astro.props;
 const hasFooter = Astro.slots.has("footer");
 ---
 
 <main class="flex-1 flex items-center justify-center px-6 py-12">
-  <div class="w-full max-w-md">
+  <div class="api-reference-shell w-full max-w-md">
     <Wordmark class="justify-center mb-8" />
 
-    <section class="surface-card px-7 py-8">
-      <h1 class="text-card-title font-medium tracking-tight mb-1">{title}</h1>
-      {hasSubtitle && <p class="text-body text-fg-muted mb-6"><slot name="subtitle" /></p>}
-      <div class={hasSubtitle ? "" : "mt-6"}>
-        <slot />
-      </div>
-    </section>
+    <ContentCard>
+      <ContentCard.Header>
+        <ContentCard.Header.Icon>
+          <Icon aria-hidden="true" />
+        </ContentCard.Header.Icon>
+        <ContentCard.Header.Title>{title}</ContentCard.Header.Title>
+      </ContentCard.Header>
+      <slot />
+    </ContentCard>
 
     {
       hasFooter && (

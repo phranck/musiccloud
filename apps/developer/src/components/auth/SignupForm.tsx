@@ -3,6 +3,7 @@ import { type ChangeEvent, type ReactNode, type SyntheticEvent, useCallback, use
 import { AuthStatus } from "@/components/auth/AuthStatus";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
+import { ContentCard } from "@/components/docs/ContentCard";
 import { postAuth } from "@/lib/authClient";
 import { AuthErrorCode, authErrorLabel } from "@/lib/authErrors";
 import { AuthStatusTone } from "@/lib/authStatusTone";
@@ -166,57 +167,65 @@ export function SignupForm({ children, tier }: SignupFormProps) {
   }
 
   return (
-    <>
-      {children}
-      {tier && (
-        <p className="icon-text-first-line gap-2 rounded-button border border-border bg-surface px-3 py-2 text-body text-fg-muted">
-          <span className="icon-text-first-line__icon">
-            <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: tier.color }} aria-hidden="true" />
-          </span>
-          Signing up for the <span className="text-fg font-medium">{tier.name}</span> tier.
-        </p>
-      )}
-      <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-        <TextField
-          name="displayName"
-          label="Display name"
-          value={displayName}
-          onChange={onDisplayName}
-          autoComplete="name"
-          required={false}
-          placeholder="Optional"
-        />
-        <TextField
-          name="email"
-          label="Email"
-          type="email"
-          value={email}
-          onChange={onEmail}
-          autoComplete="email"
-          placeholder="you@example.com"
-          error={emailError ?? undefined}
-        />
-        <TextField
-          name="password"
-          label="Password"
-          type="password"
-          value={password}
-          onChange={onPassword}
-          autoComplete="new-password"
-          hint={`${PASSWORD_MIN_LENGTH}–${PASSWORD_MAX_LENGTH} characters.`}
-          error={passwordError ?? undefined}
-        />
-        <TextField
-          name="confirmPassword"
-          label="Repeat password"
-          type="password"
-          value={confirmPassword}
-          onChange={onConfirmPassword}
-          autoComplete="new-password"
-          error={confirmPasswordError ?? undefined}
-        />
+    <form onSubmit={onSubmit} noValidate>
+      <ContentCard.Body>
+        <ContentCard.Body.Copy>
+          {children}
+          {tier && (
+            <p className="icon-text-first-line gap-2 rounded-button border border-border bg-surface px-3 py-2 text-body text-fg-muted">
+              <span className="icon-text-first-line__icon">
+                <span
+                  className="size-3 shrink-0 rounded-full"
+                  style={{ backgroundColor: tier.color }}
+                  aria-hidden="true"
+                />
+              </span>
+              Signing up for the <span className="text-fg font-medium">{tier.name}</span> tier.
+            </p>
+          )}
+          <TextField
+            name="displayName"
+            label="Display name"
+            value={displayName}
+            onChange={onDisplayName}
+            autoComplete="name"
+            required={false}
+            placeholder="Optional"
+          />
+          <TextField
+            name="email"
+            label="Email"
+            type="email"
+            value={email}
+            onChange={onEmail}
+            autoComplete="email"
+            placeholder="you@example.com"
+            error={emailError ?? undefined}
+          />
+          <TextField
+            name="password"
+            label="Password"
+            type="password"
+            value={password}
+            onChange={onPassword}
+            autoComplete="new-password"
+            hint={`${PASSWORD_MIN_LENGTH}–${PASSWORD_MAX_LENGTH} characters.`}
+            error={passwordError ?? undefined}
+          />
+          <TextField
+            name="confirmPassword"
+            label="Repeat password"
+            type="password"
+            value={confirmPassword}
+            onChange={onConfirmPassword}
+            autoComplete="new-password"
+            error={confirmPasswordError ?? undefined}
+          />
+        </ContentCard.Body.Copy>
+      </ContentCard.Body>
+      <ContentCard.Footer>
         <SubmitButton loading={phase === FormPhase.Submitting}>Create account</SubmitButton>
-      </form>
-    </>
+      </ContentCard.Footer>
+    </form>
   );
 }

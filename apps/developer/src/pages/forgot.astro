@@ -7,6 +7,7 @@
  * leak). A footer link returns to sign-in.
  */
 import AuthCard from "@/components/auth/AuthCard.astro";
+import { SmsIcon } from "@/lib/icons";
 import { ForgotForm } from "@/components/auth/ForgotForm";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 
@@ -14,9 +15,8 @@ export const prerender = false;
 ---
 
 <BaseLayout title="Reset password · musiccloud for developers">
-  <AuthCard title="Reset password">
-    <Fragment slot="subtitle">Enter your account email and we'll send you a reset link.</Fragment>
-    <ForgotForm client:load />
+  <AuthCard title="Reset password" icon={SmsIcon}>
+    <ForgotForm client:load subtitle="Enter your account email address and we will send you a reset link." />
     <Fragment slot="footer">
       <a href="/login" class="content-link text-fg">Back to sign in</a>
     </Fragment>

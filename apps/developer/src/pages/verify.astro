@@ -7,6 +7,8 @@
  * island, which auto-submits the verification on load and reports the outcome.
  */
 import AuthCard from "@/components/auth/AuthCard.astro";
+import { ContentCard } from "@/components/docs/ContentCard";
+import { TickCircleIcon } from "@/lib/icons";
 import { VerifyView } from "@/components/auth/VerifyView";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 
@@ -16,14 +18,16 @@ const token = Astro.url.searchParams.get("token");
 ---
 
 <BaseLayout title="Verify email · musiccloud for developers">
-  <AuthCard title="Verify email">
+  <AuthCard title="Verify email" icon={TickCircleIcon}>
     {
       token ? (
         <VerifyView client:load token={token} />
       ) : (
-        <p class="text-body text-fg-muted text-center py-2">
+        <ContentCard.Body>
+          <p class="text-body text-fg-muted text-center py-2">
           This verification link is missing its token. Please use the link from your email.
-        </p>
+          </p>
+        </ContentCard.Body>
       )
     }
     <Fragment slot="footer">

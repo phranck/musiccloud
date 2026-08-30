@@ -1,7 +1,8 @@
 import { ENDPOINTS } from "@musiccloud/shared";
-import { type ChangeEvent, type SyntheticEvent, useCallback, useState } from "react";
+import { type ChangeEvent, type ReactNode, type SyntheticEvent, useCallback, useState } from "react";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
+import { ContentCard } from "@/components/docs/ContentCard";
 import { postAuth } from "@/lib/authClient";
 import { AuthErrorCode, authErrorLabel } from "@/lib/authErrors";
 import { FormPhase, type FormPhaseValue } from "@/lib/formPhase";
@@ -10,18 +11,28 @@ import { FormPhase, type FormPhaseValue } from "@/lib/formPhase";
 const DASHBOARD_PATH = "/dashboard";
 
 /**
+ * Props for {@link LoginForm}.
+ */
+export interface LoginFormProps {
+  /** Lead content shown above the fields, such as the GitHub sign-in button. */
+  children?: ReactNode;
+}
+
+/**
  * Login island for the developer portal: email + password posted to the BFF
  * `/api/dev/auth/login`. On `200` it hard-navigates to the dashboard (a full
  * load so the new session cookie is picked up by the protected page's SSR
  * guard). `401` shows "Invalid email or password"; `403` (unverified) shows a
  * verification prompt; everything else surfaces the backend message.
  *
- * Rendered with `client:load` from `login.astro`; the GitHub button and the
- * "or" divider live in the page, above this form (spec: GitHub first).
+ * Rendered with `client:load` from `login.astro`, which passes the GitHub
+ * button and the "or" divider as children so they stand above the fields
+ * (spec: GitHub first) inside the card's own body.
  *
+ * @param props - See {@link LoginFormProps}.
  * @returns The email/password login form.
  */
-export function LoginForm() {
+export function LoginForm({ children }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phase, setPhase] = useState<FormPhaseValue>(FormPhase.Idle);
@@ -53,31 +64,38 @@ export function LoginForm() {
   );
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-      <TextField
-        name="email"
-        label="Email"
-        type="email"
-        value={email}
-        onChange={onEmail}
-        autoComplete="email"
-        placeholder="you@example.com"
-      />
-      <TextField
-        name="password"
-        label="Password"
-        type="password"
-        value={password}
-        onChange={onPassword}
-        autoComplete="current-password"
-        error={error ?? undefined}
-      />
-      <div className="flex justify-end -mt-1">
-        <a href="/forgot" className="content-link text-body text-fg-muted">
-          Forgot password?
-        </a>
-      </div>
-      <SubmitButton loading={phase === FormPhase.Submitting}>Sign in</SubmitButton>
+    <form onSubmit={onSubmit} noValidate>
+      <ContentCard.Body>
+        <ContentCard.Body.Copy>
+          {children}
+          <TextField
+            name="email"
+            label="Email"
+            type="email"
+            value={email}
+            onChange={onEmail}
+            autoComplete="email"
+            placeholder="you@example.com"
+          />
+          <TextField
+            name="password"
+            label="Password"
+            type="password"
+            value={password}
+            onChange={onPassword}
+            autoComplete="current-password"
+            error={error ?? undefined}
+          />
+          <div className="flex justify-end -mt-1">
+            <a href="/forgot" className="content-link text-body text-fg-muted">
+              Forgot password?
+            </a>
+          </div>
+        </ContentCard.Body.Copy>
+      </ContentCard.Body>
+      <ContentCard.Footer>
+        <SubmitButton loading={phase === FormPhase.Submitting}>Sign in</SubmitButton>
+      </ContentCard.Footer>
     </form>
   );
 }
