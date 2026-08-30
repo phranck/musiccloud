@@ -3,6 +3,7 @@ import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
 import { ApiFailureNotice } from "@/components/dashboard/ApiFailureNotice";
 import { RegistrationProfileChoice } from "@/components/dashboard/RegistrationProfileChoice";
+import { RegistrationTokens } from "@/components/dashboard/RegistrationTokens";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import {
   ApiClientStatus,
@@ -223,6 +224,12 @@ export function RegistrationsPanel({ projectId }: RegistrationsPanelProps) {
                         ? "Suspending stops its keys from authenticating and can be undone. Revoking does the same and cannot."
                         : "Suspended: its keys do not authenticate until it is reactivated."}
                   </p>
+                  <RegistrationTokens
+                    registrationId={registration.id}
+                    registrationName={registration.appName}
+                    tokens={registration.tokens}
+                    registrationActive={isActive}
+                  />
                   {!isRevoked && (
                     <div className="flex flex-wrap gap-3 mt-2">
                       <button

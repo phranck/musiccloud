@@ -7,7 +7,7 @@ describe("DashboardNavigation", () => {
     const { default: DashboardNavigation } = await import("./DashboardNavigation.astro");
     const container = await AstroContainer.create();
     const html = await container.renderToString(DashboardNavigation, {
-      props: { active: DashboardTab.ApiKeys },
+      props: { active: DashboardTab.Projects },
     });
 
     expect(html).toContain('data-dashboard-navigation="desktop"');
@@ -15,7 +15,7 @@ describe("DashboardNavigation", () => {
     expect(html).toContain('data-dashboard-active-tab="true"');
     expect(html.match(/aria-current="page"/g)).toHaveLength(2);
 
-    for (const label of ["Overview", "Projects", "API access", "API keys", "Usage", "Profile"]) {
+    for (const label of ["Overview", "Projects", "API access", "Usage", "Profile"]) {
       expect(html.match(new RegExp(`>\\s*${label}\\s*<`, "g"))).toHaveLength(2);
     }
   });

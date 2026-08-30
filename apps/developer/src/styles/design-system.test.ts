@@ -332,7 +332,7 @@ describe("developer design system", () => {
     const docsLanding = readDeveloperFile("src/pages/docs/index.astro");
     const pricing = readDeveloperFile("src/pages/pricing.astro");
     const usage = readDeveloperFile("src/pages/dashboard/usage.astro");
-    const apiKeys = readDeveloperFile("src/components/dashboard/ApiKeysPanel.tsx");
+    const registrationTokens = readDeveloperFile("src/components/dashboard/RegistrationTokens.tsx");
     const apiSearch = readDeveloperFile("src/components/docs/ApiDocumentSearch.tsx");
     const searchDialog = readDeveloperFile("src/components/docs/SearchDialog.tsx");
 
@@ -364,7 +364,7 @@ describe("developer design system", () => {
     expect(docsLanding).not.toMatch(/<(?:LinkIcon|BookIcon|KeyIcon|Icon) className="size-[56] text-accent"/);
     expect(pricing).not.toMatch(/<TickCircleIcon className="(?:pricing-commitment-icon )?size-4/);
     expect(usage).not.toMatch(/<DiagramIcon className="size-5"/);
-    expect(apiKeys).not.toMatch(/<KeyIcon className="size-4"/);
+    expect(registrationTokens).not.toMatch(/<KeyIcon className="size-4"/);
     expect(apiSearch).not.toMatch(/<ResultIcon className="size-5"/);
     expect(searchDialog).toContain("search-dialog__result-icon icon-text-first-line__icon");
   });

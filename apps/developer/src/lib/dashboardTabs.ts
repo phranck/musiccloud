@@ -19,8 +19,6 @@ export const DashboardTab = {
   Projects: "Projects",
   /** Request API access + review-status history. */
   ApiAccess: "ApiAccess",
-  /** API clients + key management (create/rotate/revoke). */
-  ApiKeys: "ApiKeys",
   /** Quotas + key usage at a glance. */
   Usage: "Usage",
   /** Account contact details the operator needs in order to reach a person. */
@@ -51,7 +49,6 @@ export const DASHBOARD_NAV: readonly DashboardNavItem[] = [
   { tab: DashboardTab.Overview, label: "Overview", href: "/dashboard", comingSoon: false },
   { tab: DashboardTab.Projects, label: "Projects", href: "/dashboard/projects", comingSoon: false },
   { tab: DashboardTab.ApiAccess, label: "API access", href: "/dashboard/api-access", comingSoon: false },
-  { tab: DashboardTab.ApiKeys, label: "API keys", href: "/dashboard/api-keys", comingSoon: false },
   { tab: DashboardTab.Usage, label: "Usage", href: "/dashboard/usage", comingSoon: false },
   { tab: DashboardTab.Profile, label: "Profile", href: "/dashboard/profile", comingSoon: false },
 ];
