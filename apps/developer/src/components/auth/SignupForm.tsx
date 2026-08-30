@@ -82,6 +82,9 @@ interface SignupFormProps {
    * already validated server-side by `signup.astro` (existing + enabled).
    * Shown as a hint above the fields and submitted as `tierId` so the
    * account is created with that tier assigned. Absent for a plain signup.
+   * Because the hint names one plan, the footer carries a link back to the
+   * pricing page so a different one can be picked without leaving through the
+   * browser's back button.
    */
   tier?: { id: string; name: string; color: string };
 }
@@ -224,6 +227,11 @@ export function SignupForm({ children, tier }: SignupFormProps) {
         </ContentCard.Body.Copy>
       </ContentCard.Body>
       <ContentCard.Footer>
+        {tier && (
+          <a href="/pricing" className="button button--secondary text-body">
+            Back to plans
+          </a>
+        )}
         <SubmitButton loading={phase === FormPhase.Submitting}>Create account</SubmitButton>
       </ContentCard.Footer>
     </form>
