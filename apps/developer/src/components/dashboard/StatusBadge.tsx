@@ -1,16 +1,12 @@
-import { AccessRequestStatus, ApiClientStatus, ApiTokenStatus, DeveloperProjectStatus } from "@/lib/apiAccessClient";
+import { ApiClientStatus, ApiTokenStatus, DeveloperProjectStatus } from "@/lib/apiAccessClient";
 
 /**
  * Visual tone classes per known status value, computed-keyed by the domain
- * namespaces so no inline discriminant literal appears. Client/token
- * statuses share wire values with each other ("active"/"revoked"), so the
- * map naturally covers both.
+ * namespaces so no inline discriminant literal appears. Project, registration
+ * and token statuses share wire values with each other ("active"/"revoked"),
+ * so the map naturally covers all three.
  */
 const TONE_CLASS: Record<string, string> = {
-  [AccessRequestStatus.Pending]: "status-pill--warning",
-  [AccessRequestStatus.Approved]: "status-pill--success",
-  [AccessRequestStatus.Rejected]: "status-pill--danger",
-  [AccessRequestStatus.Archived]: "",
   [ApiClientStatus.Active]: "status-pill--success",
   [ApiClientStatus.Suspended]: "status-pill--warning",
   [ApiClientStatus.Revoked]: "status-pill--danger",
@@ -25,15 +21,15 @@ const NEUTRAL_TONE_CLASS = "";
  * Props for {@link StatusBadge}.
  */
 export interface StatusBadgeProps {
-  /** The wire status value (request, client, or token status). */
+  /** The wire status value (project, registration, or token status). */
   status: string;
 }
 
 /**
- * Small bordered pill showing a request/client/token status in a tone that
- * matches its meaning (pending = gold, live = accent, terminal = red,
- * historical = subtle). Unknown values render neutrally instead of breaking,
- * so a new backend status cannot crash the dashboard.
+ * Small bordered pill showing a project, registration or token status in a
+ * tone that matches its meaning (suspended = gold, live = accent, terminal =
+ * red, historical = subtle). Unknown values render neutrally instead of
+ * breaking, so a new backend status cannot crash the dashboard.
  *
  * @param props - See {@link StatusBadgeProps}.
  * @returns The status pill.

@@ -13,31 +13,10 @@ import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 
 /** Maximum `appName` length accepted by the backend (mirrored for inline validation). */
 export const MAX_APP_NAME_LENGTH = 200;
-/** Maximum `appDescription` length accepted by the backend (mirrored for inline validation). */
-export const MAX_APP_DESCRIPTION_LENGTH = 2000;
 /** HTTP 429: the backend's rate-limit response, carrying `retryAfterSeconds`. */
 export const HTTP_STATUS_TOO_MANY_REQUESTS = 429;
 
-/**
- * Review lifecycle of an API-access request, as returned by the backend.
- * PascalCase members per the project domain-literals policy; the values are
- * the wire strings.
- */
-export const AccessRequestStatus = {
-  /** Submitted, awaiting admin review. */
-  Pending: "pending",
-  /** Approved: a client was created for it. */
-  Approved: "approved",
-  /** Rejected by an admin (see `reviewNote`). */
-  Rejected: "rejected",
-  /** Archived after handling; kept for history. */
-  Archived: "archived",
-} as const;
-
-/** An {@link AccessRequestStatus} member value. */
-export type AccessRequestStatusValue = (typeof AccessRequestStatus)[keyof typeof AccessRequestStatus];
-
-/** Lifecycle of an approved API client ("app"). */
+/** Lifecycle of a registered API client ("app"). */
 export const ApiClientStatus = {
   /** Live: its tokens authenticate requests. */
   Active: "active",
@@ -83,31 +62,6 @@ export const ApiTokenStatus = {
 
 /** An {@link ApiTokenStatus} member value. */
 export type ApiTokenStatusValue = (typeof ApiTokenStatus)[keyof typeof ApiTokenStatus];
-
-/**
- * An API-access request as returned by the self-service endpoints
- * (`toRequestResponse` in `apps/backend/src/routes/dev-api-access.ts`).
- */
-export interface AccessRequestDto {
-  /** Stable request id. */
-  id: string;
-  /** Project receiving the approved registration, or `null` while pending. */
-  projectId: string | null;
-  /** Name of the app access was requested for. */
-  appName: string;
-  /** Free-text description of the app. */
-  appDescription: string;
-  /** The developer's own traffic estimate. */
-  estimatedRequestsPerDay: number;
-  /** Review status (an {@link AccessRequestStatus} value). */
-  status: string;
-  /** Submission timestamp, ISO-8601. */
-  submittedAt: string;
-  /** Review timestamp, ISO-8601, or `null` while pending. */
-  reviewedAt: string | null;
-  /** Admin note from the review (set on rejection), or `null`. */
-  reviewNote: string | null;
-}
 
 /**
  * An issued token as returned by the self-service endpoints. `rawToken` is
@@ -265,28 +219,6 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<ApiAcce
  */
 export function maskToken(tokenPrefix: string): string {
   return `mc_live_${tokenPrefix}_...`;
-}
-
-/**
- * Lists the caller's own API-access requests, newest first.
- *
- * @param signal - Abort signal for the mount effect's cleanup.
- */
-export function listAccessRequests(signal?: AbortSignal): Promise<ApiAccessResult<{ requests: AccessRequestDto[] }>> {
-  return requestJson(ENDPOINTS.dev.apiAccess.requestsList, { signal });
-}
-
-/**
- * Submits a new API-access request.
- *
- * @param body - App name, description, and the traffic estimate.
- */
-export function submitAccessRequest(body: {
-  appName: string;
-  appDescription: string;
-  estimatedRequestsPerDay: number;
-}): Promise<ApiAccessResult<{ request: AccessRequestDto }>> {
-  return requestJson(ENDPOINTS.dev.apiAccess.requestsCreate, { method: "POST", body: JSON.stringify(body) });
 }
 
 /**
