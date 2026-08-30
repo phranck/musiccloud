@@ -445,7 +445,14 @@ export async function listDeveloperProjectsByAccount(
  * @param developerAccountId - The owning developer account.
  * @returns The number of projects that count against the per-account ceiling.
  */
-export async function countActiveDeveloperProjectsByAccount(pool: Pool, developerAccountId: string): Promise<number> {
+/**
+ * How many projects an account holds for the purposes of the ceiling.
+ *
+ * A suspended project still occupies its place and can be reactivated, so it
+ * counts. Only a deleted one frees a slot; without that, an account could hold
+ * any number of projects by suspending them.
+ */
+export async function countDeveloperProjectsAgainstCeiling(pool: Pool, developerAccountId: string): Promise<number> {
   const result = await pool.query(
     `SELECT COUNT(*)::int AS cnt FROM developer_projects
      WHERE developer_account_id = $1 AND status <> 'deleted'`,

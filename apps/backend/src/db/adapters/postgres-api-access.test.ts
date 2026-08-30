@@ -12,7 +12,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   countActiveApiClientsByProject,
-  countActiveDeveloperProjectsByAccount,
+  countDeveloperProjectsAgainstCeiling,
   createApiClientToken,
 } from "./postgres-api-access.js";
 
@@ -25,7 +25,7 @@ describe("API-access creation ceilings", () => {
     const query = vi.fn().mockResolvedValue(result([{ cnt: 3 }]));
     const pool = { query } as unknown as Pool;
 
-    await expect(countActiveDeveloperProjectsByAccount(pool, "dev-1")).resolves.toBe(3);
+    await expect(countDeveloperProjectsAgainstCeiling(pool, "dev-1")).resolves.toBe(3);
 
     const [sql, values] = query.mock.calls[0] as [string, unknown[]];
     expect(sql).toContain("FROM developer_projects");

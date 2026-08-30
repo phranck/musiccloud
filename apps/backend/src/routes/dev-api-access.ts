@@ -20,6 +20,7 @@ import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { RateLimiter } from "../lib/infra/rate-limiter.js";
 import { generateApiToken } from "../services/api-access-token.js";
+import { getMaxProjectsPerAccount } from "../services/developer-limits.js";
 import { notifyDeveloper } from "../services/developer-notifications.js";
 import { listSelfServiceAssignableTiers } from "../services/signup-tier.js";
 
@@ -30,11 +31,9 @@ const MAX_WEBSITE_URL_LENGTH = 500;
 
 /** Projects and registrations one account may create per minute, taken together. */
 export const CREATIONS_PER_MINUTE_PER_ACCOUNT = 10;
-/** Projects one account may hold at once. Deleting a project frees a slot. */
-export const MAX_PROJECTS_PER_ACCOUNT = 10;
 /** Registrations one project may hold at once. Revoking a registration frees a slot. */
 export const MAX_REGISTRATIONS_PER_PROJECT = 5;
-/** Refusal for an account that already holds {@link MAX_PROJECTS_PER_ACCOUNT} projects. */
+/** Refusal for an account that already holds as many projects as the operator allows. */
 const PROJECT_CEILING_CODE = "MC-REQ-0003";
 /** Refusal for a project that already holds {@link MAX_REGISTRATIONS_PER_PROJECT} registrations. */
 const REGISTRATION_CEILING_CODE = "MC-REQ-0004";
@@ -241,8 +240,19 @@ function rejectInactiveCredentialOwner(client: ApiClient, reply: FastifyReply): 
 export async function devApiAccessRoutes(app: FastifyInstance) {
   app.get(ENDPOINTS.dev.apiAccess.projects, async (request, reply) => {
     const repo = await getApiAccessRepository();
-    const projects = await repo.listDeveloperProjectsByAccount(request.developerAccountId!);
-    return reply.send({ projects: projects.map(toProjectResponse) });
+    // The ceiling travels with the list because that is where a developer reads
+    // it: the screen that shows what they hold is the one that says how many
+    // more they may create. `used` is the same count the creation route
+    // enforces, so the two cannot disagree on screen.
+    const [projects, maxProjects, usedProjects] = await Promise.all([
+      repo.listDeveloperProjectsByAccount(request.developerAccountId!),
+      getMaxProjectsPerAccount(),
+      repo.countDeveloperProjectsAgainstCeiling(request.developerAccountId!),
+    ]);
+    return reply.send({
+      projects: projects.map(toProjectResponse),
+      limits: { maxProjects, usedProjects },
+    });
   });
 
   app.post(ENDPOINTS.dev.apiAccess.projects, { preHandler: throttleCreation }, async (request, reply) => {
@@ -255,11 +265,12 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
     // The count is read before the insert rather than inside it, so requests
     // already in flight can carry an account a little past the ceiling. The
     // creation throttle bounds how many that can be.
-    const heldProjects = await repo.countActiveDeveloperProjectsByAccount(request.developerAccountId!);
-    if (heldProjects >= MAX_PROJECTS_PER_ACCOUNT) {
+    const maxProjects = await getMaxProjectsPerAccount();
+    const heldProjects = await repo.countDeveloperProjectsAgainstCeiling(request.developerAccountId!);
+    if (heldProjects >= maxProjects) {
       return refuseOverCeiling(request, reply, {
         code: PROJECT_CEILING_CODE,
-        limit: MAX_PROJECTS_PER_ACCOUNT,
+        limit: maxProjects,
         name: "projects_per_account",
       });
     }
