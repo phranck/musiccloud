@@ -83,7 +83,23 @@ function copyFields(fields: PublicationFields): PublicationFields {
   };
 }
 
-function defaultPublication(context: SingleContentContext, slug: string, defaultPath?: string): ContentPublication {
+/**
+ * The publication a context starts with when it is switched on.
+ *
+ * Exported because the editor shows a card for a context the page is not in,
+ * and that card has to show what switching it on would create. One definition
+ * means the card cannot promise something the reducer would not produce.
+ *
+ * @param context - The context the publication belongs to.
+ * @param slug - The page's slug, which the default path is built from.
+ * @param defaultPath - An explicit path, where the caller has one.
+ * @returns A publication carrying the defaults for that context.
+ */
+export function defaultPublication(
+  context: SingleContentContext,
+  slug: string,
+  defaultPath?: string,
+): ContentPublication {
   return {
     context,
     path: defaultPath ?? `/${slug}`,
