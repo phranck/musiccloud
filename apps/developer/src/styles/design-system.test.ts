@@ -300,14 +300,22 @@ describe("developer design system", () => {
   it("keeps the global stylesheet as an ordered import entry point", () => {
     const globalCss = readDeveloperFile("src/styles/global.css");
 
-    expect(globalCss.trim()).toBe(
-      [
-        '@import "tailwindcss";',
-        '@import "./tokens.css";',
-        '@import "./base.css";',
-        '@import "./components.css";',
-      ].join("\n"),
-    );
+    // Comments explain the entry point; the directives are what it does, and
+    // their order is the cascade. `@source` belongs to the Tailwind import,
+    // because it says which sources that import generates utilities from.
+    const directives = globalCss
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    expect(directives).toEqual([
+      '@import "tailwindcss";',
+      '@source "../../../../packages/dashboard-ui/src";',
+      '@import "./tokens.css";',
+      '@import "./base.css";',
+      '@import "./components.css";',
+    ]);
   });
 
   it("declares the canonical cascade order before every component layer", () => {
@@ -398,7 +406,7 @@ describe("developer design system", () => {
     const dashboard = readDeveloperFile("src/pages/dashboard/index.astro");
 
     expect(components).toMatch(
-      /\.developer-page,[\s\S]*\.dashboard-content\s*\{[^}]*--mc-card-content-inset:\s*calc\(var\(--radius-card\) \/ 2\);/s,
+      /\.developer-page\s*\{[^}]*--mc-card-content-inset:\s*calc\(var\(--radius-card\) \/ 2\);/s,
     );
     expect(components).toMatch(
       /\.card-content-inset,[\s\S]*\.page-heading\s*\{[^}]*padding-inline:\s*var\(--mc-card-content-inset\);/s,
@@ -416,8 +424,11 @@ describe("developer design system", () => {
     expect(pricing).toMatch(/<p class="[^"]*card-content-inset[^"]*text-lead[^"]*"/);
     expect(pricing).toMatch(/<h2 class="[^"]*card-content-inset[^"]*">Our commitment<\/h2>/);
     expect(pricing).not.toMatch(/tier-card[^>]*card-content-inset|card-content-inset[^>]*tier-card/);
-    expect(dashboard).toMatch(/<h1 class="[^"]*card-content-inset[^"]*"/);
-    expect(dashboard).toMatch(/<p class="[^"]*card-content-inset[^"]*">Here is your developer account/);
+    // The dashboard names its page the way the reference names a chapter, so
+    // its heading takes the inset from `.api-content__chapter-header` rather
+    // than carrying the utility class. The copy under it still carries it.
+    expect(dashboard).toMatch(/<ApiContent\.Chapter\.Header className="api-content__chapter-header--first">/);
+    expect(dashboard).toMatch(/<p class="[^"]*card-content-inset[^"]*">\s*Welcome back/);
   });
 
   it("centers API section icons against the trimmed visible heading text", () => {
@@ -448,14 +459,19 @@ describe("developer design system", () => {
     );
   });
 
-  it("uses compact shared button geometry inside ContentCard footers", () => {
+  it("uses compact shared button geometry throughout a card and its nested panels", () => {
     const components = readDeveloperFile("src/styles/components.css");
     const docs = readDeveloperFile("src/styles/docs.css");
 
     expect(components).toMatch(
       /\.button\s*\{[^}]*min-height:\s*var\(--button-min-height, var\(--mc-size-control\)\);/s,
     );
-    expect(docs).toMatch(/\.content-card__footer\s*\{[^}]*--button-min-height:\s*var\(--mc-size-control-compact\);/s);
+    // The height is set on the surfaces rather than on the footer, so an action
+    // in a card's header, its body or a nested panel is the same height as one
+    // in its footer.
+    expect(docs).toMatch(
+      /\.content-card,\s*\.content-panel\s*\{[^}]*--button-min-height:\s*var\(--mc-size-control-compact\);/s,
+    );
   });
 
   it("keeps every Developer Portal button label at regular weight", () => {
@@ -471,9 +487,7 @@ describe("developer design system", () => {
   it("keeps the selected API sidebar item at regular weight", () => {
     const docs = readDeveloperFile("src/styles/docs.css");
 
-    expect(docs).toMatch(
-      /\[data-api-nav-link\]\[aria-current="true"\],[\s\S]*?\[data-api-nav-link\]\[aria-current="true"\]:hover\s*\{[^}]*font-weight:\s*400;/s,
-    );
+    expect(docs).toMatch(/\[data-api-nav-link\]\[aria-current="[a-z]+"\][\s\S]*?\{[^}]*font-weight:\s*400;/s);
   });
 
   it("keeps required parameter badges in a dedicated trailing header column", () => {

@@ -7,13 +7,15 @@
  */
 
 /**
- * Visual variants for the auth submit button, modelled as a PascalCase
+ * Visual variants for the portal's buttons. Nothing here is filled: the accent
+ * outline is the strongest an action gets, so a button never takes an emphasis
+ * the card around it did not ask for.
+ *
+ * Modelled as a PascalCase
  * `as const` domain namespace so the variant value is never an inline
  * discriminant literal (per the project domain-literals policy).
  */
 export const ButtonVariant = {
-  /** Brand-blue fill with a white label: the primary call to action. */
-  Primary: "Primary",
   /** Neutral glassy surface with a hairline border: secondary actions. */
   Secondary: "Secondary",
   /** Accent outline with no solid fill for commands inside content. */
@@ -31,7 +33,6 @@ export type ButtonVariantValue = (typeof ButtonVariant)[keyof typeof ButtonVaria
 
 /** Shared CSS modifier selected by each domain variant. */
 const BUTTON_VARIANT_CLASS: Record<ButtonVariantValue, string> = {
-  [ButtonVariant.Primary]: "button--primary",
   [ButtonVariant.Secondary]: "button--secondary",
   [ButtonVariant.Content]: "button--content",
   [ButtonVariant.Subtle]: "button--subtle",

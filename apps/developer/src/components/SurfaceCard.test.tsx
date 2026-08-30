@@ -21,7 +21,6 @@ describe("shared Developer UI primitives", () => {
 
   it("defines every shared button modifier in the variant domain", () => {
     expect(Object.values(ButtonVariant).map(buttonVariantClass)).toEqual([
-      "button--primary",
       "button--secondary",
       "button--content",
       "button--subtle",

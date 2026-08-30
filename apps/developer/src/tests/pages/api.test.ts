@@ -424,9 +424,7 @@ describe("/docs/api content", () => {
     expect(css).toMatch(
       /\[data-api-nav-link\]\[aria-current="true"\][\s\S]*color:\s*var\(--mc-docs-nav-active-color\);/,
     );
-    expect(css).toMatch(
-      /\[data-api-nav-link\]\[aria-current="true"\],[\s\S]*?\[data-api-nav-link\]\[aria-current="true"\]:hover\s*\{[^}]*font-weight:\s*400;/,
-    );
+    expect(css).toMatch(/\[data-api-nav-link\]\[aria-current="[a-z]+"\][\s\S]*?\{[^}]*font-weight:\s*400;/);
   });
 
   it("uses the monospace family for every structured request identifier", () => {

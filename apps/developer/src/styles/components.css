@@ -11,9 +11,10 @@
   }
 
   /* Portal-level copy aligns with the tangent point of ordinary card corners.
-     Tier cards own a separate geometry and deliberately never consume this. */
-  .developer-page,
-  .dashboard-content {
+     Tier cards own a separate geometry and deliberately never consume this,
+     and the signed-in dashboard takes the API reference's own value with the
+     rest of that shell. */
+  .developer-page {
     --mc-card-content-inset: calc(var(--radius-card) / 2);
   }
 
@@ -316,8 +317,7 @@
   }
 
   @media (max-width: 24rem) {
-    .public-header__inner,
-    .dashboard-header__inner {
+    .public-header__inner {
       gap: var(--mc-space-2);
     }
 
@@ -350,28 +350,33 @@
     background: var(--color-card-chrome);
   }
 
-  .dashboard-header {
-    border-bottom: 1px solid var(--color-border);
+  /* The dashboard rail borrows the API reference's sidebar recipe, and these
+     two values are the only places it must differ. The reference's header is
+     as tall as the control it carries and its body ends flush because its last
+     child is a disclosure with its own padding; a rail has neither, so the
+     title would sit against the top edge. The value is derived from the
+     reference's own tokens rather than restated, and it does not reach the
+     reference itself.
+
+     The body keeps the reference's zero bottom padding. A section header bleeds
+     to the card's edges by design, so the card's own rounding clips it; adding
+     padding underneath lifts that band clear of the corner and leaves a square
+     strip of card surface below it. */
+  .dashboard-navigation--desktop .sidebar__header {
+    min-height: calc(var(--mc-docs-nav-toggle-size) + var(--mc-docs-nav-padding) * 2);
   }
 
-  .dashboard-header__inner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--mc-space-4);
-    padding: var(--mc-space-4) var(--mc-space-page-inline);
-  }
-
-  .dashboard-shell {
-    display: grid;
-    flex: 1;
-    grid-template-columns: var(--mc-dashboard-sidebar-width) minmax(0, 1fr);
-    gap: var(--mc-dashboard-shell-gap);
-    padding: var(--mc-space-8) var(--mc-space-page-inline);
-  }
-
-  .dashboard-content {
-    min-width: 0;
+  /* The rail is sticky, and a sticky element can only be pushed down as far as
+     its containing block allows. A dashboard page is often shorter than the
+     reference, so the grid row is barely taller than the rail itself: opening a
+     section changes how far the rail may be pushed, and it appears to jump by
+     the difference. Giving the content column the height the rail is already
+     capped at leaves the offset room to apply, so the rail holds still whatever
+     the sections do. */
+  @media (min-width: 64rem) {
+    .api-reference-layout:has(.dashboard-navigation--desktop) > .api-content {
+      min-block-size: calc(100dvh - var(--mc-docs-nav-viewport-clearance));
+    }
   }
 
   .dashboard-navigation__list {
@@ -438,13 +443,9 @@
     gap: var(--mc-space-3);
   }
 
-  @media (max-width: 48rem) {
-    .dashboard-shell {
-      grid-template-columns: minmax(0, 1fr);
-      gap: var(--mc-space-5);
-      padding-top: var(--mc-space-4);
-    }
-
+  /* The rail gives way to the tab row exactly where the shared shell stops
+     being two columns, so the two never both apply. */
+  @media (max-width: 63.999rem) {
     .dashboard-navigation--desktop {
       display: none;
     }
@@ -495,12 +496,6 @@
   .button:hover {
     border-color: var(--color-border-strong);
     background: var(--color-surface-raised);
-  }
-
-  .button--primary {
-    border-color: var(--color-accent);
-    color: var(--color-on-accent);
-    background: var(--color-accent);
   }
 
   .button--secondary,
@@ -642,6 +637,22 @@
   .field {
     display: grid;
     gap: var(--mc-space-2);
+  }
+
+  /* A field holding something short, such as an address or a name, does not
+     need the whole card: a control far wider than what goes in it reads as
+     expecting more. */
+  .field--third {
+    max-inline-size: calc(100% / 3);
+  }
+
+  /* A label and its message sit at the control's own corner, so they take the
+     same inset the text inside a card takes from the card: half the radius of
+     the thing they belong to. Flush against a rounded edge they read as
+     colliding with it. */
+  .field__label,
+  .field__message {
+    padding-inline: calc(var(--radius-button) / 2);
   }
 
   .field__label {

@@ -16,10 +16,12 @@ type ContentCardHeaderProps = ComponentPropsWithoutRef<"header">;
 type ContentCardFooterProps = ComponentPropsWithoutRef<"footer">;
 type ContentCardTitleProps = ComponentPropsWithoutRef<"h3">;
 type ContentCardHeaderAddonProps = ComponentPropsWithoutRef<"div">;
+type ContentCardHeaderIconProps = ComponentPropsWithoutRef<"span">;
 
 const ContentCardRoot = createCompoundElement("article", "surface-card content-card");
 const ContentCardHeader = createCompoundElement("header", "content-card__header");
 const ContentCardHeaderAddon = createCompoundElement("div", "content-card__header-addon");
+const ContentCardHeaderIcon = createCompoundElement("span", "content-card__header-icon");
 const ContentCardTitle = createCompoundElement("h3", "content-card__title");
 const ContentCardBody = createCompoundElement("div", "content-card__body");
 const ContentCardBodyIntro = createCompoundElement("div", "content-card__body-intro");
@@ -42,6 +44,8 @@ const ContentCardFooter = createCompoundElement("footer", "content-card__footer"
 export const ContentCard = Object.assign(ContentCardRoot, {
   Header: Object.assign(ContentCardHeader, {
     Addon: ContentCardHeaderAddon,
+    /** The symbol that names the card, in front of its title. */
+    Icon: ContentCardHeaderIcon,
     Title: ContentCardTitle,
   }),
   Body: Object.assign(ContentCardBody, {
@@ -65,6 +69,7 @@ export type {
   ContentCardCopyProps,
   ContentCardFooterProps,
   ContentCardHeaderAddonProps,
+  ContentCardHeaderIconProps,
   ContentCardHeaderProps,
   ContentCardProps,
   ContentCardSectionProps,

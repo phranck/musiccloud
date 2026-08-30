@@ -105,6 +105,22 @@
     --mc-docs-schema-field-indent: var(--mc-space-5);
     --mc-docs-schema-field-separator: color-mix(in srgb, var(--color-border) 68%, transparent);
     --mc-card-content-inset: calc(var(--mc-docs-content-card-radius) / 2);
+
+    /* The shared data table paints from these five properties and from the
+       `.table-row-hover` rule below, which is the whole contract it has with
+       whichever application uses it. Each one is mapped to a portal token
+       rather than to a colour, so the table follows this palette instead of
+       carrying the dashboard's. */
+    --ds-border: var(--color-border);
+    --ds-border-strong: color-mix(in srgb, var(--color-border) 60%, var(--color-fg));
+    --ds-danger-text: var(--color-danger);
+    --ds-section-body-bg: var(--color-surface);
+    --ds-table-row-separator: color-mix(in srgb, var(--color-border) 68%, transparent);
+    --ds-row-hover: color-mix(in srgb, var(--color-fg) 6%, transparent);
+  }
+
+  .table-row-hover:hover {
+    background-color: var(--ds-row-hover);
   }
 
   .api-reference-layout {
@@ -142,6 +158,13 @@
 
   .api-content__chapter-header--first {
     margin-top: 0;
+  }
+
+  /* A chapter whose contents cannot be undone is named in the danger colour.
+     The symbol takes it too, because the header sets `color` and the icon
+     paints from `currentColor`. */
+  .api-content__chapter-header--danger {
+    color: var(--color-danger);
   }
 
   .api-content__chapter-header-icon {
@@ -300,6 +323,15 @@
     color: var(--color-fg-muted);
   }
 
+  /* A card's actions are the same height whether they stand in its header, its
+     body or its footer, and the same height again inside a nested panel. The
+     compact control is that height, set once on the surface so every button
+     within inherits it rather than each place stating it again. */
+  .content-card,
+  .content-panel {
+    --button-min-height: var(--mc-size-control-compact);
+  }
+
   /* ContentCard is the API reference's outer radius. Every recessed surface
      below it derives from this token, preserving concentric card geometry. */
   .surface-card.content-card {
@@ -321,6 +353,44 @@
   .content-card__header {
     justify-content: space-between;
     flex-wrap: wrap;
+  }
+
+  /* A card is named by a symbol and a title together, the way a chapter and a
+     section already are, so the icon sits inside the header's own inset and
+     the title follows it without a second one.
+
+     The header distributes its children with `space-between`, which is right
+     for a title and an addon at opposite edges and wrong the moment a symbol
+     joins the title: it would push the title to the far edge. Where an icon is
+     present the pair stays together at the start, and the addon still reaches
+     the right edge through its own `margin-left: auto`. A header without an
+     icon, which is every one in the API reference, is not matched at all. */
+  .content-card__header:has(.content-card__header-icon) {
+    justify-content: flex-start;
+  }
+
+  .content-card__header-icon {
+    display: inline-flex;
+    width: var(--mc-docs-heading-icon-scale);
+    height: var(--mc-docs-heading-icon-scale);
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    margin-inline-start: var(--mc-docs-content-card-copy-inset);
+    color: var(--color-fg);
+    /* The heading scale is `1em`, so the symbol follows whatever size the title
+       is set at. The title's size lives on `.content-card__title`, which is a
+       sibling, so the icon states it too. */
+    font-size: var(--text-card-title);
+  }
+
+  .content-card__header-icon > .mc-icon {
+    width: 100%;
+    height: 100%;
+  }
+
+  .content-card__header-icon + .content-card__title {
+    padding-inline-start: 0;
   }
 
   .content-card__title {
@@ -419,9 +489,12 @@
     padding-left: var(--space-content-card-row);
   }
 
+  /* A reader finishes a card at its bottom right, so that is where the thing
+     to do next belongs. Every card's actions sit at that edge, with the one
+     carrying the card's purpose furthest right. */
   .content-card__footer {
-    --button-min-height: var(--mc-size-control-compact);
-    justify-content: space-between;
+    justify-content: flex-end;
+    flex-wrap: wrap;
     color: var(--color-fg-muted);
     font-size: var(--text-code);
   }
@@ -713,12 +786,49 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .integration-panel .content-panel__header {
+  /* A panel of facts inside a card carries this inset, whether it states an
+     integration fact in the reference or a project's quota in the dashboard.
+     One rule, both consumers, so the two cannot drift apart. */
+  .integration-panel .content-panel__header,
+  .content-panel--inset > .content-panel__header {
     padding: var(--mc-space-3) var(--mc-space-4) var(--mc-space-2);
   }
 
-  .integration-panel .content-panel__content {
+  .integration-panel .content-panel__content,
+  .content-panel--inset > .content-panel__content {
     padding: 0 var(--mc-space-4) var(--mc-space-3);
+  }
+
+  /* An inset panel names one thing and states its status, so its header is a
+     row: the title at the start, whatever qualifies it at the end. */
+  .content-panel--inset > .content-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mc-space-3);
+  }
+
+  .content-panel--inset > .content-panel__header > .content-panel__header-title {
+    min-width: 0;
+  }
+
+  /* A panel that holds nothing but a table gives it the whole surface: the
+     table draws its own row separators and cell padding, so a second inset
+     around it would only push the columns off the panel's edges. The panel
+     still carries the scroll, because a table reports its content width
+     upwards and would otherwise widen the page. */
+  .content-panel--table {
+    overflow-x: auto;
+  }
+
+  /* An inset panel ends at its bottom right, the way a card does. */
+  .content-panel--inset > .content-panel__footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: var(--mc-space-3);
+    padding: var(--mc-space-3) var(--mc-space-4);
   }
 
   .integration-panel__stack {
@@ -974,6 +1084,20 @@
       grid-template-columns: 1fr;
     }
 
+    /* A phone is the one width where a full-width button is right: it is the
+       platform convention and it gives a thumb the target. The footer decides
+       it once, so no button carries a width of its own. */
+    .content-card__footer,
+    .content-panel--inset > .content-panel__footer {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .content-card__footer > .button,
+    .content-panel--inset > .content-panel__footer > .button {
+      width: 100%;
+    }
+
     .schema-card__header-addon {
       width: 100%;
       margin-left: 0;
@@ -1052,6 +1176,27 @@
     align-items: center;
     gap: var(--mc-space-2);
   }
+
+  /* A destination that counts what it leads to states the number at its far
+     end, so the label still reads from the left and the figures line up down
+     the rail. */
+  .api-reference-nav__link--counted {
+    display: flex;
+    align-items: center;
+    gap: var(--mc-space-2);
+  }
+
+  .api-reference-nav__link--counted > .api-reference-nav__label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .api-reference-nav__link--counted > .api-reference-nav__count {
+    margin-left: auto;
+  }
+
 
   .api-reference-nav__count {
     display: inline-grid;
@@ -1158,15 +1303,21 @@
     transform: translate(-50%, -50%) scale(1);
   }
 
-  .api-reference-nav__content {
-    height: 0;
-    opacity: 0;
+  /* A section that opens grows its own height and lets ordinary layout carry
+     the rows beneath it. The growing is driven from the rail's own script with
+     `element.animate`, because a closed `<details>` does not render its
+     contents and therefore gives CSS no start value to animate from: the two
+     CSS-only routes both depend on an engine feature that is not everywhere,
+     so the panel snaps wherever it is missing.
+
+     The slot still needs to clip whilst it is mid-animation, and it must be
+     allowed to be shorter than what it holds. */
+  .api-reference-nav__section::details-content {
     overflow: clip;
   }
 
-  .api-reference-nav__section[open] .api-reference-nav__content {
-    height: auto;
-    opacity: 1;
+  .api-reference-nav__content {
+    min-height: 0;
   }
 
   /* Keep a desktop sticky rail clear of the viewport edge while long, open
@@ -1212,8 +1363,22 @@
     text-decoration: none;
   }
 
+  /* A project hangs beneath the overview that lists it, so it starts one row
+     inset further in. The step is the row's own inline padding, so the
+     hierarchy reads at whatever that padding becomes. This follows
+     `[data-api-nav-link]` because that rule sets `padding-inline` as a
+     shorthand, which would otherwise discard a longhand written before it. */
+  .api-reference-nav__link--nested {
+    padding-inline-start: calc(var(--mc-space-2) * 3);
+  }
+
+  /* The reference marks its current anchor `true`, a navigation rail marks its
+     current destination `page`. Both mean "you are here" and get the same
+     treatment. */
   [data-api-nav-link][aria-current="true"],
-  [data-api-nav-link][aria-current="true"]:hover {
+  [data-api-nav-link][aria-current="page"],
+  [data-api-nav-link][aria-current="true"]:hover,
+  [data-api-nav-link][aria-current="page"]:hover {
     color: var(--mc-docs-nav-active-color);
     background: var(--color-surface);
     font-weight: 400;
