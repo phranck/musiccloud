@@ -1,0 +1,27 @@
+---
+/**
+ * /dashboard/projects: the projects a developer holds (protected).
+ *
+ * Server-side: resolves the session and redirects to `/login` without one.
+ * The list, the creation form and the empty state are one island, because all
+ * three are the same finite state machine.
+ */
+import DashboardLayout from "@/components/dashboard/DashboardLayout.astro";
+import { ProjectsPanel } from "@/components/dashboard/ProjectsPanel";
+import { DashboardTab } from "@/lib/dashboardTabs";
+import { getDeveloperSession } from "@/lib/session";
+
+export const prerender = false;
+
+const account = await getDeveloperSession(Astro);
+if (!account) return Astro.redirect("/login");
+---
+
+<DashboardLayout account={account} active={DashboardTab.Projects} title="Projects · musiccloud for developers">
+  <h1 class="card-content-inset text-hero font-medium tracking-tight mb-1">Projects</h1>
+  <p class="card-content-inset text-body text-fg-muted mb-7">
+    A project owns a plan, the registrations under it, and the quota they share.
+  </p>
+
+  <ProjectsPanel client:load />
+</DashboardLayout>
