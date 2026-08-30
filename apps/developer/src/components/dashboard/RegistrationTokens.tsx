@@ -1,6 +1,7 @@
 import { useCallback, useReducer, useRef } from "react";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { ApiFailureNotice } from "@/components/dashboard/ApiFailureNotice";
+import { QuickstartPanel } from "@/components/dashboard/QuickstartPanel";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { TokenRevealBox } from "@/components/dashboard/TokenRevealBox";
 import {
@@ -28,6 +29,8 @@ export interface RegistrationTokensProps {
   registrationId: string;
   /** The registration's name, shown with the one-time reveal for context. */
   registrationName: string;
+  /** The registration's public client id, shown with the quickstart. */
+  publicClientId: string;
   /** The tokens the registration was loaded with. */
   tokens: readonly ApiTokenDto[];
   /** Whether the registration can currently hold a working key. */
@@ -59,6 +62,7 @@ const REVOKE_WARNING = "Revoking stops this key at once. Every request still usi
 export function RegistrationTokens({
   registrationId,
   registrationName,
+  publicClientId,
   tokens,
   registrationActive,
 }: RegistrationTokensProps) {
@@ -114,7 +118,10 @@ export function RegistrationTokens({
       <p className="text-nav text-fg-subtle">Keys</p>
 
       {revealedToken && (
-        <TokenRevealBox rawToken={revealedToken} appName={registrationName} onDismiss={onDismissReveal} />
+        <>
+          <TokenRevealBox rawToken={revealedToken} appName={registrationName} onDismiss={onDismissReveal} />
+          <QuickstartPanel registrationName={registrationName} publicClientId={publicClientId} />
+        </>
       )}
 
       {failure && <ApiFailureNotice {...failure} />}
