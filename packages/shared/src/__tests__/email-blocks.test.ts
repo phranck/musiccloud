@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { EMAIL_ACTIONS, EmailAction, getEmailActionMeta } from "../email-actions.js";
 import { EmailBlockType, isEmailBlockArray } from "../email-blocks.js";
-import { EmailRecipientKind, EmailVariableScope, getEmailVariableMeta } from "../email-variables.js";
+import { EMAIL_VARIABLES, EmailRecipientKind, EmailVariableScope, getEmailVariableMeta } from "../email-variables.js";
 
 describe("isEmailBlockArray", () => {
   it("accepts a well-formed mixed block array", () => {
@@ -93,6 +93,17 @@ describe("email actions registry", () => {
         expect(getEmailVariableMeta(name)?.scope).toBe(EmailVariableScope.Context);
       }
     }
+  });
+
+  it("has an action for every context variable in the catalog", () => {
+    // A context variable is substituted by the action that supplies it, so one
+    // no action names can never reach a template. Retiring an action is where
+    // that happens, and nothing else notices.
+    const declared = new Set(Object.values(EMAIL_ACTIONS).flatMap((meta) => meta.contextVariables));
+    const orphaned = Object.values(EMAIL_VARIABLES)
+      .filter((variable) => variable.scope === EmailVariableScope.Context && !declared.has(variable.name))
+      .map((variable) => variable.name);
+    expect(orphaned).toEqual([]);
   });
 
   it("returns undefined for an unknown key", () => {
