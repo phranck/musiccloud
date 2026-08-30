@@ -21,6 +21,8 @@ export const DashboardTab = {
   ApiKeys: "ApiKeys",
   /** Quotas + key usage at a glance. */
   Usage: "Usage",
+  /** Account contact details the operator needs in order to reach a person. */
+  Profile: "Profile",
 } as const;
 
 /** A {@link DashboardTab} member value. */
@@ -48,4 +50,5 @@ export const DASHBOARD_NAV: readonly DashboardNavItem[] = [
   { tab: DashboardTab.ApiAccess, label: "API access", href: "/dashboard/api-access", comingSoon: false },
   { tab: DashboardTab.ApiKeys, label: "API keys", href: "/dashboard/api-keys", comingSoon: false },
   { tab: DashboardTab.Usage, label: "Usage", href: "/dashboard/usage", comingSoon: false },
+  { tab: DashboardTab.Profile, label: "Profile", href: "/dashboard/profile", comingSoon: false },
 ];

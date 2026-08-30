@@ -95,6 +95,7 @@ function makeDeveloperAccount(developerAccountId: string): DeveloperAccount {
     passwordHash: null,
     displayName: null,
     avatarUrl: null,
+    technicalContactEmail: null,
     tierId: null,
     status: "active",
     createdAt: 1_700_000_000_000,
@@ -149,6 +150,7 @@ function makeClient(overrides: Partial<ApiClient> = {}): ApiClient {
     appName: "App",
     contactEmail: "dev@example.com",
     description: "Desc",
+    websiteUrl: null,
     status: "active",
     // Defaults model a key without overrides that inherits the Free tier.
     requestsPerMinute: null,
@@ -319,6 +321,60 @@ describe("devApiAccessRoutes", () => {
           capabilities: ["client_credentials"],
         }),
       );
+    });
+
+    it("stores an application website with the registration", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject());
+      mockRepo.createApiClient.mockResolvedValue(makeClient({ websiteUrl: "https://example.com/app" }));
+
+      const response = await app.inject({
+        method: "POST",
+        url: ROUTE_TEMPLATES.dev.apiAccess.projectRegistrations.replace(":id", "project-1"),
+        payload: { name: "Production", websiteUrl: "  https://example.com/app  " },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(response.json().registration.websiteUrl).toBe("https://example.com/app");
+      expect(mockRepo.createApiClient).toHaveBeenCalledWith(
+        expect.objectContaining({ websiteUrl: "https://example.com/app" }),
+      );
+    });
+
+    it("treats an absent or empty website as no website", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject());
+      mockRepo.createApiClient.mockResolvedValue(makeClient());
+
+      const response = await app.inject({
+        method: "POST",
+        url: ROUTE_TEMPLATES.dev.apiAccess.projectRegistrations.replace(":id", "project-1"),
+        payload: { name: "Production", websiteUrl: "  " },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(mockRepo.createApiClient).toHaveBeenCalledWith(expect.objectContaining({ websiteUrl: null }));
+    });
+
+    it("refuses a website that is not an http or https URL", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject());
+
+      for (const candidate of [
+        "javascript:alert(1)",
+        "data:text/html,<script>alert(1)</script>",
+        "ftp://example.com",
+        "not a url",
+        `https://example.com/${"a".repeat(500)}`,
+      ]) {
+        const response = await app.inject({
+          method: "POST",
+          url: ROUTE_TEMPLATES.dev.apiAccess.projectRegistrations.replace(":id", "project-1"),
+          payload: { name: "Production", websiteUrl: candidate },
+        });
+        expect(response.statusCode, candidate).toBe(400);
+      }
+      expect(mockRepo.createApiClient).not.toHaveBeenCalled();
     });
 
     it("rejects non-array registration capabilities before persistence", async () => {

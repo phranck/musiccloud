@@ -74,6 +74,7 @@ function makeAccount(overrides: Partial<DeveloperAccount> = {}): DeveloperAccoun
     passwordHash: null,
     displayName: null,
     avatarUrl: null,
+    technicalContactEmail: null,
     tierId: null,
     status: "active",
     createdAt: 1_699_000_000_000,

@@ -409,6 +409,14 @@ export const ENDPOINTS = {
       /** GET: the currently authenticated developer account (cookie session). */
       me: "/api/dev/auth/me",
       /**
+       * PATCH: change the caller's own contact details. Body:
+       * `{ technicalContactEmail?: string | null }`. The address is where the
+       * operator writes about the account's applications; it is optional and
+       * deliberately unverified, so nothing that only the account holder may
+       * read is ever sent there.
+       */
+      profile: "/api/dev/auth/profile",
+      /**
        * POST: permanently delete the caller's own developer account (cascades
        * to identities, tokens, API-access requests/clients) and clear the
        * session cookie. Body: `{ password }` — required only when the

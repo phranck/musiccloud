@@ -95,6 +95,7 @@ interface ApiClientRow {
   app_name: string;
   contact_email: string;
   description: string;
+  website_url: string | null;
   status: string;
   requests_per_minute: number | null;
   requests_per_day: number | null;
@@ -188,7 +189,8 @@ const SUBSCRIPTION_COLUMNS = `id, project_id, tier_id, creem_subscription_id, cr
  */
 const CLIENT_JOIN_SELECT = `SELECT c.id, c.request_id, c.developer_account_id, c.project_id,
             c.public_client_id, c.registration_type, c.capabilities, c.app_name, c.contact_email,
-            c.description, c.status, c.requests_per_minute, c.requests_per_day, c.created_at, c.updated_at,
+            c.description, c.website_url, c.status, c.requests_per_minute, c.requests_per_day,
+            c.created_at, c.updated_at,
             c.created_by_admin_id, p.display_name AS project_display_name, p.status AS project_status,
             p.requests_per_minute AS project_requests_per_minute,
             p.requests_per_day AS project_requests_per_day,
@@ -320,6 +322,7 @@ function rowToApiClient(row: ApiClientRow): ApiClient {
     appName: row.app_name,
     contactEmail: row.contact_email,
     description: row.description,
+    websiteUrl: row.website_url,
     status: row.status,
     requestsPerMinute: row.requests_per_minute,
     requestsPerDay: row.requests_per_day,
@@ -684,6 +687,7 @@ export async function createApiClient(
     appName: string;
     contactEmail: string;
     description: string;
+    websiteUrl?: string | null;
     requestsPerMinute?: number | null;
     requestsPerDay?: number | null;
     createdByAdminId?: string | null;
@@ -694,8 +698,8 @@ export async function createApiClient(
   const inserted = await pool.query(
     `INSERT INTO api_clients
        (id, request_id, developer_account_id, project_id, registration_type, capabilities, app_name, contact_email,
-        description, requests_per_minute, requests_per_day, created_at, updated_at, created_by_admin_id)
-     SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12, $13
+        description, website_url, requests_per_minute, requests_per_day, created_at, updated_at, created_by_admin_id)
+     SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13, $14
      WHERE $4::text IS NULL OR EXISTS (
        SELECT 1 FROM developer_projects p
        WHERE p.id = $4 AND p.developer_account_id = $3 AND p.status <> 'deleted'
@@ -710,6 +714,7 @@ export async function createApiClient(
       data.appName,
       data.contactEmail,
       data.description,
+      data.websiteUrl ?? null,
       data.requestsPerMinute ?? null,
       data.requestsPerDay ?? null,
       now,

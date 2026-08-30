@@ -1575,6 +1575,14 @@ export const developerAccounts = pgTable(
     passwordHash: text("password_hash"),
     displayName: text("display_name"),
     avatarUrl: text("avatar_url"),
+    /**
+     * Where the operator writes when something about this account's
+     * applications needs a person who can act, such as a shared engineering
+     * address. Optional, and deliberately unverified: nothing is sent to it
+     * that only the account holder may read, and the portal labels it as
+     * unverified wherever it is shown.
+     */
+    technicalContactEmail: text("technical_contact_email"),
     tierId: text("tier_id").references(() => tiers.id, { onDelete: "set null" }),
     status: text("status").notNull().default("active"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1863,6 +1871,14 @@ export const apiClients = pgTable(
     appName: text("app_name").notNull(),
     contactEmail: text("contact_email").notNull(),
     description: text("description").notNull(),
+    /**
+     * Where this one application can be looked at: its own page, its listing,
+     * or its repository. It sits on the registration rather than on the
+     * account because a website describes one application and an account can
+     * hold several. Optional, and constrained to `http` or `https` at the
+     * route boundary.
+     */
+    websiteUrl: text("website_url"),
     status: text("status").notNull().default("active"),
     requestsPerMinute: integer("requests_per_minute"),
     requestsPerDay: integer("requests_per_day"),

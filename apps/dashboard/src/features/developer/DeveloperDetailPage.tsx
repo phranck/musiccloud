@@ -150,6 +150,18 @@ export function DeveloperDetailPage() {
                   />
                 </div>
                 <div>
+                  <span className={labelClass}>{dm.colTechnicalContact}</span>
+                  {/* Read-only: the address belongs to the developer, who sets
+                      it in the portal. It stands here because it is what the
+                      operator reaches for when an application misbehaves. */}
+                  <p className="text-sm text-[var(--ds-text)]">
+                    {account.technicalContactEmail ?? dm.technicalContactNone}
+                  </p>
+                  {account.technicalContactEmail && (
+                    <p className="text-xs text-[var(--ds-text-muted)]">{dm.technicalContactUnverified}</p>
+                  )}
+                </div>
+                <div>
                   <span className={labelClass}>{dm.colTier}</span>
                   <TierDropdown
                     value={form.tierId}

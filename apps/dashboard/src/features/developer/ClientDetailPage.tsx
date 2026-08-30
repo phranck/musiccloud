@@ -159,9 +159,26 @@ export function ClientDetailPage() {
           }
         />
         <DashboardSection.Body>
-          <p className="mb-4 text-sm text-[var(--ds-text-muted)]">
+          <p className="mb-1 text-sm text-[var(--ds-text-muted)]">
             Project: <span className="text-[var(--ds-text)]">{client.projectDisplayName}</span> · Registration:{" "}
             {client.registrationType} · Client ID: {client.publicClientId}
+          </p>
+          <p className="mb-4 text-sm text-[var(--ds-text-muted)]">
+            {dm.colWebsite}:{" "}
+            {client.websiteUrl ? (
+              // The value is parsed as an http or https URL at the route
+              // boundary, so it cannot carry another scheme into this href.
+              <a
+                href={client.websiteUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="text-[var(--ds-accent)] hover:underline"
+              >
+                {client.websiteUrl}
+              </a>
+            ) : (
+              dm.websiteNone
+            )}
           </p>
           <div className="flex gap-6 items-start">
             <div className="space-y-3">

@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last updated: 16 July 2026_
+_Last updated: 30 August 2026_
 
 This Privacy Policy explains how musiccloud processes personal data when you use [musiccloud.io](https://musiccloud.io) and the musiccloud Developer Portal at [developer.musiccloud.io](https://developer.musiccloud.io). The additional rules for the use of the Developer Portal and the musiccloud API are set out in the Terms of Service.
 
@@ -40,6 +40,8 @@ To create and operate a developer account, we process your email address, option
 
 We also create time-limited, single-use verification and password-reset tokens. Their values are stored only as hashes. A browser session is maintained with an HTTP-only session cookie for up to 7 days.
 
+You may also give us a technical contact address, which is optional. We use it only to reach a person who can act when one of your applications needs attention, such as a limit that keeps being reached, a breaking change to an endpoint you call, or an incident affecting your integration. We do not verify this address, and we never send anything to it that only you may read, so it never receives a verification or password-reset link. You can change or remove it at any time in the Developer Portal.
+
 We process this data to create and secure your account, authenticate you, provide the Developer Portal and communicate about your account. The legal basis is Art. 6(1)(b) GDPR, performance of the contract or steps taken at your request before entering into a contract, and Art. 6(1)(f) GDPR for account security and abuse prevention.
 
 ### GitHub sign-in
@@ -50,7 +52,7 @@ GitHub provides this sign-in service as an independent controller. Its processin
 
 ### API access, keys and usage metadata
 
-When you request API access, we process your account email address, app name, app description, estimated request volume, request status and any review note. For approved apps, we process the app configuration, assigned limits, API key status, safe key prefix, creation, rotation, revocation and last-use timestamps, and audit events for relevant account and key-management actions.
+When you request API access, we process your account email address, app name, app description, estimated request volume, request status and any review note. You may also give an application website for a registration, which is optional and is used to see what the application is when we look into its behaviour. For approved apps, we process the app configuration, assigned limits, API key status, safe key prefix, creation, rotation, revocation and last-use timestamps, and audit events for relevant account and key-management actions.
 
 We use this data to review access requests, provision and administer API access, apply limits, investigate misuse and maintain an audit trail. API key secrets are not included in audit events or application logs.
 

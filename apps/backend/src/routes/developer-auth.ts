@@ -49,6 +49,7 @@ import { EmailAction, EmailRecipientKind, ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { DeveloperAccount } from "../db/developer-repository.js";
 import { getDeveloperRepository, getTierRepository } from "../db/index.js";
+import { isValidEmailAddress } from "../lib/email-address.js";
 import { requireEnv } from "../lib/env.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { RateLimiter } from "../lib/infra/rate-limiter.js";
@@ -157,6 +158,7 @@ export function buildAccountResponse(account: DeveloperAccount, tierName: string
     hasPassword: account.passwordHash !== null,
     displayName: account.displayName,
     avatarUrl: account.avatarUrl,
+    technicalContactEmail: account.technicalContactEmail,
     tierName,
     createdAt: new Date(account.createdAt).toISOString(),
   };
@@ -453,6 +455,48 @@ export async function devAuthRoutes(app: FastifyInstance) {
     }
 
     return reply.send({ account: buildAccountResponse(account, tierName) });
+  });
+
+  /**
+   * PATCH /api/dev/auth/profile
+   * Sets or clears the caller's technical contact address, which is where the
+   * operator writes when an application on this account needs a person who can
+   * act. Sending `null` clears it.
+   *
+   * The address is not verified, and nothing that only the account holder may
+   * read is sent to it. The portal says so where the field is entered, so a
+   * developer is not led to believe it can receive a password reset.
+   */
+  app.patch(ENDPOINTS.dev.auth.profile, { preHandler: app.authenticateDeveloper }, async (request, reply) => {
+    const body = request.body as { technicalContactEmail?: string | null } | null;
+    if (!body || body.technicalContactEmail === undefined) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "technicalContactEmail is required." });
+    }
+
+    let technicalContactEmail: string | null = null;
+    if (body.technicalContactEmail !== null) {
+      if (typeof body.technicalContactEmail !== "string") {
+        return reply.status(400).send({ error: "INVALID_REQUEST", message: "technicalContactEmail must be a string." });
+      }
+      const trimmed = body.technicalContactEmail.trim();
+      // An empty field means "no technical contact", which is the same state
+      // as an absent one, so both store null rather than an empty string.
+      if (trimmed !== "") {
+        if (!isValidEmailAddress(trimmed)) {
+          return reply.status(400).send({ error: "INVALID_REQUEST", message: "technicalContactEmail is not valid." });
+        }
+        technicalContactEmail = trimmed;
+      }
+    }
+
+    const repo = await getDeveloperRepository();
+    const updated = await repo.updateDeveloperAccount(request.developerAccountId as string, {
+      technicalContactEmail,
+    });
+    if (!updated) {
+      return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
+    }
+    return reply.send({ account: buildAccountResponse(updated, null) });
   });
 
   /**
