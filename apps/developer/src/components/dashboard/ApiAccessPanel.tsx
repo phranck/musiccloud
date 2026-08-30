@@ -3,6 +3,8 @@ import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { TextAreaField } from "@/components/dashboard/TextAreaField";
+import { ContentCard } from "@/components/docs/ContentCard";
+import { ContentPanel } from "@/components/docs/ContentPanel";
 import {
   AccessRequestStatus,
   listAccessRequests,
@@ -13,7 +15,7 @@ import {
 import { ACCESS_PANEL_INITIAL_STATE, AccessPanelActionType, accessPanelReducer } from "@/lib/apiAccessPanelState";
 import { formatDate } from "@/lib/formatDate";
 import { FormPhase } from "@/lib/formPhase";
-import { Send2Icon } from "@/lib/icons";
+import { KeyIcon, ScrollIcon, Send2Icon } from "@/lib/icons";
 
 /**
  * "API access" dashboard island: a request form (app name, description,
@@ -112,90 +114,109 @@ export function ApiAccessPanel() {
 
   return (
     <div className="flex flex-col gap-6">
-      <section>
-        <h2 className="card-content-inset text-card-title font-medium tracking-tight mb-3">Request API access</h2>
-        <div className="surface-card px-6 py-5">
-          <p className="text-body text-fg-muted mb-4">
-            Tell us about your app. Once a request is approved, the app and its keys appear under its{" "}
-            <a href="/dashboard/projects" className="content-link text-fg">
-              project
-            </a>
-            .
-          </p>
-          <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-            <TextField
-              name="appName"
-              label="App name"
-              value={fields.appName}
-              onChange={onAppName}
-              placeholder="My Music App"
-            />
-            <TextAreaField
-              name="appDescription"
-              label="What does your app do?"
-              value={fields.appDescription}
-              onChange={onAppDescription}
-              placeholder="A short description of your app and how it uses the musiccloud API."
-              maxLength={MAX_APP_DESCRIPTION_LENGTH}
-            />
-            <TextField
-              name="estimatedRequestsPerDay"
-              label="Estimated requests per day"
-              type="number"
-              value={fields.estimatedPerDay}
-              onChange={onEstimatedPerDay}
-              placeholder="500"
-              hint="A rough estimate is fine. It helps us size your quota."
-            />
-            {formError ? <p className="field__message field__message--error">{formError}</p> : null}
-            {phase === FormPhase.Success ? (
-              <output className="text-body text-accent">
-                Request submitted. You will be notified once it has been reviewed.
-              </output>
-            ) : null}
-            <div className="sm:max-w-xs">
-              <SubmitButton loading={phase === FormPhase.Submitting}>
-                <Send2Icon className="size-5" aria-hidden="true" />
-                Submit request
-              </SubmitButton>
-            </div>
-          </form>
-        </div>
-      </section>
+      <ContentCard>
+        <ContentCard.Header>
+          <ContentCard.Header.Icon>
+            <KeyIcon aria-hidden="true" />
+          </ContentCard.Header.Icon>
+          <ContentCard.Header.Title>Request API access</ContentCard.Header.Title>
+        </ContentCard.Header>
+        <form onSubmit={onSubmit} noValidate>
+          <ContentCard.Body>
+            <ContentCard.Body.Copy>
+              <p className="text-body text-fg-muted">
+                Tell us about your app. Once a request is approved, the app and its keys appear under its{" "}
+                <a href="/dashboard/projects" className="content-link text-fg">
+                  project
+                </a>
+                .
+              </p>
+              <TextField
+                name="appName"
+                label="App name"
+                value={fields.appName}
+                onChange={onAppName}
+                placeholder="My Music App"
+              />
+              <TextAreaField
+                name="appDescription"
+                label="What does your app do?"
+                value={fields.appDescription}
+                onChange={onAppDescription}
+                placeholder="A short description of your app and how it uses the musiccloud API."
+                maxLength={MAX_APP_DESCRIPTION_LENGTH}
+              />
+              <TextField
+                name="estimatedRequestsPerDay"
+                label="Estimated requests per day"
+                type="number"
+                value={fields.estimatedPerDay}
+                onChange={onEstimatedPerDay}
+                placeholder="500"
+                hint="A rough estimate is fine. It helps us size your quota."
+              />
+              {formError ? <p className="field__message field__message--error">{formError}</p> : null}
+              {phase === FormPhase.Success ? (
+                <output className="text-body text-accent">
+                  Request submitted. You will be notified once it has been reviewed.
+                </output>
+              ) : null}
+            </ContentCard.Body.Copy>
+          </ContentCard.Body>
+          <ContentCard.Footer>
+            <SubmitButton loading={phase === FormPhase.Submitting}>
+              <Send2Icon className="size-5" aria-hidden="true" />
+              Submit request
+            </SubmitButton>
+          </ContentCard.Footer>
+        </form>
+      </ContentCard>
 
-      <section>
-        <h2 className="card-content-inset text-card-title font-medium tracking-tight mb-3">Your requests</h2>
-        <div className="surface-card px-6 py-5">
-          {requests === null && !listError ? <p className="text-body text-fg-muted">Loading…</p> : null}
-          {listError ? (
-            <p className="field__message field__message--error">
-              Could not load your requests. Reload the page to try again.
-            </p>
-          ) : null}
-          {requests !== null && requests.length === 0 ? (
-            <p className="text-body text-fg-muted">No requests yet. Submit your first one above.</p>
-          ) : null}
+      <ContentCard>
+        <ContentCard.Header>
+          <ContentCard.Header.Icon>
+            <ScrollIcon aria-hidden="true" />
+          </ContentCard.Header.Icon>
+          <ContentCard.Header.Title>Your requests</ContentCard.Header.Title>
+        </ContentCard.Header>
+        <ContentCard.Body>
+          <ContentCard.Body.Copy>
+            {requests === null && !listError ? <p className="text-body text-fg-muted">Loading…</p> : null}
+            {listError ? (
+              <p className="field__message field__message--error">
+                Could not load your requests. Reload the page to try again.
+              </p>
+            ) : null}
+            {requests !== null && requests.length === 0 ? (
+              <p className="text-body text-fg-muted">No requests yet. Submit your first one above.</p>
+            ) : null}
+          </ContentCard.Body.Copy>
+
           {requests !== null && requests.length > 0 ? (
-            <ul className="flex flex-col divide-y divide-border">
+            <ContentCard.Body.Stack>
               {requests.map((request) => (
-                <li key={request.id} className="py-3 first:pt-0 last:pb-0">
-                  <div className="flex items-center justify-between gap-3 mb-0.5">
-                    <span className="text-body font-medium text-fg truncate">{request.appName}</span>
-                    <StatusBadge status={request.status} />
-                  </div>
-                  <p className="text-nav text-fg-subtle">
-                    Submitted {formatDate(request.submittedAt)}
-                    {request.reviewedAt ? ` · reviewed ${formatDate(request.reviewedAt)}` : ""}
-                  </p>
-                  {request.status === AccessRequestStatus.Rejected && request.reviewNote ? (
-                    <p className="text-body text-fg-muted mt-1.5">“{request.reviewNote}”</p>
-                  ) : null}
-                </li>
+                <ContentPanel key={request.id} className="content-panel--inset">
+                  <ContentPanel.Header>
+                    <ContentPanel.Header.Title className="truncate">{request.appName}</ContentPanel.Header.Title>
+                    <ContentPanel.Meta>
+                      <StatusBadge status={request.status} />
+                    </ContentPanel.Meta>
+                  </ContentPanel.Header>
+                  <ContentPanel.Content>
+                    <p className="text-nav text-fg-subtle">
+                      Submitted {formatDate(request.submittedAt)}
+                      {request.reviewedAt ? ` · reviewed ${formatDate(request.reviewedAt)}` : ""}
+                    </p>
+                    {request.status === AccessRequestStatus.Rejected && request.reviewNote ? (
+                      <p className="text-body text-fg-muted mt-1.5">“{request.reviewNote}”</p>
+                    ) : null}
+                  </ContentPanel.Content>
+                </ContentPanel>
               ))}
-            </ul>
+            </ContentCard.Body.Stack>
           ) : null}
-        </div>
-      </section>
+        </ContentCard.Body>
+      </ContentCard>
     </div>
   );
 }

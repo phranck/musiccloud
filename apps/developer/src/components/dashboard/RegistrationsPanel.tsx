@@ -5,6 +5,8 @@ import { ApiFailureNotice } from "@/components/dashboard/ApiFailureNotice";
 import { RegistrationProfileChoice } from "@/components/dashboard/RegistrationProfileChoice";
 import { RegistrationTokens } from "@/components/dashboard/RegistrationTokens";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
+import { ContentCard } from "@/components/docs/ContentCard";
+import { ContentPanel } from "@/components/docs/ContentPanel";
 import {
   ApiClientStatus,
   type ApiClientStatusValue,
@@ -16,7 +18,7 @@ import {
 import { ButtonVariant } from "@/lib/buttonVariant";
 import { formatDate } from "@/lib/formatDate";
 import { FormPhase } from "@/lib/formPhase";
-import { AddIcon } from "@/lib/icons";
+import { AddIcon, KeyIcon } from "@/lib/icons";
 import { toPanelFailure } from "@/lib/projectsPanelState";
 import { registrationProfileCopy } from "@/lib/registrationProfiles";
 import {
@@ -128,135 +130,145 @@ export function RegistrationsPanel({ projectId }: RegistrationsPanelProps) {
   if (loadFailure) return <ApiFailureNotice {...loadFailure} />;
 
   return (
-    <section>
-      <div className="card-content-inset flex items-center justify-between gap-3 mb-3">
-        <h2 className="text-card-title font-medium tracking-tight">Registrations</h2>
+    <ContentCard>
+      <ContentCard.Header>
+        <ContentCard.Header.Icon>
+          <KeyIcon aria-hidden="true" />
+        </ContentCard.Header.Icon>
+        <ContentCard.Header.Title>Registrations</ContentCard.Header.Title>
         {!formOpen && (
-          <button type="button" onClick={onOpen} className="button button--secondary text-body">
-            <AddIcon className="size-5" aria-hidden="true" />
-            New registration
-          </button>
+          <ContentCard.Header.Addon>
+            <button type="button" onClick={onOpen} className="button button--secondary text-body">
+              <AddIcon className="size-5" aria-hidden="true" />
+              New registration
+            </button>
+          </ContentCard.Header.Addon>
         )}
-      </div>
+      </ContentCard.Header>
 
-      <div className="surface-card px-6 py-5 flex flex-col gap-5">
-        <p className="text-body text-fg-muted">
-          A registration is what a key belongs to. Revoking one stops that application and leaves the others alone, so
-          give each application its own rather than sharing one key between them.
-        </p>
-
-        {formOpen && (
-          <form onSubmit={onCreate} className="flex flex-col gap-4" noValidate>
-            <TextField
-              name="name"
-              label="Application name"
-              value={fields.name}
-              onChange={onName}
-              placeholder="My Music App"
-            />
-            <TextField
-              name="websiteUrl"
-              label="Application website"
-              value={fields.websiteUrl}
-              onChange={onWebsite}
-              required={false}
-              placeholder="https://example.com/app"
-              hint="Optional. Where this application can be looked at, so we know what it is if we ever have to ask about it."
-            />
-            <RegistrationProfileChoice name="registrationType" value={profile} onSelect={onProfile} />
+      {formOpen ? (
+        <form onSubmit={onCreate} noValidate>
+          <ContentCard.Body>
+            <ContentCard.Body.Copy>
+              <TextField
+                name="name"
+                label="Application name"
+                value={fields.name}
+                onChange={onName}
+                placeholder="My Music App"
+              />
+              <TextField
+                name="websiteUrl"
+                label="Application website"
+                value={fields.websiteUrl}
+                onChange={onWebsite}
+                required={false}
+                placeholder="https://example.com/app"
+                hint="Optional. Where this application can be looked at, so we know what it is if we ever have to ask about it."
+              />
+              <RegistrationProfileChoice name="registrationType" value={profile} onSelect={onProfile} />
+              {actionFailure && <ApiFailureNotice {...actionFailure} />}
+            </ContentCard.Body.Copy>
+          </ContentCard.Body>
+          <ContentCard.Footer>
+            <SubmitButton variant={ButtonVariant.Secondary} type="button" onClick={onCancel}>
+              Cancel
+            </SubmitButton>
+            <SubmitButton loading={phase === FormPhase.Submitting}>Create registration</SubmitButton>
+          </ContentCard.Footer>
+        </form>
+      ) : (
+        <ContentCard.Body>
+          <ContentCard.Body.Copy>
+            <p className="text-body text-fg-muted">
+              A registration is what a key belongs to. Revoking one stops that application and leaves the others alone,
+              so give each application its own rather than sharing one key between them.
+            </p>
             {actionFailure && <ApiFailureNotice {...actionFailure} />}
-            <div className="flex gap-3">
-              <div className="sm:max-w-xs flex-1">
-                <SubmitButton loading={phase === FormPhase.Submitting}>Create registration</SubmitButton>
-              </div>
-              <div className="sm:max-w-xs flex-1">
-                <SubmitButton variant={ButtonVariant.Secondary} type="button" onClick={onCancel}>
-                  Cancel
-                </SubmitButton>
-              </div>
-            </div>
-          </form>
-        )}
+            {registrations === null && <p className="text-body text-fg-muted">Loading…</p>}
+            {registrations !== null && registrations.length === 0 && (
+              <p className="text-body text-fg-muted">No registrations yet. Create the first one above.</p>
+            )}
+          </ContentCard.Body.Copy>
 
-        {!formOpen && actionFailure && <ApiFailureNotice {...actionFailure} />}
+          {registrations !== null && registrations.length > 0 && (
+            <ContentCard.Body.Stack>
+              {registrations.map((registration) => {
+                const copy = registrationProfileCopy(registration.registrationType);
+                const isActive = registration.status === ApiClientStatus.Active;
+                const isRevoked = registration.status === ApiClientStatus.Revoked;
+                return (
+                  <ContentPanel key={registration.id} className="content-panel--inset">
+                    <ContentPanel.Header>
+                      <ContentPanel.Header.Title className="truncate">{registration.appName}</ContentPanel.Header.Title>
+                      <ContentPanel.Meta>
+                        <StatusBadge status={registration.status} />
+                      </ContentPanel.Meta>
+                    </ContentPanel.Header>
+                    <ContentPanel.Content>
+                      <p className="text-nav text-fg-subtle">
+                        {copy?.label ?? registration.registrationType} · created {formatDate(registration.createdAt)}
+                      </p>
+                      <p className="text-nav text-fg-subtle">
+                        <code className="text-code-fg">{registration.publicClientId}</code>
+                      </p>
+                      <p className="text-nav text-fg-subtle">{CLIENT_ID_NOTE}</p>
+                      {registration.websiteUrl && (
+                        <p className="text-nav text-fg-subtle">
+                          <a
+                            href={registration.websiteUrl}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="content-link"
+                          >
+                            {registration.websiteUrl}
+                          </a>
+                        </p>
+                      )}
+                      <p className="text-nav text-fg-subtle mt-1">
+                        {isRevoked
+                          ? "Revoked. Its keys no longer authenticate and it cannot be brought back."
+                          : isActive
+                            ? "Suspending stops its keys from authenticating and can be undone. Revoking does the same and cannot."
+                            : "Suspended: its keys do not authenticate until it is reactivated."}
+                      </p>
 
-        {registrations === null && <p className="text-body text-fg-muted">Loading…</p>}
+                      <RegistrationTokens
+                        registrationId={registration.id}
+                        registrationName={registration.appName}
+                        publicClientId={registration.publicClientId}
+                        tokens={registration.tokens}
+                        registrationActive={isActive}
+                      />
+                    </ContentPanel.Content>
 
-        {registrations !== null && registrations.length === 0 && !formOpen && (
-          <p className="text-body text-fg-muted">No registrations yet. Create the first one above.</p>
-        )}
-
-        {registrations !== null && registrations.length > 0 && (
-          <ul className="flex flex-col divide-y divide-border">
-            {registrations.map((registration) => {
-              const copy = registrationProfileCopy(registration.registrationType);
-              const isActive = registration.status === ApiClientStatus.Active;
-              const isRevoked = registration.status === ApiClientStatus.Revoked;
-              return (
-                <li key={registration.id} className="py-4 first:pt-0 last:pb-0 flex flex-col gap-1">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-body font-medium text-fg truncate">{registration.appName}</span>
-                    <StatusBadge status={registration.status} />
-                  </div>
-                  <p className="text-nav text-fg-subtle">
-                    {copy?.label ?? registration.registrationType} · created {formatDate(registration.createdAt)}
-                  </p>
-                  <p className="text-nav text-fg-subtle">
-                    <code className="text-code-fg">{registration.publicClientId}</code>
-                  </p>
-                  <p className="text-nav text-fg-subtle">{CLIENT_ID_NOTE}</p>
-                  {registration.websiteUrl && (
-                    <p className="text-nav text-fg-subtle">
-                      <a
-                        href={registration.websiteUrl}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        className="content-link"
-                      >
-                        {registration.websiteUrl}
-                      </a>
-                    </p>
-                  )}
-                  <p className="text-nav text-fg-subtle mt-1">
-                    {isRevoked
-                      ? "Revoked. Its keys no longer authenticate and it cannot be brought back."
-                      : isActive
-                        ? "Suspending stops its keys from authenticating and can be undone. Revoking does the same and cannot."
-                        : "Suspended: its keys do not authenticate until it is reactivated."}
-                  </p>
-                  <RegistrationTokens
-                    registrationId={registration.id}
-                    registrationName={registration.appName}
-                    publicClientId={registration.publicClientId}
-                    tokens={registration.tokens}
-                    registrationActive={isActive}
-                  />
-                  {!isRevoked && (
-                    <div className="flex flex-wrap gap-3 mt-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          changeStatus(registration.id, isActive ? ApiClientStatus.Suspended : ApiClientStatus.Active)
-                        }
-                        className="button button--secondary text-body"
-                      >
-                        {isActive ? "Suspend" : "Reactivate"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => changeStatus(registration.id, ApiClientStatus.Revoked)}
-                        className="button button--danger text-body"
-                      >
-                        Revoke
-                      </button>
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-    </section>
+                    {!isRevoked && (
+                      <ContentPanel.Footer>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            changeStatus(registration.id, isActive ? ApiClientStatus.Suspended : ApiClientStatus.Active)
+                          }
+                          className="button button--secondary text-body"
+                        >
+                          {isActive ? "Suspend" : "Reactivate"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => changeStatus(registration.id, ApiClientStatus.Revoked)}
+                          className="button button--danger text-body"
+                        >
+                          Revoke
+                        </button>
+                      </ContentPanel.Footer>
+                    )}
+                  </ContentPanel>
+                );
+              })}
+            </ContentCard.Body.Stack>
+          )}
+        </ContentCard.Body>
+      )}
+    </ContentCard>
   );
 }

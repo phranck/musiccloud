@@ -40,7 +40,7 @@ export function ApiFailureNotice({ code, message, errorId, retryAfterSeconds }: 
   }, [errorId]);
 
   return (
-    <div role="alert" className="surface-card surface-card--danger px-4 py-3 flex flex-col gap-1">
+    <div role="alert" className="status-message status-message--danger flex flex-col gap-1">
       <p className="text-body text-fg">{message ?? FALLBACK_MESSAGE}</p>
       {retryAfterSeconds !== undefined && (
         <p className="text-nav text-fg-subtle">Try again in {retryAfterSeconds} seconds.</p>

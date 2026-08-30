@@ -110,16 +110,16 @@ export function RegistrationTokens({
     createButtonRef.current?.querySelector("button")?.focus();
   }, []);
 
-  const { tokens: current, busy, failure, revealedToken, pendingRevokeId } = state;
+  const { tokens: current, busy, failure, reveal, pendingRevokeId } = state;
   const activeToken = current.find((token) => token.status === ApiTokenStatus.Active) ?? null;
 
   return (
     <div className="flex flex-col gap-3 mt-3" data-registration-tokens>
       <p className="text-nav text-fg-subtle">Keys</p>
 
-      {revealedToken && (
+      {reveal && (
         <>
-          <TokenRevealBox rawToken={revealedToken} appName={registrationName} onDismiss={onDismissReveal} />
+          <TokenRevealBox rawToken={reveal.value} appName={registrationName} onDismiss={onDismissReveal} />
           <QuickstartPanel registrationName={registrationName} publicClientId={publicClientId} />
         </>
       )}
@@ -146,30 +146,26 @@ export function RegistrationTokens({
                   {pendingRevokeId === token.id ? (
                     <div className="flex flex-col gap-2">
                       <p className="text-nav text-gold">{REVOKE_WARNING}</p>
-                      <div className="flex gap-3">
-                        <div className="sm:max-w-xs flex-1">
-                          <SubmitButton
-                            variant={ButtonVariant.Danger}
-                            type="button"
-                            loading={busy}
-                            onClick={() => onRevoke(token.id)}
-                          >
-                            Revoke this key
-                          </SubmitButton>
-                        </div>
-                        <div className="sm:max-w-xs flex-1">
-                          <SubmitButton
-                            variant={ButtonVariant.Secondary}
-                            type="button"
-                            onClick={() => dispatch({ type: RegistrationTokensActionType.RevokeDisarmed })}
-                          >
-                            Keep it
-                          </SubmitButton>
-                        </div>
+                      <div className="flex flex-wrap justify-end gap-3">
+                        <SubmitButton
+                          variant={ButtonVariant.Secondary}
+                          type="button"
+                          onClick={() => dispatch({ type: RegistrationTokensActionType.RevokeDisarmed })}
+                        >
+                          Keep it
+                        </SubmitButton>
+                        <SubmitButton
+                          variant={ButtonVariant.Danger}
+                          type="button"
+                          loading={busy}
+                          onClick={() => onRevoke(token.id)}
+                        >
+                          Revoke this key
+                        </SubmitButton>
                       </div>
                     </div>
                   ) : (
-                    <div className="flex flex-wrap gap-3">
+                    <div className="flex flex-wrap justify-end gap-3">
                       <button
                         type="button"
                         onClick={() => onRotate(token.id)}
@@ -198,7 +194,7 @@ export function RegistrationTokens({
       )}
 
       {registrationActive && !activeToken && (
-        <div ref={createButtonRef} className="sm:max-w-xs">
+        <div ref={createButtonRef} className="flex justify-end">
           <SubmitButton type="button" loading={busy} onClick={onCreate}>
             Create a key
           </SubmitButton>

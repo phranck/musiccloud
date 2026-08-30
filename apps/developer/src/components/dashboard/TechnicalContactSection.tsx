@@ -2,9 +2,10 @@ import { ENDPOINTS } from "@musiccloud/shared";
 import { type ChangeEvent, type SyntheticEvent, useCallback, useState } from "react";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
+import { ContentCard } from "@/components/docs/ContentCard";
 import { sendAuth } from "@/lib/authClient";
-import { ButtonVariant } from "@/lib/buttonVariant";
 import { FormPhase, type FormPhaseValue } from "@/lib/formPhase";
+import { SmsIcon } from "@/lib/icons";
 
 /**
  * Props for {@link TechnicalContactSection}.
@@ -15,7 +16,7 @@ export interface TechnicalContactSectionProps {
 }
 
 /**
- * Dashboard island for the account's technical contact address.
+ * Dashboard card for the account's technical contact address.
  *
  * The field exists so the operator can reach somebody who can act when an
  * application on this account misbehaves or something operational changes. It
@@ -24,7 +25,7 @@ export interface TechnicalContactSectionProps {
  * field removes the address.
  *
  * @param props - See {@link TechnicalContactSectionProps}.
- * @returns The contact card content.
+ * @returns The contact card.
  */
 export function TechnicalContactSection({ technicalContactEmail }: TechnicalContactSectionProps) {
   const [value, setValue] = useState(technicalContactEmail ?? "");
@@ -67,40 +68,47 @@ export function TechnicalContactSection({ technicalContactEmail }: TechnicalCont
   const onFile = savedHere ? savedHere.email : technicalContactEmail;
 
   return (
-    <section className="mb-6">
-      <h2 className="card-content-inset text-card-title font-medium tracking-tight mb-3">Technical contact</h2>
-      <div className="surface-card px-6 py-5">
-        <p className="text-body text-fg-muted mb-4">
-          Where we write when one of your applications needs someone who can act: a rate limit that keeps tripping, a
-          breaking change to an endpoint you call, or an incident affecting your integration. A shared engineering
-          address works better than a personal one, because it outlives whoever set it up.
-        </p>
-        <p className="text-body text-fg-muted mb-4">
-          Only the operator of musiccloud reads it. It is optional, and we do not verify it, so we never send anything
-          to it that only you may read. Your sign-in address stays{" "}
-          <span className="text-fg">the one you log in with</span> and is the only address that receives password
-          resets.
-        </p>
-
-        <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-          <TextField
-            name="technicalContactEmail"
-            label="Technical contact address"
-            type="email"
-            value={value}
-            onChange={onChange}
-            autoComplete="email"
-            required={false}
-            hint={onFile ? `Currently ${onFile}. Unverified.` : "Optional. None set."}
-            error={error ?? undefined}
-          />
-          <div>
-            <SubmitButton variant={ButtonVariant.Primary} loading={phase === FormPhase.Submitting}>
-              {phase === FormPhase.Success ? "Saved" : "Save contact"}
-            </SubmitButton>
-          </div>
-        </form>
-      </div>
-    </section>
+    <ContentCard>
+      <ContentCard.Header>
+        <ContentCard.Header.Icon>
+          <SmsIcon aria-hidden="true" />
+        </ContentCard.Header.Icon>
+        <ContentCard.Header.Title>Technical contact</ContentCard.Header.Title>
+      </ContentCard.Header>
+      <form onSubmit={onSubmit} noValidate>
+        <ContentCard.Body>
+          <ContentCard.Body.Copy>
+            <p className="text-body text-fg-muted">
+              Where we write when one of your applications needs someone who can act: a rate limit that keeps tripping,
+              a breaking change to an endpoint you call, or an incident affecting your integration. A shared engineering
+              address works better than a personal one, because it outlives whoever set it up.
+            </p>
+            <p className="text-body text-fg-muted">
+              Only the operator of musiccloud reads it. It is optional, and we do not verify it, so we never send
+              anything to it that only you may read. Your sign-in address stays{" "}
+              <span className="text-fg">the one you log in with</span> and is the only address that receives password
+              resets.
+            </p>
+            <TextField
+              className="field--third"
+              name="technicalContactEmail"
+              label="Technical contact address"
+              type="email"
+              value={value}
+              onChange={onChange}
+              autoComplete="email"
+              required={false}
+              hint={onFile ? `Currently ${onFile}. Unverified.` : "Optional. None set."}
+              error={error ?? undefined}
+            />
+          </ContentCard.Body.Copy>
+        </ContentCard.Body>
+        <ContentCard.Footer>
+          <SubmitButton loading={phase === FormPhase.Submitting}>
+            {phase === FormPhase.Success ? "Saved" : "Save contact"}
+          </SubmitButton>
+        </ContentCard.Footer>
+      </form>
+    </ContentCard>
   );
 }

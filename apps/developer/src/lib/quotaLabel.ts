@@ -33,3 +33,19 @@ export function perDayQuotaLabel(requestsPerDay: number | null): string {
   if (requestsPerDay === null) return NO_ACTIVE_PLAN_LABEL;
   return `${QUOTA_NUMBER_FORMAT.format(requestsPerDay)} requests/day`;
 }
+
+/**
+ * Both quotas on one line.
+ *
+ * The no-plan label stands in for the whole line rather than for each half of
+ * it, because a project without a plan otherwise reads "No active plan · No
+ * active plan", which says the same thing twice and reads as a fault.
+ *
+ * @param requestsPerMinute - The limit in force, or `null` when no plan grants one.
+ * @param requestsPerDay - The daily limit in force, or `null` when no plan grants one.
+ * @returns One line of text.
+ */
+export function quotaSummaryLabel(requestsPerMinute: number | null, requestsPerDay: number | null): string {
+  if (requestsPerMinute === null || requestsPerDay === null) return NO_ACTIVE_PLAN_LABEL;
+  return `${perMinuteQuotaLabel(requestsPerMinute)} · ${perDayQuotaLabel(requestsPerDay)}`;
+}

@@ -29,15 +29,14 @@ describe("registrationTokensReducer", () => {
       token: makeToken({ rawToken: ISSUED_VALUE }),
     });
 
-    expect(created.revealedToken).toBe(ISSUED_VALUE);
+    expect(created.reveal?.value).toBe(ISSUED_VALUE);
 
     const dismissed = registrationTokensReducer(created, { type: RegistrationTokensActionType.RevealDismissed });
 
-    expect(dismissed.revealedToken).toBeNull();
+    expect(dismissed.reveal).toBeNull();
     // Once dismissed the value is gone from the model entirely, which is what
     // makes the reveal a one-time reveal rather than a hidden field.
-    const { tokens, busy, failure, revealedToken, pendingRevokeId } = dismissed;
-    expect(JSON.stringify({ tokens, busy, failure, revealedToken, pendingRevokeId })).not.toContain("example-only");
+    expect(JSON.stringify(dismissed)).not.toContain("example-only");
   });
 
   it("retires the previous key when one is rotated", () => {
@@ -53,7 +52,7 @@ describe("registrationTokensReducer", () => {
       ["token-2", "active"],
       ["token-1", "rotated"],
     ]);
-    expect(rotated.revealedToken).toBe(ISSUED_VALUE);
+    expect(rotated.reveal?.value).toBe(ISSUED_VALUE);
   });
 
   it("replaces the revoked key rather than dropping it from the list", () => {
@@ -67,6 +66,36 @@ describe("registrationTokensReducer", () => {
     expect(revoked.tokens).toHaveLength(1);
     expect(revoked.tokens[0]?.status).toBe("revoked");
     expect(revoked.pendingRevokeId).toBeNull();
+  });
+
+  it("takes the reveal down when the key it is showing is revoked", () => {
+    const created = registrationTokensReducer(initialRegistrationTokensState([]), {
+      type: RegistrationTokensActionType.TokenCreated,
+      token: makeToken({ rawToken: ISSUED_VALUE }),
+    });
+
+    const revoked = registrationTokensReducer(created, {
+      type: RegistrationTokensActionType.TokenRevoked,
+      token: makeToken({ status: "revoked" }),
+    });
+
+    // Leaving it up would show a quickstart telling somebody to use a key that
+    // has just stopped working.
+    expect(revoked.reveal).toBeNull();
+  });
+
+  it("leaves the reveal alone when a different key is revoked", () => {
+    const created = registrationTokensReducer(initialRegistrationTokensState([makeToken({ id: "token-9" })]), {
+      type: RegistrationTokensActionType.TokenCreated,
+      token: makeToken({ rawToken: ISSUED_VALUE }),
+    });
+
+    const revoked = registrationTokensReducer(created, {
+      type: RegistrationTokensActionType.TokenRevoked,
+      token: makeToken({ id: "token-9", status: "revoked" }),
+    });
+
+    expect(revoked.reveal?.value).toBe(ISSUED_VALUE);
   });
 
   it("asks once before revoking, and lets the developer back out", () => {

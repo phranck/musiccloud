@@ -10,10 +10,13 @@
  * get-started card linking to the API-access flow, and a Danger Zone card
  * for self-service account deletion.
  */
+import { ApiContent } from "@/components/docs/ApiContent";
+import { ContentCard } from "@/components/docs/ContentCard";
 import DashboardLayout from "@/components/dashboard/DashboardLayout.astro";
 import { DeleteAccountSection } from "@/components/dashboard/DeleteAccountSection";
 import { DashboardTab } from "@/lib/dashboardTabs";
-import { TickCircleIcon, Warning2Icon } from "@/lib/icons";
+import { iconForDashboardTab } from "@/lib/dashboardNavIcons";
+import { FlashIcon, ProfileCircleIcon, TickCircleIcon, Warning2Icon } from "@/lib/icons";
 import { getDeveloperSession } from "@/lib/session";
 
 export const prerender = false;
@@ -31,60 +34,81 @@ const memberSince = new Date(account.createdAt).toLocaleDateString("en-US", {
   month: "long",
   day: "numeric",
 });
+const OverviewIcon = iconForDashboardTab(DashboardTab.Overview);
 ---
 
 <DashboardLayout account={account} active={DashboardTab.Overview} title="Dashboard · musiccloud for developers">
-  <h1 class="card-content-inset text-hero font-medium tracking-tight mb-1">Welcome back, {greetingName}</h1>
-  <p class="card-content-inset text-body text-fg-muted mb-7">Here is your developer account at a glance.</p>
+  <ApiContent.Chapter.Header className="api-content__chapter-header--first">
+    <ApiContent.Chapter.Header.Icon>
+      <OverviewIcon aria-hidden="true" />
+    </ApiContent.Chapter.Header.Icon>
+    <ApiContent.Chapter.Header.Title>Overview</ApiContent.Chapter.Header.Title>
+  </ApiContent.Chapter.Header>
+  <p class="card-content-inset text-body text-fg-muted mb-6">
+    Welcome back, {greetingName}. Here is your developer account at a glance.
+  </p>
 
-  <section class="mb-6">
-    <h2 class="card-content-inset text-card-title font-medium tracking-tight mb-3">Account</h2>
-    <dl class="surface-card px-6 py-5 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-      <div>
-        <dt class="text-nav text-fg-subtle mb-0.5">Email</dt>
-        <dd class="text-body text-fg flex items-center gap-1.5">
-          {account.email}
-          {
-            account.emailVerified ? (
-              <TickCircleIcon className="size-4 text-accent" aria-label="Verified" />
-            ) : (
-              <Warning2Icon className="size-4 text-gold" aria-label="Not verified" />
-            )
-          }
-        </dd>
-      </div>
-      <div>
-        <dt class="text-nav text-fg-subtle mb-0.5">Plan</dt>
-        <dd class="text-body text-fg">
-          {planLabel}
-          <a href="/pricing" class="content-link text-nav text-fg-muted ml-2">see our pricing commitment</a>
-        </dd>
-      </div>
-      <div>
-        <dt class="text-nav text-fg-subtle mb-0.5">Email status</dt>
-        <dd class="text-body text-fg">{account.emailVerified ? "Verified" : "Not verified"}</dd>
-      </div>
-      <div>
-        <dt class="text-nav text-fg-subtle mb-0.5">Member since</dt>
-        <dd class="text-body text-fg">{memberSince}</dd>
-      </div>
-    </dl>
-  </section>
+  <ContentCard className="mb-6">
+    <ContentCard.Header>
+      <ContentCard.Header.Icon>
+        <ProfileCircleIcon aria-hidden="true" />
+      </ContentCard.Header.Icon>
+      <ContentCard.Header.Title>Account</ContentCard.Header.Title>
+    </ContentCard.Header>
+    <ContentCard.Body>
+      <ContentCard.Body.Copy>
+        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+          <div>
+            <dt class="text-nav text-fg-subtle mb-0.5">Email</dt>
+            <dd class="text-body text-fg flex items-center gap-1.5">
+              {account.email}
+              {
+                account.emailVerified ? (
+                  <TickCircleIcon className="size-4 text-accent" aria-label="Verified" />
+                ) : (
+                  <Warning2Icon className="size-4 text-gold" aria-label="Not verified" />
+                )
+              }
+            </dd>
+          </div>
+          <div>
+            <dt class="text-nav text-fg-subtle mb-0.5">Plan</dt>
+            <dd class="text-body text-fg">
+              {planLabel}
+              <a href="/pricing" class="content-link text-nav text-fg-muted ml-2">see our pricing commitment</a>
+            </dd>
+          </div>
+          <div>
+            <dt class="text-nav text-fg-subtle mb-0.5">Email status</dt>
+            <dd class="text-body text-fg">{account.emailVerified ? "Verified" : "Not verified"}</dd>
+          </div>
+          <div>
+            <dt class="text-nav text-fg-subtle mb-0.5">Member since</dt>
+            <dd class="text-body text-fg">{memberSince}</dd>
+          </div>
+        </dl>
+      </ContentCard.Body.Copy>
+    </ContentCard.Body>
+  </ContentCard>
 
-  <section class="mb-6">
-    <h2 class="card-content-inset text-card-title font-medium tracking-tight mb-3">Get started</h2>
-    <div class="surface-card px-6 py-5">
-      <p class="text-body text-fg-muted mb-4">
-        Request API access to receive a key and start calling the musiccloud API.
-      </p>
-      <a
-        href="/dashboard/api-access"
-        class="button button--primary text-body"
-      >
-        Request API access
-      </a>
-    </div>
-  </section>
+  <ContentCard className="mb-6">
+    <ContentCard.Header>
+      <ContentCard.Header.Icon>
+        <FlashIcon aria-hidden="true" />
+      </ContentCard.Header.Icon>
+      <ContentCard.Header.Title>Get started</ContentCard.Header.Title>
+    </ContentCard.Header>
+    <ContentCard.Body>
+      <ContentCard.Body.Copy>
+        <p class="text-body text-fg-muted">
+          Request API access to receive a key and start calling the musiccloud API.
+        </p>
+      </ContentCard.Body.Copy>
+    </ContentCard.Body>
+    <ContentCard.Footer>
+      <a href="/dashboard/api-access" class="button button--content">Request API access</a>
+    </ContentCard.Footer>
+  </ContentCard>
 
   <DeleteAccountSection client:load hasPassword={account.hasPassword} />
 </DashboardLayout>
