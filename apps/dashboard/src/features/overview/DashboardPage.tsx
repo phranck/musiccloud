@@ -34,12 +34,6 @@ export function DashboardPage() {
         <DashboardInfoCard label={dm.cards.artists} value={stats?.artistProfiles ?? stats?.artists ?? 0} />
         <DashboardInfoCard label={dm.cards.artistEntities} value={stats?.artistEntities ?? 0} />
         <DashboardInfoCard label={dm.cards.users} value={stats?.users ?? 0} />
-        <DashboardInfoCard
-          label={dm.cards.pendingApiAccessRequests}
-          value={stats?.pendingApiAccessRequests ?? 0}
-          accent
-          href="/developer/requests"
-        />
       </div>
     </PageLayout>
   );

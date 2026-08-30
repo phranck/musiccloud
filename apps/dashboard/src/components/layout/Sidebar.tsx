@@ -3,7 +3,6 @@ import {
   CaretCircleDoubleDownIcon,
   CaretCircleDoubleUpIcon,
   CaretDownIcon,
-  ClipboardTextIcon,
   CopyIcon,
   EnvelopeOpenIcon,
   FileDashedIcon,
@@ -547,12 +546,10 @@ function SidebarMusicSection({
 function SidebarDeveloperSection({
   isOwner,
   onItemClick,
-  pendingRequests,
   s,
 }: {
   isOwner: boolean;
   onItemClick?: () => void;
-  pendingRequests?: number;
   s: SidebarLabels;
 }) {
   return (
@@ -560,16 +557,6 @@ function SidebarDeveloperSection({
       <DashboardSection>
         <DashboardSection.Header icon={<KeyIcon weight="duotone" className="w-4 h-4" />} title={s.sectionDeveloper} />
         <DashboardSection.Body className="!gap-0.5 !p-2">
-          <NavLink to="/developer/requests" onClick={onItemClick} className="contents">
-            {({ isActive }) => (
-              <DashboardSection.Item
-                icon={<ClipboardTextIcon weight="duotone" className="w-4 h-4" />}
-                label={s.apiAccessRequests}
-                badge={pendingRequests}
-                active={isActive}
-              />
-            )}
-          </NavLink>
           <NavLink to="/developer/clients" onClick={onItemClick} className="contents">
             {({ isActive }) => (
               <DashboardSection.Item
@@ -760,14 +747,7 @@ export function Sidebar({
         )}
 
         {/* Developer */}
-        {isAdmin && (
-          <SidebarDeveloperSection
-            isOwner={isOwner}
-            onItemClick={onItemClick}
-            pendingRequests={stats?.pendingApiAccessRequests}
-            s={s}
-          />
-        )}
+        {isAdmin && <SidebarDeveloperSection isOwner={isOwner} onItemClick={onItemClick} s={s} />}
 
         {/* System */}
         {isAdmin && (

@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   type ApiAccessOverview,
   activateToken,
-  approveApiAccessRequest,
   createClientToken,
   createTier,
   type DeveloperAccountResponse,
@@ -13,17 +12,16 @@ import {
   fetchDeveloperAccount,
   fetchDeveloperAccounts,
   fetchTiers,
-  rejectApiAccessRequest,
   type TierResponse,
   updateDeveloperAccount,
   updateDeveloperProject,
   updateTier,
 } from "@/features/developer/api";
 
-export function useApiAccessOverview(status?: string) {
+export function useApiAccessOverview() {
   return useQuery<ApiAccessOverview>({
-    queryKey: ["developer", "api-access", status ?? "all"],
-    queryFn: () => fetchApiAccessOverview(status),
+    queryKey: ["developer", "api-access"],
+    queryFn: fetchApiAccessOverview,
   });
 }
 
@@ -39,27 +37,6 @@ export function useDeveloperAccount(id: string) {
     queryKey: ["developer", "account", id],
     queryFn: () => fetchDeveloperAccount(id),
     enabled: !!id,
-  });
-}
-
-export function useApproveRequest() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, ...body }: { id: string; requestsPerMinute?: number; requestsPerDay?: number }) =>
-      approveApiAccessRequest(id, body),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["developer"] });
-    },
-  });
-}
-
-export function useRejectRequest() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, reviewNote }: { id: string; reviewNote: string }) => rejectApiAccessRequest(id, { reviewNote }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["developer"] });
-    },
   });
 }
 

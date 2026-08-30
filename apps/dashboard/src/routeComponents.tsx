@@ -120,18 +120,6 @@ export const ServicesPage = lazy(() =>
   })),
 );
 
-export const ApiAccessRequestsPage = lazy(() =>
-  import("@/features/developer/ApiAccessRequestsPage").then((m) => ({
-    default: m.ApiAccessRequestsPage,
-  })),
-);
-
-export const RequestDetailPage = lazy(() =>
-  import("@/features/developer/RequestDetailPage").then((m) => ({
-    default: m.RequestDetailPage,
-  })),
-);
-
 export const ApiClientsPage = lazy(() =>
   import("@/features/developer/ApiClientsPage").then((m) => ({
     default: m.ApiClientsPage,
