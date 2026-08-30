@@ -67,7 +67,8 @@ export function TokenRevealBox({ rawToken, appName, onDismiss }: TokenRevealBoxP
         </button>
       </div>
       <p className="text-body text-gold mb-3">
-        Copy it now. This is the only time the full key is shown. It is stored hashed and cannot be recovered.
+        Copy it now. This is the only time the full key is shown: it is stored as a hash, so nobody can read it back,
+        not even us. If you lose it, rotate the key from this registration and put the replacement in place.
       </p>
       <div className="flex items-center gap-2">
         <code className="flex-1 min-w-0 rounded-button border border-border bg-code-bg px-3 py-2 text-code font-mono text-code-fg overflow-x-auto whitespace-nowrap">

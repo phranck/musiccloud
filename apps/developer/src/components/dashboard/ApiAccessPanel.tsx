@@ -116,9 +116,9 @@ export function ApiAccessPanel() {
         <h2 className="card-content-inset text-card-title font-medium tracking-tight mb-3">Request API access</h2>
         <div className="surface-card px-6 py-5">
           <p className="text-body text-fg-muted mb-4">
-            Tell us about your app. Once a request is approved, the app and its API keys appear under{" "}
-            <a href="/dashboard/api-keys" className="content-link text-fg">
-              API keys
+            Tell us about your app. Once a request is approved, the app and its keys appear under its{" "}
+            <a href="/dashboard/projects" className="content-link text-fg">
+              project
             </a>
             .
           </p>
