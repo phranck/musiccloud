@@ -504,6 +504,25 @@
     background: transparent;
   }
 
+  /* GitHub publishes no button, only the mark and the rule that it is shown
+     unaltered in black or white on a background that keeps it legible. This is
+     the one filled command in the portal, in GitHub's own brand neutrals, so a
+     developer recognises the provider before reading the label. */
+  .button--github {
+    /* A card compacts its own actions, and this is not one of them: it is the
+       alternative to the whole form beneath it, so it keeps the full control
+       height every input in that form has. */
+    min-height: var(--mc-size-control);
+    border-color: var(--mc-color-github-surface);
+    color: var(--mc-color-github-fg);
+    background: var(--mc-color-github-surface);
+  }
+
+  .button--github:hover {
+    border-color: var(--mc-color-github-surface-hover);
+    background: var(--mc-color-github-surface-hover);
+  }
+
   .button--content {
     border-color: color-mix(in srgb, var(--color-accent) 56%, var(--color-border));
     color: var(--color-accent-hover);

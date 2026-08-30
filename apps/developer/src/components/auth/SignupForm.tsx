@@ -71,7 +71,7 @@ function reduceSignup(state: SignupState, patch: Partial<SignupState>): SignupSt
 interface SignupFormProps {
   /**
    * The alternate sign-up affordances shown above the email/password form
-   * (the "Continue with GitHub" button and the "or" divider), passed in as
+   * (the "Sign up with GitHub" button and the "or" divider), passed in as
    * Astro slot children. They render while the form is active and are dropped once it
    * succeeds, so the post-submit "check your email" panel stands on its own
    * (an "or" with no second option would otherwise linger).

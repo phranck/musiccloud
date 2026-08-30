@@ -28,6 +28,13 @@
   --mc-color-search-highlight: #f97316;
   --mc-color-danger: #fb7185;
   --mc-color-info: #38bdf8;
+  /* GitHub's own neutrals, Gray 6 and Gray 5 of their published brand palette,
+     for the one control that carries their mark. Their guidance shows the mark
+     unaltered on black or on white, so the button follows the provider rather
+     than the portal's unfilled button recipe. */
+  --mc-color-github-surface: #101411;
+  --mc-color-github-surface-hover: #232925;
+  --mc-color-github-fg: #ffffff;
   --mc-color-code-bg: rgba(0, 0, 0, 0.38);
   --mc-color-code-fg: #c2d2dc;
   --mc-color-inline-code-bg: color-mix(in srgb, var(--mc-color-request-patch) 20%, transparent);
