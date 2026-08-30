@@ -3,9 +3,13 @@
  * AuthCard is the centred card shell shared by every developer-portal auth
  * screen (login, signup, verify, forgot, reset).
  *
- * Layout: a max-width column centred in the viewport, the shared `Wordmark`
- * (the rainbow brand mark, centred here) on top, then the card itself, and a
- * `footer` slot for secondary links (e.g. "No account? Sign up").
+ * Layout: the site's own header and footer, and between them a max-width column
+ * centred in what is left, holding the card and a `footer` slot for secondary
+ * links (e.g. "No account? Sign up").
+ *
+ * The header carries the wordmark and nothing else. An auth screen is one task,
+ * and the ways out of it belong to the card rather than to a navigation bar
+ * offering a tour of the portal to somebody halfway through signing in.
  *
  * The card interior belongs to whatever fills the default slot, because the
  * form has to span both the body and the footer for its submit to sit at the
@@ -18,7 +22,8 @@
  * dashboard shell does.
  */
 import { ContentCard } from "@/components/docs/ContentCard";
-import Wordmark from "@/components/Wordmark.astro";
+import PublicFooter from "@/components/PublicFooter.astro";
+import PublicHeader from "@/components/PublicHeader.astro";
 import "../../styles/docs.css";
 
 interface Props {
@@ -32,10 +37,10 @@ const { title, icon: Icon } = Astro.props;
 const hasFooter = Astro.slots.has("footer");
 ---
 
-<main class="flex-1 flex items-center justify-center px-6 py-12">
-  <div class="api-reference-shell w-full max-w-md">
-    <Wordmark class="justify-center mb-8" />
+<PublicHeader account={null} showNavigation={false} />
 
+<main class="flex-1 flex items-center justify-center px-6 py-12">
+  <div class="api-reference-shell auth-card w-full max-w-md">
     <ContentCard>
       <ContentCard.Header>
         <ContentCard.Header.Icon>
@@ -55,3 +60,5 @@ const hasFooter = Astro.slots.has("footer");
     }
   </div>
 </main>
+
+<PublicFooter />

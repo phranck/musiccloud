@@ -34,15 +34,28 @@ interface Props {
    * turns this off, because it is already there. Defaults to `true`.
    */
   showDashboard?: boolean;
+  /**
+   * Whether the bar carries anything besides the wordmark. The auth screens
+   * turn it off: each of them is one task, and the ways out of that task stand
+   * on the card itself. Defaults to `true`.
+   */
+  showNavigation?: boolean;
 }
 
-const { account, active, navigation: suppliedNavigation, showDashboard = true } = Astro.props;
-const navigation = suppliedNavigation ?? (await getDeveloperPortalNavigation(NavigationArea.Main));
+const {
+  account,
+  active,
+  navigation: suppliedNavigation,
+  showDashboard = true,
+  showNavigation = true,
+} = Astro.props;
+const navigation = showNavigation ? (suppliedNavigation ?? (await getDeveloperPortalNavigation(NavigationArea.Main))) : [];
 ---
 
 <div class="public-header">
 <header class="public-header__inner developer-shell">
   <Wordmark />
+  {showNavigation && (
   <div class="public-header__actions">
     <nav class="public-header__desktop" aria-label="Primary" data-public-navigation="desktop">
       <PublicNavigationItems navigation={navigation} active={active} showLogin={!account} />
@@ -67,6 +80,7 @@ const navigation = suppliedNavigation ?? (await getDeveloperPortalNavigation(Nav
       </nav>
     </details>
   </div>
+  )}
 </header>
 </div>
 
@@ -99,6 +113,10 @@ const navigation = suppliedNavigation ?? (await getDeveloperPortalNavigation(Nav
 
   document.addEventListener("keydown", (event) => {
     if (!(event.metaKey || event.ctrlKey) || event.key.toLocaleLowerCase() !== "k") return;
+    // The shortcut is live where the command it stands for is. A page that
+    // offers no Search, such as an auth screen, leaves the browser's own use of
+    // the key alone.
+    if (!document.querySelector("[data-public-search-command]")) return;
     event.preventDefault();
     requestApiSearch();
   });

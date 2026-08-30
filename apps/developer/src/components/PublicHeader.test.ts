@@ -33,6 +33,18 @@ describe("PublicHeader", () => {
     expect(html).toMatch(/Pricing[\s\S]*?Search[\s\S]*?Sign in/);
   });
 
+  it("carries the wordmark alone where an auth screen turns the navigation off", async () => {
+    const container = await AstroContainer.create({ renderers: await loadRenderers([getContainerRenderer()]) });
+    const html = await container.renderToString(PublicHeader, {
+      props: { account: null, showNavigation: false },
+    });
+
+    expect(html).toMatch(/<header[^>]*class="public-header__inner developer-shell"/);
+    expect(html).not.toContain("data-public-navigation");
+    expect(html).not.toContain("public-header__actions");
+    expect(html).not.toContain('aria-label="Open navigation"');
+  });
+
   it("uses the requested Iconsax icons for the API, pricing, and sign-in entries", () => {
     const header = readFileSync(join(import.meta.dirname, "PublicHeader.astro"), "utf8");
     const items = readFileSync(join(import.meta.dirname, "PublicNavigationItems.astro"), "utf8");
@@ -88,8 +100,10 @@ describe("PublicHeader", () => {
     const css = readFileSync(join(import.meta.dirname, "../styles/components.css"), "utf8");
     const theme = readFileSync(join(import.meta.dirname, "../../public/developer-theme.css"), "utf8");
 
+    expect(css).toMatch(/\.public-header\s*\{[^}]*position:\s*sticky;[^}]*top:\s*0;[^}]*z-index:\s*20;/s);
+    // The bar at either end of a page is the same material, declared once.
     expect(css).toMatch(
-      /\.public-header\s*\{[^}]*--mc-public-header-surface:\s*var\(--mc-color-public-header\);[^}]*position:\s*sticky;[^}]*top:\s*0;[^}]*z-index:\s*20;[^}]*background:\s*color-mix\(in srgb, var\(--mc-public-header-surface\) 72%, transparent\);[^}]*backdrop-filter:\s*blur\(var\(--mc-space-4\)\);/s,
+      /\.public-header,\s*\.public-footer\s*\{[^}]*background:\s*color-mix\(in srgb, var\(--mc-color-public-header\) 72%, transparent\);[^}]*backdrop-filter:\s*blur\(var\(--mc-space-4\)\);/s,
     );
     expect(theme).toContain("--mc-color-public-header: #0c1925;");
     expect(css).toMatch(
