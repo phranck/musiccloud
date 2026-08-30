@@ -1,34 +1,13 @@
 ---
 /**
- * /dashboard/api-access: request API access and see the review-status history (protected).
+ * /dashboard/api-access: kept as a redirect, not a screen.
  *
- * Server-side: resolves the `mc_dev_session` cookie via `getDeveloperSession`;
- * without a valid session the request is redirected to `/login` before any
- * markup renders. The interactive part (form + own-requests list) is the
- * `ApiAccessPanel` island, which talks to the same-origin BFF
- * (`/api/dev/api-access/*`).
+ * Access used to be applied for and granted, so this path carried a form and
+ * the review history that followed it. A registration is now created directly
+ * under a project, so the path sends a bookmark or an old link to the projects
+ * list rather than showing a step that no longer exists.
  */
-import DashboardLayout from "@/components/dashboard/DashboardLayout.astro";
-import { ApiContent } from "@/components/docs/ApiContent";
-import { iconForDashboardTab } from "@/lib/dashboardNavIcons";
-import { ApiAccessPanel } from "@/components/dashboard/ApiAccessPanel";
-import { DashboardTab } from "@/lib/dashboardTabs";
-import { getDeveloperSession } from "@/lib/session";
-
 export const prerender = false;
 
-const account = await getDeveloperSession(Astro);
-if (!account) return Astro.redirect("/login");
-const PageIcon = iconForDashboardTab(DashboardTab.ApiAccess);
+return Astro.redirect("/dashboard/projects", 302);
 ---
-
-<DashboardLayout account={account} active={DashboardTab.ApiAccess} title="API access · musiccloud for developers">
-  <ApiContent.Chapter.Header className="api-content__chapter-header--first">
-    <ApiContent.Chapter.Header.Icon>
-      <PageIcon aria-hidden="true" />
-    </ApiContent.Chapter.Header.Icon>
-    <ApiContent.Chapter.Header.Title>API access</ApiContent.Chapter.Header.Title>
-  </ApiContent.Chapter.Header>
-  <p class="card-content-inset text-body text-fg-muted mb-6">Request access for your app and follow the review status.</p>
-  <ApiAccessPanel client:load />
-</DashboardLayout>

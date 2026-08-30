@@ -7,7 +7,7 @@
  * markup renders. With a session it renders the dashboard shell with the
  * Overview tab active: a greeting, an account-summary card (email, plan with
  * a pricing-commitment link, verification status, member-since), a
- * get-started card linking to the API-access flow, and a Danger Zone card
+ * get-started card linking to the projects list, and a Danger Zone card
  * for self-service account deletion.
  */
 import { ApiContent } from "@/components/docs/ApiContent";
@@ -101,12 +101,12 @@ const OverviewIcon = iconForDashboardTab(DashboardTab.Overview);
     <ContentCard.Body>
       <ContentCard.Body.Copy>
         <p class="text-body text-fg-muted">
-          Request API access to receive a key and start calling the musiccloud API.
+          Create a project, register your app under it, and issue a key to start calling the musiccloud API.
         </p>
       </ContentCard.Body.Copy>
     </ContentCard.Body>
     <ContentCard.Footer>
-      <a href="/dashboard/api-access" class="button button--content">Request API access</a>
+      <a href="/dashboard/projects" class="button button--content">Create a project</a>
     </ContentCard.Footer>
   </ContentCard>
 

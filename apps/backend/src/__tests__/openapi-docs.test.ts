@@ -811,8 +811,7 @@ describe("OpenAPI docs", () => {
       expect(publicContract, forbidden).not.toContain(forbidden);
     }
 
-    expect(doc.info.description).toContain("https://developer.musiccloud.io/dashboard/api-access");
-    expect(doc.info.description).toContain("https://developer.musiccloud.io/dashboard/api-keys");
+    expect(doc.info.description).toContain("https://developer.musiccloud.io/dashboard/projects");
     expect(publicContract).toContain("accepted by `GET /api/v1/link/{id}`");
     expect(publicContract).toContain("Pass it as `selectedCandidate` to `POST /api/v1/cc/resolve`");
     expect(publicContract).toContain("The key is always included");
