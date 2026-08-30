@@ -1,3 +1,4 @@
+import type { ColumnDef } from "@musiccloud/dashboard-ui";
 import {
   DashboardActionButton,
   DashboardActionId,
@@ -17,7 +18,6 @@ import {
 } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
-import type { ColumnDef } from "@/components/ui/DataTable";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { Toolbar } from "@/components/ui/Toolbar";

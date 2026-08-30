@@ -1,3 +1,4 @@
+import { type ColumnDef, DataTable, DataTableScroll } from "@musiccloud/dashboard-ui";
 import {
   Code as CodeIcon,
   MagnifyingGlass as MagnifyingGlassIcon,
@@ -8,7 +9,6 @@ import { useNavigate } from "react-router";
 import { ContentLoadingView } from "@/components/ui/ContentLoadingView";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { DashboardSection } from "@/components/ui/DashboardSection";
-import { type ColumnDef, DataTable, DataTableScroll } from "@/components/ui/DataTable";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
 import { TableActionButton } from "@/components/ui/TableActionButton";

@@ -11,19 +11,19 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import type { ColumnDef, DataTableRowProps } from "@musiccloud/dashboard-ui";
 import {
   DashboardActionButton,
   DashboardActionId,
   DashboardActionStatus,
   DashboardButtonVariant,
+  DataTable,
 } from "@musiccloud/dashboard-ui";
 import { ContentContext, PageType } from "@musiccloud/shared";
 import { FileDashedIcon, FileIcon, FileMdIcon, PencilLineIcon, PlusCircleIcon, TrashIcon } from "@phosphor-icons/react";
 import { useCallback, useMemo, useReducer } from "react";
 import { useNavigate } from "react-router";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
-import type { ColumnDef, DataTableRowProps } from "@/components/ui/DataTable";
-import { DataTable } from "@/components/ui/DataTable";
 import { Dialog, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";

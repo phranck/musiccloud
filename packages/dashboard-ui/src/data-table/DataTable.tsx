@@ -1,5 +1,6 @@
-import { getTableSortAriaSort, TableSortHeader } from "@musiccloud/dashboard-ui";
 import { type ComponentType, type HTMLAttributes, type ReactNode, useCallback, useMemo } from "react";
+import { TableSortHeader } from "../dashboard/DashboardControls.js";
+import { getTableSortAriaSort } from "../dashboard/tableSort.js";
 
 import {
   type ColumnDef,
@@ -9,12 +10,12 @@ import {
   DataTableScroll,
   DataTableState,
   useDataTable,
-} from "@/components/ui/dataTableContext";
-import { useColumnWidths } from "@/lib/hooks/useColumnWidths";
-import { type SortState, useTableSort } from "@/lib/hooks/useTableSort";
+} from "./dataTableContext.js";
+import { useColumnWidths } from "./useColumnWidths.js";
+import { type SortState, useTableSort } from "./useTableSort.js";
 
-export type { ColumnDef, DataTableRowProps } from "@/components/ui/dataTableContext";
-export { DataTableScroll, DataTableState } from "@/components/ui/dataTableContext";
+export type { ColumnDef, DataTableRowProps } from "./dataTableContext.js";
+export { DataTableScroll, DataTableState } from "./dataTableContext.js";
 
 interface DataTableProps<T> {
   columns: ColumnDef<T>[];

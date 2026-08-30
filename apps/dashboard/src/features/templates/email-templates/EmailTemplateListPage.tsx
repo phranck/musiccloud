@@ -1,8 +1,10 @@
 import {
+  type ColumnDef,
   DashboardActionButton,
   DashboardActionId,
   DashboardActionStatus,
   DashboardButtonVariant,
+  DataTable,
 } from "@musiccloud/dashboard-ui";
 import {
   DownloadIcon,
@@ -15,9 +17,7 @@ import {
 } from "@phosphor-icons/react";
 import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
-import { type ColumnDef, DataTable } from "@/components/ui/DataTable";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { TableActionButton } from "@/components/ui/TableActionButton";

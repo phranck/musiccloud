@@ -1,4 +1,11 @@
-import { DashboardActionButton, DashboardActionId, DashboardButtonVariant } from "@musiccloud/dashboard-ui";
+import {
+  type ColumnDef,
+  DashboardActionButton,
+  DashboardActionId,
+  DashboardButtonVariant,
+  DataTable,
+  DataTableScroll,
+} from "@musiccloud/dashboard-ui";
 import {
   ArrowDown as ArrowDownIcon,
   ArrowUp as ArrowUpIcon,
@@ -14,7 +21,6 @@ import { useCallback, useMemo, useReducer } from "react";
 import { ContentLoadingView } from "@/components/ui/ContentLoadingView";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { DashboardSection } from "@/components/ui/DashboardSection";
-import { type ColumnDef, DataTable, DataTableScroll } from "@/components/ui/DataTable";
 import { Dialog, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { LabeledSwitch } from "@/components/ui/LabeledSwitch";
 import { PageHeader } from "@/components/ui/PageHeader";

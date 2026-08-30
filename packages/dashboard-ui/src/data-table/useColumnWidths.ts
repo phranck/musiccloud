@@ -9,11 +9,16 @@ const RESIZE_MIN_WIDTH = 96;
  * or the same table after its columns change, starts from its own widths
  * rather than from someone else's.
  *
+ * There is no key on a server, where there is no location to key on and no
+ * storage to read. A table rendered there is simply unsized, and the widths
+ * arrive once it is running in a browser.
+ *
  * @param columnIds - The ids of the columns in render order.
- * @returns The key, or `null` when there are no columns to remember.
+ * @returns The key, or `null` when there is nothing to remember it under.
  */
 function getColumnWidthStorageKey(columnIds: string[]): string | null {
   if (columnIds.length === 0) return null;
+  if (typeof window === "undefined") return null;
   return `datatable:widths:${window.location.pathname}:${columnIds.join("|")}`;
 }
 
@@ -74,25 +79,31 @@ interface UseColumnWidthsResult {
  */
 export function useColumnWidths(columnIds: string[]): UseColumnWidthsResult {
   const storageKey = getColumnWidthStorageKey(columnIds);
-  const [storedKey, setStoredKey] = useState(storageKey);
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => loadColumnWidths(storageKey));
-
-  // The widths belong to one key. When the table changes route or columns, the
-  // ones in state describe a table that is no longer on screen.
-  if (storageKey !== storedKey) {
-    setStoredKey(storageKey);
-    setColumnWidths(loadColumnWidths(storageKey));
-  }
+  // Which key the widths in state were read for. It starts as `null` so a
+  // server render and the first browser render agree on an unsized table, and
+  // the stored widths are applied afterwards rather than during the render that
+  // has to match what the server sent.
+  const [storedKey, setStoredKey] = useState<string | null>(null);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
 
   const mouseMoveHandlerRef = useRef<(event: MouseEvent) => void>(() => {});
   const resizeStateRef = useRef<ResizeState | null>(null);
 
+  // The widths belong to one key. When the table changes route or columns, the
+  // ones in state describe a table that is no longer on screen.
   useEffect(() => {
-    if (!storageKey) return;
+    setStoredKey(storageKey);
+    setColumnWidths(loadColumnWidths(storageKey));
+  }, [storageKey]);
+
+  useEffect(() => {
+    // Only write widths that were read for this key, so the empty set the table
+    // starts from cannot overwrite what is stored.
+    if (!storageKey || storedKey !== storageKey) return;
     try {
       window.localStorage.setItem(storageKey, JSON.stringify(columnWidths));
     } catch {}
-  }, [storageKey, columnWidths]);
+  }, [storageKey, storedKey, columnWidths]);
 
   const stopResize = useCallback(() => {
     resizeStateRef.current = null;
