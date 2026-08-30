@@ -65,6 +65,35 @@
     display: block;
   }
 
+  /* The row of plans. A card is at most a quarter of the measure, so a single
+     plan states its terms in a card rather than stretching a banner across the
+     page. Four or more share the row exactly as they did.
+
+     The column width is derived from the number that fits and the gap between
+     them, so neither is a figure to keep in step with the other. */
+  .tier-grid {
+    --tier-grid-columns: 4;
+    --tier-grid-gap: var(--mc-space-4);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--mc-space-16) var(--tier-grid-gap);
+  }
+
+  @media (min-width: 64rem) {
+    .tier-grid {
+      grid-template-columns: repeat(
+        auto-fill,
+        minmax(
+          0,
+          calc(
+            (100% - (var(--tier-grid-columns) - 1) * var(--tier-grid-gap)) / var(--tier-grid-columns)
+          )
+        )
+      );
+      justify-content: start;
+    }
+  }
+
   /* Tier card: a soft glow in the tier colour bleeds down from the top,
      echoing the medal above. Painted as a background-image over the glassy
      `bg-surface`, clipped by the card's border-radius (no overflow:hidden, so
