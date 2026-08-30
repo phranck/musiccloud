@@ -115,7 +115,6 @@ describe("PostgreSQL schema", () => {
     expect(postgresSchema.apiUsageEvents.tokenId.name).toBe("token_id");
     expect(postgresSchema.apiUsageEvents.endpointTemplate.name).toBe("endpoint_template");
     expect(postgresSchema.apiAccessAuditEvents.projectId.name).toBe("project_id");
-    expect(postgresSchema.apiAccessRequests.projectId.name).toBe("project_id");
   });
 
   it("stores artist profile provenance and audited manual refresh attempts", () => {

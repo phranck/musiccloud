@@ -71,7 +71,6 @@ export const MUSICCLOUD_READINESS_TABLES = [
   "developer_subscriptions",
   "developer_projects",
   "developer_project_subscriptions",
-  "api_access_requests",
   "api_clients",
   "api_client_tokens",
   "api_access_audit_events",
@@ -90,7 +89,6 @@ const CONTEXTUAL_EDITORIAL_WRITE_TABLES = [
 const DEVELOPER_API_WRITE_TABLES = [
   "developer_projects",
   "developer_project_subscriptions",
-  "api_access_requests",
   "api_clients",
   "api_client_tokens",
   "api_access_audit_events",
