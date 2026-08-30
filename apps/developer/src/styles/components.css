@@ -653,9 +653,13 @@
     }
   }
 
+  /* One form layout across the product. The dashboard's field primitive
+     (packages/dashboard-ui/src/primitives/fieldPrimitiveClasses.ts) is the
+     reference: a quiet label sits one short step above its control, and the
+     hint or error follows at the same step below it. */
   .field {
     display: grid;
-    gap: var(--mc-space-2);
+    gap: var(--mc-space-1);
   }
 
   /* A field holding something short, such as an address or a name, does not
@@ -674,9 +678,15 @@
     padding-inline: calc(var(--radius-button) / 2);
   }
 
+  /* A label names its control, so it stays quieter than the value that goes
+     into it: the small step of the scale, medium weight, muted. It keeps the
+     muted colour rather than the subtle one its hint could take, because that
+     step drops below a readable contrast on this surface. The weight is what
+     separates the label above from the hint below. */
   .field__label {
-    color: var(--color-fg);
-    font-weight: 600;
+    color: var(--color-fg-muted);
+    font-size: var(--text-code);
+    font-weight: 500;
   }
 
   .field__control {

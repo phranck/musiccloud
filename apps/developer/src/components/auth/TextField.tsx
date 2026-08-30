@@ -69,7 +69,7 @@ export function TextField({
 
   return (
     <div className={`field ${className}`.trim()}>
-      <label htmlFor={inputId} className="field__label text-body">
+      <label htmlFor={inputId} className="field__label">
         {label}
       </label>
       <input

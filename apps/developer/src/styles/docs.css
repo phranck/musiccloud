@@ -435,6 +435,19 @@
     padding-inline: var(--mc-docs-content-card-copy-inset);
   }
 
+  /* A column of fields reads closer than a column of paragraphs, because each
+     label already ties itself to the control under it. The step matches the
+     dashboard's form stack, and it follows from the content rather than from a
+     modifier a call site has to remember.
+
+     It also drops the copy inset. That inset holds a line of prose clear of the
+     card's corner curve, and a control has an edge of its own, so it sits on
+     the body's own padding like a code block or a table does. */
+  .content-card__copy:has(> .field) {
+    gap: var(--mc-space-4);
+    padding-inline: 0;
+  }
+
   .content-card__body-stack {
     gap: var(--mc-space-6);
   }
