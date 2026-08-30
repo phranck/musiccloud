@@ -17,7 +17,7 @@
 import PublicHeader from "@/components/PublicHeader.astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import PublicFooter from "@/components/PublicFooter.astro";
-import { BookIcon, FlashIcon, KeyIcon, LinkIcon, ProfileAddIcon } from "@/lib/icons";
+import { BookIcon, DataIcon, KeyIcon, LinkIcon, ProfileAddIcon } from "@/lib/icons";
 import { getDeveloperSession } from "@/lib/session";
 
 const account = await getDeveloperSession(Astro);
@@ -33,14 +33,14 @@ const steps = [
     body: "Sign up with your email or GitHub to get a developer account on the portal.",
   },
   {
-    Icon: FlashIcon,
-    title: "Request API access",
-    body: "From your dashboard, request access to the musiccloud API for your account.",
+    Icon: DataIcon,
+    title: "Create a project",
+    body: "A project holds your plan and the quota that every registration under it shares.",
   },
   {
     Icon: KeyIcon,
-    title: "Receive an API key",
-    body: "Once access is granted, an API key is issued to your account for authenticating requests.",
+    title: "Register your app and issue its key",
+    body: "Register the app under your project, then issue its key. A key is shown once, when it is created or rotated.",
   },
   {
     Icon: LinkIcon,
@@ -131,7 +131,8 @@ const steps = [
         }
       </ol>
       <p class="text-body text-fg-subtle mt-6">
-        The whole flow is self-service: request access, receive your key, and manage it, all from{" "}
+        The whole flow is self-service: create a project, register your app, issue its key, and manage all of it
+        from{" "}
         <a href="/dashboard" class="content-link text-fg">your dashboard</a>. The API is free while we build it
         out; see <a href="/pricing" class="content-link text-fg">pricing</a> for our written commitment.
       </p>
