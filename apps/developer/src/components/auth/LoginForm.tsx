@@ -86,11 +86,6 @@ export function LoginForm({ children }: LoginFormProps) {
             autoComplete="current-password"
             error={error ?? undefined}
           />
-          <div className="flex justify-end -mt-1">
-            <a href="/forgot" className="content-link text-body text-fg-muted">
-              Forgot password?
-            </a>
-          </div>
         </ContentCard.Body.Copy>
       </ContentCard.Body>
       <ContentCard.Footer>

@@ -6,8 +6,9 @@
  * developer is redirected straight to the dashboard. A `?error=oauth` query
  * (set by the GitHub OAuth callback on CSRF/exchange failure) renders an inline
  * notice. Layout per spec: the GitHub button first, an "or" divider, then the
- * email/password island, a "Forgot password?" link (inside the form), and a
- * footer link to signup.
+ * email/password island. The card holds what a developer fills in and presses;
+ * the two ways out of it, resetting a password and creating an account, stand
+ * together under the card.
  */
 import AuthCard from "@/components/auth/AuthCard.astro";
 import { LoginIcon } from "@/lib/icons";
@@ -39,6 +40,8 @@ const oauthFailed = Astro.url.searchParams.get("error") === "oauth";
       <OrDivider />
     </LoginForm>
     <Fragment slot="footer">
+      <a href="/forgot" class="content-link text-fg">Forgot password?</a>
+      <br />
       No account? <a href="/signup" class="content-link text-fg">Sign up</a>
     </Fragment>
   </AuthCard>
