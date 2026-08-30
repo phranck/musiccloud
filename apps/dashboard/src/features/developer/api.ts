@@ -68,10 +68,10 @@ export interface ApiClientResponse {
   tierRequestsPerMinute: number | null;
   /** The tier's per-day limit, or `null` when unassigned. */
   tierRequestsPerDay: number | null;
-  /** Resolved limit (override ?? tier ?? fallback) that is actually enforced. */
-  effectiveRequestsPerMinute: number;
+  /** Resolved limit (override ?? granting tier) that is actually enforced, or `null` when no plan grants one. */
+  effectiveRequestsPerMinute: number | null;
   /** Resolved daily limit (same precedence). */
-  effectiveRequestsPerDay: number;
+  effectiveRequestsPerDay: number | null;
   createdAt: string;
   updatedAt: string;
   tokens: ApiClientTokenResponse[];
@@ -88,8 +88,10 @@ export interface DeveloperProjectResponse {
   tierName: string | null;
   tierRequestsPerMinute: number | null;
   tierRequestsPerDay: number | null;
-  effectiveRequestsPerMinute: number;
-  effectiveRequestsPerDay: number;
+  /** Resolved limit that is actually enforced, or `null` when no plan grants one. */
+  effectiveRequestsPerMinute: number | null;
+  /** Resolved daily limit, or `null` when no plan grants one. */
+  effectiveRequestsPerDay: number | null;
   createdAt: string;
   updatedAt: string;
   suspendedAt: string | null;

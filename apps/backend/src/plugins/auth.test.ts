@@ -469,6 +469,31 @@ describe("authenticatePublic", () => {
     expect(mockApiAccessRepo.touchApiClientTokenLastUsed).not.toHaveBeenCalled();
   });
 
+  it("refuses a valid token whose project has no plan granting any limit", async () => {
+    const app = await buildApp();
+    const withoutPlan = {
+      tierId: null,
+      tierName: null,
+      tierRequestsPerMinute: null,
+      tierRequestsPerDay: null,
+      effectiveRequestsPerMinute: null,
+      effectiveRequestsPerDay: null,
+    };
+    const { raw } = issueToken(makeClient({ id: "client-no-plan", projectId: "project-no-plan", ...withoutPlan }), {
+      id: "project-no-plan",
+      ...withoutPlan,
+    });
+
+    const response = await app.inject({ method: "GET", url: "/protected", headers: { "x-api-key": raw } });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json().error).toBe("MC-AUTH-0003");
+    expect(response.json().errorId).toBeTruthy();
+    // The refusal is about the plan, not about the credential, so it must not
+    // wear the code an exhausted quota wears.
+    expect(response.json().error).not.toBe("MC-API-0003");
+  });
+
   it("rejects stale UUID-shaped public API keys without a repository lookup", async () => {
     const app = await buildApp();
 

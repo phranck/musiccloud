@@ -1,17 +1,40 @@
 /**
  * @file Unit tests for the effective rate-limit resolution (MC-100): every
- * registration read maps `min(registration cap, project override ?? project
- * subscription tier ?? conservative fallback)` in `rowToApiClient`. Exercised through {@link findApiClientById}
- * with a stubbed pg Pool, so the JOIN row shape is the single input.
+ * registration read maps `min(registration cap, project override ?? granting
+ * subscription tier)` in `rowToApiClient`, and resolves to no limit at all when
+ * no subscription grants a tier. Exercised through {@link findApiClientById}
+ * with a stubbed pg Pool, so the JOIN row shape is the single input. Which
+ * subscription states reach that row is decided by the JOIN, so those tests
+ * read the SQL instead.
  */
 import type { Pool } from "pg";
 import { describe, expect, it, vi } from "vitest";
-import { FALLBACK_REQUESTS_PER_DAY, FALLBACK_REQUESTS_PER_MINUTE } from "../../tiers-repository.js";
 import {
   findActiveApiClientByTokenHash,
   findApiClientById,
   setDeveloperProjectSubscription,
 } from "../postgres-api-access.js";
+
+/**
+ * The states `chk_developer_project_subscriptions_status` admits that must not
+ * grant a tier. A subscription in any of them is a plan that has stopped
+ * running, and the project it belongs to has no quota until it starts again.
+ */
+const NON_GRANTING_SUBSCRIPTION_STATES = ["paused", "past_due", "expired", "canceled"] as const;
+
+/** The contents of the JOIN's `ps.status IN (…)` list, for asserting what it admits. */
+function admittedSubscriptionStates(sql: string): string {
+  const admitted = sql.match(/ps\.status IN \(([^)]*)\)/);
+  if (!admitted) throw new Error("The subscription JOIN carries no status predicate.");
+  return admitted[1] as string;
+}
+
+/** Runs one registration read against a stubbed pool and returns the SQL it issued. */
+async function sqlForRegistrationRead(): Promise<string> {
+  const query = vi.fn().mockResolvedValue({ rows: [makeJoinRow()] });
+  await findApiClientById({ query } as unknown as Pool, "client-1");
+  return (query.mock.calls[0] as [string])[0];
+}
 
 /** Builds a complete client JOIN row (as the CLIENT_JOIN_SELECT returns it) that tests override field-by-field. */
 function makeJoinRow(overrides: Record<string, unknown> = {}) {
@@ -124,7 +147,7 @@ describe("project-owned effective rate-limit resolution", () => {
     });
   });
 
-  it("falls back to the conservative defaults when the project has no tier", async () => {
+  it("resolves to no limit at all when no granting subscription supplies a tier", async () => {
     const client = await findApiClientById(
       poolWith(
         makeJoinRow({
@@ -138,8 +161,46 @@ describe("project-owned effective rate-limit resolution", () => {
       ),
       "client-1",
     );
-    expect(client?.effectiveRequestsPerMinute).toBe(FALLBACK_REQUESTS_PER_MINUTE);
-    expect(client?.effectiveRequestsPerDay).toBe(FALLBACK_REQUESTS_PER_DAY);
+    expect(client?.effectiveRequestsPerMinute).toBeNull();
+    expect(client?.effectiveRequestsPerDay).toBeNull();
+  });
+
+  it("does not let a project override stand in for a plan", async () => {
+    const client = await findApiClientById(
+      poolWith(
+        makeJoinRow({
+          project_requests_per_minute: 500,
+          project_requests_per_day: 50000,
+          tier_id: null,
+          tier_name: null,
+          tier_requests_per_minute: null,
+          tier_requests_per_day: null,
+        }),
+      ),
+      "client-1",
+    );
+    expect(client?.effectiveRequestsPerMinute).toBeNull();
+    expect(client?.effectiveRequestsPerDay).toBeNull();
+  });
+
+  it("does not let a registration cap stand in for a plan either", async () => {
+    const client = await findApiClientById(
+      poolWith(
+        makeJoinRow({
+          requests_per_minute: 5,
+          requests_per_day: 99,
+          project_requests_per_minute: null,
+          project_requests_per_day: null,
+          tier_id: null,
+          tier_name: null,
+          tier_requests_per_minute: null,
+          tier_requests_per_day: null,
+        }),
+      ),
+      "client-1",
+    );
+    expect(client?.effectiveRequestsPerMinute).toBeNull();
+    expect(client?.effectiveRequestsPerDay).toBeNull();
   });
 
   it("returns the actual project lifecycle metadata with an authenticated registration", async () => {
@@ -186,6 +247,25 @@ describe("project-owned effective rate-limit resolution", () => {
       deletedAt: null,
       createdByAdminId: "admin-project",
     });
+  });
+});
+
+describe("which subscription grants the tier", () => {
+  it.each(NON_GRANTING_SUBSCRIPTION_STATES)("does not read a tier from a %s subscription", async (state) => {
+    expect(admittedSubscriptionStates(await sqlForRegistrationRead())).not.toContain(state);
+  });
+
+  it("reads a tier from a running subscription", async () => {
+    const admitted = admittedSubscriptionStates(await sqlForRegistrationRead());
+    expect(admitted).toContain("active");
+    expect(admitted).toContain("trialing");
+    expect(admitted).toContain("scheduled_cancel");
+  });
+
+  it("takes the tier from the project's own subscription and never from the account", async () => {
+    const sql = await sqlForRegistrationRead();
+    expect(sql).not.toContain("da.tier_id");
+    expect(sql).not.toContain("developer_accounts da");
   });
 });
 

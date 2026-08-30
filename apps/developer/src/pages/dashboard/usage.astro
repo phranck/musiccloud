@@ -15,6 +15,7 @@ import { DeveloperProjectStatus, maskToken } from "@/lib/apiAccessClient";
 import { DashboardTab } from "@/lib/dashboardTabs";
 import { formatDate } from "@/lib/formatDate";
 import { DiagramIcon } from "@/lib/icons";
+import { perDayQuotaLabel, perMinuteQuotaLabel } from "@/lib/quotaLabel";
 import { getDeveloperSession } from "@/lib/session";
 
 export const prerender = false;
@@ -61,11 +62,11 @@ if (!account) return Astro.redirect("/login");
             <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 mb-4">
               <div>
                 <dt class="text-nav text-fg-subtle mb-0.5">Rate limit</dt>
-                <dd class="text-body text-fg">{client.requestsPerMinute} requests/minute</dd>
+                <dd class="text-body text-fg">{perMinuteQuotaLabel(client.requestsPerMinute)}</dd>
               </div>
               <div>
                 <dt class="text-nav text-fg-subtle mb-0.5">Daily quota</dt>
-                <dd class="text-body text-fg">{client.requestsPerDay.toLocaleString("en-US")} requests/day</dd>
+                <dd class="text-body text-fg">{perDayQuotaLabel(client.requestsPerDay)}</dd>
               </div>
             </dl>
             {client.tokens.length === 0 ? (
