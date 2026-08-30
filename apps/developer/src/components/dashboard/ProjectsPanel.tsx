@@ -1,10 +1,14 @@
-import { type ChangeEvent, type SyntheticEvent, useCallback, useEffect, useReducer } from "react";
+import { type ColumnDef, DataTable } from "@musiccloud/dashboard-ui";
+import { type ChangeEvent, type SyntheticEvent, useCallback, useEffect, useMemo, useReducer } from "react";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
 import { ApiFailureNotice } from "@/components/dashboard/ApiFailureNotice";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
+import { ContentCard } from "@/components/docs/ContentCard";
+import { ContentPanel } from "@/components/docs/ContentPanel";
 import {
   createDeveloperProject,
+  type DeveloperProjectDto,
   listApiClients,
   listDeveloperProjects,
   MAX_APP_NAME_LENGTH,
@@ -12,19 +16,26 @@ import {
 import { ButtonVariant } from "@/lib/buttonVariant";
 import { formatDate } from "@/lib/formatDate";
 import { FormPhase } from "@/lib/formPhase";
-import { AddIcon } from "@/lib/icons";
+import { AddIcon, DataIcon } from "@/lib/icons";
+import { projectPath } from "@/lib/projectPath";
 import {
-  PROJECTS_PANEL_INITIAL_STATE,
   ProjectsPanelActionType,
+  type ProjectsPanelSeed,
+  projectsPanelInitialState,
   projectsPanelReducer,
   toPanelFailure,
 } from "@/lib/projectsPanelState";
-import { perDayQuotaLabel, perMinuteQuotaLabel } from "@/lib/quotaLabel";
-import { writeSelectedProjectId } from "@/lib/selectedProject";
+import { quotaSummaryLabel } from "@/lib/quotaLabel";
 
-/** Where a project's own screen lives. */
-function projectPath(projectId: string): string {
-  return `/dashboard/projects/${projectId}`;
+/**
+ * Props for {@link ProjectsPanel}.
+ */
+export interface ProjectsPanelProps {
+  /**
+   * What the page read server-side, so the rows are in the first paint. Left
+   * out, the panel reads the list itself once it has hydrated.
+   */
+  seed?: ProjectsPanelSeed;
 }
 
 /**
@@ -38,15 +49,23 @@ function projectPath(projectId: string): string {
  * The registration counts come from one list of the account's registrations
  * grouped by project, rather than from a detail call per project.
  *
- * Rendered with `client:load` from `dashboard/projects/index.astro`.
+ * Rendered with `client:load` from `dashboard/projects/index.astro`, which
+ * hands it the list it already read.
  *
+ * @param props - See {@link ProjectsPanelProps}.
  * @returns The project list content.
  */
-export function ProjectsPanel() {
-  const [state, dispatch] = useReducer(projectsPanelReducer, PROJECTS_PANEL_INITIAL_STATE);
-  const { projects, registrationCounts, listFailure, formOpen, name, phase, createFailure } = state;
+export function ProjectsPanel({ seed }: ProjectsPanelProps) {
+  const [state, dispatch] = useReducer(projectsPanelReducer, seed, projectsPanelInitialState);
+  const { projects, registrationCounts, maxProjects, usedProjects, listFailure, formOpen, name, phase, createFailure } =
+    state;
+
+  // A page that read the list server-side has already put it in the first
+  // paint, so there is nothing to fetch on mount.
+  const seeded = seed !== undefined;
 
   useEffect(() => {
+    if (seeded) return;
     const controller = new AbortController();
     Promise.all([listDeveloperProjects(controller.signal), listApiClients(controller.signal)]).then(
       ([projectResult, registrationResult]) => {
@@ -63,11 +82,13 @@ export function ProjectsPanel() {
           type: ProjectsPanelActionType.ProjectsLoaded,
           projects: projectResult.data.projects,
           registrationCounts: counts,
+          maxProjects: projectResult.data.limits.maxProjects,
+          usedProjects: projectResult.data.limits.usedProjects,
         });
       },
     );
     return () => controller.abort();
-  }, []);
+  }, [seeded]);
 
   const onName = useCallback(
     (event: ChangeEvent<HTMLInputElement>) =>
@@ -93,8 +114,6 @@ export function ProjectsPanel() {
       dispatch({ type: ProjectsPanelActionType.CreateStarted });
       const result = await createDeveloperProject(displayName);
       if (result.ok && result.data) {
-        // The project the developer just made is the one they are looking at.
-        writeSelectedProjectId(result.data.project.id);
         dispatch({ type: ProjectsPanelActionType.CreateSucceeded, project: result.data.project });
         return;
       }
@@ -103,40 +122,94 @@ export function ProjectsPanel() {
     [name],
   );
 
+  const columns = useMemo<ColumnDef<DeveloperProjectDto>[]>(
+    () => [
+      {
+        id: "name",
+        header: "Project",
+        sortKey: (project) => project.displayName.toLocaleLowerCase(),
+        cell: (project) => (
+          <a href={projectPath(project.id)} className="text-body text-fg hover:underline">
+            {project.displayName}
+          </a>
+        ),
+      },
+      {
+        id: "status",
+        header: "Status",
+        headerClassName: "w-28",
+        sortKey: (project) => project.status,
+        cell: (project) => <StatusBadge status={project.status} />,
+      },
+      {
+        id: "quota",
+        header: "Quota",
+        headerClassName: "w-72",
+        cell: (project) => (
+          <span className="text-nav text-fg-muted">
+            {quotaSummaryLabel(project.quota.requestsPerMinute, project.quota.requestsPerDay)}
+          </span>
+        ),
+      },
+      {
+        id: "registrations",
+        header: "Registrations",
+        sortKey: (project) => registrationCounts[project.id] ?? 0,
+        // A count is compared by size, so its figures line up at the right edge.
+        headerClassName: "w-32 text-right",
+        cellClassName: "text-right",
+        cell: (project) => <span className="text-nav text-fg-muted">{registrationCounts[project.id] ?? 0}</span>,
+      },
+      {
+        id: "created",
+        header: "Created",
+        headerClassName: "w-36",
+        sortKey: (project) => project.createdAt,
+        cell: (project) => <span className="text-nav text-fg-muted">{formatDate(project.createdAt)}</span>,
+      },
+      {
+        id: "actions",
+        header: "",
+        headerClassName: "w-24 text-right",
+        cellClassName: "text-right",
+        cell: (project) => (
+          <a href={projectPath(project.id)} className="button button--secondary text-body">
+            Edit
+          </a>
+        ),
+      },
+    ],
+    [registrationCounts],
+  );
+
+  const remaining = Math.max(maxProjects - usedProjects, 0);
+  const allowance = `You have ${maxProjects} ${maxProjects === 1 ? "project" : "projects"} available. ${
+    remaining === 0
+      ? "None are left, so a new one needs an existing project removed first."
+      : `There ${remaining === 1 ? "is" : "are"} still ${remaining} ${remaining === 1 ? "project" : "projects"} left.`
+  }`;
+
   return (
-    <div className="flex flex-col gap-6">
-      <section>
-        <div className="card-content-inset flex items-center justify-between gap-3 mb-3">
-          <h2 className="text-card-title font-medium tracking-tight">Your projects</h2>
-          {!formOpen && projects !== null && projects.length > 0 && (
+    <ContentCard>
+      <ContentCard.Header>
+        <ContentCard.Header.Icon>
+          <DataIcon aria-hidden="true" />
+        </ContentCard.Header.Icon>
+        <ContentCard.Header.Title>Your projects</ContentCard.Header.Title>
+        {!formOpen && projects !== null && projects.length > 0 && remaining > 0 && (
+          <ContentCard.Header.Addon>
             <button type="button" onClick={onOpenForm} className="button button--secondary text-body">
               <AddIcon className="size-5" aria-hidden="true" />
               New project
             </button>
-          )}
-        </div>
+          </ContentCard.Header.Addon>
+        )}
+      </ContentCard.Header>
 
-        <div className="surface-card px-6 py-5 flex flex-col gap-4">
-          {projects === null && !listFailure && <p className="text-body text-fg-muted">Loading…</p>}
-          {listFailure && <ApiFailureNotice {...listFailure} />}
-
-          {projects !== null && projects.length === 0 && !formOpen && (
-            <>
-              <p className="text-body text-fg-muted">
-                A project holds your plan, your registrations and your quota. Everything else in this portal hangs off
-                one, so this is the first thing to create.
-              </p>
-              <div className="sm:max-w-xs">
-                <SubmitButton type="button" onClick={onOpenForm}>
-                  <AddIcon className="size-5" aria-hidden="true" />
-                  Create your first project
-                </SubmitButton>
-              </div>
-            </>
-          )}
-
-          {formOpen && (
-            <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+      {formOpen ? (
+        <form onSubmit={onSubmit} noValidate>
+          <ContentCard.Body>
+            <ContentCard.Body.Copy>
               <TextField
                 name="displayName"
                 label="Project name"
@@ -146,46 +219,55 @@ export function ProjectsPanel() {
                 hint="Only you and the operator see this. It can be changed later."
               />
               {createFailure && <ApiFailureNotice {...createFailure} />}
-              <div className="flex gap-3">
-                <div className="sm:max-w-xs flex-1">
-                  <SubmitButton loading={phase === FormPhase.Submitting}>Create project</SubmitButton>
-                </div>
-                <div className="sm:max-w-xs flex-1">
-                  <SubmitButton variant={ButtonVariant.Secondary} type="button" onClick={onCloseForm}>
-                    Cancel
-                  </SubmitButton>
-                </div>
-              </div>
-            </form>
-          )}
+            </ContentCard.Body.Copy>
+          </ContentCard.Body>
+          <ContentCard.Footer>
+            <span className="text-nav mr-auto">{allowance}</span>
+            <SubmitButton variant={ButtonVariant.Secondary} type="button" onClick={onCloseForm}>
+              Cancel
+            </SubmitButton>
+            <SubmitButton loading={phase === FormPhase.Submitting}>Create project</SubmitButton>
+          </ContentCard.Footer>
+        </form>
+      ) : (
+        <>
+          <ContentCard.Body>
+            <ContentCard.Body.Copy>
+              {projects === null && !listFailure && <p className="text-body text-fg-muted">Loading…</p>}
+              {listFailure && <ApiFailureNotice {...listFailure} />}
 
-          {projects !== null && projects.length > 0 && (
-            <ul className="flex flex-col divide-y divide-border">
-              {projects.map((project) => (
-                <li key={project.id} className="py-4 first:pt-0 last:pb-0">
-                  <div className="flex items-center justify-between gap-3 mb-1">
-                    <a
-                      href={projectPath(project.id)}
-                      className="text-body font-medium text-fg truncate hover:underline"
-                    >
-                      {project.displayName}
-                    </a>
-                    <StatusBadge status={project.status} />
-                  </div>
-                  <p className="text-nav text-fg-subtle">
-                    {perMinuteQuotaLabel(project.quota.requestsPerMinute)} ·{" "}
-                    {perDayQuotaLabel(project.quota.requestsPerDay)}
-                  </p>
-                  <p className="text-nav text-fg-subtle">
-                    {registrationCounts[project.id] ?? 0} registration
-                    {(registrationCounts[project.id] ?? 0) === 1 ? "" : "s"} · created {formatDate(project.createdAt)}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
-    </div>
+              {projects !== null && projects.length === 0 && (
+                <p className="text-body text-fg-muted">
+                  A project holds your plan, your registrations and your quota. Everything else in this portal hangs off
+                  one, so this is the first thing to create.
+                </p>
+              )}
+            </ContentCard.Body.Copy>
+
+            {projects !== null && projects.length > 0 && (
+              <ContentCard.Body.Stack>
+                <ContentPanel className="content-panel--table">
+                  <DataTable columns={columns} data={projects} getRowKey={(project) => project.id}>
+                    <DataTable.Viewport>
+                      <DataTable.Head />
+                      <DataTable.Rows />
+                    </DataTable.Viewport>
+                  </DataTable>
+                </ContentPanel>
+              </ContentCard.Body.Stack>
+            )}
+          </ContentCard.Body>
+          <ContentCard.Footer>
+            <span className="text-nav mr-auto">{allowance}</span>
+            {projects !== null && projects.length === 0 && remaining > 0 && (
+              <SubmitButton type="button" onClick={onOpenForm}>
+                <AddIcon className="size-5" aria-hidden="true" />
+                Create your first project
+              </SubmitButton>
+            )}
+          </ContentCard.Footer>
+        </>
+      )}
+    </ContentCard>
   );
 }

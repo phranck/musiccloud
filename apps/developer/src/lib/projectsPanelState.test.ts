@@ -32,6 +32,8 @@ describe("projectsPanelReducer", () => {
       type: ProjectsPanelActionType.ProjectsLoaded,
       projects: [makeProject()],
       registrationCounts: { "project-1": 3 },
+      maxProjects: 3,
+      usedProjects: 1,
     });
 
     expect(next.projects).toHaveLength(1);
@@ -44,6 +46,8 @@ describe("projectsPanelReducer", () => {
       type: ProjectsPanelActionType.ProjectsLoaded,
       projects: [makeProject()],
       registrationCounts: { "project-1": 2 },
+      maxProjects: 3,
+      usedProjects: 1,
     });
 
     const next = projectsPanelReducer(loaded, {
