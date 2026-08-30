@@ -71,20 +71,6 @@ export const EMAIL_ACTIONS = {
     recipientKind: EmailRecipientKind.DeveloperAccount,
     required: false,
   },
-  developerApiAccessApproved: {
-    key: "developerApiAccessApproved",
-    label: "Developer API access approved",
-    contextVariables: ["appName"],
-    recipientKind: EmailRecipientKind.DeveloperAccount,
-    required: false,
-  },
-  developerApiAccessRejected: {
-    key: "developerApiAccessRejected",
-    label: "Developer API access rejected",
-    contextVariables: ["appName", "reviewNote"],
-    recipientKind: EmailRecipientKind.DeveloperAccount,
-    required: false,
-  },
   developerApiTokenCreated: {
     key: "developerApiTokenCreated",
     label: "Developer API token created",
@@ -104,8 +90,6 @@ export const EmailAction = {
   DeveloperPasswordResetRequested: "developerPasswordResetRequested",
   DeveloperAccountCreated: "developerAccountCreated",
   DeveloperAccountDeleted: "developerAccountDeleted",
-  DeveloperApiAccessApproved: "developerApiAccessApproved",
-  DeveloperApiAccessRejected: "developerApiAccessRejected",
   DeveloperApiTokenCreated: "developerApiTokenCreated",
 } as const satisfies Record<string, EmailActionKey>;
 

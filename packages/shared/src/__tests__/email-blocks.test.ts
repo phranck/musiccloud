@@ -76,8 +76,6 @@ describe("email actions registry", () => {
     const expectations = [
       { key: EmailAction.DeveloperAccountCreated, contextVariables: [] as string[] },
       { key: EmailAction.DeveloperAccountDeleted, contextVariables: [] as string[] },
-      { key: EmailAction.DeveloperApiAccessApproved, contextVariables: ["appName"] },
-      { key: EmailAction.DeveloperApiAccessRejected, contextVariables: ["appName", "reviewNote"] },
       { key: EmailAction.DeveloperApiTokenCreated, contextVariables: ["appName"] },
     ];
     for (const expected of expectations) {
