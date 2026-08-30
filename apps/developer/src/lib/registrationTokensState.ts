@@ -45,8 +45,12 @@ export interface RegistrationTokensState {
   busy: boolean;
   /** Why the last action was refused, or `null`. */
   failure: PanelFailure | null;
-  /** The value being shown once, or `null`. The only place a raw token lives. */
-  revealedToken: string | null;
+  /**
+   * The key being shown once and the token it belongs to, or `null`. The only
+   * place an issued value lives, and it is dropped as soon as that token stops
+   * being the active one.
+   */
+  reveal: { tokenId: string; value: string } | null;
   /** The token awaiting a revoke confirmation, or `null`. */
   pendingRevokeId: string | null;
 }
@@ -85,7 +89,7 @@ function withoutIssuedValue(token: ApiTokenDto): ApiTokenDto {
  * @returns The initial state.
  */
 export function initialRegistrationTokensState(tokens: readonly ApiTokenDto[]): RegistrationTokensState {
-  return { tokens: [...tokens], busy: false, failure: null, revealedToken: null, pendingRevokeId: null };
+  return { tokens: [...tokens], busy: false, failure: null, reveal: null, pendingRevokeId: null };
 }
 
 /**
@@ -132,7 +136,7 @@ export function registrationTokensReducer(
         ...state,
         busy: false,
         tokens: [withoutIssuedValue(action.token), ...state.tokens],
-        revealedToken: action.token.rawToken ?? null,
+        reveal: action.token.rawToken ? { tokenId: action.token.id, value: action.token.rawToken } : null,
         failure: null,
       };
     case RegistrationTokensActionType.TokenRotated:
@@ -145,7 +149,7 @@ export function registrationTokensReducer(
             token.id === action.previousTokenId ? { ...token, status: "rotated" } : token,
           ),
         ],
-        revealedToken: action.token.rawToken ?? null,
+        reveal: action.token.rawToken ? { tokenId: action.token.id, value: action.token.rawToken } : null,
         failure: null,
       };
     case RegistrationTokensActionType.TokenRevoked:
@@ -153,13 +157,16 @@ export function registrationTokensReducer(
         ...state,
         busy: false,
         tokens: state.tokens.map((token) => (token.id === action.token.id ? withoutIssuedValue(action.token) : token)),
+        // A revoked key must not stay on screen with a quickstart telling
+        // somebody to use it.
+        reveal: state.reveal?.tokenId === action.token.id ? null : state.reveal,
         pendingRevokeId: null,
         failure: null,
       };
     case RegistrationTokensActionType.MutationFailed:
       return { ...state, busy: false, failure: action.failure, pendingRevokeId: null };
     case RegistrationTokensActionType.RevealDismissed:
-      return { ...state, revealedToken: null };
+      return { ...state, reveal: null };
     case RegistrationTokensActionType.RevokeArmed:
       return { ...state, pendingRevokeId: action.tokenId, failure: null };
     case RegistrationTokensActionType.RevokeDisarmed:

@@ -49,6 +49,7 @@ import {
   NavigationPlacementListItem,
 } from "@/features/content/navigation/NavigationPlacementList";
 import { NavigationMaskKind } from "@/features/content/navigation/navigation.constants";
+import { useKeyboardSave } from "@/lib/useKeyboardSave";
 import type { ApiRequestError } from "@/shared/utils/api-error";
 
 const NAV_TEXT = dashboardCopy.content.navigation;
@@ -718,6 +719,8 @@ function NavigationEditor({ common, initialConfiguration, pages, text }: Navigat
       dispatch({ type: NavigationEditorActionType.SaveFailed, error: errorDetails(error, text.errorSaving) });
     }
   }
+
+  useKeyboardSave(handleSave, dirty && !isSaving);
 
   return (
     <>

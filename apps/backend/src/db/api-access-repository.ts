@@ -231,7 +231,7 @@ export interface ApiAccessRepository {
    * @param developerAccountId - The owning developer account.
    * @returns The number of projects that count against the ceiling.
    */
-  countActiveDeveloperProjectsByAccount(developerAccountId: string): Promise<number>;
+  countDeveloperProjectsAgainstCeiling(developerAccountId: string): Promise<number>;
 
   updateDeveloperProject(
     id: string,

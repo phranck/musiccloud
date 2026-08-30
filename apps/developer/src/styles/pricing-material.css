@@ -13,7 +13,6 @@
     --pricing-billing-radius: var(--mc-radius-card);
     --pricing-billing-inset: 2px;
     --pricing-billing-duration: 250ms;
-    --pricing-feature-list-width: 15rem;
     --pricing-medal-size: 5rem;
     --pricing-medal-overhang: -2.5rem;
     --pricing-shadow-65: color-mix(in srgb, var(--color-sky-top) 65%, transparent);
@@ -63,6 +62,35 @@
   .pricing-commitment-title,
   .pricing-commitment-body {
     display: block;
+  }
+
+  /* The row of plans. A card is at most a quarter of the measure, so a single
+     plan states its terms in a card rather than stretching a banner across the
+     page. Four or more share the row exactly as they did.
+
+     The column width is derived from the number that fits and the gap between
+     them, so neither is a figure to keep in step with the other. */
+  .tier-grid {
+    --tier-grid-columns: 4;
+    --tier-grid-gap: var(--mc-space-4);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--mc-space-16) var(--tier-grid-gap);
+  }
+
+  @media (min-width: 64rem) {
+    .tier-grid {
+      grid-template-columns: repeat(
+        auto-fill,
+        minmax(
+          0,
+          calc(
+            (100% - (var(--tier-grid-columns) - 1) * var(--tier-grid-gap)) / var(--tier-grid-columns)
+          )
+        )
+      );
+      justify-content: start;
+    }
   }
 
   /* Tier card: a soft glow in the tier colour bleeds down from the top,
@@ -454,10 +482,6 @@
   .tier-fallback-letter {
     color: var(--color-on-accent);
     filter: drop-shadow(0 1px 1.5px var(--pricing-shadow-40));
-  }
-
-  .pricing-feature-list {
-    max-width: var(--pricing-feature-list-width);
   }
 
   @media (max-width: 63.999rem) {

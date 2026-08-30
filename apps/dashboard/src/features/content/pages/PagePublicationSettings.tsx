@@ -40,6 +40,11 @@ interface PagePublicationSettingsProps {
   markdownValid?: boolean;
   labels?: Partial<PagePublicationSettingsLabels>;
   children?: ReactNode;
+  /**
+   * When true the card is shown but nothing in it can be operated, which is how
+   * a context the page is not in appears. Defaults to `false`.
+   */
+  disabled?: boolean;
   onChange: (patch: Partial<Omit<ContentPublication, "context">>) => void;
 }
 
@@ -48,6 +53,7 @@ export function PagePublicationSettings({
   markdownValid = true,
   labels: labelOverrides,
   children,
+  disabled = false,
   onChange,
 }: PagePublicationSettingsProps) {
   const labels = { ...DEFAULT_LABELS, ...labelOverrides };
@@ -79,40 +85,51 @@ export function PagePublicationSettings({
         title={title}
       />
       <DashboardSection.Body>
-        <div>
-          <FormLabel htmlFor={`page-publication-path-${publication.context}`}>{labels.path}</FormLabel>
-          <DashboardInput
-            id={`page-publication-path-${publication.context}`}
-            aria-label={labels.path}
-            value={publication.path}
-            onChange={(event) => onChange({ path: event.target.value })}
+        {/* A disabled fieldset switches off every control it contains, the
+            inputs and the dropdown triggers alike, so no control has to be
+            told about it one by one. Its own box is reset, because the card
+            body already provides the spacing. */}
+        <fieldset
+          disabled={disabled}
+          className={`m-0 flex min-w-0 flex-col gap-3 border-0 p-0 ${
+            disabled ? "opacity-[var(--ds-control-disabled-opacity)]" : ""
+          }`}
+        >
+          <div>
+            <FormLabel htmlFor={`page-publication-path-${publication.context}`}>{labels.path}</FormLabel>
+            <DashboardInput
+              id={`page-publication-path-${publication.context}`}
+              aria-label={labels.path}
+              value={publication.path}
+              onChange={(event) => onChange({ path: event.target.value })}
+            />
+            {docsReserved && (
+              <p role="alert" className="mt-1 text-xs text-[var(--ds-danger-text)]">
+                {labels.docsReserved}
+              </p>
+            )}
+          </div>
+          <Dropdown<ContentStatus>
+            aria-label={labels.status}
+            label={labels.status}
+            value={publication.status}
+            options={statusOptions}
+            onChange={(status) => onChange({ status })}
           />
-          {docsReserved && (
-            <p role="alert" className="mt-1 text-xs text-[var(--ds-danger-text)]">
-              {labels.docsReserved}
+          {!markdownValid && (
+            <p role="alert" className="text-xs text-[var(--ds-danger-text)]">
+              {labels.markdownInvalid}
             </p>
           )}
-        </div>
-        <Dropdown<ContentStatus>
-          aria-label={labels.status}
-          label={labels.status}
-          value={publication.status}
-          options={statusOptions}
-          onChange={(status) => onChange({ status })}
-        />
-        {!markdownValid && (
-          <p role="alert" className="text-xs text-[var(--ds-danger-text)]">
-            {labels.markdownInvalid}
-          </p>
-        )}
-        <Dropdown
-          aria-label={labels.template}
-          label={labels.template}
-          value={publication.templateKey}
-          options={templateOptions}
-          onChange={(templateKey) => onChange({ templateKey })}
-        />
-        {children}
+          <Dropdown
+            aria-label={labels.template}
+            label={labels.template}
+            value={publication.templateKey}
+            options={templateOptions}
+            onChange={(templateKey) => onChange({ templateKey })}
+          />
+          {children}
+        </fieldset>
       </DashboardSection.Body>
     </DashboardSection>
   );

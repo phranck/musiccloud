@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ContentCard } from "@/components/docs/ContentCard";
 import { AuthStatusTone, type AuthStatusToneValue } from "@/lib/authStatusTone";
 import { SmsIcon, TickCircleIcon, Warning2Icon } from "@/lib/icons";
 
@@ -25,7 +26,8 @@ export interface AuthStatusProps {
 }
 
 /**
- * A centred status panel shown after an auth form resolves. It is the shared shape
+ * A centred status panel shown after an auth form resolves. It is the card's
+ * whole interior wherever it appears, so it brings its own body inset. It is the shared shape
  * for "check your email", "email verified", "password updated", and recoverable
  * error notices. Token-driven: a glassy icon chip over the surface, the tone's
  * accent for the icon, muted body copy.
@@ -36,12 +38,14 @@ export interface AuthStatusProps {
 export function AuthStatus({ tone, title, children }: AuthStatusProps) {
   const { Icon, iconClass } = TONE_STYLE[tone];
   return (
-    <div className="flex flex-col items-center text-center gap-3 py-2">
-      <span className="inline-flex items-center justify-center size-12 rounded-full border border-border bg-surface">
-        <Icon className={`size-7 ${iconClass}`} aria-hidden="true" />
-      </span>
-      <h2 className="text-card-title font-medium text-fg">{title}</h2>
-      {children ? <p className="text-body text-fg-muted max-w-xs">{children}</p> : null}
-    </div>
+    <ContentCard.Body>
+      <div className="flex flex-col items-center text-center gap-3 py-2">
+        <span className="inline-flex items-center justify-center size-12 rounded-full border border-border bg-surface">
+          <Icon className={`size-7 ${iconClass}`} aria-hidden="true" />
+        </span>
+        <h2 className="text-card-title font-medium text-fg">{title}</h2>
+        {children ? <p className="text-body text-fg-muted max-w-xs">{children}</p> : null}
+      </div>
+    </ContentCard.Body>
   );
 }

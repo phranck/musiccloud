@@ -1,4 +1,11 @@
-import { DashboardActionButton, DashboardActionId, DashboardButtonVariant } from "@musiccloud/dashboard-ui";
+import {
+  type ColumnDef,
+  DashboardActionButton,
+  DashboardActionId,
+  DashboardButtonVariant,
+  DataTable,
+  DataTableScroll,
+} from "@musiccloud/dashboard-ui";
 import {
   ArrowDown as ArrowDownIcon,
   ArrowUp as ArrowUpIcon,
@@ -14,7 +21,6 @@ import { useCallback, useMemo, useReducer } from "react";
 import { ContentLoadingView } from "@/components/ui/ContentLoadingView";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { DashboardSection } from "@/components/ui/DashboardSection";
-import { type ColumnDef, DataTable, DataTableScroll } from "@/components/ui/DataTable";
 import { Dialog, dialogHeaderIconClass } from "@/components/ui/Dialog";
 import { LabeledSwitch } from "@/components/ui/LabeledSwitch";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -133,6 +139,8 @@ interface TierEditorState {
   editingTier: TierResponse | null;
   form: TierFormData;
   errors: Partial<Record<keyof TierFormData, string>>;
+  /** What the server refused the last save with, or `null` when it did not. */
+  saveError: string | null;
   deleteConfirm: string | null;
 }
 
@@ -142,6 +150,7 @@ const TierEditorActionType = {
   CloseDialog: "CLOSE_DIALOG",
   SetForm: "SET_FORM",
   SetErrors: "SET_ERRORS",
+  SaveFailed: "SAVE_FAILED",
   ConfirmDelete: "CONFIRM_DELETE",
   CancelDelete: "CANCEL_DELETE",
 } as const;
@@ -152,13 +161,31 @@ type TierEditorAction =
   | { type: typeof TierEditorActionType.CloseDialog }
   | { type: typeof TierEditorActionType.SetForm; patch: Partial<TierFormData> }
   | { type: typeof TierEditorActionType.SetErrors; errors: Partial<Record<keyof TierFormData, string>> }
+  | { type: typeof TierEditorActionType.SaveFailed; message: string }
   | { type: typeof TierEditorActionType.ConfirmDelete; id: string }
   | { type: typeof TierEditorActionType.CancelDelete };
+
+/**
+ * The sentence to show when a save is refused.
+ *
+ * The backend answers a rejected write with a message naming what it refused
+ * and why, which is more use than any wording here, so that one wins. The
+ * generic line covers a failure that carries nothing to quote, such as a lost
+ * connection.
+ *
+ * @param error - Whatever the mutation rejected with.
+ * @param cm - The common copy, for the fallback wording.
+ * @returns The message to put in front of the user.
+ */
+function saveErrorMessage(error: unknown, cm: (typeof dashboardCopy)["common"]): string {
+  const message = error instanceof Error ? error.message.trim() : "";
+  return message === "" ? `${cm.saveError}: ${cm.unknownError}` : message;
+}
 
 function tierEditorReducer(state: TierEditorState, action: TierEditorAction): TierEditorState {
   switch (action.type) {
     case TierEditorActionType.OpenCreate:
-      return { ...state, dialogOpen: true, editingTier: null, form: EMPTY_FORM, errors: {} };
+      return { ...state, dialogOpen: true, editingTier: null, form: EMPTY_FORM, errors: {}, saveError: null };
     case TierEditorActionType.OpenEdit:
       return {
         ...state,
@@ -182,6 +209,7 @@ function tierEditorReducer(state: TierEditorState, action: TierEditorAction): Ti
           features: toFormFeatures(action.tier.features ?? []),
         },
         errors: {},
+        saveError: null,
       };
     case TierEditorActionType.CloseDialog:
       return { ...state, dialogOpen: false };
@@ -189,6 +217,10 @@ function tierEditorReducer(state: TierEditorState, action: TierEditorAction): Ti
       return { ...state, form: { ...state.form, ...action.patch } };
     case TierEditorActionType.SetErrors:
       return { ...state, errors: action.errors };
+    case TierEditorActionType.SaveFailed:
+      // The dialog stays open, because closing it on a refusal is what makes a
+      // rejected save look like nothing having happened.
+      return { ...state, saveError: action.message };
     case TierEditorActionType.ConfirmDelete:
       return { ...state, deleteConfirm: action.id };
     case TierEditorActionType.CancelDelete:
@@ -328,6 +360,8 @@ interface TierFormDialogProps {
   editingTier: TierResponse | null;
   form: TierFormData;
   errors: Partial<Record<keyof TierFormData, string>>;
+  /** What the server refused the last save with, shown beside the actions. */
+  saveError: string | null;
   dm: (typeof dashboardCopy)["developer"];
   cm: (typeof dashboardCopy)["common"];
   onClose: () => void;
@@ -348,6 +382,7 @@ interface TierFormDialogProps {
  * @param editingTier - The tier being edited, or `null` for create mode (drives title and submit label).
  * @param form - Current form values.
  * @param errors - Per-field validation messages to display.
+ * @param saveError - What the server refused the last save with, or `null`.
  * @param dm - Developer section of the localized dashboard messages.
  * @param cm - Common (shared) localized dashboard messages.
  * @param onClose - Invoked when the dialog is dismissed.
@@ -359,6 +394,7 @@ function TierFormDialog({
   editingTier,
   form,
   errors,
+  saveError,
   dm,
   cm,
   onClose,
@@ -571,6 +607,11 @@ function TierFormDialog({
           onClick={onSave}
           type="button"
         />
+        {saveError && (
+          <p role="alert" className="mr-auto text-sm text-[var(--ds-danger-text)]">
+            {saveError}
+          </p>
+        )}
       </Dialog.Footer>
     </Dialog>
   );
@@ -787,6 +828,7 @@ export function TierEditorPage() {
     editingTier: null,
     form: EMPTY_FORM,
     errors: {},
+    saveError: null,
     deleteConfirm: null,
   });
 
@@ -802,12 +844,17 @@ export function TierEditorPage() {
       dispatch({ type: TierEditorActionType.SetErrors, errors: errs });
       return;
     }
+    const outcome = {
+      onSuccess: () => dispatch({ type: TierEditorActionType.CloseDialog }),
+      onError: (error: unknown) =>
+        dispatch({ type: TierEditorActionType.SaveFailed, message: saveErrorMessage(error, cm) }),
+    };
+
     if (state.editingTier) {
-      updateTier.mutate({ id: state.editingTier.id, ...toSubmitBody(state.form) });
+      updateTier.mutate({ id: state.editingTier.id, ...toSubmitBody(state.form) }, outcome);
     } else {
-      createTier.mutate(toSubmitBody(state.form));
+      createTier.mutate(toSubmitBody(state.form), outcome);
     }
-    dispatch({ type: TierEditorActionType.CloseDialog });
   }
 
   function handleDelete() {
@@ -865,6 +912,7 @@ export function TierEditorPage() {
         editingTier={state.editingTier}
         form={state.form}
         errors={state.errors}
+        saveError={state.saveError}
         dm={dm}
         cm={cm}
         onClose={() => dispatch({ type: TierEditorActionType.CloseDialog })}

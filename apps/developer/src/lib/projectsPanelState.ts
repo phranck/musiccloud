@@ -45,6 +45,10 @@ export interface PanelFailure {
 export interface ProjectsPanelState {
   /** The caller's projects, newest first; `null` while loading. */
   projects: DeveloperProjectDto[] | null;
+  /** How many projects this account may hold at once, as the backend enforces it. */
+  maxProjects: number;
+  /** How many it holds against that ceiling; a suspended project still counts. */
+  usedProjects: number;
   /** How many registrations each project holds, keyed by project id. */
   registrationCounts: Record<string, number>;
   /** Why the list could not be loaded, or `null`. */
@@ -65,6 +69,8 @@ export type ProjectsPanelAction =
       type: typeof ProjectsPanelActionType.ProjectsLoaded;
       projects: DeveloperProjectDto[];
       registrationCounts: Record<string, number>;
+      maxProjects: number;
+      usedProjects: number;
     }
   | { type: typeof ProjectsPanelActionType.ProjectsUnavailable; failure: PanelFailure }
   | { type: typeof ProjectsPanelActionType.NameEdited; value: string }
@@ -77,6 +83,8 @@ export type ProjectsPanelAction =
 /** Initial state: list loading, form closed and empty. */
 export const PROJECTS_PANEL_INITIAL_STATE: ProjectsPanelState = {
   projects: null,
+  maxProjects: 0,
+  usedProjects: 0,
   registrationCounts: {},
   listFailure: null,
   formOpen: false,
@@ -84,6 +92,38 @@ export const PROJECTS_PANEL_INITIAL_STATE: ProjectsPanelState = {
   phase: FormPhase.Idle,
   createFailure: null,
 };
+
+/** What the server already knows when the page renders. */
+export interface ProjectsPanelSeed {
+  projects: DeveloperProjectDto[];
+  registrationCounts: Record<string, number>;
+  maxProjects: number;
+  usedProjects: number;
+}
+
+/**
+ * The state a panel starts from when the page rendered with the list already
+ * read.
+ *
+ * The island otherwise shows "Loading…" until it has hydrated and its request
+ * has come back, which is most of the wait: the request itself takes a few
+ * milliseconds, and everything before it is the browser fetching and running
+ * the island. Seeding it means the rows are in the first paint, and the panel
+ * only talks to the backend when something actually changes.
+ *
+ * @param seed - What the page read server-side, or `undefined` when it read nothing.
+ * @returns The initial state, carrying the seed where there is one.
+ */
+export function projectsPanelInitialState(seed?: ProjectsPanelSeed): ProjectsPanelState {
+  if (!seed) return PROJECTS_PANEL_INITIAL_STATE;
+  return {
+    ...PROJECTS_PANEL_INITIAL_STATE,
+    projects: seed.projects,
+    registrationCounts: seed.registrationCounts,
+    maxProjects: seed.maxProjects,
+    usedProjects: seed.usedProjects,
+  };
+}
 
 /**
  * Reduces a failed request to what the failure notice shows.
@@ -118,6 +158,8 @@ export function projectsPanelReducer(state: ProjectsPanelState, action: Projects
         ...state,
         projects: action.projects,
         registrationCounts: action.registrationCounts,
+        maxProjects: action.maxProjects,
+        usedProjects: action.usedProjects,
         listFailure: null,
       };
     case ProjectsPanelActionType.ProjectsUnavailable:
@@ -134,6 +176,9 @@ export function projectsPanelReducer(state: ProjectsPanelState, action: Projects
       return {
         ...state,
         projects: [action.project, ...(state.projects ?? [])],
+        // The project just created counts against the ceiling straight away, so
+        // the allowance line does not overstate what is left until a reload.
+        usedProjects: state.usedProjects + 1,
         registrationCounts: { ...state.registrationCounts, [action.project.id]: 0 },
         formOpen: false,
         name: "",

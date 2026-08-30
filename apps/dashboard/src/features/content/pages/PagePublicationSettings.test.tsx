@@ -60,6 +60,28 @@ describe("PagePublicationSettings", () => {
     expect(screen.getByRole("button", { name: "Status" }).textContent).toContain("Published");
   });
 
+  it("shows a context the page is not in, with nothing in it operable", () => {
+    render(
+      <PagePublicationSettings
+        publication={{
+          context: ContentContext.Frontend,
+          path: "/services",
+          status: "draft",
+          templateKey: "frontend-default",
+        }}
+        disabled
+        onChange={vi.fn()}
+      />,
+    );
+
+    // The controls carry no `disabled` attribute of their own: the fieldset
+    // around them does, and `:disabled` is what that state is read back as.
+    expect(screen.getByText("Frontend publication")).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Path" }).matches(":disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "Status" }).matches(":disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "Template" }).matches(":disabled")).toBe(true);
+  });
+
   it("flags the system-owned Docs namespace without rewriting the draft", () => {
     render(
       <PagePublicationSettings

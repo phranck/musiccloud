@@ -9,6 +9,9 @@
  * island that can be set, changed and cleared.
  */
 import DashboardLayout from "@/components/dashboard/DashboardLayout.astro";
+import { ApiContent } from "@/components/docs/ApiContent";
+import { iconForDashboardTab } from "@/lib/dashboardNavIcons";
+import { SignInSection } from "@/components/dashboard/SignInSection";
 import { TechnicalContactSection } from "@/components/dashboard/TechnicalContactSection";
 import { DashboardTab } from "@/lib/dashboardTabs";
 import { getDeveloperSession } from "@/lib/session";
@@ -17,27 +20,21 @@ export const prerender = false;
 
 const account = await getDeveloperSession(Astro);
 if (!account) return Astro.redirect("/login");
+const PageIcon = iconForDashboardTab(DashboardTab.Profile);
 ---
 
 <DashboardLayout account={account} active={DashboardTab.Profile} title="Profile · musiccloud for developers">
-  <h1 class="card-content-inset text-hero font-medium tracking-tight mb-1">Profile</h1>
-  <p class="card-content-inset text-body text-fg-muted mb-7">
+  <ApiContent.Chapter.Header className="api-content__chapter-header--first">
+    <ApiContent.Chapter.Header.Icon>
+      <PageIcon aria-hidden="true" />
+    </ApiContent.Chapter.Header.Icon>
+    <ApiContent.Chapter.Header.Title>Profile</ApiContent.Chapter.Header.Title>
+  </ApiContent.Chapter.Header>
+  <p class="card-content-inset text-body text-fg-muted mb-6">
     How we identify your account, and how we reach you about the applications on it.
   </p>
 
-  <section class="mb-6">
-    <h2 class="card-content-inset text-card-title font-medium tracking-tight mb-3">Sign-in</h2>
-    <dl class="surface-card px-6 py-5 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-      <div>
-        <dt class="text-nav text-fg-subtle mb-0.5">Email</dt>
-        <dd class="text-body text-fg">{account.email}</dd>
-      </div>
-      <div>
-        <dt class="text-nav text-fg-subtle mb-0.5">Display name</dt>
-        <dd class="text-body text-fg">{account.displayName ?? "Not set"}</dd>
-      </div>
-    </dl>
-  </section>
+  <SignInSection client:load email={account.email} displayName={account.displayName} />
 
   <TechnicalContactSection client:load technicalContactEmail={account.technicalContactEmail} />
 </DashboardLayout>

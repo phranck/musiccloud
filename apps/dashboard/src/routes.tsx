@@ -81,7 +81,12 @@ export const routes = createRoutesFromElements(
           <Route path="developer/clients/:id" element={lazyFallback(<ClientDetailPage />)} />
           <Route path="developer/accounts" element={lazyFallback(<DeveloperAccountsPage />)} />
           <Route path="developer/accounts/:id" element={lazyFallback(<DeveloperDetailPage />)} />
-          <Route path="developer/tiers" element={lazyFallback(<TierEditorPage />)} />
+          <Route path="developer/plans" element={lazyFallback(<TierEditorPage />)} />
+          {/* The screen was reached at /developer/tiers until the wording moved
+              to "plan". A bookmark on the old path would otherwise fall into
+              the catch-all and land on the dashboard root, which loses the
+              destination without saying so. */}
+          <Route path="developer/tiers" element={<Navigate to="/developer/plans" replace />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

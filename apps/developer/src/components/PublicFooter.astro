@@ -1,12 +1,19 @@
 ---
 /**
- * PublicFooter is the shared bottom bar of every public developer-portal page
- * (landing, docs, API reference, pricing, terms, privacy). Replaces the
- * per-page duplicated footer markup, mirroring `PublicHeader`.
+ * PublicFooter is the shared bottom bar of every developer-portal page: the
+ * public ones, and the auth screens through `AuthCard`.
  *
- * Copyright on the left, the shared `FOOTER_LINKS` on the right. Text sits in
- * muted foreground (not the darker subtle tone) so it stays comfortably
- * legible over the night-sky gradient.
+ * It says who the portal belongs to on the left, carries the managed footer
+ * navigation in the middle, and says who built it on the right. It takes the
+ * same material as `PublicHeader`, so a page is closed by the band it was
+ * opened with.
+ *
+ * The middle is managed content, not a list written here. What stands there is
+ * an operator's decision, taken in the admin, and a link written into this file
+ * would be a second place to take it.
+ *
+ * The year is read per request, which the portal renders as (`output: "server"`),
+ * so it cannot be frozen at whatever a build happened to be made in.
  */
 import type { DeveloperPortalNavigationItem } from "@musiccloud/shared";
 import { NavigationArea } from "@musiccloud/shared";
@@ -19,11 +26,14 @@ interface Props {
 
 const { navigation: suppliedNavigation } = Astro.props;
 const navigation = suppliedNavigation ?? (await getDeveloperPortalNavigation(NavigationArea.Footer));
+
+const year = new Date().getFullYear();
 ---
 
 <footer class="public-footer">
   <div class="public-footer__inner developer-shell">
-    <span>© musiccloud</span>
+    <span>© {year} musiccloud</span>
+
     <nav class="public-footer__navigation" aria-label="Footer">
       {
         navigation.map((link) => {
@@ -42,5 +52,14 @@ const navigation = suppliedNavigation ?? (await getDeveloperPortalNavigation(Nav
         })
       }
     </nav>
+
+    <span class="public-footer__credit">
+      made by <a
+        href="https://layered.work"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="content-link text-fg">LAYERED</a
+      >
+    </span>
   </div>
 </footer>

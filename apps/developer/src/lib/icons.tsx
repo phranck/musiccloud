@@ -36,6 +36,7 @@ import {
   Diagram,
   DollarSquare,
   Flash,
+  Forbidden,
   Global,
   Health,
   type Icon,
@@ -103,6 +104,7 @@ export const DataIcon = bulk(Data);
 export const DiagramIcon = bulk(Diagram);
 export const DollarSquareIcon = bulk(DollarSquare);
 export const FlashIcon = bulk(Flash);
+export const ForbiddenIcon = bulk(Forbidden);
 export const GlobalIcon = bulk(Global);
 export const HealthIcon = bulk(Health);
 export const KeyIcon = bulk(Key);

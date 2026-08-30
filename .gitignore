@@ -116,8 +116,9 @@ DerivedData/
 .vercel/
 
 # Generated OpenAPI / Developer Portal build inputs
-.tmp/openapi/
-.tmp/sdk/
+.tmp/
+# Playwright MCP writes its snapshots and screenshots here during a local run.
+.playwright-mcp/
 apps/developer/src/generated/
 
 # Local DB-dump helper (machine-specific: Zerops project id + local DB creds)

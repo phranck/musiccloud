@@ -3,9 +3,19 @@ import { type ChangeEvent, type SyntheticEvent, useCallback, useState } from "re
 import { AuthStatus } from "@/components/auth/AuthStatus";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
+import { ContentCard } from "@/components/docs/ContentCard";
 import { postAuth } from "@/lib/authClient";
 import { AuthStatusTone } from "@/lib/authStatusTone";
+import { ButtonVariant } from "@/lib/buttonVariant";
 import { FormPhase, type FormPhaseValue } from "@/lib/formPhase";
+
+/**
+ * Props for {@link ForgotForm}.
+ */
+export interface ForgotFormProps {
+  /** The sentence shown above the field, saying what submitting will do. */
+  subtitle: string;
+}
 
 /**
  * Password-reset request island. Posts the email to
@@ -16,9 +26,10 @@ import { FormPhase, type FormPhaseValue } from "@/lib/formPhase";
  *
  * Rendered with `client:load` from `forgot.astro`.
  *
+ * @param props - See {@link ForgotFormProps}.
  * @returns The email form, or the post-submit confirmation panel.
  */
-export function ForgotForm() {
+export function ForgotForm({ subtitle }: ForgotFormProps) {
   const [email, setEmail] = useState("");
   const [phase, setPhase] = useState<FormPhaseValue>(FormPhase.Idle);
 
@@ -45,20 +56,29 @@ export function ForgotForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-      {phase === FormPhase.Error ? (
-        <p className="field__message field__message--error">Could not reach the server. Please try again.</p>
-      ) : null}
-      <TextField
-        name="email"
-        label="Email"
-        type="email"
-        value={email}
-        onChange={onEmail}
-        autoComplete="email"
-        placeholder="you@example.com"
-      />
-      <SubmitButton loading={phase === FormPhase.Submitting}>Send reset link</SubmitButton>
+    <form onSubmit={onSubmit} noValidate>
+      <ContentCard.Body>
+        <ContentCard.Body.Copy>
+          <p className="text-body text-fg-muted">{subtitle}</p>
+          {phase === FormPhase.Error ? (
+            <p className="field__message field__message--error">Could not reach the server. Please try again.</p>
+          ) : null}
+          <TextField
+            name="email"
+            label="Email"
+            type="email"
+            value={email}
+            onChange={onEmail}
+            autoComplete="email"
+            placeholder="you@example.com"
+          />
+        </ContentCard.Body.Copy>
+      </ContentCard.Body>
+      <ContentCard.Footer>
+        <SubmitButton variant={ButtonVariant.Content} loading={phase === FormPhase.Submitting}>
+          Send reset link
+        </SubmitButton>
+      </ContentCard.Footer>
     </form>
   );
 }

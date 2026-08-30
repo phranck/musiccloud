@@ -48,7 +48,7 @@
  * must not block or fail the login response, so the promise's rejection
  * is swallowed.
  */
-import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import { ENDPOINTS, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import bcrypt from "bcryptjs";
 import type { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
@@ -126,10 +126,11 @@ async function adminAuthRoutes(app: FastifyInstance) {
         .status(400)
         .send({ error: "INVALID_REQUEST", message: "username must be between 3 and 32 characters." });
     }
-    if (password.length < 8 || password.length > 128) {
-      return reply
-        .status(400)
-        .send({ error: "INVALID_REQUEST", message: "password must be between 8 and 128 characters." });
+    if (password.length < PASSWORD_MIN_LENGTH || password.length > PASSWORD_MAX_LENGTH) {
+      return reply.status(400).send({
+        error: "INVALID_REQUEST",
+        message: `password must be between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters.`,
+      });
     }
 
     const repo = await getAdminRepository();
@@ -245,10 +246,11 @@ async function adminAuthRoutes(app: FastifyInstance) {
     if (!body?.token || !body?.password) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "token and password are required." });
     }
-    if (body.password.length < 8 || body.password.length > 128) {
-      return reply
-        .status(400)
-        .send({ error: "INVALID_REQUEST", message: "password must be between 8 and 128 characters." });
+    if (body.password.length < PASSWORD_MIN_LENGTH || body.password.length > PASSWORD_MAX_LENGTH) {
+      return reply.status(400).send({
+        error: "INVALID_REQUEST",
+        message: `password must be between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters.`,
+      });
     }
 
     const repo = await getAdminRepository();

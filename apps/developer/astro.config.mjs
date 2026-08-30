@@ -30,6 +30,14 @@ export default defineConfig({
     // every dev-mode page render take a constant ~1.2s (measured 2026-07-04;
     // Node resolves the packages' exports natively for SSR).
     optimizeDeps: { include: ["@phosphor-icons/react", "iconsax-react"] },
+    // `@musiccloud/dashboard-ui` ships built JavaScript with React as a peer
+    // dependency, so without this it resolves the copy inside its own
+    // `node_modules` and the shared data table renders against a second React,
+    // whose hooks then read a null dispatcher. Deduping points every import at
+    // the app's copy; `noExternal` puts the package through the same transform
+    // for SSR so the server render agrees with the browser.
+    resolve: { dedupe: ["react", "react-dom"] },
+    ssr: { noExternal: ["@musiccloud/dashboard-ui"] },
   },
   site: "https://developer.musiccloud.io",
 });

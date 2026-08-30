@@ -9,8 +9,9 @@
  * here or from a script.
  */
 import DashboardLayout from "@/components/dashboard/DashboardLayout.astro";
+import { iconForDashboardTab } from "@/lib/dashboardNavIcons";
+import { ApiContent } from "@/components/docs/ApiContent";
 import { ProjectDetailPanel } from "@/components/dashboard/ProjectDetailPanel";
-import { ProjectSwitcher } from "@/components/dashboard/ProjectSwitcher";
 import { DashboardTab } from "@/lib/dashboardTabs";
 import { getDeveloperSession } from "@/lib/session";
 
@@ -21,14 +22,19 @@ if (!account) return Astro.redirect("/login");
 
 const { id } = Astro.params;
 if (!id) return Astro.redirect("/dashboard/projects");
+const PageIcon = iconForDashboardTab(DashboardTab.Projects);
 ---
 
-<DashboardLayout account={account} active={DashboardTab.Projects} title="Project · musiccloud for developers">
-  <h1 class="card-content-inset text-hero font-medium tracking-tight mb-1">Project</h1>
-  <p class="card-content-inset text-body text-fg-muted mb-4">
+<DashboardLayout account={account} active={DashboardTab.Projects} activeProjectId={id} title="Project · musiccloud for developers">
+  <ApiContent.Chapter.Header className="api-content__chapter-header--first">
+    <ApiContent.Chapter.Header.Icon>
+      <PageIcon aria-hidden="true" />
+    </ApiContent.Chapter.Header.Icon>
+    <ApiContent.Chapter.Header.Title>Project</ApiContent.Chapter.Header.Title>
+  </ApiContent.Chapter.Header>
+  <p class="card-content-inset text-body text-fg-muted mb-6">
     <a href="/dashboard/projects" class="content-link">All projects</a>
   </p>
 
-  <ProjectSwitcher client:load currentProjectId={id} />
   <ProjectDetailPanel client:load projectId={id} />
 </DashboardLayout>

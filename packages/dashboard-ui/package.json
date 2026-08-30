@@ -21,6 +21,10 @@
     "./dashboard/actions": {
       "import": "./dist/dashboard/actionCatalog.js",
       "types": "./dist/dashboard/actionCatalog.d.ts"
+    },
+    "./data-table": {
+      "import": "./dist/data-table/index.js",
+      "types": "./dist/data-table/index.d.ts"
     }
   },
   "files": [

@@ -1,53 +1,52 @@
 ---
 /**
- * DashboardLayout is the signed-in shell for the developer portal: a top header
- * (wordmark + the shared avatar menu, mirroring the public `PublicHeader` for
- * consistency) over a two-column body (sidebar nav + panel slot). Wraps
- * `BaseLayout` so a dashboard page only supplies its panel content plus the
- * active tab; the chrome lives here once (DRY across future dashboard tabs).
+ * DashboardLayout is the signed-in shell for the developer portal: the site
+ * header over a two-column body (sidebar rail + panel slot). Wraps `BaseLayout`
+ * so a dashboard page only supplies its panel content plus the active tab; the
+ * chrome lives here once.
  *
- * All geometry is token-driven (`--radius-card`, `--radius-button`, hairline
- * `--color-border`, glassy `--color-surface`) per the project geometry rules;
- * no ad-hoc radii or colours. The sidebar entries come from `DASHBOARD_NAV`, the
- * single source of truth for labels, links and the "coming soon" placeholders.
+ * The header is `PublicHeader`, the same one every public page carries. Signed
+ * in it already drops "Sign in" and shows the avatar menu, so the dashboard
+ * needs nothing of its own, and a reader crossing between the reference and the
+ * dashboard sees one bar rather than two that nearly match.
+ *
+ * The layout, the rail and the cards are the ones the API reference uses, down
+ * to the class names: `docs.css` owns that geometry, and the dashboard opts
+ * into it rather than describing a second version of the same thing. The
+ * `api-reference-*` prefix is where those rules happen to live; they are the
+ * portal's shell, not the reference's.
  */
-import { AvatarMenu } from "@/components/portal/AvatarMenu";
 import DashboardNavigation from "@/components/dashboard/DashboardNavigation.astro";
-import Wordmark from "@/components/Wordmark.astro";
+import PublicHeader from "@/components/PublicHeader.astro";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import type { DashboardTabValue } from "@/lib/dashboardTabs";
 import type { Account } from "@/lib/session";
+import "../../styles/docs.css";
 
 interface Props {
   /** The authenticated account whose identity is shown in the header. */
   account: Account;
   /** The currently active sidebar tab, highlighted in the nav. */
   active: DashboardTabValue;
+  /** The project whose page is open, so the rail marks its entry as current. */
+  activeProjectId?: string;
   /** Document `<title>`, forwarded to {@link BaseLayout}. */
   title?: string;
 }
 
-const { account, active, title } = Astro.props;
+const { account, active, activeProjectId, title } = Astro.props;
 ---
 
 <BaseLayout title={title}>
-<header class="dashboard-header">
-  <div class="dashboard-header__inner developer-shell">
-    <Wordmark />
+<PublicHeader account={account} showDashboard={false} />
 
-    <AvatarMenu
-      client:load
-      account={{ email: account.email, displayName: account.displayName, avatarUrl: account.avatarUrl }}
-      showDashboard={false}
-    />
+<div class="api-reference-shell developer-shell">
+  <div class="api-reference-layout">
+    <DashboardNavigation active={active} activeProjectId={activeProjectId} />
+
+    <main class="api-content">
+      <slot />
+    </main>
   </div>
-</header>
-
-<div class="dashboard-shell developer-shell">
-  <DashboardNavigation active={active} />
-
-  <main class="dashboard-content">
-    <slot />
-  </main>
 </div>
 </BaseLayout>

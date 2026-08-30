@@ -56,7 +56,7 @@ export function TextAreaField({
 
   return (
     <div className="field">
-      <label htmlFor={inputId} className="field__label text-body">
+      <label htmlFor={inputId} className="field__label">
         {label}
       </label>
       <textarea

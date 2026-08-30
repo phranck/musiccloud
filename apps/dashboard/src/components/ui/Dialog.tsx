@@ -19,7 +19,7 @@ interface DialogFooterProps {
 function DialogFooter({ children, className }: DialogFooterProps) {
   return (
     <div
-      className={`bg-[var(--ds-surface-inset)] border-t border-[var(--ds-border)] p-6 ${className ?? "flex justify-end gap-2"}`}
+      className={`bg-[var(--ds-surface-inset)] border-t border-[var(--ds-border)] p-3 ${className ?? "flex justify-end gap-2"}`}
     >
       {children}
     </div>

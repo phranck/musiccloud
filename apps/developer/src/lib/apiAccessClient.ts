@@ -208,6 +208,11 @@ export interface ApiAccessResult<T> {
  * Never throws: transport failures yield `{ ok: false, status: 0 }`, and a
  * `429` surfaces the backend's `retryAfterSeconds` for a friendly retry hint.
  *
+ * The content type is set only when there is something to describe. Fastify
+ * refuses a request that announces JSON and then sends nothing, which is what
+ * the three token routes do: they carry their subject in the path and have no
+ * body at all.
+ *
  * @param path - Same-origin endpoint path.
  * @param init - Optional method/body/signal; defaults to a GET.
  * @returns The normalised {@link ApiAccessResult}.
@@ -215,9 +220,12 @@ export interface ApiAccessResult<T> {
 async function requestJson<T>(path: string, init?: RequestInit): Promise<ApiAccessResult<T>> {
   try {
     const res = await fetch(path, {
-      headers: { "Content-Type": "application/json" },
       credentials: "same-origin",
       ...init,
+      headers: {
+        ...(init?.body === undefined ? {} : { "Content-Type": "application/json" }),
+        ...init?.headers,
+      },
     });
 
     let body: unknown;
@@ -290,9 +298,21 @@ export function listApiClients(signal?: AbortSignal): Promise<ApiAccessResult<{ 
   return requestJson(ENDPOINTS.dev.apiAccess.clientsList, { signal });
 }
 
+/**
+ * What a project's ceiling looks like to the browser: how many an account may
+ * hold and how many it holds now. It travels with the list because the screen
+ * that shows the projects is the one that says how many more may be created.
+ */
+export interface DeveloperProjectLimits {
+  /** How many projects this account may hold at once. */
+  maxProjects: number;
+  /** How many it holds against that ceiling; a suspended project still counts. */
+  usedProjects: number;
+}
+
 export function listDeveloperProjects(
   signal?: AbortSignal,
-): Promise<ApiAccessResult<{ projects: DeveloperProjectDto[] }>> {
+): Promise<ApiAccessResult<{ projects: DeveloperProjectDto[]; limits: DeveloperProjectLimits }>> {
   return requestJson(ENDPOINTS.dev.apiAccess.projects, { signal });
 }
 

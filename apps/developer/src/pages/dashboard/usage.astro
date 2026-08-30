@@ -9,12 +9,16 @@
  * timestamp; detailed per-request analytics are a later, separate stage.
  */
 import DashboardLayout from "@/components/dashboard/DashboardLayout.astro";
+import { ApiContent } from "@/components/docs/ApiContent";
+import { ContentCard } from "@/components/docs/ContentCard";
+import { ContentPanel } from "@/components/docs/ContentPanel";
+import { iconForDashboardTab } from "@/lib/dashboardNavIcons";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { getOwnApiClients } from "@/lib/apiAccessServer";
 import { DeveloperProjectStatus, maskToken } from "@/lib/apiAccessClient";
 import { DashboardTab } from "@/lib/dashboardTabs";
 import { formatDate } from "@/lib/formatDate";
-import { DiagramIcon } from "@/lib/icons";
+import { DataIcon, DiagramIcon } from "@/lib/icons";
 import { perDayQuotaLabel, perMinuteQuotaLabel } from "@/lib/quotaLabel";
 import { getDeveloperSession } from "@/lib/session";
 
@@ -24,67 +28,99 @@ export const prerender = false;
 // the cookie), so they run in parallel instead of back-to-back.
 const [account, clients] = await Promise.all([getDeveloperSession(Astro), getOwnApiClients(Astro)]);
 if (!account) return Astro.redirect("/login");
+const PageIcon = iconForDashboardTab(DashboardTab.Usage);
 ---
 
 <DashboardLayout account={account} active={DashboardTab.Usage} title="Usage · musiccloud for developers">
-  <h1 class="card-content-inset text-hero font-medium tracking-tight mb-1">Usage</h1>
-  <p class="card-content-inset text-body text-fg-muted mb-7">Your enforced quotas per project, and when each registration key was last used.</p>
+  <ApiContent.Chapter.Header className="api-content__chapter-header--first">
+    <ApiContent.Chapter.Header.Icon>
+      <PageIcon aria-hidden="true" />
+    </ApiContent.Chapter.Header.Icon>
+    <ApiContent.Chapter.Header.Title>Usage</ApiContent.Chapter.Header.Title>
+  </ApiContent.Chapter.Header>
+  <p class="card-content-inset text-body text-fg-muted mb-6">Your enforced quotas per project, and when each registration key was last used.</p>
 
   {
     clients === null ? (
       <p class="card-content-inset field__message field__message--error">Could not load your usage data. Reload the page to try again.</p>
     ) : clients.length === 0 ? (
-      <section class="surface-card px-6 py-5">
-        <h2 class="text-body font-medium text-fg mb-1">Nothing to show yet</h2>
-        <p class="text-body text-fg-muted">
-          Usage appears here once you have an approved app.{" "}
-          <a href="/dashboard/api-access" class="content-link text-fg">
-            Request API access
-          </a>{" "}
-          to get started.
-        </p>
-      </section>
+      <ContentCard>
+        <ContentCard.Header>
+          <ContentCard.Header.Icon>
+            <DiagramIcon aria-hidden="true" />
+          </ContentCard.Header.Icon>
+          <ContentCard.Header.Title>Nothing to show yet</ContentCard.Header.Title>
+        </ContentCard.Header>
+        <ContentCard.Body>
+          <ContentCard.Body.Copy>
+            <p class="text-body text-fg-muted">Usage appears here once you have an approved app.</p>
+          </ContentCard.Body.Copy>
+        </ContentCard.Body>
+        <ContentCard.Footer>
+          <a href="/dashboard/api-access" class="button button--content">Request API access</a>
+        </ContentCard.Footer>
+      </ContentCard>
     ) : (
       <div class="flex flex-col gap-6">
         {clients.map((client) => (
-          <section class="surface-card px-6 py-5">
-            <div class="flex items-center justify-between gap-3 mb-4">
-              <div class="min-w-0">
-                <h2 class="text-body font-medium text-fg truncate">{client.projectDisplayName}</h2>
-                <p class="text-nav text-fg-subtle truncate">
-                  {client.appName} · {client.registrationType} · {client.publicClientId}
-                </p>
-              </div>
-              <StatusBadge
-                status={client.projectStatus === DeveloperProjectStatus.Active ? client.status : client.projectStatus}
-              />
-            </div>
-            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 mb-4">
-              <div>
-                <dt class="text-nav text-fg-subtle mb-0.5">Rate limit</dt>
-                <dd class="text-body text-fg">{perMinuteQuotaLabel(client.requestsPerMinute)}</dd>
-              </div>
-              <div>
-                <dt class="text-nav text-fg-subtle mb-0.5">Daily quota</dt>
-                <dd class="text-body text-fg">{perDayQuotaLabel(client.requestsPerDay)}</dd>
-              </div>
-            </dl>
-            {client.tokens.length === 0 ? (
-              <p class="text-body text-fg-muted">No keys yet.</p>
-            ) : (
-              <ul class="flex flex-col divide-y divide-border">
-                {client.tokens.map((token) => (
-                  <li class="py-2.5 first:pt-0 last:pb-0 flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <code class="text-code font-mono text-code-fg">{maskToken(token.tokenPrefix)}</code>
-                    <StatusBadge status={token.status} />
-                    <span class="text-nav text-fg-subtle">
-                      Last used {token.lastUsedAt ? formatDate(token.lastUsedAt) : "never"}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          <ContentCard>
+            <ContentCard.Header>
+              <ContentCard.Header.Icon>
+                <DataIcon aria-hidden="true" />
+              </ContentCard.Header.Icon>
+              <ContentCard.Header.Title>{client.projectDisplayName}</ContentCard.Header.Title>
+              <ContentCard.Header.Addon>
+                <StatusBadge
+                  status={client.projectStatus === DeveloperProjectStatus.Active ? client.status : client.projectStatus}
+                />
+              </ContentCard.Header.Addon>
+            </ContentCard.Header>
+            <ContentCard.Body>
+              <ContentCard.Body.Stack>
+                <ContentPanel className="content-panel--inset">
+                  <ContentPanel.Header>
+                    <ContentPanel.Header.Title>
+                      {client.appName} · {client.registrationType} · {client.publicClientId}
+                    </ContentPanel.Header.Title>
+                  </ContentPanel.Header>
+                  <ContentPanel.Content>
+                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+                      <div>
+                        <dt class="text-nav text-fg-subtle mb-0.5">Rate limit</dt>
+                        <dd class="text-body text-fg">{perMinuteQuotaLabel(client.requestsPerMinute)}</dd>
+                      </div>
+                      <div>
+                        <dt class="text-nav text-fg-subtle mb-0.5">Daily quota</dt>
+                        <dd class="text-body text-fg">{perDayQuotaLabel(client.requestsPerDay)}</dd>
+                      </div>
+                    </dl>
+                  </ContentPanel.Content>
+                </ContentPanel>
+                <ContentPanel className="content-panel--inset">
+                  <ContentPanel.Header>
+                    <ContentPanel.Header.Title>Registration keys</ContentPanel.Header.Title>
+                  </ContentPanel.Header>
+                  <ContentPanel.Content>
+                    {client.tokens.length === 0 ? (
+                      <p class="text-body text-fg-muted">No keys yet.</p>
+                    ) : (
+                      <ul class="flex flex-col divide-y divide-border">
+                        {client.tokens.map((token) => (
+                          <li class="py-2.5 first:pt-0 last:pb-0 flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <code class="text-code font-mono text-code-fg">{maskToken(token.tokenPrefix)}</code>
+                            <StatusBadge status={token.status} />
+                            <span class="text-nav text-fg-subtle">
+                              Last used {token.lastUsedAt ? formatDate(token.lastUsedAt) : "never"}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </ContentPanel.Content>
+                </ContentPanel>
+              </ContentCard.Body.Stack>
+            </ContentCard.Body>
+          </ContentCard>
         ))}
       </div>
     )

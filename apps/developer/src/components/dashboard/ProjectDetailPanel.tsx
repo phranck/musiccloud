@@ -4,6 +4,7 @@ import { TextField } from "@/components/auth/TextField";
 import { ApiFailureNotice } from "@/components/dashboard/ApiFailureNotice";
 import { RegistrationsPanel } from "@/components/dashboard/RegistrationsPanel";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
+import { ContentCard } from "@/components/docs/ContentCard";
 import {
   DeveloperProjectStatus,
   type DeveloperProjectStatusValue,
@@ -13,10 +14,10 @@ import {
 } from "@/lib/apiAccessClient";
 import { ButtonVariant } from "@/lib/buttonVariant";
 import { FormPhase } from "@/lib/formPhase";
+import { DataIcon, HealthIcon } from "@/lib/icons";
 import { PROJECT_DETAIL_INITIAL_STATE, ProjectDetailActionType, projectDetailReducer } from "@/lib/projectDetailState";
 import { toPanelFailure } from "@/lib/projectsPanelState";
 import { perDayQuotaLabel, perMinuteQuotaLabel } from "@/lib/quotaLabel";
-import { writeSelectedProjectId } from "@/lib/selectedProject";
 
 /**
  * Props for {@link ProjectDetailPanel}.
@@ -46,7 +47,6 @@ export function ProjectDetailPanel({ projectId }: ProjectDetailPanelProps) {
 
   useEffect(() => {
     // The screen is showing this project, so it is the one to remember.
-    writeSelectedProjectId(projectId);
     const controller = new AbortController();
     getDeveloperProject(projectId, controller.signal).then((result) => {
       if (controller.signal.aborted) return;
@@ -107,7 +107,7 @@ export function ProjectDetailPanel({ projectId }: ProjectDetailPanelProps) {
   }
 
   if (!project) {
-    return <p className="text-body text-fg-muted">Loading…</p>;
+    return <p className="card-content-inset text-body text-fg-muted">Loading…</p>;
   }
 
   const isActive = project.status === DeveloperProjectStatus.Active;
@@ -115,89 +115,100 @@ export function ProjectDetailPanel({ projectId }: ProjectDetailPanelProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <section>
-        <h2 className="card-content-inset text-card-title font-medium tracking-tight mb-3">Project</h2>
-        <div className="surface-card px-6 py-5 flex flex-col gap-4">
-          {project.subscription.tierId === null && (
-            <p className="text-body text-fg-muted">
-              This project has no plan yet, so any key under it is refused.{" "}
-              <a href={`/dashboard/projects/${project.id}/plan`} className="content-link text-fg">
-                Choose a plan
-              </a>{" "}
-              to make it work.
-            </p>
-          )}
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-            <div>
-              <dt className="text-nav text-fg-subtle mb-0.5">State</dt>
-              <dd className="text-body text-fg">
-                <StatusBadge status={project.status} />
-              </dd>
-            </div>
-            <div>
-              <dt className="text-nav text-fg-subtle mb-0.5">Plan</dt>
-              <dd className="text-body text-fg">
-                {project.subscription.tierName ?? "No plan yet"}{" "}
-                <a href={`/dashboard/projects/${project.id}/plan`} className="content-link text-nav text-fg-muted ml-1">
-                  {project.subscription.tierId === null ? "choose one" : "change"}
-                </a>
-              </dd>
-            </div>
-            <div>
-              <dt className="text-nav text-fg-subtle mb-0.5">Rate limit</dt>
-              <dd className="text-body text-fg">{perMinuteQuotaLabel(project.quota.requestsPerMinute)}</dd>
-            </div>
-            <div>
-              <dt className="text-nav text-fg-subtle mb-0.5">Daily quota</dt>
-              <dd className="text-body text-fg">{perDayQuotaLabel(project.quota.requestsPerDay)}</dd>
-            </div>
-          </dl>
-
-          <form onSubmit={onRename} className="flex flex-col gap-4" noValidate>
-            <TextField name="displayName" label="Project name" value={name} onChange={onName} />
-            {saveFailure && <ApiFailureNotice {...saveFailure} />}
-            <div className="sm:max-w-xs">
-              <SubmitButton loading={phase === FormPhase.Submitting}>
-                {phase === FormPhase.Success ? "Saved" : "Save name"}
-              </SubmitButton>
-            </div>
-          </form>
-        </div>
-      </section>
+      <ContentCard>
+        <ContentCard.Header>
+          <ContentCard.Header.Icon>
+            <DataIcon aria-hidden="true" />
+          </ContentCard.Header.Icon>
+          <ContentCard.Header.Title>Project</ContentCard.Header.Title>
+          <ContentCard.Header.Addon>
+            <StatusBadge status={project.status} />
+          </ContentCard.Header.Addon>
+        </ContentCard.Header>
+        <form onSubmit={onRename} noValidate>
+          <ContentCard.Body>
+            <ContentCard.Body.Copy>
+              {project.subscription.tierId === null && (
+                <p className="text-body text-fg-muted">
+                  This project has no plan yet, so any key under it is refused.{" "}
+                  <a href={`/dashboard/projects/${project.id}/plan`} className="content-link text-fg">
+                    Choose a plan
+                  </a>{" "}
+                  to make it work.
+                </p>
+              )}
+              <dl className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-4">
+                <div>
+                  <dt className="text-nav text-fg-subtle mb-0.5">Plan</dt>
+                  <dd className="text-body text-fg">
+                    {project.subscription.tierName ?? "No plan yet"}{" "}
+                    <a
+                      href={`/dashboard/projects/${project.id}/plan`}
+                      className="content-link text-nav text-fg-muted ml-1"
+                    >
+                      {project.subscription.tierId === null ? "choose one" : "change"}
+                    </a>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-nav text-fg-subtle mb-0.5">Rate limit</dt>
+                  <dd className="text-body text-fg">{perMinuteQuotaLabel(project.quota.requestsPerMinute)}</dd>
+                </div>
+                <div>
+                  <dt className="text-nav text-fg-subtle mb-0.5">Daily quota</dt>
+                  <dd className="text-body text-fg">{perDayQuotaLabel(project.quota.requestsPerDay)}</dd>
+                </div>
+              </dl>
+              <TextField name="displayName" label="Project name" value={name} onChange={onName} />
+              {saveFailure && <ApiFailureNotice {...saveFailure} />}
+            </ContentCard.Body.Copy>
+          </ContentCard.Body>
+          <ContentCard.Footer>
+            <SubmitButton loading={phase === FormPhase.Submitting}>
+              {phase === FormPhase.Success ? "Saved" : "Save name"}
+            </SubmitButton>
+          </ContentCard.Footer>
+        </form>
+      </ContentCard>
 
       <RegistrationsPanel projectId={projectId} />
 
-      <section>
-        <h2 className="card-content-inset text-card-title font-medium tracking-tight mb-3">Lifecycle</h2>
-        <div className="surface-card px-6 py-5 flex flex-col gap-4">
-          <p className="text-body text-fg-muted">
-            Suspending a project stops every key under it from working and can be undone. Deleting it is how a project
-            leaves this list; its registrations stop working with it.
-          </p>
-          {!isDeleted && (
-            <div className="flex flex-wrap gap-3">
-              <div className="sm:max-w-xs flex-1">
-                <SubmitButton
-                  variant={ButtonVariant.Secondary}
-                  type="button"
-                  onClick={isActive ? onSuspend : onReactivate}
-                  loading={phase === FormPhase.Submitting}
-                >
-                  {isActive ? "Suspend project" : "Reactivate project"}
-                </SubmitButton>
-              </div>
-              <div className="sm:max-w-xs flex-1">
-                <SubmitButton variant={ButtonVariant.Danger} type="button" onClick={onDelete}>
-                  Delete project
-                </SubmitButton>
-              </div>
-            </div>
-          )}
-          {isDeleted && (
-            <p className="text-body text-fg-muted">This project is deleted and no longer serves traffic.</p>
-          )}
-        </div>
-      </section>
+      <ContentCard>
+        <ContentCard.Header>
+          <ContentCard.Header.Icon>
+            <HealthIcon aria-hidden="true" />
+          </ContentCard.Header.Icon>
+          <ContentCard.Header.Title>Lifecycle</ContentCard.Header.Title>
+        </ContentCard.Header>
+        <ContentCard.Body>
+          <ContentCard.Body.Copy>
+            <p className="text-body text-fg-muted">
+              Suspending a project stops every key under it from working and can be undone. Deleting it is how a project
+              leaves this list; its registrations stop working with it.
+            </p>
+            {isDeleted && (
+              <p className="text-body text-fg-muted">This project is deleted and no longer serves traffic.</p>
+            )}
+          </ContentCard.Body.Copy>
+        </ContentCard.Body>
+        {!isDeleted && (
+          <ContentCard.Footer>
+            {/* The destructive action stands away from the group, so nobody
+                reaches it whilst aiming for the reversible one. */}
+            <SubmitButton variant={ButtonVariant.Danger} type="button" onClick={onDelete} className="mr-auto">
+              Delete project
+            </SubmitButton>
+            <SubmitButton
+              variant={ButtonVariant.Secondary}
+              type="button"
+              loading={phase === FormPhase.Submitting}
+              onClick={isActive ? onSuspend : onReactivate}
+            >
+              {isActive ? "Suspend project" : "Reactivate project"}
+            </SubmitButton>
+          </ContentCard.Footer>
+        )}
+      </ContentCard>
     </div>
   );
 }

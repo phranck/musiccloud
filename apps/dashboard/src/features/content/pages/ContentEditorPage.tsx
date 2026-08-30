@@ -21,7 +21,7 @@ import {
   PlusCircleIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
-import { lazy, Suspense, useCallback, useEffect, useReducer } from "react";
+import { lazy, type ReactNode, Suspense, useCallback, useEffect, useReducer } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
 import { DashboardSection } from "@/components/ui/DashboardSection";
@@ -37,6 +37,7 @@ import {
   useDeleteContentPage,
 } from "@/features/content/hooks/useAdminContent";
 import { useAdminNavigationConfiguration } from "@/features/content/hooks/useAdminNav";
+import { PageContextsField } from "@/features/content/pages/PageContextsField";
 import { PagePublishingEditor } from "@/features/content/pages/PagePublishingEditor";
 import { PageTitleAlignment } from "@/features/content/pages/PageTitleAlignment";
 import { SegmentManager } from "@/features/content/pages/SegmentManager";
@@ -318,6 +319,8 @@ interface EditorMetadataBarProps {
   onCancelSlug: () => void;
   onShowTitleChange: (value: boolean) => void;
   onTitleAlignmentChange: (value: PageTitleAlignmentValue) => void;
+  /** The context switches, which stand in this row beside the title settings. */
+  contexts: ReactNode;
 }
 
 function formatDateTime(iso: string | null): string {
@@ -347,6 +350,7 @@ function EditorMetadataBar({
   onCancelSlug,
   onShowTitleChange,
   onTitleAlignmentChange,
+  contexts,
 }: EditorMetadataBarProps) {
   return (
     <div className="px-3 pt-3 pb-1 flex flex-wrap items-center gap-6 text-xs text-[var(--ds-text-muted)] bg-[var(--ds-surface)]">
@@ -397,6 +401,8 @@ function EditorMetadataBar({
       </label>
 
       {page.showTitle && <PageTitleAlignment value={page.titleAlignment} onChange={onTitleAlignmentChange} />}
+
+      {contexts}
 
       {page.createdByUsername && (
         <div className="ml-auto flex flex-col items-end gap-0.5 leading-tight">
@@ -483,8 +489,13 @@ function EditorContentSurface({
     );
   }
 
+  // The editor is what the rest of the page is arranged around, so it takes the
+  // height the other rows leave rather than the height its document happens to
+  // need. Everything below this point already carries `flex-1 min-h-0`; the
+  // section itself did not, so `height: 100%` on the editor resolved against a
+  // box that grew with its content.
   return (
-    <DashboardSection>
+    <DashboardSection className="flex min-h-0 flex-1 flex-col">
       <DashboardSection.Header icon={<MarkdownLogoIcon weight="duotone" className="size-4" />} title={headerTitle} />
       <PageBody
         className="overflow-hidden"
@@ -776,6 +787,7 @@ export function ContentEditorPage() {
           onCancelSlug={() => dispatch({ type: EditorActionType.SetEditingSlug, value: false })}
           onShowTitleChange={(value) => setMeta("showTitle", value)}
           onTitleAlignmentChange={(value) => setMeta("titleAlignment", value)}
+          contexts={<PageContextsField page={page} />}
         />
       )}
 

@@ -1,10 +1,9 @@
+import type { SortState } from "@musiccloud/dashboard-ui";
+import { type ColumnDef, DataTable, DataTableState } from "@musiccloud/dashboard-ui";
 import { SpinnerGap as SpinnerGapIcon } from "@phosphor-icons/react";
 import type { ReactNode } from "react";
-
 import { ContentLoadingView } from "@/components/ui/ContentLoadingView";
-import { type ColumnDef, DataTable, DataTableState } from "@/components/ui/DataTable";
 import type { InfiniteAdminTable as InfiniteAdminTableResult } from "@/features/music/hooks/useInfiniteAdminTable";
-import type { SortState } from "@/lib/hooks/useTableSort";
 
 interface InfiniteAdminTableProps<T extends { id: string }> {
   /** The list state, as returned by `useInfiniteAdminTable`. */

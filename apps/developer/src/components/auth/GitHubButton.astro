@@ -1,9 +1,22 @@
 ---
 /**
- * GitHubButton is the full-width "Continue with GitHub" link that starts the
- * server-side OAuth flow at `/auth/github`. Styled as the secondary, neutral
- * glassy surface with a hairline border (not brand-blue), so the
- * email/password primary action stays dominant.
+ * GitHubButton is the link that starts the server-side OAuth flow at
+ * `/auth/github`. Its label names the flow it starts, because signing in and
+ * creating an account are two different acts and the backend enforces the
+ * difference at the exchange step.
+ *
+ * GitHub publishes no button of its own, only the mark and the rules for it:
+ * it is shown unaltered, in white or black, on a background that keeps it
+ * legible. The button therefore takes GitHub's own brand black through the
+ * `button--github` recipe and carries the mark in white, which is what a
+ * developer recognises before reading the label. It is the single filled
+ * command in a portal where nothing else is filled, and that exception belongs
+ * to the provider rather than to the portal.
+ *
+ * The card body lays its children out in a single grid column, so the button
+ * spans that column. A provider button is the one place where full width is
+ * right: it is the alternative to the whole form beneath it rather than one
+ * action among several.
  *
  * The Phosphor `GithubLogoIcon` renders as a static SSR SVG; no client
  * directive is needed because it carries no interactivity. It deliberately
@@ -26,13 +39,16 @@ interface Props {
   intent?: "login" | "signup";
 }
 
+/** The label each flow carries, so the button says what pressing it does. */
+const LABEL = {
+  login: "Sign in with GitHub",
+  signup: "Sign up with GitHub",
+} as const;
+
 const { intent = "login" } = Astro.props;
 ---
 
-<a
-  href={`/auth/github?intent=${intent}`}
-  class="button button--secondary w-full text-body"
->
+<a href={`/auth/github?intent=${intent}`} class="button button--github text-body">
   <GithubLogoIcon weight="fill" className="size-5" aria-hidden="true" />
-  Continue with GitHub
+  {LABEL[intent]}
 </a>

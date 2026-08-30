@@ -13,19 +13,28 @@ export interface SubmitButtonProps {
    * be triggered twice.
    */
   loading?: boolean;
-  /** Visual variant; defaults to {@link ButtonVariant.Primary}. */
+  /** Visual variant; defaults to {@link ButtonVariant.Content}. */
   variant?: ButtonVariantValue;
   /** Native button type; defaults to `submit` for use inside forms. */
   type?: "submit" | "button";
   /** Optional click handler (e.g. for `type="button"` actions like logout). */
   onClick?: () => void;
+  /**
+   * Extra classes for placement only, such as pushing a destructive action
+   * away from the group it must not be confused with.
+   */
+  className?: string;
 }
 
 /**
- * Full-width form submit button styled from the developer-portal tokens. The
- * primary variant is brand-blue with a white label (`--color-on-accent`); the
- * secondary variant is a neutral glassy surface; the danger variant is red,
- * for irreversible destructive actions (e.g. account deletion). While
+ * Form submit button styled from the developer-portal tokens. It is as wide as
+ * its label, everywhere: a button never spans its container, so a card footer
+ * can align its actions to the right edge.
+ *
+ * The default is the accent outline, because nothing in this portal is filled:
+ * a solid button takes an emphasis the surrounding cards never ask for. The
+ * secondary variant is a neutral glassy surface, and the danger variant is a
+ * red outline for irreversible actions such as deleting an account. While
  * `loading`, it renders a spinning icon and is disabled to prevent double
  * submits.
  *
@@ -35,16 +44,17 @@ export interface SubmitButtonProps {
 export function SubmitButton({
   children,
   loading = false,
-  variant = ButtonVariant.Primary,
+  variant = ButtonVariant.Content,
   type = "submit",
   onClick,
+  className = "",
 }: SubmitButtonProps) {
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={loading}
-      className={`button w-full text-body ${buttonVariantClass(variant)}`}
+      className={`button text-body ${buttonVariantClass(variant)} ${className}`}
     >
       {loading ? <RefreshIcon className="size-5 animate-spin" aria-hidden="true" /> : null}
       {children}

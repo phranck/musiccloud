@@ -1,5 +1,7 @@
-import { GearSixIcon } from "@phosphor-icons/react";
+import { DashboardActionButton, DashboardActionId, DashboardInput } from "@musiccloud/dashboard-ui";
+import { GearSixIcon, SlidersIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -7,12 +9,16 @@ import { PageLayout } from "@/components/ui/PageLayout";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { dashboardCopy } from "@/copy/dashboard";
 import {
+  type DeveloperLimits,
   type DeveloperPortalAvailability,
+  fetchDeveloperLimits,
   fetchDeveloperPortalAvailability,
+  updateDeveloperLimits,
   updateDeveloperPortalAvailability,
 } from "@/features/developer/api";
 
 const PORTAL_AVAILABILITY_QUERY_KEY = ["admin", "developer", "portal-availability"] as const;
+const DEVELOPER_LIMITS_QUERY_KEY = ["admin", "developer", "limits"] as const;
 const CLOSED_PORTAL: DeveloperPortalAvailability = { public: false, maintenance: false };
 
 interface AvailabilitySettingRowProps {
@@ -33,6 +39,76 @@ function AvailabilitySettingRow({ checked, description, disabled, label, onChang
       </div>
       <ToggleSwitch checked={checked} onChange={onChange} disabled={disabled} aria-label={label} />
     </div>
+  );
+}
+
+/**
+ * The self-service limits card: what a developer may do without asking.
+ *
+ * The field starts from what is stored and is only sent when the operator
+ * saves, so a half-typed number never becomes the live ceiling.
+ *
+ * @returns The limits card.
+ */
+function SelfServiceLimitsSection() {
+  const messages = dashboardCopy;
+  const dm = messages.developer;
+  const queryClient = useQueryClient();
+  const limitsQuery = useQuery({ queryKey: DEVELOPER_LIMITS_QUERY_KEY, queryFn: fetchDeveloperLimits });
+  const [draft, setDraft] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  const updateMutation = useMutation({
+    mutationFn: updateDeveloperLimits,
+    onSuccess: (next: DeveloperLimits) => {
+      queryClient.setQueryData(DEVELOPER_LIMITS_QUERY_KEY, next);
+      setDraft(null);
+      setSaved(true);
+    },
+  });
+
+  const stored = limitsQuery.data?.maxProjectsPerAccount;
+  const value = draft ?? (stored === undefined ? "" : String(stored));
+  const parsed = Number(value);
+  const canSave =
+    value.trim() !== "" && Number.isInteger(parsed) && parsed >= 1 && parsed !== stored && !updateMutation.isPending;
+
+  return (
+    <DashboardSection>
+      <DashboardSection.Header icon={<SlidersIcon weight="duotone" className="size-4" />} title={dm.limitsTitle} />
+      <DashboardSection.Body>
+        <p className="text-sm text-[var(--ds-text-muted)]">{dm.limitsDescription}</p>
+        <div className="flex items-end gap-4">
+          <div>
+            <label htmlFor="max-projects" className="block text-xs font-medium text-[var(--ds-text-muted)] mb-1">
+              {dm.maxProjectsLabel}
+            </label>
+            <DashboardInput
+              id="max-projects"
+              type="number"
+              min={1}
+              value={value}
+              onChange={(event) => {
+                setDraft(event.target.value);
+                setSaved(false);
+              }}
+            />
+          </div>
+          <p className="text-sm text-[var(--ds-text-muted)] pb-2">{dm.maxProjectsDescription}</p>
+        </div>
+        {limitsQuery.isError && <p className="text-sm text-[var(--ds-danger-text)]">{messages.common.saveError}</p>}
+        {updateMutation.isError && <p className="text-sm text-[var(--ds-danger-text)]">{messages.common.saveError}</p>}
+      </DashboardSection.Body>
+      <DashboardSection.Footer>
+        <DashboardActionButton
+          action={DashboardActionId.Save}
+          label={saved ? messages.common.saved : messages.common.save}
+          onClick={() => updateMutation.mutate({ maxProjectsPerAccount: parsed })}
+          disabled={!canSave}
+          type="button"
+        />
+      </DashboardSection.Footer>
+    </DashboardSection>
   );
 }
 
@@ -95,6 +171,8 @@ export function DeveloperSettingsPage() {
             {updateMutation.isError && <p className="text-sm text-[var(--ds-danger-text)]">{errorMessage}</p>}
           </DashboardSection.Body>
         </DashboardSection>
+
+        <SelfServiceLimitsSection />
       </div>
     </PageLayout>
   );

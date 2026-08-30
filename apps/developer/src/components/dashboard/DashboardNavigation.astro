@@ -1,42 +1,176 @@
 ---
 /**
- * Shared dashboard navigation rendered as a desktop rail and a horizontally
- * scrollable mobile tab row from one canonical item list.
+ * The dashboard rail, built from the same `Sidebar` compound, the same
+ * `surface-card` treatment and the same row recipe the API reference
+ * navigation uses, so the two signed-in surfaces of the portal are one
+ * interface rather than two.
+ *
+ * The row geometry, the hover state and the current-item highlight all come
+ * from `[data-api-nav-link]` in `docs.css`. That attribute is what carries
+ * them, so the rail sets it rather than describing the same padding, radius
+ * and colours a second time.
+ *
+ * The body is the reference's scroll region (`data-api-nav-scroll-region`), so
+ * the rail is capped at the viewport and scrolls within itself. Without it a
+ * long rail grows past the viewport, and a sticky element taller than the
+ * viewport travels with the page, which reads as the rail jumping on every
+ * navigation.
+ *
+ * Projects and API are sections rather than single rows: Projects opens onto
+ * the list and then one entry per project, and API groups requesting access
+ * with the usage that follows from it.
+ *
+ * The mobile row stays a horizontally scrollable tab strip, because a rail is
+ * not usable at that width; it is rendered from the same canonical item list.
  */
-import { DASHBOARD_NAV, type DashboardTabValue } from "@/lib/dashboardTabs";
+import { Sidebar, SidebarSectionItem } from "@/components/docs/Sidebar";
+import { getOwnProjects } from "@/lib/apiAccessServer";
+import { iconForDashboardTab } from "@/lib/dashboardNavIcons";
+import { API_SECTION_TABS, DASHBOARD_NAV, DashboardTab, type DashboardTabValue } from "@/lib/dashboardTabs";
+import { ArrowCircleDownIcon, ArrowCircleUpIcon, KeyIcon } from "@/lib/icons";
+import { projectPath } from "@/lib/projectPath";
 
 interface Props {
   /** Current dashboard destination highlighted in both render modes. */
   active: DashboardTabValue;
+  /** The project whose page is open, so the rail marks its entry as current. */
+  activeProjectId?: string;
 }
 
-const { active } = Astro.props;
+const { active, activeProjectId } = Astro.props;
+
+// A rail that could not load the projects still lists the overview, because the
+// entry that leads to the list is exactly what somebody needs when it is empty.
+const owned = await getOwnProjects(Astro);
+const projects = owned?.projects ?? [];
+
+const apiItems = DASHBOARD_NAV.filter((item) => API_SECTION_TABS.includes(item.tab));
+const topLevelItems = DASHBOARD_NAV.filter(
+  (item) => item.tab !== DashboardTab.Projects && !API_SECTION_TABS.includes(item.tab),
+);
+
+const projectsOpen = active === DashboardTab.Projects;
+const apiOpen = API_SECTION_TABS.includes(active);
+const ProjectsIcon = iconForDashboardTab(DashboardTab.Projects);
 ---
 
-<aside class="dashboard-navigation dashboard-navigation--desktop" data-dashboard-navigation="desktop">
-  <nav class="dashboard-navigation__list" aria-label="Dashboard">
+<Sidebar
+  className="api-reference-nav surface-card dashboard-navigation--desktop"
+  aria-label="Dashboard"
+  data-dashboard-navigation="desktop"
+>
+  <Sidebar.Header>
+    <Sidebar.Header.Title className="text-card-title font-semibold text-fg">Dashboard</Sidebar.Header.Title>
+  </Sidebar.Header>
+  <Sidebar.Body data-api-nav-scroll-region>
     {
-      DASHBOARD_NAV.map((item) => {
+      topLevelItems.map((item) => {
         const isActive = item.tab === active;
+        const Icon = iconForDashboardTab(item.tab);
         return item.comingSoon || !item.href ? (
-          <span class="dashboard-navigation__item dashboard-navigation__item--disabled" aria-disabled="true">
-            {item.label}
+          <span
+            class="sidebar__chapter api-reference-nav__top-link api-reference-nav__link text-body dashboard-navigation__item--disabled"
+            data-api-nav-link
+            aria-disabled="true"
+          >
+            <Icon className="api-reference-nav__section-icon size-5" aria-hidden="true" />
+            <span>{item.label}</span>
             <span class="status-pill">Soon</span>
           </span>
         ) : (
-          <a
+          <Sidebar.Chapter
+            className="api-reference-nav__top-link api-reference-nav__link text-body"
             href={item.href}
+            data-api-nav-link
             aria-current={isActive ? "page" : undefined}
             data-dashboard-active-tab={isActive ? "true" : undefined}
-            class:list={["dashboard-navigation__item", { "dashboard-navigation__item--active": isActive }]}
           >
-            {item.label}
-          </a>
+            <Icon className="api-reference-nav__section-icon size-5" aria-hidden="true" />
+            <span>{item.label}</span>
+          </Sidebar.Chapter>
         );
       })
     }
-  </nav>
-</aside>
+
+    <Sidebar.Section className="api-reference-nav__section" open={projectsOpen} data-dashboard-section>
+      <Sidebar.Section.Header
+        className="api-reference-nav__summary cursor-pointer text-code font-mono text-fg-muted"
+        data-api-nav-summary
+      >
+        <ProjectsIcon className="api-reference-nav__section-icon size-5" aria-hidden="true" />
+        <Sidebar.Section.Header.Title className="api-reference-nav__summary-title m-0 text-body font-semibold text-fg">
+          Projects
+        </Sidebar.Section.Header.Title>
+        <Sidebar.Section.Header.Addons className="api-reference-nav__summary-addons">
+          <span class="api-reference-nav__toggle" aria-hidden="true">
+            <ArrowCircleDownIcon className="api-reference-nav__toggle-down" />
+            <ArrowCircleUpIcon className="api-reference-nav__toggle-up" />
+          </span>
+        </Sidebar.Section.Header.Addons>
+      </Sidebar.Section.Header>
+      <div class="api-reference-nav__content">
+        <Sidebar.Section.Items className="grid grid-cols-1 gap-1">
+          <SidebarSectionItem
+            className="api-reference-nav__link api-reference-nav__link--counted text-body"
+            href="/dashboard/projects"
+            data-api-nav-link
+            aria-current={projectsOpen && !activeProjectId ? "page" : undefined}
+          >
+            <span class="api-reference-nav__label">Overview</span>
+            {projects.length > 0 && <span class="api-reference-nav__count">{projects.length}</span>}
+          </SidebarSectionItem>
+          {
+            projects.map((project) => (
+              <SidebarSectionItem
+                className="api-reference-nav__link api-reference-nav__link--nested text-body truncate"
+                href={projectPath(project.id)}
+                title={project.displayName}
+                data-api-nav-link
+                aria-current={project.id === activeProjectId ? "page" : undefined}
+              >
+                {project.displayName}
+              </SidebarSectionItem>
+            ))
+          }
+        </Sidebar.Section.Items>
+      </div>
+    </Sidebar.Section>
+
+    <Sidebar.Section className="api-reference-nav__section" open={apiOpen} data-dashboard-section>
+      <Sidebar.Section.Header
+        className="api-reference-nav__summary cursor-pointer text-code font-mono text-fg-muted"
+        data-api-nav-summary
+      >
+        <KeyIcon className="api-reference-nav__section-icon size-5" aria-hidden="true" />
+        <Sidebar.Section.Header.Title className="api-reference-nav__summary-title m-0 text-body font-semibold text-fg">
+          API
+        </Sidebar.Section.Header.Title>
+        <Sidebar.Section.Header.Addons className="api-reference-nav__summary-addons">
+          <span class="api-reference-nav__toggle" aria-hidden="true">
+            <ArrowCircleDownIcon className="api-reference-nav__toggle-down" />
+            <ArrowCircleUpIcon className="api-reference-nav__toggle-up" />
+          </span>
+        </Sidebar.Section.Header.Addons>
+      </Sidebar.Section.Header>
+      <div class="api-reference-nav__content">
+        <Sidebar.Section.Items className="grid grid-cols-1 gap-1">
+          {
+            apiItems.map((item) => (
+              <SidebarSectionItem
+                className="api-reference-nav__link text-body truncate"
+                href={item.href ?? undefined}
+                data-api-nav-link
+                aria-current={item.tab === active ? "page" : undefined}
+              >
+                {item.label}
+              </SidebarSectionItem>
+            ))
+          }
+        </Sidebar.Section.Items>
+      </div>
+    </Sidebar.Section>
+  </Sidebar.Body>
+</Sidebar>
 
 <nav class="dashboard-navigation dashboard-navigation--mobile" aria-label="Dashboard tabs" data-dashboard-navigation="mobile">
   {
@@ -64,4 +198,65 @@ const { active } = Astro.props;
   document
     .querySelector('[data-dashboard-navigation="mobile"] [data-dashboard-active-tab="true"]')
     ?.scrollIntoView({ block: "nearest", inline: "center" });
+
+  /**
+   * Opens and closes a rail section by animating the height of the one element
+   * that grows, and lets ordinary layout carry the rows beneath it.
+   *
+   * A closed `<details>` does not render its contents, so CSS has no start
+   * value to animate from and the panel snaps. The script therefore holds the
+   * disclosure open for the length of the closing animation and only then sets
+   * the state, which is what gives the closing direction somewhere to play.
+   */
+  const EASING = "cubic-bezier(0.2, 0, 0, 1)";
+  const FALLBACK_DURATION_MS = 160;
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  /** Reads the duration the stylesheet already states, so there is one answer. */
+  function durationFor(section: HTMLElement): number {
+    const declared = getComputedStyle(section).getPropertyValue("--mc-docs-nav-transition-duration").trim();
+    if (declared.endsWith("ms")) return Number.parseFloat(declared);
+    if (declared.endsWith("s")) return Number.parseFloat(declared) * 1000;
+    return FALLBACK_DURATION_MS;
+  }
+
+  for (const section of document.querySelectorAll<HTMLDetailsElement>("[data-dashboard-section]")) {
+    const summary = section.querySelector("summary");
+    const content = section.querySelector<HTMLElement>(".api-reference-nav__content");
+    if (!summary || !content) continue;
+
+    let running: Animation | null = null;
+
+    summary.addEventListener("click", (event) => {
+      event.preventDefault();
+      running?.cancel();
+      running = null;
+
+      const opening = !section.open;
+
+      if (prefersReducedMotion.matches) {
+        section.open = opening;
+        return;
+      }
+
+      if (opening) section.open = true;
+
+      const height = `${content.scrollHeight}px`;
+      const frames = opening
+        ? [
+            { height: "0px", opacity: "0" },
+            { height, opacity: "1" },
+          ]
+        : [
+            { height, opacity: "1" },
+            { height: "0px", opacity: "0" },
+          ];
+
+      running = content.animate(frames, { duration: durationFor(section), easing: EASING });
+      running.addEventListener("finish", () => {
+        if (!opening) section.open = false;
+        running = null;
+      });
+    });
+  }
 </script>

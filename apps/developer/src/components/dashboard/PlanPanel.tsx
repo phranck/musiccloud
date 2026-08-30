@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { ApiFailureNotice } from "@/components/dashboard/ApiFailureNotice";
+import { ContentCard } from "@/components/docs/ContentCard";
+import { ContentPanel } from "@/components/docs/ContentPanel";
 import { type DeveloperProjectDto, getDeveloperProject, setDeveloperProjectPlan } from "@/lib/apiAccessClient";
 import { FormPhase, type FormPhaseValue } from "@/lib/formPhase";
+import { CoinIcon, ForbiddenIcon } from "@/lib/icons";
 import { type PanelFailure, toPanelFailure } from "@/lib/projectsPanelState";
-import { perDayQuotaLabel, perMinuteQuotaLabel } from "@/lib/quotaLabel";
+import { perDayQuotaLabel, perMinuteQuotaLabel, quotaSummaryLabel } from "@/lib/quotaLabel";
 
 /**
  * A plan as this screen needs to describe it: what it is called, what it
@@ -78,7 +81,7 @@ export function PlanPanel({ projectId, plans }: PlanPanelProps) {
   );
 
   if (loadFailure) return <ApiFailureNotice {...loadFailure} />;
-  if (!project) return <p className="text-body text-fg-muted">Loading…</p>;
+  if (!project) return <p className="card-content-inset text-body text-fg-muted">Loading…</p>;
 
   const currentTierId = project.subscription.tierId;
   const assignable = plans.filter((plan) => plan.assignable);
@@ -86,75 +89,109 @@ export function PlanPanel({ projectId, plans }: PlanPanelProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <section>
-        <h2 className="card-content-inset text-card-title font-medium tracking-tight mb-3">This project's plan</h2>
-        <div className="surface-card px-6 py-5 flex flex-col gap-4">
-          {currentTierId === null ? (
-            <p className="text-body text-fg-muted">
-              This project has no plan yet, so its keys are refused. A plan is what says how much the project may do;
-              choose one below and it starts working.
-            </p>
-          ) : (
-            <dl className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-4">
-              <div>
-                <dt className="text-nav text-fg-subtle mb-0.5">Plan</dt>
-                <dd className="text-body text-fg">{project.subscription.tierName ?? currentTierId}</dd>
-              </div>
-              <div>
-                <dt className="text-nav text-fg-subtle mb-0.5">Rate limit</dt>
-                <dd className="text-body text-fg">{perMinuteQuotaLabel(project.quota.requestsPerMinute)}</dd>
-              </div>
-              <div>
-                <dt className="text-nav text-fg-subtle mb-0.5">Daily quota</dt>
-                <dd className="text-body text-fg">{perDayQuotaLabel(project.quota.requestsPerDay)}</dd>
-              </div>
-            </dl>
-          )}
-          {saveFailure && <ApiFailureNotice {...saveFailure} />}
-        </div>
-      </section>
-
-      <section>
-        <h2 className="card-content-inset text-card-title font-medium tracking-tight mb-3">
-          {assignable.length === 1 ? "The plan available to you" : "Choose a plan"}
-        </h2>
-        <div className="surface-card px-6 py-5 flex flex-col gap-5">
-          {assignable.length === 0 && (
-            <p className="text-body text-fg-muted">No plan can be chosen at the moment. Please get in touch.</p>
-          )}
-          {assignable.map((plan) => (
-            <div key={plan.id} className="flex flex-col gap-2">
-              <p className="text-body font-medium text-fg">{plan.name}</p>
-              <p className="text-nav text-fg-subtle">
-                {perMinuteQuotaLabel(plan.requestsPerMinute)} · {perDayQuotaLabel(plan.requestsPerDay)}
+      <ContentCard>
+        <ContentCard.Header>
+          <ContentCard.Header.Icon>
+            <CoinIcon aria-hidden="true" />
+          </ContentCard.Header.Icon>
+          <ContentCard.Header.Title>This project's plan</ContentCard.Header.Title>
+        </ContentCard.Header>
+        <ContentCard.Body>
+          <ContentCard.Body.Copy>
+            {currentTierId === null ? (
+              <p className="text-body text-fg-muted">
+                This project has no plan yet, so its keys are refused. A plan is what says how much the project may do;
+                choose one below and it starts working.
               </p>
-              <div className="sm:max-w-xs">
-                {plan.id === currentTierId ? (
-                  <p className="text-body text-accent">This project is on this plan.</p>
-                ) : (
-                  <SubmitButton
-                    type="button"
-                    loading={phase === FormPhase.Submitting}
-                    onClick={() => onChoose(plan.id)}
-                  >
-                    {currentTierId === null ? `Put this project on ${plan.name}` : `Move to ${plan.name}`}
-                  </SubmitButton>
-                )}
-              </div>
-            </div>
-          ))}
+            ) : (
+              <dl className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-4">
+                <div>
+                  <dt className="text-nav text-fg-subtle mb-0.5">Plan</dt>
+                  <dd className="text-body text-fg">{project.subscription.tierName ?? currentTierId}</dd>
+                </div>
+                <div>
+                  <dt className="text-nav text-fg-subtle mb-0.5">Rate limit</dt>
+                  <dd className="text-body text-fg">{perMinuteQuotaLabel(project.quota.requestsPerMinute)}</dd>
+                </div>
+                <div>
+                  <dt className="text-nav text-fg-subtle mb-0.5">Daily quota</dt>
+                  <dd className="text-body text-fg">{perDayQuotaLabel(project.quota.requestsPerDay)}</dd>
+                </div>
+              </dl>
+            )}
+            {saveFailure && <ApiFailureNotice {...saveFailure} />}
+          </ContentCard.Body.Copy>
+        </ContentCard.Body>
+      </ContentCard>
 
-          {unavailable.length > 0 && (
-            <div className="flex flex-col gap-2 border-t border-border pt-4">
+      <ContentCard>
+        <ContentCard.Header>
+          <ContentCard.Header.Icon>
+            <CoinIcon aria-hidden="true" />
+          </ContentCard.Header.Icon>
+          <ContentCard.Header.Title>
+            {assignable.length === 1 ? "The plan available to you" : "Choose a plan"}
+          </ContentCard.Header.Title>
+        </ContentCard.Header>
+        <ContentCard.Body>
+          {assignable.length === 0 ? (
+            <ContentCard.Body.Copy>
+              <p className="text-body text-fg-muted">No plan can be chosen at the moment. Please get in touch.</p>
+            </ContentCard.Body.Copy>
+          ) : (
+            <ContentCard.Body.Stack>
+              {assignable.map((plan) => (
+                <ContentPanel key={plan.id} className="content-panel--inset">
+                  <ContentPanel.Header>
+                    <ContentPanel.Header.Title className="truncate">{plan.name}</ContentPanel.Header.Title>
+                    {plan.id === currentTierId && (
+                      <ContentPanel.Meta>
+                        <span className="status-pill status-pill--success">On this plan</span>
+                      </ContentPanel.Meta>
+                    )}
+                  </ContentPanel.Header>
+                  <ContentPanel.Content>
+                    <p className="text-body text-fg">
+                      {quotaSummaryLabel(plan.requestsPerMinute, plan.requestsPerDay)}
+                    </p>
+                  </ContentPanel.Content>
+                  {plan.id !== currentTierId && (
+                    <ContentPanel.Footer>
+                      <SubmitButton
+                        type="button"
+                        loading={phase === FormPhase.Submitting}
+                        onClick={() => onChoose(plan.id)}
+                      >
+                        {currentTierId === null ? `Put this project on ${plan.name}` : `Move to ${plan.name}`}
+                      </SubmitButton>
+                    </ContentPanel.Footer>
+                  )}
+                </ContentPanel>
+              ))}
+            </ContentCard.Body.Stack>
+          )}
+        </ContentCard.Body>
+      </ContentCard>
+
+      {unavailable.length > 0 && (
+        <ContentCard>
+          <ContentCard.Header>
+            <ContentCard.Header.Icon>
+              <ForbiddenIcon aria-hidden="true" />
+            </ContentCard.Header.Icon>
+            <ContentCard.Header.Title>Not available to you</ContentCard.Header.Title>
+          </ContentCard.Header>
+          <ContentCard.Body>
+            <ContentCard.Body.Copy>
               {unavailable.map((plan) => (
-                <p key={plan.id} className="text-nav text-fg-subtle">
+                <p key={plan.id} className="text-body text-fg-subtle">
                   <span className="text-fg">{plan.name}</span> · {plan.unavailableReason}
                 </p>
               ))}
-            </div>
-          )}
-        </div>
-      </section>
+            </ContentCard.Body.Copy>
+          </ContentCard.Body>
+        </ContentCard>
+      )}
     </div>
   );
 }

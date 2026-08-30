@@ -1,17 +1,13 @@
-import { ENDPOINTS } from "@musiccloud/shared";
+import { ENDPOINTS, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@musiccloud/shared";
 import { type ChangeEvent, type ReactNode, type SyntheticEvent, useCallback, useReducer } from "react";
 import { AuthStatus } from "@/components/auth/AuthStatus";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
+import { ContentCard } from "@/components/docs/ContentCard";
 import { postAuth } from "@/lib/authClient";
 import { AuthErrorCode, authErrorLabel } from "@/lib/authErrors";
 import { AuthStatusTone } from "@/lib/authStatusTone";
 import { FormPhase, type FormPhaseValue } from "@/lib/formPhase";
-
-/** Minimum password length the backend accepts (mirrors `PASSWORD_MIN_LENGTH`). */
-const PASSWORD_MIN_LENGTH = 8;
-/** Maximum password length the backend accepts (mirrors `PASSWORD_MAX_LENGTH`). */
-const PASSWORD_MAX_LENGTH = 128;
 
 /**
  * Consolidated signup-form state. Grouped behind a single `useReducer` (rather
@@ -70,7 +66,7 @@ function reduceSignup(state: SignupState, patch: Partial<SignupState>): SignupSt
 interface SignupFormProps {
   /**
    * The alternate sign-up affordances shown above the email/password form
-   * (the "Continue with GitHub" button and the "or" divider), passed in as
+   * (the "Sign up with GitHub" button and the "or" divider), passed in as
    * Astro slot children. They render while the form is active and are dropped once it
    * succeeds, so the post-submit "check your email" panel stands on its own
    * (an "or" with no second option would otherwise linger).
@@ -81,6 +77,9 @@ interface SignupFormProps {
    * already validated server-side by `signup.astro` (existing + enabled).
    * Shown as a hint above the fields and submitted as `tierId` so the
    * account is created with that tier assigned. Absent for a plain signup.
+   * Because the hint names one plan, the footer carries a link back to the
+   * pricing page so a different one can be picked without leaving through the
+   * browser's back button.
    */
   tier?: { id: string; name: string; color: string };
 }
@@ -166,57 +165,70 @@ export function SignupForm({ children, tier }: SignupFormProps) {
   }
 
   return (
-    <>
-      {children}
-      {tier && (
-        <p className="icon-text-first-line gap-2 rounded-button border border-border bg-surface px-3 py-2 text-body text-fg-muted">
-          <span className="icon-text-first-line__icon">
-            <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: tier.color }} aria-hidden="true" />
-          </span>
-          Signing up for the <span className="text-fg font-medium">{tier.name}</span> tier.
-        </p>
-      )}
-      <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-        <TextField
-          name="displayName"
-          label="Display name"
-          value={displayName}
-          onChange={onDisplayName}
-          autoComplete="name"
-          required={false}
-          placeholder="Optional"
-        />
-        <TextField
-          name="email"
-          label="Email"
-          type="email"
-          value={email}
-          onChange={onEmail}
-          autoComplete="email"
-          placeholder="you@example.com"
-          error={emailError ?? undefined}
-        />
-        <TextField
-          name="password"
-          label="Password"
-          type="password"
-          value={password}
-          onChange={onPassword}
-          autoComplete="new-password"
-          hint={`${PASSWORD_MIN_LENGTH}–${PASSWORD_MAX_LENGTH} characters.`}
-          error={passwordError ?? undefined}
-        />
-        <TextField
-          name="confirmPassword"
-          label="Repeat password"
-          type="password"
-          value={confirmPassword}
-          onChange={onConfirmPassword}
-          autoComplete="new-password"
-          error={confirmPasswordError ?? undefined}
-        />
+    <form onSubmit={onSubmit} noValidate>
+      <ContentCard.Body>
+        <ContentCard.Body.Copy>
+          {children}
+          {tier && (
+            <p className="icon-text-first-line gap-2 rounded-button border border-border bg-surface px-3 py-2 text-body text-fg-muted">
+              <span className="icon-text-first-line__icon">
+                <span
+                  className="size-3 shrink-0 rounded-full"
+                  style={{ backgroundColor: tier.color }}
+                  aria-hidden="true"
+                />
+              </span>
+              Signing up for the <span className="text-fg font-medium">{tier.name}</span> plan.
+            </p>
+          )}
+          <TextField
+            name="displayName"
+            label="Display name"
+            value={displayName}
+            onChange={onDisplayName}
+            autoComplete="name"
+            required={false}
+            placeholder="Optional"
+          />
+          <TextField
+            name="email"
+            label="Email"
+            type="email"
+            value={email}
+            onChange={onEmail}
+            autoComplete="email"
+            placeholder="you@example.com"
+            error={emailError ?? undefined}
+          />
+          <TextField
+            name="password"
+            label="Password"
+            type="password"
+            value={password}
+            onChange={onPassword}
+            autoComplete="new-password"
+            hint={`${PASSWORD_MIN_LENGTH}–${PASSWORD_MAX_LENGTH} characters.`}
+            error={passwordError ?? undefined}
+          />
+          <TextField
+            name="confirmPassword"
+            label="Repeat password"
+            type="password"
+            value={confirmPassword}
+            onChange={onConfirmPassword}
+            autoComplete="new-password"
+            error={confirmPasswordError ?? undefined}
+          />
+        </ContentCard.Body.Copy>
+      </ContentCard.Body>
+      <ContentCard.Footer>
+        {tier && (
+          <a href="/pricing" className="button button--secondary text-body">
+            Back to plans
+          </a>
+        )}
         <SubmitButton loading={phase === FormPhase.Submitting}>Create account</SubmitButton>
-      </form>
-    </>
+      </ContentCard.Footer>
+    </form>
   );
 }

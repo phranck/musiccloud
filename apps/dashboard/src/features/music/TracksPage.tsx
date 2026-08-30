@@ -1,3 +1,4 @@
+import type { ColumnDef } from "@musiccloud/dashboard-ui";
 import {
   DashboardActionButton,
   DashboardActionId,
@@ -18,7 +19,6 @@ import {
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { ContentUnavailableView } from "@/components/ui/ContentUnavailableView";
-import type { ColumnDef } from "@/components/ui/DataTable";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageBody, PageLayout } from "@/components/ui/PageLayout";
 import { TableActionButton } from "@/components/ui/TableActionButton";

@@ -16,6 +16,20 @@ export function updateDeveloperPortalAvailability(
   return api.patch<DeveloperPortalAvailability>(ENDPOINTS.admin.developer.portalAvailability, next);
 }
 
+/** The bounds the operator has set on the open self-service creation path. */
+export interface DeveloperLimits {
+  /** How many projects one developer account may hold at once. */
+  maxProjectsPerAccount: number;
+}
+
+export function fetchDeveloperLimits(): Promise<DeveloperLimits> {
+  return api.get<DeveloperLimits>(ENDPOINTS.admin.developer.limits);
+}
+
+export function updateDeveloperLimits(next: DeveloperLimits): Promise<DeveloperLimits> {
+  return api.patch<DeveloperLimits>(ENDPOINTS.admin.developer.limits, next);
+}
+
 export interface ApiAccessRequestResponse {
   id: string;
   developerAccountId: string;

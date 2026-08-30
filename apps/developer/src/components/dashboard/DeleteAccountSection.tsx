@@ -2,13 +2,23 @@ import { ENDPOINTS } from "@musiccloud/shared";
 import { type ChangeEvent, type SyntheticEvent, useCallback, useState } from "react";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
+import { ApiContent } from "@/components/docs/ApiContent";
+import { ContentCard } from "@/components/docs/ContentCard";
 import { postAuth } from "@/lib/authClient";
 import { AuthErrorCode } from "@/lib/authErrors";
 import { ButtonVariant } from "@/lib/buttonVariant";
 import { FormPhase, type FormPhaseValue } from "@/lib/formPhase";
+import { ForbiddenIcon, Warning2Icon } from "@/lib/icons";
 
 /** Where the browser lands once the account is deleted. */
 const HOME_PATH = "/";
+
+/** The warning both states of the card open with, so it reads the same either way. */
+const INTRO = (
+  <p className="text-body text-fg-muted">
+    Deleting your account permanently removes your profile, API clients and tokens. This cannot be undone.
+  </p>
+);
 
 /**
  * Props for {@link DeleteAccountSection}.
@@ -83,47 +93,64 @@ export function DeleteAccountSection({ hasPassword }: DeleteAccountSectionProps)
   );
 
   return (
-    <section>
-      <h2 className="card-content-inset text-card-title font-medium tracking-tight text-danger mb-3">Danger zone</h2>
-      <div className="surface-card surface-card--danger px-6 py-5">
-        <p className="text-body text-fg-muted mb-4">
-          Deleting your account permanently removes your profile, API clients and tokens. This cannot be undone.
-        </p>
+    <>
+      <ApiContent.Chapter.Header className="api-content__chapter-header--danger">
+        <ApiContent.Chapter.Header.Icon>
+          <Warning2Icon aria-hidden="true" />
+        </ApiContent.Chapter.Header.Icon>
+        <ApiContent.Chapter.Header.Title>Danger zone</ApiContent.Chapter.Header.Title>
+      </ApiContent.Chapter.Header>
+
+      <ContentCard>
+        <ContentCard.Header>
+          <ContentCard.Header.Icon>
+            <ForbiddenIcon aria-hidden="true" />
+          </ContentCard.Header.Icon>
+          <ContentCard.Header.Title>Delete account</ContentCard.Header.Title>
+        </ContentCard.Header>
 
         {!revealed ? (
-          <SubmitButton variant={ButtonVariant.Danger} type="button" onClick={onReveal}>
-            Delete account
-          </SubmitButton>
+          <>
+            <ContentCard.Body>
+              <ContentCard.Body.Copy>{INTRO}</ContentCard.Body.Copy>
+            </ContentCard.Body>
+            <ContentCard.Footer>
+              <SubmitButton variant={ButtonVariant.Danger} type="button" onClick={onReveal}>
+                Delete account
+              </SubmitButton>
+            </ContentCard.Footer>
+          </>
         ) : (
-          <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-            <p className="text-body font-medium text-danger">This action is permanent and cannot be undone.</p>
-            {hasPassword && (
-              <TextField
-                name="password"
-                label="Confirm your password"
-                type="password"
-                value={password}
-                onChange={onPassword}
-                autoComplete="current-password"
-                error={error ?? undefined}
-              />
-            )}
-            {!hasPassword && error ? <p className="field__message field__message--error">{error}</p> : null}
-            <div className="dashboard-danger-actions">
-              <div className="flex-1">
-                <SubmitButton variant={ButtonVariant.Danger} loading={phase === FormPhase.Submitting}>
-                  Permanently delete account
-                </SubmitButton>
-              </div>
-              <div className="flex-1">
-                <SubmitButton variant={ButtonVariant.Secondary} type="button" onClick={onCancel}>
-                  Cancel
-                </SubmitButton>
-              </div>
-            </div>
+          <form onSubmit={onSubmit} noValidate>
+            <ContentCard.Body>
+              <ContentCard.Body.Copy>
+                {INTRO}
+                <p className="status-message status-message--danger">This action is permanent and cannot be undone.</p>
+                {hasPassword && (
+                  <TextField
+                    name="password"
+                    label="Confirm your password"
+                    type="password"
+                    value={password}
+                    onChange={onPassword}
+                    autoComplete="current-password"
+                    error={error ?? undefined}
+                  />
+                )}
+                {!hasPassword && error ? <p className="field__message field__message--error">{error}</p> : null}
+              </ContentCard.Body.Copy>
+            </ContentCard.Body>
+            <ContentCard.Footer>
+              <SubmitButton variant={ButtonVariant.Secondary} type="button" onClick={onCancel}>
+                Cancel
+              </SubmitButton>
+              <SubmitButton variant={ButtonVariant.Danger} loading={phase === FormPhase.Submitting}>
+                Permanently delete account
+              </SubmitButton>
+            </ContentCard.Footer>
           </form>
         )}
-      </div>
-    </section>
+      </ContentCard>
+    </>
   );
 }

@@ -1,4 +1,9 @@
 @import "tailwindcss";
+/* The shared data table lives in `@musiccloud/dashboard-ui` and is styled with
+   utility classes. Tailwind only generates what it finds in the sources it
+   scans, so without this its cells render with no padding at all. The admin
+   dashboard scans the same directory through its own UnoCSS configuration. */
+@source "../../../../packages/dashboard-ui/src";
 @import "./tokens.css";
 @import "./base.css";
 @import "./components.css";

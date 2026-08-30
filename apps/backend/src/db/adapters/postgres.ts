@@ -137,7 +137,7 @@ import {
 import {
   activateApiClientToken as apiAccessActivateClientToken,
   countActiveApiClientsByProject as apiAccessCountActiveClientsByProject,
-  countActiveDeveloperProjectsByAccount as apiAccessCountActiveProjectsByAccount,
+  countDeveloperProjectsAgainstCeiling as apiAccessCountActiveProjectsByAccount,
   countPendingApiAccessRequests as apiAccessCountPending,
   createApiAccessAuditEvent as apiAccessCreateAuditEvent,
   createApiClient as apiAccessCreateClient,
@@ -1219,7 +1219,7 @@ export class PostgresAdapter
     return apiAccessListDeveloperProjectsByAccount(this.pool, developerAccountId);
   }
 
-  countActiveDeveloperProjectsByAccount(developerAccountId: string): Promise<number> {
+  countDeveloperProjectsAgainstCeiling(developerAccountId: string): Promise<number> {
     return apiAccessCountActiveProjectsByAccount(this.pool, developerAccountId);
   }
 

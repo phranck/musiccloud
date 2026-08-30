@@ -23,6 +23,11 @@ export interface TextFieldProps {
   error?: string;
   /** Optional helper text shown below the control when there is no error. */
   hint?: string;
+  /**
+   * Extra classes for the field's own box, for a width modifier such as
+   * `field--third`. Not for restyling the control.
+   */
+  className?: string;
   /** `autocomplete` attribute forwarded to the input (e.g. `email`, `current-password`). */
   autoComplete?: string;
   /** Marks the field required for native validation. Defaults to `true`. */
@@ -56,14 +61,15 @@ export function TextField({
   autoComplete,
   required = true,
   placeholder,
+  className = "",
 }: TextFieldProps) {
   const inputId = useId();
   const messageId = `${inputId}-message`;
   const hasError = Boolean(error);
 
   return (
-    <div className="field">
-      <label htmlFor={inputId} className="field__label text-body">
+    <div className={`field ${className}`.trim()}>
+      <label htmlFor={inputId} className="field__label">
         {label}
       </label>
       <input

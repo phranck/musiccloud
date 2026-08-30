@@ -40,7 +40,7 @@ const mockRepo = {
   createDeveloperProject: vi.fn(),
   findDeveloperProjectById: vi.fn(),
   listDeveloperProjectsByAccount: vi.fn().mockResolvedValue([]),
-  countActiveDeveloperProjectsByAccount: vi.fn().mockResolvedValue(0),
+  countDeveloperProjectsAgainstCeiling: vi.fn().mockResolvedValue(0),
   countActiveApiClientsByProject: vi.fn().mockResolvedValue(0),
   updateDeveloperProject: vi.fn(),
   createApiAccessRequest: vi.fn(),
@@ -70,6 +70,9 @@ const mockTierRepo = {
   ]),
 };
 
+/** The ceiling the mocked setting reports, so a test can read it back. */
+const MAX_PROJECTS = 3;
+
 vi.mock("../db/index.js", () => ({
   getApiAccessRepository: async () => mockRepo,
   getDeveloperRepository: async () => mockDeveloperRepo,
@@ -80,11 +83,19 @@ vi.mock("../services/email-actions.js", () => ({
   triggerEmailAction: vi.fn(async () => undefined),
 }));
 
+// The project ceiling is an operator setting rather than a constant, and the
+// store behind it opens its own connection. The tests own the number instead.
+const CEILING = 3;
+const mockMaxProjects = vi.fn(async () => CEILING);
+vi.mock("../services/developer-limits.js", () => ({
+  MAX_PROJECTS: 3,
+  getMaxProjectsPerAccount: () => mockMaxProjects(),
+}));
+
 import { triggerEmailAction } from "../services/email-actions.js";
 import {
   CREATIONS_PER_MINUTE_PER_ACCOUNT,
   devApiAccessRoutes,
-  MAX_PROJECTS_PER_ACCOUNT,
   MAX_REGISTRATIONS_PER_PROJECT,
 } from "./dev-api-access.js";
 
@@ -256,10 +267,11 @@ beforeEach(() => {
   mockRepo.listApiClientsByDeveloperAccount.mockResolvedValue([]);
   mockRepo.listDeveloperProjectsByAccount.mockResolvedValue([]);
   mockRepo.listApiClientsByProject.mockResolvedValue([]);
-  mockRepo.countActiveDeveloperProjectsByAccount.mockResolvedValue(0);
+  mockRepo.countDeveloperProjectsAgainstCeiling.mockResolvedValue(0);
   mockRepo.countActiveApiClientsByProject.mockResolvedValue(0);
   mockRepo.createApiAccessAuditEvent.mockResolvedValue({});
   mockRepo.setDeveloperProjectSubscription.mockResolvedValue({ id: "sub-1" });
+  mockMaxProjects.mockResolvedValue(MAX_PROJECTS);
   mockTierRepo.listTiers.mockResolvedValue([
     { id: "tier_free", name: "Free", enabled: true, requestsPerMinute: 60, requestsPerDay: 10000 },
     { id: "tier_pro", name: "Pro", enabled: true, requestsPerMinute: 600, requestsPerDay: 100000 },
@@ -292,6 +304,10 @@ describe("devApiAccessRoutes", () => {
       );
       expect(listed.statusCode).toBe(200);
       expect(listed.json().projects).toHaveLength(2);
+      // The ceiling travels with the list, because the screen that shows the
+      // projects is the one that says how many more may be created. `used`
+      // counts active projects, the same measure the creation route enforces.
+      expect(listed.json().limits).toEqual({ maxProjects: CEILING, usedProjects: 0 });
       expect(mockRepo.listDeveloperProjectsByAccount).toHaveBeenCalledWith("dev-1");
       expect(mockRepo.createApiAccessAuditEvent).toHaveBeenCalledWith(
         expect.objectContaining({ projectId: "project-1", eventType: "project_created" }),
@@ -576,6 +592,7 @@ describe("devApiAccessRoutes", () => {
     it("refuses a disabled tier even when it is the free one", async () => {
       const app = await buildApp("dev-1");
       mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject());
+      mockMaxProjects.mockResolvedValue(MAX_PROJECTS);
       mockTierRepo.listTiers.mockResolvedValue([
         { id: "tier_free", name: "Free", enabled: false, requestsPerMinute: 60, requestsPerDay: 10000 },
       ]);
@@ -636,7 +653,7 @@ describe("devApiAccessRoutes", () => {
   describe("creation bounds", () => {
     it("refuses a project once the account already holds the ceiling", async () => {
       const app = await buildApp("dev-1");
-      mockRepo.countActiveDeveloperProjectsByAccount.mockResolvedValue(MAX_PROJECTS_PER_ACCOUNT);
+      mockRepo.countDeveloperProjectsAgainstCeiling.mockResolvedValue(MAX_PROJECTS);
 
       const response = await app.inject({
         method: "POST",
@@ -647,14 +664,30 @@ describe("devApiAccessRoutes", () => {
       expect(response.statusCode).toBe(409);
       expect(response.json().error).toBe("MC-REQ-0003");
       expect(response.json().errorId).toBeTruthy();
-      expect(response.json().context).toEqual({ limit: MAX_PROJECTS_PER_ACCOUNT });
-      expect(mockRepo.countActiveDeveloperProjectsByAccount).toHaveBeenCalledWith("dev-1");
+      expect(response.json().context).toEqual({ limit: MAX_PROJECTS });
+      expect(mockRepo.countDeveloperProjectsAgainstCeiling).toHaveBeenCalledWith("dev-1");
+      expect(mockRepo.createDeveloperProject).not.toHaveBeenCalled();
+    });
+
+    it("enforces the ceiling the operator set, not a number baked into the route", async () => {
+      const app = await buildApp("dev-1");
+      mockMaxProjects.mockResolvedValue(7);
+      mockRepo.countDeveloperProjectsAgainstCeiling.mockResolvedValue(7);
+
+      const response = await app.inject({
+        method: "POST",
+        url: ENDPOINTS.dev.apiAccess.projects,
+        payload: { displayName: "One too many" },
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json().context).toEqual({ limit: 7 });
       expect(mockRepo.createDeveloperProject).not.toHaveBeenCalled();
     });
 
     it("creates a project while the account stays below the ceiling", async () => {
       const app = await buildApp("dev-1");
-      mockRepo.countActiveDeveloperProjectsByAccount.mockResolvedValue(MAX_PROJECTS_PER_ACCOUNT - 1);
+      mockRepo.countDeveloperProjectsAgainstCeiling.mockResolvedValue(MAX_PROJECTS - 1);
       mockRepo.createDeveloperProject.mockResolvedValue(makeProject());
 
       const response = await app.inject({

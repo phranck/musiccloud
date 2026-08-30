@@ -105,6 +105,22 @@ down to its meaningful inner slots.
 - See [`apps/backend/RUNTIME_SAFETY.md`](apps/backend/RUNTIME_SAFETY.md) before
   changing Backend bootstrap, tsup output format, or deploy health checks.
 
+## Creem billing
+
+- `creem@1.5.3` covers 42 of the REST API's 55 operations. `products.update`,
+  `products.archive` and `refunds` exist in the API but not in the SDK; call
+  them directly against the same base URL and key, wrapped next to
+  `getCreemClient`, rather than treating them as unavailable.
+- A product cannot be deleted, only archived, and an archived product still
+  answers `products.get` with its price. Archiving at Creem and removing the
+  `tier_creem_products` row are two halves of one operation; doing only the
+  first leaves the pricing page showing an unbuyable product's price.
+- Creem issues no scoped or read-only keys. The one key that creates a product
+  also issues refunds and cancels subscriptions, so it stays in the backend and
+  every route using it checks for an admin first.
+- A free tier gets no Creem product: Creem rejects a recurring product priced
+  at zero. Its price comes from our own `tiers` table.
+
 ## GitHub Project execution queue
 
 - The GitHub Project [`musiccloud`](https://github.com/users/phranck/projects/1)

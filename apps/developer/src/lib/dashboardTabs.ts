@@ -47,8 +47,16 @@ export interface DashboardNavItem {
 /** Ordered sidebar navigation for the dashboard shell. */
 export const DASHBOARD_NAV: readonly DashboardNavItem[] = [
   { tab: DashboardTab.Overview, label: "Overview", href: "/dashboard", comingSoon: false },
+  { tab: DashboardTab.Profile, label: "Profile", href: "/dashboard/profile", comingSoon: false },
   { tab: DashboardTab.Projects, label: "Projects", href: "/dashboard/projects", comingSoon: false },
   { tab: DashboardTab.ApiAccess, label: "API access", href: "/dashboard/api-access", comingSoon: false },
   { tab: DashboardTab.Usage, label: "Usage", href: "/dashboard/usage", comingSoon: false },
-  { tab: DashboardTab.Profile, label: "Profile", href: "/dashboard/profile", comingSoon: false },
 ];
+
+/**
+ * The destinations the rail groups under "API", in the order they are listed.
+ *
+ * Requesting access and reading the usage it produced are two views of the same
+ * subject, so the rail opens them together rather than as two unrelated rows.
+ */
+export const API_SECTION_TABS: readonly DashboardTabValue[] = [DashboardTab.ApiAccess, DashboardTab.Usage];

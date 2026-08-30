@@ -7,6 +7,15 @@ import { describe, expect, it } from "vitest";
 import PublicFooter from "./PublicFooter.astro";
 
 describe("PublicFooter", () => {
+  it("says who the portal belongs to and who built it", async () => {
+    const container = await AstroContainer.create({ renderers: await loadRenderers([getContainerRenderer()]) });
+    const html = await container.renderToString(PublicFooter, { props: { navigation: [] } });
+
+    expect(html).toContain(`© ${new Date().getFullYear()} musiccloud`);
+    expect(html).toContain('href="https://layered.work" target="_blank" rel="noopener noreferrer"');
+    expect(html).toContain("LAYERED");
+  });
+
   it("renders managed external and Search destinations with their canonical behavior", async () => {
     const container = await AstroContainer.create({ renderers: await loadRenderers([getContainerRenderer()]) });
     const html = await container.renderToString(PublicFooter, {

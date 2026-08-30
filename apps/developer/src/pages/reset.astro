@@ -7,6 +7,8 @@
  * confirmation), which posts `{ token, password }` to `reset-password`.
  */
 import AuthCard from "@/components/auth/AuthCard.astro";
+import { ContentCard } from "@/components/docs/ContentCard";
+import { KeyIcon } from "@/lib/icons";
 import { ResetForm } from "@/components/auth/ResetForm";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 
@@ -16,18 +18,20 @@ const token = Astro.url.searchParams.get("token");
 ---
 
 <BaseLayout title="Set a new password · musiccloud for developers">
-  <AuthCard title="Set a new password">
+  <AuthCard title="Set a new password" icon={KeyIcon}>
     {
       token ? (
         <ResetForm client:load token={token} />
       ) : (
-        <p class="text-body text-fg-muted text-center py-2">
+        <ContentCard.Body>
+          <p class="text-body text-fg-muted text-center py-2">
           This reset link is missing its token. Request a new one from the{" "}
           <a href="/forgot" class="content-link text-fg">
             reset page
           </a>
           .
-        </p>
+          </p>
+        </ContentCard.Body>
       )
     }
     <Fragment slot="footer">

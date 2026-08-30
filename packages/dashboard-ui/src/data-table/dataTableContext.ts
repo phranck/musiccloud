@@ -5,7 +5,7 @@ import {
   type ReactNode,
   useContext,
 } from "react";
-import type { SortState } from "@/lib/hooks/useTableSort";
+import type { SortState } from "./useTableSort.js";
 
 /**
  * Which of the four mutually exclusive things a table is showing. Every state

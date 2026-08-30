@@ -54,6 +54,7 @@ import { devApiAccessRoutes } from "./routes/dev-api-access.js";
 import { devAuthRoutes } from "./routes/developer-auth.js";
 import { devGitHubRoutes } from "./routes/developer-github.js";
 import {
+  developerLimitsAdminRoutes,
   developerPortalAvailabilityAdminRoutes,
   developerPortalAvailabilityInternalRoutes,
 } from "./routes/developer-portal-availability.js";
@@ -659,6 +660,7 @@ async function buildApp(options: BuildAppOptions = {}) {
     await adminApp.register(adminPluginsRoutes);
     await adminApp.register(adminCrawlerRoutes);
     await adminApp.register(developerPortalAvailabilityAdminRoutes);
+    await adminApp.register(developerLimitsAdminRoutes);
   });
 
   return app;

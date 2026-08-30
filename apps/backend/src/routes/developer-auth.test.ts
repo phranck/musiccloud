@@ -25,7 +25,7 @@
 
 import cookie from "@fastify/cookie";
 import jwt from "@fastify/jwt";
-import { EmailAction, EmailRecipientKind, ENDPOINTS } from "@musiccloud/shared";
+import { EmailAction, EmailRecipientKind, ENDPOINTS, MAX_DISPLAY_NAME_LENGTH } from "@musiccloud/shared";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -684,6 +684,55 @@ describe("PATCH /api/dev/auth/profile", () => {
     expect(vi.mocked(repo.updateDeveloperAccount)).toHaveBeenCalledWith("dev-acc-1", {
       technicalContactEmail: null,
     });
+  });
+
+  it("stores a trimmed display name and leaves the contact address alone", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
+    vi.mocked(repo.updateDeveloperAccount).mockResolvedValue(makeAccount({ displayName: "Ada" }));
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: ENDPOINTS.dev.auth.profile,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { displayName: "  Ada  " },
+    });
+
+    expect(res.statusCode).toBe(200);
+    // Only what the body carries is written, so the two screens that edit this
+    // account cannot clear each other's field.
+    expect(vi.mocked(repo.updateDeveloperAccount)).toHaveBeenCalledWith("dev-acc-1", { displayName: "Ada" });
+  });
+
+  it("treats an empty display name as none", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
+    vi.mocked(repo.updateDeveloperAccount).mockResolvedValue(makeAccount({ displayName: null }));
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: ENDPOINTS.dev.auth.profile,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { displayName: "   " },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(vi.mocked(repo.updateDeveloperAccount)).toHaveBeenCalledWith("dev-acc-1", { displayName: null });
+  });
+
+  it("refuses a display name longer than the shared limit", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: ENDPOINTS.dev.auth.profile,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { displayName: "a".repeat(MAX_DISPLAY_NAME_LENGTH + 1) },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(vi.mocked(repo.updateDeveloperAccount)).not.toHaveBeenCalled();
   });
 
   it("refuses a value that cannot be an address", async () => {

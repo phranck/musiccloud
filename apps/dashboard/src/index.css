@@ -1,3 +1,19 @@
+@import "tailwindcss";
+/* The shared data table is styled with utility classes and lives in
+   `@musiccloud/dashboard-ui`, so its sources are scanned here too. The
+   developer portal scans the same directory from its own stylesheet. */
+@source "../../../packages/dashboard-ui/src";
+
+/* The two radii and the three families the dashboard names in class form. The
+   developer portal states its own; these are the dashboard's. */
+@theme {
+  --radius-control: 0.5rem;
+  --radius-card: 1.25rem;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-heading: "Barlow Condensed", system-ui, sans-serif;
+  --font-serif: "Barlow Condensed", system-ui, sans-serif;
+}
+
 @import "./shared/styles/tokens.css";
 @import "./shared/styles/neumorphic.css";
 
