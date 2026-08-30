@@ -1,8 +1,8 @@
 /**
- * @file Admin routes for the API-access system (MC-025/MC-077): review
- * requests, manage clients, and issue/revoke/rotate tokens on their
- * behalf (moderation/support case — the primary path is developer
- * self-service via `routes/dev-api-access.ts`). Restricted to `owner`/
+ * @file Admin routes for the API-access system (MC-025/MC-077): manage
+ * projects and registrations, and issue/revoke/rotate tokens on a
+ * developer's behalf (moderation/support case — the primary path is
+ * developer self-service via `routes/dev-api-access.ts`). Restricted to `owner`/
  * `admin` roles; `moderator` is rejected even though `authenticateAdmin`
  * already let the JWT through, because that guard only checks the JWT's
  * `role: "admin"` claim, not the finer owner/admin/moderator distinction.
@@ -10,7 +10,6 @@
 import { EmailAction, ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import type {
-  ApiAccessRequest,
   ApiClient,
   ApiClientToken,
   DeveloperProject,
@@ -29,27 +28,9 @@ import { notifyDeveloper } from "../services/developer-notifications.js";
  * DB role in case it changed since the token was issued.
  */
 
-function toRequestResponse(request: ApiAccessRequest) {
-  return {
-    id: request.id,
-    developerAccountId: request.developerAccountId,
-    projectId: request.projectId,
-    contactEmail: request.contactEmail,
-    appName: request.appName,
-    appDescription: request.appDescription,
-    estimatedRequestsPerDay: request.estimatedRequestsPerDay,
-    status: request.status,
-    submittedAt: new Date(request.submittedAt).toISOString(),
-    reviewedAt: request.reviewedAt ? new Date(request.reviewedAt).toISOString() : null,
-    reviewedByAdminId: request.reviewedByAdminId,
-    reviewNote: request.reviewNote,
-  };
-}
-
 function toClientResponse(client: ApiClient, tokens: ApiClientToken[]) {
   return {
     id: client.id,
-    requestId: client.requestId,
     developerAccountId: client.developerAccountId,
     projectId: client.projectId,
     publicClientId: client.publicClientId,
@@ -165,10 +146,8 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
   app.get(ENDPOINTS.admin.developer.apiAccess.overview, async (request, reply) => {
     if (!(await requireOwnerOrAdmin(request, reply))) return;
     const repo = await getApiAccessRepository();
-    const query = request.query as { status?: string };
-    const [requests, clients] = await Promise.all([repo.listApiAccessRequests(query.status), repo.listApiClients()]);
+    const clients = await repo.listApiClients();
     return reply.send({
-      requests: requests.map(toRequestResponse),
       clients: await Promise.all(
         clients.map(async (client) => toClientResponse(client, await repo.listApiClientTokensByClient(client.id))),
       ),
@@ -396,109 +375,6 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
     const deleted = await devRepo.deleteDeveloperAccount(id);
     if (!deleted) return reply.status(404).send({ error: "NOT_FOUND", message: "Developer account not found." });
     return reply.status(204).send();
-  });
-
-  app.get(ROUTE_TEMPLATES.admin.developer.apiAccess.requestDetail, async (request, reply) => {
-    if (!(await requireOwnerOrAdmin(request, reply))) return;
-    const { id } = request.params as { id: string };
-    const repo = await getApiAccessRepository();
-    const found = await repo.findApiAccessRequestById(id);
-    if (!found) return reply.status(404).send({ error: "NOT_FOUND", message: "Request not found." });
-    return reply.send({ request: toRequestResponse(found) });
-  });
-
-  app.post(ROUTE_TEMPLATES.admin.developer.apiAccess.requestApprove, async (request, reply) => {
-    const caller = await requireOwnerOrAdmin(request, reply);
-    if (!caller) return;
-    const { id } = request.params as { id: string };
-    const body = request.body as { requestsPerMinute?: number; requestsPerDay?: number } | null;
-    const repo = await getApiAccessRepository();
-    const found = await repo.findApiAccessRequestById(id);
-    if (!found) return reply.status(404).send({ error: "NOT_FOUND", message: "Request not found." });
-    if (found.status !== "pending") {
-      return reply.status(400).send({ error: "INVALID_REQUEST", message: "Request already reviewed." });
-    }
-
-    const project = found.projectId
-      ? await repo.findDeveloperProjectById(found.projectId)
-      : await repo.createDeveloperProject({
-          developerAccountId: found.developerAccountId,
-          displayName: found.appName,
-          requestsPerMinute: body?.requestsPerMinute,
-          requestsPerDay: body?.requestsPerDay,
-          tierId: (await (await getDeveloperRepository()).findDeveloperAccountById(found.developerAccountId))?.tierId,
-          createdByAdminId: caller.id,
-        });
-    if (!project || project.developerAccountId !== found.developerAccountId) {
-      return reply.status(409).send({ error: "PROJECT_OWNERSHIP_MISMATCH", message: "Project ownership mismatch." });
-    }
-    const reviewed = await repo.reviewApiAccessRequest(id, {
-      status: "approved",
-      reviewedByAdminId: caller.id,
-      projectId: project.id,
-    });
-    const client = await repo.createApiClient({
-      requestId: id,
-      developerAccountId: found.developerAccountId,
-      projectId: project.id,
-      registrationType: "development",
-      capabilities: ["legacy_api_key"],
-      appName: found.appName,
-      contactEmail: found.contactEmail,
-      description: found.appDescription,
-      createdByAdminId: caller.id,
-    });
-    if (!found.projectId) {
-      await repo.createApiAccessAuditEvent({
-        projectId: project.id,
-        eventType: "project_created",
-        actorAdminId: caller.id,
-        eventData: { sourceRequestId: id },
-      });
-    }
-    await repo.createApiAccessAuditEvent({
-      projectId: project.id,
-      requestId: id,
-      clientId: client.id,
-      eventType: "request_approved",
-      actorAdminId: caller.id,
-    });
-    await notifyDeveloper(request.log, found.developerAccountId, EmailAction.DeveloperApiAccessApproved, {
-      appName: found.appName,
-    });
-    return reply.send({ request: toRequestResponse(reviewed!), client: toClientResponse(client, []) });
-  });
-
-  app.post(ROUTE_TEMPLATES.admin.developer.apiAccess.requestReject, async (request, reply) => {
-    const caller = await requireOwnerOrAdmin(request, reply);
-    if (!caller) return;
-    const { id } = request.params as { id: string };
-    const body = request.body as { reviewNote?: string } | null;
-    if (!body?.reviewNote?.trim()) {
-      return reply.status(400).send({ error: "INVALID_REQUEST", message: "reviewNote is required to reject." });
-    }
-    const repo = await getApiAccessRepository();
-    const found = await repo.findApiAccessRequestById(id);
-    if (!found) return reply.status(404).send({ error: "NOT_FOUND", message: "Request not found." });
-    if (found.status !== "pending") {
-      return reply.status(400).send({ error: "INVALID_REQUEST", message: "Request already reviewed." });
-    }
-    const reviewed = await repo.reviewApiAccessRequest(id, {
-      status: "rejected",
-      reviewedByAdminId: caller.id,
-      reviewNote: body.reviewNote.trim(),
-    });
-    await repo.createApiAccessAuditEvent({
-      projectId: found.projectId,
-      requestId: id,
-      eventType: "request_rejected",
-      actorAdminId: caller.id,
-    });
-    await notifyDeveloper(request.log, found.developerAccountId, EmailAction.DeveloperApiAccessRejected, {
-      appName: found.appName,
-      reviewNote: body.reviewNote.trim(),
-    });
-    return reply.send({ request: toRequestResponse(reviewed!) });
   });
 
   app.get(ROUTE_TEMPLATES.admin.developer.apiAccess.clientDetail, async (request, reply) => {

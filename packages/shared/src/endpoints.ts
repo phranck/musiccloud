@@ -348,14 +348,8 @@ export const ENDPOINTS = {
       /** GET / PATCH: Owner-managed availability state for the Developer Portal. */
       portalAvailability: "/api/admin/developer/portal-availability",
       apiAccess: {
-        /** GET: overview — pending requests + active clients. Query: `?status=` filters requests. */
+        /** GET: overview — every registration with its tokens. */
         overview: "/api/admin/developer/api-access",
-        /** GET: a single request by id. */
-        requestDetail: (id: string) => `/api/admin/developer/api-access/requests/${id}`,
-        /** POST: approve a request; creates a new client linked to it. Body: `{ requestsPerMinute?, requestsPerDay? }`. */
-        requestApprove: (id: string) => `/api/admin/developer/api-access/requests/${id}/approve`,
-        /** POST: reject a request. Body: `{ reviewNote }` (required). */
-        requestReject: (id: string) => `/api/admin/developer/api-access/requests/${id}/reject`,
         /** GET: a single client by id, including its tokens (never the hash). */
         clientDetail: (id: string) => `/api/admin/developer/api-access/clients/${id}`,
         /** PATCH: update a client's status/rate limits. Body: `{ status?, requestsPerMinute?, requestsPerDay? }`. */
@@ -423,7 +417,7 @@ export const ENDPOINTS = {
       profile: "/api/dev/auth/profile",
       /**
        * POST: permanently delete the caller's own developer account (cascades
-       * to identities, tokens, API-access requests/clients) and clear the
+       * to identities, tokens, projects and registrations) and clear the
        * session cookie. Body: `{ password }` — required only when the
        * account has a password set (omitted/ignored for GitHub-only accounts).
        */
@@ -443,13 +437,9 @@ export const ENDPOINTS = {
      * Developer self-service API-access management (MC-025/MC-077).
      * Every route requires the `mc_dev_session` cookie; ownership is
      * enforced server-side (a developer can only ever see/mutate their
-     * own requests, clients and tokens).
+     * own projects, registrations and tokens).
      */
     apiAccess: {
-      /** POST: submit a new access request. Body: { appName, appDescription, estimatedRequestsPerDay }. */
-      requestsCreate: "/api/dev/api-access/requests",
-      /** GET: list the caller's own requests. */
-      requestsList: "/api/dev/api-access/requests",
       /** GET: list the caller's own clients, including their tokens (never the hash). */
       clientsList: "/api/dev/api-access/clients",
       /** GET / POST: list or create independently subscribed projects owned by the caller. */
@@ -533,9 +523,6 @@ export const ROUTE_TEMPLATES = {
     },
     developer: {
       apiAccess: {
-        requestDetail: "/api/admin/developer/api-access/requests/:id",
-        requestApprove: "/api/admin/developer/api-access/requests/:id/approve",
-        requestReject: "/api/admin/developer/api-access/requests/:id/reject",
         clientDetail: "/api/admin/developer/api-access/clients/:id",
         clientUpdate: "/api/admin/developer/api-access/clients/:id",
         clientCreateToken: "/api/admin/developer/api-access/clients/:id/tokens",

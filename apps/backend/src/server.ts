@@ -562,7 +562,7 @@ async function buildApp(options: BuildAppOptions = {}) {
   await app.register(devGitHubRoutes);
 
   // Developer-portal self-service API-access routes (MC-025/MC-077):
-  // submit a request, list the caller's own requests/clients, and
+  // list and create the caller's own projects and registrations, and
   // manage the caller's own tokens. Guarded by authenticateDeveloper as
   // this scope's preHandler, mirroring adminRoutes/protectedRoutes below.
   await app.register(async function devProtectedRoutes(devApp) {
