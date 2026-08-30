@@ -92,6 +92,7 @@ export interface DeveloperProjectSubscription {
  * @property appName - Name of the app.
  * @property contactEmail - Display contact email.
  * @property description - Free-text description.
+ * @property websiteUrl - Where this one application can be looked at, or `null`. Always `http` or `https`.
  * @property status - `"active"` | `"suspended"` | `"revoked"`.
  * @property requestsPerMinute - Optional registration cap, or `null` to use the project limit.
  * @property requestsPerDay - Optional daily registration cap, or `null` to use the project limit.
@@ -120,6 +121,7 @@ export interface ApiClient {
   appName: string;
   contactEmail: string;
   description: string;
+  websiteUrl: string | null;
   status: string;
   requestsPerMinute: number | null;
   requestsPerDay: number | null;
@@ -303,6 +305,7 @@ export interface ApiAccessRepository {
     appName: string;
     contactEmail: string;
     description: string;
+    websiteUrl?: string | null;
     requestsPerMinute?: number | null;
     requestsPerDay?: number | null;
     createdByAdminId?: string | null;

@@ -60,6 +60,8 @@ export interface ApiClientResponse {
   appName: string;
   contactEmail: string;
   description: string;
+  /** Where this one application can be looked at, or `null`. Always `http` or `https`. */
+  websiteUrl: string | null;
   status: string;
   /** Optional registration cap. It can narrow, never widen, the project limit. */
   requestsPerMinute: number | null;
@@ -113,6 +115,8 @@ export interface DeveloperAccountResponse {
   emailVerifiedAt: string | null;
   displayName: string | null;
   avatarUrl: string | null;
+  /** Where the operator writes about this account's applications, or `null`. Never verified. */
+  technicalContactEmail: string | null;
   /** Assigned tier id, or `null` when no tier is assigned. */
   tierId: string | null;
   /** Display name of the assigned tier, or `null`. */

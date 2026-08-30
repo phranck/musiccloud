@@ -72,6 +72,7 @@ function makeClient(overrides: Partial<ApiClient> = {}): ApiClient {
     appName: "App",
     contactEmail: "dev@example.com",
     description: "Desc",
+    websiteUrl: null,
     status: "active",
     // Defaults model a key without overrides that inherits the Free tier.
     requestsPerMinute: null,

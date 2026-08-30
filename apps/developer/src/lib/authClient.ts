@@ -23,24 +23,32 @@ export interface AuthResult {
   message?: string;
 }
 
+/** The methods the portal's auth surface uses. Anything else is a mistake, not a choice. */
+export type AuthRequestMethod = "POST" | "PATCH";
+
 /**
- * POST a JSON body to a same-origin auth endpoint and normalise the result.
+ * Send a JSON body to a same-origin auth endpoint and normalise the result.
  *
  * Sends `credentials: "same-origin"` so the BFF can read and set the
  * `mc_dev_session` cookie. A successful 2xx yields `{ ok: true }`; a non-2xx
  * parses the `{ error, message }` body into `code` / `message`; a thrown fetch
  * (offline, DNS, abort) yields `{ ok: false, status: 0 }`. Never throws.
  *
+ * @param method - The HTTP method to use.
  * @param path - The same-origin endpoint path (e.g. `ENDPOINTS.dev.auth.login`).
  * @param body - A JSON-serialisable request body.
- * @param signal - Optional `AbortSignal` to cancel an in-flight request (used by
- *   the verify view's mount effect cleanup).
+ * @param signal - Optional `AbortSignal` to cancel an in-flight request.
  * @returns The normalised {@link AuthResult}.
  */
-export async function postAuth(path: string, body: unknown, signal?: AbortSignal): Promise<AuthResult> {
+export async function sendAuth(
+  method: AuthRequestMethod,
+  path: string,
+  body: unknown,
+  signal?: AbortSignal,
+): Promise<AuthResult> {
   try {
     const res = await fetch(path, {
-      method: "POST",
+      method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
       credentials: "same-origin",
@@ -62,4 +70,17 @@ export async function postAuth(path: string, body: unknown, signal?: AbortSignal
   } catch {
     return { ok: false, status: 0 };
   }
+}
+
+/**
+ * POST a JSON body to a same-origin auth endpoint.
+ *
+ * @param path - The same-origin endpoint path (e.g. `ENDPOINTS.dev.auth.login`).
+ * @param body - A JSON-serialisable request body.
+ * @param signal - Optional `AbortSignal` to cancel an in-flight request (used by
+ *   the verify view's mount effect cleanup).
+ * @returns The normalised {@link AuthResult}.
+ */
+export function postAuth(path: string, body: unknown, signal?: AbortSignal): Promise<AuthResult> {
+  return sendAuth("POST", path, body, signal);
 }

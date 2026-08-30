@@ -1155,6 +1155,7 @@ export class PostgresAdapter
     data: {
       email?: string;
       displayName?: string | null;
+      technicalContactEmail?: string | null;
       tierId?: string | null;
       status?: string;
     },
@@ -1299,6 +1300,7 @@ export class PostgresAdapter
     appName: string;
     contactEmail: string;
     description: string;
+    websiteUrl?: string | null;
     requestsPerMinute?: number;
     requestsPerDay?: number;
     createdByAdminId?: string | null;

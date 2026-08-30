@@ -83,6 +83,7 @@ function makeAccount(overrides: Partial<DeveloperAccount> = {}): DeveloperAccoun
     passwordHash: null,
     displayName: null,
     avatarUrl: null,
+    technicalContactEmail: null,
     tierId: null,
     status: "active",
     createdAt: 1_699_000_000_000,
@@ -644,6 +645,87 @@ describe("GET /api/dev/auth/me", () => {
 
     expect(res.statusCode).toBe(401);
     expect(res.json().error).toBe("UNAUTHORIZED");
+  });
+});
+
+describe("PATCH /api/dev/auth/profile", () => {
+  it("stores a trimmed technical contact address", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
+    vi.mocked(repo.updateDeveloperAccount).mockResolvedValue(makeAccount({ technicalContactEmail: "ops@example.com" }));
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: ENDPOINTS.dev.auth.profile,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { technicalContactEmail: "  ops@example.com  " },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().account.technicalContactEmail).toBe("ops@example.com");
+    expect(vi.mocked(repo.updateDeveloperAccount)).toHaveBeenCalledWith("dev-acc-1", {
+      technicalContactEmail: "ops@example.com",
+    });
+  });
+
+  it("treats an empty value as no technical contact", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
+    vi.mocked(repo.updateDeveloperAccount).mockResolvedValue(makeAccount({ technicalContactEmail: null }));
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: ENDPOINTS.dev.auth.profile,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { technicalContactEmail: "   " },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(vi.mocked(repo.updateDeveloperAccount)).toHaveBeenCalledWith("dev-acc-1", {
+      technicalContactEmail: null,
+    });
+  });
+
+  it("refuses a value that cannot be an address", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
+    const app = await buildApp();
+
+    for (const candidate of ["ops", "ops@", "@example.com", "ops@example", "ops @example.com"]) {
+      const res = await app.inject({
+        method: "PATCH",
+        url: ENDPOINTS.dev.auth.profile,
+        headers: { cookie: sessionCookie(app, "dev-acc-1") },
+        payload: { technicalContactEmail: candidate },
+      });
+      expect(res.statusCode, candidate).toBe(400);
+    }
+    expect(vi.mocked(repo.updateDeveloperAccount)).not.toHaveBeenCalled();
+  });
+
+  it("refuses an address longer than SMTP carries", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: ENDPOINTS.dev.auth.profile,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { technicalContactEmail: `${"a".repeat(250)}@example.com` },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(vi.mocked(repo.updateDeveloperAccount)).not.toHaveBeenCalled();
+  });
+
+  it("refuses without a session cookie", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "PATCH",
+      url: ENDPOINTS.dev.auth.profile,
+      payload: { technicalContactEmail: "ops@example.com" },
+    });
+
+    expect(res.statusCode).toBe(401);
   });
 });
 

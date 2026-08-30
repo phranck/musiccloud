@@ -15,7 +15,7 @@ describe("DashboardNavigation", () => {
     expect(html).toContain('data-dashboard-active-tab="true"');
     expect(html.match(/aria-current="page"/g)).toHaveLength(2);
 
-    for (const label of ["Overview", "API access", "API keys", "Usage"]) {
+    for (const label of ["Overview", "API access", "API keys", "Usage", "Profile"]) {
       expect(html.match(new RegExp(`>\\s*${label}\\s*<`, "g"))).toHaveLength(2);
     }
   });

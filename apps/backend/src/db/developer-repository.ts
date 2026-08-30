@@ -29,6 +29,9 @@
  *   that has never set a password (reserved for MC-065).
  * @property displayName - Optional display name shown in the portal.
  * @property avatarUrl - Optional avatar URL.
+ * @property technicalContactEmail - Where the operator writes when an
+ *   application on this account needs a person who can act. Optional and
+ *   unverified; nothing that only the account holder may read is sent there.
  * @property tierId - Assigned tier (see `tiers`), or `null` when unassigned
  *   (e.g. the tier was deleted; effective limits then fall back to the
  *   conservative free defaults).
@@ -45,6 +48,7 @@ export interface DeveloperAccount {
   passwordHash: string | null;
   displayName: string | null;
   avatarUrl: string | null;
+  technicalContactEmail: string | null;
   tierId: string | null;
   status: string;
   createdAt: number;
@@ -201,6 +205,7 @@ export interface DeveloperRepository {
     data: {
       email?: string;
       displayName?: string | null;
+      technicalContactEmail?: string | null;
       tierId?: string | null;
       status?: string;
     },

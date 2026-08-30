@@ -36,6 +36,7 @@ interface DeveloperAccountRow {
   password_hash: string | null;
   display_name: string | null;
   avatar_url: string | null;
+  technical_contact_email: string | null;
   tier_id: string | null;
   status: string;
   created_at: Date;
@@ -72,7 +73,7 @@ interface DeveloperEmailTokenRow {
 }
 
 const DEVELOPER_ACCOUNT_COLUMNS = `id, email, email_verified_at, password_hash, display_name,
-            avatar_url, tier_id, status, created_at, updated_at, last_login_at`;
+            avatar_url, technical_contact_email, tier_id, status, created_at, updated_at, last_login_at`;
 
 // ============================================================================
 // MAPPERS
@@ -91,6 +92,7 @@ function rowToDeveloperAccount(row: DeveloperAccountRow): DeveloperAccount {
     passwordHash: row.password_hash,
     displayName: row.display_name,
     avatarUrl: row.avatar_url,
+    technicalContactEmail: row.technical_contact_email,
     tierId: row.tier_id,
     status: row.status,
     createdAt: dateToMs(row.created_at),
@@ -339,6 +341,7 @@ export async function updateDeveloperAccount(
   data: {
     email?: string;
     displayName?: string | null;
+    technicalContactEmail?: string | null;
     tierId?: string | null;
     status?: string;
   },
@@ -355,6 +358,10 @@ export async function updateDeveloperAccount(
   if (data.displayName !== undefined) {
     sets.push(`display_name = $${paramIdx++}`);
     values.push(data.displayName);
+  }
+  if (data.technicalContactEmail !== undefined) {
+    sets.push(`technical_contact_email = $${paramIdx++}`);
+    values.push(data.technicalContactEmail);
   }
   if (data.tierId !== undefined) {
     sets.push(`tier_id = $${paramIdx++}`);

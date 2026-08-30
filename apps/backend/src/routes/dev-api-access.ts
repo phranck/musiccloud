@@ -24,6 +24,8 @@ import { notifyDeveloper } from "../services/developer-notifications.js";
 
 const MAX_APP_NAME_LENGTH = 200;
 const MAX_APP_DESCRIPTION_LENGTH = 2000;
+/** Long enough for any real application page, short enough not to be a place to put things. */
+const MAX_WEBSITE_URL_LENGTH = 500;
 
 /** Projects and registrations one account may create per minute, taken together. */
 export const CREATIONS_PER_MINUTE_PER_ACCOUNT = 10;
@@ -96,6 +98,29 @@ function refuseOverCeiling(
   return reply.status(409).send(createApiErrorResponse(ceiling.code, { context: { limit: ceiling.limit } }));
 }
 
+/**
+ * Parses an application website, returning it normalised.
+ *
+ * The value is parsed with `new URL` rather than matched against a pattern,
+ * because a pattern accepts shapes a parser rejects and this value is rendered
+ * as a link afterwards. Only `http` and `https` pass, so a `javascript:` or
+ * `data:` value cannot reach a href.
+ *
+ * @param value - The raw value from the request body, already trimmed.
+ * @returns The normalised URL, or `null` when it is not a usable web address.
+ */
+function parseWebsiteUrl(value: string): string | null {
+  if (value.length > MAX_WEBSITE_URL_LENGTH) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+  return parsed.toString();
+}
+
 function toRequestResponse(request: ApiAccessRequest) {
   return {
     id: request.id,
@@ -121,6 +146,7 @@ function toClientResponse(client: ApiClient, tokens: ApiClientToken[]) {
     projectStatus: client.projectStatus,
     appName: client.appName,
     description: client.description,
+    websiteUrl: client.websiteUrl,
     status: client.status,
     // The portal always shows what actually applies: project limits narrowed
     // by an optional registration cap. Raw overrides are an admin concern.
@@ -300,12 +326,25 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
       const body = request.body as {
         name?: string;
         description?: string;
+        websiteUrl?: string | null;
         registrationType?: "development" | "confidential" | "public";
         capabilities?: string[];
       } | null;
       const name = body?.name?.trim() ?? "";
       if (!name || name.length > MAX_APP_NAME_LENGTH) {
         return reply.status(400).send({ error: "INVALID_REQUEST", message: "name is required (max 200 chars)." });
+      }
+      // The website is optional, so an absent or empty value means there is
+      // none; anything else has to parse as a web address.
+      const rawWebsite = typeof body?.websiteUrl === "string" ? body.websiteUrl.trim() : "";
+      let websiteUrl: string | null = null;
+      if (rawWebsite !== "") {
+        websiteUrl = parseWebsiteUrl(rawWebsite);
+        if (!websiteUrl) {
+          return reply
+            .status(400)
+            .send({ error: "INVALID_REQUEST", message: "websiteUrl must be an http or https URL (max 500 chars)." });
+        }
       }
       const registrationType = body?.registrationType ?? "development";
       if (!["development", "confidential", "public"].includes(registrationType)) {
@@ -339,6 +378,7 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
         appName: name,
         contactEmail: request.developerAccount!.email,
         description: body?.description?.trim() ?? "",
+        websiteUrl,
       });
       await repo.createApiAccessAuditEvent({
         projectId: project.id,

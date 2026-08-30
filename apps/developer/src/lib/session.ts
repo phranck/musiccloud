@@ -41,6 +41,12 @@ export interface Account {
   /** Optional avatar URL (e.g. GitHub or Gravatar); `null` when unset. */
   avatarUrl: string | null;
   /**
+   * Where the operator writes when an application on this account needs a
+   * person who can act. Optional, and never verified: nothing that only the
+   * account holder may read is sent there.
+   */
+  technicalContactEmail: string | null;
+  /**
    * Display name of the account's assigned tier, or `null` when no tier is
    * assigned yet (assignment is an admin action in the dashboard). Only the
    * `/me` endpoint resolves it, and that is the endpoint this helper calls.
