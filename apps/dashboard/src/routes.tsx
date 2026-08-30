@@ -11,7 +11,6 @@ import { RootLayout } from "@/RootLayout";
 import {
   AdminLayout,
   AlbumsPage,
-  ApiAccessRequestsPage,
   ApiClientsPage,
   ArtistsPage,
   ClientDetailPage,
@@ -29,7 +28,6 @@ import {
   LoginPage,
   NavManagerPage,
   PagesListPage,
-  RequestDetailPage,
   ServicesPage,
   SetupPage,
   SystemPage,
@@ -75,8 +73,6 @@ export const routes = createRoutesFromElements(
           <Route path="services" element={lazyFallback(<ServicesPage />)} />
           <Route path="design" element={lazyFallback(<DesignSettingsPage />)} />
           <Route path="actions" element={lazyFallback(<EmailActionsPage />)} />
-          <Route path="developer/requests" element={lazyFallback(<ApiAccessRequestsPage />)} />
-          <Route path="developer/requests/:id" element={lazyFallback(<RequestDetailPage />)} />
           <Route path="developer/clients" element={lazyFallback(<ApiClientsPage />)} />
           <Route path="developer/clients/:id" element={lazyFallback(<ClientDetailPage />)} />
           <Route path="developer/accounts" element={lazyFallback(<DeveloperAccountsPage />)} />
