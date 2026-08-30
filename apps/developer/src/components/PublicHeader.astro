@@ -29,9 +29,14 @@ interface Props {
   active?: PublicNavigationId;
   /** Explicit managed data for isolated rendering; normal SSR loads Main. */
   navigation?: readonly DeveloperPortalNavigationItem[];
+  /**
+   * Whether the avatar menu offers the "Dashboard" entry. The dashboard shell
+   * turns this off, because it is already there. Defaults to `true`.
+   */
+  showDashboard?: boolean;
 }
 
-const { account, active, navigation: suppliedNavigation } = Astro.props;
+const { account, active, navigation: suppliedNavigation, showDashboard = true } = Astro.props;
 const navigation = suppliedNavigation ?? (await getDeveloperPortalNavigation(NavigationArea.Main));
 ---
 
@@ -48,6 +53,7 @@ const navigation = suppliedNavigation ?? (await getDeveloperPortalNavigation(Nav
         <AvatarMenu
           client:load
           account={{ email: account.email, displayName: account.displayName, avatarUrl: account.avatarUrl }}
+          showDashboard={showDashboard}
         />
       )
     }
