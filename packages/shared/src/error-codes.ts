@@ -163,6 +163,15 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     internalNote: "Generic authenticated-but-forbidden request.",
     source: "apps/backend/src/lib/infra/api-error-handler.ts",
   },
+  "MC-AUTH-0003": {
+    code: "MC-AUTH-0003",
+    httpStatus: 403,
+    userMessage:
+      "The plan for this project is not active, so its API quota does not apply. Check the project's subscription in the developer portal.",
+    internalNote:
+      "The project's subscription is in a state that grants nothing (paused, past_due, expired, canceled), or the project has no subscription at all. Distinct from MC-API-0003, which means an active plan's quota is spent.",
+    source: "apps/backend/src/plugins/auth.ts authenticatePublic",
+  },
   "MC-RES-0003": {
     code: "MC-RES-0003",
     httpStatus: 404,

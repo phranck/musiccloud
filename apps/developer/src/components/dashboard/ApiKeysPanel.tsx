@@ -22,6 +22,7 @@ import {
 } from "@/lib/apiKeysPanelState";
 import { formatDate } from "@/lib/formatDate";
 import { AddIcon, ForbiddenIcon, KeyIcon, Refresh2Icon } from "@/lib/icons";
+import { quotaSummaryLabel } from "@/lib/quotaLabel";
 
 /** Shared classes for the small inline action buttons on token rows. */
 const ACTION_BUTTON_CLASS = "button button--subtle text-nav";
@@ -143,7 +144,7 @@ export function ApiKeysPanel() {
               <StatusBadge status={displayedStatus} />
             </div>
             <p className="text-nav text-fg-subtle mb-4">
-              {client.requestsPerMinute} requests/minute · {client.requestsPerDay.toLocaleString("en-US")} requests/day
+              {quotaSummaryLabel(client.requestsPerMinute, client.requestsPerDay)}
             </p>
 
             {client.tokens.length === 0 ? (

@@ -47,7 +47,7 @@ import fp from "fastify-plugin";
 import type { ApiClient, DeveloperProject } from "../db/api-access-repository.js";
 import type { DeveloperAccount } from "../db/developer-repository.js";
 import { getApiAccessRepository, getDeveloperRepository } from "../db/index.js";
-import { sanitizeErrorForLog } from "../lib/infra/api-errors.js";
+import { createApiErrorResponse, sanitizeErrorForLog } from "../lib/infra/api-errors.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import {
   projectDayRateLimiter,
@@ -97,6 +97,30 @@ declare module "fastify" {
      */
     developerAccount?: DeveloperAccount;
   }
+}
+
+/** Refusal for a project whose plan grants nothing, distinct from a spent quota. */
+const PLAN_NOT_ACTIVE_CODE = "MC-AUTH-0003";
+
+/**
+ * The four numbers the quota checks need, or `null` when the project's plan
+ * grants nothing. All four are absent together, because a registration cap
+ * only narrows limits a plan has already granted.
+ *
+ * @param project - The project resolved from the presented token.
+ * @param client - The registration resolved from the presented token.
+ * @returns The limits to enforce, or `null` when no plan grants any.
+ */
+function resolvedQuota(
+  project: DeveloperProject,
+  client: ApiClient,
+): { projectMinute: number; projectDay: number; registrationMinute: number; registrationDay: number } | null {
+  const { effectiveRequestsPerMinute: projectMinute, effectiveRequestsPerDay: projectDay } = project;
+  const { effectiveRequestsPerMinute: registrationMinute, effectiveRequestsPerDay: registrationDay } = client;
+  if (projectMinute === null || projectDay === null || registrationMinute === null || registrationDay === null) {
+    return null;
+  }
+  return { projectMinute, projectDay, registrationMinute, registrationDay };
 }
 
 async function authPlugin(app: FastifyInstance) {
@@ -199,20 +223,23 @@ async function authPlugin(app: FastifyInstance) {
    *    `lastUsedAt` is stamped fire-and-forget, and project quotas plus any
    *    narrower registration caps are enforced here, so every
    *    route in the `authenticatePublic` scope is covered without per-route
-   *    wiring. Project limits resolve from project override, project tier,
-   *    then conservative fallback. Registration caps can only narrow them.
+   *    wiring. Project limits resolve from the project override and the tier
+   *    of the subscription that currently grants one; registration caps can
+   *    only narrow them. A project whose subscription grants nothing has no
+   *    limits at all and is refused here.
    * Response matrix:
    * - missing all credentials → `401 UNAUTHORIZED` ("Authentication required.")
    * - malformed, unknown, revoked, rotated, or stale UUID-shaped key; or
    *   project or registration suspended/revoked →
    *   `401 UNAUTHORIZED` (one shape for every miss, so existence is not leaked)
+   * - valid key but the project's plan grants nothing → `403` with `MC-AUTH-0003`
    * - valid key but project quota or registration cap exhausted → `429` with the
    *   standard `MC-API-0003` envelope and `Retry-After`
    * - any credential valid → pass-through (no reply sent)
    *
    * @param request - incoming request; `x-api-key` and `authorization` headers are read,
    *   `request.apiClient` is populated for token-authenticated callers
-   * @param reply   - responds with `401` on auth failure, `429` on quota exhaustion
+   * @param reply   - responds with `401` on auth failure, `403` on an inactive plan, `429` on quota exhaustion
    */
   app.decorate("authenticatePublic", async (request: FastifyRequest, reply: FastifyReply) => {
     // Check X-API-Key first (internal)
@@ -256,17 +283,20 @@ async function authPlugin(app: FastifyInstance) {
         );
       });
 
-      const quotaChecks = [
-        projectMinuteRateLimiter.check(resolved.project.id, resolved.project.effectiveRequestsPerMinute),
-        projectDayRateLimiter.check(resolved.project.id, resolved.project.effectiveRequestsPerDay),
-      ];
-      if (resolved.client.effectiveRequestsPerMinute < resolved.project.effectiveRequestsPerMinute) {
-        quotaChecks.push(
-          registrationMinuteRateLimiter.check(resolved.client.id, resolved.client.effectiveRequestsPerMinute),
-        );
+      const quota = resolvedQuota(resolved.project, resolved.client);
+      if (!quota) {
+        return reply.status(403).send(createApiErrorResponse(PLAN_NOT_ACTIVE_CODE));
       }
-      if (resolved.client.effectiveRequestsPerDay < resolved.project.effectiveRequestsPerDay) {
-        quotaChecks.push(registrationDayRateLimiter.check(resolved.client.id, resolved.client.effectiveRequestsPerDay));
+
+      const quotaChecks = [
+        projectMinuteRateLimiter.check(resolved.project.id, quota.projectMinute),
+        projectDayRateLimiter.check(resolved.project.id, quota.projectDay),
+      ];
+      if (quota.registrationMinute < quota.projectMinute) {
+        quotaChecks.push(registrationMinuteRateLimiter.check(resolved.client.id, quota.registrationMinute));
+      }
+      if (quota.registrationDay < quota.projectDay) {
+        quotaChecks.push(registrationDayRateLimiter.check(resolved.client.id, quota.registrationDay));
       }
       const limitedCheck = quotaChecks.find((check) => check.limited);
       if (limitedCheck) return sendRateLimitError(reply, limitedCheck);

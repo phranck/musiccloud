@@ -171,7 +171,7 @@ export function ClientDetailPage() {
                     type="number"
                     min={1}
                     value={limits.min}
-                    placeholder={String(client.tierRequestsPerMinute ?? client.effectiveRequestsPerMinute)}
+                    placeholder={String(client.tierRequestsPerMinute ?? client.effectiveRequestsPerMinute ?? "")}
                     onChange={(e) => setLimitsDraft({ ...limits, min: e.target.value })}
                   />
                 </div>
@@ -184,7 +184,7 @@ export function ClientDetailPage() {
                     type="number"
                     min={1}
                     value={limits.day}
-                    placeholder={String(client.tierRequestsPerDay ?? client.effectiveRequestsPerDay)}
+                    placeholder={String(client.tierRequestsPerDay ?? client.effectiveRequestsPerDay ?? "")}
                     onChange={(e) => setLimitsDraft({ ...limits, day: e.target.value })}
                   />
                 </div>

@@ -21,6 +21,21 @@ const messages = dashboardCopy;
 const dm = messages.developer;
 
 /**
+ * The traffic a registration is configured for, as one line. A registration
+ * whose project has no granting plan has no configured volume, and says so
+ * rather than printing a number that nothing enforces.
+ *
+ * @param client - The registration to describe.
+ * @returns The volume line, or the no-plan label.
+ */
+function trafficLabel(client: ApiClientResponse): string {
+  if (client.effectiveRequestsPerMinute === null || client.effectiveRequestsPerDay === null) {
+    return dm.clientTrafficNoPlan;
+  }
+  return `${client.effectiveRequestsPerMinute}${dm.perMinute} · ${client.effectiveRequestsPerDay}${dm.perDay}`;
+}
+
+/**
  * Builds the memoized column definitions for the API clients table.
  *
  * Columns: active token prefix (key), app name, developer contact email,
@@ -87,14 +102,10 @@ function useClientColumns(
         header: dm.clientTrafficLabel,
         headerClassName: "whitespace-nowrap",
         className: "w-52",
-        sortKey: (c) => c.effectiveRequestsPerMinute,
+        sortKey: (c) => c.effectiveRequestsPerMinute ?? 0,
         cell: (c) => (
           <span className="inline-flex items-center gap-1.5">
-            <span>
-              {c.effectiveRequestsPerMinute}
-              {dm.perMinute} &middot; {c.effectiveRequestsPerDay}
-              {dm.perDay}
-            </span>
+            <span>{trafficLabel(c)}</span>
             {(c.projectRequestsPerMinute != null || c.projectRequestsPerDay != null) && (
               <span className="rounded bg-violet-500/10 px-1.5 py-0.5 text-xs font-semibold text-violet-400">
                 {dm.clientCustomBadge}
@@ -170,9 +181,7 @@ export function ApiClientsPage() {
         c.publicClientId.toLowerCase().includes(q) ||
         c.registrationType.toLowerCase().includes(q) ||
         c.contactEmail.toLowerCase().includes(q) ||
-        `${c.effectiveRequestsPerMinute}${dm.perMinute} ${c.effectiveRequestsPerDay}${dm.perDay}`
-          .toLowerCase()
-          .includes(q)
+        trafficLabel(c).toLowerCase().includes(q)
       );
     });
   }, [clients, search]);

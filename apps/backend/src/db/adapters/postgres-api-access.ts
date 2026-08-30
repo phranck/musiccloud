@@ -16,7 +16,6 @@ import type {
   DeveloperProject,
   DeveloperProjectSubscription,
 } from "../api-access-repository.js";
-import { FALLBACK_REQUESTS_PER_DAY, FALLBACK_REQUESTS_PER_MINUTE } from "../tiers-repository.js";
 import { dateToMs } from "./postgres-shared.js";
 
 // ============================================================================
@@ -147,6 +146,31 @@ interface ApiUsageEventRow {
   duration_ms: number;
 }
 
+/**
+ * The subscription states in which a project's plan grants its tier's limits.
+ * `scheduled_cancel` grants because such a subscription runs to the end of the
+ * period it was cancelled in. Every other state
+ * `chk_developer_project_subscriptions_status` admits (`paused`, `past_due`,
+ * `expired`, `canceled`) withholds the tier, and a request against that project
+ * is refused rather than falling through to a second answer.
+ */
+export const GRANTING_SUBSCRIPTION_STATES = ["active", "trialing", "scheduled_cancel"] as const;
+
+/**
+ * The same states as a SQL list, derived from the array above so the two
+ * cannot disagree. The values are literals in this file, never request input.
+ */
+const GRANTING_SUBSCRIPTION_STATES_SQL = GRANTING_SUBSCRIPTION_STATES.map((state) => `'${state}'`).join(", ");
+
+/**
+ * Joins a project to the subscription that currently grants it something, and
+ * to that subscription's tier. A subscription in any other state joins to
+ * nothing, which is what makes the plan's state decide the quota.
+ */
+const GRANTING_SUBSCRIPTION_JOIN = `LEFT JOIN developer_project_subscriptions ps
+       ON ps.project_id = p.id AND ps.status IN (${GRANTING_SUBSCRIPTION_STATES_SQL})
+     LEFT JOIN tiers t ON t.id = ps.tier_id`;
+
 const REQUEST_COLUMNS = `id, developer_account_id, project_id, contact_email, app_name, app_description,
             estimated_requests_per_day, status, submitted_at, reviewed_at, reviewed_by_admin_id, review_note`;
 const PROJECT_JOIN_SELECT = `SELECT p.id, p.developer_account_id, p.display_name, p.status,
@@ -154,14 +178,14 @@ const PROJECT_JOIN_SELECT = `SELECT p.id, p.developer_account_id, p.display_name
             p.created_by_admin_id, ps.tier_id AS tier_id, t.name AS tier_name,
             t.requests_per_minute AS tier_requests_per_minute, t.requests_per_day AS tier_requests_per_day
      FROM developer_projects p
-     LEFT JOIN developer_project_subscriptions ps ON ps.project_id = p.id
-     LEFT JOIN tiers t ON t.id = ps.tier_id`;
+     ${GRANTING_SUBSCRIPTION_JOIN}`;
 const SUBSCRIPTION_COLUMNS = `id, project_id, tier_id, creem_subscription_id, creem_customer_id, status,
             interval, current_period_end, cancel_at_period_end, created_at, updated_at`;
 /**
  * Every registration read goes through this JOIN so the DTO always carries
- * project quota inputs, the project tier, and optional registration caps.
- * The account-tier branch is a compatibility fallback for transitional rows.
+ * project quota inputs, the project tier, and optional registration caps. The
+ * project's own subscription is the only source of the tier; there is no
+ * fallback to the owning account's tier, so one question has one answer.
  */
 const CLIENT_JOIN_SELECT = `SELECT c.id, c.request_id, c.developer_account_id, c.project_id,
             c.public_client_id, c.registration_type, c.capabilities, c.app_name, c.contact_email,
@@ -173,13 +197,11 @@ const CLIENT_JOIN_SELECT = `SELECT c.id, c.request_id, c.developer_account_id, c
             p.created_at AS project_created_at, p.updated_at AS project_updated_at,
             p.suspended_at AS project_suspended_at, p.deleted_at AS project_deleted_at,
             p.created_by_admin_id AS project_created_by_admin_id,
-            CASE WHEN ps.id IS NOT NULL THEN ps.tier_id ELSE da.tier_id END AS tier_id, t.name AS tier_name,
+            ps.tier_id AS tier_id, t.name AS tier_name,
             t.requests_per_minute AS tier_requests_per_minute, t.requests_per_day AS tier_requests_per_day
      FROM api_clients c
      LEFT JOIN developer_projects p ON p.id = c.project_id
-     JOIN developer_accounts da ON da.id = COALESCE(p.developer_account_id, c.developer_account_id)
-     LEFT JOIN developer_project_subscriptions ps ON ps.project_id = p.id
-     LEFT JOIN tiers t ON t.id = CASE WHEN ps.id IS NOT NULL THEN ps.tier_id ELSE da.tier_id END`;
+     ${GRANTING_SUBSCRIPTION_JOIN}`;
 const TOKEN_COLUMNS = `id, client_id, token_prefix, token_hash, token_raw, status, created_at, last_used_at,
             revoked_at, rotated_from_token_id`;
 const AUDIT_COLUMNS = `id, project_id, client_id, request_id, token_id, event_type, actor_admin_id,
@@ -208,8 +230,31 @@ function rowToApiAccessRequest(row: ApiAccessRequestRow): ApiAccessRequest {
   };
 }
 
-function effectiveLimit(override: number | null, tierLimit: number | null, fallback: number): number {
-  return override ?? tierLimit ?? fallback;
+/**
+ * The per-window limit a project's plan grants, or `null` when no granting
+ * subscription supplies a tier. A per-project override adjusts the plan's
+ * number; it does not stand in for a plan, so a project without one has no
+ * quota rather than an administrative one.
+ *
+ * @param override - The project's own limit, or `null` to take the tier's.
+ * @param tierLimit - The granting tier's limit, or `null` when no tier is granted.
+ * @returns The limit to enforce, or `null` when nothing grants one.
+ */
+function effectiveLimit(override: number | null, tierLimit: number | null): number | null {
+  return tierLimit === null ? null : (override ?? tierLimit);
+}
+
+/**
+ * Narrows a project limit by an optional registration cap. A cap can only
+ * narrow, and there is nothing to narrow when the project has no limit.
+ *
+ * @param cap - The registration's own cap, or `null` to take the project limit unchanged.
+ * @param projectLimit - The project's resolved limit, or `null` when no plan grants one.
+ * @returns The limit to enforce for this registration, or `null`.
+ */
+function narrowedByCap(cap: number | null, projectLimit: number | null): number | null {
+  if (projectLimit === null) return null;
+  return cap === null ? projectLimit : Math.min(cap, projectLimit);
 }
 
 function rowToDeveloperProject(row: DeveloperProjectRow): DeveloperProject {
@@ -224,12 +269,8 @@ function rowToDeveloperProject(row: DeveloperProjectRow): DeveloperProject {
     tierName: row.tier_name,
     tierRequestsPerMinute: row.tier_requests_per_minute,
     tierRequestsPerDay: row.tier_requests_per_day,
-    effectiveRequestsPerMinute: effectiveLimit(
-      row.requests_per_minute,
-      row.tier_requests_per_minute,
-      FALLBACK_REQUESTS_PER_MINUTE,
-    ),
-    effectiveRequestsPerDay: effectiveLimit(row.requests_per_day, row.tier_requests_per_day, FALLBACK_REQUESTS_PER_DAY),
+    effectiveRequestsPerMinute: effectiveLimit(row.requests_per_minute, row.tier_requests_per_minute),
+    effectiveRequestsPerDay: effectiveLimit(row.requests_per_day, row.tier_requests_per_day),
     createdAt: dateToMs(row.created_at),
     updatedAt: dateToMs(row.updated_at),
     suspendedAt: row.suspended_at ? dateToMs(row.suspended_at) : null,
@@ -256,20 +297,13 @@ function rowToDeveloperProjectSubscription(row: DeveloperProjectSubscriptionRow)
 
 /**
  * Maps a registration JOIN row to the {@link ApiClient} compatibility DTO.
- * Project limits resolve as `project override ?? project tier ?? fallback`;
- * an optional registration cap may narrow but never widen that result.
+ * Project limits resolve as `project override ?? granting tier`; an optional
+ * registration cap may narrow but never widen that result, and every limit is
+ * `null` when no granting subscription supplies a tier.
  */
 function rowToApiClient(row: ApiClientRow): ApiClient {
-  const projectMinuteLimit = effectiveLimit(
-    row.project_requests_per_minute,
-    row.tier_requests_per_minute,
-    FALLBACK_REQUESTS_PER_MINUTE,
-  );
-  const projectDayLimit = effectiveLimit(
-    row.project_requests_per_day,
-    row.tier_requests_per_day,
-    FALLBACK_REQUESTS_PER_DAY,
-  );
+  const projectMinuteLimit = effectiveLimit(row.project_requests_per_minute, row.tier_requests_per_minute);
+  const projectDayLimit = effectiveLimit(row.project_requests_per_day, row.tier_requests_per_day);
   return {
     id: row.id,
     requestId: row.request_id,
@@ -294,10 +328,8 @@ function rowToApiClient(row: ApiClientRow): ApiClient {
     tierName: row.tier_name,
     tierRequestsPerMinute: row.tier_requests_per_minute,
     tierRequestsPerDay: row.tier_requests_per_day,
-    effectiveRequestsPerMinute:
-      row.requests_per_minute === null ? projectMinuteLimit : Math.min(row.requests_per_minute, projectMinuteLimit),
-    effectiveRequestsPerDay:
-      row.requests_per_day === null ? projectDayLimit : Math.min(row.requests_per_day, projectDayLimit),
+    effectiveRequestsPerMinute: narrowedByCap(row.requests_per_minute, projectMinuteLimit),
+    effectiveRequestsPerDay: narrowedByCap(row.requests_per_day, projectDayLimit),
     createdAt: dateToMs(row.created_at),
     updatedAt: dateToMs(row.updated_at),
     createdByAdminId: row.created_by_admin_id,
@@ -836,62 +868,30 @@ export async function findActiveApiClientByTokenHash(
   if (clientResult.rows.length === 0) return null;
   const row = clientResult.rows[0] as ApiClientRow;
   const client = rowToApiClient(row);
-  const project =
-    row.project_id == null
-      ? {
-          id: client.projectId,
-          developerAccountId: client.developerAccountId,
-          displayName: client.projectDisplayName,
-          status: client.projectStatus,
-          requestsPerMinute: client.projectRequestsPerMinute,
-          requestsPerDay: client.projectRequestsPerDay,
-          tierId: client.tierId,
-          tierName: client.tierName,
-          tierRequestsPerMinute: client.tierRequestsPerMinute,
-          tierRequestsPerDay: client.tierRequestsPerDay,
-          effectiveRequestsPerMinute: effectiveLimit(
-            client.projectRequestsPerMinute,
-            client.tierRequestsPerMinute,
-            FALLBACK_REQUESTS_PER_MINUTE,
-          ),
-          effectiveRequestsPerDay: effectiveLimit(
-            client.projectRequestsPerDay,
-            client.tierRequestsPerDay,
-            FALLBACK_REQUESTS_PER_DAY,
-          ),
-          createdAt: client.createdAt,
-          updatedAt: client.updatedAt,
-          suspendedAt: null,
-          deletedAt: null,
-          createdByAdminId: client.createdByAdminId,
-        }
-      : {
-          id: row.project_id,
-          developerAccountId: row.project_developer_account_id ?? row.developer_account_id,
-          displayName: client.projectDisplayName,
-          status: client.projectStatus,
-          requestsPerMinute: client.projectRequestsPerMinute,
-          requestsPerDay: client.projectRequestsPerDay,
-          tierId: client.tierId,
-          tierName: client.tierName,
-          tierRequestsPerMinute: client.tierRequestsPerMinute,
-          tierRequestsPerDay: client.tierRequestsPerDay,
-          effectiveRequestsPerMinute: effectiveLimit(
-            client.projectRequestsPerMinute,
-            client.tierRequestsPerMinute,
-            FALLBACK_REQUESTS_PER_MINUTE,
-          ),
-          effectiveRequestsPerDay: effectiveLimit(
-            client.projectRequestsPerDay,
-            client.tierRequestsPerDay,
-            FALLBACK_REQUESTS_PER_DAY,
-          ),
-          createdAt: dateToMs(row.project_created_at ?? row.created_at),
-          updatedAt: dateToMs(row.project_updated_at ?? row.updated_at),
-          suspendedAt: row.project_suspended_at ? dateToMs(row.project_suspended_at) : null,
-          deletedAt: row.project_deleted_at ? dateToMs(row.project_deleted_at) : null,
-          createdByAdminId: row.project_created_by_admin_id,
-        };
+  // A registration without a project row is a legacy one, and its project
+  // fields are synthesised from the registration so callers see one shape
+  // either way. Everything the plan decides is the same in both cases.
+  const projectId = row.project_id;
+  const project: DeveloperProject = {
+    id: projectId ?? client.projectId,
+    developerAccountId:
+      projectId === null ? client.developerAccountId : (row.project_developer_account_id ?? row.developer_account_id),
+    displayName: client.projectDisplayName,
+    status: client.projectStatus,
+    requestsPerMinute: client.projectRequestsPerMinute,
+    requestsPerDay: client.projectRequestsPerDay,
+    tierId: client.tierId,
+    tierName: client.tierName,
+    tierRequestsPerMinute: client.tierRequestsPerMinute,
+    tierRequestsPerDay: client.tierRequestsPerDay,
+    effectiveRequestsPerMinute: effectiveLimit(client.projectRequestsPerMinute, client.tierRequestsPerMinute),
+    effectiveRequestsPerDay: effectiveLimit(client.projectRequestsPerDay, client.tierRequestsPerDay),
+    createdAt: projectId === null ? client.createdAt : dateToMs(row.project_created_at ?? row.created_at),
+    updatedAt: projectId === null ? client.updatedAt : dateToMs(row.project_updated_at ?? row.updated_at),
+    suspendedAt: row.project_suspended_at ? dateToMs(row.project_suspended_at) : null,
+    deletedAt: row.project_deleted_at ? dateToMs(row.project_deleted_at) : null,
+    createdByAdminId: projectId === null ? client.createdByAdminId : row.project_created_by_admin_id,
+  };
   return { project, client, token };
 }
 

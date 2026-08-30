@@ -158,6 +158,7 @@ export const dashboardCopy = {
     clientsEmpty: "No API keys",
     clientsEmptyHint: "Approved API access requests appear here with their key.",
     clientTrafficLabel: "Configured volume",
+    clientTrafficNoPlan: "No active plan",
     clientsTokensLabel: "Tokens",
     clientsNoTokens: "No tokens",
     clientsCreateToken: "Create token",

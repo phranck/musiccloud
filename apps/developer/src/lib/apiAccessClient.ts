@@ -144,10 +144,10 @@ export interface ApiClientDto {
   description: string;
   /** Client status (an {@link ApiClientStatus} value). */
   status: string;
-  /** Per-minute request quota enforced by the public API. */
-  requestsPerMinute: number;
-  /** Per-day request quota enforced by the public API. */
-  requestsPerDay: number;
+  /** Per-minute request quota enforced by the public API, or `null` when the project has no granting plan. */
+  requestsPerMinute: number | null;
+  /** Per-day request quota enforced by the public API, or `null` when the project has no granting plan. */
+  requestsPerDay: number | null;
   /** Creation timestamp, ISO-8601. */
   createdAt: string;
   /** The client's tokens, newest first. */
@@ -160,8 +160,10 @@ export interface DeveloperProjectDto {
   status: string;
   subscription: { tierId: string | null; tierName: string | null };
   quota: {
-    requestsPerMinute: number;
-    requestsPerDay: number;
+    /** The limit in force, or `null` when no granting subscription supplies a tier. */
+    requestsPerMinute: number | null;
+    /** The daily limit in force, or `null` when no granting subscription supplies a tier. */
+    requestsPerDay: number | null;
     overrideRequestsPerMinute: number | null;
     overrideRequestsPerDay: number | null;
   };

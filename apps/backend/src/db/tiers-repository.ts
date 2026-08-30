@@ -7,16 +7,6 @@
 /** Default tier accent colour (neutral slate) applied when none is supplied. */
 export const DEFAULT_TIER_COLOR = "#64748b";
 
-/**
- * Fallback rate limits applied when an API client has no per-key override
- * AND its owning account has no (resolvable) tier — e.g. the tier was
- * deleted (`tier_id` is set NULL via FK). Kept identical to the historic
- * free-tier defaults so the failure mode is "conservative free limits",
- * never "unlimited".
- */
-export const FALLBACK_REQUESTS_PER_MINUTE = 60;
-export const FALLBACK_REQUESTS_PER_DAY = 10000;
-
 /** Maximum number of feature bullets shown on a tier's pricing card. */
 export const MAX_TIER_FEATURES = 12;
 /** Maximum length of a single feature bullet. */

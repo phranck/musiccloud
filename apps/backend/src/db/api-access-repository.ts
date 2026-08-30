@@ -56,8 +56,10 @@ export interface DeveloperProject {
   tierName: string | null;
   tierRequestsPerMinute: number | null;
   tierRequestsPerDay: number | null;
-  effectiveRequestsPerMinute: number;
-  effectiveRequestsPerDay: number;
+  /** The limit to enforce, or `null` when no granting subscription supplies a tier. */
+  effectiveRequestsPerMinute: number | null;
+  /** The daily limit to enforce, or `null` when no granting subscription supplies a tier. */
+  effectiveRequestsPerDay: number | null;
   createdAt: number;
   updatedAt: number;
   suspendedAt: number | null;
@@ -97,8 +99,8 @@ export interface DeveloperProjectSubscription {
  * @property tierName - Display name of that tier, or `null`.
  * @property tierRequestsPerMinute - The tier's per-minute limit, or `null` when unassigned.
  * @property tierRequestsPerDay - The tier's per-day limit, or `null` when unassigned.
- * @property effectiveRequestsPerMinute - Project limit narrowed by the optional registration cap.
- * @property effectiveRequestsPerDay - Daily project limit narrowed by the optional registration cap.
+ * @property effectiveRequestsPerMinute - Project limit narrowed by the optional registration cap, or `null` when no granting subscription supplies a tier.
+ * @property effectiveRequestsPerDay - Daily project limit narrowed by the optional registration cap, or `null` when no granting subscription supplies a tier.
  * @property createdAt - Epoch ms.
  * @property updatedAt - Epoch ms.
  * @property createdByAdminId - Admin who created the client directly, or `null` when created via request approval.
@@ -125,8 +127,8 @@ export interface ApiClient {
   tierName: string | null;
   tierRequestsPerMinute: number | null;
   tierRequestsPerDay: number | null;
-  effectiveRequestsPerMinute: number;
-  effectiveRequestsPerDay: number;
+  effectiveRequestsPerMinute: number | null;
+  effectiveRequestsPerDay: number | null;
   createdAt: number;
   updatedAt: number;
   createdByAdminId: string | null;
