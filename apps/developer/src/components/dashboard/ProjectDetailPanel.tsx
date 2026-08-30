@@ -118,6 +118,15 @@ export function ProjectDetailPanel({ projectId }: ProjectDetailPanelProps) {
       <section>
         <h2 className="card-content-inset text-card-title font-medium tracking-tight mb-3">Project</h2>
         <div className="surface-card px-6 py-5 flex flex-col gap-4">
+          {project.subscription.tierId === null && (
+            <p className="text-body text-fg-muted">
+              This project has no plan yet, so any key under it is refused.{" "}
+              <a href={`/dashboard/projects/${project.id}/plan`} className="content-link text-fg">
+                Choose a plan
+              </a>{" "}
+              to make it work.
+            </p>
+          )}
           <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
             <div>
               <dt className="text-nav text-fg-subtle mb-0.5">State</dt>
@@ -127,7 +136,12 @@ export function ProjectDetailPanel({ projectId }: ProjectDetailPanelProps) {
             </div>
             <div>
               <dt className="text-nav text-fg-subtle mb-0.5">Plan</dt>
-              <dd className="text-body text-fg">{project.subscription.tierName ?? "No active plan"}</dd>
+              <dd className="text-body text-fg">
+                {project.subscription.tierName ?? "No plan yet"}{" "}
+                <a href={`/dashboard/projects/${project.id}/plan`} className="content-link text-nav text-fg-muted ml-1">
+                  {project.subscription.tierId === null ? "choose one" : "change"}
+                </a>
+              </dd>
             </div>
             <div>
               <dt className="text-nav text-fg-subtle mb-0.5">Rate limit</dt>

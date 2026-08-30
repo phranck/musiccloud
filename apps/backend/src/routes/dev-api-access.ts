@@ -21,6 +21,7 @@ import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { RateLimiter } from "../lib/infra/rate-limiter.js";
 import { generateApiToken } from "../services/api-access-token.js";
 import { notifyDeveloper } from "../services/developer-notifications.js";
+import { listSelfServiceAssignableTiers } from "../services/signup-tier.js";
 
 const MAX_APP_NAME_LENGTH = 200;
 const MAX_APP_DESCRIPTION_LENGTH = 2000;
@@ -37,6 +38,8 @@ export const MAX_REGISTRATIONS_PER_PROJECT = 5;
 const PROJECT_CEILING_CODE = "MC-REQ-0003";
 /** Refusal for a project that already holds {@link MAX_REGISTRATIONS_PER_PROJECT} registrations. */
 const REGISTRATION_CEILING_CODE = "MC-REQ-0004";
+/** Refusal for a plan a developer may not put a project on themselves. */
+const PLAN_NOT_ASSIGNABLE_CODE = "MC-REQ-0005";
 
 /** Dedicated per-developer throttle (20/min) for the three token-mutating routes, separate from the global apiRateLimiter. */
 const devApiAccessTokenRateLimiter = new RateLimiter(20, 60_000);
@@ -256,10 +259,13 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
         name: "projects_per_account",
       });
     }
+    // A project is created without a plan on purpose. Choosing one is a step a
+    // developer takes and sees, so nothing here picks it for them; until they
+    // do, the project grants no quota and the API refuses its keys.
     const project = await repo.createDeveloperProject({
       developerAccountId: request.developerAccountId!,
       displayName,
-      tierId: request.developerAccount?.tierId ?? null,
+      tierId: null,
     });
     await repo.createApiAccessAuditEvent({
       projectId: project.id,
@@ -306,6 +312,56 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
       actorDeveloperAccountId: request.developerAccountId!,
       eventData: { displayName, status: body?.status },
     });
+    return reply.send({ project: toProjectResponse(updated!) });
+  });
+
+  /**
+   * PUT …/projects/:id/subscription
+   * The plan step: a developer chooses the plan for a project they own.
+   *
+   * Which tiers may be chosen is decided by `isSelfServiceAssignableTier`,
+   * which signup asks as well, so the two cannot disagree about what a
+   * developer is allowed to pick.
+   */
+  app.put(ROUTE_TEMPLATES.dev.apiAccess.projectSubscription, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as { tierId?: string } | null;
+    if (typeof body?.tierId !== "string" || body.tierId.trim() === "") {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "tierId is required." });
+    }
+    const tierId = body.tierId.trim();
+
+    const repo = await getApiAccessRepository();
+    const project = await loadOwnedProject(repo, id, request.developerAccountId!);
+    if (!project) return reply.status(404).send({ error: "NOT_FOUND", message: "Project not found." });
+    if (project.status !== "active") {
+      return reply.status(409).send({ error: "PROJECT_INACTIVE", message: "Project is not active." });
+    }
+
+    const assignable = await listSelfServiceAssignableTiers();
+    const chosen = assignable.find((tier) => tier.id === tierId);
+    if (!chosen) {
+      setApiFailureDiagnostic(request, {
+        developerAccountId: request.developerAccountId,
+        projectId: id,
+        requestedTierId: tierId,
+        outcome: "plan_not_assignable",
+      });
+      return reply.status(400).send(
+        createApiErrorResponse(PLAN_NOT_ASSIGNABLE_CODE, {
+          context: { assignable: assignable.map((tier) => tier.name).join(", ") || "no plan" },
+        }),
+      );
+    }
+
+    await repo.setDeveloperProjectSubscription({ projectId: id, tierId: chosen.id, status: "active" });
+    await repo.createApiAccessAuditEvent({
+      projectId: id,
+      eventType: "project_plan_selected",
+      actorDeveloperAccountId: request.developerAccountId!,
+      eventData: { tierId: chosen.id, tierName: chosen.name },
+    });
+    const updated = await repo.findDeveloperProjectById(id);
     return reply.send({ project: toProjectResponse(updated!) });
   });
 

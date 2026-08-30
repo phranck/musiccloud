@@ -60,11 +60,20 @@ const mockRepo = {
   revokeApiClientToken: vi.fn(),
   rotateApiClientToken: vi.fn(),
   createApiAccessAuditEvent: vi.fn().mockResolvedValue({}),
+  setDeveloperProjectSubscription: vi.fn(),
+};
+
+const mockTierRepo = {
+  listTiers: vi.fn(async () => [
+    { id: "tier_free", name: "Free", enabled: true, requestsPerMinute: 60, requestsPerDay: 10000 },
+    { id: "tier_pro", name: "Pro", enabled: true, requestsPerMinute: 600, requestsPerDay: 100000 },
+  ]),
 };
 
 vi.mock("../db/index.js", () => ({
   getApiAccessRepository: async () => mockRepo,
   getDeveloperRepository: async () => mockDeveloperRepo,
+  getTierRepository: async () => mockTierRepo,
 }));
 
 vi.mock("../services/email-actions.js", () => ({
@@ -96,7 +105,9 @@ function makeDeveloperAccount(developerAccountId: string): DeveloperAccount {
     displayName: null,
     avatarUrl: null,
     technicalContactEmail: null,
-    tierId: null,
+    // Every account carries the free tier after signup, which is exactly what
+    // project creation used to copy into the project's plan.
+    tierId: "tier_free",
     status: "active",
     createdAt: 1_700_000_000_000,
     updatedAt: 1_700_000_000_000,
@@ -248,6 +259,11 @@ beforeEach(() => {
   mockRepo.countActiveDeveloperProjectsByAccount.mockResolvedValue(0);
   mockRepo.countActiveApiClientsByProject.mockResolvedValue(0);
   mockRepo.createApiAccessAuditEvent.mockResolvedValue({});
+  mockRepo.setDeveloperProjectSubscription.mockResolvedValue({ id: "sub-1" });
+  mockTierRepo.listTiers.mockResolvedValue([
+    { id: "tier_free", name: "Free", enabled: true, requestsPerMinute: 60, requestsPerDay: 10000 },
+    { id: "tier_pro", name: "Pro", enabled: true, requestsPerMinute: 600, requestsPerDay: 100000 },
+  ]);
 });
 
 describe("devApiAccessRoutes", () => {
@@ -403,6 +419,122 @@ describe("devApiAccessRoutes", () => {
 
       expect(response.statusCode).toBe(409);
       expect(mockRepo.createApiClient).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("the plan step", () => {
+    it("creates a project without a plan, so choosing one stays a step", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.createDeveloperProject.mockResolvedValue(makeProject({ tierId: null, tierName: null }));
+
+      await app.inject({
+        method: "POST",
+        url: ENDPOINTS.dev.apiAccess.projects,
+        payload: { displayName: "App project" },
+      });
+
+      expect(mockRepo.createDeveloperProject).toHaveBeenCalledWith(
+        expect.objectContaining({ developerAccountId: "dev-1", displayName: "App project", tierId: null }),
+      );
+    });
+
+    it("records the plan a developer chose and audits it", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject());
+      mockRepo.setDeveloperProjectSubscription.mockResolvedValue({ id: "sub-1" });
+
+      const response = await app.inject({
+        method: "PUT",
+        url: ROUTE_TEMPLATES.dev.apiAccess.projectSubscription.replace(":id", "project-1"),
+        payload: { tierId: "tier_free" },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(mockRepo.setDeveloperProjectSubscription).toHaveBeenCalledWith(
+        expect.objectContaining({ projectId: "project-1", tierId: "tier_free" }),
+      );
+      expect(mockRepo.createApiAccessAuditEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: "project-1",
+          eventType: "project_plan_selected",
+          actorDeveloperAccountId: "dev-1",
+        }),
+      );
+    });
+
+    it("refuses a tier a developer may not choose themselves", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject());
+
+      const response = await app.inject({
+        method: "PUT",
+        url: ROUTE_TEMPLATES.dev.apiAccess.projectSubscription.replace(":id", "project-1"),
+        payload: { tierId: "tier_pro" },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json().error).toBe("MC-REQ-0005");
+      expect(response.json().errorId).toBeTruthy();
+      expect(mockRepo.setDeveloperProjectSubscription).not.toHaveBeenCalled();
+    });
+
+    it("refuses a disabled tier even when it is the free one", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject());
+      mockTierRepo.listTiers.mockResolvedValue([
+        { id: "tier_free", name: "Free", enabled: false, requestsPerMinute: 60, requestsPerDay: 10000 },
+      ]);
+
+      const response = await app.inject({
+        method: "PUT",
+        url: ROUTE_TEMPLATES.dev.apiAccess.projectSubscription.replace(":id", "project-1"),
+        payload: { tierId: "tier_free" },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json().error).toBe("MC-REQ-0005");
+      expect(mockRepo.setDeveloperProjectSubscription).not.toHaveBeenCalled();
+    });
+
+    it("does not let a caller set the plan of a project they do not own", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject({ developerAccountId: "dev-2" }));
+
+      const response = await app.inject({
+        method: "PUT",
+        url: ROUTE_TEMPLATES.dev.apiAccess.projectSubscription.replace(":id", "project-1"),
+        payload: { tierId: "tier_free" },
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(mockRepo.setDeveloperProjectSubscription).not.toHaveBeenCalled();
+    });
+
+    it("refuses a plan change on a project that is not active", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject({ status: "suspended" }));
+
+      const response = await app.inject({
+        method: "PUT",
+        url: ROUTE_TEMPLATES.dev.apiAccess.projectSubscription.replace(":id", "project-1"),
+        payload: { tierId: "tier_free" },
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(mockRepo.setDeveloperProjectSubscription).not.toHaveBeenCalled();
+    });
+
+    it("requires a tier id", async () => {
+      const app = await buildApp("dev-1");
+
+      const response = await app.inject({
+        method: "PUT",
+        url: ROUTE_TEMPLATES.dev.apiAccess.projectSubscription.replace(":id", "project-1"),
+        payload: {},
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(mockRepo.findDeveloperProjectById).not.toHaveBeenCalled();
     });
   });
 

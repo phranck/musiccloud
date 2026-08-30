@@ -149,6 +149,14 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     internalNote: "Per-project ceiling on registrations that are not revoked.",
     source: "apps/backend/src/routes/dev-api-access.ts registration creation",
   },
+  "MC-REQ-0005": {
+    code: "MC-REQ-0005",
+    httpStatus: 400,
+    userMessage: "This plan cannot be chosen here. Only {assignable} is available at the moment.",
+    internalNote:
+      "A developer asked to put a project on a tier that exists but is not self-service assignable, which today means anything other than an enabled tier_free.",
+    source: "apps/backend/src/routes/dev-api-access.ts project subscription",
+  },
   "MC-AUTH-0001": {
     code: "MC-AUTH-0001",
     httpStatus: 401,

@@ -38,6 +38,8 @@ interface TierDto {
   buttonLabel: string | null;
   description: string;
   enabled: boolean;
+  /** Whether a developer can put a project on this plan themselves today. */
+  selfServiceAssignable: boolean;
   disableReason: string;
   /** Whether this tier is highlighted as the recommended one (at most one across all tiers). */
   recommended: boolean;
@@ -250,13 +252,18 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
                     Free
                   </span>
                 )}
-                {tier.enabled && (
+                {tier.enabled && tier.selfServiceAssignable && (
                   <a
                     href={`/signup?tier=${tier.id}`}
                     class="tier-cta inline-flex w-full justify-center px-5 py-2.5 text-body"
                   >
                     <span class="tier-cta-label">{tier.buttonLabel || "I want this"}</span>
                   </a>
+                )}
+                {tier.enabled && !tier.selfServiceAssignable && (
+                  <p class="text-nav text-fg-subtle text-center">
+                    Not available yet. Signing up puts you on the free plan; paid plans arrive with billing.
+                  </p>
                 )}
               </div>
             </div>

@@ -320,6 +320,22 @@ export function updateDeveloperProject(
   });
 }
 
+/**
+ * Chooses the plan for one of the caller's own projects.
+ *
+ * @param projectId - The project the plan is for.
+ * @param tierId - The tier the developer picked.
+ */
+export function setDeveloperProjectPlan(
+  projectId: string,
+  tierId: string,
+): Promise<ApiAccessResult<{ project: DeveloperProjectDto }>> {
+  return requestJson(ENDPOINTS.dev.apiAccess.projectSubscription(projectId), {
+    method: "PUT",
+    body: JSON.stringify({ tierId }),
+  });
+}
+
 export function createClientRegistration(
   projectId: string,
   body: {

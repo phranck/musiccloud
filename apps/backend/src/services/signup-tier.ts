@@ -1,55 +1,66 @@
 /**
- * @file Single source for "which tier is assignable at signup" (MC-109, Plan A).
+ * @file One answer to "which tier may a developer put themselves on".
  *
- * Plan A rule: only `tier_free` is ever assignable at signup. A requested paid
- * tier (or an unknown/missing id) must safely fall back to `tier_free` so that:
- * - An account is NEVER left tier-less after signup.
- * - A paid tier can NEVER be granted for free.
+ * Two places ask it: signup, which assigns a tier to a new account, and the
+ * plan step, where a developer chooses the plan for a project. They ask it here
+ * so they cannot answer it differently, which is the shape the project rules
+ * forbid.
  *
- * A later plan (Plan C) will extend {@link resolveSignupTierId} to support paid
- * tiers for users who have completed a purchase flow. Until then this module
- * stays lean and only allows the free tier.
+ * Today the answer is the free tier and nothing else, because no paid tier can
+ * be bought yet. When one can, this is the module that changes, and both
+ * callers follow.
  */
 
 import { getTierRepository } from "../db/index.js";
+import type { Tier } from "../db/tiers-repository.js";
 
 /**
  * The canonical id of the free tier as seeded in migration
- * `0058_white_puff_adder.sql`. Used as the fallback and the only assignable
- * tier in Plan A.
+ * `0058_white_puff_adder.sql`.
  */
 export const TIER_FREE_ID = "tier_free";
 
 /**
- * Resolves the tier id that should be assigned to a new developer account at
- * signup time.
+ * Whether a developer may put an account or a project on this tier without
+ * anybody else being involved.
  *
- * **Plan A invariants (non-negotiable until Plan C):**
- * 1. If no tier id is requested, `tier_free` is assigned.
- * 2. If `tier_free` is explicitly requested, it is assigned.
- * 3. If any paid tier is requested, the request is silently ignored and
- *    `tier_free` is assigned instead; paid tiers are not yet purchasable.
- * 4. If an unknown id is requested, `tier_free` is assigned.
+ * A disabled tier is not offered at all, and a paid tier cannot be chosen
+ * because nothing has been paid: the checkout that would change that is built
+ * in the billing epic.
  *
- * The function always fetches the current tier list via
- * {@link getTierRepository} so that the "is it assignable?" check is grounded
- * in real DB state rather than a hardcoded allowlist. This makes the future
- * Plan C extension (add real assignability logic) a minimal, local change.
+ * @param tier - The tier being considered.
+ * @returns `true` when a developer may choose it themselves.
+ */
+export function isSelfServiceAssignableTier(tier: Pick<Tier, "id" | "enabled">): boolean {
+  return tier.id === TIER_FREE_ID && tier.enabled;
+}
+
+/**
+ * The tiers a developer may currently choose from, in catalogue order.
  *
- * @param requestedTierId - The tier id the caller would like assigned, if any.
- *   `undefined` and `null` both mean "no preference" and resolve to `tier_free`.
- * @returns The tier id that must be stored on the new developer account.
- *   Currently always `"tier_free"`.
+ * @returns Every assignable tier. Today that is at most one.
+ */
+export async function listSelfServiceAssignableTiers(): Promise<Tier[]> {
+  const repo = await getTierRepository();
+  const tiers = await repo.listTiers();
+  return tiers.filter((tier) => isSelfServiceAssignableTier(tier));
+}
+
+/**
+ * Resolves the tier id assigned to a new developer account at signup.
+ *
+ * An account is never left without a tier, so a requested tier that is not
+ * assignable, unknown, or absent all resolve to the free tier rather than to
+ * nothing. That is a fallback for the account, not permission to grant a paid
+ * tier: a paid tier is never returned here.
+ *
+ * @param requestedTierId - The tier the caller asked for, if any.
+ * @returns The tier id to store on the new account.
  */
 export async function resolveSignupTierId(requestedTierId?: string | null): Promise<string> {
   const repo = await getTierRepository();
   const tiers = await repo.listTiers();
 
-  const requested = tiers.find((t) => t.id === requestedTierId);
-
-  // Plan A assignability rule: a tier is only assignable at signup when it is
-  // the free tier. Any paid tier (or missing/unknown id) falls back to free.
-  const isAssignable = requested !== undefined && requested.id === TIER_FREE_ID;
-
-  return isAssignable ? requested.id : TIER_FREE_ID;
+  const requested = tiers.find((tier) => tier.id === requestedTierId);
+  return requested !== undefined && isSelfServiceAssignableTier(requested) ? requested.id : TIER_FREE_ID;
 }

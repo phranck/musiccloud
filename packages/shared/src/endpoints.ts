@@ -451,6 +451,12 @@ export const ENDPOINTS = {
       projects: "/api/dev/api-access/projects",
       /** GET / PATCH: one caller-owned project. */
       projectDetail: (id: string) => `/api/dev/api-access/projects/${id}`,
+      /**
+       * PUT: choose the plan for one caller-owned project. Body: `{ tierId }`.
+       * Only a tier a developer may choose themselves is accepted; see
+       * `isSelfServiceAssignableTier`.
+       */
+      projectSubscription: (id: string) => `/api/dev/api-access/projects/${id}/subscription`,
       /** GET / POST: registrations owned by one caller-owned project. */
       projectRegistrations: (id: string) => `/api/dev/api-access/projects/${id}/registrations`,
       /** POST: create a new token for one of the caller's own clients. Returns the raw token once. */
@@ -554,6 +560,7 @@ export const ROUTE_TEMPLATES = {
   dev: {
     apiAccess: {
       projectDetail: "/api/dev/api-access/projects/:id",
+      projectSubscription: "/api/dev/api-access/projects/:id/subscription",
       projectRegistrations: "/api/dev/api-access/projects/:id/registrations",
       clientCreateToken: "/api/dev/api-access/clients/:id/tokens",
       tokenRevoke: "/api/dev/api-access/tokens/:id/revoke",
