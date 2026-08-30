@@ -5,6 +5,7 @@
 import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getTierRepository } from "../db/index.js";
+import { isSelfServiceAssignableTier } from "../services/signup-tier.js";
 import { enrichTiersWithCreemPrices } from "../services/tier-pricing.js";
 
 export default async function publicTiersRoutes(app: FastifyInstance) {
@@ -27,7 +28,11 @@ export default async function publicTiersRoutes(app: FastifyInstance) {
     },
     async () => {
       const repo = await getTierRepository();
-      return enrichTiersWithCreemPrices(await repo.listTiers());
+      const priced = await enrichTiersWithCreemPrices(await repo.listTiers());
+      // Whether a developer may choose a plan is decided in one place, and the
+      // catalogue carries that answer so the pricing page and the plan step do
+      // not each work it out again.
+      return priced.map((tier) => ({ ...tier, selfServiceAssignable: isSelfServiceAssignableTier(tier) }));
     },
   );
 }

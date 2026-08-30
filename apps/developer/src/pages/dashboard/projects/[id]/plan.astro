@@ -1,0 +1,48 @@
+---
+/**
+ * /dashboard/projects/:id/plan: the plan step for one project (protected).
+ *
+ * Server-side: resolves the session, then loads the public plan catalogue. The
+ * catalogue is fetched here rather than in the browser because the portal's
+ * proxy only reaches `/api/dev/`, and because the plans do not change while
+ * somebody looks at them.
+ */
+import DashboardLayout from "@/components/dashboard/DashboardLayout.astro";
+import { PlanPanel } from "@/components/dashboard/PlanPanel";
+import { ProjectSwitcher } from "@/components/dashboard/ProjectSwitcher";
+import { backendUrl, internalHeaders } from "@/lib/api";
+import { DashboardTab } from "@/lib/dashboardTabs";
+import { type PublicTier, toPlanOptions } from "@/lib/planOptions";
+import { getDeveloperSession } from "@/lib/session";
+import { ENDPOINTS } from "@musiccloud/shared";
+
+export const prerender = false;
+
+const account = await getDeveloperSession(Astro);
+if (!account) return Astro.redirect("/login");
+
+const { id } = Astro.params;
+if (!id) return Astro.redirect("/dashboard/projects");
+
+// A catalogue we cannot reach leaves the choice empty rather than the page
+// broken; the panel says so, and the project keeps whatever plan it has.
+let plans: ReturnType<typeof toPlanOptions> = [];
+try {
+  const response = await fetch(backendUrl(ENDPOINTS.v1.tiers), {
+    headers: internalHeaders(Astro.clientAddress),
+  });
+  if (response.ok) plans = toPlanOptions((await response.json()) as PublicTier[]);
+} catch {
+  plans = [];
+}
+---
+
+<DashboardLayout account={account} active={DashboardTab.Projects} title="Plan · musiccloud for developers">
+  <h1 class="card-content-inset text-hero font-medium tracking-tight mb-1">Plan</h1>
+  <p class="card-content-inset text-body text-fg-muted mb-4">
+    A plan says how much this project may do. <a href={`/dashboard/projects/${id}`} class="content-link">Back to the project</a>
+  </p>
+
+  <ProjectSwitcher client:load currentProjectId={id} />
+  <PlanPanel client:load projectId={id} plans={plans} />
+</DashboardLayout>

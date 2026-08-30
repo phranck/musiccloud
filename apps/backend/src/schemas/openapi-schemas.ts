@@ -113,6 +113,7 @@ export const PublicTierSchema = {
     "description",
     "enabled",
     "disableReason",
+    "selfServiceAssignable",
     "recommended",
     "sortOrder",
     "features",
@@ -165,6 +166,11 @@ export const PublicTierSchema = {
       description: "Short plan description; an empty string means no description is published.",
     },
     enabled: { type: "boolean", description: "Whether new accounts can currently select this plan." },
+    selfServiceAssignable: {
+      type: "boolean",
+      description:
+        "Whether a developer can put a project on this plan themselves. A plan that is offered but not yet purchasable is `enabled` and not assignable.",
+    },
     disableReason: {
       type: "string",
       description: "Reason an unavailable plan cannot be selected; an empty string means no reason is published.",
@@ -193,6 +199,7 @@ export const PublicTierSchema = {
     description: "For evaluation and small personal projects.",
     enabled: true,
     disableReason: "",
+    selfServiceAssignable: true,
     recommended: false,
     sortOrder: 0,
     features: ["10,000 requests per day"],
