@@ -293,7 +293,7 @@
     font-size: var(--text-code);
   }
 
-  .public-footer__legal {
+  .public-footer__navigation {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
