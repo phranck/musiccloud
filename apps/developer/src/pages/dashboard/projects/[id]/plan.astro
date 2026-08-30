@@ -8,8 +8,9 @@
  * somebody looks at them.
  */
 import DashboardLayout from "@/components/dashboard/DashboardLayout.astro";
+import { DollarSquareIcon } from "@/lib/icons";
+import { ApiContent } from "@/components/docs/ApiContent";
 import { PlanPanel } from "@/components/dashboard/PlanPanel";
-import { ProjectSwitcher } from "@/components/dashboard/ProjectSwitcher";
 import { backendUrl, internalHeaders } from "@/lib/api";
 import { DashboardTab } from "@/lib/dashboardTabs";
 import { type PublicTier, toPlanOptions } from "@/lib/planOptions";
@@ -35,14 +36,19 @@ try {
 } catch {
   plans = [];
 }
+const PageIcon = DollarSquareIcon;
 ---
 
-<DashboardLayout account={account} active={DashboardTab.Projects} title="Plan · musiccloud for developers">
-  <h1 class="card-content-inset text-hero font-medium tracking-tight mb-1">Plan</h1>
-  <p class="card-content-inset text-body text-fg-muted mb-4">
+<DashboardLayout account={account} active={DashboardTab.Projects} activeProjectId={id} title="Plan · musiccloud for developers">
+  <ApiContent.Chapter.Header className="api-content__chapter-header--first">
+    <ApiContent.Chapter.Header.Icon>
+      <PageIcon aria-hidden="true" />
+    </ApiContent.Chapter.Header.Icon>
+    <ApiContent.Chapter.Header.Title>Plan</ApiContent.Chapter.Header.Title>
+  </ApiContent.Chapter.Header>
+  <p class="card-content-inset text-body text-fg-muted mb-6">
     A plan says how much this project may do. <a href={`/dashboard/projects/${id}`} class="content-link">Back to the project</a>
   </p>
 
-  <ProjectSwitcher client:load currentProjectId={id} />
   <PlanPanel client:load projectId={id} plans={plans} />
 </DashboardLayout>
