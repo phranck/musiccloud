@@ -2,8 +2,9 @@
  * @file GDPR personal-data export (MC-085, Art. 15/20): assembles everything
  * stored about a subject into one versioned JSON package — the developer
  * account (without secrets), its auth identities, and API-access
- * requests/clients with token METADATA (never hashes). An account-less
- * subject produces a minimal package containing only the normalized subject.
+ * requests/clients with token metadata, never hashes and never the tokens
+ * themselves. An account-less subject produces a minimal package containing
+ * only the normalized subject.
  */
 
 import type { ApiAccessRequest, ApiClient, ApiClientToken } from "../db/api-access-repository.js";
@@ -16,9 +17,48 @@ export interface PersonalDataSubject {
   email: string;
 }
 
+/**
+ * A token as the export carries it: when it was issued, used and revoked, and
+ * the prefix that identifies it on screen. The hash is credential material
+ * rather than the subject's personal data, so it stays out.
+ */
+export interface ExportedApiClientToken {
+  id: string;
+  clientId: string;
+  tokenPrefix: string;
+  status: string;
+  createdAt: number;
+  lastUsedAt: number | null;
+  revokedAt: number | null;
+  rotatedFromTokenId: string | null;
+}
+
 /** A client plus its issued tokens' metadata, as included in the export. */
 export interface ExportedApiClient extends ApiClient {
-  tokens: ApiClientToken[];
+  tokens: ExportedApiClientToken[];
+}
+
+/**
+ * Projects a stored token onto the fields the export is allowed to carry.
+ *
+ * The list is written out rather than subtracted from the row, because a
+ * subtraction exports whatever the row gains next. That is how the hash and
+ * the token itself came to travel in this package in the first place.
+ *
+ * @param token - The stored token.
+ * @returns Only the metadata fields named above.
+ */
+function toExportedToken(token: ApiClientToken): ExportedApiClientToken {
+  return {
+    id: token.id,
+    clientId: token.clientId,
+    tokenPrefix: token.tokenPrefix,
+    status: token.status,
+    createdAt: token.createdAt,
+    lastUsedAt: token.lastUsedAt,
+    revokedAt: token.revokedAt,
+    rotatedFromTokenId: token.rotatedFromTokenId,
+  };
 }
 
 /** The versioned export package handed to the subject as a JSON download. */
@@ -66,7 +106,8 @@ export async function buildPersonalDataExport(subject: PersonalDataSubject): Pro
   const clients = await apiAccessRepo.listApiClientsByDeveloperAccount(subject.developerAccountId);
   const clientsWithTokens: ExportedApiClient[] = [];
   for (const client of clients) {
-    clientsWithTokens.push({ ...client, tokens: await apiAccessRepo.listApiClientTokensByClient(client.id) });
+    const tokens = await apiAccessRepo.listApiClientTokensByClient(client.id);
+    clientsWithTokens.push({ ...client, tokens: tokens.map(toExportedToken) });
   }
   pkg.apiAccess = { requests, clients: clientsWithTokens };
 

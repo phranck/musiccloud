@@ -39,7 +39,17 @@ function makeRepos() {
   const apiAccessRepo = {
     listApiAccessRequestsByDeveloperAccount: vi.fn(async () => [{ id: "req-1", appName: "My App" }]),
     listApiClientsByDeveloperAccount: vi.fn(async () => [{ id: "client-1", appName: "My App" }]),
-    listApiClientTokensByClient: vi.fn(async () => [{ id: "token-1", tokenPrefix: "mc_abc", status: "active" }]),
+    // `token_raw` is dropped and `tokenHash` is stripped by the builder, but
+    // both are set here so the test still fails if either one ever travels.
+    listApiClientTokensByClient: vi.fn(async () => [
+      {
+        id: "token-1",
+        tokenPrefix: "mc_abc",
+        tokenHash: "deadbeef",
+        rawToken: "mc_live_mc_abc_thesecretitself",
+        status: "active",
+      },
+    ]),
   };
   return { developerRepo, apiAccessRepo };
 }
@@ -66,6 +76,16 @@ describe("buildPersonalDataExport", () => {
     expect(pkg.apiAccess?.clients[0]).toMatchObject({ id: "client-1" });
     expect(pkg.apiAccess?.clients[0]?.tokens[0]).toMatchObject({ tokenPrefix: "mc_abc" });
     expect(pkg).not.toHaveProperty("formSubmissions");
+  });
+
+  it("exports token metadata and neither the hash nor the token itself", async () => {
+    const pkg = await buildPersonalDataExport({ developerAccountId: "dev-acc-1", email: "dev@example.com" });
+
+    const exportedToken = pkg.apiAccess?.clients[0]?.tokens[0];
+    expect(exportedToken).toMatchObject({ id: "token-1", tokenPrefix: "mc_abc", status: "active" });
+    expect(exportedToken).not.toHaveProperty("tokenHash");
+    expect(JSON.stringify(pkg)).not.toContain("deadbeef");
+    expect(JSON.stringify(pkg)).not.toContain("thesecretitself");
   });
 
   it("omits the account sections for an account-less subject", async () => {

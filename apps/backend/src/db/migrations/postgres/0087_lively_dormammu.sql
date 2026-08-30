@@ -1,0 +1,1 @@
+ALTER TABLE "api_client_tokens" DROP COLUMN "token_raw";
