@@ -2,10 +2,10 @@ import { loadRenderers } from "astro:container";
 import { getContainerRenderer } from "@astrojs/react";
 import { experimental_AstroContainer as AstroContainer } from "astro/container";
 import { describe, expect, it } from "vitest";
-import { DashboardTab } from "../../lib/dashboardTabs";
+import { DASHBOARD_NAV, DashboardTab } from "../../lib/dashboardTabs";
 
 /** The destinations that are one row in each render mode, so twice in total. */
-const PLAIN_DESTINATIONS = ["API access", "Usage", "Profile"];
+const PLAIN_DESTINATIONS = ["Usage", "Profile"];
 
 describe("DashboardNavigation", () => {
   it("shares active and disabled state across desktop and mobile navigation", async () => {
@@ -41,5 +41,19 @@ describe("DashboardNavigation", () => {
     expect(html.match(/>\s*Overview\s*</g)).toHaveLength(3);
     // The list entry is the current page whilst no single project is open.
     expect(html).toMatch(/href="\/dashboard\/projects"[^>]*aria-current="page"[^>]*api-reference-nav__link--counted/);
+  });
+
+  it("lists the destinations in the same order as the canonical nav list", async () => {
+    const { default: DashboardNavigation } = await import("./DashboardNavigation.astro");
+    const container = await AstroContainer.create({ renderers: await loadRenderers([getContainerRenderer()]) });
+    const html = await container.renderToString(DashboardNavigation, {
+      props: { active: DashboardTab.Overview },
+    });
+
+    // Projects renders as a disclosure and everything else as a row, so the one
+    // thing that can drift is where the disclosure sits among the rows.
+    const positions = DASHBOARD_NAV.map((item) => html.indexOf(`>${item.label}<`));
+    expect(positions.every((position) => position >= 0)).toBe(true);
+    expect([...positions].sort((left, right) => left - right)).toEqual(positions);
   });
 });

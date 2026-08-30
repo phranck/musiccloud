@@ -7,13 +7,12 @@
  * place, exactly as `api-reference-section-icons.ts` does for the reference.
  */
 import { DashboardTab, type DashboardTabValue } from "@/lib/dashboardTabs";
-import { CategoryIcon, DataIcon, DiagramIcon, KeyIcon, ProfileIcon } from "@/lib/icons";
+import { CategoryIcon, DataIcon, DiagramIcon, ProfileIcon } from "@/lib/icons";
 
 /** One symbol per destination, in the rail and nowhere else so far. */
 const DASHBOARD_NAV_ICONS = {
   [DashboardTab.Overview]: CategoryIcon,
   [DashboardTab.Projects]: DataIcon,
-  [DashboardTab.ApiAccess]: KeyIcon,
   [DashboardTab.Usage]: DiagramIcon,
   [DashboardTab.Profile]: ProfileIcon,
 } as const;
