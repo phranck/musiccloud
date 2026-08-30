@@ -1,4 +1,4 @@
-import { ENDPOINTS } from "@musiccloud/shared";
+import { ENDPOINTS, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@musiccloud/shared";
 import { type ChangeEvent, type ReactNode, type SyntheticEvent, useCallback, useReducer } from "react";
 import { AuthStatus } from "@/components/auth/AuthStatus";
 import { SubmitButton } from "@/components/auth/SubmitButton";
@@ -8,11 +8,6 @@ import { postAuth } from "@/lib/authClient";
 import { AuthErrorCode, authErrorLabel } from "@/lib/authErrors";
 import { AuthStatusTone } from "@/lib/authStatusTone";
 import { FormPhase, type FormPhaseValue } from "@/lib/formPhase";
-
-/** Minimum password length the backend accepts (mirrors `PASSWORD_MIN_LENGTH`). */
-const PASSWORD_MIN_LENGTH = 8;
-/** Maximum password length the backend accepts (mirrors `PASSWORD_MAX_LENGTH`). */
-const PASSWORD_MAX_LENGTH = 128;
 
 /**
  * Consolidated signup-form state. Grouped behind a single `useReducer` (rather

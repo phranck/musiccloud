@@ -45,7 +45,14 @@
  * bucket used by the public resolve/share surface, so portal credential traffic
  * is throttled on its own budget without coupling to public-API limits.
  */
-import { EmailAction, EmailRecipientKind, ENDPOINTS, MAX_DISPLAY_NAME_LENGTH } from "@musiccloud/shared";
+import {
+  EmailAction,
+  EmailRecipientKind,
+  ENDPOINTS,
+  MAX_DISPLAY_NAME_LENGTH,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+} from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { DeveloperAccount } from "../db/developer-repository.js";
 import { getDeveloperRepository, getTierRepository } from "../db/index.js";
@@ -69,12 +76,6 @@ import { triggerEmailAction } from "../services/email-actions.js";
 import { erasePersonalData } from "../services/gdpr-erase.js";
 import { buildPersonalDataExport } from "../services/gdpr-export.js";
 import { resolveSignupTierId } from "../services/signup-tier.js";
-
-/** Minimum accepted password length, matching the admin surface (admin-auth.ts). */
-const PASSWORD_MIN_LENGTH = 8;
-
-/** Maximum accepted password length, matching the admin surface (admin-auth.ts). */
-const PASSWORD_MAX_LENGTH = 128;
 
 /** Verification-token lifetime: 24 hours from issuance. */
 const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;

@@ -16,3 +16,19 @@
  * what it says.
  */
 export const MAX_DISPLAY_NAME_LENGTH = 200;
+
+/**
+ * The shortest password an account may have, on the developer portal and on the
+ * admin surface alike.
+ */
+export const PASSWORD_MIN_LENGTH = 8;
+
+/**
+ * The longest password an account may have.
+ *
+ * The bound keeps a request body finite rather than keeping a password short.
+ * Passwords are hashed with bcrypt, which reads the first 72 bytes and ignores
+ * the rest, so a password longer than that is no harder to guess than its first
+ * 72 bytes.
+ */
+export const PASSWORD_MAX_LENGTH = 256;
