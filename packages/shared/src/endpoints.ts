@@ -459,6 +459,12 @@ export const ENDPOINTS = {
       projectSubscription: (id: string) => `/api/dev/api-access/projects/${id}/subscription`,
       /** GET / POST: registrations owned by one caller-owned project. */
       projectRegistrations: (id: string) => `/api/dev/api-access/projects/${id}/registrations`,
+      /**
+       * PATCH: change one caller-owned registration. Body:
+       * `{ status?, websiteUrl?, description? }`. Suspending or revoking a
+       * registration stops its tokens from authenticating.
+       */
+      registrationDetail: (id: string) => `/api/dev/api-access/registrations/${id}`,
       /** POST: create a new token for one of the caller's own clients. Returns the raw token once. */
       clientCreateToken: (id: string) => `/api/dev/api-access/clients/${id}/tokens`,
       /** POST: revoke one of the caller's own tokens. */
@@ -562,6 +568,7 @@ export const ROUTE_TEMPLATES = {
       projectDetail: "/api/dev/api-access/projects/:id",
       projectSubscription: "/api/dev/api-access/projects/:id/subscription",
       projectRegistrations: "/api/dev/api-access/projects/:id/registrations",
+      registrationDetail: "/api/dev/api-access/registrations/:id",
       clientCreateToken: "/api/dev/api-access/clients/:id/tokens",
       tokenRevoke: "/api/dev/api-access/tokens/:id/revoke",
       tokenRotate: "/api/dev/api-access/tokens/:id/rotate",

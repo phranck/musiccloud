@@ -342,7 +342,13 @@ export interface ApiAccessRepository {
    */
   updateApiClient(
     id: string,
-    data: { status?: string; requestsPerMinute?: number | null; requestsPerDay?: number | null },
+    data: {
+      status?: string;
+      websiteUrl?: string | null;
+      description?: string;
+      requestsPerMinute?: number | null;
+      requestsPerDay?: number | null;
+    },
   ): Promise<ApiClient | null>;
 
   /**

@@ -422,6 +422,101 @@ describe("devApiAccessRoutes", () => {
     });
   });
 
+  describe("changing a registration", () => {
+    it("suspends a registration the caller owns and audits it", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findApiClientById.mockResolvedValue(makeClient());
+      mockRepo.updateApiClient.mockResolvedValue(makeClient({ status: "suspended" }));
+
+      const response = await app.inject({
+        method: "PATCH",
+        url: ROUTE_TEMPLATES.dev.apiAccess.registrationDetail.replace(":id", "client-1"),
+        payload: { status: "suspended" },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().registration.status).toBe("suspended");
+      expect(mockRepo.updateApiClient).toHaveBeenCalledWith(
+        "client-1",
+        expect.objectContaining({ status: "suspended" }),
+      );
+      expect(mockRepo.createApiAccessAuditEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ clientId: "client-1", eventType: "registration_suspended" }),
+      );
+    });
+
+    it("changes the application website and clears it again", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findApiClientById.mockResolvedValue(makeClient());
+      mockRepo.updateApiClient.mockResolvedValue(makeClient({ websiteUrl: "https://example.com/app" }));
+
+      const set = await app.inject({
+        method: "PATCH",
+        url: ROUTE_TEMPLATES.dev.apiAccess.registrationDetail.replace(":id", "client-1"),
+        payload: { websiteUrl: " https://example.com/app " },
+      });
+      expect(set.statusCode).toBe(200);
+      expect(mockRepo.updateApiClient).toHaveBeenCalledWith(
+        "client-1",
+        expect.objectContaining({ websiteUrl: "https://example.com/app" }),
+      );
+
+      mockRepo.updateApiClient.mockResolvedValue(makeClient({ websiteUrl: null }));
+      const cleared = await app.inject({
+        method: "PATCH",
+        url: ROUTE_TEMPLATES.dev.apiAccess.registrationDetail.replace(":id", "client-1"),
+        payload: { websiteUrl: "" },
+      });
+      expect(cleared.statusCode).toBe(200);
+      expect(mockRepo.updateApiClient).toHaveBeenLastCalledWith(
+        "client-1",
+        expect.objectContaining({ websiteUrl: null }),
+      );
+    });
+
+    it("refuses a website that is not an http or https URL", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findApiClientById.mockResolvedValue(makeClient());
+
+      const response = await app.inject({
+        method: "PATCH",
+        url: ROUTE_TEMPLATES.dev.apiAccess.registrationDetail.replace(":id", "client-1"),
+        payload: { websiteUrl: "javascript:alert(1)" },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(mockRepo.updateApiClient).not.toHaveBeenCalled();
+    });
+
+    it("refuses a status the registration cannot be in", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findApiClientById.mockResolvedValue(makeClient());
+
+      const response = await app.inject({
+        method: "PATCH",
+        url: ROUTE_TEMPLATES.dev.apiAccess.registrationDetail.replace(":id", "client-1"),
+        payload: { status: "deleted" },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(mockRepo.updateApiClient).not.toHaveBeenCalled();
+    });
+
+    it("returns 404, not 403, for a registration owned by somebody else", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findApiClientById.mockResolvedValue(makeClient({ developerAccountId: "someone-else" }));
+
+      const response = await app.inject({
+        method: "PATCH",
+        url: ROUTE_TEMPLATES.dev.apiAccess.registrationDetail.replace(":id", "client-1"),
+        payload: { status: "revoked" },
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(mockRepo.updateApiClient).not.toHaveBeenCalled();
+    });
+  });
+
   describe("the plan step", () => {
     it("creates a project without a plan, so choosing one stays a step", async () => {
       const app = await buildApp("dev-1");
