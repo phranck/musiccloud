@@ -136,6 +136,8 @@ import {
 } from "./postgres-albums.js";
 import {
   activateApiClientToken as apiAccessActivateClientToken,
+  countActiveApiClientsByProject as apiAccessCountActiveClientsByProject,
+  countActiveDeveloperProjectsByAccount as apiAccessCountActiveProjectsByAccount,
   countPendingApiAccessRequests as apiAccessCountPending,
   createApiAccessAuditEvent as apiAccessCreateAuditEvent,
   createApiClient as apiAccessCreateClient,
@@ -1216,6 +1218,10 @@ export class PostgresAdapter
     return apiAccessListDeveloperProjectsByAccount(this.pool, developerAccountId);
   }
 
+  countActiveDeveloperProjectsByAccount(developerAccountId: string): Promise<number> {
+    return apiAccessCountActiveProjectsByAccount(this.pool, developerAccountId);
+  }
+
   updateDeveloperProject(
     id: string,
     data: {
@@ -1310,6 +1316,10 @@ export class PostgresAdapter
 
   listApiClientsByProject(projectId: string): Promise<ApiClient[]> {
     return apiAccessListClientsByProject(this.pool, projectId);
+  }
+
+  countActiveApiClientsByProject(projectId: string): Promise<number> {
+    return apiAccessCountActiveClientsByProject(this.pool, projectId);
   }
 
   listApiClients(status?: string): Promise<ApiClient[]> {

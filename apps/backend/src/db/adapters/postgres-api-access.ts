@@ -402,6 +402,25 @@ export async function listDeveloperProjectsByAccount(
   return result.rows.map((row) => rowToDeveloperProject(row as DeveloperProjectRow));
 }
 
+/**
+ * Counts the projects an account currently holds, meaning every project that
+ * has not been soft-deleted. A suspended project counts, because it still
+ * exists and still owns its registrations. Served by
+ * `idx_developer_projects_account_status`.
+ *
+ * @param pool - The Postgres pool.
+ * @param developerAccountId - The owning developer account.
+ * @returns The number of projects that count against the per-account ceiling.
+ */
+export async function countActiveDeveloperProjectsByAccount(pool: Pool, developerAccountId: string): Promise<number> {
+  const result = await pool.query(
+    `SELECT COUNT(*)::int AS cnt FROM developer_projects
+     WHERE developer_account_id = $1 AND status <> 'deleted'`,
+    [developerAccountId],
+  );
+  return (result.rows[0] as { cnt: number }).cnt;
+}
+
 export async function updateDeveloperProject(
   pool: Pool,
   id: string,
@@ -694,6 +713,24 @@ export async function listApiClientsByProject(pool: Pool, projectId: string): Pr
     projectId,
   ]);
   return result.rows.map((row) => rowToApiClient(row as ApiClientRow));
+}
+
+/**
+ * Counts the registrations a project currently holds, meaning every
+ * registration that has not been revoked. A suspended registration counts,
+ * because a suspension is reversible and the registration still exists.
+ * Served by `idx_api_clients_project_status`.
+ *
+ * @param pool - The Postgres pool.
+ * @param projectId - The owning project.
+ * @returns The number of registrations that count against the per-project ceiling.
+ */
+export async function countActiveApiClientsByProject(pool: Pool, projectId: string): Promise<number> {
+  const result = await pool.query(
+    `SELECT COUNT(*)::int AS cnt FROM api_clients WHERE project_id = $1 AND status <> 'revoked'`,
+    [projectId],
+  );
+  return (result.rows[0] as { cnt: number }).cnt;
 }
 
 export async function listApiClients(pool: Pool, status?: string): Promise<ApiClient[]> {

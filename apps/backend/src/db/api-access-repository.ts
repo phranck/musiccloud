@@ -219,6 +219,17 @@ export interface ApiAccessRepository {
 
   listDeveloperProjectsByAccount(developerAccountId: string): Promise<DeveloperProject[]>;
 
+  /**
+   * Counts the projects an account holds, meaning every project that has not
+   * been soft-deleted. Suspended projects count, because they still exist and
+   * still own their registrations. Read by the self-service creation route to
+   * enforce the per-account ceiling.
+   *
+   * @param developerAccountId - The owning developer account.
+   * @returns The number of projects that count against the ceiling.
+   */
+  countActiveDeveloperProjectsByAccount(developerAccountId: string): Promise<number>;
+
   updateDeveloperProject(
     id: string,
     data: {
@@ -304,6 +315,17 @@ export interface ApiAccessRepository {
 
   /** Lists every registration owned by one project, newest first. */
   listApiClientsByProject(projectId: string): Promise<ApiClient[]>;
+
+  /**
+   * Counts the registrations a project holds, meaning every registration that
+   * has not been revoked. Suspended registrations count, because a suspension
+   * is reversible. Read by the self-service creation route to enforce the
+   * per-project ceiling.
+   *
+   * @param projectId - The owning project.
+   * @returns The number of registrations that count against the ceiling.
+   */
+  countActiveApiClientsByProject(projectId: string): Promise<number>;
 
   /** Lists clients, newest first, optionally filtered by `status`. */
   listApiClients(status?: string): Promise<ApiClient[]>;

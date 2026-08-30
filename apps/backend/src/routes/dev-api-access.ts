@@ -6,11 +6,17 @@
  * `preHandler` in `server.ts`) and additionally checks ownership —
  * a client/token that exists but belongs to a different developer account
  * is reported as 404, never 403, so its existence is not leaked.
+ *
+ * Creating a project or a registration is bounded twice, because the path is
+ * open and nobody reviews it: a per-account throttle limits how fast records
+ * appear, and a ceiling limits how many one account or project may hold.
  */
 import { EmailAction, ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { ApiAccessRequest, ApiClient, ApiClientToken, DeveloperProject } from "../db/api-access-repository.js";
 import { getApiAccessRepository } from "../db/index.js";
+import { setApiFailureDiagnostic } from "../lib/infra/api-error-handler.js";
+import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { RateLimiter } from "../lib/infra/rate-limiter.js";
 import { generateApiToken } from "../services/api-access-token.js";
@@ -19,14 +25,75 @@ import { notifyDeveloper } from "../services/developer-notifications.js";
 const MAX_APP_NAME_LENGTH = 200;
 const MAX_APP_DESCRIPTION_LENGTH = 2000;
 
+/** Projects and registrations one account may create per minute, taken together. */
+export const CREATIONS_PER_MINUTE_PER_ACCOUNT = 10;
+/** Projects one account may hold at once. Deleting a project frees a slot. */
+export const MAX_PROJECTS_PER_ACCOUNT = 10;
+/** Registrations one project may hold at once. Revoking a registration frees a slot. */
+export const MAX_REGISTRATIONS_PER_PROJECT = 5;
+/** Refusal for an account that already holds {@link MAX_PROJECTS_PER_ACCOUNT} projects. */
+const PROJECT_CEILING_CODE = "MC-REQ-0003";
+/** Refusal for a project that already holds {@link MAX_REGISTRATIONS_PER_PROJECT} registrations. */
+const REGISTRATION_CEILING_CODE = "MC-REQ-0004";
+
 /** Dedicated per-developer throttle (20/min) for the three token-mutating routes, separate from the global apiRateLimiter. */
 const devApiAccessTokenRateLimiter = new RateLimiter(20, 60_000);
+
+/**
+ * Dedicated per-developer throttle for creating projects and registrations.
+ * It is a bucket of its own so a creation loop cannot spend the budget a
+ * developer needs in order to revoke a leaked token, or the other way round.
+ */
+const devApiAccessCreationRateLimiter = new RateLimiter(CREATIONS_PER_MINUTE_PER_ACCOUNT, 60_000);
 
 async function throttleTokenMutation(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const check = devApiAccessTokenRateLimiter.check(request.developerAccountId!);
   if (check.limited) {
     await sendRateLimitError(reply, check);
   }
+}
+
+/**
+ * Bounds how fast one account creates projects and registrations. Both count
+ * into the same bucket, because both walk the same open path.
+ *
+ * @param request - The request, carrying the authenticated developer account id.
+ * @param reply - Answers `429` with the standard rate-limit envelope once the bucket is spent.
+ */
+async function throttleCreation(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  const check = devApiAccessCreationRateLimiter.check(request.developerAccountId!);
+  if (check.limited) {
+    setApiFailureDiagnostic(request, {
+      developerAccountId: request.developerAccountId,
+      limit: check.limit,
+      limitName: "creations_per_minute_per_account",
+      outcome: "creation_throttled",
+    });
+    await sendRateLimitError(reply, check);
+  }
+}
+
+/**
+ * Refuses a creation that would carry its owner past a ceiling, and records
+ * which ceiling fired on the request's own failure log.
+ *
+ * @param request - The request being refused.
+ * @param reply - The reply the refusal is sent on.
+ * @param ceiling - The ceiling that fired: its error code, its value, and the name it is logged under.
+ * @returns The sent reply, so a handler can return it directly.
+ */
+function refuseOverCeiling(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  ceiling: { code: string; limit: number; name: string },
+): FastifyReply {
+  setApiFailureDiagnostic(request, {
+    developerAccountId: request.developerAccountId,
+    limit: ceiling.limit,
+    limitName: ceiling.name,
+    outcome: "creation_refused",
+  });
+  return reply.status(409).send(createApiErrorResponse(ceiling.code, { context: { limit: ceiling.limit } }));
 }
 
 function toRequestResponse(request: ApiAccessRequest) {
@@ -145,13 +212,24 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
     return reply.send({ projects: projects.map(toProjectResponse) });
   });
 
-  app.post(ENDPOINTS.dev.apiAccess.projects, async (request, reply) => {
+  app.post(ENDPOINTS.dev.apiAccess.projects, { preHandler: throttleCreation }, async (request, reply) => {
     const body = request.body as { displayName?: string } | null;
     const displayName = body?.displayName?.trim() ?? "";
     if (!displayName || displayName.length > MAX_APP_NAME_LENGTH) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "displayName is required (max 200 chars)." });
     }
     const repo = await getApiAccessRepository();
+    // The count is read before the insert rather than inside it, so requests
+    // already in flight can carry an account a little past the ceiling. The
+    // creation throttle bounds how many that can be.
+    const heldProjects = await repo.countActiveDeveloperProjectsByAccount(request.developerAccountId!);
+    if (heldProjects >= MAX_PROJECTS_PER_ACCOUNT) {
+      return refuseOverCeiling(request, reply, {
+        code: PROJECT_CEILING_CODE,
+        limit: MAX_PROJECTS_PER_ACCOUNT,
+        name: "projects_per_account",
+      });
+    }
     const project = await repo.createDeveloperProject({
       developerAccountId: request.developerAccountId!,
       displayName,
@@ -214,52 +292,64 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
     return reply.send({ registrations: registrations.map((registration) => toClientResponse(registration, [])) });
   });
 
-  app.post(ROUTE_TEMPLATES.dev.apiAccess.projectRegistrations, async (request, reply) => {
-    const { id } = request.params as { id: string };
-    const body = request.body as {
-      name?: string;
-      description?: string;
-      registrationType?: "development" | "confidential" | "public";
-      capabilities?: string[];
-    } | null;
-    const name = body?.name?.trim() ?? "";
-    if (!name || name.length > MAX_APP_NAME_LENGTH) {
-      return reply.status(400).send({ error: "INVALID_REQUEST", message: "name is required (max 200 chars)." });
-    }
-    const registrationType = body?.registrationType ?? "development";
-    if (!["development", "confidential", "public"].includes(registrationType)) {
-      return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid registrationType." });
-    }
-    if (
-      body?.capabilities !== undefined &&
-      (!Array.isArray(body.capabilities) || !body.capabilities.every((capability) => typeof capability === "string"))
-    ) {
-      return reply.status(400).send({ error: "INVALID_REQUEST", message: "capabilities must contain strings." });
-    }
-    const repo = await getApiAccessRepository();
-    const project = await loadOwnedProject(repo, id, request.developerAccountId!);
-    if (!project) return reply.status(404).send({ error: "NOT_FOUND", message: "Project not found." });
-    if (project.status !== "active") {
-      return reply.status(409).send({ error: "PROJECT_INACTIVE", message: "Project is not active." });
-    }
-    const registration = await repo.createApiClient({
-      developerAccountId: request.developerAccountId!,
-      projectId: project.id,
-      registrationType,
-      capabilities: body?.capabilities ?? [],
-      appName: name,
-      contactEmail: request.developerAccount!.email,
-      description: body?.description?.trim() ?? "",
-    });
-    await repo.createApiAccessAuditEvent({
-      projectId: project.id,
-      clientId: registration.id,
-      eventType: "registration_created",
-      actorDeveloperAccountId: request.developerAccountId!,
-      eventData: { registrationType, publicClientId: registration.publicClientId },
-    });
-    return reply.status(201).send({ registration: toClientResponse(registration, []) });
-  });
+  app.post(
+    ROUTE_TEMPLATES.dev.apiAccess.projectRegistrations,
+    { preHandler: throttleCreation },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const body = request.body as {
+        name?: string;
+        description?: string;
+        registrationType?: "development" | "confidential" | "public";
+        capabilities?: string[];
+      } | null;
+      const name = body?.name?.trim() ?? "";
+      if (!name || name.length > MAX_APP_NAME_LENGTH) {
+        return reply.status(400).send({ error: "INVALID_REQUEST", message: "name is required (max 200 chars)." });
+      }
+      const registrationType = body?.registrationType ?? "development";
+      if (!["development", "confidential", "public"].includes(registrationType)) {
+        return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid registrationType." });
+      }
+      if (
+        body?.capabilities !== undefined &&
+        (!Array.isArray(body.capabilities) || !body.capabilities.every((capability) => typeof capability === "string"))
+      ) {
+        return reply.status(400).send({ error: "INVALID_REQUEST", message: "capabilities must contain strings." });
+      }
+      const repo = await getApiAccessRepository();
+      const project = await loadOwnedProject(repo, id, request.developerAccountId!);
+      if (!project) return reply.status(404).send({ error: "NOT_FOUND", message: "Project not found." });
+      if (project.status !== "active") {
+        return reply.status(409).send({ error: "PROJECT_INACTIVE", message: "Project is not active." });
+      }
+      const heldRegistrations = await repo.countActiveApiClientsByProject(project.id);
+      if (heldRegistrations >= MAX_REGISTRATIONS_PER_PROJECT) {
+        return refuseOverCeiling(request, reply, {
+          code: REGISTRATION_CEILING_CODE,
+          limit: MAX_REGISTRATIONS_PER_PROJECT,
+          name: "registrations_per_project",
+        });
+      }
+      const registration = await repo.createApiClient({
+        developerAccountId: request.developerAccountId!,
+        projectId: project.id,
+        registrationType,
+        capabilities: body?.capabilities ?? [],
+        appName: name,
+        contactEmail: request.developerAccount!.email,
+        description: body?.description?.trim() ?? "",
+      });
+      await repo.createApiAccessAuditEvent({
+        projectId: project.id,
+        clientId: registration.id,
+        eventType: "registration_created",
+        actorDeveloperAccountId: request.developerAccountId!,
+        eventData: { registrationType, publicClientId: registration.publicClientId },
+      });
+      return reply.status(201).send({ registration: toClientResponse(registration, []) });
+    },
+  );
 
   app.post(ENDPOINTS.dev.apiAccess.requestsCreate, async (request, reply) => {
     const body = request.body as {
