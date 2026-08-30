@@ -5,8 +5,9 @@
  * `authenticatePublic` preHandler group) specifically so scripting consumers
  * can hit it without a JWT: Apple Shortcuts, curl one-liners, Bookmarklets,
  * and similar integrations that cannot participate in a Bearer-token flow.
- * Rate limiting per client IP (`apiRateLimiter`) is the primary abuse defense
- * in place of auth.
+ * Rate limiting per client IP is the primary abuse defence in place of auth,
+ * over a budget of its own (`checkKeylessResolveBudget`) that no other route
+ * shares, with a per-minute and a per-day window.
  *
  * Relationship to other resolve routes:
  * - `routes/resolve.ts`: POST counterpart for authenticated clients
@@ -32,7 +33,11 @@ import { requireEnvList } from "../lib/env.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { log } from "../lib/infra/logger.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
-import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
+import {
+  checkKeylessResolveBudget,
+  KEYLESS_RESOLVE_REQUESTS_PER_DAY,
+  KEYLESS_RESOLVE_REQUESTS_PER_MINUTE,
+} from "../lib/infra/rate-limiter.js";
 import { isUrl, stripTrackingParams } from "../lib/platform/url.js";
 import { getPreviewExpiry, isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
@@ -73,7 +78,10 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
           query: { query: "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L" },
         }),
         description:
-          "Unauthenticated one-request companion to `POST /api/v1/resolve`, suitable for command-line tools, shortcuts, and other clients that do not need an interactive candidate-selection round. Accepts:\n\n" +
+          "Unauthenticated one-request companion to `POST /api/v1/resolve`, suitable for command-line tools, shortcuts, and other clients that do not need an interactive candidate-selection round.\n\n" +
+          "**This operation needs no API key.** Send it as it stands, from a shortcut, a shell script or a bookmarklet. " +
+          `It draws on a budget no other operation shares: \`${KEYLESS_RESOLVE_REQUESTS_PER_MINUTE}\` requests in a rolling \`60\`-second window and \`${KEYLESS_RESOLVE_REQUESTS_PER_DAY}\` in a rolling \`24\`-hour window, both per client IP. Anything beyond a person's own use belongs on \`POST /api/v1/resolve\` with a registration key, where the quota comes from your project's plan.\n\n` +
+          "Accepts:\n\n" +
           "- **Streaming-service URL** (e.g. `https://open.spotify.com/track/...`)\n" +
           "- **Free-text query** (e.g. `bohemian rhapsody queen`)\n" +
           `- **Structured search query** — ${STRUCTURED_SEARCH_OPENAPI_SECTION}\n\n` +
@@ -131,7 +139,9 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
           },
           408: { description: "Upstream service timed out.", $ref: "ErrorResponse#" },
           429: {
-            description: "This client IP exceeded `10` requests in a rolling `60`-second window.",
+            description:
+              `This client IP exceeded \`${KEYLESS_RESOLVE_REQUESTS_PER_MINUTE}\` requests in a rolling \`60\`-second ` +
+              `window, or \`${KEYLESS_RESOLVE_REQUESTS_PER_DAY}\` in a rolling \`24\`-hour window. \`Retry-After\` says how long to wait.`,
             $ref: "ErrorResponse#",
           },
           500: {
@@ -144,15 +154,15 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
     },
     async (request, reply) => {
       // Without a JWT preHandler in front of this route, the IP-based rate
-      // limiter is the primary abuse defense. The effective bucket key is
+      // limiter is the primary abuse defence. The effective bucket key is
       // whatever Fastify resolves as `request.ip`, which depends on the
       // Fastify `trustProxy` option (see server.ts). Production sets
       // TRUST_PROXY=1 so `request.ip` reads the X-Forwarded-For client IP
       // from the single Zerops ingress hop; with TRUST_PROXY unset all
-      // clients behind the proxy share one bucket and 2-3 legitimate
-      // requests trip the per-IP 30/60s limit for everyone.
+      // clients behind the proxy share one bucket and a handful of legitimate
+      // requests trip the per-minute limit for everyone.
       const clientIp = request.ip;
-      const rateLimit = apiRateLimiter.check(clientIp);
+      const rateLimit = checkKeylessResolveBudget(clientIp);
       if (rateLimit.limited) {
         return sendRateLimitError(reply, rateLimit);
       }
