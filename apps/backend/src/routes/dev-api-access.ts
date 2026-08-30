@@ -1,7 +1,7 @@
 /**
  * @file Developer self-service routes for the API-access system
- * (MC-025/MC-077): submit a request, list the caller's own requests and
- * clients, and manage the caller's own tokens (create/revoke/rotate).
+ * (MC-025/MC-077): list and create the caller's own projects and
+ * registrations, and manage the caller's own tokens (create/revoke/rotate).
  * Every handler runs behind `authenticateDeveloper` (set as this scope's
  * `preHandler` in `server.ts`) and additionally checks ownership —
  * a client/token that exists but belongs to a different developer account
@@ -13,7 +13,7 @@
  */
 import { EmailAction, ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import type { ApiAccessRequest, ApiClient, ApiClientToken, DeveloperProject } from "../db/api-access-repository.js";
+import type { ApiClient, ApiClientToken, DeveloperProject } from "../db/api-access-repository.js";
 import { getApiAccessRepository } from "../db/index.js";
 import { setApiFailureDiagnostic } from "../lib/infra/api-error-handler.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
@@ -25,7 +25,6 @@ import { notifyDeveloper } from "../services/developer-notifications.js";
 import { listSelfServiceAssignableTiers } from "../services/signup-tier.js";
 
 const MAX_APP_NAME_LENGTH = 200;
-const MAX_APP_DESCRIPTION_LENGTH = 2000;
 /** Long enough for any real application page, short enough not to be a place to put things. */
 const MAX_WEBSITE_URL_LENGTH = 500;
 
@@ -125,20 +124,6 @@ function parseWebsiteUrl(value: string): string | null {
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
   return parsed.toString();
-}
-
-function toRequestResponse(request: ApiAccessRequest) {
-  return {
-    id: request.id,
-    projectId: request.projectId,
-    appName: request.appName,
-    appDescription: request.appDescription,
-    estimatedRequestsPerDay: request.estimatedRequestsPerDay,
-    status: request.status,
-    submittedAt: new Date(request.submittedAt).toISOString(),
-    reviewedAt: request.reviewedAt ? new Date(request.reviewedAt).toISOString() : null,
-    reviewNote: request.reviewNote,
-  };
 }
 
 function toClientResponse(client: ApiClient, tokens: ApiClientToken[]) {
@@ -516,51 +501,6 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
       eventData: { status: body?.status, websiteUrl },
     });
     return reply.send({ registration: toClientResponse(updated, []) });
-  });
-
-  app.post(ENDPOINTS.dev.apiAccess.requestsCreate, async (request, reply) => {
-    const body = request.body as {
-      appName?: string;
-      appDescription?: string;
-      estimatedRequestsPerDay?: number;
-    } | null;
-    const appName = body?.appName?.trim() ?? "";
-    const appDescription = body?.appDescription?.trim() ?? "";
-    const estimatedRequestsPerDay = body?.estimatedRequestsPerDay;
-    if (!appName || appName.length > MAX_APP_NAME_LENGTH) {
-      return reply.status(400).send({ error: "INVALID_REQUEST", message: "appName is required (max 200 chars)." });
-    }
-    if (!appDescription || appDescription.length > MAX_APP_DESCRIPTION_LENGTH) {
-      return reply
-        .status(400)
-        .send({ error: "INVALID_REQUEST", message: "appDescription is required (max 2000 chars)." });
-    }
-    if (!Number.isInteger(estimatedRequestsPerDay) || (estimatedRequestsPerDay as number) <= 0) {
-      return reply
-        .status(400)
-        .send({ error: "INVALID_REQUEST", message: "estimatedRequestsPerDay must be a positive integer." });
-    }
-
-    const repo = await getApiAccessRepository();
-    const created = await repo.createApiAccessRequest({
-      developerAccountId: request.developerAccountId!,
-      contactEmail: request.developerAccount!.email,
-      appName,
-      appDescription,
-      estimatedRequestsPerDay: estimatedRequestsPerDay as number,
-    });
-    await repo.createApiAccessAuditEvent({
-      requestId: created.id,
-      eventType: "request_submitted",
-      actorDeveloperAccountId: request.developerAccountId!,
-    });
-    return reply.status(201).send({ request: toRequestResponse(created) });
-  });
-
-  app.get(ENDPOINTS.dev.apiAccess.requestsList, async (request, reply) => {
-    const repo = await getApiAccessRepository();
-    const requests = await repo.listApiAccessRequestsByDeveloperAccount(request.developerAccountId!);
-    return reply.send({ requests: requests.map(toRequestResponse) });
   });
 
   app.get(ENDPOINTS.dev.apiAccess.clientsList, async (request, reply) => {

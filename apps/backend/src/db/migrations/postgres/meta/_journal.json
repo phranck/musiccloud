@@ -624,6 +624,20 @@
       "when": 1788052685224,
       "tag": "0088_natural_black_panther",
       "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1788129003179,
+      "tag": "0089_pink_doorman",
+      "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1788129012822,
+      "tag": "0090_ordinary_cassandra_nova",
+      "breakpoints": true
     }
   ]
 }

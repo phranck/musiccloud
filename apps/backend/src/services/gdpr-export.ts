@@ -1,13 +1,13 @@
 /**
  * @file GDPR personal-data export (MC-085, Art. 15/20): assembles everything
  * stored about a subject into one versioned JSON package — the developer
- * account (without secrets), its auth identities, and API-access
- * requests/clients with token metadata, never hashes and never the tokens
- * themselves. An account-less subject produces a minimal package containing
- * only the normalized subject.
+ * account (without secrets), its auth identities, and its registrations with
+ * token metadata, never hashes and never the tokens themselves. An
+ * account-less subject produces a minimal package containing only the
+ * normalized subject.
  */
 
-import type { ApiAccessRequest, ApiClient, ApiClientToken } from "../db/api-access-repository.js";
+import type { ApiClient, ApiClientToken } from "../db/api-access-repository.js";
 import type { DeveloperAccount, DeveloperIdentity } from "../db/developer-repository.js";
 import { getApiAccessRepository, getDeveloperRepository } from "../db/index.js";
 
@@ -70,7 +70,6 @@ export interface PersonalDataExport {
   account?: Omit<DeveloperAccount, "passwordHash">;
   identities?: DeveloperIdentity[];
   apiAccess?: {
-    requests: ApiAccessRequest[];
     clients: ExportedApiClient[];
   };
 }
@@ -102,14 +101,13 @@ export async function buildPersonalDataExport(subject: PersonalDataSubject): Pro
   }
 
   const apiAccessRepo = await getApiAccessRepository();
-  const requests = await apiAccessRepo.listApiAccessRequestsByDeveloperAccount(subject.developerAccountId);
   const clients = await apiAccessRepo.listApiClientsByDeveloperAccount(subject.developerAccountId);
   const clientsWithTokens: ExportedApiClient[] = [];
   for (const client of clients) {
     const tokens = await apiAccessRepo.listApiClientTokensByClient(client.id);
     clientsWithTokens.push({ ...client, tokens: tokens.map(toExportedToken) });
   }
-  pkg.apiAccess = { requests, clients: clientsWithTokens };
+  pkg.apiAccess = { clients: clientsWithTokens };
 
   return pkg;
 }

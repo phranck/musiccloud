@@ -9,7 +9,6 @@ import { nanoid } from "nanoid";
 import type { Pool } from "pg";
 import type {
   ApiAccessAuditEvent,
-  ApiAccessRequest,
   ApiClient,
   ApiClientToken,
   ApiUsageEvent,
@@ -21,21 +20,6 @@ import { dateToMs } from "./postgres-shared.js";
 // ============================================================================
 // ROW TYPES
 // ============================================================================
-
-interface ApiAccessRequestRow {
-  id: string;
-  developer_account_id: string;
-  project_id: string | null;
-  contact_email: string;
-  app_name: string;
-  app_description: string;
-  estimated_requests_per_day: number;
-  status: string;
-  submitted_at: Date;
-  reviewed_at: Date | null;
-  reviewed_by_admin_id: string | null;
-  review_note: string | null;
-}
 
 interface DeveloperProjectRow {
   id: string;
@@ -76,7 +60,6 @@ interface DeveloperProjectSubscriptionRow {
  */
 interface ApiClientRow {
   id: string;
-  request_id: string | null;
   developer_account_id: string;
   project_id: string | null;
   public_client_id: string | null;
@@ -124,7 +107,6 @@ interface ApiAccessAuditEventRow {
   id: string;
   project_id: string | null;
   client_id: string | null;
-  request_id: string | null;
   token_id: string | null;
   event_type: string;
   actor_admin_id: string | null;
@@ -171,8 +153,6 @@ const GRANTING_SUBSCRIPTION_JOIN = `LEFT JOIN developer_project_subscriptions ps
        ON ps.project_id = p.id AND ps.status IN (${GRANTING_SUBSCRIPTION_STATES_SQL})
      LEFT JOIN tiers t ON t.id = ps.tier_id`;
 
-const REQUEST_COLUMNS = `id, developer_account_id, project_id, contact_email, app_name, app_description,
-            estimated_requests_per_day, status, submitted_at, reviewed_at, reviewed_by_admin_id, review_note`;
 const PROJECT_JOIN_SELECT = `SELECT p.id, p.developer_account_id, p.display_name, p.status,
             p.requests_per_minute, p.requests_per_day, p.created_at, p.updated_at, p.suspended_at, p.deleted_at,
             p.created_by_admin_id, ps.tier_id AS tier_id, t.name AS tier_name,
@@ -187,7 +167,7 @@ const SUBSCRIPTION_COLUMNS = `id, project_id, tier_id, creem_subscription_id, cr
  * project's own subscription is the only source of the tier; there is no
  * fallback to the owning account's tier, so one question has one answer.
  */
-const CLIENT_JOIN_SELECT = `SELECT c.id, c.request_id, c.developer_account_id, c.project_id,
+const CLIENT_JOIN_SELECT = `SELECT c.id, c.developer_account_id, c.project_id,
             c.public_client_id, c.registration_type, c.capabilities, c.app_name, c.contact_email,
             c.description, c.website_url, c.status, c.requests_per_minute, c.requests_per_day,
             c.created_at, c.updated_at,
@@ -205,7 +185,7 @@ const CLIENT_JOIN_SELECT = `SELECT c.id, c.request_id, c.developer_account_id, c
      ${GRANTING_SUBSCRIPTION_JOIN}`;
 const TOKEN_COLUMNS = `id, client_id, token_prefix, token_hash, status, created_at, last_used_at,
             revoked_at, rotated_from_token_id`;
-const AUDIT_COLUMNS = `id, project_id, client_id, request_id, token_id, event_type, actor_admin_id,
+const AUDIT_COLUMNS = `id, project_id, client_id, token_id, event_type, actor_admin_id,
             actor_developer_account_id, occurred_at, event_data`;
 const USAGE_COLUMNS = `id, occurred_at, request_id, project_id, registration_id, token_id, method,
             endpoint_template, status_code, duration_ms`;
@@ -213,23 +193,6 @@ const USAGE_COLUMNS = `id, occurred_at, request_id, project_id, registration_id,
 // ============================================================================
 // MAPPERS
 // ============================================================================
-
-function rowToApiAccessRequest(row: ApiAccessRequestRow): ApiAccessRequest {
-  return {
-    id: row.id,
-    developerAccountId: row.developer_account_id,
-    projectId: row.project_id,
-    contactEmail: row.contact_email,
-    appName: row.app_name,
-    appDescription: row.app_description,
-    estimatedRequestsPerDay: row.estimated_requests_per_day,
-    status: row.status,
-    submittedAt: dateToMs(row.submitted_at),
-    reviewedAt: row.reviewed_at ? dateToMs(row.reviewed_at) : null,
-    reviewedByAdminId: row.reviewed_by_admin_id,
-    reviewNote: row.review_note,
-  };
-}
 
 /**
  * The per-window limit a project's plan grants, or `null` when no granting
@@ -307,7 +270,6 @@ function rowToApiClient(row: ApiClientRow): ApiClient {
   const projectDayLimit = effectiveLimit(row.project_requests_per_day, row.tier_requests_per_day);
   return {
     id: row.id,
-    requestId: row.request_id,
     developerAccountId: row.developer_account_id,
     projectId: row.project_id ?? `legacy-account:${row.developer_account_id}`,
     publicClientId: row.public_client_id ?? row.id,
@@ -578,7 +540,6 @@ function rowToApiAccessAuditEvent(row: ApiAccessAuditEventRow): ApiAccessAuditEv
     id: row.id,
     projectId: row.project_id,
     clientId: row.client_id,
-    requestId: row.request_id,
     tokenId: row.token_id,
     eventType: row.event_type,
     actorAdminId: row.actor_admin_id,
@@ -586,92 +547,6 @@ function rowToApiAccessAuditEvent(row: ApiAccessAuditEventRow): ApiAccessAuditEv
     occurredAt: dateToMs(row.occurred_at),
     eventData: row.event_data ?? {},
   };
-}
-
-// ============================================================================
-// REQUESTS
-// ============================================================================
-
-export async function createApiAccessRequest(
-  pool: Pool,
-  data: {
-    developerAccountId: string;
-    projectId?: string | null;
-    contactEmail: string;
-    appName: string;
-    appDescription: string;
-    estimatedRequestsPerDay: number;
-  },
-): Promise<ApiAccessRequest> {
-  const now = new Date();
-  const result = await pool.query(
-    `INSERT INTO api_access_requests
-       (id, developer_account_id, project_id, contact_email, app_name, app_description, estimated_requests_per_day,
-        submitted_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-     RETURNING ${REQUEST_COLUMNS}`,
-    [
-      nanoid(),
-      data.developerAccountId,
-      data.projectId ?? null,
-      data.contactEmail,
-      data.appName,
-      data.appDescription,
-      data.estimatedRequestsPerDay,
-      now,
-    ],
-  );
-  return rowToApiAccessRequest(result.rows[0] as ApiAccessRequestRow);
-}
-
-export async function findApiAccessRequestById(pool: Pool, id: string): Promise<ApiAccessRequest | null> {
-  const result = await pool.query(`SELECT ${REQUEST_COLUMNS} FROM api_access_requests WHERE id = $1`, [id]);
-  if (result.rows.length === 0) return null;
-  return rowToApiAccessRequest(result.rows[0] as ApiAccessRequestRow);
-}
-
-export async function listApiAccessRequestsByDeveloperAccount(
-  pool: Pool,
-  developerAccountId: string,
-): Promise<ApiAccessRequest[]> {
-  const result = await pool.query(
-    `SELECT ${REQUEST_COLUMNS} FROM api_access_requests WHERE developer_account_id = $1 ORDER BY submitted_at DESC`,
-    [developerAccountId],
-  );
-  return result.rows.map((row) => rowToApiAccessRequest(row as ApiAccessRequestRow));
-}
-
-export async function listApiAccessRequests(pool: Pool, status?: string): Promise<ApiAccessRequest[]> {
-  const result = status
-    ? await pool.query(
-        `SELECT ${REQUEST_COLUMNS} FROM api_access_requests WHERE status = $1 ORDER BY submitted_at DESC`,
-        [status],
-      )
-    : await pool.query(`SELECT ${REQUEST_COLUMNS} FROM api_access_requests ORDER BY submitted_at DESC`);
-  return result.rows.map((row) => rowToApiAccessRequest(row as ApiAccessRequestRow));
-}
-
-export async function reviewApiAccessRequest(
-  pool: Pool,
-  id: string,
-  data: {
-    status: "approved" | "rejected";
-    reviewedByAdminId: string;
-    reviewNote?: string | null;
-    projectId?: string | null;
-  },
-): Promise<ApiAccessRequest | null> {
-  const now = new Date();
-  const result = await pool.query(
-    `UPDATE api_access_requests
-     SET status = $1, reviewed_at = $2, reviewed_by_admin_id = $3, review_note = $4,
-         project_id = COALESCE($5, project_id)
-     WHERE id = $6
-     RETURNING ${REQUEST_COLUMNS}`,
-    [data.status, now, data.reviewedByAdminId, data.reviewNote ?? null, data.projectId ?? null, id],
-  );
-  if (result.rows.length === 0) return null;
-  return rowToApiAccessRequest(result.rows[0] as ApiAccessRequestRow);
 }
 
 // ============================================================================
@@ -686,7 +561,6 @@ export async function reviewApiAccessRequest(
 export async function createApiClient(
   pool: Pool,
   data: {
-    requestId?: string | null;
     developerAccountId: string;
     projectId?: string | null;
     registrationType?: "development" | "confidential" | "public";
@@ -704,16 +578,15 @@ export async function createApiClient(
   const id = nanoid();
   const inserted = await pool.query(
     `INSERT INTO api_clients
-       (id, request_id, developer_account_id, project_id, registration_type, capabilities, app_name, contact_email,
+       (id, developer_account_id, project_id, registration_type, capabilities, app_name, contact_email,
         description, website_url, requests_per_minute, requests_per_day, created_at, updated_at, created_by_admin_id)
-     SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13, $14
-     WHERE $4::text IS NULL OR EXISTS (
+     SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12, $13
+     WHERE $3::text IS NULL OR EXISTS (
        SELECT 1 FROM developer_projects p
-       WHERE p.id = $4 AND p.developer_account_id = $3 AND p.status <> 'deleted'
+       WHERE p.id = $3 AND p.developer_account_id = $2 AND p.status <> 'deleted'
      )`,
     [
       id,
-      data.requestId ?? null,
       data.developerAccountId,
       data.projectId ?? null,
       data.registrationType ?? "development",
@@ -1003,17 +876,11 @@ export async function rotateApiClientToken(
 // AUDIT EVENTS
 // ============================================================================
 
-export async function countPendingApiAccessRequests(pool: Pool): Promise<number> {
-  const result = await pool.query(`SELECT COUNT(*)::int AS cnt FROM api_access_requests WHERE status = 'pending'`);
-  return (result.rows[0] as { cnt: number }).cnt;
-}
-
 export async function createApiAccessAuditEvent(
   pool: Pool,
   data: {
     projectId?: string | null;
     clientId?: string | null;
-    requestId?: string | null;
     tokenId?: string | null;
     eventType: string;
     actorAdminId?: string | null;
@@ -1024,15 +891,14 @@ export async function createApiAccessAuditEvent(
   const now = new Date();
   const result = await pool.query(
     `INSERT INTO api_access_audit_events
-       (id, project_id, client_id, request_id, token_id, event_type, actor_admin_id, actor_developer_account_id,
+       (id, project_id, client_id, token_id, event_type, actor_admin_id, actor_developer_account_id,
         occurred_at, event_data)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING ${AUDIT_COLUMNS}`,
     [
       nanoid(),
       data.projectId ?? null,
       data.clientId ?? null,
-      data.requestId ?? null,
       data.tokenId ?? null,
       data.eventType,
       data.actorAdminId ?? null,

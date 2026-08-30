@@ -218,7 +218,6 @@ describe("buildMusiccloudReadinessExpectations", () => {
     for (const table of [
       "developer_projects",
       "developer_project_subscriptions",
-      "api_access_requests",
       "api_clients",
       "api_client_tokens",
       "api_access_audit_events",

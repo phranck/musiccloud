@@ -1,7 +1,7 @@
 /**
  * @file GDPR erasure (MC-085, Art. 17). Authenticated self-service deletion
  * removes the developer account. Database cascades clear its identities,
- * email tokens, API-access requests and clients.
+ * email tokens, projects and registrations.
  */
 
 import { getDeveloperRepository } from "../db/index.js";

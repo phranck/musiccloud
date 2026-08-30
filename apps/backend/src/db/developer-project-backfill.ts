@@ -79,27 +79,6 @@ export async function backfillDeveloperProjects(pool: Pool): Promise<DeveloperPr
     );
 
     await client.query(
-      `UPDATE api_access_requests request
-       SET project_id = COALESCE(
-         (
-           SELECT registration.project_id
-           FROM api_clients registration
-           WHERE registration.request_id = request.id
-           ORDER BY registration.created_at, registration.id
-           LIMIT 1
-         ),
-         (
-           SELECT project.id
-           FROM developer_projects project
-           WHERE project.developer_account_id = request.developer_account_id
-           ORDER BY project.created_at, project.id
-           LIMIT 1
-         )
-       )
-       WHERE request.project_id IS NULL`,
-    );
-
-    await client.query(
       `WITH selected_legacy_subscription AS (
          SELECT DISTINCT ON (subscription.account_id)
                 subscription.account_id,
@@ -153,14 +132,6 @@ export async function backfillDeveloperProjects(pool: Pool): Promise<DeveloperPr
        WHERE event.project_id IS NULL
          AND event.client_id = registration.id
          AND registration.project_id IS NOT NULL`,
-    );
-    await client.query(
-      `UPDATE api_access_audit_events event
-       SET project_id = access_request.project_id
-       FROM api_access_requests access_request
-       WHERE event.project_id IS NULL
-         AND event.request_id = access_request.id
-         AND access_request.project_id IS NOT NULL`,
     );
     await client.query(
       `UPDATE api_access_audit_events event

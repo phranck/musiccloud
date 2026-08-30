@@ -23,7 +23,7 @@ import { EmailAction, EmailRecipientKind, ENDPOINTS, ROUTE_TEMPLATES } from "@mu
 import Fastify, { type FastifyInstance } from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ApiAccessRequest, ApiClient, ApiClientToken, DeveloperProject } from "../db/api-access-repository.js";
+import type { ApiClient, ApiClientToken, DeveloperProject } from "../db/api-access-repository.js";
 import type { DeveloperAccount } from "../db/developer-repository.js";
 
 vi.stubEnv("DISABLE_RATE_LIMIT", "true");
@@ -43,11 +43,6 @@ const mockRepo = {
   countDeveloperProjectsAgainstCeiling: vi.fn().mockResolvedValue(0),
   countActiveApiClientsByProject: vi.fn().mockResolvedValue(0),
   updateDeveloperProject: vi.fn(),
-  createApiAccessRequest: vi.fn(),
-  findApiAccessRequestById: vi.fn(),
-  listApiAccessRequestsByDeveloperAccount: vi.fn().mockResolvedValue([]),
-  listApiAccessRequests: vi.fn(),
-  reviewApiAccessRequest: vi.fn(),
   createApiClient: vi.fn(),
   findApiClientById: vi.fn(),
   listApiClientsByDeveloperAccount: vi.fn().mockResolvedValue([]),
@@ -127,30 +122,6 @@ function makeDeveloperAccount(developerAccountId: string): DeveloperAccount {
 }
 
 /**
- * Builds a complete {@link ApiAccessRequest} DTO that tests can override field-by-field.
- *
- * @param overrides - Partial request fields to override the defaults.
- * @returns A fully populated API-access-request DTO.
- */
-function makeRequest(overrides: Partial<ApiAccessRequest> = {}): ApiAccessRequest {
-  return {
-    id: "req-1",
-    developerAccountId: "dev-1",
-    projectId: null,
-    contactEmail: "dev@example.com",
-    appName: "App",
-    appDescription: "Desc",
-    estimatedRequestsPerDay: 100,
-    status: "pending",
-    submittedAt: 1_700_000_000_000,
-    reviewedAt: null,
-    reviewedByAdminId: null,
-    reviewNote: null,
-    ...overrides,
-  };
-}
-
-/**
  * Builds a complete {@link ApiClient} DTO that tests can override field-by-field.
  *
  * @param overrides - Partial client fields to override the defaults.
@@ -159,7 +130,6 @@ function makeRequest(overrides: Partial<ApiAccessRequest> = {}): ApiAccessReques
 function makeClient(overrides: Partial<ApiClient> = {}): ApiClient {
   return {
     id: "client-1",
-    requestId: "req-1",
     developerAccountId: "dev-1",
     projectId: "project-1",
     publicClientId: "mc_client_1",
@@ -263,7 +233,6 @@ async function buildApp(developerAccountId = "dev-1"): Promise<FastifyInstance> 
 beforeEach(() => {
   vi.clearAllMocks();
   mockRepo.listApiClientTokensByClient.mockResolvedValue([]);
-  mockRepo.listApiAccessRequestsByDeveloperAccount.mockResolvedValue([]);
   mockRepo.listApiClientsByDeveloperAccount.mockResolvedValue([]);
   mockRepo.listDeveloperProjectsByAccount.mockResolvedValue([]);
   mockRepo.listApiClientsByProject.mockResolvedValue([]);
@@ -789,72 +758,7 @@ describe("devApiAccessRoutes", () => {
     });
   });
 
-  describe("POST requestsCreate", () => {
-    it("rejects a payload missing all fields with 400", async () => {
-      const app = await buildApp();
-      const response = await app.inject({ method: "POST", url: ENDPOINTS.dev.apiAccess.requestsCreate, payload: {} });
-      expect(response.statusCode).toBe(400);
-      expect(mockRepo.createApiAccessRequest).not.toHaveBeenCalled();
-    });
-
-    it("rejects a blank appName with 400", async () => {
-      const app = await buildApp();
-      const response = await app.inject({
-        method: "POST",
-        url: ENDPOINTS.dev.apiAccess.requestsCreate,
-        payload: { appName: "   ", appDescription: "Desc", estimatedRequestsPerDay: 100 },
-      });
-      expect(response.statusCode).toBe(400);
-    });
-
-    it("rejects a non-positive estimatedRequestsPerDay with 400", async () => {
-      const app = await buildApp();
-      const response = await app.inject({
-        method: "POST",
-        url: ENDPOINTS.dev.apiAccess.requestsCreate,
-        payload: { appName: "App", appDescription: "Desc", estimatedRequestsPerDay: 0 },
-      });
-      expect(response.statusCode).toBe(400);
-    });
-
-    it("succeeds with a valid payload, stamping the caller's account and email", async () => {
-      const app = await buildApp();
-      mockRepo.createApiAccessRequest.mockResolvedValue(makeRequest());
-
-      const response = await app.inject({
-        method: "POST",
-        url: ENDPOINTS.dev.apiAccess.requestsCreate,
-        payload: { appName: "App", appDescription: "Desc", estimatedRequestsPerDay: 100 },
-      });
-
-      expect(response.statusCode).toBe(201);
-      expect(mockRepo.createApiAccessRequest).toHaveBeenCalledWith(
-        expect.objectContaining({ developerAccountId: "dev-1", contactEmail: "dev@example.com", appName: "App" }),
-      );
-      expect(mockRepo.createApiAccessAuditEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          requestId: "req-1",
-          eventType: "request_submitted",
-          actorDeveloperAccountId: "dev-1",
-        }),
-      );
-      // Response never carries the developerAccountId (dev self-service DTO omits it).
-      expect(response.json().request).not.toHaveProperty("developerAccountId");
-    });
-  });
-
-  describe("GET requestsList / clientsList", () => {
-    it("lists only the caller's own requests", async () => {
-      const app = await buildApp("dev-1");
-      mockRepo.listApiAccessRequestsByDeveloperAccount.mockResolvedValue([makeRequest()]);
-
-      const response = await app.inject({ method: "GET", url: ENDPOINTS.dev.apiAccess.requestsList });
-
-      expect(response.statusCode).toBe(200);
-      expect(mockRepo.listApiAccessRequestsByDeveloperAccount).toHaveBeenCalledWith("dev-1");
-      expect(response.json().requests).toHaveLength(1);
-    });
-
+  describe("GET clientsList", () => {
     it("lists only the caller's own clients with their tokens", async () => {
       const app = await buildApp("dev-1");
       mockRepo.listApiClientsByDeveloperAccount.mockResolvedValue([makeClient()]);

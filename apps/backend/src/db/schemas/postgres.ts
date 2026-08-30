@@ -1810,55 +1810,16 @@ export type TierCreemProductRow = typeof tierCreemProducts.$inferSelect;
 export type TierCreemProductInsert = typeof tierCreemProducts.$inferInsert;
 
 /**
- * A developer's request for Public-API access (MC-025/MC-077). Each row
- * describes one app; `developerAccountId` is the source of truth for who
- * submitted it (`contactEmail` is a display snapshot, not the identity).
- * Approval creates exactly one new {@link apiClients} row per request —
- * requests are never merged into an existing client.
- */
-export const apiAccessRequests = pgTable(
-  "api_access_requests",
-  {
-    id: text("id").primaryKey(),
-    developerAccountId: text("developer_account_id")
-      .notNull()
-      .references(() => developerAccounts.id, { onDelete: "cascade" }),
-    projectId: text("project_id").references(() => developerProjects.id, { onDelete: "set null" }),
-    contactEmail: text("contact_email").notNull(),
-    appName: text("app_name").notNull(),
-    appDescription: text("app_description").notNull(),
-    estimatedRequestsPerDay: integer("estimated_requests_per_day").notNull(),
-    status: text("status").notNull().default("pending"),
-    submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
-    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
-    reviewedByAdminId: text("reviewed_by_admin_id").references(() => adminUsers.id, { onDelete: "set null" }),
-    reviewNote: text("review_note"),
-  },
-  (table) => [
-    index("idx_api_access_requests_status_submitted").on(table.status, table.submittedAt),
-    index("idx_api_access_requests_developer_account").on(table.developerAccountId),
-    index("idx_api_access_requests_project").on(table.projectId),
-    check("chk_api_access_requests_status", sql`${table.status} IN ('pending', 'approved', 'rejected', 'archived')`),
-    check("chk_api_access_requests_estimated_requests", sql`${table.estimatedRequestsPerDay} > 0`),
-  ],
-);
-
-export type ApiAccessRequestRow = typeof apiAccessRequests.$inferSelect;
-export type ApiAccessRequestInsert = typeof apiAccessRequests.$inferInsert;
-
-/**
- * An approved API consumer ("app"). Linked to the developer account that
- * owns it and, when created via the request flow, to the originating
- * {@link apiAccessRequests} row. `requestsPerMinute`/`requestsPerDay` are
- * per-key overrides: `NULL` inherits the owning account's tier limits, a
- * value takes precedence (a "custom tier"). The effective limits are
- * enforced centrally in `authenticatePublic` (plugins/auth.ts).
+ * A registered API consumer ("app"), linked to the developer account and the
+ * project that own it. `requestsPerMinute`/`requestsPerDay` are per-key
+ * overrides: `NULL` inherits the owning project's tier limits, a value takes
+ * precedence (a "custom tier"). The effective limits are enforced centrally
+ * in `authenticatePublic` (plugins/auth.ts).
  */
 export const apiClients = pgTable(
   "api_clients",
   {
     id: text("id").primaryKey(),
-    requestId: text("request_id").references(() => apiAccessRequests.id, { onDelete: "set null" }),
     developerAccountId: text("developer_account_id")
       .notNull()
       .references(() => developerAccounts.id, { onDelete: "cascade" }),
@@ -1978,7 +1939,7 @@ export type ApiUsageEventRow = typeof apiUsageEvents.$inferSelect;
 export type ApiUsageEventInsert = typeof apiUsageEvents.$inferInsert;
 
 /**
- * Audit trail for every mutating action on requests/clients/tokens.
+ * Audit trail for every mutating action on projects, registrations and tokens.
  * `actorAdminId` is set for admin-initiated actions, `actorDeveloperAccountId`
  * for developer self-service actions — exactly one of the two is set (never
  * both, never neither) by every writer in `api-access-repository.ts`.
@@ -1989,7 +1950,6 @@ export const apiAccessAuditEvents = pgTable(
     id: text("id").primaryKey(),
     projectId: text("project_id").references(() => developerProjects.id, { onDelete: "set null" }),
     clientId: text("client_id").references(() => apiClients.id, { onDelete: "set null" }),
-    requestId: text("request_id").references(() => apiAccessRequests.id, { onDelete: "set null" }),
     tokenId: text("token_id").references(() => apiClientTokens.id, { onDelete: "set null" }),
     eventType: text("event_type").notNull(),
     actorAdminId: text("actor_admin_id").references(() => adminUsers.id, { onDelete: "set null" }),

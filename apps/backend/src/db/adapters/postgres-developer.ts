@@ -385,7 +385,7 @@ export async function updateDeveloperAccount(
 /**
  * Permanently deletes a developer account by primary key. `developer_accounts`
  * is the FK root for `developer_identities`, `developer_email_tokens`,
- * `api_access_requests` and `api_clients` (each `ON DELETE CASCADE`, see
+ * `developer_projects` and `api_clients` (each `ON DELETE CASCADE`, see
  * `schemas/postgres.ts`), so this single `DELETE` removes the account's
  * entire footprint without any additional queries.
  *
