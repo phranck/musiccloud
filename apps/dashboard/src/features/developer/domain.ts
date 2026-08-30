@@ -1,11 +1,3 @@
-export const ApiAccessRequestStatus = {
-  Pending: "pending",
-  Approved: "approved",
-  Rejected: "rejected",
-  Archived: "archived",
-} as const;
-export type ApiAccessRequestStatus = (typeof ApiAccessRequestStatus)[keyof typeof ApiAccessRequestStatus];
-
 export const ApiClientStatus = {
   Active: "active",
   Suspended: "suspended",

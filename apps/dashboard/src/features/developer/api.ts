@@ -30,21 +30,6 @@ export function updateDeveloperLimits(next: DeveloperLimits): Promise<DeveloperL
   return api.patch<DeveloperLimits>(ENDPOINTS.admin.developer.limits, next);
 }
 
-export interface ApiAccessRequestResponse {
-  id: string;
-  developerAccountId: string;
-  projectId: string | null;
-  contactEmail: string;
-  appName: string;
-  appDescription: string;
-  estimatedRequestsPerDay: number;
-  status: string;
-  submittedAt: string;
-  reviewedAt: string | null;
-  reviewedByAdminId: string | null;
-  reviewNote: string | null;
-}
-
 /**
  * A token as the API describes it. The token itself is never part of this
  * shape: it exists once, in the response that issues it, and is not stored
@@ -61,7 +46,6 @@ export interface ApiClientTokenResponse {
 
 export interface ApiClientResponse {
   id: string;
-  requestId: string | null;
   developerAccountId: string;
   projectId: string;
   publicClientId: string;
@@ -119,7 +103,6 @@ export interface DeveloperProjectResponse {
 }
 
 export interface ApiAccessOverview {
-  requests: ApiAccessRequestResponse[];
   clients: ApiClientResponse[];
 }
 
@@ -159,26 +142,8 @@ export function deleteDeveloperAccount(id: string): Promise<void> {
   return api.delete(ENDPOINTS.admin.developer.accountDetail(id));
 }
 
-export function fetchApiAccessOverview(status?: string): Promise<ApiAccessOverview> {
-  const qs = status ? `?status=${status}` : "";
-  return api.get<ApiAccessOverview>(ENDPOINTS.admin.developer.apiAccess.overview + qs);
-}
-
-export function approveApiAccessRequest(
-  id: string,
-  body?: { requestsPerMinute?: number; requestsPerDay?: number },
-): Promise<{ request: ApiAccessRequestResponse; client: ApiClientResponse }> {
-  return api.post<{ request: ApiAccessRequestResponse; client: ApiClientResponse }>(
-    ENDPOINTS.admin.developer.apiAccess.requestApprove(id),
-    body,
-  );
-}
-
-export function rejectApiAccessRequest(
-  id: string,
-  body: { reviewNote: string },
-): Promise<{ request: ApiAccessRequestResponse }> {
-  return api.post<{ request: ApiAccessRequestResponse }>(ENDPOINTS.admin.developer.apiAccess.requestReject(id), body);
+export function fetchApiAccessOverview(): Promise<ApiAccessOverview> {
+  return api.get<ApiAccessOverview>(ENDPOINTS.admin.developer.apiAccess.overview);
 }
 
 export function createClientToken(id: string): Promise<{ token: ApiClientTokenResponse & { rawToken: string } }> {
