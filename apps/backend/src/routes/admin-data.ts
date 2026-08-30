@@ -52,7 +52,7 @@
  */
 import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
-import { getAdminRepository, getApiAccessRepository } from "../db/index.js";
+import { getAdminRepository } from "../db/index.js";
 import type { ArtistCredit } from "../db/repository.js";
 import { clearAllArtworks } from "../services/genre-artwork/index.js";
 import { resetBrowseCache } from "../services/genre-search/lastfm.js";
@@ -224,12 +224,7 @@ export default async function adminDataRoutes(app: FastifyInstance) {
 
   app.get(ENDPOINTS.admin.stats, async () => {
     const repo = await getAdminRepository();
-    const apiAccessRepo = await getApiAccessRepository();
-    const [counts, adminCount, pendingApiAccessRequests] = await Promise.all([
-      repo.countAllData(),
-      repo.countAdmins(),
-      apiAccessRepo.countPendingApiAccessRequests(),
-    ]);
+    const [counts, adminCount] = await Promise.all([repo.countAllData(), repo.countAdmins()]);
     return {
       tracks: counts.tracks,
       albums: counts.albums,
@@ -237,7 +232,6 @@ export default async function adminDataRoutes(app: FastifyInstance) {
       artistProfiles: counts.artistProfiles,
       artistEntities: counts.artistEntities,
       users: adminCount,
-      pendingApiAccessRequests,
     };
   });
 }
