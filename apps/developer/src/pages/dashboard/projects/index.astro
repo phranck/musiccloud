@@ -7,21 +7,47 @@
  * three are the same finite state machine.
  */
 import DashboardLayout from "@/components/dashboard/DashboardLayout.astro";
+import { iconForDashboardTab } from "@/lib/dashboardNavIcons";
+import { ApiContent } from "@/components/docs/ApiContent";
 import { ProjectsPanel } from "@/components/dashboard/ProjectsPanel";
 import { DashboardTab } from "@/lib/dashboardTabs";
+import { getOwnApiClients, getOwnProjects } from "@/lib/apiAccessServer";
 import { getDeveloperSession } from "@/lib/session";
 
 export const prerender = false;
 
 const account = await getDeveloperSession(Astro);
 if (!account) return Astro.redirect("/login");
+
+// The list is read here rather than in the browser, so the rows are in the
+// first paint instead of arriving once the island has downloaded and hydrated.
+// A read that fails leaves the panel to ask for itself and say so.
+const [owned, clients] = await Promise.all([getOwnProjects(Astro), getOwnApiClients(Astro)]);
+const registrationCounts: Record<string, number> = {};
+for (const registration of clients ?? []) {
+  registrationCounts[registration.projectId] = (registrationCounts[registration.projectId] ?? 0) + 1;
+}
+const seed = owned
+  ? {
+      projects: owned.projects,
+      registrationCounts,
+      maxProjects: owned.maxProjects,
+      usedProjects: owned.usedProjects,
+    }
+  : undefined;
+const PageIcon = iconForDashboardTab(DashboardTab.Projects);
 ---
 
 <DashboardLayout account={account} active={DashboardTab.Projects} title="Projects · musiccloud for developers">
-  <h1 class="card-content-inset text-hero font-medium tracking-tight mb-1">Projects</h1>
-  <p class="card-content-inset text-body text-fg-muted mb-7">
+  <ApiContent.Chapter.Header className="api-content__chapter-header--first">
+    <ApiContent.Chapter.Header.Icon>
+      <PageIcon aria-hidden="true" />
+    </ApiContent.Chapter.Header.Icon>
+    <ApiContent.Chapter.Header.Title>Projects</ApiContent.Chapter.Header.Title>
+  </ApiContent.Chapter.Header>
+  <p class="card-content-inset text-body text-fg-muted mb-6">
     A project owns a plan, the registrations under it, and the quota they share.
   </p>
 
-  <ProjectsPanel client:load />
+  <ProjectsPanel client:load seed={seed} />
 </DashboardLayout>
