@@ -588,7 +588,7 @@ function SidebarDeveloperSection({
               />
             )}
           </NavLink>
-          <NavLink to="/developer/tiers" onClick={onItemClick} className="contents">
+          <NavLink to="/developer/plans" onClick={onItemClick} className="contents">
             {({ isActive }) => (
               <DashboardSection.Item
                 icon={<StackIcon weight="duotone" className="w-4 h-4" />}
