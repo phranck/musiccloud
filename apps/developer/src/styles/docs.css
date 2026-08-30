@@ -502,6 +502,13 @@
     padding-left: var(--space-content-card-row);
   }
 
+  /* An auth card is one short task, so its chrome takes half the inset a
+     documentation card's does, on every side. */
+  .auth-card .content-card__header,
+  .auth-card .content-card__footer {
+    padding: calc(var(--space-content-card-header) / 2);
+  }
+
   /* A reader finishes a card at its bottom right, so that is where the thing
      to do next belongs. Every card's actions sit at that edge, with the one
      carrying the card's purpose furthest right. */
