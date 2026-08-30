@@ -218,10 +218,8 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
                   <span class="text-fg font-medium">{tier.requestsPerDay.toLocaleString()}</span> requests / day
                 </p>
               </div>
-              {tier.attributionRequired && <p class="w-full text-left text-body text-fg-subtle">Attribution required</p>}
-
               {tier.features.length > 0 && (
-                <ul class="pricing-feature-list mx-auto flex w-full flex-col gap-1.5 text-left text-body">
+                <ul class="pricing-feature-list flex w-full flex-col gap-1.5 text-left text-body">
                   {tier.features.map((feature) => (
                     <li class="icon-text-first-line gap-2 text-fg-muted">
                       <span class="icon-text-first-line__icon">
@@ -231,6 +229,14 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
                     </li>
                   ))}
                 </ul>
+              )}
+
+              {/* The condition a plan carries, rather than something it
+                  offers, so it closes the reading part of the card instead of
+                  standing among the quotas. Set in full strength, because a
+                  reader has to see it before they decide. */}
+              {tier.attributionRequired && (
+                <p class="w-full text-center text-body font-semibold text-fg">Attribution required</p>
               )}
 
               <div class="mt-auto flex w-full flex-col items-center gap-3 pt-3">

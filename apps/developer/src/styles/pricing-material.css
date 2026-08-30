@@ -13,7 +13,6 @@
     --pricing-billing-radius: var(--mc-radius-card);
     --pricing-billing-inset: 2px;
     --pricing-billing-duration: 250ms;
-    --pricing-feature-list-width: 15rem;
     --pricing-medal-size: 5rem;
     --pricing-medal-overhang: -2.5rem;
     --pricing-shadow-65: color-mix(in srgb, var(--color-sky-top) 65%, transparent);
@@ -483,10 +482,6 @@
   .tier-fallback-letter {
     color: var(--color-on-accent);
     filter: drop-shadow(0 1px 1.5px var(--pricing-shadow-40));
-  }
-
-  .pricing-feature-list {
-    max-width: var(--pricing-feature-list-width);
   }
 
   @media (max-width: 63.999rem) {
