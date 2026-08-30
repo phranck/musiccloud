@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import UnoCSS from "unocss/vite";
 import { defineConfig } from "vite";
 
 const DEFAULT_DEV_BACKEND_URL = "http://localhost:4000";
@@ -29,7 +29,7 @@ function buildDevProxy() {
 }
 
 export default defineConfig(({ command }) => ({
-  plugins: [react(), UnoCSS()],
+  plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       "@": resolve(__dirname, "./src"),

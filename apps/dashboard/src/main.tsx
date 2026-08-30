@@ -4,7 +4,6 @@ import { lazy, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router";
 
-import "virtual:uno.css";
 import "./index.css";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AuthProvider } from "./features/auth/AuthContext";
