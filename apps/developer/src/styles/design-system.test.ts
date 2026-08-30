@@ -79,8 +79,13 @@ describe("developer design system", () => {
     const theme = readDeveloperFile("public/developer-theme.css");
     const docs = readDeveloperFile("src/styles/docs.css");
 
-    expect(theme).toContain("--mc-space-content-card: 0.625rem;");
-    expect(theme).toContain("--mc-space-content-card-header: 0.625rem;");
+    // How far a card holds its contents from its edge is a design decision and
+    // moves with the design. What must not move is that the body and the chrome
+    // hold them at the same distance, so a card reads as one inset.
+    const bodyInset = theme.match(/--mc-space-content-card:\s*([^;]+);/)?.[1];
+    const chromeInset = theme.match(/--mc-space-content-card-header:\s*([^;]+);/)?.[1];
+    expect(bodyInset).toBeDefined();
+    expect(chromeInset).toBe(bodyInset);
     expect(docs).toContain("--mc-docs-content-card-copy-inset: calc(var(--mc-docs-content-card-radius) / 2);");
     expect(docs).toMatch(
       /\.content-card__header,[\s\S]*?\.content-card__footer\s*\{[^}]*padding:\s*var\(--space-content-card-header\);/,
@@ -91,7 +96,7 @@ describe("developer design system", () => {
     );
   });
 
-  it("keeps every Card surface at 10px while insetting only its copy", () => {
+  it("keeps every Card surface on one inset while insetting only its copy", () => {
     const docs = readDeveloperFile("src/styles/docs.css");
 
     expect(docs).not.toMatch(/\.content-card__body-stack\s*\{[^}]*padding-inline:/s);
