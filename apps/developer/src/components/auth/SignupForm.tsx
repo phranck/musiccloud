@@ -180,7 +180,7 @@ export function SignupForm({ children, tier }: SignupFormProps) {
                   aria-hidden="true"
                 />
               </span>
-              Signing up for the <span className="text-fg font-medium">{tier.name}</span> tier.
+              Signing up for the <span className="text-fg font-medium">{tier.name}</span> plan.
             </p>
           )}
           <TextField
