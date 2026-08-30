@@ -40,6 +40,10 @@ const PROJECT_CEILING_CODE = "MC-REQ-0003";
 const REGISTRATION_CEILING_CODE = "MC-REQ-0004";
 /** Refusal for a plan a developer may not put a project on themselves. */
 const PLAN_NOT_ASSIGNABLE_CODE = "MC-REQ-0005";
+/** The lifecycle states a registration may be moved to, matching `chk_api_clients_status`. */
+const REGISTRATION_STATUSES: readonly string[] = ["active", "suspended", "revoked"];
+/** The client profiles a registration may be created in, matching `chk_api_clients_registration_type`. */
+const REGISTRATION_TYPES: readonly string[] = ["development", "confidential", "public"];
 
 /** Dedicated per-developer throttle (20/min) for the three token-mutating routes, separate from the global apiRateLimiter. */
 const devApiAccessTokenRateLimiter = new RateLimiter(20, 60_000);
@@ -403,7 +407,7 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
         }
       }
       const registrationType = body?.registrationType ?? "development";
-      if (!["development", "confidential", "public"].includes(registrationType)) {
+      if (!REGISTRATION_TYPES.includes(registrationType)) {
         return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid registrationType." });
       }
       if (
@@ -446,6 +450,62 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
       return reply.status(201).send({ registration: toClientResponse(registration, []) });
     },
   );
+
+  /**
+   * PATCH …/registrations/:id
+   * Changes one of the caller's own registrations: its lifecycle, its
+   * application website, or its description.
+   *
+   * Suspending or revoking a registration is what stops its tokens working:
+   * `findActiveApiClientByTokenHash` admits an active registration only, so no
+   * token has to be touched for the credentials under it to stop
+   * authenticating.
+   */
+  app.patch(ROUTE_TEMPLATES.dev.apiAccess.registrationDetail, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as { status?: string; websiteUrl?: string | null; description?: string } | null;
+
+    if (body?.status !== undefined && !REGISTRATION_STATUSES.includes(body.status)) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid registration status." });
+    }
+
+    let websiteUrl: string | null | undefined;
+    if (body?.websiteUrl !== undefined) {
+      const raw = typeof body.websiteUrl === "string" ? body.websiteUrl.trim() : "";
+      if (raw === "") {
+        websiteUrl = null;
+      } else {
+        websiteUrl = parseWebsiteUrl(raw);
+        if (!websiteUrl) {
+          return reply
+            .status(400)
+            .send({ error: "INVALID_REQUEST", message: "websiteUrl must be an http or https URL (max 500 chars)." });
+        }
+      }
+    }
+
+    const repo = await getApiAccessRepository();
+    const registration = await repo.findApiClientById(id);
+    if (!registration || registration.developerAccountId !== request.developerAccountId) {
+      return reply.status(404).send({ error: "NOT_FOUND", message: "Registration not found." });
+    }
+
+    const updated = await repo.updateApiClient(id, {
+      status: body?.status,
+      websiteUrl,
+      description: body?.description?.trim(),
+    });
+    if (!updated) return reply.status(404).send({ error: "NOT_FOUND", message: "Registration not found." });
+
+    await repo.createApiAccessAuditEvent({
+      projectId: registration.projectId,
+      clientId: id,
+      eventType: body?.status ? `registration_${body.status}` : "registration_updated",
+      actorDeveloperAccountId: request.developerAccountId!,
+      eventData: { status: body?.status, websiteUrl },
+    });
+    return reply.send({ registration: toClientResponse(updated, []) });
+  });
 
   app.post(ENDPOINTS.dev.apiAccess.requestsCreate, async (request, reply) => {
     const body = request.body as {

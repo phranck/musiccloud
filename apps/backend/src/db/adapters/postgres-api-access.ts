@@ -784,7 +784,13 @@ export async function listApiClients(pool: Pool, status?: string): Promise<ApiCl
 export async function updateApiClient(
   pool: Pool,
   id: string,
-  data: { status?: string; requestsPerMinute?: number | null; requestsPerDay?: number | null },
+  data: {
+    status?: string;
+    websiteUrl?: string | null;
+    description?: string;
+    requestsPerMinute?: number | null;
+    requestsPerDay?: number | null;
+  },
 ): Promise<ApiClient | null> {
   const sets: string[] = ["updated_at = $1"];
   const values: unknown[] = [new Date()];
@@ -793,6 +799,14 @@ export async function updateApiClient(
   if (data.status !== undefined) {
     sets.push(`status = $${idx++}`);
     values.push(data.status);
+  }
+  if (data.websiteUrl !== undefined) {
+    sets.push(`website_url = $${idx++}`);
+    values.push(data.websiteUrl);
+  }
+  if (data.description !== undefined) {
+    sets.push(`description = $${idx++}`);
+    values.push(data.description);
   }
   if (data.requestsPerMinute !== undefined) {
     sets.push(`requests_per_minute = $${idx++}`);

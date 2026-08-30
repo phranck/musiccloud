@@ -149,6 +149,8 @@ export interface ApiClientDto {
   appName: string;
   /** Free-text description. */
   description: string;
+  /** Where this one application can be looked at, or `null`. Always `http` or `https`. */
+  websiteUrl: string | null;
   /** Client status (an {@link ApiClientStatus} value). */
   status: string;
   /** Per-minute request quota enforced by the public API, or `null` when the project has no granting plan. */
@@ -341,12 +343,32 @@ export function createClientRegistration(
   body: {
     name: string;
     description?: string;
+    websiteUrl?: string | null;
     registrationType: ClientRegistrationTypeValue;
     capabilities?: string[];
   },
 ): Promise<ApiAccessResult<{ registration: ApiClientDto }>> {
   return requestJson(ENDPOINTS.dev.apiAccess.projectRegistrations(projectId), {
     method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+/**
+ * Changes one of the caller's own registrations.
+ *
+ * Suspending or revoking one stops every token under it from authenticating,
+ * which is what makes a withdrawal hit a single application.
+ *
+ * @param registrationId - The registration to change.
+ * @param body - The lifecycle state, the application website, or the description.
+ */
+export function updateClientRegistration(
+  registrationId: string,
+  body: { status?: string; websiteUrl?: string | null; description?: string },
+): Promise<ApiAccessResult<{ registration: ApiClientDto }>> {
+  return requestJson(ENDPOINTS.dev.apiAccess.registrationDetail(registrationId), {
+    method: "PATCH",
     body: JSON.stringify(body),
   });
 }

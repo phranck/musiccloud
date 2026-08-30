@@ -2,6 +2,7 @@ import { type ChangeEvent, type SyntheticEvent, useCallback, useEffect, useReduc
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
 import { ApiFailureNotice } from "@/components/dashboard/ApiFailureNotice";
+import { RegistrationsPanel } from "@/components/dashboard/RegistrationsPanel";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import {
   DeveloperProjectStatus,
@@ -11,7 +12,6 @@ import {
   updateDeveloperProject,
 } from "@/lib/apiAccessClient";
 import { ButtonVariant } from "@/lib/buttonVariant";
-import { formatDate } from "@/lib/formatDate";
 import { FormPhase } from "@/lib/formPhase";
 import { PROJECT_DETAIL_INITIAL_STATE, ProjectDetailActionType, projectDetailReducer } from "@/lib/projectDetailState";
 import { toPanelFailure } from "@/lib/projectsPanelState";
@@ -42,7 +42,7 @@ export interface ProjectDetailPanelProps {
  */
 export function ProjectDetailPanel({ projectId }: ProjectDetailPanelProps) {
   const [state, dispatch] = useReducer(projectDetailReducer, PROJECT_DETAIL_INITIAL_STATE);
-  const { project, registrations, loadFailure, name, phase, saveFailure } = state;
+  const { project, loadFailure, name, phase, saveFailure } = state;
 
   useEffect(() => {
     // The screen is showing this project, so it is the one to remember.
@@ -165,33 +165,7 @@ export function ProjectDetailPanel({ projectId }: ProjectDetailPanelProps) {
         </div>
       </section>
 
-      <section>
-        <h2 className="card-content-inset text-card-title font-medium tracking-tight mb-3">Registrations</h2>
-        <div className="surface-card px-6 py-5">
-          {registrations !== null && registrations.length === 0 && (
-            <p className="text-body text-fg-muted">
-              No registrations yet. A registration is what a credential belongs to, so revoking one stops a single
-              application rather than all of them.
-            </p>
-          )}
-          {registrations !== null && registrations.length > 0 && (
-            <ul className="flex flex-col divide-y divide-border">
-              {registrations.map((registration) => (
-                <li key={registration.id} className="py-3 first:pt-0 last:pb-0">
-                  <div className="flex items-center justify-between gap-3 mb-0.5">
-                    <span className="text-body font-medium text-fg truncate">{registration.appName}</span>
-                    <StatusBadge status={registration.status} />
-                  </div>
-                  <p className="text-nav text-fg-subtle">
-                    {registration.registrationType} · {registration.publicClientId} · created{" "}
-                    {formatDate(registration.createdAt)}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
+      <RegistrationsPanel projectId={projectId} />
 
       <section>
         <h2 className="card-content-inset text-card-title font-medium tracking-tight mb-3">Lifecycle</h2>
