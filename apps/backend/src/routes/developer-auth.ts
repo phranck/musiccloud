@@ -45,7 +45,7 @@
  * bucket used by the public resolve/share surface, so portal credential traffic
  * is throttled on its own budget without coupling to public-API limits.
  */
-import { EmailAction, EmailRecipientKind, ENDPOINTS } from "@musiccloud/shared";
+import { EmailAction, EmailRecipientKind, ENDPOINTS, MAX_DISPLAY_NAME_LENGTH } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { DeveloperAccount } from "../db/developer-repository.js";
 import { getDeveloperRepository, getTierRepository } from "../db/index.js";
@@ -459,40 +459,71 @@ export async function devAuthRoutes(app: FastifyInstance) {
 
   /**
    * PATCH /api/dev/auth/profile
-   * Sets or clears the caller's technical contact address, which is where the
-   * operator writes when an application on this account needs a person who can
-   * act. Sending `null` clears it.
+   * Sets or clears the caller's display name and technical contact address.
    *
-   * The address is not verified, and nothing that only the account holder may
-   * read is sent to it. The portal says so where the field is entered, so a
-   * developer is not led to believe it can receive a password reset.
+   * Each field is optional and only what the body carries is written, so the
+   * two screens that edit them do not overwrite each other. Sending `null`
+   * clears a field.
+   *
+   * The contact address is where the operator writes when an application on
+   * this account needs a person who can act. It is not verified, and nothing
+   * that only the account holder may read is sent to it. The portal says so
+   * where the field is entered, so a developer is not led to believe it can
+   * receive a password reset.
    */
   app.patch(ENDPOINTS.dev.auth.profile, { preHandler: app.authenticateDeveloper }, async (request, reply) => {
-    const body = request.body as { technicalContactEmail?: string | null } | null;
-    if (!body || body.technicalContactEmail === undefined) {
-      return reply.status(400).send({ error: "INVALID_REQUEST", message: "technicalContactEmail is required." });
+    const body = request.body as { displayName?: string | null; technicalContactEmail?: string | null } | null;
+    if (!body || (body.technicalContactEmail === undefined && body.displayName === undefined)) {
+      return reply
+        .status(400)
+        .send({ error: "INVALID_REQUEST", message: "displayName or technicalContactEmail is required." });
     }
 
-    let technicalContactEmail: string | null = null;
-    if (body.technicalContactEmail !== null) {
-      if (typeof body.technicalContactEmail !== "string") {
-        return reply.status(400).send({ error: "INVALID_REQUEST", message: "technicalContactEmail must be a string." });
-      }
-      const trimmed = body.technicalContactEmail.trim();
-      // An empty field means "no technical contact", which is the same state
-      // as an absent one, so both store null rather than an empty string.
-      if (trimmed !== "") {
-        if (!isValidEmailAddress(trimmed)) {
-          return reply.status(400).send({ error: "INVALID_REQUEST", message: "technicalContactEmail is not valid." });
+    const changes: { displayName?: string | null; technicalContactEmail?: string | null } = {};
+
+    if (body.displayName !== undefined) {
+      if (body.displayName === null) {
+        changes.displayName = null;
+      } else {
+        if (typeof body.displayName !== "string") {
+          return reply.status(400).send({ error: "INVALID_REQUEST", message: "displayName must be a string." });
         }
-        technicalContactEmail = trimmed;
+        const trimmed = body.displayName.trim();
+        if (trimmed.length > MAX_DISPLAY_NAME_LENGTH) {
+          return reply.status(400).send({
+            error: "INVALID_REQUEST",
+            message: `displayName may be at most ${MAX_DISPLAY_NAME_LENGTH} characters.`,
+          });
+        }
+        // An empty field means "no display name", which is the same state as an
+        // absent one, so both store null rather than an empty string.
+        changes.displayName = trimmed === "" ? null : trimmed;
       }
+    }
+
+    if (body.technicalContactEmail !== undefined) {
+      let technicalContactEmail: string | null = null;
+      if (body.technicalContactEmail !== null) {
+        if (typeof body.technicalContactEmail !== "string") {
+          return reply
+            .status(400)
+            .send({ error: "INVALID_REQUEST", message: "technicalContactEmail must be a string." });
+        }
+        const trimmed = body.technicalContactEmail.trim();
+        // An empty field means "no technical contact", which is the same state
+        // as an absent one, so both store null rather than an empty string.
+        if (trimmed !== "") {
+          if (!isValidEmailAddress(trimmed)) {
+            return reply.status(400).send({ error: "INVALID_REQUEST", message: "technicalContactEmail is not valid." });
+          }
+          technicalContactEmail = trimmed;
+        }
+      }
+      changes.technicalContactEmail = technicalContactEmail;
     }
 
     const repo = await getDeveloperRepository();
-    const updated = await repo.updateDeveloperAccount(request.developerAccountId as string, {
-      technicalContactEmail,
-    });
+    const updated = await repo.updateDeveloperAccount(request.developerAccountId as string, changes);
     if (!updated) {
       return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
     }
