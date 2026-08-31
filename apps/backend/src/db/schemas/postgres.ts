@@ -1783,8 +1783,9 @@ export type DeveloperProjectSubscriptionInsert = typeof developerProjectSubscrip
  * product id. Creem products carry no metadata field, so the tier-to-product
  * association cannot live at Creem and lives here instead. Creem stays the
  * source of truth for prices only, fetched live by the catalog service. A row
- * is written by the seed script when it creates the product in Creem, and
- * cleared by the dbdump scrub because the product ids are environment-specific.
+ * is written by the tier editor when it creates the product in Creem and
+ * removed when it archives one, and the whole table is cleared by the dbdump
+ * scrub because the product ids are environment-specific.
  *
  * `mode` says which Creem environment the product belongs to. Test and live are
  * separate accounts that share nothing, so one plan and interval has two
