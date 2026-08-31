@@ -147,158 +147,175 @@ export function PlanDetailPage() {
     <PageLayout>
       <PageHeader title={plan.name} />
 
-      <div className="grid w-full gap-[var(--ds-space-base)]">
-        <DashboardSection className="overflow-hidden">
-          <DashboardSection.Header icon={<StackIcon weight="duotone" className="size-4" />} title={dm.planCardTitle} />
-          <DashboardSection.Body>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <FormLabel htmlFor="plan-name">{dm.colName}</FormLabel>
-                <input
-                  id="plan-name"
-                  aria-label={dm.colName}
-                  type="text"
-                  className={formInputClass}
-                  value={form.name}
-                  onChange={(event) => change({ name: event.target.value })}
-                  maxLength={60}
-                />
-              </div>
-              <div className="flex items-end gap-3">
-                <LabeledSwitch
-                  id="plan-active"
-                  label={dm.colActive}
-                  checked={form.enabled}
-                  onChange={(enabled) => change({ enabled })}
-                />
-                <LabeledSwitch
-                  id="plan-recommended"
-                  label={dm.colRecommended}
-                  checked={form.recommended}
-                  onChange={(recommended) => change({ recommended })}
-                />
-              </div>
-              <div className="md:col-span-2">
-                <FormLabel htmlFor="plan-description">{dm.colDescription}</FormLabel>
-                <textarea
-                  id="plan-description"
-                  aria-label={dm.colDescription}
-                  className={formTextareaClass}
-                  value={form.description}
-                  onChange={(event) => change({ description: event.target.value })}
-                  maxLength={500}
-                />
-              </div>
-              <TierIconPicker
-                value={form.icon}
-                onChange={(icon) => change({ icon })}
-                label={dm.colIcon}
-                searchPlaceholder={dm.iconPickerSearch}
-                noneLabel={dm.iconNone}
-              />
-              <div>
-                <FormLabel htmlFor="plan-color">{dm.colColor}</FormLabel>
-                <input
-                  id="plan-color"
-                  aria-label={dm.colColor}
-                  type="text"
-                  className={formInputClass}
-                  value={form.color}
-                  onChange={(event) => change({ color: event.target.value })}
-                />
-                {!colorUsable && <p className="mt-1 text-xs text-amber-400">{dm.planColorInvalid}</p>}
-              </div>
-              <div>
-                <FormLabel htmlFor="plan-button-label">{dm.colButtonLabel}</FormLabel>
-                <input
-                  id="plan-button-label"
-                  aria-label={dm.colButtonLabel}
-                  type="text"
-                  className={formInputClass}
-                  value={form.buttonLabel}
-                  onChange={(event) => change({ buttonLabel: event.target.value })}
-                  maxLength={40}
-                  placeholder={dm.colButtonLabelPlaceholder}
-                />
-              </div>
-              <div>
-                <FormLabel htmlFor="plan-sort">{dm.colSortOrder}</FormLabel>
-                <DashboardInput
-                  id="plan-sort"
-                  type="number"
-                  value={String(form.sortOrder)}
-                  onChange={(event) => change({ sortOrder: Number(event.target.value) })}
-                />
-              </div>
-            </div>
-          </DashboardSection.Body>
-        </DashboardSection>
-
-        <DashboardSection className="overflow-hidden">
-          <DashboardSection.Header
-            icon={<GaugeIcon weight="duotone" className="size-4" />}
-            title={dm.planLimitsTitle}
-          />
-          <DashboardSection.Body>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <FormLabel htmlFor="plan-rpm">{dm.detailRateLimitMinute}</FormLabel>
-                <DashboardInput
-                  id="plan-rpm"
-                  type="number"
-                  min={1}
-                  value={String(form.requestsPerMinute)}
-                  onChange={(event) => change({ requestsPerMinute: Number(event.target.value) })}
-                />
-              </div>
-              <div>
-                <FormLabel htmlFor="plan-rpd">{dm.detailRateLimitDay}</FormLabel>
-                <DashboardInput
-                  id="plan-rpd"
-                  type="number"
-                  min={1}
-                  value={String(form.requestsPerDay)}
-                  onChange={(event) => change({ requestsPerDay: Number(event.target.value) })}
-                />
-              </div>
-              <LabeledSwitch
-                id="plan-attribution"
-                label={dm.colAttribution}
-                checked={form.attributionRequired}
-                onChange={(attributionRequired) => change({ attributionRequired })}
-              />
-            </div>
-            {!limitsUsable && <p className="mt-2 text-xs text-amber-400">{dm.planLimitsInvalid}</p>}
-          </DashboardSection.Body>
-        </DashboardSection>
-
-        <DashboardSection className="overflow-hidden">
-          <DashboardSection.Header
-            icon={<ListBulletsIcon weight="duotone" className="size-4" />}
-            title={dm.featuresLabel}
-          />
-          <DashboardSection.Body>
-            <TierFeatureBulletsEditor features={form.features} onChange={(features) => change({ features })} dm={dm} />
-          </DashboardSection.Body>
-          <DashboardSection.Footer>
-            <DashboardActionButton
-              action={DashboardActionId.Save}
-              label={saved ? messages.common.saved : messages.common.save}
-              onClick={save}
-              disabled={!savable}
-              type="button"
+      {/* Two columns, because a plan carries an unbounded list of offers and a
+          single stack would be one long scroll. What the plan is stands on the
+          left, what it costs on the right, so the Creem rows sit beside the
+          offers they belong to rather than far below them. The columns are two
+          independent stacks rather than one flowing grid, so a tall card on one
+          side does not leave a hole on the other. */}
+      <div className="grid w-full gap-[var(--ds-space-base)] xl:grid-cols-2 xl:items-start">
+        <div className="grid content-start gap-[var(--ds-space-base)]">
+          <DashboardSection className="overflow-hidden">
+            <DashboardSection.Header
+              icon={<StackIcon weight="duotone" className="size-4" />}
+              title={dm.planCardTitle}
             />
-            {updateTier.isError && (
-              <p role="alert" className="mr-auto text-sm text-[var(--ds-danger-text)]">
-                {updateTier.error instanceof Error ? updateTier.error.message : messages.common.saveError}
-              </p>
-            )}
-          </DashboardSection.Footer>
-        </DashboardSection>
+            <DashboardSection.Body>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <FormLabel htmlFor="plan-name">{dm.colName}</FormLabel>
+                  <input
+                    id="plan-name"
+                    aria-label={dm.colName}
+                    type="text"
+                    className={formInputClass}
+                    value={form.name}
+                    onChange={(event) => change({ name: event.target.value })}
+                    maxLength={60}
+                  />
+                </div>
+                <div className="flex items-end gap-3">
+                  <LabeledSwitch
+                    id="plan-active"
+                    label={dm.colActive}
+                    checked={form.enabled}
+                    onChange={(enabled) => change({ enabled })}
+                  />
+                  <LabeledSwitch
+                    id="plan-recommended"
+                    label={dm.colRecommended}
+                    checked={form.recommended}
+                    onChange={(recommended) => change({ recommended })}
+                  />
+                  <LabeledSwitch
+                    id="plan-attribution"
+                    label={dm.colAttribution}
+                    checked={form.attributionRequired}
+                    onChange={(attributionRequired) => change({ attributionRequired })}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <FormLabel htmlFor="plan-description">{dm.colDescription}</FormLabel>
+                  <textarea
+                    id="plan-description"
+                    aria-label={dm.colDescription}
+                    className={formTextareaClass}
+                    value={form.description}
+                    onChange={(event) => change({ description: event.target.value })}
+                    maxLength={500}
+                  />
+                </div>
+                <TierIconPicker
+                  value={form.icon}
+                  onChange={(icon) => change({ icon })}
+                  label={dm.colIcon}
+                  searchPlaceholder={dm.iconPickerSearch}
+                  noneLabel={dm.iconNone}
+                />
+                <div>
+                  <FormLabel htmlFor="plan-color">{dm.colColor}</FormLabel>
+                  <input
+                    id="plan-color"
+                    aria-label={dm.colColor}
+                    type="text"
+                    className={formInputClass}
+                    value={form.color}
+                    onChange={(event) => change({ color: event.target.value })}
+                  />
+                  {!colorUsable && <p className="mt-1 text-xs text-amber-400">{dm.planColorInvalid}</p>}
+                </div>
+                <div>
+                  <FormLabel htmlFor="plan-button-label">{dm.colButtonLabel}</FormLabel>
+                  <input
+                    id="plan-button-label"
+                    aria-label={dm.colButtonLabel}
+                    type="text"
+                    className={formInputClass}
+                    value={form.buttonLabel}
+                    onChange={(event) => change({ buttonLabel: event.target.value })}
+                    maxLength={40}
+                    placeholder={dm.colButtonLabelPlaceholder}
+                  />
+                </div>
+                <div>
+                  <FormLabel htmlFor="plan-sort">{dm.colSortOrder}</FormLabel>
+                  <DashboardInput
+                    id="plan-sort"
+                    type="number"
+                    value={String(form.sortOrder)}
+                    onChange={(event) => change({ sortOrder: Number(event.target.value) })}
+                  />
+                </div>
+              </div>
+            </DashboardSection.Body>
+          </DashboardSection>
 
-        <PlanOffersSection tierId={plan.id} offers={offersQuery.data ?? []} />
+          <DashboardSection className="overflow-hidden">
+            <DashboardSection.Header
+              icon={<GaugeIcon weight="duotone" className="size-4" />}
+              title={dm.planLimitsTitle}
+            />
+            <DashboardSection.Body>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <FormLabel htmlFor="plan-rpm">{dm.detailRateLimitMinute}</FormLabel>
+                  <DashboardInput
+                    id="plan-rpm"
+                    type="number"
+                    min={1}
+                    value={String(form.requestsPerMinute)}
+                    onChange={(event) => change({ requestsPerMinute: Number(event.target.value) })}
+                  />
+                </div>
+                <div>
+                  <FormLabel htmlFor="plan-rpd">{dm.detailRateLimitDay}</FormLabel>
+                  <DashboardInput
+                    id="plan-rpd"
+                    type="number"
+                    min={1}
+                    value={String(form.requestsPerDay)}
+                    onChange={(event) => change({ requestsPerDay: Number(event.target.value) })}
+                  />
+                </div>
+              </div>
+              {!limitsUsable && <p className="mt-2 text-xs text-amber-400">{dm.planLimitsInvalid}</p>}
+            </DashboardSection.Body>
+          </DashboardSection>
 
-        <TierCreemProductsSection tier={plan} offers={offersQuery.data ?? []} />
+          <DashboardSection className="overflow-hidden">
+            <DashboardSection.Header
+              icon={<ListBulletsIcon weight="duotone" className="size-4" />}
+              title={dm.featuresLabel}
+            />
+            <DashboardSection.Body>
+              <TierFeatureBulletsEditor
+                features={form.features}
+                onChange={(features) => change({ features })}
+                dm={dm}
+              />
+            </DashboardSection.Body>
+            <DashboardSection.Footer>
+              <DashboardActionButton
+                action={DashboardActionId.Save}
+                label={saved ? messages.common.saved : messages.common.save}
+                onClick={save}
+                disabled={!savable}
+                type="button"
+              />
+              {updateTier.isError && (
+                <p role="alert" className="mr-auto text-sm text-[var(--ds-danger-text)]">
+                  {updateTier.error instanceof Error ? updateTier.error.message : messages.common.saveError}
+                </p>
+              )}
+            </DashboardSection.Footer>
+          </DashboardSection>
+        </div>
+
+        <div className="grid content-start gap-[var(--ds-space-base)]">
+          <PlanOffersSection tierId={plan.id} offers={offersQuery.data ?? []} />
+
+          <TierCreemProductsSection tier={plan} offers={offersQuery.data ?? []} />
+        </div>
       </div>
     </PageLayout>
   );

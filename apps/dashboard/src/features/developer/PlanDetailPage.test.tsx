@@ -148,4 +148,24 @@ describe("PlanDetailPage", () => {
 
     expect(await screen.findByText(dm.creemNoOffers)).not.toBeNull();
   });
+
+  it("keeps the three plan switches together rather than one card apart", async () => {
+    renderPage();
+
+    const attribution = await screen.findByLabelText(dm.colAttribution);
+    const row = attribution.closest("div")?.parentElement;
+    expect(row?.textContent).toContain(dm.colActive);
+    expect(row?.textContent).toContain(dm.colRecommended);
+  });
+
+  it("lays the cards out in two columns, so the page is not one long scroll", async () => {
+    const { container } = renderPage();
+    await screen.findByLabelText(dm.colName);
+
+    // Two independent stacks rather than one flowing grid, so a tall card on
+    // one side does not leave a hole on the other.
+    const columns = container.querySelector(".xl\\:grid-cols-2");
+    expect(columns).not.toBeNull();
+    expect(columns?.querySelectorAll(":scope > .content-start")).toHaveLength(2);
+  });
 });
