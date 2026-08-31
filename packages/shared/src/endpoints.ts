@@ -384,10 +384,21 @@ export const ENDPOINTS = {
       /** PATCH / DELETE: single tier by id. */
       tierDetail: (id: string) => `/api/admin/developer/tiers/${id}`,
       /**
-       * GET: every `tier_creem_products` row, across both Creem environments,
-       * so the tier editor can show which environment already has a product.
+       * GET: `{ mode, products }`, where `products` is every
+       * `tier_creem_products` row across both Creem environments and `mode`
+       * says which of the two this backend's API key lets it write to.
+       * POST: create the product for a tier and interval, or attach one that
+       * was created in the Creem dashboard.
        */
       creemProducts: "/api/admin/developer/creem-products",
+      /**
+       * PATCH: change the product's price at Creem, keeping its id.
+       * DELETE: archive it at Creem and remove the mapping, as one operation.
+       *
+       * Both act in the Creem environment the backend's API key puts it in.
+       */
+      creemProductDetail: (tierId: string, interval: string) =>
+        `/api/admin/developer/creem-products/${encodeURIComponent(tierId)}/${encodeURIComponent(interval)}`,
     },
   },
 
@@ -548,6 +559,7 @@ export const ROUTE_TEMPLATES = {
       accounts: "/api/admin/developer/accounts",
       accountDetail: "/api/admin/developer/accounts/:id",
       tierDetail: "/api/admin/developer/tiers/:id",
+      creemProductDetail: "/api/admin/developer/creem-products/:tierId/:interval",
     },
     emailTemplates: {
       detail: "/api/admin/email-templates/:id",

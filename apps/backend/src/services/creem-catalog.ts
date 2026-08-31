@@ -98,9 +98,9 @@ export function resetCreemCatalogCache(): void {
  *   change at Creem is reflected automatically within one TTL window.
  * - **The tier-to-product mapping lives in our DB** (`tier_creem_products`),
  *   because Creem products carry no metadata field (verified against
- *   `creem@1.5.3` and `docs.creem.io` on 2026-07-09). The mapping is seeded
- *   once via `scripts/creem-seed.mjs` and never changes unless tiers are
- *   re-seeded.
+ *   `creem@1.5.3` and `docs.creem.io` on 2026-07-09). A mapping is written by
+ *   the tier editor when it creates the product at Creem, and removed when it
+ *   archives one.
  * - **Only this environment's mappings are read.** The table holds a row per
  *   Creem environment, and the running mode comes from the API key prefix, so
  *   a test process never asks the live account for a product it does not have.
