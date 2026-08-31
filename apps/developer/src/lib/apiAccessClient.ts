@@ -134,6 +134,45 @@ export interface DeveloperProjectDto {
   updatedAt: string;
 }
 
+/** One step of a usage series, stamped with the moment the step begins. */
+export interface UsageBucketDto {
+  startedAt: string;
+  total: number;
+}
+
+/** How many requests one registration made inside the summarised range. */
+export interface UsageByRegistrationDto {
+  registrationId: string;
+  total: number;
+}
+
+/**
+ * Aggregated usage for one project, with the quota it is measured against.
+ *
+ * The quota arrives with the counts rather than from a second read, so a
+ * screen never shows a number against a limit taken at a different moment.
+ */
+export interface ProjectUsageDto {
+  windows: {
+    minute: { from: string; to: string; total: number };
+    day: { from: string; to: string; total: number };
+  };
+  range: {
+    from: string;
+    to: string;
+    bucket: string;
+    total: number;
+    byRegistration: UsageByRegistrationDto[];
+    buckets: UsageBucketDto[];
+  };
+  quota: {
+    /** What the plan grants per minute, or `null` when no plan grants one. */
+    requestsPerMinute: number | null;
+    /** What the plan grants per day, or `null` when no plan grants one. */
+    requestsPerDay: number | null;
+  };
+}
+
 /**
  * Normalised outcome of an API-access call.
  *

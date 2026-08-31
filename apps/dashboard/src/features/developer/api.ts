@@ -193,6 +193,41 @@ export function fetchDeveloperProjects(accountId: string): Promise<{ projects: D
   );
 }
 
+/** One step of a usage series, stamped with the moment the step begins. */
+export interface UsageBucketResponse {
+  startedAt: string;
+  total: number;
+}
+
+/**
+ * Aggregated usage for one project, with the quota it is measured against.
+ *
+ * The quota arrives with the counts rather than from a second read, so a
+ * screen never shows a number against a limit taken at a different moment.
+ */
+export interface ProjectUsageResponse {
+  windows: {
+    minute: { from: string; to: string; total: number };
+    day: { from: string; to: string; total: number };
+  };
+  range: {
+    from: string;
+    to: string;
+    bucket: string;
+    total: number;
+    byRegistration: { registrationId: string; total: number }[];
+    buckets: UsageBucketResponse[];
+  };
+  quota: {
+    requestsPerMinute: number | null;
+    requestsPerDay: number | null;
+  };
+}
+
+export function fetchProjectUsage(id: string): Promise<ProjectUsageResponse> {
+  return api.get<ProjectUsageResponse>(ENDPOINTS.admin.developer.apiAccess.projectUsage(id));
+}
+
 export function fetchDeveloperProject(id: string): Promise<DeveloperProjectDetail> {
   return api.get<DeveloperProjectDetail>(ENDPOINTS.admin.developer.apiAccess.projectDetail(id));
 }
