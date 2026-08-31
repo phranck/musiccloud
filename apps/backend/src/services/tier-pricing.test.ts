@@ -5,9 +5,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Tier } from "../db/tiers-repository.js";
 
-vi.mock("./creem-catalog.js", () => ({ getCreemCatalog: vi.fn() }));
+vi.mock("./creem-catalog.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./creem-catalog.js")>()),
+  getCreemCatalog: vi.fn(),
+}));
 
-import { getCreemCatalog } from "./creem-catalog.js";
+vi.mock("../lib/infra/logger.js", () => ({
+  log: { deviation: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
+
+import { log } from "../lib/infra/logger.js";
+import { CreemPriceOutcome, getCreemCatalog } from "./creem-catalog.js";
 import { centsToEuroString, enrichTiersWithCreemPrices } from "./tier-pricing.js";
 
 const mockedCatalog = vi.mocked(getCreemCatalog);
@@ -88,5 +96,40 @@ describe("enrichTiersWithCreemPrices (MC-114)", () => {
 
     expect(result[0]?.price).toBe("7");
     expect(result[0]?.priceYearly).toBe("70");
+  });
+});
+
+describe("enrichTiersWithCreemPrices: reporting the fallback", () => {
+  beforeEach(() => {
+    vi.mocked(log.deviation).mockClear();
+  });
+
+  it("serves the database prices and says the catalogue was unavailable", async () => {
+    mockedCatalog.mockRejectedValue(new Error("Creem responded 503"));
+    const tiers = [makeTier({ id: "tier_club", price: "9" })];
+
+    const result = await enrichTiersWithCreemPrices(tiers);
+
+    expect(result[0]?.price).toBe("9");
+    const context = vi.mocked(log.deviation).mock.calls[0]?.[0];
+    expect(context?.outcome).toBe(CreemPriceOutcome.CatalogUnavailable);
+    expect(context?.errorCode).toBe("MC-SYS-0001");
+    expect(context?.tiersServedFromDatabase).toBe(1);
+  });
+
+  it("says the key is missing rather than blaming Creem for being down", async () => {
+    mockedCatalog.mockRejectedValue(new Error("Missing required environment variable: CREEM_API_KEY. Set it ..."));
+
+    await enrichTiersWithCreemPrices([makeTier({ id: "tier_club", price: "9" })]);
+
+    expect(vi.mocked(log.deviation).mock.calls[0]?.[0]?.outcome).toBe(CreemPriceOutcome.NotConfigured);
+  });
+
+  it("says nothing when the catalogue answers, because that is not a deviation", async () => {
+    mockedCatalog.mockResolvedValue({ tier_club: { month: { productId: "p", price: 900, currency: "EUR" } } });
+
+    await enrichTiersWithCreemPrices([makeTier({ id: "tier_club", price: "1" })]);
+
+    expect(log.deviation).not.toHaveBeenCalled();
   });
 });

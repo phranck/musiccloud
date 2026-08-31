@@ -21,7 +21,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getTierRepository } from "../db/index.js";
 import { CreemMode, type CreemModeValue, getCreemConfig } from "../lib/creem-config.js";
-import { getCreemCatalog, resetCreemCatalogCache } from "./creem-catalog.js";
+import { log } from "../lib/infra/logger.js";
+import { CreemPriceOutcome, getCreemCatalog, resetCreemCatalogCache } from "./creem-catalog.js";
 import { getCreemClient } from "./creem-client.js";
 
 vi.mock("../db/index.js", () => ({
@@ -35,6 +36,10 @@ vi.mock("./creem-client.js", () => ({
 vi.mock("../lib/creem-config.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/creem-config.js")>()),
   getCreemConfig: vi.fn(),
+}));
+
+vi.mock("../lib/infra/logger.js", () => ({
+  log: { deviation: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
 /**
@@ -69,6 +74,13 @@ function buildMocks(mode: CreemModeValue = CreemMode.Test) {
 beforeEach(() => {
   resetCreemCatalogCache();
   vi.clearAllMocks();
+  // Every test needs a running mode, because the catalog reads the mappings of
+  // one environment. Tests that are not about the mode take the sandbox.
+  vi.mocked(getCreemConfig).mockReturnValue({
+    apiKey: "creem_test_stub",
+    mode: CreemMode.Test,
+    webhookSecret: undefined,
+  });
 });
 
 afterEach(() => {
@@ -125,5 +137,37 @@ describe("getCreemCatalog (MC-110)", () => {
     const live = buildMocks(CreemMode.Live);
     await getCreemCatalog();
     expect(live.listCreemProductMappings).toHaveBeenCalledWith(CreemMode.Live);
+  });
+});
+
+describe("getCreemCatalog: one bad product does not cost every tier its price", () => {
+  it("keeps the tiers whose products answered and reports the one that did not", async () => {
+    vi.mocked(getTierRepository).mockResolvedValue({
+      listCreemProductMappings: vi.fn().mockResolvedValue([
+        { tierId: "tier_club", interval: "month", mode: CreemMode.Test, creemProductId: "prod_gone" },
+        { tierId: "tier_pro", interval: "month", mode: CreemMode.Test, creemProductId: "prod_ok" },
+      ]),
+    } as never);
+    vi.mocked(getCreemClient).mockReturnValue({
+      products: {
+        get: vi.fn(async (id: string) => {
+          if (id === "prod_gone") throw new Error("404 product not found");
+          return { price: 4900, currency: "EUR" };
+        }),
+      },
+    } as never);
+
+    const catalog = await getCreemCatalog();
+
+    // The healthy tier keeps its live price; the broken one is simply absent,
+    // which is what leaves it on its database price one level up.
+    expect(catalog.tier_pro?.month?.price).toBe(4900);
+    expect(catalog.tier_club).toBeUndefined();
+
+    const context = vi.mocked(log.deviation).mock.calls[0]?.[0];
+    expect(context?.outcome).toBe(CreemPriceOutcome.ProductUnavailable);
+    expect(context?.tierId).toBe("tier_club");
+    expect(context?.mode).toBe(CreemMode.Test);
+    expect(context?.creemProductId).toBe("prod_gone");
   });
 });
