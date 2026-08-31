@@ -1,10 +1,5 @@
 import { DashboardActionButton, DashboardActionId } from "@musiccloud/dashboard-ui";
-import {
-  Code as CodeIcon,
-  Gauge as GaugeIcon,
-  SpinnerGap as SpinnerGapIcon,
-  Stack as StackIcon,
-} from "@phosphor-icons/react";
+import { Code as CodeIcon, SpinnerGap as SpinnerGapIcon, Stack as StackIcon } from "@phosphor-icons/react";
 import { useNavigate, useParams } from "react-router";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
@@ -12,6 +7,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { ApiClientResponse, DeveloperProjectResponse } from "@/features/developer/api";
+import { ProjectPlanSection } from "@/features/developer/components/ProjectPlanSection";
 import { ProjectStatusBadge } from "@/features/developer/components/ProjectStatusBadge";
 import { ApiClientStatus, DeveloperProjectStatus } from "@/features/developer/domain";
 import { useDeveloperProject, useUpdateDeveloperProject } from "@/features/developer/hooks/useDeveloperData";
@@ -21,37 +17,6 @@ const messages = dashboardCopy;
 const dm = messages.developer;
 
 const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
-
-/**
- * One quota figure with where it comes from.
- *
- * The source matters more than the number: an operator changing a limit needs
- * to see whether they are looking at the plan's figure or at an override that
- * already replaced it.
- */
-function QuotaFigure({
-  label,
-  enforced,
-  override,
-  fromPlan,
-}: {
-  label: string;
-  enforced: number | null;
-  override: number | null;
-  fromPlan: number | null;
-}) {
-  return (
-    <div>
-      <span className={labelClass}>{label}</span>
-      <p className="text-sm text-[var(--ds-text)]">{enforced ?? dm.clientTrafficNoPlan}</p>
-      <p className="text-xs text-[var(--ds-text-muted)]">
-        {override !== null
-          ? `${dm.projectQuotaOverride}: ${override}`
-          : `${dm.projectQuotaFromPlan}: ${fromPlan ?? "—"}`}
-      </p>
-    </div>
-  );
-}
 
 /**
  * One registration under the project, as a row in the registrations section.
@@ -161,32 +126,7 @@ export function ProjectDetailPage() {
           </div>
         </DashboardSection>
 
-        <DashboardSection className="overflow-hidden">
-          <DashboardSection.Header
-            icon={<GaugeIcon weight="duotone" className="size-4" />}
-            title={dm.projectPlanTitle}
-          />
-          <DashboardSection.Body>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div>
-                <span className={labelClass}>{dm.colTier}</span>
-                <p className="text-sm text-[var(--ds-text)]">{project.tierName ?? dm.projectNoPlan}</p>
-              </div>
-              <QuotaFigure
-                label={dm.detailRateLimitMinute}
-                enforced={project.effectiveRequestsPerMinute}
-                override={project.requestsPerMinute}
-                fromPlan={project.tierRequestsPerMinute}
-              />
-              <QuotaFigure
-                label={dm.detailRateLimitDay}
-                enforced={project.effectiveRequestsPerDay}
-                override={project.requestsPerDay}
-                fromPlan={project.tierRequestsPerDay}
-              />
-            </div>
-          </DashboardSection.Body>
-        </DashboardSection>
+        <ProjectPlanSection project={project} subscription={data.subscription} />
 
         <DashboardSection className="overflow-hidden">
           <DashboardSection.Header

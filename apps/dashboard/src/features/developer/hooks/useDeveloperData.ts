@@ -18,6 +18,7 @@ import {
   type TierResponse,
   updateDeveloperAccount,
   updateDeveloperProject,
+  updateDeveloperProjectSubscription,
   updateTier,
 } from "@/features/developer/api";
 
@@ -141,6 +142,23 @@ export function useUpdateDeveloperProject() {
       requestsPerMinute?: number | null;
       requestsPerDay?: number | null;
     }) => updateDeveloperProject(id, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["developer"] });
+    },
+  });
+}
+
+/**
+ * Sets the plan a project runs on, and the state of that subscription.
+ *
+ * The route requires `tierId` on every call, so the caller sends the plan it
+ * wants even when only the state is changing.
+ */
+export function useSetProjectSubscription() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; tierId: string | null; status?: string; interval?: string | null }) =>
+      updateDeveloperProjectSubscription(id, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["developer"] });
     },
