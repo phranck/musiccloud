@@ -70,7 +70,7 @@ describe("CreemSellingModeSection", () => {
     expect(mocks.updateCreemSellingMode).not.toHaveBeenCalled();
   });
 
-  it("names the plans that have no live product yet rather than only refusing", async () => {
+  it("names the plans that have no product in production yet rather than only refusing", async () => {
     mocks.fetchCreemSellingMode.mockResolvedValue({
       sellingMode: "test",
       configuredModes: ["test", "live"],

@@ -275,8 +275,8 @@ export const dashboardCopy = {
     creemTitle: "Creem products",
     creemIntro:
       "What a customer actually pays is the Creem product's price, and the pricing page follows it. Each plan has one product per billing interval in each environment.",
-    creemEnvironmentTest: "Test",
-    creemEnvironmentLive: "Live",
+    creemEnvironmentTest: "Test Mode",
+    creemEnvironmentLive: "Production",
     creemNoKeyForEnvironment:
       "No Creem API key is configured for {mode}, so nothing here can be changed. Add that account's key to the backend to set it up.",
     creemIntervalMonth: "Monthly",
@@ -294,15 +294,15 @@ export const dashboardCopy = {
     creemSaveOnceFirst: "Save the plan first. A product needs a plan to belong to.",
     creemSellingTitle: "Selling environment",
     creemSellingDescription:
-      "Which Creem account a purchase goes through. On Test nothing is charged and no card is touched, which is where it stays whilst you are trying things out. On Live a purchase takes real money.",
+      "Which Creem account a purchase goes through, named the way Creem names it: Test Mode is the toggle at the bottom of Creem's own sidebar, and Production is everything outside it. In Test Mode nothing is charged and no card is touched, which is where this stays whilst you are trying things out. In Production a purchase takes real money.",
     creemSellingCurrent: "Selling from",
     creemSellingTestNote:
-      "Test is the Creem sandbox, the development environment. Purchases work end to end and charge nobody.",
+      "Test Mode is Creem's sandbox, the development environment. Purchases work end to end and charge nobody.",
     creemSellingNoKey: "No Creem API key is configured for {mode}, so it cannot be selected.",
-    creemSellingMissingProducts: "These plans have no {mode} product yet: {plans}",
+    creemSellingMissingProducts: "These plans have no product in {mode} yet: {plans}",
     creemSellingLiveWarning:
-      "Switching to Live means the next purchase charges a real card. Everything the pricing page offers becomes buyable for real money.",
-    creemSellingConfirm: "Switch to Live",
+      "Switching to Production means the next purchase charges a real card. Everything the pricing page offers becomes buyable for real money.",
+    creemSellingConfirm: "Switch to Production",
     settingsTitle: "Developer Settings",
     availabilityTitle: "Portal availability",
     availabilityDescription: "Control whether the Developer Portal is publicly available.",

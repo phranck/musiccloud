@@ -369,7 +369,7 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
           error:
             refusal.refusal === SellingModeRefusal.NoKey
               ? `This deployment holds no Creem key for the ${sellingMode} environment`
-              : `These plans have no ${sellingMode} product yet: ${refusal.missing.join(", ")}`,
+              : `These plans have no product in the ${sellingMode} environment yet: ${refusal.missing.join(", ")}`,
           code: refusal.refusal === SellingModeRefusal.NoKey ? "MC-BILL-0006" : "MC-BILL-0007",
           missing: refusal.missing,
         });

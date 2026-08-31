@@ -51,7 +51,7 @@ function blockingReason(readiness: CreemModeReadiness | undefined): string | nul
  * Keeping them apart is what lets the live products be built whilst the shop
  * still sells from the sandbox.
  *
- * Moving to Live asks for a second press. Every other control in this
+ * Moving to production asks for a second press. Every other control in this
  * dashboard is reversible by pressing it again; a charged card is not.
  *
  * @returns The selling environment card.
@@ -65,7 +65,7 @@ export function CreemSellingModeSection() {
   const liveReason = blockingReason(data?.readiness.find((entry) => entry.mode === CreemMode.Live));
   const canGoLive = data !== undefined && liveReason === null;
 
-  // Moving to the sandbox happens on the press. Moving to live asks first,
+  // Moving to the sandbox happens on the press. Moving to production asks first,
   // because it is the one control here whose effect is somebody's money.
   const handleChange = useCallback(
     (next: CreemMode) => {
