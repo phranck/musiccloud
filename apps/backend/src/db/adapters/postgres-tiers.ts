@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import type { Pool } from "pg";
+import type { CreemModeValue } from "../../lib/creem-config.js";
 import { log } from "../../lib/infra/logger.js";
 import {
   DEFAULT_TIER_COLOR,
@@ -52,6 +53,30 @@ function toTier(row: TierRow): Tier {
     features: row.features ?? [],
     createdAt: dateToMs(row.created_at),
     updatedAt: dateToMs(row.updated_at),
+  };
+}
+
+/** One `tier_creem_products` row as PostgreSQL returns it. */
+interface TierCreemProductMappingRow {
+  tier_id: string;
+  interval: string;
+  mode: string;
+  creem_product_id: string;
+}
+
+/**
+ * Converts a `tier_creem_products` row into the repository's mapping shape.
+ *
+ * The `mode` column is constrained to the two Creem environments by the
+ * `chk_tier_creem_products_mode` check constraint, so the cast reflects what
+ * the database already guarantees.
+ */
+function toCreemProductMapping(row: TierCreemProductMappingRow): TierCreemProductMapping {
+  return {
+    tierId: row.tier_id,
+    interval: row.interval,
+    mode: row.mode as CreemModeValue,
+    creemProductId: row.creem_product_id,
   };
 }
 
@@ -236,20 +261,36 @@ export class PostgresTierRepository implements TierRepository {
   }
 
   /**
-   * Returns all rows from the `tier_creem_products` table, which maps each
-   * internal tier plus billing interval to the corresponding Creem product ID.
+   * Returns the `tier_creem_products` rows belonging to one Creem environment,
+   * mapping each internal tier plus billing interval to that environment's
+   * Creem product ID.
    *
    * The mapping lives here (not at Creem) because Creem products carry no
    * metadata field. Creem is the source of truth for prices and currency; this
-   * table is the source of truth for which product ID belongs to which tier and
-   * interval.
+   * table is the source of truth for which product ID belongs to which tier,
+   * interval and environment.
+   *
+   * @param mode - The Creem environment whose rows are wanted.
+   * @returns Array of the mapping rows for that environment.
+   */
+  async listCreemProductMappings(mode: CreemModeValue): Promise<TierCreemProductMapping[]> {
+    const { rows } = await this.#pool.query<TierCreemProductMappingRow>(
+      "SELECT tier_id, interval, mode, creem_product_id FROM tier_creem_products WHERE mode = $1",
+      [mode],
+    );
+    return rows.map(toCreemProductMapping);
+  }
+
+  /**
+   * Returns every `tier_creem_products` row, across both Creem environments,
+   * for the admin surface that shows which environment already has a product.
    *
    * @returns Array of all tier-to-Creem-product mapping rows.
    */
-  async listCreemProductMappings(): Promise<TierCreemProductMapping[]> {
-    const { rows } = await this.#pool.query<{ tier_id: string; interval: string; creem_product_id: string }>(
-      "SELECT tier_id, interval, creem_product_id FROM tier_creem_products",
+  async listAllCreemProductMappings(): Promise<TierCreemProductMapping[]> {
+    const { rows } = await this.#pool.query<TierCreemProductMappingRow>(
+      "SELECT tier_id, interval, mode, creem_product_id FROM tier_creem_products ORDER BY tier_id, interval, mode",
     );
-    return rows.map((r) => ({ tierId: r.tier_id, interval: r.interval, creemProductId: r.creem_product_id }));
+    return rows.map(toCreemProductMapping);
   }
 }

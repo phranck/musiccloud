@@ -1,22 +1,26 @@
 /**
  * @file Unit tests for {@link getCreemCatalog} (MC-110, Task 7).
  *
- * Both external dependencies are fully mocked:
+ * Every external dependency is fully mocked:
  * - `getTierRepository` from `../db/index.js` returns a stub with
  *   `listCreemProductMappings`.
  * - `getCreemClient` from `./creem-client.js` returns a stub with
  *   `products.get`.
+ * - `getCreemConfig` from `../lib/creem-config.js` decides the running mode,
+ *   which the real implementation reads from the environment.
  *
- * The three cases under test:
+ * The cases under test:
  * 1. A fresh call builds the catalog map from the mapping + Creem prices.
  * 2. A second call within the TTL is served from the in-memory cache (no
  *    additional DB or Creem calls).
  * 3. After the TTL elapses the next call re-fetches from DB and Creem.
+ * 4. Only the running environment's mappings are read.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getTierRepository } from "../db/index.js";
+import { CreemMode, type CreemModeValue, getCreemConfig } from "../lib/creem-config.js";
 import { getCreemCatalog, resetCreemCatalogCache } from "./creem-catalog.js";
 import { getCreemClient } from "./creem-client.js";
 
@@ -28,11 +32,20 @@ vi.mock("./creem-client.js", () => ({
   getCreemClient: vi.fn(),
 }));
 
-/** Sets up a fresh pair of mocks for each test. */
-function buildMocks() {
+vi.mock("../lib/creem-config.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/creem-config.js")>()),
+  getCreemConfig: vi.fn(),
+}));
+
+/**
+ * Sets up a fresh set of mocks for each test.
+ *
+ * @param mode - The Creem environment the process should appear to run in.
+ */
+function buildMocks(mode: CreemModeValue = CreemMode.Test) {
   const listCreemProductMappings = vi
     .fn()
-    .mockResolvedValue([{ tierId: "tier_club", interval: "month", creemProductId: "prod_1" }]);
+    .mockResolvedValue([{ tierId: "tier_club", interval: "month", mode, creemProductId: "prod_1" }]);
 
   vi.mocked(getTierRepository).mockResolvedValue({
     listCreemProductMappings,
@@ -43,6 +56,12 @@ function buildMocks() {
   vi.mocked(getCreemClient).mockReturnValue({
     products: { get: productsGet },
   } as never);
+
+  vi.mocked(getCreemConfig).mockReturnValue({
+    apiKey: "creem_test_stub",
+    mode,
+    webhookSecret: undefined,
+  });
 
   return { listCreemProductMappings, productsGet };
 }
@@ -95,5 +114,16 @@ describe("getCreemCatalog (MC-110)", () => {
 
     expect(listCreemProductMappings).toHaveBeenCalledTimes(2);
     expect(productsGet).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads only the mappings of the environment the API key puts the process in", async () => {
+    const { listCreemProductMappings } = buildMocks(CreemMode.Test);
+    await getCreemCatalog();
+    expect(listCreemProductMappings).toHaveBeenCalledWith(CreemMode.Test);
+
+    resetCreemCatalogCache();
+    const live = buildMocks(CreemMode.Live);
+    await getCreemCatalog();
+    expect(live.listCreemProductMappings).toHaveBeenCalledWith(CreemMode.Live);
   });
 });
