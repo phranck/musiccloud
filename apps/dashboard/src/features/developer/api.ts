@@ -1,5 +1,5 @@
 import { ENDPOINTS } from "@musiccloud/shared";
-import type { BillingInterval, CreemMode } from "@/features/developer/domain";
+import type { BillingPeriod, CreemMode, OfferCurrency, TaxCategory, TaxMode } from "@/features/developer/domain";
 import { api } from "@/lib/api";
 
 export interface DeveloperPortalAvailability {
@@ -354,8 +354,8 @@ export function deleteTier(id: string): Promise<void> {
 /** One tier's Creem product in one environment. */
 export interface CreemProductMapping {
   tierId: string;
-  /** One of {@link BillingInterval}. */
-  interval: BillingInterval;
+  /** The offer's billing period, in Creem's own spelling. */
+  billingPeriod: BillingPeriod;
   /** Which Creem environment holds this product. */
   mode: CreemMode;
   /** The Creem product id. */
@@ -388,7 +388,7 @@ export function fetchCreemProducts(): Promise<CreemProductsResponse> {
  */
 export function createCreemProduct(body: {
   tierId: string;
-  interval: BillingInterval;
+  billingPeriod: BillingPeriod;
   mode: CreemMode;
   creemProductId?: string;
 }): Promise<CreemProductMapping> {
@@ -399,18 +399,18 @@ export function createCreemProduct(body: {
  * Changes the product's price at Creem, keeping its id and its subscriptions.
  *
  * @param tierId - The tier the product belongs to.
- * @param interval - Which of the tier's products to reprice.
+ * @param billingPeriod - Which of the plan's products to reprice.
  * @param mode - The Creem environment the product lives in.
  * @param priceCents - The new price in cents.
  */
 export function updateCreemProductPrice(
   tierId: string,
-  interval: BillingInterval,
+  billingPeriod: BillingPeriod,
   mode: CreemMode,
   priceCents: number,
 ): Promise<CreemProductMapping & { price: number; currency: string }> {
   return api.patch<CreemProductMapping & { price: number; currency: string }>(
-    ENDPOINTS.admin.developer.creemProductDetail(tierId, interval, mode),
+    ENDPOINTS.admin.developer.creemProductDetail(tierId, billingPeriod, mode),
     { priceCents },
   );
 }
@@ -419,11 +419,11 @@ export function updateCreemProductPrice(
  * Archives the product at Creem and removes its mapping, as one operation.
  *
  * @param tierId - The tier the product belongs to.
- * @param interval - Which of the tier's products to archive.
+ * @param billingPeriod - Which of the plan's products to archive.
  * @param mode - The Creem environment the product lives in.
  */
-export function archiveCreemProduct(tierId: string, interval: BillingInterval, mode: CreemMode): Promise<void> {
-  return api.delete(ENDPOINTS.admin.developer.creemProductDetail(tierId, interval, mode));
+export function archiveCreemProduct(tierId: string, billingPeriod: BillingPeriod, mode: CreemMode): Promise<void> {
+  return api.delete(ENDPOINTS.admin.developer.creemProductDetail(tierId, billingPeriod, mode));
 }
 
 /** Whether one Creem environment could be sold from, and what is missing if not. */
@@ -457,4 +457,73 @@ export function fetchCreemSellingMode(): Promise<CreemSellingModeResponse> {
  */
 export function updateCreemSellingMode(sellingMode: CreemMode): Promise<CreemSellingModeResponse> {
   return api.patch<CreemSellingModeResponse>(ENDPOINTS.admin.developer.creemSellingMode, { sellingMode });
+}
+
+/** One extra question asked at the Creem checkout. */
+export interface OfferCustomField {
+  key: string;
+  label: string;
+  optional: boolean;
+}
+
+/**
+ * What a plan costs, as one thing a customer can buy.
+ *
+ * This is exactly what Creem calls a product, so every field Creem accepts has
+ * a home here rather than being invented when the product is created.
+ */
+export interface TierOffer {
+  id: string;
+  tierId: string;
+  billingPeriod: BillingPeriod;
+  /** The amount in the smallest currency unit, which is what Creem takes. */
+  priceCents: number;
+  currency: OfferCurrency;
+  /** `null` leaves the decision to Creem. */
+  taxMode: TaxMode | null;
+  /** `null` leaves the decision to Creem. */
+  taxCategory: TaxCategory | null;
+  imageUrl: string | null;
+  successUrl: string | null;
+  customFields: OfferCustomField[];
+  abandonedCartRecovery: boolean;
+  payWhatYouWant: boolean;
+  suggestedPriceCents: number | null;
+  sortOrder: number;
+}
+
+/** The fields an offer is created with. The rest take their default. */
+export type TierOfferCreate = Pick<TierOffer, "billingPeriod" | "priceCents"> &
+  Partial<Omit<TierOffer, "id" | "tierId" | "billingPeriod" | "priceCents">>;
+
+export function fetchPlanOffers(tierId: string): Promise<TierOffer[]> {
+  return api.get<TierOffer[]>(ENDPOINTS.admin.developer.planOffers(tierId));
+}
+
+/**
+ * Adds an offer to a plan.
+ *
+ * Nothing reaches Creem here. The product is created afterwards, deliberately,
+ * from the Creem section of the same page.
+ *
+ * @param tierId - The plan the offer belongs to.
+ * @param body - What is being sold and on what terms.
+ */
+export function createPlanOffer(tierId: string, body: TierOfferCreate): Promise<TierOffer> {
+  return api.post<TierOffer>(ENDPOINTS.admin.developer.planOffers(tierId), body);
+}
+
+/**
+ * Changes an offer. The product already at Creem keeps its price until
+ * somebody changes it there too.
+ *
+ * @param id - The offer to change.
+ * @param body - The fields to change.
+ */
+export function updatePlanOffer(id: string, body: Partial<TierOfferCreate>): Promise<TierOffer> {
+  return api.patch<TierOffer>(ENDPOINTS.admin.developer.planOfferDetail(id), body);
+}
+
+export function deletePlanOffer(id: string): Promise<void> {
+  return api.delete(ENDPOINTS.admin.developer.planOfferDetail(id));
 }

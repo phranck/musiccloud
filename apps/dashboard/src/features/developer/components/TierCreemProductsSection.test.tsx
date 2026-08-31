@@ -19,7 +19,7 @@ vi.mock("@/features/developer/api", async (importOriginal) => ({
 }));
 
 import { dashboardCopy } from "@/copy/dashboard";
-import type { TierResponse } from "@/features/developer/api";
+import type { TierOffer, TierResponse } from "@/features/developer/api";
 import { TierCreemProductsSection } from "./TierCreemProductsSection";
 
 const dm = dashboardCopy.developer;
@@ -49,11 +49,31 @@ function makeTier(overrides: Partial<TierResponse> = {}): TierResponse {
   };
 }
 
-function renderSection(tier: TierResponse = makeTier()) {
+/** One offer of the plan. Every row of the section corresponds to one. */
+function makeOffer(billingPeriod: string, priceCents = 990): TierOffer {
+  return {
+    id: `offer_${billingPeriod}`,
+    tierId: "tier_club",
+    billingPeriod: billingPeriod as TierOffer["billingPeriod"],
+    priceCents,
+    currency: "EUR",
+    taxMode: null,
+    taxCategory: null,
+    imageUrl: null,
+    successUrl: null,
+    customFields: [],
+    abandonedCartRecovery: false,
+    payWhatYouWant: false,
+    suggestedPriceCents: null,
+    sortOrder: 0,
+  };
+}
+
+function renderSection(offers: TierOffer[] = [makeOffer("every-month")], tier: TierResponse = makeTier()) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <TierCreemProductsSection tier={tier} />
+      <TierCreemProductsSection tier={tier} offers={offers} />
     </QueryClientProvider>,
   );
 }
@@ -72,8 +92,8 @@ describe("TierCreemProductsSection", () => {
     mocks.fetchCreemProducts.mockResolvedValue({
       writableModes: ["test"],
       products: [
-        { tierId: "tier_club", interval: "month", mode: "test", creemProductId: "prod_sandbox" },
-        { tierId: "tier_club", interval: "month", mode: "live", creemProductId: "prod_live" },
+        { tierId: "tier_club", billingPeriod: "every-month", mode: "test", creemProductId: "prod_sandbox" },
+        { tierId: "tier_club", billingPeriod: "every-month", mode: "live", creemProductId: "prod_live" },
       ],
     });
 
@@ -87,8 +107,8 @@ describe("TierCreemProductsSection", () => {
     mocks.fetchCreemProducts.mockResolvedValue({
       writableModes: ["test"],
       products: [
-        { tierId: "tier_club", interval: "month", mode: "test", creemProductId: "prod_sandbox" },
-        { tierId: "tier_club", interval: "month", mode: "live", creemProductId: "prod_live" },
+        { tierId: "tier_club", billingPeriod: "every-month", mode: "test", creemProductId: "prod_sandbox" },
+        { tierId: "tier_club", billingPeriod: "every-month", mode: "live", creemProductId: "prod_live" },
       ],
     });
 
@@ -103,7 +123,7 @@ describe("TierCreemProductsSection", () => {
   it("offers no action in an environment this deployment has no key for", async () => {
     mocks.fetchCreemProducts.mockResolvedValue({
       writableModes: ["test"],
-      products: [{ tierId: "tier_club", interval: "month", mode: "live", creemProductId: "prod_live" }],
+      products: [{ tierId: "tier_club", billingPeriod: "every-month", mode: "live", creemProductId: "prod_live" }],
     });
 
     renderSection();
@@ -114,12 +134,16 @@ describe("TierCreemProductsSection", () => {
     expect(screen.getByText(dm.creemNoKeyForEnvironment.replaceAll("{mode}", dm.creemEnvironmentLive))).not.toBeNull();
   });
 
-  it("says a plan with no price for an interval gets no product there", async () => {
+  it("shows one row per offer and nothing for a plan that sells nothing", async () => {
     withNoProducts();
-    renderSection(makeTier({ priceYearly: null }));
+    const { unmount } = renderSection([makeOffer("every-month"), makeOffer("every-year")]);
 
-    expect(await screen.findByText(dm.creemCreate)).not.toBeNull();
-    expect(screen.getAllByText(dm.creemNoPrice)).toHaveLength(1);
+    expect(await screen.findAllByText(dm.creemNoProduct)).toHaveLength(2);
+    unmount();
+
+    withNoProducts();
+    renderSection([]);
+    expect(await screen.findByText(dm.creemNoOffers)).not.toBeNull();
   });
 
   it("creates the product for the plan and interval", async () => {
@@ -133,7 +157,7 @@ describe("TierCreemProductsSection", () => {
     await waitFor(() =>
       expect(mocks.createCreemProduct.mock.calls[0]?.[0]).toEqual({
         tierId: "tier_club",
-        interval: "month",
+        billingPeriod: "every-month",
         mode: "test",
       }),
     );
@@ -142,7 +166,7 @@ describe("TierCreemProductsSection", () => {
   it("asks before archiving, because Creem keeps the product forever", async () => {
     mocks.fetchCreemProducts.mockResolvedValue({
       writableModes: ["test"],
-      products: [{ tierId: "tier_club", interval: "month", mode: "test", creemProductId: "prod_sandbox" }],
+      products: [{ tierId: "tier_club", billingPeriod: "every-month", mode: "test", creemProductId: "prod_sandbox" }],
     });
 
     renderSection();
@@ -154,6 +178,6 @@ describe("TierCreemProductsSection", () => {
     const [confirm] = screen.getAllByText(dm.creemArchive);
     await userEvent.click(confirm as HTMLElement);
 
-    await waitFor(() => expect(mocks.archiveCreemProduct).toHaveBeenCalledWith("tier_club", "month", "test"));
+    await waitFor(() => expect(mocks.archiveCreemProduct).toHaveBeenCalledWith("tier_club", "every-month", "test"));
   });
 });

@@ -118,8 +118,20 @@ down to its meaningful inner slots.
 - Creem issues no scoped or read-only keys. The one key that creates a product
   also issues refunds and cancels subscriptions, so it stays in the backend and
   every route using it checks for an admin first.
-- A free tier gets no Creem product: Creem rejects a recurring product priced
-  at zero. Its price comes from our own `tiers` table.
+- A plan's price lives in `tier_offers`, one row per thing a customer can buy.
+  An offer is exactly what Creem calls a product and carries every field Creem
+  accepts, so nothing reaching Creem is derived from the plan except the name
+  and the description a customer reads. A plan with no offer sells nothing, and
+  that is how a free plan is expressed.
+- Creem sells over six billing periods and in two currencies, and its two tax
+  fields decide who bears the tax. All of them are fields on an offer. A field
+  left empty is a decision to let Creem choose, not an omission.
+- A Creem product is addressed by an offer's natural key, so it cannot point at
+  a period the plan does not sell and it goes when the offer goes.
+- An address an operator enters on an offer, whether the checkout picture or the
+  return address after paying, is checked against this deployment's own origins
+  rather than against a pattern. A free return address is a redirect we would be
+  hosting for whoever set it.
 - Test and live are separate Creem accounts that share nothing, so one plan and
   interval has a different product id in each. `tier_creem_products` carries a
   `mode` column and holds both at once.
@@ -164,6 +176,9 @@ down to its meaningful inner slots.
 
 ## Issue branches and pull requests
 
+- A plan is edited on its own page at `developer/plans/:id`, like every other
+  detail screen. The dialog on the list creates a plan and nothing else, because
+  a plan carries an unbounded list of offers and every field Creem accepts.
 - Complete each GitHub issue on one dedicated feature branch, created from the
   current `main`. Use the branch name `issue/<number>-<short-kebab-summary>`.
 - One issue produces one pull request unless the user explicitly groups issues.
