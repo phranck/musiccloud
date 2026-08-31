@@ -398,14 +398,21 @@ export const ENDPOINTS = {
        * The environment is part of the path, because an operator maintains the
        * live products whilst the shop still sells from the sandbox.
        */
-      creemProductDetail: (tierId: string, interval: string, mode: string) =>
-        `/api/admin/developer/creem-products/${encodeURIComponent(tierId)}/${encodeURIComponent(interval)}/${encodeURIComponent(mode)}`,
+      creemProductDetail: (tierId: string, billingPeriod: string, mode: string) =>
+        `/api/admin/developer/creem-products/${encodeURIComponent(tierId)}/${encodeURIComponent(billingPeriod)}/${encodeURIComponent(mode)}`,
       /**
        * GET / PATCH: which Creem environment the shop sells from. This is the
        * switch that decides whether a purchase moves real money, so it is a
        * stored setting rather than a consequence of the deployed key.
        */
       creemSellingMode: "/api/admin/developer/creem-selling-mode",
+      /**
+       * GET / POST: the offers of one plan, which is what it costs. An offer
+       * carries every field Creem accepts for a product.
+       */
+      planOffers: (tierId: string) => `/api/admin/developer/plans/${encodeURIComponent(tierId)}/offers`,
+      /** PATCH / DELETE: one offer by id. */
+      planOfferDetail: (id: string) => `/api/admin/developer/offers/${encodeURIComponent(id)}`,
     },
   },
 
@@ -566,7 +573,9 @@ export const ROUTE_TEMPLATES = {
       accounts: "/api/admin/developer/accounts",
       accountDetail: "/api/admin/developer/accounts/:id",
       tierDetail: "/api/admin/developer/tiers/:id",
-      creemProductDetail: "/api/admin/developer/creem-products/:tierId/:interval/:mode",
+      creemProductDetail: "/api/admin/developer/creem-products/:tierId/:billingPeriod/:mode",
+      planOffers: "/api/admin/developer/plans/:tierId/offers",
+      planOfferDetail: "/api/admin/developer/offers/:id",
     },
     emailTemplates: {
       detail: "/api/admin/email-templates/:id",

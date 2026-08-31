@@ -278,6 +278,21 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
       "The selling environment cannot move to an environment where an enabled paid plan has no product. The response names which ones are missing.",
     source: "apps/backend/src/routes/admin-creem-products.ts",
   },
+  "MC-BILL-0008": {
+    code: "MC-BILL-0008",
+    httpStatus: 400,
+    userMessage: "That address does not belong to this installation.",
+    internalNote:
+      "An offer named an image or return address outside our own origins. A return address is a redirect we would be hosting for whoever set it.",
+    source: "apps/backend/src/routes/admin-plan-offers.ts",
+  },
+  "MC-BILL-0009": {
+    code: "MC-BILL-0009",
+    httpStatus: 409,
+    userMessage: "This plan is already sold over that billing period.",
+    internalNote: "One offer per plan and billing period, enforced by uq_tier_offers_tier_period.",
+    source: "apps/backend/src/routes/admin-plan-offers.ts",
+  },
   "MC-SYS-0002": {
     code: "MC-SYS-0002",
     httpStatus: 503,

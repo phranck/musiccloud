@@ -8,6 +8,7 @@ import { loadDatabaseConfig } from "./config.js";
 import { assertDatabaseReady, inspectMusiccloudDatabase } from "./database-readiness.js";
 import { backfillDeveloperProjects } from "./developer-project-backfill.js";
 import { assertSafeMigrationConnection } from "./migration-safety.js";
+import { backfillTierOffers } from "./tier-offers-backfill.js";
 
 export function resolveMigrationsFolder(): string {
   const candidates = [
@@ -45,6 +46,18 @@ export async function runMigrations(options: { ensureAdminOwner?: boolean } = {}
     console.log(
       `[DB] Developer project ownership verified: clientProjects=${projectBackfill.clientProjectsInserted} accountProjects=${projectBackfill.accountProjectsInserted}`,
     );
+
+    const offerBackfill = await backfillTierOffers(pool);
+    console.log(
+      `[DB] Plan offers verified: monthly=${offerBackfill.monthlyOffersInserted} yearly=${offerBackfill.yearlyOffersInserted} unreadable=${offerBackfill.unreadablePrices}`,
+    );
+    if (offerBackfill.unreadablePrices > 0) {
+      // Not fatal: the plan simply has nothing to sell until somebody enters a
+      // price. Silent would be wrong, because the pricing page looks the same.
+      console.warn(
+        `[DB] ${offerBackfill.unreadablePrices} plan price(s) could not be read as an amount and produced no offer.`,
+      );
+    }
 
     if (options.ensureAdminOwner !== false) {
       // Ensure there is at least one owner (promote the first user if none exists)

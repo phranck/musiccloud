@@ -5,6 +5,7 @@ import {
   check,
   customType,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -1779,27 +1780,97 @@ export type DeveloperProjectSubscriptionRow = typeof developerProjectSubscriptio
 export type DeveloperProjectSubscriptionInsert = typeof developerProjectSubscriptions.$inferInsert;
 
 /**
- * Maps each internal tier, billing interval and Creem environment to its Creem
- * product id. Creem products carry no metadata field, so the tier-to-product
- * association cannot live at Creem and lives here instead. Creem stays the
- * source of truth for prices only, fetched live by the catalog service. A row
- * is written by the tier editor when it creates the product in Creem and
- * removed when it archives one, and the whole table is cleared by the dbdump
- * scrub because the product ids are environment-specific.
+ * What a plan costs, as one row per thing a customer can buy.
+ *
+ * A plan says what somebody gets; an offer says what they pay for it. Those
+ * were one thing whilst a plan carried two price columns, and the consequence
+ * was that everything Creem asks for beyond the amount had to be invented by
+ * our code rather than chosen by anybody. An offer is exactly what Creem calls
+ * a product, so every field Creem accepts has a column here.
+ *
+ * `billingPeriod` carries Creem's own spelling, so the value travels to the
+ * API unchanged. Creem admits six, of which `once` is the one that is not
+ * recurring and therefore the only one that may set the pay-what-you-want
+ * fields.
+ *
+ * A plan has at most one offer per billing period. Selling the same plan twice
+ * over the same period is not a case; it is a mistake somebody would only find
+ * on the pricing page.
+ */
+export const tierOffers = pgTable(
+  "tier_offers",
+  {
+    id: text("id").primaryKey(),
+    tierId: text("tier_id")
+      .notNull()
+      .references(() => tiers.id, { onDelete: "cascade" }),
+    /** Creem's own spelling of the period, such as `every-month`. */
+    billingPeriod: text("billing_period").notNull(),
+    /** The amount in the smallest currency unit, which is what Creem takes. */
+    priceCents: integer("price_cents").notNull(),
+    currency: text("currency").notNull().default("EUR"),
+    /** Whether tax is inside the price or added to it. `NULL` leaves it to Creem. */
+    taxMode: text("tax_mode"),
+    /** The tax treatment of what is being sold. `NULL` leaves it to Creem. */
+    taxCategory: text("tax_category"),
+    /** The picture on the checkout page. */
+    imageUrl: text("image_url"),
+    /** Where the customer returns after paying. Checked against our own hosts. */
+    successUrl: text("success_url"),
+    /** Up to three extra questions asked at the checkout. */
+    customFields: jsonb("custom_fields").notNull().default([]),
+    abandonedCartRecovery: boolean("abandoned_cart_recovery").notNull().default(false),
+    /** Only meaningful for a `once` offer, where the customer names the amount. */
+    payWhatYouWant: boolean("pay_what_you_want").notNull().default(false),
+    /** The amount pre-filled when the customer names it. */
+    suggestedPriceCents: integer("suggested_price_cents"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_tier_offers_tier_period").on(table.tierId, table.billingPeriod),
+    check(
+      "chk_tier_offers_billing_period",
+      sql`${table.billingPeriod} IN ('once', 'every-day', 'every-month', 'every-three-months', 'every-six-months', 'every-year')`,
+    ),
+    check("chk_tier_offers_currency", sql`${table.currency} IN ('EUR', 'USD')`),
+    check("chk_tier_offers_tax_mode", sql`${table.taxMode} IS NULL OR ${table.taxMode} IN ('inclusive', 'exclusive')`),
+    check(
+      "chk_tier_offers_tax_category",
+      sql`${table.taxCategory} IS NULL OR ${table.taxCategory} IN ('saas', 'digital-goods-service', 'ebooks')`,
+    ),
+    // Creem refuses a recurring product below one whole unit of the currency
+    // and accepts zero only for a one-time product.
+    check("chk_tier_offers_price", sql`${table.priceCents} >= 100`),
+    check("chk_tier_offers_pay_what_you_want", sql`${table.payWhatYouWant} = false OR ${table.billingPeriod} = 'once'`),
+  ],
+);
+
+export type TierOfferRow = typeof tierOffers.$inferSelect;
+export type TierOfferInsert = typeof tierOffers.$inferInsert;
+
+/**
+ * Maps each offer and Creem environment to its Creem product id. Creem
+ * products carry no metadata field, so the offer-to-product association cannot
+ * live at Creem and lives here instead. Creem stays the source of truth for
+ * prices only, fetched live by the catalog service. A row is written by the
+ * plan editor when it creates the product in Creem and removed when it
+ * archives one, and the whole table is cleared by the dbdump scrub because the
+ * product ids are environment-specific.
  *
  * `mode` says which Creem environment the product belongs to. Test and live are
- * separate accounts that share nothing, so one plan and interval has two
- * different product ids and both have to be held at once: the sandbox keeps
- * working whilst the live set is created. A process only ever reads the rows
- * matching the mode its API key puts it in. The column defaults to `test`
- * because a mislabelled sandbox product merely fails to appear in live, whilst
- * the opposite would offer a sandbox product for real money.
+ * separate accounts that share nothing, so one offer has two different product
+ * ids and both have to be held at once: the sandbox keeps working whilst the
+ * live set is created. A process only ever reads the rows matching the mode its
+ * API key puts it in. The column defaults to `test` because a mislabelled
+ * sandbox product merely fails to appear in live, whilst the opposite would
+ * offer a sandbox product for real money.
  *
- * There is one product per (tierId, interval, mode); a free tier uses a single
- * row per mode. creemProductId is globally unique, because a product id
- * belongs to one environment and cannot appear twice.
+ * creemProductId is globally unique, because a product id belongs to one
+ * environment and cannot appear twice.
  *
- * The two permitted values are also named in `CreemMode` in
+ * The two permitted modes are also named in `CreemMode` in
  * `apps/backend/src/lib/creem-config.ts`, which is what the application
  * compares against. They are apart because a check constraint is raw SQL and
  * cannot read a TypeScript constant, so
@@ -1810,9 +1881,12 @@ export const tierCreemProducts = pgTable(
   "tier_creem_products",
   {
     id: text("id").primaryKey(),
-    tierId: text("tier_id")
-      .notNull()
-      .references(() => tiers.id, { onDelete: "cascade" }),
+    tierId: text("tier_id").notNull(),
+    /**
+     * The offer's billing period, in Creem's own spelling. Named `interval`
+     * because that is what the column has always been called; its permitted
+     * values widened from two to Creem's six when offers arrived.
+     */
     interval: text("interval").notNull(),
     mode: text("mode").notNull().default("test"),
     creemProductId: text("creem_product_id").notNull().unique(),
@@ -1821,8 +1895,15 @@ export const tierCreemProducts = pgTable(
   },
   (table) => [
     uniqueIndex("uq_tier_creem_products_tier_interval_mode").on(table.tierId, table.interval, table.mode),
-    check("chk_tier_creem_products_interval", sql`${table.interval} IN ('month', 'year')`),
     check("chk_tier_creem_products_mode", sql`${table.mode} IN ('test', 'live')`),
+    // The mapping addresses an offer by the offer's own natural key, so a
+    // product cannot point at a period the plan does not sell, and removing an
+    // offer takes its products with it.
+    foreignKey({
+      name: "fk_tier_creem_products_offer",
+      columns: [table.tierId, table.interval],
+      foreignColumns: [tierOffers.tierId, tierOffers.billingPeriod],
+    }).onDelete("cascade"),
   ],
 );
 
@@ -2003,7 +2084,14 @@ export const tiers = pgTable(
     requestsPerMinute: integer("requests_per_minute").notNull(),
     requestsPerDay: integer("requests_per_day").notNull(),
     attributionRequired: boolean("attribution_required").notNull().default(false),
+    /**
+     * @deprecated Superseded by `tier_offers`. The columns still carry the
+     * values a backfill copied into offers, and nothing reads them any more.
+     * They are dropped in a later migration, once a deployment has run with
+     * offers as the only source.
+     */
     price: text("price"),
+    /** @deprecated See `price`. */
     priceYearly: text("price_yearly"),
     color: text("color").notNull().default("#64748b"),
     icon: text("icon"),

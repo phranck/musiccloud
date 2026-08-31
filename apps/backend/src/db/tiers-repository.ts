@@ -103,8 +103,8 @@ export interface TierUpdateData {
 export interface TierCreemProductMapping {
   /** Internal tier identifier (e.g. `"tier_club"`). */
   tierId: string;
-  /** Billing interval in our normalised form: `"month"` or `"year"`. */
-  interval: string;
+  /** The offer's billing period, in Creem's own spelling. */
+  billingPeriod: BillingPeriodValue;
   /**
    * The Creem environment this product lives in. Test and live are separate
    * accounts, so the same tier and interval carries a different product id in
@@ -116,16 +116,91 @@ export interface TierCreemProductMapping {
 }
 
 /**
+ * The billing periods Creem sells over, in its own spelling, so a value
+ * travels to the API unchanged.
+ */
+export const BillingPeriod = {
+  Once: "once",
+  Daily: "every-day",
+  Monthly: "every-month",
+  Quarterly: "every-three-months",
+  HalfYearly: "every-six-months",
+  Yearly: "every-year",
+} as const;
+
+/** A {@link BillingPeriod} member value. */
+export type BillingPeriodValue = (typeof BillingPeriod)[keyof typeof BillingPeriod];
+
+/** The currencies Creem accepts. */
+export const OfferCurrency = { Eur: "EUR", Usd: "USD" } as const;
+
+/** An {@link OfferCurrency} member value. */
+export type OfferCurrencyValue = (typeof OfferCurrency)[keyof typeof OfferCurrency];
+
+/** Whether tax sits inside the price or is added to it. */
+export const TaxMode = { Inclusive: "inclusive", Exclusive: "exclusive" } as const;
+
+/** A {@link TaxMode} member value. */
+export type TaxModeValue = (typeof TaxMode)[keyof typeof TaxMode];
+
+/** How Creem treats what is being sold for tax. */
+export const TaxCategory = { Saas: "saas", DigitalGoodsService: "digital-goods-service", Ebooks: "ebooks" } as const;
+
+/** A {@link TaxCategory} member value. */
+export type TaxCategoryValue = (typeof TaxCategory)[keyof typeof TaxCategory];
+
+/** One extra question asked at the Creem checkout. */
+export interface OfferCustomField {
+  key: string;
+  label: string;
+  optional: boolean;
+}
+
+/**
+ * What a plan costs, as one thing a customer can buy.
+ *
+ * This is exactly what Creem calls a product, so every field Creem accepts has
+ * a home here rather than being invented when the product is created.
+ */
+export interface TierOffer {
+  id: string;
+  tierId: string;
+  billingPeriod: BillingPeriodValue;
+  /** The amount in the smallest currency unit, which is what Creem takes. */
+  priceCents: number;
+  currency: OfferCurrencyValue;
+  /** `null` leaves the decision to Creem. */
+  taxMode: TaxModeValue | null;
+  /** `null` leaves the decision to Creem. */
+  taxCategory: TaxCategoryValue | null;
+  imageUrl: string | null;
+  successUrl: string | null;
+  customFields: OfferCustomField[];
+  abandonedCartRecovery: boolean;
+  /** Only meaningful on a `once` offer. */
+  payWhatYouWant: boolean;
+  suggestedPriceCents: number | null;
+  sortOrder: number;
+}
+
+/** The fields an offer is created with. Everything else takes its default. */
+export type TierOfferCreateData = Omit<TierOffer, "id"> extends infer T ? T : never;
+
+/** The fields an offer can be changed by. Omitted ones stay as they are. */
+export type TierOfferUpdateData = Partial<Omit<TierOffer, "id" | "tierId">>;
+
+/**
  * Identifies one row of `tier_creem_products` without its product id.
  *
- * These three columns are the table's unique key, so they are what every read
- * and every removal addresses a mapping by.
+ * These three columns are the table's unique key, and the first two are also
+ * an offer's natural key, so a mapping cannot point at a period the plan does
+ * not sell.
  */
 export interface TierCreemProductKey {
   /** Internal tier identifier. */
   tierId: string;
-  /** Billing interval, `"month"` or `"year"`. */
-  interval: string;
+  /** The offer's billing period, in Creem's spelling. */
+  billingPeriod: BillingPeriodValue;
   /** The Creem environment. */
   mode: CreemModeValue;
 }
@@ -162,6 +237,30 @@ export interface TierRepository {
    * environment.
    */
   listAllCreemProductMappings(): Promise<TierCreemProductMapping[]>;
+
+  /** Every offer of one plan, in the order it is shown. */
+  listOffers(tierId: string): Promise<TierOffer[]>;
+
+  /** Every offer of every plan, so a caller can price a whole list at once. */
+  listAllOffers(): Promise<TierOffer[]>;
+
+  /**
+   * Adds an offer to a plan.
+   *
+   * @throws When the plan already sells over that billing period. One plan
+   *   sells once per period; a second would be invisible except on the
+   *   pricing page.
+   */
+  createOffer(data: TierOfferCreateData): Promise<TierOffer>;
+
+  /** Changes an offer. Omitted fields keep their value. */
+  updateOffer(id: string, data: TierOfferUpdateData): Promise<TierOffer>;
+
+  /**
+   * Removes an offer and, through the database, every Creem product mapped to
+   * it. Archiving those products at Creem is the caller's job and comes first.
+   */
+  deleteOffer(id: string): Promise<void>;
 
   /**
    * Returns the mapping for one tier, interval and Creem environment, or

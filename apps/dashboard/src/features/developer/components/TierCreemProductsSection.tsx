@@ -9,14 +9,15 @@ import { useMemo, useState } from "react";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { dashboardCopy } from "@/copy/dashboard";
-import type { CreemProductMapping, TierResponse } from "@/features/developer/api";
-import { BillingInterval, CreemMode } from "@/features/developer/domain";
+import type { CreemProductMapping, TierOffer, TierResponse } from "@/features/developer/api";
+import { CreemMode } from "@/features/developer/domain";
 import {
   useArchiveCreemProduct,
   useCreateCreemProduct,
   useCreemProducts,
   useUpdateCreemProductPrice,
 } from "@/features/developer/hooks/useDeveloperData";
+import { formatOfferPrice, periodLabel } from "@/features/developer/offerFormat";
 
 const messages = dashboardCopy;
 const dm = messages.developer;
@@ -27,12 +28,6 @@ const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 const MODE_OPTIONS = [
   { value: CreemMode.Test, label: dm.creemEnvironmentTest },
   { value: CreemMode.Live, label: dm.creemEnvironmentLive },
-] as const;
-
-/** The intervals a plan is sold at, in the order the section lists them. */
-const INTERVALS = [
-  { value: BillingInterval.Month, label: dm.creemIntervalMonth },
-  { value: BillingInterval.Year, label: dm.creemIntervalYear },
 ] as const;
 
 /**
@@ -54,16 +49,11 @@ function priceCentsFrom(raw: string): number | undefined {
   return cents >= 100 ? cents : undefined;
 }
 
-/** Whether the plan is sold at this interval at all, per its own price columns. */
-function tierHasPriceFor(tier: TierResponse, interval: BillingInterval): boolean {
-  const price = interval === BillingInterval.Month ? tier.price : tier.priceYearly;
-  return price !== null && price.trim() !== "" && Number(price) > 0;
-}
-
 /** Props for {@link TierCreemProductRow}. */
 interface TierCreemProductRowProps {
   tier: TierResponse;
-  interval: (typeof INTERVALS)[number];
+  /** The offer this row is about. Every row corresponds to one. */
+  offer: TierOffer;
   /** The environment on show, which every action here acts in. */
   mode: CreemMode;
   mapping: CreemProductMapping | undefined;
@@ -72,8 +62,8 @@ interface TierCreemProductRowProps {
 }
 
 /**
- * One plan and interval in one environment: what it has at Creem, and what can
- * be done about it.
+ * One offer in one environment: what it has at Creem, and what can be done
+ * about it.
  *
  * The row states the product id rather than hiding it, because that id is what
  * an operator matches against the Creem dashboard when something disagrees.
@@ -81,7 +71,7 @@ interface TierCreemProductRowProps {
  * @param props - See {@link TierCreemProductRowProps}.
  * @returns The row.
  */
-function TierCreemProductRow({ tier, interval, mode, mapping, writable }: TierCreemProductRowProps) {
+function TierCreemProductRow({ tier, offer, mode, mapping, writable }: TierCreemProductRowProps) {
   const createProduct = useCreateCreemProduct();
   const repriceProduct = useUpdateCreemProductPrice();
   const archiveProduct = useArchiveCreemProduct();
@@ -90,40 +80,46 @@ function TierCreemProductRow({ tier, interval, mode, mapping, writable }: TierCr
   const [attachDraft, setAttachDraft] = useState("");
   const [confirmingArchive, setConfirmingArchive] = useState(false);
 
-  const sellable = tierHasPriceFor(tier, interval.value);
   const priceCents = priceCentsFrom(priceDraft);
   const busy = createProduct.isPending || repriceProduct.isPending || archiveProduct.isPending;
+  const fieldId = `${tier.id}-${offer.billingPeriod}`;
 
   function handleCreate() {
-    createProduct.mutate({ tierId: tier.id, interval: interval.value, mode });
+    createProduct.mutate({ tierId: tier.id, billingPeriod: offer.billingPeriod, mode });
   }
 
   function handleAttach() {
-    createProduct.mutate({ tierId: tier.id, interval: interval.value, mode, creemProductId: attachDraft.trim() });
+    createProduct.mutate({
+      tierId: tier.id,
+      billingPeriod: offer.billingPeriod,
+      mode,
+      creemProductId: attachDraft.trim(),
+    });
   }
 
   function handleReprice() {
     if (priceCents === undefined) return;
-    repriceProduct.mutate({ tierId: tier.id, interval: interval.value, mode, priceCents });
+    repriceProduct.mutate({ tierId: tier.id, billingPeriod: offer.billingPeriod, mode, priceCents });
   }
 
   function handleArchive() {
-    archiveProduct.mutate({ tierId: tier.id, interval: interval.value, mode });
+    archiveProduct.mutate({ tierId: tier.id, billingPeriod: offer.billingPeriod, mode });
     setConfirmingArchive(false);
   }
 
   return (
     <div className="border-t border-[var(--ds-border-subtle)] pt-3 first:border-t-0 first:pt-0">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-sm font-medium">{interval.label}</span>
+        <span className="text-sm font-medium">{periodLabel(offer.billingPeriod)}</span>
+        <span className="text-sm text-[var(--ds-text-muted)]">{formatOfferPrice(offer)}</span>
+      </div>
+      <div className="mt-0.5 text-right">
         <span className="font-mono text-xs text-[var(--ds-text-muted)]">
           {mapping?.creemProductId ?? dm.creemNoProduct}
         </span>
       </div>
 
-      {!sellable && <p className="mt-1 text-xs text-[var(--ds-text-muted)]">{dm.creemNoPrice}</p>}
-
-      {sellable && !mapping && writable && (
+      {!mapping && writable && (
         <div className="mt-2 space-y-2">
           <div className="flex justify-end">
             <DashboardActionButton
@@ -135,12 +131,12 @@ function TierCreemProductRow({ tier, interval, mode, mapping, writable }: TierCr
             />
           </div>
           <div>
-            <label htmlFor={`creem-attach-${tier.id}-${interval.value}`} className={labelClass}>
+            <label htmlFor={`creem-attach-${fieldId}`} className={labelClass}>
               {dm.creemAttach}
             </label>
             <div className="flex items-center gap-2">
               <DashboardInput
-                id={`creem-attach-${tier.id}-${interval.value}`}
+                id={`creem-attach-${fieldId}`}
                 type="text"
                 value={attachDraft}
                 placeholder={dm.creemAttachPlaceholder}
@@ -163,12 +159,12 @@ function TierCreemProductRow({ tier, interval, mode, mapping, writable }: TierCr
 
       {mapping && writable && (
         <div className="mt-2">
-          <label htmlFor={`creem-price-${tier.id}-${interval.value}`} className={labelClass}>
+          <label htmlFor={`creem-price-${fieldId}`} className={labelClass}>
             {dm.creemReprice}
           </label>
           <div className="flex items-center gap-2">
             <DashboardInput
-              id={`creem-price-${tier.id}-${interval.value}`}
+              id={`creem-price-${fieldId}`}
               type="text"
               inputMode="decimal"
               value={priceDraft}
@@ -229,24 +225,27 @@ function TierCreemProductRow({ tier, interval, mode, mapping, writable }: TierCr
 export interface TierCreemProductsSectionProps {
   /** The plan whose products are shown. */
   tier: TierResponse;
+  /** Its offers. Every row of this section corresponds to one of them. */
+  offers: TierOffer[];
 }
 
 /**
- * A plan's Creem products, one per billing interval, in whichever environment
- * the switch is showing.
+ * A plan's Creem products, one row per offer, in whichever environment the
+ * switch is showing.
+ *
+ * Every row here has its counterpart above, because a product exists for an
+ * offer and for nothing else. A plan that sells nothing shows nothing, which
+ * is the honest answer rather than two invented periods.
  *
  * The switch says which environment is being maintained, not which one
  * customers buy from. That second question is the selling switch in the
  * developer settings, and keeping the two apart is what lets an operator build
  * the live products whilst the shop still sells from the sandbox.
  *
- * An environment this deployment holds no key for is shown read-only, because
- * the alternative is a control that fails when pressed.
- *
  * @param props - See {@link TierCreemProductsSectionProps}.
  * @returns The Creem products section.
  */
-export function TierCreemProductsSection({ tier }: TierCreemProductsSectionProps) {
+export function TierCreemProductsSection({ tier, offers }: TierCreemProductsSectionProps) {
   const { data } = useCreemProducts();
   const [shownMode, setShownMode] = useState<CreemMode>(CreemMode.Test);
 
@@ -256,18 +255,17 @@ export function TierCreemProductsSection({ tier }: TierCreemProductsSectionProps
   const writable = data?.writableModes.includes(shownMode) ?? false;
   const shownLabel = shownMode === CreemMode.Live ? dm.creemEnvironmentLive : dm.creemEnvironmentTest;
 
-  function mappingFor(interval: BillingInterval): CreemProductMapping | undefined {
-    return data?.products.find(
-      (product) => product.tierId === tier.id && product.interval === interval && product.mode === shownMode,
-    );
-  }
-
-  // The switch closes over the shown environment, so it is built once per
-  // change rather than on every render of the section around it.
   const environmentSwitch = useMemo(
     () => <SegmentedControl value={shownMode} onChange={setShownMode} options={MODE_OPTIONS} />,
     [shownMode],
   );
+
+  function mappingFor(offer: TierOffer): CreemProductMapping | undefined {
+    return data?.products.find(
+      (product) =>
+        product.tierId === tier.id && product.billingPeriod === offer.billingPeriod && product.mode === shownMode,
+    );
+  }
 
   return (
     <DashboardSection className="overflow-hidden">
@@ -283,18 +281,22 @@ export function TierCreemProductsSection({ tier }: TierCreemProductsSectionProps
           <p className="mb-3 text-xs text-amber-400">{dm.creemNoKeyForEnvironment.replaceAll("{mode}", shownLabel)}</p>
         )}
 
-        <div className="space-y-3">
-          {INTERVALS.map((interval) => (
-            <TierCreemProductRow
-              key={interval.value}
-              tier={tier}
-              interval={interval}
-              mode={shownMode}
-              mapping={mappingFor(interval.value)}
-              writable={writable}
-            />
-          ))}
-        </div>
+        {offers.length === 0 ? (
+          <p className="text-xs text-[var(--ds-text-muted)]">{dm.creemNoOffers}</p>
+        ) : (
+          <div className="space-y-3">
+            {offers.map((offer) => (
+              <TierCreemProductRow
+                key={offer.id}
+                tier={tier}
+                offer={offer}
+                mode={shownMode}
+                mapping={mappingFor(offer)}
+                writable={writable}
+              />
+            ))}
+          </div>
+        )}
       </DashboardSection.Body>
     </DashboardSection>
   );
