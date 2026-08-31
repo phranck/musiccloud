@@ -367,6 +367,8 @@ export const ENDPOINTS = {
         projectDetail: (id: string) => `/api/admin/developer/api-access/projects/${id}`,
         /** PUT: replace the selected project subscription/tier. */
         projectSubscription: (id: string) => `/api/admin/developer/api-access/projects/${id}/subscription`,
+        /** GET: aggregated usage for one project. Query: `?from=<iso>&to=<iso>`, both optional. */
+        projectUsage: (id: string) => `/api/admin/developer/api-access/projects/${id}/usage`,
       },
       /**
        * GET / PATCH: the bounds on the open self-service creation path.
@@ -455,6 +457,11 @@ export const ENDPOINTS = {
       /** GET / POST: registrations owned by one caller-owned project. */
       projectRegistrations: (id: string) => `/api/dev/api-access/projects/${id}/registrations`,
       /**
+       * GET: aggregated usage for one caller-owned project, with the quota it
+       * is measured against. Query: `?from=<iso>&to=<iso>`, both optional.
+       */
+      projectUsage: (id: string) => `/api/dev/api-access/projects/${id}/usage`,
+      /**
        * PATCH: change one caller-owned registration. Body:
        * `{ status?, websiteUrl?, description? }`. Suspending or revoking a
        * registration stops its tokens from authenticating.
@@ -531,6 +538,7 @@ export const ROUTE_TEMPLATES = {
         accountProjects: "/api/admin/developer/api-access/accounts/:accountId/projects",
         projectDetail: "/api/admin/developer/api-access/projects/:id",
         projectSubscription: "/api/admin/developer/api-access/projects/:id/subscription",
+        projectUsage: "/api/admin/developer/api-access/projects/:id/usage",
       },
       accounts: "/api/admin/developer/accounts",
       accountDetail: "/api/admin/developer/accounts/:id",
@@ -560,6 +568,7 @@ export const ROUTE_TEMPLATES = {
       projectDetail: "/api/dev/api-access/projects/:id",
       projectSubscription: "/api/dev/api-access/projects/:id/subscription",
       projectRegistrations: "/api/dev/api-access/projects/:id/registrations",
+      projectUsage: "/api/dev/api-access/projects/:id/usage",
       registrationDetail: "/api/dev/api-access/registrations/:id",
       clientCreateToken: "/api/dev/api-access/clients/:id/tokens",
       tokenRevoke: "/api/dev/api-access/tokens/:id/revoke",

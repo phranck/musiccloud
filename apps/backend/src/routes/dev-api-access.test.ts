@@ -56,6 +56,8 @@ const mockRepo = {
   rotateApiClientToken: vi.fn(),
   createApiAccessAuditEvent: vi.fn().mockResolvedValue({}),
   setDeveloperProjectSubscription: vi.fn(),
+  countProjectUsage: vi.fn().mockResolvedValue(0),
+  summariseProjectUsage: vi.fn(),
 };
 
 const mockTierRepo = {
@@ -755,6 +757,70 @@ describe("devApiAccessRoutes", () => {
       vi.stubEnv("DISABLE_RATE_LIMIT", "true");
 
       expect(tokenResponse.statusCode).toBe(201);
+    });
+  });
+
+  describe("GET projectUsage", () => {
+    it("counts the two live windows and summarises the range for an owned project", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject());
+      mockRepo.countProjectUsage.mockResolvedValueOnce(3).mockResolvedValueOnce(1200);
+      mockRepo.summariseProjectUsage.mockResolvedValue({
+        from: Date.parse("2026-08-30T22:00:00.000Z"),
+        to: Date.parse("2026-08-31T02:00:00.000Z"),
+        bucket: "hour",
+        total: 5,
+        byRegistration: [{ registrationId: "client-1", total: 5 }],
+        buckets: [
+          { startedAt: Date.parse("2026-08-30T23:00:00.000Z"), total: 2 },
+          { startedAt: Date.parse("2026-08-31T00:00:00.000Z"), total: 3 },
+        ],
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: `${ROUTE_TEMPLATES.dev.apiAccess.projectUsage.replace(":id", "project-1")}?from=2026-08-30T22:00:00.000Z&to=2026-08-31T02:00:00.000Z`,
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json();
+      expect(body.windows.minute.total).toBe(3);
+      expect(body.windows.day.total).toBe(1200);
+      // The range crosses midnight, and the series keeps both sides of it.
+      expect(body.range.buckets.map((bucket: { startedAt: string }) => bucket.startedAt)).toEqual([
+        "2026-08-30T23:00:00.000Z",
+        "2026-08-31T00:00:00.000Z",
+      ]);
+      expect(body.range.total).toBe(5);
+      // The quota travels with the counts, so a screen never shows a number
+      // used against a limit read at a different moment.
+      expect(body.quota).toEqual({ requestsPerMinute: 60, requestsPerDay: 10000 });
+    });
+
+    it("refuses a range wider than the ceiling before touching the repository", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject());
+
+      const response = await app.inject({
+        method: "GET",
+        url: `${ROUTE_TEMPLATES.dev.apiAccess.projectUsage.replace(":id", "project-1")}?from=2020-01-01T00:00:00.000Z`,
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(mockRepo.summariseProjectUsage).not.toHaveBeenCalled();
+    });
+
+    it("reports another developer's project as absent rather than refused", async () => {
+      const app = await buildApp("dev-1");
+      mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject({ developerAccountId: "dev-2" }));
+
+      const response = await app.inject({
+        method: "GET",
+        url: ROUTE_TEMPLATES.dev.apiAccess.projectUsage.replace(":id", "project-1"),
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(mockRepo.summariseProjectUsage).not.toHaveBeenCalled();
     });
   });
 

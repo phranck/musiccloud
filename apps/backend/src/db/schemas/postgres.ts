@@ -1930,6 +1930,10 @@ export const apiUsageEvents = pgTable(
   (table) => [
     index("idx_api_usage_events_project_occurred").on(table.projectId, table.occurredAt),
     index("idx_api_usage_events_registration_occurred").on(table.registrationId, table.occurredAt),
+    // The retention sweep filters on time alone. Both indexes above lead with
+    // an id, so without this one the nightly delete is a sequential scan of a
+    // table that gains a row per authenticated request.
+    index("idx_api_usage_events_occurred").on(table.occurredAt),
     check("chk_api_usage_events_status_code", sql`${table.statusCode} BETWEEN 100 AND 599`),
     check("chk_api_usage_events_duration_ms", sql`${table.durationMs} >= 0`),
   ],

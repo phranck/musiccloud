@@ -35,6 +35,8 @@ const mockRepo = {
   listDeveloperProjectsByAccount: vi.fn().mockResolvedValue([]),
   updateDeveloperProject: vi.fn(),
   setDeveloperProjectSubscription: vi.fn(),
+  countProjectUsage: vi.fn().mockResolvedValue(0),
+  summariseProjectUsage: vi.fn(),
   findDeveloperProjectSubscription: vi.fn(),
   createApiClient: vi.fn(),
   findApiClientById: vi.fn(),
@@ -334,6 +336,44 @@ describe("adminApiAccessRoutes", () => {
         "status",
         "tokenPrefix",
       ]);
+    });
+  });
+
+  describe("GET projectUsage", () => {
+    it("rejects a moderator before reading anything", async () => {
+      const { app, token } = await buildApp("moderator");
+
+      const response = await app.inject({
+        method: "GET",
+        url: ROUTE_TEMPLATES.admin.developer.apiAccess.projectUsage.replace(":id", "project-1"),
+        headers: { authorization: `Bearer ${token}` },
+      });
+
+      expect(response.statusCode).toBe(403);
+      expect(mockRepo.summariseProjectUsage).not.toHaveBeenCalled();
+    });
+
+    it("answers for any project, not only one the caller owns", async () => {
+      const { app, token } = await buildApp("owner");
+      mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject({ developerAccountId: "somebody-else" }));
+      mockRepo.countProjectUsage.mockResolvedValueOnce(7).mockResolvedValueOnce(4200);
+      mockRepo.summariseProjectUsage.mockResolvedValue({
+        from: Date.parse("2026-08-30T00:00:00.000Z"),
+        to: Date.parse("2026-08-31T00:00:00.000Z"),
+        bucket: "hour",
+        total: 4200,
+        byRegistration: [{ registrationId: "client-1", total: 4200 }],
+        buckets: [],
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: ROUTE_TEMPLATES.admin.developer.apiAccess.projectUsage.replace(":id", "project-1"),
+        headers: { authorization: `Bearer ${token}` },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().windows.minute.total).toBe(7);
     });
   });
 
