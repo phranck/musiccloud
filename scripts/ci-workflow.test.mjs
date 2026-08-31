@@ -69,6 +69,12 @@ test("does not deploy the dashboard for backend-only or CI-only changes", () => 
   assert.doesNotMatch(dashboardCase, /apps\/backend\/\*|\.github\/workflows\/ci\.yml/);
 });
 
+test("takes the deployment diff base from a successful push run", () => {
+  // The baseline is the last green run on main. Only a push run deploys, so
+  // only a push run may serve as the mark for what has already been deployed.
+  assert.match(job("detect-changes"), /--event push/);
+});
+
 test("validates only affected workspaces after early path detection", () => {
   const validationDetectionJob = job("detect-validation-changes");
   const typecheckJob = job("typecheck");
