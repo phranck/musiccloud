@@ -8,7 +8,22 @@
  */
 
 import type { Tier } from "../db/tiers-repository.js";
-import { type CreemCatalog, getCreemCatalog } from "./creem-catalog.js";
+import { log } from "../lib/infra/logger.js";
+import { type CreemCatalog, CreemPriceOutcome, getCreemCatalog } from "./creem-catalog.js";
+
+/**
+ * Whether a failure was the key being absent rather than Creem being down.
+ *
+ * `requireEnv` names the variable it is missing, and that is the one signal
+ * separating "nobody configured this" from "the upstream is refusing". The two
+ * are diagnosed in completely different places, so they do not share a line.
+ *
+ * @param error - Whatever the catalogue threw.
+ * @returns `true` when the API key is not configured.
+ */
+function isMissingApiKey(error: unknown): boolean {
+  return error instanceof Error && error.message.includes("CREEM_API_KEY");
+}
 
 /**
  * Formats an integer cent amount as a euro string in the same shape the tiers
@@ -33,9 +48,11 @@ export function centsToEuroString(cents: number): string {
  * remains the source of truth. A tier without a Creem mapping (for example the
  * free tier, which has no Creem product) keeps its database price.
  *
- * The Creem catalog fetch is best-effort: if it throws (Creem unreachable, no
- * API key configured, a product was removed), the database prices are returned
- * unchanged so the pricing page never breaks.
+ * The Creem catalog fetch is best-effort: if it throws (Creem unreachable or
+ * no API key configured), the database prices are returned unchanged so the
+ * pricing page never breaks, and the deviation is logged with which of the two
+ * it was. A single product that cannot be read is handled one level down, in
+ * `getCreemCatalog`, and costs only that tier its live price.
  *
  * @param tiers - The tiers as read from the database.
  * @returns The tiers with Creem prices merged in where available.
@@ -44,7 +61,21 @@ export async function enrichTiersWithCreemPrices(tiers: Tier[]): Promise<Tier[]>
   let catalog: CreemCatalog;
   try {
     catalog = await getCreemCatalog();
-  } catch {
+  } catch (error) {
+    // The page keeps working on our own prices, which is the right answer.
+    // Doing it silently is not: an unset key, an unreachable Creem and an
+    // archived product look identical from outside and are three different
+    // problems, so the outcome says which one this was.
+    log.deviation(
+      {
+        component: "TierPricing",
+        errorCode: "MC-SYS-0001",
+        operation: "creem_catalog_read",
+        outcome: isMissingApiKey(error) ? CreemPriceOutcome.NotConfigured : CreemPriceOutcome.CatalogUnavailable,
+        tiersServedFromDatabase: tiers.length,
+      },
+      error,
+    );
     return tiers;
   }
 

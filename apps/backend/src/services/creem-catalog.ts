@@ -13,7 +13,26 @@
 
 import { getTierRepository } from "../db/index.js";
 import { getCreemConfig } from "../lib/creem-config.js";
+import { log } from "../lib/infra/logger.js";
 import { getCreemClient } from "./creem-client.js";
+
+/**
+ * What happened when a Creem price could not be read.
+ *
+ * Three failures look identical from outside and are diagnosed differently, so
+ * each one names itself in the log rather than sharing a generic line.
+ */
+export const CreemPriceOutcome = {
+  /** `CREEM_API_KEY` is not set, so no catalogue can be built at all. */
+  NotConfigured: "creem_not_configured",
+  /** Creem could not be reached or refused, so no tier has a live price. */
+  CatalogUnavailable: "creem_catalog_unavailable",
+  /** One product could not be read; that tier keeps its database price. */
+  ProductUnavailable: "creem_product_unavailable",
+} as const;
+
+/** A {@link CreemPriceOutcome} member value. */
+export type CreemPriceOutcomeValue = (typeof CreemPriceOutcome)[keyof typeof CreemPriceOutcome];
 
 /**
  * How long the in-memory catalog is considered fresh.
@@ -105,8 +124,32 @@ export async function getCreemCatalog(): Promise<CreemCatalog> {
   const client = getCreemClient();
   const catalog: CreemCatalog = {};
 
+  // Each mapping is read on its own. One archived or missing product costs
+  // that tier its live price and leaves every other tier's alone; before, the
+  // first rejection abandoned the whole catalogue.
   for (const mapping of mappings) {
-    const product = await client.products.get(mapping.creemProductId);
+    let product: Awaited<ReturnType<typeof client.products.get>>;
+    try {
+      product = await client.products.get(mapping.creemProductId);
+    } catch (error) {
+      log.deviation(
+        {
+          component: "CreemCatalog",
+          errorCode: "MC-SYS-0001",
+          operation: "creem_product_get",
+          outcome: CreemPriceOutcome.ProductUnavailable,
+          tierId: mapping.tierId,
+          interval: mapping.interval,
+          // Which Creem account was asked. The table holds a row per
+          // environment, so without it the log cannot say whether the product
+          // is gone or was looked for in the wrong place.
+          mode: mapping.mode,
+          creemProductId: mapping.creemProductId,
+        },
+        error,
+      );
+      continue;
+    }
 
     if (!catalog[mapping.tierId]) {
       catalog[mapping.tierId] = {};
