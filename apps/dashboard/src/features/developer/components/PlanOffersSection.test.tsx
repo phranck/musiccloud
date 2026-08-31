@@ -68,7 +68,7 @@ describe("PlanOffersSection", () => {
   it("shows the stored amount in the price field, so an edit starts from it", () => {
     renderSection([makeOffer({ priceCents: 1450 })]);
 
-    expect(screen.getByLabelText(dm.offerPrice)).toHaveValue("14.50");
+    expect((screen.getByLabelText(dm.offerPrice) as HTMLInputElement).value).toBe("14.50");
   });
 
   it("sends the amount in cents when it has changed", async () => {
@@ -108,7 +108,7 @@ describe("PlanOffersSection", () => {
     const periods = ["once", "every-day", "every-month", "every-three-months", "every-six-months", "every-year"];
     renderSection(periods.map((period, index) => makeOffer({ id: `offer_${index}`, billingPeriod: period as never })));
 
-    expect(screen.getByText(dm.offersAdd).closest("button")).toBeDisabled();
+    expect((screen.getByText(dm.offersAdd).closest("button") as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("asks before removing an offer, because it takes the Creem mapping with it", async () => {
@@ -132,12 +132,12 @@ describe("PlanOffersSection", () => {
     // The field sits behind the disclosure, with everything else Creem accepts
     // that nobody changes twice a year.
     await userEvent.click(screen.getByText(dm.offerMore));
-    expect(screen.getByLabelText(dm.offerPayWhatYouWant)).toBeDisabled();
+    expect((screen.getByLabelText(dm.offerPayWhatYouWant) as HTMLInputElement).disabled).toBe(true);
     expect(screen.getByText(dm.offerPayWhatYouWantHint)).not.toBeNull();
     unmount();
 
     renderSection([makeOffer({ billingPeriod: "once" })]);
     await userEvent.click(screen.getByText(dm.offerMore));
-    expect(screen.getByLabelText(dm.offerPayWhatYouWant)).not.toBeDisabled();
+    expect((screen.getByLabelText(dm.offerPayWhatYouWant) as HTMLInputElement).disabled).toBe(false);
   });
 });

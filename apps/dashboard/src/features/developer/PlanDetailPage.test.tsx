@@ -93,8 +93,8 @@ describe("PlanDetailPage", () => {
   it("shows the plan's own fields, its limits and its features", async () => {
     renderPage();
 
-    expect(await screen.findByLabelText(dm.colName)).toHaveValue("Club");
-    expect(screen.getByLabelText(dm.detailRateLimitMinute)).toHaveValue(60);
+    expect(((await screen.findByLabelText(dm.colName)) as HTMLInputElement).value).toBe("Club");
+    expect((screen.getByLabelText(dm.detailRateLimitMinute) as HTMLInputElement).value).toBe("60");
     expect(screen.getByDisplayValue("One")).not.toBeNull();
   });
 
