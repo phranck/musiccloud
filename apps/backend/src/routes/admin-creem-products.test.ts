@@ -43,10 +43,30 @@ const freeTier: Tier = { ...paidTier, id: "tier_free", name: "Free", price: null
 
 const mockTierRepo = {
   listTiers: vi.fn(),
+  listOffers: vi.fn(),
+  listAllOffers: vi.fn(),
   listAllCreemProductMappings: vi.fn(),
   findCreemProductMapping: vi.fn(),
   createCreemProductMapping: vi.fn(),
   deleteCreemProductMapping: vi.fn(),
+};
+
+/** The monthly offer of the paid plan, which every case builds on. */
+const monthlyOffer = {
+  id: "offer_month",
+  tierId: "tier_club",
+  billingPeriod: "every-month",
+  priceCents: 990,
+  currency: "EUR",
+  taxMode: null,
+  taxCategory: null,
+  imageUrl: null,
+  successUrl: null,
+  customFields: [],
+  abandonedCartRecovery: false,
+  payWhatYouWant: false,
+  suggestedPriceCents: null,
+  sortOrder: 0,
 };
 
 const mockAdminRepo = { findAdminById: vi.fn() };
@@ -133,14 +153,16 @@ beforeEach(async () => {
   app = await buildApp();
   mockAdminRepo.findAdminById.mockResolvedValue({ id: "admin-1", role: "admin" });
   mockTierRepo.listTiers.mockResolvedValue([paidTier, freeTier]);
+  mockTierRepo.listOffers.mockResolvedValue([monthlyOffer]);
+  mockTierRepo.listAllOffers.mockResolvedValue([monthlyOffer]);
   mockTierRepo.findCreemProductMapping.mockResolvedValue(null);
 });
 
 describe("GET /api/admin/developer/creem-products", () => {
   it("returns both environments and says which ones this deployment can act on", async () => {
     const products = [
-      { tierId: "tier_club", interval: "month", mode: CreemMode.Test, creemProductId: "prod_test1" },
-      { tierId: "tier_club", interval: "month", mode: CreemMode.Live, creemProductId: "prod_live1" },
+      { tierId: "tier_club", billingPeriod: "every-month", mode: CreemMode.Test, creemProductId: "prod_test1" },
+      { tierId: "tier_club", billingPeriod: "every-month", mode: CreemMode.Live, creemProductId: "prod_live1" },
     ];
     mockTierRepo.listAllCreemProductMappings.mockResolvedValue(products);
 
@@ -165,27 +187,26 @@ describe("POST /api/admin/developer/creem-products", () => {
   it("creates the product at Creem and records the mapping in the running environment", async () => {
     vi.mocked(createCreemProduct).mockResolvedValue({ id: "prod_new", price: 990, currency: "EUR", status: "active" });
 
-    const res = await post({ tierId: "tier_club", interval: "month", mode: CreemMode.Test });
+    const res = await post({ tierId: "tier_club", billingPeriod: "every-month", mode: CreemMode.Test });
 
     expect(res.statusCode).toBe(201);
     expect(vi.mocked(createCreemProduct).mock.calls[0]?.[0]).toBe(CreemMode.Test);
-    expect(vi.mocked(createCreemProduct).mock.calls[0]?.[1]).toEqual({
-      name: "musiccloud Club (monthly)",
-      description: "musiccloud Club API tier, billed monthly.",
-      priceCents: 990,
-      currency: "EUR",
-      billingPeriod: "every-month",
-    });
+    const draft = vi.mocked(createCreemProduct).mock.calls[0]?.[1];
+    expect(draft?.name).toBe("musiccloud Club (monthly)");
+    expect(draft?.priceCents).toBe(990);
+    expect(draft?.billingPeriod).toBe("every-month");
+    expect(draft?.billingType).toBe("recurring");
     expect(mockTierRepo.createCreemProductMapping).toHaveBeenCalledWith({
       tierId: "tier_club",
-      interval: "month",
+      billingPeriod: "every-month",
       mode: CreemMode.Test,
       creemProductId: "prod_new",
     });
   });
 
-  it("refuses a free plan, because Creem rejects a recurring product priced at zero", async () => {
-    const res = await post({ tierId: "tier_free", interval: "month", mode: CreemMode.Test });
+  it("refuses a plan with no offer for that period, because there is nothing to sell", async () => {
+    mockTierRepo.listOffers.mockResolvedValue([]);
+    const res = await post({ tierId: "tier_free", billingPeriod: "every-month", mode: CreemMode.Test });
 
     expect(res.statusCode).toBe(400);
     expect(res.json().code).toBe("MC-BILL-0005");
@@ -193,8 +214,8 @@ describe("POST /api/admin/developer/creem-products", () => {
     expect(mockTierRepo.createCreemProductMapping).not.toHaveBeenCalled();
   });
 
-  it("refuses a yearly product for a plan that has no yearly price", async () => {
-    const res = await post({ tierId: "tier_club", interval: "year", mode: CreemMode.Test });
+  it("refuses a period the plan does not sell over", async () => {
+    const res = await post({ tierId: "tier_club", billingPeriod: "every-year", mode: CreemMode.Test });
 
     expect(res.statusCode).toBe(400);
     expect(res.json().code).toBe("MC-BILL-0005");
@@ -204,12 +225,12 @@ describe("POST /api/admin/developer/creem-products", () => {
   it("refuses a second product for the same plan, interval and environment", async () => {
     mockTierRepo.findCreemProductMapping.mockResolvedValue({
       tierId: "tier_club",
-      interval: "month",
+      billingPeriod: "every-month",
       mode: CreemMode.Test,
       creemProductId: "prod_existing",
     });
 
-    const res = await post({ tierId: "tier_club", interval: "month", mode: CreemMode.Test });
+    const res = await post({ tierId: "tier_club", billingPeriod: "every-month", mode: CreemMode.Test });
 
     expect(res.statusCode).toBe(409);
     expect(res.json().code).toBe("MC-BILL-0004");
@@ -219,7 +240,7 @@ describe("POST /api/admin/developer/creem-products", () => {
   it("records a product created in the Creem dashboard without creating another", async () => {
     const res = await post({
       tierId: "tier_club",
-      interval: "month",
+      billingPeriod: "every-month",
       mode: CreemMode.Test,
       creemProductId: "prod_madeByHand",
     });
@@ -228,7 +249,7 @@ describe("POST /api/admin/developer/creem-products", () => {
     expect(createCreemProduct).not.toHaveBeenCalled();
     expect(mockTierRepo.createCreemProductMapping).toHaveBeenCalledWith({
       tierId: "tier_club",
-      interval: "month",
+      billingPeriod: "every-month",
       mode: CreemMode.Test,
       creemProductId: "prod_madeByHand",
     });
@@ -237,7 +258,7 @@ describe("POST /api/admin/developer/creem-products", () => {
   it("rejects a product id that is not shaped like one Creem issues", async () => {
     const res = await post({
       tierId: "tier_club",
-      interval: "month",
+      billingPeriod: "every-month",
       mode: CreemMode.Test,
       creemProductId: "../../etc/passwd",
     });
@@ -249,7 +270,7 @@ describe("POST /api/admin/developer/creem-products", () => {
   it("records no mapping when Creem refused to create the product", async () => {
     vi.mocked(createCreemProduct).mockRejectedValue(new CreemProductError("MC-BILL-0001", "Creem refused"));
 
-    const res = await post({ tierId: "tier_club", interval: "month", mode: CreemMode.Test });
+    const res = await post({ tierId: "tier_club", billingPeriod: "every-month", mode: CreemMode.Test });
 
     expect(res.statusCode).toBe(502);
     expect(res.json().code).toBe("MC-BILL-0001");
@@ -260,17 +281,17 @@ describe("POST /api/admin/developer/creem-products", () => {
     const res = await app.inject({
       method: "POST",
       url: ENDPOINTS.admin.developer.creemProducts,
-      payload: { tierId: "tier_club", interval: "month", mode: CreemMode.Test },
+      payload: { tierId: "tier_club", billingPeriod: "every-month", mode: CreemMode.Test },
     });
     expect(res.statusCode).toBe(403);
     expect(createCreemProduct).not.toHaveBeenCalled();
   });
 });
 
-describe("PATCH /api/admin/developer/creem-products/:tierId/:interval", () => {
+describe("PATCH /api/admin/developer/creem-products/:tierId/:billingPeriod/:mode", () => {
   const mapping = {
     tierId: "tier_club",
-    interval: "month",
+    billingPeriod: "every-month",
     mode: CreemMode.Test,
     creemProductId: "prod_existing",
   };
@@ -278,7 +299,7 @@ describe("PATCH /api/admin/developer/creem-products/:tierId/:interval", () => {
   function reprice(body: unknown) {
     return app.inject({
       method: "PATCH",
-      url: ENDPOINTS.admin.developer.creemProductDetail("tier_club", "month", CreemMode.Test),
+      url: ENDPOINTS.admin.developer.creemProductDetail("tier_club", "every-month", CreemMode.Test),
       headers: { authorization: `Bearer ${bearerToken()}` },
       payload: body as never,
     });
@@ -330,10 +351,10 @@ describe("PATCH /api/admin/developer/creem-products/:tierId/:interval", () => {
   });
 });
 
-describe("DELETE /api/admin/developer/creem-products/:tierId/:interval", () => {
+describe("DELETE /api/admin/developer/creem-products/:tierId/:billingPeriod/:mode", () => {
   const mapping = {
     tierId: "tier_club",
-    interval: "month",
+    billingPeriod: "every-month",
     mode: CreemMode.Test,
     creemProductId: "prod_existing",
   };
@@ -341,7 +362,7 @@ describe("DELETE /api/admin/developer/creem-products/:tierId/:interval", () => {
   function remove() {
     return app.inject({
       method: "DELETE",
-      url: ENDPOINTS.admin.developer.creemProductDetail("tier_club", "month", CreemMode.Test),
+      url: ENDPOINTS.admin.developer.creemProductDetail("tier_club", "every-month", CreemMode.Test),
       headers: { authorization: `Bearer ${bearerToken()}` },
     });
   }
@@ -356,7 +377,7 @@ describe("DELETE /api/admin/developer/creem-products/:tierId/:interval", () => {
     expect(archiveCreemProduct).toHaveBeenCalledWith(CreemMode.Test, "prod_existing");
     expect(mockTierRepo.deleteCreemProductMapping).toHaveBeenCalledWith({
       tierId: "tier_club",
-      interval: "month",
+      billingPeriod: "every-month",
       mode: CreemMode.Test,
     });
   });
@@ -409,7 +430,7 @@ describe("the selling environment", () => {
 
   it("says which environment sells and what each one would still need", async () => {
     mockTierRepo.listAllCreemProductMappings.mockResolvedValue([
-      { tierId: "tier_club", interval: "month", mode: CreemMode.Test, creemProductId: "prod_t" },
+      { tierId: "tier_club", billingPeriod: "every-month", mode: CreemMode.Test, creemProductId: "prod_t" },
     ]);
 
     const res = await read();
@@ -419,7 +440,7 @@ describe("the selling environment", () => {
     // The sandbox has the one buyable plan; live has nothing yet and says so.
     expect(res.json().readiness).toEqual([
       { mode: CreemMode.Test, hasKey: true, missingProducts: [] },
-      { mode: CreemMode.Live, hasKey: false, missingProducts: ["Club (month)"] },
+      { mode: CreemMode.Live, hasKey: false, missingProducts: ["Club (every-month)"] },
     ]);
   });
 

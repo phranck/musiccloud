@@ -3,10 +3,10 @@
  *
  * Responsibilities:
  * - Read the `tier_creem_products` mapping table (our side) to learn which
- *   Creem product ID corresponds to each (tierId, interval) pair in the Creem
- *   environment the shop currently sells from.
+ *   Creem product ID corresponds to each offer, in the Creem environment the
+ *   shop currently sells from.
  * - Fetch the live price and currency for each product from the Creem API.
- * - Return a two-level map: `tierId -> interval -> { productId, price, currency }`.
+ * - Return a two-level map: `tierId -> billingPeriod -> { productId, price, currency }`.
  * - Cache the result for `CATALOG_TTL_MS` milliseconds so repeated calls
  *   within one deployment window do not hammer the Creem API or the DB.
  */
@@ -45,9 +45,9 @@ export type CreemPriceOutcomeValue = (typeof CreemPriceOutcome)[keyof typeof Cre
  */
 const CATALOG_TTL_MS = 5 * 60_000;
 
-/** Live price entry for a single (tierId, interval) combination (MC-110). */
+/** Live price entry for one offer, addressed by plan and billing period. */
 export interface CreemTierPrice {
-  /** The Creem product ID for this tier-interval pair. */
+  /** The Creem product ID for this offer. */
   productId: string;
   /**
    * Price in the smallest currency unit (cents for EUR/USD, etc.), as returned
@@ -59,10 +59,11 @@ export interface CreemTierPrice {
 }
 
 /**
- * Two-level catalog map: `tierId -> interval -> live price from Creem`.
+ * Two-level catalog map: `tierId -> billingPeriod -> live price from Creem`.
  *
  * The outer key is our internal tier identifier (e.g. `"tier_club"`).
- * The inner key is our normalised billing interval (`"month"` or `"year"`).
+ * The inner key is the billing period in Creem's own spelling, such as
+ * `"every-month"`, which is what the offer carries.
  * The value is the live price fetched from the Creem API.
  */
 export type CreemCatalog = Record<string, Record<string, CreemTierPrice>>;
@@ -90,7 +91,7 @@ export function resetCreemCatalogCache(): void {
 
 /**
  * Returns the Creem product catalog as a two-level map keyed by internal tier
- * ID and billing interval.
+ * ID and billing period.
  *
  * Design:
  * - **Prices are the source of truth at Creem.** We never store prices in our
@@ -111,7 +112,7 @@ export function resetCreemCatalogCache(): void {
  *   keeping price data fresh within a short window. The cache is scoped to the
  *   module; a process restart always triggers a fresh fetch.
  *
- * @returns A map of `tierId -> interval -> { productId, price, currency }`.
+ * @returns A map of `tierId -> billingPeriod -> { productId, price, currency }`.
  */
 export async function getCreemCatalog(): Promise<CreemCatalog> {
   if (cachedCatalog !== null && Date.now() - cachedAt < CATALOG_TTL_MS) {
@@ -140,7 +141,7 @@ export async function getCreemCatalog(): Promise<CreemCatalog> {
           operation: "creem_product_get",
           outcome: CreemPriceOutcome.ProductUnavailable,
           tierId: mapping.tierId,
-          interval: mapping.interval,
+          billingPeriod: mapping.billingPeriod,
           // Which Creem account was asked. The table holds a row per
           // environment, so without it the log cannot say whether the product
           // is gone or was looked for in the wrong place.
@@ -156,7 +157,7 @@ export async function getCreemCatalog(): Promise<CreemCatalog> {
       catalog[mapping.tierId] = {};
     }
 
-    catalog[mapping.tierId]![mapping.interval] = {
+    catalog[mapping.tierId]![mapping.billingPeriod] = {
       productId: mapping.creemProductId,
       price: product.price,
       currency: product.currency,

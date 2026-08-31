@@ -48,7 +48,7 @@ vi.mock("../lib/infra/logger.js", () => ({
 function buildMocks(mode: CreemModeValue = CreemMode.Test) {
   const listCreemProductMappings = vi
     .fn()
-    .mockResolvedValue([{ tierId: "tier_club", interval: "month", mode, creemProductId: "prod_1" }]);
+    .mockResolvedValue([{ tierId: "tier_club", billingPeriod: "every-month", mode, creemProductId: "prod_1" }]);
 
   vi.mocked(getTierRepository).mockResolvedValue({
     listCreemProductMappings,
@@ -83,7 +83,7 @@ describe("getCreemCatalog (MC-110)", () => {
     const catalog = await getCreemCatalog();
     expect(catalog).toEqual({
       tier_club: {
-        month: { productId: "prod_1", price: 900, currency: "EUR" },
+        "every-month": { productId: "prod_1", price: 900, currency: "EUR" },
       },
     });
   });
@@ -134,8 +134,8 @@ describe("getCreemCatalog: one bad product does not cost every tier its price", 
   it("keeps the tiers whose products answered and reports the one that did not", async () => {
     vi.mocked(getTierRepository).mockResolvedValue({
       listCreemProductMappings: vi.fn().mockResolvedValue([
-        { tierId: "tier_club", interval: "month", mode: CreemMode.Test, creemProductId: "prod_gone" },
-        { tierId: "tier_pro", interval: "month", mode: CreemMode.Test, creemProductId: "prod_ok" },
+        { tierId: "tier_club", billingPeriod: "every-month", mode: CreemMode.Test, creemProductId: "prod_gone" },
+        { tierId: "tier_pro", billingPeriod: "every-month", mode: CreemMode.Test, creemProductId: "prod_ok" },
       ]),
     } as never);
     vi.mocked(getCreemClient).mockReturnValue({
@@ -151,7 +151,7 @@ describe("getCreemCatalog: one bad product does not cost every tier its price", 
 
     // The healthy tier keeps its live price; the broken one is simply absent,
     // which is what leaves it on its database price one level up.
-    expect(catalog.tier_pro?.month?.price).toBe(4900);
+    expect(catalog.tier_pro?.["every-month"]?.price).toBe(4900);
     expect(catalog.tier_club).toBeUndefined();
 
     const context = vi.mocked(log.deviation).mock.calls[0]?.[0];

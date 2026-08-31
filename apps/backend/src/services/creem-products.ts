@@ -38,7 +38,13 @@ export interface CreemProduct {
   status: string;
 }
 
-/** What a new Creem product needs to come into being. */
+/**
+ * What a new Creem product needs to come into being.
+ *
+ * Every field Creem accepts appears here, because the offer it is built from
+ * carries every one of them. A field left `null` is one Creem decides, and
+ * that is a choice rather than an omission.
+ */
 export interface CreemProductDraft {
   /** Shown on the checkout page and on the receipt. */
   name: string;
@@ -50,6 +56,22 @@ export interface CreemProductDraft {
   currency: string;
   /** Creem's own spelling of the billing period, such as `every-month`. */
   billingPeriod: string;
+  /** `recurring` for every period except `once`. */
+  billingType: "recurring" | "onetime";
+  /** Whether tax sits inside the price. `null` leaves it to Creem. */
+  taxMode: string | null;
+  /** The tax treatment of what is sold. `null` leaves it to Creem. */
+  taxCategory: string | null;
+  /** The picture on the checkout page. */
+  imageUrl: string | null;
+  /** Where the customer returns after paying. */
+  successUrl: string | null;
+  /** Up to three extra questions asked at the checkout. */
+  customFields: { key: string; label: string; optional: boolean }[];
+  abandonedCartRecovery: boolean;
+  /** Only sent for a one-time product, which is the only kind Creem allows it on. */
+  payWhatYouWant: boolean;
+  suggestedPriceCents: number | null;
 }
 
 /**
@@ -130,13 +152,37 @@ async function callCreemDirectly(mode: CreemModeValue, method: string, path: str
  */
 export async function createCreemProduct(mode: CreemModeValue, draft: CreemProductDraft): Promise<CreemProduct> {
   try {
+    const oneTime = draft.billingType === "onetime";
     const product = await getCreemClient(mode).products.create({
       name: draft.name,
       description: draft.description,
       price: draft.priceCents,
       currency: draft.currency as never,
-      billingType: "recurring",
+      billingType: draft.billingType as never,
       billingPeriod: draft.billingPeriod as never,
+      ...(draft.taxMode ? { taxMode: draft.taxMode as never } : {}),
+      ...(draft.taxCategory ? { taxCategory: draft.taxCategory as never } : {}),
+      ...(draft.imageUrl ? { imageUrl: draft.imageUrl } : {}),
+      ...(draft.successUrl ? { defaultSuccessUrl: draft.successUrl } : {}),
+      ...(draft.customFields.length > 0
+        ? {
+            customFields: draft.customFields.map((field) => ({
+              type: "text" as never,
+              key: field.key,
+              label: field.label,
+              optional: field.optional,
+            })),
+          }
+        : {}),
+      ...(draft.abandonedCartRecovery ? { abandonedCartRecoveryEnabled: true } : {}),
+      // Creem allows a customer-named amount on a one-time product only, so
+      // the two fields are sent nowhere else even when the offer holds them.
+      ...(oneTime && draft.payWhatYouWant
+        ? {
+            payWhatYouWant: true,
+            ...(draft.suggestedPriceCents === null ? {} : { suggestedPrice: draft.suggestedPriceCents }),
+          }
+        : {}),
     });
     return { id: product.id, price: product.price, currency: product.currency, status: product.status };
   } catch (error) {

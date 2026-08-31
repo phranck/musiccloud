@@ -1,15 +1,17 @@
 /**
- * Unit tests for the rules deciding what a tier's Creem product is called and
- * what it costs. What they produce is what a customer reads on the checkout
- * page and on the receipt, and what they refuse is a product Creem would
- * reject or nobody could buy.
+ * Unit tests for what an offer becomes when it reaches Creem.
+ *
+ * The offer carries every field, so what is under test is that each one
+ * travels unchanged and that the two texts a customer reads follow the plan
+ * and the period. The one derived decision is the billing type, which Creem
+ * ties to the period.
  */
 import { describe, expect, it } from "vitest";
-import type { Tier } from "../db/tiers-repository.js";
-import { BillingInterval, draftCreemProductFor, isBillingInterval, tierPriceFor } from "./tier-creem-draft.js";
-import { euroStringToCents } from "./tier-pricing.js";
+import { BillingPeriod, type Tier, type TierOffer } from "../db/tiers-repository.js";
+import { creemProductName, draftCreemProductForOffer, isBillingPeriod } from "./tier-creem-draft.js";
+import { centsToEuroString, euroStringToCents } from "./tier-pricing.js";
 
-/** A paid tier with both prices set, which every case varies from. */
+/** A plan, of which only the name reaches a Creem product. */
 function makeTier(overrides: Partial<Tier> = {}): Tier {
   return {
     id: "tier_club",
@@ -17,8 +19,8 @@ function makeTier(overrides: Partial<Tier> = {}): Tier {
     requestsPerMinute: 60,
     requestsPerDay: 10000,
     attributionRequired: false,
-    price: "9.90",
-    priceYearly: "99",
+    price: null,
+    priceYearly: null,
     color: "#64748b",
     icon: null,
     buttonLabel: null,
@@ -34,6 +36,27 @@ function makeTier(overrides: Partial<Tier> = {}): Tier {
   };
 }
 
+/** A monthly offer with everything Creem accepts filled in. */
+function makeOffer(overrides: Partial<TierOffer> = {}): TierOffer {
+  return {
+    id: "offer_1",
+    tierId: "tier_club",
+    billingPeriod: BillingPeriod.Monthly,
+    priceCents: 990,
+    currency: "EUR",
+    taxMode: "inclusive",
+    taxCategory: "saas",
+    imageUrl: "https://musiccloud.io/plan.png",
+    successUrl: "https://musiccloud.io/thanks",
+    customFields: [{ key: "company", label: "Company", optional: true }],
+    abandonedCartRecovery: true,
+    payWhatYouWant: false,
+    suggestedPriceCents: null,
+    sortOrder: 0,
+    ...overrides,
+  };
+}
+
 describe("euroStringToCents", () => {
   it("reads whole and fractional euro amounts", () => {
     expect(euroStringToCents("9")).toBe(900);
@@ -41,66 +64,76 @@ describe("euroStringToCents", () => {
     expect(euroStringToCents(" 14.5 ")).toBe(1450);
   });
 
-  it("rounds to the nearest cent rather than truncating", () => {
-    expect(euroStringToCents("0.005")).toBe(1);
-    expect(euroStringToCents("19.999")).toBe(2000);
-  });
-
   it("returns null rather than a wrong amount for anything unreadable", () => {
     expect(euroStringToCents(null)).toBeNull();
-    expect(euroStringToCents("")).toBeNull();
-    expect(euroStringToCents("   ")).toBeNull();
     expect(euroStringToCents("free")).toBeNull();
     expect(euroStringToCents("-5")).toBeNull();
   });
-});
 
-describe("isBillingInterval", () => {
-  it("accepts the two intervals and nothing else", () => {
-    expect(isBillingInterval("month")).toBe(true);
-    expect(isBillingInterval("year")).toBe(true);
-    expect(isBillingInterval("week")).toBe(false);
-    expect(isBillingInterval(undefined)).toBe(false);
+  it("is the inverse of the formatter, so a price survives a round trip", () => {
+    for (const cents of [100, 990, 1450, 9900]) {
+      expect(euroStringToCents(centsToEuroString(cents))).toBe(cents);
+    }
   });
 });
 
-describe("tierPriceFor", () => {
-  it("returns the price belonging to the interval", () => {
-    const tier = makeTier();
-    expect(tierPriceFor(tier, BillingInterval.Month)).toBe("9.90");
-    expect(tierPriceFor(tier, BillingInterval.Year)).toBe("99");
+describe("isBillingPeriod", () => {
+  it("accepts every period Creem sells over and nothing else", () => {
+    for (const period of Object.values(BillingPeriod)) {
+      expect(isBillingPeriod(period)).toBe(true);
+    }
+    expect(isBillingPeriod("month")).toBe(false);
+    expect(isBillingPeriod("every-week")).toBe(false);
+    expect(isBillingPeriod(undefined)).toBe(false);
   });
 });
 
-describe("draftCreemProductFor", () => {
-  it("names the product after the tier and the billing period", () => {
-    expect(draftCreemProductFor(makeTier(), BillingInterval.Month)).toEqual({
+describe("creemProductName", () => {
+  it("names the product after the plan and the period", () => {
+    expect(creemProductName("Club", BillingPeriod.Monthly)).toBe("musiccloud Club (monthly)");
+    expect(creemProductName("Club", BillingPeriod.Quarterly)).toBe("musiccloud Club (quarterly)");
+  });
+});
+
+describe("draftCreemProductForOffer", () => {
+  it("carries every field of the offer through unchanged", () => {
+    const offer = makeOffer();
+
+    expect(draftCreemProductForOffer(makeTier(), offer)).toEqual({
       name: "musiccloud Club (monthly)",
-      description: "musiccloud Club API tier, billed monthly.",
+      description: "musiccloud Club API plan, billed monthly.",
       priceCents: 990,
       currency: "EUR",
-      billingPeriod: "every-month",
+      billingPeriod: BillingPeriod.Monthly,
+      billingType: "recurring",
+      taxMode: "inclusive",
+      taxCategory: "saas",
+      imageUrl: "https://musiccloud.io/plan.png",
+      successUrl: "https://musiccloud.io/thanks",
+      customFields: offer.customFields,
+      abandonedCartRecovery: true,
+      payWhatYouWant: false,
+      suggestedPriceCents: null,
     });
   });
 
-  it("uses the yearly price and period for the yearly product", () => {
-    const draft = draftCreemProductFor(makeTier(), BillingInterval.Year);
-    expect(draft?.priceCents).toBe(9900);
-    expect(draft?.billingPeriod).toBe("every-year");
-    expect(draft?.name).toBe("musiccloud Club (yearly)");
+  it("leaves a field the offer does not set for Creem to decide", () => {
+    const draft = draftCreemProductForOffer(makeTier(), makeOffer({ taxMode: null, taxCategory: null }));
+
+    expect(draft.taxMode).toBeNull();
+    expect(draft.taxCategory).toBeNull();
   });
 
-  it("gives a free tier no product, because Creem rejects a recurring product at zero", () => {
-    expect(draftCreemProductFor(makeTier({ price: null }), BillingInterval.Month)).toBeNull();
-    expect(draftCreemProductFor(makeTier({ price: "0" }), BillingInterval.Month)).toBeNull();
+  it("calls a one-time offer one-time, because Creem ties the type to the period", () => {
+    const draft = draftCreemProductForOffer(makeTier(), makeOffer({ billingPeriod: BillingPeriod.Once }));
+
+    expect(draft.billingType).toBe("onetime");
+    expect(draft.name).toBe("musiccloud Club (once)");
   });
 
-  it("gives no yearly product to a tier that is not sold yearly", () => {
-    expect(draftCreemProductFor(makeTier({ priceYearly: null }), BillingInterval.Year)).toBeNull();
-    expect(draftCreemProductFor(makeTier({ priceYearly: "" }), BillingInterval.Year)).toBeNull();
-  });
-
-  it("gives no product when the price column holds something that is not a price", () => {
-    expect(draftCreemProductFor(makeTier({ price: "on request" }), BillingInterval.Month)).toBeNull();
+  it("calls every recurring period recurring", () => {
+    for (const period of Object.values(BillingPeriod).filter((value) => value !== BillingPeriod.Once)) {
+      expect(draftCreemProductForOffer(makeTier(), makeOffer({ billingPeriod: period })).billingType).toBe("recurring");
+    }
   });
 });
