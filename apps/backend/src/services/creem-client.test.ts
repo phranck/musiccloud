@@ -7,7 +7,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock the creem-config module so getCreemConfig is fully under our control.
-vi.mock("../lib/creem-config.js", () => ({
+vi.mock("../lib/creem-config.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/creem-config.js")>()),
   getCreemConfig: vi.fn(() => ({
     apiKey: "creem_test_x",
     mode: "test",
@@ -20,6 +21,7 @@ vi.mock("creem", () => ({
   Creem: vi.fn().mockImplementation(() => ({})),
   ServerTest: "test",
   ServerProd: "prod",
+  ServerList: { test: "https://test-api.creem.io", prod: "https://api.creem.io" },
 }));
 
 describe("getCreemClient (MC-110)", () => {

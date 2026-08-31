@@ -3,11 +3,35 @@
  * instance of the Creem SDK client so that the underlying HTTP client and
  * connection pool are shared across the process lifetime.
  */
-import { Creem, ServerProd, ServerTest } from "creem";
-import { getCreemConfig } from "../lib/creem-config.js";
+import { Creem, ServerList, ServerProd, ServerTest } from "creem";
+import { CreemMode, type CreemModeValue, getCreemConfig } from "../lib/creem-config.js";
 
 /** Module-level singleton. `null` until the first call to `getCreemClient`. */
 let instance: Creem | null = null;
+
+/**
+ * Maps one of our Creem environments onto the SDK's own server key.
+ *
+ * @param mode - The environment the process is running in.
+ * @returns The key the SDK uses to look the base URL up.
+ */
+function serverKeyFor(mode: CreemModeValue): keyof typeof ServerList {
+  return mode === CreemMode.Test ? ServerTest : ServerProd;
+}
+
+/**
+ * Returns the Creem base URL for the environment this process runs in.
+ *
+ * The value comes from the SDK's own `ServerList` rather than from a constant
+ * of ours, so the operations we call directly reach exactly the host the SDK
+ * would have used. `creem@1.5.3` covers 42 of the API's 55 operations, and
+ * `products.update` and `products.archive` are among the missing ones.
+ *
+ * @returns The base URL, without a trailing slash.
+ */
+export function getCreemBaseUrl(): string {
+  return ServerList[serverKeyFor(getCreemConfig().mode)];
+}
 
 /**
  * Returns the singleton Creem SDK client for this process.
@@ -32,7 +56,7 @@ export function getCreemClient(): Creem {
   if (instance) return instance;
   const { apiKey, mode } = getCreemConfig();
   instance = new Creem({
-    server: mode === "test" ? ServerTest : ServerProd,
+    server: serverKeyFor(mode),
     apiKey,
   });
   return instance;
