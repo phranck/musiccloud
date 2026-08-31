@@ -4,6 +4,8 @@
  * public Developer Portal reads them for its pricing page.
  */
 
+import type { CreemModeValue } from "../lib/creem-config.js";
+
 /** Default tier accent colour (neutral slate) applied when none is supplied. */
 export const DEFAULT_TIER_COLOR = "#64748b";
 
@@ -103,6 +105,12 @@ export interface TierCreemProductMapping {
   tierId: string;
   /** Billing interval in our normalised form: `"month"` or `"year"`. */
   interval: string;
+  /**
+   * The Creem environment this product lives in. Test and live are separate
+   * accounts, so the same tier and interval carries a different product id in
+   * each, and a product id is only meaningful against its own environment.
+   */
+  mode: CreemModeValue;
   /** The corresponding Creem product ID returned when the product was created. */
   creemProductId: string;
 }
@@ -113,12 +121,30 @@ export interface TierRepository {
   updateTier(id: string, data: TierUpdateData): Promise<Tier>;
   deleteTier(id: string): Promise<void>;
   /**
-   * Returns all rows from `tier_creem_products`, which maps each internal tier
-   * plus billing interval to the corresponding Creem product ID.
+   * Returns the rows from `tier_creem_products` that belong to one Creem
+   * environment, mapping each internal tier plus billing interval to the
+   * product ID that environment knows.
    *
    * This mapping exists on our side because Creem products carry no metadata
    * field. Creem remains the source of truth for prices; we own the
    * tier-to-product link.
+   *
+   * The mode is required rather than optional because a process talks to one
+   * environment only, decided by its API key. Reading the other environment's
+   * rows would ask Creem for products that do not exist there.
+   *
+   * @param mode - The Creem environment whose rows are wanted.
    */
-  listCreemProductMappings(): Promise<TierCreemProductMapping[]>;
+  listCreemProductMappings(mode: CreemModeValue): Promise<TierCreemProductMapping[]>;
+
+  /**
+   * Returns every row from `tier_creem_products`, across both Creem
+   * environments.
+   *
+   * This is for the admin surface, which shows which environment already has a
+   * product for a tier and interval and which does not. Nothing that talks to
+   * Creem uses it, because a product id only resolves against its own
+   * environment.
+   */
+  listAllCreemProductMappings(): Promise<TierCreemProductMapping[]>;
 }

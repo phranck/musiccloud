@@ -383,6 +383,11 @@ export const ENDPOINTS = {
       tiers: "/api/admin/developer/tiers",
       /** PATCH / DELETE: single tier by id. */
       tierDetail: (id: string) => `/api/admin/developer/tiers/${id}`,
+      /**
+       * GET: every `tier_creem_products` row, across both Creem environments,
+       * so the tier editor can show which environment already has a product.
+       */
+      creemProducts: "/api/admin/developer/creem-products",
     },
   },
 

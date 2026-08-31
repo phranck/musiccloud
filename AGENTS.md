@@ -120,6 +120,11 @@ down to its meaningful inner slots.
   every route using it checks for an admin first.
 - A free tier gets no Creem product: Creem rejects a recurring product priced
   at zero. Its price comes from our own `tiers` table.
+- Test and live are separate Creem accounts that share nothing, so one plan and
+  interval has a different product id in each. `tier_creem_products` carries a
+  `mode` column and holds both at once. Anything that talks to Creem reads only
+  the rows matching `getCreemConfig().mode`; only the admin surface reads both,
+  because a product id does not resolve against the other environment.
 
 ## GitHub Project execution queue
 
