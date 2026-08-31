@@ -12,6 +12,13 @@ export const ApiTokenStatus = {
 } as const;
 export type ApiTokenStatus = (typeof ApiTokenStatus)[keyof typeof ApiTokenStatus];
 
+export const DeveloperProjectStatus = {
+  Active: "active",
+  Suspended: "suspended",
+  Deleted: "deleted",
+} as const;
+export type DeveloperProjectStatus = (typeof DeveloperProjectStatus)[keyof typeof DeveloperProjectStatus];
+
 export const DeveloperAccountStatus = {
   Active: "active",
   Suspended: "suspended",

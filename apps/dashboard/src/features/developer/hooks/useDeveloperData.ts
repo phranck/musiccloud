@@ -5,12 +5,15 @@ import {
   createClientToken,
   createTier,
   type DeveloperAccountResponse,
+  type DeveloperProjectDetail,
   deactivateToken,
   deleteDeveloperAccount,
   deleteTier,
   fetchApiAccessOverview,
   fetchDeveloperAccount,
   fetchDeveloperAccounts,
+  fetchDeveloperProject,
+  fetchDeveloperProjects,
   fetchTiers,
   type TierResponse,
   updateDeveloperAccount,
@@ -22,6 +25,32 @@ export function useApiAccessOverview() {
   return useQuery<ApiAccessOverview>({
     queryKey: ["developer", "api-access"],
     queryFn: fetchApiAccessOverview,
+  });
+}
+
+/**
+ * The projects one developer account holds.
+ *
+ * @param accountId - The owning account; the query idles until it is known.
+ */
+export function useDeveloperProjects(accountId: string) {
+  return useQuery({
+    queryKey: ["developer", "account-projects", accountId],
+    queryFn: () => fetchDeveloperProjects(accountId),
+    enabled: !!accountId,
+  });
+}
+
+/**
+ * One project with its subscription and its registrations.
+ *
+ * @param id - The project; the query idles until it is known.
+ */
+export function useDeveloperProject(id: string) {
+  return useQuery<DeveloperProjectDetail>({
+    queryKey: ["developer", "project", id],
+    queryFn: () => fetchDeveloperProject(id),
+    enabled: !!id,
   });
 }
 

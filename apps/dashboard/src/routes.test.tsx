@@ -14,4 +14,22 @@ describe("Dashboard route retirement", () => {
 
     expect(matches.some((match) => match.route.path === "analytics")).toBe(false);
   });
+
+  it("has no access-request review routes", () => {
+    for (const path of ["/developer/requests", "/developer/requests/req-1"]) {
+      const matches = matchRoutes(routes, path) ?? [];
+      expect(
+        matches.some((match) => match.route.path?.startsWith("developer/requests")),
+        path,
+      ).toBe(false);
+    }
+  });
+});
+
+describe("Developer project routes", () => {
+  it("resolves a project by id", () => {
+    const matches = matchRoutes(routes, "/developer/projects/project-1") ?? [];
+
+    expect(matches.some((match) => match.route.path === "developer/projects/:id")).toBe(true);
+  });
 });

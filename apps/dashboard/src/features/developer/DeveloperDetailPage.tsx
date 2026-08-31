@@ -7,9 +7,11 @@ import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
 import { dashboardCopy } from "@/copy/dashboard";
+import { AccountProjectsSection } from "@/features/developer/components/AccountProjectsSection";
 import { TierDropdown } from "@/features/developer/components/TierDropdown";
 import { DeveloperAccountStatus } from "@/features/developer/domain";
 import {
+  useApiAccessOverview,
   useDeleteDeveloperAccount,
   useDeveloperAccount,
   useUpdateDeveloperAccount,
@@ -46,6 +48,9 @@ export function DeveloperDetailPage() {
   const dm = messages.developer;
   const navigate = useNavigate();
   const { data: account, isLoading } = useDeveloperAccount(id!);
+  // The registration list is what supplies the per-project count; the project
+  // route carries the projects and not how many registrations sit under each.
+  const { data: overview } = useApiAccessOverview();
   const updateAccount = useUpdateDeveloperAccount();
   const deleteAccount = useDeleteDeveloperAccount();
   const [saved, setSaved] = useState(false);
@@ -206,6 +211,13 @@ export function DeveloperDetailPage() {
               </div>
             )}
           </DashboardSection>
+
+          <AccountProjectsSection
+            accountId={id!}
+            registrations={(overview?.clients ?? []).filter(
+              (registration) => registration.developerAccountId === account.id,
+            )}
+          />
         </div>
       </PageLayout>
 
