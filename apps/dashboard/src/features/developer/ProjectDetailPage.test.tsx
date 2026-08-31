@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   fetchProject: vi.fn(),
   updateProject: vi.fn(),
+  fetchTiers: vi.fn(),
   navigate: vi.fn(),
 }));
 
@@ -12,6 +13,7 @@ vi.mock("./api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./api")>()),
   fetchDeveloperProject: mocks.fetchProject,
   updateDeveloperProject: mocks.updateProject,
+  fetchTiers: mocks.fetchTiers,
 }));
 
 vi.mock("react-router", async (importOriginal) => ({
@@ -106,29 +108,20 @@ describe("ProjectDetailPage", () => {
   beforeEach(() => {
     mocks.fetchProject.mockReset();
     mocks.updateProject.mockReset();
+    mocks.fetchTiers.mockReset();
+    mocks.fetchTiers.mockResolvedValue([]);
     mocks.navigate.mockReset();
   });
 
-  it("shows where each enforced limit comes from", async () => {
+  it("carries the plan and quota section, which owns the limit figures", async () => {
     mocks.fetchProject.mockResolvedValue(makeDetail());
     renderPage();
 
     expect(await screen.findByText("Beat Machine")).not.toBeNull();
-    expect(screen.getByText("Free")).not.toBeNull();
-    // Both limits come from the plan whilst no override is set, and the screen
-    // says so rather than printing a bare number.
-    expect(screen.getAllByText("From the plan: 60")).toHaveLength(1);
-    expect(screen.getAllByText("From the plan: 10000")).toHaveLength(1);
-  });
-
-  it("names the administrative override where one replaces the plan's figure", async () => {
-    mocks.fetchProject.mockResolvedValue(
-      makeDetail({ project: { requestsPerMinute: 600, effectiveRequestsPerMinute: 600 } }),
-    );
-    renderPage();
-
-    expect(await screen.findByText("Administrative override: 600")).not.toBeNull();
-    expect(screen.getByText("From the plan: 10000")).not.toBeNull();
+    // The section's own test covers what it shows; here the page only has to
+    // hand it the project it loaded.
+    expect(screen.getByText("Plan and quota")).not.toBeNull();
+    expect(screen.getByText("Enforced now: 60")).not.toBeNull();
   });
 
   it("says what suspending does before the action, and suspends on it", async () => {
