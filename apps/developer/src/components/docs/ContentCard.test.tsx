@@ -106,7 +106,7 @@ describe("API content cards", () => {
             <SegmentedControl role="tablist">
               <SegmentedControl.Item role="tab">
                 <SegmentedControl.Item.Icon>
-                  <img src="/icons/languages/typescript.svg" alt="" />
+                  <img src="/fixture-icon.svg" alt="" />
                 </SegmentedControl.Item.Icon>
                 <SegmentedControl.Item.Label>Key documentation</SegmentedControl.Item.Label>
               </SegmentedControl.Item>
@@ -164,7 +164,7 @@ describe("API content cards", () => {
     expect(html).toContain('class="schema-card__collapsible-content"');
     expect(html).toContain('role="tablist" class="segmented-control"');
     expect(html).toContain(
-      'role="tab" class="segmented-control__item"><span class="segmented-control__item-icon"><img src="/icons/languages/typescript.svg" alt=""/></span><span class="segmented-control__item-label">Key documentation</span></button>',
+      'role="tab" class="segmented-control__item"><span class="segmented-control__item-icon"><img src="/fixture-icon.svg" alt=""/></span><span class="segmented-control__item-label">Key documentation</span></button>',
     );
     expect(html).toContain('<table class="schema-card__field-table">');
     expect(html).toContain('<th scope="col" class="schema-card__field-heading">Key</th>');
