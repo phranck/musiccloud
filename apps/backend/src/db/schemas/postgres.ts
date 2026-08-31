@@ -1779,14 +1779,31 @@ export type DeveloperProjectSubscriptionRow = typeof developerProjectSubscriptio
 export type DeveloperProjectSubscriptionInsert = typeof developerProjectSubscriptions.$inferInsert;
 
 /**
- * Maps each internal tier and billing interval to its Creem product id. Creem
- * products carry no metadata field, so the tier-to-product association cannot
- * live at Creem and lives here instead. Creem stays the source of truth for
- * prices only, fetched live by the catalog service. A row is written by the
- * seed script when it creates the product in Creem, and cleared by the dbdump
- * scrub because the product ids are environment-specific (test vs live). There
- * is one product per (tierId, interval); a free tier uses a single row.
- * creemProductId is globally unique.
+ * Maps each internal tier, billing interval and Creem environment to its Creem
+ * product id. Creem products carry no metadata field, so the tier-to-product
+ * association cannot live at Creem and lives here instead. Creem stays the
+ * source of truth for prices only, fetched live by the catalog service. A row
+ * is written by the seed script when it creates the product in Creem, and
+ * cleared by the dbdump scrub because the product ids are environment-specific.
+ *
+ * `mode` says which Creem environment the product belongs to. Test and live are
+ * separate accounts that share nothing, so one plan and interval has two
+ * different product ids and both have to be held at once: the sandbox keeps
+ * working whilst the live set is created. A process only ever reads the rows
+ * matching the mode its API key puts it in. The column defaults to `test`
+ * because a mislabelled sandbox product merely fails to appear in live, whilst
+ * the opposite would offer a sandbox product for real money.
+ *
+ * There is one product per (tierId, interval, mode); a free tier uses a single
+ * row per mode. creemProductId is globally unique, because a product id
+ * belongs to one environment and cannot appear twice.
+ *
+ * The two permitted values are also named in `CreemMode` in
+ * `apps/backend/src/lib/creem-config.ts`, which is what the application
+ * compares against. They are apart because a check constraint is raw SQL and
+ * cannot read a TypeScript constant, so
+ * `postgres-tiers-creem-products.integration.test.ts` holds them together by
+ * round-tripping both members through the database.
  */
 export const tierCreemProducts = pgTable(
   "tier_creem_products",
@@ -1796,13 +1813,15 @@ export const tierCreemProducts = pgTable(
       .notNull()
       .references(() => tiers.id, { onDelete: "cascade" }),
     interval: text("interval").notNull(),
+    mode: text("mode").notNull().default("test"),
     creemProductId: text("creem_product_id").notNull().unique(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("uq_tier_creem_products_tier_interval").on(table.tierId, table.interval),
+    uniqueIndex("uq_tier_creem_products_tier_interval_mode").on(table.tierId, table.interval, table.mode),
     check("chk_tier_creem_products_interval", sql`${table.interval} IN ('month', 'year')`),
+    check("chk_tier_creem_products_mode", sql`${table.mode} IN ('test', 'live')`),
   ],
 );
 
