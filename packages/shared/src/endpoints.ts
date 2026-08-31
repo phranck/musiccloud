@@ -384,10 +384,28 @@ export const ENDPOINTS = {
       /** PATCH / DELETE: single tier by id. */
       tierDetail: (id: string) => `/api/admin/developer/tiers/${id}`,
       /**
-       * GET: every `tier_creem_products` row, across both Creem environments,
-       * so the tier editor can show which environment already has a product.
+       * GET: `{ mode, products }`, where `products` is every
+       * `tier_creem_products` row across both Creem environments and `mode`
+       * says which of the two this backend's API key lets it write to.
+       * POST: create the product for a tier and interval, or attach one that
+       * was created in the Creem dashboard.
        */
       creemProducts: "/api/admin/developer/creem-products",
+      /**
+       * PATCH: change the product's price at Creem, keeping its id.
+       * DELETE: archive it at Creem and remove the mapping, as one operation.
+       *
+       * The environment is part of the path, because an operator maintains the
+       * live products whilst the shop still sells from the sandbox.
+       */
+      creemProductDetail: (tierId: string, interval: string, mode: string) =>
+        `/api/admin/developer/creem-products/${encodeURIComponent(tierId)}/${encodeURIComponent(interval)}/${encodeURIComponent(mode)}`,
+      /**
+       * GET / PATCH: which Creem environment the shop sells from. This is the
+       * switch that decides whether a purchase moves real money, so it is a
+       * stored setting rather than a consequence of the deployed key.
+       */
+      creemSellingMode: "/api/admin/developer/creem-selling-mode",
     },
   },
 
@@ -548,6 +566,7 @@ export const ROUTE_TEMPLATES = {
       accounts: "/api/admin/developer/accounts",
       accountDetail: "/api/admin/developer/accounts/:id",
       tierDetail: "/api/admin/developer/tiers/:id",
+      creemProductDetail: "/api/admin/developer/creem-products/:tierId/:interval/:mode",
     },
     emailTemplates: {
       detail: "/api/admin/email-templates/:id",

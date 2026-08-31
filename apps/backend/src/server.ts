@@ -30,6 +30,7 @@ import adminArtistProfileRoutes from "./routes/admin-artist-profile.js";
 import adminAuthRoutes from "./routes/admin-auth.js";
 import adminContentRoutes from "./routes/admin-content.js";
 import adminCrawlerRoutes from "./routes/admin-crawler.js";
+import { adminCreemProductRoutes } from "./routes/admin-creem-products.js";
 import adminDataRoutes from "./routes/admin-data.js";
 import adminEmailActionsRoutes from "./routes/admin-email-actions.js";
 import adminEmailAssetsRoutes from "./routes/admin-email-assets.js";
@@ -646,6 +647,7 @@ async function buildApp(options: BuildAppOptions = {}) {
     await adminApp.register(adminApiAccessRoutes);
     await adminApp.register(adminArtistProfileRoutes);
     await adminApp.register(adminTiersRoutes);
+    await adminApp.register(adminCreemProductRoutes);
     await adminApp.register(adminContentRoutes);
     await adminApp.register(adminDataRoutes);
     await adminApp.register(adminEmailActionsRoutes);

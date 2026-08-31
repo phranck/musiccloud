@@ -6,6 +6,7 @@ import {
   DEFAULT_TIER_COLOR,
   type Tier,
   type TierCreateData,
+  type TierCreemProductKey,
   type TierCreemProductMapping,
   type TierRepository,
   type TierUpdateData,
@@ -292,5 +293,50 @@ export class PostgresTierRepository implements TierRepository {
       "SELECT tier_id, interval, mode, creem_product_id FROM tier_creem_products ORDER BY tier_id, interval, mode",
     );
     return rows.map(toCreemProductMapping);
+  }
+
+  /**
+   * Returns the mapping for one tier, interval and Creem environment.
+   *
+   * @param key - Which mapping is wanted.
+   * @returns The mapping, or `null` when that combination has no product.
+   */
+  async findCreemProductMapping(key: TierCreemProductKey): Promise<TierCreemProductMapping | null> {
+    const { rows } = await this.#pool.query<TierCreemProductMappingRow>(
+      "SELECT tier_id, interval, mode, creem_product_id FROM tier_creem_products WHERE tier_id = $1 AND interval = $2 AND mode = $3",
+      [key.tierId, key.interval, key.mode],
+    );
+    const row = rows[0];
+    return row ? toCreemProductMapping(row) : null;
+  }
+
+  /**
+   * Records a Creem product against a tier, interval and environment.
+   *
+   * The insert carries no conflict clause on purpose. A duplicate is a real
+   * problem rather than something to absorb: it means a product exists at
+   * Creem that this row would stop pointing at.
+   *
+   * @param mapping - The tier, interval, environment and product id.
+   */
+  async createCreemProductMapping(mapping: TierCreemProductMapping): Promise<void> {
+    await this.#pool.query(
+      "INSERT INTO tier_creem_products (id, tier_id, interval, mode, creem_product_id) VALUES ($1, $2, $3, $4, $5)",
+      [nanoid(), mapping.tierId, mapping.interval, mapping.mode, mapping.creemProductId],
+    );
+  }
+
+  /**
+   * Removes the mapping for one tier, interval and Creem environment.
+   *
+   * @param key - Which mapping to remove.
+   * @returns `true` when a row was removed, `false` when there was none.
+   */
+  async deleteCreemProductMapping(key: TierCreemProductKey): Promise<boolean> {
+    const { rowCount } = await this.#pool.query(
+      "DELETE FROM tier_creem_products WHERE tier_id = $1 AND interval = $2 AND mode = $3",
+      [key.tierId, key.interval, key.mode],
+    );
+    return (rowCount ?? 0) > 0;
   }
 }
