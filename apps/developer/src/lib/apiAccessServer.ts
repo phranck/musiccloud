@@ -10,7 +10,7 @@
 import { ENDPOINTS } from "@musiccloud/shared";
 import type { AstroGlobal } from "astro";
 import { backendUrl, internalHeaders } from "@/lib/api";
-import type { ApiClientDto, DeveloperProjectDto } from "@/lib/apiAccessClient";
+import type { ApiClientDto, DeveloperProjectDto, ProjectUsageDto } from "@/lib/apiAccessClient";
 
 /** Session cookie name, in lockstep with `session.ts` / the backend. */
 const SESSION_COOKIE_NAME = "mc_dev_session";
@@ -37,6 +37,35 @@ export async function getOwnApiClients(astro: AstroGlobal): Promise<ApiClientDto
     if (!res.ok) return null;
     const data = (await res.json()) as { clients: ApiClientDto[] };
     return data.clients;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Loads one project's usage server-side.
+ *
+ * The usage page renders in frontmatter, so it reads server-to-server like the
+ * rest of this file. A failure comes back as `null` so the page can tell "this
+ * project has never been called" from "the figures could not be loaded", which
+ * are two different things to say to a developer.
+ *
+ * @param astro - The Astro global; only `cookies` and `clientAddress` are read.
+ * @param projectId - The project to report on.
+ * @returns The usage report, or `null` when it could not be loaded.
+ */
+export async function getProjectUsage(astro: AstroGlobal, projectId: string): Promise<ProjectUsageDto | null> {
+  const sessionCookie = astro.cookies.get(SESSION_COOKIE_NAME)?.value;
+  if (!sessionCookie) return null;
+
+  try {
+    const res = await fetch(backendUrl(ENDPOINTS.dev.apiAccess.projectUsage(projectId)), {
+      headers: internalHeaders(astro.clientAddress, {
+        cookie: `${SESSION_COOKIE_NAME}=${sessionCookie}`,
+      }),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as ProjectUsageDto;
   } catch {
     return null;
   }

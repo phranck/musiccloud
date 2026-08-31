@@ -741,6 +741,25 @@
     font-size: var(--text-code);
   }
 
+  /* How much of a window's quota is spent. The track is the surface's own
+     border colour so the bar reads as part of the panel rather than as a
+     control, and the fill takes the accent because it is the figure. */
+  .usage-bar {
+    display: block;
+    overflow: hidden;
+    width: 100%;
+    height: var(--mc-space-2);
+    border-radius: var(--radius-button);
+    background-color: var(--color-border);
+  }
+
+  .usage-bar__fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background-color: var(--color-accent);
+  }
+
   .status-pill--success { color: var(--color-success); }
   .status-pill--warning { color: var(--color-warning); }
   .status-pill--danger { color: var(--color-danger); }

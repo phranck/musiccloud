@@ -9,6 +9,7 @@ import { dashboardCopy } from "@/copy/dashboard";
 import type { ApiClientResponse, DeveloperProjectResponse } from "@/features/developer/api";
 import { ProjectPlanSection } from "@/features/developer/components/ProjectPlanSection";
 import { ProjectStatusBadge } from "@/features/developer/components/ProjectStatusBadge";
+import { ProjectUsageSection } from "@/features/developer/components/ProjectUsageSection";
 import { ApiClientStatus, DeveloperProjectStatus } from "@/features/developer/domain";
 import { useDeveloperProject, useUpdateDeveloperProject } from "@/features/developer/hooks/useDeveloperData";
 import { formatEnglishDate } from "@/lib/format";
@@ -127,6 +128,8 @@ export function ProjectDetailPage() {
         </DashboardSection>
 
         <ProjectPlanSection project={project} subscription={data.subscription} />
+
+        <ProjectUsageSection projectId={project.id} />
 
         <DashboardSection className="overflow-hidden">
           <DashboardSection.Header

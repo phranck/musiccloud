@@ -1,33 +1,42 @@
 ---
 /**
- * /dashboard/usage: project quotas and registration-key usage at a glance (protected).
+ * /dashboard/usage: how much of each project's quota is spent (protected).
  *
- * Server-side: resolves the session, then loads the caller's clients
- * server-to-server (`getOwnApiClients`) and renders everything statically;
- * no island is needed because the page is a read-only snapshot. Shows each app's
- * enforced quota (requests/minute + requests/day) and each key's last-used
- * timestamp; detailed per-request analytics are a later, separate stage.
+ * Server-side: resolves the session, then loads the caller's projects and one
+ * usage report per project. Everything renders statically because the page is
+ * a read-only snapshot.
+ *
+ * Each project shows the two windows the API actually enforces, per minute and
+ * per day, as a figure against what the plan grants and as a bar. A project
+ * that has never been called says so, which is a different thing from a report
+ * that could not be loaded.
  */
 import DashboardLayout from "@/components/dashboard/DashboardLayout.astro";
 import { ApiContent } from "@/components/docs/ApiContent";
 import { ContentCard } from "@/components/docs/ContentCard";
 import { ContentPanel } from "@/components/docs/ContentPanel";
+import { UsageSparkline } from "@musiccloud/dashboard-ui";
 import { iconForDashboardTab } from "@/lib/dashboardNavIcons";
-import { StatusBadge } from "@/components/dashboard/StatusBadge";
-import { getOwnApiClients } from "@/lib/apiAccessServer";
-import { DeveloperProjectStatus, maskToken } from "@/lib/apiAccessClient";
+import { getOwnProjects, getProjectUsage } from "@/lib/apiAccessServer";
 import { DashboardTab } from "@/lib/dashboardTabs";
-import { formatDate } from "@/lib/formatDate";
 import { DataIcon, DiagramIcon } from "@/lib/icons";
-import { perDayQuotaLabel, perMinuteQuotaLabel } from "@/lib/quotaLabel";
+import { projectPath } from "@/lib/projectPath";
 import { getDeveloperSession } from "@/lib/session";
+import { usageShare } from "@/lib/usageShare";
 
 export const prerender = false;
 
-// Session check and client list are independent backend reads (both key off
-// the cookie), so they run in parallel instead of back-to-back.
-const [account, clients] = await Promise.all([getDeveloperSession(Astro), getOwnApiClients(Astro)]);
+const account = await getDeveloperSession(Astro);
 if (!account) return Astro.redirect("/login");
+
+const owned = await getOwnProjects(Astro);
+// One report per project, asked for together rather than in sequence: a
+// developer with four projects should not wait for four round trips.
+const reports = owned
+  ? await Promise.all(
+      owned.projects.map(async (project) => ({ project, usage: await getProjectUsage(Astro, project.id) })),
+    )
+  : [];
 const PageIcon = iconForDashboardTab(DashboardTab.Usage);
 ---
 
@@ -38,12 +47,16 @@ const PageIcon = iconForDashboardTab(DashboardTab.Usage);
     </ApiContent.Chapter.Header.Icon>
     <ApiContent.Chapter.Header.Title>Usage</ApiContent.Chapter.Header.Title>
   </ApiContent.Chapter.Header>
-  <p class="card-content-inset text-body text-fg-muted mb-6">Your enforced quotas per project, and when each registration key was last used.</p>
+  <p class="card-content-inset text-body text-fg-muted mb-6">
+    How much of each project's quota is spent, in the two windows the API enforces.
+  </p>
 
   {
-    clients === null ? (
-      <p class="card-content-inset field__message field__message--error">Could not load your usage data. Reload the page to try again.</p>
-    ) : clients.length === 0 ? (
+    owned === null ? (
+      <p class="card-content-inset field__message field__message--error">
+        Could not load your usage data. Reload the page to try again.
+      </p>
+    ) : reports.length === 0 ? (
       <ContentCard>
         <ContentCard.Header>
           <ContentCard.Header.Icon>
@@ -62,74 +75,101 @@ const PageIcon = iconForDashboardTab(DashboardTab.Usage);
       </ContentCard>
     ) : (
       <div class="flex flex-col gap-6">
-        {clients.map((client) => (
-          <ContentCard>
-            <ContentCard.Header>
-              <ContentCard.Header.Icon>
-                <DataIcon aria-hidden="true" />
-              </ContentCard.Header.Icon>
-              <ContentCard.Header.Title>{client.projectDisplayName}</ContentCard.Header.Title>
-              <ContentCard.Header.Addon>
-                <StatusBadge
-                  status={client.projectStatus === DeveloperProjectStatus.Active ? client.status : client.projectStatus}
-                />
-              </ContentCard.Header.Addon>
-            </ContentCard.Header>
-            <ContentCard.Body>
-              <ContentCard.Body.Stack>
-                <ContentPanel className="content-panel--inset">
-                  <ContentPanel.Header>
-                    <ContentPanel.Header.Title>
-                      {client.appName} · {client.registrationType} · {client.publicClientId}
-                    </ContentPanel.Header.Title>
-                  </ContentPanel.Header>
-                  <ContentPanel.Content>
-                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-                      <div>
-                        <dt class="text-nav text-fg-subtle mb-0.5">Rate limit</dt>
-                        <dd class="text-body text-fg">{perMinuteQuotaLabel(client.requestsPerMinute)}</dd>
-                      </div>
-                      <div>
-                        <dt class="text-nav text-fg-subtle mb-0.5">Daily quota</dt>
-                        <dd class="text-body text-fg">{perDayQuotaLabel(client.requestsPerDay)}</dd>
-                      </div>
-                    </dl>
-                  </ContentPanel.Content>
-                </ContentPanel>
-                <ContentPanel className="content-panel--inset">
-                  <ContentPanel.Header>
-                    <ContentPanel.Header.Title>Registration keys</ContentPanel.Header.Title>
-                  </ContentPanel.Header>
-                  <ContentPanel.Content>
-                    {client.tokens.length === 0 ? (
-                      <p class="text-body text-fg-muted">No keys yet.</p>
-                    ) : (
-                      <ul class="flex flex-col divide-y divide-border">
-                        {client.tokens.map((token) => (
-                          <li class="py-2.5 first:pt-0 last:pb-0 flex flex-wrap items-center gap-x-3 gap-y-1">
-                            <code class="text-code font-mono text-code-fg">{maskToken(token.tokenPrefix)}</code>
-                            <StatusBadge status={token.status} />
-                            <span class="text-nav text-fg-subtle">
-                              Last used {token.lastUsedAt ? formatDate(token.lastUsedAt) : "never"}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
+        {reports.map(({ project, usage }) => {
+          const minute = usage ? usageShare(usage.windows.minute.total, usage.quota.requestsPerMinute) : null;
+          const day = usage ? usageShare(usage.windows.day.total, usage.quota.requestsPerDay) : null;
+          const neverCalled = usage !== null && usage.windows.day.total === 0 && usage.range.total === 0;
+          return (
+            <ContentCard>
+              <ContentCard.Header>
+                <ContentCard.Header.Icon>
+                  <DataIcon aria-hidden="true" />
+                </ContentCard.Header.Icon>
+                <ContentCard.Header.Title>
+                  <a href={projectPath(project.id)} class="content-link text-fg">{project.displayName}</a>
+                </ContentCard.Header.Title>
+              </ContentCard.Header>
+              <ContentCard.Body>
+                {usage === null ? (
+                  <ContentCard.Body.Copy>
+                    <p class="field__message field__message--error">
+                      Could not load the figures for this project. Reload the page to try again.
+                    </p>
+                  </ContentCard.Body.Copy>
+                ) : (
+                  <ContentCard.Body.Stack>
+                    <ContentPanel className="content-panel--inset">
+                      <ContentPanel.Header>
+                        <ContentPanel.Header.Title>This minute</ContentPanel.Header.Title>
+                        <ContentPanel.Meta>
+                          <span class={minute!.exhausted ? "text-body text-gold" : "text-body text-fg"}>
+                            {minute!.label}
+                          </span>
+                        </ContentPanel.Meta>
+                      </ContentPanel.Header>
+                      <ContentPanel.Content>
+                        {minute!.percent === null ? (
+                          <p class="text-nav text-fg-subtle">This project has no plan, so nothing is granted to spend.</p>
+                        ) : (
+                          <div class="usage-bar" role="presentation">
+                            <span class="usage-bar__fill" style={`width:${minute!.percent}%`}></span>
+                          </div>
+                        )}
+                      </ContentPanel.Content>
+                    </ContentPanel>
+
+                    <ContentPanel className="content-panel--inset">
+                      <ContentPanel.Header>
+                        <ContentPanel.Header.Title>Today</ContentPanel.Header.Title>
+                        <ContentPanel.Meta>
+                          <span class={day!.exhausted ? "text-body text-gold" : "text-body text-fg"}>{day!.label}</span>
+                        </ContentPanel.Meta>
+                      </ContentPanel.Header>
+                      <ContentPanel.Content>
+                        {day!.percent !== null && (
+                          <div class="usage-bar" role="presentation">
+                            <span class="usage-bar__fill" style={`width:${day!.percent}%`}></span>
+                          </div>
+                        )}
+                        {neverCalled ? (
+                          <p class="text-nav text-fg-subtle mt-3">
+                            This project has not been called yet. Its first authenticated request appears here.
+                          </p>
+                        ) : (
+                          <div class="text-accent mt-3">
+                            <UsageSparkline
+                              points={usage.range.buckets}
+                              label={`${usage.range.total} requests between ${usage.range.from} and ${usage.range.to}`}
+                            />
+                          </div>
+                        )}
+                      </ContentPanel.Content>
+                    </ContentPanel>
+
+                    {usage.range.byRegistration.length > 0 && (
+                      <ContentPanel className="content-panel--inset">
+                        <ContentPanel.Header>
+                          <ContentPanel.Header.Title>By registration, last 24 hours</ContentPanel.Header.Title>
+                        </ContentPanel.Header>
+                        <ContentPanel.Content>
+                          <ul class="flex flex-col divide-y divide-border">
+                            {usage.range.byRegistration.map((entry) => (
+                              <li class="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
+                                <code class="text-code font-mono text-code-fg">{entry.registrationId}</code>
+                                <span class="text-body text-fg tabular-nums">{entry.total}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </ContentPanel.Content>
+                      </ContentPanel>
                     )}
-                  </ContentPanel.Content>
-                </ContentPanel>
-              </ContentCard.Body.Stack>
-            </ContentCard.Body>
-          </ContentCard>
-        ))}
+                  </ContentCard.Body.Stack>
+                )}
+              </ContentCard.Body>
+            </ContentCard>
+          );
+        })}
       </div>
     )
   }
-
-  <p class="card-content-inset icon-text-first-line text-body text-fg-subtle mt-6 gap-2">
-    <span class="icon-text-first-line__icon">
-      <DiagramIcon aria-hidden="true" />
-    </span>
-    Detailed request analytics are coming later. This page will grow with them.
-  </p>
 </DashboardLayout>

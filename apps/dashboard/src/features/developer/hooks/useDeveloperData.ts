@@ -14,7 +14,9 @@ import {
   fetchDeveloperAccounts,
   fetchDeveloperProject,
   fetchDeveloperProjects,
+  fetchProjectUsage,
   fetchTiers,
+  type ProjectUsageResponse,
   type TierResponse,
   updateDeveloperAccount,
   updateDeveloperProject,
@@ -51,6 +53,19 @@ export function useDeveloperProject(id: string) {
   return useQuery<DeveloperProjectDetail>({
     queryKey: ["developer", "project", id],
     queryFn: () => fetchDeveloperProject(id),
+    enabled: !!id,
+  });
+}
+
+/**
+ * One project's aggregated usage, with the quota it is measured against.
+ *
+ * @param id - The project; the query idles until it is known.
+ */
+export function useProjectUsage(id: string) {
+  return useQuery<ProjectUsageResponse>({
+    queryKey: ["developer", "project-usage", id],
+    queryFn: () => fetchProjectUsage(id),
     enabled: !!id,
   });
 }
