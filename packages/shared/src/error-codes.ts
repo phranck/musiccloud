@@ -15,6 +15,7 @@
  * | `DB`   | Database / persistence                                   |
  * | `CFG`  | Configuration / environment missing                      |
  * | `MAP`  | Mapping / malformed response data                        |
+ * | `BILL` | Billing: a Creem product, price or subscription operation |
  *
  * ## Number scheme (first digit of NNNN = adapter group)
  *
@@ -48,7 +49,7 @@
  * points at the file/function where the throw originates.
  */
 
-export type ErrorArea = "URL" | "API" | "AUTH" | "RES" | "DB" | "CFG" | "MAP" | "REQ" | "SYS";
+export type ErrorArea = "URL" | "API" | "AUTH" | "RES" | "DB" | "CFG" | "MAP" | "REQ" | "SYS" | "BILL";
 
 /**
  * Canonical error code. Narrow enough to distinguish areas in the type system,
@@ -221,6 +222,45 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     userMessage: "An unexpected server error occurred.",
     internalNote: "Global fallback for an unhandled backend exception.",
     source: "apps/backend/src/lib/infra/api-error-handler.ts",
+  },
+  // ─── Billing: Creem products ───────────────────────────────────────
+  "MC-BILL-0001": {
+    code: "MC-BILL-0001",
+    httpStatus: 502,
+    userMessage: "The product could not be created at Creem.",
+    internalNote: "Creem refused or could not be reached whilst creating a tier's product.",
+    source: "apps/backend/src/services/creem-products.ts createCreemProduct",
+  },
+  "MC-BILL-0002": {
+    code: "MC-BILL-0002",
+    httpStatus: 502,
+    userMessage: "The product's price could not be changed at Creem.",
+    internalNote: "Creem refused or could not be reached whilst updating a product.",
+    source: "apps/backend/src/services/creem-products.ts updateCreemProductPrice",
+  },
+  "MC-BILL-0003": {
+    code: "MC-BILL-0003",
+    httpStatus: 502,
+    userMessage: "The product could not be archived at Creem, so its mapping was kept.",
+    internalNote:
+      "Creem refused the archive. The mapping row is deliberately left in place, because removing it whilst the product is still active would leave a buyable product nothing points at.",
+    source: "apps/backend/src/services/creem-products.ts archiveCreemProduct",
+  },
+  "MC-BILL-0004": {
+    code: "MC-BILL-0004",
+    httpStatus: 409,
+    userMessage: "This plan already has a product for that interval in this environment.",
+    internalNote:
+      "One product per tier, interval and Creem environment, enforced by uq_tier_creem_products_tier_interval_mode.",
+    source: "apps/backend/src/routes/admin-creem-products.ts",
+  },
+  "MC-BILL-0005": {
+    code: "MC-BILL-0005",
+    httpStatus: 400,
+    userMessage: "This plan has no price for that interval, so it gets no Creem product.",
+    internalNote:
+      "Covers both a free tier, where Creem rejects a recurring product priced at zero and the price comes from the tiers table instead, and a tier with no yearly price, which is simply not sold yearly.",
+    source: "apps/backend/src/routes/admin-creem-products.ts",
   },
   "MC-SYS-0002": {
     code: "MC-SYS-0002",
@@ -412,7 +452,7 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
 };
 
 /** Pattern that recognises any well-formed MC error code, even if not in the registry. */
-export const MC_ERROR_CODE_PATTERN = /^MC-(URL|API|AUTH|RES|DB|CFG|MAP|REQ|SYS)-\d{3,4}$/;
+export const MC_ERROR_CODE_PATTERN = /^MC-(URL|API|AUTH|RES|DB|CFG|MAP|REQ|SYS|BILL)-\d{3,4}$/;
 
 /**
  * Resolve a raw code (MC or legacy) to its registry entry.
