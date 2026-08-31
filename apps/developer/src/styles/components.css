@@ -760,6 +760,36 @@
     background-color: var(--color-accent);
   }
 
+  /* The usage chart comes from `@musiccloud/dashboard-ui` and names no colour
+     of its own. These rules bind its parts to the portal's tokens; the
+     dashboard binds the same names to its own. */
+  .mc-usage-chart__bar {
+    fill: var(--color-accent);
+  }
+
+  .mc-usage-chart__grid line,
+  .mc-usage-chart__axis line,
+  .mc-usage-chart__axis path {
+    stroke: var(--color-border);
+  }
+
+  .mc-usage-chart__tick {
+    fill: var(--color-fg-subtle);
+  }
+
+  .mc-usage-chart__cursor {
+    fill: var(--color-border);
+    fill-opacity: 0.4;
+  }
+
+  .mc-usage-chart__tooltip .recharts-default-tooltip {
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-button);
+    background: var(--color-surface) !important;
+    color: var(--color-fg);
+    font-size: var(--text-code);
+  }
+
   .status-pill--success { color: var(--color-success); }
   .status-pill--warning { color: var(--color-warning); }
   .status-pill--danger { color: var(--color-danger); }

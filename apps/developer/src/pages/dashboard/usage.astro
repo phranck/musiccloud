@@ -15,7 +15,7 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout.astro";
 import { ApiContent } from "@/components/docs/ApiContent";
 import { ContentCard } from "@/components/docs/ContentCard";
 import { ContentPanel } from "@/components/docs/ContentPanel";
-import { UsageSparkline } from "@musiccloud/dashboard-ui";
+import { UsageChart } from "@musiccloud/dashboard-ui";
 import { iconForDashboardTab } from "@/lib/dashboardNavIcons";
 import { getOwnProjects, getProjectUsage } from "@/lib/apiAccessServer";
 import { DashboardTab } from "@/lib/dashboardTabs";
@@ -136,9 +136,13 @@ const PageIcon = iconForDashboardTab(DashboardTab.Usage);
                             This project has not been called yet. Its first authenticated request appears here.
                           </p>
                         ) : (
-                          <div class="text-accent mt-3">
-                            <UsageSparkline
+                          <div class="mt-3">
+                            {/* The chart measures its container, so it is the
+                                one island on this otherwise static page. */}
+                            <UsageChart
+                              client:visible
                               points={usage.range.buckets}
+                              bucket={usage.range.bucket === "day" ? "day" : "hour"}
                               label={`${usage.range.total} requests between ${usage.range.from} and ${usage.range.to}`}
                             />
                           </div>

@@ -8,4 +8,5 @@ export * from "./ListboxPopover.js";
 export * from "./ListboxPrimitives.js";
 export * from "./SegmentedControlPrimitive.js";
 export * from "./SegmentedControlPrimitiveTypes.js";
-export * from "./UsageSparkline.js";
+export * from "./UsageChart.js";
+export * from "./usageChartContract.js";
