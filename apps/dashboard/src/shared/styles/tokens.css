@@ -262,3 +262,33 @@
   --ds-badge-review-bg: hsl(270 30% 25%);
   --ds-badge-review-text: hsl(270 80% 80%);
 }
+
+/* The usage chart draws through `@musiccloud/dashboard-ui`, which names no
+   colour of its own. These four rules bind its parts to the dashboard's
+   tokens; the portal binds the same names to its own. */
+.mc-usage-chart__bar {
+  fill: var(--ds-accent);
+}
+
+.mc-usage-chart__grid line,
+.mc-usage-chart__axis line,
+.mc-usage-chart__axis path {
+  stroke: var(--ds-border);
+}
+
+.mc-usage-chart__tick {
+  fill: var(--ds-text-muted);
+}
+
+.mc-usage-chart__cursor {
+  fill: var(--ds-border);
+  fill-opacity: 0.4;
+}
+
+.mc-usage-chart__tooltip .recharts-default-tooltip {
+  border: 1px solid var(--ds-border) !important;
+  border-radius: 8px;
+  background: var(--ds-surface) !important;
+  color: var(--ds-text);
+  font-size: 12px;
+}

@@ -56,6 +56,17 @@ const config = {
         files: ["src/components/docs/Sidebar.tsx"],
         rules: ["react-doctor/only-export-components"],
       },
+      /**
+       * This file is the chart's drawing half, and it exists precisely so the
+       * charting library can be split out of every bundle that does not draw
+       * one: `UsageChart.tsx` reaches it through `lazy(() => import(...))`.
+       * The rule sees a static import of a heavy library and asks for the fix
+       * that is already in place one file above it.
+       */
+      {
+        files: ["src/primitives/UsageChartFigure.tsx"],
+        rules: ["react-doctor/prefer-dynamic-import"],
+      },
       {
         files: ["src/components/docs/SearchDialog.tsx"],
         rules: [

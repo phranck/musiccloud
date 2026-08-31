@@ -1,4 +1,4 @@
-import { UsageSparkline } from "@musiccloud/dashboard-ui";
+import { UsageChart, type UsageChartBucketValue } from "@musiccloud/dashboard-ui";
 import { ChartLine as ChartLineIcon } from "@phosphor-icons/react";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { dashboardCopy } from "@/copy/dashboard";
@@ -87,12 +87,11 @@ export function ProjectUsageSection({ projectId }: ProjectUsageSectionProps) {
             {neverCalled ? (
               <p className="text-xs text-[var(--ds-text-muted)]">{dm.projectUsageNeverCalled}</p>
             ) : (
-              <div className="text-[var(--ds-accent)]">
-                <UsageSparkline
-                  points={data.range.buckets}
-                  label={`${data.range.total} requests between ${data.range.from} and ${data.range.to}`}
-                />
-              </div>
+              <UsageChart
+                points={data.range.buckets}
+                bucket={data.range.bucket as UsageChartBucketValue}
+                label={`${data.range.total} requests between ${data.range.from} and ${data.range.to}`}
+              />
             )}
           </div>
         )}
