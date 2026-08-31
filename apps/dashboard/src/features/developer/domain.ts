@@ -39,3 +39,24 @@ export const DeveloperAccountStatus = {
   Suspended: "suspended",
 } as const;
 export type DeveloperAccountStatus = (typeof DeveloperAccountStatus)[keyof typeof DeveloperAccountStatus];
+
+/**
+ * The two Creem environments, matching the check constraint on
+ * `tier_creem_products.mode`. They are separate accounts sharing nothing, so
+ * one plan and interval has a different product id in each.
+ */
+export const CreemMode = {
+  Test: "test",
+  Live: "live",
+} as const;
+export type CreemMode = (typeof CreemMode)[keyof typeof CreemMode];
+
+/**
+ * The billing intervals a plan can be sold at, matching the check constraint
+ * on `tier_creem_products.interval`.
+ */
+export const BillingInterval = {
+  Month: "month",
+  Year: "year",
+} as const;
+export type BillingInterval = (typeof BillingInterval)[keyof typeof BillingInterval];

@@ -1,4 +1,5 @@
 import { ENDPOINTS } from "@musiccloud/shared";
+import type { BillingInterval, CreemMode } from "@/features/developer/domain";
 import { api } from "@/lib/api";
 
 export interface DeveloperPortalAvailability {
@@ -348,4 +349,73 @@ export function updateTier(
 
 export function deleteTier(id: string): Promise<void> {
   return api.delete(ENDPOINTS.admin.developer.tierDetail(id));
+}
+
+/** One tier's Creem product in one environment. */
+export interface CreemProductMapping {
+  tierId: string;
+  /** One of {@link BillingInterval}. */
+  interval: BillingInterval;
+  /** Which Creem environment holds this product. */
+  mode: CreemMode;
+  /** The Creem product id. */
+  creemProductId: string;
+}
+
+/**
+ * Every Creem product mapping, plus the environment this backend can write to.
+ *
+ * A backend holds one API key and therefore talks to one Creem account. The
+ * editor shows both environments so an operator can see what still has to be
+ * set up, and lets them change only the one `mode` names.
+ */
+export interface CreemProductsResponse {
+  mode: CreemMode;
+  products: CreemProductMapping[];
+}
+
+export function fetchCreemProducts(): Promise<CreemProductsResponse> {
+  return api.get<CreemProductsResponse>(ENDPOINTS.admin.developer.creemProducts);
+}
+
+/**
+ * Creates the product for a tier and interval at Creem, or records one that
+ * was created in the Creem dashboard.
+ *
+ * @param body - The tier and interval, and optionally an existing product id.
+ */
+export function createCreemProduct(body: {
+  tierId: string;
+  interval: BillingInterval;
+  creemProductId?: string;
+}): Promise<CreemProductMapping> {
+  return api.post<CreemProductMapping>(ENDPOINTS.admin.developer.creemProducts, body);
+}
+
+/**
+ * Changes the product's price at Creem, keeping its id and its subscriptions.
+ *
+ * @param tierId - The tier the product belongs to.
+ * @param interval - Which of the tier's products to reprice.
+ * @param priceCents - The new price in cents.
+ */
+export function updateCreemProductPrice(
+  tierId: string,
+  interval: BillingInterval,
+  priceCents: number,
+): Promise<CreemProductMapping & { price: number; currency: string }> {
+  return api.patch<CreemProductMapping & { price: number; currency: string }>(
+    ENDPOINTS.admin.developer.creemProductDetail(tierId, interval),
+    { priceCents },
+  );
+}
+
+/**
+ * Archives the product at Creem and removes its mapping, as one operation.
+ *
+ * @param tierId - The tier the product belongs to.
+ * @param interval - Which of the tier's products to archive.
+ */
+export function archiveCreemProduct(tierId: string, interval: BillingInterval): Promise<void> {
+  return api.delete(ENDPOINTS.admin.developer.creemProductDetail(tierId, interval));
 }

@@ -2,7 +2,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   type ApiAccessOverview,
   activateToken,
+  archiveCreemProduct,
+  type CreemProductsResponse,
   createClientToken,
+  createCreemProduct,
   createTier,
   type DeveloperAccountResponse,
   type DeveloperProjectDetail,
@@ -10,6 +13,7 @@ import {
   deleteDeveloperAccount,
   deleteTier,
   fetchApiAccessOverview,
+  fetchCreemProducts,
   fetchDeveloperAccount,
   fetchDeveloperAccounts,
   fetchDeveloperProject,
@@ -18,11 +22,13 @@ import {
   fetchTiers,
   type ProjectUsageResponse,
   type TierResponse,
+  updateCreemProductPrice,
   updateDeveloperAccount,
   updateDeveloperProject,
   updateDeveloperProjectSubscription,
   updateTier,
 } from "@/features/developer/api";
+import type { BillingInterval } from "@/features/developer/domain";
 
 export function useApiAccessOverview() {
   return useQuery<ApiAccessOverview>({
@@ -232,6 +238,55 @@ export function useDeleteTier() {
   return useMutation({
     mutationFn: deleteTier,
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["developer", "tiers"] });
+    },
+  });
+}
+
+/**
+ * Every Creem product mapping across both environments, plus which of the two
+ * this backend can write to.
+ */
+export function useCreemProducts() {
+  return useQuery<CreemProductsResponse>({
+    queryKey: ["developer", "creem-products"],
+    queryFn: fetchCreemProducts,
+  });
+}
+
+export function useCreateCreemProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: createCreemProduct,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["developer", "creem-products"] });
+    },
+  });
+}
+
+export function useUpdateCreemProductPrice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ tierId, interval, priceCents }: { tierId: string; interval: BillingInterval; priceCents: number }) =>
+      updateCreemProductPrice(tierId, interval, priceCents),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["developer", "creem-products"] });
+    },
+  });
+}
+
+/**
+ * Archives the product at Creem and removes its mapping. The tier list is
+ * invalidated too, because the pricing page's price follows the product and a
+ * tier without one falls back to its own column.
+ */
+export function useArchiveCreemProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ tierId, interval }: { tierId: string; interval: BillingInterval }) =>
+      archiveCreemProduct(tierId, interval),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["developer", "creem-products"] });
       qc.invalidateQueries({ queryKey: ["developer", "tiers"] });
     },
   });

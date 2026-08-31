@@ -504,6 +504,10 @@ function defaultHttpStatusForArea(area: ErrorArea): number {
       return 500;
     case "REQ":
       return 400;
+    case "BILL":
+      // A billing failure is the payment provider refusing or unreachable,
+      // which is an upstream problem rather than ours.
+      return 502;
   }
 }
 
@@ -517,6 +521,8 @@ function defaultMessageForArea(area: ErrorArea): string {
       return "We couldn't authenticate against an external service.";
     case "RES":
       return "We couldn't resolve this request.";
+    case "BILL":
+      return "A billing operation could not be completed.";
     case "CFG":
       return "A required configuration is missing on the server.";
     case "DB":
