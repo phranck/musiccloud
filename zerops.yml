@@ -81,6 +81,15 @@ zerops:
           timing: "* * * * *"
           allContainers: false
           workingDir: /var/www
+        # Daily usage retention. `api_usage_events` gains a row per
+        # authenticated request, so something has to take rows away again.
+        # The period lives in the script; `docs/api-usage-retention.md`
+        # explains it. Deleting an already-deleted row is a no-op, so a
+        # missed night is caught up by the next one.
+        - command: "node apps/backend/dist/scripts/api-usage-retention.js"
+          timing: "17 3 * * *"
+          allContainers: false
+          workingDir: /var/www
 
   - setup: frontend
     build:

@@ -19,6 +19,8 @@ import type { DeveloperAccount } from "../db/developer-repository.js";
 import { getApiAccessRepository, getDeveloperRepository, getTierRepository } from "../db/index.js";
 import { requireOwnerOrAdmin } from "../lib/admin-caller.js";
 import { generateApiToken } from "../services/api-access-token.js";
+import { buildApiUsageReport } from "../services/api-usage-report.js";
+import { isUsageWindowRejection, resolveUsageWindow } from "../services/api-usage-window.js";
 import { notifyDeveloper } from "../services/developer-notifications.js";
 
 /**
@@ -181,6 +183,19 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
         ),
       ),
     });
+  });
+
+  app.get(ROUTE_TEMPLATES.admin.developer.apiAccess.projectUsage, async (request, reply) => {
+    if (!(await requireOwnerOrAdmin(request, reply))) return;
+    const { id } = request.params as { id: string };
+    const repo = await getApiAccessRepository();
+    const project = await repo.findDeveloperProjectById(id);
+    if (!project) return reply.status(404).send({ error: "NOT_FOUND", message: "Project not found." });
+    const window = resolveUsageWindow(request.query as { from?: string; to?: string }, Date.now());
+    if (isUsageWindowRejection(window)) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: window.message });
+    }
+    return reply.send(await buildApiUsageReport(repo, project, window, Date.now()));
   });
 
   app.patch(ROUTE_TEMPLATES.admin.developer.apiAccess.projectDetail, async (request, reply) => {

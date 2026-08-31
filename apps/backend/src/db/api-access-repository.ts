@@ -169,6 +169,47 @@ export interface ApiUsageEvent {
   durationMs: number;
 }
 
+/** How wide one step of a usage series is. */
+export const UsageBucket = {
+  Hour: "hour",
+  Day: "day",
+} as const;
+
+/** A {@link UsageBucket} member value. */
+export type UsageBucketValue = (typeof UsageBucket)[keyof typeof UsageBucket];
+
+/** How many requests one registration made inside the summarised range. */
+export interface ApiUsageByRegistration {
+  registrationId: string;
+  total: number;
+}
+
+/** One step of the series, stamped with the moment the step begins. */
+export interface ApiUsageBucket {
+  startedAt: number;
+  total: number;
+}
+
+/**
+ * What one project's traffic looked like over a bounded range.
+ *
+ * Every field is an aggregate. No caller receives rows, because the table
+ * gains one on every authenticated request and a list of them answers no
+ * question an interface asks.
+ *
+ * @property bucket - The step width the series was grouped by, chosen from the
+ *   range rather than requested, so a caller cannot ask for a series of
+ *   unbounded length.
+ */
+export interface ApiUsageSummary {
+  from: number;
+  to: number;
+  bucket: UsageBucketValue;
+  total: number;
+  byRegistration: ApiUsageByRegistration[];
+  buckets: ApiUsageBucket[];
+}
+
 /**
  * Persistence contract for the API-access system. See the file-level
  * comment for scope and the shared-ownership rationale.
@@ -353,6 +394,47 @@ export interface ApiAccessRepository {
     actorDeveloperAccountId?: string | null;
     eventData?: Record<string, unknown>;
   }): Promise<ApiAccessAuditEvent>;
+
+  /**
+   * Counts one project's authenticated requests inside a half-open range.
+   *
+   * This is what a quota reading is made of: the same window the limiter
+   * enforces, counted from what was actually served.
+   *
+   * @param projectId - The project to count for.
+   * @param from - Start of the range, epoch ms, inclusive.
+   * @param to - End of the range, epoch ms, exclusive.
+   * @returns How many requests fall inside it.
+   */
+  countProjectUsage(projectId: string, from: number, to: number): Promise<number>;
+
+  /**
+   * Aggregates one project's traffic over a bounded range.
+   *
+   * @param projectId - The project to summarise.
+   * @param from - Start of the range, epoch ms, inclusive.
+   * @param to - End of the range, epoch ms, exclusive.
+   * @param bucket - The step width for the series.
+   * @returns The total, the split by registration, and the series.
+   */
+  summariseProjectUsage(
+    projectId: string,
+    from: number,
+    to: number,
+    bucket: UsageBucketValue,
+  ): Promise<ApiUsageSummary>;
+
+  /**
+   * Removes usage rows older than the cutoff.
+   *
+   * The table gains a row on every authenticated request, so it needs
+   * something that takes rows away again. See `docs/api-usage-retention.md`
+   * for the rule and what runs this.
+   *
+   * @param cutoff - Epoch ms; rows that occurred before it are deleted.
+   * @returns How many rows were removed.
+   */
+  deleteApiUsageEventsBefore(cutoff: number): Promise<number>;
 
   /** Persists safe project-scoped usage metadata for one completed request. */
   createApiUsageEvent(data: {

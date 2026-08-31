@@ -12,8 +12,10 @@ import type {
   ApiClient,
   ApiClientToken,
   ApiUsageEvent,
+  ApiUsageSummary,
   DeveloperProject,
   DeveloperProjectSubscription,
+  UsageBucketValue,
 } from "../api-access-repository.js";
 import { dateToMs } from "./postgres-shared.js";
 
@@ -908,6 +910,75 @@ export async function createApiAccessAuditEvent(
     ],
   );
   return rowToApiAccessAuditEvent(result.rows[0] as ApiAccessAuditEventRow);
+}
+
+export async function countProjectUsage(pool: Pool, projectId: string, from: number, to: number): Promise<number> {
+  const result = await pool.query(
+    `SELECT COUNT(*)::int AS total
+     FROM api_usage_events
+     WHERE project_id = $1 AND occurred_at >= $2 AND occurred_at < $3`,
+    [projectId, new Date(from), new Date(to)],
+  );
+  return (result.rows[0] as { total: number }).total;
+}
+
+/**
+ * Aggregates one project's traffic in two queries: the split by registration
+ * and the series. Both are grouped in Postgres rather than in the process,
+ * because the row count over a range is exactly what must not travel.
+ *
+ * `date_trunc` supplies the step, and the series carries only the steps that
+ * saw traffic; a caller drawing a chart fills the gaps, which is cheaper than
+ * generating an empty row per step across a month.
+ */
+export async function summariseProjectUsage(
+  pool: Pool,
+  projectId: string,
+  from: number,
+  to: number,
+  bucket: UsageBucketValue,
+): Promise<ApiUsageSummary> {
+  const range = [projectId, new Date(from), new Date(to)];
+  const [byRegistration, buckets] = await Promise.all([
+    pool.query(
+      `SELECT registration_id, COUNT(*)::int AS total
+       FROM api_usage_events
+       WHERE project_id = $1 AND occurred_at >= $2 AND occurred_at < $3
+       GROUP BY registration_id
+       ORDER BY total DESC, registration_id`,
+      range,
+    ),
+    pool.query(
+      `SELECT date_trunc($4, occurred_at) AS started_at, COUNT(*)::int AS total
+       FROM api_usage_events
+       WHERE project_id = $1 AND occurred_at >= $2 AND occurred_at < $3
+       GROUP BY started_at
+       ORDER BY started_at`,
+      [...range, bucket],
+    ),
+  ]);
+
+  const perRegistration = byRegistration.rows.map((row) => {
+    const typed = row as { registration_id: string; total: number };
+    return { registrationId: typed.registration_id, total: typed.total };
+  });
+
+  return {
+    from,
+    to,
+    bucket,
+    total: perRegistration.reduce((sum, entry) => sum + entry.total, 0),
+    byRegistration: perRegistration,
+    buckets: buckets.rows.map((row) => {
+      const typed = row as { started_at: Date; total: number };
+      return { startedAt: dateToMs(typed.started_at), total: typed.total };
+    }),
+  };
+}
+
+export async function deleteApiUsageEventsBefore(pool: Pool, cutoff: number): Promise<number> {
+  const result = await pool.query(`DELETE FROM api_usage_events WHERE occurred_at < $1`, [new Date(cutoff)]);
+  return result.rowCount ?? 0;
 }
 
 export async function createApiUsageEvent(

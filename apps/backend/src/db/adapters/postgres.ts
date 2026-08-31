@@ -39,8 +39,10 @@ import type {
   ApiClient,
   ApiClientToken,
   ApiUsageEvent,
+  ApiUsageSummary,
   DeveloperProject,
   DeveloperProjectSubscription,
+  UsageBucketValue,
 } from "../api-access-repository.js";
 import type {
   DeveloperAccount,
@@ -137,11 +139,13 @@ import {
   activateApiClientToken as apiAccessActivateClientToken,
   countActiveApiClientsByProject as apiAccessCountActiveClientsByProject,
   countDeveloperProjectsAgainstCeiling as apiAccessCountActiveProjectsByAccount,
+  countProjectUsage as apiAccessCountProjectUsage,
   createApiAccessAuditEvent as apiAccessCreateAuditEvent,
   createApiClient as apiAccessCreateClient,
   createApiClientToken as apiAccessCreateClientToken,
   createDeveloperProject as apiAccessCreateDeveloperProject,
   createApiUsageEvent as apiAccessCreateUsageEvent,
+  deleteApiUsageEventsBefore as apiAccessDeleteUsageEventsBefore,
   findActiveApiClientByTokenHash as apiAccessFindActiveClientByTokenHash,
   findApiClientById as apiAccessFindClientById,
   findApiClientTokenById as apiAccessFindClientTokenById,
@@ -155,6 +159,7 @@ import {
   revokeApiClientToken as apiAccessRevokeClientToken,
   rotateApiClientToken as apiAccessRotateClientToken,
   setDeveloperProjectSubscription as apiAccessSetDeveloperProjectSubscription,
+  summariseProjectUsage as apiAccessSummariseProjectUsage,
   touchApiClientTokenLastUsed as apiAccessTouchClientTokenLastUsed,
   updateApiClient as apiAccessUpdateClient,
   updateDeveloperProject as apiAccessUpdateDeveloperProject,
@@ -1340,6 +1345,23 @@ export class PostgresAdapter
     eventData?: Record<string, unknown>;
   }): Promise<ApiAccessAuditEvent> {
     return apiAccessCreateAuditEvent(this.pool, data);
+  }
+
+  countProjectUsage(projectId: string, from: number, to: number): Promise<number> {
+    return apiAccessCountProjectUsage(this.pool, projectId, from, to);
+  }
+
+  summariseProjectUsage(
+    projectId: string,
+    from: number,
+    to: number,
+    bucket: UsageBucketValue,
+  ): Promise<ApiUsageSummary> {
+    return apiAccessSummariseProjectUsage(this.pool, projectId, from, to, bucket);
+  }
+
+  deleteApiUsageEventsBefore(cutoff: number): Promise<number> {
+    return apiAccessDeleteUsageEventsBefore(this.pool, cutoff);
   }
 
   createApiUsageEvent(data: {
