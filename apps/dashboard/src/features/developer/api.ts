@@ -106,6 +106,41 @@ export interface ApiAccessOverview {
   clients: ApiClientResponse[];
 }
 
+/**
+ * The subscription row that grants a project its plan.
+ *
+ * It is separate from the project because a plan has a life of its own: it is
+ * bought, it renews, and it can be cancelled whilst the project stays.
+ */
+export interface DeveloperProjectSubscriptionResponse {
+  id: string;
+  projectId: string;
+  tierId: string | null;
+  creemSubscriptionId: string | null;
+  creemCustomerId: string | null;
+  status: string;
+  interval: string | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * One project with everything the detail screen shows.
+ *
+ * The route answers with all three in one response, so the screen needs no
+ * second call to list the registrations under the project.
+ *
+ * @property subscription - The granting subscription, or `null` when the
+ *   project has no plan and therefore no quota.
+ */
+export interface DeveloperProjectDetail {
+  project: DeveloperProjectResponse;
+  subscription: DeveloperProjectSubscriptionResponse | null;
+  registrations: ApiClientResponse[];
+}
+
 export interface DeveloperAccountResponse {
   id: string;
   email: string;
@@ -156,6 +191,10 @@ export function fetchDeveloperProjects(accountId: string): Promise<{ projects: D
   return api.get<{ projects: DeveloperProjectResponse[] }>(
     ENDPOINTS.admin.developer.apiAccess.accountProjects(accountId),
   );
+}
+
+export function fetchDeveloperProject(id: string): Promise<DeveloperProjectDetail> {
+  return api.get<DeveloperProjectDetail>(ENDPOINTS.admin.developer.apiAccess.projectDetail(id));
 }
 
 export function updateDeveloperProject(

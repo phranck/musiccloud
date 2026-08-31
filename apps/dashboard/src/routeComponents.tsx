@@ -120,6 +120,12 @@ export const ServicesPage = lazy(() =>
   })),
 );
 
+export const ProjectDetailPage = lazy(() =>
+  import("@/features/developer/ProjectDetailPage").then((m) => ({
+    default: m.ProjectDetailPage,
+  })),
+);
+
 export const ApiClientsPage = lazy(() =>
   import("@/features/developer/ApiClientsPage").then((m) => ({
     default: m.ApiClientsPage,
