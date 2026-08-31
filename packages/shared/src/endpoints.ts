@@ -395,10 +395,17 @@ export const ENDPOINTS = {
        * PATCH: change the product's price at Creem, keeping its id.
        * DELETE: archive it at Creem and remove the mapping, as one operation.
        *
-       * Both act in the Creem environment the backend's API key puts it in.
+       * The environment is part of the path, because an operator maintains the
+       * live products whilst the shop still sells from the sandbox.
        */
-      creemProductDetail: (tierId: string, interval: string) =>
-        `/api/admin/developer/creem-products/${encodeURIComponent(tierId)}/${encodeURIComponent(interval)}`,
+      creemProductDetail: (tierId: string, interval: string, mode: string) =>
+        `/api/admin/developer/creem-products/${encodeURIComponent(tierId)}/${encodeURIComponent(interval)}/${encodeURIComponent(mode)}`,
+      /**
+       * GET / PATCH: which Creem environment the shop sells from. This is the
+       * switch that decides whether a purchase moves real money, so it is a
+       * stored setting rather than a consequence of the deployed key.
+       */
+      creemSellingMode: "/api/admin/developer/creem-selling-mode",
     },
   },
 
@@ -559,7 +566,7 @@ export const ROUTE_TEMPLATES = {
       accounts: "/api/admin/developer/accounts",
       accountDetail: "/api/admin/developer/accounts/:id",
       tierDetail: "/api/admin/developer/tiers/:id",
-      creemProductDetail: "/api/admin/developer/creem-products/:tierId/:interval",
+      creemProductDetail: "/api/admin/developer/creem-products/:tierId/:interval/:mode",
     },
     emailTemplates: {
       detail: "/api/admin/email-templates/:id",

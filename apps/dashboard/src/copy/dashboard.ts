@@ -277,8 +277,8 @@ export const dashboardCopy = {
       "What a customer actually pays is the Creem product's price, and the pricing page follows it. Each plan has one product per billing interval in each environment.",
     creemEnvironmentTest: "Test",
     creemEnvironmentLive: "Live",
-    creemReadOnlyEnvironment:
-      "This backend is running with a {mode} key, so it can only change {mode} products. To set the other environment up, run it with that account's key.",
+    creemNoKeyForEnvironment:
+      "No Creem API key is configured for {mode}, so nothing here can be changed. Add that account's key to the backend to set it up.",
     creemIntervalMonth: "Monthly",
     creemIntervalYear: "Yearly",
     creemNoProduct: "No product yet",
@@ -292,6 +292,17 @@ export const dashboardCopy = {
     creemArchiveConfirmBody:
       "Creem has no delete: the product is archived and keeps its id forever. Its mapping is removed in the same step, so the pricing page falls back to the plan's own price.",
     creemSaveOnceFirst: "Save the plan first. A product needs a plan to belong to.",
+    creemSellingTitle: "Selling environment",
+    creemSellingDescription:
+      "Which Creem account a purchase goes through. On Test nothing is charged and no card is touched, which is where it stays whilst you are trying things out. On Live a purchase takes real money.",
+    creemSellingCurrent: "Selling from",
+    creemSellingTestNote:
+      "Test is the Creem sandbox, the development environment. Purchases work end to end and charge nobody.",
+    creemSellingNoKey: "No Creem API key is configured for {mode}, so it cannot be selected.",
+    creemSellingMissingProducts: "These plans have no {mode} product yet: {plans}",
+    creemSellingLiveWarning:
+      "Switching to Live means the next purchase charges a real card. Everything the pricing page offers becomes buyable for real money.",
+    creemSellingConfirm: "Switch to Live",
     settingsTitle: "Developer Settings",
     availabilityTitle: "Portal availability",
     availabilityDescription: "Control whether the Developer Portal is publicly available.",

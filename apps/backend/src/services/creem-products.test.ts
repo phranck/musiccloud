@@ -11,7 +11,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../lib/creem-config.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/creem-config.js")>()),
-  getCreemConfig: vi.fn(() => ({ apiKey: "creem_test_secret", mode: "test", webhookSecret: undefined })),
+  getCreemConfig: vi.fn(() => ({ apiKeys: { test: "creem_test_secret" }, webhookSecret: undefined })),
+  requireCreemApiKey: vi.fn(() => "creem_test_secret"),
 }));
 
 vi.mock("../lib/infra/logger.js", () => ({
@@ -47,7 +48,7 @@ describe("updateCreemProductPrice", () => {
       response(200, JSON.stringify({ id: "prod_1", price: 1490, currency: "EUR", status: "active" })),
     );
 
-    const product = await updateCreemProductPrice("prod_1", 1490);
+    const product = await updateCreemProductPrice("test", "prod_1", 1490);
 
     expect(product.price).toBe(1490);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit & { headers: Record<string, string> }];
@@ -62,7 +63,7 @@ describe("updateCreemProductPrice", () => {
       response(200, JSON.stringify({ id: "p", price: 1, currency: "EUR", status: "active" })),
     );
 
-    await updateCreemProductPrice("prod_1", 1490);
+    await updateCreemProductPrice("test", "prod_1", 1490);
 
     expect((fetchMock.mock.calls[0]?.[1] as RequestInit).redirect).toBe("manual");
   });
@@ -70,15 +71,15 @@ describe("updateCreemProductPrice", () => {
   it("reports a refusal as MC-BILL-0002 and logs it as a deviation", async () => {
     fetchMock.mockResolvedValue(response(422, '{"error":"price too low"}'));
 
-    await expect(updateCreemProductPrice("prod_1", 1)).rejects.toBeInstanceOf(CreemProductError);
-    await expect(updateCreemProductPrice("prod_1", 1)).rejects.toMatchObject({ code: "MC-BILL-0002" });
+    await expect(updateCreemProductPrice("test", "prod_1", 1)).rejects.toBeInstanceOf(CreemProductError);
+    await expect(updateCreemProductPrice("test", "prod_1", 1)).rejects.toMatchObject({ code: "MC-BILL-0002" });
     expect(vi.mocked(log.deviation).mock.calls[0]?.[0]?.errorCode).toBe("MC-BILL-0002");
   });
 
   it("keeps the API key out of what it throws and logs", async () => {
     fetchMock.mockResolvedValue(response(500, "upstream exploded"));
 
-    const error = await updateCreemProductPrice("prod_1", 1490).catch((thrown: Error) => thrown);
+    const error = await updateCreemProductPrice("test", "prod_1", 1490).catch((thrown: Error) => thrown);
 
     expect(JSON.stringify(error)).not.toContain("creem_test_secret");
     expect(JSON.stringify(vi.mocked(log.deviation).mock.calls)).not.toContain("creem_test_secret");
@@ -89,7 +90,7 @@ describe("archiveCreemProduct", () => {
   it("sends a DELETE with no body and accepts an empty response", async () => {
     fetchMock.mockResolvedValue(response(204, ""));
 
-    await expect(archiveCreemProduct("prod_1")).resolves.toBeUndefined();
+    await expect(archiveCreemProduct("test", "prod_1")).resolves.toBeUndefined();
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("https://test-api.creem.io/v1/products/prod_1");
@@ -100,6 +101,6 @@ describe("archiveCreemProduct", () => {
   it("reports a refusal as MC-BILL-0003, which is what keeps the mapping row", async () => {
     fetchMock.mockResolvedValue(response(409, '{"error":"cannot archive"}'));
 
-    await expect(archiveCreemProduct("prod_1")).rejects.toMatchObject({ code: "MC-BILL-0003" });
+    await expect(archiveCreemProduct("test", "prod_1")).rejects.toMatchObject({ code: "MC-BILL-0003" });
   });
 });

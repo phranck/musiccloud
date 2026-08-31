@@ -122,9 +122,20 @@ down to its meaningful inner slots.
   at zero. Its price comes from our own `tiers` table.
 - Test and live are separate Creem accounts that share nothing, so one plan and
   interval has a different product id in each. `tier_creem_products` carries a
-  `mode` column and holds both at once. Anything that talks to Creem reads only
-  the rows matching `getCreemConfig().mode`; only the admin surface reads both,
-  because a product id does not resolve against the other environment.
+  `mode` column and holds both at once.
+- Two different questions decide an environment, and they must not be merged.
+  Which environment an operator is maintaining comes from the request, so the
+  tier editor can build the live products whilst the shop still sells from the
+  sandbox. Which environment customers buy from is the stored
+  `creem_selling_mode` setting, read by `getSellingMode()`, and it is the one
+  control whose change makes a purchase charge a real card.
+- A deployment holds a key per environment, in `CREEM_TEST_API_KEY` and
+  `CREEM_LIVE_API_KEY`. Every key is checked against the variable it sits in,
+  and an environment with no key is refused rather than falling back to the
+  other account. `CREEM_API_KEY` still works and fills the slot its own prefix
+  names.
+- Changing the selling environment resets the catalogue cache. Without that the
+  pricing page quotes the previous environment for up to five minutes.
 
 ## GitHub Project execution queue
 

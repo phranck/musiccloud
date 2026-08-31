@@ -363,14 +363,16 @@ export interface CreemProductMapping {
 }
 
 /**
- * Every Creem product mapping, plus the environment this backend can write to.
+ * Every Creem product mapping, plus the environments this deployment can act
+ * on at all.
  *
- * A backend holds one API key and therefore talks to one Creem account. The
- * editor shows both environments so an operator can see what still has to be
- * set up, and lets them change only the one `mode` names.
+ * An environment is missing from `writableModes` when no API key is configured
+ * for it, which is the normal state before the live account exists. The editor
+ * still shows it, so an operator sees what is not set up yet rather than a
+ * control that simply fails.
  */
 export interface CreemProductsResponse {
-  mode: CreemMode;
+  writableModes: CreemMode[];
   products: CreemProductMapping[];
 }
 
@@ -387,6 +389,7 @@ export function fetchCreemProducts(): Promise<CreemProductsResponse> {
 export function createCreemProduct(body: {
   tierId: string;
   interval: BillingInterval;
+  mode: CreemMode;
   creemProductId?: string;
 }): Promise<CreemProductMapping> {
   return api.post<CreemProductMapping>(ENDPOINTS.admin.developer.creemProducts, body);
@@ -397,15 +400,17 @@ export function createCreemProduct(body: {
  *
  * @param tierId - The tier the product belongs to.
  * @param interval - Which of the tier's products to reprice.
+ * @param mode - The Creem environment the product lives in.
  * @param priceCents - The new price in cents.
  */
 export function updateCreemProductPrice(
   tierId: string,
   interval: BillingInterval,
+  mode: CreemMode,
   priceCents: number,
 ): Promise<CreemProductMapping & { price: number; currency: string }> {
   return api.patch<CreemProductMapping & { price: number; currency: string }>(
-    ENDPOINTS.admin.developer.creemProductDetail(tierId, interval),
+    ENDPOINTS.admin.developer.creemProductDetail(tierId, interval, mode),
     { priceCents },
   );
 }
@@ -415,7 +420,41 @@ export function updateCreemProductPrice(
  *
  * @param tierId - The tier the product belongs to.
  * @param interval - Which of the tier's products to archive.
+ * @param mode - The Creem environment the product lives in.
  */
-export function archiveCreemProduct(tierId: string, interval: BillingInterval): Promise<void> {
-  return api.delete(ENDPOINTS.admin.developer.creemProductDetail(tierId, interval));
+export function archiveCreemProduct(tierId: string, interval: BillingInterval, mode: CreemMode): Promise<void> {
+  return api.delete(ENDPOINTS.admin.developer.creemProductDetail(tierId, interval, mode));
+}
+
+/** Whether one Creem environment could be sold from, and what is missing if not. */
+export interface CreemModeReadiness {
+  mode: CreemMode;
+  /** Whether this deployment holds an API key for that environment. */
+  hasKey: boolean;
+  /** Buyable plans that have no product there yet, named for the operator. */
+  missingProducts: string[];
+}
+
+/** Which environment the shop sells from, and what each one would need. */
+export interface CreemSellingModeResponse {
+  sellingMode: CreemMode;
+  configuredModes: CreemMode[];
+  readiness: CreemModeReadiness[];
+}
+
+export function fetchCreemSellingMode(): Promise<CreemSellingModeResponse> {
+  return api.get<CreemSellingModeResponse>(ENDPOINTS.admin.developer.creemSellingMode);
+}
+
+/**
+ * Moves the shop to another Creem environment.
+ *
+ * This is the switch that decides whether a purchase charges a real card. The
+ * server refuses an environment it holds no key for, and one where a buyable
+ * plan has no product yet.
+ *
+ * @param sellingMode - The environment to sell from.
+ */
+export function updateCreemSellingMode(sellingMode: CreemMode): Promise<CreemSellingModeResponse> {
+  return api.patch<CreemSellingModeResponse>(ENDPOINTS.admin.developer.creemSellingMode, { sellingMode });
 }

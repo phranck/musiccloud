@@ -9,11 +9,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // Mock the creem-config module so getCreemConfig is fully under our control.
 vi.mock("../lib/creem-config.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/creem-config.js")>()),
-  getCreemConfig: vi.fn(() => ({
-    apiKey: "creem_test_x",
-    mode: "test",
-    webhookSecret: undefined,
-  })),
+  getCreemConfig: vi.fn(() => ({ apiKeys: { test: "creem_test_x" }, webhookSecret: undefined })),
+  requireCreemApiKey: vi.fn(() => "creem_test_x"),
 }));
 
 // Mock the creem SDK so no real HTTP client is constructed.
@@ -34,29 +31,29 @@ describe("getCreemClient (MC-110)", () => {
 
   it("returns a defined client instance", async () => {
     const { getCreemClient } = await import("./creem-client.js");
-    const client = getCreemClient();
+    const client = getCreemClient("test");
     expect(client).toBeDefined();
   });
 
   it("returns the same instance on subsequent calls (singleton)", async () => {
     const { getCreemClient } = await import("./creem-client.js");
-    const first = getCreemClient();
-    const second = getCreemClient();
+    const first = getCreemClient("test");
+    const second = getCreemClient("test");
     expect(first).toBe(second);
   });
 
   it("constructs the Creem client exactly once across two calls", async () => {
     const { Creem } = await import("creem");
     const { getCreemClient } = await import("./creem-client.js");
-    getCreemClient();
-    getCreemClient();
+    getCreemClient("test");
+    getCreemClient("test");
     expect(Creem).toHaveBeenCalledTimes(1);
   });
 
   it("passes server 'test' and the apiKey to the Creem constructor for test-mode config", async () => {
     const { Creem } = await import("creem");
     const { getCreemClient } = await import("./creem-client.js");
-    getCreemClient();
+    getCreemClient("test");
     expect(Creem).toHaveBeenCalledWith({
       server: "test",
       apiKey: "creem_test_x",

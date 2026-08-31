@@ -64,13 +64,13 @@ beforeEach(() => {
 
 /** The default answer: this backend holds a sandbox key and nothing is mapped. */
 function withNoProducts() {
-  mocks.fetchCreemProducts.mockResolvedValue({ mode: "test", products: [] });
+  mocks.fetchCreemProducts.mockResolvedValue({ writableModes: ["test"], products: [] });
 }
 
 describe("TierCreemProductsSection", () => {
   it("shows the product id of the environment on show", async () => {
     mocks.fetchCreemProducts.mockResolvedValue({
-      mode: "test",
+      writableModes: ["test"],
       products: [
         { tierId: "tier_club", interval: "month", mode: "test", creemProductId: "prod_sandbox" },
         { tierId: "tier_club", interval: "month", mode: "live", creemProductId: "prod_live" },
@@ -85,7 +85,7 @@ describe("TierCreemProductsSection", () => {
 
   it("switches to the other environment and shows that one's product instead", async () => {
     mocks.fetchCreemProducts.mockResolvedValue({
-      mode: "test",
+      writableModes: ["test"],
       products: [
         { tierId: "tier_club", interval: "month", mode: "test", creemProductId: "prod_sandbox" },
         { tierId: "tier_club", interval: "month", mode: "live", creemProductId: "prod_live" },
@@ -100,9 +100,9 @@ describe("TierCreemProductsSection", () => {
     expect(screen.queryByText("prod_sandbox")).toBeNull();
   });
 
-  it("offers no action in the environment this backend has no key for", async () => {
+  it("offers no action in an environment this deployment has no key for", async () => {
     mocks.fetchCreemProducts.mockResolvedValue({
-      mode: "test",
+      writableModes: ["test"],
       products: [{ tierId: "tier_club", interval: "month", mode: "live", creemProductId: "prod_live" }],
     });
 
@@ -111,7 +111,7 @@ describe("TierCreemProductsSection", () => {
 
     expect(screen.queryByText(dm.creemArchive)).toBeNull();
     expect(screen.queryByText(dm.creemCreate)).toBeNull();
-    expect(screen.getByText(dm.creemReadOnlyEnvironment.replaceAll("{mode}", dm.creemEnvironmentTest))).not.toBeNull();
+    expect(screen.getByText(dm.creemNoKeyForEnvironment.replaceAll("{mode}", dm.creemEnvironmentLive))).not.toBeNull();
   });
 
   it("says a plan with no price for an interval gets no product there", async () => {
@@ -131,13 +131,17 @@ describe("TierCreemProductsSection", () => {
     // Only the first argument: react-query hands the mutation function a
     // context object as its second, which says nothing about this call.
     await waitFor(() =>
-      expect(mocks.createCreemProduct.mock.calls[0]?.[0]).toEqual({ tierId: "tier_club", interval: "month" }),
+      expect(mocks.createCreemProduct.mock.calls[0]?.[0]).toEqual({
+        tierId: "tier_club",
+        interval: "month",
+        mode: "test",
+      }),
     );
   });
 
   it("asks before archiving, because Creem keeps the product forever", async () => {
     mocks.fetchCreemProducts.mockResolvedValue({
-      mode: "test",
+      writableModes: ["test"],
       products: [{ tierId: "tier_club", interval: "month", mode: "test", creemProductId: "prod_sandbox" }],
     });
 
@@ -150,6 +154,6 @@ describe("TierCreemProductsSection", () => {
     const [confirm] = screen.getAllByText(dm.creemArchive);
     await userEvent.click(confirm as HTMLElement);
 
-    await waitFor(() => expect(mocks.archiveCreemProduct).toHaveBeenCalledWith("tier_club", "month"));
+    await waitFor(() => expect(mocks.archiveCreemProduct).toHaveBeenCalledWith("tier_club", "month", "test"));
   });
 });

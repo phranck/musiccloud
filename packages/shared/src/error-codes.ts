@@ -262,6 +262,22 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
       "Covers both a free tier, where Creem rejects a recurring product priced at zero and the price comes from the tiers table instead, and a tier with no yearly price, which is simply not sold yearly.",
     source: "apps/backend/src/routes/admin-creem-products.ts",
   },
+  "MC-BILL-0006": {
+    code: "MC-BILL-0006",
+    httpStatus: 409,
+    userMessage: "This deployment holds no Creem key for that environment.",
+    internalNote:
+      "A write or a selling-mode change named an environment with no configured key. Refusing is deliberate: the alternative is reaching the other Creem account.",
+    source: "apps/backend/src/routes/admin-creem-products.ts",
+  },
+  "MC-BILL-0007": {
+    code: "MC-BILL-0007",
+    httpStatus: 409,
+    userMessage: "Some plans have no product in that environment yet, so the pricing page would lose their prices.",
+    internalNote:
+      "The selling environment cannot move to an environment where an enabled paid plan has no product. The response names which ones are missing.",
+    source: "apps/backend/src/routes/admin-creem-products.ts",
+  },
   "MC-SYS-0002": {
     code: "MC-SYS-0002",
     httpStatus: 503,

@@ -64,8 +64,10 @@ function tierHasPriceFor(tier: TierResponse, interval: BillingInterval): boolean
 interface TierCreemProductRowProps {
   tier: TierResponse;
   interval: (typeof INTERVALS)[number];
+  /** The environment on show, which every action here acts in. */
+  mode: CreemMode;
   mapping: CreemProductMapping | undefined;
-  /** Whether this backend's key lets it write to the environment on show. */
+  /** Whether this deployment holds a key for that environment. */
   writable: boolean;
 }
 
@@ -79,7 +81,7 @@ interface TierCreemProductRowProps {
  * @param props - See {@link TierCreemProductRowProps}.
  * @returns The row.
  */
-function TierCreemProductRow({ tier, interval, mapping, writable }: TierCreemProductRowProps) {
+function TierCreemProductRow({ tier, interval, mode, mapping, writable }: TierCreemProductRowProps) {
   const createProduct = useCreateCreemProduct();
   const repriceProduct = useUpdateCreemProductPrice();
   const archiveProduct = useArchiveCreemProduct();
@@ -93,20 +95,20 @@ function TierCreemProductRow({ tier, interval, mapping, writable }: TierCreemPro
   const busy = createProduct.isPending || repriceProduct.isPending || archiveProduct.isPending;
 
   function handleCreate() {
-    createProduct.mutate({ tierId: tier.id, interval: interval.value });
+    createProduct.mutate({ tierId: tier.id, interval: interval.value, mode });
   }
 
   function handleAttach() {
-    createProduct.mutate({ tierId: tier.id, interval: interval.value, creemProductId: attachDraft.trim() });
+    createProduct.mutate({ tierId: tier.id, interval: interval.value, mode, creemProductId: attachDraft.trim() });
   }
 
   function handleReprice() {
     if (priceCents === undefined) return;
-    repriceProduct.mutate({ tierId: tier.id, interval: interval.value, priceCents });
+    repriceProduct.mutate({ tierId: tier.id, interval: interval.value, mode, priceCents });
   }
 
   function handleArchive() {
-    archiveProduct.mutate({ tierId: tier.id, interval: interval.value });
+    archiveProduct.mutate({ tierId: tier.id, interval: interval.value, mode });
     setConfirmingArchive(false);
   }
 
@@ -233,11 +235,13 @@ export interface TierCreemProductsSectionProps {
  * A plan's Creem products, one per billing interval, in whichever environment
  * the switch is showing.
  *
- * The switch changes what is displayed and never what the backend talks to.
- * One process holds one Creem API key and therefore reaches one account, so
- * the environment it is not in is shown read-only with the reason stated. That
- * is what makes the section usable during the move to live, when the sandbox
- * has to keep working whilst the live products are created.
+ * The switch says which environment is being maintained, not which one
+ * customers buy from. That second question is the selling switch in the
+ * developer settings, and keeping the two apart is what lets an operator build
+ * the live products whilst the shop still sells from the sandbox.
+ *
+ * An environment this deployment holds no key for is shown read-only, because
+ * the alternative is a control that fails when pressed.
  *
  * @param props - See {@link TierCreemProductsSectionProps}.
  * @returns The Creem products section.
@@ -246,11 +250,11 @@ export function TierCreemProductsSection({ tier }: TierCreemProductsSectionProps
   const { data } = useCreemProducts();
   const [shownMode, setShownMode] = useState<CreemMode>(CreemMode.Test);
 
-  const writableMode = data?.mode;
-  const writable = writableMode === shownMode;
-  // The notice names the environment this backend can write to, not the one on
-  // show: what the reader needs is which key it is running with.
-  const writableLabel = writableMode === CreemMode.Live ? dm.creemEnvironmentLive : dm.creemEnvironmentTest;
+  // An environment with no configured key cannot be acted on at all. The rows
+  // still show what is in it, because knowing that nothing is set up there yet
+  // is the point of looking.
+  const writable = data?.writableModes.includes(shownMode) ?? false;
+  const shownLabel = shownMode === CreemMode.Live ? dm.creemEnvironmentLive : dm.creemEnvironmentTest;
 
   function mappingFor(interval: BillingInterval): CreemProductMapping | undefined {
     return data?.products.find(
@@ -276,9 +280,7 @@ export function TierCreemProductsSection({ tier }: TierCreemProductsSectionProps
         <p className="mb-3 text-xs text-[var(--ds-text-muted)]">{dm.creemIntro}</p>
 
         {!writable && (
-          <p className="mb-3 text-xs text-amber-400">
-            {dm.creemReadOnlyEnvironment.replaceAll("{mode}", writableLabel)}
-          </p>
+          <p className="mb-3 text-xs text-amber-400">{dm.creemNoKeyForEnvironment.replaceAll("{mode}", shownLabel)}</p>
         )}
 
         <div className="space-y-3">
@@ -287,6 +289,7 @@ export function TierCreemProductsSection({ tier }: TierCreemProductsSectionProps
               key={interval.value}
               tier={tier}
               interval={interval}
+              mode={shownMode}
               mapping={mappingFor(interval.value)}
               writable={writable}
             />

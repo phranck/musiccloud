@@ -1,18 +1,23 @@
 /**
- * @file Creem SDK client factory (MC-110). Provides a lazily-created singleton
- * instance of the Creem SDK client so that the underlying HTTP client and
- * connection pool are shared across the process lifetime.
+ * @file Creem SDK client factory (MC-110). Provides one lazily-created client
+ * per Creem environment, so the underlying HTTP client and connection pool are
+ * shared across the process lifetime.
+ *
+ * There is a client per environment rather than one per process because test
+ * and live are separate accounts and this backend may hold a key for both: the
+ * tier editor maintains products in each, whilst the shop sells from whichever
+ * one is switched on.
  */
 import { Creem, ServerList, ServerProd, ServerTest } from "creem";
-import { CreemMode, type CreemModeValue, getCreemConfig } from "../lib/creem-config.js";
+import { CreemMode, type CreemModeValue, requireCreemApiKey } from "../lib/creem-config.js";
 
-/** Module-level singleton. `null` until the first call to `getCreemClient`. */
-let instance: Creem | null = null;
+/** One cached client per environment, filled on first use. */
+const instances = new Map<CreemModeValue, Creem>();
 
 /**
  * Maps one of our Creem environments onto the SDK's own server key.
  *
- * @param mode - The environment the process is running in.
+ * @param mode - The environment to reach.
  * @returns The key the SDK uses to look the base URL up.
  */
 function serverKeyFor(mode: CreemModeValue): keyof typeof ServerList {
@@ -20,44 +25,47 @@ function serverKeyFor(mode: CreemModeValue): keyof typeof ServerList {
 }
 
 /**
- * Returns the Creem base URL for the environment this process runs in.
+ * Returns the Creem base URL for one environment.
  *
  * The value comes from the SDK's own `ServerList` rather than from a constant
  * of ours, so the operations we call directly reach exactly the host the SDK
  * would have used. `creem@1.5.3` covers 42 of the API's 55 operations, and
  * `products.update` and `products.archive` are among the missing ones.
  *
+ * @param mode - The environment to reach.
  * @returns The base URL, without a trailing slash.
  */
-export function getCreemBaseUrl(): string {
-  return ServerList[serverKeyFor(getCreemConfig().mode)];
+export function getCreemBaseUrl(mode: CreemModeValue): string {
+  return ServerList[serverKeyFor(mode)];
 }
 
 /**
- * Returns the singleton Creem SDK client for this process.
+ * Returns the shared Creem SDK client for one environment.
  *
- * On the first call the function reads the runtime config via
- * `getCreemConfig()` and constructs a `Creem` instance with:
- * - `server`: set to `ServerTest` ("test") or `ServerProd` ("prod") based on
- *   `config.mode`. The mode is derived from the `CREEM_API_KEY` prefix
- *   (`creem_test_` means test mode, anything else means live), so a test key
- *   can never accidentally reach the live Creem API.
- * - `apiKey`: the raw value of `CREEM_API_KEY`, passed as the `x-api-key`
- *   authentication header by the SDK on every request.
+ * The client is constructed on first use with that environment's key and the
+ * matching server, and cached for the process lifetime, because the SDK keeps
+ * an internal HTTP client with connection pooling.
  *
- * Subsequent calls return the cached instance without re-reading the config
- * or constructing a new client. The singleton is intentional: the Creem SDK
- * maintains an internal HTTP client with connection pooling, and re-creating
- * it on every call would waste resources and lose those benefits.
- *
- * @returns The shared `Creem` SDK client instance.
+ * @param mode - The environment to talk to.
+ * @returns The client for that environment.
+ * @throws Error when this deployment holds no key for that environment. It
+ *   never falls back to the other one, because reaching the wrong Creem
+ *   account is the failure this whole split exists to prevent.
  */
-export function getCreemClient(): Creem {
-  if (instance) return instance;
-  const { apiKey, mode } = getCreemConfig();
-  instance = new Creem({
-    server: serverKeyFor(mode),
-    apiKey,
-  });
-  return instance;
+export function getCreemClient(mode: CreemModeValue): Creem {
+  const cached = instances.get(mode);
+  if (cached) return cached;
+
+  const client = new Creem({ server: serverKeyFor(mode), apiKey: requireCreemApiKey(mode) });
+  instances.set(mode, client);
+  return client;
+}
+
+/**
+ * Drops every cached client, so the next call reads the environment again.
+ *
+ * Exported for tests, which change the configured keys between cases.
+ */
+export function resetCreemClients(): void {
+  instances.clear();
 }

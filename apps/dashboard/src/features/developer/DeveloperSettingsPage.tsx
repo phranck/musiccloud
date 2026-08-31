@@ -16,6 +16,7 @@ import {
   updateDeveloperLimits,
   updateDeveloperPortalAvailability,
 } from "@/features/developer/api";
+import { CreemSellingModeSection } from "@/features/developer/components/CreemSellingModeSection";
 
 const PORTAL_AVAILABILITY_QUERY_KEY = ["admin", "developer", "portal-availability"] as const;
 const DEVELOPER_LIMITS_QUERY_KEY = ["admin", "developer", "limits"] as const;
@@ -173,6 +174,8 @@ export function DeveloperSettingsPage() {
         </DashboardSection>
 
         <SelfServiceLimitsSection />
+
+        <CreemSellingModeSection />
       </div>
     </PageLayout>
   );

@@ -13,7 +13,7 @@
  * our mapping row are two halves of one operation and never done separately.
  */
 
-import { getCreemConfig } from "../lib/creem-config.js";
+import { type CreemModeValue, requireCreemApiKey } from "../lib/creem-config.js";
 import { log } from "../lib/infra/logger.js";
 import { getCreemBaseUrl, getCreemClient } from "./creem-client.js";
 
@@ -83,6 +83,7 @@ export class CreemProductError extends Error {
  * and the path is built here, so a redirect could only move the request
  * somewhere nobody chose, and the key travels on the request.
  *
+ * @param mode - The Creem environment to reach.
  * @param method - The HTTP method.
  * @param path - The path below the base URL, starting with a slash.
  * @param body - The JSON body, or `undefined` for a request without one.
@@ -91,9 +92,9 @@ export class CreemProductError extends Error {
  *   message carries the status and Creem's own text, which is safe to log and
  *   never contains the key.
  */
-async function callCreemDirectly(method: string, path: string, body?: unknown): Promise<unknown> {
-  const { apiKey } = getCreemConfig();
-  const response = await fetch(`${getCreemBaseUrl()}${path}`, {
+async function callCreemDirectly(mode: CreemModeValue, method: string, path: string, body?: unknown): Promise<unknown> {
+  const apiKey = requireCreemApiKey(mode);
+  const response = await fetch(`${getCreemBaseUrl(mode)}${path}`, {
     method,
     redirect: "manual",
     signal: AbortSignal.timeout(CREEM_REQUEST_TIMEOUT_MS),
@@ -121,14 +122,15 @@ async function callCreemDirectly(method: string, path: string, body?: unknown): 
  * It writes nothing to our database, because the mapping row and the product
  * are stored by the route that knows which tier and interval they belong to.
  *
+ * @param mode - The Creem environment to create it in.
  * @param draft - What the product should be.
  * @returns The created product, with the id Creem assigned.
  * @throws {CreemProductError} With `MC-BILL-0001` when Creem refuses or cannot
  *   be reached.
  */
-export async function createCreemProduct(draft: CreemProductDraft): Promise<CreemProduct> {
+export async function createCreemProduct(mode: CreemModeValue, draft: CreemProductDraft): Promise<CreemProduct> {
   try {
-    const product = await getCreemClient().products.create({
+    const product = await getCreemClient(mode).products.create({
       name: draft.name,
       description: draft.description,
       price: draft.priceCents,
@@ -144,7 +146,7 @@ export async function createCreemProduct(draft: CreemProductDraft): Promise<Cree
         errorCode: "MC-BILL-0001",
         operation: "creem_product_create",
         outcome: "creem_product_not_created",
-        mode: getCreemConfig().mode,
+        mode,
       },
       error,
     );
@@ -159,15 +161,20 @@ export async function createCreemProduct(draft: CreemProductDraft): Promise<Cree
  * row stays valid and every existing subscription keeps pointing at the same
  * product. That is why this exists at all instead of archive-and-recreate.
  *
+ * @param mode - The Creem environment the product lives in.
  * @param productId - The Creem product to change.
  * @param priceCents - The new price in cents.
  * @returns The product as Creem holds it afterwards.
  * @throws {CreemProductError} With `MC-BILL-0002` when Creem refuses or cannot
  *   be reached.
  */
-export async function updateCreemProductPrice(productId: string, priceCents: number): Promise<CreemProduct> {
+export async function updateCreemProductPrice(
+  mode: CreemModeValue,
+  productId: string,
+  priceCents: number,
+): Promise<CreemProduct> {
   try {
-    const updated = (await callCreemDirectly("PATCH", `/v1/products/${encodeURIComponent(productId)}`, {
+    const updated = (await callCreemDirectly(mode, "PATCH", `/v1/products/${encodeURIComponent(productId)}`, {
       price: priceCents,
     })) as { id: string; price: number; currency: string; status: string };
     return { id: updated.id, price: updated.price, currency: updated.currency, status: updated.status };
@@ -178,7 +185,7 @@ export async function updateCreemProductPrice(productId: string, priceCents: num
         errorCode: "MC-BILL-0002",
         operation: "creem_product_update",
         outcome: "creem_product_not_updated",
-        mode: getCreemConfig().mode,
+        mode,
         creemProductId: productId,
       },
       error,
@@ -196,13 +203,14 @@ export async function updateCreemProductPrice(productId: string, priceCents: num
  * unbuyable price on the pricing page, which is worse than an error because it
  * looks like it works.
  *
+ * @param mode - The Creem environment the product lives in.
  * @param productId - The Creem product to archive.
  * @throws {CreemProductError} With `MC-BILL-0003` when Creem refuses or cannot
  *   be reached, in which case the mapping row must be left alone.
  */
-export async function archiveCreemProduct(productId: string): Promise<void> {
+export async function archiveCreemProduct(mode: CreemModeValue, productId: string): Promise<void> {
   try {
-    await callCreemDirectly("DELETE", `/v1/products/${encodeURIComponent(productId)}`);
+    await callCreemDirectly(mode, "DELETE", `/v1/products/${encodeURIComponent(productId)}`);
   } catch (error) {
     log.deviation(
       {
@@ -210,7 +218,7 @@ export async function archiveCreemProduct(productId: string): Promise<void> {
         errorCode: "MC-BILL-0003",
         operation: "creem_product_archive",
         outcome: "creem_product_not_archived",
-        mode: getCreemConfig().mode,
+        mode,
         creemProductId: productId,
       },
       error,

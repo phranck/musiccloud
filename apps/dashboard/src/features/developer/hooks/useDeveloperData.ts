@@ -4,6 +4,7 @@ import {
   activateToken,
   archiveCreemProduct,
   type CreemProductsResponse,
+  type CreemSellingModeResponse,
   createClientToken,
   createCreemProduct,
   createTier,
@@ -14,6 +15,7 @@ import {
   deleteTier,
   fetchApiAccessOverview,
   fetchCreemProducts,
+  fetchCreemSellingMode,
   fetchDeveloperAccount,
   fetchDeveloperAccounts,
   fetchDeveloperProject,
@@ -23,12 +25,13 @@ import {
   type ProjectUsageResponse,
   type TierResponse,
   updateCreemProductPrice,
+  updateCreemSellingMode,
   updateDeveloperAccount,
   updateDeveloperProject,
   updateDeveloperProjectSubscription,
   updateTier,
 } from "@/features/developer/api";
-import type { BillingInterval } from "@/features/developer/domain";
+import type { BillingInterval, CreemMode } from "@/features/developer/domain";
 
 export function useApiAccessOverview() {
   return useQuery<ApiAccessOverview>({
@@ -267,8 +270,17 @@ export function useCreateCreemProduct() {
 export function useUpdateCreemProductPrice() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ tierId, interval, priceCents }: { tierId: string; interval: BillingInterval; priceCents: number }) =>
-      updateCreemProductPrice(tierId, interval, priceCents),
+    mutationFn: ({
+      tierId,
+      interval,
+      mode,
+      priceCents,
+    }: {
+      tierId: string;
+      interval: BillingInterval;
+      mode: CreemMode;
+      priceCents: number;
+    }) => updateCreemProductPrice(tierId, interval, mode, priceCents),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["developer", "creem-products"] });
     },
@@ -283,10 +295,38 @@ export function useUpdateCreemProductPrice() {
 export function useArchiveCreemProduct() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ tierId, interval }: { tierId: string; interval: BillingInterval }) =>
-      archiveCreemProduct(tierId, interval),
+    mutationFn: ({ tierId, interval, mode }: { tierId: string; interval: BillingInterval; mode: CreemMode }) =>
+      archiveCreemProduct(tierId, interval, mode),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["developer", "creem-products"] });
+      qc.invalidateQueries({ queryKey: ["developer", "tiers"] });
+    },
+  });
+}
+
+/**
+ * Which Creem environment the shop sells from, and what each environment would
+ * need before it could be sold from.
+ */
+export function useCreemSellingMode() {
+  return useQuery<CreemSellingModeResponse>({
+    queryKey: ["developer", "creem-selling-mode"],
+    queryFn: fetchCreemSellingMode,
+  });
+}
+
+/**
+ * Moves the shop to another Creem environment.
+ *
+ * The catalogue behind the pricing page follows the selling environment, so
+ * the tier list is invalidated with it.
+ */
+export function useUpdateCreemSellingMode() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: updateCreemSellingMode,
+    onSuccess: (next) => {
+      qc.setQueryData(["developer", "creem-selling-mode"], next);
       qc.invalidateQueries({ queryKey: ["developer", "tiers"] });
     },
   });
