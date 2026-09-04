@@ -50,14 +50,9 @@
  * pathological inputs cannot reach the FTS5 text search. The selected
  * candidate is a shorter serialized identifier, hence the tighter limit.
  */
-import type {
-  ResolveDisambiguationResponse,
-  ResolveErrorResponse,
-  UnifiedResolveSuccessResponse,
-} from "@musiccloud/shared";
+import type { ResolveDisambiguationResponse, ResolveErrorResponse } from "@musiccloud/shared";
 import { ENDPOINTS, getErrorEntry } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
-import { getRepository } from "../db/index.js";
 import { STRUCTURED_SEARCH_OPENAPI_SECTION, STRUCTURED_SEARCH_POST_OPENAPI_NOTE } from "../docs/resolve-openapi.js";
 import { requireEnvList } from "../lib/env.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
@@ -65,15 +60,9 @@ import { log } from "../lib/infra/logger.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { isAlbumUrl, isArtistUrl, isUrl, stripTrackingParams } from "../lib/platform/url.js";
-import { getPreviewExpiry } from "../lib/preview-url.js";
-import { normalizeReleaseDate } from "../lib/release-date.js";
 import { ResolveError } from "../lib/resolve/errors.js";
-import { toApiLinks } from "../lib/server/api-links.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
-import { createAlbumIdentityKey } from "../services/album-identity.js";
-import type { AlbumResolutionResult } from "../services/album-resolver.js";
 import { resolveAlbumUrl } from "../services/album-resolver.js";
-import type { ArtistResolutionResult } from "../services/artist-resolver.js";
 import { resolveArtistUrl } from "../services/artist-resolver.js";
 import {
   GenreQueryParseError,
@@ -83,8 +72,11 @@ import {
   runGenreBrowse,
   runGenreSearch,
 } from "../services/genre-search/index.js";
-import { persistResolution } from "../services/persist-resolution.js";
-import type { ResolutionResult } from "../services/resolver.js";
+import {
+  persistAlbumAndRespond,
+  persistArtistAndRespond,
+  persistTrackAndRespond,
+} from "../services/resolve-response.js";
 import {
   expandShortLink,
   resolveQuery,
@@ -97,7 +89,6 @@ import {
   parseStructuredSearchQuery,
   StructuredSearchQueryParseError,
 } from "../services/structured-search/index.js";
-import { resolveTrackVinylLayout } from "../services/track-vinyl-layout.js";
 
 /**
  * Whitelist sourced from env `ALLOWED_ORIGINS` (comma-separated). The full
@@ -391,218 +382,5 @@ function toDisambiguationResponse(
       ...(albumName === undefined ? {} : { albumName }),
       ...(artworkUrl === undefined ? {} : { artworkUrl }),
     })),
-  };
-}
-
-/**
- * Persists a track resolve result, opportunistically refreshes a stale
- * Deezer preview, and shapes the unified success response. The logic is
- * identical to `persistAndRespond` in `routes/resolve-public-get.ts`
- * (track branch); see that file for the full rationale on the
- * `inputUrl` alias write, the Deezer preview refresh, and the
- * double-stripping of tracking params.
- *
- * @param result - resolver output (source track + cross-service links)
- * @param origin - already-validated origin used to mint the short URL
- * @returns unified success payload with `type: "track"`
- */
-async function persistTrackAndRespond(
-  result: ResolutionResult,
-  origin: string,
-): Promise<UnifiedResolveSuccessResponse> {
-  const { trackId, shortId, refreshedPreviewUrl, artistCredits } = await persistResolution(result);
-  const repo = await getRepository();
-  const vinylLayout = await resolveTrackVinylLayout(repo, result.sourceTrack);
-  const shortUrl = `${origin}/${shortId}`;
-
-  return {
-    type: "track",
-    id: trackId,
-    shortUrl,
-    track: {
-      title: result.sourceTrack.title,
-      artists: result.sourceTrack.artists,
-      artistCredits,
-      albumName: result.sourceTrack.albumName,
-      artworkUrl: result.sourceTrack.artworkUrl,
-      durationMs: result.sourceTrack.durationMs,
-      isrc: result.sourceTrack.isrc,
-      releaseDate: normalizeReleaseDate(result.sourceTrack.releaseDate) ?? undefined,
-      isExplicit: result.sourceTrack.isExplicit,
-      previewUrl: refreshedPreviewUrl,
-      vinylLayout,
-    },
-    links: toApiLinks(result.links, { stripTracking: true }),
-  };
-}
-
-/**
- * Persists an album resolve result and shapes the unified success response.
- *
- * Album payloads carry `previewUrl` pointing at the album's lead-off
- * track preview, because the frontend renders an inline player on the
- * album share page. The album resolver may or may not have populated
- * `topTrackPreviewUrl` (depends on the source service); if the source
- * left it empty, this function looks through the resolved cross-service
- * links for a Deezer entry that does have a preview URL. Deezer is the
- * fallback of choice because it is keyless and has broad preview
- * coverage.
- *
- * Unlike tracks, there is no inline staleness check here: the fallback
- * writes whatever Deezer served into the DB, and a later refresh of the
- * individual track rows will pick up any expired signed URLs.
- *
- * @param result - album resolver output (source album + cross-service links)
- * @param origin - already-validated origin used to mint the short URL
- * @returns unified success payload with `type: "album"`
- */
-async function persistAlbumAndRespond(
-  result: AlbumResolutionResult,
-  origin: string,
-): Promise<UnifiedResolveSuccessResponse> {
-  const repo = await getRepository();
-
-  let previewUrl = result.sourceAlbum.topTrackPreviewUrl;
-  let previewService: string | null = previewUrl ? (result.sourceAlbum.sourceService ?? null) : null;
-  if (!previewUrl) {
-    const deezerLink = result.links.find((l) => l.service === "deezer" && l.topTrackPreviewUrl);
-    if (deezerLink?.topTrackPreviewUrl) {
-      previewUrl = deezerLink.topTrackPreviewUrl;
-      previewService = "deezer";
-    }
-  }
-
-  const { albumId, shortId, artistCredits } = await repo.persistAlbumWithLinks({
-    sourceAlbum: {
-      ...result.sourceAlbum,
-      sourceUrl: result.sourceAlbum.webUrl,
-      previewUrl,
-    },
-    links: result.links.map((l) => ({
-      service: l.service,
-      url: stripTrackingParams(l.url),
-      confidence: l.confidence,
-      matchMethod: l.matchMethod,
-      externalId: l.externalId,
-    })),
-  });
-
-  // Persist the resolved album preview into `album_previews`. The
-  // canonical `albums` row no longer carries a preview column; reads
-  // pull the best preview from `album_previews` via subquery.
-  if (previewUrl && previewService) {
-    const expiresAtMs = getPreviewExpiry(previewUrl, previewService);
-    try {
-      await repo.upsertAlbumPreview(albumId, {
-        service: previewService,
-        url: previewUrl,
-        expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
-      });
-    } catch (err) {
-      log.debug("Resolve", "Album preview persist failed:", err instanceof Error ? err.message : String(err));
-    }
-  }
-
-  if (result.externalIds.length > 0) {
-    try {
-      await repo.addAlbumExternalIds(albumId, result.externalIds);
-    } catch (err) {
-      log.debug("Resolve", "Album external-id persist failed:", err instanceof Error ? err.message : String(err));
-    }
-  }
-
-  const albumIdentity = createAlbumIdentityKey({
-    artists: result.sourceAlbum.artists,
-    title: result.sourceAlbum.title,
-  });
-
-  if (albumIdentity && !result.albumId) {
-    try {
-      await repo.enrichVinylLayout({
-        identityKey: albumIdentity,
-        title: result.sourceAlbum.title,
-        artists: result.sourceAlbum.artists,
-        albumId,
-        upc: result.sourceAlbum.upc,
-      });
-    } catch (err) {
-      log.debug("Resolve", "Album vinyl-layout enrichment failed:", err instanceof Error ? err.message : String(err));
-    }
-  }
-  const vinylLayout = albumIdentity ? await repo.readVinylLayout(albumIdentity) : undefined;
-
-  const shortUrl = `${origin}/${shortId}`;
-
-  return {
-    type: "album",
-    id: albumId,
-    shortUrl,
-    album: {
-      title: result.sourceAlbum.title,
-      artists: result.sourceAlbum.artists,
-      artistCredits,
-      releaseDate: normalizeReleaseDate(result.sourceAlbum.releaseDate) ?? undefined,
-      totalTracks: result.sourceAlbum.totalTracks,
-      artworkUrl: result.sourceAlbum.artworkUrl,
-      label: result.sourceAlbum.label,
-      upc: result.sourceAlbum.upc,
-      previewUrl,
-      vinylLayout: vinylLayout ?? null,
-    },
-    links: toApiLinks(result.links, { stripTracking: true }),
-  };
-}
-
-/**
- * Persists an artist resolve result and shapes the unified success response.
- *
- * Unlike track and album, the artist payload has no `previewUrl` - an
- * artist is not a playable unit, so there is no Deezer refresh path and
- * no preview-URL threading.
- *
- * @param result - artist resolver output (source artist + cross-service links)
- * @param origin - already-validated origin used to mint the short URL
- * @returns unified success payload with `type: "artist"`
- */
-async function persistArtistAndRespond(
-  result: ArtistResolutionResult,
-  origin: string,
-): Promise<UnifiedResolveSuccessResponse> {
-  const repo = await getRepository();
-
-  const { artistId, shortId } = await repo.persistArtistWithLinks({
-    sourceArtist: {
-      ...result.sourceArtist,
-      sourceUrl: result.sourceArtist.webUrl,
-    },
-    links: result.links.map((l) => ({
-      service: l.service,
-      url: stripTrackingParams(l.url),
-      confidence: l.confidence,
-      matchMethod: l.matchMethod,
-      externalId: l.externalId,
-    })),
-  });
-
-  if (result.externalIds.length > 0) {
-    try {
-      await repo.addArtistExternalIds(artistId, result.externalIds);
-    } catch (err) {
-      log.debug("Resolve", "Artist external-id persist failed:", err instanceof Error ? err.message : String(err));
-    }
-  }
-
-  const shortUrl = `${origin}/${shortId}`;
-
-  return {
-    type: "artist",
-    id: artistId,
-    shortUrl,
-    artist: {
-      name: result.sourceArtist.name,
-      imageUrl: result.sourceArtist.imageUrl,
-      genres: result.sourceArtist.genres,
-    },
-    links: toApiLinks(result.links, { stripTracking: true }),
   };
 }
