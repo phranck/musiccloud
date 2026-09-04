@@ -1,11 +1,6 @@
 import type { VinylLayout } from "@musiccloud/shared";
 import { describe, expect, it, vi } from "vitest";
-import {
-  readCachedAlbumVinylLayout,
-  refreshAlbumVinylLayout,
-  resolveAlbumVinylLayout,
-  resolveTrackVinylLayout,
-} from "./track-vinyl-layout.js";
+import { readCachedAlbumVinylLayout, resolveAlbumVinylLayout, resolveTrackVinylLayout } from "./track-vinyl-layout.js";
 
 const layout: VinylLayout = {
   discogsReleaseId: "10013707",
@@ -91,6 +86,23 @@ describe("resolveTrackVinylLayout", () => {
 });
 
 describe("resolveAlbumVinylLayout", () => {
+  /**
+   * A share open reaches this function on every request, so a stored layout has
+   * to answer without touching Discogs. Enriching on a hit would put an upstream
+   * round-trip on the read path of every Creative Commons share page.
+   */
+  it("answers from the stored layout without enriching", async () => {
+    const repo = createRepository();
+    repo.readVinylLayout.mockResolvedValue(layout);
+
+    await expect(resolveAlbumVinylLayout(repo, { artists: ["Jimmy Smith"], title: "The Sermon!" })).resolves.toEqual(
+      layout,
+    );
+
+    expect(repo.enrichVinylLayout).not.toHaveBeenCalled();
+    expect(repo.readVinylLayout).toHaveBeenCalledTimes(1);
+  });
+
   it("shares the identity cache and enrichment flow with track resolves", async () => {
     const repo = createRepository();
     repo.readVinylLayout.mockResolvedValueOnce(undefined).mockResolvedValueOnce(layout);
@@ -145,34 +157,5 @@ describe("readCachedAlbumVinylLayout", () => {
     await expect(
       readCachedAlbumVinylLayout(repo, { artists: ["Jimmy Smith"], title: "The Sermon!" }),
     ).resolves.toBeNull();
-  });
-});
-
-describe("refreshAlbumVinylLayout", () => {
-  it("refreshes an existing cached layout through Discogs", async () => {
-    const repo = createRepository();
-    const refreshedLayout: VinylLayout = { ...layout, discogsReleaseId: "10013708" };
-    repo.readVinylLayout.mockResolvedValueOnce(layout).mockResolvedValueOnce(refreshedLayout);
-
-    await expect(refreshAlbumVinylLayout(repo, { artists: ["Jimmy Smith"], title: "The Sermon!" })).resolves.toEqual(
-      refreshedLayout,
-    );
-
-    expect(repo.enrichVinylLayout).toHaveBeenCalledWith({
-      identityKey: "jimmy smith::the sermon",
-      title: "The Sermon!",
-      artists: ["Jimmy Smith"],
-      albumId: undefined,
-    });
-  });
-
-  it("keeps the cached layout when the refresh fails", async () => {
-    const repo = createRepository();
-    repo.readVinylLayout.mockResolvedValue(layout);
-    repo.enrichVinylLayout.mockRejectedValue(new Error("Discogs unavailable"));
-
-    await expect(refreshAlbumVinylLayout(repo, { artists: ["Jimmy Smith"], title: "The Sermon!" })).resolves.toEqual(
-      layout,
-    );
   });
 });

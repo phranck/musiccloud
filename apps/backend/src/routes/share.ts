@@ -7,14 +7,13 @@
  * on that page directly, so crawlers and message previews (iMessage,
  * Slack, Telegram) can render a rich preview without JavaScript.
  *
- * ## Three-tier lookup
+ * ## Four-way lookup
  *
- * Short IDs live in a single namespace across three kinds of entity
- * (track, album, artist), so the handler tries each loader in turn and
- * returns the first hit. Order is track then album then artist, reflecting
- * observed frequency; changing the order is a pure performance tweak and
- * cannot change correctness as long as short IDs stay unique across the
- * three tables. A 404 means the ID does not exist in ANY of the three.
+ * Short IDs live in a single namespace across commercial tracks, albums and
+ * artists plus the Creative Commons entities, so the handler runs all four
+ * loaders at once and takes whichever hits. Uniqueness of the short id across
+ * those tables is what makes that safe: at most one loader can answer. A 404
+ * means the id exists in none of them.
  *
  * ## Origin detection
  *
@@ -92,7 +91,7 @@ export default async function shareRoutes(app: FastifyInstance) {
               "Cache-Control": {
                 type: "string",
                 description:
-                  "`private, max-age=3600` for commercial `track`, `album`, and `artist` plus `cc-artist`; `no-store` for `cc-track` and `cc-album`.",
+                  "`private, max-age=3600` for every variant. A share is served from persisted data, so it does not change between two reads of the same code.",
               },
             },
             $ref: "SharePage#",
@@ -243,11 +242,10 @@ export default async function shareRoutes(app: FastifyInstance) {
       }
 
       // CC entities carry no cross-service links; the loader already shapes the
-      // full cc-* SharePageResponse, so it is sent verbatim. Disable client-side
-      // caching only while CC track and album opens intentionally refresh Discogs.
+      // full cc-* SharePageResponse, so it is sent verbatim. Every CC variant
+      // answers from persisted data, so it caches like the commercial ones.
       if (ccData) {
-        const refreshesDiscogs = ccData.type === "cc-track" || ccData.type === "cc-album";
-        reply.header("Cache-Control", refreshesDiscogs ? "no-store" : "private, max-age=3600");
+        reply.header("Cache-Control", "private, max-age=3600");
         return reply.send(ccData);
       }
 

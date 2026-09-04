@@ -14,9 +14,14 @@
  * artist profile) is the only Jamendo touch: cc-track loads it client-side via
  * `/api/cc/artist-info`; cc-album/cc-artist build it from the DB tracks via
  * `buildCc{Album,Artist}Payload`, whose enrichment calls are fault-tolerant (see
- * `buildCcArtistInfo`) so they never fail the share. CC track and album opens
- * temporarily force a fresh Discogs vinyl-layout lookup; failures remain
- * non-fatal and fall back to the prior persisted layout.
+ * `buildCcArtistInfo`) so they never fail the share.
+ *
+ * The vinyl layout is read through `resolveAlbumVinylLayout`, which answers from
+ * the persisted layout and reaches Discogs only when nothing is stored yet. It
+ * is normally written at resolve time in `cc-resolve.ts`, so an open pays for it
+ * at most once. Nothing on this path may force a refresh: a Discogs round-trip
+ * per open would contradict the database latency promised above, and it would
+ * cost `share.ts` the cache directive it sends for every share.
  */
 
 import type {
@@ -34,7 +39,7 @@ import {
   mapDbRowToCcTrack,
   toApiCcTrack,
 } from "../../services/cc/cc-share-response.js";
-import { refreshAlbumVinylLayout } from "../../services/track-vinyl-layout.js";
+import { resolveAlbumVinylLayout } from "../../services/track-vinyl-layout.js";
 import { getPublicOrigin } from "../public-origin.js";
 import { generateAlbumOGMeta, generateOGMeta, type OGMeta } from "./og.js";
 
@@ -78,7 +83,7 @@ export async function loadCcByShortId(shortId: string, origin?: string): Promise
       if (!row) return null;
       const track = mapDbRowToCcTrack(row);
       const vinylLayout = track.albumName
-        ? await refreshAlbumVinylLayout(await getRepository(), {
+        ? await resolveAlbumVinylLayout(await getRepository(), {
             artists: [track.artistName],
             title: track.albumName,
           })
@@ -103,7 +108,7 @@ export async function loadCcByShortId(shortId: string, origin?: string): Promise
       const album = mapDbRowToCcAlbum(data.album);
       const tracks = data.tracks.map(mapDbRowToCcTrack);
       const { album: apiAlbum, artistInfo } = await buildCcAlbumPayload(album, tracks);
-      const vinylLayout = await refreshAlbumVinylLayout(await getRepository(), {
+      const vinylLayout = await resolveAlbumVinylLayout(await getRepository(), {
         artists: [album.artistName],
         title: album.name,
       });
