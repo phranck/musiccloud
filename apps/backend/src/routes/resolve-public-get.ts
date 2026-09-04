@@ -1,5 +1,5 @@
 /**
- * @file Unauthenticated public GET endpoint for track resolves.
+ * @file Unauthenticated public GET endpoint for one-request resolves.
  *
  * Registered at the root scope in `server.ts` (outside the
  * `authenticatePublic` preHandler group) specifically so scripting consumers
@@ -21,38 +21,40 @@
  * Response shape is controlled by the `format` query parameter:
  * - `format=text`: plain-text short URL only. Designed for shell/scripting
  *   consumers that want a single pipeable string.
- * - `format=json` (or omitted): full `ResolveSuccessResponse` with track
- *   metadata and all resolved service links.
+ * - `format=json` (or omitted): the full `UnifiedResolveSuccessResponse` for
+ *   whichever kind the input pointed at, with its metadata and every resolved
+ *   service link.
  */
-import type { ResolveErrorResponse, ResolveSuccessResponse } from "@musiccloud/shared";
+import type { ResolveErrorResponse, UnifiedResolveSuccessResponse } from "@musiccloud/shared";
 import { ENDPOINTS, getErrorEntry } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
-import { getRepository } from "../db/index.js";
 import { STRUCTURED_SEARCH_GET_OPENAPI_NOTE, STRUCTURED_SEARCH_OPENAPI_SECTION } from "../docs/resolve-openapi.js";
 import { requireEnvList } from "../lib/env.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
-import { log } from "../lib/infra/logger.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import {
   checkKeylessResolveBudget,
   KEYLESS_RESOLVE_REQUESTS_PER_DAY,
   KEYLESS_RESOLVE_REQUESTS_PER_MINUTE,
 } from "../lib/infra/rate-limiter.js";
-import { isUrl, stripTrackingParams } from "../lib/platform/url.js";
-import { getPreviewExpiry, isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
+import { isAlbumUrl, isArtistUrl, isUrl, stripTrackingParams } from "../lib/platform/url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
-import { toApiLinks } from "../lib/server/api-links.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
-import { deezerAdapter } from "../services/plugins/deezer/adapter.js";
+import { resolveAlbumUrl } from "../services/album-resolver.js";
+import { resolveArtistUrl } from "../services/artist-resolver.js";
+import {
+  persistAlbumAndRespond,
+  persistArtistAndRespond,
+  persistTrackAndRespond,
+} from "../services/resolve-response.js";
 import type { ResolutionResult } from "../services/resolver.js";
-import { resolveQuery, resolveTextSearchWithDisambiguation } from "../services/resolver.js";
+import { expandShortLink, resolveQuery, resolveTextSearchWithDisambiguation } from "../services/resolver.js";
 import {
   isStructuredSearchQuery,
   type ParsedStructuredQuery,
   parseStructuredSearchQuery,
   StructuredSearchQueryParseError,
 } from "../services/structured-search/index.js";
-import { resolveTrackVinylLayout } from "../services/track-vinyl-layout.js";
 
 /**
  * Whitelist for the `Origin` header used when building the user-facing short
@@ -86,7 +88,7 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
           "- **Free-text query** (e.g. `bohemian rhapsody queen`)\n" +
           `- **Structured search query** — ${STRUCTURED_SEARCH_OPENAPI_SECTION}\n\n` +
           `${STRUCTURED_SEARCH_GET_OPENAPI_NOTE}\n\n` +
-          "A successful request persists the resolved track and returns either `ResolveSuccess` or its canonical share URL. Malformed input, ambiguous text, or text with no unambiguous match returns `400`. A valid streaming-service URL whose item cannot be found returns `404`.\n\n" +
+          "A successful request persists what it resolved and returns either `UnifiedResolveSuccess` or its canonical share URL. A URL is routed by what it points at, so a track, an album and an artist URL each return the matching variant, discriminated on `type`. Malformed input, ambiguous text, or text with no unambiguous match returns `400`. A valid streaming-service URL whose item cannot be found returns `404`.\n\n" +
           "`genre:` discovery queries are not supported because they return candidate lists. Send those queries to `POST /api/v1/resolve`.",
         querystring: {
           type: "object",
@@ -117,14 +119,14 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
         response: {
           200: {
             description:
-              "With `format=json` or no format, returns `ResolveSuccess`. With `format=text`, returns only the canonical share URL as UTF-8 plain text.",
+              "With `format=json` or no format, returns `UnifiedResolveSuccess`, discriminated on `type` into `track`, `album` or `artist`. With `format=text`, returns only the canonical share URL as UTF-8 plain text, whichever kind was resolved.",
             content: {
-              "application/json": { schema: { $ref: "ResolveSuccess#" } },
+              "application/json": { schema: { $ref: "UnifiedResolveSuccess#" } },
               "text/plain": {
                 schema: {
                   type: "string",
                   format: "uri",
-                  description: "Canonical musiccloud share URL for the resolved track.",
+                  description: "Canonical musiccloud share URL for whatever was resolved.",
                 },
               },
             },
@@ -174,6 +176,11 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
       const query = queryParams.query.trim();
       const format = queryParams.format ?? "json";
 
+      // All three answers carry the same payload, so the format decision is
+      // made once here rather than repeated at each of them.
+      const respond = (payload: UnifiedResolveSuccessResponse) =>
+        format === "text" ? reply.type("text/plain").send(payload.shortUrl) : reply.send(payload);
+
       if (!query) {
         return reply.status(400).send(jsonError("INVALID_URL", "The 'query' parameter is required."));
       }
@@ -183,8 +190,18 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
 
         let result: ResolutionResult;
         if (isUrl(query)) {
-          // Flow 1: input is a streaming-service URL. The resolver handles
-          // cache lookup and cross-service expansion via adapters.
+          // Flow 1: input is a streaming-service URL. Content-type routing
+          // mirrors the POST handler, because the same input has to reach the
+          // same resolver from either operation. The short link is expanded
+          // first: the path shape that tells an album from an artist from a
+          // track exists only in the expanded URL.
+          const cleanUrl = stripTrackingParams(await expandShortLink(stripTrackingParams(query)));
+          if (isAlbumUrl(cleanUrl)) {
+            return respond(await persistAlbumAndRespond(await resolveAlbumUrl(cleanUrl), origin));
+          }
+          if (isArtistUrl(cleanUrl)) {
+            return respond(await persistArtistAndRespond(await resolveArtistUrl(cleanUrl), origin));
+          }
           result = await resolveQuery(query);
         } else if (isStructuredSearchQuery(query)) {
           // Flow 1.5: structured search. Stateless GET cannot disambiguate, so
@@ -222,13 +239,7 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
           }
         }
 
-        const response = await persistAndRespond(result, origin);
-
-        if (format === "text") {
-          return reply.type("text/plain").send(response.shortUrl);
-        }
-
-        return reply.send(response);
+        return respond(await persistTrackAndRespond(result, origin));
       } catch (error) {
         // Domain errors from the resolver carry their own HTTP status in the
         // shared error table (`getErrorEntry`), so we forward those faithfully
@@ -280,109 +291,4 @@ function jsonError(
   context?: Record<string, string | number>,
 ): ResolveErrorResponse {
   return createApiErrorResponse(code, { context, overrideMessage });
-}
-
-/**
- * Persists the resolve result, opportunistically refreshes a stale preview URL,
- * and shapes the `ResolveSuccessResponse` returned to the caller.
- *
- * The name understates what happens: besides the DB write, this function is
- * also the place where a missing or expired Deezer preview URL gets refreshed
- * inline (see below). Keeping that side effect here means the response always
- * ships with a playable preview when one is obtainable, without requiring a
- * second round-trip from the frontend.
- *
- * @param result - resolver output (source track + cross-service links)
- * @param origin - already-validated origin used to mint the short URL
- * @returns the success payload: track metadata, canonical `shortUrl`
- *          (`<origin>/<shortId>`), and the full list of resolved service
- *          links. `track.previewUrl` is the refreshed Deezer preview when
- *          enrichment succeeded, otherwise the original (possibly absent or
- *          expired) value.
- */
-async function persistAndRespond(result: ResolutionResult, origin: string): Promise<ResolveSuccessResponse> {
-  const repo = await getRepository();
-
-  const { trackId, shortId, artistCredits } = await repo.persistTrackWithLinks({
-    sourceTrack: {
-      ...result.sourceTrack,
-      sourceUrl: result.sourceTrack.webUrl,
-    },
-    // stripTrackingParams runs on the persisted URL (so cached links stay
-    // clean) AND on the response below: two separate write boundaries.
-    links: result.links.map((l) => ({
-      service: l.service,
-      url: stripTrackingParams(l.url),
-      confidence: l.confidence,
-      matchMethod: l.matchMethod,
-      externalId: l.externalId,
-    })),
-  });
-
-  // Aggregate ISRCs observed across services (see migration 0019).
-  // Non-fatal: write failure here must not turn a successful resolve
-  // into an error response.
-  if (result.externalIds.length > 0) {
-    try {
-      await repo.addTrackExternalIds(trackId, result.externalIds);
-    } catch (err) {
-      log.debug("ResolvePublicGet", "External-id persist failed:", err instanceof Error ? err.message : String(err));
-    }
-  }
-
-  // Deezer preview URLs are CDN-signed (`dzcdn.net?hdnea=exp=…`) and expire,
-  // so a cached track can come back with a dead preview. When we have an
-  // ISRC we can cheaply ask Deezer for a fresh one and update in place.
-  // Deezer is the go-to here because it is keyless ("always available") and
-  // has broad 30-second preview coverage. Fails are swallowed: a missing
-  // preview is a soft UX regression, not a reason to fail the resolve.
-  let previewUrl = result.sourceTrack.previewUrl ?? undefined;
-  if (
-    (!previewUrl || isExpiredDeezerPreviewUrl(previewUrl)) &&
-    result.sourceTrack.isrc &&
-    deezerAdapter.isAvailable()
-  ) {
-    try {
-      const deezerTrack = await deezerAdapter.findByIsrc(result.sourceTrack.isrc);
-      if (deezerTrack?.previewUrl) {
-        const expiresAtMs = getPreviewExpiry(deezerTrack.previewUrl, "deezer");
-        await repo.upsertTrackPreview(trackId, {
-          service: "deezer",
-          url: deezerTrack.previewUrl,
-          expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
-        });
-        previewUrl = deezerTrack.previewUrl;
-      }
-    } catch (err) {
-      log.debug(
-        "ResolvePublicGet",
-        "Deezer preview enrichment failed:",
-        err instanceof Error ? err.message : String(err),
-      );
-    }
-  }
-
-  // `${origin}/${shortId}` is the canonical share URL. The resolver of that
-  // path lives on the frontend (Astro `/:shortId`), not in the backend.
-  const shortUrl = `${origin}/${shortId}`;
-  const vinylLayout = await resolveTrackVinylLayout(repo, result.sourceTrack);
-
-  return {
-    id: trackId,
-    shortUrl,
-    track: {
-      title: result.sourceTrack.title,
-      artists: result.sourceTrack.artists,
-      artistCredits,
-      albumName: result.sourceTrack.albumName,
-      artworkUrl: result.sourceTrack.artworkUrl,
-      durationMs: result.sourceTrack.durationMs,
-      isrc: result.sourceTrack.isrc,
-      releaseDate: result.sourceTrack.releaseDate,
-      isExplicit: result.sourceTrack.isExplicit,
-      previewUrl,
-      vinylLayout,
-    },
-    links: toApiLinks(result.links, { stripTracking: true }),
-  };
 }
