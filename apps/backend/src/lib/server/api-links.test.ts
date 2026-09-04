@@ -42,6 +42,33 @@ describe("api link builders", () => {
     ]);
   });
 
+  /**
+   * The public match methods are an allow-list, so a method the resolver emits
+   * but this list does not know is not reported as unknown, it makes the whole
+   * link disappear. A search fallback is the one a consumer most needs to see,
+   * because its `url` opens a search rather than the recording.
+   */
+  it("keeps a search fallback, which the caller needs in order to skip it", () => {
+    expect(
+      toApiLinks([
+        {
+          service: "youtube",
+          url: "https://music.youtube.com/search?q=Kid+Cudi+Kitchen",
+          confidence: 0.5,
+          matchMethod: "search-fallback",
+        },
+      ]),
+    ).toEqual([
+      {
+        service: "youtube",
+        displayName: "YouTube",
+        url: "https://music.youtube.com/search?q=Kid+Cudi+Kitchen",
+        confidence: 0.5,
+        matchMethod: "search-fallback",
+      },
+    ]);
+  });
+
   it("drops fresh links with invalid public match metadata", () => {
     expect(
       toApiLinks([

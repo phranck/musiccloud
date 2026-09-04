@@ -1,4 +1,11 @@
-import { type ApiLink, getPlatformLabel, isValidServiceId, type MatchMethod, type ServiceId } from "@musiccloud/shared";
+import {
+  type ApiLink,
+  getPlatformLabel,
+  isValidServiceId,
+  MATCH_METHODS,
+  type MatchMethod,
+  type ServiceId,
+} from "@musiccloud/shared";
 import { stripTrackingParams } from "../platform/url.js";
 
 export type PublicLinkSource = {
@@ -12,7 +19,11 @@ type ApiLinkOptions = {
   stripTracking?: boolean;
 };
 
-const PUBLIC_MATCH_METHODS: readonly MatchMethod[] = ["isrc", "search", "cache", "upc", "isrc-inference"];
+/**
+ * A hand-kept copy of this list is how a newly added match method silently
+ * disappears from every response, so it comes from the same place as the type.
+ */
+const PUBLIC_MATCH_METHODS: readonly MatchMethod[] = MATCH_METHODS;
 
 function isPublicMatchMethod(value: unknown): value is ApiLink["matchMethod"] {
   return typeof value === "string" && PUBLIC_MATCH_METHODS.includes(value as MatchMethod);

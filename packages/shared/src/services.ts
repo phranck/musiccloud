@@ -54,7 +54,18 @@ export const Service = {
 
 export type ServiceId = (typeof Service)[keyof typeof Service];
 
-export type MatchMethod = "isrc" | "search" | "cache" | "upc" | "isrc-inference";
+/**
+ * Every way a link can be arrived at. The list is the definition and the type
+ * is derived from it, so a runtime check and a compile-time check cannot end up
+ * disagreeing about which values exist.
+ *
+ * `search-fallback` is the odd one out and the reason a caller has to look at
+ * this field: nothing was found on that service, and the link opens a search
+ * for the recording instead of the recording.
+ */
+export const MATCH_METHODS = ["isrc", "search", "cache", "upc", "isrc-inference", "search-fallback"] as const;
+
+export type MatchMethod = (typeof MATCH_METHODS)[number];
 
 /**
  * Namespace of resource kinds. Used by the error-code helpers and any other

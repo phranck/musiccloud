@@ -1208,11 +1208,17 @@ describe("resolveQuery: link quality filtering", () => {
 
     const result = await resolveQuery("https://open.spotify.com/track/track123");
 
-    // YouTube search fallback should be present with isSearchFallback=true
-    const ytFallback = result.links.find((l) => l.service === "youtube" && l.isSearchFallback);
+    // The fallback is recognisable by its match method, which is what a
+    // consumer filters on to keep only links that point at the recording.
+    const ytFallback = result.links.find((l) => l.service === "youtube");
     expect(ytFallback).toBeDefined();
+    expect(ytFallback?.matchMethod).toBe("search-fallback");
     expect(ytFallback?.url).toContain("music.youtube.com/search");
     expect(ytFallback?.confidence).toBe(0.5);
+
+    // A real text-search match and a fallback must not share a method, or
+    // the two become indistinguishable in the response.
+    expect(result.links.filter((l) => l.matchMethod === "search")).not.toContain(ytFallback);
   });
 });
 

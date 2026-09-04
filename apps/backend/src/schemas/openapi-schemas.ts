@@ -512,9 +512,9 @@ export const PlatformLinkSchema = {
     },
     matchMethod: {
       type: "string",
-      enum: ["isrc", "search", "cache", "upc", "isrc-inference"],
+      enum: ["isrc", "search", "cache", "upc", "isrc-inference", "search-fallback"],
       description:
-        "How this link was located: `isrc` and `upc` are direct identifier matches, `isrc-inference` derives an ISRC match from related metadata, `search` is a text search, and `cache` means a previously stored link was returned.",
+        "How this link was located: `isrc` and `upc` are direct identifier matches, `isrc-inference` derives an ISRC match from related metadata, `search` is a text search, and `cache` means a previously stored link was returned. `search-fallback` is the exception to all of them: nothing was found on that service, and `url` opens a search for the recording rather than the recording itself. Skip those links to keep only real matches.",
     },
   },
   example: {

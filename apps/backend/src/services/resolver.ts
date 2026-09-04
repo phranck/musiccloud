@@ -74,10 +74,16 @@
  * ## YouTube search-fallback link
  *
  * If no YouTube match is found but the track has a title and artist,
- * we still emit a `music.youtube.com/search?q=...` link flagged with
- * `isSearchFallback: true`. This guarantees every resolved track has
- * at least a "search on YouTube" option even when the YouTube API
+ * we still emit a `music.youtube.com/search?q=...` link carrying
+ * `matchMethod: "search-fallback"`. This guarantees every resolved track
+ * has at least a "search on YouTube" option even when the YouTube API
  * could not pin the exact video.
+ *
+ * That method is what tells a consumer the link is not the recording. It
+ * has to stay distinct from `search`, which means a text search that did
+ * find the recording, because a caller filtering for real matches has no
+ * other way to separate the two and would otherwise send somebody to a
+ * result list believing it was the track.
  *
  * ## Adapter timeout
  *
@@ -114,7 +120,7 @@
  * | `MAX_CANDIDATES`            | Disambiguation list size cap                           |
  * | `SEARCH_FALLBACK_CONFIDENCE`| Confidence of synthesised "search on X" fallback links |
  */
-import { PLATFORM_CONFIG } from "@musiccloud/shared";
+import { type MatchMethod, PLATFORM_CONFIG } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
 import { fetchWithTimeout } from "../lib/infra/fetch.js";
 import { log } from "../lib/infra/logger.js";
@@ -154,9 +160,7 @@ export interface ResolvedLink {
   displayName: string;
   url: string;
   confidence: number;
-  matchMethod: "isrc" | "search" | "cache";
-  /** True when the link is a search URL rather than a direct track link */
-  isSearchFallback?: boolean;
+  matchMethod: MatchMethod;
   /** Service-specific track ID (e.g. Spotify track ID, Deezer track ID) */
   externalId?: string;
   /** 30-second audio preview URL from this service (if available) */
@@ -214,7 +218,7 @@ function mapCachedLinks(
       displayName: PLATFORM_CONFIG[l.service as ServiceId].label,
       url: l.url,
       confidence: l.confidence,
-      matchMethod: l.matchMethod as "isrc" | "search" | "cache",
+      matchMethod: l.matchMethod as MatchMethod,
     }));
 }
 
@@ -934,8 +938,7 @@ async function resolveAcrossServices(
       displayName: "YouTube",
       url: `https://music.youtube.com/search?q=${searchQuery}`,
       confidence: SEARCH_FALLBACK_CONFIDENCE,
-      matchMethod: "search",
-      isSearchFallback: true,
+      matchMethod: "search-fallback",
     });
   }
 
@@ -943,7 +946,7 @@ async function resolveAcrossServices(
   links.sort((a, b) => b.confidence - a.confidence);
 
   // Filter out low-confidence matches (but keep search fallbacks)
-  return links.filter((l) => l.confidence >= LINK_QUALITY_THRESHOLD || l.isSearchFallback);
+  return links.filter((l) => l.confidence >= LINK_QUALITY_THRESHOLD || l.matchMethod === "search-fallback");
 }
 
 async function resolveOnService(adapter: ServiceAdapter, sourceTrack: NormalizedTrack): Promise<ResolvedLink | null> {
