@@ -37,46 +37,6 @@ export async function readCachedAlbumVinylLayout(
 }
 
 /**
- * Forces a fresh Discogs lookup for an artist-qualified album identity while
- * retaining the previous cached layout when the refresh fails transiently.
- *
- * @param albumId - The catalogue album, where one exists. It only decides
- *   whether the Discogs release id can be recorded as an external id; the
- *   layout itself belongs to the identity either way.
- */
-export async function refreshAlbumVinylLayout(
-  repo: TrackVinylLayoutRepository,
-  album: { artists: string[]; title: string; albumId?: string },
-): Promise<VinylLayout | null> {
-  const identityKey = createAlbumIdentityKey(album);
-  if (!identityKey) return null;
-
-  let cachedLayout: VinylLayout | null | undefined;
-  try {
-    cachedLayout = await repo.readVinylLayout(identityKey);
-    await repo.enrichVinylLayout({
-      identityKey,
-      title: album.title,
-      artists: album.artists,
-      albumId: album.albumId,
-    });
-    const refreshedLayout = await repo.readVinylLayout(identityKey);
-    return refreshedLayout === undefined ? (cachedLayout ?? null) : refreshedLayout;
-  } catch (error) {
-    log.deviation(
-      {
-        component: "VinylLayout",
-        errorCode: "MC-SYS-0001",
-        operation: "vinyl_layout_refresh",
-        outcome: cachedLayout ? "cached_fallback" : "layout_omitted",
-      },
-      error,
-    );
-    return cachedLayout ?? null;
-  }
-}
-
-/**
  * Gets the Discogs layout belonging to a resolved track's album. The primary
  * artist is part of the cache identity, so a title-only cross-artist match is
  * impossible. Every failure stays non-fatal for the track resolve.

@@ -14,8 +14,8 @@ vi.mock("../../../db/index.js", () => ({
   getRepository: async () => commercialRepository,
 }));
 
-const refreshAlbumVinylLayout = vi.fn();
-vi.mock("../../../services/track-vinyl-layout.js", () => ({ refreshAlbumVinylLayout }));
+const resolveAlbumVinylLayout = vi.fn();
+vi.mock("../../../services/track-vinyl-layout.js", () => ({ resolveAlbumVinylLayout }));
 
 const buildCcAlbumPayload = vi.fn();
 const buildCcArtistPayload = vi.fn();
@@ -65,7 +65,7 @@ describe("loadCcByShortId", () => {
       artistName: "Madpix",
       albumName: "Changes",
     });
-    refreshAlbumVinylLayout.mockResolvedValue(VINYL_LAYOUT);
+    resolveAlbumVinylLayout.mockResolvedValue(VINYL_LAYOUT);
 
     const res = await loadCcByShortId("V0onz", "https://musiccloud.io");
 
@@ -76,7 +76,7 @@ describe("loadCcByShortId", () => {
       artistName: "Madpix",
       albumName: "Changes",
     });
-    expect(refreshAlbumVinylLayout).toHaveBeenCalledWith(commercialRepository, {
+    expect(resolveAlbumVinylLayout).toHaveBeenCalledWith(commercialRepository, {
       artists: ["Madpix"],
       title: "Changes",
     });
@@ -107,7 +107,7 @@ describe("loadCcByShortId", () => {
       tracks: [{ jamendoId: "t1" }, { jamendoId: "t2" }],
     });
     buildCcAlbumPayload.mockResolvedValue({ album: { name: "Suite", tracks: [{}, {}] }, artistInfo: ARTIST_INFO });
-    refreshAlbumVinylLayout.mockResolvedValue(VINYL_LAYOUT);
+    resolveAlbumVinylLayout.mockResolvedValue(VINYL_LAYOUT);
 
     const res = await loadCcByShortId("8oTIg", "https://musiccloud.io");
 
@@ -116,7 +116,7 @@ describe("loadCcByShortId", () => {
       { jamendoId: "t1" },
       { jamendoId: "t2" },
     ]);
-    expect(refreshAlbumVinylLayout).toHaveBeenCalledWith(commercialRepository, {
+    expect(resolveAlbumVinylLayout).toHaveBeenCalledWith(commercialRepository, {
       artists: ["Olepash"],
       title: "Suite",
     });
@@ -147,7 +147,7 @@ describe("loadCcByShortId", () => {
     expect(buildCcArtistPayload).toHaveBeenCalledWith({ jamendoId: "ar1", name: "pinegroove" }, [{ jamendoId: "t1" }]);
     expect(res).toMatchObject({ type: "cc-artist", artist: { name: "pinegroove" } });
     expect(res?.og.title).toBe("pinegroove - musiccloud");
-    expect(refreshAlbumVinylLayout).not.toHaveBeenCalled();
+    expect(resolveAlbumVinylLayout).not.toHaveBeenCalled();
   });
 
   it("returns null when the cc-artist row is gone", async () => {

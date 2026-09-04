@@ -109,7 +109,7 @@ describe("GET /api/v1/share/:shortId album vinyl layout", () => {
   });
 });
 
-describe("GET /api/v1/share/:shortId CC refresh caching", () => {
+describe("GET /api/v1/share/:shortId CC caching", () => {
   afterEach(() => {
     vi.clearAllMocks();
     repository.loadByShortId.mockResolvedValue(null);
@@ -118,7 +118,7 @@ describe("GET /api/v1/share/:shortId CC refresh caching", () => {
     loadCcByShortId.mockResolvedValue(null);
   });
 
-  it("prevents browser caching while CC share reloads force Discogs refreshes", async () => {
+  it("caches a CC track share like every other share", async () => {
     loadAlbumByShortId.mockResolvedValue(null);
     loadCcByShortId.mockResolvedValue({
       type: "cc-track",
@@ -144,12 +144,12 @@ describe("GET /api/v1/share/:shortId CC refresh caching", () => {
     const response = await app.inject({ method: "GET", url: "/api/v1/share/V0onz" });
 
     expect(response.statusCode, response.body).toBe(200);
-    expect(response.headers["cache-control"]).toBe("no-store");
+    expect(response.headers["cache-control"]).toBe("private, max-age=3600");
 
     await app.close();
   });
 
-  it("keeps normal browser caching for CC artist shares without Discogs refreshes", async () => {
+  it("caches a CC artist share like every other share", async () => {
     loadAlbumByShortId.mockResolvedValue(null);
     loadCcByShortId.mockResolvedValue({
       type: "cc-artist",
