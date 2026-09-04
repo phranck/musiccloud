@@ -26,7 +26,8 @@ export const MATCH_MIN_CONFIDENCE = 0.6;
  * Minimum score for a link to survive into the final resolved result.
  * Protects the UI from showing chips that point to the wrong track.
  * "Search fallback" links (e.g. a synthesised YouTube search URL)
- * bypass this because they are explicitly labelled as fallback.
+ * bypass this because `matchMethod` marks them as such, so a consumer
+ * can drop them without relying on the score.
  */
 export const LINK_QUALITY_THRESHOLD = 0.6;
 
@@ -60,8 +61,8 @@ export const SPOTIFY_SEARCH_LIMIT_MAX = 10;
 /**
  * Confidence for synthesised "search on X" fallback links (currently
  * only the YouTube search fallback). Kept below `LINK_QUALITY_THRESHOLD`
- * on purpose: without the `isSearchFallback` bypass they would be
- * filtered out, which is the right default for any other non-fallback
+ * on purpose: without the bypass for `matchMethod: "search-fallback"`
+ * they would be filtered out, which is the right default for any other
  * match with the same score.
  */
 export const SEARCH_FALLBACK_CONFIDENCE = 0.5;

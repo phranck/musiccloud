@@ -17,6 +17,7 @@
  */
 
 import type { McErrorCode } from "./error-codes.js";
+import type { MatchMethod } from "./services.js";
 import type { VinylLayout } from "./vinyl-layout.js";
 
 export interface ApiArtistCredit {
@@ -53,7 +54,7 @@ export interface ApiLink {
   displayName: string;
   url: string;
   confidence: number;
-  matchMethod: "isrc" | "search" | "cache" | "upc" | "isrc-inference";
+  matchMethod: MatchMethod;
 }
 
 export interface ApiDisambiguationCandidate {

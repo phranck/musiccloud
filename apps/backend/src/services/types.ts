@@ -111,7 +111,9 @@ export interface SearchResultWithCandidates {
   }>;
 }
 
-export type MatchMethod = "isrc" | "search" | "cache";
+import type { MatchMethod } from "@musiccloud/shared";
+
+export type { MatchMethod };
 
 export interface AdapterCapabilities {
   supportsIsrc: boolean;
