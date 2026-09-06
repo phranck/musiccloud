@@ -92,16 +92,6 @@
     --mc-docs-schema-toggle-radius: max(0px, calc(var(--mc-docs-content-panel-radius) - var(--mc-space-1) - var(--mc-docs-schema-toggle-radius-trim)));
     --mc-docs-schema-toggle-tab-radius: max(0px, calc(var(--mc-docs-schema-toggle-radius) - var(--mc-docs-schema-toggle-inset)));
     --mc-docs-schema-toggle-tab-height: calc(var(--mc-size-control-compact) - var(--mc-space-1));
-    --mc-docs-sdk-selector-inset: var(--mc-docs-space-xs);
-    --mc-docs-sdk-selector-radius: max(
-      0px,
-      calc(var(--mc-docs-content-card-radius) - var(--mc-space-1) - var(--mc-docs-space-xs))
-    );
-    --mc-docs-sdk-selector-item-radius: max(
-      0px,
-      calc(var(--mc-docs-sdk-selector-radius) - var(--mc-docs-sdk-selector-inset))
-    );
-    --mc-docs-sdk-download-font-size: calc(var(--text-body) - var(--mc-docs-space-xs));
     --mc-docs-schema-field-indent: var(--mc-space-5);
     --mc-docs-schema-field-separator: color-mix(in srgb, var(--color-border) 68%, transparent);
     --mc-card-content-inset: calc(var(--mc-docs-content-card-radius) / 2);
@@ -519,17 +509,6 @@
     font-size: var(--text-code);
   }
 
-  /* The SDK selector keeps one ContentCard surface while each tab supplies a
-     complete panel. Its selector is a recessed control derived from the same
-     card radius cascade as every other documentation control. */
-
-
-
-
-
-
-
-
   .schema-card {
     --segmented-control-inset: var(--mc-docs-schema-toggle-inset);
     --segmented-control-radius: var(--mc-docs-schema-toggle-radius);
@@ -784,16 +763,12 @@
   }
 
   .content-panel-list,
-  .sdk-example-list,
-  .sdk-metadata-list,
   .integration-panel-grid {
     display: grid;
     min-width: 0;
   }
 
-  .content-panel-list,
-  .sdk-example-list,
-  .sdk-metadata-list {
+  .content-panel-list {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -859,14 +834,6 @@
   .openapi-contract-dialog__trigger {
     --button-min-height: var(--mc-size-control-compact);
     justify-self: end;
-  }
-
-  .sdk-metadata-list {
-    gap: var(--mc-space-2);
-  }
-
-  .sdk-example-list {
-    gap: var(--mc-space-4);
   }
 
   .endpoint-card__header {

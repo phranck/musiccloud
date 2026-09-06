@@ -519,9 +519,7 @@ describe("developer design system", () => {
     expect(docs).toMatch(
       /\.content-card__body-intro,[\s\S]*?\.content-card__section-body\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);/,
     );
-    expect(docs).toMatch(
-      /\.content-panel-list,[\s\S]*?\.sdk-metadata-list\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);/,
-    );
+    expect(docs).toMatch(/\.content-panel-list\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);/);
     expect(docs).toMatch(
       /\.code-block,[\s\S]*?\.code-block__frame\s*\{[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;/,
     );
