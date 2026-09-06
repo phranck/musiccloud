@@ -508,6 +508,68 @@ export async function persistTrackWithLinks(
 }
 
 /**
+ * Reads which services were asked about this track and had nothing to offer.
+ *
+ * @param pool - Postgres connection pool.
+ * @param trackId - Track whose fruitless lookups are wanted.
+ * @returns One entry per service that came back empty, with the time it was
+ *   asked. The caller decides how old a miss may be before the service is
+ *   worth asking again.
+ */
+export async function readServiceLinkMisses(
+  pool: Pool,
+  trackId: string,
+): Promise<Array<{ service: string; checkedAt: Date }>> {
+  const result = await pool.query<{ service: string; checked_at: Date }>(
+    "SELECT service, checked_at FROM service_link_misses WHERE track_id = $1",
+    [trackId],
+  );
+  return result.rows.map((row) => ({ service: row.service, checkedAt: row.checked_at }));
+}
+
+/**
+ * Records that these services were asked about this track and had nothing.
+ *
+ * Upserts, so asking again later moves the timestamp forward rather than
+ * failing on the unique index. A service that later does carry the track has
+ * its row removed by the caller, because a stale miss beside a real link would
+ * make the two disagree.
+ *
+ * @param pool - Postgres connection pool.
+ * @param trackId - Track that was looked up.
+ * @param services - Service ids that returned nothing.
+ * @returns A promise that resolves when the rows are written.
+ */
+export async function recordServiceLinkMisses(pool: Pool, trackId: string, services: readonly string[]): Promise<void> {
+  if (services.length === 0) return;
+  const now = new Date();
+  for (const service of services) {
+    await pool.query(
+      `INSERT INTO service_link_misses (id, track_id, service, checked_at)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (track_id, service) DO UPDATE SET checked_at = EXCLUDED.checked_at`,
+      [`${trackId}-${service}`, trackId, service, now],
+    );
+  }
+}
+
+/**
+ * Drops the miss rows for services that now carry the track.
+ *
+ * @param pool - Postgres connection pool.
+ * @param trackId - Track that gained links.
+ * @param services - Service ids that produced a link.
+ * @returns A promise that resolves when the rows are gone.
+ */
+export async function clearServiceLinkMisses(pool: Pool, trackId: string, services: readonly string[]): Promise<void> {
+  if (services.length === 0) return;
+  await pool.query("DELETE FROM service_link_misses WHERE track_id = $1 AND service = ANY($2::text[])", [
+    trackId,
+    services,
+  ]);
+}
+
+/**
  * Adds (or updates) service links for an existing track, transactional.
  *
  * Each link is upserted on `(track_id, service)`. Existing rows are

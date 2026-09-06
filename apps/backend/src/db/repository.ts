@@ -478,6 +478,33 @@ export interface TrackRepository {
     }>,
   ): Promise<void>;
 
+  /**
+   * Reads which services were asked about this track and had nothing.
+   *
+   * @param trackId - The track whose fruitless lookups are wanted.
+   * @returns One entry per service that came back empty, with the time it was
+   *   asked.
+   */
+  readServiceLinkMisses(trackId: string): Promise<Array<{ service: string; checkedAt: Date }>>;
+
+  /**
+   * Records that these services were asked about this track and had nothing.
+   *
+   * @param trackId - The track that was looked up.
+   * @param services - Service ids that returned nothing.
+   * @returns A promise that resolves when the operation completes.
+   */
+  recordServiceLinkMisses(trackId: string, services: readonly string[]): Promise<void>;
+
+  /**
+   * Drops the miss rows for services that now carry the track.
+   *
+   * @param trackId - The track that gained links.
+   * @param services - Service ids that produced a link.
+   * @returns A promise that resolves when the operation completes.
+   */
+  clearServiceLinkMisses(trackId: string, services: readonly string[]): Promise<void>;
+
   // Album: Read operations
   /**
    * Finds album by URL.

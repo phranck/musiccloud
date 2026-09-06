@@ -41,6 +41,7 @@ vi.mock("../lib/fetch.js", () => ({
 // =============================================================================
 
 import { getRepository } from "../db/index";
+import { SERVICE_MISS_TTL_MS } from "../services/constants.js";
 import {
   filterDisabledLinks,
   getActiveAdapters,
@@ -98,6 +99,9 @@ function createMockRepository(): TrackRepository {
     loadByTrackId: vi.fn().mockResolvedValue(null),
     persistTrackWithLinks: vi.fn().mockResolvedValue({ trackId: "tid1", shortId: "abc" }),
     addLinksToTrack: vi.fn().mockResolvedValue(undefined),
+    readServiceLinkMisses: vi.fn().mockResolvedValue([]),
+    recordServiceLinkMisses: vi.fn().mockResolvedValue(undefined),
+    clearServiceLinkMisses: vi.fn().mockResolvedValue(undefined),
     // Album methods (not used by track resolver tests)
     findAlbumByUrl: vi.fn().mockResolvedValue(null),
     findAlbumByUpc: vi.fn().mockResolvedValue(null),
@@ -772,6 +776,135 @@ describe("resolveQuery: gap fill for cached tracks", () => {
       expect.objectContaining({ service: "deezer", url: freshPreviewUrl }),
     );
     expect(result.sourceTrack.previewUrl).toBe(freshPreviewUrl);
+  });
+});
+
+// =============================================================================
+// 4b. Fruitless lookups are remembered, so a cached resolve stops paying for them
+// =============================================================================
+
+describe("resolveQuery: remembering services that had nothing", () => {
+  const CACHED_SPOTIFY_LINK = {
+    service: "spotify",
+    url: "https://open.spotify.com/track/track123",
+    confidence: 1.0,
+    matchMethod: "isrc",
+  };
+
+  function cacheHitWithSpotifyOnly() {
+    vi.mocked(mockRepo.findTrackByUrl).mockResolvedValue({
+      trackId: "tid1",
+      updatedAt: Date.now() - 5000,
+      track: createMockTrack(),
+      links: [CACHED_SPOTIFY_LINK],
+    } satisfies CachedTrackResult);
+  }
+
+  function spotifyAndSilentDeezer() {
+    const spotifyAdapter = createMockAdapter({
+      id: "spotify",
+      displayName: "Spotify",
+      detectUrl: vi.fn(() => "track123"),
+    });
+    const deezerAdapter = createMockAdapter({
+      id: "deezer",
+      displayName: "Deezer",
+      capabilities: { supportsIsrc: true, supportsPreview: true, supportsArtwork: true },
+      findByIsrc: vi.fn().mockResolvedValue(null),
+      searchTrack: vi.fn().mockResolvedValue({ found: false, confidence: 0, matchMethod: "search" }),
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter, deezerAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
+    return { spotifyAdapter, deezerAdapter };
+  }
+
+  it("writes down a service that answered with nothing", async () => {
+    cacheHitWithSpotifyOnly();
+    spotifyAndSilentDeezer();
+
+    await resolveQuery("https://open.spotify.com/track/track123");
+
+    expect(mockRepo.recordServiceLinkMisses).toHaveBeenCalledWith("tid1", ["deezer"]);
+  });
+
+  /**
+   * The point of the whole mechanism: without it this second resolve queries
+   * Deezer again, and so does every one after it, for as long as the row lives.
+   */
+  it("does not ask a service whose miss is still fresh", async () => {
+    cacheHitWithSpotifyOnly();
+    const { deezerAdapter } = spotifyAndSilentDeezer();
+    vi.mocked(mockRepo.readServiceLinkMisses).mockResolvedValue([
+      { service: "deezer", checkedAt: new Date(Date.now() - 60_000) },
+    ]);
+
+    await resolveQuery("https://open.spotify.com/track/track123");
+
+    expect(deezerAdapter.findByIsrc).not.toHaveBeenCalled();
+    expect(deezerAdapter.searchTrack).not.toHaveBeenCalled();
+  });
+
+  it("asks again once the miss has aged past its window", async () => {
+    cacheHitWithSpotifyOnly();
+    const { deezerAdapter } = spotifyAndSilentDeezer();
+    vi.mocked(mockRepo.readServiceLinkMisses).mockResolvedValue([
+      { service: "deezer", checkedAt: new Date(Date.now() - SERVICE_MISS_TTL_MS - 60_000) },
+    ]);
+
+    await resolveQuery("https://open.spotify.com/track/track123");
+
+    expect(deezerAdapter.findByIsrc).toHaveBeenCalled();
+  });
+
+  /**
+   * A thrown lookup is an outage or a timeout, not an answer. Recording it
+   * would take the service out for a month over a bad minute.
+   */
+  it("does not write down a lookup that failed", async () => {
+    cacheHitWithSpotifyOnly();
+    const spotifyAdapter = createMockAdapter({
+      id: "spotify",
+      displayName: "Spotify",
+      detectUrl: vi.fn(() => "track123"),
+    });
+    const deezerAdapter = createMockAdapter({
+      id: "deezer",
+      displayName: "Deezer",
+      capabilities: { supportsIsrc: true, supportsPreview: true, supportsArtwork: true },
+      findByIsrc: vi.fn().mockRejectedValue(new Error("Deezer unavailable")),
+      searchTrack: vi.fn().mockRejectedValue(new Error("Deezer unavailable")),
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter, deezerAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
+
+    await resolveQuery("https://open.spotify.com/track/track123");
+
+    expect(mockRepo.recordServiceLinkMisses).not.toHaveBeenCalledWith("tid1", expect.arrayContaining(["deezer"]));
+  });
+
+  it("removes the miss when a service finally does carry the track", async () => {
+    cacheHitWithSpotifyOnly();
+    const spotifyAdapter = createMockAdapter({
+      id: "spotify",
+      displayName: "Spotify",
+      detectUrl: vi.fn(() => "track123"),
+    });
+    const deezerAdapter = createMockAdapter({
+      id: "deezer",
+      displayName: "Deezer",
+      capabilities: { supportsIsrc: true, supportsPreview: true, supportsArtwork: true },
+      findByIsrc: vi
+        .fn()
+        .mockResolvedValue(
+          createMockTrack({ sourceService: "deezer", sourceId: "dz789", webUrl: "https://www.deezer.com/track/789" }),
+        ),
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter, deezerAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
+
+    await resolveQuery("https://open.spotify.com/track/track123");
+
+    expect(mockRepo.clearServiceLinkMisses).toHaveBeenCalledWith("tid1", ["deezer"]);
   });
 });
 
