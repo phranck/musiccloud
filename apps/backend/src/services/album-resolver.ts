@@ -70,12 +70,14 @@
  * preference mirrors image-quality: Spotify and Apple Music both
  * serve high-resolution artwork consistently.
  */
-import { PLATFORM_CONFIG } from "@musiccloud/shared";
+import { type MatchMethod, PLATFORM_CONFIG } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
 import { stripTrackingParams } from "../lib/platform/url.js";
 import { getPreviewExpiry } from "../lib/preview-url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
+import { confidenceForMethod } from "./confidence.js";
+import { IDENTIFIER_MATCH_CONFIDENCE } from "./constants.js";
 import { collectAlbumExternalIds } from "./external-ids.js";
 import { filterDisabledLinks, getActiveAdapters, identifyServiceIncludingDisabled, isPluginEnabled } from "./index.js";
 import type {
@@ -95,7 +97,7 @@ export interface ResolvedAlbumLink {
   displayName: string;
   url: string;
   confidence: number;
-  matchMethod: "upc" | "isrc-inference" | "search" | "cache";
+  matchMethod: MatchMethod;
   externalId?: string;
   /** Preview URL of the most popular track from this service (Deezer only) */
   topTrackPreviewUrl?: string;
@@ -465,7 +467,7 @@ async function resolveAlbumOnService(
           service: adapter.id,
           displayName: adapter.displayName,
           url: album.webUrl,
-          confidence: 1.0,
+          confidence: IDENTIFIER_MATCH_CONFIDENCE,
           matchMethod: "upc",
           externalId: album.sourceId,
           topTrackPreviewUrl: album.topTrackPreviewUrl,
@@ -554,7 +556,7 @@ async function resolveAlbumViaSearch(
     service: adapter.id,
     displayName: adapter.displayName,
     url: album.webUrl,
-    confidence: result.confidence,
+    confidence: confidenceForMethod(result.matchMethod as ResolvedAlbumLink["matchMethod"], result.confidence),
     matchMethod: result.matchMethod as ResolvedAlbumLink["matchMethod"],
     externalId: album.sourceId,
     topTrackPreviewUrl: album.topTrackPreviewUrl,
@@ -732,8 +734,8 @@ export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolution
     service: sourceAdapter.id,
     displayName: sourceAdapter.displayName,
     url: sourceAlbum.webUrl,
-    confidence: 1.0,
-    matchMethod: "upc",
+    confidence: IDENTIFIER_MATCH_CONFIDENCE,
+    matchMethod: "source",
     externalId: sourceAlbum.sourceId,
   });
 
@@ -796,7 +798,7 @@ export async function resolveAlbumTextSearch(query: string): Promise<AlbumResolu
           service: adapter.id,
           displayName: adapter.displayName,
           url: sourceAlbum.webUrl,
-          confidence: result.confidence,
+          confidence: confidenceForMethod("search", result.confidence),
           matchMethod: "search",
           externalId: sourceAlbum.sourceId,
         });
