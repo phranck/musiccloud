@@ -168,13 +168,18 @@ describe("AlbumResolver: resolveAlbumUrl", () => {
     expect(result.links.length).toBeGreaterThan(0);
   });
 
-  it("should include source service as first link with confidence 1.0", async () => {
+  /**
+   * The source link is the address the request came in on, so it is the album
+   * by definition rather than something a UPC lookup found. Reporting `upc`
+   * here made the field say a lookup happened that never did.
+   */
+  it("reports the source service as the source, at the top of the scale", async () => {
     const result = await resolveAlbumUrl("https://open.spotify.com/album/6dVIqQ8qmQ5GBnJ9shOYGE");
 
     const spotifyLink = result.links.find((l) => l.service === "spotify");
     expect(spotifyLink).toBeDefined();
     expect(spotifyLink?.confidence).toBe(1.0);
-    expect(spotifyLink?.matchMethod).toBe("upc");
+    expect(spotifyLink?.matchMethod).toBe("source");
   });
 
   it("should use UPC lookup for cross-service resolution", async () => {

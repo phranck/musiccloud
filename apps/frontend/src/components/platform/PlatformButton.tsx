@@ -48,19 +48,21 @@ export const PlatformButton = memo(function PlatformButton({
   const s = sizeConfig[size];
 
   const sourceLabel =
-    matchMethod === "isrc"
-      ? "direct (ISRC)"
-      : matchMethod === "upc"
-        ? "direct (UPC)"
-        : matchMethod === "isrc-inference"
-          ? "via track ISRCs"
-          : matchMethod === "search"
-            ? "via search"
-            : matchMethod === "cache"
-              ? "cached"
-              : matchMethod === "search-fallback"
-                ? "search link, no match"
-                : null;
+    matchMethod === "source"
+      ? "the link you pasted"
+      : matchMethod === "isrc"
+        ? "direct (ISRC)"
+        : matchMethod === "upc"
+          ? "direct (UPC)"
+          : matchMethod === "isrc-inference"
+            ? "via track ISRCs"
+            : matchMethod === "search"
+              ? "via search"
+              : matchMethod === "cache"
+                ? "cached"
+                : matchMethod === "search-fallback"
+                  ? "search link, no match"
+                  : null;
 
   return (
     <EmbossedButton

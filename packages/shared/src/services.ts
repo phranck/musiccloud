@@ -59,11 +59,12 @@ export type ServiceId = (typeof Service)[keyof typeof Service];
  * is derived from it, so a runtime check and a compile-time check cannot end up
  * disagreeing about which values exist.
  *
- * `search-fallback` is the odd one out and the reason a caller has to look at
- * this field: nothing was found on that service, and the link opens a search
- * for the recording instead of the recording.
+ * Two of them are not lookups at all. `source` is the link the request came in
+ * on, so it is the recording by definition. `search-fallback` is its opposite:
+ * nothing was found on that service, and the link opens a search for the
+ * recording instead of the recording.
  */
-export const MATCH_METHODS = ["isrc", "search", "cache", "upc", "isrc-inference", "search-fallback"] as const;
+export const MATCH_METHODS = ["isrc", "search", "cache", "upc", "isrc-inference", "search-fallback", "source"] as const;
 
 export type MatchMethod = (typeof MATCH_METHODS)[number];
 

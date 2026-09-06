@@ -141,9 +141,11 @@ import { log } from "../lib/infra/logger.js";
 import { isUrl, stripTrackingParams, validateMusicUrl } from "../lib/platform/url.js";
 import { getPreviewExpiry } from "../lib/preview-url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
+import { confidenceForMethod } from "./confidence.js";
 import {
   AUTO_SELECT_THRESHOLD,
   CANDIDATE_MIN_CONFIDENCE,
+  IDENTIFIER_MATCH_CONFIDENCE,
   LINK_QUALITY_THRESHOLD,
   MATCH_MIN_CONFIDENCE,
   MAX_CANDIDATES,
@@ -619,13 +621,14 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
   // 4. Resolve on all other services in parallel
   const links = await resolveAcrossServices(sourceTrack, sourceAdapter);
 
-  // 5. Add the source service link
+  // 5. Add the source service link. It was not found by any method: it is the
+  // address the request came in on, which `source` says and `isrc` did not.
   links.unshift({
     service: sourceAdapter.id,
     displayName: sourceAdapter.displayName,
     url: sourceTrack.webUrl,
-    confidence: 1.0,
-    matchMethod: "isrc",
+    confidence: IDENTIFIER_MATCH_CONFIDENCE,
+    matchMethod: "source",
     externalId: sourceTrack.sourceId,
     previewUrl: sourceTrack.previewUrl,
   });
@@ -1045,7 +1048,7 @@ async function resolveOnService(adapter: ServiceAdapter, sourceTrack: Normalized
         service: adapter.id,
         displayName: adapter.displayName,
         url: track.webUrl,
-        confidence: 1.0,
+        confidence: IDENTIFIER_MATCH_CONFIDENCE,
         matchMethod: "isrc",
         externalId: track.sourceId,
         previewUrl: track.previewUrl,
@@ -1075,7 +1078,7 @@ async function resolveViaSearch(adapter: ServiceAdapter, sourceTrack: Normalized
     service: adapter.id,
     displayName: adapter.displayName,
     url: result.track.webUrl,
-    confidence: result.confidence,
+    confidence: confidenceForMethod(result.matchMethod, result.confidence),
     matchMethod: result.matchMethod,
     externalId: result.track.sourceId,
     previewUrl: result.track.previewUrl,

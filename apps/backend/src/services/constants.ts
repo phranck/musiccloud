@@ -68,6 +68,31 @@ export const SPOTIFY_SEARCH_LIMIT_MAX = 10;
 export const SEARCH_FALLBACK_CONFIDENCE = 0.5;
 
 /**
+ * What a confidence may claim, per way of arriving at the link.
+ *
+ * The number answers one question, namely how sure we are that this link is
+ * the same recording. It only answers it if the scale means the same thing
+ * everywhere, and an identifier match and a text match are not the same kind
+ * of certainty: an ISRC is the recording's own name, whilst a text match is a
+ * judgement about titles and durations that can be confident and still wrong.
+ *
+ * So the top of the scale is reserved. An identifier match and the source link
+ * report {@link IDENTIFIER_MATCH_CONFIDENCE}; a text match stops at
+ * {@link SEARCH_MAX_CONFIDENCE}, however good its own scoring says it is.
+ *
+ * The guarantee a caller can hold us to is that a search never reports `1`, and
+ * it is phrased against `1` rather than against the ceiling because these
+ * confidences are stored in a `real` column. `0.99` does not survive that trip
+ * exactly: it comes back as `0.99000000953…`, which is still above the ceiling
+ * it was clamped to. `1` is exactly representable, so it is the only boundary
+ * that means the same thing in the database as in the code.
+ */
+export const IDENTIFIER_MATCH_CONFIDENCE = 1;
+
+/** Ceiling for a text-search match. See {@link IDENTIFIER_MATCH_CONFIDENCE}. */
+export const SEARCH_MAX_CONFIDENCE = 0.99;
+
+/**
  * How long a fruitless lookup stands before that service is asked again.
  *
  * Without it, a service that does not carry a track is asked about it on every
