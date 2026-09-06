@@ -36,7 +36,7 @@ describe("API scroll-spy target selection", () => {
   it("selects the first target before any anchor reaches the activation line", () => {
     const targets = [
       { top: 180, value: "Integration guide" },
-      { top: 620, value: "SDK downloads" },
+      { top: 620, value: "Schemas" },
     ];
 
     expect(selectActiveScrollTarget(targets, 32)).toBe("Integration guide");
