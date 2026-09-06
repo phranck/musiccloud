@@ -278,6 +278,7 @@ import { PostgresTierRepository } from "./postgres-tiers.js";
 import {
   addLinksToTrack as tracksAddLinksToTrack,
   addTrackExternalIds as tracksAddTrackExternalIds,
+  clearServiceLinkMisses as tracksClearServiceLinkMisses,
   findExistingByIsrc as tracksFindExistingByIsrc,
   findExistingByIsrcSync as tracksFindExistingByIsrcSync,
   findShortIdByTrackUrl as tracksFindShortIdByTrackUrl,
@@ -291,6 +292,8 @@ import {
   loadByTrackId as tracksLoadByTrackId,
   loadSharePageResult as tracksLoadSharePageResult,
   persistTrackWithLinks as tracksPersistTrackWithLinks,
+  readServiceLinkMisses as tracksReadServiceLinkMisses,
+  recordServiceLinkMisses as tracksRecordServiceLinkMisses,
   upsertTrackPreview as tracksUpsertTrackPreview,
 } from "./postgres-tracks.js";
 
@@ -439,6 +442,18 @@ export class PostgresAdapter
     links: Array<{ service: string; url: string; confidence: number; matchMethod: string; externalId?: string }>,
   ): Promise<void> {
     return tracksAddLinksToTrack(this.pool, trackId, links);
+  }
+
+  readServiceLinkMisses(trackId: string): Promise<Array<{ service: string; checkedAt: Date }>> {
+    return tracksReadServiceLinkMisses(this.pool, trackId);
+  }
+
+  recordServiceLinkMisses(trackId: string, services: readonly string[]): Promise<void> {
+    return tracksRecordServiceLinkMisses(this.pool, trackId, services);
+  }
+
+  clearServiceLinkMisses(trackId: string, services: readonly string[]): Promise<void> {
+    return tracksClearServiceLinkMisses(this.pool, trackId, services);
   }
 
   // ============================================================================

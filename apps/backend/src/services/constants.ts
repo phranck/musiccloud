@@ -66,3 +66,19 @@ export const SPOTIFY_SEARCH_LIMIT_MAX = 10;
  * match with the same score.
  */
 export const SEARCH_FALLBACK_CONFIDENCE = 0.5;
+
+/**
+ * How long a fruitless lookup stands before that service is asked again.
+ *
+ * Without it, a service that does not carry a track is asked about it on every
+ * later resolve of that track, because "no link" and "never asked" look the
+ * same in `service_links`. That is the difference between a cached resolve
+ * costing a database read and costing a round trip to every service that will
+ * not answer.
+ *
+ * Thirty days is chosen against what actually changes: a catalogue gains a
+ * back-catalogue track rarely, so a miss is nearly always still a miss the next
+ * day, whilst a month is short enough that a newly licensed track shows up
+ * without anybody intervening.
+ */
+export const SERVICE_MISS_TTL_MS = 30 * 24 * 60 * 60 * 1000;

@@ -39,6 +39,19 @@
  * through `fillMissingServices` so that enabling a new plugin over
  * time organically enriches the cached row.
  *
+ * ## Fruitless lookups are remembered too
+ *
+ * `service_links` records where a track was found. On its own that makes
+ * a service which does not carry the track look identical to one that was
+ * never asked, so a cached resolve asks every such service again, every
+ * time, for as long as the row exists. `service_link_misses` closes that:
+ * a service that answers with nothing is written down, and it is skipped
+ * until the record is older than `SERVICE_MISS_TTL_MS`.
+ *
+ * A miss expires rather than being permanent, because catalogues do gain
+ * tracks. A service that does answer has its miss removed in the same
+ * step, so the two tables cannot end up asserting opposite things.
+ *
  * ## Preview URL preference (Deezer first)
  *
  * Deezer CDN preview URLs are permanent; Spotify preview URLs expire
@@ -119,6 +132,7 @@
  * | `CANDIDATE_MIN_CONFIDENCE`  | Minimum for a candidate to appear in disambiguation    |
  * | `MAX_CANDIDATES`            | Disambiguation list size cap                           |
  * | `SEARCH_FALLBACK_CONFIDENCE`| Confidence of synthesised "search on X" fallback links |
+ * | `SERVICE_MISS_TTL_MS`       | How long a fruitless lookup stands before a retry       |
  */
 import { type MatchMethod, PLATFORM_CONFIG } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
@@ -134,6 +148,7 @@ import {
   MATCH_MIN_CONFIDENCE,
   MAX_CANDIDATES,
   SEARCH_FALLBACK_CONFIDENCE,
+  SERVICE_MISS_TTL_MS,
 } from "./constants.js";
 import { collectTrackExternalIds } from "./external-ids.js";
 import {
@@ -223,6 +238,47 @@ function mapCachedLinks(
 }
 
 /**
+ * Reads the services that recently came back empty for this track.
+ *
+ * @param trackId - Track being resolved, absent when nothing is persisted yet.
+ * @returns The service ids whose last fruitless lookup is younger than
+ *   {@link SERVICE_MISS_TTL_MS}. Empty when there is no track row to key on, or
+ *   when the read fails: skipping a service on bad information would hide a
+ *   link, whilst asking one time too often only costs a request.
+ */
+async function readRecentServiceMisses(trackId: string | undefined): Promise<ReadonlySet<string>> {
+  if (!trackId) return new Set();
+  try {
+    const repo = await getRepository();
+    const misses = await repo.readServiceLinkMisses(trackId);
+    const cutoff = Date.now() - SERVICE_MISS_TTL_MS;
+    return new Set(misses.filter((m) => m.checkedAt.getTime() > cutoff).map((m) => m.service));
+  } catch (error) {
+    log.error("Resolver", `Failed to read service misses: ${error instanceof Error ? error.message : error}`);
+    return new Set();
+  }
+}
+
+/**
+ * Writes down that these services had nothing for this track.
+ *
+ * @param trackId - Track being resolved, absent when nothing is persisted yet.
+ * @param services - Service ids that answered with no match.
+ * @returns A promise that resolves when the write is done or has been given up
+ *   on. A failure here is not fatal: the resolve already succeeded, and the
+ *   cost of losing the record is one wasted lookup next time.
+ */
+async function recordServiceMisses(trackId: string | undefined, services: readonly string[]): Promise<void> {
+  if (!trackId || services.length === 0) return;
+  try {
+    const repo = await getRepository();
+    await repo.recordServiceLinkMisses(trackId, services);
+  } catch (error) {
+    log.error("Resolver", `Failed to record service misses: ${error instanceof Error ? error.message : error}`);
+  }
+}
+
+/**
  * Try to serve a result from DB cache.
  *
  * Static-vs-dynamic split (migration 0021): the canonical track row is
@@ -253,7 +309,15 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
   const coveredServices = new Set(cached.links.map((l) => l.service));
   const active = await getActiveAdapters();
 
-  const missingAdapters = active.filter((a) => !coveredServices.has(a.id) && a.id !== cached.sourceTrack.sourceService);
+  // A service that answered with nothing last time is not asked again until
+  // its record has aged out. Without this the set below holds every service
+  // that will never carry this track, and a cached resolve pays for all of
+  // them on every request.
+  const recentMisses = await readRecentServiceMisses(cached.trackId);
+
+  const missingAdapters = active.filter(
+    (a) => !coveredServices.has(a.id) && a.id !== cached.sourceTrack.sourceService && !recentMisses.has(a.id),
+  );
 
   // Static-vs-dynamic split: a missing or expired preview-URL row is the
   // ONLY reason to re-fetch Deezer for a row whose service-link list is
@@ -262,14 +326,18 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
   // `track_previews` row for the chosen preview source is genuinely
   // expired (or absent).
   const needsPreview = await isPreviewRefreshNeeded(cached);
-  const deezerAdapter = needsPreview
-    ? active.find(
-        (a) =>
-          a.id === "deezer" &&
-          a.id !== cached.sourceTrack.sourceService &&
-          !missingAdapters.some((m) => m.id === "deezer"),
-      )
-    : undefined;
+  // A service with a fresh miss is skipped here too: it has no link for this
+  // track, so it has no preview for it either, and asking is the same waste in
+  // a different shape.
+  const deezerAdapter =
+    needsPreview && !recentMisses.has("deezer")
+      ? active.find(
+          (a) =>
+            a.id === "deezer" &&
+            a.id !== cached.sourceTrack.sourceService &&
+            !missingAdapters.some((m) => m.id === "deezer"),
+        )
+      : undefined;
 
   const adaptersToFetch = deezerAdapter ? [...missingAdapters, deezerAdapter] : missingAdapters;
 
@@ -283,12 +351,20 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
   const results = await Promise.allSettled(adaptersToFetch.map((a) => resolveOnService(a, cached.sourceTrack)));
 
   const newLinks: ResolvedLink[] = [];
+  const missedServices: string[] = [];
   for (let i = 0; i < results.length; i++) {
     const result = results[i];
     if (result.status === "fulfilled" && result.value) {
       newLinks.push(result.value);
+    } else if (result.status === "fulfilled") {
+      // A clean "not here". A rejected lookup is left out on purpose: that is
+      // an outage or a timeout, and recording it would suppress the service
+      // for a month over a bad minute.
+      missedServices.push(adaptersToFetch[i].id);
     }
   }
+
+  await recordServiceMisses(cached.trackId, missedServices);
 
   if (newLinks.length === 0) return { ...cached, links: await filterDisabledLinks(cached.links) };
 
@@ -306,6 +382,12 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
           matchMethod: l.matchMethod,
           externalId: l.externalId,
         })),
+      );
+      // A service that just produced a link must not keep a miss beside it,
+      // or the two tables would assert opposite things about the same pair.
+      await repo.clearServiceLinkMisses(
+        cached.trackId,
+        genuinelyNewLinks.map((l) => l.service),
       );
     } catch (error) {
       log.error("Resolver", `Failed to persist gap-fill links: ${error instanceof Error ? error.message : error}`);

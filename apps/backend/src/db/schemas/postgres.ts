@@ -87,6 +87,32 @@ export const serviceLinks = pgTable(
   ],
 );
 
+/**
+ * Records that a service was asked about a track and had nothing.
+ *
+ * `service_links` above says where a track was found. Without its
+ * counterpart, a service that does not carry the track is indistinguishable
+ * from one that was never asked, so every later resolve of that track asks
+ * again, and keeps asking for as long as the row exists. This table is what
+ * makes a fruitless lookup cost something once instead of every time.
+ *
+ * The row expires rather than being permanent: a catalogue does gain tracks,
+ * so a miss is only good for `SERVICE_MISS_TTL_MS`, after which the service is
+ * asked once more.
+ */
+export const serviceLinkMisses = pgTable(
+  "service_link_misses",
+  {
+    id: text("id").primaryKey(),
+    trackId: text("track_id")
+      .notNull()
+      .references(() => tracks.id),
+    service: text("service").notNull(),
+    checkedAt: timestamp("checked_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [uniqueIndex("idx_service_link_misses_track_service").on(table.trackId, table.service)],
+);
+
 // Multi-source external identifier aggregation for tracks. The canonical
 // `tracks.isrc` column stores the primary value used for fast lookups; this
 // table additionally records every (id_type, id_value, source_service)
