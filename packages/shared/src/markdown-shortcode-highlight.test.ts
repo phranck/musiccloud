@@ -77,11 +77,20 @@ describe("highlightShortcodes", () => {
   });
 
   it("reads the shortcodes inside a container as shortcodes of their own", () => {
+    // The container is a real one and so is what stands in it, so both are
+    // marked as known: what a body holds is read the way the page reads it.
     const source = "[[card {\n[[pill:Beta]]\n}]]";
 
-    expect(marked(source, "token")).toEqual(["pill"]);
-    expect(marked(source, "unknown-token")).toEqual(["card"]);
+    expect(marked(source, "token")).toEqual(["card", "pill"]);
+    expect(marked(source, "unknown-token")).toEqual([]);
     expect(marked(source, "target")).toEqual(["Beta"]);
+  });
+
+  it("marks an unknown token inside a container as unknown", () => {
+    const source = "[[card {\n[[nosuchthing]]\n}]]";
+
+    expect(marked(source, "token")).toEqual(["card"]);
+    expect(marked(source, "unknown-token")).toEqual(["nosuchthing"]);
   });
 
   it("keeps every span pointing at the source it came from", () => {

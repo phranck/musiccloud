@@ -5,15 +5,22 @@
 import type { ContentContextMask } from "../content-context.js";
 import { hasAllContextBits } from "../content-context.js";
 import { FIELDS_SHORTCODE, KBD_SHORTCODE, PILL_SHORTCODE } from "./content.js";
+import { CARD_ROW_SHORTCODE, CARD_SHORTCODE } from "./layout.js";
 import { type ShortcodeDefinition, ShortcodeSyntax } from "./types.js";
 
 /**
  * Every shortcode, in the order the editor's reference lists them.
  *
- * The order is the reference panel's: the one an author reaches for most often
- * comes first, and the shortest notation comes last.
+ * What arranges a page comes before what marks up its text, because that is the
+ * order somebody builds a page in, and the shortest notation comes last.
  */
-export const SHORTCODE_DEFINITIONS: readonly ShortcodeDefinition[] = [FIELDS_SHORTCODE, PILL_SHORTCODE, KBD_SHORTCODE];
+export const SHORTCODE_DEFINITIONS: readonly ShortcodeDefinition[] = [
+  CARD_SHORTCODE,
+  CARD_ROW_SHORTCODE,
+  FIELDS_SHORTCODE,
+  PILL_SHORTCODE,
+  KBD_SHORTCODE,
+];
 
 /**
  * Finds a shortcode by its token.
