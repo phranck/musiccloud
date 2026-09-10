@@ -98,10 +98,26 @@ export const CARD_SHORTCODE = {
   body: ShortcodeBodyRule.Markdown,
   label: "Card",
   description:
-    "A card, taking the full width of the column it stands in. What you write between the braces is ordinary Markdown: headings, paragraphs, lists, code, any other shortcode, and another card. Put several inside a row to stand them side by side.",
-  examples: ["[[card {\n## What you get\n\nOne resolve call, every service it can find.\n}]]"],
+    "A card, taking the full width of the column it stands in. What you write between the braces is ordinary Markdown: headings, paragraphs, lists, code, any other shortcode, and another card. Put several inside a row to stand them side by side. A header and a footer stand apart from that content, each above and below a rule of its own.",
+  examples: [
+    "[[card {\n## What you get\n\nOne resolve call, every service it can find.\n}]]",
+    '[[card header="## What you get" footer="Every plan includes it." {\nOne resolve call, every service it can find.\n}]]',
+  ],
   allowedContextMask: PORTAL_ONLY,
-  params: [],
+  params: [
+    {
+      name: "header",
+      type: ShortcodeParamType.String,
+      defaultLabel: "no header, and the content starts at the top of the card",
+      label: "Stands above the content, separated from it. Markdown, so a heading or a sentence both work",
+    },
+    {
+      name: "footer",
+      type: ShortcodeParamType.String,
+      defaultLabel: "no footer",
+      label: "Stands below the content, separated from it. Markdown, as the header is",
+    },
+  ],
 } as const satisfies ShortcodeDefinition;
 
 /**

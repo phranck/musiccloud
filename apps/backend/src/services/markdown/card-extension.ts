@@ -26,12 +26,22 @@ import { insideContainer, isAtContainerLimit, resolveContainerSpacing } from "./
 /** The class the stylesheet gives one card. */
 const CARD_CLASS = "mc-card";
 
+/** The class the stylesheet gives what stands above a card's content. */
+const CARD_HEADER_CLASS = "mc-card__header";
+
+/** The class the stylesheet gives what stands below it. */
+const CARD_FOOTER_CLASS = "mc-card__footer";
+
 /** The class the stylesheet gives a row of them. */
 const CARD_ROW_CLASS = "mc-cards";
 
 interface McCardToken extends Tokens.Generic {
   type: "mcCard";
   tokens: Token[];
+  /** What stands above the content, already lexed, or `null` where nothing does. */
+  headerTokens: Token[] | null;
+  /** What stands below it. */
+  footerTokens: Token[] | null;
 }
 
 interface McCardRowToken extends Tokens.Generic {
@@ -67,6 +77,21 @@ function readCardSource(
 }
 
 /**
+ * Lexes a header or a footer, where the page wrote one.
+ *
+ * @param lexer - The lexer reading the document this card sits in.
+ * @param value - What the parameter held.
+ * @returns The tokens, or `null` where the page wrote nothing.
+ */
+function lexPart(
+  lexer: { blockTokens(source: string): unknown },
+  value: ShortcodeParamValue | undefined,
+): Token[] | null {
+  if (typeof value !== "string" || value.trim() === "") return null;
+  return lexer.blockTokens(value.trim()) as Token[];
+}
+
+/**
  * The card shortcode as a marked extension.
  *
  * @returns The extension, ready to register.
@@ -95,12 +120,22 @@ export function createCardExtension(): MarkedExtension {
                 type: "mcCard",
                 raw: read.raw,
                 tokens: this.lexer.blockTokens(read.body) as Token[],
+                // Lexed as blocks, because a header is usually a heading and a
+                // heading written into a line of inline tokens is text.
+                headerTokens: lexPart(this.lexer, read.params.header),
+                footerTokens: lexPart(this.lexer, read.params.footer),
               }) satisfies McCardToken,
           );
         },
         renderer(token) {
           const card = token as McCardToken;
-          return `<div class="${CARD_CLASS}">${this.parser.parse(card.tokens)}</div>\n`;
+          const header = card.headerTokens
+            ? `<div class="${CARD_HEADER_CLASS}">${this.parser.parse(card.headerTokens)}</div>`
+            : "";
+          const footer = card.footerTokens
+            ? `<div class="${CARD_FOOTER_CLASS}">${this.parser.parse(card.footerTokens)}</div>`
+            : "";
+          return `<div class="${CARD_CLASS}">${header}${this.parser.parse(card.tokens)}${footer}</div>\n`;
         },
       },
       {

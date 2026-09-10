@@ -63,6 +63,45 @@ describe("[[card]]", () => {
   });
 });
 
+describe("[[card]] with a header and a footer", () => {
+  it("stands each apart from the content", async () => {
+    const out = await renderPortal(
+      '[[card header="## What you get" footer="Every plan includes it." {\nOne resolve call.\n}]]',
+    );
+
+    expect(out).toContain('<div class="mc-card__header">');
+    expect(out).toContain('<div class="mc-card__footer">');
+    expect(out).toContain("One resolve call.");
+  });
+
+  it("reads both as Markdown", async () => {
+    const out = await renderPortal('[[card header="## A heading" footer="A **strong** word." {\nCopy.\n}]]');
+
+    expect(out).toMatch(/<h2[^>]*>A heading<\/h2>/);
+    expect(out).toContain("<strong>strong</strong>");
+  });
+
+  it("puts them above and below the content, in that order", async () => {
+    const out = await renderPortal('[[card header="Top" footer="Bottom" {\nMiddle.\n}]]');
+
+    expect(out.indexOf("Top")).toBeLessThan(out.indexOf("Middle."));
+    expect(out.indexOf("Middle.")).toBeLessThan(out.indexOf("Bottom"));
+  });
+
+  it("renders neither where the page names neither", async () => {
+    const out = await renderPortal("[[card {\nJust content.\n}]]");
+
+    expect(out).not.toContain("mc-card__header");
+    expect(out).not.toContain("mc-card__footer");
+  });
+
+  it("treats an empty one as none", async () => {
+    const out = await renderPortal('[[card header="" {\nCopy.\n}]]');
+
+    expect(out).not.toContain("mc-card__header");
+  });
+});
+
 describe("[[cards]]", () => {
   it("stands its cards side by side, at the declared column count", async () => {
     const out = await renderPortal("[[cards columns=3 {\n[[card {\nOne\n}]]\n[[card {\nTwo\n}]]\n}]]");
