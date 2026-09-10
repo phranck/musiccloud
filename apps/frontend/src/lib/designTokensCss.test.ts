@@ -33,10 +33,28 @@ describe("designTokensToCss — button hover/active tints", () => {
 
 describe("designTokensToCss — global drop shadow", () => {
   it("emits the drop-shadow geometry vars from tokens.shadow.shadow", () => {
+    // Asserted against the stored shadow rather than against figures repeated
+    // here, because how deep the shadow sits is a design decision that may
+    // change; that the emitted CSS follows it is what must not.
     const css = designTokensToCss(DESIGN_TOKENS_DEFAULTS);
-    expect(css).toContain("--mc-shadow-x:0px");
-    expect(css).toContain("--mc-shadow-y:15px");
-    expect(css).toContain("--mc-shadow-blur:21px");
+    const { offsetX, offsetY, blur } = DESIGN_TOKENS_DEFAULTS.shadow.shadow;
+    expect(css).toContain(`--mc-shadow-x:${offsetX}px`);
+    expect(css).toContain(`--mc-shadow-y:${offsetY}px`);
+    expect(css).toContain(`--mc-shadow-blur:${blur}px`);
     expect(css).toContain("--mc-shadow-rgb:0,0,0");
+  });
+
+  it("follows the tokens it is given rather than the defaults", () => {
+    const css = designTokensToCss({
+      ...DESIGN_TOKENS_DEFAULTS,
+      shadow: {
+        ...DESIGN_TOKENS_DEFAULTS.shadow,
+        shadow: { offsetX: 3, offsetY: 7, blur: 19, color: "#112233" },
+      },
+    });
+    expect(css).toContain("--mc-shadow-x:3px");
+    expect(css).toContain("--mc-shadow-y:7px");
+    expect(css).toContain("--mc-shadow-blur:19px");
+    expect(css).toContain("--mc-shadow-rgb:17,34,51");
   });
 });
