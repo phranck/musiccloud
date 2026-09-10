@@ -1,5 +1,7 @@
 /** The content shortcodes, and the defaults their renderers have to agree with. */
 export * from "./content.js";
+/** The layout shortcodes, and the bounds their renderer has to agree with. */
+export * from "./layout.js";
 /** The registry itself, the lookup by token, and the per-context list. */
 export * from "./registry.js";
 /** The token of every shortcode a page may use. */

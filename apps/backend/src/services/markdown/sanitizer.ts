@@ -60,6 +60,10 @@ const GLOBAL_ATTRIBUTES = new Set(["aria-describedby", "aria-hidden", "aria-labe
 const ELEMENT_ATTRIBUTES: Readonly<Record<string, ReadonlySet<string>>> = {
   a: new Set(["data-footnote-backref", "data-footnote-ref", "href", "rel"]),
   code: new Set(["class"]),
+  // A row of cards carries the gap a page asked for. `sanitizeStyle` accepts
+  // one property here, `gap`, and only as a plain CSS length, so nothing else
+  // can travel in on a `div`.
+  div: new Set(["style"]),
   dl: new Set(["style"]),
   img: new Set(["alt", "height", "src", "width"]),
   input: new Set(["checked", "disabled", "type"]),
@@ -111,6 +115,8 @@ function sanitizeStyle(value: string): string | null {
       declarations.push(`grid-template-columns:${candidate}`);
     } else if (property === "column-gap" && CSS_LENGTH_PATTERN.test(candidate)) {
       declarations.push(`column-gap:${candidate}`);
+    } else if (property === "gap" && CSS_LENGTH_PATTERN.test(candidate)) {
+      declarations.push(`gap:${candidate}`);
     }
   }
   return declarations.length > 0 ? declarations.join(";") : null;

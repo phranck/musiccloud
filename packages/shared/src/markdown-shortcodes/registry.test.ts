@@ -76,10 +76,24 @@ describe("shortcodesForContext", () => {
     expect(tokens).toContain("pill");
   });
 
-  it("offers the site the same, since nothing is yet reserved to one context", () => {
-    expect(shortcodesForContext(ContentContext.Frontend).map((definition) => definition.token)).toEqual(
-      shortcodesForContext(ContentContext.DeveloperPortal).map((definition) => definition.token),
+  it("keeps a shortcode reserved to one context out of the other", () => {
+    const portalOnly = SHORTCODE_DEFINITIONS.filter(
+      (definition) => definition.allowedContextMask === ContentContext.DeveloperPortal,
     );
+    const onTheSite = shortcodesForContext(ContentContext.Frontend).map((definition) => definition.token);
+
+    // Cards are the first of these. Offering one where no stylesheet gives it a
+    // surface would render an unstyled block, so the mask is what stops it.
+    expect(portalOnly.length).toBeGreaterThan(0);
+    for (const definition of portalOnly) {
+      expect(onTheSite, definition.token).not.toContain(definition.token);
+    }
+  });
+
+  it("offers a shortcode allowed in both contexts to each of them", () => {
+    for (const context of [ContentContext.Frontend, ContentContext.DeveloperPortal]) {
+      expect(shortcodesForContext(context).map((definition) => definition.token)).toContain("pill");
+    }
   });
 });
 

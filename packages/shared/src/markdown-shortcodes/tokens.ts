@@ -7,6 +7,10 @@
 
 /** What follows `[[` or `:::`, per shortcode. */
 export const ShortcodeToken = {
+  /** One card, holding whatever a page holds. */
+  Card: "card",
+  /** A row of cards, side by side. */
+  Cards: "cards",
   /** A label-and-value list, as a definition list. */
   Fields: "fields",
   /** A short word set apart from the text around it. */

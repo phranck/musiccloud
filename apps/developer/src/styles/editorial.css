@@ -25,6 +25,45 @@
     overflow-wrap: anywhere;
   }
 
+  /* A card written into a page, taking the same surface, radius and padding as
+     the `surface-card` component the hand-written pages used. It is a class of
+     its own rather than that component because the renderer serves both the
+     portal and the site, and each maps `mc-card` onto its own material. */
+  .mc-card {
+    /* A card holds page content, so it lays that content out the way the page
+       does rather than leaving the gaps to the level above. */
+    display: grid;
+    gap: var(--mc-space-4);
+    border-radius: var(--radius-card);
+    padding: var(--mc-space-5);
+    background: var(--color-surface);
+  }
+
+  .mc-cards {
+    display: grid;
+    gap: var(--mc-space-5);
+    /* One column until there is room for more. Everything narrower gets full
+       width cards, because two cards on a phone are two unreadable ones. */
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* `minmax(0, 1fr)` rather than `1fr`: a grid track's minimum is `auto`, so a
+     long unbroken word or a wide code block inside a card would push its column
+     past its share and the row past the page. */
+  @media (min-width: 48rem) {
+    .mc-cards--2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .mc-cards--3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .mc-cards--4 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
   .editorial-markdown h1,
   .editorial-markdown h2,
   .editorial-markdown h3,

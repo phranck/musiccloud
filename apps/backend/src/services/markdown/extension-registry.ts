@@ -1,5 +1,6 @@
 import {
   BUNDLED_CODE_FENCE_LANGUAGES,
+  CARD_SHORTCODE,
   ContentContext,
   type ContentContextMask,
   FIELDS_AUTO_LABEL_WIDTH,
@@ -20,6 +21,7 @@ import markedFootnote from "marked-footnote";
 import { markedHighlight } from "marked-highlight";
 import { type BundledLanguage, type BundledTheme, createHighlighter, type HighlighterGeneric } from "shiki";
 import mcQueryGrammar from "../grammars/mc-query.tmLanguage.json" with { type: "json" };
+import { createCardExtension } from "./card-extension.js";
 
 const BOTH_CONTENT_CONTEXTS = ContentContext.Frontend | ContentContext.DeveloperPortal;
 const KNOWN_CARD_MODIFIERS = new Set(["recessed", "embossed"] as const);
@@ -361,10 +363,16 @@ export const MARKDOWN_EXTENSION_DEFINITIONS: readonly MarkdownExtensionDefinitio
     createMarkedExtension: createCodeFenceExtension,
     tokenTypes: ["code"],
   },
-  // The three below are shortcodes, so where each may be used is declared once
+  // The ones below are shortcodes, so where each may be used is declared once
   // in the shared registry alongside its parameters and its help. This list
   // wires them into marked and takes that decision from there rather than
   // repeating it.
+  {
+    name: "mcCard",
+    allowedContextMask: CARD_SHORTCODE.allowedContextMask,
+    createMarkedExtension: createCardExtension,
+    tokenTypes: ["mcCard", "mcCardRow"],
+  },
   {
     name: "mcFields",
     allowedContextMask: FIELDS_SHORTCODE.allowedContextMask,

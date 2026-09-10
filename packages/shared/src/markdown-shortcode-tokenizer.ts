@@ -665,6 +665,27 @@ function readBracesNode(content: string, start: number): { node: ShortcodeNode; 
 }
 
 /**
+ * Reads the one node that begins at `index`, if any.
+ *
+ * For a caller that already knows where a node should start and only wants to
+ * know whether one does, such as a Markdown renderer being offered the rest of
+ * a document at each position. Scanning the whole remainder to answer that
+ * would cost the length of the document at every character.
+ *
+ * @param content - The Markdown source.
+ * @param index - Where the node is expected to begin.
+ * @returns The node, or `null` when none begins exactly there.
+ */
+export function readShortcodeAt(content: string, index: number): ShortcodeNode | null {
+  if (isAt(content, index, BRACKET_OPEN)) return readBracketNode(content, index)?.node ?? null;
+  if (isAt(content, index, BRACES_OPEN)) return readBracesNode(content, index)?.node ?? null;
+  if (isAt(content, index, FENCE_MARKER) && isLineStart(content, index)) {
+    return readFenceNode(content, index)?.node ?? null;
+  }
+  return null;
+}
+
+/**
  * Scans `content` and returns every top-level node, in the order they appear.
  *
  * Nodes nested inside a bracket node are not returned here; they hang off their
