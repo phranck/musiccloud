@@ -152,6 +152,10 @@
   /* A caption under a picture or a video, which is read after the thing it
      describes and therefore sits a step below body text. */
   --mc-text-caption: 0.9375rem;
+  /* A card is a column inside the page, so it reads one step below the page's
+     own size: large enough not to look like a footnote, small enough that the
+     card reads as something set into the text rather than as more of it. */
+  --mc-text-card-body: 1.25rem;
   --mc-text-card-title: 1.75rem;
   --mc-text-subsection: 1.625rem;
   --mc-text-section: 2.25rem;

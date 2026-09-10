@@ -52,6 +52,7 @@
   --text-body: var(--mc-text-body);
   --text-code: var(--mc-text-code);
   --text-caption: var(--mc-text-caption);
+  --text-card-body: var(--mc-text-card-body);
   --text-card-title: var(--mc-text-card-title);
   --text-subsection: var(--mc-text-subsection);
   --text-section: var(--mc-text-section);

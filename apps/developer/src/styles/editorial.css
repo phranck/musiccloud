@@ -32,14 +32,14 @@
     --mc-shortcode-border: var(--color-border);
     --mc-shortcode-caption-color: var(--color-fg-subtle);
     --mc-shortcode-title-color: var(--color-fg);
-    /* Barlow's capitals are 0.7em tall, which is what a symbol beside text is
-       measured against, whether it is centred on that line or flush with it. */
-    --mc-shortcode-cap-height: 0.7em;
 
     display: grid;
     gap: var(--mc-space-6);
     color: var(--color-fg-muted);
-    font-size: var(--text-body);
+    /* One reading size for a page, and it is the larger one. A portal page is
+       read rather than scanned, and what used to be reserved for the opening
+       paragraph now holds throughout, inside a card as well as outside it. */
+    font-size: var(--text-lead);
     line-height: var(--mc-editorial-line-height);
     overflow-wrap: anywhere;
   }
@@ -73,6 +73,7 @@
   .mc-card {
     display: grid;
     border-radius: var(--radius-card);
+    font-size: var(--text-card-body);
     padding: var(--mc-space-7);
     background: var(--color-surface);
   }
@@ -98,6 +99,33 @@
   .mc-card > h5:not([class]),
   .mc-card > h6:not([class]) {
     margin-block-end: var(--mc-space-2);
+  }
+
+  /* A header and a footer stand apart from the content rather than reading as
+     the first and last thing in it, so each carries a rule and the same air on
+     both sides of it. The rule runs the width of the content, not of the card,
+     because the card's padding is what holds it off the edge. */
+  .mc-card__header {
+    padding-block-end: var(--mc-space-5);
+    border-block-end: 1px solid var(--color-border);
+  }
+
+  .mc-card__footer {
+    padding-block-start: var(--mc-space-5);
+    border-block-start: 1px solid var(--color-border);
+    color: var(--color-fg-subtle);
+  }
+
+  /* Inside either one the content keeps its own rhythm but not its outer
+     margins, which would otherwise add to the air the rule already provides. */
+  .mc-card__header > :first-child,
+  .mc-card__footer > :first-child {
+    margin-block-start: 0;
+  }
+
+  .mc-card__header > :last-child,
+  .mc-card__footer > :last-child {
+    margin-block-end: 0;
   }
 
   /* A fields list. The grid itself is set inline by the renderer, because the
@@ -203,28 +231,30 @@
     letter-spacing: -0.025em;
   }
 
-  /* A heading inside a page, not the page's own. The page already carries its
-     title at `--text-hero` above this, so a section heading set at
-     `--text-section` competes with it and reads as a second title. */
+  /* A heading inside a page, not the page's own. It stands well below the title
+     the page carries at `--text-hero`, and well above the reading size, which is
+     what tells the two apart without either of them shouting. */
   .editorial-markdown h1:not([class]),
   .editorial-markdown h2:not([class]) {
-    font-size: var(--text-card-title);
+    font-size: var(--text-section);
     letter-spacing: -0.025em;
   }
 
+  /* The lower headings sit at the reading size and are told apart by their
+     weight. Below it they would read as smaller than the text they introduce. */
   .editorial-markdown h3:not([class]),
   .editorial-markdown h4:not([class]),
   .editorial-markdown h5:not([class]),
   .editorial-markdown h6:not([class]) {
-    font-size: var(--text-body);
+    font-size: var(--text-lead);
   }
 
-  /* The opening paragraph is the page's lead, which is how every hand-written
-     portal page set it. It is the first thing read and it introduces the rest,
-     so it is set larger, and only where it genuinely opens the page. */
+  /* The opening paragraph introduces the rest, so it takes the muted colour and
+     the air beneath it that says so. It is not set larger: one body size holds
+     across the page, whether a paragraph stands on it or inside a card, and a
+     card that read smaller than the page around it looked like a footnote. */
   .editorial-markdown > p:not([class]):first-child {
     color: var(--color-fg-muted);
-    font-size: var(--text-lead);
   }
 
   .editorial-markdown ul:not([class]),
@@ -269,7 +299,9 @@
 
   .editorial-markdown code:not([class]) {
     border-radius: var(--radius-keycap);
-    padding-inline: var(--mc-space-1);
+    /* A step up from the smallest space, so the tint around a piece of code
+       clears its first and last character rather than sitting on them. */
+    padding-inline: var(--mc-space-2);
     color: var(--mc-color-inline-code-fg);
     background: var(--mc-color-inline-code-bg);
     font-family: var(--font-mono);
