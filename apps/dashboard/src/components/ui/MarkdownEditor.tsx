@@ -1,17 +1,15 @@
+import type { DecorationSet, ViewUpdate } from "@codemirror/view";
 import {
-  CODE_FENCE_LANGUAGES,
-  clampViewportRect,
-  moveViewportRect,
-  type ResizeHandle,
-  resizeViewportRect,
-  type ViewportRect,
+  highlightShortcodes,
+  type ShortcodeHighlightKind,
+  type ShortcodePasteRewrite,
+  shortcodeIndentFor,
+  shortcodePasteRewrite,
 } from "@musiccloud/shared";
-import { InfoIcon, X as XIcon } from "@phosphor-icons/react";
+import { BracketsSquareIcon, DotOutlineIcon, ListNumbersIcon, TextAlignJustifyIcon } from "@phosphor-icons/react";
 import * as React from "react";
-import { createPortal } from "react-dom";
 
-import { ResizeHandles } from "@/shared/ui/ResizeHandles";
-import { ShortcodeList, SiteVariableList } from "./ShortcodeReference";
+import { ShortcodeReferencePanel } from "./ShortcodeReferencePanel";
 
 export interface MarkdownEditorProps {
   id?: string;
@@ -57,34 +55,6 @@ const SHORTCUT_HINTS = [
   { keys: ["⌘", "⇧", "D"], label: "Strike" },
 ] satisfies { keys: string[]; label: string }[];
 
-const CODE_FENCE_EXAMPLES = [
-  {
-    label: "Default code block",
-    code: "```js\nconst value = 1;\n```",
-    description: "Renders as a recessed card with syntax highlighting.",
-  },
-  {
-    label: "Explicit recessed / embossed",
-    code: "```js recessed\nconst value = 1;\n```\n\n```js embossed\nconst value = 1;\n```",
-    description: "Use the modifier after the language to choose the card surface.",
-  },
-  {
-    label: "Custom spacing",
-    code: "```js recessed padding=1rem radius=12px\nconst value = 1;\n```",
-    description: "padding= and radius= override what the card geometry would otherwise give the block.",
-  },
-  {
-    label: "Plain text comments",
-    code: "```text\n# comment\n// note\nplain line\n```",
-    description: "# and // at the start of a text line render as muted italic comments.",
-  },
-  {
-    label: "musiccloud query",
-    code: "```mc-query\ngenre: jazz | soul\ntracks: 20\n# internal note\n```",
-    description: "Highlights query keys, numbers, |, ?, and # / // comments.",
-  },
-] satisfies { label: string; code: string; description: string }[];
-
 interface MarkdownCodeMirrorProps {
   value: string;
   onChange: (value: string) => void;
@@ -95,14 +65,30 @@ interface MarkdownCodeMirrorProps {
   height?: string;
   minHeight?: string;
   registerInsert?: (insert: (text: string) => void) => void;
+  /** Whether the line-number column is shown. */
+  lineNumbers?: boolean;
+  /** Whether long lines wrap instead of scrolling sideways. */
+  lineWrap?: boolean;
+  /** Whether spaces and line ends are drawn. */
+  whitespace?: boolean;
 }
 
 const MarkdownCodeMirror = React.lazy(async () => {
   const [
-    { markdown },
-    { HighlightStyle, syntaxHighlighting },
-    { EditorSelection, Prec },
-    { placeholder: cmPlaceholder, drawSelection, EditorView, keymap },
+    { markdown, markdownKeymap },
+    { getIndentUnit, HighlightStyle, indentService, syntaxHighlighting },
+    { EditorSelection, EditorState, Prec },
+    {
+      placeholder: cmPlaceholder,
+      Decoration,
+      drawSelection,
+      EditorView,
+      highlightWhitespace,
+      keymap,
+      lineNumbers,
+      ViewPlugin,
+      WidgetType,
+    },
     { tags: t },
     { default: CodeMirror },
   ] = await Promise.all([
@@ -160,6 +146,39 @@ const MarkdownCodeMirror = React.lazy(async () => {
       color: "var(--ds-text-subtle)",
       fontStyle: "normal",
     },
+    // A column beside the text rather than a mark in front of each line, so it
+    // runs the full height and stays put whilst a long line scrolls past it.
+    ".cm-gutters": {
+      backgroundColor: "var(--ds-bg-elevated)",
+      color: "var(--ds-text-subtle)",
+      border: "none",
+      borderRight: "1px solid var(--ds-border)",
+    },
+    ".cm-lineNumbers .cm-gutterElement": {
+      padding: "0 0.5rem 0 0.75rem",
+      minWidth: "2.5rem",
+    },
+    // The numbers sit on the same rhythm as the lines they count. Left to
+    // inherit, the two drift apart by a whole line over enough of them.
+    ".cm-gutters, .cm-content": {
+      lineHeight: "1.5",
+    },
+    ".cm-activeLineGutter": {
+      backgroundColor: "transparent",
+    },
+    // A visible space is drawn as a dot in a background image rather than as
+    // text, so the colour is set there. CodeMirror's own is a fixed grey, which
+    // reads as a smudge on this surface.
+    ".cm-highlightSpace": {
+      backgroundImage: "radial-gradient(circle at 50% 55%, var(--ds-text-subtle) 20%, transparent 5%)",
+    },
+    // The end-of-line mark is quieter still than a space, because there is one
+    // on every line and they would otherwise read as a column of their own.
+    ".cm-lineEndMark": {
+      color: "var(--ds-text-subtle)",
+      opacity: "0.5",
+      userSelect: "none",
+    },
   });
 
   const highlightStyle = HighlightStyle.define([
@@ -179,7 +198,267 @@ const MarkdownCodeMirror = React.lazy(async () => {
     { tag: t.atom, color: "var(--md-punctuation)" },
   ]);
 
-  const mcTheme = [editorTheme, syntaxHighlighting(highlightStyle)];
+  /**
+   * What each part of a shortcode looks like.
+   *
+   * Every colour is a token, so the palette is decided in the stylesheet where
+   * the reasoning behind each role also lives. Weight is decided here, and only
+   * the token carries any, because it is what a reader scans for to find their
+   * way around a long document.
+   *
+   * The class names follow the span kinds, which is what lets the decorations
+   * below be derived from a kind rather than listed a second time here.
+   */
+  const shortcodeTheme = EditorView.theme({
+    ".cm-shortcode-bracket": { color: "var(--md-shortcode-bracket)" },
+    ".cm-shortcode-brace-marker": { color: "var(--md-shortcode-bracket)" },
+    ".cm-shortcode-fence-marker": { color: "var(--md-shortcode-bracket)" },
+    ".cm-shortcode-separator": { color: "var(--md-shortcode-separator)" },
+    ".cm-shortcode-body-brace": { color: "var(--md-shortcode-brace)" },
+    ".cm-shortcode-token": { color: "var(--md-shortcode-token)", fontWeight: "600" },
+    ".cm-shortcode-target": { color: "var(--md-shortcode-target)" },
+    ".cm-shortcode-attribute-name": { color: "var(--md-shortcode-attribute)" },
+    ".cm-shortcode-value-string": { color: "var(--md-shortcode-string)" },
+    ".cm-shortcode-value-bare": { color: "var(--md-shortcode-number)" },
+    ".cm-shortcode-variable": { color: "var(--md-shortcode-variable)" },
+    ".cm-shortcode-unknown-token": { color: "var(--md-shortcode-unknown)" },
+  });
+
+  const shortcodeMarks = new Map<ShortcodeHighlightKind, ReturnType<typeof Decoration.mark>>();
+
+  /**
+   * The decoration for one kind of span, built once and reused.
+   *
+   * Derived from the kind rather than listed, so a new kind needs a rule in the
+   * theme above and nothing here. Cached because this runs once per span on
+   * every keystroke, and a decoration built fresh each time would also defeat
+   * CodeMirror's own comparison of one set against the next.
+   *
+   * @param kind - What the span is.
+   * @returns A mark carrying the class the theme styles.
+   */
+  function shortcodeMark(kind: ShortcodeHighlightKind) {
+    const existing = shortcodeMarks.get(kind);
+    if (existing) return existing;
+
+    const mark = Decoration.mark({ class: `cm-shortcode-${kind}` });
+    shortcodeMarks.set(kind, mark);
+    return mark;
+  }
+
+  /**
+   * Marks every part of every shortcode in the document.
+   *
+   * The whole document is scanned rather than the visible lines alone. A
+   * shortcode may open on one screen and close three screens later, and a scan
+   * that began at the top of the viewport would read the middle of one as if it
+   * were the start of a document.
+   *
+   * @param view - The editor whose document is read.
+   * @returns One decoration per span, in the order a decoration set needs.
+   */
+  function buildShortcodeMarks(view: LoadedEditorView): DecorationSet {
+    const content = view.state.doc.toString();
+    return Decoration.set(
+      highlightShortcodes(content).map((span) => shortcodeMark(span.kind).range(span.from, span.to)),
+    );
+  }
+
+  /**
+   * Colours the shortcodes, rebuilt whenever the document changes.
+   *
+   * The spans come from the same scanner the page renders with, so the editor
+   * cannot colour something the page does not read as a shortcode.
+   *
+   * At `Prec.highest`, which is what puts these marks inside the Markdown ones
+   * rather than around them. Text takes the colour of the innermost span that
+   * states one, so the outer set loses. Without it a shortcode indented by four
+   * spaces is a Markdown code block and comes out in the code colour, whilst
+   * the same shortcode at the margin does not, and the nesting depth would be
+   * deciding the colours.
+   */
+  const highlightShortcodeSyntax = Prec.highest(
+    ViewPlugin.fromClass(
+      class {
+        decorations: DecorationSet;
+
+        constructor(view: LoadedEditorView) {
+          this.decorations = buildShortcodeMarks(view);
+        }
+
+        update(update: ViewUpdate) {
+          if (update.docChanged) this.decorations = buildShortcodeMarks(update.view);
+        }
+      },
+      { decorations: (plugin) => plugin.decorations },
+    ),
+  );
+
+  /**
+   * The mark drawn where a line ends.
+   *
+   * CodeMirror shows spaces and tabs but not the newline itself, and the
+   * newline is what a Markdown author most needs to see: two spaces before one
+   * are a hard break, and without an end-of-line mark there is no way to tell a
+   * line that carries them from one that does not.
+   *
+   * The character is the one editors have long used for this, and it is hidden
+   * from screen readers, which read the line structure from the document.
+   */
+  class LineEndWidget extends WidgetType {
+    toDOM(): HTMLElement {
+      const mark = document.createElement("span");
+      mark.className = "cm-lineEndMark";
+      mark.textContent = "¬";
+      mark.setAttribute("aria-hidden", "true");
+      return mark;
+    }
+
+    /** Two of these are interchangeable, so the editor may reuse one for another. */
+    eq(): boolean {
+      return true;
+    }
+  }
+
+  const lineEndWidget = Decoration.widget({ widget: new LineEndWidget(), side: 1 });
+
+  /**
+   * Places an end-of-line mark after every line but the last.
+   *
+   * @param view - The editor being marked.
+   * @returns One widget per visible line.
+   */
+  function buildLineEndMarks(view: LoadedEditorView): DecorationSet {
+    const marks = [];
+    for (const { from, to } of view.visibleRanges) {
+      let line = view.state.doc.lineAt(from);
+      while (line.from <= to) {
+        if (line.number < view.state.doc.lines) marks.push(lineEndWidget.range(line.to));
+        if (line.to + 1 > view.state.doc.length) break;
+        line = view.state.doc.lineAt(line.to + 1);
+      }
+    }
+    return Decoration.set(marks);
+  }
+
+  /**
+   * Shows where each line ends.
+   *
+   * Only the visible lines carry a mark, rebuilt as the document or the
+   * viewport changes, so a long document costs no more than a short one.
+   */
+  const highlightLineEnds = ViewPlugin.fromClass(
+    class {
+      decorations: DecorationSet;
+
+      constructor(view: LoadedEditorView) {
+        this.decorations = buildLineEndMarks(view);
+      }
+
+      update(update: ViewUpdate) {
+        if (update.docChanged || update.viewportChanged) {
+          this.decorations = buildLineEndMarks(update.view);
+        }
+      }
+    },
+    { decorations: (plugin) => plugin.decorations },
+  );
+
+  /**
+   * Offers the indentation a line sits at inside the containers above it.
+   *
+   * Both Return and typing consult this, so a container opens a level, a
+   * closing line pulls itself back out, and neither has to be counted by hand.
+   *
+   * Outside a container it answers `null`, which hands the question back to
+   * Markdown's own rules. That is what keeps lists and quotes indenting the way
+   * they always have.
+   */
+  const shortcodeIndent = indentService.of((context, position) => {
+    const indent = shortcodeIndentFor(context.state.doc.toString(), position, " ".repeat(getIndentUnit(context.state)));
+    return indent === null ? null : indent.length;
+  });
+
+  /**
+   * Re-indents the line as the closing sequence of a container is typed.
+   *
+   * Without this the line would keep the indentation of the content above it,
+   * and the author would have to remove it themselves the moment they finish
+   * writing `}]]`.
+   */
+  const shortcodeIndentOnInput = markdown().language.data.of({ indentOnInput: /^\s*\}\]\]$/ });
+
+  /**
+   * Empties a line the caret has just left behind with nothing but indentation.
+   *
+   * Automatic indentation puts spaces on a line before anything is written on
+   * it. Pressing Return again leaves them there, so a document collects lines
+   * that look empty and are not. They travel into the content, they show up in
+   * a diff, and Markdown counts four of them as the start of a code block.
+   *
+   * Only the line the caret left is touched, and only whilst it holds nothing
+   * but whitespace, so this never reaches a line somebody is still writing on.
+   */
+  const clearIndentOnlyLines = EditorState.transactionFilter.of((transaction) => {
+    if (!transaction.docChanged) return transaction;
+
+    const wasAt = transaction.startState.selection.main.head;
+    const previous = transaction.startState.doc.lineAt(wasAt);
+    if (previous.text === "" || previous.text.trim() !== "") return transaction;
+
+    const now = transaction.state.selection.main.head;
+    const line = transaction.state.doc.lineAt(now);
+    // Still on the same line means the caret has not left it yet.
+    if (line.from === previous.from) return transaction;
+
+    // The line may have moved, so it is found again in the new document rather
+    // than trusted to still start where it did.
+    const moved = transaction.changes.mapPos(previous.from, -1);
+    const after = transaction.state.doc.lineAt(moved);
+    if (after.text === "" || after.text.trim() !== "") return transaction;
+
+    return [transaction, { changes: { from: after.from, to: after.to, insert: "" } }];
+  });
+
+  /**
+   * Re-indents a pasted block for the level it lands on.
+   *
+   * `indentOnInput` covers typing and completion and deliberately not pasting,
+   * so a block pasted into a container would otherwise arrive with its first
+   * line indented and every following line flat against the margin.
+   *
+   * The block is rewritten before it is inserted rather than corrected
+   * afterwards, so the document never holds the flat version and one undo takes
+   * the whole paste back.
+   */
+  const shortcodeIndentOnPaste = EditorState.transactionFilter.of((transaction) => {
+    if (!transaction.docChanged || !transaction.isUserEvent("input.paste")) return transaction;
+
+    const unit = " ".repeat(getIndentUnit(transaction.startState));
+    const before = transaction.startState.doc.toString();
+    const rewrites: ShortcodePasteRewrite[] = [];
+
+    transaction.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+      // One paste at a time. Pasting into a multiple selection is rare and
+      // would need a base level per range, which is more machinery than it
+      // earns.
+      if (rewrites.length > 0) return;
+
+      const rewrite = shortcodePasteRewrite(before, fromA, toA, inserted.toString(), unit);
+      if (rewrite) rewrites.push(rewrite);
+    });
+
+    const rewrite = rewrites[0];
+    if (!rewrite) return transaction;
+
+    return {
+      changes: { from: rewrite.from, to: rewrite.to, insert: rewrite.insert },
+      selection: { anchor: rewrite.from + rewrite.insert.length },
+      userEvent: "input.paste",
+    };
+  });
+
+  const mcTheme = [editorTheme, syntaxHighlighting(highlightStyle), shortcodeTheme];
 
   function wrapSelection(view: LoadedEditorView, before: string, after: string): boolean {
     view.dispatch(
@@ -194,6 +473,17 @@ const MarkdownCodeMirror = React.lazy(async () => {
     );
     return true;
   }
+
+  /**
+   * Return continues a list, and Backspace steps back out of one.
+   *
+   * Both come from the Markdown package rather than being written here, so a
+   * bullet, a number, a task box and a quote all behave the way they do in
+   * every other Markdown editor. Return on an item holding nothing but its
+   * marker removes the marker and leaves the list, which is what stops the
+   * feature from becoming a trap.
+   */
+  const markdownStructureKeymap = Prec.high(keymap.of(markdownKeymap));
 
   const mdKeymap = Prec.highest(
     keymap.of([
@@ -231,6 +521,9 @@ const MarkdownCodeMirror = React.lazy(async () => {
       height,
       minHeight,
       registerInsert,
+      lineNumbers: showLineNumbers = true,
+      lineWrap = true,
+      whitespace = false,
     }: MarkdownCodeMirrorProps) {
       const viewRef = React.useRef<LoadedEditorView | null>(null);
       // Ref indirection keeps the focus-handler extension stable across
@@ -247,10 +540,22 @@ const MarkdownCodeMirror = React.lazy(async () => {
 
       const extensions = React.useMemo(
         () => [
+          ...(showLineNumbers ? [lineNumbers()] : []),
+          ...(whitespace ? [highlightWhitespace(), highlightLineEnds] : []),
           markdown(),
-          EditorView.lineWrapping,
+          highlightShortcodeSyntax,
+          shortcodeIndent,
+          shortcodeIndentOnInput,
+          shortcodeIndentOnPaste,
+          clearIndentOnlyLines,
+          ...(lineWrap ? [EditorView.lineWrapping] : []),
           drawSelection(),
           mdKeymap,
+          // Beneath the four shortcuts above and above the default keymap, so
+          // Return continues a list and Backspace steps out of one. Each of
+          // these answers `false` outside a Markdown list, and the default
+          // binding then runs, which keeps a shortcode body indenting as it did.
+          markdownStructureKeymap,
           EditorView.domEventHandlers({
             focus() {
               registerInsertRef.current?.(insertAtSelection);
@@ -270,7 +575,7 @@ const MarkdownCodeMirror = React.lazy(async () => {
           ...(placeholder ? [cmPlaceholder(placeholder)] : []),
           ...extraExtensions,
         ],
-        [onPaste, placeholder, extraExtensions, insertAtSelection],
+        [onPaste, placeholder, extraExtensions, insertAtSelection, showLineNumbers, lineWrap, whitespace],
       );
 
       return (
@@ -306,14 +611,6 @@ function Key({ children }: { children: string }) {
   );
 }
 
-function NotationCode({ children }: { children: string }) {
-  return (
-    <code className="inline-flex items-center justify-center h-[1.25rem] px-1 rounded border border-[var(--ds-border-strong)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-muted)] text-[0.625rem] font-medium font-mono shadow-[0_1px_0_var(--ds-border)] leading-none select-none">
-      {children}
-    </code>
-  );
-}
-
 function Hint({ keys, label }: { keys: string[]; label: string }) {
   return (
     <span className="flex items-center gap-0.5">
@@ -325,370 +622,136 @@ function Hint({ keys, label }: { keys: string[]; label: string }) {
   );
 }
 
-function HelpSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="space-y-2">
-      <h4 className="text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--ds-text)]">{title}</h4>
-      {children}
-    </section>
-  );
-}
+/**
+ * Remembers a footer switch across pages and reloads.
+ *
+ * Each switch names the state it starts in, because they do not agree: wrapping
+ * and line numbers are how the editor is normally read, whilst showing every
+ * space is something to turn on whilst hunting for one.
+ */
+const WRAP_STORAGE_KEY = "musiccloud.markdown-editor.line-wrap";
+const LINE_NUMBERS_STORAGE_KEY = "musiccloud.markdown-editor.line-numbers";
+const WHITESPACE_STORAGE_KEY = "musiccloud.markdown-editor.whitespace";
 
-function HelpExample({ label, code, description }: { label: string; code: string; description: string }) {
-  return (
-    <article className="rounded-control border border-[var(--ds-border)] bg-[var(--ds-surface)] p-2.5">
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <h5 className="text-xs font-medium text-[var(--ds-text)]">{label}</h5>
-      </div>
-      <pre className="overflow-x-auto rounded bg-[var(--ds-input-bg)] px-2 py-1.5 text-[0.6875rem] leading-relaxed text-[var(--ds-text)]">
-        <code>{code}</code>
-      </pre>
-      <p className="mt-1.5 text-[0.6875rem] leading-snug text-[var(--ds-text-muted)]">{description}</p>
-    </article>
-  );
-}
-
-interface HelpWindowLayout {
-  top: number;
-  left: number;
-  width: number;
-  height: number;
-}
-
-const HelpWindowInteractionType = {
-  Move: "move",
-  Resize: "resize",
-} as const;
-
-const HelpWindowResizeHandle = {
-  Southeast: "se",
-} as const;
-
-interface HelpWindowPointerState {
-  type: (typeof HelpWindowInteractionType)[keyof typeof HelpWindowInteractionType];
-  handle?: ResizeHandle;
-  pointerId: number;
-  startX: number;
-  startY: number;
-  startLayout: HelpWindowLayout;
-  captureTarget: HTMLElement;
-}
-
-const HELP_WINDOW_STORAGE_KEY = "musiccloud.markdownHelpWindow";
-const HELP_WINDOW_DEFAULT_WIDTH = 512;
-const HELP_WINDOW_DEFAULT_HEIGHT = 560;
-const HELP_WINDOW_MIN_WIDTH = 360;
-const HELP_WINDOW_MIN_HEIGHT = 320;
-const HELP_WINDOW_MARGIN = 16;
-const HELP_WINDOW_SMALL_SCREEN_MIN_WIDTH = 240;
-const HELP_WINDOW_SMALL_SCREEN_MIN_HEIGHT = 220;
-
-function getHelpWindowBounds() {
-  const viewportWidth = window.innerWidth - HELP_WINDOW_MARGIN * 2;
-  const viewportHeight = window.innerHeight - HELP_WINDOW_MARGIN * 2;
-  const minWidth = Math.min(HELP_WINDOW_MIN_WIDTH, Math.max(HELP_WINDOW_SMALL_SCREEN_MIN_WIDTH, viewportWidth));
-  const minHeight = Math.min(HELP_WINDOW_MIN_HEIGHT, Math.max(HELP_WINDOW_SMALL_SCREEN_MIN_HEIGHT, viewportHeight));
-
-  return {
-    minWidth,
-    minHeight,
-    maxWidth: Math.max(minWidth, viewportWidth),
-    maxHeight: Math.max(minHeight, viewportHeight),
-  };
-}
-
-function getHelpWindowConstraints() {
-  return {
-    viewportWidth: window.innerWidth,
-    viewportHeight: window.innerHeight,
-    minWidth: getHelpWindowBounds().minWidth,
-    minHeight: getHelpWindowBounds().minHeight,
-    margin: HELP_WINDOW_MARGIN,
-  };
-}
-
-function helpLayoutToRect(layout: HelpWindowLayout): ViewportRect {
-  return {
-    x: layout.left,
-    y: layout.top,
-    width: layout.width,
-    height: layout.height,
-  };
-}
-
-function rectToHelpLayout(rect: ViewportRect): HelpWindowLayout {
-  return {
-    top: rect.y,
-    left: rect.x,
-    width: rect.width,
-    height: rect.height,
-  };
-}
-
-function clampHelpWindowLayout(layout: HelpWindowLayout): HelpWindowLayout {
-  return rectToHelpLayout(clampViewportRect(helpLayoutToRect(layout), getHelpWindowConstraints()));
-}
-
-function getCenteredHelpWindowLayout(): HelpWindowLayout {
-  const bounds = getHelpWindowBounds();
-  const width = Math.min(HELP_WINDOW_DEFAULT_WIDTH, bounds.maxWidth);
-  const height = Math.min(HELP_WINDOW_DEFAULT_HEIGHT, bounds.maxHeight);
-
-  return clampHelpWindowLayout({
-    top: (window.innerHeight - height) / 2,
-    left: (window.innerWidth - width) / 2,
-    width,
-    height,
-  });
-}
-
-function isStoredHelpWindowLayout(value: unknown): value is HelpWindowLayout {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<Record<keyof HelpWindowLayout, unknown>>;
-  return (
-    typeof candidate.top === "number" &&
-    typeof candidate.left === "number" &&
-    typeof candidate.width === "number" &&
-    typeof candidate.height === "number"
-  );
-}
-
-function readStoredHelpWindowLayout(): HelpWindowLayout | null {
+/**
+ * Reads a switch back.
+ *
+ * @param key - Where it is stored.
+ * @param whenUnset - What holds before anybody has touched it.
+ * @returns Whether the switch is on.
+ */
+function readStoredSwitch(key: string, whenUnset: boolean): boolean {
+  if (typeof window === "undefined") return whenUnset;
   try {
-    const raw = localStorage.getItem(HELP_WINDOW_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed: unknown = JSON.parse(raw);
-    return isStoredHelpWindowLayout(parsed) ? clampHelpWindowLayout(parsed) : null;
+    const stored = window.localStorage.getItem(key);
+    if (stored === null) return whenUnset;
+    return stored !== "off";
   } catch {
-    return null;
+    // Storage is an enhancement; the editor works without it.
+    return whenUnset;
   }
 }
 
-function persistHelpWindowLayout(layout: HelpWindowLayout) {
+/**
+ * Stores a switch.
+ *
+ * @param key - Where it goes.
+ * @param on - Whether it is on.
+ */
+function storeSwitch(key: string, on: boolean): void {
   try {
-    localStorage.setItem(HELP_WINDOW_STORAGE_KEY, JSON.stringify(layout));
+    window.localStorage.setItem(key, on ? "on" : "off");
   } catch {
-    // Persistence is an enhancement; editor usage must not depend on storage availability.
+    // Same as above: worth doing, not worth failing over.
   }
 }
 
-function MarkdownHelpWindow({ open, id, onClose }: { open: boolean; id: string; onClose: () => void }) {
-  const windowRef = React.useRef<HTMLDialogElement>(null);
-  const interactionRef = React.useRef<HelpWindowPointerState | null>(null);
-  const layoutRef = React.useRef<HelpWindowLayout | null>(null);
-  const [layout, setLayout] = React.useState<HelpWindowLayout | null>(null);
-  const closeHelp = React.useEffectEvent(onClose);
-
-  const applyLayout = React.useCallback((next: HelpWindowLayout) => {
-    const clamped = clampHelpWindowLayout(next);
-    layoutRef.current = clamped;
-    setLayout(clamped);
-  }, []);
-  const applyLayoutFromEvent = React.useEffectEvent(applyLayout);
-
-  if (open && layout === null) {
-    applyLayout(readStoredHelpWindowLayout() ?? getCenteredHelpWindowLayout());
-  }
-
-  React.useEffect(() => {
-    if (!open) return;
-
-    const onResize = () => {
-      applyLayoutFromEvent(layoutRef.current ?? getCenteredHelpWindowLayout());
-    };
-
-    window.addEventListener("resize", onResize);
-    return () => {
-      window.removeEventListener("resize", onResize);
-    };
-  }, [open]);
-
-  React.useEffect(() => {
-    if (!open) return;
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeHelp();
-    };
-
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
-
-  const startInteraction = React.useCallback(
-    (type: HelpWindowPointerState["type"], event: React.PointerEvent<HTMLElement>, handle?: ResizeHandle) => {
-      if (event.button !== 0 || !layout) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const captureTarget = event.currentTarget;
-      captureTarget.setPointerCapture(event.pointerId);
-      interactionRef.current = {
-        type,
-        handle,
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
-        startLayout: layoutRef.current ?? layout,
-        captureTarget,
-      };
-    },
-    [layout],
-  );
-
-  const updateInteraction = React.useCallback(
-    (event: React.PointerEvent<HTMLElement>) => {
-      const state = interactionRef.current;
-      if (!state || state.pointerId !== event.pointerId) return;
-      event.preventDefault();
-
-      const deltaX = event.clientX - state.startX;
-      const deltaY = event.clientY - state.startY;
-      const startRect = helpLayoutToRect(state.startLayout);
-      const next =
-        state.type === HelpWindowInteractionType.Move
-          ? moveViewportRect(startRect, deltaX, deltaY, getHelpWindowConstraints())
-          : resizeViewportRect(
-              startRect,
-              state.handle ?? HelpWindowResizeHandle.Southeast,
-              deltaX,
-              deltaY,
-              getHelpWindowConstraints(),
-            );
-
-      applyLayout(rectToHelpLayout(next));
-    },
-    [applyLayout],
-  );
-
-  const stopInteraction = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
-    const state = interactionRef.current;
-    if (state?.pointerId === event.pointerId) {
-      interactionRef.current = null;
-      if (state.captureTarget.hasPointerCapture(event.pointerId)) {
-        state.captureTarget.releasePointerCapture(event.pointerId);
-      }
-      if (layoutRef.current) persistHelpWindowLayout(layoutRef.current);
-    }
-  }, []);
-
-  const startMove = React.useCallback(
-    (event: React.PointerEvent<HTMLElement>) => {
-      startInteraction(HelpWindowInteractionType.Move, event);
-    },
-    [startInteraction],
-  );
-
-  const startResize = React.useCallback(
-    (handle: ResizeHandle, event: React.PointerEvent<HTMLElement>) => {
-      startInteraction(HelpWindowInteractionType.Resize, event, handle);
-    },
-    [startInteraction],
-  );
-
-  if (!open || !layout) return null;
-
-  return createPortal(
-    <dialog
-      open
-      ref={windowRef}
-      id={id}
-      aria-labelledby={`${id}-title`}
-      className="fixed z-50 flex flex-col overflow-hidden rounded-2xl border border-[rgba(255,255,255,0.06)] bg-[var(--ds-surface)] shadow-xl"
-      style={{ top: layout.top, left: layout.left, width: layout.width, height: layout.height }}
-      onPointerMove={updateInteraction}
-      onPointerUp={stopInteraction}
-      onPointerCancel={stopInteraction}
+function FooterButton({
+  onClick,
+  pressed,
+  title,
+  children,
+}: {
+  onClick: () => void;
+  pressed?: boolean;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      aria-pressed={pressed}
+      className={`inline-flex items-center gap-1 h-[1.375rem] px-1.5 rounded border text-[0.625rem] leading-none transition-colors ${
+        pressed
+          ? "border-[var(--ds-border-strong)] bg-[var(--ds-control-active-bg,var(--ds-surface-hover))] text-[var(--ds-text)] font-medium"
+          : "border-[var(--ds-border)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-muted)]"
+      }`}
     >
-      <div
-        className="flex cursor-move touch-none select-none items-start justify-between gap-3 border-b border-[var(--ds-border-subtle)] bg-[var(--ds-surface-inset)] px-5 py-4"
-        onPointerDown={startMove}
-      >
-        <div>
-          <h3 id={`${id}-title`} className="text-sm font-semibold text-[var(--ds-text)]">
-            Markdown help
-          </h3>
-          <p className="mt-1 text-xs leading-snug text-[var(--ds-text-muted)]">
-            Keyboard shortcuts, code fences and their card modifiers, every shortcode you can write, and the figures you
-            can name instead of typing.
-          </p>
-        </div>
-        <button
-          type="button"
-          title="Close Markdown help"
-          onClick={onClose}
-          onPointerDown={(event) => event.stopPropagation()}
-          className="inline-flex size-7 shrink-0 items-center justify-center rounded-control border border-[var(--ds-border)] text-[var(--ds-text-muted)] transition-colors hover:border-[var(--ds-border-strong)] hover:text-[var(--ds-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-primary)]"
-        >
-          <XIcon className="size-3.5" />
-        </button>
-      </div>
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-        <HelpSection title="Shortcuts">
-          <div className="grid grid-cols-2 gap-2">
-            {SHORTCUT_HINTS.map((hint) => (
-              <Hint key={hint.label} keys={hint.keys} label={hint.label} />
-            ))}
-          </div>
-        </HelpSection>
-
-        <HelpSection title="Code fences">
-          <div className="space-y-2">
-            {CODE_FENCE_EXAMPLES.map((example) => (
-              <HelpExample key={example.label} {...example} />
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {CODE_FENCE_LANGUAGES.map((language) => (
-              <NotationCode key={language}>{language}</NotationCode>
-            ))}
-          </div>
-        </HelpSection>
-
-        {/* Both lists come from the shared registry, so a shortcode or a
-            variable added there appears here without anybody remembering to
-            write it up a second time. */}
-        <HelpSection title="Shortcodes">
-          <ShortcodeList />
-        </HelpSection>
-
-        <HelpSection title="Variables">
-          <p className="text-[0.6875rem] leading-snug text-[var(--ds-text-muted)]">
-            A name in single braces is replaced with the figure the system holds, wherever you write it. Anything not
-            listed here stays exactly as you typed it.
-          </p>
-          <SiteVariableList />
-        </HelpSection>
-      </div>
-      <ResizeHandles onResizeStart={startResize} />
-    </dialog>,
-    document.body,
+      {children}
+    </button>
   );
 }
 
-function HintsBar() {
-  const helpId = React.useId();
+function HintsBar({
+  lineWrap,
+  onToggleLineWrap,
+  lineNumbers: showLineNumbers,
+  onToggleLineNumbers,
+  whitespace,
+  onToggleWhitespace,
+}: {
+  lineWrap: boolean;
+  onToggleLineWrap: () => void;
+  lineNumbers: boolean;
+  onToggleLineNumbers: () => void;
+  whitespace: boolean;
+  onToggleWhitespace: () => void;
+}) {
   const [helpOpen, setHelpOpen] = React.useState(false);
 
   return (
-    <div className="flex items-center justify-between gap-3 px-2.5 py-1.5 border-t border-[var(--ds-border)] bg-[var(--ds-section-header-bg,var(--ds-bg-elevated))] text-[0.625rem]">
+    <div className="shrink-0 flex items-center justify-between gap-3 w-full px-2.5 py-1.5 border-t border-[var(--ds-border)] bg-[var(--ds-section-header-bg,var(--ds-bg-elevated))] text-[0.625rem]">
       <div className="hidden min-[420px]:flex items-center gap-2.5">
         {SHORTCUT_HINTS.map((hint) => (
           <Hint key={hint.label} keys={hint.keys} label={hint.label} />
         ))}
       </div>
-      <button
-        type="button"
-        aria-controls={helpId}
-        aria-expanded={helpOpen}
-        aria-haspopup="dialog"
-        title="Markdown help"
-        onClick={() => setHelpOpen((open) => !open)}
-        className="ml-auto inline-flex size-6 shrink-0 items-center justify-center rounded-control border border-[var(--ds-border)] text-[var(--ds-text-muted)] transition-colors hover:border-[var(--ds-border-strong)] hover:text-[var(--ds-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-primary)]"
-      >
-        <InfoIcon weight="duotone" className="size-3.5" />
-      </button>
-      <MarkdownHelpWindow open={helpOpen} id={helpId} onClose={() => setHelpOpen(false)} />
+      <div className="ml-auto flex items-center gap-1.5">
+        {/* The state is carried by the surface, the border and the weight of
+            the label, not by colour alone. */}
+        <FooterButton
+          onClick={onToggleLineNumbers}
+          pressed={showLineNumbers}
+          title={showLineNumbers ? "Hide line numbers" : "Show line numbers"}
+        >
+          <ListNumbersIcon weight="duotone" aria-hidden className="size-3" />
+          Numbers {showLineNumbers ? "on" : "off"}
+        </FooterButton>
+        <FooterButton
+          onClick={onToggleLineWrap}
+          pressed={lineWrap}
+          title={lineWrap ? "Stop wrapping long lines" : "Wrap long lines"}
+        >
+          <TextAlignJustifyIcon weight="duotone" aria-hidden className="size-3" />
+          Wrap {lineWrap ? "on" : "off"}
+        </FooterButton>
+        <FooterButton
+          onClick={onToggleWhitespace}
+          pressed={whitespace}
+          title={whitespace ? "Hide spaces and line ends" : "Show spaces and line ends"}
+        >
+          <DotOutlineIcon weight="duotone" aria-hidden className="size-3" />
+          Spaces {whitespace ? "on" : "off"}
+        </FooterButton>
+        <FooterButton onClick={() => setHelpOpen(true)} title="Look up the shortcodes">
+          <BracketsSquareIcon weight="duotone" aria-hidden className="size-3" />
+          Shortcodes
+        </FooterButton>
+      </div>
+      <ShortcodeReferencePanel open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }
@@ -745,6 +808,34 @@ export function MarkdownEditor({
   const [storedHeight] = React.useState<number | null>(() =>
     resizable && storageKey ? readStoredEditorHeight(storageKey) : null,
   );
+
+  // The three footer switches. Each remembers itself, because a reader who
+  // turned the numbers off did so for the way they read rather than for one
+  // page, and finding them back on next time is the same decision undone.
+  const [lineWrap, setLineWrap] = React.useState(() => readStoredSwitch(WRAP_STORAGE_KEY, true));
+  const [showLineNumbers, setShowLineNumbers] = React.useState(() => readStoredSwitch(LINE_NUMBERS_STORAGE_KEY, true));
+  const [showWhitespace, setShowWhitespace] = React.useState(() => readStoredSwitch(WHITESPACE_STORAGE_KEY, false));
+
+  const toggleLineWrap = React.useCallback(() => {
+    setLineWrap((current) => {
+      storeSwitch(WRAP_STORAGE_KEY, !current);
+      return !current;
+    });
+  }, []);
+
+  const toggleLineNumbers = React.useCallback(() => {
+    setShowLineNumbers((current) => {
+      storeSwitch(LINE_NUMBERS_STORAGE_KEY, !current);
+      return !current;
+    });
+  }, []);
+
+  const toggleWhitespace = React.useCallback(() => {
+    setShowWhitespace((current) => {
+      storeSwitch(WHITESPACE_STORAGE_KEY, !current);
+      return !current;
+    });
+  }, []);
 
   // The native `resize: vertical` handle changes the wrapper's inline height
   // directly; React never re-applies its own height because the derived value
@@ -810,10 +901,22 @@ export function MarkdownEditor({
             height={resizable ? "100%" : height}
             minHeight={resizable ? undefined : height ? undefined : rowsHeight}
             registerInsert={registerInsert}
+            lineNumbers={showLineNumbers}
+            lineWrap={lineWrap}
+            whitespace={showWhitespace}
           />
         </React.Suspense>
       </div>
-      {showHints && <HintsBar />}
+      {showHints && (
+        <HintsBar
+          lineWrap={lineWrap}
+          onToggleLineWrap={toggleLineWrap}
+          lineNumbers={showLineNumbers}
+          onToggleLineNumbers={toggleLineNumbers}
+          whitespace={showWhitespace}
+          onToggleWhitespace={toggleWhitespace}
+        />
+      )}
     </div>
   );
 }

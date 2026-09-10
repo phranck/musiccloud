@@ -5,29 +5,41 @@
 import type { ContentContextMask } from "../content-context.js";
 import { hasAllContextBits } from "../content-context.js";
 import { FIELDS_SHORTCODE, KBD_SHORTCODE, PILL_SHORTCODE } from "./content.js";
+import { ICON_SHORTCODE } from "./icon.js";
 import { CARD_ROW_SHORTCODE, CARD_SHORTCODE } from "./layout.js";
+import { IMAGE_SHORTCODE, PDF_SHORTCODE, YOUTUBE_SHORTCODE } from "./media.js";
 import { PLANS_SHORTCODE } from "./plans.js";
+import { HSTACK_SHORTCODE, SPACER_SHORTCODE, VSTACK_SHORTCODE } from "./stacks.js";
 import { type ShortcodeDefinition, ShortcodeSyntax } from "./types.js";
 
 /**
  * Every shortcode, in the order the editor's reference lists them.
  *
- * What arranges a page comes before what marks up its text, because that is the
- * order somebody builds a page in, and the shortest notation comes last.
+ * Sorted by token rather than written out in an order somebody chose, because
+ * the reference is a list to look something up in and the token is what a writer
+ * has in mind whilst looking. Sorting it here rather than in the reference means
+ * a shortcode added to this list cannot land anywhere unexpected.
  */
 export const SHORTCODE_DEFINITIONS: readonly ShortcodeDefinition[] = [
   CARD_SHORTCODE,
   CARD_ROW_SHORTCODE,
+  VSTACK_SHORTCODE,
+  HSTACK_SHORTCODE,
+  SPACER_SHORTCODE,
   PLANS_SHORTCODE,
+  IMAGE_SHORTCODE,
+  YOUTUBE_SHORTCODE,
+  PDF_SHORTCODE,
   FIELDS_SHORTCODE,
+  ICON_SHORTCODE,
   PILL_SHORTCODE,
   KBD_SHORTCODE,
-];
+].sort((first, second) => first.token.localeCompare(second.token));
 
 /**
  * Finds a shortcode by its token.
  *
- * @param token - What was written after `[[` or `:::`.
+ * @param token - What was written after `[[`.
  * @returns The definition, or `undefined` when nothing claims that token, in
  *   which case the source is left standing as text.
  */

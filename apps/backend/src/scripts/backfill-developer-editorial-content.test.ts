@@ -893,10 +893,10 @@ describe("backfillDeveloperEditorialContent", () => {
 
     const result = await backfillDeveloperEditorialContent(repo, { dryRun: true });
 
-    expect(result.conflicts.filter((entry) => entry.code === "reserved-developer-path")).toHaveLength(3);
-    expect(result.counts).toMatchObject({ plannedWrites: 2, conflicts: 3, writes: 0 });
-    expect(fake.sourceReads).toEqual(["page-privacy-stable", "page-terms-stable"]);
-    expect(fake.sourceReads).not.toContain("page-docs-root");
+    // Two, not three: `/docs` itself is editorial now, so only what sits under
+    // it is refused. The root page is read like any other.
+    expect(result.conflicts.filter((entry) => entry.code === "reserved-developer-path")).toHaveLength(2);
+    expect(result.counts).toMatchObject({ plannedWrites: 2, conflicts: 2, writes: 0 });
     expect(fake.sourceReads).not.toContain("page-docs-guide");
     expect(fake.sourceReads).not.toContain("page-docs-api");
     expect(fake.sourceReads).not.toContain("page-sdk-artifact");

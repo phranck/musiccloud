@@ -39,7 +39,6 @@ export const ShortcodeIssueCode = {
   TargetForbidden: "TargetForbidden",
   UnterminatedAttribute: "UnterminatedAttribute",
   UnterminatedBody: "UnterminatedBody",
-  UnterminatedFence: "UnterminatedFence",
 } as const;
 
 /** One of the codes in {@link ShortcodeIssueCode}. */
@@ -109,6 +108,29 @@ function normalizeIntegerParam(definition: ShortcodeParamDefinition, value: stri
 }
 
 /**
+ * Matches an enum value against the names its parameter declares.
+ *
+ * The comparison ignores a leading dot, any hyphens, underscores and spaces,
+ * and the casing. SwiftUI writes `.topLeading`, so the dot belongs to the name
+ * as much as the capital does, and `top-leading` is how the same name is spelt
+ * everywhere else in a stylesheet. A name that works in one spelling only is
+ * one to look up rather than one to remember.
+ *
+ * @param definition - The parameter.
+ * @param value - The attribute as written.
+ * @returns The name in the spelling the registry declares, so everything
+ *   downstream compares against one form, or `null` when it names none.
+ */
+function matchEnumParam(definition: ShortcodeParamDefinition, value: string): string | null {
+  const written = value
+    .replace(/^\./, "")
+    .replace(/[-_\s]/g, "")
+    .toLowerCase();
+  if (!written) return null;
+  return definition.values?.find((name) => name.replace(/[-_\s]/g, "").toLowerCase() === written) ?? null;
+}
+
+/**
  * Reads one attribute as the type its parameter declares.
  *
  * @param definition - The parameter.
@@ -138,7 +160,7 @@ function normalizeParamValue(
     return null;
   }
 
-  return definition.values?.includes(trimmed) ? trimmed : null;
+  return matchEnumParam(definition, trimmed);
 }
 
 /**
@@ -273,7 +295,6 @@ function validateBody(definition: ShortcodeDefinition, body: string | undefined)
 function carryOverIssue(code: ShortcodeSyntaxIssueCodeValue): ShortcodeIssueCodeValue {
   if (code === ShortcodeSyntaxIssueCode.UnterminatedValue) return ShortcodeIssueCode.UnterminatedAttribute;
   if (code === ShortcodeSyntaxIssueCode.UnterminatedBody) return ShortcodeIssueCode.UnterminatedBody;
-  if (code === ShortcodeSyntaxIssueCode.UnterminatedFence) return ShortcodeIssueCode.UnterminatedFence;
   return ShortcodeIssueCode.InvalidAttribute;
 }
 

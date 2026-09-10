@@ -17,12 +17,17 @@ describe("managed editorial page routing", () => {
   });
 
   it.each([
-    "/docs",
     "/docs/api",
     "/docs/getting-started",
     "/docs/reference/authentication",
   ])("keeps %s outside managed editorial routing", (path) => {
     expect(isManagedEditorialPath(path)).toBe(false);
+  });
+
+  it("reaches the editorial copy at /docs itself", () => {
+    // Everything under `/docs` is built by the portal. The page a developer
+    // arrives at is copy, and its route looks it up like any other.
+    expect(isManagedEditorialPath("/docs")).toBe(true);
   });
 
   it("keeps a dedicated system-owned docs descendant boundary ahead of the root catch-all", () => {
@@ -33,7 +38,10 @@ describe("managed editorial page routing", () => {
 
     expect(catchAll).toContain("isManagedEditorialPath");
     expect(catchAll).toMatch(/isManagedEditorialPath\([^)]*\)[\s\S]*fetchEditorialPage/);
-    expect(docsIndex).not.toContain("fetchEditorialPage");
+    // `/docs` itself is a page somebody edits, so this route serves one and
+    // names the path it serves. Everything under it is built by the portal and
+    // must not reach the editorial store, which is what the three below say.
+    expect(docsIndex).toContain('fetchEditorialPage("/docs")');
     expect(apiReference).not.toContain("fetchEditorialPage");
     expect(apiReference).toContain("buildApiReference");
     expect(docsCatchAll).not.toContain("fetchEditorialPage");

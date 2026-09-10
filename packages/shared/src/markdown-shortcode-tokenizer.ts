@@ -36,11 +36,9 @@ export type ShortcodeSpanKind =
   | "bracket"
   /** The `{{` and `}}` of the braces form. */
   | "brace-marker"
-  /** The `:::` opening and closing a fence. */
-  | "fence-marker"
   /** The `:` before a target and the `=` before a value. */
   | "separator"
-  /** The token directly after `[[` or `:::`. */
+  /** The token directly after `[[`. */
   | "token"
   /** What follows the colon, where a shortcode takes one. */
   | "target"
@@ -71,7 +69,6 @@ export interface ShortcodeAttribute {
 export const ShortcodeSyntaxIssueCode = {
   UnterminatedValue: "UnterminatedValue",
   UnterminatedBody: "UnterminatedBody",
-  UnterminatedFence: "UnterminatedFence",
   InvalidAttribute: "InvalidAttribute",
 } as const;
 
@@ -91,7 +88,7 @@ export interface ShortcodeNode {
   /** Which notation it was written in. */
   syntax: ShortcodeSyntaxValue;
   /**
-   * What followed `[[` or `:::`.
+   * What followed `[[`.
    *
    * Empty for the braces form, which carries no token: what stands between the
    * braces is its target, and which shortcode that is belongs to the registry
@@ -161,7 +158,6 @@ const BRACKET_OPEN = "[[";
 const BRACKET_CLOSE = "]]";
 const BRACES_OPEN = "{{";
 const BRACES_CLOSE = "}}";
-const FENCE_MARKER = ":::";
 const BODY_OPEN = "{";
 const BODY_CLOSE = "}";
 
@@ -172,11 +168,6 @@ function isAt(content: string, index: number, marker: string): boolean {
 
 function isWhitespace(character: string | undefined): boolean {
   return character !== undefined && /\s/.test(character);
-}
-
-/** True when `index` is at the start of a line, which is where a fence must open. */
-function isLineStart(content: string, index: number): boolean {
-  return index === 0 || content[index - 1] === "\n";
 }
 
 /**
@@ -530,102 +521,6 @@ function startsAttribute(content: string, index: number): boolean {
 }
 
 /**
- * Reads one fence whose `:::` sits at `start`, at the beginning of a line.
- *
- * The content runs to a closing `:::` on a line of its own, and is kept as text
- * because a fence holds page content that whoever renders it reads as Markdown.
- *
- * @param content - The whole source.
- * @param start - Offset of the opening `:::`.
- * @returns The node and the offset just past its closing marker, or `null`
- *   when no fence begins there or it never closes.
- */
-function readFenceNode(content: string, start: number): { node: ShortcodeNode; next: number } | null {
-  const issues: ShortcodeSyntaxIssue[] = [];
-  const spans: ShortcodeSpan[] = [];
-  let cursor = start + FENCE_MARKER.length;
-
-  const tokenMatch = content.slice(cursor).match(TOKEN_PATTERN);
-  if (!tokenMatch) return null;
-
-  spans.push({ kind: "fence-marker", from: start, to: cursor });
-
-  const token = tokenMatch[0];
-  spans.push({ kind: "token", from: cursor, to: cursor + token.length });
-  cursor += token.length;
-
-  const attributes: Record<string, ShortcodeAttributeValue> = {};
-  const rawAttributes: ShortcodeAttribute[] = [];
-
-  // Attributes stand on the opening line and nowhere else, so the scan for
-  // them stops at the newline rather than running into the content.
-  const lineEnd = content.indexOf("\n", cursor);
-  const openingLineEnd = lineEnd === -1 ? content.length : lineEnd;
-  while (cursor < openingLineEnd) {
-    if (isWhitespace(content[cursor])) {
-      cursor += 1;
-      continue;
-    }
-    const read = readAttribute(content, cursor, openingLineEnd, issues, spans);
-    if (!read) {
-      issues.push({
-        code: ShortcodeSyntaxIssueCode.InvalidAttribute,
-        message: "Attribute names must start with a letter.",
-        offset: cursor,
-      });
-      cursor += 1;
-      continue;
-    }
-    attributes[read.attribute.name] = read.attribute.value;
-    rawAttributes.push(read.attribute);
-    cursor = read.next;
-  }
-
-  if (lineEnd === -1) {
-    issues.push({
-      code: ShortcodeSyntaxIssueCode.UnterminatedFence,
-      message: `A ::: ${token} block was never closed.`,
-      offset: start,
-    });
-    return null;
-  }
-
-  const bodyStart = lineEnd + 1;
-  const closing = content.slice(bodyStart).match(/^[ \t]*:::[ \t]*$/m);
-  if (!closing || closing.index === undefined) {
-    issues.push({
-      code: ShortcodeSyntaxIssueCode.UnterminatedFence,
-      message: `A ::: ${token} block was never closed.`,
-      offset: start,
-    });
-    return null;
-  }
-
-  const bodyEnd = bodyStart + closing.index;
-  const markerStart = bodyEnd + (closing[0].length - closing[0].trimStart().length);
-  const end = bodyStart + closing.index + closing[0].length;
-  spans.push({ kind: "fence-marker", from: markerStart, to: markerStart + FENCE_MARKER.length });
-
-  return {
-    node: {
-      syntax: ShortcodeSyntax.Fence,
-      token,
-      attributes,
-      rawAttributes,
-      children: [],
-      // Trailing newline dropped: it belongs to the closing marker's line
-      // rather than to the content.
-      body: content.slice(bodyStart, bodyEnd).replace(/\n$/, ""),
-      bodySource: { from: bodyStart, to: bodyEnd },
-      issues,
-      source: { start, end, raw: content.slice(start, end) },
-      spans,
-    },
-    next: end,
-  };
-}
-
-/**
  * Reads one braces node whose `{{` sits at `start`.
  *
  * @param content - The whole source.
@@ -679,9 +574,6 @@ function readBracesNode(content: string, start: number): { node: ShortcodeNode; 
 export function readShortcodeAt(content: string, index: number): ShortcodeNode | null {
   if (isAt(content, index, BRACKET_OPEN)) return readBracketNode(content, index)?.node ?? null;
   if (isAt(content, index, BRACES_OPEN)) return readBracesNode(content, index)?.node ?? null;
-  if (isAt(content, index, FENCE_MARKER) && isLineStart(content, index)) {
-    return readFenceNode(content, index)?.node ?? null;
-  }
   return null;
 }
 
@@ -733,17 +625,6 @@ export function tokenizeShortcodes(content: string): ShortcodeNode[] {
         continue;
       }
       cursor += BRACES_OPEN.length;
-      continue;
-    }
-
-    if (isAt(content, cursor, FENCE_MARKER) && isLineStart(content, cursor)) {
-      const read = readFenceNode(content, cursor);
-      if (read) {
-        nodes.push(read.node);
-        cursor = read.next;
-        continue;
-      }
-      cursor += FENCE_MARKER.length;
       continue;
     }
 

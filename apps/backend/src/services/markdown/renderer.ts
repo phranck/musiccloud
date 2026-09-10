@@ -1,6 +1,8 @@
 import { ContentContext, hasAllContextBits, type SingleContentContext } from "@musiccloud/shared";
 import { Marked } from "marked";
+import { resetContainerDepth } from "./containers.js";
 import { MARKDOWN_EXTENSION_REGISTRY, type MarkdownExtensionRegistry } from "./extension-registry.js";
+import { resetHeadingIds } from "./heading-anchors.js";
 import { MarkdownContextError, validateMarkdownForContexts } from "./validation.js";
 
 interface CachedMarkdownRenderer {
@@ -83,6 +85,14 @@ export async function renderMarkdown(
 
   const validation = validateMarkdownForContexts(markdown, context, registry);
   if (!validation.ok) throw new MarkdownContextError(validation.errors);
+
+  // Heading anchors are numbered within one document, so the count starts over
+  // here. Otherwise a second page saying "Overview" would get "overview-2" and
+  // a link written against the first page would miss.
+  resetHeadingIds();
+  // Likewise the nesting counter, so a render that threw part-way through a
+  // card cannot leave the next one thinking it is already deep.
+  resetContainerDepth();
 
   try {
     return await parseWithContextRenderer(markdown, context, registry);

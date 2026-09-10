@@ -3,7 +3,11 @@
 /* Pricing's metallic glass signature, isolated from shared portal recipes.
    Every material value derives from canonical tokens or the validated --tier input. */
 @layer components {
-  .pricing-page {
+  /* The material hangs on the plan grid rather than on a page, because the
+     plans now render wherever `[[plans]]` is written. A page-level selector
+     left every value undefined the first time they stood somewhere else, and
+     the switch and the cards came out unstyled. */
+  [data-plan-grid] {
     --pricing-card-radius: 1.5rem;
     --pricing-card-padding: calc(var(--pricing-card-radius) * 2 / 3);
     --pricing-card-top-padding: 4rem;
@@ -31,37 +35,6 @@
     --pricing-highlight-14: color-mix(in srgb, var(--color-on-accent) 14%, transparent);
     --pricing-highlight-12: color-mix(in srgb, var(--color-on-accent) 12%, transparent);
     --pricing-highlight-05: color-mix(in srgb, var(--color-on-accent) 5%, transparent);
-  }
-
-  .pricing-commitment-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--mc-space-4);
-  }
-
-  .pricing-commitment-card,
-  .pricing-commitment-card .surface-card__body {
-    height: 100%;
-  }
-
-  .pricing-commitment-list {
-    display: grid;
-    gap: var(--mc-space-4);
-  }
-
-  .pricing-commitment-item {
-    gap: var(--mc-space-3);
-  }
-
-  .pricing-commitment-icon {
-    --mc-size-text-icon: var(--mc-size-icon-lg);
-    transform: translateY(1px);
-  }
-
-  .pricing-commitment-copy,
-  .pricing-commitment-title,
-  .pricing-commitment-body {
-    display: block;
   }
 
   /* The row of plans. A card is at most a quarter of the measure, so a single
@@ -488,12 +461,6 @@
     .tier-card[style*="--depth"] {
       transform: none;
       opacity: 1;
-    }
-  }
-
-  @media (max-width: 47.999rem) {
-    .pricing-commitment-grid {
-      grid-template-columns: minmax(0, 1fr);
     }
   }
 }

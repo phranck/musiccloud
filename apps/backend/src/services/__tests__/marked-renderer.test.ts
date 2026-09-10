@@ -313,16 +313,16 @@ describe("marked custom code renderer", () => {
     expect(out).not.toContain("<script>");
   });
 
-  it("renders :::fields blocks as definition lists with dynamic label width", async () => {
+  it("renders [[fields]] as a definition list with the declared label width", async () => {
     const out = (await marked.parse(
-      ":::fields\ngenre: Genre name or Genre1|Genre2 [[pill:REQ tone=alert]]\ncount: Applies the same amount to tracks, albums, and artists. {{Esc}}\n:::\n",
+      "[[fields {\ngenre: Genre name or Genre1|Genre2 [[pill:REQ tone=alert]]\ncount: Applies the same amount to tracks, albums, and artists. {{Esc}}\n}]]\n",
       { async: true },
     )) as string;
 
     // Against the registry's declared defaults, which is where a writer reads
     // them in the editor's reference. Repeating the figures here would let the
     // two disagree without either one failing.
-    expect(out).toContain('<dl class="mc-fields"');
+    expect(out).toContain('<dl class="mc-fields mc-fields--columns"');
     expect(out).toContain(`grid-template-columns:${FIELDS_DEFAULT_LABEL_WIDTH} minmax(0, 1fr)`);
     expect(out).toContain(`column-gap:${FIELDS_DEFAULT_GAP}`);
     expect(out).toContain("<dt>genre:</dt>");
@@ -331,32 +331,23 @@ describe("marked custom code renderer", () => {
     expect(out).toContain('<kbd class="mc-kbd">Esc</kbd>');
   });
 
-  it("accepts fixed labelWidth and gap options for :::fields blocks", async () => {
-    const out = (await marked.parse(
-      ":::fields labelWidth=9ch gap=1.25rem\ngenre: Jazz [[pill:REQ tone=alert]]\ntracks: 1-50 [[pill:OPT]]\n:::\n",
-      { async: true },
-    )) as string;
+  it("takes the layout and the two measurements from [[fields]] attributes", async () => {
+    const out = (await marked.parse('[[fields labelWidth="9ch" gap="1.25rem" {\ngenre: Jazz\ntracks: 1-50\n}]]\n', {
+      async: true,
+    })) as string;
 
     expect(out).toContain("grid-template-columns:9ch minmax(0, 1fr)");
     expect(out).toContain("column-gap:1.25rem");
-    expect(out).toContain('<span class="mc-pill mc-pill-neutral">OPT</span>');
   });
 
-  it("ignores unsafe :::fields layout values", async () => {
-    const out = (await marked.parse(
-      ":::fields labelWidth=url(javascript:alert(1)) gap=calc(1rem+1px)\nname: value\n:::\n",
-      { async: true },
-    )) as string;
+  it("stacks a fields list when the page asks for it", async () => {
+    const out = (await marked.parse('[[fields layout="stacked" {\nThe free plan stays free: It stays.\n}]]\n', {
+      async: true,
+    })) as string;
 
-    expect(out).toContain("grid-template-columns:max-content minmax(0, 1fr)");
-    expect(out).toContain("column-gap:1.1rem");
-    expect(out).not.toContain("javascript");
-    expect(out).not.toContain("calc");
-  });
-
-  it("escapes :::fields labels", async () => {
-    const out = (await marked.parse(":::fields\n<script>: value\n:::\n", { async: true })) as string;
-    expect(out).toContain("<dt>&lt;script&gt;:</dt>");
-    expect(out).not.toContain("<script>");
+    // Stacked, the label is a statement on a line of its own, so it loses the
+    // colon that separates it from a value standing beside it.
+    expect(out).toContain('<dl class="mc-fields mc-fields--stacked"');
+    expect(out).toContain("<dt>The free plan stays free</dt>");
   });
 });

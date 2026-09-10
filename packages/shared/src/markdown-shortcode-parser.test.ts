@@ -209,9 +209,9 @@ describe("parseShortcodes — unknown tokens", () => {
   });
 
   it("returns nothing when the notation does not match the definition", () => {
-    // `sample` is declared as a bracket shortcode, so a fence by that name is
-    // not it, and the source stays on the page as text.
-    expect(parseShortcodes(":::sample\ncopy\n:::", TEST_DEFINITIONS)).toHaveLength(0);
+    // `sample` is declared as a bracket shortcode, so the braces form by that
+    // name is not it, and the source stays on the page as text.
+    expect(parseShortcodes("{{sample}}", TEST_DEFINITIONS)).toHaveLength(0);
   });
 });
 
@@ -239,5 +239,25 @@ describe("parseShortcodes — nesting", () => {
 
   it("ignores a child token that means nothing at the top level", () => {
     expect(parseShortcodes("[[option:one]]", TEST_DEFINITIONS)).toHaveLength(0);
+  });
+});
+
+describe("an enum value written in another spelling", () => {
+  it("reads a SwiftUI name with its leading dot", () => {
+    const [node] = parseShortcodes('[[icon name="key" text="Hi" textalignment=".topLeading"]]');
+
+    expect(node.params.textalignment).toBe("topLeading");
+  });
+
+  it("reads the same name hyphenated and in lower case", () => {
+    const [node] = parseShortcodes('[[icon name="key" text="Hi" textalignment="top-leading"]]');
+
+    expect(node.params.textalignment).toBe("topLeading");
+  });
+
+  it("still refuses a name the parameter does not declare", () => {
+    const [node] = parseShortcodes('[[icon name="key" text="Hi" textalignment="sideways"]]');
+
+    expect(node.params.textalignment).toBeUndefined();
   });
 });

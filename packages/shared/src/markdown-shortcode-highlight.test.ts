@@ -26,13 +26,6 @@ describe("highlightShortcodes", () => {
     expect(marked(source, "token")).toEqual(["pill"]);
   });
 
-  it("marks the fence markers and the token between them", () => {
-    const source = ":::fields gap=2rem\nMethod: GET\n:::";
-
-    expect(marked(source, "fence-marker")).toEqual([":::", ":::"]);
-    expect(marked(source, "token")).toEqual(["fields"]);
-  });
-
   it("marks the braces form", () => {
     const source = "Press {{Esc}} to close.";
 

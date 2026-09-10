@@ -13,13 +13,20 @@
   /* Portal-level copy aligns with the tangent point of ordinary card corners.
      Tier cards own a separate geometry and deliberately never consume this,
      and the signed-in dashboard takes the API reference's own value with the
-     rest of that shell. */
+     rest of that shell.
+
+     The inner radius is what keeps the gap between two curves constant: an
+     element sitting a card's padding in from its edge takes the outer radius
+     less that padding, clamped at zero for anything further in than the curve
+     reaches. Declared here rather than at the root, because a custom property
+     holding `var()` resolves on the element that declares it and what
+     descendants inherit is the resolved value.
+
+     Shared public-page spacing keeps every route aligned to the same shell. */
   .developer-page {
     --mc-card-content-inset: calc(var(--radius-card) / 2);
-  }
+    --mc-card-inner-radius: max(calc(var(--radius-card) - var(--mc-space-7)), 0px);
 
-  /* Shared public-page spacing keeps every route aligned to the same shell. */
-  .developer-page {
     padding: var(--mc-space-page-top) var(--mc-space-page-inline) var(--mc-space-page-bottom);
   }
 
@@ -826,6 +833,10 @@
 
   /* Inline content links receive their own cloned decoration on each wrapped
      line, keeping padding and corners visually complete without underlines. */
+  /* A link written into a page takes the portal's own link recipe rather than
+     one of its own, so the two cannot drift. It is the same rule with one more
+     selector, not a copy of it. */
+  .editorial-markdown a:not([class]),
   .content-link,
   .text-link {
     padding: var(--mc-content-link-padding-block) var(--mc-content-link-padding-inline);
@@ -837,6 +848,8 @@
       color var(--mc-motion-duration-fast) var(--mc-motion-easing-standard);
   }
 
+  .editorial-markdown a:not([class]):hover,
+  .editorial-markdown a:not([class]):focus-visible,
   .content-link:hover,
   .content-link:focus-visible,
   .text-link:hover,

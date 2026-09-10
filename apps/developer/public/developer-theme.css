@@ -79,6 +79,17 @@
   --mc-size-icon-xl: 2.25rem;
   --mc-size-text-icon: 1.7cap;
 
+  /* The tick a stacked fields list draws beside each statement.
+     The same path the TickCircle icon component uses, as a mask, because
+     rendered Markdown carries no SVG: the sanitizer drops it, and opening that
+     up for a decoration is not worth it. The ring around it is a rounded box,
+     so only the tick itself needs a path. */
+  /* The ring the tick sits in, from the same icon. Its circle has a radius of
+     10 in a 24 box, so it deliberately does not fill the square; drawing it as
+     a rounded box instead came out visibly larger. */
+  --mc-editorial-tick-ring-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10Z' fill='black'/%3E%3C/svg%3E");
+  --mc-editorial-tick-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10.58 15.582a.75.75 0 0 1-.53-.22l-2.83-2.83a.754.754 0 0 1 0-1.06c.29-.29.77-.29 1.06 0l2.3 2.3 5.14-5.14c.29-.29.77-.29 1.06 0 .29.29.29.77 0 1.06l-5.67 5.67a.75.75 0 0 1-.53.22Z' fill='black'/%3E%3C/svg%3E");
+
   --mc-space-1: 0.25rem;
   --mc-space-2: 0.5rem;
   --mc-space-3: 0.75rem;
@@ -87,6 +98,7 @@
   --mc-space-6: 1.5rem;
   --mc-space-7: 1.75rem;
   --mc-space-8: 2rem;
+  --mc-space-10: 2.5rem;
   --mc-space-page-inline: 1.5rem;
   --mc-space-page-top: 3rem;
   --mc-space-page-bottom: 5rem;
@@ -122,6 +134,9 @@
   --mc-code-padding-inline: 1rem;
   --mc-code-copy-clearance: 3.5rem;
   --mc-code-line-height: 1.7;
+  /* What a built page reads at, which is the browser's own and what every
+     hand-written portal page used. Editorial prose reads wider, below. */
+  --mc-line-height-normal: 1.5;
   --mc-editorial-line-height: 1.6;
   --mc-editorial-heading-line-height: 1.25;
 
@@ -134,6 +149,9 @@
   --mc-text-wordmark: 1.5rem;
   --mc-text-body: 1.125rem;
   --mc-text-code: 0.9375rem;
+  /* A caption under a picture or a video, which is read after the thing it
+     describes and therefore sits a step below body text. */
+  --mc-text-caption: 0.9375rem;
   --mc-text-card-title: 1.75rem;
   --mc-text-subsection: 1.625rem;
   --mc-text-section: 2.25rem;

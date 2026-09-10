@@ -3,6 +3,7 @@ import parse, { domToReact, type Element, type HTMLReactParserOptions, type Text
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { BioAnchor } from "@/components/markdown/BioAnchor";
+import { VideoEmbed } from "@/components/markdown/VideoEmbed";
 import { linkify } from "@/lib/linkify";
 
 /**
@@ -35,6 +36,22 @@ const CardStyle = {
  */
 const DEFAULT_CARD_PADDING = "0.75rem";
 const DEFAULT_CARD_RADIUS = "0.75rem";
+
+/** The class the backend gives the link that stands in for a video. */
+const VIDEO_LINK_CLASS = "mc-video__link";
+
+/** The one declaration a video's link carries, which is the shape it opens at. */
+const ASPECT_RATIO_DECLARATION = /aspect-ratio:\s*([^;]+)/;
+
+/**
+ * The shape a video's link is holding room for.
+ *
+ * @param style - The `style` attribute the backend wrote, already sanitised.
+ * @returns The ratio, or `undefined` where the attribute names none.
+ */
+function readAspectRatio(style: string | undefined): string | undefined {
+  return style?.match(ASPECT_RATIO_DECLARATION)?.[1].trim();
+}
 
 /** Concatenates the plain-text content of an anchor element's children. */
 function anchorTextContent(el: Element): string {
@@ -73,6 +90,19 @@ function makeParserOptions(linkifyText: boolean): HTMLReactParserOptions {
       if (linkifyText && el.name === "a" && el.attribs.href) {
         const text = anchorTextContent(el);
         if (text) return <BioAnchor rawHref={el.attribs.href} text={text} />;
+      }
+
+      // A video arrives as a link standing at the shape the video will take, so
+      // nothing reaches YouTube for a reader who never plays it. This turns the
+      // link into the thing that can swap itself for the frame.
+      if (el.name === "a" && el.attribs.class?.includes(VIDEO_LINK_CLASS) && el.attribs.href) {
+        return (
+          <VideoEmbed
+            href={el.attribs.href}
+            aspectRatio={readAspectRatio(el.attribs.style)}
+            label={anchorTextContent(el)}
+          />
+        );
       }
 
       if (el.name !== "pre") return undefined;
@@ -129,5 +159,12 @@ export function MarkdownHtml({
   className?: string;
   linkify?: boolean;
 }) {
-  return <div className={className}>{parse(html, linkifyText ? parserOptionsLinkify : parserOptions)}</div>;
+  // `mc-markdown` is what the shared shortcode stylesheet reads its material
+  // from, so every surface rendering this markup carries it whatever prose
+  // classes it also brings.
+  return (
+    <div className={className ? `mc-markdown ${className}` : "mc-markdown"}>
+      {parse(html, linkifyText ? parserOptionsLinkify : parserOptions)}
+    </div>
+  );
 }

@@ -8,7 +8,9 @@
  */
 
 import {
+  CODE_FENCE_LANGUAGES,
   SHORTCODE_DEFINITIONS,
+  ShortcodeBodyRule,
   type ShortcodeDefinition,
   type ShortcodeParamDefinition,
   ShortcodeParamType,
@@ -111,16 +113,18 @@ function describeType(param: ShortcodeParamDefinition): string {
 /**
  * Writes a shortcode the way an author types it.
  *
- * The three notations look nothing alike, so showing one of them for all three
- * would be a false instruction rather than a shorthand.
+ * The forms look nothing alike, so showing one of them for all would be a false
+ * instruction rather than a shorthand. A container shows its braces, because
+ * that is what says it holds content rather than drawing one thing from its
+ * attributes.
  *
  * @param definition - The shortcode.
  * @returns Its opening form, as source.
  */
 function notationFor(definition: ShortcodeDefinition): string {
-  if (definition.syntax === ShortcodeSyntax.Fence) return `:::${definition.token}`;
   if (definition.syntax === ShortcodeSyntax.Braces) return "{{…}}";
   if (definition.target === ShortcodeTargetRule.Required) return `[[${definition.token}:…]]`;
+  if (definition.body === ShortcodeBodyRule.Markdown) return `[[${definition.token} { … }]]`;
   return `[[${definition.token}]]`;
 }
 
@@ -216,8 +220,12 @@ function ValueTable({ caption, columns, rows }: ShortcodeTable) {
  *
  * The nesting is drawn rather than described, because somebody looking for a
  * name that only works inside another one needs to see where it lives.
+ *
+ * @param props.definition - The shortcode to describe.
+ * @param props.depth - How far in it sits, which decides how it is set off.
+ * @returns The entry.
  */
-function DefinitionEntry({ definition, depth }: { definition: ShortcodeDefinition; depth: number }) {
+export function ShortcodeEntry({ definition, depth }: { definition: ShortcodeDefinition; depth: number }) {
   return (
     <div
       className={
@@ -263,7 +271,7 @@ function DefinitionEntry({ definition, depth }: { definition: ShortcodeDefinitio
       )}
 
       {definition.children?.map((child) => (
-        <DefinitionEntry key={child.token} definition={child} depth={depth + 1} />
+        <ShortcodeEntry key={child.token} definition={child} depth={depth + 1} />
       ))}
     </div>
   );
@@ -285,9 +293,91 @@ export function ShortcodeList({
   return (
     <div>
       {definitions.map((definition) => (
-        <DefinitionEntry key={`${definition.syntax}:${definition.token}`} definition={definition} depth={0} />
+        <ShortcodeEntry key={`${definition.syntax}:${definition.token}`} definition={definition} depth={0} />
       ))}
     </div>
+  );
+}
+
+/**
+ * What a fenced code block can be told to do.
+ *
+ * Not a shortcode: this is Markdown's own syntax with our modifiers on its
+ * info string, so it lives beside the registry rather than in it. A writer
+ * types it all the same, which is why the reference describes it.
+ */
+const CODE_FENCE_EXAMPLES = [
+  {
+    label: "Default code block",
+    code: "```js\nconst value = 1;\n```",
+    description: "Renders as a recessed card with syntax highlighting.",
+  },
+  {
+    label: "Explicit recessed / embossed",
+    code: "```js recessed\nconst value = 1;\n```\n\n```js embossed\nconst value = 1;\n```",
+    description: "Use the modifier after the language to choose the card surface.",
+  },
+  {
+    label: "Custom spacing",
+    code: "```js recessed padding=1rem radius=12px\nconst value = 1;\n```",
+    description: "padding= and radius= override what the card geometry would otherwise give the block.",
+  },
+  {
+    label: "Plain text comments",
+    code: "```text\n# comment\n// note\nplain line\n```",
+    description: "# and // at the start of a text line render as muted italic comments.",
+  },
+  {
+    label: "musiccloud query",
+    code: "```mc-query\ngenre: jazz | soul\ntracks: 20\n# internal note\n```",
+    description: "Highlights query keys, numbers, |, ?, and # / // comments.",
+  },
+] satisfies { label: string; code: string; description: string }[];
+
+/**
+ * The fenced code block and its modifiers.
+ *
+ * @returns The examples, each with what it produces, and every language the
+ *   highlighter loads.
+ */
+export function CodeFenceReference() {
+  return (
+    <section>
+      <header>
+        <h3 className="text-[0.875rem] font-semibold text-[var(--ds-text)]">Code blocks</h3>
+        <p className="mt-1 text-[0.8125rem] leading-relaxed text-[var(--ds-text-subtle)]">
+          Three backticks open a block. What follows them on the same line is the language, and after that the surface
+          it sits on and the space around it.
+        </p>
+      </header>
+
+      <div className="mt-3 grid gap-2">
+        {CODE_FENCE_EXAMPLES.map((example) => (
+          <article key={example.label}>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <h4 className="text-[0.6875rem] font-medium text-[var(--ds-text)]">{example.label}</h4>
+              <CopyButton text={example.code} />
+            </div>
+            <pre className="m-0 overflow-x-auto rounded-control border border-[var(--ds-border-subtle)] bg-[var(--ds-input-bg)] p-2 text-[0.6875rem] leading-relaxed">
+              <code className="font-mono">{example.code}</code>
+            </pre>
+            <p className="mt-1 text-[0.6875rem] leading-snug text-[var(--ds-text-muted)]">{example.description}</p>
+          </article>
+        ))}
+      </div>
+
+      <h4 className="mt-4 text-[0.6875rem] text-[var(--ds-text-subtle)]">Languages that are highlighted</h4>
+      <div className="mt-1 flex flex-wrap gap-1.5">
+        {CODE_FENCE_LANGUAGES.map((language) => (
+          <code
+            key={language}
+            className="rounded border border-[var(--ds-border)] bg-[var(--ds-bg-elevated)] px-1 py-0.5 font-mono text-[0.6875rem] text-[var(--ds-text-muted)]"
+          >
+            {language}
+          </code>
+        ))}
+      </div>
+    </section>
   );
 }
 

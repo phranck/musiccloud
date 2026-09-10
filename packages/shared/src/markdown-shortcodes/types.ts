@@ -14,17 +14,15 @@ import type { ContentContextMask } from "../content-context.js";
 /**
  * How a shortcode is written into a page.
  *
- * Three notations exist because the three things they mark are different
- * shapes. `Bracket` covers everything with a token and attributes. `Fence`
- * is the block form, opened and closed on lines of its own, for content that
- * runs over many lines. `Braces` is the shortest inline form, for a single
- * word that is set differently rather than for something with parameters.
+ * Two notations, because the two things they mark are different shapes.
+ * `Bracket` covers everything with a token and attributes, and carries its
+ * content between braces where it has any. `Braces` is the shortest inline
+ * form, for a single word that is set differently rather than for something
+ * with parameters.
  */
 export const ShortcodeSyntax = {
   /** `[[token:target attribute=value]]`, optionally with a body in braces. */
   Bracket: "Bracket",
-  /** `:::token` on its own line, its content, then `:::`. */
-  Fence: "Fence",
   /** `{{content}}`, inline. */
   Braces: "Braces",
 } as const;
@@ -146,8 +144,8 @@ export interface ShortcodeTable {
 /**
  * One shortcode, declared once.
  *
- * @property token - What follows `[[` or `:::`, or the whole content for the
- *   braces form.
+ * @property token - What follows `[[`, or the whole content for the braces
+ *   form.
  * @property syntax - Which of {@link ShortcodeSyntax} it is written in.
  * @property renderMode - Whether it becomes markup or a hydrated component.
  * @property target - Whether it takes the value after its colon.

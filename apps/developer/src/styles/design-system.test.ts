@@ -415,7 +415,7 @@ describe("developer design system", () => {
     const components = readDeveloperFile("src/styles/components.css");
     const docs = readDeveloperFile("src/styles/docs.css");
     const home = readDeveloperFile("src/pages/index.astro");
-    const pricing = readDeveloperFile("src/pages/pricing.astro");
+    const planGrid = readDeveloperFile("src/components/plans/PlanGrid.astro");
     const dashboard = readDeveloperFile("src/pages/dashboard/index.astro");
 
     expect(components).toMatch(
@@ -434,9 +434,12 @@ describe("developer design system", () => {
     expect(docs).toMatch(/\.api-content__chapter-header\s*\{[^}]*padding-inline:\s*var\(--mc-card-content-inset\);/s);
     expect(home).toMatch(/<h1 class="[^"]*card-content-inset[^"]*"/);
     expect(home).toMatch(/<p class="[^"]*card-content-inset[^"]*"/);
-    expect(pricing).toMatch(/<p class="[^"]*card-content-inset[^"]*text-lead[^"]*"/);
-    expect(pricing).toMatch(/<h2 class="[^"]*card-content-inset[^"]*">Our commitment<\/h2>/);
-    expect(pricing).not.toMatch(/tier-card[^>]*card-content-inset|card-content-inset[^>]*tier-card/);
+    // The pricing page's copy is content now, so its inset comes from the card
+    // the editorial shell puts it in rather than from a class on a paragraph.
+    // What must still not take the inset is a tier card, which has an edge of
+    // its own and would be pushed off centre by one.
+    expect(planGrid).not.toMatch(/tier-card[^>]*card-content-inset|card-content-inset[^>]*tier-card/);
+    expect(planGrid).toMatch(/<h2 class="[^"]*card-content-inset[^"]*"/);
     // The dashboard names its page the way the reference names a chapter, so
     // its heading takes the inset from `.api-content__chapter-header` rather
     // than carrying the utility class. The copy under it still carries it.

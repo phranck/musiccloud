@@ -1,4 +1,4 @@
-const RESERVED_DEVELOPER_PORTAL_PREFIXES = ["/docs", "/login", "/signup", "/auth", "/api", "/dashboard"];
+import { isPortalReservedPath } from "@musiccloud/shared";
 
 export function normalizeEditorialPath(path: string): string {
   const candidate = path.trim();
@@ -28,9 +28,12 @@ export function normalizeEditorialPath(path: string): string {
   return segments.length === 0 ? "/" : `/${segments.join("/")}`;
 }
 
+/**
+ * Whether the portal serves this path itself.
+ *
+ * @param path - The path being asked for.
+ * @returns `true` when no editorial page may take it.
+ */
 export function isReservedDeveloperPortalPath(path: string): boolean {
-  const normalizedPath = normalizeEditorialPath(path);
-  return RESERVED_DEVELOPER_PORTAL_PREFIXES.some(
-    (reservedPath) => normalizedPath === reservedPath || normalizedPath.startsWith(`${reservedPath}/`),
-  );
+  return isPortalReservedPath(normalizeEditorialPath(path));
 }

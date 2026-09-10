@@ -6,16 +6,27 @@ import {
   FIELDS_AUTO_LABEL_WIDTH,
   FIELDS_DEFAULT_GAP,
   FIELDS_DEFAULT_LABEL_WIDTH,
+  FIELDS_DEFAULT_LAYOUT,
   FIELDS_SHORTCODE,
+  FieldsLayoutMode,
+  type FieldsLayoutModeValue,
+  HSTACK_SHORTCODE,
+  ICON_SHORTCODE,
+  IMAGE_SHORTCODE,
   isValidContentContextMask,
   KBD_SHORTCODE,
+  PDF_SHORTCODE,
   PILL_DEFAULT_CASE,
   PILL_DEFAULT_TONE,
   PILL_SHORTCODE,
   PLANS_SHORTCODE,
   parseShortcodes,
+  readShortcodeAt,
   type ShortcodeDefinition,
   type ShortcodeParamValue,
+  SPACER_SHORTCODE,
+  VSTACK_SHORTCODE,
+  YOUTUBE_SHORTCODE,
 } from "@musiccloud/shared";
 import type { MarkedExtension, Token, Tokens } from "marked";
 import markedFootnote from "marked-footnote";
@@ -23,7 +34,11 @@ import { markedHighlight } from "marked-highlight";
 import { type BundledLanguage, type BundledTheme, createHighlighter, type HighlighterGeneric } from "shiki";
 import mcQueryGrammar from "../grammars/mc-query.tmLanguage.json" with { type: "json" };
 import { createCardExtension } from "./card-extension.js";
+import { createHeadingAnchorExtension } from "./heading-anchors.js";
+import { createIconExtension } from "./icon-extension.js";
+import { createMediaExtension } from "./media-extension.js";
 import { createPlansExtension } from "./plans-extension.js";
+import { createStackExtension } from "./stack-extension.js";
 
 const BOTH_CONTENT_CONTEXTS = ContentContext.Frontend | ContentContext.DeveloperPortal;
 const KNOWN_CARD_MODIFIERS = new Set(["recessed", "embossed"] as const);
@@ -35,6 +50,7 @@ type PillTone = "alert" | "info" | "neutral" | "success";
 type PillCase = "none" | "upper" | "lower";
 
 interface FieldsLayout {
+  mode: FieldsLayoutModeValue;
   labelWidth: string;
   gap: string;
 }
@@ -152,13 +168,31 @@ function parseFieldsLayout(raw: string): FieldsLayout {
   const gap = String(params.gap ?? FIELDS_DEFAULT_GAP);
 
   return {
+    // Already checked against the values the registry declares, so this is one
+    // of them and the cast states that rather than deciding it.
+    mode: (params.layout ?? FIELDS_DEFAULT_LAYOUT) as FieldsLayoutModeValue,
     labelWidth:
       labelWidth === FIELDS_AUTO_LABEL_WIDTH || !isSafeCssLength(labelWidth) ? FIELDS_DEFAULT_LABEL_WIDTH : labelWidth,
     gap: isSafeCssLength(gap) ? gap : FIELDS_DEFAULT_GAP,
   };
 }
 
+/**
+ * The inline style one fields list carries.
+ *
+ * Stacked lists need no columns and no column gap, so they carry the row gap
+ * instead and let the stylesheet set everything else. Emitting a
+ * `grid-template-columns` they do not use would be a declaration the sanitizer
+ * has to allow for nothing.
+ *
+ * @param layout - The list's resolved arrangement.
+ * @returns The declarations, ready for a `style` attribute.
+ */
 function renderFieldsStyle(layout: FieldsLayout): string {
+  // No row gap: stacked, a statement and its sentence belong together whilst
+  // one pair stands apart from the next, and one figure cannot say both. The
+  // stylesheet sets the two, and `gap` is documented as ignored here.
+  if (layout.mode === FieldsLayoutMode.Stacked) return "display:grid;";
   return `display:grid;grid-template-columns:${layout.labelWidth} minmax(0, 1fr);column-gap:${layout.gap};`;
 }
 
@@ -258,20 +292,41 @@ function applyPillCase(text: string, textCase: PillCase): string {
   return text;
 }
 
+/**
+ * Reads a fields list, if one begins here.
+ *
+ * The rows are lines of `Label: value`, and the value is inline Markdown, so a
+ * link or a piece of code works there. A line without a colon is not a row and
+ * is dropped rather than guessed at.
+ *
+ * @param source - What marked is offering, from the current position.
+ * @returns The raw source, the rows still to be lexed, and the resolved layout,
+ *   or `null` when no fields list begins here.
+ */
+function readFieldsSource(source: string): { raw: string; rows: string[]; layout: FieldsLayout } | null {
+  const node = readShortcodeAt(source, 0);
+  if (!node || node.token !== FIELDS_SHORTCODE.token || node.body === undefined) return null;
+
+  return {
+    raw: node.source.raw,
+    rows: node.body.split(/\r?\n/),
+    layout: parseFieldsLayout(node.source.raw),
+  };
+}
+
 const mcFieldsExtension: MarkedExtension = {
   extensions: [
     {
       name: "mcFields",
       level: "block",
       start(source) {
-        return source.match(/^:::fields/m)?.index;
+        return source.match(/\[\[fields[\s{]/)?.index;
       },
       tokenizer(source) {
-        const match = source.match(/^:::fields(?:[ \t]+([^\r\n]*))?\r?\n([\s\S]*?)\r?\n:::[ \t]*(?:\r?\n|$)/);
-        if (!match) return;
+        const read = readFieldsSource(source);
+        if (!read) return;
 
-        const rows = match[2]
-          .split(/\r?\n/)
+        const rows = read.rows
           .map((line): McFieldsRow | null => {
             const row = line.match(/^\s*([^:]+):\s*(.*)$/);
             if (!row) return null;
@@ -287,21 +342,27 @@ const mcFieldsExtension: MarkedExtension = {
 
         return {
           type: "mcFields",
-          raw: match[0],
+          raw: read.raw,
           rows,
-          layout: parseFieldsLayout(match[0]),
+          layout: read.layout,
         } satisfies McFieldsToken;
       },
       renderer(token) {
         const fields = token as McFieldsToken;
+        // The colon belongs to the columns form, where it separates a label
+        // from the value beside it. Stacked, the label is a statement on a line
+        // of its own and a trailing colon reads as a mistake.
+        const labelSuffix = fields.layout.mode === FieldsLayoutMode.Stacked ? "" : ":";
         const rows = fields.rows
           .map((row) => {
             const label = escapeHtml(row.label);
             const content = this.parser.parseInline(row.tokens);
-            return `<dt>${label}:</dt><dd>${content}</dd>`;
+            return `<dt>${label}${labelSuffix}</dt><dd>${content}</dd>`;
           })
           .join("");
-        return `<dl class="mc-fields" style="${escapeHtmlAttribute(renderFieldsStyle(fields.layout))}">${rows}</dl>\n`;
+        const layoutClass = `mc-fields--${fields.layout.mode}`;
+        const style = escapeHtmlAttribute(renderFieldsStyle(fields.layout));
+        return `<dl class="mc-fields ${layoutClass}" style="${style}">${rows}</dl>\n`;
       },
     },
   ],
@@ -365,6 +426,12 @@ export const MARKDOWN_EXTENSION_DEFINITIONS: readonly MarkdownExtensionDefinitio
     createMarkedExtension: createCodeFenceExtension,
     tokenTypes: ["code"],
   },
+  {
+    name: "headingAnchors",
+    allowedContextMask: BOTH_CONTENT_CONTEXTS,
+    createMarkedExtension: createHeadingAnchorExtension,
+    tokenTypes: ["heading"],
+  },
   // The ones below are shortcodes, so where each may be used is declared once
   // in the shared registry alongside its parameters and its help. This list
   // wires them into marked and takes that decision from there rather than
@@ -374,6 +441,30 @@ export const MARKDOWN_EXTENSION_DEFINITIONS: readonly MarkdownExtensionDefinitio
     allowedContextMask: CARD_SHORTCODE.allowedContextMask,
     createMarkedExtension: createCardExtension,
     tokenTypes: ["mcCard", "mcCardRow"],
+  },
+  {
+    // One extension for all three, because a spacer only means anything inside
+    // a stack and the two stacks differ in nothing but their axis.
+    name: "mcStack",
+    allowedContextMask:
+      VSTACK_SHORTCODE.allowedContextMask | HSTACK_SHORTCODE.allowedContextMask | SPACER_SHORTCODE.allowedContextMask,
+    createMarkedExtension: createStackExtension,
+    tokenTypes: ["mcStack", "mcSpacer"],
+  },
+  {
+    // One extension for all three, because they differ only in what they point
+    // at and every one of them checks that address the same way.
+    name: "mcMedia",
+    allowedContextMask:
+      IMAGE_SHORTCODE.allowedContextMask | PDF_SHORTCODE.allowedContextMask | YOUTUBE_SHORTCODE.allowedContextMask,
+    createMarkedExtension: createMediaExtension,
+    tokenTypes: ["mcImage", "mcPdf", "mcYouTube"],
+  },
+  {
+    name: "mcIcon",
+    allowedContextMask: ICON_SHORTCODE.allowedContextMask,
+    createMarkedExtension: createIconExtension,
+    tokenTypes: ["mcIcon"],
   },
   {
     name: "mcPlans",

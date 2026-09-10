@@ -29,9 +29,10 @@ describe("ShortcodeList", () => {
     const { container } = render(<ShortcodeList />);
     const text = container.textContent ?? "";
 
-    // Three notations that look nothing alike, so one form shown for all three
-    // would be a false instruction rather than a shorthand.
-    expect(text).toContain(":::fields");
+    // Two notations that look nothing alike, so one form shown for both would
+    // be a false instruction rather than a shorthand. A container is written
+    // with its braces, and a word set apart is written with none.
+    expect(text).toContain("[[fields { … }]]");
     expect(text).toContain("[[pill:…]]");
     expect(text).toContain("{{…}}");
   });

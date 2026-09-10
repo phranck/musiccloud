@@ -16,6 +16,8 @@ const ALLOWED_ELEMENTS = new Set([
   "dl",
   "dt",
   "em",
+  "figcaption",
+  "figure",
   "h1",
   "h2",
   "h3",
@@ -29,11 +31,19 @@ const ALLOWED_ELEMENTS = new Set([
   "li",
   "ol",
   "p",
+  // A symbol and its two shapes. The path data never comes from a page: a page
+  // names a Phosphor icon and the renderer looks the shapes up in the assets
+  // this repository ships, so what reaches `d` is ours. Every other element is
+  // absent from this list and every attribute is checked below, so nothing that
+  // travels inside an SVG in the usual attacks survives: no script, no event
+  // handler, no external reference.
+  "path",
   "pre",
   "section",
   "span",
   "strong",
   "sup",
+  "svg",
   "table",
   "tbody",
   "td",
@@ -52,14 +62,15 @@ const DROP_WITH_CONTENT = new Set([
   "object",
   "script",
   "style",
-  "svg",
   "template",
   "video",
 ]);
 
 const GLOBAL_ATTRIBUTES = new Set(["aria-describedby", "aria-hidden", "aria-label", "class", "id", "role", "title"]);
 const ELEMENT_ATTRIBUTES: Readonly<Record<string, ReadonlySet<string>>> = {
-  a: new Set(["data-footnote-backref", "data-footnote-ref", "href", "rel"]),
+  // A video's link carries the shape it opens at, so the space it will take is
+  // held before anything loads and the page does not jump.
+  a: new Set(["data-footnote-backref", "data-footnote-ref", "href", "rel", "style"]),
   code: new Set(["class"]),
   // A row of cards carries the gap a page asked for. `sanitizeStyle` accepts
   // one property here, `gap`, and only as a plain CSS length, so nothing else
@@ -70,8 +81,12 @@ const ELEMENT_ATTRIBUTES: Readonly<Record<string, ReadonlySet<string>>> = {
   input: new Set(["checked", "disabled", "type"]),
   li: new Set(["value"]),
   ol: new Set(["start"]),
+  // The two shapes of a duotone symbol. `opacity` is what makes the second one
+  // the lighter tone.
+  path: new Set(["d", "opacity"]),
   pre: new Set(["data-card-padding", "data-card-radius", "data-card-style"]),
   span: new Set(["style"]),
+  svg: new Set(["fill", "height", "viewBox", "width"]),
   td: new Set(["colspan", "rowspan"]),
   th: new Set(["colspan", "rowspan", "scope"]),
 };
@@ -79,7 +94,16 @@ const ELEMENT_ATTRIBUTES: Readonly<Record<string, ReadonlySet<string>>> = {
 const CLASS_PATTERN = /^[A-Za-z0-9_:\- ]+$/;
 const ID_PATTERN = /^[A-Za-z][A-Za-z0-9_:.-]*$/;
 const CSS_LENGTH_PATTERN = /^(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em|ch)$/;
+/** Two whole figures with a solidus between them, which is what an embedded video carries. */
+const ASPECT_RATIO_PATTERN = /^\d{1,3} \/ \d{1,3}$/;
 const SAFE_COLOR_PATTERN = /^#[0-9a-f]{3,8}$/i;
+/** The characters a path is drawn from: the commands, the figures, and their separators. */
+const SVG_PATH_PATTERN = /^[MmZzLlHhVvCcSsQqTtAa0-9eE,.\s+-]+$/;
+const SVG_OPACITY_PATTERN = /^(?:0|1|0?\.\d+)$/;
+/** The one box every Phosphor icon is drawn in. */
+const SVG_VIEW_BOX = "0 0 256 256";
+/** A colour a symbol may be drawn in, which is a hex figure, a name, or a token. */
+const SAFE_FILL_PATTERN = /^(?:currentColor|#[0-9a-f]{3,8}|[a-z]+|var\(--[a-z0-9-]+\))$/i;
 const SAFE_URL_PROTOCOLS = new Set(["http", "https", "mailto", "tel"]);
 const SAFE_IMAGE_PROTOCOLS = new Set(["http", "https"]);
 
@@ -118,6 +142,13 @@ function sanitizeStyle(value: string): string | null {
       declarations.push(`column-gap:${candidate}`);
     } else if (property === "gap" && CSS_LENGTH_PATTERN.test(candidate)) {
       declarations.push(`gap:${candidate}`);
+    } else if ((property === "flex-basis" || property === "height") && CSS_LENGTH_PATTERN.test(candidate)) {
+      // A fixed spacer carries both, because which of them applies depends on
+      // the stack around it and the renderer cannot know that from where it
+      // stands.
+      declarations.push(`${property}:${candidate}`);
+    } else if (property === "aspect-ratio" && ASPECT_RATIO_PATTERN.test(candidate)) {
+      declarations.push(`aspect-ratio:${candidate}`);
     }
   }
   return declarations.length > 0 ? declarations.join(";") : null;
@@ -135,6 +166,10 @@ function sanitizedAttributeValue(element: HtmlElement, name: string, value: stri
     return /^\d+$/.test(value) ? value : null;
   }
   if (name === "scope") return ["col", "colgroup", "row", "rowgroup"].includes(value) ? value : null;
+  if (name === "d") return SVG_PATH_PATTERN.test(value) ? value : null;
+  if (name === "opacity") return SVG_OPACITY_PATTERN.test(value) ? value : null;
+  if (name === "viewBox") return value === SVG_VIEW_BOX ? value : null;
+  if (name === "fill") return SAFE_FILL_PATTERN.test(value) ? value : null;
   if (name === "data-card-style") return value === "embossed" || value === "recessed" ? value : null;
   if (name === "data-card-padding" || name === "data-card-radius") {
     return CSS_LENGTH_PATTERN.test(value) ? value : null;

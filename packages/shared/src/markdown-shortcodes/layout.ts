@@ -40,17 +40,27 @@ const PORTAL_ONLY = ContentContext.DeveloperPortal;
 export const CARD_ROW_DEFAULT_SPACING_TOKEN = "var(--mc-space-5)";
 
 /**
- * How deeply cards may be nested before the renderer stops.
+ * How deeply containers may be nested before the renderer stops.
  *
- * A card holds page content and a card is page content, so without a limit a
- * document could nest without end and the render would not return. Three is
- * more than any real page needs and shallow enough that reaching it is a
- * mistake rather than a design.
+ * A container holds page content and a container is page content, so without a
+ * limit a document could nest without end and the render would not return. One
+ * budget covers cards and stacks together, because they nest through each other
+ * and two counters would let a document reach twice the depth either one
+ * allows. Six is more than any real page needs and shallow enough that reaching
+ * it is a mistake rather than a design.
  */
-export const MAX_CARD_DEPTH = 3;
+export const MAX_CONTAINER_DEPTH = 6;
 
 /** The widest row the layout offers. Beyond this a card is too narrow to read. */
 export const MAX_CARD_COLUMNS = 4;
+
+/**
+ * The widest gap a page may ask for between two children of a container.
+ *
+ * Read by the cards and by the stacks alike, because the reason is the same in
+ * both: past this the pieces stop reading as one arrangement.
+ */
+export const MAX_CONTAINER_SPACING = 200;
 
 /** How many cards stand side by side when a row names no number. */
 export const DEFAULT_CARD_COLUMNS = 2;
@@ -126,7 +136,7 @@ export const CARD_ROW_SHORTCODE = {
       name: "spacing",
       type: ShortcodeParamType.Integer,
       min: 0,
-      max: 200,
+      max: MAX_CONTAINER_SPACING,
       defaultLabel: CARD_ROW_DEFAULT_SPACING_TOKEN,
       label: "Gap between the cards, in pixels",
     },

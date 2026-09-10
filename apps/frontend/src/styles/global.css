@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* How the shortcode markup is arranged, shared with the developer portal so the
+   two cannot render the same HTML differently. The material it is drawn in is
+   declared on `.mc-markdown` below, from this surface's own tokens. */
+@import "@musiccloud/shared/styles/markdown-shortcodes.css";
+
 /* Design System tokens - Dark Premium (Apple-inspired) */
 @theme {
   /* Core palette - neutral grays, no blue tint */
@@ -176,4 +181,17 @@ button,
     var(--text-placeholder-dimmed-night)
   );
   opacity: 1;
+}
+
+/* The material the shared shortcode stylesheet is drawn in, in the site's own
+   values. `MarkdownHtml` puts this class on every surface that renders the
+   markup, whatever prose classes that surface also brings. */
+.mc-markdown {
+  --mc-shortcode-gap: 0.75rem;
+  --mc-shortcode-gap-tight: 0.5rem;
+  --mc-shortcode-radius: 0.75rem;
+  --mc-shortcode-surface: var(--color-surface);
+  --mc-shortcode-border: var(--color-border);
+  --mc-shortcode-caption-color: var(--color-text-muted);
+  --mc-shortcode-title-color: var(--color-text-primary);
 }

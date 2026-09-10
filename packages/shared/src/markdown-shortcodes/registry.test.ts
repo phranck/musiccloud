@@ -120,7 +120,7 @@ describe("assertRegistryIsUnambiguous", () => {
   });
 
   it("accepts the same token in two different notations", () => {
-    expect(() => assertRegistryIsUnambiguous([base, { ...base, syntax: ShortcodeSyntax.Fence }])).not.toThrow();
+    expect(() => assertRegistryIsUnambiguous([base, { ...base, syntax: ShortcodeSyntax.Braces }])).not.toThrow();
   });
 
   it("refuses a second braces shortcode, which nothing could tell apart", () => {
@@ -129,5 +129,13 @@ describe("assertRegistryIsUnambiguous", () => {
     expect(() => assertRegistryIsUnambiguous([braces, { ...braces, token: "two" }])).toThrow(
       /both use the \{\{…\}\} notation/,
     );
+  });
+});
+
+describe("the order the reference lists them in", () => {
+  it("is alphabetical by token, so a writer can look one up", () => {
+    const tokens = SHORTCODE_DEFINITIONS.map((definition) => definition.token);
+
+    expect(tokens).toEqual([...tokens].sort((first, second) => first.localeCompare(second)));
   });
 });
