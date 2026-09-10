@@ -5,8 +5,11 @@
 import type { ContentContextMask } from "../content-context.js";
 import { hasAllContextBits } from "../content-context.js";
 import { FIELDS_SHORTCODE, KBD_SHORTCODE, PILL_SHORTCODE } from "./content.js";
+import { ICON_SHORTCODE } from "./icon.js";
 import { CARD_ROW_SHORTCODE, CARD_SHORTCODE } from "./layout.js";
+import { IMAGE_SHORTCODE, PDF_SHORTCODE, YOUTUBE_SHORTCODE } from "./media.js";
 import { PLANS_SHORTCODE } from "./plans.js";
+import { HSTACK_SHORTCODE, SPACER_SHORTCODE, VSTACK_SHORTCODE } from "./stacks.js";
 import { type ShortcodeDefinition, ShortcodeSyntax } from "./types.js";
 
 /**
@@ -18,8 +21,15 @@ import { type ShortcodeDefinition, ShortcodeSyntax } from "./types.js";
 export const SHORTCODE_DEFINITIONS: readonly ShortcodeDefinition[] = [
   CARD_SHORTCODE,
   CARD_ROW_SHORTCODE,
+  VSTACK_SHORTCODE,
+  HSTACK_SHORTCODE,
+  SPACER_SHORTCODE,
   PLANS_SHORTCODE,
+  IMAGE_SHORTCODE,
+  YOUTUBE_SHORTCODE,
+  PDF_SHORTCODE,
   FIELDS_SHORTCODE,
+  ICON_SHORTCODE,
   PILL_SHORTCODE,
   KBD_SHORTCODE,
 ];

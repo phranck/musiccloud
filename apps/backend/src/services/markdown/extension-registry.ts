@@ -10,8 +10,12 @@ import {
   FIELDS_SHORTCODE,
   FieldsLayoutMode,
   type FieldsLayoutModeValue,
+  HSTACK_SHORTCODE,
+  ICON_SHORTCODE,
+  IMAGE_SHORTCODE,
   isValidContentContextMask,
   KBD_SHORTCODE,
+  PDF_SHORTCODE,
   PILL_DEFAULT_CASE,
   PILL_DEFAULT_TONE,
   PILL_SHORTCODE,
@@ -19,6 +23,9 @@ import {
   parseShortcodes,
   type ShortcodeDefinition,
   type ShortcodeParamValue,
+  SPACER_SHORTCODE,
+  VSTACK_SHORTCODE,
+  YOUTUBE_SHORTCODE,
 } from "@musiccloud/shared";
 import type { MarkedExtension, Token, Tokens } from "marked";
 import markedFootnote from "marked-footnote";
@@ -27,7 +34,10 @@ import { type BundledLanguage, type BundledTheme, createHighlighter, type Highli
 import mcQueryGrammar from "../grammars/mc-query.tmLanguage.json" with { type: "json" };
 import { createCardExtension } from "./card-extension.js";
 import { createHeadingAnchorExtension } from "./heading-anchors.js";
+import { createIconExtension } from "./icon-extension.js";
+import { createMediaExtension } from "./media-extension.js";
 import { createPlansExtension } from "./plans-extension.js";
+import { createStackExtension } from "./stack-extension.js";
 
 const BOTH_CONTENT_CONTEXTS = ContentContext.Frontend | ContentContext.DeveloperPortal;
 const KNOWN_CARD_MODIFIERS = new Set(["recessed", "embossed"] as const);
@@ -409,6 +419,30 @@ export const MARKDOWN_EXTENSION_DEFINITIONS: readonly MarkdownExtensionDefinitio
     allowedContextMask: CARD_SHORTCODE.allowedContextMask,
     createMarkedExtension: createCardExtension,
     tokenTypes: ["mcCard", "mcCardRow"],
+  },
+  {
+    // One extension for all three, because a spacer only means anything inside
+    // a stack and the two stacks differ in nothing but their axis.
+    name: "mcStack",
+    allowedContextMask:
+      VSTACK_SHORTCODE.allowedContextMask | HSTACK_SHORTCODE.allowedContextMask | SPACER_SHORTCODE.allowedContextMask,
+    createMarkedExtension: createStackExtension,
+    tokenTypes: ["mcStack", "mcSpacer"],
+  },
+  {
+    // One extension for all three, because they differ only in what they point
+    // at and every one of them checks that address the same way.
+    name: "mcMedia",
+    allowedContextMask:
+      IMAGE_SHORTCODE.allowedContextMask | PDF_SHORTCODE.allowedContextMask | YOUTUBE_SHORTCODE.allowedContextMask,
+    createMarkedExtension: createMediaExtension,
+    tokenTypes: ["mcImage", "mcPdf", "mcYouTube"],
+  },
+  {
+    name: "mcIcon",
+    allowedContextMask: ICON_SHORTCODE.allowedContextMask,
+    createMarkedExtension: createIconExtension,
+    tokenTypes: ["mcIcon"],
   },
   {
     name: "mcPlans",

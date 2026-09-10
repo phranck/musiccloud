@@ -19,6 +19,20 @@ export const ShortcodeToken = {
   Kbd: "kbd",
   /** The live plan list. */
   Plans: "plans",
+  /** A Phosphor symbol, in the text or beside its caption. */
+  Icon: "icon",
+  /** A container standing its children one beneath the next. */
+  VStack: "vstack",
+  /** A container standing its children side by side. */
+  HStack: "hstack",
+  /** A gap between two children of a stack. */
+  Spacer: "spacer",
+  /** A picture, with its optional caption. */
+  Image: "image",
+  /** A PDF, linked as a card. */
+  Pdf: "pdf",
+  /** An embedded YouTube video. */
+  YouTube: "youtube",
 } as const;
 
 /** One of the tokens in {@link ShortcodeToken}. */

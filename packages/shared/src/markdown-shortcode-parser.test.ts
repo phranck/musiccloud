@@ -241,3 +241,23 @@ describe("parseShortcodes — nesting", () => {
     expect(parseShortcodes("[[option:one]]", TEST_DEFINITIONS)).toHaveLength(0);
   });
 });
+
+describe("an enum value written in another spelling", () => {
+  it("reads a SwiftUI name with its leading dot", () => {
+    const [node] = parseShortcodes('[[icon name="key" text="Hi" textalignment=".topLeading"]]');
+
+    expect(node.params.textalignment).toBe("topLeading");
+  });
+
+  it("reads the same name hyphenated and in lower case", () => {
+    const [node] = parseShortcodes('[[icon name="key" text="Hi" textalignment="top-leading"]]');
+
+    expect(node.params.textalignment).toBe("topLeading");
+  });
+
+  it("still refuses a name the parameter does not declare", () => {
+    const [node] = parseShortcodes('[[icon name="key" text="Hi" textalignment="sideways"]]');
+
+    expect(node.params.textalignment).toBeUndefined();
+  });
+});

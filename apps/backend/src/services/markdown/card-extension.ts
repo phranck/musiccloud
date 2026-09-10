@@ -16,29 +16,18 @@
 import {
   CARD_ROW_SHORTCODE,
   CARD_SHORTCODE,
-  MAX_CARD_DEPTH,
   parseShortcodes,
   readShortcodeAt,
   type ShortcodeParamValue,
 } from "@musiccloud/shared";
 import type { MarkedExtension, Token, Tokens } from "marked";
+import { insideContainer, isAtContainerLimit, resolveContainerSpacing } from "./containers.js";
 
 /** The class the stylesheet gives one card. */
 const CARD_CLASS = "mc-card";
 
 /** The class the stylesheet gives a row of them. */
 const CARD_ROW_CLASS = "mc-cards";
-
-/**
- * How deep the renderer currently is inside nested cards.
- *
- * A module-level counter rather than something carried on the token, because
- * marked lexes a body synchronously and in place: the depth whilst a nested
- * body is being read is exactly the depth of the card being read. It is reset
- * on every top-level entry, so a render that threw part-way cannot leave the
- * next one thinking it is already deep.
- */
-let cardDepth = 0;
 
 interface McCardToken extends Tokens.Generic {
   type: "mcCard";
@@ -78,17 +67,6 @@ function readCardSource(
 }
 
 /**
- * Turns a spacing in pixels into the `gap` a row carries.
- *
- * @param spacing - What the page asked for, or `undefined` for the default.
- * @returns The CSS length, or `null` to leave the gap to the stylesheet, which
- *   is what the registry names as the default.
- */
-function resolveSpacing(spacing: ShortcodeParamValue | undefined): string | null {
-  return typeof spacing === "number" ? `${spacing}px` : null;
-}
-
-/**
  * The card shortcode as a marked extension.
  *
  * @returns The extension, ready to register.
@@ -109,18 +87,16 @@ export function createCardExtension(): MarkedExtension {
           // A card past the limit is left as text, so the source appears on the
           // page and whoever wrote it can see what happened. Rendering it as a
           // plain card instead would hide a document that nests without end.
-          if (cardDepth >= MAX_CARD_DEPTH) return;
+          if (isAtContainerLimit()) return;
 
-          cardDepth += 1;
-          try {
-            return {
-              type: "mcCard",
-              raw: read.raw,
-              tokens: this.lexer.blockTokens(read.body) as Token[],
-            } satisfies McCardToken;
-          } finally {
-            cardDepth -= 1;
-          }
+          return insideContainer(
+            () =>
+              ({
+                type: "mcCard",
+                raw: read.raw,
+                tokens: this.lexer.blockTokens(read.body) as Token[],
+              }) satisfies McCardToken,
+          );
         },
         renderer(token) {
           const card = token as McCardToken;
@@ -136,20 +112,18 @@ export function createCardExtension(): MarkedExtension {
         tokenizer(source: string) {
           const read = readCardSource(source, CARD_ROW_SHORTCODE.token);
           if (!read) return;
-          if (cardDepth >= MAX_CARD_DEPTH) return;
+          if (isAtContainerLimit()) return;
 
-          cardDepth += 1;
-          try {
-            return {
-              type: "mcCardRow",
-              raw: read.raw,
-              tokens: this.lexer.blockTokens(read.body) as Token[],
-              columns: Number(read.params.columns),
-              spacing: resolveSpacing(read.params.spacing),
-            } satisfies McCardRowToken;
-          } finally {
-            cardDepth -= 1;
-          }
+          return insideContainer(
+            () =>
+              ({
+                type: "mcCardRow",
+                raw: read.raw,
+                tokens: this.lexer.blockTokens(read.body) as Token[],
+                columns: Number(read.params.columns),
+                spacing: resolveContainerSpacing(read.params.spacing),
+              }) satisfies McCardRowToken,
+          );
         },
         renderer(token) {
           const row = token as McCardRowToken;
@@ -164,14 +138,4 @@ export function createCardExtension(): MarkedExtension {
       },
     ],
   };
-}
-
-/**
- * Resets the nesting counter.
- *
- * Exported for the tests, which drive the tokenizer directly and would
- * otherwise carry a depth from one case into the next.
- */
-export function resetCardDepth(): void {
-  cardDepth = 0;
 }

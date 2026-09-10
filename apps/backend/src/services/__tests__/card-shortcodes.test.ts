@@ -3,10 +3,10 @@ import {
   ContentContext,
   DEFAULT_CARD_COLUMNS,
   MAX_CARD_COLUMNS,
-  MAX_CARD_DEPTH,
+  MAX_CONTAINER_DEPTH,
 } from "@musiccloud/shared";
 import { beforeEach, describe, expect, it } from "vitest";
-import { resetCardDepth } from "../markdown/card-extension.js";
+import { resetContainerDepth } from "../markdown/containers.js";
 import { renderMarkdown } from "../markdown/renderer.js";
 import { sanitizeMarkdownHtml } from "../markdown/sanitizer.js";
 
@@ -23,7 +23,7 @@ function nestedCards(depth: number, innermost: string): string {
 }
 
 beforeEach(() => {
-  resetCardDepth();
+  resetContainerDepth();
 });
 
 describe("[[card]]", () => {
@@ -108,26 +108,26 @@ describe("[[cards]]", () => {
 
 describe("nesting", () => {
   it("follows cards down to the limit", async () => {
-    const out = await renderPortal(nestedCards(MAX_CARD_DEPTH, "the middle"));
+    const out = await renderPortal(nestedCards(MAX_CONTAINER_DEPTH, "the middle"));
 
-    expect(out.match(/<div class="mc-card">/g)).toHaveLength(MAX_CARD_DEPTH);
+    expect(out.match(/<div class="mc-card">/g)).toHaveLength(MAX_CONTAINER_DEPTH);
     expect(out).toContain("the middle");
   });
 
   it("stops at the limit and leaves the deeper source as text", async () => {
-    const out = await renderPortal(nestedCards(MAX_CARD_DEPTH + 1, "too deep"));
+    const out = await renderPortal(nestedCards(MAX_CONTAINER_DEPTH + 1, "too deep"));
 
     // The cards up to the limit render; the one past it appears as what was
     // typed, so whoever wrote it can see where the nesting stopped.
-    expect(out.match(/<div class="mc-card">/g)).toHaveLength(MAX_CARD_DEPTH);
+    expect(out.match(/<div class="mc-card">/g)).toHaveLength(MAX_CONTAINER_DEPTH);
     expect(out).toContain("[[card {");
     expect(out).toContain("too deep");
   });
 
   it("counts each document from nothing, so one deep page does not shorten the next", async () => {
-    await renderPortal(nestedCards(MAX_CARD_DEPTH + 1, "first"));
-    const out = await renderPortal(nestedCards(MAX_CARD_DEPTH, "second"));
+    await renderPortal(nestedCards(MAX_CONTAINER_DEPTH + 1, "first"));
+    const out = await renderPortal(nestedCards(MAX_CONTAINER_DEPTH, "second"));
 
-    expect(out.match(/<div class="mc-card">/g)).toHaveLength(MAX_CARD_DEPTH);
+    expect(out.match(/<div class="mc-card">/g)).toHaveLength(MAX_CONTAINER_DEPTH);
   });
 });
