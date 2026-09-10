@@ -1,12 +1,24 @@
+import type { DecorationSet, ViewUpdate } from "@codemirror/view";
 import {
   CODE_FENCE_LANGUAGES,
   clampViewportRect,
+  highlightShortcodes,
   moveViewportRect,
   type ResizeHandle,
   resizeViewportRect,
+  type ShortcodeHighlightKind,
+  type ShortcodePasteRewrite,
+  shortcodeIndentFor,
+  shortcodePasteRewrite,
   type ViewportRect,
 } from "@musiccloud/shared";
-import { InfoIcon, X as XIcon } from "@phosphor-icons/react";
+import {
+  BracketsSquareIcon,
+  DotOutlineIcon,
+  ListNumbersIcon,
+  TextAlignJustifyIcon,
+  X as XIcon,
+} from "@phosphor-icons/react";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
@@ -95,14 +107,30 @@ interface MarkdownCodeMirrorProps {
   height?: string;
   minHeight?: string;
   registerInsert?: (insert: (text: string) => void) => void;
+  /** Whether the line-number column is shown. */
+  lineNumbers?: boolean;
+  /** Whether long lines wrap instead of scrolling sideways. */
+  lineWrap?: boolean;
+  /** Whether spaces and line ends are drawn. */
+  whitespace?: boolean;
 }
 
 const MarkdownCodeMirror = React.lazy(async () => {
   const [
-    { markdown },
-    { HighlightStyle, syntaxHighlighting },
-    { EditorSelection, Prec },
-    { placeholder: cmPlaceholder, drawSelection, EditorView, keymap },
+    { markdown, markdownKeymap },
+    { getIndentUnit, HighlightStyle, indentService, syntaxHighlighting },
+    { EditorSelection, EditorState, Prec },
+    {
+      placeholder: cmPlaceholder,
+      Decoration,
+      drawSelection,
+      EditorView,
+      highlightWhitespace,
+      keymap,
+      lineNumbers,
+      ViewPlugin,
+      WidgetType,
+    },
     { tags: t },
     { default: CodeMirror },
   ] = await Promise.all([
@@ -160,6 +188,39 @@ const MarkdownCodeMirror = React.lazy(async () => {
       color: "var(--ds-text-subtle)",
       fontStyle: "normal",
     },
+    // A column beside the text rather than a mark in front of each line, so it
+    // runs the full height and stays put whilst a long line scrolls past it.
+    ".cm-gutters": {
+      backgroundColor: "var(--ds-bg-elevated)",
+      color: "var(--ds-text-subtle)",
+      border: "none",
+      borderRight: "1px solid var(--ds-border)",
+    },
+    ".cm-lineNumbers .cm-gutterElement": {
+      padding: "0 0.5rem 0 0.75rem",
+      minWidth: "2.5rem",
+    },
+    // The numbers sit on the same rhythm as the lines they count. Left to
+    // inherit, the two drift apart by a whole line over enough of them.
+    ".cm-gutters, .cm-content": {
+      lineHeight: "1.5",
+    },
+    ".cm-activeLineGutter": {
+      backgroundColor: "transparent",
+    },
+    // A visible space is drawn as a dot in a background image rather than as
+    // text, so the colour is set there. CodeMirror's own is a fixed grey, which
+    // reads as a smudge on this surface.
+    ".cm-highlightSpace": {
+      backgroundImage: "radial-gradient(circle at 50% 55%, var(--ds-text-subtle) 20%, transparent 5%)",
+    },
+    // The end-of-line mark is quieter still than a space, because there is one
+    // on every line and they would otherwise read as a column of their own.
+    ".cm-lineEndMark": {
+      color: "var(--ds-text-subtle)",
+      opacity: "0.5",
+      userSelect: "none",
+    },
   });
 
   const highlightStyle = HighlightStyle.define([
@@ -179,7 +240,267 @@ const MarkdownCodeMirror = React.lazy(async () => {
     { tag: t.atom, color: "var(--md-punctuation)" },
   ]);
 
-  const mcTheme = [editorTheme, syntaxHighlighting(highlightStyle)];
+  /**
+   * What each part of a shortcode looks like.
+   *
+   * Every colour is a token, so the palette is decided in the stylesheet where
+   * the reasoning behind each role also lives. Weight is decided here, and only
+   * the token carries any, because it is what a reader scans for to find their
+   * way around a long document.
+   *
+   * The class names follow the span kinds, which is what lets the decorations
+   * below be derived from a kind rather than listed a second time here.
+   */
+  const shortcodeTheme = EditorView.theme({
+    ".cm-shortcode-bracket": { color: "var(--md-shortcode-bracket)" },
+    ".cm-shortcode-brace-marker": { color: "var(--md-shortcode-bracket)" },
+    ".cm-shortcode-fence-marker": { color: "var(--md-shortcode-bracket)" },
+    ".cm-shortcode-separator": { color: "var(--md-shortcode-separator)" },
+    ".cm-shortcode-body-brace": { color: "var(--md-shortcode-brace)" },
+    ".cm-shortcode-token": { color: "var(--md-shortcode-token)", fontWeight: "600" },
+    ".cm-shortcode-target": { color: "var(--md-shortcode-target)" },
+    ".cm-shortcode-attribute-name": { color: "var(--md-shortcode-attribute)" },
+    ".cm-shortcode-value-string": { color: "var(--md-shortcode-string)" },
+    ".cm-shortcode-value-bare": { color: "var(--md-shortcode-number)" },
+    ".cm-shortcode-variable": { color: "var(--md-shortcode-variable)" },
+    ".cm-shortcode-unknown-token": { color: "var(--md-shortcode-unknown)" },
+  });
+
+  const shortcodeMarks = new Map<ShortcodeHighlightKind, ReturnType<typeof Decoration.mark>>();
+
+  /**
+   * The decoration for one kind of span, built once and reused.
+   *
+   * Derived from the kind rather than listed, so a new kind needs a rule in the
+   * theme above and nothing here. Cached because this runs once per span on
+   * every keystroke, and a decoration built fresh each time would also defeat
+   * CodeMirror's own comparison of one set against the next.
+   *
+   * @param kind - What the span is.
+   * @returns A mark carrying the class the theme styles.
+   */
+  function shortcodeMark(kind: ShortcodeHighlightKind) {
+    const existing = shortcodeMarks.get(kind);
+    if (existing) return existing;
+
+    const mark = Decoration.mark({ class: `cm-shortcode-${kind}` });
+    shortcodeMarks.set(kind, mark);
+    return mark;
+  }
+
+  /**
+   * Marks every part of every shortcode in the document.
+   *
+   * The whole document is scanned rather than the visible lines alone. A
+   * shortcode may open on one screen and close three screens later, and a scan
+   * that began at the top of the viewport would read the middle of one as if it
+   * were the start of a document.
+   *
+   * @param view - The editor whose document is read.
+   * @returns One decoration per span, in the order a decoration set needs.
+   */
+  function buildShortcodeMarks(view: LoadedEditorView): DecorationSet {
+    const content = view.state.doc.toString();
+    return Decoration.set(
+      highlightShortcodes(content).map((span) => shortcodeMark(span.kind).range(span.from, span.to)),
+    );
+  }
+
+  /**
+   * Colours the shortcodes, rebuilt whenever the document changes.
+   *
+   * The spans come from the same scanner the page renders with, so the editor
+   * cannot colour something the page does not read as a shortcode.
+   *
+   * At `Prec.highest`, which is what puts these marks inside the Markdown ones
+   * rather than around them. Text takes the colour of the innermost span that
+   * states one, so the outer set loses. Without it a shortcode indented by four
+   * spaces is a Markdown code block and comes out in the code colour, whilst
+   * the same shortcode at the margin does not, and the nesting depth would be
+   * deciding the colours.
+   */
+  const highlightShortcodeSyntax = Prec.highest(
+    ViewPlugin.fromClass(
+      class {
+        decorations: DecorationSet;
+
+        constructor(view: LoadedEditorView) {
+          this.decorations = buildShortcodeMarks(view);
+        }
+
+        update(update: ViewUpdate) {
+          if (update.docChanged) this.decorations = buildShortcodeMarks(update.view);
+        }
+      },
+      { decorations: (plugin) => plugin.decorations },
+    ),
+  );
+
+  /**
+   * The mark drawn where a line ends.
+   *
+   * CodeMirror shows spaces and tabs but not the newline itself, and the
+   * newline is what a Markdown author most needs to see: two spaces before one
+   * are a hard break, and without an end-of-line mark there is no way to tell a
+   * line that carries them from one that does not.
+   *
+   * The character is the one editors have long used for this, and it is hidden
+   * from screen readers, which read the line structure from the document.
+   */
+  class LineEndWidget extends WidgetType {
+    toDOM(): HTMLElement {
+      const mark = document.createElement("span");
+      mark.className = "cm-lineEndMark";
+      mark.textContent = "¬";
+      mark.setAttribute("aria-hidden", "true");
+      return mark;
+    }
+
+    /** Two of these are interchangeable, so the editor may reuse one for another. */
+    eq(): boolean {
+      return true;
+    }
+  }
+
+  const lineEndWidget = Decoration.widget({ widget: new LineEndWidget(), side: 1 });
+
+  /**
+   * Places an end-of-line mark after every line but the last.
+   *
+   * @param view - The editor being marked.
+   * @returns One widget per visible line.
+   */
+  function buildLineEndMarks(view: LoadedEditorView): DecorationSet {
+    const marks = [];
+    for (const { from, to } of view.visibleRanges) {
+      let line = view.state.doc.lineAt(from);
+      while (line.from <= to) {
+        if (line.number < view.state.doc.lines) marks.push(lineEndWidget.range(line.to));
+        if (line.to + 1 > view.state.doc.length) break;
+        line = view.state.doc.lineAt(line.to + 1);
+      }
+    }
+    return Decoration.set(marks);
+  }
+
+  /**
+   * Shows where each line ends.
+   *
+   * Only the visible lines carry a mark, rebuilt as the document or the
+   * viewport changes, so a long document costs no more than a short one.
+   */
+  const highlightLineEnds = ViewPlugin.fromClass(
+    class {
+      decorations: DecorationSet;
+
+      constructor(view: LoadedEditorView) {
+        this.decorations = buildLineEndMarks(view);
+      }
+
+      update(update: ViewUpdate) {
+        if (update.docChanged || update.viewportChanged) {
+          this.decorations = buildLineEndMarks(update.view);
+        }
+      }
+    },
+    { decorations: (plugin) => plugin.decorations },
+  );
+
+  /**
+   * Offers the indentation a line sits at inside the containers above it.
+   *
+   * Both Return and typing consult this, so a container opens a level, a
+   * closing line pulls itself back out, and neither has to be counted by hand.
+   *
+   * Outside a container it answers `null`, which hands the question back to
+   * Markdown's own rules. That is what keeps lists and quotes indenting the way
+   * they always have.
+   */
+  const shortcodeIndent = indentService.of((context, position) => {
+    const indent = shortcodeIndentFor(context.state.doc.toString(), position, " ".repeat(getIndentUnit(context.state)));
+    return indent === null ? null : indent.length;
+  });
+
+  /**
+   * Re-indents the line as the closing sequence of a container is typed.
+   *
+   * Without this the line would keep the indentation of the content above it,
+   * and the author would have to remove it themselves the moment they finish
+   * writing `}]]`.
+   */
+  const shortcodeIndentOnInput = markdown().language.data.of({ indentOnInput: /^\s*\}\]\]$/ });
+
+  /**
+   * Empties a line the caret has just left behind with nothing but indentation.
+   *
+   * Automatic indentation puts spaces on a line before anything is written on
+   * it. Pressing Return again leaves them there, so a document collects lines
+   * that look empty and are not. They travel into the content, they show up in
+   * a diff, and Markdown counts four of them as the start of a code block.
+   *
+   * Only the line the caret left is touched, and only whilst it holds nothing
+   * but whitespace, so this never reaches a line somebody is still writing on.
+   */
+  const clearIndentOnlyLines = EditorState.transactionFilter.of((transaction) => {
+    if (!transaction.docChanged) return transaction;
+
+    const wasAt = transaction.startState.selection.main.head;
+    const previous = transaction.startState.doc.lineAt(wasAt);
+    if (previous.text === "" || previous.text.trim() !== "") return transaction;
+
+    const now = transaction.state.selection.main.head;
+    const line = transaction.state.doc.lineAt(now);
+    // Still on the same line means the caret has not left it yet.
+    if (line.from === previous.from) return transaction;
+
+    // The line may have moved, so it is found again in the new document rather
+    // than trusted to still start where it did.
+    const moved = transaction.changes.mapPos(previous.from, -1);
+    const after = transaction.state.doc.lineAt(moved);
+    if (after.text === "" || after.text.trim() !== "") return transaction;
+
+    return [transaction, { changes: { from: after.from, to: after.to, insert: "" } }];
+  });
+
+  /**
+   * Re-indents a pasted block for the level it lands on.
+   *
+   * `indentOnInput` covers typing and completion and deliberately not pasting,
+   * so a block pasted into a container would otherwise arrive with its first
+   * line indented and every following line flat against the margin.
+   *
+   * The block is rewritten before it is inserted rather than corrected
+   * afterwards, so the document never holds the flat version and one undo takes
+   * the whole paste back.
+   */
+  const shortcodeIndentOnPaste = EditorState.transactionFilter.of((transaction) => {
+    if (!transaction.docChanged || !transaction.isUserEvent("input.paste")) return transaction;
+
+    const unit = " ".repeat(getIndentUnit(transaction.startState));
+    const before = transaction.startState.doc.toString();
+    const rewrites: ShortcodePasteRewrite[] = [];
+
+    transaction.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
+      // One paste at a time. Pasting into a multiple selection is rare and
+      // would need a base level per range, which is more machinery than it
+      // earns.
+      if (rewrites.length > 0) return;
+
+      const rewrite = shortcodePasteRewrite(before, fromA, toA, inserted.toString(), unit);
+      if (rewrite) rewrites.push(rewrite);
+    });
+
+    const rewrite = rewrites[0];
+    if (!rewrite) return transaction;
+
+    return {
+      changes: { from: rewrite.from, to: rewrite.to, insert: rewrite.insert },
+      selection: { anchor: rewrite.from + rewrite.insert.length },
+      userEvent: "input.paste",
+    };
+  });
+
+  const mcTheme = [editorTheme, syntaxHighlighting(highlightStyle), shortcodeTheme];
 
   function wrapSelection(view: LoadedEditorView, before: string, after: string): boolean {
     view.dispatch(
@@ -194,6 +515,17 @@ const MarkdownCodeMirror = React.lazy(async () => {
     );
     return true;
   }
+
+  /**
+   * Return continues a list, and Backspace steps back out of one.
+   *
+   * Both come from the Markdown package rather than being written here, so a
+   * bullet, a number, a task box and a quote all behave the way they do in
+   * every other Markdown editor. Return on an item holding nothing but its
+   * marker removes the marker and leaves the list, which is what stops the
+   * feature from becoming a trap.
+   */
+  const markdownStructureKeymap = Prec.high(keymap.of(markdownKeymap));
 
   const mdKeymap = Prec.highest(
     keymap.of([
@@ -231,6 +563,9 @@ const MarkdownCodeMirror = React.lazy(async () => {
       height,
       minHeight,
       registerInsert,
+      lineNumbers: showLineNumbers = true,
+      lineWrap = true,
+      whitespace = false,
     }: MarkdownCodeMirrorProps) {
       const viewRef = React.useRef<LoadedEditorView | null>(null);
       // Ref indirection keeps the focus-handler extension stable across
@@ -247,10 +582,22 @@ const MarkdownCodeMirror = React.lazy(async () => {
 
       const extensions = React.useMemo(
         () => [
+          ...(showLineNumbers ? [lineNumbers()] : []),
+          ...(whitespace ? [highlightWhitespace(), highlightLineEnds] : []),
           markdown(),
-          EditorView.lineWrapping,
+          highlightShortcodeSyntax,
+          shortcodeIndent,
+          shortcodeIndentOnInput,
+          shortcodeIndentOnPaste,
+          clearIndentOnlyLines,
+          ...(lineWrap ? [EditorView.lineWrapping] : []),
           drawSelection(),
           mdKeymap,
+          // Beneath the four shortcuts above and above the default keymap, so
+          // Return continues a list and Backspace steps out of one. Each of
+          // these answers `false` outside a Markdown list, and the default
+          // binding then runs, which keeps a shortcode body indenting as it did.
+          markdownStructureKeymap,
           EditorView.domEventHandlers({
             focus() {
               registerInsertRef.current?.(insertAtSelection);
@@ -270,7 +617,7 @@ const MarkdownCodeMirror = React.lazy(async () => {
           ...(placeholder ? [cmPlaceholder(placeholder)] : []),
           ...extraExtensions,
         ],
-        [onPaste, placeholder, extraExtensions, insertAtSelection],
+        [onPaste, placeholder, extraExtensions, insertAtSelection, showLineNumbers, lineWrap, whitespace],
       );
 
       return (
@@ -666,28 +1013,136 @@ function MarkdownHelpWindow({ open, id, onClose }: { open: boolean; id: string; 
   );
 }
 
-function HintsBar() {
+/**
+ * Remembers a footer switch across pages and reloads.
+ *
+ * Each switch names the state it starts in, because they do not agree: wrapping
+ * and line numbers are how the editor is normally read, whilst showing every
+ * space is something to turn on whilst hunting for one.
+ */
+const WRAP_STORAGE_KEY = "musiccloud.markdown-editor.line-wrap";
+const LINE_NUMBERS_STORAGE_KEY = "musiccloud.markdown-editor.line-numbers";
+const WHITESPACE_STORAGE_KEY = "musiccloud.markdown-editor.whitespace";
+
+/**
+ * Reads a switch back.
+ *
+ * @param key - Where it is stored.
+ * @param whenUnset - What holds before anybody has touched it.
+ * @returns Whether the switch is on.
+ */
+function readStoredSwitch(key: string, whenUnset: boolean): boolean {
+  if (typeof window === "undefined") return whenUnset;
+  try {
+    const stored = window.localStorage.getItem(key);
+    if (stored === null) return whenUnset;
+    return stored !== "off";
+  } catch {
+    // Storage is an enhancement; the editor works without it.
+    return whenUnset;
+  }
+}
+
+/**
+ * Stores a switch.
+ *
+ * @param key - Where it goes.
+ * @param on - Whether it is on.
+ */
+function storeSwitch(key: string, on: boolean): void {
+  try {
+    window.localStorage.setItem(key, on ? "on" : "off");
+  } catch {
+    // Same as above: worth doing, not worth failing over.
+  }
+}
+
+function FooterButton({
+  onClick,
+  pressed,
+  title,
+  children,
+}: {
+  onClick: () => void;
+  pressed?: boolean;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      aria-pressed={pressed}
+      className={`inline-flex items-center gap-1 h-[1.375rem] px-1.5 rounded border text-[0.625rem] leading-none transition-colors ${
+        pressed
+          ? "border-[var(--ds-border-strong)] bg-[var(--ds-control-active-bg,var(--ds-surface-hover))] text-[var(--ds-text)] font-medium"
+          : "border-[var(--ds-border)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-muted)]"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function HintsBar({
+  lineWrap,
+  onToggleLineWrap,
+  lineNumbers: showLineNumbers,
+  onToggleLineNumbers,
+  whitespace,
+  onToggleWhitespace,
+}: {
+  lineWrap: boolean;
+  onToggleLineWrap: () => void;
+  lineNumbers: boolean;
+  onToggleLineNumbers: () => void;
+  whitespace: boolean;
+  onToggleWhitespace: () => void;
+}) {
   const helpId = React.useId();
   const [helpOpen, setHelpOpen] = React.useState(false);
 
   return (
-    <div className="flex items-center justify-between gap-3 px-2.5 py-1.5 border-t border-[var(--ds-border)] bg-[var(--ds-section-header-bg,var(--ds-bg-elevated))] text-[0.625rem]">
+    <div className="shrink-0 flex items-center justify-between gap-3 w-full px-2.5 py-1.5 border-t border-[var(--ds-border)] bg-[var(--ds-section-header-bg,var(--ds-bg-elevated))] text-[0.625rem]">
       <div className="hidden min-[420px]:flex items-center gap-2.5">
         {SHORTCUT_HINTS.map((hint) => (
           <Hint key={hint.label} keys={hint.keys} label={hint.label} />
         ))}
       </div>
-      <button
-        type="button"
-        aria-controls={helpId}
-        aria-expanded={helpOpen}
-        aria-haspopup="dialog"
-        title="Markdown help"
-        onClick={() => setHelpOpen((open) => !open)}
-        className="ml-auto inline-flex size-6 shrink-0 items-center justify-center rounded-control border border-[var(--ds-border)] text-[var(--ds-text-muted)] transition-colors hover:border-[var(--ds-border-strong)] hover:text-[var(--ds-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-primary)]"
-      >
-        <InfoIcon weight="duotone" className="size-3.5" />
-      </button>
+      <div className="ml-auto flex items-center gap-1.5">
+        {/* The state is carried by the surface, the border and the weight of
+            the label, not by colour alone. */}
+        <FooterButton
+          onClick={onToggleLineNumbers}
+          pressed={showLineNumbers}
+          title={showLineNumbers ? "Hide line numbers" : "Show line numbers"}
+        >
+          <ListNumbersIcon weight="duotone" aria-hidden className="size-3" />
+          Numbers {showLineNumbers ? "on" : "off"}
+        </FooterButton>
+        <FooterButton
+          onClick={onToggleLineWrap}
+          pressed={lineWrap}
+          title={lineWrap ? "Stop wrapping long lines" : "Wrap long lines"}
+        >
+          <TextAlignJustifyIcon weight="duotone" aria-hidden className="size-3" />
+          Wrap {lineWrap ? "on" : "off"}
+        </FooterButton>
+        <FooterButton
+          onClick={onToggleWhitespace}
+          pressed={whitespace}
+          title={whitespace ? "Hide spaces and line ends" : "Show spaces and line ends"}
+        >
+          <DotOutlineIcon weight="duotone" aria-hidden className="size-3" />
+          Spaces {whitespace ? "on" : "off"}
+        </FooterButton>
+        <FooterButton onClick={() => setHelpOpen(true)} title="Look up the shortcodes">
+          <BracketsSquareIcon weight="duotone" aria-hidden className="size-3" />
+          Shortcodes
+        </FooterButton>
+      </div>
       <MarkdownHelpWindow open={helpOpen} id={helpId} onClose={() => setHelpOpen(false)} />
     </div>
   );
@@ -745,6 +1200,34 @@ export function MarkdownEditor({
   const [storedHeight] = React.useState<number | null>(() =>
     resizable && storageKey ? readStoredEditorHeight(storageKey) : null,
   );
+
+  // The three footer switches. Each remembers itself, because a reader who
+  // turned the numbers off did so for the way they read rather than for one
+  // page, and finding them back on next time is the same decision undone.
+  const [lineWrap, setLineWrap] = React.useState(() => readStoredSwitch(WRAP_STORAGE_KEY, true));
+  const [showLineNumbers, setShowLineNumbers] = React.useState(() => readStoredSwitch(LINE_NUMBERS_STORAGE_KEY, true));
+  const [showWhitespace, setShowWhitespace] = React.useState(() => readStoredSwitch(WHITESPACE_STORAGE_KEY, false));
+
+  const toggleLineWrap = React.useCallback(() => {
+    setLineWrap((current) => {
+      storeSwitch(WRAP_STORAGE_KEY, !current);
+      return !current;
+    });
+  }, []);
+
+  const toggleLineNumbers = React.useCallback(() => {
+    setShowLineNumbers((current) => {
+      storeSwitch(LINE_NUMBERS_STORAGE_KEY, !current);
+      return !current;
+    });
+  }, []);
+
+  const toggleWhitespace = React.useCallback(() => {
+    setShowWhitespace((current) => {
+      storeSwitch(WHITESPACE_STORAGE_KEY, !current);
+      return !current;
+    });
+  }, []);
 
   // The native `resize: vertical` handle changes the wrapper's inline height
   // directly; React never re-applies its own height because the derived value
@@ -810,10 +1293,22 @@ export function MarkdownEditor({
             height={resizable ? "100%" : height}
             minHeight={resizable ? undefined : height ? undefined : rowsHeight}
             registerInsert={registerInsert}
+            lineNumbers={showLineNumbers}
+            lineWrap={lineWrap}
+            whitespace={showWhitespace}
           />
         </React.Suspense>
       </div>
-      {showHints && <HintsBar />}
+      {showHints && (
+        <HintsBar
+          lineWrap={lineWrap}
+          onToggleLineWrap={toggleLineWrap}
+          lineNumbers={showLineNumbers}
+          onToggleLineNumbers={toggleLineNumbers}
+          whitespace={showWhitespace}
+          onToggleWhitespace={toggleWhitespace}
+        />
+      )}
     </div>
   );
 }

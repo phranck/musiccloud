@@ -197,6 +197,32 @@
   --md-code: #ffa657;
   --md-quote: #7ee787;
   --md-punctuation: #8b949e;
+
+  /* Shortcodes in the Markdown editor.
+     One family with the five above, so the editor reads as one scheme rather
+     than as Markdown plus something bolted beside it. Every role a shortcode
+     has gets a colour of its own, because two roles sharing one is a reader
+     asking which of them they are looking at.
+
+     The scaffolding is grey, in three steps ordered by how much structure each
+     mark carries: the separators inside a node are quietest, the brackets
+     around one are stronger, and the braces around a body are strongest,
+     because that is the largest thing a reader is looking for.
+
+     A parameter and its value stand next to each other with nothing but an
+     equals sign between them, so those two are the pair that has to contrast
+     most: the parameter is blue and the values are green and amber. Two shades
+     of one hue there blur into one word at reading size. */
+  --md-shortcode-separator: #6e7681;
+  --md-shortcode-bracket: #8b949e;
+  --md-shortcode-brace: #c9d1d9;
+  --md-shortcode-token: #d2a8ff;
+  --md-shortcode-target: #ffa657;
+  --md-shortcode-attribute: #79c0ff;
+  --md-shortcode-string: #7ee787;
+  --md-shortcode-number: #e3b341;
+  --md-shortcode-variable: #f778ba;
+  --md-shortcode-unknown: #ff7b72;
 }
 
 /* -- COMPONENT TOKENS ----------------------------------------- */
