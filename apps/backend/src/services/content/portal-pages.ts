@@ -18,19 +18,10 @@
  * answering, and is why only pages that must exist belong in this list.
  */
 
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { ContentContext } from "@musiccloud/shared";
 import { getAdminRepository } from "../../db/index.js";
-
-/**
- * Where the Markdown files sit, relative to this module.
- *
- * Resolved from the module's own location rather than from the working
- * directory, because the backend is started from more than one of those.
- */
-const PAGES_DIRECTORY = join(dirname(fileURLToPath(import.meta.url)), "portal-pages");
+import { DOCS_PAGE_CONTENT } from "./portal-pages/docs.js";
+import { PRICING_PAGE_CONTENT } from "./portal-pages/pricing.js";
 
 /** The template the portal renders an editorial page with. */
 const PORTAL_TEMPLATE_KEY = "developer-default";
@@ -41,8 +32,8 @@ interface PortalPageSeed {
   title: string;
   /** Where it is served, which is also what any link to it says. */
   path: string;
-  /** The Markdown file holding its copy, inside {@link PAGES_DIRECTORY}. */
-  file: string;
+  /** The Markdown it is created with. */
+  content: string;
 }
 
 /**
@@ -53,19 +44,14 @@ interface PortalPageSeed {
  * dashboard rather than here.
  */
 export const PORTAL_PAGE_SEEDS: readonly PortalPageSeed[] = [
-  { slug: "docs", title: "Documentation", path: "/docs", file: "docs.md" },
-  { slug: "pricing", title: "Honest and upfront pricing", path: "/pricing", file: "pricing.md" },
+  { slug: "docs", title: "Documentation", path: "/docs", content: DOCS_PAGE_CONTENT },
+  {
+    slug: "pricing",
+    title: "Honest and upfront pricing",
+    path: "/pricing",
+    content: PRICING_PAGE_CONTENT,
+  },
 ];
-
-/**
- * Reads the copy one page starts with.
- *
- * @param seed - The page.
- * @returns Its Markdown, as the file holds it.
- */
-export function readPortalPageContent(seed: PortalPageSeed): string {
-  return readFileSync(join(PAGES_DIRECTORY, seed.file), "utf8");
-}
 
 /**
  * Creates any portal page that does not exist yet.
@@ -108,7 +94,7 @@ export async function ensurePortalPagesExist(): Promise<string[]> {
     });
     // The body is set separately, because creating a page and writing its
     // content are two operations everywhere else too.
-    await repository.updateContentPageBody(seed.slug, readPortalPageContent(seed), null);
+    await repository.updateContentPageBody(seed.slug, seed.content, null);
     created.push(seed.slug);
   }
 

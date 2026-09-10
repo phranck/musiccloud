@@ -1,4 +1,14 @@
-The musiccloud API turns a single music link into every platform. Resolve a track or album from one streaming service to its matches across the others, pull rich artist info, and explore a free-to-use Creative Commons catalogue. All of it runs over one REST API.
+/**
+ * @file The copy the /docs landing page was created with.
+ *
+ * A TypeScript module rather than a Markdown file, because the backend ships as
+ * one CommonJS bundle and a file beside the source would not be in it. Editing
+ * this changes what a portal without the page gets when it first starts, and
+ * nothing else: once the page exists, the dashboard is what it says.
+ */
+
+/** The Markdown the /docs landing page starts with. */
+export const DOCS_PAGE_CONTENT = `The musiccloud API turns a single music link into every platform. Resolve a track or album from one streaming service to its matches across the others, pull rich artist info, and explore a free-to-use Creative Commons catalogue. All of it runs over one REST API.
 
 [[card {
 ## What you can build
@@ -41,5 +51,6 @@ Four steps take you from zero to your first call.
 [[card {
 ## Trying it without a key
 
-`GET /api/v1/resolve` answers without any credential, on a budget of its own that no other operation shares: {keylessRequestsPerMinute} requests a minute and {keylessRequestsPerDay} a day, counted per address. That is enough to see what the API returns before you sign up, and not enough to build on.
+\`GET /api/v1/resolve\` answers without any credential, on a budget of its own that no other operation shares: {keylessRequestsPerMinute} requests a minute and {keylessRequestsPerDay} a day, counted per address. That is enough to see what the API returns before you sign up, and not enough to build on.
 }]]
+`;

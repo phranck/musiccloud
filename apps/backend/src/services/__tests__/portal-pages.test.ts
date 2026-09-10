@@ -1,6 +1,6 @@
 import { ContentContext, expandSiteVariables, PLANS_PLACEHOLDER_ATTRIBUTE } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
-import { PORTAL_PAGE_SEEDS, readPortalPageContent } from "../content/portal-pages.js";
+import { PORTAL_PAGE_SEEDS } from "../content/portal-pages.js";
 import { renderMarkdown } from "../markdown/renderer.js";
 import { sanitizeMarkdownHtml } from "../markdown/sanitizer.js";
 
@@ -18,7 +18,7 @@ const VARIABLE_VALUES = {
 async function servedPage(slug: string): Promise<string> {
   const seed = PORTAL_PAGE_SEEDS.find((candidate) => candidate.slug === slug);
   if (!seed) throw new Error(`No portal page seeded for "${slug}"`);
-  const expanded = expandSiteVariables(readPortalPageContent(seed), VARIABLE_VALUES);
+  const expanded = expandSiteVariables(seed.content, VARIABLE_VALUES);
   return sanitizeMarkdownHtml(await renderMarkdown(expanded, ContentContext.DeveloperPortal));
 }
 

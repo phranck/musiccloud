@@ -17,12 +17,17 @@ describe("managed editorial page routing", () => {
   });
 
   it.each([
-    "/docs",
     "/docs/api",
     "/docs/getting-started",
     "/docs/reference/authentication",
   ])("keeps %s outside managed editorial routing", (path) => {
     expect(isManagedEditorialPath(path)).toBe(false);
+  });
+
+  it("reaches the editorial copy at /docs itself", () => {
+    // Everything under `/docs` is built by the portal. The page a developer
+    // arrives at is copy, and its route looks it up like any other.
+    expect(isManagedEditorialPath("/docs")).toBe(true);
   });
 
   it("keeps a dedicated system-owned docs descendant boundary ahead of the root catch-all", () => {
