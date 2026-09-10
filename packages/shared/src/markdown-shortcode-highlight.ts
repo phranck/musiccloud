@@ -14,6 +14,7 @@
 
 import { type ShortcodeNode, type ShortcodeSpanKind, tokenizeShortcodes } from "./markdown-shortcode-tokenizer.js";
 import { SHORTCODE_DEFINITIONS, type ShortcodeDefinition, ShortcodeSyntax } from "./markdown-shortcodes/index.js";
+import { SITE_VARIABLE_NAMES } from "./site-variables.js";
 
 /**
  * What a stretch of source is, for the purpose of colouring it.
@@ -195,8 +196,8 @@ function collect(
  *
  * @param content - The Markdown source.
  * @param options - Which definitions apply, and which braced names are
- *   expanded before the page is parsed. The names default to none, which is
- *   what holds until site variables exist.
+ *   expanded before the page is parsed. Both default to what a page actually
+ *   gets, so an editor colouring a page needs to pass neither.
  * @returns Every span, ordered by where it starts and never overlapping, which
  *   is what an editor's decoration set requires.
  *
@@ -213,7 +214,7 @@ export function highlightShortcodes(
   } = {},
 ): ShortcodeHighlightSpan[] {
   const definitions = options.definitions ?? SHORTCODE_DEFINITIONS;
-  const known = new Set(options.variableNames ?? []);
+  const known = new Set<string>(options.variableNames ?? SITE_VARIABLE_NAMES);
   const spans: ShortcodeHighlightSpan[] = [];
 
   collect(content, 0, content.length, definitions, known, spans);

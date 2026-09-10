@@ -3,6 +3,7 @@ import {
   type DeveloperPortalEditorialPage,
   type DeveloperPortalNavigation,
   type DeveloperPortalNavigationItem,
+  expandSiteVariables,
   NAVIGATION_SYSTEM_TARGETS,
   NavigationArea,
   NavigationSystemKey,
@@ -19,6 +20,7 @@ import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { isReservedDeveloperPortalPath, normalizeEditorialPath } from "../services/editorial-path.js";
 import { renderMarkdown } from "../services/markdown/renderer.js";
 import { sanitizeMarkdownHtml } from "../services/markdown/sanitizer.js";
+import { resolveSiteVariableValues } from "../services/site-variables.js";
 
 const SYSTEM_LABELS = {
   [NavigationSystemKey.Docs]: "Docs",
@@ -69,7 +71,15 @@ async function editorialPageByPath(path: string): Promise<DeveloperPortalEditori
     overlayWidth: row.overlayWidth,
     contentCardStyle: row.contentCardStyle,
     templateKey: publication.templateKey,
-    contentHtml: sanitizeMarkdownHtml(await renderMarkdown(row.content, ContentContext.DeveloperPortal)),
+    // Variables are expanded before the Markdown is parsed, so a name works
+    // wherever a person can type it: in prose, in a heading, and inside a
+    // shortcode's attribute alike.
+    contentHtml: sanitizeMarkdownHtml(
+      await renderMarkdown(
+        expandSiteVariables(row.content, await resolveSiteVariableValues()),
+        ContentContext.DeveloperPortal,
+      ),
+    ),
   };
 }
 
