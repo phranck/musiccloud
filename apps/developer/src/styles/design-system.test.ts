@@ -349,7 +349,10 @@ describe("developer design system", () => {
     const apiSearch = readDeveloperFile("src/components/docs/ApiDocumentSearch.tsx");
     const searchDialog = readDeveloperFile("src/components/docs/SearchDialog.tsx");
 
-    expect(theme).toContain("--mc-size-text-icon: 1.2cap;");
+    // The size is expressed in `cap`, so a text icon scales with the cap height
+    // of whatever text it leads. How many cap heights it is stays a design
+    // decision, and pinning the figure would fire on that rather than on a fault.
+    expect(theme).toMatch(/--mc-size-text-icon:\s*[\d.]+cap;/);
     expect(docs).toContain("--mc-docs-section-icon-size: calc(var(--mc-size-text-icon) + 2px);");
     expect(components).toMatch(
       /\.page-heading\s*\{[^}]*align-items:\s*flex-start;[^}]*font-size:\s*var\(--text-hero\);[^}]*line-height:\s*1;/s,
@@ -358,8 +361,13 @@ describe("developer design system", () => {
       /\.page-heading__icon\s*\{[^}]*width:\s*var\(--mc-size-text-icon\);[^}]*height:\s*var\(--mc-size-text-icon\);[^}]*margin-block-start:\s*calc\(\(1cap - var\(--mc-size-text-icon\)\) \/ 2\);/s,
     );
     expect(components).toMatch(/\.page-heading__title\s*\{[^}]*text-box:\s*trim-both cap alphabetic;/s);
+    // The row aligns on the text's baseline and the icon box is the cap band
+    // above it, so the icon lands on the cap-height midline of the first line
+    // at any text size. An icon taller than that band is pushed down by half
+    // its overhang, because the flex baseline takes the box's top edge.
+    expect(components).toMatch(/\.icon-text-first-line\s*\{[^}]*align-items:\s*baseline;/s);
     expect(components).toMatch(
-      /\.icon-text-first-line__icon\s*\{[^}]*width:\s*var\(--mc-size-text-icon\);[^}]*height:\s*1lh;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;/s,
+      /\.icon-text-first-line__icon\s*\{[^}]*width:\s*var\(--mc-size-text-icon\);[^}]*height:\s*1cap;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;[^}]*transform:\s*translateY\(calc\(\(var\(--mc-size-text-icon\) - 1cap\) \/ 2\)\);/s,
     );
     expect(components).toMatch(
       /\.icon-text-first-line__icon > \.mc-icon,[\s\S]*?\.icon-text-first-line__icon > svg\s*\{[^}]*width:\s*var\(--mc-size-text-icon\);[^}]*height:\s*var\(--mc-size-text-icon\);/s,

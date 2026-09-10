@@ -57,21 +57,36 @@
     text-box: trim-both cap alphabetic;
   }
 
-  /* Multiline icon/text rows keep the icon centered on the first text line,
-     rather than centering it against the complete wrapped paragraph. */
+  /* Multiline icon/text rows keep the icon on the first text line rather than
+     against the whole wrapped paragraph. `baseline` is what ties the two
+     together: every item is placed against the text's own baseline, so the
+     icon follows whatever size that text is instead of sitting at the top of
+     a box of its own. */
   .icon-text-first-line {
     display: flex;
-    align-items: flex-start;
+    align-items: baseline;
   }
 
+  /* The box is the cap band of the text beside it: the row aligns on that
+     text's baseline, which puts this box's bottom edge there, and `height:
+     1cap` takes it up to the cap line. An icon centred in that box therefore
+     sits on the cap-height midline at any size.
+
+     Not `height: 1lh` centred in itself, which was here before: that centres
+     against this element's own line box, and the text beside it often has a
+     taller one, which left the icon out of step with it. */
   .icon-text-first-line__icon {
     display: inline-flex;
     width: var(--mc-size-text-icon);
-    height: 1lh;
+    height: 1cap;
     align-items: center;
     justify-content: center;
     flex: none;
     color: currentColor;
+    /* An icon taller than the cap band overhangs it, and the flex baseline
+       takes the box's top edge rather than its centre. Pushing it down by half
+       that overhang puts the icon's centre back on the midline. */
+    transform: translateY(calc((var(--mc-size-text-icon) - 1cap) / 2));
   }
 
   .icon-text-first-line__icon > .mc-icon,
@@ -708,7 +723,7 @@
     border-radius: var(--radius-button);
     padding-inline: var(--mc-space-3);
     color: var(--color-fg);
-    background: var(--color-code-bg);
+    background: var(--color-field-bg);
   }
 
   .field__control:focus {
