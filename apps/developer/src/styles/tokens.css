@@ -22,6 +22,7 @@
   --color-danger: var(--mc-color-danger);
   --color-info: var(--mc-color-info);
   --color-code-bg: var(--mc-color-code-bg);
+  --color-field-bg: var(--mc-color-field-bg);
   --color-code-fg: var(--mc-color-code-fg);
   --color-request-get: var(--mc-color-request-get);
   --color-request-post: var(--mc-color-request-post);

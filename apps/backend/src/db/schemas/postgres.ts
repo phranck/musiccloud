@@ -1684,12 +1684,17 @@ export type DeveloperEmailTokenRow = typeof developerEmailTokens.$inferSelect;
 export type DeveloperEmailTokenInsert = typeof developerEmailTokens.$inferInsert;
 
 /**
- * Creem billing detail per paid subscription. Kept separate from
- * developer_accounts (SRP): account.tierId stays the effective tier for
- * enforcement, this table only mirrors Creem's billing state. Free accounts
- * have no row here. Written by the Creem webhook (Plan C), read by the
- * subscription-management UI (Plan D). creemSubscriptionId is unique so the
- * idempotent webhook can upsert by it.
+ * Creem billing detail per paid subscription, mirroring Creem's billing state
+ * and nothing else. Free accounts have no row here. `creemSubscriptionId` is
+ * unique so an idempotent webhook can upsert by it.
+ *
+ * What a key is allowed to do is decided one level down, by the subscription
+ * on the project (`developer_project_subscriptions`), which is what
+ * `authenticatePublic` resolves the quota from. `developer_accounts.tier_id`
+ * is displayed on the account and enforces nothing.
+ *
+ * This table is scheduled for retirement in #183, because the project
+ * subscription is where a plan already lives.
  */
 export const developerSubscriptions = pgTable(
   "developer_subscriptions",

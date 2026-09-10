@@ -124,14 +124,21 @@ export function DeveloperDetailPage() {
           title={account.email}
           renderLeading={() => <HeaderBackButton label={dm.accountDetailBackLabel} onClick={handleBack} />}
         />
-        <div className="space-y-4">
-          <DashboardSection className="overflow-hidden">
+        {/* The two sections stand side by side from `xl`, where a half column
+            is still wide enough for the account form. `items-start` keeps the
+            shorter one from stretching to the height of the other. */}
+        <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
+          {/* No `overflow-hidden`: the plan dropdown opens past the section's
+              bottom edge, and a clipped section cuts the options off. */}
+          <DashboardSection>
             <DashboardSection.Header
               icon={<UserIcon weight="duotone" className="size-4" />}
               title={dm.accountDetailTitle}
             />
             <DashboardSection.Body>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {/* One column: the section is half the page from `xl`, which is
+                  not room for two fields beside each other. */}
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label htmlFor="dev-email" className={labelClass}>
                     {dm.colEmail}

@@ -1,3 +1,4 @@
+import { CARD_CONTENT_INSET_PX, RECESSED_CONTROL_INSET_PX } from "@musiccloud/shared";
 import type { CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 
@@ -5,9 +6,12 @@ import { cn } from "@/lib/utils";
 // (the design-token `cardRadius`, default 32px = 2rem) so a saved token blob
 // re-rounds every card at runtime; every nested radius derives from it.
 export const embossedCardOuterRadius = "var(--mc-card-radius, 2rem)";
-export const embossedCardContentInset = "0.75rem";
+// The two insets come from the shared geometry, because the email renderer
+// derives the same radii from the same numbers and a card in an email has to
+// be the shape of the card on the page.
+export const embossedCardContentInset = `${CARD_CONTENT_INSET_PX}px`;
 export const recessedSurfaceRadius = `calc(${embossedCardOuterRadius} - ${embossedCardContentInset})`;
-export const recessedControlInset = "0.1875rem";
+export const recessedControlInset = `${RECESSED_CONTROL_INSET_PX}px`;
 export const raisedControlRadius = `calc(${recessedSurfaceRadius} - ${recessedControlInset})`;
 
 const CONTROL_RADIUS_BASE = `max(4px, calc(var(--mc-recessed-radius-base, ${recessedSurfaceRadius}) - var(--mc-recessed-padding, ${recessedControlInset})))`;

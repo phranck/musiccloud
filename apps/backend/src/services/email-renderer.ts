@@ -1,8 +1,14 @@
-import { type EmailBlock, EmailBlockType } from "@musiccloud/shared";
+import { type DesignTokens, type EmailBlock, EmailBlockType } from "@musiccloud/shared";
 import { Marked } from "marked";
 
 import type { EmailBrandingDto, EmailTemplateBrandingOverrides } from "../db/admin-repository.js";
 import { escapeHtml } from "../lib/html.js";
+import {
+  EmailColorScheme,
+  type EmailColorSchemeValue,
+  type EmailSurfaces,
+  resolveEmailSurfaces,
+} from "./email-surfaces.js";
 
 /**
  * A dedicated `Marked` instance, separate from the context-specific editorial
@@ -14,32 +20,65 @@ const emailMarked = new Marked({ breaks: true, gfm: true });
 
 const VAR_REGEX = /\{\{(\w+)\}\}/g;
 
-// musiccloud brand CI — dark palette mirrors the app's design tokens
-// (see apps/frontend/src/styles/global.css: --color-background, --color-surface,
-// --color-border, --color-text-primary, --color-text-secondary, --color-text-muted,
-// --color-accent-hover).
-//
-// No `body { background: ... }` rule here (unlike earlier versions): the
-// dark page background is now always a real resolved gradient (see
-// `buildPageBackground`/`buildDarkPageBackgroundCss`), painted inline on
-// `<body>` itself. A flat `!important` rule in this block would beat that
-// plain inline style outright (importance always wins over specificity) and
-// blank out the sky, regardless of source order.
-const DARK_RULES = `
-  table.em-container          { background: rgba(22, 22, 24, 0.94) !important; border-color: #2A2A2C !important; }
-  h1, h2, h3                  { color: #F5F5F7 !important; }
-  p                           { color: #C7C7CC !important; }
-  a                           { color: #45BFE8 !important; }
-  strong                      { color: #F5F5F7 !important; }
-  .em-footer-border           { border-top-color: #38383A !important; }
+/**
+ * Width of the message column, which is the width every card takes.
+ *
+ * 560px is the width an email is built to: wide enough for a readable line and
+ * narrow enough to survive the reading pane of a desktop client without being
+ * scaled down.
+ */
+const CARD_WIDTH_PX = 560;
+
+/**
+ * Width of the wordmark above the card, as a share of the column.
+ *
+ * The share page sets its wordmark to a little over half the card it stands
+ * above, and this keeps that relation whatever the column does.
+ */
+const MASTHEAD_WIDTH_RATIO = 0.62;
+
+/** The wordmark's width in pixels, for the `width` attribute a mail client needs before the CSS loads. */
+const MASTHEAD_WIDTH_PX = Math.round(CARD_WIDTH_PX * MASTHEAD_WIDTH_RATIO);
+
+/**
+ * Gap between the wells inside the card, from the list-gap token the site uses
+ * between stacked rows.
+ */
+const WELL_GAP_TOKEN = "--mc-gap-list";
+
+/** Vertical padding inside a well, from the token the site's service rows use. */
+const WELL_PADDING_Y_TOKEN = "--mc-pad-svc-y";
+
+/** Horizontal padding inside a well, from the same pair. */
+const WELL_PADDING_X_TOKEN = "--mc-pad-svc-x";
+
+/**
+ * Builds the rules that repaint every surface for a dark client.
+ *
+ * The document is written with the light scheme inline, because that is what a
+ * client shows when it has no opinion. A client that does have one applies
+ * these, and every one of them has to win against an inline style, which is
+ * what `!important` is doing here rather than any question of ordering.
+ *
+ * @param dark - The material resolved for the dark scheme.
+ * @returns The rule text, without the surrounding `@media` query.
+ */
+function buildDarkRules(dark: EmailSurfaces): string {
+  return `
+  table.em-card               { background: ${dark.card.fill} !important; box-shadow: ${dark.card.shadow} !important; }
+  td.em-well                  { background: ${dark.well.fill} !important; }
+  td.em-button-face           { background: ${dark.button.fill} !important; }
+  a.em-button                 { color: ${dark.button.color} !important; }
+  h1, h2, h3                  { color: ${dark.title.bright} !important; }
+  p                           { color: ${dark.text.normal} !important; }
+  a                           { color: ${dark.text.bright} !important; }
+  a.em-button                 { color: ${dark.button.color} !important; }
+  strong                      { color: ${dark.text.bright} !important; }
+  hr                          { border-top-color: ${dark.text.dimmed} !important; }
   .em-footer-text,
-  .em-footer-text p           { color: #9A9AA0 !important; }
+  .em-footer-text p           { color: ${dark.text.dimmed} !important; }
 `;
-
-const DARK_MODE_CSS = `@media (prefers-color-scheme: dark) {${DARK_RULES}}`;
-
-/** Accent color for the button block (brand blue, dark-mode-safe). */
-const BUTTON_ACCENT = "#28A8D8";
+}
 
 /**
  * Replaces `{{name}}` placeholders with `variables[name]`. A placeholder
@@ -55,13 +94,31 @@ function interpolate(text: string, variables: Record<string, string>): string {
   );
 }
 
-function applyInlineStyles(html: string): string {
+/**
+ * Writes the resolved material onto the markup `marked` produced.
+ *
+ * Every value here comes from the design tokens, so a heading in an email is
+ * the heading the site sets, at the size and weight an operator chose. Headings
+ * take the title surface and body copy the surface of the well it sits in,
+ * which is what the site does with the same two surfaces.
+ *
+ * @param html - Markup from the markdown parser.
+ * @param surfaces - The material for the scheme being written inline.
+ * @returns The same markup with inline styles.
+ */
+function applyInlineStyles(html: string, surfaces: EmailSurfaces): string {
+  const { text, title } = surfaces;
+  const heading = (level: 1 | 2, sizePx: number, marginPx: number) =>
+    `<h${level} style="font-family:${title.fontFamily};font-size:${sizePx}px;font-weight:${title.fontWeight};color:${title.bright};margin:0 0 ${marginPx}px 0;line-height:1.3;text-transform:${title.textTransform};">`;
   return html
-    .replace(/<h1>/g, '<h1 style="font-size:22px;font-weight:600;color:#1C1C1E;margin:0 0 16px 0;line-height:1.3;">')
-    .replace(/<h2>/g, '<h2 style="font-size:18px;font-weight:600;color:#1C1C1E;margin:0 0 12px 0;line-height:1.3;">')
-    .replace(/<p>/g, '<p style="font-size:15px;line-height:1.6;color:#3A3A3C;margin:0 0 16px 0;">')
-    .replace(/<a /g, '<a style="color:#28A8D8;font-weight:600;" ')
-    .replace(/<strong>/g, '<strong style="color:#1C1C1E;">');
+    .replace(/<h1>/g, heading(1, Math.round(title.fontSizePx * 1.375), 16))
+    .replace(/<h2>/g, heading(2, Math.round(title.fontSizePx * 1.125), 12))
+    .replace(
+      /<p>/g,
+      `<p style="font-family:${text.fontFamily};font-size:${text.fontSizePx}px;font-weight:${text.fontWeight};line-height:1.6;color:${text.normal};margin:0 0 12px 0;">`,
+    )
+    .replace(/<a /g, `<a style="color:${text.bright};font-weight:600;" `)
+    .replace(/<strong>/g, `<strong style="color:${text.bright};">`);
 }
 
 /**
@@ -69,23 +126,37 @@ function applyInlineStyles(html: string): string {
  * instance. `{ async: false }` selects the overload that returns a plain
  * `string`.
  */
-function parseMarkdown(text: string): string {
+function parseMarkdown(text: string, surfaces: EmailSurfaces): string {
   const html = emailMarked.parse(text, { async: false });
-  return applyInlineStyles(html);
+  return applyInlineStyles(html, surfaces);
 }
 
 /**
- * Builds the `<tr>` markup for a single button block. Style values (accent
- * color, padding, border-radius, dark text-on-accent) are lifted verbatim
- * from the already-shipped, dark-mode-safe developer-portal button
- * rather than inventing a new look.
+ * Builds the `<tr>` markup for a button block.
  *
- * @param label - visible button text (escaped).
- * @param url - already-interpolated target URL.
- * @returns a single `<tr>` row.
+ * A button on the site is never loose on a card: it sits in a well, inset by
+ * the control inset, so the well reads as the frame the control is pressed
+ * into. This is that same construction in table markup, and it is why the
+ * button carries three nested elements rather than one.
+ *
+ * The row stands at the right edge, which is where a button belonging to a
+ * block belongs.
+ *
+ * The `em-button` and `em-well` classes are what a dark client repaints; the
+ * generic link rule would otherwise take the label and leave it barely legible
+ * on the button's own fill.
+ *
+ * @param label - Visible button text, escaped here.
+ * @param url - Already-interpolated target URL.
+ * @param surfaces - The material for the scheme being written inline.
+ * @param insetPx - Distance between the well and the control inside it.
+ * @returns A single `<tr>` row.
  */
-function renderButton(label: string, url: string): string {
-  return `<tr><td style="padding:8px 40px 24px;"><table cellpadding="0" cellspacing="0" border="0"><tr><td style="border-radius:8px;background:${BUTTON_ACCENT};"><a href="${url}" style="display:inline-block;padding:12px 24px;font-size:15px;font-weight:600;color:#0f1115;text-decoration:none;">${escapeHtml(label)}</a></td></tr></table></td></tr>`;
+function renderButton(label: string, url: string, surfaces: EmailSurfaces, insetPx: number): string {
+  const { button, well } = surfaces;
+  const face = `<td class="em-button-face" style="border-radius:${button.radiusPx}px;background:${button.fill};"><a class="em-button" href="${url}" style="display:inline-block;padding:${button.paddingYPx}px ${button.paddingXPx}px;font-family:${button.fontFamily};font-size:${button.fontSizePx}px;font-weight:${button.fontWeight};color:${button.color};text-decoration:none;">${escapeHtml(label)}</a></td>`;
+  const inWell = `<td class="em-well" style="border-radius:${well.radiusPx}px;background:${well.fill};padding:${insetPx}px;"><table cellpadding="0" cellspacing="0" border="0"><tr>${face}</tr></table></td>`;
+  return `<tr><td align="right"><table cellpadding="0" cellspacing="0" border="0" align="right"><tr>${inWell}</tr></table></td></tr>`;
 }
 
 /**
@@ -197,6 +268,13 @@ function buildBackgroundCss(top: string, bottom: string, imageUrl: string | null
  * as well because Outlook's Word rendering engine supports table-cell
  * backgrounds far more reliably than `<body>` backgrounds.
  *
+ * The height chain that carries this is `html`, `body`, the outer table and
+ * its cell, each at `height:100%`. Without it the sky is sized to the height
+ * of the message rather than to the height of the pane, and a short message in
+ * a tall window ends in a band of flat colour where the image stops. `100%`
+ * behaves as a minimum on a table, so a message taller than the pane still
+ * gets a sky the whole way down.
+ *
  * There is deliberately NO legacy `background="..."` HTML attribute: the Word
  * engine (old Outlook desktop) ignores CSS `background-size`/`background-repeat`
  * and TILES that attribute's image with no non-VML way to stop it. Rather than
@@ -249,66 +327,86 @@ function buildDarkPageBackgroundCss(top: string, bottom: string, imageUrl: strin
  * Builds the ordered `<tr>` rows for a template's body blocks wrapped by the
  * resolved branding (header asset, footer text, footer asset), with `{{var}}`
  * interpolation applied from `variables`. This is the single place the
- * block-rendering switch statement lives — both the live-send path
- * ({@link renderBlocks}) and the dashboard-preview path
- * ({@link renderEmailPreview}) call this and only differ in which CSS they
- * hand to {@link buildEmailHtml} afterwards, so the row markup can never
- * drift between what gets sent and what gets previewed.
+ * block-rendering switch statement lives, so what gets sent and what gets
+ * previewed cannot drift apart.
  *
- * @param blocks - the template's ordered body blocks.
- * @param branding - the resolved branding for this render (header/footer asset ids + footer text).
- * @param variables - `{{var}}` substitution values available to text/button/footer content.
- * @param baseUrl - the backend's own public base URL for asset URLs, or `null`
- *   to build relative asset URLs (see {@link assetUrl}'s doc comment).
- * @returns the ordered list of `<tr>...</tr>` row strings.
+ * A template is one list of blocks, and it comes back as several cards: a
+ * button ends the card it stands in, because a note that follows an action is
+ * about that action rather than part of it. The share page separates the same
+ * way, with its secondary action standing below the card rather than in it.
+ *
+ * @param blocks - The template's ordered body blocks.
+ * @param variables - `{{var}}` substitution values available to text and button content.
+ * @param baseUrl - The backend's own public base URL for asset URLs, or `null`
+ *   to build relative ones (see {@link assetUrl}).
+ * @param surfaces - The material for the scheme being written inline.
+ * @param tokens - The token set, for the spacing the site uses.
+ * @returns One list of `<tr>` rows per card, in order.
  */
-function buildBlockRows(
+function buildCards(
   blocks: EmailBlock[],
-  branding: ResolvedBranding,
   variables: Record<string, string>,
   baseUrl: string | null,
-): string[] {
-  const rows: string[] = [];
-  if (branding.headerAssetId) {
-    rows.push(
-      `<tr><td><img src="${assetUrl(branding.headerAssetId, baseUrl)}" width="560" alt="" style="display:block;width:100%;border-radius:8px 8px 0 0;"></td></tr>`,
-    );
-  }
+  surfaces: EmailSurfaces,
+  tokens: DesignTokens,
+): string[][] {
+  const gapPx = tokens.paddings[WELL_GAP_TOKEN];
+  const controlInsetPx = tokens.paddings["--mc-pad-recessed"];
+  const wellPaddingYPx = tokens.paddings[WELL_PADDING_Y_TOKEN];
+  // Copy inside a well clears that well's own curve, per the card-geometry
+  // rule that a text inset is half the radius it sits against.
+  const wellPaddingXPx = tokens.paddings[WELL_PADDING_X_TOKEN] + Math.round(surfaces.well.radiusPx / 2);
+  const wellStyle = `border-radius:${surfaces.well.radiusPx}px;background:${surfaces.well.fill};padding:${wellPaddingYPx}px ${wellPaddingXPx}px;`;
+
+  /** Wraps one row's content in a well. */
+  const well = (content: string, extraStyle = "") =>
+    `<tr><td class="em-well" style="${wellStyle}${extraStyle}">${content}</td></tr>`;
+
+  const cards: string[][] = [[]];
+  /** The card being filled. A button closes it, so what follows starts a new one. */
+  const current = () => cards[cards.length - 1] as string[];
+
   for (const block of blocks) {
+    if (current().length > 0) {
+      // A button stands away from what it acts on, by the same distance the
+      // card holds from its own edge. Everything else stacks at the list gap,
+      // which is what the site puts between rows inside one card.
+      const spacingPx = block.type === EmailBlockType.Button ? surfaces.card.paddingPx : gapPx;
+      current().push(`<tr><td style="height:${spacingPx}px;line-height:0;font-size:0;">&nbsp;</td></tr>`);
+    }
     switch (block.type) {
       case EmailBlockType.Text:
-        rows.push(
-          `<tr><td style="padding:24px 40px;">${parseMarkdown(interpolate(block.markdown, variables))}</td></tr>`,
-        );
+        current().push(well(parseMarkdown(interpolate(block.markdown, variables), surfaces)));
         break;
       case EmailBlockType.Button:
-        rows.push(renderButton(block.label, interpolate(block.url, variables)));
+        current().push(renderButton(block.label, interpolate(block.url, variables), surfaces, controlInsetPx));
+        // Whatever comes after the action is a note about it rather than part
+        // of it, so it gets a card of its own, the way the share page puts its
+        // secondary action below the card instead of inside it.
+        cards.push([]);
         break;
       case EmailBlockType.Image:
-        rows.push(
-          `<tr><td style="padding:0 40px;"><img src="${assetUrl(block.assetId, baseUrl)}" width="480" alt="${escapeHtml(block.altText)}" style="display:block;max-width:100%;"></td></tr>`,
+        current().push(
+          well(
+            `<img src="${assetUrl(block.assetId, baseUrl)}" width="480" alt="${escapeHtml(block.altText)}" style="display:block;max-width:100%;border-radius:${Math.max(0, surfaces.well.radiusPx - controlInsetPx)}px;">`,
+            "font-size:0;line-height:0;",
+          ),
         );
         break;
       case EmailBlockType.Divider:
-        rows.push(`<tr><td style="padding:8px 40px;"><hr style="border:none;border-top:1px solid #E5E5EA;"></td></tr>`);
+        // A divider separates, and so does a card, so it starts a new one
+        // rather than drawing a line nothing else in the product draws.
+        if (current().length > 0) cards.push([]);
         break;
       case EmailBlockType.Spacer:
-        rows.push(
-          `<tr><td style="height:${Math.max(0, Math.round(block.heightPx))}px;line-height:0;">&nbsp;</td></tr>`,
+        current().push(
+          `<tr><td style="height:${Math.max(0, Math.round(block.heightPx))}px;line-height:0;font-size:0;">&nbsp;</td></tr>`,
         );
         break;
     }
   }
-  if (branding.footerText) {
-    rows.push(
-      `<tr><td class="em-footer-border" style="padding:16px 40px;border-top:1px solid #E5E5EA;text-align:center;"><div class="em-footer-text" style="font-size:13px;color:#8E8E93;line-height:1.5;">${parseMarkdown(interpolate(branding.footerText, variables))}</div></td></tr>`,
-    );
-  }
-  return rows;
+  return cards.filter((rows) => rows.length > 0);
 }
-
-/** Drop shadow behind the content card, giving it visible lift over the page background. */
-const CARD_SHADOW = "0 20px 50px rgba(15, 23, 42, 0.35)";
 
 /**
  * Assembles the complete HTML email document: the `<style>` block (shared
@@ -317,23 +415,45 @@ const CARD_SHADOW = "0 20px 50px rgba(15, 23, 42, 0.35)";
  * content card.
  *
  * The card is nested in an extra, unclipped `<td>` that carries the
- * `box-shadow` — `box-shadow` and `overflow:hidden` never combine on the same
- * element (the shadow, which paints outside the border box, gets clipped by
- * the element's own overflow rule), and `overflow:hidden` on the card itself
- * is required to clip the header/footer images to its rounded corners. The
- * card's own background is a subtly translucent white (light) /
- * near-black (dark, via {@link DARK_RULES}) rather than fully opaque, so the
- * page background reads through slightly at the edges.
+ * `box-shadow`, because `box-shadow` and `overflow:hidden` never combine on
+ * the same element: the shadow paints outside the border box and the
+ * element's own overflow rule clips it away.
+ *
+ * The card is translucent, so the sky behind it reads through exactly as it
+ * does behind the share page's card. Its own fill, its radius, its padding and
+ * its shadow all come from the design tokens, which is where the page takes
+ * them from too.
  *
  * @param rows - the body block rows from {@link buildBlockRows}.
  * @param css - scheme-specific `<style>` content (the dark `@media` block on the
  *   send path, or the forced light/dark rules on the preview path).
  * @param background - this render's {@link PageBackground} (body + cell inline styles).
+ * @param surfaces - the material for the scheme written inline.
  * @returns the complete HTML email document.
  */
-function buildEmailHtml(rows: string[], css: string, background: PageBackground): string {
+function buildEmailHtml(
+  cards: string[][],
+  css: string,
+  background: PageBackground,
+  surfaces: EmailSurfaces,
+  masthead: string,
+  cardGapPx: number,
+): string {
+  const cardMarkup = cards
+    .map(
+      (rows) => `<tr><td style="border-radius:${surfaces.card.radiusPx}px;box-shadow:${surfaces.card.shadow};">
+          <table class="em-card" width="${CARD_WIDTH_PX}" cellpadding="0" cellspacing="0" border="0" style="max-width:${CARD_WIDTH_PX}px;background:${surfaces.card.fill};border-radius:${surfaces.card.radiusPx}px;">
+            <tr><td style="padding:${surfaces.card.paddingPx}px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                ${rows.join("\n                ")}
+              </table>
+            </td></tr>
+          </table>
+        </td></tr>`,
+    )
+    .join(`\n        <tr><td style="height:${cardGapPx}px;line-height:0;font-size:0;">&nbsp;</td></tr>\n        `);
   return `<!DOCTYPE html>
-<html lang="de">
+<html lang="en" style="height:100%;">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -348,20 +468,57 @@ function buildEmailHtml(rows: string[], css: string, background: PageBackground)
     ${css}
   </style>
 </head>
-<body style="margin:0;padding:0;${background.bodyStyle}font-family:'Barlow',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" border="0">
-    <tr><td align="center" class="em-page-bg" style="${background.cellStyle}">
-      <table cellpadding="0" cellspacing="0" border="0" style="width:560px;max-width:560px;">
-        <tr><td style="border-radius:8px;box-shadow:${CARD_SHADOW};">
-          <table class="em-container" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background:rgba(255,255,255,0.94);border:1px solid #E5E5EA;border-radius:8px;overflow:hidden;">
-            ${rows.join("\n            ")}
-          </table>
-        </td></tr>
+<body style="margin:0;padding:0;height:100%;${background.bodyStyle}font-family:${surfaces.text.fontFamily};">
+  <table width="100%" height="100%" cellpadding="0" cellspacing="0" border="0" style="height:100%;">
+    <tr><td align="center" valign="top" class="em-page-bg" style="height:100%;${background.cellStyle}">
+      <table cellpadding="0" cellspacing="0" border="0" style="width:${CARD_WIDTH_PX}px;max-width:${CARD_WIDTH_PX}px;">
+        ${masthead}
+        ${cardMarkup}
       </table>
     </td></tr>
   </table>
 </body>
 </html>`;
+}
+
+/**
+ * Builds the wordmark and the claim that stand above the card.
+ *
+ * On the share page the wordmark sits on the sky with the claim under it, and
+ * the card begins below both. An email is the same page in an inbox, so it
+ * puts them in the same place rather than tucking the wordmark inside the card
+ * where the page never has it.
+ *
+ * @param branding - The resolved branding, whose header asset is the wordmark
+ *   and whose footer text is the claim.
+ * @param baseUrl - Base URL for the asset, or `null` for a relative one.
+ * @param variables - Substitution values, since the claim is editable copy.
+ * @param surfaces - The material, for the sky text's own colour and size.
+ * @param gapPx - Distance between the masthead and the card.
+ * @returns Zero, one or two `<tr>` rows.
+ */
+function buildMasthead(
+  branding: ResolvedBranding,
+  baseUrl: string | null,
+  variables: Record<string, string>,
+  surfaces: EmailSurfaces,
+  gapPx: number,
+): string {
+  const rows: string[] = [];
+  if (branding.headerAssetId) {
+    rows.push(
+      `<tr><td align="center" style="padding:0 0 6px 0;font-size:0;line-height:0;"><img src="${assetUrl(branding.headerAssetId, baseUrl)}" width="${MASTHEAD_WIDTH_PX}" alt="" style="display:block;width:${MASTHEAD_WIDTH_PX}px;max-width:${Math.round(MASTHEAD_WIDTH_RATIO * 100)}%;height:auto;"></td></tr>`,
+    );
+  }
+  if (branding.footerText) {
+    rows.push(
+      `<tr><td align="center" class="em-sky-text" style="padding:0;font-family:${surfaces.skyText.fontFamily};font-size:${surfaces.skyText.fontSizePx}px;line-height:1.4;color:${surfaces.skyText.color};text-align:center;">${escapeHtml(interpolate(branding.footerText, variables))}</td></tr>`,
+    );
+  }
+  if (rows.length > 0) {
+    rows.push(`<tr><td style="height:${gapPx}px;line-height:0;font-size:0;">&nbsp;</td></tr>`);
+  }
+  return rows.join("\n        ");
 }
 
 /**
@@ -387,14 +544,18 @@ export function renderBlocks(
   global: EmailBrandingDto,
   variables: Record<string, string>,
   baseUrl: string,
+  tokens: DesignTokens,
 ): string {
   const branding = resolveBranding(overrides, global);
-  const rows = buildBlockRows(blocks, branding, variables, baseUrl);
+  const light = resolveEmailSurfaces(tokens, EmailColorScheme.Light);
+  const dark = resolveEmailSurfaces(tokens, EmailColorScheme.Dark);
+  const cards = buildCards(blocks, variables, baseUrl, light, tokens);
+  const masthead = buildMasthead(branding, baseUrl, variables, light, tokens.paddings["--mc-gap-cards"]);
   const lightImageUrl = branding.lightBackgroundAssetId ? assetUrl(branding.lightBackgroundAssetId, baseUrl) : null;
   const darkImageUrl = branding.darkBackgroundAssetId ? assetUrl(branding.darkBackgroundAssetId, baseUrl) : null;
   const background = buildPageBackground(branding.lightGradientTop, branding.lightGradientBottom, lightImageUrl);
-  const css = `${DARK_MODE_CSS}\n    ${buildDarkPageBackgroundCss(branding.darkGradientTop, branding.darkGradientBottom, darkImageUrl)}`;
-  return buildEmailHtml(rows, css, background);
+  const css = `@media (prefers-color-scheme: dark) {${buildDarkRules(dark)}}\n    ${buildDarkPageBackgroundCss(branding.darkGradientTop, branding.darkGradientBottom, darkImageUrl)}`;
+  return buildEmailHtml(cards, css, background, light, masthead, tokens.paddings["--mc-gap-cards"]);
 }
 
 /**
@@ -414,9 +575,10 @@ export function renderEmailTemplate(
   global: EmailBrandingDto,
   variables: Record<string, string>,
   baseUrl: string,
+  tokens: DesignTokens,
 ): { html: string; subject: string } {
   const subject = interpolate(template.subject, variables);
-  const html = renderBlocks(template.blocks, overrides, global, variables, baseUrl);
+  const html = renderBlocks(template.blocks, overrides, global, variables, baseUrl, tokens);
   return { html, subject };
 }
 
@@ -450,15 +612,20 @@ export function renderEmailPreview(
   blocks: EmailBlock[],
   overrides: Partial<EmailTemplateBrandingOverrides>,
   global: EmailBrandingDto,
-  colorScheme: "light" | "dark",
+  colorScheme: EmailColorSchemeValue,
+  tokens: DesignTokens,
 ): string {
   const branding = resolveBranding(overrides, global);
-  const rows = buildBlockRows(blocks, branding, {}, null);
-  const isDark = colorScheme === "dark";
+  const surfaces = resolveEmailSurfaces(tokens, colorScheme);
+  const cards = buildCards(blocks, {}, null, surfaces, tokens);
+  const masthead = buildMasthead(branding, null, {}, surfaces, tokens.paddings["--mc-gap-cards"]);
+  const isDark = colorScheme === EmailColorScheme.Dark;
   const gradientTop = isDark ? branding.darkGradientTop : branding.lightGradientTop;
   const gradientBottom = isDark ? branding.darkGradientBottom : branding.lightGradientBottom;
   const backgroundAssetId = isDark ? branding.darkBackgroundAssetId : branding.lightBackgroundAssetId;
   const imageUrl = backgroundAssetId ? assetUrl(backgroundAssetId, null) : null;
   const background = buildPageBackground(gradientTop, gradientBottom, imageUrl);
-  return buildEmailHtml(rows, isDark ? DARK_RULES : "", background);
+  // The scheme is forced here, so the material is already the right one and no
+  // `@media` block is needed: what the preview shows is what that scheme sends.
+  return buildEmailHtml(cards, "", background, surfaces, masthead, tokens.paddings["--mc-gap-cards"]);
 }

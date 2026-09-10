@@ -26,6 +26,30 @@ const account = await getDeveloperSession(Astro);
  * The four ordered steps that take a developer from no account to their first
  * authenticated API call. Each step is rendered as a numbered glassy row.
  */
+/**
+ * The four levels an integration is built from, outermost first. This is the
+ * one place they are explained; the pricing page points here rather than
+ * saying it a second time.
+ */
+const structure = [
+  {
+    term: "Account",
+    body: "You. An email address and a password, or a GitHub sign-in. Nothing is counted against it.",
+  },
+  {
+    term: "Project",
+    body: "One application of yours. It carries the plan, and it is where your requests are counted, so everything under it shares one budget.",
+  },
+  {
+    term: "Registration",
+    body: "One place that application runs: your server, the copy on a phone, your own machine while you build. Each gets its own credentials and can be revoked on its own, without touching the others.",
+  },
+  {
+    term: "Key",
+    body: "What you send with a request. It belongs to one registration, is shown once, and can be rotated so the old and the new one overlap while you deploy.",
+  },
+];
+
 const steps = [
   {
     Icon: ProfileAddIcon,
@@ -102,6 +126,28 @@ const steps = [
           </span>
         </li>
       </ul>
+    </section>
+
+    <section id="how-it-fits-together" class="surface-card px-7 py-7 mb-6">
+      <h2 class="text-card-title font-medium tracking-tight mb-2">How it fits together</h2>
+      <p class="text-body text-fg-muted mb-5">
+        Four things, each one inside the one before it. Knowing which is which tells you where your quota is
+        counted and what you can switch off without taking everything else down with it.
+      </p>
+      <dl class="grid grid-cols-1 gap-4">
+        {
+          structure.map((level) => (
+            <div>
+              <dt class="text-body font-medium text-fg">{level.term}</dt>
+              <dd class="text-body text-fg-muted">{level.body}</dd>
+            </div>
+          ))
+        }
+      </dl>
+      <p class="text-body text-fg-subtle mt-6">
+        So a plan belongs to an application rather than to you, and a key belongs to one place that application
+        runs in.
+      </p>
     </section>
 
     <section class="surface-card px-7 py-7 mb-6">

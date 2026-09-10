@@ -36,6 +36,9 @@
   --mc-color-github-surface-hover: #232925;
   --mc-color-github-fg: #ffffff;
   --mc-color-code-bg: rgba(0, 0, 0, 0.38);
+  /* An input is a surface a developer writes on, not a block of code they read.
+     It sits below the card it is in without going as deep as a code block. */
+  --mc-color-field-bg: rgba(0, 0, 0, 0.16);
   --mc-color-code-fg: #c2d2dc;
   --mc-color-inline-code-bg: color-mix(in srgb, var(--mc-color-request-patch) 20%, transparent);
   --mc-color-inline-code-fg: color-mix(in srgb, var(--mc-color-fg) 78%, var(--mc-color-request-patch));
@@ -74,7 +77,7 @@
   --mc-size-icon-md: 1.25rem;
   --mc-size-icon-lg: 1.5rem;
   --mc-size-icon-xl: 2.25rem;
-  --mc-size-text-icon: 1.2cap;
+  --mc-size-text-icon: 1.7cap;
 
   --mc-space-1: 0.25rem;
   --mc-space-2: 0.5rem;

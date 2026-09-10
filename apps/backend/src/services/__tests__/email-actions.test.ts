@@ -31,6 +31,13 @@ vi.mock("../../db/index.js", () => ({
   getAdminRepository: vi.fn(),
 }));
 
+// The renderer reads the design tokens, which otherwise opens a pool of its
+// own. The canonical set is what an untuned installation renders with anyway.
+vi.mock("../site-settings.js", async () => {
+  const { parseDesignTokens } = await import("@musiccloud/shared");
+  return { getDesignTokens: vi.fn(async () => parseDesignTokens(null).tokens) };
+});
+
 vi.mock("../email-provider.js", () => ({
   sendEmail: vi.fn(async () => undefined),
 }));
