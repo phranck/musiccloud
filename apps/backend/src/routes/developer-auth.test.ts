@@ -330,6 +330,48 @@ describe("POST /api/dev/auth/signup", () => {
     expect(res.json().error).toBe("INVALID_REQUEST");
   });
 
+  it("refuses an address that cannot be one, before anything is created", async () => {
+    const app = await buildApp();
+
+    for (const candidate of ["not-an-address", "dev@", "@example.com", "dev@example", "dev @example.com"]) {
+      const res = await app.inject({
+        method: "POST",
+        url: ENDPOINTS.dev.auth.signup,
+        payload: { email: candidate, password: VALID_PASSWORD },
+      });
+
+      expect(res.statusCode, candidate).toBe(400);
+      expect(res.json().error, candidate).toBe("INVALID_EMAIL");
+    }
+    expect(vi.mocked(repo.createDeveloperAccount)).not.toHaveBeenCalled();
+    expect(vi.mocked(triggerEmailAction)).not.toHaveBeenCalled();
+  });
+
+  it("refuses an address longer than SMTP carries", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.signup,
+      payload: { email: `${"a".repeat(250)}@example.com`, password: VALID_PASSWORD },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("INVALID_EMAIL");
+    expect(vi.mocked(repo.createDeveloperAccount)).not.toHaveBeenCalled();
+  });
+
+  it("refuses a malformed address without saying whether an account exists", async () => {
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.signup,
+      payload: { email: "not-an-address", password: VALID_PASSWORD },
+    });
+
+    expect(res.json().message).toBe("Email is not a valid address.");
+    expect(vi.mocked(repo.findDeveloperAccountByEmail)).not.toHaveBeenCalled();
+  });
+
   it("assigns tier_free when a paid tier is requested (Plan A: only free tier is assignable)", async () => {
     // Plan A: resolveSignupTierId only allows tier_free. A paid tier request
     // falls back to tier_free so no tier can be granted for free.
@@ -539,6 +581,23 @@ describe("POST /api/dev/auth/request-reset", () => {
     expect(res.statusCode).toBe(200);
     expect(vi.mocked(triggerEmailAction)).not.toHaveBeenCalled();
     expect(vi.mocked(repo.createDeveloperEmailToken)).not.toHaveBeenCalled();
+  });
+
+  it("refuses an address that cannot be one, which leaks nothing because no account can hold it", async () => {
+    const app = await buildApp();
+
+    for (const candidate of ["not-an-address", "dev@", `${"a".repeat(250)}@example.com`]) {
+      const res = await app.inject({
+        method: "POST",
+        url: ENDPOINTS.dev.auth.requestReset,
+        payload: { email: candidate },
+      });
+
+      expect(res.statusCode, candidate).toBe(400);
+      expect(res.json().error, candidate).toBe("INVALID_EMAIL");
+    }
+    expect(vi.mocked(repo.findDeveloperAccountByEmail)).not.toHaveBeenCalled();
+    expect(vi.mocked(triggerEmailAction)).not.toHaveBeenCalled();
   });
 });
 

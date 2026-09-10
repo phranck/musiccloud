@@ -5,6 +5,7 @@ import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
 import { ContentCard } from "@/components/docs/ContentCard";
 import { postAuth } from "@/lib/authClient";
+import { AuthErrorCode, authErrorLabel } from "@/lib/authErrors";
 import { AuthStatusTone } from "@/lib/authStatusTone";
 import { ButtonVariant } from "@/lib/buttonVariant";
 import { FormPhase, type FormPhaseValue } from "@/lib/formPhase";
@@ -19,10 +20,11 @@ export interface ForgotFormProps {
 
 /**
  * Password-reset request island. Posts the email to
- * `/api/dev/auth/request-reset`, which always returns `200` regardless of
- * whether the account exists (no account-existence leak). The form therefore
- * shows the same neutral confirmation panel on success, and only surfaces an
- * error for a hard transport failure (status 0) so the developer can retry.
+ * `/api/dev/auth/request-reset`, which returns `200` whether or not the account
+ * exists (no account-existence leak). The form therefore shows the same neutral
+ * confirmation panel on success. It surfaces an error in two cases only: a
+ * hard transport failure (status 0) so the developer can retry, and an address
+ * the backend refuses as an address, which no account could hold anyway.
  *
  * Rendered with `client:load` from `forgot.astro`.
  *
@@ -32,6 +34,7 @@ export interface ForgotFormProps {
 export function ForgotForm({ subtitle }: ForgotFormProps) {
   const [email, setEmail] = useState("");
   const [phase, setPhase] = useState<FormPhaseValue>(FormPhase.Idle);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   const onEmail = useCallback((event: ChangeEvent<HTMLInputElement>) => setEmail(event.target.value), []);
 
@@ -39,9 +42,21 @@ export function ForgotForm({ subtitle }: ForgotFormProps) {
     async (event: SyntheticEvent<HTMLFormElement>) => {
       event.preventDefault();
       setPhase(FormPhase.Submitting);
+      setEmailError(null);
       const result = await postAuth(ENDPOINTS.dev.auth.requestReset, { email });
-      // The endpoint never leaks existence (always 200); only a transport
-      // failure (status 0) is worth retrying, so treat any response as success.
+
+      // An address the backend cannot use is the one refusal worth showing
+      // here: it says nothing about who holds an account, and the confirmation
+      // panel would otherwise promise a mail that was never sent.
+      if (result.code === AuthErrorCode.InvalidEmail) {
+        setEmailError(authErrorLabel(result.code, result.message));
+        setPhase(FormPhase.Idle);
+        return;
+      }
+
+      // Beyond that the endpoint never leaks existence (always 200); only a
+      // transport failure (status 0) is worth retrying, so treat any response
+      // as success.
       setPhase(result.ok || result.status > 0 ? FormPhase.Success : FormPhase.Error);
     },
     [email],
@@ -71,6 +86,7 @@ export function ForgotForm({ subtitle }: ForgotFormProps) {
             onChange={onEmail}
             autoComplete="email"
             placeholder="you@example.com"
+            error={emailError ?? undefined}
           />
         </ContentCard.Body.Copy>
       </ContentCard.Body>

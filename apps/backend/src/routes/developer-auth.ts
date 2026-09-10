@@ -28,8 +28,10 @@
  * Login does not branch on account existence before hashing: {@link verifyPassword}
  * always pays the bcrypt cost (against a dummy hash when no account/credential
  * exists), so response latency cannot be used to enumerate registered emails.
- * `request-reset` likewise always returns `200`, never revealing whether an
- * address has an account.
+ * `request-reset` likewise returns `200` for every address it can use, never
+ * revealing whether one has an account. It refuses a string that cannot be an
+ * address at all, which is a statement about the string rather than about who
+ * holds an account.
  *
  * ## Single-use email tokens
  *
@@ -166,6 +168,27 @@ export function buildAccountResponse(account: DeveloperAccount, tierName: string
 }
 
 /**
+ * Normalises an address taken from a request body and refuses anything that
+ * cannot be one.
+ *
+ * Signup and the reset request both read an address a person typed, and both
+ * act on it by sending mail to it. An address that cannot receive mail leaves a
+ * signup with an account nobody can verify, and it occupies the unique index on
+ * `developer_accounts.email` so nothing else can take that string either.
+ *
+ * The shape rule itself lives in {@link isValidEmailAddress}, which the profile
+ * route asks as well, so the portal cannot accept as a login address what it
+ * refuses as a technical contact.
+ *
+ * @param raw - The value from the request body, untrimmed.
+ * @returns The lowercased, trimmed address, or `null` when it cannot be one.
+ */
+function readRequestEmail(raw: string): string | null {
+  const email = raw.trim().toLowerCase();
+  return isValidEmailAddress(email) ? email : null;
+}
+
+/**
  * Registers the developer-portal email/password auth routes (signup, verify,
  * login, request-reset, reset-password, logout, me, delete-account) under
  * `/api/dev/auth/*`.
@@ -192,7 +215,11 @@ export async function devAuthRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "email and password are required." });
     }
 
-    const email = body.email.trim().toLowerCase();
+    const email = readRequestEmail(body.email);
+    if (!email) {
+      return reply.status(400).send({ error: "INVALID_EMAIL", message: "Email is not a valid address." });
+    }
+
     const password = body.password;
     const displayName = body.displayName?.trim() || null;
 
@@ -352,7 +379,13 @@ export async function devAuthRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "email is required." });
     }
 
-    const email = body.email.trim().toLowerCase();
+    // Refusing a malformed address here leaks nothing about who holds an
+    // account, because no account can hold a string that is not an address.
+    const email = readRequestEmail(body.email);
+    if (!email) {
+      return reply.status(400).send({ error: "INVALID_EMAIL", message: "Email is not a valid address." });
+    }
+
     const repo = await getDeveloperRepository();
     const account = await repo.findDeveloperAccountByEmail(email);
 
