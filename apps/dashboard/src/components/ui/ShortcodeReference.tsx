@@ -10,6 +10,7 @@
 import {
   CODE_FENCE_LANGUAGES,
   SHORTCODE_DEFINITIONS,
+  ShortcodeBodyRule,
   type ShortcodeDefinition,
   type ShortcodeParamDefinition,
   ShortcodeParamType,
@@ -112,16 +113,18 @@ function describeType(param: ShortcodeParamDefinition): string {
 /**
  * Writes a shortcode the way an author types it.
  *
- * The three notations look nothing alike, so showing one of them for all three
- * would be a false instruction rather than a shorthand.
+ * The forms look nothing alike, so showing one of them for all would be a false
+ * instruction rather than a shorthand. A container shows its braces, because
+ * that is what says it holds content rather than drawing one thing from its
+ * attributes.
  *
  * @param definition - The shortcode.
  * @returns Its opening form, as source.
  */
 function notationFor(definition: ShortcodeDefinition): string {
-  if (definition.syntax === ShortcodeSyntax.Fence) return `:::${definition.token}`;
   if (definition.syntax === ShortcodeSyntax.Braces) return "{{…}}";
   if (definition.target === ShortcodeTargetRule.Required) return `[[${definition.token}:…]]`;
+  if (definition.body === ShortcodeBodyRule.Markdown) return `[[${definition.token} { … }]]`;
   return `[[${definition.token}]]`;
 }
 

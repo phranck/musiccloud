@@ -30,7 +30,7 @@ A shortcode is declared once, in `packages/shared/src/markdown-shortcodes/`. Tha
 | `mcMedia` | `[[image:…]]`, `[[pdf:…]]` and `[[youtube:…]]` | Yes | Yes |
 | `mcIcon` | `[[icon]]` | Yes | Yes |
 | `mcPlans` | `[[plans]]` | No | Yes |
-| `mcFields` | `:::fields` | Yes | Yes |
+| `mcFields` | `[[fields { … }]]` | Yes | Yes |
 | `mcPill` | `[[pill:…]]` | Yes | Yes |
 | `mcKbd` | `{{Key}}` | Yes | Yes |
 
@@ -44,7 +44,7 @@ Validation inspects parsed token types, not raw substring matches. Extension-lik
 |---|---|---|---|---|:---:|:---:|
 | `card` | `[[card { … }]]` | Block | Markdown | Forbidden | No | Yes |
 | `cards` | `[[cards { … }]]` | Block | Markdown | Forbidden | No | Yes |
-| `fields` | `:::fields` | Block | Markdown | Forbidden | Yes | Yes |
+| `fields` | `[[fields { … }]]` | Block | Markdown | Forbidden | Yes | Yes |
 | `hstack` | `[[hstack { … }]]` | Block | Markdown | Forbidden | Yes | Yes |
 | `icon` | `[[icon]]` | Inline | Forbidden | Forbidden | Yes | Yes |
 | `image` | `[[image:…]]` | Block | Forbidden | Required | Yes | Yes |
@@ -57,6 +57,10 @@ Validation inspects parsed token types, not raw substring matches. Extension-lik
 | `youtube` | `[[youtube:…]]` | Block | Forbidden | Required | Yes | Yes |
 
 The list is sorted by token, which is also the order the reference panel lists them in, because that panel is a list to look something up in.
+
+One notation for all of them, so a writer learns `[[token]]` once. A container carries its content between braces, `[[token { … }]]`, and the two inline forms differ where they have to: a shortcode taking a target writes it after a colon, and `{{Key}}` is short because a single key is not worth more.
+
+The fields list was written `:::fields … :::` before that. The renderer still reads it, so no stored page breaks, and nothing teaches it: it appears in no example and in no reference. It goes once the stored pages have been rewritten.
 
 Every parameter each one takes is in its declaration and in the reference panel, and is therefore not repeated here. A table of parameters in a document is a second answer to a question the code already answers, and it drifts.
 

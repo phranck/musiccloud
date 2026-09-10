@@ -21,8 +21,10 @@ import {
   PILL_SHORTCODE,
   PLANS_SHORTCODE,
   parseShortcodes,
+  readShortcodeAt,
   type ShortcodeDefinition,
   type ShortcodeParamValue,
+  ShortcodeSyntax,
   SPACER_SHORTCODE,
   VSTACK_SHORTCODE,
   YOUTUBE_SHORTCODE,
@@ -161,8 +163,8 @@ function readShortcode(
  * @param raw - The fence's source, as marked matched it.
  * @returns The two column measurements.
  */
-function parseFieldsLayout(raw: string): FieldsLayout {
-  const { params } = readShortcode(raw, FIELDS_SHORTCODE);
+function parseFieldsLayout(raw: string, definition: ShortcodeDefinition = FIELDS_SHORTCODE): FieldsLayout {
+  const { params } = readShortcode(raw, definition);
   const labelWidth = String(params.labelWidth ?? FIELDS_DEFAULT_LABEL_WIDTH);
   const gap = String(params.gap ?? FIELDS_DEFAULT_GAP);
 
@@ -291,20 +293,62 @@ function applyPillCase(text: string, textCase: PillCase): string {
   return text;
 }
 
+/**
+ * The fields list as pages written before the change still carry it.
+ *
+ * The registry declares the bracket form, which is what a writer is shown and
+ * what every example uses. Stored pages carry `:::fields`, and the parser
+ * refuses a notation the declaration does not name, so the same declaration is
+ * repeated here under the old notation and used for those pages alone. It
+ * appears in no example, in no reference and in no help.
+ *
+ * @deprecated Reading only, so nothing stored breaks. Goes once the stored
+ * pages have been rewritten to `[[fields { … }]]`.
+ */
+const FENCE_FIELDS_SHORTCODE = { ...FIELDS_SHORTCODE, syntax: ShortcodeSyntax.Fence };
+
+/** What the old notation opens with, which is how a page written in it is recognised. */
+const FENCE_OPENING = ":::";
+
+/**
+ * Reads a fields list, if one begins here.
+ *
+ * The rows are lines of `Label: value`, and the value is inline Markdown, so a
+ * link or a piece of code works there. A line without a colon is not a row and
+ * is dropped rather than guessed at.
+ *
+ * @param source - What marked is offering, from the current position.
+ * @returns The raw source, the rows still to be lexed, and the resolved layout,
+ *   or `null` when no fields list begins here.
+ */
+function readFieldsSource(source: string): { raw: string; rows: string[]; layout: FieldsLayout } | null {
+  const node = readShortcodeAt(source, 0);
+  if (!node || node.token !== FIELDS_SHORTCODE.token || node.body === undefined) return null;
+
+  // Which notation this page was written in decides which declaration reads it,
+  // because the parser checks the two against each other.
+  const definition = node.source.raw.startsWith(FENCE_OPENING) ? FENCE_FIELDS_SHORTCODE : FIELDS_SHORTCODE;
+
+  return {
+    raw: node.source.raw,
+    rows: node.body.split(/\r?\n/),
+    layout: parseFieldsLayout(node.source.raw, definition),
+  };
+}
+
 const mcFieldsExtension: MarkedExtension = {
   extensions: [
     {
       name: "mcFields",
       level: "block",
       start(source) {
-        return source.match(/^:::fields/m)?.index;
+        return source.match(/\[\[fields[\s{]|^:::fields\b/m)?.index;
       },
       tokenizer(source) {
-        const match = source.match(/^:::fields(?:[ \t]+([^\r\n]*))?\r?\n([\s\S]*?)\r?\n:::[ \t]*(?:\r?\n|$)/);
-        if (!match) return;
+        const read = readFieldsSource(source);
+        if (!read) return;
 
-        const rows = match[2]
-          .split(/\r?\n/)
+        const rows = read.rows
           .map((line): McFieldsRow | null => {
             const row = line.match(/^\s*([^:]+):\s*(.*)$/);
             if (!row) return null;
@@ -320,9 +364,9 @@ const mcFieldsExtension: MarkedExtension = {
 
         return {
           type: "mcFields",
-          raw: match[0],
+          raw: read.raw,
           rows,
-          layout: parseFieldsLayout(match[0]),
+          layout: read.layout,
         } satisfies McFieldsToken;
       },
       renderer(token) {

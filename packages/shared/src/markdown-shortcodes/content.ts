@@ -58,11 +58,11 @@ export const PILL_DEFAULT_CASE = "none";
 
 /** Written out once, because it is both the documentation and the editor's example. */
 const FIELDS_EXAMPLE = [
-  ":::fields",
+  "[[fields {",
   "Method: `GET`",
   "Path: `/api/v1/resolve`",
   "Authentication: Registration key",
-  ":::",
+  "}]]",
 ].join("\n");
 
 /**
@@ -73,7 +73,7 @@ const FIELDS_EXAMPLE = [
  */
 export const FIELDS_SHORTCODE = {
   token: ShortcodeToken.Fields,
-  syntax: ShortcodeSyntax.Fence,
+  syntax: ShortcodeSyntax.Bracket,
   renderMode: ShortcodeRenderMode.Html,
   target: ShortcodeTargetRule.Forbidden,
   placement: ShortcodePlacement.Block,
@@ -83,8 +83,8 @@ export const FIELDS_SHORTCODE = {
     "A list of labels and the values beside them, as you would document an endpoint. Each line is written as `Label: value`, and the value is ordinary Markdown, so a link or a piece of code works there. The labels line up in a column of their own.",
   examples: [
     FIELDS_EXAMPLE,
-    ":::fields labelWidth=8rem gap=2rem\nName: musiccloud\nLicence: MIT\n:::",
-    ":::fields layout=stacked\nThe free plan stays free: Paid plans will add capacity. They won't take away what you have today.\n:::",
+    '[[fields labelWidth="8rem" gap="2rem" {\nName: musiccloud\nLicence: MIT\n}]]',
+    '[[fields layout="stacked" {\nThe free plan stays free: Paid plans will add capacity. They won\'t take away what you have today.\n}]]',
   ],
   allowedContextMask: EVERY_CONTENT_CONTEXT,
   params: [
