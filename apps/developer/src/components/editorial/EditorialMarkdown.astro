@@ -1,10 +1,30 @@
 ---
-/** Single injection boundary for Backend-sanitized Developer Portal Markdown HTML. */
+/**
+ * Single injection boundary for Backend-sanitized Developer Portal Markdown HTML.
+ *
+ * Most of a page is one run of markup. Where a shortcode needs something the
+ * backend cannot produce, such as the live plans, the page arrives with a
+ * placeholder in its place and this renders the portal's own component there.
+ */
+import PlanGrid from "@/components/plans/PlanGrid.astro";
+import { EditorialSegmentKind, splitEditorialSegments } from "@/lib/editorialIslands";
+
 interface Props {
   html: string;
 }
 
 const { html } = Astro.props;
+const segments = splitEditorialSegments(html);
 ---
 
-<div class="editorial-markdown text-body text-fg-muted" set:html={html}></div>
+<div class="editorial-markdown text-body text-fg-muted">
+  {
+    segments.map((segment) =>
+      segment.kind === EditorialSegmentKind.Plans ? (
+        <PlanGrid />
+      ) : (
+        <Fragment set:html={segment.html} />
+      ),
+    )
+  }
+</div>

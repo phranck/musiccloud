@@ -50,7 +50,14 @@ describe("managed editorial page routing", () => {
     expect(page).toContain("<PublicHeader");
     expect(page).toContain("<PublicFooter");
     expect(page).toContain("<SurfaceCard.Body>");
-    expect(markdown).toContain("set:html={html}");
+
+    // Still one injection site, now applied per segment: a page carrying an
+    // island is cut around it, and everything between the islands is the same
+    // sanitized markup injected the same way. What matters is that nothing
+    // else in the portal injects backend HTML.
+    expect(markdown.match(/set:html=/g)).toHaveLength(1);
+    expect(markdown).toContain("set:html={segment.html}");
+    expect(markdown).toContain("splitEditorialSegments(html)");
   });
 
   it("renders safe Failure correlation and a separate NotFound state", () => {

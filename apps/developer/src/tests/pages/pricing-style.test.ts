@@ -6,6 +6,7 @@ const sourceRoot = join(import.meta.dirname, "../..");
 const pricingPagePath = join(sourceRoot, "pages/pricing.astro");
 const pricingCssPath = join(sourceRoot, "styles/pricing-material.css");
 const tierColorPath = join(sourceRoot, "lib/tierColor.ts");
+const planGridPath = join(sourceRoot, "components/plans/PlanGrid.astro");
 
 describe("pricing material ownership", () => {
   it("owns pricing material in a dedicated tokenized stylesheet", () => {
@@ -14,7 +15,10 @@ describe("pricing material ownership", () => {
     const css = readFileSync(pricingCssPath, "utf8");
 
     expect(page).toContain('import "../styles/pricing-material.css"');
-    expect(page).toContain("normalizeTierColor");
+    // The plan cards moved into `PlanGrid.astro`, which is where a tier colour
+    // now reaches a `style` attribute and therefore where it must be
+    // normalised. The page itself renders no tier colour at all.
+    expect(readFileSync(planGridPath, "utf8")).toContain("normalizeTierColor");
     expect(page).not.toContain("<style>");
     expect(css).toContain("--pricing-card-radius:");
     expect(css).toContain("--pricing-card-padding:");

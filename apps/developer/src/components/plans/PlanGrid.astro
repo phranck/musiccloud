@@ -1,0 +1,188 @@
+---
+/**
+ * The live plans, as cards, with the monthly/yearly switch above them.
+ *
+ * One place, used twice: by `/pricing` directly and by whatever a content page
+ * writes `[[plans]]` into. A price is exactly the kind of figure that must
+ * never be written twice, and the surest way to keep that true is for the
+ * markup that shows it to exist once as well.
+ *
+ * The plans are fetched here rather than passed in, so a caller cannot supply a
+ * list of its own and quietly show something the tiers do not say.
+ */
+import RollingText from "@/components/RollingText.astro";
+import { TierIcon } from "@/components/TierIcon";
+import { CoinIcon, TickCircleIcon } from "@/lib/icons";
+import { fetchPublicTiers, formatTierPrice } from "@/lib/tiers";
+import { normalizeTierColor } from "@/lib/tierColor";
+
+// No props. What each plan shows already lives on the plan, and how the block
+// is put together is one answer rather than something each caller gives again.
+const tiers = await fetchPublicTiers();
+
+// Index of the single recommended tier, or -1 when none is. Drives the cards'
+// depth effect: the recommended card sits at the front and the others recede by
+// their distance from it. When -1 the cards render flat.
+const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
+---
+
+{
+  tiers.length > 0 && (
+    <section class="mb-8" data-billing="monthly" data-plan-grid>
+      <div class="mb-2 flex items-center justify-between gap-4">
+        <h2 class="card-content-inset text-card-title font-medium tracking-tight">Available plans</h2>
+        <div
+          class="billing-track relative grid grid-cols-2 border border-border-strong text-nav"
+          role="group"
+          aria-label="Billing period"
+        >
+          <span class="billing-thumb" aria-hidden="true" />
+          <button type="button" class="billing-option" data-mode="monthly" aria-pressed="true">
+            Monthly
+          </button>
+          <button type="button" class="billing-option" data-mode="yearly" aria-pressed="false">
+            Yearly
+          </button>
+        </div>
+      </div>
+      <p class="card-content-inset text-body text-fg-muted mb-5">
+        Every figure below is counted per project, and every registration under that project shares it.{" "}
+        <a href="/docs#how-it-fits-together" class="content-link text-fg">
+          How it fits together
+        </a>{" "}
+        explains what those are.
+      </p>
+      <div class="tier-grid pt-12">
+        {tiers.map((tier, index) => {
+          const tierColor = normalizeTierColor(tier.color);
+          return (
+            <div
+              class={`tier-card relative flex flex-col items-center gap-3 bg-surface text-center${tier.enabled ? "" : " opacity-60"}`}
+              style={`--tier:${tierColor}${recommendedIndex >= 0 ? `;--depth:${Math.abs(index - recommendedIndex)}` : ""}`}
+              data-recommended={recommendedIndex >= 0 && index === recommendedIndex ? "true" : undefined}
+            >
+              {recommendedIndex >= 0 && index === recommendedIndex && <span class="tier-badge">Recommended</span>}
+              <span class="tier-medal">
+                <span class="tier-medal-face">
+                  {tier.icon ? (
+                    <TierIcon name={tier.icon} className="tier-icon size-10" />
+                  ) : (
+                    <span class="tier-fallback-letter relative text-3xl font-semibold">{tier.name.charAt(0)}</span>
+                  )}
+                </span>
+              </span>
+
+              <h3 class="text-card-title font-normal text-fg">{tier.name}</h3>
+
+              {!tier.enabled && (
+                <p class="tier-notice bg-gold/10 px-2.5 py-1.5 text-body font-medium text-gold">
+                  Currently unavailable{tier.disableReason ? `. ${tier.disableReason}` : ""}
+                </p>
+              )}
+              {tier.description && <p class="w-full text-left text-lg text-fg-muted">{tier.description}</p>}
+              <div class="w-full space-y-1 text-left text-lg text-fg-muted">
+                <p>
+                  <span class="text-fg font-medium">{tier.requestsPerMinute}</span> requests / minute
+                </p>
+                <p>
+                  <span class="text-fg font-medium">{tier.requestsPerDay.toLocaleString()}</span> requests / day
+                </p>
+              </div>
+              {tier.features.length > 0 && (
+                <ul class="pricing-feature-list flex w-full flex-col gap-1.5 text-left text-body">
+                  {tier.features.map((feature) => (
+                    <li class="icon-text-first-line gap-2 text-fg-muted">
+                      <span class="icon-text-first-line__icon">
+                        <TickCircleIcon aria-hidden="true" />
+                      </span>
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {/* The condition a plan carries, rather than something it offers,
+                  so it closes the reading part of the card instead of standing
+                  among the quotas. Set in full strength, because a reader has
+                  to see it before they decide. */}
+              {tier.attributionRequired && (
+                <p class="w-full text-center text-body font-semibold text-fg">Attribution required</p>
+              )}
+
+              <div class="mt-auto flex w-full flex-col items-center gap-3 pt-3">
+                {tier.price ? (
+                  <RollingText>
+                    <Fragment slot="monthly">
+                      <span class="text-3xl font-bold" style={`color:${tierColor}`}>
+                        {formatTierPrice(tier.price)}
+                      </span>
+                      <span class="text-body text-fg-subtle"> / month</span>
+                    </Fragment>
+                    <Fragment slot="yearly">
+                      {tier.priceYearly && <span class="text-body text-fg-subtle">only </span>}
+                      <span class="text-3xl font-bold" style={`color:${tierColor}`}>
+                        {formatTierPrice(tier.priceYearly ?? tier.price)}
+                      </span>
+                      <span class="text-body text-fg-subtle"> / {tier.priceYearly ? "year" : "month"}</span>
+                    </Fragment>
+                  </RollingText>
+                ) : (
+                  <span class="inline-flex items-center gap-1 text-body font-semibold text-accent">
+                    <CoinIcon className="size-5" aria-hidden="true" />
+                    Free
+                  </span>
+                )}
+                {tier.enabled && tier.selfServiceAssignable && (
+                  <a
+                    href={`/signup?tier=${tier.id}`}
+                    class="tier-cta inline-flex w-full justify-center px-5 py-2.5 text-body"
+                  >
+                    <span class="tier-cta-label">{tier.buttonLabel || "I want this"}</span>
+                  </a>
+                )}
+                {tier.enabled && !tier.selfServiceAssignable && (
+                  <p class="text-nav text-fg-subtle text-center">
+                    Not available yet. Signing up puts you on the free plan; paid plans arrive with billing.
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  )
+}
+
+{
+  tiers.length === 0 && (
+    <section class="rounded-card border border-border bg-surface px-7 py-7 mb-8">
+      <h2 class="text-card-title font-medium tracking-tight mb-2">The free plan today</h2>
+      {/* This stands only when the plans could not be read, so it states no
+          figures: any it named would be typed here and would go out of step
+          with the plan the moment either changed. */}
+      <p class="text-body text-fg-muted">
+        The plans could not be loaded just now, so their request limits are not shown. Signing up puts you on the free
+        plan either way. Create a project in{" "}
+        <a href="/dashboard/projects" class="content-link text-fg">
+          your dashboard
+        </a>{" "}
+        and its quota applies from your first call, shared by the registrations under it.
+      </p>
+    </section>
+  )
+}
+
+<script>
+  // Bound to each grid rather than to the document, because a page may hold
+  // more than one and flipping the switch on one must not flip the other.
+  for (const grid of document.querySelectorAll<HTMLElement>("[data-plan-grid]")) {
+    const options = grid.querySelectorAll<HTMLButtonElement>(".billing-option");
+    for (const option of options) {
+      option.addEventListener("click", () => {
+        grid.setAttribute("data-billing", option.dataset.mode === "yearly" ? "yearly" : "monthly");
+        for (const other of options) other.setAttribute("aria-pressed", String(other === option));
+      });
+    }
+  }
+</script>

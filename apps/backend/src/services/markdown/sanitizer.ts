@@ -1,3 +1,4 @@
+import { PLANS_PLACEHOLDER_ATTRIBUTE } from "@musiccloud/shared";
 import { type DefaultTreeAdapterMap, parseFragment, serialize } from "parse5";
 
 type HtmlChild = DefaultTreeAdapterMap["childNode"];
@@ -62,8 +63,8 @@ const ELEMENT_ATTRIBUTES: Readonly<Record<string, ReadonlySet<string>>> = {
   code: new Set(["class"]),
   // A row of cards carries the gap a page asked for. `sanitizeStyle` accepts
   // one property here, `gap`, and only as a plain CSS length, so nothing else
-  // can travel in on a `div`.
-  div: new Set(["style"]),
+  // can travel in on a `div`. The plans marker carries no value at all.
+  div: new Set([PLANS_PLACEHOLDER_ATTRIBUTE, "style"]),
   dl: new Set(["style"]),
   img: new Set(["alt", "height", "src", "width"]),
   input: new Set(["checked", "disabled", "type"]),
@@ -138,6 +139,9 @@ function sanitizedAttributeValue(element: HtmlElement, name: string, value: stri
   if (name === "data-card-padding" || name === "data-card-radius") {
     return CSS_LENGTH_PATTERN.test(value) ? value : null;
   }
+  // The plans marker says where the plans go and nothing more, so whatever a
+  // page wrote after it is dropped and the bare attribute survives.
+  if (name === PLANS_PLACEHOLDER_ATTRIBUTE) return "";
   return value;
 }
 
