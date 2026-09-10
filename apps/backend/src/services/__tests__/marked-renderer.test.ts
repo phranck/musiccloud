@@ -1,4 +1,10 @@
-import { ContentContext, FIELDS_DEFAULT_GAP, FIELDS_DEFAULT_LABEL_WIDTH, PILL_DEFAULT_TONE } from "@musiccloud/shared";
+import {
+  CODE_FENCE_LANGUAGES,
+  ContentContext,
+  FIELDS_DEFAULT_GAP,
+  FIELDS_DEFAULT_LABEL_WIDTH,
+  PILL_DEFAULT_TONE,
+} from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
 import { renderMarkdown } from "../markdown/renderer.js";
 
@@ -60,6 +66,16 @@ describe("marked custom code renderer", () => {
     const out = (await marked.parse("```nonexistent-lang\nplain\n```", { async: true })) as string;
     expect(out).toContain("<pre");
     expect(out).toContain("plain");
+  });
+
+  it.each(CODE_FENCE_LANGUAGES)("actually highlights %s, which the editor's help offers", async (language) => {
+    // The help and the highlighter read one list. A language offered to a
+    // writer that the highlighter never loaded renders as plain text, and
+    // nothing anywhere reports it.
+    const out = (await marked.parse(`\`\`\`${language}\nconst value = 1;\n\`\`\``, { async: true })) as string;
+
+    expect(out).toContain(`class="language-${language}"`);
+    expect(out, language).toMatch(/<span style="color:/);
   });
 
   it("emits data-card-padding when modifier+padding given", async () => {

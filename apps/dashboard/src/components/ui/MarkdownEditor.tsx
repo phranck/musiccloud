@@ -1,4 +1,5 @@
 import {
+  CODE_FENCE_LANGUAGES,
   clampViewportRect,
   moveViewportRect,
   type ResizeHandle,
@@ -10,6 +11,7 @@ import * as React from "react";
 import { createPortal } from "react-dom";
 
 import { ResizeHandles } from "@/shared/ui/ResizeHandles";
+import { ShortcodeList, SiteVariableList } from "./ShortcodeReference";
 
 export interface MarkdownEditorProps {
   id?: string;
@@ -55,32 +57,6 @@ const SHORTCUT_HINTS = [
   { keys: ["⌘", "⇧", "D"], label: "Strike" },
 ] satisfies { keys: string[]; label: string }[];
 
-type PillTone = "alert" | "info" | "neutral" | "success";
-
-const pillToneClasses = {
-  alert: "bg-[var(--ds-danger-bg)] text-[var(--ds-danger-text)]",
-  info: "bg-[var(--ds-bg-elevated)] text-[var(--color-primary)] border border-[var(--ds-border)]",
-  neutral: "bg-[var(--ds-bg-elevated)] text-[var(--ds-text-muted)] border border-[var(--ds-border)]",
-  success: "bg-[var(--ds-success-bg)] text-[var(--ds-success-text)] border border-[var(--ds-success-border)]",
-} satisfies Record<PillTone, string>;
-
-const PILL_HINTS = [
-  { notation: "[[pill:REQ tone=alert]]", tone: "alert", pillLabel: "REQ", description: "Required marker." },
-  { notation: "[[pill:OPT]]", tone: "neutral", pillLabel: "OPT", description: "Neutral marker, default tone." },
-  { notation: "[[pill:Info tone=info]]", tone: "info", pillLabel: "Info", description: "Informational marker." },
-  {
-    notation: "[[pill:done tone=success case=upper]]",
-    tone: "success",
-    pillLabel: "DONE",
-    description: "Success marker with uppercase output.",
-  },
-] satisfies {
-  notation: string;
-  tone: PillTone;
-  pillLabel: string;
-  description: string;
-}[];
-
 const CODE_FENCE_EXAMPLES = [
   {
     label: "Default code block",
@@ -95,7 +71,7 @@ const CODE_FENCE_EXAMPLES = [
   {
     label: "Custom spacing",
     code: "```js recessed padding=1rem radius=12px\nconst value = 1;\n```",
-    description: "padding= and radius= override the default 0.75rem card geometry.",
+    description: "padding= and radius= override what the card geometry would otherwise give the block.",
   },
   {
     label: "Plain text comments",
@@ -108,21 +84,6 @@ const CODE_FENCE_EXAMPLES = [
     description: "Highlights query keys, numbers, |, ?, and # / // comments.",
   },
 ] satisfies { label: string; code: string; description: string }[];
-
-const FIELD_BLOCK_EXAMPLES = [
-  {
-    label: "Dynamic labels",
-    code: ":::fields\ngenre: Genre name or Genre1|Genre2 [[pill:REQ tone=alert]]\ntracks: 1-50, default 10 [[pill:OPT]]\ncount: Applies the same amount to tracks, albums, and artists. [[pill:OPT]]\n:::",
-    description: "The label column uses the widest label and wraps long descriptions from the second column start.",
-  },
-  {
-    label: "Fixed label width",
-    code: ":::fields labelWidth=9ch gap=1.25rem\ngenre: Genre name or Genre1|Genre2 [[pill:REQ tone=alert]]\ntracks: 1-50, default 10 [[pill:OPT]]\n:::",
-    description: "labelWidth accepts auto, px, rem, em, or ch. gap controls the spacing between both columns.",
-  },
-] satisfies { label: string; code: string; description: string }[];
-
-const HIGHLIGHT_LANGUAGES = ["js", "ts", "jsx", "tsx", "python", "swift", "bash", "json", "css", "html", "mc-query"];
 
 interface MarkdownCodeMirrorProps {
   value: string;
@@ -350,28 +311,6 @@ function NotationCode({ children }: { children: string }) {
     <code className="inline-flex items-center justify-center h-[1.25rem] px-1 rounded border border-[var(--ds-border-strong)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-muted)] text-[0.625rem] font-medium font-mono shadow-[0_1px_0_var(--ds-border)] leading-none select-none">
       {children}
     </code>
-  );
-}
-
-function PillPreview({ tone, children }: { tone: PillTone; children: string }) {
-  return (
-    <span
-      className={`inline-flex items-center justify-center h-[1.25rem] px-1.5 rounded text-[0.625rem] font-semibold font-mono tracking-wide leading-none select-none ${pillToneClasses[tone]}`}
-    >
-      {children}
-    </span>
-  );
-}
-
-function NotationHint({ notation, tone, pillLabel }: { notation: string; tone: PillTone; pillLabel: string }) {
-  return (
-    <span className="flex items-center gap-1">
-      <NotationCode>{notation}</NotationCode>
-      <span className="text-[var(--ds-text-subtle)]" aria-hidden>
-        →
-      </span>
-      <PillPreview tone={tone}>{pillLabel}</PillPreview>
-    </span>
   );
 }
 
@@ -670,7 +609,8 @@ function MarkdownHelpWindow({ open, id, onClose }: { open: boolean; id: string; 
             Markdown help
           </h3>
           <p className="mt-1 text-xs leading-snug text-[var(--ds-text-muted)]">
-            Shortcuts, code fences, field blocks, card modifiers, syntax highlighting, pills, and keyboard hints.
+            Keyboard shortcuts, code fences and their card modifiers, every shortcode you can write, and the figures you
+            can name instead of typing.
           </p>
         </div>
         <button
@@ -699,39 +639,25 @@ function MarkdownHelpWindow({ open, id, onClose }: { open: boolean; id: string; 
             ))}
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {HIGHLIGHT_LANGUAGES.map((lang) => (
-              <NotationCode key={lang}>{lang}</NotationCode>
+            {CODE_FENCE_LANGUAGES.map((language) => (
+              <NotationCode key={language}>{language}</NotationCode>
             ))}
           </div>
         </HelpSection>
 
-        <HelpSection title="Field blocks">
-          <div className="space-y-2">
-            {FIELD_BLOCK_EXAMPLES.map((example) => (
-              <HelpExample key={example.label} {...example} />
-            ))}
-          </div>
+        {/* Both lists come from the shared registry, so a shortcode or a
+            variable added there appears here without anybody remembering to
+            write it up a second time. */}
+        <HelpSection title="Shortcodes">
+          <ShortcodeList />
         </HelpSection>
 
-        <HelpSection title="Inline helpers">
-          <div className="space-y-2">
-            {PILL_HINTS.map((hint) => (
-              <div key={hint.notation} className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <NotationHint notation={hint.notation} tone={hint.tone} pillLabel={hint.pillLabel} />
-                <span className="text-[0.6875rem] text-[var(--ds-text-muted)]">{hint.description}</span>
-              </div>
-            ))}
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <NotationCode>{"{{Esc}}"}</NotationCode>
-              <span className="text-[var(--ds-text-subtle)]" aria-hidden>
-                →
-              </span>
-              <Key>Esc</Key>
-              <span className="text-[0.6875rem] text-[var(--ds-text-muted)]">
-                Keyboard-style hints, for example {"{{Cmd+K}}"}.
-              </span>
-            </div>
-          </div>
+        <HelpSection title="Variables">
+          <p className="text-[0.6875rem] leading-snug text-[var(--ds-text-muted)]">
+            A name in single braces is replaced with the figure the system holds, wherever you write it. Anything not
+            listed here stays exactly as you typed it.
+          </p>
+          <SiteVariableList />
         </HelpSection>
       </div>
       <ResizeHandles onResizeStart={startResize} />

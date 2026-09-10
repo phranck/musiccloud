@@ -2,6 +2,7 @@ export * from "./api.js";
 export * from "./artist-profile-cache.js";
 export * from "./audio-format.js";
 export * from "./card-geometry.js";
+export * from "./code-fence-languages.js";
 export * from "./color.js";
 export * from "./content.js";
 export * from "./content-context.js";
