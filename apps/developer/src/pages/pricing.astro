@@ -29,6 +29,7 @@ const signupRequired = Astro.url.searchParams.get("signup") === "required";
       page={result.data}
       active="pricing"
       notice={signupRequired ? "Choose a plan to create your account." : ""}
+      bare
     />
   ) : (
     <BaseLayout

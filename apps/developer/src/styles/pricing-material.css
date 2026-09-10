@@ -3,7 +3,11 @@
 /* Pricing's metallic glass signature, isolated from shared portal recipes.
    Every material value derives from canonical tokens or the validated --tier input. */
 @layer components {
-  .pricing-page {
+  /* The material hangs on the plan grid rather than on a page, because the
+     plans now render wherever `[[plans]]` is written. A page-level selector
+     left every value undefined the first time they stood somewhere else, and
+     the switch and the cards came out unstyled. */
+  [data-plan-grid] {
     --pricing-card-radius: 1.5rem;
     --pricing-card-padding: calc(var(--pricing-card-radius) * 2 / 3);
     --pricing-card-top-padding: 4rem;

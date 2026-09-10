@@ -23,7 +23,7 @@ const account = result.status === "success" ? null : await getDeveloperSession(A
 
 {
   result.status === "success" ? (
-    <EditorialPage page={result.data} active="docs" />
+    <EditorialPage page={result.data} active="docs" bare />
   ) : (
     <BaseLayout
       title="Documentation · musiccloud for developers"

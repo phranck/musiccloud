@@ -178,7 +178,10 @@ function parseFieldsLayout(raw: string): FieldsLayout {
  * @returns The declarations, ready for a `style` attribute.
  */
 function renderFieldsStyle(layout: FieldsLayout): string {
-  if (layout.mode === FieldsLayoutMode.Stacked) return `display:grid;row-gap:${layout.gap};`;
+  // No row gap: stacked, a statement and its sentence belong together whilst
+  // one pair stands apart from the next, and one figure cannot say both. The
+  // stylesheet sets the two, and `gap` is documented as ignored here.
+  if (layout.mode === FieldsLayoutMode.Stacked) return "display:grid;";
   return `display:grid;grid-template-columns:${layout.labelWidth} minmax(0, 1fr);column-gap:${layout.gap};`;
 }
 

@@ -105,7 +105,8 @@ export const FIELDS_SHORTCODE = {
       name: "gap",
       type: ShortcodeParamType.String,
       defaultValue: FIELDS_DEFAULT_GAP,
-      label: "Gap between the labels and their values, as a CSS length",
+      label:
+        "Gap between the labels and their values, as a CSS length. Ignored when stacked, where the spacing follows the reading",
     },
   ],
   tables: [

@@ -53,14 +53,22 @@
   }
 
   /* Stacked: each statement above the sentence explaining it, which is how the
-     pricing page's commitments have always read. The label spans the row rather
-     than sharing it, and the pair below it stays with it. */
+     pricing page's commitments have always read.
+
+     Two gaps, not one. The statement and its sentence belong together, so what
+     separates them is small; what separates one pair from the next is the row
+     gap the list carries. Leaving both to the row gap put as much space inside
+     a pair as between two, and the list read as four unrelated lines. */
   .editorial-markdown .mc-fields--stacked dt {
     margin-block-start: var(--mc-space-4);
   }
 
   .editorial-markdown .mc-fields--stacked dt:first-child {
     margin-block-start: 0;
+  }
+
+  .editorial-markdown .mc-fields--stacked dd {
+    margin-block-start: var(--mc-space-1);
   }
 
   .mc-cards {

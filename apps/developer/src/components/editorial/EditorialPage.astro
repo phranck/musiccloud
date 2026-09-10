@@ -27,9 +27,17 @@ interface Props {
    * does not, such as having arrived here from a signup that needs a plan.
    */
   notice?: string;
+  /**
+   * Whether the page brings its own cards and wants no card around them.
+   *
+   * An editorial page normally sits inside one surface, which is what gives a
+   * wall of prose an edge. A page built from cards already has edges, and a
+   * card around cards reads as a frame nobody drew.
+   */
+  bare?: boolean;
 }
 
-const { page, active, notice = "" } = Astro.props;
+const { page, active, notice = "", bare = false } = Astro.props;
 const account = await getDeveloperSession(Astro);
 const PageIcon = portalPageIcon(page.path);
 ---
@@ -58,11 +66,17 @@ const PageIcon = portalPageIcon(page.path);
       )
     }
 
-    <SurfaceCard data-content-card-style={page.contentCardStyle}>
-      <SurfaceCard.Body>
+    {
+      bare ? (
         <EditorialMarkdown html={page.contentHtml} />
-      </SurfaceCard.Body>
-    </SurfaceCard>
+      ) : (
+        <SurfaceCard data-content-card-style={page.contentCardStyle}>
+          <SurfaceCard.Body>
+            <EditorialMarkdown html={page.contentHtml} />
+          </SurfaceCard.Body>
+        </SurfaceCard>
+      )
+    }
   </main>
 
   <PublicFooter />
