@@ -11,13 +11,22 @@ import { EditorialSegmentKind, splitEditorialSegments } from "@/lib/editorialIsl
 
 interface Props {
   html: string;
+  /**
+   * Whether the page is built from cards rather than being a wall of prose.
+   *
+   * The two differ in more than the card around them. Prose is set at the
+   * editorial reading measure; a built page follows the portal's own
+   * typography, which is what its hand-written version used and what the
+   * components standing in it expect.
+   */
+  plain?: boolean;
 }
 
-const { html } = Astro.props;
+const { html, plain = false } = Astro.props;
 const segments = splitEditorialSegments(html);
 ---
 
-<div class="editorial-markdown text-body text-fg-muted">
+<div class:list={["editorial-markdown text-body", plain ? "editorial-markdown--plain" : "text-fg-muted"]}>
   {
     segments.map((segment) =>
       segment.kind === EditorialSegmentKind.Plans ? (

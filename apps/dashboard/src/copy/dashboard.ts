@@ -524,7 +524,7 @@ export const dashboardCopy = {
       emptyPagesHint: "Create a new page.",
       deletePageTitle: "Delete Page",
       contextRequired: "Select at least one context.",
-      docsReserved: "The complete /docs namespace is system-owned.",
+      docsReserved: "Everything below /docs is built by the portal. The /docs page itself is editable here.",
       contexts: {
         label: "Contexts",
         all: "All",

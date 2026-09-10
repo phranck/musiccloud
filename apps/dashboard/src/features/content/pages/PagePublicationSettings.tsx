@@ -32,7 +32,7 @@ const DEFAULT_LABELS: PagePublicationSettingsLabels = {
   published: "Published",
   hidden: "Hidden",
   markdownInvalid: "Fix cross-context Markdown errors before publishing.",
-  docsReserved: "The complete /docs namespace is system-owned.",
+  docsReserved: "Everything below /docs is built by the portal. The /docs page itself is editable here.",
 };
 
 interface PagePublicationSettingsProps {

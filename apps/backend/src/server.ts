@@ -74,7 +74,6 @@ import sharePreviewRoutes from "./routes/share-preview.js";
 import { siteSettingsAdminRoutes, siteSettingsPublicRoutes } from "./routes/site-settings.js";
 import telemetryAppErrorRoutes from "./routes/telemetry-app-error.js";
 import { OPENAPI_SCHEMAS } from "./schemas/openapi-schemas.js";
-import { ensurePortalPagesExist } from "./services/content/portal-pages.js";
 import { isEmailProviderHealthy } from "./services/email-provider.js";
 import { validateAdapters } from "./services/index.js";
 import { warmAppleMusicToken } from "./services/plugins/apple-music/adapter.js";
@@ -687,13 +686,6 @@ async function start() {
     // as a loud restart loop instead of a silent request-time MC-API-0004.
     assertRequiredBootEnv();
     await runMigrations();
-    // After the schema and before the port: the portal's two entry pages have
-    // to answer from the first request. Only pages that are absent are created,
-    // so an edited one is never touched.
-    const createdPages = await ensurePortalPagesExist();
-    if (createdPages.length > 0) {
-      app.log.info(`Created portal pages that were missing: ${createdPages.join(", ")}`);
-    }
     await app.listen({ host: HOST, port: PORT });
     app.log.info(`Backend listening on ${HOST}:${PORT}`);
     validateAdapters();

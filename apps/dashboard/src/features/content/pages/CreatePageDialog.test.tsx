@@ -45,15 +45,26 @@ describe("CreatePageDialog", () => {
     );
   });
 
-  it("keeps a Developer Portal /docs draft visible but prevents submission", () => {
+  it("lets a Developer Portal page take /docs itself, which is editable copy", () => {
     render(<CreatePageDialog open onClose={vi.fn()} />);
 
     fireEvent.change(screen.getByRole("textbox", { name: "Title" }), { target: { value: "Docs" } });
     fireEvent.click(screen.getByRole("checkbox", { name: "Developer Portal" }));
 
     const createButton = screen.getByRole("button", { name: "Create" }) as HTMLButtonElement;
-    expect(createButton.disabled).toBe(true);
-    expect(screen.getByText("The complete /docs namespace is system-owned.")).toBeTruthy();
+    expect(createButton.disabled).toBe(false);
     expect(screen.getByRole("textbox", { name: "Slug" })).toHaveProperty("value", "docs");
+  });
+
+  it("keeps a Developer Portal draft out of the namespace below /docs", () => {
+    // Everything under `/docs` is the API reference and the search, which the
+    // portal builds. Only the landing page is copy.
+    render(<CreatePageDialog open onClose={vi.fn()} />);
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Title" }), { target: { value: "Docs guide" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Slug" }), { target: { value: "docs/guide" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Developer Portal" }));
+
+    expect((screen.getByRole("button", { name: "Create" }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

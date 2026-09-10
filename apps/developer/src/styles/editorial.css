@@ -18,8 +18,6 @@
 
   .editorial-markdown {
     display: grid;
-    /* `--mc-space-6`, which is what every section on the hand-written portal
-       pages carried under it. */
     gap: var(--mc-space-6);
     color: var(--color-fg-muted);
     font-size: var(--text-body);
@@ -47,16 +45,40 @@
      the `surface-card` component the hand-written pages used. It is a class of
      its own rather than that component because the renderer serves both the
      portal and the site, and each maps `mc-card` onto its own material. */
+  /* A card holds page content, so it lays that content out itself rather than
+     leaving the gaps to the level above. The spacing inside is carried per
+     element, because a heading belongs to what follows it whilst a paragraph
+     stands apart from it, and one gap cannot say both.
+
+     Measured against the sections this replaces. */
   .mc-card {
-    /* A card holds page content, so it lays that content out the way the page
-       does rather than leaving the gaps to the level above. */
     display: grid;
-    /* Measured against the sections this replaces: `--mc-space-7` all round,
-       and `--mc-space-4` between the blocks inside. */
-    gap: var(--mc-space-4);
     border-radius: var(--radius-card);
     padding: var(--mc-space-7);
     background: var(--color-surface);
+  }
+
+  /* A card sharing a row is narrower, so it carries less padding, which is what
+     the two commitment cards on the pricing page always had. */
+  .mc-cards > .mc-card {
+    padding: var(--mc-space-5);
+  }
+
+  .mc-card > * {
+    margin-block-end: var(--mc-space-5);
+  }
+
+  .mc-card > :last-child {
+    margin-block-end: 0;
+  }
+
+  .mc-card > h1:not([class]),
+  .mc-card > h2:not([class]),
+  .mc-card > h3:not([class]),
+  .mc-card > h4:not([class]),
+  .mc-card > h5:not([class]),
+  .mc-card > h6:not([class]) {
+    margin-block-end: var(--mc-space-2);
   }
 
   /* A fields list. The grid itself is set inline by the renderer, because the
@@ -82,6 +104,7 @@
     position: relative;
     margin-block-start: var(--mc-space-4);
     padding-inline-start: calc(var(--mc-size-icon-lg) + var(--mc-space-3));
+    font-weight: 700;
   }
 
   .editorial-markdown .mc-fields--stacked dt:first-child {
@@ -158,6 +181,7 @@
        heavier than anything else on the page. */
     font-weight: 500;
     line-height: var(--mc-editorial-heading-line-height);
+    letter-spacing: -0.025em;
   }
 
   /* A heading inside a page, not the page's own. The page already carries its
@@ -180,10 +204,6 @@
      portal page set it. It is the first thing read and it introduces the rest,
      so it is set larger, and only where it genuinely opens the page. */
   .editorial-markdown > p:not([class]):first-child {
-    /* `--mc-space-6` under it rather than the list's own gap, because a lead
-       introduces the page and then stands back from it. Measured against the
-       page this replaces, which set `mb-10`. */
-    margin-block-end: var(--mc-space-6);
     color: var(--color-fg-muted);
     font-size: var(--text-lead);
   }
@@ -191,7 +211,9 @@
   .editorial-markdown ul:not([class]),
   .editorial-markdown ol:not([class]) {
     display: grid;
-    gap: var(--mc-space-2);
+    /* `--mc-space-4` between entries, which is what the ordered and unordered
+       lists on the pages this replaces carried. */
+    gap: var(--mc-space-4);
     padding-inline-start: var(--mc-space-5);
   }
 
@@ -267,5 +289,68 @@
   .editorial-markdown th:not([class]) {
     color: var(--color-fg);
     background: var(--color-card-chrome);
+  }
+
+  /* ---------------------------------------------------------------------
+     A page built from cards rather than a wall of prose.
+
+     Everything above is the editorial reading style. What follows overrides it
+     for the pages that used to be markup, whose typography is the portal's own:
+     that is what their hand-written version set and what the components
+     standing in them expect. Every value here was measured against those pages
+     rather than chosen.
+
+     Gathered at the end on purpose. These selectors are no more specific than
+     the ones they override, so their position is what decides.
+     --------------------------------------------------------------------- */
+  .editorial-markdown--plain {
+    gap: 0;
+    color: inherit;
+    line-height: var(--mc-line-height-normal);
+  }
+
+  .editorial-markdown--plain > * {
+    margin-block-end: var(--mc-space-6);
+  }
+
+  .editorial-markdown--plain > :last-child {
+    margin-block-end: 0;
+  }
+
+  /* A heading on a built page reads at the same line height as its text, at
+     every level of nesting. */
+  .editorial-markdown--plain h1:not([class]),
+  .editorial-markdown--plain h2:not([class]),
+  .editorial-markdown--plain h3:not([class]),
+  .editorial-markdown--plain h4:not([class]),
+  .editorial-markdown--plain h5:not([class]),
+  .editorial-markdown--plain h6:not([class]) {
+    line-height: var(--mc-line-height-normal);
+  }
+
+  /* The spacing under a heading belongs to the level it stands on: more when it
+     introduces a whole section of the page, less inside a card where it
+     introduces the next paragraph. Direct children only, so this does not reach
+     into a card and override what that card decided. */
+  .editorial-markdown--plain > h1:not([class]),
+  .editorial-markdown--plain > h2:not([class]),
+  .editorial-markdown--plain > h3:not([class]),
+  .editorial-markdown--plain > h4:not([class]),
+  .editorial-markdown--plain > h5:not([class]),
+  .editorial-markdown--plain > h6:not([class]) {
+    margin-block-end: var(--mc-space-5);
+  }
+
+  .editorial-markdown--plain > p:not([class]):first-child {
+    margin-block-end: var(--mc-space-10);
+  }
+
+  /* Copy takes the muted foreground; a heading takes the bright one from its
+     own rule. Set per element rather than on the wrapper, because a component
+     standing in the page has a colour of its own and inherited this otherwise. */
+  .editorial-markdown--plain p:not([class]),
+  .editorial-markdown--plain li:not([class]),
+  .editorial-markdown--plain dd:not([class]) {
+    color: var(--color-fg-muted);
   }
 }

@@ -98,6 +98,7 @@
   --mc-space-6: 1.5rem;
   --mc-space-7: 1.75rem;
   --mc-space-8: 2rem;
+  --mc-space-10: 2.5rem;
   --mc-space-page-inline: 1.5rem;
   --mc-space-page-top: 3rem;
   --mc-space-page-bottom: 5rem;
@@ -133,6 +134,9 @@
   --mc-code-padding-inline: 1rem;
   --mc-code-copy-clearance: 3.5rem;
   --mc-code-line-height: 1.7;
+  /* What a built page reads at, which is the browser's own and what every
+     hand-written portal page used. Editorial prose reads wider, below. */
+  --mc-line-height-normal: 1.5;
   --mc-editorial-line-height: 1.6;
   --mc-editorial-heading-line-height: 1.25;
 

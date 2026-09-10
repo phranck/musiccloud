@@ -68,7 +68,7 @@ const PageIcon = portalPageIcon(page.path);
 
     {
       bare ? (
-        <EditorialMarkdown html={page.contentHtml} />
+        <EditorialMarkdown html={page.contentHtml} plain />
       ) : (
         <SurfaceCard data-content-card-style={page.contentCardStyle}>
           <SurfaceCard.Body>

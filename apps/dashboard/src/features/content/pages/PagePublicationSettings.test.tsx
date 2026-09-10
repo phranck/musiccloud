@@ -96,6 +96,8 @@ describe("PagePublicationSettings", () => {
     );
 
     expect(screen.getByRole("textbox", { name: "Path" })).toHaveProperty("value", "/docs/authentication");
-    expect(screen.getByText("The complete /docs namespace is system-owned.")).toBeTruthy();
+    expect(
+      screen.getByText("Everything below /docs is built by the portal. The /docs page itself is editable here."),
+    ).toBeTruthy();
   });
 });
