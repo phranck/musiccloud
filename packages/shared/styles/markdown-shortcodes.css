@@ -29,12 +29,12 @@
  * box is taller than the letters drawn in it, and aligning boxes leaves the
  * symbol riding high beside the words.
  *
- * Barlow's capitals are 0.7em tall, measured from the OS/2 table and from the
- * drawn outline of H and X, which agree. So the midline sits half of that above
- * the baseline, and `translateY` moves the symbol from where its own bottom
- * rests on that baseline down to it. Stated in em, so it holds at every text
- * size, and as a percentage of the symbol's own height, so it holds at every
- * symbol size without either being written into the markup.
+ * `cap` is that height, in whatever font the symbol stands in, so no surface has
+ * to state a figure and a heading set in a second face is right as well. The
+ * shift moves the symbol from where its own bottom rests on the baseline up onto
+ * the midline: half its own height, less half a cap. A percentage of its own
+ * height, so it holds at every symbol size without that being written into the
+ * markup either.
  *
  * The symbol stays with the first line of its text, which is what an inline box
  * does, so a sentence that wraps still has its symbol beside the words it
@@ -43,17 +43,19 @@
 .mc-icon {
   display: inline-block;
   vertical-align: baseline;
-  transform: translateY(calc(50% - var(--mc-shortcode-cap-height, 0.7em) / 2));
+  transform: translateY(calc(50% - 0.5cap));
   max-width: 100%;
 }
 
 /*
- * Inside a pair the symbol is a flex item and the pair places it, so the shift
- * above does not apply by default. Where the pair places it against a single
- * line rather than against the whole text, the shift comes back further down,
+ * Wherever something else places the symbol, the shift above does not apply: a
+ * pair places its own symbol, and so does a component that borrows this class
+ * for a symbol beside a heading. Where a pair places it against a single line
+ * rather than against the whole text, the shift comes back further down,
  * because that is the same question as a symbol standing in running text.
  */
-.mc-icon-pair > .mc-icon {
+.mc-icon-pair > .mc-icon,
+.page-heading__icon.mc-icon {
   transform: none;
 }
 
@@ -143,7 +145,7 @@
 }
 
 .mc-icon-pair--start > .mc-icon {
-  transform: translateY(calc(100% - var(--mc-shortcode-cap-height, 0.7em)));
+  transform: translateY(calc(100% - 1cap));
 }
 
 /*
