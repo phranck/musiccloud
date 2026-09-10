@@ -62,6 +62,12 @@ The list is sorted by token, which is also the order the reference panel lists t
 
 One notation for all of them, so a writer learns `[[token]]` once. A container carries its content between braces, `[[token { … }]]`, and the two inline forms differ where they have to: a shortcode taking a target writes it after a colon, and `{{Key}}` is short because a single key is not worth more.
 
+Four more are children rather than shortcodes of their own, so each means something inside one container and nothing at the top level of a page: `field` inside a fields list, and `header`, `body` and `footer` inside a card. The registry declares them under their parent, and the editor's reference shows them there.
+
+A card names all three of its parts where it wants a header or a footer, in whatever order suits the writing, and the card decides where each goes. A card that names none of them is all body, which is how most cards are written.
+
+What a container carries in a child rather than in an attribute is always the same thing: content. A label, a header and a footer each take Markdown, run to a sentence or more, and would otherwise have to be quoted into an attribute, escaped, and written without a line break.
+
 Every parameter each one takes is in its declaration and in the reference panel, and is therefore not repeated here. A table of parameters in a document is a second answer to a question the code already answers, and it drifts.
 
 `button`, `card`, `cards` and `plans` are portal-only for two different reasons. A card is drawn by the portal's own stylesheet whilst the site draws its cards as neumorphic primitives, so widening it needs a mapping rather than a rule; #273 carries that. `plans` renders the developer plans, which have no meaning on the music site, and that is a product decision rather than a styling one.

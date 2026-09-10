@@ -111,19 +111,57 @@
     font-size: var(--text-body);
   }
 
-  .mc-card__header {
-    padding-block-end: var(--mc-space-5);
-    border-block-end: 1px solid var(--color-border);
+  /* A card that names its parts is drawn exactly as the API reference draws one:
+     the header and the footer are bands in the card's own chrome that reach its
+     edges, and the content sits between them. The card gives up its padding to
+     the parts, which is also why it clips: a band at the very edge would square
+     off the corner it sits in.
+
+     The figures are the reference's own tokens rather than copies of them, so
+     the two cards cannot drift apart. */
+  .mc-card--sectioned {
+    overflow: hidden;
+    padding: 0;
   }
 
+  .mc-card__header,
   .mc-card__footer {
-    padding-block-start: var(--mc-space-5);
-    border-block-start: 1px solid var(--color-border);
-    color: var(--color-fg-subtle);
+    display: flex;
+    min-height: var(--mc-size-control);
+    align-items: center;
+    gap: var(--space-content-card-row);
+    padding: var(--space-content-card-header);
+    background: var(--color-card-chrome);
   }
 
-  /* Inside either one the content keeps its own rhythm but not its outer
-     margins, which would otherwise add to the air the rule already provides. */
+  /* The content takes the padding the card gave up. */
+  .mc-card__body {
+    padding: var(--mc-space-7);
+  }
+
+  .mc-cards > .mc-card > .mc-card__body {
+    padding: var(--mc-space-5);
+  }
+
+  /* A card is named by a symbol and a title together, as a chapter is in the
+     reference, so the symbol sits inside the header's own inset and the title
+     follows it without a second one. The symbol follows the title's size,
+     because the two are one name. */
+  .mc-card__header-icon {
+    width: 1em;
+    height: 1em;
+    flex: none;
+    margin-inline-start: var(--mc-card-content-inset);
+    color: var(--color-fg);
+    font-size: var(--text-card-title);
+  }
+
+  .mc-card__header > :first-child:not(.mc-card__header-icon) {
+    padding-inline-start: var(--mc-card-content-inset);
+  }
+
+  /* Inside either band the content keeps its own rhythm but not its outer
+     margins, which the band's own padding already provides. */
   .mc-card__header > :first-child,
   .mc-card__footer > :first-child {
     margin-block-start: 0;
@@ -132,6 +170,25 @@
   .mc-card__header > :last-child,
   .mc-card__footer > :last-child {
     margin-block-end: 0;
+  }
+
+  /* The title carries the weight and the rhythm the reference gives it, which
+     is heavier and tighter than a heading standing in the page. The wrapper is
+     named so this outweighs the rule that sets every editorial heading, which
+     stands further down and would otherwise win on order alone. */
+  .editorial-markdown .mc-card__header h1:not([class]),
+  .editorial-markdown .mc-card__header h2:not([class]),
+  .editorial-markdown .mc-card__header h3:not([class]),
+  .editorial-markdown .mc-card__header h4:not([class]) {
+    margin-block-end: 0;
+    font-size: var(--text-card-title);
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  /* A footer runs its own row, so the whole width is available to it. */
+  .mc-card__footer > .mc-stack {
+    width: 100%;
   }
 
   /* A fields list. The grid itself is set inline by the renderer, because the
@@ -145,6 +202,29 @@
   .editorial-markdown .mc-fields dd {
     margin: 0;
     color: var(--color-fg-muted);
+  }
+
+  /* A value is content now rather than a phrase, so it may hold paragraphs. They
+     keep their rhythm inside the entry and give up the margins that would
+     otherwise push the entry off the label beside it. */
+  .editorial-markdown .mc-fields dd > :first-child {
+    margin-block-start: 0;
+  }
+
+  .editorial-markdown .mc-fields dd > :last-child {
+    margin-block-end: 0;
+  }
+
+  /* Where the label is set inside its own column. Trailing lines the two
+     columns up against each other, which reads best where the labels differ a
+     lot in length. Stacked lists ignore it, because there a label starts the
+     line and has no column to sit in. */
+  .editorial-markdown .mc-fields--leading dt {
+    text-align: start;
+  }
+
+  .editorial-markdown .mc-fields--trailing dt {
+    text-align: end;
   }
 
   /* Stacked: each statement above the sentence explaining it, which is how the

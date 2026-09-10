@@ -65,6 +65,92 @@ export const MAX_CONTAINER_SPACING = 200;
 /** How many cards stand side by side when a row names no number. */
 export const DEFAULT_CARD_COLUMNS = 2;
 
+/**
+ * The heading a card carries, and the symbol beside it.
+ *
+ * A child rather than a shortcode of its own, so it means something inside a
+ * card and nothing at the top level of a page.
+ */
+export const CARD_HEADER_SHORTCODE = {
+  token: ShortcodeToken.Header,
+  syntax: ShortcodeSyntax.Bracket,
+  renderMode: ShortcodeRenderMode.Html,
+  target: ShortcodeTargetRule.Forbidden,
+  placement: ShortcodePlacement.Block,
+  label: "Card header",
+  description:
+    "What a card says it is, standing above its content and separated from it. The text is Markdown, so a heading or a sentence both work, and a symbol may stand before it.",
+  examples: ['[[header text="## What you get" icon="task-square"]]'],
+  allowedContextMask: PORTAL_ONLY,
+  params: [
+    {
+      name: "text",
+      type: ShortcodeParamType.String,
+      required: true,
+      label: "What the header reads. Markdown",
+    },
+    {
+      name: "icon",
+      type: ShortcodeParamType.String,
+      defaultLabel: "no symbol, only the text",
+      label: "A symbol before the text, named as the icon shortcode names one",
+    },
+  ],
+} as const satisfies ShortcodeDefinition;
+
+/**
+ * What a card is mostly made of.
+ *
+ * Naming it is what lets the other two stand anywhere in the card: with a body
+ * of its own, the card no longer has to read everything that is not a header or
+ * a footer as content.
+ */
+export const CARD_BODY_SHORTCODE = {
+  token: ShortcodeToken.Body,
+  syntax: ShortcodeSyntax.Bracket,
+  renderMode: ShortcodeRenderMode.Html,
+  target: ShortcodeTargetRule.Forbidden,
+  placement: ShortcodePlacement.Block,
+  body: ShortcodeBodyRule.Markdown,
+  label: "Card body",
+  description:
+    "A card's own content, which is ordinary Markdown. Name it where the card also carries a header or a footer; a card that carries neither needs no body, because all of it is one.",
+  examples: ["[[body {\nOne resolve call, every service it can find.\n}]]"],
+  allowedContextMask: PORTAL_ONLY,
+  params: [],
+} as const satisfies ShortcodeDefinition;
+
+/** What a card closes with, separated from its content as the header is. */
+export const CARD_FOOTER_SHORTCODE = {
+  token: ShortcodeToken.Footer,
+  syntax: ShortcodeSyntax.Bracket,
+  renderMode: ShortcodeRenderMode.Html,
+  target: ShortcodeTargetRule.Forbidden,
+  placement: ShortcodePlacement.Block,
+  body: ShortcodeBodyRule.Markdown,
+  label: "Card footer",
+  description:
+    "What a card closes with, standing below its content and separated from it. Content rather than a sentence, so a row holding a note and a button both fit.",
+  examples: [
+    '[[footer {\n[[hstack spacing=20 {\nEvery plan includes it.\n[[spacer]]\n[[button action="/signup" label="Get an API key" icon="key"]]\n}]]\n}]]',
+  ],
+  allowedContextMask: PORTAL_ONLY,
+  params: [],
+} as const satisfies ShortcodeDefinition;
+
+/** Written out once, because it is both the documentation and the editor's example. */
+const CARD_SECTIONED_EXAMPLE = [
+  "[[card {",
+  '[[header text="## What you get" icon="task-square"]]',
+  "[[body {",
+  "One resolve call, every service it can find.",
+  "}]]",
+  "[[footer {",
+  "Every plan includes it.",
+  "}]]",
+  "}]]",
+].join("\n");
+
 /** Written out once, because it is both the documentation and the editor's example. */
 const CARD_ROW_EXAMPLE = [
   "[[cards columns=2 {",
@@ -98,26 +184,11 @@ export const CARD_SHORTCODE = {
   body: ShortcodeBodyRule.Markdown,
   label: "Card",
   description:
-    "A card, taking the full width of the column it stands in. What you write between the braces is ordinary Markdown: headings, paragraphs, lists, code, any other shortcode, and another card. Put several inside a row to stand them side by side. A header and a footer stand apart from that content, each above and below a rule of its own.",
-  examples: [
-    "[[card {\n## What you get\n\nOne resolve call, every service it can find.\n}]]",
-    '[[card header="## What you get" footer="Every plan includes it." {\nOne resolve call, every service it can find.\n}]]',
-  ],
+    "A card, taking the full width of the column it stands in. What you write between the braces is ordinary Markdown: headings, paragraphs, lists, code, any other shortcode, and another card. Put several inside a row to stand them side by side. Where a card wants a header or a footer, it names all three of its parts as children, in whatever order suits the writing.",
+  examples: ["[[card {\n## What you get\n\nOne resolve call, every service it can find.\n}]]", CARD_SECTIONED_EXAMPLE],
   allowedContextMask: PORTAL_ONLY,
-  params: [
-    {
-      name: "header",
-      type: ShortcodeParamType.String,
-      defaultLabel: "no header, and the content starts at the top of the card",
-      label: "Stands above the content, separated from it. Markdown, so a heading or a sentence both work",
-    },
-    {
-      name: "footer",
-      type: ShortcodeParamType.String,
-      defaultLabel: "no footer",
-      label: "Stands below the content, separated from it. Markdown, as the header is",
-    },
-  ],
+  params: [],
+  children: [CARD_HEADER_SHORTCODE, CARD_BODY_SHORTCODE, CARD_FOOTER_SHORTCODE],
 } as const satisfies ShortcodeDefinition;
 
 /**

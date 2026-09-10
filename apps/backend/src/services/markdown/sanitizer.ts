@@ -96,6 +96,14 @@ const ID_PATTERN = /^[A-Za-z][A-Za-z0-9_:.-]*$/;
 const CSS_LENGTH_PATTERN = /^(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em|ch)$/;
 /** Two whole figures with a solidus between them, which is what an embedded video carries. */
 const ASPECT_RATIO_PATTERN = /^\d{1,3} \/ \d{1,3}$/;
+/**
+ * The two columns of a fields list.
+ *
+ * The first is what the page asked for, which is a length, a percentage, or the
+ * longest label. The second is always the rest, so it is fixed here rather than
+ * being something a page can put anything into.
+ */
+const FIELDS_COLUMNS_PATTERN = /^(?:max-content|(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em|ch|%)) minmax\(0, 1fr\)$/;
 const SAFE_COLOR_PATTERN = /^#[0-9a-f]{3,8}$/i;
 /** The characters a path is drawn from: the commands, the figures, and their separators. */
 const SVG_PATH_PATTERN = /^[MmZzLlHhVvCcSsQqTtAa0-9eE,.\s+-]+$/;
@@ -137,11 +145,7 @@ function sanitizeStyle(value: string): string | null {
     else if (property === "font-style" && (candidate === "italic" || candidate === "normal")) {
       declarations.push(`font-style:${candidate}`);
     } else if (property === "display" && candidate === "grid") declarations.push("display:grid");
-    else if (
-      property === "grid-template-columns" &&
-      (candidate === "max-content minmax(0, 1fr)" ||
-        /^(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em|ch) minmax\(0, 1fr\)$/.test(candidate))
-    ) {
+    else if (property === "grid-template-columns" && FIELDS_COLUMNS_PATTERN.test(candidate)) {
       declarations.push(`grid-template-columns:${candidate}`);
     } else if (property === "column-gap" && CSS_LENGTH_PATTERN.test(candidate)) {
       declarations.push(`column-gap:${candidate}`);

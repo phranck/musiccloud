@@ -6,11 +6,14 @@ import {
   CODE_THEME_NAME,
   ContentContext,
   type ContentContextMask,
+  FIELD_SHORTCODE,
   FIELDS_AUTO_LABEL_WIDTH,
+  FIELDS_DEFAULT_ALIGNMENT,
   FIELDS_DEFAULT_GAP,
   FIELDS_DEFAULT_LABEL_WIDTH,
   FIELDS_DEFAULT_LAYOUT,
   FIELDS_SHORTCODE,
+  type FieldsAlignmentValue,
   FieldsLayoutMode,
   type FieldsLayoutModeValue,
   HSTACK_SHORTCODE,
@@ -29,6 +32,7 @@ import {
   type ShortcodeParamValue,
   type SingleContentContext,
   SPACER_SHORTCODE,
+  tokenizeShortcodes,
   VSTACK_SHORTCODE,
   YOUTUBE_SHORTCODE,
 } from "@musiccloud/shared";
@@ -58,10 +62,13 @@ interface FieldsLayout {
   mode: FieldsLayoutModeValue;
   labelWidth: string;
   gap: string;
+  align: FieldsAlignmentValue;
 }
 
 interface McFieldsRow {
-  label: string;
+  /** The entry's name, already lexed. Markdown, so it may carry code or a link. */
+  labelTokens: Token[];
+  /** What stands beside it, already lexed. */
   tokens: Token[];
 }
 
@@ -174,17 +181,34 @@ function readShortcode(
  * @param raw - The fence's source, as marked matched it.
  * @returns The two column measurements.
  */
+/**
+ * The width of the label column, as CSS.
+ *
+ * A page writes a bare figure for pixels, a quoted percentage for a share of
+ * the list, or a CSS length. Anything else falls back to the declared default,
+ * because this value is interpolated into inline CSS.
+ *
+ * @param written - What the page wrote, or `undefined`.
+ * @returns A value that is safe to put in `grid-template-columns`.
+ */
+function resolveLabelWidth(written: ShortcodeParamValue | undefined): string {
+  const value = String(written ?? FIELDS_DEFAULT_LABEL_WIDTH).trim();
+  if (value === FIELDS_AUTO_LABEL_WIDTH || value === FIELDS_DEFAULT_LABEL_WIDTH) return FIELDS_DEFAULT_LABEL_WIDTH;
+  if (/^\d{1,4}$/.test(value)) return `${value}px`;
+  if (/^\d{1,3}(?:\.\d+)?%$/.test(value)) return value;
+  return isSafeCssLength(value) ? value : FIELDS_DEFAULT_LABEL_WIDTH;
+}
+
 function parseFieldsLayout(raw: string): FieldsLayout {
   const { params } = readShortcode(raw, FIELDS_SHORTCODE);
-  const labelWidth = String(params.labelWidth ?? FIELDS_DEFAULT_LABEL_WIDTH);
   const gap = String(params.gap ?? FIELDS_DEFAULT_GAP);
 
   return {
-    // Already checked against the values the registry declares, so this is one
-    // of them and the cast states that rather than deciding it.
+    // Already checked against the values the registry declares, so these are
+    // among them and the cast states that rather than deciding it.
     mode: (params.layout ?? FIELDS_DEFAULT_LAYOUT) as FieldsLayoutModeValue,
-    labelWidth:
-      labelWidth === FIELDS_AUTO_LABEL_WIDTH || !isSafeCssLength(labelWidth) ? FIELDS_DEFAULT_LABEL_WIDTH : labelWidth,
+    align: (params.align ?? FIELDS_DEFAULT_ALIGNMENT) as FieldsAlignmentValue,
+    labelWidth: resolveLabelWidth(params.width),
     gap: isSafeCssLength(gap) ? gap : FIELDS_DEFAULT_GAP,
   };
 }
@@ -307,25 +331,42 @@ function applyPillCase(text: string, textCase: PillCase): string {
 }
 
 /**
- * Reads a fields list, if one begins here.
+ * Reads a fields list and its entries, if one begins here.
  *
- * The rows are lines of `Label: value`, and the value is inline Markdown, so a
- * link or a piece of code works there. A line without a colon is not a row and
- * is dropped rather than guessed at.
+ * Each entry is a `[[field]]`, which is a child rather than a shortcode of its
+ * own: it means something inside a list and nothing at the top level of a page.
+ * Both halves of an entry are Markdown, which is why they are read as source
+ * here and lexed by the caller rather than being split out of a line.
  *
  * @param source - What marked is offering, from the current position.
- * @returns The raw source, the rows still to be lexed, and the resolved layout,
- *   or `null` when no fields list begins here.
+ * @param lexer - The lexer reading the document this list sits in.
+ * @returns The raw source, the entries, and the resolved layout, or `null` when
+ *   no fields list begins here.
  */
-function readFieldsSource(source: string): { raw: string; rows: string[]; layout: FieldsLayout } | null {
+function readFieldsSource(
+  source: string,
+  lexer: { inline(text: string): unknown; blockTokens(text: string): unknown },
+): { raw: string; rows: McFieldsRow[]; layout: FieldsLayout } | null {
   const node = readShortcodeAt(source, 0);
   if (!node || node.token !== FIELDS_SHORTCODE.token || node.body === undefined) return null;
 
-  return {
-    raw: node.source.raw,
-    rows: node.body.split(/\r?\n/),
-    layout: parseFieldsLayout(node.source.raw),
-  };
+  const rows: McFieldsRow[] = [];
+  for (const child of tokenizeShortcodes(node.body)) {
+    if (child.token !== FIELD_SHORTCODE.token) continue;
+
+    const [parsed] = parseShortcodes(child.source.raw, [FIELD_SHORTCODE]);
+    const label = typeof parsed?.params.label === "string" ? parsed.params.label.trim() : "";
+    if (!label) continue;
+
+    rows.push({
+      // A label is a phrase, so it is lexed inline: a heading in one would
+      // break the definition list it sits in.
+      labelTokens: lexer.inline(label) as Token[],
+      tokens: lexer.blockTokens((child.body ?? "").trim()) as Token[],
+    });
+  }
+
+  return { raw: node.source.raw, rows, layout: parseFieldsLayout(node.source.raw) };
 }
 
 const mcFieldsExtension: MarkedExtension = {
@@ -337,27 +378,13 @@ const mcFieldsExtension: MarkedExtension = {
         return source.match(/\[\[fields[\s{]/)?.index;
       },
       tokenizer(source) {
-        const read = readFieldsSource(source);
+        const read = readFieldsSource(source, this.lexer);
         if (!read) return;
-
-        const rows = read.rows
-          .map((line): McFieldsRow | null => {
-            const row = line.match(/^\s*([^:]+):\s*(.*)$/);
-            if (!row) return null;
-            const label = row[1].trim();
-            const value = row[2].trim();
-            if (!label) return null;
-            return {
-              label,
-              tokens: this.lexer.inline(value) as Token[],
-            };
-          })
-          .filter((row): row is McFieldsRow => row !== null);
 
         return {
           type: "mcFields",
           raw: read.raw,
-          rows,
+          rows: read.rows,
           layout: read.layout,
         } satisfies McFieldsToken;
       },
@@ -369,14 +396,16 @@ const mcFieldsExtension: MarkedExtension = {
         const labelSuffix = fields.layout.mode === FieldsLayoutMode.Stacked ? "" : ":";
         const rows = fields.rows
           .map((row) => {
-            const label = escapeHtml(row.label);
-            const content = this.parser.parseInline(row.tokens);
+            const label = this.parser.parseInline(row.labelTokens);
+            const content = this.parser.parse(row.tokens);
             return `<dt>${label}${labelSuffix}</dt><dd>${content}</dd>`;
           })
           .join("");
-        const layoutClass = `mc-fields--${fields.layout.mode}`;
+        const classes = ["mc-fields", `mc-fields--${fields.layout.mode}`, `mc-fields--${fields.layout.align}`].join(
+          " ",
+        );
         const style = escapeHtmlAttribute(renderFieldsStyle(fields.layout));
-        return `<dl class="mc-fields ${layoutClass}" style="${style}">${rows}</dl>\n`;
+        return `<dl class="${classes}" style="${style}">${rows}</dl>\n`;
       },
     },
   ],
@@ -453,7 +482,7 @@ export const MARKDOWN_EXTENSION_DEFINITIONS: readonly MarkdownExtensionDefinitio
   {
     name: "mcCard",
     allowedContextMask: CARD_SHORTCODE.allowedContextMask,
-    createMarkedExtension: createCardExtension,
+    createMarkedExtension: (context) => createCardExtension(context),
     tokenTypes: ["mcCard", "mcCardRow"],
   },
   {

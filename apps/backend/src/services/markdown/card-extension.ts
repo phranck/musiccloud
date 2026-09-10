@@ -14,14 +14,21 @@
  */
 
 import {
+  CARD_BODY_SHORTCODE,
+  CARD_FOOTER_SHORTCODE,
+  CARD_HEADER_SHORTCODE,
   CARD_ROW_SHORTCODE,
   CARD_SHORTCODE,
+  ICON_DEFAULT_SIZE,
   parseShortcodes,
   readShortcodeAt,
   type ShortcodeParamValue,
+  type SingleContentContext,
+  tokenizeShortcodes,
 } from "@musiccloud/shared";
 import type { MarkedExtension, Token, Tokens } from "marked";
 import { insideContainer, isAtContainerLimit, resolveContainerSpacing } from "./containers.js";
+import { iconSetFor, renderSymbol } from "./icon-extension.js";
 
 /** The class the stylesheet gives one card. */
 const CARD_CLASS = "mc-card";
@@ -32,14 +39,55 @@ const CARD_HEADER_CLASS = "mc-card__header";
 /** The class the stylesheet gives what stands below it. */
 const CARD_FOOTER_CLASS = "mc-card__footer";
 
+/**
+ * The class a sectioned card's own content carries.
+ *
+ * A card with a header or a footer draws each as a band that reaches the card's
+ * edges, so the card itself carries no padding and the content needs an element
+ * of its own to carry it. A card written in the short form has no bands and
+ * keeps its own padding, so its content needs nothing.
+ */
+const CARD_BODY_CLASS = "mc-card__body";
+
 /** The class the stylesheet gives a row of them. */
 const CARD_ROW_CLASS = "mc-cards";
+
+/** The class a header's own symbol carries. */
+const CARD_HEADER_ICON_CLASS = "mc-card__header-icon";
+
+/** The three parts a card may be written in, by the token each is named with. */
+const SECTION_TOKENS = new Set<string>([
+  CARD_HEADER_SHORTCODE.token,
+  CARD_BODY_SHORTCODE.token,
+  CARD_FOOTER_SHORTCODE.token,
+]);
+
+/**
+ * What a card is made of, once its body has been read.
+ *
+ * @property header - The header's text as source, or `null` where there is none.
+ * @property headerIcon - The symbol beside it, already drawn.
+ * @property body - The card's own content as source.
+ * @property footer - What it closes with, as source.
+ */
+interface CardSections {
+  /** Whether the card names its parts, which decides how it is drawn. */
+  sectioned: boolean;
+  header: string | null;
+  headerIcon: string | null;
+  body: string;
+  footer: string | null;
+}
 
 interface McCardToken extends Tokens.Generic {
   type: "mcCard";
   tokens: Token[];
+  /** Whether the card is written in its three parts rather than as one body. */
+  sectioned: boolean;
   /** What stands above the content, already lexed, or `null` where nothing does. */
   headerTokens: Token[] | null;
+  /** The symbol beside the header, already drawn. */
+  headerIcon: string | null;
   /** What stands below it. */
   footerTokens: Token[] | null;
 }
@@ -77,26 +125,66 @@ function readCardSource(
 }
 
 /**
+ * Reads a card's body into the three parts it may be written in.
+ *
+ * A card that names none of them is all body, which is the short form and the
+ * one most cards are written in. A card that names any of them is read as
+ * sections, and the order they stand in on the page decides nothing: the card
+ * knows where each goes.
+ *
+ * @param body - What stood between the card's braces.
+ * @param context - Which surface this renders for, which decides the icon set.
+ * @returns The parts, with the body empty where a sectioned card names none.
+ */
+function readCardSections(body: string, context: SingleContentContext): CardSections {
+  const nodes = tokenizeShortcodes(body).filter((node) => SECTION_TOKENS.has(node.token));
+  if (nodes.length === 0) return { sectioned: false, header: null, headerIcon: null, body, footer: null };
+
+  const sections: CardSections = { sectioned: true, header: null, headerIcon: null, body: "", footer: null };
+
+  for (const node of nodes) {
+    if (node.token === CARD_BODY_SHORTCODE.token) {
+      sections.body = node.body ?? "";
+      continue;
+    }
+    if (node.token === CARD_FOOTER_SHORTCODE.token) {
+      sections.footer = node.body ?? "";
+      continue;
+    }
+
+    const [parsed] = parseShortcodes(node.source.raw, [CARD_HEADER_SHORTCODE]);
+    const text = typeof parsed?.params.text === "string" ? parsed.params.text.trim() : "";
+    if (!text) continue;
+
+    sections.header = text;
+    const icon = typeof parsed?.params.icon === "string" ? parsed.params.icon.trim() : "";
+    sections.headerIcon = icon
+      ? renderSymbol(iconSetFor(context), icon, ICON_DEFAULT_SIZE, "currentColor", CARD_HEADER_ICON_CLASS)
+      : null;
+  }
+
+  return sections;
+}
+
+/**
  * Lexes a header or a footer, where the page wrote one.
  *
  * @param lexer - The lexer reading the document this card sits in.
  * @param value - What the parameter held.
  * @returns The tokens, or `null` where the page wrote nothing.
  */
-function lexPart(
-  lexer: { blockTokens(source: string): unknown },
-  value: ShortcodeParamValue | undefined,
-): Token[] | null {
-  if (typeof value !== "string" || value.trim() === "") return null;
+function lexPart(lexer: { blockTokens(source: string): unknown }, value: string | null): Token[] | null {
+  if (value === null || value.trim() === "") return null;
   return lexer.blockTokens(value.trim()) as Token[];
 }
 
 /**
  * The card shortcode as a marked extension.
  *
+ * @param context - Which surface it renders for, which a header's symbol needs.
  * @returns The extension, ready to register.
  */
-export function createCardExtension(): MarkedExtension {
+export function createCardExtension(context: SingleContentContext): MarkedExtension {
   return {
     extensions: [
       {
@@ -114,28 +202,33 @@ export function createCardExtension(): MarkedExtension {
           // plain card instead would hide a document that nests without end.
           if (isAtContainerLimit()) return;
 
-          return insideContainer(
-            () =>
-              ({
-                type: "mcCard",
-                raw: read.raw,
-                tokens: this.lexer.blockTokens(read.body) as Token[],
-                // Lexed as blocks, because a header is usually a heading and a
-                // heading written into a line of inline tokens is text.
-                headerTokens: lexPart(this.lexer, read.params.header),
-                footerTokens: lexPart(this.lexer, read.params.footer),
-              }) satisfies McCardToken,
-          );
+          return insideContainer(() => {
+            const sections = readCardSections(read.body, context);
+            return {
+              type: "mcCard",
+              raw: read.raw,
+              sectioned: sections.sectioned,
+              tokens: this.lexer.blockTokens(sections.body) as Token[],
+              // Lexed as blocks, because a header is usually a heading and a
+              // heading written into a line of inline tokens is text.
+              headerTokens: lexPart(this.lexer, sections.header),
+              headerIcon: sections.headerIcon,
+              footerTokens: lexPart(this.lexer, sections.footer),
+            } satisfies McCardToken;
+          });
         },
         renderer(token) {
           const card = token as McCardToken;
           const header = card.headerTokens
-            ? `<div class="${CARD_HEADER_CLASS}">${this.parser.parse(card.headerTokens)}</div>`
+            ? `<div class="${CARD_HEADER_CLASS}">${card.headerIcon ?? ""}${this.parser.parse(card.headerTokens)}</div>`
             : "";
           const footer = card.footerTokens
             ? `<div class="${CARD_FOOTER_CLASS}">${this.parser.parse(card.footerTokens)}</div>`
             : "";
-          return `<div class="${CARD_CLASS}">${header}${this.parser.parse(card.tokens)}${footer}</div>\n`;
+          const content = this.parser.parse(card.tokens);
+          const body = card.sectioned ? `<div class="${CARD_BODY_CLASS}">${content}</div>` : content;
+          const sectionedClass = card.sectioned ? ` ${CARD_CLASS}--sectioned` : "";
+          return `<div class="${CARD_CLASS}${sectionedClass}">${header}${body}${footer}</div>\n`;
         },
       },
       {

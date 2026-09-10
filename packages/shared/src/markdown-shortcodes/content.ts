@@ -50,18 +50,70 @@ export type FieldsLayoutModeValue = (typeof FieldsLayoutMode)[keyof typeof Field
 /** How a fields list is arranged when it says nothing. */
 export const FIELDS_DEFAULT_LAYOUT = FieldsLayoutMode.Columns;
 
+/** How the label is set inside the column it stands in. */
+export const FieldsAlignment = {
+  /** Against the edge the text starts at, which is where a label is read from. */
+  Leading: "leading",
+  /** Against the values, which lines the two columns up where labels differ in length. */
+  Trailing: "trailing",
+} as const;
+
+/** One of the alignments in {@link FieldsAlignment}. */
+export type FieldsAlignmentValue = (typeof FieldsAlignment)[keyof typeof FieldsAlignment];
+
+/** How a label is set when the list says nothing. */
+export const FIELDS_DEFAULT_ALIGNMENT = FieldsAlignment.Leading;
+
 /** The tone a pill takes when none is named. */
 export const PILL_DEFAULT_TONE = "neutral";
 
 /** How a pill's text is cased when nothing says otherwise. */
 export const PILL_DEFAULT_CASE = "none";
 
+/**
+ * One entry of a fields list: a label, and what stands beside it.
+ *
+ * A child rather than a shortcode of its own, so it means something inside a
+ * fields list and nothing at the top level of a page.
+ *
+ * Both halves are Markdown, which is the whole reason this is a container
+ * rather than an attribute: a label may carry a link or a piece of code, and a
+ * value may run to several sentences.
+ */
+export const FIELD_SHORTCODE = {
+  token: ShortcodeToken.Field,
+  syntax: ShortcodeSyntax.Bracket,
+  renderMode: ShortcodeRenderMode.Html,
+  target: ShortcodeTargetRule.Forbidden,
+  placement: ShortcodePlacement.Block,
+  body: ShortcodeBodyRule.Markdown,
+  label: "Field",
+  description:
+    "One entry of a fields list: the label, and between the braces what stands beside it. Both are Markdown, so a label may carry a piece of code and a value may run to more than a sentence.",
+  examples: ['[[field label="Method" {\n`GET`\n}]]'],
+  allowedContextMask: EVERY_CONTENT_CONTEXT,
+  params: [
+    {
+      name: "label",
+      type: ShortcodeParamType.String,
+      required: true,
+      label: "What the entry is called. Markdown",
+    },
+  ],
+} as const satisfies ShortcodeDefinition;
+
 /** Written out once, because it is both the documentation and the editor's example. */
 const FIELDS_EXAMPLE = [
   "[[fields {",
-  "Method: `GET`",
-  "Path: `/api/v1/resolve`",
-  "Authentication: Registration key",
+  '[[field label="Method" {',
+  "`GET`",
+  "}]]",
+  '[[field label="Path" {',
+  "`/api/v1/resolve`",
+  "}]]",
+  '[[field label="Authentication" {',
+  "Registration key",
+  "}]]",
   "}]]",
 ].join("\n");
 
@@ -80,11 +132,11 @@ export const FIELDS_SHORTCODE = {
   body: ShortcodeBodyRule.Markdown,
   label: "Fields",
   description:
-    "A list of labels and the values beside them, as you would document an endpoint. Each line is written as `Label: value`, and the value is ordinary Markdown, so a link or a piece of code works there. The labels line up in a column of their own.",
+    "A list of labels and the values beside them, as you would document an endpoint. Each entry is a field, and both its halves are Markdown. The labels line up in a column of their own, whose width and alignment the list decides.",
   examples: [
     FIELDS_EXAMPLE,
-    '[[fields labelWidth="8rem" gap="2rem" {\nName: musiccloud\nLicence: MIT\n}]]',
-    '[[fields layout="stacked" {\nThe free plan stays free: Paid plans will add capacity. They won\'t take away what you have today.\n}]]',
+    '[[fields width=160 align="trailing" {\n[[field label="Name" {\nmusiccloud\n}]]\n[[field label="Licence" {\nMIT\n}]]\n}]]',
+    '[[fields layout="stacked" {\n[[field label="The free plan stays free" {\nPaid plans will add capacity. They will not take away what you have today.\n}]]\n}]]',
   ],
   allowedContextMask: EVERY_CONTENT_CONTEXT,
   params: [
@@ -96,10 +148,18 @@ export const FIELDS_SHORTCODE = {
       label: "Whether each value stands beside its label or underneath it",
     },
     {
-      name: "labelWidth",
+      name: "width",
+      aliases: ["labelWidth"],
       type: ShortcodeParamType.String,
       defaultValue: FIELDS_DEFAULT_LABEL_WIDTH,
-      label: `Width of the label column, as a CSS length. "${FIELDS_AUTO_LABEL_WIDTH}" is the default written out. Ignored when stacked`,
+      label: `Width of the label column: a bare figure is pixels, and a quoted "20%" is a share of the list. "${FIELDS_AUTO_LABEL_WIDTH}" sets it to the longest label, which is the default. Ignored when stacked`,
+    },
+    {
+      name: "align",
+      type: ShortcodeParamType.Enum,
+      values: Object.values(FieldsAlignment),
+      defaultValue: FIELDS_DEFAULT_ALIGNMENT,
+      label: "How the label is set inside its column. Ignored when stacked, where a label starts the line",
     },
     {
       name: "gap",
@@ -109,6 +169,7 @@ export const FIELDS_SHORTCODE = {
         "Gap between the labels and their values, as a CSS length. Ignored when stacked, where the spacing follows the reading",
     },
   ],
+  children: [FIELD_SHORTCODE],
   tables: [
     {
       caption: "layout: how a list reads",
