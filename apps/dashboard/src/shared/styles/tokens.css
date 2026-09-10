@@ -230,6 +230,10 @@
 :root {
   /* Overlay / modal backdrop */
   --ds-overlay-bg: oklch(0 0 0 / 0.5);
+  /* What a panel that floats over the page sits at. Stated once, because a
+     second floating surface written with a number of its own is the start of
+     two of them arguing about which is on top. */
+  --ds-overlay-z-dialog: 2000;
 
   /* Filled button */
   --ds-btn-filled-bg: var(--ds-color-neutral-700);
