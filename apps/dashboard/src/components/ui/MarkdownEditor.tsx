@@ -1,29 +1,15 @@
 import type { DecorationSet, ViewUpdate } from "@codemirror/view";
 import {
-  CODE_FENCE_LANGUAGES,
-  clampViewportRect,
   highlightShortcodes,
-  moveViewportRect,
-  type ResizeHandle,
-  resizeViewportRect,
   type ShortcodeHighlightKind,
   type ShortcodePasteRewrite,
   shortcodeIndentFor,
   shortcodePasteRewrite,
-  type ViewportRect,
 } from "@musiccloud/shared";
-import {
-  BracketsSquareIcon,
-  DotOutlineIcon,
-  ListNumbersIcon,
-  TextAlignJustifyIcon,
-  X as XIcon,
-} from "@phosphor-icons/react";
+import { BracketsSquareIcon, DotOutlineIcon, ListNumbersIcon, TextAlignJustifyIcon } from "@phosphor-icons/react";
 import * as React from "react";
-import { createPortal } from "react-dom";
 
-import { ResizeHandles } from "@/shared/ui/ResizeHandles";
-import { ShortcodeList, SiteVariableList } from "./ShortcodeReference";
+import { ShortcodeReferencePanel } from "./ShortcodeReferencePanel";
 
 export interface MarkdownEditorProps {
   id?: string;
@@ -68,34 +54,6 @@ const SHORTCUT_HINTS = [
   { keys: ["⌘", "K"], label: "Link" },
   { keys: ["⌘", "⇧", "D"], label: "Strike" },
 ] satisfies { keys: string[]; label: string }[];
-
-const CODE_FENCE_EXAMPLES = [
-  {
-    label: "Default code block",
-    code: "```js\nconst value = 1;\n```",
-    description: "Renders as a recessed card with syntax highlighting.",
-  },
-  {
-    label: "Explicit recessed / embossed",
-    code: "```js recessed\nconst value = 1;\n```\n\n```js embossed\nconst value = 1;\n```",
-    description: "Use the modifier after the language to choose the card surface.",
-  },
-  {
-    label: "Custom spacing",
-    code: "```js recessed padding=1rem radius=12px\nconst value = 1;\n```",
-    description: "padding= and radius= override what the card geometry would otherwise give the block.",
-  },
-  {
-    label: "Plain text comments",
-    code: "```text\n# comment\n// note\nplain line\n```",
-    description: "# and // at the start of a text line render as muted italic comments.",
-  },
-  {
-    label: "musiccloud query",
-    code: "```mc-query\ngenre: jazz | soul\ntracks: 20\n# internal note\n```",
-    description: "Highlights query keys, numbers, |, ?, and # / // comments.",
-  },
-] satisfies { label: string; code: string; description: string }[];
 
 interface MarkdownCodeMirrorProps {
   value: string;
@@ -653,14 +611,6 @@ function Key({ children }: { children: string }) {
   );
 }
 
-function NotationCode({ children }: { children: string }) {
-  return (
-    <code className="inline-flex items-center justify-center h-[1.25rem] px-1 rounded border border-[var(--ds-border-strong)] bg-[var(--ds-bg-elevated)] text-[var(--ds-text-muted)] text-[0.625rem] font-medium font-mono shadow-[0_1px_0_var(--ds-border)] leading-none select-none">
-      {children}
-    </code>
-  );
-}
-
 function Hint({ keys, label }: { keys: string[]; label: string }) {
   return (
     <span className="flex items-center gap-0.5">
@@ -669,347 +619,6 @@ function Hint({ keys, label }: { keys: string[]; label: string }) {
       ))}
       <span className="ml-0.5 text-[var(--ds-text-muted)]">{label}</span>
     </span>
-  );
-}
-
-function HelpSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="space-y-2">
-      <h4 className="text-[0.6875rem] font-semibold uppercase tracking-wide text-[var(--ds-text)]">{title}</h4>
-      {children}
-    </section>
-  );
-}
-
-function HelpExample({ label, code, description }: { label: string; code: string; description: string }) {
-  return (
-    <article className="rounded-control border border-[var(--ds-border)] bg-[var(--ds-surface)] p-2.5">
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <h5 className="text-xs font-medium text-[var(--ds-text)]">{label}</h5>
-      </div>
-      <pre className="overflow-x-auto rounded bg-[var(--ds-input-bg)] px-2 py-1.5 text-[0.6875rem] leading-relaxed text-[var(--ds-text)]">
-        <code>{code}</code>
-      </pre>
-      <p className="mt-1.5 text-[0.6875rem] leading-snug text-[var(--ds-text-muted)]">{description}</p>
-    </article>
-  );
-}
-
-interface HelpWindowLayout {
-  top: number;
-  left: number;
-  width: number;
-  height: number;
-}
-
-const HelpWindowInteractionType = {
-  Move: "move",
-  Resize: "resize",
-} as const;
-
-const HelpWindowResizeHandle = {
-  Southeast: "se",
-} as const;
-
-interface HelpWindowPointerState {
-  type: (typeof HelpWindowInteractionType)[keyof typeof HelpWindowInteractionType];
-  handle?: ResizeHandle;
-  pointerId: number;
-  startX: number;
-  startY: number;
-  startLayout: HelpWindowLayout;
-  captureTarget: HTMLElement;
-}
-
-const HELP_WINDOW_STORAGE_KEY = "musiccloud.markdownHelpWindow";
-const HELP_WINDOW_DEFAULT_WIDTH = 512;
-const HELP_WINDOW_DEFAULT_HEIGHT = 560;
-const HELP_WINDOW_MIN_WIDTH = 360;
-const HELP_WINDOW_MIN_HEIGHT = 320;
-const HELP_WINDOW_MARGIN = 16;
-const HELP_WINDOW_SMALL_SCREEN_MIN_WIDTH = 240;
-const HELP_WINDOW_SMALL_SCREEN_MIN_HEIGHT = 220;
-
-function getHelpWindowBounds() {
-  const viewportWidth = window.innerWidth - HELP_WINDOW_MARGIN * 2;
-  const viewportHeight = window.innerHeight - HELP_WINDOW_MARGIN * 2;
-  const minWidth = Math.min(HELP_WINDOW_MIN_WIDTH, Math.max(HELP_WINDOW_SMALL_SCREEN_MIN_WIDTH, viewportWidth));
-  const minHeight = Math.min(HELP_WINDOW_MIN_HEIGHT, Math.max(HELP_WINDOW_SMALL_SCREEN_MIN_HEIGHT, viewportHeight));
-
-  return {
-    minWidth,
-    minHeight,
-    maxWidth: Math.max(minWidth, viewportWidth),
-    maxHeight: Math.max(minHeight, viewportHeight),
-  };
-}
-
-function getHelpWindowConstraints() {
-  return {
-    viewportWidth: window.innerWidth,
-    viewportHeight: window.innerHeight,
-    minWidth: getHelpWindowBounds().minWidth,
-    minHeight: getHelpWindowBounds().minHeight,
-    margin: HELP_WINDOW_MARGIN,
-  };
-}
-
-function helpLayoutToRect(layout: HelpWindowLayout): ViewportRect {
-  return {
-    x: layout.left,
-    y: layout.top,
-    width: layout.width,
-    height: layout.height,
-  };
-}
-
-function rectToHelpLayout(rect: ViewportRect): HelpWindowLayout {
-  return {
-    top: rect.y,
-    left: rect.x,
-    width: rect.width,
-    height: rect.height,
-  };
-}
-
-function clampHelpWindowLayout(layout: HelpWindowLayout): HelpWindowLayout {
-  return rectToHelpLayout(clampViewportRect(helpLayoutToRect(layout), getHelpWindowConstraints()));
-}
-
-function getCenteredHelpWindowLayout(): HelpWindowLayout {
-  const bounds = getHelpWindowBounds();
-  const width = Math.min(HELP_WINDOW_DEFAULT_WIDTH, bounds.maxWidth);
-  const height = Math.min(HELP_WINDOW_DEFAULT_HEIGHT, bounds.maxHeight);
-
-  return clampHelpWindowLayout({
-    top: (window.innerHeight - height) / 2,
-    left: (window.innerWidth - width) / 2,
-    width,
-    height,
-  });
-}
-
-function isStoredHelpWindowLayout(value: unknown): value is HelpWindowLayout {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<Record<keyof HelpWindowLayout, unknown>>;
-  return (
-    typeof candidate.top === "number" &&
-    typeof candidate.left === "number" &&
-    typeof candidate.width === "number" &&
-    typeof candidate.height === "number"
-  );
-}
-
-function readStoredHelpWindowLayout(): HelpWindowLayout | null {
-  try {
-    const raw = localStorage.getItem(HELP_WINDOW_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed: unknown = JSON.parse(raw);
-    return isStoredHelpWindowLayout(parsed) ? clampHelpWindowLayout(parsed) : null;
-  } catch {
-    return null;
-  }
-}
-
-function persistHelpWindowLayout(layout: HelpWindowLayout) {
-  try {
-    localStorage.setItem(HELP_WINDOW_STORAGE_KEY, JSON.stringify(layout));
-  } catch {
-    // Persistence is an enhancement; editor usage must not depend on storage availability.
-  }
-}
-
-function MarkdownHelpWindow({ open, id, onClose }: { open: boolean; id: string; onClose: () => void }) {
-  const windowRef = React.useRef<HTMLDialogElement>(null);
-  const interactionRef = React.useRef<HelpWindowPointerState | null>(null);
-  const layoutRef = React.useRef<HelpWindowLayout | null>(null);
-  const [layout, setLayout] = React.useState<HelpWindowLayout | null>(null);
-  const closeHelp = React.useEffectEvent(onClose);
-
-  const applyLayout = React.useCallback((next: HelpWindowLayout) => {
-    const clamped = clampHelpWindowLayout(next);
-    layoutRef.current = clamped;
-    setLayout(clamped);
-  }, []);
-  const applyLayoutFromEvent = React.useEffectEvent(applyLayout);
-
-  if (open && layout === null) {
-    applyLayout(readStoredHelpWindowLayout() ?? getCenteredHelpWindowLayout());
-  }
-
-  React.useEffect(() => {
-    if (!open) return;
-
-    const onResize = () => {
-      applyLayoutFromEvent(layoutRef.current ?? getCenteredHelpWindowLayout());
-    };
-
-    window.addEventListener("resize", onResize);
-    return () => {
-      window.removeEventListener("resize", onResize);
-    };
-  }, [open]);
-
-  React.useEffect(() => {
-    if (!open) return;
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeHelp();
-    };
-
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
-
-  const startInteraction = React.useCallback(
-    (type: HelpWindowPointerState["type"], event: React.PointerEvent<HTMLElement>, handle?: ResizeHandle) => {
-      if (event.button !== 0 || !layout) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const captureTarget = event.currentTarget;
-      captureTarget.setPointerCapture(event.pointerId);
-      interactionRef.current = {
-        type,
-        handle,
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
-        startLayout: layoutRef.current ?? layout,
-        captureTarget,
-      };
-    },
-    [layout],
-  );
-
-  const updateInteraction = React.useCallback(
-    (event: React.PointerEvent<HTMLElement>) => {
-      const state = interactionRef.current;
-      if (!state || state.pointerId !== event.pointerId) return;
-      event.preventDefault();
-
-      const deltaX = event.clientX - state.startX;
-      const deltaY = event.clientY - state.startY;
-      const startRect = helpLayoutToRect(state.startLayout);
-      const next =
-        state.type === HelpWindowInteractionType.Move
-          ? moveViewportRect(startRect, deltaX, deltaY, getHelpWindowConstraints())
-          : resizeViewportRect(
-              startRect,
-              state.handle ?? HelpWindowResizeHandle.Southeast,
-              deltaX,
-              deltaY,
-              getHelpWindowConstraints(),
-            );
-
-      applyLayout(rectToHelpLayout(next));
-    },
-    [applyLayout],
-  );
-
-  const stopInteraction = React.useCallback((event: React.PointerEvent<HTMLElement>) => {
-    const state = interactionRef.current;
-    if (state?.pointerId === event.pointerId) {
-      interactionRef.current = null;
-      if (state.captureTarget.hasPointerCapture(event.pointerId)) {
-        state.captureTarget.releasePointerCapture(event.pointerId);
-      }
-      if (layoutRef.current) persistHelpWindowLayout(layoutRef.current);
-    }
-  }, []);
-
-  const startMove = React.useCallback(
-    (event: React.PointerEvent<HTMLElement>) => {
-      startInteraction(HelpWindowInteractionType.Move, event);
-    },
-    [startInteraction],
-  );
-
-  const startResize = React.useCallback(
-    (handle: ResizeHandle, event: React.PointerEvent<HTMLElement>) => {
-      startInteraction(HelpWindowInteractionType.Resize, event, handle);
-    },
-    [startInteraction],
-  );
-
-  if (!open || !layout) return null;
-
-  return createPortal(
-    <dialog
-      open
-      ref={windowRef}
-      id={id}
-      aria-labelledby={`${id}-title`}
-      className="fixed z-50 flex flex-col overflow-hidden rounded-2xl border border-[rgba(255,255,255,0.06)] bg-[var(--ds-surface)] shadow-xl"
-      style={{ top: layout.top, left: layout.left, width: layout.width, height: layout.height }}
-      onPointerMove={updateInteraction}
-      onPointerUp={stopInteraction}
-      onPointerCancel={stopInteraction}
-    >
-      <div
-        className="flex cursor-move touch-none select-none items-start justify-between gap-3 border-b border-[var(--ds-border-subtle)] bg-[var(--ds-surface-inset)] px-5 py-4"
-        onPointerDown={startMove}
-      >
-        <div>
-          <h3 id={`${id}-title`} className="text-sm font-semibold text-[var(--ds-text)]">
-            Markdown help
-          </h3>
-          <p className="mt-1 text-xs leading-snug text-[var(--ds-text-muted)]">
-            Keyboard shortcuts, code fences and their card modifiers, every shortcode you can write, and the figures you
-            can name instead of typing.
-          </p>
-        </div>
-        <button
-          type="button"
-          title="Close Markdown help"
-          onClick={onClose}
-          onPointerDown={(event) => event.stopPropagation()}
-          className="inline-flex size-7 shrink-0 items-center justify-center rounded-control border border-[var(--ds-border)] text-[var(--ds-text-muted)] transition-colors hover:border-[var(--ds-border-strong)] hover:text-[var(--ds-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-primary)]"
-        >
-          <XIcon className="size-3.5" />
-        </button>
-      </div>
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-        <HelpSection title="Shortcuts">
-          <div className="grid grid-cols-2 gap-2">
-            {SHORTCUT_HINTS.map((hint) => (
-              <Hint key={hint.label} keys={hint.keys} label={hint.label} />
-            ))}
-          </div>
-        </HelpSection>
-
-        <HelpSection title="Code fences">
-          <div className="space-y-2">
-            {CODE_FENCE_EXAMPLES.map((example) => (
-              <HelpExample key={example.label} {...example} />
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {CODE_FENCE_LANGUAGES.map((language) => (
-              <NotationCode key={language}>{language}</NotationCode>
-            ))}
-          </div>
-        </HelpSection>
-
-        {/* Both lists come from the shared registry, so a shortcode or a
-            variable added there appears here without anybody remembering to
-            write it up a second time. */}
-        <HelpSection title="Shortcodes">
-          <ShortcodeList />
-        </HelpSection>
-
-        <HelpSection title="Variables">
-          <p className="text-[0.6875rem] leading-snug text-[var(--ds-text-muted)]">
-            A name in single braces is replaced with the figure the system holds, wherever you write it. Anything not
-            listed here stays exactly as you typed it.
-          </p>
-          <SiteVariableList />
-        </HelpSection>
-      </div>
-      <ResizeHandles onResizeStart={startResize} />
-    </dialog>,
-    document.body,
   );
 }
 
@@ -1101,7 +710,6 @@ function HintsBar({
   whitespace: boolean;
   onToggleWhitespace: () => void;
 }) {
-  const helpId = React.useId();
   const [helpOpen, setHelpOpen] = React.useState(false);
 
   return (
@@ -1143,7 +751,7 @@ function HintsBar({
           Shortcodes
         </FooterButton>
       </div>
-      <MarkdownHelpWindow open={helpOpen} id={helpId} onClose={() => setHelpOpen(false)} />
+      <ShortcodeReferencePanel open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }
