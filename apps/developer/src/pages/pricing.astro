@@ -162,7 +162,7 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
 
     {tiers.length > 0 && (
       <section class="mb-8" data-billing="monthly">
-        <div class="mb-5 flex items-center justify-between gap-4">
+        <div class="mb-2 flex items-center justify-between gap-4">
           <h2 class="card-content-inset text-card-title font-medium tracking-tight">Available plans</h2>
           <div
             class="billing-track relative grid grid-cols-2 border border-border-strong text-nav"
@@ -178,6 +178,11 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
             </button>
           </div>
         </div>
+        <p class="card-content-inset text-body text-fg-muted mb-5">
+          Every figure below is counted per project, and every registration under that project shares it.{" "}
+          <a href="/docs#how-it-fits-together" class="content-link text-fg">How it fits together</a> explains
+          what those are.
+        </p>
         <div class="tier-grid pt-12">
           {tiers.map((tier, index) => {
             const tierColor = normalizeTierColor(tier.color);
