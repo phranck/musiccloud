@@ -23,9 +23,9 @@ export const PORTAL_HOME_TITLE = "Build with the musiccloud API";
 export const PORTAL_HOME_CONTENT = `Resolve any music link, fetch artist info, and explore Creative Commons tracks. One REST API, one key.
 
 [[hstack spacing=12 {
-[[button:/signup label="Get an API key" icon="key"]]
+[[button action="/signup" label="Get an API key" icon="key"]]
 
-[[button:/docs label="Read the docs" icon="book-open" tone="neutral"]]
+[[button action="/docs" label="Read the docs" icon="book" tone="neutral"]]
 }]]
 
 \`\`\`bash
@@ -36,19 +36,19 @@ curl https://api.musiccloud.io/api/v1/resolve \\
 
 [[cards columns=3 {
 [[card {
-[[icon name="link-simple" size=28 text="## Link resolve"]]
+[[icon name="link" size=28 text="## Link resolve"]]
 
 One link in, every platform out.
 }]]
 
 [[card {
-[[icon name="user-circle" size=28 text="## Artist info"]]
+[[icon name="profile-circle" size=28 text="## Artist info"]]
 
 Top tracks, similar artists, events.
 }]]
 
 [[card {
-[[icon name="disc" size=28 text="## Creative Commons"]]
+[[icon name="cd" size=28 text="## Creative Commons"]]
 
 Free-to-use catalogue access.
 }]]

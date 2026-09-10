@@ -145,6 +145,9 @@ importers:
       execa:
         specifier: ^8.0.1
         version: 8.0.1
+      iconsax-react:
+        specifier: ^0.0.8
+        version: 0.0.8(react@19.2.4)
       pretty-format:
         specifier: ^29.7.0
         version: 29.7.0

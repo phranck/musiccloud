@@ -14,9 +14,10 @@ import {
   type ButtonToneValue,
   parseShortcodes,
   readShortcodeAt,
+  type SingleContentContext,
 } from "@musiccloud/shared";
 import type { MarkedExtension, Tokens } from "marked";
-import { renderSymbol } from "./icon-extension.js";
+import { iconSetFor, renderSymbol } from "./icon-extension.js";
 
 /** The classes the stylesheet already gives a command, one per treatment. */
 const TONE_CLASSES: Record<ButtonToneValue, string> = {
@@ -57,23 +58,26 @@ function escapeHtmlAttribute(value: string): string {
 /**
  * The button shortcode as a marked extension.
  *
+ * @param context - Which surface it renders for, which decides the icon set.
  * @returns The extension, ready to register.
  */
-export function createButtonExtension(): MarkedExtension {
+export function createButtonExtension(context: SingleContentContext): MarkedExtension {
+  const set = iconSetFor(context);
+
   return {
     extensions: [
       {
         name: "mcButton",
         level: "inline",
         start(source: string) {
-          return source.match(/\[\[button:/)?.index;
+          return source.match(/\[\[button[\s\]]/)?.index;
         },
         tokenizer(source: string) {
           const node = readShortcodeAt(source, 0);
           if (!node || node.token !== BUTTON_SHORTCODE.token) return;
 
           const [parsed] = parseShortcodes(node.source.raw, [BUTTON_SHORTCODE]);
-          const href = parsed?.target?.trim();
+          const href = typeof parsed?.params.action === "string" ? parsed.params.action.trim() : "";
           const label = typeof parsed?.params.label === "string" ? parsed.params.label.trim() : "";
 
           // A command with nowhere to go, no words on it, or an address a reader
@@ -93,7 +97,7 @@ export function createButtonExtension(): MarkedExtension {
             tone,
             // The symbol takes the label's colour, which each treatment sets, so
             // a page never names one.
-            symbol: icon ? renderSymbol(icon, BUTTON_ICON_SIZE, "currentColor", "mc-button__icon") : null,
+            symbol: icon ? renderSymbol(set, icon, BUTTON_ICON_SIZE, "currentColor", "mc-button__icon") : null,
           } satisfies McButtonToken;
         },
         renderer(token) {

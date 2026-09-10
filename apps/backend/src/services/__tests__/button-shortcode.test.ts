@@ -10,7 +10,7 @@ function renderPortal(markdown: string): Promise<string> {
 
 describe("[[button]]", () => {
   it("renders a command that goes where its target says", async () => {
-    const out = await renderPortal('[[button:/signup label="Get an API key"]]');
+    const out = await renderPortal('[[button action="/signup" label="Get an API key"]]');
 
     expect(out).toContain('href="/signup"');
     expect(out).toContain("Get an API key");
@@ -18,49 +18,56 @@ describe("[[button]]", () => {
   });
 
   it("takes the accent treatment until a page asks for the other", async () => {
-    const accent = await renderPortal('[[button:/signup label="Go"]]');
-    const neutral = await renderPortal('[[button:/docs label="Read" tone="neutral"]]');
+    const accent = await renderPortal('[[button action="/signup" label="Go"]]');
+    const neutral = await renderPortal('[[button action="/docs" label="Read" tone="neutral"]]');
 
     expect(accent).toContain("button--content");
     expect(neutral).toContain("button--secondary");
   });
 
   it("draws the symbol a page names, in the label's own colour", async () => {
-    const out = await renderPortal('[[button:/signup label="Get an API key" icon="key"]]');
+    const out = await renderPortal('[[button action="/signup" label="Get an API key" icon="key"]]');
 
     expect(out).toContain('class="mc-button__icon"');
     expect(out).toContain('fill="currentColor"');
   });
 
   it("renders the label alone where the page names no symbol", async () => {
-    const out = await renderPortal('[[button:/signup label="Get an API key"]]');
+    const out = await renderPortal('[[button action="/signup" label="Get an API key"]]');
 
     expect(out).not.toContain("<svg");
   });
 
+  it("leaves a command with nowhere to go as text", async () => {
+    const out = await renderPortal('[[button label="Nowhere"]]');
+
+    expect(out).not.toContain("mc-button");
+    expect(out).toContain("[[button");
+  });
+
   it("leaves a command with no words on it as text", async () => {
-    const out = await renderPortal("[[button:/signup]]");
+    const out = await renderPortal('[[button action="/signup"]]');
 
     expect(out).not.toContain("mc-button");
     expect(out).toContain("[[button");
   });
 
   it("refuses an address a reader could not follow", async () => {
-    const out = await renderPortal('[[button:javascript:alert(1) label="Press"]]');
+    const out = await renderPortal('[[button action="javascript:alert(1)" label="Press"]]');
 
     expect(out).not.toContain("mc-button");
   });
 
   it("refuses one that leaves the site through a protocol-relative address", async () => {
     // `//evil.example` is a full address wearing the clothes of a path.
-    const out = await renderPortal('[[button://evil.example label="Press"]]');
+    const out = await renderPortal('[[button action="//evil.example" label="Press"]]');
 
     expect(out).not.toContain("mc-button");
   });
 
   it("stands beside another when each is its own paragraph in a row", async () => {
     const out = await renderPortal(
-      '[[hstack spacing=12 {\n[[button:/signup label="One"]]\n\n[[button:/docs label="Two" tone="neutral"]]\n}]]',
+      '[[hstack spacing=12 {\n[[button action="/signup" label="One"]]\n\n[[button action="/docs" label="Two" tone="neutral"]]\n}]]',
     );
 
     expect(out).toContain('style="gap:12px"');
@@ -68,7 +75,9 @@ describe("[[button]]", () => {
   });
 
   it("survives the sanitizer whole", async () => {
-    const out = sanitizeMarkdownHtml(await renderPortal('[[button:/signup label="Get an API key" icon="key"]]'));
+    const out = sanitizeMarkdownHtml(
+      await renderPortal('[[button action="/signup" label="Get an API key" icon="key"]]'),
+    );
 
     expect(out).toContain('href="/signup"');
     expect(out).toContain("button--content");

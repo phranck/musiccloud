@@ -27,6 +27,7 @@ import {
   readShortcodeAt,
   type ShortcodeDefinition,
   type ShortcodeParamValue,
+  type SingleContentContext,
   SPACER_SHORTCODE,
   VSTACK_SHORTCODE,
   YOUTUBE_SHORTCODE,
@@ -80,7 +81,14 @@ interface McPillToken extends Tokens.Generic {
 export interface MarkdownExtensionDefinition {
   name: string;
   allowedContextMask: ContentContextMask;
-  createMarkedExtension(): MarkedExtension;
+  /**
+   * Builds the extension for one surface.
+   *
+   * The context is passed because a few extensions draw differently on each:
+   * the portal is set in one hand and the site in another, and that is a
+   * decision about the surface rather than about the page.
+   */
+  createMarkedExtension(context: SingleContentContext): MarkedExtension;
   tokenTypes: readonly string[];
 }
 
@@ -469,13 +477,13 @@ export const MARKDOWN_EXTENSION_DEFINITIONS: readonly MarkdownExtensionDefinitio
   {
     name: "mcButton",
     allowedContextMask: BUTTON_SHORTCODE.allowedContextMask,
-    createMarkedExtension: createButtonExtension,
+    createMarkedExtension: (context) => createButtonExtension(context),
     tokenTypes: ["mcButton"],
   },
   {
     name: "mcIcon",
     allowedContextMask: ICON_SHORTCODE.allowedContextMask,
-    createMarkedExtension: createIconExtension,
+    createMarkedExtension: (context) => createIconExtension(context),
     tokenTypes: ["mcIcon"],
   },
   {

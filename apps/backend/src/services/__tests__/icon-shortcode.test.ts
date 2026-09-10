@@ -1,16 +1,20 @@
 import { ContentContext, ICON_DEFAULT_SIZE } from "@musiccloud/shared";
 import { beforeEach, describe, expect, it } from "vitest";
-import { resetDuotoneCache } from "../markdown/phosphor-duotone.js";
+import { resetIconCache } from "../markdown/icon-sets.js";
 import { renderMarkdown } from "../markdown/renderer.js";
 import { sanitizeMarkdownHtml } from "../markdown/sanitizer.js";
 
-/** The symbol is a portal shortcode, so the portal context is what renders it. */
+/**
+ * The site's context, because these name Phosphor icons and the site is what
+ * Phosphor is drawn for. The portal draws the same shortcode in Iconsax, which
+ * has its own test below.
+ */
 function renderPortal(markdown: string): Promise<string> {
-  return renderMarkdown(markdown, ContentContext.DeveloperPortal);
+  return renderMarkdown(markdown, ContentContext.Frontend);
 }
 
 beforeEach(() => {
-  resetDuotoneCache();
+  resetIconCache();
 });
 
 describe("[[icon]]", () => {
@@ -120,6 +124,23 @@ describe("[[icon]]", () => {
     const out = sanitizeMarkdownHtml(await renderPortal('[[icon name="key" text="Beside it" spacing=16]]'));
 
     expect(out).toContain("gap:16px");
+  });
+
+  it("draws the portal in its own hand, and the site in the other", async () => {
+    // Iconsax for the portal, Phosphor for the site. Each set publishes its own
+    // names, so a name one knows the other has no word for.
+    const portal = await renderMarkdown('[[icon name="profile-circle"]]', ContentContext.DeveloperPortal);
+    const site = await renderMarkdown('[[icon name="user-circle"]]', ContentContext.Frontend);
+
+    expect(portal).toContain('viewBox="0 0 24 24"');
+    expect(site).toContain('viewBox="0 0 256 256"');
+  });
+
+  it("leaves a name the surface's own set has no word for standing as text", async () => {
+    const out = await renderMarkdown('[[icon name="user-circle"]]', ContentContext.DeveloperPortal);
+
+    expect(out).not.toContain("<svg");
+    expect(out).toContain("[[icon");
   });
 
   it("survives the sanitizer whole", async () => {

@@ -46,18 +46,24 @@ export const BUTTON_SHORTCODE = {
   token: ShortcodeToken.Button,
   syntax: ShortcodeSyntax.Bracket,
   renderMode: ShortcodeRenderMode.Html,
-  target: ShortcodeTargetRule.Required,
+  target: ShortcodeTargetRule.Forbidden,
   placement: ShortcodePlacement.Inline,
   label: "Button",
   description:
-    "A command rather than a link: a target big enough to hit, set apart from the text around it. The target is where it goes, either a path on this site or a full https address. Put two in a row by writing each as its own paragraph inside an hstack.",
+    "A command rather than a link: a target big enough to hit, set apart from the text around it. action is where it goes, either a path on this site or a full https address. Put two beside each other by writing each on its own line inside an hstack.",
   examples: [
-    '[[button:/signup label="Get an API key" icon="key"]]',
-    '[[button:/docs label="Read the docs" icon="book-open" tone="neutral"]]',
-    '[[hstack spacing=12 {\n[[button:/signup label="Get an API key" icon="key"]]\n\n[[button:/docs label="Read the docs" tone="neutral"]]\n}]]',
+    '[[button action="/signup" label="Get an API key" icon="key"]]',
+    '[[button action="/docs" label="Read the docs" icon="book-open" tone="neutral"]]',
+    '[[hstack spacing=12 {\n[[button action="/signup" label="Get an API key" icon="key"]]\n[[button action="/docs" label="Read the docs" tone="neutral"]]\n}]]',
   ],
   allowedContextMask: PORTAL_ONLY,
   params: [
+    {
+      name: "action",
+      type: ShortcodeParamType.String,
+      required: true,
+      label: "Where it goes: a path on this site, or a full https address",
+    },
     {
       name: "label",
       type: ShortcodeParamType.String,

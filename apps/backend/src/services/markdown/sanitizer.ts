@@ -100,8 +100,13 @@ const SAFE_COLOR_PATTERN = /^#[0-9a-f]{3,8}$/i;
 /** The characters a path is drawn from: the commands, the figures, and their separators. */
 const SVG_PATH_PATTERN = /^[MmZzLlHhVvCcSsQqTtAa0-9eE,.\s+-]+$/;
 const SVG_OPACITY_PATTERN = /^(?:0|1|0?\.\d+)$/;
-/** The one box every Phosphor icon is drawn in. */
-const SVG_VIEW_BOX = "0 0 256 256";
+/**
+ * The boxes an icon may be drawn in, one per set.
+ *
+ * The two sets draw at different scales, and a shape against the wrong box is
+ * the wrong size, so both are named rather than one being assumed.
+ */
+const SVG_VIEW_BOXES = new Set(["0 0 256 256", "0 0 24 24"]);
 /** A colour a symbol may be drawn in, which is a hex figure, a name, or a token. */
 const SAFE_FILL_PATTERN = /^(?:currentColor|#[0-9a-f]{3,8}|[a-z]+|var\(--[a-z0-9-]+\))$/i;
 const SAFE_URL_PROTOCOLS = new Set(["http", "https", "mailto", "tel"]);
@@ -168,7 +173,7 @@ function sanitizedAttributeValue(element: HtmlElement, name: string, value: stri
   if (name === "scope") return ["col", "colgroup", "row", "rowgroup"].includes(value) ? value : null;
   if (name === "d") return SVG_PATH_PATTERN.test(value) ? value : null;
   if (name === "opacity") return SVG_OPACITY_PATTERN.test(value) ? value : null;
-  if (name === "viewBox") return value === SVG_VIEW_BOX ? value : null;
+  if (name === "viewBox") return SVG_VIEW_BOXES.has(value) ? value : null;
   if (name === "fill") return SAFE_FILL_PATTERN.test(value) ? value : null;
   if (name === "data-card-style") return value === "embossed" || value === "recessed" ? value : null;
   if (name === "data-card-padding" || name === "data-card-radius") {

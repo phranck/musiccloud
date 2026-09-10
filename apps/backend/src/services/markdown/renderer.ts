@@ -21,7 +21,7 @@ function assertSingleContentContext(context: SingleContentContext): void {
 function createMarkdownRenderer(context: SingleContentContext, registry: MarkdownExtensionRegistry): Marked {
   const extensions = registry.definitions
     .filter((definition) => hasAllContextBits(definition.allowedContextMask, context))
-    .map((definition) => definition.createMarkedExtension());
+    .map((definition) => definition.createMarkedExtension(context));
   return new Marked(...extensions);
 }
 
