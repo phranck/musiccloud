@@ -149,6 +149,9 @@
   --mc-text-wordmark: 1.5rem;
   --mc-text-body: 1.125rem;
   --mc-text-code: 0.9375rem;
+  /* A caption under a picture or a video, which is read after the thing it
+     describes and therefore sits a step below body text. */
+  --mc-text-caption: 0.9375rem;
   --mc-text-card-title: 1.75rem;
   --mc-text-subsection: 1.625rem;
   --mc-text-section: 2.25rem;

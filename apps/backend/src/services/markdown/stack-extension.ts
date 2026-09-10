@@ -15,14 +15,12 @@
 import {
   HSTACK_SHORTCODE,
   HStackAlignment,
-  type HStackAlignmentValue,
   parseShortcodes,
   readShortcodeAt,
   type ShortcodeParamValue,
   SPACER_SHORTCODE,
   VSTACK_SHORTCODE,
   VStackAlignment,
-  type VStackAlignmentValue,
 } from "@musiccloud/shared";
 import type { MarkedExtension, Token, Tokens } from "marked";
 import { insideContainer, isAtContainerLimit, resolveContainerSpacing } from "./containers.js";

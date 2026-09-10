@@ -10,7 +10,8 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./styles/markdown-shortcodes.css": "./styles/markdown-shortcodes.css"
   },
   "scripts": {
     "build": "tsc",

@@ -23,11 +23,13 @@ import {
 } from "./types.js";
 
 /**
- * Symbols belong to the portal, for the same reason cards and stacks do: the
- * rules that place one against its text live in the portal's editorial
- * stylesheet and nowhere else.
+ * Every content surface renders these.
+ *
+ * The site and the portal both import the shared stylesheet that arranges this
+ * markup, so a page written on either side renders the same way. What differs
+ * is the material each surface declares for it.
  */
-const PORTAL_ONLY = ContentContext.DeveloperPortal;
+const EVERY_CONTENT_CONTEXT = ContentContext.Frontend | ContentContext.DeveloperPortal;
 
 /**
  * The edge length a symbol takes when the page names none.
@@ -91,7 +93,7 @@ export const ICON_SHORTCODE = {
     '[[icon name="key" size=96 text="## One key, every service" textalignment="trailing"]]',
     '[[icon name="key" size=96 textalignment="trailing"]]',
   ],
-  allowedContextMask: PORTAL_ONLY,
+  allowedContextMask: EVERY_CONTENT_CONTEXT,
   params: [
     {
       name: "name",

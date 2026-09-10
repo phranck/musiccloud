@@ -1,5 +1,10 @@
 @layer properties, theme, base, components, utilities;
 
+/* The arrangement of the shortcode markup, shared with the site so the two
+   cannot render the same HTML differently. What this file adds is the portal's
+   own material for it. */
+@import "@musiccloud/shared/styles/markdown-shortcodes.css" layer(components);
+
 @layer components {
   .editorial-status {
     display: grid;
@@ -17,6 +22,17 @@
   }
 
   .editorial-markdown {
+    /* The material the shared shortcode stylesheet is drawn in. The arrangement
+       lives in `@musiccloud/shared/styles/markdown-shortcodes.css`, which this
+       surface and the site both import; these are the portal's values for it. */
+    --mc-shortcode-gap: var(--mc-space-3);
+    --mc-shortcode-gap-tight: var(--mc-space-2);
+    --mc-shortcode-radius: var(--mc-card-inner-radius, var(--radius-button));
+    --mc-shortcode-surface: var(--color-surface);
+    --mc-shortcode-border: var(--color-border);
+    --mc-shortcode-caption-color: var(--color-fg-subtle);
+    --mc-shortcode-title-color: var(--color-fg);
+
     display: grid;
     gap: var(--mc-space-6);
     color: var(--color-fg-muted);
@@ -352,5 +368,17 @@
   .editorial-markdown--plain li:not([class]),
   .editorial-markdown--plain dd:not([class]) {
     color: var(--color-fg-muted);
+  }
+
+  /* Inside the page body a heading is styled by a selector that outweighs a
+     single class, so a stack there would keep the very margins the shared
+     stylesheet removes. */
+  .editorial-markdown .mc-stack > * {
+    margin-block: 0;
+  }
+
+  /* A caption follows the surface's own scale rather than the shared default. */
+  .editorial-markdown figcaption {
+    font-size: var(--text-caption);
   }
 }

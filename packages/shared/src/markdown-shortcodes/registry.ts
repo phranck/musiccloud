@@ -15,8 +15,10 @@ import { type ShortcodeDefinition, ShortcodeSyntax } from "./types.js";
 /**
  * Every shortcode, in the order the editor's reference lists them.
  *
- * What arranges a page comes before what marks up its text, because that is the
- * order somebody builds a page in, and the shortest notation comes last.
+ * Sorted by token rather than written out in an order somebody chose, because
+ * the reference is a list to look something up in and the token is what a writer
+ * has in mind whilst looking. Sorting it here rather than in the reference means
+ * a shortcode added to this list cannot land anywhere unexpected.
  */
 export const SHORTCODE_DEFINITIONS: readonly ShortcodeDefinition[] = [
   CARD_SHORTCODE,
@@ -32,7 +34,7 @@ export const SHORTCODE_DEFINITIONS: readonly ShortcodeDefinition[] = [
   ICON_SHORTCODE,
   PILL_SHORTCODE,
   KBD_SHORTCODE,
-];
+].sort((first, second) => first.token.localeCompare(second.token));
 
 /**
  * Finds a shortcode by its token.

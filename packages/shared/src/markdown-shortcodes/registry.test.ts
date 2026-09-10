@@ -131,3 +131,11 @@ describe("assertRegistryIsUnambiguous", () => {
     );
   });
 });
+
+describe("the order the reference lists them in", () => {
+  it("is alphabetical by token, so a writer can look one up", () => {
+    const tokens = SHORTCODE_DEFINITIONS.map((definition) => definition.token);
+
+    expect(tokens).toEqual([...tokens].sort((first, second) => first.localeCompare(second)));
+  });
+});

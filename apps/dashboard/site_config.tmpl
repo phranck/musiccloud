@@ -29,7 +29,7 @@ server {
     # nginx does not merge add_header across levels: a location declaring its
     # own add_header replaces this whole set rather than adding to it.
     add_header Content-Security-Policy "base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'none'" always;
-    add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; img-src 'self' data: https:; media-src 'self' https:; worker-src 'self' blob:; upgrade-insecure-requests; base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'none'" always;
+    add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; img-src 'self' data: https:; media-src 'self' https:; worker-src 'self' blob:; frame-src 'self' https://www.youtube-nocookie.com; upgrade-insecure-requests; base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'none'" always;
     add_header X-Frame-Options "DENY" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "no-referrer" always;

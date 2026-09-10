@@ -1,0 +1,281 @@
+/*
+ * How the shortcode markup is arranged, for every surface that renders it.
+ *
+ * The site and the developer portal render the same HTML, so what arranges that
+ * HTML is written once here and imported by both. Two copies would drift, and
+ * the drift would arrive as a symbol sitting on the wrong side of its sentence
+ * on one of the two.
+ *
+ * What differs between the surfaces is not the arrangement but the material:
+ * the spacing scale, the corner radius, the surface colour. Those arrive as the
+ * five properties below, which each surface declares from its own tokens. The
+ * fallbacks are what a surface that declares none of them gets, so the markup
+ * is never unarranged.
+ *
+ *   --mc-shortcode-gap             space between the children of a stack
+ *   --mc-shortcode-gap-tight       space between a picture and its caption
+ *   --mc-shortcode-radius          corner of a picture, a card, a video
+ *   --mc-shortcode-surface         what a card-like block sits on
+ *   --mc-shortcode-border          the line around one
+ *   --mc-shortcode-caption-color   a caption, which is read after its subject
+ *   --mc-shortcode-title-color     a heading on one of those blocks
+ */
+
+/* A symbol written into a text. It sits on the text's own line rather than on
+   the baseline, where an SVG would otherwise push the line apart, and it never
+   grows past the line it stands in. */
+.mc-icon {
+  display: inline-block;
+  vertical-align: text-bottom;
+  max-width: 100%;
+}
+
+/* A symbol the paragraph beside it runs around. The class names the side the
+   symbol takes, which is the one the text does not. The margin on the flowing
+   side keeps the text off the glyph, the one below keeps the following line off
+   it where the paragraph is shorter than the symbol is tall. */
+.mc-icon--float-start {
+  float: left;
+  margin-inline-end: var(--mc-shortcode-gap, 0.75rem);
+  margin-block-end: var(--mc-shortcode-gap-tight, 0.5rem);
+}
+
+.mc-icon--float-end {
+  float: right;
+  margin-inline-start: var(--mc-shortcode-gap, 0.75rem);
+  margin-block-end: var(--mc-shortcode-gap-tight, 0.5rem);
+}
+
+/* Where the symbol stands in the block it sits in, which is a different
+   question from where its text sits. A bare symbol and a symbol with its text
+   both take these, so each keeps the display value it needs whilst the margin
+   does the placing. */
+.mc-icon--align-start,
+.mc-icon--align-center,
+.mc-icon--align-end {
+  width: fit-content;
+}
+
+.mc-icon.mc-icon--align-start,
+.mc-icon.mc-icon--align-center,
+.mc-icon.mc-icon--align-end {
+  display: block;
+}
+
+.mc-icon-pair.mc-icon--align-start,
+.mc-icon-pair.mc-icon--align-center,
+.mc-icon-pair.mc-icon--align-end {
+  display: flex;
+}
+
+.mc-icon--align-center {
+  margin-inline: auto;
+}
+
+.mc-icon--align-end {
+  margin-inline-start: auto;
+}
+
+/* A symbol and its text. The alignment decides which way the two are laid out
+   and where the text sits across that direction, under SwiftUI's names. */
+.mc-icon-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mc-shortcode-gap, 0.75rem);
+  vertical-align: text-bottom;
+}
+
+.mc-icon-pair--row {
+  flex-direction: row;
+}
+
+.mc-icon-pair--row-reverse {
+  flex-direction: row-reverse;
+}
+
+.mc-icon-pair--column {
+  flex-direction: column;
+}
+
+.mc-icon-pair--column-reverse {
+  flex-direction: column-reverse;
+}
+
+.mc-icon-pair--start {
+  align-items: flex-start;
+}
+
+.mc-icon-pair--end {
+  align-items: flex-end;
+}
+
+/* The text over the middle of the symbol rather than beside it, which is what
+   center means in a ZStack. Both take the same cell, so neither pushes the other
+   and the pair is as large as the symbol. */
+.mc-icon-pair--stacked {
+  display: inline-grid;
+}
+
+.mc-icon-pair--stacked > * {
+  grid-area: 1 / 1;
+  place-self: center;
+}
+
+.mc-icon-pair.mc-icon-pair--stacked.mc-icon--align-start,
+.mc-icon-pair.mc-icon-pair--stacked.mc-icon--align-center,
+.mc-icon-pair.mc-icon-pair--stacked.mc-icon--align-end {
+  display: grid;
+}
+
+/* A text carrying headings or several paragraphs keeps its own rhythm inside,
+   but not the outer margins, which would push it off the symbol it belongs to. */
+.mc-icon-pair__label > :first-child {
+  margin-block-start: 0;
+}
+
+.mc-icon-pair__label > :last-child {
+  margin-block-end: 0;
+}
+
+/* A container that arranges what stands inside it, under SwiftUI's names. The
+   gap here is the one a stack takes when the page names none, so the surface's
+   own rhythm is stated once and every stack that says nothing follows it. */
+.mc-stack {
+  display: flex;
+  gap: var(--mc-shortcode-gap, 0.75rem);
+}
+
+.mc-stack--column {
+  flex-direction: column;
+}
+
+/* A row wraps rather than overflowing. A page is read at whatever width the
+   reader has, and a row that runs off the side takes the whole page with it. */
+.mc-stack--row {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+/* Where the children sit across the stack's own direction. One pair of names for
+   both axes, because leading and top are the same edge seen from the two
+   directions, as are trailing and bottom. */
+.mc-stack--start {
+  align-items: flex-start;
+}
+
+.mc-stack--center {
+  align-items: center;
+}
+
+.mc-stack--end {
+  align-items: flex-end;
+}
+
+.mc-stack--baseline {
+  align-items: baseline;
+}
+
+/* A vertical stack aligns its text as well as its children.
+
+   SwiftUI can leave this out because a Text there is as wide as its content, so
+   moving the view moves the words with it. A paragraph here is as wide as the
+   column, so aligning the box moves nothing a reader can see and the words stay
+   at the left edge. Each value is stated rather than only the one that differs,
+   because text alignment inherits and a stack inside a stack has to be able to
+   set its own. */
+.mc-stack--column.mc-stack--start {
+  text-align: start;
+}
+
+.mc-stack--column.mc-stack--center {
+  text-align: center;
+}
+
+.mc-stack--column.mc-stack--end {
+  text-align: end;
+}
+
+/* The stack owns the space between its children, so the children give up the
+   margins they carry as ordinary page elements. Left in place, a paragraph's own
+   margin would add to the gap and a heading's would add more, which is the
+   spacing being decided in two places at once. */
+.mc-stack > * {
+  margin-block: 0;
+}
+
+/* A gap of its own, for the one place in a stack that wants more room than the
+   stack's spacing gives. It never shrinks, because a gap that collapses under
+   pressure is not a gap. */
+.mc-spacer {
+  flex-shrink: 0;
+}
+
+/* Without a size it takes what is left, which pushes its neighbours to the ends
+   of a row. In a column with no height of its own there is nothing left to take,
+   and it stays flat, exactly as a SwiftUI Spacer does. */
+.mc-spacer--flexible {
+  flex-grow: 1;
+}
+
+/* A picture and, where there is one, what it is captioned with. */
+.mc-figure {
+  display: grid;
+  gap: var(--mc-shortcode-gap-tight, 0.5rem);
+  margin: 0;
+}
+
+.mc-figure__image {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--mc-shortcode-radius, 0.5rem);
+}
+
+.mc-figure figcaption,
+.mc-video figcaption {
+  color: var(--mc-shortcode-caption-color, inherit);
+  font-size: 0.9375rem;
+  text-align: center;
+}
+
+/* A PDF as a card a reader can judge before they open it. */
+.mc-pdf {
+  display: grid;
+  gap: var(--mc-shortcode-gap-tight, 0.5rem);
+  border: 1px solid var(--mc-shortcode-border, transparent);
+  border-radius: var(--mc-shortcode-radius, 0.5rem);
+  padding: var(--mc-shortcode-gap, 0.75rem);
+  background: var(--mc-shortcode-surface, transparent);
+}
+
+.mc-pdf__title,
+.mc-video__title {
+  margin: 0;
+  color: var(--mc-shortcode-title-color, inherit);
+  font-weight: 600;
+}
+
+.mc-video {
+  display: grid;
+  gap: var(--mc-shortcode-gap-tight, 0.5rem);
+  margin: 0;
+}
+
+/* The link stands where the video will, at the shape the video will take, so the
+   page holds that room from the first paint and nothing jumps when a reader
+   plays it. */
+.mc-video__link {
+  display: grid;
+  place-items: center;
+  border-radius: var(--mc-shortcode-radius, 0.5rem);
+  background: var(--mc-shortcode-surface, transparent);
+  color: var(--mc-shortcode-title-color, inherit);
+  text-align: center;
+}
+
+/* Once a reader has played it, the frame takes the room the link was holding. */
+.mc-video iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: var(--mc-shortcode-radius, 0.5rem);
+}

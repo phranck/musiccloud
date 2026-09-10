@@ -19,11 +19,41 @@ import {
 } from "./types.js";
 
 /**
- * Media belongs to the portal, for the same reason cards and stacks do: the
- * figure, the caption and the frame around an embedded video are drawn by the
- * portal's editorial stylesheet.
+ * Every content surface renders these.
+ *
+ * The site and the portal both import the shared stylesheet that arranges this
+ * markup, so a page written on either side renders the same way. What differs
+ * is the material each surface declares for it.
  */
-const PORTAL_ONLY = ContentContext.DeveloperPortal;
+const EVERY_CONTENT_CONTEXT = ContentContext.Frontend | ContentContext.DeveloperPortal;
+
+/**
+ * Where an embedded video is loaded from, whatever a page wrote.
+ *
+ * One answer, read by the renderer that builds the address and by the content
+ * policy that has to permit that frame. Two would drift, and the drift would
+ * arrive as a video that renders and then refuses to load.
+ *
+ * The nocookie host is the one YouTube offers for exactly this, and a reader
+ * reaches it only after starting the video.
+ */
+export const YOUTUBE_EMBED_HOST = "https://www.youtube-nocookie.com";
+
+/** Where a video's frame is loaded from, with the identifier appended. */
+export const YOUTUBE_EMBED_PREFIX = `${YOUTUBE_EMBED_HOST}/embed/`;
+
+/**
+ * What the browser lets a video frame do.
+ *
+ * `allow-same-origin` is about YouTube's own origin rather than ours, because
+ * the frame is loaded from theirs, so it lets their player reach its own storage
+ * and nothing of this site's. Everything left out is left out on purpose: a
+ * video cannot navigate the page it stands in, submit a form, or open a window.
+ */
+export const YOUTUBE_FRAME_SANDBOX = "allow-scripts allow-same-origin allow-presentation";
+
+/** The features a video frame may use, named for the `allow` attribute. */
+export const YOUTUBE_FRAME_PERMISSIONS = "accelerometer; autoplay; encrypted-media; picture-in-picture";
 
 /** The largest picture a page may ask for, in either direction. */
 export const MAX_MEDIA_EDGE = 4096;
@@ -62,7 +92,7 @@ export const IMAGE_SHORTCODE = {
     "[[image:/assets/console.png]]",
     '[[image:/assets/console.png alt="The console" caption="Your key, once"]]',
   ],
-  allowedContextMask: PORTAL_ONLY,
+  allowedContextMask: EVERY_CONTENT_CONTEXT,
   params: [
     {
       name: "alt",
@@ -106,7 +136,7 @@ export const PDF_SHORTCODE = {
   description:
     "Links a PDF as a card rather than as a bare link, so a reader can see what it is before they open it. The target is the address the file is served from. It opens in a tab of its own.",
   examples: ["[[pdf:/assets/terms.pdf]]", '[[pdf:/assets/terms.pdf title="Terms of use" label="Read the terms"]]'],
-  allowedContextMask: PORTAL_ONLY,
+  allowedContextMask: EVERY_CONTENT_CONTEXT,
   params: [
     {
       name: "title",
@@ -137,7 +167,7 @@ export const YOUTUBE_SHORTCODE = {
     "[[youtube:dQw4w9WgXcQ]]",
     '[[youtube:https://youtu.be/dQw4w9WgXcQ caption="The whole thing in three minutes"]]',
   ],
-  allowedContextMask: PORTAL_ONLY,
+  allowedContextMask: EVERY_CONTENT_CONTEXT,
   params: [
     {
       name: "title",

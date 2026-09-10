@@ -37,3 +37,42 @@ const segments = splitEditorialSegments(html);
     )
   }
 </div>
+
+<script>
+  import { YOUTUBE_EMBED_HOST, YOUTUBE_FRAME_PERMISSIONS, YOUTUBE_FRAME_SANDBOX } from "@musiccloud/shared";
+
+  /**
+   * Swaps a video's link for its frame when a reader asks for it.
+   *
+   * The page arrives with a link rather than a frame, so nothing reaches
+   * YouTube for anybody who never plays the video. The link already stands at
+   * the shape the frame will take, so the swap moves nothing on the page.
+   *
+   * The address is checked again here even though the renderer built it, because
+   * this reads it back off the document and a page's markup is not a promise.
+   */
+  function playVideo(link: HTMLAnchorElement): void {
+    const address = new URL(link.href, window.location.origin);
+    if (address.origin !== YOUTUBE_EMBED_HOST) return;
+
+    address.searchParams.set("autoplay", "1");
+
+    const frame = document.createElement("iframe");
+    frame.src = address.toString();
+    frame.title = link.textContent?.trim() ?? "Video";
+    frame.allow = YOUTUBE_FRAME_PERMISSIONS;
+    frame.setAttribute("sandbox", YOUTUBE_FRAME_SANDBOX);
+    frame.allowFullscreen = true;
+    frame.style.aspectRatio = link.style.aspectRatio;
+
+    link.replaceWith(frame);
+  }
+
+  document.addEventListener("click", (event) => {
+    const link = (event.target as Element | null)?.closest?.(".mc-video__link");
+    if (!(link instanceof HTMLAnchorElement)) return;
+
+    event.preventDefault();
+    playVideo(link);
+  });
+</script>

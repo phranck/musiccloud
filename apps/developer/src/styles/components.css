@@ -13,13 +13,20 @@
   /* Portal-level copy aligns with the tangent point of ordinary card corners.
      Tier cards own a separate geometry and deliberately never consume this,
      and the signed-in dashboard takes the API reference's own value with the
-     rest of that shell. */
+     rest of that shell.
+
+     The inner radius is what keeps the gap between two curves constant: an
+     element sitting a card's padding in from its edge takes the outer radius
+     less that padding, clamped at zero for anything further in than the curve
+     reaches. Declared here rather than at the root, because a custom property
+     holding `var()` resolves on the element that declares it and what
+     descendants inherit is the resolved value.
+
+     Shared public-page spacing keeps every route aligned to the same shell. */
   .developer-page {
     --mc-card-content-inset: calc(var(--radius-card) / 2);
-  }
+    --mc-card-inner-radius: max(calc(var(--radius-card) - var(--mc-space-7)), 0px);
 
-  /* Shared public-page spacing keeps every route aligned to the same shell. */
-  .developer-page {
     padding: var(--mc-space-page-top) var(--mc-space-page-inline) var(--mc-space-page-bottom);
   }
 

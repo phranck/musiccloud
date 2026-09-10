@@ -24,13 +24,13 @@ import {
 } from "./types.js";
 
 /**
- * Stacks belong to the portal, for the same reason cards do.
+ * Every content surface renders these.
  *
- * The arrangement is drawn by the portal's editorial stylesheet, and the site's
- * content surfaces have no such rules, so a stack written into a page there
- * would render as a plain sequence of blocks.
+ * The site and the portal both import the shared stylesheet that arranges this
+ * markup, so a page written on either side renders the same way. What differs
+ * is the material each surface declares for it.
  */
-const PORTAL_ONLY = ContentContext.DeveloperPortal;
+const EVERY_CONTENT_CONTEXT = ContentContext.Frontend | ContentContext.DeveloperPortal;
 
 /**
  * The custom property carrying the gap between the children of a stack.
@@ -98,7 +98,7 @@ export const VSTACK_SHORTCODE = {
   description:
     "Stands its content one piece beneath the next, as a VStack does in SwiftUI. What you write between the braces is ordinary Markdown: headings, paragraphs, images, any other shortcode, and another stack. alignment places the children across the column and lines up the text in them at the same time, spacing sets the gap between them in pixels.",
   examples: [STACK_EXAMPLE],
-  allowedContextMask: PORTAL_ONLY,
+  allowedContextMask: EVERY_CONTENT_CONTEXT,
   params: [
     {
       name: "alignment",
@@ -141,7 +141,7 @@ export const HSTACK_SHORTCODE = {
   description:
     "Stands its content side by side, as an HStack does in SwiftUI. The content is the same as a VStack takes, so Markdown with shortcodes and further stacks. Every paragraph and every element becomes a column. When it gets too narrow the columns drop onto the next line instead of running off the page.",
   examples: ['[[hstack alignment="center" spacing=16 {\n[[icon name="key" size=32]]\nA symbol and its sentence.\n}]]'],
-  allowedContextMask: PORTAL_ONLY,
+  allowedContextMask: EVERY_CONTENT_CONTEXT,
   params: [
     {
       name: "alignment",
@@ -184,7 +184,7 @@ export const SPACER_SHORTCODE = {
   description:
     "A gap, as a Spacer is in SwiftUI. With size it is exactly that tall or wide; without one it takes whatever room is left, so in an HStack it pushes its neighbours apart and in a VStack it does nothing unless the stack has a height of its own. Useful where one place wants more air than the stack's spacing gives it.",
   examples: ["[[spacer size=24]]", "[[hstack {\nleft\n[[spacer]]\nright\n}]]"],
-  allowedContextMask: PORTAL_ONLY,
+  allowedContextMask: EVERY_CONTENT_CONTEXT,
   params: [
     {
       name: "size",

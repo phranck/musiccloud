@@ -17,12 +17,10 @@ import {
   readShortcodeAt,
   type ShortcodeDefinition,
   type ShortcodeParamValue,
+  YOUTUBE_EMBED_PREFIX,
   YOUTUBE_SHORTCODE,
 } from "@musiccloud/shared";
 import type { MarkedExtension, Tokens } from "marked";
-
-/** Where an embedded video is loaded from, whatever the page wrote. */
-const YOUTUBE_EMBED_ORIGIN = "https://www.youtube-nocookie.com/embed/";
 
 /** What a YouTube identifier looks like. Eleven characters, and never a path. */
 const YOUTUBE_ID = /^[A-Za-z0-9_-]{11}$/;
@@ -251,7 +249,7 @@ export function createMediaExtension(): MarkedExtension {
           // iframe from a page.
           const heading = video.title ? `<p class="mc-video__title">${escapeHtml(video.title)}</p>` : "";
           const caption = video.caption ? `<figcaption>${escapeHtml(video.caption)}</figcaption>` : "";
-          const address = `${YOUTUBE_EMBED_ORIGIN}${video.videoId}`;
+          const address = `${YOUTUBE_EMBED_PREFIX}${video.videoId}`;
           return [
             '<figure class="mc-video">',
             heading,
