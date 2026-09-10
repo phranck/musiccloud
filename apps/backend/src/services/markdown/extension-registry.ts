@@ -1,4 +1,5 @@
 import {
+  BUNDLED_CODE_FENCE_LANGUAGES,
   ContentContext,
   type ContentContextMask,
   FIELDS_AUTO_LABEL_WIDTH,
@@ -176,21 +177,11 @@ let highlighterPromise: Promise<HighlighterGeneric<BundledLanguage, BundledTheme
 function getHighlighter(): Promise<HighlighterGeneric<BundledLanguage, BundledTheme>> {
   highlighterPromise ??= createHighlighter({
     themes: ["vitesse-dark"],
-    langs: [
-      "javascript",
-      "typescript",
-      "ts",
-      "js",
-      "tsx",
-      "jsx",
-      "python",
-      "swift",
-      "bash",
-      "json",
-      "css",
-      "html",
-      mcQueryGrammar,
-    ],
+    // The list comes from the shared declaration the editor's help reads, so a
+    // language offered to a writer is one the highlighter has actually loaded.
+    // Our own grammar is added here rather than there, because it is a grammar
+    // object and this is the module that holds it.
+    langs: [...BUNDLED_CODE_FENCE_LANGUAGES, mcQueryGrammar],
   });
   return highlighterPromise;
 }
