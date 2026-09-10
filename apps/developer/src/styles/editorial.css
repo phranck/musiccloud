@@ -299,8 +299,10 @@
 
   .editorial-markdown code:not([class]) {
     border-radius: var(--radius-keycap);
-    /* A step up from the smallest space, so the tint around a piece of code
-       clears its first and last character rather than sitting on them. */
+    /* The tint clears the letters on every side rather than sitting on them.
+       Vertically it grows into the leading the line already carries, so the
+       line beneath it does not move: 6px of room on each side, and 4 taken. */
+    padding-block: var(--mc-space-1);
     padding-inline: var(--mc-space-2);
     color: var(--mc-color-inline-code-fg);
     background: var(--mc-color-inline-code-bg);
