@@ -1,4 +1,19 @@
-import { ContentContext, type ContentContextMask, isValidContentContextMask } from "@musiccloud/shared";
+import {
+  ContentContext,
+  type ContentContextMask,
+  FIELDS_AUTO_LABEL_WIDTH,
+  FIELDS_DEFAULT_GAP,
+  FIELDS_DEFAULT_LABEL_WIDTH,
+  FIELDS_SHORTCODE,
+  isValidContentContextMask,
+  KBD_SHORTCODE,
+  PILL_DEFAULT_CASE,
+  PILL_DEFAULT_TONE,
+  PILL_SHORTCODE,
+  parseShortcodes,
+  type ShortcodeDefinition,
+  type ShortcodeParamValue,
+} from "@musiccloud/shared";
 import type { MarkedExtension, Token, Tokens } from "marked";
 import markedFootnote from "marked-footnote";
 import { markedHighlight } from "marked-highlight";
@@ -9,11 +24,6 @@ const BOTH_CONTENT_CONTEXTS = ContentContext.Frontend | ContentContext.Developer
 const KNOWN_CARD_MODIFIERS = new Set(["recessed", "embossed"] as const);
 const CSS_LENGTH_PATTERN = /^(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em|ch)$/;
 const LANGUAGE_TOKEN_PATTERN = /^[A-Za-z][A-Za-z0-9_-]*$/;
-const FIELDS_DEFAULT_LABEL_WIDTH = "max-content";
-const FIELDS_DEFAULT_GAP = "1.1rem";
-const INLINE_OPTION_TOKEN_PATTERN = /^([A-Za-z][\w-]*)=([^\s=]+)$/;
-const PILL_TONES = new Set(["alert", "info", "neutral", "success"] as const);
-const PILL_CASES = new Set(["none", "upper", "lower"] as const);
 
 type CardModifier = "recessed" | "embossed";
 type PillTone = "alert" | "info" | "neutral" | "success";
@@ -89,19 +99,6 @@ function escapeHtmlAttribute(value: string): string {
   return escapeHtml(value).replace(/"/g, "&quot;");
 }
 
-function parseInlineOptions(raw: string | undefined): Array<[name: string, value: string]> {
-  const options: Array<[name: string, value: string]> = [];
-  for (const option of (raw ?? "").trim().split(/\s+/).filter(Boolean)) {
-    const match = option.match(INLINE_OPTION_TOKEN_PATTERN);
-    if (match) options.push([match[1], match[2]]);
-  }
-  return options;
-}
-
-function isInlineOptionToken(token: string): boolean {
-  return INLINE_OPTION_TOKEN_PATTERN.test(token);
-}
-
 function isSafeCssLength(value: string): boolean {
   return CSS_LENGTH_PATTERN.test(value);
 }
@@ -110,22 +107,50 @@ function isSafeLanguageToken(value: string): boolean {
   return LANGUAGE_TOKEN_PATTERN.test(value);
 }
 
-function parseFieldsLayout(raw: string | undefined): FieldsLayout {
-  const layout: FieldsLayout = {
-    labelWidth: FIELDS_DEFAULT_LABEL_WIDTH,
-    gap: FIELDS_DEFAULT_GAP,
+/**
+ * Reads one shortcode's parameters through the shared registry.
+ *
+ * The registry decides which attributes a shortcode takes, what each is called
+ * and what stands in when it is left out, so nothing here repeats any of that.
+ * What is repeated would drift: the editor's reference reads the same
+ * declaration, and a default written twice would eventually contradict the help
+ * that promises it.
+ *
+ * @param raw - The shortcode's source, exactly as marked matched it.
+ * @param definition - Which shortcode to read it as.
+ * @returns The parameters with their defaults filled in, and the target where
+ *   the shortcode takes one. Empty when the source does not resolve, which
+ *   leaves each caller to fall back to what the registry declares.
+ */
+function readShortcode(
+  raw: string,
+  definition: ShortcodeDefinition,
+): { params: Record<string, ShortcodeParamValue>; target?: string } {
+  const [parsed] = parseShortcodes(raw, [definition]);
+  return parsed ? { params: parsed.params, target: parsed.target } : { params: {} };
+}
+
+/**
+ * Reads the layout of a fields list, keeping only lengths that are safe to
+ * write into a `style` attribute.
+ *
+ * The registry says what a writer may name; this says what may reach the page.
+ * Anything else falls back to the declared default rather than being passed
+ * through, because these two values are interpolated into inline CSS.
+ *
+ * @param raw - The fence's source, as marked matched it.
+ * @returns The two column measurements.
+ */
+function parseFieldsLayout(raw: string): FieldsLayout {
+  const { params } = readShortcode(raw, FIELDS_SHORTCODE);
+  const labelWidth = String(params.labelWidth ?? FIELDS_DEFAULT_LABEL_WIDTH);
+  const gap = String(params.gap ?? FIELDS_DEFAULT_GAP);
+
+  return {
+    labelWidth:
+      labelWidth === FIELDS_AUTO_LABEL_WIDTH || !isSafeCssLength(labelWidth) ? FIELDS_DEFAULT_LABEL_WIDTH : labelWidth,
+    gap: isSafeCssLength(gap) ? gap : FIELDS_DEFAULT_GAP,
   };
-
-  for (const [name, value] of parseInlineOptions(raw)) {
-    if (name === "labelWidth") {
-      layout.labelWidth =
-        value === "auto" ? FIELDS_DEFAULT_LABEL_WIDTH : isSafeCssLength(value) ? value : layout.labelWidth;
-    } else if (name === "gap" && isSafeCssLength(value)) {
-      layout.gap = value;
-    }
-  }
-
-  return layout;
 }
 
 function renderFieldsStyle(layout: FieldsLayout): string {
@@ -209,33 +234,27 @@ function createCodeFenceExtension(): MarkedExtension {
   };
 }
 
-function parsePillBody(raw: string): { text: string; options: string | undefined } {
-  const tokens = raw.trim().split(/\s+/).filter(Boolean);
-  if (tokens.length === 0) return { text: "", options: undefined };
+/**
+ * Reads a pill's text and its two settings.
+ *
+ * @param raw - The pill's source, as marked matched it.
+ * @returns The text and the settings. The text is empty where nothing was
+ *   written after the colon, which is what tells the tokenizer not to produce a
+ *   pill at all.
+ *
+ * @remarks
+ * The parser has already checked each setting against the values the registry
+ * declares, so anything it hands back is one of them and the defaults are
+ * already filled in.
+ */
+function parsePill(raw: string): { text: string; tone: PillTone; textCase: PillCase } {
+  const { params, target } = readShortcode(raw, PILL_SHORTCODE);
 
-  let optionStart = tokens.length;
-  while (optionStart > 1 && isInlineOptionToken(tokens[optionStart - 1])) {
-    optionStart -= 1;
-  }
-
-  const text = tokens.slice(0, optionStart).join(" ");
-  const options = tokens.slice(optionStart).join(" ");
-  return { text, options: options || undefined };
-}
-
-function parsePillOptions(raw: string | undefined): { tone: PillTone; textCase: PillCase } {
-  let tone: PillTone = "neutral";
-  let textCase: PillCase = "none";
-
-  for (const [name, value] of parseInlineOptions(raw)) {
-    if (name === "tone" && PILL_TONES.has(value as PillTone)) {
-      tone = value as PillTone;
-    } else if (name === "case" && PILL_CASES.has(value as PillCase)) {
-      textCase = value as PillCase;
-    }
-  }
-
-  return { tone, textCase };
+  return {
+    text: target ?? "",
+    tone: (params.tone ?? PILL_DEFAULT_TONE) as PillTone,
+    textCase: (params.case ?? PILL_DEFAULT_CASE) as PillCase,
+  };
 }
 
 function applyPillCase(text: string, textCase: PillCase): string {
@@ -275,7 +294,7 @@ const mcFieldsExtension: MarkedExtension = {
           type: "mcFields",
           raw: match[0],
           rows,
-          layout: parseFieldsLayout(match[1]),
+          layout: parseFieldsLayout(match[0]),
         } satisfies McFieldsToken;
       },
       renderer(token) {
@@ -304,9 +323,9 @@ const mcPillExtension: MarkedExtension = {
       tokenizer(source) {
         const match = source.match(/^\[\[pill:([^\]]+)\]\]/);
         if (!match) return;
-        const { text, options } = parsePillBody(match[1]);
+        const { text, tone, textCase } = parsePill(match[0]);
         if (!text) return;
-        return { type: "mcPill", raw: match[0], text, ...parsePillOptions(options) } satisfies McPillToken;
+        return { type: "mcPill", raw: match[0], text, tone, textCase } satisfies McPillToken;
       },
       renderer(token) {
         const pill = token as McPillToken;
@@ -326,7 +345,10 @@ const mcKbdExtension: MarkedExtension = {
       },
       tokenizer(source) {
         const match = source.match(/^\{\{([^}]+)\}\}/);
-        if (match) return { type: "mcKbd", raw: match[0], text: match[1] };
+        if (!match) return;
+        const { target } = readShortcode(match[0], KBD_SHORTCODE);
+        if (!target) return;
+        return { type: "mcKbd", raw: match[0], text: target };
       },
       renderer(token) {
         return `<kbd class="mc-kbd">${escapeHtml(token.text)}</kbd>`;
@@ -348,21 +370,25 @@ export const MARKDOWN_EXTENSION_DEFINITIONS: readonly MarkdownExtensionDefinitio
     createMarkedExtension: createCodeFenceExtension,
     tokenTypes: ["code"],
   },
+  // The three below are shortcodes, so where each may be used is declared once
+  // in the shared registry alongside its parameters and its help. This list
+  // wires them into marked and takes that decision from there rather than
+  // repeating it.
   {
     name: "mcFields",
-    allowedContextMask: BOTH_CONTENT_CONTEXTS,
+    allowedContextMask: FIELDS_SHORTCODE.allowedContextMask,
     createMarkedExtension: () => mcFieldsExtension,
     tokenTypes: ["mcFields"],
   },
   {
     name: "mcPill",
-    allowedContextMask: BOTH_CONTENT_CONTEXTS,
+    allowedContextMask: PILL_SHORTCODE.allowedContextMask,
     createMarkedExtension: () => mcPillExtension,
     tokenTypes: ["mcPill"],
   },
   {
     name: "mcKbd",
-    allowedContextMask: BOTH_CONTENT_CONTEXTS,
+    allowedContextMask: KBD_SHORTCODE.allowedContextMask,
     createMarkedExtension: () => mcKbdExtension,
     tokenTypes: ["mcKbd"],
   },

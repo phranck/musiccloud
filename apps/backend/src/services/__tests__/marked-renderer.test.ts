@@ -1,4 +1,4 @@
-import { ContentContext } from "@musiccloud/shared";
+import { ContentContext, FIELDS_DEFAULT_GAP, FIELDS_DEFAULT_LABEL_WIDTH, PILL_DEFAULT_TONE } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
 import { renderMarkdown } from "../markdown/renderer.js";
 
@@ -249,9 +249,9 @@ describe("marked custom code renderer", () => {
     expect(out).toContain('<span class="mc-pill mc-pill-alert">TITLE ODER ARTIST</span>');
   });
 
-  it("defaults [[pill:...]] to neutral tone and preserves casing", async () => {
+  it("defaults [[pill:...]] to the registry's tone and preserves casing", async () => {
     const out = (await marked.parse("foo [[pill:Info]] bar", { async: true })) as string;
-    expect(out).toContain('<span class="mc-pill mc-pill-neutral">Info</span>');
+    expect(out).toContain(`<span class="mc-pill mc-pill-${PILL_DEFAULT_TONE}">Info</span>`);
   });
 
   it("applies [[pill:...]] case options", async () => {
@@ -303,9 +303,12 @@ describe("marked custom code renderer", () => {
       { async: true },
     )) as string;
 
+    // Against the registry's declared defaults, which is where a writer reads
+    // them in the editor's reference. Repeating the figures here would let the
+    // two disagree without either one failing.
     expect(out).toContain('<dl class="mc-fields"');
-    expect(out).toContain("grid-template-columns:max-content minmax(0, 1fr)");
-    expect(out).toContain("column-gap:1.1rem");
+    expect(out).toContain(`grid-template-columns:${FIELDS_DEFAULT_LABEL_WIDTH} minmax(0, 1fr)`);
+    expect(out).toContain(`column-gap:${FIELDS_DEFAULT_GAP}`);
     expect(out).toContain("<dt>genre:</dt>");
     expect(out).toContain('<span class="mc-pill mc-pill-alert">REQ</span>');
     expect(out).toContain("<dt>count:</dt>");
