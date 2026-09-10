@@ -32,6 +32,9 @@
     --mc-shortcode-border: var(--color-border);
     --mc-shortcode-caption-color: var(--color-fg-subtle);
     --mc-shortcode-title-color: var(--color-fg);
+    /* Barlow's capitals are 0.7em tall, so the line a symbol is centred on
+       sits half of that above the baseline. */
+    --mc-shortcode-cap-midline: 0.35em;
 
     display: grid;
     gap: var(--mc-space-6);

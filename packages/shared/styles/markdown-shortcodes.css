@@ -21,13 +21,39 @@
  *   --mc-shortcode-title-color     a heading on one of those blocks
  */
 
-/* A symbol written into a text. It sits on the text's own line rather than on
-   the baseline, where an SVG would otherwise push the line apart, and it never
-   grows past the line it stands in. */
+/*
+ * A symbol written into a text, centred on the line beside it.
+ *
+ * Centred means the midline between the baseline and the cap line, which is the
+ * line system type is set on. The middle of a glyph box is a different place: a
+ * box is taller than the letters drawn in it, and aligning boxes leaves the
+ * symbol riding high beside the words.
+ *
+ * Barlow's capitals are 0.7em tall, measured from the OS/2 table and from the
+ * drawn outline of H and X, which agree. So the midline sits 0.35em above the
+ * baseline, and `translateY` moves the symbol from where its own bottom rests
+ * on that baseline down to it. Stated in em, so it holds at every text size,
+ * and as a percentage of the symbol's own height, so it holds at every symbol
+ * size without either being written into the markup.
+ *
+ * The symbol stays with the first line of its text, which is what an inline box
+ * does, so a sentence that wraps still has its symbol beside the words it
+ * begins with.
+ */
 .mc-icon {
   display: inline-block;
-  vertical-align: text-bottom;
+  vertical-align: baseline;
+  transform: translateY(calc(50% - var(--mc-shortcode-cap-midline, 0.35em)));
   max-width: 100%;
+}
+
+/*
+ * Inside a pair the symbol is a flex item, and the pair centres it against its
+ * own text. The shift above would push it back out of that centring, so it does
+ * not apply there.
+ */
+.mc-icon-pair > .mc-icon {
+  transform: none;
 }
 
 /* A symbol the paragraph beside it runs around. The class names the side the

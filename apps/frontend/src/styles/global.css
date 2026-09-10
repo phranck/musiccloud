@@ -194,4 +194,7 @@ button,
   --mc-shortcode-border: var(--color-border);
   --mc-shortcode-caption-color: var(--color-text-muted);
   --mc-shortcode-title-color: var(--color-text-primary);
+  /* Barlow's capitals are 0.7em tall, so the line a symbol is centred on sits
+     half of that above the baseline. */
+  --mc-shortcode-cap-midline: 0.35em;
 }
