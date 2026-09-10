@@ -55,12 +55,14 @@
   /* Stacked: each statement above the sentence explaining it, which is how the
      pricing page's commitments have always read.
 
-     Two gaps, not one. The statement and its sentence belong together, so what
-     separates them is small; what separates one pair from the next is the row
-     gap the list carries. Leaving both to the row gap put as much space inside
-     a pair as between two, and the list read as four unrelated lines. */
+     Measured against the page this replaces: `--mc-space-4` between one pair
+     and the next, nothing between a statement and its own sentence, and the
+     marker at `--mc-size-icon-lg` a `--mc-space-3` to the left. */
   .editorial-markdown .mc-fields--stacked dt {
+    position: relative;
     margin-block-start: var(--mc-space-4);
+    padding-inline-start: calc(var(--mc-size-icon-lg) + var(--mc-space-3));
+    font-weight: 600;
   }
 
   .editorial-markdown .mc-fields--stacked dt:first-child {
@@ -68,7 +70,35 @@
   }
 
   .editorial-markdown .mc-fields--stacked dd {
-    margin-block-start: var(--mc-space-1);
+    margin-block-start: 0;
+    padding-inline-start: calc(var(--mc-size-icon-lg) + var(--mc-space-3));
+  }
+
+  /* The marker, drawn rather than embedded. Rendered Markdown carries no SVG,
+     because the sanitizer drops it and that is worth keeping, so the ring is a
+     rounded box and only the tick needs a path. Both take `currentColor`, so
+     the marker follows whatever colour the text around it is. */
+  .editorial-markdown .mc-fields--stacked dt::before,
+  .editorial-markdown .mc-fields--stacked dt::after {
+    content: "";
+    position: absolute;
+    inset-block-start: calc((1lh - var(--mc-size-icon-lg)) / 2);
+    inset-inline-start: 0;
+    width: var(--mc-size-icon-lg);
+    height: var(--mc-size-icon-lg);
+  }
+
+  .editorial-markdown .mc-fields--stacked dt::before {
+    border-radius: var(--mc-radius-round);
+    /* The duotone ring, at the same 40% the icon component gives it. */
+    background: color-mix(in srgb, currentColor 40%, transparent);
+  }
+
+  .editorial-markdown .mc-fields--stacked dt::after {
+    background: currentColor;
+    mask-image: var(--mc-editorial-tick-mask);
+    mask-repeat: no-repeat;
+    mask-size: contain;
   }
 
   .mc-cards {
@@ -103,7 +133,9 @@
   .editorial-markdown h5,
   .editorial-markdown h6 {
     color: var(--color-fg);
-    font-weight: 600;
+    /* 500, matching the hand-written portal headings this replaces. 600 read as
+       heavier than anything else on the page. */
+    font-weight: 500;
     line-height: var(--mc-editorial-heading-line-height);
   }
 
@@ -126,6 +158,10 @@
      portal page set it. It is the first thing read and it introduces the rest,
      so it is set larger, and only where it genuinely opens the page. */
   .editorial-markdown > p:first-child {
+    /* `--mc-space-6` under it rather than the list's own gap, because a lead
+       introduces the page and then stands back from it. Measured against the
+       page this replaces, which set `mb-10`. */
+    margin-block-end: var(--mc-space-6);
     color: var(--color-fg-muted);
     font-size: var(--text-lead);
   }
