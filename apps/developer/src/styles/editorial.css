@@ -107,16 +107,27 @@
     line-height: var(--mc-editorial-heading-line-height);
   }
 
+  /* A heading inside a page, not the page's own. The page already carries its
+     title at `--text-hero` above this, so a section heading set at
+     `--text-section` competes with it and reads as a second title. */
   .editorial-markdown h1,
   .editorial-markdown h2 {
-    font-size: var(--text-section);
+    font-size: var(--text-card-title);
   }
 
   .editorial-markdown h3,
   .editorial-markdown h4,
   .editorial-markdown h5,
   .editorial-markdown h6 {
-    font-size: var(--text-subsection);
+    font-size: var(--text-body);
+  }
+
+  /* The opening paragraph is the page's lead, which is how every hand-written
+     portal page set it. It is the first thing read and it introduces the rest,
+     so it is set larger, and only where it genuinely opens the page. */
+  .editorial-markdown > p:first-child {
+    color: var(--color-fg-muted);
+    font-size: var(--text-lead);
   }
 
   .editorial-markdown ul,
