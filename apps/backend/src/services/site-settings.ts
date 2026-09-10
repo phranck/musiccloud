@@ -21,6 +21,8 @@
  * is why the import is destructured this way instead of just
  * `import { Pool } from "pg"`.
  */
+
+import { type DesignTokens, parseDesignTokens } from "@musiccloud/shared";
 import * as pgModule from "pg";
 import { loadDatabaseConfig } from "../db/config.js";
 
@@ -91,4 +93,26 @@ export async function setSetting(key: string, value: string): Promise<void> {
      ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
     [key, value],
   );
+}
+
+/**
+ * The key the design-token blob is stored under.
+ *
+ * The tokens decide what every glass surface looks like, on the site and in an
+ * email alike, so both read them from here rather than each naming the key.
+ */
+export const DESIGN_TOKENS_KEY = "design_tokens";
+
+/**
+ * Reads the stored design tokens, validated.
+ *
+ * `parseDesignTokens` fills anything missing or invalid with the canonical
+ * default, so this always returns a complete set and a caller never has to
+ * decide what to do without one.
+ *
+ * @returns The validated token set.
+ */
+export async function getDesignTokens(): Promise<DesignTokens> {
+  const raw = await getSetting(DESIGN_TOKENS_KEY);
+  return parseDesignTokens(raw).tokens;
 }

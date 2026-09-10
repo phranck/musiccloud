@@ -19,9 +19,15 @@ the outside in:
 | Level | Radius | Inset subtracted |
 |---|---|---|
 | EmbossedCard (outer) | `--mc-card-radius` | — |
-| RecessedCard / well | `card − 12px` | content inset (`0.75rem`) |
-| Control / row / button | `card − 15px` | + control inset (`0.1875rem`) |
+| RecessedCard / well | `card − 12px` | content inset (`CARD_CONTENT_INSET_PX`) |
+| Control / row / button | `card − 15px` | + control inset (`RECESSED_CONTROL_INSET_PX`) |
 | List-row artwork frame | `row corner − artwork inset` (per corner, concentric) | artwork inset (e.g. `4px`) |
+
+The two insets live in
+[`packages/shared/src/card-geometry.ts`](packages/shared/src/card-geometry.ts),
+because the email renderer derives the same radii from the same numbers and a card
+in an email has to be the shape of the card on the page. `cardGeometry.ts` reads
+them and expresses them as CSS; the email renderer resolves them to pixels.
 
 Never hardcode a nested radius (no `rounded-md`, no `borderRadius: "6px"` on a nested
 element). Derive it from the cascade so a single `cardRadius` change re-rounds every
@@ -168,7 +174,8 @@ down to its meaningful inner slots.
 ## See also
 
 - [`docs/REACT_DOCTOR_PREVENTION.md`](docs/REACT_DOCTOR_PREVENTION.md) — React Doctor policy (run before/after React work).
-- [`apps/frontend/src/components/cards/cardGeometry.ts`](apps/frontend/src/components/cards/cardGeometry.ts) — the radius-cascade source of truth.
+- [`packages/shared/src/card-geometry.ts`](packages/shared/src/card-geometry.ts) — the insets the radius cascade is measured against, shared by the site and the email renderer.
+- [`apps/frontend/src/components/cards/cardGeometry.ts`](apps/frontend/src/components/cards/cardGeometry.ts) — the cascade as CSS custom properties.
 - [`mockups/frontend-prototype.html`](mockups/frontend-prototype.html) — the tuned visual + settings reference for every screen.
 - [`docs/postgres-migration-safety.md`](docs/postgres-migration-safety.md) — connection roles, migration guard and readiness checks.
 - [`docs/backend-error-observability.md`](docs/backend-error-observability.md) — public error contract, UI propagation and log correlation.

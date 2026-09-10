@@ -17,6 +17,7 @@ import {
   resolveRecipientVariables,
   resolveSystemVariables,
 } from "./email-variable-resolver.js";
+import { getDesignTokens } from "./site-settings.js";
 
 /**
  * Input for {@link triggerEmailAction}: the transport address, the addressee
@@ -97,6 +98,7 @@ export async function triggerEmailAction(actionKey: string, input: TriggerEmailA
   };
 
   const branding = await repo.getEmailBranding();
+  const designTokens = await getDesignTokens();
   const baseUrl = requireEnv("PUBLIC_URL");
 
   for (const binding of bindings) {
@@ -124,6 +126,7 @@ export async function triggerEmailAction(actionKey: string, input: TriggerEmailA
       branding,
       variables,
       baseUrl,
+      designTokens,
     );
     await sendEmail({ to: input.to, subject, html });
   }
