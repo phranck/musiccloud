@@ -209,9 +209,9 @@ describe("parseShortcodes — unknown tokens", () => {
   });
 
   it("returns nothing when the notation does not match the definition", () => {
-    // `sample` is declared as a bracket shortcode, so a fence by that name is
-    // not it, and the source stays on the page as text.
-    expect(parseShortcodes(":::sample\ncopy\n:::", TEST_DEFINITIONS)).toHaveLength(0);
+    // `sample` is declared as a bracket shortcode, so the braces form by that
+    // name is not it, and the source stays on the page as text.
+    expect(parseShortcodes("{{sample}}", TEST_DEFINITIONS)).toHaveLength(0);
   });
 });
 

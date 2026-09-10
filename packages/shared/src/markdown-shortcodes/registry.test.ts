@@ -120,7 +120,7 @@ describe("assertRegistryIsUnambiguous", () => {
   });
 
   it("accepts the same token in two different notations", () => {
-    expect(() => assertRegistryIsUnambiguous([base, { ...base, syntax: ShortcodeSyntax.Fence }])).not.toThrow();
+    expect(() => assertRegistryIsUnambiguous([base, { ...base, syntax: ShortcodeSyntax.Braces }])).not.toThrow();
   });
 
   it("refuses a second braces shortcode, which nothing could tell apart", () => {

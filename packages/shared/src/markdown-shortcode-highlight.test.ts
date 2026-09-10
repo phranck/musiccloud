@@ -26,16 +26,6 @@ describe("highlightShortcodes", () => {
     expect(marked(source, "token")).toEqual(["pill"]);
   });
 
-  it("marks the fence markers, and the token between them as one nothing claims", () => {
-    // The notation itself is still read, because pages written before the
-    // bracket form carry it and the renderer keeps rendering them. No shortcode
-    // is written this way any more, so the editor says so.
-    const source = ":::fields gap=2rem\nMethod: GET\n:::";
-
-    expect(marked(source, "fence-marker")).toEqual([":::", ":::"]);
-    expect(marked(source, "unknown-token")).toEqual(["fields"]);
-  });
-
   it("marks the braces form", () => {
     const source = "Press {{Esc}} to close.";
 

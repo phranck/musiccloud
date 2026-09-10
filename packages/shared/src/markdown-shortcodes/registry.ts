@@ -39,7 +39,7 @@ export const SHORTCODE_DEFINITIONS: readonly ShortcodeDefinition[] = [
 /**
  * Finds a shortcode by its token.
  *
- * @param token - What was written after `[[` or `:::`.
+ * @param token - What was written after `[[`.
  * @returns The definition, or `undefined` when nothing claims that token, in
  *   which case the source is left standing as text.
  */

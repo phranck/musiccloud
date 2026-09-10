@@ -5,7 +5,7 @@
  * code that looks it up cannot spell the same shortcode two ways.
  */
 
-/** What follows `[[` or `:::`, per shortcode. */
+/** What follows `[[`, per shortcode. */
 export const ShortcodeToken = {
   /** One card, holding whatever a page holds. */
   Card: "card",

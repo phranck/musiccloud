@@ -39,7 +39,6 @@ export const ShortcodeIssueCode = {
   TargetForbidden: "TargetForbidden",
   UnterminatedAttribute: "UnterminatedAttribute",
   UnterminatedBody: "UnterminatedBody",
-  UnterminatedFence: "UnterminatedFence",
 } as const;
 
 /** One of the codes in {@link ShortcodeIssueCode}. */
@@ -296,7 +295,6 @@ function validateBody(definition: ShortcodeDefinition, body: string | undefined)
 function carryOverIssue(code: ShortcodeSyntaxIssueCodeValue): ShortcodeIssueCodeValue {
   if (code === ShortcodeSyntaxIssueCode.UnterminatedValue) return ShortcodeIssueCode.UnterminatedAttribute;
   if (code === ShortcodeSyntaxIssueCode.UnterminatedBody) return ShortcodeIssueCode.UnterminatedBody;
-  if (code === ShortcodeSyntaxIssueCode.UnterminatedFence) return ShortcodeIssueCode.UnterminatedFence;
   return ShortcodeIssueCode.InvalidAttribute;
 }
 

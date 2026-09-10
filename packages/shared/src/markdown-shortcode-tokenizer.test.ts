@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  MAX_BODY_LENGTH,
-  MAX_NODE_LENGTH,
-  ShortcodeSyntaxIssueCode,
-  tokenizeShortcodes,
-} from "./markdown-shortcode-tokenizer.js";
+import { MAX_BODY_LENGTH, MAX_NODE_LENGTH, tokenizeShortcodes } from "./markdown-shortcode-tokenizer.js";
 import { ShortcodeSyntax } from "./markdown-shortcodes/index.js";
 
 describe("tokenizeShortcodes — the bracket form", () => {
@@ -111,41 +106,6 @@ describe("tokenizeShortcodes — bodies and nesting", () => {
   });
 });
 
-describe("tokenizeShortcodes — the fence form", () => {
-  it("reads a token, its attributes and the content between the markers", () => {
-    const [node] = tokenizeShortcodes(":::fields gap=2rem\nMethod: GET\nPath: /v1\n:::");
-
-    expect(node.syntax).toBe(ShortcodeSyntax.Fence);
-    expect(node.token).toBe("fields");
-    expect(node.attributes).toEqual({ gap: "2rem" });
-    expect(node.body).toBe("Method: GET\nPath: /v1");
-  });
-
-  it("opens only at the start of a line", () => {
-    expect(tokenizeShortcodes("text :::fields\nMethod: GET\n:::")).toHaveLength(0);
-  });
-
-  it("returns nothing for a fence that never closes", () => {
-    expect(tokenizeShortcodes(":::fields\nMethod: GET")).toHaveLength(0);
-  });
-
-  it("carries on scanning after the closing marker", () => {
-    const nodes = tokenizeShortcodes(":::fields\nMethod: GET\n:::\n\nThen [[pill:Beta]].");
-
-    expect(nodes.map((node) => node.token)).toEqual(["fields", "pill"]);
-  });
-
-  it("stops an unterminated value at the end of the opening line", () => {
-    const [node] = tokenizeShortcodes(':::fields gap="never closed\nMethod: GET\n:::');
-
-    expect(node.issues.map((issue) => issue.code)).toContain(ShortcodeSyntaxIssueCode.UnterminatedValue);
-    expect(node.attributes.gap).toBe("never closed");
-    // The content survives, which is the point: the mistake stays on the line
-    // it was made on instead of swallowing the rest of the page.
-    expect(node.body).toBe("Method: GET");
-  });
-});
-
 describe("tokenizeShortcodes — the braces form", () => {
   it("takes what stands between the braces as its target", () => {
     const [node] = tokenizeShortcodes("Press {{Esc}} to close.");
@@ -171,5 +131,14 @@ describe("tokenizeShortcodes — the braces form", () => {
 
   it("leaves an escaped opening marker alone", () => {
     expect(tokenizeShortcodes("\\{{Esc}}")).toHaveLength(0);
+  });
+});
+
+describe("tokenizeShortcodes — a value that never closes", () => {
+  it("leaves the whole thing as text, because the node never closes either", () => {
+    // A quote that is never closed swallows the closing pair with everything
+    // else, so there is no node to hand back. The source stays on the page,
+    // which is where whoever wrote it can see the missing quote.
+    expect(tokenizeShortcodes('[[pill:Beta tone="never closed]]\n\nA paragraph after it.')).toHaveLength(0);
   });
 });

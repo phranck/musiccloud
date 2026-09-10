@@ -24,7 +24,6 @@ import {
   readShortcodeAt,
   type ShortcodeDefinition,
   type ShortcodeParamValue,
-  ShortcodeSyntax,
   SPACER_SHORTCODE,
   VSTACK_SHORTCODE,
   YOUTUBE_SHORTCODE,
@@ -163,8 +162,8 @@ function readShortcode(
  * @param raw - The fence's source, as marked matched it.
  * @returns The two column measurements.
  */
-function parseFieldsLayout(raw: string, definition: ShortcodeDefinition = FIELDS_SHORTCODE): FieldsLayout {
-  const { params } = readShortcode(raw, definition);
+function parseFieldsLayout(raw: string): FieldsLayout {
+  const { params } = readShortcode(raw, FIELDS_SHORTCODE);
   const labelWidth = String(params.labelWidth ?? FIELDS_DEFAULT_LABEL_WIDTH);
   const gap = String(params.gap ?? FIELDS_DEFAULT_GAP);
 
@@ -294,23 +293,6 @@ function applyPillCase(text: string, textCase: PillCase): string {
 }
 
 /**
- * The fields list as pages written before the change still carry it.
- *
- * The registry declares the bracket form, which is what a writer is shown and
- * what every example uses. Stored pages carry `:::fields`, and the parser
- * refuses a notation the declaration does not name, so the same declaration is
- * repeated here under the old notation and used for those pages alone. It
- * appears in no example, in no reference and in no help.
- *
- * @deprecated Reading only, so nothing stored breaks. Goes once the stored
- * pages have been rewritten to `[[fields { … }]]`.
- */
-const FENCE_FIELDS_SHORTCODE = { ...FIELDS_SHORTCODE, syntax: ShortcodeSyntax.Fence };
-
-/** What the old notation opens with, which is how a page written in it is recognised. */
-const FENCE_OPENING = ":::";
-
-/**
  * Reads a fields list, if one begins here.
  *
  * The rows are lines of `Label: value`, and the value is inline Markdown, so a
@@ -325,14 +307,10 @@ function readFieldsSource(source: string): { raw: string; rows: string[]; layout
   const node = readShortcodeAt(source, 0);
   if (!node || node.token !== FIELDS_SHORTCODE.token || node.body === undefined) return null;
 
-  // Which notation this page was written in decides which declaration reads it,
-  // because the parser checks the two against each other.
-  const definition = node.source.raw.startsWith(FENCE_OPENING) ? FENCE_FIELDS_SHORTCODE : FIELDS_SHORTCODE;
-
   return {
     raw: node.source.raw,
     rows: node.body.split(/\r?\n/),
-    layout: parseFieldsLayout(node.source.raw, definition),
+    layout: parseFieldsLayout(node.source.raw),
   };
 }
 
@@ -342,7 +320,7 @@ const mcFieldsExtension: MarkedExtension = {
       name: "mcFields",
       level: "block",
       start(source) {
-        return source.match(/\[\[fields[\s{]|^:::fields\b/m)?.index;
+        return source.match(/\[\[fields[\s{]/)?.index;
       },
       tokenizer(source) {
         const read = readFieldsSource(source);
