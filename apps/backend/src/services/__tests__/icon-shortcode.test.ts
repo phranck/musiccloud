@@ -108,6 +108,20 @@ describe("[[icon]]", () => {
     expect(out).toContain("mc-icon--align-center");
   });
 
+  it("leaves the gap between symbol and text to the stylesheet until a page names one", async () => {
+    const without = await renderPortal('[[icon name="key" text="Beside it"]]');
+    const named = await renderPortal('[[icon name="key" text="Beside it" spacing=16]]');
+
+    expect(without).not.toContain("style=");
+    expect(named).toContain('style="gap:16px"');
+  });
+
+  it("keeps that gap through the sanitizer", async () => {
+    const out = sanitizeMarkdownHtml(await renderPortal('[[icon name="key" text="Beside it" spacing=16]]'));
+
+    expect(out).toContain("gap:16px");
+  });
+
   it("survives the sanitizer whole", async () => {
     const out = sanitizeMarkdownHtml(await renderPortal('[[icon name="key" size=96]]'));
 

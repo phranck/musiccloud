@@ -21,6 +21,7 @@ import {
   readShortcodeAt,
 } from "@musiccloud/shared";
 import type { MarkedExtension, Token, Tokens } from "marked";
+import { resolveContainerSpacing } from "./containers.js";
 import { duotonePaths } from "./phosphor-duotone.js";
 
 /** A hex figure of three, four, six or eight digits, with or without its hash. */
@@ -87,6 +88,8 @@ interface McIconToken extends Tokens.Generic {
   textTokens: Token[] | null;
   /** The classes the pair around the two carries, or `null` for a bare symbol. */
   pairClass: string | null;
+  /** The gap between the two as CSS, or `null` to let the stylesheet decide. */
+  spacing: string | null;
 }
 
 function escapeHtml(value: string): string {
@@ -204,6 +207,7 @@ export function createIconExtension(): MarkedExtension {
               paired && textAlignment
                 ? ["mc-icon-pair", TEXT_ALIGNMENT_CLASSES[textAlignment], placed].filter(Boolean).join(" ")
                 : null,
+            spacing: resolveContainerSpacing(parsed?.params.spacing),
           } satisfies McIconToken;
         },
         renderer(token) {
@@ -222,7 +226,8 @@ export function createIconExtension(): MarkedExtension {
           const text = single ? rendered.slice("<p>".length, -PARAGRAPH_END.length) : rendered;
           const tag = single ? "span" : "div";
 
-          return `<${tag} class="${icon.pairClass}">${icon.markup}<${tag} class="mc-icon-pair__label">${text}</${tag}></${tag}>`;
+          const style = icon.spacing ? ` style="gap:${icon.spacing}"` : "";
+          return `<${tag} class="${icon.pairClass}"${style}>${icon.markup}<${tag} class="mc-icon-pair__label">${text}</${tag}></${tag}>`;
         },
       },
     ],
