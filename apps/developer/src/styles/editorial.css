@@ -60,35 +60,38 @@
     padding-inline: 0;
   }
 
-  /* A card written into a page, taking the same surface, radius and padding as
-     the `surface-card` component the hand-written pages used. It is a class of
-     its own rather than that component because the renderer serves both the
-     portal and the site, and each maps `mc-card` onto its own material. */
-  /* A card holds page content, so it lays that content out itself rather than
+  /* A card written into a page, drawn on the same figures as the API
+     reference's own cards: one surface, one radius, one inset, one control
+     height. It is a class of its own rather than that component because the
+     renderer serves both the portal and the site, and each maps `mc-card` onto
+     its own material.
+
+     A card holds page content, so it lays that content out itself rather than
      leaving the gaps to the level above. The spacing inside is carried per
      element, because a heading belongs to what follows it whilst a paragraph
-     stands apart from it, and one gap cannot say both.
-
-     Measured against the sections this replaces. */
+     stands apart from it, and one gap cannot say both. */
   .mc-card {
+    /* A control inside a card is the compact one, as it is in every card in the
+       API reference, so a button in a footer matches the ones there. */
+    --button-min-height: var(--mc-size-control-compact);
+
     display: grid;
     border-radius: var(--radius-card);
     font-size: var(--text-card-body);
-    padding: var(--mc-space-7);
+    padding: var(--space-content-card);
     background: var(--color-surface);
   }
 
-  /* A card sharing a row is narrower, so it carries less padding, which is what
-     the two commitment cards on the pricing page always had. */
-  .mc-cards > .mc-card {
-    padding: var(--mc-space-5);
-  }
-
-  .mc-card > * {
+  /* The rhythm inside a card, which is the same whether the card holds its
+     content directly or names a body to hold it. Both are named, because a card
+     written either way reads as one card. */
+  .mc-card > *,
+  .mc-card__body > * {
     margin-block-end: var(--mc-space-5);
   }
 
-  .mc-card > :last-child {
+  .mc-card > :last-child,
+  .mc-card__body > :last-child {
     margin-block-end: 0;
   }
 
@@ -97,14 +100,16 @@
   .mc-card > h3:not([class]),
   .mc-card > h4:not([class]),
   .mc-card > h5:not([class]),
-  .mc-card > h6:not([class]) {
+  .mc-card > h6:not([class]),
+  .mc-card__body > h1:not([class]),
+  .mc-card__body > h2:not([class]),
+  .mc-card__body > h3:not([class]),
+  .mc-card__body > h4:not([class]),
+  .mc-card__body > h5:not([class]),
+  .mc-card__body > h6:not([class]) {
     margin-block-end: var(--mc-space-2);
   }
 
-  /* A header and a footer stand apart from the content rather than reading as
-     the first and last thing in it, so each carries a rule and the same air on
-     both sides of it. The rule runs the width of the content, not of the card,
-     because the card's padding is what holds it off the edge. */
   /* A command is a control, not copy, so it keeps the size every other control
      in the portal has rather than following the page's reading size. */
   .editorial-markdown .mc-button {
@@ -124,6 +129,13 @@
     padding: 0;
   }
 
+  /* The parts meet each other. What separates two things inside a card would
+     here open a gap between a band and the content it belongs to, on top of the
+     padding each part already carries. */
+  .mc-card--sectioned > * {
+    margin-block-end: 0;
+  }
+
   .mc-card__header,
   .mc-card__footer {
     display: flex;
@@ -134,13 +146,9 @@
     background: var(--color-card-chrome);
   }
 
-  /* The content takes the padding the card gave up. */
+  /* The content takes the padding the card gave up, at the same inset. */
   .mc-card__body {
-    padding: var(--mc-space-7);
-  }
-
-  .mc-cards > .mc-card > .mc-card__body {
-    padding: var(--mc-space-5);
+    padding: var(--space-content-card);
   }
 
   /* A card is named by a symbol and a title together, as a chapter is in the

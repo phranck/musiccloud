@@ -269,6 +269,30 @@ function validateBody(
   body: string | undefined,
   children: readonly ParsedShortcode[],
 ): ShortcodeIssue[] {
+  // A part that takes either braces or a `text` attribute is complete with
+  // whichever the author chose, so neither absence is a mistake.
+  if (definition.body === ShortcodeBodyRule.OptionalMarkdown) return [];
+
+  if (definition.body === ShortcodeBodyRule.Children) {
+    if (body !== undefined) {
+      return [
+        {
+          code: ShortcodeIssueCode.BodyForbidden,
+          message: `Shortcode "${definition.token}" holds its parts rather than content, so it takes no braces.`,
+        },
+      ];
+    }
+    if (children.length === 0) {
+      return [
+        {
+          code: ShortcodeIssueCode.MissingBody,
+          message: `Shortcode "${definition.token}" needs content inside it.`,
+        },
+      ];
+    }
+    return [];
+  }
+
   const takesBody = definition.body === ShortcodeBodyRule.Markdown;
 
   if (takesBody && body === undefined && children.length === 0) {

@@ -86,6 +86,16 @@ describe("highlightShortcodes", () => {
     expect(marked(source, "unknown-token")).toEqual(["nosuchthing"]);
   });
 
+  it("reads a body the same way however deep it sits", () => {
+    // The fields list stands inside a card's body child, so the list is resolved
+    // against the document rather than against what a card may name. A page
+    // renders it there, and the editor colours it as the page reads it.
+    const source = '[[card\n[[body {\n[[fields\n[[field label="A" {\nB\n}]]\n]]\n}]]\n]]';
+
+    expect(marked(source, "unknown-token")).toEqual([]);
+    expect(marked(source, "token")).toEqual(["card", "body", "fields", "field"]);
+  });
+
   it("keeps every span pointing at the source it came from", () => {
     const source = "Intro.\n\n[[card {\n  [[pill:Beta tone=info]]\n}]]\n\nOutro.";
 

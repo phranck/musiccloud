@@ -22,6 +22,7 @@ import {
   ICON_DEFAULT_SIZE,
   parseShortcodes,
   readShortcodeAt,
+  type ShortcodeDefinition,
   type ShortcodeNode,
   type ShortcodeParamValue,
   type SingleContentContext,
@@ -137,6 +138,32 @@ function readCardSource(source: string, token: string): CardSource | null {
 }
 
 /**
+ * What one band carries, and the parameters it was written with.
+ *
+ * A header or a footer is written either between braces or as a `text`
+ * attribute, so both are read here and the braces win where a page wrote both.
+ * The parameters come back with it because the header draws its symbol from
+ * them, and parsing the node twice to reach it would be the same work again.
+ *
+ * @param node - The band as the tokenizer read it.
+ * @param definition - What that band accepts, so the registry decides.
+ * @returns The Markdown it carries, empty where it carries none, with the
+ *   parameters the page wrote.
+ */
+function readCardPart(
+  node: ShortcodeNode,
+  definition: ShortcodeDefinition,
+): { content: string; params: Record<string, ShortcodeParamValue> } {
+  const [parsed] = parseShortcodes(node.source.raw, [definition]);
+  const params = parsed?.params ?? {};
+
+  if (node.body !== undefined && node.body.trim() !== "") return { content: node.body, params };
+
+  const text = params.text;
+  return { content: typeof text === "string" ? text.trim() : "", params };
+}
+
+/**
  * Reads a card's body into the three parts it may be written in.
  *
  * A card written with braces is all body, which is the short form and the one
@@ -164,17 +191,17 @@ function readCardSections(read: CardSource, context: SingleContentContext): Card
       sections.body = node.body ?? "";
       continue;
     }
+
     if (node.token === CARD_FOOTER_SHORTCODE.token) {
-      sections.footer = node.body ?? "";
+      sections.footer = readCardPart(node, CARD_FOOTER_SHORTCODE).content;
       continue;
     }
 
-    const [parsed] = parseShortcodes(node.source.raw, [CARD_HEADER_SHORTCODE]);
-    const text = typeof parsed?.params.text === "string" ? parsed.params.text.trim() : "";
-    if (!text) continue;
+    const { content, params } = readCardPart(node, CARD_HEADER_SHORTCODE);
+    if (!content) continue;
 
-    sections.header = text;
-    const icon = typeof parsed?.params.icon === "string" ? parsed.params.icon.trim() : "";
+    sections.header = content;
+    const icon = typeof params.icon === "string" ? params.icon.trim() : "";
     sections.headerIcon = icon
       ? renderSymbol(iconSetFor(context), icon, ICON_DEFAULT_SIZE, "currentColor", CARD_HEADER_ICON_CLASS)
       : null;

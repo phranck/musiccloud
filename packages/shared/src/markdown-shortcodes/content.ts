@@ -129,7 +129,7 @@ export const FIELDS_SHORTCODE = {
   renderMode: ShortcodeRenderMode.Html,
   target: ShortcodeTargetRule.Forbidden,
   placement: ShortcodePlacement.Block,
-  body: ShortcodeBodyRule.Markdown,
+  body: ShortcodeBodyRule.Children,
   label: "Fields",
   description:
     "A list of labels and the values beside them, as you would document an endpoint. It holds its entries and nothing else, so it carries no braces of its own. Each entry is a field, and both its halves are Markdown. The labels line up in a column, whose width and alignment the list decides.",

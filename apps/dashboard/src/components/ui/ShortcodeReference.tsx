@@ -9,7 +9,11 @@
 
 import {
   CODE_FENCE_LANGUAGES,
+  highlightShortcodes,
+  reindentShortcodeBlock,
   SHORTCODE_DEFINITIONS,
+  SHORTCODE_HIGHLIGHT_BOLD_KIND,
+  SHORTCODE_HIGHLIGHT_VARIABLES,
   ShortcodeBodyRule,
   type ShortcodeDefinition,
   type ShortcodeParamDefinition,
@@ -124,8 +128,74 @@ function describeType(param: ShortcodeParamDefinition): string {
 function notationFor(definition: ShortcodeDefinition): string {
   if (definition.syntax === ShortcodeSyntax.Braces) return "{{…}}";
   if (definition.target === ShortcodeTargetRule.Required) return `[[${definition.token}:…]]`;
+  if (definition.body === ShortcodeBodyRule.Children) return `[[${definition.token} … ]]`;
   if (definition.body === ShortcodeBodyRule.Markdown) return `[[${definition.token} { … }]]`;
   return `[[${definition.token}]]`;
+}
+
+/**
+ * The examples of one shortcode, indented the way the editor indents them.
+ *
+ * The registry writes an example as source, which is what a writer copies, and
+ * the indentation it arrives with is not that writer's business. Running it
+ * through the editor's own rule means the panel shows exactly what pasting it
+ * produces.
+ *
+ * @param definition - The shortcode.
+ * @returns One block per example.
+ */
+function exampleBlocks(definition: ShortcodeDefinition): string[] {
+  return definition.examples.map((example) => reindentShortcodeBlock(example, 0));
+}
+
+/**
+ * What a token inside one entry's examples is read against.
+ *
+ * A child names a token that only means something inside its parent, so on its
+ * own it would be read as unknown and coloured as a mistake. Naming the entry
+ * itself beside the document's own definitions is what keeps a child's example
+ * looking like the working code it is.
+ *
+ * @param definition - The entry whose examples are being coloured.
+ * @returns The definitions to resolve against.
+ */
+function definitionsForExample(definition: ShortcodeDefinition): readonly ShortcodeDefinition[] {
+  return [definition, ...SHORTCODE_DEFINITIONS];
+}
+
+/**
+ * One example, coloured exactly as the editor colours what an author types.
+ *
+ * @param props.source - The example, already indented.
+ * @param props.definitions - What a token in it means.
+ * @returns The source, with each part in its own colour.
+ */
+function ShortcodeSource({ source, definitions }: { source: string; definitions: readonly ShortcodeDefinition[] }) {
+  const spans = highlightShortcodes(source, { definitions });
+  const parts: React.ReactNode[] = [];
+  let cursor = 0;
+
+  for (const span of spans) {
+    // Text between two spans is neither a shortcode nor a variable, so it keeps
+    // the colour of the block around it.
+    if (span.from > cursor) parts.push(source.slice(cursor, span.from));
+    parts.push(
+      <span
+        key={`${span.from}-${span.to}`}
+        style={{
+          color: `var(${SHORTCODE_HIGHLIGHT_VARIABLES[span.kind]})`,
+          fontWeight: span.kind === SHORTCODE_HIGHLIGHT_BOLD_KIND ? 600 : undefined,
+        }}
+      >
+        {source.slice(span.from, span.to)}
+      </span>,
+    );
+    cursor = span.to;
+  }
+
+  if (cursor < source.length) parts.push(source.slice(cursor));
+
+  return <>{parts}</>;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -260,12 +330,19 @@ export function ShortcodeEntry({ definition, depth }: { definition: ShortcodeDef
             <span className="text-[0.6875rem] text-[var(--ds-text-subtle)]">
               {definition.examples.length === 1 ? "Example" : "Examples"}
             </span>
-            <CopyButton text={definition.examples.join("\n\n")} />
+            <CopyButton text={exampleBlocks(definition).join("\n\n")} />
           </div>
           {/* The block scrolls inside itself, because a `pre` reports its
               longest line as its minimum width and would widen the panel. */}
           <pre className="m-0 overflow-x-auto rounded-control border border-[var(--ds-border-subtle)] bg-[var(--ds-input-bg)] p-2 text-[0.6875rem] leading-relaxed">
-            <code className="font-mono">{definition.examples.join("\n\n")}</code>
+            <code className="font-mono">
+              {exampleBlocks(definition).map((block, index) => (
+                <React.Fragment key={block}>
+                  {index > 0 && "\n\n"}
+                  <ShortcodeSource source={block} definitions={definitionsForExample(definition)} />
+                </React.Fragment>
+              ))}
+            </code>
           </pre>
         </div>
       )}

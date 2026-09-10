@@ -87,6 +87,29 @@ describe("a card written in its three parts", () => {
     expect(out).toContain("<strong>strong</strong>");
   });
 
+  it("takes a one-line footer as an attribute, as the header does", async () => {
+    const out = await renderPortal(
+      '[[card\n[[body {\nB\n}]]\n[[footer text="So a plan belongs to an application."]]\n]]',
+    );
+
+    expect(out).toContain('<div class="mc-card__footer">');
+    expect(out).toContain("So a plan belongs to an application.");
+  });
+
+  it("takes a header between braces, as the footer does", async () => {
+    const out = await renderPortal("[[card\n[[header {\n## What you get\n}]]\n[[body {\nB\n}]]\n]]");
+
+    expect(out).toMatch(/<h2[^>]*>What you get<\/h2>/);
+    expect(out).toContain('<div class="mc-card__header">');
+  });
+
+  it("reads what stands between the braces where a band carries both", async () => {
+    const out = await renderPortal('[[card\n[[footer text="The attribute" {\nThe braces\n}]]\n[[body {\nB\n}]]\n]]');
+
+    expect(out).toContain("The braces");
+    expect(out).not.toContain("The attribute");
+  });
+
   it("draws the symbol a header names", async () => {
     const out = await renderPortal('[[card\n[[header text="## A" icon="task-square"]]\n[[body {\nB\n}]]\n]]');
 

@@ -77,17 +77,21 @@ export const CARD_HEADER_SHORTCODE = {
   renderMode: ShortcodeRenderMode.Html,
   target: ShortcodeTargetRule.Forbidden,
   placement: ShortcodePlacement.Block,
+  body: ShortcodeBodyRule.OptionalMarkdown,
   label: "Card header",
   description:
-    "What a card says it is, standing above its content and separated from it. The text is Markdown, so a heading or a sentence both work, and a symbol may stand before it.",
-  examples: ['[[header text="## What you get" icon="task-square"]]'],
+    "What a card says it is, standing above its content and separated from it. Write one line as text=, and anything longer between braces. Both are Markdown, so a heading or a sentence work either way, and a symbol may stand before it.",
+  examples: [
+    '[[header text="## What you get" icon="task-square"]]',
+    '[[header icon="task-square" {\n## What you get\n}]]',
+  ],
   allowedContextMask: PORTAL_ONLY,
   params: [
     {
       name: "text",
       type: ShortcodeParamType.String,
-      required: true,
-      label: "What the header reads. Markdown",
+      defaultLabel: "what stands between the braces",
+      label: "What the header reads, where it is one line. Markdown",
     },
     {
       name: "icon",
@@ -127,28 +131,34 @@ export const CARD_FOOTER_SHORTCODE = {
   renderMode: ShortcodeRenderMode.Html,
   target: ShortcodeTargetRule.Forbidden,
   placement: ShortcodePlacement.Block,
-  body: ShortcodeBodyRule.Markdown,
+  body: ShortcodeBodyRule.OptionalMarkdown,
   label: "Card footer",
   description:
-    "What a card closes with, standing below its content and separated from it. Content rather than a sentence, so a row holding a note and a button both fit.",
+    "What a card closes with, standing below its content and separated from it. Write one line as text=, and anything longer between braces, where a row holding a note and a button also fits.",
   examples: [
+    '[[footer text="Every plan includes it."]]',
     '[[footer {\n[[hstack spacing=20 {\nEvery plan includes it.\n[[spacer]]\n[[button action="/signup" label="Get an API key" icon="key"]]\n}]]\n}]]',
   ],
   allowedContextMask: PORTAL_ONLY,
-  params: [],
+  params: [
+    {
+      name: "text",
+      type: ShortcodeParamType.String,
+      defaultLabel: "what stands between the braces",
+      label: "What the footer reads, where it is one line. Markdown",
+    },
+  ],
 } as const satisfies ShortcodeDefinition;
 
 /** Written out once, because it is both the documentation and the editor's example. */
 const CARD_SECTIONED_EXAMPLE = [
-  "[[card {",
-  '[[header text="## What you get" icon="task-square"]]',
-  "[[body {",
-  "One resolve call, every service it can find.",
-  "}]]",
-  "[[footer {",
-  "Every plan includes it.",
-  "}]]",
-  "}]]",
+  "[[card",
+  '  [[header text="## What you get" icon="task-square"]]',
+  "  [[body {",
+  "    One resolve call, every service it can find.",
+  "  }]]",
+  '  [[footer text="Every plan includes it."]]',
+  "]]",
 ].join("\n");
 
 /** Written out once, because it is both the documentation and the editor's example. */

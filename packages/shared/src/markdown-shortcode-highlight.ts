@@ -33,6 +33,37 @@ export interface ShortcodeHighlightSpan {
 }
 
 /**
+ * The one part of a shortcode that is set in bold.
+ *
+ * The token is what a reader scans for to find their way around a long
+ * document, and nothing else earns weight beside it.
+ */
+export const SHORTCODE_HIGHLIGHT_BOLD_KIND: ShortcodeHighlightKind = "token";
+
+/**
+ * The custom property each kind takes its colour from.
+ *
+ * Everything that shows shortcode source reads this: the editor colours what an
+ * author is typing, and the reference panel colours the examples beside it. One
+ * map means the two cannot end up drawing the same thing in different colours,
+ * whilst the palette itself stays in the stylesheet where the reasoning for
+ * each role lives.
+ */
+export const SHORTCODE_HIGHLIGHT_VARIABLES: Record<ShortcodeHighlightKind, string> = {
+  bracket: "--md-shortcode-bracket",
+  "brace-marker": "--md-shortcode-bracket",
+  separator: "--md-shortcode-separator",
+  "body-brace": "--md-shortcode-brace",
+  token: "--md-shortcode-token",
+  target: "--md-shortcode-target",
+  "attribute-name": "--md-shortcode-attribute",
+  "value-string": "--md-shortcode-string",
+  "value-bare": "--md-shortcode-number",
+  variable: "--md-shortcode-variable",
+  "unknown-token": "--md-shortcode-unknown",
+};
+
+/**
  * A name in single braces, which is what a site variable is written as.
  *
  * Single, so it cannot match the `{{…}}` form, which the scanner has already
@@ -105,24 +136,39 @@ function markValueString(
 }
 
 /**
+ * What one scan of a source needs throughout, whatever depth it reaches.
+ *
+ * @property content - The whole source, so offsets stay absolute.
+ * @property documentDefinitions - What a token means at the top level of a
+ *   page. A body is page content wherever it sits, so this is what a shortcode
+ *   inside one is resolved against, however deeply nested that body is.
+ * @property known - Which braced names count as variables.
+ * @property out - Collected spans, appended to.
+ */
+interface HighlightScan {
+  content: string;
+  documentDefinitions: readonly ShortcodeDefinition[];
+  known: ReadonlySet<string>;
+  out: ShortcodeHighlightSpan[];
+}
+
+/**
  * Collects the spans of one node and everything inside it.
  *
- * @param content - The whole source, so offsets stay absolute.
+ * @param scan - The source being scanned and what it is being read against.
+ * @param offset - Where the stretch this node was scanned in begins.
  * @param node - The node to mark.
  * @param allowed - Definitions this node's token is resolved against, which for
  *   a child is its parent's child list rather than the document's. A name can
  *   therefore mean something in one position and nothing at the top level.
- * @param known - Which braced names count.
- * @param out - Collected spans, appended to.
  */
 function markNode(
-  content: string,
+  scan: HighlightScan,
   offset: number,
   node: ShortcodeNode,
   allowed: readonly ShortcodeDefinition[],
-  known: ReadonlySet<string>,
-  out: ShortcodeHighlightSpan[],
 ): void {
+  const { content, known, out } = scan;
   const definition =
     node.syntax === ShortcodeSyntax.Braces
       ? allowed.find((candidate) => candidate.syntax === ShortcodeSyntax.Braces)
@@ -146,34 +192,29 @@ function markNode(
   }
 
   for (const child of node.children) {
-    markNode(content, offset, child, definition?.children ?? [], known, out);
+    markNode(scan, offset, child, definition?.children ?? []);
   }
 
   // A body is Markdown, so what stands in it is read the way the page reads it:
   // a shortcode there is a shortcode of its own rather than a child of this one.
+  // That holds at any depth, so the document's own definitions are what a token
+  // in a body means, never the child list that decided the token around it.
   if (node.bodySource) {
-    collect(content, offset + node.bodySource.from, offset + node.bodySource.to, allowed, known, out);
+    collect(scan, offset + node.bodySource.from, offset + node.bodySource.to, scan.documentDefinitions);
   }
 }
 
 /**
  * Walks a stretch of source, marking its nodes and the text between them.
  *
- * @param content - The whole source.
+ * @param scan - The source being scanned and what it is being read against.
  * @param from - Where this stretch begins.
  * @param to - Where it ends.
  * @param definitions - What a token here is resolved against.
- * @param known - Which braced names count.
- * @param out - Collected spans, appended to.
  */
-function collect(
-  content: string,
-  from: number,
-  to: number,
-  definitions: readonly ShortcodeDefinition[],
-  known: ReadonlySet<string>,
-  out: ShortcodeHighlightSpan[],
-): void {
+function collect(scan: HighlightScan, from: number, to: number, definitions: readonly ShortcodeDefinition[]): void {
+  const { content, known, out } = scan;
+
   // The scanner is given only this stretch, because it skips over a body and
   // would otherwise hand back the container again rather than what is inside
   // it. Its offsets are then relative to the slice, so `from` is carried
@@ -184,7 +225,7 @@ function collect(
   for (const node of nodes) {
     const start = from + node.source.start;
     if (start > cursor) markBracedNames(content, cursor, start, known, out);
-    markNode(content, from, node, definitions, known, out);
+    markNode(scan, from, node, definitions);
     cursor = from + node.source.end;
   }
 
@@ -214,10 +255,14 @@ export function highlightShortcodes(
   } = {},
 ): ShortcodeHighlightSpan[] {
   const definitions = options.definitions ?? SHORTCODE_DEFINITIONS;
-  const known = new Set<string>(options.variableNames ?? SITE_VARIABLE_NAMES);
-  const spans: ShortcodeHighlightSpan[] = [];
+  const scan: HighlightScan = {
+    content,
+    documentDefinitions: definitions,
+    known: new Set<string>(options.variableNames ?? SITE_VARIABLE_NAMES),
+    out: [],
+  };
 
-  collect(content, 0, content.length, definitions, known, spans);
+  collect(scan, 0, content.length, definitions);
 
-  return spans.sort((left, right) => left.from - right.from || left.to - right.to);
+  return scan.out.sort((left, right) => left.from - right.from || left.to - right.to);
 }

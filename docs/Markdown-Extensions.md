@@ -31,7 +31,7 @@ A shortcode is declared once, in `packages/shared/src/markdown-shortcodes/`. Tha
 | `mcButton` | `[[button]]` | No | Yes |
 | `mcIcon` | `[[icon]]` | Yes | Yes |
 | `mcPlans` | `[[plans]]` | No | Yes |
-| `mcFields` | `[[fields { … }]]` | Yes | Yes |
+| `mcFields` | `[[fields … ]]` | Yes | Yes |
 | `mcPill` | `[[pill:…]]` | Yes | Yes |
 | `mcKbd` | `{{Key}}` | Yes | Yes |
 
@@ -46,7 +46,7 @@ Validation inspects parsed token types, not raw substring matches. Extension-lik
 | `button` | `[[button]]` | Inline | Forbidden | Forbidden | No | Yes |
 | `card` | `[[card { … }]]` or `[[card … ]]` | Block | Markdown | Forbidden | No | Yes |
 | `cards` | `[[cards { … }]]` | Block | Markdown | Forbidden | No | Yes |
-| `fields` | `[[fields … ]]` | Block | Markdown | Forbidden | Yes | Yes |
+| `fields` | `[[fields … ]]` | Block | Children | Forbidden | Yes | Yes |
 | `hstack` | `[[hstack { … }]]` | Block | Markdown | Forbidden | Yes | Yes |
 | `icon` | `[[icon]]` | Inline | Forbidden | Forbidden | Yes | Yes |
 | `image` | `[[image:…]]` | Block | Forbidden | Required | Yes | Yes |
@@ -67,6 +67,8 @@ Four more are children rather than shortcodes of their own, so each means someth
 **Braces mean content, and no braces mean children.** A container written `[[token { … }]]` holds page content, and one written `[[token … ]]` holds the parts it names. A card is written either way: with braces it is all body, which is how most cards are written, and without them it names its header, its body and its footer in whatever order suits the writing, and the card decides where each goes. A fields list is only ever the second, because it holds its entries and nothing else.
 
 What a container carries in a child rather than in an attribute is always the same thing: content. A label, a header and a footer each take Markdown, run to a sentence or more, and would otherwise have to be quoted into an attribute, escaped, and written without a line break.
+
+A card's header and its footer are each written both ways, because most of them are one line and a few are a paragraph or a row of controls. One line goes in the `text` attribute, `[[footer text="Every plan includes it."]]`, and anything longer goes between braces. Where a band carries both, the braces are what renders.
 
 Every parameter each one takes is in its declaration and in the reference panel, and is therefore not repeated here. A table of parameters in a document is a second answer to a question the code already answers, and it drifts.
 

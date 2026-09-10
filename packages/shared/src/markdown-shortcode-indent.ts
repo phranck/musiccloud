@@ -24,12 +24,17 @@ const OPEN_BRACE = "{";
 const CLOSE_BRACE = "}";
 
 /**
- * Counts the braces in one line that belong to a shortcode.
+ * Counts the levels one line opens or closes.
  *
- * Both halves of the syntax have to be present, so a brace in prose or inside a
+ * A container is written one of two ways, and both carry structure. With braces
+ * both halves of the syntax have to be present, so a brace in prose or inside a
  * code fence counts for nothing: a line only opens when it also carries `[[`,
  * and only closes when it also carries `]]`. That leaves `[[card { a }]]` at
  * zero, which is right, because it opens and closes on the same line.
+ *
+ * A container that names its parts carries no braces at all, so there the
+ * brackets are the structure: `[[card` opens a level and the `]]` on its own
+ * line closes it, whilst `[[header text="…"]]` does both and stands level.
  *
  * A brace written `\{` or `\}` is text and is skipped, exactly as the tokenizer
  * skips it.
@@ -56,9 +61,17 @@ export function shortcodeBraceDelta(line: string): number {
     else if (character === CLOSE_BRACE) closes += 1;
   }
 
+  const opensBracket = line.includes("[[");
+  const closesBracket = line.includes("]]");
+
   const net = opens - closes;
-  if (net > 0) return line.includes("[[") ? net : 0;
-  if (net < 0) return line.includes("]]") ? net : 0;
+  if (net > 0) return opensBracket ? net : 0;
+  if (net < 0) return closesBracket ? net : 0;
+
+  // Balanced braces, so what is left is the braceless form: a line that only
+  // opens a bracket steps in, and one that only closes it steps back out.
+  if (opensBracket && !closesBracket) return 1;
+  if (closesBracket && !opensBracket) return -1;
   return 0;
 }
 
