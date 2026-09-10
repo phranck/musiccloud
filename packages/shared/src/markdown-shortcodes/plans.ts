@@ -11,7 +11,6 @@ import { ContentContext } from "../content-context.js";
 import { ShortcodeToken } from "./tokens.js";
 import {
   type ShortcodeDefinition,
-  ShortcodeParamType,
   ShortcodePlacement,
   ShortcodeRenderMode,
   ShortcodeSyntax,
@@ -22,23 +21,6 @@ import {
 const PORTAL_ONLY = ContentContext.DeveloperPortal;
 
 /**
- * The heading a plan list carries when a page names none.
- *
- * It shares a line with the billing switch, which is why it is a parameter at
- * all rather than a Markdown heading a page writes above the shortcode.
- */
-export const PLANS_DEFAULT_HEADING = "Available plans";
-
-/**
- * The longest heading a plan list accepts.
- *
- * It sits opposite the billing switch on one line, so a long one either wraps
- * the switch onto a second line or squeezes it. The bound is what a heading
- * needs rather than what a field can hold.
- */
-export const PLANS_MAX_HEADING_LENGTH = 60;
-
-/**
  * The attribute the rendered placeholder carries, so the portal can find it.
  *
  * Named here rather than in the renderer, because the page that hydrates the
@@ -46,7 +28,14 @@ export const PLANS_MAX_HEADING_LENGTH = 60;
  */
 export const PLANS_PLACEHOLDER_ATTRIBUTE = "data-mc-plans";
 
-/** The live plans, with their prices and the monthly/yearly switch. */
+/**
+ * The live plans, with their prices and the monthly/yearly switch.
+ *
+ * It takes nothing, on purpose. Everything a plan shows already lives on the
+ * plan: its name, its colour, its icon, its limits, its features, its price and
+ * whether it can be chosen. A page saying `[[plans]]` is saying "the plans go
+ * here", and nothing else is its business.
+ */
 export const PLANS_SHORTCODE = {
   token: ShortcodeToken.Plans,
   syntax: ShortcodeSyntax.Bracket,
@@ -55,15 +44,8 @@ export const PLANS_SHORTCODE = {
   placement: ShortcodePlacement.Block,
   label: "Plans",
   description:
-    "Every plan as it stands right now, with its request limits, its features and its price, and a switch between monthly and yearly. The list comes from the plans themselves, so it follows whatever the dashboard says without this page being touched.",
-  examples: ["[[plans]]", '[[plans heading="What each plan gives you"]]'],
+    "Every plan as it stands right now, with its request limits, its features and its price, and a switch between monthly and yearly. Everything it shows comes from the plans themselves, so it follows whatever the dashboard says without this page being touched.",
+  examples: ["[[plans]]"],
   allowedContextMask: PORTAL_ONLY,
-  params: [
-    {
-      name: "heading",
-      type: ShortcodeParamType.String,
-      defaultValue: PLANS_DEFAULT_HEADING,
-      label: "Heading above the plans, sharing its line with the billing switch",
-    },
-  ],
+  params: [],
 } as const satisfies ShortcodeDefinition;

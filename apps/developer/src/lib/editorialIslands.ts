@@ -27,16 +27,18 @@ export type EditorialSegmentKindValue = (typeof EditorialSegmentKind)[keyof type
 /** One piece of a page, in the order it appears. */
 export type EditorialSegment =
   | { kind: typeof EditorialSegmentKind.Html; html: string }
-  | { kind: typeof EditorialSegmentKind.Plans; heading: string };
+  | { kind: typeof EditorialSegmentKind.Plans };
 
 /**
- * Matches one plans placeholder and captures its heading.
+ * Matches one plans placeholder.
  *
  * The element is emitted by the backend and has already been through the
- * sanitizer, so its shape is known exactly: one `div`, one attribute, no
- * content. This is not a general HTML parser and does not need to be.
+ * sanitizer, so its shape is known exactly: one `div`, one valueless attribute,
+ * no content. This is not a general HTML parser and does not need to be. The
+ * empty value is matched as well, because serialising an attribute with no
+ * value writes it as `attr=""`.
  */
-const PLANS_PLACEHOLDER = new RegExp(`<div ${PLANS_PLACEHOLDER_ATTRIBUTE}="([^"]*)"></div>`, "g");
+const PLANS_PLACEHOLDER = new RegExp(`<div ${PLANS_PLACEHOLDER_ATTRIBUTE}(?:="")?></div>`, "g");
 
 /**
  * Cuts a page into the pieces the portal renders separately.
@@ -54,7 +56,7 @@ export function splitEditorialSegments(html: string): EditorialSegment[] {
     if (match.index > cursor) {
       segments.push({ kind: EditorialSegmentKind.Html, html: html.slice(cursor, match.index) });
     }
-    segments.push({ kind: EditorialSegmentKind.Plans, heading: match[1] });
+    segments.push({ kind: EditorialSegmentKind.Plans });
     cursor = match.index + match[0].length;
   }
 

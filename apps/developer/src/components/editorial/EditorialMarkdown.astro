@@ -21,7 +21,7 @@ const segments = splitEditorialSegments(html);
   {
     segments.map((segment) =>
       segment.kind === EditorialSegmentKind.Plans ? (
-        <PlanGrid heading={segment.heading} />
+        <PlanGrid />
       ) : (
         <Fragment set:html={segment.html} />
       ),
