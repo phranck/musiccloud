@@ -51,10 +51,16 @@ function normalizeManagedPath(path: string): string | null {
   return segments.length === 0 ? "/" : `/${segments.join("/")}`;
 }
 
-/** Whether a request may reach the managed editorial Page lookup. */
+/**
+ * Whether a request may reach the managed editorial Page lookup.
+ *
+ * `/` is one of them. It has its own route, as `/docs` and `/pricing` do,
+ * because the header and the session are the portal's rather than the page's,
+ * and that route looks the page up through here like every other.
+ */
 export function isManagedEditorialPath(path: string): boolean {
   const normalized = normalizeManagedPath(path);
-  if (!normalized || normalized === "/") return false;
+  if (!normalized) return false;
   return !isPortalReservedPath(normalized);
 }
 

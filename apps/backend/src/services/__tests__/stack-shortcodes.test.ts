@@ -79,6 +79,33 @@ describe("[[hstack]]", () => {
   });
 });
 
+describe("what counts as one piece of a stack", () => {
+  it("makes each line its own child, so the gap has something to separate", async () => {
+    // Markdown reads touching lines as one paragraph, which here would be one
+    // child and no gap at all.
+    const out = await renderPortal("[[hstack spacing=12 {\nOne\nTwo\nThree\n}]]");
+
+    expect(out.match(/<p>/g)).toHaveLength(3);
+    expect(out).toContain('style="gap:12px"');
+  });
+
+  it("leaves a nested container's own lines together", async () => {
+    const out = await renderPortal("[[vstack {\n[[card {\n## A title\n\nA sentence.\n}]]\nBeside it.\n}]]");
+
+    expect(out).toMatch(/<h2[^>]*>A title<\/h2>/);
+    expect(out).toContain("A sentence.");
+    expect(out).toContain("Beside it.");
+  });
+
+  it("keeps a blank line the writer put there", async () => {
+    const spaced = await renderPortal("[[hstack {\nOne\n\nTwo\n}]]");
+    const touching = await renderPortal("[[hstack {\nOne\nTwo\n}]]");
+
+    expect(spaced.match(/<p>/g)).toHaveLength(2);
+    expect(touching.match(/<p>/g)).toHaveLength(2);
+  });
+});
+
 describe("[[spacer]]", () => {
   it("takes whatever room is left when the page names no size", async () => {
     const out = await renderPortal("[[hstack {\nLeft.\n\n[[spacer]]\n\nRight.\n}]]");

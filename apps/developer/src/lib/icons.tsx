@@ -24,9 +24,7 @@ import {
   ArrowCircleDown,
   ArrowCircleUp,
   Book,
-  Book1,
   Category,
-  Cd,
   CloseCircle,
   Code,
   Coin,
@@ -91,10 +89,8 @@ function bulk(Base: Icon): Icon {
 export const AddIcon = bulk(Add);
 export const ArrowCircleDownIcon = bulk(ArrowCircleDown);
 export const ArrowCircleUpIcon = bulk(ArrowCircleUp);
-export const Book1Icon = bulk(Book1);
 export const BookIcon = bulk(Book);
 export const CategoryIcon = bulk(Category);
-export const CdIcon = bulk(Cd);
 export const CloseCircleIcon = bulk(CloseCircle);
 export const CodeIcon = bulk(Code);
 export const CoinIcon = bulk(Coin);

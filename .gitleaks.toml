@@ -10,3 +10,11 @@ condition = "AND"
 regexTarget = "line"
 regexes = ['''"openApiSha256"\s*:\s*"[0-9a-f]{64}"''']
 paths = ['''^apps/developer/src/(generated/sdk-catalog|lib/__fixtures__/sdk-catalog)\.json$''']
+
+[[allowlists]]
+description = "The portal's home page shows an example key whose value says, in words, to replace it. The page is public, so this string is on the site by design."
+targetRules = ["curl-auth-header"]
+condition = "AND"
+regexTarget = "line"
+regexes = ['''mc_live_example12345_replace_with_your_secret_value''']
+paths = ['''^apps/backend/src/services/content/portal-home-page\.ts$''']

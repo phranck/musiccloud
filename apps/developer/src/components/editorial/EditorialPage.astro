@@ -58,7 +58,7 @@ const PageIcon = portalPageIcon(page.path);
     {
       page.showTitle ? (
         <div class:list={["page-heading", `editorial-page__heading--${page.titleAlignment}`]}>
-          <PageIcon className="page-heading__icon" aria-hidden="true" />
+          {PageIcon && <PageIcon className="page-heading__icon" aria-hidden="true" />}
           <h1 class="page-heading__title">{page.title}</h1>
         </div>
       ) : (

@@ -122,6 +122,9 @@ function resolveFill(raw: string | undefined): string {
 /**
  * Draws one symbol.
  *
+ * Exported because the button draws one too, and a second drawing of the same
+ * thing would be a second answer to what a symbol is.
+ *
  * @param name - The icon in the spelling Phosphor publishes.
  * @param size - Its edge length in pixels.
  * @param fill - What it is drawn in, already checked.
@@ -129,7 +132,7 @@ function resolveFill(raw: string | undefined): string {
  *   text of its own.
  * @returns The markup, or `null` when the name leads to no icon.
  */
-function renderSymbol(name: string, size: number, fill: string, className: string): string | null {
+export function renderSymbol(name: string, size: number, fill: string, className: string): string | null {
   const paths = duotonePaths(name);
   if (!paths) return null;
 

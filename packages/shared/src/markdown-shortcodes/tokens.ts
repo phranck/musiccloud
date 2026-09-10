@@ -19,6 +19,8 @@ export const ShortcodeToken = {
   Kbd: "kbd",
   /** The live plan list. */
   Plans: "plans",
+  /** A command on a page, with its label and its symbol. */
+  Button: "button",
   /** A Phosphor symbol, in the text or beside its caption. */
   Icon: "icon",
   /** A container standing its children one beneath the next. */

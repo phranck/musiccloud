@@ -4,6 +4,7 @@
 
 import type { ContentContextMask } from "../content-context.js";
 import { hasAllContextBits } from "../content-context.js";
+import { BUTTON_SHORTCODE } from "./button.js";
 import { FIELDS_SHORTCODE, KBD_SHORTCODE, PILL_SHORTCODE } from "./content.js";
 import { ICON_SHORTCODE } from "./icon.js";
 import { CARD_ROW_SHORTCODE, CARD_SHORTCODE } from "./layout.js";
@@ -21,6 +22,7 @@ import { type ShortcodeDefinition, ShortcodeSyntax } from "./types.js";
  * a shortcode added to this list cannot land anywhere unexpected.
  */
 export const SHORTCODE_DEFINITIONS: readonly ShortcodeDefinition[] = [
+  BUTTON_SHORTCODE,
   CARD_SHORTCODE,
   CARD_ROW_SHORTCODE,
   VSTACK_SHORTCODE,

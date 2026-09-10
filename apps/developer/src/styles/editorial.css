@@ -105,6 +105,12 @@
      the first and last thing in it, so each carries a rule and the same air on
      both sides of it. The rule runs the width of the content, not of the card,
      because the card's padding is what holds it off the edge. */
+  /* A command is a control, not copy, so it keeps the size every other control
+     in the portal has rather than following the page's reading size. */
+  .editorial-markdown .mc-button {
+    font-size: var(--text-body);
+  }
+
   .mc-card__header {
     padding-block-end: var(--mc-space-5);
     border-block-end: 1px solid var(--color-border);
@@ -240,13 +246,26 @@
     letter-spacing: -0.025em;
   }
 
-  /* The lower headings sit at the reading size and are told apart by their
-     weight. Below it they would read as smaller than the text they introduce. */
   .editorial-markdown h3:not([class]),
   .editorial-markdown h4:not([class]),
   .editorial-markdown h5:not([class]),
   .editorial-markdown h6:not([class]) {
-    font-size: var(--text-lead);
+    font-size: var(--text-card-title);
+  }
+
+  /* Inside a card the whole ladder steps down once, as the reading size does.
+     A card is a column inside the page, so its title is a card's title rather
+     than a section's, and what stands under that follows. */
+  .mc-card h1:not([class]),
+  .mc-card h2:not([class]) {
+    font-size: var(--text-card-title);
+  }
+
+  .mc-card h3:not([class]),
+  .mc-card h4:not([class]),
+  .mc-card h5:not([class]),
+  .mc-card h6:not([class]) {
+    font-size: var(--text-subsection);
   }
 
   /* The opening paragraph introduces the rest, so it takes the muted colour and
@@ -310,13 +329,24 @@
     font-size: var(--text-code);
   }
 
+  /* A code block is a surface set into the page, as a card is, so it carries
+     the same corner. A smaller one made it read as a control. */
   .editorial-markdown pre:not([class]) {
     max-width: 100%;
     overflow-x: auto;
-    border-radius: var(--radius-button);
+    border-radius: var(--radius-card);
     padding: var(--mc-code-padding-block) var(--mc-code-padding-inline);
     color: var(--color-code-fg);
     background: var(--color-code-bg);
+  }
+
+  /* Code is read at the size it is written at, so it does not follow the page's
+     reading size. The block's own `code` carries a language class, which is why
+     the inline rule above cannot reach it. */
+  .editorial-markdown pre,
+  .editorial-markdown pre code {
+    font-size: var(--text-code);
+    line-height: var(--mc-line-height-normal);
   }
 
   .editorial-markdown pre code {

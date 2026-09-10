@@ -1,6 +1,9 @@
 import {
   BUNDLED_CODE_FENCE_LANGUAGES,
+  BUTTON_SHORTCODE,
   CARD_SHORTCODE,
+  CODE_THEME,
+  CODE_THEME_NAME,
   ContentContext,
   type ContentContextMask,
   FIELDS_AUTO_LABEL_WIDTH,
@@ -33,6 +36,7 @@ import markedFootnote from "marked-footnote";
 import { markedHighlight } from "marked-highlight";
 import { type BundledLanguage, type BundledTheme, createHighlighter, type HighlighterGeneric } from "shiki";
 import mcQueryGrammar from "../grammars/mc-query.tmLanguage.json" with { type: "json" };
+import { createButtonExtension } from "./button-extension.js";
 import { createCardExtension } from "./card-extension.js";
 import { createHeadingAnchorExtension } from "./heading-anchors.js";
 import { createIconExtension } from "./icon-extension.js";
@@ -214,7 +218,9 @@ let highlighterPromise: Promise<HighlighterGeneric<BundledLanguage, BundledTheme
 
 function getHighlighter(): Promise<HighlighterGeneric<BundledLanguage, BundledTheme>> {
   highlighterPromise ??= createHighlighter({
-    themes: ["vitesse-dark"],
+    // The product's own colours rather than an editor theme's, so a shell
+    // command reads as one on this background instead of on somebody else's.
+    themes: [CODE_THEME],
     // The list comes from the shared declaration the editor's help reads, so a
     // language offered to a writer is one the highlighter has actually loaded.
     // Our own grammar is added here rather than there, because it is a grammar
@@ -241,7 +247,7 @@ function createCodeFenceExtension(): MarkedExtension {
         if (lang.toLowerCase() === "text") return highlightPlainText(code);
         try {
           const highlighter = await getHighlighter();
-          const html = highlighter.codeToHtml(code, { lang, theme: "vitesse-dark" });
+          const html = highlighter.codeToHtml(code, { lang, theme: CODE_THEME_NAME });
           const match = html.match(/<code[^>]*>([\s\S]*?)<\/code>/);
           return match ? match[1] : escapeHtml(code);
         } catch {
@@ -459,6 +465,12 @@ export const MARKDOWN_EXTENSION_DEFINITIONS: readonly MarkdownExtensionDefinitio
       IMAGE_SHORTCODE.allowedContextMask | PDF_SHORTCODE.allowedContextMask | YOUTUBE_SHORTCODE.allowedContextMask,
     createMarkedExtension: createMediaExtension,
     tokenTypes: ["mcImage", "mcPdf", "mcYouTube"],
+  },
+  {
+    name: "mcButton",
+    allowedContextMask: BUTTON_SHORTCODE.allowedContextMask,
+    createMarkedExtension: createButtonExtension,
+    tokenTypes: ["mcButton"],
   },
   {
     name: "mcIcon",

@@ -189,6 +189,25 @@ function sanitizeAttributes(element: HtmlElement): void {
   });
 }
 
+/**
+ * Whether a paragraph has nothing left in it.
+ *
+ * A block element inside a paragraph splits that paragraph in two, and one of
+ * the halves is usually empty. That happens whenever a shortcode which stands
+ * in a line of text renders a block, such as a symbol whose caption is a
+ * heading. An empty paragraph draws nothing and still takes the spacing every
+ * paragraph gets, so it reads as a gap nobody asked for.
+ *
+ * @param element - The element to weigh.
+ * @returns Whether it is a paragraph holding neither text nor an element.
+ */
+function isEmptyParagraph(element: HtmlElement): boolean {
+  if (element.tagName !== "p") return false;
+  return element.childNodes.every(
+    (child) => child.nodeName === "#text" && (child as { value?: string }).value?.trim() === "",
+  );
+}
+
 function sanitizeChild(child: HtmlChild, parent: HtmlParent): HtmlChild[] {
   if (child.nodeName === "#comment" || child.nodeName === "#documentType") return [];
   if (child.nodeName === "#text") return [child];
@@ -200,6 +219,8 @@ function sanitizeChild(child: HtmlChild, parent: HtmlParent): HtmlChild[] {
     for (const nestedChild of element.childNodes) nestedChild.parentNode = parent;
     return element.childNodes;
   }
+
+  if (isEmptyParagraph(element)) return [];
 
   sanitizeAttributes(element);
   return [element];

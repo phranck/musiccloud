@@ -237,12 +237,12 @@ describe("marked custom code renderer", () => {
     // vitesse-dark renders comment scopes in its grey-green tint
     // (no italic — that was an incorrect spec assumption).
     const out = (await marked.parse("```mc-query\ngenre: jazz # filter\n```", { async: true })) as string;
-    expect(out).toMatch(/<span style="color:#[0-9A-F]+"># filter<\/span>/i);
+    expect(out).toMatch(/<span style="color:#[0-9A-F]+[^"]*"># filter<\/span>/i);
   });
 
   it("recognizes // comments inside ```mc-query", async () => {
     const out = (await marked.parse("```mc-query\nartist: foo // note\n```", { async: true })) as string;
-    expect(out).toMatch(/<span style="color:#[0-9A-F]+">\/\/ note<\/span>/i);
+    expect(out).toMatch(/<span style="color:#[0-9A-F]+[^"]*">\/\/ note<\/span>/i);
   });
 
   it("falls back gracefully for unknown language not in highlighter list", async () => {
