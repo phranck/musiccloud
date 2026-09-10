@@ -48,9 +48,10 @@
 }
 
 /*
- * Inside a pair the symbol is a flex item, and the pair centres it against its
- * own text. The shift above would push it back out of that centring, so it does
- * not apply there.
+ * Inside a pair the symbol is a flex item and the pair places it, so the shift
+ * above does not apply by default. Where the pair places it against a single
+ * line rather than against the whole text, the shift comes back further down,
+ * because that is the same question as a symbol standing in running text.
  */
 .mc-icon-pair > .mc-icon {
   transform: none;
@@ -127,12 +128,28 @@
   flex-direction: column-reverse;
 }
 
+/*
+ * Flush with the top means flush with the line the text starts on, not with the
+ * top of the box that holds it. A line box carries leading above the letters, so
+ * aligning the boxes leaves the symbol riding high beside the first words, which
+ * is the same fault the bare symbol above avoids.
+ *
+ * `baseline` puts the symbol's own bottom on the first line's baseline, and the
+ * shift then moves it up onto that line's cap midline, exactly as it does for a
+ * symbol standing in running text. `last baseline` is the same thing seen from
+ * the other end, for a symbol that belongs to the last line instead.
+ */
 .mc-icon-pair--start {
-  align-items: flex-start;
+  align-items: baseline;
 }
 
 .mc-icon-pair--end {
-  align-items: flex-end;
+  align-items: last baseline;
+}
+
+.mc-icon-pair--start > .mc-icon,
+.mc-icon-pair--end > .mc-icon {
+  transform: translateY(calc(50% - var(--mc-shortcode-cap-midline, 0.35em)));
 }
 
 /* The text over the middle of the symbol rather than beside it, which is what
