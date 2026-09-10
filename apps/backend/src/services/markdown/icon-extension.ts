@@ -228,7 +228,10 @@ export function createIconExtension(context: SingleContentContext): MarkedExtens
             name,
             size,
             fill,
-            ["mc-icon", paired ? undefined : placed].filter(Boolean).join(" "),
+            // A symbol standing on its own sits in the line of text beside it
+            // and is placed against that line. Inside a pair the pair places
+            // it, so it says nothing about the line.
+            ["mc-icon", paired ? undefined : "mc-icon--inline", paired ? undefined : placed].filter(Boolean).join(" "),
           );
           // A name nobody can find leaves the shortcode standing in the text, so
           // whoever wrote it sees that the name is wrong rather than a gap.

@@ -24,6 +24,11 @@
 /*
  * A symbol written into a text, centred on the line beside it.
  *
+ * Only a symbol that stands in running text takes this, which is why it is its
+ * own class rather than every `mc-icon`: a surface may give that class to every
+ * symbol it draws, including the ones in its navigation and its controls, and
+ * those are placed by whatever holds them.
+ *
  * Centred means the midline between the baseline and the cap line, which is the
  * line system type is set on. The middle of a glyph box is a different place: a
  * box is taller than the letters drawn in it, and aligning boxes leaves the
@@ -40,23 +45,11 @@
  * does, so a sentence that wraps still has its symbol beside the words it
  * begins with.
  */
-.mc-icon {
+.mc-icon--inline {
   display: inline-block;
   vertical-align: baseline;
   transform: translateY(calc(50% - 0.5cap));
   max-width: 100%;
-}
-
-/*
- * Wherever something else places the symbol, the shift above does not apply: a
- * pair places its own symbol, and so does a component that borrows this class
- * for a symbol beside a heading. Where a pair places it against a single line
- * rather than against the whole text, the shift comes back further down,
- * because that is the same question as a symbol standing in running text.
- */
-.mc-icon-pair > .mc-icon,
-.page-heading__icon.mc-icon {
-  transform: none;
 }
 
 /* A symbol the paragraph beside it runs around. The class names the side the

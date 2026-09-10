@@ -27,6 +27,18 @@ describe("[[icon]]", () => {
     expect(out).toContain('viewBox="0 0 256 256"');
   });
 
+  it("marks a symbol standing in text as one, and one inside a pair not", async () => {
+    // The class carrying the line placement is its own, because a surface gives
+    // `mc-icon` to every symbol it draws, including the ones in its navigation.
+    // Placing those against a line of text would drop them below their labels.
+    const alone = await renderPortal('[[icon name="key"]]');
+    const paired = await renderPortal('[[icon name="key" text="A key"]]');
+
+    expect(alone).toContain("mc-icon--inline");
+    expect(paired).toContain("mc-icon-pair");
+    expect(paired).not.toContain("mc-icon--inline");
+  });
+
   it("takes the size the registry declares until a page names one", async () => {
     const declared = await renderPortal('[[icon name="key"]]');
     const named = await renderPortal('[[icon name="key" size=96]]');
