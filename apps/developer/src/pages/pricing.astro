@@ -287,12 +287,14 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
     {tiers.length === 0 && (
       <section class="rounded-card border border-border bg-surface px-7 py-7 mb-8">
         <h2 class="text-card-title font-medium tracking-tight mb-2">The free plan today</h2>
+        {/* This stands only when the plans could not be read, so it states no
+            figures: the two it used to name were typed here and would have gone
+            out of step with the plan the moment either changed. */}
         <p class="text-body text-fg-muted">
-          Every project currently gets <span class="text-fg font-medium">60 requests per minute</span> and{" "}
-          <span class="text-fg font-medium">10,000 requests per day</span>, shared by the registrations under it.
-          Create one in{" "}
-          <a href="/dashboard/projects" class="content-link text-fg">your dashboard</a> and the quota applies from your
-          first call.
+          The plans could not be loaded just now, so their request limits are not shown. Signing up puts you on the
+          free plan either way. Create a project in{" "}
+          <a href="/dashboard/projects" class="content-link text-fg">your dashboard</a> and its quota applies from your
+          first call, shared by the registrations under it.
         </p>
       </section>
     )}

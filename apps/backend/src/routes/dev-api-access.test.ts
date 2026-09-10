@@ -84,17 +84,17 @@ vi.mock("../services/email-actions.js", () => ({
 // store behind it opens its own connection. The tests own the number instead.
 const CEILING = 3;
 const mockMaxProjects = vi.fn(async () => CEILING);
-vi.mock("../services/developer-limits.js", () => ({
-  MAX_PROJECTS: 3,
+// Only the ceiling that reads a setting is replaced. The rest of the module is
+// constants the routes enforce, and a test asserting against a stand-in for one
+// of those would prove nothing about what a developer actually hits.
+vi.mock("../services/developer-limits.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../services/developer-limits.js")>()),
   getMaxProjectsPerAccount: () => mockMaxProjects(),
 }));
 
+import { MAX_REGISTRATIONS_PER_PROJECT } from "../services/developer-limits.js";
 import { triggerEmailAction } from "../services/email-actions.js";
-import {
-  CREATIONS_PER_MINUTE_PER_ACCOUNT,
-  devApiAccessRoutes,
-  MAX_REGISTRATIONS_PER_PROJECT,
-} from "./dev-api-access.js";
+import { CREATIONS_PER_MINUTE_PER_ACCOUNT, devApiAccessRoutes } from "./dev-api-access.js";
 
 /**
  * Builds a complete {@link DeveloperAccount} DTO for stamping onto

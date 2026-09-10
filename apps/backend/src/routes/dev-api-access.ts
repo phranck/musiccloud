@@ -22,7 +22,7 @@ import { RateLimiter } from "../lib/infra/rate-limiter.js";
 import { generateApiToken } from "../services/api-access-token.js";
 import { buildApiUsageReport } from "../services/api-usage-report.js";
 import { isUsageWindowRejection, resolveUsageWindow } from "../services/api-usage-window.js";
-import { getMaxProjectsPerAccount } from "../services/developer-limits.js";
+import { getMaxProjectsPerAccount, MAX_REGISTRATIONS_PER_PROJECT } from "../services/developer-limits.js";
 import { notifyDeveloper } from "../services/developer-notifications.js";
 import { listSelfServiceAssignableTiers } from "../services/signup-tier.js";
 
@@ -32,8 +32,6 @@ const MAX_WEBSITE_URL_LENGTH = 500;
 
 /** Projects and registrations one account may create per minute, taken together. */
 export const CREATIONS_PER_MINUTE_PER_ACCOUNT = 10;
-/** Registrations one project may hold at once. Revoking a registration frees a slot. */
-export const MAX_REGISTRATIONS_PER_PROJECT = 5;
 /** Refusal for an account that already holds as many projects as the operator allows. */
 const PROJECT_CEILING_CODE = "MC-REQ-0003";
 /** Refusal for a project that already holds {@link MAX_REGISTRATIONS_PER_PROJECT} registrations. */
