@@ -30,11 +30,11 @@
  * symbol riding high beside the words.
  *
  * Barlow's capitals are 0.7em tall, measured from the OS/2 table and from the
- * drawn outline of H and X, which agree. So the midline sits 0.35em above the
- * baseline, and `translateY` moves the symbol from where its own bottom rests
- * on that baseline down to it. Stated in em, so it holds at every text size,
- * and as a percentage of the symbol's own height, so it holds at every symbol
- * size without either being written into the markup.
+ * drawn outline of H and X, which agree. So the midline sits half of that above
+ * the baseline, and `translateY` moves the symbol from where its own bottom
+ * rests on that baseline down to it. Stated in em, so it holds at every text
+ * size, and as a percentage of the symbol's own height, so it holds at every
+ * symbol size without either being written into the markup.
  *
  * The symbol stays with the first line of its text, which is what an inline box
  * does, so a sentence that wraps still has its symbol beside the words it
@@ -43,7 +43,7 @@
 .mc-icon {
   display: inline-block;
   vertical-align: baseline;
-  transform: translateY(calc(50% - var(--mc-shortcode-cap-midline, 0.35em)));
+  transform: translateY(calc(50% - var(--mc-shortcode-cap-height, 0.7em) / 2));
   max-width: 100%;
 }
 
@@ -129,27 +129,30 @@
 }
 
 /*
- * Flush with the top means flush with the line the text starts on, not with the
- * top of the box that holds it. A line box carries leading above the letters, so
- * aligning the boxes leaves the symbol riding high beside the first words, which
- * is the same fault the bare symbol above avoids.
+ * Flush with the top puts the symbol's top edge on the cap line of the text's
+ * first line, which is where its letters begin. Not on the top of the box that
+ * holds them: a line box carries leading above the letters, so aligning the two
+ * boxes leaves the symbol floating over words that start further down.
  *
- * `baseline` puts the symbol's own bottom on the first line's baseline, and the
- * shift then moves it up onto that line's cap midline, exactly as it does for a
- * symbol standing in running text. `last baseline` is the same thing seen from
- * the other end, for a symbol that belongs to the last line instead.
+ * `baseline` puts the symbol's own bottom on that first baseline, and the shift
+ * lifts it by its full height less the cap height, which lands its top exactly
+ * on the cap line.
  */
 .mc-icon-pair--start {
   align-items: baseline;
 }
 
-.mc-icon-pair--end {
-  align-items: last baseline;
+.mc-icon-pair--start > .mc-icon {
+  transform: translateY(calc(100% - var(--mc-shortcode-cap-height, 0.7em)));
 }
 
-.mc-icon-pair--start > .mc-icon,
-.mc-icon-pair--end > .mc-icon {
-  transform: translateY(calc(50% - var(--mc-shortcode-cap-midline, 0.35em)));
+/*
+ * Flush with the bottom is the same thing from the other end, and needs no
+ * shift at all: aligning on the last baseline already rests the symbol's bottom
+ * on the line the text ends on.
+ */
+.mc-icon-pair--end {
+  align-items: last baseline;
 }
 
 /* The text over the middle of the symbol rather than beside it, which is what
