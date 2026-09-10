@@ -18,11 +18,29 @@
 
   .editorial-markdown {
     display: grid;
-    gap: var(--mc-space-4);
+    /* `--mc-space-6`, which is what every section on the hand-written portal
+       pages carried under it. */
+    gap: var(--mc-space-6);
     color: var(--color-fg-muted);
     font-size: var(--text-body);
     line-height: var(--mc-editorial-line-height);
     overflow-wrap: anywhere;
+  }
+
+  /* Text sitting straight on the page takes the card inset, because it meets
+     the curve of whatever card stands under it. What has an edge of its own
+     does not: a card, a row of cards, a code block, a table or a rule all draw
+     their own boundary and an inset would push them off centre. */
+  .editorial-markdown > :not([class]) {
+    padding-inline: var(--mc-card-content-inset);
+  }
+
+  /* A block that runs the full width draws its own edge, so an inset would
+     push it off centre. */
+  .editorial-markdown > pre:not([class]),
+  .editorial-markdown > table:not([class]),
+  .editorial-markdown > hr:not([class]) {
+    padding-inline: 0;
   }
 
   /* A card written into a page, taking the same surface, radius and padding as
@@ -33,9 +51,11 @@
     /* A card holds page content, so it lays that content out the way the page
        does rather than leaving the gaps to the level above. */
     display: grid;
+    /* Measured against the sections this replaces: `--mc-space-7` all round,
+       and `--mc-space-4` between the blocks inside. */
     gap: var(--mc-space-4);
     border-radius: var(--radius-card);
-    padding: var(--mc-space-5);
+    padding: var(--mc-space-7);
     background: var(--color-surface);
   }
 
@@ -62,7 +82,6 @@
     position: relative;
     margin-block-start: var(--mc-space-4);
     padding-inline-start: calc(var(--mc-size-icon-lg) + var(--mc-space-3));
-    font-weight: 600;
   }
 
   .editorial-markdown .mc-fields--stacked dt:first-child {
@@ -74,10 +93,10 @@
     padding-inline-start: calc(var(--mc-size-icon-lg) + var(--mc-space-3));
   }
 
-  /* The marker, drawn rather than embedded. Rendered Markdown carries no SVG,
-     because the sanitizer drops it and that is worth keeping, so the ring is a
-     rounded box and only the tick needs a path. Both take `currentColor`, so
-     the marker follows whatever colour the text around it is. */
+  /* The marker, masked rather than embedded. Rendered Markdown carries no SVG,
+     because the sanitizer drops it and that is worth keeping, so both halves of
+     the icon reach the page as masks cut from the same paths the component
+     draws. Both take `currentColor`, so the marker follows the text around it. */
   .editorial-markdown .mc-fields--stacked dt::before,
   .editorial-markdown .mc-fields--stacked dt::after {
     content: "";
@@ -89,9 +108,11 @@
   }
 
   .editorial-markdown .mc-fields--stacked dt::before {
-    border-radius: var(--mc-radius-round);
     /* The duotone ring, at the same 40% the icon component gives it. */
     background: color-mix(in srgb, currentColor 40%, transparent);
+    mask-image: var(--mc-editorial-tick-ring-mask);
+    mask-repeat: no-repeat;
+    mask-size: contain;
   }
 
   .editorial-markdown .mc-fields--stacked dt::after {
@@ -103,7 +124,7 @@
 
   .mc-cards {
     display: grid;
-    gap: var(--mc-space-5);
+    gap: var(--mc-space-4);
     /* One column until there is room for more. Everything narrower gets full
        width cards, because two cards on a phone are two unreadable ones. */
     grid-template-columns: minmax(0, 1fr);
@@ -126,12 +147,12 @@
     }
   }
 
-  .editorial-markdown h1,
-  .editorial-markdown h2,
-  .editorial-markdown h3,
-  .editorial-markdown h4,
-  .editorial-markdown h5,
-  .editorial-markdown h6 {
+  .editorial-markdown h1:not([class]),
+  .editorial-markdown h2:not([class]),
+  .editorial-markdown h3:not([class]),
+  .editorial-markdown h4:not([class]),
+  .editorial-markdown h5:not([class]),
+  .editorial-markdown h6:not([class]) {
     color: var(--color-fg);
     /* 500, matching the hand-written portal headings this replaces. 600 read as
        heavier than anything else on the page. */
@@ -142,22 +163,23 @@
   /* A heading inside a page, not the page's own. The page already carries its
      title at `--text-hero` above this, so a section heading set at
      `--text-section` competes with it and reads as a second title. */
-  .editorial-markdown h1,
-  .editorial-markdown h2 {
+  .editorial-markdown h1:not([class]),
+  .editorial-markdown h2:not([class]) {
     font-size: var(--text-card-title);
+    letter-spacing: -0.025em;
   }
 
-  .editorial-markdown h3,
-  .editorial-markdown h4,
-  .editorial-markdown h5,
-  .editorial-markdown h6 {
+  .editorial-markdown h3:not([class]),
+  .editorial-markdown h4:not([class]),
+  .editorial-markdown h5:not([class]),
+  .editorial-markdown h6:not([class]) {
     font-size: var(--text-body);
   }
 
   /* The opening paragraph is the page's lead, which is how every hand-written
      portal page set it. It is the first thing read and it introduces the rest,
      so it is set larger, and only where it genuinely opens the page. */
-  .editorial-markdown > p:first-child {
+  .editorial-markdown > p:not([class]):first-child {
     /* `--mc-space-6` under it rather than the list's own gap, because a lead
        introduces the page and then stands back from it. Measured against the
        page this replaces, which set `mb-10`. */
@@ -166,35 +188,45 @@
     font-size: var(--text-lead);
   }
 
-  .editorial-markdown ul,
-  .editorial-markdown ol {
+  .editorial-markdown ul:not([class]),
+  .editorial-markdown ol:not([class]) {
     display: grid;
     gap: var(--mc-space-2);
     padding-inline-start: var(--mc-space-5);
   }
 
-  .editorial-markdown ul {
+  .editorial-markdown ul:not([class]) {
     list-style: disc;
   }
 
-  .editorial-markdown ol {
+  .editorial-markdown ol:not([class]) {
     list-style: decimal;
   }
 
-  .editorial-markdown a {
-    border-radius: var(--mc-content-link-radius);
-    padding: var(--mc-content-link-padding-block) var(--mc-content-link-padding-inline);
-    color: var(--color-accent-hover);
-    background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  /* Emphasis is a lift rather than a shout: the portal's own pages set it with
+     `font-medium` in the bright foreground, and the browser's `bolder` on
+     `strong` came out heavier than anything else on the page. */
+  .editorial-markdown strong:not([class]),
+  .editorial-markdown b:not([class]) {
+    color: var(--color-fg);
+    font-weight: 500;
   }
 
-  .editorial-markdown blockquote {
+  /* Only the colour here; the shape, the padding and the transition come from
+     the shared link recipe in `components.css`. */
+  .editorial-markdown a:not([class]) {
+    color: var(--color-fg);
+    background: color-mix(in srgb, var(--color-surface) 55%, transparent);
+    text-decoration: none;
+  }
+
+  .editorial-markdown blockquote:not([class]) {
     border-inline-start: var(--mc-space-1) solid var(--color-border-strong);
     padding-inline-start: var(--mc-space-4);
     color: var(--color-fg);
   }
 
-  .editorial-markdown code {
+  .editorial-markdown code:not([class]) {
     border-radius: var(--radius-keycap);
     padding-inline: var(--mc-space-1);
     color: var(--mc-color-inline-code-fg);
@@ -203,7 +235,7 @@
     font-size: var(--text-code);
   }
 
-  .editorial-markdown pre {
+  .editorial-markdown pre:not([class]) {
     max-width: 100%;
     overflow-x: auto;
     border-radius: var(--radius-button);
@@ -218,21 +250,21 @@
     background: transparent;
   }
 
-  .editorial-markdown table {
+  .editorial-markdown table:not([class]) {
     display: block;
     max-width: 100%;
     overflow-x: auto;
     border-collapse: collapse;
   }
 
-  .editorial-markdown th,
-  .editorial-markdown td {
+  .editorial-markdown th:not([class]),
+  .editorial-markdown td:not([class]) {
     border: thin solid var(--color-border);
     padding: var(--mc-space-2) var(--mc-space-3);
     text-align: left;
   }
 
-  .editorial-markdown th {
+  .editorial-markdown th:not([class]) {
     color: var(--color-fg);
     background: var(--color-card-chrome);
   }

@@ -826,6 +826,10 @@
 
   /* Inline content links receive their own cloned decoration on each wrapped
      line, keeping padding and corners visually complete without underlines. */
+  /* A link written into a page takes the portal's own link recipe rather than
+     one of its own, so the two cannot drift. It is the same rule with one more
+     selector, not a copy of it. */
+  .editorial-markdown a:not([class]),
   .content-link,
   .text-link {
     padding: var(--mc-content-link-padding-block) var(--mc-content-link-padding-inline);
@@ -837,6 +841,8 @@
       color var(--mc-motion-duration-fast) var(--mc-motion-easing-standard);
   }
 
+  .editorial-markdown a:not([class]):hover,
+  .editorial-markdown a:not([class]):focus-visible,
   .content-link:hover,
   .content-link:focus-visible,
   .text-link:hover,
