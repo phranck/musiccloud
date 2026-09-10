@@ -1,40 +1,42 @@
 /**
  * @file Developer-portal auth error-code namespace + label mapping.
  *
- * The backend's developer-auth routes return a `{ error, message }` shape where
- * `error` is a stable machine code (`apps/backend/src/routes/developer-auth.ts`).
- * The portal forms branch on those codes to render a friendly inline message.
- * Modelling the codes as an `as const` namespace keeps the literals in one place
- * (no repeated inline strings scattered across the forms) and gives the forms a
- * typed value to compare against.
+ * The backend returns a `{ error, message }` shape where `error` is a stable
+ * machine code. The portal forms branch on those codes to render a friendly
+ * inline message. Modelling the codes as an `as const` namespace keeps the
+ * literals in one place (no repeated inline strings scattered across the forms)
+ * and gives the forms a typed value to compare against.
  *
- * Members are PascalCase (per the project domain-literals policy); their values
- * are the verbatim backend codes, so `data.error === AuthErrorCode.InvalidCredentials`
- * matches the wire payload exactly.
+ * The value to compare against is what reaches the browser, which is not always
+ * what the route handler wrote. `registerApiErrorHandling` in the backend
+ * replaces any code outside the `MC-` scheme with the one that matches the
+ * status, so `MC-REQ-0006` is what a rejected address arrives as, and a code a
+ * handler invents for itself never survives the trip.
+ *
+ * Members are PascalCase, per the project domain-literals policy.
  */
 
 /**
- * Machine error codes returned by the backend developer-auth endpoints.
+ * The codes a developer-auth failure arrives as, named for what they mean on a
+ * form.
  *
- * Keyed in PascalCase; each value is the exact string the backend sends in the
- * `error` field of a non-2xx response.
+ * Keyed in PascalCase; each value is the string that reaches the browser in the
+ * `error` field of a non-2xx response. A generic status code such as the `400`
+ * a short password arrives as has no member here, because a form cannot tell
+ * from it what went wrong.
  */
 export const AuthErrorCode = {
-  /** 400: a required field was missing or failed validation. */
-  InvalidRequest: "INVALID_REQUEST",
   /** 400: the address in the body cannot be an address at all. */
-  InvalidEmail: "INVALID_EMAIL",
+  InvalidEmail: "MC-REQ-0006",
   /** 409: signup with an email that already has an account. */
-  EmailTaken: "EMAIL_TAKEN",
-  /** 401: login email/password did not match. */
-  InvalidCredentials: "INVALID_CREDENTIALS",
-  /** 403: login attempt on an account whose email is not yet verified. */
-  EmailNotVerified: "EMAIL_NOT_VERIFIED",
-  /** 400: a verification or password-reset token is unknown, expired, or used. */
-  InvalidToken: "INVALID_TOKEN",
+  EmailTaken: "MC-REQ-0007",
+  /** 401: no valid credential, which on a login form means the pair did not match. */
+  InvalidCredentials: "MC-AUTH-0001",
+  /** 403: on a login form, an account whose email is not yet verified. */
+  EmailNotVerified: "MC-AUTH-0002",
 } as const;
 
-/** A {@link AuthErrorCode} member value (the verbatim backend code string). */
+/** A {@link AuthErrorCode} member value, as it arrives on the wire. */
 export type AuthErrorCodeValue = (typeof AuthErrorCode)[keyof typeof AuthErrorCode];
 
 /**
@@ -48,7 +50,6 @@ const ERROR_LABEL: Partial<Record<AuthErrorCodeValue, string>> = {
   [AuthErrorCode.InvalidEmail]: "Enter a valid email address.",
   [AuthErrorCode.EmailTaken]: "An account with this email already exists.",
   [AuthErrorCode.EmailNotVerified]: "Please verify your email address before signing in.",
-  [AuthErrorCode.InvalidToken]: "This link is invalid or has expired.",
 };
 
 /**
