@@ -17,6 +17,8 @@ export const ShortcodeToken = {
   Pill: "pill",
   /** A key on a keyboard. */
   Kbd: "kbd",
+  /** The live plan list. */
+  Plans: "plans",
 } as const;
 
 /** One of the tokens in {@link ShortcodeToken}. */

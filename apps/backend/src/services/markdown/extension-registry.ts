@@ -12,6 +12,7 @@ import {
   PILL_DEFAULT_CASE,
   PILL_DEFAULT_TONE,
   PILL_SHORTCODE,
+  PLANS_SHORTCODE,
   parseShortcodes,
   type ShortcodeDefinition,
   type ShortcodeParamValue,
@@ -22,6 +23,7 @@ import { markedHighlight } from "marked-highlight";
 import { type BundledLanguage, type BundledTheme, createHighlighter, type HighlighterGeneric } from "shiki";
 import mcQueryGrammar from "../grammars/mc-query.tmLanguage.json" with { type: "json" };
 import { createCardExtension } from "./card-extension.js";
+import { createPlansExtension } from "./plans-extension.js";
 
 const BOTH_CONTENT_CONTEXTS = ContentContext.Frontend | ContentContext.DeveloperPortal;
 const KNOWN_CARD_MODIFIERS = new Set(["recessed", "embossed"] as const);
@@ -372,6 +374,12 @@ export const MARKDOWN_EXTENSION_DEFINITIONS: readonly MarkdownExtensionDefinitio
     allowedContextMask: CARD_SHORTCODE.allowedContextMask,
     createMarkedExtension: createCardExtension,
     tokenTypes: ["mcCard", "mcCardRow"],
+  },
+  {
+    name: "mcPlans",
+    allowedContextMask: PLANS_SHORTCODE.allowedContextMask,
+    createMarkedExtension: createPlansExtension,
+    tokenTypes: ["mcPlans"],
   },
   {
     name: "mcFields",

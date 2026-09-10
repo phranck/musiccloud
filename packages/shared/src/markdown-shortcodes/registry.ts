@@ -6,6 +6,7 @@ import type { ContentContextMask } from "../content-context.js";
 import { hasAllContextBits } from "../content-context.js";
 import { FIELDS_SHORTCODE, KBD_SHORTCODE, PILL_SHORTCODE } from "./content.js";
 import { CARD_ROW_SHORTCODE, CARD_SHORTCODE } from "./layout.js";
+import { PLANS_SHORTCODE } from "./plans.js";
 import { type ShortcodeDefinition, ShortcodeSyntax } from "./types.js";
 
 /**
@@ -17,6 +18,7 @@ import { type ShortcodeDefinition, ShortcodeSyntax } from "./types.js";
 export const SHORTCODE_DEFINITIONS: readonly ShortcodeDefinition[] = [
   CARD_SHORTCODE,
   CARD_ROW_SHORTCODE,
+  PLANS_SHORTCODE,
   FIELDS_SHORTCODE,
   PILL_SHORTCODE,
   KBD_SHORTCODE,

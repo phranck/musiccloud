@@ -2,6 +2,8 @@
 export * from "./content.js";
 /** The layout shortcodes, and the bounds their renderer has to agree with. */
 export * from "./layout.js";
+/** The live plan list, and what the portal needs to hydrate it. */
+export * from "./plans.js";
 /** The registry itself, the lookup by token, and the per-context list. */
 export * from "./registry.js";
 /** The token of every shortcode a page may use. */

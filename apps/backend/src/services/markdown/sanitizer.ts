@@ -1,3 +1,4 @@
+import { PLANS_MAX_HEADING_LENGTH, PLANS_PLACEHOLDER_ATTRIBUTE } from "@musiccloud/shared";
 import { type DefaultTreeAdapterMap, parseFragment, serialize } from "parse5";
 
 type HtmlChild = DefaultTreeAdapterMap["childNode"];
@@ -62,8 +63,9 @@ const ELEMENT_ATTRIBUTES: Readonly<Record<string, ReadonlySet<string>>> = {
   code: new Set(["class"]),
   // A row of cards carries the gap a page asked for. `sanitizeStyle` accepts
   // one property here, `gap`, and only as a plain CSS length, so nothing else
-  // can travel in on a `div`.
-  div: new Set(["style"]),
+  // can travel in on a `div`. The plans placeholder carries its heading, which
+  // is bounded and stripped of markup below.
+  div: new Set([PLANS_PLACEHOLDER_ATTRIBUTE, "style"]),
   dl: new Set(["style"]),
   img: new Set(["alt", "height", "src", "width"]),
   input: new Set(["checked", "disabled", "type"]),
@@ -137,6 +139,13 @@ function sanitizedAttributeValue(element: HtmlElement, name: string, value: stri
   if (name === "data-card-style") return value === "embossed" || value === "recessed" ? value : null;
   if (name === "data-card-padding" || name === "data-card-radius") {
     return CSS_LENGTH_PATTERN.test(value) ? value : null;
+  }
+  // The plans heading is set by whoever edits the page and is interpolated into
+  // the portal's markup, so it arrives here as text and leaves as text: no
+  // angle brackets, no ampersands, and no longer than a heading needs to be.
+  if (name === PLANS_PLACEHOLDER_ATTRIBUTE) {
+    const heading = value.replace(/[<>&"']/g, "").trim();
+    return heading.length > 0 && heading.length <= PLANS_MAX_HEADING_LENGTH ? heading : null;
   }
   return value;
 }

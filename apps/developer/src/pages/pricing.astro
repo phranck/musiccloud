@@ -2,70 +2,22 @@
 /**
  * /pricing: the portal's public pricing page and written commitment.
  *
- * Dynamically renders tier cards from `GET /api/v1/tiers`, sorted by
- * `sort_order`. Falls back to the hard-coded commitment-only layout when the
- * backend is unreachable.
+ * The commitment is written here because it is a promise this page makes. The
+ * plans are not: `PlanGrid` reads them and renders them, and a content page
+ * writing `[[plans]]` gets the same component, so the two cannot show different
+ * plans or different prices.
  *
  * English-only, BaseLayout-based, fully token-driven, sharing the public
  * header/footer shell with /docs and /terms.
  */
 import PublicHeader from "@/components/PublicHeader.astro";
-import RollingText from "@/components/RollingText.astro";
+import PlanGrid from "@/components/plans/PlanGrid.astro";
 import { SurfaceCard } from "@/components/SurfaceCard";
-import { TierIcon } from "@/components/TierIcon";
-import { CoinIcon, Like1Icon, TickCircleIcon } from "@/lib/icons";
+import { Like1Icon, TickCircleIcon } from "@/lib/icons";
 import BaseLayout from "@/layouts/BaseLayout.astro";
-import { backendUrl } from "@/lib/api";
 import PublicFooter from "@/components/PublicFooter.astro";
 import { getDeveloperSession } from "@/lib/session";
-import { normalizeTierColor } from "@/lib/tierColor";
 import "../styles/pricing-material.css";
-
-interface TierDto {
-  id: string;
-  name: string;
-  requestsPerMinute: number;
-  requestsPerDay: number;
-  attributionRequired: boolean;
-  /** Monthly price in euros as a numeric string, or `null` for free tiers. */
-  price: string | null;
-  /** Yearly price in euros as a numeric string, or `null` when no yearly billing is offered. */
-  priceYearly: string | null;
-  color: string;
-  /** Iconsax icon name (one of the shared `TIER_ICONS`), or `null` for none. */
-  icon: string | null;
-  /** Custom label for the CTA button, or `null` to use the portal default. */
-  buttonLabel: string | null;
-  description: string;
-  enabled: boolean;
-  /** Whether a developer can put a project on this plan themselves today. */
-  selfServiceAssignable: boolean;
-  disableReason: string;
-  /** Whether this tier is highlighted as the recommended one (at most one across all tiers). */
-  recommended: boolean;
-  sortOrder: number;
-  /** Ordered feature bullets shown on the card, each a short label. */
-  features: string[];
-}
-
-/**
- * Formats a euro amount for the pricing cards: whole amounts render without
- * decimals ("€9"), fractional ones with two ("€9.90"). Legacy values that do
- * not parse as a number are shown unchanged.
- *
- * @param raw - The price as stored on the tier (numeric string).
- * @returns The formatted euro amount.
- */
-function formatEuro(raw: string): string {
-  const value = Number(raw);
-  if (!Number.isFinite(value)) return raw;
-  return new Intl.NumberFormat("en", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
 
 const commitments = [
   {
@@ -94,21 +46,6 @@ const account = await getDeveloperSession(Astro);
 
 const signupRequired = Astro.url.searchParams.get("signup") === "required";
 
-let tiers: TierDto[] = [];
-try {
-  const res = await fetch(backendUrl("/api/v1/tiers"));
-  if (res.ok) {
-    tiers = (await res.json()) as TierDto[];
-    tiers.sort((a, b) => a.sortOrder - b.sortOrder);
-  }
-} catch {
-  // The backend is unreachable. Show the commitment-only layout.
-}
-
-// Index of the single recommended tier, or -1 when none is. Drives the pricing
-// cards' depth effect: the recommended card sits at the front and the others
-// recede by their distance from it. When -1 the cards render flat.
-const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
 ---
 
 <BaseLayout
@@ -160,158 +97,12 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
       </div>
     </section>
 
-    {tiers.length > 0 && (
-      <section class="mb-8" data-billing="monthly">
-        <div class="mb-2 flex items-center justify-between gap-4">
-          <h2 class="card-content-inset text-card-title font-medium tracking-tight">Available plans</h2>
-          <div
-            class="billing-track relative grid grid-cols-2 border border-border-strong text-nav"
-            role="group"
-            aria-label="Billing period"
-          >
-            <span class="billing-thumb" aria-hidden="true"></span>
-            <button type="button" class="billing-option" data-mode="monthly" aria-pressed="true">
-              Monthly
-            </button>
-            <button type="button" class="billing-option" data-mode="yearly" aria-pressed="false">
-              Yearly
-            </button>
-          </div>
-        </div>
-        <p class="card-content-inset text-body text-fg-muted mb-5">
-          Every figure below is counted per project, and every registration under that project shares it.{" "}
-          <a href="/docs#how-it-fits-together" class="content-link text-fg">How it fits together</a> explains
-          what those are.
-        </p>
-        <div class="tier-grid pt-12">
-          {tiers.map((tier, index) => {
-            const tierColor = normalizeTierColor(tier.color);
-            return (
-            <div
-              class={`tier-card relative flex flex-col items-center gap-3 bg-surface text-center${tier.enabled ? "" : " opacity-60"}`}
-              style={`--tier:${tierColor}${recommendedIndex >= 0 ? `;--depth:${Math.abs(index - recommendedIndex)}` : ""}`}
-              data-recommended={recommendedIndex >= 0 && index === recommendedIndex ? "true" : undefined}
-            >
-              {recommendedIndex >= 0 && index === recommendedIndex && (
-                <span class="tier-badge">Recommended</span>
-              )}
-              <span class="tier-medal">
-                <span class="tier-medal-face">
-                  {tier.icon ? (
-                    <TierIcon name={tier.icon} className="tier-icon size-10" />
-                  ) : (
-                    <span class="tier-fallback-letter relative text-3xl font-semibold">
-                      {tier.name.charAt(0)}
-                    </span>
-                  )}
-                </span>
-              </span>
-
-              <h3 class="text-card-title font-normal text-fg">{tier.name}</h3>
-
-              {!tier.enabled && (
-                <p class="tier-notice bg-gold/10 px-2.5 py-1.5 text-body font-medium text-gold">
-                  Currently unavailable{tier.disableReason ? `. ${tier.disableReason}` : ""}
-                </p>
-              )}
-              {tier.description && <p class="w-full text-left text-lg text-fg-muted">{tier.description}</p>}
-              <div class="w-full space-y-1 text-left text-lg text-fg-muted">
-                <p>
-                  <span class="text-fg font-medium">{tier.requestsPerMinute}</span> requests / minute
-                </p>
-                <p>
-                  <span class="text-fg font-medium">{tier.requestsPerDay.toLocaleString()}</span> requests / day
-                </p>
-              </div>
-              {tier.features.length > 0 && (
-                <ul class="pricing-feature-list flex w-full flex-col gap-1.5 text-left text-body">
-                  {tier.features.map((feature) => (
-                    <li class="icon-text-first-line gap-2 text-fg-muted">
-                      <span class="icon-text-first-line__icon">
-                        <TickCircleIcon aria-hidden="true" />
-                      </span>
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              {/* The condition a plan carries, rather than something it
-                  offers, so it closes the reading part of the card instead of
-                  standing among the quotas. Set in full strength, because a
-                  reader has to see it before they decide. */}
-              {tier.attributionRequired && (
-                <p class="w-full text-center text-body font-semibold text-fg">Attribution required</p>
-              )}
-
-              <div class="mt-auto flex w-full flex-col items-center gap-3 pt-3">
-                {tier.price ? (
-                  <RollingText>
-                    <Fragment slot="monthly">
-                      <span class="text-3xl font-bold" style={`color:${tierColor}`}>{formatEuro(tier.price)}</span>
-                      <span class="text-body text-fg-subtle"> / month</span>
-                    </Fragment>
-                    <Fragment slot="yearly">
-                      {tier.priceYearly && <span class="text-body text-fg-subtle">only </span>}
-                      <span class="text-3xl font-bold" style={`color:${tierColor}`}>{formatEuro(tier.priceYearly ?? tier.price)}</span>
-                      <span class="text-body text-fg-subtle"> / {tier.priceYearly ? "year" : "month"}</span>
-                    </Fragment>
-                  </RollingText>
-                ) : (
-                  <span class="inline-flex items-center gap-1 text-body font-semibold text-accent">
-                    <CoinIcon className="size-5" aria-hidden="true" />
-                    Free
-                  </span>
-                )}
-                {tier.enabled && tier.selfServiceAssignable && (
-                  <a
-                    href={`/signup?tier=${tier.id}`}
-                    class="tier-cta inline-flex w-full justify-center px-5 py-2.5 text-body"
-                  >
-                    <span class="tier-cta-label">{tier.buttonLabel || "I want this"}</span>
-                  </a>
-                )}
-                {tier.enabled && !tier.selfServiceAssignable && (
-                  <p class="text-nav text-fg-subtle text-center">
-                    Not available yet. Signing up puts you on the free plan; paid plans arrive with billing.
-                  </p>
-                )}
-              </div>
-            </div>
-            );
-          })}
-        </div>
-      </section>
-    )}
-
-    {tiers.length === 0 && (
-      <section class="rounded-card border border-border bg-surface px-7 py-7 mb-8">
-        <h2 class="text-card-title font-medium tracking-tight mb-2">The free plan today</h2>
-        {/* This stands only when the plans could not be read, so it states no
-            figures: the two it used to name were typed here and would have gone
-            out of step with the plan the moment either changed. */}
-        <p class="text-body text-fg-muted">
-          The plans could not be loaded just now, so their request limits are not shown. Signing up puts you on the
-          free plan either way. Create a project in{" "}
-          <a href="/dashboard/projects" class="content-link text-fg">your dashboard</a> and its quota applies from your
-          first call, shared by the registrations under it.
-        </p>
-      </section>
-    )}
+    <PlanGrid
+      note="Every figure below is counted per project, and every registration under that project shares it. <a href=&quot;/docs#how-it-fits-together&quot; class=&quot;content-link text-fg&quot;>How it fits together</a> explains what those are."
+    />
 
   </main>
 
   <PublicFooter />
 </BaseLayout>
 
-
-<script>
-  const section = document.querySelector("[data-billing]");
-  const options = document.querySelectorAll<HTMLButtonElement>(".billing-option");
-  for (const option of options) {
-    option.addEventListener("click", () => {
-      section?.setAttribute("data-billing", option.dataset.mode === "yearly" ? "yearly" : "monthly");
-      for (const other of options) other.setAttribute("aria-pressed", String(other === option));
-    });
-  }
-</script>
