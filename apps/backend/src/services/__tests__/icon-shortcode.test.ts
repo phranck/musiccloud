@@ -1,16 +1,20 @@
 import { ContentContext, ICON_DEFAULT_SIZE } from "@musiccloud/shared";
 import { beforeEach, describe, expect, it } from "vitest";
-import { resetDuotoneCache } from "../markdown/phosphor-duotone.js";
+import { resetIconCache } from "../markdown/icon-sets.js";
 import { renderMarkdown } from "../markdown/renderer.js";
 import { sanitizeMarkdownHtml } from "../markdown/sanitizer.js";
 
-/** The symbol is a portal shortcode, so the portal context is what renders it. */
+/**
+ * The site's context, because these name Phosphor icons and the site is what
+ * Phosphor is drawn for. The portal draws the same shortcode in Iconsax, which
+ * has its own test below.
+ */
 function renderPortal(markdown: string): Promise<string> {
-  return renderMarkdown(markdown, ContentContext.DeveloperPortal);
+  return renderMarkdown(markdown, ContentContext.Frontend);
 }
 
 beforeEach(() => {
-  resetDuotoneCache();
+  resetIconCache();
 });
 
 describe("[[icon]]", () => {
@@ -21,6 +25,18 @@ describe("[[icon]]", () => {
     expect(out.match(/<path /g)).toHaveLength(2);
     expect(out).toContain('opacity="0.2"');
     expect(out).toContain('viewBox="0 0 256 256"');
+  });
+
+  it("marks a symbol standing in text as one, and one inside a pair not", async () => {
+    // The class carrying the line placement is its own, because a surface gives
+    // `mc-icon` to every symbol it draws, including the ones in its navigation.
+    // Placing those against a line of text would drop them below their labels.
+    const alone = await renderPortal('[[icon name="key"]]');
+    const paired = await renderPortal('[[icon name="key" text="A key"]]');
+
+    expect(alone).toContain("mc-icon--inline");
+    expect(paired).toContain("mc-icon-pair");
+    expect(paired).not.toContain("mc-icon--inline");
   });
 
   it("takes the size the registry declares until a page names one", async () => {
@@ -106,6 +122,37 @@ describe("[[icon]]", () => {
     const out = await renderPortal('[[icon name="key" alignment="center"]]');
 
     expect(out).toContain("mc-icon--align-center");
+  });
+
+  it("leaves the gap between symbol and text to the stylesheet until a page names one", async () => {
+    const without = await renderPortal('[[icon name="key" text="Beside it"]]');
+    const named = await renderPortal('[[icon name="key" text="Beside it" spacing=16]]');
+
+    expect(without).not.toContain("style=");
+    expect(named).toContain('style="gap:16px"');
+  });
+
+  it("keeps that gap through the sanitizer", async () => {
+    const out = sanitizeMarkdownHtml(await renderPortal('[[icon name="key" text="Beside it" spacing=16]]'));
+
+    expect(out).toContain("gap:16px");
+  });
+
+  it("draws the portal in its own hand, and the site in the other", async () => {
+    // Iconsax for the portal, Phosphor for the site. Each set publishes its own
+    // names, so a name one knows the other has no word for.
+    const portal = await renderMarkdown('[[icon name="profile-circle"]]', ContentContext.DeveloperPortal);
+    const site = await renderMarkdown('[[icon name="user-circle"]]', ContentContext.Frontend);
+
+    expect(portal).toContain('viewBox="0 0 24 24"');
+    expect(site).toContain('viewBox="0 0 256 256"');
+  });
+
+  it("leaves a name the surface's own set has no word for standing as text", async () => {
+    const out = await renderMarkdown('[[icon name="user-circle"]]', ContentContext.DeveloperPortal);
+
+    expect(out).not.toContain("<svg");
+    expect(out).toContain("[[icon");
   });
 
   it("survives the sanitizer whole", async () => {

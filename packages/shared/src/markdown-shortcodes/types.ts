@@ -67,10 +67,21 @@ export type ShortcodeTargetRuleValue = (typeof ShortcodeTargetRule)[keyof typeof
  * rendered exactly as the page around it, so any markup and any other
  * shortcode may stand there, including another container. `Forbidden` is
  * everything else, which draws one thing from its attributes alone.
+ *
+ * `OptionalMarkdown` is for the parts of a card, where one line is the common
+ * case and a paragraph is the occasional one. Such a part reads its `text`
+ * attribute where it carries no braces, so a footer holding a sentence is
+ * written as one line rather than as three.
+ *
+ * `Children` is for a container that holds named parts and nothing else, such
+ * as a fields list holding its entries. It carries no braces at all, because
+ * there is no page content in it to put between them.
  */
 export const ShortcodeBodyRule = {
   Forbidden: "Forbidden",
   Markdown: "Markdown",
+  OptionalMarkdown: "OptionalMarkdown",
+  Children: "Children",
 } as const;
 
 /** One of the rules in {@link ShortcodeBodyRule}. */

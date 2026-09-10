@@ -341,7 +341,6 @@ describe("developer design system", () => {
     const theme = readDeveloperFile("public/developer-theme.css");
     const components = readDeveloperFile("src/styles/components.css");
     const docs = readDeveloperFile("src/styles/docs.css");
-    const home = readDeveloperFile("src/pages/index.astro");
     const docsLanding = readDeveloperFile("src/pages/docs/index.astro");
     const pricing = readDeveloperFile("src/pages/pricing.astro");
     const usage = readDeveloperFile("src/pages/dashboard/usage.astro");
@@ -381,7 +380,6 @@ describe("developer design system", () => {
     expect(docs).toMatch(
       /\.search-dialog__result\s*\{[^}]*grid-template-columns:\s*var\(--mc-size-text-icon\) minmax\(0, 1fr\) max-content;[^}]*font-size:\s*var\(--text-body\);/s,
     );
-    expect(home).not.toMatch(/<Icon className="size-7 text-accent"/);
     expect(docsLanding).not.toMatch(/<(?:LinkIcon|BookIcon|KeyIcon|Icon) className="size-[56] text-accent"/);
     expect(pricing).not.toMatch(/<TickCircleIcon className="(?:pricing-commitment-icon )?size-4/);
     expect(usage).not.toMatch(/<DiagramIcon className="size-5"/);
@@ -393,7 +391,6 @@ describe("developer design system", () => {
   it("inherits the adjacent text color for icons that lead text or headings", () => {
     const components = readDeveloperFile("src/styles/components.css");
     const docs = readDeveloperFile("src/styles/docs.css");
-    const home = readDeveloperFile("src/pages/index.astro");
     const docsLanding = readDeveloperFile("src/pages/docs/index.astro");
     const pricing = readDeveloperFile("src/pages/pricing.astro");
     const tokenReveal = readDeveloperFile("src/components/dashboard/TokenRevealBox.tsx");
@@ -404,7 +401,6 @@ describe("developer design system", () => {
     expect(docs).toMatch(/\.content-card__section-header\s*\{[^}]*color:\s*var\(--color-fg\);/s);
     expect(docs).toMatch(/\.content-card__section-icon\s*\{[^}]*color:\s*inherit;/s);
     expect(docs).toMatch(/\.search-dialog__result-icon\s*\{[^}]*color:\s*var\(--color-fg\);/s);
-    expect(home).not.toMatch(/<Icon className="text-accent"/);
     expect(docsLanding).not.toMatch(/<(?:LinkIcon|BookIcon|KeyIcon|Icon) className="text-accent"/);
     expect(pricing).not.toMatch(/<TickCircleIcon className="text-accent"/);
     expect(pricing).not.toMatch(/<TickCircleIcon style=\{\{ color: tierColor \}\}/);
@@ -414,7 +410,6 @@ describe("developer design system", () => {
   it("insets portal-level headings and text by half the non-tier card radius", () => {
     const components = readDeveloperFile("src/styles/components.css");
     const docs = readDeveloperFile("src/styles/docs.css");
-    const home = readDeveloperFile("src/pages/index.astro");
     const planGrid = readDeveloperFile("src/components/plans/PlanGrid.astro");
     const dashboard = readDeveloperFile("src/pages/dashboard/index.astro");
 
@@ -432,10 +427,9 @@ describe("developer design system", () => {
     );
     expect(docs).toContain("--mc-card-content-inset: calc(var(--mc-docs-content-card-radius) / 2);");
     expect(docs).toMatch(/\.api-content__chapter-header\s*\{[^}]*padding-inline:\s*var\(--mc-card-content-inset\);/s);
-    expect(home).toMatch(/<h1 class="[^"]*card-content-inset[^"]*"/);
-    expect(home).toMatch(/<p class="[^"]*card-content-inset[^"]*"/);
-    // The pricing page's copy is content now, so its inset comes from the card
-    // the editorial shell puts it in rather than from a class on a paragraph.
+    // The home page's copy is content now, as the pricing page's is, so the
+    // inset comes from the editorial shell rather than from a class on a
+    // heading or a paragraph.
     // What must still not take the inset is a tier card, which has an edge of
     // its own and would be pushed off centre by one.
     expect(planGrid).not.toMatch(/tier-card[^>]*card-content-inset|card-content-inset[^>]*tier-card/);

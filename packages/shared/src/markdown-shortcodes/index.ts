@@ -1,4 +1,7 @@
 /** The content shortcodes, and the defaults their renderers have to agree with. */
+
+/** The button shortcode, and the two treatments it takes. */
+export * from "./button.js";
 export * from "./content.js";
 /** The symbol shortcode, and the two alignments it reads. */
 export * from "./icon.js";

@@ -63,6 +63,89 @@ describe("[[card]]", () => {
   });
 });
 
+describe("a card written in its three parts", () => {
+  it("puts each part where the card decides, whatever order they stand in", async () => {
+    const out = await renderPortal(
+      '[[card\n[[body {\nOne resolve call.\n}]]\n[[header text="## What you get"]]\n[[footer {\nEvery plan includes it.\n}]]\n]]',
+    );
+
+    expect(out.indexOf("What you get")).toBeLessThan(out.indexOf("One resolve call."));
+    expect(out.indexOf("One resolve call.")).toBeLessThan(out.indexOf("Every plan includes it."));
+  });
+
+  it("stands each apart from the content", async () => {
+    const out = await renderPortal('[[card\n[[header text="## A"]]\n[[body {\nB\n}]]\n[[footer {\nC\n}]]\n]]');
+
+    expect(out).toContain('<div class="mc-card__header">');
+    expect(out).toContain('<div class="mc-card__footer">');
+  });
+
+  it("reads a header and a footer as Markdown", async () => {
+    const out = await renderPortal('[[card\n[[header text="## A heading"]]\n[[footer {\nA **strong** word.\n}]]\n]]');
+
+    expect(out).toMatch(/<h2[^>]*>A heading<\/h2>/);
+    expect(out).toContain("<strong>strong</strong>");
+  });
+
+  it("takes a one-line footer as an attribute, as the header does", async () => {
+    const out = await renderPortal(
+      '[[card\n[[body {\nB\n}]]\n[[footer text="So a plan belongs to an application."]]\n]]',
+    );
+
+    expect(out).toContain('<div class="mc-card__footer">');
+    expect(out).toContain("So a plan belongs to an application.");
+  });
+
+  it("takes a header between braces, as the footer does", async () => {
+    const out = await renderPortal("[[card\n[[header {\n## What you get\n}]]\n[[body {\nB\n}]]\n]]");
+
+    expect(out).toMatch(/<h2[^>]*>What you get<\/h2>/);
+    expect(out).toContain('<div class="mc-card__header">');
+  });
+
+  it("reads what stands between the braces where a band carries both", async () => {
+    const out = await renderPortal('[[card\n[[footer text="The attribute" {\nThe braces\n}]]\n[[body {\nB\n}]]\n]]');
+
+    expect(out).toContain("The braces");
+    expect(out).not.toContain("The attribute");
+  });
+
+  it("draws the symbol a header names", async () => {
+    const out = await renderPortal('[[card\n[[header text="## A" icon="task-square"]]\n[[body {\nB\n}]]\n]]');
+
+    expect(out).toContain('class="mc-card__header-icon"');
+  });
+
+  it("holds a whole row in its footer, which is how a button gets into one", async () => {
+    const out = await renderPortal(
+      '[[card\n[[body {\nB\n}]]\n[[footer {\n[[hstack spacing=20 {\nEvery plan includes it.\n[[spacer]]\n[[button action="/signup" label="Get an API key"]]\n}]]\n}]]\n]]',
+    );
+
+    expect(out).toContain("mc-card__footer");
+    expect(out).toContain("mc-button");
+    expect(out).toContain("mc-spacer");
+  });
+
+  it("is all body where it names none of the three", async () => {
+    const out = await renderPortal("[[card {\n## A headline\n\nOne resolve call.\n}]]");
+
+    expect(out).not.toContain("mc-card__header");
+    expect(out).not.toContain("mc-card__footer");
+    expect(out).toMatch(/<h2[^>]*>A headline<\/h2>/);
+    expect(out).toContain("One resolve call.");
+  });
+
+  it("holds a row of cards in its body", async () => {
+    const out = await renderPortal(
+      '[[card\n[[header text="## Outer"]]\n[[body {\n[[cards columns=2 {\n[[card {\nFirst\n}]]\n[[card {\nSecond\n}]]\n}]]\n}]]\n]]',
+    );
+
+    expect(out).toContain("mc-cards--2");
+    expect(out).toContain("First");
+    expect(out).toContain("Second");
+  });
+});
+
 describe("[[cards]]", () => {
   it("stands its cards side by side, at the declared column count", async () => {
     const out = await renderPortal("[[cards columns=3 {\n[[card {\nOne\n}]]\n[[card {\nTwo\n}]]\n}]]");

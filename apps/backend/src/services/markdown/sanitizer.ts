@@ -96,12 +96,25 @@ const ID_PATTERN = /^[A-Za-z][A-Za-z0-9_:.-]*$/;
 const CSS_LENGTH_PATTERN = /^(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em|ch)$/;
 /** Two whole figures with a solidus between them, which is what an embedded video carries. */
 const ASPECT_RATIO_PATTERN = /^\d{1,3} \/ \d{1,3}$/;
+/**
+ * The two columns of a fields list.
+ *
+ * The first is what the page asked for, which is a length, a percentage, or the
+ * longest label. The second is always the rest, so it is fixed here rather than
+ * being something a page can put anything into.
+ */
+const FIELDS_COLUMNS_PATTERN = /^(?:max-content|(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em|ch|%)) minmax\(0, 1fr\)$/;
 const SAFE_COLOR_PATTERN = /^#[0-9a-f]{3,8}$/i;
 /** The characters a path is drawn from: the commands, the figures, and their separators. */
 const SVG_PATH_PATTERN = /^[MmZzLlHhVvCcSsQqTtAa0-9eE,.\s+-]+$/;
 const SVG_OPACITY_PATTERN = /^(?:0|1|0?\.\d+)$/;
-/** The one box every Phosphor icon is drawn in. */
-const SVG_VIEW_BOX = "0 0 256 256";
+/**
+ * The boxes an icon may be drawn in, one per set.
+ *
+ * The two sets draw at different scales, and a shape against the wrong box is
+ * the wrong size, so both are named rather than one being assumed.
+ */
+const SVG_VIEW_BOXES = new Set(["0 0 256 256", "0 0 24 24"]);
 /** A colour a symbol may be drawn in, which is a hex figure, a name, or a token. */
 const SAFE_FILL_PATTERN = /^(?:currentColor|#[0-9a-f]{3,8}|[a-z]+|var\(--[a-z0-9-]+\))$/i;
 const SAFE_URL_PROTOCOLS = new Set(["http", "https", "mailto", "tel"]);
@@ -132,11 +145,7 @@ function sanitizeStyle(value: string): string | null {
     else if (property === "font-style" && (candidate === "italic" || candidate === "normal")) {
       declarations.push(`font-style:${candidate}`);
     } else if (property === "display" && candidate === "grid") declarations.push("display:grid");
-    else if (
-      property === "grid-template-columns" &&
-      (candidate === "max-content minmax(0, 1fr)" ||
-        /^(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em|ch) minmax\(0, 1fr\)$/.test(candidate))
-    ) {
+    else if (property === "grid-template-columns" && FIELDS_COLUMNS_PATTERN.test(candidate)) {
       declarations.push(`grid-template-columns:${candidate}`);
     } else if (property === "column-gap" && CSS_LENGTH_PATTERN.test(candidate)) {
       declarations.push(`column-gap:${candidate}`);
@@ -168,7 +177,7 @@ function sanitizedAttributeValue(element: HtmlElement, name: string, value: stri
   if (name === "scope") return ["col", "colgroup", "row", "rowgroup"].includes(value) ? value : null;
   if (name === "d") return SVG_PATH_PATTERN.test(value) ? value : null;
   if (name === "opacity") return SVG_OPACITY_PATTERN.test(value) ? value : null;
-  if (name === "viewBox") return value === SVG_VIEW_BOX ? value : null;
+  if (name === "viewBox") return SVG_VIEW_BOXES.has(value) ? value : null;
   if (name === "fill") return SAFE_FILL_PATTERN.test(value) ? value : null;
   if (name === "data-card-style") return value === "embossed" || value === "recessed" ? value : null;
   if (name === "data-card-padding" || name === "data-card-radius") {
@@ -189,6 +198,25 @@ function sanitizeAttributes(element: HtmlElement): void {
   });
 }
 
+/**
+ * Whether a paragraph has nothing left in it.
+ *
+ * A block element inside a paragraph splits that paragraph in two, and one of
+ * the halves is usually empty. That happens whenever a shortcode which stands
+ * in a line of text renders a block, such as a symbol whose caption is a
+ * heading. An empty paragraph draws nothing and still takes the spacing every
+ * paragraph gets, so it reads as a gap nobody asked for.
+ *
+ * @param element - The element to weigh.
+ * @returns Whether it is a paragraph holding neither text nor an element.
+ */
+function isEmptyParagraph(element: HtmlElement): boolean {
+  if (element.tagName !== "p") return false;
+  return element.childNodes.every(
+    (child) => child.nodeName === "#text" && (child as { value?: string }).value?.trim() === "",
+  );
+}
+
 function sanitizeChild(child: HtmlChild, parent: HtmlParent): HtmlChild[] {
   if (child.nodeName === "#comment" || child.nodeName === "#documentType") return [];
   if (child.nodeName === "#text") return [child];
@@ -200,6 +228,8 @@ function sanitizeChild(child: HtmlChild, parent: HtmlParent): HtmlChild[] {
     for (const nestedChild of element.childNodes) nestedChild.parentNode = parent;
     return element.childNodes;
   }
+
+  if (isEmptyParagraph(element)) return [];
 
   sanitizeAttributes(element);
   return [element];

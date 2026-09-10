@@ -22,6 +22,15 @@ describe("shortcodeBraceDelta", () => {
     expect(shortcodeBraceDelta("[[card { copy }]]")).toBe(0);
   });
 
+  it("counts a container that names its parts, which carries no braces", () => {
+    expect(shortcodeBraceDelta('[[fields width=160 align="trailing"')).toBe(1);
+    expect(shortcodeBraceDelta("]]")).toBe(-1);
+  });
+
+  it("counts a part written on one line as neither", () => {
+    expect(shortcodeBraceDelta('[[header text="## What you get"]]')).toBe(0);
+  });
+
   it("ignores a brace in prose, which carries no shortcode syntax", () => {
     expect(shortcodeBraceDelta("A sentence with a { in it.")).toBe(0);
     expect(shortcodeBraceDelta("And a } here.")).toBe(0);
@@ -121,6 +130,12 @@ describe("reindentShortcodeBlock", () => {
     // is one level of a hand-indented list; the alternative is a pasted
     // container arriving with its own indentation added on top of its level.
     expect(reindentShortcodeBlock("[[card {\n- one\n  - nested\n}]]", 0)).toBe("[[card {\n  - one\n  - nested\n}]]");
+  });
+
+  it("indents a container that names its parts", () => {
+    const flat = '[[card\n[[header text="## A"]]\n[[body {\nB\n}]]\n]]';
+
+    expect(reindentShortcodeBlock(flat, 0)).toBe('[[card\n  [[header text="## A"]]\n  [[body {\n    B\n  }]]\n]]');
   });
 
   it("leaves an empty line empty rather than filling it with spaces", () => {

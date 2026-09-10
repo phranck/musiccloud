@@ -21,12 +21,34 @@
  *   --mc-shortcode-title-color     a heading on one of those blocks
  */
 
-/* A symbol written into a text. It sits on the text's own line rather than on
-   the baseline, where an SVG would otherwise push the line apart, and it never
-   grows past the line it stands in. */
-.mc-icon {
+/*
+ * A symbol written into a text, centred on the line beside it.
+ *
+ * Only a symbol that stands in running text takes this, which is why it is its
+ * own class rather than every `mc-icon`: a surface may give that class to every
+ * symbol it draws, including the ones in its navigation and its controls, and
+ * those are placed by whatever holds them.
+ *
+ * Centred means the midline between the baseline and the cap line, which is the
+ * line system type is set on. The middle of a glyph box is a different place: a
+ * box is taller than the letters drawn in it, and aligning boxes leaves the
+ * symbol riding high beside the words.
+ *
+ * `cap` is that height, in whatever font the symbol stands in, so no surface has
+ * to state a figure and a heading set in a second face is right as well. The
+ * shift moves the symbol from where its own bottom rests on the baseline up onto
+ * the midline: half its own height, less half a cap. A percentage of its own
+ * height, so it holds at every symbol size without that being written into the
+ * markup either.
+ *
+ * The symbol stays with the first line of its text, which is what an inline box
+ * does, so a sentence that wraps still has its symbol beside the words it
+ * begins with.
+ */
+.mc-icon--inline {
   display: inline-block;
-  vertical-align: text-bottom;
+  vertical-align: baseline;
+  transform: translateY(calc(50% - 0.5cap));
   max-width: 100%;
 }
 
@@ -101,12 +123,31 @@
   flex-direction: column-reverse;
 }
 
+/*
+ * Flush with the top puts the symbol's top edge on the cap line of the text's
+ * first line, which is where its letters begin. Not on the top of the box that
+ * holds them: a line box carries leading above the letters, so aligning the two
+ * boxes leaves the symbol floating over words that start further down.
+ *
+ * `baseline` puts the symbol's own bottom on that first baseline, and the shift
+ * lifts it by its full height less the cap height, which lands its top exactly
+ * on the cap line.
+ */
 .mc-icon-pair--start {
-  align-items: flex-start;
+  align-items: baseline;
 }
 
+.mc-icon-pair--start > .mc-icon {
+  transform: translateY(calc(100% - 1cap));
+}
+
+/*
+ * Flush with the bottom is the same thing from the other end, and needs no
+ * shift at all: aligning on the last baseline already rests the symbol's bottom
+ * on the line the text ends on.
+ */
 .mc-icon-pair--end {
-  align-items: flex-end;
+  align-items: last baseline;
 }
 
 /* The text over the middle of the symbol rather than beside it, which is what

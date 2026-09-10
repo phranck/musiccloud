@@ -7,15 +7,14 @@ describe("managed Developer Portal route selection", () => {
     expect(isManagedEditorialPath(path)).toBe(true);
   });
 
-  it.each(["/docs", "/pricing"])("serves the editorial copy at the reserved path %s", (path) => {
-    // The portal owns both routes, because each knows which header tab is
+  it.each(["/", "/docs", "/pricing"])("serves the editorial copy at the reserved path %s", (path) => {
+    // The portal owns all three routes, because each knows which header tab is
     // current and `/pricing` has a signup notice to show. What a reader reads
-    // on either is copy, so the lookup has to reach it.
+    // on any of them is copy, so the lookup has to reach it.
     expect(isManagedEditorialPath(path)).toBe(true);
   });
 
   it.each([
-    "/",
     "/docs/api",
     "/docs/arbitrary/future-guide",
     "/dashboard",

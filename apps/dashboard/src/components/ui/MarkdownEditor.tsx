@@ -1,6 +1,8 @@
 import type { DecorationSet, ViewUpdate } from "@codemirror/view";
 import {
   highlightShortcodes,
+  SHORTCODE_HIGHLIGHT_BOLD_KIND,
+  SHORTCODE_HIGHLIGHT_VARIABLES,
   type ShortcodeHighlightKind,
   type ShortcodePasteRewrite,
   shortcodeIndentFor,
@@ -201,28 +203,26 @@ const MarkdownCodeMirror = React.lazy(async () => {
   /**
    * What each part of a shortcode looks like.
    *
-   * Every colour is a token, so the palette is decided in the stylesheet where
-   * the reasoning behind each role also lives. Weight is decided here, and only
-   * the token carries any, because it is what a reader scans for to find their
-   * way around a long document.
+   * Built from the shared map, because the reference panel beside this editor
+   * colours its examples from the same one and an example that read differently
+   * from what an author types would teach the wrong thing. Every colour is a
+   * token, so the palette itself is decided in the stylesheet where the
+   * reasoning behind each role also lives.
    *
    * The class names follow the span kinds, which is what lets the decorations
    * below be derived from a kind rather than listed a second time here.
    */
-  const shortcodeTheme = EditorView.theme({
-    ".cm-shortcode-bracket": { color: "var(--md-shortcode-bracket)" },
-    ".cm-shortcode-brace-marker": { color: "var(--md-shortcode-bracket)" },
-    ".cm-shortcode-fence-marker": { color: "var(--md-shortcode-bracket)" },
-    ".cm-shortcode-separator": { color: "var(--md-shortcode-separator)" },
-    ".cm-shortcode-body-brace": { color: "var(--md-shortcode-brace)" },
-    ".cm-shortcode-token": { color: "var(--md-shortcode-token)", fontWeight: "600" },
-    ".cm-shortcode-target": { color: "var(--md-shortcode-target)" },
-    ".cm-shortcode-attribute-name": { color: "var(--md-shortcode-attribute)" },
-    ".cm-shortcode-value-string": { color: "var(--md-shortcode-string)" },
-    ".cm-shortcode-value-bare": { color: "var(--md-shortcode-number)" },
-    ".cm-shortcode-variable": { color: "var(--md-shortcode-variable)" },
-    ".cm-shortcode-unknown-token": { color: "var(--md-shortcode-unknown)" },
-  });
+  const shortcodeTheme = EditorView.theme(
+    Object.fromEntries(
+      Object.entries(SHORTCODE_HIGHLIGHT_VARIABLES).map(([kind, variable]) => [
+        `.cm-shortcode-${kind}`,
+        {
+          color: `var(${variable})`,
+          fontWeight: kind === SHORTCODE_HIGHLIGHT_BOLD_KIND ? "600" : "inherit",
+        },
+      ]),
+    ),
+  );
 
   const shortcodeMarks = new Map<ShortcodeHighlightKind, ReturnType<typeof Decoration.mark>>();
 

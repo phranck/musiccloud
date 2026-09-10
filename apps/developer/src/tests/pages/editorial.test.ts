@@ -24,6 +24,16 @@ describe("managed editorial page routing", () => {
     expect(isManagedEditorialPath(path)).toBe(false);
   });
 
+  it.each(["/", "/docs", "/pricing"])("reaches the editorial copy at %s, which has a route of its own", (path) => {
+    // Each of these is served by a route rather than by the catch-all, because
+    // a route carries what a stored page cannot: the header tab, the session,
+    // and the notice a signup leaves behind. The copy still comes from here.
+    // A route is either `name.astro` or `name/index.astro`; both are routes.
+    const name = path === "/" ? "index" : path.slice(1);
+    expect(isManagedEditorialPath(path)).toBe(true);
+    expect(existsSync(join(pagesDir, `${name}.astro`)) || existsSync(join(pagesDir, name, "index.astro"))).toBe(true);
+  });
+
   it("reaches the editorial copy at /docs itself", () => {
     // Everything under `/docs` is built by the portal. The page a developer
     // arrives at is copy, and its route looks it up like any other.

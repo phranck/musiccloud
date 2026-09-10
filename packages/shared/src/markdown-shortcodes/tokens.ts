@@ -13,12 +13,22 @@ export const ShortcodeToken = {
   Cards: "cards",
   /** A label-and-value list, as a definition list. */
   Fields: "fields",
+  /** One entry of such a list. */
+  Field: "field",
+  /** What a card says it is, above its content. */
+  Header: "header",
+  /** A card's own content. */
+  Body: "body",
+  /** What a card closes with. */
+  Footer: "footer",
   /** A short word set apart from the text around it. */
   Pill: "pill",
   /** A key on a keyboard. */
   Kbd: "kbd",
   /** The live plan list. */
   Plans: "plans",
+  /** A command on a page, with its label and its symbol. */
+  Button: "button",
   /** A Phosphor symbol, in the text or beside its caption. */
   Icon: "icon",
   /** A container standing its children one beneath the next. */

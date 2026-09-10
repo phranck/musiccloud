@@ -1,4 +1,5 @@
 import {
+  reindentShortcodeBlock,
   SHORTCODE_DEFINITIONS,
   type ShortcodeDefinition,
   ShortcodeParamType,
@@ -32,7 +33,7 @@ describe("ShortcodeList", () => {
     // Two notations that look nothing alike, so one form shown for both would
     // be a false instruction rather than a shorthand. A container is written
     // with its braces, and a word set apart is written with none.
-    expect(text).toContain("[[fields { … }]]");
+    expect(text).toContain("[[fields … ]]");
     expect(text).toContain("[[pill:…]]");
     expect(text).toContain("{{…}}");
   });
@@ -77,13 +78,14 @@ describe("ShortcodeList", () => {
     }
   });
 
-  it("shows every declared example, which is what a writer copies", () => {
+  it("shows every declared example, indented as the editor indents it", () => {
     const { container } = render(<ShortcodeList />);
     const text = container.textContent ?? "";
 
     for (const definition of SHORTCODE_DEFINITIONS) {
       for (const example of definition.examples) {
-        expect(text, `${definition.token}: ${example}`).toContain(example);
+        const written = reindentShortcodeBlock(example, 0);
+        expect(text, `${definition.token}: ${written}`).toContain(written);
       }
     }
   });

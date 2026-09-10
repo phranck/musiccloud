@@ -22,11 +22,22 @@ const ICONS_BY_PATH = {
 } as const;
 
 /**
+ * The pages whose title stands on its own.
+ *
+ * The home page opens the portal, and its title is the first thing read on it.
+ * A symbol beside that reads as a label on a section rather than as a greeting,
+ * which is why the page never had one.
+ */
+const PATHS_WITHOUT_ICON = new Set(["/"]);
+
+/**
  * The icon for one page.
  *
  * @param path - Where the page is published.
- * @returns The icon component to render beside its title.
+ * @returns The icon component to render beside its title, or `null` where the
+ *   title stands on its own.
  */
-export function portalPageIcon(path: string): typeof DEFAULT_PAGE_ICON {
+export function portalPageIcon(path: string): typeof DEFAULT_PAGE_ICON | null {
+  if (PATHS_WITHOUT_ICON.has(path)) return null;
   return ICONS_BY_PATH[path as keyof typeof ICONS_BY_PATH] ?? DEFAULT_PAGE_ICON;
 }

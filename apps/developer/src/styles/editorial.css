@@ -36,7 +36,10 @@
     display: grid;
     gap: var(--mc-space-6);
     color: var(--color-fg-muted);
-    font-size: var(--text-body);
+    /* One reading size for a page, and it is the larger one. A portal page is
+       read rather than scanned, and what used to be reserved for the opening
+       paragraph now holds throughout, inside a card as well as outside it. */
+    font-size: var(--text-lead);
     line-height: var(--mc-editorial-line-height);
     overflow-wrap: anywhere;
   }
@@ -57,34 +60,38 @@
     padding-inline: 0;
   }
 
-  /* A card written into a page, taking the same surface, radius and padding as
-     the `surface-card` component the hand-written pages used. It is a class of
-     its own rather than that component because the renderer serves both the
-     portal and the site, and each maps `mc-card` onto its own material. */
-  /* A card holds page content, so it lays that content out itself rather than
+  /* A card written into a page, drawn on the same figures as the API
+     reference's own cards: one surface, one radius, one inset, one control
+     height. It is a class of its own rather than that component because the
+     renderer serves both the portal and the site, and each maps `mc-card` onto
+     its own material.
+
+     A card holds page content, so it lays that content out itself rather than
      leaving the gaps to the level above. The spacing inside is carried per
      element, because a heading belongs to what follows it whilst a paragraph
-     stands apart from it, and one gap cannot say both.
-
-     Measured against the sections this replaces. */
+     stands apart from it, and one gap cannot say both. */
   .mc-card {
+    /* A control inside a card is the compact one, as it is in every card in the
+       API reference, so a button in a footer matches the ones there. */
+    --button-min-height: var(--mc-size-control-compact);
+
     display: grid;
     border-radius: var(--radius-card);
-    padding: var(--mc-space-7);
+    font-size: var(--text-card-body);
+    padding: var(--space-content-card);
     background: var(--color-surface);
   }
 
-  /* A card sharing a row is narrower, so it carries less padding, which is what
-     the two commitment cards on the pricing page always had. */
-  .mc-cards > .mc-card {
-    padding: var(--mc-space-5);
-  }
-
-  .mc-card > * {
+  /* The rhythm inside a card, which is the same whether the card holds its
+     content directly or names a body to hold it. Both are named, because a card
+     written either way reads as one card. */
+  .mc-card > *,
+  .mc-card__body > * {
     margin-block-end: var(--mc-space-5);
   }
 
-  .mc-card > :last-child {
+  .mc-card > :last-child,
+  .mc-card__body > :last-child {
     margin-block-end: 0;
   }
 
@@ -93,8 +100,103 @@
   .mc-card > h3:not([class]),
   .mc-card > h4:not([class]),
   .mc-card > h5:not([class]),
-  .mc-card > h6:not([class]) {
+  .mc-card > h6:not([class]),
+  .mc-card__body > h1:not([class]),
+  .mc-card__body > h2:not([class]),
+  .mc-card__body > h3:not([class]),
+  .mc-card__body > h4:not([class]),
+  .mc-card__body > h5:not([class]),
+  .mc-card__body > h6:not([class]) {
     margin-block-end: var(--mc-space-2);
+  }
+
+  /* A command is a control, not copy, so it keeps the size every other control
+     in the portal has rather than following the page's reading size. */
+  .editorial-markdown .mc-button {
+    font-size: var(--text-body);
+  }
+
+  /* A card that names its parts is drawn exactly as the API reference draws one:
+     the header and the footer are bands in the card's own chrome that reach its
+     edges, and the content sits between them. The card gives up its padding to
+     the parts, which is also why it clips: a band at the very edge would square
+     off the corner it sits in.
+
+     The figures are the reference's own tokens rather than copies of them, so
+     the two cards cannot drift apart. */
+  .mc-card--sectioned {
+    overflow: hidden;
+    padding: 0;
+  }
+
+  /* The parts meet each other. What separates two things inside a card would
+     here open a gap between a band and the content it belongs to, on top of the
+     padding each part already carries. */
+  .mc-card--sectioned > * {
+    margin-block-end: 0;
+  }
+
+  .mc-card__header,
+  .mc-card__footer {
+    display: flex;
+    min-height: var(--mc-size-control);
+    align-items: center;
+    gap: var(--space-content-card-row);
+    padding: var(--space-content-card-header);
+    background: var(--color-card-chrome);
+  }
+
+  /* The content takes the padding the card gave up, at the same inset. */
+  .mc-card__body {
+    padding: var(--space-content-card);
+  }
+
+  /* A card is named by a symbol and a title together, as a chapter is in the
+     reference, so the symbol sits inside the header's own inset and the title
+     follows it without a second one. The symbol follows the title's size,
+     because the two are one name. */
+  .mc-card__header-icon {
+    width: 1em;
+    height: 1em;
+    flex: none;
+    margin-inline-start: var(--mc-card-content-inset);
+    color: var(--color-fg);
+    font-size: var(--text-card-title);
+  }
+
+  .mc-card__header > :first-child:not(.mc-card__header-icon) {
+    padding-inline-start: var(--mc-card-content-inset);
+  }
+
+  /* Inside either band the content keeps its own rhythm but not its outer
+     margins, which the band's own padding already provides. */
+  .mc-card__header > :first-child,
+  .mc-card__footer > :first-child {
+    margin-block-start: 0;
+  }
+
+  .mc-card__header > :last-child,
+  .mc-card__footer > :last-child {
+    margin-block-end: 0;
+  }
+
+  /* The title carries the weight and the rhythm the reference gives it, which
+     is heavier and tighter than a heading standing in the page. The wrapper is
+     named so this outweighs the rule that sets every editorial heading, which
+     stands further down and would otherwise win on order alone. */
+  .editorial-markdown .mc-card__header h1:not([class]),
+  .editorial-markdown .mc-card__header h2:not([class]),
+  .editorial-markdown .mc-card__header h3:not([class]),
+  .editorial-markdown .mc-card__header h4:not([class]) {
+    margin-block-end: 0;
+    font-size: var(--text-card-title);
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  /* A footer runs its own row, so the whole width is available to it. */
+  .mc-card__footer > .mc-stack {
+    width: 100%;
   }
 
   /* A fields list. The grid itself is set inline by the renderer, because the
@@ -108,6 +210,29 @@
   .editorial-markdown .mc-fields dd {
     margin: 0;
     color: var(--color-fg-muted);
+  }
+
+  /* A value is content now rather than a phrase, so it may hold paragraphs. They
+     keep their rhythm inside the entry and give up the margins that would
+     otherwise push the entry off the label beside it. */
+  .editorial-markdown .mc-fields dd > :first-child {
+    margin-block-start: 0;
+  }
+
+  .editorial-markdown .mc-fields dd > :last-child {
+    margin-block-end: 0;
+  }
+
+  /* Where the label is set inside its own column. Trailing lines the two
+     columns up against each other, which reads best where the labels differ a
+     lot in length. Stacked lists ignore it, because there a label starts the
+     line and has no column to sit in. */
+  .editorial-markdown .mc-fields--leading dt {
+    text-align: start;
+  }
+
+  .editorial-markdown .mc-fields--trailing dt {
+    text-align: end;
   }
 
   /* Stacked: each statement above the sentence explaining it, which is how the
@@ -200,12 +325,12 @@
     letter-spacing: -0.025em;
   }
 
-  /* A heading inside a page, not the page's own. The page already carries its
-     title at `--text-hero` above this, so a section heading set at
-     `--text-section` competes with it and reads as a second title. */
+  /* A heading inside a page, not the page's own. It stands well below the title
+     the page carries at `--text-hero`, and well above the reading size, which is
+     what tells the two apart without either of them shouting. */
   .editorial-markdown h1:not([class]),
   .editorial-markdown h2:not([class]) {
-    font-size: var(--text-card-title);
+    font-size: var(--text-section);
     letter-spacing: -0.025em;
   }
 
@@ -213,15 +338,30 @@
   .editorial-markdown h4:not([class]),
   .editorial-markdown h5:not([class]),
   .editorial-markdown h6:not([class]) {
-    font-size: var(--text-body);
+    font-size: var(--text-card-title);
   }
 
-  /* The opening paragraph is the page's lead, which is how every hand-written
-     portal page set it. It is the first thing read and it introduces the rest,
-     so it is set larger, and only where it genuinely opens the page. */
+  /* Inside a card the whole ladder steps down once, as the reading size does.
+     A card is a column inside the page, so its title is a card's title rather
+     than a section's, and what stands under that follows. */
+  .mc-card h1:not([class]),
+  .mc-card h2:not([class]) {
+    font-size: var(--text-card-title);
+  }
+
+  .mc-card h3:not([class]),
+  .mc-card h4:not([class]),
+  .mc-card h5:not([class]),
+  .mc-card h6:not([class]) {
+    font-size: var(--text-subsection);
+  }
+
+  /* The opening paragraph introduces the rest, so it takes the muted colour and
+     the air beneath it that says so. It is not set larger: one body size holds
+     across the page, whether a paragraph stands on it or inside a card, and a
+     card that read smaller than the page around it looked like a footnote. */
   .editorial-markdown > p:not([class]):first-child {
     color: var(--color-fg-muted);
-    font-size: var(--text-lead);
   }
 
   .editorial-markdown ul:not([class]),
@@ -266,20 +406,35 @@
 
   .editorial-markdown code:not([class]) {
     border-radius: var(--radius-keycap);
-    padding-inline: var(--mc-space-1);
+    /* The tint clears the letters on every side rather than sitting on them.
+       Vertically it grows into the leading the line already carries, so the
+       line beneath it does not move: 6px of room on each side, and 4 taken. */
+    padding-block: var(--mc-space-1);
+    padding-inline: var(--mc-space-2);
     color: var(--mc-color-inline-code-fg);
     background: var(--mc-color-inline-code-bg);
     font-family: var(--font-mono);
     font-size: var(--text-code);
   }
 
+  /* A code block is a surface set into the page, as a card is, so it carries
+     the same corner. A smaller one made it read as a control. */
   .editorial-markdown pre:not([class]) {
     max-width: 100%;
     overflow-x: auto;
-    border-radius: var(--radius-button);
+    border-radius: var(--radius-card);
     padding: var(--mc-code-padding-block) var(--mc-code-padding-inline);
     color: var(--color-code-fg);
     background: var(--color-code-bg);
+  }
+
+  /* Code is read at the size it is written at, so it does not follow the page's
+     reading size. The block's own `code` carries a language class, which is why
+     the inline rule above cannot reach it. */
+  .editorial-markdown pre,
+  .editorial-markdown pre code {
+    font-size: var(--text-code);
+    line-height: var(--mc-line-height-normal);
   }
 
   .editorial-markdown pre code {

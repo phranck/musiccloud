@@ -10,11 +10,13 @@ export default defineConfig({
   platform: "node",
   bundle: true,
   noExternal: [/.+/],
-  // Two sets of assets live on disk at runtime rather than in the bundle.
-  // Jimp's TTF fonts cannot be inlined at all, and the Phosphor duotone set is
-  // 5.9 MB of which a page uses a handful. Both are copied next to the built
-  // bundle so `__dirname` resolves them in production.
-  onSuccess: "node scripts/copy-jimp-fonts.mjs && node scripts/copy-phosphor-icons.mjs",
+  // Three sets of assets live on disk at runtime rather than in the bundle.
+  // Jimp's TTF fonts cannot be inlined at all, and the two icon sets are 6 MB
+  // together of which a page uses a handful. Iconsax ships components rather
+  // than assets, so its shapes are extracted here rather than copied. All three
+  // land next to the built bundle so `__dirname` resolves them in production.
+  onSuccess:
+    "node scripts/copy-jimp-fonts.mjs && node scripts/copy-phosphor-icons.mjs && node scripts/build-iconsax-bulk.mjs",
   outDir: "dist",
   clean: true,
 });

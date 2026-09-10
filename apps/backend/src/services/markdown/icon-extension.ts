@@ -11,6 +11,7 @@
  */
 
 import {
+  ContentContext,
   ICON_DEFAULT_SIZE,
   ICON_SHORTCODE,
   IconAlignment,
@@ -19,9 +20,33 @@ import {
   type IconTextAlignmentValue,
   parseShortcodes,
   readShortcodeAt,
+  type SingleContentContext,
 } from "@musiccloud/shared";
 import type { MarkedExtension, Token, Tokens } from "marked";
-import { duotonePaths } from "./phosphor-duotone.js";
+import { resolveContainerSpacing } from "./containers.js";
+import { ICON_VIEW_BOX, IconSet, type IconSetValue, iconPaths } from "./icon-sets.js";
+
+/**
+ * Which hand each surface is drawn in.
+ *
+ * The developer portal is Iconsax, in its Bulk style. The site is Phosphor, in
+ * duotone. Both are decisions about how a product looks, so they belong here
+ * rather than in anything a page writes.
+ */
+const SET_BY_CONTEXT: Record<SingleContentContext, IconSetValue> = {
+  [ContentContext.Frontend]: IconSet.PhosphorDuotone,
+  [ContentContext.DeveloperPortal]: IconSet.IconsaxBulk,
+};
+
+/**
+ * The set a surface draws from.
+ *
+ * @param context - Which surface is being rendered.
+ * @returns The set to look an icon up in.
+ */
+export function iconSetFor(context: SingleContentContext): IconSetValue {
+  return SET_BY_CONTEXT[context] ?? IconSet.PhosphorDuotone;
+}
 
 /** A hex figure of three, four, six or eight digits, with or without its hash. */
 const HEX_COLOUR = /^#?(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
@@ -87,6 +112,8 @@ interface McIconToken extends Tokens.Generic {
   textTokens: Token[] | null;
   /** The classes the pair around the two carries, or `null` for a bare symbol. */
   pairClass: string | null;
+  /** The gap between the two as CSS, or `null` to let the stylesheet decide. */
+  spacing: string | null;
 }
 
 function escapeHtml(value: string): string {
@@ -119,15 +146,25 @@ function resolveFill(raw: string | undefined): string {
 /**
  * Draws one symbol.
  *
- * @param name - The icon in the spelling Phosphor publishes.
+ * Exported because the button draws one too, and a second drawing of the same
+ * thing would be a second answer to what a symbol is.
+ *
+ * @param set - Which hand to draw it in.
+ * @param name - The icon in the spelling that set publishes.
  * @param size - Its edge length in pixels.
  * @param fill - What it is drawn in, already checked.
  * @param className - What the element carries, which places it where it has no
  *   text of its own.
  * @returns The markup, or `null` when the name leads to no icon.
  */
-function renderSymbol(name: string, size: number, fill: string, className: string): string | null {
-  const paths = duotonePaths(name);
+export function renderSymbol(
+  set: IconSetValue,
+  name: string,
+  size: number,
+  fill: string,
+  className: string,
+): string | null {
+  const paths = iconPaths(set, name);
   if (!paths) return null;
 
   const shapes = paths
@@ -137,15 +174,18 @@ function renderSymbol(name: string, size: number, fill: string, className: strin
     })
     .join("");
 
-  return `<svg class="${className}" viewBox="0 0 256 256" width="${size}" height="${size}" fill="${escapeHtmlAttribute(fill)}" role="img" aria-hidden="true">${shapes}</svg>`;
+  return `<svg class="${className}" viewBox="${ICON_VIEW_BOX[set]}" width="${size}" height="${size}" fill="${escapeHtmlAttribute(fill)}" role="img" aria-hidden="true">${shapes}</svg>`;
 }
 
 /**
  * The symbol shortcode as a marked extension.
  *
+ * @param context - Which surface it renders for, which decides the set.
  * @returns The extension, ready to register.
  */
-export function createIconExtension(): MarkedExtension {
+export function createIconExtension(context: SingleContentContext): MarkedExtension {
+  const set = iconSetFor(context);
+
   return {
     extensions: [
       {
@@ -184,10 +224,14 @@ export function createIconExtension(): MarkedExtension {
           const paired = Boolean(text && textAlignment);
 
           const markup = renderSymbol(
+            set,
             name,
             size,
             fill,
-            ["mc-icon", paired ? undefined : placed].filter(Boolean).join(" "),
+            // A symbol standing on its own sits in the line of text beside it
+            // and is placed against that line. Inside a pair the pair places
+            // it, so it says nothing about the line.
+            ["mc-icon", paired ? undefined : "mc-icon--inline", paired ? undefined : placed].filter(Boolean).join(" "),
           );
           // A name nobody can find leaves the shortcode standing in the text, so
           // whoever wrote it sees that the name is wrong rather than a gap.
@@ -204,6 +248,7 @@ export function createIconExtension(): MarkedExtension {
               paired && textAlignment
                 ? ["mc-icon-pair", TEXT_ALIGNMENT_CLASSES[textAlignment], placed].filter(Boolean).join(" ")
                 : null,
+            spacing: resolveContainerSpacing(parsed?.params.spacing),
           } satisfies McIconToken;
         },
         renderer(token) {
@@ -222,7 +267,8 @@ export function createIconExtension(): MarkedExtension {
           const text = single ? rendered.slice("<p>".length, -PARAGRAPH_END.length) : rendered;
           const tag = single ? "span" : "div";
 
-          return `<${tag} class="${icon.pairClass}">${icon.markup}<${tag} class="mc-icon-pair__label">${text}</${tag}></${tag}>`;
+          const style = icon.spacing ? ` style="gap:${icon.spacing}"` : "";
+          return `<${tag} class="${icon.pairClass}"${style}>${icon.markup}<${tag} class="mc-icon-pair__label">${text}</${tag}></${tag}>`;
         },
       },
     ],

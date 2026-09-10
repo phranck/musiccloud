@@ -19,6 +19,7 @@ import {
   readShortcodeAt,
   type ShortcodeParamValue,
   SPACER_SHORTCODE,
+  shortcodeBraceDelta,
   VSTACK_SHORTCODE,
   VStackAlignment,
 } from "@musiccloud/shared";
@@ -111,6 +112,41 @@ function alignmentClassSuffix(alignment: string): string {
   return "center";
 }
 
+/**
+ * Puts each piece of a stack's body on its own footing.
+ *
+ * Markdown reads two lines that touch as one paragraph, which is right for
+ * prose and wrong here: a stack arranges pieces, and one line is one piece. A
+ * writer who lists three buttons on three lines means three, and without this
+ * they arrive as one paragraph, which is one child, which the gap has nothing
+ * to separate.
+ *
+ * This project never hard-wraps prose, so a line already is a paragraph
+ * everywhere else too. What is left alone is anything inside a nested
+ * container, which counts its own lines and must keep them.
+ *
+ * @param body - The stack's content, as written.
+ * @returns The same content with a blank line between consecutive pieces.
+ */
+function separateStackChildren(body: string): string {
+  const lines = body.split("\n");
+  const separated: string[] = [];
+  let depth = 0;
+
+  for (const [index, line] of lines.entries()) {
+    separated.push(line);
+    depth = Math.max(depth + shortcodeBraceDelta(line), 0);
+
+    const next = lines[index + 1];
+    if (next === undefined) continue;
+    // Only where both sides stand at the top level of this body, so a nested
+    // container's own lines are never pulled apart.
+    if (depth === 0 && line.trim() !== "" && next.trim() !== "") separated.push("");
+  }
+
+  return separated.join("\n");
+}
+
 /** The opening of each stack, so the block scanner knows where one may begin. */
 const STACK_OPENINGS: readonly { axis: StackAxisValue; opening: RegExp }[] = [
   { axis: StackAxis.Vertical, opening: new RegExp(`\\[\\[${VSTACK_SHORTCODE.token}[\\s{]`) },
@@ -154,7 +190,7 @@ export function createStackExtension(): MarkedExtension {
               ({
                 type: "mcStack",
                 raw: read.raw,
-                tokens: this.lexer.blockTokens(read.body) as Token[],
+                tokens: this.lexer.blockTokens(separateStackChildren(read.body)) as Token[],
                 axis,
                 alignment: resolveAlignment(axis, read.params.alignment),
                 spacing: resolveContainerSpacing(read.params.spacing),

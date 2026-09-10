@@ -28,9 +28,10 @@ A shortcode is declared once, in `packages/shared/src/markdown-shortcodes/`. Tha
 | `mcCard` | `[[card]]` and `[[cards]]` | No | Yes |
 | `mcStack` | `[[vstack]]`, `[[hstack]]` and `[[spacer]]` | Yes | Yes |
 | `mcMedia` | `[[image:…]]`, `[[pdf:…]]` and `[[youtube:…]]` | Yes | Yes |
+| `mcButton` | `[[button]]` | No | Yes |
 | `mcIcon` | `[[icon]]` | Yes | Yes |
 | `mcPlans` | `[[plans]]` | No | Yes |
-| `mcFields` | `[[fields { … }]]` | Yes | Yes |
+| `mcFields` | `[[fields … ]]` | Yes | Yes |
 | `mcPill` | `[[pill:…]]` | Yes | Yes |
 | `mcKbd` | `{{Key}}` | Yes | Yes |
 
@@ -42,9 +43,10 @@ Validation inspects parsed token types, not raw substring matches. Extension-lik
 
 | Shortcode | Notation | Placement | Body | Target | Frontend | Developer Portal |
 |---|---|---|---|---|:---:|:---:|
-| `card` | `[[card { … }]]` | Block | Markdown | Forbidden | No | Yes |
+| `button` | `[[button]]` | Inline | Forbidden | Forbidden | No | Yes |
+| `card` | `[[card { … }]]` or `[[card … ]]` | Block | Markdown | Forbidden | No | Yes |
 | `cards` | `[[cards { … }]]` | Block | Markdown | Forbidden | No | Yes |
-| `fields` | `[[fields { … }]]` | Block | Markdown | Forbidden | Yes | Yes |
+| `fields` | `[[fields … ]]` | Block | Children | Forbidden | Yes | Yes |
 | `hstack` | `[[hstack { … }]]` | Block | Markdown | Forbidden | Yes | Yes |
 | `icon` | `[[icon]]` | Inline | Forbidden | Forbidden | Yes | Yes |
 | `image` | `[[image:…]]` | Block | Forbidden | Required | Yes | Yes |
@@ -60,9 +62,17 @@ The list is sorted by token, which is also the order the reference panel lists t
 
 One notation for all of them, so a writer learns `[[token]]` once. A container carries its content between braces, `[[token { … }]]`, and the two inline forms differ where they have to: a shortcode taking a target writes it after a colon, and `{{Key}}` is short because a single key is not worth more.
 
+Four more are children rather than shortcodes of their own, so each means something inside one container and nothing at the top level of a page: `field` inside a fields list, and `header`, `body` and `footer` inside a card. The registry declares them under their parent, and the editor's reference shows them there.
+
+**Braces mean content, and no braces mean children.** A container written `[[token { … }]]` holds page content, and one written `[[token … ]]` holds the parts it names. A card is written either way: with braces it is all body, which is how most cards are written, and without them it names its header, its body and its footer in whatever order suits the writing, and the card decides where each goes. A fields list is only ever the second, because it holds its entries and nothing else.
+
+What a container carries in a child rather than in an attribute is always the same thing: content. A label, a header and a footer each take Markdown, run to a sentence or more, and would otherwise have to be quoted into an attribute, escaped, and written without a line break.
+
+A card's header and its footer are each written both ways, because most of them are one line and a few are a paragraph or a row of controls. One line goes in the `text` attribute, `[[footer text="Every plan includes it."]]`, and anything longer goes between braces. Where a band carries both, the braces are what renders.
+
 Every parameter each one takes is in its declaration and in the reference panel, and is therefore not repeated here. A table of parameters in a document is a second answer to a question the code already answers, and it drifts.
 
-`card`, `cards` and `plans` are portal-only for two different reasons. A card is drawn by the portal's own stylesheet whilst the site draws its cards as neumorphic primitives, so widening it needs a mapping rather than a rule; #273 carries that. `plans` renders the developer plans, which have no meaning on the music site, and that is a product decision rather than a styling one.
+`button`, `card`, `cards` and `plans` are portal-only for two different reasons. A card is drawn by the portal's own stylesheet whilst the site draws its cards as neumorphic primitives, so widening it needs a mapping rather than a rule; #273 carries that. `plans` renders the developer plans, which have no meaning on the music site, and that is a product decision rather than a styling one.
 
 ## How the markup is arranged
 
@@ -72,9 +82,13 @@ What differs between the surfaces is the material rather than the arrangement, s
 
 ## Symbols
 
-`[[icon]]` draws a Phosphor symbol in its duotone weight. The whole set is 5.9 MB across 1512 files and a page names a handful, so the assets sit beside the built backend bundle rather than inside it and one is read the first time a page asks for it. `apps/backend/scripts/copy-phosphor-icons.mjs` puts them there, in the same arrangement the Jimp fonts use.
+`[[icon]]` draws in the hand of the surface it renders for. The developer portal is set in **Iconsax**, in its Bulk style; the site is set in **Phosphor**, in duotone. Both are decisions about how a product looks, so the shortcode reads the set from the content context and a page never names one.
 
-The sanitizer admits `svg` and `path` under a tight attribute allowlist. What makes that safe is that the path data never comes from a page: a page names an icon and the renderer looks the shapes up in the assets this repository ships.
+The two sets publish different names, and that is the cost of the arrangement: a page written for one surface and published on the other may name an icon the other has no word for. The renderer leaves such a shortcode standing as its own source, which is what makes it visible rather than silent.
+
+Neither set ships in the bundle. Together they are 6 MB across 2500 files whilst a page names a handful, so both sit beside the built backend bundle and one file is read the first time a page asks for it, in the same arrangement the Jimp fonts use. Phosphor is copied from its own package by `apps/backend/scripts/copy-phosphor-icons.mjs`. Iconsax publishes React components rather than assets, so `apps/backend/scripts/build-iconsax-bulk.mjs` reads the Bulk variant's shapes out of them and writes the assets itself; the backend's test script runs it too, because the tests read what it writes.
+
+The sanitizer admits `svg` and `path` under a tight attribute allowlist, and the two boxes the sets draw in. What makes that safe is that the path data never comes from a page: a page names an icon and the renderer looks the shapes up in the assets this repository ships.
 
 ## Videos
 

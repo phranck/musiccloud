@@ -249,20 +249,53 @@ function validateTarget(definition: ShortcodeDefinition, target: string | undefi
 }
 
 /**
- * Checks a node's body against what its definition allows.
+ * Checks a node's content against what its definition allows.
  *
  * A body written on a shortcode that draws one thing is a misunderstanding
  * worth reporting rather than ignoring: the author expected the text to appear
  * and it would not.
  *
+ * Braces and named parts are two ways of carrying the same thing, so a
+ * container written `[[card [[body { … }]] ]]` is as full as one written
+ * `[[card { … }]]` and neither is missing its content.
+ *
  * @param definition - The shortcode's definition.
  * @param body - What it carried, where it carried anything.
+ * @param children - The parts it named, where it named any.
  * @returns The issue, or nothing.
  */
-function validateBody(definition: ShortcodeDefinition, body: string | undefined): ShortcodeIssue[] {
+function validateBody(
+  definition: ShortcodeDefinition,
+  body: string | undefined,
+  children: readonly ParsedShortcode[],
+): ShortcodeIssue[] {
+  // A part that takes either braces or a `text` attribute is complete with
+  // whichever the author chose, so neither absence is a mistake.
+  if (definition.body === ShortcodeBodyRule.OptionalMarkdown) return [];
+
+  if (definition.body === ShortcodeBodyRule.Children) {
+    if (body !== undefined) {
+      return [
+        {
+          code: ShortcodeIssueCode.BodyForbidden,
+          message: `Shortcode "${definition.token}" holds its parts rather than content, so it takes no braces.`,
+        },
+      ];
+    }
+    if (children.length === 0) {
+      return [
+        {
+          code: ShortcodeIssueCode.MissingBody,
+          message: `Shortcode "${definition.token}" needs content inside it.`,
+        },
+      ];
+    }
+    return [];
+  }
+
   const takesBody = definition.body === ShortcodeBodyRule.Markdown;
 
-  if (takesBody && body === undefined) {
+  if (takesBody && body === undefined && children.length === 0) {
     return [
       {
         code: ShortcodeIssueCode.MissingBody,
@@ -351,7 +384,7 @@ function resolveNode(node: ShortcodeNode, definitions: readonly ShortcodeDefinit
     body: node.body,
     issues: [
       ...validateTarget(definition, node.target),
-      ...validateBody(definition, node.body),
+      ...validateBody(definition, node.body, children),
       ...node.issues.map((issue) => ({ code: carryOverIssue(issue.code), message: issue.message })),
       ...paramIssues,
     ],

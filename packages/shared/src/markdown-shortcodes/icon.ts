@@ -12,6 +12,8 @@
  */
 
 import { ContentContext } from "../content-context.js";
+import { MAX_CONTAINER_SPACING } from "./layout.js";
+import { STACK_DEFAULT_SPACING_TOKEN } from "./stacks.js";
 import { ShortcodeToken } from "./tokens.js";
 import {
   type ShortcodeDefinition,
@@ -91,6 +93,7 @@ export const ICON_SHORTCODE = {
     '[[icon name="x-circle" size=96]]',
     '[[icon name="atom" size=96 alignment="center"]]',
     '[[icon name="key" size=96 text="## One key, every service" textalignment="trailing"]]',
+    '[[icon name="user-circle-plus" size=24 spacing=16 textalignment="topTrailing" text="**Create an account.** Sign up with your email or GitHub."]]',
     '[[icon name="key" size=96 textalignment="trailing"]]',
   ],
   allowedContextMask: EVERY_CONTENT_CONTEXT,
@@ -127,6 +130,14 @@ export const ICON_SHORTCODE = {
       type: ShortcodeParamType.String,
       defaultLabel: "no caption, and the paragraph that follows runs around the symbol",
       label: "Caption beside the symbol, as Markdown. Headings and paragraphs are allowed",
+    },
+    {
+      name: "spacing",
+      type: ShortcodeParamType.Integer,
+      min: 0,
+      max: MAX_CONTAINER_SPACING,
+      defaultLabel: STACK_DEFAULT_SPACING_TOKEN,
+      label: "Gap between the symbol and its text, in pixels. Only where there is a text",
     },
     {
       name: "textalignment",

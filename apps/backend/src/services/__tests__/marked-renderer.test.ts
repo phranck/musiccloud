@@ -237,12 +237,12 @@ describe("marked custom code renderer", () => {
     // vitesse-dark renders comment scopes in its grey-green tint
     // (no italic — that was an incorrect spec assumption).
     const out = (await marked.parse("```mc-query\ngenre: jazz # filter\n```", { async: true })) as string;
-    expect(out).toMatch(/<span style="color:#[0-9A-F]+"># filter<\/span>/i);
+    expect(out).toMatch(/<span style="color:#[0-9A-F]+[^"]*"># filter<\/span>/i);
   });
 
   it("recognizes // comments inside ```mc-query", async () => {
     const out = (await marked.parse("```mc-query\nartist: foo // note\n```", { async: true })) as string;
-    expect(out).toMatch(/<span style="color:#[0-9A-F]+">\/\/ note<\/span>/i);
+    expect(out).toMatch(/<span style="color:#[0-9A-F]+[^"]*">\/\/ note<\/span>/i);
   });
 
   it("falls back gracefully for unknown language not in highlighter list", async () => {
@@ -315,14 +315,14 @@ describe("marked custom code renderer", () => {
 
   it("renders [[fields]] as a definition list with the declared label width", async () => {
     const out = (await marked.parse(
-      "[[fields {\ngenre: Genre name or Genre1|Genre2 [[pill:REQ tone=alert]]\ncount: Applies the same amount to tracks, albums, and artists. {{Esc}}\n}]]\n",
+      '[[fields\n[[field label="genre" {\nGenre name or Genre1|Genre2 [[pill:REQ tone=alert]]\n}]]\n[[field label="count" {\nApplies the same amount to tracks, albums, and artists. {{Esc}}\n}]]\n]]\n',
       { async: true },
     )) as string;
 
     // Against the registry's declared defaults, which is where a writer reads
     // them in the editor's reference. Repeating the figures here would let the
     // two disagree without either one failing.
-    expect(out).toContain('<dl class="mc-fields mc-fields--columns"');
+    expect(out).toContain('<dl class="mc-fields mc-fields--columns mc-fields--leading"');
     expect(out).toContain(`grid-template-columns:${FIELDS_DEFAULT_LABEL_WIDTH} minmax(0, 1fr)`);
     expect(out).toContain(`column-gap:${FIELDS_DEFAULT_GAP}`);
     expect(out).toContain("<dt>genre:</dt>");
@@ -332,7 +332,7 @@ describe("marked custom code renderer", () => {
   });
 
   it("takes the layout and the two measurements from [[fields]] attributes", async () => {
-    const out = (await marked.parse('[[fields labelWidth="9ch" gap="1.25rem" {\ngenre: Jazz\ntracks: 1-50\n}]]\n', {
+    const out = (await marked.parse('[[fields width="9ch" gap="1.25rem"\n[[field label="genre" {\nJazz\n}]]\n]]\n', {
       async: true,
     })) as string;
 
@@ -341,13 +341,14 @@ describe("marked custom code renderer", () => {
   });
 
   it("stacks a fields list when the page asks for it", async () => {
-    const out = (await marked.parse('[[fields layout="stacked" {\nThe free plan stays free: It stays.\n}]]\n', {
-      async: true,
-    })) as string;
+    const out = (await marked.parse(
+      '[[fields layout="stacked"\n[[field label="The free plan stays free" {\nIt stays.\n}]]\n]]\n',
+      { async: true },
+    )) as string;
 
     // Stacked, the label is a statement on a line of its own, so it loses the
     // colon that separates it from a value standing beside it.
-    expect(out).toContain('<dl class="mc-fields mc-fields--stacked"');
+    expect(out).toContain('<dl class="mc-fields mc-fields--stacked mc-fields--leading"');
     expect(out).toContain("<dt>The free plan stays free</dt>");
   });
 });
