@@ -60,6 +60,7 @@ import type { DeveloperAccount } from "../db/developer-repository.js";
 import { getDeveloperRepository, getTierRepository } from "../db/index.js";
 import { isValidEmailAddress } from "../lib/email-address.js";
 import { requireEnv } from "../lib/env.js";
+import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { RateLimiter } from "../lib/infra/rate-limiter.js";
 import {
@@ -90,6 +91,20 @@ const PG_UNIQUE_VIOLATION = "23505";
 
 /** Name of the unique constraint on `developer_accounts.email` (migration 0047). */
 const EMAIL_UNIQUE_CONSTRAINT = "developer_accounts_email_unique";
+
+/**
+ * The two refusals that are about the address a developer typed.
+ *
+ * Both carry their own code rather than the generic `MC-REQ-0001` and
+ * `MC-REQ-0002`, because the portal decides from the code which field the
+ * message belongs under, and a plain `INVALID_EMAIL` would not survive:
+ * `normalizeApiErrorPayload` replaces any code outside the `MC-` scheme with
+ * the one that matches the status.
+ */
+const INVALID_EMAIL_CODE = "MC-REQ-0006";
+
+/** Signup with an address that already has an account. See {@link INVALID_EMAIL_CODE}. */
+const EMAIL_TAKEN_CODE = "MC-REQ-0007";
 
 /**
  * Detects whether a thrown error is the Postgres unique-violation raised when
@@ -217,7 +232,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
 
     const email = readRequestEmail(body.email);
     if (!email) {
-      return reply.status(400).send({ error: "INVALID_EMAIL", message: "Email is not a valid address." });
+      return reply.status(400).send(createApiErrorResponse(INVALID_EMAIL_CODE));
     }
 
     const password = body.password;
@@ -239,7 +254,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
     const repo = await getDeveloperRepository();
     const existing = await repo.findDeveloperAccountByEmail(email);
     if (existing) {
-      return reply.status(409).send({ error: "EMAIL_TAKEN", message: "An account with this email already exists." });
+      return reply.status(409).send(createApiErrorResponse(EMAIL_TAKEN_CODE));
     }
 
     const passwordHash = await hashPassword(password);
@@ -255,7 +270,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
       await repo.createDeveloperIdentity({ accountId: account.id, provider: AuthProvider.Email });
     } catch (error) {
       if (isDuplicateEmailError(error)) {
-        return reply.status(409).send({ error: "EMAIL_TAKEN", message: "An account with this email already exists." });
+        return reply.status(409).send(createApiErrorResponse(EMAIL_TAKEN_CODE));
       }
       throw error;
     }
@@ -383,7 +398,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
     // account, because no account can hold a string that is not an address.
     const email = readRequestEmail(body.email);
     if (!email) {
-      return reply.status(400).send({ error: "INVALID_EMAIL", message: "Email is not a valid address." });
+      return reply.status(400).send(createApiErrorResponse(INVALID_EMAIL_CODE));
     }
 
     const repo = await getDeveloperRepository();

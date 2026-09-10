@@ -157,6 +157,22 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
       "A developer asked to put a project on a tier that exists but is not self-service assignable, which today means anything other than an enabled tier_free.",
     source: "apps/backend/src/routes/dev-api-access.ts project subscription",
   },
+  "MC-REQ-0006": {
+    code: "MC-REQ-0006",
+    httpStatus: 400,
+    userMessage: "This is not a valid email address.",
+    internalNote:
+      "A signup or password-reset request carried a string that cannot be an email address. Distinct from the generic MC-REQ-0001 so the portal can attach the message to the email field rather than to the password.",
+    source: "apps/backend/src/routes/developer-auth.ts signup and request-reset",
+  },
+  "MC-REQ-0007": {
+    code: "MC-REQ-0007",
+    httpStatus: 409,
+    userMessage: "An account with this email already exists.",
+    internalNote:
+      "Signup with an address that already has a developer account. Distinct from the generic MC-REQ-0002 for the same reason as MC-REQ-0006.",
+    source: "apps/backend/src/routes/developer-auth.ts signup",
+  },
   "MC-AUTH-0001": {
     code: "MC-AUTH-0001",
     httpStatus: 401,

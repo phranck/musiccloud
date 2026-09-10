@@ -8,7 +8,9 @@ describe("isEmailFieldError", () => {
   });
 
   it("leaves everything else for the field the form already blames", () => {
-    expect(isEmailFieldError(AuthErrorCode.InvalidRequest)).toBe(false);
+    // The generic 400 a short password arrives as, which must not be explained
+    // under the email field.
+    expect(isEmailFieldError("MC-REQ-0001")).toBe(false);
     expect(isEmailFieldError(AuthErrorCode.InvalidCredentials)).toBe(false);
     expect(isEmailFieldError(undefined)).toBe(false);
   });
@@ -16,7 +18,7 @@ describe("isEmailFieldError", () => {
 
 describe("authErrorLabel", () => {
   it("says what to do about an address the backend cannot use", () => {
-    expect(authErrorLabel(AuthErrorCode.InvalidEmail, "Email is not a valid address.")).toBe(
+    expect(authErrorLabel(AuthErrorCode.InvalidEmail, "This is not a valid email address. (MC-REQ-0006)")).toBe(
       "Enter a valid email address.",
     );
   });

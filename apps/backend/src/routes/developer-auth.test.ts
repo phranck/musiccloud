@@ -32,6 +32,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DeveloperAccount, DeveloperEmailToken, DeveloperRepository } from "../db/developer-repository.js";
 import { getDeveloperRepository, getTierRepository } from "../db/index.js";
 import type { Tier, TierRepository } from "../db/tiers-repository.js";
+import { registerApiErrorHandling } from "../lib/infra/api-error-handler.js";
 import authPlugin from "../plugins/auth.js";
 import { hashEmailToken, hashPassword, SESSION_COOKIE_NAME } from "../services/developer-auth.js";
 import { triggerEmailAction } from "../services/email-actions.js";
@@ -151,8 +152,13 @@ function makeRepo(): DeveloperRepository {
 
 /**
  * Wires a Fastify instance the same way `server.ts` does (jwt → authPlugin →
- * cookie → devAuthRoutes) so the session cookie, JWT and developer guard all
- * work against the real handlers.
+ * cookie → error handling → devAuthRoutes) so the session cookie, JWT and
+ * developer guard all work against the real handlers.
+ *
+ * {@link registerApiErrorHandling} belongs in that list because it rewrites
+ * every failure response: a code outside the `MC-` scheme is replaced with the
+ * one that matches the status, and the code is appended to the message. A test
+ * app without it asserts an envelope no client ever receives.
  *
  * @returns The started, ready-to-inject Fastify instance.
  */
@@ -161,6 +167,7 @@ async function buildApp(): Promise<FastifyInstance> {
   await app.register(jwt, { secret: TEST_JWT_SECRET });
   await app.register(authPlugin);
   await app.register(cookie);
+  registerApiErrorHandling(app);
   await app.register(devAuthRoutes);
   await app.ready();
   return app;
@@ -291,7 +298,7 @@ describe("POST /api/dev/auth/signup", () => {
     expect(createArg.email).toBe("mixedcase@example.com");
   });
 
-  it("returns 409 EMAIL_TAKEN when an account already exists", async () => {
+  it("refuses an address that already has an account", async () => {
     vi.mocked(repo.findDeveloperAccountByEmail).mockResolvedValueOnce(makeAccount());
     const app = await buildApp();
     const res = await app.inject({
@@ -301,12 +308,12 @@ describe("POST /api/dev/auth/signup", () => {
     });
 
     expect(res.statusCode).toBe(409);
-    expect(res.json().error).toBe("EMAIL_TAKEN");
+    expect(res.json().error).toBe("MC-REQ-0007");
     expect(vi.mocked(repo.createDeveloperAccount)).not.toHaveBeenCalled();
     expect(vi.mocked(triggerEmailAction)).not.toHaveBeenCalled();
   });
 
-  it("returns 400 INVALID_REQUEST when required fields are missing", async () => {
+  it("refuses a body without the required fields", async () => {
     const app = await buildApp();
     const res = await app.inject({
       method: "POST",
@@ -315,10 +322,10 @@ describe("POST /api/dev/auth/signup", () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toBe("INVALID_REQUEST");
+    expect(res.json().error).toBe("MC-REQ-0001");
   });
 
-  it("returns 400 INVALID_REQUEST when the password is too short", async () => {
+  it("refuses a password shorter than the minimum", async () => {
     const app = await buildApp();
     const res = await app.inject({
       method: "POST",
@@ -327,7 +334,7 @@ describe("POST /api/dev/auth/signup", () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toBe("INVALID_REQUEST");
+    expect(res.json().error).toBe("MC-REQ-0001");
   });
 
   it("refuses an address that cannot be one, before anything is created", async () => {
@@ -341,7 +348,7 @@ describe("POST /api/dev/auth/signup", () => {
       });
 
       expect(res.statusCode, candidate).toBe(400);
-      expect(res.json().error, candidate).toBe("INVALID_EMAIL");
+      expect(res.json().error, candidate).toBe("MC-REQ-0006");
     }
     expect(vi.mocked(repo.createDeveloperAccount)).not.toHaveBeenCalled();
     expect(vi.mocked(triggerEmailAction)).not.toHaveBeenCalled();
@@ -356,7 +363,7 @@ describe("POST /api/dev/auth/signup", () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toBe("INVALID_EMAIL");
+    expect(res.json().error).toBe("MC-REQ-0006");
     expect(vi.mocked(repo.createDeveloperAccount)).not.toHaveBeenCalled();
   });
 
@@ -368,7 +375,7 @@ describe("POST /api/dev/auth/signup", () => {
       payload: { email: "not-an-address", password: VALID_PASSWORD },
     });
 
-    expect(res.json().message).toBe("Email is not a valid address.");
+    expect(res.json().message).toBe("This is not a valid email address. (MC-REQ-0006)");
     expect(vi.mocked(repo.findDeveloperAccountByEmail)).not.toHaveBeenCalled();
   });
 
@@ -444,7 +451,7 @@ describe("POST /api/dev/auth/verify-email", () => {
     expect(vi.mocked(repo.consumeDeveloperEmailToken)).toHaveBeenCalledWith("tok-1");
   });
 
-  it("returns 400 INVALID_TOKEN for an unknown or expired token", async () => {
+  it("refuses an unknown or expired token", async () => {
     vi.mocked(repo.findActiveDeveloperEmailToken).mockResolvedValueOnce(null);
     const app = await buildApp();
     const res = await app.inject({
@@ -454,11 +461,11 @@ describe("POST /api/dev/auth/verify-email", () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toBe("INVALID_TOKEN");
+    expect(res.json().error).toBe("MC-REQ-0001");
     expect(vi.mocked(repo.markDeveloperEmailVerified)).not.toHaveBeenCalled();
   });
 
-  it("returns 400 INVALID_TOKEN and does not verify when the consume races and loses", async () => {
+  it("does not verify when the consume races and loses", async () => {
     // Claim-then-act: the token is found, but a concurrent request already
     // consumed it, so the atomic consume returns false. The effect must not run.
     vi.mocked(repo.findActiveDeveloperEmailToken).mockResolvedValueOnce(makeToken({ purpose: "verify" }));
@@ -471,7 +478,7 @@ describe("POST /api/dev/auth/verify-email", () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toBe("INVALID_TOKEN");
+    expect(res.json().error).toBe("MC-REQ-0001");
     expect(vi.mocked(repo.consumeDeveloperEmailToken)).toHaveBeenCalledWith("tok-1");
     expect(vi.mocked(repo.markDeveloperEmailVerified)).not.toHaveBeenCalled();
   });
@@ -501,7 +508,7 @@ describe("POST /api/dev/auth/login", () => {
     expect(vi.mocked(repo.updateDeveloperLastLogin)).toHaveBeenCalledWith("dev-acc-1");
   });
 
-  it("returns 401 INVALID_CREDENTIALS for a wrong password (no cookie set)", async () => {
+  it("refuses a wrong password without setting a cookie", async () => {
     const passwordHash = await hashPassword(VALID_PASSWORD);
     vi.mocked(repo.findDeveloperAccountByEmail).mockResolvedValueOnce(makeAccount({ passwordHash }));
     const app = await buildApp();
@@ -512,11 +519,11 @@ describe("POST /api/dev/auth/login", () => {
     });
 
     expect(res.statusCode).toBe(401);
-    expect(res.json().error).toBe("INVALID_CREDENTIALS");
+    expect(res.json().error).toBe("MC-AUTH-0001");
     expect(findSessionSetCookie(res.headers["set-cookie"])).toBeUndefined();
   });
 
-  it("returns 401 INVALID_CREDENTIALS for an unknown email without leaking existence", async () => {
+  it("refuses an unknown email without leaking existence", async () => {
     vi.mocked(repo.findDeveloperAccountByEmail).mockResolvedValueOnce(null);
     const app = await buildApp();
     const res = await app.inject({
@@ -526,10 +533,10 @@ describe("POST /api/dev/auth/login", () => {
     });
 
     expect(res.statusCode).toBe(401);
-    expect(res.json().error).toBe("INVALID_CREDENTIALS");
+    expect(res.json().error).toBe("MC-AUTH-0001");
   });
 
-  it("returns 403 EMAIL_NOT_VERIFIED for a correct password on an unverified account", async () => {
+  it("refuses a correct password on an account whose email is unverified", async () => {
     const passwordHash = await hashPassword(VALID_PASSWORD);
     vi.mocked(repo.findDeveloperAccountByEmail).mockResolvedValueOnce(
       makeAccount({ passwordHash, emailVerifiedAt: null }),
@@ -542,7 +549,7 @@ describe("POST /api/dev/auth/login", () => {
     });
 
     expect(res.statusCode).toBe(403);
-    expect(res.json().error).toBe("EMAIL_NOT_VERIFIED");
+    expect(res.json().error).toBe("MC-AUTH-0002");
     expect(findSessionSetCookie(res.headers["set-cookie"])).toBeUndefined();
   });
 });
@@ -594,7 +601,7 @@ describe("POST /api/dev/auth/request-reset", () => {
       });
 
       expect(res.statusCode, candidate).toBe(400);
-      expect(res.json().error, candidate).toBe("INVALID_EMAIL");
+      expect(res.json().error, candidate).toBe("MC-REQ-0006");
     }
     expect(vi.mocked(repo.findDeveloperAccountByEmail)).not.toHaveBeenCalled();
     expect(vi.mocked(triggerEmailAction)).not.toHaveBeenCalled();
@@ -622,7 +629,7 @@ describe("POST /api/dev/auth/reset-password", () => {
     expect(vi.mocked(repo.consumeDeveloperEmailToken)).toHaveBeenCalledWith("tok-1");
   });
 
-  it("returns 400 INVALID_TOKEN for an unknown or expired token", async () => {
+  it("refuses an unknown or expired token", async () => {
     vi.mocked(repo.findActiveDeveloperEmailToken).mockResolvedValueOnce(null);
     const app = await buildApp();
     const res = await app.inject({
@@ -632,11 +639,11 @@ describe("POST /api/dev/auth/reset-password", () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toBe("INVALID_TOKEN");
+    expect(res.json().error).toBe("MC-REQ-0001");
     expect(vi.mocked(repo.setDeveloperPassword)).not.toHaveBeenCalled();
   });
 
-  it("returns 400 INVALID_TOKEN and does not set the password when the consume races and loses", async () => {
+  it("does not set the password when the consume races and loses", async () => {
     // Claim-then-act guards a real replay window here: without consuming first,
     // two concurrent requests could each set a different password. A lost race
     // (consume → false) must leave the password untouched.
@@ -650,7 +657,7 @@ describe("POST /api/dev/auth/reset-password", () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toBe("INVALID_TOKEN");
+    expect(res.json().error).toBe("MC-REQ-0001");
     expect(vi.mocked(repo.consumeDeveloperEmailToken)).toHaveBeenCalledWith("tok-1");
     expect(vi.mocked(repo.setDeveloperPassword)).not.toHaveBeenCalled();
   });
@@ -690,7 +697,7 @@ describe("GET /api/dev/auth/me", () => {
     const res = await app.inject({ method: "GET", url: ENDPOINTS.dev.auth.me });
 
     expect(res.statusCode).toBe(401);
-    expect(res.json().error).toBe("UNAUTHORIZED");
+    expect(res.json().error).toBe("MC-AUTH-0001");
   });
 
   it("returns 401 when the session JWT has a non-developer kind", async () => {
@@ -703,7 +710,7 @@ describe("GET /api/dev/auth/me", () => {
     });
 
     expect(res.statusCode).toBe(401);
-    expect(res.json().error).toBe("UNAUTHORIZED");
+    expect(res.json().error).toBe("MC-AUTH-0001");
   });
 });
 
@@ -935,7 +942,7 @@ describe("POST /api/dev/auth/delete-account", () => {
     });
 
     expect(res.statusCode).toBe(401);
-    expect(res.json().error).toBe("INVALID_CREDENTIALS");
+    expect(res.json().error).toBe("MC-AUTH-0001");
     expect(vi.mocked(erasePersonalData)).not.toHaveBeenCalled();
     expect(findSessionSetCookie(res.headers["set-cookie"])).toBeUndefined();
   });
@@ -952,7 +959,7 @@ describe("POST /api/dev/auth/delete-account", () => {
     });
 
     expect(res.statusCode).toBe(401);
-    expect(res.json().error).toBe("INVALID_CREDENTIALS");
+    expect(res.json().error).toBe("MC-AUTH-0001");
     expect(vi.mocked(erasePersonalData)).not.toHaveBeenCalled();
   });
 
