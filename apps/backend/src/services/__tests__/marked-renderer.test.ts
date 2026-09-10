@@ -315,7 +315,7 @@ describe("marked custom code renderer", () => {
 
   it("renders [[fields]] as a definition list with the declared label width", async () => {
     const out = (await marked.parse(
-      '[[fields {\n[[field label="genre" {\nGenre name or Genre1|Genre2 [[pill:REQ tone=alert]]\n}]]\n[[field label="count" {\nApplies the same amount to tracks, albums, and artists. {{Esc}}\n}]]\n}]]\n',
+      '[[fields\n[[field label="genre" {\nGenre name or Genre1|Genre2 [[pill:REQ tone=alert]]\n}]]\n[[field label="count" {\nApplies the same amount to tracks, albums, and artists. {{Esc}}\n}]]\n]]\n',
       { async: true },
     )) as string;
 
@@ -332,7 +332,7 @@ describe("marked custom code renderer", () => {
   });
 
   it("takes the layout and the two measurements from [[fields]] attributes", async () => {
-    const out = (await marked.parse('[[fields labelWidth="9ch" gap="1.25rem" {\ngenre: Jazz\ntracks: 1-50\n}]]\n', {
+    const out = (await marked.parse('[[fields width="9ch" gap="1.25rem"\n[[field label="genre" {\nJazz\n}]]\n]]\n', {
       async: true,
     })) as string;
 
@@ -342,7 +342,7 @@ describe("marked custom code renderer", () => {
 
   it("stacks a fields list when the page asks for it", async () => {
     const out = (await marked.parse(
-      '[[fields layout="stacked" {\n[[field label="The free plan stays free" {\nIt stays.\n}]]\n}]]\n',
+      '[[fields layout="stacked"\n[[field label="The free plan stays free" {\nIt stays.\n}]]\n]]\n',
       { async: true },
     )) as string;
 

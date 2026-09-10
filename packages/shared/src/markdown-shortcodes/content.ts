@@ -104,17 +104,17 @@ export const FIELD_SHORTCODE = {
 
 /** Written out once, because it is both the documentation and the editor's example. */
 const FIELDS_EXAMPLE = [
-  "[[fields {",
-  '[[field label="Method" {',
-  "`GET`",
-  "}]]",
-  '[[field label="Path" {',
-  "`/api/v1/resolve`",
-  "}]]",
-  '[[field label="Authentication" {',
-  "Registration key",
-  "}]]",
-  "}]]",
+  "[[fields",
+  '  [[field label="Method" {',
+  "    `GET`",
+  "  }]]",
+  '  [[field label="Path" {',
+  "    `/api/v1/resolve`",
+  "  }]]",
+  '  [[field label="Authentication" {',
+  "    Registration key",
+  "  }]]",
+  "]]",
 ].join("\n");
 
 /**
@@ -132,11 +132,11 @@ export const FIELDS_SHORTCODE = {
   body: ShortcodeBodyRule.Markdown,
   label: "Fields",
   description:
-    "A list of labels and the values beside them, as you would document an endpoint. Each entry is a field, and both its halves are Markdown. The labels line up in a column of their own, whose width and alignment the list decides.",
+    "A list of labels and the values beside them, as you would document an endpoint. It holds its entries and nothing else, so it carries no braces of its own. Each entry is a field, and both its halves are Markdown. The labels line up in a column, whose width and alignment the list decides.",
   examples: [
     FIELDS_EXAMPLE,
-    '[[fields width=160 align="trailing" {\n[[field label="Name" {\nmusiccloud\n}]]\n[[field label="Licence" {\nMIT\n}]]\n}]]',
-    '[[fields layout="stacked" {\n[[field label="The free plan stays free" {\nPaid plans will add capacity. They will not take away what you have today.\n}]]\n}]]',
+    '[[fields width=160 align="trailing"\n  [[field label="Name" {\n    musiccloud\n  }]]\n  [[field label="Licence" {\n    MIT\n  }]]\n]]',
+    '[[fields layout="stacked"\n  [[field label="The free plan stays free" {\n    Paid plans will add capacity. They will not take away what you have today.\n  }]]\n]]',
   ],
   allowedContextMask: EVERY_CONTENT_CONTEXT,
   params: [

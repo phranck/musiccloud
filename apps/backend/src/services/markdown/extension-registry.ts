@@ -32,7 +32,6 @@ import {
   type ShortcodeParamValue,
   type SingleContentContext,
   SPACER_SHORTCODE,
-  tokenizeShortcodes,
   VSTACK_SHORTCODE,
   YOUTUBE_SHORTCODE,
 } from "@musiccloud/shared";
@@ -335,6 +334,9 @@ function applyPillCase(text: string, textCase: PillCase): string {
  *
  * Each entry is a `[[field]]`, which is a child rather than a shortcode of its
  * own: it means something inside a list and nothing at the top level of a page.
+ * The list therefore carries no braces, because it holds its entries and
+ * nothing else, and the tokenizer has already read them.
+ *
  * Both halves of an entry are Markdown, which is why they are read as source
  * here and lexed by the caller rather than being split out of a line.
  *
@@ -348,10 +350,10 @@ function readFieldsSource(
   lexer: { inline(text: string): unknown; blockTokens(text: string): unknown },
 ): { raw: string; rows: McFieldsRow[]; layout: FieldsLayout } | null {
   const node = readShortcodeAt(source, 0);
-  if (!node || node.token !== FIELDS_SHORTCODE.token || node.body === undefined) return null;
+  if (!node || node.token !== FIELDS_SHORTCODE.token) return null;
 
   const rows: McFieldsRow[] = [];
-  for (const child of tokenizeShortcodes(node.body)) {
+  for (const child of node.children) {
     if (child.token !== FIELD_SHORTCODE.token) continue;
 
     const [parsed] = parseShortcodes(child.source.raw, [FIELD_SHORTCODE]);
@@ -375,7 +377,7 @@ const mcFieldsExtension: MarkedExtension = {
       name: "mcFields",
       level: "block",
       start(source) {
-        return source.match(/\[\[fields[\s{]/)?.index;
+        return source.match(/\[\[fields[\s\]]/)?.index;
       },
       tokenizer(source) {
         const read = readFieldsSource(source, this.lexer);

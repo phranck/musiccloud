@@ -22,9 +22,9 @@ import {
   ICON_DEFAULT_SIZE,
   parseShortcodes,
   readShortcodeAt,
+  type ShortcodeNode,
   type ShortcodeParamValue,
   type SingleContentContext,
-  tokenizeShortcodes,
 } from "@musiccloud/shared";
 import type { MarkedExtension, Token, Tokens } from "marked";
 import { insideContainer, isAtContainerLimit, resolveContainerSpacing } from "./containers.js";
@@ -61,6 +61,16 @@ const SECTION_TOKENS = new Set<string>([
   CARD_BODY_SHORTCODE.token,
   CARD_FOOTER_SHORTCODE.token,
 ]);
+
+/** A card or a row as the tokenizer read it, in whichever of the two forms. */
+interface CardSource {
+  raw: string;
+  /** What stood between the braces, or `undefined` where the card named parts. */
+  body: string | undefined;
+  /** The parts it named, empty where it carried content instead. */
+  children: readonly ShortcodeNode[];
+  params: Record<string, ShortcodeParamValue>;
+}
 
 /**
  * What a card is made of, once its body has been read.
@@ -103,17 +113,19 @@ interface McCardRowToken extends Tokens.Generic {
 /**
  * Reads a card shortcode's parameters and its content, if one begins here.
  *
+ * A card is written one of two ways, and this hands back both: with braces it
+ * carries page content, and without them it carries its parts. A row of cards
+ * only ever carries cards, so it is always the second.
+ *
  * @param source - What marked is offering, from the current position.
  * @param token - Which of the two layout shortcodes to look for.
- * @returns The raw source, the content between the braces, and the resolved
+ * @returns The raw source, whichever of the two it carries, and the resolved
  *   parameters, or `null` when the source does not begin with that shortcode.
  */
-function readCardSource(
-  source: string,
-  token: string,
-): { raw: string; body: string; params: Record<string, ShortcodeParamValue> } | null {
+function readCardSource(source: string, token: string): CardSource | null {
   const node = readShortcodeAt(source, 0);
-  if (!node || node.token !== token || node.body === undefined) return null;
+  if (!node || node.token !== token) return null;
+  if (node.body === undefined && node.children.length === 0) return null;
 
   // Through the parser, so the bounds and the defaults the registry declares
   // are the ones that hold here. Reading `node.attributes` directly would be a
@@ -121,24 +133,29 @@ function readCardSource(
   const definition = token === CARD_SHORTCODE.token ? CARD_SHORTCODE : CARD_ROW_SHORTCODE;
   const [parsed] = parseShortcodes(node.source.raw, [definition]);
 
-  return { raw: node.source.raw, body: node.body, params: parsed?.params ?? {} };
+  return { raw: node.source.raw, body: node.body, children: node.children, params: parsed?.params ?? {} };
 }
 
 /**
  * Reads a card's body into the three parts it may be written in.
  *
- * A card that names none of them is all body, which is the short form and the
- * one most cards are written in. A card that names any of them is read as
- * sections, and the order they stand in on the page decides nothing: the card
- * knows where each goes.
+ * A card written with braces is all body, which is the short form and the one
+ * most cards are written in. A card written without them names its parts, and
+ * the order they stand in decides nothing: the card knows where each goes.
  *
- * @param body - What stood between the card's braces.
+ * @param read - The card as the tokenizer read it.
  * @param context - Which surface this renders for, which decides the icon set.
  * @returns The parts, with the body empty where a sectioned card names none.
  */
-function readCardSections(body: string, context: SingleContentContext): CardSections {
-  const nodes = tokenizeShortcodes(body).filter((node) => SECTION_TOKENS.has(node.token));
-  if (nodes.length === 0) return { sectioned: false, header: null, headerIcon: null, body, footer: null };
+function readCardSections(read: CardSource, context: SingleContentContext): CardSections {
+  // A card written with braces holds page content and nothing else, which is
+  // the short form. A card written without them holds its parts and nothing
+  // else, which the tokenizer has already read as children.
+  if (read.body !== undefined) {
+    return { sectioned: false, header: null, headerIcon: null, body: read.body, footer: null };
+  }
+
+  const nodes = read.children.filter((node) => SECTION_TOKENS.has(node.token));
 
   const sections: CardSections = { sectioned: true, header: null, headerIcon: null, body: "", footer: null };
 
@@ -191,7 +208,7 @@ export function createCardExtension(context: SingleContentContext): MarkedExtens
         name: "mcCard",
         level: "block",
         start(source: string) {
-          return source.match(/\[\[card[\s{]/)?.index;
+          return source.match(/\[\[card[\s{\]]/)?.index;
         },
         tokenizer(source: string) {
           const read = readCardSource(source, CARD_SHORTCODE.token);
@@ -203,7 +220,7 @@ export function createCardExtension(context: SingleContentContext): MarkedExtens
           if (isAtContainerLimit()) return;
 
           return insideContainer(() => {
-            const sections = readCardSections(read.body, context);
+            const sections = readCardSections(read, context);
             return {
               type: "mcCard",
               raw: read.raw,
@@ -235,7 +252,7 @@ export function createCardExtension(context: SingleContentContext): MarkedExtens
         name: "mcCardRow",
         level: "block",
         start(source: string) {
-          return source.match(/\[\[cards[\s{]/)?.index;
+          return source.match(/\[\[cards[\s{\]]/)?.index;
         },
         tokenizer(source: string) {
           const read = readCardSource(source, CARD_ROW_SHORTCODE.token);
@@ -247,7 +264,7 @@ export function createCardExtension(context: SingleContentContext): MarkedExtens
               ({
                 type: "mcCardRow",
                 raw: read.raw,
-                tokens: this.lexer.blockTokens(read.body) as Token[],
+                tokens: this.lexer.blockTokens(read.body ?? "") as Token[],
                 columns: Number(read.params.columns),
                 spacing: resolveContainerSpacing(read.params.spacing),
               }) satisfies McCardRowToken,

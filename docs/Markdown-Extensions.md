@@ -44,9 +44,9 @@ Validation inspects parsed token types, not raw substring matches. Extension-lik
 | Shortcode | Notation | Placement | Body | Target | Frontend | Developer Portal |
 |---|---|---|---|---|:---:|:---:|
 | `button` | `[[button]]` | Inline | Forbidden | Forbidden | No | Yes |
-| `card` | `[[card { … }]]` | Block | Markdown | Forbidden | No | Yes |
+| `card` | `[[card { … }]]` or `[[card … ]]` | Block | Markdown | Forbidden | No | Yes |
 | `cards` | `[[cards { … }]]` | Block | Markdown | Forbidden | No | Yes |
-| `fields` | `[[fields { … }]]` | Block | Markdown | Forbidden | Yes | Yes |
+| `fields` | `[[fields … ]]` | Block | Markdown | Forbidden | Yes | Yes |
 | `hstack` | `[[hstack { … }]]` | Block | Markdown | Forbidden | Yes | Yes |
 | `icon` | `[[icon]]` | Inline | Forbidden | Forbidden | Yes | Yes |
 | `image` | `[[image:…]]` | Block | Forbidden | Required | Yes | Yes |
@@ -64,7 +64,7 @@ One notation for all of them, so a writer learns `[[token]]` once. A container c
 
 Four more are children rather than shortcodes of their own, so each means something inside one container and nothing at the top level of a page: `field` inside a fields list, and `header`, `body` and `footer` inside a card. The registry declares them under their parent, and the editor's reference shows them there.
 
-A card names all three of its parts where it wants a header or a footer, in whatever order suits the writing, and the card decides where each goes. A card that names none of them is all body, which is how most cards are written.
+**Braces mean content, and no braces mean children.** A container written `[[token { … }]]` holds page content, and one written `[[token … ]]` holds the parts it names. A card is written either way: with braces it is all body, which is how most cards are written, and without them it names its header, its body and its footer in whatever order suits the writing, and the card decides where each goes. A fields list is only ever the second, because it holds its entries and nothing else.
 
 What a container carries in a child rather than in an attribute is always the same thing: content. A label, a header and a footer each take Markdown, run to a sentence or more, and would otherwise have to be quoted into an attribute, escaped, and written without a line break.
 

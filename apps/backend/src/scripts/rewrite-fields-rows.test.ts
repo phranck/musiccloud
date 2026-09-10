@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rewriteCards, rewriteFields } from "./rewrite-fields-and-cards.js";
+import { rewriteFields } from "./rewrite-fields-rows.js";
 
 describe("turning a fields list's rows into fields", () => {
   it("makes one field of each row", () => {
@@ -16,7 +16,7 @@ describe("turning a fields list's rows into fields", () => {
     const before = "  [[fields {\n  Method: `GET`\n  }]]";
     const after = rewriteFields(before)?.after ?? "";
 
-    expect(after).toContain('  [[fields {\n    [[field label="Method" {\n      `GET`\n    }]]\n  }]]');
+    expect(after).toContain('  [[fields\n    [[field label="Method" {\n      `GET`\n    }]]\n  ]]');
   });
 
   it("renames the width to what the list now calls it", () => {
@@ -34,7 +34,7 @@ describe("turning a fields list's rows into fields", () => {
   });
 
   it("leaves a list already written with fields exactly as it stands", () => {
-    const before = '[[fields {\n[[field label="Method" {\n`GET`\n}]]\n}]]';
+    const before = '[[fields\n[[field label="Method" {\n`GET`\n}]]\n]]';
 
     expect(rewriteFields(before)?.changed).toBe(false);
   });
@@ -61,41 +61,5 @@ describe("turning a fields list's rows into fields", () => {
     const once = rewriteFields("[[fields {\nA: b\n}]]")?.after ?? "";
 
     expect(rewriteFields(once)?.changed).toBe(false);
-  });
-});
-
-describe("turning a card's attributes into children", () => {
-  it("moves the header and the footer inside", () => {
-    const before = '[[card header="## What you get" footer="Every plan includes it." {\nOne call.\n}]]';
-    const after = rewriteCards(before).after;
-
-    expect(after).toContain('[[header text="## What you get"]]');
-    expect(after).toContain("[[footer {");
-    expect(after).toContain("Every plan includes it.");
-    expect(after).not.toContain("header=\"##");
-  });
-
-  it("moves one of them where the card carried only one", () => {
-    const after = rewriteCards('[[card header="## Only this" {\nOne call.\n}]]').after;
-
-    expect(after).toContain("[[header text=");
-    expect(after).not.toContain("[[footer");
-  });
-
-  it("leaves a card carrying neither exactly as it stands", () => {
-    expect(rewriteCards("[[card {\nOne call.\n}]]").changed).toBe(false);
-  });
-
-  it("keeps the card's content and its closing", () => {
-    const after = rewriteCards('[[card header="## A" {\nThe content.\n}]]').after;
-
-    expect(after).toContain("The content.");
-    expect(after.trimEnd().endsWith("}]]")).toBe(true);
-  });
-
-  it("finds nothing to do on a card it has already rewritten", () => {
-    const once = rewriteCards('[[card header="## A" {\nb\n}]]').after;
-
-    expect(rewriteCards(once).changed).toBe(false);
   });
 });

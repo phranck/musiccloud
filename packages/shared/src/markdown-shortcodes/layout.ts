@@ -184,7 +184,7 @@ export const CARD_SHORTCODE = {
   body: ShortcodeBodyRule.Markdown,
   label: "Card",
   description:
-    "A card, taking the full width of the column it stands in. What you write between the braces is ordinary Markdown: headings, paragraphs, lists, code, any other shortcode, and another card. Put several inside a row to stand them side by side. Where a card wants a header or a footer, it names all three of its parts as children, in whatever order suits the writing.",
+    "A card, taking the full width of the column it stands in. Written with braces it holds ordinary Markdown: headings, paragraphs, lists, code, any other shortcode, a row of cards, and another card. Written without them it holds its own parts instead, in whatever order suits the writing, and the card decides where each goes.",
   examples: ["[[card {\n## What you get\n\nOne resolve call, every service it can find.\n}]]", CARD_SECTIONED_EXAMPLE],
   allowedContextMask: PORTAL_ONLY,
   params: [],

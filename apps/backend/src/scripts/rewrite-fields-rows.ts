@@ -1,10 +1,9 @@
 /**
- * @file Moves what a fields list and a card carried in attributes into children.
+ * @file Moves a fields list's rows into the entries it now names.
  *
- * A fields list used to read its entries off lines of `Label: value`, and a
- * card carried its header and its footer as quoted attributes. Both are content
- * rather than settings, so both are written as children now, and the renderer
- * reads nothing else.
+ * A fields list used to read its entries off lines of `Label: value`. A label
+ * is content rather than a setting, so an entry is a child now, with its label
+ * and its value both Markdown, and the renderer reads nothing else.
  *
  * This rewrites the pages that still carry the old form. It changes nothing
  * until `--apply` is passed, and it refuses a page it cannot read cleanly
@@ -13,11 +12,11 @@
  * Run against the local database, then against the deployed one:
  *
  *   cd apps/backend
- *   DATABASE_URL=<target> pnpm tsx src/scripts/rewrite-fields-and-cards.ts
- *   DATABASE_URL=<target> pnpm tsx src/scripts/rewrite-fields-and-cards.ts --apply
+ *   DATABASE_URL=<target> pnpm tsx src/scripts/rewrite-fields-rows.ts
+ *   DATABASE_URL=<target> pnpm tsx src/scripts/rewrite-fields-rows.ts --apply
  *
- * Idempotent: a rewritten page carries no `Label: value` row and no header or
- * footer attribute, so a second run finds nothing.
+ * Idempotent: a rewritten page carries no `Label: value` row, so a second run
+ * finds nothing.
  */
 
 import * as pgModule from "pg";
@@ -33,11 +32,6 @@ function fieldsBlockPattern(): RegExp {
   return /^([ \t]*)\[\[fields([^\r\n{]*)\{\r?\n([\s\S]*?)\r?\n[ \t]*\}\]\]/gm;
 }
 
-/** A card's opening line, with the attributes it used to carry. */
-function cardOpeningPattern(): RegExp {
-  return /^([ \t]*)\[\[card([^\r\n{]*)\{/gm;
-}
-
 /** One `name="value"` on an opening line. */
 function attributePattern(): RegExp {
   return /([A-Za-z][A-Za-z0-9_-]*)\s*=\s*(?:"([^"]*)"|(\S+))/g;
@@ -51,7 +45,6 @@ interface Rewrite {
   id: string;
   slug: string;
   after: string;
-  changed: string[];
 }
 
 /**
@@ -137,38 +130,11 @@ function rewriteFields(content: string): { after: string; changed: boolean } | n
       written.set("width", labelWidth);
     }
 
-    return `${indent}[[fields${writeAttributes(written)} {\n${fields}\n${indent}}]]`;
+    // No braces of its own: a list holds its entries and nothing else.
+    return `${indent}[[fields${writeAttributes(written)}\n${fields}\n${indent}]]`;
   });
 
   return refused ? null : { after, changed: after !== content };
-}
-
-/**
- * Moves a card's header and footer attributes into children.
- *
- * Only the opening line is touched: the body keeps its own indentation and
- * becomes the card's body child, which is what the three-part form needs.
- *
- * @param content - The page as stored.
- * @returns What it becomes, and whether anything changed.
- */
-function rewriteCards(content: string): { after: string; changed: boolean } {
-  const after = content.replace(cardOpeningPattern(), (whole, indent: string, attributes: string) => {
-    const written = readAttributes(attributes);
-    const header = written.get("header");
-    const footer = written.get("footer");
-    if (header === undefined && footer === undefined) return whole;
-
-    written.delete("header");
-    written.delete("footer");
-
-    const parts = [`${indent}[[card${writeAttributes(written)} {`];
-    if (header !== undefined) parts.push(`${indent}  [[header text="${header}"]]`);
-    if (footer !== undefined) parts.push(`${indent}  [[footer {\n${indent}    ${footer}\n${indent}  }]]`);
-    return parts.join("\n");
-  });
-
-  return { after, changed: after !== content };
 }
 
 /**
@@ -192,9 +158,7 @@ async function planRewrites(client: pgModule.Client): Promise<{ rewrites: Rewrit
       continue;
     }
 
-    const cards = rewriteCards(fields.after);
-    const changed = [fields.changed && "fields", cards.changed && "cards"].filter(Boolean) as string[];
-    if (changed.length > 0) rewrites.push({ id: row.id, slug: row.slug, after: cards.after, changed });
+    if (fields.changed) rewrites.push({ id: row.id, slug: row.slug, after: fields.after });
   }
 
   return { rewrites, refused };
@@ -207,7 +171,7 @@ async function main(): Promise<void> {
   const apply = process.argv.includes("--apply");
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
-    console.error("[rewrite-fields-and-cards] DATABASE_URL is not set.");
+    console.error("[rewrite-fields-rows] DATABASE_URL is not set.");
     process.exit(1);
   }
 
@@ -218,16 +182,16 @@ async function main(): Promise<void> {
   try {
     const { rewrites, refused } = await planRewrites(client);
     for (const rewrite of rewrites) {
-      console.log(`[rewrite-fields-and-cards] ${rewrite.slug}: ${rewrite.changed.join(", ")}`);
+      console.log(`[rewrite-fields-rows] ${rewrite.slug}`);
     }
     for (const slug of refused) {
-      console.error(`[rewrite-fields-and-cards] ${slug}: left alone, a line in a fields list is not a row`);
+      console.error(`[rewrite-fields-rows] ${slug}: left alone, a line in a fields list is not a row`);
     }
 
     if (rewrites.length === 0) {
-      console.log("[rewrite-fields-and-cards] nothing to do.");
+      console.log("[rewrite-fields-rows] nothing to do.");
     } else if (!apply) {
-      console.log(`[rewrite-fields-and-cards] ${rewrites.length} page(s) would change. Pass --apply to write them.`);
+      console.log(`[rewrite-fields-rows] ${rewrites.length} page(s) would change. Pass --apply to write them.`);
     } else {
       // One transaction, so a run that fails part-way leaves no page half in
       // each form.
@@ -239,7 +203,7 @@ async function main(): Promise<void> {
         ]);
       }
       await client.query("commit");
-      console.log(`[rewrite-fields-and-cards] ${rewrites.length} page(s) written.`);
+      console.log(`[rewrite-fields-rows] ${rewrites.length} page(s) written.`);
     }
 
     if (refused.length > 0) process.exit(1);
@@ -248,11 +212,11 @@ async function main(): Promise<void> {
   }
 }
 
-if (process.argv[1]?.endsWith("rewrite-fields-and-cards.ts")) {
+if (process.argv[1]?.endsWith("rewrite-fields-rows.ts")) {
   main().catch((error) => {
-    console.error("[rewrite-fields-and-cards]", error);
+    console.error("[rewrite-fields-rows]", error);
     process.exit(1);
   });
 }
 
-export { rewriteCards, rewriteFields };
+export { rewriteFields };

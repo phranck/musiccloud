@@ -66,7 +66,7 @@ describe("[[card]]", () => {
 describe("a card written in its three parts", () => {
   it("puts each part where the card decides, whatever order they stand in", async () => {
     const out = await renderPortal(
-      '[[card {\n[[body {\nOne resolve call.\n}]]\n[[header text="## What you get"]]\n[[footer {\nEvery plan includes it.\n}]]\n}]]',
+      '[[card\n[[body {\nOne resolve call.\n}]]\n[[header text="## What you get"]]\n[[footer {\nEvery plan includes it.\n}]]\n]]',
     );
 
     expect(out.indexOf("What you get")).toBeLessThan(out.indexOf("One resolve call."));
@@ -74,30 +74,28 @@ describe("a card written in its three parts", () => {
   });
 
   it("stands each apart from the content", async () => {
-    const out = await renderPortal('[[card {\n[[header text="## A"]]\n[[body {\nB\n}]]\n[[footer {\nC\n}]]\n}]]');
+    const out = await renderPortal('[[card\n[[header text="## A"]]\n[[body {\nB\n}]]\n[[footer {\nC\n}]]\n]]');
 
     expect(out).toContain('<div class="mc-card__header">');
     expect(out).toContain('<div class="mc-card__footer">');
   });
 
   it("reads a header and a footer as Markdown", async () => {
-    const out = await renderPortal(
-      '[[card {\n[[header text="## A heading"]]\n[[footer {\nA **strong** word.\n}]]\n}]]',
-    );
+    const out = await renderPortal('[[card\n[[header text="## A heading"]]\n[[footer {\nA **strong** word.\n}]]\n]]');
 
     expect(out).toMatch(/<h2[^>]*>A heading<\/h2>/);
     expect(out).toContain("<strong>strong</strong>");
   });
 
   it("draws the symbol a header names", async () => {
-    const out = await renderPortal('[[card {\n[[header text="## A" icon="task-square"]]\n[[body {\nB\n}]]\n}]]');
+    const out = await renderPortal('[[card\n[[header text="## A" icon="task-square"]]\n[[body {\nB\n}]]\n]]');
 
     expect(out).toContain('class="mc-card__header-icon"');
   });
 
   it("holds a whole row in its footer, which is how a button gets into one", async () => {
     const out = await renderPortal(
-      '[[card {\n[[body {\nB\n}]]\n[[footer {\n[[hstack spacing=20 {\nEvery plan includes it.\n[[spacer]]\n[[button action="/signup" label="Get an API key"]]\n}]]\n}]]\n}]]',
+      '[[card\n[[body {\nB\n}]]\n[[footer {\n[[hstack spacing=20 {\nEvery plan includes it.\n[[spacer]]\n[[button action="/signup" label="Get an API key"]]\n}]]\n}]]\n]]',
     );
 
     expect(out).toContain("mc-card__footer");
@@ -114,12 +112,14 @@ describe("a card written in its three parts", () => {
     expect(out).toContain("One resolve call.");
   });
 
-  it("renders only what is named where a card names some of the three", async () => {
-    // Anything outside the three is not the body: the body is what says so.
-    const out = await renderPortal('[[card {\n[[header text="## A"]]\nLoose text.\n}]]');
+  it("holds a row of cards in its body", async () => {
+    const out = await renderPortal(
+      '[[card\n[[header text="## Outer"]]\n[[body {\n[[cards columns=2 {\n[[card {\nFirst\n}]]\n[[card {\nSecond\n}]]\n}]]\n}]]\n]]',
+    );
 
-    expect(out).toContain("mc-card__header");
-    expect(out).not.toContain("Loose text.");
+    expect(out).toContain("mc-cards--2");
+    expect(out).toContain("First");
+    expect(out).toContain("Second");
   });
 });
 
