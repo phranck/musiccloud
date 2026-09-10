@@ -18,9 +18,14 @@ describe("normalizeEditorialPath", () => {
 });
 
 describe("isReservedDeveloperPortalPath", () => {
+  it.each(["/docs", "/docs/"])("leaves the docs landing page editorial: %s", (path) => {
+    // Everything under `/docs` is the API reference and the search, which the
+    // portal builds. The page a developer arrives at is copy, and copy belongs
+    // in the dashboard.
+    expect(isReservedDeveloperPortalPath(path)).toBe(false);
+  });
+
   it.each([
-    "/docs",
-    "/docs/",
     "/docs/crawler-architecture",
     "/docs/sdks/swift",
     "/docs/api",

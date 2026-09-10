@@ -33,37 +33,6 @@
     --pricing-highlight-05: color-mix(in srgb, var(--color-on-accent) 5%, transparent);
   }
 
-  .pricing-commitment-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--mc-space-4);
-  }
-
-  .pricing-commitment-card,
-  .pricing-commitment-card .surface-card__body {
-    height: 100%;
-  }
-
-  .pricing-commitment-list {
-    display: grid;
-    gap: var(--mc-space-4);
-  }
-
-  .pricing-commitment-item {
-    gap: var(--mc-space-3);
-  }
-
-  .pricing-commitment-icon {
-    --mc-size-text-icon: var(--mc-size-icon-lg);
-    transform: translateY(1px);
-  }
-
-  .pricing-commitment-copy,
-  .pricing-commitment-title,
-  .pricing-commitment-body {
-    display: block;
-  }
-
   /* The row of plans. A card is at most a quarter of the measure, so a single
      plan states its terms in a card rather than stretching a banner across the
      page. Four or more share the row exactly as they did.
@@ -488,12 +457,6 @@
     .tier-card[style*="--depth"] {
       transform: none;
       opacity: 1;
-    }
-  }
-
-  @media (max-width: 47.999rem) {
-    .pricing-commitment-grid {
-      grid-template-columns: minmax(0, 1fr);
     }
   }
 }

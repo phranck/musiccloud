@@ -1,10 +1,11 @@
 ---
 /** Shared Developer Portal shell for one published managed editorial Page. */
 import type { DeveloperPortalEditorialPage } from "@musiccloud/shared";
+import type { PublicNavigationId } from "@/lib/publicNavigation";
 import PublicFooter from "@/components/PublicFooter.astro";
 import PublicHeader from "@/components/PublicHeader.astro";
 import { SurfaceCard } from "@/components/SurfaceCard";
-import { ScrollIcon } from "@/lib/icons";
+import { portalPageIcon } from "@/lib/portalPageIcon";
 import { getDeveloperSession } from "@/lib/session";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import "@/styles/editorial.css";
@@ -12,14 +13,29 @@ import EditorialMarkdown from "./EditorialMarkdown.astro";
 
 interface Props {
   page: DeveloperPortalEditorialPage;
+  /**
+   * Which header tab to mark as current.
+   *
+   * A stored page cannot know this, because the header is the portal's and the
+   * page is content. The two routes that serve a page from a fixed path pass
+   * it; a page reached through the catch-all marks nothing, which is correct
+   * because it belongs to no tab.
+   */
+  active?: PublicNavigationId;
+  /**
+   * A sentence shown above the page, for a state the route knows and the page
+   * does not, such as having arrived here from a signup that needs a plan.
+   */
+  notice?: string;
 }
 
-const { page } = Astro.props;
+const { page, active, notice = "" } = Astro.props;
 const account = await getDeveloperSession(Astro);
+const PageIcon = portalPageIcon(page.path);
 ---
 
 <BaseLayout title={`${page.title} · musiccloud for developers`} description={page.title}>
-  <PublicHeader account={account} />
+  <PublicHeader account={account} active={active} />
 
   <main
     class="developer-shell developer-page editorial-page flex-1"
@@ -27,9 +43,14 @@ const account = await getDeveloperSession(Astro);
     data-display-mode={page.displayMode}
   >
     {
+      notice && (
+        <p class="rounded-card border border-border bg-surface px-5 py-3 text-body text-fg-muted mb-8">{notice}</p>
+      )
+    }
+    {
       page.showTitle ? (
         <div class:list={["page-heading", `editorial-page__heading--${page.titleAlignment}`]}>
-          <ScrollIcon className="page-heading__icon" aria-hidden="true" />
+          <PageIcon className="page-heading__icon" aria-hidden="true" />
           <h1 class="page-heading__title">{page.title}</h1>
         </div>
       ) : (

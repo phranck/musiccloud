@@ -39,6 +39,30 @@
     background: var(--color-surface);
   }
 
+  /* A fields list. The grid itself is set inline by the renderer, because the
+     column width and the gap are what a page may vary; everything about how it
+     reads belongs here. */
+  .editorial-markdown .mc-fields dt {
+    color: var(--color-fg);
+    font-weight: 500;
+  }
+
+  .editorial-markdown .mc-fields dd {
+    margin: 0;
+    color: var(--color-fg-muted);
+  }
+
+  /* Stacked: each statement above the sentence explaining it, which is how the
+     pricing page's commitments have always read. The label spans the row rather
+     than sharing it, and the pair below it stays with it. */
+  .editorial-markdown .mc-fields--stacked dt {
+    margin-block-start: var(--mc-space-4);
+  }
+
+  .editorial-markdown .mc-fields--stacked dt:first-child {
+    margin-block-start: 0;
+  }
+
   .mc-cards {
     display: grid;
     gap: var(--mc-space-5);

@@ -36,6 +36,20 @@ export const FIELDS_AUTO_LABEL_WIDTH = "auto";
 /** Gap between the label column and the value column when none is named. */
 export const FIELDS_DEFAULT_GAP = "1.1rem";
 
+/** How a fields list arranges its labels against their values. */
+export const FieldsLayoutMode = {
+  /** Labels in a column, values beside them. */
+  Columns: "columns",
+  /** Each label above its value, which is how a set of short statements reads. */
+  Stacked: "stacked",
+} as const;
+
+/** One of the modes in {@link FieldsLayoutMode}. */
+export type FieldsLayoutModeValue = (typeof FieldsLayoutMode)[keyof typeof FieldsLayoutMode];
+
+/** How a fields list is arranged when it says nothing. */
+export const FIELDS_DEFAULT_LAYOUT = FieldsLayoutMode.Columns;
+
 /** The tone a pill takes when none is named. */
 export const PILL_DEFAULT_TONE = "neutral";
 
@@ -67,20 +81,41 @@ export const FIELDS_SHORTCODE = {
   label: "Fields",
   description:
     "A list of labels and the values beside them, as you would document an endpoint. Each line is written as `Label: value`, and the value is ordinary Markdown, so a link or a piece of code works there. The labels line up in a column of their own.",
-  examples: [FIELDS_EXAMPLE, ":::fields labelWidth=8rem gap=2rem\nName: musiccloud\nLicence: MIT\n:::"],
+  examples: [
+    FIELDS_EXAMPLE,
+    ":::fields labelWidth=8rem gap=2rem\nName: musiccloud\nLicence: MIT\n:::",
+    ":::fields layout=stacked\nThe free plan stays free: Paid plans will add capacity. They won't take away what you have today.\n:::",
+  ],
   allowedContextMask: EVERY_CONTENT_CONTEXT,
   params: [
+    {
+      name: "layout",
+      type: ShortcodeParamType.Enum,
+      values: [FieldsLayoutMode.Columns, FieldsLayoutMode.Stacked],
+      defaultValue: FIELDS_DEFAULT_LAYOUT,
+      label: "Whether each value stands beside its label or underneath it",
+    },
     {
       name: "labelWidth",
       type: ShortcodeParamType.String,
       defaultValue: FIELDS_DEFAULT_LABEL_WIDTH,
-      label: `Width of the label column, as a CSS length. "${FIELDS_AUTO_LABEL_WIDTH}" is the default written out`,
+      label: `Width of the label column, as a CSS length. "${FIELDS_AUTO_LABEL_WIDTH}" is the default written out. Ignored when stacked`,
     },
     {
       name: "gap",
       type: ShortcodeParamType.String,
       defaultValue: FIELDS_DEFAULT_GAP,
       label: "Gap between the labels and their values, as a CSS length",
+    },
+  ],
+  tables: [
+    {
+      caption: "layout: how a list reads",
+      columns: ["layout", "Use it for"],
+      rows: [
+        [FieldsLayoutMode.Columns, "labels and values that line up, such as an endpoint's method and path"],
+        [FieldsLayoutMode.Stacked, "a statement and the sentence explaining it, where the value is prose"],
+      ],
     },
   ],
 } as const satisfies ShortcodeDefinition;

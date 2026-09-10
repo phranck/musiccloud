@@ -118,6 +118,8 @@ function sanitizeStyle(value: string): string | null {
       declarations.push(`column-gap:${candidate}`);
     } else if (property === "gap" && CSS_LENGTH_PATTERN.test(candidate)) {
       declarations.push(`gap:${candidate}`);
+    } else if (property === "row-gap" && CSS_LENGTH_PATTERN.test(candidate)) {
+      declarations.push(`row-gap:${candidate}`);
     }
   }
   return declarations.length > 0 ? declarations.join(";") : null;

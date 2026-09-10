@@ -15,6 +15,9 @@ import { TierIcon } from "@/components/TierIcon";
 import { CoinIcon, TickCircleIcon } from "@/lib/icons";
 import { fetchPublicTiers, formatTierPrice } from "@/lib/tiers";
 import { normalizeTierColor } from "@/lib/tierColor";
+// The component brings its own material, because it now stands on any page a
+// writer puts `[[plans]]` on rather than only on the one that used to import it.
+import "@/styles/pricing-material.css";
 
 // No props. What each plan shows already lives on the plan, and how the block
 // is put together is one answer rather than something each caller gives again.

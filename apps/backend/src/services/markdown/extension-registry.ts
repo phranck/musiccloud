@@ -6,7 +6,10 @@ import {
   FIELDS_AUTO_LABEL_WIDTH,
   FIELDS_DEFAULT_GAP,
   FIELDS_DEFAULT_LABEL_WIDTH,
+  FIELDS_DEFAULT_LAYOUT,
   FIELDS_SHORTCODE,
+  FieldsLayoutMode,
+  type FieldsLayoutModeValue,
   isValidContentContextMask,
   KBD_SHORTCODE,
   PILL_DEFAULT_CASE,
@@ -23,6 +26,7 @@ import { markedHighlight } from "marked-highlight";
 import { type BundledLanguage, type BundledTheme, createHighlighter, type HighlighterGeneric } from "shiki";
 import mcQueryGrammar from "../grammars/mc-query.tmLanguage.json" with { type: "json" };
 import { createCardExtension } from "./card-extension.js";
+import { createHeadingAnchorExtension } from "./heading-anchors.js";
 import { createPlansExtension } from "./plans-extension.js";
 
 const BOTH_CONTENT_CONTEXTS = ContentContext.Frontend | ContentContext.DeveloperPortal;
@@ -35,6 +39,7 @@ type PillTone = "alert" | "info" | "neutral" | "success";
 type PillCase = "none" | "upper" | "lower";
 
 interface FieldsLayout {
+  mode: FieldsLayoutModeValue;
   labelWidth: string;
   gap: string;
 }
@@ -152,13 +157,28 @@ function parseFieldsLayout(raw: string): FieldsLayout {
   const gap = String(params.gap ?? FIELDS_DEFAULT_GAP);
 
   return {
+    // Already checked against the values the registry declares, so this is one
+    // of them and the cast states that rather than deciding it.
+    mode: (params.layout ?? FIELDS_DEFAULT_LAYOUT) as FieldsLayoutModeValue,
     labelWidth:
       labelWidth === FIELDS_AUTO_LABEL_WIDTH || !isSafeCssLength(labelWidth) ? FIELDS_DEFAULT_LABEL_WIDTH : labelWidth,
     gap: isSafeCssLength(gap) ? gap : FIELDS_DEFAULT_GAP,
   };
 }
 
+/**
+ * The inline style one fields list carries.
+ *
+ * Stacked lists need no columns and no column gap, so they carry the row gap
+ * instead and let the stylesheet set everything else. Emitting a
+ * `grid-template-columns` they do not use would be a declaration the sanitizer
+ * has to allow for nothing.
+ *
+ * @param layout - The list's resolved arrangement.
+ * @returns The declarations, ready for a `style` attribute.
+ */
 function renderFieldsStyle(layout: FieldsLayout): string {
+  if (layout.mode === FieldsLayoutMode.Stacked) return `display:grid;row-gap:${layout.gap};`;
   return `display:grid;grid-template-columns:${layout.labelWidth} minmax(0, 1fr);column-gap:${layout.gap};`;
 }
 
@@ -294,14 +314,20 @@ const mcFieldsExtension: MarkedExtension = {
       },
       renderer(token) {
         const fields = token as McFieldsToken;
+        // The colon belongs to the columns form, where it separates a label
+        // from the value beside it. Stacked, the label is a statement on a line
+        // of its own and a trailing colon reads as a mistake.
+        const labelSuffix = fields.layout.mode === FieldsLayoutMode.Stacked ? "" : ":";
         const rows = fields.rows
           .map((row) => {
             const label = escapeHtml(row.label);
             const content = this.parser.parseInline(row.tokens);
-            return `<dt>${label}:</dt><dd>${content}</dd>`;
+            return `<dt>${label}${labelSuffix}</dt><dd>${content}</dd>`;
           })
           .join("");
-        return `<dl class="mc-fields" style="${escapeHtmlAttribute(renderFieldsStyle(fields.layout))}">${rows}</dl>\n`;
+        const layoutClass = `mc-fields--${fields.layout.mode}`;
+        const style = escapeHtmlAttribute(renderFieldsStyle(fields.layout));
+        return `<dl class="mc-fields ${layoutClass}" style="${style}">${rows}</dl>\n`;
       },
     },
   ],
@@ -364,6 +390,12 @@ export const MARKDOWN_EXTENSION_DEFINITIONS: readonly MarkdownExtensionDefinitio
     allowedContextMask: BOTH_CONTENT_CONTEXTS,
     createMarkedExtension: createCodeFenceExtension,
     tokenTypes: ["code"],
+  },
+  {
+    name: "headingAnchors",
+    allowedContextMask: BOTH_CONTENT_CONTEXTS,
+    createMarkedExtension: createHeadingAnchorExtension,
+    tokenTypes: ["heading"],
   },
   // The ones below are shortcodes, so where each may be used is declared once
   // in the shared registry alongside its parameters and its help. This list

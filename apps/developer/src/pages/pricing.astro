@@ -1,106 +1,48 @@
 ---
 /**
- * /pricing: the portal's public pricing page and written commitment.
+ * /pricing: the plans and the written commitment.
  *
- * The commitment is written here because it is a promise this page makes. The
- * plans are not: `PlanGrid` reads them and renders them, and a content page
- * writing `[[plans]]` gets the same component, so the two cannot show different
- * plans or different prices.
- *
- * English-only, BaseLayout-based, fully token-driven, sharing the public
- * header/footer shell with /docs and /terms.
+ * The route stays a route because it carries two things a stored page cannot:
+ * which header tab is current, and the notice shown to somebody who arrived
+ * from a signup that needs a plan chosen. Everything a reader actually reads
+ * comes from the page, so a sentence on it is an edit in the dashboard rather
+ * than a deployment.
  */
-import PublicHeader from "@/components/PublicHeader.astro";
-import PlanGrid from "@/components/plans/PlanGrid.astro";
-import { SurfaceCard } from "@/components/SurfaceCard";
-import { Like1Icon, TickCircleIcon } from "@/lib/icons";
-import BaseLayout from "@/layouts/BaseLayout.astro";
 import PublicFooter from "@/components/PublicFooter.astro";
+import PublicHeader from "@/components/PublicHeader.astro";
+import EditorialPage from "@/components/editorial/EditorialPage.astro";
+import EditorialStatus from "@/components/editorial/EditorialStatus.astro";
+import { fetchEditorialPage } from "@/lib/editorial";
 import { getDeveloperSession } from "@/lib/session";
-import "../styles/pricing-material.css";
+import BaseLayout from "@/layouts/BaseLayout.astro";
 
-const commitments = [
-  {
-    title: "The free plan stays free.",
-    body: "Paid plans will add capacity. They won't take away what you have today.",
-  },
-  {
-    title: "Early users are grandfathered.",
-    body: "If you're here before pricing launches, your free allowance is locked in.",
-  },
-  {
-    title: "Plenty of notice.",
-    body: "At least 30 days before anything changes. No surprises, no rug-pulls.",
-  },
-  {
-    title: "No artificial friction.",
-    body: "We won't degrade the free experience to push you to pay.",
-  },
-];
-const commitmentGroups = [
-  { label: "Free-plan commitment", items: commitments.slice(0, 2) },
-  { label: "Fair-pricing commitment", items: commitments.slice(2) },
-];
+const result = await fetchEditorialPage("/pricing");
+if (result.status !== "success") Astro.response.status = 503;
 
-const account = await getDeveloperSession(Astro);
-
+const account = result.status === "success" ? null : await getDeveloperSession(Astro);
 const signupRequired = Astro.url.searchParams.get("signup") === "required";
-
 ---
 
-<BaseLayout
-  title="Pricing · musiccloud for developers"
-  description="The musiccloud API is free while we build it out. Here is our written commitment for what happens when paid plans arrive."
->
-  <PublicHeader account={account} active="pricing" />
-
-  <main class="pricing-page developer-shell developer-page flex-1">
-    {signupRequired && (
-      <p class="rounded-card border border-border bg-surface px-5 py-3 text-body text-fg-muted mb-8">
-        Choose a plan to create your account.
-      </p>
-    )}
-    <div class="page-heading">
-      <Like1Icon className="page-heading__icon" aria-hidden="true" />
-      <h1 class="page-heading__title">Honest and upfront pricing</h1>
-    </div>
-    <p class="card-content-inset text-lead text-fg-muted mb-10">
-      musiccloud's API is <span class="text-fg font-medium">free while we build it out</span>, and it won't stay
-      free forever. Running it has real costs, and paid plans for high-volume and commercial use are planned.
-      Here is what you can count on.
-    </p>
-
-    <section class="mb-6">
-      <h2 class="card-content-inset text-card-title font-medium tracking-tight mb-5">Our commitment</h2>
-      <div class="pricing-commitment-grid">
-        {
-          commitmentGroups.map((group) => (
-            <SurfaceCard className="pricing-commitment-card" aria-label={group.label}>
-              <SurfaceCard.Body>
-                <ul class="pricing-commitment-list">
-                  {group.items.map((commitment) => (
-                    <li class="icon-text-first-line pricing-commitment-item text-body">
-                      <span class="icon-text-first-line__icon pricing-commitment-icon">
-                        <TickCircleIcon aria-hidden="true" />
-                      </span>
-                      <span class="pricing-commitment-copy text-fg-muted">
-                        <strong class="pricing-commitment-title text-fg">{commitment.title}</strong>
-                        <span class="pricing-commitment-body">{commitment.body}</span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </SurfaceCard.Body>
-            </SurfaceCard>
-          ))
-        }
-      </div>
-    </section>
-
-    <PlanGrid />
-
-  </main>
-
-  <PublicFooter />
-</BaseLayout>
-
+{
+  result.status === "success" ? (
+    <EditorialPage
+      page={result.data}
+      active="pricing"
+      notice={signupRequired ? "Choose a plan to create your account." : ""}
+    />
+  ) : (
+    <BaseLayout
+      title="Pricing · musiccloud for developers"
+      description="The musiccloud API is free while we build it out. Here is our written commitment for what happens when paid plans arrive."
+    >
+      <PublicHeader account={account} active="pricing" />
+      <main class="developer-shell developer-page flex-1">
+        <EditorialStatus
+          title="Pricing unavailable"
+          message="The pricing page is temporarily unavailable. The free plan is unaffected by this."
+        />
+      </main>
+      <PublicFooter />
+    </BaseLayout>
+  )
+}

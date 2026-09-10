@@ -1,190 +1,42 @@
 ---
 /**
- * /docs: the developer-portal documentation landing page.
+ * /docs: what the API does and how to start using it.
  *
- * Static, English-only marketing-grade overview of what the musiccloud API
- * does and how a developer gets from zero to their first call. It mirrors the
- * landing page's token-driven night-mode styling (glassy `bg-surface` sections
- * over the night-sky gradient, brand-blue `--color-accent` accents, Iconsax
- * TwoTone icons via `@/lib/icons`) and the same header/footer shell so the
- * portal reads as one coherent site.
- *
- * Rendered server-side: the shared `PublicHeader` resolves the developer
- * session so a signed-in visitor sees their avatar menu instead of
- * Log in/Sign up. It carries no `useT`/`useLocale`; all copy is hard-coded
- * EN, matching the rest of the developer portal.
+ * The route stays a route so the header knows which tab is current. What the
+ * page says is content, edited in the dashboard, because these are the
+ * sentences a developer reads before deciding whether to build against us and
+ * they should be changeable in a minute.
  */
-import PublicHeader from "@/components/PublicHeader.astro";
-import BaseLayout from "@/layouts/BaseLayout.astro";
 import PublicFooter from "@/components/PublicFooter.astro";
-import { BookIcon, DataIcon, KeyIcon, LinkIcon, ProfileAddIcon } from "@/lib/icons";
+import PublicHeader from "@/components/PublicHeader.astro";
+import EditorialPage from "@/components/editorial/EditorialPage.astro";
+import EditorialStatus from "@/components/editorial/EditorialStatus.astro";
+import { fetchEditorialPage } from "@/lib/editorial";
 import { getDeveloperSession } from "@/lib/session";
+import BaseLayout from "@/layouts/BaseLayout.astro";
 
-const account = await getDeveloperSession(Astro);
+const result = await fetchEditorialPage("/docs");
+if (result.status !== "success") Astro.response.status = 503;
 
-/**
- * The four ordered steps that take a developer from no account to their first
- * authenticated API call. Each step is rendered as a numbered glassy row.
- */
-/**
- * The four levels an integration is built from, outermost first. This is the
- * one place they are explained; the pricing page points here rather than
- * saying it a second time.
- */
-const structure = [
-  {
-    term: "Account",
-    body: "You. An email address and a password, or a GitHub sign-in. Nothing is counted against it.",
-  },
-  {
-    term: "Project",
-    body: "One application of yours. It carries the plan, and it is where your requests are counted, so everything under it shares one budget.",
-  },
-  {
-    term: "Registration",
-    body: "One place that application runs: your server, the copy on a phone, your own machine while you build. Each gets its own credentials and can be revoked on its own, without touching the others.",
-  },
-  {
-    term: "Key",
-    body: "What you send with a request. It belongs to one registration, is shown once, and can be rotated so the old and the new one overlap while you deploy.",
-  },
-];
-
-const steps = [
-  {
-    Icon: ProfileAddIcon,
-    title: "Create a developer account",
-    body: "Sign up with your email or GitHub to get a developer account on the portal.",
-  },
-  {
-    Icon: DataIcon,
-    title: "Create a project",
-    body: "A project holds your plan and the quota that every registration under it shares.",
-  },
-  {
-    Icon: KeyIcon,
-    title: "Register your app and issue its key",
-    body: "Register the app under your project, then issue its key. A key is shown once, when it is created or rotated.",
-  },
-  {
-    Icon: LinkIcon,
-    title: "Call the API",
-    body: "Send your key in the request header and start resolving links and fetching artist info.",
-  },
-];
-
+const account = result.status === "success" ? null : await getDeveloperSession(Astro);
 ---
 
-<BaseLayout
-  title="Documentation · musiccloud for developers"
-  description="How the musiccloud API works and how to get started building with it."
->
-  <PublicHeader account={account} active="docs" />
-
-  <main class="developer-shell developer-page flex-1">
-    <div class="page-heading">
-      <BookIcon className="page-heading__icon" aria-hidden="true" />
-      <h1 class="page-heading__title">Documentation</h1>
-    </div>
-    <p class="card-content-inset text-lead text-fg-muted mb-10">
-      The musiccloud API turns a single music link into every platform. Resolve a track or album from one
-      streaming service to its matches across the others, pull rich artist info, and explore a free-to-use
-      Creative Commons catalogue. All of it runs over one REST API.
-    </p>
-
-    <section class="surface-card px-7 py-7 mb-6">
-      <h2 class="text-card-title font-medium tracking-tight mb-2">What you can build</h2>
-      <p class="text-body text-fg-muted mb-5">
-        One key gives you three capabilities, each a JSON REST endpoint:
-      </p>
-      <ul class="grid grid-cols-1 gap-3">
-        <li class="icon-text-first-line gap-3 text-body">
-          <span class="icon-text-first-line__icon">
-            <LinkIcon aria-hidden="true" />
-          </span>
-          <span class="text-fg-muted">
-            <span class="text-fg font-medium">Link resolve.</span> Match a track, album, or artist from one
-            streaming service to the same release everywhere else.
-          </span>
-        </li>
-        <li class="icon-text-first-line gap-3 text-body">
-          <span class="icon-text-first-line__icon">
-            <BookIcon aria-hidden="true" />
-          </span>
-          <span class="text-fg-muted">
-            <span class="text-fg font-medium">Artist info.</span> Top tracks, similar artists, and upcoming
-            events for any matched artist.
-          </span>
-        </li>
-        <li class="icon-text-first-line gap-3 text-body">
-          <span class="icon-text-first-line__icon">
-            <KeyIcon aria-hidden="true" />
-          </span>
-          <span class="text-fg-muted">
-            <span class="text-fg font-medium">Creative Commons.</span> Search and resolve the free-to-use
-            Jamendo catalogue for tracks you can use openly.
-          </span>
-        </li>
-      </ul>
-    </section>
-
-    <section id="how-it-fits-together" class="surface-card px-7 py-7 mb-6">
-      <h2 class="text-card-title font-medium tracking-tight mb-2">How it fits together</h2>
-      <p class="text-body text-fg-muted mb-5">
-        Four things, each one inside the one before it. Knowing which is which tells you where your quota is
-        counted and what you can switch off without taking everything else down with it.
-      </p>
-      <dl class="grid grid-cols-1 gap-4">
-        {
-          structure.map((level) => (
-            <div>
-              <dt class="text-body font-medium text-fg">{level.term}</dt>
-              <dd class="text-body text-fg-muted">{level.body}</dd>
-            </div>
-          ))
-        }
-      </dl>
-      <p class="text-body text-fg-subtle mt-6">
-        So a plan belongs to an application rather than to you, and a key belongs to one place that application
-        runs in.
-      </p>
-    </section>
-
-    <section class="surface-card px-7 py-7 mb-6">
-      <h2 class="text-card-title font-medium tracking-tight mb-2">Getting started</h2>
-      <p class="text-body text-fg-muted mb-6">Four steps take you from zero to your first call.</p>
-      <ol class="grid grid-cols-1 gap-4">
-        {
-          steps.map((step, index) => {
-            const Icon = step.Icon;
-            return (
-              <li class="flex items-start gap-4">
-                <span class="flex items-center justify-center size-9 shrink-0 rounded-button border border-border-strong text-nav font-medium text-accent">
-                  {index + 1}
-                </span>
-                <div>
-                  <div class="icon-text-first-line gap-2 mb-0.5 text-body">
-                    <span class="icon-text-first-line__icon">
-                      <Icon aria-hidden="true" />
-                    </span>
-                    <h3 class="font-medium text-fg">{step.title}</h3>
-                  </div>
-                  <p class="text-body text-fg-muted">{step.body}</p>
-                </div>
-              </li>
-            );
-          })
-        }
-      </ol>
-      <p class="text-body text-fg-subtle mt-6">
-        The whole flow is self-service: create a project, register your app, issue its key, and manage all of it
-        from{" "}
-        <a href="/dashboard" class="content-link text-fg">your dashboard</a>. The API is free while we build it
-        out; see <a href="/pricing" class="content-link text-fg">pricing</a> for our written commitment.
-      </p>
-    </section>
-
-  </main>
-
-  <PublicFooter />
-</BaseLayout>
+{
+  result.status === "success" ? (
+    <EditorialPage page={result.data} active="docs" />
+  ) : (
+    <BaseLayout
+      title="Documentation · musiccloud for developers"
+      description="How the musiccloud API works and how to get started building with it."
+    >
+      <PublicHeader account={account} active="docs" />
+      <main class="developer-shell developer-page flex-1">
+        <EditorialStatus
+          title="Documentation unavailable"
+          message="This page is temporarily unavailable. The API reference under /docs/api is unaffected."
+        />
+      </main>
+      <PublicFooter />
+    </BaseLayout>
+  )
+}

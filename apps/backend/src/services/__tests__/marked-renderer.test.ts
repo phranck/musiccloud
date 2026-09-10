@@ -322,7 +322,7 @@ describe("marked custom code renderer", () => {
     // Against the registry's declared defaults, which is where a writer reads
     // them in the editor's reference. Repeating the figures here would let the
     // two disagree without either one failing.
-    expect(out).toContain('<dl class="mc-fields"');
+    expect(out).toContain('<dl class="mc-fields mc-fields--columns"');
     expect(out).toContain(`grid-template-columns:${FIELDS_DEFAULT_LABEL_WIDTH} minmax(0, 1fr)`);
     expect(out).toContain(`column-gap:${FIELDS_DEFAULT_GAP}`);
     expect(out).toContain("<dt>genre:</dt>");

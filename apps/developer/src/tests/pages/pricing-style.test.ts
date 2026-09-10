@@ -14,7 +14,10 @@ describe("pricing material ownership", () => {
     const page = readFileSync(pricingPagePath, "utf8");
     const css = readFileSync(pricingCssPath, "utf8");
 
-    expect(page).toContain('import "../styles/pricing-material.css"');
+    // The stylesheet travels with the component that needs it, because the
+    // plans now render on any page a writer puts `[[plans]]` on rather than
+    // only on the one that used to import it.
+    expect(readFileSync(planGridPath, "utf8")).toContain('import "@/styles/pricing-material.css"');
     // The plan cards moved into `PlanGrid.astro`, which is where a tier colour
     // now reaches a `style` attribute and therefore where it must be
     // normalised. The page itself renders no tier colour at all.
@@ -32,39 +35,17 @@ describe("pricing material ownership", () => {
     expect(page).not.toContain("sm:grid-cols-2");
   });
 
-  it("splits the written commitment into two shared cards side by side", () => {
+  it("leaves the commitment to the page's own copy", () => {
     const page = readFileSync(pricingPagePath, "utf8");
     const css = readFileSync(pricingCssPath, "utf8");
 
-    expect(page).toContain('import { SurfaceCard } from "@/components/SurfaceCard";');
-    expect(page).toContain("const commitmentGroups = [");
-    expect(page).toContain('class="pricing-commitment-grid"');
-    expect(page).toContain('<SurfaceCard className="pricing-commitment-card"');
-    expect(page).toContain("<SurfaceCard.Body>");
-    expect(page).not.toContain('<ul class="rounded-card border border-border bg-surface px-7 py-7');
-    expect(css).toMatch(
-      /\.pricing-commitment-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);[^}]*gap:\s*var\(--mc-space-4\);/s,
-    );
-    expect(css).toMatch(
-      /@media \(max-width: 47\.999rem\)[\s\S]*\.pricing-commitment-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/s,
-    );
-  });
-
-  it("renders every commitment title and explanation on separate lines", () => {
-    const page = readFileSync(pricingPagePath, "utf8");
-
-    expect(page).toContain('<span class="pricing-commitment-copy text-fg-muted">');
-    expect(page).toContain('<strong class="pricing-commitment-title text-fg">{commitment.title}</strong>');
-    expect(page).toContain('<span class="pricing-commitment-body">{commitment.body}</span>');
-  });
-
-  it("keeps commitment markers large and optically centered", () => {
-    const page = readFileSync(pricingPagePath, "utf8");
-    const css = readFileSync(pricingCssPath, "utf8");
-
-    expect(page).toContain('class="icon-text-first-line__icon pricing-commitment-icon"');
-    expect(css).toMatch(/\.pricing-commitment-icon\s*\{[^}]*--mc-size-text-icon:\s*var\(--mc-size-icon-lg\);/s);
-    expect(css).toMatch(/\.pricing-commitment-icon\s*\{[^}]*transform:\s*translateY\(1px\);/s);
+    // The commitment is four sentences somebody should be able to change in a
+    // minute, so it is content now and this route renders it. What used to
+    // style it went with the markup, and the copy is covered where it lives:
+    // `apps/backend/src/services/__tests__/portal-pages.test.ts`.
+    expect(page).toContain('fetchEditorialPage("/pricing")');
+    expect(page).not.toContain("const commitments = [");
+    expect(css).not.toContain("pricing-commitment");
   });
 
   it("accepts only six- or eight-digit tier hex colors", async () => {
