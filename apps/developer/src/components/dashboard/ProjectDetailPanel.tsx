@@ -139,23 +139,23 @@ export function ProjectDetailPanel({ projectId }: ProjectDetailPanelProps) {
               )}
               <dl className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-4">
                 <div>
-                  <dt className="text-nav text-fg-subtle mb-0.5">Plan</dt>
+                  <dt className="text-body text-fg-subtle mb-0.5">Plan</dt>
                   <dd className="text-body text-fg">
                     {project.subscription.tierName ?? "No plan yet"}{" "}
                     <a
                       href={`/dashboard/projects/${project.id}/plan`}
-                      className="content-link text-nav text-fg-muted ml-1"
+                      className="content-link text-body text-fg-muted ml-1"
                     >
                       {project.subscription.tierId === null ? "choose one" : "change"}
                     </a>
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-nav text-fg-subtle mb-0.5">Rate limit</dt>
+                  <dt className="text-body text-fg-subtle mb-0.5">Rate limit</dt>
                   <dd className="text-body text-fg">{perMinuteQuotaLabel(project.quota.requestsPerMinute)}</dd>
                 </div>
                 <div>
-                  <dt className="text-nav text-fg-subtle mb-0.5">Daily quota</dt>
+                  <dt className="text-body text-fg-subtle mb-0.5">Daily quota</dt>
                   <dd className="text-body text-fg">{perDayQuotaLabel(project.quota.requestsPerDay)}</dd>
                 </div>
               </dl>

@@ -146,7 +146,7 @@ export function ProjectsPanel({ seed }: ProjectsPanelProps) {
         header: "Quota",
         headerClassName: "w-72",
         cell: (project) => (
-          <span className="text-nav text-fg-muted">
+          <span className="text-body text-fg-muted">
             {quotaSummaryLabel(project.quota.requestsPerMinute, project.quota.requestsPerDay)}
           </span>
         ),
@@ -158,14 +158,14 @@ export function ProjectsPanel({ seed }: ProjectsPanelProps) {
         // A count is compared by size, so its figures line up at the right edge.
         headerClassName: "w-32 text-right",
         cellClassName: "text-right",
-        cell: (project) => <span className="text-nav text-fg-muted">{registrationCounts[project.id] ?? 0}</span>,
+        cell: (project) => <span className="text-body text-fg-muted">{registrationCounts[project.id] ?? 0}</span>,
       },
       {
         id: "created",
         header: "Created",
         headerClassName: "w-36",
         sortKey: (project) => project.createdAt,
-        cell: (project) => <span className="text-nav text-fg-muted">{formatDate(project.createdAt)}</span>,
+        cell: (project) => <span className="text-body text-fg-muted">{formatDate(project.createdAt)}</span>,
       },
       {
         id: "actions",
@@ -222,7 +222,7 @@ export function ProjectsPanel({ seed }: ProjectsPanelProps) {
             </ContentCard.Body.Copy>
           </ContentCard.Body>
           <ContentCard.Footer>
-            <span className="text-nav mr-auto">{allowance}</span>
+            <span className="text-body mr-auto">{allowance}</span>
             <SubmitButton variant={ButtonVariant.Secondary} type="button" onClick={onCloseForm}>
               Cancel
             </SubmitButton>
@@ -258,7 +258,7 @@ export function ProjectsPanel({ seed }: ProjectsPanelProps) {
             )}
           </ContentCard.Body>
           <ContentCard.Footer>
-            <span className="text-nav mr-auto">{allowance}</span>
+            <span className="text-body mr-auto">{allowance}</span>
             {projects !== null && projects.length === 0 && remaining > 0 && (
               <SubmitButton type="button" onClick={onOpenForm}>
                 <AddIcon className="size-5" aria-hidden="true" />

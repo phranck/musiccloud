@@ -35,8 +35,13 @@
   --gradient-logo-rainbow: var(--mc-gradient-logo-rainbow);
   --gradient-logo-suffix: var(--mc-gradient-logo-suffix);
 
-  --radius-button: var(--mc-radius-control);
   --radius-card: var(--mc-radius-card);
+
+  /* A control sits one card inset in from a card's edge, so its corner is the
+     card's corner less that inset. One value for every button on the surface,
+     however deeply it sits: a button in a panel inside a card is the same
+     button as one in the card, and two radii would say it is not. */
+  --radius-button: max(calc(var(--mc-radius-card) - var(--mc-space-content-card)), 0px);
   --radius-keycap: var(--mc-radius-keycap);
   --radius-pill: var(--mc-radius-pill);
   --radius-round: var(--mc-radius-round);

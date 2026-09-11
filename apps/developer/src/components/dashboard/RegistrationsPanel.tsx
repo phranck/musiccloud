@@ -207,13 +207,13 @@ export function RegistrationsPanel({ projectId }: RegistrationsPanelProps) {
                       </ContentPanel.Meta>
                     </ContentPanel.Header>
                     <ContentPanel.Content>
-                      <p className="text-nav text-fg-muted">
+                      <p className="text-body text-fg-muted">
                         {copy?.label ?? registration.registrationType} · created {formatDate(registration.createdAt)}
                       </p>
                       <CopyableCode code={registration.publicClientId} label="the client id" />
-                      <p className="text-nav text-fg-muted">{CLIENT_ID_NOTE}</p>
+                      <p className="text-body text-fg-muted">{CLIENT_ID_NOTE}</p>
                       {registration.websiteUrl && (
-                        <p className="text-nav text-fg-muted">
+                        <p className="text-body text-fg-muted">
                           <a
                             href={registration.websiteUrl}
                             target="_blank"
@@ -224,7 +224,7 @@ export function RegistrationsPanel({ projectId }: RegistrationsPanelProps) {
                           </a>
                         </p>
                       )}
-                      <p className="text-nav text-fg-muted mt-1">
+                      <p className="text-body text-fg-muted mt-1">
                         {isRevoked
                           ? "Revoked. Its keys no longer authenticate and it cannot be brought back."
                           : isActive

@@ -106,15 +106,15 @@ export function PlanPanel({ projectId, plans }: PlanPanelProps) {
             ) : (
               <dl className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-4">
                 <div>
-                  <dt className="text-nav text-fg-subtle mb-0.5">Plan</dt>
+                  <dt className="text-body text-fg-subtle mb-0.5">Plan</dt>
                   <dd className="text-body text-fg">{project.subscription.tierName ?? currentTierId}</dd>
                 </div>
                 <div>
-                  <dt className="text-nav text-fg-subtle mb-0.5">Rate limit</dt>
+                  <dt className="text-body text-fg-subtle mb-0.5">Rate limit</dt>
                   <dd className="text-body text-fg">{perMinuteQuotaLabel(project.quota.requestsPerMinute)}</dd>
                 </div>
                 <div>
-                  <dt className="text-nav text-fg-subtle mb-0.5">Daily quota</dt>
+                  <dt className="text-body text-fg-subtle mb-0.5">Daily quota</dt>
                   <dd className="text-body text-fg">{perDayQuotaLabel(project.quota.requestsPerDay)}</dd>
                 </div>
               </dl>

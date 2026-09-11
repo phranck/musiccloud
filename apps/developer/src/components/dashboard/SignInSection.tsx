@@ -86,7 +86,7 @@ export function SignInSection({ email, displayName }: SignInSectionProps) {
         <ContentCard.Body>
           <ContentCard.Body.Copy>
             <dl className="grid grid-cols-1 gap-y-1">
-              <dt className="text-nav text-fg-subtle">Email</dt>
+              <dt className="text-body text-fg-subtle">Email</dt>
               <dd className="text-body text-fg">{email}</dd>
             </dl>
             <p className="text-body text-fg-muted">
