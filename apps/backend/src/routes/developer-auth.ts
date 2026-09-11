@@ -87,6 +87,15 @@ const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 /** Password-reset-token lifetime: 1 hour from issuance. */
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 
+/**
+ * How long a confirmation link for a new sign-in address lives.
+ *
+ * A day, like the verification link it resembles: both ask somebody to prove
+ * they can read a mailbox, and both are followed from wherever that mailbox is
+ * rather than straight away.
+ */
+const CHANGE_EMAIL_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+
 /** Postgres SQLSTATE for a `unique_violation`, raised when a concurrent insert collides on a unique constraint. */
 const PG_UNIQUE_VIOLATION = "23505";
 
@@ -176,6 +185,7 @@ export function buildAccountResponse(account: DeveloperAccount, tierName: string
     emailVerified: account.emailVerifiedAt !== null,
     hasPassword: account.passwordHash !== null,
     displayName: account.displayName,
+    pendingEmail: account.pendingEmail,
     firstName: account.firstName,
     lastName: account.lastName,
     avatarUrl: resolveAvatarUrl(account),
@@ -704,6 +714,161 @@ export async function devAuthRoutes(app: FastifyInstance) {
       return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
     }
     return reply.send({ account: buildAccountResponse(updated, null) });
+  });
+
+  /**
+   * POST /api/dev/auth/change-email
+   * Asks to sign in with a different address.
+   *
+   * Nothing moves here. The account keeps its address until the link sent to
+   * the new one is followed, so a typo costs a second attempt rather than the
+   * account. The password is required because a session left open on a
+   * borrowed machine must not be enough to take an account over by moving its
+   * address.
+   *
+   * The new address hears that it has to confirm; the old one hears that a
+   * change was asked for, which is how a change nobody asked for gets noticed.
+   */
+  app.post(
+    ENDPOINTS.dev.auth.changeEmail,
+    { preHandler: [app.authenticateDeveloper, throttleCredentials] },
+    async (request, reply) => {
+      const account = request.developerAccount!;
+      const body = request.body as { email?: string; password?: string } | null;
+
+      if (!body?.email) {
+        return reply.status(400).send({ error: "INVALID_REQUEST", message: "email is required." });
+      }
+
+      // A GitHub-only account has no password to confirm with, so it cannot take
+      // this path. Offering it without the confirmation would be the weaker door
+      // on the same house.
+      if (account.passwordHash === null) {
+        return reply.status(403).send({
+          error: "PASSWORD_REQUIRED",
+          message: "This account signs in through GitHub, so its address is the one GitHub holds.",
+        });
+      }
+      if (!body.password || !(await verifyPassword(body.password, account.passwordHash))) {
+        return reply.status(403).send({ error: "INVALID_CREDENTIALS", message: "That password is not right." });
+      }
+
+      const email = readRequestEmail(body.email);
+      if (!email) {
+        return reply.status(400).send(createApiErrorResponse(INVALID_EMAIL_CODE));
+      }
+      if (email === account.email) {
+        return reply
+          .status(400)
+          .send({ error: "INVALID_REQUEST", message: "That is already the address you sign in with." });
+      }
+
+      const repo = await getDeveloperRepository();
+      if (await repo.findDeveloperAccountByEmail(email)) {
+        return reply.status(409).send(createApiErrorResponse(EMAIL_TAKEN_CODE));
+      }
+
+      const { raw, hash } = generateEmailToken();
+      await repo.createDeveloperEmailToken({
+        accountId: account.id,
+        purpose: TokenPurpose.ChangeEmail,
+        tokenHash: hash,
+        expiresAt: new Date(Date.now() + CHANGE_EMAIL_TOKEN_TTL_MS),
+      });
+      const updated = await repo.updateDeveloperAccount(account.id, {
+        pendingEmail: email,
+        pendingEmailRequestedAt: new Date(),
+      });
+      if (!updated) return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
+
+      await triggerEmailAction(EmailAction.DeveloperEmailChangeRequested, {
+        to: { email },
+        recipient: { kind: EmailRecipientKind.DeveloperAccount, email, displayName: account.displayName },
+        context: { confirmUrl: `${requireEnv("DEVELOPER_URL")}/confirm-email?token=${raw}`, newEmail: email },
+      });
+
+      // The old address is told, never asked. A failure to reach it must not
+      // stop a change the account holder did ask for.
+      try {
+        await triggerEmailAction(EmailAction.DeveloperEmailChangeNotified, {
+          to: { email: account.email },
+          recipient: {
+            kind: EmailRecipientKind.DeveloperAccount,
+            email: account.email,
+            displayName: account.displayName,
+          },
+          context: { newEmail: email },
+        });
+      } catch (error) {
+        request.log.error({ err: error }, "failed to notify the previous address of a change");
+      }
+
+      return reply.send({ account: buildAccountResponse(updated, null) });
+    },
+  );
+
+  /**
+   * DELETE /api/dev/auth/change-email
+   * Drops a change that has not been confirmed.
+   *
+   * The token is left to expire rather than hunted down: following it after
+   * this finds no pending address and changes nothing.
+   */
+  app.delete(ENDPOINTS.dev.auth.changeEmail, { preHandler: app.authenticateDeveloper }, async (request, reply) => {
+    const repo = await getDeveloperRepository();
+    const updated = await repo.updateDeveloperAccount(request.developerAccountId as string, {
+      pendingEmail: null,
+      pendingEmailRequestedAt: null,
+    });
+    if (!updated) return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
+    return reply.send({ account: buildAccountResponse(updated, null) });
+  });
+
+  /**
+   * POST /api/dev/auth/confirm-email-change
+   * Redeems the confirmation token and moves the address.
+   *
+   * No session is required: the token is the proof, which is what lets somebody
+   * confirm from the device their new mailbox is on.
+   */
+  app.post(ENDPOINTS.dev.auth.confirmEmailChange, { preHandler: throttleCredentials }, async (request, reply) => {
+    const body = request.body as { token?: string } | null;
+    if (!body?.token) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "token is required." });
+    }
+
+    const repo = await getDeveloperRepository();
+    const record = await repo.findActiveDeveloperEmailToken(hashEmailToken(body.token), TokenPurpose.ChangeEmail);
+    if (!record) {
+      return reply.status(400).send({ error: "INVALID_TOKEN", message: "That link is invalid or has expired." });
+    }
+
+    const account = await repo.findDeveloperAccountById(record.accountId);
+    if (!account?.pendingEmail) {
+      return reply.status(400).send({ error: "INVALID_TOKEN", message: "That link is invalid or has expired." });
+    }
+
+    // Claim first, act second, so two requests carrying the same link cannot
+    // both pass and move the address twice.
+    if (!(await repo.consumeDeveloperEmailToken(record.id))) {
+      return reply.status(400).send({ error: "INVALID_TOKEN", message: "That link is invalid or has expired." });
+    }
+
+    // The address may have been taken between the request and the
+    // confirmation, and the unique index is what actually decides.
+    if (await repo.findDeveloperAccountByEmail(account.pendingEmail)) {
+      return reply.status(409).send(createApiErrorResponse(EMAIL_TAKEN_CODE));
+    }
+
+    const updated = await repo.updateDeveloperAccount(account.id, {
+      email: account.pendingEmail,
+      pendingEmail: null,
+      pendingEmailRequestedAt: null,
+    });
+    if (!updated)
+      return reply.status(400).send({ error: "INVALID_TOKEN", message: "That link is invalid or has expired." });
+
+    return reply.send({ ok: true });
   });
 
   /**

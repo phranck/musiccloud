@@ -50,6 +50,20 @@ export const EMAIL_ACTIONS = {
     recipientKind: EmailRecipientKind.DeveloperAccount,
     required: true,
   },
+  developerEmailChangeRequested: {
+    key: "developerEmailChangeRequested",
+    label: "Developer sign-in address change, confirmation",
+    contextVariables: ["confirmUrl", "newEmail"],
+    recipientKind: EmailRecipientKind.DeveloperAccount,
+    required: true,
+  },
+  developerEmailChangeNotified: {
+    key: "developerEmailChangeNotified",
+    label: "Developer sign-in address change, notice to the old address",
+    contextVariables: ["newEmail"],
+    recipientKind: EmailRecipientKind.DeveloperAccount,
+    required: false,
+  },
   developerPasswordResetRequested: {
     key: "developerPasswordResetRequested",
     label: "Developer password reset",
@@ -88,6 +102,10 @@ export const EmailAction = {
   AdminInviteSent: "adminInviteSent",
   DeveloperVerificationRequested: "developerVerificationRequested",
   DeveloperPasswordResetRequested: "developerPasswordResetRequested",
+  /** Confirmation sent to the address a developer wants to sign in with. */
+  DeveloperEmailChangeRequested: "developerEmailChangeRequested",
+  /** Notice sent to the address being left, so a change nobody asked for is seen. */
+  DeveloperEmailChangeNotified: "developerEmailChangeNotified",
   DeveloperAccountCreated: "developerAccountCreated",
   DeveloperAccountDeleted: "developerAccountDeleted",
   DeveloperApiTokenCreated: "developerApiTokenCreated",

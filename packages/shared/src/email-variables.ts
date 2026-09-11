@@ -134,6 +134,18 @@ export const EMAIL_VARIABLES = {
     description: "One-time developer password-reset link.",
     sampleValue: "https://developer.musiccloud.io/reset?token=sample-token",
   },
+  confirmUrl: {
+    name: "confirmUrl",
+    scope: EmailVariableScope.Context,
+    description: "One-time link that confirms a new sign-in address.",
+    sampleValue: "https://developer.musiccloud.io/confirm-email?token=sample-token",
+  },
+  newEmail: {
+    name: "newEmail",
+    scope: EmailVariableScope.Context,
+    description: "The address a developer has asked to sign in with.",
+    sampleValue: "new.address@example.com",
+  },
   appName: {
     name: "appName",
     scope: EmailVariableScope.Context,

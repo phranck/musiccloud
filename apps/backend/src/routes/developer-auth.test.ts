@@ -90,6 +90,8 @@ function makeAccount(overrides: Partial<DeveloperAccount> = {}): DeveloperAccoun
     avatarSource: null,
     avatarUrl: null,
     technicalContactEmail: null,
+    pendingEmail: null,
+    pendingEmailRequestedAt: null,
     tierId: null,
     status: "active",
     createdAt: 1_699_000_000_000,
@@ -716,6 +718,164 @@ describe("GET /api/dev/auth/me", () => {
 
     expect(res.statusCode).toBe(401);
     expect(res.json().error).toBe("MC-AUTH-0001");
+  });
+});
+
+describe("changing the address you sign in with", () => {
+  const PASSWORD = "correct horse battery staple";
+
+  async function withPassword() {
+    const hash = await import("../services/developer-auth.js").then((module) => module.hashPassword(PASSWORD));
+    return makeAccount({ passwordHash: hash });
+  }
+
+  it("moves nothing until the link is followed, and tells both addresses", async () => {
+    const account = await withPassword();
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(account);
+    vi.mocked(repo.findDeveloperAccountByEmail).mockResolvedValue(null);
+    vi.mocked(repo.updateDeveloperAccount).mockResolvedValue(makeAccount({ pendingEmail: "new@example.com" }));
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.changeEmail,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { email: "  NEW@example.com ", password: PASSWORD },
+    });
+
+    expect(res.statusCode).toBe(200);
+    // The address is pending, not moved.
+    expect(vi.mocked(repo.updateDeveloperAccount)).toHaveBeenCalledWith(
+      "dev-acc-1",
+      expect.objectContaining({ pendingEmail: "new@example.com" }),
+    );
+    expect(vi.mocked(repo.updateDeveloperAccount)).not.toHaveBeenCalledWith(
+      "dev-acc-1",
+      expect.objectContaining({ email: expect.anything() }),
+    );
+
+    const actions = vi.mocked(triggerEmailAction).mock.calls.map(([action]) => action);
+    expect(actions).toContain(EmailAction.DeveloperEmailChangeRequested);
+    expect(actions).toContain(EmailAction.DeveloperEmailChangeNotified);
+    // The confirmation goes to the new address, the notice to the old one.
+    const confirmation = vi
+      .mocked(triggerEmailAction)
+      .mock.calls.find(([action]) => action === EmailAction.DeveloperEmailChangeRequested);
+    const notice = vi
+      .mocked(triggerEmailAction)
+      .mock.calls.find(([action]) => action === EmailAction.DeveloperEmailChangeNotified);
+    expect((confirmation?.[1] as { to: { email: string } }).to.email).toBe("new@example.com");
+    expect((notice?.[1] as { to: { email: string } }).to.email).toBe("dev@example.com");
+  });
+
+  it("refuses without the password, which a borrowed session cannot supply", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(await withPassword());
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.changeEmail,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { email: "new@example.com", password: "not the password" },
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(vi.mocked(repo.updateDeveloperAccount)).not.toHaveBeenCalled();
+  });
+
+  it("refuses an address somebody already holds", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(await withPassword());
+    vi.mocked(repo.findDeveloperAccountByEmail).mockResolvedValue(makeAccount({ id: "dev-acc-2" }));
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.changeEmail,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { email: "taken@example.com", password: PASSWORD },
+    });
+
+    expect(res.statusCode).toBe(409);
+    expect(vi.mocked(repo.updateDeveloperAccount)).not.toHaveBeenCalled();
+  });
+
+  it("moves the address when the link is followed, once", async () => {
+    vi.mocked(repo.findActiveDeveloperEmailToken).mockResolvedValue({
+      id: "token-1",
+      accountId: "dev-acc-1",
+      purpose: "change-email",
+      tokenHash: "hash",
+      expiresAt: Date.now() + 60_000,
+      consumedAt: null,
+      createdAt: Date.now(),
+    });
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount({ pendingEmail: "new@example.com" }));
+    vi.mocked(repo.findDeveloperAccountByEmail).mockResolvedValue(null);
+    vi.mocked(repo.consumeDeveloperEmailToken).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    vi.mocked(repo.updateDeveloperAccount).mockResolvedValue(makeAccount({ email: "new@example.com" }));
+    const app = await buildApp();
+
+    const first = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.confirmEmailChange,
+      payload: { token: "raw-token" },
+    });
+    const second = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.confirmEmailChange,
+      payload: { token: "raw-token" },
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(vi.mocked(repo.updateDeveloperAccount)).toHaveBeenCalledWith("dev-acc-1", {
+      email: "new@example.com",
+      pendingEmail: null,
+      pendingEmailRequestedAt: null,
+    });
+    // The claim is what stops the second one, so the address moves once.
+    expect(second.statusCode).toBe(400);
+    expect(vi.mocked(repo.updateDeveloperAccount)).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a link whose account has nothing pending", async () => {
+    vi.mocked(repo.findActiveDeveloperEmailToken).mockResolvedValue({
+      id: "token-1",
+      accountId: "dev-acc-1",
+      purpose: "change-email",
+      tokenHash: "hash",
+      expiresAt: Date.now() + 60_000,
+      consumedAt: null,
+      createdAt: Date.now(),
+    });
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount({ pendingEmail: null }));
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.confirmEmailChange,
+      payload: { token: "raw-token" },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(vi.mocked(repo.consumeDeveloperEmailToken)).not.toHaveBeenCalled();
+  });
+
+  it("drops a pending change when it is cancelled", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount({ pendingEmail: "new@example.com" }));
+    vi.mocked(repo.updateDeveloperAccount).mockResolvedValue(makeAccount());
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "DELETE",
+      url: ENDPOINTS.dev.auth.changeEmail,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(vi.mocked(repo.updateDeveloperAccount)).toHaveBeenCalledWith("dev-acc-1", {
+      pendingEmail: null,
+      pendingEmailRequestedAt: null,
+    });
   });
 });
 

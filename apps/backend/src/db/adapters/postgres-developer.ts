@@ -42,6 +42,8 @@ interface DeveloperAccountRow {
   gravatar_url: string | null;
   avatar_source: string | null;
   technical_contact_email: string | null;
+  pending_email: string | null;
+  pending_email_requested_at: Date | null;
   tier_id: string | null;
   status: string;
   created_at: Date;
@@ -79,7 +81,8 @@ interface DeveloperEmailTokenRow {
 
 const DEVELOPER_ACCOUNT_COLUMNS = `id, email, email_verified_at, password_hash, display_name,
             first_name, last_name, avatar_url, uploaded_avatar_url, gravatar_url, avatar_source,
-            technical_contact_email, tier_id, status, created_at, updated_at, last_login_at`;
+            technical_contact_email, pending_email, pending_email_requested_at,
+            tier_id, status, created_at, updated_at, last_login_at`;
 
 // ============================================================================
 // MAPPERS
@@ -104,6 +107,8 @@ function rowToDeveloperAccount(row: DeveloperAccountRow): DeveloperAccount {
     gravatarUrl: row.gravatar_url,
     avatarSource: row.avatar_source,
     technicalContactEmail: row.technical_contact_email,
+    pendingEmail: row.pending_email,
+    pendingEmailRequestedAt: row.pending_email_requested_at ? dateToMs(row.pending_email_requested_at) : null,
     tierId: row.tier_id,
     status: row.status,
     createdAt: dateToMs(row.created_at),
@@ -359,6 +364,8 @@ export async function updateDeveloperAccount(
     gravatarUrl?: string | null;
     avatarSource?: string | null;
     technicalContactEmail?: string | null;
+    pendingEmail?: string | null;
+    pendingEmailRequestedAt?: Date | null;
     tierId?: string | null;
     status?: string;
   },
@@ -389,6 +396,8 @@ export async function updateDeveloperAccount(
   setIfGiven("uploaded_avatar_url", data.uploadedAvatarUrl);
   setIfGiven("gravatar_url", data.gravatarUrl);
   setIfGiven("avatar_source", data.avatarSource);
+  setIfGiven("pending_email", data.pendingEmail);
+  setIfGiven("pending_email_requested_at", data.pendingEmailRequestedAt);
   if (data.technicalContactEmail !== undefined) {
     sets.push(`technical_contact_email = $${paramIdx++}`);
     values.push(data.technicalContactEmail);
