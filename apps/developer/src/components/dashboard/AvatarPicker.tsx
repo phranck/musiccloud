@@ -1,15 +1,12 @@
 import { ENDPOINTS } from "@musiccloud/shared";
-import { type ChangeEvent, useCallback, useReducer, useRef } from "react";
+import { type ChangeEvent, useCallback, useRef } from "react";
 import { SegmentedControl } from "@/components/SegmentedControl";
-import { sendAuth } from "@/lib/authClient";
-import { announceAvatar } from "@/lib/avatarBroadcast";
 import {
-  type AvatarAccount,
+  type AvatarAction,
   AvatarActionType,
-  avatarReducer,
+  type AvatarState,
   heldPictures,
-  initialAvatarState,
-  withChosenSource,
+  shownPicture,
 } from "@/lib/avatarPickerState";
 import { AvatarSource, type AvatarSourceValue } from "@/lib/avatarSource";
 import { Profile2UserIcon } from "@/lib/icons";
@@ -37,8 +34,10 @@ const SOURCE_LABELS: Record<AvatarSourceValue, string> = {
 
 /** Props for {@link AvatarPicker}. */
 export interface AvatarPickerProps {
-  /** The account's pictures as the page rendered them. */
-  account: AvatarAccount;
+  /** What the card is showing, which the form owns. */
+  state: AvatarState;
+  /** How the card reports what the developer did. */
+  dispatch: (action: AvatarAction) => void;
 }
 
 /**
@@ -59,115 +58,61 @@ function readAsDataUrl(file: File): Promise<string | null> {
 /**
  * The picture on a developer's profile, with the three places it can come from.
  *
- * Checking Gravatar is a button rather than something this does on its own,
- * because the request tells a third party that this address holds an account
- * here. The chooser appears only where there is something to choose between.
+ * Nothing here is stored. A picked file is shown and held until the card is
+ * saved, so choosing one and thinking better of it leaves the account as it
+ * was. Checking Gravatar is the one thing that leaves the machine, and it only
+ * reads: it asks whether the account has a picture and says so.
  *
  * @param props - See {@link AvatarPickerProps}.
  * @returns The picture column.
  */
-export function AvatarPicker({ account }: AvatarPickerProps) {
-  const [state, dispatch] = useReducer(avatarReducer, account, initialAvatarState);
+export function AvatarPicker({ state, dispatch }: AvatarPickerProps) {
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const onPick = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
+  const onPick = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file) return;
 
-    if (file.size > MAX_UPLOAD_BYTES) {
-      dispatch({
-        type: AvatarActionType.Failed,
-        message: `A picture may be at most ${MAX_UPLOAD_BYTES / 1024 / 1024} MB.`,
-      });
-      return;
-    }
+      if (file.size > MAX_UPLOAD_BYTES) {
+        dispatch({
+          type: AvatarActionType.Failed,
+          message: `A picture may be at most ${MAX_UPLOAD_BYTES / 1024 / 1024} MB.`,
+        });
+        return;
+      }
 
-    const dataUrl = await readAsDataUrl(file);
-    if (!dataUrl) {
-      dispatch({ type: AvatarActionType.Failed, message: "That file could not be read." });
-      return;
-    }
-
-    dispatch({ type: AvatarActionType.Started });
-    const response = await fetch(ENDPOINTS.dev.auth.avatar, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dataUrl }),
-      credentials: "same-origin",
-    });
-
-    if (!response.ok) {
-      const body = (await response.json().catch(() => null)) as { message?: string } | null;
-      dispatch({ type: AvatarActionType.Failed, message: body?.message ?? "The picture could not be stored." });
-      return;
-    }
-    const body = (await response.json().catch(() => null)) as { account?: AvatarAccount } | null;
-    if (body?.account) {
-      dispatch({ type: AvatarActionType.Stored, account: body.account });
-      announceAvatar(body.account.avatarUrl);
-    }
-  }, []);
-
-  const onRemove = useCallback(async () => {
-    dispatch({ type: AvatarActionType.Started });
-    const response = await fetch(ENDPOINTS.dev.auth.avatar, { method: "DELETE", credentials: "same-origin" });
-    if (!response.ok) {
-      dispatch({ type: AvatarActionType.Failed, message: "The picture could not be removed." });
-      return;
-    }
-    const body = (await response.json().catch(() => null)) as { account?: AvatarAccount } | null;
-    if (body?.account) {
-      dispatch({ type: AvatarActionType.Stored, account: body.account });
-      announceAvatar(body.account.avatarUrl);
-    }
-  }, []);
+      const dataUrl = await readAsDataUrl(file);
+      if (!dataUrl) {
+        dispatch({ type: AvatarActionType.Failed, message: "That file could not be read." });
+        return;
+      }
+      dispatch({ type: AvatarActionType.Picked, dataUrl });
+    },
+    [dispatch],
+  );
 
   const onGravatar = useCallback(async () => {
-    dispatch({ type: AvatarActionType.Started });
+    dispatch({ type: AvatarActionType.Looking });
     const response = await fetch(ENDPOINTS.dev.auth.gravatar, { method: "POST", credentials: "same-origin" });
     if (!response.ok) {
       dispatch({ type: AvatarActionType.Failed, message: "Gravatar could not be asked just now." });
       return;
     }
-    const body = (await response.json().catch(() => null)) as { found?: boolean; account?: AvatarAccount } | null;
-    if (body?.account) {
-      dispatch({ type: AvatarActionType.Looked, account: body.account, found: Boolean(body.found) });
-      announceAvatar(body.account.avatarUrl);
-    }
-  }, []);
+    const body = (await response.json().catch(() => null)) as { gravatarUrl?: string | null } | null;
+    dispatch({ type: AvatarActionType.Looked, gravatarUrl: body?.gravatarUrl ?? null });
+  }, [dispatch]);
 
-  const onSource = useCallback(
-    async (source: AvatarSourceValue) => {
-      dispatch({ type: AvatarActionType.Started });
-      const result = await sendAuth("PATCH", ENDPOINTS.dev.auth.profile, { avatarSource: source });
-      if (!result.ok) {
-        dispatch({ type: AvatarActionType.Failed, message: result.message ?? "That choice could not be saved." });
-        return;
-      }
-      const chosen = withChosenSource(state, source);
-      announceAvatar(chosen.shown);
-      dispatch({
-        type: AvatarActionType.Stored,
-        account: {
-          avatarUrl: chosen.shown,
-          uploadedAvatarUrl: chosen.uploaded,
-          gravatarUrl: chosen.gravatar,
-          providerAvatarUrl: chosen.provider,
-          avatarSource: chosen.source,
-        },
-      });
-    },
-    [state],
-  );
-
+  const shown = shownPicture(state);
   const held = heldPictures(state);
+  const hasUpload = held.some((entry) => entry.source === AvatarSource.Upload);
 
   return (
     <div className="flex flex-col gap-3" style={{ width: PICTURE_COLUMN, flex: "none" }}>
-      {state.shown ? (
+      {shown ? (
         <img
-          src={state.shown}
+          src={shown}
           alt=""
           width={PICTURE_COLUMN}
           height={PICTURE_COLUMN}
@@ -197,8 +142,13 @@ export function AvatarPicker({ account }: AvatarPickerProps) {
         <button type="button" className="button button--secondary" disabled={state.busy} onClick={onGravatar}>
           Check Gravatar
         </button>
-        {state.uploaded && (
-          <button type="button" className="button button--secondary" disabled={state.busy} onClick={onRemove}>
+        {hasUpload && (
+          <button
+            type="button"
+            className="button button--secondary"
+            disabled={state.busy}
+            onClick={() => dispatch({ type: AvatarActionType.Removed })}
+          >
             Remove picture
           </button>
         )}
@@ -213,7 +163,7 @@ export function AvatarPicker({ account }: AvatarPickerProps) {
               disabled={state.busy}
               aria-pressed={state.source === entry.source}
               data-state={state.source === entry.source ? "active" : undefined}
-              onClick={() => onSource(entry.source)}
+              onClick={() => dispatch({ type: AvatarActionType.Chose, source: entry.source })}
             >
               <SegmentedControl.Item.Label>{SOURCE_LABELS[entry.source]}</SegmentedControl.Item.Label>
             </SegmentedControl.Item>

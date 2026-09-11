@@ -280,6 +280,25 @@ function resolveAvatarUrl(account: DeveloperAccount): string | null {
 }
 
 /**
+ * Whether an address is one of Gravatar's own.
+ *
+ * The browser sends back what a lookup answered with, so the check is made
+ * again here: a value that reaches a column and is then rendered as an image
+ * is never taken on the word of whoever posted it.
+ *
+ * @param value - The address from the request body.
+ * @returns Whether it may be stored as a Gravatar.
+ */
+function isGravatarAddress(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" && GRAVATAR_HOST.test(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Finds the picture Gravatar holds for one hashed address.
  *
  * Two questions, because Gravatar answers them differently. The first asks
@@ -672,6 +691,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
       firstName?: string | null;
       lastName?: string | null;
       avatarSource?: string | null;
+      gravatarUrl?: string | null;
       technicalContactEmail?: string | null;
     } | null;
     const named =
@@ -680,6 +700,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
         body.firstName !== undefined ||
         body.lastName !== undefined ||
         body.avatarSource !== undefined ||
+        body.gravatarUrl !== undefined ||
         body.technicalContactEmail !== undefined);
     if (!named) {
       return reply.status(400).send({
@@ -693,6 +714,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
       firstName?: string | null;
       lastName?: string | null;
       avatarSource?: string | null;
+      gravatarUrl?: string | null;
       technicalContactEmail?: string | null;
     } = {};
 
@@ -716,6 +738,21 @@ export async function devAuthRoutes(app: FastifyInstance) {
         });
       }
       changes[field] = trimmed === "" ? null : trimmed;
+    }
+
+    if (body.gravatarUrl !== undefined) {
+      if (body.gravatarUrl === null) {
+        changes.gravatarUrl = null;
+      } else {
+        // The address was handed to the browser by Gravatar and comes back from
+        // it, so it is checked again here rather than trusted on the way in.
+        if (typeof body.gravatarUrl !== "string" || !isGravatarAddress(body.gravatarUrl)) {
+          return reply
+            .status(400)
+            .send({ error: "INVALID_REQUEST", message: "gravatarUrl must be a Gravatar address." });
+        }
+        changes.gravatarUrl = body.gravatarUrl;
+      }
     }
 
     if (body.avatarSource !== undefined) {
@@ -1025,25 +1062,9 @@ export async function devAuthRoutes(app: FastifyInstance) {
       }
       const found = url !== null;
 
-      const repo = await getDeveloperRepository();
-
-      if (!found) {
-        // A stored answer is stale the moment this one says there is none, and
-        // a source pointing at a picture that is gone would show nothing.
-        const cleared = await repo.updateDeveloperAccount(account.id, {
-          gravatarUrl: null,
-          avatarSource: account.avatarSource === AvatarSource.Gravatar ? null : account.avatarSource,
-        });
-        if (!cleared) return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
-        return reply.send({ found: false, account: buildAccountResponse(cleared, null) });
-      }
-
-      const updated = await repo.updateDeveloperAccount(account.id, {
-        gravatarUrl: url as string,
-        avatarSource: AvatarSource.Gravatar,
-      });
-      if (!updated) return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
-      return reply.send({ found: true, account: buildAccountResponse(updated, null) });
+      // Nothing is written here. A lookup is a question, and what the developer
+      // does with the answer is decided when they save.
+      return reply.send({ found, gravatarUrl: url });
     },
   );
 

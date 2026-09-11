@@ -1006,7 +1006,6 @@ describe("the account's picture", () => {
     // somebody who can see their own face on gravatar.com.
     const fetchMock = vi.spyOn(globalThis, "fetch");
     vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
-    vi.mocked(repo.updateDeveloperAccount).mockResolvedValue(makeAccount({ avatarSource: "gravatar" }));
     const app = await buildApp();
 
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 404 }));
@@ -1025,8 +1024,9 @@ describe("the account's picture", () => {
 
     expect(res.statusCode).toBe(200);
     expect(res.json().found).toBe(true);
-    const stored = vi.mocked(repo.updateDeveloperAccount).mock.calls.at(-1)?.[1] as { gravatarUrl?: string };
-    expect(stored.gravatarUrl).toContain("https://2.gravatar.com/avatar/abc123");
+    expect(res.json().gravatarUrl).toContain("https://2.gravatar.com/avatar/abc123");
+    // A lookup is a question. Storing the answer is the save's business.
+    expect(vi.mocked(repo.updateDeveloperAccount)).not.toHaveBeenCalled();
 
     fetchMock.mockRestore();
   });
@@ -1034,7 +1034,6 @@ describe("the account's picture", () => {
   it("refuses a profile picture hosted anywhere but Gravatar", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch");
     vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
-    vi.mocked(repo.updateDeveloperAccount).mockResolvedValue(makeAccount());
     const app = await buildApp();
 
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 404 }));
@@ -1051,17 +1050,14 @@ describe("the account's picture", () => {
       headers: { cookie: sessionCookie(app, "dev-acc-1") },
     });
 
-    // The address comes from a third party, so it is checked before it is
-    // stored and rendered.
     expect(res.json().found).toBe(false);
 
     fetchMock.mockRestore();
   });
 
-  it("stores what Gravatar answers, and clears it when there is none", async () => {
+  it("reports what it found without touching the account", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch");
     vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
-    vi.mocked(repo.updateDeveloperAccount).mockResolvedValue(makeAccount({ avatarSource: "gravatar" }));
     const app = await buildApp();
 
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 200 }));
@@ -1071,30 +1067,30 @@ describe("the account's picture", () => {
       headers: { cookie: sessionCookie(app, "dev-acc-1") },
     });
 
-    expect(found.statusCode).toBe(200);
     expect(found.json().found).toBe(true);
     // Only the hash reaches Gravatar, never the address itself.
     const asked = String(fetchMock.mock.calls[0]?.[0]);
     expect(asked).toMatch(/^https:\/\/www\.gravatar\.com\/avatar\/[0-9a-f]{64}\?/);
     expect(asked).not.toContain("dev@example.com");
     expect(asked).toContain("d=404");
-
-    fetchMock.mockResolvedValueOnce(new Response(null, { status: 404 }));
-    fetchMock.mockResolvedValueOnce(new Response(null, { status: 404 }));
-    const missing = await app.inject({
-      method: "POST",
-      url: ENDPOINTS.dev.auth.gravatar,
-      headers: { cookie: sessionCookie(app, "dev-acc-1") },
-    });
-
-    expect(missing.statusCode).toBe(200);
-    expect(missing.json().found).toBe(false);
-    expect(vi.mocked(repo.updateDeveloperAccount)).toHaveBeenLastCalledWith("dev-acc-1", {
-      gravatarUrl: null,
-      avatarSource: null,
-    });
+    expect(vi.mocked(repo.updateDeveloperAccount)).not.toHaveBeenCalled();
 
     fetchMock.mockRestore();
+  });
+
+  it("refuses a gravatar address from anywhere else on the profile route", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: ENDPOINTS.dev.auth.profile,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { gravatarUrl: "https://evil.example/avatar/abc" },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(vi.mocked(repo.updateDeveloperAccount)).not.toHaveBeenCalled();
   });
 });
 
