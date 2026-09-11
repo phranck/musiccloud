@@ -768,6 +768,30 @@ describe("changing the address you sign in with", () => {
     expect((notice?.[1] as { to: { email: string } }).to.email).toBe("dev@example.com");
   });
 
+  it("takes the request back when the confirmation cannot be sent", async () => {
+    const account = await withPassword();
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(account);
+    vi.mocked(repo.findDeveloperAccountByEmail).mockResolvedValue(null);
+    vi.mocked(repo.updateDeveloperAccount).mockResolvedValue(makeAccount({ pendingEmail: "new@example.com" }));
+    vi.mocked(triggerEmailAction).mockRejectedValueOnce(new Error("no template bound"));
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.changeEmail,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { email: "new@example.com", password: PASSWORD },
+    });
+
+    // A pending address nobody was told about would be a link that never left
+    // the building, so the request is taken back rather than left half done.
+    expect(res.statusCode).toBe(503);
+    expect(vi.mocked(repo.updateDeveloperAccount)).toHaveBeenLastCalledWith("dev-acc-1", {
+      pendingEmail: null,
+      pendingEmailRequestedAt: null,
+    });
+  });
+
   it("refuses without the password, which a borrowed session cannot supply", async () => {
     vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(await withPassword());
     const app = await buildApp();

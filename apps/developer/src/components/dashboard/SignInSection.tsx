@@ -136,9 +136,11 @@ export function SignInSection({ email, pendingEmail, hasPassword }: SignInSectio
                     value={fields.password}
                     onChange={onField("password")}
                     autoComplete="current-password"
-                    error={error ?? undefined}
                   />
                 </div>
+                {/* On its own line, because a refusal is about the request
+                    rather than about the last field that was typed in. */}
+                {error && <p className="text-body text-danger">{error}</p>}
               </>
             ) : (
               <p className="text-body text-fg-muted">

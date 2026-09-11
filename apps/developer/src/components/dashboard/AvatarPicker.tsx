@@ -2,6 +2,7 @@ import { ENDPOINTS } from "@musiccloud/shared";
 import { type ChangeEvent, useCallback, useReducer, useRef } from "react";
 import { SegmentedControl } from "@/components/SegmentedControl";
 import { sendAuth } from "@/lib/authClient";
+import { announceAvatar } from "@/lib/avatarBroadcast";
 import {
   type AvatarAccount,
   AvatarActionType,
@@ -102,7 +103,10 @@ export function AvatarPicker({ account }: AvatarPickerProps) {
       return;
     }
     const body = (await response.json().catch(() => null)) as { account?: AvatarAccount } | null;
-    if (body?.account) dispatch({ type: AvatarActionType.Stored, account: body.account });
+    if (body?.account) {
+      dispatch({ type: AvatarActionType.Stored, account: body.account });
+      announceAvatar(body.account.avatarUrl);
+    }
   }, []);
 
   const onRemove = useCallback(async () => {
@@ -113,7 +117,10 @@ export function AvatarPicker({ account }: AvatarPickerProps) {
       return;
     }
     const body = (await response.json().catch(() => null)) as { account?: AvatarAccount } | null;
-    if (body?.account) dispatch({ type: AvatarActionType.Stored, account: body.account });
+    if (body?.account) {
+      dispatch({ type: AvatarActionType.Stored, account: body.account });
+      announceAvatar(body.account.avatarUrl);
+    }
   }, []);
 
   const onGravatar = useCallback(async () => {
@@ -126,6 +133,7 @@ export function AvatarPicker({ account }: AvatarPickerProps) {
     const body = (await response.json().catch(() => null)) as { found?: boolean; account?: AvatarAccount } | null;
     if (body?.account) {
       dispatch({ type: AvatarActionType.Looked, account: body.account, found: Boolean(body.found) });
+      announceAvatar(body.account.avatarUrl);
     }
   }, []);
 
@@ -138,6 +146,7 @@ export function AvatarPicker({ account }: AvatarPickerProps) {
         return;
       }
       const chosen = withChosenSource(state, source);
+      announceAvatar(chosen.shown);
       dispatch({
         type: AvatarActionType.Stored,
         account: {
@@ -183,14 +192,14 @@ export function AvatarPicker({ account }: AvatarPickerProps) {
           disabled={state.busy}
           onClick={() => fileInput.current?.click()}
         >
-          Upload a picture
+          Upload picture
         </button>
         <button type="button" className="button button--secondary" disabled={state.busy} onClick={onGravatar}>
           Check Gravatar
         </button>
         {state.uploaded && (
           <button type="button" className="button button--secondary" disabled={state.busy} onClick={onRemove}>
-            Remove the upload
+            Remove picture
           </button>
         )}
       </div>

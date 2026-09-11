@@ -781,11 +781,23 @@ export async function devAuthRoutes(app: FastifyInstance) {
       });
       if (!updated) return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
 
-      await triggerEmailAction(EmailAction.DeveloperEmailChangeRequested, {
-        to: { email },
-        recipient: { kind: EmailRecipientKind.DeveloperAccount, email, displayName: account.displayName },
-        context: { confirmUrl: `${requireEnv("DEVELOPER_URL")}/confirm-email?token=${raw}`, newEmail: email },
-      });
+      // A pending address nobody was told about is worse than no change at all:
+      // the page would report a link that never left the building. Where the
+      // confirmation cannot be sent, the request is taken back.
+      try {
+        await triggerEmailAction(EmailAction.DeveloperEmailChangeRequested, {
+          to: { email },
+          recipient: { kind: EmailRecipientKind.DeveloperAccount, email, displayName: account.displayName },
+          context: { confirmUrl: `${requireEnv("DEVELOPER_URL")}/confirm-email?token=${raw}`, newEmail: email },
+        });
+      } catch (error) {
+        request.log.error({ err: error }, "failed to send the address-change confirmation");
+        await repo.updateDeveloperAccount(account.id, { pendingEmail: null, pendingEmailRequestedAt: null });
+        return reply.status(503).send({
+          error: "EMAIL_UNAVAILABLE",
+          message: "The confirmation could not be sent, so nothing was changed. Please try again.",
+        });
+      }
 
       // The old address is told, never asked. A failure to reach it must not
       // stop a change the account holder did ask for.
