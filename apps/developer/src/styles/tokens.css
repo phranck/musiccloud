@@ -40,10 +40,18 @@
   --radius-card: var(--mc-radius-card);
 
   /* A control sits one card inset in from a card's edge, so its corner is the
-     card's corner less that inset. One value for every button on the surface,
-     however deeply it sits: a button in a panel inside a card is the same
-     button as one in the card, and two radii would say it is not. */
-  --radius-button: max(calc(var(--mc-radius-card) - var(--mc-space-content-card)), 0px);
+     card's corner less that inset. One value for every button and every field
+     on the surface, however deeply it sits: a button in a panel inside a card
+     is the same button as one in the card, and two radii would say it is not.
+
+     The floor is what keeps a control a control. The subtraction is exact for a
+     surface, which is what the panel radius uses, but a card inset can grow
+     past the point where a control has any corner left, and a field with a 4px
+     corner reads as a box rather than as something to type in. */
+  --radius-button: max(
+    calc(var(--mc-radius-card) - var(--mc-space-content-card)),
+    var(--mc-radius-control)
+  );
   --radius-keycap: var(--mc-radius-keycap);
   --radius-pill: var(--mc-radius-pill);
   --radius-round: var(--mc-radius-round);

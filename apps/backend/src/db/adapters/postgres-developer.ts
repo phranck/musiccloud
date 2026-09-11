@@ -35,7 +35,12 @@ interface DeveloperAccountRow {
   email_verified_at: Date | null;
   password_hash: string | null;
   display_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   avatar_url: string | null;
+  uploaded_avatar_url: string | null;
+  gravatar_url: string | null;
+  avatar_source: string | null;
   technical_contact_email: string | null;
   tier_id: string | null;
   status: string;
@@ -73,7 +78,8 @@ interface DeveloperEmailTokenRow {
 }
 
 const DEVELOPER_ACCOUNT_COLUMNS = `id, email, email_verified_at, password_hash, display_name,
-            avatar_url, technical_contact_email, tier_id, status, created_at, updated_at, last_login_at`;
+            first_name, last_name, avatar_url, uploaded_avatar_url, gravatar_url, avatar_source,
+            technical_contact_email, tier_id, status, created_at, updated_at, last_login_at`;
 
 // ============================================================================
 // MAPPERS
@@ -91,7 +97,12 @@ function rowToDeveloperAccount(row: DeveloperAccountRow): DeveloperAccount {
     emailVerifiedAt: row.email_verified_at ? dateToMs(row.email_verified_at) : null,
     passwordHash: row.password_hash,
     displayName: row.display_name,
+    firstName: row.first_name,
+    lastName: row.last_name,
     avatarUrl: row.avatar_url,
+    uploadedAvatarUrl: row.uploaded_avatar_url,
+    gravatarUrl: row.gravatar_url,
+    avatarSource: row.avatar_source,
     technicalContactEmail: row.technical_contact_email,
     tierId: row.tier_id,
     status: row.status,
@@ -341,6 +352,12 @@ export async function updateDeveloperAccount(
   data: {
     email?: string;
     displayName?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+    avatarUrl?: string | null;
+    uploadedAvatarUrl?: string | null;
+    gravatarUrl?: string | null;
+    avatarSource?: string | null;
     technicalContactEmail?: string | null;
     tierId?: string | null;
     status?: string;
@@ -351,6 +368,13 @@ export async function updateDeveloperAccount(
   const values: unknown[] = [now];
   let paramIdx = 2;
 
+  /** One optional column, written only where the caller named it. */
+  const setIfGiven = (column: string, value: unknown) => {
+    if (value === undefined) return;
+    sets.push(`${column} = $${paramIdx++}`);
+    values.push(value);
+  };
+
   if (data.email !== undefined) {
     sets.push(`email = $${paramIdx++}`);
     values.push(data.email);
@@ -359,6 +383,12 @@ export async function updateDeveloperAccount(
     sets.push(`display_name = $${paramIdx++}`);
     values.push(data.displayName);
   }
+  setIfGiven("first_name", data.firstName);
+  setIfGiven("last_name", data.lastName);
+  setIfGiven("avatar_url", data.avatarUrl);
+  setIfGiven("uploaded_avatar_url", data.uploadedAvatarUrl);
+  setIfGiven("gravatar_url", data.gravatarUrl);
+  setIfGiven("avatar_source", data.avatarSource);
   if (data.technicalContactEmail !== undefined) {
     sets.push(`technical_contact_email = $${paramIdx++}`);
     values.push(data.technicalContactEmail);

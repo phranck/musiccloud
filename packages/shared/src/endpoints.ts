@@ -431,6 +431,21 @@ export const ENDPOINTS = {
       deleteAccount: "/api/dev/auth/delete-account",
       /** GET: the caller's complete personal-data package as a JSON download (GDPR Art. 15/20). */
       export: "/api/dev/auth/export",
+      /**
+       * The account's picture. `POST` uploads one as a `data:` URL, `DELETE`
+       * removes the uploaded one and leaves the other sources alone. Which of
+       * the three is shown is `avatarSource` on the profile endpoint above.
+       */
+      avatar: "/api/dev/auth/avatar",
+      /**
+       * POST: asks Gravatar whether the caller's address has a picture and
+       * stores the answer.
+       *
+       * Server-side and only on request, because asking tells a third party
+       * that this address holds an account here. Nothing is sent but the hash
+       * the Gravatar protocol is built on.
+       */
+      gravatar: "/api/dev/auth/avatar/gravatar",
       /** GitHub OAuth (MC-065). `start` returns the authorize URL + signed state; `exchange` redeems the callback code. */
       github: {
         /** GET: returns `{ authorizeUrl, state }` for the Astro app to redirect to. */

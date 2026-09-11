@@ -1600,7 +1600,28 @@ export const developerAccounts = pgTable(
     emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
     passwordHash: text("password_hash"),
     displayName: text("display_name"),
+    /** The name a person goes by, both halves optional and neither derived from the other. */
+    firstName: text("first_name"),
+    lastName: text("last_name"),
+    /**
+     * The picture an identity provider handed over, which today means GitHub.
+     *
+     * One of three sources a developer chooses between, and the only one they
+     * cannot produce themselves.
+     */
     avatarUrl: text("avatar_url"),
+    /** A picture the developer uploaded, held as a `data:` URL like the dashboard's. */
+    uploadedAvatarUrl: text("uploaded_avatar_url"),
+    /** What Gravatar answered when it was last asked about this address. */
+    gravatarUrl: text("gravatar_url"),
+    /**
+     * Which of the three is shown.
+     *
+     * Kept beside them rather than collapsing the three into one column, so
+     * switching from an upload to a Gravatar and back does not throw the other
+     * away. `null` means the portal picks whatever it has.
+     */
+    avatarSource: text("avatar_source"),
     /**
      * Where the operator writes when something about this account's
      * applications needs a person who can act, such as a shared engineering
@@ -1615,7 +1636,13 @@ export const developerAccounts = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
   },
-  (table) => [check("chk_developer_accounts_status", sql`${table.status} IN ('active', 'suspended')`)],
+  (table) => [
+    check("chk_developer_accounts_status", sql`${table.status} IN ('active', 'suspended')`),
+    check(
+      "chk_developer_accounts_avatar_source",
+      sql`${table.avatarSource} IS NULL OR ${table.avatarSource} IN ('provider', 'upload', 'gravatar')`,
+    ),
+  ],
 );
 
 export type DeveloperAccountRow = typeof developerAccounts.$inferSelect;

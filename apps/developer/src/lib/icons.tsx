@@ -46,6 +46,7 @@ import {
   Logout,
   Menu,
   Profile,
+  Profile2User,
   ProfileAdd,
   ProfileCircle,
   Refresh,
@@ -109,6 +110,7 @@ export const LinkIcon = bulk(Link);
 export const LoginIcon = bulk(Login);
 export const LogoutIcon = bulk(Logout);
 export const MenuIcon = bulk(Menu);
+export const Profile2UserIcon = bulk(Profile2User);
 export const ProfileAddIcon = bulk(ProfileAdd);
 export const ProfileCircleIcon = bulk(ProfileCircle);
 export const ProfileIcon = bulk(Profile);

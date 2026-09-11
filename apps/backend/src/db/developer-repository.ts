@@ -28,7 +28,16 @@
  * @property passwordHash - bcrypt hash, or `null` for a pure-OAuth account
  *   that has never set a password (reserved for MC-065).
  * @property displayName - Optional display name shown in the portal.
- * @property avatarUrl - Optional avatar URL.
+ * @property firstName - Optional given name.
+ * @property lastName - Optional family name.
+ * @property avatarUrl - The picture an identity provider handed over, which
+ *   today means GitHub. One of three sources, and the only one the developer
+ *   cannot produce themselves.
+ * @property uploadedAvatarUrl - A picture the developer uploaded, as a `data:`
+ *   URL.
+ * @property gravatarUrl - What Gravatar answered when it was last asked.
+ * @property avatarSource - Which of the three is shown: `provider`, `upload`
+ *   or `gravatar`. `null` means the portal picks whatever it has.
  * @property technicalContactEmail - Where the operator writes when an
  *   application on this account needs a person who can act. Optional and
  *   unverified; nothing that only the account holder may read is sent there.
@@ -47,7 +56,12 @@ export interface DeveloperAccount {
   emailVerifiedAt: number | null;
   passwordHash: string | null;
   displayName: string | null;
+  firstName: string | null;
+  lastName: string | null;
   avatarUrl: string | null;
+  uploadedAvatarUrl: string | null;
+  gravatarUrl: string | null;
+  avatarSource: string | null;
   technicalContactEmail: string | null;
   tierId: string | null;
   status: string;
@@ -205,6 +219,12 @@ export interface DeveloperRepository {
     data: {
       email?: string;
       displayName?: string | null;
+      firstName?: string | null;
+      lastName?: string | null;
+      avatarUrl?: string | null;
+      uploadedAvatarUrl?: string | null;
+      gravatarUrl?: string | null;
+      avatarSource?: string | null;
       technicalContactEmail?: string | null;
       tierId?: string | null;
       status?: string;

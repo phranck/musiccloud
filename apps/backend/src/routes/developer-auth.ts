@@ -72,6 +72,7 @@ import {
   SESSION_COOKIE_NAME,
   SessionKind,
   sessionCookieOptions,
+  sha256Hex,
   TokenPurpose,
   verifyPassword,
 } from "../services/developer-auth.js";
@@ -175,11 +176,85 @@ export function buildAccountResponse(account: DeveloperAccount, tierName: string
     emailVerified: account.emailVerifiedAt !== null,
     hasPassword: account.passwordHash !== null,
     displayName: account.displayName,
-    avatarUrl: account.avatarUrl,
+    firstName: account.firstName,
+    lastName: account.lastName,
+    avatarUrl: resolveAvatarUrl(account),
+    providerAvatarUrl: account.avatarUrl,
+    uploadedAvatarUrl: account.uploadedAvatarUrl,
+    gravatarUrl: account.gravatarUrl,
+    avatarSource: account.avatarSource,
     technicalContactEmail: account.technicalContactEmail,
     tierName,
     createdAt: new Date(account.createdAt).toISOString(),
   };
+}
+
+/** What `avatarSource` may hold, which is also what the check constraint allows. */
+export const AvatarSource = {
+  /** The picture an identity provider handed over, which today means GitHub. */
+  Provider: "provider",
+  /** The picture the developer uploaded. */
+  Upload: "upload",
+  /** The picture Gravatar answered with. */
+  Gravatar: "gravatar",
+} as const;
+
+/** One of the sources in {@link AvatarSource}. */
+export type AvatarSourceValue = (typeof AvatarSource)[keyof typeof AvatarSource];
+
+/**
+ * Whether a value from a request body names one of the three sources.
+ *
+ * @param value - What the body carried.
+ * @returns Whether it is a source the column accepts.
+ */
+function isAvatarSource(value: unknown): value is AvatarSourceValue {
+  return typeof value === "string" && (Object.values(AvatarSource) as string[]).includes(value);
+}
+
+/** Image formats an uploaded picture may be in, matching the dashboard's. */
+const UPLOAD_DATA_URL = /^data:(image\/(?:jpeg|png|webp));base64,/;
+
+/** What an uploaded picture may weigh once decoded. */
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+
+/** What the request body may weigh, with room for base64's third. */
+const MAX_UPLOAD_BODY_BYTES = 8 * 1024 * 1024;
+
+/** Base64 carries three bytes in every four characters. */
+const BASE64_BYTES_PER_CHAR = 0.75;
+
+/** Where a Gravatar lives. Nothing outside this prefix is stored as one. */
+const GRAVATAR_PREFIX = "https://www.gravatar.com/avatar/";
+
+/** How long to wait for Gravatar before giving up on the lookup. */
+const GRAVATAR_TIMEOUT_MS = 4_000;
+
+/** How wide a Gravatar is asked for, which is what the portal draws it at. */
+const GRAVATAR_SIZE = 256;
+
+/**
+ * The picture that is actually shown.
+ *
+ * A developer may hold three at once and chooses between them. Where they have
+ * not chosen, or where the one they chose is gone, the first of the three that
+ * exists is shown rather than nothing: an account with a picture should not
+ * look like one without.
+ *
+ * @param account - The account as stored.
+ * @returns The picture to show, or `null` where there is none.
+ */
+function resolveAvatarUrl(account: DeveloperAccount): string | null {
+  const chosen =
+    account.avatarSource === AvatarSource.Upload
+      ? account.uploadedAvatarUrl
+      : account.avatarSource === AvatarSource.Gravatar
+        ? account.gravatarUrl
+        : account.avatarSource === AvatarSource.Provider
+          ? account.avatarUrl
+          : null;
+
+  return chosen ?? account.uploadedAvatarUrl ?? account.gravatarUrl ?? account.avatarUrl;
 }
 
 /**
@@ -521,14 +596,66 @@ export async function devAuthRoutes(app: FastifyInstance) {
    * receive a password reset.
    */
   app.patch(ENDPOINTS.dev.auth.profile, { preHandler: app.authenticateDeveloper }, async (request, reply) => {
-    const body = request.body as { displayName?: string | null; technicalContactEmail?: string | null } | null;
-    if (!body || (body.technicalContactEmail === undefined && body.displayName === undefined)) {
-      return reply
-        .status(400)
-        .send({ error: "INVALID_REQUEST", message: "displayName or technicalContactEmail is required." });
+    const body = request.body as {
+      displayName?: string | null;
+      firstName?: string | null;
+      lastName?: string | null;
+      avatarSource?: string | null;
+      technicalContactEmail?: string | null;
+    } | null;
+    const named =
+      body &&
+      (body.displayName !== undefined ||
+        body.firstName !== undefined ||
+        body.lastName !== undefined ||
+        body.avatarSource !== undefined ||
+        body.technicalContactEmail !== undefined);
+    if (!named) {
+      return reply.status(400).send({
+        error: "INVALID_REQUEST",
+        message: "displayName, firstName, lastName, avatarSource or technicalContactEmail is required.",
+      });
     }
 
-    const changes: { displayName?: string | null; technicalContactEmail?: string | null } = {};
+    const changes: {
+      displayName?: string | null;
+      firstName?: string | null;
+      lastName?: string | null;
+      avatarSource?: string | null;
+      technicalContactEmail?: string | null;
+    } = {};
+
+    // The two names follow the display name in every respect, including that an
+    // empty field and an absent one are the same state.
+    for (const field of ["firstName", "lastName"] as const) {
+      const value = body[field];
+      if (value === undefined) continue;
+      if (value === null) {
+        changes[field] = null;
+        continue;
+      }
+      if (typeof value !== "string") {
+        return reply.status(400).send({ error: "INVALID_REQUEST", message: `${field} must be a string.` });
+      }
+      const trimmed = value.trim();
+      if (trimmed.length > MAX_DISPLAY_NAME_LENGTH) {
+        return reply.status(400).send({
+          error: "INVALID_REQUEST",
+          message: `${field} may be at most ${MAX_DISPLAY_NAME_LENGTH} characters.`,
+        });
+      }
+      changes[field] = trimmed === "" ? null : trimmed;
+    }
+
+    if (body.avatarSource !== undefined) {
+      if (body.avatarSource !== null && !isAvatarSource(body.avatarSource)) {
+        return reply.status(400).send({
+          error: "INVALID_REQUEST",
+          message: `avatarSource must be one of ${Object.values(AvatarSource).join(", ")}.`,
+        });
+      }
+      changes.avatarSource = body.avatarSource;
+    }
 
     if (body.displayName !== undefined) {
       if (body.displayName === null) {
@@ -578,6 +705,117 @@ export async function devAuthRoutes(app: FastifyInstance) {
     }
     return reply.send({ account: buildAccountResponse(updated, null) });
   });
+
+  /**
+   * POST /api/dev/auth/avatar
+   * Stores a picture the caller uploaded, as a `data:` URL, and shows it.
+   *
+   * The same formats and the same two caps the dashboard's avatar route uses,
+   * for the same reasons: SVG is refused because it can carry script, and the
+   * decoded size is checked from the base64 length rather than by decoding.
+   */
+  app.post(
+    ENDPOINTS.dev.auth.avatar,
+    { preHandler: app.authenticateDeveloper, bodyLimit: MAX_UPLOAD_BODY_BYTES },
+    async (request, reply) => {
+      const body = request.body as { dataUrl?: string } | null;
+      if (!body?.dataUrl) {
+        return reply.status(400).send({ error: "INVALID_REQUEST", message: "dataUrl is required." });
+      }
+      if (!UPLOAD_DATA_URL.test(body.dataUrl)) {
+        return reply.status(400).send({ error: "INVALID_REQUEST", message: "Only JPEG, PNG or WebP." });
+      }
+
+      const base64Part = body.dataUrl.slice(body.dataUrl.indexOf(",") + 1);
+      if (Math.ceil(base64Part.length * BASE64_BYTES_PER_CHAR) > MAX_UPLOAD_BYTES) {
+        return reply
+          .status(400)
+          .send({ error: "INVALID_REQUEST", message: `Picture may be at most ${MAX_UPLOAD_BYTES / 1024 / 1024} MB.` });
+      }
+
+      const repo = await getDeveloperRepository();
+      // Uploading is choosing: nobody uploads a picture to keep looking like
+      // whatever they looked like before.
+      const updated = await repo.updateDeveloperAccount(request.developerAccountId as string, {
+        uploadedAvatarUrl: body.dataUrl,
+        avatarSource: AvatarSource.Upload,
+      });
+      if (!updated) return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
+      return reply.send({ account: buildAccountResponse(updated, null) });
+    },
+  );
+
+  /**
+   * DELETE /api/dev/auth/avatar
+   * Removes the uploaded picture and leaves the other two sources alone.
+   *
+   * The source falls back to whatever is left rather than to nothing, so
+   * removing an upload where a Gravatar exists shows the Gravatar.
+   */
+  app.delete(ENDPOINTS.dev.auth.avatar, { preHandler: app.authenticateDeveloper }, async (request, reply) => {
+    const account = request.developerAccount!;
+    const repo = await getDeveloperRepository();
+    const updated = await repo.updateDeveloperAccount(account.id, {
+      uploadedAvatarUrl: null,
+      avatarSource: account.avatarSource === AvatarSource.Upload ? null : account.avatarSource,
+    });
+    if (!updated) return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
+    return reply.send({ account: buildAccountResponse(updated, null) });
+  });
+
+  /**
+   * POST /api/dev/auth/avatar/gravatar
+   * Asks Gravatar whether the caller's address has a picture.
+   *
+   * On the server, and only when the caller asks. The request tells Automattic
+   * that an account exists here for that address, which is not something to do
+   * quietly whilst a page renders. `d=404` is what makes the answer a yes or a
+   * no rather than a placeholder image dressed as a picture.
+   */
+  app.post(
+    ENDPOINTS.dev.auth.gravatar,
+    { preHandler: [app.authenticateDeveloper, throttleCredentials] },
+    async (request, reply) => {
+      const account = request.developerAccount!;
+      const hash = sha256Hex(account.email.trim().toLowerCase());
+      const url = `${GRAVATAR_PREFIX}${hash}?s=${GRAVATAR_SIZE}`;
+
+      let found: boolean;
+      try {
+        const response = await fetch(`${url}&d=404`, {
+          method: "HEAD",
+          signal: AbortSignal.timeout(GRAVATAR_TIMEOUT_MS),
+        });
+        if (response.status === 404) found = false;
+        else if (response.ok) found = true;
+        else {
+          return reply.status(502).send({ error: "GRAVATAR_UNAVAILABLE", message: "Gravatar could not be asked." });
+        }
+      } catch {
+        return reply.status(502).send({ error: "GRAVATAR_UNAVAILABLE", message: "Gravatar could not be asked." });
+      }
+
+      const repo = await getDeveloperRepository();
+
+      if (!found) {
+        // A stored answer is stale the moment this one says there is none, and
+        // a source pointing at a picture that is gone would show nothing.
+        const cleared = await repo.updateDeveloperAccount(account.id, {
+          gravatarUrl: null,
+          avatarSource: account.avatarSource === AvatarSource.Gravatar ? null : account.avatarSource,
+        });
+        if (!cleared) return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
+        return reply.send({ found: false, account: buildAccountResponse(cleared, null) });
+      }
+
+      const updated = await repo.updateDeveloperAccount(account.id, {
+        gravatarUrl: url,
+        avatarSource: AvatarSource.Gravatar,
+      });
+      if (!updated) return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
+      return reply.send({ found: true, account: buildAccountResponse(updated, null) });
+    },
+  );
 
   /**
    * GET /api/dev/auth/export

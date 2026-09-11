@@ -33,6 +33,11 @@ const mockDeveloperRepo = {
     id: "dev-1",
     email: "dev@example.com",
     displayName: "Dev Jane",
+    firstName: null,
+    lastName: null,
+    uploadedAvatarUrl: null,
+    gravatarUrl: null,
+    avatarSource: null,
   })),
 };
 
@@ -111,6 +116,11 @@ function makeDeveloperAccount(developerAccountId: string): DeveloperAccount {
     emailVerifiedAt: 1_700_000_000_000,
     passwordHash: null,
     displayName: null,
+    firstName: null,
+    lastName: null,
+    uploadedAvatarUrl: null,
+    gravatarUrl: null,
+    avatarSource: null,
     avatarUrl: null,
     technicalContactEmail: null,
     // Every account carries the free tier after signup, which is exactly what

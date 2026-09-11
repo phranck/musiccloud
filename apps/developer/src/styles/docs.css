@@ -390,7 +390,6 @@
   }
 
   .content-card__title {
-    padding-inline-start: var(--mc-docs-content-card-copy-inset);
     color: var(--color-fg);
     font-size: var(--text-card-title);
     font-weight: 600;
@@ -420,15 +419,16 @@
     min-width: 0;
   }
 
+  /* No second inset here. The body's own padding is what holds a line of prose
+     clear of the card's corner, and adding half a radius on top made a card
+     hold its text further in sideways than it does top and bottom. */
   .content-card__body-intro {
     gap: var(--mc-space-2);
     margin-bottom: var(--mc-space-6);
-    padding-inline: var(--mc-docs-content-card-copy-inset);
   }
 
   .content-card__copy {
     gap: var(--mc-space-6);
-    padding-inline: var(--mc-docs-content-card-copy-inset);
   }
 
   /* A column of fields reads closer than a column of paragraphs, because each
@@ -436,12 +436,10 @@
      dashboard's form stack, and it follows from the content rather than from a
      modifier a call site has to remember.
 
-     It also drops the copy inset. That inset holds a line of prose clear of the
-     card's corner curve, and a control has an edge of its own, so it sits on
-     the body's own padding like a code block or a table does. */
+     The copy inset stays, because a control standing further out than the
+     sentence above it reads as two insets in one card. */
   .content-card__copy:has(> .field) {
     gap: var(--mc-space-4);
-    padding-inline: 0;
   }
 
   .content-card__body-stack {
