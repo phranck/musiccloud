@@ -1168,6 +1168,12 @@ export class PostgresAdapter
     data: {
       email?: string;
       displayName?: string | null;
+      firstName?: string | null;
+      lastName?: string | null;
+      avatarUrl?: string | null;
+      uploadedAvatarUrl?: string | null;
+      gravatarUrl?: string | null;
+      avatarSource?: string | null;
       technicalContactEmail?: string | null;
       tierId?: string | null;
       status?: string;

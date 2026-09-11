@@ -131,13 +131,14 @@ export async function verifyPassword(password: string, hash: string | null): Pro
 }
 
 /**
- * SHA-256 hex digest helper shared by token generation and verification, so
- * the raw → hash transform is defined in exactly one place.
+ * SHA-256 hex digest helper shared by token generation, token verification and
+ * the Gravatar lookup, so the raw to hash transform is defined in exactly one
+ * place.
  *
  * @param value - The value to digest.
  * @returns The lowercase hex-encoded SHA-256 digest.
  */
-function sha256Hex(value: string): string {
+export function sha256Hex(value: string): string {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
 

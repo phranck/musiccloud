@@ -38,7 +38,19 @@ export interface Account {
   hasPassword: boolean;
   /** Optional display name; `null` until the developer sets one. */
   displayName: string | null;
-  /** Optional avatar URL (e.g. GitHub or Gravatar); `null` when unset. */
+  /** Given name, or `null`. */
+  firstName: string | null;
+  /** Family name, or `null`. */
+  lastName: string | null;
+  /** What the developer uploaded, or `null`. */
+  uploadedAvatarUrl: string | null;
+  /** What Gravatar last answered, or `null`. */
+  gravatarUrl: string | null;
+  /** What an identity provider handed over, which today means GitHub. */
+  providerAvatarUrl: string | null;
+  /** Which of the three is shown, or `null` for whatever the portal finds. */
+  avatarSource: string | null;
+  /** The picture being shown, whichever of the three sources it came from. */
   avatarUrl: string | null;
   /**
    * Where the operator writes when an application on this account needs a

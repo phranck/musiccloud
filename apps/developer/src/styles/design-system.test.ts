@@ -80,29 +80,27 @@ describe("developer design system", () => {
     const docs = readDeveloperFile("src/styles/docs.css");
 
     // How far a card holds its contents from its edge is a design decision and
-    // moves with the design. What must not move is that the body and the chrome
-    // hold them at the same distance, so a card reads as one inset.
+    // moves with the design. What must not move is that both are read from a
+    // token, so one card cannot end up with an inset another does not have.
     const bodyInset = theme.match(/--mc-space-content-card:\s*([^;]+);/)?.[1];
     const chromeInset = theme.match(/--mc-space-content-card-header:\s*([^;]+);/)?.[1];
     expect(bodyInset).toBeDefined();
-    expect(chromeInset).toBe(bodyInset);
+    expect(chromeInset).toBeDefined();
     expect(docs).toContain("--mc-docs-content-card-copy-inset: calc(var(--mc-docs-content-card-radius) / 2);");
     expect(docs).toMatch(
       /\.content-card__header,[\s\S]*?\.content-card__footer\s*\{[^}]*padding:\s*var\(--space-content-card-header\);/,
     );
     expect(docs).toMatch(/\.content-card__body\s*\{[^}]*padding:\s*var\(--space-content-card\);/s);
-    expect(docs).toMatch(
-      /\.content-card__body-intro,[\s\S]*?\.content-card__copy\s*\{[^}]*padding-inline:\s*var\(--mc-docs-content-card-copy-inset\);/s,
-    );
+    // One inset per card, which is the body's own padding. A second one on the
+    // copy held text further in sideways than the card holds it top and bottom.
+    expect(docs).not.toMatch(/\.content-card__copy\s*\{[^}]*padding-inline:/s);
   });
 
-  it("keeps every Card surface on one inset while insetting only its copy", () => {
+  it("keeps every Card surface on the one inset the body states", () => {
     const docs = readDeveloperFile("src/styles/docs.css");
 
     expect(docs).not.toMatch(/\.content-card__body-stack\s*\{[^}]*padding-inline:/s);
-    expect(docs).toMatch(
-      /\.content-card__copy\s*\{[^}]*gap:\s*var\(--mc-space-6\);[^}]*padding-inline:\s*var\(--mc-docs-content-card-copy-inset\);/s,
-    );
+    expect(docs).toMatch(/\.content-card__copy\s*\{[^}]*gap:\s*var\(--mc-space-6\);/s);
   });
 
   it("keeps every Portal card borderless without header or footer separators", () => {

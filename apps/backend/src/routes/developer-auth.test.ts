@@ -83,6 +83,11 @@ function makeAccount(overrides: Partial<DeveloperAccount> = {}): DeveloperAccoun
     emailVerifiedAt: 1_700_000_000_000,
     passwordHash: null,
     displayName: null,
+    firstName: null,
+    lastName: null,
+    uploadedAvatarUrl: null,
+    gravatarUrl: null,
+    avatarSource: null,
     avatarUrl: null,
     technicalContactEmail: null,
     tierId: null,
@@ -711,6 +716,142 @@ describe("GET /api/dev/auth/me", () => {
 
     expect(res.statusCode).toBe(401);
     expect(res.json().error).toBe("MC-AUTH-0001");
+  });
+});
+
+describe("the account's picture", () => {
+  it("stores an upload and shows it", async () => {
+    const dataUrl = `data:image/png;base64,${"A".repeat(64)}`;
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
+    vi.mocked(repo.updateDeveloperAccount).mockResolvedValue(
+      makeAccount({ uploadedAvatarUrl: dataUrl, avatarSource: "upload" }),
+    );
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.avatar,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { dataUrl },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().account.avatarUrl).toBe(dataUrl);
+    expect(vi.mocked(repo.updateDeveloperAccount)).toHaveBeenCalledWith("dev-acc-1", {
+      uploadedAvatarUrl: dataUrl,
+      avatarSource: "upload",
+    });
+  });
+
+  it("refuses an SVG, which can carry script", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.avatar,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { dataUrl: "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=" },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(vi.mocked(repo.updateDeveloperAccount)).not.toHaveBeenCalled();
+  });
+
+  it("refuses a picture past the size cap", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.avatar,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { dataUrl: `data:image/jpeg;base64,${"A".repeat(7 * 1024 * 1024)}` },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(vi.mocked(repo.updateDeveloperAccount)).not.toHaveBeenCalled();
+  });
+
+  it("removing an upload falls back to whatever else the account holds", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(
+      makeAccount({
+        uploadedAvatarUrl: "data:image/png;base64,AAAA",
+        gravatarUrl: "https://www.gravatar.com/avatar/x",
+        avatarSource: "upload",
+      }),
+    );
+    vi.mocked(repo.updateDeveloperAccount).mockResolvedValue(
+      makeAccount({ gravatarUrl: "https://www.gravatar.com/avatar/x", avatarSource: null }),
+    );
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "DELETE",
+      url: ENDPOINTS.dev.auth.avatar,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(vi.mocked(repo.updateDeveloperAccount)).toHaveBeenCalledWith("dev-acc-1", {
+      uploadedAvatarUrl: null,
+      avatarSource: null,
+    });
+    // The Gravatar is what is left, so it is what is shown.
+    expect(res.json().account.avatarUrl).toBe("https://www.gravatar.com/avatar/x");
+  });
+
+  it("refuses a source it does not know", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: ENDPOINTS.dev.auth.profile,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { avatarSource: "somewhere-else" },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(vi.mocked(repo.updateDeveloperAccount)).not.toHaveBeenCalled();
+  });
+
+  it("stores what Gravatar answers, and clears it when there is none", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
+    vi.mocked(repo.updateDeveloperAccount).mockResolvedValue(makeAccount({ avatarSource: "gravatar" }));
+    const app = await buildApp();
+
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 200 }));
+    const found = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.gravatar,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+    });
+
+    expect(found.statusCode).toBe(200);
+    expect(found.json().found).toBe(true);
+    // Only the hash reaches Gravatar, never the address itself.
+    const asked = String(fetchMock.mock.calls[0]?.[0]);
+    expect(asked).toMatch(/^https:\/\/www\.gravatar\.com\/avatar\/[0-9a-f]{64}\?/);
+    expect(asked).not.toContain("dev@example.com");
+    expect(asked).toContain("d=404");
+
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 404 }));
+    const missing = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.gravatar,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+    });
+
+    expect(missing.statusCode).toBe(200);
+    expect(missing.json().found).toBe(false);
+    expect(vi.mocked(repo.updateDeveloperAccount)).toHaveBeenLastCalledWith("dev-acc-1", {
+      gravatarUrl: null,
+      avatarSource: null,
+    });
+
+    fetchMock.mockRestore();
   });
 });
 
