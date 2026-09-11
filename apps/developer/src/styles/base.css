@@ -21,6 +21,20 @@
     text-box: trim-both cap alphabetic;
   }
 
+  /* A heading that may be cut short keeps the room under its baseline. Trimming
+     to the baseline puts the descenders outside the box, and `truncate` brings
+     an `overflow: hidden` that then cuts the tail off a p, a g or a y. The top
+     is still trimmed, so the heading sits where every other one sits. */
+  h1.truncate,
+  h2.truncate,
+  h3.truncate,
+  h4.truncate,
+  h5.truncate,
+  h6.truncate {
+    text-box-trim: trim-start;
+    text-box-edge: cap alphabetic;
+  }
+
   /* The Developer Portal deliberately has no visible browser focus ring.
      Components may still communicate their active state with their own border
      or surface treatments, without reintroducing a global outline. */

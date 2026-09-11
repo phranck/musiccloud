@@ -25,7 +25,7 @@
      Shared public-page spacing keeps every route aligned to the same shell. */
   .developer-page {
     --mc-card-content-inset: calc(var(--radius-card) / 2);
-    --mc-card-inner-radius: max(calc(var(--radius-card) - var(--mc-space-7)), 0px);
+    --mc-card-inner-radius: max(calc(var(--radius-card) - var(--space-content-card)), 0px);
 
     padding: var(--mc-space-page-top) var(--mc-space-page-inline) var(--mc-space-page-bottom);
   }
@@ -516,6 +516,13 @@
     gap: var(--mc-space-2);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-button);
+    /* The label is centred on the line it is set on rather than on its line
+       box. That box holds room under the baseline for descenders which the
+       capitals never reach, so centring it leaves the label sitting low.
+       Barlow's ascent, descent and cap height are 1em, 0.1875em and 0.7em, so
+       the label rises by (1 - 0.1875 - 0.7) / 2 = 0.056em. The padding is twice
+       that, because centring gives half of it back. */
+    padding-block: 0 0.1125em;
     padding-inline: var(--mc-space-4);
     color: var(--color-fg);
     background: var(--color-surface);
@@ -724,7 +731,7 @@
   }
 
   .field__control {
-    min-height: var(--mc-size-control);
+    min-height: var(--size-field);
     width: 100%;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-button);

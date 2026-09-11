@@ -27,7 +27,7 @@ export interface RegistrationProfileChoiceProps {
 export function RegistrationProfileChoice({ value, onSelect, name }: RegistrationProfileChoiceProps) {
   return (
     <fieldset className="flex flex-col gap-3" data-registration-profiles>
-      <legend className="text-nav text-fg-subtle mb-1">Where will this application run?</legend>
+      <legend className="text-body text-fg-subtle mb-1">Where will this application run?</legend>
       {REGISTRATION_PROFILES.map((profile) => (
         <label key={profile.type} className="flex gap-3 items-start cursor-pointer">
           <input
@@ -40,9 +40,9 @@ export function RegistrationProfileChoice({ value, onSelect, name }: Registratio
           />
           <span className="flex flex-col gap-0.5">
             <span className="text-body font-medium text-fg">{profile.label}</span>
-            <span className="text-nav text-fg-muted">{profile.purpose}</span>
-            <span className="text-nav text-fg-subtle">{profile.credentialHome}</span>
-            <span className="text-nav text-fg-subtle">{profile.neverDo}</span>
+            <span className="text-body text-fg-muted">{profile.purpose}</span>
+            <span className="text-body text-fg-subtle">{profile.credentialHome}</span>
+            <span className="text-body text-fg-subtle">{profile.neverDo}</span>
           </span>
         </label>
       ))}

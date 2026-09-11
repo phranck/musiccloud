@@ -145,7 +145,7 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     code: "MC-REQ-0004",
     httpStatus: 409,
     userMessage:
-      "This project already holds {limit} registrations, which is the maximum. Revoke one before creating another.",
+      "This project already holds {limit} applications, which is the maximum. Revoke one before creating another.",
     internalNote: "Per-project ceiling on registrations that are not revoked.",
     source: "apps/backend/src/routes/dev-api-access.ts registration creation",
   },

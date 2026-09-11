@@ -284,10 +284,10 @@ async function buildApp(options: BuildAppOptions = {}) {
         description:
           "Public REST API for resolving music URLs and search queries, retrieving persisted shares, and consuming Creative-Commons media and metadata.\n\n" +
           "## Authentication\n\n" +
-          "Exactly three operations require a key issued to a client registration: `POST /api/v1/resolve`, `POST /api/v1/cc/resolve`, and `GET /api/v1/link/{id}`. A Developer Project owns its subscription and shared quota and may contain separate development, confidential, and public registrations. Send a registration key as `X-API-Key: mc_live_<prefix>_<secret>`. All other operations in this reference are callable without a key. Manage projects, registrations and their keys at https://developer.musiccloud.io/dashboard/projects. A key is shown only when created or rotated. Store it as a secret and never embed it in browser code. Missing, invalid, suspended, or revoked project, registration, or key credentials receive `401`.\n\n" +
+          "Exactly three operations require a key issued to an application: `POST /api/v1/resolve`, `POST /api/v1/cc/resolve`, and `GET /api/v1/link/{id}`. A Developer Project owns its subscription and shared quota and may contain separate development, confidential, and public applications. Send an API key as `X-API-Key: mc_live_<prefix>_<secret>`. All other operations in this reference are callable without a key. Manage projects, applications and their keys at https://developer.musiccloud.io/dashboard/projects. A key is shown only when created or rotated. Store it as a secret and never embed it in browser code. Missing, invalid, suspended, or revoked project, application, or key credentials receive `401`.\n\n" +
           "## Rate limiting\n\n" +
           "Four independent rules can apply:\n\n" +
-          "1. The three API-key operations use the rolling `60`-second and rolling `24`-hour quotas owned by the Developer Project. Registrations under one project share those quotas; an optional registration cap can only narrow them.\n" +
+          "1. The three API-key operations use the rolling `60`-second and rolling `24`-hour quotas owned by the Developer Project. Applications under one project share those quotas; an optional application cap can only narrow them.\n" +
           `2. \`GET /api/v1/resolve\` needs no key and has a budget of its own that no other operation shares: \`${KEYLESS_RESOLVE_REQUESTS_PER_MINUTE}\` requests in a rolling \`60\`-second window and \`${KEYLESS_RESOLVE_REQUESTS_PER_DAY}\` in a rolling \`24\`-hour window, both per client IP.\n` +
           "3. Public data operations `GET /api/v1/share/{shortId}`, `GET /api/v1/share/{shortId}/preview`, `GET /api/v1/artist-info`, `GET /api/v1/cc/artist-info`, `GET /api/v1/cc/audio/{jamendoId}`, `GET /api/v1/cc/download/{jamendoId}`, and `GET /api/v1/cc/bandcamp/{jamendoId}` share one bucket of `10` requests in a rolling `60`-second window per client IP.\n" +
           "4. Every route is also protected by a global ceiling of `300` requests in a rolling `60`-second window per client IP.\n\n" +
@@ -313,7 +313,7 @@ async function buildApp(options: BuildAppOptions = {}) {
             in: "header",
             name: "X-API-Key",
             description:
-              "Registration credential for a Developer Project. Project quotas are shared by all registrations; registration caps may only narrow them.",
+              "API key for a Developer Project. Project quotas are shared by all applications; application caps may only narrow them.",
           },
         },
       },

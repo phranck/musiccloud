@@ -115,7 +115,7 @@ export function RegistrationTokens({
 
   return (
     <div className="flex flex-col gap-3 mt-3" data-registration-tokens>
-      <p className="text-nav text-fg-subtle">Keys</p>
+      <p className="text-body text-fg-muted">Keys</p>
 
       {reveal && (
         <>
@@ -126,7 +126,7 @@ export function RegistrationTokens({
 
       {failure && <ApiFailureNotice {...failure} />}
 
-      {current.length === 0 && <p className="text-nav text-fg-subtle">No key yet.</p>}
+      {current.length === 0 && <p className="text-body text-fg-muted">No key yet.</p>}
 
       {current.length > 0 && (
         <ul className="flex flex-col gap-2">
@@ -135,7 +135,7 @@ export function RegistrationTokens({
               <div className="flex items-center gap-2 flex-wrap">
                 <code className="text-code font-mono text-code-fg">{maskToken(token.tokenPrefix)}</code>
                 <StatusBadge status={token.status} />
-                <span className="text-nav text-fg-subtle">
+                <span className="text-body text-fg-muted">
                   created {formatDate(token.createdAt)} ·{" "}
                   {token.lastUsedAt ? `last used ${formatDate(token.lastUsedAt)}` : "never used"}
                 </span>
@@ -145,7 +145,7 @@ export function RegistrationTokens({
                 <>
                   {pendingRevokeId === token.id ? (
                     <div className="flex flex-col gap-2">
-                      <p className="text-nav text-gold">{REVOKE_WARNING}</p>
+                      <p className="text-body text-gold">{REVOKE_WARNING}</p>
                       <div className="flex flex-wrap justify-end gap-3">
                         <SubmitButton
                           variant={ButtonVariant.Secondary}
@@ -185,7 +185,7 @@ export function RegistrationTokens({
                       </button>
                     </div>
                   )}
-                  {pendingRevokeId !== token.id && <p className="text-nav text-fg-subtle">{ROTATE_WARNING}</p>}
+                  {pendingRevokeId !== token.id && <p className="text-body text-fg-muted">{ROTATE_WARNING}</p>}
                 </>
               )}
             </li>
@@ -202,7 +202,7 @@ export function RegistrationTokens({
       )}
 
       {!registrationActive && (
-        <p className="text-nav text-fg-subtle">
+        <p className="text-body text-fg-muted">
           This registration is not active, so it cannot hold a working key. Reactivate it first.
         </p>
       )}

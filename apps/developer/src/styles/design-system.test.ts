@@ -215,12 +215,16 @@ describe("developer design system", () => {
     expect(keyCap).not.toContain(".filter(");
   });
 
-  it("uses the 16px portal card radius and keeps API cards cascade-safe", () => {
+  it("keeps the portal's card radii concentric and API cards cascade-safe", () => {
     const theme = readDeveloperFile("public/developer-theme.css");
     const docs = readDeveloperFile("src/styles/docs.css");
 
-    expect(theme).toContain("--mc-radius-card: 1rem;");
+    // The radius itself is a design decision and moves with the design. What
+    // must not move is that every nested surface derives from it, so a card
+    // and the panels inside it keep one gap between their curves.
+    expect(theme).toMatch(/--mc-radius-card:\s*[\d.]+rem;/);
     expect(docs).toContain("--mc-docs-content-card-radius: var(--radius-card);");
+    expect(docs).toContain("--mc-docs-content-panel-inset: var(--space-content-card);");
     expect(docs).toContain("calc(var(--mc-docs-content-card-radius) - var(--mc-docs-content-panel-inset))");
     expect(docs).toContain("calc(var(--mc-docs-content-panel-radius) - var(--mc-space-1) - var(--mc-docs-space-xs))");
     expect(docs).toContain("--mc-docs-schema-toggle-radius-trim: 1px;");

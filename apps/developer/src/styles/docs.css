@@ -42,7 +42,9 @@
     /* Copy aligns with the tangent point of its own corners, while surface
        padding remains uniform so nested cards stay concentric. */
     --mc-docs-content-card-copy-inset: calc(var(--mc-docs-content-card-radius) / 2);
-    --mc-docs-content-panel-inset: var(--mc-space-1);
+    /* A panel sits at the card's own inset, so the radius below is the
+       concentric one rather than a figure that happens to look close. */
+    --mc-docs-content-panel-inset: var(--space-content-card);
     --mc-docs-content-panel-radius: max(
       0px,
       calc(var(--mc-docs-content-card-radius) - var(--mc-docs-content-panel-inset))
@@ -287,8 +289,12 @@
       color-mix(in srgb, var(--color-sky-top) 56%, transparent);
   }
 
+  /* The rail holds its own trailing inset rather than borrowing one from
+     whatever stands last. An open section brings padding of its own and a plain
+     entry brings none, so leaving it to the last child put the final entry hard
+     against the rail's bottom edge on every page whose navigation ends in one. */
   .sidebar__body {
-    padding: var(--mc-space-3) var(--mc-docs-nav-padding) 0;
+    padding: var(--mc-space-3) var(--mc-docs-nav-padding);
   }
 
   .sidebar__chapter {
@@ -440,6 +446,13 @@
 
   .content-card__body-stack {
     gap: var(--mc-space-6);
+  }
+
+  /* Copy that introduces a stack stands apart from it by the same step the
+     stack keeps between its own panels, so the introduction reads as belonging
+     to what follows rather than sitting on its first panel. */
+  .content-card__copy + .content-card__body-stack {
+    margin-block-start: var(--mc-space-6);
   }
 
   .content-card__section {

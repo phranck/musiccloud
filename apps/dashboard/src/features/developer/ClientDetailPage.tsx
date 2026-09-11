@@ -160,7 +160,7 @@ export function ClientDetailPage() {
         />
         <DashboardSection.Body>
           <p className="mb-1 text-sm text-[var(--ds-text-muted)]">
-            Project: <span className="text-[var(--ds-text)]">{client.projectDisplayName}</span> · Registration:{" "}
+            Project: <span className="text-[var(--ds-text)]">{client.projectDisplayName}</span> · Application:{" "}
             {client.registrationType} · Client ID: {client.publicClientId}
           </p>
           <p className="mb-4 text-sm text-[var(--ds-text-muted)]">

@@ -12,8 +12,22 @@
  */
 import { ENDPOINTS } from "@musiccloud/shared";
 
-/** Where the published API answers. The same base the API reference documents. */
-export const PUBLIC_API_BASE_URL = "https://api.musiccloud.io";
+/** Where the published API answers when nothing says otherwise. */
+const DEFAULT_PUBLIC_API_BASE_URL = "https://api.musiccloud.io";
+
+/**
+ * Where the published API answers, which is what the snippets call.
+ *
+ * Read from `PUBLIC_API_URL` so a snippet copied out of a local portal calls
+ * the local backend. A developer who pastes a snippet expects it to run against
+ * the portal they took it from, and a command that quietly points at production
+ * either fails on a key that does not exist there or, worse, does not.
+ *
+ * The default is the published address, so a deployment that sets nothing is
+ * still correct.
+ */
+export const PUBLIC_API_BASE_URL: string =
+  (import.meta.env.PUBLIC_API_URL as string | undefined)?.trim() || DEFAULT_PUBLIC_API_BASE_URL;
 
 /** The header an issued key is sent in. */
 export const API_KEY_HEADER = "X-API-Key";

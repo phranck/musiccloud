@@ -2,6 +2,7 @@ import { type ChangeEvent, type SyntheticEvent, useCallback, useEffect, useReduc
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
 import { ApiFailureNotice } from "@/components/dashboard/ApiFailureNotice";
+import { CopyableCode } from "@/components/dashboard/CopyableCode";
 import { RegistrationProfileChoice } from "@/components/dashboard/RegistrationProfileChoice";
 import { RegistrationTokens } from "@/components/dashboard/RegistrationTokens";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
@@ -135,12 +136,12 @@ export function RegistrationsPanel({ projectId }: RegistrationsPanelProps) {
         <ContentCard.Header.Icon>
           <KeyIcon aria-hidden="true" />
         </ContentCard.Header.Icon>
-        <ContentCard.Header.Title>Registrations</ContentCard.Header.Title>
+        <ContentCard.Header.Title>Applications</ContentCard.Header.Title>
         {!formOpen && (
           <ContentCard.Header.Addon>
             <button type="button" onClick={onOpen} className="button button--secondary text-body">
               <AddIcon className="size-5" aria-hidden="true" />
-              New registration
+              New application
             </button>
           </ContentCard.Header.Addon>
         )}
@@ -174,20 +175,20 @@ export function RegistrationsPanel({ projectId }: RegistrationsPanelProps) {
             <SubmitButton variant={ButtonVariant.Secondary} type="button" onClick={onCancel}>
               Cancel
             </SubmitButton>
-            <SubmitButton loading={phase === FormPhase.Submitting}>Create registration</SubmitButton>
+            <SubmitButton loading={phase === FormPhase.Submitting}>Create application</SubmitButton>
           </ContentCard.Footer>
         </form>
       ) : (
         <ContentCard.Body>
           <ContentCard.Body.Copy>
             <p className="text-body text-fg-muted">
-              A registration is what a key belongs to. Revoking one stops that application and leaves the others alone,
+              An API-Key belongs to one application. Revoking a key stops that application and leaves the others alone,
               so give each application its own rather than sharing one key between them.
             </p>
             {actionFailure && <ApiFailureNotice {...actionFailure} />}
             {registrations === null && <p className="text-body text-fg-muted">Loading…</p>}
             {registrations !== null && registrations.length === 0 && (
-              <p className="text-body text-fg-muted">No registrations yet. Create the first one above.</p>
+              <p className="text-body text-fg-muted">No applications yet. Create the first one above.</p>
             )}
           </ContentCard.Body.Copy>
 
@@ -206,15 +207,13 @@ export function RegistrationsPanel({ projectId }: RegistrationsPanelProps) {
                       </ContentPanel.Meta>
                     </ContentPanel.Header>
                     <ContentPanel.Content>
-                      <p className="text-nav text-fg-subtle">
+                      <p className="text-body text-fg-muted">
                         {copy?.label ?? registration.registrationType} · created {formatDate(registration.createdAt)}
                       </p>
-                      <p className="text-nav text-fg-subtle">
-                        <code className="text-code-fg">{registration.publicClientId}</code>
-                      </p>
-                      <p className="text-nav text-fg-subtle">{CLIENT_ID_NOTE}</p>
+                      <CopyableCode code={registration.publicClientId} label="the client id" />
+                      <p className="text-body text-fg-muted">{CLIENT_ID_NOTE}</p>
                       {registration.websiteUrl && (
-                        <p className="text-nav text-fg-subtle">
+                        <p className="text-body text-fg-muted">
                           <a
                             href={registration.websiteUrl}
                             target="_blank"
@@ -225,7 +224,7 @@ export function RegistrationsPanel({ projectId }: RegistrationsPanelProps) {
                           </a>
                         </p>
                       )}
-                      <p className="text-nav text-fg-subtle mt-1">
+                      <p className="text-body text-fg-muted mt-1">
                         {isRevoked
                           ? "Revoked. Its keys no longer authenticate and it cannot be brought back."
                           : isActive

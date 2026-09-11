@@ -66,13 +66,17 @@
   );
   --mc-gradient-logo-suffix: linear-gradient(90deg, var(--mc-color-fg) 0%, var(--mc-color-fg-subtle) 100%);
 
-  --mc-radius-card: 1rem;
+  --mc-radius-card: 1.25rem;
   --mc-radius-control: 0.5rem;
   --mc-radius-keycap: 0.3125rem;
   --mc-radius-pill: 9999px;
   --mc-radius-round: 50%;
-  --mc-size-control: 2.75rem;
-  --mc-size-control-compact: 2rem;
+  --mc-size-control: 3rem;
+  --mc-size-control-compact: 2.25rem;
+  /* A text field is a line to type on rather than a target to hit, so it is
+     shorter than a button. Its own token, because the two stopped agreeing the
+     moment buttons were asked to grow. */
+  --mc-size-field: 2.75rem;
   --mc-size-icon-sm: 1rem;
   --mc-size-icon-md: 1.25rem;
   --mc-size-icon-lg: 1.5rem;
@@ -102,8 +106,8 @@
   --mc-space-page-inline: 1.5rem;
   --mc-space-page-top: 3rem;
   --mc-space-page-bottom: 5rem;
-  --mc-space-content-card: 1.25rem;
-  --mc-space-content-card-header: 1.25rem;
+  --mc-space-content-card: 0.625rem;
+  --mc-space-content-card-header: 0.625rem;
   --mc-space-content-card-row: 0.75rem;
   --mc-container-developer: 88rem;
   --mc-dashboard-sidebar-width: 13rem;
