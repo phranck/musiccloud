@@ -35,6 +35,8 @@
   --gradient-logo-rainbow: var(--mc-gradient-logo-rainbow);
   --gradient-logo-suffix: var(--mc-gradient-logo-suffix);
 
+  --size-field: var(--mc-size-field);
+
   --radius-card: var(--mc-radius-card);
 
   /* A control sits one card inset in from a card's edge, so its corner is the

@@ -731,7 +731,7 @@
   }
 
   .field__control {
-    min-height: var(--mc-size-control);
+    min-height: var(--size-field);
     width: 100%;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-button);

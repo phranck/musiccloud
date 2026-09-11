@@ -73,6 +73,10 @@
   --mc-radius-round: 50%;
   --mc-size-control: 3rem;
   --mc-size-control-compact: 2.25rem;
+  /* A text field is a line to type on rather than a target to hit, so it is
+     shorter than a button. Its own token, because the two stopped agreeing the
+     moment buttons were asked to grow. */
+  --mc-size-field: 2.75rem;
   --mc-size-icon-sm: 1rem;
   --mc-size-icon-md: 1.25rem;
   --mc-size-icon-lg: 1.5rem;
