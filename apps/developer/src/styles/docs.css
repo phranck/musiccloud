@@ -289,8 +289,12 @@
       color-mix(in srgb, var(--color-sky-top) 56%, transparent);
   }
 
+  /* The rail holds its own trailing inset rather than borrowing one from
+     whatever stands last. An open section brings padding of its own and a plain
+     entry brings none, so leaving it to the last child put the final entry hard
+     against the rail's bottom edge on every page whose navigation ends in one. */
   .sidebar__body {
-    padding: var(--mc-space-3) var(--mc-docs-nav-padding) 0;
+    padding: var(--mc-space-3) var(--mc-docs-nav-padding);
   }
 
   .sidebar__chapter {
