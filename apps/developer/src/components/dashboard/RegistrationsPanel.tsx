@@ -175,7 +175,9 @@ export function RegistrationsPanel({ projectId }: RegistrationsPanelProps) {
             <SubmitButton variant={ButtonVariant.Secondary} type="button" onClick={onCancel}>
               Cancel
             </SubmitButton>
-            <SubmitButton loading={phase === FormPhase.Submitting}>Create application</SubmitButton>
+            <SubmitButton loading={phase === FormPhase.Submitting} disabled={fields.name.trim() === ""}>
+              Create application
+            </SubmitButton>
           </ContentCard.Footer>
         </form>
       ) : (

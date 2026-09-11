@@ -152,7 +152,10 @@ export function SignInSection({ email, pendingEmail, hasPassword }: SignInSectio
         </ContentCard.Body>
         {!pending && hasPassword && (
           <ContentCard.Footer>
-            <SubmitButton loading={phase === FormPhase.Submitting}>
+            <SubmitButton
+              loading={phase === FormPhase.Submitting}
+              disabled={fields.email.trim() === "" || fields.password === ""}
+            >
               {phase === FormPhase.Success ? "Check your new address" : "Change address"}
             </SubmitButton>
           </ContentCard.Footer>

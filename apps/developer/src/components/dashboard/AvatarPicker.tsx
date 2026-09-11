@@ -171,7 +171,6 @@ export function AvatarPicker({ state, dispatch }: AvatarPickerProps) {
         </SegmentedControl>
       )}
 
-      {state.notice && <p className="text-body text-fg-muted">{state.notice}</p>}
       {state.error && <p className="text-body text-danger">{state.error}</p>}
 
       <input

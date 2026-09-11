@@ -2,8 +2,7 @@
  * @file The state of the picture on a developer's profile, before it is saved.
  *
  * A developer may hold three pictures at once and shows one of them, so the
- * three, the choice, and what the last lookup said are one state rather than
- * five. Nothing here writes: the card gathers what the developer wants and the
+ * three and the choice between them are one state rather than four. Nothing here writes: the card gathers what the developer wants and the
  * save is what puts it on the account, which is why an upload can be picked
  * and then abandoned without changing anything.
  */
@@ -37,8 +36,6 @@ export interface AvatarState {
   busy: boolean;
   /** What went wrong, in the developer's words. */
   error: string | null;
-  /** What the last lookup found, which is not an error. */
-  notice: string | null;
 }
 
 /** What can happen to the picture before it is saved. */
@@ -85,7 +82,6 @@ export function initialAvatarState(account: AvatarAccount): AvatarState {
     source: isAvatarSource(account.avatarSource) ? account.avatarSource : null,
     busy: false,
     error: null,
-    notice: null,
   };
 }
 
@@ -107,7 +103,6 @@ export function avatarReducer(state: AvatarState, action: AvatarAction): AvatarS
         removed: false,
         source: AvatarSource.Upload,
         error: null,
-        notice: null,
       };
     case AvatarActionType.Removed:
       return {
@@ -116,24 +111,22 @@ export function avatarReducer(state: AvatarState, action: AvatarAction): AvatarS
         removed: true,
         source: state.source === AvatarSource.Upload ? null : state.source,
         error: null,
-        notice: null,
       };
     case AvatarActionType.Looking:
-      return { ...state, busy: true, error: null, notice: null };
+      return { ...state, busy: true, error: null };
     case AvatarActionType.Looked:
       return {
         ...state,
         busy: false,
         gravatar: action.gravatarUrl,
         source: action.gravatarUrl ? AvatarSource.Gravatar : state.source,
-        notice: action.gravatarUrl ? "Found one. Save to use it." : "No Gravatar for this address.",
       };
     case AvatarActionType.Chose:
-      return { ...state, source: action.source, error: null, notice: null };
+      return { ...state, source: action.source, error: null };
     case AvatarActionType.Failed:
       return { ...state, busy: false, error: action.message };
     case AvatarActionType.Saved:
-      return { ...initialAvatarState(action.account), notice: state.notice };
+      return initialAvatarState(action.account);
     default:
       return state;
   }

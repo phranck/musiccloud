@@ -43,6 +43,8 @@ export interface ProjectDetailPanelProps {
  */
 export function ProjectDetailPanel({ projectId }: ProjectDetailPanelProps) {
   const [state, dispatch] = useReducer(projectDetailReducer, PROJECT_DETAIL_INITIAL_STATE);
+  // Nothing to save while the field holds the project's own name.
+  const nameChanged = state.project !== null && state.name.trim() !== state.project.displayName;
   const { project, loadFailure, name, phase, saveFailure } = state;
 
   useEffect(() => {
@@ -164,8 +166,8 @@ export function ProjectDetailPanel({ projectId }: ProjectDetailPanelProps) {
             </ContentCard.Body.Copy>
           </ContentCard.Body>
           <ContentCard.Footer>
-            <SubmitButton loading={phase === FormPhase.Submitting}>
-              {phase === FormPhase.Success ? "Saved" : "Save name"}
+            <SubmitButton loading={phase === FormPhase.Submitting} disabled={!nameChanged}>
+              {phase === FormPhase.Success && !nameChanged ? "Saved" : "Save name"}
             </SubmitButton>
           </ContentCard.Footer>
         </form>

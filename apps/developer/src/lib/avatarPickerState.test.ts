@@ -55,7 +55,7 @@ describe("the picture on a profile, before it is saved", () => {
     expect(shownPicture(removedStored)).toBeNull();
   });
 
-  it("carries what a lookup found, and says a save is what uses it", () => {
+  it("carries what a lookup found into what a save would send", () => {
     const account = makeAccount();
     const found = avatarReducer(initialAvatarState(account), {
       type: AvatarActionType.Looked,
@@ -63,12 +63,13 @@ describe("the picture on a profile, before it is saved", () => {
     });
     const missing = avatarReducer(initialAvatarState(account), { type: AvatarActionType.Looked, gravatarUrl: null });
 
-    expect(found.notice).toContain("Save to use it");
-    expect(missing.notice).toContain("No Gravatar");
+    expect(shownPicture(found)).toBe("https://2.gravatar.com/avatar/abc");
     expect(avatarChanges(found, account)).toEqual({
       gravatarUrl: "https://2.gravatar.com/avatar/abc",
       avatarSource: AvatarSource.Gravatar,
     });
+    // Nothing found is nothing to save, so the button stays where it was.
+    expect(avatarChanges(missing, account)).toEqual({});
   });
 
   it("offers a choice only between the pictures it holds", () => {

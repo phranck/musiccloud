@@ -66,6 +66,13 @@ export function AppearanceSection({ account }: AppearanceSectionProps) {
     [],
   );
 
+  const pictureChanges = avatarChanges(picture, account);
+  const namesChanged =
+    names.displayName.trim() !== (account.displayName ?? "") ||
+    names.firstName.trim() !== (account.firstName ?? "") ||
+    names.lastName.trim() !== (account.lastName ?? "");
+  const changed = namesChanged || Object.keys(pictureChanges).length > 0;
+
   const onSubmit = useCallback(
     async (event: SyntheticEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -83,7 +90,7 @@ export function AppearanceSection({ account }: AppearanceSectionProps) {
       setPhase(FormPhase.Submitting);
       setError(null);
 
-      const changes = avatarChanges(picture, account);
+      const changes = pictureChanges;
 
       // The picture travels on its own request, because it is large and the
       // route that takes it carries the size caps.
@@ -135,7 +142,7 @@ export function AppearanceSection({ account }: AppearanceSectionProps) {
       }
       setPhase(FormPhase.Success);
     },
-    [account, names, picture],
+    [names, pictureChanges],
   );
 
   return (
@@ -187,14 +194,14 @@ export function AppearanceSection({ account }: AppearanceSectionProps) {
 
             <p className="text-body text-fg-muted">
               JPEG, PNG or WebP, up to {MAX_UPLOAD_BYTES / 1024 / 1024} MB. Nothing is stored until you save. Checking
-              Gravatar asks gravatar.com whether your address has a picture, which is why it happens only when you press
+              Gravatar asks gravatar.com whether your account has a picture, which is why it happens only when you press
               the button.
             </p>
           </ContentCard.Body.Copy>
         </ContentCard.Body>
         <ContentCard.Footer>
-          <SubmitButton loading={phase === FormPhase.Submitting}>
-            {phase === FormPhase.Success ? "Saved" : "Save"}
+          <SubmitButton loading={phase === FormPhase.Submitting} disabled={!changed}>
+            {phase === FormPhase.Success && !changed ? "Saved" : "Save"}
           </SubmitButton>
         </ContentCard.Footer>
       </form>
