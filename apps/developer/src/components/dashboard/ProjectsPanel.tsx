@@ -153,7 +153,7 @@ export function ProjectsPanel({ seed }: ProjectsPanelProps) {
       },
       {
         id: "registrations",
-        header: "Registrations",
+        header: "Applications",
         sortKey: (project) => registrationCounts[project.id] ?? 0,
         // A count is compared by size, so its figures line up at the right edge.
         headerClassName: "w-32 text-right",

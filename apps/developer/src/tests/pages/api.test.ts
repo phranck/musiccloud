@@ -40,7 +40,7 @@ describe("/docs/api content", () => {
     expect(html).toContain("Authentication");
     expect(html).toContain("X-API-Key");
     expect(html).toContain("Developer Project&#39;s minute and day quotas");
-    expect(html).toContain("registration caps can only narrow them");
+    expect(html).toContain("application caps can only narrow them");
     expect(html).toContain("data-copy-code");
     expect(html).toContain("code-block__copy");
     expect(html).toContain("data-code-line-numbers");

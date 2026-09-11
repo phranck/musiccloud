@@ -135,12 +135,12 @@ export function RegistrationsPanel({ projectId }: RegistrationsPanelProps) {
         <ContentCard.Header.Icon>
           <KeyIcon aria-hidden="true" />
         </ContentCard.Header.Icon>
-        <ContentCard.Header.Title>Registrations</ContentCard.Header.Title>
+        <ContentCard.Header.Title>Applications</ContentCard.Header.Title>
         {!formOpen && (
           <ContentCard.Header.Addon>
             <button type="button" onClick={onOpen} className="button button--secondary text-body">
               <AddIcon className="size-5" aria-hidden="true" />
-              New registration
+              New application
             </button>
           </ContentCard.Header.Addon>
         )}
@@ -174,20 +174,20 @@ export function RegistrationsPanel({ projectId }: RegistrationsPanelProps) {
             <SubmitButton variant={ButtonVariant.Secondary} type="button" onClick={onCancel}>
               Cancel
             </SubmitButton>
-            <SubmitButton loading={phase === FormPhase.Submitting}>Create registration</SubmitButton>
+            <SubmitButton loading={phase === FormPhase.Submitting}>Create application</SubmitButton>
           </ContentCard.Footer>
         </form>
       ) : (
         <ContentCard.Body>
           <ContentCard.Body.Copy>
             <p className="text-body text-fg-muted">
-              A registration is what a key belongs to. Revoking one stops that application and leaves the others alone,
+              An API-Key belongs to one application. Revoking a key stops that application and leaves the others alone,
               so give each application its own rather than sharing one key between them.
             </p>
             {actionFailure && <ApiFailureNotice {...actionFailure} />}
             {registrations === null && <p className="text-body text-fg-muted">Loading…</p>}
             {registrations !== null && registrations.length === 0 && (
-              <p className="text-body text-fg-muted">No registrations yet. Create the first one above.</p>
+              <p className="text-body text-fg-muted">No applications yet. Create the first one above.</p>
             )}
           </ContentCard.Body.Copy>
 

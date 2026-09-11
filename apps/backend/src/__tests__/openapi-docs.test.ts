@@ -194,8 +194,8 @@ describe("OpenAPI docs", () => {
     // Keep this assertion explicit so a contract change cannot reuse a tag.
     expect(doc.info.version).toBe("2.2.0");
     expect(doc.info.description).toContain("Developer Project");
-    expect(doc.info.description).toContain("Registrations under one project share those quotas");
-    expect(doc.components.securitySchemes.ApiKeyAuth.description).toContain("shared by all registrations");
+    expect(doc.info.description).toContain("Applications under one project share those quotas");
+    expect(doc.components.securitySchemes.ApiKeyAuth.description).toContain("shared by all applications");
     expect(doc.info.version).toMatch(/^\d+\.\d+\.\d+$/);
     expect(Object.keys(doc.paths)).not.toContain("/api/dev/api-access/clients");
     expect(doc.components.securitySchemes).toHaveProperty("ApiKeyAuth");

@@ -184,7 +184,7 @@ export function ProjectDetailPanel({ projectId }: ProjectDetailPanelProps) {
           <ContentCard.Body.Copy>
             <p className="text-body text-fg-muted">
               Suspending a project stops every key under it from working and can be undone. Deleting it is how a project
-              leaves this list; its registrations stop working with it.
+              leaves this list; its applications stop working with it.
             </p>
             {isDeleted && (
               <p className="text-body text-fg-muted">This project is deleted and no longer serves traffic.</p>

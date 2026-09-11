@@ -212,7 +212,7 @@ function rejectInactiveCredentialOwner(client: ApiClient, reply: FastifyReply): 
     return reply.status(409).send({ error: "PROJECT_INACTIVE", message: "Project is not active." });
   }
   if (client.status !== "active") {
-    return reply.status(409).send({ error: "REGISTRATION_INACTIVE", message: "Registration is not active." });
+    return reply.status(409).send({ error: "REGISTRATION_INACTIVE", message: "This application is not active." });
   }
   return null;
 }
@@ -474,7 +474,7 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
     const body = request.body as { status?: string; websiteUrl?: string | null; description?: string } | null;
 
     if (body?.status !== undefined && !REGISTRATION_STATUSES.includes(body.status)) {
-      return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid registration status." });
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid application status." });
     }
 
     let websiteUrl: string | null | undefined;
@@ -495,7 +495,7 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
     const repo = await getApiAccessRepository();
     const registration = await repo.findApiClientById(id);
     if (!registration || registration.developerAccountId !== request.developerAccountId) {
-      return reply.status(404).send({ error: "NOT_FOUND", message: "Registration not found." });
+      return reply.status(404).send({ error: "NOT_FOUND", message: "Application not found." });
     }
 
     const updated = await repo.updateApiClient(id, {
@@ -503,7 +503,7 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
       websiteUrl,
       description: body?.description?.trim(),
     });
-    if (!updated) return reply.status(404).send({ error: "NOT_FOUND", message: "Registration not found." });
+    if (!updated) return reply.status(404).send({ error: "NOT_FOUND", message: "Application not found." });
 
     await repo.createApiAccessAuditEvent({
       projectId: registration.projectId,
