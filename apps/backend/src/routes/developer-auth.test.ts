@@ -90,6 +90,8 @@ function makeAccount(overrides: Partial<DeveloperAccount> = {}): DeveloperAccoun
     avatarSource: null,
     avatarUrl: null,
     technicalContactEmail: null,
+    pendingEmail: null,
+    pendingEmailRequestedAt: null,
     tierId: null,
     status: "active",
     createdAt: 1_699_000_000_000,
@@ -719,6 +721,188 @@ describe("GET /api/dev/auth/me", () => {
   });
 });
 
+describe("changing the address you sign in with", () => {
+  const PASSWORD = "correct horse battery staple";
+
+  async function withPassword() {
+    const hash = await import("../services/developer-auth.js").then((module) => module.hashPassword(PASSWORD));
+    return makeAccount({ passwordHash: hash });
+  }
+
+  it("moves nothing until the link is followed, and tells both addresses", async () => {
+    const account = await withPassword();
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(account);
+    vi.mocked(repo.findDeveloperAccountByEmail).mockResolvedValue(null);
+    vi.mocked(repo.updateDeveloperAccount).mockResolvedValue(makeAccount({ pendingEmail: "new@example.com" }));
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.changeEmail,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { email: "  NEW@example.com ", password: PASSWORD },
+    });
+
+    expect(res.statusCode).toBe(200);
+    // The address is pending, not moved.
+    expect(vi.mocked(repo.updateDeveloperAccount)).toHaveBeenCalledWith(
+      "dev-acc-1",
+      expect.objectContaining({ pendingEmail: "new@example.com" }),
+    );
+    expect(vi.mocked(repo.updateDeveloperAccount)).not.toHaveBeenCalledWith(
+      "dev-acc-1",
+      expect.objectContaining({ email: expect.anything() }),
+    );
+
+    const actions = vi.mocked(triggerEmailAction).mock.calls.map(([action]) => action);
+    expect(actions).toContain(EmailAction.DeveloperEmailChangeRequested);
+    expect(actions).toContain(EmailAction.DeveloperEmailChangeNotified);
+    // The confirmation goes to the new address, the notice to the old one.
+    const confirmation = vi
+      .mocked(triggerEmailAction)
+      .mock.calls.find(([action]) => action === EmailAction.DeveloperEmailChangeRequested);
+    const notice = vi
+      .mocked(triggerEmailAction)
+      .mock.calls.find(([action]) => action === EmailAction.DeveloperEmailChangeNotified);
+    expect((confirmation?.[1] as { to: { email: string } }).to.email).toBe("new@example.com");
+    expect((notice?.[1] as { to: { email: string } }).to.email).toBe("dev@example.com");
+  });
+
+  it("takes the request back when the confirmation cannot be sent", async () => {
+    const account = await withPassword();
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(account);
+    vi.mocked(repo.findDeveloperAccountByEmail).mockResolvedValue(null);
+    vi.mocked(repo.updateDeveloperAccount).mockResolvedValue(makeAccount({ pendingEmail: "new@example.com" }));
+    vi.mocked(triggerEmailAction).mockRejectedValueOnce(new Error("no template bound"));
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.changeEmail,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { email: "new@example.com", password: PASSWORD },
+    });
+
+    // A pending address nobody was told about would be a link that never left
+    // the building, so the request is taken back rather than left half done.
+    expect(res.statusCode).toBe(503);
+    expect(vi.mocked(repo.updateDeveloperAccount)).toHaveBeenLastCalledWith("dev-acc-1", {
+      pendingEmail: null,
+      pendingEmailRequestedAt: null,
+    });
+  });
+
+  it("refuses without the password, which a borrowed session cannot supply", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(await withPassword());
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.changeEmail,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { email: "new@example.com", password: "not the password" },
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(vi.mocked(repo.updateDeveloperAccount)).not.toHaveBeenCalled();
+  });
+
+  it("refuses an address somebody already holds", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(await withPassword());
+    vi.mocked(repo.findDeveloperAccountByEmail).mockResolvedValue(makeAccount({ id: "dev-acc-2" }));
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.changeEmail,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { email: "taken@example.com", password: PASSWORD },
+    });
+
+    expect(res.statusCode).toBe(409);
+    expect(vi.mocked(repo.updateDeveloperAccount)).not.toHaveBeenCalled();
+  });
+
+  it("moves the address when the link is followed, once", async () => {
+    vi.mocked(repo.findActiveDeveloperEmailToken).mockResolvedValue({
+      id: "token-1",
+      accountId: "dev-acc-1",
+      purpose: "change-email",
+      tokenHash: "hash",
+      expiresAt: Date.now() + 60_000,
+      consumedAt: null,
+      createdAt: Date.now(),
+    });
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount({ pendingEmail: "new@example.com" }));
+    vi.mocked(repo.findDeveloperAccountByEmail).mockResolvedValue(null);
+    vi.mocked(repo.consumeDeveloperEmailToken).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    vi.mocked(repo.updateDeveloperAccount).mockResolvedValue(makeAccount({ email: "new@example.com" }));
+    const app = await buildApp();
+
+    const first = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.confirmEmailChange,
+      payload: { token: "raw-token" },
+    });
+    const second = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.confirmEmailChange,
+      payload: { token: "raw-token" },
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(vi.mocked(repo.updateDeveloperAccount)).toHaveBeenCalledWith("dev-acc-1", {
+      email: "new@example.com",
+      pendingEmail: null,
+      pendingEmailRequestedAt: null,
+    });
+    // The claim is what stops the second one, so the address moves once.
+    expect(second.statusCode).toBe(400);
+    expect(vi.mocked(repo.updateDeveloperAccount)).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a link whose account has nothing pending", async () => {
+    vi.mocked(repo.findActiveDeveloperEmailToken).mockResolvedValue({
+      id: "token-1",
+      accountId: "dev-acc-1",
+      purpose: "change-email",
+      tokenHash: "hash",
+      expiresAt: Date.now() + 60_000,
+      consumedAt: null,
+      createdAt: Date.now(),
+    });
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount({ pendingEmail: null }));
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.confirmEmailChange,
+      payload: { token: "raw-token" },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(vi.mocked(repo.consumeDeveloperEmailToken)).not.toHaveBeenCalled();
+  });
+
+  it("drops a pending change when it is cancelled", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount({ pendingEmail: "new@example.com" }));
+    vi.mocked(repo.updateDeveloperAccount).mockResolvedValue(makeAccount());
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "DELETE",
+      url: ENDPOINTS.dev.auth.changeEmail,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(vi.mocked(repo.updateDeveloperAccount)).toHaveBeenCalledWith("dev-acc-1", {
+      pendingEmail: null,
+      pendingEmailRequestedAt: null,
+    });
+  });
+});
+
 describe("the account's picture", () => {
   it("stores an upload and shows it", async () => {
     const dataUrl = `data:image/png;base64,${"A".repeat(64)}`;
@@ -816,10 +1000,64 @@ describe("the account's picture", () => {
     expect(vi.mocked(repo.updateDeveloperAccount)).not.toHaveBeenCalled();
   });
 
-  it("stores what Gravatar answers, and clears it when there is none", async () => {
+  it("finds the account's picture when the address itself carries none", async () => {
+    // An account holds several addresses and assigns its picture to one of
+    // them. Asking only "does this address have a picture" reports no to
+    // somebody who can see their own face on gravatar.com.
     const fetchMock = vi.spyOn(globalThis, "fetch");
     vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
-    vi.mocked(repo.updateDeveloperAccount).mockResolvedValue(makeAccount({ avatarSource: "gravatar" }));
+    const app = await buildApp();
+
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 404 }));
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ entry: [{ thumbnailUrl: "https://2.gravatar.com/avatar/abc123" }] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.gravatar,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().found).toBe(true);
+    expect(res.json().gravatarUrl).toContain("https://2.gravatar.com/avatar/abc123");
+    // A lookup is a question. Storing the answer is the save's business.
+    expect(vi.mocked(repo.updateDeveloperAccount)).not.toHaveBeenCalled();
+
+    fetchMock.mockRestore();
+  });
+
+  it("refuses a profile picture hosted anywhere but Gravatar", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
+    const app = await buildApp();
+
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 404 }));
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ entry: [{ thumbnailUrl: "https://evil.example/avatar/abc" }] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.gravatar,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+    });
+
+    expect(res.json().found).toBe(false);
+
+    fetchMock.mockRestore();
+  });
+
+  it("reports what it found without touching the account", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
     const app = await buildApp();
 
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 200 }));
@@ -829,29 +1067,30 @@ describe("the account's picture", () => {
       headers: { cookie: sessionCookie(app, "dev-acc-1") },
     });
 
-    expect(found.statusCode).toBe(200);
     expect(found.json().found).toBe(true);
     // Only the hash reaches Gravatar, never the address itself.
     const asked = String(fetchMock.mock.calls[0]?.[0]);
     expect(asked).toMatch(/^https:\/\/www\.gravatar\.com\/avatar\/[0-9a-f]{64}\?/);
     expect(asked).not.toContain("dev@example.com");
     expect(asked).toContain("d=404");
-
-    fetchMock.mockResolvedValueOnce(new Response(null, { status: 404 }));
-    const missing = await app.inject({
-      method: "POST",
-      url: ENDPOINTS.dev.auth.gravatar,
-      headers: { cookie: sessionCookie(app, "dev-acc-1") },
-    });
-
-    expect(missing.statusCode).toBe(200);
-    expect(missing.json().found).toBe(false);
-    expect(vi.mocked(repo.updateDeveloperAccount)).toHaveBeenLastCalledWith("dev-acc-1", {
-      gravatarUrl: null,
-      avatarSource: null,
-    });
+    expect(vi.mocked(repo.updateDeveloperAccount)).not.toHaveBeenCalled();
 
     fetchMock.mockRestore();
+  });
+
+  it("refuses a gravatar address from anywhere else on the profile route", async () => {
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: ENDPOINTS.dev.auth.profile,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { gravatarUrl: "https://evil.example/avatar/abc" },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(vi.mocked(repo.updateDeveloperAccount)).not.toHaveBeenCalled();
   });
 });
 

@@ -36,6 +36,8 @@ export interface Account {
    * skips the password-confirmation field for those accounts.
    */
   hasPassword: boolean;
+  /** An address the developer has asked to sign in with, until they confirm it. */
+  pendingEmail: string | null;
   /** Optional display name; `null` until the developer sets one. */
   displayName: string | null;
   /** Given name, or `null`. */

@@ -1630,6 +1630,16 @@ export const developerAccounts = pgTable(
      * unverified wherever it is shown.
      */
     technicalContactEmail: text("technical_contact_email"),
+    /**
+     * An address the developer has asked to sign in with, once they confirm it.
+     *
+     * Held here rather than on the token, so the profile page can say what is
+     * pending and offer to cancel it. The account still signs in with `email`
+     * until the confirmation link is followed.
+     */
+    pendingEmail: text("pending_email"),
+    /** When that change was asked for, which is what the page dates. */
+    pendingEmailRequestedAt: timestamp("pending_email_requested_at", { withTimezone: true }),
     tierId: text("tier_id").references(() => tiers.id, { onDelete: "set null" }),
     status: text("status").notNull().default("active"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1703,7 +1713,7 @@ export const developerEmailTokens = pgTable(
   },
   (table) => [
     index("idx_developer_email_tokens_token_hash").on(table.tokenHash),
-    check("chk_developer_email_tokens_purpose", sql`${table.purpose} IN ('verify', 'reset')`),
+    check("chk_developer_email_tokens_purpose", sql`${table.purpose} IN ('verify', 'reset', 'change-email')`),
   ],
 );
 

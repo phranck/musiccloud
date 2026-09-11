@@ -63,6 +63,8 @@ export interface DeveloperAccount {
   gravatarUrl: string | null;
   avatarSource: string | null;
   technicalContactEmail: string | null;
+  pendingEmail: string | null;
+  pendingEmailRequestedAt: number | null;
   tierId: string | null;
   status: string;
   createdAt: number;
@@ -226,6 +228,8 @@ export interface DeveloperRepository {
       gravatarUrl?: string | null;
       avatarSource?: string | null;
       technicalContactEmail?: string | null;
+      pendingEmail?: string | null;
+      pendingEmailRequestedAt?: Date | null;
       tierId?: string | null;
       status?: string;
     },

@@ -35,7 +35,12 @@ const PageIcon = iconForDashboardTab(DashboardTab.Profile);
     How we identify your account, and how we reach you about the applications on it.
   </p>
 
-  <SignInSection client:load email={account.email} />
+  <SignInSection
+    client:load
+    email={account.email}
+    pendingEmail={account.pendingEmail}
+    hasPassword={account.hasPassword}
+  />
 
   <AppearanceSection
     client:load

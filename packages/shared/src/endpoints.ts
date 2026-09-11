@@ -432,6 +432,14 @@ export const ENDPOINTS = {
       /** GET: the caller's complete personal-data package as a JSON download (GDPR Art. 15/20). */
       export: "/api/dev/auth/export",
       /**
+       * POST: asks to sign in with a different address. Confirmed with the
+       * account's password, and nothing moves until the link sent to the new
+       * address is followed. `DELETE` cancels a change still pending.
+       */
+      changeEmail: "/api/dev/auth/change-email",
+      /** POST: redeems the confirmation token and moves the address. Body: `{ token }`. */
+      confirmEmailChange: "/api/dev/auth/confirm-email-change",
+      /**
        * The account's picture. `POST` uploads one as a `data:` URL, `DELETE`
        * removes the uploaded one and leaves the other sources alone. Which of
        * the three is shown is `avatarSource` on the profile endpoint above.

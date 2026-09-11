@@ -87,6 +87,15 @@ const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 /** Password-reset-token lifetime: 1 hour from issuance. */
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 
+/**
+ * How long a confirmation link for a new sign-in address lives.
+ *
+ * A day, like the verification link it resembles: both ask somebody to prove
+ * they can read a mailbox, and both are followed from wherever that mailbox is
+ * rather than straight away.
+ */
+const CHANGE_EMAIL_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+
 /** Postgres SQLSTATE for a `unique_violation`, raised when a concurrent insert collides on a unique constraint. */
 const PG_UNIQUE_VIOLATION = "23505";
 
@@ -176,6 +185,7 @@ export function buildAccountResponse(account: DeveloperAccount, tierName: string
     emailVerified: account.emailVerifiedAt !== null,
     hasPassword: account.passwordHash !== null,
     displayName: account.displayName,
+    pendingEmail: account.pendingEmail,
     firstName: account.firstName,
     lastName: account.lastName,
     avatarUrl: resolveAvatarUrl(account),
@@ -224,8 +234,20 @@ const MAX_UPLOAD_BODY_BYTES = 8 * 1024 * 1024;
 /** Base64 carries three bytes in every four characters. */
 const BASE64_BYTES_PER_CHAR = 0.75;
 
-/** Where a Gravatar lives. Nothing outside this prefix is stored as one. */
+/** Where a Gravatar lives. Nothing outside this host is stored as one. */
 const GRAVATAR_PREFIX = "https://www.gravatar.com/avatar/";
+
+/**
+ * The host a stored Gravatar may come from.
+ *
+ * A profile answers with an address of its own, on any of Gravatar's numbered
+ * hosts, and that address is then stored and rendered. Checking the host is
+ * what keeps the column from becoming a request to somewhere else entirely.
+ */
+const GRAVATAR_HOST = /^([0-9]+\.)?gravatar\.com$/;
+
+/** Where a profile is asked for, which is the second place a picture can be. */
+const GRAVATAR_PROFILE = "https://gravatar.com";
 
 /** How long to wait for Gravatar before giving up on the lookup. */
 const GRAVATAR_TIMEOUT_MS = 4_000;
@@ -255,6 +277,74 @@ function resolveAvatarUrl(account: DeveloperAccount): string | null {
           : null;
 
   return chosen ?? account.uploadedAvatarUrl ?? account.gravatarUrl ?? account.avatarUrl;
+}
+
+/**
+ * Whether an address is one of Gravatar's own.
+ *
+ * The browser sends back what a lookup answered with, so the check is made
+ * again here: a value that reaches a column and is then rendered as an image
+ * is never taken on the word of whoever posted it.
+ *
+ * @param value - The address from the request body.
+ * @returns Whether it may be stored as a Gravatar.
+ */
+function isGravatarAddress(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" && GRAVATAR_HOST.test(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Finds the picture Gravatar holds for one hashed address.
+ *
+ * Two questions, because Gravatar answers them differently. The first asks
+ * whether that address has a picture of its own, with `d=404` so the answer is
+ * a yes or a no rather than a placeholder image. The second asks the profile,
+ * because an account holds several addresses and assigns its picture to one of
+ * them: an address that is on the account without being the one the picture
+ * hangs on answers no to the first question whilst its owner can see their own
+ * face on gravatar.com. Asking only the first reports "no Gravatar" to somebody
+ * who plainly has one.
+ *
+ * @param hash - The SHA-256 of the lowercased address.
+ * @returns The picture's address, or `null` where there is none.
+ * @throws When Gravatar could not be reached, which is not the same as no.
+ */
+async function findGravatar(hash: string): Promise<string | null> {
+  const direct = `${GRAVATAR_PREFIX}${hash}?s=${GRAVATAR_SIZE}`;
+  const response = await fetch(`${direct}&d=404`, {
+    method: "HEAD",
+    signal: AbortSignal.timeout(GRAVATAR_TIMEOUT_MS),
+  });
+  if (response.ok) return direct;
+  if (response.status !== 404) throw new Error(`gravatar answered ${response.status}`);
+
+  const profile = await fetch(`${GRAVATAR_PROFILE}/${hash}.json`, {
+    signal: AbortSignal.timeout(GRAVATAR_TIMEOUT_MS),
+  });
+  if (profile.status === 404) return null;
+  if (!profile.ok) throw new Error(`gravatar answered ${profile.status}`);
+
+  const payload = (await profile.json()) as { entry?: { thumbnailUrl?: unknown }[] };
+  const thumbnail = payload.entry?.[0]?.thumbnailUrl;
+  if (typeof thumbnail !== "string") return null;
+
+  // The address comes from Gravatar rather than from this code, so it is
+  // checked before it is stored and rendered.
+  let parsed: URL;
+  try {
+    parsed = new URL(thumbnail);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== "https:" || !GRAVATAR_HOST.test(parsed.hostname)) return null;
+
+  parsed.searchParams.set("s", String(GRAVATAR_SIZE));
+  return parsed.toString();
 }
 
 /**
@@ -601,6 +691,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
       firstName?: string | null;
       lastName?: string | null;
       avatarSource?: string | null;
+      gravatarUrl?: string | null;
       technicalContactEmail?: string | null;
     } | null;
     const named =
@@ -609,6 +700,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
         body.firstName !== undefined ||
         body.lastName !== undefined ||
         body.avatarSource !== undefined ||
+        body.gravatarUrl !== undefined ||
         body.technicalContactEmail !== undefined);
     if (!named) {
       return reply.status(400).send({
@@ -622,6 +714,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
       firstName?: string | null;
       lastName?: string | null;
       avatarSource?: string | null;
+      gravatarUrl?: string | null;
       technicalContactEmail?: string | null;
     } = {};
 
@@ -645,6 +738,21 @@ export async function devAuthRoutes(app: FastifyInstance) {
         });
       }
       changes[field] = trimmed === "" ? null : trimmed;
+    }
+
+    if (body.gravatarUrl !== undefined) {
+      if (body.gravatarUrl === null) {
+        changes.gravatarUrl = null;
+      } else {
+        // The address was handed to the browser by Gravatar and comes back from
+        // it, so it is checked again here rather than trusted on the way in.
+        if (typeof body.gravatarUrl !== "string" || !isGravatarAddress(body.gravatarUrl)) {
+          return reply
+            .status(400)
+            .send({ error: "INVALID_REQUEST", message: "gravatarUrl must be a Gravatar address." });
+        }
+        changes.gravatarUrl = body.gravatarUrl;
+      }
     }
 
     if (body.avatarSource !== undefined) {
@@ -704,6 +812,173 @@ export async function devAuthRoutes(app: FastifyInstance) {
       return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
     }
     return reply.send({ account: buildAccountResponse(updated, null) });
+  });
+
+  /**
+   * POST /api/dev/auth/change-email
+   * Asks to sign in with a different address.
+   *
+   * Nothing moves here. The account keeps its address until the link sent to
+   * the new one is followed, so a typo costs a second attempt rather than the
+   * account. The password is required because a session left open on a
+   * borrowed machine must not be enough to take an account over by moving its
+   * address.
+   *
+   * The new address hears that it has to confirm; the old one hears that a
+   * change was asked for, which is how a change nobody asked for gets noticed.
+   */
+  app.post(
+    ENDPOINTS.dev.auth.changeEmail,
+    { preHandler: [app.authenticateDeveloper, throttleCredentials] },
+    async (request, reply) => {
+      const account = request.developerAccount!;
+      const body = request.body as { email?: string; password?: string } | null;
+
+      if (!body?.email) {
+        return reply.status(400).send({ error: "INVALID_REQUEST", message: "email is required." });
+      }
+
+      // A GitHub-only account has no password to confirm with, so it cannot take
+      // this path. Offering it without the confirmation would be the weaker door
+      // on the same house.
+      if (account.passwordHash === null) {
+        return reply.status(403).send({
+          error: "PASSWORD_REQUIRED",
+          message: "This account signs in through GitHub, so its address is the one GitHub holds.",
+        });
+      }
+      if (!body.password || !(await verifyPassword(body.password, account.passwordHash))) {
+        return reply.status(403).send({ error: "INVALID_CREDENTIALS", message: "That password is not right." });
+      }
+
+      const email = readRequestEmail(body.email);
+      if (!email) {
+        return reply.status(400).send(createApiErrorResponse(INVALID_EMAIL_CODE));
+      }
+      if (email === account.email) {
+        return reply
+          .status(400)
+          .send({ error: "INVALID_REQUEST", message: "That is already the address you sign in with." });
+      }
+
+      const repo = await getDeveloperRepository();
+      if (await repo.findDeveloperAccountByEmail(email)) {
+        return reply.status(409).send(createApiErrorResponse(EMAIL_TAKEN_CODE));
+      }
+
+      const { raw, hash } = generateEmailToken();
+      await repo.createDeveloperEmailToken({
+        accountId: account.id,
+        purpose: TokenPurpose.ChangeEmail,
+        tokenHash: hash,
+        expiresAt: new Date(Date.now() + CHANGE_EMAIL_TOKEN_TTL_MS),
+      });
+      const updated = await repo.updateDeveloperAccount(account.id, {
+        pendingEmail: email,
+        pendingEmailRequestedAt: new Date(),
+      });
+      if (!updated) return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
+
+      // A pending address nobody was told about is worse than no change at all:
+      // the page would report a link that never left the building. Where the
+      // confirmation cannot be sent, the request is taken back.
+      try {
+        await triggerEmailAction(EmailAction.DeveloperEmailChangeRequested, {
+          to: { email },
+          recipient: { kind: EmailRecipientKind.DeveloperAccount, email, displayName: account.displayName },
+          context: { confirmUrl: `${requireEnv("DEVELOPER_URL")}/confirm-email?token=${raw}`, newEmail: email },
+        });
+      } catch (error) {
+        request.log.error({ err: error }, "failed to send the address-change confirmation");
+        await repo.updateDeveloperAccount(account.id, { pendingEmail: null, pendingEmailRequestedAt: null });
+        return reply.status(503).send({
+          error: "EMAIL_UNAVAILABLE",
+          message: "The confirmation could not be sent, so nothing was changed. Please try again.",
+        });
+      }
+
+      // The old address is told, never asked. A failure to reach it must not
+      // stop a change the account holder did ask for.
+      try {
+        await triggerEmailAction(EmailAction.DeveloperEmailChangeNotified, {
+          to: { email: account.email },
+          recipient: {
+            kind: EmailRecipientKind.DeveloperAccount,
+            email: account.email,
+            displayName: account.displayName,
+          },
+          context: { newEmail: email },
+        });
+      } catch (error) {
+        request.log.error({ err: error }, "failed to notify the previous address of a change");
+      }
+
+      return reply.send({ account: buildAccountResponse(updated, null) });
+    },
+  );
+
+  /**
+   * DELETE /api/dev/auth/change-email
+   * Drops a change that has not been confirmed.
+   *
+   * The token is left to expire rather than hunted down: following it after
+   * this finds no pending address and changes nothing.
+   */
+  app.delete(ENDPOINTS.dev.auth.changeEmail, { preHandler: app.authenticateDeveloper }, async (request, reply) => {
+    const repo = await getDeveloperRepository();
+    const updated = await repo.updateDeveloperAccount(request.developerAccountId as string, {
+      pendingEmail: null,
+      pendingEmailRequestedAt: null,
+    });
+    if (!updated) return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
+    return reply.send({ account: buildAccountResponse(updated, null) });
+  });
+
+  /**
+   * POST /api/dev/auth/confirm-email-change
+   * Redeems the confirmation token and moves the address.
+   *
+   * No session is required: the token is the proof, which is what lets somebody
+   * confirm from the device their new mailbox is on.
+   */
+  app.post(ENDPOINTS.dev.auth.confirmEmailChange, { preHandler: throttleCredentials }, async (request, reply) => {
+    const body = request.body as { token?: string } | null;
+    if (!body?.token) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "token is required." });
+    }
+
+    const repo = await getDeveloperRepository();
+    const record = await repo.findActiveDeveloperEmailToken(hashEmailToken(body.token), TokenPurpose.ChangeEmail);
+    if (!record) {
+      return reply.status(400).send({ error: "INVALID_TOKEN", message: "That link is invalid or has expired." });
+    }
+
+    const account = await repo.findDeveloperAccountById(record.accountId);
+    if (!account?.pendingEmail) {
+      return reply.status(400).send({ error: "INVALID_TOKEN", message: "That link is invalid or has expired." });
+    }
+
+    // Claim first, act second, so two requests carrying the same link cannot
+    // both pass and move the address twice.
+    if (!(await repo.consumeDeveloperEmailToken(record.id))) {
+      return reply.status(400).send({ error: "INVALID_TOKEN", message: "That link is invalid or has expired." });
+    }
+
+    // The address may have been taken between the request and the
+    // confirmation, and the unique index is what actually decides.
+    if (await repo.findDeveloperAccountByEmail(account.pendingEmail)) {
+      return reply.status(409).send(createApiErrorResponse(EMAIL_TAKEN_CODE));
+    }
+
+    const updated = await repo.updateDeveloperAccount(account.id, {
+      email: account.pendingEmail,
+      pendingEmail: null,
+      pendingEmailRequestedAt: null,
+    });
+    if (!updated)
+      return reply.status(400).send({ error: "INVALID_TOKEN", message: "That link is invalid or has expired." });
+
+    return reply.send({ ok: true });
   });
 
   /**
@@ -778,42 +1053,18 @@ export async function devAuthRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const account = request.developerAccount!;
       const hash = sha256Hex(account.email.trim().toLowerCase());
-      const url = `${GRAVATAR_PREFIX}${hash}?s=${GRAVATAR_SIZE}`;
 
-      let found: boolean;
+      let url: string | null;
       try {
-        const response = await fetch(`${url}&d=404`, {
-          method: "HEAD",
-          signal: AbortSignal.timeout(GRAVATAR_TIMEOUT_MS),
-        });
-        if (response.status === 404) found = false;
-        else if (response.ok) found = true;
-        else {
-          return reply.status(502).send({ error: "GRAVATAR_UNAVAILABLE", message: "Gravatar could not be asked." });
-        }
+        url = await findGravatar(hash);
       } catch {
         return reply.status(502).send({ error: "GRAVATAR_UNAVAILABLE", message: "Gravatar could not be asked." });
       }
+      const found = url !== null;
 
-      const repo = await getDeveloperRepository();
-
-      if (!found) {
-        // A stored answer is stale the moment this one says there is none, and
-        // a source pointing at a picture that is gone would show nothing.
-        const cleared = await repo.updateDeveloperAccount(account.id, {
-          gravatarUrl: null,
-          avatarSource: account.avatarSource === AvatarSource.Gravatar ? null : account.avatarSource,
-        });
-        if (!cleared) return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
-        return reply.send({ found: false, account: buildAccountResponse(cleared, null) });
-      }
-
-      const updated = await repo.updateDeveloperAccount(account.id, {
-        gravatarUrl: url,
-        avatarSource: AvatarSource.Gravatar,
-      });
-      if (!updated) return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
-      return reply.send({ found: true, account: buildAccountResponse(updated, null) });
+      // Nothing is written here. A lookup is a question, and what the developer
+      // does with the answer is decided when they save.
+      return reply.send({ found, gravatarUrl: url });
     },
   );
 

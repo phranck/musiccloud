@@ -79,6 +79,14 @@ export const TokenPurpose = {
   Verify: "verify",
   /** Password-reset token issued by the request-reset flow. */
   Reset: "reset",
+  /**
+   * Confirmation token for a change of sign-in address.
+   *
+   * Sent to the address being moved to, because that is the one whose owner
+   * has to prove they can read it. The account keeps signing in with the old
+   * address until this is redeemed.
+   */
+  ChangeEmail: "change-email",
 } as const;
 
 /**

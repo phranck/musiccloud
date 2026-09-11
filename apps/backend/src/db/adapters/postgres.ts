@@ -1175,6 +1175,8 @@ export class PostgresAdapter
       gravatarUrl?: string | null;
       avatarSource?: string | null;
       technicalContactEmail?: string | null;
+      pendingEmail?: string | null;
+      pendingEmailRequestedAt?: Date | null;
       tierId?: string | null;
       status?: string;
     },

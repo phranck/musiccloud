@@ -1,11 +1,18 @@
 import { ENDPOINTS, MAX_DISPLAY_NAME_LENGTH } from "@musiccloud/shared";
-import { type ChangeEvent, type SyntheticEvent, useCallback, useState } from "react";
+import { type ChangeEvent, type SyntheticEvent, useCallback, useReducer, useState } from "react";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
 import { AvatarPicker, MAX_UPLOAD_BYTES } from "@/components/dashboard/AvatarPicker";
 import { ContentCard } from "@/components/docs/ContentCard";
 import { sendAuth } from "@/lib/authClient";
-import type { AvatarAccount } from "@/lib/avatarPickerState";
+import { announceAvatar } from "@/lib/avatarBroadcast";
+import {
+  type AvatarAccount,
+  AvatarActionType,
+  avatarChanges,
+  avatarReducer,
+  initialAvatarState,
+} from "@/lib/avatarPickerState";
 import { FormPhase, type FormPhaseValue } from "@/lib/formPhase";
 import { ProfileIcon } from "@/lib/icons";
 
@@ -32,8 +39,9 @@ export interface AppearanceSectionProps {
  * The card where a developer says how they appear: their names and their
  * picture.
  *
- * The names are one form with one save. The picture is its own control, because
- * each of its actions stores itself and none of them waits for a save.
+ * One save for both. Picking a picture shows it and nothing more, so a
+ * developer can try one and leave the page without having changed their
+ * account; what the save sends is only what actually differs.
  *
  * @param props - See {@link AppearanceSectionProps}.
  * @returns The appearance card.
@@ -44,6 +52,7 @@ export function AppearanceSection({ account }: AppearanceSectionProps) {
     firstName: account.firstName ?? "",
     lastName: account.lastName ?? "",
   });
+  const [picture, dispatch] = useReducer(avatarReducer, account, initialAvatarState);
   const [phase, setPhase] = useState<FormPhaseValue>(FormPhase.Idle);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,6 +65,13 @@ export function AppearanceSection({ account }: AppearanceSectionProps) {
     },
     [],
   );
+
+  const pictureChanges = avatarChanges(picture, account);
+  const namesChanged =
+    names.displayName.trim() !== (account.displayName ?? "") ||
+    names.firstName.trim() !== (account.firstName ?? "") ||
+    names.lastName.trim() !== (account.lastName ?? "");
+  const changed = namesChanged || Object.keys(pictureChanges).length > 0;
 
   const onSubmit = useCallback(
     async (event: SyntheticEvent<HTMLFormElement>) => {
@@ -74,22 +90,59 @@ export function AppearanceSection({ account }: AppearanceSectionProps) {
       setPhase(FormPhase.Submitting);
       setError(null);
 
+      const changes = pictureChanges;
+
+      // The picture travels on its own request, because it is large and the
+      // route that takes it carries the size caps.
+      if (changes.upload) {
+        const response = await fetch(ENDPOINTS.dev.auth.avatar, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dataUrl: changes.upload }),
+          credentials: "same-origin",
+        });
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as { message?: string } | null;
+          setPhase(FormPhase.Error);
+          setError(body?.message ?? "The picture could not be stored.");
+          return;
+        }
+      } else if (changes.remove) {
+        const response = await fetch(ENDPOINTS.dev.auth.avatar, { method: "DELETE", credentials: "same-origin" });
+        if (!response.ok) {
+          setPhase(FormPhase.Error);
+          setError("The picture could not be removed.");
+          return;
+        }
+      }
+
       // An empty field means "none", which is the same state as never having
       // set one, so both travel as null.
       const result = await sendAuth("PATCH", ENDPOINTS.dev.auth.profile, {
         displayName: trimmed.displayName === "" ? null : trimmed.displayName,
         firstName: trimmed.firstName === "" ? null : trimmed.firstName,
         lastName: trimmed.lastName === "" ? null : trimmed.lastName,
+        ...(changes.gravatarUrl !== undefined ? { gravatarUrl: changes.gravatarUrl } : {}),
+        ...(changes.avatarSource !== undefined ? { avatarSource: changes.avatarSource } : {}),
       });
 
-      if (result.ok) {
-        setPhase(FormPhase.Success);
+      if (!result.ok) {
+        setPhase(FormPhase.Error);
+        setError(result.message ?? "Something went wrong. Please try again.");
         return;
       }
-      setPhase(FormPhase.Error);
-      setError(result.message ?? "Something went wrong. Please try again.");
+
+      // The account as it now stands, so the card stops offering to save what
+      // it has already saved, and the header shows the picture without a reload.
+      const me = await fetch(ENDPOINTS.dev.auth.me, { credentials: "same-origin" });
+      const body = (await me.json().catch(() => null)) as { account?: AppearanceAccount } | null;
+      if (body?.account) {
+        dispatch({ type: AvatarActionType.Saved, account: body.account });
+        announceAvatar(body.account.avatarUrl);
+      }
+      setPhase(FormPhase.Success);
     },
-    [names],
+    [names, pictureChanges],
   );
 
   return (
@@ -104,7 +157,7 @@ export function AppearanceSection({ account }: AppearanceSectionProps) {
         <ContentCard.Body>
           <ContentCard.Body.Copy>
             <div className="flex flex-wrap items-start gap-6">
-              <AvatarPicker account={account} />
+              <AvatarPicker state={picture} dispatch={dispatch} />
 
               <div className="grid min-w-0 flex-1 items-start gap-4 sm:grid-cols-3">
                 <TextField
@@ -140,14 +193,15 @@ export function AppearanceSection({ account }: AppearanceSectionProps) {
             </div>
 
             <p className="text-body text-fg-muted">
-              JPEG, PNG or WebP, up to {MAX_UPLOAD_BYTES / 1024 / 1024} MB. Checking Gravatar asks gravatar.com whether
-              your address has a picture, which is why it happens only when you press the button.
+              JPEG, PNG or WebP, up to {MAX_UPLOAD_BYTES / 1024 / 1024} MB. Nothing is stored until you save. Checking
+              Gravatar asks gravatar.com whether your account has a picture, which is why it happens only when you press
+              the button.
             </p>
           </ContentCard.Body.Copy>
         </ContentCard.Body>
         <ContentCard.Footer>
-          <SubmitButton loading={phase === FormPhase.Submitting}>
-            {phase === FormPhase.Success ? "Saved" : "Save"}
+          <SubmitButton loading={phase === FormPhase.Submitting} disabled={!changed}>
+            {phase === FormPhase.Success && !changed ? "Saved" : "Save"}
           </SubmitButton>
         </ContentCard.Footer>
       </form>

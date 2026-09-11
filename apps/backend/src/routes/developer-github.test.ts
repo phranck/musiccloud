@@ -80,6 +80,8 @@ function makeAccount(overrides: Partial<DeveloperAccount> = {}): DeveloperAccoun
     avatarSource: null,
     avatarUrl: null,
     technicalContactEmail: null,
+    pendingEmail: null,
+    pendingEmailRequestedAt: null,
     tierId: null,
     status: "active",
     createdAt: 1_699_000_000_000,

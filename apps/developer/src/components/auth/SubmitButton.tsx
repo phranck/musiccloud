@@ -20,6 +20,13 @@ export interface SubmitButtonProps {
   /** Optional click handler (e.g. for `type="button"` actions like logout). */
   onClick?: () => void;
   /**
+   * When `true`, the button refuses the submission.
+   *
+   * A form whose fields still hold what they were rendered with has nothing to
+   * save, and a button offering to save it says otherwise.
+   */
+  disabled?: boolean;
+  /**
    * Extra classes for placement only, such as pushing a destructive action
    * away from the group it must not be confused with.
    */
@@ -47,13 +54,14 @@ export function SubmitButton({
   variant = ButtonVariant.Content,
   type = "submit",
   onClick,
+  disabled = false,
   className = "",
 }: SubmitButtonProps) {
   return (
     <button
       type={type}
       onClick={onClick}
-      disabled={loading}
+      disabled={loading || disabled}
       className={`button text-body ${buttonVariantClass(variant)} ${className}`}
     >
       {loading ? <RefreshIcon className="size-5 animate-spin" aria-hidden="true" /> : null}
