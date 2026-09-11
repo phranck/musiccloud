@@ -442,6 +442,13 @@
     gap: var(--mc-space-6);
   }
 
+  /* Copy that introduces a stack stands apart from it by the same step the
+     stack keeps between its own panels, so the introduction reads as belonging
+     to what follows rather than sitting on its first panel. */
+  .content-card__copy + .content-card__body-stack {
+    margin-block-start: var(--mc-space-6);
+  }
+
   .content-card__section {
     gap: var(--space-content-card-row);
   }

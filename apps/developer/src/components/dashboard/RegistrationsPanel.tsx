@@ -2,6 +2,7 @@ import { type ChangeEvent, type SyntheticEvent, useCallback, useEffect, useReduc
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
 import { ApiFailureNotice } from "@/components/dashboard/ApiFailureNotice";
+import { CopyableCode } from "@/components/dashboard/CopyableCode";
 import { RegistrationProfileChoice } from "@/components/dashboard/RegistrationProfileChoice";
 import { RegistrationTokens } from "@/components/dashboard/RegistrationTokens";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
@@ -206,15 +207,13 @@ export function RegistrationsPanel({ projectId }: RegistrationsPanelProps) {
                       </ContentPanel.Meta>
                     </ContentPanel.Header>
                     <ContentPanel.Content>
-                      <p className="text-nav text-fg-subtle">
+                      <p className="text-nav text-fg-muted">
                         {copy?.label ?? registration.registrationType} · created {formatDate(registration.createdAt)}
                       </p>
-                      <p className="text-nav text-fg-subtle">
-                        <code className="text-code-fg">{registration.publicClientId}</code>
-                      </p>
-                      <p className="text-nav text-fg-subtle">{CLIENT_ID_NOTE}</p>
+                      <CopyableCode code={registration.publicClientId} label="the client id" />
+                      <p className="text-nav text-fg-muted">{CLIENT_ID_NOTE}</p>
                       {registration.websiteUrl && (
-                        <p className="text-nav text-fg-subtle">
+                        <p className="text-nav text-fg-muted">
                           <a
                             href={registration.websiteUrl}
                             target="_blank"
@@ -225,7 +224,7 @@ export function RegistrationsPanel({ projectId }: RegistrationsPanelProps) {
                           </a>
                         </p>
                       )}
-                      <p className="text-nav text-fg-subtle mt-1">
+                      <p className="text-nav text-fg-muted mt-1">
                         {isRevoked
                           ? "Revoked. Its keys no longer authenticate and it cannot be brought back."
                           : isActive
