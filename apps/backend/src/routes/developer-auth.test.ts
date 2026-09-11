@@ -1000,6 +1000,64 @@ describe("the account's picture", () => {
     expect(vi.mocked(repo.updateDeveloperAccount)).not.toHaveBeenCalled();
   });
 
+  it("finds the account's picture when the address itself carries none", async () => {
+    // An account holds several addresses and assigns its picture to one of
+    // them. Asking only "does this address have a picture" reports no to
+    // somebody who can see their own face on gravatar.com.
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
+    vi.mocked(repo.updateDeveloperAccount).mockResolvedValue(makeAccount({ avatarSource: "gravatar" }));
+    const app = await buildApp();
+
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 404 }));
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ entry: [{ thumbnailUrl: "https://2.gravatar.com/avatar/abc123" }] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.gravatar,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().found).toBe(true);
+    const stored = vi.mocked(repo.updateDeveloperAccount).mock.calls.at(-1)?.[1] as { gravatarUrl?: string };
+    expect(stored.gravatarUrl).toContain("https://2.gravatar.com/avatar/abc123");
+
+    fetchMock.mockRestore();
+  });
+
+  it("refuses a profile picture hosted anywhere but Gravatar", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
+    vi.mocked(repo.updateDeveloperAccount).mockResolvedValue(makeAccount());
+    const app = await buildApp();
+
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 404 }));
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ entry: [{ thumbnailUrl: "https://evil.example/avatar/abc" }] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.gravatar,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+    });
+
+    // The address comes from a third party, so it is checked before it is
+    // stored and rendered.
+    expect(res.json().found).toBe(false);
+
+    fetchMock.mockRestore();
+  });
+
   it("stores what Gravatar answers, and clears it when there is none", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch");
     vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
@@ -1021,6 +1079,7 @@ describe("the account's picture", () => {
     expect(asked).not.toContain("dev@example.com");
     expect(asked).toContain("d=404");
 
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 404 }));
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 404 }));
     const missing = await app.inject({
       method: "POST",

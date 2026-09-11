@@ -234,8 +234,20 @@ const MAX_UPLOAD_BODY_BYTES = 8 * 1024 * 1024;
 /** Base64 carries three bytes in every four characters. */
 const BASE64_BYTES_PER_CHAR = 0.75;
 
-/** Where a Gravatar lives. Nothing outside this prefix is stored as one. */
+/** Where a Gravatar lives. Nothing outside this host is stored as one. */
 const GRAVATAR_PREFIX = "https://www.gravatar.com/avatar/";
+
+/**
+ * The host a stored Gravatar may come from.
+ *
+ * A profile answers with an address of its own, on any of Gravatar's numbered
+ * hosts, and that address is then stored and rendered. Checking the host is
+ * what keeps the column from becoming a request to somewhere else entirely.
+ */
+const GRAVATAR_HOST = /^([0-9]+\.)?gravatar\.com$/;
+
+/** Where a profile is asked for, which is the second place a picture can be. */
+const GRAVATAR_PROFILE = "https://gravatar.com";
 
 /** How long to wait for Gravatar before giving up on the lookup. */
 const GRAVATAR_TIMEOUT_MS = 4_000;
@@ -265,6 +277,55 @@ function resolveAvatarUrl(account: DeveloperAccount): string | null {
           : null;
 
   return chosen ?? account.uploadedAvatarUrl ?? account.gravatarUrl ?? account.avatarUrl;
+}
+
+/**
+ * Finds the picture Gravatar holds for one hashed address.
+ *
+ * Two questions, because Gravatar answers them differently. The first asks
+ * whether that address has a picture of its own, with `d=404` so the answer is
+ * a yes or a no rather than a placeholder image. The second asks the profile,
+ * because an account holds several addresses and assigns its picture to one of
+ * them: an address that is on the account without being the one the picture
+ * hangs on answers no to the first question whilst its owner can see their own
+ * face on gravatar.com. Asking only the first reports "no Gravatar" to somebody
+ * who plainly has one.
+ *
+ * @param hash - The SHA-256 of the lowercased address.
+ * @returns The picture's address, or `null` where there is none.
+ * @throws When Gravatar could not be reached, which is not the same as no.
+ */
+async function findGravatar(hash: string): Promise<string | null> {
+  const direct = `${GRAVATAR_PREFIX}${hash}?s=${GRAVATAR_SIZE}`;
+  const response = await fetch(`${direct}&d=404`, {
+    method: "HEAD",
+    signal: AbortSignal.timeout(GRAVATAR_TIMEOUT_MS),
+  });
+  if (response.ok) return direct;
+  if (response.status !== 404) throw new Error(`gravatar answered ${response.status}`);
+
+  const profile = await fetch(`${GRAVATAR_PROFILE}/${hash}.json`, {
+    signal: AbortSignal.timeout(GRAVATAR_TIMEOUT_MS),
+  });
+  if (profile.status === 404) return null;
+  if (!profile.ok) throw new Error(`gravatar answered ${profile.status}`);
+
+  const payload = (await profile.json()) as { entry?: { thumbnailUrl?: unknown }[] };
+  const thumbnail = payload.entry?.[0]?.thumbnailUrl;
+  if (typeof thumbnail !== "string") return null;
+
+  // The address comes from Gravatar rather than from this code, so it is
+  // checked before it is stored and rendered.
+  let parsed: URL;
+  try {
+    parsed = new URL(thumbnail);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== "https:" || !GRAVATAR_HOST.test(parsed.hostname)) return null;
+
+  parsed.searchParams.set("s", String(GRAVATAR_SIZE));
+  return parsed.toString();
 }
 
 /**
@@ -955,22 +1016,14 @@ export async function devAuthRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const account = request.developerAccount!;
       const hash = sha256Hex(account.email.trim().toLowerCase());
-      const url = `${GRAVATAR_PREFIX}${hash}?s=${GRAVATAR_SIZE}`;
 
-      let found: boolean;
+      let url: string | null;
       try {
-        const response = await fetch(`${url}&d=404`, {
-          method: "HEAD",
-          signal: AbortSignal.timeout(GRAVATAR_TIMEOUT_MS),
-        });
-        if (response.status === 404) found = false;
-        else if (response.ok) found = true;
-        else {
-          return reply.status(502).send({ error: "GRAVATAR_UNAVAILABLE", message: "Gravatar could not be asked." });
-        }
+        url = await findGravatar(hash);
       } catch {
         return reply.status(502).send({ error: "GRAVATAR_UNAVAILABLE", message: "Gravatar could not be asked." });
       }
+      const found = url !== null;
 
       const repo = await getDeveloperRepository();
 
@@ -986,7 +1039,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
       }
 
       const updated = await repo.updateDeveloperAccount(account.id, {
-        gravatarUrl: url,
+        gravatarUrl: url as string,
         avatarSource: AvatarSource.Gravatar,
       });
       if (!updated) return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found." });
