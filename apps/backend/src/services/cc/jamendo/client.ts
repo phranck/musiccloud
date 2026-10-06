@@ -69,6 +69,17 @@ const JAMENDO_MIN_GAP_MS = Number(process.env.JAMENDO_MIN_GAP_MS ?? 350);
 let jamendoGate: Promise<void> = Promise.resolve();
 
 /**
+ * Longest one Jamendo request may take, its answer included. The queue above
+ * starts a request only after the previous one has settled, so a request
+ * without a bound would hold every Creative Commons request in the process
+ * behind it. Jamendo usually answers within a second and rarely takes three;
+ * the bound stays well below the 15 s the site waits for a resolve, so a
+ * stalled request costs one error rather than the whole queue. Env-overridable
+ * so tests can expire it quickly.
+ */
+const JAMENDO_REQUEST_TIMEOUT_MS = Number(process.env.JAMENDO_REQUEST_TIMEOUT_MS ?? 8000);
+
+/**
  * Runs `task` after the previous Jamendo request, spaced by
  * {@link JAMENDO_MIN_GAP_MS}. The shared gate is advanced regardless of the
  * task's outcome, so one failed request never wedges the queue. The caller
@@ -109,9 +120,8 @@ export class JamendoUnavailableError extends Error {
  * @param path - Endpoint path below the API base, e.g. `/tracks`.
  * @param params - Query params; `undefined`/empty values are skipped.
  * @returns The parsed `results` array.
- * @throws {@link JamendoUnavailableError} on transport failure, non-OK HTTP,
- *   or an envelope reporting failure. Other errors indicate our own fault, such
- *   as a missing client id.
+ * @throws {@link JamendoUnavailableError} in every case {@link jamendoRequest}
+ *   names. Other errors indicate our own fault, such as a missing client id.
  */
 export async function jamendoFetch<T>(path: string, params: Record<string, string | number | undefined>): Promise<T[]> {
   return (await jamendoRequest<T>(path, params)).results;
@@ -126,9 +136,10 @@ export async function jamendoFetch<T>(path: string, params: Record<string, strin
  * @param path - Endpoint path below the API base, e.g. `/tracks`.
  * @param params - Query params; `undefined`/empty values are skipped.
  * @returns The validated envelope.
- * @throws {@link JamendoUnavailableError} on transport failure, non-OK HTTP,
- *   or an envelope reporting failure. Other errors indicate our own fault, such
- *   as a missing client id.
+ * @throws {@link JamendoUnavailableError} on transport failure, on an answer
+ *   that takes longer than {@link JAMENDO_REQUEST_TIMEOUT_MS} or cannot be read,
+ *   on non-OK HTTP, or on an envelope reporting failure. Other errors indicate
+ *   our own fault, such as a missing client id.
  */
 async function jamendoRequest<T>(
   path: string,
@@ -143,16 +154,23 @@ async function jamendoRequest<T>(
       url.searchParams.set(key, String(value));
     }
 
+    const signal = AbortSignal.timeout(JAMENDO_REQUEST_TIMEOUT_MS);
+    const timedOutMessage = `Jamendo did not answer within ${JAMENDO_REQUEST_TIMEOUT_MS} ms`;
     let response: Response;
     try {
-      response = await fetch(url);
+      response = await fetch(url, { signal });
     } catch (error) {
-      throw new JamendoUnavailableError("Jamendo could not be reached", error);
+      throw new JamendoUnavailableError(signal.aborted ? timedOutMessage : "Jamendo could not be reached", error);
     }
     if (!response.ok) {
       throw new JamendoUnavailableError(`Jamendo request failed: HTTP ${response.status}`);
     }
-    const body = (await response.json()) as JamendoEnvelope<T>;
+    let body: JamendoEnvelope<T>;
+    try {
+      body = (await response.json()) as JamendoEnvelope<T>;
+    } catch (error) {
+      throw new JamendoUnavailableError(signal.aborted ? timedOutMessage : "Jamendo's answer could not be read", error);
+    }
     if (body.headers.status !== "success") {
       throw new JamendoUnavailableError(`Jamendo API error: ${body.headers.error_message ?? body.headers.code}`);
     }

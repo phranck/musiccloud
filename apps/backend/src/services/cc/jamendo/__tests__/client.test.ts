@@ -315,6 +315,58 @@ describe("getCcArtistTopTracks", () => {
   });
 });
 
+describe("Jamendo request timeout", () => {
+  beforeEach(() => {
+    vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id");
+    vi.stubEnv("JAMENDO_REQUEST_TIMEOUT_MS", "50");
+    // The timeout is read once at module load, so each test takes a fresh module.
+    vi.resetModules();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("ends a request Jamendo never answers and lets the next queued request run", async () => {
+    const client = await import("../client.js");
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(
+        (_url: URL, init?: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+          }),
+      )
+      .mockResolvedValue({
+        ok: true,
+        json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [SAMPLE_ALBUM] }),
+      } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const stalled = client.getCcAlbum("1");
+    const queued = client.getCcAlbum("176136");
+
+    await expect(stalled).rejects.toBeInstanceOf(client.JamendoUnavailableError);
+    expect((await queued)?.jamendoId).toBe("176136");
+  });
+
+  it("ends a request whose answer stops arriving while it is read", async () => {
+    const client = await import("../client.js");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (_url: URL, init?: RequestInit) => ({
+        ok: true,
+        json: () =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+          }),
+      })),
+    );
+
+    await expect(client.getCcAlbum("1")).rejects.toBeInstanceOf(client.JamendoUnavailableError);
+  });
+});
+
 const SAMPLE_ALBUM: JamendoAlbumRaw = {
   id: "176136",
   name: "Sample Album",
