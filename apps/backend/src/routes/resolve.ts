@@ -301,7 +301,7 @@ export default async function resolveRoutes(app: FastifyInstance) {
             const result = await resolveArtistUrl(cleanUrl);
             return reply.send(await persistArtistAndRespond(result, origin));
           }
-          const result = await resolveQuery(query!);
+          const result = await resolveQuery(query!, expanded);
           return reply.send(await persistTrackAndRespond(result, origin));
         }
 

@@ -599,7 +599,8 @@ export async function addLinksToTrack(
         ON CONFLICT (track_id, service) DO UPDATE SET
           external_id = EXCLUDED.external_id,
           url = EXCLUDED.url,
-          confidence = EXCLUDED.confidence`,
+          confidence = EXCLUDED.confidence,
+          match_method = EXCLUDED.match_method`,
         [
           `${trackId}-${link.service}`,
           trackId,

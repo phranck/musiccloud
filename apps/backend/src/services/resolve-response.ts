@@ -31,7 +31,7 @@ import { toApiLinks } from "../lib/server/api-links.js";
 import type { AlbumResolutionResult } from "./album-resolver.js";
 import type { ArtistResolutionResult } from "./artist-resolver.js";
 import { persistResolution } from "./persist-resolution.js";
-import type { ResolutionResult } from "./resolver.js";
+import { persistLateTrackLinks, type ResolutionResult } from "./resolver.js";
 import { resolveAlbumVinylLayout, resolveTrackVinylLayout } from "./track-vinyl-layout.js";
 
 /**
@@ -50,6 +50,9 @@ export async function persistTrackAndRespond(
   origin: string,
 ): Promise<UnifiedResolveSuccessResponse> {
   const { trackId, shortId, refreshedPreviewUrl, artistCredits } = await persistResolution(result);
+  // Services that missed the response deadline are stored once they answer,
+  // detached from this request so the response does not wait for them.
+  if (result.lateLinks) void persistLateTrackLinks(trackId, result.lateLinks);
   const repo = await getRepository();
   const vinylLayout = await resolveTrackVinylLayout(repo, result.sourceTrack);
   const shortUrl = `${origin}/${shortId}`;
