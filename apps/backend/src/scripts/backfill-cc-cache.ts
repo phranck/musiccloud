@@ -23,7 +23,7 @@
  * paced automatically.
  */
 import * as pgModule from "pg";
-import { getCcRepository } from "../db/index.js";
+import { closeRepository, getCcRepository } from "../db/index.js";
 import { ccTrackToPersistData } from "../services/cc/cc-share-response.js";
 import {
   getCcAlbum,
@@ -184,7 +184,10 @@ async function backfill(): Promise<void> {
       }
     }
   } finally {
+    // The repository keeps its own pool and a cleanup interval open; without
+    // closing it the process never exits after the summary line.
     await pool.end();
+    await closeRepository();
   }
 
   console.log(
