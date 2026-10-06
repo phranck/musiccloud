@@ -90,6 +90,7 @@ interface MediaCardHeadStageProps {
   mediaViewToggleLabel?: string;
   onMediaViewToggle?: () => void;
   statusLine?: string;
+  statusPulsing?: boolean;
   previewStatus?: AudioStatus | null;
   seekHint: { direction: VfdScrollOutDirection; nonce: number } | null;
   /**
@@ -115,6 +116,7 @@ function MediaCardHeadStage({
   mediaViewToggleLabel,
   onMediaViewToggle,
   statusLine,
+  statusPulsing,
   previewStatus,
   seekHint,
   turntableStage,
@@ -133,6 +135,7 @@ function MediaCardHeadStage({
       seekHint={seekHint}
       shareMediaView={shareMediaView}
       statusLine={statusLine}
+      statusPulsing={statusPulsing}
       turntableStage={turntableStage}
     />
   );
@@ -234,6 +237,7 @@ export function MediaCardHead({
             onMediaViewToggle={onMediaViewToggle}
             shareMediaView={shareMediaView}
             statusLine={content.statusLine}
+            statusPulsing={content.statusPulsing}
             previewStatus={previewStatus}
             seekHint={seekHint}
             turntableStage={
@@ -258,6 +262,7 @@ export function MediaCardHead({
           onMediaViewToggle={onMediaViewToggle}
           shareMediaView={shareMediaView}
           statusLine={content.statusLine}
+          statusPulsing={content.statusPulsing}
           previewStatus={previewStatus}
           seekHint={seekHint}
           turntableStage={

@@ -53,6 +53,11 @@ export interface VfdInfoDisplayProps {
   /** Centered fourth-row status text. Scrolls as a marquee past the cell threshold. */
   statusLine: string;
   /**
+   * Lets the status row pulse, for a status that is still in progress and easy
+   * to read past otherwise. Defaults to a steady row.
+   */
+  statusPulsing?: boolean;
+  /**
    * Transient seek-hint trigger forwarded to the status row overlay. A changed
    * `nonce` re-arms the overlay from the start even when the direction repeats.
    * `null`/omitted means no overlay is active.
@@ -70,13 +75,22 @@ export interface VfdInfoDisplayProps {
  * - Row 2: artist.
  * - Row 3: detail line.
  * - Row 4: centered status line, marquee past {@link STATUS_MARQUEE_CELL_THRESHOLD}
- *   cells, with an optional transient seek-hint scroll-out overlay.
+ *   cells, with an optional transient seek-hint scroll-out overlay, pulsing
+ *   while `statusPulsing` is set.
  *
  * Every row renders at full phosphor intensity (`bright`) for maximum
  * legibility. Sizing follows the outer container (`VfdSizingMode.Container`),
  * so the height stays fixed while text changes refresh via the canvas engine.
  */
-export function VfdInfoDisplay({ title, artist, detailLine, metaLine, statusLine, seekHint }: VfdInfoDisplayProps) {
+export function VfdInfoDisplay({
+  title,
+  artist,
+  detailLine,
+  metaLine,
+  statusLine,
+  statusPulsing = false,
+  seekHint,
+}: VfdInfoDisplayProps) {
   const shouldMarqueeStatus = statusLine.length > STATUS_MARQUEE_CELL_THRESHOLD;
 
   /**
@@ -128,6 +142,7 @@ export function VfdInfoDisplay({ title, artist, detailLine, metaLine, statusLine
           align: VfdSectionAlign.Center,
           marquee: shouldMarqueeStatus,
           scrollOutOverlay: statusOverlay,
+          pulse: statusPulsing,
         },
       ]}
     />

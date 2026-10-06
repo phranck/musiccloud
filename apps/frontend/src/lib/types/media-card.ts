@@ -80,6 +80,8 @@ export interface MediaCardContentConfiguration {
   platformsInfo?: string;
   /** Optional one-line status for the fourth VFD row. */
   statusLine?: string;
+  /** Lets the fourth VFD row pulse, for a status that is still in progress. */
+  statusPulsing?: boolean;
 }
 
 /**
