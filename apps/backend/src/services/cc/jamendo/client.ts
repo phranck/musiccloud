@@ -8,6 +8,7 @@
 
 import type { CcMusicInfo, CcTrackStats } from "@musiccloud/shared";
 import { decodeHtmlEntities } from "../../../lib/html.js";
+import { log } from "../../../lib/infra/logger.js";
 import { jamendoBioToHtml } from "./bio.js";
 import type {
   CcAlbum,
@@ -68,6 +69,17 @@ const JAMENDO_MIN_GAP_MS = Number(process.env.JAMENDO_MIN_GAP_MS ?? 350);
 let jamendoGate: Promise<void> = Promise.resolve();
 
 /**
+ * Longest one Jamendo request may take, its answer included. The queue above
+ * starts a request only after the previous one has settled, so a request
+ * without a bound would hold every Creative Commons request in the process
+ * behind it. Jamendo usually answers within a second and rarely takes three;
+ * the bound stays well below the 15 s the site waits for a resolve, so a
+ * stalled request costs one error rather than the whole queue. Env-overridable
+ * so tests can expire it quickly.
+ */
+const JAMENDO_REQUEST_TIMEOUT_MS = Number(process.env.JAMENDO_REQUEST_TIMEOUT_MS ?? 8000);
+
+/**
  * Runs `task` after the previous Jamendo request, spaced by
  * {@link JAMENDO_MIN_GAP_MS}. The shared gate is advanced regardless of the
  * task's outcome, so one failed request never wedges the queue. The caller
@@ -108,11 +120,31 @@ export class JamendoUnavailableError extends Error {
  * @param path - Endpoint path below the API base, e.g. `/tracks`.
  * @param params - Query params; `undefined`/empty values are skipped.
  * @returns The parsed `results` array.
- * @throws {@link JamendoUnavailableError} on transport failure, non-OK HTTP,
- *   or an envelope reporting failure. Other errors indicate our own fault, such
- *   as a missing client id.
+ * @throws {@link JamendoUnavailableError} in every case {@link jamendoRequest}
+ *   names. Other errors indicate our own fault, such as a missing client id.
  */
 export async function jamendoFetch<T>(path: string, params: Record<string, string | number | undefined>): Promise<T[]> {
+  return (await jamendoRequest<T>(path, params)).results;
+}
+
+/**
+ * Throttled GET returning the whole Jamendo envelope, so a caller can read the
+ * header fields as well as the rows. {@link jamendoFetch} and
+ * {@link fetchJamendoTracks} are built on it.
+ *
+ * @typeParam T - Element type of the `results` array.
+ * @param path - Endpoint path below the API base, e.g. `/tracks`.
+ * @param params - Query params; `undefined`/empty values are skipped.
+ * @returns The validated envelope.
+ * @throws {@link JamendoUnavailableError} on transport failure, on an answer
+ *   that takes longer than {@link JAMENDO_REQUEST_TIMEOUT_MS} or cannot be read,
+ *   on non-OK HTTP, or on an envelope reporting failure. Other errors indicate
+ *   our own fault, such as a missing client id.
+ */
+async function jamendoRequest<T>(
+  path: string,
+  params: Record<string, string | number | undefined>,
+): Promise<JamendoEnvelope<T>> {
   return throttleJamendo(async () => {
     const url = new URL(`${JAMENDO_BASE}${path}`);
     url.searchParams.set("client_id", requireClientId());
@@ -122,21 +154,76 @@ export async function jamendoFetch<T>(path: string, params: Record<string, strin
       url.searchParams.set(key, String(value));
     }
 
+    const signal = AbortSignal.timeout(JAMENDO_REQUEST_TIMEOUT_MS);
+    const timedOutMessage = `Jamendo did not answer within ${JAMENDO_REQUEST_TIMEOUT_MS} ms`;
     let response: Response;
     try {
-      response = await fetch(url);
+      response = await fetch(url, { signal });
     } catch (error) {
-      throw new JamendoUnavailableError("Jamendo could not be reached", error);
+      throw new JamendoUnavailableError(signal.aborted ? timedOutMessage : "Jamendo could not be reached", error);
     }
     if (!response.ok) {
       throw new JamendoUnavailableError(`Jamendo request failed: HTTP ${response.status}`);
     }
-    const body = (await response.json()) as JamendoEnvelope<T>;
+    let body: JamendoEnvelope<T>;
+    try {
+      body = (await response.json()) as JamendoEnvelope<T>;
+    } catch (error) {
+      throw new JamendoUnavailableError(signal.aborted ? timedOutMessage : "Jamendo's answer could not be read", error);
+    }
     if (body.headers.status !== "success") {
       throw new JamendoUnavailableError(`Jamendo API error: ${body.headers.error_message ?? body.headers.code}`);
     }
-    return body.results;
+    return body;
   });
+}
+
+/**
+ * Attempts one `/tracks` request gets before its answer is given up on.
+ *
+ * Jamendo's `/tracks` endpoint answers a large share of requests with an empty
+ * `results` array under `status: "success"`, and the identical request returns
+ * the real rows when it is repeated. Successive attempts fail close to
+ * independently, so at the roughly two-in-five rate seen on that endpoint eight
+ * attempts leave about one request in a thousand without an answer.
+ */
+const JAMENDO_TRACKS_ATTEMPTS = 8;
+
+/**
+ * GET `/tracks`, repeating the empty answers Jamendo gives in error.
+ *
+ * Requests `fullcount=true`, because a healthy answer then always carries
+ * `results_fullcount` (`0` for a genuine miss) and a faulty empty one never
+ * does. An answer that is empty and lacks it is repeated through the shared
+ * throttle, up to {@link JAMENDO_TRACKS_ATTEMPTS} times. Every `/tracks` call in
+ * this module goes through here, because each of them otherwise reports an
+ * existing track, tracklist or search hit as absent.
+ *
+ * A request that needed repeating is logged as a deviation, so the rate of
+ * faulty answers stays visible while the users see none of them.
+ *
+ * @param params - Query params for `/tracks`, as for {@link jamendoFetch}.
+ * @returns The rows of the first healthy answer, possibly empty.
+ * @throws {@link JamendoUnavailableError} when no attempt brought a healthy
+ *   answer, and on every failure {@link jamendoRequest} reports.
+ */
+async function fetchJamendoTracks(params: Record<string, string | number | undefined>): Promise<JamendoTrackRaw[]> {
+  for (let attempt = 1; attempt <= JAMENDO_TRACKS_ATTEMPTS; attempt += 1) {
+    const envelope = await jamendoRequest<JamendoTrackRaw>("/tracks", { ...params, fullcount: "true" });
+    if (envelope.results.length > 0 || envelope.headers.results_fullcount !== undefined) {
+      if (attempt > 1) {
+        log.deviation({
+          component: "JamendoClient",
+          errorCode: "MC-API-0001",
+          operation: "jamendo_tracks",
+          outcome: "faulty_empty_answers_repeated",
+          faultyAnswers: attempt - 1,
+        });
+      }
+      return envelope.results;
+    }
+  }
+  throw new JamendoUnavailableError(`Jamendo answered /tracks without results ${JAMENDO_TRACKS_ATTEMPTS} times`);
 }
 
 /**
@@ -242,10 +329,10 @@ export function mapJamendoTrack(raw: JamendoTrackRaw): CcTrack {
  *
  * @param query - Search/filter params.
  * @returns Mapped CC tracks (possibly empty).
- * @throws Error on missing client id or API failure (see {@link jamendoFetch}).
+ * @throws Error on missing client id or API failure (see {@link fetchJamendoTracks}).
  */
 export async function searchCcTracks(query: CcTrackQuery): Promise<CcTrack[]> {
-  const raw = await jamendoFetch<JamendoTrackRaw>("/tracks", {
+  const raw = await fetchJamendoTracks({
     search: query.search,
     name: query.name,
     artist_name: query.artist_name,
@@ -266,7 +353,7 @@ export async function searchCcTracks(query: CcTrackQuery): Promise<CcTrack[]> {
  * @throws Error on missing client id or API failure.
  */
 export async function getCcTrack(jamendoId: string): Promise<CcTrack | null> {
-  const raw = await jamendoFetch<JamendoTrackRaw>("/tracks", {
+  const raw = await fetchJamendoTracks({
     id: jamendoId,
     include: "musicinfo+stats+licenses",
     limit: 1,
@@ -291,7 +378,7 @@ export async function getCcTrack(jamendoId: string): Promise<CcTrack | null> {
  * @throws Error on missing client id or API failure.
  */
 export async function getSimilarCcTracks(seedJamendoId: string, limit = 12): Promise<CcTrack[]> {
-  const seedRaw = await jamendoFetch<JamendoTrackRaw>("/tracks", {
+  const seedRaw = await fetchJamendoTracks({
     id: seedJamendoId,
     include: "musicinfo",
     limit: 1,
@@ -300,7 +387,7 @@ export async function getSimilarCcTracks(seedJamendoId: string, limit = 12): Pro
   if (genres.length === 0) {
     return [];
   }
-  const raw = await jamendoFetch<JamendoTrackRaw>("/tracks", {
+  const raw = await fetchJamendoTracks({
     fuzzytags: genres.join("+"),
     order: "popularity_total",
     limit,
@@ -425,10 +512,10 @@ const CC_ALBUM_TRACKS_LIMIT = 50;
  * @param jamendoAlbumId - Jamendo album id.
  * @param limit - Maximum tracks (default {@link CC_ALBUM_TRACKS_LIMIT}).
  * @returns Mapped CC tracks (possibly empty).
- * @throws Error on missing client id or API failure (see {@link jamendoFetch}).
+ * @throws Error on missing client id or API failure (see {@link fetchJamendoTracks}).
  */
 export async function getCcAlbumTracks(jamendoAlbumId: string, limit = CC_ALBUM_TRACKS_LIMIT): Promise<CcTrack[]> {
-  const raw = await jamendoFetch<JamendoTrackRaw>("/tracks", { album_id: jamendoAlbumId, limit });
+  const raw = await fetchJamendoTracks({ album_id: jamendoAlbumId, limit });
   return raw.map(mapJamendoTrack);
 }
 
@@ -444,13 +531,13 @@ const CC_ARTIST_TOP_TRACKS_LIMIT = 20;
  * @param jamendoArtistId - Jamendo artist id.
  * @param limit - Maximum tracks (default {@link CC_ARTIST_TOP_TRACKS_LIMIT}).
  * @returns Mapped CC tracks ordered by descending popularity (possibly empty).
- * @throws Error on missing client id or API failure (see {@link jamendoFetch}).
+ * @throws Error on missing client id or API failure (see {@link fetchJamendoTracks}).
  */
 export async function getCcArtistTopTracks(
   jamendoArtistId: string,
   limit = CC_ARTIST_TOP_TRACKS_LIMIT,
 ): Promise<CcTrack[]> {
-  const raw = await jamendoFetch<JamendoTrackRaw>("/tracks", {
+  const raw = await fetchJamendoTracks({
     artist_id: jamendoArtistId,
     order: "popularity_total",
     limit,
@@ -573,10 +660,10 @@ export async function getCcGenres(): Promise<CcGenre[]> {
  * @param genre - The Jamendo genre tag, e.g. `"jazz"` (the `CcGenre.name`).
  * @returns The high-res cover URL, or `null` when Jamendo returned no usable
  *   image for the genre.
- * @throws Error on missing client id or API failure (see {@link jamendoFetch}).
+ * @throws Error on missing client id or API failure (see {@link fetchJamendoTracks}).
  */
 export async function getCcGenreCoverUrl(genre: string): Promise<string | null> {
-  const raw = await jamendoFetch<JamendoTrackRaw>("/tracks", {
+  const raw = await fetchJamendoTracks({
     tags: genre,
     order: "popularity_total",
     imagesize: 600,

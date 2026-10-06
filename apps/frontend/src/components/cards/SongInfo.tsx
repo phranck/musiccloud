@@ -39,6 +39,8 @@ interface SongInfoProps {
   turntableStage?: ReactNode;
   /** Fourth VFD row. Pre-translated by the caller so the component stays reusable. */
   statusLine?: string;
+  /** Lets the fourth VFD row pulse while its status is still in progress. */
+  statusPulsing?: boolean;
   /** Transient seek-hint trigger forwarded to the status row overlay. */
   seekHint?: { direction: VfdScrollOutDirection; nonce: number } | null;
 }
@@ -74,6 +76,7 @@ export const SongInfo = memo(function SongInfo({
   mediaViewToggleLabel,
   onMediaViewToggle,
   statusLine = "READY",
+  statusPulsing,
   turntableStage,
 }: SongInfoProps) {
   const metaLine = metaOverride ?? buildMetaLine({ durationMs, releaseDate });
@@ -238,6 +241,7 @@ export const SongInfo = memo(function SongInfo({
           detailLine={detailLine}
           metaLine={metaLine}
           statusLine={statusLine}
+          statusPulsing={statusPulsing}
           seekHint={seekHint}
         />
       </div>

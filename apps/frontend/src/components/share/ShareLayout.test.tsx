@@ -10,6 +10,7 @@ vi.mock("@/components/cards/SongInfo", () => ({
     shareMediaView,
     previewStatus,
     statusLine,
+    statusPulsing,
     title,
     mediaViewToggleLabel,
     onMediaViewToggle,
@@ -17,6 +18,7 @@ vi.mock("@/components/cards/SongInfo", () => ({
     shareMediaView?: string;
     previewStatus?: string | null;
     statusLine?: string;
+    statusPulsing?: boolean;
     title: string;
     mediaViewToggleLabel?: string;
     onMediaViewToggle?: () => void;
@@ -28,6 +30,7 @@ vi.mock("@/components/cards/SongInfo", () => ({
       data-media-view={shareMediaView}
       data-preview-status={previewStatus ?? "none"}
       data-status-line={statusLine ?? ""}
+      data-status-pulsing={String(statusPulsing ?? false)}
       onClick={onMediaViewToggle}
       type="button"
     >
@@ -59,6 +62,9 @@ vi.mock("@/components/cards/EmbossedCard", () => ({
   EmbossedCard: ({ children }: { children: ReactNode }) => <section>{children}</section>,
 }));
 
+/** Whether the mocked artist-info load is still running; reset after each test. */
+const artistInfoLoad = vi.hoisted(() => ({ isLoading: false }));
+
 vi.mock("@/hooks/useArtistInfo", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/hooks/useArtistInfo")>();
   return {
@@ -66,8 +72,8 @@ vi.mock("@/hooks/useArtistInfo", async (importOriginal) => {
     useArtistInfo: () => ({
       artistData: null,
       errorCode: null,
-      isLoading: false,
-      status: actual.ArtistLoadStatus.Ready,
+      isLoading: artistInfoLoad.isLoading,
+      status: artistInfoLoad.isLoading ? actual.ArtistLoadStatus.Loading : actual.ArtistLoadStatus.Ready,
     }),
   };
 });
@@ -125,6 +131,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  artistInfoLoad.isLoading = false;
   vi.useRealTimers();
   delete document.documentElement.dataset.shareMediaView;
   vi.unstubAllGlobals();
@@ -161,6 +168,23 @@ describe("ShareLayout media view toggle", () => {
         "ARTIST DATA READY · SIDE A · 2 TRACKS",
       ),
     );
+  });
+
+  it("pulses the VFD status while the artist data loads, and only then", async () => {
+    artistInfoLoad.isLoading = true;
+    const { rerender } = renderShareLayout();
+
+    const statusRow = screen.getByTestId("song-info-props");
+    expect(statusRow).toHaveAttribute("data-status-line", "ARTIST DATA LOADING...");
+    expect(statusRow).toHaveAttribute("data-status-pulsing", "true");
+
+    artistInfoLoad.isLoading = false;
+    rerender(<ShareLayout config={SHARE_CONFIG} artistName="John Coltrane" animated={false} />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("song-info-props")).toHaveAttribute("data-status-line", "ARTIST DATA READY"),
+    );
+    expect(screen.getByTestId("song-info-props")).toHaveAttribute("data-status-pulsing", "false");
   });
 
   it("renders only the viewport-matching layout, never both", () => {

@@ -10,6 +10,7 @@ import {
   getCcGenres,
   getCcTrack,
   getSimilarCcTracks,
+  JamendoUnavailableError,
   searchCcTracks,
 } from "../client.js";
 import type { JamendoAlbumRaw, JamendoArtistRaw, JamendoEnvelope, JamendoTrackRaw } from "../types.js";
@@ -91,7 +92,10 @@ describe("searchCcTracks", () => {
   it("passes client_id and structured fields to the request URL", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ headers: { status: "success", code: 0, results_count: 0 }, results: [] }),
+      json: async () => ({
+        headers: { status: "success", code: 0, results_count: 0, results_fullcount: 0 },
+        results: [],
+      }),
     } as Response);
     vi.stubGlobal("fetch", fetchMock);
 
@@ -133,9 +137,92 @@ describe("getCcTrack", () => {
   });
 
   it("returns null when no track matches", async () => {
-    mockJamendo({ headers: { status: "success", code: 0, results_count: 0 }, results: [] });
+    mockJamendo({ headers: { status: "success", code: 0, results_count: 0, results_fullcount: 0 }, results: [] });
     const track = await getCcTrack("does-not-exist");
     expect(track).toBeNull();
+  });
+});
+
+/** Jamendo's faulty `/tracks` answer: empty, reported as success, without `results_fullcount`. */
+const FAULTY_EMPTY_TRACKS: JamendoEnvelope<JamendoTrackRaw> = {
+  headers: { status: "success", code: 0, results_count: 0 },
+  results: [],
+};
+
+/** A healthy `/tracks` answer carrying one row whose genre tags also seed a similarity search. */
+const HEALTHY_TRACKS: JamendoEnvelope<JamendoTrackRaw> = {
+  headers: { status: "success", code: 0, results_count: 1, results_fullcount: 1 },
+  results: [{ ...SAMPLE_TRACK, musicinfo: { tags: { genres: ["jazz"] } } }],
+};
+
+/**
+ * Stubs `fetch` with a sequence of Jamendo answers, one per call. The last
+ * answer repeats once the sequence is used up.
+ *
+ * @param bodies - The envelopes to answer with, in call order.
+ * @returns The fetch mock, for asserting on calls.
+ */
+function mockJamendoSequence(...bodies: JamendoEnvelope<JamendoTrackRaw>[]): ReturnType<typeof vi.fn> {
+  const fetchMock = vi.fn();
+  for (const body of bodies) {
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => body } as Response);
+  }
+  fetchMock.mockResolvedValue({ ok: true, json: async () => bodies[bodies.length - 1] } as Response);
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
+describe("faulty empty /tracks answers", () => {
+  beforeEach(() => vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id"));
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("requests fullcount so a healthy answer can be told apart from a faulty one", async () => {
+    const fetchMock = mockJamendoSequence(HEALTHY_TRACKS);
+
+    await getCcTrack("1886393");
+
+    expect(String(fetchMock.mock.calls[0][0])).toContain("fullcount=true");
+  });
+
+  it("repeats an empty answer without results_fullcount and returns the next healthy one", async () => {
+    const fetchMock = mockJamendoSequence(FAULTY_EMPTY_TRACKS, FAULTY_EMPTY_TRACKS, HEALTHY_TRACKS);
+
+    const track = await getCcTrack("1886393");
+
+    expect(track?.jamendoId).toBe("1886393");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("accepts a genuine miss carrying results_fullcount 0 without repeating it", async () => {
+    const fetchMock = mockJamendoSequence({
+      headers: { status: "success", code: 0, results_count: 0, results_fullcount: 0 },
+      results: [],
+    });
+
+    expect(await getCcTrack("does-not-exist")).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws JamendoUnavailableError when no attempt brings a healthy answer", async () => {
+    const fetchMock = mockJamendoSequence(FAULTY_EMPTY_TRACKS);
+
+    await expect(getCcTrack("1886393")).rejects.toBeInstanceOf(JamendoUnavailableError);
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(1);
+  });
+
+  it.each([
+    ["searchCcTracks", () => searchCcTracks({ search: "sample" })],
+    ["getCcAlbumTracks", () => getCcAlbumTracks("176136")],
+    ["getCcArtistTopTracks", () => getCcArtistTopTracks("338723")],
+    ["getSimilarCcTracks", () => getSimilarCcTracks("1886393")],
+    ["getCcGenreCoverUrl", () => getCcGenreCoverUrl("jazz").then((url) => (url ? [url] : []))],
+  ])("%s recovers from a faulty empty answer", async (_name, call) => {
+    mockJamendoSequence(FAULTY_EMPTY_TRACKS, HEALTHY_TRACKS);
+
+    expect(await call()).toHaveLength(1);
   });
 });
 
@@ -225,6 +312,58 @@ describe("getCcArtistTopTracks", () => {
     expect(calledUrl).toContain("artist_id=338723");
     expect(calledUrl).toContain("order=popularity_total");
     expect(tracks[0]?.jamendoId).toBe("1886393");
+  });
+});
+
+describe("Jamendo request timeout", () => {
+  beforeEach(() => {
+    vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id");
+    vi.stubEnv("JAMENDO_REQUEST_TIMEOUT_MS", "50");
+    // The timeout is read once at module load, so each test takes a fresh module.
+    vi.resetModules();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("ends a request Jamendo never answers and lets the next queued request run", async () => {
+    const client = await import("../client.js");
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(
+        (_url: URL, init?: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+          }),
+      )
+      .mockResolvedValue({
+        ok: true,
+        json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [SAMPLE_ALBUM] }),
+      } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const stalled = client.getCcAlbum("1");
+    const queued = client.getCcAlbum("176136");
+
+    await expect(stalled).rejects.toBeInstanceOf(client.JamendoUnavailableError);
+    expect((await queued)?.jamendoId).toBe("176136");
+  });
+
+  it("ends a request whose answer stops arriving while it is read", async () => {
+    const client = await import("../client.js");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (_url: URL, init?: RequestInit) => ({
+        ok: true,
+        json: () =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+          }),
+      })),
+    );
+
+    await expect(client.getCcAlbum("1")).rejects.toBeInstanceOf(client.JamendoUnavailableError);
   });
 });
 
@@ -501,7 +640,10 @@ describe("getCcGenreCoverUrl", () => {
       "fetch",
       vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ headers: { status: "success", code: 0, results_count: 0 }, results: [] }),
+        json: async () => ({
+          headers: { status: "success", code: 0, results_count: 0, results_fullcount: 0 },
+          results: [],
+        }),
       } as Response),
     );
 

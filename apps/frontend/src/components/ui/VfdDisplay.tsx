@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/vfdDisplayGeometry";
 import { normalizeLine, sameLinePresentation } from "@/components/ui/vfdDisplayNormalize";
 import { syncOverlayState } from "@/components/ui/vfdDisplayOverlay";
+import { syncPulseState } from "@/components/ui/vfdDisplayPulse";
 import { setupMotion } from "@/lib/motion/setup";
 import { cn } from "@/lib/utils";
 
@@ -56,8 +57,10 @@ function syncRenderStateLines(
       // overlay nonce, which `sameLinePresentation` ignores, so the row takes
       // this early-return path. The `syncOverlayState` call must therefore run
       // on BOTH this path and the post-transition one below — do not hoist it
-      // out as "duplicate", that would miss the unchanged-text seek case.
+      // out as "duplicate", that would miss the unchanged-text seek case. The
+      // pulse flag is not part of the presentation either, for the same reason.
       syncOverlayState(state, line, index, now);
+      syncPulseState(state, line, index, now, prefersReducedMotion);
       return;
     }
     if (
@@ -70,6 +73,7 @@ function syncRenderStateLines(
       state.transitions.delete(index);
     }
     syncOverlayState(state, line, index, now);
+    syncPulseState(state, line, index, now, prefersReducedMotion);
   });
   for (const rowIndex of Array.from(state.transitions.keys())) {
     if (rowIndex >= rowCount) state.transitions.delete(rowIndex);
@@ -80,6 +84,10 @@ function syncRenderStateLines(
   // forever and the shared ticker would never deregister.
   for (const rowIndex of Array.from(state.overlays.keys())) {
     if (rowIndex >= rowCount) state.overlays.delete(rowIndex);
+  }
+  // The same holds for a pulse on a dropped row: it would keep the ticker alive.
+  for (const rowIndex of Array.from(state.pulses.keys())) {
+    if (rowIndex >= rowCount) state.pulses.delete(rowIndex);
   }
   state.lines = normalizedLines;
   state.cellCount = cellCount;
@@ -175,6 +183,7 @@ export function VfdDisplay({
     transitions: new Map(),
     marqueeStates: new Map(),
     overlays: new Map(),
+    pulses: new Map(),
     cellCount,
     rowCount,
     prefersReducedMotion,

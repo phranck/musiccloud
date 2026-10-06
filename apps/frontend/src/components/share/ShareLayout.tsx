@@ -571,8 +571,11 @@ function ShareLayoutInner({
       // info fetch state, and the preview player. VfdDisplay stays reusable
       // and only receives plain English text.
       statusLine: vfdStatusLine,
+      // The loading status is the one a reader passes over while waiting for
+      // the artist column, so it pulses for exactly as long as it stands.
+      statusPulsing: artistStatusLoading,
     }),
-    [currentConfig, vfdStatusLine],
+    [artistStatusLoading, currentConfig, vfdStatusLine],
   );
 
   const openSheet = useCallback(() => {

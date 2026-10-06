@@ -134,7 +134,8 @@ export async function fetchSharePreview(
 
 /** Stream a CC track's audio from the backend `ccAudio` proxy. Returns the raw
  *  upstream Response (status + headers + body stream) so the Astro handler can
- *  relay it same-origin, passing the visitor's `Range` header through for seeks.
+ *  relay it same-origin, passing the visitor's `Range` header through for seeks,
+ *  or the error envelope of {@link forwardToBackend} when the backend is unreachable.
  *  An optional `format` selects the Jamendo delivery format; omitted lets the
  *  backend apply its default. No timeout — audio streams are long-lived. */
 export async function fetchCcAudio(
@@ -148,12 +149,13 @@ export async function fetchCcAudio(
     ...(range ? { Range: range } : {}),
     ...(clientIp ? { "X-Forwarded-For": clientIp } : {}),
   };
-  return fetch(backendUrl(ENDPOINTS.v1.ccAudio(jamendoId, format)), { headers });
+  return forwardToBackend(backendUrl(ENDPOINTS.v1.ccAudio(jamendoId, format)), { headers });
 }
 
 /** Fetch a CC track's audio from the backend `ccDownload` proxy as a named
  *  attachment. Returns the raw upstream Response so the Astro handler can relay
- *  the body + `Content-Disposition` / `Content-Type` headers same-origin. An
+ *  the body + `Content-Disposition` / `Content-Type` headers same-origin, or the
+ *  error envelope of {@link forwardToBackend} when the backend is unreachable. An
  *  optional `format` selects the Jamendo delivery format. */
 export async function fetchCcDownload(
   jamendoId: string,
@@ -164,7 +166,7 @@ export async function fetchCcDownload(
     ...(INTERNAL_API_KEY ? { "X-API-Key": INTERNAL_API_KEY } : {}),
     ...(clientIp ? { "X-Forwarded-For": clientIp } : {}),
   };
-  return fetch(backendUrl(ENDPOINTS.v1.ccDownload(jamendoId, format)), { headers });
+  return forwardToBackend(backendUrl(ENDPOINTS.v1.ccDownload(jamendoId, format)), { headers });
 }
 
 /** Fetch share page data (track or album) by shortId from the backend. */
@@ -246,7 +248,7 @@ function transportFailureCode(error: unknown): string | undefined {
   return typeof code === "string" ? code : undefined;
 }
 
-function transportFailureResult(error: unknown): BackendFetchResult<never> {
+function transportFailureResult(error: unknown): Extract<BackendFetchResult<never>, { kind: "error" }> {
   const timedOut = error instanceof Error && error.name === "AbortError";
   const failureCode = transportFailureCode(error);
   const reason = failureCode ? TRANSPORT_FAILURE_REASONS[failureCode] : undefined;
@@ -277,6 +279,36 @@ function transportFailureResult(error: unknown): BackendFetchResult<never> {
   };
 }
 
+/**
+ * Relays a browser request to the backend for an Astro route, and answers a
+ * forward that fails before the backend replies with the public error envelope.
+ *
+ * The routes under `pages/api` hand the returned `Response` to the browser, so
+ * a rejection here would escape them as an unhandled error and the visitor
+ * would see a failure with no `MC-*` code and no error ID to quote. A forward
+ * that runs out of time becomes `504` with `MC-API-0005`, one that cannot
+ * connect becomes `503` with `MC-SYS-0002`, both logged with the error ID by
+ * {@link transportFailureResult}. A reply from the backend, whatever its
+ * status, is returned unchanged.
+ *
+ * @param url - The backend URL to request.
+ * @param options - Request options; the timeout signal is added when `timeoutMs` is set.
+ * @param timeoutMs - Abort budget in milliseconds, or `undefined` for a
+ *   long-lived stream such as audio that must not be cut off.
+ * @returns The backend's response, or a JSON error envelope when none arrived.
+ */
+async function forwardToBackend(url: string, options: RequestInit, timeoutMs?: number): Promise<Response> {
+  try {
+    return timeoutMs === undefined ? await fetch(url, options) : await fetchWithTimeout(url, options, timeoutMs);
+  } catch (error) {
+    const failure = transportFailureResult(error);
+    return new Response(JSON.stringify(failure.error), {
+      status: failure.statusCode,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+}
+
 /** Forward a resolve request to the backend. */
 export async function resolveTrack(
   body: { query?: string; selectedCandidate?: string },
@@ -286,7 +318,7 @@ export async function resolveTrack(
   const extra: Record<string, string> = {};
   if (clientIp) extra["X-Forwarded-For"] = clientIp;
   if (origin) extra.Origin = origin;
-  return fetchWithTimeout(
+  return forwardToBackend(
     backendUrl(ENDPOINTS.v1.resolve),
     {
       method: "POST",
@@ -312,7 +344,8 @@ export async function resolveTrack(
  *   Pass `Astro.clientAddress` from the proxy handler.
  * @param origin - The `Origin` header from the incoming browser request,
  *   forwarded for CORS audit on the backend side.
- * @returns The raw `Response` from the backend. The caller (Astro proxy) is
+ * @returns The raw `Response` from the backend, or the error envelope of
+ *   {@link forwardToBackend} when none arrived. The caller (Astro proxy) is
  *   responsible for streaming the body and propagating status / headers.
  */
 export async function resolveCcTrack(
@@ -323,7 +356,7 @@ export async function resolveCcTrack(
   const extra: Record<string, string> = {};
   if (clientIp) extra["X-Forwarded-For"] = clientIp;
   if (origin) extra.Origin = origin;
-  return fetchWithTimeout(
+  return forwardToBackend(
     backendUrl(ENDPOINTS.v1.ccResolve),
     {
       method: "POST",
@@ -480,7 +513,8 @@ export async function fetchPublicContentPage(
  * artists). `artistEntityId` selects an exact normalized artist identity when
  * available. Returns the raw `Response` so the Astro proxy at
  * `pages/api/artist-info.ts` can stream the JSON body straight through
- * with the upstream status. The backend route is rate-limited by the
+ * with the upstream status, or the error envelope of {@link forwardToBackend}
+ * when the backend did not answer. The backend route is rate-limited by the
  * shared `apiRateLimiter` bucket; passing `clientIp` keeps the bucket
  * per-user.
  */
@@ -496,7 +530,7 @@ export async function fetchArtistInfo(
   if (context?.shortId) params.set("shortId", context.shortId);
   if (context?.artistEntityId) params.set("artistEntityId", context.artistEntityId);
   if (context?.refresh) params.set("refresh", context.refresh);
-  return fetchWithTimeout(
+  return forwardToBackend(
     `${backendUrl(ENDPOINTS.v1.artistInfo)}?${params.toString()}`,
     { headers: internalHeaders(forwardedForExtra(clientIp)) },
     10000,
@@ -512,7 +546,7 @@ export async function fetchCcArtistInfo(
   clientIp?: string,
 ): Promise<Response> {
   const params = new URLSearchParams({ jamendoArtistId, artistName });
-  return fetchWithTimeout(
+  return forwardToBackend(
     `${backendUrl(ENDPOINTS.v1.ccArtistInfo)}?${params.toString()}`,
     { headers: internalHeaders(forwardedForExtra(clientIp)) },
     20000,
@@ -523,7 +557,7 @@ export async function fetchCcArtistInfo(
  *  Loaded async by the CC share page after the core card renders; the budget
  *  covers the backend's (cached, timeout-bounded) fuzzy-search scrape. */
 export async function fetchCcBandcamp(jamendoId: string, clientIp?: string): Promise<Response> {
-  return fetchWithTimeout(
+  return forwardToBackend(
     backendUrl(ENDPOINTS.v1.ccBandcamp(jamendoId)),
     { headers: internalHeaders(forwardedForExtra(clientIp)) },
     12000,
