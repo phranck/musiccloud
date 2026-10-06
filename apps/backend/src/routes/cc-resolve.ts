@@ -22,7 +22,7 @@ import { getCcRepository, getRepository } from "../db/index.js";
 import { requireEnvList } from "../lib/env.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
-import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
+import { siteResolveRateLimiter } from "../lib/infra/rate-limiter.js";
 import { runCcGenreBrowse, runCcGenreSearch } from "../services/cc/cc-genre.js";
 import { resolveCcCandidate, resolveCcTextSearch } from "../services/cc/cc-resolver.js";
 import {
@@ -107,7 +107,7 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
       // Per-IP limit for internal BFF callers; token-authenticated clients
       // are quota-checked centrally in authenticatePublic (MC-088).
       if (!request.apiClient) {
-        const rateLimit = apiRateLimiter.check(request.ip);
+        const rateLimit = siteResolveRateLimiter.check(request.ip);
         if (rateLimit.limited) {
           return sendRateLimitError(reply, rateLimit);
         }

@@ -22,7 +22,7 @@ vi.mock("../lib/infra/logger.js", () => ({
 }));
 
 vi.mock("../lib/infra/rate-limiter.js", () => ({
-  apiRateLimiter: { check: vi.fn().mockReturnValue({ limited: false }) },
+  siteResolveRateLimiter: { check: vi.fn().mockReturnValue({ limited: false }) },
 }));
 
 const resolveCcCandidate = vi.fn();
