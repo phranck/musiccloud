@@ -56,6 +56,7 @@ function StubHubProvider({
       ariaLabel: "Play preview",
       isDisabled: false,
       isLoading: false,
+      isPlaybackLocked: false,
       isPlaying: spinState === VinylSpinState.Playing,
       isUnavailable: false,
       mediaLabel: "Preview",

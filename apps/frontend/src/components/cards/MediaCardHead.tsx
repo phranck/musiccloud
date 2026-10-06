@@ -228,6 +228,7 @@ export function MediaCardHead({
           mediaKind={content.mediaKind}
           trackTitle={content.title}
           recordSwapKey={swapKey}
+          playbackLocked={content.artistDataLoading}
           onSeekHint={handleSeekHint}
           onStatusChange={onPreviewStatusChange}
         >
@@ -237,7 +238,7 @@ export function MediaCardHead({
             onMediaViewToggle={onMediaViewToggle}
             shareMediaView={shareMediaView}
             statusLine={content.statusLine}
-            statusPulsing={content.statusPulsing}
+            statusPulsing={content.artistDataLoading}
             previewStatus={previewStatus}
             seekHint={seekHint}
             turntableStage={
@@ -262,7 +263,7 @@ export function MediaCardHead({
           onMediaViewToggle={onMediaViewToggle}
           shareMediaView={shareMediaView}
           statusLine={content.statusLine}
-          statusPulsing={content.statusPulsing}
+          statusPulsing={content.artistDataLoading}
           previewStatus={previewStatus}
           seekHint={seekHint}
           turntableStage={

@@ -39,6 +39,15 @@ export interface AudioPlayerProps {
    * continue behaviour.
    */
   recordSwapKey?: string;
+  /**
+   * Holds the transport while the host is still putting the view together,
+   * such as while the artist data loads: the play button is disabled, and the
+   * spacebar and media keys do nothing. Calls to `togglePlay` itself still run,
+   * because the turntable's restart after a record swap goes through it and is
+   * part of the swap rather than an input. Unlike `isDisabled`, it leaves the
+   * time display and the analyzer alone, since a record may still be playing.
+   */
+  playbackLocked?: boolean;
   /** Fires synchronously when the user starts playback via click, media key, or Space. */
   onPlaybackIntent?: () => void;
   onStatusChange?: (status: AudioStatusType) => void;
@@ -518,6 +527,7 @@ export function useAudioController({
   mediaKind,
   trackTitle,
   recordSwapKey,
+  playbackLocked = false,
   onPlaybackIntent,
   onStatusChange,
   onSeekHint,
@@ -1278,7 +1288,12 @@ export function useAudioController({
     }
   }, [beginPlayback, notifyStatusChange, startSpectrumFadeOut, state.phase, stopProgressLoop]);
 
-  const togglePlayFromEvent = useEffectEvent(togglePlay);
+  // The spacebar and the media keys are input like the play button, so they
+  // respect the lock the button shows; reading the prop here keeps it current
+  // for the long-lived listeners without re-registering them.
+  const togglePlayFromInput = useEffectEvent(() => {
+    if (!playbackLocked) togglePlay();
+  });
 
   const notifySeekHint = useCallback(
     (direction: VfdScrollOutDirection) => {
@@ -1363,7 +1378,7 @@ export function useAudioController({
     mediaSession.playbackState =
       state.phase === PlayerPhase.Playing ? MediaSessionPlaybackState.Playing : MediaSessionPlaybackState.Paused;
 
-    const handler = () => togglePlayFromEvent();
+    const handler = () => togglePlayFromInput();
     try {
       mediaSession.setActionHandler(MediaSessionAction.Play, handler);
       mediaSession.setActionHandler(MediaSessionAction.Pause, handler);
@@ -1401,7 +1416,7 @@ export function useAudioController({
    */
   useEffect(() => {
     return registerAudioForKeyboard({
-      togglePlay: () => togglePlayFromEvent(),
+      togglePlay: () => togglePlayFromInput(),
       isActive: () => isPlayerActiveRef.current,
       seekBy: (delta) => seekByFromEvent(delta),
       seekToStart: () => seekToStartFromEvent(),
@@ -1445,6 +1460,7 @@ export function useAudioController({
     ariaLabel,
     isDisabled,
     isLoading,
+    isPlaybackLocked: playbackLocked,
     isPlaying,
     isUnavailable,
     mediaLabel: isSong ? audioCopy.songLabel : audioCopy.previewLabel,
@@ -1467,6 +1483,7 @@ export function AudioPlayer(props: AudioPlayerProps) {
       <Player
         isPlaying={player.isPlaying}
         isDisabled={player.isDisabled}
+        isPlaybackLocked={player.isPlaybackLocked}
         timeText={player.timeText}
         progressRatio={player.progressRatio}
         ariaLabel={player.ariaLabel}

@@ -30,3 +30,29 @@ describe("AudioPlayer playback intent", () => {
     expect(callOrder).toEqual(["intent", "play"]);
   });
 });
+
+describe("AudioPlayer playback lock", () => {
+  function stubPlayback() {
+    vi.spyOn(window.HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+    return vi.spyOn(window.HTMLMediaElement.prototype, "play").mockImplementation(() => new Promise<void>(() => {}));
+  }
+
+  it("disables the play button while locked and keeps its playable label", () => {
+    stubPlayback();
+    render(<AudioPlayer previewUrl="/preview.mp3" trackTitle="Blue Train" playbackLocked />);
+
+    expect(screen.getByRole("button", { name: "Play preview" })).toBeDisabled();
+  });
+
+  it("ignores the spacebar while locked and answers it once unlocked", () => {
+    const playMock = stubPlayback();
+    const { rerender } = render(<AudioPlayer previewUrl="/preview.mp3" trackTitle="Blue Train" playbackLocked />);
+
+    fireEvent.keyDown(window, { code: "Space" });
+    expect(playMock).not.toHaveBeenCalled();
+
+    rerender(<AudioPlayer previewUrl="/preview.mp3" trackTitle="Blue Train" playbackLocked={false} />);
+    fireEvent.keyDown(window, { code: "Space" });
+    expect(playMock).toHaveBeenCalledTimes(1);
+  });
+});
