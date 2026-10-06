@@ -80,8 +80,12 @@ export interface MediaCardContentConfiguration {
   platformsInfo?: string;
   /** Optional one-line status for the fourth VFD row. */
   statusLine?: string;
-  /** Lets the fourth VFD row pulse, for a status that is still in progress. */
-  statusPulsing?: boolean;
+  /**
+   * True while the artist column for this entity is still loading. The media
+   * card makes the fourth VFD row pulse and holds the play button for as long
+   * as it is set, because the view is still being put together.
+   */
+  artistDataLoading?: boolean;
 }
 
 /**

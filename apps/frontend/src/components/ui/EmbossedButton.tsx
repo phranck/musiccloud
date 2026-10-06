@@ -9,7 +9,9 @@ import { cn } from "@/lib/utils";
 // interaction (`transform-gpu` only pre-allocates a GPU layer; it never animates).
 const baseClasses = [
   "mc-glass-button px-5 py-2.5 overflow-hidden cursor-pointer transform-gpu",
-  "disabled:cursor-not-allowed disabled:opacity-50",
+  // Becoming disabled or enabled is a change of state, so the opacity fades; hover
+  // never touches opacity, so this transition never runs on a hover.
+  "transition-opacity duration-200 disabled:cursor-not-allowed disabled:opacity-50",
   "focus-visible:outline-2 focus-visible:outline-white/40 focus-visible:outline-offset-2",
 ];
 

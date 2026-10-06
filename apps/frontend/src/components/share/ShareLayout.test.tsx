@@ -39,12 +39,17 @@ vi.mock("@/components/cards/SongInfo", () => ({
   ),
 }));
 
-// The turntable hub (provider + analyzer slot) owns the audio engine; the
-// ShareLayout test only asserts the media-view/status responsibilities, so the
-// player is stubbed to avoid mounting the real audio engine.
-vi.mock("@/components/turntable/TurntableAnalyzerSlot", () => ({
-  TurntableAnalyzerSlot: () => null,
-}));
+// The analyzer slot is replaced by a probe of the turntable hub, so the test
+// reads the playback lock the share view hands the player without rendering
+// the transport and its canvas.
+vi.mock("@/components/turntable/TurntableAnalyzerSlot", async () => {
+  const { useTurntablePlayer } = await import("@/components/turntable/TurntablePlayerContext");
+  return {
+    TurntableAnalyzerSlot: () => (
+      <div data-testid="playback-lock" data-locked={String(useTurntablePlayer().isPlaybackLocked)} />
+    ),
+  };
+});
 
 vi.mock("@/components/share/AnimatedArtistColumn", () => ({
   AnimatedArtistColumn: () => <div data-testid="artist-column" />,
@@ -170,13 +175,14 @@ describe("ShareLayout media view toggle", () => {
     );
   });
 
-  it("pulses the VFD status while the artist data loads, and only then", async () => {
+  it("pulses the VFD status and locks playback while the artist data loads, and only then", async () => {
     artistInfoLoad.isLoading = true;
     const { rerender } = renderShareLayout();
 
     const statusRow = screen.getByTestId("song-info-props");
     expect(statusRow).toHaveAttribute("data-status-line", "ARTIST DATA LOADING...");
     expect(statusRow).toHaveAttribute("data-status-pulsing", "true");
+    expect(screen.getByTestId("playback-lock")).toHaveAttribute("data-locked", "true");
 
     artistInfoLoad.isLoading = false;
     rerender(<ShareLayout config={SHARE_CONFIG} artistName="John Coltrane" animated={false} />);
@@ -185,6 +191,7 @@ describe("ShareLayout media view toggle", () => {
       expect(screen.getByTestId("song-info-props")).toHaveAttribute("data-status-line", "ARTIST DATA READY"),
     );
     expect(screen.getByTestId("song-info-props")).toHaveAttribute("data-status-pulsing", "false");
+    expect(screen.getByTestId("playback-lock")).toHaveAttribute("data-locked", "false");
   });
 
   it("renders only the viewport-matching layout, never both", () => {

@@ -29,6 +29,7 @@ function HubProbe() {
       data-power={hub.power}
       data-spin={hub.spinState}
       data-playing={String(hub.isPlaying)}
+      data-locked={String(hub.isPlaybackLocked)}
     >
       <button type="button" onClick={hub.togglePlay}>
         toggle
@@ -223,6 +224,23 @@ describe("TurntablePlayerProvider", () => {
     expect(hub()).toHaveAttribute("data-playing", "false");
     expect(hub()).toHaveAttribute("data-spin", "coasting");
     expect(hub()).toHaveAttribute("data-speed", "standby");
+  });
+
+  it("reports the playback lock and still lets the deck restart playback through the hub", async () => {
+    render(
+      <TurntablePlayerProvider previewUrl="/preview.mp3" trackTitle="Blue Train" playbackLocked>
+        <HubProbe />
+      </TurntablePlayerProvider>,
+    );
+    expect(hub()).toHaveAttribute("data-locked", "true");
+
+    // The probe's button stands in for the deck's restart after a record swap,
+    // which calls the hub's togglePlay directly rather than through user input.
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "toggle" }));
+    });
+
+    expect(hub()).toHaveAttribute("data-playing", "true");
   });
 
   it("continues playback under reduced motion even on a different-album switch", async () => {

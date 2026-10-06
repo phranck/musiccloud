@@ -23,6 +23,7 @@ export function TurntableAnalyzerSlot() {
       <Player
         isPlaying={hub.isPlaying}
         isDisabled={hub.isDisabled}
+        isPlaybackLocked={hub.isPlaybackLocked}
         timeText={hub.timeText}
         progressRatio={progressRatio}
         ariaLabel={hub.ariaLabel}

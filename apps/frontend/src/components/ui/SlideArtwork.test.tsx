@@ -36,13 +36,36 @@ describe("SlideArtwork loading swap", () => {
     expect(discEl(container)?.className).toMatch(/mc-disc-drop-in/);
     expect(coverEl(container).className).toMatch(/mc-cover-drop-out/);
     expect(container.querySelector("[data-spin-state='playing']")).toHaveAttribute("data-vinyl-disc-format", "single");
-    expect(container.querySelector("[data-spin-state='playing']")).toHaveAttribute(
-      "data-vinyl-label-variant",
-      "generic",
-    );
     expect(container.querySelector("[data-spin-state='playing'] [data-vinyl-grooves='true']")).toHaveAttribute(
       "src",
       expect.stringMatching(/^data:image\/svg\+xml,/),
+    );
+  });
+
+  it("labels the spinning Single with the clicked row's artwork, title and artist", () => {
+    const { container } = render(
+      <SlideArtwork
+        active={true}
+        artworkUrl="/a.jpg"
+        labelTitle="Blue Train"
+        labelSubtitle="John Coltrane"
+        sizeClass="w-12 h-12"
+      />,
+    );
+    const disc = container.querySelector("[data-spin-state='playing']");
+
+    expect(disc).toHaveAttribute("data-vinyl-label-variant", "standard");
+    expect(disc?.querySelector("[data-vinyl-label-artwork='true']")).toHaveAttribute("src", "/a.jpg");
+    expect(disc?.querySelector("[data-vinyl-label-title-arc='true']")).toHaveTextContent("Blue Train");
+    expect(disc?.querySelector("[data-vinyl-label-subtitle='true']")).toHaveTextContent("John Coltrane");
+  });
+
+  it("keeps the generic label on the spinning Single when the row has no artwork", () => {
+    const { container } = render(<SlideArtwork active={true} sizeClass="w-12 h-12" />);
+
+    expect(container.querySelector("[data-spin-state='playing']")).toHaveAttribute(
+      "data-vinyl-label-variant",
+      "generic",
     );
   });
 
