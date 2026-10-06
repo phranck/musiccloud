@@ -42,7 +42,10 @@ vi.mock("../lib/platform/url.js", () => ({
 
 vi.mock("../services/album-resolver.js", () => ({ resolveAlbumUrl: vi.fn() }));
 vi.mock("../services/artist-resolver.js", () => ({ resolveArtistUrl: vi.fn() }));
-vi.mock("../services/track-vinyl-layout.js", () => ({ resolveTrackVinylLayout: vi.fn().mockResolvedValue(null) }));
+vi.mock("../services/track-vinyl-layout.js", () => ({
+  resolveAlbumVinylLayout: vi.fn().mockResolvedValue(null),
+  resolveTrackVinylLayout: vi.fn().mockResolvedValue(null),
+}));
 vi.mock("../services/persist-resolution.js", () => ({ persistResolution }));
 
 vi.mock("../services/resolver.js", () => ({

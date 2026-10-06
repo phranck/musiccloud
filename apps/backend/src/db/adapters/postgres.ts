@@ -599,13 +599,7 @@ export class PostgresAdapter
   }
 
   /** Runs best-effort Discogs vinyl-layout enrichment for an album identity. */
-  enrichVinylLayout(album: {
-    identityKey: string;
-    title: string;
-    artists: string[];
-    albumId?: string;
-    upc?: string | null;
-  }): Promise<void> {
+  enrichVinylLayout(album: { identityKey: string; title: string; artists: string[]; albumId?: string }): Promise<void> {
     return discogsEnrichVinylLayout(this.pool, album);
   }
 

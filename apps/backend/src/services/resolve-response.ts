@@ -16,7 +16,10 @@
  *
  * Every write past the main persist call is non-fatal. External ids, previews
  * and vinyl layouts enrich a response that is already correct without them, so
- * a failure there is logged and the resolve still succeeds.
+ * a failure there is logged and the resolve still succeeds. The vinyl layout is
+ * only ever read here: a missing one is enriched in the background by
+ * `resolveAlbumVinylLayout`, because Discogs would otherwise hold the response
+ * for seconds.
  */
 import type { UnifiedResolveSuccessResponse } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
@@ -25,12 +28,11 @@ import { stripTrackingParams } from "../lib/platform/url.js";
 import { getPreviewExpiry } from "../lib/preview-url.js";
 import { normalizeReleaseDate } from "../lib/release-date.js";
 import { toApiLinks } from "../lib/server/api-links.js";
-import { createAlbumIdentityKey } from "./album-identity.js";
 import type { AlbumResolutionResult } from "./album-resolver.js";
 import type { ArtistResolutionResult } from "./artist-resolver.js";
 import { persistResolution } from "./persist-resolution.js";
 import type { ResolutionResult } from "./resolver.js";
-import { resolveTrackVinylLayout } from "./track-vinyl-layout.js";
+import { resolveAlbumVinylLayout, resolveTrackVinylLayout } from "./track-vinyl-layout.js";
 
 /**
  * Persists a resolved track with its cross-service links and returns the track
@@ -136,25 +138,11 @@ export async function persistAlbumAndRespond(
     }
   }
 
-  const albumIdentity = createAlbumIdentityKey({
+  const vinylLayout = await resolveAlbumVinylLayout(repo, {
     artists: result.sourceAlbum.artists,
     title: result.sourceAlbum.title,
+    albumId,
   });
-
-  if (albumIdentity && !result.albumId) {
-    try {
-      await repo.enrichVinylLayout({
-        identityKey: albumIdentity,
-        title: result.sourceAlbum.title,
-        artists: result.sourceAlbum.artists,
-        albumId,
-        upc: result.sourceAlbum.upc,
-      });
-    } catch (err) {
-      log.debug("Resolve", "Album vinyl-layout enrichment failed:", err instanceof Error ? err.message : String(err));
-    }
-  }
-  const vinylLayout = albumIdentity ? await repo.readVinylLayout(albumIdentity) : undefined;
 
   const shortUrl = `${origin}/${shortId}`;
 

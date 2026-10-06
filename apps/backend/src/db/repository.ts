@@ -579,13 +579,7 @@ export interface TrackRepository {
    * @param album - Persisted album metadata used for the Discogs lookup.
    * @returns A promise that resolves after enrichment or a no-op.
    */
-  enrichVinylLayout(album: {
-    identityKey: string;
-    title: string;
-    artists: string[];
-    albumId?: string;
-    upc?: string | null;
-  }): Promise<void>;
+  enrichVinylLayout(album: { identityKey: string; title: string; artists: string[]; albumId?: string }): Promise<void>;
 
   // Artist: Read operations
   /**
