@@ -1,6 +1,7 @@
 import { render } from "@testing-library/react";
 import gsap from "gsap";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DAYNESS_EVENT } from "@/components/background/glassDayness";
 import { VfdDisplay } from "@/components/ui/VfdDisplay";
 import { VfdBrightness } from "@/components/ui/VfdDisplayTypes";
 
@@ -95,6 +96,25 @@ describe("VfdDisplay frame loop", () => {
     // The cached colors still reach the canvas.
     const colorsArg = vi.mocked(drawVfdCanvas).mock.calls.at(-1)?.[2];
     expect(colorsArg).toMatchObject({ [VfdBrightness.Bright]: "#fff" });
+  });
+
+  /**
+   * A day or night change clears the color cache so the next frame picks up
+   * the new phosphor colors. That frame has to refill the cache, or every
+   * frame after it resolves again and the probe-span stream is back.
+   */
+  it("resolves the colors once after a day or night change, not on every frame", () => {
+    drawResult.hasActiveAnimation = true;
+    render(<VfdDisplay lines={[{ content: "SCROLLING TITLE", marquee: true }]} rows={1} charsPerLine={4} />);
+    const tick = lastTick();
+    const resolvedBeforeChange = vi.mocked(resolveCanvasColors).mock.calls.length;
+
+    window.dispatchEvent(new Event(DAYNESS_EVENT));
+    tick(16);
+    tick(32);
+    tick(48);
+
+    expect(vi.mocked(resolveCanvasColors).mock.calls.length).toBe(resolvedBeforeChange + 1);
   });
 
   it("removes its ticker callback once a frame reports no active animation", () => {
