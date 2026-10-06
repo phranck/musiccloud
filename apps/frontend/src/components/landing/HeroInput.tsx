@@ -120,13 +120,15 @@ export function HeroInput({
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       cancelAutoSubmit();
-      if (e.key === "Enter" && value.trim()) {
+      // Enter is ignored while a request runs, like the submit button: a second
+      // submit would race the first and jump the field to the top mid-load.
+      if (e.key === "Enter" && value.trim() && state !== InputState.Loading) {
         onSubmit(value.trim());
       } else if (e.key === "Escape") {
         handleClear();
       }
     },
-    [value, onSubmit, cancelAutoSubmit, handleClear],
+    [value, state, onSubmit, cancelAutoSubmit, handleClear],
   );
 
   const handleSubmitClick = useCallback(() => {

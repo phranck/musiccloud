@@ -7,7 +7,7 @@ import {
   type ResolveSuccessResponse,
   type UnifiedResolveSuccessResponse,
 } from "@musiccloud/shared";
-import { type Dispatch, useCallback, useReducer } from "react";
+import { type Dispatch, useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { CardSignal, GenreSignal, ResolveSignal, SearchSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { detectRegion } from "@/lib/geo/detect-region";
 import { parseJamendoUrl } from "@/lib/resolve/jamendoUrl";
@@ -104,8 +104,11 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
     genreSearchPayload
   );
 
+  const inFlight = useInFlightRequest();
+
   const handleSubmit = useCallback(
     async (url: string) => {
+      const request = inFlight.begin();
       sendMusicSignal(SearchSignal.Submitted);
       dispatch({ type: "SUBMIT" });
       // A pasted Jamendo track/album URL resolves the exact entity through the CC
@@ -119,6 +122,7 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
         const response = await resolveFetch(
           endpoint,
           jamendoCandidate ? { selectedCandidate: jamendoCandidate } : { query: url },
+          request.signal,
         );
         const data = (await response.json()) as
           | UnifiedResolveSuccessResponse
@@ -126,6 +130,7 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
           | ResolveGenreBrowseResponse
           | ResolveGenreSearchResponse
           | CcResolveData;
+        if (!request.isCurrent()) return;
         if ("status" in data && data.status === "disambiguation") {
           sendMusicSignal(ResolveSignal.Completed);
           dispatch({ type: "DISAMBIGUATION", candidates: data.candidates });
@@ -160,11 +165,12 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
         prefetchArtistColumn(resolved);
         dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(resolved), resolved });
       } catch (err) {
+        if (!request.isCurrent()) return;
         sendResolveFailedSignal(err);
         dispatchResolveError(dispatch, err);
       }
     },
-    [mode],
+    [inFlight, mode],
   );
 
   /**
@@ -175,31 +181,35 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
    */
   const handleSelectCandidate = useCallback(
     async (candidate: DisambiguationCandidate, revealAfter: Promise<void> = Promise.resolve()) => {
+      const request = inFlight.begin();
       sendMusicSignal(CardSignal.DisambiguationCandidate);
       dispatch({ type: "SELECT_CANDIDATE", selectedId: candidate.id });
       try {
         const endpoint = mode === ResolveMode.Cc ? ENDPOINTS.frontend.ccResolve : ENDPOINTS.frontend.resolve;
-        const response = await resolveFetch(endpoint, { selectedCandidate: candidate.id });
+        const response = await resolveFetch(endpoint, { selectedCandidate: candidate.id }, request.signal);
         if (mode === ResolveMode.Cc) {
           const data = (await response.json()) as CcResolveData;
           await revealAfter;
+          if (!request.isCurrent()) return;
           sendMusicSignal(ResolveSignal.Completed);
           dispatchCcResult(dispatch, data);
         } else {
           const data = (await response.json()) as ResolveSuccessResponse;
           const resolved: UnifiedResolveSuccessResponse = { ...data, type: "track" };
-          prefetchArtistColumn(resolved);
+          if (request.isCurrent()) prefetchArtistColumn(resolved);
           await revealAfter;
+          if (!request.isCurrent()) return;
           sendMusicSignal(ResolveSignal.Completed);
           dispatch({ type: "RESOLVE_SUCCESS", active: parseResolveResponse(data), resolved });
         }
       } catch (err) {
         await revealAfter;
+        if (!request.isCurrent()) return;
         sendResolveFailedSignal(err);
         dispatchResolveError(dispatch, err);
       }
     },
-    [mode],
+    [inFlight, mode],
   );
 
   /**
@@ -214,6 +224,7 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
    */
   const handleSelectGenreResult = useCallback(
     async (webUrl: string, id: string) => {
+      const request = inFlight.begin();
       dispatch({ type: "SELECT_GENRE_RESULT", selectedId: id });
       try {
         // CC genre results resolve through the CC endpoint: the candidate carries
@@ -222,32 +233,40 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
         const response = await resolveFetch(
           mode === ResolveMode.Cc ? ENDPOINTS.frontend.ccResolve : ENDPOINTS.frontend.resolve,
           mode === ResolveMode.Cc ? { selectedCandidate: id } : { query: webUrl },
+          request.signal,
         );
         if (mode === ResolveMode.Cc) {
           const data = (await response.json()) as CcResolveData;
+          if (!request.isCurrent()) return;
           sendMusicSignal(ResolveSignal.Completed);
           dispatchCcResult(dispatch, data);
         } else {
           const data = (await response.json()) as UnifiedResolveSuccessResponse;
+          if (!request.isCurrent()) return;
           sendMusicSignal(ResolveSignal.Completed);
           prefetchArtistColumn(data);
           dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(data), resolved: data });
         }
       } catch (err) {
+        if (!request.isCurrent()) return;
         sendResolveFailedSignal(err);
         dispatchResolveError(dispatch, err);
       }
     },
-    [mode],
+    [inFlight, mode],
   );
 
+  // Leaving a screen abandons its request, so its answer cannot land on the
+  // screen the user went to.
   const handleClear = useCallback(() => {
+    inFlight.cancel();
     dispatch({ type: "CLEAR_START" });
-  }, []);
+  }, [inFlight]);
 
   const handleBack = useCallback(() => {
+    inFlight.cancel();
     dispatch({ type: "NAV_BACK" });
-  }, []);
+  }, [inFlight]);
 
   return {
     state: screen,
@@ -279,7 +298,8 @@ const RESOLVE_FETCH_TIMEOUT_MS = 15000;
 
 /**
  * POSTs a JSON resolve request to `endpoint` with a {@link RESOLVE_FETCH_TIMEOUT_MS}
- * abort budget and returns the raw OK `Response` for the caller to parse.
+ * abort budget and returns the raw OK `Response` for the caller to parse. Aborting
+ * `signal`, the request's in-flight slot, cancels the request as well.
  *
  * The success body is intentionally NOT decoded here: each caller reads a
  * different discriminated union (unified / disambiguation / genre-browse /
@@ -290,11 +310,15 @@ const RESOLVE_FETCH_TIMEOUT_MS = 15000;
  *
  * @param endpoint - Resolve endpoint URL.
  * @param body - Request payload, JSON-stringified as the POST body.
+ * @param signal - The in-flight slot's signal.
  * @returns The OK `Response`, ready for the caller to `json()`.
  */
-async function resolveFetch(endpoint: string, body: unknown): Promise<Response> {
+async function resolveFetch(endpoint: string, body: unknown, signal: AbortSignal): Promise<Response> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), RESOLVE_FETCH_TIMEOUT_MS);
+  const forwardAbort = () => controller.abort(signal.reason);
+  if (signal.aborted) forwardAbort();
+  signal.addEventListener("abort", forwardAbort, { once: true });
   try {
     const response = await fetch(endpoint, {
       method: "POST",
@@ -309,7 +333,46 @@ async function resolveFetch(endpoint: string, body: unknown): Promise<Response> 
     return response;
   } finally {
     clearTimeout(timeout);
+    signal.removeEventListener("abort", forwardAbort);
   }
+}
+
+/**
+ * One in-flight request at a time. Starting a request aborts the previous one,
+ * and `isCurrent` tells a handler whether its answer still belongs to what the
+ * screen shows, so a late answer can never replace a newer state.
+ */
+interface InFlightRequest {
+  signal: AbortSignal;
+  isCurrent: () => boolean;
+}
+
+/**
+ * Owns the landing page's single in-flight request slot.
+ *
+ * @returns `begin` to start a request (aborting the one before it) and `cancel`
+ *   to abort the running one without starting another, for clear and back.
+ */
+function useInFlightRequest() {
+  const currentRef = useRef<AbortController | null>(null);
+
+  const begin = useCallback((): InFlightRequest => {
+    currentRef.current?.abort();
+    const controller = new AbortController();
+    currentRef.current = controller;
+    return { signal: controller.signal, isCurrent: () => currentRef.current === controller };
+  }, []);
+
+  const cancel = useCallback(() => {
+    currentRef.current?.abort();
+    currentRef.current = null;
+  }, []);
+
+  useEffect(() => cancel, [cancel]);
+
+  // Stable identity, because the handlers built on it are effect and memo
+  // dependencies further down the tree.
+  return useMemo(() => ({ begin, cancel }), [begin, cancel]);
 }
 
 function dispatchResolveError(dispatch: Dispatch<{ type: "ERROR"; error: ResolveUiError }>, err: unknown): void {

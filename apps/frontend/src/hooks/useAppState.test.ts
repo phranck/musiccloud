@@ -75,3 +75,76 @@ describe("useAppState candidate selection", () => {
     expect(result.current.state.type).toBe("result");
   });
 });
+
+describe("useAppState in-flight requests", () => {
+  function deferredResponse() {
+    let respond!: (body: unknown) => void;
+    const response = new Promise<Response>((resolve) => {
+      respond = (body) => resolve(jsonResponse(body));
+    });
+    return { response, respond };
+  }
+
+  /** Mirrors the browser: an aborted fetch rejects with an AbortError. */
+  function abortable(response: Promise<Response>, init?: RequestInit): Promise<Response> {
+    return new Promise((resolve, reject) => {
+      init?.signal?.addEventListener("abort", () =>
+        reject(Object.assign(new Error("aborted"), { name: "AbortError" })),
+      );
+      response.then(resolve, reject);
+    });
+  }
+
+  /**
+   * Answers do not arrive in order. An older one that lands after a newer
+   * request must not replace what the newer one put on screen.
+   */
+  it("drops the answer of a submit that a newer submit replaced", async () => {
+    const slow = deferredResponse();
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce((_url: string, init?: RequestInit) => abortable(slow.response, init))
+      .mockImplementationOnce(async () => jsonResponse({ status: "disambiguation", candidates: [CANDIDATE] }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useAppState());
+
+    let first!: Promise<void>;
+    act(() => {
+      first = result.current.handleSubmit("https://www.deezer.com/track/1");
+    });
+    await act(() => result.current.handleSubmit("teardrop"));
+    await act(async () => {
+      slow.respond(TRACK_RESPONSE);
+      await first;
+    });
+
+    expect(result.current.state.type).toBe("disambiguation");
+  });
+
+  it.each([
+    ["clear", "handleClear"],
+    ["back", "handleBack"],
+  ] as const)("abandons the running request on %s", async (_label, action) => {
+    const slow = deferredResponse();
+    const fetchMock = vi.fn().mockImplementation((_url: string, init?: RequestInit) => abortable(slow.response, init));
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useAppState());
+
+    let pending!: Promise<void>;
+    act(() => {
+      pending = result.current.handleSubmit("https://www.deezer.com/track/1");
+    });
+    act(() => {
+      result.current[action]();
+    });
+    const stateAfterLeaving = result.current.state.type;
+    await act(async () => {
+      slow.respond(TRACK_RESPONSE);
+      await pending;
+    });
+
+    expect(fetchMock.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
+    expect(result.current.state.type).toBe(stateAfterLeaving);
+    expect(result.current.state.type).not.toBe("error");
+  });
+});
