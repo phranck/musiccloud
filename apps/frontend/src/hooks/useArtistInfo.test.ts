@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const { fetchArtistInfoMock } = vi.hoisted(() => ({ fetchArtistInfoMock: vi.fn() }));
 
 vi.mock("@/lib/share/artist-info-client", () => ({
+  ARTIST_INFO_FETCH_TIMEOUT_MS: 15000,
   fetchArtistInfo: fetchArtistInfoMock,
   fetchCcArtistInfo: vi.fn(),
   artistFetchErrorCode: (err: unknown) => (err instanceof Error ? err.message : "ERR"),

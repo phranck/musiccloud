@@ -2,22 +2,13 @@ import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { useEffect, useReducer, useRef } from "react";
 import type { ArtistInfoStatus } from "@/components/artist/artistPanelTypes";
 import {
+  ARTIST_INFO_FETCH_TIMEOUT_MS,
   type ArtistInfoContext,
   artistFetchErrorCode,
   fetchArtistInfo,
   fetchCcArtistInfo,
 } from "@/lib/share/artist-info-client";
 
-/**
- * Abort timeout for the commercial artist-info fetch, in milliseconds. The
- * backend blocks the response while it refetches stale cache sections from
- * upstream (Deezer top tracks, Last.fm/Spotify profile, Bandsintown events,
- * plus up to five similar-artist lookups), which under concurrent load
- * routinely takes well over five seconds. The budget sits above that so a
- * slow-but-valid response still fills the artist column instead of aborting
- * it to an empty one (all four cards render `null` on no data).
- */
-const ARTIST_FETCH_TIMEOUT_MS = 15000;
 /** CC artist-info fetches mirror Jamendo live (~4 throttled calls), so they get a
  *  wider budget than the fast commercial Last.fm lookup. */
 const CC_ARTIST_FETCH_TIMEOUT_MS = 20000;
@@ -133,7 +124,7 @@ export interface UseArtistInfoResult {
  * Owns the artist-info fetch lifecycle for the share layout.
  *
  * Mirrors `useAppState` in shape: holds the reducer, runs the immediate fetch
- * (with a {@link ARTIST_FETCH_TIMEOUT_MS} abort timeout and proper cancellation
+ * (with a {@link ARTIST_INFO_FETCH_TIMEOUT_MS} abort timeout and proper cancellation
  * on unmount / input change), and seeds directly from caller-supplied data when
  * `skipArtistFetch` is set (the Creative-Commons path, which has no commercial
  * artist-info endpoint). All endpoint/fetch knowledge lives in
@@ -177,7 +168,7 @@ export function useArtistInfo({
     let cancelled = false;
     dispatch({ type: ArtistActionType.Loading });
     const controller = new AbortController();
-    const timeoutMs = ccJamendoArtistId ? CC_ARTIST_FETCH_TIMEOUT_MS : ARTIST_FETCH_TIMEOUT_MS;
+    const timeoutMs = ccJamendoArtistId ? CC_ARTIST_FETCH_TIMEOUT_MS : ARTIST_INFO_FETCH_TIMEOUT_MS;
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     const request = ccJamendoArtistId
       ? fetchCcArtistInfo(ccJamendoArtistId, artistName, controller.signal)

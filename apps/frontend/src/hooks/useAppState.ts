@@ -9,6 +9,7 @@ import {
 } from "@musiccloud/shared";
 import { type Dispatch, useCallback, useReducer } from "react";
 import { CardSignal, GenreSignal, ResolveSignal, SearchSignal, sendMusicSignal } from "@/lib/analytics/umami";
+import { detectRegion } from "@/lib/geo/detect-region";
 import { parseJamendoUrl } from "@/lib/resolve/jamendoUrl";
 import {
   appReducer,
@@ -21,6 +22,8 @@ import {
   ResolveApiError,
 } from "@/lib/resolve/parsers";
 import { setResolveMode } from "@/lib/resolve/resolveMode";
+import { prefetchArtistInfo } from "@/lib/share/artist-info-client";
+import { buildShareViewFromResolvedResponse } from "@/lib/share/share-view";
 import {
   type ActiveResult,
   type AppAction,
@@ -52,7 +55,7 @@ interface UseAppStateResult {
   isGenreSearching: boolean;
   isGenreSearchLoading: boolean;
   handleSubmit: (url: string) => Promise<void>;
-  handleSelectCandidate: (candidate: DisambiguationCandidate) => Promise<void>;
+  handleSelectCandidate: (candidate: DisambiguationCandidate, revealAfter?: Promise<void>) => Promise<void>;
   handleSelectGenreResult: (webUrl: string, id: string) => Promise<void>;
   handleBack: () => void;
   handleClear: () => void;
@@ -154,6 +157,7 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
         }
         const resolved = data as UnifiedResolveSuccessResponse;
         sendMusicSignal(ResolveSignal.Completed);
+        prefetchArtistColumn(resolved);
         dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(resolved), resolved });
       } catch (err) {
         sendResolveFailedSignal(err);
@@ -163,8 +167,14 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
     [mode],
   );
 
+  /**
+   * Resolves a picked disambiguation candidate. The request goes out at once;
+   * `revealAfter` is the panel's selection animation, and the answer is applied
+   * only once it has finished, so the network time runs alongside the animation
+   * instead of after it.
+   */
   const handleSelectCandidate = useCallback(
-    async (candidate: DisambiguationCandidate) => {
+    async (candidate: DisambiguationCandidate, revealAfter: Promise<void> = Promise.resolve()) => {
       sendMusicSignal(CardSignal.DisambiguationCandidate);
       dispatch({ type: "SELECT_CANDIDATE", selectedId: candidate.id });
       try {
@@ -172,15 +182,19 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
         const response = await resolveFetch(endpoint, { selectedCandidate: candidate.id });
         if (mode === ResolveMode.Cc) {
           const data = (await response.json()) as CcResolveData;
+          await revealAfter;
           sendMusicSignal(ResolveSignal.Completed);
           dispatchCcResult(dispatch, data);
         } else {
           const data = (await response.json()) as ResolveSuccessResponse;
           const resolved: UnifiedResolveSuccessResponse = { ...data, type: "track" };
+          prefetchArtistColumn(resolved);
+          await revealAfter;
           sendMusicSignal(ResolveSignal.Completed);
           dispatch({ type: "RESOLVE_SUCCESS", active: parseResolveResponse(data), resolved });
         }
       } catch (err) {
+        await revealAfter;
         sendResolveFailedSignal(err);
         dispatchResolveError(dispatch, err);
       }
@@ -216,6 +230,7 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
         } else {
           const data = (await response.json()) as UnifiedResolveSuccessResponse;
           sendMusicSignal(ResolveSignal.Completed);
+          prefetchArtistColumn(data);
           dispatch({ type: "RESOLVE_SUCCESS", active: parseUnifiedResolveResponse(data), resolved: data });
         }
       } catch (err) {
@@ -318,6 +333,20 @@ function isCcResolveData(data: { type?: string }): data is CcResolveData {
  */
 function dispatchCcResult(dispatch: Dispatch<AppAction>, data: CcResolveData): void {
   dispatch({ type: "RESOLVE_CC_SUCCESS", ccActive: ccResolveDataToResult(data) });
+}
+
+/**
+ * Starts the artist column's request as soon as a commercial resolve answers.
+ * The landing page reveals the result only after its loading animation, and the
+ * column asks for its data only once it mounts, so this saves that wait. The
+ * arguments are built exactly as the column builds them, which is what lets it
+ * take the request over.
+ *
+ * @param resolved - The commercial resolve answer about to be shown.
+ */
+function prefetchArtistColumn(resolved: UnifiedResolveSuccessResponse): void {
+  const view = buildShareViewFromResolvedResponse(resolved);
+  prefetchArtistInfo(view.artistName, detectRegion(), view.artistInfoContext);
 }
 
 function sendResolveFailedSignal(err: unknown): void {

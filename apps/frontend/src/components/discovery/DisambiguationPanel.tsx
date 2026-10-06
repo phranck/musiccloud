@@ -19,7 +19,12 @@ import { cn } from "@/lib/utils";
 
 interface DisambiguationPanelProps {
   candidates: DisambiguationCandidate[];
-  onSelect: (candidate: DisambiguationCandidate) => void;
+  /**
+   * Called the moment a candidate is clicked, so its resolve starts at once.
+   * `animationDone` settles when the selection animation has finished (or the
+   * panel goes away); the caller holds the result until then.
+   */
+  onSelect: (candidate: DisambiguationCandidate, animationDone: Promise<void>) => void;
   onCancel: () => void;
   selectedId?: string | null;
   loading?: boolean;
@@ -59,17 +64,21 @@ export function DisambiguationPanel({
   } = usePagedList(candidates, { pageSize: CANDIDATES_PER_PAGE, resetKey: candidatesKey });
 
   const listRef = useRef<HTMLDivElement | null>(null);
-  const resolveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const finishAnimation = useRef<(() => void) | null>(null);
 
-  const clearResolveTimer = useCallback(() => {
-    if (resolveTimer.current === null) return;
-    clearTimeout(resolveTimer.current);
-    resolveTimer.current = null;
+  // Ends a running selection animation early, settling its promise so the
+  // caller waiting on it is never left hanging when the panel goes away.
+  const clearAnimationTimer = useCallback(() => {
+    if (animationTimer.current !== null) clearTimeout(animationTimer.current);
+    animationTimer.current = null;
+    finishAnimation.current?.();
+    finishAnimation.current = null;
   }, []);
 
   useEffect(() => {
-    return clearResolveTimer;
-  }, [clearResolveTimer]);
+    return clearAnimationTimer;
+  }, [clearAnimationTimer]);
 
   // Staggered card entrance (GSAP port of the removed `animate-slide-up`
   // class): one batch over the freshly mounted page slice, replayed when the
@@ -85,7 +94,7 @@ export function DisambiguationPanel({
   const handleClick = useCallback(
     (candidate: DisambiguationCandidate) => {
       if (animatingId || loading) return;
-      clearResolveTimer();
+      clearAnimationTimer();
 
       const listEl = listRef.current;
       if (!listEl) return;
@@ -176,13 +185,19 @@ export function DisambiguationPanel({
         }
       });
 
-      // Fire resolve only after the animation finishes
-      resolveTimer.current = setTimeout(() => {
-        resolveTimer.current = null;
-        onSelect(candidate);
+      // The resolve starts now, while the cards move. The animation's end is
+      // handed along so the result is not shown before the choreography is done.
+      const animationDone = new Promise<void>((resolve) => {
+        finishAnimation.current = resolve;
+      });
+      animationTimer.current = setTimeout(() => {
+        animationTimer.current = null;
+        finishAnimation.current?.();
+        finishAnimation.current = null;
       }, ANIM_MS + 30);
+      onSelect(candidate, animationDone);
     },
-    [animatingId, clearResolveTimer, loading, onSelect],
+    [animatingId, clearAnimationTimer, loading, onSelect],
   );
 
   const isAnimating = animatingId !== null;

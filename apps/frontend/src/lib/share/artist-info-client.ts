@@ -89,7 +89,9 @@ async function requestArtistInfo(url: string, signal: AbortSignal): Promise<Arti
  * Retries exactly once for a transport failure or a 502, 503, or 504 before
  * consuming its body. Other responses retain their canonical backend fields in
  * {@link ArtistInfoApiError}; aborts and JSON decoding failures are not retried.
- * The caller owns the {@link AbortSignal} (and thus the request timeout).
+ * The caller owns the {@link AbortSignal} (and thus the request timeout). A
+ * request {@link prefetchArtistInfo} started with the same arguments is taken
+ * over instead of sending a second one.
  *
  * @param artistName - The artist name to look up.
  * @param userRegion - ISO region used to localize results; omitted from the
@@ -104,12 +106,95 @@ export async function fetchArtistInfo(
   context: ArtistInfoContext,
   signal: AbortSignal,
 ): Promise<ArtistInfoResponse> {
+  const url = artistInfoUrl(artistName, userRegion, context);
+  const prefetched = prefetchedArtistInfo.get(url);
+  if (prefetched) {
+    prefetchedArtistInfo.delete(url);
+    return untilAborted(prefetched, signal);
+  }
+  return requestArtistInfo(url, signal);
+}
+
+/**
+ * Abort budget for one commercial artist-info request, in milliseconds. The
+ * backend blocks the response while it refetches stale cache sections from
+ * upstream, which under concurrent load can take well over five seconds, so the
+ * budget sits above that and a slow but valid response still fills the column.
+ */
+export const ARTIST_INFO_FETCH_TIMEOUT_MS = 15000;
+
+/** How long a prefetched answer waits for the column to claim it. */
+const ARTIST_INFO_PREFETCH_TTL_MS = 30_000;
+
+/**
+ * Commercial artist-info requests started before the artist column mounted,
+ * keyed by request URL. The landing page holds the result back for its reveal
+ * animation, and the column only asks once it mounts, so starting the request
+ * when the resolve answer arrives saves that wait.
+ */
+const prefetchedArtistInfo = new Map<string, Promise<ArtistInfoResponse>>();
+
+/**
+ * Builds the request URL for the commercial artist-info endpoint. A prefetch
+ * and the column's own request must produce the same URL to meet in
+ * {@link prefetchedArtistInfo}, so both build it here.
+ */
+function artistInfoUrl(artistName: string, userRegion: string, context: ArtistInfoContext): string {
   const params = new URLSearchParams();
   if (artistName) params.set("name", artistName);
   if (userRegion) params.set("region", userRegion);
   if (context.shortId) params.set("shortId", context.shortId);
   if (context.artistEntityId) params.set("artistEntityId", context.artistEntityId);
-  return requestArtistInfo(`${ENDPOINTS.frontend.artistInfo}?${params.toString()}`, signal);
+  return `${ENDPOINTS.frontend.artistInfo}?${params.toString()}`;
+}
+
+/**
+ * Starts the commercial artist-info request for a column that has not mounted
+ * yet. The next {@link fetchArtistInfo} with the same arguments takes this
+ * request over instead of sending its own. An answer nobody claims within
+ * {@link ARTIST_INFO_PREFETCH_TTL_MS} is dropped.
+ *
+ * @param artistName - The artist the column will show.
+ * @param userRegion - ISO region the column will localize with.
+ * @param context - The narrowing context the column will pass.
+ */
+export function prefetchArtistInfo(artistName: string, userRegion: string, context: ArtistInfoContext): void {
+  const url = artistInfoUrl(artistName, userRegion, context);
+  if (prefetchedArtistInfo.has(url)) return;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), ARTIST_INFO_FETCH_TIMEOUT_MS);
+  const request = requestArtistInfo(url, controller.signal).finally(() => clearTimeout(timeout));
+  // The column receives a failure when it claims the request. Until then the
+  // rejection must not surface as an unhandled one.
+  request.catch(() => undefined);
+  prefetchedArtistInfo.set(url, request);
+  setTimeout(() => {
+    if (prefetchedArtistInfo.get(url) === request) prefetchedArtistInfo.delete(url);
+  }, ARTIST_INFO_PREFETCH_TTL_MS);
+}
+
+/**
+ * Settles with `promise`, or rejects with the signal's reason as soon as the
+ * caller aborts. The underlying request is left alone, because a prefetch is
+ * not owned by the column that claimed it.
+ */
+function untilAborted<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(signal.reason);
+  return new Promise<T>((resolve, reject) => {
+    const rejectOnAbort = () => reject(signal.reason);
+    signal.addEventListener("abort", rejectOnAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", rejectOnAbort);
+        resolve(value);
+      },
+      (reason: unknown) => {
+        signal.removeEventListener("abort", rejectOnAbort);
+        reject(reason);
+      },
+    );
+  });
 }
 
 /**

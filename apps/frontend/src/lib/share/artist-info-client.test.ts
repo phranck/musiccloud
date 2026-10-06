@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { artistFetchErrorCode, fetchArtistInfo, fetchCcArtistInfo } from "./artist-info-client";
+import { artistFetchErrorCode, fetchArtistInfo, fetchCcArtistInfo, prefetchArtistInfo } from "./artist-info-client";
 
 const ARTIST_INFO = {
   artistName: "Canonical Artist",
@@ -99,6 +99,52 @@ describe("fetchArtistInfo", () => {
     fetchMock.mockReset().mockResolvedValue(new Response("not json"));
     await expect(fetchArtistInfo("Canonical Artist", "", {}, new AbortController().signal)).rejects.toThrow();
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("prefetchArtistInfo", () => {
+  /**
+   * The landing page holds the result for its reveal animation, and the column
+   * asks only when it mounts. A prefetch started at the resolve answer has to be
+   * taken over by the column, not duplicated.
+   */
+  it("lets the column take over a prefetched request instead of sending a second one", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(ARTIST_INFO)));
+    vi.stubGlobal("fetch", fetchMock);
+    const context = { shortId: "prefetch1", artistEntityId: "artist-prefetch-1" };
+
+    prefetchArtistInfo("Prefetched Artist", "AT", context);
+    const data = await fetchArtistInfo("Prefetched Artist", "AT", context, new AbortController().signal);
+
+    expect(data).toEqual(ARTIST_INFO);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("hands a prefetch failure to the column that claims it", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ error: "MC-REQ-0001", errorId: "prefetch-incident" }), { status: 400 }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    prefetchArtistInfo("Failing Artist", "", {});
+    const failure = await fetchArtistInfo("Failing Artist", "", {}, new AbortController().signal).catch(
+      (error: unknown) => error,
+    );
+
+    expect(artistFetchErrorCode(failure)).toBe("MC-REQ-0001");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends a request of its own for different arguments", async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify(ARTIST_INFO)));
+    vi.stubGlobal("fetch", fetchMock);
+
+    prefetchArtistInfo("One Artist", "", {});
+    await fetchArtistInfo("Another Artist", "", {}, new AbortController().signal);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
 
