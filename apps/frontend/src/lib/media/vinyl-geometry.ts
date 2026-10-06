@@ -2,7 +2,6 @@ import type { VinylSide } from "@musiccloud/shared";
 
 const SIDE_GROOVE_RUN_IN_BAND_WIDTH = 1.5;
 const SIDE_GROOVE_RUN_OUT_BAND_WIDTH = 1.5;
-const SIDE_GROOVE_SEGMENT_LENGTH = 1.6;
 const SIDE_GROOVE_PAUSE_BAND_WIDTH = 1;
 
 /**
@@ -61,14 +60,10 @@ export function labelArcPath(radius: number, baselineY: number) {
 
 /**
  * Builds an Archimedean spiral as an SVG path (`r = innerRadius + b·θ`), centred
- * on the 100×100 viewBox — one continuous groove from the outer edge inward, the
- * way a real record is cut, instead of separate concentric rings.
- *
- * Sampled at a constant **arc length** rather than a fixed number of points per
- * turn: a fixed per-turn count leaves visible polygon corners on the long outer
- * windings while over-sampling the short inner ones. Walking from the outer edge
- * inward with `cos(θ)`/`sin(θ)` and a decreasing angle makes the groove run
- * counter-clockwise from outside to inside (SVG's y-axis points down).
+ * on the 100×100 viewBox. It is one continuous groove from the outer edge
+ * inward, the way a real record is cut, instead of separate concentric rings.
+ * The groove runs counter-clockwise from outside to inside and is drawn as
+ * quarter-turn arcs, see {@link spiralArcPath}.
  *
  * @param turns - Number of revolutions between inner and outer radius.
  * @param innerRadius - Where the groove ends (near the label edge).
@@ -76,26 +71,66 @@ export function labelArcPath(radius: number, baselineY: number) {
  * @returns The `d` attribute for a `<path>`.
  */
 export function vinylGrooveSpiralPath(turns: number, innerRadius: number, outerRadius: number): string {
-  // ~1.6 viewBox units between samples keeps the curve smooth at the displayed
-  // size while keeping the path string small (it ships in the DOM and is
-  // re-rasterised per frame on software-rendered Firefox). 1-decimal coordinates
-  // are precise enough at this scale and roughly halve the string length.
-  const segmentLength = 1.6;
-  const totalAngle = turns * 2 * Math.PI;
-  const growthPerRadian = (outerRadius - innerRadius) / totalAngle;
-  const points: string[] = [];
-  let theta = totalAngle;
-  let isFirst = true;
-  while (theta > 0) {
-    const radius = innerRadius + growthPerRadian * theta;
-    const x = 50 + radius * Math.cos(theta);
-    const y = 50 + radius * Math.sin(theta);
-    points.push(`${isFirst ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`);
-    isFirst = false;
-    theta -= segmentLength / radius;
+  return spiralArcPath(outerRadius, innerRadius, turns * 2 * Math.PI, 0);
+}
+
+/**
+ * Angle one arc command of a spiral path covers: a quarter turn. Over a quarter
+ * turn the groove's radius changes by under a tenth of a viewBox unit, so a
+ * circular arc through both ends stays within a fraction of the stroke width of
+ * the true spiral, and a 72-turn groove needs 288 commands instead of the
+ * thousands of straight segments a polyline needs to look round.
+ */
+const SPIRAL_ARC_STEP_RADIANS = Math.PI / 2;
+
+/** Rounding slack when counting arc steps, far below one step. */
+const SPIRAL_STEP_TOLERANCE = 1e-9;
+
+/**
+ * Formats a spiral coordinate. Two decimals keep consecutive arcs meeting
+ * without a visible kink at the record's largest display size.
+ */
+function formatSpiralCoordinate(value: number): string {
+  return value.toFixed(2);
+}
+
+/**
+ * Builds part of an Archimedean spiral centred on the 100×100 viewBox as
+ * circular arcs, walking from `startAngle` down to `endAngle` while the radius
+ * moves linearly from `startRadius` to `endRadius`. A decreasing angle with
+ * `cos`/`sin` makes the groove run counter-clockwise on screen (SVG's y-axis
+ * points down), which is the arcs' sweep flag 0.
+ *
+ * The path ships inside a data URL on every share page and is rasterised when a
+ * record appears, so its size and its number of segments are what the record's
+ * first frame costs.
+ *
+ * @param startRadius - Radius at `startAngle`.
+ * @param endRadius - Radius at `endAngle`.
+ * @param startAngle - Angle the groove starts at, in radians.
+ * @param endAngle - Angle the groove ends at, in radians; not above `startAngle`.
+ * @returns The `d` attribute for a `<path>`.
+ */
+function spiralArcPath(startRadius: number, endRadius: number, startAngle: number, endAngle: number): string {
+  const totalAngle = startAngle - endAngle;
+  const radiusAt = (angle: number) =>
+    totalAngle > 0 ? startRadius + ((startAngle - angle) / totalAngle) * (endRadius - startRadius) : endRadius;
+  const pointAt = (radius: number, angle: number) =>
+    `${formatSpiralCoordinate(50 + radius * Math.cos(angle))} ${formatSpiralCoordinate(50 + radius * Math.sin(angle))}`;
+
+  // Each step's angle comes from its index rather than from repeated
+  // subtraction, which would leave a sliver of an extra arc at the end.
+  const stepCount = Math.ceil(totalAngle / SPIRAL_ARC_STEP_RADIANS - SPIRAL_STEP_TOLERANCE);
+  const commands = [`M ${pointAt(startRadius, startAngle)}`];
+  let radius = startRadius;
+  for (let step = 1; step <= stepCount; step++) {
+    const nextAngle = startAngle - Math.min(totalAngle, step * SPIRAL_ARC_STEP_RADIANS);
+    const nextRadius = radiusAt(nextAngle);
+    const arcRadius = formatSpiralCoordinate((radius + nextRadius) / 2);
+    commands.push(`A ${arcRadius} ${arcRadius} 0 0 0 ${pointAt(nextRadius, nextAngle)}`);
+    radius = nextRadius;
   }
-  points.push(`L ${(50 + innerRadius).toFixed(1)} 50`);
-  return points.join(" ");
+  return commands.join(" ");
 }
 
 function vinylGrooveSegmentPath(
@@ -104,28 +139,8 @@ function vinylGrooveSegmentPath(
   startAngle: number,
   turnsPerRadius: number,
 ): string {
-  const radialDistance = startRadius - endRadius;
-  const turns = radialDistance * turnsPerRadius;
-  const endAngle = startAngle - turns * 2 * Math.PI;
-  const points: string[] = [];
-  let radius = startRadius;
-  let angle = startAngle;
-  let isFirst = true;
-
-  while (angle > endAngle) {
-    const x = 50 + radius * Math.cos(angle);
-    const y = 50 + radius * Math.sin(angle);
-    points.push(`${isFirst ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`);
-    isFirst = false;
-    const angleStep = SIDE_GROOVE_SEGMENT_LENGTH / radius;
-    angle -= angleStep;
-    radius = Math.max(endRadius, startRadius - ((startAngle - angle) / (turns * 2 * Math.PI)) * radialDistance);
-  }
-
-  points.push(
-    `L ${(50 + endRadius * Math.cos(endAngle)).toFixed(1)} ${(50 + endRadius * Math.sin(endAngle)).toFixed(1)}`,
-  );
-  return points.join(" ");
+  const turns = (startRadius - endRadius) * turnsPerRadius;
+  return spiralArcPath(startRadius, endRadius, startAngle, startAngle - turns * 2 * Math.PI);
 }
 
 function vinylPauseGroovePath(radius: number): string {
