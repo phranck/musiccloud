@@ -1,3 +1,4 @@
+import { parseJamendoLink } from "@musiccloud/shared";
 import { XCircleIcon } from "@phosphor-icons/react";
 import { type ReactNode, useCallback, useEffect, useRef } from "react";
 import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
@@ -7,7 +8,6 @@ import { HeroSubmitSlot } from "@/components/landing/HeroSubmitSlot";
 import { commonCopy } from "@/copy/common";
 import { landingCopy } from "@/copy/landing";
 import { isMusicUrl } from "@/lib/platform/url";
-import { parseJamendoUrl } from "@/lib/resolve/jamendoUrl";
 import { InputState } from "@/lib/types/app";
 import { cn } from "@/lib/utils";
 
@@ -89,10 +89,10 @@ export function HeroInput({
       if (!pastedText) return;
 
       setTimeout(() => {
-        // Commercial streaming links resolve via `isMusicUrl`; a Jamendo track/album
-        // link is recognized through the same parser the submit path uses, so pasting
-        // one auto-resolves it just like the other services.
-        if (isMusicUrl(pastedText) || parseJamendoUrl(pastedText) !== null) {
+        // Commercial streaming links resolve via `isMusicUrl`; a Jamendo track,
+        // album or artist link is recognized through the same parser the submit
+        // path uses, so pasting one auto-resolves it like the other services.
+        if (isMusicUrl(pastedText) || parseJamendoLink(pastedText) !== null) {
           autoSubmitTimer.current = setTimeout(() => {
             onSubmit(pastedText);
           }, 300);

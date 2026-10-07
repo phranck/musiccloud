@@ -76,6 +76,35 @@ describe("useAppState candidate selection", () => {
   });
 });
 
+describe("useAppState Jamendo links", () => {
+  /**
+   * A Jamendo link belongs to the Creative Commons catalog, so it goes to the CC
+   * endpoint unchanged even while the commercial mode is active. The endpoint
+   * resolves the linked entity itself.
+   */
+  it("sends a pasted Jamendo link to the CC endpoint and shows the CC result", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        type: "cc-artist",
+        id: "cc-artist-1",
+        shortUrl: "https://musiccloud.io/juanitos",
+        artist: { jamendoId: "5261", name: "Juanitos", shareUrl: "https://www.jamendo.com/artist/5261" },
+        artistInfo: { artistName: "Juanitos", topTracks: [], profile: null, events: [], similarArtistTracks: [] },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useAppState());
+
+    await act(() => result.current.handleSubmit("https://www.jamendo.com/de/artist/5261"));
+
+    expect(requestedPaths(fetchMock)).toEqual(["/api/cc/resolve"]);
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+      query: "https://www.jamendo.com/de/artist/5261",
+    });
+    expect(result.current.state.type).toBe("cc-result");
+  });
+});
+
 describe("useAppState in-flight requests", () => {
   function deferredResponse() {
     let respond!: (body: unknown) => void;

@@ -1,4 +1,4 @@
-import type { ErrorCode, ServiceId } from "@musiccloud/shared";
+import { ENDPOINTS, type ErrorCode, parseJamendoLink, type ServiceId } from "@musiccloud/shared";
 
 export type UrlValidationResult = { valid: true } | { valid: false; code: ErrorCode; message: string };
 
@@ -203,6 +203,16 @@ export function validateMusicUrl(input: string): UrlValidationResult {
       valid: false,
       code: "PLAYLIST_NOT_SUPPORTED",
       message: "We support single tracks right now. Try pasting a link to a specific song.",
+    };
+  }
+
+  // Jamendo is the Creative Commons catalog and resolves through its own
+  // endpoint. The generic message below would call it unsupported.
+  if (parseJamendoLink(input)) {
+    return {
+      valid: false,
+      code: "UNSUPPORTED_SERVICE",
+      message: `Jamendo links point to Creative Commons music. Resolve them through POST ${ENDPOINTS.v1.ccResolve}.`,
     };
   }
 

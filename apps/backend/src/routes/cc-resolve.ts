@@ -7,7 +7,10 @@
  *  - `query` (`genre:`) → CC genre browse / search (sourced from Jamendo).
  *  - `selectedCandidate` → resolve + persist → `cc-track` (`jamendo:<id>`),
  *    `cc-album` (`jamendo-album:<id>`) or `cc-artist` (`jamendo-artist:<id>`).
- * No URL-paste, no cross-service (those are separate / out of scope).
+ *  - `query` (Jamendo track, album or artist link) → resolved like the
+ *    matching `selectedCandidate`.
+ * Links to other streaming services and cross-service matching belong to the
+ * commercial route.
  */
 
 import type {
@@ -16,7 +19,7 @@ import type {
   CcResolveSuccessResponse,
   ResolveDisambiguationResponse,
 } from "@musiccloud/shared";
-import { ENDPOINTS } from "@musiccloud/shared";
+import { ENDPOINTS, parseJamendoLink } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getCcRepository, getRepository } from "../db/index.js";
 import { requireEnvList } from "../lib/env.js";
@@ -24,7 +27,7 @@ import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { siteResolveRateLimiter } from "../lib/infra/rate-limiter.js";
 import { runCcGenreBrowse, runCcGenreSearch } from "../services/cc/cc-genre.js";
-import { resolveCcCandidate, resolveCcTextSearch } from "../services/cc/cc-resolver.js";
+import { ccCandidateIdForJamendoLink, resolveCcCandidate, resolveCcTextSearch } from "../services/cc/cc-resolver.js";
 import {
   buildCcAlbumPayload,
   buildCcArtistPayload,
@@ -43,9 +46,9 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
     {
       schema: {
         tags: ["Resolve"],
-        summary: "Resolve a Creative-Commons free-text or structured query (Jamendo)",
+        summary: "Resolve a Jamendo link or a Creative-Commons free-text or structured query",
         description:
-          "Use `query` for Creative-Commons free text, a `title:`/`artist:`/`album:` structured search, or `genre:` discovery. Pasted streaming-service URLs are not accepted. A text search returns `ResolveDisambiguation`; choose one row and send its opaque `candidates[].id` back as `selectedCandidate`. A CC genre result already returns candidate IDs in `results.*[].id`; pass one unchanged as `selectedCandidate` to receive a persisted `cc-track`, `cc-album`, or `cc-artist` response.",
+          "Use `query` for a Jamendo track, album, or artist link, Creative-Commons free text, a `title:`/`artist:`/`album:` structured search, or `genre:` discovery. A Jamendo link resolves directly to a persisted `cc-track`, `cc-album`, or `cc-artist` response. Links to other streaming services are not accepted here; send them to `POST /api/v1/resolve`. A text search returns `ResolveDisambiguation`; choose one row and send its opaque `candidates[].id` back as `selectedCandidate`. A CC genre result already returns candidate IDs in `results.*[].id`; pass one unchanged as `selectedCandidate` to receive a persisted `cc-track`, `cc-album`, or `cc-artist` response.",
         security: [{ ApiKeyAuth: [] }],
         body: {
           type: "object",
@@ -57,8 +60,13 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
               minLength: 1,
               maxLength: 500,
               description:
-                "Creative-Commons free text, structured search beginning with `title:`, `artist:`, or `album:`, or a `genre:` discovery query. Streaming-service URLs are not accepted.",
-              examples: ["ambient piano", "artist: Madpix, title: Moments", "genre: ambient, tracks: 10"],
+                "A Jamendo track, album, or artist link, Creative-Commons free text, structured search beginning with `title:`, `artist:`, or `album:`, or a `genre:` discovery query. Links to other streaming services are not accepted.",
+              examples: [
+                "https://www.jamendo.com/track/459544",
+                "ambient piano",
+                "artist: Madpix, title: Moments",
+                "genre: ambient, tracks: 10",
+              ],
             },
             selectedCandidate: {
               type: "string",
@@ -71,7 +79,11 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
           },
           oneOf: [{ required: ["query"] }, { required: ["selectedCandidate"] }],
           additionalProperties: false,
-          examples: [{ query: "ambient piano" }, { selectedCandidate: "jamendo:123456" }],
+          examples: [
+            { query: "https://www.jamendo.com/track/459544" },
+            { query: "ambient piano" },
+            { selectedCandidate: "jamendo:123456" },
+          ],
         },
         response: {
           200: {
@@ -141,8 +153,13 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
         }
       }
 
-      if (selectedCandidate) {
-        const resolved = await resolveCcCandidate(selectedCandidate);
+      // A pasted Jamendo link names its entity exactly, so it skips the text
+      // search and resolves like the candidate a disambiguation row carries.
+      const jamendoLink = query ? parseJamendoLink(query) : null;
+      const candidate = selectedCandidate || (jamendoLink ? ccCandidateIdForJamendoLink(jamendoLink) : undefined);
+
+      if (candidate) {
+        const resolved = await resolveCcCandidate(candidate);
         if (!resolved) {
           return reply.status(404).send(ccError("TRACK_NOT_FOUND"));
         }
