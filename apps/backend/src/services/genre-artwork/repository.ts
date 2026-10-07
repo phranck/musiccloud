@@ -45,19 +45,34 @@ export async function clearAllArtworks(): Promise<{ deleted: number }> {
   return { deleted: result.rowCount ?? 0 };
 }
 
+/** What the browse grid needs to know about a genre's stored artwork. */
+export interface StoredArtworkSummary {
+  /** The accent the tile is colored with before its JPEG has loaded. */
+  accentColor: string;
+  /**
+   * True when the artwork was generated from a real album cover, which proves
+   * the genre has music with artwork without asking Last.fm again.
+   */
+  hasSourceCover: boolean;
+}
+
 /**
- * Batch-fetch accent colors for a list of genres. Used by the browse-grid
- * endpoint to inline already-known accents without pulling the JPEG bytes.
+ * Batch-reads the stored artworks of a list of genres without pulling the
+ * JPEG bytes.
+ *
+ * @param genreKeys - Canonical genre keys.
+ * @returns One entry per genre that has a stored artwork.
  */
-export async function getAccentColors(genreKeys: string[]): Promise<Map<string, string>> {
+export async function getStoredArtworkSummaries(genreKeys: string[]): Promise<Map<string, StoredArtworkSummary>> {
   if (genreKeys.length === 0) return new Map();
-  const result = await getDatabasePool().query<{ genre_key: string; accent_color: string }>(
-    "SELECT genre_key, accent_color FROM genre_artworks WHERE genre_key = ANY($1)",
+  const result = await getDatabasePool().query<{ genre_key: string; accent_color: string; has_source_cover: boolean }>(
+    `SELECT genre_key, accent_color, source_cover_url IS NOT NULL AS has_source_cover
+     FROM genre_artworks WHERE genre_key = ANY($1)`,
     [genreKeys],
   );
-  const map = new Map<string, string>();
+  const summaries = new Map<string, StoredArtworkSummary>();
   for (const row of result.rows) {
-    map.set(row.genre_key, row.accent_color);
+    summaries.set(row.genre_key, { accentColor: row.accent_color, hasSourceCover: row.has_source_cover });
   }
-  return map;
+  return summaries;
 }
