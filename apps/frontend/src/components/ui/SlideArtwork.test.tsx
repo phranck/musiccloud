@@ -19,15 +19,15 @@ import { SlideArtwork } from "@/components/ui/SlideArtwork";
 const discEl = (c: HTMLElement) => c.querySelector(".mc-disc-drop-in, .mc-disc-drop-out");
 /** The cover layer that moves independently from the Single label image. */
 const coverEl = (c: HTMLElement) =>
-  Array.from(c.querySelectorAll("div")).find(
-    (el) => el.className.includes("bg-surface") && el.className.includes("will-change-transform"),
-  ) as HTMLElement;
+  Array.from(c.querySelectorAll("div")).find((el) => el.classList.contains("bg-surface")) as HTMLElement;
 
 describe("SlideArtwork loading swap", () => {
   it("renders no disc and a still cover while inactive", () => {
     const { container } = render(<SlideArtwork active={false} artworkUrl="/a.jpg" sizeClass="w-12 h-12" />);
     expect(discEl(container)).toBeNull();
     expect(coverEl(container).className).not.toMatch(/mc-cover-drop/);
+    // A list mounts dozens of these; a GPU layer for each resting cover costs Safari long frames.
+    expect(coverEl(container).className).not.toMatch(/will-change|transform-gpu/);
   });
 
   it("drops the disc in and the cover out when a row turns active", () => {

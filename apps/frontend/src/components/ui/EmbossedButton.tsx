@@ -6,9 +6,11 @@ import { cn } from "@/lib/utils";
 // size — only the background lightens, via an HSL-lifted tint resolved in glass.css
 // (`.embossed-gradient-border.mc-glass-button:hover`), computed at SSR so it tracks
 // the configured colour and the day↔night cross-fade. No transform/scale/filter on
-// interaction (`transform-gpu` only pre-allocates a GPU layer; it never animates).
+// interaction. The button gets no GPU layer of its own: lists mount dozens of these
+// at once, and creating a layer for each costs Safari several long frames as the
+// list appears.
 const baseClasses = [
-  "mc-glass-button px-5 py-2.5 overflow-hidden cursor-pointer transform-gpu",
+  "mc-glass-button px-5 py-2.5 overflow-hidden cursor-pointer",
   // Becoming disabled or enabled is a change of state, so the opacity fades; hover
   // never touches opacity, so this transition never runs on a hover.
   "transition-opacity duration-200 disabled:cursor-not-allowed disabled:opacity-50",

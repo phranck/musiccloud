@@ -132,10 +132,11 @@ export function SlideArtwork({
         )}
 
         {/* Cover artwork -- drops out downward on enter, slides back in from the
-            top on exit (see coverSlideClass). */}
-        <div
-          className={cn("relative z-0 h-full w-full transform-gpu bg-surface will-change-transform", coverSlideClass)}
-        >
+            top on exit (see coverSlideClass). It carries no layer hint at rest:
+            the browser gives it a layer only while its slide runs, because a
+            result list mounts dozens of these at once and a layer for each
+            costs Safari two to three frames of 60 to 80 ms as the list appears. */}
+        <div className={cn("relative z-0 h-full w-full bg-surface", coverSlideClass)}>
           <CoverImage artworkUrl={artworkUrl} kind={kind} imgDim={imgDim} iconSize={20} decoding={decoding} />
         </div>
 
