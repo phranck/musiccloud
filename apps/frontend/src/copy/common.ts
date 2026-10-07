@@ -18,6 +18,7 @@ export const commonCopy = {
     timeout: "This is taking longer than usual. Please try again.",
     generic: "Something went wrong. Please try again.",
     genericWithCode: (code: string) => `Something went wrong. Please try again. (${code})`,
+    withErrorId: (message: string, errorId: string) => `${message} Error ID: ${errorId}`,
     boundaryTitle: "Something went wrong",
     boundaryMessage: "An unexpected error occurred. Please try reloading the page.",
     boundaryReload: "Reload page",

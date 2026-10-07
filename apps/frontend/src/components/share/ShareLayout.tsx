@@ -170,6 +170,13 @@ import { type MediaCardContentConfiguration, MediaCardContentTypeValue, MediaKin
 
 export type { ArtistInfoContext };
 
+/**
+ * Budget for an artist-column row's in-place resolve plus the preload of its
+ * cover and audio. Longer than the 15 s the Astro proxy gives the backend, so a
+ * backend timeout is reported by the proxy rather than cut off by this abort.
+ */
+const TRACK_RESOLVE_TIMEOUT_MS = 20000;
+
 const SHARE_MEDIA_VIEW_TOGGLE_KEY = "p";
 const SHARE_MEDIA_VIEW_STORAGE_KEY = "musiccloud:share-media-view";
 const SHARE_MEDIA_VIEW_TOGGLE_SELECTOR = "[data-media-view-toggle='true']";
@@ -350,7 +357,7 @@ function useTrackResolver(params: {
       resolveRequestRef.current = requestId;
       const isLatest = () => requestId === resolveRequestRef.current;
 
-      const timeout = setTimeout(() => controller.abort(), 15000);
+      const timeout = setTimeout(() => controller.abort(), TRACK_RESOLVE_TIMEOUT_MS);
       let keepResolveLoadingForArtistFetch = false;
       try {
         const update = await trackResolver(track.deezerUrl, {

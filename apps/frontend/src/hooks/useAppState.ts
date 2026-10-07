@@ -293,8 +293,13 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
   };
 }
 
-/** Resolve fetches abort after this long so a stalled backend cannot hang the UI. */
-const RESOLVE_FETCH_TIMEOUT_MS = 15000;
+/**
+ * Resolve fetches abort after this long so a stalled backend cannot hang the UI.
+ * It is longer than the 15 s the Astro proxy gives the backend (`resolveTrack`
+ * in `api/client.ts`), so a backend timeout arrives as the proxy's envelope
+ * with its error code and error ID instead of as a bare browser abort.
+ */
+const RESOLVE_FETCH_TIMEOUT_MS = 20000;
 
 /**
  * POSTs a JSON resolve request to `endpoint` with a {@link RESOLVE_FETCH_TIMEOUT_MS}

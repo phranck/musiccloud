@@ -33,8 +33,14 @@ function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === "AbortError";
 }
 
+/**
+ * Statuses worth one more attempt. A 504 is not one of them: it is the proxy
+ * reporting that the backend already used its whole budget, and a retry would
+ * spend the column's remaining time on the same wait instead of showing the
+ * timeout with its error code.
+ */
 function isTransientStatus(status: number): boolean {
-  return status === 502 || status === 503 || status === 504;
+  return status === 502 || status === 503;
 }
 
 async function artistInfoApiError(response: Response): Promise<ArtistInfoApiError> {
@@ -49,7 +55,7 @@ async function artistInfoApiError(response: Response): Promise<ArtistInfoApiErro
  * Issues an artist-info request and turns anything other than a success into
  * the shared error contract.
  *
- * Retries exactly once for a transport failure or a 502, 503 or 504 before
+ * Retries exactly once for a transport failure or a 502 or 503 before
  * consuming the body. Every other response becomes an
  * {@link ArtistInfoApiError} carrying the backend's code, error id and message,
  * so a caller can tell an upstream outage from a genuine failure. Aborts and
@@ -86,7 +92,7 @@ async function requestArtistInfo(url: string, signal: AbortSignal): Promise<Arti
  * Assembles the query string for `ENDPOINTS.frontend.artistInfo` (an artist
  * name or exact entity id plus optional `region` and `shortId` context), issues
  * the GET request, and casts the JSON body to {@link ArtistInfoResponse}.
- * Retries exactly once for a transport failure or a 502, 503, or 504 before
+ * Retries exactly once for a transport failure or a 502 or 503 before
  * consuming its body. Other responses retain their canonical backend fields in
  * {@link ArtistInfoApiError}; aborts and JSON decoding failures are not retried.
  * The caller owns the {@link AbortSignal} (and thus the request timeout). A

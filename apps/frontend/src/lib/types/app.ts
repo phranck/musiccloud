@@ -48,7 +48,7 @@ export type ResolveUiError =
   | { kind: "offline" }
   | { kind: "timeout" }
   | { kind: "generic" }
-  | { kind: "backend"; code: string; context?: Record<string, string> };
+  | { kind: "backend"; code: string; errorId?: string; context?: Record<string, string> };
 
 export const InputState = {
   Idle: "idle",

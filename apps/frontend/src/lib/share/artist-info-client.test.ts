@@ -53,7 +53,26 @@ describe("fetchArtistInfo", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it.each([502, 503, 504])("retries one transient HTTP %i response before consuming its body", async (status) => {
+  /**
+   * A 504 is the proxy reporting that the backend used its whole budget. A
+   * retry spent the column's remaining time on the same wait, so the visitor
+   * saw a bare TIMEOUT instead of the proxy's error code.
+   */
+  it("does not retry a gateway timeout", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ error: "MC-API-0005", errorId: "timeout-1" }), { status: 504 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const failure = await fetchArtistInfo("Slow Artist", "", {}, new AbortController().signal).catch(
+      (error: unknown) => error,
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(artistFetchErrorCode(failure)).toBe("MC-API-0005");
+  });
+
+  it.each([502, 503])("retries one transient HTTP %i response before consuming its body", async (status) => {
     const transient = new Response(JSON.stringify({ error: "MC-API-0001" }), { status });
     const fetchMock = vi
       .fn()

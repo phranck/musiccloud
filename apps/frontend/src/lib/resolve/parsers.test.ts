@@ -11,6 +11,7 @@ import {
   formatResolveErrorMessage,
   parseResolveError,
   parseUnifiedResolveResponse,
+  ResolveApiError,
 } from "./parsers";
 
 const VINYL_LAYOUT: VinylLayout = {
@@ -291,6 +292,21 @@ describe("English resolve errors", () => {
     ).toContain("(MC-API-0003)");
     expect(formatResolveErrorMessage({ kind: "backend", code: "MC-API-3999" })).toBe(
       "Something went wrong. Please try again. (MC-API-3999)",
+    );
+  });
+
+  /**
+   * The error ID connects a visitor's report to the log line that explains it.
+   * The parser used to drop it, so the dialog showed the code alone.
+   */
+  it("keeps the backend's error ID and shows it with the message", () => {
+    const error = parseResolveError(
+      new ResolveApiError({ error: "MC-API-3999", errorId: "4f1c2d9e-6a2b-4c55-9d1e-2b7f8a1c0e33" }),
+    );
+
+    expect(error).toMatchObject({ kind: "backend", errorId: "4f1c2d9e-6a2b-4c55-9d1e-2b7f8a1c0e33" });
+    expect(formatResolveErrorMessage(error)).toBe(
+      "Something went wrong. Please try again. (MC-API-3999) Error ID: 4f1c2d9e-6a2b-4c55-9d1e-2b7f8a1c0e33",
     );
   });
 });
