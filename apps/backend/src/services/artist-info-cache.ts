@@ -1,5 +1,6 @@
 import type { ArtistEvent, ArtistProfile, ArtistTopTrack } from "@musiccloud/shared";
 import type { ArtistCacheData, ArtistCacheIdentity, TrackRepository } from "../db/repository.js";
+import { createSingleFlight } from "../lib/concurrency.js";
 import { log } from "../lib/infra/logger.js";
 import {
   type ArtistProfileSnapshot,
@@ -72,15 +73,11 @@ function sectionPublicValue(section: ArtistInfoSection, value: ArtistInfoSection
  * instance owns live in-process single-flight state.
  */
 export function createArtistInfoRefreshCoordinator(dependencies: ArtistInfoRefreshDependencies) {
-  const inFlight = new Map<string, Promise<ArtistInfoSectionValue>>();
-  const scheduled = new Map<string, Promise<void>>();
+  const refreshOnce = createSingleFlight<string, ArtistInfoSectionValue>();
+  const scheduleOnce = createSingleFlight<string, void>();
 
   function refresh(section: ArtistInfoSection, input: RefreshInput): Promise<ArtistInfoSectionValue> {
-    const key = `${cacheIdentityKey(input.identity)}:${section}`;
-    const existing = inFlight.get(key);
-    if (existing) return existing;
-
-    const task = (async () => {
+    return refreshOnce(`${cacheIdentityKey(input.identity)}:${section}`, async () => {
       const value =
         section === ArtistInfoSection.Profile
           ? await dependencies.fetchArtistProfileSnapshot(input.artistName)
@@ -90,45 +87,27 @@ export function createArtistInfoRefreshCoordinator(dependencies: ArtistInfoRefre
       if (section === ArtistInfoSection.Profile && value === null) return null;
       await input.repo.saveArtistCache(sectionCacheData(section, input, value));
       return sectionPublicValue(section, value);
-    })();
-    inFlight.set(key, task);
-    void task.then(
-      () => {
-        if (inFlight.get(key) === task) inFlight.delete(key);
-      },
-      () => {
-        if (inFlight.get(key) === task) inFlight.delete(key);
-      },
-    );
-    return task;
+    });
   }
 
   function schedule(section: ArtistInfoSection, input: RefreshInput): Promise<void> {
-    const key = `${cacheIdentityKey(input.identity)}:${section}`;
-    const existing = scheduled.get(key);
-    if (existing) return existing;
-
-    let task: Promise<void>;
-    task = refresh(section, input)
-      .then(() => undefined)
-      .catch((error) => {
-        dependencies.logDeviation(
-          {
-            component: "ArtistInfo",
-            errorCode: "MC-SYS-0001",
-            operation: `artist_info_${section}_background_refresh`,
-            outcome: "last_good_cache_retained",
-            requestId: input.requestId,
-            cacheIdentity: cacheIdentityKey(input.identity),
-          },
-          error,
-        );
-      })
-      .finally(() => {
-        if (scheduled.get(key) === task) scheduled.delete(key);
-      });
-    scheduled.set(key, task);
-    return task;
+    return scheduleOnce(`${cacheIdentityKey(input.identity)}:${section}`, () =>
+      refresh(section, input)
+        .then(() => undefined)
+        .catch((error) => {
+          dependencies.logDeviation(
+            {
+              component: "ArtistInfo",
+              errorCode: "MC-SYS-0001",
+              operation: `artist_info_${section}_background_refresh`,
+              outcome: "last_good_cache_retained",
+              requestId: input.requestId,
+              cacheIdentity: cacheIdentityKey(input.identity),
+            },
+            error,
+          );
+        }),
+    );
   }
 
   return { refresh, schedule };

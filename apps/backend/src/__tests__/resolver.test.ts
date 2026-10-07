@@ -613,6 +613,44 @@ describe("resolveQuery: cache behavior", () => {
     expect(spotifyAdapter.getTrack).not.toHaveBeenCalled();
   });
 
+  it("runs one resolve for two identical requests at once", async () => {
+    const spotifyAdapter = createMockAdapter({
+      id: "spotify",
+      displayName: "Spotify",
+      detectUrl: vi.fn(() => "track123"),
+      getTrack: vi.fn().mockResolvedValue(createMockTrack()),
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
+
+    const [first, second] = await Promise.all([
+      resolveQuery("https://open.spotify.com/track/track123"),
+      resolveQuery("https://open.spotify.com/track/track123?si=tracking"),
+    ]);
+
+    expect(spotifyAdapter.getTrack).toHaveBeenCalledTimes(1);
+    expect(second).toBe(first);
+  });
+
+  it("carries the stored share id of a cache hit", async () => {
+    vi.mocked(mockRepo.findTrackByUrl).mockResolvedValue({
+      trackId: "tid1",
+      shortId: "stored-short",
+      updatedAt: Date.now() - 1000,
+      track: createMockTrack(),
+      links: [
+        { service: "spotify", url: "https://open.spotify.com/track/track123", confidence: 1.0, matchMethod: "source" },
+      ],
+    } satisfies CachedTrackResult);
+    const spotifyAdapter = createMockAdapter({ id: "spotify", detectUrl: vi.fn(() => "track123") });
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
+
+    const result = await resolveQuery("https://open.spotify.com/track/track123");
+
+    expect(result.shortId).toBe("stored-short");
+  });
+
   it("looks a link up under the id its service's links are stored with", async () => {
     const appleAdapter = createMockAdapter({
       id: "apple-music",

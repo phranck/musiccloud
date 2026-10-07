@@ -21,21 +21,22 @@
  *   exported because the POST route inspects expanded URLs before
  *   content-type routing.
  *
- * ## Cache strategy: four layers
+ * ## Cache strategy: three layers
  *
  * Any incoming request tries to avoid upstream API calls in this order:
  *
  * 1. Cache by canonical URL (after tracking-param stripping + short-link
- *    expansion).
- * 2. Cache by the short-link alias (only if the URL was expanded), so a
- *    `link.deezer.com/s/abc` that gets written once as an alias hits the
- *    cache on subsequent visits.
- * 3. Cache by the link's own service id, before the service is asked. A track
+ *    expansion), the URL a track was first resolved from.
+ * 2. Cache by the link's own service id, before the service is asked. A track
  *    holding this link through a source or ISRC match resolves from the
  *    database, so a link the database knows still resolves while its service
  *    is down. Text matches do not count, because they can be another recording.
- * 4. Cache by ISRC after we fetched the source metadata. Catches the
+ * 3. Cache by ISRC after we fetched the source metadata. Catches the
  *    same track pasted from a different service the second time around.
+ *
+ * Two requests for the same canonical URL at once share one run of this
+ * pipeline (`resolveCanonicalUrlOnce`), so a burst of identical pastes costs
+ * one fan-out.
  *
  * After migration 0021 the canonical track row never expires; only
  * preview URLs (in `track_previews`) carry an `expires_at` and are
@@ -143,6 +144,7 @@
  */
 import { type MatchMethod, PLATFORM_CONFIG } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
+import { createSingleFlight } from "../lib/concurrency.js";
 import { fetchWithTimeout } from "../lib/infra/fetch.js";
 import { log } from "../lib/infra/logger.js";
 import { isUrl, stripTrackingParams, validateMusicUrl } from "../lib/platform/url.js";
@@ -216,8 +218,8 @@ export interface ResolutionResult {
   sourceTrack: NormalizedTrack;
   links: ResolvedLink[];
   trackId?: string; // present when loaded from cache
-  /** Set when the original input was a short/redirect link (e.g. link.deezer.com/s/…) that was expanded. */
-  inputUrl?: string;
+  /** The stored share id, present when loaded from cache. */
+  shortId?: string;
   /**
    * External-id observations harvested across every adapter contacted
    * during the resolve. Persisted into `track_external_ids` so the
@@ -323,7 +325,13 @@ async function tryCache(lookup: {
     const links = mapCachedLinks(cached.links);
     log.debug("Resolver", `Cache hit: ${links.length} links`);
 
-    return { sourceTrack: cached.track, links, trackId: cached.trackId, externalIds: [] };
+    return {
+      sourceTrack: cached.track,
+      links,
+      trackId: cached.trackId,
+      shortId: cached.shortId,
+      externalIds: [],
+    };
   } catch (error) {
     log.error("Resolver", `Cache read failed: ${error instanceof Error ? error.message : error}`);
     return null;
@@ -413,6 +421,7 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
     sourceTrack,
     links: await filterDisabledLinks(allLinks),
     trackId: cached.trackId,
+    shortId: cached.shortId,
     externalIds: collectTrackExternalIds(sourceTrack, newLinks),
   };
 }
@@ -651,16 +660,14 @@ export async function resolveQuery(input: string, expandedUrl?: string): Promise
 }
 
 /**
- * URL input pipeline. See the file header for the four-layer cache,
+ * URL input pipeline. See the file header for the three-layer cache,
  * SERVICE_DISABLED vs NOT_MUSIC_LINK ordering, preview URL preference,
  * artwork fallback chain, and OG-scrape escape hatch.
  *
  * @param inputUrl - streaming-service URL identifying a track
  * @param preExpandedUrl - `inputUrl` already passed through `expandShortLink`
  *   by the caller; when absent it is expanded here
- * @returns resolved track result, with `inputUrl` set when the input
- *          was a short link that got expanded (route handler uses this
- *          to persist the short link as a cache alias)
+ * @returns resolved track result
  * @throws `ResolveError("SERVICE_DISABLED")` if the URL belongs to a currently-disabled plugin
  * @throws `ResolveError("NOT_MUSIC_LINK")` if no adapter recognizes the URL shape
  * @throws `ResolveError("INVALID_URL")` if the adapter cannot extract a track ID
@@ -671,18 +678,26 @@ export async function resolveUrl(inputUrl: string, preExpandedUrl?: string): Pro
   const strippedInput = stripTrackingParams(inputUrl);
   const expandedUrl = preExpandedUrl ?? (await expandShortLink(strippedInput));
   const cleanUrl = stripTrackingParams(expandedUrl); // strip again in case expanded URL carries UTMs
-  const wasExpanded = cleanUrl !== strippedInput;
 
-  // Helper: attach the original short-link URL so the route handler can save it as an alias
-  const withAlias = (r: ResolutionResult): ResolutionResult => (wasExpanded ? { ...r, inputUrl: strippedInput } : r);
+  // Two requests for the same link at once share one resolve, so the second
+  // neither runs the fan-out a second time nor persists a second track.
+  return resolveCanonicalUrlOnce(cleanUrl, () => resolveCanonicalUrl(cleanUrl));
+}
 
-  // 1. Cache lookup by URL (try canonical first; fall back to the short link as alias)
+/** One resolve per canonical URL at a time. */
+const resolveCanonicalUrlOnce = createSingleFlight<string, ResolutionResult>();
+
+/**
+ * The URL pipeline past short-link expansion: the cache lookups, then the
+ * source service, then the other services.
+ *
+ * @param cleanUrl - The canonical URL, tracking parameters stripped.
+ * @returns The resolved track.
+ */
+async function resolveCanonicalUrl(cleanUrl: string): Promise<ResolutionResult> {
+  // 1. Cache lookup by the URL the track was first resolved from
   const cachedByCanonical = await tryCache({ url: cleanUrl });
-  if (cachedByCanonical) return withAlias(await fillMissingServices(cachedByCanonical));
-  if (wasExpanded) {
-    const cachedByAlias = await tryCache({ url: strippedInput });
-    if (cachedByAlias) return withAlias(await fillMissingServices(cachedByAlias));
-  }
+  if (cachedByCanonical) return fillMissingServices(cachedByCanonical);
 
   // 2. Identify which service the URL belongs to.
   //    Check against ALL plugins first so we can distinguish a truly
@@ -707,7 +722,7 @@ export async function resolveUrl(inputUrl: string, preExpandedUrl?: string): Pro
   //     with this link resolves without asking the service, so a link it knows
   //     still resolves while that service is down.
   const cachedByLink = await tryCache({ serviceLink: serviceLinkLookup(sourceAdapter, trackId) });
-  if (cachedByLink) return withAlias(await fillMissingServices(cachedByLink));
+  if (cachedByLink) return fillMissingServices(cachedByLink);
 
   // 3. Fetch metadata
   let sourceTrack: NormalizedTrack;
@@ -715,7 +730,7 @@ export async function resolveUrl(inputUrl: string, preExpandedUrl?: string): Pro
     sourceTrack = await sourceAdapter.getTrack(trackId);
   } catch (error) {
     if (!sourceAdapter.isAvailable()) {
-      return withAlias(await resolveUrlViaScrape(cleanUrl, sourceAdapter.id));
+      return resolveUrlViaScrape(cleanUrl, sourceAdapter.id);
     }
     if (error instanceof ResolveError) throw error;
     throw new ResolveError(
@@ -727,7 +742,7 @@ export async function resolveUrl(inputUrl: string, preExpandedUrl?: string): Pro
   // 3b. Cache lookup by ISRC (in case same track was resolved via different URL)
   if (sourceTrack.isrc) {
     const cachedByIsrc = await tryCache({ isrc: sourceTrack.isrc });
-    if (cachedByIsrc) return withAlias(await fillMissingServices(cachedByIsrc));
+    if (cachedByIsrc) return fillMissingServices(cachedByIsrc);
   }
 
   // 4. Resolve on all other services in parallel
@@ -792,12 +807,12 @@ export async function resolveUrl(inputUrl: string, preExpandedUrl?: string): Pro
     }
   }
 
-  return withAlias({
+  return {
     sourceTrack,
     links,
     externalIds: collectTrackExternalIds(sourceTrack, links),
     lateLinks,
-  });
+  };
 }
 
 type RankedSearchCandidate = SearchResultWithCandidates["candidates"][number];

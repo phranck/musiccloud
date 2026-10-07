@@ -37,6 +37,7 @@ import {
   ALBUM_ARTIST_FIELDS_SELECT,
   dateToMs,
   insertExternalIds,
+  lockPersistIdentity,
   replaceAlbumArtistCredits,
   safeParseArray,
   safeParseArtistCredits,
@@ -242,7 +243,8 @@ export function findExistingAlbumByUpcSync(_upc: string): { albumId: string; sho
  * Dedup logic: looks up an existing album first by UPC (when set), then
  * by `source_url`. When either lookup hits, the existing album row is
  * updated in place (preserving its id and short-id); otherwise a fresh
- * album + short-id pair is inserted. Artist credits are replaced
+ * album + short-id pair is inserted. {@link lockPersistIdentity} holds back
+ * a second persist of the same identity until this one commits. Artist credits are replaced
  * wholesale via {@link replaceAlbumArtistCredits}. Service links are
  * upserted on `(album_id, service)`.
  *
@@ -265,6 +267,7 @@ export async function persistAlbumWithLinks(
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    await lockPersistIdentity(client, "album", data.sourceAlbum.upc, data.sourceAlbum.sourceUrl);
 
     const now = new Date();
 

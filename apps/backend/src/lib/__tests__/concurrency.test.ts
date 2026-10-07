@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createConcurrencyLimiter, mapWithConcurrency } from "../concurrency.js";
+import { createConcurrencyLimiter, createSingleFlight, mapWithConcurrency } from "../concurrency.js";
 
 function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve!: () => void;
@@ -68,5 +68,44 @@ describe("createConcurrencyLimiter", () => {
 
   it("refuses a cap below one", () => {
     expect(() => createConcurrencyLimiter(0)).toThrow(RangeError);
+  });
+});
+
+describe("createSingleFlight", () => {
+  it("runs one task for concurrent callers of the same key", async () => {
+    const flight = createSingleFlight<string, number>();
+    const gate = deferred();
+    let runs = 0;
+    const task = async () => {
+      runs++;
+      await gate.promise;
+      return 42;
+    };
+
+    const first = flight("key", task);
+    const second = flight("key", task);
+    gate.resolve();
+
+    await expect(Promise.all([first, second])).resolves.toEqual([42, 42]);
+    expect(runs).toBe(1);
+  });
+
+  it("keeps different keys apart and starts afresh once a task has settled", async () => {
+    const flight = createSingleFlight<string, string>();
+    let runs = 0;
+    const task = async () => `run ${++runs}`;
+
+    await expect(Promise.all([flight("a", task), flight("b", task)])).resolves.toEqual(["run 1", "run 2"]);
+    await expect(flight("a", task)).resolves.toBe("run 3");
+  });
+
+  it("hands a rejection to every caller and forgets the key", async () => {
+    const flight = createSingleFlight<string, string>();
+    const failing = () => Promise.reject(new Error("upstream down"));
+
+    const results = await Promise.allSettled([flight("key", failing), flight("key", failing)]);
+
+    expect(results.map((result) => result.status)).toEqual(["rejected", "rejected"]);
+    await expect(flight("key", async () => "recovered")).resolves.toBe("recovered");
   });
 });

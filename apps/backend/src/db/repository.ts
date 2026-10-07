@@ -12,6 +12,8 @@ export type { ArtistCredit, ExternalIdRecord } from "../services/types.js";
 /** Cached track with its cross-service links (returned by URL/ISRC lookups) */
 export interface CachedTrackResult {
   trackId: string;
+  /** The track's share id, when one is stored. */
+  shortId?: string;
   updatedAt: number;
   track: NormalizedTrack;
   links: Array<{

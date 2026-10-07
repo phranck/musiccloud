@@ -1,4 +1,5 @@
 import type { VinylLayout } from "@musiccloud/shared";
+import { createSingleFlight } from "../lib/concurrency.js";
 import { log } from "../lib/infra/logger.js";
 import { createAlbumIdentityKey } from "./album-identity.js";
 
@@ -16,7 +17,8 @@ export interface TrackVinylLayoutRepository {
  */
 const VINYL_ENRICHMENT_RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 
-const enrichmentsInFlight = new Map<string, Promise<void>>();
+/** One enrichment per identity at a time, however many resolves ask for it. */
+const enrichOnce = createSingleFlight<string, void>();
 const unsuccessfulAttemptAt = new Map<string, number>();
 
 /**
@@ -121,8 +123,6 @@ function scheduleVinylLayoutEnrichment(
   album: { identityKey: string; title: string; artists: string[]; albumId?: string },
 ): void {
   const { identityKey } = album;
-  if (enrichmentsInFlight.has(identityKey)) return;
-
   const lastUnsuccessfulAttempt = unsuccessfulAttemptAt.get(identityKey);
   if (
     lastUnsuccessfulAttempt !== undefined &&
@@ -131,10 +131,7 @@ function scheduleVinylLayoutEnrichment(
     return;
   }
 
-  const enrichment = runVinylLayoutEnrichment(repo, album).finally(() => {
-    enrichmentsInFlight.delete(identityKey);
-  });
-  enrichmentsInFlight.set(identityKey, enrichment);
+  void enrichOnce(identityKey, () => runVinylLayoutEnrichment(repo, album));
 }
 
 /**

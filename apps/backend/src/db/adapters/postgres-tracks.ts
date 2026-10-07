@@ -37,6 +37,7 @@ import type {
 import {
   dateToMs,
   insertExternalIds,
+  lockPersistIdentity,
   replaceTrackArtistCredits,
   safeParseArray,
   safeParseArtistCredits,
@@ -395,7 +396,9 @@ export async function loadByTrackId(pool: Pool, trackId: string): Promise<ShareP
  * Dedup logic: looks up an existing track first by ISRC (when set), then
  * by `source_url`. When either lookup hits, the existing track row is
  * updated in place (preserving its id and short-id); otherwise a fresh
- * track + short-id pair is inserted. Artist credits are replaced
+ * track + short-id pair is inserted. {@link lockPersistIdentity} holds back
+ * a second persist of the same identity until this one commits, because
+ * neither index is unique and two at once would both insert. Artist credits are replaced
  * wholesale via {@link replaceTrackArtistCredits}. Service links are
  * upserted on `(track_id, service)`.
  *
@@ -418,6 +421,7 @@ export async function persistTrackWithLinks(
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    await lockPersistIdentity(client, "track", data.sourceTrack.isrc, data.sourceTrack.sourceUrl);
 
     const now = new Date();
 
@@ -849,6 +853,7 @@ export function buildCachedResult(rows: TrackWithLinkRow[]): CachedTrackResult |
 
   return {
     trackId,
+    shortId: firstRow.short_id ?? undefined,
     track,
     links,
     updatedAt: dateToMs(firstRow.updated_at),
