@@ -23,6 +23,7 @@ import { RecessedCard } from "@/components/cards/RecessedCard";
 import { CcSharePageShell } from "@/components/share/CcSharePageShell";
 import DeferredShareContent from "@/components/share/DeferredShareContent.astro";
 import { ShareErrorShell } from "@/components/share/ShareErrorShell";
+import ShareLoadingState from "@/components/share/ShareLoadingState.astro";
 import ShareLogoHeader from "@/components/share/ShareLogoHeader.astro";
 import ShareResultPlaceholder from "@/components/share/ShareResultPlaceholder.astro";
 import { ShareLayout } from "@/components/share/ShareLayout";
@@ -241,7 +242,12 @@ if (treatAsBot) {
               sub-request finishes. */}
           <main id="main-content" class="flex-1 flex flex-col items-center px-4 sm:px-6 pt-content-safe pb-12">
             <ShareLogoHeader />
-            <ShareResultPlaceholder className="mt-6 sm:mt-8" />
+            <div class="relative w-full mt-6 sm:mt-8">
+              <ShareResultPlaceholder />
+              <div class="absolute inset-x-0 top-0">
+                <ShareLoadingState />
+              </div>
+            </div>
           </main>
         </Fragment>
       </DeferredShareContent>

@@ -401,6 +401,65 @@ html[data-share-media-view="turntable"] .mc-share-media-screen .mc-share-media-s
   will-change: transform;
 }
 
+/* Loading state of a share page opened directly (ShareLoadingState.astro). The
+   spinner fades in only after 300 ms, so a fast load never flashes it. When the
+   island has not arrived by its timeout, the spinner fades out and the reload
+   message fades in on the same spot. */
+.mc-share-loading {
+  display: grid;
+  justify-items: center;
+  padding-top: 6rem;
+}
+
+.mc-share-loading > * {
+  grid-area: 1 / 1;
+}
+
+.mc-share-loading__progress {
+  opacity: 0;
+  animation: mc-share-loading-in 200ms ease-out 300ms forwards;
+}
+
+.mc-share-loading__slow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 200ms ease-out,
+    visibility 0s linear 200ms;
+}
+
+.mc-share-loading[data-timed-out] .mc-share-loading__progress {
+  animation: mc-share-loading-out 200ms ease-out forwards;
+}
+
+.mc-share-loading[data-timed-out] .mc-share-loading__slow {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 200ms ease-out 200ms;
+}
+
+@keyframes mc-share-loading-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes mc-share-loading-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 /* Respect user preference for reduced motion (WCAG 2.3) */
 @media (prefers-reduced-motion: reduce) {
   *,
