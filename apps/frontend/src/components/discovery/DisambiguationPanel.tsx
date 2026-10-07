@@ -1,10 +1,14 @@
 import { useGSAP } from "@gsap/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ROW_CHROME } from "@/components/artist/artistPanelRowChrome";
-import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
+import { groupedListClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
-import { GroupedCornerList } from "@/components/cards/GroupedCornerList";
 import { RecessedCard } from "@/components/cards/RecessedCard";
+import {
+  singleColumnGroupedArtworkCornerStyle,
+  singleColumnGroupedArtworkInnerRadius,
+  singleColumnGroupedCornerStyle,
+} from "@/components/cards/singleColumnGroupedCornerStyle";
 import { CancelButton } from "@/components/ui/CancelButton";
 import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
@@ -225,22 +229,17 @@ export function DisambiguationPanel({
         <EmbossedCard.Body>
           <RecessedCard className={recessedControlInsetClassName}>
             <RecessedCard.Body>
-              {/* Grouped-corner radii for the candidate rows (AGENTS.md): rows
-                  default to the ≤5px inner radius; the first row's top corners
-                  and the last row's bottom corners promote to the full control
-                  radius, and the artwork frame follows. The list has no header
-                  in its well, so `promoteTop` stays at its default true. The
-                  FLIP `listRef` is merged onto the same node the grouped-corners
-                  hook owns, so the choreography measures the grouped list. */}
-              <GroupedCornerList
-                ref={listRef}
-                itemSelector=":scope > * > button"
-                frameSelector=".mc-row-art"
-                frameInset={4}
-              >
-                {visibleCandidates.map((candidate) => {
+              {/* Grouped-corner radii for the candidate rows (AGENTS.md) come from
+                  each row's list position. The rows enter scaled, so a reading of
+                  the live layout on mount sees them short of the well's right edge. */}
+              <div ref={listRef} className={groupedListClassName}>
+                {visibleCandidates.map((candidate, index) => {
                   const isThisSelected =
                     (isAnimating && animatingId === candidate.id) || (isLoadingSelected && selectedId === candidate.id);
+                  // While a pick plays out the other rows fade away, so the picked
+                  // row ends up alone in the well and owns all four of its corners.
+                  const cornerIndex = isThisSelected ? 0 : index;
+                  const cornerCount = isThisSelected ? 1 : visibleCandidates.length;
 
                   return (
                     <div key={candidate.id} data-disambiguation-card={candidate.id}>
@@ -249,6 +248,7 @@ export function DisambiguationPanel({
                         type="button"
                         onClick={() => handleClick(candidate)}
                         disabled={isAnimating || loading}
+                        style={singleColumnGroupedCornerStyle(cornerIndex, cornerCount)}
                         className={cn(
                           ROW_CHROME,
                           "text-left",
@@ -265,6 +265,8 @@ export function DisambiguationPanel({
                           artworkUrl={candidate.artworkUrl}
                           slideArtwork={isThisSelected}
                           slideArtworkActive={isThisSelected}
+                          artworkRadius={singleColumnGroupedArtworkInnerRadius}
+                          artworkStyle={singleColumnGroupedArtworkCornerStyle(cornerIndex, cornerCount)}
                           primary={candidate.title}
                           secondary={candidate.artists.join(", ")}
                           tertiary={candidate.albumName}
@@ -273,7 +275,7 @@ export function DisambiguationPanel({
                     </div>
                   );
                 })}
-              </GroupedCornerList>
+              </div>
             </RecessedCard.Body>
           </RecessedCard>
         </EmbossedCard.Body>

@@ -1,4 +1,5 @@
-import { type ReactNode, type Ref, useCallback } from "react";
+import type { ReactNode } from "react";
+import { groupedListClassName } from "@/components/cards/cardGeometry";
 import { useGroupedCorners } from "@/components/cards/useGroupedCorners";
 import { cn } from "@/lib/utils";
 
@@ -8,7 +9,7 @@ interface GroupedCornerListProps {
   children: ReactNode;
   /**
    * CSS selector for the grouped buttons. Defaults to the hook default
-   * (`:scope > *`); the discovery lists pass `:scope > * > button`.
+   * (`:scope > *`); the genre columns pass `:scope > * > button`.
    */
   itemSelector?: string;
   /**
@@ -24,28 +25,15 @@ interface GroupedCornerListProps {
    * sits above the rows inside the same well (genre columns). Defaults to `true`.
    */
   promoteTop?: boolean;
-  /**
-   * Optional ref to the list element, MERGED with the internal grouped-corners
-   * ref. `DisambiguationPanel` passes its FLIP `listRef` here so the same node
-   * gets grouped corners AND stays measurable by the FLIP choreography.
-   */
-  ref?: Ref<HTMLDivElement | null>;
   /** Optional extra classes merged after the base gap-list class. */
   className?: string;
 }
 
 /**
- * The grouped-corner list container shared by the artist-panel sections, the
- * genre-search columns and the disambiguation candidate list. Stacks its rows
- * with the `--mc-gap-list` gap and promotes the outer corners of the group via
- * {@link useGroupedCorners} so the rows read as one rounded block inscribed in
- * the surrounding recessed well.
- *
- * Exposes the full {@link useGroupedCorners} option surface as pass-through
- * props. A forwarded `ref` is merged with the internal hook ref (via a single
- * callback ref that writes both), so a consumer can attach its own measuring ref
- * to the very same node — `DisambiguationPanel` relies on this to keep its
- * GSAP-FLIP list node both grouped-cornered and measurable.
+ * The grouped-corner list container of the genre-search columns. Stacks its
+ * rows with the `--mc-gap-list` gap and promotes the outer corners of the group
+ * via {@link useGroupedCorners} so the rows read as one rounded block inscribed
+ * in the surrounding recessed well.
  */
 export function GroupedCornerList({
   children,
@@ -53,27 +41,12 @@ export function GroupedCornerList({
   frameSelector,
   frameInset,
   promoteTop,
-  ref,
   className,
 }: GroupedCornerListProps) {
   const groupedListRef = useGroupedCorners<HTMLDivElement>({ itemSelector, frameSelector, frameInset, promoteTop });
 
-  // Write the node to both the internal grouped-corners ref and the forwarded
-  // ref so the consumer can measure the exact same element.
-  const setEl = useCallback(
-    (el: HTMLDivElement | null) => {
-      groupedListRef.current = el;
-      if (typeof ref === "function") {
-        ref(el);
-        return;
-      }
-      if (ref) ref.current = el;
-    },
-    [groupedListRef, ref],
-  );
-
   return (
-    <div ref={setEl} className={cn("flex flex-col gap-[var(--mc-gap-list,0.125rem)]", className)}>
+    <div ref={groupedListRef} className={cn(groupedListClassName, className)}>
       {children}
     </div>
   );

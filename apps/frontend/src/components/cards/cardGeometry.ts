@@ -34,6 +34,12 @@ export const fullWidthEmbossedCardClassName = "w-full p-0";
 export const recessedControlInsetClassName = "p-[var(--mc-recessed-control-inset)]";
 export const recessedControlHeightClassName = "h-[47px]";
 export const recessedControlSizeClassName = "size-[47px]";
+/**
+ * Stack of a grouped list of rows inside a recessed well. The gap between rows
+ * is the `--mc-gap-list` token, which is what lets the small interior corners
+ * of neighboring rows read as one rounded block.
+ */
+export const groupedListClassName = "flex flex-col gap-[var(--mc-gap-list,0.125rem)]";
 
 /**
  * Builds the outer class string shared by every embossed media/section card

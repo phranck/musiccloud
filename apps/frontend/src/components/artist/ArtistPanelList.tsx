@@ -1,4 +1,5 @@
 import { Children, type CSSProperties, cloneElement, isValidElement, type ReactNode } from "react";
+import { groupedListClassName } from "@/components/cards/cardGeometry";
 import { singleColumnGroupedCornerStyle } from "@/components/cards/singleColumnGroupedCornerStyle";
 
 /** Props for {@link ArtistPanelList}. */
@@ -16,7 +17,7 @@ export function ArtistPanelList({ children }: ArtistPanelListProps) {
   const rows = Children.toArray(children);
 
   return (
-    <div className="flex flex-col gap-[var(--mc-gap-list,0.125rem)]">
+    <div className={groupedListClassName}>
       {rows.map((row, index) => {
         if (!isValidElement<{ style?: CSSProperties }>(row)) return row;
 
