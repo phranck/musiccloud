@@ -6,6 +6,7 @@ vi.mock("../../../../lib/infra/fetch.js", () => ({
   fetchWithTimeout: (url: string, init?: RequestInit, timeoutMs?: number) => fetchWithTimeoutMock(url, init, timeoutMs),
 }));
 
+import { UpstreamUnavailableError } from "../../../../lib/infra/upstream-unavailable";
 import { fetchLastFmArtistInfo } from "../artist-info";
 
 const originalApiKey = process.env.LASTFM_API_KEY;
@@ -88,13 +89,31 @@ describe("fetchLastFmArtistInfo biography normalization", () => {
     expect(summary).toBeNull();
   });
 
-  it("keeps the existing missing-key and request-error contracts", async () => {
+  it("returns null without an API key and without asking Last.fm", async () => {
     delete process.env.LASTFM_API_KEY;
     await expect(fetchLastFmArtistInfo("Test Artist")).resolves.toBeNull();
     expect(fetchWithTimeoutMock).not.toHaveBeenCalled();
+  });
+});
 
-    process.env.LASTFM_API_KEY = "test-key";
+describe("fetchLastFmArtistInfo failures", () => {
+  it("returns null when Last.fm does not know the artist", async () => {
+    fetchWithTimeoutMock.mockResolvedValue(
+      jsonResponse({ error: 6, message: "The artist you supplied could not be found" }),
+    );
+    await expect(fetchLastFmArtistInfo("Nobody")).resolves.toBeNull();
+  });
+
+  it("reports a rate limit and an HTTP error as unavailable", async () => {
+    fetchWithTimeoutMock.mockResolvedValueOnce(jsonResponse({ error: 29, message: "Rate limit exceeded" }));
+    await expect(fetchLastFmArtistInfo("Test Artist")).rejects.toBeInstanceOf(UpstreamUnavailableError);
+
+    fetchWithTimeoutMock.mockResolvedValueOnce(jsonResponse({ error: 10, message: "Invalid API key" }, 403));
+    await expect(fetchLastFmArtistInfo("Test Artist")).rejects.toBeInstanceOf(UpstreamUnavailableError);
+  });
+
+  it("lets a network failure through", async () => {
     fetchWithTimeoutMock.mockRejectedValueOnce(new Error("network down"));
-    await expect(fetchLastFmArtistInfo("Test Artist")).resolves.toBeNull();
+    await expect(fetchLastFmArtistInfo("Test Artist")).rejects.toThrow("network down");
   });
 });

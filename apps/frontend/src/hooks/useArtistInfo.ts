@@ -2,22 +2,14 @@ import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { useEffect, useReducer, useRef } from "react";
 import type { ArtistInfoStatus } from "@/components/artist/artistPanelTypes";
 import {
+  ARTIST_INFO_FETCH_TIMEOUT_MS,
   type ArtistInfoContext,
   artistFetchErrorCode,
   fetchArtistInfo,
   fetchCcArtistInfo,
+  takeSettledArtistInfo,
 } from "@/lib/share/artist-info-client";
 
-/**
- * Abort timeout for the commercial artist-info fetch, in milliseconds. The
- * backend blocks the response while it refetches stale cache sections from
- * upstream (Deezer top tracks, Last.fm/Spotify profile, Bandsintown events,
- * plus up to five similar-artist lookups), which under concurrent load
- * routinely takes well over five seconds. The budget sits above that so a
- * slow-but-valid response still fills the artist column instead of aborting
- * it to an empty one (all four cards render `null` on no data).
- */
-const ARTIST_FETCH_TIMEOUT_MS = 15000;
 /** CC artist-info fetches mirror Jamendo live (~4 throttled calls), so they get a
  *  wider budget than the fast commercial Last.fm lookup. */
 const CC_ARTIST_FETCH_TIMEOUT_MS = 20000;
@@ -44,6 +36,9 @@ const ArtistActionType = {
 
 /** Reducer state for the artist-info load: current phase, data, optional error code. */
 type ArtistState = { status: ArtistInfoStatus; artistData: ArtistInfoResponse | null; errorCode?: string };
+
+/** The state of a column with nothing loaded yet. */
+const INITIAL_ARTIST_STATE: ArtistState = { status: ArtistLoadStatus.Loading, artistData: null };
 type ArtistAction =
   | { type: typeof ArtistActionType.Loading }
   | { type: typeof ArtistActionType.Done; data: ArtistInfoResponse | null }
@@ -133,10 +128,11 @@ export interface UseArtistInfoResult {
  * Owns the artist-info fetch lifecycle for the share layout.
  *
  * Mirrors `useAppState` in shape: holds the reducer, runs the immediate fetch
- * (with a {@link ARTIST_FETCH_TIMEOUT_MS} abort timeout and proper cancellation
+ * (with a {@link ARTIST_INFO_FETCH_TIMEOUT_MS} abort timeout and proper cancellation
  * on unmount / input change), and seeds directly from caller-supplied data when
  * `skipArtistFetch` is set (the Creative-Commons path, which has no commercial
- * artist-info endpoint). All endpoint/fetch knowledge lives in
+ * artist-info endpoint). A commercial column whose prefetch has already
+ * answered starts with that data and sends no first request. All endpoint/fetch knowledge lives in
  * {@link fetchArtistInfo}; this hook only drives state.
  *
  * @param options - {@link UseArtistInfoOptions}.
@@ -152,10 +148,18 @@ export function useArtistInfo({
   ccJamendoArtistId,
   onFetchSettled,
 }: UseArtistInfoOptions): UseArtistInfoResult {
-  const [state, dispatch] = useReducer(artistReducer, {
-    status: ArtistLoadStatus.Loading,
-    artistData: null,
+  // A prefetch that has already answered seeds the state, so the column mounts
+  // with its content: no loading render, no status change, and no Flip of a
+  // skeleton nobody saw in the frames that reveal the result.
+  const [state, dispatch] = useReducer(artistReducer, null, () => {
+    const prefetched =
+      skipArtistFetch || ccJamendoArtistId ? null : takeSettledArtistInfo(artistName, userRegion, context);
+    return prefetched
+      ? artistReducer(INITIAL_ARTIST_STATE, { type: ArtistActionType.Done, data: prefetched })
+      : INITIAL_ARTIST_STATE;
   });
+  // Read on the first render only: a seeded state needs no first fetch.
+  const skipFirstFetchRef = useRef(state.status !== ArtistLoadStatus.Loading);
 
   // Kept in a ref so the settle callback never widens the fetch effect's
   // dependency set — the effect must re-run only on the data inputs, exactly as
@@ -174,10 +178,15 @@ export function useArtistInfo({
   // Skipped when the caller pre-supplies it (skipArtistFetch).
   useEffect(() => {
     if (skipArtistFetch) return;
+    if (skipFirstFetchRef.current) {
+      skipFirstFetchRef.current = false;
+      onFetchSettledRef.current?.();
+      return;
+    }
     let cancelled = false;
     dispatch({ type: ArtistActionType.Loading });
     const controller = new AbortController();
-    const timeoutMs = ccJamendoArtistId ? CC_ARTIST_FETCH_TIMEOUT_MS : ARTIST_FETCH_TIMEOUT_MS;
+    const timeoutMs = ccJamendoArtistId ? CC_ARTIST_FETCH_TIMEOUT_MS : ARTIST_INFO_FETCH_TIMEOUT_MS;
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     const request = ccJamendoArtistId
       ? fetchCcArtistInfo(ccJamendoArtistId, artistName, controller.signal)

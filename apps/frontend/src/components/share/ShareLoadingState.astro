@@ -1,0 +1,46 @@
+---
+/**
+ * Visible loading state for a share page opened directly, shown inside the
+ * `DeferredShareContent` fallback while the server island loads.
+ *
+ * The spinner fades in after 300 ms, the same threshold the artist column uses
+ * for its skeletons, so a fast load never flashes it. Astro's island loader
+ * fetches without a timeout and keeps the fallback silently when the island
+ * answers anything but a page (a component error, a props key from another
+ * build, a network failure). After {@link SHARE_ISLAND_TIMEOUT_MS} the spinner
+ * therefore gives way to a message and a reload button, so a failed island
+ * never leaves the visitor looking at a logo. The timeout sits above the 20 s
+ * the island itself gives the backend (`fetchShareData`), because within that
+ * budget the island answers with an error page of its own.
+ */
+import { EmbossedButton } from "@/components/ui/EmbossedButton";
+import { commonCopy } from "@/copy/common";
+import { shareCopy } from "@/copy/share";
+
+const SHARE_ISLAND_TIMEOUT_MS = 25000;
+---
+
+<div class="mc-share-loading" data-share-loading role="status">
+  <div class="mc-share-loading__progress">
+    <div class="size-6 border-2 border-white/10 border-t-white/50 rounded-full animate-spin" aria-hidden="true"></div>
+    <span class="sr-only">{shareCopy.loading}</span>
+  </div>
+  <div class="mc-share-loading__slow">
+    <p class="text-sm text-text-secondary">{commonCopy.error.timeout}</p>
+    <EmbossedButton as="button" className="px-4 py-2 text-sm font-medium text-text-primary" data-share-reload>
+      {commonCopy.error.boundaryReload}
+    </EmbossedButton>
+  </div>
+</div>
+
+<script is:inline define:vars={{ timeoutMs: SHARE_ISLAND_TIMEOUT_MS }}>
+  (function () {
+    var state = document.querySelector("[data-share-loading]");
+    if (!state) return;
+    var reload = state.querySelector("[data-share-reload]");
+    if (reload) reload.addEventListener("click", function () { location.reload(); });
+    setTimeout(function () {
+      if (state.isConnected) state.setAttribute("data-timed-out", "true");
+    }, timeoutMs);
+  })();
+</script>

@@ -23,11 +23,11 @@ vi.mock("../lib/env.js", () => ({
 }));
 
 vi.mock("../lib/infra/logger.js", () => ({
-  log: { debug: vi.fn(), error: vi.fn() },
+  log: { debug: vi.fn(), error: vi.fn(), deviation: vi.fn() },
 }));
 
 vi.mock("../lib/infra/rate-limiter.js", () => ({
-  apiRateLimiter: { check: vi.fn().mockReturnValue({ limited: false }) },
+  siteResolveRateLimiter: { check: vi.fn().mockReturnValue({ limited: false }) },
 }));
 
 vi.mock("../lib/platform/url.js", () => ({
@@ -251,51 +251,18 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
     await app.close();
   });
 
-  it("enriches after persistence and returns the persisted vinyl layout", async () => {
+  /**
+   * Discogs needs at least three requests through a queue spaced 1.1 s apart,
+   * so the album response answers without a layout and the enrichment runs
+   * after it, against the album that was just persisted.
+   */
+  it("answers before the vinyl enrichment and starts it after persistence", async () => {
     persistAlbumWithLinks.mockResolvedValue({
       albumId: "persisted-album-id",
       shortId: "album-short",
       artistCredits: [],
     });
-    enrichVinylLayout.mockResolvedValue(undefined);
-    readVinylLayout.mockResolvedValue(vinylLayout);
-    vi.mocked(resolveAlbumUrl).mockResolvedValue(albumResolution);
-    const app = buildApp();
-
-    const response = await app.inject({
-      method: "POST",
-      url: "/api/v1/resolve",
-      headers: { origin: "http://localhost:3000" },
-      payload: { query: albumResolution.sourceAlbum.webUrl },
-    });
-
-    expect(response.statusCode).toBe(200);
-    expect(enrichVinylLayout).toHaveBeenCalledWith({
-      identityKey: "jimmy smith::the sermon",
-      title: "The Sermon!",
-      artists: ["Jimmy Smith"],
-      albumId: "persisted-album-id",
-      upc: "094635000000",
-    });
-    expect(readVinylLayout).toHaveBeenCalledWith("jimmy smith::the sermon");
-    expect(persistAlbumWithLinks.mock.invocationCallOrder[0]).toBeLessThan(
-      enrichVinylLayout.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
-    );
-    expect(enrichVinylLayout.mock.invocationCallOrder[0]).toBeLessThan(
-      readVinylLayout.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
-    );
-    expect(response.json().album.vinylLayout).toEqual(vinylLayout);
-
-    await app.close();
-  });
-
-  it("returns the resolved album when vinyl enrichment fails", async () => {
-    persistAlbumWithLinks.mockResolvedValue({
-      albumId: "persisted-album-id",
-      shortId: "album-short",
-      artistCredits: [],
-    });
-    enrichVinylLayout.mockRejectedValue(new Error("Discogs unavailable"));
+    enrichVinylLayout.mockReturnValue(new Promise(() => {}));
     readVinylLayout.mockResolvedValue(undefined);
     vi.mocked(resolveAlbumUrl).mockResolvedValue(albumResolution);
     const app = buildApp();
@@ -308,19 +275,44 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
     });
 
     expect(response.statusCode).toBe(200);
+    expect(response.json().album.vinylLayout).toBeNull();
     expect(enrichVinylLayout).toHaveBeenCalledWith({
       identityKey: "jimmy smith::the sermon",
       title: "The Sermon!",
       artists: ["Jimmy Smith"],
       albumId: "persisted-album-id",
-      upc: "094635000000",
     });
-    expect(readVinylLayout).toHaveBeenCalledWith("jimmy smith::the sermon");
     expect(persistAlbumWithLinks.mock.invocationCallOrder[0]).toBeLessThan(
       enrichVinylLayout.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
     );
-    expect(enrichVinylLayout.mock.invocationCallOrder[0]).toBeLessThan(
-      readVinylLayout.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+
+    await app.close();
+  });
+
+  it("returns the resolved album when vinyl enrichment fails", async () => {
+    persistAlbumWithLinks.mockResolvedValue({
+      albumId: "persisted-album-id",
+      shortId: "album-short",
+      artistCredits: [],
+    });
+    enrichVinylLayout.mockRejectedValue(new Error("Discogs unavailable"));
+    readVinylLayout.mockResolvedValue(undefined);
+    vi.mocked(resolveAlbumUrl).mockResolvedValue({
+      ...albumResolution,
+      sourceAlbum: { ...albumResolution.sourceAlbum, title: "Back at the Chicken Shack" },
+    });
+    const app = buildApp();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/resolve",
+      headers: { origin: "http://localhost:3000" },
+      payload: { query: albumResolution.sourceAlbum.webUrl },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(enrichVinylLayout).toHaveBeenCalledWith(
+      expect.objectContaining({ identityKey: "jimmy smith::back at the chicken shack" }),
     );
     expect(response.json().album.vinylLayout).toBeNull();
 

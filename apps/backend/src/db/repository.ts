@@ -12,6 +12,8 @@ export type { ArtistCredit, ExternalIdRecord } from "../services/types.js";
 /** Cached track with its cross-service links (returned by URL/ISRC lookups) */
 export interface CachedTrackResult {
   trackId: string;
+  /** The track's share id, when one is stored. */
+  shortId?: string;
   updatedAt: number;
   track: NormalizedTrack;
   links: Array<{
@@ -398,6 +400,15 @@ export interface TrackRepository {
    */
   findTrackByUrl(url: string): Promise<CachedTrackResult | null>;
   /**
+   * Finds a track through a link it has on one service, counting only links
+   * that identify the recording (source or ISRC match).
+   *
+   * @param service - Service id the link belongs to.
+   * @param externalId - The service's own id for the track.
+   * @returns The matching record, or `null` when no row matches.
+   */
+  findTrackByServiceLink(service: string, externalId: string): Promise<CachedTrackResult | null>;
+  /**
    * Finds short ID by track URL.
    *
    * @param url - The `url` value.
@@ -520,7 +531,15 @@ export interface TrackRepository {
    * @returns The matching record, or `null` when no row matches.
    */
   findAlbumByUpc(upc: string): Promise<CachedAlbumResult | null>;
-  /** Finds the album owning the artist-qualified shared vinyl-layout cache. */
+  /**
+   * Finds an album through a link it has on one service, counting only links
+   * that identify the release (source or UPC match).
+   *
+   * @param service - Service id the link belongs to.
+   * @param externalId - The service's own id for the album.
+   * @returns The matching record, or `null` when no row matches.
+   */
+  findAlbumByServiceLink(service: string, externalId: string): Promise<CachedAlbumResult | null>;
   /**
    * Finds existing album by UPC.
    *
@@ -579,13 +598,7 @@ export interface TrackRepository {
    * @param album - Persisted album metadata used for the Discogs lookup.
    * @returns A promise that resolves after enrichment or a no-op.
    */
-  enrichVinylLayout(album: {
-    identityKey: string;
-    title: string;
-    artists: string[];
-    albumId?: string;
-    upc?: string | null;
-  }): Promise<void>;
+  enrichVinylLayout(album: { identityKey: string; title: string; artists: string[]; albumId?: string }): Promise<void>;
 
   // Artist: Read operations
   /**
@@ -916,14 +929,6 @@ export interface TrackRepository {
    * @returns The requested repository result.
    */
   listCrawlRuns(params: { source?: string; page: number; limit: number }): Promise<CrawlRunsPage>;
-
-  // Lifecycle
-  /**
-   * Closes .
-   *
-   * @returns A promise that resolves when the operation completes.
-   */
-  close(): Promise<void>;
 }
 
 // ─── Creative-Commons Repository Types ────────────────────────────────────────

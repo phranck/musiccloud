@@ -51,8 +51,18 @@ vi.mock("@/components/turntable/TurntableAnalyzerSlot", async () => {
   };
 });
 
+// The column is a stub that resolves one fixed row when clicked, so a test can
+// drive an in-place track swap without rendering the artist lists.
 vi.mock("@/components/share/AnimatedArtistColumn", () => ({
-  AnimatedArtistColumn: () => <div data-testid="artist-column" />,
+  AnimatedArtistColumn: ({ onTrackResolve }: { onTrackResolve: (track: unknown) => Promise<void> }) => (
+    <button
+      data-testid="artist-column"
+      onClick={() =>
+        void onTrackResolve({ title: "Moment's Notice", artists: ["John Coltrane"], deezerUrl: "deezer:moment" })
+      }
+      type="button"
+    />
+  ),
 }));
 
 vi.mock("@/components/share/MobileArtistSheet", () => ({
@@ -67,19 +77,25 @@ vi.mock("@/components/cards/EmbossedCard", () => ({
   EmbossedCard: ({ children }: { children: ReactNode }) => <section>{children}</section>,
 }));
 
-/** Whether the mocked artist-info load is still running; reset after each test. */
-const artistInfoLoad = vi.hoisted(() => ({ isLoading: false }));
+/**
+ * Whether the mocked artist-info load is still running, and every context the
+ * column was asked to load for; both reset after each test.
+ */
+const artistInfoLoad = vi.hoisted(() => ({ isLoading: false, contexts: [] as unknown[] }));
 
 vi.mock("@/hooks/useArtistInfo", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/hooks/useArtistInfo")>();
   return {
     ...actual,
-    useArtistInfo: () => ({
-      artistData: null,
-      errorCode: null,
-      isLoading: artistInfoLoad.isLoading,
-      status: artistInfoLoad.isLoading ? actual.ArtistLoadStatus.Loading : actual.ArtistLoadStatus.Ready,
-    }),
+    useArtistInfo: ({ context }: { context: unknown }) => {
+      artistInfoLoad.contexts.push(context);
+      return {
+        artistData: null,
+        errorCode: null,
+        isLoading: artistInfoLoad.isLoading,
+        status: artistInfoLoad.isLoading ? actual.ArtistLoadStatus.Loading : actual.ArtistLoadStatus.Ready,
+      };
+    },
   };
 });
 
@@ -137,6 +153,7 @@ beforeEach(() => {
 
 afterEach(() => {
   artistInfoLoad.isLoading = false;
+  artistInfoLoad.contexts = [];
   vi.useRealTimers();
   delete document.documentElement.dataset.shareMediaView;
   vi.unstubAllGlobals();
@@ -192,6 +209,35 @@ describe("ShareLayout media view toggle", () => {
     );
     expect(screen.getByTestId("song-info-props")).toHaveAttribute("data-status-pulsing", "false");
     expect(screen.getByTestId("playback-lock")).toHaveAttribute("data-locked", "false");
+  });
+
+  /**
+   * The column reloads whenever its context changes. A track by the same artist
+   * has its own short id, so handing that over would blur the column and lock
+   * play again for data that is already on screen.
+   */
+  it("keeps the artist context when a row resolves to a track by the same artist", async () => {
+    const trackResolver = vi.fn().mockResolvedValue({
+      shortUrl: "https://musiccloud.local/s/moment",
+      config: { ...SHARE_CONFIG, title: "Moment's Notice", shortUrl: "https://musiccloud.local/s/moment" },
+      artistName: "John Coltrane",
+      artistInfoContext: { shortId: "moment", artistEntityId: "coltrane" },
+    });
+    render(
+      <ShareLayout
+        config={SHARE_CONFIG}
+        artistName="John Coltrane"
+        artistInfoContext={{ shortId: "blue", artistEntityId: "coltrane" }}
+        animated={false}
+        trackResolver={trackResolver}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("artist-column"));
+    await waitFor(() => expect(screen.getByTestId("song-info-props")).toHaveTextContent("Moment's Notice"));
+
+    expect(new Set(artistInfoLoad.contexts)).toEqual(new Set([{ shortId: "blue", artistEntityId: "coltrane" }]));
+    expect(artistInfoLoad.contexts.at(-1)).toBe(artistInfoLoad.contexts[0]);
   });
 
   it("renders only the viewport-matching layout, never both", () => {

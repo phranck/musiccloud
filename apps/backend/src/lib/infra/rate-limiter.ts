@@ -165,11 +165,11 @@ export class DynamicRateLimiter {
   }
 }
 
-// Shared bucket for the public API surface (POST Resolve, Share,
-// Share-Preview, Auth, Link, Artist, and the CC routes). 10 requests per 60s
-// per client IP — strict enough to bound abuse and runaway client loops
-// without blocking human use. The keyless GET /api/v1/resolve draws on its
-// own budget instead, declared below.
+// Shared bucket for the public API surface (Share, Share-Preview, Auth, Link,
+// Artist, and the CC routes apart from CC resolve). 10 requests per 60s per
+// client IP — strict enough to bound abuse and runaway client loops without
+// blocking human use. The keyless GET /api/v1/resolve and the site's own
+// resolves draw on their own budgets instead, declared below.
 // Asset routes (Genre-Artwork) deliberately do NOT call into this limiter
 // because they serve immutable cached JPEGs in parallel from a Browse grid;
 // the global @fastify/rate-limit at 300/min still covers them.
@@ -211,6 +211,19 @@ export class DynamicRateLimiter {
 export const apiRateLimiter = new RateLimiter(10, 60_000);
 const apiRateLimiterCleanupTimer = setInterval(() => apiRateLimiter.cleanup(), 5 * 60 * 1000);
 apiRateLimiterCleanupTimer.unref();
+
+// The site's own resolves: POST /api/v1/resolve and /api/v1/cc/resolve sent by
+// the Astro proxy with the internal key and the visitor's forwarded address.
+// One search costs two requests (the search and the pick), and a genre browse,
+// a genre search and the pick of a result one each, so the shared budget of 10
+// stopped a person after five searches in a minute. 30 admits somebody using
+// the site quickly and still bounds a script driving it, which matters because
+// every resolve fans out to many upstream services. Callers with an API key
+// are counted by their own client quotas instead.
+export const SITE_RESOLVE_REQUESTS_PER_MINUTE = 30;
+export const siteResolveRateLimiter = new RateLimiter(SITE_RESOLVE_REQUESTS_PER_MINUTE, 60_000);
+const siteResolveRateLimiterCleanupTimer = setInterval(() => siteResolveRateLimiter.cleanup(), 5 * 60 * 1000);
+siteResolveRateLimiterCleanupTimer.unref();
 
 // The keyless GET /api/v1/resolve endpoint answers without a credential on
 // purpose, so that a shortcut, a curl one-liner or a bookmarklet can use it.

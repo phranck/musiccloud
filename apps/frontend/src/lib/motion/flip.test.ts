@@ -1,3 +1,4 @@
+import { Flip } from "gsap/Flip";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MotionDuration } from "./constants";
 import { animateFlipEnter, animateFlipFrom, captureFlipState } from "./flip";
@@ -65,6 +66,28 @@ describe("animateFlipFrom", () => {
     });
     expect(timeline?.duration()).toBeCloseTo(OVERRIDE_DURATION_S);
     timeline?.kill();
+  });
+});
+
+describe("simple measurement", () => {
+  /**
+   * Without `simple`, Flip computes a global matrix per element by inserting a
+   * temporary node, which forced a layout per element: 29 to 39 ms for the
+   * platform grid's snapshot when a result appeared.
+   */
+  it("measures snapshots and animations from the bounding box, not a global matrix", () => {
+    stubPrefersReducedMotion(false);
+    const getState = vi.spyOn(Flip, "getState");
+    const from = vi.spyOn(Flip, "from");
+    const { grid, items } = buildGrid();
+
+    const state = captureFlipState([grid, ...items]);
+    animateFlipFrom(state, { targets: [grid, ...items], absolute: items })?.kill();
+
+    expect(getState).toHaveBeenCalledWith([grid, ...items], expect.objectContaining({ simple: true }));
+    expect(from).toHaveBeenCalledWith(state, expect.objectContaining({ simple: true }));
+    getState.mockRestore();
+    from.mockRestore();
   });
 });
 

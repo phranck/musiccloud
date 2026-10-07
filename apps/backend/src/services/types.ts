@@ -128,7 +128,26 @@ export interface ServiceAdapter {
 
   isAvailable(): boolean;
   detectUrl(url: string): string | null;
+  /**
+   * Turns an id from `detectUrl` or `detectAlbumUrl` into the id the catalog
+   * stores as a link's `externalId`, which is the `sourceId` the adapter's
+   * mappers produce. Only an adapter whose detected ids carry more than that,
+   * such as Apple Music's storefront prefix, implements it; without it the
+   * detected id is used as is.
+   */
+  toCatalogId?(detectedId: string): string;
   getTrack(trackId: string): Promise<NormalizedTrack>;
+  /**
+   * Looks a recording up by ISRC.
+   *
+   * Lookups and searches answer `null`, `{ found: false }` or no candidates
+   * only when the service answered and has no match. When it did not answer
+   * (an error status, a rate limit, a timeout, an unreadable body) they throw,
+   * because the resolver records a miss for `SERVICE_MISS_TTL_MS` and skips
+   * the service for that long, and a text search where every service threw
+   * reports an outage instead of "not found". The same holds for the album
+   * and artist lookups and searches below.
+   */
   findByIsrc(isrc: string): Promise<NormalizedTrack | null>;
   searchTrack(query: SearchQuery): Promise<MatchResult>;
   searchTrackWithCandidates?(query: SearchQuery): Promise<SearchResultWithCandidates>;

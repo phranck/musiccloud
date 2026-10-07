@@ -109,7 +109,7 @@ const VINYL_GENERIC_PAUSE_BANDS = [
 // The spiral ships as a rasterised SVG bitmap behind an <img>, not an inline
 // <svg>. A replaced element is rasterised once and cached as its own compositor
 // layer, so spinning the rotor is a pure GPU transform. An inline <svg> with this
-// ~72 KB vector path is re-rasterised every frame in Firefox/WebRender (which does
+// vector path is re-rasterised every frame in Firefox/WebRender (which does
 // not reliably cache a rotating vector layer) — that is what stuttered the spin
 // there. The groove has no external fonts or images, so the secure-static mode an
 // SVG carries inside an <img> imposes no constraint. Single quotes keep the data

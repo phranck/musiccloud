@@ -3,7 +3,8 @@
  * tracks plus their service-link fan-out.
  *
  * Scope:
- *   - Resolution by canonical URL, ISRC, external-id catalogue, free-text.
+ *   - Resolution by canonical URL, a known service link, ISRC, external-id
+ *     catalogue, free-text.
  *   - Persistence with ISRC / URL dedup, transactional credit replacement
  *     and short-URL assignment.
  *   - External-id ingestion (migration `0019`) and per-service preview
@@ -22,6 +23,7 @@ import type { Pool } from "pg";
 import { log } from "../../lib/infra/logger.js";
 import { normalizeReleaseDate } from "../../lib/release-date.js";
 import { generateTrackId } from "../../lib/short-id.js";
+import { TRACK_IDENTITY_MATCH_METHODS } from "../../services/constants.js";
 import type { NormalizedTrack, TrackSource } from "../../services/types.js";
 import type {
   ArtistCredit,
@@ -35,6 +37,7 @@ import type {
 import {
   dateToMs,
   insertExternalIds,
+  lockPersistIdentity,
   replaceTrackArtistCredits,
   safeParseArray,
   safeParseArtistCredits,
@@ -81,15 +84,29 @@ export interface TrackWithLinkRow extends TrackRow {
   short_id: string | null;
 }
 
+/**
+ * Columns of a track-x-link row as {@link buildCachedResult} and
+ * {@link buildSharePageResult} read them. The query names `tracks` as `t`,
+ * `service_links` as `sl` and `short_urls` as `su`.
+ */
+const TRACK_WITH_LINK_COLUMNS = `
+      t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
+      t.duration_ms, t.release_date, t.is_explicit,
+      (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.expires_at IS NULL OR tp.expires_at > now()) DESC, (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
+      t.source_service, t.source_url,
+      sl.url, sl.service, sl.confidence, sl.match_method,
+      su.id as short_id, t.created_at, t.updated_at`;
+
 // ============================================================================
 // RESOLUTION
 // ============================================================================
 
 /**
- * Resolves a track by any of its known service URLs.
+ * Resolves a track by the URL it was first resolved from.
  *
- * Joins `service_links` and `short_urls` for the canonical-URL match
- * stored on `tracks.source_url`. Returns null when no track matches.
+ * Matches `tracks.source_url` only. A link to the track on any other service
+ * is found by {@link findTrackByServiceLink}. Returns null when no track
+ * matches.
  *
  * @param pool - Postgres connection pool.
  * @param url - Source URL recorded against the track.
@@ -97,19 +114,51 @@ export interface TrackWithLinkRow extends TrackRow {
  */
 export async function findTrackByUrl(pool: Pool, url: string): Promise<CachedTrackResult | null> {
   const result = await pool.query(
-    `SELECT
-      t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
-      t.duration_ms, t.release_date, t.is_explicit,
-      (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.expires_at IS NULL OR tp.expires_at > now()) DESC, (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
-      t.source_service, t.source_url,
-      sl.url, sl.service, sl.confidence, sl.match_method,
-      su.id as short_id, t.created_at, t.updated_at
+    `SELECT ${TRACK_WITH_LINK_COLUMNS}
     FROM tracks t
     LEFT JOIN service_links sl ON t.id = sl.track_id
     LEFT JOIN short_urls su ON t.id = su.track_id
     WHERE t.source_url = $1
     ORDER BY sl.created_at ASC`,
     [url],
+  );
+
+  if (result.rows.length === 0) return null;
+  return buildCachedResult(result.rows as TrackWithLinkRow[]);
+}
+
+/**
+ * Resolves a track through a link it already has on one service, so a pasted
+ * link the database knows resolves without asking that service.
+ *
+ * Only links that identify the recording count ({@link TRACK_IDENTITY_MATCH_METHODS}):
+ * a text match can be confident and still be another recording, and answering
+ * the pasted link with it would show the wrong song. Uses the
+ * `(service, external_id)` index of `service_links`.
+ *
+ * @param pool - Postgres connection pool.
+ * @param service - Service id the link belongs to.
+ * @param externalId - The service's own id for the track, as stored in `service_links.external_id`.
+ * @returns The cached track result with aggregated links, or null.
+ */
+export async function findTrackByServiceLink(
+  pool: Pool,
+  service: string,
+  externalId: string,
+): Promise<CachedTrackResult | null> {
+  const result = await pool.query(
+    `SELECT ${TRACK_WITH_LINK_COLUMNS}
+    FROM tracks t
+    LEFT JOIN service_links sl ON t.id = sl.track_id
+    LEFT JOIN short_urls su ON t.id = su.track_id
+    WHERE t.id = (
+      SELECT known.track_id FROM service_links known
+      WHERE known.service = $1 AND known.external_id = $2 AND known.match_method = ANY($3::text[])
+      ORDER BY known.created_at ASC
+      LIMIT 1
+    )
+    ORDER BY sl.created_at ASC`,
+    [service, externalId, TRACK_IDENTITY_MATCH_METHODS],
   );
 
   if (result.rows.length === 0) return null;
@@ -132,13 +181,7 @@ export async function findTrackByUrl(pool: Pool, url: string): Promise<CachedTra
  */
 export async function findTrackByIsrc(pool: Pool, isrc: string): Promise<CachedTrackResult | null> {
   const result = await pool.query(
-    `SELECT
-      t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
-      t.duration_ms, t.release_date, t.is_explicit,
-      (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.expires_at IS NULL OR tp.expires_at > now()) DESC, (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
-      t.source_service, t.source_url,
-      sl.url, sl.service, sl.confidence, sl.match_method,
-      su.id as short_id, t.created_at, t.updated_at
+    `SELECT ${TRACK_WITH_LINK_COLUMNS}
     FROM tracks t
     LEFT JOIN service_links sl ON t.id = sl.track_id
     LEFT JOIN short_urls su ON t.id = su.track_id
@@ -306,13 +349,7 @@ export function findExistingByIsrcSync(_isrc: string): { trackId: string; shortI
  */
 export async function loadByShortId(pool: Pool, shortId: string): Promise<SharePageDbResult | null> {
   const result = await pool.query(
-    `SELECT
-      t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
-      t.duration_ms, t.release_date, t.is_explicit,
-      (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.expires_at IS NULL OR tp.expires_at > now()) DESC, (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
-      t.source_service, t.source_url,
-      sl.url, sl.service, sl.confidence, sl.match_method,
-      su.id as short_id, t.created_at, t.updated_at
+    `SELECT ${TRACK_WITH_LINK_COLUMNS}
     FROM tracks t
     JOIN short_urls su ON t.id = su.track_id
     LEFT JOIN service_links sl ON t.id = sl.track_id
@@ -335,13 +372,7 @@ export async function loadByShortId(pool: Pool, shortId: string): Promise<ShareP
  */
 export async function loadByTrackId(pool: Pool, trackId: string): Promise<SharePageDbResult | null> {
   const result = await pool.query(
-    `SELECT
-      t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
-      t.duration_ms, t.release_date, t.is_explicit,
-      (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.expires_at IS NULL OR tp.expires_at > now()) DESC, (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
-      t.source_service, t.source_url,
-      sl.url, sl.service, sl.confidence, sl.match_method,
-      su.id as short_id, t.created_at, t.updated_at
+    `SELECT ${TRACK_WITH_LINK_COLUMNS}
     FROM tracks t
     LEFT JOIN service_links sl ON t.id = sl.track_id
     LEFT JOIN short_urls su ON t.id = su.track_id
@@ -365,7 +396,9 @@ export async function loadByTrackId(pool: Pool, trackId: string): Promise<ShareP
  * Dedup logic: looks up an existing track first by ISRC (when set), then
  * by `source_url`. When either lookup hits, the existing track row is
  * updated in place (preserving its id and short-id); otherwise a fresh
- * track + short-id pair is inserted. Artist credits are replaced
+ * track + short-id pair is inserted. {@link lockPersistIdentity} holds back
+ * a second persist of the same identity until this one commits, because
+ * neither index is unique and two at once would both insert. Artist credits are replaced
  * wholesale via {@link replaceTrackArtistCredits}. Service links are
  * upserted on `(track_id, service)`.
  *
@@ -388,6 +421,7 @@ export async function persistTrackWithLinks(
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    await lockPersistIdentity(client, "track", data.sourceTrack.isrc, data.sourceTrack.sourceUrl);
 
     const now = new Date();
 
@@ -599,7 +633,8 @@ export async function addLinksToTrack(
         ON CONFLICT (track_id, service) DO UPDATE SET
           external_id = EXCLUDED.external_id,
           url = EXCLUDED.url,
-          confidence = EXCLUDED.confidence`,
+          confidence = EXCLUDED.confidence,
+          match_method = EXCLUDED.match_method`,
         [
           `${trackId}-${link.service}`,
           trackId,
@@ -653,13 +688,7 @@ export async function findTrackByExternalId(
   idValue: string,
 ): Promise<CachedTrackResult | null> {
   const result = await pool.query(
-    `SELECT
-      t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
-      t.duration_ms, t.release_date, t.is_explicit,
-      (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.expires_at IS NULL OR tp.expires_at > now()) DESC, (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
-      t.source_service, t.source_url,
-      sl.url, sl.service, sl.confidence, sl.match_method,
-      su.id as short_id, t.created_at, t.updated_at
+    `SELECT ${TRACK_WITH_LINK_COLUMNS}
     FROM tracks t
     JOIN track_external_ids x ON x.track_id = t.id
     LEFT JOIN service_links sl ON t.id = sl.track_id
@@ -824,6 +853,7 @@ export function buildCachedResult(rows: TrackWithLinkRow[]): CachedTrackResult |
 
   return {
     trackId,
+    shortId: firstRow.short_id ?? undefined,
     track,
     links,
     updatedAt: dateToMs(firstRow.updated_at),

@@ -58,7 +58,7 @@ import { requireEnvList } from "../lib/env.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { log } from "../lib/infra/logger.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
-import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
+import { siteResolveRateLimiter } from "../lib/infra/rate-limiter.js";
 import { isAlbumUrl, isArtistUrl, isUrl, stripTrackingParams } from "../lib/platform/url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
@@ -191,12 +191,13 @@ export default async function resolveRoutes(app: FastifyInstance) {
       },
     },
     async (request, reply) => {
-      // Per-IP rate limiting for internal BFF callers. Token-authenticated
+      // Per-visitor rate limiting for the site's own resolves, which the BFF
+      // sends with the visitor's forwarded address. Token-authenticated
       // clients (request.apiClient set by authenticatePublic) skip it: their
       // identity is the client, whose own per-minute/per-day quota was already
       // enforced centrally in the auth hook (MC-088).
       if (!request.apiClient) {
-        const rateLimit = apiRateLimiter.check(request.ip);
+        const rateLimit = siteResolveRateLimiter.check(request.ip);
         if (rateLimit.limited) {
           return sendRateLimitError(reply, rateLimit);
         }
@@ -301,7 +302,7 @@ export default async function resolveRoutes(app: FastifyInstance) {
             const result = await resolveArtistUrl(cleanUrl);
             return reply.send(await persistArtistAndRespond(result, origin));
           }
-          const result = await resolveQuery(query!);
+          const result = await resolveQuery(query!, expanded);
           return reply.send(await persistTrackAndRespond(result, origin));
         }
 

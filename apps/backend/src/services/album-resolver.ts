@@ -75,11 +75,12 @@ import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
 import { stripTrackingParams } from "../lib/platform/url.js";
 import { getPreviewExpiry } from "../lib/preview-url.js";
-import { ResolveError } from "../lib/resolve/errors.js";
+import { ResolveError, searchExhaustedError } from "../lib/resolve/errors.js";
 import { confidenceForMethod } from "./confidence.js";
 import { IDENTIFIER_MATCH_CONFIDENCE } from "./constants.js";
 import { collectAlbumExternalIds } from "./external-ids.js";
 import { filterDisabledLinks, getActiveAdapters, identifyServiceIncludingDisabled, isPluginEnabled } from "./index.js";
+import { type ServiceLinkLookup, serviceLinkLookup } from "./service-link-lookup.js";
 import type {
   AlbumMatchResult,
   AlbumSearchQuery,
@@ -157,13 +158,20 @@ function mapCachedAlbumLinks(
     }));
 }
 
-async function tryAlbumCache(lookup: { url?: string; upc?: string }): Promise<AlbumResolutionResult | null> {
+async function tryAlbumCache(lookup: {
+  url?: string;
+  serviceLink?: ServiceLinkLookup;
+  upc?: string;
+}): Promise<AlbumResolutionResult | null> {
   // Static-vs-dynamic split (migration 0021): canonical album row is
   // permanently fresh; preview URL lives in `album_previews` and is
   // refreshed lazily on read. No `updated_at` TTL gate here anymore.
   try {
     const repo = await getRepository();
     let cached = lookup.url ? await repo.findAlbumByUrl(lookup.url) : null;
+    if (!cached && lookup.serviceLink) {
+      cached = await repo.findAlbumByServiceLink(lookup.serviceLink.service, lookup.serviceLink.externalId);
+    }
     if (!cached && lookup.upc) cached = await repo.findAlbumByUpc(lookup.upc);
     if (!cached) return null;
 
@@ -651,9 +659,10 @@ async function identifyAlbumService(url: string): Promise<ServiceAdapter | undef
 // ─── Main entry points ────────────────────────────────────────────────────────
 
 /**
- * Main URL entry point. Strips tracking params, cache-hits by URL or
- * UPC, otherwise walks the full pipeline: identify source, fetch
- * metadata, resolve across other services, enrich, persist.
+ * Main URL entry point. Strips tracking params, cache-hits by URL, by
+ * the link's own service id (source or UPC links only) or by UPC,
+ * otherwise walks the full pipeline: identify source, fetch metadata,
+ * resolve across other services, enrich, persist.
  *
  * @param inputUrl - streaming-service URL identifying an album
  * @returns resolved album result with source plus cross-service links
@@ -685,6 +694,12 @@ export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolution
   if (!albumId) {
     throw new ResolveError("INVALID_URL", "Could not extract album ID from URL");
   }
+
+  // 2b. Cache lookup by the link's own id: an album the database already holds
+  //     with this link resolves without asking the service, so a link it knows
+  //     still resolves while that service is down.
+  const cachedByLink = await tryAlbumCache({ serviceLink: serviceLinkLookup(sourceAdapter, albumId) });
+  if (cachedByLink) return fillMissingAlbumServices(cachedByLink);
 
   // 3. Fetch album metadata
   let sourceAlbum: NormalizedAlbum;
@@ -761,6 +776,7 @@ export async function resolveAlbumTextSearch(query: string): Promise<AlbumResolu
   const searchAdapters = active.filter(
     (a) => Boolean(a.albumCapabilities?.supportsAlbumSearch) && Boolean(a.searchAlbum),
   );
+  let failedSearches = 0;
 
   for (const adapter of searchAdapters) {
     try {
@@ -810,6 +826,7 @@ export async function resolveAlbumTextSearch(query: string): Promise<AlbumResolu
         };
       }
     } catch (error) {
+      failedSearches++;
       log.deviation(
         {
           adapterId: adapter.id,
@@ -823,5 +840,5 @@ export async function resolveAlbumTextSearch(query: string): Promise<AlbumResolu
     }
   }
 
-  throw new ResolveError("TRACK_NOT_FOUND", "No album found for the search query");
+  throw searchExhaustedError(searchAdapters.length, failedSearches, "No album found for the search query");
 }

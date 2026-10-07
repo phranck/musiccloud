@@ -1,7 +1,8 @@
 /**
  * @file Permanent image cache for artist photos, track artwork, and album covers.
  *
- * Three DB tables, one shared pool, one normalisation scheme:
+ * Three DB tables on the shared runtime pool (`db/pool.ts`), one
+ * normalisation scheme:
  *
  *   - `artist_images` — keyed by normalised artist name. Filled by Spotify
  *     search (via `getArtistImages`) or opportunistic write-through from
@@ -12,28 +13,15 @@
  *     from Last.fm `tag.getTopAlbums` responses (which include artwork).
  *
  * All caches are permanent (no TTL). Images are small URLs that rarely
- * change. The DB pool is tiny (max 2) and lazily created, same pattern
- * as `db/plugin-repository.ts`.
+ * change.
  */
 
-import * as pgModule from "pg";
-import { loadDatabaseConfig } from "../db/config.js";
+import { getDatabasePool } from "../db/pool.js";
+import { mapWithConcurrency } from "../lib/concurrency.js";
 import { fetchWithTimeout } from "../lib/infra/fetch.js";
 import { log } from "../lib/infra/logger.js";
 import { TokenManager } from "../lib/infra/token-manager.js";
 import { fetchDeezerArtistImage } from "./plugins/deezer/artist-image.js";
-
-const Pool = (pgModule as unknown as { default: typeof pgModule }).default?.Pool ?? pgModule.Pool;
-
-let pool: InstanceType<typeof Pool> | null = null;
-
-function getPool(): InstanceType<typeof Pool> {
-  if (!pool) {
-    const config = loadDatabaseConfig();
-    pool = new Pool({ connectionString: config.url, max: 2 });
-  }
-  return pool;
-}
 
 // ─── Normalisation ─────────────────────────────────────────────────────────
 
@@ -57,7 +45,7 @@ interface ImageRow {
 async function lookupKeys(table: string, keyColumn: string, keys: string[]): Promise<Map<string, string>> {
   if (keys.length === 0) return new Map();
   const placeholders = keys.map((_, i) => `$${i + 1}`).join(", ");
-  const result = await getPool().query<ImageRow>(
+  const result = await getDatabasePool().query<ImageRow>(
     `SELECT ${keyColumn}, image_url FROM ${table} WHERE ${keyColumn} IN (${placeholders})`,
     keys,
   );
@@ -165,13 +153,21 @@ async function lastfmTrackArtwork(artist: string, track: string): Promise<string
 // ─── Artist images ─────────────────────────────────────────────────────────
 
 /**
+ * How many uncached artist images are looked up at once. A genre search can
+ * ask for 50 artists, and one after another each waits for Deezer and possibly
+ * Spotify. Six at a time cut 20 lookups from about 1.7 s to about 0.5 s
+ * without bursting all of them at the upstream.
+ */
+const ARTIST_IMAGE_LOOKUP_CONCURRENCY = 6;
+
+/**
  * Persist a single artist image (for opportunistic write-through from
  * artist-info.ts). First writer wins.
  */
 export async function cacheArtistImage(displayName: string, imageUrl: string, source: string): Promise<void> {
   const key = norm(displayName);
   if (!key) return;
-  await getPool().query(
+  await getDatabasePool().query(
     `INSERT INTO artist_images (name_key, display_name, image_url, source, fetched_at)
      VALUES ($1, $2, $3, $4, NOW())
      ON CONFLICT (name_key) DO NOTHING`,
@@ -180,8 +176,12 @@ export async function cacheArtistImage(displayName: string, imageUrl: string, so
 }
 
 /**
- * Resolve artist images for a list of names. DB cache first, Spotify
- * fallback for misses with write-through.
+ * Resolve artist images for a list of names. DB cache first; misses are
+ * looked up on Deezer and then Spotify, {@link ARTIST_IMAGE_LOOKUP_CONCURRENCY}
+ * at a time, and written through.
+ *
+ * @param names - Artist display names; duplicates by normalized name are looked up once.
+ * @returns Image URL per display name that has one.
  */
 export async function getArtistImages(names: string[]): Promise<Map<string, string>> {
   const result = new Map<string, string>();
@@ -210,22 +210,21 @@ export async function getArtistImages(names: string[]): Promise<Map<string, stri
   // Source priority: Deezer first (more permissive, no token), Spotify fallback.
   // Reverses the pre-Feb-2026 order where Spotify was primary; Spotify now
   // suffers from Dev-Mode quota caps and removed-endpoint risk.
-  for (const key of missingKeys) {
+  await mapWithConcurrency(missingKeys, ARTIST_IMAGE_LOOKUP_CONCURRENCY, async (key) => {
     const displayName = nameByKey.get(key)!;
     const resolved = await resolveArtistImage(displayName);
-    if (resolved) {
-      result.set(displayName, resolved.url);
-      try {
-        await cacheArtistImage(displayName, resolved.url, resolved.source);
-      } catch (err) {
-        log.debug(
-          "ImageCache",
-          `artist write-through failed for "${displayName}":`,
-          err instanceof Error ? err.message : String(err),
-        );
-      }
+    if (!resolved) return;
+    result.set(displayName, resolved.url);
+    try {
+      await cacheArtistImage(displayName, resolved.url, resolved.source);
+    } catch (err) {
+      log.debug(
+        "ImageCache",
+        `artist write-through failed for "${displayName}":`,
+        err instanceof Error ? err.message : String(err),
+      );
     }
-  }
+  });
 
   return result;
 }
@@ -248,7 +247,7 @@ async function resolveArtistImage(displayName: string): Promise<{ url: string; s
 export async function cacheTrackImage(artist: string, title: string, imageUrl: string, source: string): Promise<void> {
   const key = compositeKey(artist, title);
   if (!key || key === "|") return;
-  await getPool().query(
+  await getDatabasePool().query(
     `INSERT INTO track_images (lookup_key, artist_name, track_title, image_url, source, fetched_at)
      VALUES ($1, $2, $3, $4, $5, NOW())
      ON CONFLICT (lookup_key) DO NOTHING`,
@@ -323,7 +322,7 @@ export function trackImageKey(artist: string, title: string): string {
 export async function cacheAlbumImage(artist: string, title: string, imageUrl: string, source: string): Promise<void> {
   const key = compositeKey(artist, title);
   if (!key || key === "|") return;
-  await getPool().query(
+  await getDatabasePool().query(
     `INSERT INTO album_images (lookup_key, artist_name, album_title, image_url, source, fetched_at)
      VALUES ($1, $2, $3, $4, $5, NOW())
      ON CONFLICT (lookup_key) DO NOTHING`,

@@ -16,7 +16,7 @@ vi.mock("../generator.js", () => ({ generateArtwork: mocks.generateArtwork }));
 vi.mock("../repository.js", () => ({
   getArtwork: mocks.getArtwork,
   saveArtwork: mocks.saveArtwork,
-  getAccentColors: vi.fn(),
+  getStoredArtworkSummaries: vi.fn(),
   clearAllArtworks: vi.fn(),
 }));
 vi.mock("../color-extractor.js", () => ({ extractColorsFromBuffer: mocks.extractColorsFromBuffer }));

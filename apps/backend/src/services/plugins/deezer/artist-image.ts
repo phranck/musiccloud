@@ -27,7 +27,9 @@ export function pickDeezerArtistImage(hit: {
 }
 
 export async function fetchDeezerArtistImage(name: string): Promise<string | null> {
-  const hit = await searchDeezerArtist(name);
+  // The image cache falls back to Spotify and stores only what it found, so
+  // a failed Deezer lookup is treated like a missing image here.
+  const hit = await searchDeezerArtist(name).catch(() => null);
   if (!hit) return null;
   return pickDeezerArtistImage(hit);
 }

@@ -56,7 +56,7 @@ const errorLabels = {
 // (see the overlay branch below); fetch the hero's live-example just like the
 // home route so the background matches the real landing page.
 const overlayMode = !!contentPage && contentPage.displayMode !== "fullscreen";
-const exampleShortId = overlayMode ? ((await fetchRandomExample())?.shortId ?? null) : null;
+const exampleShortId = overlayMode ? ((await fetchRandomExample(Astro.clientAddress))?.shortId ?? null) : null;
 
 // CC entities render through their own shell (the commercial share-view builder
 // handles only track/album/artist); split the two here.

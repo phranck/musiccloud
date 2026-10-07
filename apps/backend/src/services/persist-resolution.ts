@@ -4,9 +4,9 @@
  * The route handler in `routes/resolve.ts` and the crawler ingest path in
  * `services/crawler/ingest.ts` both need the same DB-side effects after a
  * `ResolutionResult` has been produced: persist the track + its cross-service
- * links, fan out external-ids and per-service preview URLs, optionally write
- * a URL-alias for short links, and refresh a stale Deezer preview when the
- * resolve result didn't carry a fresh one.
+ * links, fan out external-ids and per-service preview URLs, and refresh a
+ * stale Deezer preview when the resolve result didn't carry a fresh one. A
+ * result served from the cache is already stored and skips the rewrite.
  *
  * Keeping this in a single helper means the two callers stay in lock-step:
  * a fix to one preview-handling rule cannot accidentally land in only one
@@ -15,7 +15,7 @@
  * count the result".
  */
 
-import { getRepository } from "../db/index.js";
+import { getRepository, type TrackRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
 import { stripTrackingParams } from "../lib/platform/url.js";
 import { getPreviewExpiry, isExpiredDeezerPreviewUrl } from "../lib/preview-url.js";
@@ -37,6 +37,8 @@ export interface PersistResolutionResult {
 /**
  * Persists a track resolve result and its side-effects. Idempotent on
  * re-runs of the same `result` (matches existing rows by ISRC / source URL).
+ * A result from the cache, recognizable by its stored track id and share id,
+ * goes through {@link persistCachedResolution} instead.
  *
  * @param result - resolver output (source track + cross-service links + external-ids)
  * @returns the canonical track-id, share-page short-id, and preview URL
@@ -44,6 +46,10 @@ export interface PersistResolutionResult {
  */
 export async function persistResolution(result: ResolutionResult): Promise<PersistResolutionResult> {
   const repo = await getRepository();
+
+  if (result.trackId && result.shortId) {
+    return persistCachedResolution(repo, result, result.trackId, result.shortId);
+  }
 
   const { trackId, shortId, artistCredits } = await repo.persistTrackWithLinks({
     sourceTrack: {
@@ -131,4 +137,49 @@ export async function persistResolution(result: ResolutionResult): Promise<Persi
   }
 
   return { trackId, shortId, refreshedPreviewUrl, artistCredits };
+}
+
+/**
+ * Finishes a resolve that came from the cache without rewriting the track.
+ *
+ * The track row, its credits and its links were read from the database, and
+ * any link the gap fill found was stored by the resolver as it arrived, along
+ * with its preview. The gap fill also refreshed an expired preview, so asking
+ * Deezer again here would only repeat it. What is left are the external ids
+ * the gap fill observed, and the timestamp that orders text search and the
+ * admin track list by the last resolve. The timestamp is written in the
+ * background, because nothing in the response depends on it.
+ *
+ * @param repo - The repository the result was read from.
+ * @param result - A resolve that carries the stored track id and share id.
+ * @param trackId - The stored track id.
+ * @param shortId - The stored share id.
+ * @returns The stored ids, the preview the resolver chose, and the stored credits.
+ */
+async function persistCachedResolution(
+  repo: TrackRepository,
+  result: ResolutionResult,
+  trackId: string,
+  shortId: string,
+): Promise<PersistResolutionResult> {
+  if (result.externalIds.length > 0) {
+    try {
+      await repo.addTrackExternalIds(trackId, result.externalIds);
+    } catch (err) {
+      log.debug("Resolve", "External-id persist failed:", err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  void repo
+    .updateTrackTimestamp(trackId)
+    .catch((err) =>
+      log.debug("Resolve", "Track timestamp update failed:", err instanceof Error ? err.message : String(err)),
+    );
+
+  return {
+    trackId,
+    shortId,
+    refreshedPreviewUrl: result.sourceTrack.previewUrl,
+    artistCredits: result.sourceTrack.artistCredits ?? [],
+  };
 }

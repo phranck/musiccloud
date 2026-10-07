@@ -63,3 +63,27 @@ describe("LazyGenreArtwork fallback", () => {
     });
   });
 });
+
+describe("LazyGenreArtwork loading slots", () => {
+  /**
+   * Picking a genre or leaving the grid unmounts tiles whose images are still
+   * loading. If those tiles kept their slots, the next visit to the grid would
+   * find all ten taken and every tile would spin until a reload.
+   */
+  it("gives a loading tile's slot back when it unmounts", async () => {
+    const tileUrls = Array.from({ length: 10 }, (_, index) => `/api/v1/genre-artwork/tile-${index}`);
+    const grid = render(
+      <>
+        {tileUrls.map((url) => (
+          <LazyGenreArtwork key={url} url={url} />
+        ))}
+      </>,
+    );
+    await waitFor(() => expect(grid.container.querySelectorAll("img")).toHaveLength(10));
+    grid.unmount();
+
+    const nextVisit = render(<LazyGenreArtwork url="/api/v1/genre-artwork/next-visit" />);
+
+    await waitFor(() => expect(nextVisit.container.querySelector("img")).not.toBeNull());
+  });
+});

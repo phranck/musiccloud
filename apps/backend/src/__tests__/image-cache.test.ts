@@ -20,22 +20,11 @@ vi.mock("../lib/infra/fetch.js", () => ({
   fetchWithTimeout: (url: string, init?: RequestInit, timeoutMs?: number) => fetchWithTimeoutMock(url, init, timeoutMs),
 }));
 
-// pg pool mock — capture the parameters passed to INSERT ---------------------
+// Shared pool mock: captures the parameters passed to INSERT -----------------
 
 const queryMock = vi.fn();
-vi.mock("pg", () => ({
-  default: {
-    Pool: class {
-      query = queryMock;
-    },
-  },
-  Pool: class {
-    query = queryMock;
-  },
-}));
-
-vi.mock("../db/config.js", () => ({
-  loadDatabaseConfig: () => ({ url: "postgres://test" }),
+vi.mock("../db/pool.js", () => ({
+  getDatabasePool: () => ({ query: queryMock }),
 }));
 
 import { getArtistImages } from "../services/image-cache";
@@ -158,5 +147,28 @@ describe("getArtistImages — source priority", () => {
 
     const result = await getArtistImages(["Slowdive"]);
     expect(result.get("Slowdive")).toBe("https://i.scdn.co/image/spotify-img.jpg");
+  });
+});
+
+describe("getArtistImages for uncached artists", () => {
+  it("looks up several artists at once, never more than six", async () => {
+    let inFlight = 0;
+    let peak = 0;
+    fetchWithTimeoutMock.mockImplementation(async (url: string) => {
+      inFlight++;
+      peak = Math.max(peak, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      inFlight--;
+      const name = new URL(url).searchParams.get("q") ?? "";
+      return jsonResponse({ data: [{ id: 1, name, picture_xl: `https://e-cdns-images.dzcdn.net/${name}.jpg` }] });
+    });
+    const names = Array.from({ length: 20 }, (_, index) => `Artist ${index}`);
+
+    const result = await getArtistImages(names);
+
+    expect(result.size).toBe(20);
+    expect(result.get("Artist 7")).toBe("https://e-cdns-images.dzcdn.net/Artist 7.jpg");
+    expect(peak).toBeGreaterThan(1);
+    expect(peak).toBeLessThanOrEqual(6);
   });
 });

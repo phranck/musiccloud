@@ -10,7 +10,7 @@
  */
 import { fetchNavigation } from "@/api/client";
 import { AppFooterIsland } from "@/components/layout/AppFooterIsland";
-const footerNav = await fetchNavigation("footer");
+const footerNav = await fetchNavigation("footer", Astro.clientAddress);
 ---
 
 <div class="animate-slide-up-in">

@@ -41,7 +41,7 @@
  *
  * The regexes accept all three via optional segments.
  */
-import { ResourceKind, Service } from "@musiccloud/shared";
+import { Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { TokenManager } from "../../../lib/infra/token-manager";
@@ -208,6 +208,20 @@ async function tidalFetch(endpoint: string): Promise<Response> {
   });
 }
 
+/**
+ * Tells a lookup or search answer with results apart from "nothing" and from
+ * a failure. Only the first two may become a miss, because the resolver
+ * remembers a miss for a month.
+ *
+ * @returns `true` for an OK answer, `false` for a 404 (nothing there).
+ * @throws The mapped service error for every other status.
+ */
+function tidalAnswered(response: Response, kind: ResourceKind, id: string, op: Operation): boolean {
+  if (response.status === 404) return false;
+  if (!response.ok) throw serviceHttpError(Service.Tidal, response.status, kind, id, op);
+  return true;
+}
+
 function parseDuration(duration: number | string | undefined): number | undefined {
   if (duration === undefined) return undefined;
 
@@ -306,10 +320,7 @@ export const tidalAdapter = {
       `/tracks?filter[isrc]=${encodeURIComponent(isrc)}&countryCode=US&include=artists,albums`,
     );
 
-    if (!response.ok) {
-      log.debug("Tidal", "ISRC lookup failed:", response.status);
-      return null;
-    }
+    if (!tidalAnswered(response, ResourceKind.Track, isrc, Operation.IsrcLookup)) return null;
 
     const data: TidalSearchResponse = await response.json();
 
@@ -328,7 +339,7 @@ export const tidalAdapter = {
       `/searchresults/${encodeURIComponent(q)}/relationships/tracks?countryCode=US&include=tracks.artists,tracks.albums`,
     );
 
-    if (!response.ok) {
+    if (!tidalAnswered(response, ResourceKind.Track, q, Operation.Search)) {
       return { found: false, confidence: 0, matchMethod: "search" };
     }
 
@@ -391,10 +402,7 @@ export const tidalAdapter = {
       `/albums?filter[barcodeId]=${encodeURIComponent(upc)}&countryCode=US&include=artists`,
     );
 
-    if (!response.ok) {
-      log.debug("Tidal", "UPC album lookup failed:", response.status);
-      return null;
-    }
+    if (!tidalAnswered(response, ResourceKind.Album, upc, Operation.UpcLookup)) return null;
 
     const data: TidalAlbumSearchResponse = await response.json();
 
@@ -412,7 +420,7 @@ export const tidalAdapter = {
       `/searchresults/${encodeURIComponent(q)}/relationships/albums?countryCode=US&include=albums.artists`,
     );
 
-    if (!response.ok) {
+    if (!tidalAnswered(response, ResourceKind.Album, q, Operation.Search)) {
       return { found: false, confidence: 0, matchMethod: "search" };
     }
 
@@ -482,7 +490,7 @@ export const tidalAdapter = {
       `/searchresults/${encodeURIComponent(query.name)}/relationships/artists?countryCode=US&include=artists`,
     );
 
-    if (!response.ok) {
+    if (!tidalAnswered(response, ResourceKind.Artist, query.name, Operation.Search)) {
       return { found: false, confidence: 0, matchMethod: "search" };
     }
 

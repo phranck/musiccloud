@@ -297,6 +297,39 @@ export interface ServiceLinkRow {
 }
 
 // ============================================================================
+// PERSISTENCE LOCK
+// ============================================================================
+
+/**
+ * Serializes persists of the same recording or release across every
+ * connection, for the rest of the caller's transaction.
+ *
+ * Track and album persistence first look for an existing row by identifier and
+ * insert one when they find none. Neither index they look through is unique,
+ * so two persists of the same identity at once would both find nothing and
+ * both insert, leaving two rows and two share URLs. With the lock the second
+ * waits for the first to commit and then finds its row. A lock in the
+ * database, rather than in the process, holds across backend containers.
+ *
+ * @param client - Pool client inside the caller's open transaction.
+ * @param kind - Which table the persist writes.
+ * @param identifier - The ISRC of a track or the UPC of an album, when known.
+ * @param sourceUrl - The URL the entity was resolved from, used without an identifier.
+ */
+export async function lockPersistIdentity(
+  client: PoolClient,
+  kind: "track" | "album",
+  identifier: string | undefined,
+  sourceUrl: string | undefined,
+): Promise<void> {
+  // The identifier is what the existence lookup tries first, so it is what
+  // two persists of the same recording or release have in common.
+  const identityKey = identifier ? `${kind}-id:${identifier}` : sourceUrl ? `${kind}-url:${sourceUrl}` : null;
+  if (!identityKey) return;
+  await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [identityKey]);
+}
+
+// ============================================================================
 // EXTERNAL-ID PERSISTENCE
 // ============================================================================
 

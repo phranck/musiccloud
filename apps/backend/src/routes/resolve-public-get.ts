@@ -195,14 +195,15 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
           // same resolver from either operation. The short link is expanded
           // first: the path shape that tells an album from an artist from a
           // track exists only in the expanded URL.
-          const cleanUrl = stripTrackingParams(await expandShortLink(stripTrackingParams(query)));
+          const expanded = await expandShortLink(stripTrackingParams(query));
+          const cleanUrl = stripTrackingParams(expanded);
           if (isAlbumUrl(cleanUrl)) {
             return respond(await persistAlbumAndRespond(await resolveAlbumUrl(cleanUrl), origin));
           }
           if (isArtistUrl(cleanUrl)) {
             return respond(await persistArtistAndRespond(await resolveArtistUrl(cleanUrl), origin));
           }
-          result = await resolveQuery(query);
+          result = await resolveQuery(query, expanded);
         } else if (isStructuredSearchQuery(query)) {
           // Flow 1.5: structured search. Stateless GET cannot disambiguate, so
           // ambiguous results return 400 (same trade-off as the free-text path).

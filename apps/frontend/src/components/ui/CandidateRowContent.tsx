@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { CoverImage } from "@/components/ui/CoverImage";
 import { SlideArtwork } from "@/components/ui/SlideArtwork";
 import { SlideArtworkKind } from "@/components/ui/SlideArtworkTypes";
+import { artworkUrlAtSize, THUMBNAIL_ARTWORK_PX } from "@/lib/media/artwork-size";
 import { cn } from "@/lib/utils";
 
 export type ArtworkKind = "square" | "round";
@@ -76,6 +77,9 @@ export function CandidateRowContent({
   const imgDim = compact ? 56 : 64;
   const iconSize = compact ? 20 : 24;
   const slideKind = artworkKind === "round" ? SlideArtworkKind.Round : SlideArtworkKind.Square;
+  // Rows and their small record ask for a thumbnail: the services send their
+  // largest artwork, and a list of full-size covers dropped frames on appearing.
+  const thumbnailUrl = artworkUrlAtSize(artworkUrl, THUMBNAIL_ARTWORK_PX);
 
   const primaryClass = compact ? "text-sm" : "text-base";
   const secondaryClass = compact ? "text-xs" : "text-sm";
@@ -87,7 +91,7 @@ export function CandidateRowContent({
         (slideArtwork ? (
           <SlideArtwork
             active={slideArtworkActive}
-            artworkUrl={artworkUrl}
+            artworkUrl={thumbnailUrl}
             labelTitle={primary}
             labelSubtitle={secondary}
             kind={slideKind}
@@ -96,7 +100,7 @@ export function CandidateRowContent({
           />
         ) : (
           <div className={artworkClasses}>
-            <CoverImage artworkUrl={artworkUrl} kind={artworkKind} imgDim={imgDim} iconSize={iconSize} />
+            <CoverImage artworkUrl={thumbnailUrl} kind={artworkKind} imgDim={imgDim} iconSize={iconSize} />
           </div>
         ))}
 

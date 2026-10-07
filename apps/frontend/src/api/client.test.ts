@@ -125,6 +125,64 @@ describe("fetchNavigation", () => {
 
     expect(fetchMock).toHaveBeenCalledWith("https://backend.test/api/v1/nav/header", expect.any(Object));
   });
+
+  it("keeps serving the last good navigation when the backend fails", async () => {
+    const items = [{ label: "About", href: "/about" }];
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(items), { status: 200 }))
+      .mockRejectedValueOnce(new TypeError("fetch failed"));
+    vi.stubGlobal("fetch", fetchMock);
+    const { fetchNavigation } = await import("./client");
+
+    await fetchNavigation("footer");
+
+    await expect(fetchNavigation("footer")).resolves.toEqual(items);
+  });
+
+  it("asks again on the next render when the first request failed", async () => {
+    const items = [{ label: "About", href: "/about" }];
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("fetch failed"))
+      .mockResolvedValueOnce(new Response(JSON.stringify(items), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { fetchNavigation } = await import("./client");
+
+    await expect(fetchNavigation("footer")).resolves.toEqual([]);
+    await expect(fetchNavigation("footer")).resolves.toEqual(items);
+  });
+});
+
+describe("visitor address on backend calls", () => {
+  type Client = typeof import("./client");
+  const VISITOR = "203.0.113.20";
+
+  /**
+   * The backend's limiters are keyed by address. A call without the visitor's
+   * address counts against the frontend container's own, so every visitor's
+   * genre tiles, navigation and examples shared one global budget.
+   */
+  const calls: [string, (client: Client) => Promise<unknown>][] = [
+    ["fetchGenreArtwork", (client) => client.fetchGenreArtwork("rock", VISITOR)],
+    ["fetchCcGenreArtwork", (client) => client.fetchCcGenreArtwork("rock", VISITOR)],
+    ["fetchEmailAsset", (client) => client.fetchEmailAsset("asset-1", VISITOR)],
+    ["fetchRandomExample", (client) => client.fetchRandomExample(VISITOR)],
+    ["fetchCcRandomExample", (client) => client.fetchCcRandomExample(VISITOR)],
+    ["fetchNavigation", (client) => client.fetchNavigation("header", VISITOR)],
+    ["fetchDesignTokens", (client) => client.fetchDesignTokens(VISITOR)],
+  ];
+
+  it.each(calls)("%s forwards the visitor's address", async (_name, call) => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = await import("./client");
+
+    await call(client);
+
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    expect(new Headers(init?.headers).get("X-Forwarded-For")).toBe(VISITOR);
+  });
 });
 
 describe("transport failures", () => {

@@ -17,6 +17,19 @@ interface LazyGenreArtworkProps {
 const artworkGate = createConcurrencyGate(10);
 
 /**
+ * Gives a tile's slot back to {@link artworkGate}, at most once per tile. A
+ * slot that is never returned is lost for the rest of the page session, and
+ * after ten of them every tile spins until a reload.
+ *
+ * @param slotReleasedRef - The tile's flag recording that its slot is back.
+ */
+function releaseSlotOnce(slotReleasedRef: { current: boolean }) {
+  if (slotReleasedRef.current) return;
+  slotReleasedRef.current = true;
+  artworkGate.release();
+}
+
+/**
  * Defers the artwork request until the tile scrolls into view, then passes
  * through a global concurrency gate (max 10 parallel requests) before
  * actually setting the <img> src. A spinner fills the slot while the tile
@@ -68,14 +81,17 @@ export function LazyGenreArtwork({ url, fallbackUrl = DEFAULT_COVER_FALLBACK_URL
     };
   }, [intersected, canLoad]);
 
+  // A tile that unmounts while its image is still loading (the user picked a
+  // genre or left the grid) gives its slot back here, because neither image
+  // handler will ever run for it.
+  useEffect(() => {
+    if (!canLoad) return;
+    return () => releaseSlotOnce(slotReleasedRef);
+  }, [canLoad]);
+
   // Release slot exactly once when the <img> resolves (either success or
   // the first error — the fallback img that the onError swap loads after
   // that is a small static file and doesn't need a slot).
-  function releaseOnce() {
-    if (slotReleasedRef.current) return;
-    slotReleasedRef.current = true;
-    artworkGate.release();
-  }
 
   return (
     <div ref={ref} className="relative size-full">
@@ -88,10 +104,10 @@ export function LazyGenreArtwork({ url, fallbackUrl = DEFAULT_COVER_FALLBACK_URL
           className={cn("size-full object-cover transition-opacity duration-200", loaded ? "opacity-100" : "opacity-0")}
           onLoad={() => {
             setLoaded(true);
-            releaseOnce();
+            releaseSlotOnce(slotReleasedRef);
           }}
           onError={() => {
-            releaseOnce();
+            releaseSlotOnce(slotReleasedRef);
             if (!errored) setErrored(true);
           }}
         />

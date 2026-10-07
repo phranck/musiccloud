@@ -9,7 +9,7 @@
  */
 
 import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
-import { log } from "../../../lib/infra/logger.js";
+import { readLastFmJson } from "./lastfm-response.js";
 
 const API_BASE = "https://ws.audioscrobbler.com/2.0";
 const TIMEOUT_MS = 5000;
@@ -52,24 +52,22 @@ export function filterLastFmTags(tags: Array<{ name: string }>): string[] {
   return out;
 }
 
+/**
+ * Reads an artist's Last.fm tags, filtered down to genres.
+ *
+ * @param name - The artist name.
+ * @returns Up to three genre tags, empty without an API key or for an unknown artist.
+ * @throws {UpstreamUnavailableError} when Last.fm did not answer.
+ */
 export async function fetchLastFmTopTags(name: string): Promise<string[]> {
   const apiKey = process.env.LASTFM_API_KEY;
   if (!apiKey) return [];
 
-  try {
-    const res = await fetchWithTimeout(
-      `${API_BASE}/?method=artist.getTopTags&artist=${encodeURIComponent(name)}&api_key=${encodeURIComponent(apiKey)}&format=json`,
-      {},
-      TIMEOUT_MS,
-    );
-    if (!res.ok) {
-      log.debug("Last.fm", "artist.getTopTags HTTP error", res.status, name);
-      return [];
-    }
-    const data = (await res.json()) as LastFmTopTagsResponse;
-    return filterLastFmTags(data.toptags?.tag ?? []);
-  } catch (err) {
-    log.debug("Last.fm", "artist.getTopTags threw", err);
-    return [];
-  }
+  const res = await fetchWithTimeout(
+    `${API_BASE}/?method=artist.getTopTags&artist=${encodeURIComponent(name)}&api_key=${encodeURIComponent(apiKey)}&format=json`,
+    {},
+    TIMEOUT_MS,
+  );
+  const data = await readLastFmJson<LastFmTopTagsResponse>(res, "artist.getTopTags");
+  return filterLastFmTags(data?.toptags?.tag ?? []);
 }

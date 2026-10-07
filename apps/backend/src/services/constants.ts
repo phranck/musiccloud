@@ -13,6 +13,8 @@
  * should come with a note on what it fixes.
  */
 
+import type { MatchMethod } from "@musiccloud/shared";
+
 /**
  * Minimum score for an adapter's `searchTrack` to report a result as
  * `found`. Below this, the adapter-level search returns a miss even if
@@ -91,6 +93,19 @@ export const IDENTIFIER_MATCH_CONFIDENCE = 1;
 
 /** Ceiling for a text-search match. See {@link IDENTIFIER_MATCH_CONFIDENCE}. */
 export const SEARCH_MAX_CONFIDENCE = 0.99;
+
+/**
+ * Ways of arriving at a track link that name the recording itself: the link a
+ * resolve came in on, and an ISRC match. Only a link found one of these ways
+ * may stand in for the track when that link is pasted again, because a text
+ * match can be confident and still point at another recording. Selected by
+ * method rather than by {@link IDENTIFIER_MATCH_CONFIDENCE}, because older
+ * search links were stored with a confidence of `1`.
+ */
+export const TRACK_IDENTITY_MATCH_METHODS = ["source", "isrc"] as const satisfies readonly MatchMethod[];
+
+/** The album counterpart of {@link TRACK_IDENTITY_MATCH_METHODS}: the source link and a UPC match. */
+export const ALBUM_IDENTITY_MATCH_METHODS = ["source", "upc"] as const satisfies readonly MatchMethod[];
 
 /**
  * How long a fruitless lookup stands before that service is asked again.

@@ -6,12 +6,13 @@
  * Deezer + Last.fm.
  *
  * Returns null when the Spotify token is not configured or the artist
- * search yields no result.
+ * search yields no result, and throws when Spotify did not answer, so the
+ * caller does not store an outage as an artist without genres.
  */
 
 import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
-import { log } from "../../../lib/infra/logger.js";
 import { TokenManager } from "../../../lib/infra/token-manager.js";
+import { UpstreamUnavailableError } from "../../../lib/infra/upstream-unavailable.js";
 import type { ArtistPartial } from "../types.js";
 
 const SPOTIFY_BASE = "https://api.spotify.com/v1";
@@ -50,28 +51,22 @@ export function pickSpotifyImage(images: SpotifyImage[]): string | null {
 export async function fetchSpotifyArtistPartial(name: string): Promise<ArtistPartial | null> {
   if (!spotifyToken.isConfigured()) return null;
 
-  try {
-    const token = await spotifyToken.getAccessToken();
-    const res = await fetchWithTimeout(
-      `${SPOTIFY_BASE}/search?q=${encodeURIComponent(name)}&type=artist&limit=1`,
-      { headers: { Authorization: `Bearer ${token}` } },
-      TIMEOUT_MS,
-    );
-    if (!res.ok) {
-      log.debug("Spotify", "artist search HTTP error", res.status, name);
-      return null;
-    }
-    const data = (await res.json()) as SpotifyArtistSearch;
-    const artist = data.artists?.items?.[0];
-    if (!artist) return null;
-
-    return {
-      __source: "spotify",
-      imageUrl: pickSpotifyImage(artist.images),
-      genres: artist.genres.slice(0, MAX_GENRES),
-    };
-  } catch (err) {
-    log.debug("Spotify", "artist search threw", err);
-    return null;
+  const token = await spotifyToken.getAccessToken();
+  const res = await fetchWithTimeout(
+    `${SPOTIFY_BASE}/search?q=${encodeURIComponent(name)}&type=artist&limit=1`,
+    { headers: { Authorization: `Bearer ${token}` } },
+    TIMEOUT_MS,
+  );
+  if (!res.ok) {
+    throw new UpstreamUnavailableError("spotify", `artist search answered HTTP ${res.status}`);
   }
+  const data = (await res.json()) as SpotifyArtistSearch;
+  const artist = data.artists?.items?.[0];
+  if (!artist) return null;
+
+  return {
+    __source: "spotify",
+    imageUrl: pickSpotifyImage(artist.images),
+    genres: artist.genres.slice(0, MAX_GENRES),
+  };
 }

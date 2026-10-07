@@ -3,7 +3,13 @@ import { inspect } from "node:util";
 import { Agent, type RequestInit as UndiciRequestInit } from "undici";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createFetchWithTimeout, fetchWithTimeout, type OutboundTransport, type ResolveAddresses } from "./fetch.js";
+import {
+  createFetchWithTimeout,
+  createGuardedLookup,
+  fetchWithTimeout,
+  type OutboundTransport,
+  type ResolveAddresses,
+} from "./fetch.js";
 
 const PUBLIC_V4 = { address: "93.184.216.34", family: 4 } as const;
 
@@ -93,6 +99,50 @@ describe("fetchWithTimeout outbound policy", () => {
     const [target, init] = fetchSpy.mock.calls[0] ?? [];
     expect(target).toBe("https://93.184.216.34/path");
     expect((init as UndiciRequestInit | undefined)?.dispatcher).toBeInstanceOf(Agent);
+  });
+
+  /**
+   * A fresh dispatcher per request closed every connection after one use, so
+   * each of the forty to seventy requests in a resolve paid DNS, TCP and TLS
+   * again. Reuse needs one dispatcher across requests.
+   */
+  it("sends every request through the same keep-alive dispatcher", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("ok"))
+      .mockResolvedValueOnce(new Response("ok"));
+
+    await fetchWithTimeout("https://93.184.216.34/first");
+    await fetchWithTimeout("https://93.184.216.34/second");
+
+    const firstDispatcher = (fetchSpy.mock.calls[0]?.[1] as UndiciRequestInit | undefined)?.dispatcher;
+    const secondDispatcher = (fetchSpy.mock.calls[1]?.[1] as UndiciRequestInit | undefined)?.dispatcher;
+    expect(firstDispatcher).toBe(secondDispatcher);
+  });
+
+  it("aborts a body that stalls after the headers at the caller's timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      const transport = vi.fn<Parameters<OutboundTransport>, ReturnType<OutboundTransport>>().mockImplementation(
+        async (_target, init) =>
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                init.signal?.addEventListener("abort", () => controller.error(init.signal?.reason), { once: true });
+              },
+            }),
+          ),
+      );
+      const { guardedFetch } = createGuardedFetch({ transport });
+
+      const response = await guardedFetch("https://public.example/stalls", undefined, 25);
+      const reading = expect(response.text()).rejects.toMatchObject({ name: "AbortError" });
+      await vi.advanceTimersByTimeAsync(25);
+
+      await reading;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("preserves an origin-only input without adding a trailing slash", async () => {
@@ -617,6 +667,43 @@ describe("fetchWithTimeout outbound policy", () => {
     expect(crossOriginHeaders.get("cookie")).toBeNull();
     expect(crossOriginHeaders.get("cookie2")).toBeNull();
     expect(crossOriginHeaders.get("x-keep")).toBe("yes");
+  });
+
+  describe("connect-time lookup of the shared dispatcher", () => {
+    function lookupOnce(
+      resolve: ResolveAddresses,
+      options: { all?: boolean; family?: number } = { all: true },
+    ): Promise<{ error: NodeJS.ErrnoException | null; result: unknown }> {
+      return new Promise((settle) => {
+        createGuardedLookup(resolve)(
+          "public.example",
+          options as never,
+          ((error: NodeJS.ErrnoException | null, result: unknown) => settle({ error, result })) as never,
+        );
+      });
+    }
+
+    it("refuses a connection when the host resolves to a private address", async () => {
+      const { error } = await lookupOnce(async () => [PUBLIC_V4, { address: "10.0.0.1", family: 4 }]);
+
+      expect(error?.message).toBe("Blocked non-public outbound target");
+    });
+
+    it("connects to the validated public addresses", async () => {
+      const { error, result } = await lookupOnce(async () => [PUBLIC_V4]);
+
+      expect(error).toBeNull();
+      expect(result).toEqual([PUBLIC_V4]);
+    });
+
+    it("reports a failed resolution without its details", async () => {
+      const { error } = await lookupOnce(async () => {
+        throw new Error("getaddrinfo ENOTFOUND secret.invalid token=secret");
+      });
+
+      expect(error?.message).toBe("Outbound DNS resolution failed");
+      expect(error?.message).not.toContain("secret");
+    });
   });
 
   it("redacts URL query values from address policy errors", async () => {

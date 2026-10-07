@@ -290,7 +290,10 @@ export function VfdDisplay({
     // with performance.now(), so the callback reads frameNow() itself.
     const tick = () => {
       if (disposed) return;
-      const colors = colorsRef.current ?? resolveCanvasColors(element);
+      // Refill the cache when a day/night change emptied it, so the change costs
+      // one resolution rather than one per frame.
+      colorsRef.current ??= resolveCanvasColors(element);
+      const colors = colorsRef.current;
       const hasActiveAnimation = drawVfdCanvas(canvas, renderStateRef.current, colors, frameNow());
       if (!hasActiveAnimation) {
         scheduled = false;

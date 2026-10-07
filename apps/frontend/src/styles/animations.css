@@ -142,6 +142,22 @@
 .mc-share-media-stage[data-media-stage="turntable"] {
   z-index: 1;
   transform: translate3d(0, 0, 0);
+  transition: visibility 0s;
+}
+
+/* The deck is not painted while the cover is in place over it: painting the
+   unseen record, tonearm and controls made the frame that reveals a result
+   tens of milliseconds longer. It shows the moment the cover leaves, and on the
+   way back it stays until the cover has slid over it (the 800 ms slide). */
+.mc-share-media-screen:has(> .mc-share-media-stage--cover-active) > .mc-share-media-stage[data-media-stage="turntable"] {
+  visibility: hidden;
+  transition: visibility 0s linear 800ms;
+}
+
+/* A restored turntable view moves the cover aside before React mounts (rule
+   below), so the deck has to show from the first paint as well. */
+html[data-share-media-view="turntable"] .mc-share-media-screen > .mc-share-media-stage[data-media-stage="turntable"] {
+  visibility: visible;
 }
 
 .mc-share-media-stage[data-media-stage="cover"] {
@@ -383,6 +399,65 @@ html[data-share-media-view="turntable"] .mc-share-media-screen .mc-share-media-s
 .mc-cover-drop-in {
   animation: mc-cover-drop-in 420ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
   will-change: transform;
+}
+
+/* Loading state of a share page opened directly (ShareLoadingState.astro). The
+   spinner fades in only after 300 ms, so a fast load never flashes it. When the
+   island has not arrived by its timeout, the spinner fades out and the reload
+   message fades in on the same spot. */
+.mc-share-loading {
+  display: grid;
+  justify-items: center;
+  padding-top: 6rem;
+}
+
+.mc-share-loading > * {
+  grid-area: 1 / 1;
+}
+
+.mc-share-loading__progress {
+  opacity: 0;
+  animation: mc-share-loading-in 200ms ease-out 300ms forwards;
+}
+
+.mc-share-loading__slow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 200ms ease-out,
+    visibility 0s linear 200ms;
+}
+
+.mc-share-loading[data-timed-out] .mc-share-loading__progress {
+  animation: mc-share-loading-out 200ms ease-out forwards;
+}
+
+.mc-share-loading[data-timed-out] .mc-share-loading__slow {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 200ms ease-out 200ms;
+}
+
+@keyframes mc-share-loading-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes mc-share-loading-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 /* Respect user preference for reduced motion (WCAG 2.3) */

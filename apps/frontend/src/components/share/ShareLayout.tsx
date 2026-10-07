@@ -170,6 +170,13 @@ import { type MediaCardContentConfiguration, MediaCardContentTypeValue, MediaKin
 
 export type { ArtistInfoContext };
 
+/**
+ * Budget for an artist-column row's in-place resolve plus the preload of its
+ * cover and audio. Longer than the 15 s the Astro proxy gives the backend, so a
+ * backend timeout is reported by the proxy rather than cut off by this abort.
+ */
+const TRACK_RESOLVE_TIMEOUT_MS = 20000;
+
 const SHARE_MEDIA_VIEW_TOGGLE_KEY = "p";
 const SHARE_MEDIA_VIEW_STORAGE_KEY = "musiccloud:share-media-view";
 const SHARE_MEDIA_VIEW_TOGGLE_SELECTOR = "[data-media-view-toggle='true']";
@@ -237,7 +244,14 @@ function artistInfoContextFromConfig(config: MediaCardContentConfiguration): Art
   return { shortId: config.shortId };
 }
 
+/**
+ * Whether two artist-info contexts describe the same artist. The entity id
+ * decides when both carry one, because every track has its own short id and
+ * comparing those would reload the artist column for a track by the same
+ * artist. The short id only decides when no entity id is known.
+ */
 function sameArtistInfoContext(a: ArtistInfoContext, b: ArtistInfoContext): boolean {
+  if (a.artistEntityId && b.artistEntityId) return a.artistEntityId === b.artistEntityId;
   return (a.shortId ?? "") === (b.shortId ?? "") && (a.artistEntityId ?? "") === (b.artistEntityId ?? "");
 }
 
@@ -343,7 +357,7 @@ function useTrackResolver(params: {
       resolveRequestRef.current = requestId;
       const isLatest = () => requestId === resolveRequestRef.current;
 
-      const timeout = setTimeout(() => controller.abort(), 15000);
+      const timeout = setTimeout(() => controller.abort(), TRACK_RESOLVE_TIMEOUT_MS);
       let keepResolveLoadingForArtistFetch = false;
       try {
         const update = await trackResolver(track.deezerUrl, {
@@ -378,9 +392,12 @@ function useTrackResolver(params: {
               !sameArtistInfoContext(update.artistInfoContext ?? {}, currentArtistContext);
           keepResolveLoadingForArtistFetch = shouldFetchArtist;
           if (shouldFetchArtist) dispatchUi({ type: ShareUiActionType.ResolveStarted });
+          // The artist column reloads whenever its context object changes, so a
+          // same-artist swap keeps the current context rather than handing over
+          // an equal one with the new track's short id.
           dispatchUi({
             type: ShareUiActionType.Resolved,
-            artistContext: update.artistInfoContext,
+            artistContext: shouldFetchArtist ? update.artistInfoContext : undefined,
             artistName: shouldFetchArtist ? update.artistName : undefined,
             config: update.config,
           });

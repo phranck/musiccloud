@@ -17,11 +17,11 @@
  * `buildCcArtistInfo`) so they never fail the share.
  *
  * The vinyl layout is read through `resolveAlbumVinylLayout`, which answers from
- * the persisted layout and reaches Discogs only when nothing is stored yet. It
- * is normally written at resolve time in `cc-resolve.ts`, so an open pays for it
- * at most once. Nothing on this path may force a refresh: a Discogs round-trip
- * per open would contradict the database latency promised above, and it would
- * cost `share.ts` the cache directive it sends for every share.
+ * the persisted layout and never waits for Discogs: an identity nobody has
+ * checked yet answers without a layout and is enriched in the background.
+ * Nothing on this path may force a refresh: a Discogs round-trip per open would
+ * contradict the database latency promised above, and it would cost `share.ts`
+ * the cache directive it sends for every share.
  */
 
 import type {

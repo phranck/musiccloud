@@ -46,6 +46,10 @@ After Drizzle finishes, `database-readiness.ts` verifies:
 
 The same inspection backs `GET /health/db` through a separate pool capped at two connections. A database that accepts `SELECT 1` but has a missing table, wrong permission or stale migration is not ready.
 
+## Runtime connections
+
+Every runtime query goes through one shared pool from `apps/backend/src/db/pool.ts`: the repository adapter, plugin states, the image cache, site settings and genre artwork. The readiness pool is created by the same factory. Both wait at most 2 seconds for a connection, and the server cancels any statement after 10 seconds with SQLSTATE `57014`. The migration runner keeps its own pool without a statement timeout, because a migration may legitimately run longer.
+
 ## Operational checks
 
 Before an approved ownership repair, record the connected database, role, superuser flag, table owner and runtime privileges. After the repair, repeat the same queries and exercise the affected endpoint with the runtime application.

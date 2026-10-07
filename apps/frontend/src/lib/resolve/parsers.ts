@@ -261,12 +261,19 @@ export function ccResolveDataToResult(data: CcResolveData): CcResult {
 
 export class ResolveApiError extends Error {
   readonly code: string;
+  readonly errorId?: string;
   readonly context?: Record<string, string>;
 
-  constructor(payload: { error?: string; message?: string; context?: Record<string, string | number> }) {
+  constructor(payload: {
+    error?: string;
+    errorId?: string;
+    message?: string;
+    context?: Record<string, string | number>;
+  }) {
     super(payload.message || payload.error || "Resolve request failed");
     this.name = "ResolveApiError";
     this.code = payload.error || "error.generic";
+    this.errorId = payload.errorId || undefined;
     this.context = payload.context
       ? Object.fromEntries(Object.entries(payload.context).map(([key, value]) => [key, String(value)]))
       : undefined;
@@ -280,6 +287,7 @@ export function parseResolveError(err: unknown): ResolveUiError {
     return {
       kind: "backend",
       code: err.code,
+      errorId: err.errorId,
       context: err.context,
     };
   }
@@ -289,7 +297,12 @@ export function parseResolveError(err: unknown): ResolveUiError {
 export function formatResolveErrorMessage(error: ResolveUiError): string {
   if (error.kind === "offline") return commonCopy.error.offline;
   if (error.kind === "timeout") return commonCopy.error.timeout;
-  if (error.kind === "backend") return contentErrorMessage(error.code, error.context);
+  if (error.kind === "backend") {
+    // The error ID is what connects a visitor's report to the one log line
+    // that explains it, so it is shown wherever the backend sent one.
+    const message = contentErrorMessage(error.code, error.context);
+    return error.errorId ? commonCopy.error.withErrorId(message, error.errorId) : message;
+  }
   return commonCopy.error.generic;
 }
 
