@@ -22,6 +22,11 @@ import { mintShortUrl } from "./short-url.js";
  * Upserts a CC artist by its Jamendo id and returns the internal id.
  * Idempotent: `ON CONFLICT (jamendo_id)` keeps the existing internal id.
  *
+ * Image, website and Jamendo page only ever overwrite with a value: a track or
+ * album persist upserts the artist from a payload that carries none of them, and
+ * a plain overwrite would erase what an artist resolve stored, leaving the
+ * artist's share page without a cover or a Jamendo link.
+ *
  * @param client - Active transaction client.
  * @param data - Artist fields.
  * @param now - Shared transaction timestamp.
@@ -37,9 +42,9 @@ async function upsertCcArtist(
      VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
      ON CONFLICT (jamendo_id) DO UPDATE SET
        name = EXCLUDED.name,
-       image_url = EXCLUDED.image_url,
-       website = EXCLUDED.website,
-       share_url = EXCLUDED.share_url,
+       image_url = COALESCE(EXCLUDED.image_url, cc_artists.image_url),
+       website = COALESCE(EXCLUDED.website, cc_artists.website),
+       share_url = COALESCE(EXCLUDED.share_url, cc_artists.share_url),
        updated_at = EXCLUDED.updated_at
      RETURNING id`,
     [
@@ -57,6 +62,10 @@ async function upsertCcArtist(
 
 /**
  * Upserts a CC album by its Jamendo id and returns the internal id.
+ *
+ * Artwork, release date, download zip and Jamendo page only ever overwrite with
+ * a value: a track persist upserts the album from a payload that carries none of
+ * them, and they must survive it.
  *
  * @param client - Active transaction client.
  * @param data - Album fields (with the resolved internal artist id).
@@ -82,10 +91,10 @@ async function upsertCcAlbum(
      ON CONFLICT (jamendo_id) DO UPDATE SET
        name = EXCLUDED.name,
        cc_artist_id = EXCLUDED.cc_artist_id,
-       artwork_url = EXCLUDED.artwork_url,
-       release_date = EXCLUDED.release_date,
-       zip_url = EXCLUDED.zip_url,
-       share_url = EXCLUDED.share_url,
+       artwork_url = COALESCE(EXCLUDED.artwork_url, cc_albums.artwork_url),
+       release_date = COALESCE(EXCLUDED.release_date, cc_albums.release_date),
+       zip_url = COALESCE(EXCLUDED.zip_url, cc_albums.zip_url),
+       share_url = COALESCE(EXCLUDED.share_url, cc_albums.share_url),
        updated_at = EXCLUDED.updated_at
      RETURNING id`,
     [

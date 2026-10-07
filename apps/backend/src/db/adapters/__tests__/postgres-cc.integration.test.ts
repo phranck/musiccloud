@@ -40,6 +40,12 @@ describe.skipIf(!process.env.DATABASE_URL)("CC repository (integration)", () => 
   const jamendoReplacedArtistId = `itartrepl-${suffix}`;
   const replacedTrackIds = [`itrepl0-${suffix}`, `itrepl1-${suffix}`, `itrepl2-${suffix}`];
 
+  // An artist and an album whose own fields must survive later track persists.
+  const jamendoKeptArtistId = `itartkeep-${suffix}`;
+  const jamendoKeptArtistAlbumId = `italbkeepa-${suffix}`;
+  const jamendoKeptAlbumId = `italbkeep-${suffix}`;
+  const keptTrackIds = [`itkeep0-${suffix}`, `itkeep1-${suffix}`];
+
   const allTrackIds = [
     jamendoTrackId,
     ...jamendoAlbumTrackIds,
@@ -47,14 +53,22 @@ describe.skipIf(!process.env.DATABASE_URL)("CC repository (integration)", () => 
     ...rankedTopTrackIds,
     ...rankedAlbumTrackIds,
     ...replacedTrackIds,
+    ...keptTrackIds,
   ];
-  const allAlbumIds = [jamendoAlbumId, jamendoAlbumOnlyId, jamendoRankedAlbumId];
+  const allAlbumIds = [
+    jamendoAlbumId,
+    jamendoAlbumOnlyId,
+    jamendoRankedAlbumId,
+    jamendoKeptArtistAlbumId,
+    jamendoKeptAlbumId,
+  ];
   const allArtistIds = [
     jamendoArtistId,
     jamendoAlbumOnlyArtistId,
     jamendoArtistOnlyId,
     jamendoRankedArtistId,
     jamendoReplacedArtistId,
+    jamendoKeptArtistId,
   ];
 
   /** A minimal track row for an artist, ranked when `artistTopPosition` is given. */
@@ -342,5 +356,65 @@ describe.skipIf(!process.env.DATABASE_URL)("CC repository (integration)", () => 
 
     const loaded = await repo.loadCcArtistByShortId(shortId);
     expect(loaded!.topTracks.map((t) => t.jamendoId)).toEqual([third]);
+  });
+
+  /**
+   * A track or album persist carries none of the artist's image, website or
+   * Jamendo page. Overwriting with those gaps would leave the artist's share
+   * page without a cover and without its Jamendo row.
+   */
+  it("keeps an artist's image, website and Jamendo page through track and album persists", async () => {
+    const repo = await getCcRepository();
+    const { shortId } = await repo.persistCcArtist({
+      jamendoId: jamendoKeptArtistId,
+      name: "CC Kept Artist",
+      imageUrl: "https://usercontent.jamendo.com/kept-artist.jpg",
+      website: "https://example.test/kept",
+      shareUrl: "https://www.jamendo.com/artist/kept",
+      topTracks: [],
+    });
+    await repo.persistCcTrack(ccTrack(keptTrackIds[0], jamendoKeptArtistId));
+    await repo.persistCcAlbum({
+      jamendoId: jamendoKeptArtistAlbumId,
+      name: "CC Kept Artist Album",
+      jamendoArtistId: jamendoKeptArtistId,
+      artistName: "CC Kept Artist",
+      tracks: [],
+    });
+
+    const loaded = await repo.loadCcArtistByShortId(shortId);
+    expect(loaded!.artist).toMatchObject({
+      imageUrl: "https://usercontent.jamendo.com/kept-artist.jpg",
+      website: "https://example.test/kept",
+      shareUrl: "https://www.jamendo.com/artist/kept",
+    });
+  });
+
+  it("keeps an album's artwork, release date, zip and Jamendo page through a track persist", async () => {
+    const repo = await getCcRepository();
+    const { shortId } = await repo.persistCcAlbum({
+      jamendoId: jamendoKeptAlbumId,
+      name: "CC Kept Album",
+      jamendoArtistId: jamendoKeptArtistId,
+      artistName: "CC Kept Artist",
+      artworkUrl: "https://usercontent.jamendo.com/kept-album.jpg",
+      releaseDate: "2009-11-04",
+      zipUrl: "https://prod.storage.jamendo.com/download/kept.zip",
+      shareUrl: "https://www.jamendo.com/album/kept",
+      tracks: [],
+    });
+    await repo.persistCcTrack({
+      ...ccTrack(keptTrackIds[1], jamendoKeptArtistId),
+      jamendoAlbumId: jamendoKeptAlbumId,
+      albumName: "CC Kept Album",
+    });
+
+    const loaded = await repo.loadCcAlbumByShortId(shortId);
+    expect(loaded!.album).toMatchObject({
+      artworkUrl: "https://usercontent.jamendo.com/kept-album.jpg",
+      releaseDate: "2009-11-04",
+      zipUrl: "https://prod.storage.jamendo.com/download/kept.zip",
+      shareUrl: "https://www.jamendo.com/album/kept",
+    });
   });
 });
