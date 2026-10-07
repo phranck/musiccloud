@@ -41,6 +41,16 @@ describe("parseJamendoLink", () => {
     expect(parseJamendoLink("jamendo.com/TRACK/26738")).toEqual(track);
   });
 
+  it("recognizes the album link Jamendo's API hands out", () => {
+    const album = { kind: ResourceKind.Album, jamendoId: "54844" };
+    expect(parseJamendoLink("https://www.jamendo.com/list/a54844")).toEqual(album);
+    expect(parseJamendoLink("https://www.jamendo.com/list/a54844/best-of-vol-2")).toEqual(album);
+    expect(parseJamendoLink("https://www.jamendo.com/de/list/a54844")).toEqual(album);
+    expect(parseJamendoLink("https://www.jamendo.com/list/t459544")).toBeNull();
+    expect(parseJamendoLink("https://www.jamendo.com/list/a")).toBeNull();
+    expect(parseJamendoLink("https://www.jamendo.com/list/")).toBeNull();
+  });
+
   it("rejects other pages, non-numeric ids, other hosts and free text", () => {
     expect(parseJamendoLink("https://www.jamendo.com/")).toBeNull();
     expect(parseJamendoLink("https://www.jamendo.com/start")).toBeNull();

@@ -23,6 +23,13 @@ const LANGUAGE_SEGMENT_PATTERN = /^[a-z]{2}$/i;
 
 const NUMERIC_ID_PATTERN = /^\d+$/;
 
+/**
+ * Jamendo's API hands out an album's share link as `/list/a<id>`, which
+ * redirects to the album page. No other `/list/` prefix leads anywhere.
+ */
+const LIST_PATH_SEGMENT = "list";
+const LIST_ALBUM_ID_PATTERN = /^a(\d+)$/i;
+
 /** The first path segment of each Jamendo page that musiccloud can resolve. */
 const JAMENDO_PATH_KINDS: ReadonlyMap<string, ResourceKind> = new Map([
   ["track", ResourceKind.Track],
@@ -45,6 +52,7 @@ const JAMENDO_PATH_KINDS: ReadonlyMap<string, ResourceKind> = new Map([
  * - `https://jamendo.com/track/459544`
  * - `https://www.jamendo.com/album/54844/best-of-vol-2`
  * - `https://www.jamendo.com/de/artist/5261`
+ * - `https://www.jamendo.com/list/a54844` (an album, as Jamendo's API links it)
  *
  * @param input - A raw query string, as typed or pasted.
  * @returns The linked entity, or `null` when `input` is not a link to a Jamendo
@@ -57,10 +65,17 @@ export function parseJamendoLink(input: string): JamendoLink | null {
   const segments = url.pathname.split("/").filter(Boolean);
   if (segments.length > 0 && LANGUAGE_SEGMENT_PATTERN.test(segments[0])) segments.shift();
 
-  const [kindSegment, jamendoId] = segments;
-  const kind = kindSegment ? JAMENDO_PATH_KINDS.get(kindSegment.toLowerCase()) : undefined;
-  if (!kind || !jamendoId || !NUMERIC_ID_PATTERN.test(jamendoId)) return null;
-  return { kind, jamendoId };
+  const [kindSegment, idSegment] = segments;
+  if (!kindSegment || !idSegment) return null;
+
+  if (kindSegment.toLowerCase() === LIST_PATH_SEGMENT) {
+    const albumId = LIST_ALBUM_ID_PATTERN.exec(idSegment)?.[1];
+    return albumId ? { kind: ResourceKind.Album, jamendoId: albumId } : null;
+  }
+
+  const kind = JAMENDO_PATH_KINDS.get(kindSegment.toLowerCase());
+  if (!kind || !NUMERIC_ID_PATTERN.test(idSegment)) return null;
+  return { kind, jamendoId: idSegment };
 }
 
 /**
