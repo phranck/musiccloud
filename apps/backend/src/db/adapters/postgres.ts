@@ -125,6 +125,7 @@ import {
   addAlbumExternalIds as albumsAddAlbumExternalIds,
   addLinksToAlbum as albumsAddLinksToAlbum,
   findAlbumByExternalId as albumsFindAlbumByExternalId,
+  findAlbumByServiceLink as albumsFindAlbumByServiceLink,
   findAlbumByUpc as albumsFindAlbumByUpc,
   findAlbumByUrl as albumsFindAlbumByUrl,
   findAlbumPreviews as albumsFindAlbumPreviews,
@@ -285,6 +286,7 @@ import {
   findShortIdsByTrackUrls as tracksFindShortIdsByTrackUrls,
   findTrackByExternalId as tracksFindTrackByExternalId,
   findTrackByIsrc as tracksFindTrackByIsrc,
+  findTrackByServiceLink as tracksFindTrackByServiceLink,
   findTrackByUrl as tracksFindTrackByUrl,
   findTrackPreviews as tracksFindTrackPreviews,
   findTracksByTextSearch as tracksFindTracksByTextSearch,
@@ -387,6 +389,10 @@ export class PostgresAdapter
 
   findTrackByUrl(url: string): Promise<CachedTrackResult | null> {
     return tracksFindTrackByUrl(this.pool, url);
+  }
+
+  findTrackByServiceLink(service: string, externalId: string): Promise<CachedTrackResult | null> {
+    return tracksFindTrackByServiceLink(this.pool, service, externalId);
   }
 
   findTrackByIsrc(isrc: string): Promise<CachedTrackResult | null> {
@@ -556,6 +562,10 @@ export class PostgresAdapter
 
   findAlbumByUrl(url: string): Promise<CachedAlbumResult | null> {
     return albumsFindAlbumByUrl(this.pool, url);
+  }
+
+  findAlbumByServiceLink(service: string, externalId: string): Promise<CachedAlbumResult | null> {
+    return albumsFindAlbumByServiceLink(this.pool, service, externalId);
   }
 
   findAlbumByUpc(upc: string): Promise<CachedAlbumResult | null> {

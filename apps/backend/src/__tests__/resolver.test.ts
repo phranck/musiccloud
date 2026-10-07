@@ -94,6 +94,7 @@ function createMockAdapter(overrides: Partial<ServiceAdapter> = {}): ServiceAdap
 function createMockRepository(): TrackRepository {
   return {
     findTrackByUrl: vi.fn().mockResolvedValue(null),
+    findTrackByServiceLink: vi.fn().mockResolvedValue(null),
     findTrackByIsrc: vi.fn().mockResolvedValue(null),
     findTracksByTextSearch: vi.fn().mockResolvedValue([]),
     findExistingByIsrc: vi.fn().mockResolvedValue(null),
@@ -106,6 +107,7 @@ function createMockRepository(): TrackRepository {
     clearServiceLinkMisses: vi.fn().mockResolvedValue(undefined),
     // Album methods (not used by track resolver tests)
     findAlbumByUrl: vi.fn().mockResolvedValue(null),
+    findAlbumByServiceLink: vi.fn().mockResolvedValue(null),
     findAlbumByUpc: vi.fn().mockResolvedValue(null),
     findExistingAlbumByUpc: vi.fn().mockResolvedValue(null),
     loadAlbumByShortId: vi.fn().mockResolvedValue(null),
@@ -582,6 +584,49 @@ describe("resolveQuery: cache behavior", () => {
 
     expect(spotifyAdapter.getTrack).not.toHaveBeenCalled();
     expect(result.trackId).toBe("tid1");
+  });
+
+  it("answers a link the database already holds while its service is down", async () => {
+    vi.mocked(mockRepo.findTrackByServiceLink).mockResolvedValue({
+      trackId: "known-track",
+      updatedAt: Date.now() - 1000,
+      track: createMockTrack({ sourceService: "deezer", webUrl: "https://www.deezer.com/track/456" }),
+      links: [
+        { service: "deezer", url: "https://www.deezer.com/track/456", confidence: 1.0, matchMethod: "source" },
+        { service: "spotify", url: "https://open.spotify.com/track/track123", confidence: 1.0, matchMethod: "isrc" },
+      ],
+    } satisfies CachedTrackResult);
+
+    const spotifyAdapter = createMockAdapter({
+      id: "spotify",
+      displayName: "Spotify",
+      detectUrl: vi.fn(() => "track123"),
+      getTrack: vi.fn().mockRejectedValue(new Error("Spotify is down")),
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
+
+    const result = await resolveQuery("https://open.spotify.com/track/track123");
+
+    expect(result.trackId).toBe("known-track");
+    expect(mockRepo.findTrackByServiceLink).toHaveBeenCalledWith("spotify", "track123");
+    expect(spotifyAdapter.getTrack).not.toHaveBeenCalled();
+  });
+
+  it("looks a link up under the id its service's links are stored with", async () => {
+    const appleAdapter = createMockAdapter({
+      id: "apple-music",
+      displayName: "Apple Music",
+      detectUrl: vi.fn(() => "us:1623728917"),
+      toCatalogId: (detectedId: string) => detectedId.split(":")[1],
+      getTrack: vi.fn().mockResolvedValue(createMockTrack({ sourceService: "apple-music", sourceId: "1623728917" })),
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([appleAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(appleAdapter);
+
+    await resolveQuery("https://music.apple.com/us/album/heartthrob/1623728585?i=1623728917");
+
+    expect(mockRepo.findTrackByServiceLink).toHaveBeenCalledWith("apple-music", "1623728917");
   });
 });
 

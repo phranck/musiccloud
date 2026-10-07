@@ -21,7 +21,7 @@
  *   exported because the POST route inspects expanded URLs before
  *   content-type routing.
  *
- * ## Cache strategy: three layers
+ * ## Cache strategy: four layers
  *
  * Any incoming request tries to avoid upstream API calls in this order:
  *
@@ -30,7 +30,11 @@
  * 2. Cache by the short-link alias (only if the URL was expanded), so a
  *    `link.deezer.com/s/abc` that gets written once as an alias hits the
  *    cache on subsequent visits.
- * 3. Cache by ISRC after we fetched the source metadata. Catches the
+ * 3. Cache by the link's own service id, before the service is asked. A track
+ *    holding this link through a source or ISRC match resolves from the
+ *    database, so a link the database knows still resolves while its service
+ *    is down. Text matches do not count, because they can be another recording.
+ * 4. Cache by ISRC after we fetched the source metadata. Catches the
  *    same track pasted from a different service the second time around.
  *
  * After migration 0021 the canonical track row never expires; only
@@ -164,6 +168,7 @@ import {
   identifyServiceIncludingDisabled,
   isPluginEnabled,
 } from "./index.js";
+import { type ServiceLinkLookup, serviceLinkLookup } from "./service-link-lookup.js";
 import type {
   ExternalIdRecord,
   MatchResult,
@@ -291,19 +296,27 @@ async function recordServiceMisses(trackId: string | undefined, services: readon
 }
 
 /**
- * Try to serve a result from DB cache.
+ * Try to serve a result from DB cache, by the URL a track was first resolved
+ * from, then by a link it has on the pasted link's service, then by ISRC.
  *
  * Static-vs-dynamic split (migration 0021): the canonical track row is
- * permanently fresh — a cache hit always wins regardless of `updated_at`.
+ * permanently fresh, so a cache hit always wins regardless of `updated_at`.
  * The only time-sensitive field, the preview URL, lives in
  * `track_previews` and is refreshed lazily by `fillMissingServices`
  * when its `expires_at` is in the past. Returns null only on miss or
  * read errors.
  */
-async function tryCache(lookup: { url?: string; isrc?: string }): Promise<ResolutionResult | null> {
+async function tryCache(lookup: {
+  url?: string;
+  serviceLink?: ServiceLinkLookup;
+  isrc?: string;
+}): Promise<ResolutionResult | null> {
   try {
     const repo = await getRepository();
     let cached = lookup.url ? await repo.findTrackByUrl(lookup.url) : null;
+    if (!cached && lookup.serviceLink) {
+      cached = await repo.findTrackByServiceLink(lookup.serviceLink.service, lookup.serviceLink.externalId);
+    }
     if (!cached && lookup.isrc) cached = await repo.findTrackByIsrc(lookup.isrc);
     if (!cached) return null;
 
@@ -638,7 +651,7 @@ export async function resolveQuery(input: string, expandedUrl?: string): Promise
 }
 
 /**
- * URL input pipeline. See the file header for the three-layer cache,
+ * URL input pipeline. See the file header for the four-layer cache,
  * SERVICE_DISABLED vs NOT_MUSIC_LINK ordering, preview URL preference,
  * artwork fallback chain, and OG-scrape escape hatch.
  *
@@ -689,6 +702,12 @@ export async function resolveUrl(inputUrl: string, preExpandedUrl?: string): Pro
   if (!trackId) {
     throw new ResolveError("INVALID_URL", "Could not extract track ID from URL");
   }
+
+  // 2b. Cache lookup by the link's own id: a track the database already holds
+  //     with this link resolves without asking the service, so a link it knows
+  //     still resolves while that service is down.
+  const cachedByLink = await tryCache({ serviceLink: serviceLinkLookup(sourceAdapter, trackId) });
+  if (cachedByLink) return withAlias(await fillMissingServices(cachedByLink));
 
   // 3. Fetch metadata
   let sourceTrack: NormalizedTrack;

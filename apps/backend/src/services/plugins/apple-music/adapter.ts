@@ -540,6 +540,15 @@ export const appleMusicAdapter: ServiceAdapter = {
   },
 
   /**
+   * Drops the storefront from an id `detectUrl` or `detectAlbumUrl` returned,
+   * because the mappers store the bare numeric id as `sourceId` (see
+   * {@link parseStorefrontId}).
+   */
+  toCatalogId(detectedId: string): string {
+    return parseStorefrontId(detectedId).id;
+  },
+
+  /**
    * Accepts either a composite id `{storefront}:{trackId}` (preferred, produced
    * by {@link detectUrl}) or a bare numeric trackId (falls back to default
    * storefront). The API call targets the extracted storefront so regional

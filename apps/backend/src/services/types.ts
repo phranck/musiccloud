@@ -128,6 +128,14 @@ export interface ServiceAdapter {
 
   isAvailable(): boolean;
   detectUrl(url: string): string | null;
+  /**
+   * Turns an id from `detectUrl` or `detectAlbumUrl` into the id the catalog
+   * stores as a link's `externalId`, which is the `sourceId` the adapter's
+   * mappers produce. Only an adapter whose detected ids carry more than that,
+   * such as Apple Music's storefront prefix, implements it; without it the
+   * detected id is used as is.
+   */
+  toCatalogId?(detectedId: string): string;
   getTrack(trackId: string): Promise<NormalizedTrack>;
   findByIsrc(isrc: string): Promise<NormalizedTrack | null>;
   searchTrack(query: SearchQuery): Promise<MatchResult>;

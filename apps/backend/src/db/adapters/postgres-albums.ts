@@ -3,7 +3,7 @@
  * their service-link fan-out.
  *
  * Scope:
- *   - Resolution by canonical URL, UPC, external-id catalogue.
+ *   - Resolution by canonical URL, a known service link, UPC, external-id catalogue.
  *   - Persistence with UPC / URL dedup, transactional credit replacement
  *     and short-URL assignment.
  *   - External-id ingestion (migration `0019`) and per-service preview
@@ -22,6 +22,7 @@ import type { VinylLayout } from "@musiccloud/shared";
 import type { Pool } from "pg";
 import { generateTrackId } from "../../lib/short-id.js";
 import { createAlbumIdentityKey } from "../../services/album-identity.js";
+import { ALBUM_IDENTITY_MATCH_METHODS } from "../../services/constants.js";
 import type { NormalizedAlbum, TrackSource } from "../../services/types.js";
 import type {
   ArtistCredit,
@@ -83,6 +84,18 @@ export interface AlbumWithLinkRow extends AlbumRow {
 /** Raw album share projection including the persisted vinyl-cache state. */
 export interface AlbumShareRow extends AlbumWithLinkRow {}
 
+/**
+ * Columns of an album-x-link row as {@link buildCachedAlbumResult} reads them.
+ * The query names `albums` as `a`, `album_service_links` as `asl` and
+ * `album_short_urls` as `asu`.
+ */
+const ALBUM_WITH_LINK_COLUMNS = `
+      a.id, a.title, ${ALBUM_ARTIST_FIELDS_SELECT}, a.release_date, a.total_tracks,
+      a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
+      (SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY (ap.service = 'deezer') DESC, ap.observed_at DESC LIMIT 1) AS preview_url,
+      asl.url as link_url, asl.service, asl.confidence, asl.match_method,
+      asu.id as short_id, a.created_at, a.updated_at`;
+
 // ============================================================================
 // RESOLUTION
 // ============================================================================
@@ -91,7 +104,8 @@ export interface AlbumShareRow extends AlbumWithLinkRow {}
  * Resolves an album by its canonical source URL.
  *
  * Joins `album_service_links` and `album_short_urls` for the album whose
- * `albums.source_url` matches. Returns null when no album matches.
+ * `albums.source_url` matches. A link to the album on any other service is
+ * found by {@link findAlbumByServiceLink}. Returns null when no album matches.
  *
  * @param pool - Postgres connection pool.
  * @param url - Source URL recorded against the album.
@@ -99,18 +113,50 @@ export interface AlbumShareRow extends AlbumWithLinkRow {}
  */
 export async function findAlbumByUrl(pool: Pool, url: string): Promise<CachedAlbumResult | null> {
   const result = await pool.query(
-    `SELECT
-      a.id, a.title, ${ALBUM_ARTIST_FIELDS_SELECT}, a.release_date, a.total_tracks,
-      a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
-      (SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY (ap.service = 'deezer') DESC, ap.observed_at DESC LIMIT 1) AS preview_url,
-      asl.url as link_url, asl.service, asl.confidence, asl.match_method,
-      asu.id as short_id, a.created_at, a.updated_at
+    `SELECT ${ALBUM_WITH_LINK_COLUMNS}
     FROM albums a
     LEFT JOIN album_service_links asl ON a.id = asl.album_id
     LEFT JOIN album_short_urls asu ON a.id = asu.album_id
     WHERE a.source_url = $1
     ORDER BY asl.created_at ASC`,
     [url],
+  );
+
+  if (result.rows.length === 0) return null;
+  return buildCachedAlbumResult(result.rows as AlbumWithLinkRow[]);
+}
+
+/**
+ * Resolves an album through a link it already has on one service, so a pasted
+ * link the database knows resolves without asking that service.
+ *
+ * Only links that identify the release count ({@link ALBUM_IDENTITY_MATCH_METHODS}),
+ * because a text or inferred match can be another edition. Uses the
+ * `(service, external_id)` index of `album_service_links`.
+ *
+ * @param pool - Postgres connection pool.
+ * @param service - Service id the link belongs to.
+ * @param externalId - The service's own id for the album, as stored in `album_service_links.external_id`.
+ * @returns The cached album result with aggregated links, or null.
+ */
+export async function findAlbumByServiceLink(
+  pool: Pool,
+  service: string,
+  externalId: string,
+): Promise<CachedAlbumResult | null> {
+  const result = await pool.query(
+    `SELECT ${ALBUM_WITH_LINK_COLUMNS}
+    FROM albums a
+    LEFT JOIN album_service_links asl ON a.id = asl.album_id
+    LEFT JOIN album_short_urls asu ON a.id = asu.album_id
+    WHERE a.id = (
+      SELECT known.album_id FROM album_service_links known
+      WHERE known.service = $1 AND known.external_id = $2 AND known.match_method = ANY($3::text[])
+      ORDER BY known.created_at ASC
+      LIMIT 1
+    )
+    ORDER BY asl.created_at ASC`,
+    [service, externalId, ALBUM_IDENTITY_MATCH_METHODS],
   );
 
   if (result.rows.length === 0) return null;
@@ -131,12 +177,7 @@ export async function findAlbumByUrl(pool: Pool, url: string): Promise<CachedAlb
  */
 export async function findAlbumByUpc(pool: Pool, upc: string): Promise<CachedAlbumResult | null> {
   const result = await pool.query(
-    `SELECT
-      a.id, a.title, ${ALBUM_ARTIST_FIELDS_SELECT}, a.release_date, a.total_tracks,
-      a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
-      (SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY (ap.service = 'deezer') DESC, ap.observed_at DESC LIMIT 1) AS preview_url,
-      asl.url as link_url, asl.service, asl.confidence, asl.match_method,
-      asu.id as short_id, a.created_at, a.updated_at
+    `SELECT ${ALBUM_WITH_LINK_COLUMNS}
     FROM albums a
     LEFT JOIN album_service_links asl ON a.id = asl.album_id
     LEFT JOIN album_short_urls asu ON a.id = asu.album_id
@@ -460,12 +501,7 @@ export async function findAlbumByExternalId(
   idValue: string,
 ): Promise<CachedAlbumResult | null> {
   const result = await pool.query(
-    `SELECT
-      a.id, a.title, ${ALBUM_ARTIST_FIELDS_SELECT}, a.release_date, a.total_tracks,
-      a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
-      (SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY (ap.service = 'deezer') DESC, ap.observed_at DESC LIMIT 1) AS preview_url,
-      asl.url as link_url, asl.service, asl.confidence, asl.match_method,
-      asu.id as short_id, a.created_at, a.updated_at
+    `SELECT ${ALBUM_WITH_LINK_COLUMNS}
     FROM albums a
     JOIN album_external_ids x ON x.album_id = a.id
     LEFT JOIN album_service_links asl ON a.id = asl.album_id

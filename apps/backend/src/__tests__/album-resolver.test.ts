@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockRepo = {
   findAlbumByUrl: vi.fn().mockResolvedValue(null),
+  findAlbumByServiceLink: vi.fn().mockResolvedValue(null),
   findAlbumByUpc: vi.fn().mockResolvedValue(null),
   findExistingAlbumByUpc: vi.fn().mockResolvedValue(null),
   persistAlbumWithLinks: vi.fn().mockResolvedValue({ albumId: "test-album-id", shortId: "ab1234" }),
@@ -138,6 +139,7 @@ describe("AlbumResolver: resolveAlbumUrl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRepo.findAlbumByUrl.mockResolvedValue(null);
+    mockRepo.findAlbumByServiceLink.mockResolvedValue(null);
     mockRepo.findAlbumByUpc.mockResolvedValue(null);
     mockRepo.findAlbumPreviews.mockResolvedValue([]);
     mockSpotifyAdapter.getAlbum.mockResolvedValue(MOCK_SOURCE_ALBUM);
@@ -289,6 +291,22 @@ describe("AlbumResolver: resolveAlbumUrl", () => {
       expect.objectContaining({ service: "deezer", url: freshPreviewUrl }),
     );
     expect(result.sourceAlbum.topTrackPreviewUrl).toBe(freshPreviewUrl);
+  });
+
+  it("answers a link the database already holds without asking its service", async () => {
+    mockRepo.findAlbumByServiceLink.mockResolvedValue({
+      album: MOCK_SOURCE_ALBUM,
+      albumId: "known-id",
+      links: [{ service: "deezer", url: "https://www.deezer.com/album/302127", confidence: 1.0, matchMethod: "upc" }],
+      updatedAt: Date.now() - 1000,
+    });
+    mockSpotifyAdapter.getAlbum.mockRejectedValue(new Error("Spotify is down"));
+
+    const result = await resolveAlbumUrl("https://open.spotify.com/album/6dVIqQ8qmQ5GBnJ9shOYGE");
+
+    expect(result.albumId).toBe("known-id");
+    expect(mockRepo.findAlbumByServiceLink).toHaveBeenCalledWith("spotify", "6dVIqQ8qmQ5GBnJ9shOYGE");
+    expect(mockSpotifyAdapter.getAlbum).not.toHaveBeenCalled();
   });
 
   it("should throw NOT_MUSIC_LINK for unrecognized album URL", async () => {
