@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { CoverImage } from "@/components/ui/CoverImage";
 import { SlideArtwork } from "@/components/ui/SlideArtwork";
 import { SlideArtworkKind } from "@/components/ui/SlideArtworkTypes";
@@ -20,6 +20,16 @@ export interface CandidateRowContentProps {
   slideArtworkActive?: boolean;
   /** Tile shape: `round` for artists, `square` for tracks and albums. */
   artworkKind?: ArtworkKind;
+  /**
+   * Base corner radius of a square artwork frame, for a list that rounds its
+   * rows by position. Omit it to keep the frame's own radius.
+   */
+  artworkRadius?: string;
+  /**
+   * Per-corner radii of a square artwork frame, so its left corners follow
+   * the row's grouped corners concentrically (see `singleColumnGroupedCornerStyle`).
+   */
+  artworkStyle?: CSSProperties;
   /** Primary display string (title / name). Always visible. */
   primary: string;
   /** Optional secondary line — typically artists-joined. */
@@ -57,6 +67,8 @@ export function CandidateRowContent({
   slideArtwork = false,
   slideArtworkActive = false,
   artworkKind = "square",
+  artworkRadius,
+  artworkStyle,
   primary,
   secondary,
   tertiary,
@@ -95,9 +107,11 @@ export function CandidateRowContent({
             kind={slideKind}
             sizeClass={artworkSize}
             imgDim={imgDim}
+            radius={artworkRadius}
+            style={artworkStyle}
           />
         ) : (
-          <div className={artworkClasses}>
+          <div className={artworkClasses} style={{ borderRadius: artworkRadius, ...artworkStyle }}>
             <CoverImage artworkUrl={thumbnailUrl} kind={artworkKind} imgDim={imgDim} iconSize={iconSize} />
           </div>
         ))}
