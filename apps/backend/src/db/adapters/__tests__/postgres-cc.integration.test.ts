@@ -31,7 +31,44 @@ describe.skipIf(!process.env.DATABASE_URL)("CC repository (integration)", () => 
   // Tracklist / top-track ids persisted alongside the album / artist resolves.
   const jamendoAlbumTrackIds = [`italbtrk0-${suffix}`, `italbtrk1-${suffix}`];
   const jamendoArtistTrackIds = [`itarttrk0-${suffix}`, `itarttrk1-${suffix}`];
-  const allTrackIds = [jamendoTrackId, ...jamendoAlbumTrackIds, ...jamendoArtistTrackIds];
+
+  // An artist that also has an album resolved, and one whose top list changes.
+  const jamendoRankedArtistId = `itartrank-${suffix}`;
+  const jamendoRankedAlbumId = `italbrank-${suffix}`;
+  const rankedTopTrackIds = [`itranktop0-${suffix}`, `itranktop1-${suffix}`];
+  const rankedAlbumTrackIds = [`itrankalb0-${suffix}`, `itrankalb1-${suffix}`, `itrankalb2-${suffix}`];
+  const jamendoReplacedArtistId = `itartrepl-${suffix}`;
+  const replacedTrackIds = [`itrepl0-${suffix}`, `itrepl1-${suffix}`, `itrepl2-${suffix}`];
+
+  const allTrackIds = [
+    jamendoTrackId,
+    ...jamendoAlbumTrackIds,
+    ...jamendoArtistTrackIds,
+    ...rankedTopTrackIds,
+    ...rankedAlbumTrackIds,
+    ...replacedTrackIds,
+  ];
+  const allAlbumIds = [jamendoAlbumId, jamendoAlbumOnlyId, jamendoRankedAlbumId];
+  const allArtistIds = [
+    jamendoArtistId,
+    jamendoAlbumOnlyArtistId,
+    jamendoArtistOnlyId,
+    jamendoRankedArtistId,
+    jamendoReplacedArtistId,
+  ];
+
+  /** A minimal track row for an artist, ranked when `artistTopPosition` is given. */
+  function ccTrack(jamendoId: string, artistJamendoId: string, artistTopPosition?: number): PersistCcTrackData {
+    return {
+      jamendoId,
+      title: `CC Track ${jamendoId}`,
+      artistName: `CC Artist ${artistJamendoId}`,
+      jamendoArtistId: artistJamendoId,
+      streamUrl: `https://prod.storage.jamendo.com/?trackid=${jamendoId}&format=mp31`,
+      downloadAllowed: false,
+      artistTopPosition,
+    };
+  }
 
   const albumTracks: PersistCcTrackData[] = jamendoAlbumTrackIds.map((id, i) => ({
     jamendoId: id,
@@ -118,16 +155,14 @@ describe.skipIf(!process.env.DATABASE_URL)("CC repository (integration)", () => 
     await pool.query(`DELETE FROM cc_tracks WHERE jamendo_id = ANY($1)`, [allTrackIds]);
     await pool.query(
       `DELETE FROM cc_album_short_urls WHERE cc_album_id IN (SELECT id FROM cc_albums WHERE jamendo_id = ANY($1))`,
-      [[jamendoAlbumId, jamendoAlbumOnlyId]],
+      [allAlbumIds],
     );
-    await pool.query(`DELETE FROM cc_albums WHERE jamendo_id = ANY($1)`, [[jamendoAlbumId, jamendoAlbumOnlyId]]);
+    await pool.query(`DELETE FROM cc_albums WHERE jamendo_id = ANY($1)`, [allAlbumIds]);
     await pool.query(
       `DELETE FROM cc_artist_short_urls WHERE cc_artist_id IN (SELECT id FROM cc_artists WHERE jamendo_id = ANY($1))`,
-      [[jamendoArtistOnlyId, jamendoAlbumOnlyArtistId, jamendoArtistId]],
+      [allArtistIds],
     );
-    await pool.query(`DELETE FROM cc_artists WHERE jamendo_id = ANY($1)`, [
-      [jamendoArtistId, jamendoAlbumOnlyArtistId, jamendoArtistOnlyId],
-    ]);
+    await pool.query(`DELETE FROM cc_artists WHERE jamendo_id = ANY($1)`, [allArtistIds]);
     await pool.end();
   });
 
@@ -262,5 +297,50 @@ describe.skipIf(!process.env.DATABASE_URL)("CC repository (integration)", () => 
     expect(second.shortId).toBe(shortId);
     const shortAfter = await pool.query(`SELECT id FROM cc_artist_short_urls WHERE cc_artist_id = $1`, [ccArtistId]);
     expect(shortAfter.rows).toHaveLength(1);
+  });
+
+  /**
+   * An album resolve stores the album's tracks under the same artist. Those are
+   * not top tracks, and counting them pushed an artist's column past the 20
+   * entries the share-page schema allows, so the share page answered 500.
+   */
+  it("loadCcArtistByShortId lists only the top tracks, not the artist's other stored tracks", async () => {
+    const repo = await getCcRepository();
+    const { shortId } = await repo.persistCcArtist({
+      jamendoId: jamendoRankedArtistId,
+      name: "CC Ranked Artist",
+      topTracks: rankedTopTrackIds.map((id, rank) => ccTrack(id, jamendoRankedArtistId, rank)),
+    });
+    await repo.persistCcAlbum({
+      jamendoId: jamendoRankedAlbumId,
+      name: "CC Ranked Album",
+      jamendoArtistId: jamendoRankedArtistId,
+      artistName: "CC Ranked Artist",
+      tracks: rankedAlbumTrackIds.map((id, index) => ({
+        ...ccTrack(id, jamendoRankedArtistId),
+        albumPosition: index + 1,
+      })),
+    });
+
+    const loaded = await repo.loadCcArtistByShortId(shortId);
+    expect(loaded!.topTracks.map((t) => t.jamendoId)).toEqual(rankedTopTrackIds);
+  });
+
+  it("a re-resolved artist's top list replaces the one stored before", async () => {
+    const repo = await getCcRepository();
+    const [first, second, third] = replacedTrackIds;
+    const { shortId } = await repo.persistCcArtist({
+      jamendoId: jamendoReplacedArtistId,
+      name: "CC Replaced Artist",
+      topTracks: [ccTrack(first, jamendoReplacedArtistId, 0), ccTrack(second, jamendoReplacedArtistId, 1)],
+    });
+    await repo.persistCcArtist({
+      jamendoId: jamendoReplacedArtistId,
+      name: "CC Replaced Artist",
+      topTracks: [ccTrack(third, jamendoReplacedArtistId, 0)],
+    });
+
+    const loaded = await repo.loadCcArtistByShortId(shortId);
+    expect(loaded!.topTracks.map((t) => t.jamendoId)).toEqual([third]);
   });
 });

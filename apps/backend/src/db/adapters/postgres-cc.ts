@@ -307,8 +307,9 @@ export async function persistCcAlbum(
 
 /**
  * Transactionally persists a resolved CC artist plus its top tracks and eagerly
- * mints its canonical short URL. Dedup is by `jamendo_id`. The top tracks are
- * persisted (with `artist_top_position` preserving the popularity order) so the
+ * mints its canonical short URL. Dedup is by `jamendo_id`. The top tracks replace
+ * the artist's previously stored ones and are persisted (with
+ * `artist_top_position` preserving the popularity order) so the
  * share page renders the column from the DB without a live call; `cc_album_id`
  * stays null (their albums are not resolved here).
  *
@@ -337,6 +338,11 @@ export async function persistCcArtist(
       },
       now,
     );
+
+    // The new top list replaces the old one. The track upsert keeps an existing
+    // `artist_top_position` when it receives none, so without this a track that
+    // left the artist's top tracks would keep its rank and reappear in the column.
+    await client.query(`UPDATE cc_tracks SET artist_top_position = NULL WHERE cc_artist_id = $1`, [ccArtistId]);
 
     // Persist the top tracks so the share page reads the column from the DB.
     // They belong to this artist; their albums are not resolved → cc_album_id null.
@@ -513,12 +519,18 @@ export async function loadCcArtistByShortId(
   if (!artistRow) return null;
   const { id: ccArtistId, ...artist } = artistRow;
 
+  // Only ranked tracks are top tracks: the artist's album and single-track
+  // resolves store more of its tracks under the same `cc_artist_id`. A rank
+  // belongs to one track, so where two rows hold it the more recently written
+  // one counts. That keeps the column within the ranks Jamendo returned, which
+  // the share-page schema caps at its `maxItems`.
   const tracksResult = await pool.query(
-    `SELECT ${CC_TRACK_SHARE_COLUMNS}
+    `SELECT DISTINCT ON (t.artist_top_position) ${CC_TRACK_SHARE_COLUMNS}
        FROM cc_tracks t
        JOIN cc_artists ar ON ar.id = t.cc_artist_id
       WHERE t.cc_artist_id = $1
-      ORDER BY t.artist_top_position ASC NULLS LAST, t.created_at ASC`,
+        AND t.artist_top_position IS NOT NULL
+      ORDER BY t.artist_top_position ASC, t.updated_at DESC`,
     [ccArtistId],
   );
   return { artist, topTracks: tracksResult.rows as CcTrackShareRow[] };
