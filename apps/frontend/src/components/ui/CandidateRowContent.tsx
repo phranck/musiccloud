@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 import { CoverImage } from "@/components/ui/CoverImage";
 import { SlideArtwork } from "@/components/ui/SlideArtwork";
 import { SlideArtworkKind } from "@/components/ui/SlideArtworkTypes";
@@ -10,12 +10,6 @@ export type ArtworkKind = "square" | "round";
 export interface CandidateRowContentProps {
   /** URL of the primary artwork. Falls back to an icon if missing or if it fails to load. */
   artworkUrl?: string;
-  /**
-   * Fully custom artwork element — when supplied it replaces the default
-   * `<img>` rendering entirely. Used by `DisambiguationPanel` to swap in
-   * the vinyl-spin loading animation.
-   */
-  artwork?: ReactNode;
   slideArtwork?: boolean;
   slideArtworkActive?: boolean;
   /** Tile shape: `round` for artists, `square` for tracks and albums. */
@@ -63,7 +57,6 @@ export interface CandidateRowContentProps {
  */
 export function CandidateRowContent({
   artworkUrl,
-  artwork,
   slideArtwork = false,
   slideArtworkActive = false,
   artworkKind = "square",
@@ -99,22 +92,21 @@ export function CandidateRowContent({
 
   return (
     <>
-      {artwork ??
-        (slideArtwork ? (
-          <SlideArtwork
-            active={slideArtworkActive}
-            artworkUrl={thumbnailUrl}
-            kind={slideKind}
-            sizeClass={artworkSize}
-            imgDim={imgDim}
-            radius={artworkRadius}
-            style={artworkStyle}
-          />
-        ) : (
-          <div className={artworkClasses} style={{ borderRadius: artworkRadius, ...artworkStyle }}>
-            <CoverImage artworkUrl={thumbnailUrl} kind={artworkKind} imgDim={imgDim} iconSize={iconSize} />
-          </div>
-        ))}
+      {slideArtwork ? (
+        <SlideArtwork
+          active={slideArtworkActive}
+          artworkUrl={thumbnailUrl}
+          kind={slideKind}
+          sizeClass={artworkSize}
+          imgDim={imgDim}
+          radius={artworkRadius}
+          style={artworkStyle}
+        />
+      ) : (
+        <div className={artworkClasses} style={{ borderRadius: artworkRadius, ...artworkStyle }}>
+          <CoverImage artworkUrl={thumbnailUrl} kind={artworkKind} imgDim={imgDim} iconSize={iconSize} />
+        </div>
+      )}
 
       <div className="flex-1 min-w-0">
         <p className={cn(primaryClass, "font-medium tracking-[-0.01em] text-text-primary truncate")}>{primary}</p>
