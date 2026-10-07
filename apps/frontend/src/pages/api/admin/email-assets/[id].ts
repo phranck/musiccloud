@@ -20,12 +20,12 @@ export const prerender = false;
  * privacy proxy — cannot reach. That is inherent to URL-referenced images and
  * unrelated to this route.)
  */
-export const GET: APIRoute = async ({ params }) => {
+export const GET: APIRoute = async ({ params, clientAddress }) => {
   const id = params.id ?? "";
   if (!id) return new Response(null, { status: 400 });
 
   try {
-    const res = await fetchEmailAsset(id);
+    const res = await fetchEmailAsset(id, clientAddress);
     if (!res.ok) return new Response(null, { status: res.status });
     const body = await res.arrayBuffer();
     return new Response(body, {

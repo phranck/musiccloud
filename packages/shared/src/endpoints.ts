@@ -152,8 +152,6 @@ export const ENDPOINTS = {
     resolve: "/api/resolve",
     /** POST: React components call this in CC mode; Astro forwards to `ENDPOINTS.v1.ccResolve`. */
     ccResolve: "/api/cc/resolve",
-    /** GET: forwarded to `ENDPOINTS.v1.randomExample`. */
-    randomExample: "/api/random-example",
     /** GET: forwarded to `ENDPOINTS.v1.artistInfo`. */
     artistInfo: "/api/artist-info",
     /** GET: forwarded to `ENDPOINTS.v1.sharePreview`. Client-side audio

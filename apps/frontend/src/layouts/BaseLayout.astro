@@ -28,10 +28,10 @@ interface Props {
 }
 
 const { title, description, canonicalUrl, preloadImage, noindex, showHeader = true } = Astro.props;
-const headerNav = showHeader ? await fetchNavigation("header") : [];
+const headerNav = showHeader ? await fetchNavigation("header", Astro.clientAddress) : [];
 // Persisted design tokens → `:root` custom properties, seeded synchronously in
 // the head so the glass material renders the saved values on first paint.
-const designTokensCss = designTokensToCss(await fetchDesignTokens());
+const designTokensCss = designTokensToCss(await fetchDesignTokens(Astro.clientAddress));
 ---
 
 <!doctype html>

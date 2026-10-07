@@ -8,12 +8,12 @@ export const prerender = false;
  * JPEG binary straight through, preserving the immutable Cache-Control
  * header so browsers and any edge caches hold on to it.
  */
-export const GET: APIRoute = async ({ params }) => {
+export const GET: APIRoute = async ({ params, clientAddress }) => {
   const genreKey = params.genreKey ?? "";
   if (!genreKey) return new Response(null, { status: 400 });
 
   try {
-    const res = await fetchGenreArtwork(genreKey);
+    const res = await fetchGenreArtwork(genreKey, clientAddress);
     if (!res.ok) return new Response(null, { status: res.status });
     const body = await res.arrayBuffer();
     return new Response(body, {

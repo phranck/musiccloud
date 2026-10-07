@@ -50,10 +50,11 @@ function internalHeaders(extra?: Record<string, string>): Record<string, string>
 }
 
 /**
- * Build X-Forwarded-For extras for backend calls that hit per-IP rate
- * limits. Without this header the backend `apiRateLimiter` buckets by the
- * frontend pod IP, so all SSR-driven calls share one 10 requests per
- * 60 seconds bucket globally — see `apps/backend/src/lib/infra/rate-limiter.ts:67-72`.
+ * Build X-Forwarded-For extras for backend calls. Every backend call passes
+ * one, because the backend's limiters are keyed by address: without it a call
+ * counts against the frontend container's own address, so the per-route
+ * limiters and the global 300-per-minute limit in `server.ts` would count every
+ * visitor's genre tiles, navigation and examples against one shared budget.
  * Pass `Astro.clientAddress` (or the equivalent in API endpoints) so the
  * backend buckets per real user.
  *
@@ -377,8 +378,12 @@ export async function resolveCcTrack(
  * under contention a single tile can legitimately wait well past 15 s
  * for its turn on the event loop.
  */
-export async function fetchGenreArtwork(genreKey: string): Promise<Response> {
-  return fetchWithTimeout(backendUrl(ENDPOINTS.v1.genreArtwork(genreKey)), { headers: internalHeaders() }, 60000);
+export async function fetchGenreArtwork(genreKey: string, clientIp?: string): Promise<Response> {
+  return fetchWithTimeout(
+    backendUrl(ENDPOINTS.v1.genreArtwork(genreKey)),
+    { headers: internalHeaders(forwardedForExtra(clientIp)) },
+    60000,
+  );
 }
 
 /**
@@ -396,8 +401,12 @@ export async function fetchGenreArtwork(genreKey: string): Promise<Response> {
  * @param id - the `email_assets.id` to fetch.
  * @returns the raw upstream `Response`.
  */
-export async function fetchEmailAsset(id: string): Promise<Response> {
-  return fetchWithTimeout(backendUrl(ENDPOINTS.admin.emailAssets.detail(id)), { headers: internalHeaders() }, 15000);
+export async function fetchEmailAsset(id: string, clientIp?: string): Promise<Response> {
+  return fetchWithTimeout(
+    backendUrl(ENDPOINTS.admin.emailAssets.detail(id)),
+    { headers: internalHeaders(forwardedForExtra(clientIp)) },
+    15000,
+  );
 }
 
 /**
@@ -411,14 +420,22 @@ export async function fetchEmailAsset(id: string): Promise<Response> {
  * Jimp-based rendering is CPU-bound, so a single tile can legitimately wait past
  * 15 s for its turn on the event loop.
  */
-export async function fetchCcGenreArtwork(genreKey: string): Promise<Response> {
-  return fetchWithTimeout(backendUrl(ENDPOINTS.v1.ccGenreArtwork(genreKey)), { headers: internalHeaders() }, 60000);
+export async function fetchCcGenreArtwork(genreKey: string, clientIp?: string): Promise<Response> {
+  return fetchWithTimeout(
+    backendUrl(ENDPOINTS.v1.ccGenreArtwork(genreKey)),
+    { headers: internalHeaders(forwardedForExtra(clientIp)) },
+    60000,
+  );
 }
 
 /** Fetch a random short ID from the backend for the landing page example teaser. */
-export async function fetchRandomExample(): Promise<{ shortId: string } | null> {
+export async function fetchRandomExample(clientIp?: string): Promise<{ shortId: string } | null> {
   try {
-    const res = await fetchWithTimeout(backendUrl(ENDPOINTS.v1.randomExample), { headers: internalHeaders() }, 3000);
+    const res = await fetchWithTimeout(
+      backendUrl(ENDPOINTS.v1.randomExample),
+      { headers: internalHeaders(forwardedForExtra(clientIp)) },
+      3000,
+    );
     if (!res.ok) return null;
     return res.json() as Promise<{ shortId: string }>;
   } catch {
@@ -427,9 +444,13 @@ export async function fetchRandomExample(): Promise<{ shortId: string } | null> 
 }
 
 /** Fetch a random CC track short ID for the landing page example teaser in CC mode. */
-export async function fetchCcRandomExample(): Promise<{ shortId: string } | null> {
+export async function fetchCcRandomExample(clientIp?: string): Promise<{ shortId: string } | null> {
   try {
-    const res = await fetchWithTimeout(backendUrl(ENDPOINTS.v1.ccRandomExample), { headers: internalHeaders() }, 3000);
+    const res = await fetchWithTimeout(
+      backendUrl(ENDPOINTS.v1.ccRandomExample),
+      { headers: internalHeaders(forwardedForExtra(clientIp)) },
+      3000,
+    );
     if (!res.ok) return null;
     return res.json() as Promise<{ shortId: string }>;
   } catch {
@@ -458,13 +479,13 @@ const DESIGN_TOKENS_TTL_MS = import.meta.env.DEV ? 0 : 60_000;
  * CSS-injection-safe regardless of transport. Falls back to the last good cache,
  * then to the canonical defaults, on any error — SSR never throws on this path.
  */
-export async function fetchDesignTokens(): Promise<DesignTokens> {
+export async function fetchDesignTokens(clientIp?: string): Promise<DesignTokens> {
   const now = Date.now();
   if (designTokensCache && designTokensCache.expiresAt > now) return designTokensCache.tokens;
   try {
     const res = await fetchWithTimeout(
       backendUrl(ENDPOINTS.v1.siteSettings.designTokens),
-      { headers: internalHeaders() },
+      { headers: internalHeaders(forwardedForExtra(clientIp)) },
       5000,
     );
     if (!res.ok) throw new Error(`design-tokens responded ${res.status}`);
@@ -480,9 +501,13 @@ export async function fetchDesignTokens(): Promise<DesignTokens> {
 }
 
 /** Fetch the public navigation items for header or footer. SSR-safe; returns [] on failure. */
-export async function fetchNavigation(navId: NavId): Promise<NavItem[]> {
+export async function fetchNavigation(navId: NavId, clientIp?: string): Promise<NavItem[]> {
   try {
-    const res = await fetchWithTimeout(backendUrl(ENDPOINTS.v1.nav(navId)), { headers: internalHeaders() }, 5000);
+    const res = await fetchWithTimeout(
+      backendUrl(ENDPOINTS.v1.nav(navId)),
+      { headers: internalHeaders(forwardedForExtra(clientIp)) },
+      5000,
+    );
     if (!res.ok) return [];
     return (await res.json()) as NavItem[];
   } catch {

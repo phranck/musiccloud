@@ -127,6 +127,37 @@ describe("fetchNavigation", () => {
   });
 });
 
+describe("visitor address on backend calls", () => {
+  type Client = typeof import("./client");
+  const VISITOR = "203.0.113.20";
+
+  /**
+   * The backend's limiters are keyed by address. A call without the visitor's
+   * address counts against the frontend container's own, so every visitor's
+   * genre tiles, navigation and examples shared one global budget.
+   */
+  const calls: [string, (client: Client) => Promise<unknown>][] = [
+    ["fetchGenreArtwork", (client) => client.fetchGenreArtwork("rock", VISITOR)],
+    ["fetchCcGenreArtwork", (client) => client.fetchCcGenreArtwork("rock", VISITOR)],
+    ["fetchEmailAsset", (client) => client.fetchEmailAsset("asset-1", VISITOR)],
+    ["fetchRandomExample", (client) => client.fetchRandomExample(VISITOR)],
+    ["fetchCcRandomExample", (client) => client.fetchCcRandomExample(VISITOR)],
+    ["fetchNavigation", (client) => client.fetchNavigation("header", VISITOR)],
+    ["fetchDesignTokens", (client) => client.fetchDesignTokens(VISITOR)],
+  ];
+
+  it.each(calls)("%s forwards the visitor's address", async (_name, call) => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = await import("./client");
+
+    await call(client);
+
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    expect(new Headers(init?.headers).get("X-Forwarded-For")).toBe(VISITOR);
+  });
+});
+
 describe("transport failures", () => {
   /**
    * Node rejects a failed fetch with `TypeError: fetch failed` and puts the
