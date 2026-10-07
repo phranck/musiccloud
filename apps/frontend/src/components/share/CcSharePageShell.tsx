@@ -65,7 +65,6 @@ export function CcSharePageShell({ config, artistName, artistInfo, labels }: CcS
           config={config}
           artistName={artistName}
           artistData={artistInfo}
-          skipArtistFetch={!config.ccJamendoArtistId}
           labels={labels}
           trackResolver={ccTrackResolver}
         />
