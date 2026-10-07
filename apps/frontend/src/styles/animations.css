@@ -154,6 +154,18 @@
   transition: visibility 0s linear 800ms;
 }
 
+/* Hiding the deck also lets Safari drop what it painted, and a switch to the
+   turntable then paints the whole deck in its first frame (45 to 150 ms). Once a
+   visitor reaches for the toggle (pointer over the screen, focus on the toggle,
+   or the turntable view shown once; SongInfo sets the attribute), the deck is
+   painted once behind the opaque cover while nothing moves, and it stays painted
+   from then on. Declared after the hiding rule, which has the same specificity,
+   so this one wins. */
+.mc-share-media-screen[data-deck-painted] > .mc-share-media-stage[data-media-stage="turntable"] {
+  visibility: visible;
+  transition: none;
+}
+
 /* A restored turntable view moves the cover aside before React mounts (rule
    below), so the deck has to show from the first paint as well. */
 html[data-share-media-view="turntable"] .mc-share-media-screen > .mc-share-media-stage[data-media-stage="turntable"] {

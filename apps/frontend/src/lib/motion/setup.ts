@@ -13,6 +13,14 @@ import { MotionEase } from "./constants";
 const MC_OUT_BEZIER = "0.16, 1, 0.3, 1";
 
 /**
+ * The {@link MotionEase.McOut} curve as a CSS timing function, for animations
+ * the browser runs on its own timeline (`element.animate`, CSS transitions)
+ * rather than through GSAP. Built from the same control points, so both forms
+ * stay one curve.
+ */
+export const MC_OUT_CSS_EASING = `cubic-bezier(${MC_OUT_BEZIER})`;
+
+/**
  * Control points of the CSS `ease-in` keyword, `cubic-bezier(0.42, 0, 1, 1)`.
  * Registered under {@link MotionEase.McIn} for exits that accelerate away
  * (exact port of the retired `slide-out-down` keyframe's timing function).
