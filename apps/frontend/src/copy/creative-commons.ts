@@ -2,7 +2,6 @@ export const creativeCommonsCopy = {
   sectionTitle: "Creative Commons",
   licenseUnknown: "Creative Commons",
   download: "Download track",
-  openOnJamendo: "Open on Jamendo",
   opensInNewWindow: "opens in new window",
   details: {
     title: "Details",

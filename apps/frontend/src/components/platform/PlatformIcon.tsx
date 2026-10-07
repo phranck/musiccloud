@@ -103,5 +103,7 @@ export const PlatformIcon = memo(function PlatformIcon({
       return <FaRadio className={className} color={color} />;
     case Service.Beatport:
       return <SiBeatport className={className} color={color} />;
+    case Service.Jamendo:
+      return <img src="/icons/jamendo.svg" alt="Jamendo" className={className} />;
   }
 });

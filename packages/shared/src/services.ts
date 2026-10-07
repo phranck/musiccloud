@@ -50,6 +50,11 @@ export const Service = {
   JioSaavn: "jiosaavn",
   Beatport: "beatport",
   MusicBrainz: "musicbrainz",
+  /**
+   * The Creative Commons catalog. A CC result links here as its one service;
+   * the commercial cross-service search never queries it.
+   */
+  Jamendo: "jamendo",
 } as const;
 
 export type ServiceId = (typeof Service)[keyof typeof Service];

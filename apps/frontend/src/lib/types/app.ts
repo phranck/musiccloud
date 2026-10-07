@@ -203,7 +203,7 @@ export interface CcTrackResult {
   downloadAllowed: boolean;
   /** URL of the waveform image provided by Jamendo, if available. */
   waveform?: string;
-  /** Canonical Jamendo page for the track, used for the "Open on Jamendo" link. */
+  /** Canonical Jamendo page for the track, listed as its service in the services card. */
   jamendoUrl?: string;
   /** musiccloud short URL for this result (e.g. `https://musi.cc/abc123`). */
   shareUrl: string;

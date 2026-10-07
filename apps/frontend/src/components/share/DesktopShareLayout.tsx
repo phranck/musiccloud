@@ -48,8 +48,8 @@ export interface DesktopShareLayoutProps {
 
 /**
  * Desktop/tablet share layout: a two-column result grid with the media summary
- * card (plus an optional secondary card) on the left and the animated artist
- * column on the right.
+ * card, the services card and, for a Creative Commons track, the CC card on the
+ * left, and the animated artist column on the right.
  *
  * Rendered only on wide viewports (the grid's responsive container handles the
  * breakpoint); the mobile counterpart is {@link MobileShareLayout}.
@@ -85,11 +85,8 @@ export function DesktopShareLayout({
             previewStatus={previewStatus}
             shareMediaView={shareMediaView}
           />
-          {config.ccInfoContent ? (
-            <CcInfoCard content={config.ccInfoContent} animated={animated} />
-          ) : (
-            <ServicesCard content={config} animated={animated} />
-          )}
+          <ServicesCard content={config} animated={animated} />
+          {config.ccInfoContent && <CcInfoCard content={config.ccInfoContent} animated={animated} />}
         </div>
       }
       right={

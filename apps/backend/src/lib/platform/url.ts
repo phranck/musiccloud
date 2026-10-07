@@ -11,8 +11,10 @@ export type UrlValidationResult = { valid: true } | { valid: false; code: ErrorC
  *   release/recording/release-group paths that do not fit the
  *   "music URL" / "album URL" classification used by `isMusicUrl` /
  *   `isAlbumUrl`.
+ * - `jamendo` is the Creative Commons catalog. Its links resolve through the
+ *   CC endpoint, never through the commercial resolver these patterns feed.
  */
-type DetectableService = Exclude<ServiceId, "youtube-music" | "musicbrainz">;
+type DetectableService = Exclude<ServiceId, "youtube-music" | "musicbrainz" | "jamendo">;
 
 export const MUSIC_URL_PATTERNS: Record<DetectableService, RegExp> = {
   spotify: /^https?:\/\/(open\.)?spotify\.com\/(track|album|intl-\w+\/track)\//,
