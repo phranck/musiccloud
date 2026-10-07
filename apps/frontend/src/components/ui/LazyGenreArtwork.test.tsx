@@ -72,13 +72,7 @@ describe("LazyGenreArtwork loading slots", () => {
    */
   it("gives a loading tile's slot back when it unmounts", async () => {
     const tileUrls = Array.from({ length: 10 }, (_, index) => `/api/v1/genre-artwork/tile-${index}`);
-    const grid = render(
-      <>
-        {tileUrls.map((url) => (
-          <LazyGenreArtwork key={url} url={url} />
-        ))}
-      </>,
-    );
+    const grid = render(tileUrls.map((url) => <LazyGenreArtwork key={url} url={url} />));
     await waitFor(() => expect(grid.container.querySelectorAll("img")).toHaveLength(10));
     grid.unmount();
 
