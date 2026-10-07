@@ -183,8 +183,6 @@ export interface CcTrackContentConfiguration {
   downloadUrl?: string;
   /** Whether Jamendo permits direct download of this track. */
   downloadAllowed: boolean;
-  /** Canonical Jamendo page URL for the "Open on Jamendo" link. */
-  jamendoUrl?: string;
   /** Jamendo artist-profile URL (`https://www.jamendo.com/artist/<id>`) the artist name links to. */
   artistJamendoUrl?: string;
   /** Waveform image URL provided by Jamendo. */

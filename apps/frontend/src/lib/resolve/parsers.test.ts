@@ -1,5 +1,6 @@
-import type { CcArtistInfoResponse, VinylLayout } from "@musiccloud/shared";
+import { type CcArtistInfoResponse, Service, type VinylLayout } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
+import { resultsCopy } from "@/copy/results";
 import { buildShareViewFromSharePageResponse } from "@/lib/share/share-view";
 import { ActiveResultKind, type AlbumResult, type SongResult } from "@/lib/types/app";
 import {
@@ -266,6 +267,95 @@ describe("media-card LP label fields", () => {
     );
 
     expect(view.config.vinylLayout).toBeUndefined();
+  });
+});
+
+describe("Creative Commons results list Jamendo as their service", () => {
+  const TRACK_PAGE = "https://www.jamendo.com/track/459544/everybody-loves-the-partys";
+  const ALBUM_PAGE = "https://www.jamendo.com/album/54844/best-of-vol-2";
+  const ARTIST_PAGE = "https://www.jamendo.com/artist/5261/juanitos";
+
+  it("gives a live track, album and artist result one Jamendo link under the matching title", () => {
+    const track = ccResolveDataToResult({
+      type: "cc-track",
+      id: "cc-track-id",
+      shortUrl: "https://musiccloud.local/cc-track",
+      track: {
+        jamendoId: "459544",
+        title: "Everybody Loves The Partys",
+        artistName: "Juanitos",
+        jamendoArtistId: "5261",
+        streamUrl: "https://cdn.example/track.mp3",
+        downloadAllowed: false,
+        shareUrl: TRACK_PAGE,
+        vinylLayout: null,
+      },
+    });
+    const album = ccResolveDataToResult({
+      type: "cc-album",
+      id: "cc-album-id",
+      shortUrl: "https://musiccloud.local/cc-album",
+      album: {
+        jamendoId: "54844",
+        name: "Best of Vol.2",
+        artistName: "Juanitos",
+        tracks: [],
+        shareUrl: ALBUM_PAGE,
+        vinylLayout: null,
+      },
+      artistInfo: CC_ARTIST_INFO,
+    });
+    const artist = ccResolveDataToResult({
+      type: "cc-artist",
+      id: "cc-artist-id",
+      shortUrl: "https://musiccloud.local/cc-artist",
+      artist: { jamendoId: "5261", name: "Juanitos", shareUrl: ARTIST_PAGE, topTracks: [] },
+      artistInfo: CC_ARTIST_INFO,
+    });
+
+    expect(ccResultToShareProps(track).config).toMatchObject({
+      platforms: [{ platform: Service.Jamendo, url: TRACK_PAGE }],
+      platformsLabel: resultsCopy.listenOn,
+    });
+    expect(ccResultToShareProps(album).config).toMatchObject({
+      platforms: [{ platform: Service.Jamendo, url: ALBUM_PAGE }],
+      platformsLabel: resultsCopy.openAlbumOn,
+    });
+    expect(ccResultToShareProps(artist).config).toMatchObject({
+      platforms: [{ platform: Service.Jamendo, url: ARTIST_PAGE }],
+      platformsLabel: resultsCopy.viewArtistOn,
+    });
+  });
+
+  it("gives a persisted share page the same Jamendo link", () => {
+    const album = ccResponseToResult({
+      type: "cc-album",
+      og: { title: "", description: "", image: "", url: "https://musiccloud.local/cc-album" },
+      shortUrl: "https://musiccloud.local/cc-album",
+      album: {
+        jamendoId: "54844",
+        name: "Best of Vol.2",
+        artistName: "Juanitos",
+        tracks: [],
+        shareUrl: ALBUM_PAGE,
+        vinylLayout: null,
+      },
+      artistInfo: CC_ARTIST_INFO,
+    });
+
+    expect(ccResultToShareProps(album).config.platforms).toEqual([{ platform: Service.Jamendo, url: ALBUM_PAGE }]);
+  });
+
+  it("lists no service when Jamendo sent no page link", () => {
+    const artist = ccResolveDataToResult({
+      type: "cc-artist",
+      id: "cc-artist-id",
+      shortUrl: "https://musiccloud.local/cc-artist",
+      artist: { jamendoId: "5261", name: "Juanitos", topTracks: [] },
+      artistInfo: CC_ARTIST_INFO,
+    });
+
+    expect(ccResultToShareProps(artist).config.platforms).toEqual([]);
   });
 });
 

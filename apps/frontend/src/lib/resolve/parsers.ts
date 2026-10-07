@@ -11,7 +11,7 @@ import type {
   UnifiedResolveSuccessResponse,
   VinylLayout,
 } from "@musiccloud/shared";
-import { buildMetaLine, ENDPOINTS, PLATFORM_CONFIG } from "@musiccloud/shared";
+import { buildMetaLine, ENDPOINTS, PLATFORM_CONFIG, Service } from "@musiccloud/shared";
 import { commonCopy } from "@/copy/common";
 import { contentErrorMessage } from "@/copy/content";
 import { resultsCopy } from "@/copy/results";
@@ -545,7 +545,7 @@ function ccLicenseLabel(url: string | undefined): string | undefined {
  * Mirrors the song branch of {@link buildShareConfigFromActive} but omits
  * `platforms` / `platformsLabel` (CC tracks have no cross-service links) and
  * fills the CC-specific fields (`streamUrl`, `licenseCcurl`, `licenseLabel`,
- * `attribution`, `downloadUrl`, `downloadAllowed`, `jamendoUrl`, `waveform`).
+ * `attribution`, `downloadUrl`, `downloadAllowed`, `waveform`).
  *
  * The `attribution` field is kept simple (artist name only) to stay KISS. The
  * `licenseLabel` is parsed here from `licenseCcurl` via {@link ccLicenseLabel}
@@ -578,7 +578,6 @@ function buildCcShareConfig(cc: CcTrackResult): CcTrackContentConfiguration {
     attribution: cc.artist,
     downloadUrl: cc.downloadUrl,
     downloadAllowed: cc.downloadAllowed,
-    jamendoUrl: cc.jamendoUrl,
     artistJamendoUrl: jamendoArtistProfileUrl(cc.jamendoArtistId),
     waveform: cc.waveform,
     musicInfo: cc.musicInfo,
@@ -604,15 +603,19 @@ function jamendoArtistProfileUrl(jamendoArtistId: string | undefined): string | 
 /**
  * Builds the {@link MediaSummaryCard}-compatible header config for a CC entity
  * (album or artist), reusing the same `type: "share"` shape the commercial media
- * card uses: empty platform fields (CC has no cross-service links) and the
- * musiccloud short URL for the share button. No `previewUrl` — an album/artist has
- * no single stream, so the summary card renders cover + info + share without a
- * player. The CC track card's `ccSummaryConfig` builds on this base too (DRY).
+ * card uses. Its one platform link is the entity's Jamendo page, so the services
+ * card lists Jamendo the way it lists Spotify for a commercial result; a CC
+ * entity has no cross-service links. No `previewUrl`: an album/artist has no
+ * single stream, so the summary card renders cover + info + share without a
+ * player. The CC track card's {@link ccTrackToShareConfig} builds on this base too (DRY).
  *
  * @param opts.title - Header primary line (album title or artist name).
  * @param opts.artist - Header secondary line (album artist; empty for an artist).
  * @param opts.artworkUrl - Cover / avatar URL.
  * @param opts.metaLine - Optional pre-built meta line.
+ * @param opts.jamendoUrl - The entity's Jamendo page; without it the services
+ *   card has nothing to list and hides itself.
+ * @param opts.platformsLabel - Services card title, matching the entity kind.
  * @param opts.shortUrl - musiccloud short URL backing the share button.
  * @returns The share-content configuration for the entity header.
  */
@@ -626,6 +629,8 @@ function buildCcEntityHeaderConfig(opts: {
   labelCatalogText?: string;
   labelRightsText?: string;
   vinylLayout?: VinylLayout;
+  jamendoUrl?: string;
+  platformsLabel: string;
   shortUrl: string;
 }): ShareContentConfiguration {
   return {
@@ -639,8 +644,8 @@ function buildCcEntityHeaderConfig(opts: {
     labelCatalogText: opts.labelCatalogText,
     labelRightsText: opts.labelRightsText,
     vinylLayout: opts.vinylLayout,
-    platforms: [],
-    platformsLabel: "",
+    platforms: opts.jamendoUrl ? [{ platform: Service.Jamendo, url: opts.jamendoUrl }] : [],
+    platformsLabel: opts.platformsLabel,
     shortUrl: opts.shortUrl,
   };
 }
@@ -668,6 +673,8 @@ function ccTrackToShareConfig(cc: CcTrackResult): ShareContentConfiguration {
       // GEMA-free: licence goes in the top-left rights field; center stays empty.
       labelRightsText: ccLicenseLabel(cc.licenseCcurl),
       vinylLayout: cc.vinylLayout,
+      jamendoUrl: cc.jamendoUrl,
+      platformsLabel: resultsCopy.listenOn,
       shortUrl: cc.shareUrl,
     }),
     album: cc.album,
@@ -686,8 +693,8 @@ function ccTrackToShareConfig(cc: CcTrackResult): ShareContentConfiguration {
  *
  * The left media card is always a {@link ShareContentConfiguration}; for a CC
  * track its `ccInfoContent` carries the license / attribution block rendered as
- * the `CcInfoCard` secondary. Album/artist omit it — the default `ServicesCard`
- * self-hides on the CC config's empty platforms.
+ * the `CcInfoCard` secondary; album and artist carry none. Every kind lists its
+ * Jamendo page in the services card.
  *
  * @property config - The media-card configuration for the left column (a CC
  *   track's config additionally carries `ccInfoContent` / `ccJamendoArtistId`).
@@ -722,6 +729,8 @@ export function ccResultToShareProps(ccActive: CcResult): CcResultShareProps {
         labelAlbumTitle: ccActive.title,
         labelReleaseYear: releaseYearFromDate(ccActive.releaseDate),
         vinylLayout: ccActive.vinylLayout,
+        jamendoUrl: ccActive.jamendoUrl,
+        platformsLabel: resultsCopy.openAlbumOn,
         shortUrl: ccActive.shareUrl,
       }),
       artistName: ccActive.artist,
@@ -734,6 +743,8 @@ export function ccResultToShareProps(ccActive: CcResult): CcResultShareProps {
         artist: "",
         artworkUrl: ccActive.imageUrl,
         labelAlbumTitle: ccActive.name,
+        jamendoUrl: ccActive.jamendoUrl,
+        platformsLabel: resultsCopy.viewArtistOn,
         shortUrl: ccActive.shareUrl,
       }),
       artistName: ccActive.name,

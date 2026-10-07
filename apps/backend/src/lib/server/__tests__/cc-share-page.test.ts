@@ -93,6 +93,36 @@ describe("loadCcByShortId", () => {
     expect(buildCcAlbumPayload).not.toHaveBeenCalled();
   });
 
+  it("names Jamendo in the link preview of a track and an album that have a Jamendo page", async () => {
+    resolveAlbumVinylLayout.mockResolvedValue(null);
+    findCcShortId.mockResolvedValue({ kind: "cc-track", jamendoId: "j1" });
+    loadCcTrackByShortId.mockResolvedValue({
+      jamendoId: "j1",
+      title: "Moments",
+      artistName: "Madpix",
+      shareUrl: "https://www.jamendo.com/track/j1",
+    });
+    expect((await loadCcByShortId("V0onz", "https://musiccloud.io"))?.og.description).toBe("Listen on Jamendo");
+
+    findCcShortId.mockResolvedValue({ kind: "cc-album", jamendoId: "a1" });
+    loadCcAlbumByShortId.mockResolvedValue({
+      album: { jamendoId: "a1", name: "Suite", artistName: "Olepash", shareUrl: "https://www.jamendo.com/album/a1" },
+      tracks: [],
+    });
+    buildCcAlbumPayload.mockResolvedValue({ album: { name: "Suite", tracks: [] }, artistInfo: ARTIST_INFO });
+    expect((await loadCcByShortId("8oTIg", "https://musiccloud.io"))?.og.description).toBe("Listen on Jamendo");
+  });
+
+  it("keeps the generic link preview for a track without a Jamendo page", async () => {
+    resolveAlbumVinylLayout.mockResolvedValue(null);
+    findCcShortId.mockResolvedValue({ kind: "cc-track", jamendoId: "j1" });
+    loadCcTrackByShortId.mockResolvedValue({ jamendoId: "j1", title: "Moments", artistName: "Madpix" });
+
+    expect((await loadCcByShortId("V0onz", "https://musiccloud.io"))?.og.description).toBe(
+      "Find this song on musiccloud",
+    );
+  });
+
   it("returns null when the cc-track row is gone despite a short-id lookup", async () => {
     findCcShortId.mockResolvedValue({ kind: "cc-track", jamendoId: "j1" });
     loadCcTrackByShortId.mockResolvedValue(null);

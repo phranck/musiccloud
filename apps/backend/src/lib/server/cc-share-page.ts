@@ -24,11 +24,13 @@
  * the cache directive it sends for every share.
  */
 
-import type {
-  CcAlbumSharePageResponse,
-  CcArtistSharePageResponse,
-  CcTrackSharePageResponse,
-  OgMeta,
+import {
+  type CcAlbumSharePageResponse,
+  type CcArtistSharePageResponse,
+  type CcTrackSharePageResponse,
+  type OgMeta,
+  Service,
+  type ServiceId,
 } from "@musiccloud/shared";
 import { getCcRepository, getRepository } from "../../db/index.js";
 import {
@@ -55,6 +57,18 @@ type CcSharePageResponse = CcTrackSharePageResponse | CcAlbumSharePageResponse |
  */
 function toWireOg(meta: OGMeta): OgMeta {
   return { title: meta.ogTitle, description: meta.ogDescription, image: meta.ogImageUrl, url: meta.ogUrl };
+}
+
+/**
+ * The services a CC entity's link preview names: Jamendo when the entity has a
+ * Jamendo page, so the preview reads "Listen on Jamendo" the way a commercial
+ * share names its services. The share page lists the same link.
+ *
+ * @param jamendoPageUrl - The entity's Jamendo page, as persisted.
+ * @returns `[Service.Jamendo]`, or an empty list without a page.
+ */
+function jamendoPlatforms(jamendoPageUrl: string | undefined): ServiceId[] {
+  return jamendoPageUrl ? [Service.Jamendo] : [];
 }
 
 /**
@@ -96,7 +110,7 @@ export async function loadCcByShortId(shortId: string, origin?: string): Promise
           album: track.albumName,
           albumArtUrl: track.artworkUrl ?? "",
           shortId,
-          availablePlatforms: [],
+          availablePlatforms: jamendoPlatforms(track.shareUrl),
           origin,
         }),
       );
@@ -120,7 +134,7 @@ export async function loadCcByShortId(shortId: string, origin?: string): Promise
           releaseDate: album.releaseDate,
           albumArtUrl: album.artworkUrl ?? "",
           shortId,
-          availablePlatforms: [],
+          availablePlatforms: jamendoPlatforms(album.shareUrl),
           origin,
         }),
       );
