@@ -26,6 +26,14 @@ interface GenreBrowseGridProps {
  * (Safari 27, iPad simulator). It stays CSS rather than GSAP,
  * which would drive it from the main thread while the tiles mount (exception
  * inventory in `styles/animations.css`).
+ *
+ * Each tile skips rendering while it is outside the scrolled view
+ * (`content-visibility: auto`). The grid holds about 250 tiles and shows a
+ * dozen; painting all of them cost two frames of about 300 ms as it opened,
+ * against none over 70 ms when only the visible ones paint (Safari 27, iPad
+ * simulator, production build). The tile keeps its square from
+ * `aspect-square`; the intrinsic size stays below the narrowest column so it
+ * never stretches a tile.
  */
 export function GenreBrowseGrid({ genres, onSelect }: GenreBrowseGridProps) {
   return (
@@ -51,7 +59,11 @@ export function GenreBrowseGrid({ genres, onSelect }: GenreBrowseGridProps) {
               | undefined;
 
             return (
-              <div key={genre.name} className="aspect-square flex" style={tileStyle}>
+              <div
+                key={genre.name}
+                className="aspect-square flex [content-visibility:auto] [contain-intrinsic-size:auto_100px]"
+                style={tileStyle}
+              >
                 <EmbossedButton
                   as="button"
                   type="button"

@@ -56,4 +56,13 @@ describe("GenreBrowseGrid entrance", () => {
     for (const tile of tiles) expect(tile.style.animationDelay).toBe("");
     expect(gsap.getTweensOf(tiles)).toHaveLength(0);
   });
+
+  it("lets every tile skip rendering while it is scrolled out of view", () => {
+    const { container } = render(<GenreBrowseGrid genres={buildGenres(TILE_COUNT)} onSelect={() => {}} />);
+
+    const tiles = Array.from(container.querySelectorAll('button[aria-label^="Search "]')).map(
+      (button) => button.parentElement as HTMLElement,
+    );
+    for (const tile of tiles) expect(tile.className).toContain("[content-visibility:auto]");
+  });
 });
