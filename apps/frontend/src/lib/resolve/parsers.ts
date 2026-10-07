@@ -211,6 +211,7 @@ function parseCcAlbumResolveResponse(data: CcAlbumResolveSuccessResponse): CcAlb
     jamendoId: data.album.jamendoId,
     title: data.album.name,
     artist: data.album.artistName,
+    totalTracks: data.album.tracks.length,
     releaseDate: data.album.releaseDate,
     artworkUrl: data.album.artworkUrl ?? "",
     vinylLayout: data.album.vinylLayout ?? undefined,
@@ -336,6 +337,20 @@ function getPlatformsInfo(platforms: PlatformLink[]): string | undefined {
   return undefined;
 }
 
+/**
+ * Builds an album's meta line, such as "11 tracks · 2009", so an album card reads
+ * as an album rather than a track. Every album card, commercial or Creative
+ * Commons, landing result or share page, takes its meta line from here.
+ *
+ * @param totalTracks - The album's track count, when known.
+ * @param releaseDate - The release date; only its year is shown.
+ * @returns The meta line, or `undefined` when neither part is known.
+ */
+export function albumMetaLine(totalTracks: number | undefined, releaseDate: string | undefined): string | undefined {
+  const year = releaseDate?.slice(0, 4);
+  return [totalTracks ? resultsCopy.albumTracks(totalTracks) : null, year].filter(Boolean).join(" · ") || undefined;
+}
+
 export function buildActiveConfig(
   active: ActiveResult,
 ): SongContentConfiguration | AlbumContentConfiguration | ArtistContentConfiguration {
@@ -375,6 +390,7 @@ export function buildActiveConfig(
       type: "artist",
       title: active.name,
       artist: "",
+      kindLine: resultsCopy.artistKind,
       artworkUrl: active.imageUrl,
       metaLine: genreLine || undefined,
       labelAlbumTitle: active.name,
@@ -387,9 +403,6 @@ export function buildActiveConfig(
   }
 
   const year = active.releaseDate?.slice(0, 4);
-  const metaParts = [active.totalTracks ? resultsCopy.albumTracks(active.totalTracks) : null, year].filter(
-    Boolean,
-  ) as string[];
 
   return {
     type: "album",
@@ -397,7 +410,7 @@ export function buildActiveConfig(
     artist: active.artist,
     artworkUrl: active.artworkUrl,
     previewUrl: active.previewUrl,
-    metaLine: metaParts.join(" \u00B7") || undefined,
+    metaLine: albumMetaLine(active.totalTracks, active.releaseDate),
     labelAlbumTitle: active.title,
     labelReleaseYear: year,
     labelCatalogText: catalogTextFromIds({ label: active.label, upc: active.upc }),
@@ -424,6 +437,7 @@ export function buildShareConfigFromActive(active: ActiveResult): ShareContentCo
       type: "share",
       title: active.name,
       artist: "",
+      kindLine: resultsCopy.artistKind,
       artworkUrl: active.imageUrl,
       metaLine: active.genres?.join(", ") || undefined,
       labelAlbumTitle: active.name,
@@ -437,9 +451,6 @@ export function buildShareConfigFromActive(active: ActiveResult): ShareContentCo
 
   if (active.kind === "album") {
     const year = active.releaseDate?.slice(0, 4);
-    const metaParts = [active.totalTracks ? resultsCopy.albumTracks(active.totalTracks) : null, year].filter(
-      Boolean,
-    ) as string[];
 
     return {
       type: "share",
@@ -447,7 +458,7 @@ export function buildShareConfigFromActive(active: ActiveResult): ShareContentCo
       artist: active.artist,
       artworkUrl: active.artworkUrl,
       previewUrl: active.previewUrl,
-      metaLine: metaParts.join(" \u00B7") || undefined,
+      metaLine: albumMetaLine(active.totalTracks, active.releaseDate),
       labelAlbumTitle: active.title,
       labelReleaseYear: year,
       labelCatalogText: catalogTextFromIds({ label: active.label, upc: active.upc }),
@@ -616,6 +627,8 @@ function jamendoArtistProfileUrl(jamendoArtistId: string | undefined): string | 
  * @param opts.jamendoUrl - The entity's Jamendo page; without it the services
  *   card has nothing to list and hides itself.
  * @param opts.platformsLabel - Services card title, matching the entity kind.
+ * @param opts.kindLine - Second display row for an artist, which has no artist to
+ *   name there.
  * @param opts.shortUrl - musiccloud short URL backing the share button.
  * @returns The share-content configuration for the entity header.
  */
@@ -631,12 +644,14 @@ function buildCcEntityHeaderConfig(opts: {
   vinylLayout?: VinylLayout;
   jamendoUrl?: string;
   platformsLabel: string;
+  kindLine?: string;
   shortUrl: string;
 }): ShareContentConfiguration {
   return {
     type: MediaCardContentTypeValue.Share,
     title: opts.title,
     artist: opts.artist,
+    kindLine: opts.kindLine,
     artworkUrl: opts.artworkUrl,
     metaLine: opts.metaLine,
     labelAlbumTitle: opts.labelAlbumTitle,
@@ -725,7 +740,7 @@ export function ccResultToShareProps(ccActive: CcResult): CcResultShareProps {
         title: ccActive.title,
         artist: ccActive.artist,
         artworkUrl: ccActive.artworkUrl,
-        metaLine: ccActive.releaseDate?.slice(0, 4),
+        metaLine: albumMetaLine(ccActive.totalTracks, ccActive.releaseDate),
         labelAlbumTitle: ccActive.title,
         labelReleaseYear: releaseYearFromDate(ccActive.releaseDate),
         vinylLayout: ccActive.vinylLayout,
@@ -745,6 +760,7 @@ export function ccResultToShareProps(ccActive: CcResult): CcResultShareProps {
         labelAlbumTitle: ccActive.name,
         jamendoUrl: ccActive.jamendoUrl,
         platformsLabel: resultsCopy.viewArtistOn,
+        kindLine: resultsCopy.artistKind,
         shortUrl: ccActive.shareUrl,
       }),
       artistName: ccActive.name,
@@ -805,6 +821,7 @@ export function ccResponseToResult(
       jamendoId: album.jamendoId,
       title: album.name,
       artist: album.artistName,
+      totalTracks: album.tracks.length,
       releaseDate: album.releaseDate,
       artworkUrl: album.artworkUrl ?? "",
       vinylLayout: album.vinylLayout ?? undefined,

@@ -3,6 +3,7 @@ export const resultsCopy = {
   viewArtistOn: "View on",
   openAlbumOn: "Open on",
   albumTracks: (count: number) => `${count} tracks`,
+  artistKind: "Artist",
   foundAlbum: (title: string, artist: string) => `Found album ${title} by ${artist}`,
   onlyAvailable: (service: string) => `Only available on ${service}.`,
   foundOnTwoPlatforms: "Found on 2 platforms.",
