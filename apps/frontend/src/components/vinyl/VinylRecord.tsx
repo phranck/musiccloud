@@ -31,6 +31,14 @@ export interface VinylRecordProps {
   labelRightsText?: string | null;
   /** Visual label recipe. Missing artwork resolves to Generic when omitted. */
   labelVariant?: VinylLabelVariantValue;
+  /**
+   * Whether the Generic label prints its text (wordmark, copyright, imprint and
+   * pressing copy). Defaults to `true`. A record drawn a few dozen pixels across,
+   * such as the loading disc in the search field, leaves it out: the text is a
+   * pixel or two high there, and Safari repaints its paths on every frame while
+   * the disc slides, which dropped frames through the whole loading animation.
+   */
+  labelTypography?: boolean;
   /** Whether this isolated record owns a visible stationary turntable spindle. */
   showTurntableSpindle?: boolean;
   sideLayout?: VinylSide;
@@ -571,6 +579,7 @@ export function VinylRecord({
   labelTitle,
   labelYear,
   labelVariant,
+  labelTypography = true,
   showTurntableSpindle = true,
   sideLayout,
   spinState = VinylSpinState.Idle,
@@ -696,6 +705,7 @@ export function VinylRecord({
                 hasSingleCentreOpening={hasSingleCentreOpening}
                 idPrefix={labelPathId}
                 sideLetter={sideLetter}
+                typography={labelTypography}
               />
             ) : (
               <>

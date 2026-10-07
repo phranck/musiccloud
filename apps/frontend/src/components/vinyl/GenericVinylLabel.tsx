@@ -11,6 +11,13 @@ interface GenericVinylLabelProps {
   idPrefix: string;
   /** Resolved Discogs side, or A for a generic pressing without side metadata. */
   sideLetter: string;
+  /**
+   * Whether the label prints its text: the wordmark, copyright, imprint and
+   * pressing copy. A record a few dozen pixels across leaves it out, because the
+   * text cannot be read at that size and Safari repaints it on every frame the
+   * record moves.
+   */
+  typography: boolean;
 }
 
 const GENERIC_WORDMARK_ARC_PATH = labelArcPath(46, 83);
@@ -30,7 +37,12 @@ const WORDMARK_STYLE = {
  * typography. The physical vinyl remains a separate SVG layer owned by
  * VinylRecord.
  */
-export function GenericVinylLabel({ hasSingleCentreOpening, idPrefix, sideLetter }: GenericVinylLabelProps) {
+export function GenericVinylLabel({
+  hasSingleCentreOpening,
+  idPrefix,
+  sideLetter,
+  typography,
+}: GenericVinylLabelProps) {
   const currentYear = new Date().getFullYear();
   const clipId = `${idPrefix}-generic-clip`;
   const skyId = `${idPrefix}-generic-sky`;
@@ -131,27 +143,31 @@ export function GenericVinylLabel({ hasSingleCentreOpening, idPrefix, sideLetter
             <feFuncA type="table" tableValues="0 0.9" />
           </feComponentTransfer>
         </filter>
-        <linearGradient
-          data-vinyl-generic-wordmark-gradient="true"
-          id={wordmarkGradientId}
-          x1="0%"
-          x2="100%"
-          y1="0%"
-          y2="0%"
-          gradientUnits="objectBoundingBox"
-        >
-          <stop offset="0" stopColor="#ff6699" />
-          <stop offset="0.14" stopColor="#9966ff" />
-          <stop offset="0.28" stopColor="#4d99ff" />
-          <stop offset="0.42" stopColor="#00cce6" />
-          <stop offset="0.57" stopColor="#00e6b3" />
-          <stop offset="0.71" stopColor="#80e64d" />
-          <stop offset="0.85" stopColor="#e6e64d" />
-          <stop offset="1" stopColor="#ffb34d" />
-        </linearGradient>
-        <path d={GENERIC_COPYRIGHT_ARC_PATH} data-vinyl-generic-copyright-path="true" id={copyrightPathId} />
-        <path d={GENERIC_WORDMARK_ARC_PATH} data-vinyl-generic-wordmark-path="true" id={wordmarkPathId} />
-        <path d={GENERIC_IMPRINT_ARC_PATH} data-vinyl-generic-imprint-path="true" id={imprintPathId} />
+        {typography ? (
+          <>
+            <linearGradient
+              data-vinyl-generic-wordmark-gradient="true"
+              id={wordmarkGradientId}
+              x1="0%"
+              x2="100%"
+              y1="0%"
+              y2="0%"
+              gradientUnits="objectBoundingBox"
+            >
+              <stop offset="0" stopColor="#ff6699" />
+              <stop offset="0.14" stopColor="#9966ff" />
+              <stop offset="0.28" stopColor="#4d99ff" />
+              <stop offset="0.42" stopColor="#00cce6" />
+              <stop offset="0.57" stopColor="#00e6b3" />
+              <stop offset="0.71" stopColor="#80e64d" />
+              <stop offset="0.85" stopColor="#e6e64d" />
+              <stop offset="1" stopColor="#ffb34d" />
+            </linearGradient>
+            <path d={GENERIC_COPYRIGHT_ARC_PATH} data-vinyl-generic-copyright-path="true" id={copyrightPathId} />
+            <path d={GENERIC_WORDMARK_ARC_PATH} data-vinyl-generic-wordmark-path="true" id={wordmarkPathId} />
+            <path d={GENERIC_IMPRINT_ARC_PATH} data-vinyl-generic-imprint-path="true" id={imprintPathId} />
+          </>
+        ) : null}
       </defs>
 
       <g clipPath={`url(#${clipId})`}>
@@ -188,62 +204,66 @@ export function GenericVinylLabel({ hasSingleCentreOpening, idPrefix, sideLetter
           opacity="0.14"
           width="100"
         />
-        <text
-          data-vinyl-generic-copyright="true"
-          fill="#000000"
-          fontSize="2.15"
-          fontWeight="500"
-          letterSpacing="0.28"
-          style={VINYL_LABEL_TEXT_STYLE}
-        >
-          <textPath href={`#${copyrightPathId}`} startOffset="50%" textAnchor="middle">
-            Copyright {currentYear} • Proudly crafted and presented by{" "}
-            <tspan data-vinyl-generic-copyright-brand="true" fontWeight="700">
-              musiccloud
-            </tspan>{" "}
-            in Bregenz at Lake Constance in Austria
-          </textPath>
-        </text>
-        <g data-vinyl-generic-pressing-copy="true" transform="translate(0 -8)">
-          <VinylLabelPressingCopy
-            catalogText="MC-GSP-001"
-            catalogY={hasSingleCentreOpening ? 28 : 65}
-            lowerCopySideX={hasSingleCentreOpening ? 18 : 32}
-            lowerCopyStereoFontSize={hasSingleCentreOpening ? 9.4 : undefined}
-            lowerCopyStereoX={hasSingleCentreOpening ? 80 : 68}
-            lowerCopyOffsetY={3}
-            rightsText="GEMA"
-            sideLetter={sideLetter}
-          />
-        </g>
+        {typography ? (
+          <>
+            <text
+              data-vinyl-generic-copyright="true"
+              fill="#000000"
+              fontSize="2.15"
+              fontWeight="500"
+              letterSpacing="0.28"
+              style={VINYL_LABEL_TEXT_STYLE}
+            >
+              <textPath href={`#${copyrightPathId}`} startOffset="50%" textAnchor="middle">
+                Copyright {currentYear} • Proudly crafted and presented by{" "}
+                <tspan data-vinyl-generic-copyright-brand="true" fontWeight="700">
+                  musiccloud
+                </tspan>{" "}
+                in Bregenz at Lake Constance in Austria
+              </textPath>
+            </text>
+            <g data-vinyl-generic-pressing-copy="true" transform="translate(0 -8)">
+              <VinylLabelPressingCopy
+                catalogText="MC-GSP-001"
+                catalogY={hasSingleCentreOpening ? 28 : 65}
+                lowerCopySideX={hasSingleCentreOpening ? 18 : 32}
+                lowerCopyStereoFontSize={hasSingleCentreOpening ? 9.4 : undefined}
+                lowerCopyStereoX={hasSingleCentreOpening ? 80 : 68}
+                lowerCopyOffsetY={3}
+                rightsText="GEMA"
+                sideLetter={sideLetter}
+              />
+            </g>
 
-        <text
-          data-vinyl-generic-imprint="true"
-          fill="#dff8ff"
-          fontSize="2.15"
-          fontWeight="500"
-          letterSpacing="0.28"
-          style={VINYL_LABEL_TEXT_STYLE}
-        >
-          <textPath href={`#${imprintPathId}`} startOffset="50%" textAnchor="middle">
-            LIMITED SPATIAL AUDIO EDITION
-          </textPath>
-        </text>
-        <text
-          data-vinyl-generic-wordmark="true"
-          fill={`url(#${wordmarkGradientId})`}
-          fontSize="8.55"
-          letterSpacing="1.35"
-          paintOrder="stroke"
-          stroke="#000000"
-          strokeLinejoin="round"
-          strokeWidth="0.12"
-          style={WORDMARK_STYLE}
-        >
-          <textPath href={`#${wordmarkPathId}`} startOffset="50%" textAnchor="middle">
-            musiccloud
-          </textPath>
-        </text>
+            <text
+              data-vinyl-generic-imprint="true"
+              fill="#dff8ff"
+              fontSize="2.15"
+              fontWeight="500"
+              letterSpacing="0.28"
+              style={VINYL_LABEL_TEXT_STYLE}
+            >
+              <textPath href={`#${imprintPathId}`} startOffset="50%" textAnchor="middle">
+                LIMITED SPATIAL AUDIO EDITION
+              </textPath>
+            </text>
+            <text
+              data-vinyl-generic-wordmark="true"
+              fill={`url(#${wordmarkGradientId})`}
+              fontSize="8.55"
+              letterSpacing="1.35"
+              paintOrder="stroke"
+              stroke="#000000"
+              strokeLinejoin="round"
+              strokeWidth="0.12"
+              style={WORDMARK_STYLE}
+            >
+              <textPath href={`#${wordmarkPathId}`} startOffset="50%" textAnchor="middle">
+                musiccloud
+              </textPath>
+            </text>
+          </>
+        ) : null}
         <circle cx="50" cy="50" fill="#ffffff" filter={`url(#${grainId})`} opacity="0.055" r="49" />
         <circle cx="50" cy="50" fill="none" r="48.7" stroke="#ffffff" strokeOpacity="0.18" strokeWidth="0.45" />
       </g>
