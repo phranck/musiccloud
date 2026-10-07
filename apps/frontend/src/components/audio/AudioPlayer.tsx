@@ -263,6 +263,30 @@ interface StereoSpectrumAnalysers {
 }
 
 /**
+ * The Web Audio nodes built for one audio element. Every field is null when the
+ * graph was never built or only partly built.
+ */
+interface AudioGraphNodes {
+  source: MediaElementAudioSourceNode | null;
+  splitter: ChannelSplitterNode | null;
+  analysers: StereoSpectrumAnalysers | null;
+  gain: GainNode | null;
+}
+
+/**
+ * Disconnects every node of one element's graph. Safe on a partly built graph.
+ *
+ * @param nodes - The graph to take out of the audio routing.
+ */
+function disconnectAudioGraph(nodes: AudioGraphNodes): void {
+  nodes.source?.disconnect();
+  nodes.splitter?.disconnect();
+  nodes.analysers?.left.disconnect();
+  nodes.analysers?.right.disconnect();
+  nodes.gain?.disconnect();
+}
+
+/**
  * Per-channel peak hold level (0..1) and the timestamp at which it was last
  * refreshed. The hold value latches at the most recent maximum of the
  * smoothed VU level, stays put for `STEREO_PEAK_HOLD_MS`, then decays back to
@@ -770,23 +794,33 @@ export function useAudioController({
     onPlaybackIntent?.();
   }, [onPlaybackIntent]);
 
-  // Disconnects every Web Audio node and nulls the node + buffer refs. Shared
-  // by teardownSpectrum and the ensureSpectrumAnalyzer catch path; the optional
-  // chaining keeps it safe on a partially-built or already-null graph. It does
-  // NOT stop the loop or close the context — those steps differ per call site
-  // (teardown closes the context; the catch leaves it open for a rebuild).
-  const disconnectAudioGraphNodes = useCallback(() => {
-    mediaSourceRef.current?.disconnect();
-    channelSplitterRef.current?.disconnect();
-    analysersRef.current?.left.disconnect();
-    analysersRef.current?.right.disconnect();
-    gainNodeRef.current?.disconnect();
+  // Hands the current element's Web Audio nodes to the caller and nulls the node +
+  // buffer refs. A graph belongs to the one element its MediaElementSource was
+  // created for, so a source switch releases it at once: `ensureSpectrumAnalyzer`
+  // reuses whatever the refs hold, and a stale graph there would leave the next
+  // track playing past the analyzer.
+  const releaseAudioGraph = useCallback((): AudioGraphNodes => {
+    const nodes: AudioGraphNodes = {
+      source: mediaSourceRef.current,
+      splitter: channelSplitterRef.current,
+      analysers: analysersRef.current,
+      gain: gainNodeRef.current,
+    };
     mediaSourceRef.current = null;
     channelSplitterRef.current = null;
     analysersRef.current = null;
     gainNodeRef.current = null;
     spectrumDataRef.current = null;
+    return nodes;
   }, []);
+
+  // Releases and disconnects the current graph. Shared by teardownSpectrum and the
+  // ensureSpectrumAnalyzer catch path. It does NOT stop the loop or close the
+  // context: those steps differ per call site (teardown closes the context; the
+  // catch leaves it open for a rebuild).
+  const disconnectAudioGraphNodes = useCallback(() => {
+    disconnectAudioGraph(releaseAudioGraph());
+  }, [releaseAudioGraph]);
 
   const teardownSpectrum = useCallback(() => {
     stopSpectrumLoop();
@@ -1211,6 +1245,9 @@ export function useAudioController({
       stopProgressLoop();
       stopProgressRewind();
       audioRef.current = null;
+      // Released synchronously, so a following source effect that continues playback
+      // builds a graph for its own element instead of reusing this one.
+      const previousGraph = releaseAudioGraph();
 
       // Pauses + clears the old element. Kept synchronous (or on the fade timer) so
       // it never leaks past a later render tick.
@@ -1218,22 +1255,23 @@ export function useAudioController({
         audio.pause();
         audio.src = "";
       };
-      // Tears down the old element's graph. On a switch it stops at disconnect (the
-      // AudioContext stays warm for the next track); on a real unmount it closes the
-      // context via the full teardown. Deferred so a following source effect can flip
-      // `switchPendingRef` to true first, but pause-free so the deferral cannot
-      // inflate teardown pauses.
+      // Disconnects the old element's graph. On a switch the AudioContext stays warm
+      // for the next track, and the spectrum loop is stopped only when the next track
+      // has not built a graph yet, because otherwise the running loop is already its
+      // own. On a real unmount the full teardown closes the context. Deferred so a
+      // following source effect can flip `switchPendingRef` to true first, but
+      // pause-free so the deferral cannot inflate teardown pauses.
       const finalizeGraph = () => {
+        disconnectAudioGraph(previousGraph);
         if (switchPendingRef.current) {
-          stopSpectrumLoop();
-          disconnectAudioGraphNodes();
+          if (!analysersRef.current) stopSpectrumLoop();
           return;
         }
         teardownSpectrum();
       };
 
       const audioContext = audioContextRef.current;
-      const gainNode = gainNodeRef.current;
+      const gainNode = previousGraph.gain;
       const canFade =
         audioContext !== null &&
         audioContext.state === AudioContextState.Running &&
@@ -1263,14 +1301,7 @@ export function useAudioController({
       detachOldElement();
       window.setTimeout(finalizeGraph, 0);
     };
-  }, [
-    effectiveUrl,
-    stopProgressLoop,
-    stopProgressRewind,
-    stopSpectrumLoop,
-    disconnectAudioGraphNodes,
-    teardownSpectrum,
-  ]);
+  }, [effectiveUrl, stopProgressLoop, stopProgressRewind, stopSpectrumLoop, releaseAudioGraph, teardownSpectrum]);
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;
