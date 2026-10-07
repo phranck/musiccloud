@@ -19,6 +19,7 @@ import type {
 import { buildEventsSwapKey, buildSimilarSwapKey, buildTracksSwapKey } from "@/components/artist/artistSwapKeys";
 import { toPopularTrackItems, toSimilarTrackItems } from "@/components/artist/artistTrackItems";
 import { EventsSkeleton } from "@/components/artist/EventsSkeleton";
+import type { NowPlayingTrack } from "@/components/artist/nowPlayingTrack";
 import { SimilarArtistsSkeleton } from "@/components/artist/SimilarArtistsSkeleton";
 import { TracksSkeleton } from "@/components/artist/TracksSkeleton";
 import { UpcomingEventsSection } from "@/components/artist/UpcomingEventsSection";
@@ -41,6 +42,8 @@ interface ArtistInfoCardProps {
   onClose?: () => void;
   onTrackResolve?: ArtistPanelTrackResolveHandler;
   onResolveStart?: () => void;
+  /** The track the share page's player holds; both track lists mark its row. */
+  nowPlaying?: NowPlayingTrack | null;
 }
 
 /**
@@ -62,6 +65,7 @@ export function ArtistInfoCard({
   onClose,
   onTrackResolve,
   onResolveStart,
+  nowPlaying,
 }: ArtistInfoCardProps) {
   const skeletonAllowed = useSkeletonAllowed();
 
@@ -138,7 +142,12 @@ export function ArtistInfoCard({
               hasContent={popularItems.length > 0}
               swapKey={buildTracksSwapKey(data)}
             >
-              <ArtistTrackView items={popularItems} onTrackResolve={onTrackResolve} onResolveStart={onResolveStart} />
+              <ArtistTrackView
+                items={popularItems}
+                onTrackResolve={onTrackResolve}
+                onResolveStart={onResolveStart}
+                nowPlaying={nowPlaying}
+              />
             </ArtistSectionWell>
           </CollapsibleSection>
 
@@ -172,6 +181,7 @@ export function ArtistInfoCard({
                 cardSignal={CardSignal.SimilarArtist}
                 onTrackResolve={onTrackResolve}
                 onResolveStart={onResolveStart}
+                nowPlaying={nowPlaying}
               />
             </ArtistSectionWell>
           </CollapsibleSection>

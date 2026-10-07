@@ -4,6 +4,7 @@ import type {
   ArtistInfoStatus,
   ArtistPanelTrackResolveHandler,
 } from "@/components/artist/artistPanelTypes";
+import type { NowPlayingTrack } from "@/components/artist/nowPlayingTrack";
 import type { AudioStatus } from "@/components/audio/AudioStatus";
 import { CcInfoCard } from "@/components/cards/CcInfoCard";
 import { MediaSummaryCard } from "@/components/cards/MediaSummaryCard";
@@ -30,6 +31,8 @@ export interface DesktopShareLayoutProps {
   labels: ArtistCardLabels;
   /** Accessible name for the clickable cover/turntable media surface. */
   mediaViewToggleLabel: string;
+  /** The track the preview player holds, marked in the artist column's track lists. */
+  nowPlaying: NowPlayingTrack | null;
   /** Called when a popular/similar row begins resolving (spinning-disc moment). */
   onArtistResolveStart: () => void;
   /** Toggles between the cover and turntable media views. */
@@ -64,6 +67,7 @@ export function DesktopShareLayout({
   isLoading,
   labels,
   mediaViewToggleLabel,
+  nowPlaying,
   onArtistResolveStart,
   onMediaViewToggle,
   onPreviewStatusChange,
@@ -95,6 +99,7 @@ export function DesktopShareLayout({
           artistLoadStatus={artistLoadStatus}
           isLoading={isLoading}
           labels={labels}
+          nowPlaying={nowPlaying}
           onArtistResolveStart={onArtistResolveStart}
           onTrackResolve={onTrackResolve}
           userRegion={userRegion}

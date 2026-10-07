@@ -128,7 +128,7 @@ button,
 
 /* No native focus ring in any browser. Focus is styled explicitly per
    component — via its own `outline-color` (.hero-field, EmbossedButton,
-   HeaderNavMenu) or a box-shadow ring (CancelButton, ArtistTrackCell, …). A
+   HeaderNavMenu) or a box-shadow ring (CancelButton, BackLink, ArtistCardCloseButton). A
    transparent 2px outline replaces the UA default WITHOUT dropping
    `outline-style`, so a component that overrides only `outline-color` (or
    `outline-width`) still shows its own ring. Lives in `@layer base` so Tailwind
@@ -148,15 +148,25 @@ button,
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Hero search field — focus ring directly on the RecessedCard well (LandingPage
-   HeroInput). Uses `outline` (not box-shadow) so it never replaces the recessed
-   chamfer of the `.recessed-gradient-border` recipe. The base ring is
-   transparent so focus fades transparent→accent (no white flash).
-   `outline-offset: 0` keeps the ring flush on the RecessedCard contour. */
+/* The focus language every surface that marks itself draws in: an accent edge
+   flush on the element's own contour, a soft accent halo inside it, and one fade
+   for both. The hero field takes the edge, and a playing track row
+   (animations.css) takes the edge and the halo. */
+:root {
+  --mc-focus-edge-width: 2px;
+  --mc-focus-halo-blur: 10px;
+  --mc-focus-fade-duration: 200ms;
+}
+
+/* The hero search field (LandingPage HeroInput) draws its focus ring directly on
+   the RecessedCard well. It uses `outline` rather than a box-shadow, so it never
+   replaces the recessed chamfer of the `.recessed-gradient-border` recipe. The
+   resting ring is transparent, so focus fades from transparent to the accent
+   without a white flash, and `outline-offset: 0` keeps it flush on the well. */
 .hero-field {
-  outline: 2px solid transparent;
+  outline: var(--mc-focus-edge-width) solid transparent;
   outline-offset: 0;
-  transition: outline-color 0.2s ease;
+  transition: outline-color var(--mc-focus-fade-duration) ease;
 }
 .hero-field:focus-within {
   outline-color: var(--color-accent);

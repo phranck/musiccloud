@@ -21,7 +21,11 @@
                      markup animates from parse.
    - slide-up-in:    DeferredFooter server island, same reasoning as slide-up.
    - spin/lp-coast:  trivial compositor-only spinners (loading indicator,
-                     CD/LP artwork) and finite LP coast-down — no JS needed. */
+                     CD/LP artwork) and the finite LP coast-down, which need
+                     no JS.
+   - mc-playback-bar: the bars under the duration of a playing track row
+                     (PlaybackBars). A compositor-only loop like the spinners,
+                     started and paused by the row's `data-playback`. */
 
 /* 1. Row entrance - gentle reveal with subtle scale */
 @keyframes slide-up {
@@ -468,6 +472,108 @@ html[data-share-media-view="turntable"] .mc-share-media-screen .mc-share-media-s
   }
   to {
     opacity: 0;
+  }
+}
+
+/* The artist track row that shows the track the share page's player holds
+   (ArtistTrackCell). The row carries `data-playback` with the player's state, and
+   everything below follows from that attribute, so a change fades on the row that
+   is already on screen.
+
+   The ring is the focus language from global.css, drawn inside the row because
+   the list's scroll viewport clips anything outside it. It sits beneath the row's
+   content (z-index -1 in the row's own stacking context), so the halo never
+   tints the artwork or the text. */
+.mc-playback-row {
+  isolation: isolate;
+}
+
+.mc-playback-row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 var(--mc-focus-edge-width) var(--color-accent),
+    inset 0 0 var(--mc-focus-halo-blur) var(--color-accent-glow);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--mc-focus-fade-duration) ease;
+}
+
+.mc-playback-row[data-playback]::before {
+  opacity: 1;
+}
+
+/* Four bars that rise and fall out of step while the track plays and hold
+   their position while it is paused. They show no audio data. The resting
+   scales are the pose the bars keep when motion is reduced. */
+.mc-playback-bars {
+  --mc-playback-bar-width: 2px;
+  --mc-playback-bar-gap: 2px;
+  --mc-playback-bars-height: 10px;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--mc-playback-bar-gap);
+  height: var(--mc-playback-bars-height);
+  opacity: 0;
+  transition: opacity var(--mc-focus-fade-duration) ease;
+}
+
+.mc-playback-row[data-playback] .mc-playback-bars {
+  opacity: 1;
+}
+
+.mc-playback-bar {
+  width: var(--mc-playback-bar-width);
+  height: 100%;
+  background: var(--color-accent);
+  transform-origin: bottom;
+  transform: scaleY(0.45);
+}
+
+.mc-playback-bar:nth-child(2) {
+  transform: scaleY(0.9);
+}
+
+.mc-playback-bar:nth-child(3) {
+  transform: scaleY(0.6);
+}
+
+.mc-playback-bar:nth-child(4) {
+  transform: scaleY(0.75);
+}
+
+.mc-playback-row[data-playback] .mc-playback-bar {
+  animation: mc-playback-bar 820ms ease-in-out infinite alternate;
+}
+
+.mc-playback-row[data-playback] .mc-playback-bar:nth-child(2) {
+  animation-duration: 610ms;
+  animation-delay: -240ms;
+}
+
+.mc-playback-row[data-playback] .mc-playback-bar:nth-child(3) {
+  animation-duration: 940ms;
+  animation-delay: -520ms;
+}
+
+.mc-playback-row[data-playback] .mc-playback-bar:nth-child(4) {
+  animation-duration: 700ms;
+  animation-delay: -130ms;
+}
+
+.mc-playback-row[data-playback="paused"] .mc-playback-bar {
+  animation-play-state: paused;
+}
+
+@keyframes mc-playback-bar {
+  from {
+    transform: scaleY(0.2);
+  }
+  to {
+    transform: scaleY(1);
   }
 }
 

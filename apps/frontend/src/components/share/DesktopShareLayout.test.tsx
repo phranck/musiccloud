@@ -32,6 +32,7 @@ function renderLayout(config: ShareContentConfiguration) {
       isLoading={false}
       labels={{} as never}
       mediaViewToggleLabel=""
+      nowPlaying={null}
       onArtistResolveStart={() => {}}
       onMediaViewToggle={() => {}}
       onPreviewStatusChange={() => {}}
