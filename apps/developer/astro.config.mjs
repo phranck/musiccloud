@@ -2,11 +2,7 @@ import node from "@astrojs/node";
 import react from "@astrojs/react";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
-
-// A production build must never overwrite the optimized modules consumed by a
-// long-running local dev server. Astro's static config does not receive the
-// command, so select the Vite cache from the CLI arguments it forwards.
-const viteCacheDir = process.argv.includes("build") ? "node_modules/.vite-build" : "node_modules/.vite-dev";
+import { astroViteCacheDir } from "../../scripts/astro-vite-cache-dir.mjs";
 
 export default defineConfig({
   output: "server",
@@ -17,7 +13,7 @@ export default defineConfig({
     port: Number(process.env.PORT) || 3002,
   },
   vite: {
-    cacheDir: viteCacheDir,
+    cacheDir: astroViteCacheDir(),
     plugins: [tailwindcss()],
     server: {
       allowedHosts: ["localhost", "developer.musiccloud.test"],
