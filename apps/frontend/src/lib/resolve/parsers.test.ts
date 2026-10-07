@@ -1,5 +1,6 @@
 import { type CcArtistInfoResponse, Service, type VinylLayout } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
+import { creativeCommonsCopy } from "@/copy/creative-commons";
 import { resultsCopy } from "@/copy/results";
 import { buildShareViewFromSharePageResponse } from "@/lib/share/share-view";
 import { ActiveResultKind, type AlbumResult, type ArtistResult, type SongResult } from "@/lib/types/app";
@@ -440,6 +441,81 @@ describe("album and artist cards say what they are", () => {
     expect(ccResultToShareProps(artist).config.kindLine).toBe(resultsCopy.artistKind);
     expect(ccResultToShareProps(album).config.metaLine).toBe("11 tracks · 2009");
     expect(ccResultToShareProps(album).config.kindLine).toBeUndefined();
+  });
+});
+
+describe("Creative Commons record labels name their license, never GEMA", () => {
+  const BY_NC_SA_3 = "http://creativecommons.org/licenses/by-nc-sa/3.0/";
+  const BY_4 = "https://creativecommons.org/licenses/by/4.0/";
+
+  function ccTrack(jamendoId: string, licenseCcurl?: string) {
+    return {
+      jamendoId,
+      title: `Track ${jamendoId}`,
+      artistName: "Juanitos",
+      jamendoArtistId: "5261",
+      streamUrl: "https://cdn.example/track.mp3",
+      downloadAllowed: false,
+      licenseCcurl,
+    };
+  }
+
+  function albumRights(licenses: (string | undefined)[]) {
+    const album = ccResolveDataToResult({
+      type: "cc-album",
+      id: "cc-album-id",
+      shortUrl: "https://musiccloud.local/cc-album",
+      album: {
+        jamendoId: "54844",
+        name: "Best of Vol.2",
+        artistName: "Juanitos",
+        tracks: licenses.map((license, index) => ccTrack(`t${index}`, license)),
+        vinylLayout: null,
+      },
+      artistInfo: CC_ARTIST_INFO,
+    });
+    return ccResultToShareProps(album).config.labelRightsText;
+  }
+
+  it("prints the license an album's tracks share", () => {
+    expect(albumRights([BY_NC_SA_3, BY_NC_SA_3, BY_NC_SA_3])).toBe("CC BY-NC-SA 3.0");
+  });
+
+  it("prints CC where an album's tracks carry different licenses or none", () => {
+    expect(albumRights([BY_NC_SA_3, BY_4])).toBe(creativeCommonsCopy.recordRights);
+    expect(albumRights([BY_NC_SA_3, undefined])).toBe(creativeCommonsCopy.recordRights);
+    expect(albumRights([undefined])).toBe(creativeCommonsCopy.recordRights);
+    expect(albumRights([])).toBe(creativeCommonsCopy.recordRights);
+  });
+
+  it("prints the license an artist's top tracks share, on the live result and the share page", () => {
+    const live = ccResolveDataToResult({
+      type: "cc-artist",
+      id: "cc-artist-id",
+      shortUrl: "https://musiccloud.local/cc-artist",
+      artist: { jamendoId: "5261", name: "Juanitos", topTracks: [ccTrack("a", BY_4), ccTrack("b", BY_4)] },
+      artistInfo: CC_ARTIST_INFO,
+    });
+    const persisted = ccResponseToResult({
+      type: "cc-artist",
+      og: { title: "", description: "", image: "", url: "https://musiccloud.local/cc-artist" },
+      shortUrl: "https://musiccloud.local/cc-artist",
+      artist: { jamendoId: "5261", name: "Juanitos", topTracks: [ccTrack("a", BY_4), ccTrack("b", BY_NC_SA_3)] },
+      artistInfo: CC_ARTIST_INFO,
+    });
+
+    expect(ccResultToShareProps(live).config.labelRightsText).toBe("CC BY 4.0");
+    expect(ccResultToShareProps(persisted).config.labelRightsText).toBe(creativeCommonsCopy.recordRights);
+  });
+
+  it("prints CC on a track whose license cannot be read", () => {
+    const track = ccResolveDataToResult({
+      type: "cc-track",
+      id: "cc-track-id",
+      shortUrl: "https://musiccloud.local/cc-track",
+      track: { ...ccTrack("459544"), vinylLayout: null },
+    });
+    expect(ccResultToShareProps(track).config.labelRightsText).toBe(creativeCommonsCopy.recordRights);
   });
 });
 

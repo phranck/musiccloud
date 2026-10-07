@@ -53,6 +53,8 @@ const DEFAULT_LABEL_SPEED = "33 1/3 RPM";
 // licence label, where a collecting-society line would be meaningless.
 const DEFAULT_LABEL_RIGHTS_TEXT = "GEMA";
 const DEFAULT_LABEL_CATALOG_TEXT = "MC-4333";
+/** House catalog number on the generic label, for a record without cover artwork. */
+const GENERIC_LABEL_CATALOG_TEXT = "MC-GSP-001";
 // Top-right technical imprint. "DMM" (Direct Metal Mastering) is a generic,
 // authentic vinyl mark, meaningful in both commercial and CC modes (unlike the
 // commercial-only label code it replaces).
@@ -593,10 +595,10 @@ export function VinylRecord({
   const displayTitle = labelTitle ?? DEFAULT_LABEL_TITLE;
   const displayRights = labelRightsText ?? DEFAULT_LABEL_RIGHTS_TEXT;
   // The center catalog field falls back to a placeholder only for commercial
-  // tracks; CC tracks have no ISRC, so the middle stays empty (the licence sits
-  // in the top-left rights field instead).
-  const displayCatalog =
-    labelCatalogText ?? (displayRights === DEFAULT_LABEL_RIGHTS_TEXT ? DEFAULT_LABEL_CATALOG_TEXT : "");
+  // records; CC records have no ISRC, so the middle stays empty (the licence sits
+  // in the top-left rights field instead). The generic label follows the same rule.
+  const usesDefaultRights = displayRights === DEFAULT_LABEL_RIGHTS_TEXT;
+  const displayCatalog = labelCatalogText ?? (usesDefaultRights ? DEFAULT_LABEL_CATALOG_TEXT : "");
   const legalText = `${labelYear ? `P ${labelYear}` : DEFAULT_LABEL_SPEED} · 33 1/3 RPM · PRODUCED BY MUSICCLOUD`;
   const titleFontSize = fittedMonoFontSize(
     displayTitle,
@@ -704,7 +706,9 @@ export function VinylRecord({
           >
             {usesGenericLabel ? (
               <GenericVinylLabel
+                catalogText={usesDefaultRights ? GENERIC_LABEL_CATALOG_TEXT : ""}
                 hasSingleCentreOpening={hasSingleCentreOpening}
+                rightsText={displayRights}
                 idPrefix={labelPathId}
                 sideLetter={sideLetter}
                 typography={labelTypography}
