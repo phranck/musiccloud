@@ -92,8 +92,6 @@ export function CandidateRowContent({
           <SlideArtwork
             active={slideArtworkActive}
             artworkUrl={thumbnailUrl}
-            labelTitle={primary}
-            labelSubtitle={secondary}
             kind={slideKind}
             sizeClass={artworkSize}
             imgDim={imgDim}

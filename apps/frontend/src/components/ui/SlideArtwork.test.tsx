@@ -42,22 +42,14 @@ describe("SlideArtwork loading swap", () => {
     );
   });
 
-  it("labels the spinning Single with the clicked row's artwork, title and artist", () => {
-    const { container } = render(
-      <SlideArtwork
-        active={true}
-        artworkUrl="/a.jpg"
-        labelTitle="Blue Train"
-        labelSubtitle="John Coltrane"
-        sizeClass="w-12 h-12"
-      />,
-    );
+  it("labels the spinning Single with the clicked row's artwork and prints no text on it", () => {
+    const { container } = render(<SlideArtwork active={true} artworkUrl="/a.jpg" sizeClass="w-12 h-12" />);
     const disc = container.querySelector("[data-spin-state='playing']");
 
     expect(disc).toHaveAttribute("data-vinyl-label-variant", "standard");
     expect(disc?.querySelector("[data-vinyl-label-artwork='true']")).toHaveAttribute("src", "/a.jpg");
-    expect(disc?.querySelector("[data-vinyl-label-title-arc='true']")).toHaveTextContent("Blue Train");
-    expect(disc?.querySelector("[data-vinyl-label-subtitle='true']")).toHaveTextContent("John Coltrane");
+    // Tile-sized: text on the label would be a pixel or two high and costs frames.
+    expect(disc?.querySelector("[data-vinyl-label-print-copy='true']")).toBeNull();
   });
 
   it("keeps the generic label on the spinning Single when the row has no artwork", () => {
