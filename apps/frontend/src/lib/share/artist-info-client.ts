@@ -110,6 +110,7 @@ export async function fetchArtistInfo(
   const prefetched = prefetchedArtistInfo.get(url);
   if (prefetched) {
     prefetchedArtistInfo.delete(url);
+    settledArtistInfo.delete(url);
     return untilAborted(prefetched, signal);
   }
   return requestArtistInfo(url, signal);
@@ -133,6 +134,13 @@ const ARTIST_INFO_PREFETCH_TTL_MS = 30_000;
  * when the resolve answer arrives saves that wait.
  */
 const prefetchedArtistInfo = new Map<string, Promise<ArtistInfoResponse>>();
+
+/**
+ * Prefetched answers that have already arrived, keyed like
+ * {@link prefetchedArtistInfo}, so a column mounting after the answer can start
+ * with it instead of rendering a loading state first.
+ */
+const settledArtistInfo = new Map<string, ArtistInfoResponse>();
 
 /**
  * Builds the request URL for the commercial artist-info endpoint. A prefetch
@@ -167,11 +175,41 @@ export function prefetchArtistInfo(artistName: string, userRegion: string, conte
   const request = requestArtistInfo(url, controller.signal).finally(() => clearTimeout(timeout));
   // The column receives a failure when it claims the request. Until then the
   // rejection must not surface as an unhandled one.
-  request.catch(() => undefined);
+  request.then(
+    (data) => {
+      if (prefetchedArtistInfo.get(url) === request) settledArtistInfo.set(url, data);
+    },
+    () => undefined,
+  );
   prefetchedArtistInfo.set(url, request);
   setTimeout(() => {
-    if (prefetchedArtistInfo.get(url) === request) prefetchedArtistInfo.delete(url);
+    if (prefetchedArtistInfo.get(url) !== request) return;
+    prefetchedArtistInfo.delete(url);
+    settledArtistInfo.delete(url);
   }, ARTIST_INFO_PREFETCH_TTL_MS);
+}
+
+/**
+ * Returns a prefetched answer that has already arrived, and claims it, so the
+ * column can mount with its content and no request of its own. Returns `null`
+ * while the prefetch is still running, after it failed, or when there is none.
+ *
+ * @param artistName - The artist the column shows.
+ * @param userRegion - ISO region the column localizes with.
+ * @param context - The narrowing context the column passes.
+ * @returns The artist data, or `null`.
+ */
+export function takeSettledArtistInfo(
+  artistName: string,
+  userRegion: string,
+  context: ArtistInfoContext,
+): ArtistInfoResponse | null {
+  const url = artistInfoUrl(artistName, userRegion, context);
+  const data = settledArtistInfo.get(url);
+  if (!data) return null;
+  settledArtistInfo.delete(url);
+  prefetchedArtistInfo.delete(url);
+  return data;
 }
 
 /**

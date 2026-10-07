@@ -7,6 +7,7 @@ import {
   artistFetchErrorCode,
   fetchArtistInfo,
   fetchCcArtistInfo,
+  takeSettledArtistInfo,
 } from "@/lib/share/artist-info-client";
 
 /** CC artist-info fetches mirror Jamendo live (~4 throttled calls), so they get a
@@ -35,6 +36,9 @@ const ArtistActionType = {
 
 /** Reducer state for the artist-info load: current phase, data, optional error code. */
 type ArtistState = { status: ArtistInfoStatus; artistData: ArtistInfoResponse | null; errorCode?: string };
+
+/** The state of a column with nothing loaded yet. */
+const INITIAL_ARTIST_STATE: ArtistState = { status: ArtistLoadStatus.Loading, artistData: null };
 type ArtistAction =
   | { type: typeof ArtistActionType.Loading }
   | { type: typeof ArtistActionType.Done; data: ArtistInfoResponse | null }
@@ -127,7 +131,8 @@ export interface UseArtistInfoResult {
  * (with a {@link ARTIST_INFO_FETCH_TIMEOUT_MS} abort timeout and proper cancellation
  * on unmount / input change), and seeds directly from caller-supplied data when
  * `skipArtistFetch` is set (the Creative-Commons path, which has no commercial
- * artist-info endpoint). All endpoint/fetch knowledge lives in
+ * artist-info endpoint). A commercial column whose prefetch has already
+ * answered starts with that data and sends no first request. All endpoint/fetch knowledge lives in
  * {@link fetchArtistInfo}; this hook only drives state.
  *
  * @param options - {@link UseArtistInfoOptions}.
@@ -143,10 +148,18 @@ export function useArtistInfo({
   ccJamendoArtistId,
   onFetchSettled,
 }: UseArtistInfoOptions): UseArtistInfoResult {
-  const [state, dispatch] = useReducer(artistReducer, {
-    status: ArtistLoadStatus.Loading,
-    artistData: null,
+  // A prefetch that has already answered seeds the state, so the column mounts
+  // with its content: no loading render, no status change, and no Flip of a
+  // skeleton nobody saw in the frames that reveal the result.
+  const [state, dispatch] = useReducer(artistReducer, null, () => {
+    const prefetched =
+      skipArtistFetch || ccJamendoArtistId ? null : takeSettledArtistInfo(artistName, userRegion, context);
+    return prefetched
+      ? artistReducer(INITIAL_ARTIST_STATE, { type: ArtistActionType.Done, data: prefetched })
+      : INITIAL_ARTIST_STATE;
   });
+  // Read on the first render only: a seeded state needs no first fetch.
+  const skipFirstFetchRef = useRef(state.status !== ArtistLoadStatus.Loading);
 
   // Kept in a ref so the settle callback never widens the fetch effect's
   // dependency set — the effect must re-run only on the data inputs, exactly as
@@ -165,6 +178,11 @@ export function useArtistInfo({
   // Skipped when the caller pre-supplies it (skipArtistFetch).
   useEffect(() => {
     if (skipArtistFetch) return;
+    if (skipFirstFetchRef.current) {
+      skipFirstFetchRef.current = false;
+      onFetchSettledRef.current?.();
+      return;
+    }
     let cancelled = false;
     dispatch({ type: ArtistActionType.Loading });
     const controller = new AbortController();

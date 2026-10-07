@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { artistFetchErrorCode, fetchArtistInfo, fetchCcArtistInfo, prefetchArtistInfo } from "./artist-info-client";
+import {
+  artistFetchErrorCode,
+  fetchArtistInfo,
+  fetchCcArtistInfo,
+  prefetchArtistInfo,
+  takeSettledArtistInfo,
+} from "./artist-info-client";
 
 const ARTIST_INFO = {
   artistName: "Canonical Artist",
@@ -135,6 +141,31 @@ describe("prefetchArtistInfo", () => {
 
     expect(artistFetchErrorCode(failure)).toBe("MC-REQ-0001");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("hands an answered prefetch over synchronously, once", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(ARTIST_INFO)));
+    vi.stubGlobal("fetch", fetchMock);
+    const context = { artistEntityId: "artist-settled-1" };
+
+    prefetchArtistInfo("Settled Artist", "AT", context);
+    expect(takeSettledArtistInfo("Settled Artist", "AT", context)).toBeNull();
+
+    await vi.waitFor(() => expect(takeSettledArtistInfo("Settled Artist", "AT", context)).toEqual(ARTIST_INFO));
+    expect(takeSettledArtistInfo("Settled Artist", "AT", context)).toBeNull();
+  });
+
+  it("does not hand over a failed prefetch", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ error: "MC-REQ-0001" }), { status: 400 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    prefetchArtistInfo("Failed Settled Artist", "", {});
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    await Promise.resolve();
+
+    expect(takeSettledArtistInfo("Failed Settled Artist", "", {})).toBeNull();
   });
 
   it("sends a request of its own for different arguments", async () => {

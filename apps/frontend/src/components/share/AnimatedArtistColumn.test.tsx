@@ -1,6 +1,7 @@
 import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { render } from "@testing-library/react";
 import gsap from "gsap";
+import { Flip } from "gsap/Flip";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   ArtistCardLabels,
@@ -55,6 +56,9 @@ const SETTLED_PROFILE_ONLY_DATA: ArtistInfoResponse = {
   similarArtistTracks: [],
 };
 
+/** The column's delay before its first Flip snapshot, in milliseconds. */
+const MOUNT_SNAPSHOT_DELAY_MS = 300;
+
 const noop = () => {};
 const noopResolve: ArtistPanelTrackResolveHandler = async () => {};
 const TEST_LABELS: ArtistCardLabels = {
@@ -93,6 +97,8 @@ beforeEach(() => {
 afterEach(() => {
   gsap.globalTimeline.getChildren(true, true, true).forEach((animation) => animation.kill());
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 describe("AnimatedArtistColumn flip wiring", () => {
@@ -103,11 +109,31 @@ describe("AnimatedArtistColumn flip wiring", () => {
     expect(gsap.getTweensOf(column)).toHaveLength(0);
   });
 
+  /**
+   * Capturing forces layouts of the column and every card, and the mount frame
+   * already carries the whole result reveal. The first snapshot is only the
+   * "before" of a later change, so it waits.
+   */
+  it("takes no Flip snapshot in the mount frame, only shortly after", () => {
+    vi.useFakeTimers();
+    const getState = vi.spyOn(Flip, "getState");
+
+    render(columnElement(SETTLED_PROFILE_ONLY_DATA, "ready", false));
+    expect(getState).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(MOUNT_SNAPSHOT_DELAY_MS);
+    expect(getState).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
   it("runs a flip on the column's cards when the artist-info load reflows", () => {
     // Settled with one visible card (profile), then a fresh load: the three
     // previously hidden cards re-enter, and the entrance flip animates them.
+    vi.useFakeTimers();
     const { container, rerender } = render(columnElement(SETTLED_PROFILE_ONLY_DATA, "ready", false));
     const column = container.firstElementChild as HTMLElement;
+    vi.advanceTimersByTime(MOUNT_SNAPSHOT_DELAY_MS);
+    vi.useRealTimers();
 
     rerender(columnElement(null, "loading", true));
 
@@ -116,8 +142,11 @@ describe("AnimatedArtistColumn flip wiring", () => {
 
   it("skips the reflow flip entirely when the user prefers reduced motion", () => {
     stubMatchMedia(true);
+    vi.useFakeTimers();
     const { container, rerender } = render(columnElement(SETTLED_PROFILE_ONLY_DATA, "ready", false));
     const column = container.firstElementChild as HTMLElement;
+    vi.advanceTimersByTime(MOUNT_SNAPSHOT_DELAY_MS);
+    vi.useRealTimers();
 
     rerender(columnElement(null, "loading", true));
 

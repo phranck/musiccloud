@@ -3,11 +3,15 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // Hoisted so the (hoisted) vi.mock factory can reference the spy.
-const { fetchArtistInfoMock } = vi.hoisted(() => ({ fetchArtistInfoMock: vi.fn() }));
+const { fetchArtistInfoMock, takeSettledArtistInfoMock } = vi.hoisted(() => ({
+  fetchArtistInfoMock: vi.fn(),
+  takeSettledArtistInfoMock: vi.fn(() => null),
+}));
 
 vi.mock("@/lib/share/artist-info-client", () => ({
   ARTIST_INFO_FETCH_TIMEOUT_MS: 15000,
   fetchArtistInfo: fetchArtistInfoMock,
+  takeSettledArtistInfo: takeSettledArtistInfoMock,
   fetchCcArtistInfo: vi.fn(),
   artistFetchErrorCode: (err: unknown) => (err instanceof Error ? err.message : "ERR"),
 }));
@@ -59,5 +63,31 @@ describe("useArtistInfo", () => {
     await waitFor(() => expect(result.current.status).toBe(ArtistLoadStatus.Error));
     expect(result.current.artistData).toEqual(ARTIST_DATA);
     expect(result.current.errorCode).toBe("TIMEOUT");
+  });
+
+  /**
+   * The resolve answer starts the column's request, which has usually answered
+   * by the time the result is revealed. Starting in the loading state anyway
+   * made the column render skeletons and Flip them away in the reveal frames.
+   */
+  it("starts ready with an answered prefetch and sends no first request", () => {
+    takeSettledArtistInfoMock.mockReturnValueOnce(ARTIST_DATA as never);
+
+    const { result } = renderHook((props) => useArtistInfo(props), { initialProps: baseProps });
+
+    expect(result.current.status).toBe(ArtistLoadStatus.Ready);
+    expect(result.current.artistData).toEqual(ARTIST_DATA);
+    expect(fetchArtistInfoMock).not.toHaveBeenCalled();
+  });
+
+  it("still fetches when a later artist has no answered prefetch", async () => {
+    takeSettledArtistInfoMock.mockReturnValueOnce(ARTIST_DATA as never);
+    fetchArtistInfoMock.mockResolvedValue({ ...ARTIST_DATA, artistName: "Artist Two" });
+    const { result, rerender } = renderHook((props) => useArtistInfo(props), { initialProps: baseProps });
+
+    rerender({ ...baseProps, artistName: "Artist Two", context: {} });
+
+    await waitFor(() => expect(result.current.artistData?.artistName).toBe("Artist Two"));
+    expect(fetchArtistInfoMock).toHaveBeenCalledTimes(1);
   });
 });
