@@ -124,7 +124,7 @@ function MediaCardHeadStage({
   return (
     <SongInfo
       title={content.title}
-      artist={content.artist}
+      artist={content.kindLine ?? content.artist}
       album={content.album}
       albumArtUrl={content.artworkUrl}
       isExplicit={content.isExplicit}

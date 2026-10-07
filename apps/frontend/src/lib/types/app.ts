@@ -234,6 +234,8 @@ export interface CcAlbumResult {
   jamendoId: string;
   title: string;
   artist: string;
+  /** Number of tracks on the album, shown in its meta line. */
+  totalTracks?: number;
   releaseDate?: string;
   artworkUrl: string;
   /** Discogs-derived vinyl timing data for this album. */

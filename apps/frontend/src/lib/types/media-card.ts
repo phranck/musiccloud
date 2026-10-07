@@ -37,6 +37,11 @@ export interface MediaCardContentConfiguration {
   title: string;
   artist: string;
   artworkUrl: string;
+  /**
+   * Second display row in place of `artist`. An artist's own card has no artist
+   * to name there, so it says what the card shows instead.
+   */
+  kindLine?: string;
   /** Optional: album name shown as third line below artist (song-only) */
   album?: string;
   /** Optional: renders the "E" explicit badge in the meta line (song-only) */

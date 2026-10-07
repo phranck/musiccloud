@@ -1,5 +1,4 @@
 import {
-  type ApiAlbum,
   type ApiArtistCredit,
   type ArtistInfoResponse,
   buildMetaLine,
@@ -13,7 +12,12 @@ import { artistCopy } from "@/copy/artist";
 import { resultsCopy } from "@/copy/results";
 import { catalogTextFromIds, labelAlbumTitleFrom, releaseYearFromDate } from "@/lib/media/lp-label";
 import { apiLinksToPlatformLinks } from "@/lib/platform/api-links";
-import { buildShareConfigFromActive, ccResponseToResult, ccResultToShareProps } from "@/lib/resolve/parsers";
+import {
+  albumMetaLine,
+  buildShareConfigFromActive,
+  ccResponseToResult,
+  ccResultToShareProps,
+} from "@/lib/resolve/parsers";
 import { pathFromShortUrl } from "@/lib/share/short-url";
 import { type ActiveResult, ActiveResultKind } from "@/lib/types/app";
 import type { ShareContentConfiguration } from "@/lib/types/media-card";
@@ -114,14 +118,6 @@ function resolvePlatformsLabel(isArtist: boolean, isAlbum: boolean): string {
   return resultsCopy.listenOn;
 }
 
-function buildAlbumMetaLine(album: ApiAlbum): string | undefined {
-  const year = album.releaseDate?.slice(0, 4);
-  return (
-    [album.totalTracks ? resultsCopy.albumTracks(album.totalTracks) : null, year].filter(Boolean).join(" \u00B7 ") ||
-    undefined
-  );
-}
-
 function buildArtistInfoContext(
   shortId: string | undefined,
   credits: ApiArtistCredit[] | undefined,
@@ -154,6 +150,7 @@ export function buildShareViewFromSharePageResponse(data: SharePageResponse, rou
     type: "share",
     title: displayTitle,
     artist: artistDisplay,
+    kindLine: isArtist ? resultsCopy.artistKind : undefined,
     artworkUrl: artworkUrl ?? "",
     album: isAlbum ? undefined : (track?.albumName ?? undefined),
     isExplicit: !isAlbum && !isArtist && track?.isExplicit ? true : undefined,
@@ -163,7 +160,7 @@ export function buildShareViewFromSharePageResponse(data: SharePageResponse, rou
     metaLine: isArtist
       ? artist?.genres?.join(", ") || undefined
       : isAlbum && album
-        ? buildAlbumMetaLine(album)
+        ? albumMetaLine(album.totalTracks, album.releaseDate)
         : track
           ? buildMetaLine({ durationMs: track.durationMs, releaseDate: track.releaseDate }) || undefined
           : undefined,

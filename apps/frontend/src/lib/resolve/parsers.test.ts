@@ -2,8 +2,9 @@ import { type CcArtistInfoResponse, Service, type VinylLayout } from "@musicclou
 import { describe, expect, it } from "vitest";
 import { resultsCopy } from "@/copy/results";
 import { buildShareViewFromSharePageResponse } from "@/lib/share/share-view";
-import { ActiveResultKind, type AlbumResult, type SongResult } from "@/lib/types/app";
+import { ActiveResultKind, type AlbumResult, type ArtistResult, type SongResult } from "@/lib/types/app";
 import {
+  albumMetaLine,
   buildActiveConfig,
   buildShareConfigFromActive,
   ccResolveDataToResult,
@@ -356,6 +357,89 @@ describe("Creative Commons results list Jamendo as their service", () => {
     });
 
     expect(ccResultToShareProps(artist).config.platforms).toEqual([]);
+  });
+});
+
+describe("album and artist cards say what they are", () => {
+  const ARTIST: ArtistResult = {
+    kind: ActiveResultKind.Artist,
+    name: "Massive Attack",
+    imageUrl: "",
+    platforms: [],
+    shareUrl: "https://musiccloud.local/s/ma",
+  };
+
+  it("joins track count and year with a spaced middle dot", () => {
+    expect(albumMetaLine(11, "2009-11-04")).toBe("11 tracks · 2009");
+    expect(albumMetaLine(undefined, "2009-11-04")).toBe("2009");
+    expect(albumMetaLine(undefined, undefined)).toBeUndefined();
+  });
+
+  it("gives a commercial album card its track count, on the landing result and the share config", () => {
+    const album: AlbumResult = {
+      kind: ActiveResultKind.Album,
+      title: "Blue Train",
+      artist: "John Coltrane",
+      releaseDate: "1958-01-01",
+      totalTracks: 5,
+      artworkUrl: "",
+      platforms: [],
+      shareUrl: "https://musiccloud.local/s/blue",
+    };
+    expect(buildActiveConfig(album).metaLine).toBe("5 tracks · 1958");
+    expect(buildShareConfigFromActive(album).metaLine).toBe("5 tracks · 1958");
+  });
+
+  it("names the kind on a commercial artist card, from the landing result and the share page", () => {
+    expect(buildActiveConfig(ARTIST).kindLine).toBe(resultsCopy.artistKind);
+    expect(buildShareConfigFromActive(ARTIST).kindLine).toBe(resultsCopy.artistKind);
+
+    const view = buildShareViewFromSharePageResponse(
+      {
+        type: "artist",
+        og: { title: "", description: "", image: "", url: "https://musiccloud.local/s/ma" },
+        shortUrl: "https://musiccloud.local/s/ma",
+        links: [],
+        artist: { name: "Massive Attack" },
+      } as Parameters<typeof buildShareViewFromSharePageResponse>[0],
+      "ma",
+    );
+    expect(view.config.kindLine).toBe(resultsCopy.artistKind);
+  });
+
+  it("names the kind on a Creative Commons artist and counts a Creative Commons album's tracks", () => {
+    const artist = ccResolveDataToResult({
+      type: "cc-artist",
+      id: "cc-artist-id",
+      shortUrl: "https://musiccloud.local/cc-artist",
+      artist: { jamendoId: "5261", name: "Juanitos", topTracks: [] },
+      artistInfo: CC_ARTIST_INFO,
+    });
+    const album = ccResponseToResult({
+      type: "cc-album",
+      og: { title: "", description: "", image: "", url: "https://musiccloud.local/cc-album" },
+      shortUrl: "https://musiccloud.local/cc-album",
+      album: {
+        jamendoId: "54844",
+        name: "Best of Vol.2",
+        artistName: "Juanitos",
+        releaseDate: "2009-11-04",
+        tracks: Array.from({ length: 11 }, (_, index) => ({
+          jamendoId: `t${index}`,
+          title: `Track ${index}`,
+          artistName: "Juanitos",
+          jamendoArtistId: "5261",
+          streamUrl: "https://cdn.example/track.mp3",
+          downloadAllowed: false,
+        })),
+        vinylLayout: null,
+      },
+      artistInfo: CC_ARTIST_INFO,
+    });
+
+    expect(ccResultToShareProps(artist).config.kindLine).toBe(resultsCopy.artistKind);
+    expect(ccResultToShareProps(album).config.metaLine).toBe("11 tracks · 2009");
+    expect(ccResultToShareProps(album).config.kindLine).toBeUndefined();
   });
 });
 
