@@ -1,5 +1,6 @@
 import {
   ENDPOINTS,
+  parseJamendoLink,
   type ResolveDisambiguationResponse,
   type ResolveErrorResponse,
   type ResolveGenreBrowseResponse,
@@ -10,7 +11,6 @@ import {
 import { type Dispatch, useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { CardSignal, GenreSignal, ResolveSignal, SearchSignal, sendMusicSignal } from "@/lib/analytics/umami";
 import { detectRegion } from "@/lib/geo/detect-region";
-import { parseJamendoUrl } from "@/lib/resolve/jamendoUrl";
 import {
   appReducer,
   type CcResolveData,
@@ -111,19 +111,15 @@ export function useAppState(mode: ResolveMode = ResolveMode.Commercial): UseAppS
       const request = inFlight.begin();
       sendMusicSignal(SearchSignal.Submitted);
       dispatch({ type: "SUBMIT" });
-      // A pasted Jamendo track/album URL resolves the exact entity through the CC
-      // path: translate it to the resolve candidate the backend understands and
-      // switch the mode store to CC so the mode indicator + persistence follow.
-      const jamendoCandidate = parseJamendoUrl(url);
-      if (jamendoCandidate) setResolveMode(ResolveMode.Cc);
+      // A pasted Jamendo track, album or artist link belongs to the CC catalog:
+      // send it to the CC endpoint, which resolves the linked entity directly,
+      // and switch the mode store to CC so the mode indicator + persistence follow.
+      const isJamendoLink = parseJamendoLink(url) !== null;
+      if (isJamendoLink) setResolveMode(ResolveMode.Cc);
       try {
-        const useCc = jamendoCandidate !== null || mode === ResolveMode.Cc;
+        const useCc = isJamendoLink || mode === ResolveMode.Cc;
         const endpoint = useCc ? ENDPOINTS.frontend.ccResolve : ENDPOINTS.frontend.resolve;
-        const response = await resolveFetch(
-          endpoint,
-          jamendoCandidate ? { selectedCandidate: jamendoCandidate } : { query: url },
-          request.signal,
-        );
+        const response = await resolveFetch(endpoint, { query: url }, request.signal);
         const data = (await response.json()) as
           | UnifiedResolveSuccessResponse
           | ResolveDisambiguationResponse

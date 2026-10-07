@@ -5,7 +5,7 @@
  * picked candidate into a full track.
  */
 
-import type { ApiDisambiguationCandidate } from "@musiccloud/shared";
+import { type ApiDisambiguationCandidate, type JamendoLink, ResourceKind } from "@musiccloud/shared";
 import { isStructuredSearchQuery, parseStructuredSearchQuery } from "../structured-search/index.js";
 import {
   type CcTrackQuery,
@@ -60,6 +60,25 @@ export function ccAlbumCandidateId(jamendoAlbumId: string): string {
  */
 export function ccArtistCandidateId(jamendoArtistId: string): string {
   return `${CC_ARTIST_CANDIDATE_PREFIX}${jamendoArtistId}`;
+}
+
+/**
+ * Builds the candidate id for the entity a pasted Jamendo link points at, so the
+ * link resolves through the same {@link resolveCcCandidate} path as a picked
+ * disambiguation row.
+ *
+ * @param link - The entity parsed from the link by `parseJamendoLink`.
+ * @returns `jamendo:<id>`, `jamendo-album:<id>` or `jamendo-artist:<id>`.
+ */
+export function ccCandidateIdForJamendoLink(link: JamendoLink): string {
+  switch (link.kind) {
+    case ResourceKind.Album:
+      return ccAlbumCandidateId(link.jamendoId);
+    case ResourceKind.Artist:
+      return ccArtistCandidateId(link.jamendoId);
+    default:
+      return ccCandidateId(link.jamendoId);
+  }
 }
 
 /**

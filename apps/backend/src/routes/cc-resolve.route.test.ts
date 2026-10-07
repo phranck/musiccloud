@@ -26,9 +26,13 @@ vi.mock("../lib/infra/rate-limiter.js", () => ({
 }));
 
 const resolveCcCandidate = vi.fn();
-vi.mock("../services/cc/cc-resolver.js", () => ({
+const resolveCcTextSearch = vi.fn();
+// The candidate-id builders stay real, so a test sees the id a pasted link
+// actually turns into; only the two Jamendo-facing calls are replaced.
+vi.mock("../services/cc/cc-resolver.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../services/cc/cc-resolver.js")>()),
   resolveCcCandidate,
-  resolveCcTextSearch: vi.fn(),
+  resolveCcTextSearch,
 }));
 
 const ARTIST_INFO: CcArtistInfoResponse = {
@@ -215,5 +219,73 @@ describe("POST /api/v1/cc/resolve vinyl layout", () => {
     expect(response.statusCode).toBe(400);
     expect(resolveCcCandidate).not.toHaveBeenCalled();
     await app.close();
+  });
+});
+
+describe("POST /api/v1/cc/resolve Jamendo links", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  async function resolveQuery(query: string) {
+    const app = buildApp();
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/cc/resolve",
+      headers: { origin: "http://localhost:3000" },
+      payload: { query },
+    });
+    await app.close();
+    return response;
+  }
+
+  it("resolves a pasted track link to that track without a text search", async () => {
+    resolveCcCandidate.mockResolvedValue({ kind: "track", track: TRACK });
+    persistCcTrack.mockResolvedValue({ ccTrackId: "cc-track-id", shortId: "track-short" });
+    resolveTrackVinylLayout.mockResolvedValue(null);
+
+    const response = await resolveQuery("https://jamendo.com/track/101");
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(resolveCcCandidate).toHaveBeenCalledWith("jamendo:101");
+    expect(resolveCcTextSearch).not.toHaveBeenCalled();
+    expect(response.json()).toMatchObject({ type: "cc-track", shortUrl: "http://localhost:3000/track-short" });
+  });
+
+  it("resolves album and artist links, including a language segment", async () => {
+    resolveCcCandidate.mockResolvedValue({ kind: "album", album: ALBUM, tracks: [TRACK] });
+    persistCcAlbum.mockResolvedValue({ ccAlbumId: "cc-album-id", shortId: "album-short" });
+    resolveAlbumVinylLayout.mockResolvedValue(null);
+    expect((await resolveQuery("https://www.jamendo.com/de/album/301/the-sermon")).statusCode).toBe(200);
+    expect(resolveCcCandidate).toHaveBeenLastCalledWith("jamendo-album:301");
+
+    resolveCcCandidate.mockResolvedValue({
+      kind: "artist",
+      artist: { jamendoId: "201", name: "Jimmy Smith" },
+      topTracks: [TRACK],
+    });
+    persistCcArtist.mockResolvedValue({ ccArtistId: "cc-artist-id", shortId: "artist-short" });
+    expect((await resolveQuery("www.jamendo.com/artist/201")).statusCode).toBe(200);
+    expect(resolveCcCandidate).toHaveBeenLastCalledWith("jamendo-artist:201");
+    expect(resolveCcTextSearch).not.toHaveBeenCalled();
+  });
+
+  it("answers 404 when Jamendo has no entity behind the link", async () => {
+    resolveCcCandidate.mockResolvedValue(null);
+
+    const response = await resolveQuery("https://www.jamendo.com/track/999999999");
+
+    expect(response.statusCode).toBe(404);
+    expect(resolveCcCandidate).toHaveBeenCalledWith("jamendo:999999999");
+  });
+
+  it("keeps sending free text to the text search", async () => {
+    resolveCcTextSearch.mockResolvedValue({ candidates: [] });
+
+    const response = await resolveQuery("ambient piano");
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(resolveCcTextSearch).toHaveBeenCalledWith("ambient piano");
+    expect(resolveCcCandidate).not.toHaveBeenCalled();
   });
 });

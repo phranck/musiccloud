@@ -17,6 +17,7 @@ export * from "./email-variables.js";
 export * from "./endpoints.js";
 export * from "./error-codes.js";
 export * from "./errors.js";
+export * from "./jamendo-link.js";
 export * from "./markdown-editor-height.js";
 export * from "./markdown-shortcode-highlight.js";
 export * from "./markdown-shortcode-indent.js";
