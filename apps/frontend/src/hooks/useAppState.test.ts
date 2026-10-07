@@ -88,7 +88,7 @@ describe("useAppState Jamendo links", () => {
         type: "cc-artist",
         id: "cc-artist-1",
         shortUrl: "https://musiccloud.io/juanitos",
-        artist: { jamendoId: "5261", name: "Juanitos", shareUrl: "https://www.jamendo.com/artist/5261" },
+        artist: { jamendoId: "5261", name: "Juanitos", shareUrl: "https://www.jamendo.com/artist/5261", topTracks: [] },
         artistInfo: { artistName: "Juanitos", topTracks: [], profile: null, events: [], similarArtistTracks: [] },
       }),
     );

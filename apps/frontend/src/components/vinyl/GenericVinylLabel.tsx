@@ -5,8 +5,12 @@ import { VinylLabelPressingCopy } from "./VinylLabelPressingCopy";
 import { VINYL_LABEL_TEXT_STYLE } from "./VinylLabelPressingCopy.styles";
 
 interface GenericVinylLabelProps {
+  /** Center catalog number: the house number for a commercial record, empty for a CC one. */
+  catalogText: string;
   /** A 7-inch 45 RPM single needs room for its large centre opening. */
   hasSingleCentreOpening: boolean;
+  /** Top-left rights text: "GEMA" for a commercial record, the license for a CC one. */
+  rightsText: string;
   /** Prefix supplied by the owning record so SVG fragment IDs stay instance-safe. */
   idPrefix: string;
   /** Resolved Discogs side, or A for a generic pressing without side metadata. */
@@ -38,7 +42,9 @@ const WORDMARK_STYLE = {
  * VinylRecord.
  */
 export function GenericVinylLabel({
+  catalogText,
   hasSingleCentreOpening,
+  rightsText,
   idPrefix,
   sideLetter,
   typography,
@@ -224,13 +230,13 @@ export function GenericVinylLabel({
             </text>
             <g data-vinyl-generic-pressing-copy="true" transform="translate(0 -8)">
               <VinylLabelPressingCopy
-                catalogText="MC-GSP-001"
+                catalogText={catalogText}
                 catalogY={hasSingleCentreOpening ? 28 : 65}
                 lowerCopySideX={hasSingleCentreOpening ? 18 : 32}
                 lowerCopyStereoFontSize={hasSingleCentreOpening ? 9.4 : undefined}
                 lowerCopyStereoX={hasSingleCentreOpening ? 80 : 68}
                 lowerCopyOffsetY={3}
-                rightsText="GEMA"
+                rightsText={rightsText}
                 sideLetter={sideLetter}
               />
             </g>

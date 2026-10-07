@@ -14,6 +14,7 @@ import type {
 import { buildMetaLine, ENDPOINTS, PLATFORM_CONFIG, Service } from "@musiccloud/shared";
 import { commonCopy } from "@/copy/common";
 import { contentErrorMessage } from "@/copy/content";
+import { creativeCommonsCopy } from "@/copy/creative-commons";
 import { resultsCopy } from "@/copy/results";
 import { catalogTextFromIds, labelAlbumTitleFrom, releaseYearFromDate } from "@/lib/media/lp-label";
 import { apiLinksToPlatformLinks } from "@/lib/platform/api-links";
@@ -212,6 +213,7 @@ function parseCcAlbumResolveResponse(data: CcAlbumResolveSuccessResponse): CcAlb
     title: data.album.name,
     artist: data.album.artistName,
     totalTracks: data.album.tracks.length,
+    labelRightsText: ccRightsText(data.album.tracks.map((track) => track.licenseCcurl)),
     releaseDate: data.album.releaseDate,
     artworkUrl: data.album.artworkUrl ?? "",
     vinylLayout: data.album.vinylLayout ?? undefined,
@@ -234,6 +236,7 @@ function parseCcArtistResolveResponse(data: CcArtistResolveSuccessResponse): CcA
     kind: ActiveResultKind.CcArtist,
     jamendoId: data.artist.jamendoId,
     name: data.artist.name,
+    labelRightsText: ccRightsText(data.artist.topTracks.map((track) => track.licenseCcurl)),
     imageUrl: data.artist.imageUrl ?? "",
     jamendoUrl: data.artist.shareUrl,
     shareUrl: data.shortUrl,
@@ -551,6 +554,21 @@ function ccLicenseLabel(url: string | undefined): string | undefined {
 }
 
 /**
+ * The rights text printed on a Creative Commons record's label: the license all
+ * of its tracks share, such as `CC BY-NC-SA 3.0`, or "CC" where they differ or
+ * none can be read. The label falls back to "GEMA" when it receives nothing,
+ * and Creative Commons music is never GEMA-managed, so every CC record sets it.
+ *
+ * @param licenseCcurls - The license deed URL of each track on the record.
+ * @returns The rights text for the label.
+ */
+export function ccRightsText(licenseCcurls: readonly (string | undefined)[]): string {
+  const labels = new Set(licenseCcurls.map(ccLicenseLabel));
+  const [onlyLabel] = labels;
+  return labels.size === 1 && onlyLabel ? onlyLabel : creativeCommonsCopy.recordRights;
+}
+
+/**
  * Builds a {@link CcTrackContentConfiguration} from a resolved CC track result.
  *
  * Mirrors the song branch of {@link buildShareConfigFromActive} but omits
@@ -579,7 +597,7 @@ function buildCcShareConfig(cc: CcTrackResult): CcTrackContentConfiguration {
     labelReleaseYear: releaseYearFromDate(cc.releaseDate),
     // CC tracks are GEMA-free: show the licence in the top-left rights field
     // (replacing "GEMA") and leave the center catalog field empty (no ISRC).
-    labelRightsText: ccLicenseLabel(cc.licenseCcurl),
+    labelRightsText: ccRightsText([cc.licenseCcurl]),
     srAnnouncement: resultsCopy.found(cc.title, cc.artist),
     shortUrl: cc.shareUrl,
     shortId,
@@ -686,7 +704,7 @@ function ccTrackToShareConfig(cc: CcTrackResult): ShareContentConfiguration {
       labelAlbumTitle: labelAlbumTitleFrom(cc.album, cc.title),
       labelReleaseYear: releaseYearFromDate(cc.releaseDate),
       // GEMA-free: licence goes in the top-left rights field; center stays empty.
-      labelRightsText: ccLicenseLabel(cc.licenseCcurl),
+      labelRightsText: ccRightsText([cc.licenseCcurl]),
       vinylLayout: cc.vinylLayout,
       jamendoUrl: cc.jamendoUrl,
       platformsLabel: resultsCopy.listenOn,
@@ -743,6 +761,7 @@ export function ccResultToShareProps(ccActive: CcResult): CcResultShareProps {
         metaLine: albumMetaLine(ccActive.totalTracks, ccActive.releaseDate),
         labelAlbumTitle: ccActive.title,
         labelReleaseYear: releaseYearFromDate(ccActive.releaseDate),
+        labelRightsText: ccActive.labelRightsText,
         vinylLayout: ccActive.vinylLayout,
         jamendoUrl: ccActive.jamendoUrl,
         platformsLabel: resultsCopy.openAlbumOn,
@@ -758,6 +777,7 @@ export function ccResultToShareProps(ccActive: CcResult): CcResultShareProps {
         artist: "",
         artworkUrl: ccActive.imageUrl,
         labelAlbumTitle: ccActive.name,
+        labelRightsText: ccActive.labelRightsText,
         jamendoUrl: ccActive.jamendoUrl,
         platformsLabel: resultsCopy.viewArtistOn,
         kindLine: resultsCopy.artistKind,
@@ -822,6 +842,7 @@ export function ccResponseToResult(
       title: album.name,
       artist: album.artistName,
       totalTracks: album.tracks.length,
+      labelRightsText: ccRightsText(album.tracks.map((track) => track.licenseCcurl)),
       releaseDate: album.releaseDate,
       artworkUrl: album.artworkUrl ?? "",
       vinylLayout: album.vinylLayout ?? undefined,
@@ -835,6 +856,7 @@ export function ccResponseToResult(
     kind: ActiveResultKind.CcArtist,
     jamendoId: artist.jamendoId,
     name: artist.name,
+    labelRightsText: ccRightsText(artist.topTracks.map((track) => track.licenseCcurl)),
     imageUrl: artist.imageUrl ?? "",
     jamendoUrl: artist.shareUrl,
     shareUrl: data.shortUrl,

@@ -236,6 +236,8 @@ export interface CcAlbumResult {
   artist: string;
   /** Number of tracks on the album, shown in its meta line. */
   totalTracks?: number;
+  /** Rights text for the record label: the license the album's tracks share, or "CC". */
+  labelRightsText: string;
   releaseDate?: string;
   artworkUrl: string;
   /** Discogs-derived vinyl timing data for this album. */
@@ -256,6 +258,8 @@ export interface CcArtistResult {
   jamendoId: string;
   name: string;
   imageUrl: string;
+  /** Rights text for the record label: the license the artist's top tracks share, or "CC". */
+  labelRightsText: string;
   jamendoUrl?: string;
   shareUrl: string;
   /** Right-column data (the artist's top tracks + similar tracks) for the shared artist column. */

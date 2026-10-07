@@ -517,6 +517,35 @@ describe("VinylRecord", () => {
     expect(container.querySelector("[data-vinyl-label-catalog='true']")?.textContent).toBe("");
   });
 
+  /**
+   * A Creative Commons record without cover art gets the Generic label, which
+   * printed "GEMA" whatever the record was. It takes the rights of the record it
+   * belongs to, under the same rule as the cover label.
+   */
+  it("prints a CC record's license on the Generic label and leaves its catalog empty", () => {
+    const { container } = render(
+      <VinylRecord
+        className="h-24 w-24"
+        discFormat="lp"
+        labelRightsText="CC BY 4.0"
+        labelTitle="Juanitos"
+        spinState={VinylSpinState.Idle}
+      />,
+    );
+
+    expect(container.querySelector("svg[data-vinyl-generic-label='true']")).toBeInTheDocument();
+    expect(container.querySelector("[data-vinyl-label-gema='true']")).toHaveTextContent("CC BY 4.0");
+    expect(screen.queryByText("GEMA")).not.toBeInTheDocument();
+    expect(container.querySelector("[data-vinyl-label-catalog='true']")?.textContent).toBe("");
+  });
+
+  it("keeps GEMA and the house catalog number on the Generic label of a commercial record", () => {
+    const { container } = render(<VinylRecord className="h-24 w-24" discFormat="lp" spinState={VinylSpinState.Idle} />);
+
+    expect(container.querySelector("[data-vinyl-label-gema='true']")).toHaveTextContent("GEMA");
+    expect(container.querySelector("[data-vinyl-label-catalog='true']")).toHaveTextContent("MC-GSP-001");
+  });
+
   it("keeps short lower label titles naturally centered instead of stretching them", () => {
     const { container } = render(
       <VinylRecord
