@@ -11,10 +11,6 @@ interface SlideArtworkProps {
   active: boolean;
   /** The row's cover. Also the spinning Single's label; without it the label stays generic. */
   artworkUrl?: string;
-  /** Title printed on the Single's label, normally the row's own title. */
-  labelTitle?: string;
-  /** Second line printed on the Single's label, normally the row's artist. */
-  labelSubtitle?: string;
   /** "round" for artists, "square" for tracks/albums. */
   kind?: SlideArtworkKindType;
   /** Size classes applied to the outer container. */
@@ -57,8 +53,6 @@ interface SlideArtworkProps {
 export function SlideArtwork({
   active,
   artworkUrl,
-  labelTitle,
-  labelSubtitle,
   kind = SlideArtworkKind.Square,
   sizeClass,
   imgDim = 56,
@@ -109,10 +103,9 @@ export function SlideArtwork({
             On enter it drops in from the top (mc-disc-drop-in); on exit it drops
             back down out of the tile (mc-disc-drop-out) and unmounts once that
             animation ends. Sized to the tile so the round disc settles centered
-            with the row's cover, title and artist as its label, the way the
-            turntable labels the record it plays; a row without a cover keeps
-            the generic label. Sits below the rim shadow only, so its face is
-            never dimmed. */}
+            with the row's cover as its label; a row without a cover keeps the
+            generic label. Sits below the rim shadow only, so its face is never
+            dimmed. */}
         {discMounted && (
           <div
             className={cn(
@@ -126,12 +119,13 @@ export function SlideArtwork({
               if (event.target === event.currentTarget && !active) setDiscMounted(false);
             }}
           >
+            {/* Tile-sized, so the label prints no text: it would be a pixel or two
+                high, and painting it on every frame of the drop-in drops frames. */}
             <VinylRecord
               className="h-full w-full"
               discFormat={VinylDiscFormat.Single}
               labelArtworkUrl={artworkUrl}
-              labelSubtitle={labelSubtitle}
-              labelTitle={labelTitle}
+              labelTypography={false}
               spinState={VinylSpinState.Playing}
             />
           </div>

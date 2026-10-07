@@ -73,8 +73,6 @@ export function ArtistTrackCell({
       <SlideArtwork
         active={resolving}
         artworkUrl={track.artworkUrl ?? undefined}
-        labelTitle={track.title}
-        labelSubtitle={track.artists.join(", ")}
         sizeClass="w-12 h-12"
         imgDim={48}
         radius={artworkRadius}

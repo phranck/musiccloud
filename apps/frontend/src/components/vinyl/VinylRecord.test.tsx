@@ -19,6 +19,30 @@ afterEach(() => {
 });
 
 describe("VinylRecord", () => {
+  it("draws the Generic label without its text when the record is too small to read it", () => {
+    const { container } = render(
+      <VinylRecord
+        className="h-12 w-12"
+        discFormat="single"
+        labelTypography={false}
+        labelVariant="generic"
+        spinState={VinylSpinState.Playing}
+      />,
+    );
+
+    const label = container.querySelector("svg[data-vinyl-generic-label='true']");
+    expect(label).toBeInTheDocument();
+    expect(label?.querySelector("text")).toBeNull();
+    expect(label?.querySelector("[data-vinyl-generic-clouds='true']")).toBeInTheDocument();
+    expect(label?.querySelector("[data-vinyl-generic-night-sky='true']")).toBeInTheDocument();
+  });
+
+  it("prints the Generic label's text by default", () => {
+    const { container } = render(<VinylRecord className="h-64 w-64" discFormat="lp" labelVariant="generic" />);
+
+    expect(container.querySelector("[data-vinyl-generic-wordmark='true']")).toHaveTextContent("musiccloud");
+  });
+
   it("renders a circular record with cover art on the paper label and the requested spin state", () => {
     const { container } = render(
       <VinylRecord
