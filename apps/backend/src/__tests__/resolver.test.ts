@@ -1058,6 +1058,32 @@ describe("resolveQuery: error handling", () => {
     }
   });
 
+  it("reports an outage, not a missing track, when every service failed the text search", async () => {
+    const spotifyAdapter = createMockAdapter({
+      id: "spotify",
+      searchTrack: vi.fn().mockRejectedValue(new Error("Spotify rate-limited (429)")),
+    });
+    const deezerAdapter = createMockAdapter({
+      id: "deezer",
+      searchTrack: vi.fn().mockRejectedValue(new Error("Deezer failed: 503")),
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter, deezerAdapter]);
+
+    await expect(resolveQuery("Bohemian Rhapsody Queen")).rejects.toMatchObject({ code: "ALL_DOWN" });
+  });
+
+  it("reports an outage when every service failed the disambiguation search", async () => {
+    const spotifyAdapter = createMockAdapter({
+      id: "spotify",
+      searchTrackWithCandidates: vi.fn().mockRejectedValue(new Error("Spotify failed: 500")),
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
+
+    await expect(resolveTextSearchWithDisambiguation("Bohemian Rhapsody")).rejects.toMatchObject({
+      code: "ALL_DOWN",
+    });
+  });
+
   it("should continue to next adapter when one throws during text search", async () => {
     const track = createMockTrack({ sourceService: "deezer", sourceId: "dz1" });
 

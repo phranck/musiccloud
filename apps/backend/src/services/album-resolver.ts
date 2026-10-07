@@ -75,7 +75,7 @@ import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
 import { stripTrackingParams } from "../lib/platform/url.js";
 import { getPreviewExpiry } from "../lib/preview-url.js";
-import { ResolveError } from "../lib/resolve/errors.js";
+import { ResolveError, searchExhaustedError } from "../lib/resolve/errors.js";
 import { confidenceForMethod } from "./confidence.js";
 import { IDENTIFIER_MATCH_CONFIDENCE } from "./constants.js";
 import { collectAlbumExternalIds } from "./external-ids.js";
@@ -776,6 +776,7 @@ export async function resolveAlbumTextSearch(query: string): Promise<AlbumResolu
   const searchAdapters = active.filter(
     (a) => Boolean(a.albumCapabilities?.supportsAlbumSearch) && Boolean(a.searchAlbum),
   );
+  let failedSearches = 0;
 
   for (const adapter of searchAdapters) {
     try {
@@ -825,6 +826,7 @@ export async function resolveAlbumTextSearch(query: string): Promise<AlbumResolu
         };
       }
     } catch (error) {
+      failedSearches++;
       log.deviation(
         {
           adapterId: adapter.id,
@@ -838,5 +840,5 @@ export async function resolveAlbumTextSearch(query: string): Promise<AlbumResolu
     }
   }
 
-  throw new ResolveError("TRACK_NOT_FOUND", "No album found for the search query");
+  throw searchExhaustedError(searchAdapters.length, failedSearches, "No album found for the search query");
 }

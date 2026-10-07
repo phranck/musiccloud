@@ -149,7 +149,7 @@ import { fetchWithTimeout } from "../lib/infra/fetch.js";
 import { log } from "../lib/infra/logger.js";
 import { isUrl, stripTrackingParams, validateMusicUrl } from "../lib/platform/url.js";
 import { getPreviewExpiry } from "../lib/preview-url.js";
-import { ResolveError } from "../lib/resolve/errors.js";
+import { ResolveError, searchExhaustedError } from "../lib/resolve/errors.js";
 import { confidenceForMethod } from "./confidence.js";
 import {
   AUTO_SELECT_THRESHOLD,
@@ -860,6 +860,7 @@ function selectDiverseSearchCandidates(candidates: RankedSearchCandidate[], cap:
 export async function resolveTextSearch(query: string): Promise<ResolutionResult> {
   // Service search: try all active adapters
   const searchAdapters = await getActiveAdapters();
+  let failedSearches = 0;
   for (const adapter of searchAdapters) {
     try {
       const result = await adapter.searchTrack({
@@ -892,11 +893,12 @@ export async function resolveTextSearch(query: string): Promise<ResolutionResult
         };
       }
     } catch (error) {
+      failedSearches++;
       log.debug("Resolver", `[${adapter.id}] text search failed:`, error instanceof Error ? error.message : error);
     }
   }
 
-  throw new ResolveError("TRACK_NOT_FOUND", "No track found for the search query");
+  throw searchExhaustedError(searchAdapters.length, failedSearches, "No track found for the search query");
 }
 
 /**
@@ -930,6 +932,7 @@ export async function resolveTextSearchWithDisambiguation(
 
   // Service search: try adapters that support searchTrackWithCandidates, then fall back
   const searchAdapters = await getActiveAdapters();
+  let failedSearches = 0;
 
   for (const adapter of searchAdapters) {
     try {
@@ -1027,6 +1030,7 @@ export async function resolveTextSearchWithDisambiguation(
         };
       }
     } catch (error) {
+      failedSearches++;
       log.debug(
         "Resolver",
         `[${adapter.id}] disambiguation search failed:`,
@@ -1035,7 +1039,7 @@ export async function resolveTextSearchWithDisambiguation(
     }
   }
 
-  throw new ResolveError("TRACK_NOT_FOUND", "No track found for the search query");
+  throw searchExhaustedError(searchAdapters.length, failedSearches, "No track found for the search query");
 }
 
 /**

@@ -267,13 +267,20 @@ describe("Tidal: findByIsrc", () => {
     expect(track).toBeNull();
   });
 
-  it("should return null on HTTP error", async () => {
+  it("throws on HTTP error, so the resolver does not record a miss", async () => {
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
       .mockResolvedValueOnce(new Response("Server Error", { status: 500 }));
 
-    const track = await tidalAdapter.findByIsrc("USUG11904190");
-    expect(track).toBeNull();
+    await expect(tidalAdapter.findByIsrc("USUG11904190")).rejects.toThrow(/500/);
+  });
+
+  it("returns null for a 404", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
+      .mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
+
+    await expect(tidalAdapter.findByIsrc("USUG11904190")).resolves.toBeNull();
   });
 });
 
@@ -312,18 +319,12 @@ describe("Tidal: searchTrack", () => {
     expect(result.confidence).toBe(0);
   });
 
-  it("should return not found on HTTP error", async () => {
+  it("throws on HTTP error", async () => {
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(JSON.stringify(MOCK_TOKEN_RESPONSE), { status: 200 }))
-      .mockResolvedValueOnce(new Response("Error", { status: 500 }));
+      .mockResolvedValueOnce(new Response("Error", { status: 429 }));
 
-    const result = await tidalAdapter.searchTrack({
-      title: "Test",
-      artist: "Test",
-    });
-
-    expect(result.found).toBe(false);
-    expect(result.confidence).toBe(0);
+    await expect(tidalAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toThrow(/429/);
   });
 });
 

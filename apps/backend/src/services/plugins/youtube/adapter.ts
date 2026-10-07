@@ -40,7 +40,7 @@
  * YouTube exposes neither. `findByIsrc` returns null; the preview
  * player falls back to other services.
  */
-import { ResourceKind, Service } from "@musiccloud/shared";
+import { Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { ResolveError } from "../../../lib/resolve/errors";
 import { calculateConfidence, normalizeTitle } from "../../../lib/resolve/normalize";
@@ -231,8 +231,10 @@ export const youtubeAdapter: ServiceAdapter = {
       `/search?part=snippet&type=video&videoCategoryId=10&q=${searchQuery}&maxResults=3`,
     );
 
+    // A quota or API error throws: answering "not found" would have the
+    // resolver skip YouTube for this track for a month.
     if (!response.ok) {
-      return { found: false, confidence: 0, matchMethod: "search" };
+      throw serviceHttpError(Service.YouTube, response.status, ResourceKind.Track, query.title, Operation.Search);
     }
 
     const data = await response.json();
@@ -245,12 +247,11 @@ export const youtubeAdapter: ServiceAdapter = {
     // Fetch full video details (including duration) for the top results
     const videoIds = items.map((item) => item.id.videoId).join(",");
     const detailsResponse = await youtubeFetch(`/videos?part=snippet,contentDetails&id=${videoIds}`);
-
-    let videos: YouTubeVideoResource[] = [];
-    if (detailsResponse.ok) {
-      const detailsData = await detailsResponse.json();
-      videos = detailsData.items ?? [];
+    if (!detailsResponse.ok) {
+      throw serviceHttpError(Service.YouTube, detailsResponse.status, ResourceKind.Track, videoIds);
     }
+    const detailsData = await detailsResponse.json();
+    const videos: YouTubeVideoResource[] = detailsData.items ?? [];
 
     let bestMatch: NormalizedTrack | null = null;
     let bestConfidence = 0;
@@ -320,7 +321,7 @@ export const youtubeAdapter: ServiceAdapter = {
     const response = await youtubeFetch(`/search?part=snippet&type=channel&q=${searchQuery}&maxResults=5`);
 
     if (!response.ok) {
-      return { found: false, confidence: 0, matchMethod: "search" };
+      throw serviceHttpError(Service.YouTube, response.status, ResourceKind.Artist, query.name, Operation.Search);
     }
 
     const data = await response.json();
@@ -333,12 +334,11 @@ export const youtubeAdapter: ServiceAdapter = {
     // Fetch full channel details for thumbnails
     const channelIds = items.map((item) => item.id.channelId).join(",");
     const detailsResponse = await youtubeFetch(`/channels?part=snippet&id=${channelIds}`);
-
-    let channels: YouTubeChannelResource[] = [];
-    if (detailsResponse.ok) {
-      const detailsData = await detailsResponse.json();
-      channels = detailsData.items ?? [];
+    if (!detailsResponse.ok) {
+      throw serviceHttpError(Service.YouTube, detailsResponse.status, ResourceKind.Artist, channelIds);
     }
+    const detailsData = await detailsResponse.json();
+    const channels: YouTubeChannelResource[] = detailsData.items ?? [];
 
     let bestMatch: NormalizedArtist | null = null;
     let bestConfidence = 0;
