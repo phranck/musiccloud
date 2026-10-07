@@ -35,6 +35,8 @@ interface ShareUiState {
   currentConfig: MediaCardContentConfiguration;
   lastPropsConfigKey: string;
   previewStatus: AudioStatus | null;
+  /** The row candidate the shown track was resolved from in place; `null` when the page opened on it. */
+  resolvedCandidate: string | null;
   resolveErrorVisible: boolean;
   resolveTriggeredArtistLoad: boolean;
   shareMediaView: ShareMediaViewType;
@@ -63,6 +65,7 @@ type ShareUiAction =
       type: typeof ShareUiActionType.Resolved;
       artistContext?: ArtistInfoContext;
       artistName?: string;
+      candidate: string;
       config: MediaCardContentConfiguration;
     };
 
@@ -96,6 +99,7 @@ function shareUiReducer(state: ShareUiState, action: ShareUiAction): ShareUiStat
         // status on mount, so a stale `playing` would otherwise stick. A stale
         // resolve error from the previous entity is likewise no longer relevant.
         previewStatus: null,
+        resolvedCandidate: null,
         resolveErrorVisible: false,
       };
     case ShareUiActionType.ResolveErrorHidden:
@@ -115,6 +119,7 @@ function shareUiReducer(state: ShareUiState, action: ShareUiAction): ShareUiStat
         // (otherwise the VFD keeps showing "playing" after the audio stopped).
         // A prior resolve error no longer applies to the freshly resolved track.
         previewStatus: null,
+        resolvedCandidate: action.candidate,
         resolveErrorVisible: false,
       };
   }
@@ -132,6 +137,7 @@ function initialShareUiState({
     currentConfig: config,
     lastPropsConfigKey: configIdentity(config),
     previewStatus: null,
+    resolvedCandidate: null,
     resolveErrorVisible: false,
     resolveTriggeredArtistLoad: false,
     // Always the server's default. The persisted view is restored after mount
@@ -144,6 +150,7 @@ function initialShareUiState({
 }
 
 import type { ArtistCardLabels } from "@/components/artist/artistPanelTypes";
+import { buildNowPlayingTrack } from "@/components/artist/nowPlayingTrack";
 import { AudioStatus } from "@/components/audio/AudioStatus";
 import { DesktopShareLayout } from "@/components/share/DesktopShareLayout";
 import { MobileArtistSheet } from "@/components/share/MobileArtistSheet";
@@ -397,6 +404,7 @@ function useTrackResolver(params: {
             type: ShareUiActionType.Resolved,
             artistContext: shouldFetchArtist ? update.artistInfoContext : undefined,
             artistName: shouldFetchArtist ? update.artistName : undefined,
+            candidate: track.deezerUrl,
             config: update.config,
           });
           if (update.pageTitle) document.title = update.pageTitle;
@@ -456,11 +464,16 @@ function ShareLayoutInner({
     currentArtistName,
     currentConfig,
     previewStatus,
+    resolvedCandidate,
     resolveErrorVisible,
     resolveTriggeredArtistLoad,
     shareMediaView,
     sheetOpen,
   } = shareUiState;
+  const nowPlaying = useMemo(
+    () => buildNowPlayingTrack(currentConfig, resolvedCandidate, previewStatus),
+    [currentConfig, previewStatus, resolvedCandidate],
+  );
   // Clears the "resolve triggered a load" UI flag once each artist-info load
   // settles, matching the order the inline fetch effect used.
   const handleArtistFetchSettled = useCallback(() => dispatchUi({ type: ShareUiActionType.ArtistFetchFinished }), []);
@@ -644,6 +657,7 @@ function ShareLayoutInner({
           isLoading={isLoading}
           labels={artistLabels}
           mediaViewToggleLabel={shareCopy.toggleMediaView}
+          nowPlaying={nowPlaying}
           onArtistResolveStart={handleArtistResolveStart}
           onMediaViewToggle={toggleMediaView}
           onPreviewStatusChange={handlePreviewStatusChange}
@@ -675,6 +689,7 @@ function ShareLayoutInner({
             closeLabel={artistCopy.closeInfo}
             isLoading={isLoading}
             labels={artistLabels}
+            nowPlaying={nowPlaying}
             onArtistResolveStart={handleArtistResolveStart}
             onClose={closeSheet}
             onTrackResolve={resolveTrack}

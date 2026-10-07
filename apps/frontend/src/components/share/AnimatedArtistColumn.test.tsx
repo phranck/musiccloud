@@ -76,6 +76,7 @@ function columnElement(artistData: ArtistInfoResponse | null, artistLoadStatus: 
       artistData={artistData}
       artistLoadStatus={artistLoadStatus}
       isLoading={isLoading}
+      nowPlaying={null}
       onArtistResolveStart={noop}
       labels={TEST_LABELS}
       onTrackResolve={noopResolve}

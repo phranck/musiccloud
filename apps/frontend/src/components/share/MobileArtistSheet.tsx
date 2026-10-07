@@ -7,6 +7,7 @@ import type {
   ArtistInfoStatus,
   ArtistPanelTrackResolveHandler,
 } from "@/components/artist/artistPanelTypes";
+import type { NowPlayingTrack } from "@/components/artist/nowPlayingTrack";
 import { OverlayBackdrop } from "@/components/ui/OverlayBackdrop";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,8 @@ export interface MobileArtistSheetProps {
   isLoading: boolean;
   /** Section titles for the artist column. */
   labels: ArtistCardLabels;
+  /** The track the preview player holds, marked in the sheet's track lists. */
+  nowPlaying: NowPlayingTrack | null;
   /** Called when a popular/similar row begins resolving (spinning-disc moment). */
   onArtistResolveStart: () => void;
   /** Closes the sheet. */
@@ -53,6 +56,7 @@ export function MobileArtistSheet({
   closeLabel,
   isLoading,
   labels,
+  nowPlaying,
   onArtistResolveStart,
   onClose,
   onTrackResolve,
@@ -105,6 +109,7 @@ export function MobileArtistSheet({
               userRegion={userRegion}
               onTrackResolve={handleTrackResolve}
               onResolveStart={onArtistResolveStart}
+              nowPlaying={nowPlaying}
             />
           </div>
         </div>
