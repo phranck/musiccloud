@@ -1,5 +1,5 @@
 import type { ContentPublication, SingleContentContext, VinylLayout } from "@musiccloud/shared";
-import * as pgModule from "pg";
+import type * as pgModule from "pg";
 import { log } from "../../lib/infra/logger.js";
 import { enrichVinylLayout as discogsEnrichVinylLayout } from "../../services/plugins/discogs/discogs-enrich.js";
 import type { NormalizedTrack } from "../../services/types.js";
@@ -307,17 +307,12 @@ export class PostgresAdapter
   private pool: pgModule.Pool;
   private cleanupInterval: NodeJS.Timeout | null = null;
 
-  constructor(connectionUrl: string) {
-    this.pool = new pgModule.Pool({
-      connectionString: connectionUrl,
-      max: 20,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
-    });
-
-    this.pool.on("error", (err) => {
-      log.error("PG", "Unexpected error on idle client:", err);
-    });
+  /**
+   * @param pool - The shared runtime pool from `db/pool.ts`. The adapter does
+   *   not own it, so {@link stopCleanup} leaves it open.
+   */
+  constructor(pool: pgModule.Pool) {
+    this.pool = pool;
   }
 
   /**
@@ -374,15 +369,12 @@ export class PostgresAdapter
     );
   }
 
-  /**
-   * Close database connection pool
-   */
-  async close(): Promise<void> {
+  /** Stops the scheduled cache cleanup. The pool belongs to `db/pool.ts`. */
+  stopCleanup(): void {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = null;
     }
-    await this.pool.end();
   }
 
   async insertAppTelemetryEvent(row: AppTelemetryEventInput): Promise<void> {

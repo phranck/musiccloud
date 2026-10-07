@@ -119,7 +119,6 @@ function createMockRepository(): TrackRepository {
     upsertAlbumPreview: vi.fn().mockResolvedValue(undefined),
     updateTrackTimestamp: vi.fn().mockResolvedValue(undefined),
     cleanupStaleCache: vi.fn().mockResolvedValue(0),
-    close: vi.fn().mockResolvedValue(undefined),
   };
 }
 

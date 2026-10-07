@@ -461,7 +461,7 @@ export async function fetchCcRandomExample(clientIp?: string): Promise<{ shortId
 /**
  * In-process TTL cache for the design tokens. The BFF has no cache layer and
  * `output: "server"` re-runs SSR on every request, so without this each render
- * would hit the backend's dedicated `max: 2` pool and share the
+ * would cost a backend database read and count against the visitor's
  * `apiRateLimiter` bucket (see {@link forwardedForExtra}). One fetch per TTL
  * window across all renders is plenty — tokens change only on an admin save.
  *

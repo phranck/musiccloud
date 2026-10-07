@@ -2,14 +2,13 @@ import { log } from "../lib/infra/logger";
 import { PostgresAdapter } from "./adapters/postgres.js";
 import type { AdminRepository } from "./admin-repository.js";
 import type { ApiAccessRepository } from "./api-access-repository.js";
-import { loadDatabaseConfig } from "./config.js";
 import type { DeveloperRepository } from "./developer-repository.js";
+import { closeDatabasePool, getDatabasePool } from "./pool.js";
 import type { CcRepository, TrackRepository } from "./repository.js";
 
 import type { TierRepository } from "./tiers-repository.js";
 
 let repositoryInstance: PostgresAdapter | null = null;
-const _cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
 /** Returns the singleton TrackRepository instance, creating it on first call. */
 export async function getRepository(): Promise<TrackRepository> {
@@ -49,8 +48,7 @@ export async function getTierRepository(): Promise<TierRepository> {
 
 async function ensureInstance(): Promise<void> {
   if (!repositoryInstance) {
-    const config = loadDatabaseConfig();
-    repositoryInstance = new PostgresAdapter(config.url);
+    repositoryInstance = new PostgresAdapter(getDatabasePool());
 
     // Verify database schema exists
     await repositoryInstance.ensureSchema();
@@ -64,9 +62,10 @@ async function ensureInstance(): Promise<void> {
 /** Graceful shutdown: close the database connection and stop cleanup. */
 export async function closeRepository(): Promise<void> {
   if (repositoryInstance) {
-    await repositoryInstance.close();
+    repositoryInstance.stopCleanup();
     repositoryInstance = null;
   }
+  await closeDatabasePool();
 }
 
 // Re-export types for consumers

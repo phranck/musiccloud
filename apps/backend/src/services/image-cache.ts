@@ -1,7 +1,8 @@
 /**
  * @file Permanent image cache for artist photos, track artwork, and album covers.
  *
- * Three DB tables, one shared pool, one normalisation scheme:
+ * Three DB tables on the shared runtime pool (`db/pool.ts`), one
+ * normalisation scheme:
  *
  *   - `artist_images` — keyed by normalised artist name. Filled by Spotify
  *     search (via `getArtistImages`) or opportunistic write-through from
@@ -12,28 +13,14 @@
  *     from Last.fm `tag.getTopAlbums` responses (which include artwork).
  *
  * All caches are permanent (no TTL). Images are small URLs that rarely
- * change. The DB pool is tiny (max 2) and lazily created, same pattern
- * as `db/plugin-repository.ts`.
+ * change.
  */
 
-import * as pgModule from "pg";
-import { loadDatabaseConfig } from "../db/config.js";
+import { getDatabasePool } from "../db/pool.js";
 import { fetchWithTimeout } from "../lib/infra/fetch.js";
 import { log } from "../lib/infra/logger.js";
 import { TokenManager } from "../lib/infra/token-manager.js";
 import { fetchDeezerArtistImage } from "./plugins/deezer/artist-image.js";
-
-const Pool = (pgModule as unknown as { default: typeof pgModule }).default?.Pool ?? pgModule.Pool;
-
-let pool: InstanceType<typeof Pool> | null = null;
-
-function getPool(): InstanceType<typeof Pool> {
-  if (!pool) {
-    const config = loadDatabaseConfig();
-    pool = new Pool({ connectionString: config.url, max: 2 });
-  }
-  return pool;
-}
 
 // ─── Normalisation ─────────────────────────────────────────────────────────
 
@@ -57,7 +44,7 @@ interface ImageRow {
 async function lookupKeys(table: string, keyColumn: string, keys: string[]): Promise<Map<string, string>> {
   if (keys.length === 0) return new Map();
   const placeholders = keys.map((_, i) => `$${i + 1}`).join(", ");
-  const result = await getPool().query<ImageRow>(
+  const result = await getDatabasePool().query<ImageRow>(
     `SELECT ${keyColumn}, image_url FROM ${table} WHERE ${keyColumn} IN (${placeholders})`,
     keys,
   );
@@ -171,7 +158,7 @@ async function lastfmTrackArtwork(artist: string, track: string): Promise<string
 export async function cacheArtistImage(displayName: string, imageUrl: string, source: string): Promise<void> {
   const key = norm(displayName);
   if (!key) return;
-  await getPool().query(
+  await getDatabasePool().query(
     `INSERT INTO artist_images (name_key, display_name, image_url, source, fetched_at)
      VALUES ($1, $2, $3, $4, NOW())
      ON CONFLICT (name_key) DO NOTHING`,
@@ -248,7 +235,7 @@ async function resolveArtistImage(displayName: string): Promise<{ url: string; s
 export async function cacheTrackImage(artist: string, title: string, imageUrl: string, source: string): Promise<void> {
   const key = compositeKey(artist, title);
   if (!key || key === "|") return;
-  await getPool().query(
+  await getDatabasePool().query(
     `INSERT INTO track_images (lookup_key, artist_name, track_title, image_url, source, fetched_at)
      VALUES ($1, $2, $3, $4, $5, NOW())
      ON CONFLICT (lookup_key) DO NOTHING`,
@@ -323,7 +310,7 @@ export function trackImageKey(artist: string, title: string): string {
 export async function cacheAlbumImage(artist: string, title: string, imageUrl: string, source: string): Promise<void> {
   const key = compositeKey(artist, title);
   if (!key || key === "|") return;
-  await getPool().query(
+  await getDatabasePool().query(
     `INSERT INTO album_images (lookup_key, artist_name, album_title, image_url, source, fetched_at)
      VALUES ($1, $2, $3, $4, $5, NOW())
      ON CONFLICT (lookup_key) DO NOTHING`,

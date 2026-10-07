@@ -20,22 +20,11 @@ vi.mock("../lib/infra/fetch.js", () => ({
   fetchWithTimeout: (url: string, init?: RequestInit, timeoutMs?: number) => fetchWithTimeoutMock(url, init, timeoutMs),
 }));
 
-// pg pool mock — capture the parameters passed to INSERT ---------------------
+// Shared pool mock: captures the parameters passed to INSERT -----------------
 
 const queryMock = vi.fn();
-vi.mock("pg", () => ({
-  default: {
-    Pool: class {
-      query = queryMock;
-    },
-  },
-  Pool: class {
-    query = queryMock;
-  },
-}));
-
-vi.mock("../db/config.js", () => ({
-  loadDatabaseConfig: () => ({ url: "postgres://test" }),
+vi.mock("../db/pool.js", () => ({
+  getDatabasePool: () => ({ query: queryMock }),
 }));
 
 import { getArtistImages } from "../services/image-cache";

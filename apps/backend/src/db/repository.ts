@@ -910,14 +910,6 @@ export interface TrackRepository {
    * @returns The requested repository result.
    */
   listCrawlRuns(params: { source?: string; page: number; limit: number }): Promise<CrawlRunsPage>;
-
-  // Lifecycle
-  /**
-   * Closes .
-   *
-   * @returns A promise that resolves when the operation completes.
-   */
-  close(): Promise<void>;
 }
 
 // ─── Creative-Commons Repository Types ────────────────────────────────────────
