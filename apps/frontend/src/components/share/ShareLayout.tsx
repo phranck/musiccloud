@@ -292,13 +292,11 @@ interface ShareLayoutProps {
   /** English label for the back link. Required if `onBack` is given. */
   backLabel?: string;
   /**
-   * Pre-supplied artist-column data. When `skipArtistFetch` is set, ShareLayout
-   * renders this directly and runs no internal fetch — the Creative-Commons path
-   * passes a Jamendo-built {@link ArtistInfoResponse} here. Commercial omits it.
+   * Pre-built artist column for a Creative Commons album or artist, built from
+   * Jamendo. ShareLayout renders it without a fetch for as long as the shown
+   * entity carries no `ccJamendoArtistId`. Commercial omits it.
    */
   artistData?: ArtistInfoResponse | null;
-  /** Suppresses the internal artist-info fetch — used together with `artistData`. */
-  skipArtistFetch?: boolean;
   /**
    * The resolver for a clicked popular/similar-track row. Defaults to
    * {@link commercialTrackResolver}; the CC path passes {@link ccTrackResolver}.
@@ -429,7 +427,6 @@ function ShareLayoutInner({
   onBack,
   backLabel,
   artistData: artistDataProp,
-  skipArtistFetch = false,
   trackResolver = commercialTrackResolver,
   labels,
 }: ShareLayoutProps) {
@@ -467,6 +464,13 @@ function ShareLayoutInner({
   // Clears the "resolve triggered a load" UI flag once each artist-info load
   // settles, matching the order the inline fetch effect used.
   const handleArtistFetchSettled = useCallback(() => dispatchUi({ type: ShareUiActionType.ArtistFetchFinished }), []);
+  // A Creative Commons album or artist opens with its column pre-built and
+  // without a `ccJamendoArtistId`. A row click swaps in a CC track, which has
+  // one, and `useTrackResolver` raises the loading status expecting a fetch for
+  // that artist. Deciding on the shown config, not the one the page opened with,
+  // is what makes that fetch run and settle the status, and the column then
+  // shows what the track's own share URL would show.
+  const skipArtistFetch = artistDataProp !== undefined && !currentConfig.ccJamendoArtistId;
   const {
     status: artistLoadStatus,
     artistData,

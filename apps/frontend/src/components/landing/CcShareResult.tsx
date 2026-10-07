@@ -47,7 +47,6 @@ export function CcShareResult({
         config={config}
         artistName={artistName}
         artistData={ccActive.artistInfo}
-        skipArtistFetch={!config.ccJamendoArtistId}
         labels={CC_ARTIST_LABELS}
         trackResolver={ccTrackResolver}
         onBack={canGoBack ? handleBack : undefined}
