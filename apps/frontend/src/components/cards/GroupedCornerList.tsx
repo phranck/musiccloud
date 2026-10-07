@@ -1,4 +1,5 @@
 import { type ReactNode, type Ref, useCallback } from "react";
+import { groupedListClassName } from "@/components/cards/cardGeometry";
 import { useGroupedCorners } from "@/components/cards/useGroupedCorners";
 import { cn } from "@/lib/utils";
 
@@ -73,7 +74,7 @@ export function GroupedCornerList({
   );
 
   return (
-    <div ref={setEl} className={cn("flex flex-col gap-[var(--mc-gap-list,0.125rem)]", className)}>
+    <div ref={setEl} className={cn(groupedListClassName, className)}>
       {children}
     </div>
   );

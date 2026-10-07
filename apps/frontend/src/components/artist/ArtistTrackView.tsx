@@ -2,7 +2,7 @@ import { ArtistTrackCell } from "@/components/artist/ArtistTrackCell";
 import type { ArtistPanelTrackResolveHandler, ArtistTrackItem } from "@/components/artist/artistPanelTypes";
 import { trackItemKey } from "@/components/artist/artistTrackItems";
 import { useRowCappedViewport } from "@/components/artist/useRowCappedViewport";
-import { raisedControlRadius } from "@/components/cards/cardGeometry";
+import { groupedListClassName, raisedControlRadius } from "@/components/cards/cardGeometry";
 import {
   singleColumnGroupedArtworkCornerStyle,
   singleColumnGroupedArtworkInnerRadius,
@@ -34,7 +34,7 @@ export function ArtistTrackView({ items, cardSignal, onTrackResolve, onResolveSt
 
   return (
     <div ref={cappedRef} className="overflow-y-auto overscroll-contain" style={{ borderRadius: raisedControlRadius }}>
-      <div className="flex flex-col gap-[var(--mc-gap-list,0.125rem)]">
+      <div className={groupedListClassName}>
         {items.map((item, index) => (
           <ArtistTrackCell
             key={trackItemKey(item)}
