@@ -125,6 +125,33 @@ describe("fetchNavigation", () => {
 
     expect(fetchMock).toHaveBeenCalledWith("https://backend.test/api/v1/nav/header", expect.any(Object));
   });
+
+  it("keeps serving the last good navigation when the backend fails", async () => {
+    const items = [{ label: "About", href: "/about" }];
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(items), { status: 200 }))
+      .mockRejectedValueOnce(new TypeError("fetch failed"));
+    vi.stubGlobal("fetch", fetchMock);
+    const { fetchNavigation } = await import("./client");
+
+    await fetchNavigation("footer");
+
+    await expect(fetchNavigation("footer")).resolves.toEqual(items);
+  });
+
+  it("asks again on the next render when the first request failed", async () => {
+    const items = [{ label: "About", href: "/about" }];
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("fetch failed"))
+      .mockResolvedValueOnce(new Response(JSON.stringify(items), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { fetchNavigation } = await import("./client");
+
+    await expect(fetchNavigation("footer")).resolves.toEqual([]);
+    await expect(fetchNavigation("footer")).resolves.toEqual(items);
+  });
 });
 
 describe("visitor address on backend calls", () => {

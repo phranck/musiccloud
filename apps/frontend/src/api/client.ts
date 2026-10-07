@@ -502,18 +502,37 @@ export async function fetchDesignTokens(clientIp?: string): Promise<DesignTokens
 
 /** Fetch the public navigation items for header or footer. SSR-safe; returns [] on failure. */
 export async function fetchNavigation(navId: NavId, clientIp?: string): Promise<NavItem[]> {
+  const now = Date.now();
+  const cached = navigationCache.get(navId);
+  if (cached && cached.expiresAt > now) return cached.items;
   try {
     const res = await fetchWithTimeout(
       backendUrl(ENDPOINTS.v1.nav(navId)),
       { headers: internalHeaders(forwardedForExtra(clientIp)) },
       5000,
     );
-    if (!res.ok) return [];
-    return (await res.json()) as NavItem[];
+    if (!res.ok) throw new Error(`navigation responded ${res.status}`);
+    const items = (await res.json()) as NavItem[];
+    navigationCache.set(navId, { items, expiresAt: now + NAVIGATION_TTL_MS });
+    return items;
   } catch {
-    return [];
+    // A failure keeps serving the last good items for another window. With none
+    // to fall back on it answers empty without caching, so the next render asks
+    // again instead of rendering an empty navigation for the whole window.
+    if (!cached) return [];
+    navigationCache.set(navId, { items: cached.items, expiresAt: now + NAVIGATION_TTL_MS });
+    return cached.items;
   }
 }
+
+/**
+ * In-process TTL cache for the header and footer navigation, for the same
+ * reason as {@link designTokensCache}: every SSR render of every page asks for
+ * it, and it changes only when an editor saves the navigation. Dev uses a zero
+ * TTL so an edit shows on the next reload.
+ */
+const navigationCache = new Map<NavId, { items: NavItem[]; expiresAt: number }>();
+const NAVIGATION_TTL_MS = import.meta.env.DEV ? 0 : 60_000;
 
 /** Fetch a single published content page by slug, with server-rendered HTML. */
 export async function fetchPublicContentPage(
