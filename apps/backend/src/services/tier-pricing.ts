@@ -39,6 +39,24 @@ export function centsToEuroString(cents: number): string {
 }
 
 /**
+ * Reads one of the tiers table's euro price strings as an integer number of
+ * cents, which is the only shape Creem accepts.
+ *
+ * The column is text rather than a number, so anything may be in it. A value
+ * that is not a price comes back as `null` instead of as a silently wrong
+ * amount, because the caller is about to charge somebody this.
+ *
+ * @param value - The price as the tiers table holds it, or `null`.
+ * @returns The amount in cents, or `null` when the value is absent or unreadable.
+ */
+export function euroStringToCents(value: string | null | undefined): number | null {
+  if (value === null || value === undefined || value.trim().length === 0) return null;
+  const euros = Number(value.trim());
+  if (!Number.isFinite(euros) || euros < 0) return null;
+  return Math.round(euros * 100);
+}
+
+/**
  * Returns the tiers with their displayed prices overridden by the live Creem
  * catalog, wherever a Creem product mapping exists.
  *

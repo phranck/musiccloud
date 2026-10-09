@@ -6,24 +6,25 @@
  *   `listCreemProductMappings`.
  * - `getCreemClient` from `./creem-client.js` returns a stub with
  *   `products.get`.
- * - `getCreemConfig` from `../lib/creem-config.js` decides the running mode,
- *   which the real implementation reads from the environment.
+ * - `getSellingMode` from `./creem-selling-mode.js` decides the environment the
+ *   shop sells from, which the real implementation reads from a setting.
  *
  * The cases under test:
  * 1. A fresh call builds the catalog map from the mapping + Creem prices.
  * 2. A second call within the TTL is served from the in-memory cache (no
  *    additional DB or Creem calls).
  * 3. After the TTL elapses the next call re-fetches from DB and Creem.
- * 4. Only the running environment's mappings are read.
+ * 4. Only the selling environment's mappings are read.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getTierRepository } from "../db/index.js";
-import { CreemMode, type CreemModeValue, getCreemConfig } from "../lib/creem-config.js";
+import { CreemMode, type CreemModeValue } from "../lib/creem-config.js";
 import { log } from "../lib/infra/logger.js";
 import { CreemPriceOutcome, getCreemCatalog, resetCreemCatalogCache } from "./creem-catalog.js";
 import { getCreemClient } from "./creem-client.js";
+import { getSellingMode } from "./creem-selling-mode.js";
 
 vi.mock("../db/index.js", () => ({
   getTierRepository: vi.fn(),
@@ -33,10 +34,7 @@ vi.mock("./creem-client.js", () => ({
   getCreemClient: vi.fn(),
 }));
 
-vi.mock("../lib/creem-config.js", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../lib/creem-config.js")>()),
-  getCreemConfig: vi.fn(),
-}));
+vi.mock("./creem-selling-mode.js", () => ({ getSellingMode: vi.fn() }));
 
 vi.mock("../lib/infra/logger.js", () => ({
   log: { deviation: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -62,11 +60,7 @@ function buildMocks(mode: CreemModeValue = CreemMode.Test) {
     products: { get: productsGet },
   } as never);
 
-  vi.mocked(getCreemConfig).mockReturnValue({
-    apiKey: "creem_test_stub",
-    mode,
-    webhookSecret: undefined,
-  });
+  vi.mocked(getSellingMode).mockResolvedValue(mode);
 
   return { listCreemProductMappings, productsGet };
 }
@@ -74,13 +68,9 @@ function buildMocks(mode: CreemModeValue = CreemMode.Test) {
 beforeEach(() => {
   resetCreemCatalogCache();
   vi.clearAllMocks();
-  // Every test needs a running mode, because the catalog reads the mappings of
+  // Every test needs a selling mode, because the catalog reads the mappings of
   // one environment. Tests that are not about the mode take the sandbox.
-  vi.mocked(getCreemConfig).mockReturnValue({
-    apiKey: "creem_test_stub",
-    mode: CreemMode.Test,
-    webhookSecret: undefined,
-  });
+  vi.mocked(getSellingMode).mockResolvedValue(CreemMode.Test);
 });
 
 afterEach(() => {
@@ -128,7 +118,7 @@ describe("getCreemCatalog (MC-110)", () => {
     expect(productsGet).toHaveBeenCalledTimes(2);
   });
 
-  it("reads only the mappings of the environment the API key puts the process in", async () => {
+  it("reads only the mappings of the environment the shop sells from", async () => {
     const { listCreemProductMappings } = buildMocks(CreemMode.Test);
     await getCreemCatalog();
     expect(listCreemProductMappings).toHaveBeenCalledWith(CreemMode.Test);

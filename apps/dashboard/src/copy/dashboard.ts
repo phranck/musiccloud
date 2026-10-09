@@ -272,6 +272,37 @@ export const dashboardCopy = {
     featureMoveDown: "Move down",
     featureRemove: "Remove",
     featureMaxReached: "Maximum of 12 features allowed.",
+    creemTitle: "Creem products",
+    creemIntro:
+      "What a customer actually pays is the Creem product's price, and the pricing page follows it. Each plan has one product per billing interval in each environment.",
+    creemEnvironmentTest: "Test Mode",
+    creemEnvironmentLive: "Production",
+    creemNoKeyForEnvironment:
+      "No Creem API key is configured for {mode}, so nothing here can be changed. Add that account's key to the backend to set it up.",
+    creemIntervalMonth: "Monthly",
+    creemIntervalYear: "Yearly",
+    creemNoProduct: "No product yet",
+    creemNoPrice: "This plan has no price for that interval, so it gets no product.",
+    creemCreate: "Create at Creem",
+    creemAttach: "Use an existing product",
+    creemAttachPlaceholder: "prod_…",
+    creemAttachHint: "For a product created in the Creem dashboard, which is the only way to give it a trial.",
+    creemReprice: "Change price",
+    creemArchive: "Archive",
+    creemArchiveConfirmBody:
+      "Creem has no delete: the product is archived and keeps its id forever. Its mapping is removed in the same step, so the pricing page falls back to the plan's own price.",
+    creemSaveOnceFirst: "Save the plan first. A product needs a plan to belong to.",
+    creemSellingTitle: "Selling environment",
+    creemSellingDescription:
+      "Which Creem account a purchase goes through, named the way Creem names it: Test Mode is the toggle at the bottom of Creem's own sidebar, and Production is everything outside it. In Test Mode nothing is charged and no card is touched, which is where this stays whilst you are trying things out. In Production a purchase takes real money.",
+    creemSellingCurrent: "Selling from",
+    creemSellingTestNote:
+      "Test Mode is Creem's sandbox, the development environment. Purchases work end to end and charge nobody.",
+    creemSellingNoKey: "No Creem API key is configured for {mode}, so it cannot be selected.",
+    creemSellingMissingProducts: "These plans have no product in {mode} yet: {plans}",
+    creemSellingLiveWarning:
+      "Switching to Production means the next purchase charges a real card. Everything the pricing page offers becomes buyable for real money.",
+    creemSellingConfirm: "Switch to Production",
     settingsTitle: "Developer Settings",
     availabilityTitle: "Portal availability",
     availabilityDescription: "Control whether the Developer Portal is publicly available.",

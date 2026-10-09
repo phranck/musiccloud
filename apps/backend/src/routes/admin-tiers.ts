@@ -56,20 +56,6 @@ export async function adminTiersRoutes(app: FastifyInstance) {
     return repo.listTiers();
   });
 
-  /**
-   * Lists every Creem product mapping, across both environments, so the tier
-   * editor can show which environment already has a product for a tier and
-   * interval and which does not.
-   *
-   * Unlike the catalog service this is deliberately not scoped to the running
-   * mode: the point of the screen is to compare the two.
-   */
-  app.get(ENDPOINTS.admin.developer.creemProducts, async (request, reply) => {
-    if (!(await requireOwnerOrAdmin(request, reply))) return;
-    const repo = await getTierRepository();
-    return repo.listAllCreemProductMappings();
-  });
-
   app.post(ENDPOINTS.admin.developer.tiers, async (request, reply) => {
     if (!(await requireOwnerOrAdmin(request, reply))) return;
     const body = request.body as TierCreateData;

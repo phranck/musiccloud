@@ -9,7 +9,6 @@ import { ENDPOINTS } from "@musiccloud/shared";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Tier } from "../db/tiers-repository.js";
-import { CreemMode } from "../lib/creem-config.js";
 
 vi.stubEnv("DISABLE_RATE_LIMIT", "true");
 
@@ -39,7 +38,6 @@ const mockTierRepo = {
   createTier: vi.fn(),
   updateTier: vi.fn(),
   deleteTier: vi.fn(),
-  listAllCreemProductMappings: vi.fn(),
 };
 
 const mockAdminRepo = {
@@ -108,33 +106,6 @@ describe("GET /api/admin/developer/tiers", () => {
       url: ENDPOINTS.admin.developer.tiers,
     });
     expect(res.statusCode).toBe(403);
-  });
-});
-
-describe("GET /api/admin/developer/creem-products", () => {
-  const mappings = [
-    { tierId: "tier_club", interval: "month", mode: CreemMode.Test, creemProductId: "prod_test_1" },
-    { tierId: "tier_club", interval: "month", mode: CreemMode.Live, creemProductId: "prod_live_1" },
-  ];
-
-  it("returns both environments so the editor can compare them", async () => {
-    mockTierRepo.listAllCreemProductMappings.mockResolvedValue(mappings);
-    const res = await app.inject({
-      method: "GET",
-      url: ENDPOINTS.admin.developer.creemProducts,
-      headers: { authorization: `Bearer ${bearerToken()}` },
-    });
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual(mappings);
-  });
-
-  it("rejects unauthenticated callers", async () => {
-    const res = await app.inject({
-      method: "GET",
-      url: ENDPOINTS.admin.developer.creemProducts,
-    });
-    expect(res.statusCode).toBe(403);
-    expect(mockTierRepo.listAllCreemProductMappings).not.toHaveBeenCalled();
   });
 });
 
