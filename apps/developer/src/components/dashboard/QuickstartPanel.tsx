@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { CopyableCode } from "@/components/dashboard/CopyableCode";
-import { API_KEY_ENV_NAME, API_KEY_HEADER, firstRequestSnippets, keylessNote } from "@/lib/quickstart";
+import { API_KEY_ENV_NAME, API_KEY_HEADER, firstRequestSnippets } from "@/lib/quickstart";
 
 /**
  * Props for {@link QuickstartPanel}.
@@ -30,7 +30,6 @@ export function QuickstartPanel({ registrationName, publicClientId }: Quickstart
   const snippets = firstRequestSnippets();
   const [selectedId, setSelectedId] = useState(snippets[0]?.id ?? "");
   const selected = snippets.find((snippet) => snippet.id === selectedId) ?? snippets[0];
-  const keyless = keylessNote();
 
   return (
     <section className="flex flex-col gap-3 mt-3" data-quickstart>
@@ -62,8 +61,6 @@ export function QuickstartPanel({ registrationName, publicClientId }: Quickstart
         Your client id is <code className="text-code-fg">{publicClientId}</code>. It identifies this application and
         does not authenticate it, so it is safe to publish and it is not sent instead of the key.
       </p>
-
-      <p className="text-body text-fg-subtle">{keyless.text}</p>
 
       <p className="text-body text-fg-subtle">
         Language packages are not published yet, so this shows plain HTTP. Every operation, its parameters and its

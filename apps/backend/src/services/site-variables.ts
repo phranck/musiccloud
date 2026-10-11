@@ -8,13 +8,13 @@
  * whilst the list of names has to be readable from both sides.
  *
  * Nothing here holds a number of its own. A figure written here as a literal
- * would be a second answer to a question the plan, the setting or the rate
- * limiter has already answered, and it would go quietly out of step with it.
+ * would be a second answer to a question the plan, the setting or the module
+ * enforcing the limit has already answered, and it would go quietly out of step
+ * with it.
  */
 
 import type { SiteVariableValues } from "@musiccloud/shared";
 import { getTierRepository } from "../db/index.js";
-import { KEYLESS_RESOLVE_REQUESTS_PER_DAY, KEYLESS_RESOLVE_REQUESTS_PER_MINUTE } from "../lib/infra/rate-limiter.js";
 import { getMaxProjectsPerAccount, MAX_REGISTRATIONS_PER_PROJECT } from "./developer-limits.js";
 import { TIER_FREE_ID } from "./signup-tier.js";
 
@@ -50,7 +50,5 @@ export async function resolveSiteVariableValues(): Promise<SiteVariableValues> {
     freeRequestsPerDay: free?.requestsPerDay ?? UNKNOWN_LIMIT,
     projectsPerAccount,
     registrationsPerProject: MAX_REGISTRATIONS_PER_PROJECT,
-    keylessRequestsPerMinute: KEYLESS_RESOLVE_REQUESTS_PER_MINUTE,
-    keylessRequestsPerDay: KEYLESS_RESOLVE_REQUESTS_PER_DAY,
   };
 }

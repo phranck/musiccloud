@@ -13,6 +13,7 @@ import {
   closeRuntimeDatabaseReadinessPool,
   getRuntimeDatabaseReadinessReport,
 } from "./db/runtime-database-readiness.js";
+import { DEVELOPER_PROJECTS_URL } from "./docs/developer-portal.js";
 import { finalizePublicOpenApiDocument } from "./docs/openapi-finalize.js";
 import {
   createPublicErrorResponseSchema,
@@ -23,7 +24,6 @@ import { assertRequiredBootEnv } from "./lib/boot-env.js";
 import { requireEnvList } from "./lib/env.js";
 import { registerApiErrorHandling, setApiFailureDiagnostic } from "./lib/infra/api-error-handler.js";
 import { createApiErrorResponse, sanitizeErrorForLog } from "./lib/infra/api-errors.js";
-import { KEYLESS_RESOLVE_REQUESTS_PER_DAY, KEYLESS_RESOLVE_REQUESTS_PER_MINUTE } from "./lib/infra/rate-limiter.js";
 import authPlugin from "./plugins/auth.js";
 import { adminApiAccessRoutes } from "./routes/admin-api-access.js";
 import adminArtistProfileRoutes from "./routes/admin-artist-profile.js";
@@ -68,7 +68,7 @@ import publicContentNavRoutes from "./routes/public-content-nav.js";
 import publicTiersRoutes from "./routes/public-tiers.js";
 import randomExampleRoutes from "./routes/random-example.js";
 import resolveRoutes from "./routes/resolve.js";
-import resolvePublicGetRoutes from "./routes/resolve-public-get.js";
+import resolveGetRoutes from "./routes/resolve-get.js";
 import securityTxtRoutes from "./routes/security-txt.js";
 import servicesPublicRoutes from "./routes/services-public.js";
 import shareRoutes from "./routes/share.js";
@@ -286,15 +286,16 @@ async function buildApp(options: BuildAppOptions = {}) {
         description:
           "Public REST API for resolving music URLs and search queries, retrieving persisted shares, and consuming Creative-Commons media and metadata.\n\n" +
           "## Authentication\n\n" +
-          "Exactly three operations require a key issued to an application: `POST /api/v1/resolve`, `POST /api/v1/cc/resolve`, and `GET /api/v1/link/{id}`. A Developer Project owns its subscription and shared quota and may contain separate development, confidential, and public applications. Send an API key as `X-API-Key: mc_live_<prefix>_<secret>`. All other operations in this reference are callable without a key. Manage projects, applications and their keys at https://developer.musiccloud.io/dashboard/projects. A key is shown only when created or rotated. Store it as a secret and never embed it in browser code. Missing, invalid, suspended, or revoked project, application, or key credentials receive `401`.\n\n" +
+          "Exactly four operations require a key issued to an application: `POST /api/v1/resolve`, `GET /api/v1/resolve`, `POST /api/v1/cc/resolve`, and `GET /api/v1/link/{id}`. A Developer Project owns its subscription and shared quota and may contain separate development, confidential, and public applications. Send an API key as `X-API-Key: mc_live_<prefix>_<secret>`. All other operations in this reference are callable without a key. " +
+          `Manage projects, applications and their keys at ${DEVELOPER_PROJECTS_URL}. ` +
+          "A key is shown only when created or rotated. Store it as a secret and never embed it in browser code. Missing, invalid, suspended, or revoked project, application, or key credentials receive `401`.\n\n" +
           "## Rate limiting\n\n" +
-          "Four independent rules can apply:\n\n" +
-          "1. The three API-key operations use the rolling `60`-second and rolling `24`-hour quotas owned by the Developer Project. Applications under one project share those quotas; an optional application cap can only narrow them.\n" +
-          `2. \`GET /api/v1/resolve\` needs no key and has a budget of its own that no other operation shares: \`${KEYLESS_RESOLVE_REQUESTS_PER_MINUTE}\` requests in a rolling \`60\`-second window and \`${KEYLESS_RESOLVE_REQUESTS_PER_DAY}\` in a rolling \`24\`-hour window, both per client IP.\n` +
-          "3. Public data operations `GET /api/v1/share/{shortId}`, `GET /api/v1/share/{shortId}/preview`, `GET /api/v1/artist-info`, `GET /api/v1/cc/artist-info`, `GET /api/v1/cc/audio/{jamendoId}`, `GET /api/v1/cc/download/{jamendoId}`, and `GET /api/v1/cc/bandcamp/{jamendoId}` share one bucket of `10` requests in a rolling `60`-second window per client IP.\n" +
-          "4. Every route is also protected by a global ceiling of `300` requests in a rolling `60`-second window per client IP.\n\n" +
+          "Three independent rules can apply:\n\n" +
+          "1. The four API-key operations use the rolling `60`-second and rolling `24`-hour quotas owned by the Developer Project. Applications under one project share those quotas; an optional application cap can only narrow them.\n" +
+          "2. Public data operations `GET /api/v1/share/{shortId}`, `GET /api/v1/share/{shortId}/preview`, `GET /api/v1/artist-info`, `GET /api/v1/cc/artist-info`, `GET /api/v1/cc/audio/{jamendoId}`, `GET /api/v1/cc/download/{jamendoId}`, and `GET /api/v1/cc/bandcamp/{jamendoId}` share one bucket of `10` requests in a rolling `60`-second window per client IP.\n" +
+          "3. Every route is also protected by a global ceiling of `300` requests in a rolling `60`-second window per client IP.\n\n" +
           "A rejected request returns `429 Too Many Requests`, the `ErrorResponse` JSON body, and `Retry-After`. When available, `context.limit`, `context.windowSeconds`, and `context.retryAfterSeconds` describe the rule that rejected the request.",
-        version: "2.3.0",
+        version: "3.0.0",
       },
       servers: [{ url: "https://api.musiccloud.io", description: "Production" }],
       // Tag order here does not need to be alphabetical: the document is
@@ -627,17 +628,19 @@ async function buildApp(options: BuildAppOptions = {}) {
   // Public navigation + content pages (no auth - SSR'd by Astro frontend)
   await app.register(publicContentNavRoutes);
 
-  // Public GET resolve endpoint (no auth - used for Shortcuts, etc.)
-  await app.register(resolvePublicGetRoutes);
-
   // Apple-client telemetry ingest (public, no auth, Testflight-only caller)
   await app.register(telemetryAppErrorRoutes);
 
-  // Protected API routes (X-API-Key)
+  // Protected API routes (X-API-Key). Every operation here spends upstream
+  // requests or reads the catalog on a caller's behalf, so the key decides
+  // the quota and the auth plugin records the usage. The GET resolve, used by
+  // shortcuts and shell scripts, words its own refusal through
+  // `config.missingKeyMessage`.
   await app.register(async function protectedRoutes(protectedApp) {
     protectedApp.addHook("preHandler", protectedApp.authenticatePublic);
 
     await protectedApp.register(resolveRoutes);
+    await protectedApp.register(resolveGetRoutes);
     await protectedApp.register(ccResolveRoutes);
     await protectedApp.register(linkRoutes);
   });

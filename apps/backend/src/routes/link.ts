@@ -27,6 +27,11 @@
 import { ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
+import {
+  API_KEY_QUOTA_EXCEEDED_DESCRIPTION,
+  API_KEY_REJECTED_DESCRIPTION,
+  publicErrorResponse,
+} from "../docs/public-response-schema.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter } from "../lib/infra/rate-limiter.js";
 import { toCachedApiLinks } from "../lib/server/api-links.js";
@@ -74,13 +79,9 @@ export default async function linkRoutes(app: FastifyInstance) {
             },
             $ref: "LinkMetadataResponse#",
           },
-          401: { description: "Missing, invalid, or revoked API key.", $ref: "ErrorResponse#" },
+          401: publicErrorResponse(API_KEY_REJECTED_DESCRIPTION),
           404: { description: "No track exists for this `id`.", $ref: "ErrorResponse#" },
-          429: {
-            description:
-              "The issued API key exceeded its assigned rolling `60`-second or rolling `24`-hour quota. Inspect `context` and `Retry-After` before retrying.",
-            $ref: "ErrorResponse#",
-          },
+          429: publicErrorResponse(API_KEY_QUOTA_EXCEEDED_DESCRIPTION),
         },
       },
     },

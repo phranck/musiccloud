@@ -61,9 +61,8 @@ function publicUrl(path: string): string {
 /**
  * The snippets for the first authenticated request.
  *
- * They call `POST /api/v1/resolve`, which is the authenticated counterpart of
- * the keyless `GET`, so the request actually exercises the key rather than
- * succeeding without it.
+ * They call `POST /api/v1/resolve`, which refuses a request without a valid
+ * key, so a successful answer proves the key works.
  *
  * @returns One snippet per form, plain HTTP first.
  */
@@ -102,20 +101,4 @@ export function firstRequestSnippets(): QuickstartSnippet[] {
       ].join("\n"),
     },
   ];
-}
-
-/**
- * The keyless endpoint, named for what it is.
- *
- * It is mentioned rather than hidden, because a developer who only wants to
- * resolve one link from a shortcut does not need a key at all, and finding
- * that out later is finding out we did not say.
- *
- * @returns The endpoint, its budget, and the sentence that goes with it.
- */
-export function keylessNote(): { url: string; text: string } {
-  return {
-    url: publicUrl(ENDPOINTS.v1.resolve),
-    text: "One endpoint needs no key at all: the GET form of the same path. It allows 10 requests a minute and 500 a day per address, which suits a shortcut or a one-off script and not a service. Anything beyond your own use belongs on the POST above, where the quota comes from your project's plan.",
-  };
 }

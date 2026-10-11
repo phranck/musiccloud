@@ -1,22 +1,19 @@
 /**
- * @file Unauthenticated public GET endpoint for one-request resolves.
+ * @file GET `/api/v1/resolve`, the one-request resolve for scripts.
  *
- * Registered at the root scope in `server.ts` (outside the
- * `authenticatePublic` preHandler group) specifically so scripting consumers
- * can hit it without a JWT: Apple Shortcuts, curl one-liners, Bookmarklets,
- * and similar integrations that cannot participate in a Bearer-token flow.
- * Rate limiting per client IP is the primary abuse defence in place of auth,
- * over a budget of its own (`checkKeylessResolveBudget`) that no other route
- * shares, with a per-minute and a per-day window.
+ * Meant for clients that want an answer from a single request and cannot hold
+ * an interactive candidate-selection round: curl one-liners, Apple Shortcuts,
+ * bookmarklets. It is registered inside the `authenticatePublic` scope in
+ * `server.ts`, like `POST /api/v1/resolve`, because every call runs the full
+ * resolver against the upstream services. The key it presents decides its
+ * quota, which is the Developer Project's, and the auth plugin records its
+ * usage. The route's `config.missingKeyMessage` is what a caller without a key
+ * reads. It names the header and where a key comes from, so somebody whose
+ * script sends no key can repair it from the response alone.
  *
- * Relationship to other resolve routes:
- * - `routes/resolve.ts`: POST counterpart for authenticated clients
- *   (frontend BFF, external API consumers). Supports interactive
- *   disambiguation; this GET endpoint does not (see Flow 2 below).
- * - `routes/url-redirect.ts`: also unauthenticated. Given a streaming-service
- *   URL it resolves and 302-redirects to `/<shortId>` on the frontend. Use
- *   this one when the consumer wants the data; use `url-redirect` when it
- *   just wants the user to land on the share page.
+ * Its POST counterpart in `routes/resolve.ts` serves the same clients plus the
+ * frontend BFF, and supports interactive disambiguation, which this GET
+ * endpoint does not (see Flow 2 below).
  *
  * Response shape is controlled by the `format` query parameter:
  * - `format=text`: plain-text short URL only. Designed for shell/scripting
@@ -28,15 +25,15 @@
 import type { ResolveErrorResponse, UnifiedResolveSuccessResponse } from "@musiccloud/shared";
 import { ENDPOINTS, getErrorEntry } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
+import { DEVELOPER_PROJECTS_URL } from "../docs/developer-portal.js";
+import {
+  API_KEY_QUOTA_EXCEEDED_DESCRIPTION,
+  API_KEY_REJECTED_DESCRIPTION,
+  publicErrorResponse,
+} from "../docs/public-response-schema.js";
 import { STRUCTURED_SEARCH_GET_OPENAPI_NOTE, STRUCTURED_SEARCH_OPENAPI_SECTION } from "../docs/resolve-openapi.js";
 import { requireEnvList } from "../lib/env.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
-import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
-import {
-  checkKeylessResolveBudget,
-  KEYLESS_RESOLVE_REQUESTS_PER_DAY,
-  KEYLESS_RESOLVE_REQUESTS_PER_MINUTE,
-} from "../lib/infra/rate-limiter.js";
 import { isAlbumUrl, isArtistUrl, isUrl, stripTrackingParams } from "../lib/platform/url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
@@ -67,22 +64,44 @@ import {
  */
 const ALLOWED_ORIGINS = requireEnvList("ALLOWED_ORIGINS");
 
-export default async function resolvePublicGetRoutes(app: FastifyInstance) {
+/**
+ * What a request without a key reads. `authenticatePublic` sends it through
+ * this route's `config.missingKeyMessage`. It names the header, says where a
+ * key comes from, and says that nothing else about the operation changed,
+ * because the caller reading it is most likely a script that sends no key and
+ * is otherwise correct.
+ */
+const MISSING_KEY_MESSAGE =
+  "GET /api/v1/resolve now requires an API key, sent in the X-API-Key header. " +
+  `Create a project and a key at ${DEVELOPER_PROJECTS_URL}. ` +
+  "Nothing else about this operation has changed, so the same request with the header returns the same response.";
+
+/**
+ * Registers `GET /api/v1/resolve`.
+ *
+ * Has to be registered inside the scope whose `preHandler` is
+ * `authenticatePublic`, because the handler itself checks no credential and
+ * relies on that guard for the key, the project quota and the usage event.
+ *
+ * @param app - The protected scope the route joins.
+ */
+export default async function resolveGetRoutes(app: FastifyInstance) {
   app.get(
     ENDPOINTS.v1.resolve,
     {
+      config: { missingKeyMessage: MISSING_KEY_MESSAGE },
       schema: {
         tags: ["Resolve"],
-        summary: "Resolve a music URL or query (unauthenticated, GET)",
+        summary: "Resolve a music URL or query in one request (GET)",
         "x-codeSamples": buildCodeSamples({
           method: "GET",
           path: "/api/v1/resolve",
+          auth: "apiKey",
           query: { query: "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L" },
         }),
         description:
-          "Unauthenticated one-request companion to `POST /api/v1/resolve`, suitable for command-line tools, shortcuts, and other clients that do not need an interactive candidate-selection round.\n\n" +
-          "**This operation needs no API key.** Send it as it stands, from a shortcut, a shell script or a bookmarklet. " +
-          `It draws on a budget no other operation shares: \`${KEYLESS_RESOLVE_REQUESTS_PER_MINUTE}\` requests in a rolling \`60\`-second window and \`${KEYLESS_RESOLVE_REQUESTS_PER_DAY}\` in a rolling \`24\`-hour window, both per client IP. Anything beyond a person's own use belongs on \`POST /api/v1/resolve\` with a registration key, where the quota comes from your project's plan.\n\n` +
+          "One-request companion to `POST /api/v1/resolve`, suitable for command-line tools, shortcuts, and other clients that do not need an interactive candidate-selection round.\n\n" +
+          "Send an API key issued to an application in the `X-API-Key` header, as for `POST /api/v1/resolve`. Requests count against your Developer Project's quota like every other call made with one of its keys. A request without a key receives `401`, and its `message` names the header and where a key comes from.\n\n" +
           "Accepts:\n\n" +
           "- **Streaming-service URL** (e.g. `https://open.spotify.com/track/...`)\n" +
           "- **Free-text query** (e.g. `bohemian rhapsody queen`)\n" +
@@ -90,6 +109,7 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
           `${STRUCTURED_SEARCH_GET_OPENAPI_NOTE}\n\n` +
           "A successful request persists what it resolved and returns either `UnifiedResolveSuccess` or its canonical share URL. A URL is routed by what it points at, so a track, an album and an artist URL each return the matching variant, discriminated on `type`. Malformed input, ambiguous text, or text with no unambiguous match returns `400`. A valid streaming-service URL whose item cannot be found returns `404`.\n\n" +
           "`genre:` discovery queries are not supported because they return candidate lists. Send those queries to `POST /api/v1/resolve`.",
+        security: [{ ApiKeyAuth: [] }],
         querystring: {
           type: "object",
           required: ["query"],
@@ -135,17 +155,15 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
             description: "The query is missing or malformed, or a text search did not produce one unambiguous match.",
             $ref: "ErrorResponse#",
           },
+          401: publicErrorResponse(
+            `${API_KEY_REJECTED_DESCRIPTION} Without any key, \`message\` names the \`X-API-Key\` header and where a key comes from.`,
+          ),
           404: {
             description: "The query is a valid streaming-service URL, but the referenced track could not be found.",
             $ref: "ErrorResponse#",
           },
           408: { description: "Upstream service timed out.", $ref: "ErrorResponse#" },
-          429: {
-            description:
-              `This client IP exceeded \`${KEYLESS_RESOLVE_REQUESTS_PER_MINUTE}\` requests in a rolling \`60\`-second ` +
-              `window, or \`${KEYLESS_RESOLVE_REQUESTS_PER_DAY}\` in a rolling \`24\`-hour window. \`Retry-After\` says how long to wait.`,
-            $ref: "ErrorResponse#",
-          },
+          429: publicErrorResponse(API_KEY_QUOTA_EXCEEDED_DESCRIPTION),
           500: {
             description: "Unexpected server error. Use `errorId` from the response when reporting the failure.",
             $ref: "ErrorResponse#",
@@ -155,20 +173,6 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
       },
     },
     async (request, reply) => {
-      // Without a JWT preHandler in front of this route, the IP-based rate
-      // limiter is the primary abuse defence. The effective bucket key is
-      // whatever Fastify resolves as `request.ip`, which depends on the
-      // Fastify `trustProxy` option (see server.ts). Production sets
-      // TRUST_PROXY=1 so `request.ip` reads the X-Forwarded-For client IP
-      // from the single Zerops ingress hop; with TRUST_PROXY unset all
-      // clients behind the proxy share one bucket and a handful of legitimate
-      // requests trip the per-minute limit for everyone.
-      const clientIp = request.ip;
-      const rateLimit = checkKeylessResolveBudget(clientIp);
-      if (rateLimit.limited) {
-        return sendRateLimitError(reply, rateLimit);
-      }
-
       // Schema guarantees presence, type, and length caps of the query string
       // fields. Trim post-validation so a pure-whitespace query does not reach
       // the resolver.
@@ -230,8 +234,7 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
           // interactive client to choose from. A stateless GET cannot carry
           // that follow-up round-trip, so here we accept only the unambiguous
           // `resolved` outcome and 400 on anything else. This is the
-          // deliberate trade-off for the unauth + one-shot nature of this
-          // endpoint.
+          // deliberate trade-off for the one-shot nature of this endpoint.
           const textResult = await resolveTextSearchWithDisambiguation(query);
           if (textResult.kind === "resolved" && textResult.result) {
             result = textResult.result;
@@ -245,8 +248,8 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
         // Domain errors from the resolver carry their own HTTP status in the
         // shared error table (`getErrorEntry`), so we forward those faithfully
         // with a user-facing message. Anything else is an unexpected bug and
-        // collapses to a generic 500 so we do not leak internals to an
-        // unauthenticated caller.
+        // collapses to a generic 500 so we do not leak internals to the
+        // caller.
         if (error instanceof ResolveError) {
           const httpStatus = getErrorEntry(error.code).httpStatus as 400 | 404 | 408 | 429 | 500 | 503;
           return reply.status(httpStatus).send(jsonError(error.code, error.message || undefined, error.context));

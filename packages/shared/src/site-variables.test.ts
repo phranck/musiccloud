@@ -7,8 +7,6 @@ const VALUES: SiteVariableValues = {
   freeRequestsPerDay: 10_000,
   projectsPerAccount: 3,
   registrationsPerProject: 5,
-  keylessRequestsPerMinute: 10,
-  keylessRequestsPerDay: 500,
 };
 
 describe("expandSiteVariables", () => {

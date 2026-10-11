@@ -168,8 +168,8 @@ export class DynamicRateLimiter {
 // Shared bucket for the public API surface (Share, Share-Preview, Auth, Link,
 // Artist, and the CC routes apart from CC resolve). 10 requests per 60s per
 // client IP — strict enough to bound abuse and runaway client loops without
-// blocking human use. The keyless GET /api/v1/resolve and the site's own
-// resolves draw on their own budgets instead, declared below.
+// blocking human use. The site's own resolves draw on a budget of their own,
+// declared below.
 // Asset routes (Genre-Artwork) deliberately do NOT call into this limiter
 // because they serve immutable cached JPEGs in parallel from a Browse grid;
 // the global @fastify/rate-limit at 300/min still covers them.
@@ -177,7 +177,7 @@ export class DynamicRateLimiter {
 // The limiter is keyed by `request.ip`. For that to resolve to the real
 // end-user IP behind the Zerops ingress, two pre-conditions must hold:
 //   1. Fastify trusts the upstream proxy chain. Production sets
-//      TRUST_PROXY=1 in zerops.yml; see server.ts / resolve-public-get.ts
+//      TRUST_PROXY=1 in zerops.yml; see `parseTrustProxy` in server.ts
 //      for the rationale.
 //   2. Internal SSR proxies (the Astro frontend in apps/frontend) forward
 //      X-Forwarded-For when calling rate-limited backend routes.
@@ -224,45 +224,6 @@ export const SITE_RESOLVE_REQUESTS_PER_MINUTE = 30;
 export const siteResolveRateLimiter = new RateLimiter(SITE_RESOLVE_REQUESTS_PER_MINUTE, 60_000);
 const siteResolveRateLimiterCleanupTimer = setInterval(() => siteResolveRateLimiter.cleanup(), 5 * 60 * 1000);
 siteResolveRateLimiterCleanupTimer.unref();
-
-// The keyless GET /api/v1/resolve endpoint answers without a credential on
-// purpose, so that a shortcut, a curl one-liner or a bookmarklet can use it.
-// It draws on a budget nothing else shares, for two reasons: a visitor
-// browsing share pages must not spend what a script needs, and a script must
-// not spend what a visitor needs.
-//
-// The minute window admits a person or a shortcut working at human speed. The
-// day window is what stops somebody running a service on the endpoint: a
-// person using Shortcuts all day stays well inside 500, whilst a backend
-// resolving on behalf of its own users does not.
-export const KEYLESS_RESOLVE_REQUESTS_PER_MINUTE = 10;
-export const KEYLESS_RESOLVE_REQUESTS_PER_DAY = 500;
-const keylessResolveMinuteRateLimiter = new RateLimiter(KEYLESS_RESOLVE_REQUESTS_PER_MINUTE, 60_000);
-const keylessResolveDayRateLimiter = new RateLimiter(KEYLESS_RESOLVE_REQUESTS_PER_DAY, 24 * 60 * 60 * 1000);
-const keylessResolveCleanupTimer = setInterval(
-  () => {
-    keylessResolveMinuteRateLimiter.cleanup();
-    keylessResolveDayRateLimiter.cleanup();
-  },
-  5 * 60 * 1000,
-);
-keylessResolveCleanupTimer.unref();
-
-/**
- * Spends one request from the keyless resolve budget and reports whether it
- * was refused. The minute window is asked first, so a caller already refused
- * for this minute does not also spend a slot from the day: a refused check
- * records nothing, which is what keeps the two windows from punishing each
- * other.
- *
- * @param clientIp - The bucket key, which is whatever Fastify resolved as `request.ip`.
- * @returns The check that refused the request, or the day check when neither did.
- */
-export function checkKeylessResolveBudget(clientIp: string): RateLimitCheck {
-  const minute = keylessResolveMinuteRateLimiter.check(clientIp);
-  if (minute.limited) return minute;
-  return keylessResolveDayRateLimiter.check(clientIp);
-}
 
 // Project quota buckets for token-authenticated public-API requests. All
 // registrations under one project share these commercial quota buckets.

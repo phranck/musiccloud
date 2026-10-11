@@ -36,14 +36,6 @@ describe("QuickstartPanel", () => {
     expect(html).toContain("identifies this application and does not authenticate it");
   });
 
-  it("mentions the keyless endpoint with its limit rather than hiding it", () => {
-    const html = render();
-
-    expect(html).toContain("needs no key at all");
-    expect(html).toContain("10 requests a minute");
-    expect(html).toContain("500 a day");
-  });
-
   it("says language packages are not published rather than pretending they are", () => {
     expect(render()).toContain("Language packages are not published yet");
   });

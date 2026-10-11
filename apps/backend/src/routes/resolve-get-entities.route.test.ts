@@ -27,12 +27,6 @@ vi.mock("../lib/infra/logger.js", () => ({
   log: { debug: vi.fn(), error: vi.fn(), deviation: vi.fn() },
 }));
 
-vi.mock("../lib/infra/rate-limiter.js", () => ({
-  checkKeylessResolveBudget: vi.fn().mockReturnValue({ limited: false }),
-  KEYLESS_RESOLVE_REQUESTS_PER_MINUTE: 10,
-  KEYLESS_RESOLVE_REQUESTS_PER_DAY: 500,
-}));
-
 vi.mock("../lib/platform/url.js", () => ({
   isAlbumUrl: vi.fn().mockReturnValue(false),
   isArtistUrl: vi.fn().mockReturnValue(false),
@@ -54,7 +48,7 @@ vi.mock("../services/resolver.js", () => ({
   resolveTextSearchWithDisambiguation: vi.fn(),
 }));
 
-const { default: resolvePublicGetRoutes } = await import("./resolve-public-get.js");
+const { default: resolveGetRoutes } = await import("./resolve-get.js");
 const { resolveAlbumUrl } = await import("../services/album-resolver.js");
 const { resolveArtistUrl } = await import("../services/artist-resolver.js");
 const { resolveQuery } = await import("../services/resolver.js");
@@ -71,7 +65,7 @@ function buildApp() {
   for (const schema of OPENAPI_SCHEMAS) {
     app.addSchema(schema);
   }
-  app.register(resolvePublicGetRoutes);
+  app.register(resolveGetRoutes);
   return app;
 }
 

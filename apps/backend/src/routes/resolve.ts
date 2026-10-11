@@ -2,8 +2,9 @@
  * @file POST `/api/v1/resolve` - full-feature authenticated resolve endpoint.
  *
  * Registered inside the `authenticatePublic` scope in `server.ts`, so the
- * request has already presented an X-API-Key. See `resolve-public-get.ts`
- * for the unauthenticated GET companion used by curl / Apple Shortcuts.
+ * request has already presented an X-API-Key. See `resolve-get.ts` for the
+ * one-request GET companion used by curl / Apple Shortcuts, which sits in the
+ * same scope.
  *
  * This POST endpoint carries two capabilities the GET endpoint does not:
  *
@@ -46,13 +47,18 @@
  *
  * ## 500-character query cap, 200-character candidate cap
  *
- * Same rationale as in `resolve-public-get.ts`: the cap is there so that
+ * The query cap, which `resolve-get.ts` shares, is there so that
  * pathological inputs cannot reach the FTS5 text search. The selected
  * candidate is a shorter serialized identifier, hence the tighter limit.
  */
 import type { ResolveDisambiguationResponse, ResolveErrorResponse, ResolveRequest } from "@musiccloud/shared";
 import { ENDPOINTS, getErrorEntry } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
+import {
+  API_KEY_QUOTA_EXCEEDED_DESCRIPTION,
+  API_KEY_REJECTED_DESCRIPTION,
+  publicErrorResponse,
+} from "../docs/public-response-schema.js";
 import { STRUCTURED_SEARCH_OPENAPI_SECTION, STRUCTURED_SEARCH_POST_OPENAPI_NOTE } from "../docs/resolve-openapi.js";
 import { requireEnvList } from "../lib/env.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
@@ -92,8 +98,8 @@ import {
 
 /**
  * Whitelist sourced from env `ALLOWED_ORIGINS` (comma-separated). The full
- * rationale for this validation lives in `routes/resolve-public-get.ts`.
- * Both routes import this single source of truth.
+ * rationale for this validation lives in `routes/resolve-get.ts`.
+ * Both routes read the list from that one variable.
  */
 const ALLOWED_ORIGINS = requireEnvList("ALLOWED_ORIGINS");
 
@@ -170,14 +176,10 @@ export default async function resolveRoutes(app: FastifyInstance) {
             description: "Invalid URL, invalid genre query, invalid structured search query, or malformed body.",
             $ref: "ErrorResponse#",
           },
-          401: { description: "Missing, invalid, or revoked API key.", $ref: "ErrorResponse#" },
+          401: publicErrorResponse(API_KEY_REJECTED_DESCRIPTION),
           404: { description: "URL is valid but the track/album/artist could not be found.", $ref: "ErrorResponse#" },
           408: { description: "Upstream service timed out before a match could be confirmed.", $ref: "ErrorResponse#" },
-          429: {
-            description:
-              "The issued API key exceeded its assigned rolling `60`-second or rolling `24`-hour quota. Inspect `context` and `Retry-After` before retrying.",
-            $ref: "ErrorResponse#",
-          },
+          429: publicErrorResponse(API_KEY_QUOTA_EXCEEDED_DESCRIPTION),
           500: {
             description: "Unexpected server error. Use `errorId` from the response when reporting the failure.",
             $ref: "ErrorResponse#",
@@ -336,7 +338,7 @@ export default async function resolveRoutes(app: FastifyInstance) {
 
 /**
  * Picks a safe origin for the short URL embedded in the response. Same
- * shape and motivation as the helper in `routes/resolve-public-get.ts`.
+ * shape and motivation as the helper in `routes/resolve-get.ts`.
  *
  * @param headerOrigin - raw `Origin` header value from the incoming request
  * @returns a whitelisted origin string

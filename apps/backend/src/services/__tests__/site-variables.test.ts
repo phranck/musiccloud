@@ -12,9 +12,6 @@ vi.mock("../developer-limits.js", async () => {
   return { ...actual, getMaxProjectsPerAccount };
 });
 
-const { KEYLESS_RESOLVE_REQUESTS_PER_DAY, KEYLESS_RESOLVE_REQUESTS_PER_MINUTE } = await import(
-  "../../lib/infra/rate-limiter.js"
-);
 const { MAX_REGISTRATIONS_PER_PROJECT } = await import("../developer-limits.js");
 const { TIER_FREE_ID } = await import("../signup-tier.js");
 const { resolveSiteVariableValues } = await import("../site-variables.js");
@@ -41,12 +38,8 @@ describe("resolveSiteVariableValues", () => {
     expect((await resolveSiteVariableValues()).projectsPerAccount).toBe(7);
   });
 
-  it("takes the remaining figures from the modules that enforce them", async () => {
-    const values = await resolveSiteVariableValues();
-
-    expect(values.registrationsPerProject).toBe(MAX_REGISTRATIONS_PER_PROJECT);
-    expect(values.keylessRequestsPerMinute).toBe(KEYLESS_RESOLVE_REQUESTS_PER_MINUTE);
-    expect(values.keylessRequestsPerDay).toBe(KEYLESS_RESOLVE_REQUESTS_PER_DAY);
+  it("takes the registration ceiling from the module that enforces it", async () => {
+    expect((await resolveSiteVariableValues()).registrationsPerProject).toBe(MAX_REGISTRATIONS_PER_PROJECT);
   });
 
   it("reports zero rather than a plausible figure when the free plan cannot be read", async () => {

@@ -37,14 +37,6 @@ export const SITE_VARIABLES = {
     label: "How many registrations one project may hold",
     example: "5",
   },
-  keylessRequestsPerMinute: {
-    label: "Requests a minute the keyless resolve endpoint allows, per client",
-    example: "10",
-  },
-  keylessRequestsPerDay: {
-    label: "Requests a day the keyless resolve endpoint allows, per client",
-    example: "500",
-  },
 } as const satisfies Record<string, { label: string; example: string }>;
 
 /** The name of one variable. */
@@ -64,16 +56,12 @@ export const SITE_VARIABLE_NAMES = Object.keys(SITE_VARIABLES) as SiteVariableNa
  * @property projectsPerAccount - The per-account ceiling, from the settings.
  * @property registrationsPerProject - What a project may hold, from the route
  *   that enforces it.
- * @property keylessRequestsPerMinute - The keyless budget's minute limit.
- * @property keylessRequestsPerDay - The keyless budget's daily limit.
  */
 export interface SiteVariableValues {
   freeRequestsPerMinute: number;
   freeRequestsPerDay: number;
   projectsPerAccount: number;
   registrationsPerProject: number;
-  keylessRequestsPerMinute: number;
-  keylessRequestsPerDay: number;
 }
 
 /**
