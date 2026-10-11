@@ -18,6 +18,7 @@
  * for the shared instance.
  */
 import type { FastifyRequest } from "fastify";
+import { secretsMatch } from "./secret-compare.js";
 
 export interface RateLimitCheck {
   limited: boolean;
@@ -301,12 +302,13 @@ export function isRateLimitDisabled(): boolean {
  * per-IP check on a true return — see comment block above for the
  * BFF-bypass rationale.
  *
- * If `INTERNAL_API_KEY` is unset (dev fallback in `plugins/auth.ts`
- * lets unauthenticated requests through with a warn log), this returns
- * false; the limiter still applies. Production must set the secret.
+ * The key is compared with `secretsMatch`, the same constant-time check
+ * `plugins/auth.ts` uses for it, because it is the credential that also
+ * opens the internal routes. If `INTERNAL_API_KEY` is unset (dev fallback in
+ * `plugins/auth.ts` lets unauthenticated requests through with a warn log),
+ * this returns false; the limiter still applies. Production must set the
+ * secret.
  */
 export function isInternalRequest(request: FastifyRequest): boolean {
-  const internalApiKey = process.env.INTERNAL_API_KEY;
-  if (!internalApiKey) return false;
-  return request.headers["x-api-key"] === internalApiKey;
+  return secretsMatch(request.headers["x-api-key"], process.env.INTERNAL_API_KEY);
 }
