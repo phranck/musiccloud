@@ -141,3 +141,63 @@ describe("AudioPlayer analyzer across a track switch", () => {
     expect(secondSource?.disconnect).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * Collects every audio element the player creates, so a test can make one of
+ * them fail the way a dead URL does.
+ */
+function captureAudioElements() {
+  const RealAudio = window.Audio;
+  const elements: HTMLAudioElement[] = [];
+  vi.stubGlobal("Audio", function CapturedAudio(source?: string) {
+    const element = new RealAudio(source);
+    elements.push(element);
+    return element;
+  });
+  return elements;
+}
+
+describe("AudioPlayer after a failed track", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("offers the next track when the failed one is switched out before anything played", () => {
+    const elements = captureAudioElements();
+    vi.spyOn(window.HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+
+    const { rerender } = render(<AudioPlayer previewUrl="/dead.mp3" trackTitle="Dead" />);
+    act(() => {
+      elements[0]?.dispatchEvent(new Event("error"));
+    });
+    expect(screen.getByRole("button", { name: "Preview unavailable" })).toBeDisabled();
+
+    rerender(<AudioPlayer previewUrl="/second.mp3" trackTitle="Second" />);
+
+    expect(screen.getByRole("button", { name: "Play preview" })).toBeEnabled();
+  });
+
+  it("ignores a play() that fails after its track was switched out", async () => {
+    stubWebAudio();
+    let rejectFirstPlay: (reason: unknown) => void = () => {};
+    vi.spyOn(window.HTMLMediaElement.prototype, "play")
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((_resolve, reject) => {
+            rejectFirstPlay = reject;
+          }),
+      )
+      .mockImplementation(() => new Promise<void>(() => {}));
+    vi.spyOn(window.HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+
+    const { rerender } = render(<AudioPlayer previewUrl="/first.mp3" trackTitle="First" />);
+    fireEvent.click(screen.getByRole("button", { name: "Play preview" }));
+    rerender(<AudioPlayer previewUrl="/second.mp3" trackTitle="Second" />);
+    // The browser rejects a pending play() once its element is paused and emptied.
+    await act(async () => {
+      rejectFirstPlay(new DOMException("The play() request was interrupted", "AbortError"));
+    });
+
+    expect(screen.getByRole("button", { name: "Play preview" })).toBeEnabled();
+  });
+});
