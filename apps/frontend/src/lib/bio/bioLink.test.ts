@@ -13,6 +13,10 @@ describe("resolveBioLink", () => {
       ["https://www.deezer.com/en/track/123", "deezer"],
       ["https://open.qobuz.com/track/123", "qobuz"],
       ["https://artist.bandcamp.com/album/x", "bandcamp"],
+      ["https://audius.co/artist/track-name", "audius"],
+      ["https://www.beatport.com/track/name/123", "beatport"],
+      ["https://music.163.com/#/song?id=123", "netease"],
+      ["https://www.jiosaavn.com/song/name/abc", "jiosaavn"],
     ])("classifies %s as platform %s", (url, service) => {
       const link = resolveBioLink(url);
       expect(link.kind).toBe(BioLinkKind.Platform);
@@ -20,8 +24,10 @@ describe("resolveBioLink", () => {
       expect(link.href).toBe(url);
     });
 
-    it("does not treat a non-track spotify URL (playlist) as a platform link", () => {
-      expect(resolveBioLink("https://open.spotify.com/playlist/123").kind).toBe(BioLinkKind.Web);
+    it("shows any link on a platform's host with that platform's logo, a playlist included", () => {
+      const link = resolveBioLink("https://open.spotify.com/playlist/123");
+      expect(link.kind).toBe(BioLinkKind.Platform);
+      if (link.kind === BioLinkKind.Platform) expect(link.service).toBe("spotify");
     });
   });
 

@@ -1,74 +1,6 @@
-import { ENDPOINTS, type ErrorCode, parseJamendoLink } from "@musiccloud/shared";
+import { ENDPOINTS, type ErrorCode, isMusicLinkHost, parseJamendoLink } from "@musiccloud/shared";
 
 export type UrlValidationResult = { valid: true } | { valid: false; code: ErrorCode; message: string };
-
-const ALLOWED_HOSTS = [
-  // Spotify
-  "open.spotify.com",
-  "play.spotify.com",
-  // Apple Music
-  "music.apple.com",
-  // YouTube / YouTube Music
-  "youtube.com",
-  "www.youtube.com",
-  "m.youtube.com",
-  "music.youtube.com",
-  "youtu.be",
-  // SoundCloud
-  "soundcloud.com",
-  "www.soundcloud.com",
-  "m.soundcloud.com",
-  "on.soundcloud.com",
-  // Tidal
-  "tidal.com",
-  "listen.tidal.com",
-  // Deezer
-  "deezer.com",
-  "www.deezer.com",
-  "link.deezer.com",
-  // Audius
-  "audius.co",
-  // Napster
-  "napster.com",
-  "play.napster.com",
-  "web.napster.com",
-  "app.napster.com",
-  "www.napster.com",
-  // Pandora
-  "pandora.com",
-  "www.pandora.com",
-  // Qobuz
-  "open.qobuz.com",
-  "play.qobuz.com",
-  // Boomplay
-  "boomplay.com",
-  "www.boomplay.com",
-  // KKBOX
-  "kkbox.com",
-  "www.kkbox.com",
-  // Audiomack
-  "audiomack.com",
-  "www.audiomack.com",
-  // NetEase Cloud Music
-  "music.163.com",
-  // QQ Music
-  "y.qq.com",
-  // Melon
-  "melon.com",
-  "www.melon.com",
-  // Bugs!
-  "music.bugs.co.kr",
-  // JioSaavn
-  "jiosaavn.com",
-  "www.jiosaavn.com",
-  // Beatport
-  "beatport.com",
-  "www.beatport.com",
-  // MusicBrainz is metadata-only, and its adapter resolves its release,
-  // recording and artist URLs.
-  "musicbrainz.org",
-  "www.musicbrainz.org",
-];
 
 // Patterns for unsupported content types (specific error messages)
 const PODCAST_REGEX = /spotify\.com\/(?:intl-\w+\/)?(?:episode|show)\//;
@@ -130,10 +62,9 @@ export function validateMusicUrl(input: string): UrlValidationResult {
     };
   }
 
-  // Check allowed hosts (SSRF prevention)
-  // Bandcamp uses subdomains: {artist}.bandcamp.com
-  const isBandcamp = url.hostname.endsWith(".bandcamp.com") || url.hostname === "bandcamp.com";
-  if (!isBandcamp && !ALLOWED_HOSTS.includes(url.hostname)) {
+  // Only a host of a supported service passes, before any request leaves the
+  // server. The hosts are the shared table the web input reads as well.
+  if (!isMusicLinkHost(url.hostname)) {
     return {
       valid: false,
       code: "UNSUPPORTED_SERVICE",
@@ -267,7 +198,7 @@ function parseKnownSchemelessMusicUrl(input: string): URL | null {
   }
 
   if (!hasValidHostShape(url.hostname)) return null;
-  if (!isAllowedMusicHost(url.hostname)) return null;
+  if (!isMusicLinkHost(url.hostname)) return null;
   return url;
 }
 
@@ -277,10 +208,4 @@ function hasValidHostShape(hostname: string): boolean {
   if (labels.length < 2) return false;
   if (labels[labels.length - 1].length < 2 || labels[labels.length - 2].length < 2) return false;
   return labels.every((label) => /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label));
-}
-
-function isAllowedMusicHost(hostname: string): boolean {
-  const normalized = hostname.toLowerCase();
-  const isBandcamp = normalized.endsWith(".bandcamp.com") || normalized === "bandcamp.com";
-  return isBandcamp || ALLOWED_HOSTS.includes(normalized);
 }
