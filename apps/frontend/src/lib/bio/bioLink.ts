@@ -1,6 +1,5 @@
-import type { ServiceId } from "@musiccloud/shared";
+import { detectMusicLinkService, type ServiceId } from "@musiccloud/shared";
 import { detectSocialChannel } from "@/lib/bio/socialChannels";
-import { detectMusicService } from "@/lib/platform/url";
 
 /**
  * The four ways a detected bio link is presented. A shared `as const` namespace
@@ -80,7 +79,7 @@ export function resolveBioLink(rawMatch: string): BioLink {
     return { kind: BioLinkKind.Web, href, label: rawMatch };
   }
 
-  const service = detectMusicService(href);
+  const service = detectMusicLinkService(href);
   if (service) return { kind: BioLinkKind.Platform, href, service };
 
   const social = detectSocialChannel(url);

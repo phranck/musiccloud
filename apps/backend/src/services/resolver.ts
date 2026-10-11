@@ -143,7 +143,7 @@
  * | `SEARCH_FALLBACK_CONFIDENCE`| Confidence of synthesised "search on X" fallback links |
  * | `SERVICE_MISS_TTL_MS`       | How long a fruitless lookup stands before a retry       |
  */
-import { type MatchMethod, PLATFORM_CONFIG } from "@musiccloud/shared";
+import { isShortLinkHost, type MatchMethod, PLATFORM_CONFIG } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
 import { createSingleFlight } from "../lib/concurrency.js";
 import { fetchWithTimeout } from "../lib/infra/fetch.js";
@@ -584,12 +584,12 @@ async function isPreviewRefreshNeeded(cached: ResolutionResult): Promise<boolean
  */
 export { LINK_QUALITY_THRESHOLD, MATCH_MIN_CONFIDENCE };
 
-/** Hosts that serve redirect short links pointing to canonical music platform URLs. */
-const SHORT_LINK_HOSTS = new Set(["link.deezer.com", "on.soundcloud.com"]);
-
 /**
  * If `url` is a known short link, follows the redirect (HEAD) and returns the
  * final canonical URL. Falls back to the original URL on network failure.
+ *
+ * Which hosts serve short links is the shared table of music-link hosts, so a
+ * service that adds one is followed here once its entry names it.
  */
 export async function expandShortLink(url: string): Promise<string> {
   let parsed: URL;
@@ -598,7 +598,7 @@ export async function expandShortLink(url: string): Promise<string> {
   } catch {
     return url;
   }
-  if (!SHORT_LINK_HOSTS.has(parsed.hostname)) return url;
+  if (!isShortLinkHost(parsed.hostname)) return url;
   try {
     const res = await fetchWithTimeout(url, { method: "HEAD", redirect: "follow" });
     if (res.url && res.url !== url) return res.url;

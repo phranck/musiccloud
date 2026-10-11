@@ -13,6 +13,8 @@ Run the coverage check with:
 pnpm --filter @musiccloud/backend docs:adapter-runbooks
 ```
 
+A plugin's hosts live in `MUSIC_LINK_SOURCES` in `packages/shared/src/music-links.ts`. The backend fetches a link only from a host listed there, and the web input submits a pasted link only when its host is listed. `apps/backend/src/__tests__/music-links-plugins.test.ts` fails for a plugin without an entry and for a sample link in `music-link-samples.ts` whose host is missing.
+
 Required sections:
 
 - `Last reviewed:`
