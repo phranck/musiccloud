@@ -168,9 +168,22 @@ describe("lastfmTagsSource.fetch", () => {
     });
   });
 
+  it("reads a tag Last.fm does not know as a tag without tracks", async () => {
+    fetchWithTimeoutMock.mockResolvedValueOnce(
+      jsonResponse({ error: 6, message: "The tag you supplied could not be found" }),
+    );
+
+    await expect(lastfmTagsSource.fetch({ tags: ["unheardof"], limit: 50 }, null)).resolves.toEqual({
+      candidates: [],
+      skipped: 0,
+      nextCursor: null,
+    });
+    expect(deviationMock).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["HTTP failure", () => jsonResponse({ message: "upstream details" }, 503)],
-    ["Last.fm API error", () => jsonResponse({ error: 6, message: "invalid method" })],
+    ["Last.fm refusal inside a 200 answer", () => jsonResponse({ error: 29, message: "upstream details" })],
     ["timeout", () => Promise.reject(new Error("request timed out"))],
   ])("fails the complete source fetch safely on %s", async (_label, response) => {
     fetchWithTimeoutMock.mockImplementationOnce(response);

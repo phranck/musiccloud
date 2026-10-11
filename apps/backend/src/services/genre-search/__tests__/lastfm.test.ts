@@ -142,6 +142,16 @@ describe("getGenreBrowseGrid", () => {
     expect(mocks.fetchWithTimeout.mock.calls.length).toBe(requestsAfterBuild);
   });
 
+  it("fails and caches nothing when Last.fm refuses inside a 200 answer", async () => {
+    mocks.fetchWithTimeout.mockImplementation(async () => jsonResponse({ error: 29, message: "Rate Limit Exceeded" }));
+
+    await expect(getGenreBrowseGrid()).rejects.toThrow("error 29");
+    const requestsAfterFirstCall = mocks.fetchWithTimeout.mock.calls.length;
+
+    await expect(getGenreBrowseGrid()).rejects.toThrow("error 29");
+    expect(mocks.fetchWithTimeout.mock.calls.length).toBeGreaterThan(requestsAfterFirstCall);
+  });
+
   it("probes every genre when the stored artworks cannot be read", async () => {
     mocks.getStoredArtworkSummaries.mockRejectedValue(new Error("database unavailable"));
 

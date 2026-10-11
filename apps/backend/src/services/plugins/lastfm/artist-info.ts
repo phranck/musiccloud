@@ -5,11 +5,8 @@
  */
 
 import { type DefaultTreeAdapterTypes, parseFragment } from "parse5";
-import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
-import { readLastFmJson } from "./lastfm-response.js";
+import { lastFmApiKey, lastFmGet } from "./lastfm-response.js";
 
-const API_BASE = "https://ws.audioscrobbler.com/2.0";
-const TIMEOUT_MS = 5000;
 const HTML_NAMESPACE = "http://www.w3.org/1999/xhtml";
 const DISCARDED_ELEMENT_NAMES = new Set([
   "embed",
@@ -88,15 +85,9 @@ interface LastFmArtistInfoResponse {
  * @throws {UpstreamUnavailableError} when Last.fm did not answer.
  */
 export async function fetchLastFmArtistInfo(name: string): Promise<LastFmArtistInfoResult | null> {
-  const apiKey = process.env.LASTFM_API_KEY;
-  if (!apiKey) return null;
+  if (!lastFmApiKey()) return null;
 
-  const res = await fetchWithTimeout(
-    `${API_BASE}/?method=artist.getInfo&artist=${encodeURIComponent(name)}&api_key=${encodeURIComponent(apiKey)}&format=json`,
-    {},
-    TIMEOUT_MS,
-  );
-  const data = await readLastFmJson<LastFmArtistInfoResponse>(res, "artist.getInfo");
+  const data = await lastFmGet<LastFmArtistInfoResponse>("artist.getInfo", { artist: name });
   const artist = data?.artist;
   if (!artist) return null;
 

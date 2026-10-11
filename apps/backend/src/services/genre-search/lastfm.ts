@@ -35,15 +35,20 @@
  */
 
 import { mapWithConcurrency } from "../../lib/concurrency.js";
-import { fetchWithTimeout } from "../../lib/infra/fetch.js";
 import { log } from "../../lib/infra/logger.js";
 import { extractPrimaryArtist } from "../artist-utils.js";
 import { getStoredArtworkSummaries, type StoredArtworkSummary } from "../genre-artwork/index.js";
 import { cacheAlbumImage, cacheTrackImage, getArtistImages, getTrackImages, trackImageKey } from "../image-cache.js";
+import {
+  isGenreTag,
+  type LastFmImage,
+  lastFmApiKey,
+  lastFmGet,
+  pickLastFmImage,
+} from "../plugins/lastfm/lastfm-response.js";
 import type { GenreSearchResult, NormalizedAlbum, NormalizedArtist, NormalizedTrack } from "../types.js";
 import { evenSpacedSample, stratifiedSample } from "./sampler.js";
 
-const LASTFM_BASE = "https://ws.audioscrobbler.com/2.0";
 const MAX_POOL = 50;
 const HOT_SPREAD_FACTOR = 3;
 const HOT_SPREAD_MIN = 30;
@@ -60,23 +65,12 @@ function logLastfmDeviation(operation: string, outcome: string, error: unknown):
   );
 }
 
-function apiKey(): string {
-  const key = process.env.LASTFM_API_KEY;
-  if (!key) throw new Error("LASTFM_API_KEY not configured");
-  return key;
-}
-
 /** Returns true when the Last.fm API key is present. */
 export function isLastfmAvailable(): boolean {
-  return !!process.env.LASTFM_API_KEY;
+  return lastFmApiKey() !== null;
 }
 
 // ─── Last.fm response shapes ───────────────────────────────────────────────
-
-interface LfmImage {
-  "#text": string;
-  size: string;
-}
 
 interface LfmTrack {
   name: string;
@@ -84,7 +78,7 @@ interface LfmTrack {
   mbid?: string;
   url?: string;
   duration?: string;
-  image?: LfmImage[];
+  image?: LastFmImage[];
 }
 
 interface LfmAlbum {
@@ -92,74 +86,28 @@ interface LfmAlbum {
   artist: { name: string; mbid?: string };
   mbid?: string;
   url?: string;
-  image?: LfmImage[];
+  image?: LastFmImage[];
 }
 
 interface LfmArtist {
   name: string;
   mbid?: string;
   url?: string;
-  image?: LfmImage[];
-}
-
-// ─── Non-genre tag blocklist ───────────────────────────────────────────────
-//
-// Last.fm's top tags include descriptors, demographics, decades, and
-// personal-collection labels that are not music genres. Filter these out
-// when building the browse grid.
-
-const TAG_BLOCKLIST = new Set([
-  "seen live",
-  "female vocalists",
-  "male vocalists",
-  "british",
-  "american",
-  "german",
-  "french",
-  "russian",
-  "swedish",
-  "japanese",
-  "canadian",
-  "australian",
-  "italian",
-  "finnish",
-  "norwegian",
-  "irish",
-  "instrumental",
-  "acoustic",
-  "bookmark",
-  "cover",
-  "favorites",
-  "favourite",
-  "albums i own",
-  "under 2000 listeners",
-  "love",
-  "beautiful",
-  "mellow",
-  "guitar",
-  "piano",
-  "oldies",
-]);
-
-function isGenreTag(name: string): boolean {
-  return !TAG_BLOCKLIST.has(name.toLowerCase());
+  image?: LastFmImage[];
 }
 
 // ─── Fetch helpers ─────────────────────────────────────────────────────────
-
-async function lfmFetch<T>(method: string, params: Record<string, string>): Promise<T> {
-  const qs = new URLSearchParams({ method, api_key: apiKey(), format: "json", ...params });
-  const res = await fetchWithTimeout(`${LASTFM_BASE}/?${qs.toString()}`, {}, 5000);
-  if (!res.ok) throw new Error(`Last.fm ${method} returned HTTP ${res.status}`);
-  return (await res.json()) as T;
-}
+//
+// A tag Last.fm does not know reads as one without music. A refusal inside a
+// 200 answer, such as the rate limit, throws, so it counts as a failure rather
+// than as an empty tag.
 
 async function fetchTopTracks(tag: string, limit: number): Promise<LfmTrack[]> {
-  const data = await lfmFetch<{ tracks?: { track?: LfmTrack[] } }>("tag.getTopTracks", {
+  const data = await lastFmGet<{ tracks?: { track?: LfmTrack[] } }>("tag.getTopTracks", {
     tag,
     limit: String(limit),
   });
-  return data.tracks?.track ?? [];
+  return data?.tracks?.track ?? [];
 }
 
 /**
@@ -173,7 +121,7 @@ export async function getGenreCoverUrl(genre: string): Promise<string | null> {
   try {
     const albums = await fetchTopAlbums(genre, 5);
     for (const album of albums) {
-      const url = pickImage(album.image);
+      const url = pickLastFmImage(album.image);
       if (url) return url;
     }
   } catch (error) {
@@ -183,31 +131,19 @@ export async function getGenreCoverUrl(genre: string): Promise<string | null> {
 }
 
 async function fetchTopAlbums(tag: string, limit: number): Promise<LfmAlbum[]> {
-  const data = await lfmFetch<{ albums?: { album?: LfmAlbum[] } }>("tag.getTopAlbums", {
+  const data = await lastFmGet<{ albums?: { album?: LfmAlbum[] } }>("tag.getTopAlbums", {
     tag,
     limit: String(limit),
   });
-  return data.albums?.album ?? [];
+  return data?.albums?.album ?? [];
 }
 
 async function fetchTopArtists(tag: string, limit: number): Promise<LfmArtist[]> {
-  const data = await lfmFetch<{ topartists?: { artist?: LfmArtist[] } }>("tag.getTopArtists", {
+  const data = await lastFmGet<{ topartists?: { artist?: LfmArtist[] } }>("tag.getTopArtists", {
     tag,
     limit: String(limit),
   });
-  return data.topartists?.artist ?? [];
-}
-
-// ─── Image helpers ─────────────────────────────────────────────────────────
-
-function pickImage(images: LfmImage[] | undefined): string | undefined {
-  if (!images || images.length === 0) return undefined;
-  const xl = images.find((i) => i.size === "extralarge");
-  const url = xl?.["#text"] || images[images.length - 1]?.["#text"];
-  if (!url) return undefined;
-  // Last.fm placeholder hash — not a real image
-  if (url.includes("2a96cbd8b46e442fc41c2b86b821562f")) return undefined;
-  return url;
+  return data?.topartists?.artist ?? [];
 }
 
 // ─── Mappers ───────────────────────────────────────────────────────────────
@@ -232,7 +168,7 @@ function mapAlbum(raw: LfmAlbum): NormalizedAlbum {
     sourceId: raw.mbid || `lfm-${raw.artist.name}-${raw.name}`,
     title: raw.name,
     artists: [raw.artist.name],
-    artworkUrl: pickImage(raw.image),
+    artworkUrl: pickLastFmImage(raw.image) ?? undefined,
     mbid: raw.mbid || undefined,
     webUrl:
       raw.url ?? `https://www.last.fm/music/${encodeURIComponent(raw.artist.name)}/${encodeURIComponent(raw.name)}`,
@@ -525,10 +461,11 @@ function canonicalizeGenreKey(name: string): string {
  * @returns Candidate tags in Last.fm's popularity order.
  */
 async function fetchBrowseCandidates(): Promise<BrowseTag[]> {
-  const data = await lfmFetch<{ tags?: { tag?: BrowseTag[] } }>("chart.getTopTags", {
+  const data = await lastFmGet<{ tags?: { tag?: BrowseTag[] } }>("chart.getTopTags", {
     limit: String(BROWSE_TOP_TAG_LIMIT),
   });
-  const rawCandidates = (data.tags?.tag ?? []).filter((t) => isGenreTag(t.name));
+  // Decades stay, because the grid shows them on purpose.
+  const rawCandidates = (data?.tags?.tag ?? []).filter((t) => isGenreTag(t.name, { keepDates: true }));
 
   for (const forced of FORCED_DECADE_TAGS) {
     if (!rawCandidates.some((t) => t.name.toLowerCase() === forced.name)) {
@@ -610,7 +547,7 @@ async function probeGenreCover(tagName: string, genreKey: string): Promise<Cover
   try {
     const albums = await fetchTopAlbums(tagName, 5);
     for (const album of albums) {
-      const url = pickImage(album.image);
+      const url = pickLastFmImage(album.image);
       if (!url) continue;
       genreCoverUrls.set(genreKey, url);
       cacheAlbumImage(album.artist.name, album.name, url, "lastfm").catch((error) =>
@@ -629,8 +566,8 @@ async function probeGenreCover(tagName: string, genreKey: string): Promise<Cover
  * Fetch the genre browse grid: popular tags with procedurally generated
  * atmospheric artworks.
  *
- * The tag list is fetched from `chart.getTopTags` and filtered through the
- * blocklist. A tile needs at least one album cover behind it, so a genre
+ * The tag list is fetched from `chart.getTopTags` and filtered to genre tags
+ * with `isGenreTag`, decades kept. A tile needs at least one album cover behind it, so a genre
  * without music never renders a default-accent tile. A genre whose stored
  * artwork was generated from a real cover already proves that; every other
  * genre is probed with `tag.getTopAlbums`, {@link BROWSE_PROBE_CONCURRENCY}

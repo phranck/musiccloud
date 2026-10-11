@@ -6,8 +6,8 @@
  * ID, so this source emits the shared search-candidate shape and lets the
  * existing resolver own canonical identity and persistence.
  */
-import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
 import { log } from "../../../lib/infra/logger.js";
+import { lastFmApiKey, lastFmGet } from "../../plugins/lastfm/lastfm-response.js";
 import {
   type Candidate,
   type CrawlerSource,
@@ -15,8 +15,6 @@ import {
   type CrawlerSourceFetchResult,
 } from "../types.js";
 
-const API_BASE = "https://ws.audioscrobbler.com/2.0";
-const REQUEST_TIMEOUT_MS = 5000;
 const REQUEST_SPACING_MS = 250;
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -29,7 +27,6 @@ interface LastfmTagConfig extends Record<string, unknown> {
 }
 
 interface LastfmTagTracksResponse {
-  error?: unknown;
   tracks?: {
     track?: unknown;
   };
@@ -75,7 +72,7 @@ function assertLastfmTagsAvailable(config: LastfmTagConfig): void {
   if (config.tags.length === 0) {
     throw new CrawlerSourceConfigurationError("Crawler source configuration is incomplete.");
   }
-  if (!process.env.LASTFM_API_KEY) {
+  if (!lastFmApiKey()) {
     throw new CrawlerSourceConfigurationError("Crawler source is unavailable.");
   }
 }
@@ -98,21 +95,22 @@ function candidateKey(candidate: Extract<Candidate, { kind: "search" }>): string
   return `${candidate.artist.toLocaleLowerCase("en-US")}\u0000${candidate.title.toLocaleLowerCase("en-US")}`;
 }
 
-async function fetchTagTopTracks(tag: string, limit: number, apiKey: string): Promise<unknown[]> {
-  const query = new URLSearchParams({
-    method: "tag.getTopTracks",
-    tag,
-    api_key: apiKey,
-    format: "json",
-    limit: String(limit),
-  });
-
+/**
+ * Reads one page of a tag's top tracks.
+ *
+ * A tag Last.fm does not know is a tag without tracks. A refusal or a failed
+ * request fails the whole fetch, logged without the answer's details.
+ *
+ * @param tag - The normalized tag.
+ * @param limit - How many tracks to read at most.
+ * @returns The raw track entries, at most `limit` of them.
+ * @throws {Error} with a fixed message when the request failed or was refused.
+ */
+async function fetchTagTopTracks(tag: string, limit: number): Promise<unknown[]> {
   try {
-    const response = await fetchWithTimeout(`${API_BASE}/?${query.toString()}`, {}, REQUEST_TIMEOUT_MS);
-    if (!response.ok) throw new Error("Last.fm response was not successful.");
-    const payload = (await response.json()) as LastfmTagTracksResponse;
-    if (payload.error !== undefined) throw new Error("Last.fm returned an API error.");
-    return Array.isArray(payload.tracks?.track) ? payload.tracks.track.slice(0, limit) : [];
+    const payload = await lastFmGet<LastfmTagTracksResponse>("tag.getTopTracks", { tag, limit: String(limit) });
+    const tracks = payload?.tracks?.track;
+    return Array.isArray(tracks) ? tracks.slice(0, limit) : [];
   } catch {
     log.deviation({
       component: "LastfmTagCrawler",
@@ -136,13 +134,12 @@ export const lastfmTagsSource: CrawlerSource = {
   async fetch(config: Record<string, unknown>): Promise<CrawlerSourceFetchResult> {
     const parsedConfig = parseLastfmTagsConfig(config);
     assertLastfmTagsAvailable(parsedConfig);
-    const apiKey = process.env.LASTFM_API_KEY as string;
     const candidates: Candidate[] = [];
     const seenCandidates = new Set<string>();
     let skipped = 0;
 
     for (const [index, tag] of parsedConfig.tags.entries()) {
-      const tracks = await fetchTagTopTracks(tag, parsedConfig.limit, apiKey);
+      const tracks = await fetchTagTopTracks(tag, parsedConfig.limit);
       for (const track of tracks) {
         const candidate = asSearchCandidate(track);
         if (!candidate) {
