@@ -65,11 +65,13 @@ That makes the dashboard sensitive to the backend being replaced under it. When 
 
 Observed on 7 August 2026: the dashboard deploy finished 51 seconds before the backend deploy, and every `/api/` path through `dashboard.musiccloud.io` failed from then on. The frontend, which resolves per request from Node, was unaffected throughout.
 
-Two consequences to keep in mind:
+Three consequences to keep in mind:
 
-The deploy workflow orders `deploy-dashboard` after `deploy-backend` so a shared deploy cannot reopen that window. A backend restart outside a deploy is not covered by that, and needs the dashboard restarted with it.
+The deploy workflow deploys the dashboard again after every successful backend deploy, also when only the backend changed, and it waits for `deploy-backend` to finish. The new dashboard container then resolves the new backend when it starts.
 
-Resolving per request would remove the problem entirely, but it needs a `resolver` directive with a literal DNS address, and Zerops does not document one. Until that address is known, ordering plus a deliberate restart is the arrangement.
+The dashboard deploy probes `https://dashboard.musiccloud.io/api/admin/auth/setup-status`, which goes through the proxy, as well as the static page. A stale upstream therefore fails the deploy rather than passing it.
+
+A backend restart outside a deploy, such as Zerops replacing a container that fails its health check, is not covered by either, and needs the dashboard restarted with it. Resolving per request would remove that case as well. It needs a `resolver` directive with a literal DNS address, because nginx does not read `/etc/resolv.conf`, and Zerops does not document one. The Zerops CLI points its VPN's DNS at the project network's gateway ([`zcli` `src/wg/darwin.go`](https://github.com/zeropsio/zcli/blob/main/src/wg/darwin.go)), so the address differs per project and has to be read from `/etc/resolv.conf` in a running musiccloud container.
 
 ## Deployment note
 

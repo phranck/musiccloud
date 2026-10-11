@@ -12,9 +12,9 @@ server {
     # result is kept for the life of the process. If the backend container is
     # replaced afterwards, every proxied request here fails with 502 or a
     # timeout until this container restarts, whilst static delivery carries on
-    # looking healthy. The deploy workflow therefore orders this service after
-    # the backend, and a backend restart outside a deploy needs this service
-    # restarted with it. See architecture/zerops-networking.md.
+    # looking healthy. The deploy workflow therefore deploys this service again
+    # after every backend deploy, and a backend restart outside a deploy needs
+    # this service restarted with it. See architecture/zerops-networking.md.
 
     # Browser-boundary headers for the admin dashboard, the one private surface.
     # Values come from `buildSecurityHeaders(SurfaceExposure.Private)` in
