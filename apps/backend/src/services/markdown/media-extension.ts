@@ -11,6 +11,7 @@
 
 import {
   IMAGE_SHORTCODE,
+  isSafeContentTarget,
   MEDIA_DEFAULT_ASPECT,
   PDF_SHORTCODE,
   parseShortcodes,
@@ -31,9 +32,6 @@ const YOUTUBE_ID_PATTERNS = [
   /youtu\.be\/([A-Za-z0-9_-]{11})/,
   /youtube(?:-nocookie)?\.com\/(?:embed|shorts|live|v)\/([A-Za-z0-9_-]{11})/,
 ];
-
-/** An address a page may point at: this site, or somewhere reachable over https. */
-const SAFE_TARGET = /^(?:\/[^/\\]|https:\/\/)/;
 
 /** What the label on a PDF card reads when the page names nothing. */
 const PDF_DEFAULT_LABEL = "Open the PDF";
@@ -161,7 +159,7 @@ export function createMediaExtension(): MarkedExtension {
         },
         tokenizer(source: string) {
           const read = readMediaSource(source, IMAGE_SHORTCODE);
-          if (!read || !SAFE_TARGET.test(read.target)) return;
+          if (!read || !isSafeContentTarget(read.target)) return;
 
           const caption = text(read.params.caption);
           return {
@@ -197,7 +195,7 @@ export function createMediaExtension(): MarkedExtension {
         },
         tokenizer(source: string) {
           const read = readMediaSource(source, PDF_SHORTCODE);
-          if (!read || !SAFE_TARGET.test(read.target)) return;
+          if (!read || !isSafeContentTarget(read.target)) return;
 
           return {
             type: "mcPdf",

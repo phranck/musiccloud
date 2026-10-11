@@ -3,7 +3,7 @@ import {
   expectedNavigationPlacements,
   hasAllContextBits,
   isNavigationSystemKey,
-  isSafeConfiguredUrl,
+  isSafeNavigationUrl,
   isValidContentContextMask,
   isValidNavigationAreaMask,
   NAVIGATION_SYSTEM_TARGETS,
@@ -196,7 +196,7 @@ async function planNavigationBackfill(
         continue;
       }
 
-      if (!row.url || !isSafeConfiguredUrl(row.url, { allowRelative: true, allowMailto: true }) || isDocsUrl(row.url)) {
+      if (!row.url || !isSafeNavigationUrl(row.url) || isDocsUrl(row.url)) {
         conflicts++;
         continue;
       }
@@ -310,7 +310,7 @@ function validateExistingNavigation(
       entry.targetKind !== NavigationTargetKind.Url ||
       entry.pageId !== null ||
       !entry.url ||
-      !isSafeConfiguredUrl(entry.url, { allowRelative: true, allowMailto: true }) ||
+      !isSafeNavigationUrl(entry.url) ||
       isDocsUrl(entry.url)
     ) {
       conflicts++;

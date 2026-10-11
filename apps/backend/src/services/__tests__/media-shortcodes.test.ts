@@ -48,6 +48,13 @@ describe("[[image]]", () => {
 
     expect(out).not.toContain("<img");
   });
+
+  it("refuses an address that leaves the site through a backslash", async () => {
+    // Browsers read `\` like `/` in an https URL, so `/\evil.example` loads from evil.example.
+    const out = await renderPortal("[[image:/\\evil.example/x.png]]");
+
+    expect(out).not.toContain("<img");
+  });
 });
 
 describe("[[pdf]]", () => {
@@ -69,6 +76,14 @@ describe("[[pdf]]", () => {
 
     expect(out).toContain("Terms of use");
     expect(out).toContain("Read them");
+  });
+
+  it("refuses an address that leaves the site", async () => {
+    for (const target of ["//evil.example/terms.pdf", "/\\evil.example/terms.pdf"]) {
+      const out = await renderPortal(`[[pdf:${target}]]`);
+
+      expect(out, target).not.toContain("mc-pdf");
+    }
   });
 });
 

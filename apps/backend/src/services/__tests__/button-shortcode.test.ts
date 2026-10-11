@@ -65,6 +65,20 @@ describe("[[button]]", () => {
     expect(out).not.toContain("mc-button");
   });
 
+  it("refuses one that leaves the site through a backslash", async () => {
+    // Browsers read `\` like `/` in an https URL, so `/\evil.example` opens evil.example.
+    const out = await renderPortal('[[button action="/\\evil.example" label="Press"]]');
+
+    expect(out).not.toContain("mc-button");
+  });
+
+  it("goes to the front page when its target is the bare path", async () => {
+    const out = await renderPortal('[[button action="/" label="Home"]]');
+
+    expect(out).toContain('href="/"');
+    expect(out).toContain("mc-button");
+  });
+
   it("stands beside another when each is its own paragraph in a row", async () => {
     const out = await renderPortal(
       '[[hstack spacing=12 {\n[[button action="/signup" label="One"]]\n\n[[button action="/docs" label="Two" tone="neutral"]]\n}]]',

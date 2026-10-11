@@ -3,7 +3,8 @@ import {
   expectedNavigationPlacements,
   hasAllContextBits,
   isNavigationSystemKey,
-  isSafeConfiguredUrl,
+  isSafeNavigationUrl,
+  isSameSiteRelativePath,
   isValidContentContextMask,
   isValidNavigationAreaMask,
   NAVIGATION_SYSTEM_TARGETS,
@@ -44,7 +45,7 @@ function invalid<T>(message: string): NavResult<T> {
 }
 
 function isProtectedDocsUrl(url: string): boolean {
-  if (!url.startsWith("/")) return false;
+  if (!isSameSiteRelativePath(url)) return false;
   try {
     const path = new URL(url, "https://navigation.invalid").pathname;
     const normalized = normalizeEditorialPath(path);
@@ -292,7 +293,7 @@ async function validateNavigationEntry(
       typeof raw.url !== "string" ||
       raw.url.length === 0 ||
       raw.systemKey !== null ||
-      !isSafeConfiguredUrl(raw.url, { allowRelative: true, allowMailto: true }) ||
+      !isSafeNavigationUrl(raw.url) ||
       isProtectedDocsUrl(raw.url)
     ) {
       return invalid(`entries[${entryIndex}] has invalid URL target fields`);
@@ -410,7 +411,7 @@ export async function replaceManagedNavItems(navId: NavId, items: unknown): Prom
       return { ok: false, code: "INVALID_INPUT", message: `items[${i}]: either pageSlug or url is required` };
     }
 
-    if (url && (!isSafeConfiguredUrl(url, { allowRelative: true, allowMailto: true }) || isProtectedDocsUrl(url))) {
+    if (url && (!isSafeNavigationUrl(url) || isProtectedDocsUrl(url))) {
       return {
         ok: false,
         code: "INVALID_INPUT",
