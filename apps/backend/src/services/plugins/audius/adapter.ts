@@ -106,8 +106,9 @@ interface AudiusPlaylistResponse {
   track_count?: number;
 }
 
+/** Audius answers a single playlist, an album included, as a list of one. */
 interface AudiusPlaylistDetailResponse {
-  data: AudiusPlaylistResponse;
+  data?: AudiusPlaylistResponse[];
 }
 
 interface AudiusPlaylistSearchResponse {
@@ -146,20 +147,17 @@ function mapPlaylist(raw: AudiusPlaylistResponse): NormalizedAlbum {
 }
 
 async function fetchAlbumById(playlistId: string): Promise<NormalizedAlbum | null> {
-  // Try resolve first (for path-based IDs), then direct ID lookup
-  if (playlistId.includes("/")) {
-    const response = await audiusFetch(`/resolve?url=https://audius.co/${encodeURIComponent(playlistId)}`);
-    if (!response.ok) return null;
-    const data = (await response.json()) as AudiusPlaylistDetailResponse;
-    if (!data.data?.is_album) return null;
-    return mapPlaylist(data.data);
-  }
-
-  const response = await audiusFetch(`/playlists/${encodeURIComponent(playlistId)}`);
+  // A path-style id comes from an album link and goes through the resolve
+  // endpoint; anything else is a playlist id.
+  const endpoint = playlistId.includes("/")
+    ? `/resolve?url=https://audius.co/${encodeURIComponent(playlistId)}`
+    : `/playlists/${encodeURIComponent(playlistId)}`;
+  const response = await audiusFetch(endpoint);
   if (!response.ok) return null;
   const data = (await response.json()) as AudiusPlaylistDetailResponse;
-  if (!data.data?.is_album) return null;
-  return mapPlaylist(data.data);
+  const playlist = data.data?.[0];
+  if (!playlist?.is_album) return null;
+  return mapPlaylist(playlist);
 }
 
 async function searchAudiusAlbums(query: string): Promise<NormalizedAlbum[]> {

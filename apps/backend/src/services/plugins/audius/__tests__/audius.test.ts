@@ -174,6 +174,71 @@ describe("Audius: getTrack", () => {
 });
 
 // =============================================================================
+// getAlbum
+// =============================================================================
+
+/**
+ * Audius answers a playlist, and therefore an album, with `data` as a list of
+ * one entry, both through the resolve endpoint and through `/playlists/{id}`.
+ * Fetched from the live API on 2026-10-11.
+ */
+const MOCK_AUDIUS_ALBUM = {
+  id: "P5wZ0",
+  playlist_name: "the black album",
+  is_album: true,
+  permalink: "/medmc/album/the-black-album",
+  artwork: { "480x480": "https://audius.co/artwork/album-480.jpg" },
+  user: { id: "u1", handle: "medmc", name: "MedMC" },
+  track_count: 12,
+};
+
+describe("Audius: getAlbum", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("resolves an album link through the resolve endpoint", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [MOCK_AUDIUS_ALBUM] }), { status: 200 }));
+
+    const album = await audiusAdapter.getAlbum("medmc/album/the-black-album");
+
+    expect(fetchSpy.mock.calls[0][0] as string).toContain("/resolve?url=");
+    expect(album).toMatchObject({
+      sourceService: "audius",
+      sourceId: "P5wZ0",
+      title: "the black album",
+      artists: ["MedMC"],
+      totalTracks: 12,
+      webUrl: "https://audius.co/medmc/album/the-black-album",
+    });
+  });
+
+  it("resolves an album by its id", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ data: [MOCK_AUDIUS_ALBUM] }), { status: 200 }),
+    );
+
+    await expect(audiusAdapter.getAlbum("P5wZ0")).resolves.toMatchObject({ title: "the black album" });
+  });
+
+  it("reports a playlist that is not an album as not found", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ data: [{ ...MOCK_AUDIUS_ALBUM, is_album: false }] }), { status: 200 }),
+    );
+
+    await expect(audiusAdapter.getAlbum("medmc/playlist/the-black-album")).rejects.toThrow(/Album not found/);
+  });
+
+  it("reports an empty answer as not found", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ data: [] }), { status: 200 }));
+
+    await expect(audiusAdapter.getAlbum("P5wZ0")).rejects.toThrow(/Album not found/);
+  });
+});
+
+// =============================================================================
 // findByIsrc
 // =============================================================================
 
