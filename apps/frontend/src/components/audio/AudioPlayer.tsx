@@ -595,6 +595,10 @@ export function useAudioController({
   // closing it. Only a real unmount (no following source effect) leaves it false and
   // closes the context. See the source effect + finishTeardown.
   const switchPendingRef = useRef(false);
+  // True once the source effect has mounted a source, so a later run is a switch.
+  // `hasStartedRef` turns true only on a first play, and a track that failed to
+  // load or was never played still leaves its phase behind for the next track.
+  const hasMountedSourceRef = useRef(false);
   // REGRESSION GUARD — do not defeat the quantize. This is the only React state the
   // playback progress feeds, and it is sampled on the shared 60 Hz ticker
   // (startProgressLoop). It MUST only ever be written through setProgressRatioValue,
@@ -1093,9 +1097,14 @@ export function useAudioController({
       }
 
       notifyPlaybackIntent();
+      // A play() still pending when its element is switched out settles for a
+      // source that is gone, because the switch pauses and empties the element
+      // and that rejects the promise. The player's phase belongs to the current
+      // element, so both outcomes are dropped for any other one.
       audio
         .play()
         .then(() => {
+          if (audioRef.current !== audio) return;
           sendMusicSignal(hasStartedRef.current ? PreviewSignal.Resumed : PreviewSignal.Started);
           dispatch({ type: PlayerActionType.Play });
           notifyStatusChange(AudioStatus.Playing);
@@ -1124,6 +1133,7 @@ export function useAudioController({
             });
         })
         .catch(() => {
+          if (audioRef.current !== audio) return;
           sendMusicSignal(PreviewSignal.Error);
           notifyStatusChange(AudioStatus.Unavailable);
           dispatch({ type: PlayerActionType.Error });
@@ -1225,12 +1235,13 @@ export function useAudioController({
     const previousSwapKey = lastSwapKeyRef.current;
     lastSwapKeyRef.current = recordSwapKeyRef.current;
 
-    // A source switch (not the initial mount): reset the player to a fresh idle
-    // track and either continue or defer playback per the swap decision.
-    // `hasStartedRef` flips true on the first play, so it is the "not initial" signal.
-    if (hasStartedRef.current) {
+    // A source switch (not the first source): reset the player to a fresh idle
+    // track, whatever phase the previous one ended in, and either continue or
+    // defer playback per the swap decision.
+    if (hasMountedSourceRef.current) {
       applySourceSwitch(audio, previousSwapKey);
     }
+    hasMountedSourceRef.current = true;
 
     return () => {
       // Reset the switch flag; a FOLLOWING source effect (a real switch) sets it
