@@ -125,13 +125,13 @@ const mockTidalAdapter = {
 vi.mock("../services/index.js", () => ({
   getActiveAdapters: vi.fn().mockResolvedValue([mockDeezerAdapter, mockSpotifyAdapter, mockTidalAdapter]),
   identifyService: vi.fn(),
-  identifyServiceIncludingDisabled: vi.fn().mockResolvedValue(undefined),
-  isPluginEnabled: vi.fn().mockResolvedValue(true),
+  findInactiveServiceFor: vi.fn().mockResolvedValue(null),
   filterDisabledLinks: vi.fn(async <T>(links: T[]) => links),
 }));
 
 // Import AFTER mocks are set up
 const { resolveAlbumUrl, resolveAlbumTextSearch } = await import("../services/album-resolver.js");
+const { findInactiveServiceFor } = await import("../services/index.js");
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
@@ -311,6 +311,14 @@ describe("AlbumResolver: resolveAlbumUrl", () => {
 
   it("should throw NOT_MUSIC_LINK for unrecognized album URL", async () => {
     await expect(resolveAlbumUrl("https://www.example.com/album/123")).rejects.toThrow("Unrecognized album URL");
+  });
+
+  it("names the service when the album link belongs to one that is inactive", async () => {
+    vi.mocked(findInactiveServiceFor).mockResolvedValueOnce("musicbrainz");
+
+    await expect(
+      resolveAlbumUrl("https://musicbrainz.org/release/b84ee12a-09ef-421b-82de-0441a926375b"),
+    ).rejects.toMatchObject({ code: "SERVICE_DISABLED", context: { service: "musicbrainz" } });
   });
 
   it("should throw SERVICE_DOWN when getAlbum fails", async () => {

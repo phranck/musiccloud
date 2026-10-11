@@ -11,8 +11,7 @@ import type { MatchResult, NormalizedTrack, SearchResultWithCandidates, ServiceA
 vi.mock("../services/index.js", () => ({
   getActiveAdapters: vi.fn().mockResolvedValue([]),
   identifyService: vi.fn(),
-  identifyServiceIncludingDisabled: vi.fn().mockResolvedValue(undefined),
-  isPluginEnabled: vi.fn().mockResolvedValue(true),
+  findInactiveServiceFor: vi.fn().mockResolvedValue(null),
   // Identity pass-through — all tests assume every service is enabled unless
   // they opt in to the SERVICE_DISABLED scenario.
   filterDisabledLinks: vi.fn(async <T>(links: T[]) => links),
@@ -43,13 +42,7 @@ vi.mock("../lib/fetch.js", () => ({
 import { getRepository } from "../db/index";
 import { SERVICE_MISS_TTL_MS } from "../services/constants.js";
 import { RESOLVE_RESPONSE_DEADLINE_MS } from "../services/fan-out-deadline.js";
-import {
-  filterDisabledLinks,
-  getActiveAdapters,
-  identifyService,
-  identifyServiceIncludingDisabled,
-  isPluginEnabled,
-} from "../services/index";
+import { filterDisabledLinks, findInactiveServiceFor, getActiveAdapters, identifyService } from "../services/index";
 import {
   MATCH_MIN_CONFIDENCE,
   persistLateTrackLinks,
@@ -135,8 +128,7 @@ beforeEach(() => {
 
   // Reset registry mock surface; each test overrides the ones it cares about.
   vi.mocked(getActiveAdapters).mockResolvedValue([]);
-  vi.mocked(identifyServiceIncludingDisabled).mockResolvedValue(undefined);
-  vi.mocked(isPluginEnabled).mockResolvedValue(true);
+  vi.mocked(findInactiveServiceFor).mockResolvedValue(null);
 
   // Fresh mock repository
   mockRepo = createMockRepository();
@@ -1503,18 +1495,11 @@ describe("resolveQuery: adapter availability", () => {
 });
 
 describe("resolveQuery: SERVICE_DISABLED", () => {
-  it("should throw SERVICE_DISABLED when the source service is toggled off", async () => {
-    const spotifyAdapter = createMockAdapter({
-      id: "spotify",
-      displayName: "Spotify",
-      detectUrl: vi.fn(() => "track123"),
-    });
-
-    // identifyServiceIncludingDisabled finds it (plugin exists),
-    // but isPluginEnabled says "off" — resolver must surface SERVICE_DISABLED
-    // rather than falling through to NOT_MUSIC_LINK.
-    vi.mocked(identifyServiceIncludingDisabled).mockResolvedValue(spotifyAdapter);
-    vi.mocked(isPluginEnabled).mockResolvedValue(false);
+  it("should throw SERVICE_DISABLED when the source service is inactive", async () => {
+    // The link belongs to a plugin that is switched off or lacks credentials,
+    // so the resolver must surface SERVICE_DISABLED rather than falling
+    // through to NOT_MUSIC_LINK.
+    vi.mocked(findInactiveServiceFor).mockResolvedValue("spotify");
     vi.mocked(getActiveAdapters).mockResolvedValue([]);
     vi.mocked(identifyService).mockResolvedValue(undefined);
 
@@ -1566,9 +1551,8 @@ describe("resolveQuery: SERVICE_DISABLED", () => {
       getTrack: vi.fn().mockResolvedValue(createMockTrack()),
     });
 
-    // Plugin enabled → identifyServiceIncludingDisabled hit doesn't short-circuit.
-    vi.mocked(identifyServiceIncludingDisabled).mockResolvedValue(spotifyAdapter);
-    vi.mocked(isPluginEnabled).mockResolvedValue(true);
+    // The plugin is active, so the check finds nothing and does not short-circuit.
+    vi.mocked(findInactiveServiceFor).mockResolvedValue(null);
     vi.mocked(getActiveAdapters).mockResolvedValue([spotifyAdapter]);
     vi.mocked(identifyService).mockResolvedValue(spotifyAdapter);
 

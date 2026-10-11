@@ -76,11 +76,12 @@
  * ## SERVICE_DISABLED vs NOT_MUSIC_LINK
  *
  * Before throwing the generic "unrecognized URL" error, the resolver
- * checks against *all* plugins including disabled ones. If the URL
- * matches a disabled plugin, the user sees the more actionable
- * `SERVICE_DISABLED` error with the service name, not a misleading
- * `NOT_MUSIC_LINK`. The admin controls which plugins are enabled;
- * the user only controls which link they paste.
+ * checks against *all* plugins, including disabled ones and ones without
+ * credentials (`findInactiveServiceFor`). If the URL belongs to one of
+ * them, the user sees the more actionable `SERVICE_DISABLED` error with
+ * the service name, not a misleading `NOT_MUSIC_LINK`. The album and
+ * artist pipelines make the same check. The admin controls which plugins
+ * are enabled; the user only controls which link they paste.
  *
  * ## YouTube Music derivation
  *
@@ -163,13 +164,7 @@ import {
 } from "./constants.js";
 import { collectTrackExternalIds } from "./external-ids.js";
 import { RESOLVE_RESPONSE_DEADLINE_MS, settleWithinDeadline } from "./fan-out-deadline.js";
-import {
-  filterDisabledLinks,
-  getActiveAdapters,
-  identifyService,
-  identifyServiceIncludingDisabled,
-  isPluginEnabled,
-} from "./index.js";
+import { filterDisabledLinks, findInactiveServiceFor, getActiveAdapters, identifyService } from "./index.js";
 import { type ServiceLinkLookup, serviceLinkLookup } from "./service-link-lookup.js";
 import type {
   ExternalIdRecord,
@@ -704,9 +699,9 @@ async function resolveCanonicalUrl(cleanUrl: string): Promise<ResolutionResult> 
   //    unknown URL (NOT_MUSIC_LINK) from a known-but-disabled one
   //    (SERVICE_DISABLED). The user controls which link to paste; the
   //    admin controls which plugins are on.
-  const identified = await identifyServiceIncludingDisabled(cleanUrl);
-  if (identified && !(await isPluginEnabled(identified.id))) {
-    throw new ResolveError("SERVICE_DISABLED", undefined, { service: identified.id });
+  const inactiveService = await findInactiveServiceFor(cleanUrl);
+  if (inactiveService) {
+    throw new ResolveError("SERVICE_DISABLED", undefined, { service: inactiveService });
   }
   const sourceAdapter = await identifyService(cleanUrl);
   if (!sourceAdapter) {

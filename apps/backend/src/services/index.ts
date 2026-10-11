@@ -10,12 +10,11 @@ import { listPlugins } from "./plugins/registry.js";
 export {
   classifyMusicUrl,
   filterDisabledLinks,
+  findInactiveServiceFor,
   getActiveAdapters,
   getEnabledMap,
   identifyService,
-  identifyServiceIncludingDisabled,
   invalidateEnabledCache,
-  isPluginEnabled,
   listPlugins,
 } from "./plugins/registry.js";
 

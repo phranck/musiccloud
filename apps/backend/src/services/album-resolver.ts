@@ -79,7 +79,7 @@ import { ResolveError, searchExhaustedError } from "../lib/resolve/errors.js";
 import { confidenceForMethod } from "./confidence.js";
 import { IDENTIFIER_MATCH_CONFIDENCE } from "./constants.js";
 import { collectAlbumExternalIds } from "./external-ids.js";
-import { filterDisabledLinks, getActiveAdapters, identifyServiceIncludingDisabled, isPluginEnabled } from "./index.js";
+import { filterDisabledLinks, findInactiveServiceFor, getActiveAdapters } from "./index.js";
 import { type ServiceLinkLookup, serviceLinkLookup } from "./service-link-lookup.js";
 import type {
   AlbumMatchResult,
@@ -678,12 +678,12 @@ export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolution
   const cached = await tryAlbumCache({ url: cleanUrl });
   if (cached) return fillMissingAlbumServices(cached);
 
-  // 2. Identify which service the URL belongs to. Check disabled plugins
-  //    first so a known-but-toggled-off source surfaces SERVICE_DISABLED
-  //    instead of the generic NOT_MUSIC_LINK.
-  const identified = await identifyServiceIncludingDisabled(cleanUrl);
-  if (identified?.detectAlbumUrl?.(cleanUrl) && !(await isPluginEnabled(identified.id))) {
-    throw new ResolveError("SERVICE_DISABLED", undefined, { service: identified.id });
+  // 2. Identify which service the URL belongs to. A source that is switched
+  //    off or lacks credentials surfaces SERVICE_DISABLED instead of the
+  //    generic NOT_MUSIC_LINK.
+  const inactiveService = await findInactiveServiceFor(cleanUrl);
+  if (inactiveService) {
+    throw new ResolveError("SERVICE_DISABLED", undefined, { service: inactiveService });
   }
   const sourceAdapter = await identifyAlbumService(cleanUrl);
   if (!sourceAdapter || !sourceAdapter.getAlbum || !sourceAdapter.detectAlbumUrl) {
