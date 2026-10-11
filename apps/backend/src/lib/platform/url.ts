@@ -73,7 +73,10 @@ const ALLOWED_HOSTS = [
 // Patterns for unsupported content types (specific error messages)
 const PODCAST_REGEX = /spotify\.com\/(?:intl-\w+\/)?(?:episode|show)\//;
 const PLAYLIST_REGEX =
-  /(?:spotify\.com\/(?:intl-\w+\/)?playlist\/|music\.apple\.com\/[a-z]{2}\/playlist\/|youtube\.com\/playlist\?list=(?!OLAK5uy_))/;
+  /(?:spotify\.com\/(?:intl-\w+\/)?playlist\/|music\.apple\.com\/[a-z]{2}\/playlist\/|youtube\.com\/playlist\?)/;
+// A YouTube Music album is a playlist whose id starts with OLAK5uy_. No plugin
+// resolves it, so it gets an answer of its own rather than the playlist one.
+const YOUTUBE_MUSIC_ALBUM_REGEX = /youtube\.com\/playlist\?(?:[^#]*&)?list=OLAK5uy_/;
 
 export function validateMusicUrl(input: string): UrlValidationResult {
   const explicitUrl = hasExplicitHttpScheme(input);
@@ -97,6 +100,15 @@ export function validateMusicUrl(input: string): UrlValidationResult {
       valid: false,
       code: "PODCAST_NOT_SUPPORTED",
       message: "We only support music tracks at the moment.",
+    };
+  }
+
+  if (YOUTUBE_MUSIC_ALBUM_REGEX.test(input)) {
+    return {
+      valid: false,
+      code: "PLAYLIST_NOT_SUPPORTED",
+      message:
+        "YouTube Music albums can't be resolved yet. Paste a link to one of its songs, or to the album on another service.",
     };
   }
 
