@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const listTiers = vi.fn();
+const listAllOffers = vi.fn();
 const getMaxProjectsPerAccount = vi.fn();
 
 vi.mock("../../db/index.js", () => ({
-  getTierRepository: async () => ({ listTiers }),
+  getTierRepository: async () => ({ listTiers, listAllOffers }),
 }));
 
 vi.mock("../developer-limits.js", async () => {
@@ -25,8 +26,10 @@ const FREE_TIER = { id: TIER_FREE_ID, requestsPerMinute: 37, requestsPerDay: 432
 describe("resolveSiteVariableValues", () => {
   beforeEach(() => {
     listTiers.mockReset();
+    listAllOffers.mockReset();
     getMaxProjectsPerAccount.mockReset();
     listTiers.mockResolvedValue([FREE_TIER]);
+    listAllOffers.mockResolvedValue([]);
     getMaxProjectsPerAccount.mockResolvedValue(7);
   });
 
@@ -64,8 +67,16 @@ describe("resolveSiteVariableValues", () => {
       { id: "tier_pro", requestsPerMinute: 600, requestsPerDay: 100_000, enabled: true },
       FREE_TIER,
     ]);
+    listAllOffers.mockResolvedValue([{ tierId: "tier_pro" }]);
     const values = await resolveSiteVariableValues();
 
     expect(values.freeRequestsPerMinute).toBe(FREE_TIER.requestsPerMinute);
+  });
+
+  it("does not call a priced tier_free free", async () => {
+    listAllOffers.mockResolvedValue([{ tierId: TIER_FREE_ID }]);
+    const values = await resolveSiteVariableValues();
+
+    expect(values.freeRequestsPerMinute).toBe(0);
   });
 });

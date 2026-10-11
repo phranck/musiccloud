@@ -113,27 +113,33 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
               )}
 
               <div class="mt-auto flex w-full flex-col items-center gap-3 pt-3">
-                {tier.price ? (
+                {/* Free is what the catalogue says, not an empty monthly price,
+                    because a plan sold only yearly or quarterly has none. Each
+                    side of the switch falls back to the other period, and a
+                    paid plan with neither says so instead of a figure. */}
+                {tier.free ? (
+                  <span class="inline-flex items-center gap-1 text-body font-semibold text-accent">
+                    <CoinIcon className="size-5" aria-hidden="true" />
+                    Free
+                  </span>
+                ) : tier.price || tier.priceYearly ? (
                   <RollingText>
                     <Fragment slot="monthly">
                       <span class="text-3xl font-bold" style={`color:${tierColor}`}>
-                        {formatTierPrice(tier.price)}
+                        {formatTierPrice(tier.price ?? tier.priceYearly ?? "")}
                       </span>
-                      <span class="text-body text-fg-subtle"> / month</span>
+                      <span class="text-body text-fg-subtle"> / {tier.price ? "month" : "year"}</span>
                     </Fragment>
                     <Fragment slot="yearly">
                       {tier.priceYearly && <span class="text-body text-fg-subtle">only </span>}
                       <span class="text-3xl font-bold" style={`color:${tierColor}`}>
-                        {formatTierPrice(tier.priceYearly ?? tier.price)}
+                        {formatTierPrice(tier.priceYearly ?? tier.price ?? "")}
                       </span>
                       <span class="text-body text-fg-subtle"> / {tier.priceYearly ? "year" : "month"}</span>
                     </Fragment>
                   </RollingText>
                 ) : (
-                  <span class="inline-flex items-center gap-1 text-body font-semibold text-accent">
-                    <CoinIcon className="size-5" aria-hidden="true" />
-                    Free
-                  </span>
+                  <span class="text-body font-semibold text-fg-muted">Paid plan</span>
                 )}
                 {tier.enabled && tier.selfServiceAssignable && (
                   <a
@@ -143,7 +149,7 @@ const recommendedIndex = tiers.findIndex((tier) => tier.recommended);
                     <span class="tier-cta-label">{tier.buttonLabel || "I want this"}</span>
                   </a>
                 )}
-                {tier.enabled && !tier.selfServiceAssignable && (
+                {tier.enabled && !tier.free && (
                   <p class="text-nav text-fg-subtle text-center">
                     Not available yet. Signing up puts you on the free plan; paid plans arrive with billing.
                   </p>

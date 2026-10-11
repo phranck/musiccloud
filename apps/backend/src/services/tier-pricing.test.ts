@@ -3,7 +3,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Tier } from "../db/tiers-repository.js";
+import type { Tier, TierOffer } from "../db/tiers-repository.js";
 import { requireCreemApiKey } from "../lib/creem-config.js";
 
 vi.mock("./creem-catalog.js", async (importOriginal) => ({
@@ -15,10 +15,6 @@ vi.mock("../lib/infra/logger.js", () => ({
   log: { deviation: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-const mockRepo = vi.hoisted(() => ({ listAllOffers: vi.fn() }));
-
-vi.mock("../db/index.js", () => ({ getTierRepository: async () => mockRepo }));
-
 import { log } from "../lib/infra/logger.js";
 import { CreemPriceOutcome, getCreemCatalog } from "./creem-catalog.js";
 import { centsToEuroString, enrichTiersWithCreemPrices } from "./tier-pricing.js";
@@ -26,11 +22,11 @@ import { centsToEuroString, enrichTiersWithCreemPrices } from "./tier-pricing.js
 const mockedCatalog = vi.mocked(getCreemCatalog);
 
 /** An offer of one plan, which is where a displayed price comes from. */
-function makeOffer(tierId: string, billingPeriod: string, priceCents: number) {
+function makeOffer(tierId: string, billingPeriod: string, priceCents: number): TierOffer {
   return {
     id: `offer_${tierId}_${billingPeriod}`,
     tierId,
-    billingPeriod,
+    billingPeriod: billingPeriod as TierOffer["billingPeriod"],
     priceCents,
     currency: "EUR",
     taxMode: null,
@@ -83,7 +79,6 @@ describe("centsToEuroString", () => {
 describe("enrichTiersWithCreemPrices (MC-114)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRepo.listAllOffers.mockResolvedValue([]);
   });
 
   it("overrides price and priceYearly from the Creem catalog, leaving other fields", async () => {
@@ -93,13 +88,10 @@ describe("enrichTiersWithCreemPrices (MC-114)", () => {
         "every-year": { productId: "p2", price: 9000, currency: "EUR" },
       },
     });
-    mockRepo.listAllOffers.mockResolvedValue([
-      makeOffer("tier_club", "every-month", 700),
-      makeOffer("tier_club", "every-year", 7000),
-    ]);
+    const offers = [makeOffer("tier_club", "every-month", 700), makeOffer("tier_club", "every-year", 7000)];
     const tiers = [makeTier({ id: "tier_club", name: "Club" })];
 
-    const result = await enrichTiersWithCreemPrices(tiers);
+    const result = await enrichTiersWithCreemPrices(tiers, offers);
 
     expect(result[0]?.price).toBe("9");
     expect(result[0]?.priceYearly).toBe("90");
@@ -110,7 +102,7 @@ describe("enrichTiersWithCreemPrices (MC-114)", () => {
     mockedCatalog.mockResolvedValue({});
     const tiers = [makeTier({ id: "tier_free" })];
 
-    const result = await enrichTiersWithCreemPrices(tiers);
+    const result = await enrichTiersWithCreemPrices(tiers, []);
 
     expect(result[0]?.price).toBeNull();
     expect(result[0]?.priceYearly).toBeNull();
@@ -118,10 +110,9 @@ describe("enrichTiersWithCreemPrices (MC-114)", () => {
 
   it("shows the offer's own amount where Creem has no product for it", async () => {
     mockedCatalog.mockResolvedValue({});
-    mockRepo.listAllOffers.mockResolvedValue([makeOffer("tier_club", "every-month", 990)]);
     const tiers = [makeTier({ id: "tier_club" })];
 
-    const result = await enrichTiersWithCreemPrices(tiers);
+    const result = await enrichTiersWithCreemPrices(tiers, [makeOffer("tier_club", "every-month", 990)]);
 
     expect(result[0]?.price).toBe("9.90");
     expect(result[0]?.priceYearly).toBeNull();
@@ -129,13 +120,10 @@ describe("enrichTiersWithCreemPrices (MC-114)", () => {
 
   it("keeps the offers' prices when the catalog fetch throws", async () => {
     mockedCatalog.mockRejectedValue(new Error("creem unreachable"));
-    mockRepo.listAllOffers.mockResolvedValue([
-      makeOffer("tier_club", "every-month", 700),
-      makeOffer("tier_club", "every-year", 7000),
-    ]);
+    const offers = [makeOffer("tier_club", "every-month", 700), makeOffer("tier_club", "every-year", 7000)];
     const tiers = [makeTier({ id: "tier_club" })];
 
-    const result = await enrichTiersWithCreemPrices(tiers);
+    const result = await enrichTiersWithCreemPrices(tiers, offers);
 
     expect(result[0]?.price).toBe("7");
     expect(result[0]?.priceYearly).toBe("70");
@@ -143,17 +131,19 @@ describe("enrichTiersWithCreemPrices (MC-114)", () => {
 
   it("ignores the offers of another plan", async () => {
     mockedCatalog.mockResolvedValue({});
-    mockRepo.listAllOffers.mockResolvedValue([makeOffer("tier_other", "every-month", 990)]);
     const tiers = [makeTier({ id: "tier_club" })];
 
-    expect((await enrichTiersWithCreemPrices(tiers))[0]?.price).toBeNull();
+    expect(
+      (await enrichTiersWithCreemPrices(tiers, [makeOffer("tier_other", "every-month", 990)]))[0]?.price,
+    ).toBeNull();
   });
 });
 
 describe("enrichTiersWithCreemPrices: reporting the fallback", () => {
+  const offers = [makeOffer("tier_club", "every-month", 900)];
+
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRepo.listAllOffers.mockResolvedValue([makeOffer("tier_club", "every-month", 900)]);
   });
 
   afterEach(() => {
@@ -164,7 +154,7 @@ describe("enrichTiersWithCreemPrices: reporting the fallback", () => {
     mockedCatalog.mockRejectedValue(new Error("Creem responded 503"));
     const tiers = [makeTier({ id: "tier_club" })];
 
-    const result = await enrichTiersWithCreemPrices(tiers);
+    const result = await enrichTiersWithCreemPrices(tiers, offers);
 
     expect(result[0]?.price).toBe("9");
     const context = vi.mocked(log.deviation).mock.calls[0]?.[0];
@@ -184,7 +174,7 @@ describe("enrichTiersWithCreemPrices: reporting the fallback", () => {
       return {};
     });
 
-    await enrichTiersWithCreemPrices([makeTier({ id: "tier_club" })]);
+    await enrichTiersWithCreemPrices([makeTier({ id: "tier_club" })], offers);
 
     expect(vi.mocked(log.deviation).mock.calls[0]?.[0]?.outcome).toBe(CreemPriceOutcome.NotConfigured);
   });
@@ -198,7 +188,7 @@ describe("enrichTiersWithCreemPrices: reporting the fallback", () => {
       return {};
     });
 
-    await enrichTiersWithCreemPrices([makeTier({ id: "tier_club" })]);
+    await enrichTiersWithCreemPrices([makeTier({ id: "tier_club" })], offers);
 
     expect(vi.mocked(log.deviation).mock.calls[0]?.[0]?.outcome).toBe(CreemPriceOutcome.CatalogUnavailable);
   });
@@ -206,7 +196,7 @@ describe("enrichTiersWithCreemPrices: reporting the fallback", () => {
   it("says nothing when the catalogue answers, because that is not a deviation", async () => {
     mockedCatalog.mockResolvedValue({ tier_club: { "every-month": { productId: "p", price: 900, currency: "EUR" } } });
 
-    await enrichTiersWithCreemPrices([makeTier({ id: "tier_club" })]);
+    await enrichTiersWithCreemPrices([makeTier({ id: "tier_club" })], offers);
 
     expect(log.deviation).not.toHaveBeenCalled();
   });

@@ -1,17 +1,22 @@
 /**
- * @file Unit tests for {@link resolveSignupTierId} (MC-109, Plan A).
+ * @file Unit tests for the free-plan rule and for {@link resolveSignupTierId}.
  *
- * Verifies the "always assign a tier, never grant paid for free" invariant:
- * - `undefined`/`null`/unknown id → `"tier_free"`
- * - explicit `"tier_free"` request → `"tier_free"`
- * - any paid tier requested → `"tier_free"` (Plan A: only free is assignable)
+ * A plan is free when it has no offer, and a developer may choose it when it
+ * is also enabled. Signup always assigns a tier and never grants a plan with
+ * a price: an absent, unknown or priced request resolves to `tier_free`.
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getTierRepository } from "../db/index.js";
-import type { Tier, TierRepository } from "../db/tiers-repository.js";
-import { resolveSignupTierId, TIER_FREE_ID } from "./signup-tier.js";
+import type { Tier, TierOffer, TierRepository } from "../db/tiers-repository.js";
+import {
+  isFreeTier,
+  isSelfServiceAssignableTier,
+  listSelfServiceAssignableTiers,
+  resolveSignupTierId,
+  TIER_FREE_ID,
+} from "./signup-tier.js";
 
 vi.mock("../db/index.js", () => ({
   getTierRepository: vi.fn(),
@@ -47,13 +52,15 @@ function makeTier(overrides: Partial<Tier> = {}): Tier {
 }
 
 /**
- * Wires {@link getTierRepository} mock to return the given tier list.
+ * Wires {@link getTierRepository} mock to return the given plans and offers.
  *
- * @param tiers - Tiers to return from `listTiers()`.
+ * @param tiers - Plans to return from `listTiers()`.
+ * @param offers - Offers to return from `listAllOffers()`; none by default.
  */
-function mockListTiers(tiers: Tier[]): void {
+function mockListTiers(tiers: Tier[], offers: Array<Pick<TierOffer, "tierId">> = []): void {
   vi.mocked(getTierRepository).mockResolvedValue({
     listTiers: vi.fn(async () => tiers),
+    listAllOffers: vi.fn(async () => offers),
   } as unknown as TierRepository);
 }
 
@@ -67,32 +74,67 @@ describe("TIER_FREE_ID", () => {
   });
 });
 
+describe("isFreeTier and isSelfServiceAssignableTier", () => {
+  it("call a plan without an offer free and, when it is enabled, assignable", () => {
+    const plan = makeTier({ id: "tier_hobby" });
+
+    expect(isFreeTier(plan, [{ tierId: "tier_other" }])).toBe(true);
+    expect(isSelfServiceAssignableTier(plan, [])).toBe(true);
+  });
+
+  it("call tier_free with a monthly offer neither free nor assignable, because it now has a price", () => {
+    const plan = makeTier({ id: TIER_FREE_ID });
+    const offers = [{ tierId: TIER_FREE_ID }];
+
+    expect(isFreeTier(plan, offers)).toBe(false);
+    expect(isSelfServiceAssignableTier(plan, offers)).toBe(false);
+  });
+
+  it("keep a disabled free plan free but not assignable", () => {
+    const plan = makeTier({ enabled: false });
+
+    expect(isFreeTier(plan, [])).toBe(true);
+    expect(isSelfServiceAssignableTier(plan, [])).toBe(false);
+  });
+});
+
+describe("listSelfServiceAssignableTiers", () => {
+  it("lists every enabled plan without an offer, whatever its id", async () => {
+    const hobby = makeTier({ id: "tier_hobby", name: "Hobby" });
+    const pro = makeTier({ id: "tier_pro", name: "Pro" });
+    mockListTiers([makeTier(), hobby, pro], [{ tierId: "tier_pro" }]);
+
+    expect((await listSelfServiceAssignableTiers()).map((tier) => tier.id)).toEqual([TIER_FREE_ID, "tier_hobby"]);
+  });
+});
+
 describe("resolveSignupTierId", () => {
   const freeTier = makeTier({ id: "tier_free" });
   const paidTier = makeTier({ id: "tier_pro", name: "Pro", attributionRequired: false });
+  const paidOffers = [{ tierId: "tier_pro" }];
 
   it("returns tier_free when requestedTierId is undefined", async () => {
-    mockListTiers([freeTier, paidTier]);
+    mockListTiers([freeTier, paidTier], paidOffers);
     await expect(resolveSignupTierId(undefined)).resolves.toBe("tier_free");
   });
 
   it("returns tier_free when requestedTierId is null", async () => {
-    mockListTiers([freeTier, paidTier]);
+    mockListTiers([freeTier, paidTier], paidOffers);
     await expect(resolveSignupTierId(null)).resolves.toBe("tier_free");
   });
 
   it("returns tier_free when requestedTierId is explicitly tier_free", async () => {
-    mockListTiers([freeTier, paidTier]);
+    mockListTiers([freeTier, paidTier], paidOffers);
     await expect(resolveSignupTierId("tier_free")).resolves.toBe("tier_free");
   });
 
   it("falls back to tier_free when a paid tier is requested (Plan A: not assignable)", async () => {
-    mockListTiers([freeTier, paidTier]);
+    mockListTiers([freeTier, paidTier], paidOffers);
     await expect(resolveSignupTierId("tier_pro")).resolves.toBe("tier_free");
   });
 
   it("falls back to tier_free when an unknown id is requested", async () => {
-    mockListTiers([freeTier, paidTier]);
+    mockListTiers([freeTier, paidTier], paidOffers);
     await expect(resolveSignupTierId("tier_nonexistent")).resolves.toBe("tier_free");
   });
 

@@ -70,6 +70,8 @@ const mockTierRepo = {
     { id: "tier_free", name: "Free", enabled: true, requestsPerMinute: 60, requestsPerDay: 10000 },
     { id: "tier_pro", name: "Pro", enabled: true, requestsPerMinute: 600, requestsPerDay: 100000 },
   ]),
+  // Pro has a price, which is what makes it a plan a developer cannot choose.
+  listAllOffers: vi.fn(async () => [{ tierId: "tier_pro" }]),
 };
 
 /** The ceiling the mocked setting reports, so a test can read it back. */
@@ -259,6 +261,7 @@ beforeEach(() => {
     { id: "tier_free", name: "Free", enabled: true, requestsPerMinute: 60, requestsPerDay: 10000 },
     { id: "tier_pro", name: "Pro", enabled: true, requestsPerMinute: 600, requestsPerDay: 100000 },
   ]);
+  mockTierRepo.listAllOffers.mockResolvedValue([{ tierId: "tier_pro" }]);
 });
 
 describe("devApiAccessRoutes", () => {

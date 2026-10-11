@@ -69,7 +69,9 @@ const EMPTY_FORM: TierFormData = {
   icon: null,
   buttonLabel: "",
   description: "",
-  enabled: true,
+  // A new plan has no offers, so it would be free and choosable at once. It
+  // starts disabled, and the operator enables it once its offers are in.
+  enabled: false,
   disableReason: "",
   recommended: false,
   sortOrder: 0,

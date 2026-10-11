@@ -16,10 +16,12 @@ export interface PublicTier {
   requestsPerMinute: number;
   requestsPerDay: number;
   attributionRequired: boolean;
-  /** Monthly price in euros as a numeric string, or `null` for free plans. */
+  /** Monthly price in euros as a numeric string, or `null` when the plan is not sold monthly. */
   price: string | null;
   /** Yearly price in euros as a numeric string, or `null` when no yearly billing is offered. */
   priceYearly: string | null;
+  /** Whether the plan costs nothing. A paid plan can have neither price when it is sold over another period. */
+  free: boolean;
   color: string;
   /** Icon name, one of the shared tier icons, or `null` for none. */
   icon: string | null;

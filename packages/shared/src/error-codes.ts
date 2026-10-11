@@ -155,7 +155,7 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     httpStatus: 400,
     userMessage: "This plan cannot be chosen here. Only {assignable} is available at the moment.",
     internalNote:
-      "A developer asked to put a project on a tier that exists but is not self-service assignable, which today means anything other than an enabled tier_free.",
+      "A developer asked to put a project on a tier that exists but is not self-service assignable, which means it is disabled or has an offer and therefore a price.",
     source: "apps/backend/src/routes/dev-api-access.ts project subscription",
   },
   "MC-REQ-0006": {
