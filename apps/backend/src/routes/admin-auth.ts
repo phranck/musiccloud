@@ -16,18 +16,15 @@
  * `role: "owner"`, distinct from regular `admin`/`moderator` users
  * invited later (managed by `routes/admin-users.ts`).
  *
- * ## Login flow and timing-attack protection
+ * ## Passwords and timing-attack protection
  *
- * If the username does not exist, the handler still runs `bcrypt.compare`
- * against a dummy hash. This keeps response time statistically identical
- * between "unknown user" and "known user + wrong password", so an
- * attacker cannot enumerate valid usernames by measuring latency. bcrypt
- * is already a constant-time comparator for its own purposes; the dummy
- * compare covers the outer shape of the check.
- *
- * bcrypt work factor is 12. That is two rungs above the library default
- * of 10 (roughly 4x slower), accepted here as a deliberate trade against
- * brute-force budget at the cost of per-login latency.
+ * Passwords are hashed with `hashPassword` and checked with `verifyPassword`
+ * from `services/developer-auth.ts`, the functions the developer portal uses,
+ * so both surfaces share one bcrypt work factor. When the username does not
+ * exist, `verifyPassword` still pays a full bcrypt comparison against a dummy
+ * hash, so the response time does not tell an unknown user from a wrong
+ * password. Every password a route sets passes `validatePasswordLength`
+ * first, the same rule the portal applies.
  *
  * ## JWT shape and lifetime
  *
@@ -48,13 +45,14 @@
  * must not block or fail the login response, so the promise's rejection
  * is swallowed.
  */
-import { ENDPOINTS, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import { ENDPOINTS, ROUTE_TEMPLATES, validatePasswordLength } from "@musiccloud/shared";
 import bcrypt from "bcryptjs";
 import type { FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
 import { nanoid } from "nanoid";
 import type { AdminUser } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
+import { hashPassword, verifyPassword } from "../services/developer-auth.js";
 
 interface SetupBody {
   username: string;
@@ -126,11 +124,9 @@ async function adminAuthRoutes(app: FastifyInstance) {
         .status(400)
         .send({ error: "INVALID_REQUEST", message: "username must be between 3 and 32 characters." });
     }
-    if (password.length < PASSWORD_MIN_LENGTH || password.length > PASSWORD_MAX_LENGTH) {
-      return reply.status(400).send({
-        error: "INVALID_REQUEST",
-        message: `password must be between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters.`,
-      });
+    const passwordRefusal = validatePasswordLength(password);
+    if (passwordRefusal) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: passwordRefusal });
     }
 
     const repo = await getAdminRepository();
@@ -142,7 +138,7 @@ async function adminAuthRoutes(app: FastifyInstance) {
         .send({ error: "CONFLICT", message: "Setup already completed. An admin user already exists." });
     }
 
-    const passwordHash = await bcrypt.hash(password, 12);
+    const passwordHash = await hashPassword(password);
     await repo.createAdminUser({ id: nanoid(), username, passwordHash, role: "owner" });
 
     app.log.info("[Admin] First admin user created");
@@ -163,11 +159,8 @@ async function adminAuthRoutes(app: FastifyInstance) {
     const repo = await getAdminRepository();
     const user = await repo.findAdminByUsername(body.username.trim());
 
-    // Constant-time comparison: always hash-compare to prevent timing attacks
-    const dummyHash = "$2a$12$invalidhashfortimingprotection000000000000000000000000";
-    const isValid = user
-      ? await bcrypt.compare(body.password, user.passwordHash)
-      : await bcrypt.compare(body.password, dummyHash);
+    // Always pays a full comparison, so the time does not reveal the username.
+    const isValid = await verifyPassword(body.password, user?.passwordHash ?? null);
 
     if (!user || !isValid) {
       return reply.status(401).send({ error: "UNAUTHORIZED", message: "Invalid username or password." });
@@ -246,11 +239,9 @@ async function adminAuthRoutes(app: FastifyInstance) {
     if (!body?.token || !body?.password) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "token and password are required." });
     }
-    if (body.password.length < PASSWORD_MIN_LENGTH || body.password.length > PASSWORD_MAX_LENGTH) {
-      return reply.status(400).send({
-        error: "INVALID_REQUEST",
-        message: `password must be between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters.`,
-      });
+    const passwordRefusal = validatePasswordLength(body.password);
+    if (passwordRefusal) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: passwordRefusal });
     }
 
     const repo = await getAdminRepository();
@@ -268,7 +259,7 @@ async function adminAuthRoutes(app: FastifyInstance) {
       return reply.status(404).send({ error: "INVALID_TOKEN", message: "Invite token is invalid or expired." });
     }
 
-    const passwordHash = await bcrypt.hash(body.password, 12);
+    const passwordHash = await hashPassword(body.password);
     const user = await repo.acceptInvite(matchedId, passwordHash);
     if (!user) {
       return reply.status(404).send({ error: "INVALID_TOKEN", message: "Invite token is invalid or expired." });

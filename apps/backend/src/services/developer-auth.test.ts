@@ -1,6 +1,7 @@
 import jwt from "@fastify/jwt";
+import bcrypt from "bcryptjs";
 import Fastify from "fastify";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   generateEmailToken,
   hashEmailToken,
@@ -70,6 +71,18 @@ describe("developer-auth password hashing", () => {
 
   it("always returns false (timing-safe) when no hash exists", async () => {
     await expect(verifyPassword("anything", null)).resolves.toBe(false);
+  });
+
+  it("compares against a real cost-12 hash when no hash exists, so the response time does not reveal the account", async () => {
+    // bcryptjs answers a malformed hash at once, so only a well-formed one
+    // costs what a real comparison costs.
+    const compare = vi.spyOn(bcrypt, "compare");
+    try {
+      await verifyPassword("anything", null);
+      expect(compare.mock.calls[0]?.[1]).toMatch(/^\$2[aby]\$12\$[./A-Za-z0-9]{53}$/);
+    } finally {
+      compare.mockRestore();
+    }
   });
 });
 
