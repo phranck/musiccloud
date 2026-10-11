@@ -1,18 +1,7 @@
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { closeRepository, getRepository } from "../db/index.js";
-
-function isSafeIntegrationDatabase(url: string | undefined): boolean {
-  if (!url) return false;
-  try {
-    const parsed = new URL(url);
-    const databaseName = parsed.pathname.replace(/^\//, "").toLowerCase();
-    const host = parsed.hostname.toLowerCase();
-    return host === "localhost" || host === "127.0.0.1" || /(^|[_-])(test|integration)([_-]|$)/.test(databaseName);
-  } catch {
-    return false;
-  }
-}
+import { isSafeIntegrationDatabase } from "./integration-database.js";
 
 describe.skipIf(!isSafeIntegrationDatabase(process.env.DATABASE_URL))(
   "track and album previews repository (integration)",
