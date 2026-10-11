@@ -26,12 +26,7 @@ export function GenreColumn({ label, children }: { label: string; children: Reac
         scrollable
         className="rounded-b-[max(4px,calc(var(--mc-recessed-radius-base)-var(--mc-recessed-padding)))]"
       >
-        <GroupedCornerList
-          itemSelector=":scope > * > button"
-          frameSelector=".mc-row-art"
-          frameInset={4}
-          promoteTop={false}
-        >
+        <GroupedCornerList itemSelector=":scope > * > button" frameSelector=".mc-row-art" promoteTop={false}>
           {children}
         </GroupedCornerList>
       </RecessedCard.Body>

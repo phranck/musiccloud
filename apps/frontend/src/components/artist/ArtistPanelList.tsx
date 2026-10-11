@@ -1,6 +1,6 @@
 import { Children, type CSSProperties, cloneElement, isValidElement, type ReactNode } from "react";
 import { groupedListClassName } from "@/components/cards/cardGeometry";
-import { singleColumnGroupedCornerStyle } from "@/components/cards/singleColumnGroupedCornerStyle";
+import { singleColumnGroupedCornerStyle } from "@/components/cards/groupedCorners";
 
 /** Props for {@link ArtistPanelList}. */
 interface ArtistPanelListProps {
