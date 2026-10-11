@@ -238,6 +238,14 @@ describe("buildMusiccloudReadinessExpectations", () => {
       }
     }
   });
+
+  it("requires CRUD access for the record of developer portal availability changes", () => {
+    const result = buildMusiccloudReadinessExpectations("latest-hash", "db");
+
+    for (const privilege of ["SELECT", "INSERT", "UPDATE", "DELETE"]) {
+      expect(result.privileges).toContainEqual({ table: "developer_portal_availability_events", privilege });
+    }
+  });
 });
 
 describe("readLatestDrizzleMigrationHash", () => {
