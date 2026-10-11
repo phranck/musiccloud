@@ -248,6 +248,39 @@ export const ALBUM_ARTIST_FIELDS_SELECT = `${ALBUM_ARTISTS_SELECT}, ${ALBUM_ARTI
  * `artist_name` alias produced by {@link ARTIST_NAME_LATERAL_JOIN}.
  * Falls back to `'[unnamed artist]'` when no name row exists.
  */
+/**
+ * The order in which the stored previews of one track or album are preferred,
+ * for the preview table under `alias`.
+ *
+ * An unexpired row comes first, because a signed URL past its expiry answers
+ * 403 and the player shows the preview as unavailable. A null `expires_at`
+ * counts as unexpired, since a URL without a signed expiry does not expire.
+ * Among those, Deezer comes first and then the most recently observed row.
+ * `isPreviewRefreshNeeded` and `isAlbumPreviewRefreshNeeded` skip the Deezer
+ * refresh while any row is unexpired, which is only safe because this order
+ * then picks that row.
+ *
+ * @param alias - The alias the subquery gives `track_previews` or `album_previews`.
+ * @returns The `ORDER BY` expression list, without the keyword.
+ */
+function previewPreferenceOrder(alias: "tp" | "ap"): string {
+  return `(${alias}.expires_at IS NULL OR ${alias}.expires_at > now()) DESC, (${alias}.service = 'deezer') DESC, ${alias}.observed_at DESC`;
+}
+
+/**
+ * `SELECT` fragment exposing a track's preferred preview URL as
+ * `preview_url`, in the order of {@link previewPreferenceOrder}. Expects the
+ * outer query to expose the track row as `t`.
+ */
+export const TRACK_PREVIEW_URL_SELECT = `(SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY ${previewPreferenceOrder("tp")} LIMIT 1) AS preview_url`;
+
+/**
+ * `SELECT` fragment exposing an album's preferred preview URL as
+ * `preview_url`, in the order of {@link previewPreferenceOrder}. Expects the
+ * outer query to expose the album row as `a`.
+ */
+export const ALBUM_PREVIEW_URL_SELECT = `(SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY ${previewPreferenceOrder("ap")} LIMIT 1) AS preview_url`;
+
 export const ARTIST_NAME_SELECT = `COALESCE(artist_name.name, '[unnamed artist]') AS name`;
 
 /**

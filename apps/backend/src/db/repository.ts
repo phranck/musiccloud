@@ -103,6 +103,8 @@ export interface CachedAlbumResult {
 
 /** Minimal share-page data for albums */
 export interface SharePageAlbumResult {
+  /** The stored album's id, which its preview rows are keyed by. */
+  albumId: string;
   album: {
     title: string;
     artworkUrl: string | null;

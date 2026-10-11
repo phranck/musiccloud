@@ -139,10 +139,36 @@ export interface ShareAlbumPageData {
   shortId: string;
   links: { service: string; url: string }[];
   availablePlatforms: ServiceId[];
+  /** True when the stored preview was missing or an expired Deezer URL and
+   *  the client can fetch a fresh one through the preview endpoint, the same
+   *  as {@link SharePageData.previewRefreshable} for a track. */
+  previewRefreshable: boolean;
   og: OGMeta;
 }
 
-/** Load album share page data by short URL ID. Returns null if not found. */
+/**
+ * The Deezer album id behind an album's stored Deezer link. A fresh album
+ * preview is fetched by this id, so an album without one cannot be refreshed.
+ *
+ * @param links - The album's stored service links.
+ * @returns The id from the first Deezer album link, or `null` when there is none.
+ */
+export function deezerAlbumIdFromLinks(links: ReadonlyArray<{ service: string; url: string }>): string | null {
+  for (const link of links) {
+    if (link.service !== "deezer") continue;
+    const deezerAlbumId = deezerAdapter.detectAlbumUrl(link.url);
+    if (deezerAlbumId) return deezerAlbumId;
+  }
+  return null;
+}
+
+/**
+ * Load album share page data by short URL ID. Returns null if not found.
+ *
+ * Like {@link loadByShortId}, the hot path does not contact Deezer. An expired
+ * Deezer preview is dropped and `previewRefreshable` is set, so the player
+ * asks the preview endpoint for a fresh URL.
+ */
 export async function loadAlbumByShortId(
   shortId: string,
   origin?: string,
@@ -155,6 +181,11 @@ export async function loadAlbumByShortId(
   data.album.releaseDate = toIsoDateOnly(data.album.releaseDate);
   const links = rewriteLinksForAppleMusicStorefront(data.links, appleMusicStorefront);
   const availablePlatforms: ServiceId[] = links.map((l) => l.service).filter(isValidServiceId);
+
+  const expired = !!data.album.previewUrl && isExpiredDeezerPreviewUrl(data.album.previewUrl);
+  if (expired) data.album.previewUrl = null;
+  const previewRefreshable =
+    !data.album.previewUrl && deezerAlbumIdFromLinks(data.links) !== null && deezerAdapter.isAvailable();
 
   const og = generateAlbumOGMeta({
     title: data.album.title,
@@ -172,6 +203,7 @@ export async function loadAlbumByShortId(
     ...data,
     links,
     availablePlatforms,
+    previewRefreshable,
     og,
   };
 }

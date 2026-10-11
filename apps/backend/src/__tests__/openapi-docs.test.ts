@@ -322,7 +322,7 @@ describe("OpenAPI docs", () => {
       "GET /api/v1/share/{shortId} path shortId":
         "Public musiccloud share code: take the last path segment of `shortUrl` from a successful `POST /api/v1/resolve`, `GET /api/v1/resolve`, or `POST /api/v1/cc/resolve` response.",
       "GET /api/v1/share/{shortId}/preview path shortId":
-        "Track share code: take the last path segment of `shortUrl` from a successful track response from `POST /api/v1/resolve` or `GET /api/v1/resolve`. Album, artist, and Creative Commons share codes are not accepted.",
+        "Track or album share code: take the last path segment of `shortUrl` from a successful track or album response from `POST /api/v1/resolve` or `GET /api/v1/resolve`. Artist and Creative Commons share codes are not accepted.",
     });
   });
 

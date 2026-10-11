@@ -35,6 +35,7 @@ import type {
 } from "../repository.js";
 import {
   ALBUM_ARTIST_FIELDS_SELECT,
+  ALBUM_PREVIEW_URL_SELECT,
   dateToMs,
   insertExternalIds,
   lockPersistIdentity,
@@ -93,7 +94,7 @@ export interface AlbumShareRow extends AlbumWithLinkRow {}
 const ALBUM_WITH_LINK_COLUMNS = `
       a.id, a.title, ${ALBUM_ARTIST_FIELDS_SELECT}, a.release_date, a.total_tracks,
       a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
-      (SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY (ap.service = 'deezer') DESC, ap.observed_at DESC LIMIT 1) AS preview_url,
+      ${ALBUM_PREVIEW_URL_SELECT},
       asl.url as link_url, asl.service, asl.confidence, asl.match_method,
       asu.id as short_id, a.created_at, a.updated_at`;
 
@@ -593,7 +594,7 @@ export async function loadAlbumByShortId(pool: Pool, shortId: string): Promise<S
     `SELECT
       a.id, a.title, ${ALBUM_ARTIST_FIELDS_SELECT}, a.release_date, a.total_tracks,
       a.artwork_url, a.label, a.upc, a.source_service, a.source_url,
-      (SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY (ap.service = 'deezer') DESC, ap.observed_at DESC LIMIT 1) AS preview_url,
+      ${ALBUM_PREVIEW_URL_SELECT},
       asl.url as link_url, asl.service,
       asu.id as short_id
     FROM albums a
@@ -617,6 +618,7 @@ export async function loadAlbumByShortId(pool: Pool, shortId: string): Promise<S
   const vinylLayout = identityKey ? ((await readVinylLayout(pool, identityKey)) ?? null) : null;
 
   return {
+    albumId: firstRow.id,
     album: rowToAlbum(firstRow, vinylLayout),
     artists,
     artistCredits,
