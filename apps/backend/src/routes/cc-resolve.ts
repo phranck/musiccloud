@@ -23,6 +23,11 @@ import type {
 import { ENDPOINTS, parseJamendoLink } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getCcRepository, getRepository } from "../db/index.js";
+import {
+  API_KEY_QUOTA_EXCEEDED_DESCRIPTION,
+  API_KEY_REJECTED_DESCRIPTION,
+  publicErrorResponse,
+} from "../docs/public-response-schema.js";
 import { requireEnvList } from "../lib/env.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
@@ -102,13 +107,9 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
               "The body does not contain exactly one usable `query` or `selectedCandidate`, the query syntax is invalid, or the candidate token has an unsupported format.",
             $ref: "ErrorResponse#",
           },
-          401: { description: "Missing, invalid, or revoked API key.", $ref: "ErrorResponse#" },
+          401: publicErrorResponse(API_KEY_REJECTED_DESCRIPTION),
           404: { description: "The selected candidate could not be resolved.", $ref: "ErrorResponse#" },
-          429: {
-            description:
-              "The issued API key exceeded its assigned rolling `60`-second or rolling `24`-hour quota. Inspect `context` and `Retry-After` before retrying.",
-            $ref: "ErrorResponse#",
-          },
+          429: publicErrorResponse(API_KEY_QUOTA_EXCEEDED_DESCRIPTION),
           500: {
             description: "Unexpected server error. Use `errorId` from the response when reporting the failure.",
             $ref: "ErrorResponse#",

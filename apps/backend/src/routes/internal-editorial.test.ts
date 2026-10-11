@@ -41,8 +41,6 @@ const VARIABLE_VALUES = {
   freeRequestsPerDay: 4321,
   projectsPerAccount: 7,
   registrationsPerProject: 9,
-  keylessRequestsPerMinute: 11,
-  keylessRequestsPerDay: 222,
 };
 
 const { internalEditorialRoutes } = await import("./internal-editorial.js");

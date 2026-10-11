@@ -83,6 +83,16 @@ export function publicErrorResponse(description: string) {
   return { description, $ref: "ErrorResponse#" } as const;
 }
 
+/** The `401` every operation that requires an API key documents. */
+export const API_KEY_REJECTED_DESCRIPTION = "Missing, invalid, or revoked API key.";
+
+/**
+ * The `429` every operation that requires an API key documents. The Developer
+ * Project's quota decides it, so it reads the same on all of them.
+ */
+export const API_KEY_QUOTA_EXCEEDED_DESCRIPTION =
+  "The issued API key exceeded its assigned rolling `60`-second or rolling `24`-hour quota. Inspect `context` and `Retry-After` before retrying.";
+
 /**
  * Creates the successful response schema shared by public health probes.
  * Keeping this shape in one helper prevents six route declarations from

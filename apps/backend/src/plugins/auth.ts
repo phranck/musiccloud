@@ -97,7 +97,24 @@ declare module "fastify" {
      */
     developerAccount?: DeveloperAccount;
   }
+
+  interface FastifyContextConfig {
+    /**
+     * The sentence {@link FastifyInstance.authenticatePublic} returns when a
+     * request on this route carries no key at all. A route sets it where a
+     * caller arriving without a key needs more than the default, for example
+     * because its callers are scripts that have to be told which header to add.
+     * Only the wording varies per route; whether a key is valid is still
+     * decided by the one guard. It is
+     * sent back as it stands, so it is a fixed string with nothing from the
+     * request in it.
+     */
+    missingKeyMessage?: string;
+  }
 }
+
+/** What `authenticatePublic` says to a keyless request on a route that sets no message of its own. */
+const DEFAULT_MISSING_KEY_MESSAGE = "Authentication required.";
 
 /** Refusal for a project whose plan grants nothing, distinct from a spent quota. */
 const PLAN_NOT_ACTIVE_CODE = "MC-AUTH-0003";
@@ -228,7 +245,8 @@ async function authPlugin(app: FastifyInstance) {
    *    only narrow them. A project whose subscription grants nothing has no
    *    limits at all and is refused here.
    * Response matrix:
-   * - missing all credentials → `401 UNAUTHORIZED` ("Authentication required.")
+   * - missing all credentials → `401 UNAUTHORIZED`, carrying the route's
+   *   `config.missingKeyMessage` where it sets one and "Authentication required." otherwise
    * - malformed, unknown, revoked, rotated, or stale UUID-shaped key; or
    *   project or registration suspended/revoked →
    *   `401 UNAUTHORIZED` (one shape for every miss, so existence is not leaked)
@@ -303,7 +321,10 @@ async function authPlugin(app: FastifyInstance) {
       return;
     }
 
-    return reply.status(401).send({ error: "UNAUTHORIZED", message: "Authentication required." });
+    return reply.status(401).send({
+      error: "UNAUTHORIZED",
+      message: request.routeOptions.config.missingKeyMessage ?? DEFAULT_MISSING_KEY_MESSAGE,
+    });
   });
 
   /**

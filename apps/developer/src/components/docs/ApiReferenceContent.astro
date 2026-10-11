@@ -135,9 +135,9 @@ const openApiContractSource = JSON.stringify(contract, null, 2) ?? "{}";
                   label="Authenticated request"
                   language="bash"
                   code={`# Requires MUSICCLOUD_API_KEY to be set in your shell environment.
-curl https://api.musiccloud.io/api/v1/resolve \\
+curl -G https://api.musiccloud.io/api/v1/resolve \\
   -H "X-API-Key: \${MUSICCLOUD_API_KEY}" \\
-  -H "Content-Type: application/json"`}
+  --data-urlencode "query=https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L"`}
                 />
               </ContentCard.Body.Stack>
             </ContentCard.Body>
