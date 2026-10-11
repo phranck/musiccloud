@@ -2,9 +2,16 @@
  * Normalizes an upstream release date to the public API's `YYYY-MM-DD` contract.
  *
  * Streaming services report dates as bare dates, ISO timestamps, RFC-2822
- * timestamps, or incomplete years. Preserve an existing ISO date prefix,
+ * timestamps, or incomplete dates. Preserve an existing ISO date prefix,
  * convert other parseable timestamps to their UTC date, and drop incomplete or
  * invalid values so response serialization cannot fail on `format: date`.
+ *
+ * This is the one normalizer: track and album writes, the resolve response and
+ * the share loaders all call it, so one stored value reads the same everywhere.
+ *
+ * @param value - The date as a source or a stored row reports it.
+ * @returns A real calendar date as `YYYY-MM-DD`, or `null` when the value
+ *   names no complete day.
  */
 export function normalizeReleaseDate(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -17,7 +24,9 @@ export function normalizeReleaseDate(value: string | null | undefined): string |
     const daysInMonth = [31, isLeapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
     return month >= 1 && month <= 12 && day >= 1 && day <= daysInMonth[month - 1] ? isoPrefix[0] : null;
   }
-  if (/^\d{4}$/.test(trimmed)) return null;
+  // A year, or a year and month, names no day. `new Date` would supply the
+  // first of the month, a day nobody reported.
+  if (/^\d{4}(-\d{2})?$/.test(trimmed)) return null;
   const parsed = new Date(trimmed);
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10);
 }

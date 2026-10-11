@@ -722,6 +722,13 @@
       "when": 1791760411457,
       "tag": "0102_drop_tier_price_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 103,
+      "version": "7",
+      "when": 1791762534795,
+      "tag": "0103_normalize_album_release_dates",
+      "breakpoints": true
     }
   ]
 }

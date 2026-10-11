@@ -20,6 +20,7 @@
 
 import type { VinylLayout } from "@musiccloud/shared";
 import type { Pool } from "pg";
+import { normalizeReleaseDate } from "../../lib/release-date.js";
 import { generateTrackId } from "../../lib/short-id.js";
 import { createAlbumIdentityKey } from "../../services/album-identity.js";
 import { ALBUM_IDENTITY_MATCH_METHODS } from "../../services/constants.js";
@@ -314,7 +315,7 @@ export async function persistAlbumWithLinks(
         [
           albumId,
           data.sourceAlbum.title,
-          data.sourceAlbum.releaseDate ?? null,
+          normalizeReleaseDate(data.sourceAlbum.releaseDate),
           data.sourceAlbum.totalTracks ?? null,
           data.sourceAlbum.artworkUrl ?? null,
           data.sourceAlbum.label ?? null,
@@ -331,7 +332,7 @@ export async function persistAlbumWithLinks(
         [
           albumId,
           data.sourceAlbum.title,
-          data.sourceAlbum.releaseDate ?? null,
+          normalizeReleaseDate(data.sourceAlbum.releaseDate),
           data.sourceAlbum.totalTracks ?? null,
           data.sourceAlbum.artworkUrl ?? null,
           data.sourceAlbum.label ?? null,

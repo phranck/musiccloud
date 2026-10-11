@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import { normalizeReleaseDate } from "../../../lib/release-date.js";
 
 /**
- * `tracks.release_date` is written from `normalizeReleaseDate` so the column only
- * ever holds a bare `YYYY-MM-DD` (the share response schema validates it as
- * `format: date`). Source services report several formats.
+ * `tracks.release_date` and `albums.release_date` are written from
+ * `normalizeReleaseDate` so the columns only ever hold a bare `YYYY-MM-DD` (the
+ * share response schema validates it as `format: date`). Source services report
+ * several formats.
  */
 describe("normalizeReleaseDate", () => {
   it("keeps a bare YYYY-MM-DD date", () => {
@@ -21,6 +22,10 @@ describe("normalizeReleaseDate", () => {
 
   it("drops a bare year (not a valid `format: date`)", () => {
     expect(normalizeReleaseDate("2018")).toBeNull();
+  });
+
+  it("drops a year and month rather than making up the first of the month", () => {
+    expect(normalizeReleaseDate("1975-11")).toBeNull();
   });
 
   it("drops an unparseable value", () => {
