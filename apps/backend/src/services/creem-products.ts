@@ -13,6 +13,7 @@
  * our mapping row are two halves of one operation and never done separately.
  */
 
+import { getErrorEntry } from "@musiccloud/shared";
 import { type CreemModeValue, requireCreemApiKey } from "../lib/creem-config.js";
 import { log } from "../lib/infra/logger.js";
 import { getCreemBaseUrl, getCreemClient } from "./creem-client.js";
@@ -86,12 +87,12 @@ export class CreemProductError extends Error {
   readonly code: string;
 
   /**
-   * @param code - The MC code the route should answer with.
-   * @param message - What went wrong, for the log rather than for the user.
+   * @param code - The MC code the route answers with. The message is that
+   *   code's registry text, so the log and the operator read the same words.
    * @param options - Standard error options, used to carry the cause.
    */
-  constructor(code: string, message: string, options?: ErrorOptions) {
-    super(message, options);
+  constructor(code: string, options?: ErrorOptions) {
+    super(getErrorEntry(code).userMessage, options);
     this.name = "CreemProductError";
     this.code = code;
   }
@@ -196,7 +197,7 @@ export async function createCreemProduct(mode: CreemModeValue, draft: CreemProdu
       },
       error,
     );
-    throw new CreemProductError("MC-BILL-0001", "Creem refused to create the product", { cause: error });
+    throw new CreemProductError("MC-BILL-0001", { cause: error });
   }
 }
 
@@ -236,7 +237,7 @@ export async function updateCreemProductPrice(
       },
       error,
     );
-    throw new CreemProductError("MC-BILL-0002", "Creem refused to update the product", { cause: error });
+    throw new CreemProductError("MC-BILL-0002", { cause: error });
   }
 }
 
@@ -269,6 +270,6 @@ export async function archiveCreemProduct(mode: CreemModeValue, productId: strin
       },
       error,
     );
-    throw new CreemProductError("MC-BILL-0003", "Creem refused to archive the product", { cause: error });
+    throw new CreemProductError("MC-BILL-0003", { cause: error });
   }
 }

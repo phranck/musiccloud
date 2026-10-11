@@ -23,6 +23,7 @@ import type { TierCreemProductKey } from "../db/tiers-repository.js";
 import { BillingPeriod } from "../db/tiers-repository.js";
 import { requireOwner, requireOwnerOrAdmin } from "../lib/admin-caller.js";
 import { CreemMode, type CreemModeValue, configuredCreemModes } from "../lib/creem-config.js";
+import { replyWithApiError } from "../lib/infra/api-error-handler.js";
 import { resetCreemCatalogCache } from "../services/creem-catalog.js";
 import {
   archiveCreemProduct,
@@ -68,10 +69,7 @@ const productParamsSchema = {
  */
 function refuseUnreachableMode(reply: FastifyReply, mode: CreemModeValue): FastifyReply | null {
   if (configuredCreemModes().includes(mode)) return null;
-  return reply.status(409).send({
-    error: `This deployment holds no Creem key for the ${mode} environment`,
-    code: "MC-BILL-0006",
-  });
+  return replyWithApiError(reply, "MC-BILL-0006", { context: { mode } });
 }
 
 /**
@@ -81,15 +79,14 @@ function refuseUnreachableMode(reply: FastifyReply, mode: CreemModeValue): Fasti
  * between a Creem failure and what the operator is told is stated once.
  *
  * @param reply - The reply to answer on.
- * @param error - Whatever the operation threw.
- * @param status - The status for this class of failure.
+ * @param error - Whatever the operation threw. Its code also decides the status.
  * @returns The reply, so a handler can `return` it.
  * @throws The original error when it is not a Creem product failure, so the
  *   global handler classifies it rather than this route guessing.
  */
-function replyWithCreemFailure(reply: FastifyReply, error: unknown, status: number): FastifyReply {
+function replyWithCreemFailure(reply: FastifyReply, error: unknown): FastifyReply {
   if (!(error instanceof CreemProductError)) throw error;
-  return reply.status(status).send({ error: error.message, code: error.code });
+  return replyWithApiError(reply, error.code);
 }
 
 /**
@@ -206,10 +203,7 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
       const key: TierCreemProductKey = { tierId: body.tierId, billingPeriod: body.billingPeriod, mode: body.mode };
 
       if (await repo.findCreemProductMapping(key)) {
-        return reply.status(409).send({
-          error: "This plan already has a product for that interval in this environment",
-          code: "MC-BILL-0004",
-        });
+        return replyWithApiError(reply, "MC-BILL-0004");
       }
 
       // Attaching an id created in the Creem dashboard skips the draft
@@ -225,10 +219,7 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
         (candidate) => candidate.billingPeriod === body.billingPeriod,
       );
       if (!offer) {
-        return reply.status(400).send({
-          error: "This plan has no offer for that billing period, so there is nothing to sell",
-          code: "MC-BILL-0005",
-        });
+        return replyWithApiError(reply, "MC-BILL-0005");
       }
       const draft = draftCreemProductForOffer(tier, offer);
 
@@ -236,7 +227,7 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
       try {
         product = await createCreemProduct(body.mode, draft);
       } catch (error) {
-        return replyWithCreemFailure(reply, error, 502);
+        return replyWithCreemFailure(reply, error);
       }
 
       // The product exists at Creem from here on. If this insert fails the
@@ -291,7 +282,7 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
         const product = await updateCreemProductPrice(params.mode, mapping.creemProductId, priceCents);
         return { ...mapping, price: product.price, currency: product.currency };
       } catch (error) {
-        return replyWithCreemFailure(reply, error, 502);
+        return replyWithCreemFailure(reply, error);
       }
     },
   );
@@ -330,7 +321,7 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
       try {
         await archiveCreemProduct(params.mode, mapping.creemProductId);
       } catch (error) {
-        return replyWithCreemFailure(reply, error, 502);
+        return replyWithCreemFailure(reply, error);
       }
 
       await repo.deleteCreemProductMapping(key);
@@ -378,14 +369,12 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
 
       const refusal = await setSellingMode(sellingMode, await sellablePlanProducts());
       if (refusal) {
-        return reply.status(409).send({
-          error:
-            refusal.refusal === SellingModeRefusal.NoKey
-              ? `This deployment holds no Creem key for the ${sellingMode} environment`
-              : `These plans have no product in the ${sellingMode} environment yet: ${refusal.missing.join(", ")}`,
-          code: refusal.refusal === SellingModeRefusal.NoKey ? "MC-BILL-0006" : "MC-BILL-0007",
-          missing: refusal.missing,
-        });
+        return refusal.refusal === SellingModeRefusal.NoKey
+          ? replyWithApiError(reply, "MC-BILL-0006", { context: { mode: sellingMode } })
+          : replyWithApiError(reply, "MC-BILL-0007", {
+              context: { mode: sellingMode, plans: refusal.missing.join(", ") },
+              extra: { missing: refusal.missing },
+            });
       }
 
       // The catalogue behind the pricing page caches for five minutes. Without

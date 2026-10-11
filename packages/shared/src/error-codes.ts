@@ -273,15 +273,15 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
   "MC-BILL-0005": {
     code: "MC-BILL-0005",
     httpStatus: 400,
-    userMessage: "This plan has no price for that interval, so it gets no Creem product.",
+    userMessage: "This plan has no offer for that billing period, so there is nothing to sell.",
     internalNote:
-      "Covers both a free tier, where Creem rejects a recurring product priced at zero and the price comes from the tiers table instead, and a tier with no yearly price, which is simply not sold yearly.",
+      "A Creem product is built from an offer, so a plan with no offer for a billing period has nothing to sell over it. A free plan has no offers at all, which is how it is expressed.",
     source: "apps/backend/src/routes/admin-creem-products.ts",
   },
   "MC-BILL-0006": {
     code: "MC-BILL-0006",
     httpStatus: 409,
-    userMessage: "This deployment holds no Creem key for that environment.",
+    userMessage: "This deployment holds no Creem key for the {mode} environment.",
     internalNote:
       "A write or a selling-mode change named an environment with no configured key. Refusing is deliberate: the alternative is reaching the other Creem account.",
     source: "apps/backend/src/routes/admin-creem-products.ts",
@@ -289,15 +289,16 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
   "MC-BILL-0007": {
     code: "MC-BILL-0007",
     httpStatus: 409,
-    userMessage: "Some plans have no product in that environment yet, so the pricing page would lose their prices.",
+    userMessage: "These plans have no product in the {mode} environment yet: {plans}.",
     internalNote:
-      "The selling environment cannot move to an environment where an enabled paid plan has no product. The response names which ones are missing.",
+      "The selling environment cannot move to an environment where an enabled paid plan has no product, because the pricing page would lose that plan's prices. The response carries the plans as a `missing` list beside the envelope.",
     source: "apps/backend/src/routes/admin-creem-products.ts",
   },
   "MC-BILL-0008": {
     code: "MC-BILL-0008",
     httpStatus: 400,
-    userMessage: "That address does not belong to this installation.",
+    userMessage:
+      "The address in {field} does not belong to this installation. It has to be https on one of its own origins.",
     internalNote:
       "An offer named an image or return address outside our own origins. A return address is a redirect we would be hosting for whoever set it.",
     source: "apps/backend/src/routes/admin-plan-offers.ts",
