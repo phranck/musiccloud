@@ -86,6 +86,41 @@ describe("admin user contract", () => {
   });
 });
 
+describe("admin user Gravatar avatar", () => {
+  const avatarUrl = ROUTE_TEMPLATES.admin.users.avatar.replace(":id", "admin-1");
+
+  it("stores an address on one of Gravatar's numbered hosts", async () => {
+    mockRepo.updateAdminUser.mockResolvedValue(makeAdmin({ avatarUrl: "https://2.gravatar.com/avatar/abc123" }));
+    const app = await buildApp();
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: avatarUrl,
+      payload: { gravatarUrl: "https://2.gravatar.com/avatar/abc123" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(mockRepo.updateAdminUser).toHaveBeenCalledWith("admin-1", {
+      avatarUrl: "https://2.gravatar.com/avatar/abc123",
+    });
+    await app.close();
+  });
+
+  it("refuses an address on another host and stores nothing", async () => {
+    const app = await buildApp();
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: avatarUrl,
+      payload: { gravatarUrl: "https://www.gravatar.com.evil.example/avatar/abc" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(mockRepo.updateAdminUser).not.toHaveBeenCalled();
+    await app.close();
+  });
+});
+
 describe("admin user email updates", () => {
   const ownAccount = ROUTE_TEMPLATES.admin.users.detail.replace(":id", "admin-1");
 

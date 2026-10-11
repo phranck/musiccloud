@@ -50,9 +50,9 @@
  * - **POST** (`avatar`): direct upload as `data:image/<mime>;base64,...`,
  *   checked by `parseImageDataUrl` in `lib/image-upload.ts`, the rule every
  *   upload route shares: JPEG, PNG or WebP, at most 5 MB once decoded.
- * - **PATCH** (`avatar`): external Gravatar URL. The handler whitelists
- *   `https://www.gravatar.com/avatar/` explicitly, to block SSRF/phishing
- *   via arbitrary image hosts.
+ * - **PATCH** (`avatar`): external Gravatar URL, checked by
+ *   `isGravatarAddress` in `lib/gravatar.ts` so only Gravatar's own hosts
+ *   are stored, to block SSRF/phishing via arbitrary image hosts.
  * - **DELETE** (`avatar`): clears the column.
  */
 import {
@@ -69,6 +69,7 @@ import type { AdminUser } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
 import { INVALID_EMAIL_CODE, normalizeEmailAddress } from "../lib/email-address.js";
 import { requireEnv } from "../lib/env.js";
+import { isGravatarAddress } from "../lib/gravatar.js";
 import { ADMIN_IMAGE_REFUSAL_ERRORS, IMAGE_UPLOAD_BODY_LIMIT_BYTES, parseImageDataUrl } from "../lib/image-upload.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { hashPassword } from "../services/developer-auth.js";
@@ -272,12 +273,10 @@ export default async function adminUserRoutes(app: FastifyInstance) {
       return reply.status(403).send({ error: "FORBIDDEN" });
     }
 
-    const body = request.body as { gravatarUrl?: string } | null;
-    // Origin whitelist on the URL itself. Accepting arbitrary external
-    // URLs would let an attacker coax the dashboard (and any image proxy
-    // in front of it) into fetching internal / malicious endpoints by
-    // storing the URL as an avatar.
-    if (!body?.gravatarUrl?.startsWith("https://www.gravatar.com/avatar/")) {
+    const body = request.body as { gravatarUrl?: unknown } | null;
+    // The address is rendered as an image later, so anything outside
+    // Gravatar's hosts would make the dashboard fetch from wherever it names.
+    if (!isGravatarAddress(body?.gravatarUrl)) {
       return reply.status(400).send({ error: "Must be a Gravatar URL" });
     }
 

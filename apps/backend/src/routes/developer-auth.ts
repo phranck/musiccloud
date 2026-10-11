@@ -66,6 +66,7 @@ import {
   normalizeEmailAddress,
 } from "../lib/email-address.js";
 import { requireEnv } from "../lib/env.js";
+import { isGravatarAddress } from "../lib/gravatar.js";
 import { IMAGE_UPLOAD_BODY_LIMIT_BYTES, ImageUploadRefusal, parseImageDataUrl } from "../lib/image-upload.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
@@ -215,17 +216,8 @@ function isAvatarSource(value: unknown): value is AvatarSourceValue {
   return typeof value === "string" && (Object.values(AvatarSource) as string[]).includes(value);
 }
 
-/** Where a Gravatar lives. Nothing outside this host is stored as one. */
+/** Where the direct lookup asks whether an address has a picture of its own. */
 const GRAVATAR_PREFIX = "https://www.gravatar.com/avatar/";
-
-/**
- * The host a stored Gravatar may come from.
- *
- * A profile answers with an address of its own, on any of Gravatar's numbered
- * hosts, and that address is then stored and rendered. Checking the host is
- * what keeps the column from becoming a request to somewhere else entirely.
- */
-const GRAVATAR_HOST = /^([0-9]+\.)?gravatar\.com$/;
 
 /** Where a profile is asked for, which is the second place a picture can be. */
 const GRAVATAR_PROFILE = "https://gravatar.com";
@@ -261,25 +253,6 @@ function resolveAvatarUrl(account: DeveloperAccount): string | null {
 }
 
 /**
- * Whether an address is one of Gravatar's own.
- *
- * The browser sends back what a lookup answered with, so the check is made
- * again here: a value that reaches a column and is then rendered as an image
- * is never taken on the word of whoever posted it.
- *
- * @param value - The address from the request body.
- * @returns Whether it may be stored as a Gravatar.
- */
-function isGravatarAddress(value: string): boolean {
-  try {
-    const parsed = new URL(value);
-    return parsed.protocol === "https:" && GRAVATAR_HOST.test(parsed.hostname);
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Finds the picture Gravatar holds for one hashed address.
  *
  * Two questions, because Gravatar answers them differently. The first asks
@@ -312,18 +285,12 @@ async function findGravatar(hash: string): Promise<string | null> {
 
   const payload = (await profile.json()) as { entry?: { thumbnailUrl?: unknown }[] };
   const thumbnail = payload.entry?.[0]?.thumbnailUrl;
-  if (typeof thumbnail !== "string") return null;
 
   // The address comes from Gravatar rather than from this code, so it is
   // checked before it is stored and rendered.
-  let parsed: URL;
-  try {
-    parsed = new URL(thumbnail);
-  } catch {
-    return null;
-  }
-  if (parsed.protocol !== "https:" || !GRAVATAR_HOST.test(parsed.hostname)) return null;
+  if (!isGravatarAddress(thumbnail)) return null;
 
+  const parsed = new URL(thumbnail);
   parsed.searchParams.set("s", String(GRAVATAR_SIZE));
   return parsed.toString();
 }
@@ -709,7 +676,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
       } else {
         // The address was handed to the browser by Gravatar and comes back from
         // it, so it is checked again here rather than trusted on the way in.
-        if (typeof body.gravatarUrl !== "string" || !isGravatarAddress(body.gravatarUrl)) {
+        if (!isGravatarAddress(body.gravatarUrl)) {
           return reply
             .status(400)
             .send({ error: "INVALID_REQUEST", message: "gravatarUrl must be a Gravatar address." });
