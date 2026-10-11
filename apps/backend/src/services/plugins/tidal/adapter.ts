@@ -45,7 +45,7 @@ import { Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { TokenManager } from "../../../lib/infra/token-manager";
-import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
+import { calculateAlbumConfidence, calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError } from "../../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
@@ -505,7 +505,6 @@ export const tidalAdapter = {
     const included = data.included ?? [];
     let bestArtist: NormalizedArtist | null = null;
     let bestConfidence = 0;
-    const queryNameLower = query.name.toLowerCase().trim();
 
     for (const item of items.slice(0, 5)) {
       const artistResource = included.find(
@@ -514,16 +513,7 @@ export const tidalAdapter = {
       if (!artistResource?.attributes?.name) continue;
 
       const name = artistResource.attributes.name;
-      const nameLower = name.toLowerCase().trim();
-
-      let confidence: number;
-      if (nameLower === queryNameLower) {
-        confidence = 0.95;
-      } else if (nameLower.includes(queryNameLower) || queryNameLower.includes(nameLower)) {
-        confidence = 0.75;
-      } else {
-        confidence = 0.5;
-      }
+      const confidence = calculateArtistNameConfidence(query.name, name);
 
       if (confidence > bestConfidence) {
         bestConfidence = confidence;

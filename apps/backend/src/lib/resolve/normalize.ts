@@ -178,3 +178,43 @@ export function calculateAlbumConfidence(
 
   return score;
 }
+
+/**
+ * Scores how well an artist name a service returned matches the name searched
+ * for, in [0, 1].
+ *
+ * Every adapter's artist search and the artist resolver use this one rule, so
+ * a name a service finds is accepted or refused the same way everywhere. A
+ * name scored through {@link calculateConfidence} instead can never pass the
+ * match threshold, because that scorer counts artists only when both sides
+ * carry an artist list, which leaves the title term alone at 0.4.
+ *
+ * The rungs, after lower-casing and trimming both names:
+ *
+ * - Equal: 0.95. Not 1.0, because two different real artists can share a name.
+ * - Equal once a leading "The" is stripped from both: 0.9.
+ * - `stringSimilarity` above 0.85: 0.85.
+ * - Above 0.7, or one name containing the other: 0.75.
+ * - Otherwise `similarity * 0.7`, so a weak fuzzy match never exceeds 0.7.
+ *
+ * @param queryName - The artist name that was searched for.
+ * @param resultName - The artist name the service returned.
+ * @returns The confidence that both name the same artist.
+ */
+export function calculateArtistNameConfidence(queryName: string, resultName: string): number {
+  const queryLower = queryName.toLowerCase().trim();
+  const resultLower = resultName.toLowerCase().trim();
+
+  if (queryLower === resultLower) return 0.95;
+
+  const stripThe = (name: string) => name.replace(/^the\s+/i, "").trim();
+  if (stripThe(queryLower) === stripThe(resultLower)) return 0.9;
+
+  const similarity = stringSimilarity(queryLower, resultLower);
+
+  if (similarity > 0.85) return 0.85;
+  if (similarity > 0.7) return 0.75;
+  if (queryLower.includes(resultLower) || resultLower.includes(queryLower)) return 0.75;
+
+  return similarity * 0.7;
+}

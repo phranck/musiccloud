@@ -22,17 +22,12 @@
  *    results (Spotify preferred).
  * 7. Prepend the source link with confidence 1.0 and return.
  *
- * ## Confidence scoring (`calculateArtistNameConfidence`)
+ * ## Confidence scoring
  *
- * Names match a case-normalized pair of rules before falling through
- * to fuzzy similarity:
- *
- * - Exact match (case/whitespace only): 0.95. Not 1.0 because two
- *   different real artists can share a name.
- * - "The" prefix stripped on both sides and equal: 0.9.
- * - `stringSimilarity > 0.85`: 0.85 (high-confidence fuzzy).
- * - `> 0.7` or substring either way: 0.75.
- * - Otherwise: `similarity * 0.7`, so fuzzy matches never exceed 0.7.
+ * Every cross-service hit is re-scored with `calculateArtistNameConfidence`
+ * from `lib/resolve/normalize.ts`, the same rule every adapter's own artist
+ * search uses. The re-score matters for MusicBrainz, which reports its own
+ * relevance score rather than a name comparison.
  *
  * Results below `MATCH_MIN_CONFIDENCE` are dropped at the per-service
  * level; results below `ARTIST_LINK_QUALITY_THRESHOLD` (0.6) are dropped
@@ -74,7 +69,7 @@ import { CACHE_TTL_MS } from "../lib/config.js";
 import { log } from "../lib/infra/logger.js";
 import { stripTrackingParams } from "../lib/platform/url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
-import { stringSimilarity } from "../lib/resolve/normalize.js";
+import { calculateArtistNameConfidence } from "../lib/resolve/normalize.js";
 import { confidenceForMethod } from "./confidence.js";
 import { IDENTIFIER_MATCH_CONFIDENCE, MATCH_MIN_CONFIDENCE } from "./constants.js";
 import { collectArtistExternalIds } from "./external-ids.js";
@@ -246,25 +241,6 @@ async function fillMissingArtistServices(cached: ArtistResolutionResult): Promis
 }
 
 // --- Per-service resolution ---
-
-function calculateArtistNameConfidence(queryName: string, resultName: string): number {
-  const queryLower = queryName.toLowerCase().trim();
-  const resultLower = resultName.toLowerCase().trim();
-
-  if (queryLower === resultLower) return 0.95;
-
-  // Handle "The" prefix: "The Beatles" vs "Beatles"
-  const stripThe = (s: string) => s.replace(/^the\s+/i, "").trim();
-  if (stripThe(queryLower) === stripThe(resultLower)) return 0.9;
-
-  const similarity = stringSimilarity(queryLower, resultLower);
-
-  if (similarity > 0.85) return 0.85;
-  if (similarity > 0.7) return 0.75;
-  if (queryLower.includes(resultLower) || resultLower.includes(queryLower)) return 0.75;
-
-  return similarity * 0.7;
-}
 
 async function resolveArtistOnService(
   adapter: ServiceAdapter,

@@ -1,7 +1,7 @@
 import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
-import { calculateAlbumConfidence, calculateConfidence } from "../../../lib/resolve/normalize";
+import { calculateAlbumConfidence, calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
@@ -538,10 +538,7 @@ export const soundcloudAdapter = {
 
       for (const item of items) {
         const artistName = item.full_name || item.username || "";
-        const confidence = calculateConfidence(
-          { title: query.name, artists: [], durationMs: undefined },
-          { title: artistName, artists: [], durationMs: undefined },
-        );
+        const confidence = calculateArtistNameConfidence(query.name, artistName);
 
         if (confidence > bestConfidence) {
           bestConfidence = confidence;

@@ -51,7 +51,7 @@
  */
 import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
-import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
+import { calculateAlbumConfidence, calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { CANDIDATE_MIN_CONFIDENCE, MATCH_MIN_CONFIDENCE, MAX_CANDIDATES } from "../../constants.js";
 import type {
@@ -445,21 +445,11 @@ export const deezerAdapter = {
       return { found: false, confidence: 0, matchMethod: "search" };
     }
 
-    const queryNameLower = query.name.toLowerCase().trim();
     let bestArtist: NormalizedArtist | null = null;
     let bestConfidence = 0;
 
     for (const item of items) {
-      const nameLower = item.name.toLowerCase().trim();
-
-      let confidence: number;
-      if (nameLower === queryNameLower) {
-        confidence = 0.95;
-      } else if (nameLower.includes(queryNameLower) || queryNameLower.includes(nameLower)) {
-        confidence = 0.75;
-      } else {
-        confidence = 0.5;
-      }
+      const confidence = calculateArtistNameConfidence(query.name, item.name);
 
       if (confidence > bestConfidence) {
         bestConfidence = confidence;

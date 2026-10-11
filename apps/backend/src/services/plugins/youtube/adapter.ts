@@ -43,7 +43,7 @@
 import { Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { ResolveError } from "../../../lib/resolve/errors";
-import { calculateConfidence, normalizeTitle } from "../../../lib/resolve/normalize";
+import { calculateArtistNameConfidence, calculateConfidence, normalizeTitle } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { stripYouTubeTopicSuffix } from "../../../lib/youtube-topic.js";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
@@ -345,10 +345,7 @@ export const youtubeAdapter: ServiceAdapter = {
 
     for (const channel of channels) {
       const artist = mapChannelToArtist(channel);
-      const confidence = calculateConfidence(
-        { title: query.name, artists: [], durationMs: undefined },
-        { title: artist.name, artists: [], durationMs: undefined },
-      );
+      const confidence = calculateArtistNameConfidence(query.name, artist.name);
 
       if (confidence > bestConfidence) {
         bestConfidence = confidence;
