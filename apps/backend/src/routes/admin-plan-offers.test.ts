@@ -10,6 +10,7 @@ import jwt from "@fastify/jwt";
 import { ENDPOINTS } from "@musiccloud/shared";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { registerApiErrorHandling } from "../lib/infra/api-error-handler.js";
 
 vi.stubEnv("DISABLE_RATE_LIMIT", "true");
 vi.stubEnv("ALLOWED_ORIGINS", "https://musiccloud.io,https://dashboard.musiccloud.io");
@@ -37,6 +38,8 @@ const plan = { id: "tier_club", name: "Club", enabled: true };
 
 async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
+  // The envelope that leaves the server is what a client reads, so the tests read it too.
+  registerApiErrorHandling(app);
   await app.register(jwt, { secret: "test-secret" });
   await app.register(cookie);
 
@@ -127,7 +130,7 @@ describe("POST /api/admin/developer/plans/:tierId/offers", () => {
     const res = await post({ billingPeriod: "every-month", priceCents: 990 });
 
     expect(res.statusCode).toBe(409);
-    expect(res.json().code).toBe("MC-BILL-0009");
+    expect(res.json().error).toBe("MC-BILL-0009");
   });
 
   it("accepts a return address on one of our own origins", async () => {
@@ -148,7 +151,10 @@ describe("POST /api/admin/developer/plans/:tierId/offers", () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().code).toBe("MC-BILL-0008");
+    expect(res.json().error).toBe("MC-BILL-0008");
+    expect(res.json().message).toBe(
+      "The address in successUrl does not belong to this installation. It has to be https on one of its own origins. (MC-BILL-0008)",
+    );
     expect(mockTierRepo.createOffer).not.toHaveBeenCalled();
   });
 
@@ -160,14 +166,14 @@ describe("POST /api/admin/developer/plans/:tierId/offers", () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().code).toBe("MC-BILL-0008");
+    expect(res.json().error).toBe("MC-BILL-0008");
   });
 
   it("refuses a foreign image address by the same rule", async () => {
     const res = await post({ billingPeriod: "every-month", priceCents: 990, imageUrl: "https://example.org/p.png" });
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().code).toBe("MC-BILL-0008");
+    expect(res.json().error).toBe("MC-BILL-0008");
   });
 
   it("refuses more checkout questions than Creem accepts", async () => {

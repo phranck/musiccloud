@@ -2,7 +2,7 @@ import Fastify from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { createPublicErrorResponseSchema } from "../../docs/public-response-schema.js";
-import { registerApiErrorHandling } from "./api-error-handler.js";
+import { registerApiErrorHandling, replyWithApiError } from "./api-error-handler.js";
 
 const apps: Array<ReturnType<typeof Fastify>> = [];
 
@@ -62,6 +62,26 @@ describe("registerApiErrorHandling", () => {
       error: "MC-REQ-0001",
       errorId: expect.any(String),
       message: "Bad input (MC-REQ-0001)",
+    });
+  });
+
+  it("answers a registry code with its own status, its rendered message and any extra fields", async () => {
+    const app = await testApp();
+    app.get("/refused", async (_request, reply) =>
+      replyWithApiError(reply, "MC-BILL-0007", {
+        context: { mode: "live", plans: "Club (year)" },
+        extra: { missing: ["Club (year)"] },
+      }),
+    );
+
+    const response = await app.inject({ method: "GET", url: "/refused" });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      error: "MC-BILL-0007",
+      errorId: expect.any(String),
+      message: "These plans have no product in the live environment yet: Club (year). (MC-BILL-0007)",
+      missing: ["Club (year)"],
     });
   });
 

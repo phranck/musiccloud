@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import { getErrorEntry } from "@musiccloud/shared";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 import {
   classifyUnhandledError,
@@ -19,6 +20,32 @@ const internalDiagnostics = new WeakMap<FastifyRequest, Record<string, unknown>>
  */
 export function setApiFailureDiagnostic(request: FastifyRequest, diagnostic: Record<string, unknown>): void {
   internalDiagnostics.set(request, diagnostic);
+}
+
+/**
+ * Answers with an error from the registry: its code, its own status and its
+ * message, rendered from `context`.
+ *
+ * A route that writes its own `{ error: "<sentence>" }` loses its code to the
+ * normalizer, which reads `error` as the code and replaces anything that is not
+ * one with the generic code for the status. Answering through the registry is
+ * what keeps the code a client, an operator and the request log all see.
+ *
+ * @param reply - The reply to answer on.
+ * @param code - The registry code, for example `MC-BILL-0004`.
+ * @param options - `context` fills the message's `{placeholders}` and travels
+ *   in the body; `extra` adds fields beside the envelope, such as a list the
+ *   client renders.
+ * @returns The reply, so a handler can `return` it.
+ */
+export function replyWithApiError(
+  reply: FastifyReply,
+  code: string,
+  options: { context?: Record<string, string | number>; extra?: Record<string, unknown> } = {},
+): FastifyReply {
+  return reply
+    .status(getErrorEntry(code).httpStatus)
+    .send({ ...options.extra, ...createApiErrorResponse(code, { context: options.context }) });
 }
 
 export function registerApiErrorHandling(app: FastifyInstance): void {

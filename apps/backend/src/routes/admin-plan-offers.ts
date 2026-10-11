@@ -23,6 +23,7 @@ import {
   type TierOfferUpdateData,
 } from "../db/tiers-repository.js";
 import { requireOwnerOrAdmin } from "../lib/admin-caller.js";
+import { replyWithApiError } from "../lib/infra/api-error-handler.js";
 import { isAllowedPublicUrl } from "../lib/public-origins.js";
 
 /** Creem accepts at most three extra questions at the checkout. */
@@ -79,10 +80,7 @@ const idSchema = { type: "string", minLength: 1, maxLength: 64, pattern: "^[A-Za
 function refuseForeignUrl(reply: FastifyReply, field: string, value: string | null | undefined): FastifyReply | null {
   if (value === null || value === undefined || value === "") return null;
   if (isAllowedPublicUrl(value)) return null;
-  return reply.status(400).send({
-    error: `${field} must be an https address on one of this deployment's own origins`,
-    code: "MC-BILL-0008",
-  });
+  return replyWithApiError(reply, "MC-BILL-0008", { context: { field } });
 }
 
 /**
@@ -149,10 +147,7 @@ export async function adminPlanOfferRoutes(app: FastifyInstance) {
 
       const period = body.billingPeriod!;
       if ((await repo.listOffers(tierId)).some((offer) => offer.billingPeriod === period)) {
-        return reply.status(409).send({
-          error: "This plan is already sold over that billing period",
-          code: "MC-BILL-0009",
-        });
+        return replyWithApiError(reply, "MC-BILL-0009");
       }
 
       // Every field is named rather than spread from the body, so a property

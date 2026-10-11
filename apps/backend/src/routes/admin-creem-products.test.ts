@@ -15,6 +15,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Tier } from "../db/tiers-repository.js";
 import { CreemMode } from "../lib/creem-config.js";
+import { registerApiErrorHandling } from "../lib/infra/api-error-handler.js";
 
 vi.stubEnv("DISABLE_RATE_LIMIT", "true");
 
@@ -112,6 +113,8 @@ import { getSellingMode, SellingModeRefusal, setSellingMode } from "../services/
 
 async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
+  // The envelope that leaves the server is what a client reads, so the tests read it too.
+  registerApiErrorHandling(app);
   await app.register(jwt, { secret: "test-secret" });
   await app.register(cookie);
 
@@ -209,7 +212,7 @@ describe("POST /api/admin/developer/creem-products", () => {
     const res = await post({ tierId: "tier_free", billingPeriod: "every-month", mode: CreemMode.Test });
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().code).toBe("MC-BILL-0005");
+    expect(res.json().error).toBe("MC-BILL-0005");
     expect(createCreemProduct).not.toHaveBeenCalled();
     expect(mockTierRepo.createCreemProductMapping).not.toHaveBeenCalled();
   });
@@ -218,7 +221,7 @@ describe("POST /api/admin/developer/creem-products", () => {
     const res = await post({ tierId: "tier_club", billingPeriod: "every-year", mode: CreemMode.Test });
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().code).toBe("MC-BILL-0005");
+    expect(res.json().error).toBe("MC-BILL-0005");
     expect(createCreemProduct).not.toHaveBeenCalled();
   });
 
@@ -233,7 +236,7 @@ describe("POST /api/admin/developer/creem-products", () => {
     const res = await post({ tierId: "tier_club", billingPeriod: "every-month", mode: CreemMode.Test });
 
     expect(res.statusCode).toBe(409);
-    expect(res.json().code).toBe("MC-BILL-0004");
+    expect(res.json().error).toBe("MC-BILL-0004");
     expect(createCreemProduct).not.toHaveBeenCalled();
   });
 
@@ -268,13 +271,23 @@ describe("POST /api/admin/developer/creem-products", () => {
   });
 
   it("records no mapping when Creem refused to create the product", async () => {
-    vi.mocked(createCreemProduct).mockRejectedValue(new CreemProductError("MC-BILL-0001", "Creem refused"));
+    vi.mocked(createCreemProduct).mockRejectedValue(new CreemProductError("MC-BILL-0001"));
 
     const res = await post({ tierId: "tier_club", billingPeriod: "every-month", mode: CreemMode.Test });
 
     expect(res.statusCode).toBe(502);
-    expect(res.json().code).toBe("MC-BILL-0001");
+    expect(res.json().error).toBe("MC-BILL-0001");
+    expect(res.json().message).toBe("The product could not be created at Creem. (MC-BILL-0001)");
     expect(mockTierRepo.createCreemProductMapping).not.toHaveBeenCalled();
+  });
+
+  it("refuses an environment this deployment holds no key for, and names it", async () => {
+    const res = await post({ tierId: "tier_club", billingPeriod: "every-month", mode: CreemMode.Live });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toBe("MC-BILL-0006");
+    expect(res.json().message).toBe("This deployment holds no Creem key for the live environment. (MC-BILL-0006)");
+    expect(createCreemProduct).not.toHaveBeenCalled();
   });
 
   it("rejects unauthenticated callers", async () => {
@@ -333,12 +346,12 @@ describe("PATCH /api/admin/developer/creem-products/:tierId/:billingPeriod/:mode
 
   it("reports the failure when Creem refused the change", async () => {
     mockTierRepo.findCreemProductMapping.mockResolvedValue(mapping);
-    vi.mocked(updateCreemProductPrice).mockRejectedValue(new CreemProductError("MC-BILL-0002", "Creem refused"));
+    vi.mocked(updateCreemProductPrice).mockRejectedValue(new CreemProductError("MC-BILL-0002"));
 
     const res = await reprice({ priceCents: 1490 });
 
     expect(res.statusCode).toBe(502);
-    expect(res.json().code).toBe("MC-BILL-0002");
+    expect(res.json().error).toBe("MC-BILL-0002");
   });
 
   it("answers 404 when that plan and interval has no product in this environment", async () => {
@@ -384,12 +397,12 @@ describe("DELETE /api/admin/developer/creem-products/:tierId/:billingPeriod/:mod
 
   it("keeps the mapping when Creem refused to archive, so the price on the page stays buyable", async () => {
     mockTierRepo.findCreemProductMapping.mockResolvedValue(mapping);
-    vi.mocked(archiveCreemProduct).mockRejectedValue(new CreemProductError("MC-BILL-0003", "Creem refused"));
+    vi.mocked(archiveCreemProduct).mockRejectedValue(new CreemProductError("MC-BILL-0003"));
 
     const res = await remove();
 
     expect(res.statusCode).toBe(502);
-    expect(res.json().code).toBe("MC-BILL-0003");
+    expect(res.json().error).toBe("MC-BILL-0003");
     expect(mockTierRepo.deleteCreemProductMapping).not.toHaveBeenCalled();
   });
 
@@ -461,7 +474,10 @@ describe("the selling environment", () => {
     const res = await write(CreemMode.Live);
 
     expect(res.statusCode).toBe(409);
-    expect(res.json().code).toBe("MC-BILL-0007");
+    expect(res.json().error).toBe("MC-BILL-0007");
+    expect(res.json().message).toBe(
+      "These plans have no product in the live environment yet: Club (year). (MC-BILL-0007)",
+    );
     expect(res.json().missing).toEqual(["Club (year)"]);
     expect(resetCreemCatalogCache).not.toHaveBeenCalled();
   });
@@ -472,7 +488,7 @@ describe("the selling environment", () => {
     const res = await write(CreemMode.Live);
 
     expect(res.statusCode).toBe(409);
-    expect(res.json().code).toBe("MC-BILL-0006");
+    expect(res.json().error).toBe("MC-BILL-0006");
   });
 
   it("rejects a caller who is not the owner", async () => {
