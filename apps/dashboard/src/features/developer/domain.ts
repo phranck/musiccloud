@@ -52,11 +52,37 @@ export const CreemMode = {
 export type CreemMode = (typeof CreemMode)[keyof typeof CreemMode];
 
 /**
- * The billing intervals a plan can be sold at, matching the check constraint
- * on `tier_creem_products.interval`.
+ * The billing periods Creem sells over, in its own spelling, matching the
+ * check constraint on `tier_offers.billing_period`.
  */
-export const BillingInterval = {
-  Month: "month",
-  Year: "year",
+export const BillingPeriod = {
+  Once: "once",
+  Daily: "every-day",
+  Monthly: "every-month",
+  Quarterly: "every-three-months",
+  HalfYearly: "every-six-months",
+  Yearly: "every-year",
 } as const;
-export type BillingInterval = (typeof BillingInterval)[keyof typeof BillingInterval];
+export type BillingPeriod = (typeof BillingPeriod)[keyof typeof BillingPeriod];
+
+/** The currencies Creem accepts. */
+export const OfferCurrency = {
+  Eur: "EUR",
+  Usd: "USD",
+} as const;
+export type OfferCurrency = (typeof OfferCurrency)[keyof typeof OfferCurrency];
+
+/** Whether tax sits inside the price or is added to it. */
+export const TaxMode = {
+  Inclusive: "inclusive",
+  Exclusive: "exclusive",
+} as const;
+export type TaxMode = (typeof TaxMode)[keyof typeof TaxMode];
+
+/** How Creem treats what is being sold, for tax. */
+export const TaxCategory = {
+  Saas: "saas",
+  DigitalGoodsService: "digital-goods-service",
+  Ebooks: "ebooks",
+} as const;
+export type TaxCategory = (typeof TaxCategory)[keyof typeof TaxCategory];

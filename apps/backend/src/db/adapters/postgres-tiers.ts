@@ -3,11 +3,17 @@ import type { Pool } from "pg";
 import type { CreemModeValue } from "../../lib/creem-config.js";
 import { log } from "../../lib/infra/logger.js";
 import {
+  type BillingPeriodValue,
   DEFAULT_TIER_COLOR,
+  type OfferCurrencyValue,
+  type OfferCustomField,
   type Tier,
   type TierCreateData,
   type TierCreemProductKey,
   type TierCreemProductMapping,
+  type TierOffer,
+  type TierOfferCreateData,
+  type TierOfferUpdateData,
   type TierRepository,
   type TierUpdateData,
 } from "../tiers-repository.js";
@@ -65,6 +71,53 @@ interface TierCreemProductMappingRow {
   creem_product_id: string;
 }
 
+/** One `tier_offers` row as PostgreSQL returns it. */
+interface TierOfferRow {
+  id: string;
+  tier_id: string;
+  billing_period: string;
+  price_cents: number;
+  currency: string;
+  tax_mode: string | null;
+  tax_category: string | null;
+  image_url: string | null;
+  success_url: string | null;
+  custom_fields: OfferCustomField[] | null;
+  abandoned_cart_recovery: boolean;
+  pay_what_you_want: boolean;
+  suggested_price_cents: number | null;
+  sort_order: number;
+}
+
+/** Every column of `tier_offers`, in the order the mapper reads them. */
+const OFFER_COLUMNS =
+  "id, tier_id, billing_period, price_cents, currency, tax_mode, tax_category, image_url, success_url, custom_fields, abandoned_cart_recovery, pay_what_you_want, suggested_price_cents, sort_order";
+
+/**
+ * Converts a `tier_offers` row into the repository's offer shape.
+ *
+ * Every constrained column is cast to its namespace type, which is what the
+ * check constraints on the table already guarantee.
+ */
+function toOffer(row: TierOfferRow): TierOffer {
+  return {
+    id: row.id,
+    tierId: row.tier_id,
+    billingPeriod: row.billing_period as BillingPeriodValue,
+    priceCents: row.price_cents,
+    currency: row.currency as OfferCurrencyValue,
+    taxMode: row.tax_mode as TierOffer["taxMode"],
+    taxCategory: row.tax_category as TierOffer["taxCategory"],
+    imageUrl: row.image_url,
+    successUrl: row.success_url,
+    customFields: row.custom_fields ?? [],
+    abandonedCartRecovery: row.abandoned_cart_recovery,
+    payWhatYouWant: row.pay_what_you_want,
+    suggestedPriceCents: row.suggested_price_cents,
+    sortOrder: row.sort_order,
+  };
+}
+
 /**
  * Converts a `tier_creem_products` row into the repository's mapping shape.
  *
@@ -75,7 +128,7 @@ interface TierCreemProductMappingRow {
 function toCreemProductMapping(row: TierCreemProductMappingRow): TierCreemProductMapping {
   return {
     tierId: row.tier_id,
-    interval: row.interval,
+    billingPeriod: row.interval as BillingPeriodValue,
     mode: row.mode as CreemModeValue,
     creemProductId: row.creem_product_id,
   };
@@ -304,7 +357,7 @@ export class PostgresTierRepository implements TierRepository {
   async findCreemProductMapping(key: TierCreemProductKey): Promise<TierCreemProductMapping | null> {
     const { rows } = await this.#pool.query<TierCreemProductMappingRow>(
       "SELECT tier_id, interval, mode, creem_product_id FROM tier_creem_products WHERE tier_id = $1 AND interval = $2 AND mode = $3",
-      [key.tierId, key.interval, key.mode],
+      [key.tierId, key.billingPeriod, key.mode],
     );
     const row = rows[0];
     return row ? toCreemProductMapping(row) : null;
@@ -322,7 +375,7 @@ export class PostgresTierRepository implements TierRepository {
   async createCreemProductMapping(mapping: TierCreemProductMapping): Promise<void> {
     await this.#pool.query(
       "INSERT INTO tier_creem_products (id, tier_id, interval, mode, creem_product_id) VALUES ($1, $2, $3, $4, $5)",
-      [nanoid(), mapping.tierId, mapping.interval, mapping.mode, mapping.creemProductId],
+      [nanoid(), mapping.tierId, mapping.billingPeriod, mapping.mode, mapping.creemProductId],
     );
   }
 
@@ -335,8 +388,136 @@ export class PostgresTierRepository implements TierRepository {
   async deleteCreemProductMapping(key: TierCreemProductKey): Promise<boolean> {
     const { rowCount } = await this.#pool.query(
       "DELETE FROM tier_creem_products WHERE tier_id = $1 AND interval = $2 AND mode = $3",
-      [key.tierId, key.interval, key.mode],
+      [key.tierId, key.billingPeriod, key.mode],
     );
     return (rowCount ?? 0) > 0;
+  }
+
+  /**
+   * Returns every offer of one plan, in the order it is shown.
+   *
+   * @param tierId - The plan.
+   * @returns Its offers.
+   */
+  async listOffers(tierId: string): Promise<TierOffer[]> {
+    const { rows } = await this.#pool.query<TierOfferRow>(
+      `SELECT ${OFFER_COLUMNS} FROM tier_offers WHERE tier_id = $1 ORDER BY sort_order, billing_period`,
+      [tierId],
+    );
+    return rows.map(toOffer);
+  }
+
+  /**
+   * Returns every offer of every plan.
+   *
+   * The pricing page needs the offers of a whole list at once, and one query
+   * for all of them beats one per plan.
+   *
+   * @returns Every offer, grouped by plan through the sort order.
+   */
+  async listAllOffers(): Promise<TierOffer[]> {
+    const { rows } = await this.#pool.query<TierOfferRow>(
+      `SELECT ${OFFER_COLUMNS} FROM tier_offers ORDER BY tier_id, sort_order, billing_period`,
+    );
+    return rows.map(toOffer);
+  }
+
+  /**
+   * Adds an offer to a plan.
+   *
+   * @param data - What is being sold and on what terms.
+   * @returns The stored offer, read back rather than assumed.
+   */
+  async createOffer(data: TierOfferCreateData): Promise<TierOffer> {
+    const { rows } = await this.#pool.query<TierOfferRow>(
+      `INSERT INTO tier_offers
+         (id, tier_id, billing_period, price_cents, currency, tax_mode, tax_category, image_url, success_url,
+          custom_fields, abandoned_cart_recovery, pay_what_you_want, suggested_price_cents, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+       RETURNING ${OFFER_COLUMNS}`,
+      [
+        nanoid(),
+        data.tierId,
+        data.billingPeriod,
+        data.priceCents,
+        data.currency,
+        data.taxMode,
+        data.taxCategory,
+        data.imageUrl,
+        data.successUrl,
+        JSON.stringify(data.customFields),
+        data.abandonedCartRecovery,
+        data.payWhatYouWant,
+        data.suggestedPriceCents,
+        data.sortOrder,
+      ],
+    );
+    return toOffer(rows[0]!);
+  }
+
+  /**
+   * Changes an offer, leaving out fields the caller did not name.
+   *
+   * The set of writable columns is stated here rather than taken from the
+   * body, so a request cannot reach a column nobody meant to expose.
+   *
+   * @param id - The offer to change.
+   * @param data - The fields to change.
+   * @returns The offer as it stands afterwards.
+   */
+  async updateOffer(id: string, data: TierOfferUpdateData): Promise<TierOffer> {
+    const writable: [keyof TierOfferUpdateData, string][] = [
+      ["billingPeriod", "billing_period"],
+      ["priceCents", "price_cents"],
+      ["currency", "currency"],
+      ["taxMode", "tax_mode"],
+      ["taxCategory", "tax_category"],
+      ["imageUrl", "image_url"],
+      ["successUrl", "success_url"],
+      ["customFields", "custom_fields"],
+      ["abandonedCartRecovery", "abandoned_cart_recovery"],
+      ["payWhatYouWant", "pay_what_you_want"],
+      ["suggestedPriceCents", "suggested_price_cents"],
+      ["sortOrder", "sort_order"],
+    ];
+
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    for (const [key, column] of writable) {
+      const value = data[key];
+      if (value === undefined) continue;
+      fields.push(`${column} = $${values.length + 1}`);
+      values.push(key === "customFields" ? JSON.stringify(value) : value);
+    }
+
+    if (fields.length === 0) {
+      const { rows } = await this.#pool.query<TierOfferRow>(`SELECT ${OFFER_COLUMNS} FROM tier_offers WHERE id = $1`, [
+        id,
+      ]);
+      if (rows.length === 0) throw new Error(`Offer not found: ${id}`);
+      return toOffer(rows[0]!);
+    }
+
+    values.push(id);
+    const { rows } = await this.#pool.query<TierOfferRow>(
+      `UPDATE tier_offers SET ${fields.join(", ")}, updated_at = NOW() WHERE id = $${values.length} RETURNING ${OFFER_COLUMNS}`,
+      values,
+    );
+    if (rows.length === 0) throw new Error(`Offer not found: ${id}`);
+    return toOffer(rows[0]!);
+  }
+
+  /**
+   * Removes an offer.
+   *
+   * Any Creem product mapped to it goes with it through the database. The
+   * products themselves are archived at Creem by the caller beforehand, since
+   * a removed row cannot say what still has to be archived.
+   *
+   * @param id - The offer to remove.
+   */
+  async deleteOffer(id: string): Promise<void> {
+    const { rowCount } = await this.#pool.query("DELETE FROM tier_offers WHERE id = $1", [id]);
+    if (rowCount === 0) throw new Error(`Offer not found: ${id}`);
   }
 }

@@ -28,6 +28,7 @@ import {
   LoginPage,
   NavManagerPage,
   PagesListPage,
+  PlanDetailPage,
   ProjectDetailPage,
   ServicesPage,
   SetupPage,
@@ -80,6 +81,7 @@ export const routes = createRoutesFromElements(
           <Route path="developer/accounts/:id" element={lazyFallback(<DeveloperDetailPage />)} />
           <Route path="developer/projects/:id" element={lazyFallback(<ProjectDetailPage />)} />
           <Route path="developer/plans" element={lazyFallback(<TierEditorPage />)} />
+          <Route path="developer/plans/:id" element={lazyFallback(<PlanDetailPage />)} />
           {/* The screen was reached at /developer/tiers until the wording moved
               to "plan". A bookmark on the old path would otherwise fall into
               the catch-all and land on the dashboard root, which loses the

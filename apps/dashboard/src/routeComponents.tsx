@@ -150,6 +150,12 @@ export const DeveloperDetailPage = lazy(() =>
   })),
 );
 
+export const PlanDetailPage = lazy(() =>
+  import("@/features/developer/PlanDetailPage").then((m) => ({
+    default: m.PlanDetailPage,
+  })),
+);
+
 export const TierEditorPage = lazy(() =>
   import("@/features/developer/TierEditorPage").then((m) => ({
     default: m.TierEditorPage,

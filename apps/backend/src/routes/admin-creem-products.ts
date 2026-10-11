@@ -20,6 +20,7 @@ import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { getTierRepository } from "../db/index.js";
 import type { TierCreemProductKey } from "../db/tiers-repository.js";
+import { BillingPeriod } from "../db/tiers-repository.js";
 import { requireOwner, requireOwnerOrAdmin } from "../lib/admin-caller.js";
 import { CreemMode, type CreemModeValue, configuredCreemModes } from "../lib/creem-config.js";
 import { resetCreemCatalogCache } from "../services/creem-catalog.js";
@@ -30,7 +31,7 @@ import {
   updateCreemProductPrice,
 } from "../services/creem-products.js";
 import { getSellingMode, SellingModeRefusal, setSellingMode } from "../services/creem-selling-mode.js";
-import { BillingInterval, draftCreemProductFor, isBillingInterval } from "../services/tier-creem-draft.js";
+import { draftCreemProductForOffer, isBillingPeriod } from "../services/tier-creem-draft.js";
 
 /** Longest Creem product id we accept when attaching one created elsewhere. */
 const MAX_CREEM_PRODUCT_ID_LENGTH = 128;
@@ -45,11 +46,11 @@ const CREEM_PRODUCT_ID_PATTERN = "^prod_[A-Za-z0-9]+$";
 /** Schema for the three path parameters every per-product route takes. */
 const productParamsSchema = {
   type: "object",
-  required: ["tierId", "interval", "mode"],
+  required: ["tierId", "billingPeriod", "mode"],
   additionalProperties: false,
   properties: {
     tierId: { type: "string", minLength: 1, maxLength: 64, pattern: "^[A-Za-z0-9_-]+$" },
-    interval: { type: "string", enum: ["month", "year"] },
+    billingPeriod: { type: "string", enum: Object.values(BillingPeriod) },
     mode: { type: "string", enum: [CreemMode.Test, CreemMode.Live] },
   },
 } as const;
@@ -103,17 +104,20 @@ function replyWithCreemFailure(reply: FastifyReply, error: unknown, status: numb
  */
 async function sellablePlanProducts(): Promise<{ label: string; modes: CreemModeValue[] }[]> {
   const repo = await getTierRepository();
-  const [tiers, mappings] = await Promise.all([repo.listTiers(), repo.listAllCreemProductMappings()]);
+  const [tiers, offers, mappings] = await Promise.all([
+    repo.listTiers(),
+    repo.listAllOffers(),
+    repo.listAllCreemProductMappings(),
+  ]);
 
   const needed: { label: string; modes: CreemModeValue[] }[] = [];
   for (const tier of tiers) {
     if (!tier.enabled) continue;
-    for (const interval of [BillingInterval.Month, BillingInterval.Year]) {
-      if (!draftCreemProductFor(tier, interval)) continue;
+    for (const offer of offers.filter((candidate) => candidate.tierId === tier.id)) {
       needed.push({
-        label: `${tier.name} (${interval})`,
+        label: `${tier.name} (${offer.billingPeriod})`,
         modes: mappings
-          .filter((mapping) => mapping.tierId === tier.id && mapping.interval === interval)
+          .filter((mapping) => mapping.tierId === tier.id && mapping.billingPeriod === offer.billingPeriod)
           .map((mapping) => mapping.mode),
       });
     }
@@ -164,11 +168,11 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
       schema: {
         body: {
           type: "object",
-          required: ["tierId", "interval", "mode"],
+          required: ["tierId", "billingPeriod", "mode"],
           additionalProperties: false,
           properties: {
             tierId: { type: "string", minLength: 1, maxLength: 64, pattern: "^[A-Za-z0-9_-]+$" },
-            interval: { type: "string", enum: ["month", "year"] },
+            billingPeriod: { type: "string", enum: Object.values(BillingPeriod) },
             mode: { type: "string", enum: [CreemMode.Test, CreemMode.Live] },
             creemProductId: {
               type: "string",
@@ -184,12 +188,12 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
       if (!(await requireOwnerOrAdmin(request, reply))) return;
       const body = request.body as {
         tierId: string;
-        interval: string;
+        billingPeriod: string;
         mode: CreemModeValue;
         creemProductId?: string;
       };
-      if (!isBillingInterval(body.interval)) {
-        return reply.status(400).send({ error: "interval must be month or year" });
+      if (!isBillingPeriod(body.billingPeriod)) {
+        return reply.status(400).send({ error: "billingPeriod must be one Creem sells over" });
       }
 
       const unreachable = refuseUnreachableMode(reply, body.mode);
@@ -197,9 +201,9 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
 
       const repo = await getTierRepository();
       const tier = (await repo.listTiers()).find((candidate) => candidate.id === body.tierId);
-      if (!tier) return reply.status(404).send({ error: `Tier not found: ${body.tierId}` });
+      if (!tier) return reply.status(404).send({ error: `Plan not found: ${body.tierId}` });
 
-      const key: TierCreemProductKey = { tierId: body.tierId, interval: body.interval, mode: body.mode };
+      const key: TierCreemProductKey = { tierId: body.tierId, billingPeriod: body.billingPeriod, mode: body.mode };
 
       if (await repo.findCreemProductMapping(key)) {
         return reply.status(409).send({
@@ -215,13 +219,18 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
         return reply.status(201).send({ ...key, creemProductId: body.creemProductId });
       }
 
-      const draft = draftCreemProductFor(tier, body.interval);
-      if (!draft) {
+      // The product is built from the offer, so everything Creem receives was
+      // entered by somebody rather than derived from the plan.
+      const offer = (await repo.listOffers(body.tierId)).find(
+        (candidate) => candidate.billingPeriod === body.billingPeriod,
+      );
+      if (!offer) {
         return reply.status(400).send({
-          error: "A free plan gets no Creem product, and a plan without a yearly price is not sold yearly",
+          error: "This plan has no offer for that billing period, so there is nothing to sell",
           code: "MC-BILL-0005",
         });
       }
+      const draft = draftCreemProductForOffer(tier, offer);
 
       let product: Awaited<ReturnType<typeof createCreemProduct>>;
       try {
@@ -261,10 +270,10 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
     },
     async (request, reply) => {
       if (!(await requireOwnerOrAdmin(request, reply))) return;
-      const params = request.params as { tierId: string; interval: string; mode: CreemModeValue };
+      const params = request.params as { tierId: string; billingPeriod: string; mode: CreemModeValue };
       const { priceCents } = request.body as { priceCents: number };
-      if (!isBillingInterval(params.interval)) {
-        return reply.status(400).send({ error: "interval must be month or year" });
+      if (!isBillingPeriod(params.billingPeriod)) {
+        return reply.status(400).send({ error: "billingPeriod must be one Creem sells over" });
       }
 
       const unreachable = refuseUnreachableMode(reply, params.mode);
@@ -273,7 +282,7 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
       const repo = await getTierRepository();
       const mapping = await repo.findCreemProductMapping({
         tierId: params.tierId,
-        interval: params.interval,
+        billingPeriod: params.billingPeriod,
         mode: params.mode,
       });
       if (!mapping) return reply.status(404).send({ error: "No product for that plan, interval and environment" });
@@ -301,16 +310,20 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
     { schema: { params: productParamsSchema } },
     async (request, reply) => {
       if (!(await requireOwnerOrAdmin(request, reply))) return;
-      const params = request.params as { tierId: string; interval: string; mode: CreemModeValue };
-      if (!isBillingInterval(params.interval)) {
-        return reply.status(400).send({ error: "interval must be month or year" });
+      const params = request.params as { tierId: string; billingPeriod: string; mode: CreemModeValue };
+      if (!isBillingPeriod(params.billingPeriod)) {
+        return reply.status(400).send({ error: "billingPeriod must be one Creem sells over" });
       }
 
       const unreachable = refuseUnreachableMode(reply, params.mode);
       if (unreachable) return unreachable;
 
       const repo = await getTierRepository();
-      const key: TierCreemProductKey = { tierId: params.tierId, interval: params.interval, mode: params.mode };
+      const key: TierCreemProductKey = {
+        tierId: params.tierId,
+        billingPeriod: params.billingPeriod,
+        mode: params.mode,
+      };
       const mapping = await repo.findCreemProductMapping(key);
       if (!mapping) return reply.status(404).send({ error: "No product for that plan, interval and environment" });
 

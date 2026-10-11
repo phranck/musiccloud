@@ -1,90 +1,74 @@
 /**
- * @file What a tier's Creem product is called and what it costs.
+ * @file What a plan's offer becomes when it reaches Creem.
  *
- * These are our rules rather than Creem's. They decide the name, the
- * description and the amount that appear on a customer's checkout page and on
- * their receipt, so they live in one place that the write path and its tests
- * both read.
+ * An offer already carries every field Creem accepts, so nothing here invents
+ * a value. What is left is the name and the description, which Creem shows on
+ * the checkout page and on the receipt, and which follow a fixed pattern from
+ * the plan's name and the billing period so a customer recognises what they
+ * are paying for.
  */
 
-import type { Tier } from "../db/tiers-repository.js";
+import { BillingPeriod, type BillingPeriodValue, type Tier, type TierOffer } from "../db/tiers-repository.js";
 import type { CreemProductDraft } from "./creem-products.js";
-import { euroStringToCents } from "./tier-pricing.js";
 
-/** The billing intervals a tier can be sold at. */
-export const BillingInterval = {
-  /** Billed once a month. */
-  Month: "month",
-  /** Billed once a year. */
-  Year: "year",
-} as const;
-
-/** A {@link BillingInterval} member value. */
-export type BillingIntervalValue = (typeof BillingInterval)[keyof typeof BillingInterval];
-
-/** Creem's own spelling of each billing period. */
-const CREEM_BILLING_PERIOD: Record<BillingIntervalValue, string> = {
-  [BillingInterval.Month]: "every-month",
-  [BillingInterval.Year]: "every-year",
+/** The word that appears in the product name and description per period. */
+const PERIOD_LABEL: Record<BillingPeriodValue, string> = {
+  [BillingPeriod.Once]: "once",
+  [BillingPeriod.Daily]: "daily",
+  [BillingPeriod.Monthly]: "monthly",
+  [BillingPeriod.Quarterly]: "quarterly",
+  [BillingPeriod.HalfYearly]: "half-yearly",
+  [BillingPeriod.Yearly]: "yearly",
 };
-
-/** The word that appears in the product name and description per interval. */
-const INTERVAL_LABEL: Record<BillingIntervalValue, string> = {
-  [BillingInterval.Month]: "monthly",
-  [BillingInterval.Year]: "yearly",
-};
-
-/** Every Creem product we create is priced in euros. */
-const PRODUCT_CURRENCY = "EUR";
 
 /**
- * Whether the given string is one of the two billing intervals.
+ * Whether the given string is one of the billing periods Creem sells over.
  *
  * @param value - The candidate, typically straight off a request.
- * @returns `true` when it is `month` or `year`.
+ * @returns `true` when Creem knows it.
  */
-export function isBillingInterval(value: unknown): value is BillingIntervalValue {
-  return value === BillingInterval.Month || value === BillingInterval.Year;
+export function isBillingPeriod(value: unknown): value is BillingPeriodValue {
+  return Object.values(BillingPeriod).includes(value as BillingPeriodValue);
 }
 
 /**
- * Returns the tier's price for one interval, as the tiers table holds it.
+ * The name a product carries at Creem, for one plan and period.
  *
- * @param tier - The tier.
- * @param interval - Which of the two prices is wanted.
- * @returns The price string, or `null` when the tier has no price for it.
+ * @param tierName - The plan's name.
+ * @param period - The billing period.
+ * @returns The product name.
  */
-export function tierPriceFor(tier: Tier, interval: BillingIntervalValue): string | null {
-  return interval === BillingInterval.Month ? tier.price : tier.priceYearly;
+export function creemProductName(tierName: string, period: BillingPeriodValue): string {
+  return `musiccloud ${tierName} (${PERIOD_LABEL[period]})`;
 }
 
 /**
- * Builds the Creem product for a tier and interval, or says why there is none.
+ * Builds the Creem product for one offer.
  *
- * Two cases yield nothing, and they are different. A free tier gets no product
- * at all, because Creem rejects a recurring product priced at zero and a free
- * account has no billing to model; its price comes from our own tiers table. A
- * tier with no yearly price is simply not sold yearly, so the yearly product
- * does not exist either.
+ * Nothing is derived here beyond the two texts. Every other field is the
+ * offer's own, which is the whole point of an offer existing: a product at
+ * Creem carries what somebody entered rather than what our code assumed.
  *
- * The name and description follow a fixed pattern from the tier name and the
- * billing period, because both appear on the checkout page and on the receipt,
- * where a customer has to recognise what they are paying for.
- *
- * @param tier - The tier the product belongs to.
- * @param interval - The billing interval to build the product for.
- * @returns The draft, or `null` when this tier and interval has no product.
+ * @param tier - The plan the offer belongs to, for its name.
+ * @param offer - What is being sold.
+ * @returns The draft to send to Creem.
  */
-export function draftCreemProductFor(tier: Tier, interval: BillingIntervalValue): CreemProductDraft | null {
-  const priceCents = euroStringToCents(tierPriceFor(tier, interval));
-  if (priceCents === null || priceCents === 0) return null;
-
-  const label = INTERVAL_LABEL[interval];
+export function draftCreemProductForOffer(tier: Tier, offer: TierOffer): CreemProductDraft {
+  const label = PERIOD_LABEL[offer.billingPeriod];
   return {
-    name: `musiccloud ${tier.name} (${label})`,
-    description: `musiccloud ${tier.name} API tier, billed ${label}.`,
-    priceCents,
-    currency: PRODUCT_CURRENCY,
-    billingPeriod: CREEM_BILLING_PERIOD[interval],
+    name: creemProductName(tier.name, offer.billingPeriod),
+    description: `musiccloud ${tier.name} API plan, billed ${label}.`,
+    priceCents: offer.priceCents,
+    currency: offer.currency,
+    billingPeriod: offer.billingPeriod,
+    billingType: offer.billingPeriod === BillingPeriod.Once ? "onetime" : "recurring",
+    taxMode: offer.taxMode,
+    taxCategory: offer.taxCategory,
+    imageUrl: offer.imageUrl,
+    successUrl: offer.successUrl,
+    customFields: offer.customFields,
+    abandonedCartRecovery: offer.abandonedCartRecovery,
+    payWhatYouWant: offer.payWhatYouWant,
+    suggestedPriceCents: offer.suggestedPriceCents,
   };
 }

@@ -1,13 +1,16 @@
 /**
  * @file Live Creem price enrichment for the public tier listing (MC-114).
  *
- * The pricing page shows our tiers with prices that follow Creem, while every
- * other field stays with our own source of truth (the tiers table). This module
- * merges the live Creem catalog prices into the tier list served by the public
- * tiers endpoint.
+ * A plan's price comes from its offers, and Creem's live price overrides it
+ * wherever a product exists, because that is what a customer is charged. Every
+ * other field stays with our own source of truth. This module merges the two
+ * into the tier list the public endpoint serves, whose shape is unchanged: a
+ * monthly and a yearly euro string, either of them `null` when that period is
+ * not sold.
  */
 
-import type { Tier } from "../db/tiers-repository.js";
+import { getTierRepository } from "../db/index.js";
+import { BillingPeriod, type BillingPeriodValue, type Tier, type TierOffer } from "../db/tiers-repository.js";
 import { log } from "../lib/infra/logger.js";
 import { type CreemCatalog, CreemPriceOutcome, getCreemCatalog } from "./creem-catalog.js";
 
@@ -76,6 +79,8 @@ export function euroStringToCents(value: string | null | undefined): number | nu
  * @returns The tiers with Creem prices merged in where available.
  */
 export async function enrichTiersWithCreemPrices(tiers: Tier[]): Promise<Tier[]> {
+  const offers = await (await getTierRepository()).listAllOffers();
+
   let catalog: CreemCatalog;
   try {
     catalog = await getCreemCatalog();
@@ -94,18 +99,40 @@ export async function enrichTiersWithCreemPrices(tiers: Tier[]): Promise<Tier[]>
       },
       error,
     );
-    return tiers;
+    // The offers are ours and still readable, so the page keeps the prices an
+    // operator entered rather than losing them along with Creem.
+    return priceFromOffers(tiers, offers, {});
   }
 
+  return priceFromOffers(tiers, offers, catalog);
+}
+
+/**
+ * Merges what a plan asks for its two headline periods into the shape the
+ * public tier list has always had.
+ *
+ * The offer carries the amount, and Creem's live price overrides it wherever a
+ * product exists, because that is what a customer is actually charged. A plan
+ * with no offer for a period reports `null` there, which is how the public
+ * contract says that period is not sold.
+ *
+ * @param tiers - The plans.
+ * @param offers - Every offer, of every plan.
+ * @param catalog - The live prices, empty when Creem could not be read.
+ * @returns The plans with their displayed prices.
+ */
+function priceFromOffers(tiers: Tier[], offers: TierOffer[], catalog: CreemCatalog): Tier[] {
   return tiers.map((tier) => {
-    const entry = catalog[tier.id];
-    if (!entry) return tier;
-    const month = entry.month;
-    const year = entry.year;
-    return {
-      ...tier,
-      price: month ? centsToEuroString(month.price) : tier.price,
-      priceYearly: year ? centsToEuroString(year.price) : tier.priceYearly,
+    const own = offers.filter((offer) => offer.tierId === tier.id);
+    const live = catalog[tier.id];
+
+    const priceFor = (period: BillingPeriodValue): string | null => {
+      const fromCreem = live?.[period];
+      if (fromCreem) return centsToEuroString(fromCreem.price);
+      const offer = own.find((candidate) => candidate.billingPeriod === period);
+      return offer ? centsToEuroString(offer.priceCents) : null;
     };
+
+    return { ...tier, price: priceFor(BillingPeriod.Monthly), priceYearly: priceFor(BillingPeriod.Yearly) };
   });
 }

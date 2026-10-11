@@ -7,11 +7,13 @@ import {
   type CreemSellingModeResponse,
   createClientToken,
   createCreemProduct,
+  createPlanOffer,
   createTier,
   type DeveloperAccountResponse,
   type DeveloperProjectDetail,
   deactivateToken,
   deleteDeveloperAccount,
+  deletePlanOffer,
   deleteTier,
   fetchApiAccessOverview,
   fetchCreemProducts,
@@ -20,18 +22,22 @@ import {
   fetchDeveloperAccounts,
   fetchDeveloperProject,
   fetchDeveloperProjects,
+  fetchPlanOffers,
   fetchProjectUsage,
   fetchTiers,
   type ProjectUsageResponse,
+  type TierOffer,
+  type TierOfferCreate,
   type TierResponse,
   updateCreemProductPrice,
   updateCreemSellingMode,
   updateDeveloperAccount,
   updateDeveloperProject,
   updateDeveloperProjectSubscription,
+  updatePlanOffer,
   updateTier,
 } from "@/features/developer/api";
-import type { BillingInterval, CreemMode } from "@/features/developer/domain";
+import type { BillingPeriod, CreemMode } from "@/features/developer/domain";
 
 export function useApiAccessOverview() {
   return useQuery<ApiAccessOverview>({
@@ -272,15 +278,15 @@ export function useUpdateCreemProductPrice() {
   return useMutation({
     mutationFn: ({
       tierId,
-      interval,
+      billingPeriod,
       mode,
       priceCents,
     }: {
       tierId: string;
-      interval: BillingInterval;
+      billingPeriod: BillingPeriod;
       mode: CreemMode;
       priceCents: number;
-    }) => updateCreemProductPrice(tierId, interval, mode, priceCents),
+    }) => updateCreemProductPrice(tierId, billingPeriod, mode, priceCents),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["developer", "creem-products"] });
     },
@@ -295,8 +301,8 @@ export function useUpdateCreemProductPrice() {
 export function useArchiveCreemProduct() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ tierId, interval, mode }: { tierId: string; interval: BillingInterval; mode: CreemMode }) =>
-      archiveCreemProduct(tierId, interval, mode),
+    mutationFn: ({ tierId, billingPeriod, mode }: { tierId: string; billingPeriod: BillingPeriod; mode: CreemMode }) =>
+      archiveCreemProduct(tierId, billingPeriod, mode),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["developer", "creem-products"] });
       qc.invalidateQueries({ queryKey: ["developer", "tiers"] });
@@ -329,5 +335,49 @@ export function useUpdateCreemSellingMode() {
       qc.setQueryData(["developer", "creem-selling-mode"], next);
       qc.invalidateQueries({ queryKey: ["developer", "tiers"] });
     },
+  });
+}
+
+/** Every offer of one plan, which is what it costs. */
+export function usePlanOffers(tierId: string | undefined) {
+  return useQuery<TierOffer[]>({
+    queryKey: ["developer", "plan-offers", tierId],
+    queryFn: () => fetchPlanOffers(tierId as string),
+    enabled: Boolean(tierId),
+  });
+}
+
+/**
+ * Invalidates everything a change to an offer can be seen in: the offers
+ * themselves, the plan list whose displayed price follows them, and the Creem
+ * products, which are addressed by an offer's period.
+ */
+function invalidateOffers(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ["developer", "plan-offers"] });
+  qc.invalidateQueries({ queryKey: ["developer", "tiers"] });
+  qc.invalidateQueries({ queryKey: ["developer", "creem-products"] });
+}
+
+export function useCreatePlanOffer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ tierId, body }: { tierId: string; body: TierOfferCreate }) => createPlanOffer(tierId, body),
+    onSuccess: () => invalidateOffers(qc),
+  });
+}
+
+export function useUpdatePlanOffer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Partial<TierOfferCreate> }) => updatePlanOffer(id, body),
+    onSuccess: () => invalidateOffers(qc),
+  });
+}
+
+export function useDeletePlanOffer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: deletePlanOffer,
+    onSuccess: () => invalidateOffers(qc),
   });
 }
