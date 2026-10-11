@@ -243,18 +243,18 @@ export const CcRandomExampleResponseSchema = {
   example: { shortId: "aBc123x" },
 } as const;
 
-/** Refreshed Deezer preview URL for a commercial track share. */
+/** Refreshed Deezer preview URL for a commercial track or album share. */
 export const SharePreviewResponseSchema = {
   $id: "SharePreviewResponse",
   type: "object",
-  description: "Refreshed Deezer preview URL for a commercial track share.",
+  description: "Refreshed Deezer preview URL for a commercial track or album share.",
   required: ["previewUrl"],
   additionalProperties: false,
   properties: {
     previewUrl: {
       anyOf: [{ type: "string", format: "uri" }, { type: "null" }],
       description:
-        "The key is always included. Its value is a currently usable preview URL, or `null` when no preview can be produced for the track.",
+        "The key is always included. Its value is a currently usable preview URL, or `null` when no preview can be produced for the track or album.",
     },
   },
   example: { previewUrl: "https://cdn.example.com/previews/take-on-me.mp3" },
@@ -440,6 +440,11 @@ export const AlbumSchema = {
       type: "string",
       format: "uri",
       description: "Preview audio URL. The key is omitted when no usable preview is available.",
+    },
+    previewRefreshable: {
+      type: "boolean",
+      description:
+        "Set to `true` on a share page when `previewUrl` is absent but `GET /api/v1/share/{shortId}/preview` can attempt a refresh. The key is omitted otherwise.",
     },
     vinylLayout: {
       anyOf: [{ $ref: "VinylLayout#" }, { type: "null" }],

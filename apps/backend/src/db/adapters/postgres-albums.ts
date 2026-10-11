@@ -618,6 +618,7 @@ export async function loadAlbumByShortId(pool: Pool, shortId: string): Promise<S
   const vinylLayout = identityKey ? ((await readVinylLayout(pool, identityKey)) ?? null) : null;
 
   return {
+    albumId: firstRow.id,
     album: rowToAlbum(firstRow, vinylLayout),
     artists,
     artistCredits,

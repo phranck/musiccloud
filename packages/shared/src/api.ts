@@ -420,6 +420,10 @@ export interface ApiAlbum {
   label?: string;
   upc?: string;
   previewUrl?: string;
+  /** True when `previewUrl` is absent but the backend can fetch a fresh
+   *  Deezer URL on demand via the preview-refresh endpoint. Only share pages
+   *  set it, the same way they do for {@link ApiTrack}. */
+  previewRefreshable?: boolean;
   /**
    * Discogs-derived vinyl side and track timing data when it has been
    * checked, or `null` when no suitable vinyl pressing exists.

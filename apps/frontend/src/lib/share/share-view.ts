@@ -155,7 +155,7 @@ export function buildShareViewFromSharePageResponse(data: SharePageResponse, rou
     album: isAlbum ? undefined : (track?.albumName ?? undefined),
     isExplicit: !isAlbum && !isArtist && track?.isExplicit ? true : undefined,
     previewUrl: isArtist ? undefined : isAlbum ? (album?.previewUrl ?? undefined) : (track?.previewUrl ?? undefined),
-    previewRefreshable: !isArtist && !isAlbum ? track?.previewRefreshable : undefined,
+    previewRefreshable: isArtist ? undefined : isAlbum ? album?.previewRefreshable : track?.previewRefreshable,
     shortId,
     metaLine: isArtist
       ? artist?.genres?.join(", ") || undefined

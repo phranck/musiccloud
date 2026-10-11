@@ -209,6 +209,7 @@ export default async function shareRoutes(app: FastifyInstance) {
             label: albumData.album.label ?? undefined,
             upc: albumData.album.upc ?? undefined,
             previewUrl: albumData.album.previewUrl ?? undefined,
+            previewRefreshable: albumData.previewRefreshable || undefined,
             vinylLayout: albumData.album.vinylLayout,
           },
           links: toCachedApiLinks(albumData.links),
