@@ -16,35 +16,12 @@ import {
   MIN_MAX_PROJECTS_PER_ACCOUNT,
   setMaxProjectsPerAccount,
 } from "../services/developer-limits.js";
-import { getSetting, setSetting } from "../services/site-settings.js";
-
-const PORTAL_PUBLIC_KEY = "developer_portal_public";
-const PORTAL_MAINTENANCE_KEY = "developer_portal_maintenance";
-
-export interface DeveloperPortalAvailability {
-  maintenance: boolean;
-  public: boolean;
-}
-
-async function readPortalAvailability(): Promise<DeveloperPortalAvailability> {
-  const [publicValue, maintenanceValue] = await Promise.all([
-    getSetting(PORTAL_PUBLIC_KEY),
-    getSetting(PORTAL_MAINTENANCE_KEY),
-  ]);
-
-  return {
-    public: publicValue === "true",
-    maintenance: maintenanceValue === "true",
-  };
-}
-
-async function writePortalAvailability(next: DeveloperPortalAvailability): Promise<DeveloperPortalAvailability> {
-  await Promise.all([
-    setSetting(PORTAL_PUBLIC_KEY, String(next.public)),
-    setSetting(PORTAL_MAINTENANCE_KEY, String(next.maintenance)),
-  ]);
-  return readPortalAvailability();
-}
+import {
+  type DeveloperPortalAvailability,
+  readPortalAvailability,
+  readPortalAvailabilityState,
+  writePortalAvailability,
+} from "../services/developer-portal-availability.js";
 
 const availabilityBodySchema = {
   type: "object",
@@ -56,19 +33,26 @@ const availabilityBodySchema = {
   },
 } as const;
 
-/** Registers owner-only dashboard reads and writes of the portal state. */
+/**
+ * Registers owner-only dashboard reads and writes of the portal state.
+ *
+ * Both answer with the newest recorded change beside the state, so the
+ * dashboard can say since when the portal has been open and who opened it.
+ * The write records the owner who sent it.
+ */
 export async function developerPortalAvailabilityAdminRoutes(app: FastifyInstance): Promise<void> {
   app.get(ENDPOINTS.admin.developer.portalAvailability, async (request, reply) => {
     if (!(await requireOwner(request, reply))) return;
-    return readPortalAvailability();
+    return readPortalAvailabilityState();
   });
 
   app.patch<{ Body: DeveloperPortalAvailability }>(
     ENDPOINTS.admin.developer.portalAvailability,
     { schema: { body: availabilityBodySchema } },
     async (request, reply) => {
-      if (!(await requireOwner(request, reply))) return;
-      return writePortalAvailability(request.body);
+      const owner = await requireOwner(request, reply);
+      if (!owner) return;
+      return writePortalAvailability(request.body, owner.id);
     },
   );
 }

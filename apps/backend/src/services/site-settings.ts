@@ -13,6 +13,7 @@
  */
 
 import { type DesignTokens, parseDesignTokens } from "@musiccloud/shared";
+import type { Pool } from "pg";
 import { getDatabasePool } from "../db/pool.js";
 
 export interface SiteSettings {
@@ -54,9 +55,15 @@ export async function getSetting(key: string): Promise<string | null> {
  *
  * @param key   - setting name; caller is responsible for any validation
  * @param value - value to store; all settings are string-typed
+ * @param queryable - where the write runs; a transaction's client when the
+ *   setting has to change together with other rows, the shared pool otherwise
  */
-export async function setSetting(key: string, value: string): Promise<void> {
-  await getDatabasePool().query(
+export async function setSetting(
+  key: string,
+  value: string,
+  queryable: Pick<Pool, "query"> = getDatabasePool(),
+): Promise<void> {
+  await queryable.query(
     `INSERT INTO site_settings (key, value, updated_at)
      VALUES ($1, $2, NOW())
      ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
