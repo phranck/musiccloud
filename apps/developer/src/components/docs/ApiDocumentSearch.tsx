@@ -38,7 +38,6 @@ const SearchEntryKind = {
   Chapter: "chapter",
   Operation: "operation",
   Schema: "schema",
-  Sdk: "sdk",
 } as const;
 
 interface PendingSelection {

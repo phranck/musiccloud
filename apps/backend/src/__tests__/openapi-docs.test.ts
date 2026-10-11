@@ -192,10 +192,10 @@ describe("OpenAPI docs", () => {
     expect(res.headers["cache-control"]).toBe("public, max-age=300");
     // Every immutable SDK release is keyed by the public contract version.
     // Keep this assertion explicit so a contract change cannot reuse a tag.
-    expect(doc.info.version).toBe("2.2.0");
+    expect(doc.info.version).toBe("2.3.0");
     expect(doc.info.description).toContain("Developer Project");
-    expect(doc.info.description).toContain("Registrations under one project share those quotas");
-    expect(doc.components.securitySchemes.ApiKeyAuth.description).toContain("shared by all registrations");
+    expect(doc.info.description).toContain("Applications under one project share those quotas");
+    expect(doc.components.securitySchemes.ApiKeyAuth.description).toContain("shared by all applications");
     expect(doc.info.version).toMatch(/^\d+\.\d+\.\d+$/);
     expect(Object.keys(doc.paths)).not.toContain("/api/dev/api-access/clients");
     expect(doc.components.securitySchemes).toHaveProperty("ApiKeyAuth");
@@ -322,7 +322,7 @@ describe("OpenAPI docs", () => {
       "GET /api/v1/share/{shortId} path shortId":
         "Public musiccloud share code: take the last path segment of `shortUrl` from a successful `POST /api/v1/resolve`, `GET /api/v1/resolve`, or `POST /api/v1/cc/resolve` response.",
       "GET /api/v1/share/{shortId}/preview path shortId":
-        "Track share code: take the last path segment of `shortUrl` from a successful track response from `POST /api/v1/resolve` or `GET /api/v1/resolve`. Album, artist, and Creative Commons share codes are not accepted.",
+        "Track or album share code: take the last path segment of `shortUrl` from a successful track or album response from `POST /api/v1/resolve` or `GET /api/v1/resolve`. Artist and Creative Commons share codes are not accepted.",
     });
   });
 

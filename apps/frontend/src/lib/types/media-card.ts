@@ -37,6 +37,11 @@ export interface MediaCardContentConfiguration {
   title: string;
   artist: string;
   artworkUrl: string;
+  /**
+   * Second display row in place of `artist`. An artist's own card has no artist
+   * to name there, so it says what the card shows instead.
+   */
+  kindLine?: string;
   /** Optional: album name shown as third line below artist (song-only) */
   album?: string;
   /** Optional: renders the "E" explicit badge in the meta line (song-only) */
@@ -80,6 +85,12 @@ export interface MediaCardContentConfiguration {
   platformsInfo?: string;
   /** Optional one-line status for the fourth VFD row. */
   statusLine?: string;
+  /**
+   * True while the artist column for this entity is still loading. The media
+   * card makes the fourth VFD row pulse and holds the play button for as long
+   * as it is set, because the view is still being put together.
+   */
+  artistDataLoading?: boolean;
 }
 
 /**
@@ -177,8 +188,6 @@ export interface CcTrackContentConfiguration {
   downloadUrl?: string;
   /** Whether Jamendo permits direct download of this track. */
   downloadAllowed: boolean;
-  /** Canonical Jamendo page URL for the "Open on Jamendo" link. */
-  jamendoUrl?: string;
   /** Jamendo artist-profile URL (`https://www.jamendo.com/artist/<id>`) the artist name links to. */
   artistJamendoUrl?: string;
   /** Waveform image URL provided by Jamendo. */

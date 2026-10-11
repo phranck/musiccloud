@@ -1,6 +1,6 @@
 import { useGSAP } from "@gsap/react";
 import { buildMetaLine } from "@musiccloud/shared";
-import { memo, type ReactNode, useEffect, useRef, useState } from "react";
+import { memo, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import type { AudioStatus } from "@/components/audio/AudioStatus";
 import { ArtworkImage } from "@/components/cards/ArtworkImage";
 import { RecessedCard } from "@/components/cards/RecessedCard";
@@ -39,6 +39,8 @@ interface SongInfoProps {
   turntableStage?: ReactNode;
   /** Fourth VFD row. Pre-translated by the caller so the component stays reusable. */
   statusLine?: string;
+  /** Lets the fourth VFD row pulse while its status is still in progress. */
+  statusPulsing?: boolean;
   /** Transient seek-hint trigger forwarded to the status row overlay. */
   seekHint?: { direction: VfdScrollOutDirection; nonce: number } | null;
 }
@@ -74,6 +76,7 @@ export const SongInfo = memo(function SongInfo({
   mediaViewToggleLabel,
   onMediaViewToggle,
   statusLine = "READY",
+  statusPulsing,
   turntableStage,
 }: SongInfoProps) {
   const metaLine = metaOverride ?? buildMetaLine({ durationMs, releaseDate });
@@ -81,6 +84,14 @@ export const SongInfo = memo(function SongInfo({
   const mediaView = shareMediaView ?? ShareMediaView.Cover;
   const showTurntableStage = shareMediaView !== undefined;
   const mediaViewInteractive = Boolean(mediaViewToggleLabel && onMediaViewToggle);
+  // The hidden deck is painted once a visitor reaches for the view toggle, so the
+  // switch itself does not have to paint it (see `data-deck-painted` in
+  // animations.css). Setting the same value again is a no-op render.
+  const [deckPainted, setDeckPainted] = useState(false);
+  const paintDeck = useCallback(() => setDeckPainted(true), []);
+  // A view switched without the pointer (the keyboard shortcut) paints the deck
+  // anyway; from then on it stays painted like after a hover.
+  if (mediaView === ShareMediaView.Turntable && !deckPainted) setDeckPainted(true);
 
   const [artworkState, setArtworkState] = useState({
     currentUrl: albumArtUrl,
@@ -164,7 +175,11 @@ export const SongInfo = memo(function SongInfo({
                 radius) lives here so the `.mc-share-media-screen
                 .mc-share-media-stage[data-media-stage="cover"]` selectors and the
                 turntable pre-paint override in animations.css keep matching. */}
-            <div className="mc-share-media-screen relative aspect-square w-full overflow-hidden rounded-[var(--neu-radius-inner)]">
+            <div
+              className="mc-share-media-screen relative aspect-square w-full overflow-hidden rounded-[var(--neu-radius-inner)]"
+              data-deck-painted={deckPainted ? "" : undefined}
+              onPointerEnter={showTurntableStage ? paintDeck : undefined}
+            >
               {/* The turntable is a fixed layer at the back; only the cover in
                   front of it slides (see .mc-share-media-stage CSS), so the deck
                   never moves when toggling the media view. */}
@@ -220,6 +235,7 @@ export const SongInfo = memo(function SongInfo({
                   className="absolute inset-0 z-50 cursor-pointer touch-manipulation border-0 bg-transparent p-0 focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-white/50"
                   data-media-view-toggle="true"
                   onClick={onMediaViewToggle}
+                  onFocus={paintDeck}
                   type="button"
                 />
               )}
@@ -238,6 +254,7 @@ export const SongInfo = memo(function SongInfo({
           detailLine={detailLine}
           metaLine={metaLine}
           statusLine={statusLine}
+          statusPulsing={statusPulsing}
           seekHint={seekHint}
         />
       </div>

@@ -22,6 +22,11 @@ import { mintShortUrl } from "./short-url.js";
  * Upserts a CC artist by its Jamendo id and returns the internal id.
  * Idempotent: `ON CONFLICT (jamendo_id)` keeps the existing internal id.
  *
+ * Image, website and Jamendo page only ever overwrite with a value: a track or
+ * album persist upserts the artist from a payload that carries none of them, and
+ * a plain overwrite would erase what an artist resolve stored, leaving the
+ * artist's share page without a cover or a Jamendo link.
+ *
  * @param client - Active transaction client.
  * @param data - Artist fields.
  * @param now - Shared transaction timestamp.
@@ -37,9 +42,9 @@ async function upsertCcArtist(
      VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
      ON CONFLICT (jamendo_id) DO UPDATE SET
        name = EXCLUDED.name,
-       image_url = EXCLUDED.image_url,
-       website = EXCLUDED.website,
-       share_url = EXCLUDED.share_url,
+       image_url = COALESCE(EXCLUDED.image_url, cc_artists.image_url),
+       website = COALESCE(EXCLUDED.website, cc_artists.website),
+       share_url = COALESCE(EXCLUDED.share_url, cc_artists.share_url),
        updated_at = EXCLUDED.updated_at
      RETURNING id`,
     [
@@ -57,6 +62,10 @@ async function upsertCcArtist(
 
 /**
  * Upserts a CC album by its Jamendo id and returns the internal id.
+ *
+ * Artwork, release date, download zip and Jamendo page only ever overwrite with
+ * a value: a track persist upserts the album from a payload that carries none of
+ * them, and they must survive it.
  *
  * @param client - Active transaction client.
  * @param data - Album fields (with the resolved internal artist id).
@@ -82,10 +91,10 @@ async function upsertCcAlbum(
      ON CONFLICT (jamendo_id) DO UPDATE SET
        name = EXCLUDED.name,
        cc_artist_id = EXCLUDED.cc_artist_id,
-       artwork_url = EXCLUDED.artwork_url,
-       release_date = EXCLUDED.release_date,
-       zip_url = EXCLUDED.zip_url,
-       share_url = EXCLUDED.share_url,
+       artwork_url = COALESCE(EXCLUDED.artwork_url, cc_albums.artwork_url),
+       release_date = COALESCE(EXCLUDED.release_date, cc_albums.release_date),
+       zip_url = COALESCE(EXCLUDED.zip_url, cc_albums.zip_url),
+       share_url = COALESCE(EXCLUDED.share_url, cc_albums.share_url),
        updated_at = EXCLUDED.updated_at
      RETURNING id`,
     [
@@ -307,8 +316,9 @@ export async function persistCcAlbum(
 
 /**
  * Transactionally persists a resolved CC artist plus its top tracks and eagerly
- * mints its canonical short URL. Dedup is by `jamendo_id`. The top tracks are
- * persisted (with `artist_top_position` preserving the popularity order) so the
+ * mints its canonical short URL. Dedup is by `jamendo_id`. The top tracks replace
+ * the artist's previously stored ones and are persisted (with
+ * `artist_top_position` preserving the popularity order) so the
  * share page renders the column from the DB without a live call; `cc_album_id`
  * stays null (their albums are not resolved here).
  *
@@ -337,6 +347,11 @@ export async function persistCcArtist(
       },
       now,
     );
+
+    // The new top list replaces the old one. The track upsert keeps an existing
+    // `artist_top_position` when it receives none, so without this a track that
+    // left the artist's top tracks would keep its rank and reappear in the column.
+    await client.query(`UPDATE cc_tracks SET artist_top_position = NULL WHERE cc_artist_id = $1`, [ccArtistId]);
 
     // Persist the top tracks so the share page reads the column from the DB.
     // They belong to this artist; their albums are not resolved → cc_album_id null.
@@ -513,12 +528,18 @@ export async function loadCcArtistByShortId(
   if (!artistRow) return null;
   const { id: ccArtistId, ...artist } = artistRow;
 
+  // Only ranked tracks are top tracks: the artist's album and single-track
+  // resolves store more of its tracks under the same `cc_artist_id`. A rank
+  // belongs to one track, so where two rows hold it the more recently written
+  // one counts. That keeps the column within the ranks Jamendo returned, which
+  // the share-page schema caps at its `maxItems`.
   const tracksResult = await pool.query(
-    `SELECT ${CC_TRACK_SHARE_COLUMNS}
+    `SELECT DISTINCT ON (t.artist_top_position) ${CC_TRACK_SHARE_COLUMNS}
        FROM cc_tracks t
        JOIN cc_artists ar ON ar.id = t.cc_artist_id
       WHERE t.cc_artist_id = $1
-      ORDER BY t.artist_top_position ASC NULLS LAST, t.created_at ASC`,
+        AND t.artist_top_position IS NOT NULL
+      ORDER BY t.artist_top_position ASC, t.updated_at DESC`,
     [ccArtistId],
   );
   return { artist, topTracks: tracksResult.rows as CcTrackShareRow[] };

@@ -1,9 +1,6 @@
 import type { CSSProperties } from "react";
+import { GROUPED_CORNER_FULL, GROUPED_CORNER_INNER } from "@/components/cards/groupedCornerRadii";
 
-/** Promoted corner where a row meets a recessed well's outer curve. */
-const FULL = "var(--neu-radius)";
-/** Interior corner for grouped rows, capped to the shared 5px maximum. */
-const INNER = "min(5px, var(--neu-radius))";
 /** Carries a row's resolved control radius into its nested artwork frame. */
 const GROUPED_ROW_RADIUS = "var(--mc-grouped-row-radius)";
 /** Artwork follows the row's left edge, inset by the row's token-derived padding. */
@@ -25,11 +22,11 @@ export function singleColumnGroupedCornerStyle(index: number, count: number): CS
   const isLast = index === count - 1;
 
   return {
-    "--mc-grouped-row-radius": FULL,
-    borderTopLeftRadius: isFirst ? FULL : INNER,
-    borderTopRightRadius: isFirst ? FULL : INNER,
-    borderBottomLeftRadius: isLast ? FULL : INNER,
-    borderBottomRightRadius: isLast ? FULL : INNER,
+    "--mc-grouped-row-radius": GROUPED_CORNER_FULL,
+    borderTopLeftRadius: isFirst ? GROUPED_CORNER_FULL : GROUPED_CORNER_INNER,
+    borderTopRightRadius: isFirst ? GROUPED_CORNER_FULL : GROUPED_CORNER_INNER,
+    borderBottomLeftRadius: isLast ? GROUPED_CORNER_FULL : GROUPED_CORNER_INNER,
+    borderBottomRightRadius: isLast ? GROUPED_CORNER_FULL : GROUPED_CORNER_INNER,
   } as CSSProperties;
 }
 

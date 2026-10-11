@@ -13,7 +13,7 @@
 
 import type { ArtistTopTrack } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
-import { log } from "../../../lib/infra/logger.js";
+import { readDeezerJson } from "./deezer-response.js";
 
 const API_BASE = "https://api.deezer.com";
 const TIMEOUT_MS = 5000;
@@ -33,6 +33,15 @@ interface DeezerSearchTrackResponse {
 }
 
 export type DeezerTrackEnrichment = Pick<ArtistTopTrack, "artworkUrl" | "albumName" | "durationMs" | "deezerUrl">;
+
+/**
+ * Looks a Last.fm top track up on Deezer for its cover, album, duration and link.
+ *
+ * @param title - The track title.
+ * @param artistName - The artist the track has to belong to.
+ * @returns The first plausible match, or `null` when Deezer has none.
+ * @throws {UpstreamUnavailableError} when Deezer did not answer.
+ */
 
 export function isPlausibleMatch(
   candidateTitle: string,
@@ -55,28 +64,18 @@ export async function searchDeezerTrackForArtist(
   title: string,
   artistName: string,
 ): Promise<DeezerTrackEnrichment | null> {
-  try {
-    const q = encodeURIComponent(`${title} ${artistName}`);
-    const res = await fetchWithTimeout(`${API_BASE}/search/track?q=${q}&limit=${SEARCH_LIMIT}`, {}, TIMEOUT_MS);
-    if (!res.ok) {
-      log.debug("Deezer", "track search HTTP error", res.status, title, artistName);
-      return null;
+  const q = encodeURIComponent(`${title} ${artistName}`);
+  const res = await fetchWithTimeout(`${API_BASE}/search/track?q=${q}&limit=${SEARCH_LIMIT}`, {}, TIMEOUT_MS);
+  const data = await readDeezerJson<DeezerSearchTrackResponse>(res, "track search");
+  for (const c of data?.data ?? []) {
+    if (isPlausibleMatch(c.title, c.artist.name, title, artistName)) {
+      return {
+        artworkUrl: c.album.cover_medium ?? c.album.cover_big ?? null,
+        albumName: c.album.title ?? null,
+        durationMs: c.duration ? c.duration * 1000 : null,
+        deezerUrl: c.link,
+      };
     }
-    const data = (await res.json()) as DeezerSearchTrackResponse;
-    const candidates = data.data ?? [];
-    for (const c of candidates) {
-      if (isPlausibleMatch(c.title, c.artist.name, title, artistName)) {
-        return {
-          artworkUrl: c.album.cover_medium ?? c.album.cover_big ?? null,
-          albumName: c.album.title ?? null,
-          durationMs: c.duration ? c.duration * 1000 : null,
-          deezerUrl: c.link,
-        };
-      }
-    }
-    return null;
-  } catch (err) {
-    log.debug("Deezer", "track search threw", err);
-    return null;
   }
+  return null;
 }

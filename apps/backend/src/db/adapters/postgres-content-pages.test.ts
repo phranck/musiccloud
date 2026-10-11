@@ -271,7 +271,6 @@ function createCutoverPool(options: {
 
 describe("getPublishedContentPageByPath", () => {
   it.each([
-    "/docs",
     "/docs/crawler-architecture",
     "//docs//sdks/swift/",
   ])("does not query editorial persistence for reserved Developer Portal path %s", async (path) => {
@@ -280,6 +279,16 @@ describe("getPublishedContentPageByPath", () => {
 
     await expect(getPublishedContentPageByPath(pool, ContentContext.DeveloperPortal, path)).resolves.toBeNull();
     expect(query).not.toHaveBeenCalled();
+  });
+
+  it("reads /docs like any other page, because its landing copy is editorial", async () => {
+    // Everything under `/docs` is built by the portal; the page a developer
+    // arrives at is copy, and copy comes from here.
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    const pool = { query } as unknown as Pool;
+
+    await getPublishedContentPageByPath(pool, ContentContext.DeveloperPortal, "/docs");
+    expect(query).toHaveBeenCalled();
   });
 
   it("keeps /docs available to the independent Frontend context", async () => {

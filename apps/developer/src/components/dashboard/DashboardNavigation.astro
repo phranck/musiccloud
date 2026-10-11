@@ -65,7 +65,7 @@ const projectsOpen = active === DashboardTab.Projects;
         // put the destinations in the same order.
         if (item.tab === DashboardTab.Projects) {
           return (
-            <Sidebar.Section className="api-reference-nav__section" open={projectsOpen} data-dashboard-section>
+            <Sidebar.Section className="api-reference-nav__section" open={projectsOpen} data-dashboard-section="projects">
               <Sidebar.Section.Header
                 className="api-reference-nav__summary cursor-pointer text-code font-mono text-fg-muted"
                 data-api-nav-summary
@@ -184,10 +184,26 @@ const projectsOpen = active === DashboardTab.Projects;
     return FALLBACK_DURATION_MS;
   }
 
+  /** Where one section's state is kept, keyed by the section's own name. */
+  const storageKey = (name: string) => `mc-dev-dashboard-section:${name}`;
+
   for (const section of document.querySelectorAll<HTMLDetailsElement>("[data-dashboard-section]")) {
     const summary = section.querySelector("summary");
     const content = section.querySelector<HTMLElement>(".api-reference-nav__content");
     if (!summary || !content) continue;
+
+    const name = section.dataset.dashboardSection;
+
+    // A section holding the page being read opens regardless of what was
+    // remembered, because a rail that hides where you are is worse than one
+    // that forgets. Everywhere else the remembered state decides.
+    if (name && !section.open) {
+      try {
+        if (window.localStorage.getItem(storageKey(name)) === "true") section.open = true;
+      } catch {
+        // A browser refusing storage is not a reason to lose the rail.
+      }
+    }
 
     let running: Animation | null = null;
 
@@ -197,6 +213,14 @@ const projectsOpen = active === DashboardTab.Projects;
       running = null;
 
       const opening = !section.open;
+
+      if (name) {
+        try {
+          window.localStorage.setItem(storageKey(name), String(opening));
+        } catch {
+          // Same: the section still opens, it is only not remembered.
+        }
+      }
 
       if (prefersReducedMotion.matches) {
         section.open = opening;

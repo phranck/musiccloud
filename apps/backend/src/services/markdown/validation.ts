@@ -3,6 +3,7 @@ import {
   type ContentContextMask,
   hasAllContextBits,
   isValidContentContextMask,
+  type SingleContentContext,
 } from "@musiccloud/shared";
 import { Marked } from "marked";
 import { MARKDOWN_EXTENSION_REGISTRY, type MarkdownExtensionRegistry } from "./extension-registry.js";
@@ -52,8 +53,12 @@ function collectTokenTypes(value: unknown, tokenTypes: Set<string>, visited: Wea
   }
 }
 
-function findUsedTokenTypes(markdown: string, registry: MarkdownExtensionRegistry): Set<string> {
-  const parser = new Marked(...registry.definitions.map(({ createMarkedExtension }) => createMarkedExtension()));
+function findUsedTokenTypes(
+  markdown: string,
+  registry: MarkdownExtensionRegistry,
+  context: SingleContentContext,
+): Set<string> {
+  const parser = new Marked(...registry.definitions.map((definition) => definition.createMarkedExtension(context)));
   const tokenTypes = new Set<string>();
   collectTokenTypes(parser.lexer(markdown), tokenTypes, new WeakSet());
   return tokenTypes;
@@ -68,7 +73,14 @@ export function validateMarkdownForContexts(
     throw new RangeError(`Invalid content context mask: ${contextMask}`);
   }
 
-  const usedTokenTypes = findUsedTokenTypes(markdown, registry);
+  // Every extension is installed for this pass whatever the context, because
+  // the question is which tokens the source produces rather than what any of
+  // them would draw. A concrete one is still needed, so the mask's own is used.
+  const parseContext: SingleContentContext =
+    (contextMask & ContentContext.DeveloperPortal) === ContentContext.DeveloperPortal
+      ? ContentContext.DeveloperPortal
+      : ContentContext.Frontend;
+  const usedTokenTypes = findUsedTokenTypes(markdown, registry, parseContext);
   const errors = registry.definitions
     .filter((definition) => definition.tokenTypes.some((tokenType) => usedTokenTypes.has(tokenType)))
     .filter((definition) => !hasAllContextBits(definition.allowedContextMask, contextMask))

@@ -34,6 +34,8 @@
  * and sends no referrer at all, because its URLs carry identifiers that have no
  * business reaching another site.
  */
+import { YOUTUBE_EMBED_HOST } from "./markdown-shortcodes/media.js";
+
 export const SurfaceExposure = {
   /** A site anyone may read: the public frontend, the developer portal. */
   Public: "Public",
@@ -72,6 +74,10 @@ const REPORTED_DIRECTIVES = [
   "img-src 'self' data: https:",
   "media-src 'self' https:",
   "worker-src 'self' blob:",
+  // A page may hold a YouTube video, and the frame it opens in is loaded from
+  // the host the renderer builds that address from. Nothing reaches it until a
+  // reader plays the video.
+  `frame-src 'self' ${YOUTUBE_EMBED_HOST}`,
   "upgrade-insecure-requests",
 ] as const;
 

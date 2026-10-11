@@ -1,10 +1,8 @@
-import type { CSSProperties } from "react";
 import { CcBandcampButton } from "@/components/cards/CcBandcampButton";
 import { CcDownloadControl } from "@/components/cards/CcDownloadControl";
 import { outerEmbossedCardClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { SectionCardShell } from "@/components/cards/SectionCardShell";
-import { EmbossedButton } from "@/components/ui/EmbossedButton";
 import { creativeCommonsCopy } from "@/copy/creative-commons";
 import type { CcTrackContentConfiguration } from "@/lib/types/media-card";
 import { cn } from "@/lib/utils";
@@ -13,21 +11,6 @@ import { cn } from "@/lib/utils";
  *  `/img/cc/`. CC0 / public-domain and any unknown clause set have no badge, so
  *  the card falls back to the parsed text label for those. */
 const CC_ICON_CLAUSES = new Set(["by", "by-sa", "by-nc", "by-nc-sa", "by-nd", "by-nc-nd"]);
-
-/** Renders the Jamendo brand mark as a CSS alpha mask so the glyph takes the
- *  button's text color (`currentColor` via `bg-current`) instead of the logo's
- *  fixed brand pink — an `<img>` cannot be recolored. The prefixed `-webkit-`
- *  properties are kept alongside the standard ones for Safari. */
-const JAMENDO_ICON_MASK_STYLE: CSSProperties = {
-  maskImage: "url(/icons/jamendo.svg)",
-  maskRepeat: "no-repeat",
-  maskPosition: "center",
-  maskSize: "contain",
-  WebkitMaskImage: "url(/icons/jamendo.svg)",
-  WebkitMaskRepeat: "no-repeat",
-  WebkitMaskPosition: "center",
-  WebkitMaskSize: "contain",
-};
 
 /**
  * Resolves a Creative-Commons deed URL to its licence-badge SVG path under
@@ -63,20 +46,18 @@ interface CcInfoCardProps {
 }
 
 /**
- * Creative-Commons companion card shown in place of the commercial platform
- * grid on the CC track page.
- *
- * Renders the CC affordances a Jamendo result carries instead of streaming
- * links:
+ * Creative-Commons companion card shown below the services card on the CC track
+ * page. The services card links the track's Jamendo page; this card holds what a
+ * commercial result has no counterpart for:
  *
  * 1. A meta row with the artist on the left and, on the same line, the licence
  *    badge on the right — the official CC clause badge
  *    (`/img/cc/cc-<clauses>.svg`) linking to the canonical deed. Falls back to
  *    the parsed `licenseLabel` text when no badge maps to the licence (CC0 /
  *    unknown clauses).
- * 2. A direct download button — only when Jamendo permits it
+ * 2. A "Buy on Bandcamp" button when the artist sells the track there.
+ * 3. A direct download button, shown only when Jamendo permits it
  *    (`downloadAllowed && downloadUrl`).
- * 3. An "Open on Jamendo" link to the canonical track page (`jamendoUrl`).
  *
  * Structure mirrors {@link ServicesCard}: a {@link SectionCardShell} with a
  * section header and a recessed well, so the geometry/token cascade and visual
@@ -91,7 +72,6 @@ export function CcInfoCard({ content, className, animated = false }: CcInfoCardP
   const iconPath = ccLicenseIconPath(content.licenseCcurl);
   const licenseAlt = licenseLabel ?? creativeCommonsCopy.licenseUnknown;
   const showDownload = content.downloadAllowed && !!content.downloadUrl;
-  const showJamendo = !!content.jamendoUrl;
 
   return (
     <SectionCardShell
@@ -139,7 +119,7 @@ export function CcInfoCard({ content, className, animated = false }: CcInfoCardP
           </RecessedCard.Body>
         </RecessedCard>
 
-        {(content.jamendoTrackId || showDownload || showJamendo) && (
+        {(content.jamendoTrackId || showDownload) && (
           <div className="flex flex-col gap-2">
             {/* Key by track id so a track change remounts the button — its
                 Bandcamp lookup resets to "no match" instead of lingering on the
@@ -152,26 +132,6 @@ export function CcInfoCard({ content, className, animated = false }: CcInfoCardP
                 jamendoId={content.jamendoTrackId}
                 formatAriaLabel={creativeCommonsCopy.downloadFormat}
               />
-            )}
-            {showJamendo && (
-              <RecessedCard className={recessedControlInsetClassName}>
-                <RecessedCard.Body>
-                  <EmbossedButton
-                    href={content.jamendoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`${creativeCommonsCopy.openOnJamendo} (${creativeCommonsCopy.opensInNewWindow})`}
-                    className="flex w-full items-center justify-center gap-2.5 px-3 py-2.5 text-sm font-medium text-text-primary no-underline"
-                  >
-                    <span
-                      aria-hidden="true"
-                      className="size-5 flex-shrink-0 bg-current"
-                      style={JAMENDO_ICON_MASK_STYLE}
-                    />
-                    <span className="truncate leading-none">{creativeCommonsCopy.openOnJamendo}</span>
-                  </EmbossedButton>
-                </RecessedCard.Body>
-              </RecessedCard>
             )}
           </div>
         )}

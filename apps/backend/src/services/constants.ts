@@ -13,6 +13,8 @@
  * should come with a note on what it fixes.
  */
 
+import type { MatchMethod } from "@musiccloud/shared";
+
 /**
  * Minimum score for an adapter's `searchTrack` to report a result as
  * `found`. Below this, the adapter-level search returns a miss even if
@@ -26,7 +28,8 @@ export const MATCH_MIN_CONFIDENCE = 0.6;
  * Minimum score for a link to survive into the final resolved result.
  * Protects the UI from showing chips that point to the wrong track.
  * "Search fallback" links (e.g. a synthesised YouTube search URL)
- * bypass this because they are explicitly labelled as fallback.
+ * bypass this because `matchMethod` marks them as such, so a consumer
+ * can drop them without relying on the score.
  */
 export const LINK_QUALITY_THRESHOLD = 0.6;
 
@@ -60,8 +63,62 @@ export const SPOTIFY_SEARCH_LIMIT_MAX = 10;
 /**
  * Confidence for synthesised "search on X" fallback links (currently
  * only the YouTube search fallback). Kept below `LINK_QUALITY_THRESHOLD`
- * on purpose: without the `isSearchFallback` bypass they would be
- * filtered out, which is the right default for any other non-fallback
+ * on purpose: without the bypass for `matchMethod: "search-fallback"`
+ * they would be filtered out, which is the right default for any other
  * match with the same score.
  */
 export const SEARCH_FALLBACK_CONFIDENCE = 0.5;
+
+/**
+ * What a confidence may claim, per way of arriving at the link.
+ *
+ * The number answers one question, namely how sure we are that this link is
+ * the same recording. It only answers it if the scale means the same thing
+ * everywhere, and an identifier match and a text match are not the same kind
+ * of certainty: an ISRC is the recording's own name, whilst a text match is a
+ * judgement about titles and durations that can be confident and still wrong.
+ *
+ * So the top of the scale is reserved. An identifier match and the source link
+ * report {@link IDENTIFIER_MATCH_CONFIDENCE}; a text match stops at
+ * {@link SEARCH_MAX_CONFIDENCE}, however good its own scoring says it is.
+ *
+ * The guarantee a caller can hold us to is that a search never reports `1`, and
+ * it is phrased against `1` rather than against the ceiling because these
+ * confidences are stored in a `real` column. `0.99` does not survive that trip
+ * exactly: it comes back as `0.99000000953…`, which is still above the ceiling
+ * it was clamped to. `1` is exactly representable, so it is the only boundary
+ * that means the same thing in the database as in the code.
+ */
+export const IDENTIFIER_MATCH_CONFIDENCE = 1;
+
+/** Ceiling for a text-search match. See {@link IDENTIFIER_MATCH_CONFIDENCE}. */
+export const SEARCH_MAX_CONFIDENCE = 0.99;
+
+/**
+ * Ways of arriving at a track link that name the recording itself: the link a
+ * resolve came in on, and an ISRC match. Only a link found one of these ways
+ * may stand in for the track when that link is pasted again, because a text
+ * match can be confident and still point at another recording. Selected by
+ * method rather than by {@link IDENTIFIER_MATCH_CONFIDENCE}, because older
+ * search links were stored with a confidence of `1`.
+ */
+export const TRACK_IDENTITY_MATCH_METHODS = ["source", "isrc"] as const satisfies readonly MatchMethod[];
+
+/** The album counterpart of {@link TRACK_IDENTITY_MATCH_METHODS}: the source link and a UPC match. */
+export const ALBUM_IDENTITY_MATCH_METHODS = ["source", "upc"] as const satisfies readonly MatchMethod[];
+
+/**
+ * How long a fruitless lookup stands before that service is asked again.
+ *
+ * Without it, a service that does not carry a track is asked about it on every
+ * later resolve of that track, because "no link" and "never asked" look the
+ * same in `service_links`. That is the difference between a cached resolve
+ * costing a database read and costing a round trip to every service that will
+ * not answer.
+ *
+ * Thirty days is chosen against what actually changes: a catalogue gains a
+ * back-catalogue track rarely, so a miss is nearly always still a miss the next
+ * day, whilst a month is short enough that a newly licensed track shows up
+ * without anybody intervening.
+ */
+export const SERVICE_MISS_TTL_MS = 30 * 24 * 60 * 60 * 1000;

@@ -11,9 +11,10 @@ import type {
   UnifiedResolveSuccessResponse,
   VinylLayout,
 } from "@musiccloud/shared";
-import { buildMetaLine, ENDPOINTS, PLATFORM_CONFIG } from "@musiccloud/shared";
+import { buildMetaLine, ENDPOINTS, PLATFORM_CONFIG, Service } from "@musiccloud/shared";
 import { commonCopy } from "@/copy/common";
 import { contentErrorMessage } from "@/copy/content";
+import { creativeCommonsCopy } from "@/copy/creative-commons";
 import { resultsCopy } from "@/copy/results";
 import { catalogTextFromIds, labelAlbumTitleFrom, releaseYearFromDate } from "@/lib/media/lp-label";
 import { apiLinksToPlatformLinks } from "@/lib/platform/api-links";
@@ -211,6 +212,8 @@ function parseCcAlbumResolveResponse(data: CcAlbumResolveSuccessResponse): CcAlb
     jamendoId: data.album.jamendoId,
     title: data.album.name,
     artist: data.album.artistName,
+    totalTracks: data.album.tracks.length,
+    labelRightsText: ccRightsText(data.album.tracks.map((track) => track.licenseCcurl)),
     releaseDate: data.album.releaseDate,
     artworkUrl: data.album.artworkUrl ?? "",
     vinylLayout: data.album.vinylLayout ?? undefined,
@@ -233,6 +236,7 @@ function parseCcArtistResolveResponse(data: CcArtistResolveSuccessResponse): CcA
     kind: ActiveResultKind.CcArtist,
     jamendoId: data.artist.jamendoId,
     name: data.artist.name,
+    labelRightsText: ccRightsText(data.artist.topTracks.map((track) => track.licenseCcurl)),
     imageUrl: data.artist.imageUrl ?? "",
     jamendoUrl: data.artist.shareUrl,
     shareUrl: data.shortUrl,
@@ -261,12 +265,19 @@ export function ccResolveDataToResult(data: CcResolveData): CcResult {
 
 export class ResolveApiError extends Error {
   readonly code: string;
+  readonly errorId?: string;
   readonly context?: Record<string, string>;
 
-  constructor(payload: { error?: string; message?: string; context?: Record<string, string | number> }) {
+  constructor(payload: {
+    error?: string;
+    errorId?: string;
+    message?: string;
+    context?: Record<string, string | number>;
+  }) {
     super(payload.message || payload.error || "Resolve request failed");
     this.name = "ResolveApiError";
     this.code = payload.error || "error.generic";
+    this.errorId = payload.errorId || undefined;
     this.context = payload.context
       ? Object.fromEntries(Object.entries(payload.context).map(([key, value]) => [key, String(value)]))
       : undefined;
@@ -280,6 +291,7 @@ export function parseResolveError(err: unknown): ResolveUiError {
     return {
       kind: "backend",
       code: err.code,
+      errorId: err.errorId,
       context: err.context,
     };
   }
@@ -289,7 +301,12 @@ export function parseResolveError(err: unknown): ResolveUiError {
 export function formatResolveErrorMessage(error: ResolveUiError): string {
   if (error.kind === "offline") return commonCopy.error.offline;
   if (error.kind === "timeout") return commonCopy.error.timeout;
-  if (error.kind === "backend") return contentErrorMessage(error.code, error.context);
+  if (error.kind === "backend") {
+    // The error ID is what connects a visitor's report to the one log line
+    // that explains it, so it is shown wherever the backend sent one.
+    const message = contentErrorMessage(error.code, error.context);
+    return error.errorId ? commonCopy.error.withErrorId(message, error.errorId) : message;
+  }
   return commonCopy.error.generic;
 }
 
@@ -321,6 +338,20 @@ function getPlatformsInfo(platforms: PlatformLink[]): string | undefined {
     return resultsCopy.onlyAvailable(name);
   }
   return undefined;
+}
+
+/**
+ * Builds an album's meta line, such as "11 tracks · 2009", so an album card reads
+ * as an album rather than a track. Every album card, commercial or Creative
+ * Commons, landing result or share page, takes its meta line from here.
+ *
+ * @param totalTracks - The album's track count, when known.
+ * @param releaseDate - The release date; only its year is shown.
+ * @returns The meta line, or `undefined` when neither part is known.
+ */
+export function albumMetaLine(totalTracks: number | undefined, releaseDate: string | undefined): string | undefined {
+  const year = releaseDate?.slice(0, 4);
+  return [totalTracks ? resultsCopy.albumTracks(totalTracks) : null, year].filter(Boolean).join(" · ") || undefined;
 }
 
 export function buildActiveConfig(
@@ -362,6 +393,7 @@ export function buildActiveConfig(
       type: "artist",
       title: active.name,
       artist: "",
+      kindLine: resultsCopy.artistKind,
       artworkUrl: active.imageUrl,
       metaLine: genreLine || undefined,
       labelAlbumTitle: active.name,
@@ -374,9 +406,6 @@ export function buildActiveConfig(
   }
 
   const year = active.releaseDate?.slice(0, 4);
-  const metaParts = [active.totalTracks ? resultsCopy.albumTracks(active.totalTracks) : null, year].filter(
-    Boolean,
-  ) as string[];
 
   return {
     type: "album",
@@ -384,7 +413,7 @@ export function buildActiveConfig(
     artist: active.artist,
     artworkUrl: active.artworkUrl,
     previewUrl: active.previewUrl,
-    metaLine: metaParts.join(" \u00B7") || undefined,
+    metaLine: albumMetaLine(active.totalTracks, active.releaseDate),
     labelAlbumTitle: active.title,
     labelReleaseYear: year,
     labelCatalogText: catalogTextFromIds({ label: active.label, upc: active.upc }),
@@ -411,6 +440,7 @@ export function buildShareConfigFromActive(active: ActiveResult): ShareContentCo
       type: "share",
       title: active.name,
       artist: "",
+      kindLine: resultsCopy.artistKind,
       artworkUrl: active.imageUrl,
       metaLine: active.genres?.join(", ") || undefined,
       labelAlbumTitle: active.name,
@@ -424,9 +454,6 @@ export function buildShareConfigFromActive(active: ActiveResult): ShareContentCo
 
   if (active.kind === "album") {
     const year = active.releaseDate?.slice(0, 4);
-    const metaParts = [active.totalTracks ? resultsCopy.albumTracks(active.totalTracks) : null, year].filter(
-      Boolean,
-    ) as string[];
 
     return {
       type: "share",
@@ -434,7 +461,7 @@ export function buildShareConfigFromActive(active: ActiveResult): ShareContentCo
       artist: active.artist,
       artworkUrl: active.artworkUrl,
       previewUrl: active.previewUrl,
-      metaLine: metaParts.join(" \u00B7") || undefined,
+      metaLine: albumMetaLine(active.totalTracks, active.releaseDate),
       labelAlbumTitle: active.title,
       labelReleaseYear: year,
       labelCatalogText: catalogTextFromIds({ label: active.label, upc: active.upc }),
@@ -527,12 +554,27 @@ function ccLicenseLabel(url: string | undefined): string | undefined {
 }
 
 /**
+ * The rights text printed on a Creative Commons record's label: the license all
+ * of its tracks share, such as `CC BY-NC-SA 3.0`, or "CC" where they differ or
+ * none can be read. The label falls back to "GEMA" when it receives nothing,
+ * and Creative Commons music is never GEMA-managed, so every CC record sets it.
+ *
+ * @param licenseCcurls - The license deed URL of each track on the record.
+ * @returns The rights text for the label.
+ */
+export function ccRightsText(licenseCcurls: readonly (string | undefined)[]): string {
+  const labels = new Set(licenseCcurls.map(ccLicenseLabel));
+  const [onlyLabel] = labels;
+  return labels.size === 1 && onlyLabel ? onlyLabel : creativeCommonsCopy.recordRights;
+}
+
+/**
  * Builds a {@link CcTrackContentConfiguration} from a resolved CC track result.
  *
  * Mirrors the song branch of {@link buildShareConfigFromActive} but omits
  * `platforms` / `platformsLabel` (CC tracks have no cross-service links) and
  * fills the CC-specific fields (`streamUrl`, `licenseCcurl`, `licenseLabel`,
- * `attribution`, `downloadUrl`, `downloadAllowed`, `jamendoUrl`, `waveform`).
+ * `attribution`, `downloadUrl`, `downloadAllowed`, `waveform`).
  *
  * The `attribution` field is kept simple (artist name only) to stay KISS. The
  * `licenseLabel` is parsed here from `licenseCcurl` via {@link ccLicenseLabel}
@@ -555,7 +597,7 @@ function buildCcShareConfig(cc: CcTrackResult): CcTrackContentConfiguration {
     labelReleaseYear: releaseYearFromDate(cc.releaseDate),
     // CC tracks are GEMA-free: show the licence in the top-left rights field
     // (replacing "GEMA") and leave the center catalog field empty (no ISRC).
-    labelRightsText: ccLicenseLabel(cc.licenseCcurl),
+    labelRightsText: ccRightsText([cc.licenseCcurl]),
     srAnnouncement: resultsCopy.found(cc.title, cc.artist),
     shortUrl: cc.shareUrl,
     shortId,
@@ -565,7 +607,6 @@ function buildCcShareConfig(cc: CcTrackResult): CcTrackContentConfiguration {
     attribution: cc.artist,
     downloadUrl: cc.downloadUrl,
     downloadAllowed: cc.downloadAllowed,
-    jamendoUrl: cc.jamendoUrl,
     artistJamendoUrl: jamendoArtistProfileUrl(cc.jamendoArtistId),
     waveform: cc.waveform,
     musicInfo: cc.musicInfo,
@@ -591,15 +632,21 @@ function jamendoArtistProfileUrl(jamendoArtistId: string | undefined): string | 
 /**
  * Builds the {@link MediaSummaryCard}-compatible header config for a CC entity
  * (album or artist), reusing the same `type: "share"` shape the commercial media
- * card uses: empty platform fields (CC has no cross-service links) and the
- * musiccloud short URL for the share button. No `previewUrl` — an album/artist has
- * no single stream, so the summary card renders cover + info + share without a
- * player. The CC track card's `ccSummaryConfig` builds on this base too (DRY).
+ * card uses. Its one platform link is the entity's Jamendo page, so the services
+ * card lists Jamendo the way it lists Spotify for a commercial result; a CC
+ * entity has no cross-service links. No `previewUrl`: an album/artist has no
+ * single stream, so the summary card renders cover + info + share without a
+ * player. The CC track card's {@link ccTrackToShareConfig} builds on this base too (DRY).
  *
  * @param opts.title - Header primary line (album title or artist name).
  * @param opts.artist - Header secondary line (album artist; empty for an artist).
  * @param opts.artworkUrl - Cover / avatar URL.
  * @param opts.metaLine - Optional pre-built meta line.
+ * @param opts.jamendoUrl - The entity's Jamendo page; without it the services
+ *   card has nothing to list and hides itself.
+ * @param opts.platformsLabel - Services card title, matching the entity kind.
+ * @param opts.kindLine - Second display row for an artist, which has no artist to
+ *   name there.
  * @param opts.shortUrl - musiccloud short URL backing the share button.
  * @returns The share-content configuration for the entity header.
  */
@@ -613,12 +660,16 @@ function buildCcEntityHeaderConfig(opts: {
   labelCatalogText?: string;
   labelRightsText?: string;
   vinylLayout?: VinylLayout;
+  jamendoUrl?: string;
+  platformsLabel: string;
+  kindLine?: string;
   shortUrl: string;
 }): ShareContentConfiguration {
   return {
     type: MediaCardContentTypeValue.Share,
     title: opts.title,
     artist: opts.artist,
+    kindLine: opts.kindLine,
     artworkUrl: opts.artworkUrl,
     metaLine: opts.metaLine,
     labelAlbumTitle: opts.labelAlbumTitle,
@@ -626,8 +677,8 @@ function buildCcEntityHeaderConfig(opts: {
     labelCatalogText: opts.labelCatalogText,
     labelRightsText: opts.labelRightsText,
     vinylLayout: opts.vinylLayout,
-    platforms: [],
-    platformsLabel: "",
+    platforms: opts.jamendoUrl ? [{ platform: Service.Jamendo, url: opts.jamendoUrl }] : [],
+    platformsLabel: opts.platformsLabel,
     shortUrl: opts.shortUrl,
   };
 }
@@ -653,8 +704,10 @@ function ccTrackToShareConfig(cc: CcTrackResult): ShareContentConfiguration {
       labelAlbumTitle: labelAlbumTitleFrom(cc.album, cc.title),
       labelReleaseYear: releaseYearFromDate(cc.releaseDate),
       // GEMA-free: licence goes in the top-left rights field; center stays empty.
-      labelRightsText: ccLicenseLabel(cc.licenseCcurl),
+      labelRightsText: ccRightsText([cc.licenseCcurl]),
       vinylLayout: cc.vinylLayout,
+      jamendoUrl: cc.jamendoUrl,
+      platformsLabel: resultsCopy.listenOn,
       shortUrl: cc.shareUrl,
     }),
     album: cc.album,
@@ -673,8 +726,8 @@ function ccTrackToShareConfig(cc: CcTrackResult): ShareContentConfiguration {
  *
  * The left media card is always a {@link ShareContentConfiguration}; for a CC
  * track its `ccInfoContent` carries the license / attribution block rendered as
- * the `CcInfoCard` secondary. Album/artist omit it — the default `ServicesCard`
- * self-hides on the CC config's empty platforms.
+ * the `CcInfoCard` secondary; album and artist carry none. Every kind lists its
+ * Jamendo page in the services card.
  *
  * @property config - The media-card configuration for the left column (a CC
  *   track's config additionally carries `ccInfoContent` / `ccJamendoArtistId`).
@@ -705,10 +758,13 @@ export function ccResultToShareProps(ccActive: CcResult): CcResultShareProps {
         title: ccActive.title,
         artist: ccActive.artist,
         artworkUrl: ccActive.artworkUrl,
-        metaLine: ccActive.releaseDate?.slice(0, 4),
+        metaLine: albumMetaLine(ccActive.totalTracks, ccActive.releaseDate),
         labelAlbumTitle: ccActive.title,
         labelReleaseYear: releaseYearFromDate(ccActive.releaseDate),
+        labelRightsText: ccActive.labelRightsText,
         vinylLayout: ccActive.vinylLayout,
+        jamendoUrl: ccActive.jamendoUrl,
+        platformsLabel: resultsCopy.openAlbumOn,
         shortUrl: ccActive.shareUrl,
       }),
       artistName: ccActive.artist,
@@ -721,6 +777,10 @@ export function ccResultToShareProps(ccActive: CcResult): CcResultShareProps {
         artist: "",
         artworkUrl: ccActive.imageUrl,
         labelAlbumTitle: ccActive.name,
+        labelRightsText: ccActive.labelRightsText,
+        jamendoUrl: ccActive.jamendoUrl,
+        platformsLabel: resultsCopy.viewArtistOn,
+        kindLine: resultsCopy.artistKind,
         shortUrl: ccActive.shareUrl,
       }),
       artistName: ccActive.name,
@@ -781,6 +841,8 @@ export function ccResponseToResult(
       jamendoId: album.jamendoId,
       title: album.name,
       artist: album.artistName,
+      totalTracks: album.tracks.length,
+      labelRightsText: ccRightsText(album.tracks.map((track) => track.licenseCcurl)),
       releaseDate: album.releaseDate,
       artworkUrl: album.artworkUrl ?? "",
       vinylLayout: album.vinylLayout ?? undefined,
@@ -794,6 +856,7 @@ export function ccResponseToResult(
     kind: ActiveResultKind.CcArtist,
     jamendoId: artist.jamendoId,
     name: artist.name,
+    labelRightsText: ccRightsText(artist.topTracks.map((track) => track.licenseCcurl)),
     imageUrl: artist.imageUrl ?? "",
     jamendoUrl: artist.shareUrl,
     shareUrl: data.shortUrl,

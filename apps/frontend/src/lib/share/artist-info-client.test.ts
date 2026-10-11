@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { artistFetchErrorCode, fetchArtistInfo, fetchCcArtistInfo } from "./artist-info-client";
+import {
+  artistFetchErrorCode,
+  fetchArtistInfo,
+  fetchCcArtistInfo,
+  prefetchArtistInfo,
+  takeSettledArtistInfo,
+} from "./artist-info-client";
 
 const ARTIST_INFO = {
   artistName: "Canonical Artist",
@@ -47,7 +53,26 @@ describe("fetchArtistInfo", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it.each([502, 503, 504])("retries one transient HTTP %i response before consuming its body", async (status) => {
+  /**
+   * A 504 is the proxy reporting that the backend used its whole budget. A
+   * retry spent the column's remaining time on the same wait, so the visitor
+   * saw a bare TIMEOUT instead of the proxy's error code.
+   */
+  it("does not retry a gateway timeout", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ error: "MC-API-0005", errorId: "timeout-1" }), { status: 504 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const failure = await fetchArtistInfo("Slow Artist", "", {}, new AbortController().signal).catch(
+      (error: unknown) => error,
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(artistFetchErrorCode(failure)).toBe("MC-API-0005");
+  });
+
+  it.each([502, 503])("retries one transient HTTP %i response before consuming its body", async (status) => {
     const transient = new Response(JSON.stringify({ error: "MC-API-0001" }), { status });
     const fetchMock = vi
       .fn()
@@ -99,6 +124,77 @@ describe("fetchArtistInfo", () => {
     fetchMock.mockReset().mockResolvedValue(new Response("not json"));
     await expect(fetchArtistInfo("Canonical Artist", "", {}, new AbortController().signal)).rejects.toThrow();
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("prefetchArtistInfo", () => {
+  /**
+   * The landing page holds the result for its reveal animation, and the column
+   * asks only when it mounts. A prefetch started at the resolve answer has to be
+   * taken over by the column, not duplicated.
+   */
+  it("lets the column take over a prefetched request instead of sending a second one", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(ARTIST_INFO)));
+    vi.stubGlobal("fetch", fetchMock);
+    const context = { shortId: "prefetch1", artistEntityId: "artist-prefetch-1" };
+
+    prefetchArtistInfo("Prefetched Artist", "AT", context);
+    const data = await fetchArtistInfo("Prefetched Artist", "AT", context, new AbortController().signal);
+
+    expect(data).toEqual(ARTIST_INFO);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("hands a prefetch failure to the column that claims it", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ error: "MC-REQ-0001", errorId: "prefetch-incident" }), { status: 400 }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    prefetchArtistInfo("Failing Artist", "", {});
+    const failure = await fetchArtistInfo("Failing Artist", "", {}, new AbortController().signal).catch(
+      (error: unknown) => error,
+    );
+
+    expect(artistFetchErrorCode(failure)).toBe("MC-REQ-0001");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("hands an answered prefetch over synchronously, once", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(ARTIST_INFO)));
+    vi.stubGlobal("fetch", fetchMock);
+    const context = { artistEntityId: "artist-settled-1" };
+
+    prefetchArtistInfo("Settled Artist", "AT", context);
+    expect(takeSettledArtistInfo("Settled Artist", "AT", context)).toBeNull();
+
+    await vi.waitFor(() => expect(takeSettledArtistInfo("Settled Artist", "AT", context)).toEqual(ARTIST_INFO));
+    expect(takeSettledArtistInfo("Settled Artist", "AT", context)).toBeNull();
+  });
+
+  it("does not hand over a failed prefetch", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ error: "MC-REQ-0001" }), { status: 400 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    prefetchArtistInfo("Failed Settled Artist", "", {});
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    await Promise.resolve();
+
+    expect(takeSettledArtistInfo("Failed Settled Artist", "", {})).toBeNull();
+  });
+
+  it("sends a request of its own for different arguments", async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify(ARTIST_INFO)));
+    vi.stubGlobal("fetch", fetchMock);
+
+    prefetchArtistInfo("One Artist", "", {});
+    await fetchArtistInfo("Another Artist", "", {}, new AbortController().signal);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
 

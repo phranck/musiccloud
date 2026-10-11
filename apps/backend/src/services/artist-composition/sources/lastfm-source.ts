@@ -1,7 +1,8 @@
 /**
  * Last.fm composition source. Pulls bio + listener stats + similar
  * artists + filtered tags + top tracks; returns null when LASTFM_API_KEY
- * is unset or both info and tag lookups fail.
+ * is unset or Last.fm knows nothing about the artist, and throws when any
+ * of the three requests failed.
  *
  * `popularity` is mapped from Last.fm `stats.listeners` (non-negative
  * integer). Different scale than the old Spotify popularity score, but

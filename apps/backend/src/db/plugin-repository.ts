@@ -1,18 +1,5 @@
 import { isValidServiceId, type ServiceId } from "@musiccloud/shared";
-import * as pgModule from "pg";
-import { loadDatabaseConfig } from "./config.js";
-
-const Pool = (pgModule as unknown as { default: typeof pgModule }).default?.Pool ?? pgModule.Pool;
-
-let pool: InstanceType<typeof Pool> | null = null;
-
-function getPool(): InstanceType<typeof Pool> {
-  if (!pool) {
-    const config = loadDatabaseConfig();
-    pool = new Pool({ connectionString: config.url, max: 2 });
-  }
-  return pool;
-}
+import { getDatabasePool } from "./pool.js";
 
 export interface PluginState {
   id: ServiceId;
@@ -29,7 +16,7 @@ export interface PluginState {
  * are filtered out; they can never match a valid plugin anyway.
  */
 export async function readPluginStatesFromDb(): Promise<PluginState[]> {
-  const result = await getPool().query<{ id: string; enabled: boolean; updated_at: Date }>(
+  const result = await getDatabasePool().query<{ id: string; enabled: boolean; updated_at: Date }>(
     "SELECT id, enabled, updated_at FROM service_plugins",
   );
   const rows: PluginState[] = [];
@@ -50,7 +37,7 @@ export async function upsertPluginState(id: ServiceId, enabled: boolean): Promis
   if (!isValidServiceId(id)) {
     throw new Error(`Invalid ServiceId: ${id}`);
   }
-  await getPool().query(
+  await getDatabasePool().query(
     `INSERT INTO service_plugins (id, enabled, updated_at)
      VALUES ($1, $2, NOW())
      ON CONFLICT (id) DO UPDATE SET enabled = $2, updated_at = NOW()`,

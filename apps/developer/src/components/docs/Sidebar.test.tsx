@@ -112,10 +112,10 @@ describe("Sidebar", () => {
     expect(css).toMatch(/\.sidebar__section-items\s*\{[^}]*padding-block:\s*var\(--mc-docs-nav-padding\);/s);
   });
 
-  it("uses the item group as the only trailing sidebar inset", () => {
+  it("holds the last entry off the rail's bottom edge whatever stands there", () => {
     const css = readFileSync(join(import.meta.dirname, "../../styles/docs.css"), "utf8");
 
-    expect(css).toMatch(/\.sidebar__body\s*\{[^}]*padding:\s*var\(--mc-space-3\) var\(--mc-docs-nav-padding\) 0;/s);
+    expect(css).toMatch(/\.sidebar__body\s*\{[^}]*padding:\s*var\(--mc-space-3\) var\(--mc-docs-nav-padding\);/s);
     expect(css).not.toContain(".sidebar__body:not(:has(> .sidebar__section[open]))");
     expect(css).not.toMatch(/\.sidebar__section\s*\+\s*\.sidebar__section\s*\{[^}]*margin/s);
   });

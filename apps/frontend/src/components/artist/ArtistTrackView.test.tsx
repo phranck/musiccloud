@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ArtistTrackView } from "@/components/artist/ArtistTrackView";
+import type { NowPlayingTrack } from "@/components/artist/nowPlayingTrack";
+import { AudioStatus } from "@/components/audio/AudioStatus";
 
 vi.mock("@/hooks/useTrackResolve", () => ({
   useTrackResolve: () => ({ resolving: false, activate: vi.fn() }),
@@ -75,5 +77,47 @@ describe("ArtistTrackView grouped corners", () => {
     expect(titleLine).toHaveAttribute("title", title);
     expect(subtitleLine).toHaveClass("truncate");
     expect(subtitleLine).toHaveAttribute("title", subtitle);
+  });
+});
+
+describe("ArtistTrackView playback mark", () => {
+  function nowPlaying(status: NowPlayingTrack["status"], trackUrl: string): NowPlayingTrack {
+    return { status, trackUrls: [trackUrl], title: "", artist: "" };
+  }
+
+  it("marks only the row the player holds, with the player's state", () => {
+    const items = [item(0), item(1), item(2)];
+    const { container } = render(
+      <ArtistTrackView items={items} nowPlaying={nowPlaying(AudioStatus.Paused, items[1].track.deezerUrl)} />,
+    );
+
+    const rows = Array.from(container.querySelectorAll("button"));
+    expect(rows[1]).toHaveAttribute("data-playback", AudioStatus.Paused);
+    expect(rows[1]).toHaveAttribute("aria-current", "true");
+    for (const other of [rows[0], rows[2]]) {
+      expect(other).not.toHaveAttribute("data-playback");
+      expect(other).not.toHaveAttribute("aria-current");
+    }
+  });
+
+  /**
+   * The ring and the bars fade through a transition on the row, which only runs
+   * when the row that is already on screen changes its attribute.
+   */
+  it("changes the mark on the same row element, which carries its bars in every state", () => {
+    const items = [item(0), item(1)];
+    const { container, rerender } = render(
+      <ArtistTrackView items={items} nowPlaying={nowPlaying(AudioStatus.Playing, items[0].track.deezerUrl)} />,
+    );
+    const markedRow = container.querySelector("button");
+    expect(markedRow).toHaveAttribute("data-playback", AudioStatus.Playing);
+
+    rerender(<ArtistTrackView items={items} nowPlaying={null} />);
+
+    expect(container.querySelector("button")).toBe(markedRow);
+    expect(markedRow).not.toHaveAttribute("data-playback");
+    for (const row of container.querySelectorAll("button")) {
+      expect(row.querySelector(".mc-playback-bars")).toHaveAttribute("aria-hidden", "true");
+    }
   });
 });

@@ -118,6 +118,15 @@ describe("validateMusicUrl", () => {
       }
     });
 
+    it("should point a Jamendo link at the Creative Commons endpoint", () => {
+      const result = validateMusicUrl("https://jamendo.com/track/459544");
+      expect(result.valid).toBe(false);
+      if (!result.valid) {
+        expect(result.code).toBe("UNSUPPORTED_SERVICE");
+        expect(result.message).toContain("/api/v1/cc/resolve");
+      }
+    });
+
     it("should reject malformed explicit URLs", () => {
       const result = validateMusicUrl("https://bad url");
       expect(result.valid).toBe(false);

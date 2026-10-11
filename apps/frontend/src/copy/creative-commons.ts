@@ -1,8 +1,9 @@
 export const creativeCommonsCopy = {
   sectionTitle: "Creative Commons",
   licenseUnknown: "Creative Commons",
+  /** Record-label rights text where the tracks share no single readable license. */
+  recordRights: "CC",
   download: "Download track",
-  openOnJamendo: "Open on Jamendo",
   opensInNewWindow: "opens in new window",
   details: {
     title: "Details",

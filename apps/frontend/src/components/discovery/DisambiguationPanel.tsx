@@ -1,10 +1,14 @@
 import { useGSAP } from "@gsap/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ROW_CHROME } from "@/components/artist/artistPanelRowChrome";
-import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
+import { groupedListClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
-import { GroupedCornerList } from "@/components/cards/GroupedCornerList";
 import { RecessedCard } from "@/components/cards/RecessedCard";
+import {
+  singleColumnGroupedArtworkCornerStyle,
+  singleColumnGroupedArtworkInnerRadius,
+  singleColumnGroupedCornerStyle,
+} from "@/components/cards/singleColumnGroupedCornerStyle";
 import { CancelButton } from "@/components/ui/CancelButton";
 import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
@@ -19,7 +23,12 @@ import { cn } from "@/lib/utils";
 
 interface DisambiguationPanelProps {
   candidates: DisambiguationCandidate[];
-  onSelect: (candidate: DisambiguationCandidate) => void;
+  /**
+   * Called the moment a candidate is clicked, so its resolve starts at once.
+   * `animationDone` settles when the selection animation has finished (or the
+   * panel goes away); the caller holds the result until then.
+   */
+  onSelect: (candidate: DisambiguationCandidate, animationDone: Promise<void>) => void;
   onCancel: () => void;
   selectedId?: string | null;
   loading?: boolean;
@@ -59,17 +68,21 @@ export function DisambiguationPanel({
   } = usePagedList(candidates, { pageSize: CANDIDATES_PER_PAGE, resetKey: candidatesKey });
 
   const listRef = useRef<HTMLDivElement | null>(null);
-  const resolveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const finishAnimation = useRef<(() => void) | null>(null);
 
-  const clearResolveTimer = useCallback(() => {
-    if (resolveTimer.current === null) return;
-    clearTimeout(resolveTimer.current);
-    resolveTimer.current = null;
+  // Ends a running selection animation early, settling its promise so the
+  // caller waiting on it is never left hanging when the panel goes away.
+  const clearAnimationTimer = useCallback(() => {
+    if (animationTimer.current !== null) clearTimeout(animationTimer.current);
+    animationTimer.current = null;
+    finishAnimation.current?.();
+    finishAnimation.current = null;
   }, []);
 
   useEffect(() => {
-    return clearResolveTimer;
-  }, [clearResolveTimer]);
+    return clearAnimationTimer;
+  }, [clearAnimationTimer]);
 
   // Staggered card entrance (GSAP port of the removed `animate-slide-up`
   // class): one batch over the freshly mounted page slice, replayed when the
@@ -85,7 +98,7 @@ export function DisambiguationPanel({
   const handleClick = useCallback(
     (candidate: DisambiguationCandidate) => {
       if (animatingId || loading) return;
-      clearResolveTimer();
+      clearAnimationTimer();
 
       const listEl = listRef.current;
       if (!listEl) return;
@@ -176,13 +189,19 @@ export function DisambiguationPanel({
         }
       });
 
-      // Fire resolve only after the animation finishes
-      resolveTimer.current = setTimeout(() => {
-        resolveTimer.current = null;
-        onSelect(candidate);
+      // The resolve starts now, while the cards move. The animation's end is
+      // handed along so the result is not shown before the choreography is done.
+      const animationDone = new Promise<void>((resolve) => {
+        finishAnimation.current = resolve;
+      });
+      animationTimer.current = setTimeout(() => {
+        animationTimer.current = null;
+        finishAnimation.current?.();
+        finishAnimation.current = null;
       }, ANIM_MS + 30);
+      onSelect(candidate, animationDone);
     },
-    [animatingId, clearResolveTimer, loading, onSelect],
+    [animatingId, clearAnimationTimer, loading, onSelect],
   );
 
   const isAnimating = animatingId !== null;
@@ -210,22 +229,17 @@ export function DisambiguationPanel({
         <EmbossedCard.Body>
           <RecessedCard className={recessedControlInsetClassName}>
             <RecessedCard.Body>
-              {/* Grouped-corner radii for the candidate rows (AGENTS.md): rows
-                  default to the ≤5px inner radius; the first row's top corners
-                  and the last row's bottom corners promote to the full control
-                  radius, and the artwork frame follows. The list has no header
-                  in its well, so `promoteTop` stays at its default true. The
-                  FLIP `listRef` is merged onto the same node the grouped-corners
-                  hook owns, so the choreography measures the grouped list. */}
-              <GroupedCornerList
-                ref={listRef}
-                itemSelector=":scope > * > button"
-                frameSelector=".mc-row-art"
-                frameInset={4}
-              >
-                {visibleCandidates.map((candidate) => {
+              {/* Grouped-corner radii for the candidate rows (AGENTS.md) come from
+                  each row's list position. The rows enter scaled, so a reading of
+                  the live layout on mount sees them short of the well's right edge. */}
+              <div ref={listRef} className={groupedListClassName}>
+                {visibleCandidates.map((candidate, index) => {
                   const isThisSelected =
                     (isAnimating && animatingId === candidate.id) || (isLoadingSelected && selectedId === candidate.id);
+                  // While a pick plays out the other rows fade away, so the picked
+                  // row ends up alone in the well and owns all four of its corners.
+                  const cornerIndex = isThisSelected ? 0 : index;
+                  const cornerCount = isThisSelected ? 1 : visibleCandidates.length;
 
                   return (
                     <div key={candidate.id} data-disambiguation-card={candidate.id}>
@@ -234,6 +248,7 @@ export function DisambiguationPanel({
                         type="button"
                         onClick={() => handleClick(candidate)}
                         disabled={isAnimating || loading}
+                        style={singleColumnGroupedCornerStyle(cornerIndex, cornerCount)}
                         className={cn(
                           ROW_CHROME,
                           "text-left",
@@ -250,6 +265,8 @@ export function DisambiguationPanel({
                           artworkUrl={candidate.artworkUrl}
                           slideArtwork={isThisSelected}
                           slideArtworkActive={isThisSelected}
+                          artworkRadius={singleColumnGroupedArtworkInnerRadius}
+                          artworkStyle={singleColumnGroupedArtworkCornerStyle(cornerIndex, cornerCount)}
                           primary={candidate.title}
                           secondary={candidate.artists.join(", ")}
                           tertiary={candidate.albumName}
@@ -258,7 +275,7 @@ export function DisambiguationPanel({
                     </div>
                   );
                 })}
-              </GroupedCornerList>
+              </div>
             </RecessedCard.Body>
           </RecessedCard>
         </EmbossedCard.Body>

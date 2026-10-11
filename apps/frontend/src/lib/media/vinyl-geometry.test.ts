@@ -7,10 +7,46 @@ import {
   vinylSideGroovePath,
 } from "./vinyl-geometry.js";
 
+/** A pause groove is a full circle drawn as two large arcs. */
+const PAUSE_GROOVE_ARC = " 0 1 1 ";
+/** A spiral segment is drawn as quarter-turn arcs with the small-arc flag. */
+const SPIRAL_ARC = " 0 0 0 ";
+
+/** Every arc endpoint of a path as its distance from the viewBox centre. */
+function endpointRadii(path: string): number[] {
+  return [...path.matchAll(/A [\d.]+ [\d.]+ 0 0 0 ([\d.]+) ([\d.]+)/g)].map(([, x, y]) =>
+    Math.hypot(Number(x) - 50, Number(y) - 50),
+  );
+}
+
 describe("vinyl geometry", () => {
   it("returns SVG paths for the record groove and label arc", () => {
     expect(vinylGrooveSpiralPath(45, 19, 49.5)).toMatch(/^M /);
     expect(labelArcPath(44, 73)).toMatch(/^M /);
+  });
+
+  /**
+   * The groove ships as a data URL inside every share page and is rasterised
+   * when the record appears. As a polyline it was 115 KB per stroke and about
+   * ten thousand segments, 694 KB of a share page's HTML.
+   */
+  it("draws the 72-turn groove in a few kilobytes", () => {
+    const path = vinylGrooveSpiralPath(72, 19, 49.5);
+
+    expect(path.length).toBeLessThan(12_000);
+    expect(path.match(/A /g)).toHaveLength(72 * 4);
+  });
+
+  it("keeps every arc endpoint on the spiral, running from the rim to the label", () => {
+    const turns = 72;
+    const radii = endpointRadii(vinylGrooveSpiralPath(turns, 19, 49.5));
+    const pitchPerQuarterTurn = (49.5 - 19) / (turns * 4);
+
+    expect(radii[0]).toBeCloseTo(49.5 - pitchPerQuarterTurn, 1);
+    expect(radii.at(-1)).toBeCloseTo(19, 1);
+    for (let index = 1; index < radii.length; index++) {
+      expect(radii[index - 1] - (radii[index] ?? 0)).toBeCloseTo(pitchPerQuarterTurn, 1);
+    }
   });
 
   it("maps track durations to one deterministic pause groove with a radial gap between two tracks", () => {
@@ -25,7 +61,7 @@ describe("vinyl geometry", () => {
 
     const path = vinylSideGroovePath(side, options);
     const segments = path.split("M ").filter(Boolean);
-    const pauseSegments = segments.filter((segment) => segment.includes(" A "));
+    const pauseSegments = segments.filter((segment) => segment.includes(PAUSE_GROOVE_ARC));
     const pauseRadius = 50 - Number(pauseSegments[0]?.split(" ")[1]);
     const trackOuterRadius = 48;
     const trackInnerRadius = 20.5;
@@ -43,8 +79,8 @@ describe("vinyl geometry", () => {
       { radius: expect.closeTo(expectedPauseRadius, 1), width: 1 },
       { radius: 19.75, width: 1.5 },
     ]);
-    expect(segments[0]).toMatch(/ L /);
-    expect(segments.at(-1)).toMatch(/ L /);
+    expect(segments[0]).toContain(SPIRAL_ARC);
+    expect(segments.at(-1)).toContain(SPIRAL_ARC);
     expect(vinylSideGroovePath(side, options)).toBe(path);
   });
 
@@ -59,9 +95,9 @@ describe("vinyl geometry", () => {
     const segments = path.split("M ").filter(Boolean);
 
     expect(segments).toHaveLength(3);
-    expect(segments.filter((segment) => segment.includes(" A "))).toHaveLength(0);
-    expect(segments[0]).toMatch(/ L /);
-    expect(segments.at(-1)).toMatch(/ L /);
+    expect(segments.filter((segment) => segment.includes(PAUSE_GROOVE_ARC))).toHaveLength(0);
+    expect(segments[0]).toContain(SPIRAL_ARC);
+    expect(segments.at(-1)).toContain(SPIRAL_ARC);
   });
 
   it.each([

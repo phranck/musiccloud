@@ -1,4 +1,10 @@
-import { ContentContext } from "@musiccloud/shared";
+import {
+  CODE_FENCE_LANGUAGES,
+  ContentContext,
+  FIELDS_DEFAULT_GAP,
+  FIELDS_DEFAULT_LABEL_WIDTH,
+  PILL_DEFAULT_TONE,
+} from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
 import { renderMarkdown } from "../markdown/renderer.js";
 
@@ -60,6 +66,16 @@ describe("marked custom code renderer", () => {
     const out = (await marked.parse("```nonexistent-lang\nplain\n```", { async: true })) as string;
     expect(out).toContain("<pre");
     expect(out).toContain("plain");
+  });
+
+  it.each(CODE_FENCE_LANGUAGES)("actually highlights %s, which the editor's help offers", async (language) => {
+    // The help and the highlighter read one list. A language offered to a
+    // writer that the highlighter never loaded renders as plain text, and
+    // nothing anywhere reports it.
+    const out = (await marked.parse(`\`\`\`${language}\nconst value = 1;\n\`\`\``, { async: true })) as string;
+
+    expect(out).toContain(`class="language-${language}"`);
+    expect(out, language).toMatch(/<span style="color:/);
   });
 
   it("emits data-card-padding when modifier+padding given", async () => {
@@ -221,12 +237,12 @@ describe("marked custom code renderer", () => {
     // vitesse-dark renders comment scopes in its grey-green tint
     // (no italic — that was an incorrect spec assumption).
     const out = (await marked.parse("```mc-query\ngenre: jazz # filter\n```", { async: true })) as string;
-    expect(out).toMatch(/<span style="color:#[0-9A-F]+"># filter<\/span>/i);
+    expect(out).toMatch(/<span style="color:#[0-9A-F]+[^"]*"># filter<\/span>/i);
   });
 
   it("recognizes // comments inside ```mc-query", async () => {
     const out = (await marked.parse("```mc-query\nartist: foo // note\n```", { async: true })) as string;
-    expect(out).toMatch(/<span style="color:#[0-9A-F]+">\/\/ note<\/span>/i);
+    expect(out).toMatch(/<span style="color:#[0-9A-F]+[^"]*">\/\/ note<\/span>/i);
   });
 
   it("falls back gracefully for unknown language not in highlighter list", async () => {
@@ -249,9 +265,9 @@ describe("marked custom code renderer", () => {
     expect(out).toContain('<span class="mc-pill mc-pill-alert">TITLE ODER ARTIST</span>');
   });
 
-  it("defaults [[pill:...]] to neutral tone and preserves casing", async () => {
+  it("defaults [[pill:...]] to the registry's tone and preserves casing", async () => {
     const out = (await marked.parse("foo [[pill:Info]] bar", { async: true })) as string;
-    expect(out).toContain('<span class="mc-pill mc-pill-neutral">Info</span>');
+    expect(out).toContain(`<span class="mc-pill mc-pill-${PILL_DEFAULT_TONE}">Info</span>`);
   });
 
   it("applies [[pill:...]] case options", async () => {
@@ -297,47 +313,42 @@ describe("marked custom code renderer", () => {
     expect(out).not.toContain("<script>");
   });
 
-  it("renders :::fields blocks as definition lists with dynamic label width", async () => {
+  it("renders [[fields]] as a definition list with the declared label width", async () => {
     const out = (await marked.parse(
-      ":::fields\ngenre: Genre name or Genre1|Genre2 [[pill:REQ tone=alert]]\ncount: Applies the same amount to tracks, albums, and artists. {{Esc}}\n:::\n",
+      '[[fields\n[[field label="genre" {\nGenre name or Genre1|Genre2 [[pill:REQ tone=alert]]\n}]]\n[[field label="count" {\nApplies the same amount to tracks, albums, and artists. {{Esc}}\n}]]\n]]\n',
       { async: true },
     )) as string;
 
-    expect(out).toContain('<dl class="mc-fields"');
-    expect(out).toContain("grid-template-columns:max-content minmax(0, 1fr)");
-    expect(out).toContain("column-gap:1.1rem");
+    // Against the registry's declared defaults, which is where a writer reads
+    // them in the editor's reference. Repeating the figures here would let the
+    // two disagree without either one failing.
+    expect(out).toContain('<dl class="mc-fields mc-fields--columns mc-fields--leading"');
+    expect(out).toContain(`grid-template-columns:${FIELDS_DEFAULT_LABEL_WIDTH} minmax(0, 1fr)`);
+    expect(out).toContain(`column-gap:${FIELDS_DEFAULT_GAP}`);
     expect(out).toContain("<dt>genre:</dt>");
     expect(out).toContain('<span class="mc-pill mc-pill-alert">REQ</span>');
     expect(out).toContain("<dt>count:</dt>");
     expect(out).toContain('<kbd class="mc-kbd">Esc</kbd>');
   });
 
-  it("accepts fixed labelWidth and gap options for :::fields blocks", async () => {
-    const out = (await marked.parse(
-      ":::fields labelWidth=9ch gap=1.25rem\ngenre: Jazz [[pill:REQ tone=alert]]\ntracks: 1-50 [[pill:OPT]]\n:::\n",
-      { async: true },
-    )) as string;
+  it("takes the layout and the two measurements from [[fields]] attributes", async () => {
+    const out = (await marked.parse('[[fields width="9ch" gap="1.25rem"\n[[field label="genre" {\nJazz\n}]]\n]]\n', {
+      async: true,
+    })) as string;
 
     expect(out).toContain("grid-template-columns:9ch minmax(0, 1fr)");
     expect(out).toContain("column-gap:1.25rem");
-    expect(out).toContain('<span class="mc-pill mc-pill-neutral">OPT</span>');
   });
 
-  it("ignores unsafe :::fields layout values", async () => {
+  it("stacks a fields list when the page asks for it", async () => {
     const out = (await marked.parse(
-      ":::fields labelWidth=url(javascript:alert(1)) gap=calc(1rem+1px)\nname: value\n:::\n",
+      '[[fields layout="stacked"\n[[field label="The free plan stays free" {\nIt stays.\n}]]\n]]\n',
       { async: true },
     )) as string;
 
-    expect(out).toContain("grid-template-columns:max-content minmax(0, 1fr)");
-    expect(out).toContain("column-gap:1.1rem");
-    expect(out).not.toContain("javascript");
-    expect(out).not.toContain("calc");
-  });
-
-  it("escapes :::fields labels", async () => {
-    const out = (await marked.parse(":::fields\n<script>: value\n:::\n", { async: true })) as string;
-    expect(out).toContain("<dt>&lt;script&gt;:</dt>");
-    expect(out).not.toContain("<script>");
+    // Stacked, the label is a statement on a line of its own, so it loses the
+    // colon that separates it from a value standing beside it.
+    expect(out).toContain('<dl class="mc-fields mc-fields--stacked mc-fields--leading"');
+    expect(out).toContain("<dt>The free plan stays free</dt>");
   });
 });

@@ -3,6 +3,7 @@ import { ArtistCardShell } from "@/components/artist/ArtistCardShell";
 import { ArtistSectionWell } from "@/components/artist/ArtistSectionWell";
 import { ArtistTrackView } from "@/components/artist/ArtistTrackView";
 import type { ArtistPanelTrackResolveHandler, ArtistTrackItem } from "@/components/artist/artistPanelTypes";
+import type { NowPlayingTrack } from "@/components/artist/nowPlayingTrack";
 import { useSkeletonAllowed } from "@/hooks/useSkeletonAllowed";
 
 interface ArtistTrackListCardProps {
@@ -24,6 +25,8 @@ interface ArtistTrackListCardProps {
   cardSignal?: string;
   onTrackResolve?: ArtistPanelTrackResolveHandler;
   onResolveStart?: () => void;
+  /** The track the share page's player holds, forwarded to the list. */
+  nowPlaying?: NowPlayingTrack | null;
 }
 
 /**
@@ -48,6 +51,7 @@ export function ArtistTrackListCard({
   cardSignal,
   onTrackResolve,
   onResolveStart,
+  nowPlaying,
 }: ArtistTrackListCardProps) {
   const skeletonAllowed = useSkeletonAllowed();
   const showContent = showInitialSkeleton || items.length > 0;
@@ -75,6 +79,7 @@ export function ArtistTrackListCard({
             cardSignal={cardSignal}
             onTrackResolve={onTrackResolve}
             onResolveStart={onResolveStart}
+            nowPlaying={nowPlaying}
           />
         </ArtistSectionWell>
       </div>

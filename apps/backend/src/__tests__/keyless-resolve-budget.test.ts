@@ -44,7 +44,7 @@ import resolvePublicGetRoutes from "../routes/resolve-public-get.js";
 async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify();
   app.addSchema({ $id: "ErrorResponse", type: "object", additionalProperties: true });
-  app.addSchema({ $id: "ResolveSuccess", type: "object", additionalProperties: true });
+  app.addSchema({ $id: "UnifiedResolveSuccess", type: "object", additionalProperties: true });
   await app.register(resolvePublicGetRoutes);
   await app.ready();
   return app;

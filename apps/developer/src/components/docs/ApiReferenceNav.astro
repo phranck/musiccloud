@@ -39,7 +39,6 @@ const operationSearchText = (operation: {
 }) => `${operation.navTitle} ${operationDescription(operation)} ${operation.method} ${operation.path}`;
 
 const IntegrationIcon = apiReferenceStaticSectionIcons.integration;
-const SdkIcon = apiReferenceStaticSectionIcons.sdk;
 const SchemasIcon = apiReferenceStaticSectionIcons.schemas;
 ---
 
@@ -75,15 +74,6 @@ const SchemasIcon = apiReferenceStaticSectionIcons.schemas;
     >
       <IntegrationIcon className="api-reference-nav__section-icon size-5" aria-hidden="true" />
       <span>Integration guide</span>
-    </Sidebar.Chapter>
-    <Sidebar.Chapter
-      className="api-reference-nav__top-link api-reference-nav__link text-body"
-      href="#sdk-downloads"
-      data-api-nav-link
-      data-api-nav-group="SDK downloads"
-    >
-      <SdkIcon className="api-reference-nav__section-icon size-5" aria-hidden="true" />
-      <span>SDK downloads</span>
     </Sidebar.Chapter>
     {
       reference.groups.map((group) => {

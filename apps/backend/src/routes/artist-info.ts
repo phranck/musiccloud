@@ -43,11 +43,20 @@
  *
  * ## Similar-artist top-track enrichment
  *
- * For each of the top 5 similar artists (UI cap) we fetch their top track
- * in parallel. Each lookup is wrapped in its own `try/catch` that returns
- * `{ track: null }` on failure, so one upstream hiccup cannot collapse the
- * whole response. The limit of 5 supplies the shared card's four-and-a-half-row
+ * For each of the top 5 similar artists (UI cap) the stored top track is
+ * used. A similar artist without stored top tracks, or with stale ones, is
+ * fetched in the background and appears from the next load on, so the
+ * response never waits for a second round of upstream requests. Each lookup
+ * is wrapped in its own `try/catch` that returns `{ track: null }` on
+ * failure. The limit of 5 supplies the shared card's four-and-a-half-row
  * viewport with a scroll cue.
+ *
+ * ## Failed sources
+ *
+ * A section fetched while one of its sources failed is never stored over an
+ * existing one, and stored only briefly when there was none (see
+ * `services/artist-info-cache.ts`), so an upstream outage does not empty a
+ * column for days.
  *
  * ## shortId enrichment (not cached)
  *
@@ -58,7 +67,7 @@
  * after the cache entry was written, and the card should show the
  * short-link immediately once the resolve exists.
  */
-import { ARTIST_PROFILE_TTL_MS, type ArtistInfoResponse, ENDPOINTS, type SimilarArtistTrack } from "@musiccloud/shared";
+import { type ArtistInfoResponse, ENDPOINTS, type SimilarArtistTrack } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
@@ -69,10 +78,11 @@ import { apiRateLimiter, isInternalRequest } from "../lib/infra/rate-limiter.js"
 import { stripYouTubeTopicSuffix } from "../lib/youtube-topic.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
 import { sanitizeArtistProfile } from "../services/artist-bio-sanitizer.js";
-import { ArtistInfoSection, artistInfoRefreshCoordinator } from "../services/artist-info-cache.js";
-
-const TTL_TRACKS_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-const TTL_EVENTS_MS = 24 * 60 * 60 * 1000; // 24 hours
+import {
+  ARTIST_INFO_SECTION_TTL_MS,
+  ArtistInfoSection,
+  artistInfoRefreshCoordinator,
+} from "../services/artist-info-cache.js";
 
 /**
  * Above this total handler time a structured `request.log.info` breadcrumb is
@@ -219,40 +229,46 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
       const hasTracks = Boolean(cached && cached.tracksUpdatedAt > 0);
       const hasProfile = Boolean(cached && cached.profileUpdatedAt > 0);
       const hasEvents = Boolean(cached && cached.eventsUpdatedAt > 0);
-      const staleTracks = hasTracks && now - cached!.tracksUpdatedAt > TTL_TRACKS_MS;
-      const staleProfile = hasProfile && now - cached!.profileUpdatedAt > ARTIST_PROFILE_TTL_MS;
-      const staleEvents = hasEvents && now - cached!.eventsUpdatedAt > TTL_EVENTS_MS;
+      const staleTracks =
+        hasTracks && now - cached!.tracksUpdatedAt > ARTIST_INFO_SECTION_TTL_MS[ArtistInfoSection.TopTracks];
+      const staleProfile =
+        hasProfile && now - cached!.profileUpdatedAt > ARTIST_INFO_SECTION_TTL_MS[ArtistInfoSection.Profile];
+      const staleEvents =
+        hasEvents && now - cached!.eventsUpdatedAt > ARTIST_INFO_SECTION_TTL_MS[ArtistInfoSection.Events];
+      const profileInput = { ...refreshInput, hasStoredValue: hasProfile };
+      const tracksInput = { ...refreshInput, hasStoredValue: hasTracks };
+      const eventsInput = { ...refreshInput, hasStoredValue: hasEvents };
       const synchronousRefreshes: Promise<void>[] = [];
 
       if (explicitProfileRefresh || !hasProfile) {
         synchronousRefreshes.push(
-          artistInfoRefreshCoordinator.refresh(ArtistInfoSection.Profile, refreshInput).then((value) => {
+          artistInfoRefreshCoordinator.refresh(ArtistInfoSection.Profile, profileInput).then((value) => {
             profile = sanitizeArtistProfile(value as typeof profile);
           }),
         );
       } else if (staleProfile) {
-        void artistInfoRefreshCoordinator.schedule(ArtistInfoSection.Profile, refreshInput);
+        void artistInfoRefreshCoordinator.schedule(ArtistInfoSection.Profile, profileInput);
       }
 
       if (!explicitProfileRefresh) {
         if (!hasTracks) {
           synchronousRefreshes.push(
-            artistInfoRefreshCoordinator.refresh(ArtistInfoSection.TopTracks, refreshInput).then((value) => {
+            artistInfoRefreshCoordinator.refresh(ArtistInfoSection.TopTracks, tracksInput).then((value) => {
               topTracks = value as typeof topTracks;
             }),
           );
         } else if (staleTracks) {
-          void artistInfoRefreshCoordinator.schedule(ArtistInfoSection.TopTracks, refreshInput);
+          void artistInfoRefreshCoordinator.schedule(ArtistInfoSection.TopTracks, tracksInput);
         }
 
         if (!hasEvents) {
           synchronousRefreshes.push(
-            artistInfoRefreshCoordinator.refresh(ArtistInfoSection.Events, refreshInput).then((value) => {
+            artistInfoRefreshCoordinator.refresh(ArtistInfoSection.Events, eventsInput).then((value) => {
               events = value as typeof events;
             }),
           );
         } else if (staleEvents) {
-          void artistInfoRefreshCoordinator.schedule(ArtistInfoSection.Events, refreshInput);
+          void artistInfoRefreshCoordinator.schedule(ArtistInfoSection.Events, eventsInput);
         }
       }
 
@@ -289,22 +305,23 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
             const normalizedName = name.toLowerCase();
             const similarCacheIdentity = { kind: "name" as const, artistName: normalizedName };
             const similarCached = await repo.findArtistCache(similarCacheIdentity);
-            let tracks = similarCached?.topTracks ?? [];
+            const tracks = similarCached?.topTracks ?? [];
             const hasSimilarTracks = Boolean(similarCached && similarCached.tracksUpdatedAt > 0);
-            const staleSimilarTracks = hasSimilarTracks && now - similarCached!.tracksUpdatedAt > TTL_TRACKS_MS;
+            const staleSimilarTracks =
+              hasSimilarTracks &&
+              now - similarCached!.tracksUpdatedAt > ARTIST_INFO_SECTION_TTL_MS[ArtistInfoSection.TopTracks];
             const similarRefreshInput = {
               repo,
               identity: similarCacheIdentity,
               artistName: name,
               requestId: request.id,
               startedAt: now,
+              hasStoredValue: hasSimilarTracks,
             };
-            if (!explicitProfileRefresh && !hasSimilarTracks) {
-              tracks = (await artistInfoRefreshCoordinator.refresh(
-                ArtistInfoSection.TopTracks,
-                similarRefreshInput,
-              )) as typeof tracks;
-            } else if (!explicitProfileRefresh && staleSimilarTracks) {
+            // The response does not wait for a similar artist's top tracks:
+            // they are fetched in the background and appear from the next
+            // load on, so a cold column costs one round of fetches, not two.
+            if (!explicitProfileRefresh && (!hasSimilarTracks || staleSimilarTracks)) {
               void artistInfoRefreshCoordinator.schedule(ArtistInfoSection.TopTracks, similarRefreshInput);
             }
             const topTrack = tracks[0] ?? null;

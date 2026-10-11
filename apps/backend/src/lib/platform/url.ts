@@ -1,4 +1,4 @@
-import type { ErrorCode, ServiceId } from "@musiccloud/shared";
+import { ENDPOINTS, type ErrorCode, parseJamendoLink, type ServiceId } from "@musiccloud/shared";
 
 export type UrlValidationResult = { valid: true } | { valid: false; code: ErrorCode; message: string };
 
@@ -11,8 +11,10 @@ export type UrlValidationResult = { valid: true } | { valid: false; code: ErrorC
  *   release/recording/release-group paths that do not fit the
  *   "music URL" / "album URL" classification used by `isMusicUrl` /
  *   `isAlbumUrl`.
+ * - `jamendo` is the Creative Commons catalog. Its links resolve through the
+ *   CC endpoint, never through the commercial resolver these patterns feed.
  */
-type DetectableService = Exclude<ServiceId, "youtube-music" | "musicbrainz">;
+type DetectableService = Exclude<ServiceId, "youtube-music" | "musicbrainz" | "jamendo">;
 
 export const MUSIC_URL_PATTERNS: Record<DetectableService, RegExp> = {
   spotify: /^https?:\/\/(open\.)?spotify\.com\/(track|album|intl-\w+\/track)\//,
@@ -203,6 +205,16 @@ export function validateMusicUrl(input: string): UrlValidationResult {
       valid: false,
       code: "PLAYLIST_NOT_SUPPORTED",
       message: "We support single tracks right now. Try pasting a link to a specific song.",
+    };
+  }
+
+  // Jamendo is the Creative Commons catalog and resolves through its own
+  // endpoint. The generic message below would call it unsupported.
+  if (parseJamendoLink(input)) {
+    return {
+      valid: false,
+      code: "UNSUPPORTED_SERVICE",
+      message: `Jamendo links point to Creative Commons music. Resolve them through POST ${ENDPOINTS.v1.ccResolve}.`,
     };
   }
 

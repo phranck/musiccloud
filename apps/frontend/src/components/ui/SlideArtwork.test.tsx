@@ -19,15 +19,15 @@ import { SlideArtwork } from "@/components/ui/SlideArtwork";
 const discEl = (c: HTMLElement) => c.querySelector(".mc-disc-drop-in, .mc-disc-drop-out");
 /** The cover layer that moves independently from the Single label image. */
 const coverEl = (c: HTMLElement) =>
-  Array.from(c.querySelectorAll("div")).find(
-    (el) => el.className.includes("bg-surface") && el.className.includes("will-change-transform"),
-  ) as HTMLElement;
+  Array.from(c.querySelectorAll("div")).find((el) => el.classList.contains("bg-surface")) as HTMLElement;
 
 describe("SlideArtwork loading swap", () => {
   it("renders no disc and a still cover while inactive", () => {
     const { container } = render(<SlideArtwork active={false} artworkUrl="/a.jpg" sizeClass="w-12 h-12" />);
     expect(discEl(container)).toBeNull();
     expect(coverEl(container).className).not.toMatch(/mc-cover-drop/);
+    // A list mounts dozens of these; a GPU layer for each resting cover costs Safari long frames.
+    expect(coverEl(container).className).not.toMatch(/will-change|transform-gpu/);
   });
 
   it("drops the disc in and the cover out when a row turns active", () => {
@@ -36,13 +36,28 @@ describe("SlideArtwork loading swap", () => {
     expect(discEl(container)?.className).toMatch(/mc-disc-drop-in/);
     expect(coverEl(container).className).toMatch(/mc-cover-drop-out/);
     expect(container.querySelector("[data-spin-state='playing']")).toHaveAttribute("data-vinyl-disc-format", "single");
-    expect(container.querySelector("[data-spin-state='playing']")).toHaveAttribute(
-      "data-vinyl-label-variant",
-      "generic",
-    );
     expect(container.querySelector("[data-spin-state='playing'] [data-vinyl-grooves='true']")).toHaveAttribute(
       "src",
       expect.stringMatching(/^data:image\/svg\+xml,/),
+    );
+  });
+
+  it("labels the spinning Single with the clicked row's artwork and prints no text on it", () => {
+    const { container } = render(<SlideArtwork active={true} artworkUrl="/a.jpg" sizeClass="w-12 h-12" />);
+    const disc = container.querySelector("[data-spin-state='playing']");
+
+    expect(disc).toHaveAttribute("data-vinyl-label-variant", "standard");
+    expect(disc?.querySelector("[data-vinyl-label-artwork='true']")).toHaveAttribute("src", "/a.jpg");
+    // Tile-sized: text on the label would be a pixel or two high and costs frames.
+    expect(disc?.querySelector("[data-vinyl-label-print-copy='true']")).toBeNull();
+  });
+
+  it("keeps the generic label on the spinning Single when the row has no artwork", () => {
+    const { container } = render(<SlideArtwork active={true} sizeClass="w-12 h-12" />);
+
+    expect(container.querySelector("[data-spin-state='playing']")).toHaveAttribute(
+      "data-vinyl-label-variant",
+      "generic",
     );
   });
 

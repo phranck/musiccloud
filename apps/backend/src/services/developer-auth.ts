@@ -79,6 +79,14 @@ export const TokenPurpose = {
   Verify: "verify",
   /** Password-reset token issued by the request-reset flow. */
   Reset: "reset",
+  /**
+   * Confirmation token for a change of sign-in address.
+   *
+   * Sent to the address being moved to, because that is the one whose owner
+   * has to prove they can read it. The account keeps signing in with the old
+   * address until this is redeemed.
+   */
+  ChangeEmail: "change-email",
 } as const;
 
 /**
@@ -131,13 +139,14 @@ export async function verifyPassword(password: string, hash: string | null): Pro
 }
 
 /**
- * SHA-256 hex digest helper shared by token generation and verification, so
- * the raw → hash transform is defined in exactly one place.
+ * SHA-256 hex digest helper shared by token generation, token verification and
+ * the Gravatar lookup, so the raw to hash transform is defined in exactly one
+ * place.
  *
  * @param value - The value to digest.
  * @returns The lowercase hex-encoded SHA-256 digest.
  */
-function sha256Hex(value: string): string {
+export function sha256Hex(value: string): string {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
 

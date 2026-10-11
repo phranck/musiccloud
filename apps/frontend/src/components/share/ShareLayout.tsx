@@ -35,6 +35,8 @@ interface ShareUiState {
   currentConfig: MediaCardContentConfiguration;
   lastPropsConfigKey: string;
   previewStatus: AudioStatus | null;
+  /** The row candidate the shown track was resolved from in place; `null` when the page opened on it. */
+  resolvedCandidate: string | null;
   resolveErrorVisible: boolean;
   resolveTriggeredArtistLoad: boolean;
   shareMediaView: ShareMediaViewType;
@@ -63,6 +65,7 @@ type ShareUiAction =
       type: typeof ShareUiActionType.Resolved;
       artistContext?: ArtistInfoContext;
       artistName?: string;
+      candidate: string;
       config: MediaCardContentConfiguration;
     };
 
@@ -96,6 +99,7 @@ function shareUiReducer(state: ShareUiState, action: ShareUiAction): ShareUiStat
         // status on mount, so a stale `playing` would otherwise stick. A stale
         // resolve error from the previous entity is likewise no longer relevant.
         previewStatus: null,
+        resolvedCandidate: null,
         resolveErrorVisible: false,
       };
     case ShareUiActionType.ResolveErrorHidden:
@@ -115,6 +119,7 @@ function shareUiReducer(state: ShareUiState, action: ShareUiAction): ShareUiStat
         // (otherwise the VFD keeps showing "playing" after the audio stopped).
         // A prior resolve error no longer applies to the freshly resolved track.
         previewStatus: null,
+        resolvedCandidate: action.candidate,
         resolveErrorVisible: false,
       };
   }
@@ -132,6 +137,7 @@ function initialShareUiState({
     currentConfig: config,
     lastPropsConfigKey: configIdentity(config),
     previewStatus: null,
+    resolvedCandidate: null,
     resolveErrorVisible: false,
     resolveTriggeredArtistLoad: false,
     // Always the server's default. The persisted view is restored after mount
@@ -144,6 +150,7 @@ function initialShareUiState({
 }
 
 import type { ArtistCardLabels } from "@/components/artist/artistPanelTypes";
+import { buildNowPlayingTrack } from "@/components/artist/nowPlayingTrack";
 import { AudioStatus } from "@/components/audio/AudioStatus";
 import { DesktopShareLayout } from "@/components/share/DesktopShareLayout";
 import { MobileArtistSheet } from "@/components/share/MobileArtistSheet";
@@ -169,6 +176,13 @@ import { replaceBrowserUrlWithShortUrl } from "@/lib/share/short-url";
 import { type MediaCardContentConfiguration, MediaCardContentTypeValue, MediaKindValue } from "@/lib/types/media-card";
 
 export type { ArtistInfoContext };
+
+/**
+ * Budget for an artist-column row's in-place resolve plus the preload of its
+ * cover and audio. Longer than the 15 s the Astro proxy gives the backend, so a
+ * backend timeout is reported by the proxy rather than cut off by this abort.
+ */
+const TRACK_RESOLVE_TIMEOUT_MS = 20000;
 
 const SHARE_MEDIA_VIEW_TOGGLE_KEY = "p";
 const SHARE_MEDIA_VIEW_STORAGE_KEY = "musiccloud:share-media-view";
@@ -237,7 +251,14 @@ function artistInfoContextFromConfig(config: MediaCardContentConfiguration): Art
   return { shortId: config.shortId };
 }
 
+/**
+ * Whether two artist-info contexts describe the same artist. The entity id
+ * decides when both carry one, because every track has its own short id and
+ * comparing those would reload the artist column for a track by the same
+ * artist. The short id only decides when no entity id is known.
+ */
 function sameArtistInfoContext(a: ArtistInfoContext, b: ArtistInfoContext): boolean {
+  if (a.artistEntityId && b.artistEntityId) return a.artistEntityId === b.artistEntityId;
   return (a.shortId ?? "") === (b.shortId ?? "") && (a.artistEntityId ?? "") === (b.artistEntityId ?? "");
 }
 
@@ -278,13 +299,11 @@ interface ShareLayoutProps {
   /** English label for the back link. Required if `onBack` is given. */
   backLabel?: string;
   /**
-   * Pre-supplied artist-column data. When `skipArtistFetch` is set, ShareLayout
-   * renders this directly and runs no internal fetch — the Creative-Commons path
-   * passes a Jamendo-built {@link ArtistInfoResponse} here. Commercial omits it.
+   * Pre-built artist column for a Creative Commons album or artist, built from
+   * Jamendo. ShareLayout renders it without a fetch for as long as the shown
+   * entity carries no `ccJamendoArtistId`. Commercial omits it.
    */
   artistData?: ArtistInfoResponse | null;
-  /** Suppresses the internal artist-info fetch — used together with `artistData`. */
-  skipArtistFetch?: boolean;
   /**
    * The resolver for a clicked popular/similar-track row. Defaults to
    * {@link commercialTrackResolver}; the CC path passes {@link ccTrackResolver}.
@@ -343,7 +362,7 @@ function useTrackResolver(params: {
       resolveRequestRef.current = requestId;
       const isLatest = () => requestId === resolveRequestRef.current;
 
-      const timeout = setTimeout(() => controller.abort(), 15000);
+      const timeout = setTimeout(() => controller.abort(), TRACK_RESOLVE_TIMEOUT_MS);
       let keepResolveLoadingForArtistFetch = false;
       try {
         const update = await trackResolver(track.deezerUrl, {
@@ -378,10 +397,14 @@ function useTrackResolver(params: {
               !sameArtistInfoContext(update.artistInfoContext ?? {}, currentArtistContext);
           keepResolveLoadingForArtistFetch = shouldFetchArtist;
           if (shouldFetchArtist) dispatchUi({ type: ShareUiActionType.ResolveStarted });
+          // The artist column reloads whenever its context object changes, so a
+          // same-artist swap keeps the current context rather than handing over
+          // an equal one with the new track's short id.
           dispatchUi({
             type: ShareUiActionType.Resolved,
-            artistContext: update.artistInfoContext,
+            artistContext: shouldFetchArtist ? update.artistInfoContext : undefined,
             artistName: shouldFetchArtist ? update.artistName : undefined,
+            candidate: track.deezerUrl,
             config: update.config,
           });
           if (update.pageTitle) document.title = update.pageTitle;
@@ -412,7 +435,6 @@ function ShareLayoutInner({
   onBack,
   backLabel,
   artistData: artistDataProp,
-  skipArtistFetch = false,
   trackResolver = commercialTrackResolver,
   labels,
 }: ShareLayoutProps) {
@@ -442,14 +464,26 @@ function ShareLayoutInner({
     currentArtistName,
     currentConfig,
     previewStatus,
+    resolvedCandidate,
     resolveErrorVisible,
     resolveTriggeredArtistLoad,
     shareMediaView,
     sheetOpen,
   } = shareUiState;
+  const nowPlaying = useMemo(
+    () => buildNowPlayingTrack(currentConfig, resolvedCandidate, previewStatus),
+    [currentConfig, previewStatus, resolvedCandidate],
+  );
   // Clears the "resolve triggered a load" UI flag once each artist-info load
   // settles, matching the order the inline fetch effect used.
   const handleArtistFetchSettled = useCallback(() => dispatchUi({ type: ShareUiActionType.ArtistFetchFinished }), []);
+  // A Creative Commons album or artist opens with its column pre-built and
+  // without a `ccJamendoArtistId`. A row click swaps in a CC track, which has
+  // one, and `useTrackResolver` raises the loading status expecting a fetch for
+  // that artist. Deciding on the shown config, not the one the page opened with,
+  // is what makes that fetch run and settle the status, and the column then
+  // shows what the track's own share URL would show.
+  const skipArtistFetch = artistDataProp !== undefined && !currentConfig.ccJamendoArtistId;
   const {
     status: artistLoadStatus,
     artistData,
@@ -571,8 +605,11 @@ function ShareLayoutInner({
       // info fetch state, and the preview player. VfdDisplay stays reusable
       // and only receives plain English text.
       statusLine: vfdStatusLine,
+      // Exactly as long as the loading status stands: the media card pulses
+      // that status and holds the play button while it does.
+      artistDataLoading: artistStatusLoading,
     }),
-    [currentConfig, vfdStatusLine],
+    [artistStatusLoading, currentConfig, vfdStatusLine],
   );
 
   const openSheet = useCallback(() => {
@@ -620,6 +657,7 @@ function ShareLayoutInner({
           isLoading={isLoading}
           labels={artistLabels}
           mediaViewToggleLabel={shareCopy.toggleMediaView}
+          nowPlaying={nowPlaying}
           onArtistResolveStart={handleArtistResolveStart}
           onMediaViewToggle={toggleMediaView}
           onPreviewStatusChange={handlePreviewStatusChange}
@@ -651,6 +689,7 @@ function ShareLayoutInner({
             closeLabel={artistCopy.closeInfo}
             isLoading={isLoading}
             labels={artistLabels}
+            nowPlaying={nowPlaying}
             onArtistResolveStart={handleArtistResolveStart}
             onClose={closeSheet}
             onTrackResolve={resolveTrack}

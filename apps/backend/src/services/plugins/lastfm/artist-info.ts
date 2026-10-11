@@ -6,7 +6,7 @@
 
 import { type DefaultTreeAdapterTypes, parseFragment } from "parse5";
 import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
-import { log } from "../../../lib/infra/logger.js";
+import { readLastFmJson } from "./lastfm-response.js";
 
 const API_BASE = "https://ws.audioscrobbler.com/2.0";
 const TIMEOUT_MS = 5000;
@@ -79,34 +79,33 @@ interface LastFmArtistInfoResponse {
   };
 }
 
+/**
+ * Reads an artist's Last.fm bio, listener counts and similar artists.
+ *
+ * @param name - The artist name.
+ * @returns The info, or `null` when no API key is configured or Last.fm does
+ *   not know the artist.
+ * @throws {UpstreamUnavailableError} when Last.fm did not answer.
+ */
 export async function fetchLastFmArtistInfo(name: string): Promise<LastFmArtistInfoResult | null> {
   const apiKey = process.env.LASTFM_API_KEY;
   if (!apiKey) return null;
 
-  try {
-    const res = await fetchWithTimeout(
-      `${API_BASE}/?method=artist.getInfo&artist=${encodeURIComponent(name)}&api_key=${encodeURIComponent(apiKey)}&format=json`,
-      {},
-      TIMEOUT_MS,
-    );
-    if (!res.ok) {
-      log.debug("Last.fm", "artist.getInfo HTTP error", res.status, name);
-      return null;
-    }
-    const data = (await res.json()) as LastFmArtistInfoResponse;
-    const artist = data.artist;
-    if (!artist) return null;
+  const res = await fetchWithTimeout(
+    `${API_BASE}/?method=artist.getInfo&artist=${encodeURIComponent(name)}&api_key=${encodeURIComponent(apiKey)}&format=json`,
+    {},
+    TIMEOUT_MS,
+  );
+  const data = await readLastFmJson<LastFmArtistInfoResponse>(res, "artist.getInfo");
+  const artist = data?.artist;
+  if (!artist) return null;
 
-    return {
-      bioSummary: extractBioSummary(artist.bio?.summary ?? null),
-      scrobbles: artist.stats?.playcount ? parseInt(artist.stats.playcount, 10) : null,
-      listeners: artist.stats?.listeners ? parseInt(artist.stats.listeners, 10) : null,
-      similarArtists: (artist.similar?.artist ?? []).slice(0, 5).map((a) => a.name),
-    };
-  } catch (err) {
-    log.debug("Last.fm", "artist.getInfo threw", err);
-    return null;
-  }
+  return {
+    bioSummary: extractBioSummary(artist.bio?.summary ?? null),
+    scrobbles: artist.stats?.playcount ? parseInt(artist.stats.playcount, 10) : null,
+    listeners: artist.stats?.listeners ? parseInt(artist.stats.listeners, 10) : null,
+    similarArtists: (artist.similar?.artist ?? []).slice(0, 5).map((a) => a.name),
+  };
 }
 
 function collectReadableText(node: DefaultTreeAdapterTypes.Node, chunks: string[]): void {

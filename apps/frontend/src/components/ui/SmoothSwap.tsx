@@ -169,7 +169,14 @@ export function SmoothSwap({ swapKey, children, className, durationMs = DEFAULT_
   const currentChildren = state.previous === null && state.key === swapKey ? children : state.current;
 
   return (
-    <div ref={wrapperRef} className={cn("relative grid overflow-hidden contain-paint", className)}>
+    // One column exactly as wide as the wrapper. An implicit `auto` column takes
+    // its buffer's minimum content width, which for a truncated title is the whole
+    // title, and grows past the wrapper, whose overflow clipping then cuts off the
+    // end of every row.
+    <div
+      ref={wrapperRef}
+      className={cn("relative grid grid-cols-[minmax(0,1fr)] overflow-hidden contain-paint", className)}
+    >
       {state.previous && (
         <div
           ref={previousRef}

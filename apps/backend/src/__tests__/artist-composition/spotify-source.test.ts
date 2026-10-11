@@ -17,6 +17,7 @@ vi.mock("../../lib/infra/fetch.js", () => ({
   fetchWithTimeout: (url: string, init?: RequestInit, timeoutMs?: number) => fetchWithTimeoutMock(url, init, timeoutMs),
 }));
 
+import { UpstreamUnavailableError } from "../../lib/infra/upstream-unavailable";
 import { fetchSpotifyArtistPartial } from "../../services/artist-composition/sources/spotify-source";
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -68,13 +69,13 @@ describe("fetchSpotifyArtistPartial", () => {
     expect(await fetchSpotifyArtistPartial("Nobody")).toBeNull();
   });
 
-  it("returns null on non-OK response", async () => {
+  it("reports a non-OK response as unavailable", async () => {
     fetchWithTimeoutMock.mockResolvedValueOnce(jsonResponse({}, 503));
-    expect(await fetchSpotifyArtistPartial("Slowdive")).toBeNull();
+    await expect(fetchSpotifyArtistPartial("Slowdive")).rejects.toBeInstanceOf(UpstreamUnavailableError);
   });
 
-  it("returns null when fetch throws", async () => {
+  it("lets a network failure through", async () => {
     fetchWithTimeoutMock.mockRejectedValueOnce(new Error("network down"));
-    expect(await fetchSpotifyArtistPartial("Slowdive")).toBeNull();
+    await expect(fetchSpotifyArtistPartial("Slowdive")).rejects.toThrow("network down");
   });
 });

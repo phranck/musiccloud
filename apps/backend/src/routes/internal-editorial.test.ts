@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   getPublishedContentPageByPath: vi.fn(),
   listNavigationConfiguration: vi.fn(),
   renderMarkdown: vi.fn(),
+  resolveSiteVariableValues: vi.fn(),
 }));
 
 vi.mock("../db/index.js", () => ({
@@ -29,6 +30,20 @@ vi.mock("../db/index.js", () => ({
 vi.mock("../services/markdown/renderer.js", () => ({
   renderMarkdown: mocks.renderMarkdown,
 }));
+
+vi.mock("../services/site-variables.js", () => ({
+  resolveSiteVariableValues: mocks.resolveSiteVariableValues,
+}));
+
+/** Figures no constant in the codebase holds, so nothing can reach a page by luck. */
+const VARIABLE_VALUES = {
+  freeRequestsPerMinute: 37,
+  freeRequestsPerDay: 4321,
+  projectsPerAccount: 7,
+  registrationsPerProject: 9,
+  keylessRequestsPerMinute: 11,
+  keylessRequestsPerDay: 222,
+};
 
 const { internalEditorialRoutes } = await import("./internal-editorial.js");
 
@@ -114,9 +129,11 @@ describe("internal Developer Portal editorial routes", () => {
     mocks.getPublishedContentPageByPath.mockReset();
     mocks.listNavigationConfiguration.mockReset();
     mocks.renderMarkdown.mockReset();
+    mocks.resolveSiteVariableValues.mockReset();
     mocks.getPublishedContentPageByPath.mockResolvedValue(page);
     mocks.getContentPageById.mockResolvedValue(page);
     mocks.renderMarkdown.mockResolvedValue("<h1>Privacy</h1>");
+    mocks.resolveSiteVariableValues.mockResolvedValue(VARIABLE_VALUES);
     mocks.listNavigationConfiguration.mockResolvedValue([
       systemEntry(1, NavigationSystemKey.Docs, NavigationArea.Main, 2),
       systemEntry(2, NavigationSystemKey.ApiReference, NavigationArea.Footer, 0),
@@ -171,6 +188,26 @@ describe("internal Developer Portal editorial routes", () => {
       templateKey: "developer-default",
       contentHtml: "<h1>Privacy</h1>",
     });
+  });
+
+  it("expands a site variable before the Markdown is parsed", async () => {
+    mocks.getPublishedContentPageByPath.mockResolvedValue({
+      ...page,
+      content: "Up to {freeRequestsPerDay} a day, across {projectsPerAccount} projects.",
+    });
+    const app = await createApp();
+    await app.inject({
+      method: "GET",
+      url: ENDPOINTS.internal.developer.editorial.page("/privacy"),
+      headers: { "x-api-key": "internal-test-key" },
+    });
+
+    // What reaches the renderer already carries the figures, which is what lets
+    // a variable stand anywhere a person can type, attributes included.
+    expect(mocks.renderMarkdown).toHaveBeenCalledWith(
+      "Up to 4,321 a day, across 7 projects.",
+      ContentContext.DeveloperPortal,
+    );
   });
 
   it("sanitizes rendered Markdown HTML before returning managed content", async () => {

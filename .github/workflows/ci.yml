@@ -129,7 +129,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           package-manager-cache: false
       - run: corepack enable pnpm
       - run: corepack prepare pnpm@10.33.1 --activate
@@ -150,7 +150,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           package-manager-cache: false
       - run: corepack enable pnpm
       - run: corepack prepare pnpm@10.33.1 --activate
@@ -186,7 +186,7 @@ jobs:
         if: needs.detect-validation-changes.outputs.dashboard == 'true'
         run: pnpm --filter @musiccloud/dashboard typecheck
       - name: Workflow and deployment contracts
-        run: node --test scripts/ci-workflow.test.mjs scripts/zerops-deploy.test.mjs scripts/readme-links.test.mjs
+        run: node --test scripts/*.test.mjs
       - name: Shared tests
         if: needs.detect-validation-changes.outputs.shared == 'true'
         run: pnpm --filter @musiccloud/shared test:run

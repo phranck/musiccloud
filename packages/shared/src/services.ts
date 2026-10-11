@@ -50,11 +50,28 @@ export const Service = {
   JioSaavn: "jiosaavn",
   Beatport: "beatport",
   MusicBrainz: "musicbrainz",
+  /**
+   * The Creative Commons catalog. A CC result links here as its one service;
+   * the commercial cross-service search never queries it.
+   */
+  Jamendo: "jamendo",
 } as const;
 
 export type ServiceId = (typeof Service)[keyof typeof Service];
 
-export type MatchMethod = "isrc" | "search" | "cache" | "upc" | "isrc-inference";
+/**
+ * Every way a link can be arrived at. The list is the definition and the type
+ * is derived from it, so a runtime check and a compile-time check cannot end up
+ * disagreeing about which values exist.
+ *
+ * Two of them are not lookups at all. `source` is the link the request came in
+ * on, so it is the recording by definition. `search-fallback` is its opposite:
+ * nothing was found on that service, and the link opens a search for the
+ * recording instead of the recording.
+ */
+export const MATCH_METHODS = ["isrc", "search", "cache", "upc", "isrc-inference", "search-fallback", "source"] as const;
+
+export type MatchMethod = (typeof MATCH_METHODS)[number];
 
 /**
  * Namespace of resource kinds. Used by the error-code helpers and any other

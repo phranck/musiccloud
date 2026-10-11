@@ -56,11 +56,17 @@ export const PLATFORM_CONFIG: Record<ServiceId, PlatformConfig> = {
   jiosaavn: { label: "JioSaavn", color: "#2BC5B4" },
   beatport: { label: "Beatport", color: "#94D500" },
   musicbrainz: { label: "MusicBrainz", color: "#BA478F", hidden: true },
+  jamendo: { label: "Jamendo", color: "#FE1F59" },
 };
 
 /**
  * User-facing display order for platforms.
  * Major services first, niche/regional services later.
+ *
+ * Jamendo is not listed: a Creative Commons result shows it as its only
+ * service, so it never needs a rank, and the dashboard's track editor offers a
+ * link field for every service listed here, which a commercial track must not
+ * get for Jamendo.
  */
 export const SERVICE_DISPLAY_ORDER: readonly string[] = [
   "spotify",

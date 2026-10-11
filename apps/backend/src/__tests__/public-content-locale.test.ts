@@ -44,6 +44,19 @@ const baseRepo: Partial<AdminRepository> = {
 
 vi.mock("../db/index.js", () => ({ getAdminRepository: async () => baseRepo }));
 
+// The figures a page may name come from a plan, a setting and two rate limiters,
+// none of which this test stands up. What it is about is which page is served.
+vi.mock("../services/site-variables.js", () => ({
+  resolveSiteVariableValues: async () => ({
+    freeRequestsPerMinute: 60,
+    freeRequestsPerDay: 10_000,
+    projectsPerAccount: 3,
+    registrationsPerProject: 5,
+    keylessRequestsPerMinute: 10,
+    keylessRequestsPerDay: 500,
+  }),
+}));
+
 function mkPage(overrides: Partial<ContentPageRow> = {}): ContentPageRow {
   return {
     slug: "about",

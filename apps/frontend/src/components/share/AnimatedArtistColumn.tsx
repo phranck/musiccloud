@@ -13,12 +13,20 @@ import type {
 import { buildSimilarSwapKey, buildTracksSwapKey } from "@/components/artist/artistSwapKeys";
 import { toPopularTrackItems, toSimilarTrackItems } from "@/components/artist/artistTrackItems";
 import { EventsCard } from "@/components/artist/EventsCard";
+import type { NowPlayingTrack } from "@/components/artist/nowPlayingTrack";
 import { SimilarArtistsSkeleton } from "@/components/artist/SimilarArtistsSkeleton";
 import { TracksSkeleton } from "@/components/artist/TracksSkeleton";
 import { artistCopy } from "@/copy/artist";
 import { ArtistLoadStatus } from "@/hooks/useArtistInfo";
 import { CardSignal } from "@/lib/analytics/umami";
 import { animateFlipFrom, type CapturedFlipState, captureFlipState } from "@/lib/motion/flip";
+
+/**
+ * How long after mount the column takes its first Flip snapshot, in
+ * milliseconds. Long enough to leave the result reveal's frames alone, short
+ * enough to be in place before a user can switch tracks.
+ */
+const MOUNT_SNAPSHOT_DELAY_MS = 300;
 
 interface AnimatedArtistColumnProps {
   /** Latest artist-info payload, or `null` while the client-side fetch is still loading. */
@@ -29,6 +37,8 @@ interface AnimatedArtistColumnProps {
   isLoading: boolean;
   /** The four artist-column section titles, supplied by the presentation owner. */
   labels: ArtistCardLabels;
+  /** The track the share page's player holds; both track lists mark its row. */
+  nowPlaying: NowPlayingTrack | null;
   /** Lifts the "resolve started" moment so the VFD flips to loading in sync with the spinning disc. */
   onArtistResolveStart: () => void;
   /** Resolves a clicked popular/similar track into a new share view. */
@@ -69,7 +79,9 @@ interface AnimatedArtistColumnProps {
  *   scale-animated — its layout height changes exactly once at commit, never
  *   per frame (compositor-only, no `height` tween).
  * - The first run only seeds the snapshot and plays NO entrance: the cards are
- *   SSR-rendered and hydrated in place, so an entrance would flicker. This is
+ *   SSR-rendered and hydrated in place, so an entrance would flicker. The seed
+ *   is taken {@link MOUNT_SNAPSHOT_DELAY_MS} after mount, outside the frames of
+ *   the result reveal, because capturing forces layouts. This is
  *   the deliberate difference from `AnimatedPlatformGrid`, whose tiles do play
  *   a first-mount entrance.
  * - Cards unmounted by React (empty sections) cannot be animated out and
@@ -81,7 +93,7 @@ interface AnimatedArtistColumnProps {
  * during the internal placeholder→skeleton step (`useSkeletonAllowed` in
  * `hooks/useSkeletonAllowed.ts`, 300 ms).
  * That step is shift-free by design — the cards' `min-h` placeholders are sized
- * to the skeleton heights — so the loading snapshot captured at mount stays a
+ * to the skeleton heights — so the loading snapshot captured after mount stays a
  * faithful "before" for the resolve flip even when the skeleton phase is shown.
  */
 export function AnimatedArtistColumn({
@@ -89,6 +101,7 @@ export function AnimatedArtistColumn({
   artistLoadStatus,
   isLoading,
   labels,
+  nowPlaying,
   onArtistResolveStart,
   onTrackResolve,
   userRegion,
@@ -96,11 +109,23 @@ export function AnimatedArtistColumn({
 }: AnimatedArtistColumnProps) {
   const columnRef = useRef<HTMLDivElement>(null);
   const previousFlipStateRef = useRef<CapturedFlipState | null>(null);
+  const hasMountedRef = useRef(false);
 
   useGSAP(
     () => {
       const column = columnRef.current;
       if (!column) return;
+      if (!hasMountedRef.current) {
+        hasMountedRef.current = true;
+        // The first snapshot only serves as the "before" of a later status
+        // change, and taking it forces layouts of the column and every card.
+        // It waits until the mount frame, which carries the whole result
+        // reveal, is over. A change that comes sooner simply snaps.
+        const snapshotTimer = setTimeout(() => {
+          previousFlipStateRef.current ??= captureFlipState([column, ...Array.from(column.children)]);
+        }, MOUNT_SNAPSHOT_DELAY_MS);
+        return () => clearTimeout(snapshotTimer);
+      }
       const cards = Array.from(column.children);
       const targets = [column, ...cards];
       const previousState = previousFlipStateRef.current;
@@ -157,6 +182,7 @@ export function AnimatedArtistColumn({
             placeholderHeightClass="min-h-[186px]"
             onTrackResolve={onTrackResolve}
             onResolveStart={onArtistResolveStart}
+            nowPlaying={nowPlaying}
           />
           <EventsCard title={labels.events} data={artistData} isLoading={isLoading} userRegion={userRegion} />
           <ArtistTrackListCard
@@ -170,6 +196,7 @@ export function AnimatedArtistColumn({
             cardSignal={CardSignal.SimilarArtist}
             onTrackResolve={onTrackResolve}
             onResolveStart={onArtistResolveStart}
+            nowPlaying={nowPlaying}
           />
         </>
       )}

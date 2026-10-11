@@ -2,7 +2,7 @@
  * Normalized outside-in hierarchy for generated API-reference content.
  *
  * Chapters own content H2 structure and icon alignment. Entries own the
- * repeated external H3 plus content relationship used by endpoints, SDKs, and
+ * repeated external H3 plus content relationship used by endpoints and
  * schemas. Call sites supply data and search attributes without rebuilding
  * either layout.
  */

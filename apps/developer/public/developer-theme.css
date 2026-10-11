@@ -36,6 +36,9 @@
   --mc-color-github-surface-hover: #232925;
   --mc-color-github-fg: #ffffff;
   --mc-color-code-bg: rgba(0, 0, 0, 0.38);
+  /* An input is a surface a developer writes on, not a block of code they read.
+     It sits below the card it is in without going as deep as a code block. */
+  --mc-color-field-bg: rgba(0, 0, 0, 0.16);
   --mc-color-code-fg: #c2d2dc;
   --mc-color-inline-code-bg: color-mix(in srgb, var(--mc-color-request-patch) 20%, transparent);
   --mc-color-inline-code-fg: color-mix(in srgb, var(--mc-color-fg) 78%, var(--mc-color-request-patch));
@@ -63,18 +66,33 @@
   );
   --mc-gradient-logo-suffix: linear-gradient(90deg, var(--mc-color-fg) 0%, var(--mc-color-fg-subtle) 100%);
 
-  --mc-radius-card: 1rem;
+  --mc-radius-card: 1.25rem;
   --mc-radius-control: 0.5rem;
   --mc-radius-keycap: 0.3125rem;
   --mc-radius-pill: 9999px;
   --mc-radius-round: 50%;
-  --mc-size-control: 2.75rem;
-  --mc-size-control-compact: 2rem;
+  --mc-size-control: 3rem;
+  --mc-size-control-compact: 2.25rem;
+  /* A text field is a line to type on rather than a target to hit, so it is
+     shorter than a button. Its own token, because the two stopped agreeing the
+     moment buttons were asked to grow. */
+  --mc-size-field: 2.75rem;
   --mc-size-icon-sm: 1rem;
   --mc-size-icon-md: 1.25rem;
   --mc-size-icon-lg: 1.5rem;
   --mc-size-icon-xl: 2.25rem;
-  --mc-size-text-icon: 1.2cap;
+  --mc-size-text-icon: 1.7cap;
+
+  /* The tick a stacked fields list draws beside each statement.
+     The same path the TickCircle icon component uses, as a mask, because
+     rendered Markdown carries no SVG: the sanitizer drops it, and opening that
+     up for a decoration is not worth it. The ring around it is a rounded box,
+     so only the tick itself needs a path. */
+  /* The ring the tick sits in, from the same icon. Its circle has a radius of
+     10 in a 24 box, so it deliberately does not fill the square; drawing it as
+     a rounded box instead came out visibly larger. */
+  --mc-editorial-tick-ring-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10Z' fill='black'/%3E%3C/svg%3E");
+  --mc-editorial-tick-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10.58 15.582a.75.75 0 0 1-.53-.22l-2.83-2.83a.754.754 0 0 1 0-1.06c.29-.29.77-.29 1.06 0l2.3 2.3 5.14-5.14c.29-.29.77-.29 1.06 0 .29.29.29.77 0 1.06l-5.67 5.67a.75.75 0 0 1-.53.22Z' fill='black'/%3E%3C/svg%3E");
 
   --mc-space-1: 0.25rem;
   --mc-space-2: 0.5rem;
@@ -84,11 +102,12 @@
   --mc-space-6: 1.5rem;
   --mc-space-7: 1.75rem;
   --mc-space-8: 2rem;
+  --mc-space-10: 2.5rem;
   --mc-space-page-inline: 1.5rem;
   --mc-space-page-top: 3rem;
   --mc-space-page-bottom: 5rem;
-  --mc-space-content-card: 1.25rem;
-  --mc-space-content-card-header: 1.25rem;
+  --mc-space-content-card: 1rem;
+  --mc-space-content-card-header: 0.875rem;
   --mc-space-content-card-row: 0.75rem;
   --mc-container-developer: 88rem;
   --mc-dashboard-sidebar-width: 13rem;
@@ -119,6 +138,9 @@
   --mc-code-padding-inline: 1rem;
   --mc-code-copy-clearance: 3.5rem;
   --mc-code-line-height: 1.7;
+  /* What a built page reads at, which is the browser's own and what every
+     hand-written portal page used. Editorial prose reads wider, below. */
+  --mc-line-height-normal: 1.5;
   --mc-editorial-line-height: 1.6;
   --mc-editorial-heading-line-height: 1.25;
 
@@ -131,6 +153,13 @@
   --mc-text-wordmark: 1.5rem;
   --mc-text-body: 1.125rem;
   --mc-text-code: 0.9375rem;
+  /* A caption under a picture or a video, which is read after the thing it
+     describes and therefore sits a step below body text. */
+  --mc-text-caption: 0.9375rem;
+  /* A card is a column inside the page, so it reads one step below the page's
+     own size: large enough not to look like a footnote, small enough that the
+     card reads as something set into the text rather than as more of it. */
+  --mc-text-card-body: 1.25rem;
   --mc-text-card-title: 1.75rem;
   --mc-text-subsection: 1.625rem;
   --mc-text-section: 2.25rem;

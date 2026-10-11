@@ -5,7 +5,7 @@ import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
 import { ContentCard } from "@/components/docs/ContentCard";
 import { postAuth } from "@/lib/authClient";
-import { AuthErrorCode, authErrorLabel } from "@/lib/authErrors";
+import { authErrorLabel, isEmailFieldError } from "@/lib/authErrors";
 import { AuthStatusTone } from "@/lib/authStatusTone";
 import { FormPhase, type FormPhaseValue } from "@/lib/formPhase";
 
@@ -90,10 +90,10 @@ interface SignupFormProps {
  * `/api/dev/auth/signup`. The repeat field is checked against `password`
  * client-side before submit (no round-trip on mismatch, mirroring
  * `ResetForm`). A `201` does NOT log the user in (no session); instead it
- * swaps to an "info" status panel telling them to verify by email. `409`
- * (`EMAIL_TAKEN`) attaches an inline error to the email field; a `400`
- * surfaces the backend validation message on the password field (e.g. the
- * length rule).
+ * swaps to an "info" status panel telling them to verify by email. A refusal
+ * about the address, whether it is already taken or cannot be an address at
+ * all, attaches an inline error to the email field; anything else surfaces the
+ * backend validation message on the password field, such as the length rule.
  *
  * Rendered with `client:load` from `signup.astro`, wrapping the GitHub button
  * and "or" divider as its {@link SignupFormProps.children} so the success state
@@ -146,7 +146,7 @@ export function SignupForm({ children, tier }: SignupFormProps) {
       }
 
       const label = authErrorLabel(result.code, result.message);
-      if (result.code === AuthErrorCode.EmailTaken) {
+      if (isEmailFieldError(result.code)) {
         dispatch({ phase: FormPhase.Error, emailError: label });
       } else {
         dispatch({ phase: FormPhase.Error, passwordError: label });

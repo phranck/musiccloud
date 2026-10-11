@@ -142,6 +142,9 @@ export async function refreshAdminArtistProfile(
       artistInfoRefreshCoordinator.refresh(ArtistInfoSection.Profile, {
         repo,
         ...refreshInput,
+        // A manual refresh stores only a complete profile: the cache status
+        // it reports afterwards then describes data every provider answered.
+        hasStoredValue: true,
       }) as Promise<ArtistProfile | null>,
     beginArtistProfileRefresh: (data) => adminRepo.beginArtistProfileRefresh(data),
     completeArtistProfileRefresh: (id, completedAt) => adminRepo.completeArtistProfileRefresh(id, completedAt),

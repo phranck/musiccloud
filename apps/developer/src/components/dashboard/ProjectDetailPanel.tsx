@@ -43,6 +43,8 @@ export interface ProjectDetailPanelProps {
  */
 export function ProjectDetailPanel({ projectId }: ProjectDetailPanelProps) {
   const [state, dispatch] = useReducer(projectDetailReducer, PROJECT_DETAIL_INITIAL_STATE);
+  // Nothing to save while the field holds the project's own name.
+  const nameChanged = state.project !== null && state.name.trim() !== state.project.displayName;
   const { project, loadFailure, name, phase, saveFailure } = state;
 
   useEffect(() => {
@@ -139,23 +141,23 @@ export function ProjectDetailPanel({ projectId }: ProjectDetailPanelProps) {
               )}
               <dl className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-4">
                 <div>
-                  <dt className="text-nav text-fg-subtle mb-0.5">Plan</dt>
+                  <dt className="text-body text-fg-subtle mb-0.5">Plan</dt>
                   <dd className="text-body text-fg">
                     {project.subscription.tierName ?? "No plan yet"}{" "}
                     <a
                       href={`/dashboard/projects/${project.id}/plan`}
-                      className="content-link text-nav text-fg-muted ml-1"
+                      className="content-link text-body text-fg-muted ml-1"
                     >
                       {project.subscription.tierId === null ? "choose one" : "change"}
                     </a>
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-nav text-fg-subtle mb-0.5">Rate limit</dt>
+                  <dt className="text-body text-fg-subtle mb-0.5">Rate limit</dt>
                   <dd className="text-body text-fg">{perMinuteQuotaLabel(project.quota.requestsPerMinute)}</dd>
                 </div>
                 <div>
-                  <dt className="text-nav text-fg-subtle mb-0.5">Daily quota</dt>
+                  <dt className="text-body text-fg-subtle mb-0.5">Daily quota</dt>
                   <dd className="text-body text-fg">{perDayQuotaLabel(project.quota.requestsPerDay)}</dd>
                 </div>
               </dl>
@@ -164,8 +166,8 @@ export function ProjectDetailPanel({ projectId }: ProjectDetailPanelProps) {
             </ContentCard.Body.Copy>
           </ContentCard.Body>
           <ContentCard.Footer>
-            <SubmitButton loading={phase === FormPhase.Submitting}>
-              {phase === FormPhase.Success ? "Saved" : "Save name"}
+            <SubmitButton loading={phase === FormPhase.Submitting} disabled={!nameChanged}>
+              {phase === FormPhase.Success && !nameChanged ? "Saved" : "Save name"}
             </SubmitButton>
           </ContentCard.Footer>
         </form>
@@ -184,7 +186,7 @@ export function ProjectDetailPanel({ projectId }: ProjectDetailPanelProps) {
           <ContentCard.Body.Copy>
             <p className="text-body text-fg-muted">
               Suspending a project stops every key under it from working and can be undone. Deleting it is how a project
-              leaves this list; its registrations stop working with it.
+              leaves this list; its applications stop working with it.
             </p>
             {isDeleted && (
               <p className="text-body text-fg-muted">This project is deleted and no longer serves traffic.</p>

@@ -1,23 +1,19 @@
 import { type RefObject, useEffect, useRef } from "react";
+import { GROUPED_CORNER_FULL, GROUPED_CORNER_INNER } from "@/components/cards/groupedCornerRadii";
 
 /**
- * Promote the four outer corners of a group of buttons so the group reads as a
- * single rounded block inscribed in its surrounding RecessedCard.
+ * Promote the outer corners of a single-column list of buttons so the list
+ * reads as one rounded block inscribed in its surrounding RecessedCard.
  *
- * Mirrors the prototype's `applyGroupedCorners`: every grouped button defaults
- * to a small interior radius (`min(5px, var(--neu-radius))`) and only the
- * corners that coincide with the well's rounded corners are promoted to the
- * full control radius (`var(--neu-radius)`). Rows are read from the LIVE layout
- * (items sharing a rounded viewport top form one row), so it is agnostic to
- * column count and recomputes on reflow — a vertical list gets its first row's
- * top corners and its last row's bottom corners; a grid gets the four grid
- * corners.
+ * Every row defaults to the small interior radius ({@link GROUPED_CORNER_INNER}).
+ * The first row's top corners and the last row's bottom corners are promoted to
+ * the full control radius ({@link GROUPED_CORNER_FULL}) where they meet the
+ * well's rounded corners. Whether the last row meets the well's bottom is read
+ * from the live layout, which is the one thing a row's index cannot tell.
  */
 
-/** The promoted (outer) corner radius: the button's own control radius. */
-const FULL = "var(--neu-radius)";
-/** The interior corner radius: capped at 5px, mirroring `--mc-control-radius-inner`. */
-const INNER = "min(5px, var(--neu-radius))";
+/** The recessed well whose bottom edge the list may reach. */
+const WELL_SELECTOR = ".recessed-gradient-border";
 
 /** Computes which of an item's corners are outer, then writes the radii inline. */
 function applyGroupedCorners(
@@ -26,74 +22,35 @@ function applyGroupedCorners(
   frameSelector?: string,
   frameInset = 0,
   promoteTop = true,
-  fillFrame = false,
 ): void {
   if (items.length === 0) return;
 
-  // Group items by their rounded viewport top → one entry per visual row.
-  //
-  // We read `getBoundingClientRect().top`, NOT `offsetTop`: when a staggered
-  // entrance puts a transform on the row's wrapper, that wrapper becomes the
-  // item's `offsetParent` and every `offsetTop` collapses to 0 — the whole list
-  // would then group as a single row. The rect top stays correct throughout,
-  // because a uniform entrance translate shifts every row by the same delta and
-  // so preserves their relative ordering and spacing.
-  const itemTop = new Map<HTMLElement, number>();
-  for (const item of items) itemTop.set(item, Math.round(item.getBoundingClientRect().top));
-
-  const rows = new Map<number, HTMLElement[]>();
-  for (const item of items) {
-    const top = itemTop.get(item)!;
-    const row = rows.get(top);
-    if (row) row.push(item);
-    else rows.set(top, [item]);
-  }
-  const tops = [...rows.keys()].sort((a, b) => a - b);
-  const firstTop = tops[0];
-  const lastTop = tops[tops.length - 1];
-
-  // The right content edge of the container. A tile may take the well's RIGHT
-  // rounded corner only when its own right edge reaches this — so the last tile of
-  // a PARTIAL final row (which stops short of the edge in a responsive auto-fill
-  // grid) keeps its interior right corners, while the last tile of a FULL row, flush
-  // against the edge, is promoted. The left edge needs no such test: a grid/list
-  // fills from the left, so the first item of a row is always left-flush.
-  const containerStyle = getComputedStyle(container);
-  const contentRight =
-    container.getBoundingClientRect().right -
-    parseFloat(containerStyle.paddingRight) -
-    parseFloat(containerStyle.borderRightWidth);
-  const isRightEdge = (el: HTMLElement): boolean => el.getBoundingClientRect().right >= contentRight - 1;
-
-  // Does the content reach the well's BOTTOM edge? A `minHeight` on the card can make
-  // the surrounding RecessedCard taller than the content (e.g. a single row of covers
-  // with empty space below). The grid container shrinks to the content vertically, so
-  // — unlike the right edge — it is NOT the reference here: the last row may take the
-  // well's bottom corners only when it actually reaches the well's bottom content edge.
-  // The top edge needs no test: the content sits flush against the well's top.
-  const well = container.closest(".recessed-gradient-border") ?? container;
+  // Does the list reach the well's BOTTOM edge? A genre column's well stretches to
+  // the tallest column in its row, so a shorter column ends above it, and its last
+  // row keeps interior corners. The list container carries no transform of its
+  // own, so its rect is its layout box even while its rows enter scaled. The top
+  // edge needs no test: the list sits flush against the well's top or a header.
+  const well = container.closest(WELL_SELECTOR) ?? container;
   const wellStyle = getComputedStyle(well);
   const wellBottom =
     well.getBoundingClientRect().bottom - parseFloat(wellStyle.paddingBottom) - parseFloat(wellStyle.borderBottomWidth);
   const reachesBottom = container.getBoundingClientRect().bottom >= wellBottom - 1;
+  const lastIndex = items.length - 1;
 
-  for (const item of items) {
-    const top = itemTop.get(item)!;
-    const row = rows.get(top) ?? [item];
-    // `promoteTop` is false when a header sits above the rows inside the same
-    // well (genre columns): the rows then never reach the well's top corners.
-    const tl = promoteTop && top === firstTop && item === row[0];
-    const tr = promoteTop && top === firstTop && isRightEdge(item);
-    const bl = reachesBottom && top === lastTop && item === row[0];
-    const br = reachesBottom && top === lastTop && isRightEdge(item);
-    item.style.borderTopLeftRadius = tl ? FULL : INNER;
-    item.style.borderTopRightRadius = tr ? FULL : INNER;
-    item.style.borderBottomLeftRadius = bl ? FULL : INNER;
-    item.style.borderBottomRightRadius = br ? FULL : INNER;
+  items.forEach((item, index) => {
+    // Every row of a single column spans its full width, so a row's right corners
+    // follow its left ones. `promoteTop` is false when a header sits above the rows
+    // inside the same well (genre columns): the rows then never reach its top corners.
+    const top = promoteTop && index === 0;
+    const bottom = reachesBottom && index === lastIndex;
+    item.style.borderTopLeftRadius = top ? GROUPED_CORNER_FULL : GROUPED_CORNER_INNER;
+    item.style.borderTopRightRadius = top ? GROUPED_CORNER_FULL : GROUPED_CORNER_INNER;
+    item.style.borderBottomLeftRadius = bottom ? GROUPED_CORNER_FULL : GROUPED_CORNER_INNER;
+    item.style.borderBottomRightRadius = bottom ? GROUPED_CORNER_FULL : GROUPED_CORNER_INNER;
 
-    if (!frameSelector) continue;
+    if (!frameSelector) return;
     const frame = item.querySelector<HTMLElement>(frameSelector);
-    if (!frame) continue;
+    if (!frame) return;
     // A left-hugging frame (e.g. the track artwork): its left corners follow the
     // button's left corners but concentric (minus the inset); right corners are
     // interior and stay small. The frame has its OWN (smaller) --neu-radius, so
@@ -101,31 +58,19 @@ function applyGroupedCorners(
     // var, which would resolve against the frame.
     const buttonStyle = getComputedStyle(item);
     const concentric = (corner: string) => `max(0px, calc(${corner} - ${frameInset}px))`;
-    if (fillFrame) {
-      // A frame that FILLS the item (e.g. a grid tile's square cover): all four of
-      // its corners follow the item's — promoted at the group's outer corners,
-      // interior elsewhere — concentric (minus the inset).
-      frame.style.borderTopLeftRadius = tl ? concentric(buttonStyle.borderTopLeftRadius) : INNER;
-      frame.style.borderTopRightRadius = tr ? concentric(buttonStyle.borderTopRightRadius) : INNER;
-      frame.style.borderBottomLeftRadius = bl ? concentric(buttonStyle.borderBottomLeftRadius) : INNER;
-      frame.style.borderBottomRightRadius = br ? concentric(buttonStyle.borderBottomRightRadius) : INNER;
-    } else {
-      // A left-hugging frame (e.g. the track artwork): its left corners follow the
-      // button's left corners but concentric (minus the inset); right (interior)
-      // corners stay small.
-      frame.style.borderTopLeftRadius = tl ? concentric(buttonStyle.borderTopLeftRadius) : INNER;
-      frame.style.borderBottomLeftRadius = bl ? concentric(buttonStyle.borderBottomLeftRadius) : INNER;
-      frame.style.borderTopRightRadius = INNER;
-      frame.style.borderBottomRightRadius = INNER;
-    }
-  }
+    frame.style.borderTopLeftRadius = top ? concentric(buttonStyle.borderTopLeftRadius) : GROUPED_CORNER_INNER;
+    frame.style.borderBottomLeftRadius = bottom ? concentric(buttonStyle.borderBottomLeftRadius) : GROUPED_CORNER_INNER;
+    frame.style.borderTopRightRadius = GROUPED_CORNER_INNER;
+    frame.style.borderBottomRightRadius = GROUPED_CORNER_INNER;
+  });
 }
 
 /**
- * Returns a ref to attach to a list/grid container; its direct children (or the
- * elements matching `itemSelector`) get grouped corner radii via
- * {@link applyGroupedCorners}. Recomputes when the children change (add/remove)
- * and on container resize (reflow), so it tracks any item or column count.
+ * Returns a ref to attach to a single-column list container; its direct
+ * children (or the elements matching `itemSelector`) get grouped corner radii
+ * via {@link applyGroupedCorners}. Recomputes when the children change
+ * (add/remove) and when the list or its well resizes, because either can move
+ * the list's bottom against the well's.
  *
  * @param options.itemSelector CSS selector for the buttons (default: direct children).
  * @param options.frameSelector Optional selector for a per-item left-hugging frame
@@ -134,21 +79,12 @@ function applyGroupedCorners(
  * @param options.promoteTop Whether the top corners may be promoted. Pass `false`
  *   when a header sits above the rows in the same well (e.g. genre columns), so
  *   the rows never round their top corners below the header. Defaults to `true`.
- * @param options.fillFrame Set when the per-item frame FILLS the item (a grid
- *   tile's square cover) rather than left-hugging it (a list row's artwork): all
- *   four frame corners then follow the item's instead of only the left pair.
  * @returns A ref object for the container element.
  */
 export function useGroupedCorners<T extends HTMLElement = HTMLDivElement>(
-  options: {
-    itemSelector?: string;
-    frameSelector?: string;
-    frameInset?: number;
-    promoteTop?: boolean;
-    fillFrame?: boolean;
-  } = {},
+  options: { itemSelector?: string; frameSelector?: string; frameInset?: number; promoteTop?: boolean } = {},
 ): RefObject<T | null> {
-  const { itemSelector = ":scope > *", frameSelector, frameInset = 0, promoteTop = true, fillFrame = false } = options;
+  const { itemSelector = ":scope > *", frameSelector, frameInset = 0, promoteTop = true } = options;
   const ref = useRef<T>(null);
 
   useEffect(() => {
@@ -162,13 +98,14 @@ export function useGroupedCorners<T extends HTMLElement = HTMLDivElement>(
         frameSelector,
         frameInset,
         promoteTop,
-        fillFrame,
       );
     };
     apply();
 
     const resizeObserver = new ResizeObserver(apply);
     resizeObserver.observe(container);
+    const well = container.closest(WELL_SELECTOR);
+    if (well) resizeObserver.observe(well);
     // Re-run when items are added/removed (e.g. a list swaps its contents).
     const mutationObserver = new MutationObserver(apply);
     mutationObserver.observe(container, { childList: true, subtree: true });
@@ -177,7 +114,7 @@ export function useGroupedCorners<T extends HTMLElement = HTMLDivElement>(
       resizeObserver.disconnect();
       mutationObserver.disconnect();
     };
-  }, [itemSelector, frameSelector, frameInset, promoteTop, fillFrame]);
+  }, [itemSelector, frameSelector, frameInset, promoteTop]);
 
   return ref;
 }

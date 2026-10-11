@@ -5,6 +5,7 @@ export const shareCopy = {
   copyError: "Copy failed",
   nativeShare: (title: string) => `Share "${title}"`,
   toggleMediaView: "Toggle cover and turntable view",
+  loading: "Loading the shared music...",
   error: {
     title: "The page could not be loaded",
     description: "The server reported a traceable error. These details let us find the cause in the logs.",

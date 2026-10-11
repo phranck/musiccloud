@@ -14,6 +14,16 @@ import { getSetting, setSetting } from "./site-settings.js";
 const MAX_PROJECTS_KEY = "developer_max_projects_per_account";
 
 /**
+ * Registrations one project may hold at once. Revoking one frees a slot.
+ *
+ * Fixed rather than an operator setting, unlike the project ceiling above:
+ * a registration is one place an application runs, and five covers a server,
+ * a development machine and the copies in between. It sits beside that ceiling
+ * because a page quoting both reads them from one module.
+ */
+export const MAX_REGISTRATIONS_PER_PROJECT = 5;
+
+/**
  * The ceiling in force when the operator has never set one.
  *
  * Three is deliberately small: it is more than an evaluation needs and far

@@ -1,5 +1,5 @@
 import type { ContentPublication, SingleContentContext, VinylLayout } from "@musiccloud/shared";
-import * as pgModule from "pg";
+import type * as pgModule from "pg";
 import { log } from "../../lib/infra/logger.js";
 import { enrichVinylLayout as discogsEnrichVinylLayout } from "../../services/plugins/discogs/discogs-enrich.js";
 import type { NormalizedTrack } from "../../services/types.js";
@@ -125,6 +125,7 @@ import {
   addAlbumExternalIds as albumsAddAlbumExternalIds,
   addLinksToAlbum as albumsAddLinksToAlbum,
   findAlbumByExternalId as albumsFindAlbumByExternalId,
+  findAlbumByServiceLink as albumsFindAlbumByServiceLink,
   findAlbumByUpc as albumsFindAlbumByUpc,
   findAlbumByUrl as albumsFindAlbumByUrl,
   findAlbumPreviews as albumsFindAlbumPreviews,
@@ -278,12 +279,14 @@ import { PostgresTierRepository } from "./postgres-tiers.js";
 import {
   addLinksToTrack as tracksAddLinksToTrack,
   addTrackExternalIds as tracksAddTrackExternalIds,
+  clearServiceLinkMisses as tracksClearServiceLinkMisses,
   findExistingByIsrc as tracksFindExistingByIsrc,
   findExistingByIsrcSync as tracksFindExistingByIsrcSync,
   findShortIdByTrackUrl as tracksFindShortIdByTrackUrl,
   findShortIdsByTrackUrls as tracksFindShortIdsByTrackUrls,
   findTrackByExternalId as tracksFindTrackByExternalId,
   findTrackByIsrc as tracksFindTrackByIsrc,
+  findTrackByServiceLink as tracksFindTrackByServiceLink,
   findTrackByUrl as tracksFindTrackByUrl,
   findTrackPreviews as tracksFindTrackPreviews,
   findTracksByTextSearch as tracksFindTracksByTextSearch,
@@ -291,6 +294,8 @@ import {
   loadByTrackId as tracksLoadByTrackId,
   loadSharePageResult as tracksLoadSharePageResult,
   persistTrackWithLinks as tracksPersistTrackWithLinks,
+  readServiceLinkMisses as tracksReadServiceLinkMisses,
+  recordServiceLinkMisses as tracksRecordServiceLinkMisses,
   upsertTrackPreview as tracksUpsertTrackPreview,
 } from "./postgres-tracks.js";
 
@@ -304,17 +309,12 @@ export class PostgresAdapter
   private pool: pgModule.Pool;
   private cleanupInterval: NodeJS.Timeout | null = null;
 
-  constructor(connectionUrl: string) {
-    this.pool = new pgModule.Pool({
-      connectionString: connectionUrl,
-      max: 20,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
-    });
-
-    this.pool.on("error", (err) => {
-      log.error("PG", "Unexpected error on idle client:", err);
-    });
+  /**
+   * @param pool - The shared runtime pool from `db/pool.ts`. The adapter does
+   *   not own it, so {@link stopCleanup} leaves it open.
+   */
+  constructor(pool: pgModule.Pool) {
+    this.pool = pool;
   }
 
   /**
@@ -371,15 +371,12 @@ export class PostgresAdapter
     );
   }
 
-  /**
-   * Close database connection pool
-   */
-  async close(): Promise<void> {
+  /** Stops the scheduled cache cleanup. The pool belongs to `db/pool.ts`. */
+  stopCleanup(): void {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = null;
     }
-    await this.pool.end();
   }
 
   async insertAppTelemetryEvent(row: AppTelemetryEventInput): Promise<void> {
@@ -392,6 +389,10 @@ export class PostgresAdapter
 
   findTrackByUrl(url: string): Promise<CachedTrackResult | null> {
     return tracksFindTrackByUrl(this.pool, url);
+  }
+
+  findTrackByServiceLink(service: string, externalId: string): Promise<CachedTrackResult | null> {
+    return tracksFindTrackByServiceLink(this.pool, service, externalId);
   }
 
   findTrackByIsrc(isrc: string): Promise<CachedTrackResult | null> {
@@ -439,6 +440,18 @@ export class PostgresAdapter
     links: Array<{ service: string; url: string; confidence: number; matchMethod: string; externalId?: string }>,
   ): Promise<void> {
     return tracksAddLinksToTrack(this.pool, trackId, links);
+  }
+
+  readServiceLinkMisses(trackId: string): Promise<Array<{ service: string; checkedAt: Date }>> {
+    return tracksReadServiceLinkMisses(this.pool, trackId);
+  }
+
+  recordServiceLinkMisses(trackId: string, services: readonly string[]): Promise<void> {
+    return tracksRecordServiceLinkMisses(this.pool, trackId, services);
+  }
+
+  clearServiceLinkMisses(trackId: string, services: readonly string[]): Promise<void> {
+    return tracksClearServiceLinkMisses(this.pool, trackId, services);
   }
 
   // ============================================================================
@@ -551,6 +564,10 @@ export class PostgresAdapter
     return albumsFindAlbumByUrl(this.pool, url);
   }
 
+  findAlbumByServiceLink(service: string, externalId: string): Promise<CachedAlbumResult | null> {
+    return albumsFindAlbumByServiceLink(this.pool, service, externalId);
+  }
+
   findAlbumByUpc(upc: string): Promise<CachedAlbumResult | null> {
     return albumsFindAlbumByUpc(this.pool, upc);
   }
@@ -584,13 +601,7 @@ export class PostgresAdapter
   }
 
   /** Runs best-effort Discogs vinyl-layout enrichment for an album identity. */
-  enrichVinylLayout(album: {
-    identityKey: string;
-    title: string;
-    artists: string[];
-    albumId?: string;
-    upc?: string | null;
-  }): Promise<void> {
+  enrichVinylLayout(album: { identityKey: string; title: string; artists: string[]; albumId?: string }): Promise<void> {
     return discogsEnrichVinylLayout(this.pool, album);
   }
 
@@ -1153,7 +1164,15 @@ export class PostgresAdapter
     data: {
       email?: string;
       displayName?: string | null;
+      firstName?: string | null;
+      lastName?: string | null;
+      avatarUrl?: string | null;
+      uploadedAvatarUrl?: string | null;
+      gravatarUrl?: string | null;
+      avatarSource?: string | null;
       technicalContactEmail?: string | null;
+      pendingEmail?: string | null;
+      pendingEmailRequestedAt?: Date | null;
       tierId?: string | null;
       status?: string;
     },

@@ -17,7 +17,7 @@ import { BackgroundScene } from "@/components/background/BackgroundScene";
 
 // Saved shader tokens seed the sky's initial settings (cached fetch — shares
 // the BaseLayout request). The driver re-clamps them against NIGHT_SKY_RANGES.
-const { shader } = await fetchDesignTokens();
+const { shader } = await fetchDesignTokens(Astro.clientAddress);
 ---
 
 <div class="mc-sky-backdrop fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">

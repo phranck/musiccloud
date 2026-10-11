@@ -5,7 +5,7 @@
  */
 
 import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
-import { log } from "../../../lib/infra/logger.js";
+import { readDeezerJson } from "./deezer-response.js";
 
 const API_BASE = "https://api.deezer.com";
 const TIMEOUT_MS = 5000;
@@ -22,21 +22,16 @@ interface DeezerArtistSearchResponse {
   data?: DeezerArtistSearchHit[];
 }
 
+/**
+ * Finds the best Deezer artist match for a name.
+ *
+ * @param name - The artist name to search for.
+ * @returns The first hit, or `null` when Deezer knows no such artist.
+ * @throws {UpstreamUnavailableError} when Deezer did not answer, so a caller
+ *   can tell an outage apart from an unknown artist.
+ */
 export async function searchDeezerArtist(name: string): Promise<DeezerArtistSearchHit | null> {
-  try {
-    const res = await fetchWithTimeout(
-      `${API_BASE}/search/artist?q=${encodeURIComponent(name)}&limit=1`,
-      {},
-      TIMEOUT_MS,
-    );
-    if (!res.ok) {
-      log.debug("Deezer", "artist search HTTP error", res.status, name);
-      return null;
-    }
-    const data = (await res.json()) as DeezerArtistSearchResponse;
-    return data.data?.[0] ?? null;
-  } catch (err) {
-    log.debug("Deezer", "artist search threw", err);
-    return null;
-  }
+  const res = await fetchWithTimeout(`${API_BASE}/search/artist?q=${encodeURIComponent(name)}&limit=1`, {}, TIMEOUT_MS);
+  const data = await readDeezerJson<DeezerArtistSearchResponse>(res, "artist search");
+  return data?.data?.[0] ?? null;
 }

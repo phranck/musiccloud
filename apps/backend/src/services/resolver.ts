@@ -26,18 +26,36 @@
  * Any incoming request tries to avoid upstream API calls in this order:
  *
  * 1. Cache by canonical URL (after tracking-param stripping + short-link
- *    expansion).
- * 2. Cache by the short-link alias (only if the URL was expanded), so a
- *    `link.deezer.com/s/abc` that gets written once as an alias hits the
- *    cache on subsequent visits.
+ *    expansion), the URL a track was first resolved from.
+ * 2. Cache by the link's own service id, before the service is asked. A track
+ *    holding this link through a source or ISRC match resolves from the
+ *    database, so a link the database knows still resolves while its service
+ *    is down. Text matches do not count, because they can be another recording.
  * 3. Cache by ISRC after we fetched the source metadata. Catches the
  *    same track pasted from a different service the second time around.
+ *
+ * Two requests for the same canonical URL at once share one run of this
+ * pipeline (`resolveCanonicalUrlOnce`), so a burst of identical pastes costs
+ * one fan-out.
  *
  * After migration 0021 the canonical track row never expires; only
  * preview URLs (in `track_previews`) carry an `expires_at` and are
  * refreshed lazily by `fillMissingServices`. The cache hit path
  * through `fillMissingServices` so that enabling a new plugin over
  * time organically enriches the cached row.
+ *
+ * ## Fruitless lookups are remembered too
+ *
+ * `service_links` records where a track was found. On its own that makes
+ * a service which does not carry the track look identical to one that was
+ * never asked, so a cached resolve asks every such service again, every
+ * time, for as long as the row exists. `service_link_misses` closes that:
+ * a service that answers with nothing is written down, and it is skipped
+ * until the record is older than `SERVICE_MISS_TTL_MS`.
+ *
+ * A miss expires rather than being permanent, because catalogues do gain
+ * tracks. A service that does answer has its miss removed in the same
+ * step, so the two tables cannot end up asserting opposite things.
  *
  * ## Preview URL preference (Deezer first)
  *
@@ -74,17 +92,26 @@
  * ## YouTube search-fallback link
  *
  * If no YouTube match is found but the track has a title and artist,
- * we still emit a `music.youtube.com/search?q=...` link flagged with
- * `isSearchFallback: true`. This guarantees every resolved track has
- * at least a "search on YouTube" option even when the YouTube API
+ * we still emit a `music.youtube.com/search?q=...` link carrying
+ * `matchMethod: "search-fallback"`. This guarantees every resolved track
+ * has at least a "search on YouTube" option even when the YouTube API
  * could not pin the exact video.
  *
- * ## Adapter timeout
+ * That method is what tells a consumer the link is not the recording. It
+ * has to stay distinct from `search`, which means a text search that did
+ * find the recording, because a caller filtering for real matches has no
+ * other way to separate the two and would otherwise send somebody to a
+ * result list believing it was the track.
  *
- * `resolveAcrossServices` races each adapter lookup against a 10s
- * timeout via `Promise.race`. Without this cap, a single hung adapter
- * would block the entire resolve until the HTTP client's own timeout
- * (which can be much longer).
+ * ## Response deadline and adapter timeout
+ *
+ * `resolveAcrossServices` and `fillMissingServices` answer with the links
+ * that arrived within `RESOLVE_RESPONSE_DEADLINE_MS`. Services still running
+ * at that point finish in the background and their links are stored on the
+ * track once they arrive (`persistLateTrackLinks` for a fresh resolve, the
+ * gap fill itself for a cache hit), so the share page has them from the next
+ * load on. Each lookup is also raced against `ADAPTER_TIMEOUT_MS`, which bounds
+ * that background work when a service never answers.
  *
  * ## OG-scrape fallback (`scrapeTrackFromPage`)
  *
@@ -113,23 +140,29 @@
  * | `CANDIDATE_MIN_CONFIDENCE`  | Minimum for a candidate to appear in disambiguation    |
  * | `MAX_CANDIDATES`            | Disambiguation list size cap                           |
  * | `SEARCH_FALLBACK_CONFIDENCE`| Confidence of synthesised "search on X" fallback links |
+ * | `SERVICE_MISS_TTL_MS`       | How long a fruitless lookup stands before a retry       |
  */
-import { PLATFORM_CONFIG } from "@musiccloud/shared";
+import { type MatchMethod, PLATFORM_CONFIG } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
+import { createSingleFlight } from "../lib/concurrency.js";
 import { fetchWithTimeout } from "../lib/infra/fetch.js";
 import { log } from "../lib/infra/logger.js";
 import { isUrl, stripTrackingParams, validateMusicUrl } from "../lib/platform/url.js";
 import { getPreviewExpiry } from "../lib/preview-url.js";
-import { ResolveError } from "../lib/resolve/errors.js";
+import { ResolveError, searchExhaustedError } from "../lib/resolve/errors.js";
+import { confidenceForMethod } from "./confidence.js";
 import {
   AUTO_SELECT_THRESHOLD,
   CANDIDATE_MIN_CONFIDENCE,
+  IDENTIFIER_MATCH_CONFIDENCE,
   LINK_QUALITY_THRESHOLD,
   MATCH_MIN_CONFIDENCE,
   MAX_CANDIDATES,
   SEARCH_FALLBACK_CONFIDENCE,
+  SERVICE_MISS_TTL_MS,
 } from "./constants.js";
 import { collectTrackExternalIds } from "./external-ids.js";
+import { RESOLVE_RESPONSE_DEADLINE_MS, settleWithinDeadline } from "./fan-out-deadline.js";
 import {
   filterDisabledLinks,
   getActiveAdapters,
@@ -137,6 +170,7 @@ import {
   identifyServiceIncludingDisabled,
   isPluginEnabled,
 } from "./index.js";
+import { type ServiceLinkLookup, serviceLinkLookup } from "./service-link-lookup.js";
 import type {
   ExternalIdRecord,
   MatchResult,
@@ -154,9 +188,7 @@ export interface ResolvedLink {
   displayName: string;
   url: string;
   confidence: number;
-  matchMethod: "isrc" | "search" | "cache";
-  /** True when the link is a search URL rather than a direct track link */
-  isSearchFallback?: boolean;
+  matchMethod: MatchMethod;
   /** Service-specific track ID (e.g. Spotify track ID, Deezer track ID) */
   externalId?: string;
   /** 30-second audio preview URL from this service (if available) */
@@ -186,8 +218,8 @@ export interface ResolutionResult {
   sourceTrack: NormalizedTrack;
   links: ResolvedLink[];
   trackId?: string; // present when loaded from cache
-  /** Set when the original input was a short/redirect link (e.g. link.deezer.com/s/…) that was expanded. */
-  inputUrl?: string;
+  /** The stored share id, present when loaded from cache. */
+  shortId?: string;
   /**
    * External-id observations harvested across every adapter contacted
    * during the resolve. Persisted into `track_external_ids` so the
@@ -196,6 +228,12 @@ export interface ResolutionResult {
    * (e.g. cache hit where re-collection is skipped).
    */
   externalIds: ExternalIdRecord[];
+  /**
+   * Links from services that were still running when the resolve answered.
+   * Settles, never rejects, once they have all answered. Whoever persists the
+   * result hands it to {@link persistLateTrackLinks} with the new track id.
+   */
+  lateLinks?: Promise<ResolvedLink[]>;
 }
 
 export interface TextSearchResult {
@@ -214,31 +252,86 @@ function mapCachedLinks(
       displayName: PLATFORM_CONFIG[l.service as ServiceId].label,
       url: l.url,
       confidence: l.confidence,
-      matchMethod: l.matchMethod as "isrc" | "search" | "cache",
+      matchMethod: l.matchMethod as MatchMethod,
     }));
 }
 
 /**
- * Try to serve a result from DB cache.
+ * Reads the services that recently came back empty for this track.
+ *
+ * @param trackId - Track being resolved, absent when nothing is persisted yet.
+ * @returns The service ids whose last fruitless lookup is younger than
+ *   {@link SERVICE_MISS_TTL_MS}. Empty when there is no track row to key on, or
+ *   when the read fails: skipping a service on bad information would hide a
+ *   link, whilst asking one time too often only costs a request.
+ */
+async function readRecentServiceMisses(trackId: string | undefined): Promise<ReadonlySet<string>> {
+  if (!trackId) return new Set();
+  try {
+    const repo = await getRepository();
+    const misses = await repo.readServiceLinkMisses(trackId);
+    const cutoff = Date.now() - SERVICE_MISS_TTL_MS;
+    return new Set(misses.filter((m) => m.checkedAt.getTime() > cutoff).map((m) => m.service));
+  } catch (error) {
+    log.error("Resolver", `Failed to read service misses: ${error instanceof Error ? error.message : error}`);
+    return new Set();
+  }
+}
+
+/**
+ * Writes down that these services had nothing for this track.
+ *
+ * @param trackId - Track being resolved, absent when nothing is persisted yet.
+ * @param services - Service ids that answered with no match.
+ * @returns A promise that resolves when the write is done or has been given up
+ *   on. A failure here is not fatal: the resolve already succeeded, and the
+ *   cost of losing the record is one wasted lookup next time.
+ */
+async function recordServiceMisses(trackId: string | undefined, services: readonly string[]): Promise<void> {
+  if (!trackId || services.length === 0) return;
+  try {
+    const repo = await getRepository();
+    await repo.recordServiceLinkMisses(trackId, services);
+  } catch (error) {
+    log.error("Resolver", `Failed to record service misses: ${error instanceof Error ? error.message : error}`);
+  }
+}
+
+/**
+ * Try to serve a result from DB cache, by the URL a track was first resolved
+ * from, then by a link it has on the pasted link's service, then by ISRC.
  *
  * Static-vs-dynamic split (migration 0021): the canonical track row is
- * permanently fresh — a cache hit always wins regardless of `updated_at`.
+ * permanently fresh, so a cache hit always wins regardless of `updated_at`.
  * The only time-sensitive field, the preview URL, lives in
  * `track_previews` and is refreshed lazily by `fillMissingServices`
  * when its `expires_at` is in the past. Returns null only on miss or
  * read errors.
  */
-async function tryCache(lookup: { url?: string; isrc?: string }): Promise<ResolutionResult | null> {
+async function tryCache(lookup: {
+  url?: string;
+  serviceLink?: ServiceLinkLookup;
+  isrc?: string;
+}): Promise<ResolutionResult | null> {
   try {
     const repo = await getRepository();
     let cached = lookup.url ? await repo.findTrackByUrl(lookup.url) : null;
+    if (!cached && lookup.serviceLink) {
+      cached = await repo.findTrackByServiceLink(lookup.serviceLink.service, lookup.serviceLink.externalId);
+    }
     if (!cached && lookup.isrc) cached = await repo.findTrackByIsrc(lookup.isrc);
     if (!cached) return null;
 
     const links = mapCachedLinks(cached.links);
     log.debug("Resolver", `Cache hit: ${links.length} links`);
 
-    return { sourceTrack: cached.track, links, trackId: cached.trackId, externalIds: [] };
+    return {
+      sourceTrack: cached.track,
+      links,
+      trackId: cached.trackId,
+      shortId: cached.shortId,
+      externalIds: [],
+    };
   } catch (error) {
     log.error("Resolver", `Cache read failed: ${error instanceof Error ? error.message : error}`);
     return null;
@@ -249,7 +342,15 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
   const coveredServices = new Set(cached.links.map((l) => l.service));
   const active = await getActiveAdapters();
 
-  const missingAdapters = active.filter((a) => !coveredServices.has(a.id) && a.id !== cached.sourceTrack.sourceService);
+  // A service that answered with nothing last time is not asked again until
+  // its record has aged out. Without this the set below holds every service
+  // that will never carry this track, and a cached resolve pays for all of
+  // them on every request.
+  const recentMisses = await readRecentServiceMisses(cached.trackId);
+
+  const missingAdapters = active.filter(
+    (a) => !coveredServices.has(a.id) && a.id !== cached.sourceTrack.sourceService && !recentMisses.has(a.id),
+  );
 
   // Static-vs-dynamic split: a missing or expired preview-URL row is the
   // ONLY reason to re-fetch Deezer for a row whose service-link list is
@@ -258,14 +359,18 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
   // `track_previews` row for the chosen preview source is genuinely
   // expired (or absent).
   const needsPreview = await isPreviewRefreshNeeded(cached);
-  const deezerAdapter = needsPreview
-    ? active.find(
-        (a) =>
-          a.id === "deezer" &&
-          a.id !== cached.sourceTrack.sourceService &&
-          !missingAdapters.some((m) => m.id === "deezer"),
-      )
-    : undefined;
+  // A service with a fresh miss is skipped here too: it has no link for this
+  // track, so it has no preview for it either, and asking is the same waste in
+  // a different shape.
+  const deezerAdapter =
+    needsPreview && !recentMisses.has("deezer")
+      ? active.find(
+          (a) =>
+            a.id === "deezer" &&
+            a.id !== cached.sourceTrack.sourceService &&
+            !missingAdapters.some((m) => m.id === "deezer"),
+        )
+      : undefined;
 
   const adaptersToFetch = deezerAdapter ? [...missingAdapters, deezerAdapter] : missingAdapters;
 
@@ -276,39 +381,31 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
     `Gap-filling ${adaptersToFetch.length} services for cached track${deezerAdapter ? " (incl. Deezer for preview)" : ""}`,
   );
 
-  const results = await Promise.allSettled(adaptersToFetch.map((a) => resolveOnService(a, cached.sourceTrack)));
+  // The response carries what arrived by the deadline. The rest is stored, and
+  // its misses recorded, in the background once it arrives, so a slow service
+  // costs the next load nothing and this one no wait.
+  const fanOut = await settleWithinDeadline(
+    adaptersToFetch.map((a) => resolveOnServiceWithTimeout(a, cached.sourceTrack)),
+    RESOLVE_RESPONSE_DEADLINE_MS,
+  );
+  const newLinks = await storeGapFillResults(cached, coveredServices, adaptersToFetch, fanOut.early);
 
-  const newLinks: ResolvedLink[] = [];
-  for (let i = 0; i < results.length; i++) {
-    const result = results[i];
-    if (result.status === "fulfilled" && result.value) {
-      newLinks.push(result.value);
-    }
+  const lateAdapterIndices = indicesStillRunning(fanOut.early);
+  if (lateAdapterIndices.length > 0) {
+    void fanOut.all.then((results) =>
+      storeGapFillResults(
+        cached,
+        coveredServices,
+        lateAdapterIndices.map((index) => adaptersToFetch[index]),
+        lateAdapterIndices.map((index) => results[index]),
+      ),
+    );
   }
 
   if (newLinks.length === 0) return { ...cached, links: await filterDisabledLinks(cached.links) };
 
-  // Only persist genuinely new service links (not Deezer re-fetched for preview only)
-  const genuinelyNewLinks = newLinks.filter((l) => !coveredServices.has(l.service));
-  if (cached.trackId && genuinelyNewLinks.length > 0) {
-    try {
-      const repo = await getRepository();
-      await repo.addLinksToTrack(
-        cached.trackId,
-        genuinelyNewLinks.map((l) => ({
-          service: l.service,
-          url: l.url,
-          confidence: l.confidence,
-          matchMethod: l.matchMethod,
-          externalId: l.externalId,
-        })),
-      );
-    } catch (error) {
-      log.error("Resolver", `Failed to persist gap-fill links: ${error instanceof Error ? error.message : error}`);
-    }
-  }
-
   // Don't add Deezer twice to allLinks if it was only re-fetched for preview
+  const genuinelyNewLinks = newLinks.filter((l) => !coveredServices.has(l.service));
   const allLinks = [...cached.links, ...genuinelyNewLinks].sort((a, b) => b.confidence - a.confidence);
 
   // Always prefer a fresh Deezer preview URL. Deezer CDN URLs are permanent,
@@ -320,33 +417,134 @@ async function fillMissingServices(cached: ResolutionResult): Promise<Resolution
     sourceTrack = { ...sourceTrack, previewUrl: anyGapPreview.previewUrl };
   }
 
-  // Persist any fresh preview URLs we just picked up, including their
-  // parsed expiry. Skips Spotify-style permanent CDN URLs that have
-  // `null` expiry (overwriting a row with `null` is fine — the gate
-  // logic treats null as "never expires").
-  if (cached.trackId) {
-    try {
-      const repo = await getRepository();
-      for (const link of newLinks) {
-        if (!link.previewUrl) continue;
-        const expiresAtMs = getPreviewExpiry(link.previewUrl, link.service);
-        await repo.upsertTrackPreview(cached.trackId, {
-          service: link.service,
-          url: link.previewUrl,
-          expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
-        });
-      }
-    } catch (error) {
-      log.error("Resolver", `Failed to persist preview rows: ${error instanceof Error ? error.message : error}`);
-    }
-  }
-
   return {
     sourceTrack,
     links: await filterDisabledLinks(allLinks),
     trackId: cached.trackId,
+    shortId: cached.shortId,
     externalIds: collectTrackExternalIds(sourceTrack, newLinks),
   };
+}
+
+/**
+ * Records and stores one batch of gap-fill results: clean misses are written
+ * down, links for services the track did not have yet are added, and every
+ * preview picked up is saved. Runs once for the results that beat the response
+ * deadline and once, detached, for the rest, so it never rejects.
+ *
+ * @param cached - The cached track being filled.
+ * @param coveredServices - Services the track already had before this fill.
+ * @param adapters - The services, in the same order as `results`.
+ * @param results - One settled result, or `undefined`, per service.
+ * @returns Every link the batch produced, including a Deezer link fetched only
+ *   for its preview.
+ */
+async function storeGapFillResults(
+  cached: ResolutionResult,
+  coveredServices: ReadonlySet<string>,
+  adapters: readonly ServiceAdapter[],
+  results: ReadonlyArray<PromiseSettledResult<ResolvedLink | null> | undefined>,
+): Promise<ResolvedLink[]> {
+  const newLinks: ResolvedLink[] = [];
+  const missedServices: string[] = [];
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
+    if (result?.status === "fulfilled" && result.value) {
+      newLinks.push(result.value);
+    } else if (result?.status === "fulfilled") {
+      // A clean "not here". A rejected lookup is left out on purpose: that is
+      // an outage or a timeout, and recording it would suppress the service
+      // for a month over a bad minute.
+      missedServices.push(adapters[i].id);
+    }
+  }
+
+  await recordServiceMisses(cached.trackId, missedServices);
+
+  // Only persist genuinely new service links (not Deezer re-fetched for preview only)
+  if (cached.trackId) {
+    await persistTrackLinks(
+      cached.trackId,
+      newLinks.filter((l) => !coveredServices.has(l.service)),
+      newLinks,
+    );
+  }
+  return newLinks;
+}
+
+/**
+ * Stores service links on a persisted track and saves the previews they carry.
+ *
+ * @param trackId - The persisted track.
+ * @param links - Links to add or replace, one per service.
+ * @param previewLinks - Links whose preview URL should be saved, with its
+ *   parsed expiry. A permanent CDN URL is saved with a `null` expiry, which
+ *   the refresh check reads as "never expires".
+ * @returns A promise that settles once both writes are done or given up on. It
+ *   never rejects: the response it belongs to is already correct without them.
+ */
+async function persistTrackLinks(
+  trackId: string,
+  links: readonly ResolvedLink[],
+  previewLinks: readonly ResolvedLink[],
+): Promise<void> {
+  if (links.length > 0) {
+    try {
+      const repo = await getRepository();
+      await repo.addLinksToTrack(
+        trackId,
+        links.map((l) => ({
+          service: l.service,
+          url: l.url,
+          confidence: l.confidence,
+          matchMethod: l.matchMethod,
+          externalId: l.externalId,
+        })),
+      );
+      // A service that just produced a link must not keep a miss beside it,
+      // or the two tables would assert opposite things about the same pair.
+      await repo.clearServiceLinkMisses(
+        trackId,
+        links.map((l) => l.service),
+      );
+    } catch (error) {
+      log.error("Resolver", `Failed to persist service links: ${error instanceof Error ? error.message : error}`);
+    }
+  }
+
+  try {
+    const repo = await getRepository();
+    for (const link of previewLinks) {
+      if (!link.previewUrl) continue;
+      const expiresAtMs = getPreviewExpiry(link.previewUrl, link.service);
+      await repo.upsertTrackPreview(trackId, {
+        service: link.service,
+        url: link.previewUrl,
+        expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
+      });
+    }
+  } catch (error) {
+    log.error("Resolver", `Failed to persist preview rows: ${error instanceof Error ? error.message : error}`);
+  }
+}
+
+/**
+ * Stores the links of services that answered after a fresh resolve had already
+ * responded. A late YouTube match replaces the search fallback stored in its
+ * place. The caller starts this detached once the track is persisted.
+ *
+ * @param trackId - The track the fresh resolve just persisted.
+ * @param lateLinks - The {@link ResolutionResult.lateLinks} of that resolve.
+ * @returns A promise that settles once the links are stored. It never rejects.
+ */
+export async function persistLateTrackLinks(trackId: string, lateLinks: Promise<ResolvedLink[]>): Promise<void> {
+  try {
+    const links = await lateLinks;
+    if (links.length === 0) return;
+    await persistTrackLinks(trackId, links, links);
+  } catch (error) {
+    log.error("Resolver", `Failed to persist late links: ${error instanceof Error ? error.message : error}`);
+  }
 }
 
 /**
@@ -432,12 +630,15 @@ export async function expandShortLink(url: string): Promise<string> {
  * entering the track pipeline.
  *
  * @param input - raw user input, URL or text
+ * @param expandedUrl - the input already passed through `expandShortLink`,
+ *   when the caller expanded it to classify the URL, so it is not expanded a
+ *   second time. Ignored for text input.
  * @returns resolved track result
  * @throws `ResolveError` with the validation code when the input is a
  *         non-track URL, or any of the pipeline errors documented on
  *         `resolveUrl` / `resolveTextSearch`
  */
-export async function resolveQuery(input: string): Promise<ResolutionResult> {
+export async function resolveQuery(input: string, expandedUrl?: string): Promise<ResolutionResult> {
   const trimmed = input.trim();
 
   if (isUrl(trimmed)) {
@@ -452,7 +653,7 @@ export async function resolveQuery(input: string): Promise<ResolutionResult> {
       throw new ResolveError(validation.code, validation.message);
     }
     // Pass the raw URL – resolveUrl handles tracking-param stripping and short-link expansion
-    return resolveUrl(trimmed);
+    return resolveUrl(trimmed, expandedUrl);
   }
 
   return resolveTextSearch(trimmed);
@@ -464,31 +665,39 @@ export async function resolveQuery(input: string): Promise<ResolutionResult> {
  * artwork fallback chain, and OG-scrape escape hatch.
  *
  * @param inputUrl - streaming-service URL identifying a track
- * @returns resolved track result, with `inputUrl` set when the input
- *          was a short link that got expanded (route handler uses this
- *          to persist the short link as a cache alias)
+ * @param preExpandedUrl - `inputUrl` already passed through `expandShortLink`
+ *   by the caller; when absent it is expanded here
+ * @returns resolved track result
  * @throws `ResolveError("SERVICE_DISABLED")` if the URL belongs to a currently-disabled plugin
  * @throws `ResolveError("NOT_MUSIC_LINK")` if no adapter recognizes the URL shape
  * @throws `ResolveError("INVALID_URL")` if the adapter cannot extract a track ID
  * @throws `ResolveError("SERVICE_DOWN")` (or adapter MC code) if metadata fetch fails and scrape also fails
  */
-export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
+export async function resolveUrl(inputUrl: string, preExpandedUrl?: string): Promise<ResolutionResult> {
   // Strip tracking params, then expand short links (e.g. link.deezer.com/s/…)
   const strippedInput = stripTrackingParams(inputUrl);
-  const expandedUrl = await expandShortLink(strippedInput);
+  const expandedUrl = preExpandedUrl ?? (await expandShortLink(strippedInput));
   const cleanUrl = stripTrackingParams(expandedUrl); // strip again in case expanded URL carries UTMs
-  const wasExpanded = cleanUrl !== strippedInput;
 
-  // Helper: attach the original short-link URL so the route handler can save it as an alias
-  const withAlias = (r: ResolutionResult): ResolutionResult => (wasExpanded ? { ...r, inputUrl: strippedInput } : r);
+  // Two requests for the same link at once share one resolve, so the second
+  // neither runs the fan-out a second time nor persists a second track.
+  return resolveCanonicalUrlOnce(cleanUrl, () => resolveCanonicalUrl(cleanUrl));
+}
 
-  // 1. Cache lookup by URL (try canonical first; fall back to the short link as alias)
+/** One resolve per canonical URL at a time. */
+const resolveCanonicalUrlOnce = createSingleFlight<string, ResolutionResult>();
+
+/**
+ * The URL pipeline past short-link expansion: the cache lookups, then the
+ * source service, then the other services.
+ *
+ * @param cleanUrl - The canonical URL, tracking parameters stripped.
+ * @returns The resolved track.
+ */
+async function resolveCanonicalUrl(cleanUrl: string): Promise<ResolutionResult> {
+  // 1. Cache lookup by the URL the track was first resolved from
   const cachedByCanonical = await tryCache({ url: cleanUrl });
-  if (cachedByCanonical) return withAlias(await fillMissingServices(cachedByCanonical));
-  if (wasExpanded) {
-    const cachedByAlias = await tryCache({ url: strippedInput });
-    if (cachedByAlias) return withAlias(await fillMissingServices(cachedByAlias));
-  }
+  if (cachedByCanonical) return fillMissingServices(cachedByCanonical);
 
   // 2. Identify which service the URL belongs to.
   //    Check against ALL plugins first so we can distinguish a truly
@@ -509,13 +718,19 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
     throw new ResolveError("INVALID_URL", "Could not extract track ID from URL");
   }
 
+  // 2b. Cache lookup by the link's own id: a track the database already holds
+  //     with this link resolves without asking the service, so a link it knows
+  //     still resolves while that service is down.
+  const cachedByLink = await tryCache({ serviceLink: serviceLinkLookup(sourceAdapter, trackId) });
+  if (cachedByLink) return fillMissingServices(cachedByLink);
+
   // 3. Fetch metadata
   let sourceTrack: NormalizedTrack;
   try {
     sourceTrack = await sourceAdapter.getTrack(trackId);
   } catch (error) {
     if (!sourceAdapter.isAvailable()) {
-      return withAlias(await resolveUrlViaScrape(cleanUrl, sourceAdapter.id));
+      return resolveUrlViaScrape(cleanUrl, sourceAdapter.id);
     }
     if (error instanceof ResolveError) throw error;
     throw new ResolveError(
@@ -527,19 +742,20 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
   // 3b. Cache lookup by ISRC (in case same track was resolved via different URL)
   if (sourceTrack.isrc) {
     const cachedByIsrc = await tryCache({ isrc: sourceTrack.isrc });
-    if (cachedByIsrc) return withAlias(await fillMissingServices(cachedByIsrc));
+    if (cachedByIsrc) return fillMissingServices(cachedByIsrc);
   }
 
   // 4. Resolve on all other services in parallel
-  const links = await resolveAcrossServices(sourceTrack, sourceAdapter);
+  const { links, lateLinks } = await resolveAcrossServices(sourceTrack, sourceAdapter);
 
-  // 5. Add the source service link
+  // 5. Add the source service link. It was not found by any method: it is the
+  // address the request came in on, which `source` says and `isrc` did not.
   links.unshift({
     service: sourceAdapter.id,
     displayName: sourceAdapter.displayName,
     url: sourceTrack.webUrl,
-    confidence: 1.0,
-    matchMethod: "isrc",
+    confidence: IDENTIFIER_MATCH_CONFIDENCE,
+    matchMethod: "source",
     externalId: sourceTrack.sourceId,
     previewUrl: sourceTrack.previewUrl,
   });
@@ -591,11 +807,12 @@ export async function resolveUrl(inputUrl: string): Promise<ResolutionResult> {
     }
   }
 
-  return withAlias({
+  return {
     sourceTrack,
     links,
     externalIds: collectTrackExternalIds(sourceTrack, links),
-  });
+    lateLinks,
+  };
 }
 
 type RankedSearchCandidate = SearchResultWithCandidates["candidates"][number];
@@ -643,6 +860,7 @@ function selectDiverseSearchCandidates(candidates: RankedSearchCandidate[], cap:
 export async function resolveTextSearch(query: string): Promise<ResolutionResult> {
   // Service search: try all active adapters
   const searchAdapters = await getActiveAdapters();
+  let failedSearches = 0;
   for (const adapter of searchAdapters) {
     try {
       const result = await adapter.searchTrack({
@@ -657,7 +875,7 @@ export async function resolveTextSearch(query: string): Promise<ResolutionResult
           if (cached) return fillMissingServices(cached);
         }
 
-        const links = await resolveAcrossServices(result.track, adapter);
+        const { links, lateLinks } = await resolveAcrossServices(result.track, adapter);
         links.unshift({
           service: adapter.id,
           displayName: adapter.displayName,
@@ -671,14 +889,16 @@ export async function resolveTextSearch(query: string): Promise<ResolutionResult
           sourceTrack: result.track,
           links,
           externalIds: collectTrackExternalIds(result.track, links),
+          lateLinks,
         };
       }
     } catch (error) {
+      failedSearches++;
       log.debug("Resolver", `[${adapter.id}] text search failed:`, error instanceof Error ? error.message : error);
     }
   }
 
-  throw new ResolveError("TRACK_NOT_FOUND", "No track found for the search query");
+  throw searchExhaustedError(searchAdapters.length, failedSearches, "No track found for the search query");
 }
 
 /**
@@ -712,6 +932,7 @@ export async function resolveTextSearchWithDisambiguation(
 
   // Service search: try adapters that support searchTrackWithCandidates, then fall back
   const searchAdapters = await getActiveAdapters();
+  let failedSearches = 0;
 
   for (const adapter of searchAdapters) {
     try {
@@ -736,7 +957,7 @@ export async function resolveTextSearchWithDisambiguation(
             }
           }
 
-          const links = await resolveAcrossServices(topCandidate.track, adapter);
+          const { links, lateLinks } = await resolveAcrossServices(topCandidate.track, adapter);
           links.unshift({
             service: adapter.id,
             displayName: adapter.displayName,
@@ -752,6 +973,7 @@ export async function resolveTextSearchWithDisambiguation(
               sourceTrack: topCandidate.track,
               links,
               externalIds: collectTrackExternalIds(topCandidate.track, links),
+              lateLinks,
             },
           };
         }
@@ -787,7 +1009,7 @@ export async function resolveTextSearchWithDisambiguation(
           }
         }
 
-        const links = await resolveAcrossServices(result.track, adapter);
+        const { links, lateLinks } = await resolveAcrossServices(result.track, adapter);
         links.unshift({
           service: adapter.id,
           displayName: adapter.displayName,
@@ -803,10 +1025,12 @@ export async function resolveTextSearchWithDisambiguation(
             sourceTrack: result.track,
             links,
             externalIds: collectTrackExternalIds(result.track, links),
+            lateLinks,
           },
         };
       }
     } catch (error) {
+      failedSearches++;
       log.debug(
         "Resolver",
         `[${adapter.id}] disambiguation search failed:`,
@@ -815,7 +1039,7 @@ export async function resolveTextSearchWithDisambiguation(
     }
   }
 
-  throw new ResolveError("TRACK_NOT_FOUND", "No track found for the search query");
+  throw searchExhaustedError(searchAdapters.length, failedSearches, "No track found for the search query");
 }
 
 /**
@@ -851,7 +1075,7 @@ export async function resolveSelectedCandidate(candidateId: string): Promise<Res
     if (cached) return { ...cached, links: await filterDisabledLinks(cached.links) };
   }
 
-  const links = await resolveAcrossServices(sourceTrack, adapter);
+  const { links, lateLinks } = await resolveAcrossServices(sourceTrack, adapter);
 
   links.unshift({
     service: adapter.id,
@@ -866,34 +1090,98 @@ export async function resolveSelectedCandidate(candidateId: string): Promise<Res
     sourceTrack,
     links,
     externalIds: collectTrackExternalIds(sourceTrack, links),
+    lateLinks,
   };
 }
 
 async function resolveAcrossServices(
   sourceTrack: NormalizedTrack,
   excludeAdapter: ServiceAdapter,
-): Promise<ResolvedLink[]> {
+): Promise<CrossServiceLinks> {
   const active = await getActiveAdapters();
   const targetAdapters = active.filter((a) => a.id !== excludeAdapter.id);
 
-  const ADAPTER_TIMEOUT_MS = 10_000;
+  const fanOut = await settleWithinDeadline(
+    targetAdapters.map((adapter) => resolveOnServiceWithTimeout(adapter, sourceTrack)),
+    RESOLVE_RESPONSE_DEADLINE_MS,
+  );
 
-  const withTimeout = (adapter: ServiceAdapter): Promise<ResolvedLink | null> =>
-    Promise.race([
-      resolveOnService(adapter, sourceTrack),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`Timeout after ${ADAPTER_TIMEOUT_MS}ms`)), ADAPTER_TIMEOUT_MS),
-      ),
-    ]);
+  const links = collectMatchedLinks(targetAdapters, fanOut.early);
+  appendYouTubeMusicLink(links);
 
-  // Resolve on each target service in parallel
-  const results = await Promise.allSettled(targetAdapters.map((adapter) => withTimeout(adapter)));
+  // For services with no match, add YouTube search fallback
+  const coveredServices = new Set([excludeAdapter.id, ...links.map((l) => l.service)]);
 
+  if (!coveredServices.has("youtube") && sourceTrack.title && sourceTrack.artists.length > 0) {
+    const searchQuery = encodeURIComponent(`${sourceTrack.artists[0]} ${sourceTrack.title}`);
+    links.push({
+      service: "youtube",
+      displayName: "YouTube",
+      url: `https://music.youtube.com/search?q=${searchQuery}`,
+      confidence: SEARCH_FALLBACK_CONFIDENCE,
+      matchMethod: "search-fallback",
+    });
+  }
+
+  // Sort by confidence (highest first)
+  links.sort((a, b) => b.confidence - a.confidence);
+
+  // Filter out low-confidence matches (but keep search fallbacks)
+  const responseLinks = links.filter(
+    (l) => l.confidence >= LINK_QUALITY_THRESHOLD || l.matchMethod === "search-fallback",
+  );
+
+  const lateAdapterIndices = indicesStillRunning(fanOut.early);
+  if (lateAdapterIndices.length === 0) return { links: responseLinks };
+
+  log.debug(
+    "Resolver",
+    `Answering without ${lateAdapterIndices.map((index) => targetAdapters[index].id).join(", ")}; their links are stored when they arrive`,
+  );
+  const lateLinks = fanOut.all.then((results) => {
+    const late = collectMatchedLinks(
+      lateAdapterIndices.map((index) => targetAdapters[index]),
+      lateAdapterIndices.map((index) => results[index]),
+    );
+    appendYouTubeMusicLink(late);
+    return late.filter((l) => l.confidence >= LINK_QUALITY_THRESHOLD);
+  });
+
+  return { links: responseLinks, lateLinks };
+}
+
+/**
+ * Links found for a source track on the other services.
+ *
+ * @property links - What arrived before {@link RESOLVE_RESPONSE_DEADLINE_MS},
+ *   ready for the response: with the derived YouTube Music link and the YouTube
+ *   search fallback, sorted by confidence and filtered by link quality.
+ * @property lateLinks - Present when services were still running at the
+ *   deadline. Settles, never rejects, with the qualifying links they produced,
+ *   for {@link persistLateTrackLinks} to store on the track.
+ */
+interface CrossServiceLinks {
+  links: ResolvedLink[];
+  lateLinks?: Promise<ResolvedLink[]>;
+}
+
+/**
+ * Turns per-service results into links and logs each outcome. A result that is
+ * `undefined` belongs to a service still running and is skipped.
+ *
+ * @param adapters - The services, in the same order as `results`.
+ * @param results - One settled result, or `undefined`, per service.
+ * @returns The links of every service that matched.
+ */
+function collectMatchedLinks(
+  adapters: readonly ServiceAdapter[],
+  results: ReadonlyArray<PromiseSettledResult<ResolvedLink | null> | undefined>,
+): ResolvedLink[] {
   const links: ResolvedLink[] = [];
-
   for (let i = 0; i < results.length; i++) {
     const result = results[i];
-    const adapter = targetAdapters[i];
+    const adapter = adapters[i];
+    if (!result) continue;
 
     if (result.status === "fulfilled" && result.value) {
       log.debug("Resolver", `[${adapter.id}] matched: confidence=${result.value.confidence}`);
@@ -907,43 +1195,59 @@ async function resolveAcrossServices(
       );
     }
   }
+  return links;
+}
 
-  // Derive YouTube Music link from YouTube result (same video ID, different domain)
+/**
+ * Derives the YouTube Music link from a YouTube match in `links`, which share
+ * the video id, and appends it unless one is there already.
+ *
+ * @param links - Links to extend in place.
+ */
+function appendYouTubeMusicLink(links: ResolvedLink[]): void {
   const youtubeLink = links.find((l) => l.service === "youtube");
-  if (youtubeLink && !links.some((l) => l.service === "youtube-music")) {
-    const videoIdMatch = /[?&]v=([^&]+)/.exec(youtubeLink.url);
-    if (videoIdMatch) {
-      links.push({
-        service: "youtube-music",
-        displayName: "YouTube Music",
-        url: `https://music.youtube.com/watch?v=${videoIdMatch[1]}`,
-        confidence: youtubeLink.confidence,
-        matchMethod: youtubeLink.matchMethod,
-        externalId: youtubeLink.externalId,
-      });
-    }
-  }
+  if (!youtubeLink || links.some((l) => l.service === "youtube-music")) return;
 
-  // For services with no match, add YouTube search fallback
-  const coveredServices = new Set([excludeAdapter.id, ...links.map((l) => l.service)]);
+  const videoIdMatch = /[?&]v=([^&]+)/.exec(youtubeLink.url);
+  if (!videoIdMatch) return;
+  links.push({
+    service: "youtube-music",
+    displayName: "YouTube Music",
+    url: `https://music.youtube.com/watch?v=${videoIdMatch[1]}`,
+    confidence: youtubeLink.confidence,
+    matchMethod: youtubeLink.matchMethod,
+    externalId: youtubeLink.externalId,
+  });
+}
 
-  if (!coveredServices.has("youtube") && sourceTrack.title && sourceTrack.artists.length > 0) {
-    const searchQuery = encodeURIComponent(`${sourceTrack.artists[0]} ${sourceTrack.title}`);
-    links.push({
-      service: "youtube",
-      displayName: "YouTube",
-      url: `https://music.youtube.com/search?q=${searchQuery}`,
-      confidence: SEARCH_FALLBACK_CONFIDENCE,
-      matchMethod: "search",
-      isSearchFallback: true,
-    });
-  }
+/**
+ * @param early - The settled-by-deadline results of a fan-out.
+ * @returns The positions of the services that had not settled by the deadline.
+ */
+function indicesStillRunning(early: ReadonlyArray<PromiseSettledResult<unknown> | undefined>): number[] {
+  return early.flatMap((result, index) => (result === undefined ? [index] : []));
+}
 
-  // Sort by confidence (highest first)
-  links.sort((a, b) => b.confidence - a.confidence);
+/**
+ * Upper bound for one service's lookup. The response no longer waits for it,
+ * see {@link RESOLVE_RESPONSE_DEADLINE_MS}, but the background work that stores
+ * late links does, and a service that never answers must not hold that open.
+ */
+const ADAPTER_TIMEOUT_MS = 10_000;
 
-  // Filter out low-confidence matches (but keep search fallbacks)
-  return links.filter((l) => l.confidence >= LINK_QUALITY_THRESHOLD || l.isSearchFallback);
+/**
+ * {@link resolveOnService} raced against {@link ADAPTER_TIMEOUT_MS}. The timer
+ * is cleared once the lookup settles, so a fast answer leaves nothing pending.
+ */
+function resolveOnServiceWithTimeout(
+  adapter: ServiceAdapter,
+  sourceTrack: NormalizedTrack,
+): Promise<ResolvedLink | null> {
+  let timeoutTimer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutTimer = setTimeout(() => reject(new Error(`Timeout after ${ADAPTER_TIMEOUT_MS}ms`)), ADAPTER_TIMEOUT_MS);
+  });
+  return Promise.race([resolveOnService(adapter, sourceTrack), timeout]).finally(() => clearTimeout(timeoutTimer));
 }
 
 async function resolveOnService(adapter: ServiceAdapter, sourceTrack: NormalizedTrack): Promise<ResolvedLink | null> {
@@ -960,7 +1264,7 @@ async function resolveOnService(adapter: ServiceAdapter, sourceTrack: Normalized
         service: adapter.id,
         displayName: adapter.displayName,
         url: track.webUrl,
-        confidence: 1.0,
+        confidence: IDENTIFIER_MATCH_CONFIDENCE,
         matchMethod: "isrc",
         externalId: track.sourceId,
         previewUrl: track.previewUrl,
@@ -990,7 +1294,7 @@ async function resolveViaSearch(adapter: ServiceAdapter, sourceTrack: Normalized
     service: adapter.id,
     displayName: adapter.displayName,
     url: result.track.webUrl,
-    confidence: result.confidence,
+    confidence: confidenceForMethod(result.matchMethod, result.confidence),
     matchMethod: result.matchMethod,
     externalId: result.track.sourceId,
     previewUrl: result.track.previewUrl,
@@ -1140,7 +1444,7 @@ async function resolveUrlViaScrape(url: string, sourceServiceId: ServiceId): Pro
   }
 
   // Resolve across all other services
-  const links = await resolveAcrossServices(bestSourceTrack, bestAdapter);
+  const { links, lateLinks } = await resolveAcrossServices(bestSourceTrack, bestAdapter);
 
   // Add the source adapter's match
   links.unshift({
@@ -1170,6 +1474,7 @@ async function resolveUrlViaScrape(url: string, sourceServiceId: ServiceId): Pro
     sourceTrack: bestSourceTrack,
     links,
     externalIds: collectTrackExternalIds(bestSourceTrack, links),
+    lateLinks,
   };
 }
 

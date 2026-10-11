@@ -10,12 +10,12 @@ export const prerender = false;
  * `pages/api/genre-artwork/[genreKey].ts`; the only difference is the
  * Jamendo-sourced backend route it forwards to.
  */
-export const GET: APIRoute = async ({ params }) => {
+export const GET: APIRoute = async ({ params, clientAddress }) => {
   const genreKey = params.genreKey ?? "";
   if (!genreKey) return new Response(null, { status: 400 });
 
   try {
-    const res = await fetchCcGenreArtwork(genreKey);
+    const res = await fetchCcGenreArtwork(genreKey, clientAddress);
     if (!res.ok) return new Response(null, { status: res.status });
     const body = await res.arrayBuffer();
     return new Response(body, {

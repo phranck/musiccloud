@@ -26,7 +26,7 @@ import { normalizeReleaseToLayout, selectOriginalVinylVersion } from "./discogs-
  */
 export async function enrichVinylLayout(
   pool: Pool,
-  album: { identityKey: string; title: string; artists: string[]; albumId?: string; upc?: string | null },
+  album: { identityKey: string; title: string; artists: string[]; albumId?: string },
 ): Promise<void> {
   if (!isDiscogsConfigured()) {
     return;

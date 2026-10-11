@@ -1,0 +1,288 @@
+/*
+ * Appearance of the shortcode help panel.
+ *
+ * Kept in a stylesheet rather than injected at runtime: an injected element
+ * does not exist at build time, the Content Security Policy carries no hash for
+ * it, and the browser refuses it.
+ *
+ * The panel is help rather than a dialog, so it dims nothing behind it and
+ * takes no focus. Everything it needs comes from the design tokens.
+ */
+
+.mc-help-panel {
+  /* Positioned by transform rather than by left and top, because a drag moves
+     it and only transform stays off the layout path. The offsets are written
+     onto the element as --mc-help-x and --mc-help-y. */
+  position: fixed;
+  left: 0;
+  top: 0;
+  transform: translate3d(var(--mc-help-x, 0px), var(--mc-help-y, 0px), 0);
+  z-index: var(--ds-overlay-z-dialog);
+
+  display: flex;
+  flex-direction: column;
+
+  overflow: hidden;
+
+  /* A size for the one frame before the component writes the real one. The
+     binding limits are MIN_WIDTH and MIN_HEIGHT in the component, which every
+     drag and resize is clamped to; these two only keep the panel from being
+     drawn at its content size in the meantime. */
+  min-width: 520px;
+  min-height: 260px;
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100vh - 2rem);
+
+  /* The label beside a shortcode's token, and the heading over the variables.
+     One step down from the panel's text, which the type scale cannot supply
+     here: its own next step is 9px, and a label nobody can read is not a
+     label. Named once because two rules take it. */
+  --mc-help-label-size: 0.6875rem;
+
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-xl);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-xl);
+
+  /* Opacity only, so the reveal stays on the compositor. */
+  animation: mc-help-in 180ms var(--ds-ease-out) both;
+}
+
+/*
+ * The animation property is deliberately left alone here. Setting it to none
+ * and back restarts the reveal when the pointer lifts, which shows as the panel
+ * fading in from nothing for a moment.
+ */
+.mc-help-panel[data-dragging="true"] {
+  user-select: none;
+}
+
+/*
+ * Suppresses text selection across the whole document whilst the panel is
+ * dragged.
+ *
+ * Doing it on the panel alone is not enough. The selection the browser starts
+ * on the pointer press is anchored in the document, so it runs across whatever
+ * sits behind the panel and flickers as the pointer moves. The class is set on
+ * the root element for the duration of the drag and removed when it ends.
+ */
+.mc-help-dragging,
+.mc-help-dragging * {
+  user-select: none !important;
+  cursor: grabbing !important;
+}
+
+/*
+ * The header sits flush against the panel edge, so its inset is zero and it
+ * keeps the outer radius on the two corners it touches.
+ */
+.mc-help-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-sm);
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid var(--ds-border-subtle);
+  background: var(--ds-surface-inset);
+  cursor: grab;
+  touch-action: none;
+}
+
+.mc-help-header:active {
+  cursor: grabbing;
+}
+
+/* The close button is a control, not part of the drag handle. */
+.mc-help-header button {
+  cursor: pointer;
+}
+
+/*
+ * Grab areas on every edge and corner.
+ *
+ * They sit inside the panel rather than outside it, so nothing pokes past the
+ * rounded border, and they are laid over the content because a resize has to
+ * win against whatever sits underneath.
+ */
+.mc-help-grip {
+  position: absolute;
+  z-index: 1;
+  touch-action: none;
+}
+
+.mc-help-grip[data-edge="n"],
+.mc-help-grip[data-edge="s"] {
+  left: 0.5rem;
+  right: 0.5rem;
+  height: 0.375rem;
+  cursor: ns-resize;
+}
+
+.mc-help-grip[data-edge="e"],
+.mc-help-grip[data-edge="w"] {
+  top: 0.5rem;
+  bottom: 0.5rem;
+  width: 0.375rem;
+  cursor: ew-resize;
+}
+
+.mc-help-grip[data-edge="n"] {
+  top: 0;
+}
+
+.mc-help-grip[data-edge="s"] {
+  bottom: 0;
+}
+
+.mc-help-grip[data-edge="w"] {
+  left: 0;
+}
+
+.mc-help-grip[data-edge="e"] {
+  right: 0;
+}
+
+.mc-help-grip[data-edge="nw"],
+.mc-help-grip[data-edge="ne"],
+.mc-help-grip[data-edge="sw"],
+.mc-help-grip[data-edge="se"] {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.mc-help-grip[data-edge="nw"] {
+  top: 0;
+  left: 0;
+  cursor: nwse-resize;
+}
+
+.mc-help-grip[data-edge="se"] {
+  bottom: 0;
+  right: 0;
+  cursor: nwse-resize;
+}
+
+.mc-help-grip[data-edge="ne"] {
+  top: 0;
+  right: 0;
+  cursor: nesw-resize;
+}
+
+.mc-help-grip[data-edge="sw"] {
+  bottom: 0;
+  left: 0;
+  cursor: nesw-resize;
+}
+
+/*
+ * The one sentence that holds for every shortcode. It sits above both columns
+ * because it belongs to neither, and stays put whilst they scroll.
+ */
+.mc-help-hint {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--ds-border-subtle);
+  color: var(--ds-text-muted);
+  font-size: var(--ds-text-sm);
+  line-height: var(--ds-leading-sm);
+}
+
+/*
+ * The two columns: the list of shortcodes, and the description of the one
+ * picked. Each scrolls on its own, so a long list never pushes a description
+ * out of view and a long description never moves the list.
+ */
+.mc-help-split {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.mc-help-nav {
+  flex: 0 0 11rem;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.5rem;
+  border-right: 1px solid var(--ds-border-subtle);
+  background: var(--ds-surface-inset);
+}
+
+.mc-help-nav-item {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0.375rem 0.5rem;
+  border-radius: var(--ds-radius-md);
+  text-align: left;
+  font-size: var(--ds-text-sm);
+  line-height: var(--ds-leading-sm);
+  color: var(--ds-text);
+  cursor: pointer;
+}
+
+.mc-help-nav-item:hover {
+  background: var(--ds-control-hover-bg);
+}
+
+/*
+ * The current entry carries the accent and a wash of it. Colour alone would ask
+ * the reader to tell two greys apart, and the hover tint must not replace the
+ * wash whilst the pointer is over the entry already chosen.
+ */
+.mc-help-nav-item[data-current="true"],
+.mc-help-nav-item[data-current="true"]:hover {
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
+.mc-help-nav-label {
+  color: var(--ds-text-subtle);
+  font-size: var(--mc-help-label-size);
+}
+
+/*
+ * Separates the variables from the shortcodes above them. A rule alone would
+ * leave the reader to guess what changed, so the group carries its name.
+ */
+.mc-help-nav-group {
+  margin: 0.75rem 0 0.25rem;
+  padding: 0.5rem 0.5rem 0;
+  border-top: 1px solid var(--ds-border);
+  color: var(--ds-text-subtle);
+  font-size: var(--mc-help-label-size);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mc-help-nav-item[data-current="true"] .mc-help-nav-label {
+  color: inherit;
+  opacity: 0.75;
+}
+
+.mc-help-body {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.75rem 1rem;
+  font-size: var(--ds-text-sm);
+  line-height: var(--ds-leading-sm);
+}
+
+@keyframes mc-help-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mc-help-panel {
+    animation-duration: 0.01ms;
+  }
+}

@@ -31,6 +31,16 @@ export interface VinylRecordProps {
   labelRightsText?: string | null;
   /** Visual label recipe. Missing artwork resolves to Generic when omitted. */
   labelVariant?: VinylLabelVariantValue;
+  /**
+   * Whether the label prints its text: the Generic label's wordmark, copyright,
+   * imprint and pressing copy, or the Standard label's title, subtitle, legal
+   * line and pressing copy. Defaults to `true`. A record drawn a few dozen pixels
+   * across, such as the loading disc in the search field or the Single slotting
+   * into a selected row, leaves it out: the text is a pixel or two high there,
+   * and Safari repaints its paths on every frame while the disc moves, which
+   * dropped frames through the loading animation and the row selection.
+   */
+  labelTypography?: boolean;
   /** Whether this isolated record owns a visible stationary turntable spindle. */
   showTurntableSpindle?: boolean;
   sideLayout?: VinylSide;
@@ -43,6 +53,8 @@ const DEFAULT_LABEL_SPEED = "33 1/3 RPM";
 // licence label, where a collecting-society line would be meaningless.
 const DEFAULT_LABEL_RIGHTS_TEXT = "GEMA";
 const DEFAULT_LABEL_CATALOG_TEXT = "MC-4333";
+/** House catalog number on the generic label, for a record without cover artwork. */
+const GENERIC_LABEL_CATALOG_TEXT = "MC-GSP-001";
 // Top-right technical imprint. "DMM" (Direct Metal Mastering) is a generic,
 // authentic vinyl mark, meaningful in both commercial and CC modes (unlike the
 // commercial-only label code it replaces).
@@ -109,7 +121,7 @@ const VINYL_GENERIC_PAUSE_BANDS = [
 // The spiral ships as a rasterised SVG bitmap behind an <img>, not an inline
 // <svg>. A replaced element is rasterised once and cached as its own compositor
 // layer, so spinning the rotor is a pure GPU transform. An inline <svg> with this
-// ~72 KB vector path is re-rasterised every frame in Firefox/WebRender (which does
+// vector path is re-rasterised every frame in Firefox/WebRender (which does
 // not reliably cache a rotating vector layer) — that is what stuttered the spin
 // there. The groove has no external fonts or images, so the secure-static mode an
 // SVG carries inside an <img> imposes no constraint. Single quotes keep the data
@@ -571,6 +583,7 @@ export function VinylRecord({
   labelTitle,
   labelYear,
   labelVariant,
+  labelTypography = true,
   showTurntableSpindle = true,
   sideLayout,
   spinState = VinylSpinState.Idle,
@@ -582,10 +595,10 @@ export function VinylRecord({
   const displayTitle = labelTitle ?? DEFAULT_LABEL_TITLE;
   const displayRights = labelRightsText ?? DEFAULT_LABEL_RIGHTS_TEXT;
   // The center catalog field falls back to a placeholder only for commercial
-  // tracks; CC tracks have no ISRC, so the middle stays empty (the licence sits
-  // in the top-left rights field instead).
-  const displayCatalog =
-    labelCatalogText ?? (displayRights === DEFAULT_LABEL_RIGHTS_TEXT ? DEFAULT_LABEL_CATALOG_TEXT : "");
+  // records; CC records have no ISRC, so the middle stays empty (the licence sits
+  // in the top-left rights field instead). The generic label follows the same rule.
+  const usesDefaultRights = displayRights === DEFAULT_LABEL_RIGHTS_TEXT;
+  const displayCatalog = labelCatalogText ?? (usesDefaultRights ? DEFAULT_LABEL_CATALOG_TEXT : "");
   const legalText = `${labelYear ? `P ${labelYear}` : DEFAULT_LABEL_SPEED} · 33 1/3 RPM · PRODUCED BY MUSICCLOUD`;
   const titleFontSize = fittedMonoFontSize(
     displayTitle,
@@ -693,9 +706,12 @@ export function VinylRecord({
           >
             {usesGenericLabel ? (
               <GenericVinylLabel
+                catalogText={usesDefaultRights ? GENERIC_LABEL_CATALOG_TEXT : ""}
                 hasSingleCentreOpening={hasSingleCentreOpening}
+                rightsText={displayRights}
                 idPrefix={labelPathId}
                 sideLetter={sideLetter}
+                typography={labelTypography}
               />
             ) : (
               <>
@@ -716,67 +732,69 @@ export function VinylRecord({
                   data-vinyl-label-print="true"
                   style={LABEL_PRINT_STYLE}
                 />
-                <svg
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-0 z-30 h-full w-full"
-                  data-vinyl-label-print-copy="true"
-                  viewBox="0 0 100 100"
-                >
-                  <defs>
-                    <path d={LABEL_TITLE_ARC_PATH} data-vinyl-label-title-path="true" id={titleArcId} />
-                    <path d={LABEL_LEGAL_ARC_PATH} data-vinyl-label-legal-path="true" id={legalArcId} />
-                  </defs>
-                  <VinylLabelPressingCopy
-                    catalogText={displayCatalog}
-                    rightsText={displayRights}
-                    sideLetter={sideLetter}
-                  />
-                  <text
-                    className="uppercase"
-                    data-vinyl-label-title="true"
-                    fill="rgba(255, 255, 255, 0.94)"
-                    fontSize={titleFontSize}
-                    fontWeight="700"
-                    letterSpacing={titleFontSize * LABEL_TITLE_LETTER_SPACING_RATIO}
-                    style={VINYL_LABEL_TEXT_STYLE}
+                {labelTypography ? (
+                  <svg
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 z-30 h-full w-full"
+                    data-vinyl-label-print-copy="true"
+                    viewBox="0 0 100 100"
                   >
-                    <textPath
-                      data-vinyl-label-title-arc="true"
-                      href={`#${titleArcId}`}
-                      startOffset="50%"
-                      textAnchor="middle"
-                    >
-                      {displayTitle}
-                    </textPath>
-                  </text>
-                  {labelSubtitle ? (
+                    <defs>
+                      <path d={LABEL_TITLE_ARC_PATH} data-vinyl-label-title-path="true" id={titleArcId} />
+                      <path d={LABEL_LEGAL_ARC_PATH} data-vinyl-label-legal-path="true" id={legalArcId} />
+                    </defs>
+                    <VinylLabelPressingCopy
+                      catalogText={displayCatalog}
+                      rightsText={displayRights}
+                      sideLetter={sideLetter}
+                    />
                     <text
                       className="uppercase"
-                      data-vinyl-label-subtitle="true"
-                      fill="rgba(255, 255, 255, 0.66)"
-                      fontSize={subtitleFontSize}
-                      fontWeight="400"
-                      letterSpacing={subtitleFontSize * LABEL_SUBTITLE_LETTER_SPACING_RATIO}
+                      data-vinyl-label-title="true"
+                      fill="rgba(255, 255, 255, 0.94)"
+                      fontSize={titleFontSize}
+                      fontWeight="700"
+                      letterSpacing={titleFontSize * LABEL_TITLE_LETTER_SPACING_RATIO}
                       style={VINYL_LABEL_TEXT_STYLE}
-                      textAnchor="middle"
-                      x="50"
-                      y="84"
                     >
-                      {labelSubtitle}
+                      <textPath
+                        data-vinyl-label-title-arc="true"
+                        href={`#${titleArcId}`}
+                        startOffset="50%"
+                        textAnchor="middle"
+                      >
+                        {displayTitle}
+                      </textPath>
                     </text>
-                  ) : null}
-                  <text
-                    fill="rgba(255, 255, 255, 0.58)"
-                    fontSize={LABEL_LEGAL_FONT_SIZE}
-                    fontWeight="300"
-                    letterSpacing={LABEL_LEGAL_LETTER_SPACING}
-                    style={VINYL_LABEL_TEXT_STYLE}
-                  >
-                    <textPath href={`#${legalArcId}`} startOffset="50%" textAnchor="middle">
-                      {legalText}
-                    </textPath>
-                  </text>
-                </svg>
+                    {labelSubtitle ? (
+                      <text
+                        className="uppercase"
+                        data-vinyl-label-subtitle="true"
+                        fill="rgba(255, 255, 255, 0.66)"
+                        fontSize={subtitleFontSize}
+                        fontWeight="400"
+                        letterSpacing={subtitleFontSize * LABEL_SUBTITLE_LETTER_SPACING_RATIO}
+                        style={VINYL_LABEL_TEXT_STYLE}
+                        textAnchor="middle"
+                        x="50"
+                        y="84"
+                      >
+                        {labelSubtitle}
+                      </text>
+                    ) : null}
+                    <text
+                      fill="rgba(255, 255, 255, 0.58)"
+                      fontSize={LABEL_LEGAL_FONT_SIZE}
+                      fontWeight="300"
+                      letterSpacing={LABEL_LEGAL_LETTER_SPACING}
+                      style={VINYL_LABEL_TEXT_STYLE}
+                    >
+                      <textPath href={`#${legalArcId}`} startOffset="50%" textAnchor="middle">
+                        {legalText}
+                      </textPath>
+                    </text>
+                  </svg>
+                ) : null}
               </>
             )}
             <span className="sr-only">SIDE {sideLetter}</span>

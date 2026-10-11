@@ -1,8 +1,11 @@
-import type { CcArtistInfoResponse, VinylLayout } from "@musiccloud/shared";
+import { type CcArtistInfoResponse, Service, type VinylLayout } from "@musiccloud/shared";
 import { describe, expect, it } from "vitest";
+import { creativeCommonsCopy } from "@/copy/creative-commons";
+import { resultsCopy } from "@/copy/results";
 import { buildShareViewFromSharePageResponse } from "@/lib/share/share-view";
-import { ActiveResultKind, type AlbumResult, type SongResult } from "@/lib/types/app";
+import { ActiveResultKind, type AlbumResult, type ArtistResult, type SongResult } from "@/lib/types/app";
 import {
+  albumMetaLine,
   buildActiveConfig,
   buildShareConfigFromActive,
   ccResolveDataToResult,
@@ -11,6 +14,7 @@ import {
   formatResolveErrorMessage,
   parseResolveError,
   parseUnifiedResolveResponse,
+  ResolveApiError,
 } from "./parsers";
 
 const VINYL_LAYOUT: VinylLayout = {
@@ -268,6 +272,253 @@ describe("media-card LP label fields", () => {
   });
 });
 
+describe("Creative Commons results list Jamendo as their service", () => {
+  const TRACK_PAGE = "https://www.jamendo.com/track/459544/everybody-loves-the-partys";
+  const ALBUM_PAGE = "https://www.jamendo.com/album/54844/best-of-vol-2";
+  const ARTIST_PAGE = "https://www.jamendo.com/artist/5261/juanitos";
+
+  it("gives a live track, album and artist result one Jamendo link under the matching title", () => {
+    const track = ccResolveDataToResult({
+      type: "cc-track",
+      id: "cc-track-id",
+      shortUrl: "https://musiccloud.local/cc-track",
+      track: {
+        jamendoId: "459544",
+        title: "Everybody Loves The Partys",
+        artistName: "Juanitos",
+        jamendoArtistId: "5261",
+        streamUrl: "https://cdn.example/track.mp3",
+        downloadAllowed: false,
+        shareUrl: TRACK_PAGE,
+        vinylLayout: null,
+      },
+    });
+    const album = ccResolveDataToResult({
+      type: "cc-album",
+      id: "cc-album-id",
+      shortUrl: "https://musiccloud.local/cc-album",
+      album: {
+        jamendoId: "54844",
+        name: "Best of Vol.2",
+        artistName: "Juanitos",
+        tracks: [],
+        shareUrl: ALBUM_PAGE,
+        vinylLayout: null,
+      },
+      artistInfo: CC_ARTIST_INFO,
+    });
+    const artist = ccResolveDataToResult({
+      type: "cc-artist",
+      id: "cc-artist-id",
+      shortUrl: "https://musiccloud.local/cc-artist",
+      artist: { jamendoId: "5261", name: "Juanitos", shareUrl: ARTIST_PAGE, topTracks: [] },
+      artistInfo: CC_ARTIST_INFO,
+    });
+
+    expect(ccResultToShareProps(track).config).toMatchObject({
+      platforms: [{ platform: Service.Jamendo, url: TRACK_PAGE }],
+      platformsLabel: resultsCopy.listenOn,
+    });
+    expect(ccResultToShareProps(album).config).toMatchObject({
+      platforms: [{ platform: Service.Jamendo, url: ALBUM_PAGE }],
+      platformsLabel: resultsCopy.openAlbumOn,
+    });
+    expect(ccResultToShareProps(artist).config).toMatchObject({
+      platforms: [{ platform: Service.Jamendo, url: ARTIST_PAGE }],
+      platformsLabel: resultsCopy.viewArtistOn,
+    });
+  });
+
+  it("gives a persisted share page the same Jamendo link", () => {
+    const album = ccResponseToResult({
+      type: "cc-album",
+      og: { title: "", description: "", image: "", url: "https://musiccloud.local/cc-album" },
+      shortUrl: "https://musiccloud.local/cc-album",
+      album: {
+        jamendoId: "54844",
+        name: "Best of Vol.2",
+        artistName: "Juanitos",
+        tracks: [],
+        shareUrl: ALBUM_PAGE,
+        vinylLayout: null,
+      },
+      artistInfo: CC_ARTIST_INFO,
+    });
+
+    expect(ccResultToShareProps(album).config.platforms).toEqual([{ platform: Service.Jamendo, url: ALBUM_PAGE }]);
+  });
+
+  it("lists no service when Jamendo sent no page link", () => {
+    const artist = ccResolveDataToResult({
+      type: "cc-artist",
+      id: "cc-artist-id",
+      shortUrl: "https://musiccloud.local/cc-artist",
+      artist: { jamendoId: "5261", name: "Juanitos", topTracks: [] },
+      artistInfo: CC_ARTIST_INFO,
+    });
+
+    expect(ccResultToShareProps(artist).config.platforms).toEqual([]);
+  });
+});
+
+describe("album and artist cards say what they are", () => {
+  const ARTIST: ArtistResult = {
+    kind: ActiveResultKind.Artist,
+    name: "Massive Attack",
+    imageUrl: "",
+    platforms: [],
+    shareUrl: "https://musiccloud.local/s/ma",
+  };
+
+  it("joins track count and year with a spaced middle dot", () => {
+    expect(albumMetaLine(11, "2009-11-04")).toBe("11 tracks · 2009");
+    expect(albumMetaLine(undefined, "2009-11-04")).toBe("2009");
+    expect(albumMetaLine(undefined, undefined)).toBeUndefined();
+  });
+
+  it("gives a commercial album card its track count, on the landing result and the share config", () => {
+    const album: AlbumResult = {
+      kind: ActiveResultKind.Album,
+      title: "Blue Train",
+      artist: "John Coltrane",
+      releaseDate: "1958-01-01",
+      totalTracks: 5,
+      artworkUrl: "",
+      platforms: [],
+      shareUrl: "https://musiccloud.local/s/blue",
+    };
+    expect(buildActiveConfig(album).metaLine).toBe("5 tracks · 1958");
+    expect(buildShareConfigFromActive(album).metaLine).toBe("5 tracks · 1958");
+  });
+
+  it("names the kind on a commercial artist card, from the landing result and the share page", () => {
+    expect(buildActiveConfig(ARTIST).kindLine).toBe(resultsCopy.artistKind);
+    expect(buildShareConfigFromActive(ARTIST).kindLine).toBe(resultsCopy.artistKind);
+
+    const view = buildShareViewFromSharePageResponse(
+      {
+        type: "artist",
+        og: { title: "", description: "", image: "", url: "https://musiccloud.local/s/ma" },
+        shortUrl: "https://musiccloud.local/s/ma",
+        links: [],
+        artist: { name: "Massive Attack" },
+      } as Parameters<typeof buildShareViewFromSharePageResponse>[0],
+      "ma",
+    );
+    expect(view.config.kindLine).toBe(resultsCopy.artistKind);
+  });
+
+  it("names the kind on a Creative Commons artist and counts a Creative Commons album's tracks", () => {
+    const artist = ccResolveDataToResult({
+      type: "cc-artist",
+      id: "cc-artist-id",
+      shortUrl: "https://musiccloud.local/cc-artist",
+      artist: { jamendoId: "5261", name: "Juanitos", topTracks: [] },
+      artistInfo: CC_ARTIST_INFO,
+    });
+    const album = ccResponseToResult({
+      type: "cc-album",
+      og: { title: "", description: "", image: "", url: "https://musiccloud.local/cc-album" },
+      shortUrl: "https://musiccloud.local/cc-album",
+      album: {
+        jamendoId: "54844",
+        name: "Best of Vol.2",
+        artistName: "Juanitos",
+        releaseDate: "2009-11-04",
+        tracks: Array.from({ length: 11 }, (_, index) => ({
+          jamendoId: `t${index}`,
+          title: `Track ${index}`,
+          artistName: "Juanitos",
+          jamendoArtistId: "5261",
+          streamUrl: "https://cdn.example/track.mp3",
+          downloadAllowed: false,
+        })),
+        vinylLayout: null,
+      },
+      artistInfo: CC_ARTIST_INFO,
+    });
+
+    expect(ccResultToShareProps(artist).config.kindLine).toBe(resultsCopy.artistKind);
+    expect(ccResultToShareProps(album).config.metaLine).toBe("11 tracks · 2009");
+    expect(ccResultToShareProps(album).config.kindLine).toBeUndefined();
+  });
+});
+
+describe("Creative Commons record labels name their license, never GEMA", () => {
+  const BY_NC_SA_3 = "http://creativecommons.org/licenses/by-nc-sa/3.0/";
+  const BY_4 = "https://creativecommons.org/licenses/by/4.0/";
+
+  function ccTrack(jamendoId: string, licenseCcurl?: string) {
+    return {
+      jamendoId,
+      title: `Track ${jamendoId}`,
+      artistName: "Juanitos",
+      jamendoArtistId: "5261",
+      streamUrl: "https://cdn.example/track.mp3",
+      downloadAllowed: false,
+      licenseCcurl,
+    };
+  }
+
+  function albumRights(licenses: (string | undefined)[]) {
+    const album = ccResolveDataToResult({
+      type: "cc-album",
+      id: "cc-album-id",
+      shortUrl: "https://musiccloud.local/cc-album",
+      album: {
+        jamendoId: "54844",
+        name: "Best of Vol.2",
+        artistName: "Juanitos",
+        tracks: licenses.map((license, index) => ccTrack(`t${index}`, license)),
+        vinylLayout: null,
+      },
+      artistInfo: CC_ARTIST_INFO,
+    });
+    return ccResultToShareProps(album).config.labelRightsText;
+  }
+
+  it("prints the license an album's tracks share", () => {
+    expect(albumRights([BY_NC_SA_3, BY_NC_SA_3, BY_NC_SA_3])).toBe("CC BY-NC-SA 3.0");
+  });
+
+  it("prints CC where an album's tracks carry different licenses or none", () => {
+    expect(albumRights([BY_NC_SA_3, BY_4])).toBe(creativeCommonsCopy.recordRights);
+    expect(albumRights([BY_NC_SA_3, undefined])).toBe(creativeCommonsCopy.recordRights);
+    expect(albumRights([undefined])).toBe(creativeCommonsCopy.recordRights);
+    expect(albumRights([])).toBe(creativeCommonsCopy.recordRights);
+  });
+
+  it("prints the license an artist's top tracks share, on the live result and the share page", () => {
+    const live = ccResolveDataToResult({
+      type: "cc-artist",
+      id: "cc-artist-id",
+      shortUrl: "https://musiccloud.local/cc-artist",
+      artist: { jamendoId: "5261", name: "Juanitos", topTracks: [ccTrack("a", BY_4), ccTrack("b", BY_4)] },
+      artistInfo: CC_ARTIST_INFO,
+    });
+    const persisted = ccResponseToResult({
+      type: "cc-artist",
+      og: { title: "", description: "", image: "", url: "https://musiccloud.local/cc-artist" },
+      shortUrl: "https://musiccloud.local/cc-artist",
+      artist: { jamendoId: "5261", name: "Juanitos", topTracks: [ccTrack("a", BY_4), ccTrack("b", BY_NC_SA_3)] },
+      artistInfo: CC_ARTIST_INFO,
+    });
+
+    expect(ccResultToShareProps(live).config.labelRightsText).toBe("CC BY 4.0");
+    expect(ccResultToShareProps(persisted).config.labelRightsText).toBe(creativeCommonsCopy.recordRights);
+  });
+
+  it("prints CC on a track whose license cannot be read", () => {
+    const track = ccResolveDataToResult({
+      type: "cc-track",
+      id: "cc-track-id",
+      shortUrl: "https://musiccloud.local/cc-track",
+      track: { ...ccTrack("459544"), vinylLayout: null },
+    });
+    expect(ccResultToShareProps(track).config.labelRightsText).toBe(creativeCommonsCopy.recordRights);
+  });
+});
+
 describe("English resolve errors", () => {
   it("maps network and timeout failures without translation keys", () => {
     expect(formatResolveErrorMessage(parseResolveError(new TypeError("Failed to fetch")))).toBe(
@@ -291,6 +542,21 @@ describe("English resolve errors", () => {
     ).toContain("(MC-API-0003)");
     expect(formatResolveErrorMessage({ kind: "backend", code: "MC-API-3999" })).toBe(
       "Something went wrong. Please try again. (MC-API-3999)",
+    );
+  });
+
+  /**
+   * The error ID connects a visitor's report to the log line that explains it.
+   * The parser used to drop it, so the dialog showed the code alone.
+   */
+  it("keeps the backend's error ID and shows it with the message", () => {
+    const error = parseResolveError(
+      new ResolveApiError({ error: "MC-API-3999", errorId: "4f1c2d9e-6a2b-4c55-9d1e-2b7f8a1c0e33" }),
+    );
+
+    expect(error).toMatchObject({ kind: "backend", errorId: "4f1c2d9e-6a2b-4c55-9d1e-2b7f8a1c0e33" });
+    expect(formatResolveErrorMessage(error)).toBe(
+      "Something went wrong. Please try again. (MC-API-3999) Error ID: 4f1c2d9e-6a2b-4c55-9d1e-2b7f8a1c0e33",
     );
   });
 });

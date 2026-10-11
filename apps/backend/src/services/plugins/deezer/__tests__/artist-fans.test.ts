@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { UpstreamUnavailableError } from "../../../../lib/infra/upstream-unavailable";
 import { fetchDeezerFanCount } from "../artist-fans";
 
 const fetchMock = vi.fn();
@@ -29,19 +30,26 @@ describe("fetchDeezerFanCount", () => {
     await expect(fetchDeezerFanCount("27")).resolves.toBeNull();
   });
 
-  it("returns null on HTTP error", async () => {
+  it("reports an HTTP error as unavailable", async () => {
     fetchMock.mockResolvedValueOnce(mockResponse("server down", 503));
-    await expect(fetchDeezerFanCount("27")).resolves.toBeNull();
+    await expect(fetchDeezerFanCount("27")).rejects.toBeInstanceOf(UpstreamUnavailableError);
   });
 
-  it("returns null on Deezer API error envelope", async () => {
+  it("returns null when Deezer has no such artist", async () => {
     fetchMock.mockResolvedValueOnce(mockResponse({ error: { type: "DataException", message: "no data", code: 800 } }));
     await expect(fetchDeezerFanCount("999999")).resolves.toBeNull();
   });
 
-  it("returns null when fetch throws", async () => {
+  it("reports a quota error envelope as unavailable", async () => {
+    fetchMock.mockResolvedValueOnce(
+      mockResponse({ error: { type: "Exception", message: "Quota limit exceeded", code: 4 } }),
+    );
+    await expect(fetchDeezerFanCount("27")).rejects.toBeInstanceOf(UpstreamUnavailableError);
+  });
+
+  it("lets a network failure through", async () => {
     fetchMock.mockRejectedValueOnce(new Error("network down"));
-    await expect(fetchDeezerFanCount("27")).resolves.toBeNull();
+    await expect(fetchDeezerFanCount("27")).rejects.toThrow();
   });
 
   it("URL-encodes the artist ID", async () => {

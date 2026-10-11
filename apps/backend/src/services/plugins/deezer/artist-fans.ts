@@ -8,7 +8,7 @@
  */
 
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
-import { log } from "../../../lib/infra/logger";
+import { readDeezerJson } from "./deezer-response.js";
 
 const API_BASE = "https://api.deezer.com";
 const TIMEOUT_MS = 5000;
@@ -16,28 +16,17 @@ const TIMEOUT_MS = 5000;
 interface DeezerArtistResponse {
   id: number | string;
   nb_fan?: number;
-  error?: { type: string; message: string; code: number };
 }
 
+/**
+ * Reads an artist's Deezer fan count.
+ *
+ * @param artistId - The Deezer artist id.
+ * @returns The fan count, or `null` when Deezer has no such artist or no count.
+ * @throws {UpstreamUnavailableError} when Deezer did not answer.
+ */
 export async function fetchDeezerFanCount(artistId: string): Promise<number | null> {
-  try {
-    const response = await fetchWithTimeout(`${API_BASE}/artist/${encodeURIComponent(artistId)}`, {}, TIMEOUT_MS);
-
-    if (!response.ok) {
-      log.debug("Deezer", "fan-count fetch HTTP error", response.status, artistId);
-      return null;
-    }
-
-    const data = (await response.json()) as DeezerArtistResponse;
-
-    if (data.error) {
-      log.debug("Deezer", "fan-count fetch API error", data.error.message, artistId);
-      return null;
-    }
-
-    return typeof data.nb_fan === "number" ? data.nb_fan : null;
-  } catch (err) {
-    log.debug("Deezer", "fan-count fetch threw", err);
-    return null;
-  }
+  const response = await fetchWithTimeout(`${API_BASE}/artist/${encodeURIComponent(artistId)}`, {}, TIMEOUT_MS);
+  const data = await readDeezerJson<DeezerArtistResponse>(response, "artist lookup");
+  return typeof data?.nb_fan === "number" ? data.nb_fan : null;
 }

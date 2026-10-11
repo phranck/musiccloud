@@ -152,10 +152,10 @@ describe("ProjectDetailPage", () => {
     expect(screen.queryByRole("button", { name: /Suspend project|Reactivate project/ })).toBeNull();
   });
 
-  it("lists the registrations under the project and its empty state", async () => {
+  it("lists the applications under the project and its empty state", async () => {
     mocks.fetchProject.mockResolvedValue(makeDetail());
     const empty = renderPage();
-    expect(await screen.findByText("No registrations under this project.")).not.toBeNull();
+    expect(await screen.findByText("No applications under this project.")).not.toBeNull();
     empty.unmount();
 
     mocks.fetchProject.mockResolvedValue(makeDetail({ registrations: [makeRegistration()] }));

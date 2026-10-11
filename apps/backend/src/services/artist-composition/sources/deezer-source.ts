@@ -4,6 +4,8 @@
  *
  * Returns null if the artist is not found at Deezer; downstream merge
  * skips the entry and falls through to the next source per strategy.
+ * Throws when any of the three requests failed, so the caller can tell an
+ * outage apart from an artist Deezer does not know.
  */
 
 import { fetchDeezerFanCount } from "../../plugins/deezer/artist-fans.js";

@@ -118,8 +118,8 @@ export function mapDbRowToCcArtist(row: CcArtistShareRow): CcArtist {
 
 /**
  * Projects a resolved {@link CcTrack} to the DB persist payload. Shared by the
- * resolve route (single track, album tracklist, artist top tracks) and the cache
- * backfill so the share page can read the full entity from the DB. The detail
+ * resolve route's single track, album tracklist and artist top tracks, so the
+ * share page can read the full entity from the DB. The detail
  * fields (`albumPosition`/`musicInfo`/`stats`/`pro*`) are populated only when the
  * source fetch included them (single-track resolve with
  * `include=musicinfo+stats+licenses`); list contexts leave them undefined and

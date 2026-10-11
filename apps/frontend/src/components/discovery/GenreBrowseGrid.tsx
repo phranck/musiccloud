@@ -6,15 +6,6 @@ import { LazyGenreArtwork } from "@/components/ui/LazyGenreArtwork";
 import { discoveryCopy } from "@/copy/discovery";
 import { safeCssColor } from "@/lib/platform/cssColor";
 
-/** Per-index `animation-delay` step of the tile entrance in milliseconds. */
-const TILE_ENTRANCE_STAGGER_MS = 30;
-
-/**
- * Upper bound for the staggered tile delay in milliseconds, so large genre
- * sets do not trickle in forever.
- */
-const TILE_ENTRANCE_DELAY_CAP_MS = 600;
-
 interface GenreBrowseGridProps {
   genres: ApiGenreTile[];
   onSelect: (genreName: string) => void;
@@ -28,13 +19,21 @@ interface GenreBrowseGridProps {
  *
  * The panel chrome (fade-in, headline, scroll-capped embossed card) comes from
  * the shared {@link GenrePanelShell}.
- * The tile entrance deliberately stays CSS (`animate-slide-up` + per-tile
- * `animation-delay`), exempt from the MC-029 GSAP migration: this grid mounts
- * ~250 tiles at once, and a per-target JS tween init reads computed styles
- * inside the React commit — measured as 200+ ms of forced-reflow time and two
- * >50 ms long tasks in the Phase-2 gate. The browser-native animation scales
- * without any main-thread work (exception inventory in
- * `styles/animations.css`).
+ * The grid rises in as one element with the CSS `animate-slide-up`, which the
+ * browser runs off the main thread. Tiles rising one by one keep Safari
+ * repainting the whole scrolling grid for as long as any tile still moves: 22
+ * to 27 dropped frames when the grid opens, against 5 with one rising element
+ * (Safari 27, iPad simulator). It stays CSS rather than GSAP,
+ * which would drive it from the main thread while the tiles mount (exception
+ * inventory in `styles/animations.css`).
+ *
+ * Each tile skips rendering while it is outside the scrolled view
+ * (`content-visibility: auto`). The grid holds about 250 tiles and shows a
+ * dozen; painting all of them cost two frames of about 300 ms as it opened,
+ * against none over 70 ms when only the visible ones paint (Safari 27, iPad
+ * simulator, production build). The tile keeps its square from
+ * `aspect-square`; the intrinsic size stays below the narrowest column so it
+ * never stretches a tile.
  */
 export function GenreBrowseGrid({ genres, onSelect }: GenreBrowseGridProps) {
   return (
@@ -47,21 +46,24 @@ export function GenreBrowseGrid({ genres, onSelect }: GenreBrowseGridProps) {
       <RecessedCard className="max-h-full min-h-0 flex flex-col">
         <RecessedCard.Body
           scrollable
-          className="rounded-xl grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5"
+          className="animate-slide-up rounded-xl grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5"
         >
-          {genres.map((genre, i) => {
+          {genres.map((genre) => {
             // When the artwork has been generated at least once, the
             // backend inlines its dominant accent; apply it as a scoped
             // CSS variable so every `var(--color-accent)` consumer inside
             // the tile (border, glow, hover) picks it up automatically.
             const accent = safeCssColor(genre.accentColor);
-            const tileStyle = {
-              animationDelay: `${Math.min(i * TILE_ENTRANCE_STAGGER_MS, TILE_ENTRANCE_DELAY_CAP_MS)}ms`,
-              ...(accent ? { ["--color-accent" as string]: accent } : {}),
-            } as React.CSSProperties;
+            const tileStyle = (accent ? { ["--color-accent" as string]: accent } : undefined) as
+              | React.CSSProperties
+              | undefined;
 
             return (
-              <div key={genre.name} className="animate-slide-up aspect-square flex" style={tileStyle}>
+              <div
+                key={genre.name}
+                className="aspect-square flex [content-visibility:auto] [contain-intrinsic-size:auto_100px]"
+                style={tileStyle}
+              >
                 <EmbossedButton
                   as="button"
                   type="button"

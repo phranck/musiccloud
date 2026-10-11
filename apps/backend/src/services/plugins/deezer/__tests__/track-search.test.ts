@@ -5,6 +5,7 @@ vi.mock("../../../../lib/infra/fetch.js", () => ({
   fetchWithTimeout: (url: string, init?: RequestInit, timeoutMs?: number) => fetchWithTimeoutMock(url, init, timeoutMs),
 }));
 
+import { UpstreamUnavailableError } from "../../../../lib/infra/upstream-unavailable";
 import { isPlausibleMatch, searchDeezerTrackForArtist } from "../track-search";
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -138,16 +139,16 @@ describe("searchDeezerTrackForArtist", () => {
     expect(result).toBeNull();
   });
 
-  it("returns null on HTTP error", async () => {
+  it("reports an HTTP error as unavailable", async () => {
     fetchWithTimeoutMock.mockResolvedValue(jsonResponse({}, 500));
-    const result = await searchDeezerTrackForArtist("Anything", "Indie Artist");
-    expect(result).toBeNull();
+    await expect(searchDeezerTrackForArtist("Anything", "Indie Artist")).rejects.toBeInstanceOf(
+      UpstreamUnavailableError,
+    );
   });
 
-  it("returns null on fetch throw (timeout/network)", async () => {
+  it("lets a timeout or network failure through", async () => {
     fetchWithTimeoutMock.mockRejectedValue(new Error("timeout"));
-    const result = await searchDeezerTrackForArtist("Anything", "Indie Artist");
-    expect(result).toBeNull();
+    await expect(searchDeezerTrackForArtist("Anything", "Indie Artist")).rejects.toThrow("timeout");
   });
 
   it("uses a 5s timeout and the search-track endpoint", async () => {

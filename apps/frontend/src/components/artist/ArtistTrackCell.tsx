@@ -4,6 +4,8 @@ import { ArtistPanelRow } from "@/components/artist/ArtistPanelRow";
 import { ArtistPanelRowText } from "@/components/artist/ArtistPanelRowText";
 import type { ArtistPanelTrackResolveHandler } from "@/components/artist/artistPanelTypes";
 import { getTrackSubline } from "@/components/artist/artistTrackItems";
+import type { NowPlayingStatus } from "@/components/artist/nowPlayingTrack";
+import { PlaybackBars } from "@/components/artist/PlaybackBars";
 import { SlideArtwork } from "@/components/ui/SlideArtwork";
 import { useTrackResolve } from "@/hooks/useTrackResolve";
 import { CardSignal } from "@/lib/analytics/umami";
@@ -25,6 +27,8 @@ interface ArtistTrackCellProps {
   artworkRadius?: string;
   /** Per-corner grouped-list geometry for the artwork frame. */
   artworkStyle?: CSSProperties;
+  /** The player's state when this row shows the track it holds; absent for every other row. */
+  playback?: NowPlayingStatus;
 }
 
 /**
@@ -32,6 +36,11 @@ interface ArtistTrackCellProps {
  * `EmbossedButton` carrying the raised row frame + token-driven chrome, identical
  * to the commercial candidate rows) — square cover (48px), title + optional
  * subline, an optional trailing duration.
+ *
+ * The row that shows the track the share page's player holds carries
+ * `data-playback` and `aria-current`: the stylesheet draws a ring inside its
+ * contour and shows {@link PlaybackBars} under the duration. The ring stays
+ * inside the row because the list's scroll viewport clips anything outside it.
  *
  * Reuses {@link SlideArtwork} (cover frame + CD-slot resolve animation) and
  * {@link useTrackResolve} (busy state, analytics, failure toast).
@@ -47,6 +56,7 @@ export function ArtistTrackCell({
   rowStyle,
   artworkRadius,
   artworkStyle,
+  playback,
 }: ArtistTrackCellProps) {
   const subline = getTrackSubline(track, artistLabel);
   const { resolving, activate } = useTrackResolve(track, cardSignal, onTrackResolve, onResolveStart);
@@ -68,6 +78,9 @@ export function ArtistTrackCell({
       aria-busy={resolving}
       aria-disabled={resolving}
       aria-label={ariaLabel}
+      aria-current={playback ? true : undefined}
+      data-playback={playback}
+      className="mc-playback-row"
       style={rowStyle}
     >
       <SlideArtwork
@@ -92,10 +105,14 @@ export function ArtistTrackCell({
           </p>
         )}
       </ArtistPanelRowText>
-      {track.durationMs != null && (
-        <span className="mc-txt-button-dimmed flex-none text-xs tabular-nums text-text-secondary">
+      {track.durationMs != null ? (
+        <span className="mc-txt-button-dimmed relative flex-none text-xs tabular-nums text-text-secondary">
           {formatDuration(track.durationMs)}
+          {/* Hangs below the duration so the duration keeps its place in every row. */}
+          <PlaybackBars className="absolute top-full right-0" />
         </span>
+      ) : (
+        <PlaybackBars className="flex-none" />
       )}
     </ArtistPanelRow>
   );
