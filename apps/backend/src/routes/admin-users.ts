@@ -56,13 +56,20 @@
  *   via arbitrary image hosts.
  * - **DELETE** (`avatar`): clears the column.
  */
-import { EmailAction, EmailRecipientKind, ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import {
+  EmailAction,
+  EmailRecipientKind,
+  ENDPOINTS,
+  ROUTE_TEMPLATES,
+  validatePasswordLength,
+} from "@musiccloud/shared";
 import bcrypt from "bcryptjs";
 import type { FastifyInstance } from "fastify";
 import { nanoid } from "nanoid";
 import type { AdminUser } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
 import { requireEnv } from "../lib/env.js";
+import { hashPassword } from "../services/developer-auth.js";
 import { triggerEmailAction } from "../services/email-actions.js";
 
 export default async function adminUserRoutes(app: FastifyInstance) {
@@ -102,11 +109,10 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     await repo.createAdminUser({
       id,
       username: body.username,
-      // Placeholder random password: the invitee sets the real password
-      // via the invite flow. bcrypt 12 here to match the normal password
-      // path in case the row is ever inspected without the invite
-      // finishing.
-      passwordHash: await bcrypt.hash(nanoid(32), 12),
+      // Placeholder random password, because the invitee sets the real one
+      // through the invite flow. It is hashed like a real password in case
+      // the row is ever inspected without the invite finishing.
+      passwordHash: await hashPassword(nanoid(32)),
       email: body.email,
       role,
       inviteTokenHash,
@@ -165,7 +171,13 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     const updates: Record<string, unknown> = {};
     if (body.username !== undefined) updates.username = body.username;
     if (body.email !== undefined) updates.email = body.email;
-    if (body.password !== undefined) updates.passwordHash = await bcrypt.hash(body.password as string, 12);
+    if (body.password !== undefined) {
+      // The same rule the sign-up, reset and invite paths apply, so an admin
+      // account cannot be given a password those paths would refuse.
+      const passwordRefusal = validatePasswordLength(body.password);
+      if (passwordRefusal) return reply.status(400).send({ error: "INVALID_REQUEST", message: passwordRefusal });
+      updates.passwordHash = await hashPassword(body.password as string);
+    }
     if (body.firstName !== undefined) updates.firstName = body.firstName;
     if (body.lastName !== undefined) updates.lastName = body.lastName;
     if (body.sessionTimeoutMinutes !== undefined)

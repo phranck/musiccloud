@@ -9,7 +9,10 @@
  * 1. **Secret hashing.** Password hashing/verification (bcrypt, work factor
  *    12, timing-safe verify) and single-use email-token generation/hashing
  *    (`crypto.randomBytes` + SHA-256). Only hashes are ever persisted; the
- *    raw token exists solely in the emailed link.
+ *    raw token exists solely in the emailed link. The admin routes hash and
+ *    verify their passwords with {@link hashPassword} and
+ *    {@link verifyPassword} as well, so both surfaces share one work factor
+ *    and one timing protection.
  * 2. **Session-cookie mechanics.** The cookie name, lifetime, and the
  *    serialize options for setting and clearing the `mc_dev_session` cookie.
  *
@@ -26,21 +29,33 @@ import bcrypt from "bcryptjs";
 import type { DeveloperAccount } from "../db/developer-repository.js";
 
 /**
- * bcrypt work factor for developer-account passwords. Matches the admin
- * surface (`admin-auth.ts`): two rungs above the library default of 10
- * (~4x slower), a deliberate trade of per-login latency against brute-force
- * resistance.
+ * bcrypt work factor for every account password, developer and admin alike.
+ * It is two rungs above the library default of 10, which makes a hash about
+ * four times slower, and trades per-login latency for brute-force resistance.
  */
 const BCRYPT_WORK_FACTOR = 12;
 
+/** The dummy hash, once {@link dummyPasswordHash} has started making it. */
+let dummyPasswordHashPromise: Promise<string> | undefined;
+
 /**
- * Constant-shape bcrypt hash compared against when no real hash exists (e.g.
- * unknown email, or a pure-OAuth account with `password_hash IS NULL`). It is
- * a syntactically valid bcrypt string that no password can ever match, so the
- * `bcrypt.compare` cost is paid either way and login latency does not leak
- * whether an account exists. Mirrors the admin-auth dummy hash verbatim.
+ * The hash compared against when no real one exists, such as for an unknown
+ * address or a GitHub-only account with `password_hash IS NULL`.
+ *
+ * It has to be a real bcrypt hash at {@link BCRYPT_WORK_FACTOR}, because
+ * bcryptjs rejects a malformed hash at once without hashing anything, and a
+ * comparison that skips the cost lets the response time tell which addresses
+ * have an account. It is the hash of 32 random bytes that are never kept, so
+ * no password matches it. It is made on first use rather than at import,
+ * which keeps importing this module free of a bcrypt computation, and it is
+ * kept for the life of the process.
+ *
+ * @returns A promise resolving to the dummy hash.
  */
-const DUMMY_PASSWORD_HASH = "$2a$12$invalidhashfortimingprotection000000000000000000000000";
+function dummyPasswordHash(): Promise<string> {
+  dummyPasswordHashPromise ??= bcrypt.hash(crypto.randomBytes(32).toString("hex"), BCRYPT_WORK_FACTOR);
+  return dummyPasswordHashPromise;
+}
 
 /**
  * Name of the httpOnly session cookie issued on developer login. Read by
@@ -121,10 +136,10 @@ export function hashPassword(password: string): Promise<string> {
  * manner.
  *
  * When `hash` is `null` (unknown account, or an account that has never set a
- * password), the comparison still runs against {@link DUMMY_PASSWORD_HASH} so
- * the bcrypt cost is identical to the real-hash path — an attacker cannot
- * distinguish "no such account" from "wrong password" by response latency. A
- * `null` hash therefore always resolves to `false`.
+ * password), the comparison still runs against {@link dummyPasswordHash}, so
+ * the bcrypt cost is the same as on the real-hash path and the response time
+ * does not tell "no such account" from "wrong password". A `null` hash
+ * therefore always resolves to `false`.
  *
  * @param password - The plaintext password supplied at login.
  * @param hash - The stored bcrypt hash, or `null` if none exists.
@@ -133,9 +148,9 @@ export function hashPassword(password: string): Promise<string> {
  */
 export async function verifyPassword(password: string, hash: string | null): Promise<boolean> {
   if (hash === null) {
-    // Pay the bcrypt cost against a dummy hash to keep timing constant, then
-    // always reject — there is no real credential to match.
-    await bcrypt.compare(password, DUMMY_PASSWORD_HASH);
+    // Pay the bcrypt cost against the dummy hash to keep timing constant, then
+    // always reject, because there is no real credential to match.
+    await bcrypt.compare(password, await dummyPasswordHash());
     return false;
   }
   return bcrypt.compare(password, hash);

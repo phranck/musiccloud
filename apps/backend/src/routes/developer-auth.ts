@@ -53,8 +53,7 @@ import {
   EmailRecipientKind,
   ENDPOINTS,
   MAX_DISPLAY_NAME_LENGTH,
-  PASSWORD_MAX_LENGTH,
-  PASSWORD_MIN_LENGTH,
+  validatePasswordLength,
 } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { DeveloperAccount } from "../db/developer-repository.js";
@@ -404,11 +403,9 @@ export async function devAuthRoutes(app: FastifyInstance) {
     const password = body.password;
     const displayName = body.displayName?.trim() || null;
 
-    if (password.length < PASSWORD_MIN_LENGTH || password.length > PASSWORD_MAX_LENGTH) {
-      return reply.status(400).send({
-        error: "INVALID_REQUEST",
-        message: `password must be between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters.`,
-      });
+    const passwordRefusal = validatePasswordLength(password);
+    if (passwordRefusal) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: passwordRefusal });
     }
 
     // Every signup is assigned a tier via the shared resolver (MC-109).
@@ -609,11 +606,9 @@ export async function devAuthRoutes(app: FastifyInstance) {
     if (!body?.token || !body?.password) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "token and password are required." });
     }
-    if (body.password.length < PASSWORD_MIN_LENGTH || body.password.length > PASSWORD_MAX_LENGTH) {
-      return reply.status(400).send({
-        error: "INVALID_REQUEST",
-        message: `password must be between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters.`,
-      });
+    const passwordRefusal = validatePasswordLength(body.password);
+    if (passwordRefusal) {
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: passwordRefusal });
     }
 
     const repo = await getDeveloperRepository();

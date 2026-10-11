@@ -1,4 +1,5 @@
 import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import bcrypt from "bcryptjs";
 import Fastify from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AdminUser } from "../db/admin-repository.js";
@@ -81,6 +82,38 @@ describe("admin user contract", () => {
     expect(response.statusCode).toBe(200);
     expect(mockRepo.updateAdminUser).toHaveBeenCalledWith("admin-2", { email: "new@example.com" });
     expect(response.json()).not.toHaveProperty("locale");
+    await app.close();
+  });
+});
+
+describe("admin user password updates", () => {
+  const ownAccount = ROUTE_TEMPLATES.admin.users.detail.replace(":id", "admin-1");
+
+  it.each([
+    ["an empty string", ""],
+    ["seven characters", "a".repeat(7)],
+    ["a number", 12345678],
+  ])("refuses %s and stores nothing", async (_label, password) => {
+    const app = await buildApp();
+
+    const response = await app.inject({ method: "PATCH", url: ownAccount, payload: { password } });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ error: "INVALID_REQUEST" });
+    expect(mockRepo.updateAdminUser).not.toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("stores an eight-character password as a cost-12 bcrypt hash of it", async () => {
+    mockRepo.updateAdminUser.mockResolvedValue(makeAdmin());
+    const app = await buildApp();
+
+    const response = await app.inject({ method: "PATCH", url: ownAccount, payload: { password: "eight-ch" } });
+
+    expect(response.statusCode).toBe(200);
+    const updates = mockRepo.updateAdminUser.mock.calls[0]?.[1] as { passwordHash: string };
+    expect(updates.passwordHash).toMatch(/^\$2[aby]\$12\$/);
+    await expect(bcrypt.compare("eight-ch", updates.passwordHash)).resolves.toBe(true);
     await app.close();
   });
 });
