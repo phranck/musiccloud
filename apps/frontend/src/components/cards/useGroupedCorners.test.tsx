@@ -1,9 +1,12 @@
 import { render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GroupedCornerList } from "@/components/cards/GroupedCornerList";
-
-const FULL = "var(--neu-radius)";
-const INNER = "min(5px, var(--neu-radius))";
+import {
+  GROUPED_ARTWORK_INNER as ARTWORK_INNER,
+  GROUPED_ARTWORK_OUTER as ARTWORK_OUTER,
+  GROUPED_CORNER_FULL as FULL,
+  GROUPED_CORNER_INNER as INNER,
+} from "@/components/cards/groupedCorners";
 
 /** Marks the list container so the stubbed layout can find it. */
 const LIST_CLASS = "grouped-list-under-test";
@@ -45,26 +48,37 @@ function renderColumn(rowCount: number) {
     // biome-ignore lint/suspicious/noArrayIndexKey: a fixed list of placeholder rows
     <div key={index}>
       <button type="button" data-row={index}>
+        <span className="mc-row-art" />
         Row {index}
       </button>
     </div>
   ));
   return render(
     <div className="recessed-gradient-border" style={{ padding: 0, borderWidth: 0 }}>
-      <GroupedCornerList className={LIST_CLASS} itemSelector=":scope > * > button" promoteTop={false}>
+      <GroupedCornerList
+        className={LIST_CLASS}
+        itemSelector=":scope > * > button"
+        frameSelector=".mc-row-art"
+        promoteTop={false}
+      >
         {rows}
       </GroupedCornerList>
     </div>,
   );
 }
 
-function rowCorners(container: HTMLElement) {
-  return Array.from(container.querySelectorAll<HTMLElement>("button")).map((row) => [
-    row.style.borderTopLeftRadius,
-    row.style.borderTopRightRadius,
-    row.style.borderBottomRightRadius,
-    row.style.borderBottomLeftRadius,
+/** The four corners of each matching element, clockwise from the top left. */
+function cornersOf(container: HTMLElement, selector: string) {
+  return Array.from(container.querySelectorAll<HTMLElement>(selector)).map((element) => [
+    element.style.borderTopLeftRadius,
+    element.style.borderTopRightRadius,
+    element.style.borderBottomRightRadius,
+    element.style.borderBottomLeftRadius,
   ]);
+}
+
+function rowCorners(container: HTMLElement) {
+  return cornersOf(container, "button");
 }
 
 describe("useGroupedCorners in a genre column", () => {
@@ -104,5 +118,23 @@ describe("useGroupedCorners in a genre column", () => {
     const { container } = renderColumn(3);
 
     expect(rowCorners(container).at(-1)).toEqual([INNER, INNER, INNER, INNER]);
+  });
+
+  /**
+   * The artwork frame follows its row by the same rule the declarative lists
+   * use: concentric with the row where it is promoted, inset by the row's
+   * `--mc-pad-track` padding, and interior everywhere else.
+   */
+  it("rounds the artwork frames by the shared rule, concentric with their row", () => {
+    layout = stubLayout(LIST_TOP_PX + 3 * ROW_HEIGHT_PX);
+    const { container } = renderColumn(3);
+
+    expect(cornersOf(container, ".mc-row-art")).toEqual([
+      [ARTWORK_INNER, ARTWORK_INNER, ARTWORK_INNER, ARTWORK_INNER],
+      [ARTWORK_INNER, ARTWORK_INNER, ARTWORK_INNER, ARTWORK_INNER],
+      [ARTWORK_INNER, ARTWORK_INNER, ARTWORK_INNER, ARTWORK_OUTER],
+    ]);
+    const lastRow = container.querySelectorAll<HTMLElement>("button")[2];
+    expect(lastRow?.style.getPropertyValue("--mc-grouped-row-radius")).toBe(FULL);
   });
 });

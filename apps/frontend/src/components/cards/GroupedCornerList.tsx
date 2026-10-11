@@ -14,12 +14,10 @@ interface GroupedCornerListProps {
   itemSelector?: string;
   /**
    * Selector for a per-row left-hugging frame (the artwork) whose left corners
-   * should follow the row's grouped corners concentrically. Omit for text-only
-   * lists (events have no artwork).
+   * should follow the row's grouped corners concentrically, inset by the row's
+   * `--mc-pad-track` padding. Omit for text-only lists (events have no artwork).
    */
   frameSelector?: string;
-  /** Inset in px between the row edge and that frame. */
-  frameInset?: number;
   /**
    * Whether the group's top corners may be promoted. Pass `false` when a header
    * sits above the rows inside the same well (genre columns). Defaults to `true`.
@@ -39,11 +37,10 @@ export function GroupedCornerList({
   children,
   itemSelector,
   frameSelector,
-  frameInset,
   promoteTop,
   className,
 }: GroupedCornerListProps) {
-  const groupedListRef = useGroupedCorners<HTMLDivElement>({ itemSelector, frameSelector, frameInset, promoteTop });
+  const groupedListRef = useGroupedCorners<HTMLDivElement>({ itemSelector, frameSelector, promoteTop });
 
   return (
     <div ref={groupedListRef} className={cn(groupedListClassName, className)}>

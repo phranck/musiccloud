@@ -3,15 +3,16 @@ import { describe, expect, it, vi } from "vitest";
 import { ArtistTrackView } from "@/components/artist/ArtistTrackView";
 import type { NowPlayingTrack } from "@/components/artist/nowPlayingTrack";
 import { AudioStatus } from "@/components/audio/AudioStatus";
+import {
+  GROUPED_ARTWORK_INNER as ARTWORK_INNER,
+  GROUPED_ARTWORK_OUTER as ARTWORK_OUTER,
+  GROUPED_CORNER_FULL as FULL,
+  GROUPED_CORNER_INNER as INNER,
+} from "@/components/cards/groupedCorners";
 
 vi.mock("@/hooks/useTrackResolve", () => ({
   useTrackResolve: () => ({ resolving: false, activate: vi.fn() }),
 }));
-
-const FULL = "var(--neu-radius)";
-const INNER = "min(5px, var(--neu-radius))";
-const ARTWORK_INNER = "min(5px, var(--mc-grouped-row-radius))";
-const ARTWORK_OUTER = "max(0px, calc(var(--mc-grouped-row-radius) - var(--mc-pad-track, 0.25rem)))";
 
 function item(index: number) {
   return {

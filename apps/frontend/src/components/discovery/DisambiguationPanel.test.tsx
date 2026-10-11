@@ -1,5 +1,11 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  GROUPED_ARTWORK_INNER as ARTWORK_INNER,
+  GROUPED_ARTWORK_OUTER as ARTWORK_OUTER,
+  GROUPED_CORNER_FULL as FULL,
+  GROUPED_CORNER_INNER as INNER,
+} from "@/components/cards/groupedCorners";
 import { DisambiguationPanel } from "@/components/discovery/DisambiguationPanel";
 import type { DisambiguationCandidate } from "@/lib/types/disambiguation";
 
@@ -63,11 +69,6 @@ describe("DisambiguationPanel selection", () => {
     expect(await isSettled(animationDone)).toBe(true);
   });
 });
-
-const FULL = "var(--neu-radius)";
-const INNER = "min(5px, var(--neu-radius))";
-const ARTWORK_INNER = "min(5px, var(--mc-grouped-row-radius))";
-const ARTWORK_OUTER = "max(0px, calc(var(--mc-grouped-row-radius) - var(--mc-pad-track, 0.25rem)))";
 
 const THREE_CANDIDATES: DisambiguationCandidate[] = [
   ...CANDIDATES,

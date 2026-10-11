@@ -3,12 +3,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ROW_CHROME } from "@/components/artist/artistPanelRowChrome";
 import { groupedListClassName, recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { EmbossedCard } from "@/components/cards/EmbossedCard";
-import { RecessedCard } from "@/components/cards/RecessedCard";
 import {
+  GROUPED_ARTWORK_INNER,
   singleColumnGroupedArtworkCornerStyle,
-  singleColumnGroupedArtworkInnerRadius,
   singleColumnGroupedCornerStyle,
-} from "@/components/cards/singleColumnGroupedCornerStyle";
+} from "@/components/cards/groupedCorners";
+import { RecessedCard } from "@/components/cards/RecessedCard";
 import { CancelButton } from "@/components/ui/CancelButton";
 import { CandidateRowContent } from "@/components/ui/CandidateRowContent";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
@@ -265,7 +265,7 @@ export function DisambiguationPanel({
                           artworkUrl={candidate.artworkUrl}
                           slideArtwork={isThisSelected}
                           slideArtworkActive={isThisSelected}
-                          artworkRadius={singleColumnGroupedArtworkInnerRadius}
+                          artworkRadius={GROUPED_ARTWORK_INNER}
                           artworkStyle={singleColumnGroupedArtworkCornerStyle(cornerIndex, cornerCount)}
                           primary={candidate.title}
                           secondary={candidate.artists.join(", ")}

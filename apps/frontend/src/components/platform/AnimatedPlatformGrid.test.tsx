@@ -1,6 +1,7 @@
 import { render } from "@testing-library/react";
 import gsap from "gsap";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { GROUPED_CORNER_FULL as FULL, GROUPED_CORNER_INNER as INNER } from "@/components/cards/groupedCorners";
 import { AnimatedPlatformGrid } from "@/components/platform/AnimatedPlatformGrid";
 import { gridCornerStyle } from "@/components/platform/gridCornerStyle";
 import type { PlatformLink } from "@/lib/types/platform";
@@ -48,10 +49,6 @@ describe("AnimatedPlatformGrid ordering", () => {
     expect(renderedLabels(container)).toEqual(["Spotify"]);
   });
 });
-
-/** Promoted (full) and interior corner radius expressions, mirroring the grid module. */
-const FULL = "var(--neu-radius)";
-const INNER = "min(5px, var(--neu-radius))";
 
 describe("gridCornerStyle grouped corners", () => {
   it("promotes the four corners that coincide with the well (full last row)", () => {

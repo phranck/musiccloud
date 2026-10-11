@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { GROUPED_CORNER_FULL, GROUPED_CORNER_INNER } from "@/components/cards/groupedCornerRadii";
+import { GROUPED_CORNER_FULL, GROUPED_CORNER_INNER } from "@/components/cards/groupedCorners";
 
 /** The grid is always two columns (`grid-cols-2`). */
 const GRID_COLS = 2;

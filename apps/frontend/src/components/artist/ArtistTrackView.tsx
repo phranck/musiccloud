@@ -5,10 +5,10 @@ import { findNowPlayingRowIndex, type NowPlayingTrack } from "@/components/artis
 import { useRowCappedViewport } from "@/components/artist/useRowCappedViewport";
 import { groupedListClassName, raisedControlRadius } from "@/components/cards/cardGeometry";
 import {
+  GROUPED_ARTWORK_INNER,
   singleColumnGroupedArtworkCornerStyle,
-  singleColumnGroupedArtworkInnerRadius,
   singleColumnGroupedCornerStyle,
-} from "@/components/cards/singleColumnGroupedCornerStyle";
+} from "@/components/cards/groupedCorners";
 
 interface ArtistTrackViewProps {
   /** Normalized rows to render (already filtered by the owner). */
@@ -55,7 +55,7 @@ export function ArtistTrackView({
             onTrackResolve={onTrackResolve}
             onResolveStart={onResolveStart}
             rowStyle={singleColumnGroupedCornerStyle(index, items.length)}
-            artworkRadius={singleColumnGroupedArtworkInnerRadius}
+            artworkRadius={GROUPED_ARTWORK_INNER}
             artworkStyle={singleColumnGroupedArtworkCornerStyle(index, items.length)}
             playback={index === nowPlayingIndex ? nowPlaying?.status : undefined}
           />

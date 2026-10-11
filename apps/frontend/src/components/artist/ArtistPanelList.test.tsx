@@ -2,9 +2,7 @@ import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ArtistPanelList } from "@/components/artist/ArtistPanelList";
 import { ArtistPanelRow } from "@/components/artist/ArtistPanelRow";
-
-const FULL = "var(--neu-radius)";
-const INNER = "min(5px, var(--neu-radius))";
+import { GROUPED_CORNER_FULL as FULL, GROUPED_CORNER_INNER as INNER } from "@/components/cards/groupedCorners";
 
 describe("ArtistPanelList grouped corners", () => {
   it("derives the first and last event row corners from their list positions", () => {
