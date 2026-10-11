@@ -481,14 +481,15 @@ jobs:
     name: Deploy Dashboard
     runs-on: ubuntu-latest
     # nginx resolves the `backend` upstream once, when it loads its config, and
-    # keeps the result. A dashboard container that starts while the backend is
-    # still being replaced therefore caches an address that is about to
-    # disappear, and answers every /api/ request with 502 or a timeout until it
-    # is restarted. Waiting for the backend job, which ends with its own health
-    # probe, removes that window. A skipped backend counts as satisfied so a
-    # dashboard-only change still deploys.
+    # keeps the result. Once the backend container is replaced, the dashboard
+    # answers every /api/ request with 502 or a timeout until it restarts. So
+    # the dashboard deploys again after every successful backend deploy, even
+    # when only the backend changed, and it waits for the backend job, which
+    # ends with its own health probe, so the new container resolves the new
+    # backend. A skipped backend still lets a dashboard change deploy, and a
+    # failed one skips the dashboard.
     needs: [detect-changes, deploy-backend]
-    if: always() && needs.detect-changes.outputs.dashboard == 'true' && (needs.deploy-backend.result == 'success' || needs.deploy-backend.result == 'skipped')
+    if: always() && (needs.deploy-backend.result == 'success' || (needs.deploy-backend.result == 'skipped' && needs.detect-changes.outputs.dashboard == 'true'))
     env:
       STATUS_TOKEN: ${{ secrets.STATUS_DISPATCH_TOKEN }}
     steps:
@@ -526,6 +527,9 @@ jobs:
           # starts on the wrong port fails the deployment instead of reporting
           # green while the previous build keeps serving.
           curl --fail --silent --show-error --output /dev/null --retry 10 --retry-all-errors --retry-delay 3 https://dashboard.musiccloud.io/
+          # The page above comes from disk. setup-status goes through the proxy
+          # to the backend, so a stale upstream fails here instead of passing.
+          curl --fail --silent --show-error --output /dev/null --retry 10 --retry-all-errors --retry-delay 3 https://dashboard.musiccloud.io/api/admin/auth/setup-status
       - name: Announce deploy end
         if: always() && env.STATUS_TOKEN != ''
         # A status-page banner is a convenience, a deploy is not. Without this

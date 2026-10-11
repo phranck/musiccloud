@@ -62,11 +62,32 @@ test("deploys the developer site without waiting on anything but its own change 
   assert.match(developerJob, /if: needs\.detect-changes\.outputs\.developer == 'true'/);
 });
 
-test("does not deploy the dashboard for backend-only or CI-only changes", () => {
+test("counts neither backend nor CI paths as a dashboard change", () => {
   const dashboardCase =
     job("detect-changes").match(/case "\$file" in\n(?:(?!case "\$file" in)[\s\S])*?dashboard=true ;;/)?.[0] ?? "";
 
   assert.doesNotMatch(dashboardCase, /apps\/backend\/\*|\.github\/workflows\/ci\.yml/);
+});
+
+test("deploys the dashboard again after every backend deploy, because its nginx keeps the backend's address", () => {
+  const dashboardJob = job("deploy-dashboard");
+
+  assert.match(dashboardJob, /needs: \[detect-changes, deploy-backend\]/);
+  const condition = dashboardJob.match(/^ {4}if: (.*)$/m)?.[1] ?? "";
+  // A backend that deployed is enough on its own, whatever changed.
+  assert.match(condition, /needs\.deploy-backend\.result == 'success' \|\|/);
+  // Without a backend deploy, only a dashboard change deploys it.
+  assert.match(
+    condition,
+    /\(needs\.deploy-backend\.result == 'skipped' && needs\.detect-changes\.outputs\.dashboard == 'true'\)/,
+  );
+});
+
+test("probes the dashboard's proxy to the backend, not only its static page", () => {
+  assert.match(
+    job("deploy-dashboard"),
+    /curl --fail[^\n]*https:\/\/dashboard\.musiccloud\.io\/api\/admin\/auth\/setup-status/,
+  );
 });
 
 test("takes the deployment diff base from a successful push run", () => {
