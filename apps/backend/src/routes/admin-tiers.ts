@@ -13,6 +13,7 @@ import {
   type TierUpdateData,
 } from "../db/tiers-repository.js";
 import { requireOwnerOrAdmin } from "../lib/admin-caller.js";
+import { resetCreemCatalogCache } from "../services/creem-catalog.js";
 
 /** Matches a 6-digit hex colour like `#RRGGBB`. */
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
@@ -145,6 +146,9 @@ export async function adminTiersRoutes(app: FastifyInstance) {
     const { id } = request.params as { id: string };
     const repo = await getTierRepository();
     await repo.deleteTier(id);
+    // The plan's offers and their product mappings went with it, and a cached
+    // catalogue would go on pricing them.
+    resetCreemCatalogCache();
     return reply.status(204).send();
   });
 }

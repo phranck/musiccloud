@@ -34,6 +34,10 @@ vi.mock("../db/index.js", () => ({
   getCcRepository: async () => ({}),
 }));
 
+vi.mock("../services/creem-catalog.js", () => ({ resetCreemCatalogCache: vi.fn() }));
+
+import { resetCreemCatalogCache } from "../services/creem-catalog.js";
+
 const plan = { id: "tier_club", name: "Club", enabled: true };
 
 async function buildApp(): Promise<FastifyInstance> {
@@ -250,6 +254,9 @@ describe("DELETE /api/admin/developer/offers/:id", () => {
 
     expect(res.statusCode).toBe(204);
     expect(mockTierRepo.deleteOffer).toHaveBeenCalledWith("offer_1");
+    // Its product mappings went with it, so the pricing page may not go on
+    // pricing the period from a cached catalogue.
+    expect(resetCreemCatalogCache).toHaveBeenCalledTimes(1);
   });
 
   it("rejects unauthenticated callers", async () => {
@@ -260,5 +267,6 @@ describe("DELETE /api/admin/developer/offers/:id", () => {
 
     expect(res.statusCode).toBe(403);
     expect(mockTierRepo.deleteOffer).not.toHaveBeenCalled();
+    expect(resetCreemCatalogCache).not.toHaveBeenCalled();
   });
 });
