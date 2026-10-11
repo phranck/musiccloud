@@ -1,20 +1,17 @@
 import { type RefObject, useEffect, useRef } from "react";
+import { GROUPED_CORNER_FULL, GROUPED_CORNER_INNER } from "@/components/cards/groupedCornerRadii";
 
 /**
  * Promote the outer corners of a single-column list of buttons so the list
  * reads as one rounded block inscribed in its surrounding RecessedCard.
  *
- * Every row defaults to a small interior radius (`min(5px, var(--neu-radius))`).
+ * Every row defaults to the small interior radius ({@link GROUPED_CORNER_INNER}).
  * The first row's top corners and the last row's bottom corners are promoted to
- * the full control radius (`var(--neu-radius)`) where they meet the well's
- * rounded corners. Whether the last row meets the well's bottom is read from
- * the live layout, which is the one thing a row's index cannot tell.
+ * the full control radius ({@link GROUPED_CORNER_FULL}) where they meet the
+ * well's rounded corners. Whether the last row meets the well's bottom is read
+ * from the live layout, which is the one thing a row's index cannot tell.
  */
 
-/** The promoted (outer) corner radius: the button's own control radius. */
-const FULL = "var(--neu-radius)";
-/** The interior corner radius: capped at 5px, mirroring `--mc-control-radius-inner`. */
-const INNER = "min(5px, var(--neu-radius))";
 /** The recessed well whose bottom edge the list may reach. */
 const WELL_SELECTOR = ".recessed-gradient-border";
 
@@ -46,10 +43,10 @@ function applyGroupedCorners(
     // inside the same well (genre columns): the rows then never reach its top corners.
     const top = promoteTop && index === 0;
     const bottom = reachesBottom && index === lastIndex;
-    item.style.borderTopLeftRadius = top ? FULL : INNER;
-    item.style.borderTopRightRadius = top ? FULL : INNER;
-    item.style.borderBottomLeftRadius = bottom ? FULL : INNER;
-    item.style.borderBottomRightRadius = bottom ? FULL : INNER;
+    item.style.borderTopLeftRadius = top ? GROUPED_CORNER_FULL : GROUPED_CORNER_INNER;
+    item.style.borderTopRightRadius = top ? GROUPED_CORNER_FULL : GROUPED_CORNER_INNER;
+    item.style.borderBottomLeftRadius = bottom ? GROUPED_CORNER_FULL : GROUPED_CORNER_INNER;
+    item.style.borderBottomRightRadius = bottom ? GROUPED_CORNER_FULL : GROUPED_CORNER_INNER;
 
     if (!frameSelector) return;
     const frame = item.querySelector<HTMLElement>(frameSelector);
@@ -61,10 +58,10 @@ function applyGroupedCorners(
     // var, which would resolve against the frame.
     const buttonStyle = getComputedStyle(item);
     const concentric = (corner: string) => `max(0px, calc(${corner} - ${frameInset}px))`;
-    frame.style.borderTopLeftRadius = top ? concentric(buttonStyle.borderTopLeftRadius) : INNER;
-    frame.style.borderBottomLeftRadius = bottom ? concentric(buttonStyle.borderBottomLeftRadius) : INNER;
-    frame.style.borderTopRightRadius = INNER;
-    frame.style.borderBottomRightRadius = INNER;
+    frame.style.borderTopLeftRadius = top ? concentric(buttonStyle.borderTopLeftRadius) : GROUPED_CORNER_INNER;
+    frame.style.borderBottomLeftRadius = bottom ? concentric(buttonStyle.borderBottomLeftRadius) : GROUPED_CORNER_INNER;
+    frame.style.borderTopRightRadius = GROUPED_CORNER_INNER;
+    frame.style.borderBottomRightRadius = GROUPED_CORNER_INNER;
   });
 }
 
