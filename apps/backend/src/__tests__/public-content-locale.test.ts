@@ -149,6 +149,29 @@ describe("getPublicContentPage canonical editorial content", () => {
     await expect(getPublicContentPage("privacy")).resolves.toBeNull();
   });
 
+  it("strips script, event handlers and javascript links from a page and from its segments", async () => {
+    const hostile =
+      '<script>alert(1)</script>\n\n<img src="x" onerror="alert(2)">\n\n<a href="javascript:alert(3)">click</a>';
+    page = mkPage({ pageType: "segmented", content: hostile });
+    const target = mkPage({ slug: "segment", title: "Segment", content: hostile });
+    const { listSegmentsForOwner, getPublishedContentPagesBySlugs } = baseRepo;
+    baseRepo.listSegmentsForOwner = async () => [
+      { id: 1, ownerSlug: "about", targetSlug: "segment", position: 0, label: "Segment", labelUpdatedAt: new Date() },
+    ];
+    baseRepo.getPublishedContentPagesBySlugs = async () => [target];
+    try {
+      const { getPublicContentPage } = await import("../services/admin-content.js");
+      const result = await getPublicContentPage("about");
+
+      expect(result?.segments).toHaveLength(1);
+      expect(result?.contentHtml).not.toMatch(/<script|onerror|javascript:/i);
+      expect(result?.segments[0]?.contentHtml).not.toMatch(/<script|onerror|javascript:/i);
+    } finally {
+      baseRepo.listSegmentsForOwner = listSegmentsForOwner;
+      baseRepo.getPublishedContentPagesBySlugs = getPublishedContentPagesBySlugs;
+    }
+  });
+
   it("does not expose a draft Frontend publication through the legacy Frontend slug", async () => {
     page = mkPage({
       id: "page-privacy",

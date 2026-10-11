@@ -87,9 +87,13 @@ const ELEMENT_ATTRIBUTES: Readonly<Record<string, ReadonlySet<string>>> = {
   pre: new Set(["data-card-padding", "data-card-radius", "data-card-style"]),
   span: new Set(["style"]),
   svg: new Set(["fill", "height", "viewBox", "width"]),
-  td: new Set(["colspan", "rowspan"]),
-  th: new Set(["colspan", "rowspan", "scope"]),
+  // Markdown writes a column's alignment as `align` on each of its cells.
+  td: new Set(["align", "colspan", "rowspan"]),
+  th: new Set(["align", "colspan", "rowspan", "scope"]),
 };
+
+/** The three alignments a Markdown table column can declare. */
+const TABLE_CELL_ALIGNMENTS = new Set(["left", "center", "right"]);
 
 const CLASS_PATTERN = /^[A-Za-z0-9_:\- ]+$/;
 const ID_PATTERN = /^[A-Za-z][A-Za-z0-9_:.-]*$/;
@@ -175,6 +179,7 @@ function sanitizedAttributeValue(element: HtmlElement, name: string, value: stri
     return /^\d+$/.test(value) ? value : null;
   }
   if (name === "scope") return ["col", "colgroup", "row", "rowgroup"].includes(value) ? value : null;
+  if (name === "align") return TABLE_CELL_ALIGNMENTS.has(value) ? value : null;
   if (name === "d") return SVG_PATH_PATTERN.test(value) ? value : null;
   if (name === "opacity") return SVG_OPACITY_PATTERN.test(value) ? value : null;
   if (name === "viewBox") return SVG_VIEW_BOXES.has(value) ? value : null;

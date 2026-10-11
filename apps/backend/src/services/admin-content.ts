@@ -12,7 +12,6 @@ import type {
 import {
   CONTENT_CARD_STYLES,
   ContentContext,
-  expandSiteVariables,
   isValidContentContextMask,
   OVERLAY_WIDTHS,
   PAGE_DISPLAY_MODES,
@@ -28,11 +27,10 @@ import type {
   PageSegmentRow,
 } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
+import { renderEditorialBody } from "./editorial-body.js";
 import { isReservedDeveloperPortalPath, normalizeEditorialPath } from "./editorial-path.js";
 import { MARKDOWN_EXTENSION_REGISTRY, type MarkdownExtensionRegistry } from "./markdown/extension-registry.js";
-import { renderMarkdown } from "./markdown/renderer.js";
 import { validateMarkdownForContexts } from "./markdown/validation.js";
-import { resolveSiteVariableValues } from "./site-variables.js";
 
 const SLUG_PATTERN = /^[a-z0-9-]+$/;
 const SLUG_MAX_LEN = 100;
@@ -51,14 +49,6 @@ function contentUniquenessCode(error: unknown): "SLUG_TAKEN" | "PATH_TAKEN" | nu
   if (typeof error !== "object" || error === null || !("code" in error) || error.code !== "23505") return null;
   const constraint = "constraint" in error && typeof error.constraint === "string" ? error.constraint : "";
   return constraint === "content_pages_pkey" || constraint.includes("slug") ? "SLUG_TAKEN" : "PATH_TAKEN";
-}
-
-async function renderBody(content: string | null | undefined): Promise<string> {
-  // Variables are expanded before the Markdown is parsed, so a name works
-  // wherever a person can type it: in prose, in a heading, and inside a
-  // shortcode's attribute alike.
-  const expanded = expandSiteVariables(content ?? "", await resolveSiteVariableValues());
-  return renderMarkdown(expanded, ContentContext.Frontend);
 }
 
 function segmentRowToDto(row: PageSegmentRow): PageSegment {
@@ -462,7 +452,7 @@ export async function getPublicContentPage(slug: string): Promise<PublicContentP
     overlayWidth: row.overlayWidth,
     contentCardStyle: row.contentCardStyle,
     content: row.content,
-    contentHtml: await renderBody(row.content),
+    contentHtml: await renderEditorialBody(row.content, ContentContext.Frontend),
   };
 
   if (row.pageType !== "segmented") {
@@ -491,7 +481,7 @@ export async function getPublicContentPage(slug: string): Promise<PublicContentP
       title: t.title,
       showTitle: t.showTitle,
       content: t.content,
-      contentHtml: await renderBody(t.content),
+      contentHtml: await renderEditorialBody(t.content, ContentContext.Frontend),
     });
   }
 
