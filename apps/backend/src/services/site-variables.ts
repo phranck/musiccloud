@@ -13,13 +13,12 @@
  */
 
 import type { SiteVariableValues } from "@musiccloud/shared";
-import { getTierRepository } from "../db/index.js";
 import { KEYLESS_RESOLVE_REQUESTS_PER_DAY, KEYLESS_RESOLVE_REQUESTS_PER_MINUTE } from "../lib/infra/rate-limiter.js";
 import { getMaxProjectsPerAccount, MAX_REGISTRATIONS_PER_PROJECT } from "./developer-limits.js";
-import { TIER_FREE_ID } from "./signup-tier.js";
+import { listSelfServiceAssignableTiers } from "./signup-tier.js";
 
 /**
- * What a page states about the free plan whilst that plan cannot be read.
+ * What a page states about the free plan whilst no plan can be chosen for free.
  *
  * Zero, which is visibly wrong rather than plausibly wrong. A page saying "0
  * requests a minute" is read as a fault and reported; one quoting a figure
@@ -34,16 +33,19 @@ const UNKNOWN_LIMIT = 0;
  *
  * @remarks
  * Reads the database and the settings store, so it runs once per rendered page
- * rather than once per variable. The free plan's two limits come from the tier
- * itself, which is the same row the pricing page renders, so a page naming a
- * limit and the plan table beside it cannot disagree.
+ * rather than once per variable. The free plan's two limits come from the first
+ * plan a developer may choose themselves, in catalogue order, which is the same
+ * row the pricing page renders, so a page naming a limit and the plan table
+ * beside it cannot disagree.
  */
 export async function resolveSiteVariableValues(): Promise<SiteVariableValues> {
-  const [tiers, projectsPerAccount] = await Promise.all([
-    getTierRepository().then((repository) => repository.listTiers()),
+  const [assignable, projectsPerAccount] = await Promise.all([
+    listSelfServiceAssignableTiers(),
     getMaxProjectsPerAccount(),
   ]);
-  const free = tiers.find((tier) => tier.id === TIER_FREE_ID);
+  // The plan a page calls free is the one a developer can sign up for, so
+  // its limits come from the same answer the signup reads.
+  const free = assignable[0];
 
   return {
     freeRequestsPerMinute: free?.requestsPerMinute ?? UNKNOWN_LIMIT,

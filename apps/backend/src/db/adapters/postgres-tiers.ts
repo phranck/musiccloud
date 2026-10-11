@@ -158,7 +158,9 @@ export class PostgresTierRepository implements TierRepository {
       data.icon ?? null,
       data.buttonLabel ?? null,
       data.description ?? "",
-      data.enabled ?? true,
+      // A new plan has no offer yet, so it would be free and choosable the
+      // moment it exists. It starts disabled until its offers are in.
+      data.enabled ?? false,
       data.disableReason ?? "",
       recommended,
       data.sortOrder ?? 0,

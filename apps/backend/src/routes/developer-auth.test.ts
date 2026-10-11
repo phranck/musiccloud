@@ -220,7 +220,10 @@ beforeEach(() => {
   vi.stubEnv("DEVELOPER_URL", "https://developer.musiccloud.example");
   repo = makeRepo();
   vi.mocked(getDeveloperRepository).mockResolvedValue(repo);
-  vi.mocked(getTierRepository).mockResolvedValue({ listTiers: vi.fn(async () => []) } as unknown as TierRepository);
+  vi.mocked(getTierRepository).mockResolvedValue({
+    listTiers: vi.fn(async () => []),
+    listAllOffers: vi.fn(async () => []),
+  } as unknown as TierRepository);
 });
 
 /**
@@ -384,11 +387,12 @@ describe("POST /api/dev/auth/signup", () => {
     expect(vi.mocked(repo.findDeveloperAccountByEmail)).not.toHaveBeenCalled();
   });
 
-  it("assigns tier_free when a paid tier is requested (Plan A: only free tier is assignable)", async () => {
-    // Plan A: resolveSignupTierId only allows tier_free. A paid tier request
-    // falls back to tier_free so no tier can be granted for free.
+  it("assigns tier_free when a paid tier is requested", async () => {
+    // A plan with an offer has a price, so asking for it falls back to
+    // tier_free and no paid plan can be granted for nothing.
     vi.mocked(getTierRepository).mockResolvedValue({
       listTiers: vi.fn(async () => [makeTier({ id: "tier_free", name: "Free" }), makeTier()]),
+      listAllOffers: vi.fn(async () => [{ tierId: "tier-pro" }]),
     } as unknown as TierRepository);
     const app = await buildApp();
     const res = await app.inject({
@@ -405,6 +409,7 @@ describe("POST /api/dev/auth/signup", () => {
   it("falls back to tier_free when the requested tierId is unknown (resolver guarantees non-null)", async () => {
     vi.mocked(getTierRepository).mockResolvedValue({
       listTiers: vi.fn(async () => [makeTier({ id: "tier_free", name: "Free" })]),
+      listAllOffers: vi.fn(async () => []),
     } as unknown as TierRepository);
     const app = await buildApp();
     const res = await app.inject({
@@ -421,6 +426,7 @@ describe("POST /api/dev/auth/signup", () => {
   it("assigns tier_free when no tierId is provided in the request body", async () => {
     vi.mocked(getTierRepository).mockResolvedValue({
       listTiers: vi.fn(async () => [makeTier({ id: "tier_free", name: "Free" })]),
+      listAllOffers: vi.fn(async () => []),
     } as unknown as TierRepository);
     const app = await buildApp();
     const res = await app.inject({

@@ -129,6 +129,7 @@ down to its meaningful inner slots.
   accepts, so nothing reaching Creem is derived from the plan except the name
   and the description a customer reads. A plan with no offer sells nothing, and
   that is how a free plan is expressed.
+- `isFreeTier` and `isSelfServiceAssignableTier` in `apps/backend/src/services/signup-tier.ts` are the only answers to whether a plan is free and whether a developer may choose it, and the public catalogue publishes both as `free` and `selfServiceAssignable`. A plan is free when it has no offer and assignable when it is also enabled, so a new plan starts disabled until its offers are in.
 - Creem sells over six billing periods and in two currencies, and its two tax
   fields decide who bears the tax. All of them are fields on an offer. A field
   left empty is a decision to let Creem choose, not an omission.

@@ -8,7 +8,6 @@
  * yearly euro string, either of them `null` when that period is not sold.
  */
 
-import { getTierRepository } from "../db/index.js";
 import { BillingPeriod, type BillingPeriodValue, type Tier, type TierOffer } from "../db/tiers-repository.js";
 import { CreemKeyMissingError } from "../lib/creem-config.js";
 import { log } from "../lib/infra/logger.js";
@@ -55,11 +54,11 @@ export function centsToEuroString(cents: number): string {
  * `getCreemCatalog`, and costs only that tier its live price.
  *
  * @param tiers - The tiers as read from the database.
+ * @param offers - Every offer of those tiers. The caller reads them, because
+ *   it judges the same tiers by the same offers.
  * @returns The tiers with their prices.
  */
-export async function enrichTiersWithCreemPrices(tiers: Tier[]): Promise<PricedTier[]> {
-  const offers = await (await getTierRepository()).listAllOffers();
-
+export async function enrichTiersWithCreemPrices(tiers: Tier[], offers: TierOffer[]): Promise<PricedTier[]> {
   let catalog: CreemCatalog;
   try {
     catalog = await getCreemCatalog();

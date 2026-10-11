@@ -193,7 +193,7 @@ describe("OpenAPI docs", () => {
     // The version names the public contract that clients read. Keeping it
     // explicit here means a contract change cannot ship under a version that
     // already names another contract.
-    expect(doc.info.version).toBe("2.3.1");
+    expect(doc.info.version).toBe("2.4.0");
     expect(doc.info.description).toContain("Developer Project");
     expect(doc.info.description).toContain("Applications under one project share those quotas");
     expect(doc.components.securitySchemes.ApiKeyAuth.description).toContain("shared by all applications");

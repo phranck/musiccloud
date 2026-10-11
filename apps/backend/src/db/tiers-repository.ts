@@ -61,6 +61,7 @@ export interface TierCreateData {
   icon?: string | null;
   buttonLabel?: string | null;
   description?: string;
+  /** Defaults to `false`, because a plan without offers is free and would be choosable at once. */
   enabled?: boolean;
   disableReason?: string;
   /** Mark this tier as the recommended one on create; `true` clears the flag on all other tiers. Defaults to `false`. */

@@ -1,11 +1,12 @@
 /**
  * @file Turns the public plan catalogue into what the plan step shows.
  *
- * Which plan a developer may choose is decided by the backend and published on
- * the catalogue as `selfServiceAssignable`, so nothing here works it out a
- * second time. What this module adds is the sentence a developer reads for a
- * plan they cannot pick, because a plan that was on the pricing page and then
- * silently disappears is worse than one that says why.
+ * Which plan a developer may choose and which plan is free are decided by the
+ * backend and published on the catalogue as `selfServiceAssignable` and `free`,
+ * so nothing here works either out a second time. What this module adds is the
+ * sentence a developer reads for a plan they cannot pick, because a plan that
+ * was on the pricing page and then silently disappears is worse than one that
+ * says why.
  */
 
 /** A plan as the public catalogue serves it. Only the fields this screen reads. */
@@ -15,6 +16,8 @@ export interface PublicTier {
   requestsPerMinute: number;
   requestsPerDay: number;
   enabled: boolean;
+  /** Whether the plan costs nothing. */
+  free: boolean;
   /** Whether a developer may put a project on it themselves. */
   selfServiceAssignable: boolean;
   /** The operator's own reason for a plan that is not offered, or an empty string. */
@@ -52,7 +55,7 @@ export function toPlanOptions(tiers: readonly PublicTier[]): PlanOption[] {
     assignable: tier.selfServiceAssignable,
     unavailableReason: tier.selfServiceAssignable
       ? ""
-      : tier.enabled
+      : tier.enabled && !tier.free
         ? PAID_PLAN_REASON
         : tier.disableReason?.trim() || DISABLED_PLAN_REASON,
   }));
