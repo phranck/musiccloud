@@ -18,6 +18,8 @@ import type {
 import type { DeveloperAccount } from "../db/developer-repository.js";
 import { getApiAccessRepository, getDeveloperRepository, getTierRepository } from "../db/index.js";
 import { requireOwnerOrAdmin } from "../lib/admin-caller.js";
+import { EMAIL_TAKEN_CODE, INVALID_EMAIL_CODE, normalizeEmailAddress } from "../lib/email-address.js";
+import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { generateApiToken } from "../services/api-access-token.js";
 import { buildApiUsageReport } from "../services/api-usage-report.js";
 import { isUsageWindowRejection, resolveUsageWindow } from "../services/api-usage-window.js";
@@ -343,9 +345,22 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
     if (body?.status && !["active", "suspended"].includes(body.status)) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid status." });
     }
+    // Stored in the form every sign-in path looks the address up in, because
+    // any other form locks the developer out. The dashboard sends the field on
+    // every save, so an unchanged address passes through here as well.
+    const email = body?.email === undefined ? undefined : normalizeEmailAddress(body.email);
+    if (email === null) {
+      return reply.status(400).send(createApiErrorResponse(INVALID_EMAIL_CODE));
+    }
     const devRepo = await getDeveloperRepository();
     const existing = await devRepo.findDeveloperAccountById(id);
     if (!existing) return reply.status(404).send({ error: "NOT_FOUND", message: "Developer account not found." });
+    if (email !== undefined && email !== existing.email) {
+      const holder = await devRepo.findDeveloperAccountByEmail(email);
+      if (holder && holder.id !== id) {
+        return reply.status(409).send(createApiErrorResponse(EMAIL_TAKEN_CODE));
+      }
+    }
     // A tier can only be (re)assigned while it is enabled; disabled tiers
     // stay assigned where they already are (MC-100), but are no longer a
     // valid target. Re-submitting the unchanged assignment is fine (the
@@ -363,7 +378,7 @@ export async function adminApiAccessRoutes(app: FastifyInstance) {
       }
     }
     const updated = await devRepo.updateDeveloperAccount(id, {
-      email: body?.email,
+      email,
       displayName: body?.displayName,
       tierId: body?.tierId,
       status: body?.status,

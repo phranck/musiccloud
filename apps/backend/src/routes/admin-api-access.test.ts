@@ -61,6 +61,8 @@ const mockAdminRepo = {
 
 const mockDeveloperRepo = {
   findDeveloperAccountById: vi.fn(),
+  findDeveloperAccountByEmail: vi.fn(),
+  updateDeveloperAccount: vi.fn(),
 };
 
 vi.mock("../db/index.js", () => ({
@@ -489,6 +491,80 @@ describe("adminApiAccessRoutes", () => {
 
       expect(response.statusCode).toBe(400);
       expect(mockRepo.setDeveloperProjectSubscription).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("PATCH developer account email", () => {
+    const accountUrl = "/api/admin/developer/accounts/dev-1";
+    const account = {
+      id: "dev-1",
+      email: "old@example.com",
+      emailVerifiedAt: null,
+      displayName: null,
+      avatarUrl: null,
+      technicalContactEmail: null,
+      tierId: null,
+      status: "active",
+      createdAt: 1_700_000_000_000,
+      lastLoginAt: null,
+    };
+
+    it("stores the address in the form sign-in looks it up in", async () => {
+      const { app, token } = await buildApp("owner");
+      mockDeveloperRepo.findDeveloperAccountById.mockResolvedValue(account);
+      mockDeveloperRepo.findDeveloperAccountByEmail.mockResolvedValue(null);
+      mockDeveloperRepo.updateDeveloperAccount.mockResolvedValue({ ...account, email: "jane@example.com" });
+
+      const response = await app.inject({
+        method: "PATCH",
+        url: accountUrl,
+        headers: { authorization: `Bearer ${token}` },
+        payload: { email: " Jane@Example.com " },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(mockDeveloperRepo.updateDeveloperAccount).toHaveBeenCalledWith(
+        "dev-1",
+        expect.objectContaining({ email: "jane@example.com" }),
+      );
+    });
+
+    it.each([
+      ["an empty string", ""],
+      ["a number", 42],
+      ["a value that is not an address", "not-an-address"],
+    ])("refuses %s before reading or writing anything", async (_label, email) => {
+      const { app, token } = await buildApp("owner");
+
+      const response = await app.inject({
+        method: "PATCH",
+        url: accountUrl,
+        headers: { authorization: `Bearer ${token}` },
+        payload: { email },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json().error).toBe("MC-REQ-0006");
+      expect(mockDeveloperRepo.findDeveloperAccountById).not.toHaveBeenCalled();
+      expect(mockDeveloperRepo.updateDeveloperAccount).not.toHaveBeenCalled();
+    });
+
+    it("refuses an address another account holds with 409 instead of failing the write", async () => {
+      const { app, token } = await buildApp("owner");
+      mockDeveloperRepo.findDeveloperAccountById.mockResolvedValue(account);
+      mockDeveloperRepo.findDeveloperAccountByEmail.mockResolvedValue({ ...account, id: "dev-2" });
+
+      const response = await app.inject({
+        method: "PATCH",
+        url: accountUrl,
+        headers: { authorization: `Bearer ${token}` },
+        payload: { email: "Taken@Example.com" },
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json().error).toBe("MC-REQ-0007");
+      expect(mockDeveloperRepo.findDeveloperAccountByEmail).toHaveBeenCalledWith("taken@example.com");
+      expect(mockDeveloperRepo.updateDeveloperAccount).not.toHaveBeenCalled();
     });
   });
 

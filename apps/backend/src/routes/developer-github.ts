@@ -11,6 +11,7 @@ import { EmailAction, EmailRecipientKind, ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { DeveloperAccount } from "../db/developer-repository.js";
 import { getDeveloperRepository } from "../db/index.js";
+import { normalizeEmailAddress } from "../lib/email-address.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { RateLimiter } from "../lib/infra/rate-limiter.js";
 import {
@@ -99,12 +100,13 @@ export async function devGitHubRoutes(app: FastifyInstance) {
 
     // 2/3) First GitHub login: need a verified primary email to link or create.
     if (!account) {
-      if (!profile.email) {
+      // An address that cannot be one is as unusable here as a missing one.
+      const email = normalizeEmailAddress(profile.email);
+      if (!email) {
         return reply
           .status(422)
           .send({ error: "NO_VERIFIED_EMAIL", message: "Your GitHub account has no verified primary email." });
       }
-      const email = profile.email.trim().toLowerCase();
       const existing = await repo.findDeveloperAccountByEmail(email);
       if (existing) {
         // Link GitHub to the existing email account (GitHub proved mailbox ownership).

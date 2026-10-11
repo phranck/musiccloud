@@ -86,6 +86,32 @@ describe("admin user contract", () => {
   });
 });
 
+describe("admin user email updates", () => {
+  const ownAccount = ROUTE_TEMPLATES.admin.users.detail.replace(":id", "admin-1");
+
+  it("stores the address trimmed and lowercased", async () => {
+    mockRepo.updateAdminUser.mockResolvedValue(makeAdmin({ email: "new@example.com" }));
+    const app = await buildApp();
+
+    const response = await app.inject({ method: "PATCH", url: ownAccount, payload: { email: " New@Example.com " } });
+
+    expect(response.statusCode).toBe(200);
+    expect(mockRepo.updateAdminUser).toHaveBeenCalledWith("admin-1", { email: "new@example.com" });
+    await app.close();
+  });
+
+  it("refuses a value that is not an address and stores nothing", async () => {
+    const app = await buildApp();
+
+    const response = await app.inject({ method: "PATCH", url: ownAccount, payload: { email: "not-an-address" } });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toBe("MC-REQ-0006");
+    expect(mockRepo.updateAdminUser).not.toHaveBeenCalled();
+    await app.close();
+  });
+});
+
 describe("admin user password updates", () => {
   const ownAccount = ROUTE_TEMPLATES.admin.users.detail.replace(":id", "admin-1");
 

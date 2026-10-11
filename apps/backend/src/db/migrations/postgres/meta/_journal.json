@@ -708,6 +708,13 @@
       "when": 1791749989301,
       "tag": "0100_developer_portal_availability_events",
       "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1791757482119,
+      "tag": "0101_normalize_developer_emails",
+      "breakpoints": true
     }
   ]
 }
