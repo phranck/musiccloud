@@ -8,9 +8,11 @@
  *
  * Every path comes from `packages/shared/src/endpoints.ts`, which is the same
  * source the backend registers its routes from, so a snippet here cannot point
- * somewhere the API does not answer.
+ * somewhere the API does not answer. The request body is typed with the shared
+ * `ResolveRequest`, which the backend's body schema is checked against, so a
+ * snippet cannot send a field the API refuses.
  */
-import { ENDPOINTS } from "@musiccloud/shared";
+import { ENDPOINTS, type ResolveRequest } from "@musiccloud/shared";
 
 /** Where the published API answers when nothing says otherwise. */
 const DEFAULT_PUBLIC_API_BASE_URL = "https://api.musiccloud.io";
@@ -67,7 +69,8 @@ function publicUrl(path: string): string {
  */
 export function firstRequestSnippets(): QuickstartSnippet[] {
   const url = publicUrl(ENDPOINTS.v1.resolve);
-  const body = '{"url":"https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L"}';
+  const requestBody: ResolveRequest = { query: "https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L" };
+  const body = JSON.stringify(requestBody);
 
   return [
     {
