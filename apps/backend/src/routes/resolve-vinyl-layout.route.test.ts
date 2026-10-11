@@ -31,11 +31,11 @@ vi.mock("../lib/infra/rate-limiter.js", () => ({
 }));
 
 vi.mock("../lib/platform/url.js", () => ({
-  isAlbumUrl: vi.fn().mockReturnValue(true),
-  isArtistUrl: vi.fn().mockReturnValue(false),
   isUrl: vi.fn().mockReturnValue(true),
   stripTrackingParams: vi.fn((url: string) => url),
 }));
+
+vi.mock("../services/plugins/registry.js", () => ({ classifyMusicUrl: vi.fn().mockReturnValue("album") }));
 
 vi.mock("../services/album-resolver.js", () => ({
   resolveAlbumUrl: vi.fn(),
@@ -53,7 +53,7 @@ vi.mock("../services/persist-resolution.js", () => ({ persistResolution }));
 const { default: resolveRoutes } = await import("./resolve.js");
 const { resolveAlbumUrl } = await import("../services/album-resolver.js");
 const { resolveQuery } = await import("../services/resolver.js");
-const { isAlbumUrl } = await import("../lib/platform/url.js");
+const { classifyMusicUrl } = await import("../services/plugins/registry.js");
 
 const vinylLayout = {
   discogsReleaseId: "15815903",
@@ -120,7 +120,7 @@ function buildAlbumSerializerApp() {
 describe("POST /api/v1/resolve album vinyl layout", () => {
   afterEach(() => {
     vi.clearAllMocks();
-    vi.mocked(isAlbumUrl).mockReturnValue(true);
+    vi.mocked(classifyMusicUrl).mockReturnValue("album");
   });
 
   it("requires vinylLayout in the shared album resolve contract", () => {
@@ -129,7 +129,7 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
 
   it("exposes the artist-qualified album layout on a track resolve", async () => {
     expectTypeOf<ApiTrack["vinylLayout"]>().toEqualTypeOf<VinylLayout | null>();
-    vi.mocked(isAlbumUrl).mockReturnValue(false);
+    vi.mocked(classifyMusicUrl).mockReturnValue("track");
     persistResolution.mockResolvedValue({
       trackId: "track-id",
       shortId: "track-short",
@@ -165,7 +165,7 @@ describe("POST /api/v1/resolve album vinyl layout", () => {
   });
 
   it("normalizes a fresh YouTube timestamp for the unified track response", async () => {
-    vi.mocked(isAlbumUrl).mockReturnValue(false);
+    vi.mocked(classifyMusicUrl).mockReturnValue("track");
     persistResolution.mockResolvedValue({
       trackId: "youtube-track-id",
       shortId: "youtube-short",

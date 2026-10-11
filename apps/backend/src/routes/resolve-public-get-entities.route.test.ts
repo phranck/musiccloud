@@ -34,11 +34,11 @@ vi.mock("../lib/infra/rate-limiter.js", () => ({
 }));
 
 vi.mock("../lib/platform/url.js", () => ({
-  isAlbumUrl: vi.fn().mockReturnValue(false),
-  isArtistUrl: vi.fn().mockReturnValue(false),
   isUrl: vi.fn().mockReturnValue(true),
   stripTrackingParams: vi.fn((url: string) => url),
 }));
+
+vi.mock("../services/plugins/registry.js", () => ({ classifyMusicUrl: vi.fn().mockReturnValue(null) }));
 
 vi.mock("../services/album-resolver.js", () => ({ resolveAlbumUrl: vi.fn() }));
 vi.mock("../services/artist-resolver.js", () => ({ resolveArtistUrl: vi.fn() }));
@@ -58,7 +58,7 @@ const { default: resolvePublicGetRoutes } = await import("./resolve-public-get.j
 const { resolveAlbumUrl } = await import("../services/album-resolver.js");
 const { resolveArtistUrl } = await import("../services/artist-resolver.js");
 const { resolveQuery } = await import("../services/resolver.js");
-const { isAlbumUrl, isArtistUrl } = await import("../lib/platform/url.js");
+const { classifyMusicUrl } = await import("../services/plugins/registry.js");
 
 function buildApp() {
   const app = Fastify({ ajv: { customOptions: { keywords: ["example"] } } });
@@ -83,22 +83,19 @@ const ALBUM_URL = "https://open.spotify.com/album/album-1";
 const ARTIST_URL = "https://open.spotify.com/artist/artist-1";
 
 afterEach(() => {
-  vi.mocked(isAlbumUrl).mockReturnValue(false);
-  vi.mocked(isArtistUrl).mockReturnValue(false);
+  vi.mocked(classifyMusicUrl).mockReturnValue(null);
   vi.clearAllMocks();
   readVinylLayout.mockResolvedValue(null);
 });
 
 /**
  * The GET operation is documented as the one-request companion to the POST one,
- * so an input that resolves there has to resolve here. Before this routing
- * existed, an album or artist URL fell through to the track pipeline and came
- * back as "unrecognized music service URL", which was untrue: the URL was
- * recognised, the operation simply could not use it.
+ * so an input that resolves there has to resolve here. That includes album and
+ * artist URLs, which have to reach their own pipelines rather than the track one.
  */
 describe("GET /api/v1/resolve content-type routing", () => {
   it("resolves an album URL to the album variant", async () => {
-    vi.mocked(isAlbumUrl).mockReturnValue(true);
+    vi.mocked(classifyMusicUrl).mockReturnValue("album");
     vi.mocked(resolveAlbumUrl).mockResolvedValue({
       sourceAlbum: { title: "The Sermon!", artists: ["Jimmy Smith"], webUrl: ALBUM_URL },
       links: [],
@@ -121,7 +118,7 @@ describe("GET /api/v1/resolve content-type routing", () => {
   });
 
   it("resolves an artist URL to the artist variant", async () => {
-    vi.mocked(isArtistUrl).mockReturnValue(true);
+    vi.mocked(classifyMusicUrl).mockReturnValue("artist");
     vi.mocked(resolveArtistUrl).mockResolvedValue({
       sourceArtist: { name: "Jimmy Smith", genres: ["jazz"], webUrl: ARTIST_URL },
       links: [],
@@ -143,7 +140,7 @@ describe("GET /api/v1/resolve content-type routing", () => {
   });
 
   it("returns only the share URL for an album when format is text", async () => {
-    vi.mocked(isAlbumUrl).mockReturnValue(true);
+    vi.mocked(classifyMusicUrl).mockReturnValue("album");
     vi.mocked(resolveAlbumUrl).mockResolvedValue({
       sourceAlbum: { title: "The Sermon!", artists: ["Jimmy Smith"], webUrl: ALBUM_URL },
       links: [],

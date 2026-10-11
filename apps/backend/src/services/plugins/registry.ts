@@ -205,6 +205,34 @@ export async function identifyServiceIncludingDisabled(url: string): Promise<Ser
   return PLUGINS.map((p) => p.adapter).find((a) => a.detectUrl(url) !== null);
 }
 
+/** What a music link points at, as the plugins' own detectors tell it. */
+export type MusicUrlKind = "album" | "artist" | "track";
+
+/**
+ * Says whether a link points at an album, an artist or a track.
+ *
+ * The plugins' own detectors are the only answer, because each plugin is the
+ * code that extracts the id afterwards. A separate table of patterns would be
+ * a second answer that drifts from them, and a link it misroutes ends in the
+ * wrong pipeline and in "not a music link". Every plugin is asked, enabled or
+ * not, like {@link identifyServiceIncludingDisabled}, so a link's kind does
+ * not change with the admin toggles. The album detectors are asked first,
+ * then the artist ones, then the track ones. That order decides nothing as
+ * long as no two detectors claim the same link, across all plugins, which
+ * `music-url-classification.test.ts` holds.
+ *
+ * @param url - The cleaned and expanded link.
+ * @returns The kind of the first detector that claims the link, or `null`
+ *   when no plugin claims it.
+ */
+export function classifyMusicUrl(url: string): MusicUrlKind | null {
+  const adapters = PLUGINS.map((plugin) => plugin.adapter);
+  if (adapters.some((adapter) => adapter.detectAlbumUrl?.(url))) return "album";
+  if (adapters.some((adapter) => adapter.detectArtistUrl?.(url))) return "artist";
+  if (adapters.some((adapter) => adapter.detectUrl(url))) return "track";
+  return null;
+}
+
 /**
  * Boolean lookup against the enabled-map. `true` ⇔ the plugin is toggled
  * on (either via DB override or manifest default).

@@ -1,87 +1,6 @@
-import { ENDPOINTS, type ErrorCode, parseJamendoLink, type ServiceId } from "@musiccloud/shared";
+import { ENDPOINTS, type ErrorCode, parseJamendoLink } from "@musiccloud/shared";
 
 export type UrlValidationResult = { valid: true } | { valid: false; code: ErrorCode; message: string };
-
-/**
- * Services with URL detection support.
- * - `youtube-music` is derived from YouTube and uses the same patterns.
- * - `musicbrainz` matches its own MBID URLs in the adapter
- *   (`services/plugins/musicbrainz/adapter.ts`); it is excluded from this
- *   shared track/album-pattern map because MB is metadata-only and uses
- *   release/recording/release-group paths that do not fit the
- *   "music URL" / "album URL" classification used by `isMusicUrl` /
- *   `isAlbumUrl`.
- * - `jamendo` is the Creative Commons catalog. Its links resolve through the
- *   CC endpoint, never through the commercial resolver these patterns feed.
- */
-type DetectableService = Exclude<ServiceId, "youtube-music" | "musicbrainz" | "jamendo">;
-
-export const MUSIC_URL_PATTERNS: Record<DetectableService, RegExp> = {
-  spotify: /^https?:\/\/(open\.)?spotify\.com\/(track|album|intl-\w+\/track)\//,
-  "apple-music": /^https?:\/\/music\.apple\.com\//,
-  youtube: /^https?:\/\/(?:www\.|m\.)?(youtube\.com\/(watch|shorts)|youtu\.be\/|music\.youtube\.com\/)/,
-  soundcloud: /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/[^/]+\/[^/]+/,
-  tidal: /^https?:\/\/(listen\.)?tidal\.com\/(browse\/)?track\//,
-  deezer: /^https?:\/\/(www\.)?deezer\.com\/(([a-z]{2})\/)?track\//,
-  audius: /^https?:\/\/audius\.co\/[^/]+\/[^/]+/,
-  napster: /^https?:\/\/(www\.|app\.)?napster\.com\/.+/,
-  pandora: /^https?:\/\/(?:www\.)?pandora\.com\/artist\/[^/]+\/[^/]+\/[^/]+\/TR[a-zA-Z0-9]+/,
-  qobuz: /^https?:\/\/(?:open|play)\.qobuz\.com\/track\//,
-  boomplay: /^https?:\/\/(?:www\.)?boomplay\.com\/songs\/\d+/,
-  kkbox: /^https?:\/\/(?:www\.)?kkbox\.com\/[a-z]{2}\/[a-z]{2}\/song\//,
-  bandcamp: /^https?:\/\/[a-z0-9-]+\.bandcamp\.com\/track\//,
-  audiomack: /^https?:\/\/(?:www\.)?audiomack\.com\/[^/]+\/song\//,
-  netease: /^https?:\/\/music\.163\.com\/(?:#\/)?song\?id=\d+/,
-  qqmusic: /^https?:\/\/y\.qq\.com\/n\/ryqq\/songDetail\//,
-  melon: /^https?:\/\/(?:www\.)?melon\.com\/song\/detail\.htm\?songId=\d+/,
-  bugs: /^https?:\/\/music\.bugs\.co\.kr\/track\/\d+/,
-  jiosaavn: /^https?:\/\/(?:www\.)?jiosaavn\.com\/song\//,
-  beatport: /^https?:\/\/(?:www\.)?beatport\.com\/track\//,
-};
-
-export const ALBUM_URL_PATTERNS: Record<DetectableService, RegExp> = {
-  spotify: /^https?:\/\/(open\.)?spotify\.com\/(intl-\w+\/)?album\/[a-zA-Z0-9]+/,
-  "apple-music": /^https?:\/\/music\.apple\.com\/[a-z]{2}\/album\/[^?\s]+(?:\?(?!i=).*)?$/,
-  youtube: /^https?:\/\/music\.youtube\.com\/playlist\?list=OLAK5uy_/,
-  soundcloud: /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/[^/]+\/sets\/[^/]+/,
-  tidal: /^https?:\/\/(listen\.)?tidal\.com\/(browse\/)?album\/\d+/,
-  deezer: /^https?:\/\/(www\.)?deezer\.com\/(([a-z]{2})\/)?album\/\d+/,
-  audius: /^https?:\/\/audius\.co\/[^/]+\/[^/]+-[a-zA-Z0-9]+$/, // Audius playlists/albums
-  napster: /^https?:\/\/(www\.)?napster\.com\/album\//,
-  pandora: /^https?:\/\/(?:www\.)?pandora\.com\/artist\/[^/]+\/[^/]+\/AL[a-zA-Z0-9]+/,
-  qobuz: /^https?:\/\/(?:open|play)\.qobuz\.com\/album\//,
-  boomplay: /^https?:\/\/(?:www\.)?boomplay\.com\/albums\/\d+/,
-  kkbox: /^https?:\/\/(?:www\.)?kkbox\.com\/[a-z]{2}\/[a-z]{2}\/album\//,
-  bandcamp: /^https?:\/\/[a-z0-9-]+\.bandcamp\.com\/album\//,
-  audiomack: /^https?:\/\/(?:www\.)?audiomack\.com\/[^/]+\/album\//,
-  netease: /^https?:\/\/music\.163\.com\/(?:#\/)?album\?id=\d+/,
-  qqmusic: /^https?:\/\/y\.qq\.com\/n\/ryqq\/albumDetail\//,
-  melon: /^https?:\/\/(?:www\.)?melon\.com\/album\/detail\.htm\?albumId=\d+/,
-  bugs: /^https?:\/\/music\.bugs\.co\.kr\/album\/\d+/,
-  jiosaavn: /^https?:\/\/(?:www\.)?jiosaavn\.com\/album\//,
-  beatport: /^https?:\/\/(?:www\.)?beatport\.com\/release\//,
-};
-
-export function isMusicUrl(url: string): boolean {
-  return Object.values(MUSIC_URL_PATTERNS).some((pattern) => pattern.test(url));
-}
-
-export function isAlbumUrl(url: string): boolean {
-  return Object.values(ALBUM_URL_PATTERNS).some((pattern) => pattern.test(url));
-}
-
-export function isArtistUrl(url: string): boolean {
-  return ARTIST_URL_PATTERNS.some((pattern) => pattern.test(url));
-}
-
-export function detectPlatform(url: string): DetectableService | null {
-  for (const [platform, pattern] of Object.entries(MUSIC_URL_PATTERNS)) {
-    if (pattern.test(url)) {
-      return platform as DetectableService;
-    }
-  }
-  return null;
-}
 
 const ALLOWED_HOSTS = [
   // Spotify
@@ -145,8 +64,8 @@ const ALLOWED_HOSTS = [
   // Beatport
   "beatport.com",
   "www.beatport.com",
-  // MusicBrainz metadata URLs are resolved by the adapter, not by the
-  // shared streaming-pattern maps above.
+  // MusicBrainz is metadata-only, and its adapter resolves its release,
+  // recording and artist URLs.
   "musicbrainz.org",
   "www.musicbrainz.org",
 ];
@@ -155,25 +74,6 @@ const ALLOWED_HOSTS = [
 const PODCAST_REGEX = /spotify\.com\/(?:intl-\w+\/)?(?:episode|show)\//;
 const PLAYLIST_REGEX =
   /(?:spotify\.com\/(?:intl-\w+\/)?playlist\/|music\.apple\.com\/[a-z]{2}\/playlist\/|youtube\.com\/playlist\?list=(?!OLAK5uy_))/;
-export const ARTIST_URL_PATTERNS: RegExp[] = [
-  // Spotify: open.spotify.com/artist/{id} or open.spotify.com/intl-xx/artist/{id}
-  /^https?:\/\/(open\.)?spotify\.com\/(intl-\w+\/)?artist\/[a-zA-Z0-9]+/,
-  // Apple Music: music.apple.com/{cc}/artist/{slug}/{id}
-  /^https?:\/\/music\.apple\.com\/[a-z]{2}\/artist\//,
-  // YouTube / YouTube Music: /@handle, /channel/{id}
-  /^https?:\/\/(www\.)?youtube\.com\/(@[^/]+|channel\/[^/]+)\/?$/,
-  /^https?:\/\/music\.youtube\.com\/channel\/[^/]+/,
-  // Tidal: tidal.com/artist/{id} or tidal.com/browse/artist/{id}
-  /^https?:\/\/(listen\.)?tidal\.com\/(browse\/)?artist\/\d+/,
-  // Deezer: deezer.com/artist/{id} or deezer.com/{cc}/artist/{id}
-  /^https?:\/\/(www\.)?deezer\.com\/(([a-z]{2})\/)?artist\/\d+/,
-  // SoundCloud: soundcloud.com/{username} (single path segment only)
-  /^https?:\/\/(?:www\.|m\.)?soundcloud\.com\/[^/]+\/?$/,
-  // Bandcamp: {artist}.bandcamp.com (root path only)
-  /^https?:\/\/[a-z0-9-]+\.bandcamp\.com\/?$/,
-  // Audiomack: audiomack.com/{username}
-  /^https?:\/\/(?:www\.)?audiomack\.com\/[^/]+\/?$/,
-];
 
 export function validateMusicUrl(input: string): UrlValidationResult {
   const explicitUrl = hasExplicitHttpScheme(input);

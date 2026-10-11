@@ -5,13 +5,16 @@
  * is not auth but identification required by the API for usage
  * tracking; omitting it yields 403.
  *
- * ## URL shape: tracks and albums share the same pattern
+ * ## URL shapes: the second path segment tells albums from tracks
  *
- * Both `/handle/track-slug` and `/handle/album-slug` look identical
- * from the outside. `detectUrl` and `detectAlbumUrl` use the same
- * regex; the only way to tell the two apart is through the API
- * response, which is why `fetchAlbumById` filters on `is_album`
- * after fetching and returns null for non-albums.
+ * Audius gives a track the permalink `/{handle}/{slug}`, an album
+ * `/{handle}/album/{slug}` and a playlist `/{handle}/playlist/{slug}`.
+ * `detectAlbumUrl` claims only the album shape and `detectUrl` rejects
+ * the album and playlist shapes, so exactly one detector claims a link.
+ * `classifyMusicUrl` in `plugins/registry.ts` depends on that, because it
+ * routes a link by the first detector that claims it. `fetchAlbumById`
+ * still checks `is_album`, because a numeric playlist id carries no shape
+ * that says whether it is an album.
  *
  * ## Two ID shapes reach the adapter
  *
@@ -54,10 +57,11 @@ import { scoreSearchCandidate } from "../_shared/confidence.js";
 const API_BASE = "https://api.audius.co/v1";
 const APP_NAME = "music_cloud";
 
-const AUDIUS_TRACK_REGEX = /(?:https?:\/\/)?audius\.co\/([^/]+\/[^/?\s]+)/;
-// Audius album (playlist with is_album=true) URLs: audius.co/{user}/{slug}
-// Albums share the same URL structure as playlists; detected via API response.
-const AUDIUS_ALBUM_REGEX = /(?:https?:\/\/)?audius\.co\/([^/]+\/[^/?\s]+)/;
+// audius.co/{handle}/{slug}, where the slug segment is not `album` or `playlist`.
+const AUDIUS_TRACK_REGEX = /(?:https?:\/\/)?audius\.co\/([^/]+\/(?!(?:album|playlist)(?:[/?#\s]|$))[^/?\s]+)/;
+// audius.co/{handle}/album/{slug}. The id keeps the `album` segment, because the
+// resolve endpoint needs the whole permalink.
+const AUDIUS_ALBUM_REGEX = /(?:https?:\/\/)?audius\.co\/([^/]+\/album\/[^/?\s]+)/;
 
 interface AudiusTrackResponse {
   id: string;
@@ -263,7 +267,6 @@ export const audiusAdapter = {
   },
 
   detectAlbumUrl(url: string): string | null {
-    // Audius albums share URL structure with tracks; resolved by API response
     const match = AUDIUS_ALBUM_REGEX.exec(url);
     return match ? match[1] : null;
   },

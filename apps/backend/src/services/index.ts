@@ -8,6 +8,7 @@ import { log } from "../lib/infra/logger.js";
 import { listPlugins } from "./plugins/registry.js";
 
 export {
+  classifyMusicUrl,
   filterDisabledLinks,
   getActiveAdapters,
   getEnabledMap,
