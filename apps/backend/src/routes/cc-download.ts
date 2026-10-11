@@ -21,7 +21,7 @@ import {
   swapStreamFormat,
 } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
-import { publicErrorResponse } from "../docs/public-response-schema.js";
+import { jamendoFormatSchema, jamendoIdSchema, publicErrorResponse } from "../docs/public-response-schema.js";
 import { log } from "../lib/infra/logger.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter, isInternalRequest } from "../lib/infra/rate-limiter.js";
@@ -60,26 +60,14 @@ export default async function ccDownloadRoutes(app: FastifyInstance) {
           type: "object",
           required: ["jamendoId"],
           properties: {
-            jamendoId: {
-              type: "string",
-              minLength: 1,
-              maxLength: 32,
-              pattern: "^[0-9]+$",
-              description:
-                "Numeric Jamendo track ID. Read `track.jamendoId`, `album.tracks[].jamendoId`, or `artist.topTracks[].jamendoId` from a successful `POST /api/v1/cc/resolve` or `GET /api/v1/share/{shortId}` response.",
-            },
+            jamendoId: jamendoIdSchema(),
           },
           additionalProperties: false,
         },
         querystring: {
           type: "object",
           properties: {
-            format: {
-              type: "string",
-              default: "mp32",
-              description:
-                "Jamendo delivery format: `mp31` (MP3 96 kbps), `mp32` (MP3 about 256 kbps), `ogg`, or `flac`. Invalid values also fall back to `mp32`.\n\n**Default**: `mp32`.",
-            },
+            format: jamendoFormatSchema(),
           },
           additionalProperties: false,
         },

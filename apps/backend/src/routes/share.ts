@@ -45,6 +45,7 @@
 import { ROUTE_TEMPLATES, type SharePageResponse } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
+import { shareCodeSchema } from "../docs/public-response-schema.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter, isInternalRequest } from "../lib/infra/rate-limiter.js";
 import { resolveAppleMusicStorefrontFromHeaders } from "../lib/platform/apple-music-storefront.js";
@@ -72,14 +73,9 @@ export default async function shareRoutes(app: FastifyInstance) {
           type: "object",
           required: ["shortId"],
           properties: {
-            shortId: {
-              type: "string",
-              minLength: 1,
-              maxLength: 64,
-              pattern: "^[A-Za-z0-9_-]+$",
-              description:
-                "Public musiccloud share code: take the last path segment of `shortUrl` from a successful `POST /api/v1/resolve`, `GET /api/v1/resolve`, or `POST /api/v1/cc/resolve` response.",
-            },
+            shortId: shareCodeSchema(
+              "Public musiccloud share code: take the last path segment of `shortUrl` from a successful `POST /api/v1/resolve`, `GET /api/v1/resolve`, or `POST /api/v1/cc/resolve` response.",
+            ),
           },
           additionalProperties: false,
         },

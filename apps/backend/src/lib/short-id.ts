@@ -26,11 +26,24 @@ export function generateTrackId(): string {
  * on a collision, and that holds at any length. This value only decides how
  * rarely the retry is needed, and how hard an id is to guess.
  *
- * Ids already issued at other lengths keep resolving: the route schema accepts
- * one to sixty-four characters of `[A-Za-z0-9_-]`, and lookups match the stored
- * value exactly.
+ * Ids already issued at other lengths keep resolving, because every route that
+ * takes a share code accepts one to {@link SHORT_ID_MAX_LENGTH} characters of
+ * {@link ID_PATTERN}, and lookups match the stored value exactly.
  */
 const SHORT_ID_LENGTH = 8;
+
+/**
+ * The characters every id this module generates is drawn from, which is
+ * nanoid's URL-safe alphabet. Routes validate share codes and entity ids
+ * against it, so a value outside it is refused before any lookup.
+ */
+export const ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+/** The longest share code a route accepts, which covers every length ever issued. */
+export const SHORT_ID_MAX_LENGTH = 64;
+
+/** The longest entity id a route accepts. Generated ids are 21 characters. */
+export const ENTITY_ID_MAX_LENGTH = 64;
 
 /**
  * Generates a candidate public short id for a share URL.

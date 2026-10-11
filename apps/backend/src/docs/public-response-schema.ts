@@ -1,4 +1,10 @@
-import { MC_ERROR_CODE_PATTERN } from "@musiccloud/shared";
+import {
+  DEFAULT_STREAM_FORMAT,
+  JAMENDO_FORMAT_ORDER,
+  type JamendoAudioFormat,
+  MC_ERROR_CODE_PATTERN,
+} from "@musiccloud/shared";
+import { ENTITY_ID_MAX_LENGTH, ID_PATTERN, SHORT_ID_MAX_LENGTH } from "../lib/short-id.js";
 
 /**
  * Creates the canonical public API error envelope schema.
@@ -100,5 +106,96 @@ export function publicHealthUnavailableResponse(description: string) {
   return {
     description,
     $ref: "HealthUnavailableResponse#",
+  } as const;
+}
+
+/**
+ * A share code as a request parameter: one to {@link SHORT_ID_MAX_LENGTH}
+ * characters of {@link ID_PATTERN}.
+ *
+ * Every route that takes a share code declares it through here, so the share
+ * routes and `artist-info` accept exactly the same codes, and the public
+ * OpenAPI document states one rule.
+ *
+ * @param description - Where the caller takes the code from on this route.
+ * @returns The JSON schema for the parameter.
+ */
+export function shareCodeSchema(description: string) {
+  return {
+    type: "string",
+    minLength: 1,
+    maxLength: SHORT_ID_MAX_LENGTH,
+    pattern: ID_PATTERN.source,
+    description,
+  } as const;
+}
+
+/**
+ * A normalized artist entity id as a request parameter: one to
+ * {@link ENTITY_ID_MAX_LENGTH} characters of {@link ID_PATTERN}.
+ *
+ * @param description - Where the caller takes the id from, for a public route.
+ *   An admin route leaves it out.
+ * @returns The JSON schema for the parameter.
+ */
+export function artistEntityIdSchema(description?: string) {
+  return {
+    type: "string",
+    minLength: 1,
+    maxLength: ENTITY_ID_MAX_LENGTH,
+    pattern: ID_PATTERN.source,
+    ...(description === undefined ? {} : { description }),
+  } as const;
+}
+
+/** The longest Jamendo track id a route accepts. Jamendo ids are decimal numbers. */
+const JAMENDO_ID_MAX_LENGTH = 32;
+
+/**
+ * A Jamendo track id as a path parameter, as the three Creative Commons routes
+ * that take one declare it.
+ *
+ * @returns The JSON schema for the parameter.
+ */
+export function jamendoIdSchema() {
+  return {
+    type: "string",
+    minLength: 1,
+    maxLength: JAMENDO_ID_MAX_LENGTH,
+    pattern: "^[0-9]+$",
+    description:
+      "Numeric Jamendo track ID. Read `track.jamendoId`, `album.tracks[].jamendoId`, or `artist.topTracks[].jamendoId` from a successful `POST /api/v1/cc/resolve` or `GET /api/v1/share/{shortId}` response.",
+  } as const;
+}
+
+/**
+ * What a format code delivers, for the codes whose name does not say it. The
+ * other codes are listed by name alone.
+ */
+const JAMENDO_FORMAT_EXPLANATIONS: Partial<Record<JamendoAudioFormat, string>> = {
+  mp31: "MP3 96 kbps",
+  mp32: "MP3 about 256 kbps",
+};
+
+/**
+ * The `format` query of the Creative Commons audio and download routes.
+ *
+ * It declares no `enum`, because an unknown value falls back to
+ * {@link DEFAULT_STREAM_FORMAT} through `parseJamendoAudioFormat` rather than
+ * being refused. The codes, their order and the default come from
+ * `@musiccloud/shared`, so a format added there is documented here as well.
+ *
+ * @returns The JSON schema for the parameter.
+ */
+export function jamendoFormatSchema() {
+  const codes = JAMENDO_FORMAT_ORDER.map((code) => {
+    const explanation = JAMENDO_FORMAT_EXPLANATIONS[code];
+    return explanation ? `\`${code}\` (${explanation})` : `\`${code}\``;
+  });
+  const listed = `${codes.slice(0, -1).join(", ")}, or ${codes[codes.length - 1]}`;
+  return {
+    type: "string",
+    default: DEFAULT_STREAM_FORMAT,
+    description: `Jamendo delivery format: ${listed}. Invalid values also fall back to \`${DEFAULT_STREAM_FORMAT}\`.\n\n**Default**: \`${DEFAULT_STREAM_FORMAT}\`.`,
   } as const;
 }
