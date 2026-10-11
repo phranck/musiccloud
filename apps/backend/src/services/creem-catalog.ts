@@ -4,7 +4,7 @@
  * Responsibilities:
  * - Read the `tier_creem_products` mapping table (our side) to learn which
  *   Creem product ID corresponds to each (tierId, interval) pair in the Creem
- *   environment this process talks to.
+ *   environment the shop currently sells from.
  * - Fetch the live price and currency for each product from the Creem API.
  * - Return a two-level map: `tierId -> interval -> { productId, price, currency }`.
  * - Cache the result for `CATALOG_TTL_MS` milliseconds so repeated calls
@@ -12,9 +12,9 @@
  */
 
 import { getTierRepository } from "../db/index.js";
-import { getCreemConfig } from "../lib/creem-config.js";
 import { log } from "../lib/infra/logger.js";
 import { getCreemClient } from "./creem-client.js";
+import { getSellingMode } from "./creem-selling-mode.js";
 
 /**
  * What happened when a Creem price could not be read.
@@ -98,12 +98,13 @@ export function resetCreemCatalogCache(): void {
  *   change at Creem is reflected automatically within one TTL window.
  * - **The tier-to-product mapping lives in our DB** (`tier_creem_products`),
  *   because Creem products carry no metadata field (verified against
- *   `creem@1.5.3` and `docs.creem.io` on 2026-07-09). The mapping is seeded
- *   once via `scripts/creem-seed.mjs` and never changes unless tiers are
- *   re-seeded.
- * - **Only this environment's mappings are read.** The table holds a row per
- *   Creem environment, and the running mode comes from the API key prefix, so
- *   a test process never asks the live account for a product it does not have.
+ *   `creem@1.5.3` and `docs.creem.io` on 2026-07-09). A mapping is written by
+ *   the tier editor when it creates the product at Creem, and removed when it
+ *   archives one.
+ * - **Only the selling environment's mappings are read.** The table holds a row
+ *   per Creem environment, and which one the shop sells from is a setting an
+ *   operator switches, so the catalogue never mixes a sandbox product into a
+ *   live price or the other way round.
  * - **In-memory TTL cache** (`CATALOG_TTL_MS = 5 minutes`): the catalog is
  *   read once per process and served from memory for subsequent requests. This
  *   avoids a DB query and a Creem API call on every pricing-page load while
@@ -118,10 +119,10 @@ export async function getCreemCatalog(): Promise<CreemCatalog> {
   }
 
   const repo = await getTierRepository();
-  const { mode } = getCreemConfig();
+  const mode = await getSellingMode();
   const mappings = await repo.listCreemProductMappings(mode);
 
-  const client = getCreemClient();
+  const client = getCreemClient(mode);
   const catalog: CreemCatalog = {};
 
   // Each mapping is read on its own. One archived or missing product costs

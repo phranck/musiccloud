@@ -28,6 +28,7 @@ import { PageLayout } from "@/components/ui/PageLayout";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { TierResponse } from "@/features/developer/api";
+import { TierCreemProductsSection } from "@/features/developer/components/TierCreemProductsSection";
 import { TierIconGlyph, TierIconPicker } from "@/features/developer/components/TierIconPicker";
 import { useCreateTier, useDeleteTier, useTiers, useUpdateTier } from "@/features/developer/hooks/useDeveloperData";
 import { FormLabel, FormLabelText, formInputClass, formTextareaClass } from "@/shared/ui/FormPrimitives";
@@ -591,6 +592,14 @@ function TierFormDialog({
           onChange={(features) => onFormChange({ features })}
           dm={dm}
         />
+
+        {/* A product belongs to a plan, so there is nothing to attach one to
+            until the plan has been saved and has an id. */}
+        {editingTier ? (
+          <TierCreemProductsSection tier={editingTier} />
+        ) : (
+          <p className="text-xs text-[var(--ds-text-muted)]">{dm.creemSaveOnceFirst}</p>
+        )}
       </div>
       <Dialog.Footer>
         <DashboardActionButton

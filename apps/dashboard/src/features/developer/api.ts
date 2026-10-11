@@ -1,4 +1,5 @@
 import { ENDPOINTS } from "@musiccloud/shared";
+import type { BillingInterval, CreemMode } from "@/features/developer/domain";
 import { api } from "@/lib/api";
 
 export interface DeveloperPortalAvailability {
@@ -348,4 +349,112 @@ export function updateTier(
 
 export function deleteTier(id: string): Promise<void> {
   return api.delete(ENDPOINTS.admin.developer.tierDetail(id));
+}
+
+/** One tier's Creem product in one environment. */
+export interface CreemProductMapping {
+  tierId: string;
+  /** One of {@link BillingInterval}. */
+  interval: BillingInterval;
+  /** Which Creem environment holds this product. */
+  mode: CreemMode;
+  /** The Creem product id. */
+  creemProductId: string;
+}
+
+/**
+ * Every Creem product mapping, plus the environments this deployment can act
+ * on at all.
+ *
+ * An environment is missing from `writableModes` when no API key is configured
+ * for it, which is the normal state before the live account exists. The editor
+ * still shows it, so an operator sees what is not set up yet rather than a
+ * control that simply fails.
+ */
+export interface CreemProductsResponse {
+  writableModes: CreemMode[];
+  products: CreemProductMapping[];
+}
+
+export function fetchCreemProducts(): Promise<CreemProductsResponse> {
+  return api.get<CreemProductsResponse>(ENDPOINTS.admin.developer.creemProducts);
+}
+
+/**
+ * Creates the product for a tier and interval at Creem, or records one that
+ * was created in the Creem dashboard.
+ *
+ * @param body - The tier and interval, and optionally an existing product id.
+ */
+export function createCreemProduct(body: {
+  tierId: string;
+  interval: BillingInterval;
+  mode: CreemMode;
+  creemProductId?: string;
+}): Promise<CreemProductMapping> {
+  return api.post<CreemProductMapping>(ENDPOINTS.admin.developer.creemProducts, body);
+}
+
+/**
+ * Changes the product's price at Creem, keeping its id and its subscriptions.
+ *
+ * @param tierId - The tier the product belongs to.
+ * @param interval - Which of the tier's products to reprice.
+ * @param mode - The Creem environment the product lives in.
+ * @param priceCents - The new price in cents.
+ */
+export function updateCreemProductPrice(
+  tierId: string,
+  interval: BillingInterval,
+  mode: CreemMode,
+  priceCents: number,
+): Promise<CreemProductMapping & { price: number; currency: string }> {
+  return api.patch<CreemProductMapping & { price: number; currency: string }>(
+    ENDPOINTS.admin.developer.creemProductDetail(tierId, interval, mode),
+    { priceCents },
+  );
+}
+
+/**
+ * Archives the product at Creem and removes its mapping, as one operation.
+ *
+ * @param tierId - The tier the product belongs to.
+ * @param interval - Which of the tier's products to archive.
+ * @param mode - The Creem environment the product lives in.
+ */
+export function archiveCreemProduct(tierId: string, interval: BillingInterval, mode: CreemMode): Promise<void> {
+  return api.delete(ENDPOINTS.admin.developer.creemProductDetail(tierId, interval, mode));
+}
+
+/** Whether one Creem environment could be sold from, and what is missing if not. */
+export interface CreemModeReadiness {
+  mode: CreemMode;
+  /** Whether this deployment holds an API key for that environment. */
+  hasKey: boolean;
+  /** Buyable plans that have no product there yet, named for the operator. */
+  missingProducts: string[];
+}
+
+/** Which environment the shop sells from, and what each one would need. */
+export interface CreemSellingModeResponse {
+  sellingMode: CreemMode;
+  configuredModes: CreemMode[];
+  readiness: CreemModeReadiness[];
+}
+
+export function fetchCreemSellingMode(): Promise<CreemSellingModeResponse> {
+  return api.get<CreemSellingModeResponse>(ENDPOINTS.admin.developer.creemSellingMode);
+}
+
+/**
+ * Moves the shop to another Creem environment.
+ *
+ * This is the switch that decides whether a purchase charges a real card. The
+ * server refuses an environment it holds no key for, and one where a buyable
+ * plan has no product yet.
+ *
+ * @param sellingMode - The environment to sell from.
+ */
+export function updateCreemSellingMode(sellingMode: CreemMode): Promise<CreemSellingModeResponse> {
+  return api.patch<CreemSellingModeResponse>(ENDPOINTS.admin.developer.creemSellingMode, { sellingMode });
 }

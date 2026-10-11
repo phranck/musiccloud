@@ -115,6 +115,21 @@ export interface TierCreemProductMapping {
   creemProductId: string;
 }
 
+/**
+ * Identifies one row of `tier_creem_products` without its product id.
+ *
+ * These three columns are the table's unique key, so they are what every read
+ * and every removal addresses a mapping by.
+ */
+export interface TierCreemProductKey {
+  /** Internal tier identifier. */
+  tierId: string;
+  /** Billing interval, `"month"` or `"year"`. */
+  interval: string;
+  /** The Creem environment. */
+  mode: CreemModeValue;
+}
+
 export interface TierRepository {
   listTiers(): Promise<Tier[]>;
   createTier(data: TierCreateData): Promise<Tier>;
@@ -147,4 +162,39 @@ export interface TierRepository {
    * environment.
    */
   listAllCreemProductMappings(): Promise<TierCreemProductMapping[]>;
+
+  /**
+   * Returns the mapping for one tier, interval and Creem environment, or
+   * `null` when that combination has no product yet.
+   *
+   * @param key - Which mapping is wanted.
+   */
+  findCreemProductMapping(key: TierCreemProductKey): Promise<TierCreemProductMapping | null>;
+
+  /**
+   * Records that a Creem product belongs to a tier, interval and environment.
+   *
+   * There is deliberately no upsert. Overwriting an existing mapping would
+   * leave the previous product active at Creem with nothing pointing at it,
+   * and an unreferenced active product is exactly what nobody would go looking
+   * for. Replacing one therefore means archiving the old product first, which
+   * is the caller's job.
+   *
+   * @param mapping - The tier, interval, environment and product id.
+   * @throws When that tier, interval and environment already has a product.
+   */
+  createCreemProductMapping(mapping: TierCreemProductMapping): Promise<void>;
+
+  /**
+   * Removes the mapping for one tier, interval and Creem environment.
+   *
+   * This is the second half of archiving a product and is never done on its
+   * own: a row pointing at an archived product shows an unbuyable price on the
+   * pricing page, and a product archived without removing the row shows the
+   * same.
+   *
+   * @param key - Which mapping to remove.
+   * @returns `true` when a row was removed, `false` when there was none.
+   */
+  deleteCreemProductMapping(key: TierCreemProductKey): Promise<boolean>;
 }

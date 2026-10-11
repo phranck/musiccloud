@@ -29,7 +29,7 @@ const REQUIRED_PRODUCTION_ENV = ["INTERNAL_API_KEY"] as const;
  *
  * After the required-var loop, an optional Creem consistency guard runs:
  * Creem is not required to boot during the foundation phase (CI and tests
- * without Creem credentials can start fine), but when `CREEM_API_KEY` is
+ * without Creem credentials can start fine), but once any Creem key is
  * present the full Creem config must be consistent. Checking here surfaces a
  * misconfigured Creem env as a loud boot failure rather than a silent runtime
  * error on the first billing request.
@@ -44,7 +44,7 @@ const REQUIRED_PRODUCTION_ENV = ["INTERNAL_API_KEY"] as const;
  * @throws Error when a required variable is unset or empty; the message (from
  *   {@link requireEnv}) names the variable and notes that `.env.local` is
  *   dev-only.
- * @throws Error when `CREEM_API_KEY` is set but the Creem config is otherwise
+ * @throws Error when a Creem key is set but the config is otherwise
  *   inconsistent (re-thrown from {@link getCreemConfig}).
  */
 export function assertRequiredBootEnv(): void {
@@ -58,12 +58,13 @@ export function assertRequiredBootEnv(): void {
     }
   }
 
-  // Creem is optional: omitting CREEM_API_KEY is valid in CI and in dev
-  // environments that have not yet wired Creem. But when the key IS present
-  // the rest of the config (webhook secret shape, prefix-derived mode) must
-  // also be consistent. Calling getCreemConfig() here turns any mismatch into
-  // a loud boot failure instead of a silent error on the first billing request.
-  if (process.env.CREEM_API_KEY) {
+  // Creem is optional: a deployment with no key at all is valid in CI and in
+  // dev environments that have not wired Creem. But once any key is present
+  // the config must be consistent, above all that each key sits in the
+  // variable of the environment its own prefix names. Calling getCreemConfig()
+  // here turns a key in the wrong slot into a loud boot failure rather than a
+  // shop that looks live and charges nobody.
+  if (process.env.CREEM_API_KEY || process.env.CREEM_TEST_API_KEY || process.env.CREEM_LIVE_API_KEY) {
     getCreemConfig();
   }
 }
