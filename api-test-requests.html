@@ -388,7 +388,7 @@
 </div>
 
 <!-- ──────────────────────────────────────────── -->
-<h2>1&ndash;3 &ensp;Unauthentifizierte Endpoints</h2>
+<h2>1&ndash;3 &ensp;Health und Resolve per GET</h2>
 
 <div class="request">
   <div class="request-header">
@@ -411,11 +411,12 @@
     <span class="num">2</span>
     <span class="method get">GET</span>
     <span class="url-path">/api/v1/resolve</span>
-    <span class="auth-tag auth-none">kein Token</span>
-    <span class="desc">Public Resolve &mdash; Spotify-URL</span>
+    <span class="auth-tag auth-token">Token</span>
+    <span class="desc">Spotify-URL per GET</span>
   </div>
   <div class="code-wrap">
-    <pre>curl -s "http://localhost:4000/api/v1/resolve?query=https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L" | jq</pre>
+    <pre data-token>curl -s -H "X-API-Key: __TOKEN__" \
+  "http://localhost:4000/api/v1/resolve?query=https://open.spotify.com/track/2WfaOiMkCvy7F5fcp2zZ8L" | jq</pre>
     <button class="btn-copy" title="Kopieren"><i class="ph ph-copy"></i></button>
   </div>
 </div>
@@ -426,11 +427,12 @@
     <span class="num">3</span>
     <span class="method get">GET</span>
     <span class="url-path">/api/v1/resolve</span>
-    <span class="auth-tag auth-none">kein Token</span>
-    <span class="desc">Public Resolve &mdash; Textsuche, Plaintext</span>
+    <span class="auth-tag auth-token">Token</span>
+    <span class="desc">Textsuche per GET als Plaintext</span>
   </div>
   <div class="code-wrap">
-    <pre>curl -s "http://localhost:4000/api/v1/resolve?query=bohemian+rhapsody+queen&format=text"</pre>
+    <pre data-token>curl -s -H "X-API-Key: __TOKEN__" \
+  "http://localhost:4000/api/v1/resolve?query=bohemian+rhapsody+queen&format=text"</pre>
     <button class="btn-copy" title="Kopieren"><i class="ph ph-copy"></i></button>
   </div>
 </div>
