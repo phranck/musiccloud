@@ -330,7 +330,7 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     httpStatus: 400,
     userMessage: "This doesn't look like a music link. Try pasting a link from a supported service.",
     internalNote: "Input parses as a URL but none of the music adapters claim it.",
-    source: "apps/backend/src/lib/platform/url.ts isMusicUrl",
+    source: "apps/backend/src/services/resolver.ts resolveUrl",
   },
   "MC-URL-0003": {
     code: "MC-URL-0003",

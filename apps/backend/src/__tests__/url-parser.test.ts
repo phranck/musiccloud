@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isAlbumUrl, isUrl, stripTrackingParams, validateMusicUrl } from "@/lib/platform/url";
+import { isUrl, stripTrackingParams, validateMusicUrl } from "@/lib/platform/url";
 
 // =============================================================================
 // validateMusicUrl
@@ -171,8 +171,8 @@ describe("stripTrackingParams", () => {
   });
 
   it("should normalize a mobile YouTube artist URL host to the canonical www form", () => {
-    // Non-/watch mobile paths are host-normalized too, so the route's
-    // `isArtistUrl(cleanUrl)` check sees the www form and routes to artist resolve.
+    // Non-/watch mobile paths are host-normalized too, so `classifyMusicUrl`
+    // sees the www form, which the YouTube artist detector claims.
     expect(stripTrackingParams("https://m.youtube.com/@kreatorofficial")).toBe(
       "https://www.youtube.com/@kreatorofficial",
     );
@@ -225,47 +225,5 @@ describe("isUrl", () => {
 
   it("should reject empty string", () => {
     expect(isUrl("")).toBe(false);
-  });
-});
-
-// =============================================================================
-// isAlbumUrl
-// =============================================================================
-
-describe("isAlbumUrl", () => {
-  it("should detect Spotify album URL", () => {
-    expect(isAlbumUrl("https://open.spotify.com/album/6dVIqQ8qmQ5GBnJ9shOYGE")).toBe(true);
-  });
-
-  it("should detect Spotify intl album URL", () => {
-    expect(isAlbumUrl("https://open.spotify.com/intl-de/album/6dVIqQ8qmQ5GBnJ9shOYGE")).toBe(true);
-  });
-
-  it("should detect Deezer album URL", () => {
-    expect(isAlbumUrl("https://www.deezer.com/album/302127")).toBe(true);
-  });
-
-  it("should detect Tidal album URL", () => {
-    expect(isAlbumUrl("https://tidal.com/browse/album/95477688")).toBe(true);
-  });
-
-  it("should detect Bandcamp album URL", () => {
-    expect(isAlbumUrl("https://radiohead.bandcamp.com/album/ok-computer")).toBe(true);
-  });
-
-  it("should detect YouTube Music album playlist", () => {
-    expect(isAlbumUrl("https://music.youtube.com/playlist?list=OLAK5uy_abc123")).toBe(true);
-  });
-
-  it("should NOT detect Spotify track URL as album", () => {
-    expect(isAlbumUrl("https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC")).toBe(false);
-  });
-
-  it("should NOT detect plain text as album", () => {
-    expect(isAlbumUrl("Bohemian Rhapsody Queen")).toBe(false);
-  });
-
-  it("should NOT detect regular YouTube playlist as album", () => {
-    expect(isAlbumUrl("https://youtube.com/playlist?list=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf")).toBe(false);
   });
 });

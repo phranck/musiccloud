@@ -7,12 +7,14 @@
  * identical from either, because the two are documented as the same operation
  * in two shapes and a caller may move between them.
  *
- * That is why these three live beside the resolvers rather than inside one
+ * That is why these helpers live beside the resolvers rather than inside one
  * route: a second copy in the other route drifts, and the field that drifts is
  * not obvious from either side. `releaseDate` is the example to keep in mind,
  * because `normalizeReleaseDate` drops a bare year and cuts a timestamp back to
  * a date, so a copy that skips it returns a different string for the same
- * recording.
+ * recording. The same holds for `resolveUrlAndRespond`, which decides whether
+ * a URL is an album, an artist or a track, because one link has to reach the
+ * same resolver from either operation.
  *
  * Every write past the main persist call is non-fatal. External ids, previews
  * and vinyl layouts enrich a response that is already correct without them, so
@@ -28,10 +30,11 @@ import { stripTrackingParams } from "../lib/platform/url.js";
 import { getPreviewExpiry } from "../lib/preview-url.js";
 import { normalizeReleaseDate } from "../lib/release-date.js";
 import { toApiLinks } from "../lib/server/api-links.js";
-import type { AlbumResolutionResult } from "./album-resolver.js";
-import type { ArtistResolutionResult } from "./artist-resolver.js";
+import { type AlbumResolutionResult, resolveAlbumUrl } from "./album-resolver.js";
+import { type ArtistResolutionResult, resolveArtistUrl } from "./artist-resolver.js";
 import { persistResolution } from "./persist-resolution.js";
-import { persistLateTrackLinks, type ResolutionResult } from "./resolver.js";
+import { classifyMusicUrl } from "./plugins/registry.js";
+import { expandShortLink, persistLateTrackLinks, type ResolutionResult, resolveQuery } from "./resolver.js";
 import { resolveAlbumVinylLayout, resolveTrackVinylLayout } from "./track-vinyl-layout.js";
 
 /**
@@ -218,4 +221,37 @@ export async function persistArtistAndRespond(
     },
     links: toApiLinks(result.links, { stripTracking: true }),
   };
+}
+
+/**
+ * Resolves a streaming-service URL by what it points at, persists the result,
+ * and returns the matching variant of the unified response.
+ *
+ * Tracking parameters are stripped twice. The first pass cleans what the caller
+ * pasted before `expandShortLink` sees it, and the second cleans what the
+ * short-link target redirected to, because those targets often add fresh ones.
+ * Skipping either pass stores the same recording under two URLs. The expansion
+ * comes before the classification, because the path that tells an album from an
+ * artist from a track exists only in the expanded URL.
+ *
+ * `classifyMusicUrl` asks the plugins' own detectors, so a link reaches the
+ * pipeline whose adapter will fetch it. A URL that no plugin claims goes to the
+ * track pipeline, where `validateMusicUrl` names what is wrong with it.
+ *
+ * @param query - The URL as the caller sent it. `resolveQuery` reads this form
+ *   to recognise a Last.fm link and to reject playlists and podcasts.
+ * @param origin - Public origin the share URL is built on.
+ * @returns The `album`, `artist` or `track` variant.
+ */
+export async function resolveUrlAndRespond(query: string, origin: string): Promise<UnifiedResolveSuccessResponse> {
+  const expanded = await expandShortLink(stripTrackingParams(query));
+  const cleanUrl = stripTrackingParams(expanded);
+  switch (classifyMusicUrl(cleanUrl)) {
+    case "album":
+      return persistAlbumAndRespond(await resolveAlbumUrl(cleanUrl), origin);
+    case "artist":
+      return persistArtistAndRespond(await resolveArtistUrl(cleanUrl), origin);
+    default:
+      return persistTrackAndRespond(await resolveQuery(query, expanded), origin);
+  }
 }

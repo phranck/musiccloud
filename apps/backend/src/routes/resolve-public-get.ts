@@ -37,18 +37,11 @@ import {
   KEYLESS_RESOLVE_REQUESTS_PER_DAY,
   KEYLESS_RESOLVE_REQUESTS_PER_MINUTE,
 } from "../lib/infra/rate-limiter.js";
-import { isAlbumUrl, isArtistUrl, isUrl, stripTrackingParams } from "../lib/platform/url.js";
+import { isUrl } from "../lib/platform/url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
-import { resolveAlbumUrl } from "../services/album-resolver.js";
-import { resolveArtistUrl } from "../services/artist-resolver.js";
-import {
-  persistAlbumAndRespond,
-  persistArtistAndRespond,
-  persistTrackAndRespond,
-} from "../services/resolve-response.js";
-import type { ResolutionResult } from "../services/resolver.js";
-import { expandShortLink, resolveQuery, resolveTextSearchWithDisambiguation } from "../services/resolver.js";
+import { persistTrackAndRespond, resolveUrlAndRespond } from "../services/resolve-response.js";
+import { type ResolutionResult, resolveTextSearchWithDisambiguation } from "../services/resolver.js";
 import {
   isStructuredSearchQuery,
   type ParsedStructuredQuery,
@@ -188,23 +181,15 @@ export default async function resolvePublicGetRoutes(app: FastifyInstance) {
       try {
         const origin = getOrigin(request.headers.origin);
 
-        let result: ResolutionResult;
         if (isUrl(query)) {
-          // Flow 1: input is a streaming-service URL. Content-type routing
-          // mirrors the POST handler, because the same input has to reach the
-          // same resolver from either operation. The short link is expanded
-          // first: the path shape that tells an album from an artist from a
-          // track exists only in the expanded URL.
-          const expanded = await expandShortLink(stripTrackingParams(query));
-          const cleanUrl = stripTrackingParams(expanded);
-          if (isAlbumUrl(cleanUrl)) {
-            return respond(await persistAlbumAndRespond(await resolveAlbumUrl(cleanUrl), origin));
-          }
-          if (isArtistUrl(cleanUrl)) {
-            return respond(await persistArtistAndRespond(await resolveArtistUrl(cleanUrl), origin));
-          }
-          result = await resolveQuery(query, expanded);
-        } else if (isStructuredSearchQuery(query)) {
+          // Flow 1: input is a streaming-service URL. It goes through the same
+          // helper as on the POST operation, because the same link has to reach
+          // the same resolver from either.
+          return respond(await resolveUrlAndRespond(query, origin));
+        }
+
+        let result: ResolutionResult;
+        if (isStructuredSearchQuery(query)) {
           // Flow 1.5: structured search. Stateless GET cannot disambiguate, so
           // ambiguous results return 400 (same trade-off as the free-text path).
           let parsed: ParsedStructuredQuery;

@@ -23,26 +23,13 @@
  * - **Flow 1** (`selectedCandidate` present): the client is completing a
  *   disambiguation round from a previous call. Tracks only, because
  *   text-search-based disambiguation only ever fires for tracks.
- * - **Flow 2** (`query` is a URL): short links (`link.deezer.com/s/...`)
- *   are expanded, the canonical URL is classified, and the matching
- *   resolver runs (album / artist / default track).
+ * - **Flow 2** (`query` is a URL): `resolveUrlAndRespond` expands short
+ *   links (`link.deezer.com/s/...`), classifies the canonical URL, and runs
+ *   the matching resolver (album / artist / default track).
  * - **Flow 3** (`query` is free text): text search with disambiguation.
  *   A single clear match resolves immediately; multiple matches return
  *   the disambiguation list (no DB persistence at that point - nothing
  *   to persist until the user picks).
- *
- * ## URL cleaning order
- *
- * Flow 2 strips tracking params twice:
- *
- * 1. Before `expandShortLink`: the user-pasted URL itself may carry
- *    `utm_*` etc.; stripping first gives us a clean canonical short link.
- * 2. After `expandShortLink`: the short-link target frequently injects
- *    fresh tracking params into the redirect URL, so the expanded form
- *    needs another pass.
- *
- * Skipping either pass leaves tracking junk in either the DB or the
- * response, which breaks cache identity (same track, different URL).
  *
  * ## 500-character query cap, 200-character candidate cap
  *
@@ -59,11 +46,9 @@ import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { log } from "../lib/infra/logger.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { siteResolveRateLimiter } from "../lib/infra/rate-limiter.js";
-import { isAlbumUrl, isArtistUrl, isUrl, stripTrackingParams } from "../lib/platform/url.js";
+import { isUrl } from "../lib/platform/url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
 import { buildCodeSamples } from "../schemas/openapi-code-samples.js";
-import { resolveAlbumUrl } from "../services/album-resolver.js";
-import { resolveArtistUrl } from "../services/artist-resolver.js";
 import {
   GenreQueryParseError,
   isGenreBrowseQuery,
@@ -72,17 +57,8 @@ import {
   runGenreBrowse,
   runGenreSearch,
 } from "../services/genre-search/index.js";
-import {
-  persistAlbumAndRespond,
-  persistArtistAndRespond,
-  persistTrackAndRespond,
-} from "../services/resolve-response.js";
-import {
-  expandShortLink,
-  resolveQuery,
-  resolveSelectedCandidate,
-  resolveTextSearchWithDisambiguation,
-} from "../services/resolver.js";
+import { persistTrackAndRespond, resolveUrlAndRespond } from "../services/resolve-response.js";
+import { resolveSelectedCandidate, resolveTextSearchWithDisambiguation } from "../services/resolver.js";
 import {
   isStructuredSearchQuery,
   type ParsedStructuredQuery,
@@ -285,25 +261,8 @@ export default async function resolveRoutes(app: FastifyInstance) {
         }
 
         if (isUrl(query!)) {
-          // Flow 2. See the file header for why `stripTrackingParams` runs
-          // on both sides of `expandShortLink`.
-          const expanded = await expandShortLink(stripTrackingParams(query!));
-          const cleanUrl = stripTrackingParams(expanded);
-
-          // Content-type routing. The order (album -> artist -> track) is
-          // a negative-check chain: `isAlbumUrl` / `isArtistUrl` match
-          // specific URL shapes per service; anything that falls through
-          // is treated as a track URL, which is the common case.
-          if (isAlbumUrl(cleanUrl)) {
-            const result = await resolveAlbumUrl(cleanUrl);
-            return reply.send(await persistAlbumAndRespond(result, origin));
-          }
-          if (isArtistUrl(cleanUrl)) {
-            const result = await resolveArtistUrl(cleanUrl);
-            return reply.send(await persistArtistAndRespond(result, origin));
-          }
-          const result = await resolveQuery(query!, expanded);
-          return reply.send(await persistTrackAndRespond(result, origin));
+          // Flow 2: the URL is routed by what it points at, as on the GET operation.
+          return reply.send(await resolveUrlAndRespond(query!, origin));
         }
 
         // Flow 3: free-text search. Unlike the GET endpoint, we can return

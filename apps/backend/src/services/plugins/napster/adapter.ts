@@ -69,9 +69,10 @@ const NAPSTER_TRACK_REGEX =
   /(?:https?:\/\/)?(?:play\.|web\.|app\.|www\.)?napster\.com\/(?:track\/(tra\.\d+)|.*\/track\/([^/?]+))/;
 
 // Matches: play.napster.com/artist/art.123, web.napster.com/artist/art.123,
-// app.napster.com/artist/artist-slug
+// app.napster.com/artist/artist-slug. The link ends at the artist segment, because a
+// deeper legacy link such as /artist/{a}/album/{b}/track/{c} is a track link.
 const NAPSTER_ARTIST_REGEX =
-  /(?:https?:\/\/)?(?:play\.|web\.|app\.|www\.)?napster\.com\/artist\/(art\.\d+|[^/?]+)(?:\/|$|\?)/;
+  /(?:https?:\/\/)?(?:play\.|web\.|app\.|www\.)?napster\.com\/artist\/(art\.\d+|[^/?#]+)\/?(?:[?#].*)?$/;
 
 interface NapsterTrackResponse {
   type: string;
