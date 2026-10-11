@@ -15,6 +15,7 @@ describe.skipIf(!isSafeIntegrationDatabase(process.env.DATABASE_URL))(
     let client: pg.Client;
     let trackId: string;
     let albumId: string;
+    let albumShortId: string;
 
     beforeAll(async () => {
       client = new pg.Client({ connectionString: process.env.DATABASE_URL });
@@ -44,6 +45,7 @@ describe.skipIf(!isSafeIntegrationDatabase(process.env.DATABASE_URL))(
         links: [],
       });
       albumId = album.albumId;
+      albumShortId = album.shortId;
     });
 
     afterAll(async () => {
@@ -97,6 +99,24 @@ describe.skipIf(!isSafeIntegrationDatabase(process.env.DATABASE_URL))(
 
       const cached = await repo.findAlbumByUrl(albumSourceUrl);
       expect(cached?.album.topTrackPreviewUrl).toBe(freshUrl);
+    });
+
+    it("picks an album's unexpired preview over an expired Deezer one", async () => {
+      const repo = await getRepository();
+      const expiredUrl = "https://cdnt-preview.dzcdn.net/api/1/1/album-expired.mp3?hdnea=exp=946684800~hmac=old";
+      const permanentUrl = "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview/album-permanent.m4a";
+
+      await repo.upsertAlbumPreview(albumId, {
+        service: "deezer",
+        url: expiredUrl,
+        expiresAt: new Date("2000-01-01T00:00:00Z"),
+      });
+      await repo.upsertAlbumPreview(albumId, { service: "apple-music", url: permanentUrl, expiresAt: null });
+
+      const cached = await repo.findAlbumByUrl(albumSourceUrl);
+      expect(cached?.album.topTrackPreviewUrl).toBe(permanentUrl);
+      const shared = await repo.loadAlbumByShortId(albumShortId);
+      expect(shared?.album.previewUrl).toBe(permanentUrl);
     });
   },
 );

@@ -42,6 +42,7 @@ import {
   safeParseArray,
   safeParseArtistCredits,
   TRACK_ARTIST_FIELDS_SELECT,
+  TRACK_PREVIEW_URL_SELECT,
 } from "./postgres-shared.js";
 import { mintShortUrl } from "./short-url.js";
 
@@ -92,7 +93,7 @@ export interface TrackWithLinkRow extends TrackRow {
 const TRACK_WITH_LINK_COLUMNS = `
       t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
       t.duration_ms, t.release_date, t.is_explicit,
-      (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.expires_at IS NULL OR tp.expires_at > now()) DESC, (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
+      ${TRACK_PREVIEW_URL_SELECT},
       t.source_service, t.source_url,
       sl.url, sl.service, sl.confidence, sl.match_method,
       su.id as short_id, t.created_at, t.updated_at`;
@@ -239,7 +240,7 @@ export async function findTracksByTextSearch(
       `SELECT
         t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
         t.duration_ms, t.release_date, t.is_explicit,
-      (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.expires_at IS NULL OR tp.expires_at > now()) DESC, (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
+      ${TRACK_PREVIEW_URL_SELECT},
         t.source_service, t.source_url,
         t.created_at, t.updated_at
       FROM tracks t
@@ -781,7 +782,7 @@ export async function loadSharePageResult(pool: Pool, shortId: string): Promise<
     `SELECT
       t.id, t.title, ${TRACK_ARTIST_FIELDS_SELECT}, t.album_name, t.isrc, t.artwork_url,
       t.duration_ms, t.release_date, t.is_explicit,
-      (SELECT tp.url FROM track_previews tp WHERE tp.track_id = t.id ORDER BY (tp.expires_at IS NULL OR tp.expires_at > now()) DESC, (tp.service = 'deezer') DESC, tp.observed_at DESC LIMIT 1) AS preview_url,
+      ${TRACK_PREVIEW_URL_SELECT},
       t.source_service, t.source_url,
       sl.url, sl.service,
       su.id as short_id
