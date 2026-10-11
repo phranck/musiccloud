@@ -243,18 +243,18 @@ export const CcRandomExampleResponseSchema = {
   example: { shortId: "aBc123x" },
 } as const;
 
-/** Refreshed Deezer preview URL for a commercial track share. */
+/** Refreshed Deezer preview URL for a commercial track or album share. */
 export const SharePreviewResponseSchema = {
   $id: "SharePreviewResponse",
   type: "object",
-  description: "Refreshed Deezer preview URL for a commercial track share.",
+  description: "Refreshed Deezer preview URL for a commercial track or album share.",
   required: ["previewUrl"],
   additionalProperties: false,
   properties: {
     previewUrl: {
       anyOf: [{ type: "string", format: "uri" }, { type: "null" }],
       description:
-        "The key is always included. Its value is a currently usable preview URL, or `null` when no preview can be produced for the track.",
+        "The key is always included. Its value is a currently usable preview URL, or `null` when no preview can be produced for the track or album.",
     },
   },
   example: { previewUrl: "https://cdn.example.com/previews/take-on-me.mp3" },
@@ -441,6 +441,11 @@ export const AlbumSchema = {
       format: "uri",
       description: "Preview audio URL. The key is omitted when no usable preview is available.",
     },
+    previewRefreshable: {
+      type: "boolean",
+      description:
+        "Set to `true` on a share page when `previewUrl` is absent but `GET /api/v1/share/{shortId}/preview` can attempt a refresh. The key is omitted otherwise.",
+    },
     vinylLayout: {
       anyOf: [{ $ref: "VinylLayout#" }, { type: "null" }],
       description:
@@ -512,9 +517,9 @@ export const PlatformLinkSchema = {
     },
     matchMethod: {
       type: "string",
-      enum: ["isrc", "search", "cache", "upc", "isrc-inference"],
+      enum: ["isrc", "search", "cache", "upc", "isrc-inference", "search-fallback", "source"],
       description:
-        "How this link was located: `isrc` and `upc` are direct identifier matches, `isrc-inference` derives an ISRC match from related metadata, `search` is a text search, and `cache` means a previously stored link was returned.",
+        "How this link was located: `isrc` and `upc` are direct identifier matches, `isrc-inference` derives an ISRC match from related metadata, `search` is a text search, and `cache` means a previously stored link was returned. `source` is the link the request arrived on, so it is the recording by definition. `search-fallback` is the exception to all of them: nothing was found on that service, and `url` opens a search for the recording rather than the recording itself. Skip those links to keep only real matches.\n\nThe number beside it is bounded by the method: an identifier match and `source` report `1`, whilst a text search is always below it and stops around `0.99`. A confidence of `1` therefore never comes from a search, which is the comparison to filter on.",
     },
   },
   example: {

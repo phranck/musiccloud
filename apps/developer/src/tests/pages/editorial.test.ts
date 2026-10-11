@@ -17,12 +17,27 @@ describe("managed editorial page routing", () => {
   });
 
   it.each([
-    "/docs",
     "/docs/api",
     "/docs/getting-started",
     "/docs/reference/authentication",
   ])("keeps %s outside managed editorial routing", (path) => {
     expect(isManagedEditorialPath(path)).toBe(false);
+  });
+
+  it.each(["/", "/docs", "/pricing"])("reaches the editorial copy at %s, which has a route of its own", (path) => {
+    // Each of these is served by a route rather than by the catch-all, because
+    // a route carries what a stored page cannot: the header tab, the session,
+    // and the notice a signup leaves behind. The copy still comes from here.
+    // A route is either `name.astro` or `name/index.astro`; both are routes.
+    const name = path === "/" ? "index" : path.slice(1);
+    expect(isManagedEditorialPath(path)).toBe(true);
+    expect(existsSync(join(pagesDir, `${name}.astro`)) || existsSync(join(pagesDir, name, "index.astro"))).toBe(true);
+  });
+
+  it("reaches the editorial copy at /docs itself", () => {
+    // Everything under `/docs` is built by the portal. The page a developer
+    // arrives at is copy, and its route looks it up like any other.
+    expect(isManagedEditorialPath("/docs")).toBe(true);
   });
 
   it("keeps a dedicated system-owned docs descendant boundary ahead of the root catch-all", () => {
@@ -33,7 +48,10 @@ describe("managed editorial page routing", () => {
 
     expect(catchAll).toContain("isManagedEditorialPath");
     expect(catchAll).toMatch(/isManagedEditorialPath\([^)]*\)[\s\S]*fetchEditorialPage/);
-    expect(docsIndex).not.toContain("fetchEditorialPage");
+    // `/docs` itself is a page somebody edits, so this route serves one and
+    // names the path it serves. Everything under it is built by the portal and
+    // must not reach the editorial store, which is what the three below say.
+    expect(docsIndex).toContain('fetchEditorialPage("/docs")');
     expect(apiReference).not.toContain("fetchEditorialPage");
     expect(apiReference).toContain("buildApiReference");
     expect(docsCatchAll).not.toContain("fetchEditorialPage");
@@ -50,7 +68,14 @@ describe("managed editorial page routing", () => {
     expect(page).toContain("<PublicHeader");
     expect(page).toContain("<PublicFooter");
     expect(page).toContain("<SurfaceCard.Body>");
-    expect(markdown).toContain("set:html={html}");
+
+    // Still one injection site, now applied per segment: a page carrying an
+    // island is cut around it, and everything between the islands is the same
+    // sanitized markup injected the same way. What matters is that nothing
+    // else in the portal injects backend HTML.
+    expect(markdown.match(/set:html=/g)).toHaveLength(1);
+    expect(markdown).toContain("set:html={segment.html}");
+    expect(markdown).toContain("splitEditorialSegments(html)");
   });
 
   it("renders safe Failure correlation and a separate NotFound state", () => {

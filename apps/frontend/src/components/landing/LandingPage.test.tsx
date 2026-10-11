@@ -165,7 +165,9 @@ describe("LandingPage search-field return flip wiring", () => {
       expect(heroVinyl).not.toBeNull();
       expect(heroVinyl).toHaveAttribute("data-vinyl-disc-format", "single");
       expect(heroVinyl).toHaveAttribute("data-vinyl-label-variant", "generic");
-      expect(heroVinyl).toHaveTextContent("musiccloud");
+      // The loading disc is button-sized, so its label prints no text.
+      expect(heroVinyl?.querySelector("svg[data-vinyl-generic-label='true']")).not.toBeNull();
+      expect(heroVinyl?.querySelector("svg[data-vinyl-generic-label='true'] text")).toBeNull();
     });
 
     // The result is held behind the hero's disc-exit choreography; drive it to

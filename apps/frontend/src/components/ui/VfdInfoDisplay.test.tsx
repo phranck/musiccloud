@@ -94,4 +94,12 @@ describe("VfdInfoDisplay", () => {
     render(<VfdInfoDisplay title="T" artist="A" detailLine="D" metaLine="" statusLine="READY" />);
     expect(lastLines()[3].scrollOutOverlay).toBeUndefined();
   });
+
+  it("pulses only the status row, and only when asked to", () => {
+    render(<VfdInfoDisplay title="T" artist="A" detailLine="D" metaLine="" statusLine="READY" />);
+    expect(lastLines().map((line) => line.pulse ?? false)).toEqual([false, false, false, false]);
+
+    render(<VfdInfoDisplay title="T" artist="A" detailLine="D" metaLine="" statusLine="LOADING..." statusPulsing />);
+    expect(lastLines().map((line) => line.pulse ?? false)).toEqual([false, false, false, true]);
+  });
 });

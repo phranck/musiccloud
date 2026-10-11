@@ -80,6 +80,7 @@ function StaticDisc() {
       <VinylRecord
         className="size-full"
         discFormat={VinylDiscFormat.Single}
+        labelTypography={false}
         labelVariant={VinylLabelVariant.Generic}
         spinState={VinylSpinState.Playing}
       />
@@ -139,9 +140,13 @@ function AnimatedSubmitSlot({ requestDiscExit, onLoadingExitComplete }: Animated
             else if (discExiting) onLoadingExitComplete?.();
           }}
         >
+          {/* Drawn at the size of the submit button: the label's text would be a
+              pixel or two high, and painting it on every frame of the slide drops
+              frames through the whole loading animation. */}
           <VinylRecord
             className="size-full"
             discFormat={VinylDiscFormat.Single}
+            labelTypography={false}
             labelVariant={VinylLabelVariant.Generic}
             spinState={VinylSpinState.Playing}
           />

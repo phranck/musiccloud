@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { UpstreamUnavailableError } from "../../../../lib/infra/upstream-unavailable";
 import { deezerAdapter } from "../adapter";
 
 // =============================================================================
@@ -213,11 +214,24 @@ describe("Deezer: findByIsrc", () => {
     expect(track).toBeNull();
   });
 
-  it("should return null on HTTP error", async () => {
+  /**
+   * The resolver records a returned `null` as "Deezer does not carry this
+   * track" for a month, so a server error has to throw instead.
+   */
+  it("throws on HTTP error", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Server Error", { status: 500 }));
 
-    const track = await deezerAdapter.findByIsrc("GBDUW0000059");
-    expect(track).toBeNull();
+    await expect(deezerAdapter.findByIsrc("GBDUW0000059")).rejects.toBeInstanceOf(UpstreamUnavailableError);
+  });
+
+  it("throws on a quota error envelope", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { type: "Exception", message: "Quota limit exceeded", code: 4 } }), {
+        status: 200,
+      }),
+    );
+
+    await expect(deezerAdapter.findByIsrc("GBDUW0000059")).rejects.toBeInstanceOf(UpstreamUnavailableError);
   });
 });
 
@@ -260,19 +274,15 @@ describe("Deezer: searchTrack", () => {
     expect(result.confidence).toBe(0);
   });
 
-  it("should return not found on HTTP error", async () => {
+  it("throws on HTTP error", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("Error", { status: 500 }));
 
-    const result = await deezerAdapter.searchTrack({
-      title: "Test",
-      artist: "Test",
-    });
-
-    expect(result.found).toBe(false);
-    expect(result.confidence).toBe(0);
+    await expect(deezerAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toBeInstanceOf(
+      UpstreamUnavailableError,
+    );
   });
 
-  it("should return not found on Deezer API error", async () => {
+  it("throws on a quota error envelope", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response(
         JSON.stringify({
@@ -282,12 +292,9 @@ describe("Deezer: searchTrack", () => {
       ),
     );
 
-    const result = await deezerAdapter.searchTrack({
-      title: "Test",
-      artist: "Test",
-    });
-
-    expect(result.found).toBe(false);
+    await expect(deezerAdapter.searchTrack({ title: "Test", artist: "Test" })).rejects.toBeInstanceOf(
+      UpstreamUnavailableError,
+    );
   });
 
   it("should use free-text query when title equals artist", async () => {
@@ -416,16 +423,12 @@ describe("Deezer: searchTrackWithCandidates", () => {
     expect(result.candidates.at(-1)!.confidence).toBeGreaterThanOrEqual(0.4);
   });
 
-  it("returns empty candidates on HTTP error", async () => {
+  it("throws on HTTP error", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("nope", { status: 500 }));
 
-    const result = await deezerAdapter.searchTrackWithCandidates({
-      title: "x",
-      artist: "y",
-    });
-
-    expect(result.candidates).toEqual([]);
-    expect(result.bestMatch.found).toBe(false);
+    await expect(deezerAdapter.searchTrackWithCandidates({ title: "x", artist: "y" })).rejects.toBeInstanceOf(
+      UpstreamUnavailableError,
+    );
   });
 
   it("returns empty candidates when Deezer returns API error envelope", async () => {

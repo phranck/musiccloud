@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/vfdDisplayMarquee";
 import { normalizeLine, resolveSectionCells } from "@/components/ui/vfdDisplayNormalize";
 import { mergeOverlayColumns, overlayProgress, scrollOutStartColumn } from "@/components/ui/vfdDisplayOverlay";
+import { rowPulseAlpha } from "@/components/ui/vfdDisplayPulse";
 
 /**
  * Reduces one column of a glyph pattern into a 7-bit row mask.
@@ -411,15 +412,16 @@ function overlayMergedColumns(
  * 1. Resync the canvas backing-store size with the configured matrix and
  *    the current devicePixelRatio.
  * 2. For every row: draw the dim "ghost" matrix first, then clip to the
- *    row band so the line-swap transition cannot bleed past the row.
+ *    row band so the line-swap transition cannot bleed past the row, and
+ *    apply the row's pulse alpha to everything drawn after the ghost matrix.
  * 3. If the row has a transition in progress, render both the previous and
  *    the current line shifted vertically by the transition progress.
  * 4. Otherwise render the current line, compositing a scroll-out overlay
  *    behind it when one is in flight.
  *
  * Returns `true` when at least one transition is still incomplete, at least
- * one scroll-out overlay is in flight, or at least one marquee section is
- * still animating.
+ * one scroll-out overlay is in flight, at least one row is pulsing, or at
+ * least one marquee section is still animating.
  */
 export function drawVfdCanvas(
   canvas: HTMLCanvasElement,
@@ -462,6 +464,9 @@ export function drawVfdCanvas(
     ctx.beginPath();
     ctx.rect(0, rowTop, width, VFD_BAND_HEIGHT);
     ctx.clip();
+    // Set after the ghost matrix is drawn, so a pulse dims only the lit pixels;
+    // `ctx.restore()` below returns the next row to full alpha.
+    ctx.globalAlpha = rowPulseAlpha(state, rowIndex, now);
 
     const line = state.lines[rowIndex] ?? normalizeLine(rowIndex, undefined);
     const transition = state.transitions.get(rowIndex);
@@ -499,5 +504,5 @@ export function drawVfdCanvas(
   // cannot accumulate entries from past tracks (see the helper's contract).
   pruneUntouchedMarqueeStates(state.marqueeStates, touchedMarqueeKeys);
 
-  return state.transitions.size > 0 || state.overlays.size > 0 || hasActiveMarquee;
+  return state.transitions.size > 0 || state.overlays.size > 0 || state.pulses.size > 0 || hasActiveMarquee;
 }

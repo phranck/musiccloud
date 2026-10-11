@@ -22,8 +22,11 @@
  * ## Error shape
  *
  * Deezer signals errors by returning `200 OK` with an `{ error: { ... } }`
- * body rather than HTTP status codes. `isDeezerError` sniffs that
- * shape so the adapter does not misread an error as a valid result.
+ * body rather than HTTP status codes. The lookups and searches read their
+ * answers through `readDeezerJson`, which treats code `800` ("no data") as
+ * a miss and every other error as a failure, so a rate limit is never
+ * recorded as "Deezer does not carry this track". `getTrack`, `getAlbum` and
+ * `getArtist` keep `isDeezerError` and report the object as not found.
  *
  * ## Structured search query syntax
  *
@@ -48,7 +51,6 @@
  */
 import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
-import { log } from "../../../lib/infra/logger";
 import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { CANDIDATE_MIN_CONFIDENCE, MATCH_MIN_CONFIDENCE, MAX_CANDIDATES } from "../../constants.js";
@@ -70,6 +72,7 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreSearchCandidate } from "../_shared/confidence.js";
+import { readDeezerJson } from "./deezer-response.js";
 import { deezerSearchByGenre } from "./genre-search.js";
 
 const API_BASE = "https://api.deezer.com";
@@ -129,6 +132,10 @@ interface DeezerAlbumResponse {
 interface DeezerAlbumSearchResponse {
   data: DeezerAlbumResponse[];
   total: number;
+}
+
+interface DeezerArtistSearchResponse {
+  data?: Array<{ id: number; name: string; picture_xl?: string; picture_big?: string; link?: string }>;
 }
 
 function mapAlbum(raw: DeezerAlbumResponse): NormalizedAlbum {
@@ -239,38 +246,16 @@ export const deezerAdapter = {
 
   async findByIsrc(isrc: string): Promise<NormalizedTrack | null> {
     const response = await deezerFetch(`/track/isrc:${encodeURIComponent(isrc)}`);
-
-    if (!response.ok) {
-      log.debug("Deezer", "ISRC lookup failed:", response.status);
-      return null;
-    }
-
-    const data = await response.json();
-
-    if (isDeezerError(data)) {
-      log.debug("Deezer", "ISRC not found:", isrc);
-      return null;
-    }
-
-    return mapTrack(data as DeezerTrackResponse);
+    const data = await readDeezerJson<DeezerTrackResponse>(response, "ISRC lookup");
+    return data ? mapTrack(data) : null;
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
     const q = buildDeezerQ(query);
 
     const response = await deezerFetch(`/search/track?q=${encodeURIComponent(q)}&limit=5`);
-
-    if (!response.ok) {
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
-    const data = await response.json();
-
-    if (isDeezerError(data)) {
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
-    const items = (data as DeezerSearchResponse).data ?? [];
+    const data = await readDeezerJson<DeezerSearchResponse>(response, "track search");
+    const items = data?.data ?? [];
 
     if (items.length === 0) {
       return { found: false, confidence: 0, matchMethod: "search" };
@@ -316,24 +301,8 @@ export const deezerAdapter = {
     const q = buildDeezerQ(query);
 
     const response = await deezerFetch(`/search/track?q=${encodeURIComponent(q)}&limit=${MAX_CANDIDATES}`);
-
-    if (!response.ok) {
-      return {
-        bestMatch: { found: false, confidence: 0, matchMethod: "search" },
-        candidates: [],
-      };
-    }
-
-    const data = await response.json();
-
-    if (isDeezerError(data)) {
-      return {
-        bestMatch: { found: false, confidence: 0, matchMethod: "search" },
-        candidates: [],
-      };
-    }
-
-    const items = (data as DeezerSearchResponse).data ?? [];
+    const data = await readDeezerJson<DeezerSearchResponse>(response, "track search");
+    const items = data?.data ?? [];
 
     if (items.length === 0) {
       return {
@@ -397,37 +366,15 @@ export const deezerAdapter = {
 
   async findAlbumByUpc(upc: string): Promise<NormalizedAlbum | null> {
     const response = await deezerFetch(`/album/upc:${encodeURIComponent(upc)}`);
-
-    if (!response.ok) {
-      log.debug("Deezer", "UPC album lookup failed:", response.status);
-      return null;
-    }
-
-    const data = await response.json();
-
-    if (isDeezerError(data)) {
-      log.debug("Deezer", "Album UPC not found:", upc);
-      return null;
-    }
-
-    return mapAlbum(data as DeezerAlbumResponse);
+    const data = await readDeezerJson<DeezerAlbumResponse>(response, "UPC album lookup");
+    return data ? mapAlbum(data) : null;
   },
 
   async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
     const q = `artist:"${query.artist}" album:"${query.title}"`;
     const response = await deezerFetch(`/search/album?q=${encodeURIComponent(q)}&limit=5`);
-
-    if (!response.ok) {
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
-    const data = await response.json();
-
-    if (isDeezerError(data)) {
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
-    const items = (data as DeezerAlbumSearchResponse).data ?? [];
+    const data = await readDeezerJson<DeezerAlbumSearchResponse>(response, "album search");
+    const items = data?.data ?? [];
 
     if (items.length === 0) {
       return { found: false, confidence: 0, matchMethod: "search" };
@@ -491,18 +438,8 @@ export const deezerAdapter = {
 
   async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
     const response = await deezerFetch(`/search/artist?q=${encodeURIComponent(query.name)}&limit=5`);
-
-    if (!response.ok) {
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
-    const data = await response.json();
-
-    if (isDeezerError(data)) {
-      return { found: false, confidence: 0, matchMethod: "search" };
-    }
-
-    const items = data.data ?? [];
+    const data = await readDeezerJson<DeezerArtistSearchResponse>(response, "artist search");
+    const items = data?.data ?? [];
 
     if (items.length === 0) {
       return { found: false, confidence: 0, matchMethod: "search" };

@@ -1,0 +1,37 @@
+---
+/**
+ * /confirm-email?token=…: where a change of sign-in address is confirmed.
+ *
+ * The link is the proof, so this needs no session: somebody can follow it from
+ * the device their new mailbox is on. Without a token it says so and offers
+ * nothing else.
+ */
+import AuthCard from "@/components/auth/AuthCard.astro";
+import { ConfirmEmailChangeView } from "@/components/auth/ConfirmEmailChangeView";
+import { ContentCard } from "@/components/docs/ContentCard";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { SmsIcon } from "@/lib/icons";
+
+export const prerender = false;
+
+const token = Astro.url.searchParams.get("token");
+---
+
+<BaseLayout title="Confirm your address · musiccloud for developers">
+  <AuthCard title="Confirm your address" icon={SmsIcon}>
+    {
+      token ? (
+        <ConfirmEmailChangeView client:load token={token} />
+      ) : (
+        <ContentCard.Body>
+          <p class="text-body text-fg-muted text-center py-2">
+            This link is missing its token. Please use the link from the email sent to your new address.
+          </p>
+        </ContentCard.Body>
+      )
+    }
+    <Fragment slot="footer">
+      <a href="/login" class="content-link text-fg">Back to sign in</a>
+    </Fragment>
+  </AuthCard>
+</BaseLayout>

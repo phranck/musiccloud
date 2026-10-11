@@ -280,18 +280,30 @@ export const spotifyAdapter = {
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
     const itemsById = new Map<string, SpotifyTrackResponse>();
+    let answered = false;
+    let lastFailedStatus = 0;
 
     for (const searchQuery of buildSpotifyTrackSearchQueries(query)) {
       const q = encodeURIComponent(searchQuery);
       const response = await spotifyFetch(`/search?type=track&q=${q}&limit=5`);
 
-      if (!response.ok) continue;
+      if (!response.ok) {
+        lastFailedStatus = response.status;
+        continue;
+      }
+      answered = true;
 
       const data = await response.json();
       const items: SpotifyTrackResponse[] = data.tracks?.items ?? [];
       for (const item of items) {
         if (!itemsById.has(item.id)) itemsById.set(item.id, item);
       }
+    }
+
+    // Only an answered search may report a miss; the resolver remembers a
+    // miss for a month, and a rate limit is not one.
+    if (!answered) {
+      throw serviceHttpError(Service.Spotify, lastFailedStatus, ResourceKind.Track, query.title, Operation.Search);
     }
 
     if (itemsById.size === 0) {
@@ -359,10 +371,7 @@ export const spotifyAdapter = {
         const errorText = await response.text();
         log.error("Spotify", "Search failed:", response.status, errorText);
         if (items.length > 0) break;
-        return {
-          bestMatch: { found: false, confidence: 0, matchMethod: "search" },
-          candidates: [],
-        };
+        throw serviceHttpError(Service.Spotify, response.status, ResourceKind.Track, query.title, Operation.Search);
       }
 
       const data = await response.json();
@@ -427,8 +436,7 @@ export const spotifyAdapter = {
     const response = await spotifyFetch(`/search?type=album&q=${encodeURIComponent(`upc:${upc}`)}&limit=1`);
 
     if (!response.ok) {
-      log.debug("Spotify", "UPC album lookup failed:", response.status);
-      return null;
+      throw serviceHttpError(Service.Spotify, response.status, ResourceKind.Album, upc, Operation.UpcLookup);
     }
 
     const data: SpotifyAlbumSearchResponse = await response.json();
@@ -443,7 +451,7 @@ export const spotifyAdapter = {
     const response = await spotifyFetch(`/search?type=album&q=${encodeURIComponent(q)}&limit=5`);
 
     if (!response.ok) {
-      return { found: false, confidence: 0, matchMethod: "search" };
+      throw serviceHttpError(Service.Spotify, response.status, ResourceKind.Album, query.title, Operation.Search);
     }
 
     const data: SpotifyAlbumSearchResponse = await response.json();
@@ -510,7 +518,7 @@ export const spotifyAdapter = {
     const response = await spotifyFetch(`/search?type=artist&q=${encodeURIComponent(query.name)}&limit=5`);
 
     if (!response.ok) {
-      return { found: false, confidence: 0, matchMethod: "search" };
+      throw serviceHttpError(Service.Spotify, response.status, ResourceKind.Artist, query.name, Operation.Search);
     }
 
     const data = await response.json();

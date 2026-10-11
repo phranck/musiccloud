@@ -12,6 +12,7 @@ import type {
 import {
   CONTENT_CARD_STYLES,
   ContentContext,
+  expandSiteVariables,
   isValidContentContextMask,
   OVERLAY_WIDTHS,
   PAGE_DISPLAY_MODES,
@@ -31,6 +32,7 @@ import { isReservedDeveloperPortalPath, normalizeEditorialPath } from "./editori
 import { MARKDOWN_EXTENSION_REGISTRY, type MarkdownExtensionRegistry } from "./markdown/extension-registry.js";
 import { renderMarkdown } from "./markdown/renderer.js";
 import { validateMarkdownForContexts } from "./markdown/validation.js";
+import { resolveSiteVariableValues } from "./site-variables.js";
 
 const SLUG_PATTERN = /^[a-z0-9-]+$/;
 const SLUG_MAX_LEN = 100;
@@ -52,7 +54,11 @@ function contentUniquenessCode(error: unknown): "SLUG_TAKEN" | "PATH_TAKEN" | nu
 }
 
 async function renderBody(content: string | null | undefined): Promise<string> {
-  return renderMarkdown(content ?? "", ContentContext.Frontend);
+  // Variables are expanded before the Markdown is parsed, so a name works
+  // wherever a person can type it: in prose, in a heading, and inside a
+  // shortcode's attribute alike.
+  const expanded = expandSiteVariables(content ?? "", await resolveSiteVariableValues());
+  return renderMarkdown(expanded, ContentContext.Frontend);
 }
 
 function segmentRowToDto(row: PageSegmentRow): PageSegment {

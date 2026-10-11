@@ -731,8 +731,8 @@ export const COVER_DEFAULTS: CoverFields = {
  */
 export const SHADOW_DEFAULTS: ShadowFields = {
   offsetX: 0,
-  offsetY: 15,
-  blur: 21,
+  offsetY: 8,
+  blur: 11,
   color: "#000000",
 };
 

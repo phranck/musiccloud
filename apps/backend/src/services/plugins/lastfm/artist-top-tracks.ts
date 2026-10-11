@@ -7,7 +7,7 @@
 
 import type { ArtistTopTrack } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
-import { log } from "../../../lib/infra/logger.js";
+import { readLastFmJson } from "./lastfm-response.js";
 
 const API_BASE = "https://ws.audioscrobbler.com/2.0";
 const TIMEOUT_MS = 5000;
@@ -22,35 +22,34 @@ interface LastFmTopTracksResponse {
   };
 }
 
+/**
+ * Reads an artist's most played tracks on Last.fm.
+ *
+ * @param name - The artist name.
+ * @param limit - How many tracks to ask for.
+ * @returns The tracks, empty without an API key or for an unknown artist.
+ * @throws {UpstreamUnavailableError} when Last.fm did not answer.
+ */
 export async function fetchLastFmTopTracks(name: string, limit = 3): Promise<ArtistTopTrack[]> {
   const apiKey = process.env.LASTFM_API_KEY;
   if (!apiKey) return [];
 
-  try {
-    const res = await fetchWithTimeout(
-      `${API_BASE}/?method=artist.getTopTracks&artist=${encodeURIComponent(name)}&api_key=${encodeURIComponent(apiKey)}&format=json&limit=${limit}`,
-      {},
-      TIMEOUT_MS,
-    );
-    if (!res.ok) {
-      log.debug("Last.fm", "artist.getTopTracks HTTP error", res.status, name);
-      return [];
-    }
-    const data = (await res.json()) as LastFmTopTracksResponse;
-    const tracks = data.toptracks?.track ?? [];
-    return tracks.slice(0, limit).map(
-      (t): ArtistTopTrack => ({
-        title: t.name,
-        artists: [t.artist.name],
-        albumName: null,
-        artworkUrl: null,
-        durationMs: null,
-        deezerUrl: t.url,
-        shortId: null,
-      }),
-    );
-  } catch (err) {
-    log.debug("Last.fm", "artist.getTopTracks threw", err);
-    return [];
-  }
+  const res = await fetchWithTimeout(
+    `${API_BASE}/?method=artist.getTopTracks&artist=${encodeURIComponent(name)}&api_key=${encodeURIComponent(apiKey)}&format=json&limit=${limit}`,
+    {},
+    TIMEOUT_MS,
+  );
+  const data = await readLastFmJson<LastFmTopTracksResponse>(res, "artist.getTopTracks");
+  const tracks = data?.toptracks?.track ?? [];
+  return tracks.slice(0, limit).map(
+    (t): ArtistTopTrack => ({
+      title: t.name,
+      artists: [t.artist.name],
+      albumName: null,
+      artworkUrl: null,
+      durationMs: null,
+      deezerUrl: t.url,
+      shortId: null,
+    }),
+  );
 }

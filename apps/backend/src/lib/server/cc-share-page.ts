@@ -14,16 +14,23 @@
  * artist profile) is the only Jamendo touch: cc-track loads it client-side via
  * `/api/cc/artist-info`; cc-album/cc-artist build it from the DB tracks via
  * `buildCc{Album,Artist}Payload`, whose enrichment calls are fault-tolerant (see
- * `buildCcArtistInfo`) so they never fail the share. CC track and album opens
- * temporarily force a fresh Discogs vinyl-layout lookup; failures remain
- * non-fatal and fall back to the prior persisted layout.
+ * `buildCcArtistInfo`) so they never fail the share.
+ *
+ * The vinyl layout is read through `resolveAlbumVinylLayout`, which answers from
+ * the persisted layout and never waits for Discogs: an identity nobody has
+ * checked yet answers without a layout and is enriched in the background.
+ * Nothing on this path may force a refresh: a Discogs round-trip per open would
+ * contradict the database latency promised above, and it would cost `share.ts`
+ * the cache directive it sends for every share.
  */
 
-import type {
-  CcAlbumSharePageResponse,
-  CcArtistSharePageResponse,
-  CcTrackSharePageResponse,
-  OgMeta,
+import {
+  type CcAlbumSharePageResponse,
+  type CcArtistSharePageResponse,
+  type CcTrackSharePageResponse,
+  type OgMeta,
+  Service,
+  type ServiceId,
 } from "@musiccloud/shared";
 import { getCcRepository, getRepository } from "../../db/index.js";
 import {
@@ -34,7 +41,7 @@ import {
   mapDbRowToCcTrack,
   toApiCcTrack,
 } from "../../services/cc/cc-share-response.js";
-import { refreshAlbumVinylLayout } from "../../services/track-vinyl-layout.js";
+import { resolveAlbumVinylLayout } from "../../services/track-vinyl-layout.js";
 import { getPublicOrigin } from "../public-origin.js";
 import { generateAlbumOGMeta, generateOGMeta, type OGMeta } from "./og.js";
 
@@ -50,6 +57,18 @@ type CcSharePageResponse = CcTrackSharePageResponse | CcAlbumSharePageResponse |
  */
 function toWireOg(meta: OGMeta): OgMeta {
   return { title: meta.ogTitle, description: meta.ogDescription, image: meta.ogImageUrl, url: meta.ogUrl };
+}
+
+/**
+ * The services a CC entity's link preview names: Jamendo when the entity has a
+ * Jamendo page, so the preview reads "Listen on Jamendo" the way a commercial
+ * share names its services. The share page lists the same link.
+ *
+ * @param jamendoPageUrl - The entity's Jamendo page, as persisted.
+ * @returns `[Service.Jamendo]`, or an empty list without a page.
+ */
+function jamendoPlatforms(jamendoPageUrl: string | undefined): ServiceId[] {
+  return jamendoPageUrl ? [Service.Jamendo] : [];
 }
 
 /**
@@ -78,7 +97,7 @@ export async function loadCcByShortId(shortId: string, origin?: string): Promise
       if (!row) return null;
       const track = mapDbRowToCcTrack(row);
       const vinylLayout = track.albumName
-        ? await refreshAlbumVinylLayout(await getRepository(), {
+        ? await resolveAlbumVinylLayout(await getRepository(), {
             artists: [track.artistName],
             title: track.albumName,
           })
@@ -91,7 +110,7 @@ export async function loadCcByShortId(shortId: string, origin?: string): Promise
           album: track.albumName,
           albumArtUrl: track.artworkUrl ?? "",
           shortId,
-          availablePlatforms: [],
+          availablePlatforms: jamendoPlatforms(track.shareUrl),
           origin,
         }),
       );
@@ -103,7 +122,7 @@ export async function loadCcByShortId(shortId: string, origin?: string): Promise
       const album = mapDbRowToCcAlbum(data.album);
       const tracks = data.tracks.map(mapDbRowToCcTrack);
       const { album: apiAlbum, artistInfo } = await buildCcAlbumPayload(album, tracks);
-      const vinylLayout = await refreshAlbumVinylLayout(await getRepository(), {
+      const vinylLayout = await resolveAlbumVinylLayout(await getRepository(), {
         artists: [album.artistName],
         title: album.name,
       });
@@ -115,7 +134,7 @@ export async function loadCcByShortId(shortId: string, origin?: string): Promise
           releaseDate: album.releaseDate,
           albumArtUrl: album.artworkUrl ?? "",
           shortId,
-          availablePlatforms: [],
+          availablePlatforms: jamendoPlatforms(album.shareUrl),
           origin,
         }),
       );

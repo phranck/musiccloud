@@ -48,7 +48,7 @@ export type ResolveUiError =
   | { kind: "offline" }
   | { kind: "timeout" }
   | { kind: "generic" }
-  | { kind: "backend"; code: string; context?: Record<string, string> };
+  | { kind: "backend"; code: string; errorId?: string; context?: Record<string, string> };
 
 export const InputState = {
   Idle: "idle",
@@ -203,7 +203,7 @@ export interface CcTrackResult {
   downloadAllowed: boolean;
   /** URL of the waveform image provided by Jamendo, if available. */
   waveform?: string;
-  /** Canonical Jamendo page for the track, used for the "Open on Jamendo" link. */
+  /** Canonical Jamendo page for the track, listed as its service in the services card. */
   jamendoUrl?: string;
   /** musiccloud short URL for this result (e.g. `https://musi.cc/abc123`). */
   shareUrl: string;
@@ -234,6 +234,10 @@ export interface CcAlbumResult {
   jamendoId: string;
   title: string;
   artist: string;
+  /** Number of tracks on the album, shown in its meta line. */
+  totalTracks?: number;
+  /** Rights text for the record label: the license the album's tracks share, or "CC". */
+  labelRightsText: string;
   releaseDate?: string;
   artworkUrl: string;
   /** Discogs-derived vinyl timing data for this album. */
@@ -254,6 +258,8 @@ export interface CcArtistResult {
   jamendoId: string;
   name: string;
   imageUrl: string;
+  /** Rights text for the record label: the license the artist's top tracks share, or "CC". */
+  labelRightsText: string;
   jamendoUrl?: string;
   shareUrl: string;
   /** Right-column data (the artist's top tracks + similar tracks) for the shared artist column. */

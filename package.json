@@ -2,6 +2,9 @@
   "name": "musiccloud",
   "private": true,
   "packageManager": "pnpm@10.33.1",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "pnpm --filter @musiccloud/frontend dev",
     "dev:backend": "pnpm --filter @musiccloud/backend dev",
@@ -41,6 +44,11 @@
     "react-doctor-plugin-domain-literals": "workspace:*",
     "typescript": "^5.9.3",
     "vite": "^7.3.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "@types/node": "^22.20.5"
+    }
   },
   "optionalDependencies": {
     "@rolldown/binding-linux-x64-musl": "1.0.0-rc.9",

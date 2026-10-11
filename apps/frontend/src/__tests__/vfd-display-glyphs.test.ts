@@ -72,6 +72,43 @@ describe("VfdDisplay glyph support", () => {
     }
   });
 
+  it("renders Greek titles and artist names without a question-mark fallback", () => {
+    // Real-world trigger: the share page CRWvf, album "Ψευδομένη" by "Ὁπλίτης",
+    // showed "?????????" and "???????" because the font had no Greek letters.
+    const uppercase = "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ";
+    const lowercase = "αβγδεζηθικλμνξοπρσςτυφχψω";
+    const marked = "άέήίόύώϊϋΐΰΆΈΉΊΌΎΏΪΫ";
+    const songInfo = "Ψευδομένη Ὁπλίτης Μῆνιν ἄειδε, θεὰ παραμαινομένη";
+
+    for (const glyph of Array.from(`${uppercase}${lowercase}${marked}${songInfo}`)) {
+      if (glyph === " " || glyph === ",") continue;
+      expect(isVfdGlyphSupported(glyph), `expected ${glyph} to have a VFD glyph`).toBe(true);
+    }
+  });
+
+  it("keeps the tonos and dialytika visible on lowercase Greek letters", () => {
+    for (const glyph of Array.from("άέήίόύώϊϋΪΫ")) {
+      expect(glyphPatternKeyFor(glyph), `expected ${glyph} to resolve to its own glyph`).toBe(glyph);
+    }
+  });
+
+  it("strips marks without changing the case of the letter", () => {
+    // A marked letter without a pattern of its own resolves to its base letter
+    // in the same case, so a lowercase polytonic letter does not turn uppercase.
+    const expectedBase: Record<string, string> = {
+      ἀ: "α",
+      ῆ: "η",
+      ᾳ: "α",
+      ΐ: "ι",
+      Ὁ: "Ο",
+      Ά: "Α",
+      ŵ: "w",
+    };
+    for (const [glyph, base] of Object.entries(expectedBase)) {
+      expect(glyphPatternKeyFor(glyph), `expected ${glyph} to resolve to ${base}`).toBe(base);
+    }
+  });
+
   it("keeps unknown glyphs on the fallback path", () => {
     expect(isVfdGlyphSupported("🪩")).toBe(false);
   });

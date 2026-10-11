@@ -17,7 +17,10 @@ import { cn } from "@/lib/utils";
 
 interface PlayerContextValue {
   isPlaying: boolean;
+  /** No playable source: disables the button and dims the progress display. */
   isDisabled: boolean;
+  /** The host holds the transport: disables the button only, the display stays lit. */
+  isPlaybackLocked?: boolean;
   timeText: string;
   progressRatio?: number;
   ariaLabel: string;
@@ -57,6 +60,7 @@ export function PlayerRoot({
   className,
   isPlaying,
   isDisabled,
+  isPlaybackLocked = false,
   timeText,
   progressRatio = 0,
   ariaLabel,
@@ -67,6 +71,7 @@ export function PlayerRoot({
   const value: PlayerContextValue = {
     isPlaying,
     isDisabled,
+    isPlaybackLocked,
     timeText,
     progressRatio,
     ariaLabel,
@@ -90,8 +95,9 @@ export function PlayerRoot({
 }
 
 export function PlayerButton({ className }: PlayerButtonProps) {
-  const { isPlaying, isDisabled, onTogglePlay, ariaLabel, title } = usePlayerContext();
-  const accentColor = isDisabled ? "var(--color-player-control-disabled)" : "#ffffff";
+  const { isPlaying, isDisabled, isPlaybackLocked, onTogglePlay, ariaLabel, title } = usePlayerContext();
+  const isButtonDisabled = isDisabled || Boolean(isPlaybackLocked);
+  const accentColor = isButtonDisabled ? "var(--color-player-control-disabled)" : "#ffffff";
 
   return (
     <RecessedCard className={cn("flex-none", recessedControlSizeClassName, recessedControlInsetClassName, className)}>
@@ -100,7 +106,7 @@ export function PlayerButton({ className }: PlayerButtonProps) {
           as="button"
           type="button"
           onClick={onTogglePlay}
-          disabled={isDisabled}
+          disabled={isButtonDisabled}
           aria-label={ariaLabel}
           aria-pressed={isPlaying}
           title={title}
@@ -108,7 +114,11 @@ export function PlayerButton({ className }: PlayerButtonProps) {
           className="relative flex size-full items-center justify-center px-0 py-0"
         >
           <svg
-            className={cn("block", isPlaying ? "size-6" : "size-7 -translate-x-px -translate-y-[0.5px]")}
+            className={cn(
+              // The icon's color follows the disabled state on the same fade as the button.
+              "block transition-[fill] duration-200",
+              isPlaying ? "size-6" : "size-7 -translate-x-px -translate-y-[0.5px]",
+            )}
             viewBox="0 0 24 24"
             fill={accentColor}
             aria-hidden="true"

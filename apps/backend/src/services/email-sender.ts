@@ -2,6 +2,7 @@ import { requireEnv } from "../lib/env.js";
 import { sendEmail } from "./email-provider.js";
 import { renderEmailTemplate } from "./email-renderer.js";
 import { getManagedEmailBranding, getManagedEmailTemplateById } from "./email-templates.js";
+import { getDesignTokens } from "./site-settings.js";
 
 /**
  * Input for {@link sendTemplatedEmail}: which managed template to render, the
@@ -33,6 +34,7 @@ export async function sendTemplatedEmail(input: SendTemplatedEmailInput): Promis
   }
   const template = templateResult.data;
   const branding = await getManagedEmailBranding();
+  const designTokens = await getDesignTokens();
 
   const { html, subject } = renderEmailTemplate(
     { subject: template.subject, blocks: template.blocks },
@@ -40,6 +42,7 @@ export async function sendTemplatedEmail(input: SendTemplatedEmailInput): Promis
     branding,
     input.variables,
     baseUrl,
+    designTokens,
   );
 
   await sendEmail({ to: input.to, subject, html });

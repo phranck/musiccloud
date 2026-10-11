@@ -5,6 +5,7 @@ import {
   type DeveloperPortalNavigationItem,
   ENDPOINTS,
   isNavigationSystemKey,
+  isPortalReservedPath,
   NAVIGATION_SYSTEM_TARGETS,
   NavigationArea,
   NavigationSystemKey,
@@ -12,24 +13,11 @@ import {
   NavTarget,
   type SingleNavigationArea,
 } from "@musiccloud/shared";
-
 import { backendUrl, internalHeaders } from "./api";
 import { FOOTER_LINKS } from "./footerLinks";
 import { PUBLIC_NAV_ITEMS, PUBLIC_SEARCH_COMMAND } from "./publicNavigation";
 
 const EDITORIAL_TIMEOUT_MS = 3_000;
-const MANAGED_ROUTE_RESERVED_PREFIXES = [
-  "/docs",
-  "/dashboard",
-  "/api",
-  "/auth",
-  "/login",
-  "/signup",
-  "/forgot",
-  "/reset",
-  "/verify",
-  "/pricing",
-] as const;
 
 export interface EditorialFailure {
   code: string;
@@ -63,13 +51,17 @@ function normalizeManagedPath(path: string): string | null {
   return segments.length === 0 ? "/" : `/${segments.join("/")}`;
 }
 
-/** Whether a request may reach the managed editorial Page lookup. */
+/**
+ * Whether a request may reach the managed editorial Page lookup.
+ *
+ * `/` is one of them. It has its own route, as `/docs` and `/pricing` do,
+ * because the header and the session are the portal's rather than the page's,
+ * and that route looks the page up through here like every other.
+ */
 export function isManagedEditorialPath(path: string): boolean {
   const normalized = normalizeManagedPath(path);
-  if (!normalized || normalized === "/") return false;
-  return !MANAGED_ROUTE_RESERVED_PREFIXES.some(
-    (reserved) => normalized === reserved || normalized.startsWith(`${reserved}/`),
-  );
+  if (!normalized) return false;
+  return !isPortalReservedPath(normalized);
 }
 
 function syntheticFailure(status: number, message: string, code = "MC-SYS-0001"): EditorialFailure {

@@ -6,10 +6,11 @@ import { Agent, type RequestInit as UndiciRequestInit } from "undici";
 /**
  * Timeout-enforcing fetch wrapper with an SSRF guard.
  *
- * Each request hop is resolved and validated before an Undici transport pins
- * that exact address set at connection time. Redirects are followed manually
- * so no destination can bypass the same policy. One abort timer covers the
- * complete redirect chain.
+ * Each request hop is resolved and validated before it is sent, and every
+ * connection the shared keep-alive dispatcher opens is validated again at
+ * connect time, so reusing a connection never bypasses the policy. Redirects
+ * are followed manually so no destination can bypass the same policy. One
+ * abort timer covers the complete redirect chain and reading the body.
  */
 
 const MAX_REDIRECTS = 5;
@@ -83,7 +84,7 @@ const defaultResolve: ResolveAddresses = (hostname) => dns.lookup(hostname, { al
 
 const defaultDependencies: OutboundFetchDependencies = {
   resolve: defaultResolve,
-  transport: requestWithPinnedAddresses,
+  transport: requestThroughGuardedDispatcher,
 };
 
 function normalizeHostname(hostname: string): string {
@@ -243,30 +244,63 @@ function transportTarget(target: URL): string {
   return target.pathname === "/" && target.search === "" && target.hash === "" ? target.origin : target.href;
 }
 
-async function requestWithPinnedAddresses(
+async function requestThroughGuardedDispatcher(
   target: URL,
   init: RequestInit,
-  addresses: readonly LookupAddress[],
+  _addresses: readonly LookupAddress[],
 ): Promise<Response> {
-  const dispatcher = new Agent({ connect: { lookup: createPinnedLookup(addresses) } });
   try {
     const requestInit: RequestInit & UndiciRequestInit = {
       ...(init as RequestInit & UndiciRequestInit),
-      dispatcher,
+      dispatcher: sharedDispatcher,
     };
-    const response = await globalThis.fetch(transportTarget(target), requestInit);
-    void dispatcher.close().catch(() => dispatcher.destroy());
-    return response;
+    return await globalThis.fetch(transportTarget(target), requestInit);
   } catch {
-    try {
-      await dispatcher.destroy();
-    } catch {
-      // The public error must never expose transport or dispatcher details.
-    }
     init.signal?.throwIfAborted();
     throw new Error("Outbound request failed");
   }
 }
+
+/**
+ * Builds the connect-time lookup of the shared dispatcher. Every new connection
+ * resolves its host again and is refused unless every address it would use is
+ * public, so a connection kept alive for reuse was validated when it was made,
+ * and a DNS answer that changed since the pre-request check cannot route a new
+ * connection to a private address. A literal IP host never reaches a lookup;
+ * `resolvePublicAddresses` validates those before every request.
+ *
+ * @param resolve - Resolves a hostname to all of its addresses.
+ * @returns A `net.LookupFunction` for undici's `connect.lookup`.
+ */
+export function createGuardedLookup(resolve: ResolveAddresses): net.LookupFunction {
+  return (hostname, options, callback) => {
+    resolve(hostname).then(
+      (addresses) => {
+        let validated: readonly LookupAddress[];
+        try {
+          validated = freezeValidatedAddresses(addresses);
+        } catch (error) {
+          callback(error as NodeJS.ErrnoException, "");
+          return;
+        }
+        createPinnedLookup(validated)(hostname, options, callback);
+      },
+      () => {
+        const error = new Error("Outbound DNS resolution failed") as NodeJS.ErrnoException;
+        error.code = "ENOTFOUND";
+        callback(error, "");
+      },
+    );
+  };
+}
+
+/**
+ * One dispatcher for every outbound request, so connections to a host are kept
+ * alive and reused instead of paying DNS, TCP and TLS again for each of the
+ * forty to seventy requests a resolve makes. Its connect-time lookup applies the
+ * same public-address policy as the pre-request check.
+ */
+const sharedDispatcher = new Agent({ connect: { lookup: createGuardedLookup(defaultResolve) } });
 
 function redirectedRequestInit(init: RequestInit, status: number, from: URL, to: URL): RequestInit {
   const method = (init.method ?? "GET").toUpperCase();
@@ -339,11 +373,18 @@ export function createFetchWithTimeout(dependencies: OutboundFetchDependencies =
   return async function guardedFetch(url: string, init?: RequestInit, timeoutMs = 5000): Promise<Response> {
     const controller = new AbortController();
     const signal = init?.signal ? AbortSignal.any([controller.signal, init.signal]) : controller.signal;
+    // The timer stays armed after the headers arrive, so it also bounds reading
+    // the body: an upstream that stalls mid-body is aborted at the caller's
+    // timeout instead of undici's 300 s idle limit. Aborting a response that
+    // has been read completely does nothing. `unref` keeps a pending timer from
+    // holding a finished script open.
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    timeout.unref?.();
     try {
       return await followValidatedRedirects(parseSafeUrl(url), init, signal, dependencies);
-    } finally {
+    } catch (error) {
       clearTimeout(timeout);
+      throw error;
     }
   };
 }

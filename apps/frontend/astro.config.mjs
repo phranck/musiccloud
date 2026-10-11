@@ -3,6 +3,7 @@ import react from "@astrojs/react";
 import sitemap from "@astrojs/sitemap";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
+import { astroViteCacheDir } from "../../scripts/astro-vite-cache-dir.mjs";
 
 export default defineConfig({
   output: "server",
@@ -13,6 +14,7 @@ export default defineConfig({
     port: Number(process.env.PORT) || 3000,
   },
   vite: {
+    cacheDir: astroViteCacheDir(),
     plugins: [tailwindcss()],
     server: {
       allowedHosts: ["localhost", "musiccloud.test"],

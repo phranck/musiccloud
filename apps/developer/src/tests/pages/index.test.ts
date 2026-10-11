@@ -5,10 +5,15 @@ import { maskToken } from "@/lib/apiAccessClient";
 
 describe("released API-key presentation", () => {
   it("uses the released mc_live shape in the landing-page example", () => {
-    const page = readFileSync(join(import.meta.dirname, "../../pages/index.astro"), "utf8");
+    // The home page's copy is edited in the dashboard now, so the example key
+    // lives with the copy the page is created with rather than in the route.
+    const seed = readFileSync(
+      join(import.meta.dirname, "../../../../backend/src/services/content/portal-home-page.ts"),
+      "utf8",
+    );
 
-    expect(page).toContain("X-API-Key: mc_live_example12345_replace_with_your_secret_value");
-    expect(page).not.toContain("00000000-0000-4000-8000-000000000000");
+    expect(seed).toContain("X-API-Key: mc_live_example12345_replace_with_your_secret_value");
+    expect(seed).not.toContain("00000000-0000-4000-8000-000000000000");
   });
 
   it("masks stored token prefixes with the released public-key envelope", () => {

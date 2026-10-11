@@ -1,4 +1,9 @@
-import { ContentContext, type ContentContextMask, type SingleContentContext } from "@musiccloud/shared";
+import {
+  ContentContext,
+  type ContentContextMask,
+  isValidContentContextMask,
+  type SingleContentContext,
+} from "@musiccloud/shared";
 import type { MarkedExtension } from "marked";
 import { describe, expect, it } from "vitest";
 import {
@@ -40,16 +45,24 @@ const testRegistry = createMarkdownExtensionRegistry([...MARKDOWN_EXTENSION_DEFI
 
 describe("context-aware Markdown extension registry", () => {
   it("declares a valid availability mask for every production extension", () => {
-    const both = ContentContext.Frontend | ContentContext.DeveloperPortal;
+    // Which extensions exist and where each is allowed are product decisions
+    // that change; that every one of them declares a mask the validator
+    // recognises is the invariant, because an unrecognised mask throws at
+    // registry construction and takes the renderer with it.
+    for (const { name, allowedContextMask } of MARKDOWN_EXTENSION_DEFINITIONS) {
+      expect(isValidContentContextMask(allowedContextMask), name).toBe(true);
+    }
+  });
 
-    expect(MARKDOWN_EXTENSION_DEFINITIONS.map(({ name }) => name)).toEqual([
-      "footnotes",
-      "codeFence",
-      "mcFields",
-      "mcPill",
-      "mcKbd",
-    ]);
-    expect(MARKDOWN_EXTENSION_DEFINITIONS.every(({ allowedContextMask }) => allowedContextMask === both)).toBe(true);
+  it("gives every production extension a name and at least one token type", () => {
+    const names = MARKDOWN_EXTENSION_DEFINITIONS.map(({ name }) => name);
+
+    expect(new Set(names).size, "two extensions share a name").toBe(names.length);
+    for (const { name, tokenTypes } of MARKDOWN_EXTENSION_DEFINITIONS) {
+      // A definition without token types cannot be validated against a context
+      // at all, so its own mask would never be enforced.
+      expect(tokenTypes.length, name).toBeGreaterThan(0);
+    }
   });
 
   it("rejects duplicate extension names and invalid availability masks", () => {

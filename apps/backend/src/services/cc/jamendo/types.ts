@@ -19,6 +19,13 @@ export interface JamendoEnvelope<T> {
     code: number;
     error_message?: string;
     results_count: number;
+    /**
+     * Total number of rows the query matches, present only when the request
+     * sets `fullcount=true`. Jamendo's `/tracks` endpoint omits it on the empty
+     * answers it gives in error, so its presence is what marks an empty answer
+     * as a genuine miss.
+     */
+    results_fullcount?: number;
   };
   results: T[];
 }

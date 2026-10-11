@@ -1,4 +1,4 @@
-import { PLATFORM_CONFIG, type ServiceId } from "@musiccloud/shared";
+import { type MatchMethod, PLATFORM_CONFIG, type ServiceId } from "@musiccloud/shared";
 import { type CSSProperties, memo } from "react";
 import { PlatformIcon } from "@/components/platform/PlatformIcon";
 import { EmbossedButton } from "@/components/ui/EmbossedButton";
@@ -12,7 +12,7 @@ interface PlatformButtonProps {
   url: string;
   songTitle: string;
   displayName?: string;
-  matchMethod?: "isrc" | "search" | "cache" | "upc" | "isrc-inference";
+  matchMethod?: MatchMethod;
   size?: PlatformButtonSize;
   className?: string;
   style?: CSSProperties;
@@ -48,17 +48,21 @@ export const PlatformButton = memo(function PlatformButton({
   const s = sizeConfig[size];
 
   const sourceLabel =
-    matchMethod === "isrc"
-      ? "direct (ISRC)"
-      : matchMethod === "upc"
-        ? "direct (UPC)"
-        : matchMethod === "isrc-inference"
-          ? "via track ISRCs"
-          : matchMethod === "search"
-            ? "via search"
-            : matchMethod === "cache"
-              ? "cached"
-              : null;
+    matchMethod === "source"
+      ? "the link you pasted"
+      : matchMethod === "isrc"
+        ? "direct (ISRC)"
+        : matchMethod === "upc"
+          ? "direct (UPC)"
+          : matchMethod === "isrc-inference"
+            ? "via track ISRCs"
+            : matchMethod === "search"
+              ? "via search"
+              : matchMethod === "cache"
+                ? "cached"
+                : matchMethod === "search-fallback"
+                  ? "search link, no match"
+                  : null;
 
   return (
     <EmbossedButton

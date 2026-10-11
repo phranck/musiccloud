@@ -22,7 +22,7 @@ import { RateLimiter } from "../lib/infra/rate-limiter.js";
 import { generateApiToken } from "../services/api-access-token.js";
 import { buildApiUsageReport } from "../services/api-usage-report.js";
 import { isUsageWindowRejection, resolveUsageWindow } from "../services/api-usage-window.js";
-import { getMaxProjectsPerAccount } from "../services/developer-limits.js";
+import { getMaxProjectsPerAccount, MAX_REGISTRATIONS_PER_PROJECT } from "../services/developer-limits.js";
 import { notifyDeveloper } from "../services/developer-notifications.js";
 import { listSelfServiceAssignableTiers } from "../services/signup-tier.js";
 
@@ -32,8 +32,6 @@ const MAX_WEBSITE_URL_LENGTH = 500;
 
 /** Projects and registrations one account may create per minute, taken together. */
 export const CREATIONS_PER_MINUTE_PER_ACCOUNT = 10;
-/** Registrations one project may hold at once. Revoking a registration frees a slot. */
-export const MAX_REGISTRATIONS_PER_PROJECT = 5;
 /** Refusal for an account that already holds as many projects as the operator allows. */
 const PROJECT_CEILING_CODE = "MC-REQ-0003";
 /** Refusal for a project that already holds {@link MAX_REGISTRATIONS_PER_PROJECT} registrations. */
@@ -214,7 +212,7 @@ function rejectInactiveCredentialOwner(client: ApiClient, reply: FastifyReply): 
     return reply.status(409).send({ error: "PROJECT_INACTIVE", message: "Project is not active." });
   }
   if (client.status !== "active") {
-    return reply.status(409).send({ error: "REGISTRATION_INACTIVE", message: "Registration is not active." });
+    return reply.status(409).send({ error: "REGISTRATION_INACTIVE", message: "This application is not active." });
   }
   return null;
 }
@@ -476,7 +474,7 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
     const body = request.body as { status?: string; websiteUrl?: string | null; description?: string } | null;
 
     if (body?.status !== undefined && !REGISTRATION_STATUSES.includes(body.status)) {
-      return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid registration status." });
+      return reply.status(400).send({ error: "INVALID_REQUEST", message: "Invalid application status." });
     }
 
     let websiteUrl: string | null | undefined;
@@ -497,7 +495,7 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
     const repo = await getApiAccessRepository();
     const registration = await repo.findApiClientById(id);
     if (!registration || registration.developerAccountId !== request.developerAccountId) {
-      return reply.status(404).send({ error: "NOT_FOUND", message: "Registration not found." });
+      return reply.status(404).send({ error: "NOT_FOUND", message: "Application not found." });
     }
 
     const updated = await repo.updateApiClient(id, {
@@ -505,7 +503,7 @@ export async function devApiAccessRoutes(app: FastifyInstance) {
       websiteUrl,
       description: body?.description?.trim(),
     });
-    if (!updated) return reply.status(404).send({ error: "NOT_FOUND", message: "Registration not found." });
+    if (!updated) return reply.status(404).send({ error: "NOT_FOUND", message: "Application not found." });
 
     await repo.createApiAccessAuditEvent({
       projectId: registration.projectId,

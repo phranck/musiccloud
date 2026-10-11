@@ -1,6 +1,7 @@
 import { ENDPOINTS } from "@musiccloud/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { postAuth } from "@/lib/authClient";
+import { onAvatarAnnounced } from "@/lib/avatarBroadcast";
 import { CategoryIcon, LogoutIcon, ProfileIcon, RefreshIcon } from "@/lib/icons";
 
 /** Where the browser lands after signing out. */
@@ -44,8 +45,16 @@ interface AvatarMenuProps {
  */
 export function AvatarMenu({ account, showDashboard = true }: AvatarMenuProps) {
   const [open, setOpen] = useState(false);
+  // What the profile page has changed the picture to, or `null` while it has
+  // changed nothing. The prop is what the server had when this document was
+  // delivered, and it stays the answer until the page says otherwise.
+  const [announced, setAnnounced] = useState<{ avatarUrl: string | null } | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  // The header renders once per document, so the profile page tells it when the
+  // picture changes rather than leaving it stale until the next navigation.
+  useEffect(() => onAvatarAnnounced((avatarUrl) => setAnnounced({ avatarUrl })), []);
 
   useEffect(() => {
     if (!open) return;
@@ -70,6 +79,7 @@ export function AvatarMenu({ account, showDashboard = true }: AvatarMenuProps) {
   }, []);
 
   const initial = (account.displayName?.trim() || account.email).charAt(0).toUpperCase();
+  const avatarUrl = announced ? announced.avatarUrl : account.avatarUrl;
 
   return (
     <div ref={ref} className="relative">
@@ -81,8 +91,8 @@ export function AvatarMenu({ account, showDashboard = true }: AvatarMenuProps) {
         aria-label="Account menu"
         className="avatar-menu__trigger"
       >
-        {account.avatarUrl ? (
-          <img src={account.avatarUrl} alt="" width="36" height="36" className="avatar-menu__visual" />
+        {avatarUrl ? (
+          <img src={avatarUrl} alt="" width="36" height="36" className="avatar-menu__visual" />
         ) : (
           <span className="avatar-menu__visual">
             {initial || <ProfileIcon className="size-5 text-fg-muted" aria-hidden="true" />}

@@ -319,6 +319,34 @@ function appleMusicHttpError(status: number, kind: ResourceKind, id: string, sto
   return err;
 }
 
+/**
+ * Tracks whether any storefront of a cascade answered. A storefront that
+ * answered with nothing is a real "not here"; when every storefront failed,
+ * the cascade is an outage and must throw, because the resolver remembers a
+ * miss for a month and a rate limit is not one.
+ */
+class StorefrontCascadeOutcome {
+  private answered = false;
+  private lastFailure: { status: number; storefront: string } | null = null;
+
+  /** @returns Whether the storefront answered and its body may be read. */
+  record(response: Response, storefront: string): boolean {
+    if (response.ok) {
+      this.answered = true;
+      return true;
+    }
+    this.lastFailure = { status: response.status, storefront };
+    return false;
+  }
+
+  /** @throws The last storefront's error when no storefront answered. */
+  throwIfNoStorefrontAnswered(kind: ResourceKind, id: string): void {
+    if (!this.answered && this.lastFailure) {
+      throw appleMusicHttpError(this.lastFailure.status, kind, id, this.lastFailure.storefront);
+    }
+  }
+}
+
 interface AppleMusicSongAttributes {
   name: string;
   artistName: string;
@@ -540,6 +568,15 @@ export const appleMusicAdapter: ServiceAdapter = {
   },
 
   /**
+   * Drops the storefront from an id `detectUrl` or `detectAlbumUrl` returned,
+   * because the mappers store the bare numeric id as `sourceId` (see
+   * {@link parseStorefrontId}).
+   */
+  toCatalogId(detectedId: string): string {
+    return parseStorefrontId(detectedId).id;
+  },
+
+  /**
    * Accepts either a composite id `{storefront}:{trackId}` (preferred, produced
    * by {@link detectUrl}) or a bare numeric trackId (falls back to default
    * storefront). The API call targets the extracted storefront so regional
@@ -575,9 +612,10 @@ export const appleMusicAdapter: ServiceAdapter = {
    * need to compare across stores.
    */
   async findByIsrc(isrc: string): Promise<NormalizedTrack | null> {
+    const cascade = new StorefrontCascadeOutcome();
     for (const storefront of getStorefrontCascade(isrc)) {
       const response = await appleMusicFetch(`/catalog/${storefront}/songs?filter[isrc]=${encodeURIComponent(isrc)}`);
-      if (!response.ok) continue;
+      if (!cascade.record(response, storefront)) continue;
 
       const data = await response.json();
       const songs: AppleMusicSongResource[] = data.data ?? [];
@@ -585,6 +623,7 @@ export const appleMusicAdapter: ServiceAdapter = {
 
       return mapTrack(songs[0]);
     }
+    cascade.throwIfNoStorefrontAnswered(ResourceKind.Track, isrc);
     return null;
   },
 
@@ -600,10 +639,11 @@ export const appleMusicAdapter: ServiceAdapter = {
     );
     let bestMatch: NormalizedTrack | null = null;
     let bestConfidence = 0;
+    const cascade = new StorefrontCascadeOutcome();
 
     for (const storefront of getStorefrontCascade()) {
       const response = await appleMusicFetch(`/catalog/${storefront}/search?types=songs&term=${term}&limit=5`);
-      if (!response.ok) continue;
+      if (!cascade.record(response, storefront)) continue;
 
       const data = await response.json();
       const songs: AppleMusicSongResource[] = data.results?.songs?.data ?? [];
@@ -623,6 +663,7 @@ export const appleMusicAdapter: ServiceAdapter = {
 
       if (bestConfidence >= SEARCH_EARLY_EXIT_CONFIDENCE) break;
     }
+    cascade.throwIfNoStorefrontAnswered(ResourceKind.Track, query.title);
 
     if (!bestMatch || bestConfidence < 0.6) {
       return { found: false, confidence: bestConfidence, matchMethod: "search" };
@@ -668,10 +709,11 @@ export const appleMusicAdapter: ServiceAdapter = {
     const term = encodeURIComponent(`${query.artist} ${query.title}`);
     let bestMatch: NormalizedAlbum | null = null;
     let bestConfidence = 0;
+    const cascade = new StorefrontCascadeOutcome();
 
     for (const storefront of getStorefrontCascade()) {
       const response = await appleMusicFetch(`/catalog/${storefront}/search?types=albums&term=${term}&limit=5`);
-      if (!response.ok) continue;
+      if (!cascade.record(response, storefront)) continue;
 
       const data = await response.json();
       const albums: AppleMusicAlbumResource[] = data.results?.albums?.data ?? [];
@@ -691,6 +733,7 @@ export const appleMusicAdapter: ServiceAdapter = {
 
       if (bestConfidence >= SEARCH_EARLY_EXIT_CONFIDENCE) break;
     }
+    cascade.throwIfNoStorefrontAnswered(ResourceKind.Album, query.title);
 
     if (!bestMatch || bestConfidence < 0.6) {
       return { found: false, confidence: bestConfidence, matchMethod: "search" };
@@ -745,10 +788,11 @@ export const appleMusicAdapter: ServiceAdapter = {
     const term = encodeURIComponent(query.name);
     let bestMatch: NormalizedArtist | null = null;
     let bestConfidence = 0;
+    const cascade = new StorefrontCascadeOutcome();
 
     for (const storefront of getStorefrontCascade()) {
       const response = await appleMusicFetch(`/catalog/${storefront}/search?types=artists&term=${term}&limit=5`);
-      if (!response.ok) continue;
+      if (!cascade.record(response, storefront)) continue;
 
       const data = await response.json();
       const artists: AppleMusicArtistResource[] = data.results?.artists?.data ?? [];
@@ -768,6 +812,7 @@ export const appleMusicAdapter: ServiceAdapter = {
 
       if (bestConfidence >= SEARCH_EARLY_EXIT_CONFIDENCE) break;
     }
+    cascade.throwIfNoStorefrontAnswered(ResourceKind.Artist, query.name);
 
     if (!bestMatch || bestConfidence < 0.6) {
       return { found: false, confidence: bestConfidence, matchMethod: "search" };

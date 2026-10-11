@@ -3,12 +3,13 @@ import { RecessedCard } from "@/components/cards/RecessedCard";
 import { CoverImage } from "@/components/ui/CoverImage";
 import { SlideArtworkKind, type SlideArtworkKind as SlideArtworkKindType } from "@/components/ui/SlideArtworkTypes";
 import { VinylRecord } from "@/components/vinyl/VinylRecord";
-import { VinylDiscFormat, VinylLabelVariant, VinylSpinState } from "@/components/vinyl/VinylRecord.types";
+import { VinylDiscFormat, VinylSpinState } from "@/components/vinyl/VinylRecord.types";
 import { cn } from "@/lib/utils";
 
 interface SlideArtworkProps {
   /** Whether the spinning Single should slide in (only this row gets the disc). */
   active: boolean;
+  /** The row's cover. Also the spinning Single's label; without it the label stays generic. */
   artworkUrl?: string;
   /** "round" for artists, "square" for tracks/albums. */
   kind?: SlideArtworkKindType;
@@ -101,9 +102,10 @@ export function SlideArtwork({
         {/* Spinning Single: mounted for the selected row AND through its exit glide.
             On enter it drops in from the top (mc-disc-drop-in); on exit it drops
             back down out of the tile (mc-disc-drop-out) and unmounts once that
-            animation ends. Sized to the tile so the round disc settles centred
-            with its cover art as the label. Sits below the rim
-            shadow only, so its face is never dimmed. */}
+            animation ends. Sized to the tile so the round disc settles centered
+            with the row's cover as its label; a row without a cover keeps the
+            generic label. Sits below the rim shadow only, so its face is never
+            dimmed. */}
         {discMounted && (
           <div
             className={cn(
@@ -117,20 +119,24 @@ export function SlideArtwork({
               if (event.target === event.currentTarget && !active) setDiscMounted(false);
             }}
           >
+            {/* Tile-sized, so the label prints no text: it would be a pixel or two
+                high, and painting it on every frame of the drop-in drops frames. */}
             <VinylRecord
               className="h-full w-full"
               discFormat={VinylDiscFormat.Single}
-              labelVariant={VinylLabelVariant.Generic}
+              labelArtworkUrl={artworkUrl}
+              labelTypography={false}
               spinState={VinylSpinState.Playing}
             />
           </div>
         )}
 
         {/* Cover artwork -- drops out downward on enter, slides back in from the
-            top on exit (see coverSlideClass). */}
-        <div
-          className={cn("relative z-0 h-full w-full transform-gpu bg-surface will-change-transform", coverSlideClass)}
-        >
+            top on exit (see coverSlideClass). It carries no layer hint at rest:
+            the browser gives it a layer only while its slide runs, because a
+            result list mounts dozens of these at once and a layer for each
+            costs Safari two to three frames of 60 to 80 ms as the list appears. */}
+        <div className={cn("relative z-0 h-full w-full bg-surface", coverSlideClass)}>
           <CoverImage artworkUrl={artworkUrl} kind={kind} imgDim={imgDim} iconSize={20} decoding={decoding} />
         </div>
 

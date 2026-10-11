@@ -98,10 +98,7 @@ test("validates only affected workspaces after early path detection", () => {
   assert.match(typecheckJob, /- name: Build shared package[\s\S]*?- name: Generate developer API reference/);
   assert.match(typecheckJob, /outputs\.dashboard == 'true'/);
   assert.match(typecheckJob, /outputs\.dashboard_ui == 'true'/);
-  assert.match(
-    typecheckJob,
-    /node --test scripts\/ci-workflow\.test\.mjs scripts\/zerops-deploy\.test\.mjs scripts\/readme-links\.test\.mjs/,
-  );
+  assert.match(typecheckJob, /node --test scripts\/\*\.test\.mjs/);
   assert.match(typecheckJob, /needs\.detect-validation-changes\.outputs\.shared == 'true'/);
 });
 
@@ -120,7 +117,7 @@ test("keeps CI independent from the removed project-local app runner", async () 
 
   assert.match(
     typecheckJob,
-    /- name: Workflow and deployment contracts[\s\S]*?node --test scripts\/ci-workflow\.test\.mjs scripts\/zerops-deploy\.test\.mjs scripts\/readme-links\.test\.mjs/,
+    /- name: Workflow and deployment contracts[\s\S]*?node --test scripts\/\*\.test\.mjs/,
   );
   assert.doesNotMatch(typecheckJob, /\bapp(?:\.test\.mjs)?\b/);
   await assert.rejects(access(new URL("../app", import.meta.url)));

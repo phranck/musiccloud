@@ -50,10 +50,11 @@ function internalHeaders(extra?: Record<string, string>): Record<string, string>
 }
 
 /**
- * Build X-Forwarded-For extras for backend calls that hit per-IP rate
- * limits. Without this header the backend `apiRateLimiter` buckets by the
- * frontend pod IP, so all SSR-driven calls share one 10 requests per
- * 60 seconds bucket globally — see `apps/backend/src/lib/infra/rate-limiter.ts:67-72`.
+ * Build X-Forwarded-For extras for backend calls. Every backend call passes
+ * one, because the backend's limiters are keyed by address: without it a call
+ * counts against the frontend container's own address, so the per-route
+ * limiters and the global 300-per-minute limit in `server.ts` would count every
+ * visitor's genre tiles, navigation and examples against one shared budget.
  * Pass `Astro.clientAddress` (or the equivalent in API endpoints) so the
  * backend buckets per real user.
  *
@@ -134,7 +135,8 @@ export async function fetchSharePreview(
 
 /** Stream a CC track's audio from the backend `ccAudio` proxy. Returns the raw
  *  upstream Response (status + headers + body stream) so the Astro handler can
- *  relay it same-origin, passing the visitor's `Range` header through for seeks.
+ *  relay it same-origin, passing the visitor's `Range` header through for seeks,
+ *  or the error envelope of {@link forwardToBackend} when the backend is unreachable.
  *  An optional `format` selects the Jamendo delivery format; omitted lets the
  *  backend apply its default. No timeout — audio streams are long-lived. */
 export async function fetchCcAudio(
@@ -148,12 +150,13 @@ export async function fetchCcAudio(
     ...(range ? { Range: range } : {}),
     ...(clientIp ? { "X-Forwarded-For": clientIp } : {}),
   };
-  return fetch(backendUrl(ENDPOINTS.v1.ccAudio(jamendoId, format)), { headers });
+  return forwardToBackend(backendUrl(ENDPOINTS.v1.ccAudio(jamendoId, format)), { headers });
 }
 
 /** Fetch a CC track's audio from the backend `ccDownload` proxy as a named
  *  attachment. Returns the raw upstream Response so the Astro handler can relay
- *  the body + `Content-Disposition` / `Content-Type` headers same-origin. An
+ *  the body + `Content-Disposition` / `Content-Type` headers same-origin, or the
+ *  error envelope of {@link forwardToBackend} when the backend is unreachable. An
  *  optional `format` selects the Jamendo delivery format. */
 export async function fetchCcDownload(
   jamendoId: string,
@@ -164,7 +167,7 @@ export async function fetchCcDownload(
     ...(INTERNAL_API_KEY ? { "X-API-Key": INTERNAL_API_KEY } : {}),
     ...(clientIp ? { "X-Forwarded-For": clientIp } : {}),
   };
-  return fetch(backendUrl(ENDPOINTS.v1.ccDownload(jamendoId, format)), { headers });
+  return forwardToBackend(backendUrl(ENDPOINTS.v1.ccDownload(jamendoId, format)), { headers });
 }
 
 /** Fetch share page data (track or album) by shortId from the backend. */
@@ -246,7 +249,7 @@ function transportFailureCode(error: unknown): string | undefined {
   return typeof code === "string" ? code : undefined;
 }
 
-function transportFailureResult(error: unknown): BackendFetchResult<never> {
+function transportFailureResult(error: unknown): Extract<BackendFetchResult<never>, { kind: "error" }> {
   const timedOut = error instanceof Error && error.name === "AbortError";
   const failureCode = transportFailureCode(error);
   const reason = failureCode ? TRANSPORT_FAILURE_REASONS[failureCode] : undefined;
@@ -277,6 +280,36 @@ function transportFailureResult(error: unknown): BackendFetchResult<never> {
   };
 }
 
+/**
+ * Relays a browser request to the backend for an Astro route, and answers a
+ * forward that fails before the backend replies with the public error envelope.
+ *
+ * The routes under `pages/api` hand the returned `Response` to the browser, so
+ * a rejection here would escape them as an unhandled error and the visitor
+ * would see a failure with no `MC-*` code and no error ID to quote. A forward
+ * that runs out of time becomes `504` with `MC-API-0005`, one that cannot
+ * connect becomes `503` with `MC-SYS-0002`, both logged with the error ID by
+ * {@link transportFailureResult}. A reply from the backend, whatever its
+ * status, is returned unchanged.
+ *
+ * @param url - The backend URL to request.
+ * @param options - Request options; the timeout signal is added when `timeoutMs` is set.
+ * @param timeoutMs - Abort budget in milliseconds, or `undefined` for a
+ *   long-lived stream such as audio that must not be cut off.
+ * @returns The backend's response, or a JSON error envelope when none arrived.
+ */
+async function forwardToBackend(url: string, options: RequestInit, timeoutMs?: number): Promise<Response> {
+  try {
+    return timeoutMs === undefined ? await fetch(url, options) : await fetchWithTimeout(url, options, timeoutMs);
+  } catch (error) {
+    const failure = transportFailureResult(error);
+    return new Response(JSON.stringify(failure.error), {
+      status: failure.statusCode,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+}
+
 /** Forward a resolve request to the backend. */
 export async function resolveTrack(
   body: { query?: string; selectedCandidate?: string },
@@ -286,7 +319,7 @@ export async function resolveTrack(
   const extra: Record<string, string> = {};
   if (clientIp) extra["X-Forwarded-For"] = clientIp;
   if (origin) extra.Origin = origin;
-  return fetchWithTimeout(
+  return forwardToBackend(
     backendUrl(ENDPOINTS.v1.resolve),
     {
       method: "POST",
@@ -312,7 +345,8 @@ export async function resolveTrack(
  *   Pass `Astro.clientAddress` from the proxy handler.
  * @param origin - The `Origin` header from the incoming browser request,
  *   forwarded for CORS audit on the backend side.
- * @returns The raw `Response` from the backend. The caller (Astro proxy) is
+ * @returns The raw `Response` from the backend, or the error envelope of
+ *   {@link forwardToBackend} when none arrived. The caller (Astro proxy) is
  *   responsible for streaming the body and propagating status / headers.
  */
 export async function resolveCcTrack(
@@ -323,7 +357,7 @@ export async function resolveCcTrack(
   const extra: Record<string, string> = {};
   if (clientIp) extra["X-Forwarded-For"] = clientIp;
   if (origin) extra.Origin = origin;
-  return fetchWithTimeout(
+  return forwardToBackend(
     backendUrl(ENDPOINTS.v1.ccResolve),
     {
       method: "POST",
@@ -344,8 +378,12 @@ export async function resolveCcTrack(
  * under contention a single tile can legitimately wait well past 15 s
  * for its turn on the event loop.
  */
-export async function fetchGenreArtwork(genreKey: string): Promise<Response> {
-  return fetchWithTimeout(backendUrl(ENDPOINTS.v1.genreArtwork(genreKey)), { headers: internalHeaders() }, 60000);
+export async function fetchGenreArtwork(genreKey: string, clientIp?: string): Promise<Response> {
+  return fetchWithTimeout(
+    backendUrl(ENDPOINTS.v1.genreArtwork(genreKey)),
+    { headers: internalHeaders(forwardedForExtra(clientIp)) },
+    60000,
+  );
 }
 
 /**
@@ -363,8 +401,12 @@ export async function fetchGenreArtwork(genreKey: string): Promise<Response> {
  * @param id - the `email_assets.id` to fetch.
  * @returns the raw upstream `Response`.
  */
-export async function fetchEmailAsset(id: string): Promise<Response> {
-  return fetchWithTimeout(backendUrl(ENDPOINTS.admin.emailAssets.detail(id)), { headers: internalHeaders() }, 15000);
+export async function fetchEmailAsset(id: string, clientIp?: string): Promise<Response> {
+  return fetchWithTimeout(
+    backendUrl(ENDPOINTS.admin.emailAssets.detail(id)),
+    { headers: internalHeaders(forwardedForExtra(clientIp)) },
+    15000,
+  );
 }
 
 /**
@@ -378,14 +420,22 @@ export async function fetchEmailAsset(id: string): Promise<Response> {
  * Jimp-based rendering is CPU-bound, so a single tile can legitimately wait past
  * 15 s for its turn on the event loop.
  */
-export async function fetchCcGenreArtwork(genreKey: string): Promise<Response> {
-  return fetchWithTimeout(backendUrl(ENDPOINTS.v1.ccGenreArtwork(genreKey)), { headers: internalHeaders() }, 60000);
+export async function fetchCcGenreArtwork(genreKey: string, clientIp?: string): Promise<Response> {
+  return fetchWithTimeout(
+    backendUrl(ENDPOINTS.v1.ccGenreArtwork(genreKey)),
+    { headers: internalHeaders(forwardedForExtra(clientIp)) },
+    60000,
+  );
 }
 
 /** Fetch a random short ID from the backend for the landing page example teaser. */
-export async function fetchRandomExample(): Promise<{ shortId: string } | null> {
+export async function fetchRandomExample(clientIp?: string): Promise<{ shortId: string } | null> {
   try {
-    const res = await fetchWithTimeout(backendUrl(ENDPOINTS.v1.randomExample), { headers: internalHeaders() }, 3000);
+    const res = await fetchWithTimeout(
+      backendUrl(ENDPOINTS.v1.randomExample),
+      { headers: internalHeaders(forwardedForExtra(clientIp)) },
+      3000,
+    );
     if (!res.ok) return null;
     return res.json() as Promise<{ shortId: string }>;
   } catch {
@@ -394,9 +444,13 @@ export async function fetchRandomExample(): Promise<{ shortId: string } | null> 
 }
 
 /** Fetch a random CC track short ID for the landing page example teaser in CC mode. */
-export async function fetchCcRandomExample(): Promise<{ shortId: string } | null> {
+export async function fetchCcRandomExample(clientIp?: string): Promise<{ shortId: string } | null> {
   try {
-    const res = await fetchWithTimeout(backendUrl(ENDPOINTS.v1.ccRandomExample), { headers: internalHeaders() }, 3000);
+    const res = await fetchWithTimeout(
+      backendUrl(ENDPOINTS.v1.ccRandomExample),
+      { headers: internalHeaders(forwardedForExtra(clientIp)) },
+      3000,
+    );
     if (!res.ok) return null;
     return res.json() as Promise<{ shortId: string }>;
   } catch {
@@ -407,7 +461,7 @@ export async function fetchCcRandomExample(): Promise<{ shortId: string } | null
 /**
  * In-process TTL cache for the design tokens. The BFF has no cache layer and
  * `output: "server"` re-runs SSR on every request, so without this each render
- * would hit the backend's dedicated `max: 2` pool and share the
+ * would cost a backend database read and count against the visitor's
  * `apiRateLimiter` bucket (see {@link forwardedForExtra}). One fetch per TTL
  * window across all renders is plenty — tokens change only on an admin save.
  *
@@ -425,13 +479,13 @@ const DESIGN_TOKENS_TTL_MS = import.meta.env.DEV ? 0 : 60_000;
  * CSS-injection-safe regardless of transport. Falls back to the last good cache,
  * then to the canonical defaults, on any error — SSR never throws on this path.
  */
-export async function fetchDesignTokens(): Promise<DesignTokens> {
+export async function fetchDesignTokens(clientIp?: string): Promise<DesignTokens> {
   const now = Date.now();
   if (designTokensCache && designTokensCache.expiresAt > now) return designTokensCache.tokens;
   try {
     const res = await fetchWithTimeout(
       backendUrl(ENDPOINTS.v1.siteSettings.designTokens),
-      { headers: internalHeaders() },
+      { headers: internalHeaders(forwardedForExtra(clientIp)) },
       5000,
     );
     if (!res.ok) throw new Error(`design-tokens responded ${res.status}`);
@@ -447,15 +501,38 @@ export async function fetchDesignTokens(): Promise<DesignTokens> {
 }
 
 /** Fetch the public navigation items for header or footer. SSR-safe; returns [] on failure. */
-export async function fetchNavigation(navId: NavId): Promise<NavItem[]> {
+export async function fetchNavigation(navId: NavId, clientIp?: string): Promise<NavItem[]> {
+  const now = Date.now();
+  const cached = navigationCache.get(navId);
+  if (cached && cached.expiresAt > now) return cached.items;
   try {
-    const res = await fetchWithTimeout(backendUrl(ENDPOINTS.v1.nav(navId)), { headers: internalHeaders() }, 5000);
-    if (!res.ok) return [];
-    return (await res.json()) as NavItem[];
+    const res = await fetchWithTimeout(
+      backendUrl(ENDPOINTS.v1.nav(navId)),
+      { headers: internalHeaders(forwardedForExtra(clientIp)) },
+      5000,
+    );
+    if (!res.ok) throw new Error(`navigation responded ${res.status}`);
+    const items = (await res.json()) as NavItem[];
+    navigationCache.set(navId, { items, expiresAt: now + NAVIGATION_TTL_MS });
+    return items;
   } catch {
-    return [];
+    // A failure keeps serving the last good items for another window. With none
+    // to fall back on it answers empty without caching, so the next render asks
+    // again instead of rendering an empty navigation for the whole window.
+    if (!cached) return [];
+    navigationCache.set(navId, { items: cached.items, expiresAt: now + NAVIGATION_TTL_MS });
+    return cached.items;
   }
 }
+
+/**
+ * In-process TTL cache for the header and footer navigation, for the same
+ * reason as {@link designTokensCache}: every SSR render of every page asks for
+ * it, and it changes only when an editor saves the navigation. Dev uses a zero
+ * TTL so an edit shows on the next reload.
+ */
+const navigationCache = new Map<NavId, { items: NavItem[]; expiresAt: number }>();
+const NAVIGATION_TTL_MS = import.meta.env.DEV ? 0 : 60_000;
 
 /** Fetch a single published content page by slug, with server-rendered HTML. */
 export async function fetchPublicContentPage(
@@ -480,7 +557,8 @@ export async function fetchPublicContentPage(
  * artists). `artistEntityId` selects an exact normalized artist identity when
  * available. Returns the raw `Response` so the Astro proxy at
  * `pages/api/artist-info.ts` can stream the JSON body straight through
- * with the upstream status. The backend route is rate-limited by the
+ * with the upstream status, or the error envelope of {@link forwardToBackend}
+ * when the backend did not answer. The backend route is rate-limited by the
  * shared `apiRateLimiter` bucket; passing `clientIp` keeps the bucket
  * per-user.
  */
@@ -496,7 +574,7 @@ export async function fetchArtistInfo(
   if (context?.shortId) params.set("shortId", context.shortId);
   if (context?.artistEntityId) params.set("artistEntityId", context.artistEntityId);
   if (context?.refresh) params.set("refresh", context.refresh);
-  return fetchWithTimeout(
+  return forwardToBackend(
     `${backendUrl(ENDPOINTS.v1.artistInfo)}?${params.toString()}`,
     { headers: internalHeaders(forwardedForExtra(clientIp)) },
     10000,
@@ -512,7 +590,7 @@ export async function fetchCcArtistInfo(
   clientIp?: string,
 ): Promise<Response> {
   const params = new URLSearchParams({ jamendoArtistId, artistName });
-  return fetchWithTimeout(
+  return forwardToBackend(
     `${backendUrl(ENDPOINTS.v1.ccArtistInfo)}?${params.toString()}`,
     { headers: internalHeaders(forwardedForExtra(clientIp)) },
     20000,
@@ -523,7 +601,7 @@ export async function fetchCcArtistInfo(
  *  Loaded async by the CC share page after the core card renders; the budget
  *  covers the backend's (cached, timeout-bounded) fuzzy-search scrape. */
 export async function fetchCcBandcamp(jamendoId: string, clientIp?: string): Promise<Response> {
-  return fetchWithTimeout(
+  return forwardToBackend(
     backendUrl(ENDPOINTS.v1.ccBandcamp(jamendoId)),
     { headers: internalHeaders(forwardedForExtra(clientIp)) },
     12000,

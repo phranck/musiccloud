@@ -1,5 +1,5 @@
 import { CaretDownIcon } from "@phosphor-icons/react";
-import { useId } from "react";
+import { memo, useId } from "react";
 import { recessedControlInsetClassName } from "@/components/cards/cardGeometry";
 import { RecessedCard } from "@/components/cards/RecessedCard";
 import { sectionCardHeaderClassName, sectionCardTitleClassName } from "@/components/cards/sectionCardChromeStyles";
@@ -94,15 +94,12 @@ interface CcTrackDetailsSectionProps {
  *
  * A divider separates it from the player/share block above; a titled toggle row
  * (uppercase "Details" + caret, mirroring the other section headers) expands a
- * {@link CollapsibleHeight} holding Jamendo's `musicinfo` classification (genres,
- * instruments, mood, vocal/instrumental, voice, tempo, character, language) and
- * `stats` counters (listens, downloads, favorites, playlisted, rating). Default
+ * {@link CollapsibleHeight} holding {@link CcTrackDetailsRows}. Default
  * collapsed; the state persists across visits.
  *
  * Self-hides (returns `null`) when the track carries no displayable details — and
  * because the divider lives inside, the host card shows nothing extra in that
- * case. Classification values render verbatim from Jamendo (raw English tags),
- * capitalised via CSS only.
+ * case.
  *
  * @param content - The resolved CC track content configuration.
  */
@@ -112,6 +109,52 @@ export function CcTrackDetailsSection({ content }: CcTrackDetailsSectionProps) {
 
   if (!hasCcTrackDetails(content)) return null;
 
+  return (
+    // The section owns the bottom padding (matching the header's top) so the
+    // collapsed title sits centred above the card edge instead of hugging it; the
+    // wells therefore carry only horizontal padding.
+    <div className="border-t border-white/[0.08] pb-[var(--mc-pad-header,0.75rem)]">
+      <button
+        type="button"
+        onClick={toggleExpanded}
+        aria-expanded={expanded}
+        aria-controls={detailsId}
+        className={cn(
+          sectionCardHeaderClassName,
+          "flex w-full cursor-pointer items-center justify-between gap-2 border-0 bg-transparent text-left",
+        )}
+      >
+        <span className={sectionCardTitleClassName}>{creativeCommonsCopy.details.title}</span>
+        <CaretDownIcon
+          weight="bold"
+          className={cn("size-4 shrink-0 transition-transform duration-200", expanded && "rotate-180")}
+          aria-hidden="true"
+        />
+      </button>
+      <CollapsibleHeight
+        id={detailsId}
+        expanded={expanded}
+        className="flex flex-col gap-[var(--mc-pad-card,0.75rem)] px-[var(--mc-pad-card,0.75rem)]"
+      >
+        <CcTrackDetailsRows content={content} />
+      </CollapsibleHeight>
+    </div>
+  );
+}
+
+/**
+ * The two details wells: Jamendo's `musicinfo` classification (genres,
+ * instruments, mood, vocal/instrumental, voice, tempo, character, language) and
+ * its `stats` counters (listens, downloads, favorites, playlisted, rating).
+ * Classification values render verbatim from Jamendo (raw English tags),
+ * capitalised via CSS only.
+ *
+ * Memoised on `content`, so toggling the section re-renders its header and not
+ * these rows, which keeps the click's frame free for the animation.
+ *
+ * @param content - The resolved CC track content configuration.
+ */
+const CcTrackDetailsRows = memo(function CcTrackDetailsRows({ content }: CcTrackDetailsSectionProps) {
   const mi = content.musicInfo;
   const st = content.stats;
 
@@ -204,51 +247,25 @@ export function CcTrackDetailsSection({ content }: CcTrackDetailsSectionProps) {
     : [];
 
   return (
-    // The section owns the bottom padding (matching the header's top) so the
-    // collapsed title sits centred above the card edge instead of hugging it; the
-    // wells therefore carry only horizontal padding.
-    <div className="border-t border-white/[0.08] pb-[var(--mc-pad-header,0.75rem)]">
-      <button
-        type="button"
-        onClick={toggleExpanded}
-        aria-expanded={expanded}
-        aria-controls={detailsId}
-        className={cn(
-          sectionCardHeaderClassName,
-          "flex w-full cursor-pointer items-center justify-between gap-2 border-0 bg-transparent text-left",
-        )}
-      >
-        <span className={sectionCardTitleClassName}>{creativeCommonsCopy.details.title}</span>
-        <CaretDownIcon
-          weight="bold"
-          className={cn("size-4 shrink-0 transition-transform duration-200", expanded && "rotate-180")}
-          aria-hidden="true"
-        />
-      </button>
-      <CollapsibleHeight
-        id={detailsId}
-        expanded={expanded}
-        className="flex flex-col gap-[var(--mc-pad-card,0.75rem)] px-[var(--mc-pad-card,0.75rem)]"
-      >
-        {classRows.length > 0 && (
-          <RecessedCard className={recessedControlInsetClassName}>
-            <RecessedCard.Body className="flex flex-col divide-y divide-white/[0.06] py-1">
-              {classRows.map(({ key, ...row }) => (
-                <DetailRow key={key} {...row} />
-              ))}
-            </RecessedCard.Body>
-          </RecessedCard>
-        )}
-        {statRows.length > 0 && (
-          <RecessedCard className={recessedControlInsetClassName}>
-            <RecessedCard.Body className="flex flex-col divide-y divide-white/[0.06] py-1">
-              {statRows.map(({ key, ...row }) => (
-                <DetailRow key={key} {...row} />
-              ))}
-            </RecessedCard.Body>
-          </RecessedCard>
-        )}
-      </CollapsibleHeight>
-    </div>
+    <>
+      {classRows.length > 0 && (
+        <RecessedCard className={recessedControlInsetClassName}>
+          <RecessedCard.Body className="flex flex-col divide-y divide-white/[0.06] py-1">
+            {classRows.map(({ key, ...row }) => (
+              <DetailRow key={key} {...row} />
+            ))}
+          </RecessedCard.Body>
+        </RecessedCard>
+      )}
+      {statRows.length > 0 && (
+        <RecessedCard className={recessedControlInsetClassName}>
+          <RecessedCard.Body className="flex flex-col divide-y divide-white/[0.06] py-1">
+            {statRows.map(({ key, ...row }) => (
+              <DetailRow key={key} {...row} />
+            ))}
+          </RecessedCard.Body>
+        </RecessedCard>
+      )}
+    </>
   );
-}
+});

@@ -42,6 +42,11 @@ export function TechnicalContactSection({ technicalContactEmail }: TechnicalCont
     setError(null);
   }, []);
 
+  // Nothing to save while the field holds what is on file, whether that came
+  // from the server or from a save made here.
+  const onFile = savedHere ? savedHere.email : technicalContactEmail;
+  const changed = value.trim() !== (onFile ?? "");
+
   const onSubmit = useCallback(
     async (event: SyntheticEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -64,8 +69,6 @@ export function TechnicalContactSection({ technicalContactEmail }: TechnicalCont
     },
     [value],
   );
-
-  const onFile = savedHere ? savedHere.email : technicalContactEmail;
 
   return (
     <ContentCard>
@@ -104,8 +107,8 @@ export function TechnicalContactSection({ technicalContactEmail }: TechnicalCont
           </ContentCard.Body.Copy>
         </ContentCard.Body>
         <ContentCard.Footer>
-          <SubmitButton loading={phase === FormPhase.Submitting}>
-            {phase === FormPhase.Success ? "Saved" : "Save contact"}
+          <SubmitButton loading={phase === FormPhase.Submitting} disabled={!changed}>
+            {phase === FormPhase.Success && !changed ? "Saved" : "Save contact"}
           </SubmitButton>
         </ContentCard.Footer>
       </form>

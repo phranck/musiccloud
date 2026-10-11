@@ -14,8 +14,8 @@ vi.mock("../../../db/index.js", () => ({
   getRepository: async () => commercialRepository,
 }));
 
-const refreshAlbumVinylLayout = vi.fn();
-vi.mock("../../../services/track-vinyl-layout.js", () => ({ refreshAlbumVinylLayout }));
+const resolveAlbumVinylLayout = vi.fn();
+vi.mock("../../../services/track-vinyl-layout.js", () => ({ resolveAlbumVinylLayout }));
 
 const buildCcAlbumPayload = vi.fn();
 const buildCcArtistPayload = vi.fn();
@@ -65,7 +65,7 @@ describe("loadCcByShortId", () => {
       artistName: "Madpix",
       albumName: "Changes",
     });
-    refreshAlbumVinylLayout.mockResolvedValue(VINYL_LAYOUT);
+    resolveAlbumVinylLayout.mockResolvedValue(VINYL_LAYOUT);
 
     const res = await loadCcByShortId("V0onz", "https://musiccloud.io");
 
@@ -76,7 +76,7 @@ describe("loadCcByShortId", () => {
       artistName: "Madpix",
       albumName: "Changes",
     });
-    expect(refreshAlbumVinylLayout).toHaveBeenCalledWith(commercialRepository, {
+    expect(resolveAlbumVinylLayout).toHaveBeenCalledWith(commercialRepository, {
       artists: ["Madpix"],
       title: "Changes",
     });
@@ -93,6 +93,36 @@ describe("loadCcByShortId", () => {
     expect(buildCcAlbumPayload).not.toHaveBeenCalled();
   });
 
+  it("names Jamendo in the link preview of a track and an album that have a Jamendo page", async () => {
+    resolveAlbumVinylLayout.mockResolvedValue(null);
+    findCcShortId.mockResolvedValue({ kind: "cc-track", jamendoId: "j1" });
+    loadCcTrackByShortId.mockResolvedValue({
+      jamendoId: "j1",
+      title: "Moments",
+      artistName: "Madpix",
+      shareUrl: "https://www.jamendo.com/track/j1",
+    });
+    expect((await loadCcByShortId("V0onz", "https://musiccloud.io"))?.og.description).toBe("Listen on Jamendo");
+
+    findCcShortId.mockResolvedValue({ kind: "cc-album", jamendoId: "a1" });
+    loadCcAlbumByShortId.mockResolvedValue({
+      album: { jamendoId: "a1", name: "Suite", artistName: "Olepash", shareUrl: "https://www.jamendo.com/album/a1" },
+      tracks: [],
+    });
+    buildCcAlbumPayload.mockResolvedValue({ album: { name: "Suite", tracks: [] }, artistInfo: ARTIST_INFO });
+    expect((await loadCcByShortId("8oTIg", "https://musiccloud.io"))?.og.description).toBe("Listen on Jamendo");
+  });
+
+  it("keeps the generic link preview for a track without a Jamendo page", async () => {
+    resolveAlbumVinylLayout.mockResolvedValue(null);
+    findCcShortId.mockResolvedValue({ kind: "cc-track", jamendoId: "j1" });
+    loadCcTrackByShortId.mockResolvedValue({ jamendoId: "j1", title: "Moments", artistName: "Madpix" });
+
+    expect((await loadCcByShortId("V0onz", "https://musiccloud.io"))?.og.description).toBe(
+      "Find this song on musiccloud",
+    );
+  });
+
   it("returns null when the cc-track row is gone despite a short-id lookup", async () => {
     findCcShortId.mockResolvedValue({ kind: "cc-track", jamendoId: "j1" });
     loadCcTrackByShortId.mockResolvedValue(null);
@@ -107,7 +137,7 @@ describe("loadCcByShortId", () => {
       tracks: [{ jamendoId: "t1" }, { jamendoId: "t2" }],
     });
     buildCcAlbumPayload.mockResolvedValue({ album: { name: "Suite", tracks: [{}, {}] }, artistInfo: ARTIST_INFO });
-    refreshAlbumVinylLayout.mockResolvedValue(VINYL_LAYOUT);
+    resolveAlbumVinylLayout.mockResolvedValue(VINYL_LAYOUT);
 
     const res = await loadCcByShortId("8oTIg", "https://musiccloud.io");
 
@@ -116,7 +146,7 @@ describe("loadCcByShortId", () => {
       { jamendoId: "t1" },
       { jamendoId: "t2" },
     ]);
-    expect(refreshAlbumVinylLayout).toHaveBeenCalledWith(commercialRepository, {
+    expect(resolveAlbumVinylLayout).toHaveBeenCalledWith(commercialRepository, {
       artists: ["Olepash"],
       title: "Suite",
     });
@@ -147,7 +177,7 @@ describe("loadCcByShortId", () => {
     expect(buildCcArtistPayload).toHaveBeenCalledWith({ jamendoId: "ar1", name: "pinegroove" }, [{ jamendoId: "t1" }]);
     expect(res).toMatchObject({ type: "cc-artist", artist: { name: "pinegroove" } });
     expect(res?.og.title).toBe("pinegroove - musiccloud");
-    expect(refreshAlbumVinylLayout).not.toHaveBeenCalled();
+    expect(resolveAlbumVinylLayout).not.toHaveBeenCalled();
   });
 
   it("returns null when the cc-artist row is gone", async () => {

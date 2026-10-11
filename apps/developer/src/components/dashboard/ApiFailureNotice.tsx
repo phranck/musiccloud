@@ -43,10 +43,10 @@ export function ApiFailureNotice({ code, message, errorId, retryAfterSeconds }: 
     <div role="alert" className="status-message status-message--danger flex flex-col gap-1">
       <p className="text-body text-fg">{message ?? FALLBACK_MESSAGE}</p>
       {retryAfterSeconds !== undefined && (
-        <p className="text-nav text-fg-subtle">Try again in {retryAfterSeconds} seconds.</p>
+        <p className="text-body text-fg-subtle">Try again in {retryAfterSeconds} seconds.</p>
       )}
       {(code || errorId) && (
-        <p className="text-nav text-fg-subtle flex items-center gap-2 flex-wrap">
+        <p className="text-body text-fg-subtle flex items-center gap-2 flex-wrap">
           {code && <span>{code}</span>}
           {errorId && (
             <>

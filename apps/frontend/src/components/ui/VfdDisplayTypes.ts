@@ -192,6 +192,13 @@ export interface VfdDisplayLine {
   transition?: VfdContentTransition;
   /** Transient one-shot overlay scrolled out from behind this row's content. */
   scrollOutOverlay?: VfdScrollOutOverlay;
+  /**
+   * Lets the row's lit pixels breathe between full and dimmed brightness for as
+   * long as it is set, so a state the reader must not miss stands out from
+   * steady text. The unlit matrix behind them stays as it is. Clearing it lets
+   * the running cycle return to full brightness first. Ignored under reduced motion.
+   */
+  pulse?: boolean;
   /** Stable content identity for non-string ReactNode content. String content uses itself as identity. */
   key?: string;
   /** Optional CSS class applied to the row content wrapper. */
@@ -328,6 +335,7 @@ export interface NormalizedVfdLine {
   marquee?: VfdMarqueeMode;
   transition: VfdContentTransition;
   scrollOutOverlay?: VfdScrollOutOverlay;
+  pulse: boolean;
   className?: string;
 }
 
@@ -355,6 +363,18 @@ export interface VfdMarqueeRuntimeState {
   previousFrameTime: number | null;
 }
 
+/** Per-row pulse in progress on the canvas. */
+export interface VfdPulseRuntimeState {
+  /** performance.now() timestamp at which the row began to pulse; the cycle phase counts from here. */
+  startedAt: number;
+  /**
+   * Timestamp at which the pulse ends, set once the row stops asking to pulse.
+   * It is the end of the cycle running at that moment, so the row returns to
+   * full brightness rather than jumping to it. `null` while the row still pulses.
+   */
+  stopAt: number | null;
+}
+
 /** Per-row line-swap transition in progress on the canvas. */
 export interface VfdLineTransition {
   previous: NormalizedVfdLine;
@@ -369,6 +389,8 @@ export interface VfdCanvasRenderState {
   marqueeStates: Map<string, VfdMarqueeRuntimeState>;
   /** Active scroll-out overlays keyed by row index. Entries are removed when their animation completes. */
   overlays: Map<number, VfdOverlayRuntimeState>;
+  /** Active pulses keyed by row index. Entries are removed once a stopped pulse has returned to full brightness. */
+  pulses: Map<number, VfdPulseRuntimeState>;
   cellCount: number;
   rowCount: number;
   prefersReducedMotion: boolean;

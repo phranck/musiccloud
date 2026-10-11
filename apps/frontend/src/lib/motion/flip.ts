@@ -23,6 +23,13 @@ import { prefersReducedMotion, setupMotion } from "./setup";
  * - `nested: true` — when a container and its children are both flip targets,
  *   Flip compensates the children for the container's own transform
  * - `onEnter`/`onLeave` — fade+scale tweens for added/removed elements
+ * - `simple: true` on snapshots and animations: Flip reads each element's
+ *   position from `getBoundingClientRect` instead of computing its global
+ *   matrix, which inserts a temporary node and forces a layout per element.
+ *   That is only correct while no ancestor of a flip target is rotated, scaled
+ *   or skewed, which holds for every consumer (plain layout containers whose
+ *   only transforms are identity layer promotions). A new consumer inside a
+ *   scaled or rotated container needs its own call without it.
  *
  * Reduced motion (regression guard): the global CSS rule in
  * `styles/animations.css` (`@media (prefers-reduced-motion: reduce)`) only
@@ -142,7 +149,7 @@ function buildLeaveTween(targets: gsap.TweenTarget, duration: number): gsap.core
  */
 export function captureFlipState(targets: gsap.DOMTarget): CapturedFlipState {
   setupMotion();
-  return Flip.getState(targets);
+  return Flip.getState(targets, { simple: true });
 }
 
 /**
@@ -173,6 +180,7 @@ export function animateFlipFrom(state: CapturedFlipState, options: AnimateFlipFr
     scale: true,
     absolute,
     nested: true,
+    simple: true,
     onEnter: (elements) => buildEnterTween(elements, duration),
     onLeave: (elements) => buildLeaveTween(elements, duration),
   });

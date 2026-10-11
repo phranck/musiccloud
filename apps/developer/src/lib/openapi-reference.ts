@@ -112,7 +112,7 @@ const OpenApiSchemaType = {
 /**
  * Purpose-written labels for the reference rail. They deliberately live in
  * the portal presentation layer: changing a navigation label must not alter
- * the published API contract fingerprint or force an SDK release.
+ * the published API contract fingerprint.
  */
 const CURATED_NAVIGATION_TITLES: Record<string, string> = {
   "GET /api/v1/artist-info": "Artist info",

@@ -10,6 +10,7 @@ vi.mock("@/components/cards/SongInfo", () => ({
     shareMediaView,
     previewStatus,
     statusLine,
+    statusPulsing,
     title,
     mediaViewToggleLabel,
     onMediaViewToggle,
@@ -17,6 +18,7 @@ vi.mock("@/components/cards/SongInfo", () => ({
     shareMediaView?: string;
     previewStatus?: string | null;
     statusLine?: string;
+    statusPulsing?: boolean;
     title: string;
     mediaViewToggleLabel?: string;
     onMediaViewToggle?: () => void;
@@ -28,6 +30,7 @@ vi.mock("@/components/cards/SongInfo", () => ({
       data-media-view={shareMediaView}
       data-preview-status={previewStatus ?? "none"}
       data-status-line={statusLine ?? ""}
+      data-status-pulsing={String(statusPulsing ?? false)}
       onClick={onMediaViewToggle}
       type="button"
     >
@@ -36,15 +39,30 @@ vi.mock("@/components/cards/SongInfo", () => ({
   ),
 }));
 
-// The turntable hub (provider + analyzer slot) owns the audio engine; the
-// ShareLayout test only asserts the media-view/status responsibilities, so the
-// player is stubbed to avoid mounting the real audio engine.
-vi.mock("@/components/turntable/TurntableAnalyzerSlot", () => ({
-  TurntableAnalyzerSlot: () => null,
-}));
+// The analyzer slot is replaced by a probe of the turntable hub, so the test
+// reads the playback lock the share view hands the player without rendering
+// the transport and its canvas.
+vi.mock("@/components/turntable/TurntableAnalyzerSlot", async () => {
+  const { useTurntablePlayer } = await import("@/components/turntable/TurntablePlayerContext");
+  return {
+    TurntableAnalyzerSlot: () => (
+      <div data-testid="playback-lock" data-locked={String(useTurntablePlayer().isPlaybackLocked)} />
+    ),
+  };
+});
 
+// The column is a stub that resolves one fixed row when clicked, so a test can
+// drive an in-place track swap without rendering the artist lists.
 vi.mock("@/components/share/AnimatedArtistColumn", () => ({
-  AnimatedArtistColumn: () => <div data-testid="artist-column" />,
+  AnimatedArtistColumn: ({ onTrackResolve }: { onTrackResolve: (track: unknown) => Promise<void> }) => (
+    <button
+      data-testid="artist-column"
+      onClick={() =>
+        void onTrackResolve({ title: "Moment's Notice", artists: ["John Coltrane"], deezerUrl: "deezer:moment" })
+      }
+      type="button"
+    />
+  ),
 }));
 
 vi.mock("@/components/share/MobileArtistSheet", () => ({
@@ -59,16 +77,25 @@ vi.mock("@/components/cards/EmbossedCard", () => ({
   EmbossedCard: ({ children }: { children: ReactNode }) => <section>{children}</section>,
 }));
 
+/**
+ * Whether the mocked artist-info load is still running, and every context the
+ * column was asked to load for; both reset after each test.
+ */
+const artistInfoLoad = vi.hoisted(() => ({ isLoading: false, contexts: [] as unknown[] }));
+
 vi.mock("@/hooks/useArtistInfo", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/hooks/useArtistInfo")>();
   return {
     ...actual,
-    useArtistInfo: () => ({
-      artistData: null,
-      errorCode: null,
-      isLoading: false,
-      status: actual.ArtistLoadStatus.Ready,
-    }),
+    useArtistInfo: ({ context }: { context: unknown }) => {
+      artistInfoLoad.contexts.push(context);
+      return {
+        artistData: null,
+        errorCode: null,
+        isLoading: artistInfoLoad.isLoading,
+        status: artistInfoLoad.isLoading ? actual.ArtistLoadStatus.Loading : actual.ArtistLoadStatus.Ready,
+      };
+    },
   };
 });
 
@@ -125,6 +152,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  artistInfoLoad.isLoading = false;
+  artistInfoLoad.contexts = [];
   vi.useRealTimers();
   delete document.documentElement.dataset.shareMediaView;
   vi.unstubAllGlobals();
@@ -161,6 +190,54 @@ describe("ShareLayout media view toggle", () => {
         "ARTIST DATA READY · SIDE A · 2 TRACKS",
       ),
     );
+  });
+
+  it("pulses the VFD status and locks playback while the artist data loads, and only then", async () => {
+    artistInfoLoad.isLoading = true;
+    const { rerender } = renderShareLayout();
+
+    const statusRow = screen.getByTestId("song-info-props");
+    expect(statusRow).toHaveAttribute("data-status-line", "ARTIST DATA LOADING...");
+    expect(statusRow).toHaveAttribute("data-status-pulsing", "true");
+    expect(screen.getByTestId("playback-lock")).toHaveAttribute("data-locked", "true");
+
+    artistInfoLoad.isLoading = false;
+    rerender(<ShareLayout config={SHARE_CONFIG} artistName="John Coltrane" animated={false} />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("song-info-props")).toHaveAttribute("data-status-line", "ARTIST DATA READY"),
+    );
+    expect(screen.getByTestId("song-info-props")).toHaveAttribute("data-status-pulsing", "false");
+    expect(screen.getByTestId("playback-lock")).toHaveAttribute("data-locked", "false");
+  });
+
+  /**
+   * The column reloads whenever its context changes. A track by the same artist
+   * has its own short id, so handing that over would blur the column and lock
+   * play again for data that is already on screen.
+   */
+  it("keeps the artist context when a row resolves to a track by the same artist", async () => {
+    const trackResolver = vi.fn().mockResolvedValue({
+      shortUrl: "https://musiccloud.local/s/moment",
+      config: { ...SHARE_CONFIG, title: "Moment's Notice", shortUrl: "https://musiccloud.local/s/moment" },
+      artistName: "John Coltrane",
+      artistInfoContext: { shortId: "moment", artistEntityId: "coltrane" },
+    });
+    render(
+      <ShareLayout
+        config={SHARE_CONFIG}
+        artistName="John Coltrane"
+        artistInfoContext={{ shortId: "blue", artistEntityId: "coltrane" }}
+        animated={false}
+        trackResolver={trackResolver}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("artist-column"));
+    await waitFor(() => expect(screen.getByTestId("song-info-props")).toHaveTextContent("Moment's Notice"));
+
+    expect(new Set(artistInfoLoad.contexts)).toEqual(new Set([{ shortId: "blue", artistEntityId: "coltrane" }]));
+    expect(artistInfoLoad.contexts.at(-1)).toBe(artistInfoLoad.contexts[0]);
   });
 
   it("renders only the viewport-matching layout, never both", () => {

@@ -39,6 +39,15 @@ export interface AudioPlayerProps {
    * continue behaviour.
    */
   recordSwapKey?: string;
+  /**
+   * Holds the transport while the host is still putting the view together,
+   * such as while the artist data loads: the play button is disabled, and the
+   * spacebar and media keys do nothing. Calls to `togglePlay` itself still run,
+   * because the turntable's restart after a record swap goes through it and is
+   * part of the swap rather than an input. Unlike `isDisabled`, it leaves the
+   * time display and the analyzer alone, since a record may still be playing.
+   */
+  playbackLocked?: boolean;
   /** Fires synchronously when the user starts playback via click, media key, or Space. */
   onPlaybackIntent?: () => void;
   onStatusChange?: (status: AudioStatusType) => void;
@@ -251,6 +260,30 @@ interface StereoSpectrumData {
 interface StereoSpectrumAnalysers {
   left: AnalyserNode;
   right: AnalyserNode;
+}
+
+/**
+ * The Web Audio nodes built for one audio element. Every field is null when the
+ * graph was never built or only partly built.
+ */
+interface AudioGraphNodes {
+  source: MediaElementAudioSourceNode | null;
+  splitter: ChannelSplitterNode | null;
+  analysers: StereoSpectrumAnalysers | null;
+  gain: GainNode | null;
+}
+
+/**
+ * Disconnects every node of one element's graph. Safe on a partly built graph.
+ *
+ * @param nodes - The graph to take out of the audio routing.
+ */
+function disconnectAudioGraph(nodes: AudioGraphNodes): void {
+  nodes.source?.disconnect();
+  nodes.splitter?.disconnect();
+  nodes.analysers?.left.disconnect();
+  nodes.analysers?.right.disconnect();
+  nodes.gain?.disconnect();
 }
 
 /**
@@ -518,6 +551,7 @@ export function useAudioController({
   mediaKind,
   trackTitle,
   recordSwapKey,
+  playbackLocked = false,
   onPlaybackIntent,
   onStatusChange,
   onSeekHint,
@@ -561,6 +595,10 @@ export function useAudioController({
   // closing it. Only a real unmount (no following source effect) leaves it false and
   // closes the context. See the source effect + finishTeardown.
   const switchPendingRef = useRef(false);
+  // True once the source effect has mounted a source, so a later run is a switch.
+  // `hasStartedRef` turns true only on a first play, and a track that failed to
+  // load or was never played still leaves its phase behind for the next track.
+  const hasMountedSourceRef = useRef(false);
   // REGRESSION GUARD — do not defeat the quantize. This is the only React state the
   // playback progress feeds, and it is sampled on the shared 60 Hz ticker
   // (startProgressLoop). It MUST only ever be written through setProgressRatioValue,
@@ -760,23 +798,33 @@ export function useAudioController({
     onPlaybackIntent?.();
   }, [onPlaybackIntent]);
 
-  // Disconnects every Web Audio node and nulls the node + buffer refs. Shared
-  // by teardownSpectrum and the ensureSpectrumAnalyzer catch path; the optional
-  // chaining keeps it safe on a partially-built or already-null graph. It does
-  // NOT stop the loop or close the context — those steps differ per call site
-  // (teardown closes the context; the catch leaves it open for a rebuild).
-  const disconnectAudioGraphNodes = useCallback(() => {
-    mediaSourceRef.current?.disconnect();
-    channelSplitterRef.current?.disconnect();
-    analysersRef.current?.left.disconnect();
-    analysersRef.current?.right.disconnect();
-    gainNodeRef.current?.disconnect();
+  // Hands the current element's Web Audio nodes to the caller and nulls the node +
+  // buffer refs. A graph belongs to the one element its MediaElementSource was
+  // created for, so a source switch releases it at once: `ensureSpectrumAnalyzer`
+  // reuses whatever the refs hold, and a stale graph there would leave the next
+  // track playing past the analyzer.
+  const releaseAudioGraph = useCallback((): AudioGraphNodes => {
+    const nodes: AudioGraphNodes = {
+      source: mediaSourceRef.current,
+      splitter: channelSplitterRef.current,
+      analysers: analysersRef.current,
+      gain: gainNodeRef.current,
+    };
     mediaSourceRef.current = null;
     channelSplitterRef.current = null;
     analysersRef.current = null;
     gainNodeRef.current = null;
     spectrumDataRef.current = null;
+    return nodes;
   }, []);
+
+  // Releases and disconnects the current graph. Shared by teardownSpectrum and the
+  // ensureSpectrumAnalyzer catch path. It does NOT stop the loop or close the
+  // context: those steps differ per call site (teardown closes the context; the
+  // catch leaves it open for a rebuild).
+  const disconnectAudioGraphNodes = useCallback(() => {
+    disconnectAudioGraph(releaseAudioGraph());
+  }, [releaseAudioGraph]);
 
   const teardownSpectrum = useCallback(() => {
     stopSpectrumLoop();
@@ -1049,9 +1097,14 @@ export function useAudioController({
       }
 
       notifyPlaybackIntent();
+      // A play() still pending when its element is switched out settles for a
+      // source that is gone, because the switch pauses and empties the element
+      // and that rejects the promise. The player's phase belongs to the current
+      // element, so both outcomes are dropped for any other one.
       audio
         .play()
         .then(() => {
+          if (audioRef.current !== audio) return;
           sendMusicSignal(hasStartedRef.current ? PreviewSignal.Resumed : PreviewSignal.Started);
           dispatch({ type: PlayerActionType.Play });
           notifyStatusChange(AudioStatus.Playing);
@@ -1080,6 +1133,7 @@ export function useAudioController({
             });
         })
         .catch(() => {
+          if (audioRef.current !== audio) return;
           sendMusicSignal(PreviewSignal.Error);
           notifyStatusChange(AudioStatus.Unavailable);
           dispatch({ type: PlayerActionType.Error });
@@ -1181,12 +1235,13 @@ export function useAudioController({
     const previousSwapKey = lastSwapKeyRef.current;
     lastSwapKeyRef.current = recordSwapKeyRef.current;
 
-    // A source switch (not the initial mount): reset the player to a fresh idle
-    // track and either continue or defer playback per the swap decision.
-    // `hasStartedRef` flips true on the first play, so it is the "not initial" signal.
-    if (hasStartedRef.current) {
+    // A source switch (not the first source): reset the player to a fresh idle
+    // track, whatever phase the previous one ended in, and either continue or
+    // defer playback per the swap decision.
+    if (hasMountedSourceRef.current) {
       applySourceSwitch(audio, previousSwapKey);
     }
+    hasMountedSourceRef.current = true;
 
     return () => {
       // Reset the switch flag; a FOLLOWING source effect (a real switch) sets it
@@ -1201,6 +1256,9 @@ export function useAudioController({
       stopProgressLoop();
       stopProgressRewind();
       audioRef.current = null;
+      // Released synchronously, so a following source effect that continues playback
+      // builds a graph for its own element instead of reusing this one.
+      const previousGraph = releaseAudioGraph();
 
       // Pauses + clears the old element. Kept synchronous (or on the fade timer) so
       // it never leaks past a later render tick.
@@ -1208,22 +1266,23 @@ export function useAudioController({
         audio.pause();
         audio.src = "";
       };
-      // Tears down the old element's graph. On a switch it stops at disconnect (the
-      // AudioContext stays warm for the next track); on a real unmount it closes the
-      // context via the full teardown. Deferred so a following source effect can flip
-      // `switchPendingRef` to true first, but pause-free so the deferral cannot
-      // inflate teardown pauses.
+      // Disconnects the old element's graph. On a switch the AudioContext stays warm
+      // for the next track, and the spectrum loop is stopped only when the next track
+      // has not built a graph yet, because otherwise the running loop is already its
+      // own. On a real unmount the full teardown closes the context. Deferred so a
+      // following source effect can flip `switchPendingRef` to true first, but
+      // pause-free so the deferral cannot inflate teardown pauses.
       const finalizeGraph = () => {
+        disconnectAudioGraph(previousGraph);
         if (switchPendingRef.current) {
-          stopSpectrumLoop();
-          disconnectAudioGraphNodes();
+          if (!analysersRef.current) stopSpectrumLoop();
           return;
         }
         teardownSpectrum();
       };
 
       const audioContext = audioContextRef.current;
-      const gainNode = gainNodeRef.current;
+      const gainNode = previousGraph.gain;
       const canFade =
         audioContext !== null &&
         audioContext.state === AudioContextState.Running &&
@@ -1253,14 +1312,7 @@ export function useAudioController({
       detachOldElement();
       window.setTimeout(finalizeGraph, 0);
     };
-  }, [
-    effectiveUrl,
-    stopProgressLoop,
-    stopProgressRewind,
-    stopSpectrumLoop,
-    disconnectAudioGraphNodes,
-    teardownSpectrum,
-  ]);
+  }, [effectiveUrl, stopProgressLoop, stopProgressRewind, stopSpectrumLoop, releaseAudioGraph, teardownSpectrum]);
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;
@@ -1278,7 +1330,12 @@ export function useAudioController({
     }
   }, [beginPlayback, notifyStatusChange, startSpectrumFadeOut, state.phase, stopProgressLoop]);
 
-  const togglePlayFromEvent = useEffectEvent(togglePlay);
+  // The spacebar and the media keys are input like the play button, so they
+  // respect the lock the button shows; reading the prop here keeps it current
+  // for the long-lived listeners without re-registering them.
+  const togglePlayFromInput = useEffectEvent(() => {
+    if (!playbackLocked) togglePlay();
+  });
 
   const notifySeekHint = useCallback(
     (direction: VfdScrollOutDirection) => {
@@ -1363,7 +1420,7 @@ export function useAudioController({
     mediaSession.playbackState =
       state.phase === PlayerPhase.Playing ? MediaSessionPlaybackState.Playing : MediaSessionPlaybackState.Paused;
 
-    const handler = () => togglePlayFromEvent();
+    const handler = () => togglePlayFromInput();
     try {
       mediaSession.setActionHandler(MediaSessionAction.Play, handler);
       mediaSession.setActionHandler(MediaSessionAction.Pause, handler);
@@ -1401,7 +1458,7 @@ export function useAudioController({
    */
   useEffect(() => {
     return registerAudioForKeyboard({
-      togglePlay: () => togglePlayFromEvent(),
+      togglePlay: () => togglePlayFromInput(),
       isActive: () => isPlayerActiveRef.current,
       seekBy: (delta) => seekByFromEvent(delta),
       seekToStart: () => seekToStartFromEvent(),
@@ -1445,6 +1502,7 @@ export function useAudioController({
     ariaLabel,
     isDisabled,
     isLoading,
+    isPlaybackLocked: playbackLocked,
     isPlaying,
     isUnavailable,
     mediaLabel: isSong ? audioCopy.songLabel : audioCopy.previewLabel,
@@ -1467,6 +1525,7 @@ export function AudioPlayer(props: AudioPlayerProps) {
       <Player
         isPlaying={player.isPlaying}
         isDisabled={player.isDisabled}
+        isPlaybackLocked={player.isPlaybackLocked}
         timeText={player.timeText}
         progressRatio={player.progressRatio}
         ariaLabel={player.ariaLabel}

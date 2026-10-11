@@ -14,6 +14,7 @@ import { getAdminRepository } from "../db/index.js";
 import { isHexColor } from "../lib/color.js";
 import { renderEmailPreview } from "../services/email-renderer.js";
 import { sendTemplatedEmail } from "../services/email-sender.js";
+import { EmailColorScheme } from "../services/email-surfaces.js";
 import {
   createManagedEmailTemplate,
   deleteManagedEmailTemplate,
@@ -28,6 +29,7 @@ import {
   resolveRecipientVariables,
   resolveSystemVariables,
 } from "../services/email-variable-resolver.js";
+import { getDesignTokens } from "../services/site-settings.js";
 
 interface EmailTemplateCreateBody {
   name: string;
@@ -261,12 +263,13 @@ export default async function adminEmailTemplateRoutes(app: FastifyInstance) {
     if (typeof validated === "string") {
       return reply.status(400).send({ error: validated });
     }
-    const globalBranding = await getManagedEmailBranding();
+    const [globalBranding, tokens] = await Promise.all([getManagedEmailBranding(), getDesignTokens()]);
     const html = renderEmailPreview(
       validated.blocks,
       validated.branding ?? {},
       globalBranding,
-      validated.colorScheme ?? "light",
+      validated.colorScheme ?? EmailColorScheme.Light,
+      tokens,
     );
     return { html };
   });

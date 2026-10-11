@@ -59,3 +59,22 @@ export class ResolveError extends Error {
     this.name = "ResolveError";
   }
 }
+
+/**
+ * The error a text search ends with when no service produced a match.
+ *
+ * A search where every service it asked failed instead of answering is an
+ * outage, not an empty catalogue, so it reports `ALL_DOWN` (a retryable 503)
+ * rather than "not found", which would tell the visitor the music does not
+ * exist.
+ *
+ * @param asked - How many services the search asked.
+ * @param failed - How many of them threw instead of answering.
+ * @param notFoundMessage - The message for a search that was answered and found nothing.
+ */
+export function searchExhaustedError(asked: number, failed: number, notFoundMessage: string): ResolveError {
+  if (asked > 0 && failed === asked) {
+    return new ResolveError("ALL_DOWN", `All ${asked} services failed the search`);
+  }
+  return new ResolveError("TRACK_NOT_FOUND", notFoundMessage);
+}

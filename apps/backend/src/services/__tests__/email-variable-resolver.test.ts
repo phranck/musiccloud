@@ -50,6 +50,11 @@ describe("resolveRecipientVariables", () => {
         kind: EmailRecipientKind.DeveloperAccount,
         email: "dev@example.com",
         displayName: "Dev Jane",
+        firstName: null,
+        lastName: null,
+        uploadedAvatarUrl: null,
+        gravatarUrl: null,
+        avatarSource: null,
       }),
     ).toEqual({ username: "Dev Jane", email: "dev@example.com" });
   });
@@ -60,6 +65,11 @@ describe("resolveRecipientVariables", () => {
         kind: EmailRecipientKind.DeveloperAccount,
         email: "dev.jane@example.com",
         displayName: null,
+        firstName: null,
+        lastName: null,
+        uploadedAvatarUrl: null,
+        gravatarUrl: null,
+        avatarSource: null,
       }),
     ).toEqual({ username: "dev.jane", email: "dev.jane@example.com" });
   });

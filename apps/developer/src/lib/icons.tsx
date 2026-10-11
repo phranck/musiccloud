@@ -24,9 +24,7 @@ import {
   ArrowCircleDown,
   ArrowCircleUp,
   Book,
-  Book1,
   Category,
-  Cd,
   CloseCircle,
   Code,
   Coin,
@@ -48,6 +46,7 @@ import {
   Logout,
   Menu,
   Profile,
+  Profile2User,
   ProfileAdd,
   ProfileCircle,
   Refresh,
@@ -91,10 +90,8 @@ function bulk(Base: Icon): Icon {
 export const AddIcon = bulk(Add);
 export const ArrowCircleDownIcon = bulk(ArrowCircleDown);
 export const ArrowCircleUpIcon = bulk(ArrowCircleUp);
-export const Book1Icon = bulk(Book1);
 export const BookIcon = bulk(Book);
 export const CategoryIcon = bulk(Category);
-export const CdIcon = bulk(Cd);
 export const CloseCircleIcon = bulk(CloseCircle);
 export const CodeIcon = bulk(Code);
 export const CoinIcon = bulk(Coin);
@@ -113,6 +110,7 @@ export const LinkIcon = bulk(Link);
 export const LoginIcon = bulk(Login);
 export const LogoutIcon = bulk(Logout);
 export const MenuIcon = bulk(Menu);
+export const Profile2UserIcon = bulk(Profile2User);
 export const ProfileAddIcon = bulk(ProfileAdd);
 export const ProfileCircleIcon = bulk(ProfileCircle);
 export const ProfileIcon = bulk(Profile);

@@ -1,3 +1,4 @@
+import { PLANS_PLACEHOLDER_ATTRIBUTE } from "@musiccloud/shared";
 import { type DefaultTreeAdapterMap, parseFragment, serialize } from "parse5";
 
 type HtmlChild = DefaultTreeAdapterMap["childNode"];
@@ -15,6 +16,8 @@ const ALLOWED_ELEMENTS = new Set([
   "dl",
   "dt",
   "em",
+  "figcaption",
+  "figure",
   "h1",
   "h2",
   "h3",
@@ -28,11 +31,19 @@ const ALLOWED_ELEMENTS = new Set([
   "li",
   "ol",
   "p",
+  // A symbol and its two shapes. The path data never comes from a page: a page
+  // names a Phosphor icon and the renderer looks the shapes up in the assets
+  // this repository ships, so what reaches `d` is ours. Every other element is
+  // absent from this list and every attribute is checked below, so nothing that
+  // travels inside an SVG in the usual attacks survives: no script, no event
+  // handler, no external reference.
+  "path",
   "pre",
   "section",
   "span",
   "strong",
   "sup",
+  "svg",
   "table",
   "tbody",
   "td",
@@ -51,22 +62,31 @@ const DROP_WITH_CONTENT = new Set([
   "object",
   "script",
   "style",
-  "svg",
   "template",
   "video",
 ]);
 
 const GLOBAL_ATTRIBUTES = new Set(["aria-describedby", "aria-hidden", "aria-label", "class", "id", "role", "title"]);
 const ELEMENT_ATTRIBUTES: Readonly<Record<string, ReadonlySet<string>>> = {
-  a: new Set(["data-footnote-backref", "data-footnote-ref", "href", "rel"]),
+  // A video's link carries the shape it opens at, so the space it will take is
+  // held before anything loads and the page does not jump.
+  a: new Set(["data-footnote-backref", "data-footnote-ref", "href", "rel", "style"]),
   code: new Set(["class"]),
+  // A row of cards carries the gap a page asked for. `sanitizeStyle` accepts
+  // one property here, `gap`, and only as a plain CSS length, so nothing else
+  // can travel in on a `div`. The plans marker carries no value at all.
+  div: new Set([PLANS_PLACEHOLDER_ATTRIBUTE, "style"]),
   dl: new Set(["style"]),
   img: new Set(["alt", "height", "src", "width"]),
   input: new Set(["checked", "disabled", "type"]),
   li: new Set(["value"]),
   ol: new Set(["start"]),
+  // The two shapes of a duotone symbol. `opacity` is what makes the second one
+  // the lighter tone.
+  path: new Set(["d", "opacity"]),
   pre: new Set(["data-card-padding", "data-card-radius", "data-card-style"]),
   span: new Set(["style"]),
+  svg: new Set(["fill", "height", "viewBox", "width"]),
   td: new Set(["colspan", "rowspan"]),
   th: new Set(["colspan", "rowspan", "scope"]),
 };
@@ -74,7 +94,29 @@ const ELEMENT_ATTRIBUTES: Readonly<Record<string, ReadonlySet<string>>> = {
 const CLASS_PATTERN = /^[A-Za-z0-9_:\- ]+$/;
 const ID_PATTERN = /^[A-Za-z][A-Za-z0-9_:.-]*$/;
 const CSS_LENGTH_PATTERN = /^(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em|ch)$/;
+/** Two whole figures with a solidus between them, which is what an embedded video carries. */
+const ASPECT_RATIO_PATTERN = /^\d{1,3} \/ \d{1,3}$/;
+/**
+ * The two columns of a fields list.
+ *
+ * The first is what the page asked for, which is a length, a percentage, or the
+ * longest label. The second is always the rest, so it is fixed here rather than
+ * being something a page can put anything into.
+ */
+const FIELDS_COLUMNS_PATTERN = /^(?:max-content|(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em|ch|%)) minmax\(0, 1fr\)$/;
 const SAFE_COLOR_PATTERN = /^#[0-9a-f]{3,8}$/i;
+/** The characters a path is drawn from: the commands, the figures, and their separators. */
+const SVG_PATH_PATTERN = /^[MmZzLlHhVvCcSsQqTtAa0-9eE,.\s+-]+$/;
+const SVG_OPACITY_PATTERN = /^(?:0|1|0?\.\d+)$/;
+/**
+ * The boxes an icon may be drawn in, one per set.
+ *
+ * The two sets draw at different scales, and a shape against the wrong box is
+ * the wrong size, so both are named rather than one being assumed.
+ */
+const SVG_VIEW_BOXES = new Set(["0 0 256 256", "0 0 24 24"]);
+/** A colour a symbol may be drawn in, which is a hex figure, a name, or a token. */
+const SAFE_FILL_PATTERN = /^(?:currentColor|#[0-9a-f]{3,8}|[a-z]+|var\(--[a-z0-9-]+\))$/i;
 const SAFE_URL_PROTOCOLS = new Set(["http", "https", "mailto", "tel"]);
 const SAFE_IMAGE_PROTOCOLS = new Set(["http", "https"]);
 
@@ -103,14 +145,19 @@ function sanitizeStyle(value: string): string | null {
     else if (property === "font-style" && (candidate === "italic" || candidate === "normal")) {
       declarations.push(`font-style:${candidate}`);
     } else if (property === "display" && candidate === "grid") declarations.push("display:grid");
-    else if (
-      property === "grid-template-columns" &&
-      (candidate === "max-content minmax(0, 1fr)" ||
-        /^(?:\d+(?:\.\d+)?|\.\d+)(?:px|rem|em|ch) minmax\(0, 1fr\)$/.test(candidate))
-    ) {
+    else if (property === "grid-template-columns" && FIELDS_COLUMNS_PATTERN.test(candidate)) {
       declarations.push(`grid-template-columns:${candidate}`);
     } else if (property === "column-gap" && CSS_LENGTH_PATTERN.test(candidate)) {
       declarations.push(`column-gap:${candidate}`);
+    } else if (property === "gap" && CSS_LENGTH_PATTERN.test(candidate)) {
+      declarations.push(`gap:${candidate}`);
+    } else if ((property === "flex-basis" || property === "height") && CSS_LENGTH_PATTERN.test(candidate)) {
+      // A fixed spacer carries both, because which of them applies depends on
+      // the stack around it and the renderer cannot know that from where it
+      // stands.
+      declarations.push(`${property}:${candidate}`);
+    } else if (property === "aspect-ratio" && ASPECT_RATIO_PATTERN.test(candidate)) {
+      declarations.push(`aspect-ratio:${candidate}`);
     }
   }
   return declarations.length > 0 ? declarations.join(";") : null;
@@ -128,10 +175,17 @@ function sanitizedAttributeValue(element: HtmlElement, name: string, value: stri
     return /^\d+$/.test(value) ? value : null;
   }
   if (name === "scope") return ["col", "colgroup", "row", "rowgroup"].includes(value) ? value : null;
+  if (name === "d") return SVG_PATH_PATTERN.test(value) ? value : null;
+  if (name === "opacity") return SVG_OPACITY_PATTERN.test(value) ? value : null;
+  if (name === "viewBox") return SVG_VIEW_BOXES.has(value) ? value : null;
+  if (name === "fill") return SAFE_FILL_PATTERN.test(value) ? value : null;
   if (name === "data-card-style") return value === "embossed" || value === "recessed" ? value : null;
   if (name === "data-card-padding" || name === "data-card-radius") {
     return CSS_LENGTH_PATTERN.test(value) ? value : null;
   }
+  // The plans marker says where the plans go and nothing more, so whatever a
+  // page wrote after it is dropped and the bare attribute survives.
+  if (name === PLANS_PLACEHOLDER_ATTRIBUTE) return "";
   return value;
 }
 
@@ -142,6 +196,25 @@ function sanitizeAttributes(element: HtmlElement): void {
     const value = sanitizedAttributeValue(element, attribute.name, attribute.value);
     return value === null ? [] : [{ ...attribute, value }];
   });
+}
+
+/**
+ * Whether a paragraph has nothing left in it.
+ *
+ * A block element inside a paragraph splits that paragraph in two, and one of
+ * the halves is usually empty. That happens whenever a shortcode which stands
+ * in a line of text renders a block, such as a symbol whose caption is a
+ * heading. An empty paragraph draws nothing and still takes the spacing every
+ * paragraph gets, so it reads as a gap nobody asked for.
+ *
+ * @param element - The element to weigh.
+ * @returns Whether it is a paragraph holding neither text nor an element.
+ */
+function isEmptyParagraph(element: HtmlElement): boolean {
+  if (element.tagName !== "p") return false;
+  return element.childNodes.every(
+    (child) => child.nodeName === "#text" && (child as { value?: string }).value?.trim() === "",
+  );
 }
 
 function sanitizeChild(child: HtmlChild, parent: HtmlParent): HtmlChild[] {
@@ -155,6 +228,8 @@ function sanitizeChild(child: HtmlChild, parent: HtmlParent): HtmlChild[] {
     for (const nestedChild of element.childNodes) nestedChild.parentNode = parent;
     return element.childNodes;
   }
+
+  if (isEmptyParagraph(element)) return [];
 
   sanitizeAttributes(element);
   return [element];

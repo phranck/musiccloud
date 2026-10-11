@@ -22,7 +22,7 @@ vi.mock("../lib/infra/fetch.js", () => ({
   fetchWithTimeout: (url: string, init?: RequestInit, timeoutMs?: number) => fetchWithTimeoutMock(url, init, timeoutMs),
 }));
 
-import { fetchArtistProfile, fetchArtistTopTracks } from "../services/artist-info";
+import { fetchArtistProfile, fetchArtistProfileSnapshot, fetchArtistTopTracks } from "../services/artist-info";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return {
@@ -275,7 +275,7 @@ describe("fetchArtistTopTracks", () => {
       lastfmTopTracks: LASTFM_TOP_TRACKS,
     });
 
-    const tracks = await fetchArtistTopTracks("Daft Punk");
+    const { value: tracks } = await fetchArtistTopTracks("Daft Punk");
     expect(tracks).toHaveLength(1);
     expect(tracks[0].title).toBe("One More Time");
   });
@@ -285,14 +285,14 @@ describe("fetchArtistTopTracks", () => {
       lastfmTopTracks: LASTFM_TOP_TRACKS,
     });
 
-    const tracks = await fetchArtistTopTracks("Daft Punk");
+    const { value: tracks } = await fetchArtistTopTracks("Daft Punk");
     expect(tracks).toHaveLength(1);
     expect(tracks[0].title).toBe("Around the World");
   });
 
   it("returns empty array when both sources are empty", async () => {
     route({});
-    const tracks = await fetchArtistTopTracks("Nobody");
+    const { value: tracks } = await fetchArtistTopTracks("Nobody");
     expect(tracks).toEqual([]);
   });
 
@@ -319,7 +319,7 @@ describe("fetchArtistTopTracks", () => {
       },
     });
 
-    const tracks = await fetchArtistTopTracks("Daft Punk");
+    const { value: tracks } = await fetchArtistTopTracks("Daft Punk");
     expect(tracks).toHaveLength(1);
     expect(tracks[0].title).toBe("Around the World");
     expect(tracks[0].artworkUrl).toBe("https://cdn/discovery.jpg");
@@ -338,7 +338,7 @@ describe("fetchArtistTopTracks", () => {
       deezerTrackSearch: { data: [] },
     });
 
-    const tracks = await fetchArtistTopTracks("Indie");
+    const { value: tracks } = await fetchArtistTopTracks("Indie");
     expect(tracks).toHaveLength(1);
     expect(tracks[0].title).toBe("Obscure Song");
     expect(tracks[0].artworkUrl).toBeNull();
@@ -355,9 +355,64 @@ describe("fetchArtistTopTracks", () => {
       },
     });
 
-    const tracks = await fetchArtistTopTracks("Daft Punk");
+    const { value: tracks } = await fetchArtistTopTracks("Daft Punk");
     expect(tracks).toHaveLength(1);
     expect(tracks[0].title).toBe("One More Time");
     expect(tracks[0].artworkUrl).toBe("https://cdn/cover.jpg");
+  });
+});
+
+describe("sources that fail", () => {
+  it("reports a profile as incomplete when a source failed instead of answering", async () => {
+    route({
+      spotify: "throw",
+      deezerSearch: DEEZER_SEARCH_HIT,
+      deezerFans: DEEZER_FANS,
+      lastfmInfo: LASTFM_INFO,
+      lastfmTags: LASTFM_TAGS,
+    });
+
+    const { value, complete } = await fetchArtistProfileSnapshot("Daft Punk");
+
+    expect(value?.profile.followers).toBe(DEEZER_FANS.nb_fan);
+    expect(complete).toBe(false);
+  });
+
+  it("reports a profile as complete when a source answered that it knows nothing", async () => {
+    route({ deezerSearch: DEEZER_SEARCH_HIT, deezerFans: DEEZER_FANS, lastfmInfo: LASTFM_INFO });
+
+    const { complete } = await fetchArtistProfileSnapshot("Daft Punk");
+
+    expect(complete).toBe(true);
+  });
+
+  it("reports top tracks as incomplete when Last.fm is rate-limited", async () => {
+    route({
+      deezerSearch: DEEZER_SEARCH_HIT,
+      deezerTopTracks: DEEZER_TOP_TRACKS,
+      lastfmInfo: { error: 29, message: "Rate limit exceeded" },
+    });
+
+    const { value, complete } = await fetchArtistTopTracks("Daft Punk");
+
+    expect(value[0]?.title).toBe("One More Time");
+    expect(complete).toBe(false);
+  });
+
+  it("asks Deezer and Last.fm once when profile and top tracks are fetched together", async () => {
+    route({
+      deezerSearch: DEEZER_SEARCH_HIT,
+      deezerFans: DEEZER_FANS,
+      deezerTopTracks: DEEZER_TOP_TRACKS,
+      lastfmInfo: LASTFM_INFO,
+      lastfmTags: LASTFM_TAGS,
+      lastfmTopTracks: LASTFM_TOP_TRACKS,
+    });
+
+    await Promise.all([fetchArtistProfileSnapshot("Daft Punk"), fetchArtistTopTracks("Daft Punk")]);
+
+    const urls = fetchWithTimeoutMock.mock.calls.map(([url]) => String(url));
+    expect(urls.filter((url) => url.includes("api.deezer.com/search/artist"))).toHaveLength(1);
+    expect(urls.filter((url) => url.includes("artist.getInfo"))).toHaveLength(1);
   });
 });

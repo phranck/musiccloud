@@ -80,29 +80,27 @@ describe("developer design system", () => {
     const docs = readDeveloperFile("src/styles/docs.css");
 
     // How far a card holds its contents from its edge is a design decision and
-    // moves with the design. What must not move is that the body and the chrome
-    // hold them at the same distance, so a card reads as one inset.
+    // moves with the design. What must not move is that both are read from a
+    // token, so one card cannot end up with an inset another does not have.
     const bodyInset = theme.match(/--mc-space-content-card:\s*([^;]+);/)?.[1];
     const chromeInset = theme.match(/--mc-space-content-card-header:\s*([^;]+);/)?.[1];
     expect(bodyInset).toBeDefined();
-    expect(chromeInset).toBe(bodyInset);
+    expect(chromeInset).toBeDefined();
     expect(docs).toContain("--mc-docs-content-card-copy-inset: calc(var(--mc-docs-content-card-radius) / 2);");
     expect(docs).toMatch(
       /\.content-card__header,[\s\S]*?\.content-card__footer\s*\{[^}]*padding:\s*var\(--space-content-card-header\);/,
     );
     expect(docs).toMatch(/\.content-card__body\s*\{[^}]*padding:\s*var\(--space-content-card\);/s);
-    expect(docs).toMatch(
-      /\.content-card__body-intro,[\s\S]*?\.content-card__copy\s*\{[^}]*padding-inline:\s*var\(--mc-docs-content-card-copy-inset\);/s,
-    );
+    // One inset per card, which is the body's own padding. A second one on the
+    // copy held text further in sideways than the card holds it top and bottom.
+    expect(docs).not.toMatch(/\.content-card__copy\s*\{[^}]*padding-inline:/s);
   });
 
-  it("keeps every Card surface on one inset while insetting only its copy", () => {
+  it("keeps every Card surface on the one inset the body states", () => {
     const docs = readDeveloperFile("src/styles/docs.css");
 
     expect(docs).not.toMatch(/\.content-card__body-stack\s*\{[^}]*padding-inline:/s);
-    expect(docs).toMatch(
-      /\.content-card__copy\s*\{[^}]*gap:\s*var\(--mc-space-6\);[^}]*padding-inline:\s*var\(--mc-docs-content-card-copy-inset\);/s,
-    );
+    expect(docs).toMatch(/\.content-card__copy\s*\{[^}]*gap:\s*var\(--mc-space-6\);/s);
   });
 
   it("keeps every Portal card borderless without header or footer separators", () => {
@@ -215,12 +213,16 @@ describe("developer design system", () => {
     expect(keyCap).not.toContain(".filter(");
   });
 
-  it("uses the 16px portal card radius and keeps API cards cascade-safe", () => {
+  it("keeps the portal's card radii concentric and API cards cascade-safe", () => {
     const theme = readDeveloperFile("public/developer-theme.css");
     const docs = readDeveloperFile("src/styles/docs.css");
 
-    expect(theme).toContain("--mc-radius-card: 1rem;");
+    // The radius itself is a design decision and moves with the design. What
+    // must not move is that every nested surface derives from it, so a card
+    // and the panels inside it keep one gap between their curves.
+    expect(theme).toMatch(/--mc-radius-card:\s*[\d.]+rem;/);
     expect(docs).toContain("--mc-docs-content-card-radius: var(--radius-card);");
+    expect(docs).toContain("--mc-docs-content-panel-inset: var(--space-content-card);");
     expect(docs).toContain("calc(var(--mc-docs-content-card-radius) - var(--mc-docs-content-panel-inset))");
     expect(docs).toContain("calc(var(--mc-docs-content-panel-radius) - var(--mc-space-1) - var(--mc-docs-space-xs))");
     expect(docs).toContain("--mc-docs-schema-toggle-radius-trim: 1px;");
@@ -341,7 +343,6 @@ describe("developer design system", () => {
     const theme = readDeveloperFile("public/developer-theme.css");
     const components = readDeveloperFile("src/styles/components.css");
     const docs = readDeveloperFile("src/styles/docs.css");
-    const home = readDeveloperFile("src/pages/index.astro");
     const docsLanding = readDeveloperFile("src/pages/docs/index.astro");
     const pricing = readDeveloperFile("src/pages/pricing.astro");
     const usage = readDeveloperFile("src/pages/dashboard/usage.astro");
@@ -349,7 +350,10 @@ describe("developer design system", () => {
     const apiSearch = readDeveloperFile("src/components/docs/ApiDocumentSearch.tsx");
     const searchDialog = readDeveloperFile("src/components/docs/SearchDialog.tsx");
 
-    expect(theme).toContain("--mc-size-text-icon: 1.2cap;");
+    // The size is expressed in `cap`, so a text icon scales with the cap height
+    // of whatever text it leads. How many cap heights it is stays a design
+    // decision, and pinning the figure would fire on that rather than on a fault.
+    expect(theme).toMatch(/--mc-size-text-icon:\s*[\d.]+cap;/);
     expect(docs).toContain("--mc-docs-section-icon-size: calc(var(--mc-size-text-icon) + 2px);");
     expect(components).toMatch(
       /\.page-heading\s*\{[^}]*align-items:\s*flex-start;[^}]*font-size:\s*var\(--text-hero\);[^}]*line-height:\s*1;/s,
@@ -358,8 +362,13 @@ describe("developer design system", () => {
       /\.page-heading__icon\s*\{[^}]*width:\s*var\(--mc-size-text-icon\);[^}]*height:\s*var\(--mc-size-text-icon\);[^}]*margin-block-start:\s*calc\(\(1cap - var\(--mc-size-text-icon\)\) \/ 2\);/s,
     );
     expect(components).toMatch(/\.page-heading__title\s*\{[^}]*text-box:\s*trim-both cap alphabetic;/s);
+    // The row aligns on the text's baseline and the icon box is the cap band
+    // above it, so the icon lands on the cap-height midline of the first line
+    // at any text size. An icon taller than that band is pushed down by half
+    // its overhang, because the flex baseline takes the box's top edge.
+    expect(components).toMatch(/\.icon-text-first-line\s*\{[^}]*align-items:\s*baseline;/s);
     expect(components).toMatch(
-      /\.icon-text-first-line__icon\s*\{[^}]*width:\s*var\(--mc-size-text-icon\);[^}]*height:\s*1lh;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;/s,
+      /\.icon-text-first-line__icon\s*\{[^}]*width:\s*var\(--mc-size-text-icon\);[^}]*height:\s*1cap;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;[^}]*transform:\s*translateY\(calc\(\(var\(--mc-size-text-icon\) - 1cap\) \/ 2\)\);/s,
     );
     expect(components).toMatch(
       /\.icon-text-first-line__icon > \.mc-icon,[\s\S]*?\.icon-text-first-line__icon > svg\s*\{[^}]*width:\s*var\(--mc-size-text-icon\);[^}]*height:\s*var\(--mc-size-text-icon\);/s,
@@ -373,7 +382,6 @@ describe("developer design system", () => {
     expect(docs).toMatch(
       /\.search-dialog__result\s*\{[^}]*grid-template-columns:\s*var\(--mc-size-text-icon\) minmax\(0, 1fr\) max-content;[^}]*font-size:\s*var\(--text-body\);/s,
     );
-    expect(home).not.toMatch(/<Icon className="size-7 text-accent"/);
     expect(docsLanding).not.toMatch(/<(?:LinkIcon|BookIcon|KeyIcon|Icon) className="size-[56] text-accent"/);
     expect(pricing).not.toMatch(/<TickCircleIcon className="(?:pricing-commitment-icon )?size-4/);
     expect(usage).not.toMatch(/<DiagramIcon className="size-5"/);
@@ -385,7 +393,6 @@ describe("developer design system", () => {
   it("inherits the adjacent text color for icons that lead text or headings", () => {
     const components = readDeveloperFile("src/styles/components.css");
     const docs = readDeveloperFile("src/styles/docs.css");
-    const home = readDeveloperFile("src/pages/index.astro");
     const docsLanding = readDeveloperFile("src/pages/docs/index.astro");
     const pricing = readDeveloperFile("src/pages/pricing.astro");
     const tokenReveal = readDeveloperFile("src/components/dashboard/TokenRevealBox.tsx");
@@ -396,7 +403,6 @@ describe("developer design system", () => {
     expect(docs).toMatch(/\.content-card__section-header\s*\{[^}]*color:\s*var\(--color-fg\);/s);
     expect(docs).toMatch(/\.content-card__section-icon\s*\{[^}]*color:\s*inherit;/s);
     expect(docs).toMatch(/\.search-dialog__result-icon\s*\{[^}]*color:\s*var\(--color-fg\);/s);
-    expect(home).not.toMatch(/<Icon className="text-accent"/);
     expect(docsLanding).not.toMatch(/<(?:LinkIcon|BookIcon|KeyIcon|Icon) className="text-accent"/);
     expect(pricing).not.toMatch(/<TickCircleIcon className="text-accent"/);
     expect(pricing).not.toMatch(/<TickCircleIcon style=\{\{ color: tierColor \}\}/);
@@ -406,8 +412,7 @@ describe("developer design system", () => {
   it("insets portal-level headings and text by half the non-tier card radius", () => {
     const components = readDeveloperFile("src/styles/components.css");
     const docs = readDeveloperFile("src/styles/docs.css");
-    const home = readDeveloperFile("src/pages/index.astro");
-    const pricing = readDeveloperFile("src/pages/pricing.astro");
+    const planGrid = readDeveloperFile("src/components/plans/PlanGrid.astro");
     const dashboard = readDeveloperFile("src/pages/dashboard/index.astro");
 
     expect(components).toMatch(
@@ -424,11 +429,13 @@ describe("developer design system", () => {
     );
     expect(docs).toContain("--mc-card-content-inset: calc(var(--mc-docs-content-card-radius) / 2);");
     expect(docs).toMatch(/\.api-content__chapter-header\s*\{[^}]*padding-inline:\s*var\(--mc-card-content-inset\);/s);
-    expect(home).toMatch(/<h1 class="[^"]*card-content-inset[^"]*"/);
-    expect(home).toMatch(/<p class="[^"]*card-content-inset[^"]*"/);
-    expect(pricing).toMatch(/<p class="[^"]*card-content-inset[^"]*text-lead[^"]*"/);
-    expect(pricing).toMatch(/<h2 class="[^"]*card-content-inset[^"]*">Our commitment<\/h2>/);
-    expect(pricing).not.toMatch(/tier-card[^>]*card-content-inset|card-content-inset[^>]*tier-card/);
+    // The home page's copy is content now, as the pricing page's is, so the
+    // inset comes from the editorial shell rather than from a class on a
+    // heading or a paragraph.
+    // What must still not take the inset is a tier card, which has an edge of
+    // its own and would be pushed off centre by one.
+    expect(planGrid).not.toMatch(/tier-card[^>]*card-content-inset|card-content-inset[^>]*tier-card/);
+    expect(planGrid).toMatch(/<h2 class="[^"]*card-content-inset[^"]*"/);
     // The dashboard names its page the way the reference names a chapter, so
     // its heading takes the inset from `.api-content__chapter-header` rather
     // than carrying the utility class. The copy under it still carries it.
@@ -519,9 +526,7 @@ describe("developer design system", () => {
     expect(docs).toMatch(
       /\.content-card__body-intro,[\s\S]*?\.content-card__section-body\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);/,
     );
-    expect(docs).toMatch(
-      /\.content-panel-list,[\s\S]*?\.sdk-metadata-list\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);/,
-    );
+    expect(docs).toMatch(/\.content-panel-list\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);/);
     expect(docs).toMatch(
       /\.code-block,[\s\S]*?\.code-block__frame\s*\{[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;/,
     );

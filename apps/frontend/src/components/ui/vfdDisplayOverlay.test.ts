@@ -24,6 +24,7 @@ function makeState(): VfdCanvasRenderState {
     transitions: new Map(),
     marqueeStates: new Map(),
     overlays: new Map(),
+    pulses: new Map(),
     cellCount: 44,
     rowCount: 4,
     prefersReducedMotion: false,

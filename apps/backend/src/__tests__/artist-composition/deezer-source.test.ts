@@ -6,6 +6,7 @@ vi.mock("../../lib/infra/fetch.js", () => ({
   fetchWithTimeout: (url: string, init?: RequestInit, timeoutMs?: number) => fetchWithTimeoutMock(url, init, timeoutMs),
 }));
 
+import { UpstreamUnavailableError } from "../../lib/infra/upstream-unavailable";
 import { fetchDeezerArtistPartial } from "../../services/artist-composition/sources/deezer-source";
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -97,15 +98,29 @@ describe("fetchDeezerArtistPartial", () => {
     expect(await fetchDeezerArtistPartial("Nobody")).toBeNull();
   });
 
-  it("returns Partial with null followers when fan-count fetch fails", async () => {
+  it("returns Partial with null followers when Deezer has no fan count", async () => {
     routeDeezerCalls({
       search: { data: [SEARCH_HIT] },
-      fansStatus: 500,
+      fans: { id: 12345 },
       topTracks: { data: [] },
     });
 
     const partial = await fetchDeezerArtistPartial("Slowdive");
     expect(partial?.followers).toBeNull();
     expect(partial?.imageUrl).toBe(SEARCH_HIT.picture_xl);
+  });
+
+  /**
+   * A failed request is not a missing value: answering with a partial here
+   * would let the cache store an artist without followers or top tracks.
+   */
+  it("rejects when one of its requests fails", async () => {
+    routeDeezerCalls({
+      search: { data: [SEARCH_HIT] },
+      fansStatus: 500,
+      topTracks: { data: [] },
+    });
+
+    await expect(fetchDeezerArtistPartial("Slowdive")).rejects.toBeInstanceOf(UpstreamUnavailableError);
   });
 });

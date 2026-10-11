@@ -1,4 +1,4 @@
-import { ENDPOINTS, MAX_DISPLAY_NAME_LENGTH } from "@musiccloud/shared";
+import { ENDPOINTS } from "@musiccloud/shared";
 import { type ChangeEvent, type SyntheticEvent, useCallback, useState } from "react";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
@@ -11,68 +11,78 @@ import { LoginIcon } from "@/lib/icons";
  * Props for {@link SignInSection}.
  */
 export interface SignInSectionProps {
-  /** The address this account signs in with. Shown, never edited here. */
+  /** The address this account signs in with today. */
   email: string;
-  /** The name shown in the portal, or `null` when none is set. */
-  displayName: string | null;
+  /** An address asked for and not yet confirmed, or `null`. */
+  pendingEmail: string | null;
+  /** Whether this account has a password, which a GitHub-only one does not. */
+  hasPassword: boolean;
 }
 
 /**
- * Dashboard card for how the account identifies itself.
+ * Dashboard card for the address the account signs in with.
  *
- * The sign-in address is read-only: changing it is an identity change rather
- * than a profile edit, and it is the only address that receives a password
- * reset. The display name is what the portal calls the developer, so it is
- * theirs to set, and clearing it falls back to the address.
+ * Changing it is an identity change, so it takes the password and a
+ * confirmation from the new address. Nothing moves until that link is
+ * followed, which is why the card keeps showing the old address whilst a
+ * change is pending.
  *
  * @param props - See {@link SignInSectionProps}.
  * @returns The sign-in card.
  */
-export function SignInSection({ email, displayName }: SignInSectionProps) {
-  const [value, setValue] = useState(displayName ?? "");
-  // What a save put on file, or `null` while this page has saved nothing. The
-  // prop is what the server had when the page rendered, so it stays the answer
-  // until a save replaces it.
-  const [savedHere, setSavedHere] = useState<{ displayName: string | null } | null>(null);
+export function SignInSection({ email, pendingEmail, hasPassword }: SignInSectionProps) {
+  // What this page has done, or `null` while it has done nothing. The prop is
+  // what the server had when the page rendered, so it stays the answer until a
+  // request here replaces it, and a copy of it would go stale instead.
+  const [changedHere, setChangedHere] = useState<{ pendingEmail: string | null } | null>(null);
+  const pending = changedHere ? changedHere.pendingEmail : pendingEmail;
+  const [fields, setFields] = useState({ email: "", password: "" });
   const [phase, setPhase] = useState<FormPhaseValue>(FormPhase.Idle);
   const [error, setError] = useState<string | null>(null);
 
-  const onChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setValue(event.target.value);
-    setPhase(FormPhase.Idle);
-    setError(null);
-  }, []);
+  const onField = useCallback(
+    (field: keyof typeof fields) => (event: ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value;
+      setFields((current) => ({ ...current, [field]: value }));
+      setPhase(FormPhase.Idle);
+      setError(null);
+    },
+    [],
+  );
 
   const onSubmit = useCallback(
     async (event: SyntheticEvent<HTMLFormElement>) => {
       event.preventDefault();
-
-      const trimmed = value.trim();
-      if (trimmed.length > MAX_DISPLAY_NAME_LENGTH) {
-        setError(`A display name may be at most ${MAX_DISPLAY_NAME_LENGTH} characters.`);
-        return;
-      }
-
       setPhase(FormPhase.Submitting);
       setError(null);
 
-      const result = await sendAuth("PATCH", ENDPOINTS.dev.auth.profile, {
-        displayName: trimmed === "" ? null : trimmed,
+      const result = await sendAuth("POST", ENDPOINTS.dev.auth.changeEmail, {
+        email: fields.email.trim(),
+        password: fields.password,
       });
 
       if (result.ok) {
-        setSavedHere({ displayName: trimmed === "" ? null : trimmed });
+        setChangedHere({ pendingEmail: fields.email.trim().toLowerCase() });
+        setFields({ email: "", password: "" });
         setPhase(FormPhase.Success);
         return;
       }
-
       setPhase(FormPhase.Error);
-      setError(result.message ?? "Something went wrong. Please try again.");
+      setError(result.message ?? "That change could not be requested.");
     },
-    [value],
+    [fields],
   );
 
-  const onFile = savedHere ? savedHere.displayName : displayName;
+  const onCancel = useCallback(async () => {
+    setError(null);
+    const response = await fetch(ENDPOINTS.dev.auth.changeEmail, { method: "DELETE", credentials: "same-origin" });
+    if (!response.ok) {
+      setError("That change could not be cancelled.");
+      return;
+    }
+    setChangedHere({ pendingEmail: null });
+    setPhase(FormPhase.Idle);
+  }, []);
 
   return (
     <ContentCard className="mb-6">
@@ -86,31 +96,70 @@ export function SignInSection({ email, displayName }: SignInSectionProps) {
         <ContentCard.Body>
           <ContentCard.Body.Copy>
             <dl className="grid grid-cols-1 gap-y-1">
-              <dt className="text-nav text-fg-subtle">Email</dt>
+              <dt className="text-body text-fg-muted">Email</dt>
               <dd className="text-body text-fg">{email}</dd>
             </dl>
-            <p className="text-body text-fg-muted">
-              Your sign-in address cannot be changed here, because it is the one address that receives a password reset.
-            </p>
-            <TextField
-              className="field--third"
-              name="displayName"
-              label="Display name"
-              value={value}
-              onChange={onChange}
-              autoComplete="name"
-              required={false}
-              placeholder="Optional"
-              hint={onFile ? `Currently ${onFile}.` : "Optional. Your address is shown when none is set."}
-              error={error ?? undefined}
-            />
+
+            {pending ? (
+              <>
+                <p className="text-body text-fg-muted">
+                  You asked to sign in with <span className="text-fg">{pending}</span>. We sent a link there; until it
+                  is followed, this address stays the one you sign in with.
+                </p>
+                <div>
+                  <button type="button" className="button button--secondary" onClick={onCancel}>
+                    Cancel the change
+                  </button>
+                </div>
+                {error && <p className="text-body text-danger">{error}</p>}
+              </>
+            ) : hasPassword ? (
+              <>
+                <p className="text-body text-fg-muted">
+                  This is also the only address that receives a password reset. Changing it needs your password and a
+                  confirmation from the new address, and nothing moves until that link is followed.
+                </p>
+                <div className="grid items-start gap-4 sm:grid-cols-2">
+                  <TextField
+                    name="newEmail"
+                    label="New address"
+                    type="email"
+                    value={fields.email}
+                    onChange={onField("email")}
+                    autoComplete="email"
+                    placeholder="you@example.com"
+                  />
+                  <TextField
+                    name="currentPassword"
+                    label="Your password"
+                    type="password"
+                    value={fields.password}
+                    onChange={onField("password")}
+                    autoComplete="current-password"
+                  />
+                </div>
+                {/* On its own line, because a refusal is about the request
+                    rather than about the last field that was typed in. */}
+                {error && <p className="text-body text-danger">{error}</p>}
+              </>
+            ) : (
+              <p className="text-body text-fg-muted">
+                You sign in through GitHub, so this is the address GitHub holds for you. Change it there and sign in
+                again.
+              </p>
+            )}
           </ContentCard.Body.Copy>
         </ContentCard.Body>
-        <ContentCard.Footer>
-          <SubmitButton loading={phase === FormPhase.Submitting}>
-            {phase === FormPhase.Success ? "Saved" : "Save name"}
-          </SubmitButton>
-        </ContentCard.Footer>
+        {!pending && hasPassword && (
+          <ContentCard.Footer>
+            <SubmitButton
+              loading={phase === FormPhase.Submitting}
+              disabled={fields.email.trim() === "" || fields.password === ""}
+            >
+              {phase === FormPhase.Success ? "Check your new address" : "Change address"}
+            </SubmitButton>
+          </ContentCard.Footer>
+        )}
       </form>
     </ContentCard>
   );

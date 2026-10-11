@@ -35,7 +35,7 @@ export function QuickstartPanel({ registrationName, publicClientId }: Quickstart
   return (
     <section className="flex flex-col gap-3 mt-3" data-quickstart>
       <h3 className="text-body font-medium text-fg">Your first request</h3>
-      <p className="text-nav text-fg-subtle">
+      <p className="text-body text-fg-subtle">
         Put the key you just copied into <code className="text-code-fg">{API_KEY_ENV_NAME}</code>, then send it as{" "}
         <code className="text-code-fg">{API_KEY_HEADER}</code>. This calls an endpoint that needs the key, so a
         successful answer proves the key works for {registrationName}.
@@ -58,14 +58,14 @@ export function QuickstartPanel({ registrationName, publicClientId }: Quickstart
 
       {selected && <CopyableCode code={selected.code} label={`the ${selected.label} snippet`} multiline />}
 
-      <p className="text-nav text-fg-subtle">
+      <p className="text-body text-fg-subtle">
         Your client id is <code className="text-code-fg">{publicClientId}</code>. It identifies this application and
         does not authenticate it, so it is safe to publish and it is not sent instead of the key.
       </p>
 
-      <p className="text-nav text-fg-subtle">{keyless.text}</p>
+      <p className="text-body text-fg-subtle">{keyless.text}</p>
 
-      <p className="text-nav text-fg-subtle">
+      <p className="text-body text-fg-subtle">
         Language packages are not published yet, so this shows plain HTTP. Every operation, its parameters and its
         errors are in the{" "}
         <a href="/docs/api" className="content-link">

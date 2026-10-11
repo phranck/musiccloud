@@ -59,6 +59,12 @@ export interface TurntablePlayerContextValue {
   isDisabled: boolean;
   /** Whether the engine is still loading its source. */
   isLoading: boolean;
+  /**
+   * Whether the host holds the transport, such as while the artist data loads.
+   * Disables the play button only; `togglePlay` still runs for the deck's own
+   * restart after a record swap.
+   */
+  isPlaybackLocked: boolean;
   /** Whether the track has no playable preview at all. */
   isUnavailable: boolean;
   /** Pre-formatted elapsed/remaining time string for the analyzer display. */

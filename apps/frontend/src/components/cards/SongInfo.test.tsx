@@ -111,3 +111,59 @@ describe("SongInfo media stage", () => {
     expect(screen.getByText("STEREO MC-1958")).toBeInTheDocument();
   });
 });
+
+describe("SongInfo deck painting", () => {
+  /**
+   * Safari drops what it painted of a hidden layer, so a deck hidden behind the
+   * cover had to be painted in the first frame of every switch to the turntable.
+   * `data-deck-painted` keeps it visible behind the cover once a visitor reaches
+   * for the toggle, so it is painted once while nothing moves.
+   */
+  function renderCoverView(shareMediaView: ShareMediaView = ShareMediaView.Cover) {
+    return render(
+      <SongInfo
+        title="Blue Train"
+        artist="John Coltrane"
+        albumArtUrl="/covers/blue-train.jpg"
+        mediaViewToggleLabel="Toggle cover and turntable view"
+        onMediaViewToggle={() => {}}
+        shareMediaView={shareMediaView}
+        turntableStage={turntableStageNode(VinylSpinState.Idle)}
+      />,
+    );
+  }
+
+  it("leaves the deck unpainted until a visitor reaches for the toggle", () => {
+    const { container } = renderCoverView();
+    expect(container.querySelector(".mc-share-media-screen")).not.toHaveAttribute("data-deck-painted");
+  });
+
+  it("paints the deck when the pointer reaches the screen", () => {
+    const { container } = renderCoverView();
+    const mediaScreen = container.querySelector(".mc-share-media-screen") as HTMLElement;
+    fireEvent.pointerOver(mediaScreen);
+    expect(mediaScreen).toHaveAttribute("data-deck-painted");
+  });
+
+  it("paints the deck when the toggle receives focus", () => {
+    const { container } = renderCoverView();
+    fireEvent.focus(screen.getByRole("button", { name: "Toggle cover and turntable view" }));
+    expect(container.querySelector(".mc-share-media-screen")).toHaveAttribute("data-deck-painted");
+  });
+
+  it("keeps the deck painted after the turntable view was shown once", () => {
+    const { container, rerender } = renderCoverView(ShareMediaView.Turntable);
+    rerender(
+      <SongInfo
+        title="Blue Train"
+        artist="John Coltrane"
+        albumArtUrl="/covers/blue-train.jpg"
+        mediaViewToggleLabel="Toggle cover and turntable view"
+        onMediaViewToggle={() => {}}
+        shareMediaView={ShareMediaView.Cover}
+        turntableStage={turntableStageNode(VinylSpinState.Idle)}
+      />,
+    );
+    expect(container.querySelector(".mc-share-media-screen")).toHaveAttribute("data-deck-painted");
+  });
+});

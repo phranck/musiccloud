@@ -68,14 +68,15 @@
  * (`registry.ts` PLUGINS array). The first adapter with a `found`
  * match wins; later adapters are not consulted for that query.
  */
-import { PLATFORM_CONFIG } from "@musiccloud/shared";
+import { type MatchMethod, PLATFORM_CONFIG } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
 import { CACHE_TTL_MS } from "../lib/config.js";
 import { log } from "../lib/infra/logger.js";
 import { stripTrackingParams } from "../lib/platform/url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
 import { stringSimilarity } from "../lib/resolve/normalize.js";
-import { MATCH_MIN_CONFIDENCE } from "./constants.js";
+import { confidenceForMethod } from "./confidence.js";
+import { IDENTIFIER_MATCH_CONFIDENCE, MATCH_MIN_CONFIDENCE } from "./constants.js";
 import { collectArtistExternalIds } from "./external-ids.js";
 import { filterDisabledLinks, getActiveAdapters, identifyServiceIncludingDisabled, isPluginEnabled } from "./index.js";
 import type {
@@ -95,7 +96,7 @@ export interface ResolvedArtistLink {
   displayName: string;
   url: string;
   confidence: number;
-  matchMethod: "search" | "cache";
+  matchMethod: MatchMethod;
   externalId?: string;
   imageUrl?: string;
   /**
@@ -455,8 +456,8 @@ export async function resolveArtistUrl(inputUrl: string): Promise<ArtistResoluti
     service: sourceAdapter.id,
     displayName: sourceAdapter.displayName,
     url: sourceArtist.webUrl,
-    confidence: 1.0,
-    matchMethod: "search",
+    confidence: IDENTIFIER_MATCH_CONFIDENCE,
+    matchMethod: "source",
     externalId: sourceArtist.sourceId,
   });
 
@@ -506,7 +507,7 @@ export async function resolveArtistTextSearch(query: string): Promise<ArtistReso
           service: adapter.id,
           displayName: adapter.displayName,
           url: sourceArtist.webUrl,
-          confidence: result.confidence,
+          confidence: confidenceForMethod("search", result.confidence),
           matchMethod: "search",
           externalId: sourceArtist.sourceId,
         });

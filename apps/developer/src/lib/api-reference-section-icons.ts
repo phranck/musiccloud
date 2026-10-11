@@ -17,7 +17,6 @@ import {
 
 export const apiReferenceStaticSectionIcons = {
   integration: BookIcon,
-  sdk: CodeIcon,
   schemas: CodeIcon,
 } as const;
 

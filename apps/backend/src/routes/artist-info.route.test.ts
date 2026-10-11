@@ -22,7 +22,7 @@ vi.mock("../db/index.js", () => ({
 }));
 
 vi.mock("../lib/infra/logger.js", () => ({
-  log: { debug: vi.fn() },
+  log: { debug: vi.fn(), deviation: vi.fn() },
 }));
 
 vi.mock("../lib/infra/rate-limiter.js", () => ({
@@ -63,6 +63,10 @@ const PROFILE = {
   similarArtists: [],
 };
 
+function complete<Value>(value: Value) {
+  return { value, complete: true };
+}
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((resolvePromise) => {
@@ -88,9 +92,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.findShortIdByTrackUrl.mockResolvedValue(null);
   mocks.findShortIdsByTrackUrls.mockResolvedValue(new Map());
-  mocks.fetchArtistProfileSnapshot.mockResolvedValue({ profile: PROFILE, providers: [] });
-  mocks.fetchArtistTopTracks.mockResolvedValue([]);
-  mocks.fetchArtistEvents.mockResolvedValue([]);
+  mocks.fetchArtistProfileSnapshot.mockResolvedValue(complete({ profile: PROFILE, providers: [] }));
+  mocks.fetchArtistTopTracks.mockResolvedValue(complete([]));
+  mocks.fetchArtistEvents.mockResolvedValue(complete([]));
   mocks.findArtistInfoEntity.mockResolvedValue({ artistEntityId: "artist-entity-1", artistName: "Canonical Artist" });
   mocks.findArtistCache.mockResolvedValue(freshCache("Canonical Artist"));
 });
@@ -225,7 +229,7 @@ describe("GET /api/v1/artist-info entity identity", () => {
   });
 
   it("returns a complete stale profile before its delayed background refresh settles", async () => {
-    const pendingProfile = deferred<{ profile: typeof PROFILE; providers: [] }>();
+    const pendingProfile = deferred<ReturnType<typeof complete<{ profile: typeof PROFILE; providers: [] }>>>();
     mocks.findArtistCache.mockResolvedValue({
       ...freshCache("Canonical Artist"),
       profile: PROFILE,
@@ -246,14 +250,14 @@ describe("GET /api/v1/artist-info entity identity", () => {
     expect(response.json()).toMatchObject({ profile: PROFILE });
     expect(mocks.saveArtistCache).not.toHaveBeenCalled();
 
-    pendingProfile.resolve({ profile: PROFILE, providers: [] });
+    pendingProfile.resolve(complete({ profile: PROFILE, providers: [] }));
     await vi.waitFor(() =>
       expect(mocks.saveArtistCache).toHaveBeenCalledWith(expect.objectContaining({ profile: PROFILE })),
     );
   });
 
   it("shares a stale profile refresh across concurrent requests", async () => {
-    const pendingProfile = deferred<{ profile: typeof PROFILE; providers: [] }>();
+    const pendingProfile = deferred<ReturnType<typeof complete<{ profile: typeof PROFILE; providers: [] }>>>();
     mocks.findArtistCache.mockResolvedValue({
       ...freshCache("Canonical Artist"),
       profile: PROFILE,
@@ -272,12 +276,12 @@ describe("GET /api/v1/artist-info entity identity", () => {
       expect.objectContaining({ statusCode: 200 }),
     ]);
 
-    pendingProfile.resolve({ profile: PROFILE, providers: [] });
+    pendingProfile.resolve(complete({ profile: PROFILE, providers: [] }));
     await vi.waitFor(() => expect(mocks.saveArtistCache).toHaveBeenCalledTimes(1));
   });
 
   it("shares a stale similar artist track refresh across concurrent requests", async () => {
-    const pendingTracks = deferred<[]>();
+    const pendingTracks = deferred<ReturnType<typeof complete<never[]>>>();
     const rootCache = {
       ...freshCache("Canonical Artist"),
       profile: { ...PROFILE, similarArtists: ["Related Artist"] },
@@ -301,7 +305,7 @@ describe("GET /api/v1/artist-info entity identity", () => {
       expect.objectContaining({ statusCode: 200 }),
     ]);
 
-    pendingTracks.resolve([]);
+    pendingTracks.resolve(complete([]));
     await vi.waitFor(() =>
       expect(mocks.saveArtistCache).toHaveBeenCalledWith(
         expect.objectContaining({ artistName: "Related Artist", topTracks: [] }),
@@ -310,7 +314,7 @@ describe("GET /api/v1/artist-info entity identity", () => {
   });
 
   it("waits for a profile section that has no completed cache timestamp", async () => {
-    const pendingProfile = deferred<{ profile: typeof PROFILE; providers: [] }>();
+    const pendingProfile = deferred<ReturnType<typeof complete<{ profile: typeof PROFILE; providers: [] }>>>();
     mocks.findArtistCache.mockResolvedValue({ ...freshCache("Canonical Artist"), profile: null, profileUpdatedAt: 0 });
     mocks.fetchArtistProfileSnapshot.mockReturnValue(pendingProfile.promise);
     const app = await buildApp();
@@ -327,7 +331,7 @@ describe("GET /api/v1/artist-info entity identity", () => {
     });
     expect(settled).toBe(false);
 
-    pendingProfile.resolve({ profile: PROFILE, providers: [] });
+    pendingProfile.resolve(complete({ profile: PROFILE, providers: [] }));
     await expect(responsePromise).resolves.toMatchObject({ statusCode: 200 });
   });
 
@@ -349,5 +353,29 @@ describe("GET /api/v1/artist-info entity identity", () => {
     expect(mocks.fetchArtistProfileSnapshot).toHaveBeenCalledTimes(1);
     expect(mocks.fetchArtistTopTracks).not.toHaveBeenCalled();
     expect(mocks.fetchArtistEvents).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/v1/artist-info similar artists", () => {
+  it("answers without waiting for an uncached similar artist's top tracks and fetches them in the background", async () => {
+    const pendingTracks = deferred<ReturnType<typeof complete<never[]>>>();
+    const rootCache = {
+      ...freshCache("Canonical Artist"),
+      profile: { ...PROFILE, similarArtists: ["Related Artist"] },
+    };
+    mocks.findArtistCache.mockImplementation(async (identity) => (identity.kind === "name" ? null : rootCache));
+    mocks.fetchArtistTopTracks.mockReturnValue(pendingTracks.promise);
+    const app = await buildApp();
+
+    const response = await app.inject({ method: "GET", url: "/api/v1/artist-info?artistEntityId=artist-entity-1" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ similarArtistTracks: [{ artistName: "Related Artist", track: null }] });
+    expect(mocks.fetchArtistTopTracks).toHaveBeenCalledWith("Related Artist");
+
+    pendingTracks.resolve(complete([]));
+    await vi.waitFor(() =>
+      expect(mocks.saveArtistCache).toHaveBeenCalledWith(expect.objectContaining({ artistName: "Related Artist" })),
+    );
   });
 });

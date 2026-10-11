@@ -1,11 +1,11 @@
-import type { ServiceId } from "@musiccloud/shared";
+import type { MatchMethod, ServiceId } from "@musiccloud/shared";
 import { compareByDisplayOrder, PLATFORM_CONFIG } from "@musiccloud/shared";
 
 export interface PlatformLink {
   platform: ServiceId;
   url: string;
   displayName?: string;
-  matchMethod?: "isrc" | "search" | "cache" | "upc" | "isrc-inference";
+  matchMethod?: MatchMethod;
 }
 
 /**

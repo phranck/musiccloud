@@ -87,6 +87,32 @@ export const serviceLinks = pgTable(
   ],
 );
 
+/**
+ * Records that a service was asked about a track and had nothing.
+ *
+ * `service_links` above says where a track was found. Without its
+ * counterpart, a service that does not carry the track is indistinguishable
+ * from one that was never asked, so every later resolve of that track asks
+ * again, and keeps asking for as long as the row exists. This table is what
+ * makes a fruitless lookup cost something once instead of every time.
+ *
+ * The row expires rather than being permanent: a catalogue does gain tracks,
+ * so a miss is only good for `SERVICE_MISS_TTL_MS`, after which the service is
+ * asked once more.
+ */
+export const serviceLinkMisses = pgTable(
+  "service_link_misses",
+  {
+    id: text("id").primaryKey(),
+    trackId: text("track_id")
+      .notNull()
+      .references(() => tracks.id),
+    service: text("service").notNull(),
+    checkedAt: timestamp("checked_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [uniqueIndex("idx_service_link_misses_track_service").on(table.trackId, table.service)],
+);
+
 // Multi-source external identifier aggregation for tracks. The canonical
 // `tracks.isrc` column stores the primary value used for fast lookups; this
 // table additionally records every (id_type, id_value, source_service)
@@ -1574,7 +1600,28 @@ export const developerAccounts = pgTable(
     emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
     passwordHash: text("password_hash"),
     displayName: text("display_name"),
+    /** The name a person goes by, both halves optional and neither derived from the other. */
+    firstName: text("first_name"),
+    lastName: text("last_name"),
+    /**
+     * The picture an identity provider handed over, which today means GitHub.
+     *
+     * One of three sources a developer chooses between, and the only one they
+     * cannot produce themselves.
+     */
     avatarUrl: text("avatar_url"),
+    /** A picture the developer uploaded, held as a `data:` URL like the dashboard's. */
+    uploadedAvatarUrl: text("uploaded_avatar_url"),
+    /** What Gravatar answered when it was last asked about this address. */
+    gravatarUrl: text("gravatar_url"),
+    /**
+     * Which of the three is shown.
+     *
+     * Kept beside them rather than collapsing the three into one column, so
+     * switching from an upload to a Gravatar and back does not throw the other
+     * away. `null` means the portal picks whatever it has.
+     */
+    avatarSource: text("avatar_source"),
     /**
      * Where the operator writes when something about this account's
      * applications needs a person who can act, such as a shared engineering
@@ -1583,13 +1630,29 @@ export const developerAccounts = pgTable(
      * unverified wherever it is shown.
      */
     technicalContactEmail: text("technical_contact_email"),
+    /**
+     * An address the developer has asked to sign in with, once they confirm it.
+     *
+     * Held here rather than on the token, so the profile page can say what is
+     * pending and offer to cancel it. The account still signs in with `email`
+     * until the confirmation link is followed.
+     */
+    pendingEmail: text("pending_email"),
+    /** When that change was asked for, which is what the page dates. */
+    pendingEmailRequestedAt: timestamp("pending_email_requested_at", { withTimezone: true }),
     tierId: text("tier_id").references(() => tiers.id, { onDelete: "set null" }),
     status: text("status").notNull().default("active"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
   },
-  (table) => [check("chk_developer_accounts_status", sql`${table.status} IN ('active', 'suspended')`)],
+  (table) => [
+    check("chk_developer_accounts_status", sql`${table.status} IN ('active', 'suspended')`),
+    check(
+      "chk_developer_accounts_avatar_source",
+      sql`${table.avatarSource} IS NULL OR ${table.avatarSource} IN ('provider', 'upload', 'gravatar')`,
+    ),
+  ],
 );
 
 export type DeveloperAccountRow = typeof developerAccounts.$inferSelect;
@@ -1650,7 +1713,7 @@ export const developerEmailTokens = pgTable(
   },
   (table) => [
     index("idx_developer_email_tokens_token_hash").on(table.tokenHash),
-    check("chk_developer_email_tokens_purpose", sql`${table.purpose} IN ('verify', 'reset')`),
+    check("chk_developer_email_tokens_purpose", sql`${table.purpose} IN ('verify', 'reset', 'change-email')`),
   ],
 );
 
@@ -1658,12 +1721,17 @@ export type DeveloperEmailTokenRow = typeof developerEmailTokens.$inferSelect;
 export type DeveloperEmailTokenInsert = typeof developerEmailTokens.$inferInsert;
 
 /**
- * Creem billing detail per paid subscription. Kept separate from
- * developer_accounts (SRP): account.tierId stays the effective tier for
- * enforcement, this table only mirrors Creem's billing state. Free accounts
- * have no row here. Written by the Creem webhook (Plan C), read by the
- * subscription-management UI (Plan D). creemSubscriptionId is unique so the
- * idempotent webhook can upsert by it.
+ * Creem billing detail per paid subscription, mirroring Creem's billing state
+ * and nothing else. Free accounts have no row here. `creemSubscriptionId` is
+ * unique so an idempotent webhook can upsert by it.
+ *
+ * What a key is allowed to do is decided one level down, by the subscription
+ * on the project (`developer_project_subscriptions`), which is what
+ * `authenticatePublic` resolves the quota from. `developer_accounts.tier_id`
+ * is displayed on the account and enforces nothing.
+ *
+ * This table is scheduled for retirement in #183, because the project
+ * subscription is where a plan already lives.
  */
 export const developerSubscriptions = pgTable(
   "developer_subscriptions",
