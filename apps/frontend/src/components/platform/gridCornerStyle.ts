@@ -1,9 +1,6 @@
 import type { CSSProperties } from "react";
+import { GROUPED_CORNER_FULL, GROUPED_CORNER_INNER } from "@/components/cards/groupedCornerRadii";
 
-/** Promoted (outer) tile corner: the button's own control radius. */
-const GRID_FULL = "var(--neu-radius)";
-/** Interior tile corner, capped at 5px (mirrors `--mc-control-radius-inner`). */
-const GRID_INNER = "min(5px, var(--neu-radius))";
 /** The grid is always two columns (`grid-cols-2`). */
 const GRID_COLS = 2;
 
@@ -12,8 +9,8 @@ const GRID_COLS = 2;
  * inscribed in its RecessedCard: a tile corner is promoted to the full outer
  * radius only where it coincides with a corner of the well; every other corner
  * stays at the small interior radius. The right-column corners (top-right,
- * bottom-right) require the tile to occupy the grid's last column — so with an
- * odd tile count, where the last row holds a single left-column tile, the well's
+ * bottom-right) require the tile to occupy the grid's last column. With an odd
+ * tile count the last row holds a single left-column tile, so the well's
  * bottom-right corner is unoccupied and that lone tile keeps an interior
  * bottom-right. Index-based (not layout-read) so it is immune to the GSAP Flip
  * reflow.
@@ -32,9 +29,9 @@ export function gridCornerStyle(index: number, count: number): CSSProperties {
   const bl = row === lastRow && col === 0;
   const br = row === lastRow && col === lastCol;
   return {
-    borderTopLeftRadius: tl ? GRID_FULL : GRID_INNER,
-    borderTopRightRadius: tr ? GRID_FULL : GRID_INNER,
-    borderBottomLeftRadius: bl ? GRID_FULL : GRID_INNER,
-    borderBottomRightRadius: br ? GRID_FULL : GRID_INNER,
+    borderTopLeftRadius: tl ? GROUPED_CORNER_FULL : GROUPED_CORNER_INNER,
+    borderTopRightRadius: tr ? GROUPED_CORNER_FULL : GROUPED_CORNER_INNER,
+    borderBottomLeftRadius: bl ? GROUPED_CORNER_FULL : GROUPED_CORNER_INNER,
+    borderBottomRightRadius: br ? GROUPED_CORNER_FULL : GROUPED_CORNER_INNER,
   };
 }
