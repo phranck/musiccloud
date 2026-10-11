@@ -11,22 +11,9 @@
 
 import { getTierRepository } from "../db/index.js";
 import { BillingPeriod, type BillingPeriodValue, type Tier, type TierOffer } from "../db/tiers-repository.js";
+import { CreemKeyMissingError } from "../lib/creem-config.js";
 import { log } from "../lib/infra/logger.js";
 import { type CreemCatalog, CreemPriceOutcome, getCreemCatalog } from "./creem-catalog.js";
-
-/**
- * Whether a failure was the key being absent rather than Creem being down.
- *
- * `requireEnv` names the variable it is missing, and that is the one signal
- * separating "nobody configured this" from "the upstream is refusing". The two
- * are diagnosed in completely different places, so they do not share a line.
- *
- * @param error - Whatever the catalogue threw.
- * @returns `true` when the API key is not configured.
- */
-function isMissingApiKey(error: unknown): boolean {
-  return error instanceof Error && error.message.includes("CREEM_API_KEY");
-}
 
 /**
  * Formats an integer cent amount as a euro string in the same shape the tiers
@@ -88,13 +75,18 @@ export async function enrichTiersWithCreemPrices(tiers: Tier[]): Promise<Tier[]>
     // The page keeps working on our own prices, which is the right answer.
     // Doing it silently is not: an unset key, an unreachable Creem and an
     // archived product look identical from outside and are three different
-    // problems, so the outcome says which one this was.
+    // problems, so the outcome says which one this was. An unset key is the
+    // one failure `requireCreemApiKey` throws as its own type, and everything
+    // else, a conflicting configuration included, counts as Creem unavailable.
     log.deviation(
       {
         component: "TierPricing",
         errorCode: "MC-SYS-0001",
         operation: "creem_catalog_read",
-        outcome: isMissingApiKey(error) ? CreemPriceOutcome.NotConfigured : CreemPriceOutcome.CatalogUnavailable,
+        outcome:
+          error instanceof CreemKeyMissingError
+            ? CreemPriceOutcome.NotConfigured
+            : CreemPriceOutcome.CatalogUnavailable,
         tiersServedFromDatabase: tiers.length,
       },
       error,

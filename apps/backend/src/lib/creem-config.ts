@@ -23,6 +23,49 @@ const KEY_VARIABLE: Record<CreemModeValue, string> = {
 };
 
 /**
+ * The variable a key was read from before there was one per environment. Its
+ * key fills the slot its own prefix names, so a deployment that predates the
+ * second key keeps working unchanged.
+ */
+const LEGACY_KEY_VARIABLE = "CREEM_API_KEY";
+
+/**
+ * Whether any Creem key variable is set: one of {@link KEY_VARIABLE} or
+ * {@link LEGACY_KEY_VARIABLE}.
+ *
+ * The boot check asks this before it validates the configuration, because a
+ * deployment without Creem is valid. It reads the same table
+ * {@link getCreemConfig} does, so a variable added there is seen here as well.
+ *
+ * @returns `true` when at least one of the variables holds a value.
+ */
+export function hasAnyCreemKeyVariable(): boolean {
+  return [...Object.values(KEY_VARIABLE), LEGACY_KEY_VARIABLE].some((name) => Boolean(process.env[name]));
+}
+
+/**
+ * Thrown when this deployment holds no key for the environment asked for.
+ *
+ * It is a type of its own rather than a message to match, because an unset key
+ * and a Creem that refuses are diagnosed in different places. The pricing page
+ * logs this one as `creem_not_configured` and every other failure as Creem
+ * being unavailable.
+ */
+export class CreemKeyMissingError extends Error {
+  /**
+   * @param mode - The environment this deployment has no key for. The message
+   *   names the variable that would hold it.
+   */
+  constructor(readonly mode: CreemModeValue) {
+    super(
+      `No Creem key for the ${mode} environment. Set ${KEY_VARIABLE[mode]} in the runtime environment. ` +
+        ".env.local is only for local development.",
+    );
+    this.name = "CreemKeyMissingError";
+  }
+}
+
+/**
  * The environment a Creem key belongs to, read from its own prefix.
  *
  * @param apiKey - The key.
@@ -32,7 +75,7 @@ export function modeOfApiKey(apiKey: string): CreemModeValue {
   return apiKey.startsWith(TEST_KEY_PREFIX) ? CreemMode.Test : CreemMode.Live;
 }
 
-/** Validierte Creem-Laufzeit-Config, an einer Stelle gelesen (fail-fast). */
+/** The validated Creem runtime configuration, read in one place so a fault fails fast. */
 export interface CreemConfig {
   /**
    * The API key per environment. An environment with no key is one this
@@ -75,14 +118,14 @@ export function getCreemConfig(): CreemConfig {
     apiKeys[mode] = value;
   }
 
-  const legacyKey = process.env.CREEM_API_KEY;
+  const legacyKey = process.env[LEGACY_KEY_VARIABLE];
   if (legacyKey) {
     const mode = modeOfApiKey(legacyKey);
     const existing = apiKeys[mode];
     if (existing && existing !== legacyKey) {
       throw new Error(
-        `CREEM_API_KEY and ${KEY_VARIABLE[mode]} both name the ${mode} environment with different keys. ` +
-          `Remove CREEM_API_KEY, which exists only so a deployment that predates the second key keeps working.`,
+        `${LEGACY_KEY_VARIABLE} and ${KEY_VARIABLE[mode]} both name the ${mode} environment with different keys. ` +
+          `Remove ${LEGACY_KEY_VARIABLE}, which exists only so a deployment that predates the second key keeps working.`,
       );
     }
     apiKeys[mode] = legacyKey;
@@ -109,18 +152,14 @@ export function configuredCreemModes(): CreemModeValue[] {
  *
  * @param mode - The environment to reach.
  * @returns Its key.
- * @throws Error naming the variable to set when this deployment has no key for
- *   that environment. Failing here is deliberate: the alternative is falling
- *   back to the other account, which is the one thing that must never happen
- *   silently.
+ * @throws {@link CreemKeyMissingError} naming the variable to set when this
+ *   deployment has no key for that environment. Failing here is deliberate,
+ *   because the alternative is falling back to the other account, which is the
+ *   one thing that must never happen silently.
+ * @throws Error from {@link getCreemConfig} when the configuration conflicts.
  */
 export function requireCreemApiKey(mode: CreemModeValue): string {
   const key = getCreemConfig().apiKeys[mode];
-  if (!key) {
-    throw new Error(
-      `No Creem key for the ${mode} environment. Set ${KEY_VARIABLE[mode]} in the runtime environment. ` +
-        ".env.local is only for local development.",
-    );
-  }
+  if (!key) throw new CreemKeyMissingError(mode);
   return key;
 }

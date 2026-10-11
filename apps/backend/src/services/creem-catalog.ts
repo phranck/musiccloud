@@ -23,7 +23,7 @@ import { getSellingMode } from "./creem-selling-mode.js";
  * each one names itself in the log rather than sharing a generic line.
  */
 export const CreemPriceOutcome = {
-  /** `CREEM_API_KEY` is not set, so no catalogue can be built at all. */
+  /** No key is set for the environment the shop sells from, so no catalogue can be built at all. */
   NotConfigured: "creem_not_configured",
   /** Creem could not be reached or refused, so no tier has a live price. */
   CatalogUnavailable: "creem_catalog_unavailable",

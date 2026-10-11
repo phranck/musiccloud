@@ -1,13 +1,14 @@
 /**
  * @file Unit tests for `assertRequiredBootEnv` (MC-110). Verifies that the
- * Creem consistency guard calls `getCreemConfig` when `CREEM_API_KEY` is
- * present, propagates any throw from it, and skips the call entirely when
- * `CREEM_API_KEY` is absent.
+ * Creem consistency guard calls `getCreemConfig` when any Creem key variable is
+ * present, propagates any throw from it, and skips the call entirely when no
+ * Creem key variable is set.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock the creem-config module so we can spy on / control getCreemConfig.
-vi.mock("./creem-config.js", () => ({
+// Only getCreemConfig is replaced, so the guard's condition is the real one.
+vi.mock("./creem-config.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./creem-config.js")>()),
   getCreemConfig: vi.fn(),
 }));
 
@@ -75,11 +76,10 @@ describe("assertRequiredBootEnv (MC-110)", () => {
     expect(() => assertRequiredBootEnv()).not.toThrow();
   });
 
-  it("does NOT call getCreemConfig when CREEM_API_KEY is absent", async () => {
-    // Ensure CREEM_API_KEY is not set.
-    vi.unstubAllEnvs();
-    vi.stubEnv("JAMENDO_CLIENT_ID", "test-jamendo-id");
-    delete process.env.CREEM_API_KEY;
+  it("does NOT call getCreemConfig when no Creem key variable is set", async () => {
+    vi.stubEnv("CREEM_API_KEY", "");
+    vi.stubEnv("CREEM_TEST_API_KEY", "");
+    vi.stubEnv("CREEM_LIVE_API_KEY", "");
 
     const { getCreemConfig } = await import("./creem-config.js");
     const { assertRequiredBootEnv } = await import("./boot-env.js");
@@ -87,5 +87,22 @@ describe("assertRequiredBootEnv (MC-110)", () => {
     assertRequiredBootEnv();
 
     expect(getCreemConfig).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "CREEM_TEST_API_KEY",
+    "CREEM_LIVE_API_KEY",
+  ])("checks the configuration when only %s is set", async (variable) => {
+    vi.stubEnv("CREEM_API_KEY", "");
+    vi.stubEnv("CREEM_TEST_API_KEY", "");
+    vi.stubEnv("CREEM_LIVE_API_KEY", "");
+    vi.stubEnv(variable, "creem_some_key");
+
+    const { getCreemConfig } = await import("./creem-config.js");
+    const { assertRequiredBootEnv } = await import("./boot-env.js");
+
+    assertRequiredBootEnv();
+
+    expect(getCreemConfig).toHaveBeenCalledOnce();
   });
 });
