@@ -350,6 +350,13 @@ export const dashboardCopy = {
     maintenanceLabel: "Maintenance",
     maintenanceDescription: "Temporarily closes the portal for maintenance.",
     apiReferenceNotice: "The API reference remains available at all times.",
+    portalOpenWarning:
+      "Opening the Developer Portal makes it and its registration reachable for everyone on the internet.",
+    portalOpenConfirm: "Open the portal",
+    portalStatePublic: "Public",
+    portalStateMaintenance: "In maintenance",
+    portalStateClosed: "Closed",
+    portalLastChange: "{state} since {when}, set by {name}.",
   },
   music: {
     columns: {

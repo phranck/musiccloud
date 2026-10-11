@@ -8,6 +8,7 @@ import { Tag as TagIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { DashboardSection } from "@/components/ui/DashboardSection";
 import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
+import { InlineConfirm } from "@/components/ui/InlineConfirm";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { TierOffer } from "@/features/developer/api";
@@ -217,25 +218,14 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
 
       {confirmingRemove ? (
         <div className="mt-3">
-          <p className="text-xs text-[var(--ds-text-muted)]">{dm.offerRemoveConfirm}</p>
-          <div className="mt-2 flex justify-end gap-2">
-            <DashboardActionButton
-              action={DashboardActionId.Cancel}
-              icon={false}
-              label={messages.common.cancel}
-              onClick={() => setConfirmingRemove(false)}
-              type="button"
-              variant={DashboardButtonVariant.Neutral}
-            />
-            <DashboardActionButton
-              action={DashboardActionId.Delete}
-              label={dm.offerRemove}
-              onClick={() => deleteOffer.mutate(offer.id)}
-              disabled={deleteOffer.isPending}
-              type="button"
-              variant={DashboardButtonVariant.Danger}
-            />
-          </div>
+          <InlineConfirm
+            message={dm.offerRemoveConfirm}
+            confirmAction={DashboardActionId.Delete}
+            confirmLabel={dm.offerRemove}
+            onConfirm={() => deleteOffer.mutate(offer.id)}
+            onCancel={() => setConfirmingRemove(false)}
+            disabled={deleteOffer.isPending}
+          />
         </div>
       ) : (
         <div className="mt-3 flex justify-end">

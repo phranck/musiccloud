@@ -2,19 +2,42 @@ import { ENDPOINTS } from "@musiccloud/shared";
 import type { BillingPeriod, CreemMode, OfferCurrency, TaxCategory, TaxMode } from "@/features/developer/domain";
 import { api } from "@/lib/api";
 
+/** The two switches behind the developer portal's gate. */
 export interface DeveloperPortalAvailability {
   maintenance: boolean;
   public: boolean;
 }
 
-export function fetchDeveloperPortalAvailability(): Promise<DeveloperPortalAvailability> {
-  return api.get<DeveloperPortalAvailability>(ENDPOINTS.admin.developer.portalAvailability);
+/** One recorded change of the portal's availability: the state an owner set, when, and who it was. */
+export interface DeveloperPortalAvailabilityChange extends DeveloperPortalAvailability {
+  /** ISO 8601 timestamp of the change. */
+  occurredAt: string;
+  actor: { username: string; firstName: string | null; lastName: string | null };
 }
 
+/** The portal's availability with the change that produced it, or `null` before the first one. */
+export interface DeveloperPortalAvailabilityState extends DeveloperPortalAvailability {
+  lastChange: DeveloperPortalAvailabilityChange | null;
+}
+
+export function fetchDeveloperPortalAvailability(): Promise<DeveloperPortalAvailabilityState> {
+  return api.get<DeveloperPortalAvailabilityState>(ENDPOINTS.admin.developer.portalAvailability);
+}
+
+/**
+ * Stores both switches. The server records the change against the owner who
+ * sent it, so the body carries the switches and nothing else.
+ *
+ * @param next - The availability to store.
+ * @returns The stored state with its newest change.
+ */
 export function updateDeveloperPortalAvailability(
   next: DeveloperPortalAvailability,
-): Promise<DeveloperPortalAvailability> {
-  return api.patch<DeveloperPortalAvailability>(ENDPOINTS.admin.developer.portalAvailability, next);
+): Promise<DeveloperPortalAvailabilityState> {
+  return api.patch<DeveloperPortalAvailabilityState>(ENDPOINTS.admin.developer.portalAvailability, {
+    public: next.public,
+    maintenance: next.maintenance,
+  });
 }
 
 /** The bounds the operator has set on the open self-service creation path. */

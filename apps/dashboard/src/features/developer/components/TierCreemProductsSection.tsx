@@ -7,6 +7,7 @@ import {
 import { CurrencyEur as CurrencyEurIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { DashboardSection } from "@/components/ui/DashboardSection";
+import { InlineConfirm } from "@/components/ui/InlineConfirm";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { CreemProductMapping, TierOffer, TierResponse } from "@/features/developer/api";
@@ -183,25 +184,14 @@ function TierCreemProductRow({ tier, offer, mode, mapping, writable }: TierCreem
 
           {confirmingArchive ? (
             <div className="mt-3">
-              <p className="text-xs text-[var(--ds-text-muted)]">{dm.creemArchiveConfirmBody}</p>
-              <div className="mt-2 flex justify-end gap-2">
-                <DashboardActionButton
-                  action={DashboardActionId.Cancel}
-                  icon={false}
-                  label={messages.common.cancel}
-                  onClick={() => setConfirmingArchive(false)}
-                  type="button"
-                  variant={DashboardButtonVariant.Neutral}
-                />
-                <DashboardActionButton
-                  action={DashboardActionId.Delete}
-                  label={dm.creemArchive}
-                  onClick={handleArchive}
-                  disabled={busy}
-                  type="button"
-                  variant={DashboardButtonVariant.Danger}
-                />
-              </div>
+              <InlineConfirm
+                message={dm.creemArchiveConfirmBody}
+                confirmAction={DashboardActionId.Delete}
+                confirmLabel={dm.creemArchive}
+                onConfirm={handleArchive}
+                onCancel={() => setConfirmingArchive(false)}
+                disabled={busy}
+              />
             </div>
           ) : (
             <div className="mt-2 flex justify-end">

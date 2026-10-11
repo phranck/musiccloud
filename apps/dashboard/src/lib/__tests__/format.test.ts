@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatEnglishDate, formatEnglishNumber } from "@/lib/format";
+import { formatAdminName, formatEnglishDate, formatEnglishNumber } from "@/lib/format";
 
 describe("English dashboard formatting", () => {
   it("formats dates in English while preserving explicit timezone options", () => {
@@ -15,5 +15,17 @@ describe("English dashboard formatting", () => {
 
   it("formats numbers in English deterministically", () => {
     expect(formatEnglishNumber(1234)).toBe("1,234");
+  });
+});
+
+describe("formatAdminName", () => {
+  it("names an admin by first and last name where either is set", () => {
+    expect(formatAdminName({ username: "olive", firstName: "Olive", lastName: "Owner" })).toBe("Olive Owner");
+    expect(formatAdminName({ username: "olive", firstName: null, lastName: "Owner" })).toBe("Owner");
+  });
+
+  it("falls back to the username when no name is set", () => {
+    expect(formatAdminName({ username: "oscar", firstName: null, lastName: null })).toBe("oscar");
+    expect(formatAdminName({ username: "oscar", firstName: "", lastName: "" })).toBe("oscar");
   });
 });

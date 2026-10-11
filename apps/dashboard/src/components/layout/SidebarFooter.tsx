@@ -8,6 +8,7 @@ import { SignOutIcon, UserCircleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { dashboardCopy } from "@/copy/dashboard";
 import { UserAvatar } from "@/features/system/UserAvatar";
+import { formatAdminName } from "@/lib/format";
 import type { AdminRole } from "@/shared/types/admin";
 import { Dialog, dialogHeaderIconClass } from "@/shared/ui/Dialog";
 
@@ -34,7 +35,7 @@ export function FooterUserInfo({
 }: FooterUserInfoProps) {
   const messages = dashboardCopy;
   const s = messages.layout.sidebar;
-  const displayName = [firstName, lastName].filter(Boolean).join(" ") || username;
+  const displayName = formatAdminName({ username, firstName, lastName });
   const roleLabel: Record<AdminRole, string> = {
     owner: messages.users.role.owner,
     admin: messages.users.role.admin,
