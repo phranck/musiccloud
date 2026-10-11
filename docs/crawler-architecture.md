@@ -2,20 +2,13 @@
 
 ## What this is
 
-A backend subsystem that proactively grows the canonical entity database by
-ticking a per-minute cron job, fetching candidate tracks from registered
-sources (Deezer Charts, Last.fm Tag Tops, Apple Music Charts), and
-running each candidate through the existing resolver pipeline. Goal:
-cross-service ID density (`*_external_ids`, MusicBrainz canonicalisation,
-preview URLs) keeps growing independently of user load.
+A backend subsystem that proactively grows the canonical entity database by ticking a per-minute cron job, fetching candidate tracks from registered sources (Deezer Charts, Last.fm Tag Tops, Apple Music Charts), and running each candidate through the existing resolver pipeline. Goal: cross-service ID density (`*_external_ids`, MusicBrainz canonicalisation, preview URLs) keeps growing independently of user load.
 
-The user-facing resolve path is reactive — it only writes to the DB when
-someone pastes a link or types a search. The crawler is the active
-counterpart, dashboard-controllable at runtime.
+The user-facing resolve path is reactive. It only writes to the database when someone pastes a link or types a search. The crawler is the active counterpart, and the dashboard controls it at runtime.
 
 ## The pieces
 
-```
+```text
 services/crawler/
 ├── types.ts                       # Candidate union + CrawlerSource contract
 ├── registry.ts                    # static SOURCES array (build-time literal)
@@ -38,7 +31,7 @@ zerops.yml                         # backend run.crontab: per-minute heartbeat
 
 ## Tick flow
 
-```
+```text
 Zerops cron (* * * * *)
   -> node apps/backend/dist/scripts/crawler-heartbeat.js
      -> runMigrations()
@@ -61,9 +54,7 @@ Zerops cron (* * * * *)
               auto-disables on consecutive_errors >= 5
 ```
 
-The heartbeat itself is cheap when nothing is due: one indexed SELECT,
-early return. Real crawler work only happens during the minute a source
-falls due.
+The heartbeat itself is cheap when nothing is due: one indexed SELECT, early return. Real crawler work only happens during the minute a source falls due.
 
 ## Source contract
 
@@ -98,22 +89,10 @@ export const fooSource: CrawlerSource = {
 
 Two candidate shapes:
 
-- `kind: "url"` — Deezer / Apple Music. Goes through `resolveUrl` and
-  pre-deduplicates by URL + (optional) ISRC.
-- `kind: "search"` — Last.fm. Goes through
-  `resolveTextSearchWithDisambiguation`. Pre-dedupe is impossible (no
-  stable ID); the resolver-cache absorbs duplicates one layer down.
+- `kind: "url"` is what Deezer and Apple Music emit. It goes through `resolveUrl` and is deduplicated beforehand by URL and, where present, by ISRC.
+- `kind: "search"` is what Last.fm emits. It goes through `resolveTextSearchWithDisambiguation`. It cannot be deduplicated beforehand because it has no stable ID, so the resolver cache absorbs duplicates one layer down.
 
-`parseConfig` is deliberately source-owned rather than a generic admin JSON
-schema: each source controls its defaults, accepted keys, normalization, and
-bounds. `assertAvailable` checks only runtime prerequisites and may await a
-local credential preflight. The shared
-execution gate is used by admin enablement, `run-now`, and the heartbeat, so
-no path can start a source with invalid configuration or missing prerequisites.
-Sources must throw safe configuration errors from those methods. They are
-returned as canonical `MC-REQ-0001` responses by admin routes and become normal
-failed runs in the heartbeat, with no credential names or values in run notes
-or logs.
+`parseConfig` is deliberately source-owned rather than a generic admin JSON schema: each source controls its defaults, accepted keys, normalization, and bounds. `assertAvailable` checks only runtime prerequisites and may await a local credential preflight. The shared execution gate is used by admin enablement, `run-now`, and the heartbeat, so no path can start a source with invalid configuration or missing prerequisites. Sources must throw safe configuration errors from those methods. They are returned as canonical `MC-REQ-0001` responses by admin routes and become normal failed runs in the heartbeat, with no credential names or values in run notes or logs.
 
 ### Deezer Charts configuration
 
@@ -129,73 +108,37 @@ The source requests the genres serially with a 250 ms gap. Every request uses th
 
 ### Last.fm Tag Tops configuration
 
-`lastfm-tags` is seeded as disabled with a `360`-minute interval and this
-configuration:
+`lastfm-tags` is seeded as disabled with a `360`-minute interval and this configuration:
 
 ```json
 { "tags": [], "limit": 50 }
 ```
 
-`tags` may contain 1 through 20 unique values when the source is enabled or
-run. Values are trimmed, whitespace-normalized, lower-cased, non-empty, and
-at most 100 characters. `limit` is an integer from 1 through 100 and applies
-to every tag. The empty default remains valid only while the source is
-disabled, so a fresh deployment cannot accidentally start discovery.
+`tags` may contain 1 through 20 unique values when the source is enabled or run. Values are trimmed, whitespace-normalized, lower-cased, non-empty, and at most 100 characters. `limit` is an integer from 1 through 100 and applies to every tag. The empty default remains valid only while the source is disabled, so a fresh deployment cannot accidentally start discovery.
 
-Execution also requires `LASTFM_API_KEY` in the backend runtime. Missing
-credentials produce the same safe configuration response or failed-run note;
-they never expose the credential name or value in public API responses or
-logs. The source requests tags serially with a 250 ms gap, which keeps its
-maximum configured twenty-tag run to roughly four upstream requests per
-second. Every request uses the common 5-second timeout and SSRF-protected
-outbound fetch helper.
+Execution also requires `LASTFM_API_KEY` in the backend runtime. Missing credentials produce the same safe configuration response or failed-run note; they never expose the credential name or value in public API responses or logs. The source requests tags serially with a 250 ms gap, which keeps its maximum configured twenty-tag run to roughly four upstream requests per second. Every request uses the common 5-second timeout and SSRF-protected outbound fetch helper.
 
-`tag.getTopTracks` rows with no usable artist/title are counted as skipped.
-The source normalizes and deduplicates artist/title pairs across all tags in a
-single run before they reach the shared resolver ingest path. Any HTTP,
-timeout, JSON, or Last.fm API error fails the complete fetch rather than
-silently treating a partial source response as success.
+`tag.getTopTracks` rows with no usable artist/title are counted as skipped. The source normalizes and deduplicates artist/title pairs across all tags in a single run before they reach the shared resolver ingest path. Any HTTP, timeout, JSON, or Last.fm API error fails the complete fetch rather than silently treating a partial source response as success.
 
 ### Apple Music Charts configuration
 
-`apple-music-charts` is seeded as disabled with a `360`-minute interval and
-this exact configuration:
+`apple-music-charts` is seeded as disabled with a `360`-minute interval and this exact configuration:
 
 ```json
 { "storefront": "us", "chart": "most-played", "type": "songs", "limit": 100 }
 ```
 
-`storefront` is normalized to one lowercase two-letter Apple storefront code.
-The first source version accepts only `chart: "most-played"` and
-`type: "songs"`; `limit` is an integer from 1 through 100. One run fetches one
-storefront only. Album, playlist, editorial, city, daily, and multi-storefront
-ingestion are intentionally outside this source.
+`storefront` is normalized to one lowercase two-letter Apple storefront code. The first source version accepts only `chart: "most-played"` and `type: "songs"`; `limit` is an integer from 1 through 100. One run fetches one storefront only. Album, playlist, editorial, city, daily, and multi-storefront ingestion are intentionally outside this source.
 
-Enablement, run-now, and the heartbeat require an existing usable Apple Music
-developer-token profile: either `APPLE_MUSIC_TOKEN` or the existing
-`APPLE_MUSIC_KEY_ID`, `APPLE_MUSIC_TEAM_ID`, and `APPLE_MUSIC_PRIVATE_KEY`
-profile. The common preflight validates static-token availability or signed JWT
-generation before catalog HTTP work. Missing or malformed profiles return a
-safe canonical admin error or create a safe failed run; no credential value,
-token, JWT, private key, Authorization header, or connection detail is recorded
-in run notes or structured logs.
+Enablement, run-now, and the heartbeat require an existing usable Apple Music developer-token profile: either `APPLE_MUSIC_TOKEN` or the existing `APPLE_MUSIC_KEY_ID`, `APPLE_MUSIC_TEAM_ID`, and `APPLE_MUSIC_PRIVATE_KEY` profile. The common preflight validates static-token availability or signed JWT generation before catalog HTTP work. Missing or malformed profiles return a safe canonical admin error or create a safe failed run; no credential value, token, JWT, private key, Authorization header, or connection detail is recorded in run notes or structured logs.
 
-The source reuses the adapter's authenticated five-second request boundary for
-`/catalog/{storefront}/charts`. A non-2xx response, token/signing error,
-timeout, JSON failure, or malformed chart payload fails the full run. Individual
-song rows without a valid Apple Music URL are counted as skipped, while valid
-song URLs with an optional ISRC continue. Repeated URLs or ISRCs are removed
-within the source before shared crawler dedupe and ingest.
+The source reuses the adapter's authenticated five-second request boundary for `/catalog/{storefront}/charts`. A non-2xx response, token/signing error, timeout, JSON failure, or malformed chart payload fails the full run. Individual song rows without a valid Apple Music URL are counted as skipped, while valid song URLs with an optional ISRC continue. Repeated URLs or ISRCs are removed within the source before shared crawler dedupe and ingest.
 
 ## Registry pattern
 
-`SOURCES` in `crawler/registry.ts` is a build-time array literal,
-mirroring `services/plugins/registry.ts`. Adding a new source is two
-lines (import + push); removing one means deleting the import line, and
-the compiler flags any stale references.
+`SOURCES` in `crawler/registry.ts` is a build-time array literal, mirroring `services/plugins/registry.ts`. Adding a new source is two lines (import + push); removing one means deleting the import line, and the compiler flags any stale references.
 
-A row in `crawl_state` whose source id is no longer in the registry is
-ignored by the heartbeat (left in place for audit).
+A row in `crawl_state` whose source id is no longer in the registry is ignored by the heartbeat (left in place for audit).
 
 ## Schema
 
@@ -237,8 +180,7 @@ CREATE INDEX idx_crawl_runs_source_started
   ON crawl_runs(source, started_at DESC);
 ```
 
-The partial index on `crawl_state(next_run_at) WHERE enabled = true`
-keeps the per-minute "is anything due?" probe O(log n_active), not O(n_total).
+The partial index on `crawl_state(next_run_at) WHERE enabled = true` keeps the per-minute "is anything due?" probe O(log n_active), not O(n_total).
 
 ## Repository methods
 
@@ -259,9 +201,7 @@ keeps the per-minute "is anything due?" probe O(log n_active), not O(n_total).
 
 ## Admin API
 
-All endpoints live under the admin scope in `server.ts` (Bearer JWT
-with `role: "admin"` enforced by the parent `authenticateAdmin`
-preHandler).
+All endpoints live under the admin scope in `server.ts` (Bearer JWT with `role: "admin"` enforced by the parent `authenticateAdmin` preHandler).
 
 | Method | Path                                                  | Effect                                                                                |
 | ------ | ----------------------------------------------------- | ------------------------------------------------------------------------------------- |
@@ -271,21 +211,11 @@ preHandler).
 | POST   | `/api/admin/crawler/sources/:id/release-lock`         | Clears a stuck `running_since`. Used when a previous tick crashed.                    |
 | GET    | `/api/admin/crawler/runs?source=&page=&limit=`        | Paginated `CrawlerRunsPage`.                                                          |
 
-Wire-format types live in `packages/shared/src/crawler.ts`
-(`CrawlerSourceInfo`, `CrawlerRunInfo`, `CrawlerRunsPage`). All
-timestamps are ISO 8601 strings.
+Wire-format types live in `packages/shared/src/crawler.ts` (`CrawlerSourceInfo`, `CrawlerRunInfo`, `CrawlerRunsPage`). All timestamps are ISO 8601 strings.
 
 ### OpenAPI visibility
 
-All `/api/admin/*` routes — including the five crawler endpoints
-above — are excluded from the public OpenAPI document at
-`/docs/json` (and the Redoc UI at `/docs`). The exclusion is enforced
-in `server.ts` via the `@fastify/swagger` `transform` callback, which
-sets `hide: true` on any route whose URL starts with `/api/admin`.
-This is deliberate: the admin surface is reachable but not advertised
-to external API consumers. No per-route Fastify `schema` block is
-needed for crawler admin routes because the transform hides them
-regardless.
+No `/api/admin/*` route appears in the public OpenAPI document at `/docs/json` or in the Redoc UI at `/docs`, and that includes the five crawler endpoints above. The exclusion is enforced in `server.ts` via the `@fastify/swagger` `transform` callback, which sets `hide: true` on any route whose URL starts with `/api/admin`. This is deliberate: the admin surface is reachable but not advertised to external API consumers. No per-route Fastify `schema` block is needed for crawler admin routes because the transform hides them regardless.
 
 ## Operations playbook
 
@@ -299,9 +229,7 @@ curl -X PATCH \
   https://admin.musiccloud.io/api/admin/crawler/sources/deezer-charts
 ```
 
-The heartbeat skips disabled rows on its next probe. The source
-auto-disables itself after 5 consecutive `consecutive_errors`; this is
-the manual override.
+The heartbeat skips disabled rows on its next probe. The source auto-disables itself after 5 consecutive `consecutive_errors`; this is the manual override.
 
 ### Re-enable after auto-disable
 
@@ -312,9 +240,7 @@ curl -X PATCH \
   https://admin.musiccloud.io/api/admin/crawler/sources/deezer-charts
 ```
 
-`completeCrawlTick` resets `consecutive_errors` to 0 on the next
-successful tick, so a single recovery tick lifts the auto-disable
-threshold automatically next time.
+`completeCrawlTick` resets `consecutive_errors` to 0 on the next successful tick, so a single recovery tick lifts the auto-disable threshold automatically next time.
 
 ### Force a tick now (instead of waiting up to `intervalMinutes`)
 
@@ -324,8 +250,7 @@ curl -X POST \
   https://admin.musiccloud.io/api/admin/crawler/sources/deezer-charts/run-now
 ```
 
-Sets `next_run_at = NOW()`. The next minute's heartbeat sees the row
-as due and ticks it.
+Sets `next_run_at = NOW()`. The next minute's heartbeat sees the row as due and ticks it.
 
 ### Release a stuck lock
 
@@ -335,10 +260,7 @@ curl -X POST \
   https://admin.musiccloud.io/api/admin/crawler/sources/deezer-charts/release-lock
 ```
 
-Stale-detection (`running_since < NOW() - 30min`) covers this
-automatically inside `acquireCrawlLock`. The manual endpoint is for the
-case where the operator does not want to wait the full 30-minute
-window.
+Stale-detection (`running_since < NOW() - 30min`) covers this automatically inside `acquireCrawlLock`. The manual endpoint is for the case where the operator does not want to wait the full 30-minute window.
 
 ### Edit per-source config (e.g. extend Deezer genre list)
 
@@ -354,8 +276,7 @@ The next tick reads the new config from `crawl_state.config`.
 
 ### Configure and enable Last.fm Tag Tops
 
-Set tags and enable the source in one request after `LASTFM_API_KEY` is
-available to the backend runtime:
+Set tags and enable the source in one request after `LASTFM_API_KEY` is available to the backend runtime:
 
 ```bash
 curl -X PATCH \
@@ -365,16 +286,11 @@ curl -X PATCH \
   https://admin.musiccloud.io/api/admin/crawler/sources/lastfm-tags
 ```
 
-The API normalizes the stored tag values. A missing tag, duplicate tag,
-out-of-range limit, or unavailable runtime prerequisite returns `400` with a
-canonical `MC-REQ-0001` response and `errorId`; it does not schedule a run or
-change existing source state.
+The API normalizes the stored tag values. A missing tag, duplicate tag, out-of-range limit, or unavailable runtime prerequisite returns `400` with a canonical `MC-REQ-0001` response and `errorId`; it does not schedule a run or change existing source state.
 
 ### Configure and enable Apple Music Charts
 
-First make one existing Apple Music credential profile available to the backend
-runtime. The source remains disabled after deployment even when credentials are
-present. Then explicitly configure and enable its one storefront chart:
+First make one existing Apple Music credential profile available to the backend runtime. The source remains disabled after deployment even when credentials are present. Then explicitly configure and enable its one storefront chart:
 
 ```bash
 curl -X PATCH \
@@ -384,11 +300,7 @@ curl -X PATCH \
   https://admin.musiccloud.io/api/admin/crawler/sources/apple-music-charts
 ```
 
-Use the existing run-now endpoint only after that gate succeeds. A failed full
-source run increments `consecutive_errors`; five consecutive failures disable
-the source automatically. Correct the runtime credential profile or config,
-explicitly enable it again, then schedule run-now. A successful recovery tick
-resets the consecutive-failure counter through the existing heartbeat path.
+Use the existing run-now endpoint only after that gate succeeds. A failed full source run increments `consecutive_errors`; five consecutive failures disable the source automatically. Correct the runtime credential profile or config, explicitly enable it again, then schedule run-now. A successful recovery tick resets the consecutive-failure counter through the existing heartbeat path.
 
 ### Inspect run history
 
@@ -397,8 +309,7 @@ curl -H "Authorization: Bearer $ADMIN_JWT" \
   "https://admin.musiccloud.io/api/admin/crawler/runs?source=deezer-charts&page=1&limit=50"
 ```
 
-Returns `CrawlerRunsPage` with paginated `CrawlerRunInfo[]`. `notes`
-carries the upstream error message for `status: 'error'` runs.
+Returns `CrawlerRunsPage` with paginated `CrawlerRunInfo[]`. `notes` carries the upstream error message for `status: 'error'` runs.
 
 ## Manual smoke testing
 
@@ -407,10 +318,7 @@ carries the upstream error message for `status: 'error'` runs.
 DATABASE_URL=postgres://... npm --workspace=@musiccloud/backend run crawler:tick
 ```
 
-Expected: `crawl_state` and `crawl_runs` get rows for every registered
-source. Tracks land in `tracks` / `track_external_ids` /
-`track_previews` / `service_links` etc. as the resolver pipeline
-processes each candidate.
+Expected: `crawl_state` and `crawl_runs` get rows for every registered source. Tracks land in `tracks` / `track_external_ids` / `track_previews` / `service_links` etc. as the resolver pipeline processes each candidate.
 
 ```bash
 # Inspect: check what one tick produced.
@@ -419,54 +327,36 @@ psql $DATABASE_URL -c "SELECT source, status, discovered, ingested, skipped, err
 
 ## Adding a new source
 
-1. Create `services/crawler/sources/<id>.ts` exporting one
-   `CrawlerSource` object.
+1. Create `services/crawler/sources/<id>.ts` exporting one `CrawlerSource` object.
 2. Append the import + push it onto `SOURCES` in `services/crawler/registry.ts`.
 3. Fetch through `fetchWithTimeout` from `lib/infra/fetch.ts`, which bounds every request and applies the outbound address policy. Write a unit test under `services/crawler/sources/__tests__/<id>.test.ts` that mocks that module and asserts the candidate-parser output.
-4. (Optional) Document upstream rate-limit assumptions in the source
-   file's `@file` JSDoc.
+4. (Optional) Document upstream rate-limit assumptions in the source file's `@file` JSDoc.
 
-No migration is needed. The first heartbeat tick after deploy seeds a
-default `crawl_state` row via `seedCrawlState` (`ON CONFLICT DO NOTHING`).
-The admin UI can then toggle the source on / edit its `config` /
-trigger a `run-now`.
+No migration is needed. The first heartbeat tick after deploy seeds a default `crawl_state` row via `seedCrawlState` (`ON CONFLICT DO NOTHING`). The admin UI can then toggle the source on / edit its `config` / trigger a `run-now`.
 
 ## Failure handling
 
-- **Per-candidate errors** (network, parse, persist): logged with a
-  `[Crawler:<source>]` prefix, counted into `crawl_runs.errors`,
-  the tick continues with the next candidate.
-- **Per-source fetch failure** (invalid execution configuration, unavailable
-  prerequisite, HTTP/API failure, timeout, network exception): logged safely,
-  `crawl_runs.status = 'error'`, `crawl_state.consecutive_errors` ++.
-  Auto-disable kicks in at 5; manual `enabled=true` re-arms the source.
-- **Stale lock** (`running_since` older than 30 minutes): treated as a
-  prior crash. Next heartbeat re-acquires the lock and ticks normally.
-- **Cron container crash**: Zerops re-invokes the cron next minute.
-  Lock-stale-detection handles any half-finished tick.
+- **Per-candidate errors** (network, parse, persist): logged with a `[Crawler:<source>]` prefix, counted into `crawl_runs.errors`, the tick continues with the next candidate.
+- **Per-source fetch failure** (invalid execution configuration, unavailable prerequisite, HTTP/API failure, timeout, network exception): logged safely, `crawl_runs.status = 'error'`, `crawl_state.consecutive_errors` ++. Auto-disable kicks in at 5; manual `enabled=true` re-arms the source.
+- **Stale lock** (`running_since` older than 30 minutes): treated as a prior crash. Next heartbeat re-acquires the lock and ticks normally.
+- **Cron container crash**: Zerops re-invokes the cron next minute. Lock-stale-detection handles any half-finished tick.
 
 ## Observability
 
-- `crawl_runs` is the primary audit log. One row per tick that took the
-  lock; idle-but-not-due minutes write nothing.
+- `crawl_runs` is the primary audit log. One row per tick that took the lock; idle-but-not-due minutes write nothing.
 - Log lines use the `[Crawler:<source>]` prefix for grep-friendly tracing.
-- The heartbeat itself logs nothing on idle ticks (avoids per-minute
-  log noise).
+- The heartbeat itself logs nothing on idle ticks (avoids per-minute log noise).
 
 ## Tests
 
 Unit tests live next to the code:
 
-- `services/crawler/__tests__/dedupe.test.ts` — repo-mocked URL/ISRC paths.
-- `services/crawler/__tests__/heartbeat.test.ts` — orchestration with
-  registry / repo / dedupe / ingest fully mocked.
-- `services/crawler/sources/__tests__/<id>.test.ts` — per-source
-  fetch-mock + candidate-parser assertions.
-- `routes/admin-crawler.test.ts` — source seeding, config normalization,
-  enablement/run-now gates, canonical errors, and run-history contract.
+- `services/crawler/__tests__/dedupe.test.ts` covers the URL and ISRC paths against a mocked repository.
+- `services/crawler/__tests__/heartbeat.test.ts` covers the orchestration with registry, repository, dedupe and ingest fully mocked.
+- `services/crawler/__tests__/types.test.ts` covers the shared execution gate, `validateCrawlerSourceExecution`.
+- `services/crawler/sources/__tests__/<id>.test.ts` covers each source with its outbound fetch mocked and asserts the candidates it parses.
+- `routes/admin-crawler.test.ts` covers source seeding, config normalization, the enablement and run-now gates, canonical errors, and the run-history contract.
 
 Integration tests (skipped without `DATABASE_URL`):
 
-- `__tests__/crawl-state-repo.integration.test.ts` — `acquireCrawlLock`
-  null/held/stale paths, `completeCrawlTick` state transitions,
-  auto-disable threshold, `listDueCrawlState` filter.
+- `__tests__/crawl-state-repo.integration.test.ts` covers the null, held and stale paths of `acquireCrawlLock`, the state transitions of `completeCrawlTick`, the auto-disable threshold, and the filter of `listDueCrawlState`.
