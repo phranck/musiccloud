@@ -53,6 +53,10 @@ vi.mock("../db/index.js", () => ({
   getCcRepository: async () => ({}),
 }));
 
+vi.mock("../services/creem-catalog.js", () => ({ resetCreemCatalogCache: vi.fn() }));
+
+import { resetCreemCatalogCache } from "../services/creem-catalog.js";
+
 async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
   await app.register(jwt, { secret: "test-secret" });
@@ -384,5 +388,9 @@ describe("DELETE /api/admin/developer/tiers/:id", () => {
       headers: { authorization: `Bearer ${bearerToken()}` },
     });
     expect(res.statusCode).toBe(204);
+    expect(mockTierRepo.deleteTier).toHaveBeenCalledWith("tier_free");
+    // The plan's offers and product mappings went with it, so the pricing page
+    // may not go on pricing them from a cached catalogue.
+    expect(resetCreemCatalogCache).toHaveBeenCalledTimes(1);
   });
 });

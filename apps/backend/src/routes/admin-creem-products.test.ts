@@ -205,6 +205,8 @@ describe("POST /api/admin/developer/creem-products", () => {
       mode: CreemMode.Test,
       creemProductId: "prod_new",
     });
+    // The pricing page has a new product to price, so its cached catalogue goes.
+    expect(resetCreemCatalogCache).toHaveBeenCalledTimes(1);
   });
 
   it("refuses a plan with no offer for that period, because there is nothing to sell", async () => {
@@ -256,6 +258,7 @@ describe("POST /api/admin/developer/creem-products", () => {
       mode: CreemMode.Test,
       creemProductId: "prod_madeByHand",
     });
+    expect(resetCreemCatalogCache).toHaveBeenCalledTimes(1);
   });
 
   it("rejects a product id that is not shaped like one Creem issues", async () => {
@@ -279,6 +282,7 @@ describe("POST /api/admin/developer/creem-products", () => {
     expect(res.json().error).toBe("MC-BILL-0001");
     expect(res.json().message).toBe("The product could not be created at Creem. (MC-BILL-0001)");
     expect(mockTierRepo.createCreemProductMapping).not.toHaveBeenCalled();
+    expect(resetCreemCatalogCache).not.toHaveBeenCalled();
   });
 
   it("refuses an environment this deployment holds no key for, and names it", async () => {
@@ -333,6 +337,8 @@ describe("PATCH /api/admin/developer/creem-products/:tierId/:billingPeriod/:mode
     expect(updateCreemProductPrice).toHaveBeenCalledWith(CreemMode.Test, "prod_existing", 1490);
     expect(res.json().creemProductId).toBe("prod_existing");
     expect(res.json().price).toBe(1490);
+    // Creem now charges the new price, so the page may not quote the old one.
+    expect(resetCreemCatalogCache).toHaveBeenCalledTimes(1);
   });
 
   it("refuses a price below the one whole unit Creem requires", async () => {
@@ -352,6 +358,7 @@ describe("PATCH /api/admin/developer/creem-products/:tierId/:billingPeriod/:mode
 
     expect(res.statusCode).toBe(502);
     expect(res.json().error).toBe("MC-BILL-0002");
+    expect(resetCreemCatalogCache).not.toHaveBeenCalled();
   });
 
   it("answers 404 when that plan and interval has no product in this environment", async () => {
@@ -393,6 +400,9 @@ describe("DELETE /api/admin/developer/creem-products/:tierId/:billingPeriod/:mod
       billingPeriod: "every-month",
       mode: CreemMode.Test,
     });
+    // An archived product still answers with its price, so a cached catalogue
+    // would go on quoting a product nobody can buy.
+    expect(resetCreemCatalogCache).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the mapping when Creem refused to archive, so the price on the page stays buyable", async () => {
@@ -404,6 +414,7 @@ describe("DELETE /api/admin/developer/creem-products/:tierId/:billingPeriod/:mod
     expect(res.statusCode).toBe(502);
     expect(res.json().error).toBe("MC-BILL-0003");
     expect(mockTierRepo.deleteCreemProductMapping).not.toHaveBeenCalled();
+    expect(resetCreemCatalogCache).not.toHaveBeenCalled();
   });
 
   it("answers 404 when that plan and interval has no product in this environment", async () => {

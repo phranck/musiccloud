@@ -25,6 +25,7 @@ import {
 import { requireOwnerOrAdmin } from "../lib/admin-caller.js";
 import { replyWithApiError } from "../lib/infra/api-error-handler.js";
 import { isAllowedPublicUrl } from "../lib/public-origins.js";
+import { resetCreemCatalogCache } from "../services/creem-catalog.js";
 
 /** Creem accepts at most three extra questions at the checkout. */
 const MAX_CUSTOM_FIELDS = 3;
@@ -216,6 +217,9 @@ export async function adminPlanOfferRoutes(app: FastifyInstance) {
       if (!(await requireOwnerOrAdmin(request, reply))) return;
       const { id } = request.params as { id: string };
       await (await getTierRepository()).deleteOffer(id);
+      // The offer's product mappings went with it, and a cached catalogue
+      // would go on pricing the period from them.
+      resetCreemCatalogCache();
       return reply.status(204).send();
     },
   );

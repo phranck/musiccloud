@@ -12,9 +12,20 @@ const mocks = vi.hoisted(() => ({
   getSetting: vi.fn(),
   setSetting: vi.fn(),
   configuredCreemModes: vi.fn(),
+  listTiers: vi.fn(),
+  listAllOffers: vi.fn(),
+  listAllCreemProductMappings: vi.fn(),
 }));
 
 vi.mock("./site-settings.js", () => ({ getSetting: mocks.getSetting, setSetting: mocks.setSetting }));
+
+vi.mock("../db/index.js", () => ({
+  getTierRepository: async () => ({
+    listTiers: mocks.listTiers,
+    listAllOffers: mocks.listAllOffers,
+    listAllCreemProductMappings: mocks.listAllCreemProductMappings,
+  }),
+}));
 
 vi.mock("../lib/creem-config.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/creem-config.js")>()),
@@ -25,18 +36,34 @@ vi.mock("../lib/infra/logger.js", () => ({
   log: { warn: vi.fn(), debug: vi.fn(), error: vi.fn(), deviation: vi.fn() },
 }));
 
-import { CreemMode } from "../lib/creem-config.js";
-import { getSellingMode, SellingModeRefusal, setSellingMode } from "./creem-selling-mode.js";
+import { CreemMode, type CreemModeValue } from "../lib/creem-config.js";
+import { getSellingMode, SellingModeRefusal, sellingModeReadiness, setSellingMode } from "./creem-selling-mode.js";
 
-/** One plan and interval that has a product in the given environments. */
-function plan(label: string, ...modes: (typeof CreemMode)[keyof typeof CreemMode][]) {
-  return { label, modes };
+/** A plan as the repository lists it, enabled unless said otherwise. */
+function plan(id: string, name: string, enabled = true) {
+  return { id, name, enabled };
+}
+
+/** An offer of a plan over one billing period. */
+function offer(tierId: string, billingPeriod: string) {
+  return { tierId, billingPeriod };
+}
+
+/** A product mapping of one plan and period in one environment. */
+function mapping(tierId: string, billingPeriod: string, mode: CreemModeValue) {
+  return { tierId, billingPeriod, mode, creemProductId: `prod_${tierId}_${billingPeriod}_${mode}` };
 }
 
 beforeEach(() => {
   for (const mock of Object.values(mocks)) mock.mockReset();
   mocks.configuredCreemModes.mockReturnValue([CreemMode.Test, CreemMode.Live]);
   mocks.getSetting.mockResolvedValue(null);
+  mocks.listTiers.mockResolvedValue([plan("tier_club", "Club")]);
+  mocks.listAllOffers.mockResolvedValue([offer("tier_club", "every-month")]);
+  mocks.listAllCreemProductMappings.mockResolvedValue([
+    mapping("tier_club", "every-month", CreemMode.Test),
+    mapping("tier_club", "every-month", CreemMode.Live),
+  ]);
 });
 
 describe("getSellingMode", () => {
@@ -57,7 +84,7 @@ describe("getSellingMode", () => {
 
 describe("setSellingMode", () => {
   it("moves the shop and records what it moved from", async () => {
-    const refusal = await setSellingMode(CreemMode.Live, [plan("Club (month)", CreemMode.Test, CreemMode.Live)]);
+    const refusal = await setSellingMode(CreemMode.Live);
 
     expect(refusal).toBeNull();
     expect(mocks.setSetting).toHaveBeenCalledWith("creem_selling_mode", CreemMode.Live);
@@ -66,30 +93,79 @@ describe("setSellingMode", () => {
   it("refuses an environment this deployment has no key for", async () => {
     mocks.configuredCreemModes.mockReturnValue([CreemMode.Test]);
 
-    const refusal = await setSellingMode(CreemMode.Live, []);
+    const refusal = await setSellingMode(CreemMode.Live);
 
     expect(refusal?.refusal).toBe(SellingModeRefusal.NoKey);
     expect(mocks.setSetting).not.toHaveBeenCalled();
   });
 
   it("refuses whilst a buyable plan has no product there, and names which", async () => {
-    const refusal = await setSellingMode(CreemMode.Live, [
-      plan("Club (month)", CreemMode.Test, CreemMode.Live),
-      plan("Club (year)", CreemMode.Test),
-      plan("Pro (month)", CreemMode.Test),
+    mocks.listTiers.mockResolvedValue([plan("tier_club", "Club"), plan("tier_pro", "Pro")]);
+    mocks.listAllOffers.mockResolvedValue([
+      offer("tier_club", "every-month"),
+      offer("tier_club", "every-year"),
+      offer("tier_pro", "every-month"),
+    ]);
+    mocks.listAllCreemProductMappings.mockResolvedValue([
+      mapping("tier_club", "every-month", CreemMode.Test),
+      mapping("tier_club", "every-month", CreemMode.Live),
+      mapping("tier_club", "every-year", CreemMode.Test),
+      mapping("tier_pro", "every-month", CreemMode.Test),
     ]);
 
+    const refusal = await setSellingMode(CreemMode.Live);
+
     expect(refusal?.refusal).toBe(SellingModeRefusal.MissingProducts);
-    expect(refusal?.missing).toEqual(["Club (year)", "Pro (month)"]);
+    expect(refusal?.missing).toEqual(["Club (every-year)", "Pro (every-month)"]);
     expect(mocks.setSetting).not.toHaveBeenCalled();
   });
 
   it("allows the move back to the sandbox, which sells nothing real", async () => {
     mocks.getSetting.mockResolvedValue("live");
 
-    const refusal = await setSellingMode(CreemMode.Test, [plan("Club (month)", CreemMode.Test, CreemMode.Live)]);
+    const refusal = await setSellingMode(CreemMode.Test);
 
     expect(refusal).toBeNull();
     expect(mocks.setSetting).toHaveBeenCalledWith("creem_selling_mode", CreemMode.Test);
+  });
+});
+
+describe("sellingModeReadiness", () => {
+  it("leaves out a disabled plan and a plan with no offer, because nobody can buy them", async () => {
+    mocks.listTiers.mockResolvedValue([
+      plan("tier_club", "Club"),
+      plan("tier_old", "Old", false),
+      plan("tier_free", "Free"),
+    ]);
+    mocks.listAllOffers.mockResolvedValue([offer("tier_club", "every-month"), offer("tier_old", "every-month")]);
+    mocks.listAllCreemProductMappings.mockResolvedValue([mapping("tier_club", "every-month", CreemMode.Test)]);
+
+    expect(await sellingModeReadiness()).toEqual([
+      { mode: CreemMode.Test, hasKey: true, missingProducts: [] },
+      { mode: CreemMode.Live, hasKey: true, missingProducts: ["Club (every-month)"] },
+    ]);
+  });
+
+  it("calls an environment ready exactly when the switch accepts it, for every combination", async () => {
+    const choices: CreemModeValue[][] = [[], [CreemMode.Test], [CreemMode.Live], [CreemMode.Test, CreemMode.Live]];
+
+    for (const keys of choices) {
+      for (const mapped of choices) {
+        mocks.configuredCreemModes.mockReturnValue(keys);
+        mocks.listAllCreemProductMappings.mockResolvedValue(
+          mapped.map((mode) => mapping("tier_club", "every-month", mode)),
+        );
+        const readiness = await sellingModeReadiness();
+
+        for (const entry of readiness) {
+          mocks.setSetting.mockReset();
+          const ready = entry.hasKey && entry.missingProducts.length === 0;
+          const accepted = (await setSellingMode(entry.mode)) === null;
+
+          expect(accepted, `keys ${keys.join("+")}, products ${mapped.join("+")}, ${entry.mode}`).toBe(ready);
+          expect(mocks.setSetting.mock.calls.length > 0).toBe(ready);
+        }
+      }
+    }
   });
 });

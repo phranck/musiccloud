@@ -12,6 +12,7 @@
  * an operator is looking at; this says what a customer pays.
  */
 
+import { getTierRepository } from "../db/index.js";
 import { CreemMode, type CreemModeValue, configuredCreemModes } from "../lib/creem-config.js";
 import { log } from "../lib/infra/logger.js";
 import { getSetting, setSetting } from "./site-settings.js";
@@ -53,30 +54,92 @@ export async function getSellingMode(): Promise<CreemModeValue> {
 }
 
 /**
+ * Every enabled paid plan and interval that needs a Creem product, with the
+ * environments it already has one in.
+ *
+ * A disabled plan is left out because nobody can buy it, and a free one
+ * because it has no product by design. What remains is exactly the set that
+ * decides whether an environment is ready to sell from.
+ *
+ * @returns One entry per plan and interval that must be sellable, labelled so
+ *   an operator recognises it.
+ */
+export async function sellablePlanProducts(): Promise<{ label: string; modes: CreemModeValue[] }[]> {
+  const repo = await getTierRepository();
+  const [tiers, offers, mappings] = await Promise.all([
+    repo.listTiers(),
+    repo.listAllOffers(),
+    repo.listAllCreemProductMappings(),
+  ]);
+
+  const needed: { label: string; modes: CreemModeValue[] }[] = [];
+  for (const tier of tiers) {
+    if (!tier.enabled) continue;
+    for (const offer of offers.filter((candidate) => candidate.tierId === tier.id)) {
+      needed.push({
+        label: `${tier.name} (${offer.billingPeriod})`,
+        modes: mappings
+          .filter((mapping) => mapping.tierId === tier.id && mapping.billingPeriod === offer.billingPeriod)
+          .map((mapping) => mapping.mode),
+      });
+    }
+  }
+  return needed;
+}
+
+/** Whether the shop could sell from one environment right now, and what stands in the way. */
+export interface SellingModeReadiness {
+  /** The environment. */
+  mode: CreemModeValue;
+  /** Whether this deployment holds a key for it. */
+  hasKey: boolean;
+  /** The plans and intervals that have no product there, labelled for an operator. */
+  missingProducts: string[];
+}
+
+/**
+ * Which environments could be sold from right now, and what is missing in the
+ * ones that could not.
+ *
+ * The dashboard decides from this whether to offer the switch, and
+ * {@link setSellingMode} decides from it whether to make the move, so the two
+ * cannot disagree.
+ *
+ * @returns One entry per environment, test first.
+ */
+export async function sellingModeReadiness(): Promise<SellingModeReadiness[]> {
+  const configured = configuredCreemModes();
+  const needed = await sellablePlanProducts();
+  return Object.values(CreemMode).map((mode) => ({
+    mode,
+    hasKey: configured.includes(mode),
+    missingProducts: needed.filter((entry) => !entry.modes.includes(mode)).map((entry) => entry.label),
+  }));
+}
+
+/**
  * Moves the shop to another Creem environment.
  *
  * Two things are checked first, and both are refusals rather than warnings. An
  * environment with no key cannot be reached at all, so the pricing page would
  * lose every price. An environment missing a product for an enabled paid plan
  * would show that plan at its database price whilst nobody could buy it, which
- * looks like it works.
+ * looks like it works. Both come from {@link sellingModeReadiness}, which is
+ * also what the dashboard shows, so the switch it offers is the switch this
+ * accepts.
  *
  * @param next - The environment to sell from.
- * @param productModes - Which environments each enabled paid plan already has a
- *   product in, keyed by an identifier the caller can show back to the operator.
  * @returns The refusal and what caused it, or `null` when the move was made.
  */
 export async function setSellingMode(
   next: CreemModeValue,
-  productModes: { label: string; modes: CreemModeValue[] }[],
 ): Promise<{ refusal: SellingModeRefusalValue; missing: string[] } | null> {
-  if (!configuredCreemModes().includes(next)) {
+  const readiness = (await sellingModeReadiness()).find((entry) => entry.mode === next);
+  if (!readiness?.hasKey) {
     return { refusal: SellingModeRefusal.NoKey, missing: [] };
   }
-
-  const missing = productModes.filter((entry) => !entry.modes.includes(next)).map((entry) => entry.label);
-  if (missing.length > 0) {
-    return { refusal: SellingModeRefusal.MissingProducts, missing };
+  if (readiness.missingProducts.length > 0) {
+    return { refusal: SellingModeRefusal.MissingProducts, missing: readiness.missingProducts };
   }
 
   const previous = await getSellingMode();

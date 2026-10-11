@@ -152,8 +152,7 @@ down to its meaningful inner slots.
   and an environment with no key is refused rather than falling back to the
   other account. `CREEM_API_KEY` still works and fills the slot its own prefix
   names.
-- Changing the selling environment resets the catalogue cache. Without that the
-  pricing page quotes the previous environment for up to five minutes.
+- Every write that changes what Creem sells resets the catalogue cache once it has succeeded: changing the selling environment, attaching, creating, repricing or archiving a product, and deleting an offer or a plan. Without that the pricing page quotes the old price, or the price of a product nobody can buy, for up to five minutes. The cache is per process, so a second instance still waits out its own five minutes.
 
 ## GitHub Project execution queue
 

@@ -14,6 +14,14 @@
  * The key that creates a product also issues refunds and cancels
  * subscriptions, so it never leaves the backend and every route below checks
  * for an administrator first.
+ *
+ * Every write that changes what Creem sells resets the pricing page's
+ * catalogue cache once it has succeeded: attaching, creating, repricing,
+ * archiving and the selling switch here, and deleting an offer or a plan in
+ * their own routes. The reset follows the mapping write rather than preceding
+ * it, so a read in between cannot cache the old mapping again. It lives in
+ * the routes because `creem-catalog.ts` imports the selling-mode service, and
+ * the service resetting the catalogue would make the two import each other.
  */
 
 import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
@@ -31,7 +39,12 @@ import {
   createCreemProduct,
   updateCreemProductPrice,
 } from "../services/creem-products.js";
-import { getSellingMode, SellingModeRefusal, setSellingMode } from "../services/creem-selling-mode.js";
+import {
+  getSellingMode,
+  SellingModeRefusal,
+  sellingModeReadiness,
+  setSellingMode,
+} from "../services/creem-selling-mode.js";
 import { draftCreemProductForOffer, isBillingPeriod } from "../services/tier-creem-draft.js";
 
 /** Longest Creem product id we accept when attaching one created elsewhere. */
@@ -87,55 +100,6 @@ function refuseUnreachableMode(reply: FastifyReply, mode: CreemModeValue): Fasti
 function replyWithCreemFailure(reply: FastifyReply, error: unknown): FastifyReply {
   if (!(error instanceof CreemProductError)) throw error;
   return replyWithApiError(reply, error.code);
-}
-
-/**
- * Every enabled paid plan and interval that needs a Creem product, with the
- * environments it already has one in.
- *
- * A disabled plan is left out because nobody can buy it, and a free one
- * because it has no product by design. What remains is exactly the set that
- * decides whether an environment is ready to sell from.
- *
- * @returns One entry per plan and interval that must be sellable.
- */
-async function sellablePlanProducts(): Promise<{ label: string; modes: CreemModeValue[] }[]> {
-  const repo = await getTierRepository();
-  const [tiers, offers, mappings] = await Promise.all([
-    repo.listTiers(),
-    repo.listAllOffers(),
-    repo.listAllCreemProductMappings(),
-  ]);
-
-  const needed: { label: string; modes: CreemModeValue[] }[] = [];
-  for (const tier of tiers) {
-    if (!tier.enabled) continue;
-    for (const offer of offers.filter((candidate) => candidate.tierId === tier.id)) {
-      needed.push({
-        label: `${tier.name} (${offer.billingPeriod})`,
-        modes: mappings
-          .filter((mapping) => mapping.tierId === tier.id && mapping.billingPeriod === offer.billingPeriod)
-          .map((mapping) => mapping.mode),
-      });
-    }
-  }
-  return needed;
-}
-
-/**
- * Which environments could be sold from right now, and what is missing in the
- * ones that could not.
- *
- * @returns One entry per environment.
- */
-async function creemModeReadiness(): Promise<{ mode: CreemModeValue; hasKey: boolean; missingProducts: string[] }[]> {
-  const configured = configuredCreemModes();
-  const needed = await sellablePlanProducts();
-  return Object.values(CreemMode).map((mode) => ({
-    mode,
-    hasKey: configured.includes(mode),
-    missingProducts: needed.filter((entry) => !entry.modes.includes(mode)).map((entry) => entry.label),
-  }));
 }
 
 export async function adminCreemProductRoutes(app: FastifyInstance) {
@@ -210,6 +174,7 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
       // entirely, because whoever made it there chose its name and price.
       if (body.creemProductId) {
         await repo.createCreemProductMapping({ ...key, creemProductId: body.creemProductId });
+        resetCreemCatalogCache();
         return reply.status(201).send({ ...key, creemProductId: body.creemProductId });
       }
 
@@ -234,6 +199,7 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
       // product is real and unreferenced, which is why the conflict above is
       // checked before creating rather than after.
       await repo.createCreemProductMapping({ ...key, creemProductId: product.id });
+      resetCreemCatalogCache();
       return reply.status(201).send({ ...key, creemProductId: product.id, price: product.price });
     },
   );
@@ -278,12 +244,14 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
       });
       if (!mapping) return reply.status(404).send({ error: "No product for that plan, interval and environment" });
 
+      let product: Awaited<ReturnType<typeof updateCreemProductPrice>>;
       try {
-        const product = await updateCreemProductPrice(params.mode, mapping.creemProductId, priceCents);
-        return { ...mapping, price: product.price, currency: product.currency };
+        product = await updateCreemProductPrice(params.mode, mapping.creemProductId, priceCents);
       } catch (error) {
         return replyWithCreemFailure(reply, error);
       }
+      resetCreemCatalogCache();
+      return { ...mapping, price: product.price, currency: product.currency };
     },
   );
 
@@ -325,6 +293,9 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
       }
 
       await repo.deleteCreemProductMapping(key);
+      // An archived product still answers with its price, so a cached
+      // catalogue would go on quoting a product nobody can buy.
+      resetCreemCatalogCache();
       return reply.status(204).send();
     },
   );
@@ -341,7 +312,7 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
     return {
       sellingMode: await getSellingMode(),
       configuredModes: configuredCreemModes(),
-      readiness: await creemModeReadiness(),
+      readiness: await sellingModeReadiness(),
     };
   });
 
@@ -367,7 +338,7 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
       if (!(await requireOwner(request, reply))) return;
       const { sellingMode } = request.body as { sellingMode: CreemModeValue };
 
-      const refusal = await setSellingMode(sellingMode, await sellablePlanProducts());
+      const refusal = await setSellingMode(sellingMode);
       if (refusal) {
         return refusal.refusal === SellingModeRefusal.NoKey
           ? replyWithApiError(reply, "MC-BILL-0006", { context: { mode: sellingMode } })
