@@ -1110,6 +1110,28 @@ describe("the account's picture", () => {
     expect(res.statusCode).toBe(400);
     expect(vi.mocked(repo.updateDeveloperAccount)).not.toHaveBeenCalled();
   });
+
+  it("stores the address its own Gravatar lookup answered with", async () => {
+    // The direct lookup answers on www.gravatar.com, and saving the card sends
+    // that address back here together with any name changed in the same save.
+    const gravatarUrl = `https://www.gravatar.com/avatar/${"a".repeat(64)}?s=256`;
+    vi.mocked(repo.findDeveloperAccountById).mockResolvedValue(makeAccount());
+    vi.mocked(repo.updateDeveloperAccount).mockResolvedValue(makeAccount({ gravatarUrl, avatarSource: "gravatar" }));
+    const app = await buildApp();
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: ENDPOINTS.dev.auth.profile,
+      headers: { cookie: sessionCookie(app, "dev-acc-1") },
+      payload: { gravatarUrl, avatarSource: "gravatar" },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(vi.mocked(repo.updateDeveloperAccount)).toHaveBeenCalledWith("dev-acc-1", {
+      gravatarUrl,
+      avatarSource: "gravatar",
+    });
+  });
 });
 
 describe("PATCH /api/dev/auth/profile", () => {
