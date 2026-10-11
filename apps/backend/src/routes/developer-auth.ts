@@ -59,7 +59,12 @@ import {
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { DeveloperAccount } from "../db/developer-repository.js";
 import { getDeveloperRepository, getTierRepository } from "../db/index.js";
-import { isValidEmailAddress } from "../lib/email-address.js";
+import {
+  EMAIL_TAKEN_CODE,
+  INVALID_EMAIL_CODE,
+  isValidEmailAddress,
+  normalizeEmailAddress,
+} from "../lib/email-address.js";
 import { requireEnv } from "../lib/env.js";
 import { IMAGE_UPLOAD_BODY_LIMIT_BYTES, ImageUploadRefusal, parseImageDataUrl } from "../lib/image-upload.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
@@ -103,20 +108,6 @@ const PG_UNIQUE_VIOLATION = "23505";
 
 /** Name of the unique constraint on `developer_accounts.email` (migration 0047). */
 const EMAIL_UNIQUE_CONSTRAINT = "developer_accounts_email_unique";
-
-/**
- * The two refusals that are about the address a developer typed.
- *
- * Both carry their own code rather than the generic `MC-REQ-0001` and
- * `MC-REQ-0002`, because the portal decides from the code which field the
- * message belongs under, and a plain `INVALID_EMAIL` would not survive:
- * `normalizeApiErrorPayload` replaces any code outside the `MC-` scheme with
- * the one that matches the status.
- */
-const INVALID_EMAIL_CODE = "MC-REQ-0006";
-
-/** Signup with an address that already has an account. See {@link INVALID_EMAIL_CODE}. */
-const EMAIL_TAKEN_CODE = "MC-REQ-0007";
 
 /**
  * Detects whether a thrown error is the Postgres unique-violation raised when
@@ -338,27 +329,6 @@ async function findGravatar(hash: string): Promise<string | null> {
 }
 
 /**
- * Normalises an address taken from a request body and refuses anything that
- * cannot be one.
- *
- * Signup and the reset request both read an address a person typed, and both
- * act on it by sending mail to it. An address that cannot receive mail leaves a
- * signup with an account nobody can verify, and it occupies the unique index on
- * `developer_accounts.email` so nothing else can take that string either.
- *
- * The shape rule itself lives in {@link isValidEmailAddress}, which the profile
- * route asks as well, so the portal cannot accept as a login address what it
- * refuses as a technical contact.
- *
- * @param raw - The value from the request body, untrimmed.
- * @returns The lowercased, trimmed address, or `null` when it cannot be one.
- */
-function readRequestEmail(raw: string): string | null {
-  const email = raw.trim().toLowerCase();
-  return isValidEmailAddress(email) ? email : null;
-}
-
-/**
  * Registers the developer-portal email/password auth routes (signup, verify,
  * login, request-reset, reset-password, logout, me, delete-account) under
  * `/api/dev/auth/*`.
@@ -385,7 +355,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "email and password are required." });
     }
 
-    const email = readRequestEmail(body.email);
+    const email = normalizeEmailAddress(body.email);
     if (!email) {
       return reply.status(400).send(createApiErrorResponse(INVALID_EMAIL_CODE));
     }
@@ -513,9 +483,11 @@ export async function devAuthRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "INVALID_REQUEST", message: "email and password are required." });
     }
 
-    const email = body.email.trim().toLowerCase();
+    // A value that cannot be an address finds no account, and still pays the
+    // comparison below, so the response time is the same as for any miss.
+    const email = normalizeEmailAddress(body.email);
     const repo = await getDeveloperRepository();
-    const account = await repo.findDeveloperAccountByEmail(email);
+    const account = email ? await repo.findDeveloperAccountByEmail(email) : null;
 
     // Always hash-compare (dummy hash when no account) to keep latency constant.
     const isValid = await verifyPassword(body.password, account?.passwordHash ?? null);
@@ -554,7 +526,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
 
     // Refusing a malformed address here leaks nothing about who holds an
     // account, because no account can hold a string that is not an address.
-    const email = readRequestEmail(body.email);
+    const email = normalizeEmailAddress(body.email);
     if (!email) {
       return reply.status(400).send(createApiErrorResponse(INVALID_EMAIL_CODE));
     }
@@ -842,7 +814,7 @@ export async function devAuthRoutes(app: FastifyInstance) {
         return reply.status(403).send({ error: "INVALID_CREDENTIALS", message: "That password is not right." });
       }
 
-      const email = readRequestEmail(body.email);
+      const email = normalizeEmailAddress(body.email);
       if (!email) {
         return reply.status(400).send(createApiErrorResponse(INVALID_EMAIL_CODE));
       }
@@ -1040,7 +1012,11 @@ export async function devAuthRoutes(app: FastifyInstance) {
     { preHandler: [app.authenticateDeveloper, throttleCredentials] },
     async (request, reply) => {
       const account = request.developerAccount!;
-      const hash = sha256Hex(account.email.trim().toLowerCase());
+      // Gravatar keys a picture by the hash of the trimmed, lowercased address,
+      // which is the form the address is stored in.
+      const email = normalizeEmailAddress(account.email);
+      if (!email) return reply.send({ found: false, gravatarUrl: null });
+      const hash = sha256Hex(email);
 
       let url: string | null;
       try {

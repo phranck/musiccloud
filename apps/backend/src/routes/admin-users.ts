@@ -67,8 +67,10 @@ import type { FastifyInstance } from "fastify";
 import { nanoid } from "nanoid";
 import type { AdminUser } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
+import { INVALID_EMAIL_CODE, normalizeEmailAddress } from "../lib/email-address.js";
 import { requireEnv } from "../lib/env.js";
 import { ADMIN_IMAGE_REFUSAL_ERRORS, IMAGE_UPLOAD_BODY_LIMIT_BYTES, parseImageDataUrl } from "../lib/image-upload.js";
+import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { hashPassword } from "../services/developer-auth.js";
 import { triggerEmailAction } from "../services/email-actions.js";
 
@@ -95,6 +97,9 @@ export default async function adminUserRoutes(app: FastifyInstance) {
     if (!body?.username || !body?.email) {
       return reply.status(400).send({ error: "username and email required" });
     }
+    // The invite mail goes to this address, so it has to be one.
+    const email = normalizeEmailAddress(body.email);
+    if (!email) return reply.status(400).send(createApiErrorResponse(INVALID_EMAIL_CODE));
 
     const repo = await getAdminRepository();
     const id = nanoid();
@@ -113,7 +118,7 @@ export default async function adminUserRoutes(app: FastifyInstance) {
       // through the invite flow. It is hashed like a real password in case
       // the row is ever inspected without the invite finishing.
       passwordHash: await hashPassword(nanoid(32)),
-      email: body.email,
+      email,
       role,
       inviteTokenHash,
       inviteExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -125,11 +130,11 @@ export default async function adminUserRoutes(app: FastifyInstance) {
 
     try {
       await triggerEmailAction(EmailAction.AdminInviteSent, {
-        to: { email: body.email, name: body.username },
+        to: { email, name: body.username },
         recipient: {
           kind: EmailRecipientKind.AdminUser,
           username: body.username,
-          email: body.email,
+          email,
           role,
         },
         // System variables (websiteUrl, dashboardUrl, loginUrl, …) resolve
@@ -170,7 +175,11 @@ export default async function adminUserRoutes(app: FastifyInstance) {
 
     const updates: Record<string, unknown> = {};
     if (body.username !== undefined) updates.username = body.username;
-    if (body.email !== undefined) updates.email = body.email;
+    if (body.email !== undefined) {
+      const email = normalizeEmailAddress(body.email);
+      if (!email) return reply.status(400).send(createApiErrorResponse(INVALID_EMAIL_CODE));
+      updates.email = email;
+    }
     if (body.password !== undefined) {
       // The same rule the sign-up, reset and invite paths apply, so an admin
       // account cannot be given a password those paths would refuse.
