@@ -226,7 +226,7 @@ curl -X PATCH \
   -H "Authorization: Bearer $ADMIN_JWT" \
   -H "Content-Type: application/json" \
   -d '{"enabled":false}' \
-  https://admin.musiccloud.io/api/admin/crawler/sources/deezer-charts
+  https://api.musiccloud.io/api/admin/crawler/sources/deezer-charts
 ```
 
 The heartbeat skips disabled rows on its next probe. The source auto-disables itself after 5 consecutive `consecutive_errors`; this is the manual override.
@@ -237,7 +237,7 @@ The heartbeat skips disabled rows on its next probe. The source auto-disables it
 curl -X PATCH \
   -H "Authorization: Bearer $ADMIN_JWT" \
   -d '{"enabled":true}' \
-  https://admin.musiccloud.io/api/admin/crawler/sources/deezer-charts
+  https://api.musiccloud.io/api/admin/crawler/sources/deezer-charts
 ```
 
 `completeCrawlTick` resets `consecutive_errors` to 0 on the next successful tick, so a single recovery tick lifts the auto-disable threshold automatically next time.
@@ -247,7 +247,7 @@ curl -X PATCH \
 ```bash
 curl -X POST \
   -H "Authorization: Bearer $ADMIN_JWT" \
-  https://admin.musiccloud.io/api/admin/crawler/sources/deezer-charts/run-now
+  https://api.musiccloud.io/api/admin/crawler/sources/deezer-charts/run-now
 ```
 
 Sets `next_run_at = NOW()`. The next minute's heartbeat sees the row as due and ticks it.
@@ -257,7 +257,7 @@ Sets `next_run_at = NOW()`. The next minute's heartbeat sees the row as due and 
 ```bash
 curl -X POST \
   -H "Authorization: Bearer $ADMIN_JWT" \
-  https://admin.musiccloud.io/api/admin/crawler/sources/deezer-charts/release-lock
+  https://api.musiccloud.io/api/admin/crawler/sources/deezer-charts/release-lock
 ```
 
 Stale-detection (`running_since < NOW() - 30min`) covers this automatically inside `acquireCrawlLock`. The manual endpoint is for the case where the operator does not want to wait the full 30-minute window.
@@ -269,7 +269,7 @@ curl -X PATCH \
   -H "Authorization: Bearer $ADMIN_JWT" \
   -H "Content-Type: application/json" \
   -d '{"config":{"genres":[0,132,116,152,113,165,153,144,75,84,464,129],"limit":100}}' \
-  https://admin.musiccloud.io/api/admin/crawler/sources/deezer-charts
+  https://api.musiccloud.io/api/admin/crawler/sources/deezer-charts
 ```
 
 The next tick reads the new config from `crawl_state.config`.
@@ -283,7 +283,7 @@ curl -X PATCH \
   -H "Authorization: Bearer $ADMIN_JWT" \
   -H "Content-Type: application/json" \
   -d '{"enabled":true,"config":{"tags":["rock","dream pop"],"limit":50}}' \
-  https://admin.musiccloud.io/api/admin/crawler/sources/lastfm-tags
+  https://api.musiccloud.io/api/admin/crawler/sources/lastfm-tags
 ```
 
 The API normalizes the stored tag values. A missing tag, duplicate tag, out-of-range limit, or unavailable runtime prerequisite returns `400` with a canonical `MC-REQ-0001` response and `errorId`; it does not schedule a run or change existing source state.
@@ -297,7 +297,7 @@ curl -X PATCH \
   -H "Authorization: Bearer $ADMIN_JWT" \
   -H "Content-Type: application/json" \
   -d '{"enabled":true,"config":{"storefront":"at","chart":"most-played","type":"songs","limit":100}}' \
-  https://admin.musiccloud.io/api/admin/crawler/sources/apple-music-charts
+  https://api.musiccloud.io/api/admin/crawler/sources/apple-music-charts
 ```
 
 Use the existing run-now endpoint only after that gate succeeds. A failed full source run increments `consecutive_errors`; five consecutive failures disable the source automatically. Correct the runtime credential profile or config, explicitly enable it again, then schedule run-now. A successful recovery tick resets the consecutive-failure counter through the existing heartbeat path.
@@ -306,7 +306,7 @@ Use the existing run-now endpoint only after that gate succeeds. A failed full s
 
 ```bash
 curl -H "Authorization: Bearer $ADMIN_JWT" \
-  "https://admin.musiccloud.io/api/admin/crawler/runs?source=deezer-charts&page=1&limit=50"
+  "https://api.musiccloud.io/api/admin/crawler/runs?source=deezer-charts&page=1&limit=50"
 ```
 
 Returns `CrawlerRunsPage` with paginated `CrawlerRunInfo[]`. `notes` carries the upstream error message for `status: 'error'` runs.
