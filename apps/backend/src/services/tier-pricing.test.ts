@@ -2,8 +2,9 @@
  * @file Unit tests for the Creem price enrichment helper (MC-114).
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Tier } from "../db/tiers-repository.js";
+import { requireCreemApiKey } from "../lib/creem-config.js";
 
 vi.mock("./creem-catalog.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./creem-catalog.js")>()),
@@ -157,6 +158,10 @@ describe("enrichTiersWithCreemPrices: reporting the fallback", () => {
     mockRepo.listAllOffers.mockResolvedValue([makeOffer("tier_club", "every-month", 900)]);
   });
 
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("serves the offers' prices and says the catalogue was unavailable", async () => {
     mockedCatalog.mockRejectedValue(new Error("Creem responded 503"));
     const tiers = [makeTier({ id: "tier_club" })];
@@ -171,11 +176,33 @@ describe("enrichTiersWithCreemPrices: reporting the fallback", () => {
   });
 
   it("says the key is missing rather than blaming Creem for being down", async () => {
-    mockedCatalog.mockRejectedValue(new Error("Missing required environment variable: CREEM_API_KEY. Set it ..."));
+    // The catalogue asks for the key the way `getCreemCatalog` does, with no
+    // Creem variable set, so the error is the one a deployment really meets.
+    vi.stubEnv("CREEM_API_KEY", "");
+    vi.stubEnv("CREEM_TEST_API_KEY", "");
+    vi.stubEnv("CREEM_LIVE_API_KEY", "");
+    mockedCatalog.mockImplementation(async () => {
+      requireCreemApiKey("test");
+      return {};
+    });
 
     await enrichTiersWithCreemPrices([makeTier({ id: "tier_club" })]);
 
     expect(vi.mocked(log.deviation).mock.calls[0]?.[0]?.outcome).toBe(CreemPriceOutcome.NotConfigured);
+  });
+
+  it("reports a conflicting configuration as Creem unavailable, not as a missing key", async () => {
+    vi.stubEnv("CREEM_TEST_API_KEY", "creem_test_abc");
+    vi.stubEnv("CREEM_API_KEY", "creem_test_other");
+    vi.stubEnv("CREEM_LIVE_API_KEY", "");
+    mockedCatalog.mockImplementation(async () => {
+      requireCreemApiKey("test");
+      return {};
+    });
+
+    await enrichTiersWithCreemPrices([makeTier({ id: "tier_club" })]);
+
+    expect(vi.mocked(log.deviation).mock.calls[0]?.[0]?.outcome).toBe(CreemPriceOutcome.CatalogUnavailable);
   });
 
   it("says nothing when the catalogue answers, because that is not a deviation", async () => {

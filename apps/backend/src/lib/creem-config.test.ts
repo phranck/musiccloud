@@ -125,4 +125,47 @@ describe("requireCreemApiKey", () => {
 
     expect(() => requireCreemApiKey("live")).toThrow(/CREEM_LIVE_API_KEY/);
   });
+
+  it("throws a missing key as its own type, carrying the environment", async () => {
+    const { CreemKeyMissingError, requireCreemApiKey } = await loadConfig();
+
+    let thrown: unknown;
+    try {
+      requireCreemApiKey("test");
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(CreemKeyMissingError);
+    expect((thrown as InstanceType<typeof CreemKeyMissingError>).mode).toBe("test");
+    expect((thrown as Error).message).toContain("CREEM_TEST_API_KEY");
+  });
+
+  it("lets a conflicting configuration through as a plain error, not as a missing key", async () => {
+    vi.stubEnv("CREEM_TEST_API_KEY", "creem_test_abc");
+    vi.stubEnv("CREEM_API_KEY", "creem_test_other");
+    const { CreemKeyMissingError, requireCreemApiKey } = await loadConfig();
+
+    expect(() => requireCreemApiKey("test")).toThrow(/both name the test environment/);
+    expect(() => requireCreemApiKey("test")).not.toThrow(CreemKeyMissingError);
+  });
+});
+
+describe("hasAnyCreemKeyVariable", () => {
+  it("is false when no key variable is set", async () => {
+    const { hasAnyCreemKeyVariable } = await loadConfig();
+
+    expect(hasAnyCreemKeyVariable()).toBe(false);
+  });
+
+  it.each([
+    ["CREEM_TEST_API_KEY", "creem_test_abc"],
+    ["CREEM_LIVE_API_KEY", "creem_live_xyz"],
+    ["CREEM_API_KEY", "creem_test_abc"],
+  ])("is true with only %s set", async (variable, value) => {
+    vi.stubEnv(variable, value);
+    const { hasAnyCreemKeyVariable } = await loadConfig();
+
+    expect(hasAnyCreemKeyVariable()).toBe(true);
+  });
 });

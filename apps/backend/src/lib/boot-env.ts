@@ -1,4 +1,4 @@
-import { getCreemConfig } from "./creem-config.js";
+import { getCreemConfig, hasAnyCreemKeyVariable } from "./creem-config.js";
 import { requireEnv } from "./env.js";
 
 /**
@@ -64,7 +64,7 @@ export function assertRequiredBootEnv(): void {
   // variable of the environment its own prefix names. Calling getCreemConfig()
   // here turns a key in the wrong slot into a loud boot failure rather than a
   // shop that looks live and charges nobody.
-  if (process.env.CREEM_API_KEY || process.env.CREEM_TEST_API_KEY || process.env.CREEM_LIVE_API_KEY) {
+  if (hasAnyCreemKeyVariable()) {
     getCreemConfig();
   }
 }
