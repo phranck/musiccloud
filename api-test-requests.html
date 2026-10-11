@@ -622,7 +622,7 @@ curl -s http://localhost:4000/api/v1/link/TRACK_ID \
 </div>
 
 <!-- ──────────────────────────────────────────── -->
-<h2>14&ndash;15 &ensp;CC-Audio &amp; OAuth</h2>
+<h2>14 &ensp;CC-Audio</h2>
 
 <div class="request">
   <div class="request-header">
@@ -636,24 +636,6 @@ curl -s http://localhost:4000/api/v1/link/TRACK_ID \
   <div class="code-wrap">
     <pre>curl -s -o /dev/null -w "HTTP %{http_code}, Content-Type: %{content_type}\n" \
   "http://localhost:4000/api/v1/cc/audio/189887?format=mp31"</pre>
-    <button class="btn-copy" title="Kopieren"><i class="ph ph-copy"></i></button>
-  </div>
-</div>
-
-<div class="request">
-  <div class="request-header">
-    <i class="ph ph-key req-icon"></i>
-    <span class="num">15</span>
-    <span class="method post">POST</span>
-    <span class="url-path">/api/auth/token</span>
-    <span class="auth-tag auth-none">kein Token</span>
-    <span class="desc">OAuth client_credentials &rarr; JWT</span>
-  </div>
-  <div class="code-wrap">
-    <pre># Braucht API_CLIENT_ID / API_CLIENT_SECRET in apps/backend/.env.local
-curl -s http://localhost:4000/api/auth/token \
-  -H "Content-Type: application/json" \
-  -d '{"client_id":"DEINE_CLIENT_ID","client_secret":"DEIN_CLIENT_SECRET","grant_type":"client_credentials"}' | jq</pre>
     <button class="btn-copy" title="Kopieren"><i class="ph ph-copy"></i></button>
   </div>
 </div>

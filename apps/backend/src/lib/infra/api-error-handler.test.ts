@@ -82,7 +82,7 @@ describe("backend registration", () => {
 
     expect(server).toContain("registerApiErrorHandling(app)");
     expect(server.indexOf("registerApiErrorHandling(app)")).toBeLessThan(
-      server.indexOf("await app.register(authRoutes)"),
+      server.indexOf("await app.register(adminAuthRoutes)"),
     );
     expect(server).toContain("app.addSchema(createPublicErrorResponseSchema())");
     expect(createPublicErrorResponseSchema().required).toEqual(["error", "message", "errorId"]);

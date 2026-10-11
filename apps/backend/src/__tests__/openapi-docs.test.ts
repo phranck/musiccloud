@@ -223,6 +223,8 @@ describe("OpenAPI docs", () => {
 
     expect(res.statusCode).toBe(200);
     expect(Object.keys(doc.paths)).not.toContain("/api/auth/token");
+    // It issued a token no route accepts, so it is not registered at all.
+    expect(app.hasRoute({ method: "POST", url: "/api/auth/token" })).toBe(false);
   });
 
   it("exports exactly the approved public API paths and keeps hidden runtime routes registered", async () => {

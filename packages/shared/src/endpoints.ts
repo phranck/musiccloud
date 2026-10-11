@@ -119,12 +119,6 @@ export const ENDPOINTS = {
     tiers: "/api/v1/tiers",
   },
 
-  /** `/api/auth/...`: public auth endpoints (machine-to-machine token issuance). */
-  auth: {
-    /** POST: exchange a long-lived secret for a short-lived JWT. */
-    token: "/api/auth/token",
-  },
-
   /** `/api/internal/...`: service-to-service endpoints authenticated with the internal API key. */
   internal: {
     developer: {

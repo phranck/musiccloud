@@ -44,7 +44,6 @@ import adminSseRoutes from "./routes/admin-sse.js";
 import { adminTiersRoutes } from "./routes/admin-tiers.js";
 import adminUserRoutes from "./routes/admin-users.js";
 import artistInfoRoutes from "./routes/artist-info.js";
-import authRoutes from "./routes/auth.js";
 import ccArtistInfoRoutes from "./routes/cc-artist-info.js";
 import ccAudioRoutes from "./routes/cc-audio.js";
 import ccBandcampRoutes from "./routes/cc-bandcamp.js";
@@ -545,9 +544,6 @@ async function buildApp(options: BuildAppOptions = {}) {
       );
     },
   );
-
-  // Auth routes (no auth required)
-  await app.register(authRoutes);
 
   // Admin auth routes (no auth required - login, setup, setup-status)
   await app.register(adminAuthRoutes);
