@@ -503,18 +503,62 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
 export const MC_ERROR_CODE_PATTERN = /^MC-(URL|API|AUTH|RES|DB|CFG|MAP|REQ|SYS|BILL)-\d{3,4}$/;
 
 /**
+ * Builds the four digits of a per-service code from the service's prefix and
+ * the upstream status.
+ *
+ * A one-digit prefix, Apple Music `1` to Napster `7`, takes the status's three
+ * digits, so Spotify's 404 is `3404`. A two-digit prefix, such as YouTube
+ * Music `65` or KKBOX `80` to Jamendo `97`, takes a two-digit hint, `04` for 404, `29` for 429 and `01` for
+ * anything else, so Audius's 404 is `8404` and every code stays four digits
+ * wide. {@link isServiceNotFoundCode} reads a code back through this same
+ * function, so building and reading cannot disagree.
+ *
+ * @param prefix - The service's one- or two-digit prefix.
+ * @param statusToken - The upstream status as three digits, or `001` for a
+ *   status the scheme does not name.
+ * @returns The four digits after `MC-API-` or `MC-AUTH-`.
+ */
+export function serviceErrorDigits(prefix: string, statusToken: string): string {
+  if (prefix.length === 1) {
+    return `${prefix}${statusToken.padStart(3, "0").slice(-3)}`;
+  }
+  const hint = statusToken === "001" ? "01" : statusToken.slice(-2);
+  return `${prefix}${hint}`;
+}
+
+/**
+ * Says whether a code is a per-service "not found", the code a service's
+ * upstream 404 is reported under.
+ *
+ * A code is read under both prefix lengths, because a two-digit prefix can
+ * sit inside a one-digit group, as YouTube Music's `65` sits in YouTube's
+ * `6`. Group `0` is cross-cutting rather than a service, so its codes are
+ * never read this way.
+ *
+ * @param code - Any error code.
+ * @returns `true` for an `MC-API` code built from an upstream 404.
+ */
+export function isServiceNotFoundCode(code: string): boolean {
+  const digits = /^MC-API-(\d{4})$/.exec(code)?.[1];
+  if (!digits || digits.startsWith("0")) return false;
+  return [1, 2].some((prefixLength) => digits === serviceErrorDigits(digits.slice(0, prefixLength), "404"));
+}
+
+/**
  * Resolve a raw code (MC or legacy) to its registry entry.
  *
  * Lookup order:
  * 1. Exact MC code match in `ERROR_CODE_REGISTRY`
  * 2. Legacy code mapped via `LEGACY_TO_MC`
- * 3. Well-formed MC code with no registry entry: synthesise a generic entry
+ * 3. A per-service "not found" with no registry entry answers 404, because
+ *    the item is missing rather than the service down.
+ * 4. Well-formed MC code with no registry entry: synthesise a generic entry
  *    that **keeps the original code**. This lets `serviceHttpError` etc.
  *    emit per-adapter codes (`MC-API-3001`, `MC-API-8404`, …) without
  *    requiring a registry entry per (adapter × failure type): the code is
  *    still grep-able to the helper that produced it. Specific entries can
  *    be added later when a particular failure deserves a tailored message.
- * 4. Anything else: fall back to the catch-all `MC-API-0004`.
+ * 5. Anything else: fall back to the catch-all `MC-API-0004`.
  */
 export function getErrorEntry(code: string): ErrorCodeEntry {
   if (code in ERROR_CODE_REGISTRY) {
@@ -522,6 +566,15 @@ export function getErrorEntry(code: string): ErrorCodeEntry {
   }
   if (code in LEGACY_TO_MC) {
     return ERROR_CODE_REGISTRY[LEGACY_TO_MC[code as LegacyErrorCode]];
+  }
+  if (isServiceNotFoundCode(code)) {
+    return {
+      code: code as McErrorCode,
+      httpStatus: 404,
+      userMessage: "The service no longer has what this link points at.",
+      internalNote: "Synthesised entry: the service answered 404, or an empty body, for the requested id.",
+      source: "apps/backend/src/lib/resolve/service-errors.ts serviceHttpError / serviceNotFoundError",
+    };
   }
   if (MC_ERROR_CODE_PATTERN.test(code)) {
     const area = code.split("-")[1] as ErrorArea;
