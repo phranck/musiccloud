@@ -13,7 +13,12 @@ import type { DeveloperAccount } from "../db/developer-repository.js";
 import { getDeveloperRepository } from "../db/index.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { RateLimiter } from "../lib/infra/rate-limiter.js";
-import { AuthProvider, SESSION_COOKIE_NAME, SessionKind, sessionCookieOptions } from "../services/developer-auth.js";
+import {
+  ACCOUNT_SUSPENDED_BODY,
+  AuthProvider,
+  issueDeveloperSession,
+  SESSION_COOKIE_NAME,
+} from "../services/developer-auth.js";
 import {
   buildGitHubAuthorizeUrl,
   exchangeGitHubCode,
@@ -168,14 +173,13 @@ export async function devGitHubRoutes(app: FastifyInstance) {
       return reply.status(502).send({ error: "GITHUB_ERROR", message: "Account resolution failed." });
     }
 
-    // Mirror the authenticateDeveloper guard: a suspended account must not be
-    // able to mint a fresh session via OAuth either.
-    if (account.status !== "active") {
-      return reply.status(403).send({ error: "ACCOUNT_SUSPENDED", message: "This account is not active." });
+    // A suspended account mints no session here either; email login refuses it
+    // through the same helper.
+    const session = issueDeveloperSession(account, (payload, options) => app.jwt.sign(payload, options));
+    if (!session) {
+      return reply.status(403).send(ACCOUNT_SUSPENDED_BODY);
     }
-
-    const token = app.jwt.sign({ sub: account.id, kind: SessionKind.Developer }, { expiresIn: "7d" });
-    reply.setCookie(SESSION_COOKIE_NAME, token, sessionCookieOptions());
+    reply.setCookie(SESSION_COOKIE_NAME, session.token, session.cookieOptions);
     repo.updateDeveloperLastLogin(account.id).catch(() => undefined);
 
     return reply.send({ account: buildAccountResponse(account) });

@@ -13,14 +13,17 @@
  * 2. **Session-cookie mechanics.** The cookie name, lifetime, and the
  *    serialize options for setting and clearing the `mc_dev_session` cookie.
  *
- * The session **JWT** itself is intentionally NOT signed or verified here.
- * That requires the Fastify instance (`app.jwt.sign` / `app.jwt.verify`) and
- * happens in the route layer and the guard. This module only owns the cookie
- * envelope and the cryptographic helpers.
+ * The session **JWT** is signed through a signer the route passes in, because
+ * signing needs the Fastify instance (`app.jwt.sign`) and this module does not
+ * import it. {@link issueDeveloperSession} decides whether an account may hold
+ * a session at all and builds the token and the cookie from one lifetime; the
+ * guard verifies the token and asks {@link isDeveloperAccountActive} the same
+ * question on every request.
  */
 import crypto from "node:crypto";
 import type { CookieSerializeOptions } from "@fastify/cookie";
 import bcrypt from "bcryptjs";
+import type { DeveloperAccount } from "../db/developer-repository.js";
 
 /**
  * bcrypt work factor for developer-account passwords. Matches the admin
@@ -47,16 +50,16 @@ const DUMMY_PASSWORD_HASH = "$2a$12$invalidhashfortimingprotection00000000000000
 export const SESSION_COOKIE_NAME = "mc_dev_session";
 
 /**
- * Session cookie lifetime in seconds (7 days). Kept in lockstep with the
- * `expiresIn: "7d"` passed to `app.jwt.sign` in the login route, so the cookie
- * and the JWT it carries expire together rather than leaving a stale cookie
- * that always 401s.
+ * Session lifetime in seconds (7 days). {@link issueDeveloperSession} builds
+ * both the token's expiry and the cookie's `maxAge` from it, so the cookie and
+ * the JWT it carries expire together rather than leaving a stale cookie that
+ * always 401s.
  */
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
 /**
- * Discriminant for the `kind` claim carried by the developer session JWT. The
- * login route stamps {@link SessionKind.Developer} into the token and the
+ * Discriminant for the `kind` claim carried by the developer session JWT.
+ * {@link issueDeveloperSession} stamps {@link SessionKind.Developer} into the token and the
  * `authenticateDeveloper` guard rejects any token whose `kind` differs, so an
  * admin JWT presented in the `mc_dev_session` cookie cannot pass. Centralized
  * here so the produced and the checked literal can never drift apart.
@@ -213,5 +216,52 @@ export function clearedSessionCookieOptions(): CookieSerializeOptions {
     sameSite: "lax",
     path: "/",
     maxAge: 0,
+  };
+}
+
+/**
+ * Whether a developer account may hold a session.
+ *
+ * Signing in and every guarded request ask this one question, so the status
+ * that opens a session and the status that keeps it open cannot differ.
+ *
+ * @param account - The account as stored.
+ * @returns `true` only for an active account.
+ */
+export function isDeveloperAccountActive(account: Pick<DeveloperAccount, "status">): boolean {
+  return account.status === "active";
+}
+
+/** The refusal both sign-in routes send to an account that is not active. */
+export const ACCOUNT_SUSPENDED_BODY = { error: "ACCOUNT_SUSPENDED", message: "This account is not active." } as const;
+
+/** Signs a session token the way `app.jwt.sign` does. Passed in so this module stays framework-free. */
+export type DeveloperSessionSigner = (
+  payload: { sub: string; kind: typeof SessionKind.Developer },
+  options: { expiresIn: number },
+) => string;
+
+/**
+ * Issues a developer session, or refuses to.
+ *
+ * Email login and GitHub login both end here, so a suspended account is
+ * refused the same way on both. The token expires after
+ * {@link SESSION_MAX_AGE_SECONDS}, passed as a number because `@fastify/jwt`
+ * reads a numeric `expiresIn` as seconds, and the cookie is given the same
+ * lifetime.
+ *
+ * @param account - The account signing in, already authenticated.
+ * @param sign - The signer, `(payload, options) => app.jwt.sign(payload, options)`.
+ * @returns The token and the options to set its cookie with, or `null` when
+ *   the account may not hold a session.
+ */
+export function issueDeveloperSession(
+  account: Pick<DeveloperAccount, "id" | "status">,
+  sign: DeveloperSessionSigner,
+): { token: string; cookieOptions: CookieSerializeOptions } | null {
+  if (!isDeveloperAccountActive(account)) return null;
+  return {
+    token: sign({ sub: account.id, kind: SessionKind.Developer }, { expiresIn: SESSION_MAX_AGE_SECONDS }),
+    cookieOptions: sessionCookieOptions(),
   };
 }
