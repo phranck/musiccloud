@@ -14,9 +14,15 @@
  *
  * Rate limiting: Deezer's public API has no documented throttle but the
  * community-reported ceiling is around ~50 requests per 5 seconds. We
- * sleep 250 ms between genre calls — well under the soft cap and still
- * runs all 11 genres in under 3 seconds per tick.
+ * sleep 250 ms between genre calls, which stays well under the soft cap
+ * and still runs all 11 genres in under 3 seconds per tick.
+ *
+ * A failed genre request fails the whole run. The heartbeat then records the
+ * run as an error and counts it towards the source's auto-disable, which an
+ * empty success would never do.
  */
+import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
+import { readDeezerJson } from "../../plugins/deezer/deezer-response.js";
 import {
   type Candidate,
   type CrawlerSource,
@@ -30,6 +36,13 @@ interface DeezerChartTrackResponse {
     isrc?: string;
   }>;
 }
+
+/**
+ * Longest one chart request may take, its answer included. The heartbeat runs
+ * the due sources one after another while this source holds its lock, so an
+ * unbounded request would hold up every source behind it.
+ */
+const REQUEST_TIMEOUT_MS = 5000;
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -81,10 +94,10 @@ export const deezerChartsSource: CrawlerSource = {
     const candidates: Candidate[] = [];
     for (const genreId of genres) {
       const url = `https://api.deezer.com/chart/${genreId}/tracks?limit=${limit}`;
-      const res = await fetch(url);
-      if (!res.ok) continue;
-      const json = (await res.json()) as DeezerChartTrackResponse;
-      for (const track of json.data ?? []) {
+      const response = await fetchWithTimeout(url, {}, REQUEST_TIMEOUT_MS);
+      // A genre without a chart answers "no data", which reads as `null` and is skipped.
+      const chart = await readDeezerJson<DeezerChartTrackResponse>(response, `Chart request for genre ${genreId}`);
+      for (const track of chart?.data ?? []) {
         if (track.link) {
           candidates.push({ kind: "url", url: track.link, isrc: track.isrc });
         }
