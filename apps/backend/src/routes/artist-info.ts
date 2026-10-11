@@ -70,6 +70,7 @@
 import { type ArtistInfoResponse, ENDPOINTS, type SimilarArtistTrack } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
+import { artistEntityIdSchema, shareCodeSchema } from "../docs/public-response-schema.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { readEventLoopLagMs } from "../lib/infra/event-loop-lag.js";
 import { log } from "../lib/infra/logger.js";
@@ -118,26 +119,17 @@ export default async function artistInfoRoutes(app: FastifyInstance) {
               description:
                 "Compatibility artist display name to look up when `artistEntityId` is not available. Leading and trailing whitespace is ignored, and a trailing YouTube auto-channel suffix ` - Topic` is removed before matching. Use the spelling returned in track or artist metadata when available.",
             },
-            artistEntityId: {
-              type: "string",
-              minLength: 1,
-              maxLength: 64,
-              pattern: "^[A-Za-z0-9_-]+$",
-              description:
-                "Normalized musiccloud artist entity ID from an `artistCredits[].artistEntityId` field in a successful track or album response. When supplied, this exact entity selects the persisted canonical artist name, its isolated enrichment cache, and the upstream lookup. It takes precedence over both `name` and `shortId`. Unknown entity IDs return `404`.",
-            },
+            artistEntityId: artistEntityIdSchema(
+              "Normalized musiccloud artist entity ID from an `artistCredits[].artistEntityId` field in a successful track or album response. When supplied, this exact entity selects the persisted canonical artist name, its isolated enrichment cache, and the upstream lookup. It takes precedence over both `name` and `shortId`. Unknown entity IDs return `404`.",
+            ),
             region: {
               type: "string",
               description:
                 "Country preference for event ordering. Supply a two-letter ISO `3166-1 alpha-2` code such as `NO`; matching is case-insensitive. Only the first two characters are used. Matching events are placed first and each group is ordered by `date`.\n\n**Default**: no country is prioritized and events remain in ascending date order.",
             },
-            shortId: {
-              type: "string",
-              minLength: 1,
-              maxLength: 32,
-              description:
-                "Optional musiccloud track share code. Take the last path segment of `shortUrl` from a successful track response from `POST /api/v1/resolve` or `GET /api/v1/resolve`. Without `artistEntityId`, a stored alternate artist can replace `name` for this lookup. With `artistEntityId`, this compatibility alias is ignored.\n\n**Default**: the supplied `name` is used directly, with no persisted-resolution context.",
-            },
+            shortId: shareCodeSchema(
+              "Optional musiccloud track share code. Take the last path segment of `shortUrl` from a successful track response from `POST /api/v1/resolve` or `GET /api/v1/resolve`. Without `artistEntityId`, a stored alternate artist can replace `name` for this lookup. With `artistEntityId`, this compatibility alias is ignored.\n\n**Default**: the supplied `name` is used directly, with no persisted-resolution context.",
+            ),
             refresh: {
               type: "string",
               enum: ["profile"],

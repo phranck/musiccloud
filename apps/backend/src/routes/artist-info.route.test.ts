@@ -162,6 +162,34 @@ describe("GET /api/v1/artist-info entity identity", () => {
     expect(mocks.findArtistCache).toHaveBeenCalledWith({ kind: "name", artistName: "alias artist" });
   });
 
+  it("accepts every share code the share routes accept, up to their 64 characters", async () => {
+    const shortId = "a".repeat(40);
+    mocks.findArtistInfoAliasByShortId.mockResolvedValueOnce(null);
+    mocks.findArtistCache.mockResolvedValueOnce(freshCache("Requested Artist"));
+    const app = await buildApp();
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/v1/artist-info?name=Requested%20Artist&shortId=${shortId}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(mocks.findArtistInfoAliasByShortId).toHaveBeenCalledWith(shortId, "Requested Artist");
+  });
+
+  it("refuses a share code the share routes refuse, before any lookup", async () => {
+    const app = await buildApp();
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/v1/artist-info?name=Requested%20Artist&shortId=share%201",
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ error: "MC-REQ-0001", errorId: expect.any(String) });
+    expect(mocks.findArtistInfoAliasByShortId).not.toHaveBeenCalled();
+  });
+
   it("requires either a non-empty name or a non-empty artist entity id", async () => {
     const app = await buildApp();
 

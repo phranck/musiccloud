@@ -16,6 +16,7 @@ import { ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getRepository } from "../db/index.js";
 import type { PreviewObservation, SharePageAlbumResult, SharePageDbResult, TrackRepository } from "../db/repository.js";
+import { shareCodeSchema } from "../docs/public-response-schema.js";
 import { log } from "../lib/infra/logger.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { apiRateLimiter, isInternalRequest } from "../lib/infra/rate-limiter.js";
@@ -115,14 +116,9 @@ export default async function sharePreviewRoutes(app: FastifyInstance) {
           type: "object",
           required: ["shortId"],
           properties: {
-            shortId: {
-              type: "string",
-              minLength: 1,
-              maxLength: 64,
-              pattern: "^[A-Za-z0-9_-]+$",
-              description:
-                "Track or album share code: take the last path segment of `shortUrl` from a successful track or album response from `POST /api/v1/resolve` or `GET /api/v1/resolve`. Artist and Creative Commons share codes are not accepted.",
-            },
+            shortId: shareCodeSchema(
+              "Track or album share code: take the last path segment of `shortUrl` from a successful track or album response from `POST /api/v1/resolve` or `GET /api/v1/resolve`. Artist and Creative Commons share codes are not accepted.",
+            ),
           },
           additionalProperties: false,
         },

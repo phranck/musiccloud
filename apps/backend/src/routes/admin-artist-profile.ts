@@ -1,5 +1,6 @@
 import { ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
+import { artistEntityIdSchema } from "../docs/public-response-schema.js";
 import { getAdminCaller } from "../lib/admin-caller.js";
 import { setApiFailureDiagnostic } from "../lib/infra/api-error-handler.js";
 import { createApiErrorResponse, sanitizeErrorForLog } from "../lib/infra/api-errors.js";
@@ -15,12 +16,7 @@ export default async function adminArtistProfileRoutes(app: FastifyInstance) {
           required: ["artistEntityId"],
           additionalProperties: false,
           properties: {
-            artistEntityId: {
-              type: "string",
-              minLength: 1,
-              maxLength: 64,
-              pattern: "^[A-Za-z0-9_-]+$",
-            },
+            artistEntityId: artistEntityIdSchema(),
           },
         },
       },
