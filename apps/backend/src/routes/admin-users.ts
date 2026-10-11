@@ -47,10 +47,9 @@
  *
  * Avatars can come from three sources and each has its own route:
  *
- * - **POST** (`avatar`): direct upload as `data:image/<mime>;base64,...`.
- *   Accepts JPEG/PNG/WebP only. Fastify route body limit is 8 MB to
- *   accommodate base64 overhead, the logical image limit is 5 MB after
- *   decode (`base64Part.length * 0.75` is the standard approximation).
+ * - **POST** (`avatar`): direct upload as `data:image/<mime>;base64,...`,
+ *   checked by `parseImageDataUrl` in `lib/image-upload.ts`, the rule every
+ *   upload route shares: JPEG, PNG or WebP, at most 5 MB once decoded.
  * - **PATCH** (`avatar`): external Gravatar URL. The handler whitelists
  *   `https://www.gravatar.com/avatar/` explicitly, to block SSRF/phishing
  *   via arbitrary image hosts.
@@ -69,6 +68,7 @@ import { nanoid } from "nanoid";
 import type { AdminUser } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
 import { requireEnv } from "../lib/env.js";
+import { ADMIN_IMAGE_REFUSAL_ERRORS, IMAGE_UPLOAD_BODY_LIMIT_BYTES, parseImageDataUrl } from "../lib/image-upload.js";
 import { hashPassword } from "../services/developer-auth.js";
 import { triggerEmailAction } from "../services/email-actions.js";
 
@@ -227,7 +227,7 @@ export default async function adminUserRoutes(app: FastifyInstance) {
   // POST /api/admin/users/:id/avatar (upload)
   app.post<{ Params: { id: string } }>(
     ROUTE_TEMPLATES.admin.users.avatar,
-    { bodyLimit: 8 * 1024 * 1024 },
+    { bodyLimit: IMAGE_UPLOAD_BODY_LIMIT_BYTES },
     async (request, reply) => {
       const { id } = request.params;
       const caller = await getCaller(request);
@@ -239,25 +239,11 @@ export default async function adminUserRoutes(app: FastifyInstance) {
       const body = request.body as { dataUrl?: string } | null;
       if (!body?.dataUrl) return reply.status(400).send({ error: "No image provided" });
 
-      // Whitelist MIME types. Accepting arbitrary `image/*` would let a
-      // client drop SVG (XSS vector through `<script>` or `<foreignObject>`)
-      // or non-image binaries with a spoofed header.
-      const match = body.dataUrl.match(/^data:(image\/(?:jpeg|png|webp));base64,/);
-      if (!match) {
-        return reply.status(400).send({ error: "Only JPEG, PNG or WebP" });
-      }
-
-      // Logical size check on the decoded image. The 0.75 factor is the
-      // standard base64 overhead (3 input bytes per 4 output chars), so
-      // the check is a fast approximation of the post-decode size
-      // without actually decoding. Fastify's `bodyLimit: 8 MB` above
-      // already caps the HTTP body; this inner cap of 5 MB keeps the
-      // stored column size reasonable for DB storage and for the
-      // avatar render path.
-      const base64Part = body.dataUrl.slice(body.dataUrl.indexOf(",") + 1);
-      const approxBytes = Math.ceil(base64Part.length * 0.75);
-      if (approxBytes > 5 * 1024 * 1024) {
-        return reply.status(400).send({ error: "File too large (max 5MB)" });
+      // The rule every upload route applies, which keeps SVG out because it
+      // can carry script.
+      const image = parseImageDataUrl(body.dataUrl);
+      if (!image.ok) {
+        return reply.status(400).send({ error: ADMIN_IMAGE_REFUSAL_ERRORS[image.reason] });
       }
 
       const repo = await getAdminRepository();

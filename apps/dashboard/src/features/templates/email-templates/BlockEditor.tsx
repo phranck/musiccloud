@@ -23,7 +23,7 @@ import {
   DashboardIconButton,
   DashboardInput,
 } from "@musiccloud/dashboard-ui";
-import { type EmailBlock, EmailBlockType, type EmailBlockTypeValue } from "@musiccloud/shared";
+import { type EmailBlock, EmailBlockType, type EmailBlockTypeValue, IMAGE_UPLOAD_ACCEPT } from "@musiccloud/shared";
 import {
   CursorClickIcon,
   ImageIcon,
@@ -392,7 +392,7 @@ function ImageBlockForm({
           ref={fileInputRef}
           aria-label={m.imageUpload}
           type="file"
-          accept="image/jpeg,image/png,image/webp"
+          accept={IMAGE_UPLOAD_ACCEPT}
           className="hidden"
           onChange={handleFileChange}
         />

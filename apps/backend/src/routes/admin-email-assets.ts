@@ -1,8 +1,9 @@
 /**
  * @file Admin upload endpoint for email image assets (MC-078).
  *
- * Accepts a direct `data:image/<mime>;base64,...` upload (same shape and
- * limits as `admin-users.ts`'s avatar upload) and persists the decoded bytes
+ * Accepts a direct `data:image/<mime>;base64,...` upload, checked by
+ * `parseImageDataUrl` in `lib/image-upload.ts` like every other image upload,
+ * and persists the decoded bytes
  * via `createManagedEmailAsset`. The matching public GET (serving the stored
  * bytes back out by id) is registered from a SEPARATE file,
  * `routes/email-assets.ts`, at Fastify's root scope — see that file's header
@@ -14,13 +15,8 @@
 
 import { ENDPOINTS } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
+import { ADMIN_IMAGE_REFUSAL_ERRORS, IMAGE_UPLOAD_BODY_LIMIT_BYTES, parseImageDataUrl } from "../lib/image-upload.js";
 import { createManagedEmailAsset, listManagedEmailAssets } from "../services/email-templates.js";
-
-/** Logical (post-decode) size cap, matching the avatar upload's limit for consistency across the two `data:` URL upload endpoints. */
-const MAX_ASSET_BYTES = 5 * 1024 * 1024;
-
-/** Fastify body-size cap. Base64 inflates the payload by ~33%, so the wire limit is set above the logical cap with headroom, mirroring the avatar route's 8 MB body limit for a 5 MB logical image. */
-const MAX_BODY_BYTES = 8 * 1024 * 1024;
 
 export default async function adminEmailAssetsRoutes(app: FastifyInstance) {
   // GET /api/admin/email-assets — list all asset metadata (newest first) for
@@ -32,34 +28,22 @@ export default async function adminEmailAssetsRoutes(app: FastifyInstance) {
   });
 
   // POST /api/admin/email-assets
-  app.post(ENDPOINTS.admin.emailAssets.list, { bodyLimit: MAX_BODY_BYTES }, async (request, reply) => {
+  app.post(ENDPOINTS.admin.emailAssets.list, { bodyLimit: IMAGE_UPLOAD_BODY_LIMIT_BYTES }, async (request, reply) => {
     const body = request.body as { dataUrl?: string } | null;
     if (!body?.dataUrl) {
       return reply.status(400).send({ error: "No image provided" });
     }
 
-    // Whitelist MIME types. Accepting arbitrary `image/*` would let a client
-    // drop SVG (XSS vector through `<script>` or `<foreignObject>`) or
-    // non-image binaries with a spoofed header — same concern as the avatar
-    // upload this route mirrors.
-    const match = body.dataUrl.match(/^data:(image\/(?:jpeg|png|webp));base64,/);
-    if (!match) {
-      return reply.status(400).send({ error: "Only JPEG, PNG or WebP" });
-    }
-    const mimeType = match[1];
-
-    // Logical size check on the decoded image. The 0.75 factor is the
-    // standard base64 overhead (3 input bytes per 4 output chars), so this is
-    // a fast approximation of the post-decode size without actually decoding
-    // first.
-    const base64Part = body.dataUrl.slice(body.dataUrl.indexOf(",") + 1);
-    const approxBytes = Math.ceil(base64Part.length * 0.75);
-    if (approxBytes > MAX_ASSET_BYTES) {
-      return reply.status(400).send({ error: "File too large (max 5MB)" });
+    // The rule every upload route applies. It matters most here, because the
+    // stored bytes are served publicly with the type they were stored with,
+    // and an SVG served that way can run script.
+    const image = parseImageDataUrl(body.dataUrl);
+    if (!image.ok) {
+      return reply.status(400).send({ error: ADMIN_IMAGE_REFUSAL_ERRORS[image.reason] });
     }
 
-    const bytes = Buffer.from(base64Part, "base64");
-    const asset = await createManagedEmailAsset({ mimeType, bytes });
+    const bytes = Buffer.from(image.base64, "base64");
+    const asset = await createManagedEmailAsset({ mimeType: image.mimeType, bytes });
     return reply.status(201).send({ id: asset.id });
   });
 }

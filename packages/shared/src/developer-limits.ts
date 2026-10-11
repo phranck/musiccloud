@@ -1,11 +1,11 @@
 /**
- * @file The lengths and ceilings the developer portal and the backend both
- * enforce.
+ * @file The lengths, ceilings and accepted types that the backend enforces
+ * and that the developer portal and the admin dashboard check before sending.
  *
  * A limit stated in two places is two limits: the field stops accepting input
  * at one number whilst the route refuses at another, and nobody notices until a
- * value falls between them. Each one is therefore stated here once, and both
- * sides read it from here.
+ * value falls between them. Each one is therefore stated here once, and every
+ * side reads it from here.
  */
 
 /**
@@ -57,3 +57,22 @@ export function validatePasswordLength(password: unknown): string | null {
   }
   return `password must be between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters.`;
 }
+
+/**
+ * The image types an upload may have: an avatar on either surface, or an image
+ * for an email.
+ *
+ * SVG is not among them on purpose, because an SVG can carry script, and an
+ * uploaded email image is served back publicly with the type it was stored
+ * with.
+ */
+export const IMAGE_UPLOAD_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+
+/** One of {@link IMAGE_UPLOAD_MIME_TYPES}. */
+export type ImageUploadMimeType = (typeof IMAGE_UPLOAD_MIME_TYPES)[number];
+
+/** {@link IMAGE_UPLOAD_MIME_TYPES} as a file input's `accept` attribute expects it. */
+export const IMAGE_UPLOAD_ACCEPT = IMAGE_UPLOAD_MIME_TYPES.join(",");
+
+/** What an uploaded image may weigh once decoded, which is 5 MB. */
+export const IMAGE_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;

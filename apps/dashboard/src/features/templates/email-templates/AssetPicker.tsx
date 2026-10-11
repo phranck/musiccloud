@@ -1,4 +1,5 @@
 import { DashboardActionButton, DashboardActionId, DashboardActionStatus } from "@musiccloud/dashboard-ui";
+import { IMAGE_UPLOAD_ACCEPT } from "@musiccloud/shared";
 import { CheckCircleIcon, ImagesIcon, TrayArrowUpIcon } from "@phosphor-icons/react";
 import { type ChangeEvent, useRef } from "react";
 
@@ -66,7 +67,7 @@ export function AssetPicker({ open, selectedAssetId, onSelect, onClose }: AssetP
             ref={fileInputRef}
             aria-label={m.assetPickerUploadNew}
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept={IMAGE_UPLOAD_ACCEPT}
             className="hidden"
             onChange={handleFileChange}
           />
