@@ -1,4 +1,4 @@
-import { ENDPOINTS } from "@musiccloud/shared";
+import { ENDPOINTS, IMAGE_UPLOAD_ACCEPT, IMAGE_UPLOAD_MAX_BYTES } from "@musiccloud/shared";
 import { type ChangeEvent, useCallback, useRef } from "react";
 import { SegmentedControl } from "@/components/SegmentedControl";
 import {
@@ -10,12 +10,6 @@ import {
 } from "@/lib/avatarPickerState";
 import { AvatarSource, type AvatarSourceValue } from "@/lib/avatarSource";
 import { Profile2UserIcon } from "@/lib/icons";
-
-/** What the picture may be, matching what the backend accepts. */
-const ACCEPTED_IMAGE_TYPES = "image/jpeg,image/png,image/webp";
-
-/** What the picture may weigh once decoded, matching the backend's cap. */
-export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 
 /**
  * How wide the picture and the controls under it are drawn.
@@ -75,10 +69,10 @@ export function AvatarPicker({ state, dispatch }: AvatarPickerProps) {
       event.target.value = "";
       if (!file) return;
 
-      if (file.size > MAX_UPLOAD_BYTES) {
+      if (file.size > IMAGE_UPLOAD_MAX_BYTES) {
         dispatch({
           type: AvatarActionType.Failed,
-          message: `A picture may be at most ${MAX_UPLOAD_BYTES / 1024 / 1024} MB.`,
+          message: `A picture may be at most ${IMAGE_UPLOAD_MAX_BYTES / 1024 / 1024} MB.`,
         });
         return;
       }
@@ -176,7 +170,7 @@ export function AvatarPicker({ state, dispatch }: AvatarPickerProps) {
       <input
         ref={fileInput}
         type="file"
-        accept={ACCEPTED_IMAGE_TYPES}
+        accept={IMAGE_UPLOAD_ACCEPT}
         className="hidden"
         onChange={onPick}
         tabIndex={-1}

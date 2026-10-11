@@ -5,6 +5,7 @@ import {
   DashboardButtonVariant,
   DashboardInput,
 } from "@musiccloud/dashboard-ui";
+import { IMAGE_UPLOAD_ACCEPT } from "@musiccloud/shared";
 import { DownloadIcon, TrashIcon, TrayArrowUpIcon, UserCircleIcon } from "@phosphor-icons/react";
 import md5 from "blueimp-md5";
 import { type ChangeEvent, type Reducer, type RefObject, useEffect, useReducer, useRef } from "react";
@@ -192,7 +193,7 @@ function UserAvatarEditor({
         ref={fileInputRef}
         aria-label={usersMessages.editCard.uploadImage}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept={IMAGE_UPLOAD_ACCEPT}
         className="hidden"
         onChange={onFileChange}
       />

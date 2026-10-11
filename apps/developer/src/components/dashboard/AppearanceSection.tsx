@@ -1,8 +1,8 @@
-import { ENDPOINTS, MAX_DISPLAY_NAME_LENGTH } from "@musiccloud/shared";
+import { ENDPOINTS, IMAGE_UPLOAD_MAX_BYTES, MAX_DISPLAY_NAME_LENGTH } from "@musiccloud/shared";
 import { type ChangeEvent, type SyntheticEvent, useCallback, useReducer, useState } from "react";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { TextField } from "@/components/auth/TextField";
-import { AvatarPicker, MAX_UPLOAD_BYTES } from "@/components/dashboard/AvatarPicker";
+import { AvatarPicker } from "@/components/dashboard/AvatarPicker";
 import { ContentCard } from "@/components/docs/ContentCard";
 import { sendAuth } from "@/lib/authClient";
 import { announceAvatar } from "@/lib/avatarBroadcast";
@@ -193,9 +193,9 @@ export function AppearanceSection({ account }: AppearanceSectionProps) {
             </div>
 
             <p className="text-body text-fg-muted">
-              JPEG, PNG or WebP, up to {MAX_UPLOAD_BYTES / 1024 / 1024} MB. Nothing is stored until you save. Checking
-              Gravatar asks gravatar.com whether your account has a picture, which is why it happens only when you press
-              the button.
+              JPEG, PNG or WebP, up to {IMAGE_UPLOAD_MAX_BYTES / 1024 / 1024} MB. Nothing is stored until you save.
+              Checking Gravatar asks gravatar.com whether your account has a picture, which is why it happens only when
+              you press the button.
             </p>
           </ContentCard.Body.Copy>
         </ContentCard.Body>

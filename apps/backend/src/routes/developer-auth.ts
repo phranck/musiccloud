@@ -52,6 +52,7 @@ import {
   EmailAction,
   EmailRecipientKind,
   ENDPOINTS,
+  IMAGE_UPLOAD_MAX_BYTES,
   MAX_DISPLAY_NAME_LENGTH,
   validatePasswordLength,
 } from "@musiccloud/shared";
@@ -60,6 +61,7 @@ import type { DeveloperAccount } from "../db/developer-repository.js";
 import { getDeveloperRepository, getTierRepository } from "../db/index.js";
 import { isValidEmailAddress } from "../lib/email-address.js";
 import { requireEnv } from "../lib/env.js";
+import { IMAGE_UPLOAD_BODY_LIMIT_BYTES, ImageUploadRefusal, parseImageDataUrl } from "../lib/image-upload.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { RateLimiter } from "../lib/infra/rate-limiter.js";
@@ -221,18 +223,6 @@ export type AvatarSourceValue = (typeof AvatarSource)[keyof typeof AvatarSource]
 function isAvatarSource(value: unknown): value is AvatarSourceValue {
   return typeof value === "string" && (Object.values(AvatarSource) as string[]).includes(value);
 }
-
-/** Image formats an uploaded picture may be in, matching the dashboard's. */
-const UPLOAD_DATA_URL = /^data:(image\/(?:jpeg|png|webp));base64,/;
-
-/** What an uploaded picture may weigh once decoded. */
-const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
-
-/** What the request body may weigh, with room for base64's third. */
-const MAX_UPLOAD_BODY_BYTES = 8 * 1024 * 1024;
-
-/** Base64 carries three bytes in every four characters. */
-const BASE64_BYTES_PER_CHAR = 0.75;
 
 /** Where a Gravatar lives. Nothing outside this host is stored as one. */
 const GRAVATAR_PREFIX = "https://www.gravatar.com/avatar/";
@@ -986,27 +976,24 @@ export async function devAuthRoutes(app: FastifyInstance) {
    * POST /api/dev/auth/avatar
    * Stores a picture the caller uploaded, as a `data:` URL, and shows it.
    *
-   * The same formats and the same two caps the dashboard's avatar route uses,
-   * for the same reasons: SVG is refused because it can carry script, and the
-   * decoded size is checked from the base64 length rather than by decoding.
+   * The image rule is the one every upload route applies, `parseImageDataUrl`,
+   * so SVG is refused here as it is on the admin routes.
    */
   app.post(
     ENDPOINTS.dev.auth.avatar,
-    { preHandler: app.authenticateDeveloper, bodyLimit: MAX_UPLOAD_BODY_BYTES },
+    { preHandler: app.authenticateDeveloper, bodyLimit: IMAGE_UPLOAD_BODY_LIMIT_BYTES },
     async (request, reply) => {
       const body = request.body as { dataUrl?: string } | null;
       if (!body?.dataUrl) {
         return reply.status(400).send({ error: "INVALID_REQUEST", message: "dataUrl is required." });
       }
-      if (!UPLOAD_DATA_URL.test(body.dataUrl)) {
-        return reply.status(400).send({ error: "INVALID_REQUEST", message: "Only JPEG, PNG or WebP." });
-      }
-
-      const base64Part = body.dataUrl.slice(body.dataUrl.indexOf(",") + 1);
-      if (Math.ceil(base64Part.length * BASE64_BYTES_PER_CHAR) > MAX_UPLOAD_BYTES) {
-        return reply
-          .status(400)
-          .send({ error: "INVALID_REQUEST", message: `Picture may be at most ${MAX_UPLOAD_BYTES / 1024 / 1024} MB.` });
+      const image = parseImageDataUrl(body.dataUrl);
+      if (!image.ok) {
+        const message =
+          image.reason === ImageUploadRefusal.TooLarge
+            ? `Picture may be at most ${IMAGE_UPLOAD_MAX_BYTES / 1024 / 1024} MB.`
+            : "Only JPEG, PNG or WebP.";
+        return reply.status(400).send({ error: "INVALID_REQUEST", message });
       }
 
       const repo = await getDeveloperRepository();
