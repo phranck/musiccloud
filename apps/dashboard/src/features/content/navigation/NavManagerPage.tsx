@@ -12,7 +12,7 @@ import {
   type ContentPageSummary,
   expectedNavigationPlacements,
   hasAllContextBits,
-  isSafeConfiguredUrl,
+  isSafeNavigationUrl,
   KNOWN_CONTENT_CONTEXT_MASK,
   NAVIGATION_SYSTEM_TARGETS,
   NavigationArea,
@@ -398,10 +398,7 @@ function AddNavigationItem({ entries, nextId, onAdd, pages, text }: AddNavigatio
   const trimmedUrl = url.trim();
   const docsOwned = type === NavigationAddType.Url && isSystemOwnedDocsUrl(trimmedUrl);
   const invalidUrl =
-    type === NavigationAddType.Url &&
-    trimmedUrl.length > 0 &&
-    !docsOwned &&
-    !isSafeConfiguredUrl(trimmedUrl, { allowRelative: true, allowMailto: true });
+    type === NavigationAddType.Url && trimmedUrl.length > 0 && !docsOwned && !isSafeNavigationUrl(trimmedUrl);
   const canAdd =
     type === NavigationAddType.Page ? pageId.length > 0 : trimmedUrl.length > 0 && !docsOwned && !invalidUrl;
 

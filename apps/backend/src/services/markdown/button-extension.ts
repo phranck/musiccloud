@@ -12,6 +12,7 @@ import {
   BUTTON_DEFAULT_TONE,
   BUTTON_SHORTCODE,
   type ButtonToneValue,
+  isSafeContentTarget,
   parseShortcodes,
   readShortcodeAt,
   type SingleContentContext,
@@ -34,9 +35,6 @@ const TONE_CLASSES: Record<ButtonToneValue, string> = {
  * size on every page stops reading as one control.
  */
 const BUTTON_ICON_SIZE = 24;
-
-/** An address a page may point a command at: this site, or somewhere over https. */
-const SAFE_TARGET = /^(?:\/[^/\\]|https:\/\/)/;
 
 interface McButtonToken extends Tokens.Generic {
   type: "mcButton";
@@ -82,7 +80,7 @@ export function createButtonExtension(context: SingleContentContext): MarkedExte
 
           // A command with nowhere to go, no words on it, or an address a reader
           // could not follow is left as text, so whoever wrote it sees why.
-          if (!href || !label || !SAFE_TARGET.test(href)) return;
+          if (!href || !label || !isSafeContentTarget(href)) return;
 
           const icon = typeof parsed?.params.icon === "string" ? parsed.params.icon.trim() : "";
           const tone = (
