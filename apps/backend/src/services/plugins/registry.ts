@@ -35,14 +35,14 @@
  * only when the env vars are present. A plugin has to be BOTH for
  * `getActiveAdapters` to include it.
  *
- * ## `identifyServiceIncludingDisabled`
+ * ## `findInactiveServiceFor`
  *
- * Deliberately separate from `identifyService`: the resolver calls the
- * disabled-aware variant first to tell the difference between "URL
- * from an unknown service" (`NOT_MUSIC_LINK`) and "URL from a service
- * the admin has turned off" (`SERVICE_DISABLED`). Only the former is
- * a user error; the latter is actionable feedback ("the admin turned
- * Apple Music off").
+ * Deliberately separate from `identifyService`: every resolver calls it
+ * first to tell the difference between "URL from an unknown service"
+ * (`NOT_MUSIC_LINK`) and "URL from a service that cannot serve it"
+ * (`SERVICE_DISABLED`), whether the admin turned the service off or its
+ * credentials are missing. Only the former is a user error; the latter is
+ * actionable feedback ("Apple Music is off").
  *
  * ## `filterDisabledLinks`
  *
@@ -197,12 +197,29 @@ export async function identifyService(url: string): Promise<ServiceAdapter | und
 }
 
 /**
- * Like {@link identifyService} but scans ALL plugins regardless of the
- * enabled/available state. Used solely to produce the `SERVICE_DISABLED`
- * error when a user pastes a URL whose source service has been disabled.
+ * Names the plugin a link belongs to when that plugin cannot serve it.
+ *
+ * Every detector of every plugin is asked, the album and artist ones as well
+ * as the track one, so the answer is the same whichever pipeline asks. A
+ * plugin counts as inactive when the admin has switched it off or when it
+ * lacks the credentials it needs, because either way the link cannot be
+ * resolved and the user should read that the service is unavailable rather
+ * than that the link is not a music link.
+ *
+ * @param url - The cleaned and expanded link.
+ * @returns The inactive plugin's id, or `null` when the link belongs to an
+ *   active plugin or to none.
  */
-export async function identifyServiceIncludingDisabled(url: string): Promise<ServiceAdapter | undefined> {
-  return PLUGINS.map((p) => p.adapter).find((a) => a.detectUrl(url) !== null);
+export async function findInactiveServiceFor(url: string): Promise<ServiceId | null> {
+  const plugin = PLUGINS.find(
+    ({ adapter }) =>
+      adapter.detectUrl(url) !== null ||
+      Boolean(adapter.detectAlbumUrl?.(url)) ||
+      Boolean(adapter.detectArtistUrl?.(url)),
+  );
+  if (!plugin) return null;
+  const active = (await isPluginEnabled(plugin.manifest.id)) && plugin.adapter.isAvailable();
+  return active ? null : plugin.manifest.id;
 }
 
 /** What a music link points at, as the plugins' own detectors tell it. */
@@ -215,8 +232,8 @@ export type MusicUrlKind = "album" | "artist" | "track";
  * code that extracts the id afterwards. A separate table of patterns would be
  * a second answer that drifts from them, and a link it misroutes ends in the
  * wrong pipeline and in "not a music link". Every plugin is asked, enabled or
- * not, like {@link identifyServiceIncludingDisabled}, so a link's kind does
- * not change with the admin toggles. The album detectors are asked first,
+ * not, like {@link findInactiveServiceFor}, so a link's kind does not change
+ * with the admin toggles. The album detectors are asked first,
  * then the artist ones, then the track ones. That order decides nothing as
  * long as no two detectors claim the same link, across all plugins, which
  * `music-url-classification.test.ts` holds.
