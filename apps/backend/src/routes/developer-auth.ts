@@ -18,10 +18,11 @@
  *
  * ## Session JWT
  *
- * Login signs `{ sub: accountId, kind: "developer" }` with a 7-day lifetime
- * (matched by the cookie's `maxAge`, see {@link sessionCookieOptions}). The
- * `kind` claim lets {@link FastifyInstance.authenticateDeveloper} reject an
- * admin token that happens to be presented in the cookie.
+ * Login signs `{ sub: accountId, kind: "developer" }` through
+ * {@link issueDeveloperSession}, which gives the token and the cookie one
+ * lifetime and refuses an account that is not active. The `kind` claim lets
+ * {@link FastifyInstance.authenticateDeveloper} reject an admin token that
+ * happens to be presented in the cookie.
  *
  * ## Timing-attack protection
  *
@@ -64,14 +65,14 @@ import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { RateLimiter } from "../lib/infra/rate-limiter.js";
 import {
+  ACCOUNT_SUSPENDED_BODY,
   AuthProvider,
   clearedSessionCookieOptions,
   generateEmailToken,
   hashEmailToken,
   hashPassword,
+  issueDeveloperSession,
   SESSION_COOKIE_NAME,
-  SessionKind,
-  sessionCookieOptions,
   sha256Hex,
   TokenPurpose,
   verifyPassword,
@@ -515,7 +516,9 @@ export async function devAuthRoutes(app: FastifyInstance) {
    * POST /api/dev/auth/login
    * Authenticates a developer (verified accounts only), sets the session
    * cookie and returns the account. Timing-safe against email enumeration;
-   * unverified accounts get 403 so the portal can prompt for re-verification.
+   * unverified accounts get 403 so the portal can prompt for re-verification,
+   * and a suspended account gets 403 `ACCOUNT_SUSPENDED` and no cookie, as on
+   * GitHub sign-in.
    */
   app.post(ENDPOINTS.dev.auth.login, { preHandler: throttleCredentials }, async (request, reply) => {
     const body = request.body as { email?: string; password?: string } | null;
@@ -537,8 +540,11 @@ export async function devAuthRoutes(app: FastifyInstance) {
       return reply.status(403).send({ error: "EMAIL_NOT_VERIFIED", message: "Please verify your email first." });
     }
 
-    const token = app.jwt.sign({ sub: account.id, kind: SessionKind.Developer }, { expiresIn: "7d" });
-    reply.setCookie(SESSION_COOKIE_NAME, token, sessionCookieOptions());
+    const session = issueDeveloperSession(account, (payload, options) => app.jwt.sign(payload, options));
+    if (!session) {
+      return reply.status(403).send(ACCOUNT_SUSPENDED_BODY);
+    }
+    reply.setCookie(SESSION_COOKIE_NAME, session.token, session.cookieOptions);
 
     // Update last login timestamp (fire and forget): a failed stat write must
     // not block or fail the login response.

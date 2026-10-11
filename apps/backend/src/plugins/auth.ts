@@ -57,7 +57,7 @@ import {
 } from "../lib/infra/rate-limiter.js";
 import { secretsMatch } from "../lib/infra/secret-compare.js";
 import { hashApiToken, looksLikeApiAccessToken } from "../services/api-access-token.js";
-import { SESSION_COOKIE_NAME, SessionKind } from "../services/developer-auth.js";
+import { isDeveloperAccountActive, SESSION_COOKIE_NAME, SessionKind } from "../services/developer-auth.js";
 
 declare module "fastify" {
   interface FastifyInstance {
@@ -381,7 +381,7 @@ async function authPlugin(app: FastifyInstance) {
 
     const repo = await getDeveloperRepository();
     const account = await repo.findDeveloperAccountById(payload.sub);
-    if (!account || account.status !== "active") {
+    if (!account || !isDeveloperAccountActive(account)) {
       return reply.status(401).send({ error: "UNAUTHORIZED", message: "Account not found or inactive." });
     }
 

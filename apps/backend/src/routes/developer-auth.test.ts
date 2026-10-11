@@ -559,6 +559,24 @@ describe("POST /api/dev/auth/login", () => {
     expect(res.json().error).toBe("MC-AUTH-0002");
     expect(findSessionSetCookie(res.headers["set-cookie"])).toBeUndefined();
   });
+
+  it("refuses a suspended account with the right password, as GitHub sign-in does", async () => {
+    const passwordHash = await hashPassword(VALID_PASSWORD);
+    vi.mocked(repo.findDeveloperAccountByEmail).mockResolvedValueOnce(
+      makeAccount({ passwordHash, status: "suspended" }),
+    );
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.login,
+      payload: { email: "dev@example.com", password: VALID_PASSWORD },
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(res.json().message).toContain("This account is not active.");
+    expect(findSessionSetCookie(res.headers["set-cookie"])).toBeUndefined();
+    expect(vi.mocked(repo.updateDeveloperLastLogin)).not.toHaveBeenCalled();
+  });
 });
 
 describe("POST /api/dev/auth/request-reset", () => {

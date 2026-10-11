@@ -1,5 +1,57 @@
+import jwt from "@fastify/jwt";
+import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
-import { generateEmailToken, hashEmailToken, hashPassword, verifyPassword } from "./developer-auth.js";
+import {
+  generateEmailToken,
+  hashEmailToken,
+  hashPassword,
+  isDeveloperAccountActive,
+  issueDeveloperSession,
+  SESSION_MAX_AGE_SECONDS,
+  SessionKind,
+  sessionCookieOptions,
+  verifyPassword,
+} from "./developer-auth.js";
+
+describe("developer sessions", () => {
+  async function signer() {
+    const app = Fastify();
+    await app.register(jwt, { secret: "test-developer-session-secret" });
+    await app.ready();
+    return app;
+  }
+
+  it("issues a token that expires with its cookie", async () => {
+    const app = await signer();
+    const session = issueDeveloperSession({ id: "dev-acc-1", status: "active" }, (payload, options) =>
+      app.jwt.sign(payload, options),
+    );
+
+    expect(session).not.toBeNull();
+    const decoded = app.jwt.decode<{ sub: string; kind: string; iat: number; exp: number }>(session!.token);
+    expect(decoded).toMatchObject({ sub: "dev-acc-1", kind: SessionKind.Developer });
+    expect(decoded!.exp - decoded!.iat).toBe(SESSION_MAX_AGE_SECONDS);
+    expect(session!.cookieOptions).toEqual(sessionCookieOptions());
+    expect(session!.cookieOptions.maxAge).toBe(SESSION_MAX_AGE_SECONDS);
+    await app.close();
+  });
+
+  it("issues nothing for an account that is not active", () => {
+    let signed = false;
+    const session = issueDeveloperSession({ id: "dev-acc-1", status: "suspended" }, () => {
+      signed = true;
+      return "token";
+    });
+
+    expect(session).toBeNull();
+    expect(signed).toBe(false);
+  });
+
+  it("counts only an active account as one that may hold a session", () => {
+    expect(isDeveloperAccountActive({ status: "active" })).toBe(true);
+    expect(isDeveloperAccountActive({ status: "suspended" })).toBe(false);
+  });
+});
 
 describe("developer-auth password hashing", () => {
   it("hashes a password into a bcrypt string that verifies against the original", async () => {
