@@ -8,6 +8,7 @@
 
 import type { CcMusicInfo, CcTrackStats } from "@musiccloud/shared";
 import { decodeHtmlEntities } from "../../../lib/html.js";
+import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
 import { log } from "../../../lib/infra/logger.js";
 import { jamendoBioToHtml } from "./bio.js";
 import type {
@@ -111,6 +112,18 @@ export class JamendoUnavailableError extends Error {
 }
 
 /**
+ * Tells the timeout of {@link fetchWithTimeout} apart from the other failures.
+ * Its timer aborts with an `AbortError`, while the answer is awaited and while
+ * it is read. The client passes no signal of its own, so nothing else aborts.
+ *
+ * @param error - What the request or the reading of its answer threw.
+ * @returns Whether the request ran out of time.
+ */
+function isTimeout(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
+}
+
+/**
  * Low-level GET against a Jamendo endpoint. Adds `client_id`, `format=json`
  * and every provided param, then validates the response envelope. Every call
  * is funnelled through {@link throttleJamendo} so the CC path stays under
@@ -154,13 +167,12 @@ async function jamendoRequest<T>(
       url.searchParams.set(key, String(value));
     }
 
-    const signal = AbortSignal.timeout(JAMENDO_REQUEST_TIMEOUT_MS);
     const timedOutMessage = `Jamendo did not answer within ${JAMENDO_REQUEST_TIMEOUT_MS} ms`;
     let response: Response;
     try {
-      response = await fetch(url, { signal });
+      response = await fetchWithTimeout(url.href, {}, JAMENDO_REQUEST_TIMEOUT_MS);
     } catch (error) {
-      throw new JamendoUnavailableError(signal.aborted ? timedOutMessage : "Jamendo could not be reached", error);
+      throw new JamendoUnavailableError(isTimeout(error) ? timedOutMessage : "Jamendo could not be reached", error);
     }
     if (!response.ok) {
       throw new JamendoUnavailableError(`Jamendo request failed: HTTP ${response.status}`);
@@ -169,7 +181,10 @@ async function jamendoRequest<T>(
     try {
       body = (await response.json()) as JamendoEnvelope<T>;
     } catch (error) {
-      throw new JamendoUnavailableError(signal.aborted ? timedOutMessage : "Jamendo's answer could not be read", error);
+      throw new JamendoUnavailableError(
+        isTimeout(error) ? timedOutMessage : "Jamendo's answer could not be read",
+        error,
+      );
     }
     if (body.headers.status !== "success") {
       throw new JamendoUnavailableError(`Jamendo API error: ${body.headers.error_message ?? body.headers.code}`);

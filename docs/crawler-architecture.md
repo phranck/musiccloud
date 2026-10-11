@@ -115,6 +115,18 @@ returned as canonical `MC-REQ-0001` responses by admin routes and become normal
 failed runs in the heartbeat, with no credential names or values in run notes
 or logs.
 
+### Deezer Charts configuration
+
+`deezer-charts` is seeded as enabled with a `360`-minute interval and this configuration:
+
+```json
+{ "genres": [0, 132, 116, 152, 113, 165, 153, 144, 75, 84, 464], "limit": 100 }
+```
+
+`genres` holds Deezer genre ids, where `0` is the global chart. `limit` is the number of chart tracks requested for each genre. A stored configuration without `genres` means the global chart alone. The source needs no credentials.
+
+The source requests the genres serially with a 250 ms gap. Every request uses the common 5-second timeout and SSRF-protected outbound fetch helper. A genre that Deezer has no chart for answers "no data" and is skipped. Any other HTTP error, timeout, unreadable body, or Deezer error body fails the complete fetch, and that includes the quota error Deezer sends with HTTP 200. The candidates already collected in a failed run are not ingested.
+
 ### Last.fm Tag Tops configuration
 
 `lastfm-tags` is seeded as disabled with a `360`-minute interval and this
@@ -410,8 +422,7 @@ psql $DATABASE_URL -c "SELECT source, status, discovered, ingested, skipped, err
 1. Create `services/crawler/sources/<id>.ts` exporting one
    `CrawlerSource` object.
 2. Append the import + push it onto `SOURCES` in `services/crawler/registry.ts`.
-3. Write a unit test under `services/crawler/sources/__tests__/<id>.test.ts`
-   that mocks `fetch` and asserts the candidate-parser output.
+3. Fetch through `fetchWithTimeout` from `lib/infra/fetch.ts`, which bounds every request and applies the outbound address policy. Write a unit test under `services/crawler/sources/__tests__/<id>.test.ts` that mocks that module and asserts the candidate-parser output.
 4. (Optional) Document upstream rate-limit assumptions in the source
    file's `@file` JSDoc.
 

@@ -1,4 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const fetchWithTimeoutMock = vi.hoisted(() => vi.fn());
+vi.mock("../../../../lib/infra/fetch.js", () => ({
+  fetchWithTimeout: (...args: unknown[]) => fetchWithTimeoutMock(...args),
+}));
+
 import {
   getCcAlbum,
   getCcAlbumTracks,
@@ -14,6 +20,32 @@ import {
   searchCcTracks,
 } from "../client.js";
 import type { JamendoAlbumRaw, JamendoArtistRaw, JamendoEnvelope, JamendoTrackRaw } from "../types.js";
+
+/** The global `fetch` bypasses the outbound address policy, so any call to it fails the test. */
+const globalFetchMock = vi.fn(() => {
+  throw new Error("The Jamendo client called the global fetch.");
+});
+
+beforeEach(() => {
+  fetchWithTimeoutMock.mockReset();
+  globalFetchMock.mockClear();
+  vi.stubGlobal("fetch", globalFetchMock);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  expect(globalFetchMock).not.toHaveBeenCalled();
+});
+
+/**
+ * The URL of one request the client sent.
+ *
+ * @param call - Zero-based index of the request.
+ * @returns The requested URL as a string.
+ */
+function requestedUrl(call = 0): string {
+  return String(fetchWithTimeoutMock.mock.calls[call]?.[0]);
+}
 
 const SAMPLE_TRACK: JamendoTrackRaw = {
   id: "1886393",
@@ -35,13 +67,10 @@ const SAMPLE_TRACK: JamendoTrackRaw = {
 };
 
 function mockJamendo(body: JamendoEnvelope<JamendoTrackRaw>): void {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => body,
-    } as Response),
-  );
+  fetchWithTimeoutMock.mockResolvedValue({
+    ok: true,
+    json: async () => body,
+  } as Response);
 }
 
 describe("searchCcTracks", () => {
@@ -49,7 +78,6 @@ describe("searchCcTracks", () => {
     vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id");
   });
   afterEach(() => {
-    vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
 
@@ -90,18 +118,17 @@ describe("searchCcTracks", () => {
   });
 
   it("passes client_id and structured fields to the request URL", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
+    fetchWithTimeoutMock.mockResolvedValue({
       ok: true,
       json: async () => ({
         headers: { status: "success", code: 0, results_count: 0, results_fullcount: 0 },
         results: [],
       }),
     } as Response);
-    vi.stubGlobal("fetch", fetchMock);
 
     await searchCcTracks({ name: "Enjoy The Silence", artist_name: "Depeche Mode", limit: 5 });
 
-    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    const calledUrl = requestedUrl();
     expect(calledUrl).toContain("client_id=test_client_id");
     expect(calledUrl).toContain("name=Enjoy+The+Silence");
     expect(calledUrl).toContain("artist_name=Depeche+Mode");
@@ -125,7 +152,6 @@ describe("searchCcTracks", () => {
 describe("getCcTrack", () => {
   beforeEach(() => vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id"));
   afterEach(() => {
-    vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
 
@@ -156,61 +182,56 @@ const HEALTHY_TRACKS: JamendoEnvelope<JamendoTrackRaw> = {
 };
 
 /**
- * Stubs `fetch` with a sequence of Jamendo answers, one per call. The last
- * answer repeats once the sequence is used up.
+ * Answers the client's requests with a sequence of Jamendo envelopes, one per
+ * request. The last envelope repeats once the sequence is used up.
  *
- * @param bodies - The envelopes to answer with, in call order.
- * @returns The fetch mock, for asserting on calls.
+ * @param bodies - The envelopes to answer with, in request order.
  */
-function mockJamendoSequence(...bodies: JamendoEnvelope<JamendoTrackRaw>[]): ReturnType<typeof vi.fn> {
-  const fetchMock = vi.fn();
+function mockJamendoSequence(...bodies: JamendoEnvelope<JamendoTrackRaw>[]): void {
   for (const body of bodies) {
-    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => body } as Response);
+    fetchWithTimeoutMock.mockResolvedValueOnce({ ok: true, json: async () => body } as Response);
   }
-  fetchMock.mockResolvedValue({ ok: true, json: async () => bodies[bodies.length - 1] } as Response);
-  vi.stubGlobal("fetch", fetchMock);
-  return fetchMock;
+  fetchWithTimeoutMock.mockResolvedValue({ ok: true, json: async () => bodies[bodies.length - 1] } as Response);
 }
 
 describe("faulty empty /tracks answers", () => {
   beforeEach(() => vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id"));
   afterEach(() => {
-    vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
 
   it("requests fullcount so a healthy answer can be told apart from a faulty one", async () => {
-    const fetchMock = mockJamendoSequence(HEALTHY_TRACKS);
+    mockJamendoSequence(HEALTHY_TRACKS);
 
     await getCcTrack("1886393");
 
-    expect(String(fetchMock.mock.calls[0][0])).toContain("fullcount=true");
+    expect(requestedUrl()).toContain("fullcount=true");
   });
 
   it("repeats an empty answer without results_fullcount and returns the next healthy one", async () => {
-    const fetchMock = mockJamendoSequence(FAULTY_EMPTY_TRACKS, FAULTY_EMPTY_TRACKS, HEALTHY_TRACKS);
+    mockJamendoSequence(FAULTY_EMPTY_TRACKS, FAULTY_EMPTY_TRACKS, HEALTHY_TRACKS);
 
     const track = await getCcTrack("1886393");
 
     expect(track?.jamendoId).toBe("1886393");
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchWithTimeoutMock).toHaveBeenCalledTimes(3);
   });
 
   it("accepts a genuine miss carrying results_fullcount 0 without repeating it", async () => {
-    const fetchMock = mockJamendoSequence({
+    mockJamendoSequence({
       headers: { status: "success", code: 0, results_count: 0, results_fullcount: 0 },
       results: [],
     });
 
     expect(await getCcTrack("does-not-exist")).toBeNull();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchWithTimeoutMock).toHaveBeenCalledTimes(1);
   });
 
   it("throws JamendoUnavailableError when no attempt brings a healthy answer", async () => {
-    const fetchMock = mockJamendoSequence(FAULTY_EMPTY_TRACKS);
+    mockJamendoSequence(FAULTY_EMPTY_TRACKS);
 
     await expect(getCcTrack("1886393")).rejects.toBeInstanceOf(JamendoUnavailableError);
-    expect(fetchMock.mock.calls.length).toBeGreaterThan(1);
+    expect(fetchWithTimeoutMock.mock.calls.length).toBeGreaterThan(1);
   });
 
   it.each([
@@ -229,13 +250,11 @@ describe("faulty empty /tracks answers", () => {
 describe("getSimilarCcTracks", () => {
   beforeEach(() => vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id"));
   afterEach(() => {
-    vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
 
   it("reads the seed's genre tags then fuzzy-tag searches similar tracks", async () => {
-    const fetchMock = vi
-      .fn()
+    fetchWithTimeoutMock
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -247,45 +266,41 @@ describe("getSimilarCcTracks", () => {
         ok: true,
         json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [SAMPLE_TRACK] }),
       } as Response);
-    vi.stubGlobal("fetch", fetchMock);
 
     const similar = await getSimilarCcTracks("1886393");
 
-    expect(String(fetchMock.mock.calls[0][0])).toContain("id=1886393");
-    expect(String(fetchMock.mock.calls[0][0])).toContain("include=musicinfo");
-    expect(String(fetchMock.mock.calls[1][0])).toContain("fuzzytags=jazz");
+    expect(requestedUrl(0)).toContain("id=1886393");
+    expect(requestedUrl(0)).toContain("include=musicinfo");
+    expect(requestedUrl(1)).toContain("fuzzytags=jazz");
     expect(similar[0]?.jamendoId).toBe("1886393");
   });
 
   it("returns [] without a second call when the seed has no genre tags", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
+    fetchWithTimeoutMock.mockResolvedValue({
       ok: true,
       json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [SAMPLE_TRACK] }),
     } as Response);
-    vi.stubGlobal("fetch", fetchMock);
 
     expect(await getSimilarCcTracks("1886393")).toEqual([]);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchWithTimeoutMock).toHaveBeenCalledTimes(1);
   });
 });
 
 describe("getCcAlbumTracks", () => {
   beforeEach(() => vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id"));
   afterEach(() => {
-    vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
 
   it("requests /tracks filtered by album_id and maps the rows", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
+    fetchWithTimeoutMock.mockResolvedValue({
       ok: true,
       json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [SAMPLE_TRACK] }),
     } as Response);
-    vi.stubGlobal("fetch", fetchMock);
 
     const tracks = await getCcAlbumTracks("176136");
 
-    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    const calledUrl = requestedUrl();
     expect(calledUrl).toContain("/tracks");
     expect(calledUrl).toContain("album_id=176136");
     expect(tracks[0]?.jamendoId).toBe("1886393");
@@ -295,20 +310,18 @@ describe("getCcAlbumTracks", () => {
 describe("getCcArtistTopTracks", () => {
   beforeEach(() => vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id"));
   afterEach(() => {
-    vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
 
   it("requests /tracks filtered by artist_id ordered by popularity", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
+    fetchWithTimeoutMock.mockResolvedValue({
       ok: true,
       json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [SAMPLE_TRACK] }),
     } as Response);
-    vi.stubGlobal("fetch", fetchMock);
 
     const tracks = await getCcArtistTopTracks("338723");
 
-    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    const calledUrl = requestedUrl();
     expect(calledUrl).toContain("artist_id=338723");
     expect(calledUrl).toContain("order=popularity_total");
     expect(tracks[0]?.jamendoId).toBe("1886393");
@@ -323,47 +336,75 @@ describe("Jamendo request timeout", () => {
     vi.resetModules();
   });
   afterEach(() => {
-    vi.unstubAllGlobals();
     vi.unstubAllEnvs();
+  });
+
+  /**
+   * Rejects the way `fetchWithTimeout` does once its timer fires, both while
+   * waiting for the answer and while reading it.
+   *
+   * @param timeoutMs - The limit the client passed to `fetchWithTimeout`.
+   * @returns A promise rejecting with an `AbortError` after `timeoutMs`.
+   */
+  function abortAfter(timeoutMs: number): Promise<never> {
+    return new Promise((_resolve, reject) => {
+      setTimeout(() => reject(new DOMException("This operation was aborted", "AbortError")), timeoutMs);
+    });
+  }
+
+  function albumAnswer(): Response {
+    return {
+      ok: true,
+      json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [SAMPLE_ALBUM] }),
+    } as Response;
+  }
+
+  it("bounds every request by the configured timeout", async () => {
+    const client = await import("../client.js");
+    fetchWithTimeoutMock.mockResolvedValue(albumAnswer());
+
+    await client.getCcAlbum("176136");
+
+    expect(fetchWithTimeoutMock).toHaveBeenCalledWith(expect.stringContaining("/albums?"), {}, 50);
   });
 
   it("ends a request Jamendo never answers and lets the next queued request run", async () => {
     const client = await import("../client.js");
-    const fetchMock = vi
-      .fn()
-      .mockImplementationOnce(
-        (_url: URL, init?: RequestInit) =>
-          new Promise((_resolve, reject) => {
-            init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
-          }),
-      )
-      .mockResolvedValue({
-        ok: true,
-        json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [SAMPLE_ALBUM] }),
-      } as Response);
-    vi.stubGlobal("fetch", fetchMock);
+    fetchWithTimeoutMock
+      .mockImplementationOnce((_url: string, _init: RequestInit, timeoutMs: number) => abortAfter(timeoutMs))
+      .mockResolvedValue(albumAnswer());
 
     const stalled = client.getCcAlbum("1");
     const queued = client.getCcAlbum("176136");
 
-    await expect(stalled).rejects.toBeInstanceOf(client.JamendoUnavailableError);
+    await expect(stalled).rejects.toMatchObject({
+      name: "JamendoUnavailableError",
+      message: "Jamendo did not answer within 50 ms",
+    });
     expect((await queued)?.jamendoId).toBe("176136");
   });
 
   it("ends a request whose answer stops arriving while it is read", async () => {
     const client = await import("../client.js");
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation(async (_url: URL, init?: RequestInit) => ({
-        ok: true,
-        json: () =>
-          new Promise((_resolve, reject) => {
-            init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
-          }),
-      })),
-    );
+    fetchWithTimeoutMock.mockImplementation(async (_url: string, _init: RequestInit, timeoutMs: number) => ({
+      ok: true,
+      json: () => abortAfter(timeoutMs),
+    }));
 
-    await expect(client.getCcAlbum("1")).rejects.toBeInstanceOf(client.JamendoUnavailableError);
+    await expect(client.getCcAlbum("1")).rejects.toMatchObject({
+      name: "JamendoUnavailableError",
+      message: "Jamendo did not answer within 50 ms",
+    });
+  });
+
+  it("reports a request that failed for another reason as unreachable rather than slow", async () => {
+    const client = await import("../client.js");
+    fetchWithTimeoutMock.mockRejectedValue(new Error("Blocked non-public outbound target"));
+
+    await expect(client.getCcAlbum("1")).rejects.toMatchObject({
+      name: "JamendoUnavailableError",
+      message: "Jamendo could not be reached",
+    });
   });
 });
 
@@ -389,18 +430,14 @@ const SAMPLE_ARTIST: JamendoArtistRaw = {
 describe("getCcAlbum", () => {
   beforeEach(() => vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id"));
   afterEach(() => {
-    vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
 
   it("maps a Jamendo album to a CcAlbum", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [SAMPLE_ALBUM] }),
-      } as Response),
-    );
+    fetchWithTimeoutMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [SAMPLE_ALBUM] }),
+    } as Response);
     const album = await getCcAlbum("176136");
     expect(album).toMatchObject({
       jamendoId: "176136",
@@ -414,18 +451,14 @@ describe("getCcAlbum", () => {
 describe("getCcArtist", () => {
   beforeEach(() => vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id"));
   afterEach(() => {
-    vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
 
   it("maps a Jamendo artist to a CcArtist", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [SAMPLE_ARTIST] }),
-      } as Response),
-    );
+    fetchWithTimeoutMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [SAMPLE_ARTIST] }),
+    } as Response);
     const artist = await getCcArtist("338723");
     expect(artist).toMatchObject({ jamendoId: "338723", name: "Sample Artist", website: "https://example.org" });
   });
@@ -434,28 +467,25 @@ describe("getCcArtist", () => {
 describe("getCcArtistMusicInfo", () => {
   beforeEach(() => vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id"));
   afterEach(() => {
-    vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
 
-  function mockArtist(artist: JamendoArtistRaw): ReturnType<typeof vi.fn> {
-    const fetchMock = vi.fn().mockResolvedValue({
+  function mockArtist(artist: JamendoArtistRaw): void {
+    fetchWithTimeoutMock.mockResolvedValue({
       ok: true,
       json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [artist] }),
     } as Response);
-    vi.stubGlobal("fetch", fetchMock);
-    return fetchMock;
   }
 
   it("requests the /artists/musicinfo endpoint and maps image + genres + bio", async () => {
-    const fetchMock = mockArtist({
+    mockArtist({
       ...SAMPLE_ARTIST,
       musicinfo: { tags: ["jazz", "piano"], description: { en: "An English bio." } },
     });
 
     const info = await getCcArtistMusicInfo("338723");
 
-    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    const calledUrl = requestedUrl();
     expect(calledUrl).toContain("/artists/musicinfo");
     expect(calledUrl).toContain("id=338723");
     // The raw Jamendo description is normalized to safe paragraph HTML via
@@ -522,13 +552,10 @@ describe("getCcArtistMusicInfo", () => {
   });
 
   it("returns null when Jamendo has no record for the id", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ headers: { status: "success", code: 0, results_count: 0 }, results: [] }),
-      } as Response),
-    );
+    fetchWithTimeoutMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ headers: { status: "success", code: 0, results_count: 0 }, results: [] }),
+    } as Response);
 
     expect(await getCcArtistMusicInfo("does-not-exist")).toBeNull();
   });
@@ -537,36 +564,31 @@ describe("getCcArtistMusicInfo", () => {
 describe("getCcArtistsByIds", () => {
   beforeEach(() => vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id"));
   afterEach(() => {
-    vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
 
   it("requests /artists with a '+'-joined id list and maps the rows", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
+    fetchWithTimeoutMock.mockResolvedValue({
       ok: true,
       json: async () => ({
         headers: { status: "success", code: 0, results_count: 2 },
         results: [SAMPLE_ARTIST, { ...SAMPLE_ARTIST, id: "999", name: "Other" }],
       }),
     } as Response);
-    vi.stubGlobal("fetch", fetchMock);
 
     const artists = await getCcArtistsByIds(["338723", "999"]);
 
     // URLSearchParams encodes the '+' separator as %2B; Jamendo accepts that as
     // a multi-id list (verified live), so the wire form carries %2B, not '+'.
-    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    const calledUrl = requestedUrl();
     expect(calledUrl).toContain("/artists");
     expect(calledUrl).toContain("id=338723%2B999");
     expect(artists.map((a) => a.jamendoId)).toEqual(["338723", "999"]);
   });
 
   it("short-circuits to [] without a request for an empty id list", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
     expect(await getCcArtistsByIds([])).toEqual([]);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchWithTimeoutMock).not.toHaveBeenCalled();
   });
 });
 
@@ -598,21 +620,19 @@ describe("getCcGenres", () => {
 describe("getCcGenreCoverUrl", () => {
   beforeEach(() => vi.stubEnv("JAMENDO_CLIENT_ID", "test_client_id"));
   afterEach(() => {
-    vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });
 
   it("returns the top track's album cover from /tracks (genre tags filter tracks, not albums)", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
+    fetchWithTimeoutMock.mockResolvedValue({
       ok: true,
       json: async () => ({ headers: { status: "success", code: 0, results_count: 1 }, results: [SAMPLE_TRACK] }),
     } as Response);
-    vi.stubGlobal("fetch", fetchMock);
 
     const url = await getCcGenreCoverUrl("jazz");
 
     expect(url).toBe(SAMPLE_TRACK.image);
-    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    const calledUrl = requestedUrl();
     expect(calledUrl).toContain("/tracks");
     expect(calledUrl).toContain("tags=jazz");
     expect(calledUrl).toContain("order=popularity_total");
@@ -621,31 +641,25 @@ describe("getCcGenreCoverUrl", () => {
   });
 
   it("falls back to album_image when the top track has no image", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          headers: { status: "success", code: 0, results_count: 1 },
-          results: [{ ...SAMPLE_TRACK, image: "" }],
-        }),
-      } as Response),
-    );
+    fetchWithTimeoutMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        headers: { status: "success", code: 0, results_count: 1 },
+        results: [{ ...SAMPLE_TRACK, image: "" }],
+      }),
+    } as Response);
 
     expect(await getCcGenreCoverUrl("jazz")).toBe(SAMPLE_TRACK.album_image);
   });
 
   it("returns null when Jamendo returned no track", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          headers: { status: "success", code: 0, results_count: 0, results_fullcount: 0 },
-          results: [],
-        }),
-      } as Response),
-    );
+    fetchWithTimeoutMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        headers: { status: "success", code: 0, results_count: 0, results_fullcount: 0 },
+        results: [],
+      }),
+    } as Response);
 
     expect(await getCcGenreCoverUrl("doesnotexist")).toBeNull();
   });

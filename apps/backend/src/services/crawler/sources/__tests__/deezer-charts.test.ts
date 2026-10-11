@@ -1,11 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const fetchWithTimeoutMock = vi.hoisted(() => vi.fn());
+vi.mock("../../../../lib/infra/fetch.js", () => ({
+  fetchWithTimeout: (...args: unknown[]) => fetchWithTimeoutMock(...args),
+}));
+
+import { UpstreamUnavailableError } from "../../../../lib/infra/upstream-unavailable.js";
 import { deezerChartsSource } from "../deezer-charts.js";
 
-const fetchMock = vi.fn();
+/** The global `fetch` bypasses the outbound address policy, so any call to it fails the test. */
+const globalFetchMock = vi.fn(() => {
+  throw new Error("The chart source called the global fetch.");
+});
 
 beforeEach(() => {
-  fetchMock.mockReset();
-  vi.stubGlobal("fetch", fetchMock);
+  fetchWithTimeoutMock.mockReset();
+  globalFetchMock.mockClear();
+  vi.stubGlobal("fetch", globalFetchMock);
   // Drop the 250ms inter-genre throttle to keep tests fast.
   vi.useFakeTimers({ shouldAdvanceTime: true });
 });
@@ -13,15 +24,20 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  expect(globalFetchMock).not.toHaveBeenCalled();
 });
 
 function chartResponse(tracks: Array<{ link?: string; isrc?: string }>): Response {
   return new Response(JSON.stringify({ data: tracks }), { status: 200 });
 }
 
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), { status });
+}
+
 describe("deezerChartsSource.fetch", () => {
   it("emits one URL candidate per chart-track with ISRC propagated", async () => {
-    fetchMock.mockResolvedValueOnce(
+    fetchWithTimeoutMock.mockResolvedValueOnce(
       chartResponse([
         { link: "https://www.deezer.com/track/1", isrc: "USRC11111111" },
         { link: "https://www.deezer.com/track/2", isrc: "USRC22222222" },
@@ -30,8 +46,12 @@ describe("deezerChartsSource.fetch", () => {
 
     const result = await deezerChartsSource.fetch({ genres: [0], limit: 100 }, null);
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock).toHaveBeenCalledWith("https://api.deezer.com/chart/0/tracks?limit=100");
+    expect(fetchWithTimeoutMock).toHaveBeenCalledTimes(1);
+    expect(fetchWithTimeoutMock).toHaveBeenCalledWith(
+      "https://api.deezer.com/chart/0/tracks?limit=100",
+      {},
+      expect.any(Number),
+    );
     expect(result.candidates).toEqual([
       { kind: "url", url: "https://www.deezer.com/track/1", isrc: "USRC11111111" },
       { kind: "url", url: "https://www.deezer.com/track/2", isrc: "USRC22222222" },
@@ -39,34 +59,63 @@ describe("deezerChartsSource.fetch", () => {
     expect(result.nextCursor).toBeNull();
   });
 
-  it("issues one fetch per genre id and concatenates results", async () => {
-    // A fresh Response per call — Response bodies can only be read once.
-    fetchMock.mockImplementation(async () => chartResponse([{ link: "https://www.deezer.com/track/1" }]));
+  it("bounds the request of every genre with a timeout and concatenates the results", async () => {
+    // A fresh Response per call, because a Response body can be read only once.
+    fetchWithTimeoutMock.mockImplementation(async () => chartResponse([{ link: "https://www.deezer.com/track/1" }]));
 
     const result = await deezerChartsSource.fetch({ genres: [0, 132, 116], limit: 50 }, null);
 
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(fetchMock).toHaveBeenNthCalledWith(1, "https://api.deezer.com/chart/0/tracks?limit=50");
-    expect(fetchMock).toHaveBeenNthCalledWith(2, "https://api.deezer.com/chart/132/tracks?limit=50");
-    expect(fetchMock).toHaveBeenNthCalledWith(3, "https://api.deezer.com/chart/116/tracks?limit=50");
+    expect(fetchWithTimeoutMock).toHaveBeenCalledTimes(3);
+    for (const [index, genreId] of [0, 132, 116].entries()) {
+      expect(fetchWithTimeoutMock).toHaveBeenNthCalledWith(
+        index + 1,
+        `https://api.deezer.com/chart/${genreId}/tracks?limit=50`,
+        {},
+        expect.any(Number),
+      );
+    }
     expect(result.candidates).toHaveLength(3);
   });
 
-  it("skips genres whose response is non-2xx and continues with the rest", async () => {
-    fetchMock
-      .mockResolvedValueOnce(new Response("nope", { status: 500 }))
+  it("fails the run when a genre's request answers with an error status", async () => {
+    fetchWithTimeoutMock
+      .mockResolvedValueOnce(chartResponse([{ link: "https://www.deezer.com/track/1" }]))
+      .mockResolvedValueOnce(new Response("nope", { status: 500 }));
+
+    await expect(deezerChartsSource.fetch({ genres: [0, 132], limit: 100 }, null)).rejects.toBeInstanceOf(
+      UpstreamUnavailableError,
+    );
+  });
+
+  it("fails the run when Deezer refuses the request in an error body, as it does for the quota", async () => {
+    fetchWithTimeoutMock.mockResolvedValueOnce(jsonResponse({ error: { code: 4, message: "Quota limit exceeded" } }));
+
+    await expect(deezerChartsSource.fetch({ genres: [0], limit: 100 }, null)).rejects.toThrow(/error 4/);
+  });
+
+  it("fails the run when a genre's request does not answer in time", async () => {
+    fetchWithTimeoutMock.mockRejectedValueOnce(new DOMException("This operation was aborted", "AbortError"));
+
+    await expect(deezerChartsSource.fetch({ genres: [0], limit: 100 }, null)).rejects.toMatchObject({
+      name: "AbortError",
+    });
+  });
+
+  it("skips a genre Deezer has no chart for and continues with the rest", async () => {
+    fetchWithTimeoutMock
+      .mockResolvedValueOnce(jsonResponse({ error: { type: "DataException", message: "no data", code: 800 } }))
       .mockResolvedValueOnce(chartResponse([{ link: "https://www.deezer.com/track/1", isrc: "USRC11111111" }]));
 
-    const result = await deezerChartsSource.fetch({ genres: [0, 132], limit: 100 }, null);
+    const result = await deezerChartsSource.fetch({ genres: [9999, 132], limit: 100 }, null);
 
     expect(result.candidates).toEqual([{ kind: "url", url: "https://www.deezer.com/track/1", isrc: "USRC11111111" }]);
   });
 
   it("drops tracks without a `link` field but keeps tracks without ISRC", async () => {
-    fetchMock.mockResolvedValueOnce(
+    fetchWithTimeoutMock.mockResolvedValueOnce(
       chartResponse([
-        { isrc: "USRC11111111" }, // no link — dropped
-        { link: "https://www.deezer.com/track/1" }, // no isrc — kept
+        { isrc: "USRC11111111" },
+        { link: "https://www.deezer.com/track/1" },
         { link: "https://www.deezer.com/track/2", isrc: "USRC22222222" },
       ]),
     );
@@ -80,11 +129,15 @@ describe("deezerChartsSource.fetch", () => {
   });
 
   it("falls back to `[0]` genres + `100` limit when config keys are missing", async () => {
-    fetchMock.mockResolvedValueOnce(chartResponse([]));
+    fetchWithTimeoutMock.mockResolvedValueOnce(chartResponse([]));
 
     await deezerChartsSource.fetch({}, null);
 
-    expect(fetchMock).toHaveBeenCalledWith("https://api.deezer.com/chart/0/tracks?limit=100");
+    expect(fetchWithTimeoutMock).toHaveBeenCalledWith(
+      "https://api.deezer.com/chart/0/tracks?limit=100",
+      {},
+      expect.any(Number),
+    );
   });
 });
 
