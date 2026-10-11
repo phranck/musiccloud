@@ -40,8 +40,10 @@ import {
   insertExternalIds,
   lockPersistIdentity,
   replaceAlbumArtistCredits,
+  type ServiceLinkWrite,
   safeParseArray,
   safeParseArtistCredits,
+  upsertServiceLinks,
 } from "./postgres-shared.js";
 import { mintShortUrl } from "./short-url.js";
 
@@ -350,27 +352,7 @@ export async function persistAlbumWithLinks(
       data.sourceAlbum.artistCredits,
     );
 
-    for (const link of data.links) {
-      await client.query(
-        `INSERT INTO album_service_links (
-          id, album_id, service, external_id, url, confidence, match_method, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        ON CONFLICT (album_id, service) DO UPDATE SET
-          external_id = EXCLUDED.external_id,
-          url = EXCLUDED.url,
-          confidence = EXCLUDED.confidence`,
-        [
-          `${albumId}-${link.service}`,
-          albumId,
-          link.service,
-          link.externalId ?? null,
-          link.url,
-          link.confidence,
-          link.matchMethod,
-          now,
-        ],
-      );
-    }
+    await upsertServiceLinks(client, "album", albumId, data.links, now);
 
     const shortId = existingShortId ?? (await mintShortUrl(client, "album_short_urls", albumId, now));
 
@@ -396,38 +378,11 @@ export async function persistAlbumWithLinks(
  * @param links - Service-link records to upsert.
  * @throws Query errors propagate after rollback.
  */
-export async function addLinksToAlbum(
-  pool: Pool,
-  albumId: string,
-  links: Array<{ service: string; url: string; confidence: number; matchMethod: string; externalId?: string }>,
-): Promise<void> {
+export async function addLinksToAlbum(pool: Pool, albumId: string, links: ServiceLinkWrite[]): Promise<void> {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const now = new Date();
-
-    for (const link of links) {
-      await client.query(
-        `INSERT INTO album_service_links (
-          id, album_id, service, external_id, url, confidence, match_method, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        ON CONFLICT (album_id, service) DO UPDATE SET
-          external_id = EXCLUDED.external_id,
-          url = EXCLUDED.url,
-          confidence = EXCLUDED.confidence`,
-        [
-          `${albumId}-${link.service}`,
-          albumId,
-          link.service,
-          link.externalId ?? null,
-          link.url,
-          link.confidence,
-          link.matchMethod,
-          now,
-        ],
-      );
-    }
-
+    await upsertServiceLinks(client, "album", albumId, links, new Date());
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK");

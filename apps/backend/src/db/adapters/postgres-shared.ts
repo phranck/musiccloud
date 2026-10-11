@@ -425,6 +425,80 @@ export async function insertExternalIds(
 }
 
 // ============================================================================
+// SERVICE-LINK PERSISTENCE
+// ============================================================================
+
+/** One service link as the persist and add-links functions receive it. */
+export interface ServiceLinkWrite {
+  service: string;
+  url: string;
+  confidence: number;
+  matchMethod: string;
+  externalId?: string;
+}
+
+/**
+ * The link table of each entity and the column in it that names the entity.
+ *
+ * A closed table rather than two free parameters, because neither name can be
+ * bound as a query parameter and a table paired with another table's column
+ * would only fail at runtime.
+ */
+const SERVICE_LINK_TABLES = {
+  track: { table: "service_links", entityColumn: "track_id" },
+  album: { table: "album_service_links", entityColumn: "album_id" },
+  artist: { table: "artist_service_links", entityColumn: "artist_entity_id" },
+} as const;
+
+/**
+ * Writes service links for one track, album or artist, replacing the row a
+ * service already has for that entity.
+ *
+ * Every column a resolve decides is overwritten, the match method included.
+ * `findAlbumByServiceLink` and `findTrackByServiceLink` trust a stored link by
+ * its method, so a row that took the URL and confidence of a later write while
+ * keeping the method of its first would be trusted or distrusted for the wrong
+ * reason. An existing row keeps its id and `created_at`.
+ *
+ * @param client - Pool client inside the caller's open transaction.
+ * @param kind - Which entity the links belong to.
+ * @param entityId - The track, album or artist entity.
+ * @param links - The links to write. An empty list writes nothing.
+ * @param now - Stamped as `created_at` on a new row.
+ */
+export async function upsertServiceLinks(
+  client: PoolClient,
+  kind: keyof typeof SERVICE_LINK_TABLES,
+  entityId: string,
+  links: readonly ServiceLinkWrite[],
+  now: Date,
+): Promise<void> {
+  const { table, entityColumn } = SERVICE_LINK_TABLES[kind];
+  for (const link of links) {
+    await client.query(
+      `INSERT INTO ${table} (
+        id, ${entityColumn}, service, external_id, url, confidence, match_method, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (${entityColumn}, service) DO UPDATE SET
+        external_id = EXCLUDED.external_id,
+        url = EXCLUDED.url,
+        confidence = EXCLUDED.confidence,
+        match_method = EXCLUDED.match_method`,
+      [
+        `${entityId}-${link.service}`,
+        entityId,
+        link.service,
+        link.externalId ?? null,
+        link.url,
+        link.confidence,
+        link.matchMethod,
+        now,
+      ],
+    );
+  }
+}
+
+// ============================================================================
 // ARTIST-ENTITY UPSERT HELPERS
 // ============================================================================
 //
