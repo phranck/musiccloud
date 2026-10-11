@@ -77,6 +77,22 @@ export interface ResolveDisambiguationResponse {
   candidates: ApiDisambiguationCandidate[];
 }
 
+/**
+ * Body of `POST /api/v1/resolve` and `POST /api/v1/cc/resolve`.
+ *
+ * A caller sends exactly one of the two fields. The backend's body schemas list
+ * these keys and nothing else, and each schema is checked against this type at
+ * compile time, as is the developer portal's quickstart. A renamed field
+ * therefore fails the type check rather than turning every request built from
+ * it into a `400` at runtime.
+ */
+export interface ResolveRequest {
+  /** Streaming-service URL, free-text query, structured search or `genre:` query. */
+  query?: string;
+  /** Opaque candidate id from a previous disambiguation or genre response, passed back unchanged. */
+  selectedCandidate?: string;
+}
+
 export interface ApiErrorResponse {
   /** Canonical MC code, including future well-formed codes unknown to this client version. */
   error: McErrorCode;

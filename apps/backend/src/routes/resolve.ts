@@ -50,7 +50,7 @@
  * pathological inputs cannot reach the FTS5 text search. The selected
  * candidate is a shorter serialized identifier, hence the tighter limit.
  */
-import type { ResolveDisambiguationResponse, ResolveErrorResponse } from "@musiccloud/shared";
+import type { ResolveDisambiguationResponse, ResolveErrorResponse, ResolveRequest } from "@musiccloud/shared";
 import { ENDPOINTS, getErrorEntry } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { STRUCTURED_SEARCH_OPENAPI_SECTION, STRUCTURED_SEARCH_POST_OPENAPI_NOTE } from "../docs/resolve-openapi.js";
@@ -146,7 +146,7 @@ export default async function resolveRoutes(app: FastifyInstance) {
                 "Opaque `candidates[].id` value from a previous `ResolveDisambiguation` response. Pass it unchanged and omit `query`.",
               example: "spotify:2WfaOiMkCvy7F5fcp2zZ8L",
             },
-          },
+          } satisfies Record<keyof ResolveRequest, object>,
           oneOf: [{ required: ["query"] }, { required: ["selectedCandidate"] }],
           additionalProperties: false,
           examples: [
@@ -205,7 +205,7 @@ export default async function resolveRoutes(app: FastifyInstance) {
 
       // Schema guarantees the object shape and length caps; we still trim
       // so downstream code never sees pure-whitespace input treated as valid.
-      const body = request.body as { query?: string; selectedCandidate?: string };
+      const body = request.body as ResolveRequest;
       const query = body.query?.trim();
       const selectedCandidate = body.selectedCandidate?.trim();
 

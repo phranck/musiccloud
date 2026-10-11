@@ -18,6 +18,7 @@ import type {
   CcArtistResolveSuccessResponse,
   CcResolveSuccessResponse,
   ResolveDisambiguationResponse,
+  ResolveRequest,
 } from "@musiccloud/shared";
 import { ENDPOINTS, parseJamendoLink } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
@@ -76,7 +77,7 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
                 "Opaque candidate token returned as `candidates[].id` or `results.*[].id` by this endpoint. Pass it unchanged; prefixes such as `jamendo:`, `jamendo-album:`, and `jamendo-artist:` identify the response variant.",
               example: "jamendo:123456",
             },
-          },
+          } satisfies Record<keyof ResolveRequest, object>,
           oneOf: [{ required: ["query"] }, { required: ["selectedCandidate"] }],
           additionalProperties: false,
           examples: [
@@ -125,7 +126,7 @@ export default async function ccResolveRoutes(app: FastifyInstance) {
         }
       }
 
-      const body = request.body as { query?: string; selectedCandidate?: string };
+      const body = request.body as ResolveRequest;
       const query = body.query?.trim();
       const selectedCandidate = body.selectedCandidate?.trim();
 
