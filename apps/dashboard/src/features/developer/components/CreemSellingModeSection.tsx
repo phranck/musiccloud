@@ -1,7 +1,8 @@
-import { DashboardActionButton, DashboardActionId, DashboardButtonVariant } from "@musiccloud/dashboard-ui";
+import { DashboardActionId } from "@musiccloud/dashboard-ui";
 import { CreditCard as CreditCardIcon } from "@phosphor-icons/react";
 import { useCallback, useMemo, useState } from "react";
 import { DashboardSection } from "@/components/ui/DashboardSection";
+import { InlineConfirm } from "@/components/ui/InlineConfirm";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { CreemModeReadiness } from "@/features/developer/api";
@@ -111,30 +112,17 @@ export function CreemSellingModeSection() {
         {liveReason && <p className="text-xs text-amber-400">{liveReason}</p>}
 
         {confirmingLive && (
-          <div>
-            <p className="text-sm text-[var(--ds-danger-text)]">{dm.creemSellingLiveWarning}</p>
-            <div className="mt-2 flex justify-end gap-2">
-              <DashboardActionButton
-                action={DashboardActionId.Cancel}
-                icon={false}
-                label={messages.common.cancel}
-                onClick={() => setConfirmingLive(false)}
-                type="button"
-                variant={DashboardButtonVariant.Neutral}
-              />
-              <DashboardActionButton
-                action={DashboardActionId.Save}
-                label={dm.creemSellingConfirm}
-                onClick={() => {
-                  updateSellingMode.mutate(CreemMode.Live);
-                  setConfirmingLive(false);
-                }}
-                disabled={updateSellingMode.isPending}
-                type="button"
-                variant={DashboardButtonVariant.Danger}
-              />
-            </div>
-          </div>
+          <InlineConfirm
+            message={dm.creemSellingLiveWarning}
+            confirmAction={DashboardActionId.Save}
+            confirmLabel={dm.creemSellingConfirm}
+            onConfirm={() => {
+              updateSellingMode.mutate(CreemMode.Live);
+              setConfirmingLive(false);
+            }}
+            onCancel={() => setConfirmingLive(false)}
+            disabled={updateSellingMode.isPending}
+          />
         )}
 
         {updateSellingMode.isError && (

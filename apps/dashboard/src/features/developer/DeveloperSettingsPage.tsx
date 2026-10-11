@@ -4,43 +4,56 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { DashboardSection } from "@/components/ui/DashboardSection";
+import { InlineConfirm } from "@/components/ui/InlineConfirm";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
+import { SwitchGroup } from "@/components/ui/SwitchGroup";
 import { dashboardCopy } from "@/copy/dashboard";
 import {
   type DeveloperLimits,
   type DeveloperPortalAvailability,
+  type DeveloperPortalAvailabilityChange,
+  type DeveloperPortalAvailabilityState,
   fetchDeveloperLimits,
   fetchDeveloperPortalAvailability,
   updateDeveloperLimits,
   updateDeveloperPortalAvailability,
 } from "@/features/developer/api";
 import { CreemSellingModeSection } from "@/features/developer/components/CreemSellingModeSection";
+import { formatAdminName, formatEnglishDate } from "@/lib/format";
 
 const PORTAL_AVAILABILITY_QUERY_KEY = ["admin", "developer", "portal-availability"] as const;
 const DEVELOPER_LIMITS_QUERY_KEY = ["admin", "developer", "limits"] as const;
-const CLOSED_PORTAL: DeveloperPortalAvailability = { public: false, maintenance: false };
+const CLOSED_PORTAL: DeveloperPortalAvailabilityState = { public: false, maintenance: false, lastChange: null };
 
-interface AvailabilitySettingRowProps {
-  checked: boolean;
-  description: string;
-  disabled: boolean;
-  label: string;
-  onChange: (checked: boolean) => void;
+/**
+ * Names the state a change put the portal in.
+ *
+ * Maintenance comes first because the gate shows the maintenance page
+ * whatever the public switch says.
+ *
+ * @param availability - The two switches.
+ * @returns The state's label.
+ */
+function portalStateLabel(availability: DeveloperPortalAvailability): string {
+  const dm = dashboardCopy.developer;
+  if (availability.maintenance) return dm.portalStateMaintenance;
+  return availability.public ? dm.portalStatePublic : dm.portalStateClosed;
 }
 
-/** A standard Dashboard settings row, with the text content and control as explicit slots. */
-function AvailabilitySettingRow({ checked, description, disabled, label, onChange }: AvailabilitySettingRowProps) {
-  return (
-    <div className="flex items-center justify-between gap-[var(--ds-space-sm)]">
-      <div className="flex min-w-0 flex-col gap-[var(--ds-space-xs)]">
-        <p className="text-sm font-medium text-[var(--ds-text)]">{label}</p>
-        <p className="text-sm text-[var(--ds-text-muted)]">{description}</p>
-      </div>
-      <ToggleSwitch checked={checked} onChange={onChange} disabled={disabled} aria-label={label} />
-    </div>
-  );
+/**
+ * Says since when the portal has been in its current state and who put it there.
+ *
+ * @param change - The newest recorded change.
+ * @returns The sentence for the availability card.
+ */
+function describeLastChange(change: DeveloperPortalAvailabilityChange): string {
+  const dm = dashboardCopy.developer;
+  const state = portalStateLabel(change);
+  return dm.portalLastChange
+    .replaceAll("{state}", state)
+    .replaceAll("{when}", formatEnglishDate(change.occurredAt, { dateStyle: "medium", timeStyle: "short" }))
+    .replaceAll("{name}", formatAdminName(change.actor) ?? change.actor.username);
 }
 
 /**
@@ -123,6 +136,7 @@ export function DeveloperSettingsPage() {
     queryFn: fetchDeveloperPortalAvailability,
   });
   const availability = availabilityQuery.data ?? CLOSED_PORTAL;
+  const [confirmingOpen, setConfirmingOpen] = useState(false);
 
   const updateMutation = useMutation({
     mutationFn: updateDeveloperPortalAvailability,
@@ -133,7 +147,22 @@ export function DeveloperSettingsPage() {
 
   function update(patch: Partial<DeveloperPortalAvailability>) {
     if (updateMutation.isPending) return;
-    updateMutation.mutate({ ...availability, ...patch });
+    updateMutation.mutate({ public: availability.public, maintenance: availability.maintenance, ...patch });
+  }
+
+  // Opening the portal waits for a second press, because it makes registration
+  // reachable for everyone. Closing it acts at once: that is what somebody in a
+  // hurry needs, and it reaches nobody.
+  function handlePublicChange(publicValue: boolean) {
+    if (publicValue) {
+      setConfirmingOpen(true);
+      return;
+    }
+    if (confirmingOpen) {
+      setConfirmingOpen(false);
+      return;
+    }
+    update({ public: false });
   }
 
   const disabled = availabilityQuery.isLoading || updateMutation.isPending;
@@ -151,20 +180,40 @@ export function DeveloperSettingsPage() {
           />
           <DashboardSection.Body>
             <p className="text-sm text-[var(--ds-text-muted)]">{dm.availabilityDescription}</p>
-            <AvailabilitySettingRow
-              checked={availability.public}
-              description={dm.portalPublicDescription}
-              disabled={disabled}
-              label={dm.portalPublicLabel}
-              onChange={(publicValue) => update({ public: publicValue })}
-            />
-            <AvailabilitySettingRow
-              checked={availability.maintenance}
-              description={dm.maintenanceDescription}
-              disabled={disabled}
-              label={dm.maintenanceLabel}
-              onChange={(maintenance) => update({ maintenance })}
-            />
+            <SwitchGroup>
+              <SwitchGroup.Item
+                id="portal-public"
+                checked={confirmingOpen || availability.public}
+                description={dm.portalPublicDescription}
+                disabled={disabled}
+                label={dm.portalPublicLabel}
+                onChange={handlePublicChange}
+              />
+              <SwitchGroup.Item
+                id="portal-maintenance"
+                checked={availability.maintenance}
+                description={dm.maintenanceDescription}
+                disabled={disabled}
+                label={dm.maintenanceLabel}
+                onChange={(maintenance) => update({ maintenance })}
+              />
+            </SwitchGroup>
+            {confirmingOpen && (
+              <InlineConfirm
+                message={dm.portalOpenWarning}
+                confirmAction={DashboardActionId.Approve}
+                confirmLabel={dm.portalOpenConfirm}
+                onConfirm={() => {
+                  setConfirmingOpen(false);
+                  update({ public: true });
+                }}
+                onCancel={() => setConfirmingOpen(false)}
+                disabled={updateMutation.isPending}
+              />
+            )}
+            {availability.lastChange && (
+              <p className="text-xs text-[var(--ds-text-muted)]">{describeLastChange(availability.lastChange)}</p>
+            )}
             <p className="text-xs text-[var(--ds-text-muted)]">{dm.apiReferenceNotice}</p>
             {availabilityQuery.isError && (
               <p className="text-sm text-[var(--ds-danger-text)]">{messages.common.saveError}</p>
