@@ -57,7 +57,7 @@ import { ResourceKind, Service } from "@musiccloud/shared";
 import { importPKCS8, SignJWT } from "jose";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { ResolveError } from "../../../lib/resolve/errors";
-import { calculateConfidence } from "../../../lib/resolve/normalize";
+import { calculateArtistNameConfidence, calculateConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import type {
   AdapterCapabilities,
@@ -799,10 +799,7 @@ export const appleMusicAdapter: ServiceAdapter = {
 
       for (const raw of artists) {
         const artist = mapArtist(raw);
-        const confidence = calculateConfidence(
-          { title: query.name, artists: [], durationMs: undefined },
-          { title: artist.name, artists: [], durationMs: undefined },
-        );
+        const confidence = calculateArtistNameConfidence(query.name, artist.name);
 
         if (confidence > bestConfidence) {
           bestConfidence = confidence;

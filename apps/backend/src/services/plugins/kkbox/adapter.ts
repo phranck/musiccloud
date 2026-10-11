@@ -42,7 +42,7 @@ import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { TokenManager } from "../../../lib/infra/token-manager";
-import { calculateAlbumConfidence, calculateConfidence } from "../../../lib/resolve/normalize";
+import { calculateAlbumConfidence, calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
@@ -480,10 +480,7 @@ export const kkboxAdapter = {
     let bestConfidence = 0;
 
     for (const item of items) {
-      const confidence = calculateConfidence(
-        { title: query.name, artists: [], durationMs: undefined },
-        { title: item.name, artists: [], durationMs: undefined },
-      );
+      const confidence = calculateArtistNameConfidence(query.name, item.name);
 
       if (confidence > bestConfidence) {
         bestConfidence = confidence;

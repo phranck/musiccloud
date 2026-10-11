@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   calculateAlbumConfidence,
+  calculateArtistNameConfidence,
   calculateConfidence,
   isDurationMatch,
   normalizeArtists,
@@ -247,6 +248,38 @@ describe("calculateConfidence", () => {
       { title: "Bohemian Rhapsody", artists: [] },
     );
     expect(score).toBeCloseTo(0.4, 1);
+  });
+});
+
+// =============================================================================
+// calculateArtistNameConfidence
+// =============================================================================
+
+describe("calculateArtistNameConfidence", () => {
+  it("scores equal names 0.95, ignoring case and surrounding space", () => {
+    expect(calculateArtistNameConfidence("Slowdive", "  slowdive ")).toBe(0.95);
+  });
+
+  it("scores names equal without a leading The 0.9", () => {
+    expect(calculateArtistNameConfidence("The Beatles", "Beatles")).toBe(0.9);
+  });
+
+  it("scores a near-identical spelling 0.85", () => {
+    // Similarity 0.96, above the 0.85 rung.
+    expect(calculateArtistNameConfidence("Fleetwood Mac", "Fleetwood Mack")).toBe(0.85);
+  });
+
+  it("scores a close spelling 0.75, which passes the match threshold", () => {
+    // Similarity 0.75 and neither name contains the other.
+    expect(calculateArtistNameConfidence("Sigur Ros", "Sigur Rós")).toBe(0.75);
+  });
+
+  it("scores one name containing the other 0.75 however low the similarity", () => {
+    expect(calculateArtistNameConfidence("Queen", "Queen + Adam Lambert")).toBe(0.75);
+  });
+
+  it("keeps a weak match below 0.7", () => {
+    expect(calculateArtistNameConfidence("Slowdive", "Yesterday")).toBe(0);
   });
 });
 

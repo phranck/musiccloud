@@ -37,7 +37,7 @@
 import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
-import { calculateAlbumConfidence, calculateConfidence } from "../../../lib/resolve/normalize";
+import { calculateAlbumConfidence, calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import type {
   AlbumMatchResult,
@@ -497,10 +497,7 @@ export const jiosaavnAdapter: ServiceAdapter = {
       let bestConfidence = 0;
 
       for (const item of results) {
-        const confidence = calculateConfidence(
-          { title: query.name, artists: [], durationMs: undefined },
-          { title: item.name, artists: [], durationMs: undefined },
-        );
+        const confidence = calculateArtistNameConfidence(query.name, item.name);
 
         log.debug("JioSaavn", `  "${item.name}" -> confidence=${confidence.toFixed(3)}`);
 

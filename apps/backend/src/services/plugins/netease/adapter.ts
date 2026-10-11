@@ -37,7 +37,7 @@
 import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
-import { calculateAlbumConfidence, calculateConfidence } from "../../../lib/resolve/normalize";
+import { calculateAlbumConfidence, calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import type {
   AlbumMatchResult,
@@ -482,10 +482,7 @@ export const neteaseAdapter: ServiceAdapter = {
       for (const raw of results) {
         if (!raw.id || !raw.name) continue;
 
-        const confidence = calculateConfidence(
-          { title: query.name, artists: [], durationMs: undefined },
-          { title: raw.name, artists: [], durationMs: undefined },
-        );
+        const confidence = calculateArtistNameConfidence(query.name, raw.name);
 
         log.debug("NetEase", `  "${raw.name}" -> confidence=${confidence.toFixed(3)}`);
 
