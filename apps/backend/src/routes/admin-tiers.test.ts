@@ -18,8 +18,6 @@ const freeTier: Tier = {
   requestsPerMinute: 60,
   requestsPerDay: 10000,
   attributionRequired: false,
-  price: null,
-  priceYearly: null,
   color: "#64748b",
   icon: null,
   buttonLabel: null,
@@ -35,6 +33,7 @@ const freeTier: Tier = {
 
 const mockTierRepo = {
   listTiers: vi.fn(),
+  listAllOffers: vi.fn(),
   createTier: vi.fn(),
   updateTier: vi.fn(),
   deleteTier: vi.fn(),
@@ -95,13 +94,34 @@ beforeEach(async () => {
 describe("GET /api/admin/developer/tiers", () => {
   it("returns the tier list sorted by sort_order", async () => {
     mockTierRepo.listTiers.mockResolvedValue([freeTier]);
+    mockTierRepo.listAllOffers.mockResolvedValue([]);
     const res = await app.inject({
       method: "GET",
       url: ENDPOINTS.admin.developer.tiers,
       headers: { authorization: `Bearer ${bearerToken()}` },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual([freeTier]);
+    expect(res.json()).toEqual([{ ...freeTier, offers: [] }]);
+  });
+
+  it("carries each plan's offers, because they are its price", async () => {
+    const proTier = { ...freeTier, id: "tier_pro", name: "Pro" };
+    const monthly = { id: "offer_month", tierId: "tier_pro", billingPeriod: "every-month", priceCents: 990 };
+    const yearly = { id: "offer_year", tierId: "tier_pro", billingPeriod: "every-year", priceCents: 9900 };
+    mockTierRepo.listTiers.mockResolvedValue([freeTier, proTier]);
+    mockTierRepo.listAllOffers.mockResolvedValue([monthly, yearly]);
+
+    const res = await app.inject({
+      method: "GET",
+      url: ENDPOINTS.admin.developer.tiers,
+      headers: { authorization: `Bearer ${bearerToken()}` },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual([
+      { ...freeTier, offers: [] },
+      { ...proTier, offers: [monthly, yearly] },
+    ]);
   });
 
   it("rejects unauthenticated callers", async () => {
@@ -205,20 +225,6 @@ describe("POST /api/admin/developer/tiers", () => {
       },
     });
     expect(res.statusCode).toBe(201);
-    expect(res.json()).toEqual(created);
-  });
-
-  it("passes monthly and yearly prices through to the repository", async () => {
-    const created = { ...freeTier, id: "tier_pro", name: "Pro", price: "9", priceYearly: "90" };
-    mockTierRepo.createTier.mockResolvedValue(created);
-    const res = await app.inject({
-      method: "POST",
-      url: ENDPOINTS.admin.developer.tiers,
-      headers: { authorization: `Bearer ${bearerToken()}` },
-      payload: { name: "Pro", requestsPerMinute: 120, requestsPerDay: 50000, price: "9", priceYearly: "90" },
-    });
-    expect(res.statusCode).toBe(201);
-    expect(mockTierRepo.createTier).toHaveBeenCalledWith(expect.objectContaining({ price: "9", priceYearly: "90" }));
     expect(res.json()).toEqual(created);
   });
 
@@ -340,20 +346,6 @@ describe("PATCH /api/admin/developer/tiers/:id", () => {
       payload: { name: "Free v2" },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual(updated);
-  });
-
-  it("updates the yearly price", async () => {
-    const updated = { ...freeTier, priceYearly: "90" };
-    mockTierRepo.updateTier.mockResolvedValue(updated);
-    const res = await app.inject({
-      method: "PATCH",
-      url: ENDPOINTS.admin.developer.tierDetail("tier_free"),
-      headers: { authorization: `Bearer ${bearerToken()}` },
-      payload: { priceYearly: "90" },
-    });
-    expect(res.statusCode).toBe(200);
-    expect(mockTierRepo.updateTier).toHaveBeenCalledWith("tier_free", { priceYearly: "90" });
     expect(res.json()).toEqual(updated);
   });
 

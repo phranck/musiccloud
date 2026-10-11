@@ -26,9 +26,9 @@ import {
   fetchProjectUsage,
   fetchTiers,
   type ProjectUsageResponse,
+  type TierListItem,
   type TierOffer,
   type TierOfferCreate,
-  type TierResponse,
   updateCreemProductPrice,
   updateCreemSellingMode,
   updateDeveloperAccount,
@@ -196,7 +196,7 @@ export function useSetProjectSubscription() {
 }
 
 export function useTiers() {
-  return useQuery<TierResponse[]>({
+  return useQuery<TierListItem[]>({
     queryKey: ["developer", "tiers"],
     queryFn: fetchTiers,
   });
@@ -224,8 +224,6 @@ export function useUpdateTier() {
       requestsPerMinute?: number;
       requestsPerDay?: number;
       attributionRequired?: boolean;
-      price?: string | null;
-      priceYearly?: string | null;
       color?: string;
       icon?: string | null;
       buttonLabel?: string | null;
@@ -273,20 +271,12 @@ export function useCreateCreemProduct() {
   });
 }
 
+/** Applies the offer's amount to one product at Creem. */
 export function useUpdateCreemProductPrice() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      tierId,
-      billingPeriod,
-      mode,
-      priceCents,
-    }: {
-      tierId: string;
-      billingPeriod: BillingPeriod;
-      mode: CreemMode;
-      priceCents: number;
-    }) => updateCreemProductPrice(tierId, billingPeriod, mode, priceCents),
+    mutationFn: ({ tierId, billingPeriod, mode }: { tierId: string; billingPeriod: BillingPeriod; mode: CreemMode }) =>
+      updateCreemProductPrice(tierId, billingPeriod, mode),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["developer", "creem-products"] });
     },
@@ -296,7 +286,7 @@ export function useUpdateCreemProductPrice() {
 /**
  * Archives the product at Creem and removes its mapping. The tier list is
  * invalidated too, because the pricing page's price follows the product and a
- * tier without one falls back to its own column.
+ * period without one falls back to its offer's amount.
  */
 export function useArchiveCreemProduct() {
   const qc = useQueryClient();

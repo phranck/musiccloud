@@ -65,8 +65,6 @@ function makeTier(overrides: Record<string, unknown> = {}) {
     requestsPerMinute: 60,
     requestsPerDay: 10000,
     attributionRequired: false,
-    price: null,
-    priceYearly: null,
     color: "#888888",
     icon: null,
     buttonLabel: null,

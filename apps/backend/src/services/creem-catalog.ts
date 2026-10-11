@@ -27,7 +27,7 @@ export const CreemPriceOutcome = {
   NotConfigured: "creem_not_configured",
   /** Creem could not be reached or refused, so no tier has a live price. */
   CatalogUnavailable: "creem_catalog_unavailable",
-  /** One product could not be read; that tier keeps its database price. */
+  /** One product could not be read; that tier keeps its offer's amount. */
   ProductUnavailable: "creem_product_unavailable",
 } as const;
 

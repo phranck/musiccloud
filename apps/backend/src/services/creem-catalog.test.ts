@@ -150,7 +150,7 @@ describe("getCreemCatalog: one bad product does not cost every tier its price", 
     const catalog = await getCreemCatalog();
 
     // The healthy tier keeps its live price; the broken one is simply absent,
-    // which is what leaves it on its database price one level up.
+    // which is what leaves it on its offer's amount one level up.
     expect(catalog.tier_pro?.["every-month"]?.price).toBe(4900);
     expect(catalog.tier_club).toBeUndefined();
 

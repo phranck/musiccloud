@@ -3,7 +3,7 @@
  *
  * Both refusals are the point of this module. An environment with no key
  * cannot be reached, and an environment missing a product for a plan somebody
- * can buy would show that plan at its database price whilst the checkout has
+ * can buy would show that plan at its offer's amount whilst the checkout has
  * nothing to sell, which looks like it works.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";

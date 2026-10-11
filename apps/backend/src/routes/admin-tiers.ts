@@ -51,10 +51,13 @@ function validateFeatures(features: unknown): string | null {
 }
 
 export async function adminTiersRoutes(app: FastifyInstance) {
+  // Each plan carries its offers, because they are its price and the plan list
+  // shows them. One read of every offer serves the whole list.
   app.get(ENDPOINTS.admin.developer.tiers, async (request, reply) => {
     if (!(await requireOwnerOrAdmin(request, reply))) return;
     const repo = await getTierRepository();
-    return repo.listTiers();
+    const [tiers, offers] = await Promise.all([repo.listTiers(), repo.listAllOffers()]);
+    return tiers.map((tier) => ({ ...tier, offers: offers.filter((offer) => offer.tierId === tier.id) }));
   });
 
   app.post(ENDPOINTS.admin.developer.tiers, async (request, reply) => {

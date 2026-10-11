@@ -24,7 +24,7 @@ import { TierCreemProductsSection } from "./TierCreemProductsSection";
 
 const dm = dashboardCopy.developer;
 
-/** A plan sold monthly but not yearly, which every case varies from. */
+/** The plan every case shows the products of. */
 function makeTier(overrides: Partial<TierResponse> = {}): TierResponse {
   return {
     id: "tier_club",
@@ -32,8 +32,6 @@ function makeTier(overrides: Partial<TierResponse> = {}): TierResponse {
     requestsPerMinute: 60,
     requestsPerDay: 10000,
     attributionRequired: false,
-    price: "9.90",
-    priceYearly: null,
     color: "#64748b",
     icon: null,
     buttonLabel: null,
@@ -161,6 +159,25 @@ describe("TierCreemProductsSection", () => {
         mode: "test",
       }),
     );
+  });
+
+  it("applies the offer's amount at Creem with one button and takes no price of its own", async () => {
+    mocks.fetchCreemProducts.mockResolvedValue({
+      writableModes: ["test"],
+      products: [{ tierId: "tier_club", billingPeriod: "every-month", mode: "test", creemProductId: "prod_sandbox" }],
+    });
+    mocks.updateCreemProductPrice.mockResolvedValue({});
+
+    renderSection([makeOffer("every-month", 1490)]);
+    await userEvent.click(await screen.findByText(dm.creemReprice));
+
+    // The offer above is the one place a price is entered, so the row has no
+    // field for one and the request names only the product.
+    expect(screen.queryByRole("textbox")).toBeNull();
+    await waitFor(() =>
+      expect(mocks.updateCreemProductPrice.mock.calls[0]?.slice(0, 3)).toEqual(["tier_club", "every-month", "test"]),
+    );
+    expect(mocks.updateCreemProductPrice.mock.calls[0]).toHaveLength(3);
   });
 
   it("asks before archiving, because Creem keeps the product forever", async () => {

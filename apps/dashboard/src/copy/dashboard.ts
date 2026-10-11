@@ -249,8 +249,7 @@ export const dashboardCopy = {
     colDescription: "Description",
     colAttribution: "Attribution",
     colPrice: "Price",
-    colPriceMonthly: "Monthly price (€)",
-    colPriceYearly: "Yearly price (€)",
+    tierFree: "Free",
     colColor: "Color",
     colIcon: "Icon",
     colButtonLabel: "Button label",
@@ -274,7 +273,7 @@ export const dashboardCopy = {
     featureMaxReached: "Maximum of 12 features allowed.",
     creemTitle: "Creem products",
     creemIntro:
-      "What a customer actually pays is the Creem product's price, and the pricing page follows it. Every offer above gets one product per environment here.",
+      "What a customer actually pays is the Creem product's price, and the pricing page follows it. Every offer above gets one product per environment here, and a changed offer price reaches Creem once it is applied here.",
     creemEnvironmentTest: "Test Mode",
     creemEnvironmentLive: "Production",
     creemNoKeyForEnvironment:
@@ -291,10 +290,10 @@ export const dashboardCopy = {
     creemAttach: "Use an existing product",
     creemAttachPlaceholder: "prod_…",
     creemAttachHint: "For a product created in the Creem dashboard, which is the only way to give it a trial.",
-    creemReprice: "Change price",
+    creemReprice: "Apply offer price",
     creemArchive: "Archive",
     creemArchiveConfirmBody:
-      "Creem has no delete: the product is archived and keeps its id forever. Its mapping is removed in the same step, so the pricing page falls back to the plan's own price.",
+      "Creem has no delete: the product is archived and keeps its id forever. Its mapping is removed in the same step, so the pricing page falls back to the offer's amount.",
     planCreateThenEdit: "Create the plan, and its own page opens for everything else, including what it costs.",
     planCardTitle: "Plan",
     planLimitsTitle: "Limits",

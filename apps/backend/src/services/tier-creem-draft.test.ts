@@ -9,7 +9,6 @@
 import { describe, expect, it } from "vitest";
 import { BillingPeriod, type Tier, type TierOffer } from "../db/tiers-repository.js";
 import { creemProductName, draftCreemProductForOffer, isBillingPeriod } from "./tier-creem-draft.js";
-import { centsToEuroString, euroStringToCents } from "./tier-pricing.js";
 
 /** A plan, of which only the name reaches a Creem product. */
 function makeTier(overrides: Partial<Tier> = {}): Tier {
@@ -19,8 +18,6 @@ function makeTier(overrides: Partial<Tier> = {}): Tier {
     requestsPerMinute: 60,
     requestsPerDay: 10000,
     attributionRequired: false,
-    price: null,
-    priceYearly: null,
     color: "#64748b",
     icon: null,
     buttonLabel: null,
@@ -56,26 +53,6 @@ function makeOffer(overrides: Partial<TierOffer> = {}): TierOffer {
     ...overrides,
   };
 }
-
-describe("euroStringToCents", () => {
-  it("reads whole and fractional euro amounts", () => {
-    expect(euroStringToCents("9")).toBe(900);
-    expect(euroStringToCents("9.90")).toBe(990);
-    expect(euroStringToCents(" 14.5 ")).toBe(1450);
-  });
-
-  it("returns null rather than a wrong amount for anything unreadable", () => {
-    expect(euroStringToCents(null)).toBeNull();
-    expect(euroStringToCents("free")).toBeNull();
-    expect(euroStringToCents("-5")).toBeNull();
-  });
-
-  it("is the inverse of the formatter, so a price survives a round trip", () => {
-    for (const cents of [100, 990, 1450, 9900]) {
-      expect(euroStringToCents(centsToEuroString(cents))).toBe(cents);
-    }
-  });
-});
 
 describe("isBillingPeriod", () => {
   it("accepts every period Creem sells over and nothing else", () => {

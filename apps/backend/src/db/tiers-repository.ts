@@ -14,16 +14,18 @@ export const MAX_TIER_FEATURES = 12;
 /** Maximum length of a single feature bullet. */
 export const MAX_TIER_FEATURE_LABEL_LENGTH = 80;
 
+/**
+ * A plan a developer account is on: its limits and how its pricing card looks.
+ *
+ * What a plan costs is not a field here. Its price is its {@link TierOffer}s,
+ * one per billing period, and a plan with none is free.
+ */
 export interface Tier {
   id: string;
   name: string;
   requestsPerMinute: number;
   requestsPerDay: number;
   attributionRequired: boolean;
-  /** Monthly price in euros as a numeric string (e.g. "9" or "9.90"), or `null` for free tiers. */
-  price: string | null;
-  /** Yearly price in euros as a numeric string, or `null` when no yearly billing is offered. */
-  priceYearly: string | null;
   /** Hex accent colour `#RRGGBB` (validated at the API boundary; default `#64748b`). */
   color: string;
   /** Iconsax icon name for the tier (one of the shared `TIER_ICONS`), or `null` for none. */
@@ -55,8 +57,6 @@ export interface TierCreateData {
   requestsPerMinute: number;
   requestsPerDay: number;
   attributionRequired?: boolean;
-  price?: string | null;
-  priceYearly?: string | null;
   color?: string;
   icon?: string | null;
   buttonLabel?: string | null;
@@ -75,8 +75,6 @@ export interface TierUpdateData {
   requestsPerMinute?: number;
   requestsPerDay?: number;
   attributionRequired?: boolean;
-  price?: string | null;
-  priceYearly?: string | null;
   color?: string;
   icon?: string | null;
   buttonLabel?: string | null;
@@ -216,8 +214,8 @@ export interface TierRepository {
    * product ID that environment knows.
    *
    * This mapping exists on our side because Creem products carry no metadata
-   * field. Creem remains the source of truth for prices; we own the
-   * tier-to-product link.
+   * field. A price is entered on the offer and applied to the product, and
+   * Creem holds what the product charges; we own the tier-to-product link.
    *
    * The mode is required rather than optional because a process talks to one
    * environment only, decided by its API key. Reading the other environment's

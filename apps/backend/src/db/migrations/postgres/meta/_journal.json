@@ -715,6 +715,13 @@
       "when": 1791757482119,
       "tag": "0101_normalize_developer_emails",
       "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1791760411457,
+      "tag": "0102_drop_tier_price_columns",
+      "breakpoints": true
     }
   ]
 }

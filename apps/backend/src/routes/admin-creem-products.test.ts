@@ -25,8 +25,6 @@ const paidTier: Tier = {
   requestsPerMinute: 60,
   requestsPerDay: 10000,
   attributionRequired: false,
-  price: "9.90",
-  priceYearly: null,
   color: "#64748b",
   icon: null,
   buttonLabel: null,
@@ -40,7 +38,7 @@ const paidTier: Tier = {
   updatedAt: 1700000000000,
 };
 
-const freeTier: Tier = { ...paidTier, id: "tier_free", name: "Free", price: null };
+const freeTier: Tier = { ...paidTier, id: "tier_free", name: "Free" };
 
 const mockTierRepo = {
   listTiers: vi.fn(),
@@ -313,16 +311,16 @@ describe("PATCH /api/admin/developer/creem-products/:tierId/:billingPeriod/:mode
     creemProductId: "prod_existing",
   };
 
-  function reprice(body: unknown) {
+  function reprice() {
     return app.inject({
       method: "PATCH",
       url: ENDPOINTS.admin.developer.creemProductDetail("tier_club", "every-month", CreemMode.Test),
       headers: { authorization: `Bearer ${bearerToken()}` },
-      payload: body as never,
     });
   }
 
-  it("changes the price at Creem and keeps the product id", async () => {
+  it("applies the offer's amount at Creem and keeps the product id", async () => {
+    mockTierRepo.listOffers.mockResolvedValue([{ ...monthlyOffer, priceCents: 1490 }]);
     mockTierRepo.findCreemProductMapping.mockResolvedValue(mapping);
     vi.mocked(updateCreemProductPrice).mockResolvedValue({
       id: "prod_existing",
@@ -331,7 +329,7 @@ describe("PATCH /api/admin/developer/creem-products/:tierId/:billingPeriod/:mode
       status: "active",
     });
 
-    const res = await reprice({ priceCents: 1490 });
+    const res = await reprice();
 
     expect(res.statusCode).toBe(200);
     expect(updateCreemProductPrice).toHaveBeenCalledWith(CreemMode.Test, "prod_existing", 1490);
@@ -341,12 +339,14 @@ describe("PATCH /api/admin/developer/creem-products/:tierId/:billingPeriod/:mode
     expect(resetCreemCatalogCache).toHaveBeenCalledTimes(1);
   });
 
-  it("refuses a price below the one whole unit Creem requires", async () => {
+  it("refuses when the plan sells nothing over that period, because there is no amount to apply", async () => {
+    mockTierRepo.listOffers.mockResolvedValue([]);
     mockTierRepo.findCreemProductMapping.mockResolvedValue(mapping);
 
-    const res = await reprice({ priceCents: 99 });
+    const res = await reprice();
 
     expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("MC-BILL-0005");
     expect(updateCreemProductPrice).not.toHaveBeenCalled();
   });
 
@@ -354,7 +354,7 @@ describe("PATCH /api/admin/developer/creem-products/:tierId/:billingPeriod/:mode
     mockTierRepo.findCreemProductMapping.mockResolvedValue(mapping);
     vi.mocked(updateCreemProductPrice).mockRejectedValue(new CreemProductError("MC-BILL-0002"));
 
-    const res = await reprice({ priceCents: 1490 });
+    const res = await reprice();
 
     expect(res.statusCode).toBe(502);
     expect(res.json().error).toBe("MC-BILL-0002");
@@ -364,7 +364,7 @@ describe("PATCH /api/admin/developer/creem-products/:tierId/:billingPeriod/:mode
   it("answers 404 when that plan and interval has no product in this environment", async () => {
     mockTierRepo.findCreemProductMapping.mockResolvedValue(null);
 
-    const res = await reprice({ priceCents: 1490 });
+    const res = await reprice();
 
     expect(res.statusCode).toBe(404);
     expect(updateCreemProductPrice).not.toHaveBeenCalled();

@@ -32,8 +32,6 @@ function makePlan(overrides: Partial<TierResponse> = {}): TierResponse {
     requestsPerMinute: 60,
     requestsPerDay: 10000,
     attributionRequired: false,
-    price: null,
-    priceYearly: null,
     color: "#64748b",
     icon: null,
     buttonLabel: null,

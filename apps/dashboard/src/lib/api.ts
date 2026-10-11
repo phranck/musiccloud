@@ -78,13 +78,19 @@ export const api = {
       options.timeoutMs,
     ).then((r) => handleResponse<T>(r)),
 
-  patch: <T>(path: string, body: unknown, options: ApiRequestOptions = {}): Promise<T> =>
+  // A PATCH that changes a resource to a value the server already holds sends
+  // no body, and a JSON content type over an empty body is a request Fastify
+  // refuses, so the header goes only with a body, as for POST and DELETE.
+  patch: <T>(path: string, body?: unknown, options: ApiRequestOptions = {}): Promise<T> =>
     fetchWithTimeout(
       resolvePath(path),
       {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify(body),
+        headers: {
+          ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+          ...getAuthHeaders(),
+        },
+        body: body !== undefined ? JSON.stringify(body) : undefined,
       },
       options.timeoutMs,
     ).then((r) => handleResponse<T>(r)),

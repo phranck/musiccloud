@@ -25,8 +25,6 @@ interface TierRow {
   requests_per_minute: number;
   requests_per_day: number;
   attribution_required: boolean;
-  price: string | null;
-  price_yearly: string | null;
   color: string;
   icon: string | null;
   button_label: string | null;
@@ -47,8 +45,6 @@ function toTier(row: TierRow): Tier {
     requestsPerMinute: row.requests_per_minute,
     requestsPerDay: row.requests_per_day,
     attributionRequired: row.attribution_required,
-    price: row.price,
-    priceYearly: row.price_yearly,
     color: row.color,
     icon: row.icon,
     buttonLabel: row.button_label,
@@ -149,8 +145,8 @@ export class PostgresTierRepository implements TierRepository {
   async createTier(data: TierCreateData): Promise<Tier> {
     const id = nanoid();
     const recommended = data.recommended ?? false;
-    const sql = `INSERT INTO tiers (id, name, requests_per_minute, requests_per_day, attribution_required, price, price_yearly, color, icon, button_label, description, enabled, disable_reason, recommended, sort_order, features)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb)
+    const sql = `INSERT INTO tiers (id, name, requests_per_minute, requests_per_day, attribution_required, color, icon, button_label, description, enabled, disable_reason, recommended, sort_order, features)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb)
        RETURNING *`;
     const values = [
       id,
@@ -158,8 +154,6 @@ export class PostgresTierRepository implements TierRepository {
       data.requestsPerMinute,
       data.requestsPerDay,
       data.attributionRequired ?? false,
-      data.price ?? null,
-      data.priceYearly ?? null,
       data.color ?? DEFAULT_TIER_COLOR,
       data.icon ?? null,
       data.buttonLabel ?? null,
@@ -244,14 +238,6 @@ export class PostgresTierRepository implements TierRepository {
       fields.push(`attribution_required = $${idx++}`);
       values.push(data.attributionRequired);
     }
-    if (data.price !== undefined) {
-      fields.push(`price = $${idx++}`);
-      values.push(data.price);
-    }
-    if (data.priceYearly !== undefined) {
-      fields.push(`price_yearly = $${idx++}`);
-      values.push(data.priceYearly);
-    }
     if (data.color !== undefined) {
       fields.push(`color = $${idx++}`);
       values.push(data.color);
@@ -320,9 +306,9 @@ export class PostgresTierRepository implements TierRepository {
    * Creem product ID.
    *
    * The mapping lives here (not at Creem) because Creem products carry no
-   * metadata field. Creem is the source of truth for prices and currency; this
-   * table is the source of truth for which product ID belongs to which tier,
-   * interval and environment.
+   * metadata field. A price is entered on the offer and applied to the product,
+   * and Creem holds what the product charges; this table is the source of truth
+   * for which product ID belongs to which tier, interval and environment.
    *
    * @param mode - The Creem environment whose rows are wanted.
    * @returns Array of the mapping rows for that environment.
