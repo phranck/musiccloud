@@ -89,10 +89,22 @@ describe("validateMusicUrl", () => {
       expect(result.valid).toBe(true);
     });
 
-    it("should reject YouTube Music album playlist (OLAK5uy_) as playlist", () => {
-      // YouTube Music albums are routed via the album resolver, not rejected
-      const result = validateMusicUrl("https://music.youtube.com/playlist?list=OLAK5uy_abc123");
-      expect(result.valid).toBe(true);
+    it("should say that a YouTube Music album cannot be resolved yet", () => {
+      // A YouTube Music album is a playlist whose id starts with OLAK5uy_, and
+      // no plugin resolves it, so the answer names that instead of calling it
+      // "not a music link".
+      for (const url of [
+        "https://music.youtube.com/playlist?list=OLAK5uy_abc123",
+        "https://www.youtube.com/playlist?list=OLAK5uy_abc123",
+        "https://music.youtube.com/playlist?feature=share&list=OLAK5uy_abc123",
+      ]) {
+        const result = validateMusicUrl(url);
+        expect(result.valid).toBe(false);
+        if (!result.valid) {
+          expect(result.code).toBe("PLAYLIST_NOT_SUPPORTED");
+          expect(result.message).toContain("YouTube Music albums");
+        }
+      }
     });
 
     it("should still reject regular YouTube playlists", () => {
