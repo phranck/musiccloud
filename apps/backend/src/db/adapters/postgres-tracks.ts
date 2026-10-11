@@ -39,10 +39,12 @@ import {
   insertExternalIds,
   lockPersistIdentity,
   replaceTrackArtistCredits,
+  type ServiceLinkWrite,
   safeParseArray,
   safeParseArtistCredits,
   TRACK_ARTIST_FIELDS_SELECT,
   TRACK_PREVIEW_URL_SELECT,
+  upsertServiceLinks,
 } from "./postgres-shared.js";
 import { mintShortUrl } from "./short-url.js";
 
@@ -507,28 +509,7 @@ export async function persistTrackWithLinks(
       data.sourceTrack.artistCredits,
     );
 
-    for (const link of data.links) {
-      await client.query(
-        `INSERT INTO service_links (
-          id, track_id, service, external_id, url, confidence, match_method, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        ON CONFLICT (track_id, service) DO UPDATE SET
-          external_id = EXCLUDED.external_id,
-          url = EXCLUDED.url,
-          confidence = EXCLUDED.confidence,
-          match_method = EXCLUDED.match_method`,
-        [
-          `${trackId}-${link.service}`,
-          trackId,
-          link.service,
-          link.externalId ?? null,
-          link.url,
-          link.confidence,
-          link.matchMethod,
-          now,
-        ],
-      );
-    }
+    await upsertServiceLinks(client, "track", trackId, data.links, now);
 
     const shortId = existingShortId ?? (await mintShortUrl(client, "short_urls", trackId, now));
 
@@ -616,39 +597,11 @@ export async function clearServiceLinkMisses(pool: Pool, trackId: string, servic
  * @param links - Service-link records to upsert.
  * @throws Query errors propagate after rollback.
  */
-export async function addLinksToTrack(
-  pool: Pool,
-  trackId: string,
-  links: Array<{ service: string; url: string; confidence: number; matchMethod: string; externalId?: string }>,
-): Promise<void> {
+export async function addLinksToTrack(pool: Pool, trackId: string, links: ServiceLinkWrite[]): Promise<void> {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const now = new Date();
-
-    for (const link of links) {
-      await client.query(
-        `INSERT INTO service_links (
-          id, track_id, service, external_id, url, confidence, match_method, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        ON CONFLICT (track_id, service) DO UPDATE SET
-          external_id = EXCLUDED.external_id,
-          url = EXCLUDED.url,
-          confidence = EXCLUDED.confidence,
-          match_method = EXCLUDED.match_method`,
-        [
-          `${trackId}-${link.service}`,
-          trackId,
-          link.service,
-          link.externalId ?? null,
-          link.url,
-          link.confidence,
-          link.matchMethod,
-          now,
-        ],
-      );
-    }
-
+    await upsertServiceLinks(client, "track", trackId, links, new Date());
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK");

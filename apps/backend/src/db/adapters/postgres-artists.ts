@@ -51,8 +51,10 @@ import {
   ensureArtistEntityForName,
   ensureArtistEntityName,
   insertExternalIds,
+  type ServiceLinkWrite,
   safeParseArray,
   safeParseJson,
+  upsertServiceLinks,
 } from "./postgres-shared.js";
 import { mintShortUrl } from "./short-url.js";
 
@@ -400,27 +402,7 @@ export async function persistArtistWithLinks(
       ],
     );
 
-    for (const link of data.links) {
-      await client.query(
-        `INSERT INTO artist_service_links (
-          id, artist_entity_id, service, external_id, url, confidence, match_method, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        ON CONFLICT (artist_entity_id, service) DO UPDATE SET
-          external_id = EXCLUDED.external_id,
-          url = EXCLUDED.url,
-          confidence = EXCLUDED.confidence`,
-        [
-          `${artistEntityId}-${link.service}`,
-          artistEntityId,
-          link.service,
-          link.externalId ?? null,
-          link.url,
-          link.confidence,
-          link.matchMethod,
-          now,
-        ],
-      );
-    }
+    await upsertServiceLinks(client, "artist", artistEntityId, data.links, now);
 
     const shortId = existingShortId ?? (await mintShortUrl(client, "artist_short_urls", artistEntityId, now));
 
@@ -448,39 +430,12 @@ export async function persistArtistWithLinks(
  * @param links - Service-link records to upsert.
  * @throws Query errors propagate after rollback.
  */
-export async function addLinksToArtist(
-  pool: Pool,
-  artistId: string,
-  links: Array<{ service: string; url: string; confidence: number; matchMethod: string; externalId?: string }>,
-): Promise<void> {
+export async function addLinksToArtist(pool: Pool, artistId: string, links: ServiceLinkWrite[]): Promise<void> {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const now = new Date();
     await ensureArtistEntityExists(client, artistId);
-
-    for (const link of links) {
-      await client.query(
-        `INSERT INTO artist_service_links (
-          id, artist_entity_id, service, external_id, url, confidence, match_method, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        ON CONFLICT (artist_entity_id, service) DO UPDATE SET
-          external_id = EXCLUDED.external_id,
-          url = EXCLUDED.url,
-          confidence = EXCLUDED.confidence`,
-        [
-          `${artistId}-${link.service}`,
-          artistId,
-          link.service,
-          link.externalId ?? null,
-          link.url,
-          link.confidence,
-          link.matchMethod,
-          now,
-        ],
-      );
-    }
-
+    await upsertServiceLinks(client, "artist", artistId, links, new Date());
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK");
