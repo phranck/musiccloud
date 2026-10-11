@@ -237,8 +237,6 @@ function makeTier(overrides: Partial<Tier> = {}): Tier {
     requestsPerMinute: 120,
     requestsPerDay: 50000,
     attributionRequired: false,
-    price: null,
-    priceYearly: null,
     color: "#3b82f6",
     icon: null,
     buttonLabel: null,

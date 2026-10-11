@@ -31,8 +31,6 @@ function makeTier(overrides: Partial<Tier> = {}): Tier {
     requestsPerMinute: 60,
     requestsPerDay: 10000,
     attributionRequired: true,
-    price: null,
-    priceYearly: null,
     color: "#64748b",
     icon: null,
     buttonLabel: null,
@@ -71,7 +69,7 @@ describe("TIER_FREE_ID", () => {
 
 describe("resolveSignupTierId", () => {
   const freeTier = makeTier({ id: "tier_free" });
-  const paidTier = makeTier({ id: "tier_pro", name: "Pro", price: "9", attributionRequired: false });
+  const paidTier = makeTier({ id: "tier_pro", name: "Pro", attributionRequired: false });
 
   it("returns tier_free when requestedTierId is undefined", async () => {
     mockListTiers([freeTier, paidTier]);

@@ -1872,11 +1872,10 @@ export type DeveloperProjectSubscriptionInsert = typeof developerProjectSubscrip
 /**
  * What a plan costs, as one row per thing a customer can buy.
  *
- * A plan says what somebody gets; an offer says what they pay for it. Those
- * were one thing whilst a plan carried two price columns, and the consequence
- * was that everything Creem asks for beyond the amount had to be invented by
- * our code rather than chosen by anybody. An offer is exactly what Creem calls
- * a product, so every field Creem accepts has a column here.
+ * A plan says what somebody gets; an offer says what they pay for it, and it
+ * is the only place a plan's price is held. An offer is exactly what Creem
+ * calls a product, so every field Creem accepts has a column here rather than
+ * being invented by our code when the product is created.
  *
  * `billingPeriod` carries Creem's own spelling, so the value travels to the
  * API unchanged. Creem admits six, of which `once` is the one that is not
@@ -2174,15 +2173,6 @@ export const tiers = pgTable(
     requestsPerMinute: integer("requests_per_minute").notNull(),
     requestsPerDay: integer("requests_per_day").notNull(),
     attributionRequired: boolean("attribution_required").notNull().default(false),
-    /**
-     * @deprecated Superseded by `tier_offers`. The columns still carry the
-     * values a backfill copied into offers, and nothing reads them any more.
-     * They are dropped in a later migration, once a deployment has run with
-     * offers as the only source.
-     */
-    price: text("price"),
-    /** @deprecated See `price`. */
-    priceYearly: text("price_yearly"),
     color: text("color").notNull().default("#64748b"),
     icon: text("icon"),
     buttonLabel: text("button_label"),

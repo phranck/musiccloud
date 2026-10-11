@@ -123,7 +123,7 @@ export async function sellingModeReadiness(): Promise<SellingModeReadiness[]> {
  * Two things are checked first, and both are refusals rather than warnings. An
  * environment with no key cannot be reached at all, so the pricing page would
  * lose every price. An environment missing a product for an enabled paid plan
- * would show that plan at its database price whilst nobody could buy it, which
+ * would show that plan at its offer's amount whilst nobody could buy it, which
  * looks like it works. Both come from {@link sellingModeReadiness}, which is
  * also what the dashboard shows, so the switch it offers is the switch this
  * accepts.

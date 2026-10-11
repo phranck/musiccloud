@@ -25,11 +25,12 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
 import { TableActionButton } from "@/components/ui/TableActionButton";
 import { dashboardCopy } from "@/copy/dashboard";
-import type { TierResponse } from "@/features/developer/api";
+import type { TierListItem, TierResponse } from "@/features/developer/api";
 import { TierFeatureBulletsEditor } from "@/features/developer/components/TierFeatureBulletsEditor";
 import { TierIconGlyph, TierIconPicker } from "@/features/developer/components/TierIconPicker";
 import { type FormFeatureBullet, toFormFeatures } from "@/features/developer/featureBullets";
 import { useCreateTier, useDeleteTier, useTiers, useUpdateTier } from "@/features/developer/hooks/useDeveloperData";
+import { formatOfferPrice, periodLabel } from "@/features/developer/offerFormat";
 import { FormLabel, formInputClass, formTextareaClass } from "@/shared/ui/FormPrimitives";
 
 // -----------------------------------------------------------------------------
@@ -47,8 +48,6 @@ interface TierFormData {
   requestsPerMinute: number;
   requestsPerDay: number;
   attributionRequired: boolean;
-  price: string;
-  priceYearly: string;
   color: string;
   icon: string | null;
   buttonLabel: string;
@@ -66,8 +65,6 @@ const EMPTY_FORM: TierFormData = {
   requestsPerMinute: 60,
   requestsPerDay: 10000,
   attributionRequired: false,
-  price: "",
-  priceYearly: "",
   color: "#64748b",
   icon: null,
   buttonLabel: "",
@@ -87,8 +84,6 @@ function toSubmitBody(data: TierFormData) {
     requestsPerMinute: data.requestsPerMinute,
     requestsPerDay: data.requestsPerDay,
     attributionRequired: data.attributionRequired,
-    price: data.price || null,
-    priceYearly: data.priceYearly || null,
     color: data.color,
     icon: data.icon,
     buttonLabel: data.buttonLabel.trim() || null,
@@ -180,8 +175,6 @@ function tierEditorReducer(state: TierEditorState, action: TierEditorAction): Ti
           requestsPerMinute: action.tier.requestsPerMinute,
           requestsPerDay: action.tier.requestsPerDay,
           attributionRequired: action.tier.attributionRequired,
-          price: action.tier.price ?? "",
-          priceYearly: action.tier.priceYearly ?? "",
           color: action.tier.color,
           icon: action.tier.icon,
           buttonLabel: action.tier.buttonLabel ?? "",
@@ -234,7 +227,8 @@ interface TierFormDialogProps {
  * Modal form for creating or editing a single API tier.
  *
  * Renders inputs for name, a free-text description, per-minute / per-day request
- * limits, an attribution-required toggle, an optional display price and a sort order.
+ * limits, an attribution-required toggle and a sort order. What the plan costs
+ * is entered as offers on the plan's own page, which opens once it is created.
  * The dialog is presentational: validation errors are passed in via `errors`
  * and all state changes are surfaced through the `onFormChange` / `onSave`
  * callbacks.
@@ -378,35 +372,6 @@ function TierFormDialog({
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <FormLabel htmlFor="tier-price">{dm.colPriceMonthly}</FormLabel>
-            <input
-              id="tier-price"
-              aria-label={dm.colPriceMonthly}
-              type="text"
-              inputMode="decimal"
-              className={formInputClass}
-              value={form.price}
-              onChange={(e) => onFormChange({ price: e.target.value })}
-              placeholder="e.g. 9.90"
-            />
-          </div>
-          <div>
-            <FormLabel htmlFor="tier-price-yearly">{dm.colPriceYearly}</FormLabel>
-            <input
-              id="tier-price-yearly"
-              aria-label={dm.colPriceYearly}
-              type="text"
-              inputMode="decimal"
-              className={formInputClass}
-              value={form.priceYearly}
-              onChange={(e) => onFormChange({ priceYearly: e.target.value })}
-              placeholder="e.g. 99"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
             <FormLabel htmlFor="tier-color">{dm.colColor}</FormLabel>
             <div className="flex items-center gap-2">
               <input
@@ -544,7 +509,8 @@ function TierDeleteConfirmDialog({
  * Builds the memoized column definitions for the tiers table.
  *
  * Columns: name, combined per-minute/per-day traffic, attribution requirement
- * badge, display price, sort order, and an edit/delete action pair.
+ * badge, the plan's offers with their periods and amounts, sort order, and an
+ * edit/delete action pair.
  *
  * @param dm - Developer section of the localized dashboard messages.
  * @param cm - Common (shared) localized dashboard messages.
@@ -555,10 +521,10 @@ function TierDeleteConfirmDialog({
 function useTierColumns(
   dm: (typeof dashboardCopy)["developer"],
   cm: (typeof dashboardCopy)["common"],
-  onEdit: (tier: TierResponse) => void,
+  onEdit: (tier: TierListItem) => void,
   onDelete: (id: string) => void,
-): ColumnDef<TierResponse>[] {
-  return useMemo<ColumnDef<TierResponse>[]>(
+): ColumnDef<TierListItem>[] {
+  return useMemo<ColumnDef<TierListItem>[]>(
     () => [
       {
         id: "name",
@@ -624,15 +590,23 @@ function useTierColumns(
       {
         id: "price",
         header: dm.colPrice,
-        className: "w-32",
+        className: "w-48",
         headerClassName: "whitespace-nowrap",
-        sortKey: (a) => a.price ?? "",
-        cell: (a) => (
-          <span className="text-[var(--ds-text-muted)]">
-            {a.price ?? "—"}
-            {a.priceYearly != null && <span className="text-xs"> / {a.priceYearly} p.a.</span>}
-          </span>
-        ),
+        // A plan's offers are its price, so the cheapest one orders the list and
+        // a plan without any is free.
+        sortKey: (a) => (a.offers.length === 0 ? 0 : Math.min(...a.offers.map((offer) => offer.priceCents))),
+        cell: (a) =>
+          a.offers.length === 0 ? (
+            <span className="text-[var(--ds-text-muted)]">{dm.tierFree}</span>
+          ) : (
+            <span className="flex flex-col text-[var(--ds-text-muted)]">
+              {a.offers.map((offer) => (
+                <span key={offer.id} className="whitespace-nowrap">
+                  {periodLabel(offer.billingPeriod)} {formatOfferPrice(offer)}
+                </span>
+              ))}
+            </span>
+          ),
       },
       {
         id: "sortOrder",

@@ -31,25 +31,6 @@ const MODE_OPTIONS = [
   { value: CreemMode.Live, label: dm.creemEnvironmentLive },
 ] as const;
 
-/**
- * Reads a euro amount typed into a price field as whole cents.
- *
- * Creem refuses anything below one whole unit of the currency, so a value it
- * would reject comes back as `undefined` and the button stays disabled rather
- * than the operator finding out from a failed request.
- *
- * @param raw - What is in the field.
- * @returns The amount in cents, or `undefined` when it is not a usable price.
- */
-function priceCentsFrom(raw: string): number | undefined {
-  const trimmed = raw.trim();
-  if (trimmed === "") return undefined;
-  const euros = Number(trimmed);
-  if (!Number.isFinite(euros) || euros <= 0) return undefined;
-  const cents = Math.round(euros * 100);
-  return cents >= 100 ? cents : undefined;
-}
-
 /** Props for {@link TierCreemProductRow}. */
 interface TierCreemProductRowProps {
   tier: TierResponse;
@@ -77,11 +58,9 @@ function TierCreemProductRow({ tier, offer, mode, mapping, writable }: TierCreem
   const repriceProduct = useUpdateCreemProductPrice();
   const archiveProduct = useArchiveCreemProduct();
 
-  const [priceDraft, setPriceDraft] = useState("");
   const [attachDraft, setAttachDraft] = useState("");
   const [confirmingArchive, setConfirmingArchive] = useState(false);
 
-  const priceCents = priceCentsFrom(priceDraft);
   const busy = createProduct.isPending || repriceProduct.isPending || archiveProduct.isPending;
   const fieldId = `${tier.id}-${offer.billingPeriod}`;
 
@@ -98,9 +77,10 @@ function TierCreemProductRow({ tier, offer, mode, mapping, writable }: TierCreem
     });
   }
 
+  // The amount is the offer's, read by the server. The offer above is the one
+  // place a price is entered, and this only makes Creem charge it.
   function handleReprice() {
-    if (priceCents === undefined) return;
-    repriceProduct.mutate({ tierId: tier.id, billingPeriod: offer.billingPeriod, mode, priceCents });
+    repriceProduct.mutate({ tierId: tier.id, billingPeriod: offer.billingPeriod, mode });
   }
 
   function handleArchive() {
@@ -160,41 +140,17 @@ function TierCreemProductRow({ tier, offer, mode, mapping, writable }: TierCreem
 
       {mapping && writable && (
         <div className="mt-2">
-          <label htmlFor={`creem-price-${fieldId}`} className={labelClass}>
-            {dm.creemReprice}
-          </label>
-          <div className="flex items-center gap-2">
-            <DashboardInput
-              id={`creem-price-${fieldId}`}
-              type="text"
-              inputMode="decimal"
-              value={priceDraft}
-              placeholder="e.g. 9.90"
-              onChange={(event) => setPriceDraft(event.target.value)}
-            />
-            <DashboardActionButton
-              action={DashboardActionId.Save}
-              icon={false}
-              label={messages.common.save}
-              onClick={handleReprice}
-              disabled={busy || priceCents === undefined}
-              type="button"
-            />
-          </div>
-
           {confirmingArchive ? (
-            <div className="mt-3">
-              <InlineConfirm
-                message={dm.creemArchiveConfirmBody}
-                confirmAction={DashboardActionId.Delete}
-                confirmLabel={dm.creemArchive}
-                onConfirm={handleArchive}
-                onCancel={() => setConfirmingArchive(false)}
-                disabled={busy}
-              />
-            </div>
+            <InlineConfirm
+              message={dm.creemArchiveConfirmBody}
+              confirmAction={DashboardActionId.Delete}
+              confirmLabel={dm.creemArchive}
+              onConfirm={handleArchive}
+              onCancel={() => setConfirmingArchive(false)}
+              disabled={busy}
+            />
           ) : (
-            <div className="mt-2 flex justify-end">
+            <div className="flex justify-end gap-2">
               <DashboardActionButton
                 action={DashboardActionId.Delete}
                 label={dm.creemArchive}
@@ -202,6 +158,13 @@ function TierCreemProductRow({ tier, offer, mode, mapping, writable }: TierCreem
                 disabled={busy}
                 type="button"
                 variant={DashboardButtonVariant.Neutral}
+              />
+              <DashboardActionButton
+                action={DashboardActionId.Save}
+                label={dm.creemReprice}
+                onClick={handleReprice}
+                disabled={busy}
+                type="button"
               />
             </div>
           )}

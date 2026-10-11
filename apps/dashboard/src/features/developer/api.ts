@@ -296,10 +296,6 @@ export interface TierResponse {
   requestsPerMinute: number;
   requestsPerDay: number;
   attributionRequired: boolean;
-  /** Monthly price in euros as a numeric string (e.g. "9" or "9.90"), or `null` for free tiers. */
-  price: string | null;
-  /** Yearly price in euros as a numeric string, or `null` when no yearly billing is offered. */
-  priceYearly: string | null;
   color: string;
   /** Iconsax icon name for the tier (one of the shared `TIER_ICONS`), or `null` for none. */
   icon: string | null;
@@ -317,8 +313,16 @@ export interface TierResponse {
   updatedAt: number;
 }
 
-export function fetchTiers(): Promise<TierResponse[]> {
-  return api.get<TierResponse[]>(ENDPOINTS.admin.developer.tiers);
+/**
+ * A plan as the admin plan list returns it, with its offers.
+ *
+ * The offers are the plan's price, one per billing period, so a plan with none
+ * is free.
+ */
+export type TierListItem = TierResponse & { offers: TierOffer[] };
+
+export function fetchTiers(): Promise<TierListItem[]> {
+  return api.get<TierListItem[]>(ENDPOINTS.admin.developer.tiers);
 }
 
 export function createTier(
@@ -327,8 +331,6 @@ export function createTier(
       Pick<
         TierResponse,
         | "attributionRequired"
-        | "price"
-        | "priceYearly"
         | "color"
         | "icon"
         | "buttonLabel"
@@ -353,8 +355,6 @@ export function updateTier(
       | "requestsPerMinute"
       | "requestsPerDay"
       | "attributionRequired"
-      | "price"
-      | "priceYearly"
       | "color"
       | "icon"
       | "buttonLabel"
@@ -419,22 +419,24 @@ export function createCreemProduct(body: {
 }
 
 /**
- * Changes the product's price at Creem, keeping its id and its subscriptions.
+ * Applies the offer's amount to the product at Creem, keeping its id and its
+ * subscriptions.
+ *
+ * The request carries no price. The server reads the amount from the plan's
+ * offer for that billing period, because the offer is the only place a price
+ * is entered.
  *
  * @param tierId - The tier the product belongs to.
  * @param billingPeriod - Which of the plan's products to reprice.
  * @param mode - The Creem environment the product lives in.
- * @param priceCents - The new price in cents.
  */
 export function updateCreemProductPrice(
   tierId: string,
   billingPeriod: BillingPeriod,
   mode: CreemMode,
-  priceCents: number,
 ): Promise<CreemProductMapping & { price: number; currency: string }> {
   return api.patch<CreemProductMapping & { price: number; currency: string }>(
     ENDPOINTS.admin.developer.creemProductDetail(tierId, billingPeriod, mode),
-    { priceCents },
   );
 }
 
@@ -537,8 +539,8 @@ export function createPlanOffer(tierId: string, body: TierOfferCreate): Promise<
 }
 
 /**
- * Changes an offer. The product already at Creem keeps its price until
- * somebody changes it there too.
+ * Changes an offer. The product already at Creem keeps its price until the
+ * offer's amount is applied to it from the Creem section.
  *
  * @param id - The offer to change.
  * @param body - The fields to change.

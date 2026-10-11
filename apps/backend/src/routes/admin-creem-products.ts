@@ -27,7 +27,7 @@
 import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { getTierRepository } from "../db/index.js";
-import type { TierCreemProductKey } from "../db/tiers-repository.js";
+import type { BillingPeriodValue, TierCreemProductKey, TierOffer, TierRepository } from "../db/tiers-repository.js";
 import { BillingPeriod } from "../db/tiers-repository.js";
 import { requireOwner, requireOwnerOrAdmin } from "../lib/admin-caller.js";
 import { CreemMode, type CreemModeValue, configuredCreemModes } from "../lib/creem-config.js";
@@ -100,6 +100,25 @@ function refuseUnreachableMode(reply: FastifyReply, mode: CreemModeValue): Fasti
 function replyWithCreemFailure(reply: FastifyReply, error: unknown): FastifyReply {
   if (!(error instanceof CreemProductError)) throw error;
   return replyWithApiError(reply, error.code);
+}
+
+/**
+ * The offer a plan sells over one billing period.
+ *
+ * A Creem product is created from this offer and repriced to its amount, so
+ * both routes read it the same way.
+ *
+ * @param repo - The tier repository.
+ * @param tierId - The plan.
+ * @param billingPeriod - The billing period the product sells over.
+ * @returns The offer, or `undefined` when the plan sells nothing over that period.
+ */
+async function findOffer(
+  repo: TierRepository,
+  tierId: string,
+  billingPeriod: BillingPeriodValue,
+): Promise<TierOffer | undefined> {
+  return (await repo.listOffers(tierId)).find((offer) => offer.billingPeriod === billingPeriod);
 }
 
 export async function adminCreemProductRoutes(app: FastifyInstance) {
@@ -180,9 +199,7 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
 
       // The product is built from the offer, so everything Creem receives was
       // entered by somebody rather than derived from the plan.
-      const offer = (await repo.listOffers(body.tierId)).find(
-        (candidate) => candidate.billingPeriod === body.billingPeriod,
-      );
+      const offer = await findOffer(repo, body.tierId, body.billingPeriod);
       if (!offer) {
         return replyWithApiError(reply, "MC-BILL-0005");
       }
@@ -205,30 +222,21 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
   );
 
   /**
-   * Changes the product's price at Creem.
+   * Applies the offer's amount to the product at Creem.
    *
-   * The product keeps its id, so the mapping row stays valid and every
-   * existing subscription keeps pointing at the same product. The tier's own
-   * price column is not touched here: Creem is the source of truth for what is
-   * charged, and the pricing page already follows it.
+   * The offer is the only place a plan's price is entered. Changing it there
+   * changes what the pricing page falls back to, and this route is the
+   * separate act that makes Creem charge the same amount, so the request
+   * carries no price of its own. The product keeps its id, so the mapping row
+   * stays valid and every existing subscription keeps pointing at the same
+   * product.
    */
   app.patch(
     ROUTE_TEMPLATES.admin.developer.creemProductDetail,
-    {
-      schema: {
-        params: productParamsSchema,
-        body: {
-          type: "object",
-          required: ["priceCents"],
-          additionalProperties: false,
-          properties: { priceCents: { type: "integer", minimum: 100, maximum: 100_000_000 } },
-        },
-      },
-    },
+    { schema: { params: productParamsSchema } },
     async (request, reply) => {
       if (!(await requireOwnerOrAdmin(request, reply))) return;
       const params = request.params as { tierId: string; billingPeriod: string; mode: CreemModeValue };
-      const { priceCents } = request.body as { priceCents: number };
       if (!isBillingPeriod(params.billingPeriod)) {
         return reply.status(400).send({ error: "billingPeriod must be one Creem sells over" });
       }
@@ -237,6 +245,10 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
       if (unreachable) return unreachable;
 
       const repo = await getTierRepository();
+      const offer = await findOffer(repo, params.tierId, params.billingPeriod);
+      if (!offer) {
+        return replyWithApiError(reply, "MC-BILL-0005");
+      }
       const mapping = await repo.findCreemProductMapping({
         tierId: params.tierId,
         billingPeriod: params.billingPeriod,
@@ -246,7 +258,7 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
 
       let product: Awaited<ReturnType<typeof updateCreemProductPrice>>;
       try {
-        product = await updateCreemProductPrice(params.mode, mapping.creemProductId, priceCents);
+        product = await updateCreemProductPrice(params.mode, mapping.creemProductId, offer.priceCents);
       } catch (error) {
         return replyWithCreemFailure(reply, error);
       }

@@ -25,7 +25,7 @@ import { centsToEuroString, enrichTiersWithCreemPrices } from "./tier-pricing.js
 
 const mockedCatalog = vi.mocked(getCreemCatalog);
 
-/** An offer of one plan, which is where a displayed price now comes from. */
+/** An offer of one plan, which is where a displayed price comes from. */
 function makeOffer(tierId: string, billingPeriod: string, priceCents: number) {
   return {
     id: `offer_${tierId}_${billingPeriod}`,
@@ -53,8 +53,6 @@ function makeTier(overrides: Partial<Tier>): Tier {
     requestsPerMinute: 60,
     requestsPerDay: 1000,
     attributionRequired: false,
-    price: null,
-    priceYearly: null,
     color: "#000000",
     icon: null,
     buttonLabel: null,
