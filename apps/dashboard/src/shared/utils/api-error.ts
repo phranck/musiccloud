@@ -1,5 +1,11 @@
 import { parseApiErrorResponse } from "@musiccloud/shared";
 
+/** The response statuses the dashboard answers differently from any other failure. */
+export const HttpStatus = {
+  NotFound: 404,
+  Conflict: 409,
+} as const;
+
 export interface ApiRequestError extends Error {
   status?: number;
   responseMessage?: string | null;

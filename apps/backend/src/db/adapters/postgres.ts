@@ -7,6 +7,7 @@ import type {
   AdminRepository,
   AdminUser,
   AlbumListItem,
+  ArtistEntityIdentityRecord,
   ArtistEntityListItem,
   ArtistListItem,
   ArtistProfileRefreshEvent,
@@ -92,6 +93,7 @@ import type {
   SharePageDbResult,
   TrackRepository,
 } from "../repository.js";
+import { getArtistEntityIdentity as adminGetArtistEntityIdentity } from "./postgres-admin-artist-entity.js";
 import {
   clearArtistCache as adminCatalogClearArtistCache,
   countAllData as adminCatalogCountAllData,
@@ -801,6 +803,10 @@ export class PostgresAdapter
     sortDir?: "asc" | "desc";
   }): Promise<ListResult<ArtistEntityListItem>> {
     return adminCatalogListArtistEntities(this.pool, params);
+  }
+
+  getArtistEntityIdentity(id: string): Promise<ArtistEntityIdentityRecord | null> {
+    return adminGetArtistEntityIdentity(this.pool, id);
   }
 
   deleteTracks(ids: string[]): Promise<void> {

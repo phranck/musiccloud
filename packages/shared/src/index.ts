@@ -1,3 +1,4 @@
+export * from "./admin-artist-entity.js";
 export * from "./admin-events.js";
 export * from "./api.js";
 export * from "./artist-identity.js";

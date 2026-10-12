@@ -7,29 +7,9 @@
  * column added to a record never reaches a response by accident.
  */
 
-import type { ArtistLifecycleEvent, ArtistMembership, PartialDate } from "@musiccloud/shared";
+import { type ArtistLifecycleEvent, type ArtistMembership, partialDateFromParts } from "@musiccloud/shared";
 
-import type { ArtistGroupMembershipRecord, ArtistIdentityEventRecord, DatePrecision } from "../../db/repository.js";
-
-/**
- * A stored date in its public form, with the parts beyond its precision cleared.
- *
- * @returns The date, or `null` where nothing at all is known about it.
- */
-export function toPublicPartialDate(
-  precision: DatePrecision,
-  year: number | null,
-  month: number | null,
-  day: number | null,
-): PartialDate | null {
-  if (precision === "unknown" && year === null) return null;
-  return {
-    precision,
-    year,
-    month: precision === "month" || precision === "day" ? month : null,
-    day: precision === "day" ? day : null,
-  };
-}
+import type { ArtistGroupMembershipRecord, ArtistIdentityEventRecord } from "../../db/repository.js";
 
 /** One stored lifecycle event in its public form. */
 export function toPublicLifecycleEvent(record: ArtistIdentityEventRecord): ArtistLifecycleEvent {
@@ -38,7 +18,7 @@ export function toPublicLifecycleEvent(record: ArtistIdentityEventRecord): Artis
     artistName: record.displayName,
     artistType: record.entityType,
     eventType: record.eventType,
-    date: toPublicPartialDate(record.datePrecision, record.eventYear, record.eventMonth, record.eventDay) ?? {
+    date: partialDateFromParts(record.datePrecision, record.eventYear, record.eventMonth, record.eventDay) ?? {
       precision: "unknown",
       year: null,
       month: null,
@@ -47,16 +27,21 @@ export function toPublicLifecycleEvent(record: ArtistIdentityEventRecord): Artis
   };
 }
 
-/** One stored membership in its public form. */
-function toPublicMembership(record: ArtistGroupMembershipRecord): ArtistMembership {
+/**
+ * One stored membership in its public form, without merging it with others.
+ *
+ * The admin detail builds on this and adds the source, so the fields a
+ * membership shows are named once for both audiences.
+ */
+export function toPublicMembership(record: ArtistGroupMembershipRecord): ArtistMembership {
   return {
     groupArtistEntityId: record.groupArtistEntityId,
     groupName: record.groupName,
     memberArtistEntityId: record.memberArtistEntityId,
     memberName: record.memberName,
     roles: [...record.roles].sort(),
-    begin: toPublicPartialDate(record.beginDatePrecision, record.beginYear, record.beginMonth, record.beginDay),
-    end: toPublicPartialDate(record.endDatePrecision, record.endYear, record.endMonth, record.endDay),
+    begin: partialDateFromParts(record.beginDatePrecision, record.beginYear, record.beginMonth, record.beginDay),
+    end: partialDateFromParts(record.endDatePrecision, record.endYear, record.endMonth, record.endDay),
     isCurrent: record.isCurrent,
   };
 }

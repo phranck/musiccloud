@@ -302,12 +302,15 @@ export function artistNamePreferenceOrder(alias: string | null): string {
     ${column("created_at")} ASC`;
 }
 
+/** The name shown for an artist entity that has no stored name at all. */
+export const UNNAMED_ARTIST_NAME = "[unnamed artist]";
+
 /**
  * `SELECT` fragment that exposes the resolved artist name from the
  * `artist_name` alias produced by {@link ARTIST_NAME_LATERAL_JOIN}.
- * Falls back to `'[unnamed artist]'` when no name row exists.
+ * Falls back to {@link UNNAMED_ARTIST_NAME} when no name row exists.
  */
-export const ARTIST_NAME_SELECT = `COALESCE(artist_name.name, '[unnamed artist]') AS name`;
+export const ARTIST_NAME_SELECT = `COALESCE(artist_name.name, '${UNNAMED_ARTIST_NAME}') AS name`;
 
 /**
  * Lateral join that picks the display name for an artist entity in the order

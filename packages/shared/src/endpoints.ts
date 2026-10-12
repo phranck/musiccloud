@@ -243,6 +243,8 @@ export const ENDPOINTS = {
     artistEntities: {
       /** GET: list normalized artist identity entities. */
       list: "/api/admin/artist-entities",
+      /** GET: one entity with its names, lifecycle dates and memberships. */
+      detail: (id: string) => `/api/admin/artist-entities/${encodeURIComponent(id)}`,
     },
 
     cache: {
@@ -573,6 +575,9 @@ export const ROUTE_TEMPLATES = {
     },
     tracks: {
       detail: "/api/admin/tracks/:id",
+    },
+    artistEntities: {
+      detail: "/api/admin/artist-entities/:id",
     },
     artists: {
       invalidateCache: "/api/admin/artists/:shortId/invalidate-cache",

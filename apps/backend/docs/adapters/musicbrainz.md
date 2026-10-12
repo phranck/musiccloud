@@ -44,6 +44,8 @@ A refetch replaces what MusicBrainz said before, so dates and memberships never 
 
 The keyed operations `GET /api/v1/artists/events`, `GET /api/v1/artists/{artistEntityId}/members` and `GET /api/v1/artists/{artistEntityId}/memberships` publish these dates and memberships. They leave out the source, its URL and its confidence, and `services/artist-identity/public.ts` builds their answers.
 
+The dashboard shows the same facts per entity under Music, Artist Entities, each with its source and when that source was read. `GET /api/admin/artist-entities/:id` serves that page, and `services/artist-identity/admin.ts` builds its answer.
+
 ## Operational Notes
 
 Every MusicBrainz call, the adapter's and the enrichment's, goes through `mbFetch()`. That helper enforces the 1 request per second gate, sets User-Agent and JSON headers, and retries one transient `503` using `Retry-After`.

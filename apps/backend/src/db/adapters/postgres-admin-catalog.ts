@@ -56,6 +56,7 @@ import {
   safeParseArtistCredits,
   TRACK_ARTIST_FIELDS_SELECT,
   TRACK_PREVIEW_URL_SELECT,
+  UNNAMED_ARTIST_NAME,
 } from "./postgres-shared.js";
 
 // ============================================================================
@@ -590,7 +591,7 @@ export async function listArtistEntities(
     ae.id,
     ae.entity_type,
     ae.verification_status,
-    COALESCE(entity_name.name, '[unnamed artist]') AS display_name,
+    COALESCE(entity_name.name, '${UNNAMED_ARTIST_NAME}') AS display_name,
     ae.created_at,
     ap.artist_entity_id IS NOT NULL AS has_profile,
     asu.id AS short_id,
@@ -612,8 +613,8 @@ export async function listArtistEntities(
 
   const rows = await pool.query<{
     id: string;
-    entity_type: string;
-    verification_status: string;
+    entity_type: ArtistEntityListItem["entityType"];
+    verification_status: ArtistEntityListItem["verificationStatus"];
     display_name: string;
     created_at: Date;
     has_profile: boolean;
