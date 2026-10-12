@@ -32,7 +32,7 @@
  *
  * ## Structured vs free-text query syntax
  *
- * Both search methods branch on `query.title === query.artist` (the
+ * Both search methods branch on `isFreeTextSearch(query)` (the
  * resolver's free-text signal). Structured queries use Spotify's
  * field syntax (`track:X artist:Y album:Z`) which scopes the search
  * to those fields; free-text queries pass the raw string, trusting
@@ -56,7 +56,7 @@ import { Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { TokenManager } from "../../../lib/infra/token-manager";
-import { calculateAlbumConfidence, calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
+import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError } from "../../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE, MAX_CANDIDATES, SPOTIFY_SEARCH_LIMIT_MAX } from "../../constants.js";
 import type {
@@ -75,7 +75,7 @@ import type {
   SearchResultWithCandidates,
   ServiceAdapter,
 } from "../../types.js";
-import { scoreSearchCandidate } from "../_shared/confidence.js";
+import { isFreeTextSearch, scoreAlbumCandidate, scoreSearchCandidate } from "../_shared/confidence.js";
 import { fetchSpotifyOEmbed } from "./oembed.js";
 
 const SPOTIFY_TRACK_REGEX = /(?:https?:\/\/)?(?:open|play)\.spotify\.com\/(?:intl-\w+\/)?track\/([a-zA-Z0-9]+)/;
@@ -200,7 +200,7 @@ function buildArtistSearchTerms(query: SearchQuery): string[] {
 }
 
 function buildSpotifyTrackSearchQueries(query: SearchQuery): string[] {
-  if (query.title === query.artist) return [query.title];
+  if (isFreeTextSearch(query)) return [query.title];
 
   const variants: string[] = [];
   for (const artist of buildArtistSearchTerms(query)) {
@@ -343,7 +343,7 @@ export const spotifyAdapter = {
     album?: string;
   }): Promise<SearchResultWithCandidates> {
     log.debug("Spotify", "searchTrackWithCandidates called with:", query);
-    const isFreeText = query.title === query.artist;
+    const isFreeText = isFreeTextSearch(query);
     let q: string;
 
     if (isFreeText) {
@@ -466,10 +466,7 @@ export const spotifyAdapter = {
 
     for (const item of items) {
       const album = mapAlbum(item);
-      const confidence = calculateAlbumConfidence(
-        { title: query.title, artists: [query.artist], releaseDate: query.year, totalTracks: query.totalTracks },
-        { title: album.title, artists: album.artists, releaseDate: album.releaseDate, totalTracks: album.totalTracks },
-      );
+      const confidence = scoreAlbumCandidate(query, album);
 
       if (confidence > bestConfidence) {
         bestConfidence = confidence;

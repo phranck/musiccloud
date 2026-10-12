@@ -37,7 +37,7 @@
 import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
-import { calculateAlbumConfidence, calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
+import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import type {
   AlbumMatchResult,
@@ -52,7 +52,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
-import { scoreSearchCandidate } from "../_shared/confidence.js";
+import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
@@ -340,7 +340,7 @@ export const neteaseAdapter: ServiceAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
+    const q = searchText(query);
 
     try {
       const songs = await searchSongs(q);
@@ -423,15 +423,7 @@ export const neteaseAdapter: ServiceAdapter = {
       for (const raw of results) {
         if (!raw.id || !raw.name) continue;
         const album = mapNetEaseAlbum(raw);
-        const confidence = calculateAlbumConfidence(
-          { title: query.title, artists: [query.artist], totalTracks: query.totalTracks, releaseDate: query.year },
-          {
-            title: album.title,
-            artists: album.artists,
-            totalTracks: album.totalTracks,
-            releaseDate: album.releaseDate,
-          },
-        );
+        const confidence = scoreAlbumCandidate(query, album);
         log.debug("NetEase", `  "${raw.name}" -> confidence=${confidence.toFixed(3)}`);
         if (confidence > bestConfidence) {
           bestConfidence = confidence;

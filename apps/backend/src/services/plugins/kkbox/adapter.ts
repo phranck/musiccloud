@@ -42,7 +42,7 @@ import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { TokenManager } from "../../../lib/infra/token-manager";
-import { calculateAlbumConfidence, calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
+import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
@@ -59,7 +59,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
-import { scoreSearchCandidate } from "../_shared/confidence.js";
+import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 
 const API_BASE = "https://api.kkbox.com/v1.1";
 
@@ -312,7 +312,7 @@ export const kkboxAdapter = {
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
     const territory = getTerritory();
-    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
+    const q = searchText(query);
 
     const response = await kkboxFetch(`/search?q=${encodeURIComponent(q)}&type=track&territory=${territory}&limit=5`);
 
@@ -395,15 +395,7 @@ export const kkboxAdapter = {
 
       for (const raw of results) {
         const candidate = mapAlbum(raw);
-        const confidence = calculateAlbumConfidence(
-          { title: query.title, artists: [query.artist], totalTracks: query.totalTracks, releaseDate: query.year },
-          {
-            title: candidate.title,
-            artists: candidate.artists,
-            totalTracks: candidate.totalTracks,
-            releaseDate: candidate.releaseDate,
-          },
-        );
+        const confidence = scoreAlbumCandidate(query, candidate);
         log.debug("KKBOX", `  "${raw.name}" -> confidence=${confidence.toFixed(3)}`);
         if (confidence > bestConfidence) {
           bestConfidence = confidence;

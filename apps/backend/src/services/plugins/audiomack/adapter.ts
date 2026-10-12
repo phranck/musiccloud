@@ -29,7 +29,6 @@
 import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
-import { calculateAlbumConfidence } from "../../../lib/resolve/normalize";
 import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import type {
   AlbumMatchResult,
@@ -40,7 +39,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types.js";
-import { scoreSearchCandidate } from "../_shared/confidence.js";
+import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 const MATCH_MIN_CONFIDENCE = 0.6;
@@ -257,7 +256,7 @@ export const audiomackAdapter: ServiceAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
+    const q = searchText(query);
 
     try {
       const songs = await searchSongs(q);
@@ -343,10 +342,7 @@ export const audiomackAdapter: ServiceAdapter = {
       for (const r of results) {
         if (!r.id || !r.title) continue;
         const album = mapAlbumResult(r);
-        const confidence = calculateAlbumConfidence(
-          { title: query.title, artists: [query.artist], releaseDate: query.year },
-          { title: album.title, artists: album.artists },
-        );
+        const confidence = scoreAlbumCandidate(query, album);
         log.debug("Audiomack", `  "${r.title}" -> confidence=${confidence.toFixed(3)}`);
         if (confidence > bestConfidence) {
           bestConfidence = confidence;

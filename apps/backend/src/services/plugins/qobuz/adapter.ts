@@ -1,7 +1,7 @@
 import { ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
-import { calculateAlbumConfidence, calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
+import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { MATCH_MIN_CONFIDENCE } from "../../constants.js";
 import type {
@@ -18,7 +18,7 @@ import type {
   SearchQuery,
   ServiceAdapter,
 } from "../../types";
-import { scoreSearchCandidate } from "../_shared/confidence.js";
+import { scoreAlbumCandidate, scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 import { SCRAPER_USER_AGENT } from "../_shared/user-agent.js";
 
 /**
@@ -386,7 +386,7 @@ export const qobuzAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
+    const q = searchText(query);
 
     try {
       const response = await qobuzApiFetch(`/track/search?query=${encodeURIComponent(q)}&limit=5`);
@@ -517,15 +517,7 @@ export const qobuzAdapter = {
       for (const item of items) {
         if (!item.title) continue;
         const album = mapAlbum(item);
-        const confidence = calculateAlbumConfidence(
-          { title: query.title, artists: [query.artist], totalTracks: query.totalTracks },
-          {
-            title: album.title,
-            artists: album.artists,
-            releaseDate: album.releaseDate,
-            totalTracks: album.totalTracks,
-          },
-        );
+        const confidence = scoreAlbumCandidate(query, album);
 
         log.debug("Qobuz", `  Album "${album.title}" by ${album.artists.join(", ")} -> ${confidence.toFixed(3)}`);
 

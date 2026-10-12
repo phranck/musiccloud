@@ -59,7 +59,7 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { splitArtistNames } from "../_shared/artists.js";
-import { scoreSearchCandidate } from "../_shared/confidence.js";
+import { scoreSearchCandidate, searchText } from "../_shared/confidence.js";
 
 const API_BASE = "https://api.napster.com/v2.2";
 
@@ -235,7 +235,7 @@ export const napsterAdapter = {
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
-    const q = query.title === query.artist ? query.title : `${query.artist} ${query.title}`;
+    const q = searchText(query);
 
     const response = await napsterFetch(`/search?query=${encodeURIComponent(q)}&type=track&per_type_limit=5`);
 
