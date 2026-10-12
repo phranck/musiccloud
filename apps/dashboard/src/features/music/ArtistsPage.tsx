@@ -7,7 +7,7 @@ import {
   DashboardButtonVariant,
   DashboardInput,
 } from "@musiccloud/dashboard-ui";
-import { type AdminArtistListItem, ENDPOINTS } from "@musiccloud/shared";
+import { type AdminArtistListItem, AdminEventType, ENDPOINTS } from "@musiccloud/shared";
 import {
   MagnifyingGlass as MagnifyingGlassIcon,
   MicrophoneStage as MicrophoneStageIcon,
@@ -191,8 +191,7 @@ export function ArtistsPage() {
   const table = useInfiniteAdminTable<AdminArtistListItem>({
     endpoint: ENDPOINTS.admin.artists.list,
     deleteEndpoint: ENDPOINTS.admin.artists.list,
-    sseEventType: "artist-added",
-    sseToItem: (data) => data as unknown as AdminArtistListItem,
+    deletedEventType: AdminEventType.ArtistsDeleted,
   });
 
   const columns = useArtistColumns(table, ma, messages.music.columns);

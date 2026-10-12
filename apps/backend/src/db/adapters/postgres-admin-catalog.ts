@@ -26,6 +26,7 @@
  */
 
 import {
+  AdminEventType,
   type ArtistProfileManualRefreshSummary,
   type ArtistProfileProvider,
   classifyArtistProfileCacheStatus,
@@ -657,7 +658,7 @@ export async function deleteTracks(pool: Pool, ids: string[]): Promise<void> {
     await client.query("COMMIT");
 
     adminEventBroadcaster.emit({
-      type: "tracks-deleted",
+      type: AdminEventType.TracksDeleted,
       data: { count: ids.length, ids },
     });
   } catch (error) {
@@ -693,7 +694,7 @@ export async function deleteAlbums(pool: Pool, ids: string[]): Promise<void> {
     await client.query("COMMIT");
 
     adminEventBroadcaster.emit({
-      type: "albums-deleted",
+      type: AdminEventType.AlbumsDeleted,
       data: { count: ids.length, ids },
     });
   } catch (error) {
@@ -735,7 +736,7 @@ export async function deleteArtists(pool: Pool, ids: string[]): Promise<void> {
     await client.query("COMMIT");
 
     adminEventBroadcaster.emit({
-      type: "artists-deleted",
+      type: AdminEventType.ArtistsDeleted,
       data: { count: ids.length, ids },
     });
   } catch (error) {

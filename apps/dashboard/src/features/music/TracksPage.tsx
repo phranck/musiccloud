@@ -7,7 +7,7 @@ import {
   DashboardButtonVariant,
   DashboardInput,
 } from "@musiccloud/dashboard-ui";
-import { ENDPOINTS } from "@musiccloud/shared";
+import { AdminEventType, ENDPOINTS } from "@musiccloud/shared";
 import {
   MagnifyingGlass as MagnifyingGlassIcon,
   MusicNotes as MusicNotesIcon,
@@ -190,8 +190,7 @@ export function TracksPage() {
   const table = useInfiniteAdminTable<TrackListItem>({
     endpoint: ENDPOINTS.admin.tracks.list,
     deleteEndpoint: ENDPOINTS.admin.tracks.list,
-    sseEventType: "track-added",
-    sseToItem: (data) => data as unknown as TrackListItem,
+    deletedEventType: AdminEventType.TracksDeleted,
   });
 
   const columns = useTrackColumns(table, messages.music.columns, messages.common, navigate);

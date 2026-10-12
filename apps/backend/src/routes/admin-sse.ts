@@ -1,11 +1,12 @@
 /**
  * @file Server-Sent Events (SSE) stream for the admin dashboard.
  *
- * The admin UI keeps this connection open to receive live updates when
- * tracks/albums/artists are added or deleted (see
- * `adminEventBroadcaster`'s event types). SSE is chosen over WebSockets
- * because the traffic is strictly server-to-client and SSE rides on
- * ordinary HTTP, which simplifies the proxy path.
+ * The admin UI keeps this connection open to hear about deletions made in any
+ * admin session: `tracks-deleted`, `albums-deleted` and `artists-deleted`,
+ * as `AdminEventType` in `@musiccloud/shared` defines them. An open list drops
+ * the deleted rows when one arrives. SSE is chosen over WebSockets because the
+ * traffic is strictly server-to-client and SSE rides on ordinary HTTP, which
+ * simplifies the proxy path.
  *
  * Registered inside the admin scope in `server.ts`, so the connection is
  * already JWT-authenticated by the time the handler runs.

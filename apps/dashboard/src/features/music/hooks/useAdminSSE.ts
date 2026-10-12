@@ -1,13 +1,5 @@
-import { ENDPOINTS } from "@musiccloud/shared";
+import { type AdminEvent, ENDPOINTS, isAdminEvent } from "@musiccloud/shared";
 import { useEffect, useRef } from "react";
-
-export type SSEEvent =
-  | { type: "track-added"; data: Record<string, unknown> }
-  | { type: "album-added"; data: Record<string, unknown> }
-  | { type: "backfill:started"; data: Record<string, unknown> }
-  | { type: "backfill:progress"; data: Record<string, unknown> }
-  | { type: "backfill:done"; data: Record<string, unknown> }
-  | { type: "backfill:error"; data: Record<string, unknown> };
 
 function getToken(): string | null {
   try {
@@ -26,9 +18,12 @@ function getToken(): string | null {
  * Uses fetch + ReadableStream instead of EventSource so that the
  * Authorization header can be sent (EventSource does not support headers).
  *
+ * Only events the shared `AdminEventType` defines, with a payload of the
+ * right shape, reach `onEvent`. Anything else on the stream is dropped.
+ *
  * Reconnects automatically after 3 s on error or server-side close.
  */
-export function useAdminSSE(onEvent: (event: SSEEvent) => void): void {
+export function useAdminSSE(onEvent: (event: AdminEvent) => void): void {
   const onEventRef = useRef(onEvent);
   useEffect(() => {
     onEventRef.current = onEvent;
@@ -75,10 +70,10 @@ export function useAdminSSE(onEvent: (event: SSEEvent) => void): void {
               eventData = line.slice(6).trim();
             } else if (line === "" && eventType && eventData) {
               try {
-                onEventRef.current({
-                  type: eventType as SSEEvent["type"],
-                  data: JSON.parse(eventData) as Record<string, unknown>,
-                });
+                const data: unknown = JSON.parse(eventData);
+                if (isAdminEvent(eventType, data)) {
+                  onEventRef.current({ type: eventType, data } as AdminEvent);
+                }
               } catch {}
               eventType = "";
               eventData = "";
