@@ -6,14 +6,54 @@ import {
   hashesFromAstroPolicy,
   SurfaceExposure,
 } from "@musiccloud/shared";
+import type { APIContext } from "astro";
 
 import { PORTAL_GATE_CONTENT_SECURITY_POLICY, PortalGateMode, renderPortalGateHtml } from "./lib/coming-soon";
 import { PORTAL_FONT_FACE_HASH } from "./lib/fonts";
+import { readInvitationPass } from "./lib/invitation-pass";
 import { getPortalAvailability } from "./lib/portal-availability";
 import { createRenderedPageCache } from "./lib/rendered-page-cache";
+import { getDeveloperSession } from "./lib/session";
 
 const DOCUMENTATION_PATH = "/docs";
-const ALWAYS_REACHABLE_PATHS = new Set(["/developer-theme.css", "/favicon.svg"]);
+
+/**
+ * Reachable in every state. The invitation page and the call it makes belong
+ * here, because an invitation exists to be followed while the portal is shut.
+ */
+const ALWAYS_REACHABLE_PATHS = new Set([
+  "/developer-theme.css",
+  "/favicon.svg",
+  "/invite",
+  ENDPOINTS.dev.auth.redeemInvitation,
+]);
+
+/**
+ * Reachable by everybody while the portal is closed. A person invited earlier
+ * has to be able to sign in on a device they have never used, and the gate
+ * cannot know who somebody is before they sign in. Signing in admits nobody:
+ * every other page asks for the grant afterwards. Matched exactly, so nothing
+ * beneath these paths comes with them.
+ */
+const SIGN_IN_PATHS = new Set([
+  "/login",
+  "/forgot",
+  "/reset",
+  "/verify",
+  "/confirm-email",
+  "/auth/github",
+  "/auth/github/callback",
+  ENDPOINTS.dev.auth.login,
+  ENDPOINTS.dev.auth.logout,
+  ENDPOINTS.dev.auth.me,
+  ENDPOINTS.dev.auth.requestReset,
+  ENDPOINTS.dev.auth.resetPassword,
+  ENDPOINTS.dev.auth.verifyEmail,
+  ENDPOINTS.dev.auth.confirmEmailChange,
+]);
+
+/** Reachable while the portal is closed by a request carrying a valid invitation pass. */
+const SIGN_UP_PATHS = new Set(["/signup", ENDPOINTS.dev.auth.signup]);
 
 /** The API reference's address, with and without its trailing slash. */
 const API_REFERENCE_PATHS = new Set([`${DOCUMENTATION_PATH}/api`, `${DOCUMENTATION_PATH}/api/`]);
@@ -95,16 +135,27 @@ async function routeResponse(next: () => Promise<Response>): Promise<Response> {
 }
 
 /**
- * Global request gate. The system documentation namespace and built assets remain available
- * in every state. All other routes fail closed to Coming Soon if the internal
- * state cannot be read. Maintenance deliberately preserves the original URL
- * and uses 503 so browsers, caches, and monitors understand it is temporary.
+ * Global request gate. The system documentation namespace, built assets and
+ * the invitation page remain available in every state. Maintenance
+ * deliberately preserves the original URL and uses 503 so browsers, caches,
+ * and monitors understand it is temporary.
  *
- * @param pathname - Request path, deciding whether the gate applies at all.
+ * While the portal is closed, the sign-in paths stay open, a session whose
+ * account carries the grant passes, and a valid invitation pass opens
+ * sign-up. Everything else meets the Coming Soon page, and so does every path
+ * when the availability state cannot be read.
+ *
+ * The session and the pass are only looked up for a request carrying the
+ * cookie, and the session only while the portal is closed, so a public portal
+ * costs no extra call. On a sign-up path the pass is read whatever the state,
+ * because the page starts its address field with the invited address.
+ *
+ * @param context - The request's context: its URL, cookies, visitor address and locals.
  * @param next - Continues to the matched route.
  * @returns Either the gate page or whatever the route produced.
  */
-async function gateRequest(pathname: string, next: () => Promise<Response>): Promise<Response> {
+async function gateRequest(context: APIContext, next: () => Promise<Response>): Promise<Response> {
+  const { pathname } = context.url;
   if (API_REFERENCE_PATHS.has(pathname)) {
     return apiReferenceCache(() => routeResponse(next));
   }
@@ -113,16 +164,26 @@ async function gateRequest(pathname: string, next: () => Promise<Response>): Pro
   }
 
   const availability = await getPortalAvailability();
-
-  if (availability?.maintenance) {
+  if (!availability) {
+    return gateResponse(PortalGateMode.ComingSoon, 200);
+  }
+  if (availability.maintenance) {
     return gateResponse(PortalGateMode.Maintenance, 503, { "retry-after": "300" });
   }
 
-  if (!availability?.public) {
-    return gateResponse(PortalGateMode.ComingSoon, 200);
+  const signUp = SIGN_UP_PATHS.has(pathname);
+  if (signUp) {
+    const invitation = await readInvitationPass(context);
+    if (invitation) context.locals.invitation = invitation;
   }
 
-  return routeResponse(next);
+  if (availability.public || SIGN_IN_PATHS.has(pathname) || (signUp && context.locals.invitation)) {
+    return routeResponse(next);
+  }
+  if ((await getDeveloperSession(context))?.portalAccess) {
+    return routeResponse(next);
+  }
+  return gateResponse(PortalGateMode.ComingSoon, 200);
 }
 
 /**
@@ -135,7 +196,7 @@ async function gateRequest(pathname: string, next: () => Promise<Response>): Pro
  * which the shared headers keep.
  */
 export const onRequest = defineMiddleware(async (context, next) => {
-  const response = await gateRequest(context.url.pathname, next);
+  const response = await gateRequest(context, next);
   applySecurityHeaders(response.headers, SurfaceExposure.Public);
   return response;
 });

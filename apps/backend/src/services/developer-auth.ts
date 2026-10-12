@@ -239,12 +239,6 @@ export function clearedSessionCookieOptions(): CookieSerializeOptions {
 }
 
 /**
- * Name of the httpOnly cookie carrying an invitation pass: what lets a person
- * who followed an invitation link reach sign-up while the portal is closed.
- */
-export const INVITATION_PASS_COOKIE_NAME = "mc_dev_invite_pass";
-
-/**
  * How long a pass lives, in seconds. A day, because it only has to survive one
  * sign-up; the access itself is written onto the account the pass ends on.
  */

@@ -1,8 +1,12 @@
 import { ENDPOINTS } from "@musiccloud/shared";
 
 import { backendUrl, internalHeaders } from "./api";
+import { logFailClosedRead } from "./fail-closed-read";
 
 const AVAILABILITY_TIMEOUT_MS = 2_000;
+
+/** The operation the availability read logs under. */
+const AVAILABILITY_READ = "developer_portal_availability_read";
 
 export interface PortalAvailability {
   maintenance: boolean;
@@ -22,19 +26,19 @@ export async function getPortalAvailability(): Promise<PortalAvailability | null
     });
 
     if (!response.ok) {
-      logAvailabilityDeviation({ reason: "unexpected_status", status: response.status });
+      logFailClosedRead(AVAILABILITY_READ, { reason: "unexpected_status", status: response.status });
       return null;
     }
 
     const payload: unknown = await response.json();
     if (!isPortalAvailability(payload)) {
-      logAvailabilityDeviation({ reason: "invalid_payload" });
+      logFailClosedRead(AVAILABILITY_READ, { reason: "invalid_payload" });
       return null;
     }
 
     return payload;
   } catch (error) {
-    logAvailabilityDeviation({
+    logFailClosedRead(AVAILABILITY_READ, {
       cause: error instanceof Error ? error.name : "UnknownError",
       reason: "request_failed",
     });
@@ -50,21 +54,5 @@ function isPortalAvailability(value: unknown): value is PortalAvailability {
     "maintenance" in value &&
     typeof value.public === "boolean" &&
     typeof value.maintenance === "boolean"
-  );
-}
-
-function logAvailabilityDeviation(fields: { cause?: string; reason: string; status?: number }): void {
-  // Do not include response bodies, endpoint URLs, headers, or error messages:
-  // all can contain deployment details or credentials. The event stays useful
-  // for operators through its stable code and outcome. The code is the
-  // registry's own for a first-party app that could not complete a backend
-  // request, so a search of the registry for it finds the entry.
-  console.warn(
-    JSON.stringify({
-      errorCode: "MC-SYS-0002",
-      operation: "developer_portal_availability_read",
-      outcome: "fail_closed",
-      ...fields,
-    }),
   );
 }

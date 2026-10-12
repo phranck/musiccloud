@@ -17,8 +17,10 @@
  */
 import {
   ENDPOINTS,
+  INVITATION_PASS_COOKIE_NAME,
   PortalInvitationNext,
   type PortalInvitationNextValue,
+  type PortalInvitationPass,
   type PortalInvitationRedemption,
   ROUTE_TEMPLATES,
 } from "@musiccloud/shared";
@@ -32,7 +34,6 @@ import { sendRateLimitError } from "../lib/infra/rate-limit-response.js";
 import { RateLimiter } from "../lib/infra/rate-limiter.js";
 import {
   clearedInvitationPassCookieOptions,
-  INVITATION_PASS_COOKIE_NAME,
   issueInvitationPass,
   readInvitationPass,
   SESSION_COOKIE_NAME,
@@ -40,9 +41,9 @@ import {
 import {
   bindPortalInvitation,
   invitePortalDeveloper,
-  isPortalInvitationPassOpen,
   listPortalInvitations,
   PortalInvitationMailError,
+  readOpenPortalInvitationPass,
   redeemPortalInvitation,
   resendPortalInvitation,
   withdrawPortalInvitation,
@@ -233,13 +234,19 @@ export async function devPortalInvitationRoutes(app: FastifyInstance): Promise<v
   );
 }
 
-/** Registers the internal read the portal's gate asks about a pass. */
+/**
+ * Registers the internal read the portal's gate asks about a pass.
+ *
+ * It answers with the invited address as well, which the sign-up form starts
+ * with, so the address never has to travel in a page's URL.
+ */
 export async function developerPortalInvitationInternalRoutes(app: FastifyInstance): Promise<void> {
-  app.get(ENDPOINTS.internal.developer.invitationPass, async (request) => {
+  app.get(ENDPOINTS.internal.developer.invitationPass, async (request): Promise<PortalInvitationPass> => {
     const invitationId = readInvitationPass(request.cookies?.[INVITATION_PASS_COOKIE_NAME], (token) =>
       app.jwt.verify(token),
     );
-    return { valid: invitationId !== null && (await isPortalInvitationPassOpen(invitationId)) };
+    const open = invitationId === null ? null : await readOpenPortalInvitationPass(invitationId);
+    return open ? { valid: true, email: open.email } : { valid: false, email: null };
   });
 }
 

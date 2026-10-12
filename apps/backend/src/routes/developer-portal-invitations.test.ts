@@ -2,6 +2,7 @@ import cookie from "@fastify/cookie";
 import jwt from "@fastify/jwt";
 import {
   ENDPOINTS,
+  INVITATION_PASS_COOKIE_NAME,
   type PortalInvitation,
   PortalInvitationNext,
   PortalInvitationRefusal,
@@ -10,7 +11,7 @@ import {
 import Fastify from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { registerApiErrorHandling } from "../lib/infra/api-error-handler.js";
-import { INVITATION_PASS_COOKIE_NAME, issueInvitationPass, SESSION_COOKIE_NAME } from "../services/developer-auth.js";
+import { issueInvitationPass, SESSION_COOKIE_NAME } from "../services/developer-auth.js";
 
 const mocks = vi.hoisted(() => ({
   findAdminById: vi.fn(),
@@ -20,7 +21,7 @@ const mocks = vi.hoisted(() => ({
   withdrawPortalInvitation: vi.fn(),
   redeemPortalInvitation: vi.fn(),
   bindPortalInvitation: vi.fn(),
-  isPortalInvitationPassOpen: vi.fn(),
+  readOpenPortalInvitationPass: vi.fn(),
   resolveDeveloperSession: vi.fn(),
 }));
 
@@ -36,7 +37,7 @@ vi.mock("../services/developer-portal-invitations.js", async (importOriginal) =>
   withdrawPortalInvitation: mocks.withdrawPortalInvitation,
   redeemPortalInvitation: mocks.redeemPortalInvitation,
   bindPortalInvitation: mocks.bindPortalInvitation,
-  isPortalInvitationPassOpen: mocks.isPortalInvitationPassOpen,
+  readOpenPortalInvitationPass: mocks.readOpenPortalInvitationPass,
 }));
 
 vi.mock("../services/developer-session.js", async (importOriginal) => ({
@@ -308,22 +309,22 @@ describe("the gate's question about a pass", () => {
     const app = await createApp();
     const pass = issueInvitationPass("inv-1", (payload, options) => app.jwt.sign(payload, options)).token;
 
-    mocks.isPortalInvitationPassOpen.mockResolvedValueOnce(true);
+    mocks.readOpenPortalInvitationPass.mockResolvedValueOnce({ email: "new@example.com" });
     const open = await app.inject({
       method: "GET",
       url: ENDPOINTS.internal.developer.invitationPass,
       cookies: { [INVITATION_PASS_COOKIE_NAME]: pass },
     });
-    mocks.isPortalInvitationPassOpen.mockResolvedValueOnce(false);
+    mocks.readOpenPortalInvitationPass.mockResolvedValueOnce(null);
     const spent = await app.inject({
       method: "GET",
       url: ENDPOINTS.internal.developer.invitationPass,
       cookies: { [INVITATION_PASS_COOKIE_NAME]: pass },
     });
 
-    expect(open.json()).toEqual({ valid: true });
-    expect(mocks.isPortalInvitationPassOpen).toHaveBeenCalledWith("inv-1");
-    expect(spent.json()).toEqual({ valid: false });
+    expect(open.json()).toEqual({ valid: true, email: "new@example.com" });
+    expect(mocks.readOpenPortalInvitationPass).toHaveBeenCalledWith("inv-1");
+    expect(spent.json()).toEqual({ valid: false, email: null });
   });
 
   it("answers no for a forged pass and for none, without asking the database", async () => {
@@ -336,8 +337,8 @@ describe("the gate's question about a pass", () => {
     });
     const none = await app.inject({ method: "GET", url: ENDPOINTS.internal.developer.invitationPass });
 
-    expect(forged.json()).toEqual({ valid: false });
-    expect(none.json()).toEqual({ valid: false });
-    expect(mocks.isPortalInvitationPassOpen).not.toHaveBeenCalled();
+    expect(forged.json()).toEqual({ valid: false, email: null });
+    expect(none.json()).toEqual({ valid: false, email: null });
+    expect(mocks.readOpenPortalInvitationPass).not.toHaveBeenCalled();
   });
 });

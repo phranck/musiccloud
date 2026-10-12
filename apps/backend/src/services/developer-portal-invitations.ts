@@ -400,19 +400,19 @@ export async function bindPortalInvitation(invitationId: string, accountId: stri
 }
 
 /**
- * Whether a pass for this invitation still opens sign-up.
+ * The invitation a pass names, while the pass still opens sign-up.
  *
- * True between the link being followed and the invitation being bound to an
- * account, unless it is withdrawn in between.
+ * That is between the link being followed and the invitation being bound to
+ * an account, unless it is withdrawn in between.
  *
  * @param invitationId - The invitation the pass names.
- * @returns Whether the pass is still good.
+ * @returns The invited address, or `null` when the pass no longer opens anything.
  */
-export async function isPortalInvitationPassOpen(invitationId: string): Promise<boolean> {
-  const result = await getDatabasePool().query(
-    `SELECT 1 FROM developer_portal_invitations
+export async function readOpenPortalInvitationPass(invitationId: string): Promise<{ email: string } | null> {
+  const result = await getDatabasePool().query<{ email: string }>(
+    `SELECT email FROM developer_portal_invitations
      WHERE id = $1 AND redeemed_at IS NOT NULL AND revoked_at IS NULL AND account_id IS NULL`,
     [invitationId],
   );
-  return (result.rowCount ?? 0) > 0;
+  return result.rows[0] ?? null;
 }

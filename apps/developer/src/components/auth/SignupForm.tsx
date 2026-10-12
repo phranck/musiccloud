@@ -82,6 +82,23 @@ interface SignupFormProps {
    * browser's back button.
    */
   tier?: { id: string; name: string; color: string };
+  /**
+   * The address an invitation was sent to, which the email field starts with.
+   * The middleware reads it from the invitation pass, so it never travels in
+   * the page's URL. The field stays editable: the invitation admits whoever
+   * holds it, whatever address they sign up with.
+   */
+  invitedEmail?: string;
+}
+
+/**
+ * The state a form starts in, with the invited address where there is one.
+ *
+ * @param invitedEmail - The address an invitation was sent to, if any.
+ * @returns The initial signup state.
+ */
+function initialSignupState(invitedEmail: string | undefined): SignupState {
+  return { ...INITIAL_STATE, email: invitedEmail ?? "" };
 }
 
 /**
@@ -103,8 +120,8 @@ interface SignupFormProps {
  * @returns The GitHub/divider affordances plus the signup form, or, once
  *   submitted, the standalone "check your email" panel.
  */
-export function SignupForm({ children, tier }: SignupFormProps) {
-  const [state, dispatch] = useReducer(reduceSignup, INITIAL_STATE);
+export function SignupForm({ children, tier, invitedEmail }: SignupFormProps) {
+  const [state, dispatch] = useReducer(reduceSignup, invitedEmail, initialSignupState);
   const { displayName, email, password, confirmPassword, phase, emailError, passwordError, confirmPasswordError } =
     state;
 
