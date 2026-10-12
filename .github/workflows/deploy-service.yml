@@ -1,0 +1,105 @@
+name: Deploy service
+
+# One service's deploy, called by the four deploy jobs in ci.yml with the
+# values that differ between them. The steps are the same for every service:
+# security.txt, the opening status banner, the Zerops push, a probe of the
+# public host, the closing status banner.
+on:
+  workflow_call:
+    inputs:
+      app:
+        description: The service's folder under apps/, which is also its setup name in zerops.yml.
+        type: string
+        required: true
+      service-name:
+        description: The name the status page shows for the service.
+        type: string
+        required: true
+      service-slug:
+        description: The status page's identifier for the service.
+        type: string
+        required: true
+      host:
+        description: The public host the service answers on.
+        type: string
+        required: true
+      probe-paths:
+        description: Space-separated paths on the host that must answer after the deploy.
+        type: string
+        required: true
+      zerops-service-id:
+        description: The Zerops service the build is pushed to.
+        type: string
+        required: true
+
+# Zerops mutations and status dispatches authenticate only through their
+# explicit ZEROPS_TOKEN and fine-grained STATUS_DISPATCH_TOKEN secrets, never an
+# elevated GITHUB_TOKEN.
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: ${{ inputs.service-name }}
+    runs-on: ubuntu-latest
+    # Announces the deploy on status.musiccloud.io (MC-062): a
+    # repository_dispatch opens a maintenance banner before the push and closes
+    # it after. Guarded by env.STATUS_TOKEN so it stays inert when the
+    # STATUS_DISPATCH_TOKEN secret (fine-grained PAT with contents:write on the
+    # status repo) is absent.
+    env:
+      STATUS_TOKEN: ${{ secrets.STATUS_DISPATCH_TOKEN }}
+      SERVICE_NAME: ${{ inputs.service-name }}
+      SERVICE_SLUG: ${{ inputs.service-slug }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Add security.txt
+        uses: phranck/security-txt-action@v1
+        with:
+          host: ${{ inputs.host }}
+          output: apps/${{ inputs.app }}/public/.well-known
+          signing-key: ${{ secrets.SECURITY_TXT_SIGNING_KEY }}
+          signing-passphrase: ${{ secrets.SECURITY_TXT_SIGNING_PASSPHRASE }}
+      - name: Announce deploy start
+        if: env.STATUS_TOKEN != ''
+        # A status-page banner is a convenience, a deploy is not. Without this
+        # a rejected token stops the job before Zerops is ever contacted.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ env.STATUS_TOKEN }}
+        run: |
+          jq -n --arg service "$SERVICE_NAME" --arg slug "$SERVICE_SLUG" \
+            '{event_type: "deploy_start", client_payload: {service: $service, slug: $slug}}' |
+            gh api repos/phranck/status.musiccloud.io/dispatches --input -
+      - name: Install Zerops CLI
+        run: |
+          curl -fsSL https://github.com/zeropsio/zcli/releases/latest/download/zcli-linux-amd64 -o /usr/local/bin/zcli
+          chmod +x /usr/local/bin/zcli
+      - name: Deploy and wait
+        env:
+          ZEROPS_TOKEN: ${{ secrets.ZEROPS_TOKEN }}
+          ZEROPS_SERVICE_ID: ${{ inputs.zerops-service-id }}
+          HOST: ${{ inputs.host }}
+          PROBE_PATHS: ${{ inputs.probe-paths }}
+        run: |
+          zcli login "$ZEROPS_TOKEN"
+          ./scripts/zerops-deploy.sh "$ZEROPS_SERVICE_ID"
+          # Zerops confirms the artifact deploy, not that the process has bound
+          # its public port. Every path the caller names has to answer, so a
+          # service that crashes on start or listens on the wrong port fails the
+          # deployment instead of reporting green while the previous build keeps
+          # serving.
+          for path in $PROBE_PATHS; do
+            curl --fail --silent --show-error --output /dev/null --retry 10 --retry-all-errors --retry-delay 3 "https://${HOST}${path}"
+          done
+      - name: Announce deploy end
+        if: always() && env.STATUS_TOKEN != ''
+        # Zerops has already finished here, so a failed dispatch must not turn
+        # a finished deploy red.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ env.STATUS_TOKEN }}
+        run: |
+          jq -n --arg service "$SERVICE_NAME" --arg slug "$SERVICE_SLUG" \
+            '{event_type: "deploy_end", client_payload: {service: $service, slug: $slug}}' |
+            gh api repos/phranck/status.musiccloud.io/dispatches --input -

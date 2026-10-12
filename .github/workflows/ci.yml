@@ -36,91 +36,23 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - name: Detect changed validation paths
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - name: Detect affected workspaces
         id: filter
         shell: bash
         env:
           HEAD_SHA: ${{ github.sha }}
           PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PUSH_BEFORE_SHA: ${{ github.event.before }}
+        # The workspace graph decides what a change affects, see
+        # scripts/changed-workspaces.mjs. A pull request compares against its
+        # base, a push against the commit before it.
         run: |
           set -euo pipefail
-
-          head_sha="$HEAD_SHA"
-          base_sha="$PULL_REQUEST_BASE_SHA"
-          if [[ -z "$base_sha" ]]; then
-            base_sha="$PUSH_BEFORE_SHA"
-          fi
-
-          use_full_tree=false
-          if [[ -z "$base_sha" || "$base_sha" == "0000000000000000000000000000000000000000" ]]; then
-            use_full_tree=true
-          elif ! git cat-file -e "${base_sha}^{commit}" 2>/dev/null; then
-            use_full_tree=true
-          fi
-
-          if [[ "$use_full_tree" == true ]]; then
-            mapfile -t changed_files < <(git ls-tree -r --name-only "$head_sha")
-          else
-            mapfile -t changed_files < <(git diff --name-only "$base_sha" "$head_sha")
-          fi
-
-          all=false
-          shared=false
-          backend=false
-          frontend=false
-          developer=false
-          dashboard=false
-          dashboard_ui=false
-
-          for file in "${changed_files[@]}"; do
-            case "$file" in
-              .github/workflows/ci.yml|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|tsconfig*.json)
-                all=true ;;
-              packages/shared/*)
-                shared=true
-                backend=true
-                frontend=true
-                developer=true
-                dashboard=true ;;
-              apps/backend/*)
-                backend=true
-                developer=true ;;
-              apps/frontend/*)
-                frontend=true ;;
-              apps/developer/*)
-                developer=true ;;
-              apps/dashboard/*)
-                dashboard=true ;;
-              packages/dashboard-ui/*)
-                dashboard_ui=true
-                dashboard=true ;;
-            esac
-          done
-
-          if [[ "$all" == true ]]; then
-            shared=true
-            backend=true
-            frontend=true
-            developer=true
-            dashboard=true
-            dashboard_ui=true
-          fi
-
-          # Every application that imports @musiccloud/shared needs its current
-          # declaration output before TypeScript or Astro resolves it.
-          if [[ "$backend" == true || "$frontend" == true || "$developer" == true || "$dashboard" == true ]]; then
-            shared=true
-          fi
-
-          {
-            echo "shared=$shared"
-            echo "backend=$backend"
-            echo "frontend=$frontend"
-            echo "developer=$developer"
-            echo "dashboard=$dashboard"
-            echo "dashboard_ui=$dashboard_ui"
-          } >> "$GITHUB_OUTPUT"
+          node scripts/changed-workspaces.mjs validate "${PULL_REQUEST_BASE_SHA:-$PUSH_BEFORE_SHA}" "$HEAD_SHA" >> "$GITHUB_OUTPUT"
 
   lint:
     name: Lint
@@ -132,7 +64,6 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
       - run: corepack enable pnpm
-      - run: corepack prepare pnpm@10.33.1 --activate
       - name: Restore pnpm store
         uses: actions/cache@v4
         with:
@@ -174,7 +105,6 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
       - run: corepack enable pnpm
-      - run: corepack prepare pnpm@10.33.1 --activate
       - name: Restore pnpm store
         uses: actions/cache@v4
         with:
@@ -251,7 +181,11 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - name: Detect changed paths
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - name: Detect services to deploy
         id: filter
         shell: bash
         env:
@@ -283,232 +217,60 @@ jobs:
             --jq '.[0].headSha // empty' 2>/dev/null || true)
 
           # Fall back to the push's own before-ref if the lookup yields nothing
-          # (e.g. no prior successful run, or the API call failed).
-          if [[ -z "$before_sha" ]]; then
-            before_sha="$PUSH_BEFORE_SHA"
-          fi
+          # (e.g. no prior successful run, or the API call failed). A base the
+          # checkout does not know means the whole tree, see
+          # scripts/changed-workspaces.mjs.
+          node scripts/changed-workspaces.mjs deploy "${before_sha:-$PUSH_BEFORE_SHA}" "$head_sha" >> "$GITHUB_OUTPUT"
 
-          # Treat every tracked file as changed when there is no usable base:
-          # the zero-SHA of a branch's first push, or a base commit that is not
-          # present in this checkout (e.g. after a force-push rewrites history).
-          use_full_tree=false
-          if [[ -z "$before_sha" || "$before_sha" == "0000000000000000000000000000000000000000" ]]; then
-            use_full_tree=true
-          elif ! git cat-file -e "${before_sha}^{commit}" 2>/dev/null; then
-            use_full_tree=true
-          fi
-
-          if [[ "$use_full_tree" == true ]]; then
-            mapfile -t changed_files < <(git ls-tree -r --name-only "$head_sha")
-          else
-            mapfile -t changed_files < <(git diff --name-only "$before_sha" "$head_sha")
-          fi
-
-          backend=false
-          frontend=false
-          developer=false
-          dashboard=false
-
-          for file in "${changed_files[@]}"; do
-            case "$file" in
-              apps/backend/*|packages/shared/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|zerops.yml)
-                backend=true ;;
-            esac
-            case "$file" in
-              apps/frontend/*|packages/shared/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|zerops.yml)
-                frontend=true ;;
-            esac
-            case "$file" in
-              apps/backend/*|apps/developer/*|packages/shared/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|zerops.yml)
-                developer=true ;;
-            esac
-            case "$file" in
-              apps/dashboard/*|packages/shared/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|zerops.yml)
-                dashboard=true ;;
-            esac
-          done
-
-          {
-            echo "backend=$backend"
-            echo "frontend=$frontend"
-            echo "developer=$developer"
-            echo "dashboard=$dashboard"
-          } >> "$GITHUB_OUTPUT"
-
-  # All deploy jobs inherit `contents: read`. Zerops mutations and status
-  # dispatches authenticate only through their explicit ZEROPS_TOKEN and
-  # fine-grained STATUS_DISPATCH_TOKEN secrets, never an elevated GITHUB_TOKEN.
+  # Each deploy job calls .github/workflows/deploy-service.yml with the values
+  # that differ between the services. The called workflow keeps `contents:
+  # read` and takes the deploy and status secrets from here.
   deploy-backend:
     name: Deploy Backend
-    runs-on: ubuntu-latest
     needs: detect-changes
     if: needs.detect-changes.outputs.backend == 'true'
-    # Auto-announces the deploy on status.musiccloud.io (MC-062): a repository_dispatch
-    # opens a maintenance banner before the push and closes it after. Guarded by
-    # env.STATUS_TOKEN so it stays inert if the STATUS_DISPATCH_TOKEN secret
-    # (fine-grained PAT with contents:write on the status repo) is absent, and by
-    # continue-on-error on the two steps so a token that is present but rejected
-    # cannot hold up the deploy either. The banner is a convenience; the deploy
-    # is not.
-    env:
-      STATUS_TOKEN: ${{ secrets.STATUS_DISPATCH_TOKEN }}
-    steps:
-      - uses: actions/checkout@v5
-      - name: Add security.txt
-        uses: phranck/security-txt-action@v1
-        with:
-          host: api.musiccloud.io
-          output: apps/backend/public/.well-known
-          signing-key: ${{ secrets.SECURITY_TXT_SIGNING_KEY }}
-          signing-passphrase: ${{ secrets.SECURITY_TXT_SIGNING_PASSPHRASE }}
-      - name: Announce deploy start
-        if: env.STATUS_TOKEN != ''
-        # A status-page banner is a convenience, a deploy is not. Without this
-        # a rejected token stops the job before Zerops is ever contacted.
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ env.STATUS_TOKEN }}
-        run: |
-          gh api repos/phranck/status.musiccloud.io/dispatches --input - <<'JSON'
-          {"event_type":"deploy_start","client_payload":{"service":"Backend","slug":"backend"}}
-          JSON
-      - name: Install Zerops CLI
-        run: |
-          curl -fsSL https://github.com/zeropsio/zcli/releases/latest/download/zcli-linux-amd64 -o /usr/local/bin/zcli
-          chmod +x /usr/local/bin/zcli
-      - name: Deploy and wait
-        env:
-          ZEROPS_TOKEN: ${{ secrets.ZEROPS_TOKEN }}
-        run: |
-          zcli login "$ZEROPS_TOKEN"
-          ./scripts/zerops-deploy.sh vftiwXaYQGCnnwEEaiGPYA
-          # Zerops confirms the artifact deploy, not that the process has bound
-          # its public port. Require the backend's runtime health boundary so a
-          # crash during startup fails the deployment instead of reporting green.
-          curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 3 https://api.musiccloud.io/health/backend
-      - name: Announce deploy end
-        if: always() && env.STATUS_TOKEN != ''
-        # A status-page banner is a convenience, a deploy is not. Without this
-        # a rejected token stops the job before Zerops is ever contacted.
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ env.STATUS_TOKEN }}
-        run: |
-          gh api repos/phranck/status.musiccloud.io/dispatches --input - <<'JSON'
-          {"event_type":"deploy_end","client_payload":{"service":"Backend","slug":"backend"}}
-          JSON
+    uses: ./.github/workflows/deploy-service.yml
+    secrets: inherit
+    with:
+      app: backend
+      service-name: Backend
+      service-slug: backend
+      host: api.musiccloud.io
+      # The backend's runtime health boundary, so a crash during startup fails
+      # the deployment.
+      probe-paths: /health/backend
+      zerops-service-id: vftiwXaYQGCnnwEEaiGPYA
 
   deploy-frontend:
     name: Deploy Frontend
-    runs-on: ubuntu-latest
     needs: detect-changes
     if: needs.detect-changes.outputs.frontend == 'true'
-    env:
-      STATUS_TOKEN: ${{ secrets.STATUS_DISPATCH_TOKEN }}
-    steps:
-      - uses: actions/checkout@v5
-      - name: Add security.txt
-        uses: phranck/security-txt-action@v1
-        with:
-          host: musiccloud.io
-          output: apps/frontend/public/.well-known
-          signing-key: ${{ secrets.SECURITY_TXT_SIGNING_KEY }}
-          signing-passphrase: ${{ secrets.SECURITY_TXT_SIGNING_PASSPHRASE }}
-      - name: Announce deploy start
-        if: env.STATUS_TOKEN != ''
-        # A status-page banner is a convenience, a deploy is not. Without this
-        # a rejected token stops the job before Zerops is ever contacted.
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ env.STATUS_TOKEN }}
-        run: |
-          gh api repos/phranck/status.musiccloud.io/dispatches --input - <<'JSON'
-          {"event_type":"deploy_start","client_payload":{"service":"Frontend","slug":"frontend"}}
-          JSON
-      - name: Install Zerops CLI
-        run: |
-          curl -fsSL https://github.com/zeropsio/zcli/releases/latest/download/zcli-linux-amd64 -o /usr/local/bin/zcli
-          chmod +x /usr/local/bin/zcli
-      - name: Deploy and wait
-        env:
-          ZEROPS_TOKEN: ${{ secrets.ZEROPS_TOKEN }}
-        run: |
-          zcli login "$ZEROPS_TOKEN"
-          ./scripts/zerops-deploy.sh bMY4g66BRDOfq1AAi8Q85A
-          # Zerops confirms the artifact deploy, not that the process has bound
-          # its public port. Require the public host to answer so a service that
-          # starts on the wrong port fails the deployment instead of reporting
-          # green while the previous build keeps serving.
-          curl --fail --silent --show-error --output /dev/null --retry 10 --retry-all-errors --retry-delay 3 https://musiccloud.io/
-      - name: Announce deploy end
-        if: always() && env.STATUS_TOKEN != ''
-        # A status-page banner is a convenience, a deploy is not. Without this
-        # a rejected token stops the job before Zerops is ever contacted.
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ env.STATUS_TOKEN }}
-        run: |
-          gh api repos/phranck/status.musiccloud.io/dispatches --input - <<'JSON'
-          {"event_type":"deploy_end","client_payload":{"service":"Frontend","slug":"frontend"}}
-          JSON
+    uses: ./.github/workflows/deploy-service.yml
+    secrets: inherit
+    with:
+      app: frontend
+      service-name: Frontend
+      service-slug: frontend
+      host: musiccloud.io
+      probe-paths: /
+      zerops-service-id: bMY4g66BRDOfq1AAi8Q85A
 
   deploy-developer:
     name: Deploy Developer
-    runs-on: ubuntu-latest
     needs: detect-changes
     if: needs.detect-changes.outputs.developer == 'true'
-    env:
-      STATUS_TOKEN: ${{ secrets.STATUS_DISPATCH_TOKEN }}
-    steps:
-      - uses: actions/checkout@v5
-      - name: Add security.txt
-        uses: phranck/security-txt-action@v1
-        with:
-          host: developer.musiccloud.io
-          output: apps/developer/public/.well-known
-          signing-key: ${{ secrets.SECURITY_TXT_SIGNING_KEY }}
-          signing-passphrase: ${{ secrets.SECURITY_TXT_SIGNING_PASSPHRASE }}
-      - name: Announce deploy start
-        if: env.STATUS_TOKEN != ''
-        # A status-page banner is a convenience, a deploy is not. Without this
-        # a rejected token stops the job before Zerops is ever contacted.
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ env.STATUS_TOKEN }}
-        run: |
-          gh api repos/phranck/status.musiccloud.io/dispatches --input - <<'JSON'
-          {"event_type":"deploy_start","client_payload":{"service":"Developer Site","slug":"developer-site"}}
-          JSON
-      - name: Install Zerops CLI
-        run: |
-          curl -fsSL https://github.com/zeropsio/zcli/releases/latest/download/zcli-linux-amd64 -o /usr/local/bin/zcli
-          chmod +x /usr/local/bin/zcli
-      - name: Deploy and wait
-        env:
-          ZEROPS_TOKEN: ${{ secrets.ZEROPS_TOKEN }}
-        run: |
-          zcli login "$ZEROPS_TOKEN"
-          ./scripts/zerops-deploy.sh snJHAWsxR32xetGASY33cQ
-          # Zerops confirms the artifact deploy, not that the process has bound
-          # its public port. Require the public host to answer so a service that
-          # starts on the wrong port fails the deployment instead of reporting
-          # green while the previous build keeps serving.
-          curl --fail --silent --show-error --output /dev/null --retry 10 --retry-all-errors --retry-delay 3 https://developer.musiccloud.io/
-      - name: Announce deploy end
-        if: always() && env.STATUS_TOKEN != ''
-        # A status-page banner is a convenience, a deploy is not. Without this
-        # a rejected token stops the job before Zerops is ever contacted.
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ env.STATUS_TOKEN }}
-        run: |
-          gh api repos/phranck/status.musiccloud.io/dispatches --input - <<'JSON'
-          {"event_type":"deploy_end","client_payload":{"service":"Developer Site","slug":"developer-site"}}
-          JSON
+    uses: ./.github/workflows/deploy-service.yml
+    secrets: inherit
+    with:
+      app: developer
+      service-name: Developer Site
+      service-slug: developer-site
+      host: developer.musiccloud.io
+      probe-paths: /
+      zerops-service-id: snJHAWsxR32xetGASY33cQ
 
   deploy-dashboard:
     name: Deploy Dashboard
-    runs-on: ubuntu-latest
     # nginx resolves the `backend` upstream once, when it loads its config, and
     # keeps the result. Once the backend container is replaced, the dashboard
     # answers every /api/ request with 502 or a timeout until it restarts. So
@@ -519,54 +281,14 @@ jobs:
     # failed one skips the dashboard.
     needs: [detect-changes, deploy-backend]
     if: always() && (needs.deploy-backend.result == 'success' || (needs.deploy-backend.result == 'skipped' && needs.detect-changes.outputs.dashboard == 'true'))
-    env:
-      STATUS_TOKEN: ${{ secrets.STATUS_DISPATCH_TOKEN }}
-    steps:
-      - uses: actions/checkout@v5
-      - name: Add security.txt
-        uses: phranck/security-txt-action@v1
-        with:
-          host: dashboard.musiccloud.io
-          output: apps/dashboard/public/.well-known
-          signing-key: ${{ secrets.SECURITY_TXT_SIGNING_KEY }}
-          signing-passphrase: ${{ secrets.SECURITY_TXT_SIGNING_PASSPHRASE }}
-      - name: Announce deploy start
-        if: env.STATUS_TOKEN != ''
-        # A status-page banner is a convenience, a deploy is not. Without this
-        # a rejected token stops the job before Zerops is ever contacted.
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ env.STATUS_TOKEN }}
-        run: |
-          gh api repos/phranck/status.musiccloud.io/dispatches --input - <<'JSON'
-          {"event_type":"deploy_start","client_payload":{"service":"Dashboard","slug":"dashboard"}}
-          JSON
-      - name: Install Zerops CLI
-        run: |
-          curl -fsSL https://github.com/zeropsio/zcli/releases/latest/download/zcli-linux-amd64 -o /usr/local/bin/zcli
-          chmod +x /usr/local/bin/zcli
-      - name: Deploy and wait
-        env:
-          ZEROPS_TOKEN: ${{ secrets.ZEROPS_TOKEN }}
-        run: |
-          zcli login "$ZEROPS_TOKEN"
-          ./scripts/zerops-deploy.sh IF9Xp4YFRxuQKRQxmAWFBA
-          # Zerops confirms the artifact deploy, not that the process has bound
-          # its public port. Require the public host to answer so a service that
-          # starts on the wrong port fails the deployment instead of reporting
-          # green while the previous build keeps serving.
-          curl --fail --silent --show-error --output /dev/null --retry 10 --retry-all-errors --retry-delay 3 https://dashboard.musiccloud.io/
-          # The page above comes from disk. setup-status goes through the proxy
-          # to the backend, so a stale upstream fails here instead of passing.
-          curl --fail --silent --show-error --output /dev/null --retry 10 --retry-all-errors --retry-delay 3 https://dashboard.musiccloud.io/api/admin/auth/setup-status
-      - name: Announce deploy end
-        if: always() && env.STATUS_TOKEN != ''
-        # A status-page banner is a convenience, a deploy is not. Without this
-        # a rejected token stops the job before Zerops is ever contacted.
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ env.STATUS_TOKEN }}
-        run: |
-          gh api repos/phranck/status.musiccloud.io/dispatches --input - <<'JSON'
-          {"event_type":"deploy_end","client_payload":{"service":"Dashboard","slug":"dashboard"}}
-          JSON
+    uses: ./.github/workflows/deploy-service.yml
+    secrets: inherit
+    with:
+      app: dashboard
+      service-name: Dashboard
+      service-slug: dashboard
+      host: dashboard.musiccloud.io
+      # The page comes from disk. setup-status goes through the proxy to the
+      # backend, so a stale upstream fails the deployment instead of passing.
+      probe-paths: / /api/admin/auth/setup-status
+      zerops-service-id: IF9Xp4YFRxuQKRQxmAWFBA
