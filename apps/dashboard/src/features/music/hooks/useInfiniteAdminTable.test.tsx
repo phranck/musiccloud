@@ -1,3 +1,4 @@
+import { SortDirection } from "@musiccloud/dashboard-ui";
 import { type AdminEvent, AdminEventType } from "@musiccloud/shared";
 import { act, cleanup, render, renderHook, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -141,6 +142,34 @@ describe("useInfiniteAdminTable deletions from other sessions", () => {
 
     expect(result.current.items).toEqual(TRACKS.items);
     expect(result.current.total).toBe(5);
+  });
+});
+
+describe("useInfiniteAdminTable superseded requests", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("keeps the rows of the newest sort when an older answer arrives last", async () => {
+    const pending: ((page: { items: Row[]; total: number }) => void)[] = [];
+    vi.spyOn(api, "get").mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          pending.push(resolve);
+        }),
+    );
+    const { result } = renderHook(() => useInfiniteAdminTable<Row>({ endpoint: "/api/admin/tracks" }));
+    await waitFor(() => expect(pending).toHaveLength(1));
+    await act(async () => pending[0]?.({ items: [{ id: "track-1", name: "Newest" }], total: 1 }));
+
+    act(() => result.current.setSort({ sortBy: "title", sortDir: SortDirection.Asc }));
+    await waitFor(() => expect(pending).toHaveLength(2));
+    act(() => result.current.setSort({ sortBy: "title", sortDir: SortDirection.Desc }));
+    await waitFor(() => expect(pending).toHaveLength(3));
+
+    await act(async () => pending[2]?.({ items: [{ id: "track-2", name: "Zulu" }], total: 1 }));
+    await act(async () => pending[1]?.({ items: [{ id: "track-3", name: "Alpha" }], total: 1 }));
+
+    expect(result.current.sortDir).toBe(SortDirection.Desc);
+    expect(result.current.items).toEqual([{ id: "track-2", name: "Zulu" }]);
   });
 });
 
