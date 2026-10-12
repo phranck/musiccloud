@@ -196,6 +196,15 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
       "The project's subscription is in a state that grants nothing (paused, past_due, expired, canceled), or the project has no subscription at all. Distinct from MC-API-0003, which means an active plan's quota is spent.",
     source: "apps/backend/src/plugins/auth.ts authenticatePublic",
   },
+  "MC-AUTH-0004": {
+    code: "MC-AUTH-0004",
+    httpStatus: 403,
+    userMessage: "The developer portal is not open yet. It admits invited accounts only.",
+    internalNote:
+      "While the portal is not public, the developer API serves accounts an invitation admitted, and sign-up and a first GitHub sign-in need a valid invitation pass. The portal's gate shows the same thing to a browser; this is the backend holding it for every other client.",
+    source:
+      "apps/backend/src/plugins/auth.ts authenticateDeveloper, apps/backend/src/routes/developer-auth.ts signup, apps/backend/src/routes/developer-github.ts exchange",
+  },
   "MC-RES-0003": {
     code: "MC-RES-0003",
     httpStatus: 404,

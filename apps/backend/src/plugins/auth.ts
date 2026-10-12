@@ -1,8 +1,8 @@
 /**
  * @file Authentication plugin for the musiccloud backend.
  *
- * This is a **Fastify plugin** that registers three authentication strategies
- * as instance decorators. Each strategy is intended to be attached as a
+ * This is a **Fastify plugin** that registers the authentication strategies
+ * below as instance decorators. Each strategy is intended to be attached as a
  * `preValidation` hook to a specific route group in `server.ts`, so a request
  * without credentials is refused before its body is validated:
  *
@@ -11,7 +11,8 @@
  * | `authenticateInternal`  | Astro SSR frontend BFF proxy      | `X-API-Key` header matching `INTERNAL_API_KEY` |
  * | `authenticatePublic`    | Public API clients + frontend BFF | `X-API-Key` (internal key **or** issued `mc_live_…` token) |
  * | `authenticateAdmin`     | Admin dashboard                   | `Authorization: Bearer <JWT>` with `role: "admin"` claim |
- * | `authenticateDeveloper` | developer.musiccloud.io portal    | `mc_dev_session` httpOnly cookie carrying a `kind: "developer"` JWT |
+ * | `authenticateDeveloper` | developer.musiccloud.io portal    | `mc_dev_session` httpOnly cookie carrying a `kind: "developer"` JWT, from an account the portal admits |
+ * | `authenticateDeveloperSession` | `/me`, data export, account deletion | The same cookie, whether or not the portal admits the account |
  *
  * ## Why a plugin?
  *
@@ -59,6 +60,7 @@ import {
 import { secretsMatch } from "../lib/infra/secret-compare.js";
 import { hashApiToken, looksLikeApiAccessToken } from "../services/api-access-token.js";
 import { SESSION_COOKIE_NAME } from "../services/developer-auth.js";
+import { mayUseDeveloperApi, PORTAL_CLOSED_CODE } from "../services/developer-portal-access.js";
 import {
   DeveloperSessionRefusal,
   type DeveloperSessionRefusalValue,
@@ -71,6 +73,7 @@ declare module "fastify" {
     authenticatePublic: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
     authenticateAdmin: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
     authenticateDeveloper: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
+    authenticateDeveloperSession: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
   }
   interface FastifyRequest {
     /**
@@ -352,41 +355,75 @@ async function authPlugin(app: FastifyInstance) {
   });
 
   /**
-   * Cookie-based session authentication for the developer portal
-   * (developer.musiccloud.io).
+   * Resolves the developer session cookie and attaches its account.
    *
-   * Unlike the admin/public guards this reads the session from the
-   * `mc_dev_session` **httpOnly cookie** rather than the `Authorization`
-   * header, so `request.jwtVerify()` (which only inspects the header) is the
-   * wrong tool here — the cookie value is verified directly via the synchronous
-   * `app.jwt.verify`. The JWT carries `{ sub: accountId, kind: "developer" }`;
-   * the account is then re-loaded so a suspended/deleted account cannot keep
-   * acting on a still-valid token.
+   * The session is read from the `mc_dev_session` **httpOnly cookie** rather
+   * than the `Authorization` header, so `request.jwtVerify()` (which only
+   * inspects the header) is the wrong tool here and the cookie is verified
+   * directly. The account is re-loaded on every request, so a suspended or
+   * deleted account cannot keep acting on a still-valid token.
    *
-   * Response matrix (all failures share the `{ error: "UNAUTHORIZED" }` shape
-   * used by the other guards; the portal never needs to distinguish them):
-   * - cookie absent → `401`
-   * - cookie present but JWT invalid/expired → `401`
-   * - JWT valid but `kind !== "developer"` or `sub` missing → `401`
-   * - account missing or `status !== "active"` → `401`
-   * - all checks pass → `request.developerAccountId` and `request.developerAccount` set, pass-through
+   * Every refusal is a `401` in the `{ error: "UNAUTHORIZED" }` shape the
+   * other guards use, for a missing cookie, an invalid or expired token, a
+   * token that is not a developer session, and an account that is gone or not
+   * active alike.
    *
-   * @param request - incoming request; the `mc_dev_session` cookie is read and
-   *   `request.developerAccountId`/`request.developerAccount` are populated on success.
-   * @param reply - responds with `401 UNAUTHORIZED` on any auth failure.
+   * @param request - The request; `developerAccountId` and `developerAccount`
+   *   are set on success.
+   * @param reply - Answers the refusal.
+   * @returns Whether the request carries a valid session.
    */
-  app.decorate("authenticateDeveloper", async (request: FastifyRequest, reply: FastifyReply) => {
+  async function attachDeveloperSession(request: FastifyRequest, reply: FastifyReply): Promise<boolean> {
     const session = await resolveDeveloperSession(request.cookies?.[SESSION_COOKIE_NAME], (token) =>
       app.jwt.verify(token),
     );
     if ("refusal" in session) {
-      return reply
+      await reply
         .status(401)
         .send({ error: "UNAUTHORIZED", message: DEVELOPER_SESSION_REFUSAL_MESSAGE[session.refusal] });
+      return false;
     }
 
     request.developerAccountId = session.account.id;
     request.developerAccount = session.account;
+    return true;
+  }
+
+  /**
+   * Session authentication for the developer portal, which is what every
+   * developer route uses unless it has a reason to need less.
+   *
+   * On top of a valid session, an account may only act while the portal is
+   * public or when an invitation admitted it. Otherwise the request is
+   * refused with `403` and `MC-AUTH-0004`, because the developer API answers
+   * at the backend's own host and through the dashboard's proxy, past the
+   * portal's gate, and has to keep a closed portal closed itself.
+   *
+   * @param request - The request; the session's account is attached on success.
+   * @param reply - Answers `401` without a valid session and `403` for an
+   *   account the closed portal does not admit.
+   */
+  app.decorate("authenticateDeveloper", async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!(await attachDeveloperSession(request, reply))) return;
+    if (!(await mayUseDeveloperApi(request.developerAccount as DeveloperAccount))) {
+      return reply.status(403).send(createApiErrorResponse(PORTAL_CLOSED_CODE));
+    }
+  });
+
+  /**
+   * Session authentication alone, whether or not the closed portal admits the
+   * account.
+   *
+   * For the three routes that must answer every account: `/me`, which the
+   * portal's gate reads the grant from, and the data export and account
+   * deletion, because a person keeps the right to their data whether or not
+   * the portal is open.
+   *
+   * @param request - The request; the session's account is attached on success.
+   * @param reply - Answers `401` without a valid session.
+   */
+  app.decorate("authenticateDeveloperSession", async (request: FastifyRequest, reply: FastifyReply) => {
+    await attachDeveloperSession(request, reply);
   });
 }
 

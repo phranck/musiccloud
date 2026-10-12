@@ -28,6 +28,7 @@ import { getDeveloperRepository } from "../db/index.js";
 import authPlugin from "../plugins/auth.js";
 import { issueInvitationPass, SESSION_COOKIE_NAME } from "../services/developer-auth.js";
 import { exchangeGitHubCode, fetchGitHubProfile, GitHubOAuth } from "../services/developer-github.js";
+import { mayCreateDeveloperAccount } from "../services/developer-portal-access.js";
 import { bindPortalInvitation } from "../services/developer-portal-invitations.js";
 import { triggerEmailAction } from "../services/email-actions.js";
 import { devGitHubRoutes } from "./developer-github.js";
@@ -38,6 +39,13 @@ vi.mock("../services/email-actions.js", () => ({
 
 vi.mock("../services/developer-portal-invitations.js", () => ({
   bindPortalInvitation: vi.fn(async () => true),
+}));
+
+// The portal's state is a database read, so these tests decide it: open by
+// default, and closed where a test is about what a closed portal refuses.
+vi.mock("../services/developer-portal-access.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../services/developer-portal-access.js")>()),
+  mayCreateDeveloperAccount: vi.fn(async () => true),
 }));
 
 vi.mock("../db/index.js", () => ({
@@ -491,6 +499,26 @@ describe("POST /api/dev/auth/github/exchange", () => {
     expect(vi.mocked(bindPortalInvitation)).toHaveBeenCalledWith("inv-1", "dev-acc-new");
     const cookies = ([] as string[]).concat(res.headers["set-cookie"] ?? []);
     expect(cookies.some((line) => line.startsWith(`${INVITATION_PASS_COOKIE_NAME}=;`))).toBe(true);
+  });
+
+  it("opens no account through GitHub while the portal is closed and no pass came along", async () => {
+    vi.mocked(mayCreateDeveloperAccount).mockResolvedValueOnce(false);
+    vi.mocked(exchangeGitHubCode).mockResolvedValueOnce("gho_token");
+    vi.mocked(fetchGitHubProfile).mockResolvedValueOnce(makeProfile({ email: "fresh@example.com" }));
+    vi.mocked(repo.findDeveloperIdentity).mockResolvedValueOnce(null);
+    vi.mocked(repo.findDeveloperAccountByEmail).mockResolvedValueOnce(null);
+
+    const app = await buildApp();
+    const res = await app.inject({
+      method: "POST",
+      url: ENDPOINTS.dev.auth.github.exchange,
+      payload: { code: "c", state: signState(app, GitHubOAuth.StateKind, "signup") },
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error).toBe("MC-AUTH-0004");
+    expect(vi.mocked(repo.createDeveloperAccount)).not.toHaveBeenCalled();
+    expect(findSessionSetCookie(res.headers["set-cookie"])).toBeUndefined();
   });
 
   it("returns 422 NO_VERIFIED_EMAIL when GitHub reports no verified primary email", async () => {
