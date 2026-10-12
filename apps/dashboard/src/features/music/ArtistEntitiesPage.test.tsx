@@ -1,7 +1,9 @@
 import { type AdminArtistEntityListItem, ENDPOINTS } from "@musiccloud/shared";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { renderElementsAtWidth } from "@/test-layout";
 
 const mocks = vi.hoisted(() => ({
   useInfiniteAdminTable: vi.fn(),
@@ -78,6 +80,10 @@ describe("ArtistEntitiesPage", () => {
     mocks.useInfiniteAdminTable.mockReturnValue(tableValue([GROUP, PERSON]));
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("lists the entities from the admin endpoint, with no way to delete them", () => {
     renderPage();
 
@@ -96,6 +102,7 @@ describe("ArtistEntitiesPage", () => {
   });
 
   it("names the type and status, counts the credits and links the artist page where there is one", () => {
+    renderElementsAtWidth(1600);
     renderPage();
 
     const [groupRow, personRow] = screen.getAllByRole("row").slice(1);
@@ -106,6 +113,14 @@ describe("ArtistEntitiesPage", () => {
     expect(personRow?.textContent).toContain("Person");
     expect(personRow?.textContent).toContain("Verified");
     expect(personRow?.textContent).toContain("None");
+  });
+
+  it("keeps the name, type, status and track count when the list is narrow", () => {
+    renderElementsAtWidth(760);
+    renderPage();
+
+    const headings = screen.getAllByRole("columnheader").map((heading) => heading.textContent);
+    expect(headings).toEqual(["Name", "Type", "Status", "Tracks"]);
   });
 
   it("says so when there is no entity", () => {

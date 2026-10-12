@@ -62,12 +62,14 @@ function useArtistEntityColumns(
       },
       {
         id: "albumCredits",
+        secondary: true,
         header: me.colAlbumCredits,
         className: COUNT_COLUMN_CLASS,
         cell: (entity) => <span className="text-sm">{entity.albumCreditCount}</span>,
       },
       {
         id: "artistPage",
+        secondary: true,
         header: me.colArtistPage,
         className: "w-36",
         cell: (entity) =>
@@ -86,6 +88,7 @@ function useArtistEntityColumns(
       },
       {
         id: "createdAt",
+        secondary: true,
         header: mc.added,
         className: "w-36",
         serverSort: "created_at",

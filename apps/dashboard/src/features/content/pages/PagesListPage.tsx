@@ -491,12 +491,14 @@ function usePagesListPage() {
       },
       {
         id: "createdBy",
+        secondary: true,
         header: text.table.createdBy,
         className: "w-36",
         cell: (page) => <span className="text-xs text-[var(--ds-text-muted)]">{page.createdByUsername ?? "—"}</span>,
       },
       {
         id: "updatedAt",
+        secondary: true,
         header: text.table.updatedAt,
         className: "w-36",
         sortKey: (page) => page.updatedAt ?? "",

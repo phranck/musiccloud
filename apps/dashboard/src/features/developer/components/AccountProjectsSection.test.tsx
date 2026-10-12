@@ -1,6 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { renderElementsAtWidth } from "@/test-layout";
 
 const mocks = vi.hoisted(() => ({
   fetchProjects: vi.fn(),
@@ -61,6 +63,24 @@ describe("AccountProjectsSection", () => {
   beforeEach(() => {
     mocks.fetchProjects.mockReset();
     mocks.navigate.mockReset();
+    // Wide enough for every column. The narrow case states its own width.
+    renderElementsAtWidth(1600);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("keeps the project, its status and the action when the section is narrow", async () => {
+    vi.restoreAllMocks();
+    renderElementsAtWidth(500);
+    mocks.fetchProjects.mockResolvedValue({ projects: [makeProject()] });
+    renderSection([makeRegistration("project-1", "reg-1")]);
+
+    expect(await screen.findByText("Beat Machine")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Edit" })).not.toBeNull();
+    expect(screen.queryByText("Free")).toBeNull();
+    expect(screen.queryByText("60/minute · 10000/day")).toBeNull();
   });
 
   it("says the account holds no projects rather than showing an empty table", async () => {

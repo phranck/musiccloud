@@ -48,14 +48,13 @@ function useProjectColumns(
       {
         id: "displayName",
         header: dm.colProject,
-        headerClassName: "whitespace-nowrap",
         sortKey: (project) => project.displayName.toLowerCase(),
         cell: (project) => <span className="font-medium text-[var(--ds-text)]">{project.displayName}</span>,
       },
       {
         id: "plan",
+        secondary: true,
         header: dm.colTier,
-        headerClassName: "whitespace-nowrap",
         className: "w-40",
         sortKey: (project) => (project.tierName ?? "").toLowerCase(),
         cell: (project) => (
@@ -66,8 +65,8 @@ function useProjectColumns(
       },
       {
         id: "limits",
+        secondary: true,
         header: dm.colLimits,
-        headerClassName: "whitespace-nowrap",
         className: "w-52",
         sortKey: (project) => project.effectiveRequestsPerMinute ?? 0,
         cell: (project) => (
@@ -79,24 +78,23 @@ function useProjectColumns(
       },
       {
         id: "registrations",
+        secondary: true,
         header: dm.colRegistrations,
-        headerClassName: "whitespace-nowrap",
-        className: "w-32 text-right",
+        className: "w-40 text-right",
         sortKey: (project) => registrationCounts[project.id] ?? 0,
         cell: (project) => <span className="block text-right tabular-nums">{registrationCounts[project.id] ?? 0}</span>,
       },
       {
         id: "status",
         header: dm.colStatus,
-        headerClassName: "whitespace-nowrap",
         className: "w-28",
         sortKey: (project) => project.status,
         cell: (project) => <StatusBadge status={project.status} />,
       },
       {
         id: "createdAt",
+        secondary: true,
         header: dm.colCreated,
-        headerClassName: "whitespace-nowrap",
         className: "w-32",
         sortKey: (project) => project.createdAt,
         cell: (project) => <span className="text-[var(--ds-text-muted)]">{formatEnglishDate(project.createdAt)}</span>,

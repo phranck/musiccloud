@@ -119,6 +119,7 @@ function useTrackColumns(
       },
       {
         id: "source",
+        secondary: true,
         header: mc.source,
         className: "w-28",
         cell: (track) =>
@@ -130,6 +131,7 @@ function useTrackColumns(
       },
       {
         id: "isrc",
+        secondary: true,
         header: "ISRC",
         className: "w-32",
         cell: (track) => <span className="font-mono text-xs text-[var(--ds-text-muted)]">{track.isrc ?? ""}</span>,
