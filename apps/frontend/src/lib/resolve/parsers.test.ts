@@ -4,6 +4,7 @@ import { creativeCommonsCopy } from "@/copy/creative-commons";
 import { resultsCopy } from "@/copy/results";
 import { buildShareViewFromSharePageResponse } from "@/lib/share/share-view";
 import { ActiveResultKind, type AlbumResult, type ArtistResult, type SongResult } from "@/lib/types/app";
+import { derivePlatformsVisibility } from "@/lib/types/media-card";
 import {
   albumMetaLine,
   buildActiveConfig,
@@ -441,6 +442,36 @@ describe("album and artist cards say what they are", () => {
     expect(ccResultToShareProps(artist).config.kindLine).toBe(resultsCopy.artistKind);
     expect(ccResultToShareProps(album).config.metaLine).toBe("11 tracks · 2009");
     expect(ccResultToShareProps(album).config.kindLine).toBeUndefined();
+  });
+});
+
+describe("a hidden service is neither shown nor counted", () => {
+  function song(platforms: SongResult["platforms"]): SongResult {
+    return {
+      kind: ActiveResultKind.Song,
+      title: "Teardrop",
+      artist: "Massive Attack",
+      artworkUrl: "",
+      platforms,
+      shareUrl: "https://musiccloud.local/s/tear",
+    };
+  }
+
+  const SPOTIFY_LINK = { platform: Service.Spotify, url: "https://open.spotify.com/track/1" };
+  const MUSICBRAINZ_LINK = { platform: Service.MusicBrainz, url: "https://musicbrainz.org/recording/1" };
+
+  it("names the one shown platform when the other link is MusicBrainz", () => {
+    const active = song([SPOTIFY_LINK, MUSICBRAINZ_LINK]);
+
+    expect(buildActiveConfig(active).platformsInfo).toBe(resultsCopy.onlyAvailable("Spotify"));
+    expect(buildShareConfigFromActive(active).platformsInfo).toBe(resultsCopy.onlyAvailable("Spotify"));
+  });
+
+  it("reads as not found, without a grid, when MusicBrainz is the only link", () => {
+    const config = buildActiveConfig(song([MUSICBRAINZ_LINK]));
+
+    expect(config.platformsInfo).toBe(resultsCopy.notFound);
+    expect(derivePlatformsVisibility(config)).toEqual({ showGrid: false, showInfoOnly: true });
   });
 });
 
