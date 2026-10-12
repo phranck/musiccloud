@@ -1,6 +1,7 @@
+import path from "node:path";
 import { ContentContext, ICON_DEFAULT_SIZE } from "@musiccloud/shared";
 import { beforeEach, describe, expect, it } from "vitest";
-import { resetIconCache } from "../markdown/icon-sets.js";
+import { IconSet, iconAssetDirectory, resetIconCache } from "../markdown/icon-sets.js";
 import { renderMarkdown } from "../markdown/renderer.js";
 import { sanitizeMarkdownHtml } from "../markdown/sanitizer.js";
 
@@ -161,5 +162,15 @@ describe("[[icon]]", () => {
     expect(out).toContain("<svg");
     expect(out).toContain('viewBox="0 0 256 256"');
     expect(out.match(/<path /g)).toHaveLength(2);
+  });
+});
+
+describe("iconAssetDirectory", () => {
+  it("reads neither set from dist when running from the source", () => {
+    // The dev watcher empties and refills `dist` on every rebuild, so a test
+    // reading it at that moment finds an icon missing.
+    for (const set of Object.values(IconSet)) {
+      expect(iconAssetDirectory(set).split(path.sep)).not.toContain("dist");
+    }
   });
 });

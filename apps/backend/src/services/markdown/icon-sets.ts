@@ -58,34 +58,47 @@ export const ICON_VIEW_BOX: Record<IconSetValue, string> = {
   [IconSet.PhosphorDuotone]: "0 0 256 256",
 };
 
+/** `apps/backend`, seen from this file's directory in the source tree. */
+const SOURCE_BACKEND_ROOT = path.join(__dirname, "..", "..", "..");
+
 /**
- * Where one set's assets sit, in the order they are looked for.
+ * Where a set's assets sit when running from the source rather than from the
+ * bundle, which is how the tests run.
+ *
+ * Never `dist`, because the dev watcher empties and refills it on every
+ * rebuild, and a test reading it at that moment finds an icon missing.
+ * Phosphor's own package holds its assets as files. Iconsax ships components
+ * rather than assets, so the backend's test scripts extract its shapes into a
+ * cache directory of their own, `node_modules/.cache/icons/iconsax-bulk`, which
+ * they pass to `scripts/build-iconsax-bulk.mjs` in `package.json`.
+ */
+const SOURCE_ASSET_DIRECTORY: Record<IconSetValue, string> = {
+  [IconSet.IconsaxBulk]: path.join(SOURCE_BACKEND_ROOT, "node_modules", ".cache", "icons", "iconsax-bulk"),
+  [IconSet.PhosphorDuotone]: path.join(
+    SOURCE_BACKEND_ROOT,
+    "node_modules",
+    "@phosphor-icons",
+    "core",
+    "assets",
+    "duotone",
+  ),
+};
+
+/**
+ * Where one set's assets sit.
  *
  * `__dirname` is `apps/backend/dist` once tsup has bundled the source, and both
- * sets sit beside it there. That is the deployed arrangement, and it is first
- * because in production it is the only one that exists.
- *
- * Running from the source, the built assets are looked for beside the source
- * tree, and Phosphor's own package can be read directly on top of that. Iconsax
- * has no such fallback, because it ships components rather than assets: the
- * test script builds it for exactly this reason.
+ * sets sit beside it there. That is the deployed arrangement, and the only one
+ * that exists in production. Running from the source, `__dirname` is the
+ * directory this file lives in, and {@link SOURCE_ASSET_DIRECTORY} names where
+ * each set is read from instead.
  *
  * @param set - Which hand to look for.
  * @returns The directory to read from.
  */
-function assetDirectory(set: IconSetValue): string {
-  const candidates = [
-    path.join(__dirname, "icons", set),
-    // Running from the source, where `__dirname` is the directory this file
-    // lives in and the built assets sit three levels up.
-    path.join(__dirname, "..", "..", "..", "dist", "icons", set),
-  ];
-  if (set === IconSet.PhosphorDuotone) {
-    candidates.push(
-      path.join(__dirname, "..", "..", "..", "node_modules", "@phosphor-icons", "core", "assets", "duotone"),
-    );
-  }
-  return candidates.find((candidate) => existsSync(candidate)) ?? candidates[0];
+export function iconAssetDirectory(set: IconSetValue): string {
+  const besideBundle = path.join(__dirname, "icons", set);
+  return existsSync(besideBundle) ? besideBundle : SOURCE_ASSET_DIRECTORY[set];
 }
 
 /** What a Phosphor name may look like, which is also what keeps it a file name. */
@@ -159,7 +172,7 @@ export function iconPaths(set: IconSetValue, name: string): IconPath[] | null {
   }
 
   try {
-    const svg = readFileSync(path.join(assetDirectory(set), fileNameFor(set, trimmed)), "utf8");
+    const svg = readFileSync(path.join(iconAssetDirectory(set), fileNameFor(set, trimmed)), "utf8");
     const paths = readPaths(svg);
     const result = paths.length > 0 ? paths : null;
     cache.set(key, result);
