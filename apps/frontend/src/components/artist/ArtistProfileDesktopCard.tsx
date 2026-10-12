@@ -2,6 +2,7 @@ import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { ArtistCardShell } from "@/components/artist/ArtistCardShell";
 import { ArtistNoticeWell } from "@/components/artist/ArtistNoticeWell";
 import { ArtistProfileCard } from "@/components/artist/ArtistProfileCard";
+import { artistSectionPresence, effectiveArtistInfoStatus } from "@/components/artist/artistInfoContent";
 import type { ArtistInfoStatus } from "@/components/artist/artistPanelTypes";
 import { SectionCardFooterText } from "@/components/cards/SectionCardFooterText";
 import { artistCopy } from "@/copy/artist";
@@ -29,7 +30,8 @@ export function ArtistProfileDesktopCard({
   status,
 }: ArtistProfileDesktopCardProps) {
   const skeletonAllowed = useSkeletonAllowed();
-  const effectiveStatus: ArtistInfoStatus = status ?? (isLoading ? "loading" : data ? "ready" : "empty");
+  const hasProfile = artistSectionPresence(data).profile;
+  const effectiveStatus = effectiveArtistInfoStatus(status, isLoading, data);
 
   if (isLoading && !data && !skeletonAllowed) {
     return (
@@ -39,7 +41,7 @@ export function ArtistProfileDesktopCard({
     );
   }
 
-  if (!isLoading && (!data || !data.profile)) {
+  if (!isLoading && !hasProfile) {
     // No profile data: an error still surfaces a notice, but a clean empty
     // profile (e.g. a CC artist without Jamendo musicinfo) self-hides so the
     // column shows only its populated cards, matching the
@@ -57,7 +59,7 @@ export function ArtistProfileDesktopCard({
   const showInitialSkeleton = isLoading && !data;
   const isRefreshing = isLoading && !!data;
   const footer =
-    !showInitialSkeleton && data?.profile ? <SectionCardFooterText>{providedBy}</SectionCardFooterText> : undefined;
+    !showInitialSkeleton && hasProfile ? <SectionCardFooterText>{providedBy}</SectionCardFooterText> : undefined;
 
   return (
     <ArtistCardShell title={title} footer={footer} isRefreshing={isRefreshing}>

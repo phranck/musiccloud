@@ -1,5 +1,6 @@
 import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { useEffect, useReducer, useRef } from "react";
+import { hasArtistInfoContent } from "@/components/artist/artistInfoContent";
 import type { ArtistInfoStatus } from "@/components/artist/artistPanelTypes";
 import {
   ARTIST_INFO_FETCH_TIMEOUT_MS,
@@ -43,25 +44,6 @@ type ArtistAction =
   | { type: typeof ArtistActionType.Loading }
   | { type: typeof ArtistActionType.Done; data: ArtistInfoResponse | null }
   | { type: typeof ArtistActionType.Error; code: string };
-
-/**
- * True when an artist-info payload carries any renderable content (a profile,
- * top tracks, events, or similar-artist tracks). Drives the `ready` vs `empty`
- * distinction so an empty response surfaces the "no info" state instead of an
- * apparently-loaded-but-blank column.
- *
- * @param data - The artist-info payload, or `null` when none was fetched.
- * @returns `true` when at least one content section is non-empty.
- */
-function hasArtistInfoContent(data: ArtistInfoResponse | null): boolean {
-  return Boolean(
-    data &&
-      (data.profile ||
-        (data.topTracks?.length ?? 0) > 0 ||
-        (data.events?.length ?? 0) > 0 ||
-        (data.similarArtistTracks?.length ?? 0) > 0),
-  );
-}
 
 /**
  * Reduces the artist-info load lifecycle. `Loading` and `Error` both keep the
