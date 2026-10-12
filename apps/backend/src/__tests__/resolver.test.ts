@@ -1687,3 +1687,122 @@ describe("resolveQuery: response deadline", () => {
     expect(result.lateLinks).toBeUndefined();
   });
 });
+
+// =============================================================================
+// 15. Artwork: Apple's covers are never kept
+// =============================================================================
+
+describe("resolveQuery: artwork", () => {
+  const APPLE_COVER = "https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/aa/bb/cc/source/640x640bb.jpg";
+  const SPOTIFY_COVER = "https://i.scdn.co/image/ab67616d0000b273";
+  const DEEZER_COVER = "https://e-cdns-images.dzcdn.net/images/cover/abc/1000x1000-000000-80-0-0.jpg";
+  const APPLE_URL = "https://music.apple.com/us/album/heartthrob/1623728585?i=1623728917";
+
+  function appleSource() {
+    const appleAdapter = createMockAdapter({
+      id: "apple-music",
+      displayName: "Apple Music",
+      detectUrl: vi.fn(() => "us:1623728917"),
+      toCatalogId: (detectedId: string) => detectedId.split(":")[1],
+      getTrack: vi.fn().mockResolvedValue(
+        createMockTrack({
+          sourceService: "apple-music",
+          sourceId: "1623728917",
+          artworkUrl: APPLE_COVER,
+          webUrl: APPLE_URL,
+        }),
+      ),
+    });
+    vi.mocked(identifyService).mockResolvedValue(appleAdapter);
+    return appleAdapter;
+  }
+
+  it("replaces an Apple source's cover with the one Spotify returned for its link", async () => {
+    const appleAdapter = appleSource();
+    const spotifyAdapter = createMockAdapter({
+      id: "spotify",
+      findByIsrc: vi.fn().mockResolvedValue(createMockTrack({ artworkUrl: SPOTIFY_COVER })),
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([appleAdapter, spotifyAdapter]);
+
+    const result = await resolveQuery(APPLE_URL);
+
+    expect(result.sourceTrack.artworkUrl).toBe(SPOTIFY_COVER);
+    expect(spotifyAdapter.findByIsrc).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps no cover for an Apple source when no other service has one", async () => {
+    const appleAdapter = appleSource();
+    const spotifyAdapter = createMockAdapter({ id: "spotify" });
+    const deezerAdapter = createMockAdapter({ id: "deezer", displayName: "Deezer" });
+    vi.mocked(getActiveAdapters).mockResolvedValue([appleAdapter, spotifyAdapter, deezerAdapter]);
+
+    const result = await resolveQuery(APPLE_URL);
+
+    expect(result.sourceTrack.artworkUrl).toBeUndefined();
+  });
+
+  it("skips an Apple cover on a link and asks Deezer by ISRC, never Apple", async () => {
+    const tidalAdapter = createMockAdapter({
+      id: "tidal",
+      displayName: "Tidal",
+      detectUrl: vi.fn(() => "tidal789"),
+      getTrack: vi.fn().mockResolvedValue(
+        createMockTrack({
+          sourceService: "tidal",
+          sourceId: "tidal789",
+          artworkUrl: undefined,
+          webUrl: "https://tidal.com/browse/track/tidal789",
+        }),
+      ),
+    });
+    const appleAdapter = createMockAdapter({
+      id: "apple-music",
+      displayName: "Apple Music",
+      findByIsrc: vi
+        .fn()
+        .mockResolvedValue(
+          createMockTrack({ sourceService: "apple-music", sourceId: "1623728917", artworkUrl: APPLE_COVER }),
+        ),
+    });
+    const deezerAdapter = createMockAdapter({
+      id: "deezer",
+      displayName: "Deezer",
+      findByIsrc: vi
+        .fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(createMockTrack({ sourceService: "deezer", artworkUrl: DEEZER_COVER })),
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([tidalAdapter, appleAdapter, deezerAdapter]);
+    vi.mocked(identifyService).mockResolvedValue(tidalAdapter);
+
+    const result = await resolveQuery("https://tidal.com/browse/track/tidal789");
+
+    expect(result.sourceTrack.artworkUrl).toBe(DEEZER_COVER);
+    expect(appleAdapter.findByIsrc).toHaveBeenCalledTimes(1);
+    expect(deezerAdapter.findByIsrc).toHaveBeenCalledTimes(2);
+  });
+
+  it("borrows a link's cover for a text search hit that has none", async () => {
+    const appleAdapter = createMockAdapter({
+      id: "apple-music",
+      displayName: "Apple Music",
+      searchTrack: vi.fn().mockResolvedValue({
+        found: true,
+        track: createMockTrack({ sourceService: "apple-music", sourceId: "1623728917", artworkUrl: undefined }),
+        confidence: 0.9,
+        matchMethod: "search",
+      } satisfies MatchResult),
+    });
+    const spotifyAdapter = createMockAdapter({
+      id: "spotify",
+      findByIsrc: vi.fn().mockResolvedValue(createMockTrack({ artworkUrl: SPOTIFY_COVER })),
+    });
+    vi.mocked(getActiveAdapters).mockResolvedValue([appleAdapter, spotifyAdapter]);
+
+    const result = await resolveQuery("Bohemian Rhapsody Queen");
+
+    expect(result.sourceTrack.sourceService).toBe("apple-music");
+    expect(result.sourceTrack.artworkUrl).toBe(SPOTIFY_COVER);
+  });
+});

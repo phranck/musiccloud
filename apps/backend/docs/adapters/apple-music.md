@@ -30,6 +30,10 @@ Manifest default: enabled. Runtime enablement is controlled by `service_plugins`
 
 The adapter takes no audio previews from Apple, although the API sends one with every song. The Apple Developer Program License Agreement (section 3.3.6(D), version of August 18, 2026) lets MusicKit content play only as the MusicKit APIs or MusicKit JS render it, and the share page plays previews in its own audio element. Deezer supplies the previews, and the share-preview route fetches a fresh one when a stored Deezer URL has expired. Migration `0112_drop_apple_previews` removed the Apple previews stored before. The decision is recorded in issue #290.
 
+## Artwork
+
+The adapter takes no artwork from Apple either, for songs, albums or artists, although the API sends it with each of them. The same section of the agreement allows Apple Music artwork only together with MusicKit playback. A track, album or artist resolved from Apple Music shows the cover another matched service returned, Spotify's first, and the placeholder where no other service has one. `pickArtworkUrl` in `src/services/artwork.ts` makes that choice and also drops an Apple cover that reaches a resolve another way, such as the `og:image` of a scraped Apple Music page. The decision is recorded in issue #622.
+
 ## Operational Notes
 
 Apple storefront matters. Do not drop the country/storefront prefix during URL parsing, because the API request must target the same regional catalog.
@@ -63,4 +67,4 @@ To recover, correct the profile or config, explicitly enable the source in the c
 
 ## Maintenance
 
-Review this runbook whenever Apple Music adapter auth, storefront parsing, search strategy, previews, environment variables, or error handling changes.
+Review this runbook whenever Apple Music adapter auth, storefront parsing, search strategy, previews, artwork, environment variables, or error handling changes.

@@ -18,8 +18,8 @@
  *    for the same artist).
  * 5. Resolve on every other adapter that implements
  *    `artistCapabilities.supportsArtistSearch`, in parallel.
- * 6. Enrich missing `imageUrl` / `genres` from the cross-service
- *    results (Spotify preferred).
+ * 6. Keep an `imageUrl` that is not Apple's and enrich missing `genres`
+ *    from the cross-service results (Spotify preferred).
  * 7. Prepend the source link with confidence 1.0 and return.
  *
  * ## Confidence scoring
@@ -46,12 +46,12 @@
  *
  * ## Spotify-first enrichment
  *
- * Two artist fields get opportunistic enrichment from the cross-service
- * results when missing on the source:
+ * Two artist fields draw on the cross-service results:
  *
- * - `imageUrl`: Spotify's artist images are consistently high quality,
- *   so they are the first preference; any other link with an image is
- *   the fallback.
+ * - `imageUrl`: the artist keeps the picture `pickArtworkUrl`
+ *   (`artwork.ts`) picks, its own unless it is Apple's, else Spotify's,
+ *   else any other link's. Apple's artwork may only be shown with MusicKit
+ *   playback, so the Apple Music adapter returns no picture.
  * - `genres`: only Spotify exposes genre data reliably. If the source
  *   did not include genres but Spotify was matched, a targeted
  *   `getArtist(spotifyId)` call fetches them. Enrichment failure is
@@ -70,6 +70,7 @@ import { log } from "../lib/infra/logger.js";
 import { stripTrackingParams } from "../lib/platform/url.js";
 import { ResolveError } from "../lib/resolve/errors.js";
 import { calculateArtistNameConfidence } from "../lib/resolve/normalize.js";
+import { pickArtworkUrl } from "./artwork.js";
 import { confidenceForMethod } from "./confidence.js";
 import { IDENTIFIER_MATCH_CONFIDENCE, MATCH_MIN_CONFIDENCE } from "./constants.js";
 import { collectArtistExternalIds } from "./external-ids.js";
@@ -223,14 +224,7 @@ async function fillMissingArtistServices(cached: ArtistResolutionResult): Promis
 
   const allLinks = [...cached.links, ...newLinks].sort((a, b) => b.confidence - a.confidence);
 
-  // Fill missing image from newly resolved links
-  let { sourceArtist } = cached;
-  if (!sourceArtist.imageUrl) {
-    const imageLink = allLinks.find((l) => l.service === "spotify" && l.imageUrl) ?? allLinks.find((l) => l.imageUrl);
-    if (imageLink?.imageUrl) {
-      sourceArtist = { ...sourceArtist, imageUrl: imageLink.imageUrl };
-    }
-  }
+  const sourceArtist = withKeptImage(cached.sourceArtist, allLinks);
 
   return {
     sourceArtist,
@@ -275,6 +269,19 @@ async function resolveArtistOnService(
     log.debug("ArtistResolver", `[${adapter.id}] search failed: ${error instanceof Error ? error.message : error}`);
     return null;
   }
+}
+
+/**
+ * Gives an artist the picture it keeps, see {@link pickArtworkUrl}.
+ *
+ * @param artist - The artist, with the picture its source service returned.
+ * @param links - Links to the artist on other services, with their pictures.
+ * @returns A copy of the artist carrying the kept picture, or none, in which
+ *   case the interface shows its placeholder.
+ */
+function withKeptImage(artist: NormalizedArtist, links: readonly ResolvedArtistLink[]): NormalizedArtist {
+  const candidates = links.map((link) => ({ service: link.service, artworkUrl: link.imageUrl }));
+  return { ...artist, imageUrl: pickArtworkUrl(artist.imageUrl, candidates) };
 }
 
 // --- Cross-service resolution ---
@@ -392,13 +399,8 @@ export async function resolveArtistUrl(inputUrl: string): Promise<ArtistResoluti
   // 5. Resolve on all other services in parallel
   const links = await resolveArtistAcrossServices(sourceArtist, sourceAdapter);
 
-  // 6. If source artist has no image, use image from a cross-service result
-  if (!sourceArtist.imageUrl) {
-    const imageLink = links.find((l) => l.service === "spotify" && l.imageUrl) ?? links.find((l) => l.imageUrl);
-    if (imageLink?.imageUrl) {
-      sourceArtist = { ...sourceArtist, imageUrl: imageLink.imageUrl };
-    }
-  }
+  // 6. Keep a picture that is not Apple's, borrowing one where the source has none.
+  sourceArtist = withKeptImage(sourceArtist, links);
 
   // 7. If source artist has no genres, try to get them from Spotify result
   if (!sourceArtist.genres || sourceArtist.genres.length === 0) {
@@ -469,15 +471,8 @@ export async function resolveArtistTextSearch(query: string): Promise<ArtistReso
         const cached = await tryArtistCache({ name: result.artist.name });
         if (cached) return fillMissingArtistServices(cached);
 
-        let sourceArtist = result.artist;
-        const links = await resolveArtistAcrossServices(sourceArtist, adapter);
-
-        if (!sourceArtist.imageUrl) {
-          const imageLink = links.find((l) => l.service === "spotify" && l.imageUrl) ?? links.find((l) => l.imageUrl);
-          if (imageLink?.imageUrl) {
-            sourceArtist = { ...sourceArtist, imageUrl: imageLink.imageUrl };
-          }
-        }
+        const links = await resolveArtistAcrossServices(result.artist, adapter);
+        const sourceArtist = withKeptImage(result.artist, links);
 
         links.unshift({
           service: adapter.id,

@@ -62,13 +62,13 @@
  * via its playlist endpoint, we synthesise the YouTube Music link
  * from the same playlist ID instead of running a separate search.
  *
- * ## Artwork fallback
+ * ## Artwork: never Apple's
  *
- * Tidal's API v2 does not return artwork for albums. When the source
- * album lacks an `artworkUrl`, we borrow one from the cross-service
- * results in preference order Spotify -> Apple Music -> any. The
- * preference mirrors image-quality: Spotify and Apple Music both
- * serve high-resolution artwork consistently.
+ * An album keeps the cover `pickArtworkUrl` (`artwork.ts`) picks: its own
+ * unless it is Apple's, else Spotify's, else the first cover another matched
+ * service returned. Apple's artwork may only be shown with MusicKit playback,
+ * so the Apple Music adapter returns none and its albums borrow a cover. So do
+ * Tidal's, because Tidal's API v2 returns no album artwork.
  */
 import { getPlatformLabel, type MatchMethod, PLATFORM_CONFIG } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
@@ -76,6 +76,7 @@ import { log } from "../lib/infra/logger.js";
 import { stripTrackingParams } from "../lib/platform/url.js";
 import { getPreviewExpiry } from "../lib/preview-url.js";
 import { ResolveError, searchExhaustedError } from "../lib/resolve/errors.js";
+import { pickArtworkUrl } from "./artwork.js";
 import { confidenceForMethod } from "./confidence.js";
 import { IDENTIFIER_MATCH_CONFIDENCE } from "./constants.js";
 import { collectAlbumExternalIds } from "./external-ids.js";
@@ -264,17 +265,7 @@ async function fillMissingAlbumServices(cached: AlbumResolutionResult): Promise<
 
   const allLinks = [...cached.links, ...genuinelyNewLinks].sort((a, b) => b.confidence - a.confidence);
 
-  // Fill missing artwork from newly resolved links
-  let { sourceAlbum } = cached;
-  if (!sourceAlbum.artworkUrl) {
-    const artworkLink =
-      allLinks.find((l) => l.service === "spotify" && l.artworkUrl) ??
-      allLinks.find((l) => l.service === "apple-music" && l.artworkUrl) ??
-      allLinks.find((l) => l.artworkUrl);
-    if (artworkLink?.artworkUrl) {
-      sourceAlbum = { ...sourceAlbum, artworkUrl: artworkLink.artworkUrl };
-    }
-  }
+  let sourceAlbum = { ...cached.sourceAlbum, artworkUrl: pickArtworkUrl(cached.sourceAlbum.artworkUrl, allLinks) };
 
   if (!sourceAlbum.label) {
     const label = pickLabelFromLinks(allLinks);
@@ -724,17 +715,9 @@ export async function resolveAlbumUrl(inputUrl: string): Promise<AlbumResolution
   // 5. Resolve on all other services in parallel
   const links = await resolveAlbumAcrossServices(sourceAlbum, sourceAdapter);
 
-  // 6. If source album has no artwork, use artwork from a cross-service result
-  // (e.g., Tidal API v2 doesn't return imageLinks for albums)
-  if (!sourceAlbum.artworkUrl) {
-    const artworkLink =
-      links.find((l) => l.service === "spotify" && l.artworkUrl) ??
-      links.find((l) => l.service === "apple-music" && l.artworkUrl) ??
-      links.find((l) => l.artworkUrl);
-    if (artworkLink?.artworkUrl) {
-      sourceAlbum = { ...sourceAlbum, artworkUrl: artworkLink.artworkUrl };
-    }
-  }
+  // 6. Keep a cover that is not Apple's. Tidal's API v2 and the Apple Music
+  // adapter return none, so their albums borrow one from another service.
+  sourceAlbum = { ...sourceAlbum, artworkUrl: pickArtworkUrl(sourceAlbum.artworkUrl, links) };
 
   // 6b. Same idea for label: Spotify removed `album.label` in Feb 2026,
   // and not every adapter returns one. Borrow from Deezer first
@@ -792,18 +775,8 @@ export async function resolveAlbumTextSearch(query: string): Promise<AlbumResolu
           if (cached) return fillMissingAlbumServices(cached);
         }
 
-        let sourceAlbum = result.album;
-        const links = await resolveAlbumAcrossServices(sourceAlbum, adapter);
-
-        if (!sourceAlbum.artworkUrl) {
-          const artworkLink =
-            links.find((l) => l.service === "spotify" && l.artworkUrl) ??
-            links.find((l) => l.service === "apple-music" && l.artworkUrl) ??
-            links.find((l) => l.artworkUrl);
-          if (artworkLink?.artworkUrl) {
-            sourceAlbum = { ...sourceAlbum, artworkUrl: artworkLink.artworkUrl };
-          }
-        }
+        const links = await resolveAlbumAcrossServices(result.album, adapter);
+        let sourceAlbum = { ...result.album, artworkUrl: pickArtworkUrl(result.album.artworkUrl, links) };
 
         if (!sourceAlbum.label) {
           const label = pickLabelFromLinks(links);
