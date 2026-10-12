@@ -1,6 +1,6 @@
 import { dashboardCopy } from "@/copy/dashboard";
 import type { TierOffer } from "@/features/developer/api";
-import { BillingPeriod, OfferCurrency } from "@/features/developer/domain";
+import { BillingPeriod, CreemMode, OfferCurrency } from "@/features/developer/domain";
 
 const dm = dashboardCopy.developer;
 
@@ -13,6 +13,33 @@ const PERIOD_LABEL: Record<BillingPeriod, string> = {
   [BillingPeriod.HalfYearly]: dm.periodHalfYearly,
   [BillingPeriod.Yearly]: dm.periodYearly,
 };
+
+/** What an operator reads for each Creem environment. */
+const MODE_LABEL: Record<CreemMode, string> = {
+  [CreemMode.Test]: dm.creemEnvironmentTest,
+  [CreemMode.Live]: dm.creemEnvironmentLive,
+};
+
+/**
+ * The Creem environments in the order a switch offers them.
+ *
+ * The tier editor's environment tabs and the selling switch offer the same
+ * two, so both read this list.
+ */
+export const CREEM_MODE_OPTIONS = [
+  { value: CreemMode.Test, label: MODE_LABEL[CreemMode.Test] },
+  { value: CreemMode.Live, label: MODE_LABEL[CreemMode.Live] },
+] as const;
+
+/**
+ * The label an operator reads for a Creem environment.
+ *
+ * @param mode - The environment.
+ * @returns Its label.
+ */
+export function creemModeLabel(mode: CreemMode): string {
+  return MODE_LABEL[mode];
+}
 
 /**
  * One formatter per currency, built once.

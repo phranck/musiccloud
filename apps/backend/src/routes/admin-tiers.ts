@@ -13,12 +13,13 @@ import {
   MAX_TIER_FEATURES,
   MAX_TIER_NAME_LENGTH,
   MIN_REQUEST_LIMIT,
+  ROUTE_TEMPLATES,
   TIER_COLOR_PATTERN,
   TIER_ICONS,
 } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 import { getTierRepository } from "../db/index.js";
-import type { TierCreateData, TierUpdateData } from "../db/tiers-repository.js";
+import { type TierCreateData, type TierUpdateData, tierIdSchema } from "../db/tiers-repository.js";
 import { requireOwnerOrAdmin } from "../lib/admin-caller.js";
 import { replyWithApiError } from "../lib/infra/api-error-handler.js";
 import { resetCreemCatalogCache } from "../services/creem-catalog.js";
@@ -72,6 +73,14 @@ const createTierBodySchema = {
   properties: tierFieldsSchema,
 } as const;
 
+/** The path parameter of the routes that act on one plan. */
+const tierParamsSchema = {
+  type: "object",
+  required: ["id"],
+  additionalProperties: false,
+  properties: { id: tierIdSchema },
+} as const;
+
 /** The body of a change to a plan, where every field is optional. */
 const updateTierBodySchema = {
   type: "object",
@@ -114,8 +123,8 @@ export async function adminTiersRoutes(app: FastifyInstance) {
    * server error.
    */
   app.patch(
-    ENDPOINTS.admin.developer.tierDetail(":id"),
-    { schema: { body: updateTierBodySchema } },
+    ROUTE_TEMPLATES.admin.developer.tierDetail,
+    { schema: { params: tierParamsSchema, body: updateTierBodySchema } },
     async (request, reply) => {
       if (!(await requireOwnerOrAdmin(request, reply))) return;
       const { id } = request.params as { id: string };
@@ -132,14 +141,18 @@ export async function adminTiersRoutes(app: FastifyInstance) {
     },
   );
 
-  app.delete(ENDPOINTS.admin.developer.tierDetail(":id"), async (request, reply) => {
-    if (!(await requireOwnerOrAdmin(request, reply))) return;
-    const { id } = request.params as { id: string };
-    const repo = await getTierRepository();
-    await repo.deleteTier(id);
-    // The plan's offers and their product mappings went with it, and a cached
-    // catalogue would go on pricing them.
-    resetCreemCatalogCache();
-    return reply.status(204).send();
-  });
+  app.delete(
+    ROUTE_TEMPLATES.admin.developer.tierDetail,
+    { schema: { params: tierParamsSchema } },
+    async (request, reply) => {
+      if (!(await requireOwnerOrAdmin(request, reply))) return;
+      const { id } = request.params as { id: string };
+      const repo = await getTierRepository();
+      await repo.deleteTier(id);
+      // The plan's offers and their product mappings went with it, and a cached
+      // catalogue would go on pricing them.
+      resetCreemCatalogCache();
+      return reply.status(204).send();
+    },
+  );
 }

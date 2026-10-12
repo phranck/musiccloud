@@ -8,21 +8,10 @@ import { dashboardCopy } from "@/copy/dashboard";
 import type { CreemModeReadiness } from "@/features/developer/api";
 import { CreemMode } from "@/features/developer/domain";
 import { useCreemSellingMode, useUpdateCreemSellingMode } from "@/features/developer/hooks/useDeveloperData";
+import { CREEM_MODE_OPTIONS, creemModeLabel } from "@/features/developer/offerFormat";
 
 const messages = dashboardCopy;
 const dm = messages.developer;
-
-/** The environments in the order the switch offers them. */
-const MODE_OPTIONS = [
-  { value: CreemMode.Test, label: dm.creemEnvironmentTest },
-  { value: CreemMode.Live, label: dm.creemEnvironmentLive },
-] as const;
-
-/** The label an operator reads for each environment. */
-const MODE_LABEL: Record<CreemMode, string> = {
-  [CreemMode.Test]: dm.creemEnvironmentTest,
-  [CreemMode.Live]: dm.creemEnvironmentLive,
-};
 
 /**
  * Why an environment cannot be sold from, in a sentence, or `null` when it can.
@@ -35,10 +24,10 @@ const MODE_LABEL: Record<CreemMode, string> = {
  */
 function blockingReason(readiness: CreemModeReadiness | undefined): string | null {
   if (!readiness) return null;
-  if (!readiness.hasKey) return dm.creemSellingNoKey.replaceAll("{mode}", MODE_LABEL[readiness.mode]);
+  if (!readiness.hasKey) return dm.creemSellingNoKey.replaceAll("{mode}", creemModeLabel(readiness.mode));
   if (readiness.missingProducts.length > 0) {
     return dm.creemSellingMissingProducts
-      .replaceAll("{mode}", MODE_LABEL[readiness.mode])
+      .replaceAll("{mode}", creemModeLabel(readiness.mode))
       .replaceAll("{plans}", readiness.missingProducts.join(", "));
   }
   return null;
@@ -87,7 +76,7 @@ export function CreemSellingModeSection() {
       <SegmentedControl
         value={confirmingLive ? CreemMode.Live : selling}
         onChange={handleChange}
-        options={MODE_OPTIONS}
+        options={CREEM_MODE_OPTIONS}
       />
     ),
     [selling, confirmingLive, handleChange],
@@ -104,7 +93,7 @@ export function CreemSellingModeSection() {
         <p className="text-sm text-[var(--ds-text-muted)]">{dm.creemSellingDescription}</p>
 
         <p className="text-sm text-[var(--ds-text)]">
-          {dm.creemSellingCurrent}: <strong>{MODE_LABEL[selling]}</strong>
+          {dm.creemSellingCurrent}: <strong>{creemModeLabel(selling)}</strong>
         </p>
 
         {selling === CreemMode.Test && <p className="text-xs text-[var(--ds-text-muted)]">{dm.creemSellingTestNote}</p>}

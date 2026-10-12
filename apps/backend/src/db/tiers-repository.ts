@@ -6,6 +6,43 @@
 
 import type { CreemModeValue } from "../lib/creem-config.js";
 
+/** The longest plan or offer id a request may name. */
+const MAX_ID_LENGTH = 64;
+
+/**
+ * The shape of a plan id.
+ *
+ * A plan id comes from `nanoid()`, whose alphabet is letters, digits, `_` and
+ * `-`, or is seeded, as `tier_free` is. Nothing else makes one, so a request
+ * naming any other character names no plan.
+ */
+export const TIER_ID_PATTERN = "^[A-Za-z0-9_-]+$";
+
+/**
+ * The shape of an offer id.
+ *
+ * Wider than {@link TIER_ID_PATTERN} by the colon, because the offers that
+ * existed when plan prices moved onto offers carry ids such as
+ * `legacy-offer-month:<tierId>`.
+ */
+export const OFFER_ID_PATTERN = "^[A-Za-z0-9_:-]+$";
+
+/** A plan id as a route schema states it, for a path parameter or a body property. */
+export const tierIdSchema = {
+  type: "string",
+  minLength: 1,
+  maxLength: MAX_ID_LENGTH,
+  pattern: TIER_ID_PATTERN,
+} as const;
+
+/** An offer id as a route schema states it. */
+export const offerIdSchema = {
+  type: "string",
+  minLength: 1,
+  maxLength: MAX_ID_LENGTH,
+  pattern: OFFER_ID_PATTERN,
+} as const;
+
 /**
  * A plan a developer account is on: its limits and how its pricing card looks.
  *

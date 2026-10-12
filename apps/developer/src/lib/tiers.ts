@@ -7,6 +7,7 @@
  * nothing would say which was right.
  */
 
+import { ENDPOINTS } from "@musiccloud/shared";
 import { backendUrl } from "@/lib/api";
 
 /** One plan as `GET /api/v1/tiers` returns it. */
@@ -49,7 +50,7 @@ export interface PublicTier {
  */
 export async function fetchPublicTiers(): Promise<PublicTier[]> {
   try {
-    const response = await fetch(backendUrl("/api/v1/tiers"));
+    const response = await fetch(backendUrl(ENDPOINTS.v1.tiers));
     if (!response.ok) return [];
     const tiers = (await response.json()) as PublicTier[];
     return tiers.sort((left, right) => left.sortOrder - right.sortOrder);
