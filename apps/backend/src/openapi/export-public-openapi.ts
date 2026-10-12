@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { PublicErrorCodeEntry } from "@musiccloud/shared";
+import { type PublicErrorCodeEntry, SITE_ORIGIN } from "@musiccloud/shared";
 
 export interface PublicOpenApiDocument {
   openapi: string;
@@ -103,8 +103,7 @@ function assertPublicContract(document: PublicOpenApiDocument): void {
 function applyDocumentationExportEnv(): void {
   process.env.JWT_SECRET ??= "openapi-export-local-secret";
   process.env.CORS_ORIGIN ??= "http://localhost:3000,http://localhost:4321";
-  process.env.ALLOWED_ORIGINS ??=
-    "https://musiccloud.io,http://localhost:3000,http://localhost:4321,http://localhost:4322";
+  process.env.ALLOWED_ORIGINS ??= `${SITE_ORIGIN.site},http://localhost:3000,http://localhost:4321,http://localhost:4322`;
   process.env.JAMENDO_MIN_GAP_MS ??= "0";
 }
 

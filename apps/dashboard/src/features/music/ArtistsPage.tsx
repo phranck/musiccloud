@@ -28,10 +28,9 @@ import { InfiniteAdminTable } from "@/features/music/InfiniteAdminTable";
 import { RefreshArtistProfileButton } from "@/features/music/RefreshArtistProfileButton";
 import { ReResolveArtistButton } from "@/features/music/ReResolveArtistButton";
 import { formatEnglishDate } from "@/lib/format";
+import { SHARE_BASE } from "@/lib/shareBase";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { Dialog } from "@/shared/ui/Dialog";
-
-const SHARE_BASE = import.meta.env.VITE_SHARE_BASE_URL ?? "https://musiccloud.io";
 
 function formatDate(ts: number): string {
   return formatEnglishDate(ts, { dateStyle: "medium" });

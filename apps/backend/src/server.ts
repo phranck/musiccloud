@@ -6,7 +6,7 @@ import jwt from "@fastify/jwt";
 import rateLimit from "@fastify/rate-limit";
 import sensible from "@fastify/sensible";
 import swagger from "@fastify/swagger";
-import { ENDPOINTS, ROUTE_TEMPLATES, Service } from "@musiccloud/shared";
+import { ENDPOINTS, ROUTE_TEMPLATES, Service, SITE_ORIGIN } from "@musiccloud/shared";
 import Fastify, { type FastifyLoggerOptions } from "fastify";
 import { runMigrations } from "./db/run-migrations.js";
 import {
@@ -285,7 +285,9 @@ async function buildApp(options: BuildAppOptions = {}) {
         description:
           "Public REST API for resolving music URLs and search queries, retrieving persisted shares, and consuming Creative-Commons media and metadata.\n\n" +
           "## Authentication\n\n" +
-          "Exactly three operations require a key issued to an application: `POST /api/v1/resolve`, `POST /api/v1/cc/resolve`, and `GET /api/v1/link/{id}`. A Developer Project owns its subscription and shared quota and may contain separate development, confidential, and public applications. Send an API key as `X-API-Key: mc_live_<prefix>_<secret>`. All other operations in this reference are callable without a key. Manage projects, applications and their keys at https://developer.musiccloud.io/dashboard/projects. A key is shown only when created or rotated. Store it as a secret and never embed it in browser code. Missing, invalid, suspended, or revoked project, application, or key credentials receive `401`.\n\n" +
+          "Exactly three operations require a key issued to an application: `POST /api/v1/resolve`, `POST /api/v1/cc/resolve`, and `GET /api/v1/link/{id}`. A Developer Project owns its subscription and shared quota and may contain separate development, confidential, and public applications. Send an API key as `X-API-Key: mc_live_<prefix>_<secret>`. All other operations in this reference are callable without a key. Manage projects, applications and their keys at " +
+          SITE_ORIGIN.developer +
+          "/dashboard/projects. A key is shown only when created or rotated. Store it as a secret and never embed it in browser code. Missing, invalid, suspended, or revoked project, application, or key credentials receive `401`.\n\n" +
           "## Rate limiting\n\n" +
           "Four independent rules can apply:\n\n" +
           "1. The three API-key operations use the rolling `60`-second and rolling `24`-hour quotas owned by the Developer Project. Applications under one project share those quotas; an optional application cap can only narrow them.\n" +
@@ -295,7 +297,7 @@ async function buildApp(options: BuildAppOptions = {}) {
           "A rejected request returns `429 Too Many Requests`, the `ErrorResponse` JSON body, and `Retry-After`. When available, `context.limit`, `context.windowSeconds`, and `context.retryAfterSeconds` describe the rule that rejected the request.",
         version: "2.4.0",
       },
-      servers: [{ url: "https://api.musiccloud.io", description: "Production" }],
+      servers: [{ url: SITE_ORIGIN.api, description: "Production" }],
       // Tag order here does not need to be alphabetical: the document is
       // sorted in finalizePublicOpenApiDocument before it is served, so groups
       // always render alphabetically regardless of this list's order.
@@ -352,7 +354,7 @@ async function buildApp(options: BuildAppOptions = {}) {
       schema: { hide: true },
     },
     async (_request, reply) => {
-      return reply.redirect("https://developer.musiccloud.io/docs/api", 308);
+      return reply.redirect(`${SITE_ORIGIN.developer}/docs/api`, 308);
     },
   );
 
@@ -391,14 +393,13 @@ async function buildApp(options: BuildAppOptions = {}) {
       schema: {
         tags: ["Health"],
         summary: "Developer portal liveness",
-        description:
-          "Returns `200` when `https://developer.musiccloud.io` answers the probe without a server error before the timeout; otherwise returns `503`.",
+        description: `Returns \`200\` when \`${SITE_ORIGIN.developer}\` answers the probe without a server error before the timeout; otherwise returns \`503\`.`,
         response: {
           200: publicHealthSuccessResponse(
-            "`https://developer.musiccloud.io` answered the probe with an HTTP status below `500`.",
+            `\`${SITE_ORIGIN.developer}\` answered the probe with an HTTP status below \`500\`.`,
           ),
           503: publicHealthUnavailableResponse(
-            "`https://developer.musiccloud.io` did not answer successfully before the probe timeout.",
+            `\`${SITE_ORIGIN.developer}\` did not answer successfully before the probe timeout.`,
           ),
         },
       },
@@ -421,14 +422,13 @@ async function buildApp(options: BuildAppOptions = {}) {
       schema: {
         tags: ["Health"],
         summary: "Dashboard liveness",
-        description:
-          "Returns `200` when `https://dashboard.musiccloud.io` answers the probe without a server error before the timeout; otherwise returns `503`.",
+        description: `Returns \`200\` when \`${SITE_ORIGIN.dashboard}\` answers the probe without a server error before the timeout; otherwise returns \`503\`.`,
         response: {
           200: publicHealthSuccessResponse(
-            "`https://dashboard.musiccloud.io` answered the probe with an HTTP status below `500`.",
+            `\`${SITE_ORIGIN.dashboard}\` answered the probe with an HTTP status below \`500\`.`,
           ),
           503: publicHealthUnavailableResponse(
-            "`https://dashboard.musiccloud.io` did not answer successfully before the probe timeout.",
+            `\`${SITE_ORIGIN.dashboard}\` did not answer successfully before the probe timeout.`,
           ),
         },
       },
@@ -451,14 +451,13 @@ async function buildApp(options: BuildAppOptions = {}) {
       schema: {
         tags: ["Health"],
         summary: "Frontend liveness",
-        description:
-          "Returns `200` when `https://musiccloud.io` answers the probe without a server error before the timeout; otherwise returns `503`.",
+        description: `Returns \`200\` when \`${SITE_ORIGIN.site}\` answers the probe without a server error before the timeout; otherwise returns \`503\`.`,
         response: {
           200: publicHealthSuccessResponse(
-            "`https://musiccloud.io` answered the probe with an HTTP status below `500`.",
+            `\`${SITE_ORIGIN.site}\` answered the probe with an HTTP status below \`500\`.`,
           ),
           503: publicHealthUnavailableResponse(
-            "`https://musiccloud.io` did not answer successfully before the probe timeout.",
+            `\`${SITE_ORIGIN.site}\` did not answer successfully before the probe timeout.`,
           ),
         },
       },

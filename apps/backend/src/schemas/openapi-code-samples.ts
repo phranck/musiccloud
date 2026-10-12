@@ -10,6 +10,8 @@
  * rather than across every route.
  */
 
+import { SITE_ORIGIN } from "@musiccloud/shared";
+
 // Teach Fastify's typed-schema augmentation that `x-codeSamples` is a valid
 // field. Without this, routes typed with `app.get<{ Params: ... }>` reject
 // the extension with TS2353.
@@ -19,7 +21,7 @@ declare module "fastify" {
   }
 }
 
-const BASE_URL = "https://api.musiccloud.io";
+const BASE_URL = SITE_ORIGIN.api;
 
 export type AuthMode = "bearer" | "apiKey";
 

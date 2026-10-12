@@ -1,8 +1,9 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { UMAMI_ORIGIN } from "../security-headers.js";
 import { proxyUmamiEvent, proxyUmamiScript } from "../umami-proxy.js";
+import { REPOSITORY_ROOT, shippedSourceFiles } from "./repository-sources.js";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -71,24 +72,11 @@ describe("proxyUmamiScript", () => {
   });
 });
 
-/** Every source file under a directory, recursively, leaving out tests and build output. */
-function sourceFiles(directory: string): string[] {
-  return readdirSync(directory).flatMap((entry) => {
-    const path = join(directory, entry);
-    if (statSync(path).isDirectory()) return entry === "node_modules" || entry === "dist" ? [] : sourceFiles(path);
-    return /\.(ts|tsx|astro|mjs)$/.test(entry) && !/\.test\.(ts|tsx)$/.test(entry) ? [path] : [];
-  });
-}
-
 describe("the Umami host", () => {
-  /** The repository root, from this file in `packages/shared/src/__tests__`. */
-  const root = join(import.meta.dirname, "..", "..", "..", "..");
-
   it("is written in security-headers.ts only, so the proxy and the policy read one value", () => {
-    const sources = ["apps/backend/src", "apps/frontend/src", "apps/developer/src", "apps/dashboard/src", "packages"]
-      .flatMap((directory) => sourceFiles(join(root, directory)))
-      .filter((path) => readFileSync(path, "utf8").includes(new URL(UMAMI_ORIGIN).host))
-      .map((path) => path.slice(root.length + 1));
+    const sources = shippedSourceFiles().filter((path) =>
+      readFileSync(join(REPOSITORY_ROOT, path), "utf8").includes(new URL(UMAMI_ORIGIN).host),
+    );
 
     expect(sources).toEqual(["packages/shared/src/security-headers.ts"]);
   });

@@ -15,6 +15,7 @@
  *   skip all delays.
  */
 
+import { SITE_ORIGIN } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
 import type { DiscogsMasterVersion, DiscogsRelease, DiscogsTrack } from "./discogs-parse.js";
 
@@ -23,7 +24,7 @@ import type { DiscogsMasterVersion, DiscogsRelease, DiscogsTrack } from "./disco
 // ---------------------------------------------------------------------------
 
 const DISCOGS_BASE_URL = "https://api.discogs.com";
-const USER_AGENT = "musiccloud/1.0 +https://musiccloud.io";
+const USER_AGENT = `musiccloud/1.0 +${SITE_ORIGIN.site}`;
 const DEFAULT_MIN_INTERVAL_MS = 1100;
 
 // ---------------------------------------------------------------------------

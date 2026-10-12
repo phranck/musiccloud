@@ -12,10 +12,7 @@
  * `ResolveRequest`, which the backend's body schema is checked against, so a
  * snippet cannot send a field the API refuses.
  */
-import { ENDPOINTS, type ResolveRequest } from "@musiccloud/shared";
-
-/** Where the published API answers when nothing says otherwise. */
-const DEFAULT_PUBLIC_API_BASE_URL = "https://api.musiccloud.io";
+import { ENDPOINTS, type ResolveRequest, SITE_ORIGIN } from "@musiccloud/shared";
 
 /**
  * Where the published API answers, which is what the snippets call.
@@ -29,7 +26,7 @@ const DEFAULT_PUBLIC_API_BASE_URL = "https://api.musiccloud.io";
  * still correct.
  */
 export const PUBLIC_API_BASE_URL: string =
-  (import.meta.env.PUBLIC_API_URL as string | undefined)?.trim() || DEFAULT_PUBLIC_API_BASE_URL;
+  (import.meta.env.PUBLIC_API_URL as string | undefined)?.trim() || SITE_ORIGIN.api;
 
 /** The header an issued key is sent in. */
 export const API_KEY_HEADER = "X-API-Key";

@@ -14,8 +14,10 @@
  * a direct API call is `api.musiccloud.io` rather than the public site.
  */
 
+import { SITE_ORIGIN } from "@musiccloud/shared";
+
 /** Used when `PUBLIC_URL` is unset or unusable. */
-const FALLBACK_PUBLIC_ORIGIN = "https://musiccloud.io";
+const FALLBACK_PUBLIC_ORIGIN = SITE_ORIGIN.site;
 
 /**
  * Reduces a configured URL to its origin, dropping any path, query or fragment.

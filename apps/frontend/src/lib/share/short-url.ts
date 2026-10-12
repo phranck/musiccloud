@@ -1,18 +1,18 @@
+import { SITE_ORIGIN } from "@musiccloud/shared";
+
 /**
  * The canonical origin used to resolve relative musiccloud short URLs.
  *
  * Short URLs returned by the resolve endpoint can be relative (`/abc123`) or
  * absolute. To turn them into a {@link URL} they need a base origin. During
  * client rendering the live origin is authoritative; during SSR there is no
- * `window`, so this falls back to the production origin. Centralizing the
- * fallback here keeps the `"https://musiccloud.io"` convention in a single
- * place instead of being repeated across the short-url helpers.
+ * `window`, so this falls back to the production site from `SITE_ORIGIN`.
  *
- * @returns The current `window.location.origin` in the browser, or the
- *   production origin (`https://musiccloud.io`) during SSR.
+ * @returns The current `window.location.origin` in the browser, or
+ *   `SITE_ORIGIN.site` during SSR.
  */
 function originBase(): string {
-  return typeof window === "undefined" ? "https://musiccloud.io" : window.location.origin;
+  return typeof window === "undefined" ? SITE_ORIGIN.site : window.location.origin;
 }
 
 /**

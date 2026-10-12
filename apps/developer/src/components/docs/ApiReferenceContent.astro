@@ -24,6 +24,7 @@ import {
   iconForApiReferenceSection,
 } from "@/lib/api-reference-section-icons";
 import type { ApiReference } from "@/lib/openapi-reference";
+import { SITE_ORIGIN } from "@musiccloud/shared";
 
 interface Props {
   reference: ApiReference;
@@ -36,7 +37,10 @@ const SchemasIcon = apiReferenceStaticSectionIcons.schemas;
 
 const integrationItems = [
   ["Authentication", "Send X-API-Key with your mc_live key. Never expose that key in browser code."],
-  ["Requests", "Use JSON request bodies and read JSON responses from the versioned api.musiccloud.io base URL."],
+  [
+    "Requests",
+    `Use JSON request bodies and read JSON responses from the versioned ${new URL(SITE_ORIGIN.api).host} base URL.`,
+  ],
   ["Errors", "Every backend error includes a stable code, safe message, and errorId for support correlation."],
   [
     "Limits",
@@ -44,7 +48,7 @@ const integrationItems = [
   ],
   ["Versioning", `This page is generated from public API version ${reference.version}.`],
 ] as const;
-const openApiContractUrl = "https://api.musiccloud.io/docs/json";
+const openApiContractUrl = `${SITE_ORIGIN.api}/docs/json`;
 const openApiContractSource = JSON.stringify(contract, null, 2) ?? "{}";
 ---
 
@@ -135,7 +139,7 @@ const openApiContractSource = JSON.stringify(contract, null, 2) ?? "{}";
                   label="Authenticated request"
                   language="bash"
                   code={`# Requires MUSICCLOUD_API_KEY to be set in your shell environment.
-curl https://api.musiccloud.io/api/v1/resolve \\
+curl ${SITE_ORIGIN.api}/api/v1/resolve \\
   -H "X-API-Key: \${MUSICCLOUD_API_KEY}" \\
   -H "Content-Type: application/json"`}
                 />

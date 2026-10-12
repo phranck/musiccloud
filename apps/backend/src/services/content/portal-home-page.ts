@@ -10,6 +10,8 @@
  * CommonJS bundle and reads nothing beside it at runtime.
  */
 
+import { SITE_ORIGIN } from "@musiccloud/shared";
+
 /** Where the page is published in the portal. */
 export const PORTAL_HOME_PATH = "/";
 
@@ -30,7 +32,7 @@ export const PORTAL_HOME_CONTENT = `Resolve any music link, fetch artist info, a
 
 \`\`\`bash
 # Resolve a Spotify link to every platform
-curl https://api.musiccloud.io/api/v1/resolve \\
+curl ${SITE_ORIGIN.api}/api/v1/resolve \\
   -H "X-API-Key: mc_live_example12345_replace_with_your_secret_value" -d '{"url":"…"}'
 \`\`\`
 

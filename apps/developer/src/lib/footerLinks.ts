@@ -7,6 +7,8 @@
  * template; only the data is shared.
  */
 
+import { SITE_ORIGIN } from "@musiccloud/shared";
+
 /**
  * A single footer navigation entry.
  *
@@ -29,5 +31,5 @@ export interface FooterLink {
 export const FOOTER_LINKS: readonly FooterLink[] = [
   { href: "/terms", label: "Terms" },
   { href: "/privacy", label: "Privacy" },
-  { href: "https://status.musiccloud.io", label: "Status", external: true },
+  { href: SITE_ORIGIN.status, label: "Status", external: true },
 ];

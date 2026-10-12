@@ -13,7 +13,7 @@
  */
 export const prerender = false;
 
-import type { ApiErrorResponse, PublicContentPage, SharePageResponse } from "@musiccloud/shared";
+import { type ApiErrorResponse, type PublicContentPage, type SharePageResponse, SITE_ORIGIN } from "@musiccloud/shared";
 import { fetchPublicContentPage, fetchShareData } from "@/api/client";
 import DeferredFooter from "@/components/layout/DeferredFooter.astro";
 import { PageOverlayIsland } from "@/components/layout/PageOverlayIsland";
@@ -121,7 +121,7 @@ if (treatAsBot) {
 
 <BaseLayout
   title={pageTitle}
-  canonicalUrl={treatAsBot ? (contentPage ? `https://musiccloud.io/${contentPage.slug}` : og?.url) : undefined}
+  canonicalUrl={treatAsBot ? (contentPage ? `${SITE_ORIGIN.site}/${contentPage.slug}` : og?.url) : undefined}
   preloadImage={treatAsBot ? (artworkUrl ?? undefined) : undefined}
 >
   <Fragment slot="head">

@@ -1,10 +1,11 @@
+import { SITE_ORIGIN } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
 import { loadByShortId } from "../lib/server/share-page.js";
 
 async function test() {
   try {
     console.log("Testing loadByShortId...");
-    const data = await loadByShortId("Lrgzm", "https://musiccloud.io");
+    const data = await loadByShortId("Lrgzm", SITE_ORIGIN.site);
     
     if (data) {
       console.log("✅ loadByShortId works!");
