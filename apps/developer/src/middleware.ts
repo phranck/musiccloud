@@ -1,11 +1,30 @@
 import { defineMiddleware } from "astro:middleware";
-import { applySecurityHeaders, ENDPOINTS, SurfaceExposure } from "@musiccloud/shared";
+import {
+  applySecurityHeaders,
+  buildEnforcedContentSecurityPolicy,
+  ENDPOINTS,
+  hashesFromAstroPolicy,
+  SurfaceExposure,
+} from "@musiccloud/shared";
 
 import { PORTAL_GATE_CONTENT_SECURITY_POLICY, PortalGateMode, renderPortalGateHtml } from "./lib/coming-soon";
+import { PORTAL_FONT_FACE_HASH } from "./lib/fonts";
 import { getPortalAvailability } from "./lib/portal-availability";
+import { createRenderedPageCache } from "./lib/rendered-page-cache";
 
 const DOCUMENTATION_PATH = "/docs";
 const ALWAYS_REACHABLE_PATHS = new Set(["/developer-theme.css", "/favicon.svg"]);
+
+/** The API reference's address, with and without its trailing slash. */
+const API_REFERENCE_PATHS = new Set([`${DOCUMENTATION_PATH}/api`, `${DOCUMENTATION_PATH}/api/`]);
+
+/**
+ * How long the rendered API reference is reused: long enough to spare the
+ * server the render, short enough for a navigation change to show.
+ */
+const API_REFERENCE_CACHE_MS = 5 * 60 * 1000;
+
+const apiReferenceCache = createRenderedPageCache(API_REFERENCE_CACHE_MS);
 
 /**
  * Whether a path stays reachable whatever state the portal is in.
@@ -46,6 +65,36 @@ function gateResponse(mode: PortalGateMode, status: number, extraHeaders: Record
 }
 
 /**
+ * The matched route's response, with the content policy Astro wrote replaced
+ * by the portal's complete one.
+ *
+ * Astro lists the hashes of the scripts and styles it emits. The layout writes
+ * its `@font-face` block inline, and that hash comes from the constant the
+ * layout renders. Highlighted code and editorial content carry `style`
+ * attributes. A response without Astro's policy, such as an endpoint, keeps
+ * the shared reported one.
+ *
+ * @param next - Continues to the matched route.
+ * @returns The route's response.
+ */
+async function routeResponse(next: () => Promise<Response>): Promise<Response> {
+  const response = await next();
+  const astroPolicy = response.headers.get("content-security-policy");
+  if (astroPolicy) {
+    const { scriptHashes, styleHashes } = hashesFromAstroPolicy(astroPolicy);
+    response.headers.set(
+      "content-security-policy",
+      buildEnforcedContentSecurityPolicy(SurfaceExposure.Public, {
+        scriptHashes,
+        styleHashes: [...styleHashes, PORTAL_FONT_FACE_HASH],
+        styleAttributes: true,
+      }),
+    );
+  }
+  return response;
+}
+
+/**
  * Global request gate. The system documentation namespace and built assets remain available
  * in every state. All other routes fail closed to Coming Soon if the internal
  * state cannot be read. Maintenance deliberately preserves the original URL
@@ -56,8 +105,11 @@ function gateResponse(mode: PortalGateMode, status: number, extraHeaders: Record
  * @returns Either the gate page or whatever the route produced.
  */
 async function gateRequest(pathname: string, next: () => Promise<Response>): Promise<Response> {
+  if (API_REFERENCE_PATHS.has(pathname)) {
+    return apiReferenceCache(() => routeResponse(next));
+  }
   if (isAlwaysReachable(pathname)) {
-    return next();
+    return routeResponse(next);
   }
 
   const availability = await getPortalAvailability();
@@ -70,7 +122,7 @@ async function gateRequest(pathname: string, next: () => Promise<Response>): Pro
     return gateResponse(PortalGateMode.ComingSoon, 200);
   }
 
-  return next();
+  return routeResponse(next);
 }
 
 /**

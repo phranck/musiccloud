@@ -283,7 +283,7 @@ const GATE_PAGE_CSS = `
  * origin.
  */
 export const PORTAL_GATE_CONTENT_SECURITY_POLICY = buildEnforcedContentSecurityPolicy(SurfaceExposure.Public, {
-  styles: [`sha256-${createHash("sha256").update(GATE_PAGE_CSS).digest("base64")}`],
+  styleHashes: [`sha256-${createHash("sha256").update(GATE_PAGE_CSS).digest("base64")}`],
 });
 
 /** Renders the common availability page for the requested portal state. */

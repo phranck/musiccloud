@@ -37,4 +37,8 @@ export default defineConfig({
     ssr: { noExternal: ["@musiccloud/dashboard-ui"] },
   },
   site: SITE_ORIGIN.developer,
+  // Astro hashes every script and style it emits into a `content-security-policy`
+  // header. The middleware replaces it with the portal's complete policy, which
+  // carries those hashes.
+  experimental: { csp: true },
 });

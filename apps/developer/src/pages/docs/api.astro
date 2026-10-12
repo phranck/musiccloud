@@ -1,5 +1,8 @@
 ---
-export const prerender = true;
+// Rendered on demand, so the middleware gives it the portal's headers. A
+// prerendered page is served before the middleware runs. The middleware reuses
+// one render for a few minutes, as `lib/rendered-page-cache.ts` explains.
+export const prerender = false;
 
 import PublicHeader from "@/components/PublicHeader.astro";
 import ApiReferenceContent from "@/components/docs/ApiReferenceContent.astro";

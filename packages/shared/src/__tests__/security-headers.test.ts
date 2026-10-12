@@ -3,6 +3,7 @@ import {
   applySecurityHeaders,
   buildEnforcedContentSecurityPolicy,
   buildSecurityHeaders,
+  hashesFromAstroPolicy,
   SurfaceExposure,
 } from "../security-headers.js";
 
@@ -72,8 +73,8 @@ describe("buildEnforcedContentSecurityPolicy", () => {
   it("enforces every loading directive, with the given hashes added to their own source list", () => {
     const policy = directives(
       buildEnforcedContentSecurityPolicy(SurfaceExposure.Public, {
-        styles: ["sha256-style"],
-        scripts: ["sha256-script"],
+        styleHashes: ["sha256-style"],
+        scriptHashes: ["sha256-script"],
       }),
     );
 
@@ -91,6 +92,38 @@ describe("buildEnforcedContentSecurityPolicy", () => {
     expect(policy).toContain("script-src 'self'");
     expect(policy).toContain("style-src 'self'");
     expect(policy.join("; ")).not.toContain("unsafe-inline");
+  });
+
+  it("admits style attributes in their own directive, while style elements stay on hashes", () => {
+    const policy = directives(
+      buildEnforcedContentSecurityPolicy(SurfaceExposure.Public, {
+        styleHashes: ["sha256-style"],
+        styleAttributes: true,
+      }),
+    );
+
+    expect(policy).toContain("style-src 'self' 'sha256-style'");
+    expect(policy).toContain("style-src-attr 'unsafe-inline'");
+    expect(policy.filter((directive) => directive.includes("unsafe-inline"))).toHaveLength(1);
+  });
+});
+
+describe("hashesFromAstroPolicy", () => {
+  it("reads the script and style hashes Astro wrote, and nothing else", () => {
+    const astroPolicy =
+      "base-uri 'self';object-src 'none'; script-src 'self' 'sha256-one' 'sha384-two'; style-src 'self' 'sha256-three';";
+
+    expect(hashesFromAstroPolicy(astroPolicy)).toEqual({
+      scriptHashes: ["sha256-one", "sha384-two"],
+      styleHashes: ["sha256-three"],
+    });
+  });
+
+  it("reads nothing from a policy without hashes", () => {
+    expect(hashesFromAstroPolicy("script-src 'self'; style-src 'self';")).toEqual({
+      scriptHashes: [],
+      styleHashes: [],
+    });
   });
 });
 
