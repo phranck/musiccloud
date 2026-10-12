@@ -135,9 +135,11 @@ export const serviceLinkMisses = pgTable(
   "service_link_misses",
   {
     id: text("id").primaryKey(),
+    // A miss means nothing without its track, so it goes with the track. Every
+    // path that deletes tracks relies on this rather than deleting misses first.
     trackId: text("track_id")
       .notNull()
-      .references(() => tracks.id),
+      .references(() => tracks.id, { onDelete: "cascade" }),
     service: text("service").notNull(),
     checkedAt: timestamp("checked_at", { withTimezone: true }).notNull(),
   },

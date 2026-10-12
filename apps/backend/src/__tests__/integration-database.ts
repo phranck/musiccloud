@@ -74,7 +74,8 @@ export interface PersistedCatalogRows {
  * would reuse, and here remove, an entity somebody else's data points at.
  *
  * The short URL and service link rows go first because they do not cascade
- * with their track or album; credits, external ids and previews do.
+ * with their track or album; credits, external ids, previews and recorded
+ * service misses do.
  *
  * @param client - A connection to the integration database.
  * @param rows - The ids and names to remove. Missing lists remove nothing.
