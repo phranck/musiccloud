@@ -372,6 +372,8 @@ export const ENDPOINTS = {
         projectSubscription: (id: string) => `/api/admin/developer/api-access/projects/${id}/subscription`,
         /** GET: aggregated usage for one project. Query: `?from=<iso>&to=<iso>`, both optional. */
         projectUsage: (id: string) => `/api/admin/developer/api-access/projects/${id}/usage`,
+        /** GET: one project's audit trail, newest first. Query: `?from=<iso>&to=<iso>&limit=<n>`, all optional. */
+        projectAudit: (id: string) => `/api/admin/developer/api-access/projects/${id}/audit`,
       },
       /**
        * GET / PATCH: the bounds on the open self-service creation path.
@@ -602,6 +604,7 @@ export const ROUTE_TEMPLATES = {
         projectDetail: "/api/admin/developer/api-access/projects/:id",
         projectSubscription: "/api/admin/developer/api-access/projects/:id/subscription",
         projectUsage: "/api/admin/developer/api-access/projects/:id/usage",
+        projectAudit: "/api/admin/developer/api-access/projects/:id/audit",
       },
       accounts: "/api/admin/developer/accounts",
       accountDetail: "/api/admin/developer/accounts/:id",

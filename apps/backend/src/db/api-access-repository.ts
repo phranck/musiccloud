@@ -163,6 +163,20 @@ export interface ApiAccessAuditEvent {
   eventData: Record<string, unknown>;
 }
 
+/**
+ * An audit-trail entry as the admin read returns it, with the actor's name
+ * resolved, so a screen does not look every actor up on its own.
+ *
+ * @property actorAdminUsername - The acting admin's username, or `null` when a
+ *   developer acted or the admin has since been removed.
+ * @property actorDeveloperEmail - The acting developer's sign-in address, or
+ *   `null` when an admin acted or the account has since been removed.
+ */
+export interface ApiAccessAuditEntry extends ApiAccessAuditEvent {
+  actorAdminUsername: string | null;
+  actorDeveloperEmail: string | null;
+}
+
 export interface ApiUsageEvent {
   id: string;
   occurredAt: number;
@@ -403,6 +417,29 @@ export interface ApiAccessRepository {
   }): Promise<ApiAccessAuditEvent>;
 
   /**
+   * Lists one project's audit trail inside a half-open range, newest first.
+   *
+   * Never unbounded: the range and the row ceiling are both required, and the
+   * route resolves both before it calls this.
+   *
+   * @param projectId - The project whose trail to read.
+   * @param from - Start of the range, epoch ms, inclusive.
+   * @param to - End of the range, epoch ms, exclusive.
+   * @param limit - The most rows to return.
+   * @returns The entries, with each actor's name resolved.
+   */
+  listProjectAuditEvents(projectId: string, from: number, to: number, limit: number): Promise<ApiAccessAuditEntry[]>;
+
+  /**
+   * Removes audit rows older than the cutoff. See `docs/api-access-retention.md`
+   * for the rule and what runs this.
+   *
+   * @param cutoff - Epoch ms; rows that occurred before it are deleted.
+   * @returns How many rows were removed.
+   */
+  deleteApiAccessAuditEventsBefore(cutoff: number): Promise<number>;
+
+  /**
    * Counts one project's authenticated requests inside a half-open range.
    *
    * This is what a quota reading is made of: the same window the limiter
@@ -435,7 +472,7 @@ export interface ApiAccessRepository {
    * Removes usage rows older than the cutoff.
    *
    * The table gains a row on every authenticated request, so it needs
-   * something that takes rows away again. See `docs/api-usage-retention.md`
+   * something that takes rows away again. See `docs/api-access-retention.md`
    * for the rule and what runs this.
    *
    * @param cutoff - Epoch ms; rows that occurred before it are deleted.

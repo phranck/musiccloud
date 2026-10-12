@@ -771,6 +771,13 @@
       "when": 1791804936995,
       "tag": "0109_artist_identity_checks",
       "breakpoints": true
+    },
+    {
+      "idx": 110,
+      "version": "7",
+      "when": 1791810800221,
+      "tag": "0110_api_access_audit_project_index",
+      "breakpoints": true
     }
   ]
 }
