@@ -132,9 +132,9 @@ export interface ParsedApiError {
 /**
  * Reads an error body without trusting its shape.
  *
- * The backend, the site and the portal proxies all send
- * {@link ApiErrorResponse}, and every client reads it through this one
- * function, so no client keeps its own idea of a missing or malformed field.
+ * Clients read an {@link ApiErrorResponse} through this function rather than
+ * by hand, so a missing or malformed field means the same thing on the site,
+ * in the developer portal and in the dashboard.
  *
  * @param payload - A parsed JSON body, or anything else a response carried.
  * @returns The fields that are present and well typed.

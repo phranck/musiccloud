@@ -7,6 +7,7 @@
  * which accepts the internal key this proxy attaches as full authentication.
  * A caller reaching that path would be using a credential it does not hold.
  */
+import { ERROR_CODE_REGISTRY } from "@musiccloud/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api", () => ({
@@ -54,6 +55,16 @@ describe("BFF proxy path containment", () => {
     // The credential must never travel to a caller-chosen destination, so the
     // request has to be refused before any fetch happens.
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses with the public error envelope, so the refusal has a code and an error ID", async () => {
+    const response = await callProxy("../v1/resolve");
+
+    await expect(response.json()).resolves.toEqual({
+      error: "MC-RES-0003",
+      errorId: expect.stringMatching(/\S/),
+      message: `${ERROR_CODE_REGISTRY["MC-RES-0003"].userMessage} (MC-RES-0003)`,
+    });
   });
 
   it("keeps a tail that merely looks like traversal but stays contained", async () => {

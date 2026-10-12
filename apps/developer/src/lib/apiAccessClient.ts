@@ -15,6 +15,7 @@ import {
   type ClientRegistrationTypeValue,
   type DeveloperProjectStatusValue,
   ENDPOINTS,
+  parseApiErrorResponse,
   ROUTE_TEMPLATES,
 } from "@musiccloud/shared";
 
@@ -188,19 +189,15 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<ApiAcce
 
     if (res.ok) return { ok: true, status: res.status, data: body as T };
 
-    const errorBody = (body ?? {}) as {
-      error?: string;
-      message?: string;
-      errorId?: string;
-      context?: { retryAfterSeconds?: number };
-    };
+    const errorBody = parseApiErrorResponse(body);
+    const retryAfterSeconds = errorBody.context?.retryAfterSeconds;
     return {
       ok: false,
       status: res.status,
       code: errorBody.error,
       message: errorBody.message,
       errorId: errorBody.errorId,
-      retryAfterSeconds: errorBody.context?.retryAfterSeconds,
+      retryAfterSeconds: typeof retryAfterSeconds === "number" ? retryAfterSeconds : undefined,
     };
   } catch {
     return { ok: false, status: 0 };

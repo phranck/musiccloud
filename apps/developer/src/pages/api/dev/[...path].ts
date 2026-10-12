@@ -1,3 +1,4 @@
+import { createApiErrorBody } from "@musiccloud/shared";
 import type { APIRoute } from "astro";
 import { backendUrl, INTERNAL_API_KEY } from "@/lib/api";
 
@@ -82,7 +83,7 @@ export const ALL: APIRoute = async ({ params, request, clientAddress }) => {
   // namespace never gets one.
   const target = resolveBackendTarget(params.path ?? "");
   if (!target) {
-    return new Response(JSON.stringify({ error: "NOT_FOUND", message: "Unknown proxy path." }), {
+    return new Response(JSON.stringify(createApiErrorBody("MC-RES-0003", { errorId: crypto.randomUUID() })), {
       status: 404,
       headers: { "content-type": "application/json; charset=utf-8" },
     });
