@@ -51,3 +51,30 @@ describe("Apple Music adapter — searchTrack", () => {
     expect(calledUrl).not.toContain("OK%20Computer");
   });
 });
+
+describe("Apple Music adapter previews", () => {
+  it("leaves out the preview Apple sends with a song", async () => {
+    vi.mocked(fetchWithTimeout).mockResolvedValue(
+      jsonResponse({
+        data: [
+          {
+            id: "1440806725",
+            type: "songs",
+            attributes: {
+              name: "Karma Police",
+              artistName: "Radiohead",
+              url: "https://music.apple.com/us/song/karma-police/1440806725",
+              previews: [{ url: "https://audio-ssl.itunes.apple.com/preview.m4a" }],
+            },
+          },
+        ],
+      }),
+    );
+
+    const track = await appleMusicAdapter.getTrack("us:1440806725");
+
+    expect(track.title).toBe("Karma Police");
+    expect(track.previewUrl).toBeUndefined();
+    expect(appleMusicAdapter.capabilities.supportsPreview).toBe(false);
+  });
+});

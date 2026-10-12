@@ -108,7 +108,6 @@ interface AppleSongAttributes {
   isrc?: string;
   releaseDate?: string;
   contentRating?: "explicit" | "clean";
-  previews?: { url?: string }[];
 }
 
 interface AppleSongRelationships {
@@ -181,7 +180,7 @@ function mapSong(raw: AppleSong): NormalizedTrack {
     durationMs: a.durationInMillis,
     isExplicit: a.contentRating === "explicit",
     artworkUrl: formatArtwork(a.artwork),
-    previewUrl: a.previews?.[0]?.url,
+    // No `previewUrl`: Apple's previews are left out, see the adapter's file comment.
     releaseDate: a.releaseDate,
     isrc: a.isrc,
     webUrl: a.url ?? `https://music.apple.com/${storefront()}/song/${raw.id}`,
