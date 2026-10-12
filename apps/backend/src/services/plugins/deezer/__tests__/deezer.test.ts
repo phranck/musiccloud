@@ -520,6 +520,55 @@ describe("Deezer: searchTrackWithCandidates", () => {
 });
 
 // =============================================================================
+// artist pictures
+// =============================================================================
+
+/** The stock picture Deezer answers for an artist without one; its path holds the empty-string MD5. */
+const SILHOUETTE = "https://e-cdns-images.dzcdn.net/images/artist/d41d8cd98f00b204e9800998ecf8427e/1000x1000.jpg";
+
+describe("Deezer: artist pictures", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("gives an artist without a picture no image in getArtist, so another service's picture is used", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ id: 27, name: "Daft Punk", picture_xl: SILHOUETTE, picture_big: SILHOUETTE }), {
+        status: 200,
+      }),
+    );
+
+    const artist = await deezerAdapter.getArtist("27");
+
+    expect(artist.name).toBe("Daft Punk");
+    expect(artist.imageUrl).toBeUndefined();
+  });
+
+  it("gives the best search hit without a picture no image in searchArtist", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ data: [{ id: 27, name: "Daft Punk", picture_xl: SILHOUETTE }] }), {
+        status: 200,
+      }),
+    );
+
+    const result = await deezerAdapter.searchArtist({ name: "Daft Punk" });
+
+    expect(result.found).toBe(true);
+    expect(result.artist?.imageUrl).toBeUndefined();
+  });
+
+  it("keeps a real picture", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ id: 27, name: "Daft Punk", picture_xl: "https://cdn/daft-punk.jpg" }), {
+        status: 200,
+      }),
+    );
+
+    expect((await deezerAdapter.getArtist("27")).imageUrl).toBe("https://cdn/daft-punk.jpg");
+  });
+});
+
+// =============================================================================
 // metadata
 // =============================================================================
 

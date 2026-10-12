@@ -59,14 +59,14 @@
  * genre-id set). Album- and artist-pools are derived fresh on every
  * call — the derivation is O(100) and cheaper than a cache lookup.
  */
-import { fetchWithTimeout } from "../../../lib/infra/fetch.js";
 import { getArtistImages } from "../../artist-images.js";
 import { extractPrimaryArtist } from "../../artist-utils.js";
 import { resolveGenreName } from "../../genre-search/genre-map.js";
 import { evenSpacedSample, stratifiedSample } from "../../genre-search/sampler.js";
 import type { NormalizedAlbum, NormalizedArtist, NormalizedTrack } from "../../types.js";
+import { pickDeezerArtistImage } from "./artist-image.js";
+import { deezerGet } from "./deezer-response.js";
 
-const API_BASE = "https://api.deezer.com";
 /** Deezer's max `limit` per chart call — also our sampling pool size. */
 const MAX_POOL = 100;
 
@@ -95,6 +95,7 @@ interface DeezerChartArtistRef {
   link?: string;
   picture_xl?: string;
   picture_big?: string;
+  picture_medium?: string;
 }
 
 interface DeezerChartAlbumRef {
@@ -114,28 +115,6 @@ interface DeezerChartTrack {
   explicit_lyrics?: boolean;
   artist: DeezerChartArtistRef;
   album?: DeezerChartAlbumRef;
-}
-
-interface DeezerErrorResponse {
-  error: { type: string; message: string; code: number };
-}
-
-function isDeezerError(data: unknown): data is DeezerErrorResponse {
-  return typeof data === "object" && data !== null && "error" in data;
-}
-
-// ─── HTTP ────────────────────────────────────────────────────────────────────
-
-async function deezerFetch(endpoint: string): Promise<unknown> {
-  const res = await fetchWithTimeout(`${API_BASE}${endpoint}`, {}, 5000);
-  if (!res.ok) {
-    throw new Error(`Deezer ${endpoint} returned HTTP ${res.status}`);
-  }
-  const data = await res.json();
-  if (isDeezerError(data)) {
-    throw new Error(`Deezer ${endpoint} error: ${data.error.message}`);
-  }
-  return data;
 }
 
 // ─── Mappers ─────────────────────────────────────────────────────────────────
@@ -178,7 +157,8 @@ function extractAlbumFromTrack(track: DeezerChartTrack): NormalizedAlbum | null 
  * Extract the artist reference embedded in a chart-track into a
  * NormalizedArtist. Deezer's chart-track payload carries full
  * `picture_*` URLs on the nested artist, so we don't need a follow-up
- * `/artist/{id}` call.
+ * `/artist/{id}` call. Deezer's silhouette for an artist without a picture
+ * reads as no image, so the shared image cache fills it below.
  */
 function extractArtistFromTrack(track: DeezerChartTrack): NormalizedArtist {
   const a = track.artist;
@@ -186,7 +166,7 @@ function extractArtistFromTrack(track: DeezerChartTrack): NormalizedArtist {
     sourceService: "deezer",
     sourceId: String(a.id),
     name: a.name,
-    imageUrl: a.picture_xl ?? a.picture_big,
+    imageUrl: pickDeezerArtistImage(a) ?? undefined,
     webUrl: a.link ?? `https://www.deezer.com/artist/${a.id}`,
   };
 }
@@ -194,8 +174,11 @@ function extractArtistFromTrack(track: DeezerChartTrack): NormalizedArtist {
 // ─── Chart fetcher (tracks only — see file header) ──────────────────────────
 
 async function fetchTracksForGenre(genreId: number, limit: number): Promise<DeezerChartTrack[]> {
-  const data = await deezerFetch(`/chart/${genreId}/tracks?limit=${limit}`);
-  return (data as { data?: DeezerChartTrack[] }).data ?? [];
+  const data = await deezerGet<{ data?: DeezerChartTrack[] }>(
+    `/chart/${genreId}/tracks?limit=${limit}`,
+    `chart for genre ${genreId}`,
+  );
+  return data?.data ?? [];
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -298,7 +281,7 @@ export function _resetGenrePoolsForTests(): void {
  * each requested type to the user-specified count.
  *
  * @throws {UnknownGenreError} when a genre name cannot be resolved.
- * @throws {Error} when the Deezer API returns an HTTP or API-level error.
+ * @throws {UpstreamUnavailableError} when Deezer refused or did not answer a chart request.
  */
 export async function deezerSearchByGenre(input: GenreSearchInput): Promise<GenreSearchResult> {
   const anythingRequested = input.tracks > 0 || input.albums > 0 || input.artists > 0;

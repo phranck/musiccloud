@@ -23,7 +23,7 @@
  *
  * Deezer signals errors by returning `200 OK` with an `{ error: { ... } }`
  * body rather than HTTP status codes. The lookups and searches read their
- * answers through `readDeezerJson`, which treats code `800` ("no data") as
+ * answers through `deezerGet`, which treats code `800` ("no data") as
  * a miss and every other error as a failure, so a rate limit is never
  * recorded as "Deezer does not carry this track". `getTrack`, `getAlbum` and
  * `getArtist` keep `isDeezerError` and report the object as not found.
@@ -50,7 +50,6 @@
  * page rendering sharp at retina resolutions.
  */
 import { ResourceKind, Service } from "@musiccloud/shared";
-import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { calculateAlbumConfidence, calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { CANDIDATE_MIN_CONFIDENCE, MATCH_MIN_CONFIDENCE, MAX_CANDIDATES } from "../../constants.js";
@@ -72,10 +71,9 @@ import type {
   ServiceAdapter,
 } from "../../types.js";
 import { scoreSearchCandidate } from "../_shared/confidence.js";
-import { readDeezerJson } from "./deezer-response.js";
+import { pickDeezerArtistImage } from "./artist-image.js";
+import { deezerFetch, deezerGet } from "./deezer-response.js";
 import { deezerSearchByGenre } from "./genre-search.js";
-
-const API_BASE = "https://api.deezer.com";
 
 const DEEZER_TRACK_REGEX = /(?:https?:\/\/)?(?:www\.)?deezer\.com\/(?:[a-z]{2}\/)?track\/(\d+)/;
 const DEEZER_ALBUM_REGEX = /(?:https?:\/\/)?(?:www\.)?deezer\.com\/(?:[a-z]{2}\/)?album\/(\d+)/;
@@ -135,7 +133,14 @@ interface DeezerAlbumSearchResponse {
 }
 
 interface DeezerArtistSearchResponse {
-  data?: Array<{ id: number; name: string; picture_xl?: string; picture_big?: string; link?: string }>;
+  data?: Array<{
+    id: number;
+    name: string;
+    picture_xl?: string;
+    picture_big?: string;
+    picture_medium?: string;
+    link?: string;
+  }>;
 }
 
 function mapAlbum(raw: DeezerAlbumResponse): NormalizedAlbum {
@@ -169,10 +174,6 @@ function mapAlbum(raw: DeezerAlbumResponse): NormalizedAlbum {
 
 interface DeezerErrorResponse {
   error: { type: string; message: string; code: number };
-}
-
-async function deezerFetch(endpoint: string): Promise<Response> {
-  return fetchWithTimeout(`${API_BASE}${endpoint}`, {}, 5000);
 }
 
 function isDeezerError(data: unknown): data is DeezerErrorResponse {
@@ -245,16 +246,17 @@ export const deezerAdapter = {
   },
 
   async findByIsrc(isrc: string): Promise<NormalizedTrack | null> {
-    const response = await deezerFetch(`/track/isrc:${encodeURIComponent(isrc)}`);
-    const data = await readDeezerJson<DeezerTrackResponse>(response, "ISRC lookup");
+    const data = await deezerGet<DeezerTrackResponse>(`/track/isrc:${encodeURIComponent(isrc)}`, "ISRC lookup");
     return data ? mapTrack(data) : null;
   },
 
   async searchTrack(query: SearchQuery): Promise<MatchResult> {
     const q = buildDeezerQ(query);
 
-    const response = await deezerFetch(`/search/track?q=${encodeURIComponent(q)}&limit=5`);
-    const data = await readDeezerJson<DeezerSearchResponse>(response, "track search");
+    const data = await deezerGet<DeezerSearchResponse>(
+      `/search/track?q=${encodeURIComponent(q)}&limit=5`,
+      "track search",
+    );
     const items = data?.data ?? [];
 
     if (items.length === 0) {
@@ -300,8 +302,10 @@ export const deezerAdapter = {
   async searchTrackWithCandidates(query: SearchQuery): Promise<SearchResultWithCandidates> {
     const q = buildDeezerQ(query);
 
-    const response = await deezerFetch(`/search/track?q=${encodeURIComponent(q)}&limit=${MAX_CANDIDATES}`);
-    const data = await readDeezerJson<DeezerSearchResponse>(response, "track search");
+    const data = await deezerGet<DeezerSearchResponse>(
+      `/search/track?q=${encodeURIComponent(q)}&limit=${MAX_CANDIDATES}`,
+      "track search",
+    );
     const items = data?.data ?? [];
 
     if (items.length === 0) {
@@ -365,15 +369,16 @@ export const deezerAdapter = {
   },
 
   async findAlbumByUpc(upc: string): Promise<NormalizedAlbum | null> {
-    const response = await deezerFetch(`/album/upc:${encodeURIComponent(upc)}`);
-    const data = await readDeezerJson<DeezerAlbumResponse>(response, "UPC album lookup");
+    const data = await deezerGet<DeezerAlbumResponse>(`/album/upc:${encodeURIComponent(upc)}`, "UPC album lookup");
     return data ? mapAlbum(data) : null;
   },
 
   async searchAlbum(query: AlbumSearchQuery): Promise<AlbumMatchResult> {
     const q = `artist:"${query.artist}" album:"${query.title}"`;
-    const response = await deezerFetch(`/search/album?q=${encodeURIComponent(q)}&limit=5`);
-    const data = await readDeezerJson<DeezerAlbumSearchResponse>(response, "album search");
+    const data = await deezerGet<DeezerAlbumSearchResponse>(
+      `/search/album?q=${encodeURIComponent(q)}&limit=5`,
+      "album search",
+    );
     const items = data?.data ?? [];
 
     if (items.length === 0) {
@@ -431,14 +436,18 @@ export const deezerAdapter = {
       sourceService: "deezer",
       sourceId: String(data.id),
       name: data.name,
-      imageUrl: data.picture_xl ?? data.picture_big,
+      // Deezer answers a stock silhouette for an artist without a picture. It
+      // reads as no image, so the resolver takes another service's picture.
+      imageUrl: pickDeezerArtistImage(data) ?? undefined,
       webUrl: data.link ?? `https://www.deezer.com/artist/${data.id}`,
     };
   },
 
   async searchArtist(query: ArtistSearchQuery): Promise<ArtistMatchResult> {
-    const response = await deezerFetch(`/search/artist?q=${encodeURIComponent(query.name)}&limit=5`);
-    const data = await readDeezerJson<DeezerArtistSearchResponse>(response, "artist search");
+    const data = await deezerGet<DeezerArtistSearchResponse>(
+      `/search/artist?q=${encodeURIComponent(query.name)}&limit=5`,
+      "artist search",
+    );
     const items = data?.data ?? [];
 
     if (items.length === 0) {
@@ -457,7 +466,7 @@ export const deezerAdapter = {
           sourceService: "deezer",
           sourceId: String(item.id),
           name: item.name,
-          imageUrl: item.picture_xl ?? item.picture_big,
+          imageUrl: pickDeezerArtistImage(item) ?? undefined,
           webUrl: item.link ?? `https://www.deezer.com/artist/${item.id}`,
         };
       }
