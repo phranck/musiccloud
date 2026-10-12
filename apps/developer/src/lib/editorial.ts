@@ -1,16 +1,22 @@
 import { randomUUID } from "node:crypto";
 import {
+  CONTENT_CARD_STYLES,
   type DeveloperPortalEditorialPage,
   type DeveloperPortalNavigation,
   type DeveloperPortalNavigationItem,
   ENDPOINTS,
   isNavigationSystemKey,
+  isOneOf,
   isPortalReservedPath,
   NAVIGATION_SYSTEM_TARGETS,
   NavigationArea,
   NavigationSystemKey,
   NavigationTargetKind,
   NavTarget,
+  OVERLAY_WIDTHS,
+  PAGE_DISPLAY_MODES,
+  PAGE_TITLE_ALIGNMENTS,
+  PAGE_TYPES,
   parseApiErrorResponse,
   type SingleNavigationArea,
   tryNormalizeEditorialPath,
@@ -72,11 +78,11 @@ function isEditorialPage(value: unknown): value is DeveloperPortalEditorialPage 
     page.path.startsWith("/") &&
     typeof page.title === "string" &&
     typeof page.showTitle === "boolean" &&
-    (page.titleAlignment === "left" || page.titleAlignment === "center" || page.titleAlignment === "right") &&
-    (page.pageType === "default" || page.pageType === "segmented") &&
-    (page.displayMode === "fullscreen" || page.displayMode === "embossed" || page.displayMode === "translucent") &&
-    (page.overlayWidth === "small" || page.overlayWidth === "regular" || page.overlayWidth === "big") &&
-    (page.contentCardStyle === "default" || page.contentCardStyle === "recessed") &&
+    isOneOf(PAGE_TITLE_ALIGNMENTS, page.titleAlignment) &&
+    isOneOf(PAGE_TYPES, page.pageType) &&
+    isOneOf(PAGE_DISPLAY_MODES, page.displayMode) &&
+    isOneOf(OVERLAY_WIDTHS, page.overlayWidth) &&
+    isOneOf(CONTENT_CARD_STYLES, page.contentCardStyle) &&
     typeof page.templateKey === "string" &&
     page.templateKey.length > 0 &&
     typeof page.contentHtml === "string"

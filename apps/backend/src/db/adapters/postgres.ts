@@ -232,7 +232,6 @@ import {
   getContentPageBySlug as contentPagesGetContentPageBySlug,
   getContentPagesBySlugs as contentPagesGetContentPagesBySlugs,
   getPublishedContentPageByPath as contentPagesGetPublishedContentPageByPath,
-  getPublishedContentPageBySlug as contentPagesGetPublishedContentPageBySlug,
   getPublishedContentPagesBySlugs as contentPagesGetPublishedContentPagesBySlugs,
   listContentPageSummaries as contentPagesListContentPageSummaries,
   listContentPublications as contentPagesListContentPublications,
@@ -990,10 +989,6 @@ export class PostgresAdapter
 
   listPublishedContentPages(): Promise<Array<{ slug: string; title: string }>> {
     return contentPagesListPublishedContentPages(this.pool);
-  }
-
-  getPublishedContentPageBySlug(slug: string): Promise<ContentPageRow | null> {
-    return contentPagesGetPublishedContentPageBySlug(this.pool, slug);
   }
 
   listContentPublications(pageId: string): Promise<ContentPublicationRow[]> {

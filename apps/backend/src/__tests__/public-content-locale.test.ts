@@ -1,9 +1,19 @@
-import { ContentContext } from "@musiccloud/shared";
+import { ContentContext, PublicationTemplateKey } from "@musiccloud/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AdminRepository, ContentPageRow, NavItemRow } from "../db/admin-repository.js";
 
 let page: ContentPageRow | null = null;
 let navRows: NavItemRow[] = [];
+
+/** The Frontend publication rule the adapter's SQL applies, for the fake below. */
+function isPublishedInFrontend(candidate: ContentPageRow): boolean {
+  const publications = candidate.publications ?? [];
+  return publications.length > 0
+    ? publications.some(
+        (publication) => publication.context === ContentContext.Frontend && publication.status === "published",
+      )
+    : candidate.status === "published";
+}
 
 const baseRepo: Partial<AdminRepository> = {
   async getContentPageBySlug(slug: string) {
@@ -17,25 +27,14 @@ const baseRepo: Partial<AdminRepository> = {
       ? page
       : null;
   },
-  async getPublishedContentPageBySlug(slug: string) {
-    return page?.slug === slug && page.status === "published" && (page.publications?.length ?? 0) === 0 ? page : null;
-  },
   async listPublishedContentPages() {
-    if (!page) return [];
-    const publications = page.publications ?? [];
-    const isPublished =
-      publications.length > 0
-        ? publications.some(
-            (publication) => publication.context === ContentContext.Frontend && publication.status === "published",
-          )
-        : page.status === "published";
-    return isPublished ? [{ slug: page.slug, title: page.title }] : [];
+    return page && isPublishedInFrontend(page) ? [{ slug: page.slug, title: page.title }] : [];
   },
   async listSegmentsForOwner() {
     return [];
   },
-  async getPublishedContentPagesBySlugs() {
-    return [];
+  async getPublishedContentPagesBySlugs(slugs: string[]) {
+    return page && slugs.includes(page.slug) && isPublishedInFrontend(page) ? [page] : [];
   },
   async listAdminNavItems() {
     return navRows;
@@ -119,7 +118,7 @@ describe("getPublicContentPage canonical editorial content", () => {
           context: ContentContext.Frontend,
           path: "/legal",
           status: "published",
-          templateKey: "frontend-default",
+          templateKey: PublicationTemplateKey.FrontendDefault,
         },
       ],
     });
@@ -140,7 +139,7 @@ describe("getPublicContentPage canonical editorial content", () => {
           context: ContentContext.DeveloperPortal,
           path: "/privacy",
           status: "published",
-          templateKey: "developer-default",
+          templateKey: PublicationTemplateKey.DeveloperDefault,
         },
       ],
     });
@@ -158,7 +157,8 @@ describe("getPublicContentPage canonical editorial content", () => {
     baseRepo.listSegmentsForOwner = async () => [
       { id: 1, ownerSlug: "about", targetSlug: "segment", position: 0, label: "Segment", labelUpdatedAt: new Date() },
     ];
-    baseRepo.getPublishedContentPagesBySlugs = async () => [target];
+    baseRepo.getPublishedContentPagesBySlugs = async (slugs) =>
+      [page!, target].filter((candidate) => slugs.includes(candidate.slug));
     try {
       const { getPublicContentPage } = await import("../services/admin-content.js");
       const result = await getPublicContentPage("about");
@@ -183,7 +183,7 @@ describe("getPublicContentPage canonical editorial content", () => {
           context: ContentContext.Frontend,
           path: "/legal",
           status: "draft",
-          templateKey: "frontend-default",
+          templateKey: PublicationTemplateKey.FrontendDefault,
         },
       ],
     });

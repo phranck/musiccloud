@@ -1,6 +1,12 @@
 import { createHash } from "node:crypto";
 
-import { ContentContext, type ContentPublication, PageType, type SingleContentContext } from "@musiccloud/shared";
+import {
+  ContentContext,
+  type ContentPublication,
+  PageType,
+  PublicationTemplateKey,
+  type SingleContentContext,
+} from "@musiccloud/shared";
 import type { ContentPublicationCutoverPageCreate } from "./admin-repository.js";
 
 /** The fields that make two publications the same, whoever stored them. */
@@ -11,7 +17,7 @@ export const PRIVACY_FRONTEND_PREREQUISITE = Object.freeze({
   context: ContentContext.Frontend,
   path: "/privacy",
   status: "published",
-  templateKey: "frontend-default",
+  templateKey: PublicationTemplateKey.FrontendDefault,
 } as const satisfies ContentPublication);
 
 /** The only publication the cutover may add to the existing Privacy Page. */
@@ -19,7 +25,7 @@ export const PRIVACY_DEVELOPER_PUBLICATION = Object.freeze({
   context: ContentContext.DeveloperPortal,
   path: "/privacy",
   status: "published",
-  templateKey: "developer-default",
+  templateKey: PublicationTemplateKey.DeveloperDefault,
 } as const satisfies ContentPublication);
 
 /** The exact Frontend publication required on the canonical Terms Page. */
@@ -27,7 +33,7 @@ export const TERMS_FRONTEND_PUBLICATION = Object.freeze({
   context: ContentContext.Frontend,
   path: "/terms",
   status: "published",
-  templateKey: "frontend-default",
+  templateKey: PublicationTemplateKey.FrontendDefault,
 } as const satisfies ContentPublication);
 
 /** The exact Developer Portal publication required on the canonical Terms Page. */
@@ -35,7 +41,7 @@ export const TERMS_DEVELOPER_PUBLICATION = Object.freeze({
   context: ContentContext.DeveloperPortal,
   path: "/terms",
   status: "published",
-  templateKey: "developer-default",
+  templateKey: PublicationTemplateKey.DeveloperDefault,
 } as const satisfies ContentPublication);
 
 /**

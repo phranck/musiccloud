@@ -23,6 +23,7 @@ import type {
   ContentCardStyle,
   ContentContextMask,
   ContentPublication,
+  ContentStatus,
   OverlayWidth,
   PageDisplayMode,
   PageTitleAlignment,
@@ -46,7 +47,6 @@ import {
   type ContentPublicationCutoverInput,
   type ContentPublicationCutoverResult,
   type ContentPublicationRow,
-  type ContentStatus,
   type PageSegmentInputRow,
   type PageSegmentRow,
 } from "../admin-repository.js";
@@ -85,6 +85,29 @@ const CONTENT_PUBLICATIONS_COLUMN = `COALESCE(
    WHERE cpp.page_id = content_pages.id),
   '[]'::json
 ) AS publications`;
+
+/**
+ * The condition that a page is published in the Frontend, for a query whose
+ * `FROM` is `content_pages`. A page with publications is published where its
+ * Frontend publication is. A page from before publications existed has none,
+ * and then its own status decides. The page list and the page reads both use
+ * it, so a page the list shows is a page the detail serves.
+ */
+export const PUBLISHED_IN_FRONTEND_CONDITION = `(
+  EXISTS (
+    SELECT 1 FROM content_page_publications publication
+     WHERE publication.page_id = content_pages.id
+       AND publication.context = ${ContentContext.Frontend}
+       AND publication.status = 'published'
+  )
+  OR (
+    content_pages.status = 'published'
+    AND NOT EXISTS (
+      SELECT 1 FROM content_page_publications publication
+       WHERE publication.page_id = content_pages.id
+    )
+  )
+)`;
 
 // ============================================================================
 // ROW TYPES
@@ -261,44 +284,10 @@ export async function listPublishedContentPages(pool: Pool): Promise<Array<{ slu
   const result = await pool.query<{ slug: string; title: string }>(
     `SELECT content_pages.slug, content_pages.title
        FROM content_pages
-      WHERE EXISTS (
-              SELECT 1 FROM content_page_publications publication
-               WHERE publication.page_id = content_pages.id
-                 AND publication.context = 1
-                 AND publication.status = 'published'
-            )
-         OR (
-              content_pages.status = 'published'
-              AND NOT EXISTS (
-                SELECT 1 FROM content_page_publications publication
-                 WHERE publication.page_id = content_pages.id
-              )
-            )
+      WHERE ${PUBLISHED_IN_FRONTEND_CONDITION}
       ORDER BY content_pages.title ASC`,
   );
   return result.rows;
-}
-
-/**
- * Loads one published page for the public route. Returns `null` for
- * drafts so the public renderer sees the page as missing.
- *
- * @param pool - Postgres connection pool.
- * @param slug - The page's slug.
- */
-export async function getPublishedContentPageBySlug(pool: Pool, slug: string): Promise<ContentPageRow | null> {
-  const result = await pool.query(
-    `SELECT ${CONTENT_COLUMNS}, ${CONTENT_PUBLICATIONS_COLUMN}
-     FROM content_pages
-     WHERE slug = $1
-       AND status = 'published'
-       AND NOT EXISTS (
-         SELECT 1 FROM content_page_publications publication
-          WHERE publication.page_id = content_pages.id
-       )`,
-    [slug],
-  );
-  return result.rows.length > 0 ? rowToContentPage(result.rows[0]) : null;
 }
 
 /**
@@ -332,21 +321,7 @@ export async function getPublishedContentPagesBySlugs(pool: Pool, slugs: string[
     `SELECT ${CONTENT_COLUMNS}, ${CONTENT_PUBLICATIONS_COLUMN}
      FROM content_pages
      WHERE slug = ANY($1)
-       AND (
-         EXISTS (
-           SELECT 1 FROM content_page_publications publication
-            WHERE publication.page_id = content_pages.id
-              AND publication.context = 1
-              AND publication.status = 'published'
-         )
-         OR (
-           status = 'published'
-           AND NOT EXISTS (
-             SELECT 1 FROM content_page_publications publication
-              WHERE publication.page_id = content_pages.id
-           )
-         )
-       )`,
+       AND ${PUBLISHED_IN_FRONTEND_CONDITION}`,
     [slugs],
   );
   return result.rows.map(rowToContentPage);
@@ -777,7 +752,7 @@ export async function createContentPage(pool: Pool, data: ContentPageCreateData)
       [
         data.slug,
         data.title,
-        data.contextMask ?? 1,
+        data.contextMask ?? ContentContext.Frontend,
         data.status ?? "draft",
         data.pageType ?? "default",
         data.createdBy,
@@ -786,7 +761,7 @@ export async function createContentPage(pool: Pool, data: ContentPageCreateData)
     const row = rowToContentPage(result.rows[0]);
     if (data.publications) {
       row.publications = await replaceContentPublicationsWithTarget(client, row.id!, data.publications);
-      row.contextMask = data.contextMask ?? 1;
+      row.contextMask = data.contextMask ?? ContentContext.Frontend;
     }
     await client.query("COMMIT");
     return row;

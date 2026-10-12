@@ -3,6 +3,7 @@ import {
   type ContentPublication,
   isPortalOwnedDocsPath,
   normalizeEditorialPath,
+  type PublicationTemplateKey,
   type SingleContentContext,
 } from "@musiccloud/shared";
 
@@ -32,7 +33,7 @@ export interface DeveloperEditorialCutoverMapping {
   readonly context: typeof ContentContext.DeveloperPortal;
   readonly path: "/privacy" | "/terms";
   readonly status: "published";
-  readonly templateKey: "developer-default";
+  readonly templateKey: typeof PublicationTemplateKey.DeveloperDefault;
 }
 
 export const DEVELOPER_EDITORIAL_CUTOVER_MAPPING: readonly DeveloperEditorialCutoverMapping[] = Object.freeze([
@@ -53,7 +54,7 @@ interface ContentCutoverMapping {
   readonly context: SingleContentContext;
   readonly path: DeveloperEditorialCutoverMapping["path"];
   readonly status: "published";
-  readonly templateKey: "frontend-default" | "developer-default";
+  readonly templateKey: PublicationTemplateKey;
 }
 
 const CONTENT_CUTOVER_MAPPING: readonly ContentCutoverMapping[] = Object.freeze([

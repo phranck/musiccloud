@@ -2,6 +2,7 @@ import {
   type ContentCardStyle,
   type ContentContextMask,
   type ContentPublication,
+  type ContentStatus,
   ENDPOINTS,
   type OverlayWidth,
   type PageDisplayMode,
@@ -50,7 +51,7 @@ interface ContentCreateBody {
   title: string;
   contextMask?: ContentContextMask;
   publications?: ContentPublication[];
-  status?: "draft" | "published" | "hidden";
+  status?: ContentStatus;
   pageType?: PageType;
 }
 
@@ -59,7 +60,7 @@ interface ContentMetaBody {
   publications?: ContentPublication[];
   title?: string;
   slug?: string;
-  status?: "draft" | "published" | "hidden";
+  status?: ContentStatus;
   showTitle?: boolean;
   titleAlignment?: PageTitleAlignment;
   pageType?: PageType;
@@ -138,14 +139,12 @@ function validateContextualFields(
       if (!isPlainObject(raw)) return "publication must be an object";
       if (typeof raw.context !== "number") return "publication.context must be number";
       if (typeof raw.path !== "string") return "publication.path must be string";
-      if (raw.status !== "draft" && raw.status !== "published" && raw.status !== "hidden") {
-        return "publication.status invalid";
-      }
+      if (typeof raw.status !== "string") return "publication.status must be string";
       if (typeof raw.templateKey !== "string") return "publication.templateKey must be string";
       publications.push({
         context: raw.context as ContentPublication["context"],
         path: raw.path,
-        status: raw.status,
+        status: raw.status as ContentStatus,
         templateKey: raw.templateKey,
       });
     }

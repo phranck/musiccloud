@@ -1,7 +1,8 @@
 import {
-  ContentContext,
   type ContentContextMask,
   type ContentPublication,
+  ContentStatus,
+  defaultPublicationTemplateKey,
   type SingleContentContext,
 } from "@musiccloud/shared";
 
@@ -87,8 +88,9 @@ function copyFields(fields: PublicationFields): PublicationFields {
  * The publication a context starts with when it is switched on.
  *
  * Exported because the editor shows a card for a context the page is not in,
- * and that card has to show what switching it on would create. One definition
- * means the card cannot promise something the reducer would not produce.
+ * and that card has to show what switching it on would create, and because the
+ * create dialog starts a new page's publications with it. One definition means
+ * neither can promise something the reducer would not produce.
  *
  * @param context - The context the publication belongs to.
  * @param slug - The page's slug, which the default path is built from.
@@ -103,8 +105,8 @@ export function defaultPublication(
   return {
     context,
     path: defaultPath ?? `/${slug}`,
-    status: "draft",
-    templateKey: context === ContentContext.Frontend ? "frontend-default" : "developer-default",
+    status: ContentStatus.Draft,
+    templateKey: defaultPublicationTemplateKey(context),
   };
 }
 

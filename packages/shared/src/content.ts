@@ -3,12 +3,26 @@
  * backend service layer, dashboard editor, and Astro frontend renderer.
  */
 
-import type {
-  ContentContextMask,
-  NavigationAreaMask,
-  SingleContentContext,
-  SingleNavigationArea,
+import {
+  ContentContext,
+  type ContentContextMask,
+  type NavigationAreaMask,
+  type SingleContentContext,
+  type SingleNavigationArea,
 } from "./content-context.js";
+
+/**
+ * Whether a value is one of a fixed list of strings, such as a page's display
+ * mode or a publication's status. Every boundary that reads such a value from
+ * outside asks this against the list exported beside the value's type.
+ *
+ * @param list - The accepted values.
+ * @param value - The value to check, of any type.
+ * @returns `true` when the value is a string in the list.
+ */
+export function isOneOf<T extends string>(list: readonly T[], value: unknown): value is T {
+  return typeof value === "string" && (list as readonly string[]).includes(value);
+}
 
 export type NavId = "header" | "footer";
 export const NavTarget = {
@@ -102,7 +116,60 @@ export interface NavigationConfiguration {
   entries: NavigationEntry[];
 }
 
-export type ContentStatus = "draft" | "published" | "hidden";
+/** Whether a page or one of its publications is shown, and to whom. */
+export const ContentStatus = {
+  Draft: "draft",
+  Published: "published",
+  Hidden: "hidden",
+} as const;
+
+export type ContentStatus = (typeof ContentStatus)[keyof typeof ContentStatus];
+
+export const CONTENT_STATUSES: readonly ContentStatus[] = [
+  ContentStatus.Draft,
+  ContentStatus.Published,
+  ContentStatus.Hidden,
+] as const;
+
+/**
+ * The template a publication is rendered with. Each context has one, and a
+ * publication carries the key of its context's template.
+ */
+export const PublicationTemplateKey = {
+  FrontendDefault: "frontend-default",
+  DeveloperDefault: "developer-default",
+} as const;
+
+export type PublicationTemplateKey = (typeof PublicationTemplateKey)[keyof typeof PublicationTemplateKey];
+
+export const PUBLICATION_TEMPLATE_KEYS: readonly PublicationTemplateKey[] = [
+  PublicationTemplateKey.FrontendDefault,
+  PublicationTemplateKey.DeveloperDefault,
+] as const;
+
+/**
+ * The template a new publication in a context starts with.
+ *
+ * @param context - The context the publication belongs to.
+ * @returns That context's template key.
+ */
+export function defaultPublicationTemplateKey(context: SingleContentContext): PublicationTemplateKey {
+  return context === ContentContext.Frontend
+    ? PublicationTemplateKey.FrontendDefault
+    : PublicationTemplateKey.DeveloperDefault;
+}
+
+/**
+ * Whether a value names a template the sites render. The backend stores no
+ * other key, so a publication never names a template nothing reads.
+ *
+ * @param value - The key as received.
+ * @returns `true` for a known template key.
+ */
+export function isPublicationTemplateKey(value: unknown): value is PublicationTemplateKey {
+  return isOneOf(PUBLICATION_TEMPLATE_KEYS, value);
+}
+
 export const PageType = {
   Default: "default",
   Segmented: "segmented",

@@ -1,4 +1,10 @@
-import { ContentContext, NavigationArea, NavigationSystemKey, NavigationTargetKind } from "@musiccloud/shared";
+import {
+  ContentContext,
+  NavigationArea,
+  NavigationSystemKey,
+  NavigationTargetKind,
+  PAGE_DISPLAY_MODES,
+} from "@musiccloud/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./api", () => ({
@@ -50,6 +56,28 @@ describe("Developer Portal editorial client", () => {
       "http://backend:4000/api/internal/developer/editorial/page?path=%2Fprivacy",
       expect.objectContaining({ headers: { "X-API-Key": "test-key" } }),
     );
+  });
+
+  it.each(PAGE_DISPLAY_MODES)("accepts a page shown as %s", async (displayMode) => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "page-privacy",
+          path: "/privacy",
+          title: "Privacy",
+          showTitle: true,
+          titleAlignment: "left",
+          pageType: "default",
+          displayMode,
+          overlayWidth: "regular",
+          contentCardStyle: "default",
+          templateKey: "developer-default",
+          contentHtml: "<p>Private</p>",
+        }),
+      ),
+    );
+
+    await expect(editorial.fetchEditorialPage("/privacy")).resolves.toMatchObject({ status: "success" });
   });
 
   // The backend normalizes each of these to a reserved path or an editorial

@@ -14,7 +14,15 @@
  * "Take on Me" by a-ha throughout for visual consistency.
  */
 
-import { DEFAULT_TIER_COLOR, TIER_COLOR_PATTERN } from "@musiccloud/shared";
+import {
+  CONTENT_STATUSES,
+  DEFAULT_TIER_COLOR,
+  OVERLAY_WIDTHS,
+  PAGE_DISPLAY_MODES,
+  PAGE_TITLE_ALIGNMENTS,
+  PAGE_TYPES,
+  TIER_COLOR_PATTERN,
+} from "@musiccloud/shared";
 
 export const ArtistCreditSchema = {
   $id: "ArtistCredit",
@@ -2358,10 +2366,10 @@ export const PublicContentPageSchema = {
     slug: { type: "string", description: "URL-safe identifier; appears in the page URL." },
     title: { type: "string" },
     showTitle: { type: "boolean", description: "When false the frontend suppresses the <h1> header." },
-    titleAlignment: { type: "string", enum: ["left", "center", "right"] },
-    pageType: { type: "string", enum: ["default", "segmented"] },
-    displayMode: { type: "string", enum: ["fullscreen", "embossed", "translucent"] },
-    overlayWidth: { type: "string", enum: ["small", "regular", "big"] },
+    titleAlignment: { type: "string", enum: PAGE_TITLE_ALIGNMENTS },
+    pageType: { type: "string", enum: PAGE_TYPES },
+    displayMode: { type: "string", enum: PAGE_DISPLAY_MODES },
+    overlayWidth: { type: "string", enum: OVERLAY_WIDTHS },
     content: { type: "string", description: "Original Markdown source." },
     contentHtml: { type: "string", description: "Server-rendered HTML (safe subset)." },
     segments: {
@@ -2405,12 +2413,12 @@ export const ContentPageSummarySchema = {
   properties: {
     slug: { type: "string" },
     title: { type: "string" },
-    status: { type: "string", enum: ["draft", "published", "hidden"] },
+    status: { type: "string", enum: CONTENT_STATUSES },
     showTitle: { type: "boolean" },
-    titleAlignment: { type: "string", enum: ["left", "center", "right"] },
-    pageType: { type: "string", enum: ["default", "segmented"] },
-    displayMode: { type: "string", enum: ["fullscreen", "embossed", "translucent"] },
-    overlayWidth: { type: "string", enum: ["small", "regular", "big"] },
+    titleAlignment: { type: "string", enum: PAGE_TITLE_ALIGNMENTS },
+    pageType: { type: "string", enum: PAGE_TYPES },
+    displayMode: { type: "string", enum: PAGE_DISPLAY_MODES },
+    overlayWidth: { type: "string", enum: OVERLAY_WIDTHS },
     createdByUsername: { type: "string", nullable: true },
     updatedByUsername: { type: "string", nullable: true },
     createdAt: { type: "string", format: "date-time" },
@@ -2455,18 +2463,18 @@ export const NavItemSchema = {
     pageType: {
       type: "string",
       nullable: true,
-      enum: ["default", "segmented", null],
+      enum: [...PAGE_TYPES, null],
       description: "Display hint for nav-click interception; null for external-URL items.",
     },
     pageDisplayMode: {
       type: "string",
       nullable: true,
-      enum: ["fullscreen", "embossed", "translucent", null],
+      enum: [...PAGE_DISPLAY_MODES, null],
     },
     pageOverlayWidth: {
       type: "string",
       nullable: true,
-      enum: ["small", "regular", "big", null],
+      enum: [...OVERLAY_WIDTHS, null],
     },
   },
   example: {

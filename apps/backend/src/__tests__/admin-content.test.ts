@@ -319,6 +319,16 @@ describe("updateManagedContentPageMeta", () => {
     expect(replacedPublications).not.toHaveBeenCalled();
   });
 
+  it("rejects a publication whose template no site renders", () => {
+    const result = normalizeAndValidateContentPublications(
+      ContentContext.Frontend,
+      [{ context: ContentContext.Frontend, path: "/privacy", status: "draft", templateKey: "x" }],
+      "",
+    );
+
+    expect(result).toBe("publication templateKey must be one of frontend-default, developer-default");
+  });
+
   it("rejects invalid contentCardStyle", async () => {
     const result = await updateManagedContentPageMeta("test-page", {
       contentCardStyle: "garbage" as never,

@@ -14,15 +14,20 @@ import {
   CONTENT_CARD_STYLES,
   CONTENT_SLUG_MAX_LENGTH,
   CONTENT_SLUG_PATTERN,
+  CONTENT_STATUSES,
   CONTENT_TITLE_MAX_LENGTH,
   ContentContext,
+  isOneOf,
   isPortalReservedPath,
+  isPublicationTemplateKey,
   isValidContentContextMask,
   normalizeEditorialPath,
   OVERLAY_WIDTHS,
   PAGE_DISPLAY_MODES,
   PAGE_TITLE_ALIGNMENTS,
   PAGE_TYPES,
+  PUBLICATION_TEMPLATE_KEYS,
+  PublicationTemplateKey,
 } from "@musiccloud/shared";
 import type {
   AdminRepository,
@@ -40,12 +45,6 @@ import { validateMarkdownForContexts } from "./markdown/validation.js";
 export type ContentResult<T> =
   | { ok: true; data: T }
   | { ok: false; code: "NOT_FOUND" | "SLUG_TAKEN" | "PATH_TAKEN" | "INVALID_INPUT"; message: string };
-
-const CONTENT_STATUSES = ["draft", "published", "hidden"] as const;
-
-function isOneOf<T extends readonly string[]>(list: T, v: unknown): v is T[number] {
-  return typeof v === "string" && (list as readonly string[]).includes(v);
-}
 
 /** The message for a field that has to be one of a fixed set of values. */
 function oneOfMessage(field: string, values: readonly string[]): string {
@@ -155,7 +154,7 @@ function legacyFrontendPublication(slug: string, status: ContentStatus): Content
       context: ContentContext.Frontend,
       path: normalizeEditorialPath(slug),
       status,
-      templateKey: "frontend-default",
+      templateKey: PublicationTemplateKey.FrontendDefault,
     },
   ];
 }
@@ -200,10 +199,10 @@ export function normalizeAndValidateContentPublications(
       return "publication context must be a single known context";
     }
     if (seenContexts.has(publication.context)) return "each context may have only one publication";
-    if (!publication.templateKey?.trim()) return "publication templateKey is required";
-    if (!(["draft", "published", "hidden"] as const).includes(publication.status)) {
-      return "publication status invalid";
+    if (!isPublicationTemplateKey(publication.templateKey)) {
+      return oneOfMessage("publication templateKey", PUBLICATION_TEMPLATE_KEYS);
     }
+    if (!isOneOf(CONTENT_STATUSES, publication.status)) return oneOfMessage("publication status", CONTENT_STATUSES);
 
     let path: string;
     try {
@@ -217,7 +216,7 @@ export function normalizeAndValidateContentPublications(
 
     seenContexts.add(publication.context);
     publicationMask |= publication.context;
-    normalized.push({ ...publication, path, templateKey: publication.templateKey.trim() });
+    normalized.push({ ...publication, path });
   }
 
   if (publicationMask !== contextMask) return "publications must exactly match the enabled contextMask";
@@ -460,23 +459,13 @@ export async function getPublicContentPages(): Promise<Array<{ slug: string; tit
   return repo.listPublishedContentPages();
 }
 
-function isPublishedForLegacyFrontendSlug(row: ContentPageRow): boolean {
-  const publications = row.publications ?? [];
-  if (publications.length === 0) return row.status === "published";
-  return publications.some(
-    (publication) => publication.context === ContentContext.Frontend && publication.status === "published",
-  );
-}
-
 export async function getPublicContentPage(slug: string): Promise<PublicContentPage | null> {
   const repo = await getAdminRepository();
   const path = normalizeEditorialPath(slug);
   const legacySlug = path.slice(1);
-  let row = await repo.getPublishedContentPageByPath(ContentContext.Frontend, path);
-  if (!row) {
-    const legacyCandidate = await repo.getContentPageBySlug(legacySlug);
-    row = legacyCandidate && isPublishedForLegacyFrontendSlug(legacyCandidate) ? legacyCandidate : null;
-  }
+  const row =
+    (await repo.getPublishedContentPageByPath(ContentContext.Frontend, path)) ??
+    (await repo.getPublishedContentPagesBySlugs([legacySlug]))[0];
   if (!row) return null;
 
   const base = {

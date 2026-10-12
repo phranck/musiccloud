@@ -16,7 +16,7 @@ import {
   normalizeEditorialPath,
   type ContentPublication,
   type NavigationPlacement,
-  PageType,
+  PublicationTemplateKey,
 } from "@musiccloud/shared";
 import type {
   AdminRepository,
@@ -353,7 +353,7 @@ function legacyFrontendPublication(page: ContentPageSummaryRow): ContentPublicat
     context: ContentContext.Frontend,
     path: normalizeEditorialPath(page.slug),
     status: page.status,
-    templateKey: page.pageType === PageType.Segmented ? "frontend-segmented" : "frontend-default",
+    templateKey: PublicationTemplateKey.FrontendDefault,
   };
 }
 

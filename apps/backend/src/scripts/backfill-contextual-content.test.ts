@@ -1,4 +1,4 @@
-import { ContentContext, NavigationArea, PageType } from "@musiccloud/shared";
+import { ContentContext, NavigationArea, PageType, PublicationTemplateKey } from "@musiccloud/shared";
 import { describe, expect, it, vi } from "vitest";
 import type {
   AdminRepository,
@@ -299,10 +299,7 @@ describe("backfillContextualContent", () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
-  it.each([
-    [PageType.Default, "frontend-default"],
-    [PageType.Segmented, "frontend-segmented"],
-  ])("derives the %s presentation as %s", async (pageType, templateKey) => {
+  it.each([PageType.Default, PageType.Segmented])("publishes a %s page with the Frontend template", async (pageType) => {
     const replace = vi.fn().mockResolvedValue([]);
     const repo = {
       listContentPageSummaries: async () => [page({ pageType })],
@@ -311,7 +308,31 @@ describe("backfillContextualContent", () => {
 
     await backfillContextualContent(repo, { dryRun: false });
 
-    expect(replace).toHaveBeenCalledWith("page-privacy", [expect.objectContaining({ templateKey })]);
+    expect(replace).toHaveBeenCalledWith("page-privacy", [
+      expect.objectContaining({ templateKey: PublicationTemplateKey.FrontendDefault }),
+    ]);
+  });
+
+  it("accepts a segmented page the dashboard already published in the Frontend", async () => {
+    const repo = {
+      listContentPageSummaries: async () => [
+        page({
+          pageType: PageType.Segmented,
+          publications: [
+            {
+              pageId: "page-privacy",
+              context: ContentContext.Frontend,
+              path: "/privacy",
+              status: "published",
+              templateKey: PublicationTemplateKey.FrontendDefault,
+            },
+          ],
+        }),
+      ],
+      replaceContentPublications: vi.fn(),
+    } as unknown as AdminRepository;
+
+    await expect(backfillContextualContent(repo, { dryRun: true })).resolves.toMatchObject({ conflicts: 0 });
   });
 
   it("backfills legacy header/footer navigation and seeds protected portal targets once", async () => {
