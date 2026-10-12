@@ -1,6 +1,6 @@
 import gsap from "gsap";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { initPageTransitions, PAGE_CONTENT_SELECTOR } from "./pageTransitions";
+import { initPageTransitions, loadsThroughServerIsland, PAGE_CONTENT_SELECTOR } from "./pageTransitions";
 
 /**
  * Lifecycle-wiring contract of the GSAP page transitions (plan MC-029 Task
@@ -25,11 +25,14 @@ import { initPageTransitions, PAGE_CONTENT_SELECTOR } from "./pageTransitions";
 /** Mirrors Astro's BeforePreparationEvent surface that the module consumes. */
 interface PreparationEventLike extends Event {
   loader: () => Promise<void>;
+  newDocument: Document;
 }
 
+/** Astro starts every preparation with the current document as the next one, until its loader parses the page. */
 function dispatchBeforePreparation(loader: () => Promise<void>): PreparationEventLike {
   const event = new Event("astro:before-preparation") as PreparationEventLike;
   event.loader = loader;
+  event.newDocument = document;
   document.dispatchEvent(event);
   return event;
 }
@@ -127,6 +130,43 @@ describe("page transition lifecycle", () => {
 
     dispatchAfterSwap();
     expect(gsap.getTweensOf(page)).toHaveLength(0);
+  });
+});
+
+describe("a next page with a server island", () => {
+  /** A parsed next page, as Astro's loader leaves it on the preparation event. */
+  function nextPage(markup: string): Document {
+    return new DOMParser().parseFromString(`<!doctype html><html><body>${markup}</body></html>`, "text/html");
+  }
+
+  it("is recognised by the loader script Astro writes for the island", () => {
+    expect(loadsThroughServerIsland(nextPage('<script type="module" data-island-id="abc">load()</script>'))).toBe(true);
+    expect(loadsThroughServerIsland(nextPage("<main>content</main>"))).toBe(false);
+  });
+
+  it("is not assumed when the load produced no document", () => {
+    document.body.innerHTML = '<script type="module" data-island-id="current"></script>';
+    expect(loadsThroughServerIsland(document)).toBe(false);
+  });
+
+  /**
+   * A swap would run the island's loader under this page's content policy,
+   * which cannot name it, so the page would arrive without its content.
+   * Cancelling the preparation makes Astro's router load the page in full.
+   */
+  it("cancels the swap, so the browser loads the page in full", async () => {
+    stubPrefersReducedMotion(true);
+    initPageTransitions();
+    const event = new Event("astro:before-preparation", { cancelable: true }) as PreparationEventLike;
+    event.newDocument = document;
+    event.loader = async () => {
+      event.newDocument = nextPage('<script type="module" data-island-id="abc"></script>');
+    };
+    document.dispatchEvent(event);
+
+    await event.loader();
+
+    expect(event.defaultPrevented).toBe(true);
   });
 });
 

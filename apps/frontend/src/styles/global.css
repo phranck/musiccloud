@@ -143,6 +143,21 @@ button,
   }
 }
 
+/* The page transitions are GSAP's (lib/motion/pageTransitions.ts), so the
+   browser's own view transition of the page swaps instantly. This is written
+   here rather than as `transition:animate="none"` on the body, because Astro
+   writes that directive as an inline style block whose content policy hash
+   nothing in the site's source can name. */
+::view-transition-group(root),
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  opacity: 0;
+}
+
 /* Suppress the grey tap-highlight flash on touch (Chrome/Android, iOS Safari). */
 :root {
   -webkit-tap-highlight-color: transparent;

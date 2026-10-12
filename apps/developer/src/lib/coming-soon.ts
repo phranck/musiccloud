@@ -11,8 +11,8 @@
  * `Wordmark` component, so the maintenance page looks like the live portal.
  */
 
-import { createHash } from "node:crypto";
 import { buildEnforcedContentSecurityPolicy, ENDPOINTS, SITE_ORIGIN, SurfaceExposure } from "@musiccloud/shared";
+import { inlineBlockHash } from "@musiccloud/shared/node";
 import { PORTAL_FONT_FACE_CSS, portalFontPreloadTags } from "./fonts";
 
 /** The Umami website the developer portal's visits are counted under. */
@@ -283,7 +283,7 @@ const GATE_PAGE_CSS = `
  * origin.
  */
 export const PORTAL_GATE_CONTENT_SECURITY_POLICY = buildEnforcedContentSecurityPolicy(SurfaceExposure.Public, {
-  styleHashes: [`sha256-${createHash("sha256").update(GATE_PAGE_CSS).digest("base64")}`],
+  styleHashes: [inlineBlockHash(GATE_PAGE_CSS)],
 });
 
 /** Renders the common availability page for the requested portal state. */

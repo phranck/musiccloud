@@ -10,11 +10,11 @@ import "../styles/fonts.css";
 import "../styles/global.css";
 import { ClientRouter } from "astro:transitions";
 import { ENDPOINTS } from "@musiccloud/shared";
-import { fetchDesignTokens, fetchNavigation } from "@/api/client";
+import { fetchNavigation } from "@/api/client";
 import NightSkyBackground from "@/components/background/NightSkyBackground.astro";
 import { PageHeaderIsland } from "@/components/layout/PageHeaderIsland";
 import { isTrackingEnabled } from "@/lib/analytics/trackingConfig";
-import { designTokensToCss } from "@/lib/designTokensCss";
+import { DAYNESS_SEED_SCRIPT } from "@/lib/inline-scripts";
 
 const trackingEnabled = isTrackingEnabled();
 
@@ -28,14 +28,7 @@ interface Props {
 }
 
 const { title, description, canonicalUrl, preloadImage, noindex, showHeader = true } = Astro.props;
-// Persisted design tokens → `:root` custom properties, seeded synchronously in
-// the head so the glass material renders the saved values on first paint. The
-// two calls are independent and requested together.
-const [headerNav, designTokens] = await Promise.all([
-  showHeader ? fetchNavigation("header", Astro.clientAddress) : [],
-  fetchDesignTokens(Astro.clientAddress),
-]);
-const designTokensCss = designTokensToCss(designTokens);
+const headerNav = showHeader ? await fetchNavigation("header", Astro.clientAddress) : [];
 ---
 
 <!doctype html>
@@ -54,56 +47,14 @@ const designTokensCss = designTokensToCss(designTokens);
 
     {/* Persisted design tokens (validated server-side). `html:root` outranks the
         compiled-in `:root` defaults so the saved material applies on first paint
-        with no flash; the runtime dayness channel overrides `--g-dayness` later. */}
-    <style is:inline set:html={designTokensCss}></style>
+        with no flash; the runtime dayness channel overrides `--g-dayness` later.
+        The middleware builds the text, so its content-policy hash and the block
+        come from one string. */}
+    <style is:inline set:html={Astro.locals.designTokensCss}></style>
 
-    {/* Day/night seed. Sets --g-dayness from the persisted switcher mode (plus the
-        OS scheme / local clock) synchronously before the first paint, and re-applies
-        it on every ClientRouter swap: the swap replaces the <html> element and drops
-        the style attribute the background worker writes, which leaves a navigated
-        page on the night seed until the worker next publishes. The background island
-        is transition:persist, so it never re-publishes on navigation. */}
-    <script is:inline>
-      (function () {
-        function smooth01(t) {
-          var c = Math.max(0, Math.min(1, t));
-          return c * c * (3 - 2 * c);
-        }
-        function clockDayness() {
-          var d = new Date();
-          var h = d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
-          var half = 1.5 / 2;
-          var up = smooth01((h - (6.5 - half)) / 1.5);
-          var down = 1 - smooth01((h - (20.5 - half)) / 1.5);
-          return up * down;
-        }
-        function readMode() {
-          try {
-            var raw = window.localStorage.getItem("mc.background.dayNightMode");
-            if (raw === "day" || raw === "night" || raw === "system" || raw === "automatic") return raw;
-          } catch (e) {}
-          return "system";
-        }
-        function dayness() {
-          var mode = readMode();
-          if (mode === "day") return 1;
-          if (mode === "night") return 0;
-          if (mode === "automatic") return clockDayness();
-          return typeof window.matchMedia === "function" &&
-            window.matchMedia("(prefers-color-scheme: dark)").matches
-            ? 0
-            : 1;
-        }
-        function apply() {
-          document.documentElement.style.setProperty("--g-dayness", String(dayness()));
-        }
-        apply();
-        if (!window.__mcDaynessBound) {
-          window.__mcDaynessBound = true;
-          document.addEventListener("astro:after-swap", apply);
-        }
-      })();
-    </script>
+    {/* Day/night seed, before the first paint and after every ClientRouter swap.
+        See `lib/inline-scripts.ts`. */}
+    <script is:inline set:html={DAYNESS_SEED_SCRIPT}></script>
 
     <ClientRouter />
 
@@ -123,10 +74,9 @@ const designTokensCss = designTokensToCss(designTokens);
 
     {trackingEnabled && <script is:inline defer src={`${ENDPOINTS.frontend.umami}/script.js`} data-website-id="3826f51b-34e0-4c61-a89d-a7de016fe712" data-host-url={ENDPOINTS.frontend.umami}></script>}
   </head>
-  <body class="bg-background text-text-primary antialiased" transition:animate="none">
-    {/* transition:animate="none" on the body disables Astro's default
-        view-transition fade — the GSAP lifecycle listeners below own the
-        page out/in motion (MC-029 Task 3.1). */}
+  <body class="bg-background text-text-primary antialiased">
+    {/* The browser's view transition of the page does nothing (global.css), so
+        the GSAP lifecycle listeners below own the page out/in motion. */}
     {/* Persisted so the background survives ClientRouter swaps without re-mount —
         prep for the Phase 4 WebGL background, which must not be torn down/re-created
         (would flicker + leak the WebGL context) on navigation. */}

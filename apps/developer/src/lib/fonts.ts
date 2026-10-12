@@ -12,7 +12,7 @@
  * rule take their address from the same `?url` import, so they cannot point
  * at different files and fetch one twice.
  */
-import { createHash } from "node:crypto";
+
 import audiowide400 from "@fontsource/audiowide/files/audiowide-latin-400-normal.woff2?url";
 import barlow400 from "@fontsource/barlow/files/barlow-latin-400-normal.woff2?url";
 import barlow500 from "@fontsource/barlow/files/barlow-latin-500-normal.woff2?url";
@@ -21,6 +21,7 @@ import barlow700 from "@fontsource/barlow/files/barlow-latin-700-normal.woff2?ur
 import barlowCondensed400 from "@fontsource/barlow-condensed/files/barlow-condensed-latin-400-normal.woff2?url";
 import barlowCondensed500 from "@fontsource/barlow-condensed/files/barlow-condensed-latin-500-normal.woff2?url";
 import barlowCondensed600 from "@fontsource/barlow-condensed/files/barlow-condensed-latin-600-normal.woff2?url";
+import { inlineBlockHash } from "@musiccloud/shared/node";
 
 /** One self-hosted font file: a family in one weight, latin subset, normal style. */
 export interface PortalFont {
@@ -57,7 +58,7 @@ export const PORTAL_FONT_FACE_CSS = PORTAL_FONTS.map(
  * write it as an inline `<style>` block. Taken from the constant, so it names
  * exactly the text the layout renders.
  */
-export const PORTAL_FONT_FACE_HASH = `sha256-${createHash("sha256").update(PORTAL_FONT_FACE_CSS).digest("base64")}`;
+export const PORTAL_FONT_FACE_HASH = inlineBlockHash(PORTAL_FONT_FACE_CSS);
 
 /**
  * The preload tags for every font, for a page rendered as a string.

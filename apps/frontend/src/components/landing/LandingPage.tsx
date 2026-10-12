@@ -354,14 +354,19 @@ function LandingPageInner({
           )}
         </div>
 
-        <Suspense fallback={null}>
-          <Toast
-            message={toast.state.message}
-            variant={toast.state.variant}
-            visible={toast.state.visible}
-            onDismiss={toast.dismiss}
-          />
-        </Suspense>
+        {/* Mounted once there is a message, so the server render never waits for the
+            lazy toast. A suspended server render would finish the toast's boundary
+            with an inline script the content policy cannot name. */}
+        {toast.state.message && (
+          <Suspense fallback={null}>
+            <Toast
+              message={toast.state.message}
+              variant={toast.state.variant}
+              visible={toast.state.visible}
+              onDismiss={toast.dismiss}
+            />
+          </Suspense>
+        )}
       </div>
 
       {showFooter && <AppFooter navItems={footerNav} />}
