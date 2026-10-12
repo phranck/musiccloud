@@ -10,49 +10,73 @@ vi.mock("../../../lib/short-id.js", () => ({
 const generateShortIdMock = vi.mocked(generateShortId);
 
 /**
- * Stands in for one short-url table, enforcing the two unique rules the real
- * schema enforces: `id` is the primary key, and the entity-referencing column
+ * Stands in for the six short-url tables, enforcing the rules the real schema
+ * enforces in each: `id` is the primary key, and the entity-referencing column
  * carries a unique index.
  *
  * Both rules matter, because `ON CONFLICT DO NOTHING` names no target and so
  * absorbs either of them. Modelling only the primary key would let a broken
- * implementation pass.
+ * implementation pass. The tables are separate, as they are in the database,
+ * so an id held by one is not refused by another's constraints.
  */
-class FakeShortUrlTable {
-  private readonly entityById = new Map<string, string>();
-  private readonly idByEntity = new Map<string, string>();
+class FakeShortUrlTables {
+  private readonly tables = new Map<string, { entityById: Map<string, string>; idByEntity: Map<string, string> }>();
 
   /** Runs before each simulated insert, to stage a concurrent write. */
   onBeforeInsert: (() => void) | null = null;
 
-  /** Number of insert statements the table has received. */
+  /** Number of insert statements the tables have received. */
   insertCount = 0;
 
-  seed(id: string, entityId: string): void {
-    this.entityById.set(id, entityId);
-    this.idByEntity.set(entityId, id);
+  /** Every statement in the order it arrived, to check what runs before what. */
+  readonly statements: string[] = [];
+
+  private table(name: string) {
+    let table = this.tables.get(name);
+    if (!table) {
+      table = { entityById: new Map(), idByEntity: new Map() };
+      this.tables.set(name, table);
+    }
+    return table;
   }
 
-  storedIdFor(entityId: string): string | undefined {
-    return this.idByEntity.get(entityId);
+  seed(tableName: string, id: string, entityId: string): void {
+    const table = this.table(tableName);
+    table.entityById.set(id, entityId);
+    table.idByEntity.set(entityId, id);
+  }
+
+  storedIdFor(tableName: string, entityId: string): string | undefined {
+    return this.table(tableName).idByEntity.get(entityId);
   }
 
   asClient(): PoolClient {
     return { query: (sql: string, params: unknown[]) => this.query(sql, params) } as unknown as PoolClient;
   }
 
-  private query(sql: string, params: unknown[]): { rows: Array<{ id: string }> } {
-    if (sql.includes("SELECT id FROM")) {
-      const entityId = params[0] as string;
-      const id = this.idByEntity.get(entityId);
+  private query(sql: string, params: unknown[]): { rows: Array<Record<string, unknown>> } {
+    this.statements.push(sql);
+    if (sql.includes("pg_advisory_xact_lock")) return { rows: [{}] };
+
+    if (sql.includes("UNION ALL")) {
+      const candidate = params[0] as string;
+      const held = [...this.tables.values()].some((table) => table.entityById.has(candidate));
+      return { rows: held ? [{ "?column?": 1 }] : [] };
+    }
+
+    const tableName = /(?:FROM|INTO) (\w+)/.exec(sql)?.[1] ?? "";
+    const table = this.table(tableName);
+
+    if (sql.startsWith("SELECT id FROM")) {
+      const id = table.idByEntity.get(params[0] as string);
       return { rows: id === undefined ? [] : [{ id }] };
     }
 
     this.onBeforeInsert?.();
     this.insertCount += 1;
     const [id, entityId] = params as [string, string];
-    if (this.entityById.has(id) || this.idByEntity.has(entityId)) return { rows: [] };
-    this.seed(id, entityId);
+    if (table.entityById.has(id) || table.idByEntity.has(entityId)) return { rows: [] };
+    this.seed(tableName, id, entityId);
     return { rows: [{ id }] };
   }
 }
@@ -63,75 +87,100 @@ describe("mintShortUrl", () => {
   });
 
   it("returns the id the entity already owns without inserting again", async () => {
-    const table = new FakeShortUrlTable();
-    table.seed("existing", "track-a");
+    const tables = new FakeShortUrlTables();
+    tables.seed("short_urls", "existing", "track-a");
 
-    const result = await mintShortUrl(table.asClient(), "short_urls", "track-a", new Date());
+    const result = await mintShortUrl(tables.asClient(), "short_urls", "track-a", new Date());
 
     expect(result).toBe("existing");
-    expect(table.insertCount).toBe(0);
+    expect(tables.insertCount).toBe(0);
     expect(generateShortIdMock).not.toHaveBeenCalled();
   });
 
   it("allocates a fresh id for an entity that has none", async () => {
-    const table = new FakeShortUrlTable();
+    const tables = new FakeShortUrlTables();
     generateShortIdMock.mockReturnValueOnce("brand-new");
 
-    const result = await mintShortUrl(table.asClient(), "short_urls", "track-a", new Date());
+    const result = await mintShortUrl(tables.asClient(), "short_urls", "track-a", new Date());
 
     expect(result).toBe("brand-new");
-    expect(table.storedIdFor("track-a")).toBe("brand-new");
+    expect(tables.storedIdFor("short_urls", "track-a")).toBe("brand-new");
   });
 
   it("never hands out an id that belongs to a different entity", async () => {
-    const table = new FakeShortUrlTable();
-    table.seed("taken", "track-a");
+    const tables = new FakeShortUrlTables();
+    tables.seed("short_urls", "taken", "track-a");
     generateShortIdMock.mockReturnValueOnce("taken").mockReturnValueOnce("free");
 
-    const result = await mintShortUrl(table.asClient(), "short_urls", "track-b", new Date());
+    const result = await mintShortUrl(tables.asClient(), "short_urls", "track-b", new Date());
 
     // The regression this guards: returning the rejected candidate produced a
     // share URL that resolved to track-a.
     expect(result).not.toBe("taken");
     expect(result).toBe("free");
-    expect(table.storedIdFor("track-b")).toBe("free");
-    expect(table.storedIdFor("track-a")).toBe("taken");
+    expect(tables.storedIdFor("short_urls", "track-b")).toBe("free");
+    expect(tables.storedIdFor("short_urls", "track-a")).toBe("taken");
+  });
+
+  it("never hands out an id another table already holds, because the share route reads all of them", async () => {
+    const tables = new FakeShortUrlTables();
+    tables.seed("short_urls", "shared", "track-a");
+    generateShortIdMock.mockReturnValueOnce("shared").mockReturnValueOnce("album-own");
+
+    const result = await mintShortUrl(tables.asClient(), "album_short_urls", "album-a", new Date());
+
+    expect(result).toBe("album-own");
+    expect(tables.storedIdFor("album_short_urls", "album-a")).toBe("album-own");
+  });
+
+  it("locks each candidate before it checks and writes it", async () => {
+    const tables = new FakeShortUrlTables();
+    generateShortIdMock.mockReturnValueOnce("brand-new");
+
+    await mintShortUrl(tables.asClient(), "cc_short_urls", "cc-track-a", new Date());
+
+    const lock = tables.statements.findIndex((sql) => sql.includes("pg_advisory_xact_lock"));
+    const check = tables.statements.findIndex((sql) => sql.includes("UNION ALL"));
+    const insert = tables.statements.findIndex((sql) => sql.startsWith("INSERT"));
+    expect(lock).toBeGreaterThanOrEqual(0);
+    expect(lock).toBeLessThan(check);
+    expect(check).toBeLessThan(insert);
   });
 
   it("keeps retrying while candidates collide", async () => {
-    const table = new FakeShortUrlTable();
-    table.seed("one", "other-1");
-    table.seed("two", "other-2");
+    const tables = new FakeShortUrlTables();
+    tables.seed("album_short_urls", "one", "other-1");
+    tables.seed("artist_short_urls", "two", "other-2");
     generateShortIdMock.mockReturnValueOnce("one").mockReturnValueOnce("two").mockReturnValueOnce("three");
 
-    const result = await mintShortUrl(table.asClient(), "album_short_urls", "album-a", new Date());
+    const result = await mintShortUrl(tables.asClient(), "album_short_urls", "album-a", new Date());
 
     expect(result).toBe("three");
-    expect(table.insertCount).toBe(3);
+    expect(tables.insertCount).toBe(1);
   });
 
   it("returns the id a concurrent transaction claimed for the same entity", async () => {
-    const table = new FakeShortUrlTable();
+    const tables = new FakeShortUrlTables();
     generateShortIdMock.mockReturnValue("mine");
-    table.onBeforeInsert = () => {
-      table.onBeforeInsert = null;
-      table.seed("theirs", "artist-a");
+    tables.onBeforeInsert = () => {
+      tables.onBeforeInsert = null;
+      tables.seed("artist_short_urls", "theirs", "artist-a");
     };
 
-    const result = await mintShortUrl(table.asClient(), "artist_short_urls", "artist-a", new Date());
+    const result = await mintShortUrl(tables.asClient(), "artist_short_urls", "artist-a", new Date());
 
     expect(result).toBe("theirs");
-    expect(table.insertCount).toBe(1);
+    expect(tables.insertCount).toBe(1);
   });
 
   it("fails loudly rather than returning an unallocated id", async () => {
-    const table = new FakeShortUrlTable();
-    table.seed("always", "someone-else");
+    const tables = new FakeShortUrlTables();
+    tables.seed("short_urls", "always", "someone-else");
     generateShortIdMock.mockReturnValue("always");
 
-    await expect(mintShortUrl(table.asClient(), "cc_short_urls", "cc-track-a", new Date())).rejects.toThrow(
+    await expect(mintShortUrl(tables.asClient(), "cc_short_urls", "cc-track-a", new Date())).rejects.toThrow(
       /Could not allocate a short id in cc_short_urls/,
     );
-    expect(table.storedIdFor("cc-track-a")).toBeUndefined();
+    expect(tables.storedIdFor("cc_short_urls", "cc-track-a")).toBeUndefined();
   });
 });

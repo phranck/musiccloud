@@ -22,9 +22,10 @@ export function generateTrackId(): string {
  * passes.
  *
  * Length alone is not what makes allocation correct. `mintShortUrl` in
- * `../db/adapters/short-url.ts` reads back what the database stored and retries
- * on a collision, and that holds at any length. This value only decides how
- * rarely the retry is needed, and how hard an id is to guess.
+ * `../db/adapters/short-url.ts` checks a candidate against all six short-url
+ * tables, so an id is unique across them, reads back what the database stored,
+ * and retries on a collision, and that holds at any length. This value only
+ * decides how rarely the retry is needed, and how hard an id is to guess.
  *
  * Ids already issued at other lengths keep resolving, because every route that
  * takes a share code accepts one to {@link SHORT_ID_MAX_LENGTH} characters of
