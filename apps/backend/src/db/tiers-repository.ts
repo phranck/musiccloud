@@ -135,6 +135,14 @@ export interface TierRepository {
   listAllOffers(): Promise<TierOffer[]>;
 
   /**
+   * One offer by its id.
+   *
+   * @param id - The offer.
+   * @returns The offer, or `null` when there is none with that id.
+   */
+  findOffer(id: string): Promise<TierOffer | null>;
+
+  /**
    * Adds an offer to a plan.
    *
    * @throws When the plan already sells over that billing period. One plan

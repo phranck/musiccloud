@@ -301,6 +301,22 @@ export const ERROR_CODE_REGISTRY: Record<McErrorCode, ErrorCodeEntry> = {
     internalNote: "One offer per plan and billing period, enforced by uq_tier_offers_tier_period.",
     source: "apps/backend/src/routes/admin-plan-offers.ts",
   },
+  "MC-BILL-0010": {
+    code: "MC-BILL-0010",
+    httpStatus: 400,
+    userMessage: "Only a one-off offer can let the customer name the amount.",
+    internalNote:
+      "Pay-what-you-want on a recurring period, checked on the offer as it would stand after the request. Creem takes the setting on a one-off product only, and chk_tier_offers_pay_what_you_want holds the same rule.",
+    source: "apps/backend/src/routes/admin-plan-offers.ts findBrokenOfferRule",
+  },
+  "MC-BILL-0011": {
+    code: "MC-BILL-0011",
+    httpStatus: 409,
+    userMessage: "This offer has a product at Creem, so its billing period cannot change. Archive the product first.",
+    internalNote:
+      "A product mapping addresses its offer by plan and period through fk_tier_creem_products_offer, which has no update rule, so the period of an offer with a product in either environment is fixed.",
+    source: "apps/backend/src/routes/admin-plan-offers.ts findBrokenOfferRule",
+  },
   "MC-SYS-0002": {
     code: "MC-SYS-0002",
     httpStatus: 503,

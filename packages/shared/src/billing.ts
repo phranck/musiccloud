@@ -38,6 +38,21 @@ export function isBillingPeriod(value: unknown): value is BillingPeriodValue {
   return belongsTo(BILLING_PERIODS, value);
 }
 
+/**
+ * Whether an offer over this period may let the customer name the amount.
+ *
+ * Creem takes the pay-what-you-want setting on a one-off product only, and the
+ * check `chk_tier_offers_pay_what_you_want` holds the same rule in the
+ * database. The backend route refuses an offer that breaks it, and the
+ * dashboard switches the toggle off for such an offer, both through this.
+ *
+ * @param billingPeriod - The period the offer is sold over.
+ * @returns `true` for a one-off offer.
+ */
+export function canPayWhatYouWant(billingPeriod: BillingPeriodValue): boolean {
+  return billingPeriod === BillingPeriod.Once;
+}
+
 /** The currencies Creem accepts. */
 export const OfferCurrency = { Eur: "EUR", Usd: "USD" } as const;
 
