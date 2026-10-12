@@ -4,6 +4,7 @@ import {
   DashboardButtonVariant,
   DashboardInput,
 } from "@musiccloud/dashboard-ui";
+import { CreemMode, type CreemModeValue } from "@musiccloud/shared";
 import { CurrencyEur as CurrencyEurIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { DashboardSection } from "@/components/ui/DashboardSection";
@@ -11,7 +12,6 @@ import { InlineConfirm } from "@/components/ui/InlineConfirm";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { CreemProductMapping, TierOffer, TierResponse } from "@/features/developer/api";
-import { CreemMode } from "@/features/developer/domain";
 import {
   useArchiveCreemProduct,
   useCreateCreemProduct,
@@ -31,7 +31,7 @@ interface TierCreemProductRowProps {
   /** The offer this row is about. Every row corresponds to one. */
   offer: TierOffer;
   /** The environment on show, which every action here acts in. */
-  mode: CreemMode;
+  mode: CreemModeValue;
   mapping: CreemProductMapping | undefined;
   /** Whether this deployment holds a key for that environment. */
   writable: boolean;
@@ -194,7 +194,7 @@ export interface TierCreemProductsSectionProps {
  */
 export function TierCreemProductsSection({ tier, offers }: TierCreemProductsSectionProps) {
   const { data } = useCreemProducts();
-  const [shownMode, setShownMode] = useState<CreemMode>(CreemMode.Test);
+  const [shownMode, setShownMode] = useState<CreemModeValue>(CreemMode.Test);
 
   // An environment with no configured key cannot be acted on at all. The rows
   // still show what is in it, because knowing that nothing is set up there yet

@@ -4,6 +4,17 @@ import {
   DashboardButtonVariant,
   DashboardInput,
 } from "@musiccloud/dashboard-ui";
+import {
+  BILLING_PERIODS,
+  BillingPeriod,
+  type BillingPeriodValue,
+  OFFER_CURRENCIES,
+  type OfferCurrencyValue,
+  TaxCategory,
+  type TaxCategoryValue,
+  TaxMode,
+  type TaxModeValue,
+} from "@musiccloud/shared";
 import { Tag as TagIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { DashboardSection } from "@/components/ui/DashboardSection";
@@ -12,7 +23,6 @@ import { InlineConfirm } from "@/components/ui/InlineConfirm";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { TierOffer } from "@/features/developer/api";
-import { BillingPeriod, OfferCurrency, TaxCategory, TaxMode } from "@/features/developer/domain";
 import {
   useCreatePlanOffer,
   useDeletePlanOffer,
@@ -26,12 +36,12 @@ const dm = messages.developer;
 const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 
 /** Every billing period Creem sells over, as the dropdown offers them. */
-const PERIOD_OPTIONS: DropdownOption[] = Object.values(BillingPeriod).map((period) => ({
+const PERIOD_OPTIONS: DropdownOption[] = BILLING_PERIODS.map((period) => ({
   value: period,
   label: periodLabel(period),
 }));
 
-const CURRENCY_OPTIONS: DropdownOption[] = Object.values(OfferCurrency).map((currency) => ({
+const CURRENCY_OPTIONS: DropdownOption[] = OFFER_CURRENCIES.map((currency) => ({
   value: currency,
   label: currency,
 }));
@@ -54,7 +64,7 @@ const TAX_CATEGORY_OPTIONS: DropdownOption[] = [
 interface PlanOfferRowProps {
   offer: TierOffer;
   /** Which periods the plan already sells over, so a duplicate cannot be chosen. */
-  takenPeriods: BillingPeriod[];
+  takenPeriods: BillingPeriodValue[];
 }
 
 /**
@@ -83,7 +93,7 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
   const periodOptions = useMemo(
     () =>
       PERIOD_OPTIONS.filter(
-        (option) => option.value === offer.billingPeriod || !takenPeriods.includes(option.value as BillingPeriod),
+        (option) => option.value === offer.billingPeriod || !takenPeriods.includes(option.value as BillingPeriodValue),
       ),
     [offer.billingPeriod, takenPeriods],
   );
@@ -99,7 +109,7 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
           <span className={labelClass}>{dm.offerPeriod}</span>
           <Dropdown
             value={offer.billingPeriod}
-            onChange={(billingPeriod) => change({ billingPeriod: billingPeriod as BillingPeriod })}
+            onChange={(billingPeriod) => change({ billingPeriod: billingPeriod as BillingPeriodValue })}
             options={periodOptions}
             aria-label={dm.offerPeriod}
           />
@@ -118,7 +128,7 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
             />
             <Dropdown
               value={offer.currency}
-              onChange={(currency) => change({ currency: currency as OfferCurrency })}
+              onChange={(currency) => change({ currency: currency as OfferCurrencyValue })}
               options={CURRENCY_OPTIONS}
               aria-label={dm.offerCurrency}
             />
@@ -143,7 +153,7 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
           <span className={labelClass}>{dm.offerTaxMode}</span>
           <Dropdown
             value={offer.taxMode ?? ""}
-            onChange={(taxMode) => change({ taxMode: (taxMode || null) as TaxMode | null })}
+            onChange={(taxMode) => change({ taxMode: (taxMode || null) as TaxModeValue | null })}
             options={TAX_MODE_OPTIONS}
             aria-label={dm.offerTaxMode}
           />
@@ -152,7 +162,7 @@ function PlanOfferRow({ offer, takenPeriods }: PlanOfferRowProps) {
           <span className={labelClass}>{dm.offerTaxCategory}</span>
           <Dropdown
             value={offer.taxCategory ?? ""}
-            onChange={(taxCategory) => change({ taxCategory: (taxCategory || null) as TaxCategory | null })}
+            onChange={(taxCategory) => change({ taxCategory: (taxCategory || null) as TaxCategoryValue | null })}
             options={TAX_CATEGORY_OPTIONS}
             aria-label={dm.offerTaxCategory}
           />
@@ -262,7 +272,7 @@ export function PlanOffersSection({ tierId, offers }: PlanOffersSectionProps) {
   const createOffer = useCreatePlanOffer();
 
   const taken = offers.map((offer) => offer.billingPeriod);
-  const free = Object.values(BillingPeriod).filter((period) => !taken.includes(period));
+  const free = BILLING_PERIODS.filter((period) => !taken.includes(period));
 
   return (
     <DashboardSection className="overflow-hidden">

@@ -10,11 +10,10 @@
  */
 import cookie from "@fastify/cookie";
 import jwt from "@fastify/jwt";
-import { ENDPOINTS } from "@musiccloud/shared";
+import { CreemMode, ENDPOINTS } from "@musiccloud/shared";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Tier } from "../db/tiers-repository.js";
-import { CreemMode } from "../lib/creem-config.js";
 import { registerApiErrorHandling } from "../lib/infra/api-error-handler.js";
 
 vi.stubEnv("DISABLE_RATE_LIMIT", "true");

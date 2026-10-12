@@ -12,8 +12,9 @@
  * an operator is looking at; this says what a customer pays.
  */
 
+import { CreemMode, type CreemModeValue } from "@musiccloud/shared";
 import { getTierRepository } from "../db/index.js";
-import { CreemMode, type CreemModeValue, configuredCreemModes } from "../lib/creem-config.js";
+import { configuredCreemModes } from "../lib/creem-config.js";
 import { log } from "../lib/infra/logger.js";
 import { getSetting, setSetting } from "./site-settings.js";
 

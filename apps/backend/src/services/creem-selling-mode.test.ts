@@ -36,7 +36,7 @@ vi.mock("../lib/infra/logger.js", () => ({
   log: { warn: vi.fn(), debug: vi.fn(), error: vi.fn(), deviation: vi.fn() },
 }));
 
-import { CreemMode, type CreemModeValue } from "../lib/creem-config.js";
+import { CreemMode, type CreemModeValue } from "@musiccloud/shared";
 import { getSellingMode, SellingModeRefusal, sellingModeReadiness, setSellingMode } from "./creem-selling-mode.js";
 
 /** A plan as the repository lists it, enabled unless said otherwise. */

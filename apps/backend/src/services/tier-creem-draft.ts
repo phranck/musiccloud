@@ -8,7 +8,8 @@
  * are paying for.
  */
 
-import { BillingPeriod, type BillingPeriodValue, type Tier, type TierOffer } from "../db/tiers-repository.js";
+import { BillingPeriod, type BillingPeriodValue } from "@musiccloud/shared";
+import type { Tier, TierOffer } from "../db/tiers-repository.js";
 import type { CreemProductDraft } from "./creem-products.js";
 
 /** The word that appears in the product name and description per period. */
@@ -20,16 +21,6 @@ const PERIOD_LABEL: Record<BillingPeriodValue, string> = {
   [BillingPeriod.HalfYearly]: "half-yearly",
   [BillingPeriod.Yearly]: "yearly",
 };
-
-/**
- * Whether the given string is one of the billing periods Creem sells over.
- *
- * @param value - The candidate, typically straight off a request.
- * @returns `true` when Creem knows it.
- */
-export function isBillingPeriod(value: unknown): value is BillingPeriodValue {
-  return Object.values(BillingPeriod).includes(value as BillingPeriodValue);
-}
 
 /**
  * The name a product carries at Creem, for one plan and period.

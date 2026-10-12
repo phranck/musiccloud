@@ -7,8 +7,10 @@
  * developer portal all read these values from here, so a state the database
  * accepts is one every interface knows how to name.
  *
- * Subscription states are billing vocabulary and live with the billing module.
+ * Subscription states are billing vocabulary and live in `billing.ts`.
  */
+
+import { belongsTo } from "./value-lists.js";
 
 /** Whether a developer account may use the portal and its credentials. */
 export const DeveloperAccountStatus = {
@@ -84,11 +86,6 @@ export type ApiTokenStatusValue = (typeof ApiTokenStatus)[keyof typeof ApiTokenS
 
 /** Every {@link ApiTokenStatus} value. */
 export const API_TOKEN_STATUSES: readonly ApiTokenStatusValue[] = Object.values(ApiTokenStatus);
-
-/** Whether `value` is one of `values`, typed so a guard can narrow to the list's union. */
-function belongsTo<T extends string>(values: readonly T[], value: unknown): value is T {
-  return typeof value === "string" && (values as readonly string[]).includes(value);
-}
 
 /** Whether a request value is a {@link DeveloperAccountStatus}. */
 export function isDeveloperAccountStatus(value: unknown): value is DeveloperAccountStatusValue {

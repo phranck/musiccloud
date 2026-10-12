@@ -1,10 +1,16 @@
 import {
   API_CLIENT_STATUSES,
   API_TOKEN_STATUSES,
+  BILLING_PERIODS,
   CLIENT_REGISTRATION_TYPES,
+  CREEM_MODES,
   DEFAULT_TIER_COLOR,
   DEVELOPER_ACCOUNT_STATUSES,
   DEVELOPER_PROJECT_STATUSES,
+  OFFER_CURRENCIES,
+  SUBSCRIPTION_STATUSES,
+  TAX_CATEGORIES,
+  TAX_MODES,
   type VinylLayout,
 } from "@musiccloud/shared";
 import { type SQL, sql } from "drizzle-orm";
@@ -1801,10 +1807,7 @@ export const developerSubscriptions = pgTable(
   },
   (table) => [
     uniqueIndex("uq_developer_subscriptions_creem_id").on(table.creemSubscriptionId),
-    check(
-      "chk_developer_subscriptions_status",
-      sql`${table.status} IN ('active', 'trialing', 'paused', 'past_due', 'expired', 'canceled', 'scheduled_cancel')`,
-    ),
+    check("chk_developer_subscriptions_status", sql`${table.status} IN (${sqlValueList(SUBSCRIPTION_STATUSES)})`),
     check("chk_developer_subscriptions_interval", sql`${table.interval} IN ('month', 'year')`),
   ],
 );
@@ -1881,11 +1884,11 @@ export const developerProjectSubscriptions = pgTable(
       .where(sql`${table.creemSubscriptionId} IS NOT NULL`),
     check(
       "chk_developer_project_subscriptions_status",
-      sql`${table.status} IN ('active', 'trialing', 'paused', 'past_due', 'expired', 'canceled', 'scheduled_cancel')`,
+      sql`${table.status} IN (${sqlValueList(SUBSCRIPTION_STATUSES)})`,
     ),
     check(
       "chk_developer_project_subscriptions_interval",
-      sql`${table.interval} IS NULL OR ${table.interval} IN ('month', 'year')`,
+      sql`${table.interval} IS NULL OR ${table.interval} IN (${sqlValueList(BILLING_PERIODS)})`,
     ),
   ],
 );
@@ -1943,15 +1946,15 @@ export const tierOffers = pgTable(
   },
   (table) => [
     uniqueIndex("uq_tier_offers_tier_period").on(table.tierId, table.billingPeriod),
+    check("chk_tier_offers_billing_period", sql`${table.billingPeriod} IN (${sqlValueList(BILLING_PERIODS)})`),
+    check("chk_tier_offers_currency", sql`${table.currency} IN (${sqlValueList(OFFER_CURRENCIES)})`),
     check(
-      "chk_tier_offers_billing_period",
-      sql`${table.billingPeriod} IN ('once', 'every-day', 'every-month', 'every-three-months', 'every-six-months', 'every-year')`,
+      "chk_tier_offers_tax_mode",
+      sql`${table.taxMode} IS NULL OR ${table.taxMode} IN (${sqlValueList(TAX_MODES)})`,
     ),
-    check("chk_tier_offers_currency", sql`${table.currency} IN ('EUR', 'USD')`),
-    check("chk_tier_offers_tax_mode", sql`${table.taxMode} IS NULL OR ${table.taxMode} IN ('inclusive', 'exclusive')`),
     check(
       "chk_tier_offers_tax_category",
-      sql`${table.taxCategory} IS NULL OR ${table.taxCategory} IN ('saas', 'digital-goods-service', 'ebooks')`,
+      sql`${table.taxCategory} IS NULL OR ${table.taxCategory} IN (${sqlValueList(TAX_CATEGORIES)})`,
     ),
     // Creem refuses a recurring product below one whole unit of the currency
     // and accepts zero only for a one-time product.
@@ -2008,7 +2011,7 @@ export const tierCreemProducts = pgTable(
   },
   (table) => [
     uniqueIndex("uq_tier_creem_products_tier_interval_mode").on(table.tierId, table.interval, table.mode),
-    check("chk_tier_creem_products_mode", sql`${table.mode} IN ('test', 'live')`),
+    check("chk_tier_creem_products_mode", sql`${table.mode} IN (${sqlValueList(CREEM_MODES)})`),
     // The mapping addresses an offer by the offer's own natural key, so a
     // product cannot point at a period the plan does not sell, and removing an
     // offer takes its products with it.

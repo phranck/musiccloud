@@ -4,7 +4,13 @@
  * public Developer Portal reads them for its pricing page.
  */
 
-import type { CreemModeValue } from "../lib/creem-config.js";
+import type {
+  BillingPeriodValue,
+  CreemModeValue,
+  OfferCurrencyValue,
+  TaxCategoryValue,
+  TaxModeValue,
+} from "@musiccloud/shared";
 
 /** The longest plan or offer id a request may name. */
 const MAX_ID_LENGTH = 64;
@@ -142,40 +148,6 @@ export interface TierCreemProductMapping {
   /** The corresponding Creem product ID returned when the product was created. */
   creemProductId: string;
 }
-
-/**
- * The billing periods Creem sells over, in its own spelling, so a value
- * travels to the API unchanged.
- */
-export const BillingPeriod = {
-  Once: "once",
-  Daily: "every-day",
-  Monthly: "every-month",
-  Quarterly: "every-three-months",
-  HalfYearly: "every-six-months",
-  Yearly: "every-year",
-} as const;
-
-/** A {@link BillingPeriod} member value. */
-export type BillingPeriodValue = (typeof BillingPeriod)[keyof typeof BillingPeriod];
-
-/** The currencies Creem accepts. */
-export const OfferCurrency = { Eur: "EUR", Usd: "USD" } as const;
-
-/** An {@link OfferCurrency} member value. */
-export type OfferCurrencyValue = (typeof OfferCurrency)[keyof typeof OfferCurrency];
-
-/** Whether tax sits inside the price or is added to it. */
-export const TaxMode = { Inclusive: "inclusive", Exclusive: "exclusive" } as const;
-
-/** A {@link TaxMode} member value. */
-export type TaxModeValue = (typeof TaxMode)[keyof typeof TaxMode];
-
-/** How Creem treats what is being sold for tax. */
-export const TaxCategory = { Saas: "saas", DigitalGoodsService: "digital-goods-service", Ebooks: "ebooks" } as const;
-
-/** A {@link TaxCategory} member value. */
-export type TaxCategoryValue = (typeof TaxCategory)[keyof typeof TaxCategory];
 
 /** One extra question asked at the Creem checkout. */
 export interface OfferCustomField {

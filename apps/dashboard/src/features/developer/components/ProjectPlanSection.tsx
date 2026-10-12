@@ -1,4 +1,5 @@
 import { DashboardActionButton, DashboardActionId, DashboardInput } from "@musiccloud/dashboard-ui";
+import { SubscriptionStatus } from "@musiccloud/shared";
 import { Gauge as GaugeIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { DashboardSection } from "@/components/ui/DashboardSection";
@@ -6,7 +7,6 @@ import { Dropdown, type DropdownOption } from "@/components/ui/Dropdown";
 import { dashboardCopy } from "@/copy/dashboard";
 import type { DeveloperProjectResponse, DeveloperProjectSubscriptionResponse } from "@/features/developer/api";
 import { TierDropdown } from "@/features/developer/components/TierDropdown";
-import { ProjectSubscriptionStatus } from "@/features/developer/domain";
 import { useSetProjectSubscription, useUpdateDeveloperProject } from "@/features/developer/hooks/useDeveloperData";
 import { parseLimitOverride } from "@/features/developer/lib";
 
@@ -23,30 +23,30 @@ const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
  * mean for the project's quota to somebody picking one.
  */
 const SUBSCRIPTION_STATES: { value: string; label: string; hint: string }[] = [
-  { value: ProjectSubscriptionStatus.Active, label: dm.subscriptionStateActive, hint: dm.subscriptionStateActiveHint },
+  { value: SubscriptionStatus.Active, label: dm.subscriptionStateActive, hint: dm.subscriptionStateActiveHint },
   {
-    value: ProjectSubscriptionStatus.Trialing,
+    value: SubscriptionStatus.Trialing,
     label: dm.subscriptionStateTrialing,
     hint: dm.subscriptionStateTrialingHint,
   },
-  { value: ProjectSubscriptionStatus.Paused, label: dm.subscriptionStatePaused, hint: dm.subscriptionStatePausedHint },
+  { value: SubscriptionStatus.Paused, label: dm.subscriptionStatePaused, hint: dm.subscriptionStatePausedHint },
   {
-    value: ProjectSubscriptionStatus.PastDue,
+    value: SubscriptionStatus.PastDue,
     label: dm.subscriptionStatePastDue,
     hint: dm.subscriptionStatePastDueHint,
   },
   {
-    value: ProjectSubscriptionStatus.Expired,
+    value: SubscriptionStatus.Expired,
     label: dm.subscriptionStateExpired,
     hint: dm.subscriptionStateExpiredHint,
   },
   {
-    value: ProjectSubscriptionStatus.Canceled,
+    value: SubscriptionStatus.Canceled,
     label: dm.subscriptionStateCanceled,
     hint: dm.subscriptionStateCanceledHint,
   },
   {
-    value: ProjectSubscriptionStatus.ScheduledCancel,
+    value: SubscriptionStatus.ScheduledCancel,
     label: dm.subscriptionStateScheduledCancel,
     hint: dm.subscriptionStateScheduledCancelHint,
   },
@@ -95,7 +95,7 @@ export function ProjectPlanSection({ project, subscription }: ProjectPlanSection
   const [dayDraft, setDayDraft] = useState<string | undefined>(undefined);
 
   const tierId = tierDraft === undefined ? project.tierId : tierDraft;
-  const state = stateDraft ?? subscription?.status ?? ProjectSubscriptionStatus.Active;
+  const state = stateDraft ?? subscription?.status ?? SubscriptionStatus.Active;
   const minute = minuteDraft ?? overrideText(project.requestsPerMinute);
   const day = dayDraft ?? overrideText(project.requestsPerDay);
 

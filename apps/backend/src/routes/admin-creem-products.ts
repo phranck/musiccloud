@@ -24,13 +24,20 @@
  * the service resetting the catalogue would make the two import each other.
  */
 
-import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import {
+  BILLING_PERIODS,
+  type BillingPeriodValue,
+  CREEM_MODES,
+  type CreemModeValue,
+  ENDPOINTS,
+  ROUTE_TEMPLATES,
+} from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { getTierRepository } from "../db/index.js";
-import type { BillingPeriodValue, TierCreemProductKey, TierOffer, TierRepository } from "../db/tiers-repository.js";
-import { BillingPeriod, tierIdSchema } from "../db/tiers-repository.js";
+import type { TierCreemProductKey, TierOffer, TierRepository } from "../db/tiers-repository.js";
+import { tierIdSchema } from "../db/tiers-repository.js";
 import { requireOwner, requireOwnerOrAdmin } from "../lib/admin-caller.js";
-import { CreemMode, type CreemModeValue, configuredCreemModes } from "../lib/creem-config.js";
+import { configuredCreemModes } from "../lib/creem-config.js";
 import { replyWithApiError } from "../lib/infra/api-error-handler.js";
 import { resetCreemCatalogCache } from "../services/creem-catalog.js";
 import {
@@ -45,7 +52,7 @@ import {
   sellingModeReadiness,
   setSellingMode,
 } from "../services/creem-selling-mode.js";
-import { draftCreemProductForOffer, isBillingPeriod } from "../services/tier-creem-draft.js";
+import { draftCreemProductForOffer } from "../services/tier-creem-draft.js";
 
 /** Longest Creem product id we accept when attaching one created elsewhere. */
 const MAX_CREEM_PRODUCT_ID_LENGTH = 128;
@@ -64,8 +71,8 @@ const CREEM_PRODUCT_ID_PATTERN = "^prod_[A-Za-z0-9]+$";
  */
 const productKeyProperties = {
   tierId: tierIdSchema,
-  billingPeriod: { type: "string", enum: Object.values(BillingPeriod) },
-  mode: { type: "string", enum: Object.values(CreemMode) },
+  billingPeriod: { type: "string", enum: BILLING_PERIODS },
+  mode: { type: "string", enum: CREEM_MODES },
 } as const;
 
 /** Schema for the three path parameters every per-product route takes. */
@@ -173,13 +180,10 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
       if (!(await requireOwnerOrAdmin(request, reply))) return;
       const body = request.body as {
         tierId: string;
-        billingPeriod: string;
+        billingPeriod: BillingPeriodValue;
         mode: CreemModeValue;
         creemProductId?: string;
       };
-      if (!isBillingPeriod(body.billingPeriod)) {
-        return reply.status(400).send({ error: "billingPeriod must be one Creem sells over" });
-      }
 
       const unreachable = refuseUnreachableMode(reply, body.mode);
       if (unreachable) return unreachable;
@@ -241,10 +245,7 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
     { schema: { params: productParamsSchema } },
     async (request, reply) => {
       if (!(await requireOwnerOrAdmin(request, reply))) return;
-      const params = request.params as { tierId: string; billingPeriod: string; mode: CreemModeValue };
-      if (!isBillingPeriod(params.billingPeriod)) {
-        return reply.status(400).send({ error: "billingPeriod must be one Creem sells over" });
-      }
+      const params = request.params as TierCreemProductKey;
 
       const unreachable = refuseUnreachableMode(reply, params.mode);
       if (unreachable) return unreachable;
@@ -286,10 +287,7 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
     { schema: { params: productParamsSchema } },
     async (request, reply) => {
       if (!(await requireOwnerOrAdmin(request, reply))) return;
-      const params = request.params as { tierId: string; billingPeriod: string; mode: CreemModeValue };
-      if (!isBillingPeriod(params.billingPeriod)) {
-        return reply.status(400).send({ error: "billingPeriod must be one Creem sells over" });
-      }
+      const params = request.params as TierCreemProductKey;
 
       const unreachable = refuseUnreachableMode(reply, params.mode);
       if (unreachable) return unreachable;
@@ -347,7 +345,7 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
           type: "object",
           required: ["sellingMode"],
           additionalProperties: false,
-          properties: { sellingMode: { type: "string", enum: Object.values(CreemMode) } },
+          properties: { sellingMode: { type: "string", enum: CREEM_MODES } },
         },
       },
     },

@@ -11,15 +11,18 @@
  * is charged and it may not move as a side effect of an edit.
  */
 
-import { ROUTE_TEMPLATES } from "@musiccloud/shared";
+import {
+  BILLING_PERIODS,
+  OFFER_CURRENCIES,
+  OfferCurrency,
+  ROUTE_TEMPLATES,
+  TAX_CATEGORIES,
+  TAX_MODES,
+} from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { getTierRepository } from "../db/index.js";
 import {
-  BillingPeriod,
-  OfferCurrency,
   offerIdSchema,
-  TaxCategory,
-  TaxMode,
   type TierOfferCreateData,
   type TierOfferUpdateData,
   tierIdSchema,
@@ -55,11 +58,11 @@ const customFieldSchema = {
  * it points.
  */
 const offerFieldsSchema = {
-  billingPeriod: { type: "string", enum: Object.values(BillingPeriod) },
+  billingPeriod: { type: "string", enum: BILLING_PERIODS },
   priceCents: { type: "integer", minimum: 100, maximum: MAX_PRICE_CENTS },
-  currency: { type: "string", enum: Object.values(OfferCurrency) },
-  taxMode: { type: ["string", "null"], enum: [...Object.values(TaxMode), null] },
-  taxCategory: { type: ["string", "null"], enum: [...Object.values(TaxCategory), null] },
+  currency: { type: "string", enum: OFFER_CURRENCIES },
+  taxMode: { type: ["string", "null"], enum: [...TAX_MODES, null] },
+  taxCategory: { type: ["string", "null"], enum: [...TAX_CATEGORIES, null] },
   imageUrl: { type: ["string", "null"], maxLength: 2048 },
   successUrl: { type: ["string", "null"], maxLength: 2048 },
   customFields: { type: "array", maxItems: MAX_CUSTOM_FIELDS, items: customFieldSchema },

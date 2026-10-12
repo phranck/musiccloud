@@ -1,7 +1,6 @@
+import { BillingPeriod, CreemMode } from "@musiccloud/shared";
 import * as pgModule from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { CreemMode } from "../../../lib/creem-config.js";
-import { BillingPeriod } from "../../tiers-repository.js";
 import { PostgresTierRepository } from "../postgres-tiers.js";
 
 /**
