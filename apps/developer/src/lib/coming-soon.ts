@@ -11,7 +11,8 @@
  * `Wordmark` component, so the maintenance page looks like the live portal.
  */
 
-import { ENDPOINTS, SITE_ORIGIN } from "@musiccloud/shared";
+import { createHash } from "node:crypto";
+import { buildEnforcedContentSecurityPolicy, ENDPOINTS, SITE_ORIGIN, SurfaceExposure } from "@musiccloud/shared";
 import { PORTAL_FONT_FACE_CSS, portalFontPreloadTags } from "./fonts";
 
 /** The Umami website the developer portal's visits are counted under. */
@@ -55,56 +56,13 @@ const GATE_COPY: Record<PortalGateMode, PortalGateCopy> = {
   },
 };
 
-/** Renders the common availability page for the requested portal state. */
-export function renderPortalGateHtml(mode: PortalGateMode): string {
-  const copy = GATE_COPY[mode];
-  const bodyCopy =
-    mode === PortalGateMode.Maintenance
-      ? "The Developer Portal is temporarily closed for maintenance. The API reference remains available while we complete this work."
-      : "Public API access and developer tools for musiccloud are on the way. We are putting the finishing touches on the platform and will open the doors shortly.";
-
-  return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${copy.metaTitle}</title>
-    <meta
-      name="description"
-      content="${copy.description}"
-    />
-    <link rel="canonical" href="${SITE_ORIGIN.developer}/" />
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="musiccloud" />
-    <meta property="og:title" content="${copy.metaTitle}" />
-    <meta
-      property="og:description"
-      content="${copy.description}"
-    />
-    <meta property="og:url" content="${SITE_ORIGIN.developer}/" />
-    <meta property="og:image" content="${SITE_ORIGIN.site}/img/developer-og.png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="musiccloud / developer" />
-
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="${copy.metaTitle}" />
-    <meta
-      name="twitter:description"
-      content="${copy.description}"
-    />
-    <meta name="twitter:image" content="${SITE_ORIGIN.site}/img/developer-og.png" />
-
-    <link rel="stylesheet" href="/developer-theme.css" />
-    ${portalFontPreloadTags()}
-    <!-- Umami analytics (developer portal), through the portal's own proxy. -->
-    <script
-      defer
-      src="${ENDPOINTS.frontend.umami}/script.js"
-      data-website-id="${DEVELOPER_PORTAL_UMAMI_WEBSITE_ID}"
-      data-host-url="${ENDPOINTS.frontend.umami}"
-    ></script>
-    <style>
+/**
+ * The gate page's one inline style block, the fonts first.
+ *
+ * The page renders this text and its hash is taken from this text, so the two
+ * cannot differ. Nothing else on the page is inline.
+ */
+const GATE_PAGE_CSS = `
       ${PORTAL_FONT_FACE_CSS}
 
       * {
@@ -315,7 +273,69 @@ export function renderPortalGateHtml(mode: PortalGateMode): string {
           font-size: var(--mc-text-card-title);
         }
       }
-    </style>
+    `;
+
+/**
+ * The complete content policy of the gate page, enforced.
+ *
+ * The page is built from constants, so its only inline block is known and its
+ * hash goes into `style-src`. Every other resource comes from the portal's own
+ * origin.
+ */
+export const PORTAL_GATE_CONTENT_SECURITY_POLICY = buildEnforcedContentSecurityPolicy(SurfaceExposure.Public, {
+  styles: [`sha256-${createHash("sha256").update(GATE_PAGE_CSS).digest("base64")}`],
+});
+
+/** Renders the common availability page for the requested portal state. */
+export function renderPortalGateHtml(mode: PortalGateMode): string {
+  const copy = GATE_COPY[mode];
+  const bodyCopy =
+    mode === PortalGateMode.Maintenance
+      ? "The Developer Portal is temporarily closed for maintenance. The API reference remains available while we complete this work."
+      : "Public API access and developer tools for musiccloud are on the way. We are putting the finishing touches on the platform and will open the doors shortly.";
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${copy.metaTitle}</title>
+    <meta
+      name="description"
+      content="${copy.description}"
+    />
+    <link rel="canonical" href="${SITE_ORIGIN.developer}/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="musiccloud" />
+    <meta property="og:title" content="${copy.metaTitle}" />
+    <meta
+      property="og:description"
+      content="${copy.description}"
+    />
+    <meta property="og:url" content="${SITE_ORIGIN.developer}/" />
+    <meta property="og:image" content="${SITE_ORIGIN.site}/img/developer-og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="musiccloud / developer" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${copy.metaTitle}" />
+    <meta
+      name="twitter:description"
+      content="${copy.description}"
+    />
+    <meta name="twitter:image" content="${SITE_ORIGIN.site}/img/developer-og.png" />
+
+    <link rel="stylesheet" href="/developer-theme.css" />
+    ${portalFontPreloadTags()}
+    <!-- Umami analytics (developer portal), through the portal's own proxy. -->
+    <script
+      defer
+      src="${ENDPOINTS.frontend.umami}/script.js"
+      data-website-id="${DEVELOPER_PORTAL_UMAMI_WEBSITE_ID}"
+      data-host-url="${ENDPOINTS.frontend.umami}"
+    ></script>
+    <style>${GATE_PAGE_CSS}</style>
   </head>
   <body>
     <main class="shell">

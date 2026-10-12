@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { applySecurityHeaders, buildSecurityHeaders, SurfaceExposure } from "../security-headers.js";
+import {
+  applySecurityHeaders,
+  buildEnforcedContentSecurityPolicy,
+  buildSecurityHeaders,
+  SurfaceExposure,
+} from "../security-headers.js";
 
 describe("buildSecurityHeaders", () => {
   it("lets a public surface be framed by its own origin only", () => {
@@ -51,7 +56,50 @@ describe("buildSecurityHeaders", () => {
   });
 });
 
+describe("buildEnforcedContentSecurityPolicy", () => {
+  const directives = (policy: string) => policy.split("; ");
+
+  it("enforces every loading directive, with the given hashes added to their own source list", () => {
+    const policy = directives(
+      buildEnforcedContentSecurityPolicy(SurfaceExposure.Public, {
+        styles: ["sha256-style"],
+        scripts: ["sha256-script"],
+      }),
+    );
+
+    expect(policy).toContain("default-src 'self'");
+    expect(policy).toContain("script-src 'self' 'sha256-script'");
+    expect(policy).toContain("style-src 'self' 'sha256-style'");
+    expect(policy).toContain("connect-src 'self'");
+    expect(policy).toContain("base-uri 'self'");
+    expect(policy).toContain("frame-ancestors 'self'");
+  });
+
+  it("allows no inline script it was not given a hash for", () => {
+    const policy = directives(buildEnforcedContentSecurityPolicy(SurfaceExposure.Private));
+
+    expect(policy).toContain("script-src 'self'");
+    expect(policy).toContain("style-src 'self'");
+    expect(policy).toContain("frame-ancestors 'none'");
+    expect(policy.join("; ")).not.toContain("unsafe-inline");
+  });
+});
+
 describe("applySecurityHeaders", () => {
+  /**
+   * A Report-Only header beside a route's complete policy would report the
+   * very inline blocks that policy allows by hash.
+   */
+  it("keeps a route's own content policy whole and adds no Report-Only header beside it", () => {
+    const headers = new Headers({ "Content-Security-Policy": "default-src 'self'; style-src 'self' 'sha256-x'" });
+
+    applySecurityHeaders(headers, SurfaceExposure.Public);
+
+    expect(headers.get("Content-Security-Policy")).toBe("default-src 'self'; style-src 'self' 'sha256-x'");
+    expect(headers.has("Content-Security-Policy-Report-Only")).toBe(false);
+    expect(headers.get("X-Frame-Options")).toBe("SAMEORIGIN");
+  });
+
   it("sets every header on a response that has none", () => {
     const headers = new Headers();
 

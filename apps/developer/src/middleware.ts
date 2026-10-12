@@ -1,7 +1,7 @@
 import { defineMiddleware } from "astro:middleware";
 import { applySecurityHeaders, ENDPOINTS, SurfaceExposure } from "@musiccloud/shared";
 
-import { PortalGateMode, renderPortalGateHtml } from "./lib/coming-soon";
+import { PORTAL_GATE_CONTENT_SECURITY_POLICY, PortalGateMode, renderPortalGateHtml } from "./lib/coming-soon";
 import { getPortalAvailability } from "./lib/portal-availability";
 
 const DOCUMENTATION_PATH = "/docs";
@@ -25,6 +25,27 @@ function isAlwaysReachable(pathname: string): boolean {
 }
 
 /**
+ * The gate page as a response, uncached and with its own complete content
+ * policy, which the shared headers then leave alone.
+ *
+ * @param mode - Which gate page to render.
+ * @param status - 200 while the portal is closed, 503 during maintenance.
+ * @param extraHeaders - Headers only one of the two states sends.
+ * @returns The response for any gated route.
+ */
+function gateResponse(mode: PortalGateMode, status: number, extraHeaders: Record<string, string> = {}): Response {
+  return new Response(renderPortalGateHtml(mode), {
+    status,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      "content-security-policy": PORTAL_GATE_CONTENT_SECURITY_POLICY,
+      ...extraHeaders,
+    },
+  });
+}
+
+/**
  * Global request gate. The system documentation namespace and built assets remain available
  * in every state. All other routes fail closed to Coming Soon if the internal
  * state cannot be read. Maintenance deliberately preserves the original URL
@@ -42,24 +63,11 @@ async function gateRequest(pathname: string, next: () => Promise<Response>): Pro
   const availability = await getPortalAvailability();
 
   if (availability?.maintenance) {
-    return new Response(renderPortalGateHtml(PortalGateMode.Maintenance), {
-      status: 503,
-      headers: {
-        "content-type": "text/html; charset=utf-8",
-        "cache-control": "no-store",
-        "retry-after": "300",
-      },
-    });
+    return gateResponse(PortalGateMode.Maintenance, 503, { "retry-after": "300" });
   }
 
   if (!availability?.public) {
-    return new Response(renderPortalGateHtml(PortalGateMode.ComingSoon), {
-      status: 200,
-      headers: {
-        "content-type": "text/html; charset=utf-8",
-        "cache-control": "no-store",
-      },
-    });
+    return gateResponse(PortalGateMode.ComingSoon, 200);
   }
 
   return next();
@@ -71,7 +79,8 @@ async function gateRequest(pathname: string, next: () => Promise<Response>): Pro
  * The headers are applied to whatever the gate returns, so the Coming Soon and
  * Maintenance pages carry them too. Those are the states in which the portal is
  * most likely to be poked at, which is the wrong moment to be the one host
- * without a policy.
+ * without a policy. The gate pages bring their own complete content policy,
+ * which the shared headers keep.
  */
 export const onRequest = defineMiddleware(async (context, next) => {
   const response = await gateRequest(context.url.pathname, next);
