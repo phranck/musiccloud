@@ -46,6 +46,7 @@ import type {
 import {
   ARTIST_NAME_LATERAL_JOIN,
   ARTIST_NAME_SELECT,
+  artistNamePreferenceOrder,
   dateToMs,
   ensureArtistEntityExists,
   ensureArtistEntityForName,
@@ -244,15 +245,7 @@ export async function findArtistInfoEntity(pool: Pool, artistEntityId: string): 
        SELECT n.name
        FROM artist_entity_names n
        WHERE n.artist_entity_id = ae.id
-       ORDER BY
-         CASE
-           WHEN n.name_type = 'canonical' AND n.locale IS NULL THEN 0
-           WHEN n.name_type = 'canonical' THEN 1
-           WHEN n.name_type = 'credit' THEN 2
-           WHEN n.locale IS NULL THEN 3
-           ELSE 4
-         END,
-         n.created_at ASC
+       ORDER BY ${artistNamePreferenceOrder("n")}
        LIMIT 1
      ) artist_name ON TRUE
      WHERE ae.id = $1

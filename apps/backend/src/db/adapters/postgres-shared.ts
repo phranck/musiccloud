@@ -244,11 +244,6 @@ export const ALBUM_ARTIST_CREDITS_SELECT = `COALESCE((
 export const ALBUM_ARTIST_FIELDS_SELECT = `${ALBUM_ARTISTS_SELECT}, ${ALBUM_ARTIST_CREDITS_SELECT}`;
 
 /**
- * `SELECT` fragment that exposes the resolved artist name from the
- * `artist_name` alias produced by {@link ARTIST_NAME_LATERAL_JOIN}.
- * Falls back to `'[unnamed artist]'` when no name row exists.
- */
-/**
  * The order in which the stored previews of one track or album are preferred,
  * for the preview table under `alias`.
  *
@@ -281,12 +276,42 @@ export const TRACK_PREVIEW_URL_SELECT = `(SELECT tp.url FROM track_previews tp W
  */
 export const ALBUM_PREVIEW_URL_SELECT = `(SELECT ap.url FROM album_previews ap WHERE ap.album_id = a.id ORDER BY ${previewPreferenceOrder("ap")} LIMIT 1) AS preview_url`;
 
+/**
+ * The order in which the stored names of one artist entity are preferred as
+ * its display name, for `artist_entity_names` under `alias`.
+ *
+ * A canonical name without a locale comes first, then any canonical name, then
+ * a credit name, then any name without a locale. The oldest name wins a tie,
+ * so the name an entity was created with stays its name. Every query that
+ * shows one name for an entity without a requested locale uses this order, so
+ * an entity carries the same name on every admin screen and in every lookup.
+ *
+ * @param alias - The alias the query gives `artist_entity_names`, or `null`
+ *   where it reads the table without one.
+ * @returns The `ORDER BY` expression list, without the keyword.
+ */
+export function artistNamePreferenceOrder(alias: string | null): string {
+  const column = (name: string) => (alias ? `${alias}.${name}` : name);
+  return `CASE
+      WHEN ${column("name_type")} = 'canonical' AND ${column("locale")} IS NULL THEN 0
+      WHEN ${column("name_type")} = 'canonical' THEN 1
+      WHEN ${column("name_type")} = 'credit' THEN 2
+      WHEN ${column("locale")} IS NULL THEN 3
+      ELSE 4
+    END,
+    ${column("created_at")} ASC`;
+}
+
+/**
+ * `SELECT` fragment that exposes the resolved artist name from the
+ * `artist_name` alias produced by {@link ARTIST_NAME_LATERAL_JOIN}.
+ * Falls back to `'[unnamed artist]'` when no name row exists.
+ */
 export const ARTIST_NAME_SELECT = `COALESCE(artist_name.name, '[unnamed artist]') AS name`;
 
 /**
- * Lateral join that picks the canonical display name for an artist
- * entity, preferring locale-less canonical names over locale-tagged
- * ones, then over credit-style names. Exposes the resolved name as
+ * Lateral join that picks the display name for an artist entity in the order
+ * of {@link artistNamePreferenceOrder}. Exposes the resolved name as
  * `artist_name.name` for consumers (use with {@link ARTIST_NAME_SELECT}).
  *
  * Expects the outer query to expose the artist row as `ar` with a
@@ -296,15 +321,7 @@ export const ARTIST_NAME_LATERAL_JOIN = `LEFT JOIN LATERAL (
   SELECT n.name
   FROM artist_entity_names n
   WHERE n.artist_entity_id = ar.artist_entity_id
-  ORDER BY
-    CASE
-      WHEN n.name_type = 'canonical' AND n.locale IS NULL THEN 0
-      WHEN n.name_type = 'canonical' THEN 1
-      WHEN n.name_type = 'credit' THEN 2
-      WHEN n.locale IS NULL THEN 3
-      ELSE 4
-    END,
-    n.created_at ASC
+  ORDER BY ${artistNamePreferenceOrder("n")}
   LIMIT 1
 ) artist_name ON TRUE`;
 
@@ -576,15 +593,7 @@ export async function ensureArtistEntityForName(client: PoolClient, name: string
     `SELECT artist_entity_id
      FROM artist_entity_names
      WHERE LOWER(name) = LOWER($1)
-     ORDER BY
-       CASE
-         WHEN name_type = 'canonical' AND locale IS NULL THEN 0
-         WHEN name_type = 'canonical' THEN 1
-         WHEN name_type = 'credit' THEN 2
-         WHEN locale IS NULL THEN 3
-         ELSE 4
-       END,
-       created_at ASC
+     ORDER BY ${artistNamePreferenceOrder(null)}
      LIMIT 1`,
     [creditName],
   );
