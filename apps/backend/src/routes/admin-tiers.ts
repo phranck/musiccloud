@@ -3,52 +3,81 @@
  * Restricted to owner/admin roles; registered inside the adminRoutes scope
  * where `authenticateAdmin` already verified the JWT.
  */
-import { ENDPOINTS, isTierIconName } from "@musiccloud/shared";
-import type { FastifyInstance } from "fastify";
-import { getTierRepository } from "../db/index.js";
 import {
+  ENDPOINTS,
+  MAX_TIER_BUTTON_LABEL_LENGTH,
+  MAX_TIER_DESCRIPTION_LENGTH,
+  MAX_TIER_DISABLE_REASON_LENGTH,
   MAX_TIER_FEATURE_LABEL_LENGTH,
   MAX_TIER_FEATURES,
-  type TierCreateData,
-  type TierUpdateData,
-} from "../db/tiers-repository.js";
+  MAX_TIER_NAME_LENGTH,
+  MAX_TIER_REQUEST_LIMIT,
+  MIN_TIER_REQUEST_LIMIT,
+  TIER_COLOR_PATTERN,
+  TIER_ICONS,
+} from "@musiccloud/shared";
+import type { FastifyInstance } from "fastify";
+import { getTierRepository } from "../db/index.js";
+import type { TierCreateData, TierUpdateData } from "../db/tiers-repository.js";
 import { requireOwnerOrAdmin } from "../lib/admin-caller.js";
+import { replyWithApiError } from "../lib/infra/api-error-handler.js";
 import { resetCreemCatalogCache } from "../services/creem-catalog.js";
 
-/** Matches a 6-digit hex colour like `#RRGGBB`. */
-const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+/** The range a PostgreSQL `integer` column holds, which bounds the sort order. */
+const POSTGRES_INTEGER_RANGE = { minimum: -2_147_483_648, maximum: 2_147_483_647 } as const;
 
-/** Maximum length of a tier's free-text description. */
-const MAX_TIER_DESCRIPTION_LENGTH = 500;
+/** A text that holds more than whitespace. */
+const NOT_BLANK_PATTERN = "\\S";
 
-/** Maximum length of a tier's disable reason. */
-const MAX_TIER_DISABLE_REASON_LENGTH = 200;
-
-/** Maximum length of a tier's custom CTA button label. */
-const MAX_TIER_BUTTON_LABEL_LENGTH = 40;
+/** A request limit, as `isTierRequestLimit` in the shared package states it. */
+const requestLimitSchema = {
+  type: "integer",
+  minimum: MIN_TIER_REQUEST_LIMIT,
+  maximum: MAX_TIER_REQUEST_LIMIT,
+} as const;
 
 /**
- * Validates the `features` payload for a tier create/update request. Returns an
- * error message describing the first problem found, or `null` when the value is
- * a well-formed list of feature bullets (each a non-empty label string), within
- * the count and length limits.
+ * Every field a plan carries, as a request may state it.
  *
- * @param features - The raw `features` value from the request body.
- * @returns An error string, or `null` when valid.
+ * The limits come from the shared package, so the dashboard stops accepting
+ * input at the number this schema refuses at. A value of the wrong type is
+ * refused here rather than reaching the database, where it would fail as a
+ * server error.
  */
-function validateFeatures(features: unknown): string | null {
-  if (!Array.isArray(features)) return "features must be an array";
-  if (features.length > MAX_TIER_FEATURES) return `features must have at most ${MAX_TIER_FEATURES} entries`;
-  for (const feature of features) {
-    if (typeof feature !== "string" || feature.trim().length === 0) {
-      return "each feature must be a non-empty string";
-    }
-    if (feature.length > MAX_TIER_FEATURE_LABEL_LENGTH) {
-      return `each feature must be at most ${MAX_TIER_FEATURE_LABEL_LENGTH} characters`;
-    }
-  }
-  return null;
-}
+const tierFieldsSchema = {
+  name: { type: "string", maxLength: MAX_TIER_NAME_LENGTH, pattern: NOT_BLANK_PATTERN },
+  requestsPerMinute: requestLimitSchema,
+  requestsPerDay: requestLimitSchema,
+  attributionRequired: { type: "boolean" },
+  color: { type: "string", pattern: TIER_COLOR_PATTERN.source },
+  icon: { type: ["string", "null"], enum: [...TIER_ICONS, null] },
+  buttonLabel: { type: ["string", "null"], maxLength: MAX_TIER_BUTTON_LABEL_LENGTH },
+  description: { type: "string", maxLength: MAX_TIER_DESCRIPTION_LENGTH },
+  enabled: { type: "boolean" },
+  disableReason: { type: "string", maxLength: MAX_TIER_DISABLE_REASON_LENGTH },
+  recommended: { type: "boolean" },
+  sortOrder: { type: "integer", ...POSTGRES_INTEGER_RANGE },
+  features: {
+    type: "array",
+    maxItems: MAX_TIER_FEATURES,
+    items: { type: "string", maxLength: MAX_TIER_FEATURE_LABEL_LENGTH, pattern: NOT_BLANK_PATTERN },
+  },
+} as const;
+
+/** The body of a new plan, which has to name itself and its two limits. */
+const createTierBodySchema = {
+  type: "object",
+  required: ["name", "requestsPerMinute", "requestsPerDay"],
+  additionalProperties: false,
+  properties: tierFieldsSchema,
+} as const;
+
+/** The body of a change to a plan, where every field is optional. */
+const updateTierBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: tierFieldsSchema,
+} as const;
 
 export async function adminTiersRoutes(app: FastifyInstance) {
   // Each plan carries its offers, because they are its price and the plan list
@@ -60,89 +89,48 @@ export async function adminTiersRoutes(app: FastifyInstance) {
     return tiers.map((tier) => ({ ...tier, offers: offers.filter((offer) => offer.tierId === tier.id) }));
   });
 
-  app.post(ENDPOINTS.admin.developer.tiers, async (request, reply) => {
+  /**
+   * Creates a plan.
+   *
+   * A plan's name is unique in the database, so a name another plan has is
+   * answered as a conflict before the write instead of failing inside it.
+   */
+  app.post(ENDPOINTS.admin.developer.tiers, { schema: { body: createTierBodySchema } }, async (request, reply) => {
     if (!(await requireOwnerOrAdmin(request, reply))) return;
     const body = request.body as TierCreateData;
-    if (!body.name || body.requestsPerMinute == null || body.requestsPerDay == null) {
-      return reply.status(400).send({ error: "name, requestsPerMinute, and requestsPerDay are required" });
-    }
-    if (body.requestsPerMinute < 1) {
-      return reply.status(400).send({ error: "requestsPerMinute must be > 0" });
-    }
-    if (body.requestsPerDay < 1) {
-      return reply.status(400).send({ error: "requestsPerDay must be > 0" });
-    }
-    if (body.color != null && !HEX_COLOR_RE.test(body.color)) {
-      return reply.status(400).send({ error: "color must be a hex value like #RRGGBB" });
-    }
-    if (body.icon != null && !isTierIconName(body.icon)) {
-      return reply.status(400).send({ error: "icon must be one of the supported tier icon names" });
-    }
-    if (body.buttonLabel != null && body.buttonLabel.length > MAX_TIER_BUTTON_LABEL_LENGTH) {
-      return reply
-        .status(400)
-        .send({ error: `buttonLabel must be at most ${MAX_TIER_BUTTON_LABEL_LENGTH} characters` });
-    }
-    if (body.description != null && body.description.length > MAX_TIER_DESCRIPTION_LENGTH) {
-      return reply.status(400).send({ error: `description must be at most ${MAX_TIER_DESCRIPTION_LENGTH} characters` });
-    }
-    if (body.disableReason != null && body.disableReason.length > MAX_TIER_DISABLE_REASON_LENGTH) {
-      return reply
-        .status(400)
-        .send({ error: `disableReason must be at most ${MAX_TIER_DISABLE_REASON_LENGTH} characters` });
-    }
-    if (body.recommended != null && typeof body.recommended !== "boolean") {
-      return reply.status(400).send({ error: "recommended must be a boolean" });
-    }
-    if (body.features != null) {
-      const featuresError = validateFeatures(body.features);
-      if (featuresError) return reply.status(400).send({ error: featuresError });
-    }
     const repo = await getTierRepository();
+    if ((await repo.listTiers()).some((tier) => tier.name === body.name)) {
+      return replyWithApiError(reply, "MC-REQ-0002");
+    }
     const tier = await repo.createTier(body);
     return reply.status(201).send(tier);
   });
 
-  app.patch(ENDPOINTS.admin.developer.tierDetail(":id"), async (request, reply) => {
-    if (!(await requireOwnerOrAdmin(request, reply))) return;
-    const { id } = request.params as { id: string };
-    const body = request.body as TierUpdateData;
-    if (body.requestsPerMinute != null && body.requestsPerMinute < 1) {
-      return reply.status(400).send({ error: "requestsPerMinute must be > 0" });
-    }
-    if (body.requestsPerDay != null && body.requestsPerDay < 1) {
-      return reply.status(400).send({ error: "requestsPerDay must be > 0" });
-    }
-    if (body.color != null && !HEX_COLOR_RE.test(body.color)) {
-      return reply.status(400).send({ error: "color must be a hex value like #RRGGBB" });
-    }
-    if (body.icon != null && !isTierIconName(body.icon)) {
-      return reply.status(400).send({ error: "icon must be one of the supported tier icon names" });
-    }
-    if (body.buttonLabel != null && body.buttonLabel.length > MAX_TIER_BUTTON_LABEL_LENGTH) {
-      return reply
-        .status(400)
-        .send({ error: `buttonLabel must be at most ${MAX_TIER_BUTTON_LABEL_LENGTH} characters` });
-    }
-    if (body.description != null && body.description.length > MAX_TIER_DESCRIPTION_LENGTH) {
-      return reply.status(400).send({ error: `description must be at most ${MAX_TIER_DESCRIPTION_LENGTH} characters` });
-    }
-    if (body.disableReason != null && body.disableReason.length > MAX_TIER_DISABLE_REASON_LENGTH) {
-      return reply
-        .status(400)
-        .send({ error: `disableReason must be at most ${MAX_TIER_DISABLE_REASON_LENGTH} characters` });
-    }
-    if (body.recommended != null && typeof body.recommended !== "boolean") {
-      return reply.status(400).send({ error: "recommended must be a boolean" });
-    }
-    if (body.features != null) {
-      const featuresError = validateFeatures(body.features);
-      if (featuresError) return reply.status(400).send({ error: featuresError });
-    }
-    const repo = await getTierRepository();
-    const tier = await repo.updateTier(id, body);
-    return tier;
-  });
+  /**
+   * Changes a plan.
+   *
+   * A plan that does not exist is answered as missing, and a name another plan
+   * has as a conflict, before the write, so neither reaches the database as a
+   * server error.
+   */
+  app.patch(
+    ENDPOINTS.admin.developer.tierDetail(":id"),
+    { schema: { body: updateTierBodySchema } },
+    async (request, reply) => {
+      if (!(await requireOwnerOrAdmin(request, reply))) return;
+      const { id } = request.params as { id: string };
+      const body = request.body as TierUpdateData;
+      const repo = await getTierRepository();
+      const tiers = await repo.listTiers();
+      if (!tiers.some((tier) => tier.id === id)) {
+        return reply.status(404).send({ error: `Plan not found: ${id}` });
+      }
+      if (body.name !== undefined && tiers.some((tier) => tier.id !== id && tier.name === body.name)) {
+        return replyWithApiError(reply, "MC-REQ-0002");
+      }
+      return repo.updateTier(id, body);
+    },
+  );
 
   app.delete(ENDPOINTS.admin.developer.tierDetail(":id"), async (request, reply) => {
     if (!(await requireOwnerOrAdmin(request, reply))) return;

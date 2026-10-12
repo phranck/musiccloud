@@ -1,3 +1,4 @@
+import { MAX_MAX_PROJECTS_PER_ACCOUNT } from "@musiccloud/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -5,12 +6,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   fetchAvailability: vi.fn(),
   updateAvailability: vi.fn(),
+  fetchLimits: vi.fn(),
+  updateLimits: vi.fn(),
 }));
 
 vi.mock("./api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./api")>()),
   fetchDeveloperPortalAvailability: mocks.fetchAvailability,
   updateDeveloperPortalAvailability: mocks.updateAvailability,
+  fetchDeveloperLimits: mocks.fetchLimits,
+  updateDeveloperLimits: mocks.updateLimits,
 }));
 
 vi.mock("@/components/ui/PageHeader", () => ({ PageHeader: () => null }));
@@ -48,6 +53,22 @@ describe("DeveloperSettingsPage", () => {
     mocks.fetchAvailability.mockReset();
     mocks.updateAvailability.mockReset();
     mocks.fetchAvailability.mockResolvedValue({ public: false, maintenance: true, lastChange: null });
+    mocks.fetchLimits.mockReset();
+    mocks.updateLimits.mockReset();
+    mocks.fetchLimits.mockResolvedValue({ maxProjectsPerAccount: 3 });
+  });
+
+  it("offers to save a project ceiling only inside the range the backend accepts", async () => {
+    renderPage();
+    const field = (await screen.findByLabelText(dm.maxProjectsLabel)) as HTMLInputElement;
+    await waitFor(() => expect(field.value).toBe("3"));
+    const save = screen.getByRole("button", { name: dashboardCopy.common.save }) as HTMLButtonElement;
+
+    fireEvent.change(field, { target: { value: String(MAX_MAX_PROJECTS_PER_ACCOUNT + 1) } });
+    expect(save.disabled).toBe(true);
+
+    fireEvent.change(field, { target: { value: String(MAX_MAX_PROJECTS_PER_ACCOUNT) } });
+    expect(save.disabled).toBe(false);
   });
 
   it("loads the stored portal state", async () => {

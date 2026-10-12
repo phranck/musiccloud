@@ -48,13 +48,13 @@ describe("pricing material ownership", () => {
     expect(css).not.toContain("pricing-commitment");
   });
 
-  it("accepts only six- or eight-digit tier hex colors", async () => {
+  it("accepts only the six-digit tier hex colors the backend stores", async () => {
     expect(existsSync(tierColorPath)).toBe(true);
     if (!existsSync(tierColorPath)) return;
 
     const { normalizeTierColor } = await import("../../lib/tierColor");
     expect(normalizeTierColor("#12aBcD")).toBe("#12aBcD");
-    expect(normalizeTierColor("#12aBcDff")).toBe("#12aBcDff");
+    expect(normalizeTierColor("#12aBcDff")).toBe("var(--mc-color-accent)");
     expect(normalizeTierColor("red")).toBe("var(--mc-color-accent)");
     expect(normalizeTierColor("#fff; background:red")).toBe("var(--mc-color-accent)");
   });

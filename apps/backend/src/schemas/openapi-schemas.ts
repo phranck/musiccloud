@@ -14,6 +14,8 @@
  * "Take on Me" by a-ha throughout for visual consistency.
  */
 
+import { DEFAULT_TIER_COLOR, TIER_COLOR_PATTERN } from "@musiccloud/shared";
+
 export const ArtistCreditSchema = {
   $id: "ArtistCredit",
   type: "object",
@@ -151,7 +153,7 @@ export const PublicTierSchema = {
       anyOf: [{ type: "string" }, { type: "null" }],
       description: "Yearly euro price as a decimal string, or `null` when yearly billing is not offered.",
     },
-    color: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$", description: "Plan accent color as `#RRGGBB`." },
+    color: { type: "string", pattern: TIER_COLOR_PATTERN.source, description: "Plan accent color as `#RRGGBB`." },
     icon: {
       anyOf: [{ type: "string" }, { type: "null" }],
       description:
@@ -199,7 +201,7 @@ export const PublicTierSchema = {
     attributionRequired: true,
     price: null,
     priceYearly: null,
-    color: "#64748b",
+    color: DEFAULT_TIER_COLOR,
     icon: null,
     buttonLabel: null,
     description: "For evaluation and small personal projects.",

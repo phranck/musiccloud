@@ -1,4 +1,9 @@
 import { DashboardActionButton, DashboardActionId, DashboardInput } from "@musiccloud/dashboard-ui";
+import {
+  isAssignableMaxProjects,
+  MAX_MAX_PROJECTS_PER_ACCOUNT,
+  MIN_MAX_PROJECTS_PER_ACCOUNT,
+} from "@musiccloud/shared";
 import { GearSixIcon, SlidersIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -60,7 +65,8 @@ function describeLastChange(change: DeveloperPortalAvailabilityChange): string {
  * The self-service limits card: what a developer may do without asking.
  *
  * The field starts from what is stored and is only sent when the operator
- * saves, so a half-typed number never becomes the live ceiling.
+ * saves, so a half-typed number never becomes the live ceiling. Save stays
+ * off for a number the backend would refuse.
  *
  * @returns The limits card.
  */
@@ -85,7 +91,7 @@ function SelfServiceLimitsSection() {
   const value = draft ?? (stored === undefined ? "" : String(stored));
   const parsed = Number(value);
   const canSave =
-    value.trim() !== "" && Number.isInteger(parsed) && parsed >= 1 && parsed !== stored && !updateMutation.isPending;
+    value.trim() !== "" && isAssignableMaxProjects(parsed) && parsed !== stored && !updateMutation.isPending;
 
   return (
     <DashboardSection>
@@ -100,7 +106,8 @@ function SelfServiceLimitsSection() {
             <DashboardInput
               id="max-projects"
               type="number"
-              min={1}
+              min={MIN_MAX_PROJECTS_PER_ACCOUNT}
+              max={MAX_MAX_PROJECTS_PER_ACCOUNT}
               value={value}
               onChange={(event) => {
                 setDraft(event.target.value);
