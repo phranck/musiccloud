@@ -1,6 +1,7 @@
 import type { ArtistInfoResponse } from "@musiccloud/shared";
 import { ArtistCardShell } from "@/components/artist/ArtistCardShell";
 import { ArtistSectionWell } from "@/components/artist/ArtistSectionWell";
+import { artistSectionPresence } from "@/components/artist/artistInfoContent";
 import { buildEventsSwapKey } from "@/components/artist/artistSwapKeys";
 import { EventsSkeleton } from "@/components/artist/EventsSkeleton";
 import { UpcomingEventsSection } from "@/components/artist/UpcomingEventsSection";
@@ -23,7 +24,8 @@ export function EventsCard({ title, data, isLoading, userRegion }: EventsCardPro
   const skeletonAllowed = useSkeletonAllowed();
   const showInitialSkeleton = isLoading && !data;
   const isRefreshing = isLoading && !!data;
-  const showEvents = showInitialSkeleton || (data?.events.length ?? 0) > 0;
+  const hasEvents = artistSectionPresence(data).events;
+  const showEvents = showInitialSkeleton || hasEvents;
 
   if (isLoading && !data && !skeletonAllowed) {
     return (
@@ -35,7 +37,7 @@ export function EventsCard({ title, data, isLoading, userRegion }: EventsCardPro
   if (!showEvents) return null;
 
   const footer =
-    !showInitialSkeleton && data && data.events.length > 0 ? (
+    !showInitialSkeleton && hasEvents ? (
       <SectionCardFooterText>{artistCopy.eventsProvidedBy}</SectionCardFooterText>
     ) : undefined;
 
@@ -45,7 +47,7 @@ export function EventsCard({ title, data, isLoading, userRegion }: EventsCardPro
         <ArtistSectionWell
           showInitialSkeleton={showInitialSkeleton}
           Skeleton={EventsSkeleton}
-          hasContent={!!data && data.events.length > 0}
+          hasContent={hasEvents}
           swapKey={buildEventsSwapKey(data)}
         >
           <UpcomingEventsSection events={data?.events ?? []} userRegion={userRegion} />

@@ -11,6 +11,7 @@ import { ArtistInfoNoticeCard } from "@/components/artist/ArtistInfoNoticeCard";
 import { ArtistProfileMobileCard } from "@/components/artist/ArtistProfileMobileCard";
 import { ArtistSectionWell } from "@/components/artist/ArtistSectionWell";
 import { ArtistTrackView } from "@/components/artist/ArtistTrackView";
+import { artistSectionPresence, effectiveArtistInfoStatus } from "@/components/artist/artistInfoContent";
 import type {
   ArtistCardLabels,
   ArtistInfoStatus,
@@ -72,7 +73,8 @@ export function ArtistInfoCard({
   const popularItems = toPopularTrackItems(data);
   const similarItems = toSimilarTrackItems(data);
 
-  const effectiveStatus: ArtistInfoStatus = status ?? (isLoading ? "loading" : data ? "ready" : "empty");
+  const presence = artistSectionPresence(data);
+  const effectiveStatus = effectiveArtistInfoStatus(status, isLoading, data);
 
   // Keep a visible card shell when the API returned nothing useful. The VFD
   // carries the machine-readable status; this inline message explains why the
@@ -101,10 +103,10 @@ export function ArtistInfoCard({
   // artist): blur the stacked sections + show one spinner so the panel reads as
   // "updating" instead of frozen. Mirrors the desktop cards' `isRefreshing`.
   const isRefreshing = isLoading && !!data;
-  const showProfile = showInitialSkeleton || !!data?.profile;
-  const showTracks = showInitialSkeleton || popularItems.length > 0;
-  const showEvents = showInitialSkeleton || (data?.events.length ?? 0) > 0;
-  const showSimilar = showInitialSkeleton || similarItems.length > 0;
+  const showProfile = showInitialSkeleton || presence.profile;
+  const showTracks = showInitialSkeleton || presence.popularTracks;
+  const showEvents = showInitialSkeleton || presence.events;
+  const showSimilar = showInitialSkeleton || presence.similarTracks;
   // All sections empty after load -> keep the card shell and explain the empty state.
   if (!isLoading && !showProfile && !showTracks && !showEvents && !showSimilar) {
     return <ArtistInfoNoticeCard onClose={onClose} message={artistCopy.empty} />;
@@ -139,7 +141,7 @@ export function ArtistInfoCard({
               innerTitle={labels.popularTracks}
               showInitialSkeleton={showInitialSkeleton}
               Skeleton={TracksSkeleton}
-              hasContent={popularItems.length > 0}
+              hasContent={presence.popularTracks}
               swapKey={buildTracksSwapKey(data)}
             >
               <ArtistTrackView
@@ -157,12 +159,12 @@ export function ArtistInfoCard({
               innerTitle={labels.events}
               showInitialSkeleton={showInitialSkeleton}
               Skeleton={EventsSkeleton}
-              hasContent={!!data && data.events.length > 0}
+              hasContent={presence.events}
               swapKey={buildEventsSwapKey(data)}
             >
               <UpcomingEventsSection events={data?.events ?? []} userRegion={userRegion} />
             </ArtistSectionWell>
-            {!showInitialSkeleton && data && data.events.length > 0 && (
+            {!showInitialSkeleton && presence.events && (
               <p className={cn(sectionCardFooterTextClassName, "mt-2 px-2")}>{artistCopy.eventsProvidedBy}</p>
             )}
           </CollapsibleSection>
@@ -173,7 +175,7 @@ export function ArtistInfoCard({
               innerTitle={labels.similar}
               showInitialSkeleton={showInitialSkeleton}
               Skeleton={SimilarArtistsSkeleton}
-              hasContent={similarItems.length > 0}
+              hasContent={presence.similarTracks}
               swapKey={buildSimilarSwapKey(data)}
             >
               <ArtistTrackView

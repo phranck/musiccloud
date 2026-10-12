@@ -80,6 +80,22 @@ describe("useArtistInfo", () => {
     expect(fetchArtistInfoMock).not.toHaveBeenCalled();
   });
 
+  /**
+   * A similar artist without a track has nothing to click, so no card shows it.
+   * The column has to read as empty then, not as ready with nothing on screen.
+   */
+  it("settles empty when the only entries are similar artists without a track", async () => {
+    fetchArtistInfoMock.mockResolvedValue({
+      ...ARTIST_DATA,
+      profile: null,
+      similarArtistTracks: [{ artistName: "Portishead", track: null }],
+    });
+
+    const { result } = renderHook((props) => useArtistInfo(props), { initialProps: baseProps });
+
+    await waitFor(() => expect(result.current.status).toBe(ArtistLoadStatus.Empty));
+  });
+
   it("still fetches when a later artist has no answered prefetch", async () => {
     takeSettledArtistInfoMock.mockReturnValueOnce(ARTIST_DATA as never);
     fetchArtistInfoMock.mockResolvedValue({ ...ARTIST_DATA, artistName: "Artist Two" });
