@@ -52,6 +52,23 @@ describe("Developer Portal editorial client", () => {
     );
   });
 
+  // The backend normalizes each of these to a reserved path or an editorial
+  // one, or refuses it. The portal looks up exactly the editorial ones.
+  it.each([
+    ["docs/api", false],
+    ["//docs//x", false],
+    ["/docs/", true],
+    ["/docs", true],
+    ["/docs/../x", false],
+    ["/%64ocs/x", false],
+    ["/docs\\x", false],
+    ["/a?b", false],
+    ["/pricing", true],
+    ["/pricing/x", false],
+  ])("treats %s as a managed page: %s", (path, managed) => {
+    expect(editorial.isManagedEditorialPath(path)).toBe(managed);
+  });
+
   it("distinguishes NotFound from a backend Failure", async () => {
     fetchMock
       .mockResolvedValueOnce(

@@ -3,6 +3,9 @@ import {
   expectedNavigationPlacements,
   hasAllContextBits,
   isNavigationSystemKey,
+  isPortalDocsNamespace,
+  isPortalDocsNavigationUrl,
+  isPortalReservedPath,
   isSafeNavigationUrl,
   isValidContentContextMask,
   isValidNavigationAreaMask,
@@ -10,6 +13,7 @@ import {
   NavigationArea,
   NavigationSystemKey,
   NavigationTargetKind,
+  normalizeEditorialPath,
   type ContentPublication,
   type NavigationPlacement,
   PageType,
@@ -20,8 +24,8 @@ import type {
   NavigationConfigurationEntryRow,
   NavigationConfigurationReplaceInput,
 } from "../db/admin-repository.js";
+import { samePublication } from "../db/content-publication-cutover.js";
 import { closeRepository, getAdminRepository } from "../db/index.js";
-import { isReservedDeveloperPortalPath, normalizeEditorialPath } from "../services/editorial-path.js";
 
 export interface ContextualContentBackfillResult {
   pages: number;
@@ -65,9 +69,11 @@ export async function backfillContextualContent(
   for (const page of pages) {
     for (const publication of page.publications ?? []) {
       const normalizedPath = normalizeEditorialPath(publication.path);
+      // The whole docs namespace, `/docs` included, belongs to the Docs system
+      // entry this backfill seeds, so no publication may stand in it here.
       if (
-        isDocsUrl(normalizedPath) ||
-        (publication.context === ContentContext.DeveloperPortal && isReservedDeveloperPortalPath(normalizedPath))
+        isPortalDocsNamespace(normalizedPath) ||
+        (publication.context === ContentContext.DeveloperPortal && isPortalReservedPath(normalizedPath))
       ) {
         conflicts++;
         continue;
@@ -86,12 +92,15 @@ export async function backfillContextualContent(
     const desired = legacyFrontendPublication(page);
     const existing = page.publications ?? [];
     const existingFrontend = existing.find((publication) => publication.context === ContentContext.Frontend);
-    if (existingFrontend && !samePublication(existingFrontend, desired)) {
+    if (
+      existingFrontend &&
+      !samePublication({ ...existingFrontend, path: normalizeEditorialPath(existingFrontend.path) }, desired)
+    ) {
       conflicts++;
       continue;
     }
     if (!existingFrontend) {
-      if (isDocsUrl(desired.path)) {
+      if (isPortalDocsNamespace(desired.path)) {
         conflicts++;
         continue;
       }
@@ -196,7 +205,7 @@ async function planNavigationBackfill(
         continue;
       }
 
-      if (!row.url || !isSafeNavigationUrl(row.url) || isDocsUrl(row.url)) {
+      if (!row.url || !isSafeNavigationUrl(row.url) || isPortalDocsNavigationUrl(row.url)) {
         conflicts++;
         continue;
       }
@@ -311,7 +320,7 @@ function validateExistingNavigation(
       entry.pageId !== null ||
       !entry.url ||
       !isSafeNavigationUrl(entry.url) ||
-      isDocsUrl(entry.url)
+      isPortalDocsNavigationUrl(entry.url)
     ) {
       conflicts++;
     }
@@ -332,20 +341,10 @@ function validateExistingNavigation(
   };
 }
 
-function isDocsUrl(url: string): boolean {
-  if (!url.startsWith("/")) return false;
-  try {
-    const path = normalizeEditorialPath(new URL(url, "https://navigation.invalid").pathname);
-    return path === "/docs" || path.startsWith("/docs/");
-  } catch {
-    return true;
-  }
-}
-
 function pageClaimsDocsNamespace(page: ContentPageSummaryRow): boolean {
   return (
-    (page.publications ?? []).some((publication) => isDocsUrl(publication.path)) ||
-    isDocsUrl(legacyFrontendPublication(page).path)
+    (page.publications ?? []).some((publication) => isPortalDocsNavigationUrl(publication.path)) ||
+    isPortalDocsNavigationUrl(legacyFrontendPublication(page).path)
   );
 }
 
@@ -356,18 +355,6 @@ function legacyFrontendPublication(page: ContentPageSummaryRow): ContentPublicat
     status: page.status,
     templateKey: page.pageType === PageType.Segmented ? "frontend-segmented" : "frontend-default",
   };
-}
-
-function samePublication(
-  existing: { context: number; path: string; status: string; templateKey: string },
-  desired: ContentPublication,
-): boolean {
-  return (
-    existing.context === desired.context &&
-    normalizeEditorialPath(existing.path) === desired.path &&
-    existing.status === desired.status &&
-    existing.templateKey === desired.templateKey
-  );
 }
 
 export function formatBackfillSummary(result: ContextualContentBackfillResult): string {

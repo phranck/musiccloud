@@ -3,27 +3,24 @@ import {
   type ContentPageSummary,
   isPortalReservedPath,
   type SingleContentContext,
+  tryNormalizeEditorialPath,
 } from "@musiccloud/shared";
 
 /**
  * Whether the portal builds this path itself, so the dashboard must not offer
  * it for editing.
  *
- * The same question the portal and the backend ask, answered from the same
- * declaration. It used to be answered here separately, which is how `/docs`
- * came to be editorial everywhere except in the dashboard that edits it.
+ * The path is normalized the way the backend normalizes it before it decides,
+ * so `docs/api` and `/%64ocs/api` are recognized here exactly as the server
+ * will refuse them. A path the server cannot normalize is not reported as
+ * reserved, because saving it fails with the server's own reason.
  *
  * @param path - The published path, as it may have been typed.
  * @returns `true` when the page behind it is the portal's own.
  */
 export function isSystemOwnedDocsPath(path: string): boolean {
-  const pathname =
-    path
-      .trim()
-      .split(/[?#]/u, 1)[0]
-      ?.replace(/\/{2,}/gu, "/")
-      .replace(/\/$/u, "") || "/";
-  return isPortalReservedPath(pathname);
+  const normalized = tryNormalizeEditorialPath(path);
+  return normalized !== null && isPortalReservedPath(normalized);
 }
 
 export function isSystemOwnedPublication(context: SingleContentContext, path: string): boolean {

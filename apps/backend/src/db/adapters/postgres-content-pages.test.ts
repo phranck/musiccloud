@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 
-import { ContentContext } from "@musiccloud/shared";
+import { ContentContext, type ContentStatus, type SingleContentContext } from "@musiccloud/shared";
 import type { Pool } from "pg";
 import { describe, expect, it, vi } from "vitest";
-import type { ContentPublicationCutoverInput } from "../admin-repository.js";
+import { backfillDeveloperEditorialContent } from "../../scripts/backfill-developer-editorial-content.js";
+import type { AdminRepository, ContentPageSummaryRow, ContentPublicationCutoverInput } from "../admin-repository.js";
 import { applyContentPublicationCutover, getPublishedContentPageByPath } from "./postgres-content-pages.js";
 
 const TERMS_PLACEHOLDER =
@@ -268,6 +269,119 @@ function createCutoverPool(options: {
     targetPageReads,
   };
 }
+
+/**
+ * Runs one set of stored pages and publications through the cutover preflight
+ * and through the locked apply, and reports whether each of them would go
+ * ahead. The two decide the same question at different times, so they have to
+ * answer it the same way.
+ */
+async function cutoverVerdicts(
+  pages: SqlPageRow[],
+  publications: SqlPublicationRow[],
+): Promise<{ preflight: boolean; apply: boolean }> {
+  const summaries: ContentPageSummaryRow[] = pages.map((page) => ({
+    id: page.id,
+    slug: page.slug,
+    contextMask: page.context_mask as ContentPageSummaryRow["contextMask"],
+    publications: publications
+      .filter((row) => row.page_id === page.id)
+      .map((row) => ({
+        pageId: row.page_id,
+        context: row.context as SingleContentContext,
+        path: row.path,
+        status: row.status as ContentStatus,
+        templateKey: row.template_key,
+      })),
+    title: page.title,
+    status: "published",
+    showTitle: true,
+    titleAlignment: "left",
+    pageType: "default",
+    displayMode: "fullscreen",
+    overlayWidth: "regular",
+    contentCardStyle: "default",
+    createdBy: null,
+    updatedBy: null,
+    createdAt: new Date(),
+    updatedAt: null,
+  }));
+  const repository = {
+    listContentPageSummaries: async () => summaries,
+    listNavigationConfiguration: async () => [],
+    getContentPageById: async (id: string) => {
+      const summary = summaries.find((candidate) => candidate.id === id);
+      const page = pages.find((candidate) => candidate.id === id);
+      return summary && page ? { ...summary, content: page.content } : null;
+    },
+  } as unknown as AdminRepository;
+
+  const preflight = await backfillDeveloperEditorialContent(repository, { dryRun: true });
+  const { pool } = createCutoverPool({ pages, publications });
+  const apply = await applyContentPublicationCutover(pool, CUTOVER_INPUTS).then(
+    () => true,
+    () => false,
+  );
+  return { preflight: preflight.conflicts.length === 0, apply };
+}
+
+describe("cutover preflight and locked apply", () => {
+  const privacy = pageRow("page-privacy-stable", "privacy");
+  const terms = pageRow("page-terms-stable", "terms");
+  const canonical = [
+    publicationRow("page-privacy-stable", ContentContext.Frontend, "/privacy"),
+    publicationRow("page-terms-stable", ContentContext.Frontend, "/terms"),
+  ];
+
+  it.each([
+    ["nothing else", [], [], true],
+    [
+      "a Developer Portal page at /docs",
+      [pageRow("page-docs", "docs", ContentContext.DeveloperPortal)],
+      [publicationRow("page-docs", ContentContext.DeveloperPortal, "/docs")],
+      true,
+    ],
+    [
+      "a Developer Portal page beneath /docs",
+      [pageRow("page-api", "docs-api", ContentContext.DeveloperPortal)],
+      [publicationRow("page-api", ContentContext.DeveloperPortal, "/docs/api")],
+      false,
+    ],
+    [
+      "a Frontend page beneath /docs",
+      [pageRow("page-guides", "guides")],
+      [publicationRow("page-guides", ContentContext.Frontend, "/docs/guides")],
+      true,
+    ],
+    [
+      "another page on the Developer Portal /terms",
+      [pageRow("page-other", "other", ContentContext.DeveloperPortal)],
+      [publicationRow("page-other", ContentContext.DeveloperPortal, "/terms")],
+      false,
+    ],
+    [
+      "a page whose mask names a context it does not publish in",
+      [pageRow("page-pricing", "pricing", ContentContext.Frontend | ContentContext.DeveloperPortal)],
+      [publicationRow("page-pricing", ContentContext.Frontend, "/pricing")],
+      false,
+    ],
+    [
+      "two pages on one route written two ways",
+      [pageRow("page-a", "guide-a"), pageRow("page-b", "guide-b")],
+      [
+        publicationRow("page-a", ContentContext.Frontend, "/guide"),
+        publicationRow("page-b", ContentContext.Frontend, "//guide/"),
+      ],
+      false,
+    ],
+  ] as Array<
+    [string, SqlPageRow[], SqlPublicationRow[], boolean]
+  >)("agree with %s stored", async (_case, extraPages, extraPublications, proceeds) => {
+    await expect(
+      cutoverVerdicts([privacy, terms, ...extraPages], [...canonical, ...extraPublications]),
+    ).resolves.toEqual({ preflight: proceeds, apply: proceeds });
+  });
+});
 
 describe("getPublishedContentPageByPath", () => {
   it.each([

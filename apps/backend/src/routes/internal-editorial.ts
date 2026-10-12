@@ -3,10 +3,12 @@ import {
   type DeveloperPortalEditorialPage,
   type DeveloperPortalNavigation,
   type DeveloperPortalNavigationItem,
+  isReservedDeveloperPortalPath,
   NAVIGATION_SYSTEM_TARGETS,
   NavigationArea,
   NavigationSystemKey,
   NavigationTargetKind,
+  normalizeEditorialPath,
   ROUTE_TEMPLATES,
   type SingleNavigationArea,
 } from "@musiccloud/shared";
@@ -17,7 +19,6 @@ import { getAdminRepository } from "../db/index.js";
 import { setApiFailureDiagnostic } from "../lib/infra/api-error-handler.js";
 import { createApiErrorResponse } from "../lib/infra/api-errors.js";
 import { renderEditorialBody } from "../services/editorial-body.js";
-import { isReservedDeveloperPortalPath, normalizeEditorialPath } from "../services/editorial-path.js";
 
 const SYSTEM_LABELS = {
   [NavigationSystemKey.Docs]: "Docs",

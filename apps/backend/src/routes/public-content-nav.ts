@@ -1,9 +1,8 @@
-import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
+import { ENDPOINTS, normalizeEditorialPath, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance } from "fastify";
 
 import { getPublicContentPage, getPublicContentPages } from "../services/admin-content.js";
 import { getPublicNavItems, isValidNavId } from "../services/admin-nav.js";
-import { normalizeEditorialPath } from "../services/editorial-path.js";
 
 const NAV_CACHE = "public, max-age=300, stale-while-revalidate=3600";
 const CONTENT_CACHE = "public, max-age=3600, stale-while-revalidate=86400";
