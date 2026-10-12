@@ -423,6 +423,40 @@ describe("adminApiAccessRoutes", () => {
       );
     });
 
+    it.each([0, -3, 1.5, "30"])("refuses the project override %s before it reaches the database", async (value) => {
+      const { app, token } = await buildApp("owner");
+      mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject());
+
+      const response = await app.inject({
+        method: "PATCH",
+        url: ROUTE_TEMPLATES.admin.developer.apiAccess.projectDetail.replace(":id", "project-1"),
+        headers: { authorization: `Bearer ${token}` },
+        payload: { requestsPerMinute: value },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(mockRepo.updateDeveloperProject).not.toHaveBeenCalled();
+    });
+
+    it("clears a project override with null", async () => {
+      const { app, token } = await buildApp("owner");
+      mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject());
+      mockRepo.updateDeveloperProject.mockResolvedValue(makeProject());
+
+      const response = await app.inject({
+        method: "PATCH",
+        url: ROUTE_TEMPLATES.admin.developer.apiAccess.projectDetail.replace(":id", "project-1"),
+        headers: { authorization: `Bearer ${token}` },
+        payload: { requestsPerMinute: null, requestsPerDay: 500 },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(mockRepo.updateDeveloperProject).toHaveBeenCalledWith(
+        "project-1",
+        expect.objectContaining({ requestsPerMinute: null, requestsPerDay: 500 }),
+      );
+    });
+
     it("changes the subscription tier for one project", async () => {
       const { app, token } = await buildApp("admin");
       mockRepo.findDeveloperProjectById.mockResolvedValue(makeProject());
@@ -592,6 +626,18 @@ describe("adminApiAccessRoutes", () => {
       });
       expect(response.statusCode).toBe(200);
       expect(mockRepo.updateApiClient).toHaveBeenCalledWith("client-1", expect.objectContaining({ status }));
+    });
+
+    it("refuses a fractional application cap before it reaches the database", async () => {
+      const { app, token } = await buildApp("owner");
+      const response = await app.inject({
+        method: "PATCH",
+        url: ROUTE_TEMPLATES.admin.developer.apiAccess.clientUpdate.replace(":id", "client-1"),
+        headers: { authorization: `Bearer ${token}` },
+        payload: { requestsPerDay: 1.5 },
+      });
+      expect(response.statusCode).toBe(400);
+      expect(mockRepo.updateApiClient).not.toHaveBeenCalled();
     });
 
     it("returns 404 when the client does not exist", async () => {

@@ -8,7 +8,7 @@ import {
 } from "@musiccloud/dashboard-ui";
 import {
   DEFAULT_TIER_COLOR,
-  isTierRequestLimit,
+  isRequestLimit,
   MAX_TIER_BUTTON_LABEL_LENGTH,
   MAX_TIER_DESCRIPTION_LENGTH,
   MAX_TIER_DISABLE_REASON_LENGTH,
@@ -102,8 +102,8 @@ function toSubmitBody(data: TierFormData) {
 function validateForm(data: TierFormData): Partial<Record<keyof TierFormData, string>> {
   const errs: Partial<Record<keyof TierFormData, string>> = {};
   if (!data.name.trim()) errs.name = "Name is required";
-  if (!isTierRequestLimit(data.requestsPerMinute)) errs.requestsPerMinute = "Must be a whole number > 0";
-  if (!isTierRequestLimit(data.requestsPerDay)) errs.requestsPerDay = "Must be a whole number > 0";
+  if (!isRequestLimit(data.requestsPerMinute)) errs.requestsPerMinute = "Must be a whole number > 0";
+  if (!isRequestLimit(data.requestsPerDay)) errs.requestsPerDay = "Must be a whole number > 0";
   return errs;
 }
 

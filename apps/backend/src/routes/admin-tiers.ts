@@ -5,14 +5,14 @@
  */
 import {
   ENDPOINTS,
+  MAX_REQUEST_LIMIT,
   MAX_TIER_BUTTON_LABEL_LENGTH,
   MAX_TIER_DESCRIPTION_LENGTH,
   MAX_TIER_DISABLE_REASON_LENGTH,
   MAX_TIER_FEATURE_LABEL_LENGTH,
   MAX_TIER_FEATURES,
   MAX_TIER_NAME_LENGTH,
-  MAX_TIER_REQUEST_LIMIT,
-  MIN_TIER_REQUEST_LIMIT,
+  MIN_REQUEST_LIMIT,
   TIER_COLOR_PATTERN,
   TIER_ICONS,
 } from "@musiccloud/shared";
@@ -29,11 +29,11 @@ const POSTGRES_INTEGER_RANGE = { minimum: -2_147_483_648, maximum: 2_147_483_647
 /** A text that holds more than whitespace. */
 const NOT_BLANK_PATTERN = "\\S";
 
-/** A request limit, as `isTierRequestLimit` in the shared package states it. */
+/** A request limit, as `isRequestLimit` in the shared package states it. */
 const requestLimitSchema = {
   type: "integer",
-  minimum: MIN_TIER_REQUEST_LIMIT,
-  maximum: MAX_TIER_REQUEST_LIMIT,
+  minimum: MIN_REQUEST_LIMIT,
+  maximum: MAX_REQUEST_LIMIT,
 } as const;
 
 /**

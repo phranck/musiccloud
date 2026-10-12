@@ -8,6 +8,7 @@ import type { DeveloperProjectResponse, DeveloperProjectSubscriptionResponse } f
 import { TierDropdown } from "@/features/developer/components/TierDropdown";
 import { ProjectSubscriptionStatus } from "@/features/developer/domain";
 import { useSetProjectSubscription, useUpdateDeveloperProject } from "@/features/developer/hooks/useDeveloperData";
+import { parseLimitOverride } from "@/features/developer/lib";
 
 const messages = dashboardCopy;
 const dm = messages.developer;
@@ -50,23 +51,6 @@ const SUBSCRIPTION_STATES: { value: string; label: string; hint: string }[] = [
     hint: dm.subscriptionStateScheduledCancelHint,
   },
 ];
-
-/**
- * Parses an override field into what the route accepts.
- *
- * An empty field means "take the plan's number", which the route expresses as
- * `null`. Anything that is not a positive whole number is rejected here rather
- * than sent, because the route refuses it anyway.
- *
- * @param raw - The field's current text.
- * @returns The value to send, or `undefined` when the text is not usable.
- */
-function parseOverride(raw: string): number | null | undefined {
-  const trimmed = raw.trim();
-  if (trimmed === "") return null;
-  const parsed = Number(trimmed);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
-}
 
 /**
  * What the project's own field holds, as text, so an emptied field is
@@ -121,8 +105,8 @@ export function ProjectPlanSection({ project, subscription }: ProjectPlanSection
   );
   const stateHint = SUBSCRIPTION_STATES.find((entry) => entry.value === state)?.hint ?? "";
 
-  const parsedMinute = parseOverride(minute);
-  const parsedDay = parseOverride(day);
+  const parsedMinute = parseLimitOverride(minute);
+  const parsedDay = parseLimitOverride(day);
   const overridesUsable = parsedMinute !== undefined && parsedDay !== undefined;
 
   function handleSavePlan() {
@@ -206,6 +190,7 @@ export function ProjectPlanSection({ project, subscription }: ProjectPlanSection
             </p>
           </div>
         </div>
+        {!overridesUsable && <p className="mt-3 text-xs text-amber-400">{dm.limitOverrideInvalid}</p>}
         {project.tierName === null && <p className="mt-3 text-xs text-amber-400">{dm.projectOverrideNeedsPlan}</p>}
       </DashboardSection.Body>
       <DashboardSection.Footer>

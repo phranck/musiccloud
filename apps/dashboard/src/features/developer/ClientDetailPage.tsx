@@ -8,6 +8,7 @@ import { HeaderBackButton } from "@/components/ui/HeaderBackButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageLayout } from "@/components/ui/PageLayout";
 import { dashboardCopy } from "@/copy/dashboard";
+import { CustomLimitBadge } from "@/features/developer/components/CustomLimitBadge";
 import {
   useActivateToken,
   useApiAccessOverview,
@@ -15,7 +16,7 @@ import {
   useDeactivateToken,
   useUpdateDeveloperProject,
 } from "@/features/developer/hooks/useDeveloperData";
-import { formatDate } from "@/features/developer/lib";
+import { formatDate, hasLimitOverride, parseLimitOverride } from "@/features/developer/lib";
 
 const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 
@@ -27,15 +28,6 @@ const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
 interface RateLimitDraft {
   min: string;
   day: string;
-}
-
-/**
- * Parses a rate-limit input value: an empty/blank field clears the override
- * (`null` = inherit from the tier), anything else is submitted numerically.
- */
-function parseLimitInput(value: string): number | null {
-  const trimmed = value.trim();
-  return trimmed === "" ? null : Number(trimmed);
 }
 
 /**
@@ -115,15 +107,18 @@ export function ClientDetailPage() {
     min: client.projectRequestsPerMinute?.toString() ?? "",
     day: client.projectRequestsPerDay?.toString() ?? "",
   };
-  const hasOverride = client.projectRequestsPerMinute != null || client.projectRequestsPerDay != null;
+  const hasOverride = hasLimitOverride(client.projectRequestsPerMinute, client.projectRequestsPerDay);
+  const parsedMinute = parseLimitOverride(limits.min);
+  const parsedDay = parseLimitOverride(limits.day);
+  const limitsUsable = parsedMinute !== undefined && parsedDay !== undefined;
 
   function handleSave() {
-    if (!client) return;
+    if (!client || !limitsUsable) return;
     updateProject.mutate(
       {
         id: client.projectId,
-        requestsPerMinute: parseLimitInput(limits.min),
-        requestsPerDay: parseLimitInput(limits.day),
+        requestsPerMinute: parsedMinute,
+        requestsPerDay: parsedDay,
       },
       {
         onSuccess: () => {
@@ -149,9 +144,7 @@ export function ClientDetailPage() {
             hasOverride ? (
               <span className="inline-flex items-center gap-2">
                 {client.appName}
-                <span className="rounded bg-violet-500/10 px-1.5 py-0.5 text-xs font-semibold text-violet-400 normal-case tracking-normal">
-                  {dm.clientCustomBadge}
-                </span>
+                <CustomLimitBadge />
               </span>
             ) : (
               client.appName
@@ -213,6 +206,7 @@ export function ClientDetailPage() {
               <p className="text-xs text-[var(--ds-text-muted)]">
                 {dm.clientInheritsFrom.replace("{tier}", client.tierName ?? dm.tierNone)}
               </p>
+              {!limitsUsable && <p className="text-xs text-amber-400">{dm.limitOverrideInvalid}</p>}
             </div>
             <div>
               <div className={labelClass}>
@@ -280,9 +274,14 @@ export function ClientDetailPage() {
             action={DashboardActionId.Save}
             label={saved ? messages.common.saved : messages.common.save}
             onClick={handleSave}
-            disabled={updateProject.isPending}
+            disabled={updateProject.isPending || !limitsUsable}
             type="button"
           />
+          {updateProject.isError && (
+            <p role="alert" className="mr-auto text-sm text-[var(--ds-danger-text)]">
+              {updateProject.error instanceof Error ? updateProject.error.message : messages.common.saveError}
+            </p>
+          )}
         </DashboardSection.Footer>
       </DashboardSection>
     </PageLayout>
