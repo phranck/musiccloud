@@ -137,9 +137,8 @@ zerops:
         - corepack enable
         - pnpm install --frozen-lockfile
         - pnpm --filter @musiccloud/shared build
-        # The developer prebuild exports this checkout's public OpenAPI contract
-        # and validates it against the already-published immutable SDK catalog.
-        # Zerops intentionally does not run Docker, Java, or OpenAPI Generator.
+        # The developer prebuild exports this checkout's public OpenAPI contract,
+        # which the portal builds its API reference from.
         - pnpm --filter @musiccloud/developer build
       deployFiles:
         - apps/developer/dist
