@@ -146,6 +146,54 @@ export const OVERLAY_WIDTHS: readonly OverlayWidth[] = ["small", "regular", "big
 export type ContentCardStyle = "default" | "recessed";
 export const CONTENT_CARD_STYLES: readonly ContentCardStyle[] = ["default", "recessed"] as const;
 
+/**
+ * The form a page slug takes: lowercase letters, digits and inner hyphens,
+ * never a hyphen at either end. The backend checks every create, edit and bulk
+ * save against it, and the dashboard's slug inputs use its `source` as their
+ * `pattern`. {@link contentSlugFromText} produces it.
+ *
+ * The hyphen inside the class is escaped because a browser compiles an input's
+ * `pattern` with the `v` flag, which refuses an unescaped `-` at the end of a
+ * class and then ignores the whole pattern.
+ */
+// biome-ignore lint/complexity/noUselessEscapeInRegex: a browser reads this as an input pattern with the v flag, which needs the escape.
+export const CONTENT_SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?$/;
+
+/** The longest slug a page may have. */
+export const CONTENT_SLUG_MAX_LENGTH = 100;
+
+/**
+ * Turns a title, or whatever an editor typed into the slug field, into a slug
+ * the backend accepts. The dashboard suggests it while a title is typed and
+ * applies it when the slug field loses focus.
+ *
+ * German umlauts and `ß` are spelled out, every other run of characters
+ * outside `a-z0-9` becomes one hyphen, and the result is cut to
+ * {@link CONTENT_SLUG_MAX_LENGTH} before the hyphens at either end are removed,
+ * so a cut never leaves one behind.
+ *
+ * @param text - The text to derive the slug from.
+ * @returns A slug matching {@link CONTENT_SLUG_PATTERN}, or an empty string
+ *   when the text holds no letter or digit.
+ */
+export function contentSlugFromText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/ß/g, "ss")
+    .replace(/[^a-z0-9]+/g, "-")
+    .slice(0, CONTENT_SLUG_MAX_LENGTH)
+    .replace(/^-+|-+$/g, "");
+}
+
+/** The longest title a page may have. */
+export const CONTENT_TITLE_MAX_LENGTH = 200;
+
+/** The longest Markdown body a page may have. */
+export const CONTENT_BODY_MAX_LENGTH = 100_000;
+
 export interface NavItem {
   id: number;
   navId: NavId;

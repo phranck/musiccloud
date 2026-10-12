@@ -8,6 +8,7 @@ import {
   normalizeAndValidateContentPublications,
   updateManagedContentPageMeta,
 } from "../services/admin-content.js";
+import { bulkUpdatePages } from "../services/admin-pages-bulk.js";
 import { createMarkdownExtensionRegistry } from "../services/markdown/extension-registry.js";
 
 // ---------------------------------------------------------------------------
@@ -16,6 +17,7 @@ import { createMarkdownExtensionRegistry } from "../services/markdown/extension-
 const pages = new Map<string, ContentPageRow>();
 const segmentsByOwner = new Map<string, PageSegmentRow[]>();
 const replacedPublications = vi.fn();
+const bulkWrites = vi.fn();
 let createError: unknown;
 let updateError: unknown;
 let navigationEntries: Awaited<ReturnType<AdminRepository["listNavigationConfiguration"]>> = [];
@@ -91,6 +93,13 @@ const repo: Partial<AdminRepository> = {
   },
   async listNavigationConfiguration() {
     return navigationEntries;
+  },
+  async listContentPageSummaries() {
+    return [...pages.values()];
+  },
+  async bulkUpdatePages(data) {
+    bulkWrites(data);
+    return [...pages.values()];
   },
 };
 
@@ -336,5 +345,76 @@ describe("updateManagedContentPageMeta", () => {
     });
     expect(b.ok).toBe(true);
     if (b.ok) expect(b.data.contentCardStyle).toBe("recessed");
+  });
+});
+
+/** Values every write path has to refuse, one field per row. */
+const INVALID_PAGE_META: ReadonlyArray<Record<string, unknown>> = [
+  { title: "" },
+  { title: "t".repeat(201) },
+  { slug: "-a-" },
+  { slug: "a".repeat(101) },
+  { slug: "Privacy" },
+  { status: "x" },
+  { pageType: "x" },
+  { displayMode: "x" },
+  { overlayWidth: "x" },
+  { titleAlignment: "x" },
+  { contentCardStyle: "x" },
+  { showTitle: "yes" },
+];
+
+/** The meta fields a create accepts; the others are set by a later edit. */
+const CREATE_FIELDS = new Set(["title", "slug", "status", "pageType"]);
+
+describe("page meta validation across create, edit and bulk save", () => {
+  beforeEach(() => {
+    replacedPublications.mockReset();
+    bulkWrites.mockReset();
+    createError = undefined;
+    updateError = undefined;
+    navigationEntries = [];
+    pages.clear();
+    pages.set("test-page", makePage({ id: "page-test", slug: "test-page" }));
+  });
+
+  it.each(INVALID_PAGE_META)("refuses %o with the same message on every path", async (meta) => {
+    const field = Object.keys(meta)[0]!;
+
+    const edit = await updateManagedContentPageMeta("page-test", { ...meta, updatedBy: null } as never);
+    expect(edit).toMatchObject({ ok: false, code: "INVALID_INPUT", message: expect.stringContaining(field) });
+    const message = edit.ok ? "" : edit.message;
+
+    const bulk = await bulkUpdatePages({ pages: [{ slug: "test-page", meta }] } as never, { updatedBy: null });
+    expect(bulk).toMatchObject({ ok: false, code: "INVALID_INPUT" });
+    expect(bulk.ok ? [] : bulk.details).toContainEqual({ section: "pages", index: 0, message });
+    expect(bulkWrites).not.toHaveBeenCalled();
+
+    if (CREATE_FIELDS.has(field)) {
+      const create = await createManagedContentPage({
+        slug: "new-page",
+        title: "New Page",
+        ...meta,
+        createdBy: null,
+      } as never);
+      expect(create).toEqual({ ok: false, code: "INVALID_INPUT", message });
+    }
+  });
+
+  it("keeps a stored slug that predates the rule when the page is saved without renaming it", async () => {
+    pages.set("legacy-", makePage({ id: "page-legacy", slug: "legacy-" }));
+
+    const edit = await updateManagedContentPageMeta("page-legacy", {
+      slug: "legacy-",
+      title: "Legacy",
+      updatedBy: null,
+    });
+    const bulk = await bulkUpdatePages(
+      { pages: [{ slug: "legacy-", meta: { slug: "legacy-", title: "Legacy" } }] },
+      { updatedBy: null },
+    );
+
+    expect(edit.ok).toBe(true);
+    expect(bulk).toMatchObject({ ok: true });
   });
 });

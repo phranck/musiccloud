@@ -8,6 +8,9 @@ import type {
   PageSegment,
 } from "../content.js";
 import {
+  CONTENT_SLUG_MAX_LENGTH,
+  CONTENT_SLUG_PATTERN,
+  contentSlugFromText,
   isNavigationSystemKey,
   NAVIGATION_SYSTEM_TARGETS,
   NavigationSystemKey,
@@ -165,5 +168,34 @@ describe("canonical editorial content types", () => {
     };
 
     expect(configuration.entries[0]?.systemKey).toBe("docs");
+  });
+});
+
+describe("page slugs", () => {
+  it("compiles as an input pattern, which a browser reads with the v flag", () => {
+    expect(() => new RegExp(`^(?:${CONTENT_SLUG_PATTERN.source})$`, "v")).not.toThrow();
+  });
+
+  it("accepts lowercase letters, digits and inner hyphens only", () => {
+    for (const slug of ["a", "7", "privacy", "terms-of-use", "page-2"]) {
+      expect(CONTENT_SLUG_PATTERN.test(slug), slug).toBe(true);
+    }
+    for (const slug of ["", "-a", "a-", "-", "Privacy", "a_b", "a b", "ä"]) {
+      expect(CONTENT_SLUG_PATTERN.test(slug), slug).toBe(false);
+    }
+  });
+
+  it("derives a slug the pattern accepts from any title", () => {
+    expect(contentSlugFromText("Über uns & Größe")).toBe("ueber-uns-groesse");
+    expect(contentSlugFromText("  --Hello,   World!--  ")).toBe("hello-world");
+    expect(contentSlugFromText("!!!")).toBe("");
+
+    const cutOnHyphen = `${"a".repeat(CONTENT_SLUG_MAX_LENGTH - 1)} tail`;
+    const long = `${"Chapter ".repeat(30)}end`;
+    for (const title of [cutOnHyphen, long]) {
+      const slug = contentSlugFromText(title);
+      expect(slug.length).toBeLessThanOrEqual(CONTENT_SLUG_MAX_LENGTH);
+      expect(CONTENT_SLUG_PATTERN.test(slug), slug).toBe(true);
+    }
   });
 });
