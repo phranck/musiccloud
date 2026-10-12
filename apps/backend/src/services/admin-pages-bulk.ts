@@ -5,7 +5,7 @@ import type {
   PagesBulkErrorDetail,
   PagesBulkRequest,
 } from "@musiccloud/shared";
-import { ContentContext, normalizeEditorialPath, PublicationTemplateKey } from "@musiccloud/shared";
+import { ContentContext } from "@musiccloud/shared";
 
 import type { ContentPageMetaUpdate } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
@@ -14,9 +14,11 @@ import {
   contentContextRemovalNavigationError,
   getManagedContentPages,
   normalizeAndValidateContentPublications,
+  publicationsForMetaUpdate,
   validateContentPageBody,
   validateContentPageMeta,
 } from "./admin-content.js";
+import { normalizeSegmentInputs, validateSegmentInputs } from "./admin-segments.js";
 
 export type BulkResult =
   | { ok: true; data: ContentPageSummary[] }
@@ -81,31 +83,9 @@ export async function bulkUpdatePages(payload: PagesBulkRequest, opts: BulkUpdat
           });
         }
       }
-      const renamesLegacyPath = entry.meta?.slug !== undefined && entry.meta.slug !== entry.slug;
-      const publications =
-        entry.meta?.publications ??
-        (current.publications && current.publications.length > 0
-          ? current.publications.map(({ pageId: _pageId, ...publication }) => publication)
-          : [
-              {
-                context: ContentContext.Frontend,
-                path: normalizeEditorialPath(current.slug),
-                status: current.status,
-                templateKey: PublicationTemplateKey.FrontendDefault,
-              },
-            ]
-        ).map((publication) => {
-          const renamed =
-            renamesLegacyPath && publication.path === normalizeEditorialPath(current.slug)
-              ? { ...publication, path: normalizeEditorialPath(entry.meta!.slug!) }
-              : publication;
-          return entry.meta?.status !== undefined && renamed.context === ContentContext.Frontend
-            ? { ...renamed, status: entry.meta.status }
-            : renamed;
-        });
       const validation = normalizeAndValidateContentPublications(
         contextMask,
-        publications,
+        publicationsForMetaUpdate(current, entry.meta ?? {}),
         entry.content ?? current.content,
       );
       if (typeof validation === "string") {
@@ -123,29 +103,18 @@ export async function bulkUpdatePages(payload: PagesBulkRequest, opts: BulkUpdat
       errors.push({ section: "segments", index: idx, message: `unknown owner '${entry.ownerSlug}'` });
       return;
     }
-    // owner pageType is checked AFTER pages-meta is applied virtually:
+    // Page types are read as they will be once this save's page changes apply.
     const futureType = pendingPageType(payload, entry.ownerSlug, owner.pageType);
     if (futureType !== "segmented") {
       errors.push({ section: "segments", index: idx, message: "owner is not segmented" });
     }
-    entry.segments.forEach((s, sIdx) => {
-      if (!s.label.trim()) {
-        errors.push({ section: "segments", index: idx, message: `segment[${sIdx}] empty label` });
-      }
-      if (s.targetSlug === entry.ownerSlug) {
-        errors.push({ section: "segments", index: idx, message: `segment[${sIdx}] self-reference` });
-      }
-      const target = bySlug.get(s.targetSlug);
-      if (!target) {
-        errors.push({
-          section: "segments",
-          index: idx,
-          message: `segment[${sIdx}] unknown target '${s.targetSlug}'`,
-        });
-      } else if (pendingPageType(payload, s.targetSlug, target.pageType) !== "default") {
-        errors.push({ section: "segments", index: idx, message: `segment[${sIdx}] target must be default` });
-      }
+    const refusals = validateSegmentInputs(entry.ownerSlug, entry.segments, (slug) => {
+      const target = bySlug.get(slug);
+      return target ? pendingPageType(payload, slug, target.pageType) : undefined;
     });
+    for (const refusal of refusals) {
+      errors.push({ section: "segments", index: idx, message: refusal.message });
+    }
   });
 
   // 3) topLevelOrder
@@ -175,18 +144,12 @@ export async function bulkUpdatePages(payload: PagesBulkRequest, opts: BulkUpdat
           : undefined,
       content: p.content,
     })),
-    segments: (payload.segments ?? []).map((s) => ({
-      ownerSlug: s.ownerSlug,
-      segments: s.segments
-        .slice()
-        .sort((a, b) => a.position - b.position)
-        .map((seg, i) => ({
-          position: i,
-          label: seg.label.trim(),
-          targetSlug: seg.targetSlug,
-        })),
+    segments: (payload.segments ?? []).map((entry) => ({
+      ownerSlug: entry.ownerSlug,
+      segments: normalizeSegmentInputs(entry.segments),
     })),
     topLevelOrder: payload.topLevelOrder ?? [],
+    updatedBy: opts.updatedBy,
   });
 
   // The adapter returns ContentPageSummaryRow[] (DB rows). The route contract

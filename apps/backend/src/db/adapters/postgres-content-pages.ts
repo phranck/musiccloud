@@ -215,7 +215,7 @@ export async function listContentPageSummaries(pool: Pool): Promise<ContentPageS
  * @param slug - The page's slug.
  * @returns The page row, or `null` if no match.
  */
-export async function getContentPageBySlug(pool: Pool, slug: string): Promise<ContentPageRow | null> {
+export async function getContentPageBySlug(pool: Pool | PoolClient, slug: string): Promise<ContentPageRow | null> {
   const result = await pool.query(
     `SELECT ${CONTENT_COLUMNS}, ${CONTENT_PUBLICATIONS_COLUMN}
      FROM content_pages
@@ -773,10 +773,134 @@ export async function createContentPage(pool: Pool, data: ContentPageCreateData)
   }
 }
 
+/** The `SET` list of a meta update and the values it reads, numbered from `$1`. */
+interface MetaSetClauses {
+  clauses: string[];
+  values: unknown[];
+}
+
+/** The meta fields written column for column, beside the title and the slug, which have rules of their own. */
+const META_FIELD_COLUMNS = [
+  ["status", "status"],
+  ["contextMask", "context_mask"],
+  ["showTitle", "show_title"],
+  ["titleAlignment", "title_alignment"],
+  ["pageType", "page_type"],
+  ["displayMode", "display_mode"],
+  ["overlayWidth", "overlay_width"],
+  ["contentCardStyle", "content_card_style"],
+] as const satisfies ReadonlyArray<readonly [keyof ContentPageMetaUpdate, string]>;
+
 /**
- * Partial meta update. Only keys present on `data` are written. When
- * nothing changed, falls back to a re-read so the caller always gets
- * the current row.
+ * The columns a meta update writes. A field that is absent is not written, and
+ * a slug equal to the current one is not written either.
+ *
+ * A title that differs from the stored one also moves `content_updated_at`,
+ * because the title is part of what a reader sees as the page's content. The
+ * comparison sits in the statement, where the right-hand side still reads the
+ * row as it was before the update.
+ *
+ * @param meta - The update.
+ * @param currentSlug - The slug the page has before the update.
+ * @returns The clauses and their values, in the order the placeholders number them.
+ */
+function buildMetaSetClauses(meta: ContentPageMetaUpdate, currentSlug: string): MetaSetClauses {
+  const clauses: string[] = [];
+  const values: unknown[] = [];
+  const assign = (column: string, value: unknown): number => {
+    values.push(value);
+    clauses.push(`${column} = $${values.length}`);
+    return values.length;
+  };
+
+  if (meta.title !== undefined) {
+    const titleParameter = assign("title", meta.title);
+    clauses.push(
+      `content_updated_at = CASE WHEN title IS DISTINCT FROM $${titleParameter} THEN NOW() ELSE content_updated_at END`,
+    );
+  }
+  if (meta.slug !== undefined && meta.slug !== currentSlug) assign("slug", meta.slug);
+  for (const [field, column] of META_FIELD_COLUMNS) {
+    if (meta[field] !== undefined) assign(column, meta[field]);
+  }
+  return { clauses, values };
+}
+
+/**
+ * Writes a meta update to one page: its columns, its publications, and the
+ * removal of its segments once it is a default page, which lists none. The
+ * single save and the bulk save both run it, inside the transaction the caller
+ * holds, so the two write a page the same way.
+ *
+ * An update that changes nothing writes nothing and returns the page as stored.
+ *
+ * @param client - The transaction's client.
+ * @param slug - The page's slug before the update.
+ * @param meta - The update, already validated.
+ * @returns The page after the update, or `null` where no page has that slug.
+ */
+async function writePageMeta(
+  client: PoolClient,
+  slug: string,
+  meta: ContentPageMetaUpdate,
+): Promise<ContentPageRow | null> {
+  const { clauses, values } = buildMetaSetClauses(meta, slug);
+  if (clauses.length === 0 && !meta.publications) return getContentPageBySlug(client, slug);
+
+  values.push(meta.updatedBy, slug);
+  const result = await client.query(
+    `UPDATE content_pages SET ${[...clauses, "updated_at = NOW()", `updated_by = $${values.length - 1}`].join(", ")}
+     WHERE slug = $${values.length}
+     RETURNING ${CONTENT_COLUMNS}`,
+    values,
+  );
+  if (result.rows.length === 0) return null;
+  const row = rowToContentPage(result.rows[0]);
+
+  if (meta.publications) {
+    row.publications = await replaceContentPublicationsWithTarget(client, row.id!, meta.publications);
+    row.contextMask = meta.contextMask ?? row.contextMask;
+  }
+  if (meta.pageType === "default") {
+    await client.query(`DELETE FROM page_segments WHERE owner_slug = $1`, [row.slug]);
+  }
+  return row;
+}
+
+/**
+ * Writes a page's body. `content_updated_at` moves only where the body differs
+ * from the stored one, so saving an unchanged page does not mark its content as
+ * new. The single save and the bulk save both run it.
+ *
+ * @param target - The pool, or the client of a transaction the caller holds.
+ * @param slug - The page's slug.
+ * @param content - The new body.
+ * @param updatedBy - The acting admin, or `null` for a system write.
+ * @returns The page after the write, or `null` where no page has that slug.
+ */
+async function writePageBody(
+  target: Pool | PoolClient,
+  slug: string,
+  content: string,
+  updatedBy: string | null,
+): Promise<ContentPageRow | null> {
+  const result = await target.query(
+    `UPDATE content_pages
+        SET content = $2,
+            content_updated_at = CASE WHEN content IS DISTINCT FROM $2 THEN NOW() ELSE content_updated_at END,
+            updated_at = NOW(),
+            updated_by = $3
+      WHERE slug = $1
+      RETURNING ${CONTENT_COLUMNS}`,
+    [slug, content, updatedBy],
+  );
+  return result.rows.length > 0 ? rowToContentPage(result.rows[0]) : null;
+}
+
+/**
+ * Partial meta update in a transaction of its own, written by
+ * `writePageMeta` like the bulk save's. When nothing changed, the caller
+ * gets the current row.
  *
  * @param pool - Postgres connection pool.
  * @param slug - The page's current slug.
@@ -790,100 +914,26 @@ export async function updateContentPageMeta(
   slug: string,
   data: ContentPageMetaUpdate,
 ): Promise<ContentPageRow | null> {
-  if (data.publications) {
-    const client = await pool.connect();
-    try {
-      await client.query("BEGIN");
-      const row = await updateContentPageMeta(client as unknown as Pool, slug, {
-        ...data,
-        publications: undefined,
-      });
-      if (!row) {
-        await client.query("ROLLBACK");
-        return null;
-      }
-      row.publications = await replaceContentPublicationsWithTarget(client, row.id!, data.publications);
-      row.contextMask = data.contextMask ?? row.contextMask;
-      await client.query("COMMIT");
-      return row;
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const row = await writePageMeta(client, slug, data);
+    await client.query("COMMIT");
+    return row;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
   }
-
-  const setClauses: string[] = [];
-  const values: unknown[] = [];
-  let paramIndex = 1;
-
-  if (data.title !== undefined) {
-    setClauses.push(`title = $${paramIndex++}`);
-    values.push(data.title);
-  }
-  if (data.slug !== undefined) {
-    setClauses.push(`slug = $${paramIndex++}`);
-    values.push(data.slug);
-  }
-  if (data.status !== undefined) {
-    setClauses.push(`status = $${paramIndex++}`);
-    values.push(data.status);
-  }
-  if (data.contextMask !== undefined) {
-    setClauses.push(`context_mask = $${paramIndex++}`);
-    values.push(data.contextMask);
-  }
-  if (data.showTitle !== undefined) {
-    setClauses.push(`show_title = $${paramIndex++}`);
-    values.push(data.showTitle);
-  }
-  if (data.titleAlignment !== undefined) {
-    setClauses.push(`title_alignment = $${paramIndex++}`);
-    values.push(data.titleAlignment);
-  }
-  if (data.pageType !== undefined) {
-    setClauses.push(`page_type = $${paramIndex++}`);
-    values.push(data.pageType);
-  }
-  if (data.displayMode !== undefined) {
-    setClauses.push(`display_mode = $${paramIndex++}`);
-    values.push(data.displayMode);
-  }
-  if (data.overlayWidth !== undefined) {
-    setClauses.push(`overlay_width = $${paramIndex++}`);
-    values.push(data.overlayWidth);
-  }
-  if (data.contentCardStyle !== undefined) {
-    setClauses.push(`content_card_style = $${paramIndex++}`);
-    values.push(data.contentCardStyle);
-  }
-
-  if (setClauses.length === 0) {
-    return getContentPageBySlug(pool, slug);
-  }
-
-  setClauses.push(`updated_at = $${paramIndex++}`);
-  values.push(new Date());
-  setClauses.push(`updated_by = $${paramIndex++}`);
-  values.push(data.updatedBy);
-
-  values.push(slug);
-  const result = await pool.query(
-    `UPDATE content_pages SET ${setClauses.join(", ")}
-     WHERE slug = $${paramIndex}
-     RETURNING ${CONTENT_COLUMNS}`,
-    values,
-  );
-  return result.rows.length > 0 ? rowToContentPage(result.rows[0]) : null;
 }
 
 /**
- * Updates the page body content + bumps `updated_at` and `updated_by`.
+ * Updates a page's body, written by `writePageBody` like the bulk save's.
  *
  * @param pool - Postgres connection pool.
  * @param slug - The page's slug.
- * @param content - The new content payload (raw editor JSON).
+ * @param content - The new body.
  * @param updatedBy - The acting admin id, or `null` for system writes.
  */
 export async function updateContentPageBody(
@@ -892,14 +942,7 @@ export async function updateContentPageBody(
   content: string,
   updatedBy: string | null,
 ): Promise<ContentPageRow | null> {
-  const result = await pool.query(
-    `UPDATE content_pages
-     SET content = $1, updated_at = $2, updated_by = $3
-     WHERE slug = $4
-     RETURNING ${CONTENT_COLUMNS}`,
-    [content, new Date(), updatedBy, slug],
-  );
-  return result.rows.length > 0 ? rowToContentPage(result.rows[0]) : null;
+  return writePageBody(pool, slug, content, updatedBy);
 }
 
 /**
@@ -939,19 +982,12 @@ export async function bulkUpdatePages(pool: Pool, payload: BulkUpdatePagesPayloa
     await client.query("BEGIN");
 
     // 1) pages.meta + pages.content
-    for (const p of payload.pages) {
-      if (p.meta) {
-        await applyMetaInTx(client, p.slug, p.meta);
+    for (const page of payload.pages) {
+      if (page.meta) {
+        await writePageMeta(client, page.slug, page.meta);
       }
-      if (p.content !== undefined) {
-        await client.query(
-          `UPDATE content_pages
-              SET content = $2,
-                  content_updated_at = NOW(),
-                  updated_at = NOW()
-            WHERE slug = $1`,
-          [resolveSlugAfterRename(p), p.content],
-        );
+      if (page.content !== undefined) {
+        await writePageBody(client, resolveSlugAfterRename(page), page.content, payload.updatedBy);
       }
     }
 
@@ -984,87 +1020,6 @@ export async function bulkUpdatePages(pool: Pool, payload: BulkUpdatePagesPayloa
   return [];
 }
 
-/**
- * Applies the meta-only subset of a bulk page update inside an already
- * open transaction. Mirrors {@link updateContentPageMeta} for use from
- * {@link bulkUpdatePages}; also clears orphan segments when the page
- * type transitions to `"default"`.
- */
-async function applyMetaInTx(client: PoolClient, slug: string, meta: ContentPageMetaUpdate): Promise<void> {
-  const setClauses: string[] = [];
-  const values: unknown[] = [];
-  let p = 1;
-  if (meta.title !== undefined) {
-    setClauses.push(`title = $${p++}`);
-    values.push(meta.title);
-  }
-  if (meta.slug !== undefined && meta.slug !== slug) {
-    setClauses.push(`slug = $${p++}`);
-    values.push(meta.slug);
-  }
-  if (meta.status !== undefined) {
-    setClauses.push(`status = $${p++}`);
-    values.push(meta.status);
-  }
-  if (meta.contextMask !== undefined) {
-    setClauses.push(`context_mask = $${p++}`);
-    values.push(meta.contextMask);
-  }
-  if (meta.showTitle !== undefined) {
-    setClauses.push(`show_title = $${p++}`);
-    values.push(meta.showTitle);
-  }
-  if (meta.titleAlignment !== undefined) {
-    setClauses.push(`title_alignment = $${p++}`);
-    values.push(meta.titleAlignment);
-  }
-  if (meta.pageType !== undefined) {
-    setClauses.push(`page_type = $${p++}`);
-    values.push(meta.pageType);
-  }
-  if (meta.displayMode !== undefined) {
-    setClauses.push(`display_mode = $${p++}`);
-    values.push(meta.displayMode);
-  }
-  if (meta.overlayWidth !== undefined) {
-    setClauses.push(`overlay_width = $${p++}`);
-    values.push(meta.overlayWidth);
-  }
-  if (meta.contentCardStyle !== undefined) {
-    setClauses.push(`content_card_style = $${p++}`);
-    values.push(meta.contentCardStyle);
-  }
-  if (meta.updatedBy !== undefined) {
-    setClauses.push(`updated_by = $${p++}`);
-    values.push(meta.updatedBy);
-  }
-  if (setClauses.length === 0 && !meta.publications) return;
-  if (setClauses.length > 0) {
-    setClauses.push(`updated_at = NOW()`);
-    values.push(slug);
-    await client.query(`UPDATE content_pages SET ${setClauses.join(", ")} WHERE slug = $${p}`, values);
-  }
-  if (meta.publications) {
-    const page = await client.query<{ id: string }>(`SELECT id FROM content_pages WHERE slug = $1`, [
-      meta.slug ?? slug,
-    ]);
-    if (page.rows[0]) {
-      await replaceContentPublicationsWithTarget(client, page.rows[0].id, meta.publications);
-    }
-  }
-  if (meta.pageType === "default") {
-    await client.query(`DELETE FROM page_segments WHERE owner_slug = $1`, [meta.slug ?? slug]);
-  }
-}
-
-/**
- * Bumps `content_updated_at` (and `updated_at`) on a page to mark the
- * canonical content as having changed.
- */
-export async function setContentPageContentUpdatedAt(pool: Pool, slug: string, when: Date): Promise<void> {
-  await pool.query(`UPDATE content_pages SET content_updated_at = $1, updated_at = $1 WHERE slug = $2`, [when, slug]);
-}
-
 // ============================================================================
 // PAGE SEGMENTS
 // ============================================================================
@@ -1095,13 +1050,6 @@ export async function listSegmentsForOwner(pool: Pool, ownerSlug: string): Promi
     label: r.label,
     labelUpdatedAt: r.label_updated_at,
   }));
-}
-
-/**
- * Deletes every segment row for one owner page.
- */
-export async function deleteSegmentsForOwner(pool: Pool, ownerSlug: string): Promise<void> {
-  await pool.query(`DELETE FROM page_segments WHERE owner_slug = $1`, [ownerSlug]);
 }
 
 /**

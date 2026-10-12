@@ -4,13 +4,21 @@ import { ContentContext, type ContentStatus, type SingleContentContext } from "@
 import type { Pool } from "pg";
 import { describe, expect, it, vi } from "vitest";
 import { backfillDeveloperEditorialContent } from "../../scripts/backfill-developer-editorial-content.js";
-import type { AdminRepository, ContentPageSummaryRow, ContentPublicationCutoverInput } from "../admin-repository.js";
+import type {
+  AdminRepository,
+  ContentPageMetaUpdate,
+  ContentPageSummaryRow,
+  ContentPublicationCutoverInput,
+} from "../admin-repository.js";
 import {
   applyContentPublicationCutover,
+  bulkUpdatePages,
   getPublishedContentPageByPath,
   getPublishedContentPagesBySlugs,
   listPublishedContentPages,
   PUBLISHED_IN_FRONTEND_CONDITION,
+  updateContentPageBody,
+  updateContentPageMeta,
 } from "./postgres-content-pages.js";
 
 const TERMS_PLACEHOLDER =
@@ -953,5 +961,75 @@ describe("applyContentPublicationCutover", () => {
     expect(calls.filter(({ sql }) => sql.includes("INSERT INTO content_page_publications"))).toHaveLength(0);
     expect(calls.some(({ sql }) => /\bDELETE\b|\bUPDATE content_page_publications\b/.test(sql))).toBe(false);
     expect(calls.some(({ sql }) => sql === "ROLLBACK")).toBe(true);
+  });
+});
+
+/**
+ * The single page save and the bulk save write a page through the same two
+ * functions, so for the same change they send the same statements.
+ */
+describe("page writes on the single and the bulk path", () => {
+  /** A pool whose statements are recorded, and which answers an UPDATE with the renamed page. */
+  function recordingPool() {
+    const statements: Array<{ sql: string; params: unknown[] | undefined }> = [];
+    const query = vi.fn(async (sql: string, params?: unknown[]) => {
+      statements.push({ sql, params });
+      return { rows: sql.startsWith("UPDATE content_pages") ? [{ id: "page-about", slug: "about-us" }] : [] };
+    });
+    const pool = { query, connect: vi.fn().mockResolvedValue({ query, release: vi.fn() }) } as unknown as Pool;
+    const writes = () => statements.filter(({ sql }) => sql !== "BEGIN" && sql !== "COMMIT");
+    return { pool, writes };
+  }
+
+  const META: ContentPageMetaUpdate = {
+    title: "About us",
+    slug: "about-us",
+    status: "published",
+    pageType: "default",
+    contentCardStyle: "recessed",
+    updatedBy: "admin-1",
+  };
+
+  it("writes a meta update with the same statements", async () => {
+    const single = recordingPool();
+    await updateContentPageMeta(single.pool, "about", META);
+    const bulk = recordingPool();
+    await bulkUpdatePages(bulk.pool, {
+      pages: [{ slug: "about", meta: META }],
+      segments: [],
+      topLevelOrder: [],
+      updatedBy: "admin-1",
+    });
+
+    expect(bulk.writes()).toEqual(single.writes());
+    expect(single.writes()).toEqual([
+      {
+        sql: expect.stringContaining(
+          "content_updated_at = CASE WHEN title IS DISTINCT FROM $1 THEN NOW() ELSE content_updated_at END",
+        ),
+        params: ["About us", "about-us", "published", "default", "recessed", "admin-1", "about"],
+      },
+      { sql: "DELETE FROM page_segments WHERE owner_slug = $1", params: ["about-us"] },
+    ]);
+  });
+
+  it("writes a body with the same statement", async () => {
+    const single = recordingPool();
+    await updateContentPageBody(single.pool, "about", "Body", "admin-1");
+    const bulk = recordingPool();
+    await bulkUpdatePages(bulk.pool, {
+      pages: [{ slug: "about", content: "Body" }],
+      segments: [],
+      topLevelOrder: [],
+      updatedBy: "admin-1",
+    });
+
+    expect(bulk.writes()).toEqual(single.writes());
+    expect(single.writes()).toEqual([
+      {
+        sql: expect.stringContaining("content_updated_at = CASE WHEN content IS DISTINCT FROM $2"),
+        params: ["about", "Body", "admin-1"],
+      },
+    ]);
   });
 });

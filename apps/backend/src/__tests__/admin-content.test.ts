@@ -81,12 +81,6 @@ const repo: Partial<AdminRepository> = {
   async listSegmentsForOwner(ownerSlug: string) {
     return segmentsByOwner.get(ownerSlug) ?? [];
   },
-  async deleteSegmentsForOwner() {
-    // no-op
-  },
-  async setContentPageContentUpdatedAt() {
-    // no-op
-  },
   async replaceContentPublications(pageId, publications) {
     replacedPublications(pageId, publications);
     return publications.map((publication) => ({ pageId, ...publication }));
