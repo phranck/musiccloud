@@ -37,7 +37,7 @@
  * shape; no numeric-ID fallback exists. Downstream consumers should
  * treat the sourceId as opaque.
  */
-import { ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
@@ -417,7 +417,7 @@ async function searchBandcampAlbums(query: string): Promise<Array<{ url: string;
 
 export const bandcampAdapter: ServiceAdapter = {
   id: "bandcamp",
-  displayName: "Bandcamp",
+  displayName: getPlatformLabel("bandcamp"),
   capabilities: {
     supportsIsrc: false,
     supportsPreview: false,

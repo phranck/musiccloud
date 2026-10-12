@@ -30,7 +30,7 @@
  * The publicly-reachable endpoint surfaces neither. `findByIsrc`
  * returns null; cross-service resolves go through text search.
  */
-import { ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
@@ -280,7 +280,7 @@ async function getAlbumByMid(albumMid: string): Promise<NormalizedAlbum | null> 
 
 export const qqmusicAdapter: ServiceAdapter = {
   id: "qqmusic",
-  displayName: "QQ Music",
+  displayName: getPlatformLabel("qqmusic"),
   capabilities: {
     supportsIsrc: false,
     supportsPreview: false,

@@ -29,7 +29,7 @@
  * `confidence below threshold` to tell fetch-failure from
  * parse-failure.
  */
-import { ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
@@ -179,7 +179,7 @@ async function searchBugsAlbumIds(query: string): Promise<string[]> {
 
 export const bugsAdapter: ServiceAdapter = {
   id: "bugs",
-  displayName: "Bugs!",
+  displayName: getPlatformLabel("bugs"),
   capabilities: {
     supportsIsrc: false,
     supportsPreview: false,

@@ -70,7 +70,7 @@
  * preference mirrors image-quality: Spotify and Apple Music both
  * serve high-resolution artwork consistently.
  */
-import { type MatchMethod, PLATFORM_CONFIG } from "@musiccloud/shared";
+import { getPlatformLabel, type MatchMethod, PLATFORM_CONFIG } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
 import { log } from "../lib/infra/logger.js";
 import { stripTrackingParams } from "../lib/platform/url.js";
@@ -633,7 +633,7 @@ async function resolveAlbumAcrossServices(
     if (playlistMatch) {
       links.push({
         service: "youtube-music",
-        displayName: "YouTube Music",
+        displayName: getPlatformLabel("youtube-music"),
         url: `https://music.youtube.com/playlist?list=${playlistMatch[1]}`,
         confidence: youtubeLink.confidence,
         matchMethod: youtubeLink.matchMethod,

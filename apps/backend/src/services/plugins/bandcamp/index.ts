@@ -1,11 +1,11 @@
-import { Service } from "@musiccloud/shared";
+import { getPlatformLabel, Service } from "@musiccloud/shared";
 import type { ServicePlugin } from "../manifest.js";
 import { bandcampAdapter } from "./adapter.js";
 
 export const bandcampPlugin: ServicePlugin = {
   manifest: {
     id: Service.BandCamp,
-    displayName: "Bandcamp",
+    displayName: getPlatformLabel(Service.BandCamp),
     description: "Resolves Bandcamp track and album URLs by scraping the page HTML/JSON.",
     defaultEnabled: true,
   },

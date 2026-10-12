@@ -49,7 +49,7 @@
  * prefers `cover_xl` with `cover_big` as fallback to keep the share
  * page rendering sharp at retina resolutions.
  */
-import { ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
 import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
 import { CANDIDATE_MIN_CONFIDENCE, MATCH_MIN_CONFIDENCE, MAX_CANDIDATES } from "../../constants.js";
@@ -212,7 +212,7 @@ function mapTrack(raw: DeezerTrackResponse): NormalizedTrack {
 
 export const deezerAdapter = {
   id: "deezer",
-  displayName: "Deezer",
+  displayName: getPlatformLabel("deezer"),
   capabilities: {
     supportsIsrc: true,
     supportsPreview: true,

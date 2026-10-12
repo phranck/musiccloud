@@ -63,7 +63,7 @@
  * (`registry.ts` PLUGINS array). The first adapter with a `found`
  * match wins; later adapters are not consulted for that query.
  */
-import { type MatchMethod, PLATFORM_CONFIG } from "@musiccloud/shared";
+import { getPlatformLabel, type MatchMethod, PLATFORM_CONFIG } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
 import { CACHE_TTL_MS } from "../lib/config.js";
 import { log } from "../lib/infra/logger.js";
@@ -317,7 +317,7 @@ async function resolveArtistAcrossServices(
   if (youtubeLink && !links.some((l) => l.service === "youtube-music")) {
     links.push({
       service: "youtube-music",
-      displayName: "YouTube Music",
+      displayName: getPlatformLabel("youtube-music"),
       url: youtubeLink.url.replace("www.youtube.com", "music.youtube.com"),
       confidence: youtubeLink.confidence,
       matchMethod: youtubeLink.matchMethod,

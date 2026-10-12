@@ -42,7 +42,7 @@
  * holds for artist images.
  *
  */
-import { ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
@@ -173,7 +173,7 @@ export function _resetForTesting(): void {
 
 export const napsterAdapter = {
   id: "napster",
-  displayName: "Napster",
+  displayName: getPlatformLabel("napster"),
   capabilities: {
     supportsIsrc: true,
     supportsPreview: true,

@@ -52,7 +52,7 @@
  * inserted by the web player in localized regions. The regexes allow
  * both the base and the intl-prefixed forms.
  */
-import { Operation, ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { TokenManager } from "../../../lib/infra/token-manager";
@@ -216,7 +216,7 @@ function buildSpotifyTrackSearchQueries(query: SearchQuery): string[] {
 
 export const spotifyAdapter = {
   id: "spotify",
-  displayName: "Spotify",
+  displayName: getPlatformLabel("spotify"),
   capabilities,
 
   detectUrl(url: string): string | null {

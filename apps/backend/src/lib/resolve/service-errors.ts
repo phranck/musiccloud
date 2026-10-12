@@ -16,74 +16,21 @@
  *
  * Why per-service prefixes (1 = Apple Music, 3 = Spotify, 80 = KKBOX, …):
  * a user reporting "I got MC-API-3404" tells us immediately that Spotify
- * returned 404, without needing log correlation. The prefix table below
- * mirrors `packages/shared/src/error-codes.ts` and must stay in sync.
+ * returned 404, without needing log correlation. The prefixes are
+ * `ADAPTER_ERROR_CODE_PREFIX` in `packages/shared/src/error-codes.ts`, and the
+ * service names in the messages are the labels of `PLATFORM_CONFIG`, so a
+ * message names a service the way the share page does.
  */
 
-import { Operation, type ResourceKind, type ServiceId, serviceErrorDigits } from "@musiccloud/shared";
+import {
+  ADAPTER_ERROR_CODE_PREFIX,
+  getPlatformLabel,
+  Operation,
+  type ResourceKind,
+  type ServiceId,
+  serviceErrorDigits,
+} from "@musiccloud/shared";
 import { ResolveError } from "./errors.js";
-
-/**
- * Per-service code prefix. The first 1-2 digits of an `MC-API-NNNN` /
- * `MC-AUTH-NNNN` code identify the adapter that produced the error, so a
- * code reported by a user maps to a specific service in one glance.
- *
- * Single-digit prefixes own a thousand codes (e.g. Apple Music = 1xxx);
- * two-digit prefixes share a hundred (e.g. KKBOX = 80xx, Beatport = 81xx).
- * The pattern matches the documentation in `packages/shared/src/error-codes.ts`.
- */
-const ADAPTER_PREFIX: Record<ServiceId, string> = {
-  "apple-music": "1",
-  qobuz: "2",
-  spotify: "3",
-  tidal: "4",
-  deezer: "5",
-  youtube: "6",
-  "youtube-music": "65",
-  napster: "7",
-  kkbox: "80",
-  beatport: "81",
-  bandcamp: "82",
-  audiomack: "83",
-  audius: "84",
-  soundcloud: "85",
-  boomplay: "86",
-  pandora: "90",
-  bugs: "91",
-  melon: "92",
-  netease: "93",
-  qqmusic: "94",
-  jiosaavn: "95",
-  musicbrainz: "96",
-  jamendo: "97",
-};
-
-/** Human-readable label used in error messages (capitalisation matches what users see in the UI). */
-const ADAPTER_LABEL: Record<ServiceId, string> = {
-  "apple-music": "Apple Music",
-  qobuz: "Qobuz",
-  spotify: "Spotify",
-  tidal: "Tidal",
-  deezer: "Deezer",
-  youtube: "YouTube",
-  "youtube-music": "YouTube Music",
-  napster: "Napster",
-  kkbox: "KKBOX",
-  beatport: "Beatport",
-  bandcamp: "Bandcamp",
-  audiomack: "Audiomack",
-  audius: "Audius",
-  soundcloud: "SoundCloud",
-  boomplay: "BoomPlay",
-  pandora: "Pandora",
-  bugs: "Bugs",
-  melon: "Melon",
-  netease: "Netease",
-  qqmusic: "QQ Music",
-  jiosaavn: "JioSaavn",
-  musicbrainz: "MusicBrainz",
-  jamendo: "Jamendo",
-};
 
 /**
  * Map an upstream HTTP error to a MC `ResolveError` with the right code
@@ -105,8 +52,8 @@ export function serviceHttpError(
   id: string,
   op: Operation = Operation.Fetch,
 ): ResolveError {
-  const prefix = ADAPTER_PREFIX[serviceId];
-  const label = ADAPTER_LABEL[serviceId] ?? serviceId;
+  const prefix = ADAPTER_ERROR_CODE_PREFIX[serviceId];
+  const label = getPlatformLabel(serviceId);
   const ctx = { service: serviceId, kind, id, status, op };
 
   if (status === 401) {
@@ -148,12 +95,11 @@ export function serviceNotFoundError(
   id: string,
   detail?: string,
 ): ResolveError {
-  const prefix = ADAPTER_PREFIX[serviceId];
-  const label = ADAPTER_LABEL[serviceId] ?? serviceId;
+  const prefix = ADAPTER_ERROR_CODE_PREFIX[serviceId];
+  const label = getPlatformLabel(serviceId);
   const KindLabel = kind.charAt(0).toUpperCase() + kind.slice(1);
-  // Wording matches the legacy "X: Track not found: <id>" used by many
-  // adapters before the sweep, so downstream code (and tests) that grep the
-  // phrase "Track not found" continue to work.
+  // Downstream code and adapter tests match the phrase "Track not found", so
+  // the message keeps the "<Service>: Track not found: <id>" shape.
   return new ResolveError(
     `MC-API-${serviceErrorDigits(prefix, "404")}`,
     `${label}: ${KindLabel} not found: ${id}${detail ? ` (${detail})` : ""}`,

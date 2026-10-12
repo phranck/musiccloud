@@ -1,4 +1,4 @@
-import { ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { calculateArtistNameConfidence } from "../../../lib/resolve/normalize";
@@ -320,7 +320,7 @@ async function searchSoundCloudAlbums(
 
 export const soundcloudAdapter = {
   id: "soundcloud",
-  displayName: "SoundCloud",
+  displayName: getPlatformLabel("soundcloud"),
   capabilities: {
     supportsIsrc: false,
     supportsPreview: false,

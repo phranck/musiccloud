@@ -40,7 +40,7 @@
  * YouTube exposes neither. `findByIsrc` returns null; the preview
  * player falls back to other services.
  */
-import { Operation, ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, Operation, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { ResolveError } from "../../../lib/resolve/errors";
 import { calculateArtistNameConfidence, normalizeTitle } from "../../../lib/resolve/normalize";
@@ -192,7 +192,7 @@ function mapChannelToArtist(channel: YouTubeChannelResource): NormalizedArtist {
 
 export const youtubeAdapter: ServiceAdapter = {
   id: "youtube",
-  displayName: "YouTube",
+  displayName: getPlatformLabel("youtube"),
   capabilities,
   artistCapabilities,
 

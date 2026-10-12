@@ -143,7 +143,7 @@
  * | `SEARCH_FALLBACK_CONFIDENCE`| Confidence of synthesised "search on X" fallback links |
  * | `SERVICE_MISS_TTL_MS`       | How long a fruitless lookup stands before a retry       |
  */
-import { isShortLinkHost, type MatchMethod, PLATFORM_CONFIG } from "@musiccloud/shared";
+import { getPlatformLabel, isShortLinkHost, type MatchMethod, PLATFORM_CONFIG } from "@musiccloud/shared";
 import { getRepository } from "../db/index.js";
 import { createSingleFlight } from "../lib/concurrency.js";
 import { fetchWithTimeout } from "../lib/infra/fetch.js";
@@ -1117,7 +1117,7 @@ async function resolveAcrossServices(
     const searchQuery = encodeURIComponent(`${sourceTrack.artists[0]} ${sourceTrack.title}`);
     links.push({
       service: "youtube",
-      displayName: "YouTube",
+      displayName: getPlatformLabel("youtube"),
       url: `https://music.youtube.com/search?q=${searchQuery}`,
       confidence: SEARCH_FALLBACK_CONFIDENCE,
       matchMethod: "search-fallback",
@@ -1213,7 +1213,7 @@ function appendYouTubeMusicLink(links: ResolvedLink[]): void {
   if (!videoIdMatch) return;
   links.push({
     service: "youtube-music",
-    displayName: "YouTube Music",
+    displayName: getPlatformLabel("youtube-music"),
     url: `https://music.youtube.com/watch?v=${videoIdMatch[1]}`,
     confidence: youtubeLink.confidence,
     matchMethod: youtubeLink.matchMethod,

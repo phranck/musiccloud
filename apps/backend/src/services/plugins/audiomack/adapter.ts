@@ -26,7 +26,7 @@
  * `splitArtistNames` from `_shared`) because Audiomack is the only
  * adapter that also needs to split on `feat.`.
  */
-import { ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { serviceNotFoundError } from "../../../lib/resolve/service-errors";
@@ -222,7 +222,7 @@ async function searchAudiomackAlbums(query: string): Promise<AudiomackAlbumResul
 
 export const audiomackAdapter: ServiceAdapter = {
   id: "audiomack",
-  displayName: "Audiomack",
+  displayName: getPlatformLabel("audiomack"),
   capabilities: {
     supportsIsrc: false,
     supportsPreview: false,

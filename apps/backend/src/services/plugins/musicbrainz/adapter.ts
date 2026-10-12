@@ -24,7 +24,7 @@
  * in and pulls cover art from another adapter.
  */
 
-import { ResourceKind, Service } from "@musiccloud/shared";
+import { getPlatformLabel, ResourceKind, Service } from "@musiccloud/shared";
 import { fetchWithTimeout } from "../../../lib/infra/fetch";
 import { log } from "../../../lib/infra/logger";
 import { serviceHttpError, serviceNotFoundError } from "../../../lib/resolve/service-errors";
@@ -298,7 +298,7 @@ function combinedConfidence(mbScore: number | undefined, projectScore: number): 
 
 export const musicbrainzAdapter = {
   id: Service.MusicBrainz,
-  displayName: "MusicBrainz",
+  displayName: getPlatformLabel(Service.MusicBrainz),
   capabilities: {
     supportsIsrc: true,
     supportsPreview: false,
