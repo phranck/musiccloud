@@ -28,7 +28,7 @@ import { ENDPOINTS, ROUTE_TEMPLATES } from "@musiccloud/shared";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { getTierRepository } from "../db/index.js";
 import type { BillingPeriodValue, TierCreemProductKey, TierOffer, TierRepository } from "../db/tiers-repository.js";
-import { BillingPeriod } from "../db/tiers-repository.js";
+import { BillingPeriod, tierIdSchema } from "../db/tiers-repository.js";
 import { requireOwner, requireOwnerOrAdmin } from "../lib/admin-caller.js";
 import { CreemMode, type CreemModeValue, configuredCreemModes } from "../lib/creem-config.js";
 import { replyWithApiError } from "../lib/infra/api-error-handler.js";
@@ -57,16 +57,23 @@ const MAX_CREEM_PRODUCT_ID_LENGTH = 128;
  */
 const CREEM_PRODUCT_ID_PATTERN = "^prod_[A-Za-z0-9]+$";
 
+/**
+ * The three properties that name one product: the plan, the billing period it
+ * sells over, and the Creem environment. They are a product's path parameters
+ * and the body of a new one alike.
+ */
+const productKeyProperties = {
+  tierId: tierIdSchema,
+  billingPeriod: { type: "string", enum: Object.values(BillingPeriod) },
+  mode: { type: "string", enum: Object.values(CreemMode) },
+} as const;
+
 /** Schema for the three path parameters every per-product route takes. */
 const productParamsSchema = {
   type: "object",
   required: ["tierId", "billingPeriod", "mode"],
   additionalProperties: false,
-  properties: {
-    tierId: { type: "string", minLength: 1, maxLength: 64, pattern: "^[A-Za-z0-9_-]+$" },
-    billingPeriod: { type: "string", enum: Object.values(BillingPeriod) },
-    mode: { type: "string", enum: [CreemMode.Test, CreemMode.Live] },
-  },
+  properties: productKeyProperties,
 } as const;
 
 /**
@@ -151,9 +158,7 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
           required: ["tierId", "billingPeriod", "mode"],
           additionalProperties: false,
           properties: {
-            tierId: { type: "string", minLength: 1, maxLength: 64, pattern: "^[A-Za-z0-9_-]+$" },
-            billingPeriod: { type: "string", enum: Object.values(BillingPeriod) },
-            mode: { type: "string", enum: [CreemMode.Test, CreemMode.Live] },
+            ...productKeyProperties,
             creemProductId: {
               type: "string",
               minLength: 1,
@@ -342,7 +347,7 @@ export async function adminCreemProductRoutes(app: FastifyInstance) {
           type: "object",
           required: ["sellingMode"],
           additionalProperties: false,
-          properties: { sellingMode: { type: "string", enum: [CreemMode.Test, CreemMode.Live] } },
+          properties: { sellingMode: { type: "string", enum: Object.values(CreemMode) } },
         },
       },
     },

@@ -477,3 +477,18 @@ describe("DELETE /api/admin/developer/tiers/:id", () => {
     expect(resetCreemCatalogCache).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("a plan id no plan can carry", () => {
+  it.each(["PATCH", "DELETE"] as const)("is refused by %s before it reaches the database", async (method) => {
+    const res = await app.inject({
+      method,
+      url: ENDPOINTS.admin.developer.tierDetail("tier free/../x"),
+      headers: { authorization: `Bearer ${bearerToken()}` },
+      ...(method === "PATCH" ? { payload: { name: "Renamed" } } : {}),
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(mockTierRepo.updateTier).not.toHaveBeenCalled();
+    expect(mockTierRepo.deleteTier).not.toHaveBeenCalled();
+  });
+});

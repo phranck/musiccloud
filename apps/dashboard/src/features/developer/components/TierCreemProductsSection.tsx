@@ -18,18 +18,12 @@ import {
   useCreemProducts,
   useUpdateCreemProductPrice,
 } from "@/features/developer/hooks/useDeveloperData";
-import { formatOfferPrice, periodLabel } from "@/features/developer/offerFormat";
+import { CREEM_MODE_OPTIONS, creemModeLabel, formatOfferPrice, periodLabel } from "@/features/developer/offerFormat";
 
 const messages = dashboardCopy;
 const dm = messages.developer;
 
 const labelClass = "block text-xs font-medium text-[var(--ds-text-muted)] mb-1";
-
-/** The environments in the order the switch offers them. */
-const MODE_OPTIONS = [
-  { value: CreemMode.Test, label: dm.creemEnvironmentTest },
-  { value: CreemMode.Live, label: dm.creemEnvironmentLive },
-] as const;
 
 /** Props for {@link TierCreemProductRow}. */
 interface TierCreemProductRowProps {
@@ -206,10 +200,10 @@ export function TierCreemProductsSection({ tier, offers }: TierCreemProductsSect
   // still show what is in it, because knowing that nothing is set up there yet
   // is the point of looking.
   const writable = data?.writableModes.includes(shownMode) ?? false;
-  const shownLabel = shownMode === CreemMode.Live ? dm.creemEnvironmentLive : dm.creemEnvironmentTest;
+  const shownLabel = creemModeLabel(shownMode);
 
   const environmentSwitch = useMemo(
-    () => <SegmentedControl value={shownMode} onChange={setShownMode} options={MODE_OPTIONS} />,
+    () => <SegmentedControl value={shownMode} onChange={setShownMode} options={CREEM_MODE_OPTIONS} />,
     [shownMode],
   );
 

@@ -17,10 +17,12 @@ import { getTierRepository } from "../db/index.js";
 import {
   BillingPeriod,
   OfferCurrency,
+  offerIdSchema,
   TaxCategory,
   TaxMode,
   type TierOfferCreateData,
   type TierOfferUpdateData,
+  tierIdSchema,
 } from "../db/tiers-repository.js";
 import { requireOwnerOrAdmin } from "../lib/admin-caller.js";
 import { replyWithApiError } from "../lib/infra/api-error-handler.js";
@@ -67,8 +69,21 @@ const offerFieldsSchema = {
   sortOrder: { type: "integer", minimum: 0, maximum: 999 },
 } as const;
 
-/** The identifier of a plan or an offer, as it may appear in a path. */
-const idSchema = { type: "string", minLength: 1, maxLength: 64, pattern: "^[A-Za-z0-9_:-]+$" } as const;
+/** The path parameter of the routes that act on one plan's offers. */
+const tierParamsSchema = {
+  type: "object",
+  required: ["tierId"],
+  additionalProperties: false,
+  properties: { tierId: tierIdSchema },
+} as const;
+
+/** The path parameter of the routes that act on one offer. */
+const offerParamsSchema = {
+  type: "object",
+  required: ["id"],
+  additionalProperties: false,
+  properties: { id: offerIdSchema },
+} as const;
 
 /**
  * Refuses a URL that does not point at one of our own origins.
@@ -104,7 +119,7 @@ export async function adminPlanOfferRoutes(app: FastifyInstance) {
     ROUTE_TEMPLATES.admin.developer.planOffers,
     {
       schema: {
-        params: { type: "object", required: ["tierId"], additionalProperties: false, properties: { tierId: idSchema } },
+        params: tierParamsSchema,
       },
     },
     async (request, reply) => {
@@ -125,7 +140,7 @@ export async function adminPlanOfferRoutes(app: FastifyInstance) {
     ROUTE_TEMPLATES.admin.developer.planOffers,
     {
       schema: {
-        params: { type: "object", required: ["tierId"], additionalProperties: false, properties: { tierId: idSchema } },
+        params: tierParamsSchema,
         body: {
           type: "object",
           required: ["billingPeriod", "priceCents"],
@@ -183,7 +198,7 @@ export async function adminPlanOfferRoutes(app: FastifyInstance) {
     ROUTE_TEMPLATES.admin.developer.planOfferDetail,
     {
       schema: {
-        params: { type: "object", required: ["id"], additionalProperties: false, properties: { id: idSchema } },
+        params: offerParamsSchema,
         body: { type: "object", additionalProperties: false, properties: offerFieldsSchema },
       },
     },
@@ -210,7 +225,7 @@ export async function adminPlanOfferRoutes(app: FastifyInstance) {
     ROUTE_TEMPLATES.admin.developer.planOfferDetail,
     {
       schema: {
-        params: { type: "object", required: ["id"], additionalProperties: false, properties: { id: idSchema } },
+        params: offerParamsSchema,
       },
     },
     async (request, reply) => {

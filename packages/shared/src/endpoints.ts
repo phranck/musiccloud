@@ -374,7 +374,7 @@ export const ENDPOINTS = {
       /** GET: list all tiers / POST: create. */
       tiers: "/api/admin/developer/tiers",
       /** PATCH / DELETE: single tier by id. */
-      tierDetail: (id: string) => `/api/admin/developer/tiers/${id}`,
+      tierDetail: (id: string) => `/api/admin/developer/tiers/${encodeURIComponent(id)}`,
       /**
        * GET: `{ mode, products }`, where `products` is every
        * `tier_creem_products` row across both Creem environments and `mode`
