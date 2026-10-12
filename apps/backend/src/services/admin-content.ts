@@ -10,7 +10,11 @@ import type {
   PublicPageSegment,
 } from "@musiccloud/shared";
 import {
+  CONTENT_BODY_MAX_LENGTH,
   CONTENT_CARD_STYLES,
+  CONTENT_SLUG_MAX_LENGTH,
+  CONTENT_SLUG_PATTERN,
+  CONTENT_TITLE_MAX_LENGTH,
   ContentContext,
   isValidContentContextMask,
   OVERLAY_WIDTHS,
@@ -32,17 +36,80 @@ import { isReservedDeveloperPortalPath, normalizeEditorialPath } from "./editori
 import { MARKDOWN_EXTENSION_REGISTRY, type MarkdownExtensionRegistry } from "./markdown/extension-registry.js";
 import { validateMarkdownForContexts } from "./markdown/validation.js";
 
-const SLUG_PATTERN = /^[a-z0-9-]+$/;
-const SLUG_MAX_LEN = 100;
-const TITLE_MAX_LEN = 200;
-const CONTENT_MAX_LEN = 100_000;
-
 export type ContentResult<T> =
   | { ok: true; data: T }
   | { ok: false; code: "NOT_FOUND" | "SLUG_TAKEN" | "PATH_TAKEN" | "INVALID_INPUT"; message: string };
 
+const CONTENT_STATUSES = ["draft", "published", "hidden"] as const;
+
 function isOneOf<T extends readonly string[]>(list: T, v: unknown): v is T[number] {
   return typeof v === "string" && (list as readonly string[]).includes(v);
+}
+
+/** The message for a field that has to be one of a fixed set of values. */
+function oneOfMessage(field: string, values: readonly string[]): string {
+  return `${field} must be one of ${values.join(", ")}`;
+}
+
+/**
+ * Checks the meta fields of a page create, edit or bulk save, so all three
+ * refuse the same values with the same message. A field that is absent is not
+ * checked.
+ *
+ * The enum columns are plain text in the database, so this is the only place a
+ * value outside its set is stopped before the site reads it back.
+ *
+ * @param meta - The fields to check, as the caller received them.
+ * @param currentSlug - The page's slug before the change. A slug equal to it
+ *   is not checked again, so a page whose slug predates the current rule can
+ *   still be saved without renaming it.
+ * @returns A message naming the first refused field, or `null` when every
+ *   field is acceptable.
+ */
+export function validateContentPageMeta(meta: Record<string, unknown>, currentSlug?: string): string | null {
+  const { title, slug, status, pageType, displayMode, overlayWidth, titleAlignment, contentCardStyle, showTitle } =
+    meta;
+  if (
+    title !== undefined &&
+    (typeof title !== "string" || title.length === 0 || title.length > CONTENT_TITLE_MAX_LENGTH)
+  ) {
+    return `title must be non-empty (max ${CONTENT_TITLE_MAX_LENGTH} chars)`;
+  }
+  if (
+    slug !== undefined &&
+    slug !== currentSlug &&
+    (typeof slug !== "string" || slug.length > CONTENT_SLUG_MAX_LENGTH || !CONTENT_SLUG_PATTERN.test(slug))
+  ) {
+    return `slug must be lowercase letters, digits and inner hyphens (max ${CONTENT_SLUG_MAX_LENGTH} chars)`;
+  }
+  if (status !== undefined && !isOneOf(CONTENT_STATUSES, status)) return oneOfMessage("status", CONTENT_STATUSES);
+  if (pageType !== undefined && !isOneOf(PAGE_TYPES, pageType)) return oneOfMessage("pageType", PAGE_TYPES);
+  if (displayMode !== undefined && !isOneOf(PAGE_DISPLAY_MODES, displayMode)) {
+    return oneOfMessage("displayMode", PAGE_DISPLAY_MODES);
+  }
+  if (overlayWidth !== undefined && !isOneOf(OVERLAY_WIDTHS, overlayWidth)) {
+    return oneOfMessage("overlayWidth", OVERLAY_WIDTHS);
+  }
+  if (titleAlignment !== undefined && !isOneOf(PAGE_TITLE_ALIGNMENTS, titleAlignment)) {
+    return oneOfMessage("titleAlignment", PAGE_TITLE_ALIGNMENTS);
+  }
+  if (contentCardStyle !== undefined && !isOneOf(CONTENT_CARD_STYLES, contentCardStyle)) {
+    return oneOfMessage("contentCardStyle", CONTENT_CARD_STYLES);
+  }
+  if (showTitle !== undefined && typeof showTitle !== "boolean") return "showTitle must be boolean";
+  return null;
+}
+
+/**
+ * Checks a page's Markdown body for a single save and for a bulk save alike.
+ *
+ * @param content - The body as the caller received it.
+ * @returns A message when the body is refused, or `null`.
+ */
+export function validateContentPageBody(content: unknown): string | null {
+  return typeof content !== "string" || content.length > CONTENT_BODY_MAX_LENGTH
+    ? `content must be a string (max ${CONTENT_BODY_MAX_LENGTH} chars)`
+    : null;
 }
 
 function contentUniquenessCode(error: unknown): "SLUG_TAKEN" | "PATH_TAKEN" | null {
@@ -206,18 +273,13 @@ export async function createManagedContentPage(data: {
   pageType?: PageType;
   createdBy: string | null;
 }): Promise<ContentResult<ContentPage>> {
-  if (!data.slug || data.slug.length > SLUG_MAX_LEN || !SLUG_PATTERN.test(data.slug)) {
-    return { ok: false, code: "INVALID_INPUT", message: "slug must match /^[a-z0-9-]+$/ (max 100 chars)" };
-  }
-  if (!data.title || data.title.length > TITLE_MAX_LEN) {
-    return { ok: false, code: "INVALID_INPUT", message: "title required (max 200 chars)" };
-  }
-  if (data.status && !["draft", "published", "hidden"].includes(data.status)) {
-    return { ok: false, code: "INVALID_INPUT", message: "status must be draft, published, or hidden" };
-  }
-  if (data.pageType !== undefined && !isOneOf(PAGE_TYPES, data.pageType)) {
-    return { ok: false, code: "INVALID_INPUT", message: "pageType must be 'default' or 'segmented'" };
-  }
+  const invalid = validateContentPageMeta({
+    title: data.title,
+    slug: data.slug,
+    status: data.status,
+    pageType: data.pageType,
+  });
+  if (invalid) return { ok: false, code: "INVALID_INPUT", message: invalid };
   const contextMask = data.contextMask ?? ContentContext.Frontend;
   const publications = normalizeAndValidateContentPublications(
     contextMask,
@@ -251,36 +313,11 @@ export async function updateManagedContentPageMeta(
   identity: string,
   data: ContentPageMetaUpdate,
 ): Promise<ContentResult<ContentPage>> {
-  if (data.title !== undefined && (data.title.length === 0 || data.title.length > TITLE_MAX_LEN)) {
-    return { ok: false, code: "INVALID_INPUT", message: "title must be non-empty (max 200 chars)" };
-  }
-  if (
-    data.slug !== undefined &&
-    (data.slug.length === 0 || data.slug.length > SLUG_MAX_LEN || !SLUG_PATTERN.test(data.slug))
-  ) {
-    return { ok: false, code: "INVALID_INPUT", message: "slug must match /^[a-z0-9-]+$/" };
-  }
-  if (data.status !== undefined && !["draft", "published", "hidden"].includes(data.status)) {
-    return { ok: false, code: "INVALID_INPUT", message: "status invalid" };
-  }
-  if (data.pageType !== undefined && !isOneOf(PAGE_TYPES, data.pageType)) {
-    return { ok: false, code: "INVALID_INPUT", message: "pageType invalid" };
-  }
-  if (data.displayMode !== undefined && !isOneOf(PAGE_DISPLAY_MODES, data.displayMode)) {
-    return { ok: false, code: "INVALID_INPUT", message: "displayMode invalid" };
-  }
-  if (data.overlayWidth !== undefined && !isOneOf(OVERLAY_WIDTHS, data.overlayWidth)) {
-    return { ok: false, code: "INVALID_INPUT", message: "overlayWidth invalid" };
-  }
-  if (data.titleAlignment !== undefined && !isOneOf(PAGE_TITLE_ALIGNMENTS, data.titleAlignment)) {
-    return { ok: false, code: "INVALID_INPUT", message: "titleAlignment invalid" };
-  }
-  if (data.contentCardStyle !== undefined && !isOneOf(CONTENT_CARD_STYLES, data.contentCardStyle)) {
-    return { ok: false, code: "INVALID_INPUT", message: "contentCardStyle invalid" };
-  }
   const repo = await getAdminRepository();
   const existing = await getContentPageByIdentity(repo, identity);
   if (!existing) return { ok: false, code: "NOT_FOUND", message: "Content page not found" };
+  const invalid = validateContentPageMeta({ ...data }, existing.slug);
+  if (invalid) return { ok: false, code: "INVALID_INPUT", message: invalid };
   if (data.slug !== undefined && data.slug !== existing.slug) {
     if (await repo.contentPageSlugExists(data.slug)) {
       return { ok: false, code: "SLUG_TAKEN", message: "A page with this slug already exists" };
@@ -373,9 +410,8 @@ export async function updateManagedContentPageBody(
   content: string,
   updatedBy: string | null,
 ): Promise<ContentResult<ContentPage>> {
-  if (typeof content !== "string" || content.length > CONTENT_MAX_LEN) {
-    return { ok: false, code: "INVALID_INPUT", message: `content must be string (max ${CONTENT_MAX_LEN} chars)` };
-  }
+  const invalidBody = validateContentPageBody(content);
+  if (invalidBody) return { ok: false, code: "INVALID_INPUT", message: invalidBody };
   const repo = await getAdminRepository();
   // Fetch existing row to detect actual content change before updating.
   const existing = await getContentPageByIdentity(repo, identity);

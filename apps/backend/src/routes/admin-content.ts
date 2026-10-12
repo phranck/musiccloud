@@ -1,12 +1,9 @@
 import {
+  type ContentCardStyle,
   type ContentContextMask,
   type ContentPublication,
   ENDPOINTS,
-  OVERLAY_WIDTHS,
   type OverlayWidth,
-  PAGE_DISPLAY_MODES,
-  PAGE_TITLE_ALIGNMENTS,
-  PAGE_TYPES,
   type PageDisplayMode,
   type PageSegmentInput,
   type PagesBulkRequest,
@@ -68,14 +65,27 @@ interface ContentMetaBody {
   pageType?: PageType;
   displayMode?: PageDisplayMode;
   overlayWidth?: OverlayWidth;
+  contentCardStyle?: ContentCardStyle;
 }
+
+/**
+ * The text fields a meta edit accepts. The route checks only that each is a
+ * string; `validateContentPageMeta` in the service checks the value, the same
+ * way for a single edit, a create and a bulk save.
+ */
+const META_STRING_FIELDS = [
+  "title",
+  "slug",
+  "status",
+  "titleAlignment",
+  "pageType",
+  "displayMode",
+  "overlayWidth",
+  "contentCardStyle",
+] as const satisfies readonly (keyof ContentMetaBody)[];
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === "object" && !Array.isArray(v);
-}
-
-function isOneOf<T extends readonly string[]>(list: T, v: unknown): v is T[number] {
-  return typeof v === "string" && (list as readonly string[]).includes(v);
 }
 
 function validateCreateBody(body: unknown): ContentCreateBody | string {
@@ -86,15 +96,10 @@ function validateCreateBody(body: unknown): ContentCreateBody | string {
   const contextual = validateContextualFields(body);
   if (typeof contextual === "string") return contextual;
   Object.assign(out, contextual);
-  if (body.status !== undefined) {
-    if (body.status !== "draft" && body.status !== "published" && body.status !== "hidden") {
-      return "status must be draft, published, or hidden";
-    }
-    out.status = body.status;
-  }
-  if (body.pageType !== undefined) {
-    if (!isOneOf(PAGE_TYPES, body.pageType)) return "pageType must be 'default' or 'segmented'";
-    out.pageType = body.pageType;
+  for (const key of ["status", "pageType"] as const) {
+    if (body[key] === undefined) continue;
+    if (typeof body[key] !== "string") return `${key} must be string`;
+    Object.assign(out, { [key]: body[key] });
   }
   return out;
 }
@@ -105,39 +110,14 @@ function validateMetaBody(body: unknown): ContentMetaBody | string {
   const contextual = validateContextualFields(body);
   if (typeof contextual === "string") return contextual;
   Object.assign(out, contextual);
-  if (body.title !== undefined) {
-    if (typeof body.title !== "string") return "title must be string";
-    out.title = body.title;
-  }
-  if (body.slug !== undefined) {
-    if (typeof body.slug !== "string") return "slug must be string";
-    out.slug = body.slug;
-  }
-  if (body.status !== undefined) {
-    if (body.status !== "draft" && body.status !== "published" && body.status !== "hidden") {
-      return "status must be draft, published, or hidden";
-    }
-    out.status = body.status;
+  for (const key of META_STRING_FIELDS) {
+    if (body[key] === undefined) continue;
+    if (typeof body[key] !== "string") return `${key} must be string`;
+    Object.assign(out, { [key]: body[key] });
   }
   if (body.showTitle !== undefined) {
     if (typeof body.showTitle !== "boolean") return "showTitle must be boolean";
     out.showTitle = body.showTitle;
-  }
-  if (body.titleAlignment !== undefined) {
-    if (!isOneOf(PAGE_TITLE_ALIGNMENTS, body.titleAlignment)) return "titleAlignment invalid";
-    out.titleAlignment = body.titleAlignment;
-  }
-  if (body.pageType !== undefined) {
-    if (!isOneOf(PAGE_TYPES, body.pageType)) return "pageType must be 'default' or 'segmented'";
-    out.pageType = body.pageType;
-  }
-  if (body.displayMode !== undefined) {
-    if (!isOneOf(PAGE_DISPLAY_MODES, body.displayMode)) return "displayMode invalid";
-    out.displayMode = body.displayMode;
-  }
-  if (body.overlayWidth !== undefined) {
-    if (!isOneOf(OVERLAY_WIDTHS, body.overlayWidth)) return "overlayWidth invalid";
-    out.overlayWidth = body.overlayWidth;
   }
   return out;
 }

@@ -4,7 +4,16 @@ import {
   DashboardActionStatus,
   DashboardButtonVariant,
 } from "@musiccloud/dashboard-ui";
-import { ContentContext, type ContentContextMask, type ContentPage, PageType } from "@musiccloud/shared";
+import {
+  CONTENT_SLUG_MAX_LENGTH,
+  CONTENT_SLUG_PATTERN,
+  CONTENT_TITLE_MAX_LENGTH,
+  ContentContext,
+  type ContentContextMask,
+  type ContentPage,
+  contentSlugFromText,
+  PageType,
+} from "@musiccloud/shared";
 import { PlusCircleIcon } from "@phosphor-icons/react";
 import { useReducer } from "react";
 
@@ -44,17 +53,6 @@ const INITIAL: State = {
   error: null,
 };
 
-function slugify(str: string): string {
-  return str
-    .toLowerCase()
-    .replace(/ä/g, "ae")
-    .replace(/ö/g, "oe")
-    .replace(/ü/g, "ue")
-    .replace(/ß/g, "ss")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
 export function CreatePageDialog({ open, onClose, onCreated, lockDefaultType }: Props) {
   const messages = dashboardCopy;
   const text = messages.content.pages;
@@ -80,7 +78,7 @@ export function CreatePageDialog({ open, onClose, onCreated, lockDefaultType }: 
   }
 
   function handleTitleChange(val: string) {
-    dispatch(slugManual ? { title: val } : { title: val, slug: slugify(val) });
+    dispatch(slugManual ? { title: val } : { title: val, slug: contentSlugFromText(val) });
   }
 
   function handleSlugChange(val: string) {
@@ -126,6 +124,7 @@ export function CreatePageDialog({ open, onClose, onCreated, lockDefaultType }: 
               value={title}
               onChange={(e) => handleTitleChange(e.target.value)}
               required
+              maxLength={CONTENT_TITLE_MAX_LENGTH}
               placeholder={text.titlePlaceholder}
               className={formInputClass}
             />
@@ -141,7 +140,8 @@ export function CreatePageDialog({ open, onClose, onCreated, lockDefaultType }: 
                 value={slug}
                 onChange={(e) => handleSlugChange(e.target.value)}
                 required
-                pattern="[a-z0-9-]+"
+                maxLength={CONTENT_SLUG_MAX_LENGTH}
+                pattern={CONTENT_SLUG_PATTERN.source}
                 placeholder={text.slugPlaceholder}
                 className={`${formInputClass} font-mono`}
               />

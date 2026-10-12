@@ -208,3 +208,36 @@ describe("contextual content route error contract", () => {
     expect(mocks.getPublicNavItems).toHaveBeenCalledWith("header");
   });
 });
+
+describe("PATCH page meta", () => {
+  beforeEach(() => {
+    mocks.updateManagedContentPageMeta.mockReset().mockResolvedValue({ ok: true, data: {} });
+  });
+
+  it("passes the card style to the service", async () => {
+    const app = await createApp([]);
+    const response = await app.inject({
+      method: "PATCH",
+      url: ENDPOINTS.admin.pages.detail("page-1"),
+      payload: { contentCardStyle: "default" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(mocks.updateManagedContentPageMeta).toHaveBeenCalledWith("page-1", {
+      contentCardStyle: "default",
+      updatedBy: "admin-1",
+    });
+  });
+
+  it("refuses a meta field that is not a string before the service sees it", async () => {
+    const app = await createApp([]);
+    const response = await app.inject({
+      method: "PATCH",
+      url: ENDPOINTS.admin.pages.detail("page-1"),
+      payload: { displayMode: 3 },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(mocks.updateManagedContentPageMeta).not.toHaveBeenCalled();
+  });
+});

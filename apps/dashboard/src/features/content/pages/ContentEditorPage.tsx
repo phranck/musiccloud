@@ -12,7 +12,14 @@ import type {
   PageTitleAlignment as PageTitleAlignmentValue,
   SingleContentContext,
 } from "@musiccloud/shared";
-import { ContentContext, SITE_ORIGIN } from "@musiccloud/shared";
+import {
+  CONTENT_SLUG_MAX_LENGTH,
+  CONTENT_SLUG_PATTERN,
+  CONTENT_TITLE_MAX_LENGTH,
+  ContentContext,
+  contentSlugFromText,
+  SITE_ORIGIN,
+} from "@musiccloud/shared";
 import {
   EyeIcon,
   FileLockIcon,
@@ -64,17 +71,6 @@ function loadFontSize(): number {
   const stored = localStorage.getItem(FONT_SIZE_KEY);
   const parsed = stored ? Number(stored) : Number.NaN;
   return Number.isNaN(parsed) ? FONT_SIZE_DEFAULT : Math.min(FONT_SIZE_MAX, Math.max(FONT_SIZE_MIN, parsed));
-}
-
-function slugify(str: string): string {
-  return str
-    .toLowerCase()
-    .replace(/ä/g, "ae")
-    .replace(/ö/g, "oe")
-    .replace(/ü/g, "ue")
-    .replace(/ß/g, "ss")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 }
 
 // ---------------------------------------------------------------------------
@@ -367,7 +363,8 @@ function EditorMetadataBar({
               onKeyDown={(e) => {
                 if (e.key === "Enter") onSaveSlug();
               }}
-              pattern="[a-z0-9-]+"
+              maxLength={CONTENT_SLUG_MAX_LENGTH}
+              pattern={CONTENT_SLUG_PATTERN.source}
               className="w-40 font-mono text-xs"
             />
             <DashboardButton type="button" onClick={onSaveSlug} size="action" variant={DashboardButtonVariant.Primary}>
@@ -448,6 +445,7 @@ function PageTitleField({ label, value, placeholder, onChange }: PageTitleFieldP
           aria-label={label}
           value={value}
           onChange={(event) => onChange(event.target.value)}
+          maxLength={CONTENT_TITLE_MAX_LENGTH}
           placeholder={placeholder}
         />
       </div>
@@ -782,7 +780,9 @@ export function ContentEditorPage() {
             dispatch({ type: EditorActionType.SetEditingSlug, value: true });
           }}
           onSlugValueChange={(value) => dispatch({ type: EditorActionType.SetEditSlugValue, value })}
-          onSlugBlur={(value) => dispatch({ type: EditorActionType.SetEditSlugValue, value: slugify(value) })}
+          onSlugBlur={(value) =>
+            dispatch({ type: EditorActionType.SetEditSlugValue, value: contentSlugFromText(value) })
+          }
           onSaveSlug={handleSlugSave}
           onCancelSlug={() => dispatch({ type: EditorActionType.SetEditingSlug, value: false })}
           onShowTitleChange={(value) => setMeta("showTitle", value)}

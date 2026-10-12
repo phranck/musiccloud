@@ -5,7 +5,7 @@ import type {
   PagesBulkErrorDetail,
   PagesBulkRequest,
 } from "@musiccloud/shared";
-import { ContentContext, PAGE_TYPES } from "@musiccloud/shared";
+import { ContentContext } from "@musiccloud/shared";
 
 import type { ContentPageMetaUpdate } from "../db/admin-repository.js";
 import { getAdminRepository } from "../db/index.js";
@@ -14,6 +14,8 @@ import {
   contentContextRemovalNavigationError,
   getManagedContentPages,
   normalizeAndValidateContentPublications,
+  validateContentPageBody,
+  validateContentPageMeta,
 } from "./admin-content.js";
 import { normalizeEditorialPath } from "./editorial-path.js";
 
@@ -24,8 +26,6 @@ export type BulkResult =
 export interface BulkUpdateOpts {
   updatedBy: string | null;
 }
-
-const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 
 export async function bulkUpdatePages(payload: PagesBulkRequest, opts: BulkUpdateOpts): Promise<BulkResult> {
   const repo = await getAdminRepository();
@@ -48,16 +48,12 @@ export async function bulkUpdatePages(payload: PagesBulkRequest, opts: BulkUpdat
       errors.push({ section: "pages", index: idx, message: `unknown page '${entry.slug}'` });
       continue;
     }
-    if (entry.meta?.slug !== undefined && entry.meta.slug !== entry.slug) {
-      if (!SLUG_RE.test(entry.meta.slug)) {
-        errors.push({ section: "pages", index: idx, message: "invalid slug pattern" });
-      }
-      if (bySlug.has(entry.meta.slug)) {
-        errors.push({ section: "pages", index: idx, message: "target slug already exists" });
-      }
-    }
-    if (entry.meta?.pageType !== undefined && !PAGE_TYPES.includes(entry.meta.pageType)) {
-      errors.push({ section: "pages", index: idx, message: "invalid pageType" });
+    const invalidMeta = entry.meta ? validateContentPageMeta({ ...entry.meta }, entry.slug) : null;
+    if (invalidMeta) errors.push({ section: "pages", index: idx, message: invalidMeta });
+    const invalidBody = entry.content !== undefined ? validateContentPageBody(entry.content) : null;
+    if (invalidBody) errors.push({ section: "pages", index: idx, message: invalidBody });
+    if (entry.meta?.slug !== undefined && entry.meta.slug !== entry.slug && bySlug.has(entry.meta.slug)) {
+      errors.push({ section: "pages", index: idx, message: "target slug already exists" });
     }
     const current = detailsBySlug.get(entry.slug);
     if (
